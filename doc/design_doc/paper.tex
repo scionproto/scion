@@ -1,0 +1,177 @@
+
+\documentclass[12pt]{article}
+% \usepackage{times}
+\usepackage{mathptmx}  % Postscript fonts for math mode
+% \usepackage{fullpage}
+\usepackage{amsmath}
+% \usepackage{amsfonts}
+\usepackage{amsthm}
+\usepackage{xspace}
+\usepackage{graphicx}
+\usepackage{psfrag}
+\usepackage{url}
+\usepackage{pifont}
+\usepackage{color}    % Used to highlight comments
+\usepackage{geometry}
+\usepackage{comment}
+\usepackage{fancyvrb}
+\usepackage{listings}
+\usepackage{subfigure}
+
+% yih-chun/dbj hack to center text in psfrag figs
+\def\centerhack#1{\hbox to 0pt{\hss\footnotesize #1\hss}}
+
+%\newcommand{\comment}{\ding{110}\ding{43}\textcolor{red}}
+\newcommand{\note}{\ding{110}\ding{43}\textcolor{red}}
+\newcommand{\soobum}[1]{\ding{110}\ding{43}\textcolor{red}{Soobum: #1}}
+\newcommand{\tenma}[1]{\ding{110}\ding{43}\textcolor{red}{Tenma: #1}}
+\newcommand{\qi}[1]{\ding{110}\ding{43}\textcolor{red}{Qi: #1}}
+\newcommand{\marknew}{\ding{110}\ding{43}\ }
+\newcommand{\chris}[1]{\ding{110}\ding{43}\textcolor{red}{Chris: #1}}
+
+%\geometry{tmargin=.7in,bmargin=.7in,lmargin=.7in,rmargin=.7in}
+\renewcommand{\baselinestretch}{0.99}
+
+% Tighter lists
+\makeatletter
+\def\@listi{\leftmargin\leftmargini
+    \parsep 1\p@ \@plus0\p@ \@minus\p@
+    \topsep 2\p@   \@plus0\p@ \@minus\p@
+%    \topsep 2\p@   \@plus2\p@ \@minus2\p@
+%    \itemsep1.25\p@ \@plus\p@ \@minus\p@}
+    \itemsep1\p@ \@plus0\p@ \@minus\p@}
+\let\@listI\@listi\@listi
+\makeatother
+
+%--------------------------------------------------------------------------------
+% float stuff
+\renewcommand{\textfraction}{0}
+\renewcommand{\topfraction}{1}
+\renewcommand{\bottomfraction}{1}
+\setcounter{totalnumber}{10}
+\setcounter{topnumber}{10}
+\setcounter{bottomnumber}{10}
+\setcounter{dbltopnumber}{10}
+\renewcommand{\floatpagefraction}{1}
+\renewcommand{\dblfloatpagefraction}{1}
+
+\newcommand{\loosenbaseline}{}%\advance\baselineskip 0pt plus 0.5pt}
+\newcommand{\tightenbaseline}{}%\advance\baselineskip 0pt plus -0.5pt}
+
+
+\newcommand{\Send}[3]{{#1}\rightarrow{#2}:&&\langle{#3}\rangle}
+\newcommand{\Msg}[1]{\langle{#1}\rangle}
+
+%% $\begin{array}{lll}
+%% \Send{B}{A}{N_B, \  \mbox{MAC}_{K'_{AB}}(N_B) }\\
+%% \Send{A}{B}{C_A, \ \mbox{MAC}_{K'_{AB}}(C_A||N_B)}
+%% \end{array}$
+
+\newcommand{\rpick}{{\buildrel R \over \leftarrow}}
+\newcommand{\eeq}{\mathrel{{:}{:}{=}}}
+\newcommand{\zo}{{\{0,1\}}}
+\newcommand{\X}{{\cal X}}
+\newcommand{\xor}{\oplus}
+\newcommand{\qeq}{{\buildrel ? \over =}}
+
+\newcommand{\change}[1]{\underline{\strut{\mbox{\boldmath$#1$}}}}
+\newcommand{\etal}{et~al.\@\xspace} %{et~al.\@\xspace}
+\newcommand{\etaltild}{et~al.\@~}
+\newcommand{\eg}{e.g.,\xspace}
+\newcommand{\ie}{i.e.,\xspace}
+\newcommand{\MHz}{ MHz\xspace}
+\newcommand{\mhz}{ MHz\xspace}
+\newcommand{\io}{I/O\xspace}
+\newcommand{\kbyte}{K byte\@\xspace}
+\newcommand{\kbytes}{K bytes\@\xspace}
+\newcommand{\kbps}{ kbps\@\xspace}
+\newcommand{\TDCore}{TD Core\@\xspace}
+\newcommand{\TDC}{TD Core\@\xspace}
+\newcommand{\TD}{Trust Domain\@\xspace}
+\newcommand{\TDs}{Trust Domains\@\xspace}
+\newcommand{\AD}{AD\@\xspace}
+\newcommand{\ADs}{ADs\@\xspace}
+\newcommand{\PF}{Policy File\@\xspace}
+\newcommand{\STUB}{Endpoint\@\xspace}
+\newcommand{\TRAN}{Transit\@\xspace}
+\newcommand{\RT}{Root of Trust\@\xspace}
+\newcommand{\PS}{path server\@\xspace}
+\newcommand{\PSs}{path servers\@\xspace}
+\newcommand{\CS}{certificate server\@\xspace}
+\newcommand{\CSs}{certificate servers\@\xspace}
+\newcommand{\BS}{beacon server\@\xspace}
+\newcommand{\BSs}{beacon servers\@\xspace}
+\newcommand{\CAD}{$\textcircled{\footnotesize C}$\@\xspace}
+\newcommand{\TAD}{$\textcircled{\footnotesize T}$\@\xspace}
+\newcommand{\EAD}{$\textcircled{\footnotesize E}$\@\xspace}
+
+%\newcommand{\xor}{\oplus}
+%\newcommand{\zo}{{\{0,1\}}}
+
+%--------------------------------------------------------------------------------
+\hyphenation{re-pu-dia-tion}
+
+% yih-chun/dbj hack to center text in psfrag figs
+\def\centerhack#1{\hbox to 0pt{\hss\footnotesize #1\hss}}
+\def\dchack#1{\vbox to 0pt{\vss{\hbox to 0pt{\hss#1\hss}}\vss}}
+
+%% Figure example
+%% \begin{figure}
+%%   \centering
+%%   \psfrag{1}{$v_1$} % replaces "1" with $v_1$ in the figure
+%%   \psfrag{2}{\centerhack{$v_2$}} % replaces "2" with $v_2$ in the figure, centered at "2"
+%%   \psfrag{S0}{\dchack{\scalebox{.8}{\mbox{$v_{0}$}}}}
+%%   \psfrag{M07}{\dchack{\scalebox{.8}{\mbox{$m_{07}$}}}}
+%%   \includegraphics[width=.7\columnwidth]{mht2} % includes figure mht2.eps
+%%   \caption{Tree authenticated values}
+%%   \label{fig:basic-mht}
+%% \end{figure}
+
+%--------------------------------------------------------------------------------
+\pagenumbering{arabic}
+
+\title{SCION Design and Implementation Document}
+\author{SCION Team}
+\date{\today}
+
+%--------------------------------------------------------------------------------
+\begin{document}
+\maketitle
+\tableofcontents
+%\input{Outline}
+\newpage
+\setcounter{page}{1}
+%\input{Introduction}
+\input{Overview}
+\input{CertificateServer}
+%\input{RootOfTrust}
+\input{BeaconServer}
+\input{PathServer}
+\input{BorderRouter}
+\input{PacketFormat}
+\input{Host-module}
+%\input{Host-to-host-communication-example}
+\input{Gateway}
+\input{PathStore}
+\input{PathJoining}
+\input{Cryptography}
+\input{SystemConfiguration}
+\input{Example}
+
+%--------------------------------------------------------------------------------
+% \section{Acknowledgments}
+
+%--------------------------------------------------------------------------------
+\bibliographystyle{plain}
+\bibliography{bib}
+\nocite{ZHHCPA2011}
+
+\appendix
+\input{appd}
+
+\end{document}
+
+%%% Local Variables: 
+%%% mode: latex
+%%% TeX-master: t
+%%% End: 
