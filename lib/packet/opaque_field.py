@@ -20,12 +20,22 @@ import logging
 from bitstring import BitArray
 import bitstring
 
+#TODO PSz discuss that class
 class OpaqueFieldType(object):
     """
     Defines constants for the types of the opaque field.
     """
     INFO_OF = 0
     HOP_OF = 1
+
+    NORMAL_OF=0x00
+    SPECIAL_OF=0x80
+    TDC_XOVR=0x80
+    NON_TDC_XOVR=0xc0
+    INPATH_XOVR=0xe0
+    INTRATD_PEER=0xf0
+    INTERTD_PEER=0xf8
+    PEER_XOVR=0x10
 
 
 class OpaqueField(object):
@@ -52,6 +62,30 @@ class OpaqueField(object):
         """
         pass
 
+    def get_info(self):
+        """
+        Returns info field as int. 
+        """
+        return self.raw[0]
+
+    def is_regular(self):
+        """
+        Returns true if opaque field is regular, false otherwise.
+        """
+        return not BitArray(bytes([self.get_info()]))[0]
+
+    def is_continue(self):
+        """
+        Returns true if continue bit is set, false otherwise.
+        """
+        return BitArray(bytes([self.get_info()]))[1]
+
+    def is_xovr(self):
+        """
+        Returns true if crossover point bit is set, false otherwise.
+        """
+        return BitArray(bytes([self.get_info()]))[2]
+
     def __str__(self):
         pass
 
@@ -66,8 +100,6 @@ class HopOpaqueField(OpaqueField):
     Each hop opaque field has a type (8 bits), ingress/egress interfaces
     (16 bits) and a MAC (24 bits) authenticating the opaque field.
     """
-
-    LEN = 8
 
     def __init__(self, raw=None):
         OpaqueField.__init__(self)
@@ -112,8 +144,6 @@ class InfoOpaqueField(OpaqueField):
     a reserved section (2 bytes).
     """
 
-    LEN = 8
-
     def __init__(self, raw=None):
         OpaqueField.__init__(self)
         self.type = OpaqueFieldType.INFO_OF
@@ -122,6 +152,7 @@ class InfoOpaqueField(OpaqueField):
         self.isd_id = 0
         self.hops = 0
         self.reserved = 0
+        self.raw=raw
 
         if raw is not None:
             self.parse(raw)
@@ -141,6 +172,9 @@ class InfoOpaqueField(OpaqueField):
         self.parsed = True
 
     def pack(self):
+        #PSz: Should InfoOpaqueFIeld with raw==None pack to b'\x00'*8 ?
+        if not self.raw:
+            return b''
         return bitstring.pack("uintle:8, uintle:16, uintle:16, uintle:8,"
                               "uintle:16", self.info, self.timestamp,
                               self.isd_id, self.hops, self.reserved).bytes

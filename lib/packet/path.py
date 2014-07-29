@@ -130,13 +130,18 @@ class CorePath(PathBase):
                 HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN]))
             offset += HopOpaqueField.LEN
         # Parse down-path
-        self.down_path_info = \
-            InfoOpaqueField(raw[offset:offset + InfoOpaqueField.LEN])
-        offset += InfoOpaqueField.LEN
-        for i in range(self.down_path_info.hops):
-            self.down_path_hops.append(
-                HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN]))
-            offset += HopOpaqueField.LEN
+#PSz UpPath (DownPath is null)
+        if len(raw)!=offset:
+            self.down_path_info = \
+                InfoOpaqueField(raw[offset:offset + InfoOpaqueField.LEN])
+            offset += InfoOpaqueField.LEN
+            for i in range(self.down_path_info.hops):
+                self.down_path_hops.append(
+                    HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN]))
+                offset += HopOpaqueField.LEN
+        else:
+            self.down_path_info=InfoOpaqueField()
+
 
         self.parsed = True
 
@@ -409,6 +414,7 @@ class EmptyPath(PathBase):
         self.parsed = True
         
     def pack(self):
+        return b'' #TODO(PSz): Empty Path should pack to b'', not '\x00'*8 
         return self.up_path_info.pack()
     
     def is_first_hop(self, hop):
