@@ -1,0 +1,23 @@
+# LaTeX output #
+################
+*-eps-converted-to.pdf
+*.aux
+*.bbl
+*.blg
+*.dvi
+*.log
+*.ps
+*.synctex.gz
+*.toc
+*.idx
+
+
+# OS generated files #
+######################
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

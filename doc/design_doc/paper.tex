@@ -18,6 +18,15 @@
 \usepackage{listings}
 \usepackage{subfigure}
 
+% Index #Raphael
+\usepackage{makeidx}
+\makeindex
+\renewcommand\indexname{Index\label{sec:idx}}
+\renewcommand\subitem{\item ~$\cdot$~}
+\renewcommand\subsubitem{\item ~~~~$\cdot$~}
+\renewcommand\see[2]{\!$\to$ #1}
+\renewcommand\see[2]{\textit{see} #1}
+
 % yih-chun/dbj hack to center text in psfrag figs
 \def\centerhack#1{\hbox to 0pt{\hss\footnotesize #1\hss}}
 
@@ -168,6 +177,7 @@
 
 \appendix
 \input{appd}
+\printindex
 
 \end{document}
 
