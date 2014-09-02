@@ -1,4 +1,8 @@
-<h1>SCION --- The Official Manual</h1>
+SCION --- The Official Manual
+=============================
 
-<h3> Things that need to be done </h3>
+
+Things that need to be done
+---------------------------
+
 * figures: convert 'trust domains' (TDs) to 'isolation domains' (ISDs)
