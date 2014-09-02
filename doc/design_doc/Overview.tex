@@ -21,15 +21,15 @@ isolation, and explicit trust information for end-to-end communication. SCION
 separates Autonomous Domains (ADs)\footnote{We use the term AD instead of AS to
   denote a smaller unit -- large domains with geographically dispersed units may
   constitute a single AS, however, we would consider them as multiple ADs.} into
-groups of independent routing sub-planes, called trust domains (TDs), which then
-interconnect for global connectivity. Trust domains provide natural isolation
+groups of independent routing sub-planes, called isolation domains (IDs), which then
+interconnect for global connectivity. Isolation domains provide natural isolation
 for routing failures and human misconfiguration, give endpoints strong control
 for both inbound and outbound traffic, provide meaningful and enforceable trust,
 and enable scalable routing updates with high path freshness. As a result, SCION
 provides strong resilience and security properties as an intrinsic consequence
 of first-class security design principles, avoiding piecemeal add-on protocols
 as security patches. Meanwhile, SCION only assumes that a few top-tier ISPs in
-the trust domain are trusted for providing reliable end-to-end communications,
+the isolation domain are trusted for providing reliable end-to-end communications,
 thus achieving a small Trusted Computing Base (TCB). Both our security analysis
 and evaluation results show that SCION naturally prevents numerous attacks and
 provides a high level of resilience, scalability, control, and isolation. A
@@ -68,11 +68,11 @@ We can summarize the design principles of SCION as follows.
   routes to and from themselves, while still respecting intermediate ISPs’
   routing policies.
 \item {\bf Explicit trust and small TCB for end-to-end communication.} By
-  segregating mutually distrustful entities into different trust domains, each
-  trust domain can choose a coherent root of trust (e.g., a few tier-1 ISPs) for
-  bootstrapping trust among ADs in the same trust domain. As a result, an
+  segregating mutually distrustful entities into different isolation domains, each
+  isolation domain can choose a coherent root of trust (e.g., a few tier-1 ISPs) for
+  bootstrapping trust among ADs in the same isolation domain. As a result, an
   endpoint E knows and is able to choose explicitly whom to trust for achieving
-  reliable end-to-end communication, while untrusted ADs in other trust domains
+  reliable end-to-end communication, while untrusted ADs in other isolation domains
   cannot affect the path discovery and route computation of E. Consequently, an
   entity only has to trust a small subset of the network thus achieving a small
   TCB for end-to-end communication.
@@ -81,9 +81,9 @@ We can summarize the design principles of SCION as follows.
 
 We briefly describe the end-to-end path construction in SCION and necessary functions for network elements. Furthermore, we introduce three servers, which help satisfy the design principles listed above.
 \begin{itemize}
-\item {\bf Path Construction. } A \TDC starts propagating a Path Construction
+\item {\bf Path Construction. } A \ISDC starts propagating a Path Construction
   Beacon (PCB) to construct a path. PCB initiation is performed by {\bf Beacon
-    Servers} in the \TDC -- \BSs in the \TDC generate a PCB
+    Servers} in the \ISDC -- \BSs in the \ISDC generate a PCB
   periodically. For PCB propagation, \BSs in an \AD send PCBs to
   \BSs in neighboring domains -- \BSs in \TRAN \ADs
   propagate the PCB received from their parent \AD to their customer \ADs. A
@@ -101,20 +101,20 @@ We briefly describe the end-to-end path construction in SCION and necessary func
   the \AD.
 
 \item {\bf Path Registration. } Once an \STUB \AD receives a PCB, it selects $k$
-  paths to use and registers them with the {\bf Path Server} in the \TDC. The \TDC \PS
+  paths to use and registers them with the {\bf Path Server} in the \ISDC. The \ISDC \PS
   processes path registration requests (e.g., whether to accept or reject) and
   stores this $k$ path registration information of the \STUB \AD.
 
 \item {\bf End-to-end Path Resolution. }  A source \AD constructs a path to
-  reach a destination \AD by composing its path to the \TDC (up-path) with the
-  path from the \TDC to the destination \AD (down-path). To this end, when the
+  reach a destination \AD by composing its path to the \ISDC (up-path) with the
+  path from the \ISDC to the destination \AD (down-path). To this end, when the
   \BS of an \AD receives a PCB, it provides the corresponding up-path (note that
-  a PCB contains a path to the \TDC) to {\em local} path servers. Local path
+  a PCB contains a path to the \ISDC) to {\em local} path servers. Local path
   servers store up-paths and provide them to endhosts. Meanwhile, down-paths are
-  acquired from the \TDC path server that holds $k$ down-paths to each \AD. The
+  acquired from the \ISDC path server that holds $k$ down-paths to each \AD. The
   local path server sends path queries on behalf of endhosts and caches the
   results for later queries. The path server location is registered with the
-  certificate server. A \BS extracts new paths to \TDC from received PCBs and
+  certificate server. A \BS extracts new paths to \ISDC from received PCBs and
   sends them to local path servers. Note that ADs can have multiple path servers
   for load balancing, as well as multiple path, certificate, and beacon servers
   for reliability.
@@ -128,38 +128,38 @@ We briefly describe the end-to-end path construction in SCION and necessary func
   table nor compute routes.
 \end{itemize}
 
-\subsubsection{\TD: Root of Trust}
+\subsubsection{\ISD: Root of Trust}
 
-A \TD is an independent {trust} network whose members reside in a common
-contractual, legal, or regional environment. We envision \TDs to grow to a
+A \ISD is an independent {trust} network whose members reside in a common
+contractual, legal, or regional environment. We envision \ISDs to grow to a
 region where all internal \ADs can agree on a common root of trust, and where
-accountability can be enforced on all internal \ADs. A \TD consists of many \ADs
-with various roles. \TDC \ADs, which are generally big, national ISPs, provide
+accountability can be enforced on all internal \ADs. A \ISD consists of many \ADs
+with various roles. \ISDC \ADs, which are generally big, national ISPs, provide
 service to small ISPs (e.g., regional ISPs) or directly to \STUB \ADs (e.g.,
-companies, universities). In principle, a \TD needs at least one \TDC \AD for
-\TD management and path construction. \TRAN \ADs provide network connectivity to
-the \TDC for customer \ADs and/or manage peering relationships with other \TRAN \ADs
+companies, universities). In principle, an \ISD needs at least one \ISDC \AD for
+\ISD management and path construction. \TRAN \ADs provide network connectivity to
+the \ISDC for customer \ADs and/or manage peering relationships with other \TRAN \ADs
 (i.e., shortcuts) for improved service (in terms of path quality; e.g., path
 length, path bandwidth). \STUB \ADs directly connect to endhosts and provide
 domain resolution service (i.e., domain to path translation service) to those
 hosts. Naturally, each \AD trusts its provider \AD(s), and as a consequence all
-\ADs trust the \TDC. Hence, all \STUB \ADs in the same \TD trust each other by
-trusting the \TDC -- the Root of Trust -- without establishing individual trust
-relationships. The Root of Trust is established by an agreement among \TDC \ADs
+\ADs trust the \ISDC. Hence, all \STUB \ADs in the same \ISD trust each other by
+trusting the \ISDC -- the Root of Trust -- without establishing individual trust
+relationships. The Root of Trust is established by an agreement among \ISDC \ADs
 and specified in the Root of Trust file (viz., Section~\ref{subsec:root-of-trust}).
 
 \subsubsection{Autonomous Domain}
 Each \AD provides the following services based on its type.
 \begin{itemize}
-\item {\bf \TDC \AD: } \TD membership service (both for \TDC members and non-\TDC members), certificate service (AD certificate issue/reference), PCB initiation, path record (i.e., handling path registration from \STUB \ADs), and domain resolution (i.e., domain to path translation).
+\item {\bf \ISDC \AD: } \ISD membership service (both for \ISDC members and non-\ISDC members), certificate service (AD certificate issue/reference), PCB initiation, path record (i.e., handling path registration from \STUB \ADs), and domain resolution (i.e., domain to path translation).
 \item {\bf \TRAN \AD: } certificate service (reference only), PCB propagation, path selection and registration (for endhosts), domain resolution.
 \item {\bf \STUB \AD: } path selection and registration (for endhosts), domain resolution. 
 \end{itemize}
 
-\noindent{\bf Common services:} Autonomous domains contain servers for certificate management for internal entities (e.g., router, switch, server), up-path (to \TDC) resolution service, topology management (external: border router to neighbor AD map, internal topology: server location), and key management (offline key, online key), 
+\noindent{\bf Common services:} Autonomous domains contain servers for certificate management for internal entities (e.g., router, switch, server), up-path (to \ISDC) resolution service, topology management (external: border router to neighbor AD map, internal topology: server location), and key management (offline key, online key), 
 
 \subsubsection{Servers}
-To facilitate efficient routing, each \AD runs three servers. The required services at \TDC \AD, \TRAN \AD, and \STUB \AD are annotated by \CAD, \TAD, and \EAD, respectively. Internal services and external services indicate those services provided within an \AD and across \ADs, respectively.
+To facilitate efficient routing, each \AD runs three servers. The required services at \ISDC \AD, \TRAN \AD, and \STUB \AD are annotated by \CAD, \TAD, and \EAD, respectively. Internal services and external services indicate those services provided within an \AD and across \ADs, respectively.
 %\begin{itemize}
 
 \noindent{\bf Certificate Server: } 
@@ -175,15 +175,15 @@ To facilitate efficient routing, each \AD runs three servers. The required servi
 \begin{itemize}
 \item PCB generation: initiate a PCB for path construction (\CAD)
 \item PCB propagation: gather all PCBs arrived from provider \ADs, select $k$ PCBs (for every PCB propagation period), propagate selected PCBs to customer \ADs (\TAD)
-\item path selection/registration: select $k$ down-paths from \TDC and register them to the \TDC path server (\TAD,\EAD)
+\item path selection/registration: select $k$ down-paths from \ISDC and register them to the \ISDC path server (\TAD,\EAD)
 \item path distribution: distribute up-paths to path servers (\TAD,\EAD) 
 \end{itemize}
 
 \noindent{\bf Path Server: }
 \begin{itemize}
-\item path record: keep $k$ down-paths for each \AD within a \TD (\TAD)
-\item domain resolution: translate the identifier of a destination \AD to the down-path(s) (i.e., from the \TDC to the \AD) (\CAD,\TAD,\EAD) (\TAD,\EAD resolve a path either by sending a query to the \TDC path server or using cached results) 
-\item path caching: cache down-paths to destination \ADs and up-paths to \TDC (\TAD,\EAD)
+\item path record: keep $k$ down-paths for each \AD within an \ISD (\TAD)
+\item domain resolution: translate the identifier of a destination \AD to the down-path(s) (i.e., from the \ISDC to the \AD) (\CAD,\TAD,\EAD) (\TAD,\EAD resolve a path either by sending a query to the \ISDC path server or using cached results) 
+\item path caching: cache down-paths to destination \ADs and up-paths to \ISDC (\TAD,\EAD)
 \end{itemize}
 
 

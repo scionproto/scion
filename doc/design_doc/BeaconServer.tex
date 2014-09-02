@@ -1,5 +1,20 @@
 \section{Beacon Server}
-The \TDC \BS starts PCB propagation to construct a (half) path from \TDC to \STUB \ADs. The \BS specifies the packet type as PCB in the header (viz., Figure~\ref{fig:hdr-common}), puts its own opaque fields in the packet, and forwards it to customer \ADs. The \BS can specify the next hop \AD (to which it would send PCB) using the egress interface ID since egress interface to \AD mapping is available in the topology file. The ingress routers of an \AD, once they receive a PCB from their provider \AD, forward the PCB to the local \BS; and the local \BS adds its AID and opaque field to the PCB. Every border routers know the \BS location (i.e., address or AID), hence they fill the Destination AID field with the address of the \BS and forward the PCB. The \BS queues all PCBs which arrived within a pre-defined time interval (denoted by $T_Q$), chooses $k$ PCBs per customer \AD, adds its own marking, and propagates them to the chosen \ADs. This PCB propagation ends at \STUB \ADs. We describe how a \BS handles PCBs in detail below.
+The \ISDC \BS starts PCB propagation to construct a (half) path from
+\ISDC to \STUB \ADs. The \BS specifies the packet type as PCB in the
+header (viz., Figure~\ref{fig:hdr-common}), puts its own opaque
+fields in the packet, and forwards it to customer \ADs. The \BS can
+specify the next hop \AD (to which it would send PCB) using the
+egress interface ID since egress interface to \AD mapping is
+available in the topology file. The ingress routers of an \AD, once
+they receive a PCB from their provider \AD, forward the PCB to the
+local \BS; and the local \BS adds its AID and opaque field to the
+PCB. Every border routers know the \BS location (i.e., address or
+AID), hence they fill the Destination AID field with the address of
+the \BS and forward the PCB. The \BS queues all PCBs which arrived
+within a pre-defined time interval (denoted by $T_Q$), chooses $k$
+PCBs per customer \AD, adds its own marking, and propagates them to
+the chosen \ADs. This PCB propagation ends at \STUB \ADs. We describe
+how a \BS handles PCBs in detail below.
 
 \begin{figure*}[ht]
 \centering
@@ -55,7 +70,7 @@ future.
 \begin{itemize}
 \item {\bf Age ($A_p$):} As defined earlier, the age of a PCB is the
   length of time that the PCB has existed.
-\item {\bf Path length ($L_p$):} \AD-level path length to \TDC. The
+\item {\bf Path length ($L_p$):} \AD-level path length to \ISDC. The
   path length is the most {\em stable} and {\em reliable} estimate for
   path quality.
 \item {\bf Path freshness ($E_p$):} time elapsed since a path's last
@@ -110,7 +125,7 @@ paths are selected.
 
 %% When a new PCB arrives, the \BS queues the PCB in its local buffer
 %% after checking duplicate and assigning a local timestamp (as
-%% opposed to the global timestamp marked by \TDC) to the PCB. If the
+%% opposed to the global timestamp marked by \ISDC) to the PCB. If the
 %% \BS cannot find a duplicate path in its PCB queue, it assigns a
 %% current local timestamp to the PCB, which would be used for
 %% computing path freshness. If the \BS find a duplicate, it copies
@@ -128,13 +143,13 @@ paths are selected.
 
 
 \subsection{Path Registration/Distribution}
-An \AD's \BS selects $k$ paths from all received PCBs in order to provide remote source \ADs with down-paths and help those \ADs to establish end-to-end paths. To this end, the \BS registers the selected paths to the \TDC \PS. The \BS does not need to register $k$ paths at a time, yet can register paths whenever it wants to do. However, the number of total registered paths at the \TDC \PS cannot exceed $k$. The path registration request should be signed by the requesting \AD to prevent any forgery by malicious \ADs. The \TDC \PS, on receiving a path registration request, verifies the signature and registers the path as: if the \PS has less than $k$ registered paths for the \AD, it registers the path; otherwise the \PS replaces the oldest path (that has the smallest timestamp) with the new one. The \PS limits the number of \AD's path registrations to prevent malicious \ADs from overloading the \TDC \PS and from exploiting too many paths (for attack purposes).
+An \AD's \BS selects $k$ paths from all received PCBs in order to provide remote source \ADs with down-paths and help those \ADs to establish end-to-end paths. To this end, the \BS registers the selected paths to the \ISDC \PS. The \BS does not need to register $k$ paths at a time, yet can register paths whenever it wants to do. However, the number of total registered paths at the \ISDC \PS cannot exceed $k$. The path registration request should be signed by the requesting \AD to prevent any forgery by malicious \ADs. The \ISDC \PS, on receiving a path registration request, verifies the signature and registers the path as: if the \PS has less than $k$ registered paths for the \AD, it registers the path; otherwise the \PS replaces the oldest path (that has the smallest timestamp) with the new one. The \PS limits the number of \AD's path registrations to prevent malicious \ADs from overloading the \ISDC \PS and from exploiting too many paths (for attack purposes).
 
-The \BS informs $k$ registered paths to local \PS(s) so that these paths can be used as up-paths to \TDC. Note that the local \PS provides $k$ up-paths to endhosts. Furthermore, the \BS provides some of non-registered paths to the local \PS. These non-registered paths can be used as up-paths as well, yet the packets forwarded along the non-registered paths have low priority than those of registered paths in the presence of congestion. \soobum{need to refer to the SCION DDoS to explain packet priorities}
+The \BS informs $k$ registered paths to local \PS(s) so that these paths can be used as up-paths to \ISDC. Note that the local \PS provides $k$ up-paths to endhosts. Furthermore, the \BS provides some of non-registered paths to the local \PS. These non-registered paths can be used as up-paths as well, yet the packets forwarded along the non-registered paths have low priority than those of registered paths in the presence of congestion. \soobum{need to refer to the SCION DDoS to explain packet priorities}
 
 \begin{comment}
 \subsection{Key Table Management}~\label{subsec:key-table-management}
-The \BS generates an OFG key by hashing the current timestamp in the PCB (marked by the \TDC \BS) and its own expiration time with the master OFG key; i.e., $K_i(t)$ = $\textrm{H}_{K_i^{master}}(\textrm{timestamp} || \textrm{EXP})$. Since border routers know $K_i^{master}$, they can verify the opaque field carried in a data packet after computing $K_i(t)$. However, the border routers, instead of computing $K_i(t)$ for every packets, keep $K_i(t)$ in their Key Table for up to its expiration time in order to reduce computational overhead. With this, the router would lookup the key table first and if the table contains a stale (i.e., expired) key for the corresponding time, the router compute and store the OFG key. For example, if a PCB is generated in every 1 minute, the routers need to keep at most 1440 $\times$ 4 = 5760 keys, which only requires a small amount of memory (less than 100KB for 128 bit keys) while enabling fast key retrieval from the table (a router determines a key location in the memory using the timestamp and expiration time). \ADs synchronize timestamp using a time server or a satellite time. Time synchronization can be made with low precision if \PSs and border routers allow a sufficient grace period (e.g., several minutes) after a path expires.\soobum{Need to elaborate the time synchronization; e.g., when it's required} 
+The \BS generates an OFG key by hashing the current timestamp in the PCB (marked by the \ISDC \BS) and its own expiration time with the master OFG key; i.e., $K_i(t)$ = $\textrm{H}_{K_i^{master}}(\textrm{timestamp} || \textrm{EXP})$. Since border routers know $K_i^{master}$, they can verify the opaque field carried in a data packet after computing $K_i(t)$. However, the border routers, instead of computing $K_i(t)$ for every packets, keep $K_i(t)$ in their Key Table for up to its expiration time in order to reduce computational overhead. With this, the router would lookup the key table first and if the table contains a stale (i.e., expired) key for the corresponding time, the router compute and store the OFG key. For example, if a PCB is generated in every 1 minute, the routers need to keep at most 1440 $\times$ 4 = 5760 keys, which only requires a small amount of memory (less than 100KB for 128 bit keys) while enabling fast key retrieval from the table (a router determines a key location in the memory using the timestamp and expiration time). \ADs synchronize timestamp using a time server or a satellite time. Time synchronization can be made with low precision if \PSs and border routers allow a sufficient grace period (e.g., several minutes) after a path expires.\soobum{Need to elaborate the time synchronization; e.g., when it's required} 
 \end{comment}
 
 \subsection{Bootstrapping}

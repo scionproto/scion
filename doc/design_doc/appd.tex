@@ -9,12 +9,12 @@ Here we define two DTD definition for two xml files for configuration.
 \begin{verbatim}
 <!DOCTYPE ROT [
 <!ELEMENT ROT (header,coreADs,signatures)>
-<!ELEMENT header (version,issueDate,expireDate,policyNumber,TDID,policyThreshold,certificateThreshold)>
+<!ELEMENT header (version,issueDate,expireDate,policyNumber,ISDID,policyThreshold,certificateThreshold)>
 <!ELEMENT version (#PCDATA)>
 <!ELEMENT issueDate (#PCDATA)>
 <!ELEMENT expireDate (#PCDATA)>
 <!ELEMENT policyNumber (#PCDATA)>
-<!ELEMENT TDID (#PCDATA)>
+<!ELEMENT ISDID (#PCDATA)>
 <!ELEMENT policyThreshold (#PCDATA)>
 <!ELEMENT certificateThreshold (#PCDATA)>
 <!ELEMENT coreADs (coreAD+)>
@@ -44,7 +44,7 @@ This dtd indicates that produceed rot xml file should follow the rules.
 		<issueDate>Fir Jul 6 15:44:25 EDT 2012</issueDate>
 		<expireDate>Fir Jul 6 15:44:25 EDT 2013</expireDate>
 		<policyNumber>2</policyNumber>
-		<TDID>12345</TDID>
+		<ISDID>12345</ISDID>
 		<policyThreshold>2</policyThreshold>
 		<certificateThreshold>2</certificateThreshold>
 	</header>
@@ -82,10 +82,10 @@ Sample RoT xml file could be defined as follows:
 \begin{verbatim}
 <!DOCTYPE Topology [
 <!ELEMENT Topology (header,Servers,BorderRouters,Gateways,Signature)>
-<!ELEMENT header (version,issueDate,TDID,ADID)>
+<!ELEMENT header (version,issueDate,ISDID,ADID)>
 <!ELEMENT version (#PCDATA)>
 <!ELEMENT issueDate (#PCDATA)>
-<!ELEMENT TDID (#PCDATA)>
+<!ELEMENT ISDID (#PCDATA)>
 <!ELEMENT ADID (#PCDATA)>
 <!ELEMENT Servers (BeaconServer,PathServer,CertificateServer)>
 <!ELEMENT BeaconServer (AID)>
@@ -121,7 +121,7 @@ Sample RoT xml file could be defined as follows:
 	<header>
 		<version>0x0001</version>
 		<issueDate>Fir Jul 6 15:44:25 EDT 2012</issueDate>
-		<TDID>54321</TDID>
+		<ISDID>54321</ISDID>
 		<ADID>12345</ADID>
 	</header>
 	<Servers>

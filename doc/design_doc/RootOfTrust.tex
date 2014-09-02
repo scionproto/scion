@@ -1,5 +1,5 @@
 \subsection{Root of Trust File} \label{subsec:root-of-trust}
-The \RT file contains the list of all \TDCore members, the public keys of these members, and their signatures on the \RT file. The \RT file keeps track of the current policy number and the \ADs that signed the policy. The policy is used as a {\bf \em root of trust} by which all \ADs in the TD establish their trust. The notion of root of trust is crucial in the SCION architecture due to the hierarchical structure of the \TD. As a consequence, the TD membership is strictly limited and agreed by the current members. This is enforced by restricting the update privilege of the \PF. More specifically, the current members of \TDC define the minimum number of \ADs that should provide their signature for updating the \RT file -- defined as {\em Policy Quorum Threshold} ($P_{th}$). Furthermore, the \TDC members define the minimum number of \AD signatures to grant a new \AD's joining to the \TDC and to issue a certificate for the AD. This number, defined as {\em Certificate Quorum Threshold} ($C_{th}$), is also included in the \PF. Hence, an \AD, if it is approved to join a \TDC, would be issued a certificate that is signed by at least $C_{th}$ \TDC \ADs. Figure~\ref{fig:rot-file} shows the contents and the format of the \RT File. 
+The \RT file contains the list of all \ISDCore members, the public keys of these members, and their signatures on the \RT file. The \RT file keeps track of the current policy number and the \ADs that signed the policy. The policy is used as a {\bf \em root of trust} by which all \ADs in the ISD establish their trust. The notion of root of trust is crucial in the SCION architecture due to the hierarchical structure of the \ISD. As a consequence, the ISD membership is strictly limited and agreed by the current members. This is enforced by restricting the update privilege of the \PF. More specifically, the current members of \ISDC define the minimum number of \ADs that should provide their signature for updating the \RT file -- defined as {\em Policy Quorum Threshold} ($P_{th}$). Furthermore, the \ISDC members define the minimum number of \AD signatures to grant a new \AD's joining to the \ISDC and to issue a certificate for the AD. This number, defined as {\em Certificate Quorum Threshold} ($C_{th}$), is also included in the \PF. Hence, an \AD, if it is approved to join a \ISDC, would be issued a certificate that is signed by at least $C_{th}$ \ISDC \ADs. Figure~\ref{fig:rot-file} shows the contents and the format of the \RT File. 
 
 \begin{figure}[h]
 \centering
@@ -8,27 +8,27 @@ The \RT file contains the list of all \TDCore members, the public keys of these 
 \end{figure}
 
 \paragraph{Header}
-The header contains the \TDC policy information listed below. 
+The header contains the \ISDC policy information listed below. 
 
 \begin{enumerate}
-\item Trust Domain ID (TD ID or TID) : Globally unique Trust Domain identifier.
+\item Isolation Domain ID (ISD ID or TID) : Globally unique Isolation Domain identifier.
 \item Policy ID : Current version number of \PF.
-\item Policy Quorum Threshold : Minimum number of \TDC \ADs to generate a new \RT file. 
-\item Certificate Quorum Threshold : Minimum number of \TDC \ADs to issue a new certificate for an \AD.
+\item Policy Quorum Threshold : Minimum number of \ISDC \ADs to generate a new \RT file. 
+\item Certificate Quorum Threshold : Minimum number of \ISDC \ADs to issue a new certificate for an \AD.
 \end{enumerate}
 
-\paragraph{\TDC member list}
-The \TDC member list contains the information of all \TDC members. Each \AD has the following elements:
+\paragraph{\ISDC member list}
+The \ISDC member list contains the information of all \ISDC members. Each \AD has the following elements:
 \begin{enumerate}
 \item \AD ID (AID).
 \item \AD's public key.
 \end{enumerate}
 
 \paragraph{Signatures}
-The signatures element contains the signatures of the \TDC ADs that signed the current \RT file.
+The signatures element contains the signatures of the \ISDC ADs that signed the current \RT file.
 \begin{enumerate}
 \item AD ID (AID).
-\item \AD's signature computed over the header and the \TDC member list.
+\item \AD's signature computed over the header and the \ISDC member list.
 \end{enumerate}
 
 %\noindent\emph{*Should ask Zhe about Policy in detail. }

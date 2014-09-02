@@ -92,8 +92,8 @@ RoT file is not installed, the host can download it from CSes.
 \subsection{Example of host-to-host communication}
 
 Now we use an example to illustrate how two end-to-end SCION hosts
-can communicate with each other. We assume TD Cores are operational
-and that Name Resolution Server in each TD Core resolves the
+can communicate with each other. We assume ISD Cores are operational
+and that Name Resolution Server in each ISD Core resolves the
 name-to-(local SCION address, AD) binding. In the example, we
 suppose that the user, i.e., host in Figure~\ref{fig:host}, intends
 to open a TCP connection to www.yahoo.com. Note that, if the host
@@ -132,11 +132,11 @@ not exit any entry for the destinations in path store, PCD will
 contact local PS to obtain correct paths to the destination. The
 communication to local PS is same as communicating with NRS
 discussed above. If the destination is in the remote AD, the PSes
-will contact the PSes in the TD core to obtain the paths. As shown
-in Figure~\ref{fig:host}, www.yahoo.com is not within the same TD.
-The PSes forwards the path retrieval request to the PSes in TD
-core1, and the PS in TD core1 will respond to the request with the
-paths that are retrieved from TD core2. Normally, PCD will retrieve
+will contact the PSes in the ISD core to obtain the paths. As shown
+in Figure~\ref{fig:host}, www.yahoo.com is not within the same ISD.
+The PSes forwards the path retrieval request to the PSes in ISD
+core1, and the PS in ISD core1 will respond to the request with the
+paths that are retrieved from ISD core2. Normally, PCD will retrieve
 paths from the PS for different destinations and record them in path
 store once the applications are installed. To allow applications and
 system administrators can specify path selection preference, each
@@ -255,7 +255,7 @@ structs and the related functions to enable the SCION socket API. We
 only need to define a new family name and implement a scion\_ioctl
 system call to allow application developers to specify path
 selection policies in the applications, e.g., preferring paths
-within the same TD. Other functions are not changed as the
+within the same ISD. Other functions are not changed as the
 traditional inet\_stream\_ops and inet\_dgram\_ops structs,
 respectively.
 
