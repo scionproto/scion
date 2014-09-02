@@ -26,6 +26,11 @@
 \renewcommand\see[2]{\!$\to$ #1}
 \renewcommand\see[2]{\textit{see} #1}
 
+
+\include{src/macros}
+\include{src/hyphenation}
+
+
 % yih-chun/dbj hack to center text in psfrag figs
 \def\centerhack#1{\hbox to 0pt{\hss\footnotesize #1\hss}}
 
@@ -67,57 +72,8 @@
 \newcommand{\tightenbaseline}{}%\advance\baselineskip 0pt plus -0.5pt}
 
 
-\newcommand{\Send}[3]{{#1}\rightarrow{#2}:&&\langle{#3}\rangle}
-\newcommand{\Msg}[1]{\langle{#1}\rangle}
-
-%% $\begin{array}{lll}
-%% \Send{B}{A}{N_B, \  \mbox{MAC}_{K'_{AB}}(N_B) }\\
-%% \Send{A}{B}{C_A, \ \mbox{MAC}_{K'_{AB}}(C_A||N_B)}
-%% \end{array}$
-
-\newcommand{\rpick}{{\buildrel R \over \leftarrow}}
-\newcommand{\eeq}{\mathrel{{:}{:}{=}}}
-\newcommand{\zo}{{\{0,1\}}}
-\newcommand{\X}{{\cal X}}
-\newcommand{\xor}{\oplus}
-\newcommand{\qeq}{{\buildrel ? \over =}}
-
-\newcommand{\change}[1]{\underline{\strut{\mbox{\boldmath$#1$}}}}
-\newcommand{\etal}{et~al.\@\xspace} %{et~al.\@\xspace}
-\newcommand{\etaltild}{et~al.\@~}
-\newcommand{\eg}{e.g.,\xspace}
-\newcommand{\ie}{i.e.,\xspace}
-\newcommand{\MHz}{ MHz\xspace}
-\newcommand{\mhz}{ MHz\xspace}
-\newcommand{\io}{I/O\xspace}
-\newcommand{\kbyte}{K byte\@\xspace}
-\newcommand{\kbytes}{K bytes\@\xspace}
-\newcommand{\kbps}{ kbps\@\xspace}
-\newcommand{\TDCore}{TD Core\@\xspace}
-\newcommand{\TDC}{TD Core\@\xspace}
-\newcommand{\TD}{Trust Domain\@\xspace}
-\newcommand{\TDs}{Trust Domains\@\xspace}
-\newcommand{\AD}{AD\@\xspace}
-\newcommand{\ADs}{ADs\@\xspace}
-\newcommand{\PF}{Policy File\@\xspace}
-\newcommand{\STUB}{Endpoint\@\xspace}
-\newcommand{\TRAN}{Transit\@\xspace}
-\newcommand{\RT}{Root of Trust\@\xspace}
-\newcommand{\PS}{path server\@\xspace}
-\newcommand{\PSs}{path servers\@\xspace}
-\newcommand{\CS}{certificate server\@\xspace}
-\newcommand{\CSs}{certificate servers\@\xspace}
-\newcommand{\BS}{beacon server\@\xspace}
-\newcommand{\BSs}{beacon servers\@\xspace}
-\newcommand{\CAD}{$\textcircled{\footnotesize C}$\@\xspace}
-\newcommand{\TAD}{$\textcircled{\footnotesize T}$\@\xspace}
-\newcommand{\EAD}{$\textcircled{\footnotesize E}$\@\xspace}
-
-%\newcommand{\xor}{\oplus}
-%\newcommand{\zo}{{\{0,1\}}}
-
 %--------------------------------------------------------------------------------
-\hyphenation{re-pu-dia-tion}
+
 
 % yih-chun/dbj hack to center text in psfrag figs
 \def\centerhack#1{\hbox to 0pt{\hss\footnotesize #1\hss}}
