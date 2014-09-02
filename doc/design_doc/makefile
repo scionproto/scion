@@ -23,6 +23,9 @@ $(PAPER).ps: $(TEXFILES)
 	$(DVIPS) -K -Ppdf -G0 -t letter -o $(PAPER).ps $(PAPER).dvi
 
 
+mate:
+	pdflatex -synctex=1 $(PAPER)
+
 clean:
 	rm -f $(PAPER).ps $(PAPER).pdf *~ *.dvi *.log *.aux *.blg *.bbl *.toc *.backup *.bak
 
