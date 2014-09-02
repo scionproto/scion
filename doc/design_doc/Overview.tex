@@ -135,7 +135,7 @@ with various roles. \TDC \ADs, which are generally big, national ISPs, provide
 service to small ISPs (e.g., regional ISPs) or directly to \STUB \ADs (e.g.,
 companies, universities). In principle, a \TD needs at least one \TDC \AD for
 \TD management and path construction. \TRAN \ADs provide network connectivity to
-\TDC for customer \ADs and/or manage peering relationships with other \TRAN \ADs
+the \TDC for customer \ADs and/or manage peering relationships with other \TRAN \ADs
 (i.e., shortcuts) for improved service (in terms of path quality; e.g., path
 length, path bandwidth). \STUB \ADs directly connect to endhosts and provide
 domain resolution service (i.e., domain to path translation service) to those
@@ -153,7 +153,7 @@ Each \AD provides the following services based on its type.
 \item {\bf \STUB \AD: } path selection and registration (for endhosts), domain resolution. 
 \end{itemize}
 
-\noindent{\bf Common services: } certificate management for internal entities (e.g., router, switch, server), up-path (to \TDC) resolution service, topology management (external: border router to neighbor AD map, internal topology: server location), key management (offline key, online key), 
+\noindent{\bf Common services:} Autonomous domains contain servers for certificate management for internal entities (e.g., router, switch, server), up-path (to \TDC) resolution service, topology management (external: border router to neighbor AD map, internal topology: server location), and key management (offline key, online key), 
 
 \subsubsection{Servers}
 To facilitate efficient routing, each \AD runs three servers. The required services at \TDC \AD, \TRAN \AD, and \STUB \AD are annotated by \CAD, \TAD, and \EAD, respectively. Internal services and external services indicate those services provided within an \AD and across \ADs, respectively.
