@@ -4,7 +4,7 @@ DVIPS = dvips
 DVIPDF = dvipdf
 BIBTEX = bibtex
 
-TEXFILES = $(shell ls *.tex *.bib)
+TEXFILES = $(shell ls *.tex src/*tex src/*.bib)
 
 $(PAPER).pdf: $(PAPER).ps
 	ps2pdf -dCompatibilityLevel=1.3 $(PAPER).ps $(PAPER).pdf
@@ -30,4 +30,4 @@ clean:
 	rm -f $(PAPER).ps $(PAPER).pdf *~ *.dvi *.log *.aux *.blg *.bbl *.toc *.backup *.bak
 
 tar:
-	tar -cvzf $(PAPER).taz *.tex *.bib makefile *.eps *.ai
+	tar -cvzf $(PAPER).taz *.tex src/*.tex src/*.bib makefile *.eps *.ai
