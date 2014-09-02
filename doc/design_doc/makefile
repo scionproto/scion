@@ -1,4 +1,4 @@
-PAPER = paper
+PAPER = main
 LATEX = latex
 DVIPS = dvips
 DVIPDF = dvipdf
