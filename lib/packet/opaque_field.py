@@ -20,7 +20,6 @@ import logging
 from bitstring import BitArray
 import bitstring
 
-#TODO PSz discuss that class
 class OpaqueFieldType(object):
     """
     Defines constants for the types of the opaque field.
@@ -28,14 +27,14 @@ class OpaqueFieldType(object):
     INFO_OF = 0
     HOP_OF = 1
 
-    NORMAL_OF=0x00
-    SPECIAL_OF=0x80
-    TDC_XOVR=0x80
-    NON_TDC_XOVR=0xc0
-    INPATH_XOVR=0xe0
-    INTRATD_PEER=0xf0
-    INTERTD_PEER=0xf8
-    PEER_XOVR=0x10
+    NORMAL_OF = 0x00
+    SPECIAL_OF = 0x80
+    TDC_XOVR = 0x80
+    NON_TDC_XOVR = 0xc0
+    INPATH_XOVR = 0xe0
+    INTRATD_PEER = 0xf0
+    INTERTD_PEER = 0xf8
+    PEER_XOVR = 0x10
 
 
 class OpaqueField(object):
@@ -152,7 +151,7 @@ class InfoOpaqueField(OpaqueField):
         self.isd_id = 0
         self.hops = 0
         self.reserved = 0
-        self.raw=raw
+        self.raw = raw
 
         if raw is not None:
             self.parse(raw)

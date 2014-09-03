@@ -131,7 +131,7 @@ class CorePath(PathBase):
             offset += HopOpaqueField.LEN
         # Parse down-path
 #PSz UpPath (DownPath is null)
-        if len(raw)!=offset:
+        if len(raw) != offset:
             self.down_path_info = \
                 InfoOpaqueField(raw[offset:offset + InfoOpaqueField.LEN])
             offset += InfoOpaqueField.LEN
