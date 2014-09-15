@@ -22,6 +22,8 @@ $(PAPER).ps: $(TEXFILES)
 	$(LATEX) $(PAPER)
 	$(DVIPS) -K -Ppdf -G0 -t letter -o $(PAPER).ps $(PAPER).dvi
 
+index:
+	makeindex $(PAPER)
 
 mate:
 	pdflatex -synctex=1 $(PAPER)
@@ -31,3 +33,4 @@ clean:
 
 tar:
 	tar -cvzf $(PAPER).taz *.tex src/*.tex src/*.bib makefile *.eps *.ai
+
