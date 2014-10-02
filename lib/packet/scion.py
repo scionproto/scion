@@ -23,7 +23,7 @@ import bitstring
 
 from lib.packet.ext_hdr import ExtensionHeader, ICNExtHdr
 from lib.packet.host_addr import (AddressLengths, IPv4HostAddr,
-                                  IPv6HostAddr, SCIONHostAddr, HostAddr)
+                                  IPv6HostAddr, SCIONHostAddr)
 from lib.packet.opaque_field import InfoOpaqueField, OpaqueField
 from lib.packet.packet_base import HeaderBase, PacketBase
 from lib.packet.path import PathType, CorePath, PeerPath, CrossOverPath, \
@@ -78,7 +78,7 @@ class IDSize(object):
     SIZE_TID = 4
     SIZE_AID = 8
 
-types_src = {
+TYPES_SRC = {
         PacketType.BEACON: 16834570,
         PacketType.CERT_REP: 33611786,
         PacketType.PATH_REP_LOCAL: 50389002,
@@ -91,7 +91,7 @@ types_src = {
         PacketType.IFID_REP: 167829514,
         PacketType.UP_PATH: 33612000,
         }
-types_dst={
+TYPES_DST = {
         PacketType.CERT_REQ: 33611786,
         PacketType.PATH_REQ_LOCAL:50389002,
         PacketType.PATH_REQ: 67166218,
@@ -109,10 +109,10 @@ def get_addr_from_type(ptype):
     """
     TODO
     """
-    if ptype in types_src:
-        return IPv4HostAddr(types_src[ptype])     
+    if ptype in TYPES_SRC:
+        return IPv4HostAddr(TYPES_SRC[ptype])
     else:
-        return IPv4HostAddr(types_dst[ptype])     
+        return IPv4HostAddr(TYPES_DST[ptype])
 
 
 def get_type(pkt):
@@ -121,10 +121,10 @@ def get_type(pkt):
     """
     isrc_addr = pkt.hdr.src_addr.to_int(endianness='little')
     idst_addr = pkt.hdr.dst_addr.to_int(endianness='little')
-    if isrc_addr in types_src.values():
-        return list(types_src.keys())[list(types_src.values()).index(isrc_addr)] 
-    if idst_addr in types_dst.values():
-        return list(types_dst.keys())[list(types_dst.values()).index(idst_addr)] 
+    if isrc_addr in TYPES_SRC.values():
+        return list(TYPES_SRC.keys())[list(TYPES_SRC.values()).index(isrc_addr)]
+    if idst_addr in TYPES_DST.values():
+        return list(TYPES_DST.keys())[list(TYPES_DST.values()).index(idst_addr)]
     return PacketType.DATA
 
 
@@ -404,7 +404,7 @@ class SCIONHeader(HeaderBase):
         Currently this is indicated by a bit in the LSB of the 'type' field in
         the common header.
         """
-        return not (self.common_hdr.type & 0x1)
+        return not self.common_hdr.type & 0x1
 
     def __len__(self):
         length = self.common_hdr.hdr_len
@@ -503,11 +503,15 @@ class IFIDRequest(SCIONPacket):
     IFID Request packet.
     """
     def __init__(self, raw=None):
-        SCIONPacket.__init__(self, raw)
+        SCIONPacket.__init__(self)
         self.request_id = None 
 
-        if self.payload is not None:
-            self.parse_payload()
+        if raw: 
+            self.parse(raw)
+
+    def parse(self, raw):
+        SCIONPacket.parse(self, raw)
+        self.parse_payload()
 
     def parse_payload(self):
         assert self.parsed
@@ -528,7 +532,10 @@ class IFIDRequest(SCIONPacket):
         dst = get_addr_from_type(PacketType.IFID_REQ)
         payload = struct.pack("HH", 0, request_id)
         spkt = SCIONPacket.from_values(src, dst, payload)
-        return spkt 
+        req = IFIDRequest()
+        req.hdr = spkt.hdr
+        req.payload = spkt.payload
+        return req 
 
 
 class IFIDReply(SCIONPacket):
@@ -536,12 +543,16 @@ class IFIDReply(SCIONPacket):
     IFID Reply packet.
     """
     def __init__(self, raw=None):
-        SCIONPacket.__init__(self,raw)
+        SCIONPacket.__init__(self)
         self.reply_id = None 
         self.request_id = None
 
-        if self.payload is not None:
-            self.parse_payload()
+        if raw: 
+            self.parse(raw)
+
+    def parse(self, raw):
+        SCIONPacket.parse(self, raw)
+        self.parse_payload()
 
     def parse_payload(self):
         assert self.parsed
@@ -563,5 +574,8 @@ class IFIDReply(SCIONPacket):
         """
         src = get_addr_from_type(PacketType.IFID_REP)
         payload = struct.pack("HH", reply_id, request_id)
-        spkt = SCIONPacket.from_values(src,dst,payload)
-        return spkt 
+        spkt = SCIONPacket.from_values(src, dst, payload)
+        rep = IFIDReply()
+        rep.hdr = spkt.hdr
+        rep.payload = spkt.payload
+        return rep 

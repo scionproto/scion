@@ -22,11 +22,9 @@ import bitstring
 
 class OpaqueFieldType(object):
     """
-    Defines constants for the types of the opaque field.
+    Defines constants for the types of the opaque field (first byte of every
+    opaque field, i.e. field).
     """
-    INFO_OF = 0
-    HOP_OF = 1
-
     NORMAL_OF = 0x00
     SPECIAL_OF = 0x80
     TDC_XOVR = 0x80
@@ -35,7 +33,7 @@ class OpaqueFieldType(object):
     INTRATD_PEER = 0xf0
     INTERTD_PEER = 0xf8
     PEER_XOVR = 0x10
-
+    ROT_OF = 0xff
 
 class OpaqueField(object):
     """
@@ -45,7 +43,7 @@ class OpaqueField(object):
     LEN = 8
 
     def __init__(self):
-        self.type = OpaqueFieldType.INFO_OF
+        self.info = 0 #TODO verify path.PathType in that context
         self.parsed = False
         self.raw = None
 
@@ -63,7 +61,7 @@ class OpaqueField(object):
 
     def get_info(self):
         """
-        Returns info field as int. 
+        Returns info field as int.
         """
         return self.raw[0]
 
@@ -102,7 +100,6 @@ class HopOpaqueField(OpaqueField):
 
     def __init__(self, raw=None):
         OpaqueField.__init__(self)
-        self.type = OpaqueFieldType.HOP_OF
         self.ingress_if = 0
         self.egress_if = 0
         self.mac = 0
@@ -118,19 +115,19 @@ class HopOpaqueField(OpaqueField):
                 "data len %u", dlen)
             return
         bits = BitArray(bytes=raw)
-        (self.type, self.ingress_if, self.egress_if, self.mac) = \
+        (self.info, self.ingress_if, self.egress_if, self.mac) = \
             bits.unpack("uintle:8, uintle:16, uintle:16, uintle:24")
 
         self.parsed = True
 
     def pack(self):
         return bitstring.pack("uintle:8, uintle:16, uintle:16, uintle:24",
-                              self.type, self.ingress_if, self.egress_if,
+                              self.info, self.ingress_if, self.egress_if,
                               self.mac).bytes
 
     def __str__(self):
         s = "[Hop OF type: %u, ingress if: %u, egress if: %u, mac: %x]" % (
-            self.type, self.ingress_if, self.egress_if, self.mac)
+            self.info, self.ingress_if, self.egress_if, self.mac)
         return s
 
 
@@ -139,14 +136,12 @@ class InfoOpaqueField(OpaqueField):
     Class for the info opaque field.
 
     The info opaque field contains type info of the path (1 byte), an expiration
-    timestamp (2 bytes), the ISD ID (2 byte), # hops for this path (2 byte) and
+    timestamp (2 bytes), the ISD ID (2 byte), # hops for this path (1 byte) and
     a reserved section (2 bytes).
     """
 
     def __init__(self, raw=None):
         OpaqueField.__init__(self)
-        self.type = OpaqueFieldType.INFO_OF
-        self.info = 0  # FIXME: Add constants for this info field.
         self.timestamp = 0
         self.isd_id = 0
         self.hops = 0
@@ -165,7 +160,7 @@ class InfoOpaqueField(OpaqueField):
                 "data len %u", dlen)
             return
         bits = BitArray(bytes=raw)
-        (self.info, self.timestamp, self.isd_id, self.hops, _reserved) = \
+        (self.info, self.timestamp, self.isd_id, self.hops, self.reserved) = \
             bits.unpack("uintle:8, uintle:16, uintle:16, uintle:8, uintle:16")
 
         self.parsed = True
