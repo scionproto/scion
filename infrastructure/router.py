@@ -48,8 +48,8 @@ class Router(ServerBase):
     The SCION Router.
     """
     IFID_REQ_TOUT = 2
-    def __init__(self, addr, topo_file, config_file, pre_ext_handlers={},
-            post_ext_handlers={}):
+    def __init__(self, addr, topo_file, config_file, pre_ext_handlers=None,
+            post_ext_handlers=None):
         ServerBase.__init__(self, addr, topo_file, config_file)
         self.interface = None
         for router_list in self.topology.routers.values():
@@ -60,8 +60,15 @@ class Router(ServerBase):
         assert self.interface != None
         logging.info("Interface: %s", self.interface.__dict__)
 
-        self.pre_ext_handlers = pre_ext_handlers
-        self.post_ext_handlers = post_ext_handlers
+        if pre_ext_handlers:
+            self.pre_ext_handlers = pre_ext_handlers
+        else:
+            self.pre_ext_handlers = {}
+        if post_ext_handlers:
+            self.post_ext_handlers = post_ext_handlers
+        else:
+            self.post_ext_handlers = {}
+
         self._remote_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._remote_socket.bind((str(self.interface.addr),
             self.interface.udp_port))
@@ -217,7 +224,7 @@ class Router(ServerBase):
             #TODO redesing Certificate Servers
             if ptype in [PT.CERT_REQ, PT.ROT_REQ, PT.CERT_REP, PT.ROT_REP]:
                 next_hop.addr = (
-                        self.topology.servers[ET.CERTIFICATE_SERVER].addr )
+                        self.topology.servers[ET.CERTIFICATE_SERVER].addr)
             elif iface:
                 next_hop.addr = self.ifid2addr[iface]
             elif ptype in [PT.PATH_REG, PT.PATH_REQ, PT.PATH_REP]:
@@ -291,8 +298,11 @@ class Router(ServerBase):
             logging.debug("increase 1")
             spkt.hdr.increase_of(1)
 
-        ts_info = spkt.hdr.get_timestamp().get_info()
+        ts_info = spkt.hdr.get_timestamp().info
         timestamp = spkt.hdr.common_hdr.timestamp
+        #Case: peer path and first opaque field of a down path. We need to
+        #increase opaque field pointer as that first opaque field is used for
+        #MAC verification only.
         if (not spkt.hdr.is_on_up_path() and ts_info == OFT.INTRATD_PEER and
             spkt.hdr.common_hdr.current_of == timestamp + OpaqueField.LEN):
             logging.debug("increase 2")
@@ -312,11 +322,11 @@ class Router(ServerBase):
         else:
             iface = spkt.hdr.get_current_of().egress_if
 
-        ts_info = spkt.hdr.get_timestamp().get_info()
+        ts_info = spkt.hdr.get_timestamp().info
         spkt.hdr.increase_of(1)
         if ts_info == OFT.INTRATD_PEER:
-            of1_info = spkt.hdr.get_relative_of(1).get_info()
-            of2_info = spkt.hdr.get_current_of().get_info()
+            of1_info = spkt.hdr.get_relative_of(1).info
+            of2_info = spkt.hdr.get_current_of().info
             if ((of1_info == OFT.INTRATD_PEER and spkt.hdr.is_on_up_path()) or
                 (of2_info == 0x20 and not spkt.hdr.is_on_up_path())):#TODO DEBUG
                 spkt.hdr.increase_of(1)
@@ -337,7 +347,7 @@ class Router(ServerBase):
         """
         if (spkt.hdr.get_current_of() != spkt.hdr.path.get_of(0) and
             ptype == PT.DATA and from_local_ad):
-            of_info = spkt.hdr.get_current_of().get_info()
+            of_info = spkt.hdr.get_current_of().info
             if of_info == OFT.TDC_XOVR:
                 spkt.hdr.common_hdr.timestamp = spkt.hdr.common_hdr.current_of
                 spkt.hdr.set_downpath()

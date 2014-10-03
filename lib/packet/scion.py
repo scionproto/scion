@@ -91,6 +91,7 @@ TYPES_SRC = {
         PacketType.IFID_REP: 167829514,
         PacketType.UP_PATH: 33612000,
         }
+TYPES_SRC_INV = {v: k for k, v in TYPES_SRC.items()}
 TYPES_DST = {
         PacketType.CERT_REQ: 33611786,
         PacketType.PATH_REQ_LOCAL:50389002,
@@ -104,6 +105,7 @@ TYPES_DST = {
         PacketType.PATH_REG: 50389216,
         PacketType.IFID_REQ: 167829514,
     }
+TYPES_DST_INV = {v: k for k, v in TYPES_DST.items()}
 
 def get_addr_from_type(ptype):
     """
@@ -114,19 +116,17 @@ def get_addr_from_type(ptype):
     else:
         return IPv4HostAddr(TYPES_DST[ptype])
 
-
 def get_type(pkt):
     """
     returns type of the packet, used for dispatching
     """
     isrc_addr = pkt.hdr.src_addr.to_int(endianness='little')
     idst_addr = pkt.hdr.dst_addr.to_int(endianness='little')
-    if isrc_addr in TYPES_SRC.values():
-        return list(TYPES_SRC.keys())[list(TYPES_SRC.values()).index(isrc_addr)]
-    if idst_addr in TYPES_DST.values():
-        return list(TYPES_DST.keys())[list(TYPES_DST.values()).index(idst_addr)]
+    if isrc_addr in TYPES_SRC_INV:
+        return TYPES_SRC_INV[isrc_addr]
+    if idst_addr in TYPES_DST_INV:
+        return TYPES_DST_INV[idst_addr]
     return PacketType.DATA
-
 
 
 class SCIONCommonHdr(HeaderBase):
@@ -504,22 +504,14 @@ class IFIDRequest(SCIONPacket):
     """
     def __init__(self, raw=None):
         SCIONPacket.__init__(self)
-        self.request_id = None 
+        self.request_id = None
 
-        if raw: 
+        if raw:
             self.parse(raw)
 
     def parse(self, raw):
         SCIONPacket.parse(self, raw)
-        self.parse_payload()
-
-    def parse_payload(self):
-        assert self.parsed
-        _, self.request_id = struct.unpack("HH", self.payload) 
-
-    def set_request(self, request_id):
-        self.request_id = request_id
-        self.payload = struct.pack("HH", 0, request_id)
+        _, self.request_id = struct.unpack("HH", self.payload)
 
     @classmethod
     def from_values(cls, src, request_id):
@@ -529,13 +521,16 @@ class IFIDRequest(SCIONPacket):
         @param src: Source address (must be a 'HostAddr' object)
         @param request_id: interface number of src (neighboring router).
         """
-        dst = get_addr_from_type(PacketType.IFID_REQ)
-        payload = struct.pack("HH", 0, request_id)
-        spkt = SCIONPacket.from_values(src, dst, payload)
         req = IFIDRequest()
-        req.hdr = spkt.hdr
-        req.payload = spkt.payload
-        return req 
+        req.request_id = request_id
+        dst = get_addr_from_type(PacketType.IFID_REQ)
+        req.hdr = SCIONHeader.from_values(src, dst, PacketType.DATA)
+        req.payload = struct.pack("HH", 0, request_id)
+        return req
+
+    def pack(self):
+        self.payload = struct.pack("HH", 0, self.request_id)
+        return SCIONPacket.pack(self)
 
 
 class IFIDReply(SCIONPacket):
@@ -544,24 +539,15 @@ class IFIDReply(SCIONPacket):
     """
     def __init__(self, raw=None):
         SCIONPacket.__init__(self)
-        self.reply_id = None 
+        self.reply_id = None
         self.request_id = None
 
-        if raw: 
+        if raw:
             self.parse(raw)
 
     def parse(self, raw):
         SCIONPacket.parse(self, raw)
-        self.parse_payload()
-
-    def parse_payload(self):
-        assert self.parsed
-        self.reply_id, self.request_id = struct.unpack("HH", self.payload) 
-
-    def set_reply_request(self, reply_id, request_id):
-        self.reply_id = reply_id
-        self.request_id = request_id
-        self.payload = struct.pack("HH", reply_id, request_id)
+        self.reply_id, self.request_id = struct.unpack("HH", self.payload)
 
     @classmethod
     def from_values(cls, dst, reply_id, request_id):
@@ -572,10 +558,14 @@ class IFIDReply(SCIONPacket):
         @param reply_id: interface number of dst (local router).
         @param request_id: interface number of src (neighboring router).
         """
-        src = get_addr_from_type(PacketType.IFID_REP)
-        payload = struct.pack("HH", reply_id, request_id)
-        spkt = SCIONPacket.from_values(src, dst, payload)
         rep = IFIDReply()
-        rep.hdr = spkt.hdr
-        rep.payload = spkt.payload
-        return rep 
+        rep.reply_id = reply_id
+        rep.request_id = request_id
+        src = get_addr_from_type(PacketType.IFID_REP)
+        rep.hdr = SCIONHeader.from_values(src, dst, PacketType.DATA)
+        rep.payload = struct.pack("HH", reply_id, request_id)
+        return rep
+
+    def pack(self):
+        self.payload = struct.pack("HH", self.reply_id, self.request_id)
+        return SCIONPacket.pack(self)
