@@ -1,13 +1,18 @@
 PAPER = 0-manual
+MAIN = 0-manual
 LATEX = latex
 DVIPS = dvips
 DVIPDF = dvipdf
 BIBTEX = bibtex
 
-TEXFILES = $(shell ls *.tex src/*tex src/*.bib)
+TEXFILES = $(shell ls *.tex src/*.tex src/*.bib *.ilg *.ind)
 
-$(PAPER).pdf: $(PAPER).ps
-	ps2pdf -dCompatibilityLevel=1.3 $(PAPER).ps $(PAPER).pdf
+$(MAIN).pdf: $(TEXFILES)
+	pdflatex $(MAIN)
+
+
+# $(PAPER).pdf: $(PAPER).ps
+# ps2pdf -dCompatibilityLevel=1.3 $(PAPER).ps $(PAPER).pdf
 	
 pdf: $(PAPER).pdf
 	
