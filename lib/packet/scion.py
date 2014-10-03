@@ -28,6 +28,7 @@ from lib.packet.opaque_field import InfoOpaqueField, OpaqueField
 from lib.packet.packet_base import HeaderBase, PacketBase
 from lib.packet.path import PathType, CorePath, PeerPath, CrossOverPath, \
     EmptyPath
+from lib.packet.pcb import PCB
 
 import struct
 
@@ -569,3 +570,179 @@ class IFIDReply(SCIONPacket):
     def pack(self):
         self.payload = struct.pack("HH", self.reply_id, self.request_id)
         return SCIONPacket.pack(self)
+
+
+#TODO change (according to IFID*) inits, parse, pack...
+class UpPath(SCIONPacket):
+    """
+    UP Path packet.
+    """
+    def __init__(self, raw=None):
+        SCIONPacket.__init__(self,raw)
+        self.pcb = PCB(self.payload)
+
+    @classmethod
+    def from_values(cls, src, pcb):
+        """
+        Returns a UP Path packet with the values specified.
+
+        @param src: Source address (must be a 'HostAddr' object)
+        @param pcb: Path Construction Beacon.
+        """
+        dst = get_addr_from_type(PacketType.UP_PATH)
+        payload = pcb.pack()
+        spkt = SCIONPacket.from_values(src, dst, payload)
+        return spkt
+
+
+class DownPath(SCIONPacket):
+        # TODO (de)serialize, remove sig? 
+    """
+    UP Path packet.
+    """
+    def __init__(self, raw=None):
+        SCIONPacket.__init__(self,raw)
+        self.pcb = PCB(self.payload)
+
+    @classmethod
+    def from_values(cls, src, pcb, path):
+        """
+        Returns a Down Path packet with the values specified.
+
+        @param src: Source address (must be a 'HostAddr' object)
+        @param pcb: Path Construction Beacon.
+        """
+        dst = get_addr_from_type(PacketType.PATH_REG)
+        payload = pcb.pack()
+        spkt = SCIONPacket.from_values(src, dst, payload, path=path)
+        return spkt
+
+
+class Beacon(SCIONPacket):
+    """
+    Beacon packet.
+    """
+    def __init__(self, raw=None):
+        SCIONPacket.__init__(self,raw)
+        self.pcb = PCB(self.payload)
+
+    @classmethod
+    def from_values(cls, dst, pcb):
+        """
+        Returns a Beacon packet with the values specified.
+
+        @param dst: Destination address (must be a 'HostAddr' object)
+        @param pcb: Path Construction Beacon.
+        """
+        src = get_addr_from_type(PacketType.BEACON)
+        payload = pcb.pack()
+        spkt = SCIONPacket.from_values(src, dst, payload)
+        return spkt
+
+
+class PathInfo(object):
+    """
+    Body for path request/reply packets.
+    """
+
+    LEN = 18
+    UP_PATH = 0
+    DOWN_PATH = 1
+    BOTH_PATHS = 2
+
+    def __init__(self, raw=None):
+        self.ad = None
+        self.isd = None
+        self.type = None
+        if raw:
+            self.parse(raw)
+
+    def parse(self, raw):
+        bits = BitArray(bytes=raw)
+        (self.ad, self.isd, self.type, _, _, _) = \
+            bits.unpack("uintle:64, uintle:16, uintle:8, "
+                        "uintle:24, uintle:16, uintle:16")
+    def pack(self):
+        return bitstring.pack("uintle:64, uintle:16, uintle:8, "
+                              "uintle:24, uintle:16, uintle:16",
+                              self.ad, self.isd, self.type, 0, 0, 0).bytes
+
+    @classmethod
+    def from_values(cls, isd, ad, type):
+        info = PathInfo()
+        info.isd = isd
+        info.ad = ad
+        info.type = type 
+
+
+class PathRequest(SCIONPacket):
+    """
+    Path Request packet.
+    """
+    def __init__(self, raw=None):
+        SCIONPacket.__init__(self)
+        self.info = None
+
+        if raw: 
+            self.parse(raw)
+
+    def parse(self, raw):
+        SCIONPacket.parse(self, raw)
+        self.parse_payload()
+
+    def parse_payload(self):
+        assert self.parsed
+        self.info = PathInfo(self.payload)
+
+    @classmethod
+    def from_values(cls, src, info, path=None):
+        """
+        Returns a Path Request with the values specified.
+
+        @param src: Source address (must be a 'HostAddr' object)
+        @param isd, ad: address of targeted AD
+        @param path: path to a core or empty (when request is local)
+        """
+        dst = get_addr_from_type(PacketType.PATH_REQ)
+        self.info = info
+        payload = info.pack()
+        spkt = SCIONPacket.from_values(src, dst, payload, path=path)
+        return spkt 
+
+
+class PathReply(SCIONPacket):
+    """
+    Path Request packet.
+    """
+    def __init__(self, raw=None):
+        SCIONPacket.__init__(self)
+        self.info = None
+
+        if raw: 
+            self.parse(raw)
+
+    def parse(self, raw):
+        SCIONPacket.parse(self, raw)
+        self.parse_payload()
+
+    def parse_payload(self):
+        assert self.parsed
+        self.info = PathInfo(self.payload[:PathInfo.LEN])
+        self.pcb = PCB(self.payload[PathInfo.LEN:])
+
+    @classmethod
+    def from_values(cls, dst, info, pcb, path=None):
+        """
+        Returns a Path Request with the values specified.
+
+        @param dst: Destination address (must be a 'HostAddr' object)
+        @param isd, ad: address of targeted AD
+        @param path: path to a core or empty (when request is local)
+        """
+        src = get_addr_from_type(PacketType.PATH_REP)
+        data = []
+        data.append(info.pack())
+        data.append(pcb.pack())
+        payload = b"".join(data)
+        spkt = SCIONPacket.from_values(src, dst, payload, path=path)
+        return spkt 
