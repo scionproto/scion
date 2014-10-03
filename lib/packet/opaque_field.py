@@ -22,11 +22,18 @@ import bitstring
 
 class OpaqueFieldType(object):
     """
-    Defines constants for the types of the opaque field.
+    Defines constants for the types of the opaque field (first byte of every
+    opaque field, i.e. field).
     """
-    INFO_OF = 0
-    HOP_OF = 1
-
+    NORMAL_OF = 0x00
+    SPECIAL_OF = 0x80
+    TDC_XOVR = 0x80
+    NON_TDC_XOVR = 0xc0
+    INPATH_XOVR = 0xe0
+    INTRATD_PEER = 0xf0
+    INTERTD_PEER = 0xf8
+    PEER_XOVR = 0x10
+    ROT_OF = 0xff
 
 class OpaqueField(object):
     """
@@ -36,7 +43,7 @@ class OpaqueField(object):
     LEN = 8
 
     def __init__(self):
-        self.type = OpaqueFieldType.INFO_OF
+        self.info = 0 #TODO verify path.PathType in that context
         self.parsed = False
         self.raw = None
 
@@ -61,6 +68,24 @@ class OpaqueField(object):
     def __ne__(self, other):
         return not self == other
 
+    def is_regular(self):
+        """
+        Returns true if opaque field is regular, false otherwise.
+        """
+        return not BitArray(bytes([self.info]))[0]
+
+    def is_continue(self):
+        """
+        Returns true if continue bit is set, false otherwise.
+        """
+        return BitArray(bytes([self.info]))[1]
+
+    def is_xovr(self):
+        """
+        Returns true if crossover point bit is set, false otherwise.
+        """
+        return BitArray(bytes([self.info]))[2]
+
     def __str__(self):
         pass
 
@@ -76,11 +101,8 @@ class HopOpaqueField(OpaqueField):
     (16 bits) and a MAC (24 bits) authenticating the opaque field.
     """
 
-    LEN = 8
-
     def __init__(self, raw=None):
         OpaqueField.__init__(self)
-        self.type = OpaqueFieldType.HOP_OF
         self.ingress_if = 0
         self.egress_if = 0
         self.mac = 0
@@ -96,14 +118,14 @@ class HopOpaqueField(OpaqueField):
                 "data len %u", dlen)
             return
         bits = BitArray(bytes=raw)
-        (self.type, self.ingress_if, self.egress_if, self.mac) = \
+        (self.info, self.ingress_if, self.egress_if, self.mac) = \
             bits.unpack("uintle:8, uintle:16, uintle:16, uintle:24")
 
         self.parsed = True
 
     def pack(self):
         return bitstring.pack("uintle:8, uintle:16, uintle:16, uintle:24",
-                              self.type, self.ingress_if, self.egress_if,
+                              self.info, self.ingress_if, self.egress_if,
                               self.mac).bytes
 
     def __eq__(self, other):
@@ -117,7 +139,7 @@ class HopOpaqueField(OpaqueField):
 
     def __str__(self):
         s = "[Hop OF type: %u, ingress if: %u, egress if: %u, mac: %x]" % (
-            self.type, self.ingress_if, self.egress_if, self.mac)
+            self.info, self.ingress_if, self.egress_if, self.mac)
         return s
 
 
@@ -130,16 +152,13 @@ class InfoOpaqueField(OpaqueField):
     a reserved section (2 bytes).
     """
 
-    LEN = 8
-
     def __init__(self, raw=None):
         OpaqueField.__init__(self)
-        self.type = OpaqueFieldType.INFO_OF
-        self.info = 0  # FIXME: Add constants for this info field.
         self.timestamp = 0
         self.isd_id = 0
         self.hops = 0
         self.reserved = 0
+        self.raw = raw
 
         if raw is not None:
             self.parse(raw)
@@ -153,12 +172,15 @@ class InfoOpaqueField(OpaqueField):
                 "data len %u", dlen)
             return
         bits = BitArray(bytes=raw)
-        (self.info, self.timestamp, self.isd_id, self.hops, _reserved) = \
+        (self.info, self.timestamp, self.isd_id, self.hops, self.reserved) = \
             bits.unpack("uintle:8, uintle:16, uintle:16, uintle:8, uintle:16")
 
         self.parsed = True
 
     def pack(self):
+        #PSz: Should InfoOpaqueFIeld with raw==None pack to b'\x00'*8 ?
+        if not self.raw:
+            return b''
         return bitstring.pack("uintle:8, uintle:16, uintle:16, uintle:8,"
                               "uintle:16", self.info, self.timestamp,
                               self.isd_id, self.hops, self.reserved).bytes

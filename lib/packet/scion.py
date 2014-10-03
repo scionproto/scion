@@ -23,12 +23,13 @@ import bitstring
 
 from lib.packet.ext_hdr import ExtensionHeader, ICNExtHdr
 from lib.packet.host_addr import (AddressLengths, IPv4HostAddr,
-                                  IPv6HostAddr, SCIONHostAddr, HostAddr)
+                                  IPv6HostAddr, SCIONHostAddr)
 from lib.packet.opaque_field import InfoOpaqueField, OpaqueField
 from lib.packet.packet_base import HeaderBase, PacketBase
 from lib.packet.path import PathType, CorePath, PeerPath, CrossOverPath, \
     EmptyPath
 
+import struct
 
 class PacketType(object):
     """
@@ -77,8 +78,55 @@ class IDSize(object):
     SIZE_TID = 4
     SIZE_AID = 8
 
+TYPES_SRC = {
+        PacketType.BEACON: 16834570,
+        PacketType.CERT_REP: 33611786,
+        PacketType.PATH_REP_LOCAL: 50389002,
+        PacketType.PATH_REP: 67166218,
+        PacketType.PATH_REP_TDC: 83943434,
+        PacketType.ROT_REP_LOCAL:100720650,
+        PacketType.OFG_KEY_REP: 117497866,
+        PacketType.ROT_REP: 134275082,
+        PacketType.CERT_REP_LOCAL:151052298,
+        PacketType.IFID_REP: 167829514,
+        PacketType.UP_PATH: 33612000,
+        }
+TYPES_SRC_INV = {v: k for k, v in TYPES_SRC.items()}
+TYPES_DST = {
+        PacketType.CERT_REQ: 33611786,
+        PacketType.PATH_REQ_LOCAL:50389002,
+        PacketType.PATH_REQ: 67166218,
+        PacketType.PATH_REQ_TDC: 83943434,
+        PacketType.ROT_REQ_LOCAL: 100720650,
+        PacketType.OFG_KEY_REQ: 117497866,
+        PacketType.ROT_REQ: 134275082,
+        PacketType.CERT_REQ_LOCAL: 151052298,
+        PacketType.UP_PATH: 33612000,
+        PacketType.PATH_REG: 50389216,
+        PacketType.IFID_REQ: 167829514,
+    }
+TYPES_DST_INV = {v: k for k, v in TYPES_DST.items()}
 
+def get_addr_from_type(ptype):
+    """
+    TODO
+    """
+    if ptype in TYPES_SRC:
+        return IPv4HostAddr(TYPES_SRC[ptype])
+    else:
+        return IPv4HostAddr(TYPES_DST[ptype])
 
+def get_type(pkt):
+    """
+    returns type of the packet, used for dispatching
+    """
+    isrc_addr = pkt.hdr.src_addr.to_int(endianness='little')
+    idst_addr = pkt.hdr.dst_addr.to_int(endianness='little')
+    if isrc_addr in TYPES_SRC_INV:
+        return TYPES_SRC_INV[isrc_addr]
+    if idst_addr in TYPES_DST_INV:
+        return TYPES_DST_INV[idst_addr]
+    return PacketType.DATA
 
 
 class SCIONCommonHdr(HeaderBase):
@@ -232,7 +280,11 @@ class SCIONHeader(HeaderBase):
         offset += dst_addr_len
 
         # Parse opaque fields.
-        info = InfoOpaqueField(raw[offset:offset + InfoOpaqueField.LEN])
+        #PSz: UpPath-only case missing, quick fix:
+        if offset == self.common_hdr.hdr_len:
+            info = InfoOpaqueField()
+        else:
+            info = InfoOpaqueField(raw[offset:offset + InfoOpaqueField.LEN])
         if info.info == PathType.CORE:
             self.path = CorePath(raw[offset:self.common_hdr.hdr_len])
         elif info.info == PathType.CROSS_OVER:
@@ -240,7 +292,7 @@ class SCIONHeader(HeaderBase):
         elif info.info == PathType.PEER_LINK:
             self.path = PeerPath(raw[offset:self.common_hdr.hdr_len])
         elif info.info == PathType.EMPTY:
-            self.path = EmptyPath(raw[offset:self.common_hdr.hdr_len])
+            self.path = EmptyPath()#PSz raw[offset:self.common_hdr.hdr_len])
         else:
             logging.info("Can not parse path in packet: Unknown type %x",
                          info.info)
@@ -294,6 +346,27 @@ class SCIONHeader(HeaderBase):
                   self.common_hdr.dst_addr_len))
         return self.path.get_of(offset // OpaqueField.LEN)
 
+    def get_timestamp(self):
+        """
+        Returns the timestamp field as pointed by the timestamp field in
+        the common_hdr.
+        """
+        if self.path is None:
+            return None
+        offset = (self.common_hdr.timestamp - (self.common_hdr.src_addr_len +
+                  self.common_hdr.dst_addr_len))
+        return self.path.get_of(offset // OpaqueField.LEN)
+
+    def get_relative_of(self, n):
+        """
+        Returns (number_of_current_of + n)th opaque field. n may be negative.
+        """
+        if self.path is None:
+            return None
+        offset = (self.common_hdr.current_of - (self.common_hdr.src_addr_len +
+                  self.common_hdr.dst_addr_len))
+        return self.path.get_of(offset // OpaqueField.LEN + n)
+
     def get_next_of(self):
         """
         Returns the opaque field after the one pointed by the current_of field
@@ -305,6 +378,24 @@ class SCIONHeader(HeaderBase):
                   self.common_hdr.dst_addr_len))
         return self.path.get_of(offset // OpaqueField.LEN + 1)
 
+    def increase_of(self, number):
+        """
+        Increases pointer of current opaque field by number of opaque fields.
+        """
+        self.common_hdr.current_of += number*OpaqueField.LEN
+
+    def set_uppath(self):
+        """
+        Sets up path flag.
+        """
+        self.common_hdr.type = 0
+
+    def set_downpath(self):
+        """
+        Sets down path flag.
+        """
+        self.common_hdr.type = 1
+
     def is_on_up_path(self):
         """
         Returns 'True' if the current opaque field should be interpreted as an
@@ -313,7 +404,7 @@ class SCIONHeader(HeaderBase):
         Currently this is indicated by a bit in the LSB of the 'type' field in
         the common header.
         """
-        return not (self.common_hdr.type & 0x1)
+        return not self.common_hdr.type & 0x1
 
     def __len__(self):
         length = self.common_hdr.hdr_len
@@ -337,7 +428,7 @@ class SCIONPacket(PacketBase):
     Class for creating and manipulation SCION packets.
     """
 
-    MIN_LEN = 16
+    MIN_LEN = 8
 
     def __init__(self, raw=None):
         PacketBase.__init__(self)
@@ -405,3 +496,76 @@ class SCIONPacket(PacketBase):
             data.append(self.payload)
 
         return b"".join(data)
+
+
+class IFIDRequest(SCIONPacket):
+    """
+    IFID Request packet.
+    """
+    def __init__(self, raw=None):
+        SCIONPacket.__init__(self)
+        self.request_id = None
+
+        if raw:
+            self.parse(raw)
+
+    def parse(self, raw):
+        SCIONPacket.parse(self, raw)
+        _, self.request_id = struct.unpack("HH", self.payload)
+
+    @classmethod
+    def from_values(cls, src, request_id):
+        """
+        Returns a IFIDRequest with the values specified.
+
+        @param src: Source address (must be a 'HostAddr' object)
+        @param request_id: interface number of src (neighboring router).
+        """
+        req = IFIDRequest()
+        req.request_id = request_id
+        dst = get_addr_from_type(PacketType.IFID_REQ)
+        req.hdr = SCIONHeader.from_values(src, dst, PacketType.DATA)
+        req.payload = struct.pack("HH", 0, request_id)
+        return req
+
+    def pack(self):
+        self.payload = struct.pack("HH", 0, self.request_id)
+        return SCIONPacket.pack(self)
+
+
+class IFIDReply(SCIONPacket):
+    """
+    IFID Reply packet.
+    """
+    def __init__(self, raw=None):
+        SCIONPacket.__init__(self)
+        self.reply_id = None
+        self.request_id = None
+
+        if raw:
+            self.parse(raw)
+
+    def parse(self, raw):
+        SCIONPacket.parse(self, raw)
+        self.reply_id, self.request_id = struct.unpack("HH", self.payload)
+
+    @classmethod
+    def from_values(cls, dst, reply_id, request_id):
+        """
+        Returns a IFIDReply with the values specified.
+
+        @param dst: Destination address (must be a 'HostAddr' object)
+        @param reply_id: interface number of dst (local router).
+        @param request_id: interface number of src (neighboring router).
+        """
+        rep = IFIDReply()
+        rep.reply_id = reply_id
+        rep.request_id = request_id
+        src = get_addr_from_type(PacketType.IFID_REP)
+        rep.hdr = SCIONHeader.from_values(src, dst, PacketType.DATA)
+        rep.payload = struct.pack("HH", reply_id, request_id)
+        return rep
+
+    def pack(self):
+        self.payload = struct.pack("HH", self.reply_id, self.request_id)
+        return SCIONPacket.pack(self)

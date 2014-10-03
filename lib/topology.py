@@ -76,6 +76,7 @@ class InterfaceElement(Element):
         self.to_addr = to_addr
         self.udp_port = udp_port
         self.to_udp_port = to_udp_port
+        self.initialized = False
 
 
 class RouterElement(Element):

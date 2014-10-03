@@ -130,13 +130,17 @@ class CorePath(PathBase):
                 HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN]))
             offset += HopOpaqueField.LEN
         # Parse down-path
-        self.down_path_info = \
-            InfoOpaqueField(raw[offset:offset + InfoOpaqueField.LEN])
-        offset += InfoOpaqueField.LEN
-        for i in range(self.down_path_info.hops):
-            self.down_path_hops.append(
-                HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN]))
-            offset += HopOpaqueField.LEN
+#PSz UpPath (DownPath is null)
+        if len(raw) != offset:
+            self.down_path_info = \
+                InfoOpaqueField(raw[offset:offset + InfoOpaqueField.LEN])
+            offset += InfoOpaqueField.LEN
+            for i in range(self.down_path_info.hops):
+                self.down_path_hops.append(
+                    HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN]))
+                offset += HopOpaqueField.LEN
+        else:
+            self.down_path_info = InfoOpaqueField()
 
         self.parsed = True
 
@@ -388,15 +392,15 @@ class PeerPath(PathBase):
 
 class EmptyPath(PathBase):
     """
-    Represents an empty path. 
-    
+    Represents an empty path.
+   
     This is currently need for intra AD communication, which doesn't need
     a SCION path but still uses SCION packets for communication.
     """
     def __init__(self, raw=None):
         PathBase.__init__(self)
         self.type = PathType.EMPTY
-        
+       
         if raw is not None:
             self.parse(raw)
             
@@ -409,7 +413,8 @@ class EmptyPath(PathBase):
         self.parsed = True
         
     def pack(self):
-        return self.up_path_info.pack()
+        return b'' #TODO(PSz): Empty Path should pack to b'', not '\x00'*8 
+        # return self.up_path_info.pack()
     
     def is_first_hop(self, hop):
         return True
