@@ -571,53 +571,6 @@ class IFIDReply(SCIONPacket):
         self.payload = struct.pack("HH", self.reply_id, self.request_id)
         return SCIONPacket.pack(self)
 
-
-#TODO change (according to IFID*) inits, parse, pack...
-class UpPath(SCIONPacket):
-    """
-    UP Path packet.
-    """
-    def __init__(self, raw=None):
-        SCIONPacket.__init__(self,raw)
-        self.pcb = PCB(self.payload)
-
-    @classmethod
-    def from_values(cls, src, pcb):
-        """
-        Returns a UP Path packet with the values specified.
-
-        @param src: Source address (must be a 'HostAddr' object)
-        @param pcb: Path Construction Beacon.
-        """
-        dst = get_addr_from_type(PacketType.UP_PATH)
-        payload = pcb.pack()
-        spkt = SCIONPacket.from_values(src, dst, payload)
-        return spkt
-
-
-class DownPath(SCIONPacket):
-        # TODO (de)serialize, remove sig? 
-    """
-    UP Path packet.
-    """
-    def __init__(self, raw=None):
-        SCIONPacket.__init__(self,raw)
-        self.pcb = PCB(self.payload)
-
-    @classmethod
-    def from_values(cls, src, pcb, path):
-        """
-        Returns a Down Path packet with the values specified.
-
-        @param src: Source address (must be a 'HostAddr' object)
-        @param pcb: Path Construction Beacon.
-        """
-        dst = get_addr_from_type(PacketType.PATH_REG)
-        payload = pcb.pack()
-        spkt = SCIONPacket.from_values(src, dst, payload, path=path)
-        return spkt
-
-
 class Beacon(SCIONPacket):
     """
     Beacon packet.
