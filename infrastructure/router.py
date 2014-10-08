@@ -285,11 +285,7 @@ class Router(ServerBase):
         """
         while not spkt.hdr.get_current_of().is_regular():
             spkt.hdr.common_hdr.timestamp = spkt.hdr.common_hdr.current_of
-            #TODO PSz: revise, that condition is quite strange
-            if (ptype not in [PT.PATH_REP, PT.CERT_REP, PT.ROT_REP] and
-                spkt.hdr.get_current_of() == spkt.hdr.path.get_of(0)):
-                spkt.hdr.set_uppath()
-            else:
+            if (spkt.hdr.get_current_of() != spkt.hdr.path.get_of(0)):
                 spkt.hdr.set_downpath()
             logging.debug("increase 0")
             spkt.hdr.increase_of(1)

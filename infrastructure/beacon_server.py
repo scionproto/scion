@@ -21,7 +21,7 @@ from lib.packet.pcb import *
 from lib.packet.opaque_field import *
 from lib.packet.opaque_field import OpaqueFieldType as OFT
 from lib.packet.scion import SCIONPacket, IFIDRequest, IFIDReply, get_type,\
-        UpPath, DownPath, Beacon
+        Beacon, PathInfo, PathRequest, PathRecord
 from lib.packet.scion import PacketType as PT
 from lib.topology import ElementType, NeighborType
 from infrastructure.server import ServerBase, SCION_UDP_PORT 
@@ -116,8 +116,10 @@ class BeaconServer(ServerBase):
         """
         Send Up Path to Local Path Servers
         """
-        up_path = UpPath.from_values(self.addr, pcb)
+        info = PathInfo.from_values(PathInfo.UP_PATH, self.config.ad_id,
+                self.config.isd_id)
         dst = self.topology.servers[ElementType.PATH_SERVER].addr
+        up_path = PathRecord.from_values(dst, info, pcb) 
         self.send(up_path, dst)
 
     def register_down_path(self, pcb):
@@ -125,8 +127,10 @@ class BeaconServer(ServerBase):
         Send Down Path to Core Path Server
         """
         pcb.remove_sig()
+        info = PathInfo.from_values(PathInfo.DOWN_PATH, self.config.ad_id,
+                self.config.isd_id)
         core_path = pcb.get_core_path()
-        down_path = DownPath.from_values(self.addr, pcb, core_path)
+        down_path = PathRecord.from_values(self.addr, info, pcb, core_path)
         next_hop = self.ifid2addr[pcb.rotf.if_id]
         self.send(down_path, next_hop)
 

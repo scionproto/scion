@@ -651,28 +651,29 @@ class PathInfo(object):
     BOTH_PATHS = 2
 
     def __init__(self, raw=None):
-        self.ad = None
-        self.isd = None
         self.type = None
+        self.isd = None
+        self.ad = None
         if raw:
             self.parse(raw)
 
     def parse(self, raw):
         bits = BitArray(bytes=raw)
-        (self.ad, self.isd, self.type, _, _, _) = \
-            bits.unpack("uintle:64, uintle:16, uintle:8, "
+        (self.type, self.isd, self.ad, _, _, _) = \
+            bits.unpack("uintle:8, uintle:16, uintle:64, "
                         "uintle:24, uintle:16, uintle:16")
     def pack(self):
-        return bitstring.pack("uintle:64, uintle:16, uintle:8, "
+        return bitstring.pack("uintle:8, uintle:16, uintle:64, "
                               "uintle:24, uintle:16, uintle:16",
-                              self.ad, self.isd, self.type, 0, 0, 0).bytes
+                              self.type, self.isd, self.ad, 0, 0, 0).bytes
 
     @classmethod
-    def from_values(cls, isd, ad, type):
+    def from_values(cls, type, isd, ad):
         info = PathInfo()
+        info.type = type 
         info.isd = isd
         info.ad = ad
-        info.type = type 
+        return info
 
 
 class PathRequest(SCIONPacket):
@@ -688,10 +689,6 @@ class PathRequest(SCIONPacket):
 
     def parse(self, raw):
         SCIONPacket.parse(self, raw)
-        self.parse_payload()
-
-    def parse_payload(self):
-        assert self.parsed
         self.info = PathInfo(self.payload)
 
     @classmethod
@@ -703,30 +700,32 @@ class PathRequest(SCIONPacket):
         @param isd, ad: address of targeted AD
         @param path: path to a core or empty (when request is local)
         """
+        req = PathRequest()
         dst = get_addr_from_type(PacketType.PATH_REQ)
-        self.info = info
-        payload = info.pack()
-        spkt = SCIONPacket.from_values(src, dst, payload, path=path)
-        return spkt 
+        req.hdr = SCIONHeader.from_values(src, dst, PacketType.DATA, path=path)
+        req.payload = info.pack()
+        req.info = info
+        return req 
+
+    def pack(self):
+        self.payload = info.pack()
+        return SCIONPacket.pack(self)
 
 
-class PathReply(SCIONPacket):
+class PathRecord(SCIONPacket):
     """
-    Path Request packet.
+    Path Registration packet.
     """
     def __init__(self, raw=None):
         SCIONPacket.__init__(self)
         self.info = None
+        self.pcb = None
 
         if raw: 
             self.parse(raw)
 
     def parse(self, raw):
         SCIONPacket.parse(self, raw)
-        self.parse_payload()
-
-    def parse_payload(self):
-        assert self.parsed
         self.info = PathInfo(self.payload[:PathInfo.LEN])
         self.pcb = PCB(self.payload[PathInfo.LEN:])
 
@@ -739,10 +738,10 @@ class PathReply(SCIONPacket):
         @param isd, ad: address of targeted AD
         @param path: path to a core or empty (when request is local)
         """
+        rec = PathRecord()
         src = get_addr_from_type(PacketType.PATH_REP)
-        data = []
-        data.append(info.pack())
-        data.append(pcb.pack())
-        payload = b"".join(data)
-        spkt = SCIONPacket.from_values(src, dst, payload, path=path)
-        return spkt 
+        rec.hdr = SCIONHeader.from_values(src, dst, PacketType.DATA, path=path)
+        rec.payload = b"".join([info.pack(), pcb.pack()])
+        rec.info = info
+        rec.pcb = pcb
+        return rec 

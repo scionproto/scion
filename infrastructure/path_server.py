@@ -21,7 +21,7 @@ from lib.packet.pcb import *
 from lib.packet.opaque_field import *
 from lib.packet.path import EmptyPath 
 from lib.packet.scion import SCIONPacket, IFIDRequest, IFIDReply, get_type,\
-        UpPath, DownPath, Beacon, PathRequest, PathReply, PathInfo
+        Beacon, PathRequest, PathRecord, PathInfo
 from lib.packet.scion import PacketType as PT
 from lib.topology import ElementType, NeighborType
 from infrastructure.server import ServerBase, SCION_UDP_PORT,\
@@ -31,11 +31,12 @@ import sys
 
 PATHS_NO = 5 #TODO replace by configuration parameter
 
-def update_dict(dictionary, key, values):
+def update_dict(dictionary, key, values, elem_num=0):
     if key in dictionary:
         dictionary[key].extend(values)
     else:
         dictionary[key] = values 
+    dictionary[key] = dictionary[key][-elem_num:]
 
 
 class PathServer(ServerBase):
@@ -50,21 +51,20 @@ class PathServer(ServerBase):
         self.pending_requests = {}#TODO three classes
         self.pending_targets = set() #used when local PS does not have uppath
 
-    def handle_up_path(self, packet):
+    def handle_up_path(self, path_record):
         """
         Handles Up Path registration from local BS. 
         """
-        if self.config.is_core_ad:
-            print ("ERROR: uppath registration in core")
-            return
-        pcb = UpPath(packet).pcb
+        pcb = path_record.pcb
         self.up_paths.append(pcb)
+        self.up_paths = self.up_paths[-PATHS_NO:]
         print("Up-Path Registered")
+
         if self.pending_targets:
             next_hop = self.ifid2addr[pcb.rotf.if_id]
             path = pcb.get_core_path()
             for (isd, ad) in self.pending_targets:
-                info = PathInfo.from_values(isd, ad, PathInfo.DOWN_PATH)
+                info = PathInfo.from_values(PathInfo.DOWN_PATH, isd, ad)
                 path_request = PathRequest.from_values(self.addr, info, path)
                 self.send(path_request, next_hop)
                 print("PathRequest sent using (first) registered up-path")
@@ -73,38 +73,33 @@ class PathServer(ServerBase):
     #TODO: MOVE it to server?
 #change [0] to current? check it
     def get_first_hop(self, spkt):
+        """
+        Returns first hop addr of down-path or end-host addr.
+        """
         if isinstance(spkt.hdr.path, EmptyPath):
             return (spkt.hdr.dst_addr, SCION_UDP_PS2EH_PORT) 
         else:
             of = spkt.hdr.path.down_path_hops[0]
             return (self.ifid2addr[of.egress_if], SCION_UDP_PORT)
 
-    def send_paths(self, path_request, isd, ad):
+    def send_paths(self, path_request, paths_to_send):
         """
         Sends downpath and optionally uppath (depending on server's location)
         """
+#TODO multiple paths...
         dst = path_request.hdr.src_addr
-        if not self.config.is_core_ad:
-            if not self.up_paths:
-                print ("ERROR: no uppath while downpath exists")
-            else:
-                pcb = self.up_paths[-1]
-                up_path = UpPath.from_values(self.addr, pcb)
-                self.send(up_path, dst)
+        pcb = self.up_paths[0]
+        info = PathInfo.from_values(PathInfo.UP_PATH, isd, ad)
+        up_path = PathRecord.from_values(dst, info, pcb)
+        self.send(up_path, dst)
 
-        pcb = self.down_paths[(isd, ad)][-1] #TODO multiple paths
+        pcb = paths_to_send[-1] #TODO multiple paths
         path_request.hdr.path.reverse()
         path = path_request.hdr.path 
-        path_reply = PathReply.from_values(dst, path_request.info, pcb, path)
+        path_reply = PathRecord.from_values(dst, path_request.info, pcb, path)
         path_reply.hdr.set_downpath()
         (next_hop, port) = self.get_first_hop(path_reply)
         print ("Sending to PATH_REP")
-
-#TODO remove if when clientdaemo is ready
-        if (port == SCION_UDP_PS2EH_PORT):
-            path_reply.set_payload(path_reply.pcb.pack()[:8] +
-                    path_reply.pcb.pack()[16:])
-
         self.send(path_reply, next_hop, port)
 
     def request_core(self, isd, ad):
@@ -114,9 +109,13 @@ class PathServer(ServerBase):
             pcb = self.up_paths[-1]
             next_hop = self.ifid2addr[pcb.rotf.if_id]
             path=pcb.get_core_path()
-            info = PathInfo.from_values(isd, ad, PathInfo.DOWN_PATH)
+            info = PathInfo.from_values(PathInfo.DOWN_PATH, isd, ad)
             path_request = PathRequest.from_values(self.addr, info, path)
             self.send(path_request, next_hop)
+
+    def request_isd(self):
+        #define interisd pathinfo
+        print("To implement")
 
     def handle_path_request(self, packet):
         print("PATH_REQ")
@@ -124,41 +123,49 @@ class PathServer(ServerBase):
         path_request = PathRequest(packet) 
         isd = path_request.info.isd 
         ad = path_request.info.ad 
+        type = path_request.info.typ
+
+        paths_to_send  = []
         print (isd,ad)
         print(self.down_paths)
-        if (isd, ad) in self.down_paths:
-            self.send_paths(path_request, isd, ad)
+        if (type in [PathInfo.UP_PATH, PathInfo.BOTH] and not
+                self.config.is_core_ad):
+            if self.up_paths:
+                paths_to_send.extend(self.up_paths)
+            else:
+                return
+        if (type == PathInfo.DOWN_PATH or (type == PathInfo.BOTH and not
+            self.config.is_core_ad)):
+            if (isd, ad) in self.down_paths:
+                paths_to_send.extend(self.down_paths[(isd, ad)])
+            else:
+                if not self.config.is_core_ad:
+                    self.request_core(isd, ad)
+                elif isd != self.config.isd_id:
+                    self.request_isd(isd,ad)
+                print("No downpath, request is pending.")
+                paths_to_send = []
+                update_dict(self.pending_requests, (isd, ad), [path_request])
         else:
-            update_dict(self.pending_requests, (isd, ad), [path_request])
-            print("No downpath, request is pending.")
-            if not self.config.is_core_ad:
-                self.request_core(isd, ad)
+            print("ERROR: Wrong path request")
 
-    def update_down_paths(self, isd_ad, pcbs):
-        update_dict(self.down_paths, isd_ad, pcbs)
-        self.down_paths[isd_ad] = self.down_paths[isd_ad][:PATHS_NO]
+        if paths_to_send:
+            self.send_paths(path_request, paths_to_send)
 
-    def handle_path_reply(self, packet):
-        path_reply = PathReply(packet)
-        if path_reply.type != PathInfo.DOWN_PATH:
-            print("ERROR: PathReply with UP_PATH.")
-            return
-        isd = path_reply.info.isd
-        ad = path_reply.info.ad
-        pcb = path_reply.pcb
-        self.update_down_paths((isd, ad), [pcb])
-        print(self.down_paths)
-        print("PATH_REP:", isd, ad)
-
-    def handle_path_registration(self, packet):
-        if not self.config.is_core_ad:
-            print("Error: downpath path registration at non-core.")
-            return
-        pcb = DownPath(packet).pcb
+    def handle_down_path(self, path_record):
+        pcb = path_record.pcb
         isd = pcb.get_isd()
         ad = pcb.get_last_ad() 
-        update_dict(self.down_paths, (isd, ad), [pcb])
+        update_dict(self.down_paths, (isd, ad), [pcb], PATHS_NO)
         print("PATH_REG", isd, ad)
+        #here serve pending requests
+
+    def dispatch_path_record(self, packet):
+        rec = PathRecord(packet)
+        if rec.info.type == PathInfo.UP_PATH and not self.config.is_core_ad:
+            self.handle_up_path(rec)
+        if rec.info.type == PathInfo.DOWN_PATH:
+            self.handle_down_path(rec)
 
     def handle_request(self, packet, sender, from_local_socket=True):
         """
@@ -169,12 +176,8 @@ class PathServer(ServerBase):
 
         if ptype == PT.PATH_REQ:
             self.handle_path_request(packet)
-        elif ptype == PT.UP_PATH:
-            self.handle_up_path(packet)
         elif ptype == PT.PATH_REP:
-            self.handle_path_reply(packet)
-        elif ptype == PT.PATH_REG:
-            self.handle_path_registration(packet)
+            self.dispatch_path_record(packet)
         else: 
             print("Type %d not supported.", ptype)
 
