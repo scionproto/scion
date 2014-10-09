@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import sys, hashlib, binascii, struct, StringIO
+import sys, hashlib, binascii, struct, io
 
 # AES Cipher
 from Crypto.Cipher import AES
@@ -28,10 +28,10 @@ def pkcs7padding(data):
     Pad input data with PKCS#7 bytes format (See RFC 5652) into 16-byte aligned blocks.
     """
 	l = len(data)
-	output = StringIO.StringIO()
+	output = io.StringIO()
 	val = 16 - (l % 16)
-	for _ in xrange(val): output.write('%02x' % val)
-	padded_data = data + binascii.unhexlify(output.getvalue())
+	for _ in range(val): output.write('%02x' % val)
+	padded_data = bytes(data) + binascii.unhexlify(output.getvalue())
 	return padded_data
 
 def pkcs7unpadding(encode):
@@ -39,7 +39,7 @@ def pkcs7unpadding(encode):
     Strip PKCS#7 bytes from input data (See RFC 5652) back to original input.
     """
 	nl = len(encode)
-	val = int(binascii.hexlify(encode[-1]), 16)
+	val = int(str(encode[-1]))
 	if val > 16: raise ValueError('Input is not padded or padding is corrupt')
 	l = nl - val
 	return encode[:l]
@@ -64,8 +64,8 @@ class SymCryptoUtil(object):
 		padded_data = pkcs7padding(data)
 		# Encrypt, AES CBC Cipher
 		cipher = AES.new(keybytes, AES.MODE_CBC, iv)
-		cipher = cipher.encrypt(bytes(padded_data))
-		return cipher
+		encrypted = cipher.encrypt(bytes(padded_data))
+		return encrypted
 	
 	@staticmethod
 	def CBCDecrypt(keybytes, iv, data):
@@ -81,7 +81,7 @@ class SymCryptoUtil(object):
 		cipher = AES.new(keybytes, AES.MODE_CBC, iv)
 		decipher = cipher.decrypt(data)
 		# PKCS#7 unpadding
-		decipher = pkcs7padding(decipher)
+		decipher = pkcs7unpadding(decipher)
 		return decipher
 		
 	@staticmethod
@@ -111,23 +111,22 @@ class SymCryptoUtil(object):
 			return False;
 	
 	def test(self):
-		print "---AES-CBC-Cipher Test---"
+		print ("---AES-CBC-Cipher Test---")
 		iv  = '0000000000000000'
 		key = '1234567890abcdef'
 		secret = '1234567890abcdef'
-		print 'Plaintext: %s' % secret.encode('utf-8')
-		cipher = SymCryptoUtil().CBCEncrypt(key, iv, secret)
-		print 'AES-CBC-ENC(len = %d): %s' % (len(cipher), binascii.hexlify(cipher))
+		print ("Plaintext: %s" % secret)
+		cipher = SymCryptoUtil().CBCEncrypt(key, iv, secret.encode('utf-8'))
+		print ("AES-CBC-ENC(len = %d): %s" % (len(cipher), binascii.hexlify(cipher)))
 		decipher = SymCryptoUtil().CBCDecrypt(key, iv, cipher)
-		print 'AES-CBC-DEC: %s' % decipher.encode('utf-8')
-		
-		print "---AES-CBC-MAC Test---"
+		print ("AES-CBC-DEC: %s" % str(decipher))
+		print ("---AES-CBC-MAC Test---")
 		mac = SymCryptoUtil().CBCMAC(key, secret.encode('utf-8'))
-		print 'AES-CBC-MAC(len = %d): %s' % (len(mac), binascii.hexlify(mac))
+		print ("AES-CBC-MAC(len = %d): %s" % (len(mac), binascii.hexlify(mac)))
 		if SymCryptoUtil().CBCMACVerify(key, secret.encode('utf-8'), mac):
-			print 'MAC verification succeeds.'
+			print ("MAC verification succeeds.")
 		else:
-			print 'MAC verification fails.'
+			print ("MAC verification fails.")
 
 # test functions
 if __name__ == '__main__':
