@@ -55,8 +55,8 @@ class PathServer(ServerBase):
         """
         Handles Up Path registration from local BS. 
         """
-        pcb = path_record.pcb
-        self.up_paths.append(pcb)
+        pcbs = path_record.pcbs
+        self.up_paths.extend(pcbs)
         self.up_paths = self.up_paths[-PATHS_NO:]
         print("Up-Path Registered")
 
@@ -77,29 +77,22 @@ class PathServer(ServerBase):
         Returns first hop addr of down-path or end-host addr.
         """
         if isinstance(spkt.hdr.path, EmptyPath):
-            return (spkt.hdr.dst_addr, SCION_UDP_PS2EH_PORT) 
+            return (spkt.hdr.dst_addr, SCION_UDP_PORT) 
         else:
             of = spkt.hdr.path.down_path_hops[0]
             return (self.ifid2addr[of.egress_if], SCION_UDP_PORT)
 
-    def send_paths(self, path_request, paths_to_send):
+    def send_paths(self, path_request, paths):
         """
-        Sends downpath and optionally uppath (depending on server's location)
+        Sends paths to requester (depending on server's location)
         """
-#TODO multiple paths...
         dst = path_request.hdr.src_addr
-        pcb = self.up_paths[0]
-        info = PathInfo.from_values(PathInfo.UP_PATH, isd, ad)
-        up_path = PathRecord.from_values(dst, info, pcb)
-        self.send(up_path, dst)
-
-        pcb = paths_to_send[-1] #TODO multiple paths
         path_request.hdr.path.reverse()
         path = path_request.hdr.path 
-        path_reply = PathRecord.from_values(dst, path_request.info, pcb, path)
+        path_reply = PathRecord.from_values(dst, path_request.info, paths, path)
         path_reply.hdr.set_downpath()
         (next_hop, port) = self.get_first_hop(path_reply)
-        print ("Sending to PATH_REP")
+        print ("Sending to PATH_REP, using path:",path, next_hop)
         self.send(path_reply, next_hop, port)
 
     def request_core(self, isd, ad):
@@ -123,18 +116,18 @@ class PathServer(ServerBase):
         path_request = PathRequest(packet) 
         isd = path_request.info.isd 
         ad = path_request.info.ad 
-        type = path_request.info.typ
+        type = path_request.info.type
 
         paths_to_send  = []
         print (isd,ad)
         print(self.down_paths)
-        if (type in [PathInfo.UP_PATH, PathInfo.BOTH] and not
+        if (type in [PathInfo.UP_PATH, PathInfo.BOTH_PATHS] and not
                 self.config.is_core_ad):
             if self.up_paths:
                 paths_to_send.extend(self.up_paths)
             else:
                 return
-        if (type == PathInfo.DOWN_PATH or (type == PathInfo.BOTH and not
+        if (type == PathInfo.DOWN_PATH or (type == PathInfo.BOTH_PATHS and not
             self.config.is_core_ad)):
             if (isd, ad) in self.down_paths:
                 paths_to_send.extend(self.down_paths[(isd, ad)])
@@ -153,11 +146,11 @@ class PathServer(ServerBase):
             self.send_paths(path_request, paths_to_send)
 
     def handle_down_path(self, path_record):
-        pcb = path_record.pcb
-        isd = pcb.get_isd()
-        ad = pcb.get_last_ad() 
-        update_dict(self.down_paths, (isd, ad), [pcb], PATHS_NO)
-        print("PATH_REG", isd, ad)
+        for pcb in path_record.pcbs:
+            isd = pcb.get_isd()
+            ad = pcb.get_last_ad() 
+            update_dict(self.down_paths, (isd, ad), [pcb], PATHS_NO)
+            print("PATH_REG", isd, ad)
         #here serve pending requests
 
     def dispatch_path_record(self, packet):

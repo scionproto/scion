@@ -661,7 +661,7 @@ class PathRequest(SCIONPacket):
         return req 
 
     def pack(self):
-        self.payload = info.pack()
+        self.payload = self.info.pack()
         return SCIONPacket.pack(self)
 
 
@@ -672,7 +672,7 @@ class PathRecord(SCIONPacket):
     def __init__(self, raw=None):
         SCIONPacket.__init__(self)
         self.info = None
-        self.pcb = None
+        self.pcbs = None
 
         if raw: 
             self.parse(raw)
@@ -680,10 +680,10 @@ class PathRecord(SCIONPacket):
     def parse(self, raw):
         SCIONPacket.parse(self, raw)
         self.info = PathInfo(self.payload[:PathInfo.LEN])
-        self.pcb = PCB(self.payload[PathInfo.LEN:])
+        self.pcbs = PCB.deserialize(self.payload[PathInfo.LEN:])
 
     @classmethod
-    def from_values(cls, dst, info, pcb, path=None):
+    def from_values(cls, dst, info, pcbs, path=None):
         """
         Returns a Path Request with the values specified.
 
@@ -694,7 +694,7 @@ class PathRecord(SCIONPacket):
         rec = PathRecord()
         src = get_addr_from_type(PacketType.PATH_REP)
         rec.hdr = SCIONHeader.from_values(src, dst, PacketType.DATA, path=path)
-        rec.payload = b"".join([info.pack(), pcb.pack()])
+        rec.payload = b"".join([info.pack(), PCB.serialize(pcbs)])
         rec.info = info
-        rec.pcb = pcb
+        rec.pcbs = pcbs
         return rec 

@@ -295,7 +295,7 @@ class PCB(object):
     def deserialize(raw):
         assert isinstance(raw, bytes)
         dlen = len(raw)
-        if dlen < self.LEN:
+        if dlen < PCB.LEN:
             logging.warning("Data too short to parse the field, len: %u", dlen)
             return
         pcbs = []
