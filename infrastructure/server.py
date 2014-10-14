@@ -38,13 +38,10 @@ class ServerBase(object):
         self.topology = None
         self.config = None
         self.ifid2addr = {}
-
         self.addr = addr
-
         self.parse_topology(topo_file)
         self.parse_config(config_file)
         self.construct_ifid2addr_map()
-
         self._local_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._local_socket.bind((str(self.addr), SCION_UDP_PORT))
         self._sockets = [self._local_socket]

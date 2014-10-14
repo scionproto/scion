@@ -11,7 +11,7 @@ using namespace std;
 
 
 int main (void) {
-    int adAid, tdId, isCore, registerPath, as1, as2, rel, nbrType1,
+    int ad_id, isd_id, isCore, registerPath, as1, as2, rel, nbrType1,
         nbrType2, ifId1, ifId2, nbrTd1, nbrTd2, nbrAd1, nbrAd2, numTDs;
     string line, ip_address = "127.0.0.1", tmp_ip_address = "127.0.0.1";
     ifstream asRel, asInfo;
@@ -24,20 +24,20 @@ int main (void) {
            << "cd ./infrastructure/\n";
     runNet.close();
 
-    asInfo.open("AsToTD");
+    asInfo.open("ADToISD");
     while (getline(asInfo, line)) {
         istringstream iss(line);
-        iss >> adAid >> tdId >> isCore;
+        iss >> ad_id >> isd_id >> isCore;
 
         registerPath = (isCore==2 || isCore==0) ? 1 : 0;
         isCore = (isCore) ? 0 : 1;
 
-        asList[adAid-1] = new SCIONScriptGen(adAid, isCore, tdId, 1234567890, 1919191919, ip_address, registerPath);
-        asList[adAid-1]->GenerateAllConf (ip_address);
+        asList[ad_id-1] = new SCIONScriptGen(ad_id, isCore, isd_id, 1234567890, 1919191919, ip_address, registerPath);
+        asList[ad_id-1]->GenerateAllConf (ip_address);
     }
     asInfo.close();
 
-    asRel.open("AsRelationship");
+    asRel.open("ADRelationships");
     while (getline(asRel, line)) {
         istringstream iss(line);
         iss >> as1 >> as2 >> rel;
@@ -57,8 +57,8 @@ int main (void) {
         } else if (rel == 1) {
             nbrType1 = ROUTING;
             nbrType2 = ROUTING;
-            nbrTd1 = asList[as2-1]->GetTdId ();
-            nbrTd2 = asList[as1-1]->GetTdId ();
+            nbrTd1 = asList[as2-1]->GetISDId ();
+            nbrTd2 = asList[as1-1]->GetISDId ();
         }
 
         Router rtr1(IPV4, ifId1, nbrTd1, nbrAd1, nbrType1, IPV4,

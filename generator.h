@@ -72,7 +72,7 @@ struct Router {
 class SCIONScriptGen {
 
     public:
-        SCIONScriptGen (int adAid, int core, int tdId, int masterOFGKey,
+        SCIONScriptGen (int ad_id, int core, int isd_id, int masterOFGKey,
                         int masterADKey, string &ip_address, int registerPath=0,
                         int pcbQueuSize=10, int psQueueSize=10,
                         int numRegisterPaths=10, int numShortestUPs=3,
@@ -81,15 +81,15 @@ class SCIONScriptGen {
         ~SCIONScriptGen();
         void GenerateAllConf (string &ip_address);
         void AddRouter (const Router *rtr, string &ip_address);
-        int GetTdId () const;
+        int GetISDId () const;
         string GetIpAddress () const;
 
     private:
         void GenerateADConf (const char *fileName) const;
         void GenerateTopologyXml (string &ip_address);
 
-        int m_tdId, m_registerPath, m_ifId, m_core, m_pcbQueueSize,
-            m_psQueueSize, m_numRegisteredPaths, m_numShortestUPs, m_adAid,
+        int m_isd_id, m_registerPath, m_ifId, m_core, m_pcbQueueSize,
+            m_psQueueSize, m_numRegisteredPaths, m_numShortestUPs, m_ad_id,
             m_aid, m_beaconServerAid, m_masterOFGKey, m_masterADKey;
         double m_registerTime, m_propagateTime, m_resetTime;
         char m_topoXmlName[100];

@@ -32,7 +32,6 @@ class ElementType(object):
     PATH_SERVER = 2
     CONTENT_CACHE = 3
     BORDER_ROUTER = 4
-    GATEWAY = 5
 
 
 class NeighborType(object):
@@ -88,15 +87,6 @@ class RouterElement(Element):
         self.interface = interface
 
 
-class GatewayElement(Element):
-    """
-    Represents a gateway.
-    """
-    def __init__(self, aid=0, addr=None, ptype=0):
-        Element.__init__(self, aid, addr)
-        self.ptype = ptype
-
-
 class ClientElement(Element):
     """
     Represents a client.
@@ -110,14 +100,15 @@ class Topology(object):
     Handles parsing a SCION topology XML file.
     """
     def __init__(self, filename=None):
+        self.ad_id = 0  # AD ID
+        self.isd_id = 0  # ISD ID
+        self.is_core_ad = False  # Flag to represent ISD core ADs
         self.routers = defaultdict(list)
         self.servers = {}
         self.gateways = {}
         self.clients = []
-
         self._filename = None
         self._topo = None
-
         if filename is not None:
             self.load_file(filename)
 
@@ -134,10 +125,15 @@ class Topology(object):
         Parses the topology file and populates
         """
         assert self._topo is not None, "Must load file first"
+        is_core_ad = self._topo.getroot().find("Core").text
+        self.is_core_ad = bool(int(is_core_ad))
+        isd_id = self._topo.getroot().find("ISDID").text
+        self.isd_id = int(isd_id)
+        ad_id = self._topo.getroot().find("ADID").text
+        self.ad_id = int(ad_id)
         self._parse_servers()
         self._parse_routers()
-        self._parse_clients()
-        self._parse_gateways()
+        #self._parse_clients()
 
     def _parse_servers(self):
         """
@@ -149,7 +145,6 @@ class Topology(object):
             return
         for server in servers:
             element = ServerElement()
-            self._parse_aid(server, element)
             self._parse_address(server, element)
             if server.tag == "BeaconServer":
                 element.type = ElementType.BEACON_SERVER
@@ -175,7 +170,6 @@ class Topology(object):
             return
         for router in routers:
             element = RouterElement()
-            self._parse_aid(router, element)
             self._parse_address(router, element)
             interfaces = router.findall("Interface")
             assert len(interfaces) <= 1, "Router can only have one interface"
@@ -193,25 +187,7 @@ class Topology(object):
             return
         for client in clients:
             element = ClientElement()
-            self._parse_aid(client, element)
             self.clients.append(element)
-
-    def _parse_gateways(self):
-        """
-        Parses the gateways in the topology file.
-        """
-        pass
-
-    def _parse_aid(self, et_element, element):
-        """
-        Parses the AID in an element
-        """
-        assert ET.iselement(et_element)
-        aid_el = et_element.find("AID")
-        if aid_el is None:
-            element.aid = 0
-        else:
-            element.aid = int(aid_el.text)
 
     def _parse_address(self, et_element, element):
         """
@@ -245,7 +221,7 @@ class Topology(object):
         if_el.if_id = int(et_element.find("IFID").text)
         neighbor = et_element.find("NeighborAD")
         if neighbor is None:
-            neighbor = et_element.find("NeighborTD")
+            neighbor = et_element.find("NeighborISD")
         assert neighbor is not None
         if_el.neighbor = int(neighbor.text)
 

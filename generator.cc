@@ -34,14 +34,14 @@ char* increment_address(const char* address_string) {
 }
 
 
-SCIONScriptGen::SCIONScriptGen (int adAid, int core, int tdId,
+SCIONScriptGen::SCIONScriptGen (int ad_id, int core, int isd_id,
               int masterOFGKey, int masterADKey, string &ip_address, int registerPath,
               int pcbQueueSize, int psQueueSize, int numRegisterPaths,
               int numShortestUPs, double registerTime, double propagateTime,
               double resetTime)
-  : m_adAid (adAid),
+  : m_ad_id (ad_id),
     m_core (core),
-    m_tdId (tdId),
+    m_isd_id (isd_id),
     m_masterOFGKey (masterOFGKey),
     m_masterADKey (masterADKey),
     m_pcbQueueSize  (pcbQueueSize),
@@ -57,11 +57,11 @@ SCIONScriptGen::SCIONScriptGen (int adAid, int core, int tdId,
     m_ip_address = ip_address;
     ip_address = increment_address((const char*)ip_address.c_str());
 
-    string temp="/td";
+    string temp="/isd";
 
     char tempBuf[100];
-    m_dirPrefix="TD";
-    sprintf(tempBuf, "%d", m_tdId);
+    m_dirPrefix="ISD";
+    sprintf(tempBuf, "%d", m_isd_id);
     m_dirPrefix.append(tempBuf);
 
     temp.append(tempBuf);
@@ -85,11 +85,11 @@ void SCIONScriptGen::GenerateAllConf (string &ip_address) {
     int prefixLen = m_dirPrefix.length();
     memcpy (temp, m_dirPrefix.c_str(), prefixLen);
 
-    sprintf(temp+prefixLen, "/topologies/topology%i.xml", m_adAid);
+    sprintf(temp+prefixLen, "/topologies/topology%i.xml", m_ad_id);
     strcpy (m_topoXmlName, temp);
     GenerateTopologyXml(ip_address);
 
-    sprintf(temp+prefixLen, "/configurations/AD%i.conf", m_adAid);
+    sprintf(temp+prefixLen, "/configurations/AD%i.conf", m_ad_id);
     GenerateADConf(temp);    
 }
 
@@ -127,7 +127,7 @@ void SCIONScriptGen::AddRouter (const Router *rtr, string &ip_address) {
     myfile << "\t\t\t<Interface>\n";
     myfile << "\t\t\t\t<IFID>" << ++m_ifId << "</IFID>\n";
     if (rtr->nbrTdAid) {
-        myfile << "\t\t\t\t<NeighborTD>" << rtr->nbrTdAid << "</NeighborTD>\n";
+        myfile << "\t\t\t\t<NeighborISD>" << rtr->nbrTdAid << "</NeighborISD>\n";
     }
     myfile << "\t\t\t\t<NeighborAD>" << rtr->nbrAdAid<< "</NeighborAD>\n";
     myfile << "\t\t\t\t<NeighborType>" << rtr->nbrType<< "</NeighborType>\n";
@@ -141,10 +141,10 @@ void SCIONScriptGen::AddRouter (const Router *rtr, string &ip_address) {
     myfile.close();
 
     myfile.open ("run.sh", std::ofstream::out | std::ofstream::app);
-    myfile << "screen -d -m -S r" << m_adAid << "r" << rtr->nbrAdAid << " sh -c \""
+    myfile << "screen -d -m -S r" << m_ad_id << "r" << rtr->nbrAdAid << " sh -c \""
            << "PYTHONPATH=../ python3 router.py " << ip_address << " "
-           << "../TD" << m_tdId << "/topologies/topology" << m_adAid << ".xml "
-           << "../TD" << m_tdId << "/configurations/AD" << m_adAid << ".conf\"\n";
+           << "../ISD" << m_isd_id << "/topologies/topology" << m_ad_id << ".xml "
+           << "../ISD" << m_isd_id << "/configurations/AD" << m_ad_id << ".conf\"\n";
     myfile.close();
 
   ip_address = increment_address((const char*)ip_address.c_str());
@@ -158,8 +158,8 @@ void SCIONScriptGen::GenerateTopologyXml (string &ip_address) {
     myfile << "<?xml version=\"1.0\" ?>\n";
     myfile << "<Topology>\n";
     myfile << "\t<Core>" << m_core << "</Core>\n";
-    myfile << "\t<TDID>" << m_tdId << "</TDID>\n";
-    myfile << "\t<ADAID>" << m_adAid << "</ADAID>\n";
+    myfile << "\t<ISDID>" << m_isd_id << "</ISDID>\n";
+    myfile << "\t<ADID>" << m_ad_id << "</ADID>\n";
     myfile << "\t<Servers>\n";
     myfile << "\t\t<BeaconServer>\n";
     myfile << "\t\t\t<AddrType>IPv4</AddrType>\n";
@@ -167,10 +167,10 @@ void SCIONScriptGen::GenerateTopologyXml (string &ip_address) {
     myfile << "\t\t</BeaconServer>\n";
 
     netRun.open ("run.sh", std::ofstream::out | std::ofstream::app);
-    netRun << "screen -d -m -S bs" << m_adAid << " sh -c \""
+    netRun << "screen -d -m -S bs" << m_ad_id << " sh -c \""
            << "PYTHONPATH=../ python3 beacon_server.py " << ip_address << " "
-           << "../TD" << m_tdId << "/topologies/topology" << m_adAid << ".xml "
-           << "../TD" << m_tdId << "/configurations/AD" << m_adAid << ".conf\"\n";
+           << "../ISD" << m_isd_id << "/topologies/topology" << m_ad_id << ".xml "
+           << "../ISD" << m_isd_id << "/configurations/AD" << m_ad_id << ".conf\"\n";
 
     ip_address = increment_address((const char*)ip_address.c_str());
 
@@ -180,10 +180,10 @@ void SCIONScriptGen::GenerateTopologyXml (string &ip_address) {
         myfile << "\t\t\t<Addr>" << ip_address << "</Addr>\n";
         myfile << "\t\t</PathServer>\n";
 
-        netRun << "screen -d -m -S ps" << m_adAid << " sh -c \""
+        netRun << "screen -d -m -S ps" << m_ad_id << " sh -c \""
                << "PYTHONPATH=../ python3 path_server.py " << ip_address << " "
-               << "../TD" << m_tdId << "/topologies/topology" << m_adAid << ".xml "
-               << "../TD" << m_tdId << "/configurations/AD" << m_adAid << ".conf\"\n";
+               << "../ISD" << m_isd_id << "/topologies/topology" << m_ad_id << ".xml "
+               << "../ISD" << m_isd_id << "/configurations/AD" << m_ad_id << ".conf\"\n";
 
         ip_address = increment_address((const char*)ip_address.c_str());    
     }
@@ -193,10 +193,10 @@ void SCIONScriptGen::GenerateTopologyXml (string &ip_address) {
     myfile << "\t\t\t<Addr>"<< ip_address << "</Addr>\n";
     myfile << "\t\t</CertificateServer>\n";
     
-    netRun << "screen -d -m -S cs" << m_adAid << " sh -c \""
+    netRun << "screen -d -m -S cs" << m_ad_id << " sh -c \""
            << "PYTHONPATH=../ python3 cert_server.py " << ip_address << " "
-           << "../TD" << m_tdId << "/topologies/topology" << m_adAid << ".xml "
-           << "../TD" << m_tdId << "/configurations/AD" << m_adAid << ".conf\"\n";
+           << "../ISD" << m_isd_id << "/topologies/topology" << m_ad_id << ".xml "
+           << "../ISD" << m_isd_id << "/configurations/AD" << m_ad_id << ".conf\"\n";
     
     ip_address = increment_address((const char*)ip_address.c_str());
 
@@ -207,8 +207,8 @@ void SCIONScriptGen::GenerateTopologyXml (string &ip_address) {
 }
 
 
-int SCIONScriptGen::GetTdId () const {
-    return m_tdId;
+int SCIONScriptGen::GetISDId () const {
+    return m_isd_id;
 }
 
 

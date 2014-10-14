@@ -5,7 +5,7 @@ if [ $1 == "topology" ]; then
     echo "create topology, configuration and execution  files"
     bash ./topo-gen.sh
 elif [ $1 == "setup" ]; then
-    echo "add ip alias for TDC and ADs"
+    echo "add ip alias for ISDs and ADs"
     sudo bash ./setup.sh
 elif [ $1 == "run" ]; then
     echo "run network"
