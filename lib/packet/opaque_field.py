@@ -59,15 +59,6 @@ class OpaqueField(object):
         """
         pass
 
-    def __eq__(self, other):
-        if type(other) is type(self):
-            return self.info == other.info
-        else:
-            return False
-
-    def __ne__(self, other):
-        return not self == other
-
     def is_regular(self):
         """
         Returns true if opaque field is regular, false otherwise.
@@ -128,15 +119,6 @@ class HopOpaqueField(OpaqueField):
                               self.info, self.ingress_if, self.egress_if,
                               self.mac).bytes
 
-    def __eq__(self, other):
-        if type(other) is type(self):
-            return (self.inf == other.info and
-                    self.ingress_if == other.ingress_if and
-                    self.egress_if == other.egress_if and
-                    self.mac == other.mac)
-        else:
-            return False
-
     def __str__(self):
         s = "[Hop OF type: %u, ingress if: %u, egress if: %u, mac: %x]" % (
             self.info, self.ingress_if, self.egress_if, self.mac)
@@ -184,16 +166,6 @@ class InfoOpaqueField(OpaqueField):
         return bitstring.pack("uintle:8, uintle:16, uintle:16, uintle:8,"
                               "uintle:16", self.info, self.timestamp,
                               self.isd_id, self.hops, self.reserved).bytes
-
-    def __eq__(self, other):
-        if type(other) is type(self):
-            return (self.info == other.info and
-                    self.timestamp == other.timestamp and
-                    self.isd_id == other.isd_id and
-                    self.hops == other.hops and
-                    self.reserved == other.reserved)
-        else:
-            return False
 
     def __str__(self):
         s = "[Info OF info: %x, TS: %u, ISD ID: %u, hops: %u]" % (
