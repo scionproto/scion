@@ -11,7 +11,7 @@ using namespace std;
 
 
 int main (void) {
-    int ad_id, isd_id, isCore, registerPath, as1, as2, rel, nbrType1, port = 33000,
+    int ad_id, isd_id, isCore, registerPath, as1, as2, rel, nbrType1, port = 50000,
         nbrType2, ifId1, ifId2, nbrTd1, nbrTd2, nbrAd1, nbrAd2, numTDs;
     string line, ip_address = "127.0.0.1", tmp_ip_address = "127.0.0.1";
     ifstream asRel, asInfo;
