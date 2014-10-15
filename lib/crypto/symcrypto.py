@@ -18,17 +18,25 @@ limitations under the License.
 
 import sys, hashlib, binascii, struct, io
 
+if sys.version_info[0] == 3:
+	import io
+else:
+	import StringIO
+
 # AES Cipher
 from Crypto.Cipher import AES
-from Crypto import Random 
+from Crypto import Random
 
 # PCKS#7 padding
 def pkcs7padding(data):
 	"""
-    Pad input data with PKCS#7 bytes format (See RFC 5652) into 16-byte aligned blocks.
-    """
+	Pad input data with PKCS#7 bytes format (See RFC 5652) into 16-byte aligned blocks.
+	"""
 	l = len(data)
-	output = io.StringIO()
+	if sys.version_info[0] == 3:
+		output = io.StringIO()
+	else:
+		output = StringIO.StringIO()
 	val = 16 - (l % 16)
 	for _ in range(val): output.write('%02x' % val)
 	padded_data = bytes(data) + binascii.unhexlify(output.getvalue())
@@ -36,10 +44,13 @@ def pkcs7padding(data):
 
 def pkcs7unpadding(encode):
 	"""
-    Strip PKCS#7 bytes from input data (See RFC 5652) back to original input.
-    """
+	Strip PKCS#7 bytes from input data (See RFC 5652) back to original input.
+	"""
 	nl = len(encode)
-	val = int(str(encode[-1]))
+	if sys.version_info[0] == 3:
+		val = int(str(encode[-1]))
+	else:
+		val = int(binascii.hexlify(encode[-1]), 16)
 	if val > 16: raise ValueError('Input is not padded or padding is corrupt')
 	l = nl - val
 	return encode[:l]
@@ -47,8 +58,8 @@ def pkcs7unpadding(encode):
 
 class SymCryptoUtil(object):
 	"""
-    Symmetric Cryptography Utility Class
-    """
+	Symmetric Cryptography Utility Class
+	"""
 	
 	@staticmethod
 	def CBCEncrypt(keybytes, iv, data):
@@ -87,11 +98,12 @@ class SymCryptoUtil(object):
 	@staticmethod
 	def CBCMAC(keybytes, data):
 		"""
-    	CBC-MAC computation by a given input and a key to compute its MAC.
-    	@param keybytes: a string object for symmetric key to recompute MAC.
-    	@param data: a byte string of plaintext.
-    	@param mac: a received mac to validate integrity of input data.
-    	"""
+		CBC-MAC computation by a given input and a key to compute its MAC.
+		
+		@param keybytes: a string object for symmetric key to recompute MAC.
+		@param data: a byte string of plaintext.
+		@return mac: a received mac to validate integrity of input data.
+		"""
 		iv = b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 		cmac = SymCryptoUtil().CBCEncrypt(keybytes, iv, bytes(data))
 		return cmac[-16:]
@@ -100,9 +112,11 @@ class SymCryptoUtil(object):
 	def CBCMACVerify(keybytes, data, mac):
 		"""
     	CBC-MAC verification by a given input, a key, and a received MAC.
+    	
     	@param keybytes: a string object for symmetric key to recompute MAC.
     	@param data: a byte string of plaintext.
     	@param mac: a received mac to validate integrity of input data.
+    	@return: Boolean value to indicate MAC verification result.
     	"""
 		cmac = SymCryptoUtil().CBCMAC(keybytes, bytes(data))
 		if cmac == mac:
@@ -110,23 +124,35 @@ class SymCryptoUtil(object):
 		else:
 			return False;
 	
+	@staticmethod
+	def GenerateRandom(len):
+		"""
+		GenerateRandom function produce len byte randomness. 
+		
+		@param len: byte length for randomness.
+		@return: a len-byte random string.
+		"""
+		rndfile = Random.new()
+		return rndfile.read(len)
+	
 	def test(self):
 		print ("---AES-CBC-Cipher Test---")
-		iv  = '0000000000000000'
-		key = '1234567890abcdef'
-		secret = '1234567890abcdef'
+		iv  = SymCryptoUtil().GenerateRandom(16)
+		key = SymCryptoUtil().GenerateRandom(16)
+		secret = SymCryptoUtil().GenerateRandom(16)
 		print ("Plaintext: %s" % secret)
-		cipher = SymCryptoUtil().CBCEncrypt(key, iv, secret.encode('utf-8'))
+		cipher = SymCryptoUtil().CBCEncrypt(key, iv, secret)
 		print ("AES-CBC-ENC(len = %d): %s" % (len(cipher), binascii.hexlify(cipher)))
 		decipher = SymCryptoUtil().CBCDecrypt(key, iv, cipher)
 		print ("AES-CBC-DEC: %s" % str(decipher))
 		print ("---AES-CBC-MAC Test---")
-		mac = SymCryptoUtil().CBCMAC(key, secret.encode('utf-8'))
+		mac = SymCryptoUtil().CBCMAC(key, secret)
 		print ("AES-CBC-MAC(len = %d): %s" % (len(mac), binascii.hexlify(mac)))
-		if SymCryptoUtil().CBCMACVerify(key, secret.encode('utf-8'), mac):
+		if SymCryptoUtil().CBCMACVerify(key, secret, mac):
 			print ("MAC verification succeeds.")
 		else:
 			print ("MAC verification fails.")
+		print ("Random: %s" % SymCryptoUtil().GenerateRandom(16))
 
 # test functions
 if __name__ == '__main__':
