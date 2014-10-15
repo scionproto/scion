@@ -26,15 +26,15 @@ organization=ETHZ
 organizationalunit=NetSec
 
 while read ad isd r || [[ -n "$line" ]]; do
-
+	echo $ad $isd
 	if [ $r -eq 0 ]; then
 		isds[$isd]=$ad
 	fi
 
 	mkdir -p ISD$isd/certificates
-    mkdir -p ISD$isd/configurations
-    mkdir -p ISD$isd/private_keys
-    mkdir -p ISD$isd/topologies
+    	mkdir -p ISD$isd/configurations
+    	mkdir -p ISD$isd/private_keys
+    	mkdir -p ISD$isd/topologies
 
 	privkey=ISD$isd/private_keys/isd$isd-ad$ad-0.key
 	certFile=ISD$isd/certificates/isd$isd-ad$ad-0.crt

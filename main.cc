@@ -11,7 +11,7 @@ using namespace std;
 
 
 int main (void) {
-    int ad_id, isd_id, isCore, registerPath, as1, as2, rel, nbrType1,
+    int ad_id, isd_id, isCore, registerPath, as1, as2, rel, nbrType1, port = 33000,
         nbrType2, ifId1, ifId2, nbrTd1, nbrTd2, nbrAd1, nbrAd2, numTDs;
     string line, ip_address = "127.0.0.1", tmp_ip_address = "127.0.0.1";
     ifstream asRel, asInfo;
@@ -28,10 +28,8 @@ int main (void) {
     while (getline(asInfo, line)) {
         istringstream iss(line);
         iss >> ad_id >> isd_id >> isCore;
-
         registerPath = (isCore==2 || isCore==0) ? 1 : 0;
-        isCore = (isCore) ? 0 : 1;
-
+        isCore = (isCore==0) ? 1 : 0;
         asList[ad_id-1] = new SCIONScriptGen(ad_id, isCore, isd_id, 1234567890, 1919191919, ip_address, registerPath);
         asList[ad_id-1]->GenerateAllConf (ip_address);
     }
@@ -63,12 +61,13 @@ int main (void) {
 
         Router rtr1(IPV4, ifId1, nbrTd1, nbrAd1, nbrType1, IPV4,
                     (const char*)(asList[as1-1]->GetIpAddress()).c_str(),
-                    (const char*)(asList[as2-1]->GetIpAddress()).c_str(), 33333, 33333);
+                    (const char*)(asList[as2-1]->GetIpAddress()).c_str(), port, port);
         asList[as1-1]->AddRouter(&rtr1, ip_address);
         Router rtr2(IPV4, ifId2, nbrTd2, nbrAd2, nbrType2, IPV4,
                     (const char*)(asList[as2-1]->GetIpAddress()).c_str(),
-                    (const char*)(asList[as1-1]->GetIpAddress()).c_str(), 33333, 33333);
+                    (const char*)(asList[as1-1]->GetIpAddress()).c_str(), port, port);
         asList[as2-1]->AddRouter(&rtr2, ip_address);
+        port++;
     }
     asRel.close();
 
