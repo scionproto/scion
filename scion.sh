@@ -3,13 +3,15 @@
 
 if [ $1 == "topology" ]; then
     echo "create topology, configuration and execution  files"
+	cd topology/
     bash ./topo-gen.sh
 elif [ $1 == "setup" ]; then
     echo "add ip alias for ISDs and ADs"
-    sudo bash ./setup.sh
+    sudo bash ./topology/setup.sh
 elif [ $1 == "run" ]; then
     echo "run network"
-    bash ./run.sh
+	cd infrastructure/
+    bash ../topology/run.sh
 elif [ $1 == "stop" ]; then
     echo "stop scion infra's run"
     sudo killall screen

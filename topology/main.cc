@@ -20,8 +20,7 @@ int main (void) {
 
     //Write the SCION run script
     runNet.open("run.sh");
-    runNet << "#!/bin/bash\n\n"
-           << "cd ./infrastructure/\n";
+    runNet << "#!/bin/bash\n\n";
     runNet.close();
 
     asInfo.open("ADToISD");

@@ -26,7 +26,6 @@ organization=ETHZ
 organizationalunit=NetSec
 
 while read ad isd r || [[ -n "$line" ]]; do
-	echo $ad $isd
 	if [ $r -eq 0 ]; then
 		isds[$isd]=$ad
 	fi
@@ -45,7 +44,7 @@ while read ad isd r || [[ -n "$line" ]]; do
 	openssl req -new -x509 -days 3650 -extensions v3_ca -key $privkey -out $certFile \
 	        -subj "/C=$country/ST=$state/L=$locality/O=$organization/OU=$organizationalunit/CN=$commonname/emailAddress=$email/"
 	} &> /dev/null
-done < ADToISD
+done < ./ADToISD
 
 #Generate root of trust files
 echo "Generate Root of Trust Files"
