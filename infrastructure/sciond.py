@@ -82,9 +82,9 @@ class SCIONDaemon(ServerBase):
             peer_path.up_path_hops.append(up_path.ads[i].pcbm.hof)
         peer_path.up_path_hops[-1].info = 0x20
         peer_path.up_path_upstream_ad = up_path.ads[point[0]-1].pcbm.hof
+
         up_ad = up_path.ads[point[0]]
         down_ad = down_path.ads[point[1]]
-
         for up_peer in up_ad.pms:
             for down_peer in down_ad.pms:
                 if (up_peer.aid == down_ad.pcbm.aid and down_peer.aid ==
@@ -161,11 +161,6 @@ class SCIONDaemon(ServerBase):
             return build_xovr_path(up_path, down_path, xovrs[-1]) 
         else: #peers only
             return build_peer_path(up_path, down_path, peers[-1]) 
-
-
-
-
-
 
     def build_fullpaths(self, up_paths, down_paths):
         """
