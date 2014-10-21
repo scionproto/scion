@@ -49,23 +49,23 @@ class BeaconServer(ServerBase):
         ingress_if = ingress 
         egress_if = egress 
         mac = 0
-        td_id = self.config.isd_id 
+        isd_id = self.topology.isd_id 
         bwalloc_f = 0
         bwalloc_r = 0
         dyn_bwalloc_f = 0
         dyn_bwalloc_r = 0
         bebw_f = 0
         bebw_r = 0
-        aid = self.config.ad_id
+        ad_id = self.topology.ad_id
         bw_class = 0
         reserved = 0
         sig = b''
         ssf = SupportSignatureField.from_values(cert_id, sig_len, block_size)
         hof = HopField.from_values(ingress_if, egress_if, mac)
-        spcbf = SupportPCBField.from_values(td_id, bwalloc_f, bwalloc_r,
+        spcbf = SupportPCBField.from_values(isd_id, bwalloc_f, bwalloc_r,
                                             dyn_bwalloc_f, dyn_bwalloc_r,
                                             bebw_f, bebw_r)
-        pcbm = PCBMarking.from_values(aid, ssf, hof, spcbf)
+        pcbm = PCBMarking.from_values(ad_id, ssf, hof, spcbf)
         ad = AutonomousDomain.from_values(pcbm, [], sig)
         pcb.add_ad(ad)
 
@@ -85,13 +85,13 @@ class BeaconServer(ServerBase):
 
     def pcb_propagation(self):
         while True:
-            if self.config.is_core_ad:
+            if self.topology.is_core_ad:
                 pcb = PCB()
                 timestamp = 1010
                 hops = 0
                 reserved = 0
                 pcb.sof = SpecialField.from_values(timestamp,
-                        self.config.isd_id, hops, reserved)
+                        self.topology.isd_id, hops, reserved)
                 self.beacons=[pcb] #TODO
 
             if self.beacons:
@@ -104,7 +104,7 @@ class BeaconServer(ServerBase):
         Depending on scenario: a) sends PCB to all beacon servers, or b) to
         neighboring router.
         """
-        if self.config.is_core_ad:
+        if self.topology.is_core_ad:
             logging.warning("BEACON received by Core BeaconServer")
             return
 
@@ -116,8 +116,8 @@ class BeaconServer(ServerBase):
         """
         Send Up Path to Local Path Servers
         """
-        info = PathInfo.from_values(PathInfo.UP_PATH, self.config.ad_id,
-                self.config.isd_id)
+        info = PathInfo.from_values(PathInfo.UP_PATH, self.topology.ad_id,
+                self.topology.isd_id)
         dst = self.topology.servers[ElementType.PATH_SERVER].addr
         up_path = PathRecord.from_values(dst, info, [pcb])
         self.send(up_path, dst)
@@ -127,15 +127,15 @@ class BeaconServer(ServerBase):
         Send Down Path to Core Path Server
         """
         pcb.remove_sig()
-        info = PathInfo.from_values(PathInfo.DOWN_PATH, self.config.ad_id,
-                self.config.isd_id)
+        info = PathInfo.from_values(PathInfo.DOWN_PATH, self.topology.ad_id,
+                self.topology.isd_id)
         core_path = pcb.get_core_path()
         down_path = PathRecord.from_values(self.addr, info, [pcb], core_path)
         next_hop = self.ifid2addr[pcb.rotf.if_id]
         self.send(down_path, next_hop)
 
     def path_registration(self):
-        if self.config.is_core_ad or not self.config.registers_paths:
+        if self.topology.is_core_ad or not self.config.registers_paths:
             logging.info("Leaving path_registration()")
             return
 

@@ -121,20 +121,22 @@ class PathServer(ServerBase):
         paths_to_send  = []
         print (isd,ad)
         print(self.down_paths)
+
         if (type in [PathInfo.UP_PATH, PathInfo.BOTH_PATHS] and not
-                self.config.is_core_ad):
+            self.topology.is_core_ad):
             if self.up_paths:
                 paths_to_send.extend(self.up_paths)
             else:
                 return
+
         if (type == PathInfo.DOWN_PATH or (type == PathInfo.BOTH_PATHS and not
-            self.config.is_core_ad)):
+            self.topology.is_core_ad)):
             if (isd, ad) in self.down_paths:
                 paths_to_send.extend(self.down_paths[(isd, ad)])
             else:
-                if not self.config.is_core_ad:
+                if not self.topology.is_core_ad:
                     self.request_core(isd, ad)
-                elif isd != self.config.isd_id:
+                elif isd != self.topology.isd_id:
                     self.request_isd(isd,ad)
                 print("No downpath, request is pending.")
                 paths_to_send = []
@@ -155,7 +157,7 @@ class PathServer(ServerBase):
 
     def dispatch_path_record(self, packet):
         rec = PathRecord(packet)
-        if rec.info.type == PathInfo.UP_PATH and not self.config.is_core_ad:
+        if rec.info.type == PathInfo.UP_PATH and not self.topology.is_core_ad:
             self.handle_up_path(rec)
         if rec.info.type == PathInfo.DOWN_PATH:
             self.handle_down_path(rec)
