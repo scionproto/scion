@@ -44,14 +44,15 @@ class ServerBase(object):
         """
         Create a new ServerBase instance.
 
-        Args:
-            addr: the address of the server as a HostAddr object.
-            topo_file: a string representing the name of the topology file.
-            config_file: a string representing the name of the configuration
-                file.
+        :param addr: the address of the server.
+        :type addr: HostAddr
+        :param topo_file: the name of the topology file.
+        :type topo_file: str
+        :param config_file: the name of the configuration file.
+        :type config_file: str
 
-        Returns:
-            The newly created ServerBase object.
+        :returns: the newly-created ServerBase instance
+        :rtype: ServerBase
         """
         self._addr = None
         self.topology = None
