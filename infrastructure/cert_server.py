@@ -1,5 +1,5 @@
-"""
-path_server.py
+	"""
+cert_server.py
 
 Copyright 2014 ETH Zurich
 
@@ -29,58 +29,20 @@ from infrastructure.server import ServerBase, SCION_UDP_PORT,\
 import socket
 import sys
 
-PATHS_NO = 5 #TODO replace by configuration parameter
-
-def update_dict(dictionary, key, values, elem_num=0):
-    if key in dictionary:
-        dictionary[key].extend(values)
-    else:
-        dictionary[key] = values 
-    dictionary[key] = dictionary[key][-elem_num:]
+#def update_dict(dictionary, key, values, elem_num=0):
+#    if key in dictionary:
+#        dictionary[key].extend(values)
+#    else:
+#        dictionary[key] = values 
+#    dictionary[key] = dictionary[key][-elem_num:]
 
 
-class PathServer(ServerBase):
+class CertServer(ServerBase):
     """
-    The SCION Path Server.
+    The SCION Certificate Server.
     """
-    def __init__(self, addr, topo_file, config_file):
-        ServerBase.__init__(self, addr, topo_file, config_file)
-        self.up_paths = []
-        self.down_paths = {}
-        #TODO replace by pathstore instance
-        self.pending_requests = {}#TODO three classes
-        self.pending_targets = set() #used when local PS does not have uppath
-
-    def handle_up_path(self, path_record):
-        """
-        Handles Up Path registration from local BS. 
-        """
-        pcbs = path_record.pcbs
-        self.up_paths.extend(pcbs)
-        self.up_paths = self.up_paths[-PATHS_NO:]
-        print("Up-Path Registered")
-
-        if self.pending_targets:
-            next_hop = self.ifid2addr[pcb.rotf.if_id]
-            path = pcb.get_core_path()
-            for (isd, ad) in self.pending_targets:
-                info = PathInfo.from_values(PathInfo.DOWN_PATH, isd, ad)
-                path_request = PathRequest.from_values(self.addr, info, path)
-                self.send(path_request, next_hop)
-                print("PathRequest sent using (first) registered up-path")
-            self.pending_targets.clear()
-
-    #TODO: MOVE it to server?
-#change [0] to current? check it
-    def get_first_hop(self, spkt):
-        """
-        Returns first hop addr of down-path or end-host addr.
-        """
-        if isinstance(spkt.hdr.path, EmptyPath):
-            return (spkt.hdr.dst_addr, SCION_UDP_PORT) 
-        else:
-            of = spkt.hdr.path.down_path_hops[0]
-            return (self.ifid2addr[of.egress_if], SCION_UDP_PORT)
+    def __init__(self, addr, topo_file, config_file, rot_file):
+        ServerBase.__init__(self, addr, topo_file, config_file, rot_file)
 
     def send_paths(self, path_request, paths):
         """
@@ -106,9 +68,6 @@ class PathServer(ServerBase):
             path_request = PathRequest.from_values(self.addr, info, path)
             self.send(path_request, next_hop)
 
-    def request_isd(self):
-        #define interisd pathinfo
-        print("To implement")
 
     def handle_path_request(self, packet):
         print("PATH_REQ")
@@ -147,21 +106,6 @@ class PathServer(ServerBase):
         if paths_to_send:
             self.send_paths(path_request, paths_to_send)
 
-    def handle_down_path(self, path_record):
-        for pcb in path_record.pcbs:
-            isd = pcb.get_isd()
-            ad = pcb.get_last_ad() 
-            update_dict(self.down_paths, (isd, ad), [pcb], PATHS_NO)
-            print("PATH_REG", isd, ad)
-        #here serve pending requests
-
-    def dispatch_path_record(self, packet):
-        rec = PathRecord(packet)
-        if rec.info.type == PathInfo.UP_PATH and not self.topology.is_core_ad:
-            self.handle_up_path(rec)
-        if rec.info.type == PathInfo.DOWN_PATH:
-            self.handle_down_path(rec)
-
     def handle_request(self, packet, sender, from_local_socket=True):
         """
         Main routine to handle incoming SCION packets.
@@ -169,20 +113,22 @@ class PathServer(ServerBase):
         spkt = SCIONPacket(packet)
         ptype = get_type(spkt)
 
-        if ptype == PT.PATH_REQ:
-            self.handle_path_request(packet)
-        elif ptype == PT.PATH_REP:
-            self.dispatch_path_record(packet)
+        if ptype == PT.ROT_REQ_LOCAL:
+            self.handle_local_request(packet)
+        elif ptype == PT.CERT_REQ:
+            self.handle_cert_request(packet)
+        elif ptype == PT.ROT_REQ:
+            self.handle_rot_request(packet)
         else: 
             print("Type %d not supported.", ptype)
 
 def main():
     logging.basicConfig(level=logging.DEBUG)
-    if len(sys.argv)!=4:
-        print("run: %s IP topo_file conf_file" %sys.argv[0])
+    if len(sys.argv)!=5:
+        print("run: %s IP topo_file conf_file rot_file" %sys.argv[0])
         sys.exit()
-    ps=PathServer(IPv4HostAddr(sys.argv[1]), sys.argv[2], sys.argv[3])
-    ps.run()
+    cs=CertServer(IPv4HostAddr(sys.argv[1]), sys.argv[2], sys.argv[3], sys.argv[4])
+    cs.run()
 
 if __name__ == "__main__":
     main()

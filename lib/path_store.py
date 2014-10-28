@@ -13,6 +13,8 @@ class Policy(object):
     """
     def __init__(self, policy_file=None):
         self.best_set_size = 0
+        self.candidates_set_size = 5
+        self.disjointness = 2
         self.update_after_number = 0
         self.update_after_time = 0
         self.history_limit = 0
@@ -43,6 +45,12 @@ class Policy(object):
         best_set_size = policy.find("BestSetSize")
         if best_set_size is not None:
             self.best_set_size = int(best_set_size.text)
+        candidates_set_size = policy.find("CandidatesSetSize")
+        if candidates_set_size is not None:
+            self.candidates_set_size = int(candidates_set_size.text)
+        disjointness = policy.find("Disjointness")
+        if disjointness is not None:
+            self.disjointness = int(disjointness.text)
         update_after_number = policy.find("UpdateAfterNumber")
         if update_after_number is not None:
             self.update_after_number = int(update_after_number.text)
@@ -167,7 +175,6 @@ class PathStore(object):
         self.policy = Policy(policy_file)
         self.candidates = []
         self.best_paths_history = []
-        self.disjointness = 2
 
     def add_path(self, pcb):
         path = PathInfo(pcb, self.policy)
@@ -284,7 +291,7 @@ class PathStore(object):
                     new_count[ad.pcbm.aid] += 1
                 else:
                     new_count[ad.pcbm.aid] = 1
-            if max(new_count.values()) > self.disjointness:
+            if max(new_count.values()) > self.policy.disjointness:
                 new_count = old_count
                 to_remove.insert(0, i)
             else:

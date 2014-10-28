@@ -16,9 +16,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from lib.config import Config
-from lib.packet.host_addr import HostAddr
 from lib.topology import Topology
+from lib.config import Config
+from lib.rot import Rot
+from lib.packet.host_addr import HostAddr
 import socket
 import select
 import logging
@@ -33,7 +34,7 @@ class ServerBase(object):
     provides.
     """
 
-    def __init__(self, addr, topo_file, config_file):
+    def __init__(self, addr, topo_file, config_file, rot_file=None):
         self._addr = None
         self.topology = None
         self.config = None
@@ -41,6 +42,8 @@ class ServerBase(object):
         self.addr = addr
         self.parse_topology(topo_file)
         self.parse_config(config_file)
+        if rot_file is not None:
+            self.parse_rot(rot_file)
         self.construct_ifid2addr_map()
         self._local_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._local_socket.bind((str(self.addr), SCION_UDP_PORT))
@@ -87,6 +90,14 @@ class ServerBase(object):
         assert isinstance(config_file, str)
         self.config = Config(config_file)
         self.config.parse()
+
+    def parse_rot(self, rot_file):
+        """
+        Instantiates a ROTParser and parses the rot given by 'rot_file'.
+        """
+        assert isinstance(rot_file, str)
+        self.rot_file = Rot(rot_file)
+        self.rot_file.parse()
 
     def construct_ifid2addr_map(self):
         """

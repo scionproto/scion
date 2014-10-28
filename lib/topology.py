@@ -48,8 +48,7 @@ class Element(object):
     """
     Base class for elements specified in the topology file.
     """
-    def __init__(self, aid=0, addr=None):
-        self.aid = aid
+    def __init__(self, addr=None):
         self.addr = addr
 
 
@@ -57,8 +56,8 @@ class ServerElement(Element):
     """
     Represents one of the core servers in SCION.
     """
-    def __init__(self, aid=0, addr=None, server_type=0):
-        Element.__init__(self, aid, addr)
+    def __init__(self, addr=None, server_type=0):
+        Element.__init__(self, addr)
         self.type = server_type
 
 
@@ -66,9 +65,9 @@ class InterfaceElement(Element):
     """
     Represents an interface between two ADs.
     """
-    def __init__(self, aid=0, addr=None, if_id=0, neighbor=0,
+    def __init__(self, addr=None, if_id=0, neighbor=0,
                  neighbor_type=0, to_addr=None, udp_port=0, to_udp_port=0):
-        Element.__init__(self, aid, addr)
+        Element.__init__(self, addr)
         self.if_id = if_id
         self.neighbor = neighbor
         self.neighbor_type = neighbor_type
@@ -82,8 +81,8 @@ class RouterElement(Element):
     """
     Represents a router.
     """
-    def __init__(self, aid=0, addr=None, interface=None):
-        Element.__init__(self, aid, addr)
+    def __init__(self, addr=None, interface=None):
+        Element.__init__(self, addr)
         self.interface = interface
 
 
@@ -91,8 +90,8 @@ class ClientElement(Element):
     """
     Represents a client.
     """
-    def __init__(self, aid=0, addr=None):
-        Element.__init__(self, aid, addr)
+    def __init__(self, addr=None):
+        Element.__init__(self, addr)
 
 
 class Topology(object):
@@ -125,12 +124,16 @@ class Topology(object):
         Parses the topology file and populates
         """
         assert self._topo is not None, "Must load file first"
-        is_core_ad = self._topo.getroot().find("Core").text
-        self.is_core_ad = bool(int(is_core_ad))
-        isd_id = self._topo.getroot().find("ISDID").text
-        self.isd_id = int(isd_id)
-        ad_id = self._topo.getroot().find("ADID").text
-        self.ad_id = int(ad_id)
+        topology = self._topo.getroot()
+        is_core_ad = topology.find("Core")
+        if is_core_ad is not None:
+            self.is_core_ad = bool(int(is_core_ad.text))
+        isd_id = topology.find("ISDID")
+        if isd_id is not None:
+            self.isd_id = int(isd_id.text)
+        ad_id = topology.find("ADID")
+        if ad_id is not None:
+            self.ad_id = int(ad_id.text)
         self._parse_servers()
         self._parse_routers()
         #self._parse_clients()
