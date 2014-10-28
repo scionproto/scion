@@ -79,12 +79,6 @@ class ServerBase(object):
     @addr.setter
     def addr(self, addr):
         """
-        Sets addr as local address.
-        """
-        self._set_addr(addr)
-
-    def _set_addr(self, addr):
-        """
         Sets the address of the server. Must be a lib.HostAddr object
         """
         if not (isinstance(addr, HostAddr) or addr is None):
