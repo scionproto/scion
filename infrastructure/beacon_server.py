@@ -38,6 +38,7 @@ class BeaconServer(ServerBase):
     """
     def __init__(self, addr, topo_file, config_file):
         ServerBase.__init__(self, addr, topo_file, config_file)
+        self.delta = 24*60*60
         self.propagated_beacons = []
         self.beacons = [] #TODO replace by pathstore instance
         # add beacons, up_paths, down_paths
@@ -59,14 +60,31 @@ class BeaconServer(ServerBase):
         ad_id = self.topology.ad_id
         bw_class = 0
         reserved = 0
-        sig = b''
         ssf = SupportSignatureField.from_values(cert_id, sig_len, block_size)
-        hof = HopField.from_values(ingress_if, egress_if, mac)
+        hof = HopOpaqueField.from_values(ingress_if, egress_if, mac)
         spcbf = SupportPCBField.from_values(isd_id, bwalloc_f, bwalloc_r,
                                             dyn_bwalloc_f, dyn_bwalloc_r,
                                             bebw_f, bebw_r)
         pcbm = PCBMarking.from_values(ad_id, ssf, hof, spcbf)
-        ad = AutonomousDomain.from_values(pcbm, [], sig)
+        pms = []
+        for router in self.topology.routers[NeighborType.PEER]:
+            ad_id = self.topology.ad_id
+            ingress_if = ingress
+            egress_if = router.interface.if_id
+            mac = 0
+            isd_id = self.topology.isd_id
+            bwalloc_f = 0
+            bwalloc_r = 0
+            bw_class = 0
+            reserved = 0
+            hof = HopOpaqueField.from_values(ingress_if, egress_if, mac)
+            spf = SupportPeerField.from_values(isd_id, bwalloc_f, bwalloc_r,
+                                               bw_class, reserved)
+            pm = PeerMarking.from_values(ad_id, hof, spf)
+            pcbm.ssf.block_size += pm.LEN
+            pms.append(pm)
+        sig = b''
+        ad = AutonomousDomain.from_values(pcbm, pms, sig)
         pcb.add_ad(ad)
 
     def propagate_pcb(self, pcb):
@@ -81,19 +99,19 @@ class BeaconServer(ServerBase):
             self.send(beacon, router.addr)
             self.propagated_beacons.append(new_pcb)
             logging.info("PCB propagated")
-            print("print PCB propagated", new_pcb)
+            print("PCB propagated", new_pcb)
 
     def pcb_propagation(self):
         while True:
             if self.topology.is_core_ad:
                 pcb = PCB()
-                timestamp = 1010
+                timestamp = ((int(time.time()) + self.delta) % \
+                            (self.time_interval*2^16))/self.time_interval
                 hops = 0
                 reserved = 0
-                pcb.sof = SpecialField.from_values(timestamp,
+                pcb.iof = SpecialField.from_values(timestamp,
                         self.topology.isd_id, hops, reserved)
                 self.beacons=[pcb] #TODO
-
             if self.beacons:
                 pcb=self.beacons[-1]
                 self.propagate_pcb(pcb)

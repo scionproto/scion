@@ -100,21 +100,18 @@ class PathInfo(object):
         self.pcb = pcb
         self.set_id()
         self.set_fidelity(policy)
-        self.timestamps = [int(time.time())]
+        self.timestamp = int(time.time())
 
     def set_id(self):
         s = ""
         for ad in self.pcb.ads:
-            s += ",".join([str(ad.pcbm.aid), str(ad.pcbm.hof.ingress_if),\
+            s += ",".join([str(ad.pcbm.ad_id), str(ad.pcbm.hof.ingress_if),\
                            str(ad.pcbm.hof.egress_if)]) + ","
-        s += str(self.pcb.sof.timestamp)
+        s += str(self.pcb.iof.timestamp)
         s = s.encode('utf-8')
         h = hashlib.sha256()
         h.update(s)
         self.id = h.hexdigest()
-
-    def add_timestamp(self):
-        self.timestamps.insert(0, int(time.time()))
         
     def set_fidelity(self, policy):
         self.fidelity = 0
@@ -164,7 +161,7 @@ class PathInfo(object):
         s += str(self.pcb)
         s += "ID: " + str(self.id) + "\n"
         s += "Fidelity: " + str(self.fidelity) + "\n"
-        s += "Timestamps: " + str(self.timestamps) + "\n"
+        s += "Timestamp: " + str(self.timestamp) + "\n"
         return s
 
 
@@ -188,7 +185,7 @@ class PathStore(object):
             if c.fidelity > path.fidelity:
                 new_pos += 1
         if found == True:
-            self.candidates[old_pos].add_timestamp()
+            self.candidates[old_pos].timestamp = int(time.time())
             self.candidates[old_pos].fidelity = path.fidelity
             self.candidates.insert(new_pos, self.candidates.pop(old_pos))
         else:
@@ -201,9 +198,9 @@ class PathStore(object):
 
     def _check_wanted_ads(self, path):
         for ad in path.pcb.ads:
-            if ad.pcbm.aid not in self.policy.wanted_ads.keys():
+            if ad.pcbm.ad_id not in self.policy.wanted_ads.keys():
                return False
-            for interface in self.policy.wanted_ads[ad.pcbm.aid]:
+            for interface in self.policy.wanted_ads[ad.pcbm.ad_id]:
                 if ad.pcbm.hof.ingress_if != interface and\
                    ad.pcbm.hof.egress_if != interface:
                    return False
@@ -211,10 +208,10 @@ class PathStore(object):
 
     def _check_unwanted_ads(self, path):
         for ad in path.pcb.ads:
-            if ad.pcbm.aid in self.policy.unwanted_ads.keys():
-                if len(self.policy.unwanted_ads[ad.pcbm.aid]) == 0:
+            if ad.pcbm.ad_id in self.policy.unwanted_ads.keys():
+                if len(self.policy.unwanted_ads[ad.pcbm.ad_id]) == 0:
                     return False
-                for interface in self.policy.unwanted_ads[ad.pcbm.aid]:
+                for interface in self.policy.unwanted_ads[ad.pcbm.ad_id]:
                     if ad.pcbm.hof.ingress_if == interface or\
                        ad.pcbm.hof.egress_if == interface:
                         return False
@@ -283,14 +280,14 @@ class PathStore(object):
         old_count = {}
         new_count = {}
         for ad in paths[0].pcb.ads:
-            old_count[ad.pcbm.aid] = 1
-            new_count[ad.pcbm.aid] = 1
+            old_count[ad.pcbm.ad_id] = 1
+            new_count[ad.pcbm.ad_id] = 1
         for i in range(1, len(paths)):
             for ad in paths[i].pcb.ads:
-                if ad.pcbm.aid in new_count.keys():
-                    new_count[ad.pcbm.aid] += 1
+                if ad.pcbm.ad_id in new_count.keys():
+                    new_count[ad.pcbm.ad_id] += 1
                 else:
-                    new_count[ad.pcbm.aid] = 1
+                    new_count[ad.pcbm.ad_id] = 1
             if max(new_count.values()) > self.policy.disjointness:
                 new_count = old_count
                 to_remove.insert(0, i)

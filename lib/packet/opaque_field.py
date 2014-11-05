@@ -35,15 +35,16 @@ class OpaqueFieldType(object):
     PEER_XOVR = 0x10
     ROT_OF = 0xff
 
+
 class OpaqueField(object):
     """
     Base class for the different kinds of opaque fields in SCION.
     """
-
     LEN = 8
 
     def __init__(self):
         self.info = 0 #TODO verify path.PathType in that context
+        self.type = 0
         self.parsed = False
         self.raw = None
 
@@ -88,10 +89,9 @@ class HopOpaqueField(OpaqueField):
     """
     Opaque field for a hop in a path of the SCION packet header.
 
-    Each hop opaque field has a type (8 bits), ingress/egress interfaces
+    Each hop opaque field has a info (8 bits), ingress/egress interfaces
     (16 bits) and a MAC (24 bits) authenticating the opaque field.
     """
-
     def __init__(self, raw=None):
         OpaqueField.__init__(self)
         self.ingress_if = 0
@@ -104,23 +104,28 @@ class HopOpaqueField(OpaqueField):
         assert isinstance(raw, bytes)
         self.raw = raw
         dlen = len(raw)
-        if dlen < HopOpaqueField.LEN:
-            logging.warning("Data too short to parse hop opaque field: "
-                "data len %u", dlen)
+        if dlen < self.LEN:
+            logging.warning("HOF: Data too short to parse the field, len: %u", dlen)
             return
         bits = BitArray(bytes=raw)
         (self.info, self.ingress_if, self.egress_if, self.mac) = \
             bits.unpack("uintle:8, uintle:16, uintle:16, uintle:24")
-
         self.parsed = True
+        
+    @classmethod
+    def from_values(cls, ingress_if, egress_if, mac):
+        hof = HopOpaqueField()
+        hof.ingress_if = ingress_if
+        hof.egress_if = egress_if
+        hof.mac = mac
+        return hof
 
     def pack(self):
         return bitstring.pack("uintle:8, uintle:16, uintle:16, uintle:24",
-                              self.info, self.ingress_if, self.egress_if,
-                              self.mac).bytes
+               self.info, self.ingress_if, self.egress_if, self.mac).bytes
 
     def __str__(self):
-        s = "[Hop OF type: %u, ingress if: %u, egress if: %u, mac: %x]" % (
+        s = "[Hop OF info: %u, ingress if: %u, egress if: %u, mac: %x]\n" % (
             self.info, self.ingress_if, self.egress_if, self.mac)
         return s
 
@@ -141,7 +146,6 @@ class InfoOpaqueField(OpaqueField):
         self.hops = 0
         self.reserved = 0
         self.raw = raw
-
         if raw is not None:
             self.parse(raw)
 
@@ -149,14 +153,13 @@ class InfoOpaqueField(OpaqueField):
         assert isinstance(raw, bytes)
         self.raw = raw
         dlen = len(raw)
-        if dlen < InfoOpaqueField.LEN:
+        if dlen < self.LEN:
             logging.warning("Data too short to parse info opaque field: "
                 "data len %u", dlen)
             return
         bits = BitArray(bytes=raw)
         (self.info, self.timestamp, self.isd_id, self.hops, self.reserved) = \
             bits.unpack("uintle:8, uintle:16, uintle:16, uintle:8, uintle:16")
-
         self.parsed = True
 
     def pack(self):
@@ -170,52 +173,6 @@ class InfoOpaqueField(OpaqueField):
     def __str__(self):
         s = "[Info OF info: %x, TS: %u, ISD ID: %u, hops: %u]" % (
             self.info, self.timestamp, self.isd_id, self.hops)
-        return s
-
-
-### Lorenzo ###
-class HopField(OpaqueField):
-    """
-    Opaque field for a hop in a path of the SCION packet header.
-
-    Each hop opaque field has a info (8 bits), ingress/egress interfaces
-    (16 bits) and a MAC (24 bits) authenticating the opaque field.
-    """
-    def __init__(self, raw=None):
-        OpaqueField.__init__(self)
-        self.ingress_if = 0
-        self.egress_if = 0
-        self.mac = 0
-        if raw is not None:
-            self.parse(raw)
-
-    def parse(self, raw):
-        assert isinstance(raw, bytes)
-        self.raw = raw
-        dlen = len(raw)
-        if dlen < self.LEN:
-            logging.warning("Data too short to parse the field, len: %u", dlen)
-            return
-        bits = BitArray(bytes=raw)
-        (self.info, self.ingress_if, self.egress_if, self.mac) = \
-            bits.unpack("uintle:8, uintle:16, uintle:16, uintle:24")
-        self.parsed = True
-        
-    @classmethod
-    def from_values(cls, ingress_if, egress_if, mac):
-        hof = HopField()
-        hof.ingress_if = ingress_if
-        hof.egress_if = egress_if
-        hof.mac = mac
-        return hof
-
-    def pack(self):
-        return bitstring.pack("uintle:8, uintle:16, uintle:16, uintle:24",
-               self.info, self.ingress_if, self.egress_if, self.mac).bytes
-
-    def __str__(self):
-        s = "[Hop OF info: %u, ingress if: %u, egress if: %u, mac: %x]\n" % (
-            self.info, self.ingress_if, self.egress_if, self.mac)
         return s
 
 
@@ -290,7 +247,7 @@ class ROTField(OpaqueField):
         self.raw = raw
         dlen = len(raw)
         if dlen < self.LEN:
-            logging.warning("Data too short to parse the field, len: %u", dlen)
+            logging.warning("ROTF: Data too short to parse the field, len: %u", dlen)
             return
         bits = BitArray(bytes=raw)
         (self.info, self.rot_version, self.if_id, self.reserved) = \
@@ -335,7 +292,7 @@ class SupportSignatureField(OpaqueField):
         self.raw = raw
         dlen = len(raw)
         if dlen < self.LEN:
-            logging.warning("Data too short to parse the field, len: %u", dlen)
+            logging.warning("SSF: Data too short to parse the field, len: %u", dlen)
             return
         bits = BitArray(bytes=raw)
         (self.cert_id, self.sig_len, self.block_size) = \
@@ -370,7 +327,7 @@ class SupportPeerField(OpaqueField):
     """
     def __init__(self, raw=None):
         OpaqueField.__init__(self)
-        self.td_id = 0
+        self.isd_id = 0
         self.bwalloc_f = 0
         self.bwalloc_r = 0
         self.bw_class = 0
@@ -383,17 +340,17 @@ class SupportPeerField(OpaqueField):
         self.raw = raw
         dlen = len(raw)
         if dlen < self.LEN:
-            logging.warning("Data too short to parse the field, len: %u", dlen)
+            logging.warning("SPF: Data too short to parse the field, len: %u", dlen)
             return
         bits = BitArray(bytes=raw)
-        (self.td_id, self.bwalloc_f, self.bwalloc_r, self.bw_class, _reserved) = \
+        (self.isd_id, self.bwalloc_f, self.bwalloc_r, self.bw_class, _reserved) = \
             bits.unpack("uintle:16, uintle:8, uintle:8, uint:1, uint:31")
         self.parsed = True
     
     @classmethod    
-    def from_values(cls, td_id, bwalloc_f, bwalloc_r, bw_class, reserved):
+    def from_values(cls, isd_id, bwalloc_f, bwalloc_r, bw_class, reserved):
         spf = SupportPeerField()
-        spf.td_id = td_id
+        spf.isd_id = isd_id
         spf.bwalloc_f = bwalloc_f
         spf.bwalloc_r = bwalloc_r
         spf.bw_class = bw_class
@@ -402,12 +359,12 @@ class SupportPeerField(OpaqueField):
 
     def pack(self):
         return bitstring.pack("uintle:16, uintle:8, uintle:8, uint:1,"
-               "uint:31", self.td_id, self.bwalloc_f, self.bwalloc_r,
+               "uint:31", self.isd_id, self.bwalloc_f, self.bwalloc_r,
                self.bw_class, self.reserved).bytes
 
     def __str__(self):
         s = "[Support Peer OF TD ID: %x, bwalloc_f: %u, bwalloc_r: %u, bw_class: %u]\n" % (
-            self.td_id, self.bwalloc_f, self.bwalloc_r, self.bw_class)
+            self.isd_id, self.bwalloc_f, self.bwalloc_r, self.bw_class)
         return s
         
         
@@ -422,7 +379,7 @@ class SupportPCBField(OpaqueField):
     """
     def __init__(self, raw=None):
         OpaqueField.__init__(self)
-        self.td_id = 0
+        self.isd_id = 0
         self.bwalloc_f = 0
         self.bwalloc_r = 0
         self.dyn_bwalloc_f = 0
@@ -437,20 +394,20 @@ class SupportPCBField(OpaqueField):
         self.raw = raw
         dlen = len(raw)
         if dlen < self.LEN:
-            logging.warning("Data too short to parse the field, len: %u", dlen)
+            logging.warning("SPCBF: Data too short to parse the field, len: %u", dlen)
             return
         bits = BitArray(bytes=raw)
-        (self.td_id, self.bwalloc_f, self.bwalloc_r, self.dyn_bwalloc_f,
+        (self.isd_id, self.bwalloc_f, self.bwalloc_r, self.dyn_bwalloc_f,
          self.dyn_bwalloc_r, self.bebw_f, self.bebw_r) = \
             bits.unpack("uintle:16, uintle:8, uintle:8, uintle:8, uintle:8,"
                         "uintle:8, uintle:8")
         self.parsed = True
     
     @classmethod    
-    def from_values(cls, td_id, bwalloc_f, bwalloc_r, dyn_bwalloc_f,
+    def from_values(cls, isd_id, bwalloc_f, bwalloc_r, dyn_bwalloc_f,
                     dyn_bwalloc_r, bebw_f, bebw_r):
         spcbf = SupportPCBField()
-        spcbf.td_id = td_id
+        spcbf.isd_id = isd_id
         spcbf.bwalloc_f = bwalloc_f
         spcbf.bwalloc_r = bwalloc_r
         spcbf.dyn_bwalloc_f = dyn_bwalloc_f
@@ -461,11 +418,11 @@ class SupportPCBField(OpaqueField):
 
     def pack(self):
         return bitstring.pack("uintle:16, uintle:8, uintle:8, uintle:8,"
-               "uintle:8, uintle:8, uintle:8", self.td_id, self.bwalloc_f,
+               "uintle:8, uintle:8, uintle:8", self.isd_id, self.bwalloc_f,
                self.bwalloc_r, self.dyn_bwalloc_f, self.dyn_bwalloc_r,
                self.bebw_f, self.bebw_r).bytes
 
     def __str__(self):
         s = "[Info OF TD ID: %x, bwalloc_f: %u, bwalloc_r: %u]\n" % (
-            self.td_id, self.bwalloc_f, self.bwalloc_r)
+            self.isd_id, self.bwalloc_f, self.bwalloc_r)
         return s

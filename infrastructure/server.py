@@ -40,6 +40,7 @@ class ServerBase(object):
         self.config = None
         self.ifid2addr = {}
         self.addr = addr
+        self.time_interval = 4
         self.parse_topology(topo_file)
         self.parse_config(config_file)
         if rot_file is not None:
@@ -96,8 +97,8 @@ class ServerBase(object):
         Instantiates a ROTParser and parses the rot given by 'rot_file'.
         """
         assert isinstance(rot_file, str)
-        self.rot_file = Rot(rot_file)
-        self.rot_file.parse()
+        self.rot = Rot(rot_file)
+        self.rot.parse()
 
     def construct_ifid2addr_map(self):
         """

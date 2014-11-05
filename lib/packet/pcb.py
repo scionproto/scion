@@ -31,9 +31,9 @@ class PCBMarking(object):
     def __init__(self, raw=None):
         self.parsed = False
         self.raw = None
-        self.aid = 0
+        self.ad_id = 0
         self.ssf = SupportSignatureField()
-        self.hof = HopField()
+        self.hof = HopOpaqueField()
         self.spcbf = SupportPCBField()
         if raw is not None:
             self.parse(raw)
@@ -43,30 +43,30 @@ class PCBMarking(object):
         self.raw = raw
         dlen = len(raw)
         if dlen < self.LEN:
-            logging.warning("Data too short to parse the field, len: %u", dlen)
+            logging.warning("PCBM: Data too short to parse the field, len: %u", dlen)
             return
         bits = BitArray(bytes=raw[:8])
-        self.aid = bits.unpack("uintle:64")[0]
+        self.ad_id = bits.unpack("uintle:64")[0]
         self.ssf.parse(raw[8:16])
         self.hof.parse(raw[16:24])
         self.spcbf.parse(raw[24:32])
         self.parsed = True
         
     @classmethod
-    def from_values(cls, aid, ssf, hof, spcbf):
+    def from_values(cls, ad_id, ssf, hof, spcbf):
         pcbm = PCBMarking()
-        pcbm.aid = aid
+        pcbm.ad_id = ad_id
         pcbm.ssf = ssf
         pcbm.hof = hof
         pcbm.spcbf = spcbf
         return pcbm
 
     def pack(self):
-        return bitstring.pack("uintle:64", self.aid).bytes + \
+        return bitstring.pack("uintle:64", self.ad_id).bytes + \
                self.ssf.pack() + self.hof.pack() + self.spcbf.pack()
 
     def __str__(self):
-        s = "[PCB Marking aid: %x]\n" % (self.aid)
+        s = "[PCB Marking ad_id: %x]\n" % (self.ad_id)
         s += str(self.ssf)
         s += str(self.hof)
         s += str(self.spcbf)
@@ -82,8 +82,8 @@ class PeerMarking(object):
     def __init__(self, raw=None):
         self.parsed = False
         self.raw = None
-        self.aid = 0
-        self.hof = HopField()
+        self.ad_id = 0
+        self.hof = HopOpaqueField()
         self.spf = SupportPeerField()
         if raw is not None:
             self.parse(raw)
@@ -93,28 +93,28 @@ class PeerMarking(object):
         self.raw = raw
         dlen = len(raw)
         if dlen < self.LEN:
-            logging.warning("Data too short to parse the field, len: %u", dlen)
+            logging.warning("PM: Data too short to parse the field, len: %u", dlen)
             return
         bits = BitArray(bytes=raw[0:8])
-        self.aid = bits.unpack("uintle:64")[0]
+        self.ad_id = bits.unpack("uintle:64")[0]
         self.hof.parse(raw[8:16])
         self.spf.parse(raw[16:24])
         self.parsed = True
         
     @classmethod
-    def from_values(cls, aid, hof, spf):
+    def from_values(cls, ad_id, hof, spf):
         pm = PeerMarking()
-        pm.aid = aid
+        pm.ad_id = ad_id
         pm.HOF = hof
         pm.SPF = spf
         return pm
 
     def pack(self):
-        return bitstring.pack("uintle:64", self.aid).bytes + \
+        return bitstring.pack("uintle:64", self.ad_id).bytes + \
                self.hof.pack() + self.spf.pack()
 
     def __str__(self):
-        s = "[Peer Marking aid: %x]\n" % (self.aid)
+        s = "[Peer Marking ad_id: %x]\n" % (self.ad_id)
         s += str(self.hof)
         s += str(self.spf)
         return s
@@ -139,7 +139,7 @@ class AutonomousDomain(object):
         self.raw = raw
         dlen = len(raw)
         if dlen < self.LEN:
-            logging.warning("Data too short to parse the field, len: %u", dlen)
+            logging.warning("AD: Data too short to parse the field, len: %u", dlen)
             return
         self.pcbm.parse(raw[:self.pcbm.LEN])
         raw = raw[self.pcbm.LEN:]
@@ -182,7 +182,7 @@ class AutonomousDomain(object):
 
 class CorePath(object):
     """
-        Packs the Core Path, that contains a Special Opaque Field and a list
+        Packs the Core Path, that contains a Info Opaque Field and a list
         of Hop Opaque Fields
     """
     LEN = 8
@@ -190,7 +190,7 @@ class CorePath(object):
     def __init__(self, raw=None):
         self.parsed = False
         self.raw = None
-        self.sof = SpecialField()
+        self.iof = SpecialField()
         self.hofs = []
         if raw is not None:
             self.parse(raw)
@@ -200,33 +200,33 @@ class CorePath(object):
         self.raw = raw
         dlen = len(raw)
         if dlen < self.LEN:
-            logging.warning("Data too short to parse the field, len: %u", dlen)
+            logging.warning("CP: Data too short to parse the field, len: %u", dlen)
             return
-        self.sof.parse(raw[:self.sof.LEN])
-        raw = raw[self.sof.LEN:]
+        self.iof.parse(raw[:self.iof.LEN])
+        raw = raw[self.iof.LEN:]
         while len(raw) > 0:
-            hof = HopField()
+            hof = HopOpaqueField()
             hof.parse(raw[:hof.LEN])
             self.hofs.append(hof)
             raw = raw[hof.LEN:]
         self.parsed = True
     
     @classmethod
-    def from_values(cls, sof, hofs):
+    def from_values(cls, iof, hofs):
         cp = CorePath()
-        cp.sof = sof
+        cp.iof = iof
         cp.hofs = hofs
         return cp
 
     def pack(self):
-        p = self.sof.pack()
+        p = self.iof.pack()
         for hof in self.hofs:
             p += hof.pack()
         return p
         
     def __str__(self):
         s = "[Registration Path]\n"
-        s += str(self.sof)
+        s += str(self.iof)
         for hof in self.hofs:
             s += str(hof)
         return s
@@ -241,7 +241,7 @@ class PCB(object):
     def __init__(self, raw=None):
         self.parsed = False
         self.raw = None
-        self.sof = SpecialField()
+        self.iof = SpecialField()
         self.rotf = ROTField()
         self.ads = []
         if raw is not None:
@@ -252,9 +252,9 @@ class PCB(object):
         self.raw = raw
         dlen = len(raw)
         if dlen < self.LEN:
-            logging.warning("Data too short to parse the field, len: %u", dlen)
+            logging.warning("PCB: Data too short to parse the field, len: %u", dlen)
             return
-        self.sof.parse(raw[0:8])
+        self.iof.parse(raw[0:8])
         self.rotf.parse(raw[8:16])
         raw = raw[16:]
         while len(raw) > 0:
@@ -266,13 +266,13 @@ class PCB(object):
         self.parsed = True
 
     def pack(self):
-        p = self.sof.pack() + self.rotf.pack()
+        p = self.iof.pack() + self.rotf.pack()
         for ad in self.ads:
             p += ad.pack()
         return p
         
     def add_ad(self, ad):
-        self.sof.hops = self.sof.hops + 1
+        self.iof.hops = self.iof.hops + 1
         self.ads.append(ad)
         
     def remove_sig(self):
@@ -283,14 +283,14 @@ class PCB(object):
         hofs = []
         for ad in reversed(self.ads):
             hofs.append(ad.pcbm.hof)
-        cp = CorePath.from_values(self.sof, hofs)
+        cp = CorePath.from_values(self.iof, hofs)
         return cp
 
     def get_isd(self):
-        return self.sof.isd_id
+        return self.iof.isd_id
 
     def get_last_ad(self):
-        return self.ads[-1].pcbm.aid
+        return self.ads[-1].pcbm.ad_id
 
     def deserialize(raw):
         assert isinstance(raw, bytes)
@@ -301,10 +301,10 @@ class PCB(object):
         pcbs = []
         while len(raw) > 0:
             pcb = PCB()
-            pcb.sof.parse(raw[0:8])
+            pcb.iof.parse(raw[0:8])
             pcb.rotf.parse(raw[8:16])
             raw = raw[16:]
-            for i in range(0, pcb.sof.hops):
+            for i in range(0, pcb.iof.hops):
                 pcbm = PCBMarking()
                 pcbm.parse(raw[:pcbm.LEN])
                 ad = AutonomousDomain(raw[:pcbm.ssf.sig_len+pcbm.ssf.block_size])
@@ -321,7 +321,7 @@ class PCB(object):
 
     def __str__(self):
         s = "[PCB]\n"
-        s += str(self.sof) + str(self.rotf)
+        s += str(self.iof) + str(self.rotf)
         for ad in self.ads:
             s += str(ad)
         return s

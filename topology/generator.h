@@ -10,12 +10,12 @@ enum NbrType {PARENT=0, PEER, CHILD, ROUTING};
 char* increment_address(const char* address_string);
 
 struct Router {
-  Router (int paddrType1, int pifid, int pnbrTdAid, int pnbrAdAid, int pnbrType,
+  Router (int paddrType1, int pifid, int pnbrTdid, int pnbrAdid, int pnbrType,
           int paddrType2, const char *pextAddr, const char *pextToAddr,
           int pextUdpPort, int pextToUdpPort)
     : ifid (pifid),
-      nbrTdAid (pnbrTdAid),
-      nbrAdAid (pnbrAdAid),
+      nbrTdid (pnbrTdid),
+      nbrAdid (pnbrAdid),
       extUdpPort (pextUdpPort),
       extToUdpPort (pextToUdpPort) {
     switch (paddrType1) {
@@ -66,7 +66,7 @@ struct Router {
 
   char type[10], nbrType[10], extAddrType[10], extAddr[INET_ADDRSTRLEN],
        extToAddr[INET_ADDRSTRLEN];
-  int ifid, extUdpPort, extToUdpPort, nbrTdAid, nbrAdAid;
+  int ifid, extUdpPort, extToUdpPort, nbrTdid, nbrAdid;
 };
 
 class SCIONScriptGen {
@@ -90,7 +90,7 @@ class SCIONScriptGen {
 
         int m_isd_id, m_registerPath, m_ifId, m_core, m_pcbQueueSize,
             m_psQueueSize, m_numRegisteredPaths, m_numShortestUPs, m_ad_id,
-            m_aid, m_beaconServerAid, m_masterOFGKey, m_masterADKey;
+            m_masterOFGKey, m_masterADKey;
         double m_registerTime, m_propagateTime, m_resetTime;
         char m_topoXmlName[100];
         string m_privKeyFile, m_certFile, m_topoFile, m_confFile, m_dirPrefix,

@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
+from lib.packet.opaque_field import *
 
 
 class PathType(object):

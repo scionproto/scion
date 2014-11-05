@@ -126,10 +126,10 @@ void SCIONScriptGen::AddRouter (const Router *rtr, string &ip_address) {
     myfile << "\t\t\t<Addr>" << ip_address << "</Addr>\n";
     myfile << "\t\t\t<Interface>\n";
     myfile << "\t\t\t\t<IFID>" << ++m_ifId << "</IFID>\n";
-    if (rtr->nbrTdAid) {
-        myfile << "\t\t\t\t<NeighborISD>" << rtr->nbrTdAid << "</NeighborISD>\n";
+    if (rtr->nbrTdid) {
+        myfile << "\t\t\t\t<NeighborISD>" << rtr->nbrTdid << "</NeighborISD>\n";
     }
-    myfile << "\t\t\t\t<NeighborAD>" << rtr->nbrAdAid<< "</NeighborAD>\n";
+    myfile << "\t\t\t\t<NeighborAD>" << rtr->nbrAdid<< "</NeighborAD>\n";
     myfile << "\t\t\t\t<NeighborType>" << rtr->nbrType<< "</NeighborType>\n";
     myfile << "\t\t\t\t<AddrType>" << rtr->extAddrType << "</AddrType>\n";
     myfile << "\t\t\t\t<Addr>" << rtr->extAddr << "</Addr>\n";
@@ -141,7 +141,7 @@ void SCIONScriptGen::AddRouter (const Router *rtr, string &ip_address) {
     myfile.close();
 
     myfile.open ("run.sh", std::ofstream::out | std::ofstream::app);
-    myfile << "screen -d -m -S r" << m_ad_id << "r" << rtr->nbrAdAid << " sh -c \""
+    myfile << "screen -d -m -S r" << m_ad_id << "r" << rtr->nbrAdid << " sh -c \""
            << "PYTHONPATH=../ python3 router.py " << ip_address << " "
            << "../topology/ISD" << m_isd_id << "/topologies/topology" << m_ad_id << ".xml "
            << "../topology/ISD" << m_isd_id << "/configurations/AD" << m_ad_id << ".conf\"\n";
@@ -196,7 +196,8 @@ void SCIONScriptGen::GenerateTopologyXml (string &ip_address) {
     netRun << "screen -d -m -S cs" << m_ad_id << " sh -c \""
            << "PYTHONPATH=../ python3 cert_server.py " << ip_address << " "
            << "../topology/ISD" << m_isd_id << "/topologies/topology" << m_ad_id << ".xml "
-           << "../topology/ISD" << m_isd_id << "/configurations/AD" << m_ad_id << ".conf\"\n";
+           << "../topology/ISD" << m_isd_id << "/configurations/AD" << m_ad_id << ".conf "
+           << "../topology/ISD" << m_isd_id << "/rot-isd" << m_isd_id << "-0.xml\"\n";
     
     ip_address = increment_address((const char*)ip_address.c_str());
 
