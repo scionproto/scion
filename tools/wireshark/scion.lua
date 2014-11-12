@@ -131,46 +131,58 @@ end
 function process_beacon(buffer,pinfo,tree)
 	--analyze opaque field
 	local of_field = ProtoField.string("of","Opaque field")
-	local of_tree = scion_tree:add(of_field,buffer(of_offset,8),"Opaque field ".. i)
+	local of_tree = scion_tree:add(of_field,buffer(of_offset,8),"Opaque field ")
 
 	local of_offset=8+srclen+dstlen;
 
+	
 	oftypename="Special OF"
-	of_tree:add(buffer(of_offset,1),"Opaque filed type: " .. oftypename .. " (0x" .. string.format("%x",buffer(of_offset,1):uint()) .. ")")
-	of_tree:add(buffer(of_offset+1,2),"Timestamp: " .. buffer(of_offset+1,2))
-	of_tree:add(buffer(of_offset+3,2),"ISD ID: " .. buffer(of_offset+3,2))
-	of_tree:add(buffer(of_offset+5,1),"Hops: " .. buffer(of_offset+5,1))
-	of_tree:add(buffer(of_offset+6,2),"Reserved: " .. buffer(of_offset+6,2))
+	of_sof_tree=of_tree:add(buffer(of_offset,1),"Opaque filed type: " .. oftypename .. " (0x" .. string.format("%x",buffer(of_offset,1):uint()) .. ")")
+	of_sof_tree:add(buffer(of_offset+1,2),"Timestamp: " .. buffer(of_offset+1,2))
+	of_sof_tree:add(buffer(of_offset+3,2),"ISD ID: " .. buffer(of_offset+3,2))
+	of_sof_tree:add(buffer(of_offset+5,1),"Hops: " .. buffer(of_offset+5,1))
+	of_sof_tree:add(buffer(of_offset+6,2),"Reserved: " .. buffer(of_offset+6,2))
 
 	of_offset=of_offset+8
 	oftypename="ROT OF"
-	of_tree:add(buffer(of_offset,1),"Opaque filed type: " .. oftypename .. " (0x" .. string.format("%x",buffer(of_offset,1):uint()) .. ")")
-	of_tree:add(buffer(of_offset+1,2),"ROT version: " .. buffer(of_offset+1,4))
-	of_tree:add(buffer(of_offset+3,2),"ISD ID: " .. buffer(of_offset+5,2))
-	of_tree:add(buffer(of_offset+6,2),"Reserved: " .. buffer(of_offset+7,1))
+	of_rot_tree=of_tree:add(buffer(of_offset,1),"Opaque filed type: " .. oftypename .. " (0x" .. string.format("%x",buffer(of_offset,1):uint()) .. ")")
+	of_rot_tree:add(buffer(of_offset+1,2),"ROT version: " .. buffer(of_offset+1,2))
+	of_rot_tree:add(buffer(of_offset+3,2),"ISD ID: " .. buffer(of_offset+3,2))
+	of_rot_tree:add(buffer(of_offset+6,2),"Reserved: " .. buffer(of_offset+6,2))
 
 
 
 	--PCBMarking
 	local pcb_size=32
-	local i=0
 	local pcb_tree = scion_tree:add(buffer(of_offset,hdr_len - of_offset),"PCB")
-	for of_offset=of_offset+8, of_offset + pcb_size < hdr_len, pcb_size do
+--	for of_offset=of_offset+8, of_offset + pcb_size < hdr_len, pcb_size do
+	of_offset = of_offset + 8
+	
+	--num_pcb = (hdr_len - of_offset)/pcb_size
+	--num_pcb = (buffer:len() - of_offset)/pcb_size
+	num_pcb=1	
+
+	--scion_tree:add_expert_info(PI_MALFORMED, PI_ERROR, hdr_len .. ", " .. of_offset .. ", " .. pcb_size .. ", " .. buffer:len())
+	
+	for i=0, num_pcb-1, 1 do
 		local pcbsub_tree = pcb_tree:add(buffer(of_offset,pcb_size),"PCB Marking ".. i)
 
-		pcbtree:add(buffer(of_offset,8),"AD ID: " .. buffer(of_offset,8))
+		pcbsub_tree:add(buffer(of_offset,8),"AD ID: " .. buffer(of_offset,8))
 
-		local ssf_tree=pcbtree:add(buffer(of_offset+8,8),"Support signature field: " .. buffer(of_offset+8,8))
-		ssf_tree:add(buffer(of_offset+8,4),"Certificate ID" .. buffer(of_offset+8,4))
-		ssf_tree:add(buffer(of_offset+8+4,2),"Signature length" .. buffer(of_offset+8+4,2))
-		ssf_tree:add(buffer(of_offset+8+6,2),"Block size" .. buffer(of_offset+8+6,2))
+		local ssf_tree=pcbsub_tree:add(buffer(of_offset+8,8),"Support signature field: " .. buffer(of_offset+8,8))
+		ssf_tree:add(buffer(of_offset+8,4),"Certificate ID: " .. buffer(of_offset+8,4))
+		ssf_tree:add(buffer(of_offset+8+4,2),"Signature length: " .. buffer(of_offset+8+4,2))
+		ssf_tree:add(buffer(of_offset+8+6,2),"Block size: " .. buffer(of_offset+8+6,2))
+		local signature_length= buffer(of_offset+8+4,2):uint()
+		local signature_length= buffer(of_offset+8+6,2):uint()
 
-		local hof_tree=pcbtree:add(buffer(of_offset+16,8),"Hop opaque field: " .. buffer(of_offset+16,8))
-		hof_tree:add(buffer(of_offset+16+1,2),"Ingress IF: " .. buffer(of_offset+1,2))
-		hof_tree:add(buffer(of_offset+16+3,2),"Egress IF: " .. buffer(of_offset+3,2))
-		hof_tree:add(buffer(of_offset+16+5,3),"MAC: " .. buffer(of_offset+5,3))
-		
-		local spf_tree=pcbtree:add(buffer(of_offset+24,8),"Support PCB field: " .. buffer(of_offset+24,8))
+
+		local hof_tree=pcbsub_tree:add(buffer(of_offset+16,8),"Hop opaque field: " .. buffer(of_offset+16,8))
+		hof_tree:add(buffer(of_offset+16+1,2),"Ingress IF: " .. buffer(of_offset+16+1,2))
+		hof_tree:add(buffer(of_offset+16+3,2),"Egress IF: " .. buffer(of_offset+16+3,2))
+		hof_tree:add(buffer(of_offset+16+5,3),"MAC: " .. buffer(of_offset+16+5,3))
+	
+		local spf_tree=pcbsub_tree:add(buffer(of_offset+24,8),"Support PCB field: " .. buffer(of_offset+24,8))
 		spf_tree:add(buffer(of_offset+24,2),"ISD ID: " .. buffer(of_offset+24,2))
 		spf_tree:add(buffer(of_offset+24+2,1),"Bandwidth allocation F: " .. buffer(of_offset+24+2,1))
 		spf_tree:add(buffer(of_offset+24+3,1),"Bandwidth allocation R: " .. buffer(of_offset+24+3,1))
@@ -179,7 +191,36 @@ function process_beacon(buffer,pinfo,tree)
 		spf_tree:add(buffer(of_offset+24+6,1),"BE bandwidth F: " .. buffer(of_offset+24+6,1))
 		spf_tree:add(buffer(of_offset+24+7,1),"BE bandwidth R: " .. buffer(of_offset+24+7,1))
 
-		i=i+1
+
+		of_offset = of_offset + pcb_size
+
+		-- process Peer Marking
+		pear_marking_size = 24
+		local j=0
+		while of_offset + pear_marking_size < buffer:len() do
+			local pcbsub_tree = pcb_tree:add(buffer(of_offset,pear_marking_size),"Peer Marking ".. j)
+			
+			pcbsub_tree:add(buffer(of_offset,8),"AD ID: " .. buffer(of_offset,8))
+
+			offset_hof=8
+			local hof_tree=pcbsub_tree:add(buffer(of_offset+offset_hof,8),"Hop opaque field: " .. buffer(of_offset+offset_hof,8))
+			hof_tree:add(buffer(of_offset+offset_hof+1,2),"Ingress IF: " .. buffer(of_offset+offset_hof+1,2))
+			hof_tree:add(buffer(of_offset+offset_hof+3,2),"Egress IF: " .. buffer(of_offset+offset_hof+3,2))
+			hof_tree:add(buffer(of_offset+offset_hof+5,3),"MAC: " .. buffer(of_offset+offset_hof+5,3))
+		
+			offset_spf=16
+			local spf_tree=pcbsub_tree:add(buffer(of_offset+offset_spf,8),"Support PCB field: " .. buffer(of_offset+offset_spf,8))
+			spf_tree:add(buffer(of_offset+offset_spf,2),"ISD ID: " .. buffer(of_offset+offset_spf,2))
+			spf_tree:add(buffer(of_offset+offset_spf+2,1),"Bandwidth allocation F: " .. buffer(of_offset+offset_spf+2,1))
+			spf_tree:add(buffer(of_offset+offset_spf+3,1),"Bandwidth allocation R: " .. buffer(of_offset+offset_spf+3,1))
+			spf_tree:add(buffer(of_offset+offset_spf+4,1),"Dynamic bandwidth allocation F: " .. buffer(of_offset+offset_spf+4,1))
+			spf_tree:add(buffer(of_offset+offset_spf+5,1),"Dynamic bandwidth allocation R: " .. buffer(of_offset+offset_spf+5,1))
+			spf_tree:add(buffer(of_offset+offset_spf+6,1),"BE bandwidth F: " .. buffer(of_offset+offset_spf+6,1))
+			spf_tree:add(buffer(of_offset+offset_spf+7,1),"BE bandwidth R: " .. buffer(of_offset+offset_spf+7,1))
+
+			j=j+1
+			of_offset = of_offset + pear_marking_size
+		end
 	end
 
 end
