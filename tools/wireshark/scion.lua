@@ -7,7 +7,7 @@ scion_ch_srclen=ProtoField.uint16("scion.ch.srclen","Source address length",base
 scion_ch_dstlen=ProtoField.uint8("scion.ch.dstlen","Dstination address length",base.DEC, nil, 0x3f)
 scion_ch_totallen=ProtoField.uint8("scion.ch.totallen","Total length",base.DEC)
 scion_ch_timestamp=ProtoField.uint8("scion.ch.timestamp","Timestamp",base.DEC)
-scion_ch_currof=ProtoField.uint8("scion.ch.currof","Cuurent opaque field",base.DEC)
+scion_ch_currof=ProtoField.uint8("scion.ch.currof","Curent opaque field",base.DEC)
 scion_ch_nexthdr=ProtoField.uint8("scion.ch.nexthdr","Next header",base.DEC)
 scion_ch_hdrlen=ProtoField.uint8("scion.ch.hdrlen","Header length",base.DEC)
 
@@ -68,7 +68,7 @@ function scion_proto.dissector(buffer,pinfo,tree)
 	-- add tree
 	pinfo.cols.protocol = "SCION"
 	scion_tree = tree:add(scion_proto,buffer(0, hdr_len),"SCION Protocol")
-	local sch_field = ProtoField.string("sch","Common hdeader")
+	local sch_field = ProtoField.string("sch","Common header")
 	local sch_tree = scion_tree:add(sch_field,buffer(0,8),"Common header" .. ", Type:" .. ptype .. ", " ..path_direction)
 	
 
@@ -115,6 +115,9 @@ function scion_proto.dissector(buffer,pinfo,tree)
 	elseif ptype == "BEACON" then
 		process_beacon(buffer,pinfo,tree)
 	end
+
+	scion_tree:add_expert_info(PI_DEBUG,PI_CHAT,"dummy")
+
 end
 
 function process_data(buffer,pinfo,tree)
@@ -131,21 +134,34 @@ end
 function process_beacon(buffer,pinfo,tree)
 	--analyze opaque field
 	local of_field = ProtoField.string("of","Opaque field")
-	local of_tree = scion_tree:add(of_field,buffer(of_offset,8),"Opaque field ")
-
 	local of_offset=8+srclen+dstlen;
 
+	local of_tree = scion_tree:add(of_field,buffer(of_offset,16),"Opaque field ") --size = 16 (SOF and ROTOF)
 	
 	oftypename="Special OF"
-	of_sof_tree=of_tree:add(buffer(of_offset,1),"Opaque filed type: " .. oftypename .. " (0x" .. string.format("%x",buffer(of_offset,1):uint()) .. ")")
+	of_sof_tree=of_tree:add(buffer(of_offset,8),"Opaque filed type: " .. oftypename .. " (0x" .. string.format("%x",buffer(of_offset,1):uint()) .. ")")
+	if timestamp + 8   == of_offset then  --8 means size of common header and 
+		of_sof_tree:append_text(", Current special OF(timestamp)")
+	end
+	if curr_of + 8   == of_offset then  --8 means size of common header and 
+		of_sof_tree:append_text(", Current OF")
+	end
 	of_sof_tree:add(buffer(of_offset+1,2),"Timestamp: " .. buffer(of_offset+1,2))
 	of_sof_tree:add(buffer(of_offset+3,2),"ISD ID: " .. buffer(of_offset+3,2))
 	of_sof_tree:add(buffer(of_offset+5,1),"Hops: " .. buffer(of_offset+5,1))
 	of_sof_tree:add(buffer(of_offset+6,2),"Reserved: " .. buffer(of_offset+6,2))
 
+
+
 	of_offset=of_offset+8
 	oftypename="ROT OF"
-	of_rot_tree=of_tree:add(buffer(of_offset,1),"Opaque filed type: " .. oftypename .. " (0x" .. string.format("%x",buffer(of_offset,1):uint()) .. ")")
+	of_rot_tree=of_tree:add(buffer(of_offset,8),"Opaque filed type: " .. oftypename .. " (0x" .. string.format("%x",buffer(of_offset,1):uint()) .. ")")
+	if timestamp + 8   == of_offset then  --8 means size of common header and 
+		of_rot_tree:append_text(", Current special OF(timestamp)")
+	end
+	if curr_of + 8   == of_offset then  --8 means size of common header and 
+		of_rot_tree:append_text(", Current OF")
+	end
 	of_rot_tree:add(buffer(of_offset+1,2),"ROT version: " .. buffer(of_offset+1,2))
 	of_rot_tree:add(buffer(of_offset+3,2),"ISD ID: " .. buffer(of_offset+3,2))
 	of_rot_tree:add(buffer(of_offset+6,2),"Reserved: " .. buffer(of_offset+6,2))
@@ -208,6 +224,8 @@ function process_beacon(buffer,pinfo,tree)
 			hof_tree:add(buffer(of_offset+offset_hof+3,2),"Egress IF: " .. buffer(of_offset+offset_hof+3,2))
 			hof_tree:add(buffer(of_offset+offset_hof+5,3),"MAC: " .. buffer(of_offset+offset_hof+5,3))
 		
+			pcbsub_tree:append_text(", Ingress IF: " .. buffer(of_offset+offset_hof+1,2):uint() .. ", Egress IF: " .. buffer(of_offset+offset_hof+3,2))
+
 			offset_spf=16
 			local spf_tree=pcbsub_tree:add(buffer(of_offset+offset_spf,8),"Support PCB field: " .. buffer(of_offset+offset_spf,8))
 			spf_tree:add(buffer(of_offset+offset_spf,2),"ISD ID: " .. buffer(of_offset+offset_spf,2))
@@ -221,6 +239,8 @@ function process_beacon(buffer,pinfo,tree)
 			j=j+1
 			of_offset = of_offset + pear_marking_size
 		end
+
+		pcb_tree:add_expert_info(PI_DEBUG,PI_CHAT,"dummy")
 	end
 
 end
@@ -252,9 +272,9 @@ function process_of(buffer,pinfo,tree)
 		end
 
 
-		local of_field = ProtoField.string("of","Opaque field")
+		local of_field = ProtoField.string("of"..i,"Opaque field"..i)
 		local of_tree = scion_tree:add(of_field,buffer(of_offset,8),"Opaque field ".. i)
-		
+
 		
 		--check OF type
 		local oftype=buffer(of_offset,1):uint()
@@ -264,6 +284,7 @@ function process_of(buffer,pinfo,tree)
 
 		if oftype == 0x80 then
 			oftypename="Special OF"
+			of_tree:append_text(", Special OF")
 			of_tree:add(buffer(of_offset,1),"Opaque filed type: " .. oftypename .. " (0x" .. string.format("%x",buffer(of_offset,1):uint()) .. ")")
 			of_tree:add(buffer(of_offset+1,2),"Timestamp: " .. buffer(of_offset+1,2))
 			of_tree:add(buffer(of_offset+3,2),"ISD ID: " .. buffer(of_offset+3,2))
@@ -274,6 +295,7 @@ function process_of(buffer,pinfo,tree)
 
 		elseif oftype == 0xff then
 			oftypename="ROT OF"
+			of_tree:append_text(", ROT OF")
 			of_tree:add(buffer(of_offset,1),"Opaque filed type: " .. oftypename .. " (0x" .. string.format("%x",buffer(of_offset,1):uint()) .. ")")
 			of_tree:add(buffer(of_offset+1,2),"ROT version: " .. buffer(of_offset+1,4))
 			of_tree:add(buffer(of_offset+3,2),"ISD ID: " .. buffer(of_offset+5,2))
@@ -297,11 +319,21 @@ function process_of(buffer,pinfo,tree)
 
 			end
 			
-			of_tree:add(buffer(of_offset,1),"Opaque filed type: " .. oftypename .. " (0x" .. string.format("%x",buffer(of_offset,1):uint()) .. ")")
+			of_tree:append_text(", Ingress IF: " .. buffer(of_offset+1,2):uint() .. ", Egress IF: " .. buffer(of_offset+3,2):uint())
+			of_tree:add(buffer(of_offset,1),"Opaque filed type: " .. oftypename .. " (0x" .. string.format("%x",buffer(of_offset,1):uint()) .. ")" )
 			of_tree:add(buffer(of_offset+1,2),"Ingress IF: " .. buffer(of_offset+1,2))
 			of_tree:add(buffer(of_offset+3,2),"Egress IF: " .. buffer(of_offset+3,2))
 			of_tree:add(buffer(of_offset+5,3),"MAC: " .. buffer(of_offset+5,3))
 
+		end
+
+		
+		--check timestamp field and curr OF field refer this OF
+		if timestamp + 8   == of_offset then  --8 means size of common header and 
+			of_tree:append_text(", Current special OF(timestamp)")
+		end
+		if curr_of + 8   == of_offset then  --8 means size of common header and 
+			of_tree:append_text(", Current OF")
 		end
 			
 	i = i + 1
