@@ -1,19 +1,27 @@
+# topology.py
+#
+# Copyright 2014 ETH Zurich
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """
-topology.py
+:mod:`lib.topology` --- SCION AD topologies
+=======================================
 
-Copyright 2014 ETH Zurich
+Module docstring here.
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+.. note::
+    Fill in the docstring.
 
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
 """
 
 from collections import defaultdict
@@ -53,9 +61,9 @@ class Element(object):
     """
     Base class for elements specified in the topology file.
 
-    Attributes:
-        aid: the AD identifier of the element.
-        addr: the address of the element.
+    :param aid: the AD identifier of the element.
+    :type aid: int
+    :param addr: the address of the element.
     """
     def __init__(self, aid=0, addr=None):
         self.aid = aid
@@ -79,11 +87,12 @@ class ServerElement(Element):
 
         Creates a new ServerElement object.
 
-        Args:
-            aid: the identifier of the AD in which the server is located.
-            addr: the server address.
-            type: an int representing the type of server. The possible
-                values and their meanings are listed in the ElementType class.
+        :param aid: the identifier of the AD in which the server is located.
+        :type aid: int
+        :param addr: the server address.
+        :param type: the type of server (possible values and their meanings are
+            listed in :class:`ElementType`)
+        :type type: int
         """
         super().__init__(self, aid, addr)
         assert server_type in ElementType.SERVER_TYPES
@@ -184,8 +193,8 @@ class Topology(object):
         load the file and parse it to populate the lists of routers, servers,
         gateways, and clients.
 
-        Args:
-            filename: a str representing a topology file name.
+        :param filename: the topology file name.
+        :type filename: str
         """
         self.routers = defaultdict(list)
         self.servers = {}
@@ -205,8 +214,8 @@ class Topology(object):
         Load and parse an XML file to create an element tree. Store the
         resulting ElementTree object internally.
 
-        Args:
-            filename: XML file to load.
+        :param filename: the name of the XML file to load.
+        :type filename: str
         """
         assert isinstance(filename, str)
         self._filename = filename
@@ -307,9 +316,10 @@ class Topology(object):
         Parse the AID of the XML element et_element and store the found AID in
         element.
 
-        Args:
-            et_element: an XML element (xml.etree.ElementTree.Element)
-            element: the SCION Element in which to set the parsed AID.
+        :param et_element: the XML element to parse.
+        :type et_element: :class:`xml.etree.ElementTree.Element`
+        :param element: the SCION element in which to set the parsed AID.
+        :type element: :class:`Element`
         """
         assert ET.iselement(et_element)
         aid_el = et_element.find("AID")
@@ -323,9 +333,10 @@ class Topology(object):
         Parse the address of the XML element et_element and store the found
         address in element.
 
-        Args:
-            et_element: an XML element (xml.etree.ElementTree.Element)
-            element: the SCION Element in which to set the parsed address.
+        :param et_element: the XML element to parse.
+        :type et_element: :class:`xml.etree.ElementTree.Element`
+        :param element: the SCION element in which to set the parsed address.
+        :type element: :class:`Element`
         """
         assert ET.iselement(et_element)
         addr_type = et_element.find("AddrType").text
@@ -357,11 +368,11 @@ class Topology(object):
         its relevant information to an InterfaceElement object associated with
         a border router in the AD.
 
-        Args:
-            et_element: an ElementTree element representing the element to
-                parse.
-            router: the RouterElement object with which to associate the parsed
-                interface.
+        :param et_element:the XML element to parse.
+        :type et_element: :class:`xml.etree.ElementTree.Element`
+        :param router: the router with which to associate the parsed interface.
+        :type router: :class:`RouterElement`
+
         """
         assert ET.iselement(et_element)
         if_el = InterfaceElement()
