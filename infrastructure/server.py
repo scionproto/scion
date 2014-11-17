@@ -1,19 +1,28 @@
+# server.py
+
+# Copyright 2014 ETH Zurich
+
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+
+# http://www.apache.org/licenses/LICENSE-2.0
+
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """
-server.py
+:mod:`server` --- Base class for SCION servers
+==============================================
 
-Copyright 2014 ETH Zurich
+Module docstring here.
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+.. note::
+    Fill in the docstring.
 
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
 """
 
 from lib.config import Config
@@ -32,12 +41,15 @@ class ServerBase(object):
     Base class for the different kind of servers the SCION infrastructure
     provides.
 
-    Attributes:
-        topology: the topology of the AD as seen by the server.
-        config: the configuration of the AD in which the server is located.
-        ifid2addr: a dictionary mapping interface identifiers to the
-            corresponding border router addresses in the server's AD.
-        addr: a HostAddr object representing the server address.
+    :ivar topology: the topology of the AD as seen by the server.
+    :vartype topology: :class:`Topology`
+    :ivar config: the configuration of the AD in which the server is located.
+    :vartype config: :class:`lib.config.Config`
+    :ivar ifid2addr: a dictionary mapping interface identifiers to the
+        corresponding border router addresses in the server's AD.
+    :vartype ifid2addr: dict
+    :ivar addr: a HostAddr object representing the server address.
+    :vartype addr: :class:`lib.packet.host_addr.HostAddr`
     """
 
     def __init__(self, addr, topo_file, config_file):
@@ -80,7 +92,10 @@ class ServerBase(object):
     @addr.setter
     def addr(self, addr):
         """
-        Sets the address of the server. Must be a lib.HostAddr object
+        Set the address of the server. Must be a lib.HostAddr object
+
+        :param addr: the new server address.
+        :type addr: :class:`HostAddr`
         """
         if not (isinstance(addr, HostAddr) or addr is None):
             raise TypeError("Addr must be of type 'HostAddr'")
@@ -89,10 +104,10 @@ class ServerBase(object):
 
     def parse_topology(self, topo_file):
         """
-        Instantiates a Topology object and pases an AD topology from a file.
+        Instantiate a Topology object and pases an AD topology from a file.
 
-        Args:
-            topo_file: a str representing the topology file name.
+        :param topo_file: the topology file name.
+        :type topo_file: str
         """
         assert isinstance(topo_file, str)
         self.topology = Topology(topo_file)
@@ -103,8 +118,8 @@ class ServerBase(object):
         Instantiates a ConfigParser and parses the config given by
         'config_file'.
 
-        Args:
-            config_file: a string representing the configuration file name.
+        :param config_file: the configuration file name.
+        :type config_file: str
         """
         assert isinstance(config_file, str)
         self.config = Config(config_file)
@@ -112,7 +127,7 @@ class ServerBase(object):
 
     def construct_ifid2addr_map(self):
         """
-        Constructs the mapping between the local ifid and the address of the
+        Construct the mapping between the local ifid and the address of the
         neighbors.
         """
         assert self.topology is not None
@@ -130,15 +145,15 @@ class ServerBase(object):
 
     def send(self, packet, dst, dst_port=SCION_UDP_PORT):
         """
-        Sends packet to dst (to port dst_port) using self._local_socket.
+        Send packet to dst (to port dst_port) using self._local_socket.
         packet should pack() to bytes, and dst should __str__() to IPv4 addr.
 
-        Args:
-            packet: a string representing a packet to be sent to the
-                destination.
-            dst: a string respresenting an IPv4 addresss to which to send the
-                packet.
-            dst_port: an integer representing the destination port number.
+        :param packet: the packet to be sent to the destination.
+        :type packet: 
+        :param dst: the destination IPv4 address.
+        :type dst: str
+        :param dst_port: the destination port number.
+        :type dst_port: int
         """
         self._local_socket.sendto(packet.pack(), (str(dst), dst_port))
 
