@@ -65,7 +65,15 @@ class Element(object):
     :type aid: int
     :param addr: the address of the element.
     """
+
     def __init__(self, aid=0, addr=None):
+        """
+        Constructor.
+
+        :param aid: the AD identifier of the new element.
+        :type aid: int
+        :param addr: the address of the new element.
+        """
         self.aid = aid
         self.addr = addr
 
@@ -74,11 +82,12 @@ class ServerElement(Element):
     """
     Represents one of the core servers in SCION.
 
-    Attributes:
-        aid: inherited from Element
-        addr: inherited from Element
-        type: the type of server. Possible values are listed in the ElementType
-            class.
+    :ivar aid: the AD identifier of the server (inherited from ``Element``).
+    :vartype aid: int
+    :ivar addr: the server's address (inherited from ``Element``).
+    :vartype addr: TODO
+    :ivar type: the server's type (i.e., beacon, certificate, path, etc).
+    :vartype type: :class:`ElementType`
     """
 
     def __init__(self, aid=0, addr=None, server_type=0):
@@ -108,23 +117,52 @@ class InterfaceElement(Element):
     information to the interface, such as the neighbor AD and type, the local
     UDP port number, and the remote address and UDP port number.
 
-    Attributes:
-        if_id: an integer representing the interface ID.
-        neighbor: an integer representing the AD or TD identifier of the
-            neighbor AD.
-        neighbor_type: the type of the neighbor relative to the AD to which
-            this interface belongs. Possible values and their meanings are
-            found in the NeighborType class.
-        to_addr: a HostAddr object representing the address of the router in
-            the neighboring AD to which the interface is connected.
-        udp_port: an integer representing the port number of the interface's
-            router used to send UDP traffic.
-        to_udp_port: an integer representing the port number on the other side
-            of the connection that receives UDP traffic.
+    :ivar if_id: the interface ID.
+    :vartype if_id: int
+    :ivar neighbor: the AD or TD identifier of the neighbor AD.
+    :vartype neighbor: int
+    :ivar neighbor_type: the type of the neighbor relative to the AD to which
+    this interface belongs.
+    :vartype neighbor_type: :class:`NeighborType`
+    :ivar to_addr: the address of the router in the neighboring AD to which the
+    interface is connected.
+    :vartype to_addr: :class:`HostAddr`
+    :ivar udp_port: the port number of the interface's router used to send UDP
+    traffic.
+    :vartype udp_port: int
+    :ivar to_udp_port: the port number receiving UDP traffic to which the
+    interface is connected.
+    :vartype to_udp_port: int
     """
 
     def __init__(self, aid=0, addr=None, if_id=0, neighbor=0,
                  neighbor_type=0, to_addr=None, udp_port=0, to_udp_port=0):
+        """
+        Constructor.
+
+        :param aid: the AD identifier.
+        :type aid: int
+        :param addr: the address of the router in the neighboring AD to which
+        the interface is connected.
+        :type addr: :class:`HostAddr`
+        :param if_id: the interface ID.
+        :type if_id: int
+        :param neighbor: the AD or TD identifier of the neighbor AD.
+        :type neighbor: int
+        :param neighbor_type: the type of the neighbor relative to the AD to
+        which the interface belongs.
+        :type neighbor_type: :class:`NeighborType`
+        :param to_addr: the address of the router in the neighboring AD to
+        which the interface is connected.
+        :type to_addr: :class:`HostAddr`
+        :param udp_port: the port number used to send UDP traffic.
+        :type udp_port: int
+        :param to_udp_port: the port number receiving UDP traffic on the other
+        end of the interface.
+        :type to_udp_port: int
+        :returns: the newly-created :class:`InterfaceElement` instance.
+        :rtype: :class:`InterfaceElement`
+        """
         super().__init__(self, aid, addr)
         self.if_id = if_id
         self.neighbor = neighbor
@@ -139,12 +177,18 @@ class RouterElement(Element):
     """
     Represents a router.
 
-    Attributes:
-        interface: an InterfaceElement object representing the router's
-            interface to a different AD.
+    :ivar interface: the router's interface to a different AD.
+    :vartype interface: :class:`InterfaceElement`
     """
 
     def __init__(self, aid=0, addr=None, interface=None):
+        """
+        Constructor.
+
+        :param aid: the AD identifier of the new router.
+        :type aid: int
+        :param addr: the address of the new router.
+        """
         super().__init__(self, aid, addr)
         self.interface = interface
 
@@ -153,10 +197,18 @@ class GatewayElement(Element):
     """
     Represents a gateway.
 
-    Attributes:
-        ptype: TODO (not yet implemented)
+    :ivar ptype: TODO
+    :vartype ptype: TODO
     """
+
     def __init__(self, aid=0, addr=None, ptype=0):
+        """
+        Constructor.
+
+        :param aid: the AD identifier of the new gateway.
+        :type aid: int
+        :param addr: the address of the new gateway.
+        """
         super().__init__(self, aid, addr)
         self.ptype = ptype
 
@@ -173,16 +225,20 @@ class Topology(object):
     """
     Handle parsing a SCION topology XML file.
 
-    Attributes:
-        routers: a dictionary mapping neighbor types (in NeighborType) to
-            lists of border routers whose interface connects to a neighbor AD
-            of that type.
-        servers: a dictionary mapping server types (in
-            ElementType.SERVER_TYPES) to the ServerElement objects of that type
-            in the topology. There can only be one of each type of server in
-            the topology.
-        gateways: TODO (has not yet been implemented)
-        clients: a list of clients in the AD.
+    .. note::
+        There can only be one server of each type in the topology.
+
+    :ivar routers: a mapping from neighbor types to lists of border routers
+    whose interface connects to a neighbor AD of that type.
+    :vartype routers: defaultdict(list)
+    :ivar servers: a mapping of server types
+    (:class:`ElementType.SERVER_TYPES`) to ``ServerElement``s of that type in
+    the topology.
+    :vartype servers: dict
+    :ivar gateways: TODO
+    :vartype gateways: TODO
+    :ivar clients: the clients in the AD.
+    :vartype clients: list
     """
 
     def __init__(self, filename=None):
@@ -305,7 +361,11 @@ class Topology(object):
         Parse the gateways in the topology file.
 
         Parse the gateways from the topology file and add them to the AD
-        topology. TODO: finish method implementation
+        topology.
+
+        .. warning::
+            This method has not been implemented yet. Unless overridden in a
+            subclass, calling this method will have no effect.
         """
         pass
 
