@@ -36,7 +36,7 @@ class RawSocket(object):
         Create a new ``RawSocket`` instance using the protocol number *proto*.
         The protocol number must be selected from the `list of IP protocol
         numbers
-        <http://www.iana.org/assignments/protocol-numbers/protocol-numbers.xhtml>`.
+        <http://www.iana.org/assignments/protocol-numbers/protocol-numbers.xhtml>`_.
         """
         self._sock = socket.socket(socket.AF_INET,
                                    socket.SOCK_RAW,
@@ -67,9 +67,9 @@ class RawSocket(object):
 
         Send a raw IP packet from *src* to *dst*. The source and destination
         addresses must be in dotted-quad format (such as '127.0.0.1'). The
-        protocol named in *proto* must be selected from the `list of protocol
+        protocol named in *proto* must be selected from the `list of IP protocol
         numbers
-        <http://www.iana.org/assignments/protocol-numbers/protocol-numbers.xhtml>`.
+        <http://www.iana.org/assignments/protocol-numbers/protocol-numbers.xhtml>`_.
 
         :param src: the source IP address.
         :type src: str

@@ -15,7 +15,7 @@
 # limitations under the License.
 """
 :mod:`lib.topology` --- SCION AD topologies
-=======================================
+===========================================
 
 Module docstring here.
 
@@ -122,17 +122,18 @@ class InterfaceElement(Element):
     :ivar neighbor: the AD or TD identifier of the neighbor AD.
     :vartype neighbor: int
     :ivar neighbor_type: the type of the neighbor relative to the AD to which
-    this interface belongs.
+       this interface belongs.
     :vartype neighbor_type: :class:`NeighborType`
     :ivar to_addr: the address of the router in the neighboring AD to which the
-    interface is connected.
+       interface is connected.
     :vartype to_addr: :class:`HostAddr`
     :ivar udp_port: the port number of the interface's router used to send UDP
-    traffic.
+       traffic.
     :vartype udp_port: int
     :ivar to_udp_port: the port number receiving UDP traffic to which the
-    interface is connected.
+       interface is connected.
     :vartype to_udp_port: int
+
     """
 
     def __init__(self, aid=0, addr=None, if_id=0, neighbor=0,
@@ -143,25 +144,26 @@ class InterfaceElement(Element):
         :param aid: the AD identifier.
         :type aid: int
         :param addr: the address of the router in the neighboring AD to which
-        the interface is connected.
+           the interface is connected.
         :type addr: :class:`HostAddr`
         :param if_id: the interface ID.
         :type if_id: int
         :param neighbor: the AD or TD identifier of the neighbor AD.
         :type neighbor: int
         :param neighbor_type: the type of the neighbor relative to the AD to
-        which the interface belongs.
+           which the interface belongs.
         :type neighbor_type: :class:`NeighborType`
         :param to_addr: the address of the router in the neighboring AD to
-        which the interface is connected.
+           which the interface is connected.
         :type to_addr: :class:`HostAddr`
         :param udp_port: the port number used to send UDP traffic.
         :type udp_port: int
         :param to_udp_port: the port number receiving UDP traffic on the other
-        end of the interface.
+           end of the interface.
         :type to_udp_port: int
         :returns: the newly-created :class:`InterfaceElement` instance.
         :rtype: :class:`InterfaceElement`
+
         """
         super().__init__(self, aid, addr)
         self.if_id = if_id
@@ -229,16 +231,17 @@ class Topology(object):
         There can only be one server of each type in the topology.
 
     :ivar routers: a mapping from neighbor types to lists of border routers
-    whose interface connects to a neighbor AD of that type.
-    :vartype routers: defaultdict(list)
+       whose interface connects to a neighbor AD of that type.
+    :vartype routers: :class:`collections.defaultdict`
     :ivar servers: a mapping of server types
-    (:class:`ElementType.SERVER_TYPES`) to ``ServerElement``s of that type in
-    the topology.
+       (:class:`ElementType.SERVER_TYPES`\ ) to :class:`ServerElement`
+       instances of that type in the topology.
     :vartype servers: dict
     :ivar gateways: TODO
     :vartype gateways: TODO
     :ivar clients: the clients in the AD.
     :vartype clients: list
+
     """
 
     def __init__(self, filename=None):
@@ -428,7 +431,7 @@ class Topology(object):
         its relevant information to an InterfaceElement object associated with
         a border router in the AD.
 
-        :param et_element:the XML element to parse.
+        :param et_element: the XML element to parse.
         :type et_element: :class:`xml.etree.ElementTree.Element`
         :param router: the router with which to associate the parsed interface.
         :type router: :class:`RouterElement`
