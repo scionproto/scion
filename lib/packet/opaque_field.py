@@ -119,12 +119,12 @@ class HopOpaqueField(OpaqueField):
             return
         bits = BitArray(bytes=raw)
         (self.info, self.ingress_if, self.egress_if, self.mac) = \
-            bits.unpack("uintle:8, uintle:16, uintle:16, uintle:24")
+            bits.unpack("uintbe:8, uintbe:16, uintbe:16, uintbe:24")
 
         self.parsed = True
 
     def pack(self):
-        return bitstring.pack("uintle:8, uintle:16, uintle:16, uintle:24",
+        return bitstring.pack("uintbe:8, uintbe:16, uintbe:16, uintbe:24",
                               self.info, self.ingress_if, self.egress_if,
                               self.mac).bytes
 
@@ -173,7 +173,7 @@ class InfoOpaqueField(OpaqueField):
             return
         bits = BitArray(bytes=raw)
         (self.info, self.timestamp, self.isd_id, self.hops, self.reserved) = \
-            bits.unpack("uintle:8, uintle:16, uintle:16, uintle:8, uintle:16")
+            bits.unpack("uintbe:8, uintbe:16, uintbe:16, uintbe:8, uintbe:16")
 
         self.parsed = True
 
@@ -181,8 +181,8 @@ class InfoOpaqueField(OpaqueField):
         #PSz: Should InfoOpaqueFIeld with raw==None pack to b'\x00'*8 ?
         if not self.raw:
             return b''
-        return bitstring.pack("uintle:8, uintle:16, uintle:16, uintle:8,"
-                              "uintle:16", self.info, self.timestamp,
+        return bitstring.pack("uintbe:8, uintbe:16, uintbe:16, uintbe:8,"
+                              "uintbe:16", self.info, self.timestamp,
                               self.isd_id, self.hops, self.reserved).bytes
 
     def __eq__(self, other):
