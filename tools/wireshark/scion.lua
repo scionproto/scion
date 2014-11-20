@@ -61,7 +61,7 @@ function scion_proto.dissector(buffer,pinfo,tree)
 	--check packet type
 	ptype=""
 	if srclen > 0 and dstlen > 0 and srclen < hdr_len and dstlen < hdr_len then
-		ptype=get_type(srcaddr:uint(),dstaddr:uint())
+		ptype=get_type(srcaddr:le_uint(),dstaddr:le_uint())
 	end
 
 
