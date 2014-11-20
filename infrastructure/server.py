@@ -48,7 +48,7 @@ class ServerBase(object):
     :ivar ifid2addr: a dictionary mapping interface identifiers to the
         corresponding border router addresses in the server's AD.
     :vartype ifid2addr: dict
-    :ivar addr: a HostAddr object representing the server address.
+    :ivar addr: a `HostAddr` object representing the server address.
     :vartype addr: :class:`lib.packet.host_addr.HostAddr`
     """
 
@@ -57,7 +57,7 @@ class ServerBase(object):
         Create a new ServerBase instance.
 
         :param addr: the address of the server.
-        :type addr: HostAddr
+        :type addr: :class:`HostAddr`
         :param topo_file: the name of the topology file.
         :type topo_file: str
         :param config_file: the name of the configuration file.
@@ -85,17 +85,18 @@ class ServerBase(object):
     @property
     def addr(self):
         """
-        Returns the address of the server as a lib.HostAddr object
+        The address of the server as a :class:`lib.packet.host_addr.HostAddr` object.
         """
         return self._addr
 
     @addr.setter
     def addr(self, addr):
         """
-        Set the address of the server. Must be a lib.HostAddr object
+        Set the address of the server. Must be a
+        :class:`lib.packet.host_addr.HostAddr` object.
 
         :param addr: the new server address.
-        :type addr: :class:`HostAddr`
+        :type addr: :class:`lib.packet.host_addr.HostAddr`
         """
         if not (isinstance(addr, HostAddr) or addr is None):
             raise TypeError("Addr must be of type 'HostAddr'")
@@ -104,7 +105,7 @@ class ServerBase(object):
 
     def parse_topology(self, topo_file):
         """
-        Instantiate a Topology object and pases an AD topology from a file.
+        Instantiate a :class:`lib.topology.Topology` object and pases an AD topology from a file.
 
         :param topo_file: the topology file name.
         :type topo_file: str
@@ -116,7 +117,7 @@ class ServerBase(object):
     def parse_config(self, config_file):
         """
         Instantiates a ConfigParser and parses the config given by
-        'config_file'.
+        *config_file*.
 
         :param config_file: the configuration file name.
         :type config_file: str
@@ -127,8 +128,8 @@ class ServerBase(object):
 
     def construct_ifid2addr_map(self):
         """
-        Construct the mapping between the local ifid and the address of the
-        neighbors.
+        Construct the mapping between the local interface IDs and the address
+        of the neighbors connected to those interfaces.
         """
         assert self.topology is not None
         assert self.config is not None
@@ -145,8 +146,9 @@ class ServerBase(object):
 
     def send(self, packet, dst, dst_port=SCION_UDP_PORT):
         """
-        Send packet to dst (to port dst_port) using self._local_socket.
-        packet should pack() to bytes, and dst should __str__() to IPv4 addr.
+        Send *packet* to *dst* (to port *dst_port*) using the local socket.
+        Calling ``packet.pack()`` should return :class:`bytes`, and
+        ``dst.__str__()`` should return a string representing an IPv4 address.
 
         :param packet: the packet to be sent to the destination.
         :type packet: 
@@ -159,7 +161,7 @@ class ServerBase(object):
 
     def run(self):
         """
-        Main routine to receive packets and pass them to handle_request().
+        Main routine to receive packets and pass them to :func:`handle_request()`.
         """
         while True:
             recvlist, _, _ = select.select(self._sockets, [], [])
