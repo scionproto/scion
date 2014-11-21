@@ -25,7 +25,7 @@ class TestOpaqueFields(unittest.TestCase):
 
     def test_opaque_field(self):
         of = OpaqueField()
-        self.assertEqual(of.type, OpaqueFieldType.INFO_OF)
+        self.assertEqual(of.info, OpaqueFieldType.NORMAL_OF)
         self.assertFalse(of.parsed)
         self.assertFalse(of.raw)
 
