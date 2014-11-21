@@ -61,7 +61,7 @@ class OpaqueField(object):
 
     def __eq__(self, other):
         if type(other) is type(self):
-            return self.type == other.type
+            return True
         else:
             return False
 
@@ -130,8 +130,7 @@ class HopOpaqueField(OpaqueField):
 
     def __eq__(self, other):
         if type(other) is type(self):
-            return (self.type == other.type and
-                    self.ingress_if == other.ingress_if and
+            return (self.ingress_if == other.ingress_if and
                     self.egress_if == other.egress_if and
                     self.mac == other.mac)
         else:
@@ -187,8 +186,7 @@ class InfoOpaqueField(OpaqueField):
 
     def __eq__(self, other):
         if type(other) is type(self):
-            return (self.type == other.type and
-                    self.info == other.info and
+            return (self.info == other.info and
                     self.timestamp == other.timestamp and
                     self.isd_id == other.isd_id and
                     self.hops == other.hops and
