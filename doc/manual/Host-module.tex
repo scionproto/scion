@@ -1,7 +1,7 @@
-\section{SCION Host Architecture}
+\chapter{SCION Host Architecture}
 \index{host architecture}
 
-\subsection{Current host architecture} \chris{this describes the current status and is updated with our progress.}
+\section{Current host architecture} \chris{this describes the current status and is updated with our progress.}
 
 Figure~\ref{fig:host} provides a high level overview of the SCION host architecture. The components are the following:
 
@@ -40,7 +40,7 @@ from the wire and reinjects it in TCP/IP stack. Hence, the actual payload reache
 \caption{Host architecture.}\label{fig:host}
 \end{figure}
 
-\subsection{High-level architecture} \chris{outdated, this will change to the final SCION host architecture when it is decided}
+\section{High-level architecture} \chris{outdated, this will change to the final SCION host architecture when it is decided}
 
 
 Figure~\ref{fig:host} illustrates the architecture of a SCION host.
@@ -129,7 +129,7 @@ RoT file is not installed, the host can download it from CSes.
 %  to single CS failure
 %- RoT file is initially installed in host, if not, download from CS
 
-\subsection{Example of host-to-host communication}
+\section{Example of host-to-host communication}
 
 Now we use an example to illustrate how two end-to-end SCION hosts
 can communicate with each other. We assume ISD Cores are operational
@@ -238,9 +238,9 @@ destination addresses and the corresponding ports.
 %Send a packet using the SCION module, sent to ER in case destination is in
 %different AD.
 
-\subsection{Implementation Details}
+\section{Implementation Details}
 
-\subsubsection{Overview: Implementation in Linux}
+\subsection{Overview: Implementation in Linux}
 
 We implement the Path Store and PCD in the Linux user space (see
 Figure~\ref{fig:host}. Other components are implemented in the
@@ -284,7 +284,7 @@ traditional MP-TCP in the legacy hosts by enabling fine-grained path
 selections according the path metric piggybacked in the path
 announcements, i.e., beacons.
 
-\subsubsection{Key Modules}
+\subsection{Key Modules}
 
 To fully implement SCION host architecture, SCION hosts have the
 following blocks.

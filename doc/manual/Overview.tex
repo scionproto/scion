@@ -1,6 +1,6 @@
-\section{SCION}
+\chapter{SCION}
 
-\subsection{Overview}
+\section{Overview}
 
 SCION (Scalability, Control, and Isolation On Next-generation networks) is a
 clean-slate Internet architecture designed to provide route control, failure
@@ -115,7 +115,7 @@ We briefly describe the end-to-end path construction in SCION and necessary func
   table nor compute routes.
 \end{itemize}
 
-\subsubsection{\ISD: Root of Trust}
+\subsection{\ISD: Root of Trust}
 
 A \ISD is an independent {trust} network whose members reside in a common
 contractual, legal, or regional environment. We envision \ISDs to grow to a
@@ -135,7 +135,7 @@ trusting the \ISDC -- the Root of Trust -- without establishing individual trust
 relationships. The Root of Trust is established by an agreement among \ISDC \ADs
 and specified in the Root of Trust file (viz., Section~\ref{subsec:root-of-trust}).
 
-\subsubsection{Autonomous Domain}
+\subsection{Autonomous Domain}
 Each \AD provides the following services based on its type.
 \begin{itemize}
 \item {\bf \ISDC \AD: } \ISD membership service (both for \ISDC members and non-\ISDC members), certificate service (AD certificate issue/reference), PCB initiation, path record (i.e., handling path registration from \STUB \ADs), and domain resolution (i.e., domain to path translation).
@@ -145,7 +145,7 @@ Each \AD provides the following services based on its type.
 
 \noindent{\bf Common services:} Autonomous domains contain servers for certificate management for internal entities (e.g., router, switch, server), up-path (to \ISDC) resolution service, topology management (external: border router to neighbor AD map, internal topology: server location), and key management (offline key, online key), 
 
-\subsubsection{Servers}
+\subsection{Servers}
 To facilitate efficient routing, each \AD runs three servers. The required services at \ISDC \AD, \TRAN \AD, and \STUB \AD are annotated by \CAD, \TAD, and \EAD, respectively. Internal services and external services indicate those services provided within an \AD and across \ADs, respectively.
 %\begin{itemize}
 
@@ -174,7 +174,7 @@ To facilitate efficient routing, each \AD runs three servers. The required servi
 \end{itemize}
 
 
-\subsection{Implementation Principles}
+\section{Implementation Principles}
 The SCION architecture and implementation are guided by the following principles:
 
 \begin{enumerate}
@@ -218,4 +218,4 @@ Path advertisement and construction should be scalable to easily accommodate eve
 
 %\end{itemize}
 
-%\subsection{Bootstrapping}
+%\section{Bootstrapping}

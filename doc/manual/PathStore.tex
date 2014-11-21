@@ -9,7 +9,7 @@
 \newcommand{\bps}{best-path set\@\xspace}
 \newcommand{\stride}{STRIDE\@\xspace}
 
-\section{Path Store}
+\chapter{Path Store}
 In this section, we describe {\em \bf SCION PathStore}, a data structure for storing SCION paths. We design \sps such that it would be used by both \BS and \CS.
 The basic functionality of \sps is to store PCBs (which correspond to
 SCION half-paths) in the local storage and to provide a set of paths
@@ -30,7 +30,7 @@ each customer \AD.
 \caption{Path Store.}~\label{fig:path_store}
 \end{figure*}
 
-\subsection{Overview}
+\section{Overview}
 \sps consists of three parts in large, which are \pse, \qs, and \sq. 
 
 {\bf \PSE: } \PSE has a list of policies that describe the preference
@@ -57,7 +57,7 @@ history-dependent properties.
 
 {\bf \SQ: } \sq manages the physical buffer where actual paths are stored. \sq supports fast enqueue/deque and automatic (intelligent) resize operations while maximally utilizing the physical memory. 
 
-\subsection{Policy}~\label{subsec:policy}
+\section{Policy}~\label{subsec:policy}
 A policy is defined by an administrator and read by the \pse during its initialization. A policy file defines the properties and their weights. The list of properties includes:
 
 \begin{itemize}
@@ -104,12 +104,12 @@ can be configured manually by the administrator).
 %maximally disjoint path
 %\item{trusted: } 
 
-\subsection{Best-Path Set}~\label{subsec:bestpath}
+\section{Best-Path Set}~\label{subsec:bestpath}
 If a new path is added to the queue, the \pse evaluates the path's fidelity for every policy and updates the corresponding best-path set. The best-path set keeps at most $m$ paths defined in the policy, hence it needs to remove one if the set is full. Whenever a path is added to or removed from the best-path set, the reference count (CNT in the figure) of the corresponding \qs is updated (increased/decreased). A path is removed from the queue only when its reference count becomes zero (no policy includes the path in its best-path set).
 A path query is made with a predefined policy (we assume that the set of available policies are available to the requester; e.g., path propagation engine in BS, a client who request paths to PS), the \pse returns the \bps to the requester. The \pse creates a new \bps periodically, and after creating a new set, it stores the previous set in the path history table.
 To avoid frequent best-path re-evaluation and corresponding overhead, the \pse computes the best-path sets either if a certain number of new paths are available or periodically.
 
-\subsection{Current Queue Snapshot}~\label{subsec:queue-snapshot}
+\section{Current Queue Snapshot}~\label{subsec:queue-snapshot}
 \QS contains the information of the paths that are currently in the queue. The information on a path $P_i$ includes:
 \begin{itemize}
 \item{Packet pointer (Packet Ptr): } the address of the packet (PCB) that corresponds to $P_i$
@@ -119,7 +119,7 @@ To avoid frequent best-path re-evaluation and corresponding overhead, the \pse c
 \end{itemize}
 \QS is used to select a path to remove when the queue is full.
 
-\subsection{SCION Queue}~\label{subsec:scion-queue}
+\section{SCION Queue}~\label{subsec:scion-queue}
 \SQ is a base queue that is universally used by all SCION elements. The configuration parameters are as follows.
 
 \begin{itemize}

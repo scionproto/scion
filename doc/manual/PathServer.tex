@@ -1,4 +1,4 @@
-\section{Path Server}
+\chapter{Path Server}
 The \ISDC \PS maintains a path database that contains all $k$ paths registered by \STUB \ADs, and provide down-path resolution service to support \AD-level end-to-end path establishment.
 
 \begin{figure*}[ht]
@@ -7,7 +7,7 @@ The \ISDC \PS maintains a path database that contains all $k$ paths registered b
 \caption{Path Server messages.}\label{fig:ps-message}
 \end{figure*}
 
-\subsection{Path Registration}
+\section{Path Registration}
 An \STUB \AD's path registration request includes the following information.
 \begin{itemize}
 \item {CTime: } Current time 
@@ -38,7 +38,7 @@ The \ISDC path server, on receiving an \AD's path registration request, verifies
 
 Note that path registration is made to the path server in the \ISDC.
 
-\subsection{Path Resolution} 
+\section{Path Resolution} 
 \STUB \ADs use the registered $k$ paths to the \ISDC for up-paths and down-paths ($k$ up-paths and $k$ down-paths can be different). A source \AD, in order to know how to reach the destination \AD (we assume that the sender (host) knows the AID of the destination \AD that hosts the receiver (host), using a DNS service), sends a path query to the \ISDC path server. The \ISDC \PS's response includes $k$ down-paths to the destination \AD, where each down-path is a series of ADs and their Opaque Fields. Then, the source \AD selects a down-path and constructs an end-to-end path by composing one of its up-path and the selected down-path.
 
 To perform the above path resolution, the \ISDC \PS and local \PS should provide the following functions.
@@ -50,7 +50,7 @@ To perform the above path resolution, the \ISDC \PS and local \PS should provide
 
 
 
-\subsection{Path Database}
+\section{Path Database}
 For path resolution services, \PSs maintains the following database.
 
 \noindent {\bf \ISDC \PS: } Down-paths to \STUB \ADs inside the \ISD. \newline
@@ -59,7 +59,7 @@ A record of an \STUB \AD consists of the path registration information shown abo
 \noindent {\bf Local \PS: } Up-paths to \ISDC and down-paths to remote \STUB \ADs.
 A record of an up-path has the same format as that of down-paths, yet it ends with a \ISDC \AD instead of an \STUB \AD. The local \PS cache has the same data structure as that of the \ISDC \PS.
 
-\subsection{Bootstrapping}
+\section{Bootstrapping}
 The \ISDC \PS are assumed to be highly replicated and synchronized. Hence, when a \PS starts and finds any other \PSs in the topology file (that is kept locally or retrieved from the \CS), the \PS synchronizes its database with those of other \PSs. Bootstrapping procedure may differ how \PS database is implemented (e.g., RDB, DHT). Currently, the \PS stores the snapshot of path database as a file periodically (in every 10 minutes). Local \PSs works similarly, yet they only synchronize up-paths (or at least registered $k$ up-paths, which can be retrieved from the \BS if the \AD has a single \PS) to \ISDC. Cached down-paths to remote \ADs are not required to be synchronized. 
 
 

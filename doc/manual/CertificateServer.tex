@@ -1,4 +1,4 @@
-\section{Certificate Server}
+\chapter{Certificate Server}
 A \CS manages its own AD certificate issued by \ISDC and the
 certificates of all entities within an \AD, and handles certificate
 requests. In addition, a \ISDC certificate server manages the \RT file
@@ -6,7 +6,7 @@ on which all entities within an \ISD establish {trust}. A \CS contains
 a key server, which generates and distributes keys for securing
 internal (i.e., intra-AD) communication.
 
-\subsection{Root of Trust File} \label{subsec:root-of-trust}
+\section{Root of Trust File} \label{subsec:root-of-trust}
 The \RT file contains the list of all \ISDC members and their
 signatures. The file keeps track of the current policy number and the
 \ADs that signed the policy. The policy is used as a {\bf \em root of
@@ -96,7 +96,7 @@ The signatures element contains the signatures of the \ISDC ADs that signed the 
 \tenma{Updating RoT files is also needed to included since certificate would be expired or revoked
 in some conditiona.}
 
-\subsection{Certificate Management} 
+\section{Certificate Management} 
 
 \begin{figure*}[ht]
 \centering
@@ -113,7 +113,7 @@ verification? even if it just requests the ``public'' informaiton, i.e., certifi
 \noindent{\bf Entity certificate: } An \AD's \CS holds the certificates of all local entities such as routers, switches, servers, and gateways to secure intra-\AD communication. When an entity is added to an \AD, the entity is issued an certificate from the local certificate authority and register the certificate to the \CS. All border routers are configured to keep the \CS certificate of its own \AD to authenticate the messages from the \CS. Note that the border routers keep updated with the Opaque Field Generation (OFG) key and server list (in the topology file) by the \CS.
 
 
-\subsection{Key Management}
+\section{Key Management}
 A \CS shares a (master) secret key with each entity (server, router, or gateway) in the \AD, with which the \CS establishes a secure channel with those entities. The master secret key is pre-installed at individual entities when they join the \AD\tenma{Why we just use pre-installed certificate instead of using master secret key. Using symmetric cryptographic based on master secret may cause some problems}. The \CS generates a OFG key periodically (e.g., once a day) and distributes it to the \BS and border routers\tenma{securely? using authenticated-encryption based on the master secret key or envelope secure message based on asymmetric cryptography?}. Using this OFG key, the \BS creates PCBs (more specifically, opaque fields in PCBs) and the border routers verify the opaque fields. 
 
 \begin{itemize}
@@ -123,7 +123,7 @@ A \CS shares a (master) secret key with each entity (server, router, or gateway)
 
 
 
-\subsection{Topology}
+\section{Topology}
 A \CS maintains the \AD topology file that describes the list of entities and their configuration information.
 All entities are assigned a unique AID and type. The entity types currently defined in SCION and the information that need to be specified by each type are as follows.
 AID is the authenticated ID of an entity and is used for an address identifier \chris{AID is also the abbreviation for AD ID and is used in \RT file, this is a bit confusing}; and the type identifier is specified in the parenthesis.
@@ -209,7 +209,7 @@ The \CS distributes server AIDs to border routers so that the border routers for
 
 To forward special packets (i.e., non-data packets listed above) to correct servers, the border routers write the packet's destination AID with the corresponding server's AID. Once the servers process the packets, they remove the destination AID field. This not only make the packet forwarding transparent outside the \AD but also would prevent targeted attacks against those servers.
 
-\subsection{Bootstrapping}
+\section{Bootstrapping}
 \noindent {\bf \ISDC \CS: }
 The \ISDC is the \RT of an \ISD and the \ISDC \CS has the essential information for establishing \RT. Hence, the \ISDC \CS must be able to start independently. The \ISDC \CS has a local copy of \RT file and all \AD certificates that it has issued (or under itself in \ISDC hierarchy) in its database. The \ISDC \CS communicates with other \ISDC \CSs (if any) in the same \ISD to update the most recent \RT file and necessary (missing) certificates.
 

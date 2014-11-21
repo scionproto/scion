@@ -1,8 +1,8 @@
-\section{Border Router}
+\chapter{Border Router}
 A SCION border router forward a packet either to an internal server
 or to an egress interface based on the packet type.
 
-\subsection{Data Packet Forwarding}
+\section{Data Packet Forwarding}
 A SCION data packet is the packet that does not go through any server
 (i.e., \CS, \BS, \PS) and carries a series of opaque fields from a
 source to a destination (i.e., an end-to-end communication packet).
@@ -26,7 +26,7 @@ field is determined by the PCB propagation direction (i.e., an
 interface to a provider is always an ingress interface), the
 interface needs to be switched
 
-\subsection{Control Packet Forwarding}
+\section{Control Packet Forwarding}
 A SCION control packet is the packet that needs to be delivered to
 any one of the servers. For example, a PCB needs to be delivered to
 the \BS; a certificate request to the \CS, and a path
@@ -45,7 +45,7 @@ at which at PCB arrive, in order to help the \BS to generate a opaque
 field (note that ingress interface ID is necessary for MAC
 generation).
  
-\subsection{Bootstrapping}
+\section{Bootstrapping}
 A border router, on its startup, register itself to the \BS so as to
 receive PCBs from the \BS. This registration would be invalidated if
 the \BS receives an PCB propagation error message. \soobum{We have to
