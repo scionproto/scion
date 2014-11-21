@@ -7,7 +7,7 @@ scion_ch_srclen=ProtoField.uint16("scion.ch.srclen","Source address length",base
 scion_ch_dstlen=ProtoField.uint8("scion.ch.dstlen","Dstination address length",base.DEC, nil, 0x3f)
 scion_ch_totallen=ProtoField.uint8("scion.ch.totallen","Total length",base.DEC)
 scion_ch_timestamp=ProtoField.uint8("scion.ch.timestamp","Timestamp",base.DEC)
-scion_ch_currof=ProtoField.uint8("scion.ch.currof","Curent opaque field",base.DEC)
+scion_ch_currof=ProtoField.uint8("scion.ch.currof","Current opaque field",base.DEC)
 scion_ch_nexthdr=ProtoField.uint8("scion.ch.nexthdr","Next header",base.DEC)
 scion_ch_hdrlen=ProtoField.uint8("scion.ch.hdrlen","Header length",base.DEC)
 
