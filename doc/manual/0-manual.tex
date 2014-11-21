@@ -26,6 +26,7 @@
 \renewcommand\see[2]{\!$\to$ #1}
 \renewcommand\see[2]{\textit{see} #1}
 
+\usepackage{hyperref}
 
 \include{src/macros}
 \include{src/hyphenation}
@@ -57,7 +58,8 @@
 \let\@listI\@listi\@listi
 \makeatother
 
-%--------------------------------------------------------------------------------
+
+
 % float stuff
 \renewcommand{\textfraction}{0}
 \renewcommand{\topfraction}{1}
@@ -73,7 +75,6 @@
 \newcommand{\tightenbaseline}{}%\advance\baselineskip 0pt plus -0.5pt}
 
 
-%--------------------------------------------------------------------------------
 
 
 % yih-chun/dbj hack to center text in psfrag figs
@@ -92,51 +93,65 @@
 %%   \label{fig:basic-mht}
 %% \end{figure}
 
-%--------------------------------------------------------------------------------
-\pagenumbering{arabic}
 
-\title{SCION Design and Implementation Document}
-\author{SCION Team}
+\title{
+  --- The Official SCION Manual --- \\
+  {\large Design, Implementation, Applications, Tools}
+}
+\author{
+  The SCION Team\\
+  (ETH Zurich, Carnegie Mellon University)
+}
 \date{\today}
 
-%--------------------------------------------------------------------------------
+
+
+
 \begin{document}
-\maketitle
-\tableofcontents
-%\input{Outline}
-\newpage
-\setcounter{page}{1}
-%\input{Introduction}
-\input{Overview}
-\input{CertificateServer}
-%\input{RootOfTrust}
-\input{BeaconServer}
-\input{PathServer}
-\input{BorderRouter}
-\input{PacketFormat}
-\input{Host-module}
-%\input{Host-to-host-communication-example}
-\input{Gateway}
-\input{PathStore}
-\input{PathJoining}
-\input{Cryptography}
-\input{SystemConfiguration}
-\input{Example}
-\input{Further-Reading}
 
-%--------------------------------------------------------------------------------
-% \section{Acknowledgments}
+  \pagenumbering{roman}
+  \maketitle
+  \vspace{20mm}
+  \input{abstract}
 
-%--------------------------------------------------------------------------------
-\bibliographystyle{plain}
-\bibliography{src/bib}
-\nocite{ZHHCPA2011}
+  \newpage
+  \tableofcontents
 
-\appendix
-\input{appd}
-\printindex
+  \newpage
+  \setcounter{page}{1}
+  \input{Introduction}
+  \newpage
+  \input{Overview}
+  \input{CertificateServer}
+  %\input{RootOfTrust}
+  \input{BeaconServer}
+  \input{PathServer}
+  \input{BorderRouter}
+  \input{PacketFormat}
+  \input{Host-module}
+  %\input{Host-to-host-communication-example}
+  \input{Gateway}
+  \input{PathStore}
+  \input{PathJoining}
+  \input{Cryptography}
+  \input{SystemConfiguration}
+  \input{Example}
+  \input{Further-Reading}
+
+  % \input{Acknowledgments}
+
+  \bibliographystyle{plain}
+  \bibliography{src/bib}
+  \nocite{ZHHCPA2011}
+
+  \appendix
+  \input{appd}
+  \printindex
 
 \end{document}
+
+
+
 
 %%% Local Variables: 
 %%% mode: latex
