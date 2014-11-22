@@ -175,6 +175,9 @@ class PathStore(object):
 
     def add_path(self, pcb):
         path = PathInfo(pcb, self.policy)
+        if self._check_filters(path) == False:
+            print("The following path has not passed the filters checks", path)
+            return
         found = False
         old_pos = 0
         new_pos = 0

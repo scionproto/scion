@@ -33,6 +33,7 @@ class ServerBase(object):
     Base class for the different kind of servers the SCION infrastructure
     provides.
     """
+    TIME_INTERVAL = 4
 
     def __init__(self, addr, topo_file, config_file, rot_file=None):
         self._addr = None
@@ -40,7 +41,6 @@ class ServerBase(object):
         self.config = None
         self.ifid2addr = {}
         self.addr = addr
-        self.time_interval = 4
         self.parse_topology(topo_file)
         self.parse_config(config_file)
         if rot_file is not None:

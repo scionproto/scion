@@ -571,6 +571,7 @@ class IFIDReply(SCIONPacket):
         self.payload = struct.pack("HH", self.reply_id, self.request_id)
         return SCIONPacket.pack(self)
 
+
 class Beacon(SCIONPacket):
     """
     Beacon packet.
@@ -698,3 +699,199 @@ class PathRecord(SCIONPacket):
         rec.info = info
         rec.pcbs = pcbs
         return rec 
+
+
+class CertRequest(SCIONPacket):
+    """
+    Certificate Request packet.
+    """
+    def __init__(self, raw=None):
+        SCIONPacket.__init__(self)
+        if raw: 
+            self.parse(raw)
+
+    def parse(self, raw):
+        SCIONPacket.parse(self, raw)
+        bits = BitArray(bytes=self.payload)
+        (self.cert_isd, self.cert_version, self.cert_ad) = \
+            bits.unpack("uintle:16, uintle:32, uintle:64")
+        if len(self.payload) - 14 > 0:
+            self.path = Path(self.payload[14:])
+        else:
+            self.path = self.hdr.path
+
+    @classmethod
+    def from_values(cls, type, src, dst, path, cert_isd, cert_ad, cert_version):
+        """
+        Returns a Certificate Request with the values specified.
+
+        @param type: either CERT_REQ_LOCAL (request comes from BS or user) or CERT_REQ
+        @param src: Source address (must be a 'HostAddr' object)
+        @param dst: Destination address (must be a 'HostAddr' object)
+        @param path: path to a core or empty (when request comes from user)
+        @param cert_isd: target certificate ISD ID
+        @param cert_ad:, ad: target certificate AD ID
+        @param cert_version: target certificate version
+        """
+        req = CertRequest()
+        if type == PacketType.CERT_REQ:
+            req.hdr = SCIONHeader.from_values(src, dst, type, path=path)
+        else:
+            req.hdr = SCIONHeader.from_values(src, dst, type, path=None)
+        req.path = path
+        req.cert_isd = cert_isd
+        req.cert_ad = cert_ad
+        req.cert_version = cert_version
+        return req 
+
+    def pack(self):
+        self.payload = bitstring.pack("uintle:16, uintle:32, uintle:64",
+                       self.cert_isd, self.cert_version, self.cert_ad).bytes
+        if self.hdr.common_hdr.type != PacketType.CERT_REQ:
+            self.payload += self.path.pack()
+        return SCIONPacket.pack(self)
+
+
+class CertReply(SCIONPacket):
+    """
+    Certificate Reply packet.
+    """
+    def __init__(self, raw=None):
+        SCIONPacket.__init__(self)
+        if raw: 
+            self.parse(raw)
+
+    def parse(self, raw):
+        SCIONPacket.parse(self, raw)
+        bits = BitArray(bytes=self.payload)
+        (self.cert_isd, self.cert_version, self.cert_ad) = \
+            bits.unpack("uintle:16, uintle:32, uintle:64")
+        self.cert_len = len(self.payload) - 14
+        if self.cert_len > 0:
+            bits = BitArray(bytes=self.payload[14:])
+            self.cert = bits.unpack("uintle:"+str(self.cert_len*8))[0]
+        else:
+            self.cert = None
+
+    @classmethod
+    def from_values(cls, src, dst, path, cert_isd, cert_ad, cert_version, cert):
+        """
+        Returns a Certificate Reply with the values specified.
+
+        @param src: Source address (must be a 'HostAddr' object)
+        @param dst: Destination address (must be a 'HostAddr' object)
+        @param path: path to a core or empty (when request comes from user)
+        @param cert_isd: target certificate ISD ID
+        @param cert_ad:, ad: target certificate AD ID
+        @param cert_version: target certificate version
+        @param cert: target certificate
+        """
+        rep = CertReply()
+        rep.hdr = SCIONHeader.from_values(src, dst, PacketType.CERT_REP, path=path)
+        rep.cert_isd = cert_isd
+        rep.cert_ad = cert_ad
+        rep.cert_version = cert_version
+        rep.cert = cert
+        rep.cert_len = len(cert)
+        return rep
+
+    def pack(self):
+        self.payload = bitstring.pack("uintle:16, uintle:32, uintle:64, uintle:"+str(self.cert_len*8),
+                       self.cert_isd, self.cert_version, self.cert_ad, self.cert).bytes
+        return SCIONPacket.pack(self)
+
+
+class RotRequest(SCIONPacket):
+    """
+    ROT Request packet.
+    """
+    def __init__(self, raw=None):
+        SCIONPacket.__init__(self)
+        if raw: 
+            self.parse(raw)
+
+    def parse(self, raw):
+        SCIONPacket.parse(self, raw)
+        bits = BitArray(bytes=self.payload)
+        (self.rot_isd, self.rot_version) = \
+            bits.unpack("uintle:16, uintle:32")
+        if len(self.payload - 6) > 0:
+            self.path = Path(self.payload[6:])
+        else:
+            self.path = self.hdr.path
+
+    @classmethod
+    def from_values(cls, type, src, dst, path, rot_isd, rot_version):
+        """
+        Returns a ROT Request with the values specified.
+
+        @param type: either ROT_REQ_LOCAL (request comes from BS or user) or ROT_REQ
+        @param src: Source address (must be a 'HostAddr' object)
+        @param dst: Destination address (must be a 'HostAddr' object)
+        @param path: path to a core or empty (when request comes from user)
+        @param rot_isd: target ROT ISD ID
+        @param rot_version: target ROT version
+        """
+        req = RotRequest()
+        if type == PacketType.ROT_REQ:
+            req.hdr = SCIONHeader.from_values(src, dst, type, path=path)
+        else:
+            req.hdr = SCIONHeader.from_values(src, dst, type, path=None)
+        req.path = path
+        req.rot_isd = rot_isd
+        req.rot_version = rot_version
+        return req 
+
+    def pack(self):
+        self.payload = bitstring.pack("uintle:16, uintle:32",
+                       self.rot_isd, self.rot_version).bytes
+        if self.hdr.common_hdr.type != PacketType.ROT_REQ:
+            self.payload += self.path.pack()
+        return SCIONPacket.pack(self)
+
+
+class RotReply(SCIONPacket):
+    """
+    ROT Reply packet.
+    """
+    def __init__(self, raw=None):
+        SCIONPacket.__init__(self)
+        if raw: 
+            self.parse(raw)
+
+    def parse(self, raw):
+        SCIONPacket.parse(self, raw)
+        bits = BitArray(bytes=self.payload)
+        (self.rot_isd, self.rot_version) = \
+            bits.unpack("uintle:16, uintle:32")
+        self.rot_len = len(self.payload) - 6
+        if self.rot_len > 0:
+            bits = BitArray(bytes=self.payload[6:])
+            self.rot = bits.unpack("uintle:"+str(self.rot_len*8))[0]
+        else:
+            self.rot = None
+
+    @classmethod
+    def from_values(cls, src, dst, path, rot_isd, rot_version, rot):
+        """
+        Returns a ROT Reply with the values specified.
+
+        @param src: Source address (must be a 'HostAddr' object)
+        @param dst: Destination address (must be a 'HostAddr' object)
+        @param path: path to a core or empty (when request comes from user)
+        @param rot_isd: target ROT ISD ID
+        @param rot_version: target ROT version
+        @param rot: target ROT
+        """
+        rep = RotReply()
+        rep.hdr = SCIONHeader.from_values(src, dst, PacketType.ROT_REP, path=path)
+        rep.rot_isd = rot_isd
+        rep.rot_version = rot_version
+        rep.rot = rot
+        rep.rot_len = len(rot)
+        return rep
+
+    def pack(self):
+        self.payload = bitstring.pack("uintle:16, uintle:32, uintle:"+str(self.rot_len*8),
+                       self.rot_isd, self.rot_version, self.rot).bytes
+        return SCIONPacket.pack(self)

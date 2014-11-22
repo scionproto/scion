@@ -106,7 +106,7 @@ class BeaconServer(ServerBase):
             if self.topology.is_core_ad:
                 pcb = PCB()
                 timestamp = ((int(time.time()) + self.delta) % \
-                            (self.time_interval*2^16))/self.time_interval
+                            (self.TIME_INTERVAL*2^16))/self.TIME_INTERVAL
                 hops = 0
                 reserved = 0
                 pcb.iof = SpecialField.from_values(timestamp,
