@@ -106,9 +106,9 @@ class PathServer(ServerBase):
             path_request = PathRequest.from_values(self.addr, info, path)
             self.send(path_request, next_hop)
 
-    def request_isd(self):
+    def request_isd(self, isd, ad):
         #define interisd pathinfo
-        print("To implement")
+        print("request_isd() To implement")
 
     def handle_path_request(self, packet):
         print("PATH_REQ")
@@ -137,7 +137,7 @@ class PathServer(ServerBase):
                 if not self.topology.is_core_ad:
                     self.request_core(isd, ad)
                 elif isd != self.topology.isd_id:
-                    self.request_isd(isd,ad)
+                    self.request_isd(isd, ad)
                 print("No downpath, request is pending.")
                 paths_to_send = []
                 update_dict(self.pending_requests, (isd, ad), [path_request])
