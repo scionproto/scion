@@ -46,7 +46,7 @@ class PCBMarking(object):
             logging.warning("PCBM: Data too short to parse the field, len: %u", dlen)
             return
         bits = BitArray(bytes=raw[:8])
-        self.ad_id = bits.unpack("uintbe:64")[0]
+        self.ad_id = bits.unpack("uintle:64")[0]
         self.ssf.parse(raw[8:16])
         self.hof.parse(raw[16:24])
         self.spcbf.parse(raw[24:32])
@@ -62,7 +62,7 @@ class PCBMarking(object):
         return pcbm
 
     def pack(self):
-        return bitstring.pack("uintbe:64", self.ad_id).bytes + \
+        return bitstring.pack("uintle:64", self.ad_id).bytes + \
                self.ssf.pack() + self.hof.pack() + self.spcbf.pack()
 
     def __str__(self):
@@ -96,7 +96,7 @@ class PeerMarking(object):
             logging.warning("PM: Data too short to parse the field, len: %u", dlen)
             return
         bits = BitArray(bytes=raw[0:8])
-        self.ad_id = bits.unpack("uintbe:64")[0]
+        self.ad_id = bits.unpack("uintle:64")[0]
         self.hof.parse(raw[8:16])
         self.spf.parse(raw[16:24])
         self.parsed = True
@@ -110,7 +110,7 @@ class PeerMarking(object):
         return pm
 
     def pack(self):
-        return bitstring.pack("uintbe:64", self.ad_id).bytes + \
+        return bitstring.pack("uintle:64", self.ad_id).bytes + \
                self.hof.pack() + self.spf.pack()
 
     def __str__(self):

@@ -181,8 +181,8 @@ class SCIONCommonHdr(HeaderBase):
         bits = BitArray(bytes=raw)
         (types, self.total_len, self.timestamp, self.current_of,
          self.next_hdr, self.hdr_len) = \
-            bits.unpack("uintbe:16, uintbe:16, uintbe:8, "
-                        "uintbe:8, uintbe:8, uintbe:8")
+            bits.unpack("uintle:16, uintle:16, uintle:8, "
+                        "uintle:8, uintle:8, uintle:8")
         self.type = types & 0xf
         self.src_addr_len = (types >> 4) & 0xf
         self.dst_addr_len = (types >> 10) & 0xf
@@ -193,9 +193,9 @@ class SCIONCommonHdr(HeaderBase):
         """
         Returns the common header as 8 byte binary string.
         """
-        types = (self.type << 12) |(self.dst_addr_len << 6) | (self.src_addr_len << 0)
-        return bitstring.pack("uintbe:16, uintbe:16, uintbe:8, "
-                              "uintbe:8, uintbe:8, uintbe:8",
+        types = (self.dst_addr_len << 10) | (self.src_addr_len << 4) | self.type
+        return bitstring.pack("uintle:16, uintle:16, uintle:8, "
+                              "uintle:8, uintle:8, uintle:8",
                               types, self.total_len, self.timestamp,
                               self.current_of, self.next_hdr,
                               self.hdr_len).bytes
@@ -306,7 +306,7 @@ class SCIONHeader(HeaderBase):
         cur_hdr_type = self.common_hdr.next_hdr
         while cur_hdr_type != 0:
             bits = BitArray(raw[offset: offset + 2])
-            (next_hdr_type, hdr_len) = bits.unpack("uintbe:8, uintbe:8")
+            (next_hdr_type, hdr_len) = bits.unpack("uintle:8, uintle:8")
             logging.info("Found extension hdr of type %u with len %u",
                          cur_hdr_type, hdr_len)
             # FIXME: Should instantiate correct class depending on ext hdr type.
@@ -614,11 +614,11 @@ class PathInfo(object):
     def parse(self, raw):
         bits = BitArray(bytes=raw)
         (self.type, self.isd, self.ad, _, _, _) = \
-            bits.unpack("uintbe:8, uintbe:16, uintbe:64, "
-                        "uintbe:24, uintbe:16, uintbe:16")
+            bits.unpack("uintle:8, uintle:16, uintle:64, "
+                        "uintle:24, uintle:16, uintle:16")
     def pack(self):
-        return bitstring.pack("uintbe:8, uintbe:16, uintbe:64, "
-                              "uintbe:24, uintbe:16, uintbe:16",
+        return bitstring.pack("uintle:8, uintle:16, uintle:64, "
+                              "uintle:24, uintle:16, uintle:16",
                               self.type, self.isd, self.ad, 0, 0, 0).bytes
 
     @classmethod
