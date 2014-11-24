@@ -105,8 +105,8 @@ class PeerMarking(object):
     def from_values(cls, ad_id, hof, spf):
         pm = PeerMarking()
         pm.ad_id = ad_id
-        pm.HOF = hof
-        pm.SPF = spf
+        pm.hof = hof
+        pm.spf = spf
         return pm
 
     def pack(self):
