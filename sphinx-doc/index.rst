@@ -11,35 +11,16 @@ Contents:
 .. toctree::
    :maxdepth: 3
 
-Modules
-=======
+   infrastructure/index
+   lib/index
 
-.. automodule:: infrastructure.server
-   :special-members: __init__
-   :members:
+Getting Started
+===============
 
-.. automodule:: infrastructure.router
-   :special-members: __init__
-   :members:
-
-.. automodule:: lib.topology
-   :special-members: __init__
-   :members:
-   :private-members:
-
-.. automodule:: lib.raw_socket
-   :special-members: __init__
-   :members:
-
-.. automodule:: lib.config
-   :special-members: __init__
-   :members:
-
-.. automodule:: lib.packet.host_addr
-   :special-members: __init__
-   :members:
-
-
+.. note::
+   TODO: Add some notes on how to get started with the SCION documentation. For
+   example, which modules to look at first, perhaps a brief overview of each
+   module, etc.
 
 Indices and tables
 ==================
