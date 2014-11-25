@@ -148,12 +148,24 @@ class PathServer(ServerBase):
             self.send_paths(path_request, paths_to_send)
 
     def handle_down_path(self, path_record):
+        isd = None
+        ad = None
         for pcb in path_record.pcbs:
             isd = pcb.get_isd()
             ad = pcb.get_last_ad() 
             update_dict(self.down_paths, (isd, ad), [pcb], PATHS_NO)
             print("PATH_REG", isd, ad)
-        #here serve pending requests
+
+        #serve pending requests
+        if isd and ad and (isd, ad) in self.pending_requests:
+            paths_to_send = []
+            for path_request in self.pending_requests[(isd, ad)]:
+                if path_request.info.type in [PathInfo.UP_PATH,
+                        PathInfo.BOTH_PATHS]:
+                    paths_to_send.extend(self.up_paths)
+                paths_to_send.extend(self.down_paths[(isd, ad)])
+                self.send_paths(path_request, paths_to_send)
+            del self.pending_requests[(isd, ad)]
 
     def dispatch_path_record(self, packet):
         rec = PathRecord(packet)
