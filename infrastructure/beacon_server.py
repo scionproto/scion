@@ -67,8 +67,7 @@ class BeaconServer(ServerBase):
         pms = []
         for router in self.topology.routers[NeighborType.PEER]:
             ad_id = router.interface.neighbor 
-            ingress = ingress
-            egress = router.interface.if_id
+            ingress = router.interface.if_id
             mac = 0
             isd_id = self.topology.isd_id
             bwalloc_f = 0
@@ -107,8 +106,8 @@ class BeaconServer(ServerBase):
                             (self.TIME_INTERVAL*2^16))/self.TIME_INTERVAL
                 hops = 0
                 reserved = 0
-                pcb.iof = SpecialField.from_values(timestamp,
-                        self.topology.isd_id, hops, reserved)
+                pcb.iof = InfoOpaqueField.from_values(OFT.SPECIAL_OF, timestamp,
+                        self.topology.isd_id, hops)
                 self.beacons=[pcb] #TODO
             if self.beacons:
                 pcb=self.beacons[-1]

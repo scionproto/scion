@@ -71,6 +71,7 @@ class SCIONDaemon(ServerBase):
         point: tuple (up_path_index, down_path_index) position of peer/xovr link
         peer:  true for peer, false for xovr path
         TODO
+            update hops in Info OF
         """
         up_path = copy.deepcopy(up_path)
         down_path = copy.deepcopy(down_path)
@@ -103,7 +104,7 @@ class SCIONDaemon(ServerBase):
         path.down_path_upstream_ad = down_path.ads[point[1]-1].pcbm.hof 
         for i in range(point[1], len(down_path.ads)):
             path.down_path_hops.append(down_path.ads[i].pcbm.hof)
-        path.up_path_hops[0].info = 0x20
+        path.down_path_hops[0].info = 0x20
 
         return path
 
