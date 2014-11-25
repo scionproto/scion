@@ -564,6 +564,7 @@ class IFIDReply(SCIONPacket):
         rep.request_id = request_id
         src = get_addr_from_type(PacketType.IFID_REP)
         rep.hdr = SCIONHeader.from_values(src, dst, PacketType.DATA)
+#PSz should I set payload here?
         rep.payload = struct.pack("HH", reply_id, request_id)
         return rep
 
@@ -577,7 +578,14 @@ class Beacon(SCIONPacket):
     Beacon packet.
     """
     def __init__(self, raw=None):
-        SCIONPacket.__init__(self,raw)
+        SCIONPacket.__init__(self)
+        self.pcb = None
+
+        if raw:
+            self.parse(raw)
+
+    def parse(self, raw):
+        SCIONPacket.parse(self, raw)
         self.pcb = PCB(self.payload)
 
     @classmethod
@@ -588,10 +596,15 @@ class Beacon(SCIONPacket):
         @param dst: Destination address (must be a 'HostAddr' object)
         @param pcb: Path Construction Beacon.
         """
+        beacon = Beacon()
+        beacon.pcb = pcb
         src = get_addr_from_type(PacketType.BEACON)
-        payload = pcb.pack()
-        spkt = SCIONPacket.from_values(src, dst, payload)
-        return spkt
+        beacon.hdr = SCIONHeader.from_values(src, dst, PacketType.DATA)
+        return beacon 
+
+    def pack(self):
+        self.payload = self.pcb.pack()
+        return SCIONPacket.pack(self)
 
 
 class PathInfo(object):

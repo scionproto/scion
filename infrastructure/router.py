@@ -20,7 +20,7 @@ from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.opaque_field import OpaqueField
 from lib.packet.opaque_field import OpaqueFieldType as OFT
 from lib.packet.scion import SCIONPacket, IFIDRequest, IFIDReply, get_type
-from lib.packet.scion import PacketType as PT
+from lib.packet.scion import PacketType as PT, Beacon
 from lib.topology import ElementType as ET
 from infrastructure.server import ServerBase, SCION_UDP_PORT
 import logging
@@ -158,41 +158,27 @@ class Router(ServerBase):
                 ifid_req.request_id)
         self.send(ifid_rep, next_hop, False)
 
-    #TODO these two functions should go to (future) Beacon class
-    def get_interface(self, packet):
-        """
-        Remove after PCB class is introduced.
-        """
-        return struct.unpack("H", packet[16+13:16+15])[0]
-
-    def set_interface(self, packet):
-        """
-        Remove after PCB class is introduced.
-        """
-        return (packet[:29] + struct.pack("H", self.interface.if_id) +
-                packet[31:])
-
     def process_pcb(self, packet, next_hop, from_bs):
         """
         Depending on scenario: a) sends PCB to all beacon servers, or b) to
         neighboring router.
         """
-        #TODO incorporate with PCB class (when PCB is ready)
+        beacon = Beacon(packet)
         if not self.interface.initialized:
             logging.warning("Interface not initialized.")
             return
         if from_bs:
-            if self.interface.if_id != self.get_interface(packet):
+            if self.interface.if_id != beacon.pcb.rotf.if_id: 
                 logging.error("Wrong interface set by BS.")
                 return
             next_hop.addr = self.interface.to_addr
             next_hop.port = self.interface.to_udp_port
-            self.send(SCIONPacket(packet), next_hop, False)
+            self.send(beacon, next_hop, False)
         else:
             #TODO Multiple BS scenario
-            packet = self.set_interface(packet)
+            beacon.pcb.rotf.if_id = self.interface.if_id
             next_hop.addr = self.topology.servers[ET.BEACON_SERVER].addr
-            self.send(SCIONPacket(packet), next_hop)
+            self.send(beacon, next_hop)
 
     #TODO
     def verify_of(self, spkt):
