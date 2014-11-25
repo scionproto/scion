@@ -39,7 +39,7 @@ class SCIONDaemon(ServerBase):
     The SCION Daemon. 
     """
 
-    TIMEOUT = 2
+    TIMEOUT = 7 
 
     def __init__(self, addr, topo_file, config_file):
         ServerBase.__init__(self, addr, topo_file, config_file)

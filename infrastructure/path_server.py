@@ -55,12 +55,15 @@ class PathServer(ServerBase):
         """
         Handles Up Path registration from local BS. 
         """
+        if not path_record.pcbs:
+            return
         pcbs = path_record.pcbs
         self.up_paths.extend(pcbs)
         self.up_paths = self.up_paths[-PATHS_NO:]
         print("Up-Path Registered")
 
         if self.pending_targets:
+            pcb = pcbs[0]
             next_hop = self.ifid2addr[pcb.rotf.if_id]
             path = pcb.get_core_path()
             for (isd, ad) in self.pending_targets:
@@ -69,6 +72,7 @@ class PathServer(ServerBase):
                 self.send(path_request, next_hop)
                 print("PathRequest sent using (first) registered up-path")
             self.pending_targets.clear()
+        #TODO Handle DOWN_PATH pending_requests here
 
     #TODO: MOVE it to server?
 #change [0] to current? check it
@@ -97,6 +101,7 @@ class PathServer(ServerBase):
 
     def request_core(self, isd, ad):
         if not self.up_paths:
+            print('Pending target added')
             self.pending_targets.add((isd,ad))
         else:
             pcb = self.up_paths[-1]
@@ -127,6 +132,8 @@ class PathServer(ServerBase):
             if self.up_paths:
                 paths_to_send.extend(self.up_paths)
             else:
+                update_dict(self.pending_requests, (isd, ad), [path_request])
+                self.pending_targets.add((isd,ad))
                 return
 
         if (type == PathInfo.DOWN_PATH or (type == PathInfo.BOTH_PATHS and not
