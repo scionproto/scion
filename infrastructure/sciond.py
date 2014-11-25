@@ -84,6 +84,7 @@ class SCIONDaemon(ServerBase):
 
         path.up_path_info = up_path.iof
         path.up_path_info.info = info
+        path.up_path_info.hops -= point[0]
         for i in reversed(range(point[0], len(up_path.ads))):
             path.up_path_hops.append(up_path.ads[i].pcbm.hof)
         path.up_path_hops[-1].info = 0x20
@@ -101,6 +102,7 @@ class SCIONDaemon(ServerBase):
 
         path.down_path_info = down_path.iof
         path.down_path_info.info = info
+        path.down_path_info.hops -= point[1]
         path.down_path_upstream_ad = down_path.ads[point[1]-1].pcbm.hof 
         for i in range(point[1], len(down_path.ads)):
             path.down_path_hops.append(down_path.ads[i].pcbm.hof)

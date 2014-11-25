@@ -190,7 +190,7 @@ class CorePath(object):
     def __init__(self, raw=None):
         self.parsed = False
         self.raw = None
-        self.iof = InfoOpaqueField()
+        self.iof = SpecialField()
         self.hofs = []
         if raw is not None:
             self.parse(raw)
@@ -241,7 +241,7 @@ class PCB(object):
     def __init__(self, raw=None):
         self.parsed = False
         self.raw = None
-        self.iof = InfoOpaqueField()
+        self.iof = SpecialField()
         self.rotf = ROTField()
         self.ads = []
         if raw is not None:
@@ -321,7 +321,7 @@ class PCB(object):
 
     def __str__(self):
         s = "[PCB]\n"
-        s += str(self.iof) + '\n' + str(self.rotf)
+        s += str(self.iof) + str(self.rotf)
         for ad in self.ads:
             s += str(ad)
         return s

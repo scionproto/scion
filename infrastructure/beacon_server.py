@@ -106,8 +106,8 @@ class BeaconServer(ServerBase):
                             (self.TIME_INTERVAL*2^16))/self.TIME_INTERVAL
                 hops = 0
                 reserved = 0
-                pcb.iof = InfoOpaqueField.from_values(OFT.SPECIAL_OF, timestamp,
-                        self.topology.isd_id, hops)
+                pcb.iof = SpecialField.from_values(timestamp,
+                        self.topology.isd_id, hops, reserved)
                 self.beacons=[pcb] #TODO
             if self.beacons:
                 pcb=self.beacons[-1]

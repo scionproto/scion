@@ -162,16 +162,6 @@ class InfoOpaqueField(OpaqueField):
             bits.unpack("uintle:8, uintle:16, uintle:16, uintle:8, uintle:16")
         self.parsed = True
 
-    @classmethod
-    def from_values(cls, info, timestamp, isd_id, hops):
-        iof = InfoOpaqueField()
-        iof.info = info
-        iof.timestamp = timestamp
-        iof.isd_id = isd_id
-        iof.hops = hops
-        iof.reserved = 0
-        return iof
-
     def pack(self):
         #PSz: Should InfoOpaqueFIeld with raw==None pack to b'\x00'*8 ?
         if not self.raw:
@@ -185,6 +175,56 @@ class InfoOpaqueField(OpaqueField):
             self.info, self.timestamp, self.isd_id, self.hops)
         return s
 
+
+class SpecialField(OpaqueField):
+    """
+    Class for the special opaque field.
+
+    The info opaque field contains info info of the path (1 byte), an expiration
+    timestamp (2 bytes), the ISD ID (2 byte), # hops for this path (2 byte) and
+    a reserved section (2 bytes).
+    """
+    def __init__(self, raw=None):
+        OpaqueField.__init__(self)
+        self.info = OpaqueFieldType.SPECIAL_OF
+        self.timestamp = 0
+        self.isd_id = 0
+        self.hops = 0
+        self.reserved = 0
+        if raw is not None:
+            self.parse(raw)
+
+    def parse(self, raw):
+        assert isinstance(raw, bytes)
+        self.raw = raw
+        dlen = len(raw)
+        if dlen < self.LEN:
+            logging.warning("Data too short to parse the field, len: %u", dlen)
+            return
+        bits = BitArray(bytes=raw)
+        (self.info, self.timestamp, self.isd_id, self.hops, self.reserved) = \
+            bits.unpack("uintle:8, uintle:16, uintle:16, uintle:8, uintle:16")
+        self.parsed = True
+    
+    @classmethod    
+    def from_values(cls, timestamp, isd_id, hops, reserved):
+        sof = SpecialField()
+        sof.timestamp = timestamp
+        sof.isd_id = isd_id
+        sof.hops = hops
+        sof.reserved = reserved
+        return sof
+
+    def pack(self):
+        return bitstring.pack("uintle:8, uintle:16, uintle:16, uintle:8,"
+               "uintle:16", self.info, self.timestamp, self.isd_id, self.hops,
+               self.reserved).bytes
+
+    def __str__(self):
+        s = "[Special OF info: %x, TS: %u, ISD ID: %u, hops: %u]" % (
+            self.info, self.timestamp, self.isd_id, self.hops)
+        return s
+        
         
 class ROTField(OpaqueField):
     """
@@ -383,6 +423,6 @@ class SupportPCBField(OpaqueField):
                self.bebw_f, self.bebw_r).bytes
 
     def __str__(self):
-        s = "[Info OF ISD ID: %x, bwalloc_f: %u, bwalloc_r: %u]\n" % (
+        s = "[Info OF TD ID: %x, bwalloc_f: %u, bwalloc_r: %u]\n" % (
             self.isd_id, self.bwalloc_f, self.bwalloc_r)
         return s
