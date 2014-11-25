@@ -47,8 +47,6 @@ class BeaconServer(ServerBase):
         cert_id = 0
         sig_len = 0
         block_size = 32
-        ingress_if = ingress 
-        egress_if = egress 
         mac = 0
         isd_id = self.topology.isd_id 
         bwalloc_f = 0
@@ -61,23 +59,23 @@ class BeaconServer(ServerBase):
         bw_class = 0
         reserved = 0
         ssf = SupportSignatureField.from_values(cert_id, sig_len, block_size)
-        hof = HopOpaqueField.from_values(ingress_if, egress_if, mac)
+        hof = HopOpaqueField.from_values(ingress, egress, mac)
         spcbf = SupportPCBField.from_values(isd_id, bwalloc_f, bwalloc_r,
                                             dyn_bwalloc_f, dyn_bwalloc_r,
                                             bebw_f, bebw_r)
         pcbm = PCBMarking.from_values(ad_id, ssf, hof, spcbf)
         pms = []
         for router in self.topology.routers[NeighborType.PEER]:
-            ad_id = self.topology.ad_id
-            ingress_if = ingress
-            egress_if = router.interface.if_id
+            ad_id = router.interface.neighbor 
+            ingress = ingress
+            egress = router.interface.if_id
             mac = 0
             isd_id = self.topology.isd_id
             bwalloc_f = 0
             bwalloc_r = 0
             bw_class = 0
             reserved = 0
-            hof = HopOpaqueField.from_values(ingress_if, egress_if, mac)
+            hof = HopOpaqueField.from_values(ingress, egress, mac)
             spf = SupportPeerField.from_values(isd_id, bwalloc_f, bwalloc_r,
                                                bw_class, reserved)
             pm = PeerMarking.from_values(ad_id, hof, spf)

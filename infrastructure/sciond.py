@@ -19,7 +19,7 @@ limitations under the License.
 from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.pcb import *
 from lib.packet.opaque_field import *
-from lib.packet.path import EmptyPath, CorePath 
+from lib.packet.path import EmptyPath, CorePath, PeerPath, CrossOverPath 
 from lib.packet.scion import SCIONPacket, get_type, PathRequest, PathRecord,\
         PathInfo
 from lib.packet.scion import PacketType as PT
@@ -54,7 +54,6 @@ class SCIONDaemon(ServerBase):
             return None
 #TODO sanity checks...
 
-#TODO @Lorenzo why PCB has different classes for the same, HopField etc..?
         core_path = CorePath()
         core_path.up_path_info = up_path.iof
         for block in reversed(up_path.ads):
@@ -67,10 +66,10 @@ class SCIONDaemon(ServerBase):
         core_path.down_path_hops[0].info = 0x20
         return core_path
 
-    def join_shortcuts(up_path, down_path, point, peer=True):
+    def join_shortcuts(self, up_path, down_path, point, peer=True):
         """
-        point - position of peer/xovr link. Tuple (up_path_index, down_path_index)
-        peer -  true for peer, false for xovr path                                                                                                                                                                 
+        point: tuple (up_path_index, down_path_index) position of peer/xovr link
+        peer:  true for peer, false for xovr path
         TODO
         """
         up_path = copy.deepcopy(up_path)
@@ -137,13 +136,13 @@ class SCIONDaemon(ServerBase):
             return None
         elif xovrs and peers:
             if sum(peers[-1]) > sum(xovrs[-1]):
-                return join_shortcuts(up_path, down_path, peers[-1], True) 
+                return self.join_shortcuts(up_path, down_path, peers[-1], True) 
             else:
-                return join_shortcuts(up_path, down_path, xovrs[-1], False)
+                return self.join_shortcuts(up_path, down_path, xovrs[-1], False)
         elif xovrs: 
-            return join_shortcuts(up_path, down_path, xovrs[-1], False) 
+            return self.join_shortcuts(up_path, down_path, xovrs[-1], False) 
         else: #peers only
-            return join_shortcuts(up_path, down_path, peers[-1], True) 
+            return self.join_shortcuts(up_path, down_path, peers[-1], True) 
 
     def build_fullpaths(self, up_paths, down_paths):
         """

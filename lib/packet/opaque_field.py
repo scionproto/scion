@@ -363,7 +363,7 @@ class SupportPeerField(OpaqueField):
                self.bw_class, self.reserved).bytes
 
     def __str__(self):
-        s = "[Support Peer OF TD ID: %x, bwalloc_f: %u, bwalloc_r: %u, bw_class: %u]\n" % (
+        s = "[Support Peer OF ISD ID: %x, bwalloc_f: %u, bwalloc_r: %u, bw_class: %u]\n" % (
             self.isd_id, self.bwalloc_f, self.bwalloc_r, self.bw_class)
         return s
         
