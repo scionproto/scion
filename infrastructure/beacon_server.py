@@ -36,7 +36,6 @@ class BeaconServer(ServerBase):
     """
     The SCION Beacon Server.
     """
-
     DELTA = 24*60*60
 
     def __init__(self, addr, topo_file, config_file):
