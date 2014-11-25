@@ -36,9 +36,11 @@ class BeaconServer(ServerBase):
     """
     The SCION Beacon Server.
     """
+
+    DELTA = 24*60*60
+
     def __init__(self, addr, topo_file, config_file):
         ServerBase.__init__(self, addr, topo_file, config_file)
-        self.delta = 24*60*60
         self.propagated_beacons = []
         self.beacons = [] #TODO replace by pathstore instance
         # add beacons, up_paths, down_paths
@@ -102,7 +104,7 @@ class BeaconServer(ServerBase):
         while True:
             if self.topology.is_core_ad:
                 pcb = PCB()
-                timestamp = ((int(time.time()) + self.delta) % \
+                timestamp = ((int(time.time()) + self.DELTA) % \
                             (self.TIME_INTERVAL*2^16))/self.TIME_INTERVAL
                 hops = 0
                 reserved = 0
