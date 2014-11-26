@@ -18,8 +18,8 @@ limitations under the License.
 
 from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.path import EmptyPath
-from lib.packet.scion import SCIONPacket, get_type, Beacon, PathRequest,\
-PathRecord, PathInfo
+from lib.packet.scion import SCIONPacket, get_type, PathRequest, PathRecord,\
+PathInfo
 from lib.packet.scion import PacketType as PT
 from infrastructure.server import ServerBase, SCION_UDP_PORT
 import sys
@@ -66,7 +66,7 @@ class PathServer(ServerBase):
                 info = PathInfo.from_values(PathInfo.DOWN_PATH, isd, ad)
                 path_request = PathRequest.from_values(self.addr, info, path)
                 self.send(path_request, next_hop)
-                logging.info("PathRequest sent using (first) registered up-path")
+                logging.info("PATH_REQ sent using (first) registered up-path")
             self.pending_targets.clear()
         #TODO Handle DOWN_PATH pending_requests here
 
@@ -112,16 +112,13 @@ class PathServer(ServerBase):
         logging.warning("request_isd(): to implement")
 
     def handle_path_request(self, packet):
-        logging.warning("PATH_REQ")
-        #TODO inter isd request: if isd != myisd
+        logging.info("PATH_REQ")
         path_request = PathRequest(packet)
         isd = path_request.info.isd
         ad = path_request.info.ad
         type = path_request.info.type
 
         paths_to_send = []
-        logging.warning(isd, ad)
-        logging.warning(self.down_paths)
 
         if (type in [PathInfo.UP_PATH, PathInfo.BOTH_PATHS] and not
             self.topology.is_core_ad):
@@ -145,7 +142,7 @@ class PathServer(ServerBase):
                 paths_to_send = []
                 update_dict(self.pending_requests, (isd, ad), [path_request])
         else:
-            logging.warning("ERROR: Wrong path request")
+            logging.error("Wrong path request.")
 
         if paths_to_send:
             self.send_paths(path_request, paths_to_send)
@@ -157,7 +154,7 @@ class PathServer(ServerBase):
             isd = pcb.get_isd()
             ad = pcb.get_last_ad()
             update_dict(self.down_paths, (isd, ad), [pcb], PATHS_NO)
-            logging.warning("PATH_REG", isd, ad)
+            logging.warning("PATH_REG (%d, %d)", isd, ad)
 
         #serve pending requests
         if isd and ad and (isd, ad) in self.pending_requests:
