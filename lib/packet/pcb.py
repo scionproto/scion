@@ -20,6 +20,7 @@ import logging
 import bitstring
 from bitstring import BitArray
 from lib.packet.opaque_field import *
+from lib.packet.path import CorePath
 
 
 class PCBMarking(object):
@@ -177,58 +178,6 @@ class AutonomousDomain(object):
         for pm in self.pms:
             s += str(pm)
         s += str(self.sig) + "\n"
-        return s
-    
-
-class CorePath(object):
-    """
-        Packs the Core Path, that contains a Info Opaque Field and a list
-        of Hop Opaque Fields
-    """
-    LEN = 8
-
-    def __init__(self, raw=None):
-        self.parsed = False
-        self.raw = None
-        self.iof = SpecialField()
-        self.hofs = []
-        if raw is not None:
-            self.parse(raw)
-    
-    def parse(self, raw):
-        assert isinstance(raw, bytes)
-        self.raw = raw
-        dlen = len(raw)
-        if dlen < self.LEN:
-            logging.warning("CP: Data too short to parse the field, len: %u", dlen)
-            return
-        self.iof.parse(raw[:self.iof.LEN])
-        raw = raw[self.iof.LEN:]
-        while len(raw) > 0:
-            hof = HopOpaqueField()
-            hof.parse(raw[:hof.LEN])
-            self.hofs.append(hof)
-            raw = raw[hof.LEN:]
-        self.parsed = True
-    
-    @classmethod
-    def from_values(cls, iof, hofs):
-        cp = CorePath()
-        cp.iof = iof
-        cp.hofs = hofs
-        return cp
-
-    def pack(self):
-        p = self.iof.pack()
-        for hof in self.hofs:
-            p += hof.pack()
-        return p
-        
-    def __str__(self):
-        s = "[Registration Path]\n"
-        s += str(self.iof)
-        for hof in self.hofs:
-            s += str(hof)
         return s
 
 

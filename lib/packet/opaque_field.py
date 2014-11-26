@@ -163,9 +163,6 @@ class InfoOpaqueField(OpaqueField):
         self.parsed = True
 
     def pack(self):
-        #PSz: Should InfoOpaqueFIeld with raw==None pack to b'\x00'*8 ?
-        if not self.raw:
-            return b''
         return bitstring.pack("uintle:8, uintle:16, uintle:16, uintle:8,"
                               "uintle:16", self.info, self.timestamp,
                               self.isd_id, self.hops, self.reserved).bytes

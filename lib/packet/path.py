@@ -117,6 +117,9 @@ class CorePath(PathBase):
         if raw is not None:
             self.parse(raw)
 
+# TODO PSz: a flag is needed to distinguish downPath-only case. I.e. if
+# SCIONPacket.up_path is false and path has only one special OF, then it should
+# parse only DownPath. It would be easier to put down/up flag to SOF.
     def parse(self, raw):
         """
         Parses the raw data and populates the fields accordingly.
@@ -130,7 +133,6 @@ class CorePath(PathBase):
                 HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN]))
             offset += HopOpaqueField.LEN
         # Parse down-path
-#PSz UpPath (DownPath is null)
         if len(raw) != offset:
             self.down_path_info = \
                 InfoOpaqueField(raw[offset:offset + InfoOpaqueField.LEN])
@@ -139,8 +141,6 @@ class CorePath(PathBase):
                 self.down_path_hops.append(
                     HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN]))
                 offset += HopOpaqueField.LEN
-        else:
-            self.down_path_info = InfoOpaqueField()
 
         self.parsed = True
 
@@ -149,27 +149,43 @@ class CorePath(PathBase):
         Packs the opaque fields and returns a byte array.
         """
         data = []
-        data.append(self.up_path_info.pack())
-        for of in self.up_path_hops:
-            data.append(of.pack())
-        data.append(self.down_path_info.pack())
-        for of in self.down_path_hops:
-            data.append(of.pack())
+        if self.up_path_info:
+            data.append(self.up_path_info.pack())
+            for of in self.up_path_hops:
+                data.append(of.pack())
+        if self.down_path_info:
+            data.append(self.down_path_info.pack())
+            for of in self.down_path_hops:
+                data.append(of.pack())
 
         return b"".join(data)
 
+    @classmethod
+    def from_values(cls, iof, hofs):
+        cp = CorePath()
+        cp.up_path_info = iof
+        cp.up_path_hops = hofs
+        return cp
+
     def __str__(self):
         s = []
-        s.append("<Core-Path>:\n<Up-Path>:\n")
-        s.append(str(self.up_path_info) + "\n")
-        for of in self.up_path_hops:
-            s.append(str(of) + "\n")
-        s.append("</Up-Path>\n<Down-Path>\n")
-        s.append(str(self.down_path_info) + "\n")
-        for of in self.down_path_hops:
-            s.append(str(of) + "\n")
-        s.append("</Down-Path>\n<Core-Path>")
+        s.append("<Core-Path>:\n")
 
+        if self.up_path_info:
+            s.append("<Up-Path>:\n")
+            s.append(str(self.up_path_info) + "\n")
+            for of in self.up_path_hops:
+                s.append(str(of) + "\n")
+            s.append("</Up-Path>\n")
+
+        if self.down_path_info:
+            s.append("<Down-Path>\n")
+            s.append(str(self.down_path_info) + "\n")
+            for of in self.down_path_hops:
+                s.append(str(of) + "\n")
+            s.append("</Down-Path>\n")
+
+        s.append("<Core-Path>")
         return "".join(s)
 
 
