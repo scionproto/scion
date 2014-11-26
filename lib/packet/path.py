@@ -16,8 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from lib.packet.opaque_field import *
-from lib.packet.pcb import *
+from lib.packet.opaque_field import InfoOpaqueField, HopOpaqueField 
 import copy
 
 
@@ -411,40 +410,40 @@ class PeerPath(PathBase):
 class EmptyPath(PathBase):
     """
     Represents an empty path.
-   
+
     This is currently need for intra AD communication, which doesn't need
     a SCION path but still uses SCION packets for communication.
     """
     def __init__(self, raw=None):
         PathBase.__init__(self)
         self.type = PathType.EMPTY
-       
+
         if raw is not None:
             self.parse(raw)
-            
+
     def parse(self, raw):
         assert isinstance(raw, bytes)
         self.up_path_info = InfoOpaqueField(raw[:InfoOpaqueField.LEN])
         # We do this so we can still reverse the path.
         self.down_path_info = self.up_path_info
-        
+
         self.parsed = True
-        
+
     def pack(self):
         return b''
-    
+
     def is_first_hop(self, hop):
         return True
-    
+
     def is_last_hop(self, hop):
         return True
-    
+
     def get_first_hop(self):
         return None
-    
+
     def get_of(self, index):
         return self.up_path_info
-    
+
     def __str__(self):
         return "<Empty-Path></Empty-Path>"
 
@@ -501,13 +500,13 @@ def join_shortcuts(up_path, down_path, point, peer=True):
             for down_peer in down_ad.pms:
                 if (up_peer.ad_id == down_ad.pcbm.ad_id and down_peer.ad_id
                         == up_ad.pcbm.ad_id):
-                    path.up_path_peering_link = up_peer.hof 
-                    path.down_path_peering_link = down_peer.hof 
+                    path.up_path_peering_link = up_peer.hof
+                    path.down_path_peering_link = down_peer.hof
 
     path.down_path_info = down_path.iof
     path.down_path_info.info = info
     path.down_path_info.hops -= point[1]
-    path.down_path_upstream_ad = down_path.ads[point[1]-1].pcbm.hof 
+    path.down_path_upstream_ad = down_path.ads[point[1]-1].pcbm.hof
     for i in range(point[1], len(down_path.ads)):
         path.down_path_hops.append(down_path.ads[i].pcbm.hof)
     path.down_path_hops[0].info = 0x20
@@ -521,7 +520,6 @@ def try_short_path(up_path, down_path):
     #TODO check if stub ADs are the same...
     if not up_path or not down_path or not up_path.ads or not down_path.ads:
         return None
-
     #looking for xovr and peer points
     xovrs = []
     peers = []
@@ -532,27 +530,25 @@ def try_short_path(up_path, down_path):
             if up_ad.pcbm.ad_id == down_ad.pcbm.ad_id:
                 xovrs.append((up_i, down_i))
             else:
-                for up_peer in up_ad.pms: 
+                for up_peer in up_ad.pms:
                     for down_peer in down_ad.pms:
                         if (up_peer.ad_id == down_ad.pcbm.ad_id and
                                 down_peer.ad_id == up_ad.pcbm.ad_id):
                             peers.append((up_i, down_i))
-
-    print ("xovr:", xovrs, "peers:", peers)
-    print("Select shortest path xovrs (preferred) or peers")
+    #select shortest path xovrs (preferred) or peers
     xovrs.sort(key=lambda tup: sum(tup))
     peers.sort(key=lambda tup: sum(tup))
     if not xovrs and not peers:
         return None
     elif xovrs and peers:
         if sum(peers[-1]) > sum(xovrs[-1]):
-            return join_shortcuts(up_path, down_path, peers[-1], True) 
+            return join_shortcuts(up_path, down_path, peers[-1], True)
         else:
             return join_shortcuts(up_path, down_path, xovrs[-1], False)
-    elif xovrs: 
-        return join_shortcuts(up_path, down_path, xovrs[-1], False) 
+    elif xovrs:
+        return join_shortcuts(up_path, down_path, xovrs[-1], False)
     else: #peers only
-        return join_shortcuts(up_path, down_path, peers[-1], True) 
+        return join_shortcuts(up_path, down_path, peers[-1], True)
 
 def build_fullpaths(up_paths, down_paths):
     """

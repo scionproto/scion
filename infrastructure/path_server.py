@@ -17,17 +17,13 @@ limitations under the License.
 """
 
 from lib.packet.host_addr import IPv4HostAddr
-from lib.packet.pcb import *
-from lib.packet.opaque_field import *
-from lib.packet.path import EmptyPath 
-from lib.packet.scion import SCIONPacket, IFIDRequest, IFIDReply, get_type,\
-        Beacon, PathRequest, PathRecord, PathInfo
+from lib.packet.path import EmptyPath
+from lib.packet.scion import SCIONPacket, get_type, Beacon, PathRequest,\
+PathRecord, PathInfo
 from lib.packet.scion import PacketType as PT
-from lib.topology import ElementType, NeighborType
-from infrastructure.server import ServerBase, SCION_UDP_PORT,\
-        SCION_UDP_PS2EH_PORT 
-import socket
+from infrastructure.server import ServerBase, SCION_UDP_PORT
 import sys
+import logging
 
 PATHS_NO = 5 #TODO replace by configuration parameter
 
@@ -35,7 +31,7 @@ def update_dict(dictionary, key, values, elem_num=0):
     if key in dictionary:
         dictionary[key].extend(values)
     else:
-        dictionary[key] = values 
+        dictionary[key] = values
     dictionary[key] = dictionary[key][-elem_num:]
 
 
@@ -53,14 +49,14 @@ class PathServer(ServerBase):
 
     def handle_up_path(self, path_record):
         """
-        Handles Up Path registration from local BS. 
+        Handles Up Path registration from local BS.
         """
         if not path_record.pcbs:
             return
         pcbs = path_record.pcbs
         self.up_paths.extend(pcbs)
         self.up_paths = self.up_paths[-PATHS_NO:]
-        print("Up-Path Registered")
+        logging.info("Up-Path Registered")
 
         if self.pending_targets:
             pcb = pcbs[0]
@@ -70,7 +66,7 @@ class PathServer(ServerBase):
                 info = PathInfo.from_values(PathInfo.DOWN_PATH, isd, ad)
                 path_request = PathRequest.from_values(self.addr, info, path)
                 self.send(path_request, next_hop)
-                print("PathRequest sent using (first) registered up-path")
+                logging.info("PathRequest sent using (first) registered up-path")
             self.pending_targets.clear()
         #TODO Handle DOWN_PATH pending_requests here
 
@@ -81,7 +77,7 @@ class PathServer(ServerBase):
         Returns first hop addr of down-path or end-host addr.
         """
         if isinstance(spkt.hdr.path, EmptyPath):
-            return (spkt.hdr.dst_addr, SCION_UDP_PORT) 
+            return (spkt.hdr.dst_addr, SCION_UDP_PORT)
         else:
             of = spkt.hdr.path.down_path_hops[0]
             return (self.ifid2addr[of.egress_if], SCION_UDP_PORT)
@@ -92,40 +88,40 @@ class PathServer(ServerBase):
         """
         dst = path_request.hdr.src_addr
         path_request.hdr.path.reverse()
-        path = path_request.hdr.path 
+        path = path_request.hdr.path
         path_reply = PathRecord.from_values(dst, path_request.info, paths, path)
         path_reply.hdr.set_downpath()
         (next_hop, port) = self.get_first_hop(path_reply)
-        print ("Sending to PATH_REP, using path:",path, next_hop)
+        logging.warning("Sending PATH_REP, using path:", path, next_hop)
         self.send(path_reply, next_hop, port)
 
     def request_core(self, isd, ad):
         if not self.up_paths:
-            print('Pending target added')
-            self.pending_targets.add((isd,ad))
+            logging.warning('Pending target added')
+            self.pending_targets.add((isd, ad))
         else:
             pcb = self.up_paths[-1]
             next_hop = self.ifid2addr[pcb.rotf.if_id]
-            path=pcb.get_core_path()
+            path = pcb.get_core_path()
             info = PathInfo.from_values(PathInfo.DOWN_PATH, isd, ad)
             path_request = PathRequest.from_values(self.addr, info, path)
             self.send(path_request, next_hop)
 
     def request_isd(self, isd, ad):
-        #define interisd pathinfo
-        print("request_isd() To implement")
+        #TODO define inter-ISD pathinfo
+        logging.warning("request_isd(): to implement")
 
     def handle_path_request(self, packet):
-        print("PATH_REQ")
+        logging.warning("PATH_REQ")
         #TODO inter isd request: if isd != myisd
-        path_request = PathRequest(packet) 
-        isd = path_request.info.isd 
-        ad = path_request.info.ad 
+        path_request = PathRequest(packet)
+        isd = path_request.info.isd
+        ad = path_request.info.ad
         type = path_request.info.type
 
-        paths_to_send  = []
-        print (isd,ad)
-        print(self.down_paths)
+        paths_to_send = []
+        logging.warning(isd, ad)
+        logging.warning(self.down_paths)
 
         if (type in [PathInfo.UP_PATH, PathInfo.BOTH_PATHS] and not
             self.topology.is_core_ad):
@@ -133,7 +129,7 @@ class PathServer(ServerBase):
                 paths_to_send.extend(self.up_paths)
             else:
                 update_dict(self.pending_requests, (isd, ad), [path_request])
-                self.pending_targets.add((isd,ad))
+                self.pending_targets.add((isd, ad))
                 return
 
         if (type == PathInfo.DOWN_PATH or (type == PathInfo.BOTH_PATHS and not
@@ -145,11 +141,11 @@ class PathServer(ServerBase):
                     self.request_core(isd, ad)
                 elif isd != self.topology.isd_id:
                     self.request_isd(isd, ad)
-                print("No downpath, request is pending.")
+                logging.warning("No downpath, request is pending.")
                 paths_to_send = []
                 update_dict(self.pending_requests, (isd, ad), [path_request])
         else:
-            print("ERROR: Wrong path request")
+            logging.warning("ERROR: Wrong path request")
 
         if paths_to_send:
             self.send_paths(path_request, paths_to_send)
@@ -159,9 +155,9 @@ class PathServer(ServerBase):
         ad = None
         for pcb in path_record.pcbs:
             isd = pcb.get_isd()
-            ad = pcb.get_last_ad() 
+            ad = pcb.get_last_ad()
             update_dict(self.down_paths, (isd, ad), [pcb], PATHS_NO)
-            print("PATH_REG", isd, ad)
+            logging.warning("PATH_REG", isd, ad)
 
         #serve pending requests
         if isd and ad and (isd, ad) in self.pending_requests:
@@ -192,15 +188,15 @@ class PathServer(ServerBase):
             self.handle_path_request(packet)
         elif ptype == PT.PATH_REP:
             self.dispatch_path_record(packet)
-        else: 
-            print("Type %d not supported.", ptype)
+        else:
+            logging.warning("Type %d not supported.", ptype)
 
 def main():
     logging.basicConfig(level=logging.DEBUG)
-    if len(sys.argv)!=4:
-        print("run: %s IP topo_file conf_file" %sys.argv[0])
+    if len(sys.argv) != 4:
+        logging.error("run: %s IP topo_file conf_file", sys.argv[0])
         sys.exit()
-    ps=PathServer(IPv4HostAddr(sys.argv[1]), sys.argv[2], sys.argv[3])
+    ps = PathServer(IPv4HostAddr(sys.argv[1]), sys.argv[2], sys.argv[3])
     ps.run()
 
 if __name__ == "__main__":
