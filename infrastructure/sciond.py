@@ -128,7 +128,7 @@ def main():
     scion_pkt = SCIONPacket.from_values(sd.addr, dst, b"payload", path)
     hop = sd.get_first_hop(scion_pkt)
     sd.send(scion_pkt, hop)
-    logging.info("Send packet to: %s", hop)
+    logging.info("Send packet to: %s\nFirst hop: %s", scion_pkt, hop)
 
 if __name__ == "__main__":
     main()

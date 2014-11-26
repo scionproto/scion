@@ -28,6 +28,9 @@ import logging
 PATHS_NO = 5 #TODO replace by configuration parameter
 
 def update_dict(dictionary, key, values, elem_num=0):
+    """
+    Updates dictionary. Used in managing as temporary paths' cache.
+    """
     if key in dictionary:
         dictionary[key].extend(values)
     else:
@@ -70,15 +73,15 @@ class PathServer(ServerBase):
             self.pending_targets.clear()
         #TODO Handle DOWN_PATH pending_requests here
 
-    #TODO: MOVE it to server?
-#change [0] to current? check it
     def get_first_hop(self, spkt):
+    #TODO: move it somewhere (server.py ?)
         """
         Returns first hop addr of down-path or end-host addr.
         """
         if isinstance(spkt.hdr.path, EmptyPath):
             return (spkt.hdr.dst_addr, SCION_UDP_PORT)
         else:
+            #TODO change [0] to current?
             of = spkt.hdr.path.down_path_hops[0]
             return (self.ifid2addr[of.egress_if], SCION_UDP_PORT)
 
@@ -92,10 +95,13 @@ class PathServer(ServerBase):
         path_reply = PathRecord.from_values(dst, path_request.info, paths, path)
         path_reply.hdr.set_downpath()
         (next_hop, port) = self.get_first_hop(path_reply)
-        logging.warning("Sending PATH_REP, using path:", path, next_hop)
+        logging.warning("Sending PATH_REP, using path: %s", path)
         self.send(path_reply, next_hop, port)
 
     def request_core(self, isd, ad):
+        """
+        Tries to request core PS for given target (isd, ad).
+        """
         if not self.up_paths:
             logging.warning('Pending target added')
             self.pending_targets.add((isd, ad))
@@ -108,10 +114,15 @@ class PathServer(ServerBase):
             self.send(path_request, next_hop)
 
     def request_isd(self, isd, ad):
-        #TODO define inter-ISD pathinfo
+        """
+        TODO define inter-ISD requesting and implement function.
+        """
         logging.warning("request_isd(): to implement")
 
     def handle_path_request(self, packet):
+        """
+        Handles all types of path request.
+        """
         logging.info("PATH_REQ")
         path_request = PathRequest(packet)
         isd = path_request.info.isd
@@ -148,6 +159,9 @@ class PathServer(ServerBase):
             self.send_paths(path_request, paths_to_send)
 
     def handle_down_path(self, path_record):
+        """
+        Handles registration of down path.
+        """
         isd = None
         ad = None
         for pcb in path_record.pcbs:
@@ -168,6 +182,9 @@ class PathServer(ServerBase):
             del self.pending_requests[(isd, ad)]
 
     def dispatch_path_record(self, packet):
+        """
+        Dispatches path record packet.
+        """
         rec = PathRecord(packet)
         if rec.info.type == PathInfo.UP_PATH and not self.topology.is_core_ad:
             self.handle_up_path(rec)
