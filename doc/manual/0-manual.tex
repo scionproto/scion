@@ -26,6 +26,25 @@
 \renewcommand\see[2]{\!$\to$ #1}
 \renewcommand\see[2]{\textit{see} #1}
 
+% Glossary #Raphael
+\usepackage{datatool}
+\newenvironment{SCIONglossary}{%
+  \DTLifdbexists{list}{\DTLcleardb{list}}{\DTLnewdb{list}}% Create new/discard old list
+}{%
+  \DTLsort{sortlabel}{list}% Sort list
+  \begin{itemize}%
+    \setlength{\itemsep}{4mm}
+    \DTLforeach*{list}{\theDesc=description}{%
+      \item \theDesc}% Print each item
+  \end{itemize}%
+}
+\newcommand{\gitem}[2]{%
+  \DTLnewrow{list}
+  \DTLnewdbentry{list}{sortlabel}{#1}
+  \DTLnewdbentry{list}{description}{\textbf{#1 ||} #2}
+}
+
+
 \usepackage{hyperref}
 
 \include{src/macros}
@@ -136,7 +155,6 @@
   \input{Cryptography}
   \input{SystemConfiguration}
   \input{Example}
-  \input{Further-Reading}
 
   % \input{Acknowledgments}
 
@@ -145,6 +163,8 @@
   \nocite{ZHHCPA2011}
 
   \appendix
+  \input{Further-Reading}
+  \input{glossary}
   \input{appd}
   \printindex
 
