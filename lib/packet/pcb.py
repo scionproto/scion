@@ -190,7 +190,8 @@ class PCB(object):
     def __init__(self, raw=None):
         self.parsed = False
         self.raw = None
-        self.iof = SpecialField()
+        self.iof = InfoOpaqueField()
+        self.iof.info = OpaqueFieldType.SPECIAL_OF
         self.rotf = ROTField()
         self.ads = []
         if raw is not None:
