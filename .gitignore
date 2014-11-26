@@ -10,6 +10,7 @@
 *.synctex.gz
 *.toc
 *.idx
+*.out
 
 
 # OS generated files #
