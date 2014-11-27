@@ -18,8 +18,8 @@ limitations under the License.
 
 from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.path import build_fullpaths
-from lib.packet.scion import SCIONPacket, get_type, PathRequest, PathRecord,\
-        PathInfo
+from lib.packet.scion import (SCIONPacket, get_type, PathRequest, PathRecord,
+        PathInfo)
 from lib.packet.scion import PacketType as PT
 from lib.topology import ElementType
 from infrastructure.server import ServerBase

@@ -47,8 +47,9 @@ class PathServer(ServerBase):
         self.up_paths = []
         self.down_paths = {}
         #TODO replace by pathstore instance
-        self.pending_requests = {}#TODO three classes
+        self.pending_requests = {}
         self.pending_targets = set() #used when local PS does not have uppath
+        #TODO replace by some cache data struct. (expiringdict ?)
 
     def handle_up_path(self, path_record):
         """
@@ -95,7 +96,7 @@ class PathServer(ServerBase):
         path_reply = PathRecord.from_values(dst, path_request.info, paths, path)
         path_reply.hdr.set_downpath()
         (next_hop, port) = self.get_first_hop(path_reply)
-        logging.warning("Sending PATH_REP, using path: %s", path)
+        logging.info("Sending PATH_REP, using path: %s", path)
         self.send(path_reply, next_hop, port)
 
     def request_core(self, isd, ad):
@@ -103,7 +104,7 @@ class PathServer(ServerBase):
         Tries to request core PS for given target (isd, ad).
         """
         if not self.up_paths:
-            logging.warning('Pending target added')
+            logging.info('Pending target added')
             self.pending_targets.add((isd, ad))
         else:
             pcb = self.up_paths[-1]
@@ -168,7 +169,7 @@ class PathServer(ServerBase):
             isd = pcb.get_isd()
             ad = pcb.get_last_ad()
             update_dict(self.down_paths, (isd, ad), [pcb], PATHS_NO)
-            logging.warning("PATH_REG (%d, %d)", isd, ad)
+            logging.info("PATH_REG (%d, %d)", isd, ad)
 
         #serve pending requests
         if isd and ad and (isd, ad) in self.pending_requests:
