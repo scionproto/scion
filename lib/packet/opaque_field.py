@@ -109,7 +109,7 @@ class HopOpaqueField(OpaqueField):
             return
         bits = BitArray(bytes=raw)
         (self.info, self.ingress_if, self.egress_if, self.mac) = \
-            bits.unpack("uintle:8, uintle:16, uintle:16, uintle:24")
+            bits.unpack("uintbe:8, uintbe:16, uintbe:16, uintbe:24")
         self.parsed = True
         
     @classmethod
@@ -121,7 +121,7 @@ class HopOpaqueField(OpaqueField):
         return hof
 
     def pack(self):
-        return bitstring.pack("uintle:8, uintle:16, uintle:16, uintle:24",
+        return bitstring.pack("uintbe:8, uintbe:16, uintbe:16, uintbe:24",
                self.info, self.ingress_if, self.egress_if, self.mac).bytes
 
     def __str__(self):
@@ -159,7 +159,7 @@ class InfoOpaqueField(OpaqueField):
             return
         bits = BitArray(bytes=raw)
         (self.info, self.timestamp, self.isd_id, self.hops, self.reserved) = \
-            bits.unpack("uintle:8, uintle:16, uintle:16, uintle:8, uintle:16")
+            bits.unpack("uintbe:8, uintbe:16, uintbe:16, uintbe:8, uintbe:16")
         self.parsed = True
 
     @classmethod    
@@ -173,8 +173,8 @@ class InfoOpaqueField(OpaqueField):
         return iof
 
     def pack(self):
-        return bitstring.pack("uintle:8, uintle:16, uintle:16, uintle:8,"
-                              "uintle:16", self.info, self.timestamp,
+        return bitstring.pack("uintbe:8, uintbe:16, uintbe:16, uintbe:8,"
+                              "uintbe:16", self.info, self.timestamp,
                               self.isd_id, self.hops, self.reserved).bytes
 
     def __str__(self):
@@ -208,7 +208,7 @@ class ROTField(OpaqueField):
             return
         bits = BitArray(bytes=raw)
         (self.info, self.rot_version, self.if_id, self.reserved) = \
-            bits.unpack("uintle:8, uintle:32, uintle:16, uintle:8")
+            bits.unpack("uintbe:8, uintbe:32, uintbe:16, uintbe:8")
         self.parsed = True
     
     @classmethod    
@@ -220,7 +220,7 @@ class ROTField(OpaqueField):
         return rotf
 
     def pack(self):
-        return bitstring.pack("uintle:8, uintle:32, uintle:16, uintle:8",
+        return bitstring.pack("uintbe:8, uintbe:32, uintbe:16, uintbe:8",
                self.info, self.rot_version, self.if_id, self.reserved).bytes
 
     def __str__(self):
@@ -253,7 +253,7 @@ class SupportSignatureField(OpaqueField):
             return
         bits = BitArray(bytes=raw)
         (self.cert_id, self.sig_len, self.block_size) = \
-            bits.unpack("uintle:32, uintle:16, uintle:16")
+            bits.unpack("uintbe:32, uintbe:16, uintbe:16")
         self.parsed = True
     
     @classmethod    
@@ -265,7 +265,7 @@ class SupportSignatureField(OpaqueField):
         return ssf
 
     def pack(self):
-        return bitstring.pack("uintle:32, uintle:16, uintle:16",
+        return bitstring.pack("uintbe:32, uintbe:16, uintbe:16",
                self.cert_id, self.sig_len, self.block_size).bytes
 
     def __str__(self):
@@ -301,7 +301,7 @@ class SupportPeerField(OpaqueField):
             return
         bits = BitArray(bytes=raw)
         (self.isd_id, self.bwalloc_f, self.bwalloc_r, self.bw_class, _reserved) = \
-            bits.unpack("uintle:16, uintle:8, uintle:8, uint:1, uint:31")
+            bits.unpack("uintbe:16, uintbe:8, uintbe:8, uint:1, uint:31")
         self.parsed = True
     
     @classmethod    
@@ -315,7 +315,7 @@ class SupportPeerField(OpaqueField):
         return spf
 
     def pack(self):
-        return bitstring.pack("uintle:16, uintle:8, uintle:8, uint:1,"
+        return bitstring.pack("uintbe:16, uintbe:8, uintbe:8, uint:1,"
                "uint:31", self.isd_id, self.bwalloc_f, self.bwalloc_r,
                self.bw_class, self.reserved).bytes
 
@@ -356,8 +356,8 @@ class SupportPCBField(OpaqueField):
         bits = BitArray(bytes=raw)
         (self.isd_id, self.bwalloc_f, self.bwalloc_r, self.dyn_bwalloc_f,
          self.dyn_bwalloc_r, self.bebw_f, self.bebw_r) = \
-            bits.unpack("uintle:16, uintle:8, uintle:8, uintle:8, uintle:8,"
-                        "uintle:8, uintle:8")
+            bits.unpack("uintbe:16, uintbe:8, uintbe:8, uintbe:8, uintbe:8,"
+                        "uintbe:8, uintbe:8")
         self.parsed = True
     
     @classmethod    
@@ -374,8 +374,8 @@ class SupportPCBField(OpaqueField):
         return spcbf
 
     def pack(self):
-        return bitstring.pack("uintle:16, uintle:8, uintle:8, uintle:8,"
-               "uintle:8, uintle:8, uintle:8", self.isd_id, self.bwalloc_f,
+        return bitstring.pack("uintbe:16, uintbe:8, uintbe:8, uintbe:8,"
+               "uintbe:8, uintbe:8, uintbe:8", self.isd_id, self.bwalloc_f,
                self.bwalloc_r, self.dyn_bwalloc_f, self.dyn_bwalloc_r,
                self.bebw_f, self.bebw_r).bytes
 

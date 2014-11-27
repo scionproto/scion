@@ -26,8 +26,8 @@ from lib.packet.host_addr import (AddressLengths, IPv4HostAddr,
                                   IPv6HostAddr, SCIONHostAddr)
 from lib.packet.opaque_field import InfoOpaqueField, OpaqueField
 from lib.packet.packet_base import HeaderBase, PacketBase
-from lib.packet.path import PathType, CorePath, PeerPath, CrossOverPath, \
-    EmptyPath
+from lib.packet.path import (PathType, CorePath, PeerPath, CrossOverPath,
+        EmptyPath)
 from lib.packet.pcb import PCB
 
 import struct
@@ -181,11 +181,11 @@ class SCIONCommonHdr(HeaderBase):
         bits = BitArray(bytes=raw)
         (types, self.total_len, self.timestamp, self.current_of,
          self.next_hdr, self.hdr_len) = \
-            bits.unpack("uintle:16, uintle:16, uintle:8, "
-                        "uintle:8, uintle:8, uintle:8")
-        self.type = types & 0xf
-        self.src_addr_len = (types >> 4) & 0xf
-        self.dst_addr_len = (types >> 10) & 0xf
+            bits.unpack("uintbe:16, uintbe:16, uintbe:8, "
+                        "uintbe:8, uintbe:8, uintbe:8")
+        self.type = (types & 0xf000) >> 12
+        self.src_addr_len = (types & 0x0fc0) >> 6
+        self.dst_addr_len = types & 0x003f
         self.parsed = True
         return
 
@@ -193,9 +193,9 @@ class SCIONCommonHdr(HeaderBase):
         """
         Returns the common header as 8 byte binary string.
         """
-        types = (self.dst_addr_len << 10) | (self.src_addr_len << 4) | self.type
-        return bitstring.pack("uintle:16, uintle:16, uintle:8, "
-                              "uintle:8, uintle:8, uintle:8",
+        types = (self.type << 12) | (self.dst_addr_len << 6) | self.src_addr_len
+        return bitstring.pack("uintbe:16, uintbe:16, uintbe:8, "
+                              "uintbe:8, uintbe:8, uintbe:8",
                               types, self.total_len, self.timestamp,
                               self.current_of, self.next_hdr,
                               self.hdr_len).bytes
@@ -306,7 +306,7 @@ class SCIONHeader(HeaderBase):
         cur_hdr_type = self.common_hdr.next_hdr
         while cur_hdr_type != 0:
             bits = BitArray(raw[offset: offset + 2])
-            (next_hdr_type, hdr_len) = bits.unpack("uintle:8, uintle:8")
+            (next_hdr_type, hdr_len) = bits.unpack("uintbe:8, uintbe:8")
             logging.info("Found extension hdr of type %u with len %u",
                          cur_hdr_type, hdr_len)
             # FIXME: Should instantiate correct class depending on ext hdr type.
@@ -627,11 +627,11 @@ class PathInfo(object):
     def parse(self, raw):
         bits = BitArray(bytes=raw)
         (self.type, self.isd, self.ad, _, _, _) = \
-            bits.unpack("uintle:8, uintle:16, uintle:64, "
-                        "uintle:24, uintle:16, uintle:16")
+            bits.unpack("uintbe:8, uintbe:16, uintbe:64, "
+                        "uintbe:24, uintbe:16, uintbe:16")
     def pack(self):
-        return bitstring.pack("uintle:8, uintle:16, uintle:64, "
-                              "uintle:24, uintle:16, uintle:16",
+        return bitstring.pack("uintbe:8, uintbe:16, uintbe:64, "
+                              "uintbe:24, uintbe:16, uintbe:16",
                               self.type, self.isd, self.ad, 0, 0, 0).bytes
 
     @classmethod
@@ -727,7 +727,7 @@ class CertRequest(SCIONPacket):
         SCIONPacket.parse(self, raw)
         bits = BitArray(bytes=self.payload)
         (self.cert_isd, self.cert_version, self.cert_ad) = \
-            bits.unpack("uintle:16, uintle:32, uintle:64")
+            bits.unpack("uintbe:16, uintbe:32, uintbe:64")
         if len(self.payload) - 14 > 0:
             self.path = Path(self.payload[14:])
         else:
@@ -758,7 +758,7 @@ class CertRequest(SCIONPacket):
         return req 
 
     def pack(self):
-        self.payload = bitstring.pack("uintle:16, uintle:32, uintle:64",
+        self.payload = bitstring.pack("uintbe:16, uintbe:32, uintbe:64",
                        self.cert_isd, self.cert_version, self.cert_ad).bytes
         if self.hdr.common_hdr.type != PacketType.CERT_REQ:
             self.payload += self.path.pack()
@@ -778,11 +778,11 @@ class CertReply(SCIONPacket):
         SCIONPacket.parse(self, raw)
         bits = BitArray(bytes=self.payload)
         (self.cert_isd, self.cert_version, self.cert_ad) = \
-            bits.unpack("uintle:16, uintle:32, uintle:64")
+            bits.unpack("uintbe:16, uintbe:32, uintbe:64")
         self.cert_len = len(self.payload) - 14
         if self.cert_len > 0:
             bits = BitArray(bytes=self.payload[14:])
-            self.cert = bits.unpack("uintle:"+str(self.cert_len*8))[0]
+            self.cert = bits.unpack("uintbe:"+str(self.cert_len*8))[0]
         else:
             self.cert = None
 
@@ -809,7 +809,7 @@ class CertReply(SCIONPacket):
         return rep
 
     def pack(self):
-        self.payload = bitstring.pack("uintle:16, uintle:32, uintle:64, uintle:"+str(self.cert_len*8),
+        self.payload = bitstring.pack("uintbe:16, uintbe:32, uintbe:64, uintbe:"+str(self.cert_len*8),
                        self.cert_isd, self.cert_version, self.cert_ad, self.cert).bytes
         return SCIONPacket.pack(self)
 
@@ -827,7 +827,7 @@ class RotRequest(SCIONPacket):
         SCIONPacket.parse(self, raw)
         bits = BitArray(bytes=self.payload)
         (self.rot_isd, self.rot_version) = \
-            bits.unpack("uintle:16, uintle:32")
+            bits.unpack("uintbe:16, uintbe:32")
         if len(self.payload - 6) > 0:
             self.path = Path(self.payload[6:])
         else:
@@ -856,7 +856,7 @@ class RotRequest(SCIONPacket):
         return req 
 
     def pack(self):
-        self.payload = bitstring.pack("uintle:16, uintle:32",
+        self.payload = bitstring.pack("uintbe:16, uintbe:32",
                        self.rot_isd, self.rot_version).bytes
         if self.hdr.common_hdr.type != PacketType.ROT_REQ:
             self.payload += self.path.pack()
@@ -876,11 +876,11 @@ class RotReply(SCIONPacket):
         SCIONPacket.parse(self, raw)
         bits = BitArray(bytes=self.payload)
         (self.rot_isd, self.rot_version) = \
-            bits.unpack("uintle:16, uintle:32")
+            bits.unpack("uintbe:16, uintbe:32")
         self.rot_len = len(self.payload) - 6
         if self.rot_len > 0:
             bits = BitArray(bytes=self.payload[6:])
-            self.rot = bits.unpack("uintle:"+str(self.rot_len*8))[0]
+            self.rot = bits.unpack("uintbe:"+str(self.rot_len*8))[0]
         else:
             self.rot = None
 
@@ -905,6 +905,6 @@ class RotReply(SCIONPacket):
         return rep
 
     def pack(self):
-        self.payload = bitstring.pack("uintle:16, uintle:32, uintle:"+str(self.rot_len*8),
+        self.payload = bitstring.pack("uintbe:16, uintbe:32, uintbe:"+str(self.rot_len*8),
                        self.rot_isd, self.rot_version, self.rot).bytes
         return SCIONPacket.pack(self)
