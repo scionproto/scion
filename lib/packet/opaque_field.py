@@ -16,9 +16,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import logging
 from bitstring import BitArray
-import bitstring
+import bitstring, logging
 
 class OpaqueFieldType(object):
     """
@@ -101,19 +100,25 @@ class HopOpaqueField(OpaqueField):
             self.parse(raw)
 
     def parse(self, raw):
+        """
+        Populates fields from a raw byte block.
+        """
         assert isinstance(raw, bytes)
         self.raw = raw
         dlen = len(raw)
         if dlen < self.LEN:
-            logging.warning("HOF: Data too short to parse the field, len: %u", dlen)
+            logging.warning("HOF: Data too short for parsing, len: %u", dlen)
             return
         bits = BitArray(bytes=raw)
         (self.info, self.ingress_if, self.egress_if, self.mac) = \
             bits.unpack("uintle:8, uintle:16, uintle:16, uintle:24")
         self.parsed = True
-        
+
     @classmethod
     def from_values(cls, ingress_if, egress_if, mac):
+        """
+        Returns HopOpaqueField with fields populated from values.
+        """
         hof = HopOpaqueField()
         hof.ingress_if = ingress_if
         hof.egress_if = egress_if
@@ -121,13 +126,16 @@ class HopOpaqueField(OpaqueField):
         return hof
 
     def pack(self):
+        """
+        Returns HopOpaqueField as 8 byte binary string.
+        """
         return bitstring.pack("uintle:8, uintle:16, uintle:16, uintle:24",
                self.info, self.ingress_if, self.egress_if, self.mac).bytes
 
     def __str__(self):
-        s = "[Hop OF info: %u, ingress if: %u, egress if: %u, mac: %x]\n" % (
-            self.info, self.ingress_if, self.egress_if, self.mac)
-        return s
+        hof_str = "[Hop OF info: %u, ingress if: %u, egress if: %u, mac: %x]\n"\
+                    % (self.info, self.ingress_if, self.egress_if, self.mac)
+        return hof_str
 
 
 class InfoOpaqueField(OpaqueField):
@@ -150,12 +158,14 @@ class InfoOpaqueField(OpaqueField):
             self.parse(raw)
 
     def parse(self, raw):
+        """
+        Populates fields from a raw byte block.
+        """
         assert isinstance(raw, bytes)
         self.raw = raw
         dlen = len(raw)
         if dlen < self.LEN:
-            logging.warning("Data too short to parse info opaque field: "
-                "data len %u", dlen)
+            logging.warning("Data too short for parsing, len: %u", dlen)
             return
         bits = BitArray(bytes=raw)
         (self.info, self.timestamp, self.isd_id, self.hops, self.reserved) = \
@@ -163,6 +173,9 @@ class InfoOpaqueField(OpaqueField):
         self.parsed = True
 
     def pack(self):
+        """
+        Returns InfoOpaqueFIeld as 8 byte binary string.
+        """
         #PSz: Should InfoOpaqueFIeld with raw==None pack to b'\x00'*8 ?
         if not self.raw:
             return b''
@@ -171,9 +184,9 @@ class InfoOpaqueField(OpaqueField):
                               self.isd_id, self.hops, self.reserved).bytes
 
     def __str__(self):
-        s = "[Info OF info: %x, TS: %u, ISD ID: %u, hops: %u]" % (
+        iof_str = "[Info OF info: %x, TS: %u, ISD ID: %u, hops: %u]" % (
             self.info, self.timestamp, self.isd_id, self.hops)
-        return s
+        return iof_str
 
 
 class SpecialField(OpaqueField):
@@ -195,19 +208,25 @@ class SpecialField(OpaqueField):
             self.parse(raw)
 
     def parse(self, raw):
+        """
+        Populates fields from a raw byte block.
+        """
         assert isinstance(raw, bytes)
         self.raw = raw
         dlen = len(raw)
         if dlen < self.LEN:
-            logging.warning("Data too short to parse the field, len: %u", dlen)
+            logging.warning("Data too short for parsing, len: %u", dlen)
             return
         bits = BitArray(bytes=raw)
         (self.info, self.timestamp, self.isd_id, self.hops, self.reserved) = \
             bits.unpack("uintle:8, uintle:16, uintle:16, uintle:8, uintle:16")
         self.parsed = True
-    
-    @classmethod    
+
+    @classmethod
     def from_values(cls, timestamp, isd_id, hops, reserved):
+        """
+        Returns SpecialField with fields populated from values.
+        """
         sof = SpecialField()
         sof.timestamp = timestamp
         sof.isd_id = isd_id
@@ -216,16 +235,19 @@ class SpecialField(OpaqueField):
         return sof
 
     def pack(self):
+        """
+        Returns SpecialField as 8 byte binary string.
+        """
         return bitstring.pack("uintle:8, uintle:16, uintle:16, uintle:8,"
                "uintle:16", self.info, self.timestamp, self.isd_id, self.hops,
                self.reserved).bytes
 
     def __str__(self):
-        s = "[Special OF info: %x, TS: %u, ISD ID: %u, hops: %u]\n" % (
+        sf_str = "[Special OF info: %x, TS: %u, ISD ID: %u, hops: %u]\n" % (
             self.info, self.timestamp, self.isd_id, self.hops)
-        return s
-        
-        
+        return sf_str
+
+
 class ROTField(OpaqueField):
     """
     Class for the ROT field.
@@ -243,19 +265,25 @@ class ROTField(OpaqueField):
             self.parse(raw)
 
     def parse(self, raw):
+        """
+        Populates fields from a raw byte block.
+        """
         assert isinstance(raw, bytes)
         self.raw = raw
         dlen = len(raw)
         if dlen < self.LEN:
-            logging.warning("ROTF: Data too short to parse the field, len: %u", dlen)
+            logging.warning("ROTF: Data too short for parsing, len: %u", dlen)
             return
         bits = BitArray(bytes=raw)
         (self.info, self.rot_version, self.if_id, self.reserved) = \
             bits.unpack("uintle:8, uintle:32, uintle:16, uintle:8")
         self.parsed = True
-    
-    @classmethod    
-    def from_values(cls, ROTversion, if_id, reserved):
+
+    @classmethod
+    def from_values(cls, rot_version, if_id, reserved):
+        """
+        Returns ROTField with fields populated from values.
+        """
         rotf = ROTField()
         rotf.rot_version = rot_version
         rotf.if_id = if_id
@@ -263,13 +291,16 @@ class ROTField(OpaqueField):
         return rotf
 
     def pack(self):
+        """
+        Returns ROTField as 8 byte binary string.
+        """
         return bitstring.pack("uintle:8, uintle:32, uintle:16, uintle:8",
                self.info, self.rot_version, self.if_id, self.reserved).bytes
 
     def __str__(self):
-        s = "[ROT OF info: %x, ROTv: %u, IF ID: %u]\n" % (
+        rotf_str = "[ROT OF info: %x, ROTv: %u, IF ID: %u]\n" % (
             self.info, self.rot_version, self.if_id)
-        return s
+        return rotf_str
 
 
 class SupportSignatureField(OpaqueField):
@@ -288,19 +319,25 @@ class SupportSignatureField(OpaqueField):
             self.parse(raw)
 
     def parse(self, raw):
+        """
+        Populates fields from a raw byte block.
+        """
         assert isinstance(raw, bytes)
         self.raw = raw
         dlen = len(raw)
         if dlen < self.LEN:
-            logging.warning("SSF: Data too short to parse the field, len: %u", dlen)
+            logging.warning("SSF: Data too short for parsing, len: %u", dlen)
             return
         bits = BitArray(bytes=raw)
         (self.cert_id, self.sig_len, self.block_size) = \
             bits.unpack("uintle:32, uintle:16, uintle:16")
         self.parsed = True
-    
-    @classmethod    
+
+    @classmethod
     def from_values(cls, cert_id, sig_len, block_size):
+        """
+        Returns SupportSignatureField with fields populated from values.
+        """
         ssf = SupportSignatureField()
         ssf.cert_id = cert_id
         ssf.sig_len = sig_len
@@ -308,15 +345,19 @@ class SupportSignatureField(OpaqueField):
         return ssf
 
     def pack(self):
+        """
+        Returns SupportSignatureField as 8 byte binary string.
+        """
         return bitstring.pack("uintle:32, uintle:16, uintle:16",
                self.cert_id, self.sig_len, self.block_size).bytes
 
     def __str__(self):
-        s = "[Support Signature OF cert_id: %x, sig_len: %u, block_size: %u]\n" % (
-            self.cert_id, self.sig_len, self.block_size)
-        return s
-        
-        
+        ssf_str = "[Support Signature OF cert_id: %x, sig_len: %u, \
+                    block_size: %u]\n" % (self.cert_id, self.sig_len, \
+                    self.block_size)
+        return ssf_str
+
+
 class SupportPeerField(OpaqueField):
     """
     Class for the support peer field.
@@ -336,19 +377,26 @@ class SupportPeerField(OpaqueField):
             self.parse(raw)
 
     def parse(self, raw):
+        """
+        Populates fields from a raw byte block.
+        """
         assert isinstance(raw, bytes)
         self.raw = raw
         dlen = len(raw)
         if dlen < self.LEN:
-            logging.warning("SPF: Data too short to parse the field, len: %u", dlen)
+            logging.warning("SPF: Data too short for parsing, len: %u", dlen)
             return
         bits = BitArray(bytes=raw)
-        (self.isd_id, self.bwalloc_f, self.bwalloc_r, self.bw_class, _reserved) = \
-            bits.unpack("uintle:16, uintle:8, uintle:8, uint:1, uint:31")
+        (self.isd_id, self.bwalloc_f, self.bwalloc_r, self.bw_class, \
+            self.reserved) = bits.unpack("uintle:16, uintle:8, uintle:8, \
+            uint:1, uint:31")
         self.parsed = True
-    
-    @classmethod    
+
+    @classmethod
     def from_values(cls, isd_id, bwalloc_f, bwalloc_r, bw_class, reserved):
+        """
+        Returns SupportPeerField with fields populated from values.
+        """
         spf = SupportPeerField()
         spf.isd_id = isd_id
         spf.bwalloc_f = bwalloc_f
@@ -358,16 +406,20 @@ class SupportPeerField(OpaqueField):
         return spf
 
     def pack(self):
+        """
+        Returns SupportPeerField as 8 byte binary string.
+        """
         return bitstring.pack("uintle:16, uintle:8, uintle:8, uint:1,"
                "uint:31", self.isd_id, self.bwalloc_f, self.bwalloc_r,
                self.bw_class, self.reserved).bytes
 
     def __str__(self):
-        s = "[Support Peer OF TD ID: %x, bwalloc_f: %u, bwalloc_r: %u, bw_class: %u]\n" % (
-            self.isd_id, self.bwalloc_f, self.bwalloc_r, self.bw_class)
-        return s
-        
-        
+        spf_str = "[Support Peer OF TD ID: %x, bwalloc_f: %u, bwalloc_r: %u, \
+                    bw_class: %u]\n" % (self.isd_id, self.bwalloc_f, \
+                    self.bwalloc_r, self.bw_class)
+        return spf_str
+
+
 class SupportPCBField(OpaqueField):
     """
     Class for the support PCB field.
@@ -390,11 +442,14 @@ class SupportPCBField(OpaqueField):
             self.parse(raw)
 
     def parse(self, raw):
+        """
+        Populates fields from a raw byte block.
+        """
         assert isinstance(raw, bytes)
         self.raw = raw
         dlen = len(raw)
         if dlen < self.LEN:
-            logging.warning("SPCBF: Data too short to parse the field, len: %u", dlen)
+            logging.warning("SPCBF: Data too short for parsing, len: %u", dlen)
             return
         bits = BitArray(bytes=raw)
         (self.isd_id, self.bwalloc_f, self.bwalloc_r, self.dyn_bwalloc_f,
@@ -402,10 +457,13 @@ class SupportPCBField(OpaqueField):
             bits.unpack("uintle:16, uintle:8, uintle:8, uintle:8, uintle:8,"
                         "uintle:8, uintle:8")
         self.parsed = True
-    
-    @classmethod    
+
+    @classmethod
     def from_values(cls, isd_id, bwalloc_f, bwalloc_r, dyn_bwalloc_f,
                     dyn_bwalloc_r, bebw_f, bebw_r):
+        """
+        Returns SupportPCBField with fields populated from values.
+        """
         spcbf = SupportPCBField()
         spcbf.isd_id = isd_id
         spcbf.bwalloc_f = bwalloc_f
@@ -417,12 +475,15 @@ class SupportPCBField(OpaqueField):
         return spcbf
 
     def pack(self):
+        """
+        Returns SupportPCBField as 8 byte binary string.
+        """
         return bitstring.pack("uintle:16, uintle:8, uintle:8, uintle:8,"
                "uintle:8, uintle:8, uintle:8", self.isd_id, self.bwalloc_f,
                self.bwalloc_r, self.dyn_bwalloc_f, self.dyn_bwalloc_r,
                self.bebw_f, self.bebw_r).bytes
 
     def __str__(self):
-        s = "[Info OF TD ID: %x, bwalloc_f: %u, bwalloc_r: %u]\n" % (
+        spcbf_str = "[Info OF TD ID: %x, bwalloc_f: %u, bwalloc_r: %u]\n" % (
             self.isd_id, self.bwalloc_f, self.bwalloc_r)
-        return s
+        return spcbf_str
