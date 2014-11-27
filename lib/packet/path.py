@@ -24,6 +24,7 @@ class PathType(object):
     """
     Defines constants for the SCION path types.
     """
+    #TODO merge it with OpaqueFieldType
     EMPTY = 0x00  # Empty path
     CORE = 0x80  # Path to the core
     CROSS_OVER = 0xc0  # Path with cross over
