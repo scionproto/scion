@@ -617,8 +617,8 @@ class PathInfo(object):
         """
         Returns PathInfo as a binary string.
         """
-        return bitstring.pack("uintle:8, uintle:16, uintle:64, "
-                              "uintle:24, uintle:16, uintle:16",
+        return bitstring.pack("uintbe:8, uintbe:16, uintbe:64, "
+                              "uintbe:24, uintbe:16, uintbe:16",
                               self.type, self.isd, self.ad, 0, 0, 0).bytes
 
     @classmethod

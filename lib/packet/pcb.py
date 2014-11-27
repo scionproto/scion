@@ -73,7 +73,7 @@ class PCBMarking(object):
         """
         Returns PCBMarking as a binary string.
         """
-        return bitstring.pack("uintle:64", self.ad_id).bytes + \
+        return bitstring.pack("uintbe:64", self.ad_id).bytes + \
                self.ssf.pack() + self.hof.pack() + self.spcbf.pack()
 
     def __str__(self):
@@ -130,7 +130,7 @@ class PeerMarking(object):
         """
         Returns PeerMarking as a binary string.
         """
-        return bitstring.pack("uintle:64", self.ad_id).bytes + \
+        return bitstring.pack("uintbe:64", self.ad_id).bytes + \
                self.hof.pack() + self.spf.pack()
 
     def __str__(self):
@@ -149,7 +149,7 @@ class AutonomousDomain(object):
         self.raw = None
         self.pcbm = PCBMarking()
         self.pms = []
-        self.sig = ''
+        self.sig = b''
         self.LEN = self.pcbm.LEN
         if raw is not None:
             self.parse(raw)
@@ -171,8 +171,7 @@ class AutonomousDomain(object):
             peer_marking.parse(raw[:peer_marking.LEN])
             self.pms.append(peer_marking)
             raw = raw[peer_marking.LEN:]
-        bits = BitArray(bytes=raw)
-        self.sig = bits.unpack("uintle:" + str(len(raw)*8))[0]
+        self.sig = raw
         self.parsed = True
 
     @classmethod
@@ -295,7 +294,8 @@ class PCB(object):
         """
         return self.ads[-1].pcbm.ad_id
 
-    def deserialize(self, raw):
+    @staticmethod
+    def deserialize(raw):
         """
         Deserializes a bytes string into a list of PCBs.
         """
@@ -320,7 +320,8 @@ class PCB(object):
             pcbs.append(pcb)
         return pcbs
 
-    def serialize(self, pcbs):
+    @staticmethod
+    def serialize(pcbs):
         """
         Serializes a list of PCBs into a bytes string.
         """
