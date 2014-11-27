@@ -16,10 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from collections import defaultdict
 import logging
-
-from lib.packet.host_addr import *
 import xml.etree.ElementTree as ET
 
 
@@ -27,17 +24,17 @@ class Element(object):
     """
     Base class for elements specified in the topology file.
     """
-    def __init__(self, ad_id=0, len=0):
+    def __init__(self, ad_id=0, length=0):
         self.ad_id = ad_id
-        self.len = len
+        self.length = length
 
 
 class CoreADElement(Element):
     """
     Represents the certificate of one of the core ADs in SCION.
     """
-    def __init__(self, ad_id=0, len=0, cert=None):
-        Element.__init__(self, ad_id, len)
+    def __init__(self, ad_id=0, length=0, cert=None):
+        Element.__init__(self, ad_id, length)
         self.cert = cert
 
 
@@ -45,8 +42,8 @@ class SignatureElement(Element):
     """
     Represents a certificate signature.
     """
-    def __init__(self, ad_id=0, len=0, sign=None):
-        Element.__init__(self, ad_id, len)
+    def __init__(self, ad_id=0, length=0, sign=None):
+        Element.__init__(self, ad_id, length)
         self.sign = sign
 
 
@@ -115,9 +112,9 @@ class Rot(object):
         for core_ad in core_ads:
             assert ET.iselement(core_ad)
             ad_id = int(core_ad.find("ADID").text)
-            len = int(core_ad.find("len").text)
+            length = int(core_ad.find("len").text)
             cert = core_ad.find("cert").text
-            element = CoreADElement(ad_id, len, cert)
+            element = CoreADElement(ad_id, length, cert)
             self.core_ads[ad_id] = element
 
     def _parse_signatures(self):
@@ -131,17 +128,7 @@ class Rot(object):
         for signature in signatures:
             assert ET.iselement(signature)
             ad_id = int(signature.find("ADID").text)
-            len = int(signature.find("len").text)
+            length = int(signature.find("len").text)
             sign = signature.find("sign").text
-            element = SignatureElement(ad_id, len, sign)
-            self.signatures[ad_id] = element       
-
-
-# For testing purposes
-if __name__ == "__main__":
-    import sys
-    if len(sys.argv) < 2:
-        print("Usage: %s <rotfile>" % sys.argv[0])
-        sys.exit()
-    parser = Rot(sys.argv[1])
-    parser.parse()
+            element = SignatureElement(ad_id, length, sign)
+            self.signatures[ad_id] = element

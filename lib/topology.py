@@ -16,11 +16,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from collections import defaultdict
 import logging
-
-from lib.packet.host_addr import *
 import xml.etree.ElementTree as ET
+from lib.packet.host_addr import IPv4HostAddr, IPv6HostAddr, SCIONHostAddr
+from collections import defaultdict
 
 
 class ElementType(object):
@@ -99,9 +98,9 @@ class Topology(object):
     Handles parsing a SCION topology XML file.
     """
     def __init__(self, filename=None):
-        self.ad_id = 0  # AD ID
-        self.isd_id = 0  # ISD ID
-        self.is_core_ad = False  # Flag to represent ISD core ADs
+        self.ad_id = 0
+        self.isd_id = 0
+        self.is_core_ad = False
         self.routers = defaultdict(list)
         self.servers = {}
         self.gateways = {}
@@ -136,7 +135,7 @@ class Topology(object):
             self.ad_id = int(ad_id.text)
         self._parse_servers()
         self._parse_routers()
-        #self._parse_clients()
+        self._parse_clients()
 
     def _parse_servers(self):
         """
@@ -227,7 +226,6 @@ class Topology(object):
             neighbor = et_element.find("NeighborISD")
         assert neighbor is not None
         if_el.neighbor = int(neighbor.text)
-
         neighbor_type = et_element.find("NeighborType").text
         if neighbor_type == "PARENT":
             if_el.neighbor_type = NeighborType.PARENT
@@ -239,19 +237,8 @@ class Topology(object):
             if_el.neighbor_type = NeighborType.ROUTING
         else:
             logging.warning("Encountered unknown neighbor type")
-
         if et_element.find("UdpPort") is not None:
             if_el.udp_port = int(et_element.find("UdpPort").text)
         if et_element.find("ToUdpPort") is not None:
             if_el.to_udp_port = int(et_element.find("ToUdpPort").text)
-
         router.interface = if_el
-
-# For testing purposes
-if __name__ == "__main__":
-    import sys
-    if len(sys.argv) < 2:
-        print("Usage: %s <topofile>" % sys.argv[0])
-        sys.exit()
-    parser = Topology(sys.argv[1])
-    parser.parse()

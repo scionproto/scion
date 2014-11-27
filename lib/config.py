@@ -44,8 +44,8 @@ class Config(object):
         Parses a SCION AD config file and populates the fields.
         """
         assert isinstance(self._filename, str)
-        with open(self._filename) as file:
-            lines = [line.rstrip() for line in file]
+        with open(self._filename) as file_handler:
+            lines = [line.rstrip() for line in file_handler]
 
         for line in lines:
             # Skip commented lines
@@ -74,14 +74,3 @@ class Config(object):
                 self.n_shortest_up_paths = int(val)
             else:
                 logging.warning("Unknown config option: '%s'", key)
-
-
-# For testing purposes
-if __name__ == "__main__":
-    import sys
-    if len(sys.argv) < 2:
-        print("Usage: %s <config_file>" % sys.argv[0])
-        sys.exit()
-    config = Config(sys.argv[1])
-    config.parse()
-    print("Parsing done.\n")

@@ -30,3 +30,5 @@ lib/__pycache__/
 lib/packet/__pycache__/
 topology/ISD*
 topology/conf-gen
+*.pyc
+*.crt

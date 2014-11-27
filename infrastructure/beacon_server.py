@@ -17,20 +17,15 @@ limitations under the License.
 """
 
 from lib.packet.host_addr import IPv4HostAddr
-from lib.packet.pcb import *
-from lib.packet.opaque_field import *
-from lib.packet.opaque_field import OpaqueFieldType as OFT
-from lib.packet.scion import SCIONPacket, IFIDRequest, IFIDReply, get_type,\
-        Beacon, PathInfo, PathRequest, PathRecord
+from lib.packet.pcb import PCBMarking, PeerMarking, AutonomousDomain, PCB
+from lib.packet.opaque_field import SupportSignatureField, HopOpaqueField, \
+    SupportPCBField, SupportPeerField, SpecialField
+from lib.packet.scion import SCIONPacket, get_type, Beacon, PathInfo, PathRecord
 from lib.packet.scion import PacketType as PT
 from lib.topology import ElementType, NeighborType
-from infrastructure.server import ServerBase, SCION_UDP_PORT 
-import threading
-import time
-import socket
-import sys
-import struct #FIXME remove if Beacon/PCB class is ready
-import copy
+from infrastructure.server import ServerBase
+import threading, time, sys, logging, copy
+
 
 class BeaconServer(ServerBase):
     """
@@ -44,13 +39,16 @@ class BeaconServer(ServerBase):
         # add beacons, up_paths, down_paths
 
     def add_ad(self, pcb, ingress, egress):
+        """
+        Adds AD block for the current AD.
+        """
         cert_id = 0
         sig_len = 0
         block_size = 32
-        ingress_if = ingress 
-        egress_if = egress 
+        ingress_if = ingress
+        egress_if = egress
         mac = 0
-        isd_id = self.topology.isd_id 
+        isd_id = self.topology.isd_id
         bwalloc_f = 0
         bwalloc_r = 0
         dyn_bwalloc_f = 0
@@ -80,15 +78,18 @@ class BeaconServer(ServerBase):
             hof = HopOpaqueField.from_values(ingress_if, egress_if, mac)
             spf = SupportPeerField.from_values(isd_id, bwalloc_f, bwalloc_r,
                                                bw_class, reserved)
-            pm = PeerMarking.from_values(ad_id, hof, spf)
-            pcbm.ssf.block_size += pm.LEN
-            pms.append(pm)
+            peer_marking = PeerMarking.from_values(ad_id, hof, spf)
+            pcbm.ssf.block_size += peer_marking.LEN
+            pms.append(peer_marking)
         sig = b''
-        ad = AutonomousDomain.from_values(pcbm, pms, sig)
-        pcb.add_ad(ad)
+        autonomous_domain = AutonomousDomain.from_values(pcbm, pms, sig)
+        pcb.add_ad(autonomous_domain)
 
     def propagate_pcb(self, pcb):
-        print ("Before",pcb)
+        """
+        Propagates the beacon to all children.
+        """
+        print ("Before", pcb)
         ingress = pcb.rotf.if_id
         for router in self.topology.routers[NeighborType.CHILD]:
             new_pcb = copy.deepcopy(pcb)
@@ -102,6 +103,9 @@ class BeaconServer(ServerBase):
             print("PCB propagated", new_pcb)
 
     def pcb_propagation(self):
+        """
+        Generates a new beacon or gets ready to forward the one received.
+        """
         while True:
             if self.topology.is_core_ad:
                 pcb = PCB()
@@ -111,9 +115,9 @@ class BeaconServer(ServerBase):
                 reserved = 0
                 pcb.iof = SpecialField.from_values(timestamp,
                         self.topology.isd_id, hops, reserved)
-                self.beacons=[pcb] #TODO
+                self.beacons = [pcb] #TODO
             if self.beacons:
-                pcb=self.beacons[-1]
+                pcb = self.beacons[-1]
                 self.propagate_pcb(pcb)
             time.sleep(self.config.propagation_time)
 
@@ -128,7 +132,7 @@ class BeaconServer(ServerBase):
 
         print("PCB received")
         pcb = PCB(packet[16:])#TODO
-        self.beacons=[pcb]
+        self.beacons = [pcb]
 
     def register_up_path(self, pcb):
         """
@@ -153,6 +157,9 @@ class BeaconServer(ServerBase):
         self.send(down_path, next_hop)
 
     def path_registration(self):
+        """
+        Registeres paths according to the received beacons.
+        """
         if self.topology.is_core_ad or not self.config.registers_paths:
             logging.info("Leaving path_registration()")
             return
@@ -179,9 +186,9 @@ class BeaconServer(ServerBase):
             print("IFID_REQ received")
         elif ptype == PT.IFID_REP:
             print("IFID_REP received")
-        elif ptype==PT.BEACON:
+        elif ptype == PT.BEACON:
             self.process_pcb(packet)
-        else: 
+        else:
             print("Type not supported")
         #TODO add ROT support etc..
 
@@ -190,13 +197,18 @@ class BeaconServer(ServerBase):
         threading.Thread(target=self.path_registration).start()
         ServerBase.run(self)
 
+
 def main():
+    """
+    Main function.
+    """
     logging.basicConfig(level=logging.DEBUG)
-    if len(sys.argv)!=4:
+    if len(sys.argv) != 4:
         print("run: %s IP topo_file conf_file" %sys.argv[0])
         sys.exit()
-    bs=BeaconServer(IPv4HostAddr(sys.argv[1]), sys.argv[2], sys.argv[3])
-    bs.run()
+    beacon_server = BeaconServer(IPv4HostAddr(sys.argv[1]), sys.argv[2], \
+                                 sys.argv[3])
+    beacon_server.run()
 
 if __name__ == "__main__":
     main()
