@@ -111,7 +111,7 @@ class HopOpaqueField(OpaqueField):
             return
         bits = BitArray(bytes=raw)
         (self.info, self.ingress_if, self.egress_if, self.mac) = \
-            bits.unpack("uintle:8, uintle:16, uintle:16, uintle:24")
+            bits.unpack("uintbe:8, uintbe:16, uintbe:16, uintbe:24")
         self.parsed = True
 
     @classmethod
@@ -169,83 +169,31 @@ class InfoOpaqueField(OpaqueField):
             return
         bits = BitArray(bytes=raw)
         (self.info, self.timestamp, self.isd_id, self.hops, self.reserved) = \
-            bits.unpack("uintle:8, uintle:16, uintle:16, uintle:8, uintle:16")
+            bits.unpack("uintbe:8, uintbe:16, uintbe:16, uintbe:8, uintbe:16")
         self.parsed = True
+
+    @classmethod    
+    def from_values(cls, info, timestamp, isd_id, hops, reserved):
+        iof = InfoOpaqueField()
+        iof.info = info
+        iof.timestamp = timestamp
+        iof.isd_id = isd_id
+        iof.hops = hops
+        iof.reserved = reserved
+        return iof
 
     def pack(self):
         """
         Returns InfoOpaqueFIeld as 8 byte binary string.
         """
-        #PSz: Should InfoOpaqueFIeld with raw==None pack to b'\x00'*8 ?
-        if not self.raw:
-            return b''
-        return bitstring.pack("uintle:8, uintle:16, uintle:16, uintle:8,"
-                              "uintle:16", self.info, self.timestamp,
+        return bitstring.pack("uintbe:8, uintbe:16, uintbe:16, uintbe:8,"
+                              "uintbe:16", self.info, self.timestamp,
                               self.isd_id, self.hops, self.reserved).bytes
 
     def __str__(self):
         iof_str = "[Info OF info: %x, TS: %u, ISD ID: %u, hops: %u]" % (
             self.info, self.timestamp, self.isd_id, self.hops)
         return iof_str
-
-
-class SpecialField(OpaqueField):
-    """
-    Class for the special opaque field.
-
-    The info opaque field contains info info of the path (1 byte), an expiration
-    timestamp (2 bytes), the ISD ID (2 byte), # hops for this path (2 byte) and
-    a reserved section (2 bytes).
-    """
-    def __init__(self, raw=None):
-        OpaqueField.__init__(self)
-        self.info = OpaqueFieldType.SPECIAL_OF
-        self.timestamp = 0
-        self.isd_id = 0
-        self.hops = 0
-        self.reserved = 0
-        if raw is not None:
-            self.parse(raw)
-
-    def parse(self, raw):
-        """
-        Populates fields from a raw byte block.
-        """
-        assert isinstance(raw, bytes)
-        self.raw = raw
-        dlen = len(raw)
-        if dlen < self.LEN:
-            logging.warning("Data too short for parsing, len: %u", dlen)
-            return
-        bits = BitArray(bytes=raw)
-        (self.info, self.timestamp, self.isd_id, self.hops, self.reserved) = \
-            bits.unpack("uintle:8, uintle:16, uintle:16, uintle:8, uintle:16")
-        self.parsed = True
-
-    @classmethod
-    def from_values(cls, timestamp, isd_id, hops, reserved):
-        """
-        Returns SpecialField with fields populated from values.
-        """
-        sof = SpecialField()
-        sof.timestamp = timestamp
-        sof.isd_id = isd_id
-        sof.hops = hops
-        sof.reserved = reserved
-        return sof
-
-    def pack(self):
-        """
-        Returns SpecialField as 8 byte binary string.
-        """
-        return bitstring.pack("uintle:8, uintle:16, uintle:16, uintle:8,"
-               "uintle:16", self.info, self.timestamp, self.isd_id, self.hops,
-               self.reserved).bytes
-
-    def __str__(self):
-        sf_str = "[Special OF info: %x, TS: %u, ISD ID: %u, hops: %u]\n" % (
-            self.info, self.timestamp, self.isd_id, self.hops)
-        return sf_str
 
 
 class ROTField(OpaqueField):
@@ -276,7 +224,7 @@ class ROTField(OpaqueField):
             return
         bits = BitArray(bytes=raw)
         (self.info, self.rot_version, self.if_id, self.reserved) = \
-            bits.unpack("uintle:8, uintle:32, uintle:16, uintle:8")
+            bits.unpack("uintbe:8, uintbe:32, uintbe:16, uintbe:8")
         self.parsed = True
 
     @classmethod
@@ -330,7 +278,7 @@ class SupportSignatureField(OpaqueField):
             return
         bits = BitArray(bytes=raw)
         (self.cert_id, self.sig_len, self.block_size) = \
-            bits.unpack("uintle:32, uintle:16, uintle:16")
+            bits.unpack("uintbe:32, uintbe:16, uintbe:16")
         self.parsed = True
 
     @classmethod
@@ -454,8 +402,8 @@ class SupportPCBField(OpaqueField):
         bits = BitArray(bytes=raw)
         (self.isd_id, self.bwalloc_f, self.bwalloc_r, self.dyn_bwalloc_f,
          self.dyn_bwalloc_r, self.bebw_f, self.bebw_r) = \
-            bits.unpack("uintle:16, uintle:8, uintle:8, uintle:8, uintle:8,"
-                        "uintle:8, uintle:8")
+            bits.unpack("uintbe:16, uintbe:8, uintbe:8, uintbe:8, uintbe:8,"
+                        "uintbe:8, uintbe:8")
         self.parsed = True
 
     @classmethod

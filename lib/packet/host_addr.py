@@ -77,7 +77,7 @@ class IPv4HostAddr(HostAddr):
             self.addr = addr
 
     def set_addr(self, addr):
-        if isinstance(addr, str):
+        if isinstance(addr, str) and len(addr) != 4: # in case that  len(addr) == 4, addr is binary string 
             self._addr = socket.inet_aton(addr)
         elif isinstance(addr, int):
             self._addr = struct.pack("I", addr)

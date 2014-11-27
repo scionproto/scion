@@ -17,9 +17,10 @@ limitations under the License.
 """
 
 from lib.packet.host_addr import IPv4HostAddr
-from lib.packet.pcb import PCBMarking, PeerMarking, AutonomousDomain, PCB
-from lib.packet.opaque_field import SupportSignatureField, HopOpaqueField, \
-    SupportPCBField, SupportPeerField, SpecialField
+from lib.packet.pcb import PCB, AutonomousDomain, PCBMarking, PeerMarking
+from lib.packet.opaque_field import (OpaqueFieldType as OFT, InfoOpaqueField,
+        SupportSignatureField, HopOpaqueField, SupportPCBField,
+        SupportPeerField)
 from lib.packet.scion import SCIONPacket, get_type, Beacon, PathInfo, PathRecord
 from lib.packet.scion import PacketType as PT
 from lib.topology import ElementType, NeighborType
@@ -31,9 +32,10 @@ class BeaconServer(ServerBase):
     """
     The SCION Beacon Server.
     """
+    DELTA = 24*60*60
+
     def __init__(self, addr, topo_file, config_file):
         ServerBase.__init__(self, addr, topo_file, config_file)
-        self.delta = 24*60*60
         self.propagated_beacons = []
         self.beacons = [] #TODO replace by pathstore instance
         # add beacons, up_paths, down_paths
@@ -45,8 +47,6 @@ class BeaconServer(ServerBase):
         cert_id = 0
         sig_len = 0
         block_size = 32
-        ingress_if = ingress
-        egress_if = egress
         mac = 0
         isd_id = self.topology.isd_id
         bwalloc_f = 0
@@ -59,23 +59,22 @@ class BeaconServer(ServerBase):
         bw_class = 0
         reserved = 0
         ssf = SupportSignatureField.from_values(cert_id, sig_len, block_size)
-        hof = HopOpaqueField.from_values(ingress_if, egress_if, mac)
+        hof = HopOpaqueField.from_values(ingress, egress, mac)
         spcbf = SupportPCBField.from_values(isd_id, bwalloc_f, bwalloc_r,
                                             dyn_bwalloc_f, dyn_bwalloc_r,
                                             bebw_f, bebw_r)
         pcbm = PCBMarking.from_values(ad_id, ssf, hof, spcbf)
         pms = []
         for router in self.topology.routers[NeighborType.PEER]:
-            ad_id = self.topology.ad_id
-            ingress_if = ingress
-            egress_if = router.interface.if_id
+            ad_id = router.interface.neighbor
+            ingress = router.interface.if_id
             mac = 0
             isd_id = self.topology.isd_id
             bwalloc_f = 0
             bwalloc_r = 0
             bw_class = 0
             reserved = 0
-            hof = HopOpaqueField.from_values(ingress_if, egress_if, mac)
+            hof = HopOpaqueField.from_values(ingress, egress, mac)
             spf = SupportPeerField.from_values(isd_id, bwalloc_f, bwalloc_r,
                                                bw_class, reserved)
             peer_marking = PeerMarking.from_values(ad_id, hof, spf)
@@ -89,7 +88,6 @@ class BeaconServer(ServerBase):
         """
         Propagates the beacon to all children.
         """
-        print ("Before", pcb)
         ingress = pcb.rotf.if_id
         for router in self.topology.routers[NeighborType.CHILD]:
             new_pcb = copy.deepcopy(pcb)
@@ -99,8 +97,7 @@ class BeaconServer(ServerBase):
             beacon = Beacon.from_values(router.addr, new_pcb)
             self.send(beacon, router.addr)
             self.propagated_beacons.append(new_pcb)
-            logging.info("PCB propagated")
-            print("PCB propagated", new_pcb)
+            logging.info("PCB propagated: %s", new_pcb)
 
     def pcb_propagation(self):
         """
@@ -109,11 +106,11 @@ class BeaconServer(ServerBase):
         while True:
             if self.topology.is_core_ad:
                 pcb = PCB()
-                timestamp = ((int(time.time()) + self.delta) % \
+                timestamp = ((int(time.time()) + self.DELTA) % \
                             (self.TIME_INTERVAL*2^16))/self.TIME_INTERVAL
                 hops = 0
                 reserved = 0
-                pcb.iof = SpecialField.from_values(timestamp,
+                pcb.iof = InfoOpaqueField.from_values(OFT.SPECIAL_OF, timestamp,
                         self.topology.isd_id, hops, reserved)
                 self.beacons = [pcb] #TODO
             if self.beacons:
@@ -127,12 +124,11 @@ class BeaconServer(ServerBase):
         neighboring router.
         """
         if self.topology.is_core_ad:
-            logging.warning("BEACON received by Core BeaconServer")
+            logging.error("BEACON received by Core BeaconServer")
             return
-
-        print("PCB received")
-        pcb = PCB(packet[16:])#TODO
-        self.beacons = [pcb]
+        logging.info("PCB received")
+        pcb = Beacon(packet).pcb
+        self.beacons = [pcb] #TODO needed?
 
     def register_up_path(self, pcb):
         """
@@ -161,7 +157,7 @@ class BeaconServer(ServerBase):
         Registeres paths according to the received beacons.
         """
         if self.topology.is_core_ad or not self.config.registers_paths:
-            logging.info("Leaving path_registration()")
+            logging.warning("Leaving path_registration()")
             return
 
         while True:
@@ -183,13 +179,15 @@ class BeaconServer(ServerBase):
         spkt = SCIONPacket(packet)
         ptype = get_type(spkt)
         if ptype == PT.IFID_REQ:
-            print("IFID_REQ received")
+            #TODO
+            logging.warning("IFID_REQ received, to implement")
         elif ptype == PT.IFID_REP:
-            print("IFID_REP received")
+            #TODO
+            logging.warning("IFID_REP received, to implement")
         elif ptype == PT.BEACON:
             self.process_pcb(packet)
         else:
-            print("Type not supported")
+            logging.warning("Type not supported")
         #TODO add ROT support etc..
 
     def run(self):
@@ -204,10 +202,10 @@ def main():
     """
     logging.basicConfig(level=logging.DEBUG)
     if len(sys.argv) != 4:
-        print("run: %s IP topo_file conf_file" %sys.argv[0])
+        logging.info("run: %s IP topo_file conf_file", sys.argv[0])
         sys.exit()
     beacon_server = BeaconServer(IPv4HostAddr(sys.argv[1]), sys.argv[2], \
-                                 sys.argv[3])
+                    sys.argv[3])
     beacon_server.run()
 
 if __name__ == "__main__":

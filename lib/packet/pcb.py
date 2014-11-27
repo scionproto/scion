@@ -16,10 +16,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from bitstring import BitArray
 from lib.packet.opaque_field import SupportSignatureField, HopOpaqueField, \
     SupportPCBField, SupportPeerField, SpecialField, ROTField
+from lib.packet.path import CorePath
 import bitstring, logging
+from bitstring import BitArray
 
 
 class PCBMarking(object):
@@ -49,7 +50,7 @@ class PCBMarking(object):
             logging.warning("PCBM: Data too short for parsing, len: %u", dlen)
             return
         bits = BitArray(bytes=raw[:8])
-        self.ad_id = bits.unpack("uintle:64")[0]
+        self.ad_id = bits.unpack("uintbe:64")[0]
         self.ssf.parse(raw[8:16])
         self.hof.parse(raw[16:24])
         self.spcbf.parse(raw[24:32])
@@ -108,7 +109,7 @@ class PeerMarking(object):
             logging.warning("PM: Data too short for parsing, len: %u", dlen)
             return
         bits = BitArray(bytes=raw[0:8])
-        self.ad_id = bits.unpack("uintle:64")[0]
+        self.ad_id = bits.unpack("uintbe:64")[0]
         self.hof.parse(raw[8:16])
         self.spf.parse(raw[16:24])
         self.parsed = True
@@ -210,67 +211,6 @@ class AutonomousDomain(object):
         return ad_str
 
 
-class CorePath(object):
-    """
-        Packs the Core Path, that contains a Info Opaque Field and a list
-        of Hop Opaque Fields
-    """
-    LEN = 8
-
-    def __init__(self, raw=None):
-        self.parsed = False
-        self.raw = None
-        self.iof = SpecialField()
-        self.hofs = []
-        if raw is not None:
-            self.parse(raw)
-
-    def parse(self, raw):
-        """
-        Populates fields from a raw bytes block.
-        """
-        assert isinstance(raw, bytes)
-        self.raw = raw
-        dlen = len(raw)
-        if dlen < self.LEN:
-            logging.warning("CP: Data too short for parsing, len: %u", dlen)
-            return
-        self.iof.parse(raw[:self.iof.LEN])
-        raw = raw[self.iof.LEN:]
-        while len(raw) > 0:
-            hof = HopOpaqueField()
-            hof.parse(raw[:hof.LEN])
-            self.hofs.append(hof)
-            raw = raw[hof.LEN:]
-        self.parsed = True
-
-    @classmethod
-    def from_values(cls, iof, hofs):
-        """
-        Returns CorePath with fields populated from values.
-        """
-        core_path = CorePath()
-        core_path.iof = iof
-        core_path.hofs = hofs
-        return core_path
-
-    def pack(self):
-        """
-        Returns CorePath as a binary string.
-        """
-        core_path_bytes = self.iof.pack()
-        for hof in self.hofs:
-            core_path_bytes += hof.pack()
-        return core_path_bytes
-
-    def __str__(self):
-        core_path_str = "[Registration Path]\n"
-        core_path_str += str(self.iof)
-        for hof in self.hofs:
-            core_path_str += str(hof)
-        return core_path_str
-
-
 class PCB(object):
     """
         Packs all PCB fields for a specific beacon
@@ -280,7 +220,8 @@ class PCB(object):
     def __init__(self, raw=None):
         self.parsed = False
         self.raw = None
-        self.iof = SpecialField()
+        self.iof = InfoOpaqueField()
+        self.iof.info = OpaqueFieldType.SPECIAL_OF
         self.rotf = ROTField()
         self.ads = []
         if raw is not None:
