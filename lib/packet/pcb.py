@@ -17,7 +17,8 @@ limitations under the License.
 """
 
 from lib.packet.opaque_field import SupportSignatureField, HopOpaqueField, \
-    SupportPCBField, SupportPeerField, SpecialField, ROTField
+    SupportPCBField, SupportPeerField, ROTField, InfoOpaqueField, \
+    OpaqueFieldType
 from lib.packet.path import CorePath
 import bitstring, logging
 from bitstring import BitArray
