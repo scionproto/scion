@@ -117,6 +117,9 @@ class SCIONDaemon(ServerBase):
         return self.ifid2addr[of.ingress_if]
 
 def main():
+    """
+    Main function.
+    """
     logging.basicConfig(level=logging.DEBUG)
     if len(sys.argv) != 4:
         logging.error("run: %s IP topo_file conf_file", sys.argv[0])

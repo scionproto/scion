@@ -79,7 +79,7 @@ class PCBMarking(object):
     def __str__(self):
         pcbm_str = "[PCB Marking ad_id: %x]\n" % (self.ad_id)
         pcbm_str += str(self.ssf)
-        pcbm_str += str(self.hof)
+        pcbm_str += str(self.hof) + '\n'
         pcbm_str += str(self.spcbf)
         return pcbm_str
 
@@ -135,7 +135,7 @@ class PeerMarking(object):
 
     def __str__(self):
         pm_str = "[Peer Marking ad_id: %x]\n" % (self.ad_id)
-        pm_str += str(self.hof)
+        pm_str += str(self.hof) + '\n'
         pm_str += str(self.spf)
         return pm_str
 

@@ -135,7 +135,6 @@ class Topology(object):
             self.ad_id = int(ad_id.text)
         self._parse_servers()
         self._parse_routers()
-        self._parse_clients()
 
     def _parse_servers(self):
         """
@@ -178,18 +177,6 @@ class Topology(object):
             for interface in interfaces:
                 self._parse_interface(interface, element)
             self.routers[element.interface.neighbor_type].append(element)
-
-    def _parse_clients(self):
-        """
-        Parses the clients in the topology file.
-        """
-        clients = self._topo.getroot().find("Clients")
-        if clients is None:
-            logging.info("No clients found in %s", self._filename)
-            return
-        for client in clients:
-            element = ClientElement()
-            self.clients.append(element)
 
     def _parse_address(self, et_element, element):
         """

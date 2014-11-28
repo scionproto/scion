@@ -347,16 +347,15 @@ class SCIONHeader(HeaderBase):
                   self.common_hdr.dst_addr_len))
         return self.path.get_of(offset // OpaqueField.LEN)
 
-    def get_relative_of(self, offset):
+    def get_relative_of(self, n):
         """
-        Returns (number_of_current_of + offset)th opaque field.
-        offset may be negative.
+        Returns (number_of_current_of + n)th opaque field. n may be negative.
         """
         if self.path is None:
             return None
         offset = (self.common_hdr.current_of - (self.common_hdr.src_addr_len +
                   self.common_hdr.dst_addr_len))
-        return self.path.get_of(offset // OpaqueField.LEN + offset)
+        return self.path.get_of(offset // OpaqueField.LEN + n)
 
     def get_next_of(self):
         """

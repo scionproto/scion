@@ -133,7 +133,7 @@ class HopOpaqueField(OpaqueField):
                self.info, self.ingress_if, self.egress_if, self.mac).bytes
 
     def __str__(self):
-        hof_str = "[Hop OF info: %u, ingress if: %u, egress if: %u, mac: %x]\n"\
+        hof_str = "[Hop OF info: %u, ingress if: %u, egress if: %u, mac: %x]"\
                     % (self.info, self.ingress_if, self.egress_if, self.mac)
         return hof_str
 

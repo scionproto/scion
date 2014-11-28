@@ -207,6 +207,9 @@ class PathServer(ServerBase):
             logging.warning("Type %d not supported.", ptype)
 
 def main():
+    """
+    Main function.
+    """
     logging.basicConfig(level=logging.DEBUG)
     if len(sys.argv) != 4:
         logging.error("run: %s IP topo_file conf_file", sys.argv[0])
