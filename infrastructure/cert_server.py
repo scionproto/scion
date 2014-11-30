@@ -54,7 +54,7 @@ class CertServer(ServerBase):
         """
         Process a certificate request
         """
-        print("Cert request received")
+        logging.info("Cert request received")
         cert_req = CertRequest(packet)
         src_addr = cert_req.hdr.src_addr
         path = cert_req.path
@@ -72,27 +72,26 @@ class CertServer(ServerBase):
                     '/certificates/isd' + cert_isd + \
                     '-ad' + cert_ad + '-' + cert_version + '.crt'
         if os.path.exists(cert_file) == False:
-            print('CS (%s:%s): certificate %s:%s not found, sending up stream.'\
-                % self.topology.isd_id, self.topology.ad_id, cert_isd, cert_ad)
+            logging.info('Certificate %s:%s not found, sending up stream.',
+                         cert_isd, cert_ad)
             self.cert_requests.setdefault(target_key, []).append(src_addr)
             dst_addr = get_addr_from_type(PT.CERT_REQ)
-            new_cert_req = CertRequest.from_values(PT.CERT_REQ, self.addr, \
+            new_cert_req = CertRequest.from_values(PT.CERT_REQ, self.addr,
                            dst_addr, path, cert_isd, cert_ad, cert_version)
             self.send(new_cert_req, dst_addr)
         else:
-            print('CS (%s:%s): certificate %s:%s found, sending it back to \
-                  requester (%s)' % self.topology.isd_id, self.topology.ad_id,
-                  cert_isd, cert_ad, src_addr)
+            logging.info('Certificate %s:%s found, sending it back to requester\
+                         (%s)', cert_isd, cert_ad, src_addr)
             file_handler = open(cert_file, 'r')
             cert = file_handler.read()
             file_handler.close()
             if cert_req.hdr.path == None or cert_req.hdr.path == '':
-                cert_rep = CertReply.from_values(self.addr, src_addr, None, \
+                cert_rep = CertReply.from_values(self.addr, src_addr, None,
                            cert_isd, cert_ad, cert_version, cert)
                 self.send(cert_rep, src_addr)
             else:
                 path = path.reverse()
-                cert_rep = CertReply.from_values(self.addr, src_addr, path, \
+                cert_rep = CertReply.from_values(self.addr, src_addr, path,
                            cert_isd, cert_ad, cert_version, cert)
                 #cert_rep.hdr.set_downpath()
                 (next_hop, port) = self.get_first_hop(cert_rep)
@@ -103,15 +102,14 @@ class CertServer(ServerBase):
         """
         process a certificate reply
         """
-        print("Cert reply received")
+        logging.info("Cert reply received")
         cert_rep = CertReply(packet)
         cert_isd = cert_rep.cert_isd
         cert_ad = cert_rep.cert_ad
         cert_version = cert_rep.cert_version
         cert = cert_rep.cert
         if self._verify_cert(cert) == False:
-            print("CS (%s:%s): certificate verification failed." % \
-                  self.topology.isd_id, self.topology.ad_id)
+            logging.info("Certificate verification failed.")
             return
         cert_file = '../topology/ISD' + cert_isd + \
                     '/certificates/isd' + cert_isd + \
@@ -125,7 +123,7 @@ class CertServer(ServerBase):
         target_key = target_key.encode('utf-8')
         target_key = hashlib.sha256(target_key).hexdigest()
         for dst_addr in self.cert_requests[target_key]:
-            new_cert_rep = CertReply.from_values(self.addr, dst_addr, None, \
+            new_cert_rep = CertReply.from_values(self.addr, dst_addr, None,
                            cert_isd, cert_ad, cert_version, cert)
             self.send(new_cert_rep, dst_addr)
         del self.cert_requests[target_key]
@@ -134,7 +132,7 @@ class CertServer(ServerBase):
         """
         process a ROT request
         """
-        print("ROT request received")
+        logging.info("ROT request received")
         rot_req = RotRequest(packet)
         src_addr = rot_req.hdr.src_addr
         path = rot_req.path
@@ -151,27 +149,25 @@ class CertServer(ServerBase):
                     '/rot-isd' + rot_isd + \
                     '-' + rot_version + '.xml'
         if os.path.exists(rot_file) == False:
-            print('CS (%s:%s): ROT file %s not found, sending up stream.' % \
-                  self.topology.isd_id, self.topology.ad_id, rot_isd)
+            logging.info('ROT file %s not found, sending up stream.', rot_isd)
             self.rot_requests.setdefault(target_key, []).append(src_addr)
             dst_addr = get_addr_from_type(PT.ROT_REQ)
-            new_rot_req = RotRequest.from_values(PT.ROT_REQ, self.addr, \
+            new_rot_req = RotRequest.from_values(PT.ROT_REQ, self.addr,
                           dst_addr, path, rot_isd, rot_version)
             self.send(new_rot_req, dst_addr)
         else:
-            print('CS (%s:%s): ROT file %s found, sending it back to \
-                  requester (%s)' % self.topology.isd_id, self.topology.ad_id,
-                  rot_isd, src_addr)
+            logging.info('ROT file %s found, sending it back to requester (%s)',
+                         rot_isd, src_addr)
             file_handler = open(rot_file, 'r')
             rot = file_handler.read()
             file_handler.close()
             if rot_req.hdr.path == None or rot_req.hdr.path == '':
-                rot_rep = RotReply.from_values(self.addr, src_addr, None, \
+                rot_rep = RotReply.from_values(self.addr, src_addr, None,
                           rot_isd, rot_version, rot)
                 self.send(rot_rep, src_addr)
             else:
                 path = path.reverse()
-                rot_rep = RotReply.from_values(self.addr, src_addr, path, \
+                rot_rep = RotReply.from_values(self.addr, src_addr, path,
                           rot_isd, rot_version, rot)
                 #rot_rep.hdr.set_downpath()
                 (next_hop, port) = self.get_first_hop(rot_rep)
@@ -182,14 +178,13 @@ class CertServer(ServerBase):
         """
         process a ROT reply
         """
-        print("ROT reply received")
+        logging.info("ROT reply received")
         rot_rep = RotReply(packet)
         rot_isd = rot_rep.rot_isd
         rot_version = rot_rep.rot_version
         rot = rot_rep.rot
         if self._verify_cert(rot) == False:
-            print("CS (%s:%s): ROT verification failed." % \
-                  self.topology.isd_id, self.topology.ad_id)
+            logging.info("ROT verification failed.")
             return
         rot_file = '../topology/ISD' + rot_isd + \
                     '/rot-isd' + rot_isd + \
@@ -203,7 +198,7 @@ class CertServer(ServerBase):
         target_key = target_key.encode('utf-8')
         target_key = hashlib.sha256(target_key).hexdigest()
         for dst_addr in self.rot_requests[target_key]:
-            new_rot_rep = RotReply.from_values(self.addr, dst_addr, None, \
+            new_rot_rep = RotReply.from_values(self.addr, dst_addr, None,
                           rot_isd, rot_version, rot)
             self.send(new_rot_rep, dst_addr)
         del self.rot_requests[target_key]
@@ -223,7 +218,7 @@ class CertServer(ServerBase):
         elif ptype == PT.ROT_REP:
             self.process_rot_reply(packet)
         else:
-            print("Type not supported")
+            logging.info("Type not supported")
 
 def main():
     """
@@ -233,7 +228,7 @@ def main():
     if len(sys.argv) != 5:
         print("run: %s IP topo_file conf_file rot_file" %sys.argv[0])
         sys.exit()
-    cert_server = CertServer(IPv4HostAddr(sys.argv[1]), sys.argv[2], \
+    cert_server = CertServer(IPv4HostAddr(sys.argv[1]), sys.argv[2],
                              sys.argv[3], sys.argv[4])
     cert_server.run()
 
