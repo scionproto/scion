@@ -11,6 +11,7 @@ CERT_REP        10.224.0.2 (ANYCAST)    UNICAST                         CCS->C
 #PATH_REQ_LOCAL  UNICAST                 10.224.0.3 (ANYCAST)            EH->PS
 #PATH_REP_LOCAL  10.224.0.3 (ANYCAST)    UNICAST                         PS->EH
 PATH_REQ        UNICAST                 10.224.0.4 (ANYCAST)            PS->CPS
+PATH_REC        10.224.0.4 (ANYCAST)    UNICAST                         CPS->PS
 #PATH_REP        10.224.0.4 (ANYCAST)    UNICAST                         CPS->PS
 #PATH_REQ_TDC    UNICAST                 10.224.0.5 (ANYCAST)            CPS->CPS
 #PATH_REP_TDC    10.224.0.5 (ANYCAST)    UNICAST                         CPS->CPS
