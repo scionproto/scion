@@ -213,7 +213,7 @@ class Router(ServerBase):
                         self.topology.servers[ET.CERTIFICATE_SERVER].addr)
             elif iface:
                 next_hop.addr = self.ifid2addr[iface]
-            elif ptype in [PT.PATH_REG, PT.PATH_REQ, PT.PATH_REP]:
+            elif ptype in [PT.PATH_REQ, PT.PATH_REC]:
                 next_hop.addr = self.topology.servers[ET.PATH_SERVER].addr
             else:
                 next_hop.addr = spkt.hdr.dst_addr

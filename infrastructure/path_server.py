@@ -96,7 +96,7 @@ class PathServer(ServerBase):
         path_reply = PathRecord.from_values(dst, path_request.info, paths, path)
         path_reply.hdr.set_downpath()
         (next_hop, port) = self.get_first_hop(path_reply)
-        logging.info("Sending PATH_REP, using path: %s", path)
+        logging.info("Sending PATH_REC, using path: %s", path)
         self.send(path_reply, next_hop, port)
 
     def request_core(self, isd, ad):
@@ -169,7 +169,7 @@ class PathServer(ServerBase):
             isd = pcb.get_isd()
             ad = pcb.get_last_ad()
             update_dict(self.down_paths, (isd, ad), [pcb], PATHS_NO)
-            logging.info("PATH_REG (%d, %d)", isd, ad)
+            logging.info("PATH registered (%d, %d)", isd, ad)
 
         #serve pending requests
         if isd and ad and (isd, ad) in self.pending_requests:
@@ -201,7 +201,7 @@ class PathServer(ServerBase):
 
         if ptype == PT.PATH_REQ:
             self.handle_path_request(packet)
-        elif ptype == PT.PATH_REP:
+        elif ptype == PT.PATH_REC:
             self.dispatch_path_record(packet)
         else:
             logging.warning("Type %d not supported.", ptype)

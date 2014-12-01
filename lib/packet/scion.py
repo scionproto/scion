@@ -41,12 +41,8 @@ class PacketType(object):
     CERT_REP_LOCAL = 103  # local certificate reply (from certificate server)
     CERT_REQ = 104  # Certificate Request to parent AD
     CERT_REP = 105  # Certificate Reply from parent AD
-    PATH_REQ_LOCAL = 106  # path request to local path server
-    PATH_REP_LOCAL = 107  # path reply from local path server
-    PATH_REQ = 108  # Path request to TDC
-    PATH_REP = 109  # Path reply from TDC
-    PATH_REG = 110  # Path registration to TDC
-    UP_PATH = 111  # up-path to TDC (beacon server -> path server)
+    PATH_REQ = 108  # Path request to TDC/lPS
+    PATH_REC = 109  # Path record (downpath reg. reply from TDC/lPS)
     ROT_REQ_LOCAL = 112  # ROT file reply to local certificate server
     ROT_REP_LOCAL = 113  # ROT file reply from local certificate server
     OFG_KEY_REQ = 114  # opaque field generation key request to CS
@@ -55,8 +51,6 @@ class PacketType(object):
     IFID_REP = 117  # IF ID reply from the peer router
     ROT_REQ = 118  # Root of Trust file request to parent AD
     ROT_REP = 119  # Root of Trust file reply from parent AD
-    PATH_REQ_TDC = 120  # Request for a path to other TDC
-    PATH_REP_TDC = 121  # Reply from other TDC
 
 
 class SignatureType(object):
@@ -78,28 +72,21 @@ class IDSize(object):
 TYPES_SRC = {
         PacketType.BEACON: 16834570,
         PacketType.CERT_REP: 33611786,
-        PacketType.PATH_REP_LOCAL: 50389002,
-        PacketType.PATH_REP: 67166218,
-        PacketType.PATH_REP_TDC: 83943434,
+        PacketType.PATH_REC: 67166218,
         PacketType.ROT_REP_LOCAL:100720650,
         PacketType.OFG_KEY_REP: 117497866,
         PacketType.ROT_REP: 134275082,
         PacketType.CERT_REP_LOCAL:151052298,
         PacketType.IFID_REP: 167829514,
-        PacketType.UP_PATH: 33612000,
         }
 TYPES_SRC_INV = {v: k for k, v in TYPES_SRC.items()}
 TYPES_DST = {
         PacketType.CERT_REQ: 33611786,
-        PacketType.PATH_REQ_LOCAL:50389002,
         PacketType.PATH_REQ: 67166218,
-        PacketType.PATH_REQ_TDC: 83943434,
         PacketType.ROT_REQ_LOCAL: 100720650,
         PacketType.OFG_KEY_REQ: 117497866,
         PacketType.ROT_REQ: 134275082,
         PacketType.CERT_REQ_LOCAL: 151052298,
-        PacketType.UP_PATH: 33612000,
-        PacketType.PATH_REG: 50389216,
         PacketType.IFID_REQ: 167829514,
     }
 TYPES_DST_INV = {v: k for k, v in TYPES_DST.items()}
@@ -693,7 +680,7 @@ class PathRecord(SCIONPacket):
         @param path: path to a core or empty (when request is local)
         """
         rec = PathRecord()
-        src = get_addr_from_type(PacketType.PATH_REP)
+        src = get_addr_from_type(PacketType.PATH_REC)
         rec.hdr = SCIONHeader.from_values(src, dst, PacketType.DATA, path=path)
         rec.payload = b"".join([info.pack(), PCB.serialize(pcbs)])
         rec.info = info

@@ -104,7 +104,7 @@ class SCIONDaemon(ServerBase):
         spkt = SCIONPacket(packet)
         ptype = get_type(spkt)
 
-        if ptype == PT.PATH_REP:
+        if ptype == PT.PATH_REC:
             self.handle_path_reply(packet)
         else:
             logging.warning("Type %d not supported.", ptype)

@@ -449,7 +449,6 @@ class EmptyPath(PathBase):
         return "<Empty-Path></Empty-Path>"
 
 
-#Function for path joining
 def build_core_path(up_path, down_path):
     """
     Joins up_ and down_path into core fullpath. Returns object of CorePath class
