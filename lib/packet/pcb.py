@@ -211,6 +211,8 @@ class AutonomousDomain(object):
         return ad_str
 
 
+#TODO PSz: IMO we should change naming. We have class Beacon (for actual packet)
+# and class PCB for half-path representation. Suggestion: change PCB to HalfPath
 class PCB(object):
     """
         Packs all PCB fields for a specific beacon

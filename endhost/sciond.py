@@ -27,6 +27,7 @@ from infrastructure.path_server import update_dict
 import sys
 import threading
 import logging
+import time
 
 PATHS_NO = 5 #conf parameter?
 
@@ -122,16 +123,31 @@ def main():
     """
     logging.basicConfig(level=logging.DEBUG)
     if len(sys.argv) != 4:
-        logging.error("run: %s IP topo_file conf_file", sys.argv[0])
+        logging.error("run: %s IP topo_file conf_file(empty)", sys.argv[0])
         sys.exit()
     sd = SCIONDaemon(IPv4HostAddr(sys.argv[1]), sys.argv[2], sys.argv[3])
     threading.Thread(target=sd.run).start()
+
+    #testing
+    # logging.info("Sending UP_PATH request in 5 seconds")
+    # time.sleep(5)
+    # sd.request_paths(PathInfo.UP_PATH, 0, 0)
+    # logging.info("Sending DOWN_PATH request in 3 seconds")
+    # time.sleep(3)
+    # sd.request_paths(PathInfo.DOWN_PATH, 11, 5)
+    # logging.info("Clearing cache and sending BOTH_PATHS request in 3 seconds")
+    # sd.up_paths = []
+    # sd.down_paths = {}
+    # sd._waiting_targets = {}
+    # time.sleep(3)
+
+    logging.info("Requesting path for (11, 6)")
     path = sd.get_paths(11, 6)[0]
     dst = IPv4HostAddr("192.168.6.106")
     scion_pkt = SCIONPacket.from_values(sd.addr, dst, b"payload", path)
     hop = sd.get_first_hop(scion_pkt)
     sd.send(scion_pkt, hop)
-    logging.info("Send packet to: %s\nFirst hop: %s", scion_pkt, hop)
+    logging.info("Sending packet to: %s\nFirst hop: %s", scion_pkt, hop)
 
 if __name__ == "__main__":
     main()

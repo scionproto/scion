@@ -28,6 +28,8 @@ from infrastructure.server import ServerBase
 import threading, time, sys, logging, copy
 
 
+#TODO PSz: revise naming, it is quite confusing, Beacon, PCB, path ...
+#     We need to sync it with design doc.
 class BeaconServer(ServerBase):
     """
     The SCION Beacon Server.
@@ -38,12 +40,13 @@ class BeaconServer(ServerBase):
         ServerBase.__init__(self, addr, topo_file, config_file)
         self.propagated_beacons = []
         self.beacons = [] #TODO replace by pathstore instance
-        # add beacons, up_paths, down_paths
+        #TODO: add beacons, up_paths, down_paths
 
     def add_ad(self, pcb, ingress, egress):
         """
         Adds AD block for the current AD.
         """
+#TODO PSz: beacon must be revised. We have design slides for a new format.
         cert_id = 0
         sig_len = 0
         block_size = 32
@@ -65,6 +68,7 @@ class BeaconServer(ServerBase):
                                             bebw_f, bebw_r)
         pcbm = PCBMarking.from_values(ad_id, ssf, hof, spcbf)
         pms = []
+#TODO PSz: peering link can be only added when there is IfidReply from router
         for router in self.topology.routers[NeighborType.PEER]:
             ad_id = router.interface.neighbor
             ingress = router.interface.if_id

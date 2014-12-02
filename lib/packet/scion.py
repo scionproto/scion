@@ -544,7 +544,7 @@ class IFIDReply(SCIONPacket):
 
 class Beacon(SCIONPacket):
     """
-    Beacon packet.
+    Beacon packet, used for path propagation.
     """
     def __init__(self, raw=None):
         SCIONPacket.__init__(self)
@@ -562,13 +562,13 @@ class Beacon(SCIONPacket):
         Returns a Beacon packet with the values specified.
 
         @param dst: Destination address (must be a 'HostAddr' object)
-        @param pcb: Path Construction Beacon.
+        @param pcb: Path Construction Beacon (half-path of 'PCB' class)
         """
         beacon = Beacon()
         beacon.pcb = pcb
         src = get_addr_from_type(PacketType.BEACON)
         beacon.hdr = SCIONHeader.from_values(src, dst, PacketType.DATA)
-        return beacon 
+        return beacon
 
     def pack(self):
         self.payload = self.pcb.pack()
@@ -577,12 +577,12 @@ class Beacon(SCIONPacket):
 
 class PathInfo(object):
     """
-    Body for path request/reply packets.
+    Path Info class used in sending path requests/replies.
     """
-    LEN = 18
-    UP_PATH = 0
-    DOWN_PATH = 1
-    BOTH_PATHS = 2
+    LEN = 11
+    UP_PATH = 0 #Request/Reply for up-paths
+    DOWN_PATH = 1 #Request/Reply for down-paths
+    BOTH_PATHS = 2 #Request/Reply for up- and down-paths
 
     def __init__(self, raw=None):
         self.type = None
@@ -596,21 +596,22 @@ class PathInfo(object):
         Populates fields from a raw bytes block.
         """
         bits = BitArray(bytes=raw)
-        (self.type, self.isd, self.ad, _, _, _) = \
-            bits.unpack("uintbe:8, uintbe:16, uintbe:64, "
-                        "uintbe:24, uintbe:16, uintbe:16")
+        (self.type, self.isd, self.ad) = bits.unpack(
+        "uintbe:8, uintbe:16,uintbe:64")
+
     def pack(self):
         """
         Returns PathInfo as a binary string.
         """
-        return bitstring.pack("uintbe:8, uintbe:16, uintbe:64, "
-                              "uintbe:24, uintbe:16, uintbe:16",
-                              self.type, self.isd, self.ad, 0, 0, 0).bytes
+        return bitstring.pack("uintbe:8, uintbe:16, uintbe:64", self.type,
+                self.isd, self.ad).bytes
 
     @classmethod
     def from_values(cls, pckt_type, isd, ad):
         """
         Returns PathInfo with fields populated from values.
+        @param pckt_type: type of request/reply
+        @param isd, ad: address of targeted AD
         """
         info = PathInfo()
         info.type = pckt_type
@@ -639,8 +640,8 @@ class PathRequest(SCIONPacket):
         Returns a Path Request with the values specified.
 
         @param src: Source address (must be a 'HostAddr' object)
-        @param isd, ad: address of targeted AD
-        @param path: path to a core or empty (when request is local)
+        @param info: determines type of a path request (object of 'PathInfo')
+        @param path: path to a core or None (when request is local)
         """
         req = PathRequest()
         dst = get_addr_from_type(PacketType.PATH_REQ)
@@ -656,7 +657,9 @@ class PathRequest(SCIONPacket):
 
 class PathRecord(SCIONPacket):
     """
-    Path Registration packet.
+    Path Record class used for sending list of down/up-paths. Paths are
+    represented as object of PCB class. Type of paths is determined through info
+    field (object of PathInfo).
     """
     def __init__(self, raw=None):
         SCIONPacket.__init__(self)
@@ -673,11 +676,11 @@ class PathRecord(SCIONPacket):
     @classmethod
     def from_values(cls, dst, info, pcbs, path=None):
         """
-        Returns a Path Request with the values specified.
+        Returns a Path Record with the values specified.
 
+        @param info: determines type of a path record (object of 'PathInfo')
         @param dst: Destination address (must be a 'HostAddr' object)
-        @param isd, ad: address of targeted AD
-        @param path: path to a core or empty (when request is local)
+        @param path: path to a core or None (when reply is local)
         """
         rec = PathRecord()
         src = get_addr_from_type(PacketType.PATH_REC)
