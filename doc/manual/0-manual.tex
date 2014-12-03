@@ -42,7 +42,7 @@
     \DTLforeach*{glossary}%
       {\theDesc=description,\theLabel=sortlabel,\theIdx=index}{%
       \item \textbf{\theLabel~------}
-      \ifx \theIdx \empty \else \index{\theIdx} \fi
+      \ifx \theIdx \empty \index{\theLabel} \else \index{\theIdx} \fi
       \theDesc
     }
   \end{itemize}
@@ -51,13 +51,13 @@
   % Sort entries.
   \DTLsort{sortlabel}{abbrev}
   \chapter{SCION Abbreviations}
+  \index{00@SCION Abbreviations}
   \begin{itemize}
     \setlength{\itemsep}{2mm}
     \DTLforeach*{abbrev}%
       {\theDesc=description,\theLabel=sortlabel,\theIdx=index}{%
       \item[] \textbf{\theLabel} $\to$ \theDesc
-      \index{\theLabel}
-      \ifx \theIdx \empty \index{\theDesc} \else \index{\theIdx} \fi
+      \ifx \theIdx \empty \index{00@SCION Abbreviations!\theLabel} \else \index{00@SCION Abbreviations!\theIndex} \fi
     }
   \end{itemize}
   

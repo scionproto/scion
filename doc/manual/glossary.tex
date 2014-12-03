@@ -19,8 +19,8 @@
 %    \abbrev{CBS}{Core Beacon Server}
 
 % This entry will appear in the abbreviation list (behind
-% the glossary) and in the index with both abbrevation and
-% non-abbreviated string.
+% the glossary). Moreover, the abbreviation will appear in
+% the index.
 
 
 %%% How to create manual index entries? %%%%%%%%%%%%%%%%%%%
@@ -30,24 +30,17 @@
 
 %    \gitem[Keyword]{Title}{Description}
 
-% The  keyword string will appear in the index and  point to
-% to the page  where the glossary entry appears.  Be careful
-% when using the optional index  keyword in conjunction with
-% the \abbrev command.  Both add an index entry.  You should
-% omit the index keyword from \gitem if you use \abbrev.
+% The keyword string will appear in the index and point to
+% to the page where the glossary entry appears.
 
+% As mentioned above, the \abbrev command also adds an index
+% entry for the abbreviation. You can, however, specify an
+% individual index entry as follows.
 
-% The \abbrev command also allows for the specification of
-% individual index entries.
+%    \abbrev[Keyword]{CBS}{Core Beacon Server}
 
-%    \abbrev[core beacon server]{CBS}{Core Beacon Server}
-
-% In this case, the index will contain the entries
-%  "core beacon server"  and  "CBS"
-% instead of the usual two entries
-%  "Core Beacon Server"  and  "CBS".
-% Please use this optional argument to achieve consistency
-% in the index.
+% In this case, the index will contain the entry Keyword,
+% instead of the long string ("Core Beacon Server" here).
 
 
 \newcommand\go{$\to$}
@@ -89,16 +82,16 @@ needs to be continuously renewed. See also \go~Static Path.}
 
 %% Path Server.
 
-\gitem[path server]{Path Server}{Service within an \go~Isolation
+\gitem{Path Server}{Service within an \go~Isolation
 Domain where end hosts register their up- and down-paths. End hosts
 can query path servers in order to obtain valid paths do a
 destination. \\ For more information, please check the entries for
 \go~Core Path Server (CPS) and \go~Local Path Server (LPS)}
 
-\gitem{Core Path Server (CPS)}{Path Server located in the ISD core,
+\gitem[Core Path Server]{Core Path Server (CPS)}{Path Server located in the ISD core,
 more precisely within a core AD. Non-core ADs within the ISD register
 their intra-ISD down-paths, the CPS stores the paths, and resolves
-inter-ISD paths. More precisely, each Beacon Server (BS) within the
+inter-ISD paths. More precisely, each \go~Beacon Server (BS) within the
 same ISD registers up to $k$ down-paths with the CPS. The CPS
 receives from a Local Path Server (LPS) as input a SCION destination
 address and returns up to $k$ down-paths to the destination AD. If
@@ -111,7 +104,7 @@ availability. Additionally, all core path servers within a single ISD
 run a consistency protocol to ensure a consistent view of ISD-local
 paths.} \abbrev{CPS}{Core Path Server}
 
-\gitem{Local Path Server (LPS)}{Service within a non-core A that
+\gitem[Local Path Server]{Local Path Server (LPS)}{Service within a non-core A that
 retrieves from \go~Local Beacon Servers (LBS) a path from itself to a
 \go~SCION address. The LPS receives (from a local client) as input a
 SCION destination address, and returns up to $k$ up-paths and up to
@@ -130,32 +123,33 @@ multiple devices increase availability.}
 
 % Beacon Server.
 
-\gitem[beacon server]{Beacon Server (BS)}{Service that enables path
-exploration within an ISD. The ISD core beacon server starts the
-propagation of Path Construction Beacons (PCBs) to construct a
-half-path from the ISD Core to endpoint ADs. Upon receiving a PCB, a
-BS can choose to register the learned path with the Core Path Server
-(CPS) and its Local Path Server (LPS). The BS then propagates the PCB
-to its down-stream and peering ADs and appends for each of these ADs
-a corresponding routing decision, known as an Opaque Field (OF). A BS
-located in an endpoint AD only registers paths with the LPS and the
-CPS, since PCBs are never propagated up-stream. \\ For additional
-information, please check the entries for \go~Core Beacon Server
-(CBS) and \go~Local Beacon Server (LBS).}
+\gitem[Beacon Server]{Beacon Server (BS)}{Service that
+enables path exploration within an ISD. The ISD core beacon
+server starts the propagation of Path Construction Beacons
+(PCBs) to construct a half-path from the ISD Core to
+endpoint ADs. Upon receiving a PCB, a BS can choose to
+register the learned path with the Core Path Server (CPS)
+and its Local Path Server (LPS). The BS then propagates the
+PCB to its down-stream and peering ADs and appends for each
+of these ADs a corresponding routing decision, known as an
+\go~Opaque Field (OF). A BS located in an endpoint AD only
+registers paths with the LPS and the CPS, since PCBs are
+never propagated up-stream. \\ For additional information,
+please check the entries for \go~Core Beacon Server (CBS)
+and \go~Local Beacon Server (LBS).}
 
 \abbrev{BS}{Beacon Server}
 
 
-\gitem{Core Beacon Server (CBS)}{Beacon Server (BS) located in the
-ISD core, more precisely within a core AD. A CBS initiates the
-propagation of Path Construction Beacons (PCBs). \\
-For more information, please check the entry for \go~Beacon Server
-(BS).}
+\gitem[Core Beacon Server]{Core Beacon Server (CBS)}{Beacon Server
+(BS) located in the ISD core, more precisely within a core AD. A CBS
+initiates the propagation of Path Construction Beacons (PCBs). \\ For
+more information, please check the entry for \go~Beacon Server (BS).}
 
 \abbrev{CBS}{Core Beacon Server}
 
 
-\gitem{Local Beacon Server (LBS)}{Beacon Server (BS) located in a
+\gitem[Local Beacon Server]{Local Beacon Server (LBS)}{Beacon Server (BS) located in a
 non-core AD that receives all Path Construction Beacons (PCBs) from
 the provider ADs. At every propagation period, an LBS performs two
 steps: (a) it selects $k$ PCBs and registers them as down-paths at
@@ -170,12 +164,68 @@ please check the entry for \go~Beacon Server (BS).}
 
 
 
+% ISDs.
+
+\gitem[Isolation Domain]{Isolation Domain (ISD)}{Hierarchical
+grouping of networks under a common organizational domain. Networks
+within an ISD should share a common jurisdiction. Each ISD designates
+a set of core Autonomous Domains (ADs) that provide service to
+subscriber ADs.} \abbrev{ISD}{Isolation Domain}
+
+\gitem[ISD core]{ISD Core}{Set of ADs within an \go~Isolation Domain
+responsible for handling inter-ISD routing, quality of service within
+an ISD, and accountability management (e.g., disabling connectivity
+for misbehaving ADs).}
+
+
+
+% Opaque Fields.
+
+\gitem[Opaque Field]{Opaque Field (OF)}{Opaque fields are often used in
+the SCION packet header. They serve different purposes,
+such as: routing, authenticity verification, and parsing of
+the SCION packet itself. Please check the individual
+entries: \go~Hop Opaque Field, \go~Info Opaque Field,
+\go~ROT Field, \go~Support Signature Field, \go~Support
+Peer Field, \go~Support PCB Field.}
+
+\abbrev{OF}{Opaque Field}
+
+\gitem{Hop Opaque Field}{Opaque field
+used to identify the packet sender, i.e. by storing the
+sender interfaces.}
+
+\gitem[Info Opaque Field]{Info Opaque Field}{Opaque field
+used to store further information about the path and the
+packet itself, such as: Isolation Domain ID and number of
+hops in the path.}
+
+\gitem[ROT Field]{ROT Field}{Opaque field used to store
+information about the Root Of Trust file used (i.e. ROT
+version).}
+
+\gitem[Support Signature Field]{Support Signature
+Field}{Opaque field used to parse the packet and verify the
+packet’s signature.}
+
+\gitem{Support Peer Field}{Opaque field used to store information
+about a peer link’s bandwidth (i.e. bandwidth allocated, class).}
+
+\gitem{Support PCB Field}{Opaque field used to store information
+about a parent-child link’s bandwidth (i.e. bandwidth allocated,
+bandwidth reserved).}
+
+
+
+
+
+
 % Misc.
 
-\gitem{Path Construction Beacon (PCB)}{to be done!}
-\abbrev{PCB}{Path Construction Beacon}
+\gitem[Path Construction Beacon]{Path Construction Beacon (PCB)}{to
+be done!} \abbrev{PCB}{Path Construction Beacon}
 
-\gitem{Reservation Token (RT)}{Cryptographically authenticated token
+\gitem[Reservation Token]{Reservation Token (RT)}{Cryptographically authenticated token
 that enables the usage of SIBRA bandwidth reservations. RTs are
 enriched opaque fields that encode the amount of bandwidth and the
 validity of an AD's bandwidth reservation for a specific flow.}
@@ -200,7 +250,7 @@ the first packet in a DRKey session reaches the destination.
 Retroactive-DRKey hides the source's intention to set up shared keys
 with the routers on the path, preventing coward attacks.}
 
-\gitem[address]{SCION Address}{Network-level address of a device
+\gitem[SCION address]{SCION Address}{Network-level address of a device
 using SCION. A SCION address takes the form
 \texttt{ISD:AD:client\_addr}. \texttt{ISD} is a unique identifier
 among ISDs, \texttt{AD} is a unique identifier within an ISD, and
@@ -209,46 +259,6 @@ The \texttt{client\_addr} must be unique within an AD, but may be,
 e.g., an IPv4 address, IPv6 address, or other local network address
 managed by the corresponding AD.}
 
-
-% ISDs.
-
-\gitem[Isolation Domain]{Isolation Domain (ISD)}{Hierarchical
-grouping of networks under a common organizational domain. Networks
-within an ISD should share a common jurisdiction. Each ISD designates
-a set of core Autonomous Domains (ADs) that provide service to
-subscriber ADs.} \abbrev{ISD}{Isolation Domain}
-
-\gitem[ISD core]{ISD Core}{Set of ADs within an \go~Isolation Domain
-responsible for handling inter-ISD routing, quality of service within
-an ISD, and accountability management (e.g., disabling connectivity
-for misbehaving ADs).}
-
-
-\gitem{Opaque Field (OF)}{Opaque fields are often used in the SCION
-packet header. They serve different purposes, such as: routing,
-authenticity verification, and parsing of the SCION packet itself.}
-
-\abbrev[opaque field]{OF}{Opaque Field}
-
-\gitem{Hop Opaque Field}{Opaque field used to identify the packet
-sender, i.e. by storing the sender interfaces.}
-
-\gitem{Info Opaque Field}{Opaque field used to store further
-information about the path and the packet itself, such as: Isolation
-Domain ID and number of hops in the path.}
-
-\gitem{ROT field}{Opaque field used to store information about the
-Root Of Trust file used (i.e. ROT version).}
-
-\gitem{Support Signature Field}{Opaque field used to parse the packet
-and verify the packet’s signature.}
-
-\gitem{Support Peer Field}{Opaque field used to store information
-about a peer link’s bandwidth (i.e. bandwidth allocated, class).}
-
-\gitem{Support PCB Field}{Opaque field used to store information
-about a parent-child link’s bandwidth (i.e. bandwidth allocated,
-bandwidth reserved).}
 
 
 
