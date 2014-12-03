@@ -33,24 +33,31 @@
   \DTLifdbexists{glossary}{\DTLcleardb{glossary}}{\DTLnewdb{glossary}}
   \DTLifdbexists{abbrev}{\DTLcleardb{abbrev}}{\DTLnewdb{abbrev}}
 }{%
-  \DTLsort{sortlabel}{glossary}% Sort glossary entries.
+  % Glossary.
+  % Sort entries.
+  \DTLsort{sortlabel}{glossary}
   \chapter{SCION Glossary}
   \begin{itemize}
     \setlength{\itemsep}{4mm}
-    \DTLforeach*{glossary}{\theDesc=description,\theLabel=sortlabel,\theIdx=index}{%
-      \item \textbf{\theLabel~------}~\index{\theIdx}\theDesc
+    \DTLforeach*{glossary}%
+      {\theDesc=description,\theLabel=sortlabel,\theIdx=index}{%
+      \item \textbf{\theLabel~------}
+      \ifx \theIdx \empty \else \index{\theIdx} \fi
+      \theDesc
     }
   \end{itemize}
 
-  % Abbreviation list
-  \DTLsort{sortlabel}{abbrev}% Sort abbreviation list.
+  % Abbreviations.
+  % Sort entries.
+  \DTLsort{sortlabel}{abbrev}
   \chapter{SCION Abbreviations}
   \begin{itemize}
     \setlength{\itemsep}{2mm}
-    \DTLforeach*{abbrev}{\theDesc=description,\theLabel=sortlabel}{%
+    \DTLforeach*{abbrev}%
+      {\theDesc=description,\theLabel=sortlabel,\theIdx=index}{%
       \item[] \textbf{\theLabel} $\to$ \theDesc
       \index{\theLabel}
-      \index{\theDesc}
+      \ifx \theIdx \empty \index{\theDesc} \else \index{\theIdx} \fi
     }
   \end{itemize}
   
@@ -63,10 +70,11 @@
   \DTLnewdbentry{glossary}{description}{#3}
 }
 % Abbreviation entry.
-\newcommand{\abbrev}[2]{%
+\newcommand{\abbrev}[3][]{%
   \DTLnewrow{abbrev}
-  \DTLnewdbentry{abbrev}{sortlabel}{#1}
-  \DTLnewdbentry{abbrev}{description}{#2}
+  \DTLnewdbentry{abbrev}{index}{#1}
+  \DTLnewdbentry{abbrev}{sortlabel}{#2}
+  \DTLnewdbentry{abbrev}{description}{#3}
 }
 
 

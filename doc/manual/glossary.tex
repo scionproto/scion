@@ -1,6 +1,7 @@
 % Glossary and Abbreviation List.
 
-% Syntax:
+
+%%% Syntax and usage %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %    \gitem{Title}{Description}
 
@@ -18,6 +19,9 @@
 % the glossary) and in the index with both abbrevation and
 % non-abbreviated string.
 
+
+%%% How to create manual index entries? %%%%%%%%%%%%%%%%%%%
+
 % If you want to add a manual entry to the index, please
 % use the additional optional argument as follows:
 
@@ -27,8 +31,20 @@
 % to the page where the glossary entry appears.
 % Be careful when using the optional index keyword in
 % conjunction with the \abbrev command. Both add an index
-% entry. You should omit the index keyword in case you
-% use \abbrev.
+% entry. You should omit the index keyword from \gitem
+% in case you use \abbrev.
+
+% The \abbrev command also allows for the specification of
+% individual index entries.
+
+%    \abbrev[core beacon server]{CBS}{Core Beacon Server}
+
+% In this case, the index will contain the entries
+%  "core beacon server"  and  "CBS"
+% instead of the usual two entries
+%  "Core Beacon Server"  and  "CBS".
+% Please use this optional argument to achieve consistency
+% in the index.
 
 
 
@@ -72,7 +88,7 @@ and up-paths may differ.}
 
 \abbrev{LBS}{Local Beacon Server}
 
-\gitem{Path Construction Beacon (PCB)}{to be done}
+\gitem{Path Construction Beacon (PCB)}{to be done!}
 
 \abbrev{PCB}{Path Construction Beacon}
 
