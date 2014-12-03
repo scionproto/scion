@@ -151,5 +151,100 @@ Retroactive-DRKey hides the source's intention to set up shared keys
 with the routers on the path, preventing coward attacks.}
 
 
+% Sam and David
+
+\gitem{Local Path Server (LPS)}{Service that retrieves a path from
+itself to a SCION address. The LPRS receives (from a local client) as
+input a destination SCION address, and returns up to $k$ up-paths and
+up to $k$ down-paths between the AD where the LPS resides and the
+destination's AD. Note that the LPS cannot independently resolve the
+full path across ISDs, so queries to paths outside of the current ISD
+are forwarded to Core Path Servers. LPSes can cache down-paths
+received from a core path server to reduce path resolution latency.
+ADs may choose to replicate LPS functionality across multiple devices
+increase availability.}
+
+\abbrev{LPS}{Local Path Server}
+
+\gitem{Core Path Server (CPS)}{Server that stores intra-ISD down-paths and
+resolves inter-ISD paths. CPSes are located in the ISD's core ADs. Each
+Beacon Server within the same ISD registers up to k down-paths with the
+CPS. The CPS receives from a LPS as input a destination SCION address
+and returns up to $k$ down-paths to the destination AD. If the
+destination AD resides within a different ISD, the CPS requests the
+down-paths from the remote (destination) ISD's core path server before
+returning these paths to the LPS. To reduce path resolution latency, a
+CPS can cache down-paths received from a CPS in a different ISD. A CPS
+can be replicated within an AD to increase availability. Additionally,
+all core path servers within a single ISD run a consistency protocol to
+ensure a consistent view of ISD-local paths.}
+
+\abbrev{CPS}{Core Path Server}
+
+\gitem[address]{SCION Address}{Network-level address of a device
+using SCION. A SCION address takes the form
+\texttt{ISD:AD:client\_addr}. ISD is a unique identifier among ISDs.
+AD is a unique identifier within an ISD. client\_addr is some
+network-level identifier within an AD. client\_addr must be unique
+within an AD, but may be, e.g., an IPv4 address, IPv6 address, or
+other local network address.}
+
+\gitem[Isolation Domain]{Isolation Domain (ISD)}{Logical grouping of
+networks under a common organizational domain. Networks within an ISD
+should also share a common jurisdiction. Each ISD designates a set of
+core autonomous domains (ADs) that provide service to subscriber ADs.}
+
+\abbrev{ISD}{Isolation Domain}
+
+\gitem[ISD core]{ISD Core}{Set of ADs responsible for handling
+inter-ISD routing, quality of service within an ISD, and
+accountability management (e.g., disabling connectivity for
+misbehaving ADs).}
+
+\gitem{Beacon Server (BS)}{Service that enables path exploration
+within an ISD. The ISD core beacon server starts Path Construction
+Beacon (PCB) propagation to construct a (half) path from the ISD Core
+to endpoint ADs. Upon receiving a PCB, a BS appends can choose to
+register the learned path with the core path server and its local
+path server. The BS then propagates the PCB to its down-stream and
+peering ADs and appends for each of these ADs a corresponding routing
+decision (known as an opaque field). A BS in an endpoint AD only
+registers paths with the LPS and CPS, since PCBs are never propagated
+up-stream.}
+
+\abbrev{BS}{Beacon Server}
+
+
+% Lorenzo
+
+\gitem{Opaque Field (OF)}{Opaque fields are often used in the SCION
+packet header. They serve different purposes, such as: routing,
+authenticity verification, and parsing of the SCION packet itself.}
+
+\abbrev[opaque field]{OF}{Opaque Field}
+
+\gitem{Hop Opaque Field}{Opaque field used to identify the packet
+sender, i.e. by storing the sender interfaces.}
+
+\gitem{Info Opaque Field}{Opaque field used to store further
+information about the path and the packet itself, such as: Isolation
+Domain ID and number of hops in the path.}
+
+\gitem{ROT field}{Opaque field used to store information about the
+Root Of Trust file used (i.e. ROT version).}
+
+\gitem{Support Signature Field}{Opaque field used to parse the packet
+and verify the packet’s signature.}
+
+\gitem{Support Peer Field}{Opaque field used to store information
+about a peer link’s bandwidth (i.e. bandwidth allocated, class).}
+
+\gitem{Support PCB Field}{Opaque field used to store information
+about a parent-child link’s bandwidth (i.e. bandwidth allocated,
+bandwidth reserved).}
+
+
+
+
 \end{SCIONglossary}
 
