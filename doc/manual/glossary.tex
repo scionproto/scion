@@ -1,5 +1,8 @@
 % Glossary and Abbreviation List.
 
+% Responsibility: Raphael // Please contact me in case of
+% questions or inconsistencies.
+
 
 %%% Syntax and usage %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -27,12 +30,12 @@
 
 %    \gitem[Keyword]{Title}{Description}
 
-% The keyword string will appear in the index and point
-% to the page where the glossary entry appears.
-% Be careful when using the optional index keyword in
-% conjunction with the \abbrev command. Both add an index
-% entry. You should omit the index keyword from \gitem
-% in case you use \abbrev.
+% The  keyword string will appear in the index and  point to
+% to the page  where the glossary entry appears.  Be careful
+% when using the optional index  keyword in conjunction with
+% the \abbrev command.  Both add an index entry.  You should
+% omit the index keyword from \gitem if you use \abbrev.
+
 
 % The \abbrev command also allows for the specification of
 % individual index entries.
@@ -47,19 +50,13 @@
 % in the index.
 
 
+\newcommand\go{$\to$}
+
 
 \begin{SCIONglossary}
 
-% Raphael
 
-\gitem[path server]{Path Server}{Facility within an isolation domain
-where end hosts register their up- and down-paths. End hosts can
-query path servers in order to obtain valid paths do a destination.}
-
-\gitem{Isolation Domain (ISD)}{Hierarchical and self-contained unit
-with own jurisdiction in which a number of ASes are located.}
-
-\abbrev{ISD}{Isolation Domain}
+% Paths.
 
 \gitem[half-path]{Half-Path}{Up-path from an end entity to the ISD
 core, or down-path from the ISD core to an end entity.}
@@ -67,47 +64,9 @@ core, or down-path from the ISD core to an end entity.}
 \gitem[inter-domain path]{Inter-Domain Path}{Path between two ADs
 that are located in two different ISD cores.}
 
-\gitem[end-to-end path]{End-to-End Path}{Stitched path between two
-end entities, typically consisting of three paths: an up-path, an
+\gitem[end-to-end path]{End-to-End Path}{Path between two end
+entities, typically a combination of three paths: an up-path, an
 inter-domain path, and a down-path.}
-
-% Pawel.
-
-\gitem{Core Beacon Server (CBS)}{Facility within a core AD that
-initiates the PCB construction.}
-
-\abbrev{CBS}{Core Beacon Server}
-
-\gitem{Local Beacon Server (LBS)}{Facility within a non-core AD that
-receives all Path Construction Beacons (PCBs) from the provider ADs.
-At every propagation period, an LBS performs two steps: (a) it
-selects $k$ PCBs and registers them as down-paths at the Core Path
-Server (CPS), and (b) it selects $k$ PCBs and registers them as
-up-paths at the Local Path Server (LPS). Selection criteria for down-
-and up-paths may differ.}
-
-\abbrev{LBS}{Local Beacon Server}
-
-\gitem{Path Construction Beacon (PCB)}{to be done!}
-
-\abbrev{PCB}{Path Construction Beacon}
-
-\gitem{Core Path Server (CPS)}{Facility within a core AD, where
-non-core ADs (within a given ISD) register their down-paths. The CPS also
-serves down-path requests by translating a requested (ISD, AD) pair to
-an appropriate down-path.}
-
-\abbrev{CPS}{Core Path Server}
-
-\gitem{Local Path Server (LPS)}{Facility within a non-core AD, where
-Local Beacon Servers register their up-paths. End hosts can query an
-LPS in order to obtain valid up- and down-paths to a destination.
-Down-paths are obtained through querying the Core Path Server (CPS)
-or using cached results.}
-
-\abbrev{LPS}{Local Path Server}
-
-% Cristina.
 
 \gitem[static path]{Static Path}{Long-lived, low-bandwidth
 reservation on top of half-paths. Static paths are initiated by leaf
@@ -115,19 +74,111 @@ ADs and are used in SIBRA for two purposes: (1) as a building block
 for priority paths: to guarantee availability during connection
 setup, and to perform weighted bandwidth reservation, and (2) to
 provide communication guarantees for low-bandwidth traffic, e.g.
-control traffic.}
+control traffic. See also \go~Priority Path.}
 
 \gitem[priority path]{Priority Path}{Short-lived, high-bandwidth
 reservation on top of end-to-end paths, i.e., up-path, inter-domain
 path, and down-path. Priority paths are initiated by end hosts in
 SIBRA. They are only valid on the order of tens of seconds, and thus
-needs to be continuously renewed.}
+needs to be continuously renewed. See also \go~Static Path.}
+
+
+
+
+% Servers.
+
+%% Path Server.
+
+\gitem[path server]{Path Server}{Service within an \go~Isolation
+Domain where end hosts register their up- and down-paths. End hosts
+can query path servers in order to obtain valid paths do a
+destination. \\ For more information, please check the entries for
+\go~Core Path Server (CPS) and \go~Local Path Server (LPS)}
+
+\gitem{Core Path Server (CPS)}{Path Server located in the ISD core,
+more precisely within a core AD. Non-core ADs within the ISD register
+their intra-ISD down-paths, the CPS stores the paths, and resolves
+inter-ISD paths. More precisely, each Beacon Server (BS) within the
+same ISD registers up to $k$ down-paths with the CPS. The CPS
+receives from a Local Path Server (LPS) as input a SCION destination
+address and returns up to $k$ down-paths to the destination AD. If
+the destination AD resides within a different ISD, the CPS requests
+the down-paths from the remote (destination) ISD's core path server
+before returning these paths to the LPS. To reduce path resolution
+latency, a CPS can cache down-paths received from a CPS in a
+different ISD. A CPS can be replicated within an AD to increase
+availability. Additionally, all core path servers within a single ISD
+run a consistency protocol to ensure a consistent view of ISD-local
+paths.} \abbrev{CPS}{Core Path Server}
+
+\gitem{Local Path Server (LPS)}{Service within a non-core A that
+retrieves from \go~Local Beacon Servers (LBS) a path from itself to a
+\go~SCION address. The LPS receives (from a local client) as input a
+SCION destination address, and returns up to $k$ up-paths and up to
+$k$ down-paths between the AD where the LPS resides and the
+destination's AD. Note that the LPS cannot independently resolve the
+full path across ISDs, so queries to paths outside of the current ISD
+are forwarded to \go~Core Path Servers (CPS). LPSes can cache
+down-paths received from a core path server to reduce path resolution
+latency. ADs may choose to replicate LPS functionality across
+multiple devices increase availability.}
+
+\abbrev{LPS}{Local Path Server}
+
+
+
+
+% Beacon Server.
+
+\gitem[beacon server]{Beacon Server (BS)}{Service that enables path
+exploration within an ISD. The ISD core beacon server starts the
+propagation of Path Construction Beacons (PCBs) to construct a
+half-path from the ISD Core to endpoint ADs. Upon receiving a PCB, a
+BS can choose to register the learned path with the Core Path Server
+(CPS) and its Local Path Server (LPS). The BS then propagates the PCB
+to its down-stream and peering ADs and appends for each of these ADs
+a corresponding routing decision, known as an Opaque Field (OF). A BS
+located in an endpoint AD only registers paths with the LPS and the
+CPS, since PCBs are never propagated up-stream. \\ For additional
+information, please check the entries for \go~Core Beacon Server
+(CBS) and \go~Local Beacon Server (LBS).}
+
+\abbrev{BS}{Beacon Server}
+
+
+\gitem{Core Beacon Server (CBS)}{Beacon Server (BS) located in the
+ISD core, more precisely within a core AD. A CBS initiates the
+propagation of Path Construction Beacons (PCBs). \\
+For more information, please check the entry for \go~Beacon Server
+(BS).}
+
+\abbrev{CBS}{Core Beacon Server}
+
+
+\gitem{Local Beacon Server (LBS)}{Beacon Server (BS) located in a
+non-core AD that receives all Path Construction Beacons (PCBs) from
+the provider ADs. At every propagation period, an LBS performs two
+steps: (a) it selects $k$ PCBs and registers them as down-paths at
+the Core Path Server (CPS), and (b) it selects $k$ PCBs and registers
+them as up-paths at the Local Path Server (LPS). Selection criteria
+for down- and up-paths may differ. \\ For additional information,
+please check the entry for \go~Beacon Server (BS).}
+
+\abbrev{LBS}{Local Beacon Server}
+
+
+
+
+
+% Misc.
+
+\gitem{Path Construction Beacon (PCB)}{to be done!}
+\abbrev{PCB}{Path Construction Beacon}
 
 \gitem{Reservation Token (RT)}{Cryptographically authenticated token
 that enables the usage of SIBRA bandwidth reservations. RTs are
 enriched opaque fields that encode the amount of bandwidth and the
 validity of an AD's bandwidth reservation for a specific flow.}
-
 \abbrev{RT}{Reservation Token}
 
 \gitem[DRKey protocol]{DRKey Protocol}{Protocol to enable routers
@@ -136,7 +187,6 @@ $R_i$ on a source-specified path $\langle S, R_1, \allowbreak R_2,
 and destination $D$. DRKey protocols enable routers to re-derive keys
 on the fly when needed, thus avoiding the need of per-flow state on
 routers.}
-
 
 \gitem[DRKey session]{DRKey Session}{Session that identifies the
 packets sent by a source $S$ to a destination $D$ on the same path,
@@ -150,72 +200,29 @@ the first packet in a DRKey session reaches the destination.
 Retroactive-DRKey hides the source's intention to set up shared keys
 with the routers on the path, preventing coward attacks.}
 
-
-% Sam and David
-
-\gitem{Local Path Server (LPS)}{Service that retrieves a path from
-itself to a SCION address. The LPRS receives (from a local client) as
-input a destination SCION address, and returns up to $k$ up-paths and
-up to $k$ down-paths between the AD where the LPS resides and the
-destination's AD. Note that the LPS cannot independently resolve the
-full path across ISDs, so queries to paths outside of the current ISD
-are forwarded to Core Path Servers. LPSes can cache down-paths
-received from a core path server to reduce path resolution latency.
-ADs may choose to replicate LPS functionality across multiple devices
-increase availability.}
-
-\abbrev{LPS}{Local Path Server}
-
-\gitem{Core Path Server (CPS)}{Server that stores intra-ISD down-paths and
-resolves inter-ISD paths. CPSes are located in the ISD's core ADs. Each
-Beacon Server within the same ISD registers up to k down-paths with the
-CPS. The CPS receives from a LPS as input a destination SCION address
-and returns up to $k$ down-paths to the destination AD. If the
-destination AD resides within a different ISD, the CPS requests the
-down-paths from the remote (destination) ISD's core path server before
-returning these paths to the LPS. To reduce path resolution latency, a
-CPS can cache down-paths received from a CPS in a different ISD. A CPS
-can be replicated within an AD to increase availability. Additionally,
-all core path servers within a single ISD run a consistency protocol to
-ensure a consistent view of ISD-local paths.}
-
-\abbrev{CPS}{Core Path Server}
-
 \gitem[address]{SCION Address}{Network-level address of a device
 using SCION. A SCION address takes the form
-\texttt{ISD:AD:client\_addr}. ISD is a unique identifier among ISDs.
-AD is a unique identifier within an ISD. client\_addr is some
-network-level identifier within an AD. client\_addr must be unique
-within an AD, but may be, e.g., an IPv4 address, IPv6 address, or
-other local network address.}
-
-\gitem[Isolation Domain]{Isolation Domain (ISD)}{Logical grouping of
-networks under a common organizational domain. Networks within an ISD
-should also share a common jurisdiction. Each ISD designates a set of
-core autonomous domains (ADs) that provide service to subscriber ADs.}
-
-\abbrev{ISD}{Isolation Domain}
-
-\gitem[ISD core]{ISD Core}{Set of ADs responsible for handling
-inter-ISD routing, quality of service within an ISD, and
-accountability management (e.g., disabling connectivity for
-misbehaving ADs).}
-
-\gitem{Beacon Server (BS)}{Service that enables path exploration
-within an ISD. The ISD core beacon server starts Path Construction
-Beacon (PCB) propagation to construct a (half) path from the ISD Core
-to endpoint ADs. Upon receiving a PCB, a BS appends can choose to
-register the learned path with the core path server and its local
-path server. The BS then propagates the PCB to its down-stream and
-peering ADs and appends for each of these ADs a corresponding routing
-decision (known as an opaque field). A BS in an endpoint AD only
-registers paths with the LPS and CPS, since PCBs are never propagated
-up-stream.}
-
-\abbrev{BS}{Beacon Server}
+\texttt{ISD:AD:client\_addr}. \texttt{ISD} is a unique identifier
+among ISDs, \texttt{AD} is a unique identifier within an ISD, and
+\texttt{client\_addr} is some network-level identifier within an AD.
+The \texttt{client\_addr} must be unique within an AD, but may be,
+e.g., an IPv4 address, IPv6 address, or other local network address
+managed by the corresponding AD.}
 
 
-% Lorenzo
+% ISDs.
+
+\gitem[Isolation Domain]{Isolation Domain (ISD)}{Hierarchical
+grouping of networks under a common organizational domain. Networks
+within an ISD should share a common jurisdiction. Each ISD designates
+a set of core Autonomous Domains (ADs) that provide service to
+subscriber ADs.} \abbrev{ISD}{Isolation Domain}
+
+\gitem[ISD core]{ISD Core}{Set of ADs within an \go~Isolation Domain
+responsible for handling inter-ISD routing, quality of service within
+an ISD, and accountability management (e.g., disabling connectivity
+for misbehaving ADs).}
+
 
 \gitem{Opaque Field (OF)}{Opaque fields are often used in the SCION
 packet header. They serve different purposes, such as: routing,
