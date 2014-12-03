@@ -1,16 +1,139 @@
-\chapter{SCION Glossary}
+% Glossary and Abbreviation List.
 
-% This list of items is automatically sorted.
+% Syntax:
+
+%    \gitem{Title}{Description}
+
+% Creates an entry of the form Title --> Description.
+% This list of items is automatically sorted by title.
 % When inserting an entry, don't care about its position.
+
+% When you introduce an abbreviated entry, e.g., Core Beacon
+% Server (CBS), then please add below your \gitem entry an
+% abbreviation entry as follows:
+
+%    \abbrev{CBS}{Core Beacon Server}
+
+% This entry will appear in the abbreviation list (behind
+% the glossary) and in the index with both abbrevation and
+% non-abbreviated string.
+
+% If you want to add a manual entry to the index, please
+% use the additional optional argument as follows:
+
+%    \gitem[Keyword]{Title}{Description}
+
+% The keyword string will appear in the index and point
+% to the page where the glossary entry appears.
+% Be careful when using the optional index keyword in
+% conjunction with the \abbrev command. Both add an index
+% entry. You should omit the index keyword in case you
+% use \abbrev.
+
+
 
 \begin{SCIONglossary}
 
-  \gitem{Path Server}{Facility within an isolation domain where end
-  hosts register their up- and down-paths. End hosts can query path
-  servers in order to obtain valid paths do a destination.}
+% Raphael
 
-  \gitem{Isolation Domain (ISD)}{Hierarchical and self-contained unit
-  with own jurisdiction in which a number of ASes are located.}
+\gitem[path server]{Path Server}{Facility within an isolation domain
+where end hosts register their up- and down-paths. End hosts can
+query path servers in order to obtain valid paths do a destination.}
+
+\gitem{Isolation Domain (ISD)}{Hierarchical and self-contained unit
+with own jurisdiction in which a number of ASes are located.}
+
+\abbrev{ISD}{Isolation Domain}
+
+\gitem[half-path]{Half-Path}{Up-path from an end entity to the ISD
+core, or down-path from the ISD core to an end entity.}
+
+\gitem[inter-domain path]{Inter-Domain Path}{Path between two ADs
+that are located in two different ISD cores.}
+
+\gitem[end-to-end path]{End-to-End Path}{Stitched path between two
+end entities, typically consisting of three paths: an up-path, an
+inter-domain path, and a down-path.}
+
+% Pawel.
+
+\gitem{Core Beacon Server (CBS)}{Facility within a core AD that
+initiates the PCB construction.}
+
+\abbrev{CBS}{Core Beacon Server}
+
+\gitem{Local Beacon Server (LBS)}{Facility within a non-core AD that
+receives all Path Construction Beacons (PCBs) from the provider ADs.
+At every propagation period, an LBS performs two steps: (a) it
+selects $k$ PCBs and registers them as down-paths at the Core Path
+Server (CPS), and (b) it selects $k$ PCBs and registers them as
+up-paths at the Local Path Server (LPS). Selection criteria for down-
+and up-paths may differ.}
+
+\abbrev{LBS}{Local Beacon Server}
+
+\gitem{Path Construction Beacon (PCB)}{to be done}
+
+\abbrev{PCB}{Path Construction Beacon}
+
+\gitem{Core Path Server (CPS)}{Facility within a core AD, where
+non-core ADs (within a given ISD) register their down-paths. The CPS also
+serves down-path requests by translating a requested (ISD, AD) pair to
+an appropriate down-path.}
+
+\abbrev{CPS}{Core Path Server}
+
+\gitem{Local Path Server (LPS)}{Facility within a non-core AD, where
+Local Beacon Servers register their up-paths. End hosts can query an
+LPS in order to obtain valid up- and down-paths to a destination.
+Down-paths are obtained through querying the Core Path Server (CPS)
+or using cached results.}
+
+\abbrev{LPS}{Local Path Server}
+
+% Cristina.
+
+\gitem[static path]{Static Path}{Long-lived, low-bandwidth
+reservation on top of half-paths. Static paths are initiated by leaf
+ADs and are used in SIBRA for two purposes: (1) as a building block
+for priority paths: to guarantee availability during connection
+setup, and to perform weighted bandwidth reservation, and (2) to
+provide communication guarantees for low-bandwidth traffic, e.g.
+control traffic.}
+
+\gitem[priority path]{Priority Path}{Short-lived, high-bandwidth
+reservation on top of end-to-end paths, i.e., up-path, inter-domain
+path, and down-path. Priority paths are initiated by end hosts in
+SIBRA. They are only valid on the order of tens of seconds, and thus
+needs to be continuously renewed.}
+
+\gitem{Reservation Token (RT)}{Cryptographically authenticated token
+that enables the usage of SIBRA bandwidth reservations. RTs are
+enriched opaque fields that encode the amount of bandwidth and the
+validity of an AD's bandwidth reservation for a specific flow.}
+
+\abbrev{RT}{Reservation Token}
+
+\gitem[DRKey protocol]{DRKey Protocol}{Protocol to enable routers
+$R_i$ on a source-specified path $\langle S, R_1, \allowbreak R_2,
+\ldots, D\rangle$ to set up on-the-fly shared keys with source $S$
+and destination $D$. DRKey protocols enable routers to re-derive keys
+on the fly when needed, thus avoiding the need of per-flow state on
+routers.}
+
+
+\gitem[DRKey session]{DRKey Session}{Session that identifies the
+packets sent by a source $S$ to a destination $D$ on the same path,
+during a certain period of time. A DRKey session is typically
+associated with a flow that travels the same network path, such as a
+TCP flow in SCION.}
+
+\gitem[Retroactive-DRKey]{Retroactive-DRKey}{DRKey protocol that
+enables entities on the path to set up shared keys at any time after
+the first packet in a DRKey session reaches the destination.
+Retroactive-DRKey hides the source's intention to set up shared keys
+with the routers on the path, preventing coward attacks.}
+
 
 \end{SCIONglossary}
 

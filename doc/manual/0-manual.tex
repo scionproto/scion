@@ -29,20 +29,46 @@
 % Glossary #Raphael
 \usepackage{datatool}
 \newenvironment{SCIONglossary}{%
-  \DTLifdbexists{list}{\DTLcleardb{list}}{\DTLnewdb{list}}% Create new/discard old list
+  % Create new/discard old list
+  \DTLifdbexists{glossary}{\DTLcleardb{glossary}}{\DTLnewdb{glossary}}
+  \DTLifdbexists{abbrev}{\DTLcleardb{abbrev}}{\DTLnewdb{abbrev}}
 }{%
-  \DTLsort{sortlabel}{list}% Sort list
-  \begin{itemize}%
+  \DTLsort{sortlabel}{glossary}% Sort glossary entries.
+  \chapter{SCION Glossary}
+  \begin{itemize}
     \setlength{\itemsep}{4mm}
-    \DTLforeach*{list}{\theDesc=description}{%
-      \item \theDesc}% Print each item
-  \end{itemize}%
+    \DTLforeach*{glossary}{\theDesc=description,\theLabel=sortlabel,\theIdx=index}{%
+      \item \textbf{\theLabel~------}~\index{\theIdx}\theDesc
+    }
+  \end{itemize}
+
+  % Abbreviation list
+  \DTLsort{sortlabel}{abbrev}% Sort abbreviation list.
+  \chapter{SCION Abbreviations}
+  \begin{itemize}
+    \setlength{\itemsep}{2mm}
+    \DTLforeach*{abbrev}{\theDesc=description,\theLabel=sortlabel}{%
+      \item[] \textbf{\theLabel} $\to$ \theDesc
+      \index{\theLabel}
+      \index{\theDesc}
+    }
+  \end{itemize}
+  
 }
-\newcommand{\gitem}[2]{%
-  \DTLnewrow{list}
-  \DTLnewdbentry{list}{sortlabel}{#1}
-  \DTLnewdbentry{list}{description}{\textbf{#1 ||} #2}
+% Glossary entry.
+\newcommand{\gitem}[3][]{%
+  \DTLnewrow{glossary}
+  \DTLnewdbentry{glossary}{index}{#1}
+  \DTLnewdbentry{glossary}{sortlabel}{#2}
+  \DTLnewdbentry{glossary}{description}{#3}
 }
+% Abbreviation entry.
+\newcommand{\abbrev}[2]{%
+  \DTLnewrow{abbrev}
+  \DTLnewdbentry{abbrev}{sortlabel}{#1}
+  \DTLnewdbentry{abbrev}{description}{#2}
+}
+
 
 
 \usepackage{hyperref}
