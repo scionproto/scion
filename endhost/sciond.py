@@ -84,6 +84,7 @@ class SCIONDaemon(ServerBase):
         for pcb in path_reply.pcbs:
             isd = pcb.get_isd()
             ad = pcb.get_last_ad()
+            #TODO simplify PathRequest/PathRecords
             if ((self.topology.isd_id != isd or self.topology.ad_id != ad)
                     and info.type in [PathInfo.DOWN_PATH, PathInfo.BOTH_PATHS]
                     and info.isd == isd and info.ad == ad):
