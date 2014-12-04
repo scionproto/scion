@@ -52,14 +52,21 @@
   \DTLsort{sortlabel}{abbrev}
   \chapter{SCION Abbreviations}
   \index{00@SCION Abbreviations}
-  \begin{itemize}
-    \setlength{\itemsep}{2mm}
+  % Makro to prevent a line break in the first row.
+  \def\newl{\relax}
+  % Create table of abbreviations.
+  \begin{tabular}{l|l}
+    \textbf{Abbrev.} & \textbf{Description} \\
+    \hline\hline
     \DTLforeach*{abbrev}%
       {\theDesc=description,\theLabel=sortlabel,\theIdx=index}{%
-      \item[] \textbf{\theLabel} $\to$ \theDesc
+      \newl \theLabel & \theDesc
       \ifx \theIdx \empty \index{00@SCION Abbreviations!\theLabel} \else \index{00@SCION Abbreviations!\theIndex} \fi
+      % Overwrite to achieve line breaks.
+      \def\newl{\\}
     }
-  \end{itemize}
+    \\ \hline
+  \end{tabular}
   
 }
 % Glossary entry.
