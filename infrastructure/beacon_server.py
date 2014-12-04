@@ -35,6 +35,7 @@ class BeaconServer(ServerBase):
     The SCION Beacon Server.
     """
     DELTA = 24*60*60
+    BEACONS_NO = 5
 
     def __init__(self, addr, topo_file, config_file):
         ServerBase.__init__(self, addr, topo_file, config_file)
@@ -116,23 +117,22 @@ class BeaconServer(ServerBase):
                 reserved = 0
                 pcb.iof = InfoOpaqueField.from_values(OFT.SPECIAL_OF, timestamp,
                         self.topology.isd_id, hops, reserved)
-                self.beacons = [pcb] #TODO
-            if self.beacons:
-                pcb = self.beacons[-1]
+                self.beacons = [pcb] #CBS does not select beacons
+            for pcb in self.beacons:
                 self.propagate_pcb(pcb)
             time.sleep(self.config.propagation_time)
 
     def process_pcb(self, packet):
         """
-        Depending on scenario: a) sends PCB to all beacon servers, or b) to
-        neighboring router.
+        Receives beacon and appends it to beacon list.
         """
         if self.topology.is_core_ad:
             logging.error("BEACON received by Core BeaconServer")
             return
         logging.info("PCB received")
         pcb = Beacon(packet).pcb
-        self.beacons = [pcb] #TODO needed?
+        self.beacons.append(pcb)
+        self.beacons = self.beacons[-BEACONS_NO:]
 
     def register_up_path(self, pcb):
         """
@@ -156,22 +156,23 @@ class BeaconServer(ServerBase):
         next_hop = self.ifid2addr[pcb.rotf.if_id]
         self.send(down_path, next_hop)
 
-    def path_registration(self):
+    def register_paths(self):
         """
         Registeres paths according to the received beacons.
         """
         if self.topology.is_core_ad or not self.config.registers_paths:
-            logging.warning("Leaving path_registration()")
+            logging.info("Path registration unwanted, leaving register_paths")
             return
 
         while True:
-            if self.beacons:
-                pcb = copy.deepcopy(self.beacons[-1])
-                ingress = pcb.rotf.if_id
+            for pcb in self.beacons:
+                new_pcb = copy.deepcopy(pcb)
+                ingress = new_pcb.rotf.if_id
                 egress = 0
-                self.add_ad(pcb, ingress, egress)
-                self.register_up_path(pcb)
-                self.register_down_path(pcb)
+                self.add_ad(new_pcb, ingress, egress)
+                #TODO we should add peering links as well
+                self.register_up_path(new_pcb)
+                self.register_down_path(new_pcb)
                 logging.info("Paths registered")
             time.sleep(self.config.registration_time)
 
@@ -196,7 +197,7 @@ class BeaconServer(ServerBase):
 
     def run(self):
         threading.Thread(target=self.pcb_propagation).start()
-        threading.Thread(target=self.path_registration).start()
+        threading.Thread(target=self.register_paths).start()
         ServerBase.run(self)
 
 
