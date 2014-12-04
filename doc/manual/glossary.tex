@@ -163,6 +163,19 @@ please check the entry for \go~Beacon Server (BS).}
 
 
 
+% Log Server.
+
+\gitem{Log server}{(Also public log, or integrity log server) Public
+server that monitors \go~CA operations (most commonly issued or
+revoked certificates) to ensure that CAs are behaving correctly. A
+log server answers queries regarding CA actions. Operations are most
+commonly logged using \go~Merkle hash trees in a time-ordered fashion,
+allowing log servers to show consistency (no events have been
+retroactively changed).}
+
+
+
+
 
 % ISDs.
 
@@ -259,9 +272,28 @@ The \texttt{client\_addr} must be unique within an AD, but may be,
 e.g., an IPv4 address, IPv6 address, or other local network address
 managed by the corresponding AD.}
 
+% Authentication / Certification.
 
+\gitem[certificate authority]{Certificate/Certification Authority
+(CA)}{(Also Certificate Agency in AKI) Issues public-key certificates
+that bind information (most often a name) to a public key. CAs have
+the responsibility of ensuring that the information-to-public-key
+binding is correct. They also possess one or more key pairs used to
+sign and verify certificates.} \abbrev{CA}{Certificate Authority}
 
+\gitem[Merkle hash tree]{Merkle hash tree (MHT)}{Tree-based data
+structure in which leaf nodes hold data objects and non-leaf nodes
+hold the hash of their child nodes. MHTs can prove that a data object
+is present in the tree using a logarithmic number of nodes, and if
+the data is ordered in the leaf nodes, the MHT can also prove that a
+data object is absent from the tree.} \abbrev{MHT}{Merkle hash tree}
 
+\gitem[validator]{Validator}{(Also monitor, or auditor in CT) A party
+that monitors \go~log servers to ensure that they are behaving
+correctly. Validators determine correct behavior by downloading all
+or part of the log server's database and performing consistency
+checks on them, by verifying individual proofs of presence or
+absence, and by watching for suspicious certificates.}
 
 \end{SCIONglossary}
 
