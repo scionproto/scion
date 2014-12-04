@@ -533,8 +533,6 @@ class IFIDReply(SCIONPacket):
         rep.request_id = request_id
         src = get_addr_from_type(PacketType.IFID_REP)
         rep.hdr = SCIONHeader.from_values(src, dst, PacketType.DATA)
-#PSz should I set payload here?
-        rep.payload = struct.pack("HH", reply_id, request_id)
         return rep
 
     def pack(self):
@@ -580,9 +578,9 @@ class PathInfo(object):
     Path Info class used in sending path requests/replies.
     """
     LEN = 11
-    UP_PATH = 0 #Request/Reply for up-paths
-    DOWN_PATH = 1 #Request/Reply for down-paths
-    BOTH_PATHS = 2 #Request/Reply for up- and down-paths
+    UP_PATH = 0 # Request/Reply for up-paths
+    DOWN_PATH = 1 # Request/Reply for down-paths
+    BOTH_PATHS = 2 # Request/Reply for up- and down-paths
 
     def __init__(self, raw=None):
         self.type = None
@@ -597,14 +595,14 @@ class PathInfo(object):
         """
         bits = BitArray(bytes=raw)
         (self.type, self.isd, self.ad) = bits.unpack(
-        "uintbe:8, uintbe:16,uintbe:64")
+            "uintbe:8, uintbe:16,uintbe:64")
 
     def pack(self):
         """
         Returns PathInfo as a binary string.
         """
         return bitstring.pack("uintbe:8, uintbe:16, uintbe:64", self.type,
-                self.isd, self.ad).bytes
+            self.isd, self.ad).bytes
 
     @classmethod
     def from_values(cls, pckt_type, isd, ad):
@@ -655,11 +653,11 @@ class PathRequest(SCIONPacket):
         return SCIONPacket.pack(self)
 
 
-class PathRecord(SCIONPacket):
+class PathRecords(SCIONPacket):
     """
-    Path Record class used for sending list of down/up-paths. Paths are
-    represented as object of PCB class. Type of paths is determined through info
-    field (object of PathInfo).
+    Path Record class used for sending a list of down/up-paths. Paths are
+    represented as objects of the PCB class. Type of a path is determined
+    through info field (object of PathInfo).
     """
     def __init__(self, raw=None):
         SCIONPacket.__init__(self)
@@ -682,7 +680,7 @@ class PathRecord(SCIONPacket):
         @param dst: Destination address (must be a 'HostAddr' object)
         @param path: path to a core or None (when reply is local)
         """
-        rec = PathRecord()
+        rec = PathRecords()
         src = get_addr_from_type(PacketType.PATH_REC)
         rec.hdr = SCIONHeader.from_values(src, dst, PacketType.DATA, path=path)
         rec.payload = b"".join([info.pack(), PCB.serialize(pcbs)])

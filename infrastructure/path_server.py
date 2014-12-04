@@ -18,8 +18,8 @@ limitations under the License.
 
 from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.path import EmptyPath
-from lib.packet.scion import SCIONPacket, get_type, PathRequest, PathRecord,\
-PathInfo
+from lib.packet.scion import (SCIONPacket, get_type, PathRequest, PathRecords,
+        PathInfo)
 from lib.packet.scion import PacketType as PT
 from infrastructure.server import ServerBase, SCION_UDP_PORT
 import sys
@@ -101,7 +101,7 @@ class PathServer(ServerBase):
         dst = path_request.hdr.src_addr
         path_request.hdr.path.reverse()
         path = path_request.hdr.path
-        path_reply = PathRecord.from_values(dst, path_request.info, paths, path)
+        path_reply = PathRecords.from_values(dst, path_request.info, paths, path)
         path_reply.hdr.set_downpath()
         (next_hop, port) = self.get_first_hop(path_reply)
         logging.info("Sending PATH_REC, using path: %s", path)
@@ -195,7 +195,7 @@ class PathServer(ServerBase):
         """
         Dispatches path record packet.
         """
-        assert isinstance(rec, PathRecord)
+        assert isinstance(rec, PathRecords)
         if rec.info.type == PathInfo.UP_PATH and not self.topology.is_core_ad:
             self.handle_up_path(rec)
         elif rec.info.type == PathInfo.DOWN_PATH:
@@ -213,7 +213,7 @@ class PathServer(ServerBase):
         if ptype == PT.PATH_REQ:
             self.handle_path_request(PathRequest(packet))
         elif ptype == PT.PATH_REC:
-            self.dispatch_path_record(PathRecord(packet))
+            self.dispatch_path_record(PathRecords(packet))
         else:
             logging.warning("Type %d not supported.", ptype)
 

@@ -18,7 +18,7 @@ limitations under the License.
 
 from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.path import build_fullpaths
-from lib.packet.scion import (SCIONPacket, get_type, PathRequest, PathRecord,
+from lib.packet.scion import (SCIONPacket, get_type, PathRequest, PathRecords,
         PathInfo)
 from lib.packet.scion import PacketType as PT
 from lib.topology import ElementType
@@ -78,7 +78,7 @@ class SCIONDaemon(ServerBase):
         """
         Handles path reply from local path server.
         """
-        path_reply = PathRecord(packet)
+        path_reply = PathRecords(packet)
         info = path_reply.info
         new_down_paths = []
         for pcb in path_reply.pcbs:
