@@ -19,10 +19,9 @@ limitations under the License.
 from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.pcb import PCB, AutonomousDomain, PCBMarking, PeerMarking
 from lib.packet.opaque_field import (OpaqueFieldType as OFT, InfoOpaqueField,
-        SupportSignatureField, HopOpaqueField, SupportPCBField,
-        SupportPeerField)
+    SupportSignatureField, HopOpaqueField, SupportPCBField, SupportPeerField)
 from lib.packet.scion import (SCIONPacket, get_type, Beacon, PathInfo,
-        PathRecords, PacketType as PT)
+    PathRecords, PacketType as PT)
 from lib.topology import ElementType, NeighborType
 from infrastructure.server import ServerBase
 import threading, time, sys, logging, copy

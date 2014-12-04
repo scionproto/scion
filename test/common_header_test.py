@@ -24,7 +24,7 @@ class TestCommonHeader(unittest.TestCase):
     """
 
     def test_opaque_field(self):
-        sch=SCIONCommonHdr()
+        sch = SCIONCommonHdr()
         self.assertTrue(sch.type == PacketType.DATA)
 
 
@@ -34,7 +34,7 @@ class TestCommonHeader(unittest.TestCase):
         self.assertTrue(sch1.type == sch2.type)
 
     def test_pack_and_parse(self):
-        sch=SCIONCommonHdr.from_values(PacketType.DATA,4,4,0)
+        sch = SCIONCommonHdr.from_values(PacketType.DATA,4,4,0)
 
         schCopy = SCIONCommonHdr()
         schCopy.parse(sch.pack())

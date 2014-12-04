@@ -43,15 +43,15 @@ class TestOpaqueFields(unittest.TestCase):
         self.assertTrue(of1.info == of2.info)
 
         self.assertTrue(hof1.info == hof2.info and
-                hof1.ingress_if == hof2.ingress_if and
-                hof1.egress_if == hof2.egress_if and
-                hof1.mac == hof2.mac)
+            hof1.ingress_if == hof2.ingress_if and
+            hof1.egress_if == hof2.egress_if and
+            hof1.mac == hof2.mac)
 
         self.assertTrue(iof1.info == iof2.info and
-                iof1.timestamp == iof2.timestamp and
-                iof1.isd_id == iof2.isd_id and
-                iof1.hops == iof2.hops and
-                iof1.reserved == iof2.reserved)
+            iof1.timestamp == iof2.timestamp and
+            iof1.isd_id == iof2.isd_id and
+            iof1.hops == iof2.hops and
+            iof1.reserved == iof2.reserved)
         #self.assertEqual(of1, of2)
         #self.assertEqual(hof1, hof2)
         #self.assertEqual(iof1, iof2)
@@ -68,9 +68,9 @@ class TestOpaqueFields(unittest.TestCase):
         ofCopy = HopOpaqueField()
         ofCopy.parse(of.pack())
         self.assertTrue(of.info == ofCopy.info and
-                of.ingress_if == ofCopy.ingress_if and
-                of.egress_if == ofCopy.egress_if and
-                of.mac == ofCopy.mac)
+            of.ingress_if == ofCopy.ingress_if and
+            of.egress_if == ofCopy.egress_if and
+            of.mac == ofCopy.mac)
 
 
 if __name__ == "__main__":
