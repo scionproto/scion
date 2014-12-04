@@ -19,7 +19,7 @@ limitations under the License.
 from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.path import EmptyPath
 from lib.packet.scion import (SCIONPacket, get_type, PathRequest, PathRecords,
-        PathInfo)
+    PathInfo)
 from lib.packet.scion import PacketType as PT
 from infrastructure.server import ServerBase, SCION_UDP_PORT
 import sys
@@ -133,7 +133,7 @@ class PathServer(ServerBase):
         """
         Handles all types of path request.
         """
-        assert isinstance(rec, PathRequest)
+        assert isinstance(path_request, PathRequest)
         logging.info("PATH_REQ received")
         isd = path_request.info.isd
         ad = path_request.info.ad
