@@ -163,10 +163,19 @@ class CorePath(PathBase):
         return b"".join(data)
 
     @classmethod
-    def from_values(cls, iof, hofs):
+    def from_values(cls, up_info=None, up_hops=[], dw_info=None, dw_hops=[]):
+        """
+        Returns CorePath with the values specified.
+        @param up_info: InfoOpaqueField of up_path 
+        @param up_hops: list of HopOpaqueField of up_path 
+        @param dw_info: InfoOpaqueField of down_path 
+        @param dw_hops: list of HopOpaqueField of down_path 
+        """
         cp = CorePath()
-        cp.up_path_info = iof
-        cp.up_path_hops = hofs
+        cp.up_path_info = up_info 
+        cp.up_path_hops = up_hops 
+        cp.down_path_info = dw_info 
+        cp.down_path_hops = dw_hops 
         return cp
 
     def __str__(self):
@@ -412,8 +421,8 @@ class EmptyPath(PathBase):
     """
     Represents an empty path.
 
-    This is currently need for intra AD communication, which doesn't need
-    a SCION path but still uses SCION packets for communication.
+    This is currently needed for intra AD communication, which doesn't need a
+    SCION path but still uses SCION packets for communication.
     """
     def __init__(self, raw=None):
         PathBase.__init__(self)
@@ -478,6 +487,8 @@ def join_shortcuts(up_path, down_path, point, peer=True):
     """
     up_path = copy.deepcopy(up_path)
     down_path = copy.deepcopy(down_path)
+    (up_index, dw_index) = point
+
     if peer:
         path = PeerPath()
         info = 0xf0
@@ -487,33 +498,33 @@ def join_shortcuts(up_path, down_path, point, peer=True):
 
     path.up_path_info = up_path.iof
     path.up_path_info.info = info
-    path.up_path_info.hops -= point[0]
-    for i in reversed(range(point[0], len(up_path.ads))):
+    path.up_path_info.hops -= up_index
+    for i in reversed(range(up_index, len(up_path.ads))):
         path.up_path_hops.append(up_path.ads[i].pcbm.hof)
     path.up_path_hops[-1].info = 0x20
-    path.up_path_upstream_ad = up_path.ads[point[0]-1].pcbm.hof
+    path.up_path_upstream_ad = up_path.ads[up_index-1].pcbm.hof
 
     if peer:
-        up_ad = up_path.ads[point[0]]
-        down_ad = down_path.ads[point[1]]
+        up_ad = up_path.ads[up_index]
+        down_ad = down_path.ads[dw_index]
         for up_peer in up_ad.pms:
             for down_peer in down_ad.pms:
-                if (up_peer.ad_id == down_ad.pcbm.ad_id and down_peer.ad_id
-                        == up_ad.pcbm.ad_id):
+                if (up_peer.ad_id == down_ad.pcbm.ad_id and
+                        down_peer.ad_id == up_ad.pcbm.ad_id):
                     path.up_path_peering_link = up_peer.hof
                     path.down_path_peering_link = down_peer.hof
 
     path.down_path_info = down_path.iof
     path.down_path_info.info = info
-    path.down_path_info.hops -= point[1]
-    path.down_path_upstream_ad = down_path.ads[point[1]-1].pcbm.hof
-    for i in range(point[1], len(down_path.ads)):
+    path.down_path_info.hops -= dw_index
+    path.down_path_upstream_ad = down_path.ads[dw_index-1].pcbm.hof
+    for i in range(dw_index, len(down_path.ads)):
         path.down_path_hops.append(down_path.ads[i].pcbm.hof)
     path.down_path_hops[0].info = 0x20
 
     return path
 
-def try_short_path(up_path, down_path):
+def build_shortcut_path(up_path, down_path):
     """
     Takes PCB objects (up/down_path) and tries to combine them as short path.
     """
@@ -559,7 +570,7 @@ def build_fullpaths(up_paths, down_paths):
     core_paths = []
     for up in up_paths:
         for down in down_paths:
-            path = try_short_path(up, down)
+            path = build_shortcut_path(up, down)
             if path and path not in short_paths:
                 short_paths.append(path)
             path = build_core_path(up, down)
