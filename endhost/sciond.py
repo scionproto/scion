@@ -23,23 +23,21 @@ from lib.packet.scion import (SCIONPacket, get_type, PathRequest, PathRecord,
 from lib.packet.scion import PacketType as PT
 from lib.topology import ElementType
 from infrastructure.server import ServerBase
-from infrastructure.path_server import update_dict
-import sys
+from infrastructure.path_server import update_dict #TODO move to utils.py
 import threading
 import logging
-import time
 
 PATHS_NO = 5 #conf parameter?
 
 class SCIONDaemon(ServerBase):
     """
-    The SCION Daemon.
+    The SCION Daemon used for retrieving and combining paths.
     """
 
     TIMEOUT = 7
 
-    def __init__(self, addr, topo_file, config_file):
-        ServerBase.__init__(self, addr, topo_file, config_file)
+    def __init__(self, addr, topo_file):
+        ServerBase.__init__(self, addr, topo_file)
         #TODO replace by pathstore instance
         self.up_paths = []
         self.down_paths = {}
@@ -56,47 +54,55 @@ class SCIONDaemon(ServerBase):
 
     def get_paths(self, isd, ad):
         """
-        Returns list of paths
+        Returns list of paths.
         """
         if self.up_paths and (isd, ad) in self.down_paths:
             return build_fullpaths(self.up_paths, self.down_paths[(isd, ad)])
         else:
+            #TODO add semaphore or something
             event = threading.Event()
-            self._waiting_targets[(isd, ad)] = event
+            update_dict(self._waiting_targets, (isd, ad), [event])
             self.request_paths(PathInfo.BOTH_PATHS, isd, ad)
-            self._waiting_targets[(isd, ad)].wait(SCIONDaemon.TIMEOUT)
-            del self._waiting_targets[(isd, ad)]
+            event.wait(SCIONDaemon.TIMEOUT)
+            self._waiting_targets[(isd, ad)].remove(event)
+            if not self._waiting_targets[(isd, ad)]:
+                del self._waiting_targets[(isd, ad)]
+
             if self.up_paths and (isd, ad) in self.down_paths:
                 return build_fullpaths(self.up_paths,
                     self.down_paths[(isd, ad)])
             else:
                 return []
 
-    def update_down_paths(self, isd_ad, pcbs):
-        """
-        Updates local storage of down paths.
-        """
-        update_dict(self.down_paths, isd_ad, pcbs)
-        self.down_paths[isd_ad] = self.down_paths[isd_ad][:PATHS_NO]
-
     def handle_path_reply(self, packet):
         """
         Handles path reply from local path server.
         """
         path_reply = PathRecord(packet)
+        info = path_reply.info
+        new_down_paths = []
         for pcb in path_reply.pcbs:
             isd = pcb.get_isd()
             ad = pcb.get_last_ad()
-            if self.topology.isd_id != isd or self.topology.ad_id != ad:
-                update_dict(self.down_paths, (isd, ad), [pcb], PATHS_NO)
+            if ((self.topology.isd_id != isd or self.topology.ad_id != ad)
+                    and info.type in [PathInfo.DOWN_PATH, PathInfo.BOTH_PATHS]
+                    and info.isd == isd and info.ad == ad):
+                new_down_paths.append(pcb)
                 logging.info("DownPath PATH added for (%d,%d)", isd, ad)
-            else:
+            elif ((self.topology.isd_id == isd and self.topology.ad_id == ad)
+                    and info.type in [PathInfo.UP_PATH, PathInfo.BOTH_PATHS]):
                 self.up_paths.append(pcb)
                 logging.info("UP PATH added")
+            else:
+                logging.warning("Incorrect path in Path Record")
+                print(isd,ad,info.__dict__)
+        update_dict(self.down_paths, (info.isd, info.ad), new_down_paths,
+                PATHS_NO)
 
         #wake up sleeping get_paths()
         if (isd, ad) in self._waiting_targets:
-            self._waiting_targets[(isd, ad)].set()
+            for event in self._waiting_targets[(isd, ad)]:
+                event.set()
 
     def handle_request(self, packet, sender, from_local_socket=True):
         """
@@ -110,44 +116,9 @@ class SCIONDaemon(ServerBase):
         else:
             logging.warning("Type %d not supported.", ptype)
 
-    def get_first_hop(self, spkt):
+    def get_first_hop(self, spkt): #TODO move it somewhere
         """
-        Returns first hop addr of down-path or end-host addr.
+        Returns first hop addr of up-path.
         """
         of = spkt.hdr.path.up_path_hops[0]
         return self.ifid2addr[of.ingress_if]
-
-def main():
-    """
-    Main function.
-    """
-    logging.basicConfig(level=logging.DEBUG)
-    if len(sys.argv) != 4:
-        logging.error("run: %s IP topo_file conf_file(empty)", sys.argv[0])
-        sys.exit()
-    sd = SCIONDaemon(IPv4HostAddr(sys.argv[1]), sys.argv[2], sys.argv[3])
-    threading.Thread(target=sd.run).start()
-
-    #testing
-    # logging.info("Sending UP_PATH request in 5 seconds")
-    # time.sleep(5)
-    # sd.request_paths(PathInfo.UP_PATH, 0, 0)
-    # logging.info("Sending DOWN_PATH request in 3 seconds")
-    # time.sleep(3)
-    # sd.request_paths(PathInfo.DOWN_PATH, 11, 5)
-    # logging.info("Clearing cache and sending BOTH_PATHS request in 3 seconds")
-    # sd.up_paths = []
-    # sd.down_paths = {}
-    # sd._waiting_targets = {}
-    # time.sleep(3)
-
-    logging.info("Requesting path for (11, 6)")
-    path = sd.get_paths(11, 6)[0]
-    dst = IPv4HostAddr("192.168.6.106")
-    scion_pkt = SCIONPacket.from_values(sd.addr, dst, b"payload", path)
-    hop = sd.get_first_hop(scion_pkt)
-    sd.send(scion_pkt, hop)
-    logging.info("Sending packet to: %s\nFirst hop: %s", scion_pkt, hop)
-
-if __name__ == "__main__":
-    main()

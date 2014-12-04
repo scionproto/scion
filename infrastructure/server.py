@@ -35,14 +35,15 @@ class ServerBase(object):
     """
     TIME_INTERVAL = 4
 
-    def __init__(self, addr, topo_file, config_file, rot_file=None):
+    def __init__(self, addr, topo_file, config_file=None, rot_file=None):
         self._addr = None
         self.topology = None
         self.config = None
         self.ifid2addr = {}
         self.addr = addr
         self.parse_topology(topo_file)
-        self.parse_config(config_file)
+        if config_file is not None:
+            self.parse_config(config_file)
         if rot_file is not None:
             self.parse_rot(rot_file)
         self.construct_ifid2addr_map()
@@ -106,7 +107,7 @@ class ServerBase(object):
         neighbors.
         """
         assert self.topology is not None
-        assert self.config is not None
+        # assert self.config is not None
         for router_list in self.topology.routers.values():
             for router in router_list:
                 self.ifid2addr[router.interface.if_id] = router.addr
