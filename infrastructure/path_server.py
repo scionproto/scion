@@ -62,7 +62,7 @@ class PathServer(ServerBase):
         self.up_paths = self.up_paths[-PATHS_NO:]
         logging.info("Up-Path Registered")
 
-        #sending pending targets to the core with first regitered up-path
+        #Sending pending targets to the core with first regitered up-path.
         if self.pending_targets:
             pcb = pcbs[0]
             next_hop = self.ifid2addr[pcb.rotf.if_id]
@@ -107,7 +107,7 @@ class PathServer(ServerBase):
         logging.info("Sending PATH_REC, using path: %s", path)
         self.send(path_reply, next_hop, port)
 
-    def request_core(self, isd, ad):
+    def request_paths_from_core(self, isd, ad):
         """
         Tries to request core PS for given target (isd, ad).
         """
@@ -129,12 +129,12 @@ class PathServer(ServerBase):
         """
         logging.warning("request_isd(): to implement")
 
-    def handle_path_request(self, packet):
+    def handle_path_request(self, path_request):
         """
         Handles all types of path request.
         """
+        assert isinstance(rec, PathRequest)
         logging.info("PATH_REQ received")
-        path_request = PathRequest(packet)
         isd = path_request.info.isd
         ad = path_request.info.ad
         type = path_request.info.type
@@ -142,8 +142,8 @@ class PathServer(ServerBase):
         paths_to_send = []
 
         # Not CPS and requester wants up-path
-        if (type in [PathInfo.UP_PATH, PathInfo.BOTH_PATHS] and not
-            self.topology.is_core_ad):
+        if (type in [PathInfo.UP_PATH, PathInfo.BOTH_PATHS] and 
+                not self.topology.is_core_ad):
             if self.up_paths:
                 paths_to_send.extend(self.up_paths)
             else:
@@ -158,7 +158,7 @@ class PathServer(ServerBase):
                 paths_to_send.extend(self.down_paths[(isd, ad)])
             else:
                 if not self.topology.is_core_ad:
-                    self.request_core(isd, ad)
+                    self.request_paths_from_core(isd, ad)
                 elif isd != self.topology.isd_id:
                     self.request_isd(isd, ad)
                 logging.warning("No downpath, request is pending.")
@@ -191,11 +191,11 @@ class PathServer(ServerBase):
                 self.send_paths(path_request, paths_to_send)
             del self.pending_requests[(isd, ad)]
 
-    def dispatch_path_record(self, packet):
+    def dispatch_path_record(self, rec):
         """
         Dispatches path record packet.
         """
-        rec = PathRecord(packet)
+        assert isinstance(rec, PathRecord)
         if rec.info.type == PathInfo.UP_PATH and not self.topology.is_core_ad:
             self.handle_up_path(rec)
         elif rec.info.type == PathInfo.DOWN_PATH:
@@ -211,9 +211,9 @@ class PathServer(ServerBase):
         ptype = get_type(spkt)
 
         if ptype == PT.PATH_REQ:
-            self.handle_path_request(packet)
+            self.handle_path_request(PathRequest(packet))
         elif ptype == PT.PATH_REC:
-            self.dispatch_path_record(packet)
+            self.dispatch_path_record(PathRecord(packet))
         else:
             logging.warning("Type %d not supported.", ptype)
 
