@@ -86,19 +86,19 @@ class SCIONDaemon(ServerBase):
             ad = pcb.get_last_ad()
             #TODO simplify PathRequest/PathRecords
             if ((self.topology.isd_id != isd or self.topology.ad_id != ad)
-                    and info.type in [PIT.DOWN, PIT.BOTH]
-                    and info.isd == isd and info.ad == ad):
+                and info.type in [PIT.DOWN, PIT.BOTH]
+                and info.isd == isd and info.ad == ad):
                 new_down_paths.append(pcb)
                 logging.info("DownPath PATH added for (%d,%d)", isd, ad)
             elif ((self.topology.isd_id == isd and self.topology.ad_id == ad)
-                    and info.type in [PIT.UP, PIT.BOTH]):
+                and info.type in [PIT.UP, PIT.BOTH]):
                 self.up_paths.append(pcb)
                 logging.info("UP PATH added")
             else:
                 logging.warning("Incorrect path in Path Record")
                 print(isd,ad,info.__dict__)
         update_dict(self.down_paths, (info.isd, info.ad), new_down_paths,
-                PATHS_NO)
+            PATHS_NO)
 
         #wake up sleeping get_paths()
         if (isd, ad) in self._waiting_targets:

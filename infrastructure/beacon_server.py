@@ -64,8 +64,7 @@ class BeaconServer(ServerBase):
         ssf = SupportSignatureField.from_values(cert_id, sig_len, block_size)
         hof = HopOpaqueField.from_values(ingress, egress, mac)
         spcbf = SupportPCBField.from_values(isd_id, bwalloc_f, bwalloc_r,
-                                            dyn_bwalloc_f, dyn_bwalloc_r,
-                                            bebw_f, bebw_r)
+            dyn_bwalloc_f, dyn_bwalloc_r, bebw_f, bebw_r)
         pcbm = PCBMarking.from_values(ad_id, ssf, hof, spcbf)
         pms = []
 #TODO PSz: peering link can be only added when there is IfidReply from router
@@ -80,7 +79,7 @@ class BeaconServer(ServerBase):
             reserved = 0
             hof = HopOpaqueField.from_values(ingress, egress, mac)
             spf = SupportPeerField.from_values(isd_id, bwalloc_f, bwalloc_r,
-                                               bw_class, reserved)
+                bw_class, reserved)
             peer_marking = PeerMarking.from_values(ad_id, hof, spf)
             pcbm.ssf.block_size += peer_marking.LEN
             pms.append(peer_marking)
@@ -115,7 +114,7 @@ class BeaconServer(ServerBase):
                 hops = 0
                 reserved = 0
                 pcb.iof = InfoOpaqueField.from_values(OFT.SPECIAL_OF, timestamp,
-                        self.topology.isd_id, hops, reserved)
+                    self.topology.isd_id, hops, reserved)
                 self.beacons = [pcb] #CBS does not select beacons
             for pcb in self.beacons:
                 self.propagate_pcb(pcb)

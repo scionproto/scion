@@ -34,11 +34,12 @@ class PathServer(ServerBase):
     """
     def __init__(self, addr, topo_file, config_file):
         ServerBase.__init__(self, addr, topo_file, config_file)
+        #TODO replace by pathstore instance
         self.up_paths = []
         self.down_paths = {}
-        #TODO replace by pathstore instance
-        self.pending_requests = {} #TODO split into pending UP, DOWN, BOTH_PATHS
-        self.pending_targets = set() # Used when local PS does not have up-path.
+        self.pending_up = [] # List of pending UP requests. 
+        self.pending_down = {} # Dictionary of pending DOWN _and_ BOTH requests.
+        self.waiting_targets = set() # Used when local PS does not have up-path.
         #TODO replace by some cache data struct. (expiringdict ?)
 
     def handle_up_path(self, path_record):
@@ -52,25 +53,23 @@ class PathServer(ServerBase):
         self.up_paths = self.up_paths[-PATHS_NO:]
         logging.info("Up-Path Registered")
 
-        #Sending pending targets to the core with first regitered up-path.
-        if self.pending_targets:
+        #Sending pending targets to the core using first registered up-path.
+        if self.waiting_targets:
             pcb = pcbs[0]
             next_hop = self.ifid2addr[pcb.rotf.if_id]
             path = pcb.get_core_path()
-            for (isd, ad) in self.pending_targets:
+            for (isd, ad) in self.waiting_targets:
                 info = PathInfo.from_values(PIT.DOWN, isd, ad)
                 path_request = PathRequest.from_values(self.addr, info, path)
                 self.send(path_request, next_hop)
                 logging.info("PATH_REQ sent using (first) registered up-path")
-            self.pending_targets.clear()
+            self.waiting_targets.clear()
 
-            # handling UP_PATH requests from pending_requests
-            # TODO: now UP_PATH request has to have set target ad=0, isd=0
-            if (0, 0) in self.pending_requests:
-                for path_request in self.pending_requests[(0, 0)]:
-                    if path_request.info.type == PIT.UP:
-                        self.send_paths(path_request, self.up_paths)
-                del self.pending_requests[(0, 0)]
+            # Handling pending UP_PATH requests.
+            for path_request in self.pending_up:
+                self.send_paths(path_request, self.up_paths)
+            self.pending_up = []
+
 
     def get_first_hop(self, spkt):
     #TODO: move it somewhere (scion.py ?)
@@ -104,7 +103,7 @@ class PathServer(ServerBase):
         """
         if not self.up_paths:
             logging.info('Pending target added')
-            self.pending_targets.add((isd, ad))
+            self.waiting_targets.add((isd, ad))
         else:
             logging.info('Requesting core for a down-path')
             pcb = self.up_paths[-1]
@@ -137,11 +136,14 @@ class PathServer(ServerBase):
             if self.up_paths:
                 paths_to_send.extend(self.up_paths)
             else:
-                update_dict(self.pending_requests, (isd, ad), [path_request])
-                self.pending_targets.add((isd, ad))
+                if type == PIT.BOTH:
+                    update_dict(self.pending_down, (isd, ad), [path_request])
+                    self.waiting_targets.add((isd, ad))
+                else: # PIT.UP
+                    self.pending_up.append(path_request)
                 return
 
-        # Requester wants down-path (notice that CPS serves only DOWN_PATHS).
+        # Requester wants down-path (notice that CPS serves only down-paths).
         if (type == PIT.DOWN or (type == PIT.BOTH and not
             self.topology.is_core_ad)):
             if (isd, ad) in self.down_paths:
@@ -153,7 +155,7 @@ class PathServer(ServerBase):
                     self.request_isd(isd, ad)
                 logging.warning("No downpath, request is pending.")
                 paths_to_send = []
-                update_dict(self.pending_requests, (isd, ad), [path_request])
+                update_dict(self.pending_down, (isd, ad), [path_request])
 
         if paths_to_send:
             self.send_paths(path_request, paths_to_send)
@@ -171,14 +173,15 @@ class PathServer(ServerBase):
             logging.info("PATH registered (%d, %d)", isd, ad)
 
         #serve pending requests
-        if isd and ad and (isd, ad) in self.pending_requests:
+        target = (isd, ad)
+        if isd is not None and ad is not None and target in self.pending_down:
             paths_to_send = []
-            for path_request in self.pending_requests[(isd, ad)]:
-                if path_request.info.type in [PIT.DOWN, PIT.BOTH]:
+            for path_request in self.pending_down[target]:
+                if path_request.info.type == PIT.BOTH:
                     paths_to_send.extend(self.up_paths)
-                paths_to_send.extend(self.down_paths[(isd, ad)])
+                paths_to_send.extend(self.down_paths[target])
                 self.send_paths(path_request, paths_to_send)
-            del self.pending_requests[(isd, ad)]
+            del self.pending_down[target]
 
     def dispatch_path_record(self, rec):
         """
