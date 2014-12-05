@@ -117,9 +117,3 @@ class SCIONDaemon(ServerBase):
         else:
             logging.warning("Type %d not supported.", ptype)
 
-    def get_first_hop(self, spkt): #TODO move it somewhere
-        """
-        Returns first hop addr of up-path.
-        """
-        of = spkt.hdr.path.up_path_hops[0]
-        return self.ifid2addr[of.ingress_if]

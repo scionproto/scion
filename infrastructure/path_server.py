@@ -70,19 +70,6 @@ class PathServer(ServerBase):
                 self.send_paths(path_request, self.up_paths)
             self.pending_up = []
 
-
-    def get_first_hop(self, spkt):
-    #TODO: move it somewhere (scion.py ?)
-        """
-        Returns first hop addr of down-path or end-host addr.
-        """
-        if isinstance(spkt.hdr.path, EmptyPath):
-            return (spkt.hdr.dst_addr, SCION_UDP_PORT)
-        else:
-            #TODO change [0] to current?
-            of = spkt.hdr.path.down_path_hops[0]
-            return (self.ifid2addr[of.egress_if], SCION_UDP_PORT)
-
     def send_paths(self, path_request, paths):
         """
         Sends paths to requester (depending on Path Server's location)

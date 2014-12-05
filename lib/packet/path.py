@@ -77,11 +77,16 @@ class PathBase(object):
         """
         return hop is None or hop == self.up_path_hops[0]
 
-    def get_first_hop(self):
+    def get_first_hop_of(self):
         """
         Returns the first up_path hop.
         """
-        return self.up_path_hops[0]
+        if self.up_path_hops:
+            return self.up_path_hops[0]
+        elif self.down_path_hops:
+            return self.down_path_hops[0]
+        else:
+            return None
 
     def get_of(self, index):
         """
@@ -448,7 +453,7 @@ class EmptyPath(PathBase):
     def is_last_hop(self, hop):
         return True
 
-    def get_first_hop(self):
+    def get_first_hop_of(self):
         return None
 
     def get_of(self, index):

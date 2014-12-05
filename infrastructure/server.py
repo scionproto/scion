@@ -119,6 +119,19 @@ class ServerBase(object):
         """
         pass
 
+    def get_first_hop(self, spkt):
+        """
+        Returns first hop addr of down-path or end-host addr.
+        """
+        opaque_field = spkt.hdr.path.get_first_hop_of()
+        if opaque_field is None: #EmptyPath
+            return (spkt.hdr.dst_addr, SCION_UDP_PORT)
+        else:
+            if spkt.hdr.is_on_up_path():
+                return (self.ifid2addr[opaque_field.ingress_if], SCION_UDP_PORT)
+            else:
+                return (self.ifid2addr[opaque_field.egress_if], SCION_UDP_PORT)
+
     def send(self, packet, dst, dst_port=SCION_UDP_PORT):
         """
         Sends packet to dst (to port dst_port) using self._local_socket.

@@ -64,10 +64,10 @@ class TestSCIONDaemon(unittest.TestCase):
         path = paths[0]
 
         dst = IPv4HostAddr("192.168.6.106")
-        scion_pkt = SCIONPacket.from_values(sd.addr, dst, b"payload", path)
-        hop = sd.get_first_hop(scion_pkt)
-        sd.send(scion_pkt, hop)
-        print ("Sending packet: %s\nFirst hop: %s" % (scion_pkt, hop))
+        spkt = SCIONPacket.from_values(sd.addr, dst, b"payload", path)
+        (next_hop, port) = sd.get_first_hop(spkt)
+        print("Sending packet: %s\nFirst hop: %s:%s" % (spkt, next_hop, port))
+        sd.send(spkt, next_hop, port)
 
 
 if __name__ == "__main__":

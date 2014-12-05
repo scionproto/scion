@@ -19,7 +19,7 @@ limitations under the License.
 from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.scion import SCIONPacket, get_type, PacketType as PT, \
     CertRequest, CertReply, RotRequest, RotReply, get_addr_from_type
-from infrastructure.server import ServerBase, SCION_UDP_PORT
+from infrastructure.server import ServerBase
 from lib.packet.path import EmptyPath
 import sys, hashlib, os, logging
 
@@ -38,17 +38,6 @@ class CertServer(ServerBase):
         Verifies certificate validity.
         """
         return True
-
-    #to be removed
-    def get_first_hop(self, spkt):
-        """
-        Returns first hop addr of down-path or end-host addr.
-        """
-        if isinstance(spkt.hdr.path, EmptyPath):
-            return (spkt.hdr.dst_addr, SCION_UDP_PORT)
-        else:
-            opaque_field = spkt.hdr.path.down_path_hops[0]
-            return (self.ifid2addr[opaque_field.egress_if], SCION_UDP_PORT)
 
     def process_cert_request(self, packet):
         """
