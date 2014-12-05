@@ -19,11 +19,11 @@ limitations under the License.
 from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.path import build_fullpaths
 from lib.packet.scion import (SCIONPacket, get_type, PathRequest, PathRecords,
-    PathInfo)
+    PathInfo, PathInfoType as PIT)
 from lib.packet.scion import PacketType as PT
 from lib.topology import ElementType
+from lib.util import update_dict
 from infrastructure.server import ServerBase
-from infrastructure.path_server import update_dict #TODO move to utils.py
 import threading
 import logging
 
@@ -62,7 +62,7 @@ class SCIONDaemon(ServerBase):
             #TODO add semaphore or something
             event = threading.Event()
             update_dict(self._waiting_targets, (isd, ad), [event])
-            self.request_paths(PathInfo.BOTH_PATHS, isd, ad)
+            self.request_paths(PIT.BOTH, isd, ad)
             event.wait(SCIONDaemon.TIMEOUT)
             self._waiting_targets[(isd, ad)].remove(event)
             if not self._waiting_targets[(isd, ad)]:
@@ -86,12 +86,12 @@ class SCIONDaemon(ServerBase):
             ad = pcb.get_last_ad()
             #TODO simplify PathRequest/PathRecords
             if ((self.topology.isd_id != isd or self.topology.ad_id != ad)
-                    and info.type in [PathInfo.DOWN_PATH, PathInfo.BOTH_PATHS]
+                    and info.type in [PIT.DOWN, PIT.BOTH]
                     and info.isd == isd and info.ad == ad):
                 new_down_paths.append(pcb)
                 logging.info("DownPath PATH added for (%d,%d)", isd, ad)
             elif ((self.topology.isd_id == isd and self.topology.ad_id == ad)
-                    and info.type in [PathInfo.UP_PATH, PathInfo.BOTH_PATHS]):
+                    and info.type in [PIT.UP, PIT.BOTH]):
                 self.up_paths.append(pcb)
                 logging.info("UP PATH added")
             else:

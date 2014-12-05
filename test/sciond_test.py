@@ -17,7 +17,7 @@ limitations under the License.
 """
 from endhost.sciond import SCIONDaemon
 from lib.packet.host_addr import IPv4HostAddr
-from lib.packet.scion import PathInfo, SCIONPacket 
+from lib.packet.scion import PathInfo, PathInfoType, SCIONPacket
 import sys
 import threading
 import time
@@ -43,11 +43,11 @@ class TestSCIONDaemon(unittest.TestCase):
 
         print("Sending UP_PATH request in 5 seconds")
         time.sleep(5)
-        sd.request_paths(PathInfo.UP_PATH, 0, 0)
+        sd.request_paths(PathInfoType.UP, 0, 0)
         print("Sending DOWN_PATH request in 3 seconds")
         time.sleep(3)
         self.assertTrue(sd.up_paths)
-        sd.request_paths(PathInfo.DOWN_PATH, 11, 5)
+        sd.request_paths(PathInfoType.DOWN, 11, 5)
         print("Clearing cache and sending BOTH_PATHS request in 3 seconds")
         time.sleep(3)
         self.assertTrue(sd.down_paths)

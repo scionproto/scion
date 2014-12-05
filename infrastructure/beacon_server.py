@@ -21,7 +21,7 @@ from lib.packet.pcb import PCB, AutonomousDomain, PCBMarking, PeerMarking
 from lib.packet.opaque_field import (OpaqueFieldType as OFT, InfoOpaqueField,
     SupportSignatureField, HopOpaqueField, SupportPCBField, SupportPeerField)
 from lib.packet.scion import (SCIONPacket, get_type, Beacon, PathInfo,
-    PathRecords, PacketType as PT)
+    PathRecords, PacketType as PT, PathInfoType as PIT)
 from lib.topology import ElementType, NeighborType
 from infrastructure.server import ServerBase
 import threading, time, sys, logging, copy
@@ -137,8 +137,8 @@ class BeaconServer(ServerBase):
         """
         Send Up Path to Local Path Servers
         """
-        info = PathInfo.from_values(PathInfo.UP_PATH, self.topology.ad_id,
-                self.topology.isd_id)
+        info = PathInfo.from_values(PIT.UP, self.topology.ad_id,
+            self.topology.isd_id)
         dst = self.topology.servers[ElementType.PATH_SERVER].addr
         up_path = PathRecords.from_values(dst, info, [pcb])
         self.send(up_path, dst)
@@ -148,8 +148,8 @@ class BeaconServer(ServerBase):
         Send Down Path to Core Path Server
         """
         pcb.remove_sig()
-        info = PathInfo.from_values(PathInfo.DOWN_PATH, self.topology.ad_id,
-                self.topology.isd_id)
+        info = PathInfo.from_values(PIT.DOWN, self.topology.ad_id,
+            self.topology.isd_id)
         core_path = pcb.get_core_path()
         down_path = PathRecords.from_values(self.addr, info, [pcb], core_path)
         next_hop = self.ifid2addr[pcb.rotf.if_id]

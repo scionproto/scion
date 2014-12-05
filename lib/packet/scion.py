@@ -572,15 +572,19 @@ class Beacon(SCIONPacket):
         self.payload = self.pcb.pack()
         return SCIONPacket.pack(self)
 
+class PathInfoType(object):
+    """
+    PathInfoType class, indicates a type of path request/reply.
+    """
+    UP = 0 # Request/Reply for up-paths
+    DOWN = 1 # Request/Reply for down-paths
+    BOTH = 2 # Request/Reply for up- and down-paths
 
 class PathInfo(object):
     """
-    Path Info class used in sending path requests/replies.
+    PathInfo class used in sending path requests/replies.
     """
     LEN = 11
-    UP_PATH = 0 # Request/Reply for up-paths
-    DOWN_PATH = 1 # Request/Reply for down-paths
-    BOTH_PATHS = 2 # Request/Reply for up- and down-paths
 
     def __init__(self, raw=None):
         self.type = None
@@ -608,7 +612,7 @@ class PathInfo(object):
     def from_values(cls, pckt_type, isd, ad):
         """
         Returns PathInfo with fields populated from values.
-        @param pckt_type: type of request/reply
+        @param pckt_type: type of request/reply (must be 'PathInfoType' object)
         @param isd, ad: address of targeted AD
         """
         info = PathInfo()

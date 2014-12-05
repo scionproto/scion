@@ -19,24 +19,14 @@ limitations under the License.
 from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.path import EmptyPath
 from lib.packet.scion import (SCIONPacket, get_type, PathRequest, PathRecords,
-    PathInfo)
+    PathInfo, PathInfoType as PIT)
 from lib.packet.scion import PacketType as PT
 from infrastructure.server import ServerBase, SCION_UDP_PORT
+from lib.util import update_dict
 import sys
 import logging
 
 PATHS_NO = 5 #TODO replace by configuration parameter
-
-def update_dict(dictionary, key, values, elem_num=0):
-    """
-    Updates dictionary. Used for managing a temporary paths' cache.
-    """
-    if key in dictionary:
-        dictionary[key].extend(values)
-    else:
-        dictionary[key] = values
-    dictionary[key] = dictionary[key][-elem_num:]
-
 
 class PathServer(ServerBase):
     """
@@ -48,7 +38,7 @@ class PathServer(ServerBase):
         self.down_paths = {}
         #TODO replace by pathstore instance
         self.pending_requests = {} #TODO split into pending UP, DOWN, BOTH_PATHS
-        self.pending_targets = set() #used when local PS does not have up-path
+        self.pending_targets = set() # Used when local PS does not have up-path.
         #TODO replace by some cache data struct. (expiringdict ?)
 
     def handle_up_path(self, path_record):
@@ -68,7 +58,7 @@ class PathServer(ServerBase):
             next_hop = self.ifid2addr[pcb.rotf.if_id]
             path = pcb.get_core_path()
             for (isd, ad) in self.pending_targets:
-                info = PathInfo.from_values(PathInfo.DOWN_PATH, isd, ad)
+                info = PathInfo.from_values(PIT.DOWN, isd, ad)
                 path_request = PathRequest.from_values(self.addr, info, path)
                 self.send(path_request, next_hop)
                 logging.info("PATH_REQ sent using (first) registered up-path")
@@ -78,7 +68,7 @@ class PathServer(ServerBase):
             # TODO: now UP_PATH request has to have set target ad=0, isd=0
             if (0, 0) in self.pending_requests:
                 for path_request in self.pending_requests[(0, 0)]:
-                    if path_request.info.type == PathInfo.UP_PATH:
+                    if path_request.info.type == PIT.UP:
                         self.send_paths(path_request, self.up_paths)
                 del self.pending_requests[(0, 0)]
 
@@ -101,7 +91,8 @@ class PathServer(ServerBase):
         dst = path_request.hdr.src_addr
         path_request.hdr.path.reverse()
         path = path_request.hdr.path
-        path_reply = PathRecords.from_values(dst, path_request.info, paths, path)
+        path_reply = PathRecords.from_values(dst, path_request.info, paths,
+            path)
         path_reply.hdr.set_downpath()
         (next_hop, port) = self.get_first_hop(path_reply)
         logging.info("Sending PATH_REC, using path: %s", path)
@@ -119,7 +110,7 @@ class PathServer(ServerBase):
             pcb = self.up_paths[-1]
             next_hop = self.ifid2addr[pcb.rotf.if_id]
             path = pcb.get_core_path()
-            info = PathInfo.from_values(PathInfo.DOWN_PATH, isd, ad)
+            info = PathInfo.from_values(PIT.DOWN, isd, ad)
             path_request = PathRequest.from_values(self.addr, info, path)
             self.send(path_request, next_hop)
 
@@ -141,9 +132,8 @@ class PathServer(ServerBase):
 
         paths_to_send = []
 
-        # Not CPS and requester wants up-path
-        if (type in [PathInfo.UP_PATH, PathInfo.BOTH_PATHS] and 
-                not self.topology.is_core_ad):
+        # Not CPS and requester wants up-path.
+        if (type in [PIT.UP, PIT.BOTH] and not self.topology.is_core_ad):
             if self.up_paths:
                 paths_to_send.extend(self.up_paths)
             else:
@@ -151,8 +141,8 @@ class PathServer(ServerBase):
                 self.pending_targets.add((isd, ad))
                 return
 
-        # Requester wants down-path (notice that CPS serves only DOWN_PATHS)
-        if (type == PathInfo.DOWN_PATH or (type == PathInfo.BOTH_PATHS and not
+        # Requester wants down-path (notice that CPS serves only DOWN_PATHS).
+        if (type == PIT.DOWN or (type == PIT.BOTH and not
             self.topology.is_core_ad)):
             if (isd, ad) in self.down_paths:
                 paths_to_send.extend(self.down_paths[(isd, ad)])
@@ -184,8 +174,7 @@ class PathServer(ServerBase):
         if isd and ad and (isd, ad) in self.pending_requests:
             paths_to_send = []
             for path_request in self.pending_requests[(isd, ad)]:
-                if path_request.info.type in [PathInfo.DOWN_PATH,
-                        PathInfo.BOTH_PATHS]:
+                if path_request.info.type in [PIT.DOWN, PIT.BOTH]:
                     paths_to_send.extend(self.up_paths)
                 paths_to_send.extend(self.down_paths[(isd, ad)])
                 self.send_paths(path_request, paths_to_send)
@@ -196,9 +185,9 @@ class PathServer(ServerBase):
         Dispatches path record packet.
         """
         assert isinstance(rec, PathRecords)
-        if rec.info.type == PathInfo.UP_PATH and not self.topology.is_core_ad:
+        if rec.info.type == PIT.UP and not self.topology.is_core_ad:
             self.handle_up_path(rec)
-        elif rec.info.type == PathInfo.DOWN_PATH:
+        elif rec.info.type == PIT.DOWN:
             self.handle_down_path(rec)
         else:
             logging.error("Wrong path record.")

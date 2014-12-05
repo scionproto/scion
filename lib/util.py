@@ -80,3 +80,14 @@ def get_paths(dst_isd, src_ad, dst_ad):
         sock.close()
 
     return paths
+
+def update_dict(dictionary, key, values, elem_num=0):
+    """
+    Updates dictionary. Used for managing a temporary paths' cache.
+    """
+    if key in dictionary:
+        dictionary[key].extend(values)
+    else:
+        dictionary[key] = values
+    dictionary[key] = dictionary[key][-elem_num:]
+
