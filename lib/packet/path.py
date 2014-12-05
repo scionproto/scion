@@ -79,7 +79,7 @@ class PathBase(object):
 
     def get_first_hop_of(self):
         """
-        Returns the first up_path hop.
+        Depending on up_path flag returns the first up- or down-path hop.
         """
         if self.up_path_hops:
             return self.up_path_hops[0]
