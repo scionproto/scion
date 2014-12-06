@@ -16,8 +16,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import ed25519, time, json, logging, os
 from ed25519 import SigningKey, VerifyingKey
+import ed25519
+import time
+import json
+import logging
+import os
 
 
 def generate_keys():
@@ -26,9 +30,9 @@ def generate_keys():
     """
     (signing_key, verifyng_key) = ed25519.create_keypair()
     sk_ascii = signing_key.to_ascii(encoding="base64")
-    sk_ascii = str(sk_ascii)[2:-1]
+    sk_ascii = str(sk_ascii)[2:-1] #Remove b'' from resulting string.
     vk_ascii = verifyng_key.to_ascii(encoding="base64")
-    vk_ascii = str(vk_ascii)[2:-1]
+    vk_ascii = str(vk_ascii)[2:-1] #Remove b'' from resulting string.
     return (sk_ascii, vk_ascii)
 
 
@@ -38,18 +42,17 @@ def load_root_certificates(path):
     of the certificate's subject and version (i.e. ISD:11-AD:1-V:0,
     www.abc.com-V:0, scion@ethz.ch-V:0).
 
-    @param path: parent directory where all root certificate files are stored.
+    @param path: Parent directory where all root certificate files are stored.
     """
-    if os.path.exists(path) == False:
+    if not os.path.exists(path):
         logging.info('The given path %s is not valid.', path)
         return {}
     roots = {}
     for root, dirs, files in os.walk(path):
         for name in files:
             if name.endswith((".crt")):
-                file_handler = open(path + name, "r")
-                cert_raw = file_handler.read()
-                file_handler.close()
+                with open(path + name, "r") as file_handler:
+                    cert_raw = file_handler.read()
                 cert = Certificate(cert_raw)
                 roots[cert.subject + '-V:' + str(cert.version)] = cert
     return roots
@@ -60,14 +63,14 @@ def sign(msg, priv_key):
     Signs a message with the given private key and returns the computed
     signature.
 
-    @param msg: string message to sign.
-    @param priv_key: private key used to compute the signature.
+    @param msg: String message to sign.
+    @param priv_key: Private key used to compute the signature.
     """
     msg = str.encode(msg)
     priv_key = bytes(priv_key, 'ascii')
     signing_key = SigningKey(priv_key, encoding="base64")
     signature = signing_key.sign(msg, encoding="base64")
-    signature = str(signature)[2:-1]
+    signature = str(signature)[2:-1] #Remove b'' from resulting string.
     return signature
 
 
@@ -76,17 +79,17 @@ def verify(msg, signature, subject, chain, roots, root_cert_version):
     Verifies whether the provided signature is the right one and if it was
     computed using a valid certificate chain.
 
-    @param msg: string message on which the signature was computed.
-    @param signature: string with the signature to verify
-    @param subject: string containing the subject of the entity who signed the
-                    message.
-    @param chain: certificate chain containing the signing entity's certificate.
-                  The signing entity's certificate is the first in the chain.
-    @param roots: dictionary containing the root certificates.
-    @param root_cert_version: version of the root certificate which signed the
-                              last certificate in the certificate chain.
+    @param msg: String message on which the signature was computed.
+    @param signature: String with the signature to verify
+    @param subject: String containing the subject of the entity who signed the
+        message.
+    @param chain: Certificate chain containing the signing entity's certificate.
+        The signing entity's certificate is the first in the chain.
+    @param roots: Dictionary containing the root certificates.
+    @param root_cert_version: Version of the root certificate which signed the
+        last certificate in the certificate chain.
     """
-    if chain.verify(subject, roots, root_cert_version) == False:
+    if not chain.verify(subject, roots, root_cert_version):
         logging.warning("The certificate chain is invalid.")
         return False
     pub_key = chain.certs[0].subject_pub_key
@@ -105,7 +108,7 @@ class Certificate(object):
     """
     Certificate class.
     """
-    VALIDITY_PERIOD = 365*24*60*60
+    VALIDITY_PERIOD = 365 * 24 * 60 * 60
     ALGORITHM = 'ed25519'
 
     def __init__(self, raw=None):
@@ -124,8 +127,8 @@ class Certificate(object):
         """
         Returns a dictionary with the certificate's content.
 
-        @param with_signature: boolean telling if the signature must also be
-                               inserted into the certificate.
+        @param with_signature: Boolean telling if the signature must also be
+            inserted into the certificate.
         """
         cert_dict = {'subject': self.subject,
                      'subject_pub_key': self.subject_pub_key,
@@ -134,7 +137,7 @@ class Certificate(object):
                      'issuing_time': self.issuing_time,
                      'expiration_time': self.expiration_time,
                      'algorithm': self.algorithm}
-        if with_signature == True:
+        if with_signature:
             cert_dict['signature'] = self.signature
         return cert_dict
 
@@ -142,7 +145,7 @@ class Certificate(object):
         """
         Initializes a certificate object out of a raw certificate.
 
-        @param raw: raw string produced by packing the certificate.
+        @param raw: Raw string produced by packing the certificate.
         """
         try:
             cert = json.loads(raw)
@@ -164,16 +167,16 @@ class Certificate(object):
         Generates a certificate storing in it relevant information about
         subject, issuer and validity of the certificate itself.
 
-        @param subject: string containing information about the certificate
-                        subject. It can either be an AD, an email address or a
-                        domain address.
-        @param sub_pub_key: base64 string containing the public key of the
-                            subject.
-        @param issuer: string containing information about the certificate
-                       issuer. It can only be an AD.
-        @param iss_priv_key: base64 string containing the private key of the
-                             issuer.
-        @param version: certificate version.
+        @param subject: String containing information about the certificate
+            subject. It can either be an AD, an email address or a domain
+            address.
+        @param sub_pub_key: Base64 string containing the public key of the
+            subject.
+        @param issuer: String containing information about the certificate
+            issuer. It can only be an AD.
+        @param iss_priv_key: Base64 string containing the private key of the
+            issuer.
+        @param version: Certificate version.
         """
         cert = Certificate()
         cert.subject = subject
@@ -181,30 +184,30 @@ class Certificate(object):
         cert.issuer = issuer
         cert.version = version
         cert.issuing_time = int(time.time())
-        cert.expiration_time = cert.issuing_time + cert.VALIDITY_PERIOD
-        cert.algorithm = cert.ALGORITHM
+        cert.expiration_time = cert.issuing_time + Certificate.VALIDITY_PERIOD
+        cert.algorithm = Certificate.ALGORITHM
         cert_dict = cert.get_cert_dict()
         cert_str = json.dumps(cert_dict, sort_keys=True)
         cert_str = str.encode(cert_str)
         iss_priv_key = bytes(iss_priv_key, 'ascii')
         signing_key = SigningKey(iss_priv_key, encoding="base64")
         signature = signing_key.sign(cert_str, encoding="base64")
-        cert.signature = str(signature)[2:-1]
+        cert.signature = str(signature)[2:-1] #Remove b'' from resulting string.
         return cert
 
     def verify(self, subject, issuer_cert):
         """
         One step verification.
 
-        @param subject: string containing the certificate's subject.
-        @param issuer_cert: string containing the certificate of the issuer.
+        @param subject: String containing the certificate's subject.
+        @param issuer_cert: String containing the certificate of the issuer.
         """
         if int(time.time()) >= self.expiration_time:
             logging.warning("The certificate is expired.")
             return False
         if subject != self.subject:
-            logging.warning("The given subject doesn't match the certificate's \
-                            subject")
+            logging.warning("The given subject doesn't match the " +
+                            "certificate's subject")
             return False
         iss_pub_key = issuer_cert.subject_pub_key
         iss_pub_key = bytes(iss_pub_key, 'ascii')
@@ -237,11 +240,15 @@ class Certificate(object):
 
 class CertificateChain(object):
     """
-    CertificateChain class.
+    CertificateChain class. It is an ordered sequence of certificates, in which:
+    the first certificate is the one at the end of a certificate chain and the
+    last is the certificate signed by the core ISD. Therefore, starting from the
+    first one, each certificate should be verified by the next one in the
+    sequence.
     """
 
     def __init__(self, raw=None):
-        self.certs = {}
+        self.certs = []
         if raw:
             self.parse(raw)
 
@@ -249,7 +256,7 @@ class CertificateChain(object):
         """
         Initializes a certificate chain object out of a raw certificate chain.
 
-        @param raw: raw string produced by packing the certificate chain.
+        @param raw: Raw string produced by packing the certificate chain.
         """
         try:
             chain = json.loads(raw)
@@ -258,18 +265,17 @@ class CertificateChain(object):
             return
         for index in range(0, len(chain)):
             cert_raw = json.dumps(chain[str(index)], sort_keys=True)
-            self.certs[index] = Certificate(cert_raw)
+            self.certs.append(Certificate(cert_raw))
 
     @classmethod
-    def from_values(cls, chain_list):
+    def from_values(cls, cert_list):
         """
         Builds a new certificate chain, given a list of certificates.
 
-        @param chain_list: list of certificates to insert into the chain.
+        @param cert_list: List of certificates to insert into the chain.
         """
         cert_chain = CertificateChain()
-        for index in range(0, len(chain_list)):
-            cert_chain.certs[index] = chain_list[index]
+        cert_chain.certs = cert_list
         return cert_chain
 
     def verify(self, subject, roots, root_cert_version):
@@ -278,11 +284,11 @@ class CertificateChain(object):
         verifies the last certificate of the certificate chain with the
         corresponding root certificate.
 
-        @param subject: string containing the subject of the first certificate
-                        in the certificate chain.
-        @param roots: dictionary containing the root certificates.
-        @param root_cert_version: version of the root certificate which signed
-                                  the last certificate in the certificate chain.
+        @param subject: String containing the subject of the first certificate
+            in the certificate chain.
+        @param roots: Dictionary containing the root certificates.
+        @param root_cert_version: Version of the root certificate which signed
+            the last certificate in the certificate chain.
         """
         if len(self.certs) == 0:
             logging.warning("The certificate chain is not initialized.")
@@ -290,7 +296,7 @@ class CertificateChain(object):
         cert = self.certs[0]
         for index in range(1, len(self.certs)):
             issuer_cert = self.certs[index]
-            if cert.verify(subject, issuer_cert) == False:
+            if not cert.verify(subject, issuer_cert):
                 return False
             cert = issuer_cert
             subject = cert.subject
@@ -298,7 +304,7 @@ class CertificateChain(object):
         if root_key not in roots.keys():
             logging.warning("Issuer public key not found.")
             return False
-        if cert.verify(subject, roots[root_key]) == False:
+        if not cert.verify(subject, roots[root_key]):
             return False
         return True
 
@@ -314,10 +320,10 @@ class CertificateChain(object):
         return chain_str
 
     def __str__(self):
-        chain_list = []
-        for index in range(0, len(self.certs)):
-            chain_list.append(str(self.certs[index]))
-        chain_str = '\n'.join(chain_list)
+        cert_list = []
+        for cert in self.certs:
+            cert_list.append(str(cert))
+        chain_str = '\n'.join(cert_list)
         return chain_str
 
 
@@ -327,13 +333,17 @@ def main():
     """
     logging.basicConfig(level=logging.DEBUG)
     (priv0, pub0) = generate_keys()
-    cert0 = Certificate.from_values('ISD:11-AD:0', pub0, 'ISD:11-AD:0', priv0, 0)
+    cert0 = \
+        Certificate.from_values('ISD:11-AD:0', pub0, 'ISD:11-AD:0', priv0, 0)
     (priv1, pub1) = generate_keys()
-    cert1 = Certificate.from_values('ISD:11-AD:1', pub1, 'ISD:11-AD:0', priv0, 0)
+    cert1 = \
+        Certificate.from_values('ISD:11-AD:1', pub1, 'ISD:11-AD:0', priv0, 0)
     (priv2, pub2) = generate_keys()
-    cert2 = Certificate.from_values('ISD:11-AD:2', pub2, 'ISD:11-AD:1', priv1, 0)
+    cert2 = \
+        Certificate.from_values('ISD:11-AD:2', pub2, 'ISD:11-AD:1', priv1, 0)
     (priv3, pub3) = generate_keys()
-    cert3 = Certificate.from_values('ISD:11-AD:3', pub3, 'ISD:11-AD:2', priv2, 0)
+    cert3 = \
+        Certificate.from_values('ISD:11-AD:3', pub3, 'ISD:11-AD:2', priv2, 0)
     print("Certificate:", cert0, sep='\n')
 
     chain_list = [cert3, cert2, cert1]
@@ -343,16 +353,17 @@ def main():
     path = "../topology/ISD11/certificates/"
     if not os.path.exists(path):
         os.makedirs(path)
-    file_handler = open(path + 'ISD:11-AD:0-V:0.crt', "w")
-    file_handler.write(str(cert0))
-    file_handler.close()
+    with open(path + 'ISD:11-AD:0-V:0.crt', "w") as file_handler:
+        file_handler.write(str(cert0))
 
     roots = load_root_certificates(path)
-    print("Certificate Chain verification:", chain.verify('ISD:11-AD:3', roots, 0), sep='\n')
+    print("Certificate Chain verification:",
+        chain.verify('ISD:11-AD:3', roots, 0), sep='\n')
 
     signature = sign('hello', priv3)
     print("Signature:", signature, sep='\n')
-    print("Message verification:", verify('hello', signature, 'ISD:11-AD:3', chain, roots, 0), sep='\n')
+    print("Message verification:",
+        verify('hello', signature, 'ISD:11-AD:3', chain, roots, 0), sep='\n')
 
 if __name__ == "__main__":
     main()
