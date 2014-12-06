@@ -23,7 +23,7 @@ from lib.packet.opaque_field import InfoOpaqueField, OpaqueField
 from lib.packet.packet_base import HeaderBase, PacketBase
 from lib.packet.path import PathType, CorePath, PeerPath, CrossOverPath, \
     EmptyPath, PathBase
-from lib.packet.pcb import PCB
+from lib.packet.pcb import HalfPathBeacon
 import struct, logging, bitstring
 from bitstring import BitArray
 
@@ -36,7 +36,7 @@ class PacketType(object):
     AID_REQ = 1  # Address request to local elements (from SCIONSwitch)
     AID_REP = 2  # AID reply to switch
     TO_LOCAL_ADDR = 100  # Threshold to distinguish local control packets
-    BEACON = 101  # PCB type
+    BEACON = 101  # HalfPathBeacon type
     CERT_REQ_LOCAL = 102  # local certificate request (to certificate server)
     CERT_REP_LOCAL = 103  # local certificate reply (from certificate server)
     CERT_REQ = 104  # Certificate Request to parent AD
@@ -552,7 +552,7 @@ class Beacon(SCIONPacket):
 
     def parse(self, raw):
         SCIONPacket.parse(self, raw)
-        self.pcb = PCB(self.payload)
+        self.pcb = HalfPathBeacon(self.payload)
 
     @classmethod
     def from_values(cls, dst, pcb):
@@ -560,7 +560,7 @@ class Beacon(SCIONPacket):
         Returns a Beacon packet with the values specified.
 
         @param dst: Destination address (must be a 'HostAddr' object)
-        @param pcb: Path Construction Beacon (half-path of 'PCB' class)
+        @param pcb: Path Construction Beacon ('HalfPathBeacon' class)
         """
         beacon = Beacon()
         beacon.pcb = pcb
@@ -659,9 +659,9 @@ class PathRequest(SCIONPacket):
 
 class PathRecords(SCIONPacket):
     """
-    Path Record class used for sending a list of down/up-paths. Paths are
-    represented as objects of the PCB class. Type of a path is determined
-    through info field (object of PathInfo).
+    Path Record class used for sending list of down/up-paths. Paths are
+    represented as objects of the HalfPathBeacon class. Type of a path is
+    determined through info field (object of PathInfo).
     """
     def __init__(self, raw=None):
         SCIONPacket.__init__(self)
@@ -673,7 +673,7 @@ class PathRecords(SCIONPacket):
     def parse(self, raw):
         SCIONPacket.parse(self, raw)
         self.info = PathInfo(self.payload[:PathInfo.LEN])
-        self.pcbs = PCB.deserialize(self.payload[PathInfo.LEN:])
+        self.pcbs = HalfPathBeacon.deserialize(self.payload[PathInfo.LEN:])
 
     @classmethod
     def from_values(cls, dst, info, pcbs, path=None):
@@ -687,7 +687,7 @@ class PathRecords(SCIONPacket):
         rec = PathRecords()
         src = get_addr_from_type(PacketType.PATH_REC)
         rec.hdr = SCIONHeader.from_values(src, dst, PacketType.DATA, path=path)
-        rec.payload = b"".join([info.pack(), PCB.serialize(pcbs)])
+        rec.payload = b"".join([info.pack(), HalfPathBeacon.serialize(pcbs)])
         rec.info = info
         rec.pcbs = pcbs
         return rec

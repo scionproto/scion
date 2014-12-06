@@ -16,17 +16,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from lib.packet.opaque_field import SupportSignatureField, HopOpaqueField, \
-    SupportPCBField, SupportPeerField, ROTField, InfoOpaqueField, \
-    OpaqueFieldType
+from lib.packet.opaque_field import (SupportSignatureField, HopOpaqueField,
+    SupportPCBField, SupportPeerField, ROTField, InfoOpaqueField,
+    OpaqueFieldType)
 from lib.packet.path import CorePath
-import bitstring, logging
 from bitstring import BitArray
+import bitstring
+import logging
 
 
 class PCBMarking(object):
     """
-    Packs all fields for a specific PCB marking
+    Packs all fields for a specific PCB marking, which includes: the Autonomous
+    Domain's ID, the SupportSignatureField, the HopOpaqueField, and the
+    SupportPCBField.
     """
     LEN = 32
 
@@ -34,9 +37,9 @@ class PCBMarking(object):
         self.parsed = False
         self.raw = None
         self.ad_id = 0
-        self.ssf = SupportSignatureField()
-        self.hof = HopOpaqueField()
-        self.spcbf = SupportPCBField()
+        self.ssf = None
+        self.hof = None
+        self.spcbf = None
         if raw is not None:
             self.parse(raw)
 
@@ -47,20 +50,25 @@ class PCBMarking(object):
         assert isinstance(raw, bytes)
         self.raw = raw
         dlen = len(raw)
-        if dlen < self.LEN:
+        if dlen < PCBMarking.LEN:
             logging.warning("PCBM: Data too short for parsing, len: %u", dlen)
             return
         bits = BitArray(bytes=raw[:8])
         self.ad_id = bits.unpack("uintbe:64")[0]
-        self.ssf.parse(raw[8:16])
-        self.hof.parse(raw[16:24])
-        self.spcbf.parse(raw[24:32])
+        self.ssf = SupportSignatureField(raw[8:16])
+        self.hof = HopOpaqueField(raw[16:24])
+        self.spcbf = SupportPCBField(raw[24:32])
         self.parsed = True
 
     @classmethod
-    def from_values(cls, ad_id, ssf, hof, spcbf):
+    def from_values(cls, ad_id=0, ssf=None, hof=None, spcbf=None):
         """
         Returns PCBMarking with fields populated from values.
+
+        @param ad_id: Autonomous Domain's ID.
+        @param ssf: SupportSignatureField object.
+        @param hof: HopOpaqueField object.
+        @param spcbf: SupportPCBField object.
         """
         pcbm = PCBMarking()
         pcbm.ad_id = ad_id
@@ -73,8 +81,8 @@ class PCBMarking(object):
         """
         Returns PCBMarking as a binary string.
         """
-        return bitstring.pack("uintbe:64", self.ad_id).bytes + \
-               self.ssf.pack() + self.hof.pack() + self.spcbf.pack()
+        return (bitstring.pack("uintbe:64", self.ad_id).bytes +
+            self.ssf.pack() + self.hof.pack() + self.spcbf.pack())
 
     def __str__(self):
         pcbm_str = "[PCB Marking ad_id: %x]\n" % (self.ad_id)
@@ -86,7 +94,7 @@ class PCBMarking(object):
 
 class PeerMarking(object):
     """
-    Packs all fields for a specific peer marking
+    Packs all fields for a specific peer marking.
     """
     LEN = 24
 
@@ -94,8 +102,8 @@ class PeerMarking(object):
         self.parsed = False
         self.raw = None
         self.ad_id = 0
-        self.hof = HopOpaqueField()
-        self.spf = SupportPeerField()
+        self.hof = None
+        self.spf = None
         if raw is not None:
             self.parse(raw)
 
@@ -106,19 +114,23 @@ class PeerMarking(object):
         assert isinstance(raw, bytes)
         self.raw = raw
         dlen = len(raw)
-        if dlen < self.LEN:
+        if dlen < PeerMarking.LEN:
             logging.warning("PM: Data too short for parsing, len: %u", dlen)
             return
         bits = BitArray(bytes=raw[0:8])
         self.ad_id = bits.unpack("uintbe:64")[0]
-        self.hof.parse(raw[8:16])
-        self.spf.parse(raw[16:24])
+        self.hof = HopOpaqueField(raw[8:16])
+        self.spf = SupportPeerField(raw[16:24])
         self.parsed = True
 
     @classmethod
-    def from_values(cls, ad_id, hof, spf):
+    def from_values(cls, ad_id=0, hof=None, spf=None):
         """
         Returns PeerMarking with fields populated from values.
+
+        @param ad_id: Autonomous Domain's ID.
+        @param hof: HopOpaqueField object.
+        @param spf: SupportPeerField object.
         """
         peer_marking = PeerMarking()
         peer_marking.ad_id = ad_id
@@ -130,8 +142,8 @@ class PeerMarking(object):
         """
         Returns PeerMarking as a binary string.
         """
-        return bitstring.pack("uintbe:64", self.ad_id).bytes + \
-               self.hof.pack() + self.spf.pack()
+        return (bitstring.pack("uintbe:64", self.ad_id).bytes +
+            self.hof.pack() + self.spf.pack())
 
     def __str__(self):
         pm_str = "[Peer Marking ad_id: %x]\n" % (self.ad_id)
@@ -140,17 +152,18 @@ class PeerMarking(object):
         return pm_str
 
 
-class AutonomousDomain(object):
+class ADMarking(object):
     """
-    Packs all fields for a specific Autonomous Domain
+    Packs all fields for a specific Autonomous Domain.
     """
+    LEN = PCBMarking.LEN
+
     def __init__(self, raw=None):
         self.parsed = False
         self.raw = None
-        self.pcbm = PCBMarking()
+        self.pcbm = None
         self.pms = []
         self.sig = b''
-        self.LEN = self.pcbm.LEN
         if raw is not None:
             self.parse(raw)
 
@@ -161,33 +174,36 @@ class AutonomousDomain(object):
         assert isinstance(raw, bytes)
         self.raw = raw
         dlen = len(raw)
-        if dlen < self.LEN:
+        if dlen < ADMarking.LEN:
             logging.warning("AD: Data too short for parsing, len: %u", dlen)
             return
-        self.pcbm.parse(raw[:self.pcbm.LEN])
-        raw = raw[self.pcbm.LEN:]
+        self.pcbm = PCBMarking(raw[:PCBMarking.LEN])
+        raw = raw[PCBMarking.LEN:]
         while len(raw) > (self.pcbm.ssf.sig_len):
-            peer_marking = PeerMarking()
-            peer_marking.parse(raw[:peer_marking.LEN])
+            peer_marking = PeerMarking(raw[:PeerMarking.LEN])
             self.pms.append(peer_marking)
-            raw = raw[peer_marking.LEN:]
+            raw = raw[PeerMarking.LEN:]
         self.sig = raw
         self.parsed = True
 
     @classmethod
-    def from_values(cls, pcbm, pms, sig):
+    def from_values(cls, pcbm=None, pms=[], sig=b''):
         """
-        Returns AutonomousDomain with fields populated from values.
+        Returns ADMarking with fields populated from values.
+
+        @param pcbm: PCBMarking object.
+        @param pms: List of PeerMarking objects.
+        @param sig: Beacon's signature.
         """
-        autonomous_domain = AutonomousDomain()
-        autonomous_domain.pcbm = pcbm
-        autonomous_domain.pms = pms
-        autonomous_domain.sig = sig
-        return autonomous_domain
+        ad_marking = ADMarking()
+        ad_marking.pcbm = pcbm
+        ad_marking.pms = pms
+        ad_marking.sig = sig
+        return ad_marking
 
     def pack(self):
         """
-        Returns AutonomousDomain as a binary string.
+        Returns ADMarking as a binary string.
         """
         ad_bytes = self.pcbm.pack()
         for peer_marking in self.pms:
@@ -195,7 +211,7 @@ class AutonomousDomain(object):
         ad_bytes += self.sig
         return ad_bytes
 
-    def remove_sig(self):
+    def remove_signature(self):
         """
         Removes the signature from the AD block.
         """
@@ -211,20 +227,17 @@ class AutonomousDomain(object):
         return ad_str
 
 
-#TODO PSz: IMO we should change naming. We have class Beacon (for actual packet)
-# and class PCB for half-path representation. Suggestion: change PCB to HalfPath
-class PCB(object):
+class HalfPathBeacon(object):
     """
-        Packs all PCB fields for a specific beacon
+        Packs all HalfPathBeacon fields for a specific beacon.
     """
     LEN = 16
 
     def __init__(self, raw=None):
         self.parsed = False
         self.raw = None
-        self.iof = InfoOpaqueField()
-        self.iof.info = OpaqueFieldType.SPECIAL_OF
-        self.rotf = ROTField()
+        self.iof = None
+        self.rotf = None
         self.ads = []
         if raw is not None:
             self.parse(raw)
@@ -236,51 +249,50 @@ class PCB(object):
         assert isinstance(raw, bytes)
         self.raw = raw
         dlen = len(raw)
-        if dlen < self.LEN:
-            logging.warning("PCB: Data too short for parsing, len: %u", dlen)
+        if dlen < HalfPathBeacon.LEN:
+            logging.warning("HalfPathBeacon: Data too short for parsing, " +
+            "len: %u", dlen)
             return
-        self.iof.parse(raw[0:8])
-        self.rotf.parse(raw[8:16])
+        self.iof = InfoOpaqueField(raw[0:8])
+        self.rotf = ROTField(raw[8:16])
         raw = raw[16:]
         while len(raw) > 0:
-            pcbm = PCBMarking()
-            pcbm.parse(raw[:pcbm.LEN])
-            autonomous_domain = AutonomousDomain(raw[:pcbm.ssf.sig_len + \
-                                                    pcbm.ssf.block_size])
-            self.ads.append(autonomous_domain)
-            raw = raw[pcbm.ssf.sig_len+pcbm.ssf.block_size:]
+            pcbm = PCBMarking(raw[:PCBMarking.LEN])
+            ad_marking = ADMarking(raw[:pcbm.ssf.sig_len + pcbm.ssf.block_size])
+            self.ads.append(ad_marking)
+            raw = raw[pcbm.ssf.sig_len + pcbm.ssf.block_size:]
         self.parsed = True
 
     def pack(self):
         """
-        Returns PCB as a binary string.
+        Returns HalfPathBeacon as a binary string.
         """
         pcb_bytes = self.iof.pack() + self.rotf.pack()
-        for autonomous_domain in self.ads:
-            pcb_bytes += autonomous_domain.pack()
+        for ad_marking in self.ads:
+            pcb_bytes += ad_marking.pack()
         return pcb_bytes
 
-    def add_ad(self, autonomous_domain):
+    def add_ad(self, ad_marking):
         """
         Appends a new AD block.
         """
         self.iof.hops = self.iof.hops + 1
-        self.ads.append(autonomous_domain)
+        self.ads.append(ad_marking)
 
-    def remove_sig(self):
+    def remove_signatures(self):
         """
         Removes the signature from each AD block.
         """
-        for autonomous_domain in self.ads:
-            autonomous_domain.remove_sig()
+        for ad_marking in self.ads:
+            ad_marking.remove_signature()
 
     def get_core_path(self):
         """
         Returns the list of HopOpaqueFields in the path.
         """
         hofs = []
-        for autonomous_domain in reversed(self.ads):
-            hofs.append(autonomous_domain.pcbm.hof)
+        for ad_marking in reversed(self.ads):
+            hofs.append(ad_marking.pcbm.hof)
         core_path = CorePath.from_values(self.iof, hofs)
         return core_path
 
@@ -299,25 +311,24 @@ class PCB(object):
     @staticmethod
     def deserialize(raw):
         """
-        Deserializes a bytes string into a list of PCBs.
+        Deserializes a bytes string into a list of HalfPathBeacons.
         """
         assert isinstance(raw, bytes)
         dlen = len(raw)
-        if dlen < PCB.LEN:
-            logging.warning("Data too short for parsing, len: %u", dlen)
+        if dlen < HalfPathBeacon.LEN:
+            logging.warning("HPB: Data too short for parsing, len: %u", dlen)
             return
         pcbs = []
         while len(raw) > 0:
-            pcb = PCB()
-            pcb.iof.parse(raw[0:8])
-            pcb.rotf.parse(raw[8:16])
+            pcb = HalfPathBeacon()
+            pcb.iof = InfoOpaqueField(raw[0:8])
+            pcb.rotf = ROTField(raw[8:16])
             raw = raw[16:]
             for i in range(0, pcb.iof.hops):
-                pcbm = PCBMarking()
-                pcbm.parse(raw[:pcbm.LEN])
-                autonomous_domain = AutonomousDomain(raw[:pcbm.ssf.sig_len + \
-                                                        pcbm.ssf.block_size])
-                pcb.ads.append(autonomous_domain)
+                pcbm = PCBMarking(raw[:PCBMarking.LEN])
+                ad_marking = ADMarking(raw[:pcbm.ssf.sig_len +
+                    pcbm.ssf.block_size])
+                pcb.ads.append(ad_marking)
                 raw = raw[pcbm.ssf.sig_len + pcbm.ssf.block_size:]
             pcbs.append(pcb)
         return pcbs
@@ -325,7 +336,7 @@ class PCB(object):
     @staticmethod
     def serialize(pcbs):
         """
-        Serializes a list of PCBs into a bytes string.
+        Serializes a list of HalfPathBeacons into a bytes string.
         """
         pcbs_list = []
         for pcb in pcbs:
@@ -333,8 +344,8 @@ class PCB(object):
         return b"".join(pcbs_list)
 
     def __str__(self):
-        pcb_str = "[PCB]\n"
+        pcb_str = "[HalfPathBeacon]\n"
         pcb_str += str(self.iof) + str(self.rotf)
-        for autonomous_domain in self.ads:
-            pcb_str += str(autonomous_domain)
+        for ad_marking in self.ads:
+            pcb_str += str(ad_marking)
         return pcb_str

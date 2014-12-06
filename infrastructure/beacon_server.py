@@ -17,23 +17,26 @@ limitations under the License.
 """
 
 from lib.packet.host_addr import IPv4HostAddr
-from lib.packet.pcb import PCB, AutonomousDomain, PCBMarking, PeerMarking
+from lib.packet.pcb import HalfPathBeacon, ADMarking, PCBMarking, PeerMarking
 from lib.packet.opaque_field import (OpaqueFieldType as OFT, InfoOpaqueField,
-    SupportSignatureField, HopOpaqueField, SupportPCBField, SupportPeerField)
+    SupportSignatureField, HopOpaqueField, SupportPCBField, SupportPeerField,
+    ROTField)
 from lib.packet.scion import (SCIONPacket, get_type, Beacon, PathInfo,
     PathRecords, PacketType as PT, PathInfoType as PIT)
 from lib.topology import ElementType, NeighborType
 from infrastructure.server import ServerBase
-import threading, time, sys, logging, copy
+import threading
+import time
+import sys
+import logging
+import copy
 
 
-#TODO PSz: revise naming, it is quite confusing, Beacon, PCB, path ...
-#     We need to sync it with design doc.
 class BeaconServer(ServerBase):
     """
     The SCION Beacon Server.
     """
-    DELTA = 24*60*60
+    DELTA = 24 * 60 * 60 #Amount of real time a PCB packet is valid for.
     BEACONS_NO = 5
 
     def __init__(self, addr, topo_file, config_file):
@@ -42,61 +45,44 @@ class BeaconServer(ServerBase):
         self.beacons = [] #TODO replace by pathstore instance
         #TODO: add beacons, up_paths, down_paths
 
-    def add_ad(self, pcb, ingress, egress):
+    def add_ad_to_pcb(self, pcb, ingress, egress):
         """
         Adds AD block for the current AD.
+
+        @param pcb: HalfPathBeacon packet received from the parent AD.
+        @param ingress: Ingresss interface.
+        @param egress: Egress interface.
         """
 #TODO PSz: beacon must be revised. We have design slides for a new format.
-        cert_id = 0
-        sig_len = 0
-        block_size = 32
-        mac = 0
-        isd_id = self.topology.isd_id
-        bwalloc_f = 0
-        bwalloc_r = 0
-        dyn_bwalloc_f = 0
-        dyn_bwalloc_r = 0
-        bebw_f = 0
-        bebw_r = 0
-        ad_id = self.topology.ad_id
-        bw_class = 0
-        reserved = 0
-        ssf = SupportSignatureField.from_values(cert_id, sig_len, block_size)
-        hof = HopOpaqueField.from_values(ingress, egress, mac)
-        spcbf = SupportPCBField.from_values(isd_id, bwalloc_f, bwalloc_r,
-            dyn_bwalloc_f, dyn_bwalloc_r, bebw_f, bebw_r)
-        pcbm = PCBMarking.from_values(ad_id, ssf, hof, spcbf)
-        pms = []
+        assert isinstance(pcb, HalfPathBeacon)
+        ssf = SupportSignatureField.from_values()
+        hof = HopOpaqueField.from_values(ingress_if=ingress, egress_if=egress)
+        spcbf = SupportPCBField.from_values(isd_id=self.topology.isd_id)
+        pcbm = PCBMarking.from_values(self.topology.ad_id, ssf, hof, spcbf)
+        peer_markings = []
 #TODO PSz: peering link can be only added when there is IfidReply from router
         for router in self.topology.routers[NeighborType.PEER]:
-            ad_id = router.interface.neighbor
-            ingress = router.interface.if_id
-            mac = 0
-            isd_id = self.topology.isd_id
-            bwalloc_f = 0
-            bwalloc_r = 0
-            bw_class = 0
-            reserved = 0
-            hof = HopOpaqueField.from_values(ingress, egress, mac)
-            spf = SupportPeerField.from_values(isd_id, bwalloc_f, bwalloc_r,
-                bw_class, reserved)
-            peer_marking = PeerMarking.from_values(ad_id, hof, spf)
+            hof = HopOpaqueField.from_values(ingress_if=router.interface.if_id,
+                egress_if=egress)
+            spf = SupportPeerField.from_values(isd_id=self.topology.isd_id)
+            peer_marking = PeerMarking.from_values(router.interface.neighbor,
+                hof, spf)
             pcbm.ssf.block_size += peer_marking.LEN
-            pms.append(peer_marking)
-        sig = b''
-        autonomous_domain = AutonomousDomain.from_values(pcbm, pms, sig)
-        pcb.add_ad(autonomous_domain)
+            peer_markings.append(peer_marking)
+        ad_marking = ADMarking.from_values(pcbm=pcbm, pms=peer_markings)
+        pcb.add_ad(ad_marking)
 
     def propagate_pcb(self, pcb):
         """
         Propagates the beacon to all children.
         """
+        assert isinstance(pcb, HalfPathBeacon)
         ingress = pcb.rotf.if_id
         for router in self.topology.routers[NeighborType.CHILD]:
             new_pcb = copy.deepcopy(pcb)
             egress = router.interface.if_id
             new_pcb.rotf.if_id = egress
-            self.add_ad(new_pcb, ingress, egress)
+            self.add_ad_to_pcb(new_pcb, ingress, egress)
             beacon = Beacon.from_values(router.addr, new_pcb)
             self.send(beacon, router.addr)
             self.propagated_beacons.append(new_pcb)
@@ -108,13 +94,12 @@ class BeaconServer(ServerBase):
         """
         while True:
             if self.topology.is_core_ad:
-                pcb = PCB()
-                timestamp = ((int(time.time()) + self.DELTA) % \
-                            (self.TIME_INTERVAL*2^16))/self.TIME_INTERVAL
-                hops = 0
-                reserved = 0
-                pcb.iof = InfoOpaqueField.from_values(OFT.SPECIAL_OF, timestamp,
-                    self.topology.isd_id, hops, reserved)
+                pcb = HalfPathBeacon()
+                timestamp = ((int(time.time()) + BeaconServer.DELTA) % \
+                    (ServerBase.TIME_INTERVAL * 2^16))/ServerBase.TIME_INTERVAL
+                pcb.iof = InfoOpaqueField.from_values(info=OFT.SPECIAL_OF,
+                    timestamp=timestamp, isd_id=self.topology.isd_id)
+                pcb.rotf = ROTField()
                 self.beacons = [pcb] #CBS does not select beacons
             for pcb in self.beacons:
                 self.propagate_pcb(pcb)
@@ -130,7 +115,7 @@ class BeaconServer(ServerBase):
         logging.info("PCB received")
         pcb = Beacon(packet).pcb
         self.beacons.append(pcb)
-        self.beacons = self.beacons[-BEACONS_NO:]
+        self.beacons = self.beacons[-BeaconServer.BEACONS_NO:]
 
     def register_up_path(self, pcb):
         """
@@ -146,7 +131,7 @@ class BeaconServer(ServerBase):
         """
         Send Down Path to Core Path Server
         """
-        pcb.remove_sig()
+        pcb.remove_signatures()
         info = PathInfo.from_values(PIT.DOWN, self.topology.ad_id,
             self.topology.isd_id)
         core_path = pcb.get_core_path()
@@ -167,7 +152,7 @@ class BeaconServer(ServerBase):
                 new_pcb = copy.deepcopy(pcb)
                 ingress = new_pcb.rotf.if_id
                 egress = 0
-                self.add_ad(new_pcb, ingress, egress)
+                self.add_ad_to_pcb(new_pcb, ingress, egress)
                 #TODO we should add peering links as well
                 self.register_up_path(new_pcb)
                 self.register_down_path(new_pcb)
@@ -207,8 +192,8 @@ def main():
     if len(sys.argv) != 4:
         logging.info("run: %s IP topo_file conf_file", sys.argv[0])
         sys.exit()
-    beacon_server = BeaconServer(IPv4HostAddr(sys.argv[1]), sys.argv[2], \
-                    sys.argv[3])
+    beacon_server = BeaconServer(IPv4HostAddr(sys.argv[1]), sys.argv[2],
+        sys.argv[3])
     beacon_server.run()
 
 if __name__ == "__main__":
