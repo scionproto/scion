@@ -16,7 +16,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from lib.packet.opaque_field import InfoOpaqueField, HopOpaqueField
+from lib.packet.opaque_field import (InfoOpaqueField, HopOpaqueField,
+    OpaqueFieldType)
 import copy
 
 
@@ -474,7 +475,7 @@ class PathCombinator(object):
     """
 
     @staticmethod
-    def build_core_path(up_path, down_path):
+    def _build_core_path(up_path, down_path):
         """
         Joins up_ and down_path into core fullpath. Returns object of CorePath
         class
@@ -487,16 +488,16 @@ class PathCombinator(object):
         core_path.up_path_info = up_path.iof
         for block in reversed(up_path.ads):
             core_path.up_path_hops.append(copy.deepcopy(block.pcbm.hof))
-        core_path.up_path_hops[-1].info = 0x20
+        core_path.up_path_hops[-1].info = OpaqueFieldType.LAST_OF
 
         core_path.down_path_info = down_path.iof
         for block in down_path.ads:
             core_path.down_path_hops.append(copy.deepcopy(block.pcbm.hof))
-        core_path.down_path_hops[0].info = 0x20
+        core_path.down_path_hops[0].info = OpaqueFieldType.LAST_OF
         return core_path
 
     @staticmethod
-    def join_shortcuts(up_path, down_path, point, peer=True):
+    def _join_shortcuts(up_path, down_path, point, peer=True):
         """
         Joins up_ and down_path (objects of PCB class) into shortcut fullpath.
         Depending on scenario returns object of PeerPath or CrossOverPath class.
@@ -509,17 +510,17 @@ class PathCombinator(object):
 
         if peer:
             path = PeerPath()
-            info = 0xf0
+            info = OpaqueFieldType.INTRATD_PEER
         else:
             path = CrossOverPath()
-            info = 0xc0
+            info = OpaqueFieldType.NON_TDC_XOVR
 
         path.up_path_info = up_path.iof
         path.up_path_info.info = info
         path.up_path_info.hops -= up_index
         for i in reversed(range(up_index, len(up_path.ads))):
             path.up_path_hops.append(up_path.ads[i].pcbm.hof)
-        path.up_path_hops[-1].info = 0x20
+        path.up_path_hops[-1].info = OpaqueFieldType.LAST_OF
         path.up_path_upstream_ad = up_path.ads[up_index-1].pcbm.hof
 
         if peer:
@@ -538,12 +539,12 @@ class PathCombinator(object):
         path.down_path_upstream_ad = down_path.ads[dw_index-1].pcbm.hof
         for i in range(dw_index, len(down_path.ads)):
             path.down_path_hops.append(down_path.ads[i].pcbm.hof)
-        path.down_path_hops[0].info = 0x20
+        path.down_path_hops[0].info = OpaqueFieldType.LAST_OF
 
         return path
 
     @staticmethod
-    def build_shortcut_path(up_path, down_path):
+    def _build_shortcut_path(up_path, down_path):
         """
         Takes PCB objects (up/down_path) and tries to combine them as short path
         """
@@ -572,16 +573,16 @@ class PathCombinator(object):
             return None
         elif xovrs and peers:
             if sum(peers[-1]) > sum(xovrs[-1]):
-                return PathCombinator.join_shortcuts(up_path, down_path,
+                return PathCombinator._join_shortcuts(up_path, down_path,
                     peers[-1], True)
             else:
-                return PathCombinator.join_shortcuts(up_path, down_path,
+                return PathCombinator._join_shortcuts(up_path, down_path,
                     xovrs[-1], False)
         elif xovrs:
-            return PathCombinator.join_shortcuts(up_path, down_path, xovrs[-1],
+            return PathCombinator._join_shortcuts(up_path, down_path, xovrs[-1],
                 False)
         else: #peers only
-            return PathCombinator.join_shortcuts(up_path, down_path, peers[-1],
+            return PathCombinator._join_shortcuts(up_path, down_path, peers[-1],
                 True)
 
     @staticmethod
@@ -594,10 +595,10 @@ class PathCombinator(object):
         core_paths = []
         for up in up_paths:
             for down in down_paths:
-                path = PathCombinator.build_shortcut_path(up, down)
+                path = PathCombinator._build_shortcut_path(up, down)
                 if path and path not in short_paths:
                     short_paths.append(path)
-                path = PathCombinator.build_core_path(up, down)
+                path = PathCombinator._build_core_path(up, down)
                 if path and path not in core_paths:
                     core_paths.append(path)
         return short_paths + core_paths

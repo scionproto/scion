@@ -27,7 +27,6 @@ class OpaqueFieldType(object):
     opaque field, i.e. field).
     """
     NORMAL_OF = 0x00
-    SPECIAL_OF = 0x80
     TDC_XOVR = 0x80
     NON_TDC_XOVR = 0xc0
     INPATH_XOVR = 0xe0
@@ -35,6 +34,7 @@ class OpaqueFieldType(object):
     INTERTD_PEER = 0xf8
     PEER_XOVR = 0x10
     ROT_OF = 0xff
+    LAST_OF = 0x20 #indicates last hop OF on the half-path (TODO revise)
 
 
 class OpaqueField(object):

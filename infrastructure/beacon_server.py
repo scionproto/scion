@@ -90,7 +90,7 @@ class BeaconServer(SCIONElement):
                 timestamp = ( ((int(time.time()) + BeaconServer.DELTA) %
                     (BeaconServer.TIME_INTERVAL * 2^16)) /
                     BeaconServer.TIME_INTERVAL)
-                pcb.iof = InfoOpaqueField.from_values(info=OFT.SPECIAL_OF,
+                pcb.iof = InfoOpaqueField.from_values(info=OFT.TDC_XOVR,
                     timestamp=timestamp, isd_id=self.topology.isd_id)
                 pcb.rotf = ROTField()
                 self.beacons = [pcb] #CBS does not select beacons

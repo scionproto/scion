@@ -310,7 +310,7 @@ class Router(SCIONElement):
             of1_info = spkt.hdr.get_relative_of(1).info
             of2_info = spkt.hdr.get_current_of().info
             if ((of1_info == OFT.INTRATD_PEER and spkt.hdr.is_on_up_path()) or
-                (of2_info == 0x20 and not spkt.hdr.is_on_up_path())):#TODO DEBUG
+                (of2_info == OFT.LAST_OF and not spkt.hdr.is_on_up_path())):
                 spkt.hdr.increase_of(1)
 
         if self.interface.if_id != iface:#TODO debug
