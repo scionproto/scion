@@ -123,7 +123,7 @@ class CertServer(SCIONElement):
         src_addr = rot_req.hdr.src_addr
         path = rot_req.path
         if path is None:
-            # ask PS
+            # TODO: ask PS
             # if still None: return
             pass
         rot_isd = rot_req.rot_isd
