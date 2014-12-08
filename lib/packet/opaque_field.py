@@ -334,7 +334,7 @@ class SupportPeerField(OpaqueField):
     Class for the support peer field.
 
     The support peer field contains the trusted domain id (2 bytes),
-    bandwidth allocation f (1 byte), bandwith allocation r (1 byte),
+    bandwidth allocation left (1 byte), bandwith allocation right (1 byte),
     the bandwidth class (1 bit), and a reserved section (31 bits).
     """
     def __init__(self, raw=None):
@@ -369,8 +369,8 @@ class SupportPeerField(OpaqueField):
         Returns SupportPeerField with fields populated from values.
 
         @param isd_id: Isolation Domanin's ID.
-        @param bwalloc_f: Allocated bandwidth f.
-        @param bwalloc_r: Allocated bandwidth r.
+        @param bwalloc_f: Allocated bandwidth left.
+        @param bwalloc_r: Allocated bandwidth right.
         @param bw_class: Bandwidth class.
         @param reserved: Reserved section.
         """
