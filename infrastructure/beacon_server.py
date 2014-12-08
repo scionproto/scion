@@ -70,7 +70,7 @@ class BeaconServer(SCIONElement):
                 spf = SupportPeerField.from_values(isd_id=self.topology.isd_id)
                 peer_marking = \
                     PeerMarking.from_values(router_peer.interface.neighbor, hof,
-                    spf)
+                        spf)
                 pcbm.ssf.block_size += peer_marking.LEN
                 peer_markings.append(peer_marking)
             ad_marking = ADMarking.from_values(pcbm=pcbm, pms=peer_markings)

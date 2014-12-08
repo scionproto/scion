@@ -27,6 +27,7 @@ import logging
 
 
 ISD_PATH = '../topology/ISD'
+CERTS_PATH = '/certificates/'
 
 
 class CertServer(SCIONElement):
@@ -53,13 +54,13 @@ class CertServer(SCIONElement):
         src_addr = cert_req.hdr.src_addr
         path = cert_req.path
         if path is None:
-            # ask PS
+            # TODO: ask PS
             # if still None: return
             pass
         cert_isd = cert_req.cert_isd
         cert_ad = cert_req.cert_ad
         cert_version = cert_req.cert_version
-        cert_file = (ISD_PATH + cert_isd + '/certificates/ISD:' + cert_isd +
+        cert_file = (ISD_PATH + cert_isd + CERTS_PATH + 'ISD:' + cert_isd +
             '-AD:' + cert_ad + '-V:' + cert_version + '.crt')
         if not os.path.exists(cert_file):
             logging.info('Certificate %s:%s not found, sending up stream.',
@@ -71,8 +72,8 @@ class CertServer(SCIONElement):
                 dst_addr, path, cert_isd, cert_ad, cert_version)
             self.send(new_cert_req, dst_addr)
         else:
-            logging.info('Certificate %s:%s found, sending it back to requester\
-                (%s)', cert_isd, cert_ad, src_addr)
+            logging.info('Certificate %s:%s found, sending it back to ' +
+                'requester(%s)', cert_isd, cert_ad, src_addr)
             with open(cert_file, 'r') as file_handler:
                 cert = file_handler.read()
             if cert_req.hdr.path == None or cert_req.hdr.path == b'':
@@ -101,7 +102,7 @@ class CertServer(SCIONElement):
         if not self._verify_cert(cert):
             logging.info("Certificate verification failed.")
             return
-        cert_file = (ISD_PATH + cert_isd + '/certificates/ISD:' + cert_isd +
+        cert_file = (ISD_PATH + cert_isd + CERTS_PATH + 'ISD:' + cert_isd +
             '-AD:' + cert_ad + '-V:' + cert_version + '.crt')
         if not os.path.exists(os.path.dirname(cert_file)):
             os.makedirs(os.path.dirname(cert_file))
@@ -127,7 +128,7 @@ class CertServer(SCIONElement):
             pass
         rot_isd = rot_req.rot_isd
         rot_version = rot_req.rot_version
-        rot_file = (ISD_PATH + rot_isd + '/rot-isd' + rot_isd + '-' +
+        rot_file = (ISD_PATH + rot_isd + '/ISD:' + rot_isd + '-V:' +
             rot_version + '.xml')
         if not os.path.exists(rot_file):
             logging.info('ROT file %s not found, sending up stream.', rot_isd)
@@ -167,7 +168,7 @@ class CertServer(SCIONElement):
         if not self._verify_cert(rot):
             logging.info("ROT verification failed.")
             return
-        rot_file = (ISD_PATH + rot_isd + '/rot-isd' + rot_isd + '-' +
+        rot_file = (ISD_PATH + rot_isd + '/ISD:' + rot_isd + '-V:' +
             rot_version + '.xml')
         if not os.path.exists(os.path.dirname(rot_file)):
             os.makedirs(os.path.dirname(rot_file))

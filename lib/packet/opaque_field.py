@@ -402,9 +402,10 @@ class SupportPCBField(OpaqueField):
     Class for the support PCB field.
 
     The support PCB field contains the trusted domain id (2 bytes),
-    bandwidth allocation f (1 byte), bandwith allocation r (1 byte),
-    dynamic bandwidth allocation f (1 byte), dynamic bandwidth allocation r
-    (1 byte), BE bandwidth f (1 byte), and BE bandwidth r (1 byte).
+    bandwidth allocation left (1 byte), bandwith allocation right (1 byte),
+    dynamic bandwidth allocation left (1 byte), dynamic bandwidth allocation
+    right (1 byte), best effort bandwidth left (1 byte), and best effort
+    bandwidth right (1 byte).
     """
     def __init__(self, raw=None):
         OpaqueField.__init__(self)
@@ -442,12 +443,12 @@ class SupportPCBField(OpaqueField):
         Returns SupportPCBField with fields populated from values.
 
         @param isd_id: Isolation Domanin's ID.
-        @param bwalloc_f: Allocated bandwidth f.
-        @param bwalloc_r: Allocated bandwidth r.
-        @param dyn_bwalloc_f: Dynamic allocated bandwidth f.
-        @param dyn_bwalloc_r: Dynamic allocated bandwidth r.
-        @param bebw_f: Be. bandwidth f.
-        @param bebw_r: Be. bandwidth r.
+        @param bwalloc_f: Allocated bandwidth left.
+        @param bwalloc_r: Allocated bandwidth right.
+        @param dyn_bwalloc_f: Dynamic allocated bandwidth left.
+        @param dyn_bwalloc_r: Dynamic allocated bandwidth right.
+        @param bebw_f: Best effort bandwidth left.
+        @param bebw_r: Best effort bandwidth right.
         """
         spcbf = SupportPCBField()
         spcbf.isd_id = isd_id

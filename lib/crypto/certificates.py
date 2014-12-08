@@ -29,10 +29,8 @@ def generate_keys():
     Generates a pair of keys and returns them in base64 format.
     """
     (signing_key, verifyng_key) = ed25519.create_keypair()
-    sk_ascii = signing_key.to_ascii(encoding="base64")
-    sk_ascii = str(sk_ascii)[2:-1] #Remove b'' from resulting string.
-    vk_ascii = verifyng_key.to_ascii(encoding="base64")
-    vk_ascii = str(vk_ascii)[2:-1] #Remove b'' from resulting string.
+    sk_ascii = signing_key.to_ascii(encoding="base64").decode("utf-8")
+    vk_ascii = verifyng_key.to_ascii(encoding="base64").decode("utf-8")
     return (sk_ascii, vk_ascii)
 
 

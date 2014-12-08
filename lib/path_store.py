@@ -364,14 +364,11 @@ class PathStore(object):
         stored in the policy.
         """
         to_remove = []
-        old_count = defaultdict(lambda: 1)
-        new_count = defaultdict(lambda: 1)
+        old_count = defaultdict(lambda: 0)
+        new_count = defaultdict(lambda: 0)
         for i, path in enumerate(paths):
             for ad_marking in paths[i].pcb.ads:
-                if ad_marking.pcbm.ad_id in new_count:
-                    new_count[ad_marking.pcbm.ad_id] += 1
-                else:
-                    new_count[ad_marking.pcbm.ad_id] = 1
+                new_count[ad_marking.pcbm.ad_id] += 1
             if max(new_count.values()) > self.policy.disjointness:
                 new_count = old_count
                 to_remove.insert(0, i)
