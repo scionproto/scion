@@ -168,18 +168,23 @@ class CorePath(PathBase):
         return b"".join(data)
 
     @classmethod
-    def from_values(cls, up_info=None, up_hops=[], dw_info=None, dw_hops=[]):
+    def from_values(cls, up_inf=None, up_hops=None, dw_inf=None, dw_hops=None):
         """
         Returns CorePath with the values specified.
-        @param up_info: InfoOpaqueField of up_path
+        @param up_inf: InfoOpaqueField of up_path
         @param up_hops: list of HopOpaqueField of up_path
-        @param dw_info: InfoOpaqueField of down_path
+        @param dw_inf: InfoOpaqueField of down_path
         @param dw_hops: list of HopOpaqueField of down_path
         """
+        if up_hops is None:
+            up_hops = []
+        if dw_hops is None:
+            dw_hops = []
+
         cp = CorePath()
-        cp.up_path_info = up_info
+        cp.up_path_info = up_inf
         cp.up_path_hops = up_hops
-        cp.down_path_info = dw_info
+        cp.down_path_info = dw_inf
         cp.down_path_hops = dw_hops
         return cp
 

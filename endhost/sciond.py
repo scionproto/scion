@@ -85,7 +85,7 @@ class SCIONDaemon(ServerBase):
         for pcb in path_reply.pcbs:
             isd = pcb.get_isd()
             ad = pcb.get_last_ad()
-            #TODO simplify PathRequest/PathRecords
+
             if ((self.topology.isd_id != isd or self.topology.ad_id != ad)
                 and info.type in [PIT.DOWN, PIT.BOTH]
                 and info.isd == isd and info.ad == ad):
@@ -101,7 +101,7 @@ class SCIONDaemon(ServerBase):
         update_dict(self.down_paths, (info.isd, info.ad), new_down_paths,
             PATHS_NO)
 
-        #wake up sleeping get_paths()
+        #Wake up sleeping get_paths().
         if (isd, ad) in self._waiting_targets:
             for event in self._waiting_targets[(isd, ad)]:
                 event.set()
