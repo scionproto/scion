@@ -187,7 +187,7 @@ class ADMarking(object):
         self.parsed = True
 
     @classmethod
-    def from_values(cls, pcbm=None, pms=[], sig=b''):
+    def from_values(cls, pcbm=None, pms=None, sig=b''):
         """
         Returns ADMarking with fields populated from values.
 
@@ -197,7 +197,9 @@ class ADMarking(object):
         """
         ad_marking = ADMarking()
         ad_marking.pcbm = pcbm
-        ad_marking.pms = pms
+        ad_marking.pms = []
+        if pms is not None:
+            ad_marking.pms = pms
         ad_marking.sig = sig
         return ad_marking
 
