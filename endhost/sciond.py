@@ -17,7 +17,7 @@ limitations under the License.
 """
 
 from lib.packet.host_addr import IPv4HostAddr
-from lib.packet.path import build_fullpaths
+from lib.packet.path import PathCombinator
 from lib.packet.scion import (SCIONPacket, get_type, PathRequest, PathRecords,
     PathInfo, PathInfoType as PIT)
 from lib.packet.scion import PacketType as PT
@@ -57,7 +57,8 @@ class SCIONDaemon(ServerBase):
         Returns list of paths.
         """
         if self.up_paths and (isd, ad) in self.down_paths:
-            return build_fullpaths(self.up_paths, self.down_paths[(isd, ad)])
+            return PathCombinator.build_fullpaths(self.up_paths,
+                self.down_paths[(isd, ad)])
         else:
             #TODO add semaphore or something
             event = threading.Event()
@@ -69,7 +70,7 @@ class SCIONDaemon(ServerBase):
                 del self._waiting_targets[(isd, ad)]
 
             if self.up_paths and (isd, ad) in self.down_paths:
-                return build_fullpaths(self.up_paths,
+                return PathCombinator.build_fullpaths(self.up_paths,
                     self.down_paths[(isd, ad)])
             else:
                 return []

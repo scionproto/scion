@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from lib.packet.opaque_field import InfoOpaqueField, HopOpaqueField 
+from lib.packet.opaque_field import InfoOpaqueField, HopOpaqueField
 import copy
 
 
@@ -171,16 +171,16 @@ class CorePath(PathBase):
     def from_values(cls, up_info=None, up_hops=[], dw_info=None, dw_hops=[]):
         """
         Returns CorePath with the values specified.
-        @param up_info: InfoOpaqueField of up_path 
-        @param up_hops: list of HopOpaqueField of up_path 
-        @param dw_info: InfoOpaqueField of down_path 
-        @param dw_hops: list of HopOpaqueField of down_path 
+        @param up_info: InfoOpaqueField of up_path
+        @param up_hops: list of HopOpaqueField of up_path
+        @param dw_info: InfoOpaqueField of down_path
+        @param dw_hops: list of HopOpaqueField of down_path
         """
         cp = CorePath()
-        cp.up_path_info = up_info 
-        cp.up_path_hops = up_hops 
-        cp.down_path_info = dw_info 
-        cp.down_path_hops = dw_hops 
+        cp.up_path_info = up_info
+        cp.up_path_hops = up_hops
+        cp.down_path_info = dw_info
+        cp.down_path_hops = dw_hops
         return cp
 
     def __str__(self):
@@ -463,123 +463,137 @@ class EmptyPath(PathBase):
         return "<Empty-Path></Empty-Path>"
 
 
-def build_core_path(up_path, down_path):
+class PathCombinator(object):
     """
-    Joins up_ and down_path into core fullpath. Returns object of CorePath class
+    Class that contains functions required to build end-to-end SCION paths.
     """
-    if not up_path or not down_path or not up_path.ads or not down_path.ads:
-        return None
-        #TODO other sanity checks...
 
-    core_path = CorePath()
-    core_path.up_path_info = up_path.iof
-    for block in reversed(up_path.ads):
-        core_path.up_path_hops.append(copy.deepcopy(block.pcbm.hof))
-    core_path.up_path_hops[-1].info = 0x20
+    @staticmethod
+    def build_core_path(up_path, down_path):
+        """
+        Joins up_ and down_path into core fullpath. Returns object of CorePath
+        class
+        """
+        if not up_path or not down_path or not up_path.ads or not down_path.ads:
+            return None
+            #TODO other sanity checks...
 
-    core_path.down_path_info = down_path.iof
-    for block in down_path.ads:
-        core_path.down_path_hops.append(copy.deepcopy(block.pcbm.hof))
-    core_path.down_path_hops[0].info = 0x20
-    return core_path
+        core_path = CorePath()
+        core_path.up_path_info = up_path.iof
+        for block in reversed(up_path.ads):
+            core_path.up_path_hops.append(copy.deepcopy(block.pcbm.hof))
+        core_path.up_path_hops[-1].info = 0x20
 
-def join_shortcuts(up_path, down_path, point, peer=True):
-    """
-    Joins up_ and down_path (objects of PCB class) into shortcut fullpath.
-    Depending on scenario returns object of PeerPath or CrossOverPath class.
-    point: tuple (up_path_index, down_path_index) position of peer/xovr link
-    peer:  true for peer, false for xovr path
-    """
-    up_path = copy.deepcopy(up_path)
-    down_path = copy.deepcopy(down_path)
-    (up_index, dw_index) = point
+        core_path.down_path_info = down_path.iof
+        for block in down_path.ads:
+            core_path.down_path_hops.append(copy.deepcopy(block.pcbm.hof))
+        core_path.down_path_hops[0].info = 0x20
+        return core_path
 
-    if peer:
-        path = PeerPath()
-        info = 0xf0
-    else:
-        path = CrossOverPath()
-        info = 0xc0
+    @staticmethod
+    def join_shortcuts(up_path, down_path, point, peer=True):
+        """
+        Joins up_ and down_path (objects of PCB class) into shortcut fullpath.
+        Depending on scenario returns object of PeerPath or CrossOverPath class.
+        point: tuple (up_path_index, down_path_index) position of peer/xovr link
+        peer:  true for peer, false for xovr path
+        """
+        up_path = copy.deepcopy(up_path)
+        down_path = copy.deepcopy(down_path)
+        (up_index, dw_index) = point
 
-    path.up_path_info = up_path.iof
-    path.up_path_info.info = info
-    path.up_path_info.hops -= up_index
-    for i in reversed(range(up_index, len(up_path.ads))):
-        path.up_path_hops.append(up_path.ads[i].pcbm.hof)
-    path.up_path_hops[-1].info = 0x20
-    path.up_path_upstream_ad = up_path.ads[up_index-1].pcbm.hof
-
-    if peer:
-        up_ad = up_path.ads[up_index]
-        down_ad = down_path.ads[dw_index]
-        for up_peer in up_ad.pms:
-            for down_peer in down_ad.pms:
-                if (up_peer.ad_id == down_ad.pcbm.ad_id and
-                        down_peer.ad_id == up_ad.pcbm.ad_id):
-                    path.up_path_peering_link = up_peer.hof
-                    path.down_path_peering_link = down_peer.hof
-
-    path.down_path_info = down_path.iof
-    path.down_path_info.info = info
-    path.down_path_info.hops -= dw_index
-    path.down_path_upstream_ad = down_path.ads[dw_index-1].pcbm.hof
-    for i in range(dw_index, len(down_path.ads)):
-        path.down_path_hops.append(down_path.ads[i].pcbm.hof)
-    path.down_path_hops[0].info = 0x20
-
-    return path
-
-def build_shortcut_path(up_path, down_path):
-    """
-    Takes PCB objects (up/down_path) and tries to combine them as short path.
-    """
-    #TODO check if stub ADs are the same...
-    if not up_path or not down_path or not up_path.ads or not down_path.ads:
-        return None
-    #looking for xovr and peer points
-    xovrs = []
-    peers = []
-    for up_i in range(1, len(up_path.ads)):
-        for down_i in range(1, len(down_path.ads)):
-            up_ad = up_path.ads[up_i]
-            down_ad = down_path.ads[down_i]
-            if up_ad.pcbm.ad_id == down_ad.pcbm.ad_id:
-                xovrs.append((up_i, down_i))
-            else:
-                for up_peer in up_ad.pms:
-                    for down_peer in down_ad.pms:
-                        if (up_peer.ad_id == down_ad.pcbm.ad_id and
-                                down_peer.ad_id == up_ad.pcbm.ad_id):
-                            peers.append((up_i, down_i))
-    #select shortest path xovrs (preferred) or peers
-    xovrs.sort(key=lambda tup: sum(tup))
-    peers.sort(key=lambda tup: sum(tup))
-    if not xovrs and not peers:
-        return None
-    elif xovrs and peers:
-        if sum(peers[-1]) > sum(xovrs[-1]):
-            return join_shortcuts(up_path, down_path, peers[-1], True)
+        if peer:
+            path = PeerPath()
+            info = 0xf0
         else:
-            return join_shortcuts(up_path, down_path, xovrs[-1], False)
-    elif xovrs:
-        return join_shortcuts(up_path, down_path, xovrs[-1], False)
-    else: #peers only
-        return join_shortcuts(up_path, down_path, peers[-1], True)
+            path = CrossOverPath()
+            info = 0xc0
 
-def build_fullpaths(up_paths, down_paths):
-    """
-    Returns list of all paths that can be built as combination of paths from
-    up_paths and down_paths. up/down_paths are lists of PCB objects.
-    """
-    short_paths = []
-    core_paths = []
-    for up in up_paths:
-        for down in down_paths:
-            path = build_shortcut_path(up, down)
-            if path and path not in short_paths:
-                short_paths.append(path)
-            path = build_core_path(up, down)
-            if path and path not in core_paths:
-                core_paths.append(path)
-    return short_paths + core_paths
+        path.up_path_info = up_path.iof
+        path.up_path_info.info = info
+        path.up_path_info.hops -= up_index
+        for i in reversed(range(up_index, len(up_path.ads))):
+            path.up_path_hops.append(up_path.ads[i].pcbm.hof)
+        path.up_path_hops[-1].info = 0x20
+        path.up_path_upstream_ad = up_path.ads[up_index-1].pcbm.hof
+
+        if peer:
+            up_ad = up_path.ads[up_index]
+            down_ad = down_path.ads[dw_index]
+            for up_peer in up_ad.pms:
+                for down_peer in down_ad.pms:
+                    if (up_peer.ad_id == down_ad.pcbm.ad_id and
+                            down_peer.ad_id == up_ad.pcbm.ad_id):
+                        path.up_path_peering_link = up_peer.hof
+                        path.down_path_peering_link = down_peer.hof
+
+        path.down_path_info = down_path.iof
+        path.down_path_info.info = info
+        path.down_path_info.hops -= dw_index
+        path.down_path_upstream_ad = down_path.ads[dw_index-1].pcbm.hof
+        for i in range(dw_index, len(down_path.ads)):
+            path.down_path_hops.append(down_path.ads[i].pcbm.hof)
+        path.down_path_hops[0].info = 0x20
+
+        return path
+
+    @staticmethod
+    def build_shortcut_path(up_path, down_path):
+        """
+        Takes PCB objects (up/down_path) and tries to combine them as short path
+        """
+        #TODO check if stub ADs are the same...
+        if not up_path or not down_path or not up_path.ads or not down_path.ads:
+            return None
+        #looking for xovr and peer points
+        xovrs = []
+        peers = []
+        for up_i in range(1, len(up_path.ads)):
+            for down_i in range(1, len(down_path.ads)):
+                up_ad = up_path.ads[up_i]
+                down_ad = down_path.ads[down_i]
+                if up_ad.pcbm.ad_id == down_ad.pcbm.ad_id:
+                    xovrs.append((up_i, down_i))
+                else:
+                    for up_peer in up_ad.pms:
+                        for down_peer in down_ad.pms:
+                            if (up_peer.ad_id == down_ad.pcbm.ad_id and
+                                    down_peer.ad_id == up_ad.pcbm.ad_id):
+                                peers.append((up_i, down_i))
+        #select shortest path xovrs (preferred) or peers
+        xovrs.sort(key=lambda tup: sum(tup))
+        peers.sort(key=lambda tup: sum(tup))
+        if not xovrs and not peers:
+            return None
+        elif xovrs and peers:
+            if sum(peers[-1]) > sum(xovrs[-1]):
+                return PathCombinator.join_shortcuts(up_path, down_path,
+                    peers[-1], True)
+            else:
+                return PathCombinator.join_shortcuts(up_path, down_path,
+                    xovrs[-1], False)
+        elif xovrs:
+            return PathCombinator.join_shortcuts(up_path, down_path, xovrs[-1],
+                False)
+        else: #peers only
+            return PathCombinator.join_shortcuts(up_path, down_path, peers[-1],
+                True)
+
+    @staticmethod
+    def build_fullpaths(up_paths, down_paths):
+        """
+        Returns list of all paths that can be built as combination of paths from
+        up_paths and down_paths. up/down_paths are lists of PCB objects.
+        """
+        short_paths = []
+        core_paths = []
+        for up in up_paths:
+            for down in down_paths:
+                path = PathCombinator.build_shortcut_path(up, down)
+                if path and path not in short_paths:
+                    short_paths.append(path)
+                path = PathCombinator.build_core_path(up, down)
+                if path and path not in core_paths:
+                    core_paths.append(path)
+        return short_paths + core_paths
 

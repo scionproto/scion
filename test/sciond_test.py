@@ -31,7 +31,7 @@ class TestSCIONDaemon(unittest.TestCase):
 
     def test(self):
         """
-        Testing function. Creates instance of SCIONDaemon, verifies path
+        Testing function. Creates an instance of SCIONDaemon, then verifies path
         requesting, and finally sends packet through SCION. Sender is
         192.168.7.107 placed in ISD:11, AD:7, and receiver is 192.168.6.106 in
         ISD:11, AD:6.
