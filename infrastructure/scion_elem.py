@@ -28,12 +28,11 @@ SCION_UDP_PORT = 30040
 SCION_UDP_PS2EH_PORT = 30041
 BUFLEN = 8092
 
-class ServerBase(object):
+class SCIONElement(object):
     """
     Base class for the different kind of servers the SCION infrastructure
     provides.
     """
-    TIME_INTERVAL = 4
 
     def __init__(self, addr, topo_file, config_file=None, rot_file=None):
         self._addr = None

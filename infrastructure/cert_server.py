@@ -19,7 +19,7 @@ limitations under the License.
 from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.scion import (SCIONPacket, get_type, PacketType as PT,
     CertRequest, CertReply, RotRequest, RotReply, get_addr_from_type)
-from infrastructure.server import ServerBase
+from infrastructure.scion_elem import SCIONElement
 from lib.packet.path import EmptyPath
 import sys
 import os
@@ -29,12 +29,12 @@ import logging
 ISD_PATH = '../topology/ISD'
 
 
-class CertServer(ServerBase):
+class CertServer(SCIONElement):
     """
     The SCION Certificate Server.
     """
     def __init__(self, addr, topo_file, config_file, rot_file):
-        ServerBase.__init__(self, addr, topo_file, config_file, rot_file)
+        SCIONElement.__init__(self, addr, topo_file, config_file, rot_file)
         self.cert_requests = {}
         self.rot_requests = {}
 

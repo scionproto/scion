@@ -22,7 +22,7 @@ from lib.packet.opaque_field import OpaqueFieldType as OFT
 from lib.packet.scion import SCIONPacket, IFIDRequest, IFIDReply, get_type
 from lib.packet.scion import PacketType as PT, Beacon
 from lib.topology import ElementType as ET
-from infrastructure.server import ServerBase, SCION_UDP_PORT
+from infrastructure.scion_elem import SCIONElement, SCION_UDP_PORT
 import logging
 import threading
 import time
@@ -43,14 +43,14 @@ class NextHop(object):
         return "%s:%d" % (self.addr, self.port)
 
 
-class Router(ServerBase):
+class Router(SCIONElement):
     """
     The SCION Router.
     """
     IFID_REQ_TOUT = 2
     def __init__(self, addr, topo_file, config_file, pre_ext_handlers=None,
             post_ext_handlers=None):
-        ServerBase.__init__(self, addr, topo_file, config_file)
+        SCIONElement.__init__(self, addr, topo_file, config_file)
         self.interface = None
         for router_list in self.topology.routers.values():
             for router in router_list:
@@ -77,7 +77,7 @@ class Router(ServerBase):
 
     def run(self):
         threading.Thread(target=self.init_interface).start()
-        ServerBase.run(self)
+        SCIONElement.run(self)
 
     def send(self, packet, next_hop, use_local_socket=True):
         """
@@ -88,7 +88,7 @@ class Router(ServerBase):
         logging.info("Sending packet to %s", next_hop)
         self.handle_extensions(packet, next_hop, False)
         if use_local_socket:
-            ServerBase.send(self, packet, next_hop.addr, next_hop.port)
+            SCIONElement.send(self, packet, next_hop.addr, next_hop.port)
         else:
             self._remote_socket.sendto(packet.pack(), (str(next_hop.addr),
                 next_hop.port))

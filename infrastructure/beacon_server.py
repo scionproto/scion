@@ -24,7 +24,7 @@ from lib.packet.opaque_field import (OpaqueFieldType as OFT, InfoOpaqueField,
 from lib.packet.scion import (SCIONPacket, get_type, Beacon, PathInfo,
     PathRecords, PacketType as PT, PathInfoType as PIT)
 from lib.topology import ElementType, NeighborType
-from infrastructure.server import ServerBase
+from infrastructure.scion_elem import SCIONElement
 import threading
 import time
 import sys
@@ -32,15 +32,16 @@ import logging
 import copy
 
 #TODO PSz: beacon must be revised. We have design slides for a new format.
-class BeaconServer(ServerBase):
+class BeaconServer(SCIONElement):
     """
     The SCION Beacon Server.
     """
-    DELTA = 24 * 60 * 60 #Amount of real time a PCB packet is valid for.
+    DELTA = 24 * 60 * 60 # Amount of real time a PCB packet is valid for.
+    TIME_INTERVAL = 4    # SCION second 
     BEACONS_NO = 5
 
     def __init__(self, addr, topo_file, config_file):
-        ServerBase.__init__(self, addr, topo_file, config_file)
+        SCIONElement.__init__(self, addr, topo_file, config_file)
         self.propagated_beacons = []
         self.beacons = [] #TODO replace by pathstore instance
         #TODO: add beacons, up_paths, down_paths
@@ -79,15 +80,16 @@ class BeaconServer(ServerBase):
             self.propagated_beacons.append(new_pcb)
             logging.info("PCB propagated: %s", new_pcb)
 
-    def pcb_propagation(self):
+    def handle_pcbs_propagation(self):
         """
         Generates a new beacon or gets ready to forward the one received.
         """
         while True:
             if self.topology.is_core_ad:
                 pcb = HalfPathBeacon()
-                timestamp = ((int(time.time()) + BeaconServer.DELTA) % \
-                    (ServerBase.TIME_INTERVAL * 2^16))/ServerBase.TIME_INTERVAL
+                timestamp = ( ((int(time.time()) + BeaconServer.DELTA) %
+                    (BeaconServer.TIME_INTERVAL * 2^16)) /
+                    BeaconServer.TIME_INTERVAL)
                 pcb.iof = InfoOpaqueField.from_values(info=OFT.SPECIAL_OF,
                     timestamp=timestamp, isd_id=self.topology.isd_id)
                 pcb.rotf = ROTField()
@@ -189,9 +191,9 @@ class BeaconServer(ServerBase):
         #TODO add ROT support etc..
 
     def run(self):
-        threading.Thread(target=self.pcb_propagation).start()
+        threading.Thread(target=self.handle_pcbs_propagation).start()
         threading.Thread(target=self.register_paths).start()
-        ServerBase.run(self)
+        SCIONElement.run(self)
 
 
 def main():

@@ -21,19 +21,19 @@ from lib.packet.path import EmptyPath
 from lib.packet.scion import (SCIONPacket, get_type, PathRequest, PathRecords,
     PathInfo, PathInfoType as PIT)
 from lib.packet.scion import PacketType as PT
-from infrastructure.server import ServerBase, SCION_UDP_PORT
+from infrastructure.scion_elem import SCIONElement, SCION_UDP_PORT
 from lib.util import update_dict
 import sys
 import logging
 
 PATHS_NO = 5 #TODO replace by configuration parameter
 
-class PathServer(ServerBase):
+class PathServer(SCIONElement):
     """
     The SCION Path Server.
     """
     def __init__(self, addr, topo_file, config_file):
-        ServerBase.__init__(self, addr, topo_file, config_file)
+        SCIONElement.__init__(self, addr, topo_file, config_file)
         #TODO replace by pathstore instance
         self.up_paths = []
         self.down_paths = {}

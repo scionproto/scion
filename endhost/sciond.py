@@ -23,13 +23,13 @@ from lib.packet.scion import (SCIONPacket, get_type, PathRequest, PathRecords,
 from lib.packet.scion import PacketType as PT
 from lib.topology import ElementType
 from lib.util import update_dict
-from infrastructure.server import ServerBase
+from infrastructure.scion_elem import SCIONElement
 import threading
 import logging
 
 PATHS_NO = 5 #conf parameter?
 
-class SCIONDaemon(ServerBase):
+class SCIONDaemon(SCIONElement):
     """
     The SCION Daemon used for retrieving and combining paths.
     """
@@ -37,7 +37,7 @@ class SCIONDaemon(ServerBase):
     TIMEOUT = 7
 
     def __init__(self, addr, topo_file):
-        ServerBase.__init__(self, addr, topo_file)
+        SCIONElement.__init__(self, addr, topo_file)
         #TODO replace by pathstore instance
         self.up_paths = []
         self.down_paths = {}
