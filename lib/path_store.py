@@ -397,27 +397,3 @@ class PathStore(object):
         for candidate in self.candidates:
             path_store_str += str(candidate)
         return path_store_str
-
-
-def main():
-    """
-    Main function.
-    """
-    if len(sys.argv) < 2:
-        print("Usage: %s <pathstore_config_file>" % sys.argv[0])
-        sys.exit()
-    path_store = PathStore(sys.argv[1])
-    raw = (b'\x80\x00\x02\x00\x0b\x01\x00\x00\xff\x00\x00\x00\x00\x00\x01\x00' +
-        b'\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00 \x00' +
-        b'\x00\x00\x00\x03\x00\x00\x00\x00\x0b\x00\x00\x00\x00\x00\x00')
-    pcb = HalfPathBeacon(raw)
-    print(str(path_store), "\n\n")
-    path_store.update_policy(sys.argv[1])
-    print(str(path_store), "\n\n")
-    path_store.store_selection()
-    bests = path_store.get_paths()
-    for best in bests:
-        print(str(best))
-
-if __name__ == "__main__":
-    main()

@@ -294,8 +294,7 @@ class CertificateChain(object):
             logging.warning("The certificate chain is not initialized.")
             return False
         cert = self.certs[0]
-        for index in range(1, len(self.certs)):
-            issuer_cert = self.certs[index]
+        for issuer_cert in self.certs[1:]:
             if not cert.verify(subject, issuer_cert):
                 return False
             cert = issuer_cert
@@ -313,8 +312,8 @@ class CertificateChain(object):
         Packs the certificate chain into a string.
         """
         chain_dict = {}
-        for index in range(0, len(self.certs)):
-            cert_dict = self.certs[index].get_cert_dict(with_signature=True)
+        for index, cert in self.certs:
+            cert_dict = cert.get_cert_dict(with_signature=True)
             chain_dict[index] = cert_dict
         chain_str = json.dumps(chain_dict, sort_keys=True)
         return chain_str
@@ -325,45 +324,3 @@ class CertificateChain(object):
             cert_list.append(str(cert))
         chain_str = '\n'.join(cert_list)
         return chain_str
-
-
-def main():
-    """
-    Main function.
-    """
-    logging.basicConfig(level=logging.DEBUG)
-    (priv0, pub0) = generate_keys()
-    cert0 = \
-        Certificate.from_values('ISD:11-AD:0', pub0, 'ISD:11-AD:0', priv0, 0)
-    (priv1, pub1) = generate_keys()
-    cert1 = \
-        Certificate.from_values('ISD:11-AD:1', pub1, 'ISD:11-AD:0', priv0, 0)
-    (priv2, pub2) = generate_keys()
-    cert2 = \
-        Certificate.from_values('ISD:11-AD:2', pub2, 'ISD:11-AD:1', priv1, 0)
-    (priv3, pub3) = generate_keys()
-    cert3 = \
-        Certificate.from_values('ISD:11-AD:3', pub3, 'ISD:11-AD:2', priv2, 0)
-    print("Certificate:", cert0, sep='\n')
-
-    chain_list = [cert3, cert2, cert1]
-    chain = CertificateChain.from_values(chain_list)
-    print("Certificate Chain:", chain, sep='\n')
-
-    path = "../topology/ISD11/certificates/"
-    if not os.path.exists(path):
-        os.makedirs(path)
-    with open(path + 'ISD:11-AD:0-V:0.crt', "w") as file_handler:
-        file_handler.write(str(cert0))
-
-    roots = load_root_certificates(path)
-    print("Certificate Chain verification:",
-        chain.verify('ISD:11-AD:3', roots, 0), sep='\n')
-
-    signature = sign('hello', priv3)
-    print("Signature:", signature, sep='\n')
-    print("Message verification:",
-        verify('hello', signature, 'ISD:11-AD:3', chain, roots, 0), sep='\n')
-
-if __name__ == "__main__":
-    main()

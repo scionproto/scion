@@ -281,7 +281,7 @@ class SupportSignatureField(OpaqueField):
         OpaqueField.__init__(self)
         self.cert_id = 0
         self.sig_len = 0
-        self.block_size = 0
+        self.block_size = 32
         if raw is not None:
             self.parse(raw)
 

@@ -19,9 +19,8 @@ limitations under the License.
 from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.scion import (SCIONPacket, get_type, PacketType as PT,
     CertRequest, CertReply, RotRequest, RotReply, get_addr_from_type)
-from infrastructure.server import ServerBase, SCION_UDP_PORT
+from infrastructure.server import ServerBase
 from lib.packet.path import EmptyPath
-from Crypto.Hash import SHA256
 import sys
 import os
 import logging
@@ -45,17 +44,6 @@ class CertServer(ServerBase):
         """
         return True
 
-    #to be removed
-    def get_first_hop(self, spkt):
-        """
-        Returns first hop addr of down-path or end-host addr.
-        """
-        if isinstance(spkt.hdr.path, EmptyPath):
-            return (spkt.hdr.dst_addr, SCION_UDP_PORT)
-        else:
-            opaque_field = spkt.hdr.path.down_path_hops[0]
-            return (self.ifid2addr[opaque_field.egress_if], SCION_UDP_PORT)
-
     def process_cert_request(self, cert_req):
         """
         Process a certificate request
@@ -71,15 +59,13 @@ class CertServer(ServerBase):
         cert_isd = cert_req.cert_isd
         cert_ad = cert_req.cert_ad
         cert_version = cert_req.cert_version
-        target_key = cert_isd + cert_ad + cert_version
-        target_key = target_key.encode('utf-8')
-        target_key = SHA256.new(target_key).hexdigest()
         cert_file = (ISD_PATH + cert_isd + '/certificates/ISD:' + cert_isd +
             '-AD:' + cert_ad + '-V:' + cert_version + '.crt')
         if not os.path.exists(cert_file):
             logging.info('Certificate %s:%s not found, sending up stream.',
                 cert_isd, cert_ad)
-            self.cert_requests.setdefault(target_key, []).append(src_addr)
+            self.cert_requests.setdefault((cert_isd, cert_ad, cert_version),
+                []).append(src_addr)
             dst_addr = get_addr_from_type(PT.CERT_REQ)
             new_cert_req = CertRequest.from_values(PT.CERT_REQ, self.addr,
                 dst_addr, path, cert_isd, cert_ad, cert_version)
@@ -121,14 +107,11 @@ class CertServer(ServerBase):
             os.makedirs(os.path.dirname(cert_file))
         with open(cert_file, 'w') as file_handler:
             file_handler.write(cert)
-        target_key = cert_isd + cert_ad + cert_version
-        target_key = target_key.encode('utf-8')
-        target_key = SHA256.new(target_key).hexdigest()
-        for dst_addr in self.cert_requests[target_key]:
+        for dst_addr in self.cert_requests[(cert_isd, cert_ad, cert_version)]:
             new_cert_rep = CertReply.from_values(self.addr, dst_addr, None,
                 cert_isd, cert_ad, cert_version, cert)
             self.send(new_cert_rep, dst_addr)
-        del self.cert_requests[target_key]
+        del self.cert_requests[(cert_isd, cert_ad, cert_version)]
 
     def process_rot_request(self, rot_req):
         """
@@ -144,14 +127,12 @@ class CertServer(ServerBase):
             pass
         rot_isd = rot_req.rot_isd
         rot_version = rot_req.rot_version
-        target_key = rot_isd + rot_version
-        target_key = target_key.encode('utf-8')
-        target_key = SHA256.new(target_key).hexdigest()
         rot_file = (ISD_PATH + rot_isd + '/rot-isd' + rot_isd + '-' +
             rot_version + '.xml')
         if not os.path.exists(rot_file):
             logging.info('ROT file %s not found, sending up stream.', rot_isd)
-            self.rot_requests.setdefault(target_key, []).append(src_addr)
+            self.rot_requests.setdefault((rot_isd, rot_version),
+                []).append(src_addr)
             dst_addr = get_addr_from_type(PT.ROT_REQ)
             new_rot_req = RotRequest.from_values(PT.ROT_REQ, self.addr,
                 dst_addr, path, rot_isd, rot_version)
@@ -192,14 +173,11 @@ class CertServer(ServerBase):
             os.makedirs(os.path.dirname(rot_file))
         with open(rot_file, 'w') as file_handler:
             file_handler.write(rot)
-        target_key = rot_isd + rot_version
-        target_key = target_key.encode('utf-8')
-        target_key = SHA256.new(target_key).hexdigest()
-        for dst_addr in self.rot_requests[target_key]:
+        for dst_addr in self.rot_requests[(rot_isd, rot_version)]:
             new_rot_rep = RotReply.from_values(self.addr, dst_addr, None,
                 rot_isd, rot_version, rot)
             self.send(new_rot_rep, dst_addr)
-        del self.rot_requests[target_key]
+        del self.rot_requests[(rot_isd, rot_version)]
 
     def handle_request(self, packet, sender, from_local_socket=True):
         """

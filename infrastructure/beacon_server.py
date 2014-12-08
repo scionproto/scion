@@ -31,7 +31,7 @@ import sys
 import logging
 import copy
 
-
+#TODO PSz: beacon must be revised. We have design slides for a new format.
 class BeaconServer(ServerBase):
     """
     The SCION Beacon Server.
@@ -45,46 +45,37 @@ class BeaconServer(ServerBase):
         self.beacons = [] #TODO replace by pathstore instance
         #TODO: add beacons, up_paths, down_paths
 
-    def add_ad_to_pcb(self, pcb, ingress, egress):
-        """
-        Adds AD block for the current AD.
-
-        @param pcb: HalfPathBeacon packet received from the parent AD.
-        @param ingress: Ingresss interface.
-        @param egress: Egress interface.
-        """
-#TODO PSz: beacon must be revised. We have design slides for a new format.
-        assert isinstance(pcb, HalfPathBeacon)
-        ssf = SupportSignatureField.from_values()
-        hof = HopOpaqueField.from_values(ingress_if=ingress, egress_if=egress)
-        spcbf = SupportPCBField.from_values(isd_id=self.topology.isd_id)
-        pcbm = PCBMarking.from_values(self.topology.ad_id, ssf, hof, spcbf)
-        peer_markings = []
-#TODO PSz: peering link can be only added when there is IfidReply from router
-        for router in self.topology.routers[NeighborType.PEER]:
-            hof = HopOpaqueField.from_values(ingress_if=router.interface.if_id,
-                egress_if=egress)
-            spf = SupportPeerField.from_values(isd_id=self.topology.isd_id)
-            peer_marking = PeerMarking.from_values(router.interface.neighbor,
-                hof, spf)
-            pcbm.ssf.block_size += peer_marking.LEN
-            peer_markings.append(peer_marking)
-        ad_marking = ADMarking.from_values(pcbm=pcbm, pms=peer_markings)
-        pcb.add_ad(ad_marking)
-
     def propagate_pcb(self, pcb):
         """
         Propagates the beacon to all children.
         """
         assert isinstance(pcb, HalfPathBeacon)
         ingress = pcb.rotf.if_id
-        for router in self.topology.routers[NeighborType.CHILD]:
+        for router_child in self.topology.routers[NeighborType.CHILD]:
             new_pcb = copy.deepcopy(pcb)
-            egress = router.interface.if_id
+            egress = router_child.interface.if_id
             new_pcb.rotf.if_id = egress
-            self.add_ad_to_pcb(new_pcb, ingress, egress)
-            beacon = Beacon.from_values(router.addr, new_pcb)
-            self.send(beacon, router.addr)
+            ssf = SupportSignatureField()
+            hof = HopOpaqueField.from_values(ingress_if=ingress,
+                egress_if=egress)
+            spcbf = SupportPCBField.from_values(isd_id=self.topology.isd_id)
+            pcbm = PCBMarking.from_values(self.topology.ad_id, ssf, hof, spcbf)
+            peer_markings = []
+            #TODO PSz: peering link can be only added when there is IfidReply
+            #from router
+            for router_peer in self.topology.routers[NeighborType.PEER]:
+                hof = HopOpaqueField.from_values(ingress_if= \
+                    router_peer.interface.if_id, egress_if=egress)
+                spf = SupportPeerField.from_values(isd_id=self.topology.isd_id)
+                peer_marking = \
+                    PeerMarking.from_values(router_peer.interface.neighbor, hof,
+                    spf)
+                pcbm.ssf.block_size += peer_marking.LEN
+                peer_markings.append(peer_marking)
+            ad_marking = ADMarking.from_values(pcbm=pcbm, pms=peer_markings)
+            new_pcb.add_ad(ad_marking)
+            beacon = Beacon.from_values(router_child.addr, new_pcb)
+            self.send(beacon, router_child.addr)
             self.propagated_beacons.append(new_pcb)
             logging.info("PCB propagated: %s", new_pcb)
 
@@ -152,8 +143,27 @@ class BeaconServer(ServerBase):
                 new_pcb = copy.deepcopy(pcb)
                 ingress = new_pcb.rotf.if_id
                 egress = 0
-                self.add_ad_to_pcb(new_pcb, ingress, egress)
-                #TODO we should add peering links as well
+                ssf = SupportSignatureField()
+                hof = HopOpaqueField.from_values(ingress_if=ingress,
+                    egress_if=egress)
+                spcbf = SupportPCBField.from_values(isd_id=self.topology.isd_id)
+                pcbm = PCBMarking.from_values(self.topology.ad_id, ssf, hof,
+                    spcbf)
+                peer_markings = []
+                #TODO PSz: peering link can be only added when there is
+                #IfidReply from router
+                for router_peer in self.topology.routers[NeighborType.PEER]:
+                    hof = HopOpaqueField.from_values(ingress_if= \
+                        router_peer.interface.if_id, egress_if=egress)
+                    spf = SupportPeerField.from_values(isd_id= \
+                        self.topology.isd_id)
+                    peer_marking = \
+                        PeerMarking.from_values(router_peer.interface.neighbor,
+                            hof, spf)
+                    pcbm.ssf.block_size += peer_marking.LEN
+                    peer_markings.append(peer_marking)
+                ad_marking = ADMarking.from_values(pcbm=pcbm, pms=peer_markings)
+                new_pcb.add_ad(ad_marking)
                 self.register_up_path(new_pcb)
                 self.register_down_path(new_pcb)
                 logging.info("Paths registered")
