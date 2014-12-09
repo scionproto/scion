@@ -51,7 +51,7 @@ class TestCertificates(unittest.TestCase):
         chain = CertificateChain.from_values(chain_list)
         print("Certificate Chain:", chain, sep='\n')
 
-        path = "../topology/ISD11/certificates/"
+        path = "topology/ISD11/certificates/"
         if not os.path.exists(path):
             os.makedirs(path)
         with open(path + 'ISD:11-AD:0-V:0.crt', "w") as file_handler:
