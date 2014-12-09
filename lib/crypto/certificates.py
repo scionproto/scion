@@ -67,8 +67,7 @@ def sign(msg, priv_key):
     msg = str.encode(msg)
     priv_key = bytes(priv_key, 'ascii')
     signing_key = SigningKey(priv_key, encoding="base64")
-    signature = signing_key.sign(msg, encoding="base64")
-    signature = str(signature)[2:-1] #Remove b'' from resulting string.
+    signature = signing_key.sign(msg, encoding="base64").decode("utf-8")
     return signature
 
 
@@ -189,8 +188,8 @@ class Certificate(object):
         cert_str = str.encode(cert_str)
         iss_priv_key = bytes(iss_priv_key, 'ascii')
         signing_key = SigningKey(iss_priv_key, encoding="base64")
-        signature = signing_key.sign(cert_str, encoding="base64")
-        cert.signature = str(signature)[2:-1] #Remove b'' from resulting string.
+        cert.signature = \
+            signing_key.sign(cert_str, encoding="base64").decode("utf-8")
         return cert
 
     def verify(self, subject, issuer_cert):
