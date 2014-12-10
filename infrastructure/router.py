@@ -24,20 +24,18 @@ Module docstring here.
 
 """
 
-from lib.config import Config
 from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.opaque_field import OpaqueField
 from lib.packet.opaque_field import OpaqueFieldType as OFT
 from lib.packet.scion import SCIONPacket, IFIDRequest, IFIDReply, get_type
-from lib.packet.scion import PacketType as PT
+from lib.packet.scion import PacketType as PT, Beacon
 from lib.topology import ElementType as ET
-from infrastructure.server import ServerBase, SCION_UDP_PORT
+from infrastructure.scion_elem import SCIONElement, SCION_UDP_PORT
 import logging
 import threading
 import time
 import socket
 import sys
-import struct #FIXME remove if Beacon/PCB class is ready
 
 
 class NextHop(object):
@@ -59,7 +57,7 @@ class NextHop(object):
         return "%s:%d" % (self.addr, self.port)
 
 
-class Router(ServerBase):
+class Router(SCIONElement):
     """
     The SCION Router.
 
@@ -103,7 +101,7 @@ class Router(ServerBase):
         :type post_ext_handlers: dict
 
         """
-        super().__init__(self, addr, topo_file, config_file)
+        SCIONElement.__init__(self, addr, topo_file, config_file)
         self.interface = None
         for router_list in self.topology.routers.values():
             for router in router_list:
@@ -128,7 +126,7 @@ class Router(ServerBase):
 
     def run(self):
         threading.Thread(target=self.init_interface).start()
-        ServerBase.run(self)
+        SCIONElement.run(self)
 
     def send(self, packet, next_hop, use_local_socket=True):
         """
@@ -147,7 +145,7 @@ class Router(ServerBase):
         logging.info("Sending packet to %s", next_hop)
         self.handle_extensions(packet, next_hop, False)
         if use_local_socket:
-            super().send(self, packet, next_hop.addr, next_hop.port)
+            SCIONElement.send(self, packet, next_hop.addr, next_hop.port)
         else:
             self._remote_socket.sendto(packet.pack(), (str(next_hop.addr),
                 next_hop.port))
@@ -234,20 +232,6 @@ class Router(ServerBase):
                 ifid_req.request_id)
         self.send(ifid_rep, next_hop, False)
 
-    #TODO these two functions should go to (future) Beacon class
-    def get_interface(self, packet):
-        """
-        Remove after PCB class is introduced.
-        """
-        return struct.unpack("H", packet[16+13:16+15])[0]
-
-    def set_interface(self, packet):
-        """
-        Remove after PCB class is introduced.
-        """
-        return (packet[:29] + struct.pack("H", self.interface.if_id) +
-                packet[31:])
-
     def process_pcb(self, packet, next_hop, from_bs):
         """
         Depending on scenario: a) sends PCB to all beacon servers, or b) to
@@ -260,22 +244,22 @@ class Router(ServerBase):
         :param from_bs:
         :type from_bs: bool
         """
-        #TODO incorporate with PCB class (when PCB is ready)
+        beacon = Beacon(packet)
         if not self.interface.initialized:
             logging.warning("Interface not initialized.")
             return
         if from_bs:
-            if self.interface.if_id != self.get_interface(packet):
+            if self.interface.if_id != beacon.pcb.rotf.if_id: 
                 logging.error("Wrong interface set by BS.")
                 return
             next_hop.addr = self.interface.to_addr
             next_hop.port = self.interface.to_udp_port
-            self.send(SCIONPacket(packet), next_hop, False)
+            self.send(beacon, next_hop, False)
         else:
             #TODO Multiple BS scenario
-            packet = self.set_interface(packet)
+            beacon.pcb.rotf.if_id = self.interface.if_id
             next_hop.addr = self.topology.servers[ET.BEACON_SERVER].addr
-            self.send(SCIONPacket(packet), next_hop)
+            self.send(beacon, next_hop)
 
     #TODO
     def verify_of(self, spkt):
@@ -326,7 +310,7 @@ class Router(ServerBase):
                         self.topology.servers[ET.CERTIFICATE_SERVER].addr)
             elif iface:
                 next_hop.addr = self.ifid2addr[iface]
-            elif ptype in [PT.PATH_REG, PT.PATH_REQ, PT.PATH_REP]:
+            elif ptype in [PT.PATH_REQ, PT.PATH_REC]:
                 next_hop.addr = self.topology.servers[ET.PATH_SERVER].addr
             else:
                 next_hop.addr = spkt.hdr.dst_addr
@@ -402,11 +386,7 @@ class Router(ServerBase):
         """
         while not spkt.hdr.get_current_of().is_regular():
             spkt.hdr.common_hdr.timestamp = spkt.hdr.common_hdr.current_of
-            #TODO PSz: revise, that condition is quite strange
-            if (ptype not in [PT.PATH_REP, PT.CERT_REP, PT.ROT_REP] and
-                spkt.hdr.get_current_of() == spkt.hdr.path.get_of(0)):
-                spkt.hdr.set_uppath()
-            else:
+            if (spkt.hdr.get_current_of() != spkt.hdr.path.get_of(0)):
                 spkt.hdr.set_downpath()
             logging.debug("increase 0")
             spkt.hdr.increase_of(1)
@@ -452,7 +432,7 @@ class Router(ServerBase):
             of1_info = spkt.hdr.get_relative_of(1).info
             of2_info = spkt.hdr.get_current_of().info
             if ((of1_info == OFT.INTRATD_PEER and spkt.hdr.is_on_up_path()) or
-                (of2_info == 0x20 and not spkt.hdr.is_on_up_path())):#TODO DEBUG
+                (of2_info == OFT.LAST_OF and not spkt.hdr.is_on_up_path())):
                 spkt.hdr.increase_of(1)
 
         if self.interface.if_id != iface:#TODO debug

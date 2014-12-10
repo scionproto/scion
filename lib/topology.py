@@ -24,12 +24,10 @@ Module docstring here.
 
 """
 
-from collections import defaultdict
-from enum import Enum, unique
 import logging
-
-from lib.packet.host_addr import *
 import xml.etree.ElementTree as ET
+from lib.packet.host_addr import IPv4HostAddr, IPv6HostAddr, SCIONHostAddr
+from collections import defaultdict
 
 
 class ElementType(object):
@@ -41,13 +39,9 @@ class ElementType(object):
     PATH_SERVER = 2
     CONTENT_CACHE = 3
     BORDER_ROUTER = 4
-    GATEWAY = 5
-    SERVER_TYPES = [BEACON_SERVER, CERTIFICATE_SERVER, PATH_SERVER,
-                    CONTENT_CACHE]
 
 
-@unique
-class NeighborType(Enum):
+class NeighborType(object):
     """
     Defines constants for the possible types of neighbor ADs.
     """
@@ -65,8 +59,7 @@ class Element(object):
     :type aid: int
     :param addr: the address of the element.
     """
-
-    def __init__(self, aid=0, addr=None):
+    def __init__(self, addr=None):
         """
         Constructor.
 
@@ -74,7 +67,6 @@ class Element(object):
         :type aid: int
         :param addr: the address of the new element.
         """
-        self.aid = aid
         self.addr = addr
 
 
@@ -89,8 +81,7 @@ class ServerElement(Element):
     :ivar type: the server's type (i.e., beacon, certificate, path, etc).
     :vartype type: :class:`ElementType`
     """
-
-    def __init__(self, aid=0, addr=None, server_type=0):
+    def __init__(self, addr=None, server_type=0):
         """
         Constructor.
 
@@ -103,8 +94,7 @@ class ServerElement(Element):
             listed in :class:`ElementType`)
         :type type: int
         """
-        super().__init__(self, aid, addr)
-        assert server_type in ElementType.SERVER_TYPES
+        Element.__init__(self, addr)
         self.type = server_type
 
 
@@ -135,8 +125,7 @@ class InterfaceElement(Element):
     :vartype to_udp_port: int
 
     """
-
-    def __init__(self, aid=0, addr=None, if_id=0, neighbor=0,
+    def __init__(self, addr=None, if_id=0, neighbor=0,
                  neighbor_type=0, to_addr=None, udp_port=0, to_udp_port=0):
         """
         Constructor.
@@ -165,14 +154,14 @@ class InterfaceElement(Element):
         :rtype: :class:`InterfaceElement`
 
         """
-        super().__init__(self, aid, addr)
+        Element.__init__(self, addr)
         self.if_id = if_id
         self.neighbor = neighbor
-        assert neighbor_type in map(lambda x: x.value, NeighborType)
         self.neighbor_type = neighbor_type
         self.to_addr = to_addr
         self.udp_port = udp_port
         self.to_udp_port = to_udp_port
+        self.initialized = False
 
 
 class RouterElement(Element):
@@ -182,8 +171,7 @@ class RouterElement(Element):
     :ivar interface: the router's interface to a different AD.
     :vartype interface: :class:`InterfaceElement`
     """
-
-    def __init__(self, aid=0, addr=None, interface=None):
+    def __init__(self, addr=None, interface=None):
         """
         Constructor.
 
@@ -191,36 +179,8 @@ class RouterElement(Element):
         :type aid: int
         :param addr: the address of the new router.
         """
-        super().__init__(self, aid, addr)
+        Element.__init__(self, addr)
         self.interface = interface
-
-
-class GatewayElement(Element):
-    """
-    Represents a gateway.
-
-    :ivar ptype: TODO
-    :vartype ptype: TODO
-    """
-
-    def __init__(self, aid=0, addr=None, ptype=0):
-        """
-        Constructor.
-
-        :param aid: the AD identifier of the new gateway.
-        :type aid: int
-        :param addr: the address of the new gateway.
-        """
-        super().__init__(self, aid, addr)
-        self.ptype = ptype
-
-
-class ClientElement(Element):
-    """
-    Represents a client.
-    """
-    def __init__(self, aid=0, addr=None):
-        super().__init__(self, aid, addr)
 
 
 class Topology(object):
@@ -237,10 +197,6 @@ class Topology(object):
        (:class:`ElementType.SERVER_TYPES`\ ) to :class:`ServerElement`
        instances of that type in the topology.
     :vartype servers: dict
-    :ivar gateways: TODO
-    :vartype gateways: TODO
-    :ivar clients: the clients in the AD.
-    :vartype clients: list
 
     """
 
@@ -249,22 +205,20 @@ class Topology(object):
         Constructor.
 
         Construct a new Topology instance. If a topology file is specified,
-        load the file and parse it to populate the lists of routers, servers,
-        gateways, and clients.
+        load the file and parse it to populate the lists of routers and servers.
 
         :param filename: the topology file name.
         :type filename: str
         """
+        self.ad_id = 0
+        self.isd_id = 0
+        self.is_core_ad = False
         self.routers = defaultdict(list)
         self.servers = {}
-        self.gateways = {}
-        self.clients = []
-
+        self._filename = None
+        self._topo = None
         if filename is not None:
             self.load_file(filename)
-        else:
-            self._filename = None
-            self._topo = None
 
     def load_file(self, filename):
         """
@@ -285,13 +239,21 @@ class Topology(object):
         Parse the topology ElementTree.
 
         Parse the internally-stored ElementTree object in order to populate the
-        lists of servers, routers, clients, and gateways of the AD.
+        lists of servers and routers of the AD.
         """
         assert self._topo is not None, "Must load file first"
+        topology = self._topo.getroot()
+        is_core_ad = topology.find("Core")
+        if is_core_ad is not None:
+            self.is_core_ad = bool(int(is_core_ad.text))
+        isd_id = topology.find("ISDID")
+        if isd_id is not None:
+            self.isd_id = int(isd_id.text)
+        ad_id = topology.find("ADID")
+        if ad_id is not None:
+            self.ad_id = int(ad_id.text)
         self._parse_servers()
         self._parse_routers()
-        self._parse_clients()
-        self._parse_gateways()
 
     def _parse_servers(self):
         """
@@ -303,7 +265,6 @@ class Topology(object):
             return
         for server in servers:
             element = ServerElement()
-            self._parse_aid(server, element)
             self._parse_address(server, element)
             if server.tag == "BeaconServer":
                 element.type = ElementType.BEACON_SERVER
@@ -333,7 +294,6 @@ class Topology(object):
             return
         for router in routers:
             element = RouterElement()
-            self._parse_aid(router, element)
             self._parse_address(router, element)
             interfaces = router.findall("Interface")
             # SM: the following two lines imply that each router must have
@@ -342,52 +302,6 @@ class Topology(object):
             for interface in interfaces:
                 self._parse_interface(interface, element)
             self.routers[element.interface.neighbor_type].append(element)
-
-    def _parse_clients(self):
-        """
-        Parse the clients in the topology file.
-
-        Parse the clients in the topology file and populate the list of
-        clients in the topology.
-        """
-        clients = self._topo.getroot().find("Clients")
-        if clients is None:
-            logging.info("No clients found in %s", self._filename)
-            return
-        for client in clients:
-            element = ClientElement()
-            self._parse_aid(client, element)
-            self.clients.append(element)
-
-    def _parse_gateways(self):
-        """
-        Parse the gateways in the topology file.
-
-        Parse the gateways from the topology file and add them to the AD
-        topology.
-
-        .. warning::
-            This method has not been implemented yet. Unless overridden in a
-            subclass, calling this method will have no effect.
-        """
-        pass
-
-    def _parse_aid(self, et_element, element):
-        """
-        Parse the AID in an element.
-
-        Parse the AID of the XML element et_element and store the found AID in
-        element.
-
-        :param et_element: the XML element to parse.
-        :type et_element: :class:`xml.etree.ElementTree.Element`
-        :param element: the SCION element in which to set the parsed AID.
-        :type element: :class:`Element`
-        """
-        assert ET.iselement(et_element)
-        aid_el = et_element.find("AID")
-        if aid_el is not None:
-            element.aid = int(aid_el.text)
 
     def _parse_address(self, et_element, element):
         """
@@ -406,20 +320,17 @@ class Topology(object):
         addr = et_element.find("Addr").text
         to_addr = et_element.find("ToAddr")
         if addr_type.lower() == "ipv4":
+            element.addr = IPv4HostAddr(addr)
             if to_addr is not None:
                 element.to_addr = IPv4HostAddr(to_addr.text)
-            else:
-                element.addr = IPv4HostAddr(addr)
         elif addr_type.lower() == "ipv6":
+            element.addr = IPv6HostAddr(addr)
             if to_addr is not None:
                 element.to_addr = IPv6HostAddr(to_addr.text)
-            else:
-                element.addr = IPv6HostAddr(addr)
         elif addr_type.lower() == "scion":
+            element.addr = SCIONHostAddr(int(addr))
             if to_addr is not None:
                 element.to_addr = SCIONHostAddr(to_addr.text)
-            else:
-                element.addr = SCIONHostAddr(int(addr))
         else:
             logging.info("Unknown address type: %s", addr_type)
 
@@ -444,10 +355,9 @@ class Topology(object):
         if_el.if_id = int(et_element.find("IFID").text)
         neighbor = et_element.find("NeighborAD")
         if neighbor is None:
-            neighbor = et_element.find("NeighborTD")
+            neighbor = et_element.find("NeighborISD")
         assert neighbor is not None
         if_el.neighbor = int(neighbor.text)
-
         neighbor_type = et_element.find("NeighborType").text
         if neighbor_type == "PARENT":
             if_el.neighbor_type = NeighborType.PARENT
@@ -459,19 +369,8 @@ class Topology(object):
             if_el.neighbor_type = NeighborType.ROUTING
         else:
             logging.warning("Encountered unknown neighbor type")
-
         if et_element.find("UdpPort") is not None:
             if_el.udp_port = int(et_element.find("UdpPort").text)
         if et_element.find("ToUdpPort") is not None:
             if_el.to_udp_port = int(et_element.find("ToUdpPort").text)
-
         router.interface = if_el
-
-# For testing purposes
-if __name__ == "__main__":
-    import sys
-    if len(sys.argv) < 2:
-        print("Usage: %s <topofile>" % sys.argv[0])
-        sys.exit()
-    parser = Topology(sys.argv[1])
-    parser.parse()

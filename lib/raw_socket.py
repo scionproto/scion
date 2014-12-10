@@ -57,15 +57,15 @@ class RawSocket(object):
 
     def close(self):
         """
-        Close the socket.
+        Closes the socket.
         """
         self._sock.close()
 
     def send(self, src, dst, data, proto=40):
         """
-        Send a raw IP packet.
+        Sends a raw IP packet.
 
-        Send a raw IP packet from *src* to *dst*. The source and destination
+        Sends a raw IP packet from *src* to *dst*. The source and destination
         addresses must be in dotted-quad format (such as '127.0.0.1'). The
         protocol named in *proto* must be selected from the `list of IP protocol
         numbers
@@ -107,7 +107,8 @@ class RawSocket(object):
         :type bytes: int
         :param timeout: the socket timeout, or ``None`` to disable the timeout.
         :type timeout: float
-        :returns: the received data and the sending address in the form ``(bytes, address)``.
+        :returns: the received data and the sending address in the form
+        ``(bytes, address)``.
         :rtype: pair
         """
         self._sock.settimeout(timeout)

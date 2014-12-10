@@ -73,6 +73,9 @@ class PacketBase(object):
 
     @payload.setter
     def payload(self, new_payload):
+        self.set_payload(new_payload)
+
+    def set_payload(self, new_payload):
         """
         Set the packet payload.  Expects bytes or a Packet subclass.
         """
@@ -91,6 +94,9 @@ class PacketBase(object):
 
     @hdr.setter
     def hdr(self, new_hdr):
+        self.set_hdr(new_hdr)
+
+    def set_hdr(self, new_hdr):
         """
         Sets the packet header. Expects a Header subclass.
         """

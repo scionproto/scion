@@ -36,9 +36,10 @@ from lib.packet.opaque_field import InfoOpaqueField
 from lib.packet.path import PathType, CorePath, CrossOverPath, PeerPath
 
 
-def get_paths(dst_isd, src_aid, dst_aid):
+#FIXME to remove, as we don't need that anymore with python's SCIONDaemon
+def get_paths(dst_isd, src_ad, dst_ad):
     """
-    Requests paths for dst_aid in dst_isd from the path translation server.
+    Requests paths for dst_ad in dst_isd from the path translation server.
 
     .. note::
        The path translation server is currently emulated by the clientdaemon.
@@ -53,15 +54,15 @@ def get_paths(dst_isd, src_aid, dst_aid):
     :type dst_aid: int
     """
     paths = {}
-    data = struct.pack("HH", dst_isd, dst_aid)
+    data = struct.pack("HH", dst_isd, dst_ad)
     # print str(data)
     # Send data to local client-daemon
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    sock.bind(("127.0.0.1", 5550 + src_aid))
+    sock.bind(("127.0.0.1", 5550 + src_ad))
     sock.settimeout(2)
     socket.socket(socket.AF_INET, socket.SOCK_DGRAM).sendto(
-        data, ("127.0.0.1", 3330 + src_aid))
+        data, ("127.0.0.1", 3330 + src_ad))
     try:
         while True:
             data, _ = sock.recvfrom(1024)
@@ -80,14 +81,14 @@ def get_paths(dst_isd, src_aid, dst_aid):
                     logging.info("Can not parse path in packet: "
                                  "Unknown type %x", info.info)
                 first_hop = IPv4HostAddr(data[-4:])
-                if (dst_isd, dst_aid) not in paths:
-                    paths[(dst_isd, dst_aid)] = [(path, first_hop)]
+                if (dst_isd, dst_ad) not in paths:
+                    paths[(dst_isd, dst_ad)] = [(path, first_hop)]
                 else:
-                    paths[(dst_isd, dst_aid)].append((path, first_hop))
+                    paths[(dst_isd, dst_ad)].append((path, first_hop))
                 # packed = path.pack()
             elif data[0] == 4:
                 # Received last path
-                logging.info("Received all paths for AD %u", dst_aid)
+                logging.info("Received all paths for AD %u", dst_ad)
                 break
     except socket.timeout:
         logging.info("Socket timed out.")
@@ -95,8 +96,18 @@ def get_paths(dst_isd, src_aid, dst_aid):
         logging.warning("Unexpected error: %s", sys.exc_info()[0])
     finally:
 #         logging.info("Got the following paths for AD %lu: %s",
-#                      dst_aid, str(paths))
+#                      dst_ad, str(paths))
         sock.close()
 
     return paths
+
+def update_dict(dictionary, key, values, elem_num=0):
+    """
+    Updates dictionary. Used for managing a temporary paths' cache.
+    """
+    if key in dictionary:
+        dictionary[key].extend(values)
+    else:
+        dictionary[key] = values
+    dictionary[key] = dictionary[key][-elem_num:]
 

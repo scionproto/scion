@@ -25,7 +25,7 @@ class TestOpaqueFields(unittest.TestCase):
 
     def test_opaque_field(self):
         of = OpaqueField()
-        self.assertEqual(of.info, OpaqueFieldType.NORMAL_OF)
+        self.assertEqual(of.type, OpaqueFieldType.NORMAL_OF)
         self.assertFalse(of.parsed)
         self.assertFalse(of.raw)
 
@@ -40,12 +40,24 @@ class TestOpaqueFields(unittest.TestCase):
         hof2 = HopOpaqueField()
         iof1 = InfoOpaqueField()
         iof2 = InfoOpaqueField()
-        self.assertEqual(of1, of2)
-        self.assertEqual(hof1, hof2)
-        self.assertEqual(iof1, iof2)
-        self.assertNotEqual(of1, hof1)
-        self.assertNotEqual(iof1, hof1)
-        self.assertNotEqual(of1, iof1)
+        self.assertTrue(of1.info == of2.info)
+
+        self.assertTrue(hof1.info == hof2.info and
+            hof1.ingress_if == hof2.ingress_if and
+            hof1.egress_if == hof2.egress_if and
+            hof1.mac == hof2.mac)
+
+        self.assertTrue(iof1.info == iof2.info and
+            iof1.timestamp == iof2.timestamp and
+            iof1.isd_id == iof2.isd_id and
+            iof1.hops == iof2.hops and
+            iof1.reserved == iof2.reserved)
+        #self.assertEqual(of1, of2)
+        #self.assertEqual(hof1, hof2)
+        #self.assertEqual(iof1, iof2)
+        #self.assertNotEqual(of1, hof1)
+        #self.assertNotEqual(iof1, hof1)
+        #self.assertNotEqual(of1, iof1)
 
     def test_hop_opaque_field(self):
         """
@@ -55,7 +67,11 @@ class TestOpaqueFields(unittest.TestCase):
         of = HopOpaqueField()
         ofCopy = HopOpaqueField()
         ofCopy.parse(of.pack())
-        self.assertEqual(of, ofCopy)
+        self.assertTrue(of.info == ofCopy.info and
+            of.ingress_if == ofCopy.ingress_if and
+            of.egress_if == ofCopy.egress_if and
+            of.mac == ofCopy.mac)
+
 
 if __name__ == "__main__":
     unittest.main()

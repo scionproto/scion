@@ -16,13 +16,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
+from lib.packet.opaque_field import (InfoOpaqueField, HopOpaqueField,
+    OpaqueFieldType)
+import copy
 
 
 class PathType(object):
     """
     Defines constants for the SCION path types.
     """
+    #TODO merge it with OpaqueFieldType
     EMPTY = 0x00  # Empty path
     CORE = 0x80  # Path to the core
     CROSS_OVER = 0xc0  # Path with cross over
@@ -75,11 +78,16 @@ class PathBase(object):
         """
         return hop is None or hop == self.up_path_hops[0]
 
-    def get_first_hop(self):
+    def get_first_hop_of(self):
         """
-        Returns the first up_path hop.
+        Depending on up_path flag returns the first up- or down-path hop.
         """
-        return self.up_path_hops[0]
+        if self.up_path_hops:
+            return self.up_path_hops[0]
+        elif self.down_path_hops:
+            return self.down_path_hops[0]
+        else:
+            return None
 
     def get_of(self, index):
         """
@@ -117,6 +125,9 @@ class CorePath(PathBase):
         if raw is not None:
             self.parse(raw)
 
+# TODO PSz: a flag is needed to distinguish downPath-only case. I.e. if
+# SCIONPacket.up_path is false and path has only one special OF, then it should
+# parse only DownPath. It would be easier to put down/up flag to SOF.
     def parse(self, raw):
         """
         Parses the raw data and populates the fields accordingly.
@@ -130,7 +141,6 @@ class CorePath(PathBase):
                 HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN]))
             offset += HopOpaqueField.LEN
         # Parse down-path
-#PSz UpPath (DownPath is null)
         if len(raw) != offset:
             self.down_path_info = \
                 InfoOpaqueField(raw[offset:offset + InfoOpaqueField.LEN])
@@ -139,8 +149,6 @@ class CorePath(PathBase):
                 self.down_path_hops.append(
                     HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN]))
                 offset += HopOpaqueField.LEN
-        else:
-            self.down_path_info = InfoOpaqueField()
 
         self.parsed = True
 
@@ -149,27 +157,57 @@ class CorePath(PathBase):
         Packs the opaque fields and returns a byte array.
         """
         data = []
-        data.append(self.up_path_info.pack())
-        for of in self.up_path_hops:
-            data.append(of.pack())
-        data.append(self.down_path_info.pack())
-        for of in self.down_path_hops:
-            data.append(of.pack())
+        if self.up_path_info:
+            data.append(self.up_path_info.pack())
+            for of in self.up_path_hops:
+                data.append(of.pack())
+        if self.down_path_info:
+            data.append(self.down_path_info.pack())
+            for of in self.down_path_hops:
+                data.append(of.pack())
 
         return b"".join(data)
 
+    @classmethod
+    def from_values(cls, up_inf=None, up_hops=None, dw_inf=None, dw_hops=None):
+        """
+        Returns CorePath with the values specified.
+        @param up_inf: InfoOpaqueField of up_path
+        @param up_hops: list of HopOpaqueField of up_path
+        @param dw_inf: InfoOpaqueField of down_path
+        @param dw_hops: list of HopOpaqueField of down_path
+        """
+        if up_hops is None:
+            up_hops = []
+        if dw_hops is None:
+            dw_hops = []
+
+        cp = CorePath()
+        cp.up_path_info = up_inf
+        cp.up_path_hops = up_hops
+        cp.down_path_info = dw_inf
+        cp.down_path_hops = dw_hops
+        return cp
+
     def __str__(self):
         s = []
-        s.append("<Core-Path>:\n<Up-Path>:\n")
-        s.append(str(self.up_path_info) + "\n")
-        for of in self.up_path_hops:
-            s.append(str(of) + "\n")
-        s.append("</Up-Path>\n<Down-Path>\n")
-        s.append(str(self.down_path_info) + "\n")
-        for of in self.down_path_hops:
-            s.append(str(of) + "\n")
-        s.append("</Down-Path>\n<Core-Path>")
+        s.append("<Core-Path>:\n")
 
+        if self.up_path_info:
+            s.append("<Up-Path>:\n")
+            s.append(str(self.up_path_info) + "\n")
+            for of in self.up_path_hops:
+                s.append(str(of) + "\n")
+            s.append("</Up-Path>\n")
+
+        if self.down_path_info:
+            s.append("<Down-Path>\n")
+            s.append(str(self.down_path_info) + "\n")
+            for of in self.down_path_hops:
+                s.append(str(of) + "\n")
+            s.append("</Down-Path>\n")
+
+        s.append("<Core-Path>")
         return "".join(s)
 
 
@@ -393,40 +431,175 @@ class PeerPath(PathBase):
 class EmptyPath(PathBase):
     """
     Represents an empty path.
-   
-    This is currently need for intra AD communication, which doesn't need
-    a SCION path but still uses SCION packets for communication.
+
+    This is currently needed for intra AD communication, which doesn't need a
+    SCION path but still uses SCION packets for communication.
     """
     def __init__(self, raw=None):
         PathBase.__init__(self)
         self.type = PathType.EMPTY
-       
+
         if raw is not None:
             self.parse(raw)
-            
+
     def parse(self, raw):
         assert isinstance(raw, bytes)
         self.up_path_info = InfoOpaqueField(raw[:InfoOpaqueField.LEN])
         # We do this so we can still reverse the path.
         self.down_path_info = self.up_path_info
-        
+
         self.parsed = True
-        
+
     def pack(self):
-        return b'' #TODO(PSz): Empty Path should pack to b'', not '\x00'*8 
-        # return self.up_path_info.pack()
-    
+        return b''
+
     def is_first_hop(self, hop):
         return True
-    
+
     def is_last_hop(self, hop):
         return True
-    
-    def get_first_hop(self):
+
+    def get_first_hop_of(self):
         return None
-    
+
     def get_of(self, index):
         return self.up_path_info
-    
+
     def __str__(self):
         return "<Empty-Path></Empty-Path>"
+
+
+class PathCombinator(object):
+    """
+    Class that contains functions required to build end-to-end SCION paths.
+    """
+
+    @staticmethod
+    def _build_core_path(up_path, down_path):
+        """
+        Joins up_ and down_path into core fullpath. Returns object of CorePath
+        class
+        """
+        if not up_path or not down_path or not up_path.ads or not down_path.ads:
+            return None
+            #TODO other sanity checks...
+
+        core_path = CorePath()
+        core_path.up_path_info = up_path.iof
+        for block in reversed(up_path.ads):
+            core_path.up_path_hops.append(copy.deepcopy(block.pcbm.hof))
+        core_path.up_path_hops[-1].info = OpaqueFieldType.LAST_OF
+
+        core_path.down_path_info = down_path.iof
+        for block in down_path.ads:
+            core_path.down_path_hops.append(copy.deepcopy(block.pcbm.hof))
+        core_path.down_path_hops[0].info = OpaqueFieldType.LAST_OF
+        return core_path
+
+    @staticmethod
+    def _join_shortcuts(up_path, down_path, point, peer=True):
+        """
+        Joins up_ and down_path (objects of PCB class) into shortcut fullpath.
+        Depending on scenario returns object of PeerPath or CrossOverPath class.
+        point: tuple (up_path_index, down_path_index) position of peer/xovr link
+        peer:  true for peer, false for xovr path
+        """
+        up_path = copy.deepcopy(up_path)
+        down_path = copy.deepcopy(down_path)
+        (up_index, dw_index) = point
+
+        if peer:
+            path = PeerPath()
+            info = OpaqueFieldType.INTRATD_PEER
+        else:
+            path = CrossOverPath()
+            info = OpaqueFieldType.NON_TDC_XOVR
+
+        path.up_path_info = up_path.iof
+        path.up_path_info.info = info
+        path.up_path_info.hops -= up_index
+        for i in reversed(range(up_index, len(up_path.ads))):
+            path.up_path_hops.append(up_path.ads[i].pcbm.hof)
+        path.up_path_hops[-1].info = OpaqueFieldType.LAST_OF
+        path.up_path_upstream_ad = up_path.ads[up_index-1].pcbm.hof
+
+        if peer:
+            up_ad = up_path.ads[up_index]
+            down_ad = down_path.ads[dw_index]
+            for up_peer in up_ad.pms:
+                for down_peer in down_ad.pms:
+                    if (up_peer.ad_id == down_ad.pcbm.ad_id and
+                            down_peer.ad_id == up_ad.pcbm.ad_id):
+                        path.up_path_peering_link = up_peer.hof
+                        path.down_path_peering_link = down_peer.hof
+
+        path.down_path_info = down_path.iof
+        path.down_path_info.info = info
+        path.down_path_info.hops -= dw_index
+        path.down_path_upstream_ad = down_path.ads[dw_index-1].pcbm.hof
+        for i in range(dw_index, len(down_path.ads)):
+            path.down_path_hops.append(down_path.ads[i].pcbm.hof)
+        path.down_path_hops[0].info = OpaqueFieldType.LAST_OF
+
+        return path
+
+    @staticmethod
+    def _build_shortcut_path(up_path, down_path):
+        """
+        Takes PCB objects (up/down_path) and tries to combine them as short path
+        """
+        #TODO check if stub ADs are the same...
+        if not up_path or not down_path or not up_path.ads or not down_path.ads:
+            return None
+        #looking for xovr and peer points
+        xovrs = []
+        peers = []
+        for up_i in range(1, len(up_path.ads)):
+            for down_i in range(1, len(down_path.ads)):
+                up_ad = up_path.ads[up_i]
+                down_ad = down_path.ads[down_i]
+                if up_ad.pcbm.ad_id == down_ad.pcbm.ad_id:
+                    xovrs.append((up_i, down_i))
+                else:
+                    for up_peer in up_ad.pms:
+                        for down_peer in down_ad.pms:
+                            if (up_peer.ad_id == down_ad.pcbm.ad_id and
+                                    down_peer.ad_id == up_ad.pcbm.ad_id):
+                                peers.append((up_i, down_i))
+        #select shortest path xovrs (preferred) or peers
+        xovrs.sort(key=lambda tup: sum(tup))
+        peers.sort(key=lambda tup: sum(tup))
+        if not xovrs and not peers:
+            return None
+        elif xovrs and peers:
+            if sum(peers[-1]) > sum(xovrs[-1]):
+                return PathCombinator._join_shortcuts(up_path, down_path,
+                    peers[-1], True)
+            else:
+                return PathCombinator._join_shortcuts(up_path, down_path,
+                    xovrs[-1], False)
+        elif xovrs:
+            return PathCombinator._join_shortcuts(up_path, down_path, xovrs[-1],
+                False)
+        else: #peers only
+            return PathCombinator._join_shortcuts(up_path, down_path, peers[-1],
+                True)
+
+    @staticmethod
+    def build_fullpaths(up_paths, down_paths):
+        """
+        Returns list of all paths that can be built as combination of paths from
+        up_paths and down_paths. up/down_paths are lists of PCB objects.
+        """
+        short_paths = []
+        core_paths = []
+        for up in up_paths:
+            for down in down_paths:
+                path = PathCombinator._build_shortcut_path(up, down)
+                if path and path not in short_paths:
+                    short_paths.append(path)
+                path = PathCombinator._build_core_path(up, down)
+                if path and path not in core_paths:
+                    core_paths.append(path)
+        return short_paths + core_paths
+

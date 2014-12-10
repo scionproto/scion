@@ -25,9 +25,10 @@ Module docstring here.
 
 """
 
-from lib.config import Config
-from lib.packet.host_addr import HostAddr
 from lib.topology import Topology
+from lib.config import Config
+from lib.rot import Rot
+from lib.packet.host_addr import HostAddr
 import socket
 import select
 import logging
@@ -36,7 +37,7 @@ SCION_UDP_PORT = 30040
 SCION_UDP_PS2EH_PORT = 30041
 BUFLEN = 8092
 
-class ServerBase(object):
+class SCIONElement(object):
     """
     Base class for the different kind of servers the SCION infrastructure
     provides.
@@ -52,7 +53,7 @@ class ServerBase(object):
     :vartype addr: :class:`lib.packet.host_addr.HostAddr`
     """
 
-    def __init__(self, addr, topo_file, config_file):
+    def __init__(self, addr, topo_file, config_file=None, rot_file=None):
         """
         Create a new ServerBase instance.
 
@@ -70,13 +71,13 @@ class ServerBase(object):
         self.topology = None
         self.config = None
         self.ifid2addr = {}
-
         self.addr = addr
-
         self.parse_topology(topo_file)
-        self.parse_config(config_file)
+        if config_file is not None:
+            self.parse_config(config_file)
+        if rot_file is not None:
+            self.parse_rot(rot_file)
         self.construct_ifid2addr_map()
-
         self._local_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._local_socket.bind((str(self.addr), SCION_UDP_PORT))
         self._sockets = [self._local_socket]
@@ -98,6 +99,12 @@ class ServerBase(object):
         :param addr: the new server address.
         :type addr: :class:`lib.packet.host_addr.HostAddr`
         """
+        self.set_addr(addr)
+
+    def set_addr(self, addr):
+        """
+        Sets the address of the server. Must be a lib.HostAddr object
+        """
         if not (isinstance(addr, HostAddr) or addr is None):
             raise TypeError("Addr must be of type 'HostAddr'")
         else:
@@ -105,7 +112,8 @@ class ServerBase(object):
 
     def parse_topology(self, topo_file):
         """
-        Instantiate a :class:`lib.topology.Topology` object and pases an AD topology from a file.
+        Instantiate a :class:`lib.topology.Topology` object and pases an AD
+        topology from a file.
 
         :param topo_file: the topology file name.
         :type topo_file: str
@@ -126,13 +134,21 @@ class ServerBase(object):
         self.config = Config(config_file)
         self.config.parse()
 
+    def parse_rot(self, rot_file):
+        """
+        Instantiates a ROTParser and parses the rot given by 'rot_file'.
+        """
+        assert isinstance(rot_file, str)
+        self.rot = Rot(rot_file)
+        self.rot.parse()
+
     def construct_ifid2addr_map(self):
         """
         Construct the mapping between the local interface IDs and the address
         of the neighbors connected to those interfaces.
         """
         assert self.topology is not None
-        assert self.config is not None
+        # assert self.config is not None
         for router_list in self.topology.routers.values():
             for router in router_list:
                 self.ifid2addr[router.interface.if_id] = router.addr
@@ -143,6 +159,19 @@ class ServerBase(object):
         override this to provide their functionality.
         """
         pass
+
+    def get_first_hop(self, spkt):
+        """
+        Returns first hop addr of down-path or end-host addr.
+        """
+        opaque_field = spkt.hdr.path.get_first_hop_of()
+        if opaque_field is None: #EmptyPath
+            return (spkt.hdr.dst_addr, SCION_UDP_PORT)
+        else:
+            if spkt.hdr.is_on_up_path():
+                return (self.ifid2addr[opaque_field.ingress_if], SCION_UDP_PORT)
+            else:
+                return (self.ifid2addr[opaque_field.egress_if], SCION_UDP_PORT)
 
     def send(self, packet, dst, dst_port=SCION_UDP_PORT):
         """
@@ -161,7 +190,8 @@ class ServerBase(object):
 
     def run(self):
         """
-        Main routine to receive packets and pass them to :func:`handle_request()`.
+        Main routine to receive packets and pass them to
+        :func:`handle_request()`.
         """
         while True:
             recvlist, _, _ = select.select(self._sockets, [], [])
