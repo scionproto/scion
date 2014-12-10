@@ -1,4 +1,4 @@
-\section{Path Joining}
+\chapter{Path Joining}
 
 \begin{figure*}[ht]
 \centering
@@ -22,13 +22,13 @@ A half-path (either up- or down-path) consists of a series of ADs, where each AD
 
 Our algorithm finds a shortest path(s) in terms of \AD hops and consists of three parts, which are up-path table construction, down-path table construction, and path traversal.
 
-\subsection{Up-path Table}
+\section{Up-path Table}
 The up-path table consists of three field as Figure~\ref{fig:uppath-table}: ADID, Hops, and Path. ADID is the AD identifier, Hops is the distance from the endpoint AD, and Path is the pointer to the path (i.e., PCB) that contains the current ADID. Each field is identified by a unique ADID, hence if a path contains a unique AD, it creates a new entry. If an ADID already exsits in the table, there are three choices: (1) if the Hops of the current path is same as the one in the table, its pointer is added to the Path field; (2) if the Hops is less than the existing one, it replaces the current one; and (3) if the Hops is greater than the existing one, it is discarded. For example, in Figure~\ref{fig:pathjoin}, P1 consists of AD1,AD2,AD4, and AD6 and is filled into the up-path table in the reverse order of PCB propagation. P2 is added to the table in the same way, yet only AD3 creates a new entry since other ADs already exist in the table (hence P2 is added to the Path field of existing AD entry).
 
-\subsection{Down-path Table}
+\section{Down-path Table}
 The down-path table has another field, peer ADID, in addition to all fields in the up-path table. The peer ADID is used to construct an end-to-end path through a peering link. Since the relationship of a peering link is symmetric (i.e., if it appears the up-path, it should appear in the down-path, and vice versa), we only need to add this information either to the up-path table or to the down-path talbe. We add the peering information to the down-path table since the number of down-paths is smaller than that of up-paths, and the path construction starts from the down-path (hence it is more efficient to include it in the down-path table).
 
-\subsection{Path Traversal}
+\section{Path Traversal}
 With the up-path and the down-path tables, one can construct an end-to-end shortest path as follows.
 \begin{enumerate}
 \item Start from the endpoint \AD in the down-path table.

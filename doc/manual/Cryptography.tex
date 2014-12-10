@@ -1,27 +1,27 @@
 
-\section{SCION Cryptographic Implementation}
+\chapter{SCION Cryptographic Implementation}
 
 \todoRR{This section needs to be updated...}
 
 Here we describe all cryptographic algorithms and implementation detail in SCION architecture. 
 
-\subsection{Pseudorandom Number Generator}
+\section{Pseudorandom Number Generator}
 We all know the pseudorandom number generator (PRNG) is pretty hard to design especially
 the generated numbers should fit in a uniform distribution.
 In the SCION architecture, we leverage the PRNG provided by the crypto processor inside
 the TPM (Trusted Platform Module).
 
-\subsection{Cryptographic Hashes}
+\section{Cryptographic Hashes}
 As we known, previous legacy cryptographic hashes, such as MD5, SHA0, have been successfully attacked. %require refs
 Even SHA1 has been proofed as weak under theoretical attacks. %require refs
 Therefore, we choose SHA3 (Keccak) as our cryptographic hash algorithm in SCION architecture.
 In practices, SHA3 still keep good software performance. According to the official released data, 
 SHA3 could achieve around 12.5 cycles per byte on Intel Core 2 CPUs (SHA3 hash output is 512-bits). 
 
-\subsection{Key Derivation Function}
+\section{Key Derivation Function}
 Not decided yet.
 
-\subsection{Message Authentication Codes (MAC)}
+\section{Message Authentication Codes (MAC)}
 %HMAC is based on SHA3 directly because we already select SHA3 as our hash algorithm.
 %In contrast to HMAC-SHA1, HMAC-SHA3 does not need nested computation.
 Need Discussion. We could use CBC-MAC based on AES-NI instruction set or SHA3.
@@ -31,7 +31,7 @@ Comparing to SHA3, HMAC based on SHA3 could be easily computed,
 e.g., MAC of message $M$, $C$ = SHA3($K||M$) where $K$ is the symmetric key.
 HMAC-SHA3 does not need any nested constructions.
 
-\subsection{Symmetric Ciphers}
+\section{Symmetric Ciphers}
 We choose AES as the symmetric cipher because intel CPU processors support
 AES-NI instruction set. AES-NI introduces powerful instructions, such as AESENC,
 AESDEC for one round AES encryption and decryption. It also provides AESKEYGENASSIST
@@ -53,7 +53,7 @@ key size  & Encryption & Decryption& Key Expansion & Encrypt Cost & Decrypt Cost
 \end{tabular}
 \end{table*}
 
-\subsection{Asymmetric Ciphers}
+\section{Asymmetric Ciphers}
 For asymmetric key cipher, we select ECIES (Elliptic Curve Integrated Encryption Scheme)
 because we try to get rid of the key exchange to generate the shared key between two parties,
 e.g., ECDH (Elliptic Curve Diffie-Hellman). RSA-based encryption schemes, such like PKCS\#1, is
@@ -63,5 +63,5 @@ For elliptic curve cryptography, we could choose several NIST-recommand curves o
 key size (See FIPS 186-3). To offer RSA 2048 bits security, we only need 224 bit elliptic curve
 construction. ECIES already has several open source implementations, such as Crypto++.
 
-\subsection{Digital Signatures}
+\section{Digital Signatures}
 We need a description for Ed25519 and some experience data about it.

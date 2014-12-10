@@ -61,6 +61,16 @@ class OpaqueField(object):
         """
         pass
 
+    #TODO test: one __eq__ breaks router when two SOFs in a path are identical
+    # def __eq__(self, other):
+    #     if type(other) is type(self):
+    #         return True
+    #     else:
+    #         return False
+
+    # def __ne__(self, other):
+    #     return not self == other
+
     def is_regular(self):
         """
         Returns true if opaque field is regular, false otherwise.
@@ -137,6 +147,14 @@ class HopOpaqueField(OpaqueField):
         """
         return bitstring.pack("uintbe:8, uintbe:16, uintbe:16, uintbe:24",
             self.info, self.ingress_if, self.egress_if, self.mac).bytes
+
+    # def __eq__(self, other):
+    #     if type(other) is type(self):
+    #         return (self.ingress_if == other.ingress_if and
+    #                 self.egress_if == other.egress_if and
+    #                 self.mac == other.mac)
+    #     else:
+    #         return False
 
     def __str__(self):
         hof_str = ("[Hop OF info: %u, ingress if: %u, egress if: %u, mac: %x]"
@@ -468,6 +486,16 @@ class SupportPCBField(OpaqueField):
             "uintbe:8, uintbe:8, uintbe:8", self.isd_id, self.bwalloc_f,
             self.bwalloc_r, self.dyn_bwalloc_f, self.dyn_bwalloc_r, self.bebw_f,
             self.bebw_r).bytes
+
+    # def __eq__(self, other):
+    #     if type(other) is type(self):
+    #         return (self.info == other.info and
+    #                 self.timestamp == other.timestamp and
+    #                 self.isd_id == other.isd_id and
+    #                 self.hops == other.hops and
+    #                 self.reserved == other.reserved)
+    #     else:
+    #         return False
 
     def __str__(self):
         spcbf_str = ("[Info OF TD ID: %x, bwalloc_f: %u, bwalloc_r: %u]\n" %

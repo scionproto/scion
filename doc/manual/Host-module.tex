@@ -1,7 +1,47 @@
+\chapter{SCION Host Architecture}
+\index{host architecture}
 
-\section{SCION Host Architecture}
+\section{Current host architecture} \chris{this describes the current status and is updated with our progress.}
 
-\subsection{High-level architecture}
+Figure~\ref{fig:host} provides a high level overview of the SCION host architecture. The components are the following:
+
+\begin{itemize}
+\item \textit{Socket}
+\index{socket}
+In the current setting, the legacy socket code is used. The goal is to provide a SCION socket (AF\_SCION) that takes advantage
+of the multiple SCION paths. 
+
+\item \textit{TUN/TAP Interface} is used to enable packet processing in userspace. When applications send data,
+the interface captures packets for specific destinations (for which communication proceeds over SCION). To capture
+this traffic, routing entries that forward traffic to this interface are inserted in the main routing table. For
+incoming traffic from the SCION network, the TUN/TAP interface is used to (re)inject the traffic in the
+TCP/IP stack.
+
+\item \textit{Interface between socket and scion\_path}
+The details of this interface have to be determined. 
+Currently, scion\_path operates as a gateway by encapsulating/decapsulating the SCION header.
+The purpose is to give more control to the TCP stack in order to implement a MP-TCP with
+higher control levels.
+
+
+\item \textit{Scion\_path}
+The scion\_path daemon runs in userspace and has collected SCION paths (the corresponding OFs) for destination ADs.
+For outgoing packets, the daemon inserts the corresponding OFs in a SCION header and then forwards the traffic
+to the next SCION node on the path (a SCION border router). For incoming traffic from SCION, the daemon strips
+the SCION header and writes the remaining data to the TUN/TAP interface. The interface considers this data as incoming
+from the wire and reinjects it in TCP/IP stack. Hence, the actual payload reaches the corresponding applications.
+\end{itemize}
+
+\begin{figure}[ht]
+\centering
+\begin{minipage}{0.85\textwidth}
+\includegraphics[width=1\columnwidth]{./fig/host2}
+\end{minipage}
+\caption{Host architecture.}\label{fig:host}
+\end{figure}
+
+\section{High-level architecture} \chris{outdated, this will change to the final SCION host architecture when it is decided}
+
 
 Figure~\ref{fig:host} illustrates the architecture of a SCION host.
 Normally, a SCION host has the following components.
@@ -89,7 +129,7 @@ RoT file is not installed, the host can download it from CSes.
 %  to single CS failure
 %- RoT file is initially installed in host, if not, download from CS
 
-\subsection{Example of host-to-host communication}
+\section{Example of host-to-host communication}
 
 Now we use an example to illustrate how two end-to-end SCION hosts
 can communicate with each other. We assume ISD Cores are operational
@@ -198,9 +238,9 @@ destination addresses and the corresponding ports.
 %Send a packet using the SCION module, sent to ER in case destination is in
 %different AD.
 
-\subsection{Implementation Details}
+\section{Implementation Details}
 
-\subsubsection{Overview: Implementation in Linux}
+\subsection{Overview: Implementation in Linux}
 
 We implement the Path Store and PCD in the Linux user space (see
 Figure~\ref{fig:host}. Other components are implemented in the
@@ -244,7 +284,7 @@ traditional MP-TCP in the legacy hosts by enabling fine-grained path
 selections according the path metric piggybacked in the path
 announcements, i.e., beacons.
 
-\subsubsection{Key Modules}
+\subsection{Key Modules}
 
 To fully implement SCION host architecture, SCION hosts have the
 following blocks.

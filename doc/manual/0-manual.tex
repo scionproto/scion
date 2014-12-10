@@ -1,4 +1,4 @@
-\documentclass[12pt]{article}
+\documentclass[12pt]{book}
 % \usepackage{times}
 \usepackage{mathptmx}  % Postscript fonts for math mode
 % \usepackage{fullpage}
@@ -26,6 +26,67 @@
 \renewcommand\see[2]{\!$\to$ #1}
 \renewcommand\see[2]{\textit{see} #1}
 
+% Glossary #Raphael
+\usepackage{datatool}
+\newenvironment{SCIONglossary}{%
+  % Create new/discard old list
+  \DTLifdbexists{glossary}{\DTLcleardb{glossary}}{\DTLnewdb{glossary}}
+  \DTLifdbexists{abbrev}{\DTLcleardb{abbrev}}{\DTLnewdb{abbrev}}
+}{%
+  % Glossary.
+  % Sort entries.
+  \DTLsort{sortlabel}{glossary}
+  \chapter{SCION Glossary}
+  \begin{itemize}
+    \setlength{\itemsep}{4mm}
+    \DTLforeach*{glossary}%
+      {\theDesc=description,\theLabel=sortlabel,\theIdx=index}{%
+      \item \textbf{\theLabel~------}
+      \ifx \theIdx \empty \index{\theLabel} \else \index{\theIdx} \fi
+      \theDesc
+    }
+  \end{itemize}
+
+  % Abbreviations.
+  % Sort entries.
+  \DTLsort{sortlabel}{abbrev}
+  \chapter{SCION Abbreviations}
+  \index{00@SCION Abbreviations}
+  % Makro to prevent a line break in the first row.
+  \def\newl{\relax}
+  % Create table of abbreviations.
+  \begin{tabular}{l|l}
+    \textbf{Abbrev.} & \textbf{Description} \\
+    \hline\hline
+    \DTLforeach*{abbrev}%
+      {\theDesc=description,\theLabel=sortlabel,\theIdx=index}{%
+      \newl \theLabel & \theDesc
+      \ifx \theIdx \empty \index{00@SCION Abbreviations!\theLabel} \else \index{00@SCION Abbreviations!\theIndex} \fi
+      % Overwrite to achieve line breaks.
+      \def\newl{\\}
+    }
+    \\ \hline
+  \end{tabular}
+  
+}
+% Glossary entry.
+\newcommand{\gitem}[3][]{%
+  \DTLnewrow{glossary}
+  \DTLnewdbentry{glossary}{index}{#1}
+  \DTLnewdbentry{glossary}{sortlabel}{#2}
+  \DTLnewdbentry{glossary}{description}{#3}
+}
+% Abbreviation entry.
+\newcommand{\abbrev}[3][]{%
+  \DTLnewrow{abbrev}
+  \DTLnewdbentry{abbrev}{index}{#1}
+  \DTLnewdbentry{abbrev}{sortlabel}{#2}
+  \DTLnewdbentry{abbrev}{description}{#3}
+}
+
+
+
+\usepackage{hyperref}
 
 \include{src/macros}
 \include{src/hyphenation}
@@ -57,7 +118,8 @@
 \let\@listI\@listi\@listi
 \makeatother
 
-%--------------------------------------------------------------------------------
+
+
 % float stuff
 \renewcommand{\textfraction}{0}
 \renewcommand{\topfraction}{1}
@@ -73,7 +135,6 @@
 \newcommand{\tightenbaseline}{}%\advance\baselineskip 0pt plus -0.5pt}
 
 
-%--------------------------------------------------------------------------------
 
 
 % yih-chun/dbj hack to center text in psfrag figs
@@ -92,51 +153,66 @@
 %%   \label{fig:basic-mht}
 %% \end{figure}
 
-%--------------------------------------------------------------------------------
-\pagenumbering{arabic}
 
-\title{SCION Design and Implementation Document}
-\author{SCION Team}
+\title{
+  --- The Official SCION Manual --- \\
+  {\large Design, Implementation, Applications, Tools}
+}
+\author{
+  The SCION Team\\
+  (ETH Zurich, Carnegie Mellon University)
+}
 \date{\today}
 
-%--------------------------------------------------------------------------------
+
+
+
 \begin{document}
-\maketitle
-\tableofcontents
-%\input{Outline}
-\newpage
-\setcounter{page}{1}
-%\input{Introduction}
-\input{Overview}
-\input{CertificateServer}
-%\input{RootOfTrust}
-\input{BeaconServer}
-\input{PathServer}
-\input{BorderRouter}
-\input{PacketFormat}
-\input{Host-module}
-%\input{Host-to-host-communication-example}
-\input{Gateway}
-\input{PathStore}
-\input{PathJoining}
-\input{Cryptography}
-\input{SystemConfiguration}
-\input{Example}
-\input{Further-Reading}
 
-%--------------------------------------------------------------------------------
-% \section{Acknowledgments}
+  \pagenumbering{roman}
+  \maketitle
+  \vspace{20mm}
+  \input{abstract}
 
-%--------------------------------------------------------------------------------
-\bibliographystyle{plain}
-\bibliography{src/bib}
-\nocite{ZHHCPA2011}
+  \newpage
+  \tableofcontents
 
-\appendix
-\input{appd}
-\printindex
+  \newpage
+  \pagenumbering{arabic}
+  \setcounter{page}{1}
+  \input{Introduction}
+  \input{Overview}
+  \input{CertificateServer}
+  %\input{RootOfTrust}
+  \input{BeaconServer}
+  \input{PathServer}
+  \input{BorderRouter}
+  \input{PacketFormat}
+  \input{Host-module}
+  %\input{Host-to-host-communication-example}
+  \input{Gateway}
+  \input{PathStore}
+  \input{PathJoining}
+  \input{Cryptography}
+  \input{SystemConfiguration}
+  \input{Example}
+
+  % \input{Acknowledgments}
+
+  \bibliographystyle{plain}
+  \bibliography{src/bib}
+  \nocite{ZHHCPA2011}
+
+  \appendix
+  \input{Further-Reading}
+  \input{glossary}
+  \input{appd}
+  \printindex
 
 \end{document}
+
+
+
 
 %%% Local Variables: 
 %%% mode: latex
