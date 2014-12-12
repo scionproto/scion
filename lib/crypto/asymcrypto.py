@@ -1,5 +1,5 @@
 """
-AsymCrypto.py
+asymcrypto.py
 
 Copyright 2014 ETH Zurich
 
@@ -16,153 +16,131 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from tweetnacl import *
-from ctypes import *
-import platform, random, string, struct, base64
+from nacl import *
+from certificates import *
+import base64
 
-class AsymCrypto(object):
-	"""
-	Asymmetric Cryptography Class
-	"""
-	
-	def __init__(self):
-		# initialization
-		self.SigPk = None
-		self.SigSk = None
-		self.Pk = None
-		self.Sk = None
-	
-	def SignatureKeyGen(self):
-		# Ed25519 Signature
-		(self.SigPk, self.SigSk) = crypto_sign_ed25519_keypair() 
-		
-	def EncryptionKeyGen(self):
-		# curve25519-xsalsa20-poly1305
-		(self.Pk, self.Sk) = crypto_box_curve25519xsalsa20poly1305_keypair() 
-	
-	def SignaturePubKey(self):	
-		if self.SigPk != None:
-			return base64.standard_b64encode(self.SigPk).decode('ascii').rstrip("=")
-		else:
-			raise Exception("Error: public-key for Ed25519 is NULL.")
-	
-	def SignaturePriKey(self):	
-		if self.SigSk != None:
-			return base64.standard_b64encode(self.SigSk).decode('ascii').rstrip("=")
-		else:
-			raise Exception("Error: private-key for Ed25519 is NULL.")
-	
-	def EncryptionPubKey(self):	
-		if self.Pk != None:
-			return base64.standard_b64encode(self.Pk).decode('ascii').rstrip("=")
-		else:
-			raise Exception("Error: public-key for Encryption is NULL.")
-	
-	def EncryptionPriKey(self):	
-		if self.Sk != None:
-			return base64.standard_b64encode(self.Sk).decode('ascii').rstrip("=")
-		else:
-			raise Exception("Error: private-key for Encryption is NULL.")
-	
-	def LoadSignaturePubKey(self, rawbytes):
-		if rawbytes != None:
-			rawbytes += "="*((4 - len(rawbytes)%4)%4)
-			self.SigPk = create_string_buffer(base64.b64decode(rawbytes), crypto_sign_ed25519_PUBLICKEYBYTES)
-	
-	def LoadSignaturePriKey(self, rawbytes):
-		if rawbytes != None:
-			rawbytes += "="*((4 - len(rawbytes)%4)%4)
-			self.SigSk = create_string_buffer(base64.b64decode(rawbytes), crypto_sign_ed25519_SECRETKEYBYTES)
-	
-	def LoadEncryptionPubKey(self, rawbytes):
-		if rawbytes != None:
-			rawbytes += "="*((4 - len(rawbytes)%4)%4)
-			self.Pk = create_string_buffer(base64.b64decode(rawbytes), crypto_box_curve25519xsalsa20poly1305_PUBLICKEYBYTES)
-	
-	def LoadEncryptionPriKey(self, rawbytes):
-		if rawbytes != None:
-			rawbytes += "="*((4 - len(rawbytes)%4)%4)
-			self.Sk = create_string_buffer(base64.b64decode(rawbytes), crypto_box_curve25519xsalsa20poly1305_SECRETKEYBYTES)
-	
-	def ENCipher(self, data, rawbytes_pubkey):
-		rawbytes_pubkey += "="*((4 - len(rawbytes_pubkey)%4)%4)
-		pubkey = create_string_buffer(base64.b64decode(rawbytes_pubkey), crypto_box_curve25519xsalsa20poly1305_PUBLICKEYBYTES)
-		if pubkey == None:
-			raise Exception("Error: recipient_pubkey is NULL.")
-			return
-		if data == None:
-			raise Exception("Error: signed data is NULL.")
-			return
-		nonce = randombytes(24)
-		cipher = crypto_box_curve25519xsalsa20poly1305(data, nonce, pubkey, self.Sk)
-		return nonce+cipher
-	
-	def DECipher(self, data, rawbytes_pubkey):
-		rawbytes_pubkey += "="*((4 - len(rawbytes_pubkey)%4)%4)
-		pubkey = create_string_buffer(base64.b64decode(rawbytes_pubkey), crypto_box_curve25519xsalsa20poly1305_PUBLICKEYBYTES)
-		if pubkey == None:
-			raise Exception("Error: recipient_pubkey is NULL.")
-			return
-		if data == None:
-			raise Exception("Error: cipher is NULL.")
-			return
-		nonce = data[:24]
-		cipher = data[24:]
-		return crypto_box_curve25519xsalsa20poly1305_open(cipher, nonce, pubkey, self.Sk)
-	
-	def GenSignature(self, data):
-		if data != None:
-			return crypto_sign_ed25519(data, self.SigSk)
-		else:
-			raise Exception("Error: signed data is NULL.")
-	
-	def VerifySignature(self, sig):
-		if sig != None:
-			return crypto_sign_ed25519_open(sig, self.SigPk)
-		else:
-			raise Exception("Error: signature data is NULL.")
-	
+def generate_keys():
+    """
+    Generates two pair of keys and returns them in base64 format.
+    The first pair is for ed25519 signature scheme.
+    The second pair is for public-key based encryption scheme (curve25519ecdh+xsalsa20+poly1305).
+    Return a quadruple list contain (signing_key, verifyng_key, private_key, public_key)
+    """
+    (verifyng_key, signing_key) = crypto_sign_ed25519_keypair()
+    (public_key, private_key) = crypto_box_curve25519xsalsa20poly1305_keypair()
+    sk_ascii = base64.standard_b64encode(signing_key).decode('ascii')
+    vk_ascii = base64.standard_b64encode(verifyng_key).decode('ascii')
+    pri_ascii = base64.standard_b64encode(private_key).decode('ascii')
+    pub_ascii = base64.standard_b64encode(public_key).decode('ascii')
+    return (sk_ascii, vk_ascii, pri_ascii, pub_ascii)
 
-# test functions
-if __name__ == '__main__':
-	
-	print ("Asymmetric Crypto Engine Test...")
-	
-	Alice_Key = AsymCrypto()
-	Alice_Key.SignatureKeyGen()
-	Alice_Key.EncryptionKeyGen()
-	alice_pub1 = Alice_Key.SignaturePubKey()
-	alice_pri1 = Alice_Key.SignaturePriKey()
-	alice_pub2 = Alice_Key.EncryptionPubKey()
-	alice_pri2 = Alice_Key.EncryptionPriKey()
-	print ("Alice's public key (ed25519): %s" % alice_pub1)
-	print ("Alice's private key (ed25519): %s" % alice_pri1)
-	print ("Alice's public key (curve25519xsalsa20poly1305): %s" % alice_pub2)
-	print ("Alice's private key (curve25519xsalsa20poly1305): %s" % alice_pri2)
-	
-	print ("Ed25519 Signature Test...")
-	for x in range(0, 10):
-		msg = ''.join(random.choice(string.lowercase) for i in range(20))
-		print ("random message :", msg)
-		msg_sig = Alice_Key.GenSignature(msg)
-		print ("Signature attached to message:", msg_sig)
-		msg_verified = Alice_Key.VerifySignature(msg_sig)
-		print ("Verified message:", msg_verified)
-		print ("\n")
-		
-	
-	Bob_Key = AsymCrypto()
-	Bob_Key.SignatureKeyGen()
-	Bob_Key.EncryptionKeyGen()
-	bob_pub = Bob_Key.EncryptionPubKey()
-	
-	print ("curve25519xsalsa20poly1305 Publie-Key Encryption Test...")
-	msg = ''.join(random.choice(string.lowercase) for i in range(20))
-	print ("encrypted message :", msg)
-	
-	for x in range(0, 10):
-		cipher = Bob_Key.ENCipher(msg, alice_pub2)
-		print ("cipher:", cipher)
-		original = Alice_Key.DECipher(cipher, bob_pub)
-		print ("deCipher:", original)
-		print ("\n")
+def sign(msg, priv_key):
+    """
+    Signs a message with the given private key and returns the computed
+    signature.
+
+    @param msg: String message to sign.
+    @param priv_key: Private key used to compute the signature.
+    """
+    msg = str.encode(msg)
+    signing_key = base64.b64decode(priv_key)
+    signature = crypto_sign_ed25519(msg, signing_key)
+    signature = base64.standard_b64encode(signature).decode('ascii')
+    return signature
+
+
+def verify(pack, subject, chain, roots, root_cert_version):
+    """
+    Verifies whether the provided signature is the right one and if it was
+    computed using a valid certificate chain.
+
+    @param pack: String message concatenated with the signature to verify.
+    @param subject: String containing the subject of the entity who signed the
+        message.
+    @param chain: Certificate chain containing the signing entity's certificate.
+    @param roots: Dictionary containing the root certificates.
+    @param root_cert_version: Version of the root certificate which signed the
+        last certificate in the certificate chain.
+    """
+    if not chain.verify(subject, roots, root_cert_version):
+        raise Exception("The certificate chain is invalid.")
+        return False
+    pub_key = None
+    for signer_cert in chain.certs:
+            if signer_cert.subject == subject:
+            	pub_key = signer_cert.subject_pub_key
+            	break
+    if pub_key == None:
+    	raise Exception("Signer's public key not found.")
+    	return False
+    verifying_key = base64.b64decode(pub_key)
+    try:
+    	crypto_sign_ed25519_open(base64.b64decode(pack), verifying_key)
+    	return True
+    except:
+        logging.warning("The signature is not valid.")
+        return False
+
+def authenticated_encrypt(msg, priv_key, subject, chain):
+    """
+    Encrypts a message with the given private key and returns the computed
+    cipher.
+    
+    @param msg: String message to encrypt.
+    @param priv_key: Sender's private key used to encrypt the message.
+    @param subject: String containing the subject of the entity who plans to decrypt
+        the cipher.
+    @param chain: Certificate chain containing the recipient entity's certificate.
+    """
+    if priv_key == None:
+    	raise Exception("Error: Private key is NULL.")
+    	return
+    if msg == None:
+    	raise Exception("Error: Plaintext data is NULL.")
+    	return
+    pub_key = None
+    for recipient_cert in chain.certs:
+    	if recipient_cert.subject == subject:
+    		pub_key = recipient_cert.subject_enc_key
+    		break
+    if pub_key == None:
+    	raise Exception("Recipient's public key not found.")
+    	return None
+    pub_key = base64.b64decode(pub_key)
+    priv_key = base64.b64decode(priv_key)
+    nonce = randombytes(24)
+    cipher = nonce+crypto_box_curve25519xsalsa20poly1305(msg, nonce, pub_key, priv_key)
+    return base64.standard_b64encode(cipher).decode('ascii')
+
+
+def authenticated_decrypt(cipher, priv_key, subject, chain):
+    """
+    Decrypts a cipher with the given private key and returns the plaintext.
+    
+    @param cipher: Base64 encoded cipher to decrypt.
+    @param priv_key: Recipient's private key used to decrypt the message.
+    @param subject: String containing the subject of the entity who encrypts the 
+        message.
+    @param chain: Certificate chain containing the sender entity's certificate.
+    """
+    if cipher == None:
+    	raise Exception("Error: Cipher data is NULL.")
+    	return
+    if priv_key == None:
+    	raise Exception("Error: Private key is NULL.")
+    	return
+    pub_key = None
+    for sender_cert in chain.certs:
+    	if sender_cert.subject == subject:
+    		pub_key = sender_cert.subject_enc_key
+    		break
+    if pub_key == None:
+    	raise Exception("Sender's public key not found.")
+    	return
+    pub_key = base64.b64decode(pub_key)
+    priv_key = base64.b64decode(priv_key)
+    cipher = base64.b64decode(cipher)
+    nonce = cipher[:24]
+    cipher = cipher[24:]
+    return crypto_box_curve25519xsalsa20poly1305_open(cipher, nonce, pub_key, priv_key)
