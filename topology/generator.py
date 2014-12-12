@@ -1,0 +1,301 @@
+from lib.crypto.certificates import *
+import os
+import sys
+import shutil
+import subprocess
+import struct
+import socket
+
+
+ADTOISD_FILE = 'ADToISD'
+ADRELATIONSHIPS_FILE = 'ADRelationships'
+RUN_FILE = 'run.sh'
+SETUP_FILE = 'setup.sh'
+
+SCRIPTS_DIR = '/topology/'
+CERT_DIR = '/certificates/'
+CONF_DIR = '/configurations/'
+KEYS_DIR = '/private_keys/'
+TOPO_DIR = '/topologies/'
+
+CORE_AD = '0'
+INTERMDEDIATE_AD = '1'
+LEAF_AD = '2'
+
+PEER_PEER = '0'
+CHILD_PARENT = '-1'
+ROUTING_ROUTING = '1'
+
+
+def increment_address(ip_address):
+    ip2int = lambda ipstr: struct.unpack('!I', socket.inet_aton(ipstr))[0]
+    int2ip = lambda n: socket.inet_ntoa(struct.pack('!I', n))
+    ip_address_int = ip2int(ip_address)
+    ip_address_int += 1
+    ip_address = int2ip(ip_address_int)
+    return ip_address
+
+
+def delete_directories():
+    for root, dirs, files in os.walk('.'):
+        for name in dirs:
+            if name.startswith(('ISD')):
+                shutil.rmtree(name)
+
+
+def create_directories(ADToISD_tuples):
+    for ad_id, isd_id, relationship in ADToISD_tuples:
+        cert_path = 'ISD' + isd_id + CERT_DIR
+        conf_path = 'ISD' + isd_id + CONF_DIR
+        keys_path = 'ISD' + isd_id + KEYS_DIR
+        topo_path = 'ISD' + isd_id + TOPO_DIR
+        if not os.path.exists(cert_path):
+            os.makedirs(cert_path)
+        if not os.path.exists(conf_path):
+            os.makedirs(conf_path)
+        if not os.path.exists(keys_path):
+            os.makedirs(keys_path)
+        if not os.path.exists(topo_path):
+            os.makedirs(topo_path)
+
+
+def write_keys_certs(ADToISD_tuples):
+    for ad_id, isd_id, relationship in ADToISD_tuples:
+        cert_path = 'ISD' + isd_id + CERT_DIR
+        keys_path = 'ISD' + isd_id + KEYS_DIR
+        file_name = 'ISD:' + isd_id + '-AD:' + ad_id + '-V:' + '0'
+        cert_file = cert_path + file_name + '.crt'
+        key_file = keys_path + file_name + '.key'
+        (priv, pub) = generate_keys()
+        cert = Certificate.from_values('ISD:' + isd_id + '-AD:' + ad_id,
+            pub, 'ISD:' + isd_id + '-AD:' + ad_id, priv, 0)
+        with open(key_file, 'w') as key_fh:
+            key_fh.write(str(priv))
+        with open(cert_file, 'w') as cert_fh:
+            cert_fh.write(str(cert))
+
+
+def write_beginning_run_file():
+    with open(RUN_FILE, 'w') as file_handler:
+        file_handler.write('#!/bin/bash\n\n')
+
+
+def write_beginning_topo_files(ADToISD_tuples, ip_address):
+    for ad_id, isd_id, relationship in ADToISD_tuples:
+        conf_path = 'ISD' + isd_id + CONF_DIR
+        topo_path = 'ISD' + isd_id + TOPO_DIR
+        rot_path = 'ISD' + isd_id + '/'
+        file_name = 'ISD:' + isd_id + '-AD:' + ad_id + '-V:' + '0'
+        conf_file = conf_path + file_name + '.conf'
+        topo_file = topo_path + file_name + '.xml'
+        rot_file = rot_path + 'ISD:' + isd_id + '-V:0.xml'
+        is_core = '0'
+        if relationship == CORE_AD:
+            is_core = '1'
+        with open(topo_file, 'w') as topo_fh, open(RUN_FILE, 'a') as run_fh:
+            topo_fh.write('\n'.join([
+                '<?xml version=\"1.0\" ?>',
+                '<Topology>',
+                '\t<Core>' + is_core + '</Core>',
+                '\t<ISDID>' + isd_id + '</ISDID>',
+                '\t<ADID>' + ad_id + '</ADID>',
+                '\t<Servers>',
+                '\t\t<BeaconServer>',
+                '\t\t\t<AddrType>IPv4</AddrType>',
+                '\t\t\t<Addr>' + ip_address + '</Addr>',
+                '\t\t</BeaconServer>\n']))
+            run_fh.write(''.join([
+                'screen -d -m -S bs' + ad_id + ' sh -c \"',
+                'PYTHONPATH=../ python3 beacon_server.py ' + ip_address + ' ',
+                '..' + SCRIPTS_DIR + topo_file + ' ',
+                '..' + SCRIPTS_DIR + conf_file + '\"\n']))
+            ip_address = increment_address(ip_address)
+            topo_fh.write('\n'.join([
+                '\t\t<CertificateServer>',
+                '\t\t\t<AddrType>IPv4</AddrType>',
+                '\t\t\t<Addr>' + ip_address + '</Addr>',
+                '\t\t</CertificateServer>\n']))
+            run_fh.write(''.join([
+                'screen -d -m -S cs' + ad_id + ' sh -c \"',
+                "PYTHONPATH=../ python3 cert_server.py " + ip_address + ' ',
+                '..' + SCRIPTS_DIR + topo_file + ' ',
+                '..' + SCRIPTS_DIR + conf_file + ' ',
+                '..' + SCRIPTS_DIR + rot_file + '\"\n']))
+            ip_address = increment_address(ip_address)
+            if relationship == CORE_AD or relationship == LEAF_AD:
+                topo_fh.write('\n'.join([
+                    '\t\t<PathServer>',
+                    '\t\t\t<AddrType>IPv4</AddrType>',
+                    '\t\t\t<Addr>' + ip_address + '</Addr>',
+                    '\t\t</PathServer>\n']))
+                run_fh.write(''.join([
+                    'screen -d -m -S ps' + ad_id + ' sh -c \"',
+                    'PYTHONPATH=../ python3 path_server.py ' + ip_address + ' ',
+                    '..' + SCRIPTS_DIR + topo_file + ' ',
+                    '..' + SCRIPTS_DIR + conf_file + '\"\n']))
+                ip_address = increment_address(ip_address)
+            topo_fh.write('\t</Servers>\n\t<BorderRouters>\n')
+    return ip_address
+
+
+def write_routers(ADRelationships_tuples, ads, port, if_id, ip_address):
+    for ad_id, nbr_ad_id, relationship in ADRelationships_tuples:
+        if relationship == PEER_PEER:
+            nbr_type1 = 'PEER'
+            nbr_type2 = 'PEER'
+        elif relationship == CHILD_PARENT:
+            nbr_type1 = 'CHILD'
+            nbr_type2 = 'PARENT'
+        elif relationship == ROUTING_ROUTING:
+            nbr_type1 = 'ROUTING'
+            nbr_type2 = 'ROUTING'
+        else:
+            nbr_type1 = 'UNKNOWN'
+            nbr_type2 = 'UNKNOWN'
+        (if_id, ip_address) = write_router(ads[ad_id][1], ads[nbr_ad_id][1],
+            ad_id, nbr_ad_id, nbr_type1, ads[ad_id][0], ads[nbr_ad_id][0], port,
+            port, if_id, ip_address)
+        (if_id, ip_address) = write_router(ads[nbr_ad_id][1], ads[ad_id][1],
+            nbr_ad_id, ad_id, nbr_type2, ads[nbr_ad_id][0], ads[ad_id][0], port,
+            port, if_id, ip_address)
+        port += 1
+    return ip_address
+
+
+def write_router(isd_id, nbr_isd_id, ad_id, nbr_ad_id, nbr_type, ext_addr,
+    ext_to_addr, ext_udp_port, ext_to_udp_port, if_id, ip_address):
+    conf_path = 'ISD' + isd_id + CONF_DIR
+    topo_path = 'ISD' + isd_id + TOPO_DIR
+    file_name = 'ISD:' + isd_id + '-AD:' + ad_id + '-V:' + '0'
+    conf_file = conf_path + file_name + '.conf'
+    topo_file = topo_path + file_name + '.xml'
+    with open(topo_file, 'a') as topo_fh:
+        topo_fh.write('\n'.join([
+            '\t\t<Router>',
+            '\t\t\t<AddrType>IPv4</AddrType>',
+            '\t\t\t<Addr>' + ip_address + '</Addr>',
+            '\t\t\t<Interface>',
+            '\t\t\t\t<IFID>' + str(if_id) + '</IFID>',
+            '\t\t\t\t<NeighborISD>' + nbr_isd_id + '</NeighborISD>',
+            '\t\t\t\t<NeighborAD>' + nbr_ad_id + '</NeighborAD>',
+            '\t\t\t\t<NeighborType>' + nbr_type + '</NeighborType>',
+            '\t\t\t\t<AddrType>IPv4</AddrType>',
+            '\t\t\t\t<Addr>' + ext_addr + '</Addr>',
+            '\t\t\t\t<ToAddr>' + ext_to_addr + '</ToAddr>',
+            '\t\t\t\t<UdpPort>' + str(ext_udp_port) + '</UdpPort>',
+            '\t\t\t\t<ToUdpPort>' + str(ext_to_udp_port) + '</ToUdpPort>',
+            '\t\t\t</Interface>',
+            '\t\t</Router>\n']))
+    with open(RUN_FILE, 'a') as run_fh:
+        run_fh.write(''.join([
+            'screen -d -m -S r' + ad_id + 'r' + nbr_ad_id + ' sh -c \"',
+            'PYTHONPATH=../ python3 router.py ' + ip_address + ' ',
+            '..' + SCRIPTS_DIR + topo_file + ' ',
+            '..' + SCRIPTS_DIR + conf_file + '\"\n']))
+    if_id += 1
+    ip_address = increment_address(ip_address)
+    return (if_id, ip_address)
+
+
+def write_end_topo_file(ADToISD_tuples):
+    for ad_id, isd_id, relationship in ADToISD_tuples:
+        topo_path = 'ISD' + isd_id + TOPO_DIR
+        file_name = 'ISD:' + isd_id + '-AD:' + ad_id + '-V:' + '0'
+        topo_file = topo_path + file_name + '.xml'
+        with open(topo_file, 'a') as topo_fh:
+            topo_fh.write('\t</BorderRouters>\n</Topology>\n')
+
+
+def write_conf_files(ADToISD_tuples):
+    for ad_id, isd_id, relationship in ADToISD_tuples:
+        conf_path = 'ISD' + isd_id + CONF_DIR
+        file_name = 'ISD:' + isd_id + '-AD:' + ad_id + '-V:' + '0'
+        conf_file = conf_path + file_name + '.conf'
+        with open(conf_file, 'w') as conf_fh:
+            conf_content = '\n'.join([
+                'MasterOFGKey 1234567890',
+                'MasterADKey 1919191919',
+                'PCBQueueSize 10',
+                'PSQueueSize 10',
+                'NumRegisteredPaths 10',
+                'NumShortestUPs 3',
+                'RegisterTime 5',
+                'PropagateTime 5',
+                'ResetTime 600',
+                'RegisterPath '])
+            if relationship == CORE_AD or relationship == LEAF_AD:
+                conf_content += '1'
+            else:
+                conf_content += '0'
+            conf_fh.write(conf_content)
+
+
+def write_setup_file(tmp_ip_address, ip_address):
+    with open(SETUP_FILE, 'w') as setup_fh:
+        setup_fh.write('#!/bin/bash\n\n')
+        while tmp_ip_address != ip_address:
+            setup_fh.write('ip addr add ' + tmp_ip_address + '/8 dev lo\n')
+            tmp_ip_address = increment_address(tmp_ip_address)
+
+
+def main():
+    """
+    Main function.
+    """
+    if not os.path.isfile(ADTOISD_FILE):
+        print("ADToISD file missing.")
+        sys.exit()
+
+    if not os.path.isfile(ADRELATIONSHIPS_FILE):
+        print("ADRelationships file missing.")
+        sys.exit()
+
+    if_id = 1
+    ip_address = "127.0.0.1"
+    tmp_ip_address = ip_address
+    port = 50000
+    
+    ads = {}
+    ADToISD_tuples = []
+    ADRelationships_tuples = []
+
+    with open(ADTOISD_FILE, 'r') as file_handler:
+        for line in file_handler:
+            ADToISD_tuples.append([i for i in line.split()])
+
+    with open(ADRELATIONSHIPS_FILE, 'r') as file_handler:
+        for line in file_handler:
+            ADRelationships_tuples.append([i for i in line.split()])
+
+    for ad_id, isd_id, relationship in ADToISD_tuples:
+        ads[ad_id] = (ip_address, isd_id)
+        ip_address = increment_address(ip_address)
+    
+    delete_directories()
+
+    create_directories(ADToISD_tuples)
+
+    write_keys_certs(ADToISD_tuples)
+
+    write_conf_files(ADToISD_tuples)
+
+    write_beginning_run_file()
+
+    ip_address = write_beginning_topo_files(ADToISD_tuples, ip_address)
+
+    ip_address = write_routers(ADRelationships_tuples, ads, port, if_id,
+        ip_address)
+
+    write_end_topo_file(ADToISD_tuples)
+
+    write_setup_file(tmp_ip_address, ip_address)
+
+    #write_rot_files(ADToISD_tuples)
+    for ad_id, isd_id, relationship in ADToISD_tuples:
+        if relationship == CORE_AD:
+            subprocess.call(['./rot-gen.sh', isd_id, ad_id, '0'])
+
+
+
+if __name__ == "__main__":
+    main()
