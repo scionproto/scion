@@ -3,23 +3,13 @@ crypto library usage
 
 Library Features:
 
-- AES-CBC-MAC wrapper for Opaque field generation and verification for data packet.
-- ED29915 wrapper for signature generation and verificaiton for beacon generation/propagation.
-- PRNG wrapper (in case we might need it somewhere)
-- Hash construction from AES Block ciphers (based on pycypto, will be replaced by AESNI in near future)
-- ECDH encryption based on Curve25519.
-
-Install necessary 3rd party library
-========
-
-Requirement:
-
-1. Install [pycrypto](https://pypi.python.org/pypi/pycrypto) for symmetric cryptography.
-- Download source tarball from the website, the newest verison is 2.6.1 now.
-- Untar the source and run **python setup.py build**.
-- Then run **python setup.py install** to install the library.
+- Symmetric cryptography: AES-CBC and AES-CBC-MAC wrappers for Opaque field generation and verification for data packet.
+- Asymmetric cryptography: Python tweetnacl wrappers for Asymmetric library support including ed25519 and public-key encryption scheme (curve25519xsalsa20poly1305).
 
 
 Todo
 ========
 1. Replace AES operation with native AESNI instruction if underlying machines have supports.
+2. Implement fast PRNG generator based on AESNI.
+3. Implement fast HASH based on AESNI.
+4. Improve poly1305 algorithm based on AESNI.
