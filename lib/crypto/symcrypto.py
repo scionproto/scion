@@ -16,145 +16,128 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import sys, hashlib, binascii, struct, io
+from python_sha3 import *
+from aes import *
+from gcm import *
+import os, struct
 
-if sys.version_info[0] == 3:
-	import io
-else:
-	import StringIO
-
-# AES Cipher
-from Crypto.Cipher import AES
-from Crypto import Random
-
-# PCKS#7 padding
-def pkcs7padding(data):
-	"""
-	Pad input data with PKCS#7 bytes format (See RFC 5652) into 16-byte aligned blocks.
-	"""
-	l = len(data)
-	if sys.version_info[0] == 3:
-		output = io.StringIO()
-	else:
-		output = StringIO.StringIO()
-	val = 16 - (l % 16)
-	for _ in range(val): output.write('%02x' % val)
-	padded_data = bytes(data) + binascii.unhexlify(output.getvalue())
-	return padded_data
-
-def pkcs7unpadding(encode):
-	"""
-	Strip PKCS#7 bytes from input data (See RFC 5652) back to original input.
-	"""
-	nl = len(encode)
-	if sys.version_info[0] == 3:
-		val = int(str(encode[-1]))
-	else:
-		val = int(binascii.hexlify(encode[-1]), 16)
-	if val > 16: raise ValueError('Input is not padded or padding is corrupt')
-	l = nl - val
-	return encode[:l]
-
-
-class SymCryptoUtil(object):
-	"""
-	Symmetric Cryptography Utility Class
-	"""
-	
-	@staticmethod
-	def CBCEncrypt(keybytes, iv, data):
-		""" 
-		AES CBC Cipher Encryption with given key, iv vector, and input bytes.
-		
-		@param keybytes: a string object for symmetric key to encrypt data.
-		@param iv: a string object for initial vector.
-		@param data: a byte string of plaintext.
-		@return: the encrypted data, as a byte string.
-		"""
-		# PKCS#7 padding
-		padded_data = pkcs7padding(data)
-		# Encrypt, AES CBC Cipher
-		cipher = AES.new(keybytes, AES.MODE_CBC, iv)
-		encrypted = cipher.encrypt(bytes(padded_data))
-		return encrypted
-	
-	@staticmethod
-	def CBCDecrypt(keybytes, iv, data):
-		""" 
-		AES CBC Cipher Decryption with given key, iv vector, and cipher bytes.
-		
-		@param keybytes: a string object for symmetric key to decrypt data.
-		@param iv: a string object for initial vector.
-		@param data: a byte string of cipher.
-		@return: the deciphered data, as a byte string.	
-		"""
-		# Decrypt, AES CBC Cipher
-		cipher = AES.new(keybytes, AES.MODE_CBC, iv)
-		decipher = cipher.decrypt(data)
-		# PKCS#7 unpadding
-		decipher = pkcs7unpadding(decipher)
-		return decipher
-		
-	@staticmethod
-	def CBCMAC(keybytes, data):
-		"""
-		CBC-MAC computation by a given input and a key to compute its MAC.
-		
-		@param keybytes: a string object for symmetric key to recompute MAC.
-		@param data: a byte string of plaintext.
-		@return mac: a received mac to validate integrity of input data.
-		"""
-		iv = b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
-		cmac = SymCryptoUtil().CBCEncrypt(keybytes, iv, bytes(data))
-		return cmac[-16:]
-    
-	@staticmethod
-	def CBCMACVerify(keybytes, data, mac):
-		"""
-    	CBC-MAC verification by a given input, a key, and a received MAC.
+class CryptoException(Exception):
+    """Custom error Class used in the Crypto implementation"""
+    def __init__(self, value):
+    	self.value = value
+    def __str__(self):
+    	return repr(self.value)
     	
-    	@param keybytes: a string object for symmetric key to recompute MAC.
-    	@param data: a byte string of plaintext.
-    	@param mac: a received mac to validate integrity of input data.
-    	@return: Boolean value to indicate MAC verification result.
-    	"""
-		cmac = SymCryptoUtil().CBCMAC(keybytes, bytes(data))
-		if cmac == mac:
-			return True;
-		else:
-			return False;
-	
-	@staticmethod
-	def GenerateRandom(len):
-		"""
-		GenerateRandom function produce len byte randomness. 
-		
-		@param len: byte length for randomness.
-		@return: a len-byte random string.
-		"""
-		rndfile = Random.new()
-		return rndfile.read(len)
-	
-	def test(self):
-		print ("---AES-CBC-Cipher Test---")
-		iv  = SymCryptoUtil().GenerateRandom(16)
-		key = SymCryptoUtil().GenerateRandom(16)
-		secret = SymCryptoUtil().GenerateRandom(16)
-		print ("Plaintext: %s" % secret)
-		cipher = SymCryptoUtil().CBCEncrypt(key, iv, secret)
-		print ("AES-CBC-ENC(len = %d): %s" % (len(cipher), binascii.hexlify(cipher)))
-		decipher = SymCryptoUtil().CBCDecrypt(key, iv, cipher)
-		print ("AES-CBC-DEC: %s" % str(decipher))
-		print ("---AES-CBC-MAC Test---")
-		mac = SymCryptoUtil().CBCMAC(key, secret)
-		print ("AES-CBC-MAC(len = %d): %s" % (len(mac), binascii.hexlify(mac)))
-		if SymCryptoUtil().CBCMACVerify(key, secret, mac):
-			print ("MAC verification succeeds.")
-		else:
-			print ("MAC verification fails.")
-		print ("Random: %s" % SymCryptoUtil().GenerateRandom(16))
 
-# test functions
-if __name__ == '__main__':
-	SymCryptoUtil().test()
-	
+def Hash(data, algo):
+    """ 
+    Hash function with given data and supported algorithm options.
+    
+    @param data: a string object for symmetric key to encrypt data.
+    @param algo: a string object for supported SHA3 algorithm, including
+        SHA3-224, SHA3-256, SHA3-384, and SHA3-512.
+    @return: the hash output, as a byte string.
+    """
+    if data == None:
+    	raise CryptoException.CryptoException("Input data is NULL.")
+    	return
+    if algo == 'SHA3-224':
+    	return sha3_224(data).hexdigest()
+    elif algo == 'SHA3-256':
+    	return sha3_256(data).hexdigest()
+    elif algo == 'SHA3-384':
+    	return sha3_384(data).hexdigest()
+    elif algo == 'SHA3-512':
+    	return sha3_512(data).hexdigest()
+    else:
+    	raise CryptoException.CryptoException("Input hash algorithm does not support.")
+    	return
+
+def MACObject(key):
+    """ 
+    Message Authentication Code Generator with given data and symmetric key.
+    
+    @param key: a byte object to represent symmetric key for MAC authenticator.
+    @return: the reusable MAC authenticator.
+    """
+    if key == None:
+    	raise CryptoException.CryptoException("Input data is NULL.")
+    	return
+    else: 
+    	return CBCMAC(key, len(key))
+
+def MACCompute(engine, msg):
+    """ 
+    Message Authentication Code Computation with preallocated authenticator and input message.
+    
+    @param engine: the MAC authenticator object. 
+    @param msg: a string object to compute MAC value of data.
+    @return: the MAC output, as a byte string.
+    """
+    if engine == None:
+    	raise CryptoException.CryptoException("MAC authenticator is NULL.")
+    	return
+    else:
+    	mac = engine.GenMAC(msg)
+    	return struct.pack('B' * len(mac), *mac)
+
+def MACVerify(engine, msg, rmac):
+    """ 
+    Message Authentication Code Verification with preallocated authenticator,
+    	given message, and corresponding MAC.
+    
+    @param engine: the MAC authenticator object. 
+    @param msg: a string object to compute MAC value of data.
+    @param rmac: a byte string represents received MAC value of msg.
+    @return: verification result, as a boolean value.
+    """
+    if engine == None:
+    	raise CryptoException.CryptoException("MAC authenticator is NULL.")
+    	return False
+    else:
+    	mac = engine.GenMAC(msg)
+    	mac = struct.pack('B' * len(mac), *mac)
+    	return mac == rmac
+
+def AuthenEncrypt(key, msg, iv, auth):
+    """ 
+    Message Encryption using AES-GCM Algorithm with given key, plaintext, 
+    	initialized vector, and authentication data.
+    
+    @param key: a byte string represents symmetric key for encryption.
+    @param msg: a byte string object to be encrypted.
+    @param auth: a byte string for authentication.
+    @param iv: a byte string as initialized vector.
+    @return: a concatenated cipher (c, t) where c is protected cipher
+    	and t is authenticated tag.
+    """
+    c, t = gcm_encrypt(key, iv, msg, auth)
+    return c+t
+
+def AuthenDecrypt(key, cipher, iv, auth):
+    """ 
+    Message Decryption using AES-GCM Algorithm with given cipher and initialized vector.
+    
+    @param key: a byte string represents symmetric key for decryption.
+    @param cipher: a byte string cipher to be decrypted.
+    @param iv: a byte string as initialized vector.
+    @param auth: a byte string for authentication.
+    @return: decrypted result, as a byte string. If authentication fails, raise an
+    	exception to abort.
+    """
+    ciphertext = cipher[:-16]
+    tag = cipher[-16:]
+    d = gcm_decrypt(key, iv, ciphertext, auth, tag)
+    return d
+
+def GenRandomByte(len):
+    """Generates random bytes of length `size`.
+    
+    @param len: length which is greater than zero.
+    @return: the Random output, as a byte string.
+    """
+    if len>0:
+    	return os.urandom(len)
+    else:
+    	emsg = 'Invalid len, %s. Should be greater than 0.'
+    	raise (ValueError, emsg % len)
