@@ -1,12 +1,13 @@
 #!/bin/bash
 
-if [ $# -ne 2 ]; then
-  echo "./rot-gen.sh [ISD ID] [AD ID]"
+if [ $# -ne 3 ]; then
+  echo "./rot-gen.sh [ISD ID] [AD ID] [VERSION]"
   exit 1;
 fi
 
 isd=$1
 ad=$2
+version=$3
 
 country=CH
 state=Zurich
@@ -14,7 +15,6 @@ locality=Zurich
 organization=ETHZ
 organizationalunit=NetSec
 
-version=0
 issueDate="Jul 01 21:15:39 2013 GMT"
 expDate="Jun 29 21:14:51 2023 GMT"
 policyThreshold=1
@@ -26,9 +26,9 @@ hdrText='<header>\n\t<version>version_field</version>\n\t<issueDate>issue_field<
 coreAdText='<coreADs>\n\t<coreAD>\n\t\t<ADID>adid_field</ADID>\n\t\t<len>cert_len_field</len>\n\t\t<cert>cert_field</cert>\n\t</coreAD>\n\n</coreADs>\n'
 sigText='\n<signatures>\n\t<coreAD>\n\t\t<ADID>adid_field</ADID>\n\t\t<len>sig_len_field</len>\n\t\t<sign>sig_field</sign>\n\t</coreAD>\n\n</signatures>\n\n</ROT>\n'
 
-filename=ISD$isd/rot-isd$isd-0.xml
-privkey=ISD$isd/rot-isd$isd.key
-certFile=ISD$isd/rot-isd$isd.crt
+filename=ISD$isd/ISD:$isd-V:$version.xml
+privkey=ISD$isd/ISD:$isd-V:$version.key
+certFile=ISD$isd/ISD:$isd-V:$version.crt
 
 commonname=isd$isd.com
 email=isd$isd@domain.com

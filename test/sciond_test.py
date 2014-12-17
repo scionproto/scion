@@ -37,7 +37,7 @@ class TestSCIONDaemon(unittest.TestCase):
         ISD:11, AD:6.
         """
         addr = IPv4HostAddr("192.168.7.107")
-        conf_file = "../topology/ISD11/topologies/topology7.xml"
+        conf_file = "../topology/ISD11/topologies/ISD:11-AD:7-V:0.xml"
         sd = SCIONDaemon(addr, conf_file)
         threading.Thread(target=sd.run).start()
 
