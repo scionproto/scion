@@ -8,6 +8,9 @@ if [ $1 == "topology" ]; then
 elif [ $1 == "setup" ]; then
     echo "add ip alias for ISDs and ADs"
     sudo bash ./topology/setup.sh
+    echo "compile crypto library"
+    cd lib/crypto/python-tweetnacl-20140309/
+    sh do
 elif [ $1 == "run" ]; then
     echo "run network"
 	cd infrastructure/

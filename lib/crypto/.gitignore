@@ -1,0 +1,4 @@
+# compiled output
+*.so
+*.o
+*.pyc

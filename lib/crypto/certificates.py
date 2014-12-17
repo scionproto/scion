@@ -16,22 +16,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from ed25519 import SigningKey, VerifyingKey
-import ed25519
+from asymcrypto import *
 import time
 import json
 import logging
 import os
-
-
-def generate_keys():
-    """
-    Generates a pair of keys and returns them in base64 format.
-    """
-    (signing_key, verifyng_key) = ed25519.create_keypair()
-    sk_ascii = signing_key.to_ascii(encoding="base64").decode("utf-8")
-    vk_ascii = verifyng_key.to_ascii(encoding="base64").decode("utf-8")
-    return (sk_ascii, vk_ascii)
+import base64
 
 
 def load_root_certificates(path):
@@ -56,66 +46,24 @@ def load_root_certificates(path):
     return roots
 
 
-def sign(msg, priv_key):
-    """
-    Signs a message with the given private key and returns the computed
-    signature.
-
-    @param msg: String message to sign.
-    @param priv_key: Private key used to compute the signature.
-    """
-    msg = str.encode(msg)
-    priv_key = bytes(priv_key, 'ascii')
-    signing_key = SigningKey(priv_key, encoding="base64")
-    signature = signing_key.sign(msg, encoding="base64").decode("utf-8")
-    return signature
-
-
-def verify(msg, signature, subject, chain, roots, root_cert_version):
-    """
-    Verifies whether the provided signature is the right one and if it was
-    computed using a valid certificate chain.
-
-    @param msg: String message on which the signature was computed.
-    @param signature: String with the signature to verify
-    @param subject: String containing the subject of the entity who signed the
-        message.
-    @param chain: Certificate chain containing the signing entity's certificate.
-        The signing entity's certificate is the first in the chain.
-    @param roots: Dictionary containing the root certificates.
-    @param root_cert_version: Version of the root certificate which signed the
-        last certificate in the certificate chain.
-    """
-    if not chain.verify(subject, roots, root_cert_version):
-        logging.warning("The certificate chain is invalid.")
-        return False
-    pub_key = chain.certs[0].subject_pub_key
-    pub_key = bytes(pub_key, 'ascii')
-    verifyng_key = VerifyingKey(pub_key, encoding="base64")
-    msg = str.encode(msg)
-    try:
-        verifyng_key.verify(signature, msg, encoding="base64")
-        return True
-    except ed25519.BadSignatureError:
-        logging.warning("The signature is not valid.")
-        return False
-
-
 class Certificate(object):
     """
     Certificate class.
     """
     VALIDITY_PERIOD = 365 * 24 * 60 * 60
-    ALGORITHM = 'ed25519'
+    SIGN_ALGORITHM = 'ed25519'
+    ENCRYPT_ALGORITHM = 'curve25519xsalsa20poly1305'
 
     def __init__(self, raw=None):
         self.subject = ''
         self.subject_pub_key = ''
+        self.subject_enc_key = ''
         self.issuer = ''
         self.version = 0
         self.issuing_time = 0
         self.expiration_time = 0
-        self.algorithm = ''
+        self.sign_algorithm = ''
+        self.encryption_algorithm = ''
         self.signature = ''
         if raw:
             self.parse(raw)
@@ -129,11 +77,13 @@ class Certificate(object):
         """
         cert_dict = {'subject': self.subject,
                      'subject_pub_key': self.subject_pub_key,
+                     'subject_enc_key': self.subject_enc_key,
                      'issuer': self.issuer,
                      'version': self.version,
                      'issuing_time': self.issuing_time,
                      'expiration_time': self.expiration_time,
-                     'algorithm': self.algorithm}
+                     'sign_algorithm': self.sign_algorithm,
+                     'enc_algorithm': self.encryption_algorithm}
         if with_signature:
             cert_dict['signature'] = self.signature
         return cert_dict
@@ -151,15 +101,17 @@ class Certificate(object):
             return
         self.subject = cert['subject']
         self.subject_pub_key = cert['subject_pub_key']
+        self.subject_enc_key = cert['subject_enc_key']
         self.issuer = cert['issuer']
         self.version = cert['version']
         self.issuing_time = cert['issuing_time']
         self.expiration_time = cert['expiration_time']
-        self.algorithm = cert['algorithm']
+        self.sign_algorithm = cert['sign_algorithm']
+        self.encryption_algorithm = cert['enc_algorithm']
         self.signature = cert['signature']
 
     @classmethod
-    def from_values(cls, subject, sub_pub_key, issuer, iss_priv_key, version):
+    def from_values(cls, subject, sub_pub_key, sub_enc_key, issuer, iss_priv_key, version):
         """
         Generates a certificate storing in it relevant information about
         subject, issuer and validity of the certificate itself.
@@ -168,6 +120,8 @@ class Certificate(object):
             subject. It can either be an AD, an email address or a domain
             address.
         @param sub_pub_key: Base64 string containing the public key of the
+            subject.
+        @param sub_enc_key: Base64 string containing the encryption key of the
             subject.
         @param issuer: String containing information about the certificate
             issuer. It can only be an AD.
@@ -178,18 +132,19 @@ class Certificate(object):
         cert = Certificate()
         cert.subject = subject
         cert.subject_pub_key = sub_pub_key
+        cert.subject_enc_key = sub_enc_key
         cert.issuer = issuer
         cert.version = version
         cert.issuing_time = int(time.time())
         cert.expiration_time = cert.issuing_time + Certificate.VALIDITY_PERIOD
-        cert.algorithm = Certificate.ALGORITHM
+        cert.sign_algorithm = Certificate.SIGN_ALGORITHM
+        cert.encryption_algorithm = Certificate.ENCRYPT_ALGORITHM
         cert_dict = cert.get_cert_dict()
         cert_str = json.dumps(cert_dict, sort_keys=True)
         cert_str = str.encode(cert_str)
-        iss_priv_key = bytes(iss_priv_key, 'ascii')
-        signing_key = SigningKey(iss_priv_key, encoding="base64")
-        cert.signature = \
-            signing_key.sign(cert_str, encoding="base64").decode("utf-8")
+        signing_key = base64.b64decode(iss_priv_key)
+        cert.signature = base64.standard_b64encode(crypto_sign_ed25519(cert_str,
+            signing_key)).decode('ascii')
         return cert
 
     def verify(self, subject, issuer_cert):
@@ -207,15 +162,15 @@ class Certificate(object):
                             "certificate's subject")
             return False
         iss_pub_key = issuer_cert.subject_pub_key
-        iss_pub_key = bytes(iss_pub_key, 'ascii')
-        verifyng_key = VerifyingKey(iss_pub_key, encoding="base64")
+        verifyng_key = base64.b64decode(iss_pub_key)
         cert_dict = self.get_cert_dict()
         cert_str = json.dumps(cert_dict, sort_keys=True)
         cert_str = str.encode(cert_str)
         try:
-            verifyng_key.verify(self.signature, cert_str, encoding="base64")
+            crypto_sign_ed25519_open(base64.b64decode(self.signature),
+                verifyng_key)
             return True
-        except ed25519.BadSignatureError:
+        except:
             logging.warning("The certificate is not valid.")
             return False
 
