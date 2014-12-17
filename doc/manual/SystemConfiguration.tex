@@ -1,6 +1,6 @@
-\section{System Configuration}\label{sec:system-configuration}
+\chapter{System Configuration}\label{sec:system-configuration}
 
-\subsection{SCION Switch}
+\section{SCION Switch}
 A SCION switch connects all SCION elements within an \AD to abstract intra-\AD communication. SCION defines a new inter-\AD routing architecture (including corresponding protocols), yet does not mandate any intra-\AD architecture. Hence, an \AD will be able to adopt SCION without changing the current internal forwarding/routing mechanisms. A SCION switch is a special element that virtualizes intra-\AD communication and can be replaced by intra-\AD forwarding/routing mechanisms in real operation.
 
 All SCION elements such servers and border routers are assigned a unique AID and should be reached with their AID. A SCION switch simply maintains its port to an element's AID mapping to enables communication between elements. AID = 0xFFFFFFFFFFFFFFFF is reserved for broadcasting a message to all elements; e.g., server list announcement. A SCION switch constructs a map between an output port and the AID of the connected element to the port during initialization. Specifically, a SCION switch sends AID request messages (AID\_REQ) to all output ports and the connected elements reply with their own AID (AID\_REP). The SCION switch constructs a AID-to-port mapping table using the AID reply arrived at each port. Note that an input port does not need to be mapped to the connected element's AID since a switch does not write (and hence route) any packet to the port (i.e., read-only port).
@@ -15,7 +15,7 @@ BR: Border Router, CS: Certificate Server, BS: Beacon Server, PS: Path Server}\l
 Figure~\ref{fig:configuration} illustrates how elements are interconnected through a SCION switch within an \AD. In this example, border routers connect to other \ADs through an NIC. Yet, multiple \ADs can be configured in a single machine or each \AD can be configured in a separate virtual machine.
 
 
-\subsection{Click Configuration File}
+\section{Click Configuration File}
 Currently, we have five types of Click elements, which are Certificate Server, Beacon Server, Path Server, Border Router and SCION Switch.  
 Each element is configured in a .click file (i.e., a click router configuration file) as follows.
 
@@ -29,7 +29,7 @@ Note: every element has its own (object) name for .click file generation. This n
 \item SCION Switch:
 \end{itemize}
 
-\subsection{SCION Configuration File}
+\section{SCION Configuration File}
 In addition to the basic configuration parameters, more detailed parameters specific to each element are defined in .conf file. In other words, each element has its own configuration file and intializes itself with this file. The configuartion paratmers of individual elements are shown below.
 
 \begin{itemize}
@@ -42,7 +42,7 @@ In addition to the basic configuration parameters, more detailed parameters spec
 
 
 \begin{comment}
-\subsection{Interconnect}
+\section{Interconnect}
 \begin{itemize}
 \item Intra-machine
 \item Inter-machine

@@ -35,17 +35,17 @@ class TestCertificates(unittest.TestCase):
         resulting signature is then verified.
         """
         (priv0, pub0, enc_pri0, enc_pub0) = generate_keys()
-        cert0 = Certificate.from_values('ISD:11-AD:0', pub0, enc_pub0, 'ISD:11-AD:0',
-        	priv0, 0)
+        cert0 = Certificate.from_values('ISD:11-AD:0', pub0, enc_pub0,
+            'ISD:11-AD:0', priv0, 0)
         (priv1, pub1, enc_pri1, enc_pub1) = generate_keys()
-        cert1 = Certificate.from_values('ISD:11-AD:1', pub1, enc_pub1, 'ISD:11-AD:0',
-            priv0, 0)
+        cert1 = Certificate.from_values('ISD:11-AD:1', pub1, enc_pub1,
+            'ISD:11-AD:0', priv0, 0)
         (priv2, pub2, enc_pri2, enc_pub2) = generate_keys()
-        cert2 = Certificate.from_values('ISD:11-AD:2', pub2, enc_pub2, 'ISD:11-AD:1',
-            priv1, 0)
+        cert2 = Certificate.from_values('ISD:11-AD:2', pub2, enc_pub2,
+            'ISD:11-AD:1', priv1, 0)
         (priv3, pub3, enc_pri3, enc_pub3) = generate_keys()
-        cert3 = Certificate.from_values('ISD:11-AD:3', pub3, enc_pub3, 'ISD:11-AD:2',
-            priv2, 0)
+        cert3 = Certificate.from_values('ISD:11-AD:3', pub3, enc_pub3,
+            'ISD:11-AD:2', priv2, 0)
         print("Certificate:", cert0, sep='\n')
 
         chain_list = [cert3, cert2, cert1]
@@ -65,7 +65,8 @@ class TestCertificates(unittest.TestCase):
         print("\nSignature Test...")
         packmsg = sign('hello', priv3)
         print("Message(With Signature):", packmsg, sep='\n')
-        print("Message verification:", verify(packmsg, 'ISD:11-AD:3', chain, roots, 0), sep='\n')
+        print("Message verification:", verify(packmsg, 'ISD:11-AD:3', chain,
+            roots, 0), sep='\n')
         
         print("\nPublic-key Enryption Test...")
         print("ISD:11-AD:3 encrypts message hello to ISD:11-AD:2:")

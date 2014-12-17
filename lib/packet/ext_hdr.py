@@ -48,11 +48,11 @@ class ExtensionHeader(HeaderBase):
                 "data len %u", dlen)
             return
         bits = BitArray(bytes=raw)
-        self.next_ext, self.hdr_len = bits.unpack("uintle:8, uintle:8")
+        self.next_ext, self.hdr_len = bits.unpack("uintbe:8, uintbe:8")
         self.parsed = True
 
     def pack(self):
-        return bitstring.pack("uintle:8, uintle:8",
+        return bitstring.pack("uintbe:8, uintbe:8",
                               self.next_ext, self.hdr_len).bytes
 
     def __len__(self):
@@ -95,12 +95,12 @@ class ICNExtHdr(ExtensionHeader):
             return
         bits = BitArray(bytes=raw)
         (self.next_ext, self.hdr_len, self.fwd_flag, _rsvd) = \
-            bits.unpack("uintle:8, uintle:8, uintle:8, uintle:40")
+            bits.unpack("uintbe:8, uintbe:8, uintbe:8, uintbe:40")
         self.parsed = True
         return
 
     def pack(self):
-        return bitstring.pack("uintle:8, uintle:8, uintle:8, uintle:40",
+        return bitstring.pack("uintbe:8, uintbe:8, uintbe:8, uintbe:40",
             self.next_ext, self.hdr_len, self.fwd_flag, 0).bytes
 
     def __len__(self):

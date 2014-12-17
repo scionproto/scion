@@ -4,7 +4,7 @@
 if [ $1 == "topology" ]; then
     echo "create topology, configuration and execution  files"
 	cd topology/
-    bash ./topo-gen.sh
+    PYTHONPATH=../ python3 generator.py
 elif [ $1 == "setup" ]; then
     echo "add ip alias for ISDs and ADs"
     sudo bash ./topology/setup.sh

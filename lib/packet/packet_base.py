@@ -22,6 +22,9 @@ class HeaderBase(object):
     Base class for headers.
 
     Each header class must implement parse, pack and __str__.
+
+    Attributes:
+        parsed: a boolean indicating whether the header has been parsed.
     """
 
     def __init__(self):
@@ -46,7 +49,15 @@ class HeaderBase(object):
 class PacketBase(object):
     """
     Base class for packets.
+
+    Attributes:
+        parsed: a boolean indicating whether the packet has been parsed.
+        raw: a bytes literal representing the raw bytes of the packet.
+        hdr: a header (subclass of HeaderBase) representing the packet header.
+        payload: a packet (subclass of PacketBase) or bytes literal
+            representing the packet payload.
     """
+
     def __init__(self):
         self._hdr = None
         self._payload = None
@@ -64,15 +75,15 @@ class PacketBase(object):
     def payload(self, new_payload):
         self.set_payload(new_payload)
 
-    def set_payload(self, payload):
+    def set_payload(self, new_payload):
         """
         Set the packet payload.  Expects bytes or a Packet subclass.
         """
-        if (not isinstance(payload, PacketBase) and
-            not isinstance(payload, bytes)):
+        if (not isinstance(new_payload, PacketBase) and
+            not isinstance(new_payload, bytes)):
             raise TypeError("payload must be bytes or packet subclass.")
         else:
-            self._payload = payload
+            self._payload = new_payload
 
     @property
     def hdr(self):
@@ -85,14 +96,14 @@ class PacketBase(object):
     def hdr(self, new_hdr):
         self.set_hdr(new_hdr)
 
-    def set_hdr(self, hdr):
+    def set_hdr(self, new_hdr):
         """
         Sets the packet header. Expects a Header subclass.
         """
-        if not isinstance(hdr, HeaderBase):
+        if not isinstance(new_hdr, HeaderBase):
             raise TypeError("hdr must be a header subclass.")
         else:
-            self._hdr = hdr
+            self._hdr = new_hdr
 
     def parse(self, raw):
         pass

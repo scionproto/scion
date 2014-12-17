@@ -10,6 +10,7 @@
 *.synctex.gz
 *.toc
 *.idx
+*.out
 
 
 # OS generated files #
@@ -21,3 +22,23 @@
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+
+# SCION generated files #
+#########################
+infrastructure/__pycache__/
+lib/__pycache__/
+lib/packet/__pycache__/
+topology/ISD*
+topology/conf-gen
+*.crt
+
+
+# Python generated files #
+#########################
+*.pyc
+
+
+# vim generated files #
+#########################
+*.swp

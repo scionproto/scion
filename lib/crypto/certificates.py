@@ -143,8 +143,8 @@ class Certificate(object):
         cert_str = json.dumps(cert_dict, sort_keys=True)
         cert_str = str.encode(cert_str)
         signing_key = base64.b64decode(iss_priv_key)
-        cert.signature = \
-            base64.standard_b64encode(crypto_sign_ed25519(cert_str, signing_key)).decode('ascii')
+        cert.signature = base64.standard_b64encode(crypto_sign_ed25519(cert_str,
+            signing_key)).decode('ascii')
         return cert
 
     def verify(self, subject, issuer_cert):
@@ -167,7 +167,8 @@ class Certificate(object):
         cert_str = json.dumps(cert_dict, sort_keys=True)
         cert_str = str.encode(cert_str)
         try:
-            crypto_sign_ed25519_open(base64.b64decode(self.signature), verifyng_key)
+            crypto_sign_ed25519_open(base64.b64decode(self.signature),
+                verifyng_key)
             return True
         except:
             logging.warning("The certificate is not valid.")

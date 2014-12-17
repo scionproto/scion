@@ -1,19 +1,26 @@
+#host_addr.py
+
+#Copyright 2014 ETH Zurich
+
+#Licensed under the Apache License, Version 2.0 (the "License");
+#you may not use this file except in compliance with the License.
+#You may obtain a copy of the License at
+
+#http://www.apache.org/licenses/LICENSE-2.0
+
+#Unless required by applicable law or agreed to in writing, software
+#distributed under the License is distributed on an "AS IS" BASIS,
+#WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#See the License for the specific language governing permissions and
+#limitations under the License.
 """
-host_addr.py
+:mod:`host_addr` --- SCION host address specifications
+======================================================
 
-Copyright 2014 ETH Zurich
+Module docstring here.
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+.. note::
+    Fill in the docstring.
 """
 
 import socket
@@ -51,6 +58,15 @@ class HostAddr(object):
         self._addr = addr
 
     def to_int(self, endianness='big'):
+        """
+        Returns the address in integer format.
+
+        :param endianness: the endiannness to use when converting. Must be
+            'big' or 'little'.
+        :type endianness: str
+        :returns: an integer representation of the address stored in the :class:`HostAddr` object.
+        :rtype: int
+        """
         return int.from_bytes(self.addr, endianness)
 
     def __str__(self):
@@ -77,7 +93,8 @@ class IPv4HostAddr(HostAddr):
             self.addr = addr
 
     def set_addr(self, addr):
-        if isinstance(addr, str):
+        # in case that len(addr) == 4, addr is binary string 
+        if isinstance(addr, str) and len(addr) != 4: 
             self._addr = socket.inet_aton(addr)
         elif isinstance(addr, int):
             self._addr = struct.pack("I", addr)

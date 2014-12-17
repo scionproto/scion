@@ -1,56 +1,107 @@
+# router.py
+
+# Copyright 2014 ETH Zurich
+
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+
+# http://www.apache.org/licenses/LICENSE-2.0
+
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """
-router.py
+:mod:`router` --- Router code
+=============================
 
-Copyright 2014 ETH Zurich
+Module docstring here.
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+.. note::
+    Fill in the docstring.
 
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
 """
 
 from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.opaque_field import OpaqueField
 from lib.packet.opaque_field import OpaqueFieldType as OFT
 from lib.packet.scion import SCIONPacket, IFIDRequest, IFIDReply, get_type
-from lib.packet.scion import PacketType as PT
+from lib.packet.scion import PacketType as PT, Beacon
 from lib.topology import ElementType as ET
-from infrastructure.server import ServerBase, SCION_UDP_PORT
+from infrastructure.scion_elem import SCIONElement, SCION_UDP_PORT
 import logging
 import threading
 import time
 import socket
 import sys
-import struct #FIXME remove if Beacon/PCB class is ready
 
 
 class NextHop(object):
     """
     Simple class for next hop representation. Object of this class corresponds
     to SCION Packet and is processed within routing context.
+
+    :ivar addr: the next hop address.
+    :vartype addr: str
+    :ivar port: the next hop port number.
+    :vartype port: int
     """
+
     def __init__(self):
         self.addr = None
         self.port = SCION_UDP_PORT
+
     def __str__(self):
         return "%s:%d" % (self.addr, self.port)
 
 
-class Router(ServerBase):
+class Router(SCIONElement):
     """
     The SCION Router.
+
+    :ivar addr: the router address.
+    :vartype addr: :class:`HostAddr`
+    :ivar topology: the AD topology as seen by the router.
+    :vartype topology: :class:`Topology`
+    :ivar config: the configuration of the router.
+    :vartype config: :class:`Config`
+    :ivar ifid2addr: a map from interface identifiers to the corresponding
+       border router addresses in the server's AD.
+    :vartype ifid2addr: dict
+    :ivar interface: the router's inter-AD interface, if any.
+    :vartype interface: :class:`lib.topology.InterfaceElement`
+    :ivar pre_ext_handlers: a map of extension header types to handlers for
+        those extensions that execute before routing.
+    :vartype pre_ext_handlers: dict
+    :ivar post_ext_handlers: a map of extension header types to handlers for
+        those extensions that execute after routing.
+    :vartype post_ext_handlers: dict
     """
+
     IFID_REQ_TOUT = 2
+
     def __init__(self, addr, topo_file, config_file, pre_ext_handlers=None,
-            post_ext_handlers=None):
-        ServerBase.__init__(self, addr, topo_file, config_file)
+                 post_ext_handlers=None):
+        """
+        Constructor.
+
+        :param addr: the router address.
+        :type addr: :class:`HostAddr`
+        :param topo_file: the topology file name.
+        :type topo_file: str
+        :param config_file: the configuration file name.
+        :type config_file: str
+        :param pre_ext_handlers: a map of extension header types to handlers
+            for those extensions that execute before routing.
+        :type pre_ext_handlers: dict
+        :param post_ext_handlers: a map of extension header types to handlers
+            for those extensions that execute after routing.
+        :type post_ext_handlers: dict
+
+        """
+        SCIONElement.__init__(self, addr, topo_file, config_file)
         self.interface = None
         for router_list in self.topology.routers.values():
             for router in router_list:
@@ -59,7 +110,6 @@ class Router(ServerBase):
                     break
         assert self.interface != None
         logging.info("Interface: %s", self.interface.__dict__)
-
         if pre_ext_handlers:
             self.pre_ext_handlers = pre_ext_handlers
         else:
@@ -68,27 +118,34 @@ class Router(ServerBase):
             self.post_ext_handlers = post_ext_handlers
         else:
             self.post_ext_handlers = {}
-
         self._remote_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._remote_socket.bind((str(self.interface.addr),
-            self.interface.udp_port))
+                                  self.interface.udp_port))
         self._sockets.append(self._remote_socket)
         logging.info("IP %s:%u", self.interface.addr, self.interface.udp_port)
 
     def run(self):
         threading.Thread(target=self.init_interface).start()
-        ServerBase.run(self)
+        SCIONElement.run(self)
 
     def send(self, packet, next_hop, use_local_socket=True):
         """
         Sends packet to next_hop.addr (class of that object must implement
         __str__ which returns IPv4 addr) using next_hop.port and local or remote
         socket.
+
+        :param packet: the
+        :type packet:
+        :param next_hop: the next hop of the packet.
+        :type next_hop: :class:`NextHop`
+        :param use_local_socket: whether to use the local socket (as opposed to
+            a remote socket).
+        :type use_local_socket: bool
         """
         logging.info("Sending packet to %s", next_hop)
         self.handle_extensions(packet, next_hop, False)
         if use_local_socket:
-            ServerBase.send(self, packet, next_hop.addr, next_hop.port)
+            SCIONElement.send(self, packet, next_hop.addr, next_hop.port)
         else:
             self._remote_socket.sendto(packet.pack(), (str(next_hop.addr),
                 next_hop.port))
@@ -98,6 +155,13 @@ class Router(ServerBase):
         Handles SCION Packet extensions. Handlers can be defined for pre- and
         post-routing.
         Handler takes two parameters: packet (SCIONPacket), next_hop (NextHop).
+
+        :param spkt:
+        :type spkt:
+        :param next_hop:
+        :type next_hop:
+        :param pre_routing_phase:
+        :type pre_routing_phase:
         """
         if pre_routing_phase:
             handlers = self.pre_ext_handlers
@@ -117,8 +181,8 @@ class Router(ServerBase):
 
     def init_interface(self):
         """
-        Initial synchronization with neighboring router to qualify interface as
-        initialized.
+        Synchronize and initialize the router's interface with that of a
+        neighboring router.
         """
         next_hop = NextHop()
         next_hop.addr = self.interface.to_addr
@@ -137,6 +201,11 @@ class Router(ServerBase):
         """
         After receiving IFID_REP interface is initialized and all beacon server
         are informed.
+
+        :param packet: the IFID reply packet to send.
+        :type packet: bytes
+        :param next_hop: the next hop of the reply packet.
+        :type next_hop: :class:`NextHop`
         """
         logging.info('IFID_REP received, len %u', len(packet))
         ifid_rep = IFIDReply(packet)
@@ -149,6 +218,11 @@ class Router(ServerBase):
     def process_ifid_request(self, packet, next_hop):
         """
         After receiving IFID_REQ from neighboring router, IFID_REP is sent back.
+
+        :param packet: the IFID request packet to send.
+        :type packet: bytes
+        :param next_hop: the next hop of the request packet.
+        :type next_hop: :class:`NextHop`
         """
         logging.info('IFID_REQ received, len %u', len(packet))
         ifid_req = IFIDRequest(packet)
@@ -158,52 +232,61 @@ class Router(ServerBase):
                 ifid_req.request_id)
         self.send(ifid_rep, next_hop, False)
 
-    #TODO these two functions should go to (future) Beacon class
-    def get_interface(self, packet):
-        """
-        Remove after PCB class is introduced.
-        """
-        return struct.unpack("H", packet[16+13:16+15])[0]
-
-    def set_interface(self, packet):
-        """
-        Remove after PCB class is introduced.
-        """
-        return (packet[:29] + struct.pack("H", self.interface.if_id) +
-                packet[31:])
-
     def process_pcb(self, packet, next_hop, from_bs):
         """
         Depending on scenario: a) sends PCB to all beacon servers, or b) to
         neighboring router.
+
+        :param packet:
+        :type packet:
+        :param next_hop:
+        :type next_hop:
+        :param from_bs:
+        :type from_bs: bool
         """
-        #TODO incorporate with PCB class (when PCB is ready)
+        beacon = Beacon(packet)
         if not self.interface.initialized:
             logging.warning("Interface not initialized.")
             return
         if from_bs:
-            if self.interface.if_id != self.get_interface(packet):
+            if self.interface.if_id != beacon.pcb.rotf.if_id: 
                 logging.error("Wrong interface set by BS.")
                 return
             next_hop.addr = self.interface.to_addr
             next_hop.port = self.interface.to_udp_port
-            self.send(SCIONPacket(packet), next_hop, False)
+            self.send(beacon, next_hop, False)
         else:
             #TODO Multiple BS scenario
-            packet = self.set_interface(packet)
+            beacon.pcb.rotf.if_id = self.interface.if_id
             next_hop.addr = self.topology.servers[ET.BEACON_SERVER].addr
-            self.send(SCIONPacket(packet), next_hop)
+            self.send(beacon, next_hop)
 
     #TODO
     def verify_of(self, spkt):
         """
         Verifies authentication of current opaque field.
+
+        :param spkt: the SCION packet in which to verify the opaque field.
+        :type spkt: :class:`lib.packet.scion.SCIONPacket`
+
+        .. warning::
+           This method has not yet been implemented and always returns
+           ``True``.
         """
         return True
 
     def normal_forward(self, spkt, next_hop, from_local_ad, ptype):
         """
         Process normal forwarding.
+
+        :param spkt: the SCION packet to forward.
+        :type spkt: :class:`lib.packet.scion.SCIONPacket`
+        :param next_hop: the next hop of the packet.
+        :type next_hop: :class:`NextHop`
+        :param from_local_ad: whether or not the packet is from the local AD.
+        :type from_local_ad: bool
+        :param ptype: the type of the packet.
+        :type ptype: :class:`lib.packet.scion.PacketType`
         """
         if not self.verify_of(spkt):
             return
@@ -227,7 +310,7 @@ class Router(ServerBase):
                         self.topology.servers[ET.CERTIFICATE_SERVER].addr)
             elif iface:
                 next_hop.addr = self.ifid2addr[iface]
-            elif ptype in [PT.PATH_REG, PT.PATH_REQ, PT.PATH_REP]:
+            elif ptype in [PT.PATH_REQ, PT.PATH_REC]:
                 next_hop.addr = self.topology.servers[ET.PATH_SERVER].addr
             else:
                 next_hop.addr = spkt.hdr.dst_addr
@@ -237,6 +320,15 @@ class Router(ServerBase):
     def crossover_forward(self, spkt, next_hop, from_local_ad, info):
         """
         Process crossover forwarding.
+
+        :param spkt: the SCION packet to forward.
+        :type spkt: :class:`lib.packet.scion.SCIONPacket`
+        :param next_hop: the next hop of the packet.
+        :type next_hop: :class:`NextHop`
+        :param from_local_ad: whether or not the packet is from the local AD.
+        :type from_local_ad: bool
+        :param info: the type of opaque field.
+        :type info: :class:`lib.packet.opaque_field.OpaqueFieldType`
         """
         logging.debug("crossover_forward()")
         if info == OFT.TDC_XOVR:
@@ -281,15 +373,20 @@ class Router(ServerBase):
 
     def forward_packet(self, spkt, next_hop, from_local_ad, ptype):
         """
-        Basing on current opaque field forwards packet.
+        Forward packet based on the current opaque field.
+
+        :param spkt: the SCION packet to forward.
+        :type spkt: :class:`lib.packet.scion.SCIONPacket`
+        :param next_hop: the next hop of the packet.
+        :type next_hop: :class:`NextHop`
+        :param from_local_ad: whether or not the packet is from the local AD.
+        :type from_local_ad: bool
+        :param ptype: the type of the packet.
+        :type ptype: :class:`lib.packet.scion.PacketType`
         """
         while not spkt.hdr.get_current_of().is_regular():
             spkt.hdr.common_hdr.timestamp = spkt.hdr.common_hdr.current_of
-            #TODO PSz: revise, that condition is quite strange
-            if (ptype not in [PT.PATH_REP, PT.CERT_REP, PT.ROT_REP] and
-                spkt.hdr.get_current_of() == spkt.hdr.path.get_of(0)):
-                spkt.hdr.set_uppath()
-            else:
+            if (spkt.hdr.get_current_of() != spkt.hdr.path.get_of(0)):
                 spkt.hdr.set_downpath()
             logging.debug("increase 0")
             spkt.hdr.increase_of(1)
@@ -316,6 +413,13 @@ class Router(ServerBase):
     def write_to_egress_iface(self, spkt, next_hop, from_local_ad):
         """
         Forwards packet to neighboring router.
+
+        :param spkt: the SCION packet to forward.
+        :type spkt: :class:`lib.packet.scion.SCIONPacket`
+        :param next_hop: the next hop of the packet.
+        :type next_hop: :class:`NextHop`
+        :param from_local_ad: whether or not the packet is from the local AD.
+        :type from_local_ad: bool
         """
         if spkt.hdr.is_on_up_path():
             iface = spkt.hdr.get_current_of().ingress_if
@@ -328,7 +432,7 @@ class Router(ServerBase):
             of1_info = spkt.hdr.get_relative_of(1).info
             of2_info = spkt.hdr.get_current_of().info
             if ((of1_info == OFT.INTRATD_PEER and spkt.hdr.is_on_up_path()) or
-                (of2_info == 0x20 and not spkt.hdr.is_on_up_path())):#TODO DEBUG
+                (of2_info == OFT.LAST_OF and not spkt.hdr.is_on_up_path())):
                 spkt.hdr.increase_of(1)
 
         if self.interface.if_id != iface:#TODO debug
@@ -344,6 +448,15 @@ class Router(ServerBase):
     def process_packet(self, spkt, next_hop, from_local_ad, ptype):
         """
         Inspects current opaque fields and decides on forwarding type.
+
+        :param spkt: the SCION packet to process.
+        :type spkt: :class:`lib.packet.scion.SCIONPacket`
+        :param next_hop: the next hop of the packet.
+        :type next_hop: :class:`NextHop`
+        :param from_local_ad: whether or not the packet is from the local AD.
+        :type from_local_ad: bool
+        :param ptype: the type of the packet.
+        :type ptype: :class:`lib.packet.scion.PacketType`
         """
         if (spkt.hdr.get_current_of() != spkt.hdr.path.get_of(0) and
             ptype == PT.DATA and from_local_ad):
@@ -363,6 +476,17 @@ class Router(ServerBase):
     def handle_request(self, packet, sender, from_local_socket=True):
         """
         Main routine to handle incoming SCION packets.
+
+        :param packet: the incoming packet to handle.
+        :type packet: SCIONPacket
+        :param sender:
+        :type sender:
+        :param from_local_socket: whether the request is coming from a local
+            socket.
+        :type from_local_socket: bool
+
+        .. note::
+            `sender` is not used in this function at the moment.
         """
         from_local_ad = from_local_socket
         spkt = SCIONPacket(packet)
@@ -380,6 +504,7 @@ class Router(ServerBase):
                 logging.debug("DATA type %u, %s, %s", ptype,
                         spkt.hdr.common_hdr, spkt)
             self.process_packet(spkt, next_hop, from_local_ad, ptype)
+
 
 def main():
     """
