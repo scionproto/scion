@@ -16,16 +16,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from nacl import *
-from certificates import *
+from lib.crypto.nacl import *
+from lib.crypto.certificates import *
 import base64
 
 def generate_keys():
     """
     Generates two pair of keys and returns them in base64 format.
     The first pair is for ed25519 signature scheme.
-    The second pair is for public-key based encryption scheme (curve25519ecdh+xsalsa20+poly1305).
-    Return a quadruple list contain (signing_key, verifyng_key, private_key, public_key)
+    The second pair is for public-key based encryption scheme
+    (curve25519ecdh+xsalsa20+poly1305).
+    Return a quadruple list contain (signing_key, verifyng_key, private_key,
+    public_key)
     """
     (verifyng_key, signing_key) = crypto_sign_ed25519_keypair()
     (public_key, private_key) = crypto_box_curve25519xsalsa20poly1305_keypair()
@@ -68,16 +70,16 @@ def verify(pack, subject, chain, roots, root_cert_version):
         return False
     pub_key = None
     for signer_cert in chain.certs:
-            if signer_cert.subject == subject:
-            	pub_key = signer_cert.subject_pub_key
-            	break
-    if pub_key == None:
-    	raise Exception("Signer's public key not found.")
-    	return False
+        if signer_cert.subject == subject:
+            pub_key = signer_cert.subject_pub_key
+            break
+    if pub_key is None:
+        raise Exception("Signer's public key not found.")
+        return False
     verifying_key = base64.b64decode(pub_key)
     try:
-    	crypto_sign_ed25519_open(base64.b64decode(pack), verifying_key)
-    	return True
+        crypto_sign_ed25519_open(base64.b64decode(pack), verifying_key)
+        return True
     except:
         logging.warning("The signature is not valid.")
         return False
@@ -89,28 +91,30 @@ def authenticated_encrypt(msg, priv_key, subject, chain):
     
     @param msg: String message to encrypt.
     @param priv_key: Sender's private key used to encrypt the message.
-    @param subject: String containing the subject of the entity who plans to decrypt
-        the cipher.
-    @param chain: Certificate chain containing the recipient entity's certificate.
+    @param subject: String containing the subject of the entity who plans
+        to decrypt the cipher.
+    @param chain: Certificate chain containing the recipient entity's
+        certificate.
     """
-    if priv_key == None:
-    	raise Exception("Error: Private key is NULL.")
-    	return
-    if msg == None:
-    	raise Exception("Error: Plaintext data is NULL.")
-    	return
+    if priv_key is None:
+        raise Exception("Error: Private key is NULL.")
+        return
+    if msg is None:
+        raise Exception("Error: Plaintext data is NULL.")
+        return
     pub_key = None
     for recipient_cert in chain.certs:
-    	if recipient_cert.subject == subject:
-    		pub_key = recipient_cert.subject_enc_key
-    		break
-    if pub_key == None:
-    	raise Exception("Recipient's public key not found.")
-    	return None
+        if recipient_cert.subject == subject:
+            pub_key = recipient_cert.subject_enc_key
+            break
+    if pub_key is None:
+        raise Exception("Recipient's public key not found.")
+        return None
     pub_key = base64.b64decode(pub_key)
     priv_key = base64.b64decode(priv_key)
     nonce = randombytes(24)
-    cipher = nonce+crypto_box_curve25519xsalsa20poly1305(msg, nonce, pub_key, priv_key)
+    cipher = nonce + crypto_box_curve25519xsalsa20poly1305(msg, nonce, pub_key,
+        priv_key)
     return base64.standard_b64encode(cipher).decode('ascii')
 
 
@@ -124,23 +128,24 @@ def authenticated_decrypt(cipher, priv_key, subject, chain):
         message.
     @param chain: Certificate chain containing the sender entity's certificate.
     """
-    if cipher == None:
-    	raise Exception("Error: Cipher data is NULL.")
-    	return
-    if priv_key == None:
-    	raise Exception("Error: Private key is NULL.")
-    	return
+    if cipher is None:
+        raise Exception("Error: Cipher data is NULL.")
+        return
+    if priv_key is None:
+        raise Exception("Error: Private key is NULL.")
+        return
     pub_key = None
     for sender_cert in chain.certs:
-    	if sender_cert.subject == subject:
-    		pub_key = sender_cert.subject_enc_key
-    		break
-    if pub_key == None:
-    	raise Exception("Sender's public key not found.")
-    	return
+        if sender_cert.subject == subject:
+            pub_key = sender_cert.subject_enc_key
+            break
+    if pub_key is None:
+        raise Exception("Sender's public key not found.")
+        return
     pub_key = base64.b64decode(pub_key)
     priv_key = base64.b64decode(priv_key)
     cipher = base64.b64decode(cipher)
     nonce = cipher[:24]
     cipher = cipher[24:]
-    return crypto_box_curve25519xsalsa20poly1305_open(cipher, nonce, pub_key, priv_key)
+    return crypto_box_curve25519xsalsa20poly1305_open(cipher, nonce, pub_key,
+        priv_key)

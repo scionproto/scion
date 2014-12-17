@@ -66,11 +66,11 @@ def write_keys_certs(ADToISD_tuples):
         file_name = 'ISD:' + isd_id + '-AD:' + ad_id + '-V:' + '0'
         cert_file = cert_path + file_name + '.crt'
         key_file = keys_path + file_name + '.key'
-        (priv, pub) = generate_keys()
+        (cert_priv, cert_pub, enc_priv, enc_pub) = generate_keys()
         cert = Certificate.from_values('ISD:' + isd_id + '-AD:' + ad_id,
-            pub, 'ISD:' + isd_id + '-AD:' + ad_id, priv, 0)
+            cert_pub, enc_pub, 'ISD:' + isd_id + '-AD:' + ad_id, cert_priv, 0)
         with open(key_file, 'w') as key_fh:
-            key_fh.write(str(priv))
+            key_fh.write(str(cert_priv))
         with open(cert_file, 'w') as cert_fh:
             cert_fh.write(str(cert))
 

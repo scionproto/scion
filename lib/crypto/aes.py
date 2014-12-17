@@ -17,8 +17,8 @@ import math
 
 def append_PKCS7_padding(s):
     """return s padded to a multiple of 16-bytes by PKCS7 padding"""
-    numpads = 16 - (len(s)%16)
-    return s + numpads*chr(numpads)
+    numpads = 16 - (len(s) % 16)
+    return s + numpads * chr(numpads)
 
 def strip_PKCS7_padding(s):
     """return s stripped of PKCS7 padding"""
@@ -209,7 +209,7 @@ class AES(object):
         roundKey = [0] * 16
         for i in range(4):
             for j in range(4):
-                roundKey[j*4+i] = expandedKey[roundKeyPointer + i*4 + j]
+                roundKey[j * 4 + i] = expandedKey[roundKeyPointer + i * 4 + j]
         return roundKey
 
     def galois_multiplication(self, a, b):
@@ -239,7 +239,7 @@ class AES(object):
     # iterate over the 4 rows and call shiftRow() with that row
     def shiftRows(self, state, isInv):
         for i in range(4):
-            state = self.shiftRow(state, i*4, i, isInv)
+            state = self.shiftRow(state, i * 4, i, isInv)
         return state
 
     # each iteration shifts the row to the left by 1
@@ -332,7 +332,7 @@ class AES(object):
         return state
     
     def KeyExpand(self, key, size):
-		# the number of rounds
+        # the number of rounds
         nbrRounds = 0
         # set the number of rounds
         if size == self.keySize["SIZE_128"]: nbrRounds = 10
@@ -346,7 +346,7 @@ class AES(object):
         # expand the key into an 176, 208, 240 bytes key
         # the expanded key
         return (nbrRounds, self.expandKey(key, size, expandedKeySize))
-	
+    
     # encrypts a 128 bit input block against the given key of size specified
     def encrypt(self, iput, expandedKey, nbrRounds):
         output = [0] * 16
@@ -388,59 +388,59 @@ class AES(object):
 
 
 class CBCMAC(object):
-		
-	def __init__(self, key=None, size=0):
-		self.aes = AES()
-		if key != None:
-			(self.nbrRounds, self.expandedKey) = self.aes.KeyExpand(key, size)
-	
-	def LoadSecret(self, key):
-		if key == None:
-			return False
-		else:
-			(self.nbrRounds, self.expandedKey) = self.aes.KeyExpand(key, size)
-			return True
-	
-	# converts a 16 character string into a number array
-	def convertString(self, string, start, end):
-		if end - start > 16: end = start + 16
-		ar = [0] * 16
-		i = start
-		j = 0
-		while len(ar) < end - start:
-			ar.append(0)
-		while i < end:
-			ar[j] = ord(string[i])
-			j += 1
-			i += 1
-		return ar
-		
-	def GenMAC(self, stringIn):
-		expandedKeySize = 16*(self.nbrRounds+1)
-		if len(self.expandedKey) != expandedKeySize:
-			return None
-		IV = [0] * 16
-		# the AES input/output
-		plaintext = []
-		iput = [0] * 16
-		output = []
-		mac = [0] * 16
-		# append PKCS7 Padding
-		stringIn = append_PKCS7_padding(stringIn)
-		# char firstRound
-		firstRound = True
-		if stringIn != None:
-			for j in range(int(math.ceil(float(len(stringIn))/16))):
-				start = j*16
-				end = j*16+16
-				if  end > len(stringIn):
-					end = len(stringIn)
-				plaintext = self.convertString(stringIn, start, end)
-				for i in range(16):
-					if firstRound:
-						iput[i] =  plaintext[i] ^ IV[i]
-					else:
-						iput[i] =  plaintext[i] ^ mac[i]
-				firstRound = False
-				mac = self.aes.encrypt(iput, self.expandedKey, self.nbrRounds)
-		return mac
+        
+    def __init__(self, key=None, size=0):
+        self.aes = AES()
+        if key != None:
+            (self.nbrRounds, self.expandedKey) = self.aes.KeyExpand(key, size)
+    
+    def LoadSecret(self, key):
+        if key is None:
+            return False
+        else:
+            (self.nbrRounds, self.expandedKey) = self.aes.KeyExpand(key, size)
+            return True
+    
+    # converts a 16 character string into a number array
+    def convertString(self, string, start, end):
+        if end - start > 16: end = start + 16
+        ar = [0] * 16
+        i = start
+        j = 0
+        while len(ar) < end - start:
+            ar.append(0)
+        while i < end:
+            ar[j] = ord(string[i])
+            j += 1
+            i += 1
+        return ar
+        
+    def GenMAC(self, stringIn):
+        expandedKeySize = 16*(self.nbrRounds+1)
+        if len(self.expandedKey) != expandedKeySize:
+            return None
+        IV = [0] * 16
+        # the AES input/output
+        plaintext = []
+        iput = [0] * 16
+        output = []
+        mac = [0] * 16
+        # append PKCS7 Padding
+        stringIn = append_PKCS7_padding(stringIn)
+        # char firstRound
+        firstRound = True
+        if stringIn != None:
+            for j in range(int(math.ceil(float(len(stringIn))/16))):
+                start = j*16
+                end = j*16+16
+                if  end > len(stringIn):
+                    end = len(stringIn)
+                plaintext = self.convertString(stringIn, start, end)
+                for i in range(16):
+                    if firstRound:
+                        iput[i] =  plaintext[i] ^ IV[i]
+                    else:
+                        iput[i] =  plaintext[i] ^ mac[i]
+                firstRound = False
+                mac = self.aes.encrypt(iput, self.expandedKey, self.nbrRounds)
+        return mac

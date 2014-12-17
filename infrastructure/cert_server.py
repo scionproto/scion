@@ -76,7 +76,7 @@ class CertServer(SCIONElement):
                 'requester(%s)', cert_isd, cert_ad, src_addr)
             with open(cert_file, 'r') as file_handler:
                 cert = file_handler.read()
-            if cert_req.hdr.path == None or cert_req.hdr.path == b'':
+            if cert_req.hdr.path is None or cert_req.hdr.path == b'':
                 cert_rep = CertReply.from_values(self.addr, src_addr, None,
                     cert_isd, cert_ad, cert_version, cert)
                 self.send(cert_rep, src_addr)

@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from asymcrypto import *
+from lib.crypto.asymcrypto import *
 import time
 import json
 import logging
@@ -111,7 +111,8 @@ class Certificate(object):
         self.signature = cert['signature']
 
     @classmethod
-    def from_values(cls, subject, sub_pub_key, sub_enc_key, issuer, iss_priv_key, version):
+    def from_values(cls, subject, sub_pub_key, sub_enc_key, issuer,
+        iss_priv_key, version):
         """
         Generates a certificate storing in it relevant information about
         subject, issuer and validity of the certificate itself.
