@@ -1,5 +1,5 @@
 # LaTeX output #
-################
+#########################
 *-eps-converted-to.pdf
 *.aux
 *.bbl
@@ -14,7 +14,7 @@
 
 
 # OS generated files #
-######################
+#########################
 .DS_Store
 .DS_Store?
 ._*
@@ -42,3 +42,9 @@ topology/conf-gen
 # vim generated files #
 #########################
 *.swp
+
+
+# Crypto library generated files #
+#########################
+*.so
+*.o
