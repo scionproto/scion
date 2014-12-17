@@ -26,8 +26,8 @@ class HeaderBase(object):
 
     Each header class must implement parse, pack and __str__.
 
-    Attributes:
-        parsed: a boolean indicating whether the header has been parsed.
+    :ivar parsed: whether or not the header has been parsed.
+    :vartype parsed: bool
     """
 
     def __init__(self):
@@ -60,7 +60,7 @@ class PacketBase(object):
     :ivar hdr: the packet header.
     :vartype hdr: :class:`HeaderBase`
     :ivar payload: the packet payload
-    :vartype payload: :class:`HeaderBase` or bytes
+    :vartype payload: :class:`PacketBase` or bytes
     """
 
     def __init__(self):
