@@ -16,9 +16,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import logging
+
 from bitstring import BitArray
 import bitstring
-import logging
 
 
 class OpaqueFieldType(object):
@@ -34,7 +35,8 @@ class OpaqueFieldType(object):
     INTERTD_PEER = 0xf8
     PEER_XOVR = 0x10
     ROT_OF = 0xff
-    LAST_OF = 0x20 #indicates last hop OF on the half-path (TODO revise)
+    LAST_OF = 0x20  # Indicates last hop OF on the half-path (TODO revise)
+    CORE_PATH_OF = 0xa0  # Indicates a core path. TODO Sam: Check with Pawel.
 
 
 class OpaqueField(object):
@@ -44,7 +46,7 @@ class OpaqueField(object):
     LEN = 8
 
     def __init__(self):
-        self.info = 0 #TODO verify path.PathType in that context
+        self.info = 0  # TODO verify path.PathType in that context
         self.type = 0
         self.parsed = False
         self.raw = None
@@ -61,7 +63,7 @@ class OpaqueField(object):
         """
         pass
 
-    #TODO test: one __eq__ breaks router when two SOFs in a path are identical
+    # TODO test: one __eq__ breaks router when two SOFs in a path are identical
     # def __eq__(self, other):
     #     if type(other) is type(self):
     #         return True

@@ -16,16 +16,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import copy
 from lib.packet.opaque_field import (InfoOpaqueField, HopOpaqueField,
     OpaqueFieldType)
-import copy
 
 
 class PathType(object):
     """
     Defines constants for the SCION path types.
     """
-    #TODO merge it with OpaqueFieldType
+    # TODO merge it with OpaqueFieldType
     EMPTY = 0x00  # Empty path
     CORE = 0x80  # Path to the core
     CROSS_OVER = 0xc0  # Path with cross over
@@ -115,19 +115,22 @@ class CorePath(PathBase):
     A (non-shortcut) path through the ISD core.
 
     The sequence of opaque fields for such a path is:
-    | info OF up-path | hop OF 1 | ... | hop OF N | info OF down-path |
+    | info OF up-path | hop OF 1 | ... | hop OF N | info OF core-path |
+    | hop OF 1 \ ... | hop OF N | info OF down-path |
     | hop OF 1 | ... | hop OF N |
     """
     def __init__(self, raw=None):
         PathBase.__init__(self)
         self.type = PathType.CORE
+        self.core_path_info = None
+        self.core_path_hops = []
 
         if raw is not None:
             self.parse(raw)
 
-# TODO PSz: a flag is needed to distinguish downPath-only case. I.e. if
-# SCIONPacket.up_path is false and path has only one special OF, then it should
-# parse only DownPath. It would be easier to put down/up flag to SOF.
+    # TODO PSz: a flag is needed to distinguish downPath-only case. I.e. if
+    # SCIONPacket.up_path is false and path has only one special OF, then it
+    # should parse only DownPath. It would be easier to put down/up flag to SOF.
     def parse(self, raw):
         """
         Parses the raw data and populates the fields accordingly.
@@ -140,6 +143,15 @@ class CorePath(PathBase):
             self.up_path_hops.append(
                 HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN]))
             offset += HopOpaqueField.LEN
+        # Parse core-path
+        if len(raw) != offset:
+            self.core_path_info = \
+                InfoOpaqueField(raw[offset:offset + InfoOpaqueField.LEN])
+            offset += InfoOpaqueField.LEN
+            for i in range(self.down_path_info.hops):
+                self.core_path_hops.append(
+                    HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN]))
+                offset += HopOpaqueField.LEN
         # Parse down-path
         if len(raw) != offset:
             self.down_path_info = \
@@ -161,6 +173,10 @@ class CorePath(PathBase):
             data.append(self.up_path_info.pack())
             for of in self.up_path_hops:
                 data.append(of.pack())
+        if self.core_path_info:
+            data.append(self.core_path_info.pack())
+            for of in self.core_path_hops:
+                data.append(of.pack())
         if self.down_path_info:
             data.append(self.down_path_info.pack())
             for of in self.down_path_hops:
@@ -168,23 +184,53 @@ class CorePath(PathBase):
 
         return b"".join(data)
 
+    def reverse(self):
+        PathBase.reverse(self)
+        self.core_path_hops.reverse()
+
+    def get_of(self, index):
+        """
+        Returns the opaque field for the given index.
+        """
+        # Build temporary flat list of opaque fields.
+        tmp = [self.up_path_info]
+        tmp.extend(self.up_path_hops)
+        if self.core_path_info:
+            tmp.append(self.core_path_info)
+            tmp.extend(self.core_path_hops)
+        if self.down_path_info:
+            tmp.append(self.down_path_info)
+            tmp.extend(self.down_path_hops)
+        if index >= len(tmp):
+            return None
+        else:
+            return tmp[index]
+
     @classmethod
-    def from_values(cls, up_inf=None, up_hops=None, dw_inf=None, dw_hops=None):
+    def from_values(cls, up_inf=None, up_hops=None,
+                    core_inf=None, core_hops=None,
+                    dw_inf=None, dw_hops=None):
         """
         Returns CorePath with the values specified.
         @param up_inf: InfoOpaqueField of up_path
         @param up_hops: list of HopOpaqueField of up_path
+        @param core_inf: InfoOpaqueField for core_path
+        @param core_hops: list of HopOpaqueFields of core_path
         @param dw_inf: InfoOpaqueField of down_path
         @param dw_hops: list of HopOpaqueField of down_path
         """
         if up_hops is None:
             up_hops = []
+        if core_hops is None:
+            core_hops = []
         if dw_hops is None:
             dw_hops = []
 
         cp = CorePath()
         cp.up_path_info = up_inf
         cp.up_path_hops = up_hops
+        cp.core_path_info = core_inf
+        cp.core_path_hops = core_hops
         cp.down_path_info = dw_inf
         cp.down_path_hops = dw_hops
         return cp
@@ -199,6 +245,13 @@ class CorePath(PathBase):
             for of in self.up_path_hops:
                 s.append(str(of) + "\n")
             s.append("</Up-Path>\n")
+
+        if self.core_path_info:
+            s.append("<Core-Path>\n")
+            s.append(str(self.core_path_info) + "\n")
+            for of in self.core_path_hops:
+                s.append(str(of) + "\n")
+            s.append("</Core-Path>\n")
 
         if self.down_path_info:
             s.append("<Down-Path>\n")
@@ -482,7 +535,7 @@ class PathCombinator(object):
         """
         if not up_path or not down_path or not up_path.ads or not down_path.ads:
             return None
-            #TODO other sanity checks...
+            # TODO other sanity checks...
 
         core_path = CorePath()
         core_path.up_path_info = up_path.iof
@@ -521,7 +574,7 @@ class PathCombinator(object):
         for i in reversed(range(up_index, len(up_path.ads))):
             path.up_path_hops.append(up_path.ads[i].pcbm.hof)
         path.up_path_hops[-1].info = OpaqueFieldType.LAST_OF
-        path.up_path_upstream_ad = up_path.ads[up_index-1].pcbm.hof
+        path.up_path_upstream_ad = up_path.ads[up_index - 1].pcbm.hof
 
         if peer:
             up_ad = up_path.ads[up_index]
@@ -536,7 +589,7 @@ class PathCombinator(object):
         path.down_path_info = down_path.iof
         path.down_path_info.info = info
         path.down_path_info.hops -= dw_index
-        path.down_path_upstream_ad = down_path.ads[dw_index-1].pcbm.hof
+        path.down_path_upstream_ad = down_path.ads[dw_index - 1].pcbm.hof
         for i in range(dw_index, len(down_path.ads)):
             path.down_path_hops.append(down_path.ads[i].pcbm.hof)
         path.down_path_hops[0].info = OpaqueFieldType.LAST_OF
@@ -548,10 +601,10 @@ class PathCombinator(object):
         """
         Takes PCB objects (up/down_path) and tries to combine them as short path
         """
-        #TODO check if stub ADs are the same...
+        # TODO check if stub ADs are the same...
         if not up_path or not down_path or not up_path.ads or not down_path.ads:
             return None
-        #looking for xovr and peer points
+        # looking for xovr and peer points
         xovrs = []
         peers = []
         for up_i in range(1, len(up_path.ads)):
@@ -566,7 +619,7 @@ class PathCombinator(object):
                             if (up_peer.ad_id == down_ad.pcbm.ad_id and
                                     down_peer.ad_id == up_ad.pcbm.ad_id):
                                 peers.append((up_i, down_i))
-        #select shortest path xovrs (preferred) or peers
+        # select shortest path xovrs (preferred) or peers
         xovrs.sort(key=lambda tup: sum(tup))
         peers.sort(key=lambda tup: sum(tup))
         if not xovrs and not peers:
@@ -581,7 +634,7 @@ class PathCombinator(object):
         elif xovrs:
             return PathCombinator._join_shortcuts(up_path, down_path, xovrs[-1],
                 False)
-        else: #peers only
+        else:  # peers only
             return PathCombinator._join_shortcuts(up_path, down_path, peers[-1],
                 True)
 

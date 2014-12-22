@@ -16,17 +16,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from infrastructure.scion_elem import SCIONElement, SCION_UDP_PORT
 from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.path import EmptyPath
 from lib.packet.scion import (SCIONPacket, get_type, PathRequest, PathRecords,
     PathInfo, PathInfoType as PIT)
 from lib.packet.scion import PacketType as PT
-from infrastructure.scion_elem import SCIONElement, SCION_UDP_PORT
 from lib.util import update_dict
-import sys
 import logging
+import sys
 
-PATHS_NO = 5 #TODO replace by configuration parameter
+
+PATHS_NO = 5  # TODO replace by configuration parameter
+
 
 class PathServer(SCIONElement):
     """
@@ -34,13 +36,13 @@ class PathServer(SCIONElement):
     """
     def __init__(self, addr, topo_file, config_file):
         SCIONElement.__init__(self, addr, topo_file, config_file)
-        #TODO replace by pathstore instance
+        # TODO replace by pathstore instance
         self.up_paths = []
         self.down_paths = {}
-        self.pending_up = [] # List of pending UP requests. 
-        self.pending_down = {} # Dictionary of pending DOWN _and_ BOTH requests.
-        self.waiting_targets = set() # Used when local PS does not have up-path.
-        #TODO replace by some cache data struct. (expiringdict ?)
+        self.pending_up = []  # List of pending UP requests.
+        self.pending_down = {}  # Dictionary of pending DOWN _and_ BOTH requests.
+        self.waiting_targets = set()  # Used when local PS does not have up-path.
+        # TODO replace by some cache data struct. (expiringdict ?)
 
     def handle_up_path(self, path_record):
         """
@@ -53,7 +55,7 @@ class PathServer(SCIONElement):
         self.up_paths = self.up_paths[-PATHS_NO:]
         logging.info("Up-Path Registered")
 
-        #Sending pending targets to the core using first registered up-path.
+        # Sending pending targets to the core using first registered up-path.
         if self.waiting_targets:
             pcb = pcbs[0]
             next_hop = self.ifid2addr[pcb.rotf.if_id]
@@ -119,19 +121,19 @@ class PathServer(SCIONElement):
         paths_to_send = []
 
         # Not CPS and requester wants up-path.
-        if (type in [PIT.UP, PIT.BOTH] and not self.topology.is_core_ad):
+        if (type in [PIT.UP, PIT.ALL] and not self.topology.is_core_ad):
             if self.up_paths:
                 paths_to_send.extend(self.up_paths)
             else:
-                if type == PIT.BOTH:
+                if type == PIT.ALL:
                     update_dict(self.pending_down, (isd, ad), [path_request])
                     self.waiting_targets.add((isd, ad))
-                else: # PIT.UP
+                else:  # PIT.UP
                     self.pending_up.append(path_request)
                 return
 
         # Requester wants down-path (notice that CPS serves only down-paths).
-        if (type == PIT.DOWN or (type == PIT.BOTH and not
+        if (type == PIT.DOWN or (type == PIT.ALL and not
             self.topology.is_core_ad)):
             if (isd, ad) in self.down_paths:
                 paths_to_send.extend(self.down_paths[(isd, ad)])
@@ -140,7 +142,7 @@ class PathServer(SCIONElement):
                     self.request_paths_from_core(isd, ad)
                 elif isd != self.topology.isd_id:
                     self.request_isd(isd, ad)
-                logging.warning("No downpath, request is pending.")
+                logging.info("No downpath, request is pending.")
                 paths_to_send = []
                 update_dict(self.pending_down, (isd, ad), [path_request])
 
@@ -159,12 +161,12 @@ class PathServer(SCIONElement):
             update_dict(self.down_paths, (isd, ad), [pcb], PATHS_NO)
             logging.info("PATH registered (%d, %d)", isd, ad)
 
-        #serve pending requests
+        # serve pending requests
         target = (isd, ad)
         if isd is not None and ad is not None and target in self.pending_down:
             paths_to_send = []
             for path_request in self.pending_down[target]:
-                if path_request.info.type == PIT.BOTH:
+                if path_request.info.type == PIT.ALL:
                     paths_to_send.extend(self.up_paths)
                 paths_to_send.extend(self.down_paths[target])
                 self.send_paths(path_request, paths_to_send)
@@ -179,6 +181,9 @@ class PathServer(SCIONElement):
             self.handle_up_path(rec)
         elif rec.info.type == PIT.DOWN:
             self.handle_down_path(rec)
+        elif rec.info.type == PIT.CORE:
+            # TODO Sam: Implement this.
+            logging.debug("Core Path")
         else:
             logging.error("Wrong path record.")
 
@@ -195,6 +200,7 @@ class PathServer(SCIONElement):
             self.dispatch_path_record(PathRecords(packet))
         else:
             logging.warning("Type %d not supported.", ptype)
+
 
 def main():
     """

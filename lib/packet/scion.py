@@ -260,7 +260,7 @@ class SCIONHeader(HeaderBase):
             host_types[dst_addr_len](raw[offset:offset + dst_addr_len])
         offset += dst_addr_len
         # Parse opaque fields.
-        #PSz: UpPath-only case missing, quick fix:
+        # PSz: UpPath-only case missing, quick fix:
         if offset == self.common_hdr.hdr_len:
             info = InfoOpaqueField()
         else:
@@ -272,7 +272,7 @@ class SCIONHeader(HeaderBase):
         elif info.info == PathType.PEER_LINK:
             self.path = PeerPath(raw[offset:self.common_hdr.hdr_len])
         elif info.info == PathType.EMPTY:
-            self.path = EmptyPath()#PSz raw[offset:self.common_hdr.hdr_len])
+            self.path = EmptyPath()  # PSz raw[offset:self.common_hdr.hdr_len])
         else:
             logging.info("Can not parse path in packet: Unknown type %x",
                          info.info)
@@ -359,7 +359,7 @@ class SCIONHeader(HeaderBase):
         """
         Increases pointer of current opaque field by number of opaque fields.
         """
-        self.common_hdr.current_of += number*OpaqueField.LEN
+        self.common_hdr.current_of += number * OpaqueField.LEN
 
     def set_uppath(self):
         """
@@ -572,13 +572,16 @@ class Beacon(SCIONPacket):
         self.payload = self.pcb.pack()
         return SCIONPacket.pack(self)
 
+
 class PathInfoType(object):
     """
     PathInfoType class, indicates a type of path request/reply.
     """
-    UP = 0 # Request/Reply for up-paths
-    DOWN = 1 # Request/Reply for down-paths
-    BOTH = 2 # Request/Reply for up- and down-paths
+    UP = 0  # Request/Reply for up-paths
+    DOWN = 1  # Request/Reply for down-paths
+    CORE = 2  # Request/Reply for core-paths
+    ALL = 3  # Request/Reply for up-, down-, and core-paths
+
 
 class PathInfo(object):
     """
@@ -599,7 +602,7 @@ class PathInfo(object):
         """
         bits = BitArray(bytes=raw)
         (self.type, self.isd, self.ad) = bits.unpack(
-            "uintbe:8, uintbe:16,uintbe:64")
+            "uintbe:8, uintbe:16, uintbe:64")
 
     def pack(self):
         """

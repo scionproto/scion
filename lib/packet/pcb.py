@@ -20,9 +20,10 @@ from lib.packet.opaque_field import (SupportSignatureField, HopOpaqueField,
     SupportPCBField, SupportPeerField, ROTField, InfoOpaqueField,
     OpaqueFieldType)
 from lib.packet.path import CorePath
+import logging
+
 from bitstring import BitArray
 import bitstring
-import logging
 
 
 class PCBMarking(object):
@@ -85,7 +86,7 @@ class PCBMarking(object):
             self.ssf.pack() + self.hof.pack() + self.spcbf.pack())
 
     def __str__(self):
-        pcbm_str = "[PCB Marking ad_id: %x]\n" % (self.ad_id)
+        pcbm_str = "[PCB Marking ad_id: %d]\n" % (self.ad_id)
         pcbm_str += str(self.ssf)
         pcbm_str += str(self.hof) + '\n'
         pcbm_str += str(self.spcbf)

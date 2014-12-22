@@ -168,7 +168,8 @@ void SCIONScriptGen::GenerateTopologyXml (string &ip_address) {
 
     netRun.open ("run.sh", std::ofstream::out | std::ofstream::app);
     netRun << "screen -d -m -S bs" << m_ad_id << " sh -c \""
-           << "PYTHONPATH=../ python3 beacon_server.py " << ip_address << " "
+           << "PYTHONPATH=../ python3 beacon_server.py " << (m_core ? "core " : "local ")
+           << ip_address << " "
            << "../topology/ISD" << m_isd_id << "/topologies/topology" << m_ad_id << ".xml "
            << "../topology/ISD" << m_isd_id << "/configurations/AD" << m_ad_id << ".conf\"\n";
 
