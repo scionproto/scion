@@ -23,7 +23,7 @@ from lib.packet.opaque_field import (OpaqueFieldType as OFT, InfoOpaqueField,
     ROTField)
 from lib.packet.scion import (SCIONPacket, get_type, Beacon, PathInfo,
     PathRecords, PacketType as PT, PathInfoType as PIT)
-from lib.topology import ElementType, NeighborType
+from lib.topology_parser import ElementType, NeighborType
 from infrastructure.scion_elem import SCIONElement
 import threading
 import time

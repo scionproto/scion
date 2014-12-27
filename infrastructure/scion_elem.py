@@ -25,7 +25,7 @@ Module docstring here.
 
 """
 
-from lib.topology import Topology
+from lib.topology_parser import Topology
 from lib.config import Config
 from lib.rot import Rot
 from lib.packet.host_addr import HostAddr

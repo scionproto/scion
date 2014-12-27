@@ -33,3 +33,9 @@ Necessary steps in order to run SCION:
 5. Flush all IP addresses assigned to the loopback interface
 
 	./scion.sh clean
+
+In order to run the unit tests:
+
+0. cd test/
+
+1. PYTHONPATH=../ python3 *_test.py (arguments)

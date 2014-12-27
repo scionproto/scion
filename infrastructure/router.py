@@ -29,7 +29,7 @@ from lib.packet.opaque_field import OpaqueField
 from lib.packet.opaque_field import OpaqueFieldType as OFT
 from lib.packet.scion import SCIONPacket, IFIDRequest, IFIDReply, get_type
 from lib.packet.scion import PacketType as PT, Beacon
-from lib.topology import ElementType as ET
+from lib.topology_parser import ElementType as ET
 from infrastructure.scion_elem import SCIONElement, SCION_UDP_PORT
 import logging
 import threading

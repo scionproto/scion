@@ -30,14 +30,14 @@ class TestPathStore(unittest.TestCase):
         Creates a half path beacon and inserts it in a path store. Also, the
         path store's policy gets updated.
         """
-        path_store = PathStore('test/ps.xml')
+        path_store = PathStore('./ps.xml')
         raw = (b'\x80\x00\x02\x00\x0b\x01\x00\x00\xff\x00\x00\x00\x00\x00\x01' +
             b'\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00' +
             b'\x00 \x00\x00\x00\x00\x03\x00\x00\x00\x00\x0b\x00\x00\x00\x00' +
             b'\x00\x00')
         pcb = HalfPathBeacon(raw)
         print(str(path_store), "\n\n")
-        path_store.update_policy('test/ps.xml')
+        path_store.update_policy('./ps.xml')
         print(str(path_store), "\n\n")
         path_store.store_selection()
         bests = path_store.get_paths()
