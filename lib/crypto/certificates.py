@@ -180,15 +180,11 @@ class Certificate(object):
         Packs the certificate into a string.
         """
         cert_dict = self.get_cert_dict(with_signature=True)
-        cert_str = json.dumps(cert_dict, sort_keys=True)
+        cert_str = json.dumps(cert_dict, sort_keys=True, indent=4)
         return cert_str
 
     def __str__(self):
-        cert_str = self.pack()
-        cert_str = cert_str.replace('{', '{\n ')
-        cert_str = cert_str.replace(', ', ',\n ')
-        cert_str = cert_str.replace('}', '\n}')
-        return cert_str
+        return self.pack()
 
 
 class CertificateChain(object):

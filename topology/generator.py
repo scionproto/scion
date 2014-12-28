@@ -1,4 +1,5 @@
 from lib.crypto.certificates import *
+from lib.crypto.trcs import TRC
 import os
 import sys
 import shutil
@@ -15,8 +16,9 @@ SETUP_FILE = 'setup.sh'
 SCRIPTS_DIR = '/topology/'
 CERT_DIR = '/certificates/'
 CONF_DIR = '/configurations/'
-KEYS_DIR = '/private_keys/'
 TOPO_DIR = '/topologies/'
+SIG_KEYS_DIR = '/signature_keys/'
+ENC_KEYS_DIR = '/encryption_keys/'
 
 CORE_AD = '0'
 INTERMDEDIATE_AD = '1'
@@ -47,30 +49,37 @@ def create_directories(ADToISD_tuples):
     for ad_id, isd_id, relationship in ADToISD_tuples:
         cert_path = 'ISD' + isd_id + CERT_DIR
         conf_path = 'ISD' + isd_id + CONF_DIR
-        keys_path = 'ISD' + isd_id + KEYS_DIR
         topo_path = 'ISD' + isd_id + TOPO_DIR
+        sig_keys_path = 'ISD' + isd_id + SIG_KEYS_DIR
+        enc_keys_path = 'ISD' + isd_id + ENC_KEYS_DIR
         if not os.path.exists(cert_path):
             os.makedirs(cert_path)
         if not os.path.exists(conf_path):
             os.makedirs(conf_path)
-        if not os.path.exists(keys_path):
-            os.makedirs(keys_path)
         if not os.path.exists(topo_path):
             os.makedirs(topo_path)
+        if not os.path.exists(sig_keys_path):
+            os.makedirs(sig_keys_path)
+        if not os.path.exists(enc_keys_path):
+            os.makedirs(enc_keys_path)
 
 
 def write_keys_certs(ADToISD_tuples):
     for ad_id, isd_id, relationship in ADToISD_tuples:
         cert_path = 'ISD' + isd_id + CERT_DIR
-        keys_path = 'ISD' + isd_id + KEYS_DIR
+        sig_keys_path = 'ISD' + isd_id + SIG_KEYS_DIR
+        enc_keys_path = 'ISD' + isd_id + ENC_KEYS_DIR
         file_name = 'ISD:' + isd_id + '-AD:' + ad_id + '-V:' + '0'
         cert_file = cert_path + file_name + '.crt'
-        key_file = keys_path + file_name + '.key'
-        (cert_priv, cert_pub, enc_priv, enc_pub) = generate_keys()
+        sig_key_file = sig_keys_path + file_name + '.key'
+        enc_key_file = enc_keys_path + file_name + '.key'
+        (sig_priv, sig_pub, enc_priv, enc_pub) = generate_keys()
         cert = Certificate.from_values('ISD:' + isd_id + '-AD:' + ad_id,
-            cert_pub, enc_pub, 'ISD:' + isd_id + '-AD:' + ad_id, cert_priv, 0)
-        with open(key_file, 'w') as key_fh:
-            key_fh.write(str(cert_priv))
+            sig_pub, enc_pub, 'ISD:' + isd_id + '-AD:' + ad_id, sig_priv, 0)
+        with open(sig_key_file, 'w') as key_fh:
+            key_fh.write(str(sig_priv))
+        with open(enc_key_file, 'w') as key_fh:
+            key_fh.write(str(enc_priv))
         with open(cert_file, 'w') as cert_fh:
             cert_fh.write(str(cert))
 
@@ -238,6 +247,33 @@ def write_setup_file(tmp_ip_address, ip_address):
             tmp_ip_address = increment_address(tmp_ip_address)
 
 
+def write_trc_files(CoreADs_tuples):
+    for ad_id, isd_id in CoreADs_tuples:
+        trc_path = 'ISD' + isd_id + '/'
+        file_name = 'ISD:' + isd_id + '-V:' + '0'
+        trc_file = trc_path + file_name + '.crt'
+        #sig_key_file = sig_keys_path + file_name + '.key'
+        #enc_key_file = enc_keys_path + file_name + '.key'
+        #(sig_priv, sig_pub, enc_priv, enc_pub) = generate_keys()
+        #TODO: replace static values with real ones
+        core_isps = {'isp1.com' : 'xyzxyzxyz', 'isp2.com' : 'xyzxyzxyz',
+            'isp3.com' : 'xyzxyzxyz'}
+        registry_key = 'xyzxyzxyz'
+        path_key = 'xyzxyzxyz'
+        root_cas = {'ca1.com' : 'xyzxyzxyz', 'ca2.com' : 'xyzxyzxyz',
+            'ca3.com' : 'xyzxyzxyz'}
+        root_dns_key = 'xyzxyzxyz'
+        root_dns_addr = 'dns_address'
+        trc_server = 'trc_address'
+        policies = {}
+        signatures = {}
+        trc = TRC.from_values(isd_id, 0, core_isps, registry_key, path_key,
+            root_cas, root_dns_key, root_dns_addr, trc_server, 3, 3, policies,
+            signatures)
+        with open(trc_file, 'w') as key_fh:
+            key_fh.write(str(trc))
+
+
 def main():
     """
     Main function.
@@ -258,10 +294,14 @@ def main():
     ads = {}
     ADToISD_tuples = []
     ADRelationships_tuples = []
+    CoreADs_tuples = []
 
     with open(ADTOISD_FILE, 'r') as file_handler:
         for line in file_handler:
-            ADToISD_tuples.append([i for i in line.split()])
+            (ad_id, isd_id, relationship) = line.split()
+            ADToISD_tuples.append([ad_id, isd_id, relationship])
+            if relationship == '0':
+                CoreADs_tuples.append([ad_id, isd_id])
 
     with open(ADRELATIONSHIPS_FILE, 'r') as file_handler:
         for line in file_handler:
@@ -290,11 +330,7 @@ def main():
 
     write_setup_file(tmp_ip_address, ip_address)
 
-    #write_rot_files(ADToISD_tuples)
-    for ad_id, isd_id, relationship in ADToISD_tuples:
-        if relationship == CORE_AD:
-            subprocess.call(['./rot-gen.sh', isd_id, ad_id, '0'])
-
+    write_trc_files(CoreADs_tuples)
 
 
 if __name__ == "__main__":
