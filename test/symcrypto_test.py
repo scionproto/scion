@@ -10,45 +10,48 @@ class TestSymcrypto(unittest.TestCase):
 
     def test(self):
         """
-	Symmetric cryptography test case. Test includes
-	1. Hash (sha3) hash testing. Compare generated results with http://sha3calculator.appspot.com/
-	2. MAC (AES-MAC) testing for random symmetric keys and messages.
-	3. Block cipher (AES-GCM) testing with random keys and messages.
+        Symmetric cryptography test case. Test includes
+        1. Hash (sha3) hash testing. Compare generated results with
+        http://sha3calculator.appspot.com/
+        2. MAC (AES-CBC-MAC) testing for random symmetric keys and messages.
+        3. Block cipher (AES-CBC) testing with random keys and messages.
+        4. Authenticated encryption (AES-GCM) testing with.
         """
-        print ("-------------------------------------Hash Testing-------------------------------------")
-        msg = 'sadjlaskdlaksdmlamczVRJ8JiM0J4M4ioyLJM6qR1CznEMYnymr1jJxgcLATjlEOFMc6x02wpRCUjo'
-        print ("msg = ", msg)
-        print ("sha3-224 digest = ", Hash(msg, 'SHA3-224'))
-        print ("sha3-256 digest = ", Hash(msg, 'SHA3-256'))
-        print ("sha3-384 digest = ", Hash(msg, 'SHA3-384'))
-        print ("sha3-512 digest = ", Hash(msg, 'SHA3-512'))
-        
-        print ("-------------------------------------MAC Testing-------------------------------------")
-        key = GenRandomByte(16)
-        engine = MACObject(key)
-        print ("key = ", key)
-        msg1 = encode(GenRandomByte(20), 'hex').decode('utf-8')
-        print ("msg1 = ", msg1)
-        mac1 = MACCompute(engine, msg1)
-        print ("MACCompute(msg1) = ", mac1)
-        msg2 = encode(GenRandomByte(20), 'hex').decode('utf-8')
-        print ("msg2 = ", msg2)
-        mac2 = MACCompute(engine, msg2)
-        print ("MACCompute(msg) = ", mac2)
-        print ("MACverify(msg) = ", MACVerify(engine, msg2, mac2))
-        
-        print ("-------------------------------------Block Cipher Testing-------------------------------------")
-        key = GenRandomByte(16)
-        iv = GenRandomByte(16)
+        print ('1. Hash Test:')
+        msg = 'VRJ8JiM0J4M4ioyLJM6qR1CznEMYnymr1jJxgcLATjlEOFMc6x02wpRCUjo'
+        print ('msg = %s' % msg)
+        print ('sha3-224(msg) = %s' % sha3hash(msg, 'SHA3-224'))
+        print ('sha3-256(msg) = %s' % sha3hash(msg, 'SHA3-256'))
+        print ('sha3-384(msg) = %s' % sha3hash(msg, 'SHA3-384'))
+        print ('sha3-512(msg) = %s' % sha3hash(msg))# default is SHA-512
+
+        key = get_random_bytes(16)
+        key_cache = get_roundkey_cache(key)
+        print ('key = %s' % key)
+
+        print ('2. MAC Test:')
+        mac = get_cbcmac(key_cache, msg.encode('utf-8'))
+        print ("get_cbcmac(key_cache, msg) = %s" % mac)
+        print ("CBC-MAC-Verify(key_cache, msg, mac) = ",
+               verify_cbcmac(key_cache, msg.encode('utf-8'), mac))
+
+        print ('3. Block Cipher Test:')
+        msg = 'Message to be encrypted by AES-CBC block cipher. This is end of message.'
+        cipher = cbc_encrypt(key_cache, msg.encode('utf-8')) # iv = 0
+        print ('msg = %s' % msg)
+        print ('cipher = %s' % cipher)
+        decipher = cbc_decrypt(key_cache, cipher)
+        print ('decipher = %s' % decipher.decode('utf-8'))
+
+        print ('4. Authenticated Encryption Test:')
         msg = 'This is a message to be protected'
-        auth = binascii.unhexlify('D609B1F056637A0D46DF998D88E5222AB2C2846512153524C0895E8108000F101112131415161718191A1B1C1D1E1F202122232425262728292A2B2C2D2E2F30313233340001')
-        print ('key = ', key, 'iv = ', iv, 'auth', auth)
-        print ('Message = ', msg)
-        AuthCipher = AuthenEncrypt(key, msg.encode('utf-8'), iv, auth)
-        print ('Cipher = ', AuthCipher)
-        deCipher = AuthenDecrypt(key, AuthCipher, iv, auth)
-        print ('deCipher = ', deCipher.decode('utf-8'))
-        
+        auth = 'D609B1F056637A0D46DF998D88E5222AB2C2846512153524C0895E8108000F10'
+        authcipher = authenticated_encrypt(key_cache, msg.encode('utf-8'), 
+                                           auth.encode('utf-8')) # iv = None
+        print ('authcipher = %s' % authcipher)
+        decipher = authenticated_decrypt(key_cache, authcipher, auth.encode('utf-8'))
+        print ('decipher = %s' % decipher.decode('utf-8'))
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     unittest.main()

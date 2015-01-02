@@ -15,37 +15,15 @@ import os
 import sys
 import math
 
-def append_PKCS7_padding(s):
-    """return s padded to a multiple of 16-bytes by PKCS7 padding"""
-    numpads = 16 - (len(s) % 16)
-    return s + numpads * chr(numpads)
-
-def strip_PKCS7_padding(s):
-    """return s stripped of PKCS7 padding"""
-    if len(s)%16 or not s:
-        raise ValueError("String of len %d can't be PCKS7-padded" % len(s))
-    numpads = ord(s[-1])
-    if numpads > 16:
-        raise ValueError("String ending with %r can't be PCKS7-padded" % s[-1])
-    return s[:-numpads]
-
-def generateRandomKey(keysize):
-    """Generates a key from random data of length `keysize`.
-    
-    The returned key is a string of bytes.
-    
-    """
-    if keysize not in (16, 24, 32):
-        emsg = 'Invalid keysize, %s. Should be one of (16, 24, 32).'
-        raise (ValueError, emsg % keysize)
-    return os.urandom(keysize)
-
 class AES(object):
+    
     # valid key sizes
     keySize = dict(SIZE_128=16, SIZE_192=24, SIZE_256=32)
+    # valid expanded key sizes
+    ekeySize = dict(SIZE_128=176, SIZE_192=208, SIZE_256=240)
 
     # Rijndael S-box
-    sbox =  [0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67,
+    sbox = [0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67,
             0x2b, 0xfe, 0xd7, 0xab, 0x76, 0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59,
             0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0, 0xb7,
             0xfd, 0x93, 0x26, 0x36, 0x3f, 0xf7, 0xcc, 0x34, 0xa5, 0xe5, 0xf1,
@@ -95,23 +73,7 @@ class AES(object):
             0xb0, 0xc8, 0xeb, 0xbb, 0x3c, 0x83, 0x53, 0x99, 0x61 , 0x17, 0x2b,
             0x04, 0x7e, 0xba, 0x77, 0xd6, 0x26, 0xe1, 0x69, 0x14, 0x63, 0x55,
             0x21, 0x0c, 0x7d]
-
-    def getSBoxValue(self,num):
-        """Retrieves a given S-Box Value"""
-        return self.sbox[num]
-
-    def getSBoxInvert(self,num):
-        """Retrieves a given Inverted S-Box Value"""
-        return self.rsbox[num]
-
-    def rotate(self, word):
-        """ Rijndael's key schedule rotate operation.
-
-        Rotate a word eight bits to the left: eg, rotate(1d2c3a4f) == 2c3a4f1d
-        Word is an char list of size 4 (32 bits overall).
-        """
-        return word[1:] + word[:1]
-
+    
     # Rijndael Rcon
     Rcon = [0x8d, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36,
             0x6c, 0xd8, 0xab, 0x4d, 0x9a, 0x2f, 0x5e, 0xbc, 0x63, 0xc6, 0x97,
@@ -136,7 +98,23 @@ class AES(object):
             0x2f, 0x5e, 0xbc, 0x63, 0xc6, 0x97, 0x35, 0x6a, 0xd4, 0xb3, 0x7d,
             0xfa, 0xef, 0xc5, 0x91, 0x39, 0x72, 0xe4, 0xd3, 0xbd, 0x61, 0xc2,
             0x9f, 0x25, 0x4a, 0x94, 0x33, 0x66, 0xcc, 0x83, 0x1d, 0x3a, 0x74,
-            0xe8, 0xcb ]
+            0xe8, 0xcb]
+
+    def getSBoxValue(self,num):
+        """Retrieves a given S-Box Value"""
+        return self.sbox[num]
+
+    def getSBoxInvert(self,num):
+        """Retrieves a given Inverted S-Box Value"""
+        return self.rsbox[num]
+
+    def rotate(self, word):
+        """ Rijndael's key schedule rotate operation.
+
+        Rotate a word eight bits to the left: eg, rotate(1d2c3a4f) == 2c3a4f1d
+        Word is an char list of size 4 (32 bits overall).
+        """
+        return word[1:] + word[:1]
 
     def getRconValue(self, num):
         """Retrieves a given Rcon Value"""
@@ -331,22 +309,6 @@ class AES(object):
         state = self.addRoundKey(state, self.createRoundKey(expandedKey, 0))
         return state
     
-    def KeyExpand(self, key, size):
-        # the number of rounds
-        nbrRounds = 0
-        # set the number of rounds
-        if size == self.keySize["SIZE_128"]: nbrRounds = 10
-        elif size == self.keySize["SIZE_192"]: nbrRounds = 12
-        elif size == self.keySize["SIZE_256"]: nbrRounds = 14
-        else: return None
-        
-        # the expanded keySize
-        expandedKeySize = 16*(nbrRounds+1)
-        
-        # expand the key into an 176, 208, 240 bytes key
-        # the expanded key
-        return (nbrRounds, self.expandKey(key, size, expandedKeySize))
-    
     # encrypts a 128 bit input block against the given key of size specified
     def encrypt(self, iput, expandedKey, nbrRounds):
         output = [0] * 16
@@ -386,61 +348,3 @@ class AES(object):
                 output[(k*4)+l] = block[(k+(l*4))]
         return output
 
-
-class CBCMAC(object):
-        
-    def __init__(self, key=None, size=0):
-        self.aes = AES()
-        if key != None:
-            (self.nbrRounds, self.expandedKey) = self.aes.KeyExpand(key, size)
-    
-    def LoadSecret(self, key):
-        if key is None:
-            return False
-        else:
-            (self.nbrRounds, self.expandedKey) = self.aes.KeyExpand(key, size)
-            return True
-    
-    # converts a 16 character string into a number array
-    def convertString(self, string, start, end):
-        if end - start > 16: end = start + 16
-        ar = [0] * 16
-        i = start
-        j = 0
-        while len(ar) < end - start:
-            ar.append(0)
-        while i < end:
-            ar[j] = ord(string[i])
-            j += 1
-            i += 1
-        return ar
-        
-    def GenMAC(self, stringIn):
-        expandedKeySize = 16*(self.nbrRounds+1)
-        if len(self.expandedKey) != expandedKeySize:
-            return None
-        IV = [0] * 16
-        # the AES input/output
-        plaintext = []
-        iput = [0] * 16
-        output = []
-        mac = [0] * 16
-        # append PKCS7 Padding
-        stringIn = append_PKCS7_padding(stringIn)
-        # char firstRound
-        firstRound = True
-        if stringIn != None:
-            for j in range(int(math.ceil(float(len(stringIn))/16))):
-                start = j*16
-                end = j*16+16
-                if  end > len(stringIn):
-                    end = len(stringIn)
-                plaintext = self.convertString(stringIn, start, end)
-                for i in range(16):
-                    if firstRound:
-                        iput[i] =  plaintext[i] ^ IV[i]
-                    else:
-                        iput[i] =  plaintext[i] ^ mac[i]
-                firstRound = False
-                mac = self.aes.encrypt(iput, self.expandedKey, self.nbrRounds)
-        return mac

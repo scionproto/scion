@@ -15,129 +15,320 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+from lib.crypto.python_sha3 import Keccak
+from lib.crypto.aes import AES
+from lib.crypto.gcm import gcm_encrypt
+from lib.crypto.gcm import gcm_decrypt
+import os
+import struct
+import math
 
-from python_sha3 import *
-from aes import *
-from gcm import *
-import os, struct
 
-class CryptoException(Exception):
-    """Custom error Class used in the Crypto implementation"""
-    def __init__(self, value):
-        self.value = value
-    def __str__(self):
-        return repr(self.value)
-        
-
-def Hash(data, algo):
-    """ 
-    Hash function with given data and supported algorithm options.
-    
-    @param data: a string object for symmetric key to encrypt data.
-    @param algo: a string object for supported SHA3 algorithm, including
-        SHA3-224, SHA3-256, SHA3-384, and SHA3-512.
-    @return: the hash output, as a byte string.
+def _append_pkcs7_padding(msg):
     """
-    if data is None:
-        raise CryptoException.CryptoException("Input data is NULL.")
-        return
-    if algo == 'SHA3-224':
-        return sha3_224(data).hexdigest()
-    elif algo == 'SHA3-256':
-        return sha3_256(data).hexdigest()
-    elif algo == 'SHA3-384':
-        return sha3_384(data).hexdigest()
-    elif algo == 'SHA3-512':
-        return sha3_512(data).hexdigest()
-    else:
-        raise CryptoException.CryptoException("Input hash algorithm does not support.")
-        return
+    PKCS7 Padding functions to a given message msg.
+    """
+    numpads = 16 - (len(msg) % 16)
+    return msg + bytes([numpads]*numpads)
 
-def MACObject(key):
-    """ 
-    Message Authentication Code Generator with given data and symmetric key.
-    
-    @param key: a byte object to represent symmetric key for MAC authenticator.
-    @return: the reusable MAC authenticator.
+def _strip_pkcs7_padding(msg):
+    """
+    Strip PKCS7 Padding from to a given message msg with PKCS7 padding.
+    """
+    if len(msg)%16 or not msg:
+        raise ValueError('Bytes of len %d can\'t be PCKS7-padded' % len(msg))
+    numpads = msg[-1]
+    if numpads > 16:
+        raise ValueError('Bytes ending with %r can\'t be PCKS7-padded' %
+                         msg[-1])
+    return msg[:-numpads]
+
+def get_random_bytes(size):
+    """
+    Generates random bytes of length `size`. The randomness source comes from
+    default random resource from operating systems. e.g., /dev/urandom on Linux
+    OS.
+
+    Args:
+        size: the length of generated random bytes, should be greater than 0.
+
+    Returns:
+    	a random output, as bytes object.
+
+    Raises:
+        ValueError: An error occurred when size is not a positive integer.
+    """
+    if size > 0:
+        return os.urandom(size)
+    else:
+        raise ValueError('Invalid len, %s. Should be greater than 0.' % size)
+
+def sha3hash(inp=None, algo='SHA3-512'):
+    """
+    Sha3 hash function with given data and supported algorithm options.
+
+    Args:
+        data: a string object for hash input. Default value is NULL.
+        algo: a string to specify SHA3 algorithm suite, including `SHA3-224`,
+        `SHA3-256`, `SHA3-384`, and `SHA3-512`. Default option is `SHA3-512`.
+
+    Returns:
+        a hash output, as bytes object.
+
+    Raises:
+        ValueError: An error occurred when algorithm is not recognized.
+    """
+    if algo == 'SHA3-224':
+        return Keccak(c=448, r=1152, n=224, data=inp).hexdigest()
+    elif algo == 'SHA3-256':
+        return Keccak(c=512, r=1088, n=256, data=inp).hexdigest()
+    elif algo == 'SHA3-384':
+        return Keccak(c=768, r=832, n=384, data=inp).hexdigest()
+    elif algo == 'SHA3-512':
+        return Keccak(c=1024, r=576, n=512, data=inp).hexdigest()
+    else:
+        raise ValueError("Hash algorithm does not implement.")
+
+def get_roundkey_cache(key):
+    """
+    Key expansion function for AES encryption based symmetric crypto schemes.
+    The output (expanded key cache) can be used on either CBC block cipher (see
+    cbc_encrypt and cbc_decrypt), authenticated encryption (see
+    authenticated_encrypt and authenticated_decrypt), or CBC-MAC (see get_cbcmac
+    and verify_cbcmac).
+
+    Args:
+        key: symmetric key for AES cipher, as bytes object.
+
+    Returns:
+        A list structure of expanded round key cache.
+
+    Raises:
+    	ValueError: An error occurred when key is NULL or length of key is
+    	incorrect.
     """
     if key is None:
-        raise CryptoException.CryptoException("Input data is NULL.")
-        return
-    else: 
-        return CBCMAC(key, len(key))
-
-def MACCompute(engine, msg):
-    """ 
-    Message Authentication Code Computation with preallocated authenticator and input message.
-    
-    @param engine: the MAC authenticator object. 
-    @param msg: a string object to compute MAC value of data.
-    @return: the MAC output, as a byte string.
-    """
-    if engine is None:
-        raise CryptoException.CryptoException("MAC authenticator is NULL.")
-        return
+        raise ValueError('Key is NULL.')
     else:
-        mac = engine.GenMAC(msg)
-        return struct.pack('B' * len(mac), *mac)
+        aes = AES()
+        nbr_rounds = 0
+        size = len(key)
+        if size == aes.keySize['SIZE_128']:
+            nbr_rounds = 10
+        elif size == aes.keySize['SIZE_192']:
+            nbr_rounds = 12
+        elif size == aes.keySize['SIZE_256']:
+            nbr_rounds = 14
+        else:
+            raise ValueError('Key size is incorrect.'
+                             'Size should be 16, 24, or either 32 bytes.')
+        expanded_keysize = 16 * (nbr_rounds + 1)
+        return aes.expandKey(key, size, expanded_keysize)
 
-def MACVerify(engine, msg, rmac):
-    """ 
-    Message Authentication Code Verification with preallocated authenticator,
-        given message, and corresponding MAC.
-    
-    @param engine: the MAC authenticator object. 
-    @param msg: a string object to compute MAC value of data.
-    @param rmac: a byte string represents received MAC value of msg.
-    @return: verification result, as a boolean value.
+def cbc_encrypt(cache, msg, inv=None):
     """
-    if engine is None:
-        raise CryptoException.CryptoException("MAC authenticator is NULL.")
-        return False
+    CBC cipher encryption on a given message with pre-expanded key cache.
+
+    Args:
+        cache: the expanded round key cache by calling get_roundkey_cache.
+        msg: a bytes object, as plaintext.
+        inv: an initialized vector for CBC cipher, as a bytes object. Default
+        value is NULL.
+
+    Returns:
+        the encrypted block cipher, as a bytes object.
+
+    Raises:
+    	ValueError: An error occurred when cache is NULL or msg is NULL.
+    """
+    if cache is None:
+        raise ValueError('Key cache is NULL.')
+    elif msg is None:
+        raise ValueError('Message is NULL.')
     else:
-        mac = engine.GenMAC(msg)
-        mac = struct.pack('B' * len(mac), *mac)
+        aes = AES()
+        nbr_rounds = 0
+        esize = len(cache)
+        if esize == aes.ekeySize['SIZE_128']:
+            nbr_rounds = 10
+        elif esize == aes.ekeySize['SIZE_192']:
+            nbr_rounds = 12
+        elif esize == aes.ekeySize['SIZE_256']:
+            nbr_rounds = 14
+        else:
+            raise ValueError('Expanded key has incorrect size.'
+                             'Size should be 176, 208, or either 240 bytes.')
+        plaintext = []
+        iput = [0] * 16
+        output = []
+        cipher = [0] * 16
+        string_in = _append_pkcs7_padding(msg)
+        if inv is None:
+            inv = [0] * 16
+        first_round = True
+        if string_in is not None:
+            for j in range(int(math.ceil(float(len(string_in))/16))):
+                start = j * 16
+                end = start + 16
+                if  end > len(string_in):
+                    end = len(string_in)
+                plaintext = string_in[start:end]
+                for i in range(16):
+                    if first_round:
+                        iput[i] = plaintext[i] ^ inv[i]
+                    else:
+                        iput[i] = plaintext[i] ^ cipher[i]
+                first_round = False
+                cipher = aes.encrypt(iput, cache, nbr_rounds)
+                output.extend(cipher)
+        return struct.pack('B' * len(output), *output)
+
+def cbc_decrypt(cache, cipher, inv=None):
+    """
+    CBC cipher decryption on a given cipher with pre-expanded key cache.
+
+    Args:
+        cache: the expanded round key cache by calling get_roundkey_cache.
+        cipher: a bytes object, as ciphertext.
+        inv: the initialized vector for CBC cipher, as a bytes object. Default
+        value is NULL. 
+
+    Returns:
+        the decrypted output, as a bytes object.
+
+    Raises:
+    	ValueError: An error occurred when cache is NULL or ciphertext is NULL.
+    """
+    if cache is None:
+        raise ValueError('Key cache is NULL.')
+    elif cipher is None:
+        raise ValueError('Ciphertext is NULL.')
+    else:
+        aes = AES()
+        nbr_rounds = 0
+        esize = len(cache)
+        if esize == aes.ekeySize['SIZE_128']:
+            nbr_rounds = 10
+        elif esize == aes.ekeySize['SIZE_192']:
+            nbr_rounds = 12
+        elif esize == aes.ekeySize['SIZE_256']:
+            nbr_rounds = 14
+        else:
+            raise ValueError('Expanded key has size incorrect.'
+                             'Size should be 176, 208, or either 240 bytes.')
+        # the AES input/output
+        ciphertext = []
+        iput = []
+        output = []
+        plaintext = [0] * 16
+        # the output plain text string
+        string_out = bytes()
+        if inv is None:
+            inv = [0] * 16
+        # char firstRound
+        first_round = True
+        if cipher != None:
+            for j in range(int(math.ceil(float(len(cipher))/16))):
+                start = j * 16
+                end = start + 16
+                if j * 16 + 16 > len(cipher):
+                    end = len(cipher)
+                ciphertext = cipher[start:end]
+                output = aes.decrypt(ciphertext, cache, nbr_rounds)
+                for i in range(16):
+                    if first_round:
+                        plaintext[i] = inv[i] ^ output[i]
+                    else:
+                        plaintext[i] = iput[i] ^ output[i]
+                first_round = False
+                string_out += struct.pack('B' *len(plaintext), *plaintext)
+                iput = ciphertext
+        string_out = _strip_pkcs7_padding(string_out)
+        return string_out
+
+def get_cbcmac(cache, msg):
+    """
+    Message Authentication Code with pre-expanded key cache and a given input
+    message.
+
+    Args:
+        cache: the expanded round key cache by calling get_roundkey_cache.
+        msg: a bytes object, as plaintext.
+
+    Returns:
+        the MAC output, as a bytes object.
+
+    Raises:
+    	ValueError: An error occurred when cache is NULL or ciphertext is NULL.
+    """
+    if cache is None:
+        raise ValueError('Key cache is NULL.')
+    elif msg is None:
+        raise ValueError('Message is NULL.')
+    else:
+        inv = [0] * 16
+        inv[0] = len(msg)
+        cipher = cbc_encrypt(cache, msg, inv)
+        return cipher[-16:]
+
+def verify_cbcmac(cache, msg, rmac):
+    """
+    Message Authentication Code Verification with pre-expanded key cache, a
+    given input message, and the corresponding MAC of message itself.
+
+    Args:
+        cache: the expanded round key cache by calling get_roundkey_cache.
+        msg: a bytes object, as plaintext.
+        rmac: a bytes object, as received MAC of msg.
+
+    Returns:
+        Verification result, as a boolean value.
+
+    Raises:
+    	ValueError: An error occurred when cache is NULL or msg is NULL.
+    """
+    if cache is None:
+        raise ValueError('Key cache is NULL.')
+    elif msg is None:
+        raise ValueError('Message is NULL.')
+    else:
+        mac = get_cbcmac(cache, msg)
         return mac == rmac
 
-def AuthenEncrypt(key, msg, iv, auth):
-    """ 
-    Message Encryption using AES-GCM Algorithm with given key, plaintext, 
-        initialized vector, and authentication data.
-    
-    @param key: a byte string represents symmetric key for encryption.
-    @param msg: a byte string object to be encrypted.
-    @param auth: a byte string for authentication.
-    @param iv: a byte string as initialized vector.
-    @return: a concatenated cipher (c, t) where c is protected cipher
-        and t is authenticated tag.
+def authenticated_encrypt(cache, msg, auth, inv=None):
     """
-    c, t = gcm_encrypt(key, iv, msg, auth)
-    return c+t
+    Message Encryption using AES-GCM with pre-expanded key cache, a given
+    plaintext, an authentication data, and initialized vector.
 
-def AuthenDecrypt(key, cipher, iv, auth):
-    """ 
-    Message Decryption using AES-GCM Algorithm with given cipher and initialized vector.
-    
-    @param key: a byte string represents symmetric key for decryption.
-    @param cipher: a byte string cipher to be decrypted.
-    @param iv: a byte string as initialized vector.
-    @param auth: a byte string for authentication.
-    @return: decrypted result, as a byte string. If authentication fails, raise an
+    Args:
+        cache: the expanded round key cache by calling get_roundkey_cache.
+        msg: a bytes object to be authenticated-encrypted.
+        auth: a bytes object for authentication.
+        inv: a bytes object as initialized vector. Default value is NULL.
+
+    Returns:
+        a concatenated cipher (c, t) where c is protected cipher and t is
+        authenticated tag.
+    """
+    cipher, tag = gcm_encrypt(cache, inv, msg, auth)
+    return cipher+tag
+
+def authenticated_decrypt(cache, cipher, auth, inv=None):
+    """
+    Message Decryption using AES-GCM with pre-expanded key cache, a given
+    cipher, an authentication data, and initialized vector.
+
+    Args:
+        cache: the expanded round key cache by calling get_roundkey_cache.
+        cipher: a bytes object to be authenticated-decrypted.
+        auth: a bytes object for authentication.
+        inv: a bytes object as initialized vector. Default value is NULL.
+
+    Returns:
+        decrypted result, as a bytes object. If authentication fails, raise an
         exception to abort.
     """
     ciphertext = cipher[:-16]
     tag = cipher[-16:]
-    d = gcm_decrypt(key, iv, ciphertext, auth, tag)
-    return d
-
-def GenRandomByte(len):
-    """Generates random bytes of length `size`.
-    
-    @param len: length which is greater than zero.
-    @return: the Random output, as a byte string.
-    """
-    if len>0:
-        return os.urandom(len)
-    else:
-        emsg = 'Invalid len, %s. Should be greater than 0.'
-        raise (ValueError, emsg % len)
+    decipher = gcm_decrypt(cache, inv, ciphertext, auth, tag)
+    return decipher

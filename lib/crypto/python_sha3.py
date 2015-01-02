@@ -1,38 +1,35 @@
-#! /usr/bin/env python
-# coding: utf-8
+"""
+python_sha3.py
 
-# The Keccak sponge function was designed by Guido Bertoni, Joan Daemen,
-# Michaël Peeters and Gilles Van Assche. For more information, feedback or
-# questions, please refer to their website: http://keccak.noekeon.org/
-#
-# Based on the implementation by Renaud Bauvin,
-# from http://keccak.noekeon.org/KeccakInPython-3.0.zip
-#
-# Modified by Moshe Kaplan to be hashlib-compliant
-#
-# To the extent possible under law, the implementer has waived all copyright
-# and related or neighboring rights to the source code in this file.
-# http://creativecommons.org/publicdomain/zero/1.0/
+The Keccak sponge function was designed by Guido Bertoni, Joan Daemen,
+Michaël Peeters and Gilles Van Assche. For more information, feedback or
+questions, please refer to their website: http://keccak.noekeon.org/
 
+Based on the implementation by Renaud Bauvin,
+from http://keccak.noekeon.org/KeccakInPython-3.0.zip
 
+Modified by Moshe Kaplan to be hashlib-compliant
+
+To the extent possible under law, the implementer has waived all copyright
+and related or neighboring rights to the source code in this file.
+http://creativecommons.org/publicdomain/zero/1.0/
+
+Copyright 2014 ETH Zurich
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+"""
 import math
 from codecs import encode, decode
-
-def sha3_224(data=None):
-  return Keccak(c=448, r=1152, n=224, data=data)
-
-
-def sha3_256(data=None):
-  return Keccak(c=512, r=1088, n=256, data=data)
-
-
-def sha3_384(data=None):
-  return Keccak(c=768, r=832, n=384, data=data)
-
-
-def sha3_512(data=None):
-  return Keccak(c=1024, r=576, n=512, data=data)
-
 
 class KeccakError(Exception):
   """Custom error Class used in the Keccak implementation"""
@@ -112,11 +109,11 @@ class Keccak:
         0x8000000080008008]
 
   ## Rotation offsets
-  r = [[0,  36,   3,  41,  18],
-       [1,  44,  10,  45,   2],
-       [62,  6,  43,  15,  61],
-       [28, 55,  25,  21,  56],
-       [27, 20,  39,   8,  14]]
+  r = [[0, 36, 3, 41, 18],
+       [1, 44, 10, 45, 2],
+       [62, 6, 43, 15, 61],
+       [28, 55, 25, 21, 56],
+       [27, 20, 39, 8, 14]]
 
   @staticmethod
   def Round(A, RCfixed, w):
