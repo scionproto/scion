@@ -50,10 +50,10 @@ def get_random_bytes(size):
     OS.
 
     Args:
-        size: the length of generated random bytes, should be greater than 0.
+        size: Length of generated random bytes, should be greater than 0.
 
     Returns:
-    	a random output, as bytes object.
+    	Random output, as a bytes object.
 
     Raises:
         ValueError: An error occurred when size is not a positive integer.
@@ -68,12 +68,13 @@ def sha3hash(inp=None, algo='SHA3-512'):
     Sha3 hash function with given data and supported algorithm options.
 
     Args:
-        data: a string object for hash input. Default value is NULL.
-        algo: a string to specify SHA3 algorithm suite, including `SHA3-224`,
-        `SHA3-256`, `SHA3-384`, and `SHA3-512`. Default option is `SHA3-512`.
+        data: Hash input, as a string. Default value is NULL.
+        algo: Supported SHA3 algorithms, as a string. Algorithms include
+        `SHA3-224`, `SHA3-256`, `SHA3-384`, and `SHA3-512`. Default option is
+        `SHA3-512`.
 
     Returns:
-        a hash output, as bytes object.
+        Hash output, as a bytes object.
 
     Raises:
         ValueError: An error occurred when algorithm is not recognized.
@@ -98,10 +99,10 @@ def get_roundkey_cache(key):
     and verify_cbcmac).
 
     Args:
-        key: symmetric key for AES cipher, as bytes object.
+        key: Symmetric key for AES cipher, as a bytes object.
 
     Returns:
-        A list structure of expanded round key cache.
+        Expanded round key cache, as a list.
 
     Raises:
     	ValueError: An error occurred when key is NULL or length of key is
@@ -130,13 +131,13 @@ def cbc_encrypt(cache, msg, inv=None):
     CBC cipher encryption on a given message with pre-expanded key cache.
 
     Args:
-        cache: the expanded round key cache by calling get_roundkey_cache.
-        msg: a bytes object, as plaintext.
-        inv: an initialized vector for CBC cipher, as a bytes object. Default
+        cache: Expanded round key cache by calling get_roundkey_cache.
+        msg: Plaintext to be encrypted, as a bytes object.
+        inv: Initialized vector for CBC cipher, as a bytes object. Default
         value is NULL.
 
     Returns:
-        the encrypted block cipher, as a bytes object.
+        Encrypted block cipher, as a bytes object.
 
     Raises:
     	ValueError: An error occurred when cache is NULL or msg is NULL.
@@ -188,13 +189,13 @@ def cbc_decrypt(cache, cipher, inv=None):
     CBC cipher decryption on a given cipher with pre-expanded key cache.
 
     Args:
-        cache: the expanded round key cache by calling get_roundkey_cache.
-        cipher: a bytes object, as ciphertext.
-        inv: the initialized vector for CBC cipher, as a bytes object. Default
+        cache: Expanded round key cache by calling get_roundkey_cache.
+        cipher: Ciphertext to be decrypted, as a bytes object.
+        inv: Initialized vector for CBC cipher, as a bytes object. Default
         value is NULL. 
 
     Returns:
-        the decrypted output, as a bytes object.
+        Decrypted output, as a bytes object.
 
     Raises:
     	ValueError: An error occurred when cache is NULL or ciphertext is NULL.
@@ -252,11 +253,11 @@ def get_cbcmac(cache, msg):
     message.
 
     Args:
-        cache: the expanded round key cache by calling get_roundkey_cache.
-        msg: a bytes object, as plaintext.
+        cache: Expanded round key cache by calling get_roundkey_cache.
+        msg: Plaintext to be MACed, as a bytes object.
 
     Returns:
-        the MAC output, as a bytes object.
+        MAC output, as a bytes object.
 
     Raises:
     	ValueError: An error occurred when cache is NULL or ciphertext is NULL.
@@ -277,9 +278,9 @@ def verify_cbcmac(cache, msg, rmac):
     given input message, and the corresponding MAC of message itself.
 
     Args:
-        cache: the expanded round key cache by calling get_roundkey_cache.
-        msg: a bytes object, as plaintext.
-        rmac: a bytes object, as received MAC of msg.
+        cache: Expanded round key cache by calling get_roundkey_cache.
+        msg: Plaintext to be MACed, as a bytes object.
+        rmac: Received MAC of msg, as a bytes object.
 
     Returns:
         Verification result, as a boolean value.
@@ -301,13 +302,13 @@ def authenticated_encrypt(cache, msg, auth, inv=None):
     plaintext, an authentication data, and initialized vector.
 
     Args:
-        cache: the expanded round key cache by calling get_roundkey_cache.
-        msg: a bytes object to be authenticated-encrypted.
-        auth: a bytes object for authentication.
-        inv: a bytes object as initialized vector. Default value is NULL.
+        cache: Expanded round key cache by calling get_roundkey_cache.
+        msg: Plaintext to be encrypted, as a bytes object.
+        auth: Authentication data, as a bytes object.
+        inv: Initialized vector, as a bytes object. Default value is NULL.
 
     Returns:
-        a concatenated cipher (c, t) where c is protected cipher and t is
+        Concatenated cipher (c, t) where c is protected cipher and t is
         authenticated tag.
     """
     cipher, tag = gcm_encrypt(cache, inv, msg, auth)
@@ -319,13 +320,13 @@ def authenticated_decrypt(cache, cipher, auth, inv=None):
     cipher, an authentication data, and initialized vector.
 
     Args:
-        cache: the expanded round key cache by calling get_roundkey_cache.
-        cipher: a bytes object to be authenticated-decrypted.
-        auth: a bytes object for authentication.
-        inv: a bytes object as initialized vector. Default value is NULL.
+        cache: Expanded round key cache by calling get_roundkey_cache.
+        cipher: Ciphertext to be decrypted, as a bytes object.
+        auth: Authentication data, as a bytes object.
+        inv: Initialized vector, as a bytes object. Default value is NULL.
 
     Returns:
-        decrypted result, as a bytes object. If authentication fails, raise an
+        Decrypted result, as a bytes object. If authentication fails, raise an
         exception to abort.
     """
     ciphertext = cipher[:-16]
