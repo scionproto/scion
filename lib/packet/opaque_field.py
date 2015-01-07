@@ -36,7 +36,6 @@ class OpaqueFieldType(object):
     PEER_XOVR = 0x10
     ROT_OF = 0xff
     LAST_OF = 0x20  # Indicates last hop OF on the half-path (TODO revise)
-    CORE_PATH_OF = 0xa0  # Indicates a core path. TODO Sam: Check with Pawel.
 
 
 class OpaqueField(object):

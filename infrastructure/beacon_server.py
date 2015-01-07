@@ -194,21 +194,18 @@ class CoreBeaconServer(BeaconServer):
 
             # Create beacon for core ADs.
             core_pcb = HalfPathBeacon()
-            core_pcb.iof = InfoOpaqueField.from_values(OFT.CORE_PATH_OF,
+            core_pcb.iof = InfoOpaqueField.from_values(OFT.TDC_XOVR,
                                                        timestamp,
                                                        self.topology.isd_id)
             core_pcb.rotf = ROTField()
             self.propagate_core_pcb(core_pcb)
 
-            # Propagate received beacons.
+            # Propagate received beacons. A core beacon server can only receive
+            # beacons from other core beacon servers.
             while self.beacons:
                 pcb = self.beacons.popleft()
-                if pcb.iof.info == OFT.TDC_XOVR:
-                    self.propagate_downstream_pcb(pcb)
-                else:
-                    assert pcb.iof.info == OFT.CORE_PATH_OF
-                    self.propagate_core_pcb(pcb)
-                    self.reg_queue.append(pcb)
+                self.propagate_core_pcb(pcb)
+                self.reg_queue.append(pcb)
             time.sleep(self.config.propagation_time)
 
     def register_paths(self):
@@ -219,8 +216,6 @@ class CoreBeaconServer(BeaconServer):
         while True:
             while self.reg_queue:
                 pcb = self.reg_queue.popleft()
-                if pcb.iof.info != OFT.CORE_PATH_OF:
-                    continue
                 new_pcb = copy.deepcopy(pcb)
                 ad_marking = self._create_ad_marking(new_pcb.rotf.if_id, 0)
                 new_pcb.add_ad(ad_marking)
@@ -255,14 +250,13 @@ class CoreBeaconServer(BeaconServer):
         pcb = Beacon(packet).pcb
         # Before we append the PCB for further processing we need to check that
         # it hasn't been received before.
-        if pcb.iof.info == OFT.CORE_PATH_OF:
-            for ad in pcb.ads:
-                isd_id = ad.pcbm.spcbf.isd_id
-                ad_id = ad.pcbm.ad_id
-                if (isd_id == self.topology.isd_id and
-                    ad_id == self.topology.ad_id):
-                    logging.debug("Core Path PCB already seen. Dropping...")
-                    return
+        for ad in pcb.ads:
+            isd_id = ad.pcbm.spcbf.isd_id
+            ad_id = ad.pcbm.ad_id
+            if (isd_id == self.topology.isd_id and
+                ad_id == self.topology.ad_id):
+                logging.debug("Core Path PCB already seen. Dropping...")
+                return
         self.beacons.append(pcb)
 
 

@@ -148,7 +148,7 @@ class CorePath(PathBase):
             self.core_path_info = \
                 InfoOpaqueField(raw[offset:offset + InfoOpaqueField.LEN])
             offset += InfoOpaqueField.LEN
-            for i in range(self.down_path_info.hops):
+            for i in range(self.core_path_info.hops):
                 self.core_path_hops.append(
                     HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN]))
                 offset += HopOpaqueField.LEN

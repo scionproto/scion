@@ -368,8 +368,6 @@ class Router(SCIONElement):
         elif info == OFT.INTERTD_PEER:
             # TODO implement INTERTD_PEER
             pass
-        elif info == OFT.CORE_PATH_OF:
-            logging.debug("CORE_PATH_OF encountered.")
         else:
             logging.warning("Unknown case %u", info)
 
