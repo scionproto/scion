@@ -1,19 +1,21 @@
+# path_store.py
+
+# Copyright 2014 ETH Zurich
+
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+
+# http://www.apache.org/licenses/LICENSE-2.0
+
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """
-path_store.py
-
-Copyright 2014 ETH Zurich
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+:mod:`path_store` --- Storage of SCION paths
+============================================
 """
 
 from lib.packet.pcb import HalfPathBeacon
@@ -29,7 +31,16 @@ import logging
 class Policy(object):
     """
     Stores a path policy.
+
+    :ivar best_set_size: size of the set of chosen best paths.
+    :vartype best_set_size: int
+    :ivar candidates_set_size: size of the candidate set, from which the best
+       paths are chosen.
+    :vartype candidates_set_size: int
+    :ivar disjointness: the desired level of disjointnes.
+    :vartype disjointness: int
     """
+
     def __init__(self, policy_file=None):
         self.best_set_size = 0
         self.candidates_set_size = 5
@@ -114,7 +125,11 @@ class Policy(object):
 class PathInfo(object):
     """
     Stores general information about a path.
+
+    :ivar id: path identifier consisting of a SHA-256 digest of the path.
+    :vartype id: str
     """
+
     def __init__(self, pcb=None, policy=None):
         assert pcb is not None and policy is not None
         self.pcb = pcb
@@ -219,6 +234,9 @@ class PathInfo(object):
 class PathStore(object):
     """
     Path Store class.
+
+    :ivar policy: policy object.
+    :vartype policy: Policy
     """
     def __init__(self, policy_file):
         self.policy = Policy(policy_file)
