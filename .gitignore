@@ -1,5 +1,4 @@
 # LaTeX output #
-################
 *-eps-converted-to.pdf
 *.aux
 *.bbl
@@ -10,10 +9,10 @@
 *.synctex.gz
 *.toc
 *.idx
+*.out
 
 
 # OS generated files #
-######################
 .DS_Store
 .DS_Store?
 ._*
@@ -21,12 +20,14 @@
 .Trashes
 ehthumbs.db
 Thumbs.db
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 
-# C extensions
+# C extensions and crypto library files
 *.so
+*.o
 
 # Distribution / packaging
 .Python
@@ -46,6 +47,9 @@ venv/
 .installed.cfg
 *.egg
 
+# vim-generated files
+*.swp
+
 # PyInstaller
 #  Usually these files are written by a python script from a template
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
@@ -64,12 +68,13 @@ htmlcov/
 nosetests.xml
 coverage.xml
 
-# Translations
-*.mo
-*.pot
-
-# Django stuff:
-*.log
+# SCION-generated files
+infrastructure/__pycache__/
+lib/__pycache__/
+lib/packet/__pycache__/
+topology/ISD*
+topology/conf-gen
+*.crt
 
 # Sphinx documentation
 docs/_build/
@@ -79,3 +84,4 @@ target/
 
 # Custom
 sphinx-doc/_build/
+
