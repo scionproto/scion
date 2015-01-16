@@ -117,7 +117,7 @@ class BeaconServer(SCIONElement):
                                              egress_if)
             spf = SupportPeerField.from_values(self.topology.isd_id)
             peer_marking = \
-                PeerMarking.from_values(router_peer.interface.neighbor,
+                PeerMarking.from_values(router_peer.interface.neighbor_ad,
                                         hof, spf)
             pcbm.ssf.block_size += peer_marking.LEN
             peer_markings.append(peer_marking)
@@ -228,8 +228,11 @@ class CoreBeaconServer(BeaconServer):
         Registers the core path contained in 'pcb' with the local core path
         server and the originating core path server.
         """
-        info = PathInfo.from_values(PIT.CORE, self.topology.ad_id,
-                                    self.topology.isd_id)
+        info = PathInfo.from_values(PIT.CORE,
+                                    pcb.get_first_ad().spcbf.isd_id,
+                                    self.topology.isd_id,
+                                    pcb.get_first_ad().ad_id,
+                                    self.topology.ad_id)
         # Register core path with local core path server.
         if ElementType.PATH_SERVER in self.topology.servers:
             dst = self.topology.servers[ElementType.PATH_SERVER].addr
@@ -239,9 +242,10 @@ class CoreBeaconServer(BeaconServer):
 
         # Register core path with originating core path server.
         pcb.remove_signatures()
-        path = pcb.get_core_path()
+        path = pcb.get_path(reverse_direction=True)
         path_rec = PathRecords.from_values(self.addr, info, [pcb], path)
-        next_hop = self.ifid2addr[pcb.rotf.if_id]
+        if_id = path.get_first_hop_of().ingress_if
+        next_hop = self.ifid2addr[if_id]
         logging.debug("Registering core path with originating PS.")
         self.send(path_rec, next_hop)
 
@@ -276,8 +280,11 @@ class LocalBeaconServer(BeaconServer):
         """
         Send Up Path to Local Path Servers
         """
-        info = PathInfo.from_values(PIT.UP, self.topology.ad_id,
-                                    self.topology.isd_id)
+        info = PathInfo.from_values(PIT.UP,
+                                    self.topology.isd_id,
+                                    self.topology.isd_id,
+                                    pcb.get_first_ad().ad_id,
+                                    self.topology.ad_id)
         dst = self.topology.servers[ElementType.PATH_SERVER].addr
         up_path = PathRecords.from_values(dst, info, [pcb])
         self.send(up_path, dst)
@@ -287,11 +294,15 @@ class LocalBeaconServer(BeaconServer):
         Send Down Path to Core Path Server
         """
         pcb.remove_signatures()
-        info = PathInfo.from_values(PIT.DOWN, self.topology.ad_id,
-                                    self.topology.isd_id)
-        core_path = pcb.get_core_path()
+        info = PathInfo.from_values(PIT.DOWN,
+                                    self.topology.isd_id,
+                                    self.topology.isd_id,
+                                    pcb.get_first_ad().ad_id,
+                                    self.topology.ad_id)
+        core_path = pcb.get_path(reverse_direction=True)
         down_path = PathRecords.from_values(self.addr, info, [pcb], core_path)
-        next_hop = self.ifid2addr[pcb.rotf.if_id]
+        if_id = core_path.get_first_hop_of().ingress_if
+        next_hop = self.ifid2addr[if_id]
         self.send(down_path, next_hop)
 
     def register_paths(self):

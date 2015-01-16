@@ -18,7 +18,7 @@ limitations under the License.
 
 from lib.packet.ext_hdr import ExtensionHeader, ICNExtHdr
 from lib.packet.host_addr import (AddressLengths, IPv4HostAddr,
-                                  IPv6HostAddr, SCIONHostAddr)
+                                  IPv6HostAddr, SCIONHostAddr, HostAddr)
 from lib.packet.opaque_field import InfoOpaqueField, OpaqueField
 from lib.packet.packet_base import HeaderBase, PacketBase
 from lib.packet.path import PathType, CorePath, PeerPath, CrossOverPath, \
@@ -215,6 +215,9 @@ class SCIONHeader(HeaderBase):
         """
         Returns a SCIONHeader with the values specified.
         """
+        assert isinstance(src, HostAddr)
+        assert isinstance(dst, HostAddr)
+        assert path is None or isinstance(path, PathBase)
         if ext_hdrs is None:
             ext_hdrs = []
         hdr = SCIONHeader()
@@ -287,7 +290,6 @@ class SCIONHeader(HeaderBase):
             (next_hdr_type, hdr_len) = bits.unpack("uintbe:8, uintbe:8")
             logging.info("Found extension hdr of type %u with len %u",
                          cur_hdr_type, hdr_len)
-            # FIXME: Should instantiate correct class depending on ext hdr type.
             if cur_hdr_type == ICNExtHdr.TYPE:
                 self.extension_hdrs.append(
                     ICNExtHdr(raw[offset:offset + hdr_len]))
@@ -580,19 +582,21 @@ class PathInfoType(object):
     UP = 0  # Request/Reply for up-paths
     DOWN = 1  # Request/Reply for down-paths
     CORE = 2  # Request/Reply for core-paths
-    ALL = 3  # Request/Reply for up-, down-, and core-paths
+    ALL = 3  # Request/Reply for up- and down-paths
 
 
 class PathInfo(object):
     """
     PathInfo class used in sending path requests/replies.
     """
-    LEN = 11
+    LEN = 21
 
     def __init__(self, raw=None):
-        self.type = None
-        self.isd = None
-        self.ad = None
+        self.type = 0
+        self.src_isd = 0
+        self.dst_isd = 0
+        self.src_ad = 0
+        self.dst_ad = 0
         if raw:
             self.parse(raw)
 
@@ -601,27 +605,32 @@ class PathInfo(object):
         Populates fields from a raw bytes block.
         """
         bits = BitArray(bytes=raw)
-        (self.type, self.isd, self.ad) = bits.unpack(
-            "uintbe:8, uintbe:16, uintbe:64")
+        (self.type, self.src_isd, self.dst_isd, self.src_ad, self.dst_ad) = \
+            bits.unpack("uintbe:8, uintbe:16, uintbe:16, uintbe:64, uintbe:64")
 
     def pack(self):
         """
         Returns PathInfo as a binary string.
         """
-        return bitstring.pack("uintbe:8, uintbe:16, uintbe:64", self.type,
-            self.isd, self.ad).bytes
+        return bitstring.pack("uintbe:8, uintbe:16, uintbe:16,"
+                              "uintbe:64, uintbe:64", self.type,
+                              self.src_isd, self.dst_isd,
+                              self.src_ad, self.dst_ad).bytes
 
     @classmethod
-    def from_values(cls, pckt_type, isd, ad):
+    def from_values(cls, pckt_type, src_isd, dst_isd, src_ad, dst_ad):
         """
         Returns PathInfo with fields populated from values.
         @param pckt_type: type of request/reply (must be 'PathInfoType' object)
-        @param isd, ad: address of targeted AD
+        @param src_isd, src_ad: address of the source AD
+        @param dst_isd, dst_ad: address of targeted AD
         """
         info = PathInfo()
         info.type = pckt_type
-        info.isd = isd
-        info.ad = ad
+        info.src_isd = src_isd
+        info.src_ad = src_ad
+        info.dst_isd = dst_isd
+        info.dst_ad = dst_ad
         return info
 
 

@@ -306,8 +306,8 @@ class Router(SCIONElement):
         else:
             # TODO redesing Certificate Servers
             if ptype in [PT.CERT_REQ, PT.ROT_REQ, PT.CERT_REP, PT.ROT_REP]:
-                next_hop.addr = (
-                        self.topology.servers[ET.CERTIFICATE_SERVER].addr)
+                next_hop.addr = \
+                    self.topology.servers[ET.CERTIFICATE_SERVER].addr
             elif iface:
                 next_hop.addr = self.ifid2addr[iface]
             elif ptype in [PT.PATH_REQ, PT.PATH_REC]:
@@ -386,13 +386,11 @@ class Router(SCIONElement):
         """
         while not spkt.hdr.get_current_of().is_regular():
             spkt.hdr.common_hdr.timestamp = spkt.hdr.common_hdr.current_of
-            if (spkt.hdr.get_current_of() != spkt.hdr.path.get_of(0)):
+            if spkt.hdr.get_current_of() != spkt.hdr.path.get_of(0):
                 spkt.hdr.set_downpath()
-            logging.debug("increase 0")
             spkt.hdr.increase_of(1)
 
         while spkt.hdr.get_current_of().is_continue():
-            logging.debug("increase 1")
             spkt.hdr.increase_of(1)
 
         ts_info = spkt.hdr.get_timestamp().info
@@ -402,7 +400,6 @@ class Router(SCIONElement):
         # MAC verification only.
         if (not spkt.hdr.is_on_up_path() and ts_info == OFT.INTRATD_PEER and
             spkt.hdr.common_hdr.current_of == timestamp + OpaqueField.LEN):
-            logging.debug("increase 2")
             spkt.hdr.increase_of(1)
 
         if spkt.hdr.get_current_of().is_xovr():

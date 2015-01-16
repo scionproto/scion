@@ -528,26 +528,40 @@ class PathCombinator(object):
     """
 
     @staticmethod
-    def _build_core_path(up_path, down_path):
+    def _build_core_path(up_path, core_path, down_path):
         """
-        Joins up_ and down_path into core fullpath. Returns object of CorePath
-        class
+        Joins up_, core_ and down_path into core fullpath. core_path can be
+        'None' in case of a intra-ISD core_path of length 0.
+        Returns object of CorePath class.
         """
         if not up_path or not down_path or not up_path.ads or not down_path.ads:
             return None
-            # TODO other sanity checks...
 
-        core_path = CorePath()
-        core_path.up_path_info = up_path.iof
+        # If we have a core path, check that the core_path connects the
+        # up_ and down_path. Otherwise, check that up- and down-path meet at a
+        # single core AD.
+        if ((core_path and (core_path.ads[0].ad_id != up_path.ads[0].ad_id or
+            core_path.ads[-1].ad_id != down_path.ads[0].ad_id)) or
+            (up_path.ads[0].ad_id != down_path.ads[0].ad_id)):
+            return None
+
+        full_path = CorePath()
+        full_path.up_path_info = up_path.iof
         for block in reversed(up_path.ads):
-            core_path.up_path_hops.append(copy.deepcopy(block.pcbm.hof))
-        core_path.up_path_hops[-1].info = OpaqueFieldType.LAST_OF
+            full_path.up_path_hops.append(copy.deepcopy(block.pcbm.hof))
+        full_path.up_path_hops[-1].info = OpaqueFieldType.LAST_OF
 
-        core_path.down_path_info = down_path.iof
+        if core_path:
+            full_path.core_path_info = core_path.iof
+            for block in core_path.ads:
+                full_path.core_path_hops.append(copy.deepcopy(block.pcbm.hof))
+            full_path.core_path_hops[0].info = OpaqueFieldType.LAST_OF
+
+        full_path.down_path_info = down_path.iof
         for block in down_path.ads:
-            core_path.down_path_hops.append(copy.deepcopy(block.pcbm.hof))
-        core_path.down_path_hops[0].info = OpaqueFieldType.LAST_OF
-        return core_path
+            full_path.down_path_hops.append(copy.deepcopy(block.pcbm.hof))
+        full_path.down_path_hops[0].info = OpaqueFieldType.LAST_OF
+        return full_path
 
     @staticmethod
     def _join_shortcuts(up_path, down_path, point, peer=True):
@@ -627,32 +641,51 @@ class PathCombinator(object):
         elif xovrs and peers:
             if sum(peers[-1]) > sum(xovrs[-1]):
                 return PathCombinator._join_shortcuts(up_path, down_path,
-                    peers[-1], True)
+                                                      peers[-1], True)
             else:
                 return PathCombinator._join_shortcuts(up_path, down_path,
-                    xovrs[-1], False)
+                                                      xovrs[-1], False)
         elif xovrs:
-            return PathCombinator._join_shortcuts(up_path, down_path, xovrs[-1],
-                False)
+            return PathCombinator._join_shortcuts(up_path, down_path,
+                                                  xovrs[-1],
+                                                  False)
         else:  # peers only
-            return PathCombinator._join_shortcuts(up_path, down_path, peers[-1],
-                True)
+            return PathCombinator._join_shortcuts(up_path, down_path,
+                                                  peers[-1],
+                                                  True)
 
     @staticmethod
-    def build_fullpaths(up_paths, down_paths):
+    def build_shortcut_paths(up_paths, down_paths):
         """
-        Returns list of all paths that can be built as combination of paths from
-        up_paths and down_paths. up/down_paths are lists of PCB objects.
+        Returns a list of all shortcut paths (peering and crossover paths) that
+        can be built using the provided up- and down-paths.
         """
-        short_paths = []
-        core_paths = []
+        paths = []
         for up in up_paths:
             for down in down_paths:
                 path = PathCombinator._build_shortcut_path(up, down)
-                if path and path not in short_paths:
-                    short_paths.append(path)
-                path = PathCombinator._build_core_path(up, down)
-                if path and path not in core_paths:
-                    core_paths.append(path)
-        return short_paths + core_paths
+                if path and path not in paths:
+                    paths.append(path)
+
+        return paths
+
+    @staticmethod
+    def build_core_paths(up_path, down_path, core_paths):
+        """
+        Returns list of all paths that can be built as combination of paths from
+        up_paths, core_paths and down_paths.
+        """
+        paths = []
+        if not core_paths:
+            paths.append(PathCombinator._build_core_path(up_path,
+                                                         [],
+                                                         down_path))
+        else:
+            for core_path in core_paths:
+                path = PathCombinator._build_core_path(up_path,
+                                                       core_path,
+                                                       down_path)
+                if path and path not in paths:
+                    paths.append(path)
+        return paths
 

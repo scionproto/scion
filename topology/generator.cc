@@ -182,7 +182,8 @@ void SCIONScriptGen::GenerateTopologyXml (string &ip_address) {
         myfile << "\t\t</PathServer>\n";
 
         netRun << "screen -d -m -S ps" << m_ad_id << " sh -c \""
-               << "PYTHONPATH=../ python3 path_server.py " << ip_address << " "
+               << "PYTHONPATH=../ python3 path_server.py " << (m_core ? "core " : "local ")
+			   << ip_address << " "
                << "../topology/ISD" << m_isd_id << "/topologies/topology" << m_ad_id << ".xml "
                << "../topology/ISD" << m_isd_id << "/configurations/AD" << m_ad_id << ".conf\"\n";
 

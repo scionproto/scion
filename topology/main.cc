@@ -1,5 +1,4 @@
 #include "generator.h"
-#include <iostream>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -28,7 +27,6 @@ int main (void) {
     while (getline(asInfo, line)) {
     	if (line.length() < 5) continue;
         istringstream iss(line);
-        cout << line << endl;
         iss >> ad_id >> isd_id >> isCore;
         registerPath = (isCore==2 || isCore==0) ? 1 : 0;
         isCore = (isCore==0) ? 1 : 0;

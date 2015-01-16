@@ -26,7 +26,40 @@ from bitstring import BitArray
 import bitstring
 
 
-class PCBMarking(object):
+class Marking(object):
+    """
+    Base class for all marking objects.
+    """
+    def __init__(self):
+        self.parsed = False
+        self.raw = None
+
+    def parse(self, raw):
+        """
+        Populates fields from a raw bytes block.
+        """
+        pass
+
+    def pack(self):
+        """
+        Returns object as a binary string.
+        """
+        pass
+
+    def __eq__(self, other):
+        if type(other) is type(self):
+            return self.raw == other.raw
+        else:
+            return False
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __hash__(self):
+        return hash(self.raw)
+
+
+class PCBMarking(Marking):
     """
     Packs all fields for a specific PCB marking, which includes: the Autonomous
     Domain's ID, the SupportSignatureField, the HopOpaqueField, and the
@@ -35,8 +68,7 @@ class PCBMarking(object):
     LEN = 32
 
     def __init__(self, raw=None):
-        self.parsed = False
-        self.raw = None
+        Marking.__init__(self)
         self.ad_id = 0
         self.ssf = None
         self.hof = None
@@ -92,16 +124,27 @@ class PCBMarking(object):
         pcbm_str += str(self.spcbf)
         return pcbm_str
 
+    def __eq__(self, other):
+        if type(other) is type(self):
+            return (self.ad_id == other.ad_id and
+                    self.ssf == other.ssf and
+                    self.hof == other.hof and
+                    self.spcbf == other.spcbf)
+        else:
+            return False
 
-class PeerMarking(object):
+    def __hash__(self):
+        return hash((self.ad_id, self.ssd))
+
+
+class PeerMarking(Marking):
     """
     Packs all fields for a specific peer marking.
     """
     LEN = 24
 
     def __init__(self, raw=None):
-        self.parsed = False
-        self.raw = None
+        Marking.__init__(self)
         self.ad_id = 0
         self.hof = None
         self.spf = None
@@ -152,16 +195,23 @@ class PeerMarking(object):
         pm_str += str(self.spf)
         return pm_str
 
+    def __eq__(self, other):
+        if type(other) is type(self):
+            return (self.ad_id == other.ad_id and
+                    self.hof == other.hof and
+                    self.spf == other.spf)
+        else:
+            return False
 
-class ADMarking(object):
+
+class ADMarking(Marking):
     """
     Packs all fields for a specific Autonomous Domain.
     """
     LEN = PCBMarking.LEN
 
     def __init__(self, raw=None):
-        self.parsed = False
-        self.raw = None
+        Marking.__init__(self)
         self.pcbm = None
         self.pms = []
         self.sig = b''
@@ -229,16 +279,23 @@ class ADMarking(object):
         ad_str += str(self.sig) + "\n"
         return ad_str
 
+    def __eq__(self, other):
+        if type(other) is type(self):
+            return (self.pcbm == other.pcbm and
+                    self.pms == other.pms and
+                    self.sig == other.sig)
+        else:
+            return False
 
-class HalfPathBeacon(object):
+
+class HalfPathBeacon(Marking):
     """
-        Packs all HalfPathBeacon fields for a specific beacon.
+    Packs all HalfPathBeacon fields for a specific beacon.
     """
     LEN = 16
 
     def __init__(self, raw=None):
-        self.parsed = False
-        self.raw = None
+        Marking.__init__(self)
         self.iof = None
         self.rotf = None
         self.ads = []
@@ -289,12 +346,16 @@ class HalfPathBeacon(object):
         for ad_marking in self.ads:
             ad_marking.remove_signature()
 
-    def get_core_path(self):
+    def get_path(self, reverse_direction=False):
         """
         Returns the list of HopOpaqueFields in the path.
         """
         hofs = []
-        for ad_marking in reversed(self.ads):
+        if reverse_direction:
+            ads = list(reversed(self.ads))
+        else:
+            ads = self.ads
+        for ad_marking in ads:
             hofs.append(ad_marking.pcbm.hof)
         core_path = CorePath.from_values(self.iof, hofs)
         return core_path
@@ -305,11 +366,29 @@ class HalfPathBeacon(object):
         """
         return self.iof.isd_id
 
-    def get_last_ad(self):
+    def get_last_ad_id(self):
         """
         Returns the previous AD ID.
         """
         return self.ads[-1].pcbm.ad_id
+
+    def get_last_ad(self):
+        """
+        Returns the PCBMarking belonging to the last AD on the path.
+        """
+        if self.ads:
+            return self.ads[-1].pcbm
+        else:
+            return None
+
+    def get_first_ad(self):
+        """
+        Returns the PCBMarking belonging to the first AD on the path.
+        """
+        if self.ads:
+            return self.ads[0].pcbm
+        else:
+            return None
 
     @staticmethod
     def deserialize(raw):
@@ -352,3 +431,11 @@ class HalfPathBeacon(object):
         for ad_marking in self.ads:
             pcb_str += str(ad_marking)
         return pcb_str
+
+    def __eq__(self, other):
+        if type(other) is type(self):
+            return (self.iof == other.iof and
+                    self.rotf == other.rotf and
+                    self.ads == other.ads)
+        else:
+            return False
