@@ -73,7 +73,8 @@ def write_keys_certs(ADToISD_tuples):
         cert_file = cert_path + file_name + '.crt'
         sig_key_file = sig_keys_path + file_name + '.key'
         enc_key_file = enc_keys_path + file_name + '.key'
-        (sig_priv, sig_pub, enc_priv, enc_pub) = generate_keys()
+        (sig_priv, sig_pub) = generate_signature_keypair()
+        (enc_priv, enc_pub) = generate_cryptobox_keypair()
         cert = Certificate.from_values('ISD:' + isd_id + '-AD:' + ad_id,
             sig_pub, enc_pub, 'ISD:' + isd_id + '-AD:' + ad_id, sig_priv, 0)
         with open(sig_key_file, 'w') as key_fh:

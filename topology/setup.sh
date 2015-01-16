@@ -43,9 +43,3 @@ ip addr add 127.0.0.40/8 dev lo
 ip addr add 127.0.0.41/8 dev lo
 ip addr add 127.0.0.42/8 dev lo
 ip addr add 127.0.0.43/8 dev lo
-ip addr add 127.0.0.44/8 dev lo
-ip addr add 127.0.0.45/8 dev lo
-ip addr add 127.0.0.46/8 dev lo
-ip addr add 127.0.0.47/8 dev lo
-ip addr add 127.0.0.48/8 dev lo
-ip addr add 127.0.0.49/8 dev lo
