@@ -1,24 +1,27 @@
+# pcb.py
+
+# Copyright 2014 ETH Zurich
+
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+
+# http://www.apache.org/licenses/LICENSE-2.0
+
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """
-pcb.py
-
-Copyright 2014 ETH Zurich
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+:mod:`pcb` --- SCION path construction beacons
+==============================================
 """
 
 from lib.packet.opaque_field import (SupportSignatureField, HopOpaqueField,
-    SupportPCBField, SupportPeerField, ROTField, InfoOpaqueField,
-    OpaqueFieldType)
+                                     SupportPCBField, SupportPeerField,
+                                     ROTField, InfoOpaqueField,
+                                     OpaqueFieldType)
 from lib.packet.path import CorePath
 from bitstring import BitArray
 import bitstring
@@ -155,10 +158,30 @@ class PeerMarking(object):
 class ADMarking(object):
     """
     Packs all fields for a specific Autonomous Domain.
+
+    :cvar LEN: the length of the marking.
+    :vartype LEN: int
+    :ivar parsed: whether the fields have been populated by parsing raw bytes.
+    :vartype parsed: bool
+    :ivar raw: the raw bytes of the ADMarking.
+    :vartype raw: bytes
+    :ivar pcbm: the PCB marking of the AD marking.
+    :vartype pcbm: PCBMarking
+    :ivar pms: peer markings for the AD marking.
+    :vartype pms: list
+    :ivar sig: the signature on the marking.
+    :vartype sig: bytes
     """
+
     LEN = PCBMarking.LEN
 
     def __init__(self, raw=None):
+        """
+        Constructor.
+
+        :param raw: raw bytes parsed to populate the fields (`None` by default).
+        :type raw: bytes
+        """
         self.parsed = False
         self.raw = None
         self.pcbm = None
@@ -170,6 +193,9 @@ class ADMarking(object):
     def parse(self, raw):
         """
         Populates fields from a raw bytes block.
+
+        :param raw: the raw bytes parsed to populate the field
+        :type raw: bytes
         """
         assert isinstance(raw, bytes)
         self.raw = raw
@@ -191,9 +217,12 @@ class ADMarking(object):
         """
         Returns ADMarking with fields populated from values.
 
-        @param pcbm: PCBMarking object.
-        @param pms: List of PeerMarking objects.
-        @param sig: Beacon's signature.
+        :param pcbm: PCB marking for the AD marking.
+        :type pcbm: PCBMarking
+        :param pms: peer markings for the AD marking.
+        :type pms: list
+        :param sig: the beacon server's signature on the marking.
+        :type sig: bytes
         """
         ad_marking = ADMarking()
         ad_marking.pcbm = pcbm
@@ -231,11 +260,32 @@ class ADMarking(object):
 
 class HalfPathBeacon(object):
     """
-        Packs all HalfPathBeacon fields for a specific beacon.
+    Packs all HalfPathBeacon fields for a specific beacon.
+
+    :cvar LEN: length of the beacon.
+    :vartype LEN: int
+    :ivar parsed: whether or not the fields have been populated by parsing raw
+       bytes.
+    :vartype parsed: bool
+    :ivar raw: raw bytes representing the PCB.
+    :vartype raw: bytes
+    :ivar iof: the info opaque field of the PCB.
+    :vartype iof: InfoOpaqueField
+    :ivar rotf: the ROT field of the PCB containing the TRC version number.
+    :vartype rotf: ROTField
+    :ivar ads: the ADs on the half path.
+    :vartype ads: list
     """
+
     LEN = 16
 
     def __init__(self, raw=None):
+        """
+        Constructor.
+
+        :param raw: raw bytes parsed to populate the fields (`None` by default).
+        :type raw: bytes
+        """
         self.parsed = False
         self.raw = None
         self.iof = None
@@ -247,6 +297,9 @@ class HalfPathBeacon(object):
     def parse(self, raw):
         """
         Populates fields from a raw bytes block.
+
+        :param raw: raw bytes parsed to populate the fields.
+        :type raw: bytes
         """
         assert isinstance(raw, bytes)
         self.raw = raw
@@ -267,7 +320,10 @@ class HalfPathBeacon(object):
 
     def pack(self):
         """
-        Returns HalfPathBeacon as a binary string.
+        Return the HalfPathBeacon as a binary string.
+
+        :returns: a binary string representing the beacon.
+        :rtype: bitstring.BitStream
         """
         pcb_bytes = self.iof.pack() + self.rotf.pack()
         for ad_marking in self.ads:
@@ -276,7 +332,10 @@ class HalfPathBeacon(object):
 
     def add_ad(self, ad_marking):
         """
-        Appends a new AD block.
+        Append a new AD block.
+
+        :param ad_marking: the AD marking to be appended to the beacon.
+        :type ad_marking: ADMarking
         """
         self.iof.hops = self.iof.hops + 1
         self.ads.append(ad_marking)
@@ -290,7 +349,10 @@ class HalfPathBeacon(object):
 
     def get_core_path(self):
         """
-        Returns the list of HopOpaqueFields in the path.
+        Return the list of HopOpaqueFields in the path from the core.
+
+        :returns: a list of core paths to the AD.
+        :rtype: list
         """
         hofs = []
         for ad_marking in reversed(self.ads):
@@ -301,12 +363,18 @@ class HalfPathBeacon(object):
     def get_isd(self):
         """
         Returns the ISD ID.
+
+        :returns: the ISD ID of the AD.
+        :rtype: int
         """
         return self.iof.isd_id
 
     def get_last_ad(self):
         """
-        Returns the previous AD ID.
+        Return the previous AD ID.
+
+        :returns: the identifier of the last AD in the beacon.
+        :rtype: int
         """
         return self.ads[-1].pcbm.ad_id
 

@@ -25,6 +25,19 @@ class OpaqueFieldType(object):
     """
     Defines constants for the types of the opaque field (first byte of every
     opaque field, i.e. field).
+
+      Normal opaque field: 0x00 (00000000)
+            TDC crossover: 0x80 (10000000)
+        Non-TDC crossover: 0xc0 (11000000)
+        In-path crossover: 0xe0 (11100000)
+            Intra-TD peer: 0xf0 (11110000)
+            Inter-TD peer: 0xf8 (11111000)
+           Peer crossover: 0x10 (00010000)
+         RoT opaque field: 0xff (11111111)
+    Last-hop opaque field: 0x20 (00100000)
+
+    .. note::
+       This should be converted to an enum.
     """
     NORMAL_OF = 0x00
     TDC_XOVR = 0x80
@@ -40,10 +53,20 @@ class OpaqueFieldType(object):
 class OpaqueField(object):
     """
     Base class for the different kinds of opaque fields in SCION.
+
+    :ivar info: the type of opaque field.
+    :vartype info: int
+    :ivar parsed: true if the opaque field has been parsed.
+    :vartype parsed: bool
+    :ivar raw: the raw bytes of the opaque field.
+    :vartype raw: bytes
     """
     LEN = 8
 
     def __init__(self):
+        """
+        Constructor.
+        """
         self.info = 0 #TODO verify path.PathType in that context
         self.type = 0
         self.parsed = False
@@ -52,12 +75,23 @@ class OpaqueField(object):
     def parse(self, raw):
         """
         Populates fields from a raw byte block.
+
+        .. warning::
+           This method must be overridden in child classes. Consider making
+           this method an abstract method.
+
+        :param raw: the raw bytes from which to parse the opaque field.
+        :type raw: bytes
         """
         pass
 
     def pack(self):
         """
         Returns opaque field as 8 byte binary string.
+
+        .. warning::
+           This method must be overridden in child classes. Consider making
+           this method an abstract method.
         """
         pass
 
@@ -74,18 +108,42 @@ class OpaqueField(object):
     def is_regular(self):
         """
         Returns true if opaque field is regular, false otherwise.
+
+        .. warning::
+           As far as I can determine this function does not work due to the
+           lack of consistency in how a "regular" OF is determined.
+
+        :returns: `True` if the opaque field is regular, and `False` otherwise.
+        :rtype: bool
         """
         return not BitArray(bytes([self.info]))[0]
 
     def is_continue(self):
         """
         Returns true if continue bit is set, false otherwise.
+
+        .. warning::
+           As far as I can tell, this function does not work due to the fact
+           that the continue part is not always in the same place in the
+           OpaqueFieldType class.
+
+        :returns: `True` if the continue bit is set, and `False` otherwise.
+        :rtype: bool
         """
         return BitArray(bytes([self.info]))[1]
 
     def is_xovr(self):
         """
         Returns true if crossover point bit is set, false otherwise.
+
+        .. warning::
+           As far as I can tell, this function does not work due to the fact
+           that the continue part is not always in the same place in the
+           OpaqueFieldType class.
+
+        :returns: `True` if the crossover point bit is set, and `False`
+           otherwise.
+        :rtype: bool
         """
         return BitArray(bytes([self.info]))[2]
 
@@ -101,10 +159,26 @@ class HopOpaqueField(OpaqueField):
     Opaque field for a hop in a path of the SCION packet header.
 
     Each hop opaque field has a info (8 bits), ingress/egress interfaces
-    (16 bits) and a MAC (24 bits) authenticating the opaque field.
+    (16 bits) and a MAC (24 bits) authenticating the opaque field. The info
+    field is inherited from the OpaqueField class.
+
+    :ivar ingress_if: the ingress interface (2 bytes).
+    :vartype ingress_if: int
+    :ivar egress_if: the egress interface (2 bytes).
+    :vartype egress_if: int
+    :ivar mac: message authentication code (MAC) authenticating the opaque
+       field (3 bytes).
+    :vartype mac: int
     """
+
     def __init__(self, raw=None):
-        OpaqueField.__init__(self)
+        """
+        Constructor.
+
+        :param raw: the raw bytes parsed to populate the opaque field.
+        :type raw: bytes
+        """
+        OpaqueField.__init__(self) # TODO: replace with super init trick
         self.ingress_if = 0
         self.egress_if = 0
         self.mac = 0
@@ -114,6 +188,9 @@ class HopOpaqueField(OpaqueField):
     def parse(self, raw):
         """
         Populates fields from a raw byte block.
+
+        :param raw: the raw bytes parsed to populate the opaque field.
+        :type raw: bytes
         """
         assert isinstance(raw, bytes)
         self.raw = raw
@@ -131,9 +208,15 @@ class HopOpaqueField(OpaqueField):
         """
         Returns HopOpaqueField with fields populated from values.
 
-        @param ingress_if: Ingress interface.
-        @param egress_if: Egress interface.
-        @param mac: MAC of ingress/egress interfaces' ID and timestamp.
+        :param ingress_if: the ingress interface (2 bytes).
+        :type ingress_if: int
+        :param egress_if: the egress interface (2 bytes).
+        :type egress_if: int
+        :param mac: message authentication code (MAC) authenticating the opaque
+           field (3 bytes).
+        :type mac: int
+        :returns: a HopOpaqueField populated with the given values.
+        :rtype: HopOpaqueField
         """
         hof = HopOpaqueField()
         hof.ingress_if = ingress_if
@@ -144,6 +227,9 @@ class HopOpaqueField(OpaqueField):
     def pack(self):
         """
         Returns HopOpaqueField as 8 byte binary string.
+
+        :returns: the HopOpaqueField as an 8-byte string.
+        :rtype: bytes
         """
         return bitstring.pack("uintbe:8, uintbe:16, uintbe:16, uintbe:24",
             self.info, self.ingress_if, self.egress_if, self.mac).bytes
@@ -218,10 +304,13 @@ class InfoOpaqueField(OpaqueField):
     def pack(self):
         """
         Returns InfoOpaqueFIeld as 8 byte binary string.
+
+        :returns: a binary string representing the opaque field.
+        :rtype: bitstring.BitStream
         """
         return bitstring.pack("uintbe:8, uintbe:16, uintbe:16, uintbe:8," +
-            "uintbe:16", self.info, self.timestamp, self.isd_id, self.hops,
-            self.reserved).bytes
+                              "uintbe:16", self.info, self.timestamp,
+                              self.isd_id, self.hops, self.reserved).bytes
 
     def __str__(self):
         iof_str = ("[Info OF info: %x, TS: %u, ISD ID: %u, hops: %u]" %
@@ -236,6 +325,7 @@ class ROTField(OpaqueField):
     The ROT field contains type info of the path (1 byte), the ROT version
     (4 bytes), the IF ID (2 bytes), and a reserved section (1 byte).
     """
+
     def __init__(self, raw=None):
         OpaqueField.__init__(self)
         self.info = OpaqueFieldType.ROT_OF
@@ -278,6 +368,9 @@ class ROTField(OpaqueField):
     def pack(self):
         """
         Returns ROTField as 8 byte binary string.
+
+        :returns: a binary string representing the ROT field.
+        :rtype: bitstring.BitStream
         """
         return bitstring.pack("uintbe:8, uintbe:32, uintbe:16, uintbe:8",
             self.info, self.rot_version, self.if_id, self.reserved).bytes
