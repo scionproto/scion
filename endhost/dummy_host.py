@@ -30,7 +30,7 @@ def main():
 
     sd = SCIONDaemon.start(IPv4HostAddr(sys.argv[1]), sys.argv[2])
 
-    paths = sd.get_paths(2, 25)
+    paths = sd.get_paths(2, 26)
     print("Received %d paths:\n%s" % (len(paths), paths))
     sys.exit()
 

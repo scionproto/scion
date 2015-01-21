@@ -101,6 +101,7 @@ class SCIONDaemon(SCIONElement):
                 self._waiting_targets[ptype][(dst_isd, dst_ad)].remove(event)
                 del self._waiting_targets[ptype][(dst_isd, dst_ad)]
                 break
+            event.clear()
             cycle_cnt += 1
 
     def get_paths(self, dst_isd, dst_ad):
@@ -112,6 +113,7 @@ class SCIONDaemon(SCIONElement):
         # Fetch down-paths if necessary.
         if not down_paths:
             self._request_paths(PIT.UP_DOWN, dst_isd, dst_ad)
+            logging.debug("foo")
             down_paths = self.down_paths(dst_isd=dst_isd, dst_ad=dst_ad)
         if len(self.up_paths) and down_paths:
             full_paths = PathCombinator.build_shortcut_paths(self.up_paths(),
