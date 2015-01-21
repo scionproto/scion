@@ -385,6 +385,12 @@ class SCIONHeader(HeaderBase):
         """
         return not self.common_hdr.type & 0x1
 
+    def reverse_direction(self):
+        """
+        Sets down-path flag if up-path flag is active and vice versa.
+        """
+        self.common_hdr.type ^= 1
+
     def __len__(self):
         length = self.common_hdr.hdr_len
         for ext_hdr in self.extension_hdrs:
@@ -582,7 +588,7 @@ class PathInfoType(object):
     UP = 0  # Request/Reply for up-paths
     DOWN = 1  # Request/Reply for down-paths
     CORE = 2  # Request/Reply for core-paths
-    ALL = 3  # Request/Reply for up- and down-paths
+    UP_DOWN = 3  # Request/Reply for up- and down-paths
 
 
 class PathInfo(object):

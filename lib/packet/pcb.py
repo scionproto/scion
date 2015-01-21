@@ -133,9 +133,6 @@ class PCBMarking(Marking):
         else:
             return False
 
-    def __hash__(self):
-        return hash((self.ad_id, self.ssd))
-
 
 class PeerMarking(Marking):
     """
@@ -389,6 +386,19 @@ class HalfPathBeacon(Marking):
             return self.ads[0].pcbm
         else:
             return None
+
+    def compare_hops(self, other):
+        """
+        Compares the (AD-level) hops of two half-paths. Returns true if all hops
+        are identical and false otherwise.
+        """
+        if not isinstance(other, HalfPathBeacon):
+            return False
+
+        self_hops = [ad.pcbm.ad_id for ad in self.ads]
+        other_hops = [ad.pcbm.ad_id for ad in other.ads]
+
+        return self_hops == other_hops
 
     @staticmethod
     def deserialize(raw):

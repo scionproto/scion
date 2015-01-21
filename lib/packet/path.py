@@ -540,9 +540,11 @@ class PathCombinator(object):
         # If we have a core path, check that the core_path connects the
         # up_ and down_path. Otherwise, check that up- and down-path meet at a
         # single core AD.
-        if ((core_path and (core_path.ads[0].ad_id != up_path.ads[0].ad_id or
-            core_path.ads[-1].ad_id != down_path.ads[0].ad_id)) or
-            (up_path.ads[0].ad_id != down_path.ads[0].ad_id)):
+        if ((core_path and
+             (core_path.get_first_ad().ad_id != up_path.get_first_ad().ad_id or
+             core_path.get_last_ad().ad_id != down_path.get_first_ad().ad_id)) or
+             (not core_path and
+              (up_path.get_first_ad().ad_id != down_path.get_first_ad().ad_id))):
             return None
 
         full_path = CorePath()

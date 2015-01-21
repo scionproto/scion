@@ -87,14 +87,14 @@ class OpaqueField(object):
         return self.__str__()
 
     # TODO test: one __eq__ breaks router when two SOFs in a path are identical
-    def __eq__(self, other):
-        if type(other) is type(self):
-            return self.raw == other.raw
-        else:
-            return False
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
+#     def __eq__(self, other):
+#         if type(other) is type(self):
+#             return self.raw == other.raw
+#         else:
+#             return False
+#
+#     def __ne__(self, other):
+#         return not self.__eq__(other)
 
 
 class HopOpaqueField(OpaqueField):
@@ -149,13 +149,13 @@ class HopOpaqueField(OpaqueField):
         return bitstring.pack("uintbe:8, uintbe:16, uintbe:16, uintbe:24",
             self.info, self.ingress_if, self.egress_if, self.mac).bytes
 
-    def __eq__(self, other):
-        if type(other) is type(self):
-            return (self.ingress_if == other.ingress_if and
-                    self.egress_if == other.egress_if and
-                    self.mac == other.mac)
-        else:
-            return False
+#     def __eq__(self, other):
+#         if type(other) is type(self):
+#             return (self.ingress_if == other.ingress_if and
+#                     self.egress_if == other.egress_if and
+#                     self.mac == other.mac)
+#         else:
+#             return False
 
     def __str__(self):
         hof_str = ("[Hop OF info: %u, ingress if: %u, egress if: %u, mac: %x]"
@@ -229,14 +229,14 @@ class InfoOpaqueField(OpaqueField):
             (self.info, self.timestamp, self.isd_id, self.hops))
         return iof_str
 
-    def __eq__(self, other):
-        if type(other) is type(self):
-            return (self.info == other.info and
-                    self.timestamp == other.timestamp and
-                    self.isd_id == other.isd_id and
-                    self.hops == other.hops)
-        else:
-            return False
+#     def __eq__(self, other):
+#         if type(other) is type(self):
+#             return (self.info == other.info and
+#                     self.timestamp == other.timestamp and
+#                     self.isd_id == other.isd_id and
+#                     self.hops == other.hops)
+#         else:
+#             return False
 
 
 class ROTField(OpaqueField):
@@ -297,13 +297,13 @@ class ROTField(OpaqueField):
             (self.info, self.rot_version, self.if_id))
         return rotf_str
 
-    def __eq__(self, other):
-        if type(other) is type(self):
-            return (self.info == other.info and
-                    self.rot_version == other.rot_version and
-                    self.if_id == other.if_id)
-        else:
-            return False
+#     def __eq__(self, other):
+#         if type(other) is type(self):
+#             return (self.info == other.info and
+#                     self.rot_version == other.rot_version and
+#                     self.if_id == other.if_id)
+#         else:
+#             return False
 
 
 class SupportSignatureField(OpaqueField):
@@ -364,13 +364,13 @@ class SupportSignatureField(OpaqueField):
             "block_size: %u]\n") % (self.cert_id, self.sig_len, self.block_size)
         return ssf_str
 
-    def __eq__(self, other):
-        if type(other) is type(self):
-            return (self.cert_id == other.cert_id and
-                    self.sig_len == other.sig_len and
-                    self.block_size == other.block_size)
-        else:
-            return False
+#     def __eq__(self, other):
+#         if type(other) is type(self):
+#             return (self.cert_id == other.cert_id and
+#                     self.sig_len == other.sig_len and
+#                     self.block_size == other.block_size)
+#         else:
+#             return False
 
 
 class SupportPeerField(OpaqueField):
@@ -442,14 +442,14 @@ class SupportPeerField(OpaqueField):
             self.bwalloc_r, self.bw_class)
         return spf_str
 
-    def __eq__(self, other):
-        if type(other) is type(self):
-            return (self.isd_id == other.isd_id and
-                    self.bwalloc_f == other.bwalloc_f and
-                    self.bwalloc_r == other.bwalloc_r and
-                    self.bw_class == other.bw_class)
-        else:
-            return False
+#     def __eq__(self, other):
+#         if type(other) is type(self):
+#             return (self.isd_id == other.isd_id and
+#                     self.bwalloc_f == other.bwalloc_f and
+#                     self.bwalloc_r == other.bwalloc_r and
+#                     self.bw_class == other.bw_class)
+#         else:
+#             return False
 
 
 class SupportPCBField(OpaqueField):
@@ -529,14 +529,14 @@ class SupportPCBField(OpaqueField):
             (self.isd_id, self.bwalloc_f, self.bwalloc_r))
         return spcbf_str
 
-    def __eq__(self, other):
-        if type(other) is type(self):
-            return (self.isd_id == other.isd_id and
-                    self.bwalloc_f == other.bwalloc_f and
-                    self.bwalloc_r == other.bwalloc_r and
-                    self.dyn_bwalloc_f == other.dyn_bwalloc_f and
-                    self.dyn_bwalloc_r == other.dyn_bwalloc_f and
-                    self.bebw_f == other.bebw_f and
-                    self.bebw_r == other.bebw_r)
-        else:
-            return False
+#     def __eq__(self, other):
+#         if type(other) is type(self):
+#             return (self.isd_id == other.isd_id and
+#                     self.bwalloc_f == other.bwalloc_f and
+#                     self.bwalloc_r == other.bwalloc_r and
+#                     self.dyn_bwalloc_f == other.dyn_bwalloc_f and
+#                     self.dyn_bwalloc_r == other.dyn_bwalloc_f and
+#                     self.bebw_f == other.bebw_f and
+#                     self.bebw_r == other.bebw_r)
+#         else:
+#             return False

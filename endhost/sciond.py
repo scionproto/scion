@@ -17,38 +17,38 @@ limitations under the License.
 """
 
 from infrastructure.scion_elem import SCIONElement
-from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.path import PathCombinator
 from lib.packet.scion import (SCIONPacket, get_type, PathRequest, PathRecords,
     PathInfo, PathInfoType as PIT)
 from lib.packet.scion import PacketType as PT
+from lib.path_db import PathDB
 from lib.topology import ElementType
 from lib.util import update_dict
 import logging
-import sys
 import threading
 
 
 PATHS_NO = 5  # conf parameter?
 WAIT_CYCLES = 3
 
+
 class SCIONDaemon(SCIONElement):
     """
     The SCION Daemon used for retrieving and combining paths.
     """
 
-    TIMEOUT = 7
+    TIMEOUT = 5
 
     def __init__(self, addr, topo_file):
         SCIONElement.__init__(self, addr, topo_file)
         # TODO replace by pathstore instance
-        self.up_paths = []
-        self.down_paths = {}
-        self.core_paths = {}
+        self.up_paths = PathDB()
+        self.down_paths = PathDB()
+        self.core_paths = PathDB()
         self._waiting_targets = {PIT.UP: {},
                                  PIT.DOWN: {},
                                  PIT.CORE: {},
-                                 PIT.ALL: {}}
+                                 PIT.UP_DOWN: {}}
 
     @classmethod
     def start(cls, addr, topo_file):
@@ -61,10 +61,12 @@ class SCIONDaemon(SCIONElement):
         ...
         """
         sd = cls(addr, topo_file)
-        threading.Thread(target=sd.run).start()
+        t = threading.Thread(target=sd.run)
+        t.setDaemon(True)
+        t.start()
         return sd
 
-    def _request_paths(self, type, dst_isd, dst_ad, src_isd=None, src_ad=None):
+    def _request_paths(self, ptype, dst_isd, dst_ad, src_isd=None, src_ad=None):
         """
         Sends path request with certain type for (isd, ad).
         """
@@ -75,10 +77,10 @@ class SCIONDaemon(SCIONElement):
 
         # Create an event that we can wait on for the path reply.
         event = threading.Event()
-        update_dict(self._waiting_targets[type], (dst_isd, dst_ad), [event])
+        update_dict(self._waiting_targets[ptype], (dst_isd, dst_ad), [event])
 
         # Create and send out path request.
-        info = PathInfo.from_values(type, src_isd, dst_isd, src_ad, dst_ad)
+        info = PathInfo.from_values(ptype, src_isd, dst_isd, src_ad, dst_ad)
         path_request = PathRequest.from_values(self.addr, info)
         dst = self.topology.servers[ElementType.PATH_SERVER].addr
         self.send(path_request, dst)
@@ -88,34 +90,34 @@ class SCIONDaemon(SCIONElement):
         while cycle_cnt < WAIT_CYCLES:
             event.wait(SCIONDaemon.TIMEOUT)
             # Check that we got all the requested paths.
-            if ((type == PIT.UP and self.up_paths) or
-                (type == PIT.DOWN, PIT.ALL and
-                (dst_isd, dst_ad) in self.down_paths) or
-                (type == PIT.CORE and ((src_isd, src_ad), (dst_isd, dst_ad)) in
-                 self.core_paths) or
-                (type == PIT.ALL and (self.up_paths and (dst_isd, dst_ad) in
-                self.down_paths))):
-                self._waiting_targets[type][(dst_isd, dst_ad)].remove(event)
-                if self._waiting_targets[type][(dst_isd, dst_ad)]:
-                    del self._waiting_targets[type][(dst_isd, dst_ad)]
+            if ((ptype == PIT.UP and len(self.up_paths)) or
+                (ptype == PIT.DOWN and
+                 self.down_paths(dst_isd=dst_isd, dst_ad=dst_ad)) or
+                (ptype == PIT.CORE and
+                 self.core_paths(src_isd=src_isd, src_ad=src_ad,
+                                 dst_isd=dst_isd, dst_ad=dst_ad)) or
+                (ptype == PIT.UP_DOWN and (len(self.up_paths) and
+                 self.down_paths(dst_isd=dst_isd, dst_ad=dst_ad)))):
+                self._waiting_targets[ptype][(dst_isd, dst_ad)].remove(event)
+                del self._waiting_targets[ptype][(dst_isd, dst_ad)]
                 break
             cycle_cnt += 1
-
 
     def get_paths(self, dst_isd, dst_ad):
         """
         Returns a list of paths.
         """
-        paths = []
+        full_paths = []
+        down_paths = self.down_paths(dst_isd=dst_isd, dst_ad=dst_ad)
         # Fetch down-paths if necessary.
-        if (dst_isd, dst_ad) not in self.down_paths:
-            self._request_paths(PIT.ALL, dst_isd, dst_ad)
-
-        if self.up_paths and (dst_isd, dst_ad) in self.down_paths:
-            paths = PathCombinator.build_shortcut_paths(self.up_paths,
-                self.down_paths[(dst_isd, dst_ad)])
-            if paths:
-                return paths
+        if not down_paths:
+            self._request_paths(PIT.UP_DOWN, dst_isd, dst_ad)
+            down_paths = self.down_paths(dst_isd=dst_isd, dst_ad=dst_ad)
+        if len(self.up_paths) and down_paths:
+            full_paths = PathCombinator.build_shortcut_paths(self.up_paths(),
+                                                             down_paths)
+            if full_paths:
+                return full_paths
             else:
                 # No shortcut path could be built. Select an up and down path
                 # and request a set of core-paths connecting them.
@@ -123,22 +125,26 @@ class SCIONDaemon(SCIONElement):
                 # TODO: Atm an application can't choose the up-/down-path to be
                 #       be used. Discuss with Pawel.
                 src_isd = self.topology.isd_id
-                src_core_ad = self.up_paths[0].ads[0]
-                dst_core_ad = self.down_paths[0].ads[0]
-                core_paths = []
-                if ((src_isd, src_core_ad) != (dst_isd, dst_core_ad)):
-                    if (((src_isd, src_core_ad), (dst_isd, dst_core_ad)) not in
-                        self.core_paths):
-                        self._request_paths(PIT.CORE, dst_isd, dst_core_ad,
-                                            src_ad=src_core_ad)
-                    core_paths = self.core_paths[((src_isd, src_core_ad),
-                                                  (dst_isd, dst_core_ad))]
+                src_core_ad = self.up_paths()[0].get_first_ad().ad_id
+                dst_core_ad = down_paths[0].get_first_ad().ad_id
+                core_paths = self.core_paths(src_isd=src_isd,
+                                             src_ad=src_core_ad,
+                                             dst_isd=dst_isd,
+                                             dst_ad=dst_core_ad)
+                if ((src_isd, src_core_ad) != (dst_isd, dst_core_ad) and
+                    not core_paths):
+                    self._request_paths(PIT.CORE, dst_isd, dst_core_ad,
+                                        src_ad=src_core_ad)
+                    core_paths = self.core_paths(src_isd=src_isd,
+                                                 src_ad=src_core_ad,
+                                                 dst_isd=dst_isd,
+                                                 dst_ad=dst_core_ad)
 
-                paths = PathCombinator.build_core_paths(self.up_paths[0],
-                                                        self.down_paths[0],
-                                                        core_paths)
+                full_paths = PathCombinator.build_core_paths(self.up_paths()[0],
+                                                             down_paths[0],
+                                                             core_paths)
 
-        return paths
+        return full_paths
 
     def handle_path_reply(self, packet):
         """
@@ -146,35 +152,30 @@ class SCIONDaemon(SCIONElement):
         """
         path_reply = PathRecords(packet)
         info = path_reply.info
-        new_down_paths = []
-        new_core_paths = []
         for pcb in path_reply.pcbs:
             isd = pcb.get_isd()
-            ad = pcb.get_last_ad_id()
+            ad = pcb.get_last_ad().ad_id
 
             if ((self.topology.isd_id != isd or self.topology.ad_id != ad)
-                and info.type in [PIT.DOWN, PIT.ALL]
+                and info.type in [PIT.DOWN, PIT.UP_DOWN]
                 and info.dst_isd == isd and info.dst_ad == ad):
-                new_down_paths.append(pcb)
+                self.down_paths.insert(pcb, info.src_isd, info.src_ad,
+                                       info.dst_isd, info.dst_ad)
                 logging.info("DownPath PATH added for (%d,%d)", isd, ad)
             elif ((self.topology.isd_id == isd and self.topology.ad_id == ad)
-                and info.type in [PIT.UP, PIT.ALL]):
-                self.up_paths.append(pcb)
-                logging.info("UP PATH added")
+                and info.type in [PIT.UP, PIT.UP_DOWN]):
+                self.up_paths.insert(pcb, isd, ad,
+                                     pcb.get_isd(), pcb.get_first_ad().ad_id)
+                logging.info("UP PATH to (%d, %d) added.", isd, ad)
             elif info.type == PIT.CORE:
-                new_core_paths.append(pcb)
+                self.core_paths.insert(pcb, info.src_isd, info.src_ad,
+                                       info.dst_isd, info.dst_ad)
             else:
                 logging.warning("Incorrect path in Path Record")
                 print(isd, ad, info.__dict__)
-        update_dict(self.down_paths, (info.dst_isd, info.dst_ad),
-                    new_down_paths, PATHS_NO)
-        update_dict(self.core_paths,
-                    ((info.src_isd, info.src_ad), (info.dst_isd, info.dst_ad)),
-                    new_core_paths,
-                    PATHS_NO)
 
         # Wake up sleeping get_paths().
-        if (isd, ad) in self._waiting_targets[info.type]:
+        if (info.dst_isd, info.dst_ad) in self._waiting_targets[info.type]:
             for event in \
                 self._waiting_targets[info.type][(info.dst_isd, info.dst_ad)]:
                 event.set()
