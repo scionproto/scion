@@ -113,7 +113,6 @@ class SCIONDaemon(SCIONElement):
         # Fetch down-paths if necessary.
         if not down_paths:
             self._request_paths(PIT.UP_DOWN, dst_isd, dst_ad)
-            logging.debug("foo")
             down_paths = self.down_paths(dst_isd=dst_isd, dst_ad=dst_ad)
         if len(self.up_paths) and down_paths:
             full_paths = PathCombinator.build_shortcut_paths(self.up_paths(),
@@ -174,7 +173,6 @@ class SCIONDaemon(SCIONElement):
                                        info.dst_isd, info.dst_ad)
             else:
                 logging.warning("Incorrect path in Path Record")
-                print(isd, ad, info.__dict__)
 
         # Wake up sleeping get_paths().
         if (info.dst_isd, info.dst_ad) in self._waiting_targets[info.type]:

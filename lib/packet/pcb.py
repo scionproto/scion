@@ -363,12 +363,6 @@ class HalfPathBeacon(Marking):
         """
         return self.iof.isd_id
 
-    def get_last_ad_id(self):
-        """
-        Returns the previous AD ID.
-        """
-        return self.ads[-1].pcbm.ad_id
-
     def get_last_ad(self):
         """
         Returns the PCBMarking belonging to the last AD on the path.

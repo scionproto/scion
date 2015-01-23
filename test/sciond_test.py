@@ -15,14 +15,16 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-from endhost.sciond import SCIONDaemon
 from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.scion import PathInfo, PathInfoType, SCIONPacket
+import logging
 import sys
 import threading
 import time
 import unittest
-import logging
+
+from endhost.sciond import SCIONDaemon
+
 
 class TestSCIONDaemon(unittest.TestCase):
     """
@@ -33,42 +35,23 @@ class TestSCIONDaemon(unittest.TestCase):
         """
         Testing function. Creates an instance of SCIONDaemon, then verifies path
         requesting, and finally sends packet through SCION. Sender is
-        192.168.7.107 placed in ISD:11, AD:7, and receiver is 192.168.6.106 in
-        ISD:11, AD:6.
+        192.168.7.107 placed in ISD:1, AD:19, and receiver is 192.168.6.106 in
+        ISD:2, AD:26.
         """
-        addr = IPv4HostAddr("192.168.7.107")
-        conf_file = "../topology/ISD11/topologies/topology7.xml"
-        sd = SCIONDaemon(addr, conf_file)
-        threading.Thread(target=sd.run).start()
+        addr = IPv4HostAddr("127.0.0.1")
+        topo_file = "../topology/ISD1/topologies/topology19.xml"
+        sd = SCIONDaemon.start(addr, topo_file)
 
-        print("Sending UP_PATH request in 5 seconds")
+        print("Sending PATH request for (2, 26) in 5 seconds")
         time.sleep(5)
-        sd.request_paths(PathInfoType.UP, 0, 0)
-        print("Sending DOWN_PATH request in 3 seconds")
-        time.sleep(3)
-        self.assertTrue(sd.up_paths)
-        sd.request_paths(PathInfoType.DOWN, 11, 5)
-        print("Clearing cache and sending BOTH_PATHS request in 3 seconds")
-        time.sleep(3)
-        self.assertTrue(sd.down_paths)
-
-        sd.up_paths = []
-        sd.down_paths = {}
-        sd._waiting_targets = {}
-
-        time.sleep(3)
-
-        print("Requesting path for (11, 6)")
-        paths = sd.get_paths(11, 6)
+        paths = sd.get_paths(2, 26)
         self.assertTrue(paths)
-        path = paths[0]
 
-        dst = IPv4HostAddr("192.168.6.106")
-        spkt = SCIONPacket.from_values(sd.addr, dst, b"payload", path)
-        (next_hop, port) = sd.get_first_hop(spkt)
-        print("Sending packet: %s\nFirst hop: %s:%s" % (spkt, next_hop, port))
-        sd.send(spkt, next_hop, port)
-
+#         dst = IPv4HostAddr("192.168.6.106")
+#         spkt = SCIONPacket.from_values(sd.addr, dst, b"payload", path)
+#         (next_hop, port) = sd.get_first_hop(spkt)
+#         print("Sending packet: %s\nFirst hop: %s:%s" % (spkt, next_hop, port))
+#         sd.send(spkt, next_hop, port)
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
