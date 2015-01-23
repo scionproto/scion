@@ -25,13 +25,15 @@ Module docstring here.
 
 """
 
-from lib.topology_parser import Topology
 from lib.config import Config
-from lib.rot import Rot
 from lib.packet.host_addr import HostAddr
-import socket
-import select
+from lib.rot import Rot
+from lib.topology_parser import Topology
 import logging
+import socket
+
+import select
+
 
 SCION_UDP_PORT = 30040
 SCION_UDP_PS2EH_PORT = 30041
@@ -140,8 +142,8 @@ class SCIONElement(object):
         """
         assert isinstance(rot_file, str)
         # TODO: create new TRC file parser
-        #self.rot = Rot(rot_file)
-        #self.rot.parse()
+        # self.rot = Rot(rot_file)
+        # self.rot.parse()
         pass
 
     def construct_ifid2addr_map(self):
@@ -167,7 +169,7 @@ class SCIONElement(object):
         Returns first hop addr of down-path or end-host addr.
         """
         opaque_field = spkt.hdr.path.get_first_hop_of()
-        if opaque_field is None: #EmptyPath
+        if opaque_field is None:  # EmptyPath
             return (spkt.hdr.dst_addr, SCION_UDP_PORT)
         else:
             if spkt.hdr.is_on_up_path():
@@ -182,7 +184,7 @@ class SCIONElement(object):
         ``dst.__str__()`` should return a string representing an IPv4 address.
 
         :param packet: the packet to be sent to the destination.
-        :type packet: 
+        :type packet:
         :param dst: the destination IPv4 address.
         :type dst: str
         :param dst_port: the destination port number.

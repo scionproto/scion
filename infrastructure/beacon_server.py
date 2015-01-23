@@ -85,13 +85,13 @@ class BeaconServer(SCIONElement):
                 self.reg_queue.append(pcb)
             time.sleep(self.config.propagation_time)
 
-    def process_pcb(self, packet):
+    def process_pcb(self, beacon):
         """
         Receives beacon and appends it to beacon list.
         """
+        assert isinstance(beacon, Beacon)
         logging.info("PCB received")
-        pcb = Beacon(packet).pcb
-        self.beacons.append(pcb)
+        self.beacons.append(beacon.pcb)
         # self.beacons = self.beacons[-BeaconServer.BEACONS_NO:]
 
     def register_paths(self):
@@ -137,7 +137,7 @@ class BeaconServer(SCIONElement):
             # TODO
             logging.warning("IFID_REP received, to implement")
         elif ptype == PT.BEACON:
-            self.process_pcb(packet)
+            self.process_pcb(Beacon(packet))
         else:
             logging.warning("Type not supported")
         # TODO add ROT support etc..
@@ -249,9 +249,10 @@ class CoreBeaconServer(BeaconServer):
         logging.debug("Registering core path with originating PS.")
         self.send(path_rec, next_hop)
 
-    def process_pcb(self, packet):
+    def process_pcb(self, beacon):
+        assert isinstance(beacon, Beacon)
         logging.info("PCB received")
-        pcb = Beacon(packet).pcb
+        pcb = beacon.pcb
         # Before we append the PCB for further processing we need to check that
         # it hasn't been received before.
         for ad in pcb.ads:
