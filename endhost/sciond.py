@@ -22,7 +22,7 @@ from lib.packet.scion import (SCIONPacket, get_type, PathRequest, PathRecords,
     PathInfo, PathInfoType as PIT)
 from lib.packet.scion import PacketType as PT
 from lib.path_db import PathDB
-from lib.topology import ElementType
+from lib.topology_parser import ElementType
 from lib.util import update_dict
 import logging
 import threading

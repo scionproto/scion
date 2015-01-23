@@ -26,7 +26,7 @@ from lib.packet.opaque_field import (OpaqueFieldType as OFT, InfoOpaqueField,
 from lib.packet.pcb import HalfPathBeacon, ADMarking, PCBMarking, PeerMarking
 from lib.packet.scion import (SCIONPacket, get_type, Beacon, PathInfo,
     PathRecords, PacketType as PT, PathInfoType as PIT)
-from lib.topology import ElementType, NeighborType
+from lib.topology_parser import ElementType, NeighborType
 import logging
 import sys
 import threading
@@ -323,6 +323,7 @@ class LocalBeaconServer(BeaconServer):
                 self.register_down_path(new_pcb)
                 logging.info("Paths registered")
             time.sleep(self.config.registration_time)
+
 
 def main():
     """

@@ -1,10 +1,15 @@
 #!/bin/bash
 # execute all scripts to add ip aliases for scion networks
 
-if [ $1 == "topology" ]; then
+
+if [ $1 == "init" ]; then
+    echo "compile crypto library"
+    cd lib/crypto/python-tweetnacl-20140309/
+    sh do
+elif [ $1 == "topology" ]; then
     echo "create topology, configuration and execution  files"
 	cd topology/
-    bash ./topo-gen.sh
+    PYTHONPATH=../ python3 generator.py
 elif [ $1 == "setup" ]; then
     echo "add ip alias for ISDs and ADs"
     sudo bash ./topology/setup.sh

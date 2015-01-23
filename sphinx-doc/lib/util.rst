@@ -1,0 +1,3 @@
+
+.. automodule:: lib.util
+   :members:

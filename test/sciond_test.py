@@ -38,8 +38,9 @@ class TestSCIONDaemon(unittest.TestCase):
         192.168.7.107 placed in ISD:1, AD:19, and receiver is 192.168.6.106 in
         ISD:2, AD:26.
         """
+
         addr = IPv4HostAddr("127.0.0.1")
-        topo_file = "../topology/ISD1/topologies/topology19.xml"
+        topo_file = "../topology/ISD1/topologies/ISD:1-AD:19-V:0.xml"
         sd = SCIONDaemon.start(addr, topo_file)
 
         print("Sending PATH request for (2, 26) in 5 seconds")
