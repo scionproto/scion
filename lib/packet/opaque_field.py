@@ -16,9 +16,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import logging
+
 from bitstring import BitArray
 import bitstring
-import logging
 
 
 class OpaqueFieldType(object):
@@ -34,7 +35,7 @@ class OpaqueFieldType(object):
     INTERTD_PEER = 0xf8
     PEER_XOVR = 0x10
     ROT_OF = 0xff
-    LAST_OF = 0x20 #indicates last hop OF on the half-path (TODO revise)
+    LAST_OF = 0x20  # Indicates last hop OF on the half-path (TODO revise)
 
 
 class OpaqueField(object):
@@ -44,7 +45,7 @@ class OpaqueField(object):
     LEN = 8
 
     def __init__(self):
-        self.info = 0 #TODO verify path.PathType in that context
+        self.info = 0  # TODO verify path.PathType in that context
         self.type = 0
         self.parsed = False
         self.raw = None
@@ -60,16 +61,6 @@ class OpaqueField(object):
         Returns opaque field as 8 byte binary string.
         """
         pass
-
-    #TODO test: one __eq__ breaks router when two SOFs in a path are identical
-    # def __eq__(self, other):
-    #     if type(other) is type(self):
-    #         return True
-    #     else:
-    #         return False
-
-    # def __ne__(self, other):
-    #     return not self == other
 
     def is_regular(self):
         """
@@ -94,6 +85,16 @@ class OpaqueField(object):
 
     def __repr__(self):
         return self.__str__()
+
+    # TODO test: one __eq__ breaks router when two SOFs in a path are identical
+    def __eq__(self, other):
+        if type(other) is type(self):
+            return self.raw == other.raw
+        else:
+            return False
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
 
 class HopOpaqueField(OpaqueField):
@@ -148,13 +149,13 @@ class HopOpaqueField(OpaqueField):
         return bitstring.pack("uintbe:8, uintbe:16, uintbe:16, uintbe:24",
             self.info, self.ingress_if, self.egress_if, self.mac).bytes
 
-    # def __eq__(self, other):
-    #     if type(other) is type(self):
-    #         return (self.ingress_if == other.ingress_if and
-    #                 self.egress_if == other.egress_if and
-    #                 self.mac == other.mac)
-    #     else:
-    #         return False
+    def __eq__(self, other):
+        if type(other) is type(self):
+            return (self.ingress_if == other.ingress_if and
+                    self.egress_if == other.egress_if and
+                    self.mac == other.mac)
+        else:
+            return False
 
     def __str__(self):
         hof_str = ("[Hop OF info: %u, ingress if: %u, egress if: %u, mac: %x]"
@@ -228,6 +229,15 @@ class InfoOpaqueField(OpaqueField):
             (self.info, self.timestamp, self.isd_id, self.hops))
         return iof_str
 
+    def __eq__(self, other):
+        if type(other) is type(self):
+            return (self.info == other.info and
+                    self.timestamp == other.timestamp and
+                    self.isd_id == other.isd_id and
+                    self.hops == other.hops)
+        else:
+            return False
+
 
 class ROTField(OpaqueField):
     """
@@ -287,6 +297,14 @@ class ROTField(OpaqueField):
             (self.info, self.rot_version, self.if_id))
         return rotf_str
 
+    def __eq__(self, other):
+        if type(other) is type(self):
+            return (self.info == other.info and
+                    self.rot_version == other.rot_version and
+                    self.if_id == other.if_id)
+        else:
+            return False
+
 
 class SupportSignatureField(OpaqueField):
     """
@@ -339,12 +357,20 @@ class SupportSignatureField(OpaqueField):
         Returns SupportSignatureField as 8 byte binary string.
         """
         return bitstring.pack("uintbe:32, uintbe:16, uintbe:16", self.cert_id,
-            self.sig_len, self.block_size).bytes
+                              self.sig_len, self.block_size).bytes
 
     def __str__(self):
         ssf_str = ("[Support Signature OF cert_id: %x, sig_len: %u, " +
             "block_size: %u]\n") % (self.cert_id, self.sig_len, self.block_size)
         return ssf_str
+
+    def __eq__(self, other):
+        if type(other) is type(self):
+            return (self.cert_id == other.cert_id and
+                    self.sig_len == other.sig_len and
+                    self.block_size == other.block_size)
+        else:
+            return False
 
 
 class SupportPeerField(OpaqueField):
@@ -377,12 +403,14 @@ class SupportPeerField(OpaqueField):
             return
         bits = BitArray(bytes=raw)
         (self.isd_id, self.bwalloc_f, self.bwalloc_r, self.bw_class,
-            self.reserved) = bits.unpack("uintbe:16, uintbe:8, uintbe:8, " +
-            "uint:1, uint:31")
+            self.reserved) = bits.unpack("uintbe:16, uintbe:8, uintbe:8, "
+                                         "uint:1, uint:31")
         self.parsed = True
 
     @classmethod
-    def from_values(cls, isd_id=0, bwalloc_f=0, bwalloc_r=0, bw_class=0, reserved=0):
+    def from_values(cls, isd_id=0,
+                    bwalloc_f=0, bwalloc_r=0,
+                    bw_class=0, reserved=0):
         """
         Returns SupportPeerField with fields populated from values.
 
@@ -413,6 +441,15 @@ class SupportPeerField(OpaqueField):
             "bwalloc_r: %u, bw_class: %u]\n") % (self.isd_id, self.bwalloc_f,
             self.bwalloc_r, self.bw_class)
         return spf_str
+
+    def __eq__(self, other):
+        if type(other) is type(self):
+            return (self.isd_id == other.isd_id and
+                    self.bwalloc_f == other.bwalloc_f and
+                    self.bwalloc_r == other.bwalloc_r and
+                    self.bw_class == other.bw_class)
+        else:
+            return False
 
 
 class SupportPCBField(OpaqueField):
@@ -450,8 +487,8 @@ class SupportPCBField(OpaqueField):
         bits = BitArray(bytes=raw)
         (self.isd_id, self.bwalloc_f, self.bwalloc_r, self.dyn_bwalloc_f,
             self.dyn_bwalloc_r, self.bebw_f, self.bebw_r) = \
-            bits.unpack("uintbe:16, uintbe:8, uintbe:8, uintbe:8, uintbe:8," +
-                "uintbe:8, uintbe:8")
+            bits.unpack("uintbe:16, uintbe:8, uintbe:8, uintbe:8, uintbe:8, "
+                        "uintbe:8, uintbe:8")
         self.parsed = True
 
     @classmethod
@@ -482,22 +519,24 @@ class SupportPCBField(OpaqueField):
         """
         Returns SupportPCBField as 8 byte binary string.
         """
-        return bitstring.pack("uintbe:16, uintbe:8, uintbe:8, uintbe:8," +
+        return bitstring.pack("uintbe:16, uintbe:8, uintbe:8, uintbe:8, "
             "uintbe:8, uintbe:8, uintbe:8", self.isd_id, self.bwalloc_f,
             self.bwalloc_r, self.dyn_bwalloc_f, self.dyn_bwalloc_r, self.bebw_f,
             self.bebw_r).bytes
-
-    # def __eq__(self, other):
-    #     if type(other) is type(self):
-    #         return (self.info == other.info and
-    #                 self.timestamp == other.timestamp and
-    #                 self.isd_id == other.isd_id and
-    #                 self.hops == other.hops and
-    #                 self.reserved == other.reserved)
-    #     else:
-    #         return False
 
     def __str__(self):
         spcbf_str = ("[Info OF TD ID: %x, bwalloc_f: %u, bwalloc_r: %u]\n" %
             (self.isd_id, self.bwalloc_f, self.bwalloc_r))
         return spcbf_str
+
+    def __eq__(self, other):
+        if type(other) is type(self):
+            return (self.isd_id == other.isd_id and
+                    self.bwalloc_f == other.bwalloc_f and
+                    self.bwalloc_r == other.bwalloc_r and
+                    self.dyn_bwalloc_f == other.dyn_bwalloc_f and
+                    self.dyn_bwalloc_r == other.dyn_bwalloc_f and
+                    self.bebw_f == other.bebw_f and
+                    self.bebw_r == other.bebw_r)
+        else:
+            return False

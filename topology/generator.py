@@ -1,11 +1,12 @@
+import os
+import shutil
+import socket
+import struct
+import subprocess
+import sys
+
 from lib.crypto.certificates import *
 from lib.crypto.trcs import TRC
-import os
-import sys
-import shutil
-import subprocess
-import struct
-import socket
 
 
 ADTOISD_FILE = 'ADToISD'
@@ -99,14 +100,14 @@ def write_beginning_topo_files(ADToISD_tuples, ip_address):
         conf_file = conf_path + file_name + '.conf'
         topo_file = topo_path + file_name + '.xml'
         rot_file = rot_path + 'ISD:' + isd_id + '-V:0.xml'
-        is_core = '0'
+        is_core = False
         if relationship == CORE_AD:
-            is_core = '1'
+            is_core = True
         with open(topo_file, 'w') as topo_fh, open(RUN_FILE, 'a') as run_fh:
             topo_fh.write('\n'.join([
                 '<?xml version=\"1.0\" ?>',
                 '<Topology>',
-                '\t<Core>' + is_core + '</Core>',
+                '\t<Core>' + ('1' if is_core else '0') + '</Core>',
                 '\t<ISDID>' + isd_id + '</ISDID>',
                 '\t<ADID>' + ad_id + '</ADID>',
                 '\t<Servers>',
@@ -116,7 +117,8 @@ def write_beginning_topo_files(ADToISD_tuples, ip_address):
                 '\t\t</BeaconServer>\n']))
             run_fh.write(''.join([
                 'screen -d -m -S bs' + ad_id + ' sh -c \"',
-                'PYTHONPATH=../ python3 beacon_server.py ' + ip_address + ' ',
+                'PYTHONPATH=../ python3 beacon_server.py ' + ('core ' if is_core
+                else 'local ') + ip_address + ' ',
                 '..' + SCRIPTS_DIR + topo_file + ' ',
                 '..' + SCRIPTS_DIR + conf_file + '\"\n']))
             ip_address = increment_address(ip_address)
@@ -140,7 +142,8 @@ def write_beginning_topo_files(ADToISD_tuples, ip_address):
                     '\t\t</PathServer>\n']))
                 run_fh.write(''.join([
                     'screen -d -m -S ps' + ad_id + ' sh -c \"',
-                    'PYTHONPATH=../ python3 path_server.py ' + ip_address + ' ',
+                    'PYTHONPATH=../ python3 path_server.py ' + ('core '
+                    if is_core else 'local ') + ip_address + ' ',
                     '..' + SCRIPTS_DIR + topo_file + ' ',
                     '..' + SCRIPTS_DIR + conf_file + '\"\n']))
                 ip_address = increment_address(ip_address)
@@ -253,10 +256,10 @@ def write_trc_files(CoreADs_tuples):
         trc_path = 'ISD' + isd_id + '/'
         file_name = 'ISD:' + isd_id + '-V:' + '0'
         trc_file = trc_path + file_name + '.crt'
-        #sig_key_file = sig_keys_path + file_name + '.key'
-        #enc_key_file = enc_keys_path + file_name + '.key'
-        #(sig_priv, sig_pub, enc_priv, enc_pub) = generate_keys()
-        #TODO: replace static values with real ones
+        # sig_key_file = sig_keys_path + file_name + '.key'
+        # enc_key_file = enc_keys_path + file_name + '.key'
+        # (sig_priv, sig_pub, enc_priv, enc_pub) = generate_keys()
+        # TODO: replace static values with real ones
         core_isps = {'isp1.com' : 'xyzxyzxyz', 'isp2.com' : 'xyzxyzxyz',
             'isp3.com' : 'xyzxyzxyz'}
         registry_key = 'xyzxyzxyz'
@@ -291,7 +294,7 @@ def main():
     ip_address = "127.0.0.1"
     tmp_ip_address = ip_address
     port = 50000
-    
+
     ads = {}
     ADToISD_tuples = []
     ADRelationships_tuples = []
@@ -311,7 +314,7 @@ def main():
     for ad_id, isd_id, relationship in ADToISD_tuples:
         ads[ad_id] = (ip_address, isd_id)
         ip_address = increment_address(ip_address)
-    
+
     delete_directories()
 
     create_directories(ADToISD_tuples)

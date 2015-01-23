@@ -24,10 +24,11 @@ Module docstring here.
 
 """
 
-import logging
-import xml.etree.ElementTree as ET
-from lib.packet.host_addr import IPv4HostAddr, IPv6HostAddr, SCIONHostAddr
 from collections import defaultdict
+from lib.packet.host_addr import IPv4HostAddr, IPv6HostAddr, SCIONHostAddr
+import logging
+
+import xml.etree.ElementTree as ET
 
 
 class ElementType(object):
@@ -125,7 +126,7 @@ class InterfaceElement(Element):
     :vartype to_udp_port: int
 
     """
-    def __init__(self, addr=None, if_id=0, neighbor=0,
+    def __init__(self, addr=None, if_id=0, neighbor_isd=0, neighbor_ad=0,
                  neighbor_type=0, to_addr=None, udp_port=0, to_udp_port=0):
         """
         Constructor.
@@ -137,7 +138,9 @@ class InterfaceElement(Element):
         :type addr: :class:`HostAddr`
         :param if_id: the interface ID.
         :type if_id: int
-        :param neighbor: the AD or TD identifier of the neighbor AD.
+        :param neighbor_isd: the ISD identifier of the neighbor AD.
+        :type neighbor: int
+        :param neighbor_ad: the AD identifier of the neighbor AD.
         :type neighbor: int
         :param neighbor_type: the type of the neighbor relative to the AD to
            which the interface belongs.
@@ -156,7 +159,8 @@ class InterfaceElement(Element):
         """
         Element.__init__(self, addr)
         self.if_id = if_id
-        self.neighbor = neighbor
+        self.neighbor_isd = neighbor_isd
+        self.neighbor_ad = neighbor_ad
         self.neighbor_type = neighbor_type
         self.to_addr = to_addr
         self.udp_port = udp_port
@@ -353,11 +357,11 @@ class Topology(object):
         if et_element.find("AddrType") is not None:
             self._parse_address(et_element, if_el)
         if_el.if_id = int(et_element.find("IFID").text)
-        neighbor = et_element.find("NeighborAD")
-        if neighbor is None:
-            neighbor = et_element.find("NeighborISD")
-        assert neighbor is not None
-        if_el.neighbor = int(neighbor.text)
+        if et_element.find("NeighborISD"):
+            if_el.neighbor_isd = int(et_element.find("NeighborISD").text)
+        else:
+            if_el.neighbor_isd = self.isd_id
+        if_el.neighbor_ad = int(et_element.find("NeighborAD").text)
         neighbor_type = et_element.find("NeighborType").text
         if neighbor_type == "PARENT":
             if_el.neighbor_type = NeighborType.PARENT

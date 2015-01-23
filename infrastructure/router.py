@@ -24,18 +24,18 @@ Module docstring here.
 
 """
 
+from infrastructure.scion_elem import SCIONElement, SCION_UDP_PORT
 from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.opaque_field import OpaqueField
 from lib.packet.opaque_field import OpaqueFieldType as OFT
-from lib.packet.scion import SCIONPacket, IFIDRequest, IFIDReply, get_type
 from lib.packet.scion import PacketType as PT, Beacon
+from lib.packet.scion import SCIONPacket, IFIDRequest, IFIDReply, get_type
 from lib.topology_parser import ElementType as ET
-from infrastructure.scion_elem import SCIONElement, SCION_UDP_PORT
 import logging
-import threading
-import time
 import socket
 import sys
+import threading
+import time
 
 
 class NextHop(object):
@@ -209,7 +209,7 @@ class Router(SCIONElement):
         """
         logging.info('IFID_REP received, len %u', len(packet))
         ifid_rep = IFIDReply(packet)
-        #TODO multiple BSs scenario
+        # TODO multiple BSs scenario
         next_hop.addr = self.topology.servers[ET.BEACON_SERVER].addr
         ifid_rep.hdr.dst = next_hop.addr
         self.send(ifid_rep, next_hop)
@@ -249,19 +249,19 @@ class Router(SCIONElement):
             logging.warning("Interface not initialized.")
             return
         if from_bs:
-            if self.interface.if_id != beacon.pcb.rotf.if_id: 
+            if self.interface.if_id != beacon.pcb.rotf.if_id:
                 logging.error("Wrong interface set by BS.")
                 return
             next_hop.addr = self.interface.to_addr
             next_hop.port = self.interface.to_udp_port
             self.send(beacon, next_hop, False)
         else:
-            #TODO Multiple BS scenario
+            # TODO Multiple BS scenario
             beacon.pcb.rotf.if_id = self.interface.if_id
             next_hop.addr = self.topology.servers[ET.BEACON_SERVER].addr
             self.send(beacon, next_hop)
 
-    #TODO
+    # TODO
     def verify_of(self, spkt):
         """
         Verifies authentication of current opaque field.
@@ -304,10 +304,10 @@ class Router(SCIONElement):
                 logging.error("1 interface mismatch %u != %u", iface,
                         self.interface.if_id)
         else:
-            #TODO redesing Certificate Servers
+            # TODO redesing Certificate Servers
             if ptype in [PT.CERT_REQ, PT.ROT_REQ, PT.CERT_REP, PT.ROT_REP]:
-                next_hop.addr = (
-                        self.topology.servers[ET.CERTIFICATE_SERVER].addr)
+                next_hop.addr = \
+                    self.topology.servers[ET.CERTIFICATE_SERVER].addr
             elif iface:
                 next_hop.addr = self.ifid2addr[iface]
             elif ptype in [PT.PATH_REQ, PT.PATH_REC]:
@@ -341,7 +341,7 @@ class Router(SCIONElement):
             else:
                 logging.error("Mac verification failed.")
         elif info == OFT.NON_TDC_XOVR:
-            spkt.hdr.increase_of(2)#TODO PSz:verify if 2 is always correct value
+            spkt.hdr.increase_of(2)  # TODO PSz:verify if 2 is always correct value
             opaque_field = spkt.hdr.get_relative_of(2)
             next_hop.addr = self.ifid2addr[opaque_field.egress_if]
             logging.debug("send() here, find next hop1")
@@ -366,7 +366,7 @@ class Router(SCIONElement):
                 logging.debug("send() here, next: %s", next_hop)
                 self.send(spkt, next_hop)
         elif info == OFT.INTERTD_PEER:
-            #TODO implement INTERTD_PEER
+            # TODO implement INTERTD_PEER
             pass
         else:
             logging.warning("Unknown case %u", info)
@@ -386,23 +386,20 @@ class Router(SCIONElement):
         """
         while not spkt.hdr.get_current_of().is_regular():
             spkt.hdr.common_hdr.timestamp = spkt.hdr.common_hdr.current_of
-            if (spkt.hdr.get_current_of() != spkt.hdr.path.get_of(0)):
+            if spkt.hdr.get_current_of() != spkt.hdr.path.get_of(0):
                 spkt.hdr.set_downpath()
-            logging.debug("increase 0")
             spkt.hdr.increase_of(1)
 
         while spkt.hdr.get_current_of().is_continue():
-            logging.debug("increase 1")
             spkt.hdr.increase_of(1)
 
         ts_info = spkt.hdr.get_timestamp().info
         timestamp = spkt.hdr.common_hdr.timestamp
-        #Case: peer path and first opaque field of a down path. We need to
-        #increase opaque field pointer as that first opaque field is used for
-        #MAC verification only.
+        # Case: peer path and first opaque field of a down path. We need to
+        # increase opaque field pointer as that first opaque field is used for
+        # MAC verification only.
         if (not spkt.hdr.is_on_up_path() and ts_info == OFT.INTRATD_PEER and
             spkt.hdr.common_hdr.current_of == timestamp + OpaqueField.LEN):
-            logging.debug("increase 2")
             spkt.hdr.increase_of(1)
 
         if spkt.hdr.get_current_of().is_xovr():
@@ -435,7 +432,7 @@ class Router(SCIONElement):
                 (of2_info == OFT.LAST_OF and not spkt.hdr.is_on_up_path())):
                 spkt.hdr.increase_of(1)
 
-        if self.interface.if_id != iface:#TODO debug
+        if self.interface.if_id != iface:  # TODO debug
             logging.error("0 interface mismatch %u != %u", iface,
                     self.interface.if_id)
             return
@@ -502,7 +499,7 @@ class Router(SCIONElement):
         else:
             if ptype == PT.DATA:
                 logging.debug("DATA type %u, %s, %s", ptype,
-                        spkt.hdr.common_hdr, spkt)
+                              spkt.hdr.common_hdr, spkt)
             self.process_packet(spkt, next_hop, from_local_ad, ptype)
 
 
