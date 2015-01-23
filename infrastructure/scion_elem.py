@@ -139,8 +139,10 @@ class SCIONElement(object):
         Instantiates a ROTParser and parses the rot given by 'rot_file'.
         """
         assert isinstance(rot_file, str)
-        self.rot = Rot(rot_file)
-        self.rot.parse()
+        # TODO: create new TRC file parser
+        #self.rot = Rot(rot_file)
+        #self.rot.parse()
+        pass
 
     def construct_ifid2addr_map(self):
         """
