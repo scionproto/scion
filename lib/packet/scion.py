@@ -385,7 +385,16 @@ class SCIONHeader(HeaderBase):
         """
         return not self.common_hdr.type & 0x1
 
-    def reverse_direction(self):
+    def is_curr_of_last(self):
+        """
+        Returs 'True' if the current opaque field is the last opaque field,
+        'False' otherwise.
+        """
+        offset = (SCIONCommonHdr.LEN + self.common_hdr.src_addr_len +
+                  self.common_hdr.dst_addr_len)
+        return self.common_hdr.current_of + offset == self.common_hdr.hdr_len
+
+    def reverse_direction(self): #TO REMOVE?
         """
         Sets down-path flag if up-path flag is active and vice versa.
         """

@@ -312,7 +312,16 @@ class Router(SCIONElement):
                 next_hop.addr = self.ifid2addr[iface]
             elif ptype in [PT.PATH_REQ, PT.PATH_REC]:
                 next_hop.addr = self.topology.servers[ET.PATH_SERVER].addr
-            else:
+            elif not spkt.hdr.is_curr_of_last(): # next path segment
+                spkt.hdr.increase_of(1) # this is next SOF
+                spkt.hdr.common_hdr.timestamp = spkt.hdr.common_hdr.current_of
+                spkt.hdr.increase_of(1) # first HOF of the new path segment
+                if spkt.hdr.is_on_up_path():
+                    iface = spkt.hdr.get_current_of().ingress_if
+                else:
+                    iface = spkt.hdr.get_current_of().egress_if
+                next_hop.addr = self.ifid2addr[iface]
+            else: # last opaque field on the path, send the packet to the dst
                 next_hop.addr = spkt.hdr.dst_addr
             self.send(spkt, next_hop)
         logging.debug("normal_forward()")
@@ -341,7 +350,7 @@ class Router(SCIONElement):
             else:
                 logging.error("Mac verification failed.")
         elif info == OFT.NON_TDC_XOVR:
-            spkt.hdr.increase_of(2)  # TODO PSz:verify if 2 is always correct value
+            spkt.hdr.increase_of(2)  # TODO verify if 2 is always correct value
             opaque_field = spkt.hdr.get_relative_of(2)
             next_hop.addr = self.ifid2addr[opaque_field.egress_if]
             logging.debug("send() here, find next hop1")
@@ -386,7 +395,7 @@ class Router(SCIONElement):
         """
         while not spkt.hdr.get_current_of().is_regular():
             spkt.hdr.common_hdr.timestamp = spkt.hdr.common_hdr.current_of
-            if spkt.hdr.get_current_of() != spkt.hdr.path.get_of(0):
+            if spkt.hdr.get_current_of() != spkt.hdr.path.get_of(0): #PSz verify
                 spkt.hdr.set_downpath()
             spkt.hdr.increase_of(1)
 

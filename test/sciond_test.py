@@ -44,15 +44,18 @@ class TestSCIONDaemon(unittest.TestCase):
         sd = SCIONDaemon.start(addr, topo_file)
 
         print("Sending PATH request for (2, 26) in 5 seconds")
-        time.sleep(5)
+        # time.sleep(5)
         paths = sd.get_paths(2, 26)
         self.assertTrue(paths)
 
-#         dst = IPv4HostAddr("192.168.6.106")
-#         spkt = SCIONPacket.from_values(sd.addr, dst, b"payload", path)
-#         (next_hop, port) = sd.get_first_hop(spkt)
-#         print("Sending packet: %s\nFirst hop: %s:%s" % (spkt, next_hop, port))
-#         sd.send(spkt, next_hop, port)
+        dst = IPv4HostAddr("192.168.6.106")
+        spkt = SCIONPacket.from_values(sd.addr, dst, b"payload", paths[0])
+        (next_hop, port) = sd.get_first_hop(spkt)
+        print("Sending packet: %s\nFirst hop: %s:%s" % (spkt, next_hop, port))
+        while True:
+            sd.send(spkt, next_hop, port)
+            print('.')
+            time.sleep(2)
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
