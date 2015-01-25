@@ -21,6 +21,12 @@ import logging
 from bitstring import BitArray
 import bitstring
 
+def is_flag_set(v, flag):
+    """
+    Return true if value v has set binary flag.
+    """
+    return v & flag == flag
+
 
 class OpaqueFieldType(object):
     """
