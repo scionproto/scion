@@ -25,7 +25,7 @@ from lib.packet.pcb import (PathSegment, PathSegmentRequest, PathSegmentRecords,
     PathSegmentInfo, PathSegmentType as PST)
 from lib.packet.scion import PacketType as PT
 from lib.packet.scion import SCIONPacket, get_type
-from lib.path_db import PathDB
+from lib.path_db import PathSegmentDB
 from lib.topology_parser import NeighborType
 from lib.util import update_dict
 import logging
@@ -42,8 +42,8 @@ class PathServer(SCIONElement):
     def __init__(self, addr, topo_file, config_file):
         SCIONElement.__init__(self, addr, topo_file, config_file)
         # TODO replace by pathstore instance
-        self.down_segments = PathDB()
-        self.core_segments = PathDB()
+        self.down_segments = PathSegmentDB()
+        self.core_segments = PathSegmentDB()
 
         self.pending_down = {}  # Dict of pending DOWN _and_ UP_DOWN requests.
         self.pending_core = {}
@@ -335,7 +335,7 @@ class LocalPathServer(PathServer):
         # Sanity check that we should indeed be a local path server.
         assert not self.topology.is_core_ad, "This shouldn't be a local PS!"
 
-        self.up_segments = PathDB()  # Database of up-segments to the core.
+        self.up_segments = PathSegmentDB()  # Database of up-segments to the core.
         self.pending_up = []  # List of pending UP requests.
 
     def _handle_up_segment_record(self, records):

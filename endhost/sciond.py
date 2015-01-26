@@ -22,7 +22,7 @@ from lib.packet.pcb import (PathSegmentInfo, PathSegmentRecords,
     PathSegmentType as PST, PathSegmentRequest)
 from lib.packet.scion import PacketType as PT
 from lib.packet.scion import SCIONPacket, get_type
-from lib.path_db import PathDB
+from lib.path_db import PathSegmentDB
 from lib.topology_parser import ElementType
 from lib.util import update_dict
 import logging
@@ -43,9 +43,9 @@ class SCIONDaemon(SCIONElement):
     def __init__(self, addr, topo_file):
         SCIONElement.__init__(self, addr, topo_file)
         # TODO replace by pathstore instance
-        self.up_segments = PathDB()
-        self.down_segments = PathDB()
-        self.core_segments = PathDB()
+        self.up_segments = PathSegmentDB()
+        self.down_segments = PathSegmentDB()
+        self.core_segments = PathSegmentDB()
         self._waiting_targets = {PST.UP: {},
                                  PST.DOWN: {},
                                  PST.CORE: {},
@@ -97,7 +97,7 @@ class SCIONDaemon(SCIONElement):
                  self.down_segments(dst_isd=dst_isd, dst_ad=dst_ad)) or
                 (ptype == PST.CORE and
                  self.core_segments(src_isd=src_isd, src_ad=src_ad,
-                                 dst_isd=dst_isd, dst_ad=dst_ad)) or
+                                    dst_isd=dst_isd, dst_ad=dst_ad)) or
                 (ptype == PST.UP_DOWN and (len(self.up_segments) and
                  self.down_segments(dst_isd=dst_isd, dst_ad=dst_ad)))):
                 self._waiting_targets[ptype][(dst_isd, dst_ad)].remove(event)
@@ -131,9 +131,9 @@ class SCIONDaemon(SCIONElement):
                 src_core_ad = self.up_segments()[0].get_first_ad().ad_id
                 dst_core_ad = down_segments[0].get_first_ad().ad_id
                 core_segments = self.core_segments(src_isd=src_isd,
-                                                src_ad=src_core_ad,
-                                                dst_isd=dst_isd,
-                                                dst_ad=dst_core_ad)
+                                                   src_ad=src_core_ad,
+                                                   dst_isd=dst_isd,
+                                                   dst_ad=dst_core_ad)
                 if ((src_isd, src_core_ad) != (dst_isd, dst_core_ad) and
                     not core_segments):
                     self._request_paths(PST.CORE, dst_isd, dst_core_ad,
