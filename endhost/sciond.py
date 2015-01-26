@@ -43,9 +43,9 @@ class SCIONDaemon(SCIONElement):
     def __init__(self, addr, topo_file):
         SCIONElement.__init__(self, addr, topo_file)
         # TODO replace by pathstore instance
-        self.up_paths = PathDB()
-        self.down_paths = PathDB()
-        self.core_paths = PathDB()
+        self.up_segments = PathDB()
+        self.down_segments = PathDB()
+        self.core_segments = PathDB()
         self._waiting_targets = {PST.UP: {},
                                  PST.DOWN: {},
                                  PST.CORE: {},
@@ -92,14 +92,14 @@ class SCIONDaemon(SCIONElement):
         while cycle_cnt < WAIT_CYCLES:
             event.wait(SCIONDaemon.TIMEOUT)
             # Check that we got all the requested paths.
-            if ((ptype == PST.UP and len(self.up_paths)) or
+            if ((ptype == PST.UP and len(self.up_segments)) or
                 (ptype == PST.DOWN and
-                 self.down_paths(dst_isd=dst_isd, dst_ad=dst_ad)) or
+                 self.down_segments(dst_isd=dst_isd, dst_ad=dst_ad)) or
                 (ptype == PST.CORE and
-                 self.core_paths(src_isd=src_isd, src_ad=src_ad,
+                 self.core_segments(src_isd=src_isd, src_ad=src_ad,
                                  dst_isd=dst_isd, dst_ad=dst_ad)) or
-                (ptype == PST.UP_DOWN and (len(self.up_paths) and
-                 self.down_paths(dst_isd=dst_isd, dst_ad=dst_ad)))):
+                (ptype == PST.UP_DOWN and (len(self.up_segments) and
+                 self.down_segments(dst_isd=dst_isd, dst_ad=dst_ad)))):
                 self._waiting_targets[ptype][(dst_isd, dst_ad)].remove(event)
                 del self._waiting_targets[ptype][(dst_isd, dst_ad)]
                 break
@@ -111,14 +111,14 @@ class SCIONDaemon(SCIONElement):
         Returns a list of paths.
         """
         full_paths = []
-        down_paths = self.down_paths(dst_isd=dst_isd, dst_ad=dst_ad)
+        down_segments = self.down_segments(dst_isd=dst_isd, dst_ad=dst_ad)
         # Fetch down-paths if necessary.
-        if not down_paths:
+        if not down_segments:
             self._request_paths(PST.UP_DOWN, dst_isd, dst_ad)
-            down_paths = self.down_paths(dst_isd=dst_isd, dst_ad=dst_ad)
-        if len(self.up_paths) and down_paths:
-            full_paths = PathCombinator.build_shortcut_paths(self.up_paths(),
-                                                             down_paths)
+            down_segments = self.down_segments(dst_isd=dst_isd, dst_ad=dst_ad)
+        if len(self.up_segments) and down_segments:
+            full_paths = PathCombinator.build_shortcut_paths(self.up_segments(),
+                                                             down_segments)
             if full_paths:
                 return full_paths
             else:
@@ -128,24 +128,25 @@ class SCIONDaemon(SCIONElement):
                 # TODO: Atm an application can't choose the up-/down-path to be
                 #       be used. Discuss with Pawel.
                 src_isd = self.topology.isd_id
-                src_core_ad = self.up_paths()[0].get_first_ad().ad_id
-                dst_core_ad = down_paths[0].get_first_ad().ad_id
-                core_paths = self.core_paths(src_isd=src_isd,
-                                             src_ad=src_core_ad,
-                                             dst_isd=dst_isd,
-                                             dst_ad=dst_core_ad)
+                src_core_ad = self.up_segments()[0].get_first_ad().ad_id
+                dst_core_ad = down_segments[0].get_first_ad().ad_id
+                core_segments = self.core_segments(src_isd=src_isd,
+                                                src_ad=src_core_ad,
+                                                dst_isd=dst_isd,
+                                                dst_ad=dst_core_ad)
                 if ((src_isd, src_core_ad) != (dst_isd, dst_core_ad) and
-                    not core_paths):
+                    not core_segments):
                     self._request_paths(PST.CORE, dst_isd, dst_core_ad,
                                         src_ad=src_core_ad)
-                    core_paths = self.core_paths(src_isd=src_isd,
-                                                 src_ad=src_core_ad,
-                                                 dst_isd=dst_isd,
-                                                 dst_ad=dst_core_ad)
+                    core_segments = self.core_segments(src_isd=src_isd,
+                                                       src_ad=src_core_ad,
+                                                       dst_isd=dst_isd,
+                                                       dst_ad=dst_core_ad)
 
-                full_paths = PathCombinator.build_core_paths(self.up_paths()[0],
-                                                             down_paths[0],
-                                                             core_paths)
+                full_paths = PathCombinator.build_core_paths(
+                    self.up_segments()[0],
+                    down_segments[0],
+                    core_segments)
 
         return full_paths
 
@@ -162,17 +163,17 @@ class SCIONDaemon(SCIONElement):
             if ((self.topology.isd_id != isd or self.topology.ad_id != ad)
                 and info.type in [PST.DOWN, PST.UP_DOWN]
                 and info.dst_isd == isd and info.dst_ad == ad):
-                self.down_paths.insert(pcb, info.src_isd, info.src_ad,
-                                       info.dst_isd, info.dst_ad)
+                self.down_segments.insert(pcb, info.src_isd, info.src_ad,
+                                          info.dst_isd, info.dst_ad)
                 logging.info("DownPath PATH added for (%d,%d)", isd, ad)
             elif ((self.topology.isd_id == isd and self.topology.ad_id == ad)
                 and info.type in [PST.UP, PST.UP_DOWN]):
-                self.up_paths.insert(pcb, isd, ad,
-                                     pcb.get_isd(), pcb.get_first_ad().ad_id)
+                self.up_segments.insert(pcb, isd, ad,
+                                        pcb.get_isd(), pcb.get_first_ad().ad_id)
                 logging.info("UP PATH to (%d, %d) added.", isd, ad)
             elif info.type == PST.CORE:
-                self.core_paths.insert(pcb, info.src_isd, info.src_ad,
-                                       info.dst_isd, info.dst_ad)
+                self.core_segments.insert(pcb, info.src_isd, info.src_ad,
+                                          info.dst_isd, info.dst_ad)
             else:
                 logging.warning("Incorrect path in Path Record")
 

@@ -70,7 +70,8 @@ class BeaconServer(SCIONElement):
             new_pcb.rotf.if_id = egress_if
             ad_marking = self._create_ad_marking(ingress_if, egress_if)
             new_pcb.add_ad(ad_marking)
-            beacon = PathConstructionBeacon.from_values(router_child.addr, new_pcb)
+            beacon = PathConstructionBeacon.from_values(router_child.addr,
+                                                        new_pcb)
             self.send(beacon, router_child.addr)
             # logging.info("PCB propagated: %s", new_pcb)
             logging.info("Downstream PCB propagated!")
@@ -95,7 +96,7 @@ class BeaconServer(SCIONElement):
         self.beacons.append(beacon.pcb)
         # self.beacons = self.beacons[-BeaconServer.BEACONS_NO:]
 
-    def register_paths(self):
+    def register_segments(self):
         """
         Registers paths according to the received beacons.
         """
@@ -145,7 +146,7 @@ class BeaconServer(SCIONElement):
 
     def run(self):
         threading.Thread(target=self.handle_pcbs_propagation).start()
-        threading.Thread(target=self.register_paths).start()
+        threading.Thread(target=self.register_segments).start()
         SCIONElement.run(self)
 
 
@@ -173,7 +174,8 @@ class CoreBeaconServer(BeaconServer):
             new_pcb.rotf.if_id = egress_if
             ad_marking = self._create_ad_marking(ingress_if, egress_if)
             new_pcb.add_ad(ad_marking)
-            beacon = PathConstructionBeacon.from_values(core_router.addr, new_pcb)
+            beacon = PathConstructionBeacon.from_values(core_router.addr,
+                                                        new_pcb)
             self.send(beacon, core_router.addr)
             # self.propagated_beacons.append(new_pcb)
             logging.info("Core PCB propagated!")
@@ -209,9 +211,10 @@ class CoreBeaconServer(BeaconServer):
                 self.reg_queue.append(pcb)
             time.sleep(self.config.propagation_time)
 
-    def register_paths(self):
+    def register_segments(self):
         if not self.config.registers_paths:
-            logging.info("Path registration unwanted, leaving register_paths")
+            logging.info("Path registration unwanted, leaving"
+                         "register_segments")
             return
 
         while True:
@@ -220,20 +223,20 @@ class CoreBeaconServer(BeaconServer):
                 new_pcb = copy.deepcopy(pcb)
                 ad_marking = self._create_ad_marking(new_pcb.rotf.if_id, 0)
                 new_pcb.add_ad(ad_marking)
-                self.register_core_path(new_pcb)
+                self.register_core_segment(new_pcb)
                 logging.info("Paths registered")
             time.sleep(self.config.registration_time)
 
-    def register_core_path(self, pcb):
+    def register_core_segment(self, pcb):
         """
-        Registers the core path contained in 'pcb' with the local core path
+        Registers the core segment contained in 'pcb' with the local core path
         server and the originating core path server.
         """
         info = PathSegmentInfo.from_values(PST.CORE,
-                                    pcb.get_first_ad().spcbf.isd_id,
-                                    self.topology.isd_id,
-                                    pcb.get_first_ad().ad_id,
-                                    self.topology.ad_id)
+                                           pcb.get_first_ad().spcbf.isd_id,
+                                           self.topology.isd_id,
+                                           pcb.get_first_ad().ad_id,
+                                           self.topology.ad_id)
         # Register core path with local core path server.
         if ElementType.PATH_SERVER in self.topology.servers:
             dst = self.topology.servers[ElementType.PATH_SERVER].addr
@@ -261,7 +264,7 @@ class CoreBeaconServer(BeaconServer):
             ad_id = ad.pcbm.ad_id
             if (isd_id == self.topology.isd_id and
                 ad_id == self.topology.ad_id):
-                logging.debug("Core Path PCB already seen. Dropping...")
+                logging.debug("Core Segment PCB already seen. Dropping...")
                 return
         self.beacons.append(pcb)
 
@@ -270,7 +273,7 @@ class LocalBeaconServer(BeaconServer):
     """
     PathConstructionBeacon Server in a non-core AD.
 
-    Receives, processes, and propagates beacons received by other becaon
+    Receives, processes, and propagates beacons received by other beacon
     servers.
     """
     def __init__(self, addr, topo_file, config_file):
@@ -278,41 +281,43 @@ class LocalBeaconServer(BeaconServer):
         # Sanity check that we should indeed be a local beacon server.
         assert not self.topology.is_core_ad, "This shouldn't be a local BS!"
 
-    def register_up_path(self, pcb):
+    def register_up_segment(self, pcb):
         """
-        Send Up Path to Local Path Servers
+        Send up-segment to Local Path Servers
         """
         info = PathSegmentInfo.from_values(PST.UP,
-                                    self.topology.isd_id,
-                                    self.topology.isd_id,
-                                    pcb.get_first_ad().ad_id,
-                                    self.topology.ad_id)
+                                           self.topology.isd_id,
+                                           self.topology.isd_id,
+                                           pcb.get_first_ad().ad_id,
+                                           self.topology.ad_id)
         dst = self.topology.servers[ElementType.PATH_SERVER].addr
         up_path = PathSegmentRecords.from_values(dst, info, [pcb])
         self.send(up_path, dst)
 
-    def register_down_path(self, pcb):
+    def register_down_segment(self, pcb):
         """
-        Send Down Path to Core Path Server
+        Send down-segment to Core Path Server
         """
         pcb.remove_signatures()
         info = PathSegmentInfo.from_values(PST.DOWN,
-                                    self.topology.isd_id,
-                                    self.topology.isd_id,
-                                    pcb.get_first_ad().ad_id,
-                                    self.topology.ad_id)
+                                           self.topology.isd_id,
+                                           self.topology.isd_id,
+                                           pcb.get_first_ad().ad_id,
+                                           self.topology.ad_id)
         core_path = pcb.get_path(reverse_direction=True)
-        down_path = PathSegmentRecords.from_values(self.addr, info, [pcb], core_path)
+        down_path = PathSegmentRecords.from_values(self.addr, info, [pcb],
+                                                   core_path)
         if_id = core_path.get_first_hop_of().ingress_if
         next_hop = self.ifid2addr[if_id]
         self.send(down_path, next_hop)
 
-    def register_paths(self):
+    def register_segments(self):
         """
         Registers paths according to the received beacons.
         """
         if not self.config.registers_paths:
-            logging.info("Path registration unwanted, leaving register_paths")
+            logging.info("Path registration unwanted, "
+                         "leaving register_segments")
             return
 
         while True:
@@ -321,8 +326,8 @@ class LocalBeaconServer(BeaconServer):
                 new_pcb = copy.deepcopy(pcb)
                 ad_marking = self._create_ad_marking(new_pcb.rotf.if_id, 0)
                 new_pcb.add_ad(ad_marking)
-                self.register_up_path(new_pcb)
-                self.register_down_path(new_pcb)
+                self.register_up_segment(new_pcb)
+                self.register_down_segment(new_pcb)
                 logging.info("Paths registered")
             time.sleep(self.config.registration_time)
 
