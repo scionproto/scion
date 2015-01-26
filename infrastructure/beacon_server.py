@@ -23,9 +23,10 @@ from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.opaque_field import (OpaqueFieldType as OFT, InfoOpaqueField,
     SupportSignatureField, HopOpaqueField, SupportPCBField, SupportPeerField,
     ROTField)
-from lib.packet.pcb import HalfPathBeacon, ADMarking, PCBMarking, PeerMarking
-from lib.packet.scion import (SCIONPacket, get_type, Beacon, PathInfo,
-    PathRecords, PacketType as PT, PathInfoType as PIT)
+from lib.packet.pcb import (PathSegment, ADMarking, PCBMarking, PeerMarking,
+    PathConstructionBeacon, PathSegmentInfo, PathSegmentRecords,
+    PathSegmentType as PST)
+from lib.packet.scion import SCIONPacket, get_type, PacketType as PT
 from lib.topology_parser import ElementType, NeighborType
 import logging
 import sys
@@ -36,7 +37,7 @@ import time
 # TODO PSz: beacon must be revised. We have design slides for a new format.
 class BeaconServer(SCIONElement):
     """
-    The SCION Beacon Server.
+    The SCION PathConstructionBeacon Server.
 
     Attributes:
         beacons: A FIFO queue containing the beacons for processing and
@@ -61,7 +62,7 @@ class BeaconServer(SCIONElement):
         """
         Propagates the beacon to all children.
         """
-        assert isinstance(pcb, HalfPathBeacon)
+        assert isinstance(pcb, PathSegment)
         ingress_if = pcb.rotf.if_id
         for router_child in self.topology.routers[NeighborType.CHILD]:
             new_pcb = copy.deepcopy(pcb)
@@ -69,7 +70,7 @@ class BeaconServer(SCIONElement):
             new_pcb.rotf.if_id = egress_if
             ad_marking = self._create_ad_marking(ingress_if, egress_if)
             new_pcb.add_ad(ad_marking)
-            beacon = Beacon.from_values(router_child.addr, new_pcb)
+            beacon = PathConstructionBeacon.from_values(router_child.addr, new_pcb)
             self.send(beacon, router_child.addr)
             # logging.info("PCB propagated: %s", new_pcb)
             logging.info("Downstream PCB propagated!")
@@ -89,7 +90,7 @@ class BeaconServer(SCIONElement):
         """
         Receives beacon and appends it to beacon list.
         """
-        assert isinstance(beacon, Beacon)
+        assert isinstance(beacon, PathConstructionBeacon)
         logging.info("PCB received")
         self.beacons.append(beacon.pcb)
         # self.beacons = self.beacons[-BeaconServer.BEACONS_NO:]
@@ -137,7 +138,7 @@ class BeaconServer(SCIONElement):
             # TODO
             logging.warning("IFID_REP received, to implement")
         elif ptype == PT.BEACON:
-            self.process_pcb(Beacon(packet))
+            self.process_pcb(PathConstructionBeacon(packet))
         else:
             logging.warning("Type not supported")
         # TODO add ROT support etc..
@@ -150,7 +151,7 @@ class BeaconServer(SCIONElement):
 
 class CoreBeaconServer(BeaconServer):
     """
-    Beacon Server in a core AD.
+    PathConstructionBeacon Server in a core AD.
 
     Starts broadcasting beacons down-stream within an ISD and across ISDs
     towards other core beacon servers.
@@ -164,7 +165,7 @@ class CoreBeaconServer(BeaconServer):
         """
         Propagates the core beacons to other core ADs.
         """
-        assert isinstance(pcb, HalfPathBeacon)
+        assert isinstance(pcb, PathSegment)
         ingress_if = pcb.rotf.if_id
         for core_router in self.topology.routers[NeighborType.ROUTING]:
             new_pcb = copy.deepcopy(pcb)
@@ -172,7 +173,7 @@ class CoreBeaconServer(BeaconServer):
             new_pcb.rotf.if_id = egress_if
             ad_marking = self._create_ad_marking(ingress_if, egress_if)
             new_pcb.add_ad(ad_marking)
-            beacon = Beacon.from_values(core_router.addr, new_pcb)
+            beacon = PathConstructionBeacon.from_values(core_router.addr, new_pcb)
             self.send(beacon, core_router.addr)
             # self.propagated_beacons.append(new_pcb)
             logging.info("Core PCB propagated!")
@@ -183,7 +184,7 @@ class CoreBeaconServer(BeaconServer):
         """
         while True:
             # Create beacon for downstream ADs.
-            downstream_pcb = HalfPathBeacon()
+            downstream_pcb = PathSegment()
             timestamp = (((int(time.time()) + BeaconServer.DELTA) %
                           (BeaconServer.TIME_INTERVAL * (2 ** 16))) /
                          BeaconServer.TIME_INTERVAL)
@@ -193,7 +194,7 @@ class CoreBeaconServer(BeaconServer):
             self.propagate_downstream_pcb(downstream_pcb)
 
             # Create beacon for core ADs.
-            core_pcb = HalfPathBeacon()
+            core_pcb = PathSegment()
             core_pcb.iof = InfoOpaqueField.from_values(OFT.TDC_XOVR,
                                                        timestamp,
                                                        self.topology.isd_id)
@@ -228,7 +229,7 @@ class CoreBeaconServer(BeaconServer):
         Registers the core path contained in 'pcb' with the local core path
         server and the originating core path server.
         """
-        info = PathInfo.from_values(PIT.CORE,
+        info = PathSegmentInfo.from_values(PST.CORE,
                                     pcb.get_first_ad().spcbf.isd_id,
                                     self.topology.isd_id,
                                     pcb.get_first_ad().ad_id,
@@ -236,21 +237,21 @@ class CoreBeaconServer(BeaconServer):
         # Register core path with local core path server.
         if ElementType.PATH_SERVER in self.topology.servers:
             dst = self.topology.servers[ElementType.PATH_SERVER].addr
-            path_rec = PathRecords.from_values(dst, info, [pcb])
+            path_rec = PathSegmentRecords.from_values(dst, info, [pcb])
             logging.debug("Registering core path with local PS.")
             self.send(path_rec, dst)
 
         # Register core path with originating core path server.
         pcb.remove_signatures()
         path = pcb.get_path(reverse_direction=True)
-        path_rec = PathRecords.from_values(self.addr, info, [pcb], path)
+        path_rec = PathSegmentRecords.from_values(self.addr, info, [pcb], path)
         if_id = path.get_first_hop_of().ingress_if
         next_hop = self.ifid2addr[if_id]
         logging.debug("Registering core path with originating PS.")
         self.send(path_rec, next_hop)
 
     def process_pcb(self, beacon):
-        assert isinstance(beacon, Beacon)
+        assert isinstance(beacon, PathConstructionBeacon)
         logging.info("PCB received")
         pcb = beacon.pcb
         # Before we append the PCB for further processing we need to check that
@@ -267,7 +268,7 @@ class CoreBeaconServer(BeaconServer):
 
 class LocalBeaconServer(BeaconServer):
     """
-    Beacon Server in a non-core AD.
+    PathConstructionBeacon Server in a non-core AD.
 
     Receives, processes, and propagates beacons received by other becaon
     servers.
@@ -281,13 +282,13 @@ class LocalBeaconServer(BeaconServer):
         """
         Send Up Path to Local Path Servers
         """
-        info = PathInfo.from_values(PIT.UP,
+        info = PathSegmentInfo.from_values(PST.UP,
                                     self.topology.isd_id,
                                     self.topology.isd_id,
                                     pcb.get_first_ad().ad_id,
                                     self.topology.ad_id)
         dst = self.topology.servers[ElementType.PATH_SERVER].addr
-        up_path = PathRecords.from_values(dst, info, [pcb])
+        up_path = PathSegmentRecords.from_values(dst, info, [pcb])
         self.send(up_path, dst)
 
     def register_down_path(self, pcb):
@@ -295,13 +296,13 @@ class LocalBeaconServer(BeaconServer):
         Send Down Path to Core Path Server
         """
         pcb.remove_signatures()
-        info = PathInfo.from_values(PIT.DOWN,
+        info = PathSegmentInfo.from_values(PST.DOWN,
                                     self.topology.isd_id,
                                     self.topology.isd_id,
                                     pcb.get_first_ad().ad_id,
                                     self.topology.ad_id)
         core_path = pcb.get_path(reverse_direction=True)
-        down_path = PathRecords.from_values(self.addr, info, [pcb], core_path)
+        down_path = PathSegmentRecords.from_values(self.addr, info, [pcb], core_path)
         if_id = core_path.get_first_hop_of().ingress_if
         next_hop = self.ifid2addr[if_id]
         self.send(down_path, next_hop)

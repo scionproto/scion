@@ -1,13 +1,9 @@
 # router.py
-
 # Copyright 2014 ETH Zurich
-
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-
 # http://www.apache.org/licenses/LICENSE-2.0
-
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -28,7 +24,8 @@ from infrastructure.scion_elem import SCIONElement, SCION_UDP_PORT
 from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.opaque_field import OpaqueField
 from lib.packet.opaque_field import OpaqueFieldType as OFT
-from lib.packet.scion import PacketType as PT, Beacon
+from lib.packet.pcb import PathConstructionBeacon
+from lib.packet.scion import PacketType as PT
 from lib.packet.scion import SCIONPacket, IFIDRequest, IFIDReply, get_type
 from lib.topology_parser import ElementType as ET
 import logging
@@ -244,7 +241,7 @@ class Router(SCIONElement):
         :param from_bs:
         :type from_bs: bool
         """
-        beacon = Beacon(packet)
+        beacon = PathConstructionBeacon(packet)
         if not self.interface.initialized:
             logging.warning("Interface not initialized.")
             return

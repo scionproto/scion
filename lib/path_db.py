@@ -15,7 +15,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-from lib.packet.pcb import HalfPathBeacon
+from lib.packet.pcb import PathSegment
 from Crypto.Hash import SHA256
 from pydblite.pydblite import Base
 
@@ -25,7 +25,7 @@ class PathRecord(object):
     Path record that gets stored in the the PathDB.
     """
     def __init__(self, pcb):
-        assert isinstance(pcb, HalfPathBeacon)
+        assert isinstance(pcb, PathSegment)
         self.pcb = pcb
         self._id = None
         # Fidelity can be used to configure the desirability of a path. For
@@ -85,7 +85,7 @@ class PathDB(object):
         """
         Removes all paths that have identical hops but lower timestamps.
 
-        Returns the HalfPathBeacon with the highest timestamp.
+        Returns the PathSegment with the highest timestamp.
         """
         max_ts_pcb = pcb
         max_ts = pcb.iof.timestamp
@@ -109,7 +109,7 @@ class PathDB(object):
         Returns the record ID of the inserted path or None if nothing was
         inserted.
         """
-        assert isinstance(pcb, HalfPathBeacon)
+        assert isinstance(pcb, PathSegment)
         path_record = PathRecord(pcb)
         recs = self._db(path_record=path_record,
                         src_isd=src_isd, src_ad=src_ad,

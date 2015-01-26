@@ -15,8 +15,9 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-from lib.packet.scion import *
+from lib.packet.scion import SCIONCommonHdr, PacketType
 import unittest
+
 
 class TestCommonHeader(unittest.TestCase):
     """
@@ -27,14 +28,13 @@ class TestCommonHeader(unittest.TestCase):
         sch = SCIONCommonHdr()
         self.assertTrue(sch.type == PacketType.DATA)
 
-
     def test_equality(self):
-        sch1=SCIONCommonHdr()
-        sch2=SCIONCommonHdr()
+        sch1 = SCIONCommonHdr()
+        sch2 = SCIONCommonHdr()
         self.assertTrue(sch1.type == sch2.type)
 
     def test_pack_and_parse(self):
-        sch = SCIONCommonHdr.from_values(PacketType.DATA,4,4,0)
+        sch = SCIONCommonHdr.from_values(PacketType.DATA, 4, 4, 0)
 
         schCopy = SCIONCommonHdr()
         schCopy.parse(sch.pack())
