@@ -26,10 +26,11 @@ class PathType(object):
     Defines constants for the SCION path types.
     """
     # TODO merge it with OpaqueFieldType
+    # Discuss and (probably) remove
     EMPTY = 0x00  # Empty path
-    CORE = 0x80  # Path to the core
-    CROSS_OVER = 0xc0  # Path with cross over
-    PEER_LINK = 0xf0  # Path with peer link
+    CORE = OpaqueFieldType.TDC_XOVR #0x80  # Path to the core
+    CROSS_OVER = OpaqueFieldType.NON_TDC_XOVR #0xc0  # Path with cross over
+    PEER_LINK =  OpaqueFieldType.INTRATD_PEER #0xf0  # Path with peer link
 
 
 class PathBase(object):

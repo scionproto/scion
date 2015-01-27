@@ -188,13 +188,13 @@ class CoreBeaconServer(BeaconServer):
                           (BeaconServer.TIME_INTERVAL * (2 ** 16))) /
                          BeaconServer.TIME_INTERVAL)
             downstream_pcb.iof = InfoOpaqueField.from_values(OFT.TDC_XOVR,
-                timestamp, self.topology.isd_id)
+                False, timestamp, self.topology.isd_id)
             downstream_pcb.rotf = ROTField()
             self.propagate_downstream_pcb(downstream_pcb)
 
             # Create beacon for core ADs.
             core_pcb = HalfPathBeacon()
-            core_pcb.iof = InfoOpaqueField.from_values(OFT.TDC_XOVR,
+            core_pcb.iof = InfoOpaqueField.from_values(OFT.TDC_XOVR, False,
                                                        timestamp,
                                                        self.topology.isd_id)
             core_pcb.rotf = ROTField()

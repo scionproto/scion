@@ -313,9 +313,12 @@ class Router(SCIONElement):
             elif ptype in [PT.PATH_REQ, PT.PATH_REC]:
                 next_hop.addr = self.topology.servers[ET.PATH_SERVER].addr
             elif not spkt.hdr.is_curr_of_last(): # next path segment
+                print("HERE",spkt)
                 spkt.hdr.increase_of(1) # this is next SOF
                 spkt.hdr.common_hdr.timestamp = spkt.hdr.common_hdr.current_of
                 spkt.hdr.increase_of(1) # first HOF of the new path segment
+                spkt.hdr.set_downpath() # verify, sometimes works w/o this
+                print("HERE",spkt)
                 if spkt.hdr.is_on_up_path():
                     iface = spkt.hdr.get_current_of().ingress_if
                 else:
