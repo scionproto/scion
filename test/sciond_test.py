@@ -51,6 +51,10 @@ class TestSCIONDaemon(unittest.TestCase):
         dst = IPv4HostAddr("192.168.6.106")
         spkt = SCIONPacket.from_values(sd.addr, dst, b"payload", paths[0])
         (next_hop, port) = sd.get_first_hop(spkt)
+        print(paths[0])
+        paths[0].reverse()
+        print(paths[0])
+        return
         print("Sending packet: %s\nFirst hop: %s:%s" % (spkt, next_hop, port))
         while True:
             sd.send(spkt, next_hop, port)

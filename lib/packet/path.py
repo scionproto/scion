@@ -63,6 +63,10 @@ class PathBase(object):
             self.down_path_hops, self.up_path_hops
         self.up_path_info, self.down_path_info = \
             self.down_path_info, self.up_path_info
+        if self.up_path_info is not None:
+            self.up_path_info.up_flag ^= True
+        if self.down_path_info is not None:
+            self.down_path_info.up_flag ^= True
         # Reverse hops.
         self.up_path_hops.reverse()
         self.down_path_hops.reverse()
@@ -188,6 +192,8 @@ class CorePath(PathBase):
     def reverse(self):
         PathBase.reverse(self)
         self.core_path_hops.reverse()
+        if self.core_path_info is not None:
+            self.core_path_info.up_flag ^= True
 
     def get_of(self, index):
         """
@@ -533,7 +539,8 @@ class PathCombinator(object):
         """
         Joins up_, core_ and down_path into core fullpath. core_path can be
         'None' in case of a intra-ISD core_path of length 0.
-        Returns object of CorePath class.
+        Returns object of CorePath class. core_path (if exists) has to have
+        down-path orientation.
         """
         if not up_path or not down_path or not up_path.ads or not down_path.ads:
             return None
@@ -550,17 +557,20 @@ class PathCombinator(object):
 
         full_path = CorePath()
         full_path.up_path_info = up_path.iof
+        full_path.up_path_info.up_flag = True
         for block in reversed(up_path.ads):
             full_path.up_path_hops.append(copy.deepcopy(block.pcbm.hof))
         full_path.up_path_hops[-1].info = OpaqueFieldType.LAST_OF
 
         if core_path:
             full_path.core_path_info = core_path.iof
+            full_path.core_path_info.up_flag = False
             for block in core_path.ads:
                 full_path.core_path_hops.append(copy.deepcopy(block.pcbm.hof))
             full_path.core_path_hops[0].info = OpaqueFieldType.LAST_OF
 
         full_path.down_path_info = down_path.iof
+        full_path.down_path_info.up_flag = False 
         for block in down_path.ads:
             full_path.down_path_hops.append(copy.deepcopy(block.pcbm.hof))
         full_path.down_path_hops[0].info = OpaqueFieldType.LAST_OF
@@ -588,6 +598,7 @@ class PathCombinator(object):
         path.up_path_info = up_path.iof
         path.up_path_info.info = info
         path.up_path_info.hops -= up_index
+        path.up_path_info.up_flag = True
         for i in reversed(range(up_index, len(up_path.ads))):
             path.up_path_hops.append(up_path.ads[i].pcbm.hof)
         path.up_path_hops[-1].info = OpaqueFieldType.LAST_OF
@@ -606,6 +617,7 @@ class PathCombinator(object):
         path.down_path_info = down_path.iof
         path.down_path_info.info = info
         path.down_path_info.hops -= dw_index
+        path.down_path_info.up_flag = False
         path.down_path_upstream_ad = down_path.ads[dw_index - 1].pcbm.hof
         for i in range(dw_index, len(down_path.ads)):
             path.down_path_hops.append(down_path.ads[i].pcbm.hof)

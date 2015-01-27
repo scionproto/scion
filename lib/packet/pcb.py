@@ -348,8 +348,10 @@ class HalfPathBeacon(Marking):
         Returns the list of HopOpaqueFields in the path.
         """
         hofs = []
+        iof = self.iof
         if reverse_direction:
             ads = list(reversed(self.ads))
+            iof.up_flag = self.iof.up_flag ^ True
         else:
             ads = self.ads
         for ad_marking in ads:

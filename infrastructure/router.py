@@ -510,8 +510,7 @@ class Router(SCIONElement):
             self.process_pcb(packet, next_hop, from_local_ad)
         else:
             if ptype == PT.DATA:
-                logging.debug("DATA type %u, %s, %s", ptype,
-                              spkt.hdr.common_hdr, spkt)
+                logging.debug("DATA type %u, %s", ptype, spkt)
             self.process_packet(spkt, next_hop, from_local_ad, ptype)
 
 

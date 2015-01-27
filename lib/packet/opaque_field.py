@@ -198,7 +198,7 @@ class InfoOpaqueField(OpaqueField):
         bits = BitArray(bytes=raw)
         (self.info, self.timestamp, self.isd_id, self.hops, self.reserved) = \
             bits.unpack("uintbe:8, uintbe:16, uintbe:16, uintbe:8, uintbe:16")
-        self.up_flag = self.info & 0b00000001
+        self.up_flag = bool(self.info & 0b00000001)
         self.info >>= 1
         self.parsed = True
 
