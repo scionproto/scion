@@ -45,10 +45,11 @@ class TestSCIONDaemon(unittest.TestCase):
 
         print("Sending PATH request for (2, 26) in 5 seconds")
         # time.sleep(5)
-        paths = sd.get_paths(2, 26)
+        paths = sd.get_paths(1, 18)
         self.assertTrue(paths)
 
         dst = IPv4HostAddr("192.168.6.106")
+        paths[0].up_path_info.timestamp += 1
         spkt = SCIONPacket.from_values(sd.addr, dst, b"payload", paths[0])
         (next_hop, port) = sd.get_first_hop(spkt)
         print("Sending packet: %s\nFirst hop: %s:%s" % (spkt, next_hop, port))
