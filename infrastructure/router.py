@@ -317,7 +317,7 @@ class Router(SCIONElement):
                 spkt.hdr.common_hdr.timestamp = spkt.hdr.common_hdr.current_of
                 spkt.hdr.increase_of(1) # first HOF of the new path segment
                 # spkt.hdr.set_downpath() # verify, sometimes works w/o this
-                print(spkt)
+                print("I'm here", spkt)
                 if spkt.hdr.is_on_up_path():
                     iface = spkt.hdr.get_current_of().ingress_if
                 else:
