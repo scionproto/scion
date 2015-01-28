@@ -313,12 +313,11 @@ class Router(SCIONElement):
             elif ptype in [PT.PATH_REQ, PT.PATH_REC]:
                 next_hop.addr = self.topology.servers[ET.PATH_SERVER].addr
             elif not spkt.hdr.is_curr_of_last(): # next path segment
-                print("HERE",spkt)
                 spkt.hdr.increase_of(1) # this is next SOF
                 spkt.hdr.common_hdr.timestamp = spkt.hdr.common_hdr.current_of
                 spkt.hdr.increase_of(1) # first HOF of the new path segment
-                spkt.hdr.set_downpath() # verify, sometimes works w/o this
-                print("HERE",spkt)
+                # spkt.hdr.set_downpath() # verify, sometimes works w/o this
+                print(spkt)
                 if spkt.hdr.is_on_up_path():
                     iface = spkt.hdr.get_current_of().ingress_if
                 else:
@@ -398,8 +397,8 @@ class Router(SCIONElement):
         """
         while not spkt.hdr.get_current_of().is_regular():
             spkt.hdr.common_hdr.timestamp = spkt.hdr.common_hdr.current_of
-            if spkt.hdr.get_current_of() != spkt.hdr.path.get_of(0): #PSz verify
-                spkt.hdr.set_downpath()
+            # if spkt.hdr.get_current_of() != spkt.hdr.path.get_of(0): #PSz verify
+            #     spkt.hdr.set_downpath()
             spkt.hdr.increase_of(1)
 
         while spkt.hdr.get_current_of().is_continue():
@@ -414,7 +413,8 @@ class Router(SCIONElement):
             spkt.hdr.common_hdr.current_of == timestamp + OpaqueField.LEN):
             spkt.hdr.increase_of(1)
 
-        if spkt.hdr.get_current_of().is_xovr():
+        # if spkt.hdr.get_current_of().is_xovr():
+        if spkt.hdr.get_current_of().info == OFT.LAST_OF:
             self.crossover_forward(spkt, next_hop, from_local_ad, ts_info)
         else:
             self.normal_forward(spkt, next_hop, from_local_ad, ptype)
@@ -467,16 +467,16 @@ class Router(SCIONElement):
         :param ptype: the type of the packet.
         :type ptype: :class:`lib.packet.scion.PacketType`
         """
-        if (spkt.hdr.get_current_of() != spkt.hdr.path.get_of(0) and
+        if (spkt.hdr.get_current_of() != spkt.hdr.path.get_of(0) and #TODO PSz 
             ptype == PT.DATA and from_local_ad):
             of_info = spkt.hdr.get_current_of().info
             if of_info == OFT.TDC_XOVR:
                 spkt.hdr.common_hdr.timestamp = spkt.hdr.common_hdr.current_of
-                spkt.hdr.set_downpath()
+                # spkt.hdr.set_downpath()
                 spkt.hdr.increase_of(1)
             elif of_info == OFT.NON_TDC_XOVR:
                 spkt.hdr.common_hdr.timestamp = spkt.hdr.common_hdr.current_of
-                spkt.hdr.set_downpath()
+                # spkt.hdr.set_downpath()
                 spkt.hdr.increase_of(2)
             self.write_to_egress_iface(spkt, next_hop, from_local_ad)
         else:

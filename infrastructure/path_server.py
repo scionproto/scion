@@ -90,11 +90,15 @@ class PathServer(SCIONElement):
         """
         dst = path_request.hdr.src_addr
         path_request.hdr.path.reverse()
+        path_request = PathRequest(path_request.pack()) #PSz: this is a hack, as
+        #path_request with <up-path> only reverses to <down-path> only, and a
+        # the reversed packet fails with .get_timestamp()
+        #FIXME: change .reverse() when only one path exists
         path = path_request.hdr.path
         path_reply = PathRecords.from_values(dst, path_request.info,
                                              paths, path)
-        if path_request.hdr.is_on_up_path():
-            path_reply.hdr.set_downpath()
+        # if path_request.hdr.is_on_up_path():
+        #     path_reply.hdr.set_downpath()
         (next_hop, port) = self.get_first_hop(path_reply)
         logging.info("Sending PATH_REC, using path: %s", path)
         self.send(path_reply, next_hop, port)
@@ -253,10 +257,11 @@ class CorePathServer(PathServer):
 
     def handle_path_request(self, path_request):
         assert isinstance(path_request, PathRequest)
-        logging.info("PATH_REQ received")
         dst_isd = path_request.info.dst_isd
         dst_ad = path_request.info.dst_ad
         ptype = path_request.info.type
+        logging.info("PATH_REQ received: type: %d, addr: %d,%d", ptype, dst_isd,
+                     dst_ad)
 
         paths_to_send = []
         if ptype == PIT.UP:
@@ -353,7 +358,7 @@ class LocalPathServer(PathServer):
         # Sending pending targets to the core using first registered up-path.
         if self.waiting_targets:
             pcb = path_record.pcbs[0]
-            path = pcb.get_path(reversed_direction=True)
+            path = pcb.get_path(reverse_direction=True)
             if_id = path.get_first_hop_of().egress_if
             next_hop = self.ifid2addr[if_id]
             targets = copy.deepcopy(self.waiting_targets)
@@ -415,9 +420,12 @@ class LocalPathServer(PathServer):
             logging.info('Pending target added')
             self.waiting_targets.add((dst_isd, dst_ad, info))
         else:
-            logging.info('Requesting path from core.')
+            logging.info('Requesting path from core: type: %d, addr: %d,%d',
+                         ptype, dst_isd, dst_ad)
             pcb = self.up_paths()[0]
             path = pcb.get_path(reverse_direction=True)
+            path.up_path_info.up_flag = True # a hack, why _always_ first path
+            # is down-path, any subsequent is up-path
             if_id = path.get_first_hop_of().ingress_if
             next_hop = self.ifid2addr[if_id]
             path_request = PathRequest.from_values(self.addr, info, path)
@@ -428,10 +436,11 @@ class LocalPathServer(PathServer):
         Handles all types of path request.
         """
         assert isinstance(path_request, PathRequest)
-        logging.info("PATH_REQ received")
         dst_isd = path_request.info.dst_isd
         dst_ad = path_request.info.dst_ad
         ptype = path_request.info.type
+        logging.info("PATH_REQ received: type: %d, addr: %d,%d", ptype, dst_isd,
+                     dst_ad)
 
         paths_to_send = []
 

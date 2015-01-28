@@ -367,13 +367,18 @@ class SCIONHeader(HeaderBase):
         """
         Sets up path flag.
         """
-        self.common_hdr.type = 0
+        timestamp = self.get_timestamp()
+        if timestamp is not None:
+            timestamp.up_flag = True 
 
     def set_downpath(self):
         """
         Sets down path flag.
         """
-        self.common_hdr.type = 1
+        # self.common_hdr.type = 1
+        timestamp = self.get_timestamp()
+        if timestamp is not None:
+            timestamp.up_flag = False
 
     def is_on_up_path(self):
         """
@@ -383,7 +388,12 @@ class SCIONHeader(HeaderBase):
         Currently this is indicated by a bit in the LSB of the 'type' field in
         the common header.
         """
-        return not self.common_hdr.type & 0x1
+        # return not self.common_hdr.type & 0x1
+        timestamp = self.get_timestamp()
+        if timestamp is not None:
+            return timestamp.up_flag
+        else:
+            True 
 
     def is_curr_of_last(self):
         """

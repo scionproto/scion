@@ -692,13 +692,12 @@ class PathCombinator(object):
         """
         paths = []
         if not core_paths:
-            paths.append(PathCombinator._build_core_path(up_path,
-                                                         [],
-                                                         down_path))
+            path = PathCombinator._build_core_path(up_path, [], down_path)
+            if path:
+                paths.append(path)
         else:
             for core_path in core_paths:
-                path = PathCombinator._build_core_path(up_path,
-                                                       core_path,
+                path = PathCombinator._build_core_path(up_path, core_path,
                                                        down_path)
                 if path and path not in paths:
                     paths.append(path)
