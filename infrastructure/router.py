@@ -340,8 +340,9 @@ class Router(SCIONElement):
         if info == OFT.TDC_XOVR:
             if self.verify_of(spkt):
                 spkt.hdr.increase_of(1)
+                next_iof = spkt.hdr.get_current_of()
                 opaque_field = spkt.hdr.get_relative_of(1)
-                if spkt.hdr.is_on_up_path(): # TODO replace by get_first_hop
+                if next_iof.up_flag: # TODO replace by get_first_hop
                     next_hop.addr = self.ifid2addr[opaque_field.ingress_if]
                 else:
                     next_hop.addr = self.ifid2addr[opaque_field.egress_if]
@@ -350,7 +351,7 @@ class Router(SCIONElement):
             else:
                 logging.error("Mac verification failed.")
         elif info == OFT.NON_TDC_XOVR:
-            spkt.hdr.increase_of(2)  # TODO verify if 2 is always correct value
+            spkt.hdr.increase_of(2)
             opaque_field = spkt.hdr.get_relative_of(2)
             next_hop.addr = self.ifid2addr[opaque_field.egress_if]
             logging.debug("send() here, find next hop1")
@@ -463,7 +464,7 @@ class Router(SCIONElement):
         :param ptype: the type of the packet.
         :type ptype: :class:`lib.packet.scion.PacketType`
         """
-        if (spkt.hdr.get_current_of() != spkt.hdr.path.get_of(0) and # TODO PSz 
+        if (spkt.hdr.get_current_of() != spkt.hdr.path.get_of(0) and # TODO PSz
             ptype == PT.DATA and from_local_ad):
             of_info = spkt.hdr.get_current_of().info
             if of_info == OFT.TDC_XOVR:

@@ -26,12 +26,13 @@ class OpaqueFieldType(object):
     """
     Defines constants for the types of the opaque field (first byte of every
     opaque field, i.e. field).
+    TODO describe here layout of Opaque Fields
     """
-    #Types for HopOpaqueFields (8 MSB bits) 
+    # Types for HopOpaqueFields (7 MSB bits).
     NORMAL_OF = 0b0000000
-    LAST_OF = 0b0010000 #indicates last hop OF on the half-path (TODO revise)
+    LAST_OF = 0b0010000 # indicates last hop OF on the half-path (TODO revise)
     PEER_XOVR = 0b0001000
-    #Types for Info Opaque Fields (7 MSB bits)
+    # Types for Info Opaque Fields (7 MSB bits).
     TDC_XOVR = 0b1000000
     NON_TDC_XOVR = 0b1100000
     INPATH_XOVR = 0b1110000
@@ -209,7 +210,7 @@ class InfoOpaqueField(OpaqueField):
         Returns InfoOpaqueField with fields populated from values.
 
         @param info: Opaque field type.
-        @param up_flag: up/down-flag.  
+        @param up_flag: up/down-flag.
         @param timestamp: Beacon's timestamp.
         @param isd_id: Isolation Domanin's ID.
         @param hops: Number of hops in the segment.

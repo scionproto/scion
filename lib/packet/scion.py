@@ -362,19 +362,10 @@ class SCIONHeader(HeaderBase):
         """
         self.common_hdr.current_of += number * OpaqueField.LEN
 
-    def set_uppath(self):
-        """
-        Sets up path flag.
-        """
-        timestamp = self.get_timestamp()
-        if timestamp is not None:
-            timestamp.up_flag = True 
-
-    def set_downpath(self):
+    def set_downpath(self): #FIXME probably not needed
         """
         Sets down path flag.
         """
-        # self.common_hdr.type = 1
         timestamp = self.get_timestamp()
         if timestamp is not None:
             timestamp.up_flag = False
@@ -387,12 +378,11 @@ class SCIONHeader(HeaderBase):
         Currently this is indicated by a bit in the LSB of the 'type' field in
         the common header.
         """
-        # return not self.common_hdr.type & 0x1
         timestamp = self.get_timestamp()
         if timestamp is not None:
             return timestamp.up_flag
         else:
-            True 
+            True  # FIXME for now True for EmptyPath.
 
     def is_curr_of_last(self):
         """

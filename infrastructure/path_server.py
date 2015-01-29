@@ -16,12 +16,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from _collections import defaultdict
 import copy
-from infrastructure.scion_elem import SCIONElement, SCION_UDP_PORT
+from infrastructure.scion_elem import SCIONElement
 from lib.packet.host_addr import IPv4HostAddr
-from lib.packet.path import EmptyPath
-from lib.packet.pcb import (PathSegment, PathSegmentRequest, PathSegmentRecords,
+from lib.packet.pcb import (PathSegmentRequest, PathSegmentRecords,
     PathSegmentInfo, PathSegmentType as PST)
 from lib.packet.scion import PacketType as PT
 from lib.packet.scion import SCIONPacket, get_type
@@ -90,9 +88,9 @@ class PathServer(SCIONElement):
         """
         dst = path_request.hdr.src_addr
         path_request.hdr.path.reverse()
-        path_request = PathSegmentRequest(path_request.pack()) #PSz: this is 
+        path_request = PathSegmentRequest(path_request.pack()) #PSz: this is
         # a hack, as path_request with <up-path> only reverses to <down-path>
-        # only, and then reversed packet fails with .get_timestamp() 
+        # only, and then reversed packet fails with .get_timestamp()
         # FIXME: change .reverse() when only one path segment exists
         path = path_request.hdr.path
         path_reply = PathSegmentRecords.from_values(dst, path_request.info,
@@ -240,9 +238,9 @@ class CorePathServer(PathServer):
         for router in self.topology.routers[NeighborType.ROUTING]:
             if router.interface.neighbor_isd == self.topology.isd_id:
                 cpaths = self.core_segments(src_isd=self.topology.isd_id,
-                                            src_ad=self.topology.ad_id,
-                                            dst_isd=router.interface.neighbor_isd,
-                                            dst_ad=router.interface.neighbor_ad)
+                    src_ad=self.topology.ad_id,
+                    dst_isd=router.interface.neighbor_isd,
+                    dst_ad=router.interface.neighbor_ad)
                 if cpaths:
                     cpath = cpaths[0].get_path()
                     records = PathSegmentRecords.from_values(self.addr,
@@ -339,8 +337,8 @@ class LocalPathServer(PathServer):
         PathServer.__init__(self, addr, topo_file, config_file)
         # Sanity check that we should indeed be a local path server.
         assert not self.topology.is_core_ad, "This shouldn't be a local PS!"
-
-        self.up_segments = PathSegmentDB()  # Database of up-segments to the core.
+        # Database of up-segments to the core.
+        self.up_segments = PathSegmentDB()
         self.pending_up = []  # List of pending UP requests.
 
     def _handle_up_segment_record(self, records):
