@@ -1,13 +1,9 @@
 # router.py
-
 # Copyright 2014 ETH Zurich
-
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-
 # http://www.apache.org/licenses/LICENSE-2.0
-
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -28,7 +24,8 @@ from infrastructure.scion_elem import SCIONElement, SCION_UDP_PORT
 from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.opaque_field import OpaqueField
 from lib.packet.opaque_field import OpaqueFieldType as OFT
-from lib.packet.scion import PacketType as PT, Beacon
+from lib.packet.pcb import PathConstructionBeacon
+from lib.packet.scion import PacketType as PT
 from lib.packet.scion import SCIONPacket, IFIDRequest, IFIDReply, get_type
 from lib.topology_parser import ElementType as ET
 import logging
@@ -244,7 +241,7 @@ class Router(SCIONElement):
         :param from_bs:
         :type from_bs: bool
         """
-        beacon = Beacon(packet)
+        beacon = PathConstructionBeacon(packet)
         if not self.interface.initialized:
             logging.warning("Interface not initialized.")
             return
@@ -316,9 +313,7 @@ class Router(SCIONElement):
                 spkt.hdr.increase_of(1) # this is next SOF
                 spkt.hdr.common_hdr.timestamp = spkt.hdr.common_hdr.current_of
                 spkt.hdr.increase_of(1) # first HOF of the new path segment
-                # spkt.hdr.set_downpath() # verify, sometimes works w/o this
-                print("I'm here", spkt)
-                if spkt.hdr.is_on_up_path():
+                if spkt.hdr.is_on_up_path(): # TODO replace by get_first_hop
                     iface = spkt.hdr.get_current_of().ingress_if
                 else:
                     iface = spkt.hdr.get_current_of().egress_if
@@ -346,7 +341,10 @@ class Router(SCIONElement):
             if self.verify_of(spkt):
                 spkt.hdr.increase_of(1)
                 opaque_field = spkt.hdr.get_relative_of(1)
-                next_hop.addr = self.ifid2addr[opaque_field.egress_if]
+                if spkt.hdr.is_on_up_path(): # TODO replace by get_first_hop
+                    next_hop.addr = self.ifid2addr[opaque_field.ingress_if]
+                else:
+                    next_hop.addr = self.ifid2addr[opaque_field.egress_if]
                 logging.debug("send() here, find next hop0.")
                 self.send(spkt, next_hop)
             else:
@@ -397,8 +395,6 @@ class Router(SCIONElement):
         """
         while not spkt.hdr.get_current_of().is_regular():
             spkt.hdr.common_hdr.timestamp = spkt.hdr.common_hdr.current_of
-            # if spkt.hdr.get_current_of() != spkt.hdr.path.get_of(0): #PSz verify
-            #     spkt.hdr.set_downpath()
             spkt.hdr.increase_of(1)
 
         while spkt.hdr.get_current_of().is_continue():
@@ -467,16 +463,14 @@ class Router(SCIONElement):
         :param ptype: the type of the packet.
         :type ptype: :class:`lib.packet.scion.PacketType`
         """
-        if (spkt.hdr.get_current_of() != spkt.hdr.path.get_of(0) and #TODO PSz 
+        if (spkt.hdr.get_current_of() != spkt.hdr.path.get_of(0) and # TODO PSz 
             ptype == PT.DATA and from_local_ad):
             of_info = spkt.hdr.get_current_of().info
             if of_info == OFT.TDC_XOVR:
                 spkt.hdr.common_hdr.timestamp = spkt.hdr.common_hdr.current_of
-                # spkt.hdr.set_downpath()
                 spkt.hdr.increase_of(1)
             elif of_info == OFT.NON_TDC_XOVR:
                 spkt.hdr.common_hdr.timestamp = spkt.hdr.common_hdr.current_of
-                # spkt.hdr.set_downpath()
                 spkt.hdr.increase_of(2)
             self.write_to_egress_iface(spkt, next_hop, from_local_ad)
         else:

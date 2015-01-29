@@ -16,10 +16,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 from lib.packet.host_addr import IPv4HostAddr
-from lib.packet.scion import PathInfo, PathInfoType, SCIONPacket
+from lib.packet.scion import SCIONPacket 
 import logging
-import sys
-import threading
 import time
 import unittest
 
@@ -44,18 +42,24 @@ class TestSCIONDaemon(unittest.TestCase):
         sd = SCIONDaemon.start(addr, topo_file)
 
         print("Sending PATH request for (2, 26) in 5 seconds")
-        # time.sleep(5)
-        paths = sd.get_paths(1, 18)
+        time.sleep(5)
+        paths = sd.get_paths(2, 26)
         self.assertTrue(paths)
+        # print(paths[0])
+
+        # topo_file = "../topology/ISD1/topologies/ISD:1-AD:18-V:0.xml"
+        # addr = IPv4HostAddr("127.255.0.1")
+        # sd = SCIONDaemon.start(addr, topo_file)
+        # paths[0].reverse()
 
         dst = IPv4HostAddr("192.168.6.106")
-        paths[0].up_path_info.timestamp += 1
+        # paths[0].up_segment_info.timestamp += 1
         spkt = SCIONPacket.from_values(sd.addr, dst, b"payload", paths[0])
         (next_hop, port) = sd.get_first_hop(spkt)
         print("Sending packet: %s\nFirst hop: %s:%s" % (spkt, next_hop, port))
         while True:
             sd.send(spkt, next_hop, port)
-            print('.')
+            print('.', end="", flush=True)
             time.sleep(2)
 
 if __name__ == "__main__":

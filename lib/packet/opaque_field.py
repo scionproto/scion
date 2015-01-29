@@ -169,9 +169,9 @@ class InfoOpaqueField(OpaqueField):
     """
     Class for the info opaque field.
 
-    The info opaque field contains type info of the path (1 byte), an expiration
-    timestamp (2 bytes), the ISD ID (2 byte), # hops for this path (1 byte) and
-    a reserved section (2 bytes).
+    The info opaque field contains type info of the path-segment (1 byte),
+    an expiration timestamp (2 bytes), the ISD ID (2 byte), # hops for this
+    segment (1 byte) and a reserved section (2 bytes).
     """
 
     def __init__(self, raw=None):
@@ -212,7 +212,7 @@ class InfoOpaqueField(OpaqueField):
         @param up_flag: up/down-flag.  
         @param timestamp: Beacon's timestamp.
         @param isd_id: Isolation Domanin's ID.
-        @param hops: Number of hops in the path.
+        @param hops: Number of hops in the segment.
         @param reserved: Reserved section.
         """
         iof = InfoOpaqueField()
@@ -253,8 +253,9 @@ class ROTField(OpaqueField):
     """
     Class for the ROT field.
 
-    The ROT field contains type info of the path (1 byte), the ROT version
-    (4 bytes), the IF ID (2 bytes), and a reserved section (1 byte).
+    The ROT field contains type info of the path-segment (1 byte),
+    the ROT version (4 bytes), the IF ID (2 bytes),
+    and a reserved section (1 byte).
     """
     def __init__(self, raw=None):
         OpaqueField.__init__(self)
