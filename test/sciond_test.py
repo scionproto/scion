@@ -47,13 +47,13 @@ class TestSCIONDaemon(unittest.TestCase):
         self.assertTrue(paths)
         # print(paths[0])
 
-        # topo_file = "../topology/ISD1/topologies/ISD:1-AD:18-V:0.xml"
+        # topo_file = "../topology/ISD2/topologies/ISD:2-AD:26-V:0.xml"
         # addr = IPv4HostAddr("127.255.0.1")
         # sd = SCIONDaemon.start(addr, topo_file)
         # paths[0].reverse()
 
         dst = IPv4HostAddr("192.168.6.106")
-        # paths[0].up_segment_info.timestamp += 1
+        # paths[0].up_segment_info.timestamp += 1 #tested
         spkt = SCIONPacket.from_values(sd.addr, dst, b"payload", paths[0])
         (next_hop, port) = sd.get_first_hop(spkt)
         print("Sending packet: %s\nFirst hop: %s:%s" % (spkt, next_hop, port))
