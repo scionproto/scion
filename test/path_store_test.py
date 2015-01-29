@@ -35,7 +35,7 @@ class TestPathStore(unittest.TestCase):
             b'\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00' +
             b'\x00 \x00\x00\x00\x00\x03\x00\x00\x00\x00\x0b\x00\x00\x00\x00' +
             b'\x00\x00')
-        pcb = HalfPathBeacon(raw)
+        pcb = PathSegment(raw)
         print(str(path_store), "\n\n")
         path_store.update_policy('./ps.xml')
         print(str(path_store), "\n\n")

@@ -23,7 +23,6 @@ from lib.packet.opaque_field import InfoOpaqueField, OpaqueField
 from lib.packet.packet_base import HeaderBase, PacketBase
 from lib.packet.path import PathType, CorePath, PeerPath, CrossOverPath, \
     EmptyPath, PathBase
-from lib.packet.pcb import HalfPathBeacon
 import struct, logging, bitstring
 from bitstring import BitArray
 
@@ -36,7 +35,7 @@ class PacketType(object):
     AID_REQ = 1  # Address request to local elements (from SCIONSwitch)
     AID_REP = 2  # AID reply to switch
     TO_LOCAL_ADDR = 100  # Threshold to distinguish local control packets
-    BEACON = 101  # HalfPathBeacon type
+    BEACON = 101  # PathSegment type
     CERT_REQ_LOCAL = 102  # local certificate request (to certificate server)
     CERT_REP_LOCAL = 103  # local certificate reply (from certificate server)
     CERT_REQ = 104  # Certificate Request to parent AD
@@ -428,7 +427,7 @@ class SCIONPacket(PacketBase):
         @param src: Source address (must be a 'HostAddr' object)
         @param dst: Destination address (must be a 'HostAddr' object)
         @param payload: Payload of the packet (either 'bytes' or 'PacketBase')
-        @param path: The opaque fields for this packets.
+        @param path: The path for this packet.
         @param ext_hdrs: A list of extension headers.
         @param next_hdr: If 'ext_hdrs' is not None then this must be the type
                          of the first extension header in the list.
@@ -546,169 +545,6 @@ class IFIDReply(SCIONPacket):
     def pack(self):
         self.payload = struct.pack("HH", self.reply_id, self.request_id)
         return SCIONPacket.pack(self)
-
-
-class Beacon(SCIONPacket):
-    """
-    Beacon packet, used for path propagation.
-    """
-    def __init__(self, raw=None):
-        SCIONPacket.__init__(self)
-        self.pcb = None
-        if raw:
-            self.parse(raw)
-
-    def parse(self, raw):
-        SCIONPacket.parse(self, raw)
-        self.pcb = HalfPathBeacon(self.payload)
-
-    @classmethod
-    def from_values(cls, dst, pcb):
-        """
-        Returns a Beacon packet with the values specified.
-
-        @param dst: Destination address (must be a 'HostAddr' object)
-        @param pcb: Path Construction Beacon ('HalfPathBeacon' class)
-        """
-        beacon = Beacon()
-        beacon.pcb = pcb
-        src = get_addr_from_type(PacketType.BEACON)
-        beacon.hdr = SCIONHeader.from_values(src, dst, PacketType.DATA)
-        return beacon
-
-    def pack(self):
-        self.payload = self.pcb.pack()
-        return SCIONPacket.pack(self)
-
-
-class PathInfoType(object):
-    """
-    PathInfoType class, indicates a type of path request/reply.
-    """
-    UP = 0  # Request/Reply for up-paths
-    DOWN = 1  # Request/Reply for down-paths
-    CORE = 2  # Request/Reply for core-paths
-    UP_DOWN = 3  # Request/Reply for up- and down-paths
-
-
-class PathInfo(object):
-    """
-    PathInfo class used in sending path requests/replies.
-    """
-    LEN = 21
-
-    def __init__(self, raw=None):
-        self.type = 0
-        self.src_isd = 0
-        self.dst_isd = 0
-        self.src_ad = 0
-        self.dst_ad = 0
-        if raw:
-            self.parse(raw)
-
-    def parse(self, raw):
-        """
-        Populates fields from a raw bytes block.
-        """
-        bits = BitArray(bytes=raw)
-        (self.type, self.src_isd, self.dst_isd, self.src_ad, self.dst_ad) = \
-            bits.unpack("uintbe:8, uintbe:16, uintbe:16, uintbe:64, uintbe:64")
-
-    def pack(self):
-        """
-        Returns PathInfo as a binary string.
-        """
-        return bitstring.pack("uintbe:8, uintbe:16, uintbe:16,"
-                              "uintbe:64, uintbe:64", self.type,
-                              self.src_isd, self.dst_isd,
-                              self.src_ad, self.dst_ad).bytes
-
-    @classmethod
-    def from_values(cls, pckt_type, src_isd, dst_isd, src_ad, dst_ad):
-        """
-        Returns PathInfo with fields populated from values.
-        @param pckt_type: type of request/reply (must be 'PathInfoType' object)
-        @param src_isd, src_ad: address of the source AD
-        @param dst_isd, dst_ad: address of targeted AD
-        """
-        info = PathInfo()
-        info.type = pckt_type
-        info.src_isd = src_isd
-        info.src_ad = src_ad
-        info.dst_isd = dst_isd
-        info.dst_ad = dst_ad
-        return info
-
-
-class PathRequest(SCIONPacket):
-    """
-    Path Request packet.
-    """
-    def __init__(self, raw=None):
-        SCIONPacket.__init__(self)
-        self.info = None
-        if raw:
-            self.parse(raw)
-
-    def parse(self, raw):
-        SCIONPacket.parse(self, raw)
-        self.info = PathInfo(self.payload)
-
-    @classmethod
-    def from_values(cls, src, info, path=None):
-        """
-        Returns a Path Request with the values specified.
-
-        @param src: Source address (must be a 'HostAddr' object)
-        @param info: determines type of a path request (object of 'PathInfo')
-        @param path: path to a core or None (when request is local)
-        """
-        req = PathRequest()
-        dst = get_addr_from_type(PacketType.PATH_REQ)
-        req.hdr = SCIONHeader.from_values(src, dst, PacketType.DATA, path=path)
-        req.payload = info.pack()
-        req.info = info
-        return req
-
-    def pack(self):
-        self.payload = self.info.pack()
-        return SCIONPacket.pack(self)
-
-
-class PathRecords(SCIONPacket):
-    """
-    Path Record class used for sending list of down/up-paths. Paths are
-    represented as objects of the HalfPathBeacon class. Type of a path is
-    determined through info field (object of PathInfo).
-    """
-    def __init__(self, raw=None):
-        SCIONPacket.__init__(self)
-        self.info = None
-        self.pcbs = None
-        if raw:
-            self.parse(raw)
-
-    def parse(self, raw):
-        SCIONPacket.parse(self, raw)
-        self.info = PathInfo(self.payload[:PathInfo.LEN])
-        self.pcbs = HalfPathBeacon.deserialize(self.payload[PathInfo.LEN:])
-
-    @classmethod
-    def from_values(cls, dst, info, pcbs, path=None):
-        """
-        Returns a Path Record with the values specified.
-
-        @param info: determines type of a path record (object of 'PathInfo')
-        @param dst: Destination address (must be a 'HostAddr' object)
-        @param path: path to a core or None (when reply is local)
-        """
-        rec = PathRecords()
-        src = get_addr_from_type(PacketType.PATH_REC)
-        rec.hdr = SCIONHeader.from_values(src, dst, PacketType.DATA, path=path)
-        rec.payload = b"".join([info.pack(), HalfPathBeacon.serialize(pcbs)])
-        rec.info = info
-        rec.pcbs = pcbs
-        return rec
 
 
 class CertRequest(SCIONPacket):

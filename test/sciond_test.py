@@ -16,10 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 from lib.packet.host_addr import IPv4HostAddr
-from lib.packet.scion import PathInfo, PathInfoType, SCIONPacket
 import logging
-import sys
-import threading
 import time
 import unittest
 
