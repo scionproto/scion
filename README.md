@@ -14,7 +14,7 @@ Necessary steps in order to run SCION:
 
 	./scion.sh init
 
-1. Create the topology and configuration files (according to “topology/ADRelationships” and “topology/ADToISD"):
+1. Create the topology and configuration files (according to “topology/ADConfigurations.json”):
 
 	./scion.sh topology
 
@@ -39,3 +39,15 @@ In order to run the unit tests:
 0. cd test/
 
 1. PYTHONPATH=../ python3 *_test.py (arguments)
+
+Notes about “topology/ADConfigurations.json”:
+
+* default_subnet (optional): subnet used if one is not defined at the AD level.
+
+* subnet (optional): subnet used for a specific AD (overrides default_subnet).
+
+* level: can either be CORE, INTERMEDIATE, or LEAF.
+
+* beacon_servers, certificate_servers, path_servers (all optional): number of such servers in a specific AD (override the default value 1).
+
+* links: keys are ISD_ID-AD_ID (format also used for the keys of the JSON file itself) and values can either be PARENT, CHILD, PEER, or ROUTING.

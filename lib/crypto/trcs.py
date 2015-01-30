@@ -28,8 +28,6 @@ class TRC(object):
     """
     TRC class.
     """
-    SIGN_ALGORITHM = 'ed25519'
-    ENCRYPT_ALGORITHM = 'curve25519xsalsa20poly1305'
 
     def __init__(self, raw=None):
         self.isd_id = ''
@@ -46,8 +44,6 @@ class TRC(object):
         self.trc_quorum = 0
         self.policies = ''
         self.signatures = ''
-        self.sig_algorithm = ''
-        self.enc_algorithm = ''
         if raw:
             self.parse(raw)
 
@@ -69,9 +65,7 @@ class TRC(object):
             'quorum': self.quorum,
             'trc_quorum': self.trc_quorum,
             'policies': self.policies,
-            'signatures': self.signatures,
-            'sig_algorithm': self.sig_algorithm,
-            'enc_algorithm': self.enc_algorithm}
+            'signatures': self.signatures}
         return trc_dict
 
     def parse(self, raw):
@@ -99,8 +93,6 @@ class TRC(object):
         self.trc_quorum = trc['trc_quorum']
         self.policies = trc['policies']
         self.signatures = trc['signatures']
-        self.sig_algorithm = trc['sig_algorithm']
-        self.enc_algorithm = trc['enc_algorithm']
 
     @classmethod
     def from_values(cls, isd_id, version, core_isps, registry_key, path_key,
@@ -139,14 +131,6 @@ class TRC(object):
         trc.trc_quorum = trc_quorum
         trc.policies = policies
         trc.signatures = signatures
-        trc.sig_algorithm = TRC.SIGN_ALGORITHM
-        trc.enc_algorithm = TRC.ENCRYPT_ALGORITHM
-        #TODO: signatures
-        #trc_dict = trc.get_trc_dict()
-        #trc_str = json.dumps(trc_dict, sort_keys=True)
-        #trc_str = str.encode(trc_str)
-        #signing_key = base64.b64decode(iss_priv_key)
-        #cert.signature = base64.standard_b64encode(crypto_sign_ed25519(cert_str, signing_key)).decode('ascii')
         return trc
 
     def pack(self):

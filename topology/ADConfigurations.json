@@ -1,0 +1,122 @@
+{
+    "default_subnet": "10.0.0.0/8",
+    "1-11": {
+        "level": "CORE",
+        "subnet": "192.0.0.0/16",
+        "beacon_servers": 3,
+        "links": {
+            "1-12": "ROUTING",
+            "1-13": "ROUTING",
+            "1-14": "CHILD",
+            "2-21": "ROUTING"
+        }
+    },
+    "1-12": {
+        "level": "CORE",
+        "links": {
+            "1-11": "ROUTING",
+            "1-13": "ROUTING",
+            "1-15": "CHILD",
+            "2-22": "ROUTING"
+        }
+    },
+    "1-13": {
+        "level": "CORE",
+        "links": {
+            "1-11": "ROUTING",
+            "1-12": "ROUTING",
+            "1-16": "CHILD"
+        }
+    },
+    "1-14": {
+        "level": "INTERMEDIATE",
+        "links": {
+            "1-11": "PARENT",
+            "1-15": "PEER",
+            "1-17": "CHILD"
+        }
+    },
+    "1-15": {
+        "level": "INTERMEDIATE",
+        "links": {
+            "1-12": "PARENT",
+            "1-14": "PEER",
+            "1-16": "PEER",
+            "1-18": "CHILD"
+        }
+    },
+    "1-16": {
+        "level": "INTERMEDIATE",
+        "links": {
+            "1-13": "PARENT",
+            "1-15": "PEER",
+            "1-19": "CHILD"
+        }
+    },
+    "1-17": {
+        "level": "LEAF",
+        "links": {
+            "1-14": "PARENT"
+        }
+    },
+    "1-18": {
+        "level": "LEAF",
+        "links": {
+            "1-15": "PARENT"
+        }
+    },
+    "1-19": {
+        "level": "LEAF",
+        "links": {
+            "1-16": "PARENT"
+        }
+    },
+    "2-21": {
+        "level": "CORE",
+        "certificate_servers": 2,
+        "path_servers": 3,
+        "links": {
+            "1-11": "ROUTING",
+            "2-22": "ROUTING",
+            "2-23": "CHILD"
+        }
+    },
+    "2-22": {
+        "level": "CORE",
+        "links": {
+            "1-12": "ROUTING",
+            "2-21": "ROUTING",
+            "2-24": "CHILD"
+        }
+    },
+    "2-23": {
+        "level": "INTERMEDIATE",
+        "links": {
+            "2-21": "PARENT",
+            "2-24": "PEER",
+            "2-25": "CHILD",
+            "2-26": "CHILD"
+        }
+    },
+    "2-24": {
+        "level": "INTERMEDIATE",
+        "links": {
+            "2-22": "PARENT",
+            "2-23": "PEER",
+            "2-26": "CHILD"
+        }
+    },
+    "2-25": {
+        "level": "LEAF",
+        "links": {
+            "2-23": "PARENT"
+        }
+    },
+    "2-26": {
+        "level": "LEAF",
+        "links": {
+            "2-23": "PARENT",
+            "2-24": "PARENT"
+        }
+    }
+}

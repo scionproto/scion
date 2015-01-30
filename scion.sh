@@ -9,7 +9,7 @@ if [ $1 == "init" ]; then
 elif [ $1 == "topology" ]; then
     echo "create topology, configuration and execution  files"
     cd topology/
-    PYTHONPATH=../ python3 generator.py $2
+    PYTHONPATH=../ python3 generator.py
 elif [ $1 == "setup" ]; then
     echo "add ip alias for ISDs and ADs"
     for d in topology/ISD*; do
