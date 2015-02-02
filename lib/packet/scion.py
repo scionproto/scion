@@ -125,8 +125,8 @@ class SCIONCommonHdr(HeaderBase):
         self.src_addr_len = 0  # Length of the src address.
         self.dst_addr_len = 0  # Length of the dst address.
         self.total_len = 0  # Total length of the packet.
-        self.timestamp = 0  # Offset inside the packet to the timestamp.
-        self.current_of = 0  # Index of the current opaque field.
+        self.curr_iof_p = 0  # Pointer inside the packet to the current IOF.
+        self.curr_of_p = 0  # Pointer to the current opaque field.
         self.next_hdr = 0  # Type of the next hdr field (IP protocol numbers).
         self.hdr_len = 0  # Header length including the path.
 
@@ -143,8 +143,8 @@ class SCIONCommonHdr(HeaderBase):
         chdr.src_addr_len = src_addr_len
         chdr.dst_addr_len = dst_addr_len
         chdr.next_hdr = next_hdr
-        chdr.current_of = chdr.src_addr_len + chdr.dst_addr_len
-        chdr.timestamp = chdr.current_of
+        chdr.curr_of_p = chdr.src_addr_len + chdr.dst_addr_len
+        chdr.curr_iof_p = chdr.curr_of_p
         chdr.hdr_len = SCIONCommonHdr.LEN + src_addr_len + dst_addr_len
         chdr.total_len = chdr.hdr_len
 
@@ -161,7 +161,7 @@ class SCIONCommonHdr(HeaderBase):
                             "data len %u", dlen)
             return
         bits = BitArray(bytes=raw)
-        (types, self.total_len, self.timestamp, self.current_of,
+        (types, self.total_len, self.curr_iof_p, self.curr_of_p,
          self.next_hdr, self.hdr_len) = \
             bits.unpack("uintbe:16, uintbe:16, uintbe:8, "
                         "uintbe:8, uintbe:8, uintbe:8")
@@ -178,15 +178,15 @@ class SCIONCommonHdr(HeaderBase):
         types = (self.type << 12) | (self.dst_addr_len << 6) | self.src_addr_len
         return bitstring.pack("uintbe:16, uintbe:16, uintbe:8, "
                               "uintbe:8, uintbe:8, uintbe:8",
-                              types, self.total_len, self.timestamp,
-                              self.current_of, self.next_hdr,
+                              types, self.total_len, self.curr_iof_p,
+                              self.curr_of_p, self.next_hdr,
                               self.hdr_len).bytes
 
     def __str__(self):
         res = ("[CH type: %u, src len: %u, dst len: %u, total len: %u bytes, "
                "TS: %u, current OF: %u, next hdr: %u, hdr len: %u]") % (
                self.type, self.src_addr_len, self.dst_addr_len, self.total_len,
-               self.timestamp, self.current_of, self.next_hdr, self.hdr_len)
+               self.curr_iof_p, self.curr_of_p, self.next_hdr, self.hdr_len)
         return res
 
 
@@ -320,19 +320,19 @@ class SCIONHeader(HeaderBase):
         """
         if self.path is None:
             return None
-        offset = (self.common_hdr.current_of - (self.common_hdr.src_addr_len +
+        offset = (self.common_hdr.curr_of_p - (self.common_hdr.src_addr_len +
                   self.common_hdr.dst_addr_len))
         return self.path.get_of(offset // OpaqueField.LEN)
 
-    def get_timestamp(self):
+    def get_current_iof(self):
         """
-        Returns the timestamp field as pointed by the timestamp field in
+        Returns the Info Opaque Field as pointed by the current_iof_p field in
         the common_hdr.
         """
         if self.path is None:
             return None
-        offset = (self.common_hdr.timestamp - (self.common_hdr.src_addr_len +
-                  self.common_hdr.dst_addr_len))
+        offset = (self.common_hdr.curr_iof_p -
+                  (self.common_hdr.src_addr_len + self.common_hdr.dst_addr_len))
         return self.path.get_of(offset // OpaqueField.LEN)
 
     def get_relative_of(self, n):
@@ -341,7 +341,7 @@ class SCIONHeader(HeaderBase):
         """
         if self.path is None:
             return None
-        offset = (self.common_hdr.current_of - (self.common_hdr.src_addr_len +
+        offset = (self.common_hdr.curr_of_p - (self.common_hdr.src_addr_len +
                   self.common_hdr.dst_addr_len))
         return self.path.get_of(offset // OpaqueField.LEN + n)
 
@@ -352,7 +352,7 @@ class SCIONHeader(HeaderBase):
         """
         if self.path is None:
             return None
-        offset = (self.common_hdr.current_of - (self.common_hdr.src_addr_len +
+        offset = (self.common_hdr.curr_of_p - (self.common_hdr.src_addr_len +
                   self.common_hdr.dst_addr_len))
         return self.path.get_of(offset // OpaqueField.LEN + 1)
 
@@ -360,19 +360,15 @@ class SCIONHeader(HeaderBase):
         """
         Increases pointer of current opaque field by number of opaque fields.
         """
-        self.common_hdr.current_of += number * OpaqueField.LEN
+        self.common_hdr.curr_of_p += number * OpaqueField.LEN
 
-    def set_uppath(self):
-        """
-        Sets up path flag.
-        """
-        self.common_hdr.type = 0
-
-    def set_downpath(self):
+    def set_downpath(self): #FIXME probably not needed
         """
         Sets down path flag.
         """
-        self.common_hdr.type = 1
+        iof = self.get_current_iof()
+        if iof is not None:
+            iof.up_flag = False
 
     def is_on_up_path(self):
         """
@@ -382,13 +378,20 @@ class SCIONHeader(HeaderBase):
         Currently this is indicated by a bit in the LSB of the 'type' field in
         the common header.
         """
-        return not self.common_hdr.type & 0x1
+        iof = self.get_current_iof()
+        if iof is not None:
+            return iof.up_flag
+        else:
+            True  # FIXME for now True for EmptyPath.
 
-    def reverse_direction(self):
+    def is_last_path_of(self):
         """
-        Sets down-path flag if up-path flag is active and vice versa.
+        Returs 'True' if the current opaque field is the last opaque field,
+        'False' otherwise.
         """
-        self.common_hdr.type ^= 1
+        offset = (SCIONCommonHdr.LEN + self.common_hdr.src_addr_len +
+                  self.common_hdr.dst_addr_len)
+        return self.common_hdr.curr_of_p + offset == self.common_hdr.hdr_len
 
     def __len__(self):
         length = self.common_hdr.hdr_len

@@ -351,6 +351,7 @@ class PathSegment(Marking):
         hofs = []
         if reverse_direction:
             ads = list(reversed(self.ads))
+            self.iof.up_flag = self.iof.up_flag ^ True
         else:
             ads = self.ads
         for ad_marking in ads:
@@ -411,7 +412,7 @@ class PathSegment(Marking):
             pcb.iof = InfoOpaqueField(raw[0:8])
             pcb.rotf = ROTField(raw[8:16])
             raw = raw[16:]
-            for i in range(0, pcb.iof.hops):
+            for _ in range(pcb.iof.hops):
                 pcbm = PCBMarking(raw[:PCBMarking.LEN])
                 ad_marking = ADMarking(raw[:pcbm.ssf.sig_len +
                     pcbm.ssf.block_size])
@@ -466,7 +467,8 @@ class PathConstructionBeacon(SCIONPacket):
         Returns a PathConstructionBeacon packet with the values specified.
 
         @param dst: Destination address (must be a 'HostAddr' object)
-        @param pcb: Path Construction PathConstructionBeacon ('PathSegment' class)
+        @param pcb: Path Construction PathConstructionBeacon ('PathSegment'
+                    class)
         """
         beacon = PathConstructionBeacon()
         beacon.pcb = pcb

@@ -16,6 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 from lib.packet.host_addr import IPv4HostAddr
+from lib.packet.scion import SCIONPacket
 import logging
 import time
 import unittest
@@ -44,12 +45,22 @@ class TestSCIONDaemon(unittest.TestCase):
         time.sleep(5)
         paths = sd.get_paths(2, 26)
         self.assertTrue(paths)
+        # print(paths[0])
 
-#         dst = IPv4HostAddr("192.168.6.106")
-#         spkt = SCIONPacket.from_values(sd.addr, dst, b"payload", path)
-#         (next_hop, port) = sd.get_first_hop(spkt)
-#         print("Sending packet: %s\nFirst hop: %s:%s" % (spkt, next_hop, port))
-#         sd.send(spkt, next_hop, port)
+        # topo_file = "../topology/ISD2/topologies/ISD:2-AD:26-V:0.xml"
+        # addr = IPv4HostAddr("127.255.0.1")
+        # sd = SCIONDaemon.start(addr, topo_file)
+        # paths[0].reverse()
+
+        dst = IPv4HostAddr("192.168.6.106")
+        # paths[0].up_segment_info.timestamp += 1 #tested
+        spkt = SCIONPacket.from_values(sd.addr, dst, b"payload", paths[0])
+        (next_hop, port) = sd.get_first_hop(spkt)
+        print("Sending packet: %s\nFirst hop: %s:%s" % (spkt, next_hop, port))
+        while True:
+            sd.send(spkt, next_hop, port)
+            print('.', end="", flush=True)
+            time.sleep(2)
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)

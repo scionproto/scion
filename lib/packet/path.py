@@ -25,11 +25,11 @@ class PathType(object):
     """
     Defines constants for the SCION path types.
     """
-    # TODO merge it with OpaqueFieldType
+    # TODO Discuss and (probably) remove
     EMPTY = 0x00  # Empty path
-    CORE = 0x80  # Path to the core
-    CROSS_OVER = 0xc0  # Path with cross over
-    PEER_LINK = 0xf0  # Path with peer link
+    CORE = OpaqueFieldType.TDC_XOVR # Path to the core
+    CROSS_OVER = OpaqueFieldType.NON_TDC_XOVR # Path with cross over
+    PEER_LINK = OpaqueFieldType.INTRATD_PEER # Path with peer link
 
 
 class PathBase(object):
@@ -64,6 +64,11 @@ class PathBase(object):
             self.down_segment_hops, self.up_segment_hops
         self.up_segment_info, self.down_segment_info = \
             self.down_segment_info, self.up_segment_info
+        # Reverse flags.
+        if self.up_segment_info is not None:
+            self.up_segment_info.up_flag ^= True
+        if self.down_segment_info is not None:
+            self.down_segment_info.up_flag ^= True
         # Reverse hops.
         self.up_segment_hops.reverse()
         self.down_segment_hops.reverse()
@@ -141,7 +146,7 @@ class CorePath(PathBase):
         # Parse up-segment
         self.up_segment_info = InfoOpaqueField(raw[:InfoOpaqueField.LEN])
         offset = InfoOpaqueField.LEN
-        for i in range(self.up_segment_info.hops):
+        for _ in range(self.up_segment_info.hops):
             self.up_segment_hops.append(
                 HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN]))
             offset += HopOpaqueField.LEN
@@ -150,7 +155,7 @@ class CorePath(PathBase):
             self.core_segment_info = \
                 InfoOpaqueField(raw[offset:offset + InfoOpaqueField.LEN])
             offset += InfoOpaqueField.LEN
-            for i in range(self.core_segment_info.hops):
+            for _ in range(self.core_segment_info.hops):
                 self.core_segment_hops.append(
                     HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN]))
                 offset += HopOpaqueField.LEN
@@ -159,7 +164,7 @@ class CorePath(PathBase):
             self.down_segment_info = \
                 InfoOpaqueField(raw[offset:offset + InfoOpaqueField.LEN])
             offset += InfoOpaqueField.LEN
-            for i in range(self.down_segment_info.hops):
+            for _ in range(self.down_segment_info.hops):
                 self.down_segment_hops.append(
                     HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN]))
                 offset += HopOpaqueField.LEN
@@ -189,6 +194,8 @@ class CorePath(PathBase):
     def reverse(self):
         PathBase.reverse(self)
         self.core_segment_hops.reverse()
+        if self.core_segment_info is not None:
+            self.core_segment_info.up_flag ^= True
 
     def get_of(self, index):
         """
@@ -294,7 +301,7 @@ class CrossOverPath(PathBase):
         # Parse up-segment
         self.up_segment_info = InfoOpaqueField(raw[:InfoOpaqueField.LEN])
         offset = InfoOpaqueField.LEN
-        for i in range(self.up_segment_info.hops):
+        for _ in range(self.up_segment_info.hops):
             self.up_segment_hops.append(
                 HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN]))
             offset += HopOpaqueField.LEN
@@ -309,7 +316,7 @@ class CrossOverPath(PathBase):
         self.down_segment_upstream_ad = \
             HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN])
         offset += HopOpaqueField.LEN
-        for i in range(self.down_segment_info.hops):
+        for _ in range(self.down_segment_info.hops):
             self.down_segment_hops.append(
                 HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN]))
             offset += HopOpaqueField.LEN
@@ -396,7 +403,7 @@ class PeerPath(PathBase):
         # Parse up-segment
         self.up_segment_info = InfoOpaqueField(raw[:InfoOpaqueField.LEN])
         offset = InfoOpaqueField.LEN
-        for i in range(self.up_segment_info.hops):
+        for _ in range(self.up_segment_info.hops):
             self.up_segment_hops.append(
                 HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN]))
             offset += HopOpaqueField.LEN
@@ -418,7 +425,7 @@ class PeerPath(PathBase):
         self.down_segment_peering_link = \
             HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN])
         offset += HopOpaqueField.LEN
-        for i in range(self.down_segment_info.hops):
+        for _ in range(self.down_segment_info.hops):
             self.down_segment_hops.append(
                 HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN]))
             offset += HopOpaqueField.LEN
@@ -533,8 +540,9 @@ class PathCombinator(object):
     def _build_core_path(up_segment, core_segment, down_segment):
         """
         Joins up_, core_ and down_segment into core fullpath. core_segment can
-         be 'None' in case of a intra-ISD core_segment of length 0.
-        Returns object of CorePath class.
+        be 'None' in case of a intra-ISD core_segment of length 0.
+        Returns object of CorePath class. core_segment (if exists) has to have
+        down-segment orientation.
         """
         if (not up_segment or not down_segment or
             not up_segment.ads or not down_segment.ads):
@@ -555,18 +563,21 @@ class PathCombinator(object):
 
         full_path = CorePath()
         full_path.up_segment_info = up_segment.iof
+        full_path.up_segment_info.up_flag = True
         for block in reversed(up_segment.ads):
             full_path.up_segment_hops.append(copy.deepcopy(block.pcbm.hof))
         full_path.up_segment_hops[-1].info = OpaqueFieldType.LAST_OF
 
         if core_segment:
             full_path.core_segment_info = core_segment.iof
+            full_path.core_segment_info.up_flag = False
             for block in core_segment.ads:
                 full_path.core_segment_hops.append(
                     copy.deepcopy(block.pcbm.hof))
             full_path.core_segment_hops[0].info = OpaqueFieldType.LAST_OF
 
         full_path.down_segment_info = down_segment.iof
+        full_path.down_segment_info.up_flag = False
         for block in down_segment.ads:
             full_path.down_segment_hops.append(copy.deepcopy(block.pcbm.hof))
         full_path.down_segment_hops[0].info = OpaqueFieldType.LAST_OF
@@ -597,6 +608,7 @@ class PathCombinator(object):
         path.up_segment_info = up_segment.iof
         path.up_segment_info.info = info
         path.up_segment_info.hops -= up_index
+        path.up_segment_info.up_flag = True
         for i in reversed(range(up_index, len(up_segment.ads))):
             path.up_segment_hops.append(up_segment.ads[i].pcbm.hof)
         path.up_segment_hops[-1].info = OpaqueFieldType.LAST_OF
@@ -615,6 +627,7 @@ class PathCombinator(object):
         path.down_segment_info = down_segment.iof
         path.down_segment_info.info = info
         path.down_segment_info.hops -= dw_index
+        path.down_segment_info.up_flag = False
         path.down_segment_upstream_ad = down_segment.ads[dw_index - 1].pcbm.hof
         for i in range(dw_index, len(down_segment.ads)):
             path.down_segment_hops.append(down_segment.ads[i].pcbm.hof)
@@ -691,9 +704,9 @@ class PathCombinator(object):
         """
         paths = []
         if not core_segments:
-            paths.append(PathCombinator._build_core_path(up_segment,
-                                                         [],
-                                                         down_segment))
+            path = PathCombinator._build_core_path(up_segment, [], down_segment)
+            if path:
+                paths.append(path)
         else:
             for core_segment in core_segments:
                 path = PathCombinator._build_core_path(up_segment,

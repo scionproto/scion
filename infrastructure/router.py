@@ -309,7 +309,16 @@ class Router(SCIONElement):
                 next_hop.addr = self.ifid2addr[iface]
             elif ptype in [PT.PATH_REQ, PT.PATH_REC]:
                 next_hop.addr = self.topology.servers[ET.PATH_SERVER].addr
-            else:
+            elif not spkt.hdr.is_last_path_of(): # next path segment
+                spkt.hdr.increase_of(1) # this is next SOF
+                spkt.hdr.common_hdr.curr_iof_p = spkt.hdr.common_hdr.curr_of_p
+                spkt.hdr.increase_of(1) # first HOF of the new path segment
+                if spkt.hdr.is_on_up_path(): # TODO replace by get_first_hop
+                    iface = spkt.hdr.get_current_of().ingress_if
+                else:
+                    iface = spkt.hdr.get_current_of().egress_if
+                next_hop.addr = self.ifid2addr[iface]
+            else: # last opaque field on the path, send the packet to the dst
                 next_hop.addr = spkt.hdr.dst_addr
             self.send(spkt, next_hop)
         logging.debug("normal_forward()")
@@ -331,14 +340,18 @@ class Router(SCIONElement):
         if info == OFT.TDC_XOVR:
             if self.verify_of(spkt):
                 spkt.hdr.increase_of(1)
+                next_iof = spkt.hdr.get_current_of()
                 opaque_field = spkt.hdr.get_relative_of(1)
-                next_hop.addr = self.ifid2addr[opaque_field.egress_if]
+                if next_iof.up_flag: # TODO replace by get_first_hop
+                    next_hop.addr = self.ifid2addr[opaque_field.ingress_if]
+                else:
+                    next_hop.addr = self.ifid2addr[opaque_field.egress_if]
                 logging.debug("send() here, find next hop0.")
                 self.send(spkt, next_hop)
             else:
                 logging.error("Mac verification failed.")
         elif info == OFT.NON_TDC_XOVR:
-            spkt.hdr.increase_of(2)  # TODO PSz:verify if 2 is always correct value
+            spkt.hdr.increase_of(2)
             opaque_field = spkt.hdr.get_relative_of(2)
             next_hop.addr = self.ifid2addr[opaque_field.egress_if]
             logging.debug("send() here, find next hop1")
@@ -349,7 +362,7 @@ class Router(SCIONElement):
                 while is_regular:
                     spkt.hdr.increase_of(2)
                     is_regular = spkt.hdr.get_current_of().is_regular()
-                spkt.hdr.common_hdr.timestamp = spkt.hdr.common_hdr.current_of
+                spkt.hdr.common_hdr.curr_iof_p = spkt.hdr.common_hdr.curr_of_p
                 if self.verify_of(spkt):
                     logging.debug("TODO send() here, find next hop2")
         elif info == OFT.INTRATD_PEER:
@@ -382,25 +395,24 @@ class Router(SCIONElement):
         :type ptype: :class:`lib.packet.scion.PacketType`
         """
         while not spkt.hdr.get_current_of().is_regular():
-            spkt.hdr.common_hdr.timestamp = spkt.hdr.common_hdr.current_of
-            if spkt.hdr.get_current_of() != spkt.hdr.path.get_of(0):
-                spkt.hdr.set_downpath()
+            spkt.hdr.common_hdr.curr_iof_p = spkt.hdr.common_hdr.curr_of_p
             spkt.hdr.increase_of(1)
 
         while spkt.hdr.get_current_of().is_continue():
             spkt.hdr.increase_of(1)
 
-        ts_info = spkt.hdr.get_timestamp().info
-        timestamp = spkt.hdr.common_hdr.timestamp
+        info = spkt.hdr.get_current_iof().info
+        curr_iof_p = spkt.hdr.common_hdr.curr_iof_p
         # Case: peer path and first opaque field of a down path. We need to
         # increase opaque field pointer as that first opaque field is used for
         # MAC verification only.
-        if (not spkt.hdr.is_on_up_path() and ts_info == OFT.INTRATD_PEER and
-            spkt.hdr.common_hdr.current_of == timestamp + OpaqueField.LEN):
+        if (not spkt.hdr.is_on_up_path() and info == OFT.INTRATD_PEER and
+            spkt.hdr.common_hdr.curr_of_p == curr_iof_p + OpaqueField.LEN):
             spkt.hdr.increase_of(1)
 
-        if spkt.hdr.get_current_of().is_xovr():
-            self.crossover_forward(spkt, next_hop, from_local_ad, ts_info)
+        # if spkt.hdr.get_current_of().is_xovr():
+        if spkt.hdr.get_current_of().info == OFT.LAST_OF:
+            self.crossover_forward(spkt, next_hop, from_local_ad, info)
         else:
             self.normal_forward(spkt, next_hop, from_local_ad, ptype)
 
@@ -420,9 +432,9 @@ class Router(SCIONElement):
         else:
             iface = spkt.hdr.get_current_of().egress_if
 
-        ts_info = spkt.hdr.get_timestamp().info
+        info = spkt.hdr.get_current_iof().info
         spkt.hdr.increase_of(1)
-        if ts_info == OFT.INTRATD_PEER:
+        if info == OFT.INTRATD_PEER:
             of1_info = spkt.hdr.get_relative_of(1).info
             of2_info = spkt.hdr.get_current_of().info
             if ((of1_info == OFT.INTRATD_PEER and spkt.hdr.is_on_up_path()) or
@@ -452,16 +464,14 @@ class Router(SCIONElement):
         :param ptype: the type of the packet.
         :type ptype: :class:`lib.packet.scion.PacketType`
         """
-        if (spkt.hdr.get_current_of() != spkt.hdr.path.get_of(0) and
+        if (spkt.hdr.get_current_of() != spkt.hdr.path.get_of(0) and # TODO PSz
             ptype == PT.DATA and from_local_ad):
             of_info = spkt.hdr.get_current_of().info
             if of_info == OFT.TDC_XOVR:
-                spkt.hdr.common_hdr.timestamp = spkt.hdr.common_hdr.current_of
-                spkt.hdr.set_downpath()
+                spkt.hdr.common_hdr.curr_iof_p = spkt.hdr.common_hdr.curr_of_p
                 spkt.hdr.increase_of(1)
             elif of_info == OFT.NON_TDC_XOVR:
-                spkt.hdr.common_hdr.timestamp = spkt.hdr.common_hdr.current_of
-                spkt.hdr.set_downpath()
+                spkt.hdr.common_hdr.curr_iof_p = spkt.hdr.common_hdr.curr_of_p
                 spkt.hdr.increase_of(2)
             self.write_to_egress_iface(spkt, next_hop, from_local_ad)
         else:
@@ -495,8 +505,7 @@ class Router(SCIONElement):
             self.process_pcb(packet, next_hop, from_local_ad)
         else:
             if ptype == PT.DATA:
-                logging.debug("DATA type %u, %s, %s", ptype,
-                              spkt.hdr.common_hdr, spkt)
+                logging.debug("DATA type %u, %s", ptype, spkt)
             self.process_packet(spkt, next_hop, from_local_ad, ptype)
 
 

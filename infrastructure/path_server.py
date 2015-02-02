@@ -16,12 +16,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from _collections import defaultdict
 import copy
-from infrastructure.scion_elem import SCIONElement, SCION_UDP_PORT
+from infrastructure.scion_elem import SCIONElement
 from lib.packet.host_addr import IPv4HostAddr
-from lib.packet.path import EmptyPath
-from lib.packet.pcb import (PathSegment, PathSegmentRequest, PathSegmentRecords,
+from lib.packet.pcb import (PathSegmentRequest, PathSegmentRecords,
     PathSegmentInfo, PathSegmentType as PST)
 from lib.packet.scion import PacketType as PT
 from lib.packet.scion import SCIONPacket, get_type
@@ -90,11 +88,15 @@ class PathServer(SCIONElement):
         """
         dst = path_request.hdr.src_addr
         path_request.hdr.path.reverse()
+        path_request = PathSegmentRequest(path_request.pack()) #PSz: this is
+        # a hack, as path_request with <up-path> only reverses to <down-path>
+        # only, and then reversed packet fails with .get_current_iof()
+        # FIXME: change .reverse() when only one path segment exists
         path = path_request.hdr.path
         path_reply = PathSegmentRecords.from_values(dst, path_request.info,
                                              paths, path)
-        if path_request.hdr.is_on_up_path():
-            path_reply.hdr.set_downpath()
+        # if path_request.hdr.is_on_up_path():
+        #     path_reply.hdr.set_downpath()
         (next_hop, port) = self.get_first_hop(path_reply)
         logging.info("Sending PATH_REC, using path: %s", path)
         self.send(path_reply, next_hop, port)
@@ -236,9 +238,9 @@ class CorePathServer(PathServer):
         for router in self.topology.routers[NeighborType.ROUTING]:
             if router.interface.neighbor_isd == self.topology.isd_id:
                 cpaths = self.core_segments(src_isd=self.topology.isd_id,
-                                            src_ad=self.topology.ad_id,
-                                            dst_isd=router.interface.neighbor_isd,
-                                            dst_ad=router.interface.neighbor_ad)
+                    src_ad=self.topology.ad_id,
+                    dst_isd=router.interface.neighbor_isd,
+                    dst_ad=router.interface.neighbor_ad)
                 if cpaths:
                     cpath = cpaths[0].get_path()
                     records = PathSegmentRecords.from_values(self.addr,
@@ -255,10 +257,11 @@ class CorePathServer(PathServer):
 
     def handle_path_request(self, path_request):
         assert isinstance(path_request, PathSegmentRequest)
-        logging.info("PATH_REQ received")
         dst_isd = path_request.info.dst_isd
         dst_ad = path_request.info.dst_ad
         ptype = path_request.info.type
+        logging.info("PATH_REQ received: type: %d, addr: %d,%d", ptype, dst_isd,
+                     dst_ad)
 
         segments_to_send = []
         if ptype == PST.UP:
@@ -334,8 +337,8 @@ class LocalPathServer(PathServer):
         PathServer.__init__(self, addr, topo_file, config_file)
         # Sanity check that we should indeed be a local path server.
         assert not self.topology.is_core_ad, "This shouldn't be a local PS!"
-
-        self.up_segments = PathSegmentDB()  # Database of up-segments to the core.
+        # Database of up-segments to the core.
+        self.up_segments = PathSegmentDB()
         self.pending_up = []  # List of pending UP requests.
 
     def _handle_up_segment_record(self, records):
@@ -356,7 +359,7 @@ class LocalPathServer(PathServer):
         # Sending pending targets to the core using first registered up-path.
         if self.waiting_targets:
             pcb = records.pcbs[0]
-            path = pcb.get_path(reversed_direction=True)
+            path = pcb.get_path(reverse_direction=True)
             if_id = path.get_first_hop_of().egress_if
             next_hop = self.ifid2addr[if_id]
             targets = copy.deepcopy(self.waiting_targets)
@@ -419,9 +422,12 @@ class LocalPathServer(PathServer):
             logging.info('Pending target added')
             self.waiting_targets.add((dst_isd, dst_ad, info))
         else:
-            logging.info('Requesting path from core.')
+            logging.info('Requesting path from core: type: %d, addr: %d,%d',
+                         ptype, dst_isd, dst_ad)
             pcb = self.up_segments()[0]
             path = pcb.get_path(reverse_direction=True)
+            path.up_segment_info.up_flag = True # FIXME: temporary hack. A very
+            # first path is _always_ down-path, any subsequent is up-path.
             if_id = path.get_first_hop_of().ingress_if
             next_hop = self.ifid2addr[if_id]
             path_request = PathSegmentRequest.from_values(self.addr, info, path)
@@ -432,10 +438,11 @@ class LocalPathServer(PathServer):
         Handles all types of path request.
         """
         assert isinstance(path_request, PathSegmentRequest)
-        logging.info("PATH_REQ received")
         dst_isd = path_request.info.dst_isd
         dst_ad = path_request.info.dst_ad
         ptype = path_request.info.type
+        logging.info("PATH_REQ received: type: %d, addr: %d,%d", ptype, dst_isd,
+                     dst_ad)
 
         paths_to_send = []
 
