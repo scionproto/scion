@@ -309,9 +309,9 @@ class Router(SCIONElement):
                 next_hop.addr = self.ifid2addr[iface]
             elif ptype in [PT.PATH_REQ, PT.PATH_REC]:
                 next_hop.addr = self.topology.servers[ET.PATH_SERVER].addr
-            elif not spkt.hdr.is_curr_of_last(): # next path segment
+            elif not spkt.hdr.is_last_path_of(): # next path segment
                 spkt.hdr.increase_of(1) # this is next SOF
-                spkt.hdr.common_hdr.timestamp = spkt.hdr.common_hdr.current_of
+                spkt.hdr.common_hdr.curr_iof_p = spkt.hdr.common_hdr.curr_of_p
                 spkt.hdr.increase_of(1) # first HOF of the new path segment
                 if spkt.hdr.is_on_up_path(): # TODO replace by get_first_hop
                     iface = spkt.hdr.get_current_of().ingress_if
@@ -362,7 +362,7 @@ class Router(SCIONElement):
                 while is_regular:
                     spkt.hdr.increase_of(2)
                     is_regular = spkt.hdr.get_current_of().is_regular()
-                spkt.hdr.common_hdr.timestamp = spkt.hdr.common_hdr.current_of
+                spkt.hdr.common_hdr.curr_iof_p = spkt.hdr.common_hdr.curr_of_p
                 if self.verify_of(spkt):
                     logging.debug("TODO send() here, find next hop2")
         elif info == OFT.INTRATD_PEER:
@@ -395,24 +395,24 @@ class Router(SCIONElement):
         :type ptype: :class:`lib.packet.scion.PacketType`
         """
         while not spkt.hdr.get_current_of().is_regular():
-            spkt.hdr.common_hdr.timestamp = spkt.hdr.common_hdr.current_of
+            spkt.hdr.common_hdr.curr_iof_p = spkt.hdr.common_hdr.curr_of_p
             spkt.hdr.increase_of(1)
 
         while spkt.hdr.get_current_of().is_continue():
             spkt.hdr.increase_of(1)
 
-        ts_info = spkt.hdr.get_timestamp().info
-        timestamp = spkt.hdr.common_hdr.timestamp
+        info = spkt.hdr.get_current_iof().info
+        curr_iof_p = spkt.hdr.common_hdr.curr_iof_p
         # Case: peer path and first opaque field of a down path. We need to
         # increase opaque field pointer as that first opaque field is used for
         # MAC verification only.
-        if (not spkt.hdr.is_on_up_path() and ts_info == OFT.INTRATD_PEER and
-            spkt.hdr.common_hdr.current_of == timestamp + OpaqueField.LEN):
+        if (not spkt.hdr.is_on_up_path() and info == OFT.INTRATD_PEER and
+            spkt.hdr.common_hdr.curr_of_p == curr_iof_p + OpaqueField.LEN):
             spkt.hdr.increase_of(1)
 
         # if spkt.hdr.get_current_of().is_xovr():
         if spkt.hdr.get_current_of().info == OFT.LAST_OF:
-            self.crossover_forward(spkt, next_hop, from_local_ad, ts_info)
+            self.crossover_forward(spkt, next_hop, from_local_ad, info)
         else:
             self.normal_forward(spkt, next_hop, from_local_ad, ptype)
 
@@ -432,9 +432,9 @@ class Router(SCIONElement):
         else:
             iface = spkt.hdr.get_current_of().egress_if
 
-        ts_info = spkt.hdr.get_timestamp().info
+        info = spkt.hdr.get_current_iof().info
         spkt.hdr.increase_of(1)
-        if ts_info == OFT.INTRATD_PEER:
+        if info == OFT.INTRATD_PEER:
             of1_info = spkt.hdr.get_relative_of(1).info
             of2_info = spkt.hdr.get_current_of().info
             if ((of1_info == OFT.INTRATD_PEER and spkt.hdr.is_on_up_path()) or
@@ -468,10 +468,10 @@ class Router(SCIONElement):
             ptype == PT.DATA and from_local_ad):
             of_info = spkt.hdr.get_current_of().info
             if of_info == OFT.TDC_XOVR:
-                spkt.hdr.common_hdr.timestamp = spkt.hdr.common_hdr.current_of
+                spkt.hdr.common_hdr.curr_iof_p = spkt.hdr.common_hdr.curr_of_p
                 spkt.hdr.increase_of(1)
             elif of_info == OFT.NON_TDC_XOVR:
-                spkt.hdr.common_hdr.timestamp = spkt.hdr.common_hdr.current_of
+                spkt.hdr.common_hdr.curr_iof_p = spkt.hdr.common_hdr.curr_of_p
                 spkt.hdr.increase_of(2)
             self.write_to_egress_iface(spkt, next_hop, from_local_ad)
         else:

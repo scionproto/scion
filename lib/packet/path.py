@@ -539,10 +539,10 @@ class PathCombinator(object):
     @staticmethod
     def _build_core_path(up_segment, core_segment, down_segment):
         """
-        Joins up_, core_ and down_path into core fullpath. core_path can be
-        'None' in case of a intra-ISD core_path of length 0.
-        Returns object of CorePath class. core_path (if exists) has to have
-        down-path orientation - to discuss.
+        Joins up_, core_ and down_segment into core fullpath. core_segment can
+        be 'None' in case of a intra-ISD core_segment of length 0.
+        Returns object of CorePath class. core_segment (if exists) has to have
+        down-segment orientation.
         """
         if (not up_segment or not down_segment or
             not up_segment.ads or not down_segment.ads):
@@ -563,8 +563,7 @@ class PathCombinator(object):
 
         full_path = CorePath()
         full_path.up_segment_info = up_segment.iof
-        full_path.up_segment_info.up_flag = True #PSz: should we set flags, or
-        # whoever calls the function should care about that?
+        full_path.up_segment_info.up_flag = True
         for block in reversed(up_segment.ads):
             full_path.up_segment_hops.append(copy.deepcopy(block.pcbm.hof))
         full_path.up_segment_hops[-1].info = OpaqueFieldType.LAST_OF

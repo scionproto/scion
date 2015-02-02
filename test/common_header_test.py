@@ -42,8 +42,8 @@ class TestCommonHeader(unittest.TestCase):
         self.assertTrue(sch.src_addr_len == schCopy.src_addr_len)
         self.assertTrue(sch.dst_addr_len == schCopy.dst_addr_len)
         self.assertTrue(sch.total_len == schCopy.total_len)
-        self.assertTrue(sch.timestamp == schCopy.timestamp)
-        self.assertTrue(sch.current_of == schCopy.current_of)
+        self.assertTrue(sch.curr_iof_p == schCopy.curr_iof_p)
+        self.assertTrue(sch.curr_of_p == schCopy.curr_of_p)
         self.assertTrue(sch.next_hdr == schCopy.next_hdr)
         self.assertTrue(sch.hdr_len == schCopy.hdr_len)
 

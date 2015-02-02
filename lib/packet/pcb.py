@@ -349,10 +349,9 @@ class PathSegment(Marking):
         Returns the list of HopOpaqueFields in the path.
         """
         hofs = []
-        iof = self.iof
         if reverse_direction:
             ads = list(reversed(self.ads))
-            iof.up_flag = self.iof.up_flag ^ True
+            self.iof.up_flag = self.iof.up_flag ^ True
         else:
             ads = self.ads
         for ad_marking in ads:
@@ -413,7 +412,7 @@ class PathSegment(Marking):
             pcb.iof = InfoOpaqueField(raw[0:8])
             pcb.rotf = ROTField(raw[8:16])
             raw = raw[16:]
-            for _ in range(0, pcb.iof.hops):
+            for _ in range(pcb.iof.hops):
                 pcbm = PCBMarking(raw[:PCBMarking.LEN])
                 ad_marking = ADMarking(raw[:pcbm.ssf.sig_len +
                     pcbm.ssf.block_size])
