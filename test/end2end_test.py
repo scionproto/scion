@@ -27,7 +27,7 @@ from endhost.sciond import SCIONDaemon
 ping_received = False
 pong_received = False
 
-class TestDaemon(SCIONDaemon):
+class PingPongEndhost(SCIONDaemon):
 
     def handle_data_packet(self, spkt):
         """
@@ -35,7 +35,9 @@ class TestDaemon(SCIONDaemon):
         """
         global ping_received
         global pong_received
+
         if spkt.payload == b"ping":
+            # Reverse the packet and send "pong".
             print('%s: ping received, sending pong.' % self.addr)
             ping_received = True
             spkt.hdr.reverse()
@@ -47,6 +49,7 @@ class TestDaemon(SCIONDaemon):
             pong_received = True
         else:
             print("Wrong payload.")
+
 
 class TestSCIONDaemon(unittest.TestCase):
     """
@@ -62,11 +65,11 @@ class TestSCIONDaemon(unittest.TestCase):
 
         saddr = IPv4HostAddr("127.1.19.1")
         topo_file = "../topology/ISD1/topologies/ISD:1-AD:19-V:0.xml"
-        sender = TestDaemon.start(saddr, topo_file)
+        sender = PingPongEndhost.start(saddr, topo_file)
 
         raddr = IPv4HostAddr("127.2.26.1")
         topo_file = "../topology/ISD2/topologies/ISD:2-AD:26-V:0.xml"
-        receiver = TestDaemon.start(raddr, topo_file)
+        receiver = PingPongEndhost.start(raddr, topo_file)
 
         print("Sending PATH request for (2, 26) in 3 seconds")
         time.sleep(3)
