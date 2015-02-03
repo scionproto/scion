@@ -20,9 +20,33 @@ from lib.packet.scion import SCIONPacket
 import logging
 import time
 import unittest
+import sys
 
 from endhost.sciond import SCIONDaemon
 
+ping_received = False
+pong_received = False
+
+class TestDaemon(SCIONDaemon):
+
+    def handle_data_packet(self, spkt):
+        """
+        Handles SCION data packet.
+        """
+        global ping_received
+        global pong_received
+        if spkt.payload == b"ping":
+            print('%s: ping received, sending pong.' % self.addr)
+            ping_received = True
+            spkt.hdr.reverse()
+            spkt.payload = b"pong"
+            (next_hop, port) = self.get_first_hop(spkt)
+            self.send(spkt, next_hop, port)
+        elif spkt.payload == b"pong":
+            print('%s: pong received.' % self.addr)
+            pong_received = True
+        else:
+            print("Wrong payload.")
 
 class TestSCIONDaemon(unittest.TestCase):
     """
@@ -32,35 +56,31 @@ class TestSCIONDaemon(unittest.TestCase):
     def test(self):
         """
         Testing function. Creates an instance of SCIONDaemon, then verifies path
-        requesting, and finally sends packet through SCION. Sender is
-        192.168.7.107 placed in ISD:1, AD:19, and receiver is 192.168.6.106 in
-        ISD:2, AD:26.
+        requesting, and finally sends packet through SCION. Sender is 127.1.19.1
+        placed in ISD:1, AD:19, and receiver is 127.2.26.1 in ISD:2, AD:26.
         """
 
-        addr = IPv4HostAddr("127.0.0.1")
+        saddr = IPv4HostAddr("127.1.19.1")
         topo_file = "../topology/ISD1/topologies/ISD:1-AD:19-V:0.xml"
-        sd = SCIONDaemon.start(addr, topo_file)
+        sender = TestDaemon.start(saddr, topo_file)
 
-        print("Sending PATH request for (2, 26) in 5 seconds")
-        time.sleep(5)
-        paths = sd.get_paths(2, 26)
+        raddr = IPv4HostAddr("127.2.26.1")
+        topo_file = "../topology/ISD2/topologies/ISD:2-AD:26-V:0.xml"
+        receiver = TestDaemon.start(raddr, topo_file)
+
+        print("Sending PATH request for (2, 26) in 3 seconds")
+        time.sleep(3)
+        paths = sender.get_paths(2, 26)
         self.assertTrue(paths)
-        # print(paths[0])
 
-        # topo_file = "../topology/ISD2/topologies/ISD:2-AD:26-V:0.xml"
-        # addr = IPv4HostAddr("127.255.0.1")
-        # sd = SCIONDaemon.start(addr, topo_file)
-        # paths[0].reverse()
+        spkt = SCIONPacket.from_values(sender.addr, raddr, b"ping", paths[0])
+        (next_hop, port) = sender.get_first_hop(spkt)
+        print("Sending packet: %s\nFirst hop: %s:%s\n" % (spkt, next_hop, port))
+        sender.send(spkt, next_hop, port)
 
-        dst = IPv4HostAddr("192.168.6.106")
-        # paths[0].up_segment_info.timestamp += 1 #tested
-        spkt = SCIONPacket.from_values(sd.addr, dst, b"payload", paths[0])
-        (next_hop, port) = sd.get_first_hop(spkt)
-        print("Sending packet: %s\nFirst hop: %s:%s" % (spkt, next_hop, port))
-        while True:
-            sd.send(spkt, next_hop, port)
-            print('.', end="", flush=True)
-            time.sleep(2)
+        time.sleep(1)
+        self.assertTrue(ping_received)
+        self.assertTrue(pong_received)
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)

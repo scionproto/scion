@@ -10,27 +10,32 @@ Python implementation of [SCION](http://www.netsec.ethz.ch/research/SCION), a fu
 
 Necessary steps in order to run SCION:
 
-0. Compile the crypto library:
+0. Install required packages with dependencies:
+
+    sudo apt-get install python3 python3-pip
+    sudo pip3 install bitstring python-pytun pydblite
+
+1. Compile the crypto library:
 
 	./scion.sh init
 
-1. Create the topology and configuration files (according to “topology/ADRelationships” and “topology/ADToISD"):
+2. Create the topology and configuration files (according to “topology/ADRelationships” and “topology/ADToISD"):
 
 	./scion.sh topology
 
-2. Configure the loopback interface accordingly:
+3. Configure the loopback interface accordingly:
 
  	./scion.sh setup
 
-3. Run the infrastructure
+4. Run the infrastructure
 
 	./scion.sh run
 
-4. Stop the infrastructure
+5. Stop the infrastructure
 
 	./scion.sh stop
 
-5. Flush all IP addresses assigned to the loopback interface
+6. Flush all IP addresses assigned to the loopback interface
 
 	./scion.sh clean
 

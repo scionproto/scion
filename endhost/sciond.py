@@ -150,11 +150,10 @@ class SCIONDaemon(SCIONElement):
 
         return full_paths
 
-    def handle_path_reply(self, packet):
+    def handle_path_reply(self, path_reply):
         """
         Handles path reply from local path server.
         """
-        path_reply = PathSegmentRecords(packet)
         info = path_reply.info
         for pcb in path_reply.pcbs:
             isd = pcb.get_isd()
@@ -183,6 +182,12 @@ class SCIONDaemon(SCIONElement):
                 self._waiting_targets[info.type][(info.dst_isd, info.dst_ad)]:
                 event.set()
 
+    def handle_data_packet(self, spkt):
+        """
+        Handles SCION data packet.
+        """
+        logging.warning("Handle data packet here.")
+
     def handle_request(self, packet, sender, from_local_socket=True):
         """
         Main routine to handle incoming SCION packets.
@@ -191,7 +196,9 @@ class SCIONDaemon(SCIONElement):
         ptype = get_type(spkt)
 
         if ptype == PT.PATH_REC:
-            self.handle_path_reply(packet)
+            self.handle_path_reply(PathSegmentRecords(packet))
+        elif ptype == PT.DATA:
+            self.handle_data_packet(spkt)
         else:
             logging.warning("Type %d not supported.", ptype)
 
