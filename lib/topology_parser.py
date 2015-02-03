@@ -218,7 +218,7 @@ class Topology(object):
         self.isd_id = 0
         self.is_core_ad = False
         self.routers = defaultdict(list)
-        self.servers = {}
+        self.servers = defaultdict(list)
         self._filename = None
         self._topo = None
         if filename is not None:
@@ -282,7 +282,7 @@ class Topology(object):
                 logging.warning("Encountered unknown server tag '%s'",
                                 server.tag)
                 continue
-            self.servers[element.type] = element
+            self.servers[element.type].append(element)
 
     def _parse_routers(self):
         """
