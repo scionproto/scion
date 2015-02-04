@@ -27,6 +27,7 @@ from lib.topology_parser import ElementType
 from lib.util import update_dict
 import logging
 import threading
+import struct
 
 
 PATHS_NO = 5  # conf parameter?
@@ -188,17 +189,43 @@ class SCIONDaemon(SCIONElement):
         """
         logging.warning("Handle data packet here.")
 
+    def serve_api_request(self, packet):
+        """
+        API:
+        Path request:
+          | \x00 (1B) | ISD (2B) |  AD (8B)  |
+        Reply:
+          |path1_len(1B)|path1(path1_len*8B)|first_hop_IP(4B)|path2_len(1B)...
+         or b"" when no path found. Only IPv4 supported currently.
+        """
+        if packet[0] == '\x00':
+            isd, ad = struct.unpack("HQ", packet[1:])
+            paths = self.get_paths(isd, ad)
+            reply = []
+            for path in paths:
+                raw_path = path.pack()
+                hop = self.ifid2addr[path.get_first_of.ingress_if] # up-path
+                hop = struct.pack("I", hop._addr)
+                path_len = len(path) // 8 # Check whether 8 divides path_len? 
+                reply.append(struct.pack("B", path_len) + path + hop)
+# send back reply.join(b"")
+        else:
+            logging.warning("API: type %d not supported.", packet[0])
+
     def handle_request(self, packet, sender, from_local_socket=True):
         """
         Main routine to handle incoming SCION packets.
         """
         spkt = SCIONPacket(packet)
         ptype = get_type(spkt)
+        if from_local_socket: # From PS or ER.
+            if ptype == PT.PATH_REC:
+                self.handle_path_reply(PathSegmentRecords(packet))
+            elif ptype == PT.DATA:
+                self.handle_data_packet(spkt)
+            else:
+                logging.warning("Type %d not supported.", ptype)
+        else: # From localhost (SCIONDaemon API)
+            self.serve_api_request(packet)
 
-        if ptype == PT.PATH_REC:
-            self.handle_path_reply(PathSegmentRecords(packet))
-        elif ptype == PT.DATA:
-            self.handle_data_packet(spkt)
-        else:
-            logging.warning("Type %d not supported.", ptype)
 

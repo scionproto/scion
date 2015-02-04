@@ -53,7 +53,6 @@ class SCIONGateway(SCIONDaemon):
         :returns: the newly-created SCIONGateway instance
         :rtype: SCIONGateway
         """
-
         SCIONDaemon.__init__(self, addr, topo_file)
         self.scion_hosts = scion_hosts
         self._tun = TunTapDevice(flags=IFF_TUN|IFF_NO_PI)
