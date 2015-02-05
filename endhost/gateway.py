@@ -55,8 +55,8 @@ class SCIONGateway(SCIONDaemon):
         """
         SCIONDaemon.__init__(self, addr, topo_file)
         self.scion_hosts = scion_hosts
-        self._tun = TunTapDevice(flags=IFF_TUN|IFF_NO_PI)
-        self._tun.up()
+        self._tun_dev = TunTapDevice(flags=IFF_TUN|IFF_NO_PI)
+        self._tun_dev.up()
         self.init_routing()
 
     def run(self):
@@ -72,7 +72,7 @@ class SCIONGateway(SCIONDaemon):
         SCION and (if so) sends the packets through SCION network.
         """
         while True:
-            raw_packet = self._tun.read(self._tun.mtu)
+            raw_packet = self._tun_dev.read(self._tun_dev.mtu)
             ip_dst="%d.%d.%d.%d" % struct.unpack("BBBB", raw_packet[16:20])
             logging.info("From TUN")
 
@@ -99,7 +99,7 @@ class SCIONGateway(SCIONDaemon):
         Decapsulates incoming SCION data packet, and sends them to a TUN device.
         """
         logging.info("Writing to device")
-        self._tun.write(spkt.payload)
+        self._tun_dev.write(spkt.payload)
     
     def init_routing(self):
         """
@@ -108,7 +108,7 @@ class SCIONGateway(SCIONDaemon):
         """
         for i in self.scion_hosts.keys():
             if i != str(self.addr):
-                cmd = "/sbin/ip route add %s dev %s" % (i, self._tun.name)
+                cmd = "/sbin/ip route add %s dev %s" % (i, self._tun_dev.name)
                 call(cmd, shell=True)
                 logging.info(cmd)
     
@@ -117,7 +117,7 @@ class SCIONGateway(SCIONDaemon):
         Closes open descriptors (it also removes routing entries created by
         self.init_routing()).
         """
-        self._tun.close()
+        self._tun_dev.close()
         SCIONDaemon.clean(self)
 
 
