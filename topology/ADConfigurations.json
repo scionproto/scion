@@ -3,9 +3,9 @@
     "1-11": {
         "level": "CORE",
         "subnet": "192.0.0.0/8",
-        "beacon_servers": 1,
-        "certificate_servers": 1,
-        "path_servers": 1,
+        "beacon_servers": 2,
+        "certificate_servers": 3,
+        "path_servers": 2,
         "links": {
             "1-12": "ROUTING",
             "1-13": "ROUTING",
@@ -32,6 +32,7 @@
     },
     "1-14": {
         "level": "INTERMEDIATE",
+        "path_servers": 1,
         "links": {
             "1-11": "PARENT",
             "1-15": "PEER",

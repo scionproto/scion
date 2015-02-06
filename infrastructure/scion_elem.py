@@ -25,13 +25,12 @@ Module docstring here.
 
 """
 
-from lib.config import Config
 from lib.packet.host_addr import HostAddr
-from lib.rot import Rot
-from lib.topology_parser import Topology
+from lib.topology import Topology
+from lib.config import Config
+from lib.crypto.trcs import TRC
 import logging
 import socket
-
 import select
 
 
@@ -55,7 +54,7 @@ class SCIONElement(object):
     :vartype addr: :class:`lib.packet.host_addr.HostAddr`
     """
 
-    def __init__(self, addr, topo_file, config_file=None, rot_file=None):
+    def __init__(self, addr, topo_file, config_file=None, trc_file=None):
         """
         Create a new ServerBase instance.
 
@@ -72,13 +71,14 @@ class SCIONElement(object):
         self._addr = None
         self.topology = None
         self.config = None
+        self.trc = None
         self.ifid2addr = {}
         self.addr = addr
         self.parse_topology(topo_file)
         if config_file is not None:
             self.parse_config(config_file)
-        if rot_file is not None:
-            self.parse_rot(rot_file)
+        if trc_file is not None:
+            self.parse_trc(trc_file)
         self.construct_ifid2addr_map()
         self._local_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._local_socket.bind((str(self.addr), SCION_UDP_PORT))
@@ -122,7 +122,6 @@ class SCIONElement(object):
         """
         assert isinstance(topo_file, str)
         self.topology = Topology(topo_file)
-        self.topology.parse()
 
     def parse_config(self, config_file):
         """
@@ -134,17 +133,13 @@ class SCIONElement(object):
         """
         assert isinstance(config_file, str)
         self.config = Config(config_file)
-        self.config.parse()
 
-    def parse_rot(self, rot_file):
+    def parse_trc(self, trc_file):
         """
-        Instantiates a ROTParser and parses the rot given by 'rot_file'.
+        Instantiates a TRCParser and parses the TRC given by 'rot_file'.
         """
-        assert isinstance(rot_file, str)
-        # TODO: create new TRC file parser
-        # self.rot = Rot(rot_file)
-        # self.rot.parse()
-        pass
+        assert isinstance(trc_file, str)
+        self.trc = TRC(trc_file)
 
     def construct_ifid2addr_map(self):
         """
@@ -152,10 +147,8 @@ class SCIONElement(object):
         of the neighbors connected to those interfaces.
         """
         assert self.topology is not None
-        # assert self.config is not None
-        for router_list in self.topology.routers.values():
-            for router in router_list:
-                self.ifid2addr[router.interface.if_id] = router.addr
+        for edge_router in self.topology.get_all_edge_routers():
+            self.ifid2addr[edge_router.interface.if_id] = edge_router.addr
 
     def handle_request(self, packet, sender, from_local_socket=True):
         """

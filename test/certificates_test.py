@@ -56,11 +56,10 @@ class TestCertificates(unittest.TestCase):
         chain = CertificateChain.from_values(chain_list)
         print('Certificate Chain:', chain, sep='\n')
 
-        path = "./"
-        with open(path + 'ISD:11-AD:0-V:0.crt', "w") as file_handler:
+        with open('ISD:11-AD:0-V:0.crt', "w") as file_handler:
                   file_handler.write(str(cert0))
 
-        roots = load_root_certificates(path)
+        roots = load_root_certificates('./')
         print ('Certificate Chain verification:',
                chain.verify('ISD:11-AD:3', roots, 0), sep='\n')
 

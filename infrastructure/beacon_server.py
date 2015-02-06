@@ -26,7 +26,6 @@ from lib.packet.opaque_field import (OpaqueFieldType as OFT, InfoOpaqueField,
 from lib.packet.pcb import HalfPathBeacon, ADMarking, PCBMarking, PeerMarking
 from lib.packet.scion import (SCIONPacket, get_type, Beacon, PathInfo,
     PathRecords, PacketType as PT, PathInfoType as PIT)
-from lib.topology_parser import ElementType, NeighborType
 import logging
 import sys
 import threading
@@ -63,7 +62,7 @@ class BeaconServer(SCIONElement):
         """
         assert isinstance(pcb, HalfPathBeacon)
         ingress_if = pcb.rotf.if_id
-        for router_child in self.topology.routers[NeighborType.CHILD]:
+        for router_child in self.topology.child_edge_routers:
             new_pcb = copy.deepcopy(pcb)
             egress_if = router_child.interface.if_id
             new_pcb.rotf.if_id = egress_if
@@ -112,7 +111,7 @@ class BeaconServer(SCIONElement):
         peer_markings = []
         # TODO PSz: peering link can be only added when there is
         # IfidReply from router
-        for router_peer in self.topology.routers[NeighborType.PEER]:
+        for router_peer in self.topology.peer_edge_routers:
             hof = HopOpaqueField.from_values(router_peer.interface.if_id,
                                              egress_if)
             spf = SupportPeerField.from_values(self.topology.isd_id)
@@ -166,7 +165,7 @@ class CoreBeaconServer(BeaconServer):
         """
         assert isinstance(pcb, HalfPathBeacon)
         ingress_if = pcb.rotf.if_id
-        for core_router in self.topology.routers[NeighborType.ROUTING]:
+        for core_router in self.topology.routing_edge_routers:
             new_pcb = copy.deepcopy(pcb)
             egress_if = core_router.interface.if_id
             new_pcb.rotf.if_id = egress_if
@@ -234,8 +233,9 @@ class CoreBeaconServer(BeaconServer):
                                     pcb.get_first_ad().ad_id,
                                     self.topology.ad_id)
         # Register core path with local core path server.
-        if ElementType.PATH_SERVER in self.topology.servers:
-            dst = self.topology.servers[ElementType.PATH_SERVER].addr
+        if self.topology.path_servers != []:
+            # TODO: pick other than the first path server
+            dst = self.topology.path_servers[0].addr
             path_rec = PathRecords.from_values(dst, info, [pcb])
             logging.debug("Registering core path with local PS.")
             self.send(path_rec, dst)
@@ -286,7 +286,8 @@ class LocalBeaconServer(BeaconServer):
                                     self.topology.isd_id,
                                     pcb.get_first_ad().ad_id,
                                     self.topology.ad_id)
-        dst = self.topology.servers[ElementType.PATH_SERVER].addr
+        # TODO: pick other than the first path server
+        dst = self.topology.path_servers[0].addr
         up_path = PathRecords.from_values(dst, info, [pcb])
         self.send(up_path, dst)
 

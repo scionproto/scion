@@ -40,7 +40,7 @@ class TestSCIONDaemon(unittest.TestCase):
         """
 
         addr = IPv4HostAddr("127.0.0.1")
-        topo_file = "../topology/ISD1/topologies/ISD:1-AD:19-V:0.xml"
+        topo_file = "../topology/ISD1/topologies/ISD:1-AD:19-V:0.json"
         sd = SCIONDaemon.start(addr, topo_file)
 
         print("Sending PATH request for (2, 26) in 5 seconds")

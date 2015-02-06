@@ -26,7 +26,6 @@ from lib.packet.scion import (SCIONPacket, get_type, PathRequest, PathRecords,
     PathInfo, PathInfoType as PIT)
 from lib.packet.scion import PacketType as PT
 from lib.path_db import PathDB
-from lib.topology_parser import NeighborType
 from lib.util import update_dict
 import logging
 import sys
@@ -233,7 +232,7 @@ class CorePathServer(PathServer):
         """
         # FIXME: For new we broadcast the path to every CPS in the core, even
         # the one we just received it from. Can we avoid that?
-        for router in self.topology.routers[NeighborType.ROUTING]:
+        for router in self.topology.routing_edge_routers:
             if router.interface.neighbor_isd == self.topology.isd_id:
                 cpaths = self.core_paths(src_isd=self.topology.isd_id,
                                          src_ad=self.topology.ad_id,

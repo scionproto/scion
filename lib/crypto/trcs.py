@@ -1,19 +1,21 @@
+#trcs.py
+
+#Copyright 2014 ETH Zurich
+
+#Licensed under the Apache License, Version 2.0 (the "License");
+#you may not use this file except in compliance with the License.
+#You may obtain a copy of the License at
+
+#http://www.apache.org/licenses/LICENSE-2.0
+
+#Unless required by applicable law or agreed to in writing, software
+#distributed under the License is distributed on an "AS IS" BASIS,
+#WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#See the License for the specific language governing permissions and
+#limitations under the License.
 """
-trcs.py
-
-Copyright 2014 ETH Zurich
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+:mod:`trcs` --- SCION TRC parser
+===========================================
 """
 
 from lib.crypto.asymcrypto import *
@@ -26,10 +28,49 @@ import base64
 
 class TRC(object):
     """
-    TRC class.
+    The TRC class parses the TRC file of an ISD and stores such
+    information for further use.
+
+    :ivar isd_id: the ISD identifier.
+    :type isd_id: int
+    :ivar version: the TRC file version.
+    :type version: int
+    :ivar time: the TRC file creation timestamp.
+    :type time: int
+    :ivar core_isps: the list of core ISPs and their public keys.
+    :type core_isps: TODO
+    :ivar registry_key: the root registry server's public key.
+    :type registry_key: TODO
+    :ivar path_key: the path server's public key.
+    :type path_key: TODO
+    :ivar root_cas: the list of root CAs and their public keys.
+    :type root_cas: TODO
+    :ivar root_dns_key: the DNS root's public key.
+    :type root_dns_key: TODO
+    :ivar root_dns_addr: the DNS root's address.
+    :type root_dns_addr: TODO
+    :ivar trc_server: the TRC server's address.
+    :type trc_server: TODO
+    :ivar quorum: number of trust roots necessary to sign a new TRC.
+    :type quorum: int
+    :ivar trc_quorum: number of trust roots necessary to sign a new ISD
+                      cross-signing certificate.
+    :type trc_quorum: int
+    :ivar policies: additional management policies for the ISD.
+    :type policies: TODO
+    :ivar signatures: signatures by a quorum of trust roots.
+    :type signatures: TODO
     """
 
-    def __init__(self, raw=None):
+    def __init__(self, trc_file=None):
+        """
+        Initialize an instance of the class TRC.
+
+        :param trc_file: the name of the TRC file.
+        :type trc_file: str
+        :returns: the newly created TRC instance.
+        :rtype: :class:`TRC`
+        """
         self.isd_id = ''
         self.version = 0
         self.time = 0
@@ -44,12 +85,15 @@ class TRC(object):
         self.trc_quorum = 0
         self.policies = ''
         self.signatures = ''
-        if raw:
-            self.parse(raw)
+        if trc_file:
+            self.parse(trc_file)
 
     def get_trc_dict(self):
         """
-        Returns a dictionary with the TRC's content.
+        Return the TRC information.
+
+        :returns: the TRC information.
+        :rtype: dict
         """
         trc_dict = {
             'isd_id': self.isd_id,
@@ -68,14 +112,16 @@ class TRC(object):
             'signatures': self.signatures}
         return trc_dict
 
-    def parse(self, raw):
+    def parse(self, trc_file):
         """
-        Initializes a TRC object out of a raw TRC.
+        Parse a TRC file and populate the instance's attributes.
 
-        @param raw: Raw string produced by packing the TRC.
+        :param trc_file: the name of the TRC file.
+        :type trc_file: str
         """
         try:
-            trc = json.loads(raw)
+            with open(trc_file) as trc_fh:
+                trc = json.load(trc_fh)
         except (ValueError, KeyError, TypeError):
             logging.error("TRC: JSON format error.")
             return
@@ -101,20 +147,35 @@ class TRC(object):
         """
         Generates a TRC instance.
 
-        @param isd_id: ISD's identifier.
-        @param version: Version of the TRC file.
-        @param core_isps: List of core ISPs and their public keys.
-        @param registry_key: Root registry server's public key.
-        @param path_key: Path server's public key.
-        @param root_cas: List of root CAs and their public keys.
-        @param root_dns_key: DNS root's public key.
-        @param root_dns_addr: DNS root's address.
-        @param trc_server: TRC server's address.
-        @param quorum: Number of trust roots that must sign new TRC.
-        @param trc_quorum: Number of trust roots that must sign an ISD
-            cross-signing cert.
-        @param policies: Additional management policies for the ISD.
-        @param signatures: Signatures by a quorum of trust roots.
+        :param isd_id: the ISD identifier.
+        :type isd_id: int
+        :param version: the TRC file version.
+        :type version: int
+        :param core_isps: the list of core ISPs and their public keys.
+        :type core_isps: TODO
+        :param registry_key: the root registry server's public key.
+        :type registry_key: TODO
+        :param path_key: the path server's public key.
+        :type path_key: TODO
+        :param root_cas: the list of root CAs and their public keys.
+        :type root_cas: TODO
+        :param root_dns_key: the DNS root's public key.
+        :type root_dns_key: TODO
+        :param root_dns_addr: the DNS root's address.
+        :type root_dns_addr: TODO
+        :param trc_server: the TRC server's address.
+        :type trc_server: TODO
+        :param quorum: number of trust roots necessary to sign a new TRC.
+        :type quorum: int
+        :param trc_quorum: number of trust roots necessary to sign a new ISD
+                           cross-signing certificate.
+        :type trc_quorum: int
+        :param policies: additional management policies for the ISD.
+        :type policies: TODO
+        :param signatures: signatures by a quorum of trust roots.
+        :type signatures: TODO
+        :returns: the newly created TRC instance.
+        :rtype: :class:`TRC`
         """
         trc = TRC()
         trc.isd_id = isd_id
@@ -133,13 +194,13 @@ class TRC(object):
         trc.signatures = signatures
         return trc
 
-    def pack(self):
+    def __str__(self):
         """
-        Packs the TRC into a string.
+        Convert the instance in a readable format.
+
+        :returns: the TRC information.
+        :rtype: str
         """
         trc_dict = self.get_trc_dict()
         trc_str = json.dumps(trc_dict, sort_keys=True, indent=4)
         return trc_str
-
-    def __str__(self):
-        return self.pack()

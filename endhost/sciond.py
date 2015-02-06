@@ -22,7 +22,6 @@ from lib.packet.scion import (SCIONPacket, get_type, PathRequest, PathRecords,
     PathInfo, PathInfoType as PIT)
 from lib.packet.scion import PacketType as PT
 from lib.path_db import PathDB
-from lib.topology_parser import ElementType
 from lib.util import update_dict
 import logging
 import threading
@@ -82,7 +81,7 @@ class SCIONDaemon(SCIONElement):
         # Create and send out path request.
         info = PathInfo.from_values(ptype, src_isd, dst_isd, src_ad, dst_ad)
         path_request = PathRequest.from_values(self.addr, info)
-        dst = self.topology.servers[ElementType.PATH_SERVER].addr
+        dst = self.topology.path_servers[0].addr
         self.send(path_request, dst)
 
         # Wait for path reply and clear us from the waiting list when we got it.

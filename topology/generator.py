@@ -1,21 +1,25 @@
+#generator.py
+
+#Copyright 2014 ETH Zurich
+
+#Licensed under the Apache License, Version 2.0 (the "License");
+#you may not use this file except in compliance with the License.
+#You may obtain a copy of the License at
+
+#http://www.apache.org/licenses/LICENSE-2.0
+
+#Unless required by applicable law or agreed to in writing, software
+#distributed under the License is distributed on an "AS IS" BASIS,
+#WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#See the License for the specific language governing permissions and
+#limitations under the License.
 """
-generator.py
-
-Copyright 2014 ETH Zurich
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+:mod:`generator` --- SCION topology generator
+===========================================
 """
 
+from lib.topology import Topology
+from lib.config import Config
 from lib.crypto.certificates import Certificate
 from lib.crypto.trcs import TRC
 from lib.crypto.asymcrypto import *
@@ -57,25 +61,17 @@ ER_RANGE = '61'
 default_subnet = "127.0.0.0/8"
 
 
-def is_int(string):
-    try:
-        int(string)
-        return True
-    except ValueError:
-        return False
-
-
-def is_good_ipv4(string):
-    pieces = string.split('.')
-    if len(pieces) != 4:
-        return False
-    try:
-        return all(0<=int(p)<256 for p in pieces)
-    except ValueError:
-        return False
-
-
 def increment_address(ip_address, increment=1):
+    """
+    Increment an IP address value.
+
+    :param ip_address: the IP address to increment.
+    :type ip_address: str
+    :param increment: step the IP address must be incremented of.
+    :type increment: int
+    :returns: the incremented IP address.
+    :rtype: str
+    """
     ip2int = lambda ipstr: struct.unpack('!I', socket.inet_aton(ipstr))[0]
     int2ip = lambda n: socket.inet_ntoa(struct.pack('!I', n))
     ip_address_int = ip2int(ip_address)
@@ -85,6 +81,14 @@ def increment_address(ip_address, increment=1):
 
 
 def set_er_ip_addresses(AD_configs):
+    """
+    Set the IP addresses of all edge routers.
+
+    :param AD_configs: the configurations of all SCION ADs.
+    :type AD_configs: dict
+    :returns: the edge router IP addresses.
+    :rtype: dict
+    """
     er_ip_addresses = {}
     for isd_ad_id in AD_configs:
         if "subnet" in AD_configs[isd_ad_id]:
@@ -104,6 +108,9 @@ def set_er_ip_addresses(AD_configs):
 
 
 def delete_directories():
+    """
+    Delete any ISD* directories if present.
+    """
     for root, dirs, files in os.walk('.'):
         for name in dirs:
             if name.startswith(('ISD')):
@@ -111,6 +118,13 @@ def delete_directories():
 
 
 def create_directories(AD_configs):
+    """
+    Create the ISD* directories and sub-directories, where all files used to run
+    the SCION ADs are stored.
+
+    :param AD_configs: the configurations of all SCION ADs.
+    :type AD_configs: dict
+    """
     for isd_ad_id in AD_configs:
         (isd_id, ad_id) = isd_ad_id.split('-')
         cert_path = 'ISD' + isd_id + CERT_DIR
@@ -137,6 +151,12 @@ def create_directories(AD_configs):
 
 
 def write_keys_certs(AD_configs):
+    """
+    Generate the AD certificates and keys and store them into separate files.
+
+    :param AD_configs: the configurations of all SCION ADs.
+    :type AD_configs: dict
+    """
     for isd_ad_id in AD_configs:
         (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
         file_name = 'ISD:' + isd_id + '-AD:' + ad_id + '-V:' + '0'
@@ -153,9 +173,17 @@ def write_keys_certs(AD_configs):
             key_fh.write(str(enc_priv))
         with open(cert_file, 'w') as cert_fh:
             cert_fh.write(str(cert))
+        # Test if parser works
+        cert = Certificate(cert_file)
 
 
 def write_beginning_setup_run_files(AD_configs):
+    """
+    Create the beginning of the AD setup and run files.
+
+    :param AD_configs: the configurations of all SCION ADs.
+    :type AD_configs: dict
+    """
     for isd_ad_id in AD_configs:
         (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
         file_name = 'ISD:' + isd_id + '-AD:' + ad_id
@@ -168,11 +196,20 @@ def write_beginning_setup_run_files(AD_configs):
 
 
 def write_topo_files(AD_configs, er_ip_addresses):
+    """
+    Generate the AD topologies and store them into files. Update the AD setup
+    and run files.
+
+    :param AD_configs: the configurations of all SCION ADs.
+    :type AD_configs: dict
+    :param er_ip_addresses: the edge router IP addresses.
+    :type er_ip_addresses: dict
+    """
     for isd_ad_id in AD_configs:
         (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
         file_name = 'ISD:' + isd_id + '-AD:' + ad_id + '-V:' + '0'
         conf_file = 'ISD' + isd_id + CONF_DIR + file_name + '.conf'
-        topo_file = 'ISD' + isd_id + TOPO_DIR + file_name + '.xml'
+        topo_file = 'ISD' + isd_id + TOPO_DIR + file_name + '.json'
         trc_file = 'ISD' + isd_id + '/' + 'ISD:' + isd_id + '-V:0.crt'
         file_name = 'ISD:' + isd_id + '-AD:' + ad_id
         setup_file = 'ISD' + isd_id + SETUP_DIR + file_name + '.sh'
@@ -196,27 +233,24 @@ def write_topo_files(AD_configs, er_ip_addresses):
             number_ps = AD_configs[isd_ad_id]["path_servers"]
         else:
             number_ps = DEFAULT_PATH_SERVERS
-        with open(topo_file, 'w') as topo_fh, \
-            open(setup_file, 'a') as setup_fh, open(run_file, 'a') as run_fh:
-            topo_fh.write('\n'.join([
-                '<?xml version=\"1.0\" ?>',
-                '<Topology>',
-                '\t<Core>' + ('1' if is_core else '0') + '</Core>',
-                '\t<ISDID>' + isd_id + '</ISDID>',
-                '\t<ADID>' + ad_id + '</ADID>',
-                '\t<Servers>\n']))
+        # Write beginning and general structure
+        topo_dict = {'Core': 1 if is_core else 0,
+                     'ISDID': int(isd_id),
+                     'ADID': int(ad_id),
+                     'BeaconServers': {},
+                     'CertificateServers': {},
+                     'PathServers': {},
+                     'EdgeRouters': {}}
+        with open(setup_file, 'a') as setup_fh, open(run_file, 'a') as run_fh:
             # Write Beacon Servers
             ip_address = '.'.join([first_byte, isd_id, ad_id, BS_RANGE])
-            for beacon_server in range(1, number_bs + 1):
-                topo_fh.write('\n'.join([
-                    '\t\t<BeaconServer>',
-                    '\t\t\t<AddrType>IPv4</AddrType>',
-                    '\t\t\t<Addr>' + ip_address + '</Addr>',
-                    '\t\t</BeaconServer>\n']))
+            for b_server in range(1, number_bs + 1):
+                topo_dict['BeaconServers'][b_server] = {'AddrType': 'IPv4',
+                                                        'Addr': ip_address}
                 setup_fh.write('ip addr add ' + ip_address + '/' + mask +
                     ' dev lo\n')
                 run_fh.write(''.join(['screen -d -m -S bs', isd_id, '-', ad_id,
-                    '-', str(beacon_server), ' sh -c \"',
+                    '-', str(b_server), ' sh -c \"',
                     'PYTHONPATH=../ python3 beacon_server.py ',
                     ('core ' if is_core else 'local '), ip_address, ' ..',
                     SCRIPTS_DIR, topo_file, ' ..', SCRIPTS_DIR, conf_file,
@@ -224,40 +258,35 @@ def write_topo_files(AD_configs, er_ip_addresses):
                 ip_address = increment_address(ip_address)
             # Write Certificate Servers
             ip_address = '.'.join([first_byte, isd_id, ad_id, CS_RANGE])
-            for certificate_server in range(1, number_cs + 1):
-                topo_fh.write('\n'.join([
-                    '\t\t<CertificateServer>',
-                    '\t\t\t<AddrType>IPv4</AddrType>',
-                    '\t\t\t<Addr>' + ip_address + '</Addr>',
-                    '\t\t</CertificateServer>\n']))
+            for c_server in range(1, number_cs + 1):
+                topo_dict['CertificateServers'][c_server] = {'AddrType': 'IPv4',
+                                                             'Addr': ip_address}
                 setup_fh.write('ip addr add ' + ip_address + '/' + mask +
                     ' dev lo\n')
                 run_fh.write(''.join(['screen -d -m -S cs', isd_id, '-', ad_id,
-                    '-', str(certificate_server), ' sh -c \"',
+                    '-', str(c_server), ' sh -c \"',
                     "PYTHONPATH=../ python3 cert_server.py ", ip_address, ' ..',
                     SCRIPTS_DIR, topo_file, ' ..', SCRIPTS_DIR, conf_file,
                     ' ..', SCRIPTS_DIR, trc_file, '\"\n']))
                 ip_address = increment_address(ip_address)
             # Write Path Servers
-            if AD_configs[isd_ad_id]['level'] != INTERMEDIATE_AD:
+            if (AD_configs[isd_ad_id]['level'] != INTERMEDIATE_AD or
+                "path_servers" in AD_configs[isd_ad_id]):
                 ip_address = '.'.join([first_byte, isd_id, ad_id, PS_RANGE])
-                for path_server in range(1, number_ps + 1):
-                    topo_fh.write('\n'.join([
-                        '\t\t<PathServer>',
-                        '\t\t\t<AddrType>IPv4</AddrType>',
-                        '\t\t\t<Addr>' + ip_address + '</Addr>',
-                        '\t\t</PathServer>\n']))
+                for p_server in range(1, number_ps + 1):
+                    topo_dict['PathServers'][p_server] = {'AddrType': 'IPv4',
+                                                          'Addr': ip_address}
                     setup_fh.write('ip addr add ' + ip_address + '/' + mask +
                         ' dev lo\n')
                     run_fh.write(''.join(['screen -d -m -S ps', isd_id, '-',
-                        ad_id, '-', str(path_server), ' sh -c \"',
+                        ad_id, '-', str(p_server), ' sh -c \"',
                         'PYTHONPATH=../ python3 path_server.py ',
                         ('core ' if is_core else 'local '), ip_address, ' ..',
                         SCRIPTS_DIR, topo_file, ' ..', SCRIPTS_DIR, conf_file,
                         '\"\n']))
                     ip_address = increment_address(ip_address)
-            topo_fh.write('\t</Servers>\n\t<BorderRouters>\n')
             # Write Edge Routers
+            edge_router = 1
             for nbr_isd_ad_id in AD_configs[isd_ad_id]["links"]:
                 (nbr_isd_id, nbr_ad_id) = nbr_isd_ad_id.split(ISD_AD_ID_DIVISOR)
                 ip_address_loc = er_ip_addresses[(isd_ad_id, nbr_isd_ad_id)][0]
@@ -266,22 +295,18 @@ def write_topo_files(AD_configs, er_ip_addresses):
                     er_ip_addresses[(nbr_isd_ad_id, isd_ad_id)][1]
                 nbr_type = AD_configs[isd_ad_id]["links"][nbr_isd_ad_id]
                 if_id = str(255 + int(ad_id) + int(nbr_ad_id))
-                topo_fh.write('\n'.join([
-                    '\t\t<Router>',
-                    '\t\t\t<AddrType>IPv4</AddrType>',
-                    '\t\t\t<Addr>' + ip_address_loc + '</Addr>',
-                    '\t\t\t<Interface>',
-                    '\t\t\t\t<IFID>' + if_id + '</IFID>',
-                    '\t\t\t\t<NeighborISD>' + nbr_isd_id + '</NeighborISD>',
-                    '\t\t\t\t<NeighborAD>' + nbr_ad_id + '</NeighborAD>',
-                    '\t\t\t\t<NeighborType>' + nbr_type + '</NeighborType>',
-                    '\t\t\t\t<AddrType>IPv4</AddrType>',
-                    '\t\t\t\t<Addr>' + ip_address_pub + '</Addr>',
-                    '\t\t\t\t<ToAddr>' + nbr_ip_address_pub + '</ToAddr>',
-                    '\t\t\t\t<UdpPort>' + PORT + '</UdpPort>',
-                    '\t\t\t\t<ToUdpPort>' + PORT + '</ToUdpPort>',
-                    '\t\t\t</Interface>',
-                    '\t\t</Router>\n']))
+                topo_dict['EdgeRouters'][edge_router] = \
+                    {'AddrType': 'IPv4',
+                     'Addr': ip_address_loc,
+                     'Interface': {'IFID': int(if_id),
+                                   'NeighborISD': int(nbr_isd_id),
+                                   'NeighborAD': int(nbr_ad_id),
+                                   'NeighborType': nbr_type,
+                                   'AddrType': 'IPv4',
+                                   'Addr': ip_address_pub,
+                                   'ToAddr': nbr_ip_address_pub,
+                                   'UdpPort': int(PORT),
+                                   'ToUdpPort': int(PORT)}}
                 setup_fh.write('ip addr add ' + ip_address_loc + '/' + mask +
                     ' dev lo\n')
                 run_fh.write(''.join(['screen -d -m -S er', isd_id, '-', ad_id,
@@ -289,34 +314,51 @@ def write_topo_files(AD_configs, er_ip_addresses):
                     'PYTHONPATH=../ python3 router.py ', ip_address_loc, ' ..',
                     SCRIPTS_DIR, topo_file, ' ..', SCRIPTS_DIR, conf_file,
                     '\"\n']))
-            topo_fh.write('\t</BorderRouters>\n</Topology>\n')
+                edge_router += 1
+        with open(topo_file, 'w') as topo_fh:
+            json.dump(topo_dict, topo_fh, sort_keys=True, indent=4)
+        # Test if parser works
+        topology = Topology(topo_file)
 
 
 def write_conf_files(AD_configs):
+    """
+    Generate the AD configurations and store them into files.
+
+    :param AD_configs: the configurations of all SCION ADs.
+    :type AD_configs: dict
+    """
     for isd_ad_id in AD_configs:
         (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
         file_name = 'ISD:' + isd_id + '-AD:' + ad_id + '-V:' + '0'
         conf_file = 'ISD' + isd_id + CONF_DIR + file_name + '.conf'
+        conf_dict = {'MasterOFGKey': 1234567890,
+                     'MasterADKey': 1919191919,
+                     'PCBQueueSize': 10,
+                     'PSQueueSize': 10,
+                     'NumRegisteredPaths': 10,
+                     'NumShortestUPs': 3,
+                     'RegisterTime': 5,
+                     'PropagateTime': 5,
+                     'ResetTime': 600}
+        if (AD_configs[isd_ad_id]['level'] != INTERMEDIATE_AD or
+            "path_servers" in AD_configs[isd_ad_id]):
+            conf_dict['RegisterPath'] = 1
+        else:
+            conf_dict['RegisterPath'] = 0
         with open(conf_file, 'w') as conf_fh:
-            conf_content = '\n'.join([
-                'MasterOFGKey 1234567890',
-                'MasterADKey 1919191919',
-                'PCBQueueSize 10',
-                'PSQueueSize 10',
-                'NumRegisteredPaths 10',
-                'NumShortestUPs 3',
-                'RegisterTime 5',
-                'PropagateTime 5',
-                'ResetTime 600',
-                'RegisterPath '])
-            if AD_configs[isd_ad_id]['level'] == INTERMEDIATE_AD:
-                conf_content += '0'
-            else:
-                conf_content += '1'
-            conf_fh.write(conf_content)
+            json.dump(conf_dict, conf_fh, sort_keys=True, indent=4)
+        # Test if parser works
+        config = Config(conf_file)
 
 
 def write_trc_files(AD_configs):
+    """
+    Generate the ISD TRCs and store them into files.
+
+    :param AD_configs: the configurations of all SCION ADs.
+    :type AD_configs: dict
+    """
     for isd_ad_id in AD_configs:
         (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
         file_name = 'ISD:' + isd_id + '-V:' + '0'
@@ -324,21 +366,24 @@ def write_trc_files(AD_configs):
         
         (sig, ver) = generate_signature_keypair()
         (priv, pub) = generate_cryptobox_keypair()
-        cert = Certificate.from_values('isp1_address', ver, pub, 'isp1_address', sig, 0)      
+        cert = Certificate.from_values('isp1_address', ver, pub, 'isp1_address',
+                                       sig, 0)
         cert64 = \
             base64.standard_b64encode(str(cert).encode('ascii')).decode('ascii')
         core_isps = {'isp1_address' : cert64}
 
         (sig, ver) = generate_signature_keypair()
         (priv, pub) = generate_cryptobox_keypair()
-        cert = Certificate.from_values('registry_key', ver, pub, 'registry_key', sig, 0)      
+        cert = Certificate.from_values('registry_key', ver, pub, 'registry_key',
+                                       sig, 0)
         cert64 = \
             base64.standard_b64encode(str(cert).encode('ascii')).decode('ascii')
         registry_key = cert64
         
         (sig, ver) = generate_signature_keypair()
         (priv, pub) = generate_cryptobox_keypair()
-        cert = Certificate.from_values('path_server', ver, pub, 'path_server', sig, 0)      
+        cert = Certificate.from_values('path_server', ver, pub, 'path_server',
+                                       sig, 0)
         cert64 = \
             base64.standard_b64encode(str(cert).encode('ascii')).decode('ascii')
         path_key = cert64
@@ -350,7 +395,8 @@ def write_trc_files(AD_configs):
         
         (sig, ver) = generate_signature_keypair()
         (priv, pub) = generate_cryptobox_keypair()
-        cert = Certificate.from_values('dns_server', ver, pub, 'dns_server', sig, 0)      
+        cert = Certificate.from_values('dns_server', ver, pub, 'dns_server',
+                                       sig, 0)
         cert64 = \
             base64.standard_b64encode(str(cert).encode('ascii')).decode('ascii')
         root_dns_key = cert64
@@ -364,6 +410,8 @@ def write_trc_files(AD_configs):
             signatures)
         with open(trc_file, 'w') as key_fh:
             key_fh.write(str(trc))
+        # Test if parser works
+        trc = TRC(trc_file)
 
 
 def main():
