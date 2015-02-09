@@ -27,7 +27,6 @@ from lib.packet.opaque_field import OpaqueFieldType as OFT
 from lib.packet.pcb import PathConstructionBeacon
 from lib.packet.scion import PacketType as PT
 from lib.packet.scion import SCIONPacket, IFIDRequest, IFIDReply, get_type
-from lib.topology_parser import ElementType as ET
 import logging
 import socket
 import sys
@@ -100,11 +99,10 @@ class Router(SCIONElement):
         """
         SCIONElement.__init__(self, addr, topo_file, config_file)
         self.interface = None
-        for router_list in self.topology.routers.values():
-            for router in router_list:
-                if router.addr == self.addr:
-                    self.interface = router.interface
-                    break
+        for edge_router in self.topology.get_all_edge_routers():
+            if edge_router.addr == self.addr:
+                self.interface = edge_router.interface
+                break
         assert self.interface != None
         logging.info("Interface: %s", self.interface.__dict__)
         if pre_ext_handlers:
@@ -207,7 +205,7 @@ class Router(SCIONElement):
         logging.info('IFID_REP received, len %u', len(packet))
         ifid_rep = IFIDReply(packet)
         # TODO multiple BSs scenario
-        next_hop.addr = self.topology.servers[ET.BEACON_SERVER].addr
+        next_hop.addr = self.topology.beacon_servers[0].addr
         ifid_rep.hdr.dst = next_hop.addr
         self.send(ifid_rep, next_hop)
         self.interface.initialized = True
@@ -255,7 +253,7 @@ class Router(SCIONElement):
         else:
             # TODO Multiple BS scenario
             beacon.pcb.rotf.if_id = self.interface.if_id
-            next_hop.addr = self.topology.servers[ET.BEACON_SERVER].addr
+            next_hop.addr = self.topology.beacon_servers[0].addr
             self.send(beacon, next_hop)
 
     # TODO
@@ -304,11 +302,11 @@ class Router(SCIONElement):
             # TODO redesing Certificate Servers
             if ptype in [PT.CERT_REQ, PT.ROT_REQ, PT.CERT_REP, PT.ROT_REP]:
                 next_hop.addr = \
-                    self.topology.servers[ET.CERTIFICATE_SERVER].addr
+                    self.topology.certificate_servers[0].addr
             elif iface:
                 next_hop.addr = self.ifid2addr[iface]
             elif ptype in [PT.PATH_REQ, PT.PATH_REC]:
-                next_hop.addr = self.topology.servers[ET.PATH_SERVER].addr
+                next_hop.addr = self.topology.path_servers[0].addr
             elif not spkt.hdr.is_last_path_of(): # next path segment
                 spkt.hdr.increase_of(1) # this is next SOF
                 spkt.hdr.common_hdr.curr_iof_p = spkt.hdr.common_hdr.curr_of_p

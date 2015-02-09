@@ -93,7 +93,7 @@ class SCIONDaemon(SCIONElement):
         info = PathSegmentInfo.from_values(ptype, src_isd, dst_isd,
                                            src_ad, dst_ad)
         path_request = PathSegmentRequest.from_values(self.addr, info)
-        dst = self.topology.servers[ElementType.PATH_SERVER].addr
+        dst = self.topology.path_servers[0].addr
         self.send(path_request, dst)
 
         # Wait for path reply and clear us from the waiting list when we got it.
