@@ -21,13 +21,21 @@ Necessary steps in order to run SCION:
 	The resulting directories structuries and files naming will be:
 
 	./topology/ISDX/
+
 >	certificates/ISD:X-AD:Y-V:Z.crt
+
 >	configurations/ISD:X-AD:Y-V:Z.conf
+
 >	encryption_keys/ISD:X-AD:Y-V:Z.key
+
 >	run/ISD:X-AD:Y.sh
+
 >	setup/ISD:X-AD:Y.sh
+
 >	signature_keys/ISD:X-AD:Y-V:Z.key
+
 >	topologies/ISD:X-AD:Y-V:Z.json
+
 >	ISD:X-V:Z.crt (TRC file)
 
 2. Configure the loopback interface accordingly:
