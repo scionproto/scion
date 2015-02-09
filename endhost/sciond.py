@@ -21,13 +21,8 @@ from lib.packet.path import PathCombinator
 from lib.packet.pcb import (PathSegmentInfo, PathSegmentRecords,
     PathSegmentType as PST, PathSegmentRequest)
 from lib.packet.scion import PacketType as PT
-<<<<<<< HEAD
-from lib.path_db import PathDB
-=======
 from lib.packet.scion import SCIONPacket, get_type
 from lib.path_db import PathSegmentDB
-from lib.topology_parser import ElementType
->>>>>>> decde3f04b3f416c6f72f41fd82e024e51642496
 from lib.util import update_dict
 import logging
 import threading
@@ -85,16 +80,10 @@ class SCIONDaemon(SCIONElement):
         update_dict(self._waiting_targets[ptype], (dst_isd, dst_ad), [event])
 
         # Create and send out path request.
-<<<<<<< HEAD
-        info = PathInfo.from_values(ptype, src_isd, dst_isd, src_ad, dst_ad)
-        path_request = PathRequest.from_values(self.addr, info)
-        dst = self.topology.path_servers[0].addr
-=======
         info = PathSegmentInfo.from_values(ptype, src_isd, dst_isd,
                                            src_ad, dst_ad)
         path_request = PathSegmentRequest.from_values(self.addr, info)
-        dst = self.topology.servers[ElementType.PATH_SERVER].addr
->>>>>>> decde3f04b3f416c6f72f41fd82e024e51642496
+        dst = self.topology.path_servers[0].addr
         self.send(path_request, dst)
 
         # Wait for path reply and clear us from the waiting list when we got it.
