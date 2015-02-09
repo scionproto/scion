@@ -40,7 +40,7 @@ class TestBandwidth(unittest.TestCase):
         Measures goodput and packets loss ratio.
         """
         rcv_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        rcv_sock.bind((str("127.2.26.1"), SCION_UDP_PORT))
+        rcv_sock.bind((str("127.2.26.254"), SCION_UDP_PORT))
         rcv_sock.settimeout(1)
         
         i = 0
@@ -64,7 +64,7 @@ class TestBandwidth(unittest.TestCase):
         Bandwidth test method. Obtains a path to (2, 26) and sends PACKETS_NO
         packets (each with PAYLOAD_SIZE long payload) to a host in (2, 26).
         """
-        addr = IPv4HostAddr("127.1.19.1")
+        addr = IPv4HostAddr("127.1.19.254")
         topo_file = "../topology/ISD1/topologies/ISD:1-AD:19-V:0.json"
         sender = SCIONDaemon.start(addr, topo_file)
 
@@ -77,7 +77,7 @@ class TestBandwidth(unittest.TestCase):
         threading.Thread(target=self.receiver).start()
 
         payload = b"A"*PAYLOAD_SIZE
-        dst = IPv4HostAddr("127.2.26.1")
+        dst = IPv4HostAddr("127.2.26.254")
         spkt = SCIONPacket.from_values(sender.addr, dst, payload, paths[0])
         (next_hop, port) = sender.get_first_hop(spkt)
         print("Sending %d payload bytes (%d packets x %d bytes )\n" %
