@@ -2,7 +2,7 @@
     "default_subnet": "10.0.0.0/8",
     "1-11": {
         "level": "CORE",
-        "subnet": "192.0.0.0/8",
+        "subnet": "192.0.0.0/24",
         "beacon_servers": 2,
         "certificate_servers": 3,
         "path_servers": 2,
