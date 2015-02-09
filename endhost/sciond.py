@@ -23,7 +23,6 @@ from lib.packet.pcb import (PathSegmentInfo, PathSegmentRecords,
 from lib.packet.scion import PacketType as PT
 from lib.packet.scion import SCIONPacket, get_type
 from lib.path_db import PathSegmentDB
-from lib.topology_parser import ElementType
 from lib.util import update_dict
 import logging
 import threading

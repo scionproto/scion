@@ -106,12 +106,12 @@ class TestSCIONDaemon(unittest.TestCase):
         placed in ISD:1, AD:19, and receiver is 127.2.26.1 in ISD:2, AD:26.
         """
 
-        saddr = IPv4HostAddr("127.1.19.1")
-        topo_file = "../topology/ISD1/topologies/ISD:1-AD:19-V:0.xml"
+        saddr = IPv4HostAddr("127.1.19.254")
+        topo_file = "../topology/ISD1/topologies/ISD:1-AD:19-V:0.json"
         sender = PingPongEndhost.start(saddr, topo_file, True) # API on
 
-        raddr = IPv4HostAddr("127.2.26.1")
-        topo_file = "../topology/ISD2/topologies/ISD:2-AD:26-V:0.xml"
+        raddr = IPv4HostAddr("127.2.26.254")
+        topo_file = "../topology/ISD2/topologies/ISD:2-AD:26-V:0.json"
         receiver = PingPongEndhost.start(raddr, topo_file)
 
         print("Sending PATH request for (2, 26) in 3 seconds")
