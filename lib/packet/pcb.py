@@ -17,9 +17,10 @@ limitations under the License.
 """
 
 from lib.packet.opaque_field import (SupportSignatureField, HopOpaqueField,
-    SupportPCBField, SupportPeerField, ROTField, InfoOpaqueField,
-    OpaqueFieldType)
+    SupportPCBField, SupportPeerField, ROTField, InfoOpaqueField)
 from lib.packet.path import CorePath
+from lib.packet.scion import (SCIONPacket, get_addr_from_type, PacketType,
+    SCIONHeader)
 import logging
 
 from bitstring import BitArray
@@ -285,9 +286,9 @@ class ADMarking(Marking):
             return False
 
 
-class HalfPathBeacon(Marking):
+class PathSegment(Marking):
     """
-    Packs all HalfPathBeacon fields for a specific beacon.
+    Packs all PathSegment fields for a specific beacon.
     """
     LEN = 16
 
@@ -306,8 +307,8 @@ class HalfPathBeacon(Marking):
         assert isinstance(raw, bytes)
         self.raw = raw
         dlen = len(raw)
-        if dlen < HalfPathBeacon.LEN:
-            logging.warning("HalfPathBeacon: Data too short for parsing, " +
+        if dlen < PathSegment.LEN:
+            logging.warning("PathSegment: Data too short for parsing, " +
             "len: %u", dlen)
             return
         self.iof = InfoOpaqueField(raw[0:8])
@@ -322,7 +323,7 @@ class HalfPathBeacon(Marking):
 
     def pack(self):
         """
-        Returns HalfPathBeacon as a binary string.
+        Returns PathSegment as a binary string.
         """
         pcb_bytes = self.iof.pack() + self.rotf.pack()
         for ad_marking in self.ads:
@@ -350,6 +351,7 @@ class HalfPathBeacon(Marking):
         hofs = []
         if reverse_direction:
             ads = list(reversed(self.ads))
+            self.iof.up_flag = self.iof.up_flag ^ True
         else:
             ads = self.ads
         for ad_marking in ads:
@@ -386,7 +388,7 @@ class HalfPathBeacon(Marking):
         Compares the (AD-level) hops of two half-paths. Returns true if all hops
         are identical and false otherwise.
         """
-        if not isinstance(other, HalfPathBeacon):
+        if not isinstance(other, PathSegment):
             return False
 
         self_hops = [ad.pcbm.ad_id for ad in self.ads]
@@ -397,20 +399,20 @@ class HalfPathBeacon(Marking):
     @staticmethod
     def deserialize(raw):
         """
-        Deserializes a bytes string into a list of HalfPathBeacons.
+        Deserializes a bytes string into a list of PathSegments.
         """
         assert isinstance(raw, bytes)
         dlen = len(raw)
-        if dlen < HalfPathBeacon.LEN:
+        if dlen < PathSegment.LEN:
             logging.warning("HPB: Data too short for parsing, len: %u", dlen)
             return
         pcbs = []
         while len(raw) > 0:
-            pcb = HalfPathBeacon()
+            pcb = PathSegment()
             pcb.iof = InfoOpaqueField(raw[0:8])
             pcb.rotf = ROTField(raw[8:16])
             raw = raw[16:]
-            for i in range(0, pcb.iof.hops):
+            for _ in range(pcb.iof.hops):
                 pcbm = PCBMarking(raw[:PCBMarking.LEN])
                 ad_marking = ADMarking(raw[:pcbm.ssf.sig_len +
                     pcbm.ssf.block_size])
@@ -422,7 +424,7 @@ class HalfPathBeacon(Marking):
     @staticmethod
     def serialize(pcbs):
         """
-        Serializes a list of HalfPathBeacons into a bytes string.
+        Serializes a list of PathSegments into a bytes string.
         """
         pcbs_list = []
         for pcb in pcbs:
@@ -430,7 +432,7 @@ class HalfPathBeacon(Marking):
         return b"".join(pcbs_list)
 
     def __str__(self):
-        pcb_str = "[HalfPathBeacon]\n"
+        pcb_str = "[PathSegment]\n"
         pcb_str += str(self.iof) + str(self.rotf)
         for ad_marking in self.ads:
             pcb_str += str(ad_marking)
@@ -443,3 +445,170 @@ class HalfPathBeacon(Marking):
                     self.ads == other.ads)
         else:
             return False
+
+
+class PathConstructionBeacon(SCIONPacket):
+    """
+    PathConstructionBeacon packet, used for path propagation.
+    """
+    def __init__(self, raw=None):
+        SCIONPacket.__init__(self)
+        self.pcb = None
+        if raw:
+            self.parse(raw)
+
+    def parse(self, raw):
+        SCIONPacket.parse(self, raw)
+        self.pcb = PathSegment(self.payload)
+
+    @classmethod
+    def from_values(cls, dst, pcb):
+        """
+        Returns a PathConstructionBeacon packet with the values specified.
+
+        @param dst: Destination address (must be a 'HostAddr' object)
+        @param pcb: Path Construction PathConstructionBeacon ('PathSegment'
+                    class)
+        """
+        beacon = PathConstructionBeacon()
+        beacon.pcb = pcb
+        src = get_addr_from_type(PacketType.BEACON)
+        beacon.hdr = SCIONHeader.from_values(src, dst, PacketType.DATA)
+        return beacon
+
+    def pack(self):
+        self.payload = self.pcb.pack()
+        return SCIONPacket.pack(self)
+
+
+class PathSegmentType(object):
+    """
+    PathSegmentType class, indicates a type of path request/reply.
+    """
+    UP = 0  # Request/Reply for up-paths
+    DOWN = 1  # Request/Reply for down-paths
+    CORE = 2  # Request/Reply for core-paths
+    UP_DOWN = 3  # Request/Reply for up- and down-paths
+
+
+class PathSegmentInfo(object):
+    """
+    PathSegmentInfo class used in sending path requests/replies.
+    """
+    LEN = 21
+
+    def __init__(self, raw=None):
+        self.type = 0
+        self.src_isd = 0
+        self.dst_isd = 0
+        self.src_ad = 0
+        self.dst_ad = 0
+        if raw:
+            self.parse(raw)
+
+    def parse(self, raw):
+        """
+        Populates fields from a raw bytes block.
+        """
+        bits = BitArray(bytes=raw)
+        (self.type, self.src_isd, self.dst_isd, self.src_ad, self.dst_ad) = \
+            bits.unpack("uintbe:8, uintbe:16, uintbe:16, uintbe:64, uintbe:64")
+
+    def pack(self):
+        """
+        Returns PathSegmentInfo as a binary string.
+        """
+        return bitstring.pack("uintbe:8, uintbe:16, uintbe:16,"
+                              "uintbe:64, uintbe:64", self.type,
+                              self.src_isd, self.dst_isd,
+                              self.src_ad, self.dst_ad).bytes
+
+    @classmethod
+    def from_values(cls, pckt_type, src_isd, dst_isd, src_ad, dst_ad):
+        """
+        Returns PathSegmentInfo with fields populated from values.
+        @param pckt_type: type of request/reply
+                          (must be 'PathSegmentType' object)
+        @param src_isd, src_ad: address of the source AD
+        @param dst_isd, dst_ad: address of targeted AD
+        """
+        info = PathSegmentInfo()
+        info.type = pckt_type
+        info.src_isd = src_isd
+        info.src_ad = src_ad
+        info.dst_isd = dst_isd
+        info.dst_ad = dst_ad
+        return info
+
+
+class PathSegmentRequest(SCIONPacket):
+    """
+    Path Request packet.
+    """
+    def __init__(self, raw=None):
+        SCIONPacket.__init__(self)
+        self.info = None
+        if raw:
+            self.parse(raw)
+
+    def parse(self, raw):
+        SCIONPacket.parse(self, raw)
+        self.info = PathSegmentInfo(self.payload)
+
+    @classmethod
+    def from_values(cls, src, info, path=None):
+        """
+        Returns a Path Request with the values specified.
+
+        @param src: Source address (must be a 'HostAddr' object)
+        @param info: determines type of a path request
+                     (object of 'PathSegmentInfo')
+        @param path: path to a core or None (when request is local)
+        """
+        req = PathSegmentRequest()
+        dst = get_addr_from_type(PacketType.PATH_REQ)
+        req.hdr = SCIONHeader.from_values(src, dst, PacketType.DATA, path=path)
+        req.payload = info.pack()
+        req.info = info
+        return req
+
+    def pack(self):
+        self.payload = self.info.pack()
+        return SCIONPacket.pack(self)
+
+
+class PathSegmentRecords(SCIONPacket):
+    """
+    Path Record class used for sending list of down/up-paths. Paths are
+    represented as objects of the PathSegment class. Type of a path is
+    determined through info field (object of PathSegmentInfo).
+    """
+    def __init__(self, raw=None):
+        SCIONPacket.__init__(self)
+        self.info = None
+        self.pcbs = None
+        if raw:
+            self.parse(raw)
+
+    def parse(self, raw):
+        SCIONPacket.parse(self, raw)
+        self.info = PathSegmentInfo(self.payload[:PathSegmentInfo.LEN])
+        self.pcbs = PathSegment.deserialize(self.payload[PathSegmentInfo.LEN:])
+
+    @classmethod
+    def from_values(cls, dst, info, pcbs, path=None):
+        """
+        Returns a Path Record with the values specified.
+
+        @param info: determines type of a path record
+                     (object of 'PathSegmentInfo')
+        @param dst: Destination address (must be a 'HostAddr' object)
+        @param path: path to a core or None (when reply is local)
+        """
+        rec = PathSegmentRecords()
+        src = get_addr_from_type(PacketType.PATH_REC)
+        rec.hdr = SCIONHeader.from_values(src, dst, PacketType.DATA, path=path)
+        rec.payload = b"".join([info.pack(), PathSegment.serialize(pcbs)])
+        rec.info = info
+        rec.pcbs = pcbs
+        return rec

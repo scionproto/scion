@@ -15,17 +15,17 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-from lib.packet.pcb import HalfPathBeacon
+from lib.packet.pcb import PathSegment
 from Crypto.Hash import SHA256
 from pydblite.pydblite import Base
 
 
-class PathRecord(object):
+class PathSegmentDBRecord(object):
     """
-    Path record that gets stored in the the PathDB.
+    Path record that gets stored in the the PathSegmentDB.
     """
     def __init__(self, pcb):
-        assert isinstance(pcb, HalfPathBeacon)
+        assert isinstance(pcb, PathSegment)
         self.pcb = pcb
         self._id = None
         # Fidelity can be used to configure the desirability of a path. For
@@ -60,13 +60,13 @@ class PathRecord(object):
         return self.id
 
 
-class PathDB(object):
+class PathSegmentDB(object):
     """
     Simple database for paths using PyDBLite.
     """
     def __init__(self):
         db = Base("", save_to_file=False)
-        db.create('path_record', 'src_isd', 'src_ad', 'dst_isd', 'dst_ad')
+        db.create('record', 'src_isd', 'src_ad', 'dst_isd', 'dst_ad')
         db.create_index('dst_isd')
         db.create_index('dst_ad')
 
@@ -77,7 +77,7 @@ class PathDB(object):
         Returns a path object by record id.
         """
         if rec_id in self._db:
-            return self._db[rec_id]['path_record'].pcb
+            return self._db[rec_id]['record'].pcb
         else:
             return None
 
@@ -85,14 +85,14 @@ class PathDB(object):
         """
         Removes all paths that have identical hops but lower timestamps.
 
-        Returns the HalfPathBeacon with the highest timestamp.
+        Returns the PathSegment with the highest timestamp.
         """
         max_ts_pcb = pcb
         max_ts = pcb.iof.timestamp
         recs = self._db(src_isd=src_isd, src_ad=src_ad,
                         dst_isd=dst_isd, dst_ad=dst_ad)
         for rec in recs:
-            rec_pcb = rec['path_record'].pcb
+            rec_pcb = rec['record'].pcb
             if pcb.compare_hops(rec_pcb):
                 if rec_pcb.iof.timestamp >= max_ts:
                     max_ts = rec_pcb.iof.timestamp
@@ -109,15 +109,15 @@ class PathDB(object):
         Returns the record ID of the inserted path or None if nothing was
         inserted.
         """
-        assert isinstance(pcb, HalfPathBeacon)
-        path_record = PathRecord(pcb)
-        recs = self._db(path_record=path_record,
+        assert isinstance(pcb, PathSegment)
+        record = PathSegmentDBRecord(pcb)
+        recs = self._db(record=record,
                         src_isd=src_isd, src_ad=src_ad,
                         dst_isd=dst_isd, dst_ad=dst_ad)
         if recs:
             return None
         else:
-            rec_id = self._db.insert(path_record, src_isd, src_ad,
+            rec_id = self._db.insert(record, src_isd, src_ad,
                                      dst_isd, dst_ad)
             max_pcb = self._purge_paths(pcb, src_isd, src_ad, dst_isd, dst_ad)
             if max_pcb == pcb:
@@ -139,7 +139,7 @@ class PathDB(object):
         Returns a sorted (path fidelity) list of paths according to the
         criterias specified.
         """
-        res = sorted([r['path_record'] for r in self._db(*args, **kwargs)],
+        res = sorted([r['record'] for r in self._db(*args, **kwargs)],
                      key=lambda x: x.fidelity)
         return [r.pcb for r in res]
 

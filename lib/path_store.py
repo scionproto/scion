@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from lib.packet.pcb import HalfPathBeacon
+from lib.packet.pcb import PathSegment
 from Crypto.Hash import SHA256
 from collections import defaultdict
 import xml.etree.ElementTree as ET
@@ -111,7 +111,7 @@ class Policy(object):
             "Properties: " + str(self.properties)]))
 
 
-class PathInfo(object):
+class PathSegmentInfo(object):
     """
     Stores general information about a path.
     """
@@ -229,7 +229,7 @@ class PathStore(object):
         """
         Adds a new path in the cadidates list, if it passes the filter checks.
         """
-        path = PathInfo(pcb, self.policy)
+        path = PathSegmentInfo(pcb, self.policy)
         #if not self._check_filters(path):
         #    logging.warning("The following path is invalid %s", path)
         #    return
@@ -331,7 +331,7 @@ class PathStore(object):
         for i in range(len(self.candidates)):
             self.candidates[i].set_fidelity(self.policy)
         self.candidates = sorted(self.candidates, 
-            key=lambda PathInfo: PathInfo.fidelity, reverse=True)
+            key=lambda PathSegmentInfo: PathSegmentInfo.fidelity, reverse=True)
 
     def get_candidates(self, k=10):
         """
@@ -352,7 +352,7 @@ class PathStore(object):
         ret = self.best_paths_history[0][:k]
         if len(ret) < k:
             ret += self.candidates
-            ret = sorted(ret, key=lambda PathInfo: PathInfo.fidelity,
+            ret = sorted(ret, key=lambda PathSegmentInfo: PathSegmentInfo.fidelity,
                 reverse=True)
             ret = self._check_disjointness(ret)
             ret = ret[:k]

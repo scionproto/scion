@@ -23,7 +23,6 @@ from lib.packet.opaque_field import InfoOpaqueField, OpaqueField
 from lib.packet.packet_base import HeaderBase, PacketBase
 from lib.packet.path import PathType, CorePath, PeerPath, CrossOverPath, \
     EmptyPath, PathBase
-from lib.packet.pcb import HalfPathBeacon
 import struct, logging, bitstring
 from bitstring import BitArray
 
@@ -36,7 +35,7 @@ class PacketType(object):
     AID_REQ = 1  # Address request to local elements (from SCIONSwitch)
     AID_REP = 2  # AID reply to switch
     TO_LOCAL_ADDR = 100  # Threshold to distinguish local control packets
-    BEACON = 101  # HalfPathBeacon type
+    BEACON = 101  # PathSegment type
     CERT_REQ_LOCAL = 102  # local certificate request (to certificate server)
     CERT_REP_LOCAL = 103  # local certificate reply (from certificate server)
     CERT_REQ = 104  # Certificate Request to parent AD
@@ -126,8 +125,8 @@ class SCIONCommonHdr(HeaderBase):
         self.src_addr_len = 0  # Length of the src address.
         self.dst_addr_len = 0  # Length of the dst address.
         self.total_len = 0  # Total length of the packet.
-        self.timestamp = 0  # Offset inside the packet to the timestamp.
-        self.current_of = 0  # Index of the current opaque field.
+        self.curr_iof_p = 0  # Pointer inside the packet to the current IOF.
+        self.curr_of_p = 0  # Pointer to the current opaque field.
         self.next_hdr = 0  # Type of the next hdr field (IP protocol numbers).
         self.hdr_len = 0  # Header length including the path.
 
@@ -144,8 +143,8 @@ class SCIONCommonHdr(HeaderBase):
         chdr.src_addr_len = src_addr_len
         chdr.dst_addr_len = dst_addr_len
         chdr.next_hdr = next_hdr
-        chdr.current_of = chdr.src_addr_len + chdr.dst_addr_len
-        chdr.timestamp = chdr.current_of
+        chdr.curr_of_p = chdr.src_addr_len + chdr.dst_addr_len
+        chdr.curr_iof_p = chdr.curr_of_p
         chdr.hdr_len = SCIONCommonHdr.LEN + src_addr_len + dst_addr_len
         chdr.total_len = chdr.hdr_len
 
@@ -162,7 +161,7 @@ class SCIONCommonHdr(HeaderBase):
                             "data len %u", dlen)
             return
         bits = BitArray(bytes=raw)
-        (types, self.total_len, self.timestamp, self.current_of,
+        (types, self.total_len, self.curr_iof_p, self.curr_of_p,
          self.next_hdr, self.hdr_len) = \
             bits.unpack("uintbe:16, uintbe:16, uintbe:8, "
                         "uintbe:8, uintbe:8, uintbe:8")
@@ -179,15 +178,15 @@ class SCIONCommonHdr(HeaderBase):
         types = (self.type << 12) | (self.dst_addr_len << 6) | self.src_addr_len
         return bitstring.pack("uintbe:16, uintbe:16, uintbe:8, "
                               "uintbe:8, uintbe:8, uintbe:8",
-                              types, self.total_len, self.timestamp,
-                              self.current_of, self.next_hdr,
+                              types, self.total_len, self.curr_iof_p,
+                              self.curr_of_p, self.next_hdr,
                               self.hdr_len).bytes
 
     def __str__(self):
         res = ("[CH type: %u, src len: %u, dst len: %u, total len: %u bytes, "
                "TS: %u, current OF: %u, next hdr: %u, hdr len: %u]") % (
                self.type, self.src_addr_len, self.dst_addr_len, self.total_len,
-               self.timestamp, self.current_of, self.next_hdr, self.hdr_len)
+               self.curr_iof_p, self.curr_of_p, self.next_hdr, self.hdr_len)
         return res
 
 
@@ -321,19 +320,19 @@ class SCIONHeader(HeaderBase):
         """
         if self.path is None:
             return None
-        offset = (self.common_hdr.current_of - (self.common_hdr.src_addr_len +
+        offset = (self.common_hdr.curr_of_p - (self.common_hdr.src_addr_len +
                   self.common_hdr.dst_addr_len))
         return self.path.get_of(offset // OpaqueField.LEN)
 
-    def get_timestamp(self):
+    def get_current_iof(self):
         """
-        Returns the timestamp field as pointed by the timestamp field in
+        Returns the Info Opaque Field as pointed by the current_iof_p field in
         the common_hdr.
         """
         if self.path is None:
             return None
-        offset = (self.common_hdr.timestamp - (self.common_hdr.src_addr_len +
-                  self.common_hdr.dst_addr_len))
+        offset = (self.common_hdr.curr_iof_p -
+                  (self.common_hdr.src_addr_len + self.common_hdr.dst_addr_len))
         return self.path.get_of(offset // OpaqueField.LEN)
 
     def get_relative_of(self, n):
@@ -342,7 +341,7 @@ class SCIONHeader(HeaderBase):
         """
         if self.path is None:
             return None
-        offset = (self.common_hdr.current_of - (self.common_hdr.src_addr_len +
+        offset = (self.common_hdr.curr_of_p - (self.common_hdr.src_addr_len +
                   self.common_hdr.dst_addr_len))
         return self.path.get_of(offset // OpaqueField.LEN + n)
 
@@ -353,7 +352,7 @@ class SCIONHeader(HeaderBase):
         """
         if self.path is None:
             return None
-        offset = (self.common_hdr.current_of - (self.common_hdr.src_addr_len +
+        offset = (self.common_hdr.curr_of_p - (self.common_hdr.src_addr_len +
                   self.common_hdr.dst_addr_len))
         return self.path.get_of(offset // OpaqueField.LEN + 1)
 
@@ -361,19 +360,15 @@ class SCIONHeader(HeaderBase):
         """
         Increases pointer of current opaque field by number of opaque fields.
         """
-        self.common_hdr.current_of += number * OpaqueField.LEN
+        self.common_hdr.curr_of_p += number * OpaqueField.LEN
 
-    def set_uppath(self):
-        """
-        Sets up path flag.
-        """
-        self.common_hdr.type = 0
-
-    def set_downpath(self):
+    def set_downpath(self): #FIXME probably not needed
         """
         Sets down path flag.
         """
-        self.common_hdr.type = 1
+        iof = self.get_current_iof()
+        if iof is not None:
+            iof.up_flag = False
 
     def is_on_up_path(self):
         """
@@ -383,13 +378,20 @@ class SCIONHeader(HeaderBase):
         Currently this is indicated by a bit in the LSB of the 'type' field in
         the common header.
         """
-        return not self.common_hdr.type & 0x1
+        iof = self.get_current_iof()
+        if iof is not None:
+            return iof.up_flag
+        else:
+            True  # FIXME for now True for EmptyPath.
 
-    def reverse_direction(self):
+    def is_last_path_of(self):
         """
-        Sets down-path flag if up-path flag is active and vice versa.
+        Returs 'True' if the current opaque field is the last opaque field,
+        'False' otherwise.
         """
-        self.common_hdr.type ^= 1
+        offset = (SCIONCommonHdr.LEN + self.common_hdr.src_addr_len +
+                  self.common_hdr.dst_addr_len)
+        return self.common_hdr.curr_of_p + offset == self.common_hdr.hdr_len
 
     def __len__(self):
         length = self.common_hdr.hdr_len
@@ -428,7 +430,7 @@ class SCIONPacket(PacketBase):
         @param src: Source address (must be a 'HostAddr' object)
         @param dst: Destination address (must be a 'HostAddr' object)
         @param payload: Payload of the packet (either 'bytes' or 'PacketBase')
-        @param path: The opaque fields for this packets.
+        @param path: The path for this packet.
         @param ext_hdrs: A list of extension headers.
         @param next_hdr: If 'ext_hdrs' is not None then this must be the type
                          of the first extension header in the list.
@@ -546,169 +548,6 @@ class IFIDReply(SCIONPacket):
     def pack(self):
         self.payload = struct.pack("HH", self.reply_id, self.request_id)
         return SCIONPacket.pack(self)
-
-
-class Beacon(SCIONPacket):
-    """
-    Beacon packet, used for path propagation.
-    """
-    def __init__(self, raw=None):
-        SCIONPacket.__init__(self)
-        self.pcb = None
-        if raw:
-            self.parse(raw)
-
-    def parse(self, raw):
-        SCIONPacket.parse(self, raw)
-        self.pcb = HalfPathBeacon(self.payload)
-
-    @classmethod
-    def from_values(cls, dst, pcb):
-        """
-        Returns a Beacon packet with the values specified.
-
-        @param dst: Destination address (must be a 'HostAddr' object)
-        @param pcb: Path Construction Beacon ('HalfPathBeacon' class)
-        """
-        beacon = Beacon()
-        beacon.pcb = pcb
-        src = get_addr_from_type(PacketType.BEACON)
-        beacon.hdr = SCIONHeader.from_values(src, dst, PacketType.DATA)
-        return beacon
-
-    def pack(self):
-        self.payload = self.pcb.pack()
-        return SCIONPacket.pack(self)
-
-
-class PathInfoType(object):
-    """
-    PathInfoType class, indicates a type of path request/reply.
-    """
-    UP = 0  # Request/Reply for up-paths
-    DOWN = 1  # Request/Reply for down-paths
-    CORE = 2  # Request/Reply for core-paths
-    UP_DOWN = 3  # Request/Reply for up- and down-paths
-
-
-class PathInfo(object):
-    """
-    PathInfo class used in sending path requests/replies.
-    """
-    LEN = 21
-
-    def __init__(self, raw=None):
-        self.type = 0
-        self.src_isd = 0
-        self.dst_isd = 0
-        self.src_ad = 0
-        self.dst_ad = 0
-        if raw:
-            self.parse(raw)
-
-    def parse(self, raw):
-        """
-        Populates fields from a raw bytes block.
-        """
-        bits = BitArray(bytes=raw)
-        (self.type, self.src_isd, self.dst_isd, self.src_ad, self.dst_ad) = \
-            bits.unpack("uintbe:8, uintbe:16, uintbe:16, uintbe:64, uintbe:64")
-
-    def pack(self):
-        """
-        Returns PathInfo as a binary string.
-        """
-        return bitstring.pack("uintbe:8, uintbe:16, uintbe:16,"
-                              "uintbe:64, uintbe:64", self.type,
-                              self.src_isd, self.dst_isd,
-                              self.src_ad, self.dst_ad).bytes
-
-    @classmethod
-    def from_values(cls, pckt_type, src_isd, dst_isd, src_ad, dst_ad):
-        """
-        Returns PathInfo with fields populated from values.
-        @param pckt_type: type of request/reply (must be 'PathInfoType' object)
-        @param src_isd, src_ad: address of the source AD
-        @param dst_isd, dst_ad: address of targeted AD
-        """
-        info = PathInfo()
-        info.type = pckt_type
-        info.src_isd = src_isd
-        info.src_ad = src_ad
-        info.dst_isd = dst_isd
-        info.dst_ad = dst_ad
-        return info
-
-
-class PathRequest(SCIONPacket):
-    """
-    Path Request packet.
-    """
-    def __init__(self, raw=None):
-        SCIONPacket.__init__(self)
-        self.info = None
-        if raw:
-            self.parse(raw)
-
-    def parse(self, raw):
-        SCIONPacket.parse(self, raw)
-        self.info = PathInfo(self.payload)
-
-    @classmethod
-    def from_values(cls, src, info, path=None):
-        """
-        Returns a Path Request with the values specified.
-
-        @param src: Source address (must be a 'HostAddr' object)
-        @param info: determines type of a path request (object of 'PathInfo')
-        @param path: path to a core or None (when request is local)
-        """
-        req = PathRequest()
-        dst = get_addr_from_type(PacketType.PATH_REQ)
-        req.hdr = SCIONHeader.from_values(src, dst, PacketType.DATA, path=path)
-        req.payload = info.pack()
-        req.info = info
-        return req
-
-    def pack(self):
-        self.payload = self.info.pack()
-        return SCIONPacket.pack(self)
-
-
-class PathRecords(SCIONPacket):
-    """
-    Path Record class used for sending list of down/up-paths. Paths are
-    represented as objects of the HalfPathBeacon class. Type of a path is
-    determined through info field (object of PathInfo).
-    """
-    def __init__(self, raw=None):
-        SCIONPacket.__init__(self)
-        self.info = None
-        self.pcbs = None
-        if raw:
-            self.parse(raw)
-
-    def parse(self, raw):
-        SCIONPacket.parse(self, raw)
-        self.info = PathInfo(self.payload[:PathInfo.LEN])
-        self.pcbs = HalfPathBeacon.deserialize(self.payload[PathInfo.LEN:])
-
-    @classmethod
-    def from_values(cls, dst, info, pcbs, path=None):
-        """
-        Returns a Path Record with the values specified.
-
-        @param info: determines type of a path record (object of 'PathInfo')
-        @param dst: Destination address (must be a 'HostAddr' object)
-        @param path: path to a core or None (when reply is local)
-        """
-        rec = PathRecords()
-        src = get_addr_from_type(PacketType.PATH_REC)
-        rec.hdr = SCIONHeader.from_values(src, dst, PacketType.DATA, path=path)
-        rec.payload = b"".join([info.pack(), HalfPathBeacon.serialize(pcbs)])
-        rec.info = info
-        rec.pcbs = pcbs
-        return rec
 
 
 class CertRequest(SCIONPacket):

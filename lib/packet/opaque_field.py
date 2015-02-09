@@ -26,16 +26,19 @@ class OpaqueFieldType(object):
     """
     Defines constants for the types of the opaque field (first byte of every
     opaque field, i.e. field).
+    TODO describe here layout of Opaque Fields
     """
-    NORMAL_OF = 0x00
-    TDC_XOVR = 0x80
-    NON_TDC_XOVR = 0xc0
-    INPATH_XOVR = 0xe0
-    INTRATD_PEER = 0xf0
-    INTERTD_PEER = 0xf8
-    PEER_XOVR = 0x10
-    ROT_OF = 0xff
-    LAST_OF = 0x20  # Indicates last hop OF on the half-path (TODO revise)
+    # Types for HopOpaqueFields (7 MSB bits).
+    NORMAL_OF = 0b0000000
+    LAST_OF = 0b0010000 # indicates last hop OF on the half-path (TODO revise)
+    PEER_XOVR = 0b0001000
+    # Types for Info Opaque Fields (7 MSB bits).
+    TDC_XOVR = 0b1000000
+    NON_TDC_XOVR = 0b1100000
+    INPATH_XOVR = 0b1110000
+    INTRATD_PEER = 0b1111000
+    INTERTD_PEER = 0b1111100
+    ROT_OF = 0b11111111
 
 
 class OpaqueField(object):
@@ -66,19 +69,19 @@ class OpaqueField(object):
         """
         Returns true if opaque field is regular, false otherwise.
         """
-        return not BitArray(bytes([self.info]))[0]
+        return not BitArray(bytes([self.info]))[1]
 
     def is_continue(self):
         """
         Returns true if continue bit is set, false otherwise.
         """
-        return BitArray(bytes([self.info]))[1]
+        return BitArray(bytes([self.info]))[2]
 
     def is_xovr(self):
         """
         Returns true if crossover point bit is set, false otherwise.
         """
-        return BitArray(bytes([self.info]))[2]
+        return BitArray(bytes([self.info]))[3]
 
     def __str__(self):
         pass
@@ -167,9 +170,9 @@ class InfoOpaqueField(OpaqueField):
     """
     Class for the info opaque field.
 
-    The info opaque field contains type info of the path (1 byte), an expiration
-    timestamp (2 bytes), the ISD ID (2 byte), # hops for this path (1 byte) and
-    a reserved section (2 bytes).
+    The info opaque field contains type info of the path-segment (1 byte),
+    an expiration timestamp (2 bytes), the ISD ID (2 byte), # hops for this
+    segment (1 byte) and a reserved section (2 bytes).
     """
 
     def __init__(self, raw=None):
@@ -178,6 +181,7 @@ class InfoOpaqueField(OpaqueField):
         self.isd_id = 0
         self.hops = 0
         self.reserved = 0
+        self.up_flag = False
         self.raw = raw
         if raw is not None:
             self.parse(raw)
@@ -195,21 +199,26 @@ class InfoOpaqueField(OpaqueField):
         bits = BitArray(bytes=raw)
         (self.info, self.timestamp, self.isd_id, self.hops, self.reserved) = \
             bits.unpack("uintbe:8, uintbe:16, uintbe:16, uintbe:8, uintbe:16")
+        self.up_flag = bool(self.info & 0b00000001)
+        self.info >>= 1
         self.parsed = True
 
     @classmethod
-    def from_values(cls, info=0, timestamp=0, isd_id=0, hops=0, reserved=0):
+    def from_values(cls, info=0, up_flag=False, timestamp=0, isd_id=0, hops=0,
+        reserved=0):
         """
         Returns InfoOpaqueField with fields populated from values.
 
         @param info: Opaque field type.
+        @param up_flag: up/down-flag.
         @param timestamp: Beacon's timestamp.
         @param isd_id: Isolation Domanin's ID.
-        @param hops: Number of hops in the path.
+        @param hops: Number of hops in the segment.
         @param reserved: Reserved section.
         """
         iof = InfoOpaqueField()
         iof.info = info
+        iof.up_flag = up_flag
         iof.timestamp = timestamp
         iof.isd_id = isd_id
         iof.hops = hops
@@ -220,18 +229,20 @@ class InfoOpaqueField(OpaqueField):
         """
         Returns InfoOpaqueFIeld as 8 byte binary string.
         """
+        info = (self.info << 1) + self.up_flag
         return bitstring.pack("uintbe:8, uintbe:16, uintbe:16, uintbe:8," +
-            "uintbe:16", self.info, self.timestamp, self.isd_id, self.hops,
+            "uintbe:16", info, self.timestamp, self.isd_id, self.hops,
             self.reserved).bytes
 
     def __str__(self):
-        iof_str = ("[Info OF info: %x, TS: %u, ISD ID: %u, hops: %u]" %
-            (self.info, self.timestamp, self.isd_id, self.hops))
+        iof_str = ("[Info OF info: %x, up: %r, TS: %u, ISD ID: %u, hops: %u]" %
+            (self.info, self.up_flag, self.timestamp, self.isd_id, self.hops))
         return iof_str
 
     def __eq__(self, other):
         if type(other) is type(self):
             return (self.info == other.info and
+                    self.up_flag == other.up_flag and
                     self.timestamp == other.timestamp and
                     self.isd_id == other.isd_id and
                     self.hops == other.hops)
@@ -243,8 +254,9 @@ class ROTField(OpaqueField):
     """
     Class for the ROT field.
 
-    The ROT field contains type info of the path (1 byte), the ROT version
-    (4 bytes), the IF ID (2 bytes), and a reserved section (1 byte).
+    The ROT field contains type info of the path-segment (1 byte),
+    the ROT version (4 bytes), the IF ID (2 bytes),
+    and a reserved section (1 byte).
     """
     def __init__(self, raw=None):
         OpaqueField.__init__(self)
