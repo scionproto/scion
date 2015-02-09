@@ -19,17 +19,15 @@ import sys
 import struct
 import threading
 import logging
-from subprocess import call 
+from subprocess import call
 from pytun import TunTapDevice, IFF_TUN, IFF_NO_PI
-from infrastructure.scion_elem import SCION_UDP_PORT, BUFLEN
 from endhost.sciond import SCIONDaemon
 from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.scion import SCIONPacket
 
-# dictionary of destinations that should be reached via SCION
-SCION_HOSTS={
-        "192.168.5.105":(11,5), #"IP":(ISD,AD)
-        }
+# Dictionary of destinations that should be reached via SCION.
+# Format : "IP" : (ISD, AD)
+SCION_HOSTS = {"192.168.5.105" : (2, 26),}
 
 class SCIONGateway(SCIONDaemon):
     """
@@ -41,7 +39,7 @@ class SCIONGateway(SCIONDaemon):
         """
         Create a new SCIONGateway instance.
 
-        :param addr: the address of the gateway. 
+        :param addr: the address of the gateway.
         :type addr: :class:`HostAddr`
         :param topo_file: the name of the topology file.
         :type topo_file: str
@@ -73,7 +71,7 @@ class SCIONGateway(SCIONDaemon):
         """
         while True:
             raw_packet = self._tun_dev.read(self._tun_dev.mtu)
-            ip_dst="%d.%d.%d.%d" % struct.unpack("BBBB", raw_packet[16:20])
+            ip_dst = "%d.%d.%d.%d" % struct.unpack("BBBB", raw_packet[16:20])
             logging.info("From TUN")
 
             if ip_dst in self.scion_hosts:
@@ -81,7 +79,7 @@ class SCIONGateway(SCIONDaemon):
                 scion_addr = self.scion_hosts[ip_dst]
                 paths = self.get_paths(scion_addr[0], scion_addr[1])
                 #TODO instead calling get_paths() consider cache of fullpaths
-                if paths: 
+                if paths:
                     dst = IPv4HostAddr(ip_dst)
                     spkt = SCIONPacket.from_values(self.addr, dst, raw_packet,
                         paths[0])
@@ -92,7 +90,7 @@ class SCIONGateway(SCIONDaemon):
                 else:
                     logging.warning("No path to: %s", scion_addr)
             else:
-                    logging.warning("Sent to TUN device but dst not supported.")
+                logging.warning("Received by TUN device but dst not supported.")
 
     def handle_data_packet(self, spkt):
         """
@@ -100,18 +98,18 @@ class SCIONGateway(SCIONDaemon):
         """
         logging.info("Writing to device")
         self._tun_dev.write(spkt.payload)
-    
+
     def init_routing(self):
         """
         Initiates routing rules, that redirects SCION-supported traffic to TUN
-        device. 
+        device.
         """
         for i in self.scion_hosts.keys():
             if i != str(self.addr):
                 cmd = "/sbin/ip route add %s dev %s" % (i, self._tun_dev.name)
                 call(cmd, shell=True)
                 logging.info(cmd)
-    
+
     def clean(self):
         """
         Closes open descriptors (it also removes routing entries created by
@@ -122,11 +120,14 @@ class SCIONGateway(SCIONDaemon):
 
 
 def main():
+    """
+    Main function.
+    """
     logging.basicConfig(level=logging.DEBUG)
     if len(sys.argv) != 3:
-        logging.error("run: %s addr topology_file " % sys.argv[0])
+        logging.error("run: %s addr topology_file", sys.argv[0])
         sys.exit()
-    sgw=SCIONGateway(IPv4HostAddr(sys.argv[1]), sys.argv[2], SCION_HOSTS)
+    sgw = SCIONGateway(IPv4HostAddr(sys.argv[1]), sys.argv[2], SCION_HOSTS)
     try:
         sgw.run()
     except KeyboardInterrupt:
