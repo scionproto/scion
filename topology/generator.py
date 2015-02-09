@@ -57,7 +57,7 @@ CS_RANGE = '21'
 PS_RANGE = '41'
 ER_RANGE = '61'
 
-default_subnet = "127.0.0.0/8"
+default_subnet = "10.0.0.0/8"
 
 
 def increment_address(ip_address, mask, increment=1):

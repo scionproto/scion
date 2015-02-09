@@ -32,6 +32,7 @@ elif [ $1 == "clean" ]; then
     echo "flush all the ip alias of lo (check \"ip addr\" to confirm the addr is flushed)"
     {    
     sudo ip addr flush dev lo
+    sudo ip addr add 127.0.0.1/8 dev lo
     } &> /dev/null
 else
     echo "only topology, setup, run, stop, and clean are available"
