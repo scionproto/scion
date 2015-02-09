@@ -33,6 +33,9 @@ ping_received = False
 pong_received = False
 
 class PingPongEndhost(SCIONDaemon):
+    """
+    Test class for parties of ping-pong protocol.
+    """
 
     def handle_data_packet(self, spkt):
         """
@@ -85,7 +88,7 @@ def get_paths_via_api(isd, ad):
         assert path
         offset += path_len
         hop = IPv4HostAddr(data[offset:offset+4])
-        offset += 4 
+        offset += 4
         paths_hops.append((path, hop))
     sock.close()
     return paths_hops
@@ -113,7 +116,7 @@ class TestSCIONDaemon(unittest.TestCase):
 
         print("Sending PATH request for (2, 26) in 3 seconds")
         time.sleep(3)
-        paths_hops = get_paths_via_api(2 , 26) # Get paths through local API.
+        paths_hops = get_paths_via_api(2, 26) # Get paths through local API.
         self.assertTrue(paths_hops)
         (path, hop) = paths_hops[0]
         # paths = sender.get_paths(2, 26) # Get paths through function call.
@@ -121,7 +124,7 @@ class TestSCIONDaemon(unittest.TestCase):
 
         spkt = SCIONPacket.from_values(sender.addr, raddr, b"ping", path)
         (next_hop, port) = sender.get_first_hop(spkt)
-        self.assertTrue(next_hop==hop)
+        self.assertTrue(next_hop == hop)
         print("Sending packet: %s\nFirst hop: %s:%s\n" % (spkt, next_hop, port))
         sender.send(spkt, next_hop, port)
 

@@ -18,7 +18,7 @@ limitations under the License.
 from endhost.sciond import SCIONDaemon
 from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.scion import SCIONPacket
-from infrastructure.scion_elem import SCION_UDP_PORT, BUFLEN 
+from infrastructure.scion_elem import SCION_UDP_PORT, BUFLEN
 import socket
 import threading
 import time
@@ -39,7 +39,7 @@ class TestBandwidth(unittest.TestCase):
         Receives the packet sent by test() method.
         Measures goodput and packets loss ratio.
         """
-        rcv_sock= socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        rcv_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         rcv_sock.bind((str("127.2.26.1"), SCION_UDP_PORT))
         rcv_sock.settimeout(1)
         
@@ -51,10 +51,10 @@ class TestBandwidth(unittest.TestCase):
             while i < PACKETS_NO:
                 packet, _ = rcv_sock.recvfrom(BUFLEN)
                 i += 1
-            duration = time.time() - start 
+            duration = time.time() - start
         except socket.timeout:
-            duration = time.time() - start - 1 # minus timeout 
-            print("Timeouted -  there are lost packets")
+            duration = time.time() - start - 1 # minus timeout
+            print("Timeouted - there are lost packets")
 
         print("Goodput %.2fKBps, loss %.2f\n" % ((i*PAYLOAD_SIZE)/duration/1000,
             100*float(PACKETS_NO-i)/PACKETS_NO))
@@ -62,7 +62,7 @@ class TestBandwidth(unittest.TestCase):
     def test(self):
         """
         Bandwidth test method. Obtains a path to (2, 26) and sends PACKETS_NO
-        packets (each with PAYLOAD_SIZE long payload) to a host in (2, 26). 
+        packets (each with PAYLOAD_SIZE long payload) to a host in (2, 26).
         """
         addr = IPv4HostAddr("127.1.19.1")
         topo_file = "../topology/ISD1/topologies/ISD:1-AD:19-V:0.xml"
@@ -82,11 +82,9 @@ class TestBandwidth(unittest.TestCase):
         (next_hop, port) = sender.get_first_hop(spkt)
         print("Sending %d payload bytes (%d packets x %d bytes )\n" %
               (PACKETS_NO*PAYLOAD_SIZE, PACKETS_NO, PAYLOAD_SIZE))
-        for i in range(0, PACKETS_NO):
+        for _ in range(PACKETS_NO):
             sender.send(spkt, next_hop, port)
             time.sleep(SLEEP)
-            # print("S", i)
-            # print("S")
         print("Sending finished")
 
 
