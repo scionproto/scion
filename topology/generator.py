@@ -1,18 +1,16 @@
-#generator.py
+# Copyright 2014 ETH Zurich
 
-#Copyright 2014 ETH Zurich
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 
-#Licensed under the Apache License, Version 2.0 (the "License");
-#you may not use this file except in compliance with the License.
-#You may obtain a copy of the License at
+# http://www.apache.org/licenses/LICENSE-2.0
 
-#http://www.apache.org/licenses/LICENSE-2.0
-
-#Unless required by applicable law or agreed to in writing, software
-#distributed under the License is distributed on an "AS IS" BASIS,
-#WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#See the License for the specific language governing permissions and
-#limitations under the License.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """
 :mod:`generator` --- SCION topology generator
 ===========================================
@@ -20,8 +18,8 @@
 
 from lib.topology import Topology
 from lib.config import Config
-from lib.crypto.certificates import Certificate
-from lib.crypto.trcs import TRC
+from lib.crypto.certificate import Certificate
+from lib.crypto.trc import TRC
 from lib.crypto.asymcrypto import *
 import base64
 import os
@@ -31,6 +29,7 @@ import struct
 import subprocess
 import sys
 import json
+import logging
 
 
 ADCONFIGURATIONS_FILE = 'ADConfigurations.json'
@@ -61,15 +60,18 @@ ER_RANGE = '61'
 default_subnet = "127.0.0.0/8"
 
 
-def increment_address(ip_address, increment=1):
+def increment_address(ip_address, mask, increment=1):
     """
     Increment an IP address value.
 
     :param ip_address: the IP address to increment.
     :type ip_address: str
+    :param mask: subnet mask for the given IP address.
+    :type mask: str
     :param increment: step the IP address must be incremented of.
     :type increment: int
-    :returns: the incremented IP address.
+    :returns: the incremented IP address. It fails if a broadcast address is
+              reached.
     :rtype: str
     """
     ip2int = lambda ipstr: struct.unpack('!I', socket.inet_aton(ipstr))[0]
@@ -77,6 +79,12 @@ def increment_address(ip_address, increment=1):
     ip_address_int = ip2int(ip_address)
     ip_address_int += increment
     ip_address = int2ip(ip_address_int)
+    bytes = ip_address.split('.')
+    bits = ''.join([format(int(bytes[0]), '08b'), format(int(bytes[1]), '08b'),
+                    format(int(bytes[2]), '08b'), format(int(bytes[3]), '08b')])
+    if bits[int(mask):] == ('1' * (32 - int(mask))):
+        logging.error("Reached a broadcast IP address: " + ip_address)
+        sys.exit()
     return ip_address
 
 
@@ -93,8 +101,10 @@ def set_er_ip_addresses(AD_configs):
     for isd_ad_id in AD_configs:
         if "subnet" in AD_configs[isd_ad_id]:
             first_byte = AD_configs[isd_ad_id]["subnet"].split('.')[0]
+            mask = AD_configs[isd_ad_id]["subnet"].split('/')[1]
         else:
             first_byte = default_subnet.split('.')[0]
+            mask = default_subnet.split('/')[1]
         (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
         ip_address_loc = '.'.join([first_byte, isd_id, ad_id, ER_RANGE])
         ip_address_pub = \
@@ -102,8 +112,8 @@ def set_er_ip_addresses(AD_configs):
         for link in AD_configs[isd_ad_id]["links"]:
             er_ip_addresses[(isd_ad_id, link)] = \
                 (ip_address_loc, ip_address_pub)
-            ip_address_loc = increment_address(ip_address_loc, 2)
-            ip_address_pub = increment_address(ip_address_pub, 2)
+            ip_address_loc = increment_address(ip_address_loc, mask, 2)
+            ip_address_pub = increment_address(ip_address_pub, mask, 2)
     return er_ip_addresses
 
 
@@ -255,7 +265,7 @@ def write_topo_files(AD_configs, er_ip_addresses):
                     ('core ' if is_core else 'local '), ip_address, ' ..',
                     SCRIPTS_DIR, topo_file, ' ..', SCRIPTS_DIR, conf_file,
                     '\"\n']))
-                ip_address = increment_address(ip_address)
+                ip_address = increment_address(ip_address, mask)
             # Write Certificate Servers
             ip_address = '.'.join([first_byte, isd_id, ad_id, CS_RANGE])
             for c_server in range(1, number_cs + 1):
@@ -268,7 +278,7 @@ def write_topo_files(AD_configs, er_ip_addresses):
                     "PYTHONPATH=../ python3 cert_server.py ", ip_address, ' ..',
                     SCRIPTS_DIR, topo_file, ' ..', SCRIPTS_DIR, conf_file,
                     ' ..', SCRIPTS_DIR, trc_file, '\"\n']))
-                ip_address = increment_address(ip_address)
+                ip_address = increment_address(ip_address, mask)
             # Write Path Servers
             if (AD_configs[isd_ad_id]['level'] != INTERMEDIATE_AD or
                 "path_servers" in AD_configs[isd_ad_id]):
@@ -284,7 +294,7 @@ def write_topo_files(AD_configs, er_ip_addresses):
                         ('core ' if is_core else 'local '), ip_address, ' ..',
                         SCRIPTS_DIR, topo_file, ' ..', SCRIPTS_DIR, conf_file,
                         '\"\n']))
-                    ip_address = increment_address(ip_address)
+                    ip_address = increment_address(ip_address, mask)
             # Write Edge Routers
             edge_router = 1
             for nbr_isd_ad_id in AD_configs[isd_ad_id]["links"]:
@@ -419,14 +429,14 @@ def main():
     Main function.
     """
     if not os.path.isfile(ADCONFIGURATIONS_FILE):
-        print(ADCONFIGURATIONS_FILE + " file missing.")
+        logging.error(ADCONFIGURATIONS_FILE + " file missing.")
         sys.exit()
 
     try:
         AD_configs = json.loads(open(ADCONFIGURATIONS_FILE).read())
     except (ValueError, KeyError, TypeError):
         logging.error(ADCONFIGURATIONS_FILE + ": JSON format error.")
-        return
+        sys.exit()
 
     if "default_subnet" in AD_configs:
         default_subnet = AD_configs["default_subnet"]

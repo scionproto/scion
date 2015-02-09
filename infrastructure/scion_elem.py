@@ -1,5 +1,3 @@
-# server.py
-
 # Copyright 2014 ETH Zurich
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """
 :mod:`server` --- Base class for SCION servers
 ==============================================
@@ -28,7 +25,7 @@ Module docstring here.
 from lib.packet.host_addr import HostAddr
 from lib.topology import Topology
 from lib.config import Config
-from lib.crypto.trcs import TRC
+from lib.crypto.trc import TRC
 import logging
 import socket
 import select
