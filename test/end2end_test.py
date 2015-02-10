@@ -1,5 +1,5 @@
 """
-opaque_field_test.py
+end2end_test.py
 
 Copyright 2014 ETH Zurich
 
@@ -20,14 +20,13 @@ from lib.packet.path import (PathType, CorePath, PeerPath, CrossOverPath,
 from lib.packet.opaque_field import InfoOpaqueField
 from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.scion import SCIONPacket
+from endhost.sciond import SCIONDaemon, SCIOND_API_HOST, SCIOND_API_PORT
 import logging
 import time
 import unittest
 import sys
 import socket
 import struct
-
-from endhost.sciond import SCIONDaemon
 
 ping_received = False
 pong_received = False
@@ -62,9 +61,9 @@ class PingPongEndhost(SCIONDaemon):
 def get_paths_via_api(isd, ad):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind(("127.0.0.1", 5005))
-    msg = b'\x00'+struct.pack("HQ", isd, ad)
+    msg = b'\x00' + struct.pack("HQ", isd, ad)
     print("Sending path request to local API.")
-    sock.sendto(msg, ("127.255.255.254", 3333))
+    sock.sendto(msg, (SCIOND_API_HOST, SCIOND_API_PORT))
     
     data, _ = sock.recvfrom(1024)
     offset = 0

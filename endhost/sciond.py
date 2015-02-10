@@ -30,9 +30,9 @@ import struct
 import socket
 
 
-PATHS_NO = 5  # conf parameter?
 WAIT_CYCLES = 3
-
+SCIOND_API_HOST = "127.255.255.254"
+SCIOND_API_PORT = 3333
 
 class SCIONDaemon(SCIONElement):
     """
@@ -54,9 +54,9 @@ class SCIONDaemon(SCIONElement):
         self._api_socket = None
         if run_local_api:
             self._api_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            self._api_socket.bind(("127.255.255.254", 3333))
+            self._api_socket.bind((SCIOND_API_HOST, SCIOND_API_PORT))
             self._sockets.append(self._api_socket)
-            logging.info("Local API %s:%u", "127.255.255.254", 3333)
+            logging.info("Local API %s:%u", SCIOND_API_HOST, SCIOND_API_PORT)
 
 
     @classmethod

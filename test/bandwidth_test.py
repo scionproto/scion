@@ -76,12 +76,12 @@ class TestBandwidth(unittest.TestCase):
         print("Starting the receiver.")
         threading.Thread(target=self.receiver).start()
 
-        payload = b"A"*PAYLOAD_SIZE
+        payload = b"A" * PAYLOAD_SIZE
         dst = IPv4HostAddr("127.2.26.254")
         spkt = SCIONPacket.from_values(sender.addr, dst, payload, paths[0])
         (next_hop, port) = sender.get_first_hop(spkt)
         print("Sending %d payload bytes (%d packets x %d bytes )\n" %
-              (PACKETS_NO*PAYLOAD_SIZE, PACKETS_NO, PAYLOAD_SIZE))
+              (PACKETS_NO * PAYLOAD_SIZE, PACKETS_NO, PAYLOAD_SIZE))
         for _ in range(PACKETS_NO):
             sender.send(spkt, next_hop, port)
             time.sleep(SLEEP)
