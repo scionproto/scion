@@ -57,7 +57,7 @@ class TestBandwidth(unittest.TestCase):
             print("Timeouted - there are lost packets")
 
         print("Goodput %.2fKBps, loss %.2f\n" % ((i*PAYLOAD_SIZE)/duration/1000,
-            100*float(PACKETS_NO-i)/PACKETS_NO))
+               100*float(PACKETS_NO-i)/PACKETS_NO))
 
     def test(self):
         """

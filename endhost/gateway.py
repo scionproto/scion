@@ -82,11 +82,11 @@ class SCIONGateway(SCIONDaemon):
                 if paths:
                     dst = IPv4HostAddr(ip_dst)
                     spkt = SCIONPacket.from_values(self.addr, dst, raw_packet,
-                        paths[0])
+                                                   paths[0])
                     (next_hop, port) = self.get_first_hop(spkt)
                     self.send(spkt, next_hop, port)
                     logging.info("Sending packet: %s\nFirst hop: %s:%s", spkt,
-                        next_hop, port)
+                                 next_hop, port)
                 else:
                     logging.warning("No path to: %s", scion_addr)
             else:
