@@ -33,32 +33,6 @@ import threading
 ping_received = False
 pong_received = False
 
-class PingPongEndhost(SCIONDaemon):
-    """
-    Test class for parties of ping-pong protocol.
-    """
-
-    def handle_data_packet(self, spkt):
-        """
-        Handles SCION data packet.
-        """
-        global ping_received
-        global pong_received
-
-        if spkt.payload == b"ping":
-            # Reverse the packet and send "pong".
-            print('%s: ping received, sending pong.' % self.addr)
-            ping_received = True
-            spkt.hdr.reverse()
-            spkt.payload = b"pong"
-            (next_hop, port) = self.get_first_hop(spkt)
-            self.send(spkt, next_hop, port)
-        elif spkt.payload == b"pong":
-            print('%s: pong received.' % self.addr)
-            pong_received = True
-        else:
-            print("Wrong payload.")
-
 
 def get_paths_via_api(isd, ad):
     """
@@ -69,7 +43,7 @@ def get_paths_via_api(isd, ad):
     msg = b'\x00' + struct.pack("HQ", isd, ad)
     print("Sending path request to local API.")
     sock.sendto(msg, (SCIOND_API_HOST, SCIOND_API_PORT))
-    
+
     data, _ = sock.recvfrom(1024)
     offset = 0
     paths_hops = []
@@ -102,6 +76,9 @@ saddr = IPv4HostAddr("127.1.19.254")
 raddr = IPv4HostAddr("127.2.26.254")
 
 def ping_app():
+    """
+    Simple ping app.
+    """
     global pong_received
     topo_file = "../topology/ISD1/topologies/ISD:1-AD:19-V:0.json"
     sd = SCIONDaemon.start(saddr, topo_file, True) # API on
@@ -128,6 +105,9 @@ def ping_app():
     sock.close()
 
 def pong_app():
+    """
+    Simple pong app.
+    """
     global ping_received
     topo_file = "../topology/ISD2/topologies/ISD:2-AD:26-V:0.json"
     sd = SCIONDaemon.start(raddr, topo_file)
