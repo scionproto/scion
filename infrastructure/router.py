@@ -20,7 +20,8 @@ Module docstring here.
 
 """
 
-from infrastructure.scion_elem import SCIONElement, SCION_UDP_PORT
+from infrastructure.scion_elem import (SCIONElement, SCION_UDP_PORT,
+                                       SCION_UDP_EH_DATA_PORT)
 from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.opaque_field import OpaqueField
 from lib.packet.opaque_field import OpaqueFieldType as OFT
@@ -318,6 +319,7 @@ class Router(SCIONElement):
                 next_hop.addr = self.ifid2addr[iface]
             else: # last opaque field on the path, send the packet to the dst
                 next_hop.addr = spkt.hdr.dst_addr
+                next_hop.port = SCION_UDP_EH_DATA_PORT # data packet to endhost
             self.send(spkt, next_hop)
         logging.debug("normal_forward()")
 

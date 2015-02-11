@@ -32,7 +32,7 @@ import select
 
 
 SCION_UDP_PORT = 30040
-SCION_UDP_PS2EH_PORT = 30041
+SCION_UDP_EH_DATA_PORT = 30041
 BUFLEN = 8092
 
 class SCIONElement(object):

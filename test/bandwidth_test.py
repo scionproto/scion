@@ -18,7 +18,7 @@ limitations under the License.
 from endhost.sciond import SCIONDaemon
 from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.scion import SCIONPacket
-from infrastructure.scion_elem import SCION_UDP_PORT, BUFLEN
+from infrastructure.scion_elem import SCION_UDP_EH_DATA_PORT, BUFLEN
 import socket
 import threading
 import time
@@ -40,7 +40,7 @@ class TestBandwidth(unittest.TestCase):
         Measures goodput and packets loss ratio.
         """
         rcv_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        rcv_sock.bind((str("127.2.26.254"), SCION_UDP_PORT))
+        rcv_sock.bind((str("127.2.26.254"), SCION_UDP_EH_DATA_PORT))
         rcv_sock.settimeout(1)
         
         i = 0

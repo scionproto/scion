@@ -190,12 +190,6 @@ class SCIONDaemon(SCIONElement):
                 self._waiting_targets[info.type][(info.dst_isd, info.dst_ad)]:
                 event.set()
 
-    def handle_data_packet(self, spkt):
-        """
-        Handles SCION data packet.
-        """
-        logging.warning("Handle data packet here.")
-
     def _api_handle_path_request(self, packet, sender):
         """
         Path request:
@@ -235,13 +229,11 @@ class SCIONDaemon(SCIONElement):
         """
         Main routine to handle incoming SCION packets.
         """
-        if from_local_socket: # From PS or ER.
+        if from_local_socket: # From PS or CS.
             spkt = SCIONPacket(packet)
             ptype = get_type(spkt)
             if ptype == PT.PATH_REC:
                 self.handle_path_reply(PathSegmentRecords(packet))
-            elif ptype == PT.DATA:
-                self.handle_data_packet(spkt)
             else:
                 logging.warning("Type %d not supported.", ptype)
         else: # From localhost (SCIONDaemon API)
