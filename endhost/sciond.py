@@ -199,7 +199,8 @@ class SCIONDaemon(SCIONElement):
          or b"" when no path found. Only IPv4 supported currently.
         """
         #TODO sanity checks
-        isd, ad = struct.unpack("HQ", packet[1:])
+        isd = struct.unpack("H", packet[1:3])[0]
+        ad = struct.unpack("Q", packet[3:])[0]
         print("req for", isd, ad)
         paths = self.get_paths(isd, ad)
         reply = []

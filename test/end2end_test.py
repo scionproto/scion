@@ -40,7 +40,7 @@ def get_paths_via_api(isd, ad):
     """
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind(("127.0.0.1", 5005))
-    msg = b'\x00' + struct.pack("HQ", isd, ad)
+    msg = b'\x00' + struct.pack("H", isd) + struct.pack("Q", ad)
     print("Sending path request to local API.")
     sock.sendto(msg, (SCIOND_API_HOST, SCIOND_API_PORT))
 
