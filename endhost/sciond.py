@@ -26,11 +26,13 @@ from lib.path_db import PathSegmentDB
 from lib.util import update_dict
 import logging
 import threading
+import struct
+import socket
 
 
-PATHS_NO = 5  # conf parameter?
 WAIT_CYCLES = 3
-
+SCIOND_API_HOST = "127.255.255.254"
+SCIOND_API_PORT = 3333
 
 class SCIONDaemon(SCIONElement):
     """
@@ -39,7 +41,7 @@ class SCIONDaemon(SCIONElement):
 
     TIMEOUT = 5
 
-    def __init__(self, addr, topo_file):
+    def __init__(self, addr, topo_file, run_local_api=False):
         SCIONElement.__init__(self, addr, topo_file)
         # TODO replace by pathstore instance
         self.up_segments = PathSegmentDB()
@@ -49,9 +51,16 @@ class SCIONDaemon(SCIONElement):
                                  PST.DOWN: {},
                                  PST.CORE: {},
                                  PST.UP_DOWN: {}}
+        self._api_socket = None
+        if run_local_api:
+            self._api_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self._api_socket.bind((SCIOND_API_HOST, SCIOND_API_PORT))
+            self._sockets.append(self._api_socket)
+            logging.info("Local API %s:%u", SCIOND_API_HOST, SCIOND_API_PORT)
+
 
     @classmethod
-    def start(cls, addr, topo_file):
+    def start(cls, addr, topo_file, run_local_api=False):
         """
         Initializes, starts, and returns a SCIONDaemon object.
 
@@ -60,7 +69,7 @@ class SCIONDaemon(SCIONElement):
         paths = sd.get_paths(isd_id, ad_id)
         ...
         """
-        sd = cls(addr, topo_file)
+        sd = cls(addr, topo_file, run_local_api)
         t = threading.Thread(target=sd.run)
         t.setDaemon(True)
         t.start()
@@ -149,11 +158,10 @@ class SCIONDaemon(SCIONElement):
 
         return full_paths
 
-    def handle_path_reply(self, packet):
+    def handle_path_reply(self, path_reply):
         """
         Handles path reply from local path server.
         """
-        path_reply = PathSegmentRecords(packet)
         info = path_reply.info
         for pcb in path_reply.pcbs:
             isd = pcb.get_isd()
@@ -182,15 +190,53 @@ class SCIONDaemon(SCIONElement):
                 self._waiting_targets[info.type][(info.dst_isd, info.dst_ad)]:
                 event.set()
 
+    def _api_handle_path_request(self, packet, sender):
+        """
+        Path request:
+          | \x00 (1B) | ISD (2B) |  AD (8B)  |
+        Reply:
+          |path1_len(1B)|path1(path1_len*8B)|first_hop_IP(4B)|path2_len(1B)...
+         or b"" when no path found. Only IPv4 supported currently.
+        """
+        #TODO sanity checks
+        isd, ad = struct.unpack("HQ", packet[1:])
+        print("req for", isd, ad)
+        paths = self.get_paths(isd, ad)
+        reply = []
+        for path in paths:
+            raw_path = path.pack()
+            # assumed: up-path nad IPv4 addr
+            hop = self.ifid2addr[path.get_first_hop_of().ingress_if] 
+            path_len = len(raw_path) // 8 # Check whether 8 divides path_len? 
+            reply.append(struct.pack("B", path_len) + raw_path + hop._addr)
+        self._api_socket.sendto(b"".join(reply), sender)
+
+    def api_handle_request(self, packet, sender):
+        """
+        Handles local API's requests.
+        """
+        if packet[0] == 0: # path request
+            logging.info('API: path request from %s.', sender)
+            threading.Thread(target=self._api_handle_path_request,
+                             args=[packet, sender]).start()
+        else:
+            logging.warning("API: type %d not supported.", packet[0])
+
     def handle_request(self, packet, sender, from_local_socket=True):
+        #PSz: local_socket may be misleading, especially that we have api_socket
+        # which is local (in the localhost sense). What do you think about
+        # changing local_socket to ad_socket
         """
         Main routine to handle incoming SCION packets.
         """
-        spkt = SCIONPacket(packet)
-        ptype = get_type(spkt)
+        if from_local_socket: # From PS or CS.
+            spkt = SCIONPacket(packet)
+            ptype = get_type(spkt)
+            if ptype == PT.PATH_REC:
+                self.handle_path_reply(PathSegmentRecords(packet))
+            else:
+                logging.warning("Type %d not supported.", ptype)
+        else: # From localhost (SCIONDaemon API)
+            self.api_handle_request(packet, sender)
 
-        if ptype == PT.PATH_REC:
-            self.handle_path_reply(packet)
-        else:
-            logging.warning("Type %d not supported.", ptype)
 

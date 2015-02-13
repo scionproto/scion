@@ -29,9 +29,6 @@ import logging
 import sys
 
 
-PATHS_NO = 5  # TODO replace by configuration parameter
-
-
 class PathServer(SCIONElement):
     """
     The SCION Path Server.

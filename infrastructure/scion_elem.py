@@ -32,7 +32,7 @@ import select
 
 
 SCION_UDP_PORT = 30040
-SCION_UDP_PS2EH_PORT = 30041
+SCION_UDP_EH_DATA_PORT = 30041
 BUFLEN = 8092
 
 class SCIONElement(object):
@@ -85,7 +85,8 @@ class SCIONElement(object):
     @property
     def addr(self):
         """
-        The address of the server as a :class:`lib.packet.host_addr.HostAddr` object.
+        The address of the server as a :class:`lib.packet.host_addr.HostAddr`
+        object.
         """
         return self._addr
 
@@ -192,3 +193,10 @@ class SCIONElement(object):
             for sock in recvlist:
                 packet, addr = sock.recvfrom(BUFLEN)
                 self.handle_request(packet, addr, sock == self._local_socket)
+
+    def clean(self):
+        """
+        Close open sockets.
+        """
+        for s in self._sockets:
+            s.close()
