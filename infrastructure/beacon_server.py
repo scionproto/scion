@@ -32,6 +32,8 @@ import sys
 import threading
 import time
 
+from Crypto import Random
+from Crypto.Hash import SHA256
 
 # TODO PSz: beacon must be revised. We have design slides for a new format.
 class BeaconServer(SCIONElement):
@@ -55,7 +57,20 @@ class BeaconServer(SCIONElement):
         # self.propagated_beacons = []
         self.beacons = deque()
         self.reg_queue = deque()
-        # TODO: add beacons, up_paths, down_paths
+        self.if2hash = {}  # Contains the currently used interface hash for
+                           # for each interface. (Used for if revocation)
+        self._init_if_hashes()
+
+    def _init_if_hashes(self):
+        """
+        Assigns each interface a random number the corresponding hash.
+        """
+        self.if2hash[0] = (8 * b"\x00", 32 * b"\x00")
+        rnd_file = Random.new()
+        for router in self.topology.get_all_edge_routers():
+            pre_img = rnd_file.read(8)
+            img = SHA256.new(pre_img).digest()
+            self.if2hash[router.interface.if_id] = (pre_img, img)
 
     def propagate_downstream_pcb(self, pcb):
         """
@@ -108,18 +123,20 @@ class BeaconServer(SCIONElement):
         ssf = SupportSignatureField()
         hof = HopOpaqueField.from_values(ingress_if, egress_if)
         spcbf = SupportPCBField.from_values(isd_id=self.topology.isd_id)
-        pcbm = PCBMarking.from_values(self.topology.ad_id, ssf, hof,
-                                      spcbf)
+        pcbm = PCBMarking.from_values(self.topology.ad_id, ssf, hof, spcbf,
+                                      self.if2hash[ingress_if][1],
+                                      self.if2hash[egress_if][1])
         peer_markings = []
         # TODO PSz: peering link can be only added when there is
         # IfidReply from router
         for router_peer in self.topology.peer_edge_routers:
-            hof = HopOpaqueField.from_values(router_peer.interface.if_id,
-                                             egress_if)
+            if_id = router_peer.interface.if_id
+            hof = HopOpaqueField.from_values(if_id, egress_if)
             spf = SupportPeerField.from_values(self.topology.isd_id)
             peer_marking = \
                 PeerMarking.from_values(router_peer.interface.neighbor_ad,
-                                        hof, spf)
+                                        hof, spf, self.if2hash[if_id][1],
+                                        self.if2hash[egress_if][1])
             pcbm.ssf.block_size += peer_marking.LEN
             peer_markings.append(peer_marking)
 
