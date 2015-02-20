@@ -180,7 +180,7 @@ class PeerMarking(Marking):
         self.hof = HopOpaqueField(raw[8:16])
         self.spf = SupportPeerField(raw[16:24])
         self.ingress_hash = raw[24:56]
-        self.egress_hash = raw[56:88]
+        self.egress_hash = raw[56:]
         self.parsed = True
 
     @classmethod

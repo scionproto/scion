@@ -120,7 +120,7 @@ class BeaconServer(SCIONElement):
         """
         Creates an AD Marking with the given ingress and egress interfaces.
         """
-        ssf = SupportSignatureField()
+        ssf = SupportSignatureField.from_values(ADMarking.LEN)
         hof = HopOpaqueField.from_values(ingress_if, egress_if)
         spcbf = SupportPCBField.from_values(isd_id=self.topology.isd_id)
         pcbm = PCBMarking.from_values(self.topology.ad_id, ssf, hof, spcbf,
