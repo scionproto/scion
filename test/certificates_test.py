@@ -18,6 +18,7 @@
 
 from lib.crypto.certificate import *
 from lib.crypto.asymcrypto import *
+from lib.crypto.trc import *
 import unittest
 
 
@@ -35,42 +36,30 @@ class TestCertificates(unittest.TestCase):
         created and verified. In the end a simple message is signed and the
         resulting signature is then verified.
         """
-        (sign0, verify0) = generate_signature_keypair()
-        (priv0, pub0) = generate_cryptobox_keypair()
-        cert0 = Certificate.from_values('ISD:11-AD:0', verify0, pub0,
-                                        'ISD:11-AD:0', sign0, 0)
-        (sign1, verify1) = generate_signature_keypair()
-        (priv1, pub1) = generate_cryptobox_keypair()
-        cert1 = Certificate.from_values('ISD:11-AD:1', verify1, pub1,
-                                        'ISD:11-AD:0', sign0, 0)
-        (sign2, verify2) = generate_signature_keypair()
-        (priv2, pub2) = generate_cryptobox_keypair()
-        cert2 = Certificate.from_values('ISD:11-AD:2', verify2, pub2,
-                                        'ISD:11-AD:1', sign1, 0)
-        (sign3, verify3) = generate_signature_keypair()
-        (priv3, pub3) = generate_cryptobox_keypair()
-        cert3 = Certificate.from_values('ISD:11-AD:3', verify3, pub3,
-                                        'ISD:11-AD:2', sign2, 0)
-        print('Certificate:', cert0, sep='\n')
+        cert10 = Certificate('../topology/ISD1/certificates/ISD:1-AD:10-V:0.crt')
+        cert19 = Certificate('../topology/ISD1/certificates/ISD:1-AD:19-V:0.crt')
+        cert16 = Certificate('../topology/ISD1/certificates/ISD:1-AD:16-V:0.crt')
+        trc = TRC('../topology/ISD1/ISD:1-V:0.crt')
+        print('Cert verification:', cert10.verify('ISD:1-AD:10', cert19))
 
-        chain_list = [cert3, cert2, cert1]
+        chain_list = [cert10, cert19, cert16]
         chain = CertificateChain.from_values(chain_list)
-        print('Certificate Chain:', chain, sep='\n')
+        print ('Cert Chain verification:', chain.verify('ISD:1-AD:10', trc, 0))
 
-        with open('ISD:11-AD:0-V:0.crt', "w") as file_handler:
-                  file_handler.write(str(cert0))
+        with open('../topology/ISD1/signature_keys/ISD:1-AD:10-V:0.key') as fh:
+            sig_priv10 = fh.read()
+        msg = 'abcd'
+        sig = sign(msg, sig_priv10)
+        print('Sig test:', verify(msg, sig, 'ISD:1-AD:10', chain, trc, 0))
 
-        roots = load_root_certificates('./')
-        print ('Certificate Chain verification:',
-               chain.verify('ISD:11-AD:3', roots, 0), sep='\n')
+        with open('../topology/ISD1/signature_keys/ISD:1-AD:13-V:0.key') as fh:
+            sig_priv13 = fh.read()
+        msg = 'abd'
+        sig = sign(msg, sig_priv13)
+        chain = CertificateChain.from_values([])
+        print('Other Sig test:', verify(msg, sig, 'ISD:1-AD:13', chain, trc, 0))
 
-        print ('Signature Test...')
-        msg = 'hello'
-        msg_with_sig = sign(msg.encode('utf-8'), sign3)
-        print('Message(With Signature):', msg_with_sig, sep='\n')
-        print('Message verification:', verify(msg_with_sig, 'ISD:11-AD:3',
-              chain, roots, 0), sep='\n')
-        
+        """
         print ('CryptoBox Test...')
         print ('ISD:11-AD:3 encrypts message hello to ISD:11-AD:2:')
         cipher = encrypt(msg.encode('utf-8'), priv3, 'ISD:11-AD:2', chain)
@@ -78,6 +67,7 @@ class TestCertificates(unittest.TestCase):
         print ('ISD:11-AD:2 decrypts cipher:')
         decipher = decrypt(cipher, priv2, 'ISD:11-AD:3', chain)
         print ('Decrypted message:', str(decipher), sep='\n')
+        """
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)

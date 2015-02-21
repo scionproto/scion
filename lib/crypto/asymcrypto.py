@@ -23,8 +23,9 @@ from lib.crypto.nacl import crypto_sign_ed25519_open
 from lib.crypto.nacl import crypto_box_curve25519xsalsa20poly1305
 from lib.crypto.nacl import crypto_box_curve25519xsalsa20poly1305_open
 from lib.crypto.nacl import randombytes
-from lib.crypto.certificate import *
 import base64
+import logging
+import json
 
 def generate_signature_keypair():
     """
@@ -70,13 +71,11 @@ def sign(msg, signing_key):
         Packed message with original plaintext attached with corresponding
         ed25519 signature, as a base64-encoded string.
     """
-    key = base64.b64decode(signing_key)
+    key = base64.standard_b64decode(signing_key.encode('ascii'))
     msg_with_sig = crypto_sign_ed25519(msg, key)
-    msg_with_sig = base64.standard_b64encode(msg_with_sig).decode('ascii')
-    return msg_with_sig
+    return base64.standard_b64encode(msg_with_sig[:64]).decode('ascii')
 
-
-def verify(msg_with_sig, subject, chain, roots, root_cert_version):
+def verify(msg, sig, subject, chain, trc, trc_version):
     """
     Verifies whether the packed message with attached signature is validly
     signed by a particular subject belonging a valid certificate chain.
@@ -98,22 +97,36 @@ def verify(msg_with_sig, subject, chain, roots, root_cert_version):
         LookupError: An error occurred when signer's public key has not found in
         certificate chain.
     """
-    if not chain.verify(subject, roots, root_cert_version):
-        raise Exception('The certificate chain is invalid.')
+    if not chain.verify(subject, trc, trc_version):
+        logging.warning('The certificate chain is invalid.')
+        return False
     pub_key = None
     for signer_cert in chain.certs:
         if signer_cert.subject == subject:
             pub_key = signer_cert.subject_pub_key
             break
     if pub_key is None:
-        raise LookupError('Signer\'s public key has not been found.')
-    verifying_key = base64.b64decode(pub_key)
+        for signer_cert in trc.core_ads:
+            if signer_cert == subject:
+                issuer_cert64 = trc.core_ads[signer_cert].encode('ascii')
+                issuer_cert_dict = base64.standard_b64decode(issuer_cert64)
+                issuer_cert_dict = issuer_cert_dict.decode('ascii')
+                issuer_cert_dict = json.loads(issuer_cert_dict)
+                pub_key = issuer_cert_dict['subject_pub_key']
+                break
+    if pub_key is None:
+        logging.warning('Signer\'s public key has not been found.')
+        return False
+    verifying_key = base64.standard_b64decode(pub_key.encode('ascii'))
+    signature = (base64.standard_b64decode(sig.encode('ascii')) +
+        msg.encode('ascii'))
     try:
-        crypto_sign_ed25519_open(base64.b64decode(msg_with_sig), verifying_key)
+        crypto_sign_ed25519_open(signature, verifying_key)
         return True
     except:
         logging.warning('Invalid signature.')
         return False
+
 
 def encrypt(msg, private_key, recipient, chain):
     """
@@ -146,8 +159,8 @@ def encrypt(msg, private_key, recipient, chain):
             break
     if pub_key is None:
         raise LookupError('Recipient\'s public key has not been found.')
-    pub_key = base64.b64decode(pub_key)
-    priv_key = base64.b64decode(private_key)
+    pub_key = base64.standard_b64decode(pub_key)
+    priv_key = base64.standard_b64decode(private_key)
     nonce = randombytes(24)
     cipher = nonce + crypto_box_curve25519xsalsa20poly1305(msg, nonce, pub_key,
                                                            priv_key)
@@ -185,9 +198,9 @@ def decrypt(cipher, private_key, sender, chain):
             break
     if pub_key is None:
         raise LookupError('Sender\'s public key has not been found.')
-    pub_key = base64.b64decode(pub_key)
-    priv_key = base64.b64decode(private_key)
-    cipher = base64.b64decode(cipher)
+    pub_key = base64.standard_b64decode(pub_key)
+    priv_key = base64.standard_b64decode(private_key)
+    cipher = base64.standard_b64decode(cipher)
     nonce = cipher[:24]
     cipher = cipher[24:]
     return crypto_box_curve25519xsalsa20poly1305_open(cipher, nonce, pub_key,

@@ -21,10 +21,10 @@ from lib.packet.opaque_field import (SupportSignatureField, HopOpaqueField,
 from lib.packet.path import CorePath
 from lib.packet.scion import (SCIONPacket, get_addr_from_type, PacketType,
     SCIONHeader)
-import logging
-
 from bitstring import BitArray
 import bitstring
+import logging
+import base64
 
 
 class Marking(object):
@@ -188,7 +188,7 @@ class PeerMarking(Marking):
             self.hof.pack() + self.spf.pack())
 
     def __str__(self):
-        pm_str = "[Peer Marking ad_id: %x]\n" % (self.ad_id)
+        pm_str = "[Peer Marking ad_id: %d]\n" % (self.ad_id)
         pm_str += str(self.hof) + '\n'
         pm_str += str(self.spf)
         return pm_str
@@ -212,7 +212,7 @@ class ADMarking(Marking):
         Marking.__init__(self)
         self.pcbm = None
         self.pms = []
-        self.sig = b''
+        self.sig = ''
         if raw is not None:
             self.parse(raw)
 
@@ -232,11 +232,11 @@ class ADMarking(Marking):
             peer_marking = PeerMarking(raw[:PeerMarking.LEN])
             self.pms.append(peer_marking)
             raw = raw[PeerMarking.LEN:]
-        self.sig = raw
+        self.sig = raw.decode('ascii')
         self.parsed = True
 
     @classmethod
-    def from_values(cls, pcbm=None, pms=None, sig=b''):
+    def from_values(cls, pcbm=None, pms=None, sig=''):
         """
         Returns ADMarking with fields populated from values.
 
@@ -245,10 +245,12 @@ class ADMarking(Marking):
         @param sig: Beacon's signature.
         """
         ad_marking = ADMarking()
+        pcbm.ssf.sig_len = len(sig)
+        pcbm.ssf.block_size = PCBMarking.LEN
+        for pm in pms:
+            pcbm.ssf.block_size += PeerMarking.LEN
         ad_marking.pcbm = pcbm
-        ad_marking.pms = []
-        if pms is not None:
-            ad_marking.pms = pms
+        ad_marking.pms = (pms if pms is not None else [])
         ad_marking.sig = sig
         return ad_marking
 
@@ -259,14 +261,14 @@ class ADMarking(Marking):
         ad_bytes = self.pcbm.pack()
         for peer_marking in self.pms:
             ad_bytes += peer_marking.pack()
-        ad_bytes += self.sig
+        ad_bytes += self.sig.encode('ascii')
         return ad_bytes
 
     def remove_signature(self):
         """
         Removes the signature from the AD block.
         """
-        self.sig = b''
+        self.sig = ''
         self.pcbm.ssf.sig_len = 0
 
     def __str__(self):
@@ -274,7 +276,7 @@ class ADMarking(Marking):
         ad_str += str(self.pcbm)
         for peer_marking in self.pms:
             ad_str += str(peer_marking)
-        ad_str += str(self.sig) + "\n"
+        ad_str += "[Signature: " + self.sig + "]\n"
         return ad_str
 
     def __eq__(self, other):
@@ -314,7 +316,7 @@ class PathSegment(Marking):
         self.iof = InfoOpaqueField(raw[0:8])
         self.rotf = ROTField(raw[8:16])
         raw = raw[16:]
-        while len(raw) > 0:
+        for _ in range(self.iof.hops):
             pcbm = PCBMarking(raw[:PCBMarking.LEN])
             ad_marking = ADMarking(raw[:pcbm.ssf.sig_len + pcbm.ssf.block_size])
             self.ads.append(ad_marking)
@@ -334,7 +336,7 @@ class PathSegment(Marking):
         """
         Appends a new AD block.
         """
-        self.iof.hops = self.iof.hops + 1
+        self.iof.hops += 1
         self.ads.append(ad_marking)
 
     def remove_signatures(self):

@@ -16,35 +16,13 @@
 ===========================================
 """
 
-from lib.crypto.asymcrypto import *
+from lib.crypto.asymcrypto import sign
+from lib.crypto.nacl import crypto_sign_ed25519_open
 import time
 import json
 import logging
 import os
 import base64
-
-
-def load_root_certificates(path):
-    """
-    Load all root certificates into a dictionary. The key is the concatenation
-    of the certificate's subject and version (i.e. ISD:11-AD:1-V:0,
-    www.abc.com-V:0, scion@ethz.ch-V:0).
-
-    :param path: parent directory where all root certificate files are stored.
-    :type path: str
-    :returns: a set of root certificates.
-    :rtype: dict
-    """
-    if not os.path.exists(path):
-        logging.info('The given path %s is not valid.', path)
-        return {}
-    roots = {}
-    for root, dirs, files in os.walk(path):
-        for name in files:
-            if name.endswith((".crt")):
-                cert = Certificate(path + name)
-                roots[cert.subject + '-V:' + str(cert.version)] = cert
-    return roots
 
 
 class Certificate(object):
@@ -189,11 +167,8 @@ class Certificate(object):
         cert.sign_algorithm = Certificate.SIGN_ALGORITHM
         cert.encryption_algorithm = Certificate.ENCRYPT_ALGORITHM
         cert_dict = cert.get_cert_dict()
-        cert_str = json.dumps(cert_dict, sort_keys=True)
-        cert_str = str.encode(cert_str)
-        signing_key = base64.b64decode(iss_priv_key)
-        cert.signature = base64.standard_b64encode(crypto_sign_ed25519(cert_str,
-            signing_key)).decode('ascii')
+        cert_str = json.dumps(cert_dict, sort_keys=True, indent=4)
+        cert.signature = sign(cert_str, iss_priv_key)
         return cert
 
     @classmethod
@@ -239,13 +214,13 @@ class Certificate(object):
                             "certificate's subject")
             return False
         iss_pub_key = issuer_cert.subject_pub_key
-        verifyng_key = base64.b64decode(iss_pub_key)
+        verifying_key = base64.standard_b64decode(iss_pub_key.encode('ascii'))
         cert_dict = self.get_cert_dict()
-        cert_str = json.dumps(cert_dict, sort_keys=True)
-        cert_str = str.encode(cert_str)
+        cert_str = json.dumps(cert_dict, sort_keys=True, indent=4)
+        signature = (base64.standard_b64decode(self.signature.encode('ascii')) +
+            cert_str.encode('ascii'))
         try:
-            crypto_sign_ed25519_open(base64.b64decode(self.signature),
-                verifyng_key)
+            crypto_sign_ed25519_open(signature, verifying_key)
             return True
         except:
             logging.warning("The certificate is not valid.")
@@ -319,7 +294,7 @@ class CertificateChain(object):
         cert_chain.certs = cert_list
         return cert_chain
 
-    def verify(self, subject, roots, root_cert_version):
+    def verify(self, subject, trc, trc_version):
         """
         Perform the entire chain verification. It verifies each pair and at the
         end verifies the last certificate of the chain with the root certificate
@@ -335,8 +310,13 @@ class CertificateChain(object):
         :returns: True or False whether the verification succeeds or fails.
         :rtype: bool
         """
+        if subject in trc.core_ads:
+            return True
         if len(self.certs) == 0:
             logging.warning("The certificate chain is not initialized.")
+            return False
+        if trc.version != trc_version:
+            logging.warning("The TRC version is incorrect.")
             return False
         cert = self.certs[0]
         for issuer_cert in self.certs[1:]:
@@ -344,11 +324,15 @@ class CertificateChain(object):
                 return False
             cert = issuer_cert
             subject = cert.subject
-        root_key = cert.issuer + '-V:' + str(root_cert_version)
-        if root_key not in roots.keys():
+        if cert.issuer not in trc.core_ads:
             logging.warning("Issuer public key not found.")
             return False
-        if not cert.verify(subject, roots[root_key]):
+        issuer_cert_dict = \
+            base64.standard_b64decode(trc.core_ads[cert.issuer].encode('ascii'))
+        issuer_cert_dict = issuer_cert_dict.decode('ascii')
+        issuer_cert_dict = json.loads(issuer_cert_dict)
+        issuer_cert = Certificate.from_dict(issuer_cert_dict)
+        if not cert.verify(subject, issuer_cert):
             return False
         return True
 

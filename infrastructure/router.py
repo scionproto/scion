@@ -22,11 +22,10 @@ Module docstring here.
 
 from infrastructure.scion_elem import SCIONElement, SCION_UDP_PORT
 from lib.packet.host_addr import IPv4HostAddr
-from lib.packet.opaque_field import OpaqueField
-from lib.packet.opaque_field import OpaqueFieldType as OFT
+from lib.packet.opaque_field import OpaqueField, OpaqueFieldType as OFT
 from lib.packet.pcb import PathConstructionBeacon
-from lib.packet.scion import PacketType as PT
-from lib.packet.scion import SCIONPacket, IFIDRequest, IFIDReply, get_type
+from lib.packet.scion import (PacketType as PT, SCIONPacket, IFIDRequest,
+    IFIDReply, get_type, CertRequest, CertReply, TrcRequest, TrcReply)
 import logging
 import socket
 import sys
@@ -256,6 +255,20 @@ class Router(SCIONElement):
             next_hop.addr = self.topology.beacon_servers[0].addr
             self.send(beacon, next_hop)
 
+    def simple_forward(self, spkt, next_hop, from_local_ad):
+        """
+        """
+        if not self.interface.initialized:
+            logging.warning("Interface not initialized.")
+            return
+        if from_local_ad:
+            next_hop.addr = self.interface.to_addr
+            next_hop.port = self.interface.to_udp_port
+        else:
+            # TODO Multiple CS scenario
+            next_hop.addr = self.topology.certificate_servers[0].addr
+        self.send(spkt, next_hop)
+
     # TODO
     def verify_of(self, spkt):
         """
@@ -299,11 +312,7 @@ class Router(SCIONElement):
                 logging.error("1 interface mismatch %u != %u", iface,
                         self.interface.if_id)
         else:
-            # TODO redesing Certificate Servers
-            if ptype in [PT.CERT_REQ, PT.ROT_REQ, PT.CERT_REP, PT.ROT_REP]:
-                next_hop.addr = \
-                    self.topology.certificate_servers[0].addr
-            elif iface:
+            if iface:
                 next_hop.addr = self.ifid2addr[iface]
             elif ptype in [PT.PATH_REQ, PT.PATH_REC]:
                 next_hop.addr = self.topology.path_servers[0].addr
@@ -501,6 +510,8 @@ class Router(SCIONElement):
             self.process_ifid_reply(packet, next_hop)
         elif ptype == PT.BEACON:
             self.process_pcb(packet, next_hop, from_local_ad)
+        elif ptype in [PT.CERT_REQ, PT.CERT_REP, PT.TRC_REQ, PT.TRC_REP]:
+            self.simple_forward(spkt, next_hop, from_local_ad)
         else:
             if ptype == PT.DATA:
                 logging.debug("DATA type %u, %s", ptype, spkt)

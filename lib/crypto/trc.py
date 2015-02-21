@@ -16,7 +16,6 @@
 ===========================================
 """
 
-from lib.crypto.asymcrypto import *
 import time
 import json
 import logging
@@ -69,24 +68,25 @@ class TRC(object):
         :returns: the newly created TRC instance.
         :rtype: :class:`TRC`
         """
-        self.isd_id = ''
+        self.isd_id = 0
         self.version = 0
         self.time = 0
-        self.core_isps = ''
-        self.registry_key = ''
-        self.path_key = ''
-        self.root_cas = ''
-        self.root_dns_key = ''
-        self.root_dns_addr = ''
-        self.trc_server = ''
-        self.quorum = 0
+        self.core_quorum = 0
         self.trc_quorum = 0
-        self.policies = ''
-        self.signatures = ''
+        self.core_isps = {}
+        self.root_cas = {}
+        self.core_ads = {}
+        self.policies = {}
+        self.registry_server_addr = ''
+        self.registry_server_cert = ''
+        self.root_dns_server_addr = ''
+        self.root_dns_server_cert = ''
+        self.trc_server_addr = ''
+        self.signatures = {}
         if trc_file:
             self.parse(trc_file)
 
-    def get_trc_dict(self):
+    def get_trc_dict(self, with_signatures=False):
         """
         Return the TRC information.
 
@@ -97,17 +97,19 @@ class TRC(object):
             'isd_id': self.isd_id,
             'version': self.version,
             'time': self.time,
-            'core_isps': self.core_isps,
-            'registry_key': self.registry_key,
-            'path_key': self.path_key,
-            'root_cas': self.root_cas,
-            'root_dns_key': self.root_dns_key,
-            'root_dns_addr': self.root_dns_addr,
-            'trc_server': self.trc_server,
-            'quorum': self.quorum,
+            'core_quorum': self.core_quorum,
             'trc_quorum': self.trc_quorum,
+            'core_isps': self.core_isps,
+            'root_cas': self.root_cas,
+            'core_ads': self.core_ads,
             'policies': self.policies,
-            'signatures': self.signatures}
+            'registry_server_addr': self.registry_server_addr,
+            'registry_server_cert': self.registry_server_cert,
+            'root_dns_server_addr': self.root_dns_server_addr,
+            'root_dns_server_cert': self.root_dns_server_cert,
+            'trc_server_addr': self.trc_server_addr}
+        if with_signatures:
+            trc_dict['signatures'] = self.signatures
         return trc_dict
 
     def parse(self, trc_file):
@@ -125,23 +127,25 @@ class TRC(object):
             return
         self.isd_id = trc['isd_id']
         self.version = trc['version']
-        self.time = int(time.time())
-        self.core_isps = trc['core_isps']
-        self.registry_key = trc['registry_key']
-        self.path_key = trc['path_key']
-        self.root_cas = trc['root_cas']
-        self.root_dns_key = trc['root_dns_key']
-        self.root_dns_addr = trc['root_dns_addr']
-        self.trc_server = trc['trc_server']
-        self.quorum = trc['quorum']
+        self.time = trc['time']
+        self.core_quorum = trc['core_quorum']
         self.trc_quorum = trc['trc_quorum']
+        self.core_isps = trc['core_isps']
+        self.root_cas = trc['root_cas']
+        self.core_ads = trc['core_ads']
         self.policies = trc['policies']
+        self.registry_server_addr = trc['registry_server_addr']
+        self.registry_server_cert = trc['registry_server_cert']
+        self.root_dns_server_addr = trc['root_dns_server_addr']
+        self.root_dns_server_cert = trc['root_dns_server_cert']
+        self.trc_server_addr = trc['trc_server_addr']
         self.signatures = trc['signatures']
 
     @classmethod
-    def from_values(cls, isd_id, version, core_isps, registry_key, path_key,
-        root_cas, root_dns_key, root_dns_addr, trc_server, quorum, trc_quorum,
-        policies, signatures):
+    def from_values(cls, isd_id, version, core_quorum, trc_quorum, core_isps,
+        root_cas, core_ads, policies, registry_server_addr,
+        registry_server_cert, root_dns_server_addr, root_dns_server_cert,
+        trc_server_addr, signatures):
         """
         Generates a TRC instance.
 
@@ -179,16 +183,17 @@ class TRC(object):
         trc.isd_id = isd_id
         trc.version = version
         trc.time = int(time.time())
-        trc.core_isps = core_isps
-        trc.registry_key = registry_key
-        trc.path_key = path_key
-        trc.root_cas = root_cas
-        trc.root_dns_key = root_dns_key
-        trc.root_dns_addr = root_dns_addr
-        trc.trc_server = trc_server
-        trc.quorum = quorum
+        trc.core_quorum = core_quorum
         trc.trc_quorum = trc_quorum
+        trc.core_isps = core_isps
+        trc.root_cas = root_cas
+        trc.core_ads = core_ads
         trc.policies = policies
+        trc.registry_server_addr = registry_server_addr
+        trc.registry_server_cert = registry_server_cert
+        trc.root_dns_server_addr = root_dns_server_addr
+        trc.root_dns_server_cert = root_dns_server_cert
+        trc.trc_server_addr = trc_server_addr
         trc.signatures = signatures
         return trc
 
@@ -199,6 +204,6 @@ class TRC(object):
         :returns: the TRC information.
         :rtype: str
         """
-        trc_dict = self.get_trc_dict()
+        trc_dict = self.get_trc_dict(True)
         trc_str = json.dumps(trc_dict, sort_keys=True, indent=4)
         return trc_str
