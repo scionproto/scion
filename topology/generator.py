@@ -430,9 +430,10 @@ def write_trc_files(AD_configs, keys):
             subject = 'ISD:' + isd_id + '-AD:' + ad_id
             if os.path.exists(trc_file):
                 trc = TRC(trc_file)
-                trc_dict = trc.get_trc_dict()
-                trc_str = json.dumps(trc_dict, sort_keys=True, indent=4)
-                sig = sign(trc_str, keys['sig_priv_keys'][isd_ad_id])
+                data_to_sign = trc.get_trc_dict()
+                data_to_sign = \
+                    json.dumps(data_to_sign, sort_keys=True, indent=4)
+                sig = sign(data_to_sign, keys['sig_priv_keys'][isd_ad_id])
                 trc.signatures[subject] = sig
                 with open(trc_file, 'w') as key_fh:
                     key_fh.write(str(trc))

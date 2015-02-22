@@ -678,6 +678,9 @@ class TrcRequest(SCIONPacket):
 
     def __init__(self, raw=None):
         SCIONPacket.__init__(self)
+        self.ingress_if = 0
+        self.src_isd = 0
+        self.src_ad = 0
         self.trc_isd = 0
         self.trc_version = 0
         if raw:
@@ -686,10 +689,13 @@ class TrcRequest(SCIONPacket):
     def parse(self, raw):
         SCIONPacket.parse(self, raw)
         bits = BitArray(bytes=self.payload)
-        (self.trc_isd, self.trc_version) = bits.unpack("uintbe:16, uintbe:32")
+        (self.ingress_if, self.src_isd, self.src_ad, self.trc_isd,
+            self.trc_version) = bits.unpack("uintbe:16, uintbe:16, " +
+            "uintbe:64, uintbe:16, uintbe:32")
 
     @classmethod
-    def from_values(cls, req_type, src, trc_isd, trc_version):
+    def from_values(cls, req_type, src, ingress_if, src_isd, src_ad, trc_isd,
+        trc_version):
         """
         Returns a TRC Request with the values specified.
 
@@ -704,10 +710,14 @@ class TrcRequest(SCIONPacket):
         req = TrcRequest()
         dst = get_addr_from_type(req_type)
         req.hdr = SCIONHeader.from_values(src, dst, req_type)
+        req.ingress_if = ingress_if
+        req.src_isd = src_isd
+        req.src_ad = src_ad
         req.trc_isd = trc_isd
         req.trc_version = trc_version
-        req.payload = bitstring.pack("uintbe:16, uintbe:32", trc_isd,
-            trc_version).bytes
+        req.payload = bitstring.pack("uintbe:16, uintbe:16, uintbe:64, " +
+            "uintbe:16, uintbe:32", ingress_if, src_isd, src_ad,
+            trc_isd, trc_version).bytes
         return req
 
 

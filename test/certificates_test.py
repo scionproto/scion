@@ -40,6 +40,7 @@ class TestCertificates(unittest.TestCase):
         cert19 = Certificate('../topology/ISD1/certificates/ISD:1-AD:19-V:0.crt')
         cert16 = Certificate('../topology/ISD1/certificates/ISD:1-AD:16-V:0.crt')
         trc = TRC('../topology/ISD1/ISD:1-V:0.crt')
+        print('TRC verification', trc.verify())
         print('Cert verification:', cert10.verify('ISD:1-AD:10', cert19))
 
         chain_list = [cert10, cert19, cert16]

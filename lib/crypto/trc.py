@@ -16,6 +16,7 @@
 ===========================================
 """
 
+from lib.crypto.nacl import crypto_sign_ed25519_open
 import time
 import json
 import logging
@@ -196,6 +197,49 @@ class TRC(object):
         trc.trc_server_addr = trc_server_addr
         trc.signatures = signatures
         return trc
+
+    def get_public_key(self, subject):
+        """
+        """
+        if subject not in self.core_ads:
+            logging.warning("The public key could not be found.")
+            return ''
+        subject_cert = self.core_ads[subject].encode('ascii')
+        subject_cert = base64.standard_b64decode(subject_cert).decode('ascii')
+        subject_cert = json.loads(subject_cert)
+        public_key = subject_cert['subject_pub_key'].encode('ascii')
+        public_key = base64.standard_b64decode(public_key)
+        return public_key
+
+    def verify(self):
+        """
+        Perform signatures verification.
+
+        :param subject: the certificate subject. It can either be an AD, an
+                        email address or a domain address.
+        :type subject: str
+        :param issuer_cert: the certificate issuer. It can only be an AD.
+        :type issuer_cert: str
+        :returns: True or False whether the verification succeeds or fails.
+        :rtype: bool
+        """
+        data_to_verify = self.get_trc_dict()
+        data_to_verify = json.dumps(data_to_verify, sort_keys=True, indent=4)
+        data_to_verify = data_to_verify.encode('ascii')
+        for signer in self.signatures:
+            if signer not in self.core_ads:
+                logging.warning("A signature could not be verified.")
+                return False
+            public_key = self.get_public_key(signer)
+            sig_to_verify = self.signatures[signer].encode('ascii')
+            sig_to_verify = base64.standard_b64decode(sig_to_verify)
+            signature = sig_to_verify + data_to_verify
+            try:
+                crypto_sign_ed25519_open(signature, public_key)
+            except:
+                logging.warning("A signature is not valid.")
+                return False
+        return True
 
     def __str__(self):
         """

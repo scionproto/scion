@@ -214,13 +214,13 @@ class Certificate(object):
                             "certificate's subject")
             return False
         iss_pub_key = issuer_cert.subject_pub_key
-        verifying_key = base64.standard_b64decode(iss_pub_key.encode('ascii'))
-        cert_dict = self.get_cert_dict()
-        cert_str = json.dumps(cert_dict, sort_keys=True, indent=4)
+        iss_pub_key = base64.standard_b64decode(iss_pub_key.encode('ascii'))
+        data_to_verify = self.get_cert_dict()
+        data_to_verify = json.dumps(data_to_verify, sort_keys=True, indent=4)
         signature = (base64.standard_b64decode(self.signature.encode('ascii')) +
-            cert_str.encode('ascii'))
+            data_to_verify.encode('ascii'))
         try:
-            crypto_sign_ed25519_open(signature, verifying_key)
+            crypto_sign_ed25519_open(signature, iss_pub_key)
             return True
         except:
             logging.warning("The certificate is not valid.")
@@ -325,7 +325,7 @@ class CertificateChain(object):
             cert = issuer_cert
             subject = cert.subject
         if cert.issuer not in trc.core_ads:
-            logging.warning("Issuer public key not found.")
+            logging.warning("The verification against the TRC failed.")
             return False
         issuer_cert_dict = \
             base64.standard_b64decode(trc.core_ads[cert.issuer].encode('ascii'))

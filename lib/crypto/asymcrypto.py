@@ -97,27 +97,27 @@ def verify(msg, sig, subject, chain, trc, trc_version):
         LookupError: An error occurred when signer's public key has not found in
         certificate chain.
     """
-    if not chain.verify(subject, trc, trc_version):
-        logging.warning('The certificate chain is invalid.')
+    if not trc.verify():
+        logging.warning('The TRC verification failed.')
         return False
-    pub_key = None
+    if not chain.verify(subject, trc, trc_version):
+        logging.warning('The certificate chain verification failed.')
+        return False
+    verifying_key = None
     for signer_cert in chain.certs:
         if signer_cert.subject == subject:
-            pub_key = signer_cert.subject_pub_key
+            verifying_key = signer_cert.subject_pub_key
             break
-    if pub_key is None:
-        for signer_cert in trc.core_ads:
-            if signer_cert == subject:
-                issuer_cert64 = trc.core_ads[signer_cert].encode('ascii')
-                issuer_cert_dict = base64.standard_b64decode(issuer_cert64)
-                issuer_cert_dict = issuer_cert_dict.decode('ascii')
-                issuer_cert_dict = json.loads(issuer_cert_dict)
-                pub_key = issuer_cert_dict['subject_pub_key']
-                break
-    if pub_key is None:
-        logging.warning('Signer\'s public key has not been found.')
-        return False
-    verifying_key = base64.standard_b64decode(pub_key.encode('ascii'))
+    if verifying_key is None:
+        if subject not in trc.core_ads:
+            logging.warning('Signer\'s public key has not been found.')
+            return False
+        issuer_cert = trc.core_ads[subject].encode('ascii')
+        issuer_cert = base64.standard_b64decode(issuer_cert)
+        issuer_cert = issuer_cert.decode('ascii')
+        issuer_cert = json.loads(issuer_cert)
+        verifying_key = issuer_cert['subject_pub_key']
+    verifying_key = base64.standard_b64decode(verifying_key.encode('ascii'))
     signature = (base64.standard_b64decode(sig.encode('ascii')) +
         msg.encode('ascii'))
     try:
@@ -126,7 +126,6 @@ def verify(msg, sig, subject, chain, trc, trc_version):
     except:
         logging.warning('Invalid signature.')
         return False
-
 
 def encrypt(msg, private_key, recipient, chain):
     """
@@ -165,7 +164,6 @@ def encrypt(msg, private_key, recipient, chain):
     cipher = nonce + crypto_box_curve25519xsalsa20poly1305(msg, nonce, pub_key,
                                                            priv_key)
     return base64.standard_b64encode(cipher).decode('ascii')
-
 
 def decrypt(cipher, private_key, sender, chain):
     """
