@@ -84,7 +84,7 @@ class PCBMarking(Marking):
         Populates fields from a raw bytes block.
         """
         assert isinstance(raw, bytes)
-        self.raw = raw
+        self.raw = raw[:]
         dlen = len(raw)
         if dlen < PCBMarking.LEN:
             logging.warning("PCBM: Data too short for parsing, len: %u", dlen)
@@ -170,7 +170,7 @@ class PeerMarking(Marking):
         Populates fields from a raw bytes block.
         """
         assert isinstance(raw, bytes)
-        self.raw = raw
+        self.raw = raw[:]
         dlen = len(raw)
         if dlen < PeerMarking.LEN:
             logging.warning("PM: Data too short for parsing, len: %u", dlen)
@@ -250,18 +250,18 @@ class ADMarking(Marking):
         Populates fields from a raw bytes block.
         """
         assert isinstance(raw, bytes)
-        self.raw = raw
+        self.raw = raw[:]
         dlen = len(raw)
         if dlen < ADMarking.LEN:
             logging.warning("AD: Data too short for parsing, len: %u", dlen)
             return
         self.pcbm = PCBMarking(raw[:PCBMarking.LEN])
         raw = raw[PCBMarking.LEN:]
-        while len(raw) > (self.pcbm.ssf.sig_len):
+        while len(raw) > self.pcbm.ssf.sig_len:
             peer_marking = PeerMarking(raw[:PeerMarking.LEN])
             self.pms.append(peer_marking)
             raw = raw[PeerMarking.LEN:]
-        self.sig = raw
+        self.sig = raw[:]
         self.parsed = True
 
     @classmethod
@@ -319,12 +319,13 @@ class PathSegment(Marking):
     """
     Packs all PathSegment fields for a specific beacon.
     """
-    LEN = 16
+    LEN = 16 + 32
 
     def __init__(self, raw=None):
         Marking.__init__(self)
         self.iof = None
         self.rotf = None
+        self.segment_id = 32 * b"\x00"
         self.ads = []
         if raw is not None:
             self.parse(raw)
@@ -334,16 +335,17 @@ class PathSegment(Marking):
         Populates fields from a raw bytes block.
         """
         assert isinstance(raw, bytes)
-        self.raw = raw
+        self.raw = raw[:]
         dlen = len(raw)
         if dlen < PathSegment.LEN:
             logging.warning("PathSegment: Data too short for parsing, " +
-            "len: %u", dlen)
+                            "len: %u", dlen)
             return
         self.iof = InfoOpaqueField(raw[0:8])
         self.rotf = ROTField(raw[8:16])
-        raw = raw[16:]
-        while len(raw) > 0:
+        self.segment_id = raw[16:48]
+        raw = raw[48:]
+        for _ in range(self.iof.hops):
             pcbm = PCBMarking(raw[:PCBMarking.LEN])
             ad_marking = ADMarking(raw[:pcbm.ssf.sig_len + pcbm.ssf.block_size])
             self.ads.append(ad_marking)
@@ -355,6 +357,7 @@ class PathSegment(Marking):
         Returns PathSegment as a binary string.
         """
         pcb_bytes = self.iof.pack() + self.rotf.pack()
+        pcb_bytes += self.segment_id
         for ad_marking in self.ads:
             pcb_bytes += ad_marking.pack()
         return pcb_bytes
@@ -440,11 +443,12 @@ class PathSegment(Marking):
             pcb = PathSegment()
             pcb.iof = InfoOpaqueField(raw[0:8])
             pcb.rotf = ROTField(raw[8:16])
-            raw = raw[16:]
+            pcb.segment_id = raw[16:48]
+            raw = raw[48:]
             for _ in range(pcb.iof.hops):
                 pcbm = PCBMarking(raw[:PCBMarking.LEN])
                 ad_marking = ADMarking(raw[:pcbm.ssf.sig_len +
-                    pcbm.ssf.block_size])
+                                           pcbm.ssf.block_size])
                 pcb.ads.append(ad_marking)
                 raw = raw[pcbm.ssf.sig_len + pcbm.ssf.block_size:]
             pcbs.append(pcb)
@@ -462,7 +466,8 @@ class PathSegment(Marking):
 
     def __str__(self):
         pcb_str = "[PathSegment]\n"
-        pcb_str += str(self.iof) + str(self.rotf)
+        pcb_str += "Segment ID: %s\n" % str(self.segment_id)
+        pcb_str += str(self.iof) + "\n" + str(self.rotf) + "\n"
         for ad_marking in self.ads:
             pcb_str += str(ad_marking)
         return pcb_str

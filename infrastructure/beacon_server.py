@@ -65,10 +65,10 @@ class BeaconServer(SCIONElement):
         """
         Assigns each interface a random number the corresponding hash.
         """
-        self.if2hash[0] = (8 * b"\x00", 32 * b"\x00")
+        self.if2hash[0] = (32 * b"\x00", 32 * b"\x00")
         rnd_file = Random.new()
         for router in self.topology.get_all_edge_routers():
-            pre_img = rnd_file.read(8)
+            pre_img = rnd_file.read(32)
             img = SHA256.new(pre_img).digest()
             self.if2hash[router.interface.if_id] = (pre_img, img)
 
@@ -239,6 +239,14 @@ class CoreBeaconServer(BeaconServer):
                 new_pcb = copy.deepcopy(pcb)
                 ad_marking = self._create_ad_marking(new_pcb.rotf.if_id, 0)
                 new_pcb.add_ad(ad_marking)
+                # When the BS registers a segment, it generates a unique
+                # random number and uses the SHA256-hash of that number to
+                # uniquely identify the segment. By revealing the random number
+                # a BS can revoke that path segment.
+                # TODO: Need to store (and also clean up) the generated rnd-nr.
+                pre_img = Random.new().read(32)
+                img = SHA256.new(pre_img).digest()
+                new_pcb.segment_id = img
                 self.register_core_segment(new_pcb)
                 logging.info("Paths registered")
             time.sleep(self.config.registration_time)
@@ -344,6 +352,14 @@ class LocalBeaconServer(BeaconServer):
                 new_pcb = copy.deepcopy(pcb)
                 ad_marking = self._create_ad_marking(new_pcb.rotf.if_id, 0)
                 new_pcb.add_ad(ad_marking)
+                # When the BS registers a segment, it generates a unique
+                # random number and uses the SHA256-hash of that number to
+                # uniquely identify the segment. By revealing the random number
+                # a BS can revoke that path segment.
+                # TODO: Need to store (and also clean up) the generated rnd-nr.
+                pre_img = Random.new().read(32)
+                img = SHA256.new(pre_img).digest()
+                new_pcb.segment_id = img
                 self.register_up_segment(new_pcb)
                 self.register_down_segment(new_pcb)
                 logging.info("Paths registered")
