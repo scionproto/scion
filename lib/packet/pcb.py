@@ -64,7 +64,8 @@ class PCBMarking(Marking):
     """
     Packs all fields for a specific PCB marking, which includes: the Autonomous
     Domain's ID, the SupportSignatureField, the HopOpaqueField, the
-    SupportPCBField, and the hashes for the interfaces included in the HOF.
+    SupportPCBField, and the revocation tokens for the interfaces
+    included in the HOF.
     """
     LEN = 32 + 2 * 32
 
@@ -74,8 +75,8 @@ class PCBMarking(Marking):
         self.ssf = None
         self.hof = None
         self.spcbf = None
-        self.ingress_hash = 32 * b"\x00"
-        self.egress_hash = 32 * b"\x00"
+        self.ig_rev_token = 32 * b"\x00"
+        self.eg_rev_token = 32 * b"\x00"
         if raw is not None:
             self.parse(raw)
 
@@ -94,13 +95,13 @@ class PCBMarking(Marking):
         self.ssf = SupportSignatureField(raw[8:16])
         self.hof = HopOpaqueField(raw[16:24])
         self.spcbf = SupportPCBField(raw[24:32])
-        self.ingress_hash = raw[32:64]
-        self.egress_hash = raw[64:96]
+        self.ig_rev_token = raw[32:64]
+        self.eg_rev_token = raw[64:96]
         self.parsed = True
 
     @classmethod
     def from_values(cls, ad_id=0, ssf=None, hof=None, spcbf=None,
-                    ingress_hash=32 * b"\x00", egress_hash=32 * b"\x00"):
+                    ig_rev_token=32 * b"\x00", eg_rev_token=32 * b"\x00"):
         """
         Returns PCBMarking with fields populated from values.
 
@@ -108,16 +109,18 @@ class PCBMarking(Marking):
         @param ssf: SupportSignatureField object.
         @param hof: HopOpaqueField object.
         @param spcbf: SupportPCBField object.
-        @param ingress_hash: Hash for the ingress if in the HopOpaqueField.
-        @param egress_hash: Hash for the egress if in the HopOpaqueField.
+        @param ig_rev_token: Revocation token for the ingress if
+                             in the HopOpaqueField.
+        @param eg_rev_token: Revocation token for the egress if
+                             in the HopOpaqueField.
         """
         pcbm = PCBMarking()
         pcbm.ad_id = ad_id
         pcbm.ssf = ssf
         pcbm.hof = hof
         pcbm.spcbf = spcbf
-        pcbm.ingress_hash = ingress_hash
-        pcbm.egress_hash = egress_hash
+        pcbm.ig_rev_token = ig_rev_token
+        pcbm.eg_rev_token = eg_rev_token
         return pcbm
 
     def pack(self):
@@ -126,12 +129,12 @@ class PCBMarking(Marking):
         """
         return (bitstring.pack("uintbe:64", self.ad_id).bytes +
                 self.ssf.pack() + self.hof.pack() + self.spcbf.pack() +
-                self.ingress_hash + self.egress_hash)
+                self.ig_rev_token + self.eg_rev_token)
 
     def __str__(self):
         pcbm_str = "[PCB Marking ad_id: %d]\n" % (self.ad_id)
-        pcbm_str += "ingress_hash: %s\negress_hash:%s\n" % (self.ingress_hash,
-                                                            self.egress_hash)
+        pcbm_str += "ig_rev_token: %s\neg_rev_token:%s\n" % (self.ig_rev_token,
+                                                             self.eg_rev_token)
         pcbm_str += str(self.ssf)
         pcbm_str += str(self.hof) + '\n'
         pcbm_str += str(self.spcbf)
@@ -143,8 +146,8 @@ class PCBMarking(Marking):
                     self.ssf == other.ssf and
                     self.hof == other.hof and
                     self.spcbf == other.spcbf and
-                    self.ingress_hash == other.ingress_hash and
-                    self.egress_hash == other.egress_hash)
+                    self.ig_rev_token == other.ig_rev_token and
+                    self.eg_rev_token == other.eg_rev_token)
         else:
             return False
 
@@ -160,8 +163,8 @@ class PeerMarking(Marking):
         self.ad_id = 0
         self.hof = None
         self.spf = None
-        self.ingress_hash = b""
-        self.egress_hash = b""
+        self.ig_rev_token = b""
+        self.eg_rev_token = b""
         if raw is not None:
             self.parse(raw)
 
@@ -179,8 +182,8 @@ class PeerMarking(Marking):
         self.ad_id = bits.unpack("uintbe:64")[0]
         self.hof = HopOpaqueField(raw[8:16])
         self.spf = SupportPeerField(raw[16:24])
-        self.ingress_hash = raw[24:56]
-        self.egress_hash = raw[56:]
+        self.ig_rev_token = raw[24:56]
+        self.eg_rev_token = raw[56:]
         self.parsed = True
 
     @classmethod
@@ -193,15 +196,17 @@ class PeerMarking(Marking):
         @param ad_id: Autonomous Domain's ID.
         @param hof: HopOpaqueField object.
         @param spf: SupportPeerField object.
-        @param ingress_hash: Hash for the ingress if in the HopOpaqueField.
-        @param egress_hash: Hash for the egress if in the HopOpaqueField.
+        @param ig_rev_token: Revocation token for the ingress if
+                             in the HopOpaqueField.
+        @param eg_rev_token: Revocation token for the egress if
+                             in the HopOpaqueField.
         """
         peer_marking = PeerMarking()
         peer_marking.ad_id = ad_id
         peer_marking.hof = hof
         peer_marking.spf = spf
-        peer_marking.ingress_hash = ingress_hash
-        peer_marking.egress_hash = egress_hash
+        peer_marking.ig_rev_token = ingress_hash
+        peer_marking.eg_rev_token = egress_hash
         return peer_marking
 
     def pack(self):
@@ -209,13 +214,13 @@ class PeerMarking(Marking):
         Returns PeerMarking as a binary string.
         """
         return (bitstring.pack("uintbe:64", self.ad_id).bytes +
-                self.hof.pack() + self.spf.pack() + self.ingress_hash +
-                self.egress_hash)
+                self.hof.pack() + self.spf.pack() + self.ig_rev_token +
+                self.eg_rev_token)
 
     def __str__(self):
         pm_str = "[Peer Marking ad_id: %x]\n" % (self.ad_id)
-        pm_str += "ingress_hash: %s\negress_hash:%s\n" % (self.ingress_hash,
-                                                          self.egress_hash)
+        pm_str += "ig_rev_token: %s\eg_rev_token:%s\n" % (self.ig_rev_token,
+                                                          self.eg_rev_token)
         pm_str += str(self.hof) + '\n'
         pm_str += str(self.spf)
         return pm_str
@@ -225,8 +230,8 @@ class PeerMarking(Marking):
             return (self.ad_id == other.ad_id and
                     self.hof == other.hof and
                     self.spf == other.spf and
-                    self.ingress_hash == other.ingress_hash and
-                    self.egress_hash == other.egress_hash)
+                    self.ig_rev_token == other.ig_rev_token and
+                    self.eg_rev_token == other.eg_rev_token)
         else:
             return False
 
