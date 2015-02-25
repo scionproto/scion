@@ -17,7 +17,6 @@ limitations under the License.
 """
 
 from _collections import deque
-import copy
 from infrastructure.scion_elem import SCIONElement
 from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.opaque_field import (OpaqueFieldType as OFT, InfoOpaqueField,
@@ -27,10 +26,13 @@ from lib.packet.pcb import (PathSegment, ADMarking, PCBMarking, PeerMarking,
     PathConstructionBeacon, PathSegmentInfo, PathSegmentRecords,
     PathSegmentType as PST)
 from lib.packet.scion import SCIONPacket, get_type, PacketType as PT
+import copy
 import logging
 import sys
 import threading
 import time
+import datetime
+import os
 
 from Crypto import Random
 from Crypto.Hash import SHA256
@@ -373,7 +375,8 @@ def main():
     """
     logging.basicConfig(level=logging.DEBUG)
     if len(sys.argv) != 5:
-        logging.info("run: %s <core|local> IP topo_file conf_file", sys.argv[0])
+        logging.error("run: %s <core|local> IP topo_file conf_file",
+            sys.argv[0])
         sys.exit()
 
     if sys.argv[1] == "core":
@@ -386,6 +389,17 @@ def main():
     else:
         logging.error("First parameter can only be 'local' or 'core'!")
         sys.exit()
+
+    isd_id = str(beacon_server.topology.isd_id)
+    ad_id = str(beacon_server.topology.ad_id)
+    ip_addr = str(beacon_server.addr)
+    log_file = '/'.join(['../logs', str(datetime.date.today()), 'ISD' + isd_id,
+        'AD' + ad_id, 'bs' + isd_id + '-' + ad_id + '-' + ip_addr + '.log'])
+    if not os.path.exists(os.path.dirname(log_file)):
+        os.makedirs(os.path.dirname(log_file))
+    logging.getLogger('').handlers = []
+    logging.basicConfig(filename=log_file, filemode='w', level=logging.DEBUG)
+
     beacon_server.run()
 
 if __name__ == "__main__":

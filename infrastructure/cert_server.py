@@ -22,8 +22,9 @@ from lib.packet.scion import (SCIONPacket, get_type, PacketType as PT,
 from infrastructure.scion_elem import SCIONElement
 from lib.packet.path import EmptyPath
 import sys
-import os
 import logging
+import datetime
+import os
 
 
 ISD_PATH = '../topology/ISD'
@@ -204,10 +205,22 @@ def main():
     """
     logging.basicConfig(level=logging.DEBUG)
     if len(sys.argv) != 5:
-        print("run: %s IP topo_file conf_file rot_file" %sys.argv[0])
+        logging.error("run: %s IP topo_file conf_file rot_file", sys.argv[0])
         sys.exit()
+
     cert_server = CertServer(IPv4HostAddr(sys.argv[1]), sys.argv[2],
         sys.argv[3], sys.argv[4])
+
+    isd_id = str(cert_server.topology.isd_id)
+    ad_id = str(cert_server.topology.ad_id)
+    ip_addr = str(cert_server.addr)
+    log_file = '/'.join(['../logs', str(datetime.date.today()), 'ISD' + isd_id,
+        'AD' + ad_id, 'cs' + isd_id + '-' + ad_id + '-' + ip_addr + '.log'])
+    if not os.path.exists(os.path.dirname(log_file)):
+        os.makedirs(os.path.dirname(log_file))
+    logging.getLogger('').handlers = []
+    logging.basicConfig(filename=log_file, filemode='w', level=logging.DEBUG)
+
     cert_server.run()
 
 if __name__ == "__main__":
