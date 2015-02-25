@@ -32,6 +32,9 @@ import sys
 import threading
 import time
 
+from Crypto import Random
+from Crypto.Hash import SHA256
+
 
 # TODO PSz: beacon must be revised. We have design slides for a new format.
 class BeaconServer(SCIONElement):
@@ -55,7 +58,20 @@ class BeaconServer(SCIONElement):
         # self.propagated_beacons = []
         self.beacons = deque()
         self.reg_queue = deque()
-        # TODO: add beacons, up_paths, down_paths
+        self.if2rev_tokens = {}  # Contains the currently used revocation tokens
+                                 # for each interface.
+        self._init_if_hashes()
+
+    def _init_if_hashes(self):
+        """
+        Assigns each interface a random number the corresponding hash.
+        """
+        self.if2rev_tokens[0] = (32 * b"\x00", 32 * b"\x00")
+        rnd_file = Random.new()
+        for router in self.topology.get_all_edge_routers():
+            pre_img = rnd_file.read(32)
+            img = SHA256.new(pre_img).digest()
+            self.if2rev_tokens[router.interface.if_id] = (pre_img, img)
 
     def propagate_downstream_pcb(self, pcb):
         """
@@ -105,21 +121,23 @@ class BeaconServer(SCIONElement):
         """
         Creates an AD Marking with the given ingress and egress interfaces.
         """
-        ssf = SupportSignatureField()
+        ssf = SupportSignatureField.from_values(ADMarking.LEN)
         hof = HopOpaqueField.from_values(ingress_if, egress_if)
         spcbf = SupportPCBField.from_values(isd_id=self.topology.isd_id)
-        pcbm = PCBMarking.from_values(self.topology.ad_id, ssf, hof,
-                                      spcbf)
+        pcbm = PCBMarking.from_values(self.topology.ad_id, ssf, hof, spcbf,
+                                      self.if2rev_tokens[ingress_if][1],
+                                      self.if2rev_tokens[egress_if][1])
         peer_markings = []
         # TODO PSz: peering link can be only added when there is
         # IfidReply from router
         for router_peer in self.topology.peer_edge_routers:
-            hof = HopOpaqueField.from_values(router_peer.interface.if_id,
-                                             egress_if)
+            if_id = router_peer.interface.if_id
+            hof = HopOpaqueField.from_values(if_id, egress_if)
             spf = SupportPeerField.from_values(self.topology.isd_id)
             peer_marking = \
                 PeerMarking.from_values(router_peer.interface.neighbor_ad,
-                                        hof, spf)
+                                        hof, spf, self.if2rev_tokens[if_id][1],
+                                        self.if2rev_tokens[egress_if][1])
             pcbm.ssf.block_size += peer_marking.LEN
             peer_markings.append(peer_marking)
 
@@ -222,6 +240,14 @@ class CoreBeaconServer(BeaconServer):
                 new_pcb = copy.deepcopy(pcb)
                 ad_marking = self._create_ad_marking(new_pcb.rotf.if_id, 0)
                 new_pcb.add_ad(ad_marking)
+                # When the BS registers a segment, it generates a unique
+                # random number and uses the SHA256-hash of that number to
+                # uniquely identify the segment. By revealing the random number
+                # a BS can revoke that path segment.
+                # TODO: Need to store (and also clean up) the generated rnd-nr.
+                pre_img = Random.new().read(32)
+                img = SHA256.new(pre_img).digest()
+                new_pcb.segment_id = img
                 self.register_core_segment(new_pcb)
                 logging.info("Paths registered")
             time.sleep(self.config.registration_time)
@@ -327,6 +353,14 @@ class LocalBeaconServer(BeaconServer):
                 new_pcb = copy.deepcopy(pcb)
                 ad_marking = self._create_ad_marking(new_pcb.rotf.if_id, 0)
                 new_pcb.add_ad(ad_marking)
+                # When the BS registers a segment, it generates a unique
+                # random number and uses the SHA256-hash of that number to
+                # uniquely identify the segment. By revealing the random number
+                # a BS can revoke that path segment.
+                # TODO: Need to store (and also clean up) the generated rnd-nr.
+                pre_img = Random.new().read(32)
+                img = SHA256.new(pre_img).digest()
+                new_pcb.segment_id = img
                 self.register_up_segment(new_pcb)
                 self.register_down_segment(new_pcb)
                 logging.info("Paths registered")

@@ -30,7 +30,7 @@ class OpaqueFieldType(object):
     """
     # Types for HopOpaqueFields (7 MSB bits).
     NORMAL_OF = 0b0000000
-    LAST_OF = 0b0010000 # indicates last hop OF on the half-path (TODO revise)
+    LAST_OF = 0b0010000  # indicates last hop OF on the half-path (TODO revise)
     PEER_XOVR = 0b0001000
     # Types for Info Opaque Fields (7 MSB bits).
     TDC_XOVR = 0b1000000
@@ -329,7 +329,7 @@ class SupportSignatureField(OpaqueField):
         OpaqueField.__init__(self)
         self.cert_id = 0
         self.sig_len = 0
-        self.block_size = 32
+        self.block_size = 0
         if raw is not None:
             self.parse(raw)
 
@@ -349,14 +349,14 @@ class SupportSignatureField(OpaqueField):
         self.parsed = True
 
     @classmethod
-    def from_values(cls, cert_id=0, sig_len=0, block_size=32):
+    def from_values(cls, block_size, cert_id=0, sig_len=0):
         """
         Returns SupportSignatureField with fields populated from values.
 
-        @param cert_id: ID of the Autonomous Domain's certificate.
-        @param sig_len: Length of the beacon's signature.
         @param block_size: Total marking size for an AD block (peering links
             included.)
+        @param cert_id: ID of the Autonomous Domain's certificate.
+        @param sig_len: Length of the beacon's signature.
         """
         ssf = SupportSignatureField()
         ssf.cert_id = cert_id
