@@ -29,12 +29,11 @@ import json
 
 def generate_signature_keypair():
     """
-    Generates a key pair for ed25519 signature scheme and returns the pair in
+    Generate a key pair for ed25519 signature scheme and returns the pair in
     base64 format strings.
 
-    Returns:
-        A pair (sk_ascii, vk_ascii), containing signing key (sk_ascii) and
-        verifying key (vk_ascii).
+    :returns: a pair containing the signing key and the verifying key.
+    :rtype: str
     """
     (verifying_key, signing_key) = crypto_sign_ed25519_keypair()
     sk_ascii = base64.standard_b64encode(signing_key).decode('ascii')
@@ -60,16 +59,15 @@ def generate_cryptobox_keypair():
 
 def sign(msg, signing_key):
     """
-    Signs a message with a given signing key and returns the signature.
+    Sign a message with a given signing key and return the signature.
 
-    Args:
-        msg: Message to be signed, as a bytes object.
-        signing_key: Signing key from generate_signature_keypair(), as a base64
-        encoded string.
-
-    Returns:
-        Packed message with original plaintext attached with corresponding
-        ed25519 signature, as a base64-encoded string.
+    :param msg: message to be signed.
+    :type msg: str
+    :param signing_key: signing key from generate_signature_keypair(), as a
+                        base64 encoded string.
+    :type signing_key: str
+    :returns: ed25519 signature, as a base64-encoded string.
+    :rtype: str
     """
     key = base64.standard_b64decode(signing_key.encode('ascii'))
     msg_with_sig = crypto_sign_ed25519(msg, key)
@@ -77,25 +75,23 @@ def sign(msg, signing_key):
 
 def verify(msg, sig, subject, chain, trc, trc_version):
     """
-    Verifies whether the packed message with attached signature is validly
-    signed by a particular subject belonging a valid certificate chain.
+    Verify whether the packed message with attached signature is validly
+    signed by a particular subject belonging to a valid certificate chain.
 
-    Args:
-        msg_with_sig: Packed message attached with signature, as a base64
-        encoded string.
-        subject: Subject indicating the signing entity, as a string.
-        chain: Certificate chain containing the signing entity's certificate.
-        roots: Dictionary containing the root certificates.
-        root_cert_version: Version of the root certificate which signed the
-        last certificate in the certificate chain, as an integer.
-
-    Returns:
-        Boolean result whether the verification is successful or not.
-
-    Raises:
-        Exception: An exception occurred when certificate chain invalid.
-        LookupError: An error occurred when signer's public key has not found in
-        certificate chain.
+    :param msg: message corresponding to the given signature.
+    :type msg: str
+    :param sig: signature computed on msg.
+    :type sig: str
+    :param subject: signer identity.
+    :type subject: str
+    :param chain: Certificate chain containing the signing entity's certificate.
+    :type chain: :class:`CertificateChain`
+    :param trc: TRC containing all root of trust certificates for one ISD.
+    :type trc: :class:`TRC`
+    :param trc_version: TRC version.
+    :type trc_version: int
+    :returns: True or False whether the verification is successful or not.
+    :rtype: bool
     """
     if not trc.verify():
         logging.warning('The TRC verification failed.')

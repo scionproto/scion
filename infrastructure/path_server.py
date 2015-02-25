@@ -59,8 +59,8 @@ class PathServer(SCIONElement):
         Handles registration of a down path.
         """
         for pcb in records.pcbs:
-            dst_ad = pcb.get_last_ad().ad_id
-            dst_isd = pcb.get_last_ad().spcbf.isd_id
+            dst_ad = pcb.get_last_pcbm().ad_id
+            dst_isd = pcb.get_last_pcbm().spcbf.isd_id
             self.down_segments.insert(pcb, self.topology.isd_id,
                                       self.topology.ad_id, dst_isd, dst_ad)
             logging.info("Down-Segment registered (%d, %d)", dst_isd, dst_ad)
@@ -158,8 +158,8 @@ class CorePathServer(PathServer):
 
         paths_to_propagate = []
         for pcb in records.pcbs:
-            dst_ad = pcb.get_last_ad().ad_id
-            dst_isd = pcb.get_last_ad().spcbf.isd_id
+            dst_ad = pcb.get_last_pcbm().ad_id
+            dst_isd = pcb.get_last_pcbm().spcbf.isd_id
 
             if (self.down_segments.insert(pcb, self.topology.isd_id,
                 self.topology.ad_id, dst_isd, dst_ad) is not None):
@@ -191,10 +191,10 @@ class CorePathServer(PathServer):
             return
 
         for pcb in records.pcbs:
-            src_ad = pcb.get_first_ad().ad_id
-            src_isd = pcb.get_first_ad().spcbf.isd_id
-            dst_ad = pcb.get_last_ad().ad_id
-            dst_isd = pcb.get_last_ad().spcbf.isd_id
+            src_ad = pcb.get_first_pcbm().ad_id
+            src_isd = pcb.get_first_pcbm().spcbf.isd_id
+            dst_ad = pcb.get_last_pcbm().ad_id
+            dst_isd = pcb.get_last_pcbm().spcbf.isd_id
             self.core_segments.insert(pcb, src_isd=src_isd, src_ad=src_ad,
                                       dst_isd=dst_isd, dst_ad=dst_ad)
 #             logging.info("Core-Path registered: (%d, %d) -> (%d, %d)",
@@ -204,7 +204,7 @@ class CorePathServer(PathServer):
         # a core path to the destination PS.
         if self.waiting_targets:
             pcb = records.pcbs[0]
-            next_hop = self.ifid2addr[pcb.get_first_ad().hof.egress_if]
+            next_hop = self.ifid2addr[pcb.get_first_pcbm().hof.egress_if]
             path = pcb.get_path()
             targets = copy.deepcopy(self.waiting_targets)
             for (target_isd, target_ad, info) in targets:
@@ -301,8 +301,8 @@ class CorePathServer(PathServer):
                     self.send(request, next_hop)
                     logging.info("Down-Path request for different ISD. "
                                  "Forwarding request to CPS in (%d, %d).",
-                                 cpaths[0].get_last_ad().spcbf.isd_id,
-                                 cpaths[0].get_last_ad().ad_id)
+                                 cpaths[0].get_last_pcbm().spcbf.isd_id,
+                                 cpaths[0].get_last_pcbm().ad_id)
                 # If no core_path was available, add request to waiting targets.
                 else:
                     self.waiting_targets.add((dst_isd, dst_ad,
@@ -349,11 +349,11 @@ class LocalPathServer(PathServer):
         for pcb in records.pcbs:
             self.up_segments.insert(pcb, self.topology.isd_id,
                                     self.topology.ad_id,
-                                    pcb.get_first_ad().spcbf.isd_id,
-                                    pcb.get_first_ad().ad_id)
+                                    pcb.get_first_pcbm().spcbf.isd_id,
+                                    pcb.get_first_pcbm().ad_id)
             logging.info("Up-Segment to (%d, %d) registered.",
-                         pcb.get_first_ad().spcbf.isd_id,
-                         pcb.get_first_ad().ad_id)
+                         pcb.get_first_pcbm().spcbf.isd_id,
+                         pcb.get_first_pcbm().ad_id)
 
         # Sending pending targets to the core using first registered up-path.
         if self.waiting_targets:
@@ -382,10 +382,10 @@ class LocalPathServer(PathServer):
             return
 
         for pcb in records.pcbs:
-            src_ad = pcb.get_first_ad().ad_id
-            src_isd = pcb.get_first_ad().spcbf.isd_id
-            dst_ad = pcb.get_last_ad().ad_id
-            dst_isd = pcb.get_last_ad().spcbf.isd_id
+            src_ad = pcb.get_first_pcbm().ad_id
+            src_isd = pcb.get_first_pcbm().spcbf.isd_id
+            dst_ad = pcb.get_last_pcbm().ad_id
+            dst_isd = pcb.get_last_pcbm().spcbf.isd_id
             self.core_segments.insert(pcb, src_isd=src_isd, src_ad=src_ad,
                                       dst_isd=dst_isd, dst_ad=dst_ad)
             logging.info("Core-Segment registered: (%d, %d) -> (%d, %d)",

@@ -303,10 +303,10 @@ class CertificateChain(object):
         :param subject: the subject of the first certificate in the certificate
                         chain.
         :type subject: str
-        :param roots: the root certificates.
-        :type roots: dict
-        :param root_cert_version: the version of the root certificate.
-        :type root_cert_version: int
+        :param trc: TRC containing all root of trust certificates for one ISD.
+        :type trc: :class:`TRC`
+        :param trc_version: TRC version.
+        :type trc_version: int
         :returns: True or False whether the verification succeeds or fails.
         :rtype: bool
         """

@@ -1,23 +1,19 @@
-# router.py
 # Copyright 2014 ETH Zurich
+
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
+
 # http://www.apache.org/licenses/LICENSE-2.0
+
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`router` --- Router code
-=============================
-
-Module docstring here.
-
-.. note::
-    Fill in the docstring.
-
+:mod:`router` --- SCION edge router
+===========================================
 """
 
 from infrastructure.scion_elem import SCIONElement, SCION_UDP_PORT
@@ -25,7 +21,7 @@ from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.opaque_field import OpaqueField, OpaqueFieldType as OFT
 from lib.packet.pcb import PathConstructionBeacon
 from lib.packet.scion import (PacketType as PT, SCIONPacket, IFIDRequest,
-    IFIDReply, get_type, CertRequest, CertReply, TrcRequest, TrcReply)
+    IFIDReply, get_type, CertRequest, CertReply, TRCRequest, TRCReply)
 import logging
 import socket
 import sys
@@ -255,8 +251,16 @@ class Router(SCIONElement):
             next_hop.addr = self.topology.beacon_servers[0].addr
             self.send(beacon, next_hop)
 
-    def simple_forward(self, spkt, next_hop, from_local_ad):
+    def relay_cert_server_packet(self, spkt, next_hop, from_local_ad):
         """
+        Relay packets for certificate servers.
+
+        :param spkt: the SCION packet to forward.
+        :type spkt: :class:`lib.packet.scion.SCIONPacket`
+        :param next_hop: the next hop of the packet.
+        :type next_hop: :class:`NextHop`
+        :param from_local_ad: whether or not the packet is from the local AD.
+        :type from_local_ad: bool
         """
         if not self.interface.initialized:
             logging.warning("Interface not initialized.")
@@ -511,7 +515,7 @@ class Router(SCIONElement):
         elif ptype == PT.BEACON:
             self.process_pcb(packet, next_hop, from_local_ad)
         elif ptype in [PT.CERT_REQ, PT.CERT_REP, PT.TRC_REQ, PT.TRC_REP]:
-            self.simple_forward(spkt, next_hop, from_local_ad)
+            self.relay_cert_server_packet(spkt, next_hop, from_local_ad)
         else:
             if ptype == PT.DATA:
                 logging.debug("DATA type %u, %s", ptype, spkt)

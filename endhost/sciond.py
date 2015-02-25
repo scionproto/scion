@@ -127,8 +127,8 @@ class SCIONDaemon(SCIONElement):
                 # TODO: Atm an application can't choose the up-/down-path to be
                 #       be used. Discuss with Pawel.
                 src_isd = self.topology.isd_id
-                src_core_ad = self.up_segments()[0].get_first_ad().ad_id
-                dst_core_ad = down_segments[0].get_first_ad().ad_id
+                src_core_ad = self.up_segments()[0].get_first_pcbm().ad_id
+                dst_core_ad = down_segments[0].get_first_pcbm().ad_id
                 core_segments = self.core_segments(src_isd=src_isd,
                                                    src_ad=src_core_ad,
                                                    dst_isd=dst_isd,
@@ -157,7 +157,7 @@ class SCIONDaemon(SCIONElement):
         info = path_reply.info
         for pcb in path_reply.pcbs:
             isd = pcb.get_isd()
-            ad = pcb.get_last_ad().ad_id
+            ad = pcb.get_last_pcbm().ad_id
 
             if ((self.topology.isd_id != isd or self.topology.ad_id != ad)
                 and info.type in [PST.DOWN, PST.UP_DOWN]
@@ -167,8 +167,8 @@ class SCIONDaemon(SCIONElement):
                 logging.info("DownPath PATH added for (%d,%d)", isd, ad)
             elif ((self.topology.isd_id == isd and self.topology.ad_id == ad)
                 and info.type in [PST.UP, PST.UP_DOWN]):
-                self.up_segments.insert(pcb, isd, ad,
-                                        pcb.get_isd(), pcb.get_first_ad().ad_id)
+                self.up_segments.insert(pcb, isd, ad, pcb.get_isd(),
+                                        pcb.get_first_pcbm().ad_id)
                 logging.info("UP PATH to (%d, %d) added.", isd, ad)
             elif info.type == PST.CORE:
                 self.core_segments.insert(pcb, info.src_isd, info.src_ad,

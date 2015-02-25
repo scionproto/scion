@@ -167,6 +167,8 @@ def write_keys_certs(AD_configs):
 
     :param AD_configs: the configurations of all SCION ADs.
     :type AD_configs: dict
+    :returns: the signature and encryption keys.
+    :rtype: dict
     """
     sig_priv_keys = {}
     sig_pub_keys = {}
@@ -385,6 +387,8 @@ def write_trc_files(AD_configs, keys):
 
     :param AD_configs: the configurations of all SCION ADs.
     :type AD_configs: dict
+    :param keys: the signature and encryption keys.
+    :type: dict
     """
     for isd_ad_id in AD_configs:
         if AD_configs[isd_ad_id]['level'] == CORE_AD:

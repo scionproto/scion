@@ -18,7 +18,7 @@
 
 from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.scion import (SCIONPacket, get_type, PacketType as PT,
-    CertRequest, CertReply, TrcRequest, TrcReply, get_addr_from_type,
+    CertRequest, CertReply, TRCRequest, TRCReply, get_addr_from_type,
     get_cert_file_path, get_trc_file_path)
 from infrastructure.scion_elem import SCIONElement
 from lib.packet.path import EmptyPath
@@ -98,7 +98,7 @@ class CertServer(SCIONElement):
         """
         process a TRC request
         """
-        isinstance(trc_req, TrcRequest)
+        isinstance(trc_req, TRCRequest)
         logging.info("TRC request received")
         src_addr = trc_req.hdr.src_addr
         ptype = get_type(trc_req)
@@ -107,7 +107,7 @@ class CertServer(SCIONElement):
             logging.info('TRC file not found.')
             self.trc_requests.setdefault((trc_req.trc_isd, trc_req.trc_version),
                 []).append(src_addr)
-            new_trc_req = TrcRequest.from_values(PT.TRC_REQ, self.addr,
+            new_trc_req = TRCRequest.from_values(PT.TRC_REQ, self.addr,
                 trc_req.ingress_if, trc_req.src_isd, trc_req.src_ad,
                 trc_req.trc_isd, trc_req.trc_version)
             dst_addr = self.ifid2addr[trc_req.ingress_if]
@@ -117,7 +117,7 @@ class CertServer(SCIONElement):
             logging.info('TRC file found.')
             with open(trc_file, 'r') as file_handler:
                 trc = file_handler.read()
-            trc_rep = TrcReply.from_values(self.addr, trc_req.trc_isd,
+            trc_rep = TRCReply.from_values(self.addr, trc_req.trc_isd,
                 trc_req.trc_version, trc)
             if ptype == PT.TRC_REQ_LOCAL:
                 dst_addr = src_addr
@@ -133,7 +133,7 @@ class CertServer(SCIONElement):
         """
         process a TRC reply
         """
-        isinstance(trc_rep, TrcReply)
+        isinstance(trc_rep, TRCReply)
         logging.info("TRC reply received")
         trc_file = get_trc_file_path(trc_rep.trc_isd, trc_rep.trc_version)
         if not os.path.exists(os.path.dirname(trc_file)):
@@ -142,7 +142,7 @@ class CertServer(SCIONElement):
             file_handler.write(trc_rep.trc)
         for dst_addr in self.trc_requests[(trc_rep.trc_isd,
             trc_rep.trc_version)]:
-            new_trc_rep = TrcReply.from_values(self.addr, trc_rep.trc_isd,
+            new_trc_rep = TRCReply.from_values(self.addr, trc_rep.trc_isd,
                 trc_rep.trc_version, trc_rep.trc)
             self.send(new_trc_rep, dst_addr)
         del self.trc_requests[(trc_rep.trc_isd, trc_rep.trc_version)]
@@ -160,9 +160,9 @@ class CertServer(SCIONElement):
         elif ptype == PT.CERT_REP:
             self.process_cert_reply(CertReply(packet))
         elif ptype == PT.TRC_REQ_LOCAL or ptype == PT.TRC_REQ:
-            self.process_trc_request(TrcRequest(packet))
+            self.process_trc_request(TRCRequest(packet))
         elif ptype == PT.TRC_REP:
-            self.process_trc_reply(TrcReply(packet))
+            self.process_trc_reply(TRCReply(packet))
         else:
             logging.info("Type not supported")
 
