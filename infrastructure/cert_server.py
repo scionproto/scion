@@ -18,10 +18,10 @@
 
 from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.scion import (SCIONPacket, get_type, PacketType as PT,
-    CertRequest, CertReply, TRCRequest, TRCReply, get_addr_from_type,
-    get_cert_file_path, get_trc_file_path)
+    CertRequest, CertReply, TRCRequest, TRCReply)
 from infrastructure.scion_elem import SCIONElement
-from lib.packet.path import EmptyPath
+from lib.util import (read_file, write_file, get_cert_file_path,
+    get_trc_file_path)
 import sys
 import os
 import logging
@@ -39,13 +39,14 @@ class CertServer(SCIONElement):
 
     def process_cert_request(self, cert_req):
         """
-        Process a certificate request
+        Process a certificate request.
         """
         isinstance(cert_req, CertRequest)
         logging.info("Cert request received")
         src_addr = cert_req.hdr.src_addr
         ptype = get_type(cert_req)
-        cert_file = get_cert_file_path(cert_req.cert_isd, cert_req.cert_ad,
+        cert_file = get_cert_file_path(self.topology.isd_id,
+            self.topology.ad_id, cert_req.cert_isd, cert_req.cert_ad,
             cert_req.cert_version)
         if not os.path.exists(cert_file):
             logging.info('Certificate not found.')
@@ -59,10 +60,10 @@ class CertServer(SCIONElement):
             logging.info("New certificate request sent.")
         else:
             logging.info('Certificate file found.')
-            with open(cert_file, 'r') as file_handler:
-                cert = file_handler.read()
+            cert = read_file(cert_file)
+            cert64 = base64.b64encode(str(cert).encode('ascii'))
             cert_rep = CertReply.from_values(self.addr, cert_req.cert_isd,
-                cert_req.cert_ad, cert_req.cert_version, cert)
+                cert_req.cert_ad, cert_req.cert_version, cert64)
             if ptype == PT.CERT_REQ_LOCAL:
                 dst_addr = src_addr
             else:
@@ -75,16 +76,15 @@ class CertServer(SCIONElement):
 
     def process_cert_reply(self, cert_rep):
         """
-        process a certificate reply
+        Process a certificate reply.
         """
         isinstance(cert_rep, CertReply)
         logging.info("Certificate reply received")
-        cert_file = get_cert_file_path(cert_rep.cert_isd, cert_rep.cert_ad,
+        cert_file = get_cert_file_path(self.topology.isd_id,
+            self.topology.ad_id, cert_rep.cert_isd, cert_rep.cert_ad,
             cert_rep.cert_version)
-        if not os.path.exists(os.path.dirname(cert_file)):
-            os.makedirs(os.path.dirname(cert_file))
-        with open(cert_file, 'w') as file_handler:
-            file_handler.write(cert_rep.cert)
+        cert = base64.b64decode(cert_rep.cert).decode('ascii')
+        write_file(cert_file, cert)
         for dst_addr in self.cert_requests[(cert_rep.cert_isd, cert_rep.cert_ad,
             cert_rep.cert_version)]:
             new_cert_rep = CertReply.from_values(self.addr, cert_rep.cert_isd,
@@ -96,13 +96,14 @@ class CertServer(SCIONElement):
 
     def process_trc_request(self, trc_req):
         """
-        process a TRC request
+        Process a TRC request.
         """
         isinstance(trc_req, TRCRequest)
         logging.info("TRC request received")
         src_addr = trc_req.hdr.src_addr
         ptype = get_type(trc_req)
-        trc_file = get_trc_file_path(trc_req.trc_isd, trc_req.trc_version)
+        trc_file = get_trc_file_path(self.topology.isd_id, self.topology.ad_id,
+            trc_req.trc_isd, trc_req.trc_version)
         if not os.path.exists(trc_file):
             logging.info('TRC file not found.')
             self.trc_requests.setdefault((trc_req.trc_isd, trc_req.trc_version),
@@ -115,10 +116,10 @@ class CertServer(SCIONElement):
             logging.info("New TRC request sent.")
         else:
             logging.info('TRC file found.')
-            with open(trc_file, 'r') as file_handler:
-                trc = file_handler.read()
+            trc = read_file(trc_file)
+            trc64 = base64.b64encode(str(trc).encode('ascii'))
             trc_rep = TRCReply.from_values(self.addr, trc_req.trc_isd,
-                trc_req.trc_version, trc)
+                trc_req.trc_version, trc64)
             if ptype == PT.TRC_REQ_LOCAL:
                 dst_addr = src_addr
             else:
@@ -131,15 +132,14 @@ class CertServer(SCIONElement):
 
     def process_trc_reply(self, trc_rep):
         """
-        process a TRC reply
+        Process a TRC reply.
         """
         isinstance(trc_rep, TRCReply)
         logging.info("TRC reply received")
-        trc_file = get_trc_file_path(trc_rep.trc_isd, trc_rep.trc_version)
-        if not os.path.exists(os.path.dirname(trc_file)):
-            os.makedirs(os.path.dirname(trc_file))
-        with open(trc_file, 'w') as file_handler:
-            file_handler.write(trc_rep.trc)
+        trc_file = get_trc_file_path(self.topology.isd_id, self.topology.ad_id,
+            trc_rep.trc_isd, trc_rep.trc_version)
+        trc = base64.b64decode(trc_rep.trc).decode('ascii')
+        write_file(trc_file, trc)
         for dst_addr in self.trc_requests[(trc_rep.trc_isd,
             trc_rep.trc_version)]:
             new_trc_rep = TRCReply.from_values(self.addr, trc_rep.trc_isd,

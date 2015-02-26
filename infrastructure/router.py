@@ -21,7 +21,7 @@ from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.opaque_field import OpaqueField, OpaqueFieldType as OFT
 from lib.packet.pcb import PathConstructionBeacon
 from lib.packet.scion import (PacketType as PT, SCIONPacket, IFIDRequest,
-    IFIDReply, get_type, CertRequest, CertReply, TRCRequest, TRCReply)
+    IFIDReply, get_type)
 import logging
 import socket
 import sys

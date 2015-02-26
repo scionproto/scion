@@ -16,13 +16,75 @@
 ===========================================
 """
 
-from lib.crypto.asymcrypto import sign
+from lib.crypto.nacl import crypto_sign_ed25519
 from lib.crypto.nacl import crypto_sign_ed25519_open
 import time
 import json
 import logging
-import os
 import base64
+import copy
+
+
+def sign(msg, signing_key):
+    """
+    Sign a message with a given signing key and return the signature.
+
+    :param msg: message to be signed.
+    :type msg: str
+    :param signing_key: signing key from generate_signature_keypair().
+    :type signing_key: bytes
+    :returns: ed25519 signature.
+    :rtype: bytes
+    """
+    sig = crypto_sign_ed25519(msg, signing_key)[:64]
+    return sig
+
+
+def verify(msg, sig, subject, chain, trc, trc_version):
+    """
+    Verify whether the packed message with attached signature is validly
+    signed by a particular subject belonging to a valid certificate chain.
+
+    :param msg: message corresponding to the given signature.
+    :type msg: str
+    :param sig: signature computed on msg.
+    :type sig: bytes
+    :param subject: signer identity.
+    :type subject: str
+    :param chain: Certificate chain containing the signing entity's certificate.
+    :type chain: :class:`CertificateChain`
+    :param trc: TRC containing all root of trust certificates for one ISD.
+    :type trc: :class:`TRC`
+    :param trc_version: TRC version.
+    :type trc_version: int
+    :returns: True or False whether the verification is successful or not.
+    :rtype: bool
+    """
+    isinstance(chain, CertificateChain)
+    isinstance(trc, TRC)
+    if not trc.verify():
+        logging.warning('The TRC verification failed.')
+        return False
+    if not chain.verify(subject, trc, trc_version):
+        logging.warning('The certificate chain verification failed.')
+        return False
+    verifying_key = None
+    for signer_cert in chain.certs:
+        if signer_cert.subject == subject:
+            verifying_key = signer_cert.subject_sig_key
+            break
+    if verifying_key is None:
+        if subject not in trc.core_ads:
+            logging.warning('Signer\'s public key has not been found.')
+            return False
+        verifying_key = trc.core_ads[subject].subject_sig_key
+    msg_with_sig = sig + msg.encode('ascii')
+    try:
+        crypto_sign_ed25519_open(msg_with_sig, verifying_key)
+        return True
+    except:
+        logging.warning('Invalid signature.')
+        return False
 
 
 class Certificate(object):
@@ -40,10 +102,10 @@ class Certificate(object):
     :ivar subject: the certificate subject. It can either be an AD, an email
                    address or a domain address.
     :type subject: str
-    :ivar subject_pub_key: the public key of the subject.
-    :type subject_pub_key: str
+    :ivar subject_sig_key: the public key of the subject.
+    :type subject_sig_key: bytes
     :ivar subject_enc_key: the public part of the encryption key.
-    :type subject_enc_key: str
+    :type subject_enc_key: bytes
     :ivar issuer: the certificate issuer. It can only be an AD.
     :type issuer: str
     :ivar version: the certificate version.
@@ -58,7 +120,7 @@ class Certificate(object):
     :type encryption_algorithm: str
     :ivar signature: the certificate signature. It is computed over the rest of
                      the certificate.
-    :type signature: str
+    :type signature: bytes
     """
     VALIDITY_PERIOD = 365 * 24 * 60 * 60
     SIGN_ALGORITHM = 'ed25519'
@@ -74,19 +136,19 @@ class Certificate(object):
         :rtype: :class:`Certificate`
         """
         self.subject = ''
-        self.subject_pub_key = ''
-        self.subject_enc_key = ''
+        self.subject_sig_key = b''
+        self.subject_enc_key = b''
         self.issuer = ''
         self.version = 0
         self.issuing_time = 0
         self.expiration_time = 0
         self.sign_algorithm = ''
         self.encryption_algorithm = ''
-        self.signature = ''
+        self.signature = b''
         if certificate_file:
             self.parse(certificate_file)
 
-    def get_cert_dict(self, with_signature=False):
+    def get_cert_dict(self, with_signature):
         """
         Return the certificate information.
 
@@ -97,7 +159,7 @@ class Certificate(object):
         :rtype: dict
         """
         cert_dict = {'subject': self.subject,
-                     'subject_pub_key': self.subject_pub_key,
+                     'subject_sig_key': self.subject_sig_key,
                      'subject_enc_key': self.subject_enc_key,
                      'issuer': self.issuer,
                      'version': self.version,
@@ -123,18 +185,18 @@ class Certificate(object):
             logging.error("Certificate: JSON format error.")
             return
         self.subject = cert['subject']
-        self.subject_pub_key = cert['subject_pub_key']
-        self.subject_enc_key = cert['subject_enc_key']
+        self.subject_sig_key = base64.b64decode(cert['subject_sig_key'])
+        self.subject_enc_key = base64.b64decode(cert['subject_enc_key'])
         self.issuer = cert['issuer']
         self.version = cert['version']
         self.issuing_time = cert['issuing_time']
         self.expiration_time = cert['expiration_time']
         self.sign_algorithm = cert['sign_algorithm']
         self.encryption_algorithm = cert['enc_algorithm']
-        self.signature = cert['signature']
+        self.signature = base64.b64decode(cert['signature'])
 
     @classmethod
-    def from_values(cls, subject, sub_pub_key, sub_enc_key, issuer,
+    def from_values(cls, subject, subject_sig_key, subject_enc_key, issuer,
         iss_priv_key, version):
         """
         Generate a Certificate instance.
@@ -142,15 +204,15 @@ class Certificate(object):
         :param subject: the certificate subject. It can either be an AD, an
                         email address or a domain address.
         :type subject: str
-        :param sub_pub_key: the public key of the subject.
-        :type sub_pub_key: str
-        :param sub_enc_key: the public part of the encryption key.
-        :type sub_enc_key: str
+        :param subject_sig_key: the public key of the subject.
+        :type subject_sig_key: bytes
+        :param subject_enc_key: the public part of the encryption key.
+        :type subject_enc_key: bytes
         :param issuer: the certificate issuer. It can only be an AD.
         :type issuer: str
         :param iss_priv_key: the issuer's private key. It is used to sign the
                              certificate.
-        :type iss_priv_key: str
+        :type iss_priv_key: bytes
         :param version: the certificate version.
         :type version: int
         :returns: the newly created Certificate instance.
@@ -158,17 +220,16 @@ class Certificate(object):
         """
         cert = Certificate()
         cert.subject = subject
-        cert.subject_pub_key = sub_pub_key
-        cert.subject_enc_key = sub_enc_key
+        cert.subject_sig_key = subject_sig_key
+        cert.subject_enc_key = subject_enc_key
         cert.issuer = issuer
         cert.version = version
         cert.issuing_time = int(time.time())
         cert.expiration_time = cert.issuing_time + Certificate.VALIDITY_PERIOD
         cert.sign_algorithm = Certificate.SIGN_ALGORITHM
         cert.encryption_algorithm = Certificate.ENCRYPT_ALGORITHM
-        cert_dict = cert.get_cert_dict()
-        cert_str = json.dumps(cert_dict, sort_keys=True, indent=4)
-        cert.signature = sign(cert_str, iss_priv_key)
+        data_to_sign = cert.__str__(with_signature=False)
+        cert.signature = sign(data_to_sign, iss_priv_key)
         return cert
 
     @classmethod
@@ -183,7 +244,7 @@ class Certificate(object):
         """
         cert = Certificate()
         cert.subject = cert_dict['subject']
-        cert.subject_pub_key = cert_dict['subject_pub_key']
+        cert.subject_sig_key = cert_dict['subject_sig_key']
         cert.subject_enc_key = cert_dict['subject_enc_key']
         cert.issuer = cert_dict['issuer']
         cert.version = cert_dict['version']
@@ -213,27 +274,30 @@ class Certificate(object):
             logging.warning("The given subject doesn't match the " +
                             "certificate's subject")
             return False
-        iss_pub_key = issuer_cert.subject_pub_key
-        iss_pub_key = base64.standard_b64decode(iss_pub_key.encode('ascii'))
-        data_to_verify = self.get_cert_dict()
-        data_to_verify = json.dumps(data_to_verify, sort_keys=True, indent=4)
-        signature = (base64.standard_b64decode(self.signature.encode('ascii')) +
-            data_to_verify.encode('ascii'))
+        data_to_verify = self.__str__(with_signature=False).encode('ascii')
+        msg_with_sig = self.signature + data_to_verify
         try:
-            crypto_sign_ed25519_open(signature, iss_pub_key)
+            crypto_sign_ed25519_open(msg_with_sig, issuer_cert.subject_sig_key)
             return True
         except:
             logging.warning("The certificate is not valid.")
             return False
 
-    def __str__(self):
+    def __str__(self, with_signature=True):
         """
         Convert the instance in a readable format.
 
         :returns: the certificate information.
         :rtype: str
         """
-        cert_dict = self.get_cert_dict(with_signature=True)
+        cert_dict = copy.deepcopy(self.get_cert_dict(with_signature))
+        cert_dict['subject_sig_key'] = \
+            base64.b64encode(cert_dict['subject_sig_key']).decode('ascii')
+        cert_dict['subject_enc_key'] = \
+            base64.b64encode(cert_dict['subject_enc_key']).decode('ascii')
+        if with_signature:
+            cert_dict['signature'] = \
+                base64.b64encode(cert_dict['signature']).decode('ascii')
         cert_str = json.dumps(cert_dict, sort_keys=True, indent=4)
         return cert_str
 
@@ -277,7 +341,14 @@ class CertificateChain(object):
             logging.error("Certificate Chain: JSON format error.")
             return
         for index in range(1, len(chain) + 1):
-            cert = Certificate.from_dict(chain[str(index)])
+            cert_dict = chain[str(index)]
+            cert_dict['subject_sig_key'] = \
+                base64.b64decode(cert_dict['subject_sig_key'])
+            cert_dict['subject_enc_key'] = \
+                base64.b64decode(cert_dict['subject_enc_key'])
+            cert_dict['signature'] = \
+                base64.b64decode(cert_dict['signature'])
+            cert = Certificate.from_dict(cert_dict)
             self.certs.append(cert)
 
     @classmethod
@@ -327,12 +398,7 @@ class CertificateChain(object):
         if cert.issuer not in trc.core_ads:
             logging.warning("The verification against the TRC failed.")
             return False
-        issuer_cert_dict = \
-            base64.standard_b64decode(trc.core_ads[cert.issuer].encode('ascii'))
-        issuer_cert_dict = issuer_cert_dict.decode('ascii')
-        issuer_cert_dict = json.loads(issuer_cert_dict)
-        issuer_cert = Certificate.from_dict(issuer_cert_dict)
-        if not cert.verify(subject, issuer_cert):
+        if not cert.verify(subject, trc.core_ads[cert.issuer]):
             return False
         return True
 
@@ -346,7 +412,249 @@ class CertificateChain(object):
         chain_dict = {}
         index = 1
         for cert in self.certs:
-            chain_dict[index] = cert.get_cert_dict(with_signature=True)
+            cert_dict = copy.deepcopy(cert.get_cert_dict(True))
+            cert_dict['subject_sig_key'] = \
+                base64.b64encode(cert_dict['subject_sig_key']).decode('ascii')
+            cert_dict['subject_enc_key'] = \
+                base64.b64encode(cert_dict['subject_enc_key']).decode('ascii')
+            cert_dict['signature'] = \
+                base64.b64encode(cert_dict['signature']).decode('ascii')
+            chain_dict[index] = cert_dict
             index += 1
         chain_str = json.dumps(chain_dict, sort_keys=True, indent=4)
         return chain_str
+
+
+class TRC(object):
+    """
+    The TRC class parses the TRC file of an ISD and stores such
+    information for further use.
+
+    :ivar isd_id: the ISD identifier.
+    :type isd_id: int
+    :ivar version: the TRC file version.
+    :type version: int
+    :ivar time: the TRC file creation timestamp.
+    :type time: int
+    :ivar core_quorum: number of trust roots necessary to sign a new TRC.
+    :type core_quorum: int
+    :ivar trc_quorum: number of trust roots necessary to sign a new ISD
+                      cross-signing certificate.
+    :type trc_quorum: int
+    :ivar core_isps: the set of core ISPs and their certificates.
+    :type core_isps: dict
+    :ivar root_cas: the set of root CAs and their certificates.
+    :type root_cas: dict
+    :ivar core_ads: the set of core ADs and their certificates.
+    :type core_ads: dict
+    :ivar policies: additional management policies for the ISD.
+    :type policies: dict
+    :ivar registry_server_addr: the root registry server's address.
+    :type registry_server_addr: str
+    :ivar registry_server_cert: the root registry server's certificate.
+    :type registry_server_cert:str
+    :ivar root_dns_server_addr: the root DNS server's address.
+    :type root_dns_server_addr: str
+    :ivar root_dns_server_cert: the root DNS server's certificate.
+    :type root_dns_server_cert: str
+    :ivar trc_server_addr: the TRC server's address.
+    :type trc_server_addr: str
+    :ivar signatures: signatures generated by a quorum of trust roots.
+    :type signatures: dict
+    """
+
+    def __init__(self, trc_file=None):
+        """
+        Initialize an instance of the class TRC.
+
+        :param trc_file: the name of the TRC file.
+        :type trc_file: str
+        :returns: the newly created TRC instance.
+        :rtype: :class:`TRC`
+        """
+        self.isd_id = 0
+        self.version = 0
+        self.time = 0
+        self.core_quorum = 0
+        self.trc_quorum = 0
+        self.core_isps = {}
+        self.root_cas = {}
+        self.core_ads = {}
+        self.policies = {}
+        self.registry_server_addr = ''
+        self.registry_server_cert = ''
+        self.root_dns_server_addr = ''
+        self.root_dns_server_cert = ''
+        self.trc_server_addr = ''
+        self.signatures = {}
+        if trc_file:
+            self.parse(trc_file)
+
+    def get_trc_dict(self, with_signatures):
+        """
+        Return the TRC information.
+
+        :param with_signatures: True or False whether the returned data should
+                                contain the signatures section or not.
+        :type with_signatures: bool
+        :returns: the TRC information.
+        :rtype: dict
+        """
+        trc_dict = {
+            'isd_id': self.isd_id,
+            'version': self.version,
+            'time': self.time,
+            'core_quorum': self.core_quorum,
+            'trc_quorum': self.trc_quorum,
+            'core_isps': self.core_isps,
+            'root_cas': self.root_cas,
+            'core_ads': self.core_ads,
+            'policies': self.policies,
+            'registry_server_addr': self.registry_server_addr,
+            'registry_server_cert': self.registry_server_cert,
+            'root_dns_server_addr': self.root_dns_server_addr,
+            'root_dns_server_cert': self.root_dns_server_cert,
+            'trc_server_addr': self.trc_server_addr}
+        if with_signatures:
+            trc_dict['signatures'] = self.signatures
+        return trc_dict
+
+    def parse(self, trc_file):
+        """
+        Parse a TRC file and populate the instance's attributes.
+
+        :param trc_file: the name of the TRC file.
+        :type trc_file: str
+        """
+        try:
+            with open(trc_file) as trc_fh:
+                trc = json.load(trc_fh)
+        except (ValueError, KeyError, TypeError):
+            logging.error("TRC: JSON format error.")
+            return
+        self.isd_id = trc['isd_id']
+        self.version = trc['version']
+        self.time = trc['time']
+        self.core_quorum = trc['core_quorum']
+        self.trc_quorum = trc['trc_quorum']
+        self.core_isps = trc['core_isps']
+        self.root_cas = trc['root_cas']
+        for subject in trc['core_ads']:
+            cert_dict = \
+                base64.b64decode(trc['core_ads'][subject]).decode('ascii')
+            cert_dict = json.loads(cert_dict)
+            cert_dict['subject_sig_key'] = \
+                base64.b64decode(cert_dict['subject_sig_key'])
+            cert_dict['subject_enc_key'] = \
+                base64.b64decode(cert_dict['subject_enc_key'])
+            cert_dict['signature'] = \
+                base64.b64decode(cert_dict['signature'])
+            self.core_ads[subject] = Certificate.from_dict(cert_dict)
+        self.policies = trc['policies']
+        self.registry_server_addr = trc['registry_server_addr']
+        self.registry_server_cert = trc['registry_server_cert']
+        self.root_dns_server_addr = trc['root_dns_server_addr']
+        self.root_dns_server_cert = trc['root_dns_server_cert']
+        self.trc_server_addr = trc['trc_server_addr']
+        for subject in trc['signatures']:
+            self.signatures[subject] = \
+                base64.b64decode(trc['signatures'][subject])
+
+    @classmethod
+    def from_values(cls, isd_id, version, core_quorum, trc_quorum, core_isps,
+        root_cas, core_ads, policies, registry_server_addr,
+        registry_server_cert, root_dns_server_addr, root_dns_server_cert,
+        trc_server_addr, signatures):
+        """
+        Generate a TRC instance.
+
+        :param isd_id: the ISD identifier.
+        :type isd_id: int
+        :param version: the TRC file version.
+        :type version: int
+        :param core_quorum: number of trust roots necessary to sign a new TRC.
+        :type core_quorum: int
+        :param trc_quorum: number of trust roots necessary to sign a new ISD
+                           cross-signing certificate.
+        :type trc_quorum: int
+        :param core_isps: the set of core ISPs and their certificates.
+        :type core_isps: dict
+        :param root_cas: the set of root CAs and their certificates.
+        :type root_cas: dict
+        :param core_ads: the set of core ADs and their certificates.
+        :type core_ads: dict
+        :param policies: additional management policies for the ISD.
+        :type policies: dict
+        :param registry_server_addr: the root registry server's address.
+        :type registry_server_addr: str
+        :param registry_server_cert: the root registry server's certificate.
+        :type registry_server_cert:str
+        :param root_dns_server_addr: the root DNS server's address.
+        :type root_dns_server_addr: str
+        :param root_dns_server_cert: the root DNS server's certificate.
+        :type root_dns_server_cert: str
+        :param trc_server_addr: the TRC server's address.
+        :type trc_server_addr: str
+        :param signatures: signatures generated by a quorum of trust roots.
+        :type signatures: dict
+        :returns: the newly created TRC instance.
+        :rtype: :class:`TRC`
+        """
+        trc = TRC()
+        trc.isd_id = isd_id
+        trc.version = version
+        trc.time = int(time.time())
+        trc.core_quorum = core_quorum
+        trc.trc_quorum = trc_quorum
+        trc.core_isps = core_isps
+        trc.root_cas = root_cas
+        trc.core_ads = core_ads
+        trc.policies = policies
+        trc.registry_server_addr = registry_server_addr
+        trc.registry_server_cert = registry_server_cert
+        trc.root_dns_server_addr = root_dns_server_addr
+        trc.root_dns_server_cert = root_dns_server_cert
+        trc.trc_server_addr = trc_server_addr
+        trc.signatures = signatures
+        return trc
+
+    def verify(self):
+        """
+        Perform signatures verification.
+
+        :returns: True or False whether the verification succeeds or fails.
+        :rtype: bool
+        """
+        data_to_verify = self.__str__(with_signatures=False).encode('ascii')
+        for signer in self.signatures:
+            if signer not in self.core_ads:
+                logging.warning("A signature could not be verified.")
+                return False
+            public_key = self.core_ads[signer].subject_sig_key
+            msg_with_sig = self.signatures[signer] + data_to_verify
+            try:
+                crypto_sign_ed25519_open(msg_with_sig, public_key)
+            except:
+                logging.warning("A signature is not valid.")
+                return False
+        return True
+
+    def __str__(self, with_signatures=True):
+        """
+        Convert the instance in a readable format.
+
+        :returns: the TRC information.
+        :rtype: str
+        """
+        trc_dict = copy.deepcopy(self.get_trc_dict(with_signatures))
+        for subject in trc_dict['core_ads']:
+            cert_str = str(trc_dict['core_ads'][subject])
+            trc_dict['core_ads'][subject] = \
+                base64.b64encode(cert_str.encode('ascii')).decode('ascii')
+        if with_signatures:
+            for subject in trc_dict['signatures']:
+                signature = trc_dict['signatures'][subject]
+                trc_dict['signatures'][subject] = \
+                    base64.b64encode(signature).decode('ascii')
+        trc_str = json.dumps(trc_dict, sort_keys=True, indent=4)
+        return trc_str

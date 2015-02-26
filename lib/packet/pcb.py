@@ -212,7 +212,7 @@ class ADMarking(Marking):
         Marking.__init__(self)
         self.pcbm = None
         self.pms = []
-        self.sig = ''
+        self.sig = b''
         if raw is not None:
             self.parse(raw)
 
@@ -232,11 +232,11 @@ class ADMarking(Marking):
             peer_marking = PeerMarking(raw[:PeerMarking.LEN])
             self.pms.append(peer_marking)
             raw = raw[PeerMarking.LEN:]
-        self.sig = raw.decode('ascii')
+        self.sig = raw[:]
         self.parsed = True
 
     @classmethod
-    def from_values(cls, pcbm=None, pms=None, sig=''):
+    def from_values(cls, pcbm=None, pms=None, sig=b''):
         """
         Returns ADMarking with fields populated from values.
 
@@ -261,14 +261,14 @@ class ADMarking(Marking):
         ad_bytes = self.pcbm.pack()
         for peer_marking in self.pms:
             ad_bytes += peer_marking.pack()
-        ad_bytes += self.sig.encode('ascii')
+        ad_bytes += self.sig
         return ad_bytes
 
     def remove_signature(self):
         """
         Removes the signature from the AD block.
         """
-        self.sig = ''
+        self.sig = b''
         self.pcbm.ssf.sig_len = 0
 
     def __str__(self):
@@ -276,7 +276,8 @@ class ADMarking(Marking):
         ad_str += str(self.pcbm)
         for peer_marking in self.pms:
             ad_str += str(peer_marking)
-        ad_str += "[Signature: " + self.sig + "]\n"
+        ad_str += ("[Signature: " + base64.b64encode(self.sig).decode('ascii') +
+            "]\n")
         return ad_str
 
     def __eq__(self, other):

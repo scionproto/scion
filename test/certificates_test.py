@@ -16,10 +16,12 @@
 ===========================================
 """
 
-from lib.crypto.certificate import *
-from lib.crypto.asymcrypto import *
-from lib.crypto.trc import *
+from lib.crypto.certificate import sign, verify, CertificateChain, TRC
+from lib.util import (get_cert_file_path, get_trc_file_path, read_file,
+    get_sig_key_file_path)
 import unittest
+import logging
+import base64
 
 
 class TestCertificates(unittest.TestCase):
@@ -32,33 +34,32 @@ class TestCertificates(unittest.TestCase):
         Create a certificate chain and verify it with a TRC file. Sign a message
         with the private key of the last certificate in the chain and verify it.
         """
-        cert10 = \
-            Certificate('../topology/ISD1/certificates/ISD:1-AD:10-V:0.crt')
-        cert19 = \
-            Certificate('../topology/ISD1/certificates/ISD:1-AD:19-V:0.crt')
-        cert16 = \
-            Certificate('../topology/ISD1/certificates/ISD:1-AD:16-V:0.crt')
-        trc = TRC('../topology/ISD1/ISD:1-V:0.crt')
+        cert10 = CertificateChain(get_cert_file_path(1, 10, 1, 10, 0))
+        trc = TRC(get_trc_file_path(1, 10, 1, 0))
         print('TRC verification', trc.verify())
-        print('Cert verification:', cert10.verify('ISD:1-AD:10', cert19))
+        print('Cert Chain verification:', cert10.verify('ISD:1-AD:10', trc, 0))
 
-        chain_list = [cert10, cert19, cert16]
-        chain = CertificateChain.from_values(chain_list)
-        print ('Cert Chain verification:', chain.verify('ISD:1-AD:10', trc, 0))
-
-        with open('../topology/ISD1/signature_keys/ISD:1-AD:10-V:0.key') as fh:
-            sig_priv10 = fh.read()
+        sig_priv10 = read_file(get_sig_key_file_path(1, 10, 0))
+        sig_priv10 = base64.b64decode(sig_priv10)
         msg = 'abcd'
         sig = sign(msg, sig_priv10)
-        print('Sig test:', verify(msg, sig, 'ISD:1-AD:10', chain, trc, 0))
+        print('Sig test:', verify(msg, sig, 'ISD:1-AD:10', cert10, trc, 0))
 
-        with open('../topology/ISD1/signature_keys/ISD:1-AD:13-V:0.key') as fh:
-            sig_priv13 = fh.read()
+        sig_priv13 = read_file(get_sig_key_file_path(1, 13, 0))
+        sig_priv13 = base64.b64decode(sig_priv13)
         msg = 'abd'
         sig = sign(msg, sig_priv13)
         chain = CertificateChain.from_values([])
-        print('Other Sig test:', verify(msg, sig, 'ISD:1-AD:13', chain, trc, 0))
+        print('Sig test 2:', verify(msg, sig, 'ISD:1-AD:13', cert10, trc, 0))
 
+        #TODO: fix crypto box
+        #print ('CryptoBox Test...')
+        #print ('ISD:11-AD:3 encrypts message hello to ISD:11-AD:2:')
+        #cipher = encrypt(msg.encode('utf-8'), priv3, 'ISD:11-AD:2', chain)
+        #print ('Cipher:', cipher, sep='\n')
+        #print ('ISD:11-AD:2 decrypts cipher:')
+        #decipher = decrypt(cipher, priv2, 'ISD:11-AD:3', chain)
+        #print ('Decrypted message:', str(decipher), sep='\n')
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)

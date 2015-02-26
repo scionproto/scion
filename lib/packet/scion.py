@@ -18,14 +18,15 @@
 
 from lib.packet.ext_hdr import ExtensionHeader, ICNExtHdr
 from lib.packet.host_addr import (AddressLengths, IPv4HostAddr,
-                                  IPv6HostAddr, SCIONHostAddr, HostAddr)
+    IPv6HostAddr, SCIONHostAddr, HostAddr)
 from lib.packet.opaque_field import InfoOpaqueField, OpaqueField
 from lib.packet.packet_base import HeaderBase, PacketBase
-from lib.packet.path import PathType, CorePath, PeerPath, CrossOverPath, \
-    EmptyPath, PathBase
-import struct, logging, bitstring
+from lib.packet.path import (PathType, CorePath, PeerPath, CrossOverPath,
+    EmptyPath, PathBase)
 from bitstring import BitArray
-import base64
+import struct
+import logging
+import bitstring
 
 
 class PacketType(object):
@@ -87,6 +88,7 @@ TYPES_DST = {
     }
 TYPES_DST_INV = {v: k for k, v in TYPES_DST.items()}
 
+
 def get_addr_from_type(ptype):
     """
     Return the IP address associated to a certain type of packet.
@@ -100,6 +102,7 @@ def get_addr_from_type(ptype):
         return IPv4HostAddr(TYPES_SRC[ptype])
     else:
         return IPv4HostAddr(TYPES_DST[ptype])
+
 
 def get_type(pkt):
     """
@@ -117,56 +120,6 @@ def get_type(pkt):
     if idst_addr in TYPES_DST_INV:
         return TYPES_DST_INV[idst_addr]
     return PacketType.DATA
-
-ISD_DIR = '../topology/ISD'
-CERT_DIR = '/certificates/'
-SIG_KEYS_DIR = '/signature_keys/'
-
-def get_cert_file_path(cert_isd, cert_ad, cert_version):
-    """
-    Return the certificate file path.
-
-    :param cert_isd: the certificate ISD identifier.
-    :type cert_isd: int
-    :param cert_ad: the certificate AD identifier.
-    :type cert_ad: int
-    :param cert_version: the certificate version.
-    :type cert_version: int
-    :returns: the certificate file path.
-    :rtype: str
-    """
-    return (ISD_DIR + str(cert_isd) + CERT_DIR + 'ISD:' + str(cert_isd) +
-        '-AD:' + str(cert_ad) + '-V:' + str(cert_version) + '.crt')
-
-def get_sig_key_file_path(isd_id, ad_id, version):
-    """
-    Return the signing key file path.
-
-    :param isd_id: the signing key ISD identifier.
-    :type isd_id: int
-    :param ad_id: the signing key AD identifier.
-    :type ad_id: int
-    :param version: the signing key version.
-    :type version: int
-    :returns: the signing key file path.
-    :rtype: str
-    """
-    return (ISD_DIR + str(isd_id) + SIG_KEYS_DIR + 'ISD:' + str(isd_id) +
-        '-AD:' + str(ad_id) + '-V:' + str(version) + '.key')
-
-def get_trc_file_path(isd_id, version):
-    """
-    Return the TRC file path.
-
-    :param isd_id: the TRC ISD identifier.
-    :type isd_id: int
-    :param version: the TRC version.
-    :type version: int
-    :returns: the TRC file path.
-    :rtype: str
-    """
-    return (ISD_DIR + str(isd_id) + '/' + 'ISD:' + str(isd_id) +
-        '-V:' + str(version) + '.crt')
 
 
 class SCIONCommonHdr(HeaderBase):
@@ -730,7 +683,7 @@ class CertReply(SCIONPacket):
         self.cert_isd = 0
         self.cert_ad = 0
         self.cert_version = 0
-        self.cert = ''
+        self.cert = b''
         if raw:
             self.parse(raw)
 
@@ -745,8 +698,7 @@ class CertReply(SCIONPacket):
         bits = BitArray(bytes=self.payload)
         (self.cert_isd, self.cert_ad, self.cert_version) = \
             bits.unpack("uintbe:16, uintbe:64, uintbe:32")
-        cert64 = self.payload[CertReply.MIN_LEN:]
-        self.cert = base64.standard_b64decode(cert64).decode('ascii')
+        self.cert = self.payload[CertReply.MIN_LEN:]
 
     @classmethod
     def from_values(cls, dst, cert_isd, cert_ad, cert_version, cert):
@@ -773,9 +725,8 @@ class CertReply(SCIONPacket):
         rep.cert_ad = cert_ad
         rep.cert_version = cert_version
         rep.cert = cert
-        cert64 = base64.standard_b64encode(cert.encode('ascii'))
         rep.payload = bitstring.pack("uintbe:16, uintbe:64, uintbe:32",
-            cert_isd, cert_ad, cert_version).bytes + cert64
+            cert_isd, cert_ad, cert_version).bytes + cert
         return rep
 
 
@@ -891,7 +842,7 @@ class TRCReply(SCIONPacket):
         SCIONPacket.__init__(self)
         self.trc_isd = 0
         self.trc_version = 0
-        self.trc = ''
+        self.trc = b''
         if raw:
             self.parse(raw)
 
@@ -905,8 +856,7 @@ class TRCReply(SCIONPacket):
         SCIONPacket.parse(self, raw)
         bits = BitArray(bytes=self.payload)
         (self.trc_isd, self.trc_version) = bits.unpack("uintbe:16, uintbe:32")
-        trc64 = self.payload[TRCReply.MIN_LEN:]
-        self.trc = base64.standard_b64decode(trc64).decode('ascii')
+        self.trc = self.payload[TRCReply.MIN_LEN:]
 
     @classmethod
     def from_values(cls, dst, trc_isd, trc_version, trc):
@@ -930,7 +880,6 @@ class TRCReply(SCIONPacket):
         rep.trc_isd = trc_isd
         rep.trc_version = trc_version
         rep.trc = trc
-        trc64 = base64.standard_b64encode(trc.encode('ascii'))
         rep.payload = bitstring.pack("uintbe:16, uintbe:32", trc_isd,
-            trc_version).bytes + trc64
+            trc_version).bytes + trc
         return rep

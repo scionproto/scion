@@ -2,9 +2,9 @@
     "default_subnet": "127.0.0.0/8",
     "1-11": {
         "level": "CORE",
-        "beacon_servers": 2,
-        "certificate_servers": 3,
-        "path_servers": 2,
+        "beacon_servers": 1,
+        "certificate_servers": 1,
+        "path_servers": 1,
         "links": {
             "1-12": "ROUTING",
             "1-13": "ROUTING",
