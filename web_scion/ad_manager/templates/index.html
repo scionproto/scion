@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <h1>AD {{ topology.isd_id }}-{{ topology.ad_id }}</h1>
+
+  <h4>
+    Core AD:
+    {{ topology.is_core_ad }}
+    <span class="glyphicon glyphicon-{{ topology.is_core_ad|yesno:"ok,remove," }}" aria-hidden="true"></span>
+  </h4>
+  <hr />
+
+  <h4>Beacon servers</h4>
+  <table class="table table-striped">
+    <thead>
+    <tr>
+      <th></th>
+      <th class="col-md-4">Address</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for beacon_server in topology.beacon_servers %}
+      <tr>
+        <td>Beacon server {{ forloop.counter }}</td>
+        <td>{{ beacon_server.addr }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <br />
+
+  <h4>Certificate servers</h4>
+  <table class="table table-striped">
+    <thead>
+    <tr>
+      <th></th>
+      <th class="col-md-4">Address</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for certificate_server in topology.certificate_servers %}
+      <tr>
+        <td>Certificate server {{ forloop.counter }}</td>
+        <td>{{ certificate_server.addr }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <br />
+
+  <h4>Path servers</h4>
+  <table class="table table-striped">
+    <thead>
+    <tr>
+      <th></th>
+      <th class="col-md-4">Address</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for path_server in topology.path_servers %}
+      <tr>
+        <td>Path server {{ forloop.counter }}</td>
+        <td>{{ path_server.addr }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <br />
+
+  <h4>Routers</h4>
+  <table class="table table-striped">
+    <thead>
+    <tr>
+      <th></th>
+      <th class="col-md-2">Address</th>
+      <th class="col-md-2">Interface in-address</th>
+      <th class="col-md-2">Interface out-address</th>
+      <th class="col-md-2">Neighbor AD</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for router in routers %}
+      <tr>
+        <td>Router {{ forloop.counter }}</td>
+        <td>{{ router.addr }}</td>
+        <td>{{ router.interface.addr }}</td>
+        <td>{{ router.interface.to_addr }}</td>
+        <td>{{ router.interface.neighbor_isd }}-{{ router.interface.neighbor_ad }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <br />
+
+{% endblock %}
