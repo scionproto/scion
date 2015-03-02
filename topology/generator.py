@@ -16,20 +16,21 @@
 ===========================================
 """
 
-from lib.topology import Topology
-from lib.config import Config
-from lib.crypto.certificate import Certificate
-from lib.crypto.trc import TRC
-from lib.crypto.asymcrypto import *
 import base64
+import json
+from lib.config import Config
+from lib.topology import Topology
+import logging
 import os
 import shutil
 import socket
 import struct
 import subprocess
 import sys
-import json
-import logging
+
+from lib.crypto.asymcrypto import *
+from lib.crypto.certificate import Certificate
+from lib.crypto.trc import TRC
 
 
 ADCONFIGURATIONS_FILE = 'ADConfigurations.json'
@@ -142,7 +143,7 @@ def create_directories(AD_configs):
         topo_path = 'ISD' + isd_id + TOPO_DIR
         sig_keys_path = 'ISD' + isd_id + SIG_KEYS_DIR
         enc_keys_path = 'ISD' + isd_id + ENC_KEYS_DIR
-        setup_path =  'ISD' + isd_id + SETUP_DIR
+        setup_path = 'ISD' + isd_id + SETUP_DIR
         run_path = 'ISD' + isd_id + RUN_DIR
         if not os.path.exists(cert_path):
             os.makedirs(cert_path)
@@ -292,7 +293,7 @@ def write_topo_files(AD_configs, er_ip_addresses):
                                                           'Addr': ip_address}
                     setup_fh.write('ip addr add ' + ip_address + '/' + mask +
                         ' dev lo\n')
-                    log = ' >> ../logs/cs-%s-%s-%s.log 2>&1' % (isd_id, ad_id,
+                    log = ' >> ../logs/ps-%s-%s-%s.log 2>&1' % (isd_id, ad_id,
                                                                 str(b_server))
                     run_fh.write(''.join(['screen -d -m -S ps', isd_id, '-',
                         ad_id, '-', str(p_server), ' sh -c \"',
@@ -381,7 +382,7 @@ def write_trc_files(AD_configs):
         (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
         file_name = 'ISD:' + isd_id + '-V:' + '0'
         trc_file = 'ISD' + isd_id + '/' + file_name + '.crt'
-        
+
         (sig, ver) = generate_signature_keypair()
         (priv, pub) = generate_cryptobox_keypair()
         cert = Certificate.from_values('isp1_address', ver, pub, 'isp1_address',
@@ -397,7 +398,7 @@ def write_trc_files(AD_configs):
         cert64 = \
             base64.standard_b64encode(str(cert).encode('ascii')).decode('ascii')
         registry_key = cert64
-        
+
         (sig, ver) = generate_signature_keypair()
         (priv, pub) = generate_cryptobox_keypair()
         cert = Certificate.from_values('path_server', ver, pub, 'path_server',
@@ -410,7 +411,7 @@ def write_trc_files(AD_configs):
         cert64 = \
             base64.standard_b64encode(str(cert).encode('ascii')).decode('ascii')
         root_cas = {'ca1_address' : cert64}
-        
+
         (sig, ver) = generate_signature_keypair()
         (priv, pub) = generate_cryptobox_keypair()
         cert = Certificate.from_values('dns_server', ver, pub, 'dns_server',
@@ -449,7 +450,7 @@ def main():
     if "default_subnet" in AD_configs:
         default_subnet = AD_configs["default_subnet"]
         del AD_configs["default_subnet"]
-    
+
     er_ip_addresses = set_er_ip_addresses(AD_configs)
 
     delete_directories()
@@ -461,7 +462,7 @@ def main():
     write_conf_files(AD_configs)
 
     write_beginning_setup_run_files(AD_configs)
-    
+
     write_topo_files(AD_configs, er_ip_addresses)
 
     write_trc_files(AD_configs)
