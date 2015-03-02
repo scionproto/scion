@@ -67,29 +67,6 @@ class PathSegmentDB(object):
         else:
             return None
 
-#     def _purge_paths(self, pcb, src_isd, src_ad, dst_isd, dst_ad):
-#         """
-#         Removes all paths that have identical hops but lower timestamps.
-#
-#         Returns the PathSegment with the highest timestamp.
-#         """
-#         max_ts_pcb = pcb
-#         max_ts = pcb.iof.timestamp
-#         recs = self._db(src_isd=src_isd, src_ad=src_ad,
-#                         dst_isd=dst_isd, dst_ad=dst_ad)
-#         to_delete = []
-#         for rec in recs:
-#             rec_pcb = rec['record'].pcb
-#             if pcb.compare_hops(rec_pcb):
-#                 if rec_pcb.iof.timestamp >= max_ts:
-#                     max_ts = rec_pcb.iof.timestamp
-#                     max_ts_pcb = rec_pcb
-#                 else:
-#                     to_delete.append(rec)
-#         self._db.delete(to_delete)
-#
-#         return max_ts_pcb
-
     def update(self, pcb, src_isd, src_ad, dst_isd, dst_ad):
         """
         Inserts path into database.
@@ -117,7 +94,7 @@ class PathSegmentDB(object):
                               "already known", src_isd, src_ad, dst_isd, dst_ad)
                 return None
             else:
-                cur_rec.pcb.set_expiration_time(pcb.get_expiration_time())
+                cur_rec.pcb.set_timestamp(pcb.get_timestamp())
                 logging.debug("Updated expiration time for segment with ID %s",
                               cur_rec.id)
                 return rec_id
@@ -137,7 +114,7 @@ class PathSegmentDB(object):
         criterias specified.
         """
         recs = self._db(*args, **kwargs)
-        now = (int(time.time()) % (SCION_SECOND * 2 ** 16)) // SCION_SECOND
+        now = int(time.time() / SCION_SECOND) % (2 ** 16)
         expired_recs = []
         valid_recs = []
         # Remove expired path from the cache.

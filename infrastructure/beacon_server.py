@@ -20,7 +20,7 @@ from _collections import deque
 import copy
 import datetime
 from infrastructure.scion_elem import SCIONElement
-from lib.defines import SCION_SECOND
+from lib.defines import SCION_SECOND, MAX_SEGMENT_TTL
 from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.opaque_field import (OpaqueFieldType as OFT, InfoOpaqueField,
     SupportSignatureField, HopOpaqueField, SupportPCBField, SupportPeerField,
@@ -50,7 +50,9 @@ class BeaconServer(SCIONElement):
         reg_queue: A FIFO queue containing paths for registration with path
             servers.
     """
-    DELTA = 6 * 60 * 60  # Amount of real time a PCB packet is valid for.
+    # Amount of real time a HOF is valid realtive to MAX_TTL.
+    HOF_EXP_TIME = int(((6 * 60 * 60) / MAX_SEGMENT_TTL) * (2 ** 8)) - 1
+    # TODO: Make this configurable.
     BEACONS_NO = 5
 
     def __init__(self, addr, topo_file, config_file):
@@ -145,7 +147,8 @@ class BeaconServer(SCIONElement):
         Creates an AD Marking with the given ingress and egress interfaces.
         """
         ssf = SupportSignatureField.from_values(ADMarking.LEN)
-        hof = HopOpaqueField.from_values(ingress_if, egress_if)
+        hof = HopOpaqueField.from_values(BeaconServer.HOF_EXP_TIME,
+                                         ingress_if, egress_if)
         spcbf = SupportPCBField.from_values(isd_id=self.topology.isd_id)
         pcbm = PCBMarking.from_values(self.topology.ad_id, ssf, hof, spcbf,
                                       self.if2rev_tokens[ingress_if][1],
@@ -155,7 +158,8 @@ class BeaconServer(SCIONElement):
         # IfidReply from router
         for router_peer in self.topology.peer_edge_routers:
             if_id = router_peer.interface.if_id
-            hof = HopOpaqueField.from_values(if_id, egress_if)
+            hof = HopOpaqueField.from_values(BeaconServer.HOF_EXP_TIME,
+                                             if_id, egress_if)
             spf = SupportPeerField.from_values(self.topology.isd_id)
             peer_marking = \
                 PeerMarking.from_values(router_peer.interface.neighbor_ad,
@@ -227,8 +231,7 @@ class CoreBeaconServer(BeaconServer):
         while True:
             # Create beacon for downstream ADs.
             downstream_pcb = PathSegment()
-            timestamp = (((int(time.time()) + BeaconServer.DELTA) %
-                          (SCION_SECOND * (2 ** 16))) / SCION_SECOND)
+            timestamp = int(time.time() / SCION_SECOND) % (2 ** 16)
             downstream_pcb.iof = InfoOpaqueField.from_values(OFT.TDC_XOVR,
                 False, timestamp, self.topology.isd_id)
             downstream_pcb.rotf = ROTField()

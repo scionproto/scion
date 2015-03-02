@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from lib.defines import SCION_SECOND
+from lib.defines import SCION_SECOND, MAX_SEGMENT_TTL
 from lib.packet.opaque_field import (SupportSignatureField, HopOpaqueField,
     SupportPCBField, SupportPeerField, ROTField, InfoOpaqueField)
 from lib.packet.path import CorePath
@@ -334,6 +334,7 @@ class PathSegment(Marking):
         self.rotf = None
         self.segment_id = 32 * b"\x00"
         self.ads = []
+        self.min_exp_time = 2 ** 8 - 1
         if raw is not None:
             self.parse(raw)
 
@@ -355,7 +356,7 @@ class PathSegment(Marking):
         for _ in range(self.iof.hops):
             pcbm = PCBMarking(raw[:PCBMarking.LEN])
             ad_marking = ADMarking(raw[:pcbm.ssf.sig_len + pcbm.ssf.block_size])
-            self.ads.append(ad_marking)
+            self.add_ad(ad_marking)
             raw = raw[pcbm.ssf.sig_len + pcbm.ssf.block_size:]
         self.parsed = True
 
@@ -373,8 +374,12 @@ class PathSegment(Marking):
         """
         Appends a new AD block.
         """
-        self.iof.hops = self.iof.hops + 1
+        if ad_marking.pcbm.hof.exp_time < self.min_exp_time:
+            self.min_exp_time = ad_marking.pcbm.hof.exp_time
         self.ads.append(ad_marking)
+        # Increase hops if IOF if necessary.
+        if self.iof.hops < len(self.ads):
+            self.iof.hops = len(self.ads)
 
     def remove_signatures(self):
         """
@@ -450,17 +455,26 @@ class PathSegment(Marking):
 
         return h.digest()
 
+    def get_timestamp(self):
+        """
+        Returns the creation timestamp of this PathSegment.
+        """
+        return self.iof.timestamp
+
+    def set_timestamp(self, timestamp):
+        """
+        Updates the timestamp in the IOF.
+        """
+        assert timestamp < 2 ** 16
+        self.iof.timestamp = timestamp
+
     def get_expiration_time(self):
         """
         Returns the expiration time of the path segment in real time.
         """
-        return self.iof.timestamp
-
-    def set_expiration_time(self, exp_time):
-        """
-        Sets the expiration time of the path segment.
-        """
-        self.iof.timestamp = exp_time % (SCION_SECOND * 2 ** 16)
+        factor = (self.min_exp_time + 1) / 2 ** 8
+        return ((self.iof.timestamp + int(factor * MAX_SEGMENT_TTL /
+                                          SCION_SECOND)) % (2 ** 16))
 
     @staticmethod
     def deserialize(raw):
@@ -483,7 +497,7 @@ class PathSegment(Marking):
                 pcbm = PCBMarking(raw[:PCBMarking.LEN])
                 ad_marking = ADMarking(raw[:pcbm.ssf.sig_len +
                                            pcbm.ssf.block_size])
-                pcb.ads.append(ad_marking)
+                pcb.add_ad(ad_marking)
                 raw = raw[pcbm.ssf.sig_len + pcbm.ssf.block_size:]
             pcbs.append(pcb)
         return pcbs
