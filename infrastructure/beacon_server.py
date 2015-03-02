@@ -390,16 +390,7 @@ def main():
         logging.error("First parameter can only be 'local' or 'core'!")
         sys.exit()
 
-    isd_id = str(beacon_server.topology.isd_id)
-    ad_id = str(beacon_server.topology.ad_id)
-    ip_addr = str(beacon_server.addr)
-    log_file = '/'.join(['../logs', str(datetime.date.today()), 'ISD' + isd_id,
-        'AD' + ad_id, 'bs' + isd_id + '-' + ad_id + '-' + ip_addr + '.log'])
-    if not os.path.exists(os.path.dirname(log_file)):
-        os.makedirs(os.path.dirname(log_file))
-    logging.getLogger('').handlers = []
-    logging.basicConfig(filename=log_file, filemode='w', level=logging.DEBUG)
-
+    logging.info("Started: %s", datetime.datetime.now())
     beacon_server.run()
 
 if __name__ == "__main__":

@@ -259,12 +259,14 @@ def write_topo_files(AD_configs, er_ip_addresses):
                                                         'Addr': ip_address}
                 setup_fh.write('ip addr add ' + ip_address + '/' + mask +
                     ' dev lo\n')
+                log = ' >> ../logs/bs-%s-%s-%s.log 2>&1' % (isd_id, ad_id,
+                                                            str(b_server))
                 run_fh.write(''.join(['screen -d -m -S bs', isd_id, '-', ad_id,
                     '-', str(b_server), ' sh -c \"',
                     'PYTHONPATH=../ python3 beacon_server.py ',
                     ('core ' if is_core else 'local '), ip_address, ' ..',
-                    SCRIPTS_DIR, topo_file, ' ..', SCRIPTS_DIR, conf_file,
-                    '\"\n']))
+                     SCRIPTS_DIR, topo_file, ' ..', SCRIPTS_DIR, conf_file,
+                     log, '\"\n']))
                 ip_address = increment_address(ip_address, mask)
             # Write Certificate Servers
             ip_address = '.'.join([first_byte, isd_id, ad_id, CS_RANGE])
@@ -273,11 +275,13 @@ def write_topo_files(AD_configs, er_ip_addresses):
                                                              'Addr': ip_address}
                 setup_fh.write('ip addr add ' + ip_address + '/' + mask +
                     ' dev lo\n')
+                log = ' >> ../logs/cs-%s-%s-%s.log 2>&1' % (isd_id, ad_id,
+                                                            str(b_server))
                 run_fh.write(''.join(['screen -d -m -S cs', isd_id, '-', ad_id,
                     '-', str(c_server), ' sh -c \"',
                     "PYTHONPATH=../ python3 cert_server.py ", ip_address, ' ..',
                     SCRIPTS_DIR, topo_file, ' ..', SCRIPTS_DIR, conf_file,
-                    ' ..', SCRIPTS_DIR, trc_file, '\"\n']))
+                    ' ..', SCRIPTS_DIR, trc_file, log, '\"\n']))
                 ip_address = increment_address(ip_address, mask)
             # Write Path Servers
             if (AD_configs[isd_ad_id]['level'] != INTERMEDIATE_AD or
@@ -288,12 +292,14 @@ def write_topo_files(AD_configs, er_ip_addresses):
                                                           'Addr': ip_address}
                     setup_fh.write('ip addr add ' + ip_address + '/' + mask +
                         ' dev lo\n')
+                    log = ' >> ../logs/cs-%s-%s-%s.log 2>&1' % (isd_id, ad_id,
+                                                                str(b_server))
                     run_fh.write(''.join(['screen -d -m -S ps', isd_id, '-',
                         ad_id, '-', str(p_server), ' sh -c \"',
                         'PYTHONPATH=../ python3 path_server.py ',
                         ('core ' if is_core else 'local '), ip_address, ' ..',
-                        SCRIPTS_DIR, topo_file, ' ..', SCRIPTS_DIR, conf_file,
-                        '\"\n']))
+                         SCRIPTS_DIR, topo_file, ' ..', SCRIPTS_DIR, conf_file,
+                         log, '\"\n']))
                     ip_address = increment_address(ip_address, mask)
             # Write Edge Routers
             edge_router = 1
@@ -319,11 +325,13 @@ def write_topo_files(AD_configs, er_ip_addresses):
                                    'ToUdpPort': int(PORT)}}
                 setup_fh.write('ip addr add ' + ip_address_loc + '/' + mask +
                     ' dev lo\n')
+                log = ' >> ../logs/er-%s-%s-%s-%s.log 2>&1' % (isd_id, ad_id,
+                    nbr_isd_id, nbr_ad_id)
                 run_fh.write(''.join(['screen -d -m -S er', isd_id, '-', ad_id,
                     'er', nbr_isd_id, '-', nbr_ad_id, ' sh -c \"',
                     'PYTHONPATH=../ python3 router.py ', ip_address_loc, ' ..',
                     SCRIPTS_DIR, topo_file, ' ..', SCRIPTS_DIR, conf_file,
-                    '\"\n']))
+                    log, '\"\n']))
                 edge_router += 1
         with open(topo_file, 'w') as topo_fh:
             json.dump(topo_dict, topo_fh, sort_keys=True, indent=4)

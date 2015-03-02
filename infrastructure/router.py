@@ -522,18 +522,7 @@ def main():
 
     router = Router(IPv4HostAddr(sys.argv[1]), sys.argv[2], sys.argv[3])
 
-    isd_id = str(router.topology.isd_id)
-    ad_id = str(router.topology.ad_id)
-    nbr_isd_id = str(router.interface.neighbor_isd)
-    nbr_ad_id = str(router.interface.neighbor_ad)
-    log_file = '/'.join(['../logs', str(datetime.date.today()), 'ISD' + isd_id,
-        'AD' + ad_id, 'er' + isd_id + '-' + ad_id + 'er' + nbr_isd_id + '-' +
-        nbr_ad_id + '.log'])
-    if not os.path.exists(os.path.dirname(log_file)):
-        os.makedirs(os.path.dirname(log_file))
-    logging.getLogger('').handlers = []
-    logging.basicConfig(filename=log_file, filemode='w', level=logging.DEBUG)
-
+    logging.info("Started: %s", datetime.datetime.now())
     router.run()
 
 if __name__ == "__main__":
