@@ -8,6 +8,7 @@ if [ "$1" == "init" ]; then
     sh do
 elif [ "$1" == "topology" ]; then
     echo "create topology, configuration and execution  files"
+    mkdir -p logs
     cd topology/
     PYTHONPATH=../ python3 generator.py
 elif [ "$1" == "setup" ]; then
