@@ -16,6 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from lib.defines import SCION_SECOND
 from lib.packet.opaque_field import (SupportSignatureField, HopOpaqueField,
     SupportPCBField, SupportPeerField, ROTField, InfoOpaqueField)
 from lib.packet.path import CorePath
@@ -23,6 +24,7 @@ from lib.packet.scion import (SCIONPacket, get_addr_from_type, PacketType,
     SCIONHeader)
 import logging
 
+from Crypto.Hash import SHA256
 from bitstring import BitArray
 import bitstring
 
@@ -432,6 +434,33 @@ class PathSegment(Marking):
         other_hops = [ad.pcbm.ad_id for ad in other.ads]
 
         return self_hops == other_hops
+
+    def get_hops_hash(self):
+        """
+        Returns the hash over all the interface revocation tokens included in
+        the path segment.
+        """
+        h = SHA256.new()
+        for ad in self.ads:
+            h.update(ad.pcbm.ig_rev_token)
+            h.update(ad.pcbm.eg_rev_token)
+            for pm in ad.pms:
+                h.update(pm.ig_rev_token)
+                h.update(pm.eg_rev_token)
+
+        return h.digest()
+
+    def get_expiration_time(self):
+        """
+        Returns the expiration time of the path segment in real time.
+        """
+        return self.iof.timestamp
+
+    def set_expiration_time(self, exp_time):
+        """
+        Sets the expiration time of the path segment.
+        """
+        self.iof.timestamp = exp_time % (SCION_SECOND * 2 ** 16)
 
     @staticmethod
     def deserialize(raw):
