@@ -17,6 +17,8 @@ limitations under the License.
 """
 
 from _collections import deque
+import copy
+import datetime
 from infrastructure.scion_elem import SCIONElement
 from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.opaque_field import (OpaqueFieldType as OFT, InfoOpaqueField,
@@ -26,13 +28,10 @@ from lib.packet.pcb import (PathSegment, ADMarking, PCBMarking, PeerMarking,
     PathConstructionBeacon, PathSegmentInfo, PathSegmentRecords,
     PathSegmentType as PST)
 from lib.packet.scion import SCIONPacket, get_type, PacketType as PT
-import copy
 import logging
 import sys
 import threading
 import time
-import datetime
-import os
 
 from Crypto import Random
 from Crypto.Hash import SHA256
@@ -49,8 +48,9 @@ class BeaconServer(SCIONElement):
         reg_queue: A FIFO queue containing paths for registration with path
             servers.
     """
-    DELTA = 24 * 60 * 60  # Amount of real time a PCB packet is valid for.
-    TIME_INTERVAL = 4  # SCION second
+    # Amount of time units a HOF is valid (time unit is EXP_TIME_UNIT).
+    HOF_EXP_TIME = 63
+    # TODO: Make this configurable.
     BEACONS_NO = 5
 
     def __init__(self, addr, topo_file, config_file):
@@ -62,6 +62,8 @@ class BeaconServer(SCIONElement):
         self.reg_queue = deque()
         self.if2rev_tokens = {}  # Contains the currently used revocation tokens
                                  # for each interface.
+        self.seg2rev_tokens = {}  # Contains the currently used revocation
+                                  # tokens for a path-segment.
         self._init_if_hashes()
 
     def _init_if_hashes(self):
@@ -74,6 +76,25 @@ class BeaconServer(SCIONElement):
             pre_img = rnd_file.read(32)
             img = SHA256.new(pre_img).digest()
             self.if2rev_tokens[router.interface.if_id] = (pre_img, img)
+
+    def _get_segment_rev_token(self, pcb):
+        """
+        Returns the revocation token for a given path-segment.
+
+        Segments with identical hops will always use the same revocation token,
+        unless they get revoked.
+        """
+        id = pcb.get_hops_hash()
+        if id not in self.seg2rev_tokens:
+            # When the BS registers a new segment, it generates a unique
+            # random number and uses the SHA256-hash of that number to
+            # uniquely identify the segment. By revealing the random number
+            # a BS can revoke that path segment.
+            pre_img = Random.new().read(32)
+            img = SHA256.new(pre_img).digest()
+            self.seg2rev_tokens[id] = (pre_img, img)
+
+        return self.seg2rev_tokens[id][1]
 
     def propagate_downstream_pcb(self, pcb):
         """
@@ -124,7 +145,8 @@ class BeaconServer(SCIONElement):
         Creates an AD Marking with the given ingress and egress interfaces.
         """
         ssf = SupportSignatureField.from_values(ADMarking.LEN)
-        hof = HopOpaqueField.from_values(ingress_if, egress_if)
+        hof = HopOpaqueField.from_values(BeaconServer.HOF_EXP_TIME,
+                                         ingress_if, egress_if)
         spcbf = SupportPCBField.from_values(isd_id=self.topology.isd_id)
         pcbm = PCBMarking.from_values(self.topology.ad_id, ssf, hof, spcbf,
                                       self.if2rev_tokens[ingress_if][1],
@@ -134,7 +156,8 @@ class BeaconServer(SCIONElement):
         # IfidReply from router
         for router_peer in self.topology.peer_edge_routers:
             if_id = router_peer.interface.if_id
-            hof = HopOpaqueField.from_values(if_id, egress_if)
+            hof = HopOpaqueField.from_values(BeaconServer.HOF_EXP_TIME,
+                                             if_id, egress_if)
             spf = SupportPeerField.from_values(self.topology.isd_id)
             peer_marking = \
                 PeerMarking.from_values(router_peer.interface.neighbor_ad,
@@ -206,9 +229,7 @@ class CoreBeaconServer(BeaconServer):
         while True:
             # Create beacon for downstream ADs.
             downstream_pcb = PathSegment()
-            timestamp = (((int(time.time()) + BeaconServer.DELTA) %
-                          (BeaconServer.TIME_INTERVAL * (2 ** 16))) /
-                         BeaconServer.TIME_INTERVAL)
+            timestamp = int(time.time())
             downstream_pcb.iof = InfoOpaqueField.from_values(OFT.TDC_XOVR,
                 False, timestamp, self.topology.isd_id)
             downstream_pcb.rotf = ROTField()
@@ -242,14 +263,7 @@ class CoreBeaconServer(BeaconServer):
                 new_pcb = copy.deepcopy(pcb)
                 ad_marking = self._create_ad_marking(new_pcb.rotf.if_id, 0)
                 new_pcb.add_ad(ad_marking)
-                # When the BS registers a segment, it generates a unique
-                # random number and uses the SHA256-hash of that number to
-                # uniquely identify the segment. By revealing the random number
-                # a BS can revoke that path segment.
-                # TODO: Need to store (and also clean up) the generated rnd-nr.
-                pre_img = Random.new().read(32)
-                img = SHA256.new(pre_img).digest()
-                new_pcb.segment_id = img
+                new_pcb.segment_id = self._get_segment_rev_token(new_pcb)
                 self.register_core_segment(new_pcb)
                 logging.info("Paths registered")
             time.sleep(self.config.registration_time)
@@ -355,14 +369,7 @@ class LocalBeaconServer(BeaconServer):
                 new_pcb = copy.deepcopy(pcb)
                 ad_marking = self._create_ad_marking(new_pcb.rotf.if_id, 0)
                 new_pcb.add_ad(ad_marking)
-                # When the BS registers a segment, it generates a unique
-                # random number and uses the SHA256-hash of that number to
-                # uniquely identify the segment. By revealing the random number
-                # a BS can revoke that path segment.
-                # TODO: Need to store (and also clean up) the generated rnd-nr.
-                pre_img = Random.new().read(32)
-                img = SHA256.new(pre_img).digest()
-                new_pcb.segment_id = img
+                new_pcb.segment_id = self._get_segment_rev_token(new_pcb)
                 self.register_up_segment(new_pcb)
                 self.register_down_segment(new_pcb)
                 logging.info("Paths registered")

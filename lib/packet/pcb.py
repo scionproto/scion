@@ -16,6 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from lib.defines import EXP_TIME_UNIT
 from lib.packet.opaque_field import (SupportSignatureField, HopOpaqueField,
     SupportPCBField, SupportPeerField, ROTField, InfoOpaqueField)
 from lib.packet.path import CorePath
@@ -23,6 +24,7 @@ from lib.packet.scion import (SCIONPacket, get_addr_from_type, PacketType,
     SCIONHeader)
 import logging
 
+from Crypto.Hash import SHA256
 from bitstring import BitArray
 import bitstring
 
@@ -332,6 +334,7 @@ class PathSegment(Marking):
         self.rotf = None
         self.segment_id = 32 * b"\x00"
         self.ads = []
+        self.min_exp_time = 2 ** 8 - 1
         if raw is not None:
             self.parse(raw)
 
@@ -353,7 +356,7 @@ class PathSegment(Marking):
         for _ in range(self.iof.hops):
             pcbm = PCBMarking(raw[:PCBMarking.LEN])
             ad_marking = ADMarking(raw[:pcbm.ssf.sig_len + pcbm.ssf.block_size])
-            self.ads.append(ad_marking)
+            self.add_ad(ad_marking)
             raw = raw[pcbm.ssf.sig_len + pcbm.ssf.block_size:]
         self.parsed = True
 
@@ -371,8 +374,12 @@ class PathSegment(Marking):
         """
         Appends a new AD block.
         """
-        self.iof.hops = self.iof.hops + 1
+        if ad_marking.pcbm.hof.exp_time < self.min_exp_time:
+            self.min_exp_time = ad_marking.pcbm.hof.exp_time
         self.ads.append(ad_marking)
+        # Increase hops if IOF if necessary.
+        if self.iof.hops < len(self.ads):
+            self.iof.hops = len(self.ads)
 
     def remove_signatures(self):
         """
@@ -433,6 +440,40 @@ class PathSegment(Marking):
 
         return self_hops == other_hops
 
+    def get_hops_hash(self):
+        """
+        Returns the hash over all the interface revocation tokens included in
+        the path segment.
+        """
+        h = SHA256.new()
+        for ad in self.ads:
+            h.update(ad.pcbm.ig_rev_token)
+            h.update(ad.pcbm.eg_rev_token)
+            for pm in ad.pms:
+                h.update(pm.ig_rev_token)
+                h.update(pm.eg_rev_token)
+
+        return h.digest()
+
+    def get_timestamp(self):
+        """
+        Returns the creation timestamp of this PathSegment.
+        """
+        return self.iof.timestamp
+
+    def set_timestamp(self, timestamp):
+        """
+        Updates the timestamp in the IOF.
+        """
+        assert timestamp < 2 ** 32 - 1
+        self.iof.timestamp = timestamp
+
+    def get_expiration_time(self):
+        """
+        Returns the expiration time of the path segment in real time.
+        """
+        return (self.iof.timestamp + int(self.min_exp_time * EXP_TIME_UNIT))
+
     @staticmethod
     def deserialize(raw):
         """
@@ -454,7 +495,7 @@ class PathSegment(Marking):
                 pcbm = PCBMarking(raw[:PCBMarking.LEN])
                 ad_marking = ADMarking(raw[:pcbm.ssf.sig_len +
                                            pcbm.ssf.block_size])
-                pcb.ads.append(ad_marking)
+                pcb.add_ad(ad_marking)
                 raw = raw[pcbm.ssf.sig_len + pcbm.ssf.block_size:]
             pcbs.append(pcb)
         return pcbs

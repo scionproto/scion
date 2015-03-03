@@ -16,7 +16,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 from lib.packet.pcb import PathSegment
-from Crypto.Hash import SHA256
+import logging
+import time
+
 from pydblite.pydblite import Base
 
 
@@ -27,28 +29,10 @@ class PathSegmentDBRecord(object):
     def __init__(self, pcb):
         assert isinstance(pcb, PathSegment)
         self.pcb = pcb
-        self._id = None
+        self.id = pcb.segment_id
         # Fidelity can be used to configure the desirability of a path. For
         # now we just use path length.
         self.fidelity = pcb.iof.hops
-
-    @property
-    def id(self):
-        """
-        Returns the unique ID of a path.
-        """
-        if self._id is None:
-            id_str = ""
-            for ad in self.pcb.ads:
-                id_str += "".join([str(ad.pcbm.ad_id),
-                                   str(ad.pcbm.hof.ingress_if),
-                                   str(ad.pcbm.hof.egress_if)])
-                id_str += ","
-            id_str += str(self.pcb.iof.timestamp)
-            id_str = id_str.encode('utf-8')
-            self._id = SHA256.new(id_str).hexdigest()
-
-        return self._id
 
     def __eq__(self, other):
         if type(other) is type(self):
@@ -66,7 +50,8 @@ class PathSegmentDB(object):
     """
     def __init__(self):
         db = Base("", save_to_file=False)
-        db.create('record', 'src_isd', 'src_ad', 'dst_isd', 'dst_ad')
+        db.create('record', 'id', 'src_isd', 'src_ad', 'dst_isd', 'dst_ad')
+        db.create_index('id')
         db.create_index('dst_isd')
         db.create_index('dst_ad')
 
@@ -81,56 +66,44 @@ class PathSegmentDB(object):
         else:
             return None
 
-    def _purge_paths(self, pcb, src_isd, src_ad, dst_isd, dst_ad):
-        """
-        Removes all paths that have identical hops but lower timestamps.
-
-        Returns the PathSegment with the highest timestamp.
-        """
-        max_ts_pcb = pcb
-        max_ts = pcb.iof.timestamp
-        recs = self._db(src_isd=src_isd, src_ad=src_ad,
-                        dst_isd=dst_isd, dst_ad=dst_ad)
-        for rec in recs:
-            rec_pcb = rec['record'].pcb
-            if pcb.compare_hops(rec_pcb):
-                if rec_pcb.iof.timestamp >= max_ts:
-                    max_ts = rec_pcb.iof.timestamp
-                    max_ts_pcb = rec_pcb
-                else:
-                    self._db.delete(rec)
-
-        return max_ts_pcb
-
-    def insert(self, pcb, src_isd, src_ad, dst_isd, dst_ad):
+    def update(self, pcb, src_isd, src_ad, dst_isd, dst_ad):
         """
         Inserts path into database.
 
-        Returns the record ID of the inserted path or None if nothing was
-        inserted.
+        Returns the record ID of the updated path or None if nothing was
+        updated.
         """
         assert isinstance(pcb, PathSegment)
         record = PathSegmentDBRecord(pcb)
-        recs = self._db(record=record,
-                        src_isd=src_isd, src_ad=src_ad,
-                        dst_isd=dst_isd, dst_ad=dst_ad)
-        if recs:
-            return None
-        else:
-            rec_id = self._db.insert(record, src_isd, src_ad,
-                                     dst_isd, dst_ad)
-            max_pcb = self._purge_paths(pcb, src_isd, src_ad, dst_isd, dst_ad)
-            if max_pcb == pcb:
-                return rec_id
-            else:
-                return None
+        recs = self._db(id=record.id)
 
-    def insert_all(self, pcbs, src_isd, src_ad, dst_isd, dst_ad):
+        assert len(recs) <= 1, "PathDB contains > 1 path with the same ID"
+
+        if not recs:
+            rec_id = self._db.insert(record, record.id, src_isd, src_ad,
+                                     dst_isd, dst_ad)
+            logging.debug("Created new entry in DB for (%d, %d) -> (%d, %d):" +
+                          "\n%s", src_isd, src_ad, dst_isd, dst_ad, record.id)
+            return rec_id
+        else:
+            cur_rec = recs[0]['record']
+            rec_id = recs[0]['__id__']
+            if pcb.get_expiration_time() <= cur_rec.pcb.get_expiration_time():
+                logging.debug("Fresher path-segment for (%d, %d) -> (%d, %d) " +
+                              "already known", src_isd, src_ad, dst_isd, dst_ad)
+                return None
+            else:
+                cur_rec.pcb.set_timestamp(pcb.get_timestamp())
+                logging.debug("Updated expiration time for segment with ID %s",
+                              cur_rec.id)
+                return rec_id
+
+    def update_all(self, pcbs, src_isd, src_ad, dst_isd, dst_ad):
         """
-        Inserts a list of paths.
+        Updates a list of paths.
         """
         for pcb in pcbs:
-            self.insert(pcb, src_isd, src_ad, dst_isd, dst_ad)
+            self.update(pcb, src_isd, src_ad, dst_isd, dst_ad)
 
     def __call__(self, *args, **kwargs):
         """
@@ -139,9 +112,24 @@ class PathSegmentDB(object):
         Returns a sorted (path fidelity) list of paths according to the
         criterias specified.
         """
-        res = sorted([r['record'] for r in self._db(*args, **kwargs)],
-                     key=lambda x: x.fidelity)
-        return [r.pcb for r in res]
+        recs = self._db(*args, **kwargs)
+        now = int(time.time())
+        expired_recs = []
+        valid_recs = []
+        # Remove expired path from the cache.
+        for r in recs:
+            if r['record'].pcb.get_expiration_time() < now:
+                expired_recs.append(r)
+                logging.debug("Path-Segment (%d, %d) -> (%d, %d) expired.",
+                              r['src_isd'], r['src_ad'],
+                              r['dst_isd'], r['dst_ad'])
+            else:
+                valid_recs.append(r)
+        self._db.delete(expired_recs)
+
+        pcbs = sorted([r['record'] for r in valid_recs],
+                      key=lambda x: x.fidelity)
+        return [p.pcb for p in pcbs]
 
     def __len__(self):
         return len(self._db)
