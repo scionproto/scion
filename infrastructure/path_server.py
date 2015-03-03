@@ -27,7 +27,6 @@ from lib.packet.scion import SCIONPacket, get_type
 from lib.path_db import PathSegmentDB
 from lib.util import update_dict
 import logging
-import os
 import sys
 
 

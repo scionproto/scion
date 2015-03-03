@@ -20,7 +20,6 @@ from _collections import deque
 import copy
 import datetime
 from infrastructure.scion_elem import SCIONElement
-from lib.defines import SCION_SECOND, MAX_SEGMENT_TTL
 from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.opaque_field import (OpaqueFieldType as OFT, InfoOpaqueField,
     SupportSignatureField, HopOpaqueField, SupportPCBField, SupportPeerField,
@@ -30,7 +29,6 @@ from lib.packet.pcb import (PathSegment, ADMarking, PCBMarking, PeerMarking,
     PathSegmentType as PST)
 from lib.packet.scion import SCIONPacket, get_type, PacketType as PT
 import logging
-import os
 import sys
 import threading
 import time
@@ -50,8 +48,8 @@ class BeaconServer(SCIONElement):
         reg_queue: A FIFO queue containing paths for registration with path
             servers.
     """
-    # Amount of real time a HOF is valid realtive to MAX_TTL.
-    HOF_EXP_TIME = int(((6 * 60 * 60) / MAX_SEGMENT_TTL) * (2 ** 8)) - 1
+    # Amount of time units a HOF is valid (time unit is EXP_TIME_UNIT).
+    HOF_EXP_TIME = 63
     # TODO: Make this configurable.
     BEACONS_NO = 5
 
@@ -231,7 +229,7 @@ class CoreBeaconServer(BeaconServer):
         while True:
             # Create beacon for downstream ADs.
             downstream_pcb = PathSegment()
-            timestamp = int(time.time() / SCION_SECOND) % (2 ** 16)
+            timestamp = int(time.time())
             downstream_pcb.iof = InfoOpaqueField.from_values(OFT.TDC_XOVR,
                 False, timestamp, self.topology.isd_id)
             downstream_pcb.rotf = ROTField()

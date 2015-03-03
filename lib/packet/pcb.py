@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from lib.defines import SCION_SECOND, MAX_SEGMENT_TTL
+from lib.defines import EXP_TIME_UNIT
 from lib.packet.opaque_field import (SupportSignatureField, HopOpaqueField,
     SupportPCBField, SupportPeerField, ROTField, InfoOpaqueField)
 from lib.packet.path import CorePath
@@ -465,16 +465,14 @@ class PathSegment(Marking):
         """
         Updates the timestamp in the IOF.
         """
-        assert timestamp < 2 ** 16
+        assert timestamp < 2 ** 32 - 1
         self.iof.timestamp = timestamp
 
     def get_expiration_time(self):
         """
         Returns the expiration time of the path segment in real time.
         """
-        factor = (self.min_exp_time + 1) / 2 ** 8
-        return ((self.iof.timestamp + int(factor * MAX_SEGMENT_TTL /
-                                          SCION_SECOND)) % (2 ** 16))
+        return (self.iof.timestamp + int(self.min_exp_time * EXP_TIME_UNIT))
 
     @staticmethod
     def deserialize(raw):

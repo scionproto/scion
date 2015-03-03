@@ -24,5 +24,5 @@ Contains constant definitions used throughout the codebase.
 
 """
 
-SCION_SECOND = 4  # The number of real secs that correspond to a SCION sec.
 MAX_SEGMENT_TTL = 24 * 60 * 60  # Max TTL of a PathSegment in realtime seconds.
+EXP_TIME_UNIT = MAX_SEGMENT_TTL / 2 ** 8  # Time unit for HOF expiration.

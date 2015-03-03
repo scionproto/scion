@@ -179,8 +179,8 @@ class InfoOpaqueField(OpaqueField):
     Class for the info opaque field.
 
     The info opaque field contains type info of the path-segment (1 byte),
-    a creation timestamp (2 bytes), the ISD ID (2 byte), # hops for this
-    segment (1 byte) and a reserved section (2 bytes).
+    a creation timestamp (4 bytes), the ISD ID (2 byte) and # hops for this
+    segment (1 byte).
     """
 
     def __init__(self, raw=None):
@@ -188,7 +188,6 @@ class InfoOpaqueField(OpaqueField):
         self.timestamp = 0
         self.isd_id = 0
         self.hops = 0
-        self.reserved = 0
         self.up_flag = False
         self.raw = raw
         if raw is not None:
@@ -205,15 +204,14 @@ class InfoOpaqueField(OpaqueField):
             logging.warning("IOF: Data too short for parsing, len: %u", dlen)
             return
         bits = BitArray(bytes=raw)
-        (self.info, self.timestamp, self.isd_id, self.hops, self.reserved) = \
-            bits.unpack("uintbe:8, uintbe:16, uintbe:16, uintbe:8, uintbe:16")
+        (self.info, self.timestamp, self.isd_id, self.hops) = \
+            bits.unpack("uintbe:8, uintbe:32, uintbe:16, uintbe:8")
         self.up_flag = bool(self.info & 0b00000001)
         self.info >>= 1
         self.parsed = True
 
     @classmethod
-    def from_values(cls, info=0, up_flag=False, timestamp=0, isd_id=0, hops=0,
-        reserved=0):
+    def from_values(cls, info=0, up_flag=False, timestamp=0, isd_id=0, hops=0):
         """
         Returns InfoOpaqueField with fields populated from values.
 
@@ -222,7 +220,6 @@ class InfoOpaqueField(OpaqueField):
         @param timestamp: Beacon's timestamp.
         @param isd_id: Isolation Domanin's ID.
         @param hops: Number of hops in the segment.
-        @param reserved: Reserved section.
         """
         iof = InfoOpaqueField()
         iof.info = info
@@ -230,7 +227,6 @@ class InfoOpaqueField(OpaqueField):
         iof.timestamp = timestamp
         iof.isd_id = isd_id
         iof.hops = hops
-        iof.reserved = reserved
         return iof
 
     def pack(self):
@@ -238,9 +234,8 @@ class InfoOpaqueField(OpaqueField):
         Returns InfoOpaqueFIeld as 8 byte binary string.
         """
         info = (self.info << 1) + self.up_flag
-        return bitstring.pack("uintbe:8, uintbe:16, uintbe:16, uintbe:8," +
-            "uintbe:16", info, self.timestamp, self.isd_id, self.hops,
-            self.reserved).bytes
+        return bitstring.pack("uintbe:8, uintbe:32, uintbe:16, uintbe:8",
+            info, self.timestamp, self.isd_id, self.hops).bytes
 
     def __str__(self):
         iof_str = ("[Info OF info: %x, up: %r, TS: %u, ISD ID: %u, hops: %u]" %

@@ -15,7 +15,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-from lib.defines import SCION_SECOND
 from lib.packet.pcb import PathSegment
 import logging
 import time
@@ -114,7 +113,7 @@ class PathSegmentDB(object):
         criterias specified.
         """
         recs = self._db(*args, **kwargs)
-        now = int(time.time() / SCION_SECOND) % (2 ** 16)
+        now = int(time.time())
         expired_recs = []
         valid_recs = []
         # Remove expired path from the cache.
