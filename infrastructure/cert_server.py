@@ -25,7 +25,6 @@ from lib.util import (read_file, write_file, get_cert_file_path,
 import sys
 import os
 import logging
-import base64
 
 
 class CertServer(SCIONElement):
@@ -41,7 +40,7 @@ class CertServer(SCIONElement):
         """
         Process a certificate request.
         """
-        isinstance(cert_req, CertRequest)
+        assert isinstance(cert_req, CertRequest)
         logging.info("Cert request received")
         src_addr = cert_req.hdr.src_addr
         ptype = get_type(cert_req)
@@ -60,10 +59,9 @@ class CertServer(SCIONElement):
             logging.info("New certificate request sent.")
         else:
             logging.info('Certificate file found.')
-            cert = read_file(cert_file)
-            cert64 = base64.b64encode(str(cert).encode('ascii'))
+            cert = read_file(cert_file).encode('ascii')
             cert_rep = CertReply.from_values(self.addr, cert_req.cert_isd,
-                cert_req.cert_ad, cert_req.cert_version, cert64)
+                cert_req.cert_ad, cert_req.cert_version, cert)
             if ptype == PT.CERT_REQ_LOCAL:
                 dst_addr = src_addr
             else:
@@ -78,13 +76,12 @@ class CertServer(SCIONElement):
         """
         Process a certificate reply.
         """
-        isinstance(cert_rep, CertReply)
+        assert isinstance(cert_rep, CertReply)
         logging.info("Certificate reply received")
         cert_file = get_cert_file_path(self.topology.isd_id,
             self.topology.ad_id, cert_rep.cert_isd, cert_rep.cert_ad,
             cert_rep.cert_version)
-        cert = base64.b64decode(cert_rep.cert).decode('ascii')
-        write_file(cert_file, cert)
+        write_file(cert_file, cert_rep.cert.decode('ascii'))
         for dst_addr in self.cert_requests[(cert_rep.cert_isd, cert_rep.cert_ad,
             cert_rep.cert_version)]:
             new_cert_rep = CertReply.from_values(self.addr, cert_rep.cert_isd,
@@ -98,7 +95,7 @@ class CertServer(SCIONElement):
         """
         Process a TRC request.
         """
-        isinstance(trc_req, TRCRequest)
+        assert isinstance(trc_req, TRCRequest)
         logging.info("TRC request received")
         src_addr = trc_req.hdr.src_addr
         ptype = get_type(trc_req)
@@ -116,10 +113,9 @@ class CertServer(SCIONElement):
             logging.info("New TRC request sent.")
         else:
             logging.info('TRC file found.')
-            trc = read_file(trc_file)
-            trc64 = base64.b64encode(str(trc).encode('ascii'))
+            trc = read_file(trc_file).encode('ascii')
             trc_rep = TRCReply.from_values(self.addr, trc_req.trc_isd,
-                trc_req.trc_version, trc64)
+                trc_req.trc_version, trc)
             if ptype == PT.TRC_REQ_LOCAL:
                 dst_addr = src_addr
             else:
@@ -134,12 +130,11 @@ class CertServer(SCIONElement):
         """
         Process a TRC reply.
         """
-        isinstance(trc_rep, TRCReply)
+        assert isinstance(trc_rep, TRCReply)
         logging.info("TRC reply received")
         trc_file = get_trc_file_path(self.topology.isd_id, self.topology.ad_id,
             trc_rep.trc_isd, trc_rep.trc_version)
-        trc = base64.b64decode(trc_rep.trc).decode('ascii')
-        write_file(trc_file, trc)
+        write_file(trc_file, trc_rep.trc.decode('ascii'))
         for dst_addr in self.trc_requests[(trc_rep.trc_isd,
             trc_rep.trc_version)]:
             new_trc_rep = TRCReply.from_values(self.addr, trc_rep.trc_isd,
@@ -152,7 +147,6 @@ class CertServer(SCIONElement):
         """
         Main routine to handle incoming SCION packets.
         """
-        isinstance(packet, SCIONPacket)
         spkt = SCIONPacket(packet)
         ptype = get_type(spkt)
         if ptype == PT.CERT_REQ_LOCAL or ptype == PT.CERT_REQ:

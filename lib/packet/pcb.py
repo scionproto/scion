@@ -17,7 +17,7 @@
 """
 
 from lib.packet.opaque_field import (SupportSignatureField, HopOpaqueField,
-    SupportPCBField, SupportPeerField, ROTField, InfoOpaqueField)
+    SupportPCBField, SupportPeerField, TRCField, InfoOpaqueField)
 from lib.packet.path import CorePath
 from lib.packet.scion import (SCIONPacket, get_addr_from_type, PacketType,
     SCIONHeader)
@@ -298,7 +298,7 @@ class PathSegment(Marking):
     def __init__(self, raw=None):
         Marking.__init__(self)
         self.iof = None
-        self.rotf = None
+        self.trcf = None
         self.ads = []
         if raw is not None:
             self.parse(raw)
@@ -315,7 +315,7 @@ class PathSegment(Marking):
             "len: %u", dlen)
             return
         self.iof = InfoOpaqueField(raw[0:8])
-        self.rotf = ROTField(raw[8:16])
+        self.trcf = TRCField(raw[8:16])
         raw = raw[16:]
         for _ in range(self.iof.hops):
             pcbm = PCBMarking(raw[:PCBMarking.LEN])
@@ -328,7 +328,7 @@ class PathSegment(Marking):
         """
         Returns PathSegment as a binary string.
         """
-        pcb_bytes = self.iof.pack() + self.rotf.pack()
+        pcb_bytes = self.iof.pack() + self.trcf.pack()
         for ad_marking in self.ads:
             pcb_bytes += ad_marking.pack()
         return pcb_bytes
@@ -413,7 +413,7 @@ class PathSegment(Marking):
         while len(raw) > 0:
             pcb = PathSegment()
             pcb.iof = InfoOpaqueField(raw[0:8])
-            pcb.rotf = ROTField(raw[8:16])
+            pcb.trcf = TRCField(raw[8:16])
             raw = raw[16:]
             for _ in range(pcb.iof.hops):
                 pcbm = PCBMarking(raw[:PCBMarking.LEN])
@@ -436,7 +436,7 @@ class PathSegment(Marking):
 
     def __str__(self):
         pcb_str = "[PathSegment]\n"
-        pcb_str += str(self.iof) + str(self.rotf)
+        pcb_str += str(self.iof) + str(self.trcf)
         for ad_marking in self.ads:
             pcb_str += str(ad_marking)
         return pcb_str
@@ -444,7 +444,7 @@ class PathSegment(Marking):
     def __eq__(self, other):
         if type(other) is type(self):
             return (self.iof == other.iof and
-                    self.rotf == other.rotf and
+                    self.trcf == other.trcf and
                     self.ads == other.ads)
         else:
             return False

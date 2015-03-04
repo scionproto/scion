@@ -239,7 +239,7 @@ class Router(SCIONElement):
             logging.warning("Interface not initialized.")
             return
         if from_bs:
-            if self.interface.if_id != beacon.pcb.rotf.if_id:
+            if self.interface.if_id != beacon.pcb.trcf.if_id:
                 logging.error("Wrong interface set by BS.")
                 return
             next_hop.addr = self.interface.to_addr
@@ -247,7 +247,7 @@ class Router(SCIONElement):
             self.send(beacon, next_hop, False)
         else:
             # TODO Multiple BS scenario
-            beacon.pcb.rotf.if_id = self.interface.if_id
+            beacon.pcb.trcf.if_id = self.interface.if_id
             next_hop.addr = self.topology.beacon_servers[0].addr
             self.send(beacon, next_hop)
 

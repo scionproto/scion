@@ -661,12 +661,12 @@ class CertReply(SCIONPacket):
     :type MIN_LEN: int
     :ivar cert_isd: Target certificate ISD identifier.
     :type cert_isd: int
-    :ivar cert_ad:, ad: Target certificate AD identifier.
+    :ivar cert_ad: Target certificate AD identifier.
     :type cert_ad: int
     :ivar cert_version: Target certificate version.
     :type cert_version: int
     :ivar cert: requested certificate's content.
-    :type cert: str
+    :type cert: bytes
     """
     MIN_LEN = 14
 
@@ -714,7 +714,7 @@ class CertReply(SCIONPacket):
         :param cert_version: Target certificate version.
         :type cert_version: int
         :param cert: requested certificate's content.
-        :type cert: str
+        :type cert: bytes
         :returns: the newly created CertReply instance.
         :rtype: :class:`CertReply`
         """
@@ -826,7 +826,7 @@ class TRCReply(SCIONPacket):
     :ivar trc_version: Target TRC version.
     :type trc_version: int
     :ivar trc: requested TRC's content.
-    :type trc: str
+    :type trc: bytes
     """
     MIN_LEN = 6
 
@@ -870,7 +870,7 @@ class TRCReply(SCIONPacket):
         :param trc_version: Target TRC version.
         :type trc_version: int
         :param trc: requested TRC's content.
-        :type trc: str
+        :type trc: bytes
         :returns: the newly created TRCReply instance.
         :rtype: :class:`TRCReply`
         """

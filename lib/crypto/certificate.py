@@ -60,8 +60,8 @@ def verify(msg, sig, subject, chain, trc, trc_version):
     :returns: True or False whether the verification is successful or not.
     :rtype: bool
     """
-    isinstance(chain, CertificateChain)
-    isinstance(trc, TRC)
+    assert isinstance(chain, CertificateChain)
+    assert isinstance(trc, TRC)
     if not trc.verify():
         logging.warning('The TRC verification failed.')
         return False
