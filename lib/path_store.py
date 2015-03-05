@@ -17,6 +17,7 @@ limitations under the License.
 """
 
 from lib.packet.pcb import PathSegment
+from external.sorted_collection import SortedCollection
 from Crypto.Hash import SHA256
 from collections import defaultdict
 import xml.etree.ElementTree as ET
@@ -320,32 +321,25 @@ class PathStore(object):
 
     def __init__(self, policy_file):
         self.policy = Policy(policy_file)
-        self.candidates = []
+        self.candidates = SortedCollection([], lambda x: x.fidelity)
         self.best_paths_history = []
 
     def add_path(self, pcb):
         """
-        Adds a new path in the cadidates list, if it passes the filter checks.
+        Possibly add a new path to the candidates list.
+
+        :param pcb: The PCB representing the potential path.
+        :type pcb: PathSegment
         """
         path = PathSegmentInfo(pcb, self.policy)
-        #if not self._check_filters(path):
-        #    logging.warning("The following path is invalid %s", path)
-        #    return
-        found = False
-        old_pos = 0
-        new_pos = 0
-        for i, candidate in enumerate(self.candidates):
-            if candidate.id == path.id:
-                found = True
-                old_pos = i
-            if candidate.fidelity > path.fidelity:
-                new_pos += 1
-        if found:
-            self.candidates[old_pos].timestamp = int(time.time())
-            self.candidates[old_pos].fidelity = path.fidelity
-            self.candidates.insert(new_pos, self.candidates.pop(old_pos))
-        else:
-            self.candidates.insert(new_pos, path)
+        if self._check_filters(path):
+            for candidate in self.candidates:
+                if path.id == candidate.id:
+                    candidate.timestamp = int(time.time())
+                    return
+            self.candidates.insert(path)
+            if len(self.candidates) > self.policy.candidates_set_size:
+                self.candidates = self.candidates[1:]
 
     def _check_filters(self, path):
         """
@@ -353,7 +347,8 @@ class PathStore(object):
         """
         return (self._check_wanted_ads(path) and
                 self._check_unwanted_ads(path) and
-                self._check_min_max(path))
+                self._check_min_max(path) and
+                self._check_disjointness(path))
 
     def _check_wanted_ads(self, path):
         """
@@ -453,8 +448,8 @@ class PathStore(object):
         self.policy = Policy(policy_file)
         for i in range(len(self.candidates)):
             self.candidates[i].set_fidelity(self.policy)
-        self.candidates = sorted(self.candidates, 
-            key=lambda PathSegmentInfo: PathSegmentInfo.fidelity, reverse=True)
+        self.candidates = SortedCollection(self.candidates,
+                                           lambda x: x.fidelity)
 
     def get_candidates(self, k=10):
         """
@@ -472,44 +467,30 @@ class PathStore(object):
         """
         Returns the latest k best paths.
         """
-        ret = self.best_paths_history[0][:k]
-        if len(ret) < k:
-            ret += self.candidates
-            ret = sorted(ret, key=lambda PathSegmentInfo: PathSegmentInfo.fidelity,
-                reverse=True)
-            ret = self._check_disjointness(ret)
-            ret = ret[:k]
-        return ret
+        return reversed(self.candidates[-k:])
 
-    def _check_disjointness(self, paths):
+    def _check_disjointness(self, path):
         """
         Checks that the paths disjointness is below a certain level, which is
         stored in the policy.
         """
-        to_remove = []
-        old_count = defaultdict(lambda: 0)
-        new_count = defaultdict(lambda: 0)
-        for i, path in enumerate(paths):
-            for ad_marking in paths[i].pcb.ads:
-                new_count[ad_marking.pcbm.ad_id] += 1
-            if max(new_count.values()) > self.policy.disjointness:
-                new_count = old_count
-                to_remove.insert(0, i)
-            else:
-                old_count = new_count
-        for i in to_remove:
-            del paths[i]
-        return paths
+        count = defaultdict(int)
+        for ad in path.pdb.ads:
+            count[ad.pcbm.ad_id] += 1
+        for candidate in self.candidates:
+            for ad in candidate.pcb.ads:
+                count[ad.pcbm.ad_id] += 1
+            if max(count.values()) > self.policy.disjointness:
+                return False
+        return True
 
     def store_selection(self, k=10):
         """
-        Stores the best k paths into the path history.
+        Stores the best k paths into the path history and reset the list of
+        candidates.
         """
-        paths = self.candidates
-        paths = self._check_disjointness(paths)
-        paths = paths[:k]
-        self.best_paths_history.insert(0, paths)
-        self.candidates = {}
+        self.best_paths_history.insert(0, self.get_paths(k))
+        self.candidates.clear()
 
     def __str__(self):
         path_store_str = "[PathStore]\n"
