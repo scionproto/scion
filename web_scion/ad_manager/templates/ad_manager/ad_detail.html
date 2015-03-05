@@ -1,7 +1,7 @@
-{% extends "base.html" %}
+{% extends "ad_manager/base.html" %}
 
 {% block content %}
-  <h1>AD {{ topology.isd_id }}-{{ topology.ad_id }}</h1>
+  <h1>AD {{ object.isd_id }}-{{ object.id }}</h1>
 
   <h4>
     Core AD:
@@ -19,7 +19,7 @@
     </tr>
     </thead>
     <tbody>
-    {% for beacon_server in topology.beacon_servers %}
+    {% for beacon_server in beacon_servers %}
       <tr>
         <td>Beacon server {{ forloop.counter }}</td>
         <td>{{ beacon_server.addr }}</td>
@@ -38,7 +38,7 @@
     </tr>
     </thead>
     <tbody>
-    {% for certificate_server in topology.certificate_servers %}
+    {% for certificate_server in certificate_servers %}
       <tr>
         <td>Certificate server {{ forloop.counter }}</td>
         <td>{{ certificate_server.addr }}</td>
@@ -57,7 +57,7 @@
     </tr>
     </thead>
     <tbody>
-    {% for path_server in topology.path_servers %}
+    {% for path_server in path_servers %}
       <tr>
         <td>Path server {{ forloop.counter }}</td>
         <td>{{ path_server.addr }}</td>

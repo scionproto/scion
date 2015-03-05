@@ -1,0 +1,15 @@
+{% extends "ad_manager/base.html" %}
+
+{% block content %}
+
+  <h1> ISD {{ object.id }}</h1>
+
+  <ul>
+    {% for ad in object.ad_set.all %}
+      <li><a href="{% url 'ad_detail' ad.id %}">ISD {{ ad }}</a></li>
+    {% empty %}
+      <li>No ADs.</li>
+    {% endfor %}
+  </ul>
+
+{% endblock %}
