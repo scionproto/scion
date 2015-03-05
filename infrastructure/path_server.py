@@ -17,6 +17,7 @@ limitations under the License.
 """
 
 import copy
+import datetime
 from infrastructure.scion_elem import SCIONElement
 from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.pcb import (PathSegmentRequest, PathSegmentRecords,
@@ -24,13 +25,9 @@ from lib.packet.pcb import (PathSegmentRequest, PathSegmentRecords,
 from lib.packet.scion import PacketType as PT
 from lib.packet.scion import SCIONPacket, get_type
 from lib.path_db import PathSegmentDB
-from lib.topology_parser import NeighborType
 from lib.util import update_dict
 import logging
 import sys
-
-
-PATHS_NO = 5  # TODO replace by configuration parameter
 
 
 class PathServer(SCIONElement):
@@ -60,11 +57,13 @@ class PathServer(SCIONElement):
         Handles registration of a down path.
         """
         for pcb in records.pcbs:
+            src_isd = pcb.get_first_ad().spcbf.isd_id
+            src_ad = pcb.get_first_ad().ad_id
             dst_ad = pcb.get_last_ad().ad_id
             dst_isd = pcb.get_last_ad().spcbf.isd_id
-            self.down_segments.insert(pcb, self.topology.isd_id,
-                                      self.topology.ad_id, dst_isd, dst_ad)
-            logging.info("Down-Segment registered (%d, %d)", dst_isd, dst_ad)
+            self.down_segments.update(pcb, src_isd, src_ad, dst_isd, dst_ad)
+            logging.info("Down-Segment registered (%d, %d) -> (%d, %d)",
+                         src_isd, src_ad, dst_isd, dst_ad)
 
         # serve pending requests
         target = (dst_isd, dst_ad)
@@ -88,7 +87,7 @@ class PathServer(SCIONElement):
         """
         dst = path_request.hdr.src_addr
         path_request.hdr.path.reverse()
-        path_request = PathSegmentRequest(path_request.pack()) #PSz: this is
+        path_request = PathSegmentRequest(path_request.pack())  # PSz: this is
         # a hack, as path_request with <up-path> only reverses to <down-path>
         # only, and then reversed packet fails with .get_current_iof()
         # FIXME: change .reverse() when only one path segment exists
@@ -159,15 +158,18 @@ class CorePathServer(PathServer):
 
         paths_to_propagate = []
         for pcb in records.pcbs:
+            src_isd = pcb.get_first_ad().spcbf.isd_id
+            src_ad = pcb.get_first_ad().ad_id
             dst_ad = pcb.get_last_ad().ad_id
             dst_isd = pcb.get_last_ad().spcbf.isd_id
 
-            if (self.down_segments.insert(pcb, self.topology.isd_id,
-                self.topology.ad_id, dst_isd, dst_ad) is not None):
+            if (self.down_segments.update(pcb, src_isd, src_ad,
+                                          dst_isd, dst_ad) is not None):
                 paths_to_propagate.append(pcb)
-                logging.info("Down-Path registered (%d, %d)", dst_isd, dst_ad)
+                logging.info("Down-Segment registered (%d, %d) -> (%d, %d)",
+                             src_isd, src_ad, dst_isd, dst_ad)
             else:
-                logging.info("Down-Path to (%d, %d) already known.",
+                logging.info("Down-Segment to (%d, %d) already known.",
                              dst_isd, dst_ad)
 
         # For now we let every CPS know about all the down-paths within an ISD.
@@ -196,7 +198,7 @@ class CorePathServer(PathServer):
             src_isd = pcb.get_first_ad().spcbf.isd_id
             dst_ad = pcb.get_last_ad().ad_id
             dst_isd = pcb.get_last_ad().spcbf.isd_id
-            self.core_segments.insert(pcb, src_isd=src_isd, src_ad=src_ad,
+            self.core_segments.update(pcb, src_isd=src_isd, src_ad=src_ad,
                                       dst_isd=dst_isd, dst_ad=dst_ad)
 #             logging.info("Core-Path registered: (%d, %d) -> (%d, %d)",
 #                          src_isd, src_ad, dst_isd, dst_ad)
@@ -235,7 +237,7 @@ class CorePathServer(PathServer):
         """
         # FIXME: For new we broadcast the path to every CPS in the core, even
         # the one we just received it from. Can we avoid that?
-        for router in self.topology.routers[NeighborType.ROUTING]:
+        for router in self.topology.routing_edge_routers:
             if router.interface.neighbor_isd == self.topology.isd_id:
                 cpaths = self.core_segments(src_isd=self.topology.isd_id,
                     src_ad=self.topology.ad_id,
@@ -250,7 +252,7 @@ class CorePathServer(PathServer):
                     records.hdr.set_downpath()
                     if_id = cpath.get_first_hop_of().egress_if
                     next_hop = self.ifid2addr[if_id]
-                    logging.info("Sending down-path to CPS in (%d, %d).",
+                    logging.info("Sending down-segment to CPS in (%d, %d).",
                                  router.interface.neighbor_isd,
                                  router.interface.neighbor_ad)
                     self.send(records, next_hop)
@@ -300,7 +302,7 @@ class CorePathServer(PathServer):
                                                              path)
                     request.hdr.set_downpath()
                     self.send(request, next_hop)
-                    logging.info("Down-Path request for different ISD. "
+                    logging.info("Down-Segment request for different ISD. "
                                  "Forwarding request to CPS in (%d, %d).",
                                  cpaths[0].get_last_ad().spcbf.isd_id,
                                  cpaths[0].get_last_ad().ad_id)
@@ -348,7 +350,7 @@ class LocalPathServer(PathServer):
         if not records.pcbs:
             return
         for pcb in records.pcbs:
-            self.up_segments.insert(pcb, self.topology.isd_id,
+            self.up_segments.update(pcb, self.topology.isd_id,
                                     self.topology.ad_id,
                                     pcb.get_first_ad().spcbf.isd_id,
                                     pcb.get_first_ad().ad_id)
@@ -360,9 +362,9 @@ class LocalPathServer(PathServer):
         if self.waiting_targets:
             pcb = records.pcbs[0]
             path = pcb.get_path(reverse_direction=True)
-            if_id = path.get_first_hop_of().egress_if
+            if_id = path.get_first_hop_of().ingress_if
             next_hop = self.ifid2addr[if_id]
-            targets = copy.deepcopy(self.waiting_targets)
+            targets = copy.copy(self.waiting_targets)
             for (isd, ad, info) in targets:
                 path_request = PathSegmentRequest.from_values(self.addr, info,
                                                               path)
@@ -387,7 +389,7 @@ class LocalPathServer(PathServer):
             src_isd = pcb.get_first_ad().spcbf.isd_id
             dst_ad = pcb.get_last_ad().ad_id
             dst_isd = pcb.get_last_ad().spcbf.isd_id
-            self.core_segments.insert(pcb, src_isd=src_isd, src_ad=src_ad,
+            self.core_segments.update(pcb, src_isd=src_isd, src_ad=src_ad,
                                       dst_isd=dst_isd, dst_ad=dst_ad)
             logging.info("Core-Segment registered: (%d, %d) -> (%d, %d)",
                          src_isd, src_ad, dst_isd, dst_ad)
@@ -426,7 +428,7 @@ class LocalPathServer(PathServer):
                          ptype, dst_isd, dst_ad)
             pcb = self.up_segments()[0]
             path = pcb.get_path(reverse_direction=True)
-            path.up_segment_info.up_flag = True # FIXME: temporary hack. A very
+            path.up_segment_info.up_flag = True  # FIXME: temporary hack. A very
             # first path is _always_ down-path, any subsequent is up-path.
             if_id = path.get_first_hop_of().ingress_if
             next_hop = self.ifid2addr[if_id]
@@ -510,6 +512,8 @@ def main():
     else:
         logging.error("First parameter can only be 'local' or 'core'!")
         sys.exit()
+
+    logging.info("Started: %s", datetime.datetime.now())
     path_server.run()
 
 if __name__ == "__main__":

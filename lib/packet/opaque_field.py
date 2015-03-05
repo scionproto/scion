@@ -30,7 +30,7 @@ class OpaqueFieldType(object):
     """
     # Types for HopOpaqueFields (7 MSB bits).
     NORMAL_OF = 0b0000000
-    LAST_OF = 0b0010000 # indicates last hop OF on the half-path (TODO revise)
+    LAST_OF = 0b0010000  # indicates last hop OF on the half-path (TODO revise)
     PEER_XOVR = 0b0001000
     # Types for Info Opaque Fields (7 MSB bits).
     TDC_XOVR = 0b1000000
@@ -104,11 +104,13 @@ class HopOpaqueField(OpaqueField):
     """
     Opaque field for a hop in a path of the SCION packet header.
 
-    Each hop opaque field has a info (8 bits), ingress/egress interfaces
-    (16 bits) and a MAC (24 bits) authenticating the opaque field.
+    Each hop opaque field has a info (8 bits), expiration time (8 bits)
+    ingress/egress interfaces (2 * 12 bits) and a MAC (24 bits) authenticating
+    the opaque field.
     """
     def __init__(self, raw=None):
         OpaqueField.__init__(self)
+        self.exp_time = 0
         self.ingress_if = 0
         self.egress_if = 0
         self.mac = 0
@@ -126,12 +128,14 @@ class HopOpaqueField(OpaqueField):
             logging.warning("HOF: Data too short for parsing, len: %u", dlen)
             return
         bits = BitArray(bytes=raw)
-        (self.info, self.ingress_if, self.egress_if, self.mac) = \
-            bits.unpack("uintbe:8, uintbe:16, uintbe:16, uintbe:24")
+        (self.info, self.exp_time, ifs, self.mac) = bits.unpack("uintbe:8, " +
+            "uintbe:8, uintbe:24, uintbe:24")
+        self.ingress_if = (ifs & 0xFFF000) >> 12
+        self.egress_if = ifs & 0x000FFF
         self.parsed = True
 
     @classmethod
-    def from_values(cls, ingress_if=0, egress_if=0, mac=0):
+    def from_values(cls, exp_time, ingress_if=0, egress_if=0, mac=0):
         """
         Returns HopOpaqueField with fields populated from values.
 
@@ -140,6 +144,7 @@ class HopOpaqueField(OpaqueField):
         @param mac: MAC of ingress/egress interfaces' ID and timestamp.
         """
         hof = HopOpaqueField()
+        hof.exp_time = exp_time
         hof.ingress_if = ingress_if
         hof.egress_if = egress_if
         hof.mac = mac
@@ -149,20 +154,23 @@ class HopOpaqueField(OpaqueField):
         """
         Returns HopOpaqueField as 8 byte binary string.
         """
-        return bitstring.pack("uintbe:8, uintbe:16, uintbe:16, uintbe:24",
-            self.info, self.ingress_if, self.egress_if, self.mac).bytes
+        ifs = (self.ingress_if << 12) | self.egress_if
+        return bitstring.pack("uintbe:8, uintbe:8, uintbe:24, uintbe:24",
+                              self.info, self.exp_time, ifs, self.mac).bytes
 
     def __eq__(self, other):
         if type(other) is type(self):
-            return (self.ingress_if == other.ingress_if and
+            return (self.exp_time == other.exp_time and
+                    self.ingress_if == other.ingress_if and
                     self.egress_if == other.egress_if and
                     self.mac == other.mac)
         else:
             return False
 
     def __str__(self):
-        hof_str = ("[Hop OF info: %u, ingress if: %u, egress if: %u, mac: %x]"
-            % (self.info, self.ingress_if, self.egress_if, self.mac))
+        hof_str = (("[Hop OF info: %u, exp_time: %d, ingress if: %u, " +
+                    "egress if: %u, mac: %x]") % (self.info, self.exp_time,
+                      self.ingress_if, self.egress_if, self.mac))
         return hof_str
 
 
@@ -171,8 +179,8 @@ class InfoOpaqueField(OpaqueField):
     Class for the info opaque field.
 
     The info opaque field contains type info of the path-segment (1 byte),
-    an expiration timestamp (2 bytes), the ISD ID (2 byte), # hops for this
-    segment (1 byte) and a reserved section (2 bytes).
+    a creation timestamp (4 bytes), the ISD ID (2 byte) and # hops for this
+    segment (1 byte).
     """
 
     def __init__(self, raw=None):
@@ -180,7 +188,6 @@ class InfoOpaqueField(OpaqueField):
         self.timestamp = 0
         self.isd_id = 0
         self.hops = 0
-        self.reserved = 0
         self.up_flag = False
         self.raw = raw
         if raw is not None:
@@ -197,15 +204,14 @@ class InfoOpaqueField(OpaqueField):
             logging.warning("IOF: Data too short for parsing, len: %u", dlen)
             return
         bits = BitArray(bytes=raw)
-        (self.info, self.timestamp, self.isd_id, self.hops, self.reserved) = \
-            bits.unpack("uintbe:8, uintbe:16, uintbe:16, uintbe:8, uintbe:16")
+        (self.info, self.timestamp, self.isd_id, self.hops) = \
+            bits.unpack("uintbe:8, uintbe:32, uintbe:16, uintbe:8")
         self.up_flag = bool(self.info & 0b00000001)
         self.info >>= 1
         self.parsed = True
 
     @classmethod
-    def from_values(cls, info=0, up_flag=False, timestamp=0, isd_id=0, hops=0,
-        reserved=0):
+    def from_values(cls, info=0, up_flag=False, timestamp=0, isd_id=0, hops=0):
         """
         Returns InfoOpaqueField with fields populated from values.
 
@@ -214,7 +220,6 @@ class InfoOpaqueField(OpaqueField):
         @param timestamp: Beacon's timestamp.
         @param isd_id: Isolation Domanin's ID.
         @param hops: Number of hops in the segment.
-        @param reserved: Reserved section.
         """
         iof = InfoOpaqueField()
         iof.info = info
@@ -222,7 +227,6 @@ class InfoOpaqueField(OpaqueField):
         iof.timestamp = timestamp
         iof.isd_id = isd_id
         iof.hops = hops
-        iof.reserved = reserved
         return iof
 
     def pack(self):
@@ -230,9 +234,8 @@ class InfoOpaqueField(OpaqueField):
         Returns InfoOpaqueFIeld as 8 byte binary string.
         """
         info = (self.info << 1) + self.up_flag
-        return bitstring.pack("uintbe:8, uintbe:16, uintbe:16, uintbe:8," +
-            "uintbe:16", info, self.timestamp, self.isd_id, self.hops,
-            self.reserved).bytes
+        return bitstring.pack("uintbe:8, uintbe:32, uintbe:16, uintbe:8",
+            info, self.timestamp, self.isd_id, self.hops).bytes
 
     def __str__(self):
         iof_str = ("[Info OF info: %x, up: %r, TS: %u, ISD ID: %u, hops: %u]" %
@@ -329,7 +332,7 @@ class SupportSignatureField(OpaqueField):
         OpaqueField.__init__(self)
         self.cert_id = 0
         self.sig_len = 0
-        self.block_size = 32
+        self.block_size = 0
         if raw is not None:
             self.parse(raw)
 
@@ -349,14 +352,14 @@ class SupportSignatureField(OpaqueField):
         self.parsed = True
 
     @classmethod
-    def from_values(cls, cert_id=0, sig_len=0, block_size=32):
+    def from_values(cls, block_size, cert_id=0, sig_len=0):
         """
         Returns SupportSignatureField with fields populated from values.
 
-        @param cert_id: ID of the Autonomous Domain's certificate.
-        @param sig_len: Length of the beacon's signature.
         @param block_size: Total marking size for an AD block (peering links
             included.)
+        @param cert_id: ID of the Autonomous Domain's certificate.
+        @param sig_len: Length of the beacon's signature.
         """
         ssf = SupportSignatureField()
         ssf.cert_id = cert_id

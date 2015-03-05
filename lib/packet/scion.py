@@ -393,6 +393,16 @@ class SCIONHeader(HeaderBase):
                   self.common_hdr.dst_addr_len)
         return self.common_hdr.curr_of_p + offset == self.common_hdr.hdr_len
 
+    def reverse(self):
+        """
+        Reverses the header.
+        """
+        (self.src_addr, self.dst_addr) = (self.dst_addr, self.src_addr)
+        self.path.reverse()
+        self.common_hdr.curr_of_p = (self.common_hdr.src_addr_len +
+                                     self.common_hdr.dst_addr_len)
+        self.common_hdr.curr_iof_p = self.common_hdr.curr_of_p
+
     def __len__(self):
         length = self.common_hdr.hdr_len
         for ext_hdr in self.extension_hdrs:
