@@ -28,6 +28,7 @@ from lib.packet.opaque_field import OpaqueFieldType as OFT
 from lib.packet.pcb import PathConstructionBeacon
 from lib.packet.scion import PacketType as PT
 from lib.packet.scion import SCIONPacket, IFIDRequest, IFIDReply, get_type
+from lib.util import init_logging
 import logging
 import socket
 import sys
@@ -35,7 +36,6 @@ import threading
 import time
 import datetime
 import os
-
 
 class NextHop(object):
     """
@@ -515,7 +515,7 @@ def main():
     """
     Initializes and starts router.
     """
-    logging.basicConfig(level=logging.DEBUG)
+    init_logging()
     if len(sys.argv) != 4:
         logging.error("run: %s IP topo_file conf_file", sys.argv[0])
         sys.exit()

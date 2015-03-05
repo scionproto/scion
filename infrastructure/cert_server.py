@@ -19,6 +19,7 @@ limitations under the License.
 from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.scion import (SCIONPacket, get_type, PacketType as PT,
     CertRequest, CertReply, RotRequest, RotReply, get_addr_from_type)
+from lib.util import init_logging
 from infrastructure.scion_elem import SCIONElement
 from lib.packet.path import EmptyPath
 import sys
@@ -203,7 +204,7 @@ def main():
     """
     Main function.
     """
-    logging.basicConfig(level=logging.DEBUG)
+    init_logging()
     if len(sys.argv) != 5:
         logging.error("run: %s IP topo_file conf_file rot_file", sys.argv[0])
         sys.exit()

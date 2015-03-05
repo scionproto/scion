@@ -25,6 +25,7 @@ from pytun import TunTapDevice, IFF_TUN, IFF_NO_PI
 from endhost.sciond import SCIONDaemon
 from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.scion import SCIONPacket
+from lib.util import init_logging
 from infrastructure.scion_elem import SCION_UDP_EH_DATA_PORT, BUFLEN
 
 
@@ -140,7 +141,7 @@ def main():
     """
     Main function.
     """
-    logging.basicConfig(level=logging.DEBUG)
+    init_logging()
     if len(sys.argv) != 3:
         logging.error("run: %s addr topology_file", sys.argv[0])
         sys.exit()
