@@ -27,7 +27,8 @@ from lib.packet.pcb import (PathSegment, ADMarking, PCBMarking, PeerMarking,
     PathSegmentType as PST)
 from lib.packet.scion import (SCIONPacket, get_type, PacketType as PT,
     CertRequest, TRCRequest, CertReply, TRCReply)
-from lib.crypto.certificate import sign, verify, CertificateChain, TRC
+from lib.crypto.certificate import verify_sig_chain_trc, CertificateChain, TRC
+from lib.crypto.asymcrypto import sign
 from lib.util import (read_file, write_file, get_cert_file_path,
     get_sig_key_file_path, get_trc_file_path)
 import logging
@@ -111,7 +112,8 @@ class BeaconServer(SCIONElement):
         hof = HopOpaqueField.from_values(ingress_if, egress_if)
         spcbf = SupportPCBField.from_values(isd_id=self.topology.isd_id)
         pcbm = PCBMarking.from_values(self.topology.ad_id, ssf, hof, spcbf)
-        data_to_sign = str(pcbm.ad_id) + str(pcbm.hof) + str(pcbm.spcbf)
+        data_to_sign = (str(pcbm.ad_id).encode('ascii') + pcbm.hof.pack() +
+            pcbm.spcbf.pack())
         peer_markings = []
         # TODO PSz: peering link can be only added when there is
         # IfidReply from router
@@ -122,9 +124,9 @@ class BeaconServer(SCIONElement):
             peer_marking = \
                 PeerMarking.from_values(router_peer.interface.neighbor_ad,
                                         hof, spf)
-            data_to_sign += str(peer_marking)
+            data_to_sign += peer_marking.pack()
             peer_markings.append(peer_marking)
-        signature = sign(data_to_sign, self.signing_key)
+        signature = sign(data_to_sign.decode('ascii'), self.signing_key)
         return ADMarking.from_values(pcbm, peer_markings, signature)
 
     def handle_request(self, packet, sender, from_local_socket=True):
@@ -351,9 +353,10 @@ class LocalBeaconServer(BeaconServer):
             self.beacons.append(beacon.pcb)
         else:
             logging.debug("Beacon never seen before.")
-            cert_isd = beacon.pcb.get_last_pcbm().spcbf.isd_id
-            cert_ad = beacon.pcb.get_last_pcbm().ad_id
-            cert_version = beacon.pcb.get_last_pcbm().ssf.cert_version
+            last_pcbm = beacon.pcb.get_last_pcbm()
+            cert_isd = last_pcbm.spcbf.isd_id
+            cert_ad = last_pcbm.ad_id
+            cert_version = last_pcbm.ssf.cert_version
             trc_version = beacon.pcb.trcf.trc_version
             if self._check_certs_trc(cert_isd, cert_ad, cert_version,
                 trc_version, beacon.pcb.trcf.if_id):
@@ -390,26 +393,19 @@ class LocalBeaconServer(BeaconServer):
             trc = TRC(trc_file)
             cert_file = get_cert_file_path(self.topology.isd_id,
                 self.topology.ad_id, isd_id, cert_ad, cert_version)
-            my_cert_file = get_cert_file_path(self.topology.isd_id,
+            self_cert_file = get_cert_file_path(self.topology.isd_id,
                 self.topology.ad_id, self.topology.isd_id, self.topology.ad_id,
                 0)
-            my_cert = CertificateChain(my_cert_file)
+            self_cert = CertificateChain(self_cert_file)
             if (os.path.exists(cert_file) or
-                my_cert.certs[0].issuer in trc.core_ads):
+                self_cert.certs[0].issuer in trc.core_ads):
                 return True
             else:
                 cert_tuple = (isd_id, cert_ad, cert_version)
                 now = int(time.time())
-                if cert_tuple not in self.requested_certs :
-                    new_cert_req = CertRequest.from_values(PT.CERT_REQ_LOCAL,
-                        self.addr, if_id, self.topology.isd_id,
-                        self.topology.ad_id, isd_id, cert_ad, cert_version)
-                    dst_addr = self.topology.certificate_servers[0].addr
-                    self.send(new_cert_req, dst_addr)
-                    self.requested_certs[cert_tuple] = now
-                    return False
-                if (now - self.requested_certs[cert_tuple] >
-                    LocalBeaconServer.REQUESTS_TIMEOUT):
+                if (cert_tuple not in self.requested_certs or
+                    (now - self.requested_certs[cert_tuple] >
+                    LocalBeaconServer.REQUESTS_TIMEOUT)):
                     new_cert_req = CertRequest.from_values(PT.CERT_REQ_LOCAL,
                         self.addr, if_id, self.topology.isd_id,
                         self.topology.ad_id, isd_id, cert_ad, cert_version)
@@ -420,16 +416,9 @@ class LocalBeaconServer(BeaconServer):
         else:
             trc_tuple = (isd_id, trc_version)
             now = int(time.time())
-            if trc_tuple not in self.requested_trcs:
-                new_trc_req = TRCRequest.from_values(PT.TRC_REQ_LOCAL,
-                    self.addr, if_id, self.topology.isd_id, self.topology.ad_id,
-                    isd_id, trc_version)
-                dst_addr = self.topology.certificate_servers[0].addr
-                self.send(new_trc_req, dst_addr)
-                self.requested_trcs[trc_tuple] = now
-                return False
-            if (now - self.requested_trcs[trc_tuple] >
-                LocalBeaconServer.REQUESTS_TIMEOUT):
+            if (trc_tuple not in self.requested_trcs or
+                (now - self.requested_trcs[trc_tuple] >
+                LocalBeaconServer.REQUESTS_TIMEOUT)):
                 new_trc_req = TRCRequest.from_values(PT.TRC_REQ_LOCAL,
                     self.addr, if_id, self.topology.isd_id, self.topology.ad_id,
                     isd_id, trc_version)
@@ -475,10 +464,10 @@ class LocalBeaconServer(BeaconServer):
         beacons.
         """
         assert isinstance(pcb, PathSegment)
-        last_ad = pcb.ads[-1]
-        cert_isd = last_ad.pcbm.spcbf.isd_id
-        cert_ad = last_ad.pcbm.ad_id
-        cert_version = last_ad.pcbm.ssf.cert_version
+        last_pcbm = pcb.get_last_pcbm()
+        cert_isd = last_pcbm.spcbf.isd_id
+        cert_ad = last_pcbm.ad_id
+        cert_version = last_pcbm.ssf.cert_version
         trc_version = pcb.trcf.trc_version
         subject = 'ISD:' + str(cert_isd) + '-AD:' + str(cert_ad)
         cert_file = get_cert_file_path(self.topology.isd_id,
@@ -490,22 +479,23 @@ class LocalBeaconServer(BeaconServer):
         trc_file = get_trc_file_path(self.topology.isd_id, self.topology.ad_id,
             cert_isd, trc_version)
         trc = TRC(trc_file)
-        data_to_verify = (str(cert_ad) + str(last_ad.pcbm.hof) +
-            str(last_ad.pcbm.spcbf))
-        for peer_marking in last_ad.pms:
-            data_to_verify += str(peer_marking)
-        return verify(data_to_verify, last_ad.sig, subject, chain, trc,
-            trc_version)
+        data_to_verify = (str(cert_ad).encode('ascii') + last_pcbm.hof.pack() +
+            last_pcbm.spcbf.pack())
+        for peer_marking in pcb.ads[-1].pms:
+            data_to_verify += peer_marking.pack()
+        return verify_sig_chain_trc(data_to_verify.decode('ascii'),
+            pcb.ads[-1].sig, subject, chain, trc, trc_version)
 
     def handle_unverified_beacons(self):
         """
         Handle beacons which are waiting to be verified.
         """
-        for index in range(len(self.unverified_beacons)):
+        for _ in range(len(self.unverified_beacons)):
             pcb = self.unverified_beacons.popleft()
-            cert_isd = pcb.get_last_pcbm().spcbf.isd_id
-            cert_ad = pcb.get_last_pcbm().ad_id
-            cert_version = pcb.get_last_pcbm().ssf.cert_version
+            last_pcbm = pcb.get_last_pcbm()
+            cert_isd = last_pcbm.spcbf.isd_id
+            cert_ad = last_pcbm.ad_id
+            cert_version = last_pcbm.ssf.cert_version
             trc_version = pcb.trcf.trc_version
             if self._check_certs_trc(cert_isd, cert_ad, cert_version,
                 trc_version, pcb.trcf.if_id):

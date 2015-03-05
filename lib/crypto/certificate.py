@@ -18,6 +18,7 @@
 
 from lib.crypto.nacl import crypto_sign_ed25519
 from lib.crypto.nacl import crypto_sign_ed25519_open
+from lib.crypto.asymcrypto import sign
 import time
 import json
 import logging
@@ -25,22 +26,7 @@ import base64
 import copy
 
 
-def sign(msg, signing_key):
-    """
-    Sign a message with a given signing key and return the signature.
-
-    :param msg: message to be signed.
-    :type msg: str
-    :param signing_key: signing key from generate_signature_keypair().
-    :type signing_key: bytes
-    :returns: ed25519 signature.
-    :rtype: bytes
-    """
-    sig = crypto_sign_ed25519(msg, signing_key)[:64]
-    return sig
-
-
-def verify(msg, sig, subject, chain, trc, trc_version):
+def verify_sig_chain_trc(msg, sig, subject, chain, trc, trc_version):
     """
     Verify whether the packed message with attached signature is validly
     signed by a particular subject belonging to a valid certificate chain.

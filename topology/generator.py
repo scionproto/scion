@@ -18,9 +18,9 @@
 
 from lib.topology import Topology
 from lib.config import Config
-from lib.crypto.certificate import (sign, verify, Certificate, CertificateChain,
-    TRC)
-from lib.crypto.asymcrypto import (generate_signature_keypair,
+from lib.crypto.certificate import (verify_sig_chain_trc, Certificate,
+    CertificateChain, TRC)
+from lib.crypto.asymcrypto import (sign, generate_signature_keypair,
     generate_cryptobox_keypair)
 from lib.util import (get_cert_file_path, get_sig_key_file_path,
     get_enc_key_file_path, get_trc_file_path, write_file)

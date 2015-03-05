@@ -51,6 +51,27 @@ def generate_cryptobox_keypair():
     return (public_key, private_key)
 
 
+def sign(msg, signing_key):
+    """
+    Sign a message with a given signing key and return the signature.
+
+    :param msg: message to be signed.
+    :type msg: str
+    :param signing_key: signing key from generate_signature_keypair().
+    :type signing_key: bytes
+    :returns: ed25519 signature.
+    :rtype: bytes
+    """
+    return crypto_sign_ed25519(msg, signing_key)[:64]
+
+
+def verify(msg, sig, verifying_key):
+    """
+    TODO
+    """
+    pass
+
+
 def encrypt(msg, private_key, recipient, chain):
     """
     Encrypts a message with CryptoBox scheme under a given private key and

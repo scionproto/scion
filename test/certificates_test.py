@@ -16,7 +16,8 @@
 ===========================================
 """
 
-from lib.crypto.certificate import sign, verify, CertificateChain, TRC
+from lib.crypto.certificate import verify_sig_chain_trc, CertificateChain, TRC
+from lib.crypto.asymcrypto import sign
 from lib.util import (get_cert_file_path, get_trc_file_path, read_file,
     get_sig_key_file_path)
 import unittest
@@ -43,14 +44,16 @@ class TestCertificates(unittest.TestCase):
         sig_priv10 = base64.b64decode(sig_priv10)
         msg = 'abcd'
         sig = sign(msg, sig_priv10)
-        print('Sig test:', verify(msg, sig, 'ISD:1-AD:10', cert10, trc, 0))
+        print('Sig test:', verify_sig_chain_trc(msg, sig, 'ISD:1-AD:10', cert10,
+            trc, 0))
 
         sig_priv13 = read_file(get_sig_key_file_path(1, 13, 0))
         sig_priv13 = base64.b64decode(sig_priv13)
         msg = 'abd'
         sig = sign(msg, sig_priv13)
         chain = CertificateChain.from_values([])
-        print('Sig test 2:', verify(msg, sig, 'ISD:1-AD:13', cert10, trc, 0))
+        print('Sig test 2:', verify_sig_chain_trc(msg, sig, 'ISD:1-AD:13',
+            cert10, trc, 0))
 
         #TODO: fix crypto box
         #print ('CryptoBox Test...')
