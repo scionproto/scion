@@ -148,8 +148,8 @@ class PathSegmentInfo(object):
         self.fidelity += (policy.properties.get("LocalDesirability", 0) *
                           self.get_local_desirability())
         self.fidelity += (policy.properties.get("PathLength", 0) *
-                          self.get_path_length())
-        self.fidelity += (policy.properties.get("PathFreshness", 0) *
+                          1.0 / self.get_path_length())
+        self.fidelity -= (policy.properties.get("PathFreshness", 0) *
                           self.get_path_freshness())
         self.fidelity += (policy.properties.get("GuaranteedBandwidth", 0) *
                           self.get_guaranteed_bandwidth())
@@ -157,7 +157,7 @@ class PathSegmentInfo(object):
                           self.get_available_bandwidth())
         self.fidelity += (policy.properties.get("TotalBandwidth", 0) *
                           self.get_total_bandwidth())
-        self.fidelity += (policy.properties.get("Delay", 0) *
+        self.fidelity -= (policy.properties.get("Delay", 0) *
                           self.get_delay())
         self.fidelity += (policy.properties.get("Size", 0) *
                           self.get_size())
@@ -180,9 +180,16 @@ class PathSegmentInfo(object):
 
     def get_path_freshness(self):
         """
-        Returns the path freshness.
+        Return the path freshness.
+
+        Return the *freshness* of the path, defined as the time that has
+        elapsed since the path was last propagated by the beacon server.
+
+        .. warning::
+           This function currently returns 0, since the time that the path was
+           last propagated is not accessible from this class.
         """
-        return random.randint(0, 3)
+        return 0
 
     def get_guaranteed_bandwidth(self):
         """
@@ -205,6 +212,13 @@ class PathSegmentInfo(object):
     def get_delay(self):
         """
         Returns the path delay.
+
+        Return the *delay* of the path, defined as the difference between the
+        time the PCB was created and the time it reaches the beacon server.
+
+        .. warning::
+           This function currently returns 0, as there is no way for this class
+           to access the time the PCB left its origin.
         """
         return 0
 
