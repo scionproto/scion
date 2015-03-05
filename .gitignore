@@ -48,3 +48,9 @@ topology/conf-gen
 #########################
 *.so
 *.o
+
+
+# Documentation and Environment files
+#########################
+sphinx-doc/_build/
+venv/
