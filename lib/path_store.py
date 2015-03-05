@@ -132,7 +132,7 @@ class PathSegmentInfo(object):
         id_str = ""
         for ad in self.pcb.ads:
             id_str += ",".join([str(ad.pcbm.ad_id), str(ad.pcbm.hof.ingress_if),
-                str(ad.pcbm.hof.egress_if)])
+                                str(ad.pcbm.hof.egress_if)])
             id_str += ","
         id_str += str(self.pcb.iof.timestamp)
         id_str = id_str.encode('utf-8')
@@ -145,21 +145,25 @@ class PathSegmentInfo(object):
         """
         self.fidelity = 0
         self.fidelity += (policy.properties.get("LocalDesirability", 0) *
-            self.get_local_desirability())
+                          self.get_local_desirability())
         self.fidelity += (policy.properties.get("PathLength", 0) *
-            self.get_path_length())
+                          self.get_path_length())
         self.fidelity += (policy.properties.get("PathFreshness", 0) *
-            self.get_path_freshness())
+                          self.get_path_freshness())
         self.fidelity += (policy.properties.get("GuaranteedBandwidth", 0) *
-            self.get_guaranteed_bandwidth())
+                          self.get_guaranteed_bandwidth())
         self.fidelity += (policy.properties.get("AvailableBandwidth", 0) *
-            self.get_available_bandwidth())
+                          self.get_available_bandwidth())
         self.fidelity += (policy.properties.get("TotalBandwidth", 0) *
-            self.get_total_bandwidth())
+                          self.get_total_bandwidth())
         self.fidelity += (policy.properties.get("Delay", 0) *
-            self.get_delay())
+                          self.get_delay())
         self.fidelity += (policy.properties.get("Size", 0) *
-            self.get_size())
+                          self.get_size())
+        self.fidelity += (policy.properties.get("Age", 0) *
+                          self.get_age())
+        self.fidelity += (policy.properties.get("PeerLinks", 0) *
+                          self.get_peer_links())
 
     def get_local_desirability(self):
         """
@@ -183,25 +187,25 @@ class PathSegmentInfo(object):
         """
         Returns the path guaranteed bandwidth.
         """
-        return random.randint(0, 3)
+        return 0
 
     def get_available_bandwidth(self):
         """
         Returns the path available bandwidth.
         """
-        return random.randint(0, 3)
+        return 0
 
     def get_total_bandwidth(self):
         """
         Returns the path total bandwidth.
         """
-        return random.randint(0, 3)
+        return 0
 
     def get_delay(self):
         """
         Returns the path delay.
         """
-        return random.randint(0, 3)
+        return 0
 
     def get_size(self):
         """
@@ -209,17 +213,111 @@ class PathSegmentInfo(object):
         """
         return self.pcb.size
 
+    def get_age(self):
+        """
+        Returns the path age.
+
+        .. warning::
+           The precision of this function is system-dependent and is not
+           guaranteed to be better than 1 second. Thus it is possible that two
+           successive calls to this function will return decreasing values.
+        """
+        return int(time.time()) - self.pcb.get_timestamp()
+
+    def get_peer_links(self):
+        """
+        Returns the number of peering links in the path.
+        """
+        numPLs = 0
+        for ad in self.pcb.ads:
+            numPLs += len(ad.pms)
+        return numPLs
+
     def __str__(self):
         path_info_str = ''.join(["[Path]\n", str(self.pcb), "ID: ",
-            str(self.id), "\n", "Fidelity: ", str(self.fidelity), "\n",
-            "Timestamp: ", str(self.timestamp), "\n"])
+                                 str(self.id), "\n", "Fidelity: ",
+                                 str(self.fidelity), "\n", "Timestamp: ",
+                                 str(self.timestamp), "\n"])
         return path_info_str
 
 
 class PathStore(object):
     """
     Path Store class.
+
+    :cvar MIN_LOC_DES: the default minimum local desirability for all candidate
+       paths.
+    :vartype MIN_LOC_DES: int
+    :cvar MAX_LOC_DES: the default maximum local desirability for all candidate
+       paths.
+    :vartype MAX_LOC_DES: int
+    :cvar MIN_LEN: the default minimum length for all candidate paths.
+    :vartype MIN_LEN: int
+    :cvar MAX_LEN: the default maximum length for all candidate paths.
+    :vartype MAX_LEN: int
+    :cvar MIN_FRESH: the default minimum freshness for all candidate paths.
+    :vartype MIN_FRESH: int
+    :cvar MAX_FRESH: the default maximum freshness for all candidate paths.
+    :vartype MAX_LEN: int
+    :cvar MIN_GUAR_BW: the default minimum guaranteed bandwidth for all
+       candidate paths.
+    :vartype MIN_GUAR_BW: int
+    :cvar MAX_GUAR_BW: the default maximum guaranteed bandwidth for all
+       candidate paths.
+    :vartype MAX_GUAR_BW: int
+    :cvar MIN_AV_BW: the default minimum available bandwidth for all candidate
+       paths.
+    :vartype MIN_AV_BW: int
+    :cvar MAX_AV_BW: the default maximum available bandwidth for all candidate
+       paths.
+    :vartype MAX_AV_BW: int
+    :cvar MIN_TOT_BW: the default minimum total bandwidth for all candidate
+       paths.
+    :vartype MIN_TOT_BW: int
+    :cvar MAX_TOT_BW: the default maximum total bandwidth for all candidate
+       paths.
+    :vartype MAX_TOT_BW: int
+    :cvar MIN_DELAY: the default minimum delay for all candidate paths.
+    :vartype MIN_DELAY: int
+    :cvar MAX_DELAY: the default maximum delay for all candidate paths.
+    :vartype MAX_DELAY: int
+    :cvar MIN_SIZE: the default minimum size for all candidate paths.
+    :vartype MIN_SIZE: int
+    :cvar MAX_SIZE: the default maximum size for all candidate paths.
+    :vartype MAX_SIZE: int
+    :cvar MIN_AGE: the default minimum age for all candidate paths.
+    :vartype MIN_AGE: int
+    :cvar MAX_AGE: the default maximum age for all candidate paths.
+    :vartype MAX_AGE: int
+    :cvar MIN_PEER: the default minimum number of peering links for all
+       candidate paths.
+    :vartype MIN_PEER: int
+    :cvar MAX_PEER: the default maximum number of peering links for all
+       candidate paths.
+    :vartype MAX_PEER: int
     """
+
+    MIN_LOC_DES = 0
+    MAX_LOC_DES = 100
+    MIN_LEN = 0
+    MAX_LEN = 100
+    MIN_FRESH = 0
+    MAX_FRESH = 100
+    MIN_GUAR_BW = 0
+    MAX_GUAR_BW = 100
+    MIN_AV_BW = 0
+    MAX_AV_BW = 100
+    MIN_TOT_BW = 0
+    MAX_TOT_BW = 100
+    MIN_DELAY = 0
+    MAX_DELAY = 100
+    MIN_SIZE = 0
+    MAX_SIZE = 500
+    MIN_AGE = 0
+    MAX_AGE = 3600
+    MIN_PEER = 1
+    MAX_PEER = 20
+
     def __init__(self, policy_file):
         self.policy = Policy(policy_file)
         self.candidates = []
@@ -254,7 +352,8 @@ class PathStore(object):
         Runs some checks, including: (un)wanted ADs and min/max property values.
         """
         return (self._check_wanted_ads(path) and
-            self._check_unwanted_ads(path) and self._check_min_max(path))
+                self._check_unwanted_ads(path) and
+                self._check_min_max(path))
 
     def _check_wanted_ads(self, path):
         """
@@ -289,38 +388,62 @@ class PathStore(object):
         Checks whether any of the path properties has a value outside the
         predefined min-max range.
         """
-        return (eval("%d <= %d <= %d" %
-                self.policy.min_max.get("MinLocalDesirability", 0),
-                path.get_local_desirability(),
-                self.policy.min_max.get("MaxLocalDesirability", 100))
-            and eval("%d <= %d <= %d" %
-                self.policy.min_max.get("MinPathLength", 0),
-                path.get_path_length(),
-                self.policy.min_max.get("MaxPathLength", 100))
-            and eval("%d <= %d <= %d" %
-                self.policy.min_max.get("MinPathFreshness", 0),
-                path.get_path_freshness(),
-                self.policy.min_max.get("MaxPathFreshness", 100))
-            and eval("%d <= %d <= %d" %
-                self.policy.min_max.get("MinGuaranteedBandwidth", 0),
-                path.get_guaranteed_bandwidth(),
-                self.policy.min_max.get("MaxGuaranteedBandwidth", 100))
-            and eval("%d <= %d <= %d" %
-                self.policy.min_max.get("MinAvailableBandwidth", 0),
-                path.get_available_bandwidth(),
-                self.policy.min_max.get("MaxAvailableBandwidth", 100))
-            and eval("%d <= %d <= %d" %
-                self.policy.min_max.get("MinTotalBandwidth", 0),
-                path.get_total_bandwidth(),
-                self.policy.min_max.get("MaxTotalBandwidth", 100))
-            and eval("%d <= %d <= %d" %
-                self.policy.min_max.get("MinDelay", 0),
-                path.get_delay(),
-                self.policy.min_max.get("MaxDelay", 100))
-            and eval("%d <= %d <= %d" %
-                self.policy.min_max.get("MinSize", 0),
-                path.get_size(),
-                self.policy.min_max.get("MaxSize", 100)))
+        return (
+            (self.policy.min_max.get("MinLocalDesirability",
+                                     PathStore.MIN_LOC_DES) <=
+             path.get_local_desirability() <=
+             self.policy.min_max.get("MaxLocalDesirability",
+                                     PathStore.MAX_LOC_DES)) and
+            (self.policy.min_max.get("MinPathLength",
+                                     PathStore.MIN_LEN) <=
+             path.get_path_length() <=
+             self.policy.min_max.get("MaxPathLength",
+                                     PathStore.MAX_LEN)) and
+            (self.policy.min_max.get("MinPathLength",
+                                     PathStore.MIN_LEN) <=
+             path.get_path_length() <=
+             self.policy.min_max.get("MaxPathLength",
+                                     PathStore.MAX_LEN)) and
+            (self.policy.min_max.get("MinPathFreshness",
+                                     PathStore.MIN_FRESH) <=
+             path.get_path_freshness() <=
+             self.policy.min_max.get("MaxPathFreshness",
+                                     PathStore.MAX_FRESH)) and
+            (self.policy.min_max.get("MinGuaranteedBandwidth",
+                                     PathStore.MIN_GUAR_BW) <=
+             path.get_guaranteed_bandwidth() <=
+             self.policy.min_max.get("MaxGuaranteedBandwidth",
+                                     PathStore.MAX_GUAR_BW)) and
+            (self.policy.min_max.get("MinAvailableBandwidth",
+                                     PathStore.MIN_AV_BW) <=
+             path.get_available_bandwidth() <=
+             self.policy.min_max.get("MaxAvailableBandwidth",
+                                     PathStore.MAX_AV_BW)) and
+            (self.policy.min_max.get("MinTotalBandwidth",
+                                     PathStore.MIN_TOT_BW) <=
+             path.get_total_bandwidth() <=
+             self.policy.min_max.get("MaxTotalBandwidth",
+                                     PathStore.MAX_TOT_BW)) and
+            (self.policy.min_max.get("MinDelay",
+                                     PathStore.MIN_DELAY) <=
+             path.get_delay() <=
+             self.policy.min_max.get("MaxDelay",
+                                     PathStore.MAX_DELAY)) and
+            (self.policy.min_max.get("MinSize",
+                                     PathStore.MIN_SIZE) <=
+             path.get_size() <=
+             self.policy.min_max.get("MaxSize",
+                                     PathStore.MAX_SIZE)) and
+            (self.policy.min_max.get("MinAge",
+                                     PathStore.MIN_AGE) <=
+             path.get_age() <=
+             self.policy.min_max.get("MaxAge",
+                                     PathStore.MAX_AGE)) and
+            (self.policy.min_max.get("MinPeerLinks",
+                                     PathStore.MIN_PEER) <=
+             path.get_peer_links() <=
+             self.policy.min_max.get("MaxPeerLinks",
+                                     PathStore.MAX_PEER)))
 
     def update_policy(self, policy_file):
         """
