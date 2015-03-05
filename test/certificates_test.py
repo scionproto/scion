@@ -55,14 +55,6 @@ class TestCertificates(unittest.TestCase):
         print('Sig test 2:', verify_sig_chain_trc(msg, sig, 'ISD:1-AD:13',
             cert10, trc, 0))
 
-        #TODO: fix crypto box
-        #print ('CryptoBox Test...')
-        #print ('ISD:11-AD:3 encrypts message hello to ISD:11-AD:2:')
-        #cipher = encrypt(msg.encode('utf-8'), priv3, 'ISD:11-AD:2', chain)
-        #print ('Cipher:', cipher, sep='\n')
-        #print ('ISD:11-AD:2 decrypts cipher:')
-        #decipher = decrypt(cipher, priv2, 'ISD:11-AD:3', chain)
-        #print ('Decrypted message:', str(decipher), sep='\n')
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
