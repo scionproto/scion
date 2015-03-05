@@ -101,6 +101,7 @@ def get_paths(dst_isd, src_ad, dst_ad):
 
     return paths
 
+
 def update_dict(dictionary, key, values, elem_num=0):
     """
     Updates dictionary. Used for managing a temporary paths' cache.
@@ -111,3 +112,10 @@ def update_dict(dictionary, key, values, elem_num=0):
         dictionary[key] = values
     dictionary[key] = dictionary[key][-elem_num:]
 
+
+def init_logging(level=logging.DEBUG):
+    """
+    Configure logging for components (servers, routers, gateways).
+    """
+    logging.basicConfig(level=level,
+                        format='%(asctime)s [%(levelname)s]\t%(message)s')
