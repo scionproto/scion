@@ -141,7 +141,7 @@ class PathSegmentInfo(object):
     def set_fidelity(self, policy):
         """
         Computes a path fidelity based on all path properties and considering
-        the corresponding weigths, which are stored in the path policy.
+        the corresponding weights, which are stored in the path policy.
         """
         self.fidelity = 0
         self.fidelity += (policy.properties.get("LocalDesirability", 0) *
@@ -165,7 +165,7 @@ class PathSegmentInfo(object):
         """
         Returns the path desirability.
         """
-        return random.randint(0, 3)
+        return 0
 
     def get_path_length(self):
         """
@@ -207,7 +207,7 @@ class PathSegmentInfo(object):
         """
         Returns the path size.
         """
-        return random.randint(0, 3)
+        return self.pcb.size
 
     def __str__(self):
         path_info_str = ''.join(["[Path]\n", str(self.pcb), "ID: ",
