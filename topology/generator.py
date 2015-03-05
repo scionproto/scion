@@ -24,16 +24,13 @@ from lib.crypto.asymcrypto import (sign, generate_signature_keypair,
     generate_cryptobox_keypair)
 from lib.util import (get_cert_file_path, get_sig_key_file_path,
     get_enc_key_file_path, get_trc_file_path, write_file)
-import base64
-import os
-import shutil
-import socket
-import struct
-import subprocess
-import sys
 import json
 import logging
 import shutil
+import os
+import struct
+import socket
+import base64
 
 
 ADCONFIGURATIONS_FILE = 'ADConfigurations.json'
@@ -146,7 +143,7 @@ def create_directories(AD_configs):
         topo_path = 'ISD' + isd_id + TOPO_DIR
         sig_keys_path = 'ISD' + isd_id + SIG_KEYS_DIR
         enc_keys_path = 'ISD' + isd_id + ENC_KEYS_DIR
-        setup_path =  'ISD' + isd_id + SETUP_DIR
+        setup_path = 'ISD' + isd_id + SETUP_DIR
         run_path = 'ISD' + isd_id + RUN_DIR
         if not os.path.exists(cert_path):
             os.makedirs(cert_path)
@@ -286,12 +283,14 @@ def write_topo_files(AD_configs, er_ip_addresses):
                                                         'Addr': ip_address}
                 setup_fh.write('ip addr add ' + ip_address + '/' + mask +
                     ' dev lo\n')
+                log = ' >> ../logs/bs-%s-%s-%s.log 2>&1' % (isd_id, ad_id,
+                                                            str(b_server))
                 run_fh.write(''.join(['screen -d -m -S bs', isd_id, '-', ad_id,
                     '-', str(b_server), ' sh -c \"',
                     'PYTHONPATH=../ python3 beacon_server.py ',
                     ('core ' if is_core else 'local '), ip_address, ' ..',
-                    SCRIPTS_DIR, topo_file, ' ..', SCRIPTS_DIR, conf_file,
-                    '\"\n']))
+                     SCRIPTS_DIR, topo_file, ' ..', SCRIPTS_DIR, conf_file,
+                     log, '\"\n']))
                 ip_address = increment_address(ip_address, mask)
             # Write Certificate Servers
             ip_address = '.'.join([first_byte, isd_id, ad_id, CS_RANGE])
@@ -300,11 +299,13 @@ def write_topo_files(AD_configs, er_ip_addresses):
                                                              'Addr': ip_address}
                 setup_fh.write('ip addr add ' + ip_address + '/' + mask +
                     ' dev lo\n')
+                log = ' >> ../logs/cs-%s-%s-%s.log 2>&1' % (isd_id, ad_id,
+                                                            str(b_server))
                 run_fh.write(''.join(['screen -d -m -S cs', isd_id, '-', ad_id,
                     '-', str(c_server), ' sh -c \"',
                     "PYTHONPATH=../ python3 cert_server.py ", ip_address, ' ..',
                     SCRIPTS_DIR, topo_file, ' ..', SCRIPTS_DIR, conf_file, ' ',
-                    trc_file, '\"\n']))
+                    trc_file, log, '\"\n']))
                 ip_address = increment_address(ip_address, mask)
             # Write Path Servers
             if (AD_configs[isd_ad_id]['level'] != INTERMEDIATE_AD or
@@ -315,12 +316,14 @@ def write_topo_files(AD_configs, er_ip_addresses):
                                                           'Addr': ip_address}
                     setup_fh.write('ip addr add ' + ip_address + '/' + mask +
                         ' dev lo\n')
+                    log = ' >> ../logs/ps-%s-%s-%s.log 2>&1' % (isd_id, ad_id,
+                                                                str(b_server))
                     run_fh.write(''.join(['screen -d -m -S ps', isd_id, '-',
                         ad_id, '-', str(p_server), ' sh -c \"',
                         'PYTHONPATH=../ python3 path_server.py ',
                         ('core ' if is_core else 'local '), ip_address, ' ..',
-                        SCRIPTS_DIR, topo_file, ' ..', SCRIPTS_DIR, conf_file,
-                        '\"\n']))
+                         SCRIPTS_DIR, topo_file, ' ..', SCRIPTS_DIR, conf_file,
+                         log, '\"\n']))
                     ip_address = increment_address(ip_address, mask)
             # Write Edge Routers
             edge_router = 1
@@ -346,11 +349,13 @@ def write_topo_files(AD_configs, er_ip_addresses):
                                    'ToUdpPort': int(PORT)}}
                 setup_fh.write('ip addr add ' + ip_address_loc + '/' + mask +
                     ' dev lo\n')
+                log = ' >> ../logs/er-%s-%s-%s-%s.log 2>&1' % (isd_id, ad_id,
+                    nbr_isd_id, nbr_ad_id)
                 run_fh.write(''.join(['screen -d -m -S er', isd_id, '-', ad_id,
                     'er', nbr_isd_id, '-', nbr_ad_id, ' sh -c \"',
                     'PYTHONPATH=../ python3 router.py ', ip_address_loc, ' ..',
                     SCRIPTS_DIR, topo_file, ' ..', SCRIPTS_DIR, conf_file,
-                    '\"\n']))
+                    log, '\"\n']))
                 edge_router += 1
         with open(topo_file, 'w') as topo_fh:
             json.dump(topo_dict, topo_fh, sort_keys=True, indent=4)
@@ -477,7 +482,7 @@ def main():
     if "default_subnet" in AD_configs:
         default_subnet = AD_configs["default_subnet"]
         del AD_configs["default_subnet"]
-    
+
     er_ip_addresses = set_er_ip_addresses(AD_configs)
 
     delete_directories()
@@ -489,7 +494,7 @@ def main():
     write_conf_files(AD_configs)
 
     write_beginning_setup_run_files(AD_configs)
-    
+
     write_topo_files(AD_configs, er_ip_addresses)
 
     write_trc_files(AD_configs, keys)

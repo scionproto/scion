@@ -21,10 +21,11 @@ from lib.packet.scion import (SCIONPacket, get_type, PacketType as PT,
     CertRequest, CertReply, TRCRequest, TRCReply)
 from infrastructure.scion_elem import SCIONElement
 from lib.util import (read_file, write_file, get_cert_file_path,
-    get_trc_file_path)
+    get_trc_file_path, init_logging)
 import sys
-import os
 import logging
+import datetime
+import os
 
 
 class CertServer(SCIONElement):
@@ -164,12 +165,15 @@ def main():
     """
     Main function.
     """
-    logging.basicConfig(level=logging.DEBUG)
+    init_logging()
     if len(sys.argv) != 5:
-        logging.info("run: %s IP topo_file conf_file trc_file", sys.argv[0])
+        logging.error("run: %s IP topo_file conf_file trc_file", sys.argv[0])
         sys.exit()
+
     cert_server = CertServer(IPv4HostAddr(sys.argv[1]), sys.argv[2],
         sys.argv[3], sys.argv[4])
+
+    logging.info("Started: %s", datetime.datetime.now())
     cert_server.run()
 
 if __name__ == "__main__":

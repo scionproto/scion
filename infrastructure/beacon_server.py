@@ -31,6 +31,9 @@ from lib.crypto.certificate import verify_sig_chain_trc, CertificateChain, TRC
 from lib.crypto.asymcrypto import sign
 from lib.util import (read_file, write_file, get_cert_file_path,
     get_sig_key_file_path, get_trc_file_path)
+from lib.util import init_logging
+from Crypto import Random
+from Crypto.Hash import SHA256
 import logging
 import sys
 import threading
@@ -38,6 +41,7 @@ import time
 import os
 import copy
 import base64
+import datetime
 
 
 class BeaconServer(SCIONElement):
@@ -50,8 +54,9 @@ class BeaconServer(SCIONElement):
         reg_queue: A FIFO queue containing paths for registration with path
             servers.
     """
-    DELTA = 24 * 60 * 60  # Amount of real time a PCB packet is valid for.
-    TIME_INTERVAL = 4  # SCION second
+    # Amount of time units a HOF is valid (time unit is EXP_TIME_UNIT).
+    HOF_EXP_TIME = 63
+    # TODO: Make this configurable.
     BEACONS_NO = 5
     REGISTERED_PATHS = 100
 
@@ -60,9 +65,43 @@ class BeaconServer(SCIONElement):
         self.beacons = deque()
         self.reg_queue = deque()
         sig_key_file = get_sig_key_file_path(self.topology.isd_id,
-            self.topology.ad_id, 0)
+                                             self.topology.ad_id, 0)
         self.signing_key = read_file(sig_key_file)
         self.signing_key = base64.b64decode(self.signing_key)
+        self.if2rev_tokens = {}  # Contains the currently used revocation tokens
+                                 # for each interface.
+        self.seg2rev_tokens = {}  # Contains the currently used revocation
+                                  # tokens for a path-segment.
+        self._init_if_hashes()
+
+    def _init_if_hashes(self):
+        """
+        Assigns each interface a random number the corresponding hash.
+        """
+        self.if2rev_tokens[0] = (32 * b"\x00", 32 * b"\x00")
+        rnd_file = Random.new()
+        for router in self.topology.get_all_edge_routers():
+            pre_img = rnd_file.read(32)
+            img = SHA256.new(pre_img).digest()
+            self.if2rev_tokens[router.interface.if_id] = (pre_img, img)
+
+    def _get_segment_rev_token(self, pcb):
+        """
+        Returns the revocation token for a given path-segment.
+
+        Segments with identical hops will always use the same revocation token,
+        unless they get revoked.
+        """
+        id = pcb.get_hops_hash()
+        if id not in self.seg2rev_tokens:
+            # When the BS registers a new segment, it generates a unique
+            # random number and uses the SHA256-hash of that number to
+            # uniquely identify the segment. By revealing the random number
+            # a BS can revoke that path segment.
+            pre_img = Random.new().read(32)
+            img = SHA256.new(pre_img).digest()
+            self.seg2rev_tokens[id] = (pre_img, img)
+        return self.seg2rev_tokens[id][1]
 
     def propagate_downstream_pcb(self, pcb):
         """
@@ -108,25 +147,30 @@ class BeaconServer(SCIONElement):
         """
         Creates an AD Marking with the given ingress and egress interfaces.
         """
-        ssf = SupportSignatureField()
-        hof = HopOpaqueField.from_values(ingress_if, egress_if)
+        ssf = SupportSignatureField.from_values(ADMarking.LEN)
+        hof = HopOpaqueField.from_values(BeaconServer.HOF_EXP_TIME,
+                                         ingress_if, egress_if)
         spcbf = SupportPCBField.from_values(isd_id=self.topology.isd_id)
-        pcbm = PCBMarking.from_values(self.topology.ad_id, ssf, hof, spcbf)
-        data_to_sign = (str(pcbm.ad_id).encode('ascii') + pcbm.hof.pack() +
-            pcbm.spcbf.pack())
+        pcbm = PCBMarking.from_values(self.topology.ad_id, ssf, hof, spcbf,
+                                      self.if2rev_tokens[ingress_if][1],
+                                      self.if2rev_tokens[egress_if][1])
+        data_to_sign = (str(pcbm.ad_id) + str(pcbm.hof.pack()) +
+                        str(pcbm.spcbf.pack()))
         peer_markings = []
         # TODO PSz: peering link can be only added when there is
         # IfidReply from router
         for router_peer in self.topology.peer_edge_routers:
-            hof = HopOpaqueField.from_values(router_peer.interface.if_id,
-                                             egress_if)
+            if_id = router_peer.interface.if_id
+            hof = HopOpaqueField.from_values(BeaconServer.HOF_EXP_TIME,
+                                             if_id, egress_if)
             spf = SupportPeerField.from_values(self.topology.isd_id)
             peer_marking = \
                 PeerMarking.from_values(router_peer.interface.neighbor_ad,
-                                        hof, spf)
-            data_to_sign += peer_marking.pack()
+                                        hof, spf, self.if2rev_tokens[if_id][1],
+                                        self.if2rev_tokens[egress_if][1])
+            data_to_sign += str(peer_marking.pack())
             peer_markings.append(peer_marking)
-        signature = sign(data_to_sign.decode('ascii'), self.signing_key)
+        signature = sign(data_to_sign, self.signing_key)
         return ADMarking.from_values(pcbm, peer_markings, signature)
 
     def handle_request(self, packet, sender, from_local_socket=True):
@@ -195,9 +239,7 @@ class CoreBeaconServer(BeaconServer):
         while True:
             # Create beacon for downstream ADs.
             downstream_pcb = PathSegment()
-            timestamp = (((int(time.time()) + BeaconServer.DELTA) %
-                          (BeaconServer.TIME_INTERVAL * (2 ** 16))) /
-                         BeaconServer.TIME_INTERVAL)
+            timestamp = int(time.time())
             downstream_pcb.iof = InfoOpaqueField.from_values(OFT.TDC_XOVR,
                 False, timestamp, self.topology.isd_id)
             downstream_pcb.trcf = TRCField()
@@ -228,6 +270,7 @@ class CoreBeaconServer(BeaconServer):
                 new_pcb = copy.deepcopy(pcb)
                 ad_marking = self._create_ad_marking(new_pcb.trcf.if_id, 0)
                 new_pcb.add_ad(ad_marking)
+                new_pcb.segment_id = self._get_segment_rev_token(new_pcb)
                 self.register_core_segment(new_pcb)
                 logging.info("Paths registered")
             time.sleep(self.config.registration_time)
@@ -313,12 +356,12 @@ class LocalBeaconServer(BeaconServer):
         trc_file = get_trc_file_path(self.topology.isd_id, self.topology.ad_id,
             cert_isd, trc_version)
         trc = TRC(trc_file)
-        data_to_verify = (str(cert_ad).encode('ascii') + last_pcbm.hof.pack() +
-            last_pcbm.spcbf.pack())
+        data_to_verify = (str(cert_ad) + str(last_pcbm.hof.pack()) +
+                          str(last_pcbm.spcbf.pack()))
         for peer_marking in pcb.ads[-1].pms:
-            data_to_verify += peer_marking.pack()
-        return verify_sig_chain_trc(data_to_verify.decode('ascii'),
-            pcb.ads[-1].sig, subject, chain, trc, trc_version)
+            data_to_verify += str(peer_marking.pack())
+        return verify_sig_chain_trc(data_to_verify, pcb.ads[-1].sig, subject,
+                                    chain, trc, trc_version)
 
     def _try_to_verify_beacon(self, pcb):
         """
@@ -347,8 +390,9 @@ class LocalBeaconServer(BeaconServer):
         Return True or False whether a beacon was previously registered.
         """
         assert isinstance(pcb, PathSegment)
+        pcb_hops_hash = pcb.get_hops_hash()
         for reg_pcb in self.registered_beacons:
-            if reg_pcb.compare_hops(pcb):
+            if reg_pcb.get_hops_hash() == pcb_hops_hash:
                 return True
         return False
 
@@ -442,6 +486,7 @@ class LocalBeaconServer(BeaconServer):
                 new_pcb = copy.deepcopy(pcb)
                 ad_marking = self._create_ad_marking(new_pcb.trcf.if_id, 0)
                 new_pcb.add_ad(ad_marking)
+                new_pcb.segment_id = self._get_segment_rev_token(new_pcb)
                 new_pcb.remove_signatures()
                 self.register_up_segment(new_pcb)
                 self.register_down_segment(new_pcb)
@@ -505,9 +550,10 @@ def main():
     """
     Main function.
     """
-    logging.basicConfig(level=logging.DEBUG)
+    init_logging()
     if len(sys.argv) != 5:
-        logging.info("run: %s <core|local> IP topo_file conf_file", sys.argv[0])
+        logging.error("run: %s <core|local> IP topo_file conf_file",
+            sys.argv[0])
         sys.exit()
 
     if sys.argv[1] == "core":
@@ -520,6 +566,8 @@ def main():
     else:
         logging.error("First parameter can only be 'local' or 'core'!")
         sys.exit()
+
+    logging.info("Started: %s", datetime.datetime.now())
     beacon_server.run()
 
 if __name__ == "__main__":

@@ -269,7 +269,7 @@ class CorePath(PathBase):
                 s.append(str(of) + "\n")
             s.append("</Down-Segment>\n")
 
-        s.append("<Core-Path>")
+        s.append("</Core-Path>")
         return "".join(s)
 
 

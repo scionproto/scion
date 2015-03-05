@@ -16,18 +16,21 @@
 ===========================================
 """
 
-from infrastructure.scion_elem import SCIONElement, SCION_UDP_PORT
+from infrastructure.scion_elem import (SCIONElement, SCION_UDP_PORT,
+                                       SCION_UDP_EH_DATA_PORT)
 from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.opaque_field import OpaqueField, OpaqueFieldType as OFT
 from lib.packet.pcb import PathConstructionBeacon
 from lib.packet.scion import (PacketType as PT, SCIONPacket, IFIDRequest,
     IFIDReply, get_type)
+from lib.util import init_logging
 import logging
 import socket
 import sys
 import threading
 import time
-
+import datetime
+import os
 
 class NextHop(object):
     """
@@ -331,6 +334,7 @@ class Router(SCIONElement):
                 next_hop.addr = self.ifid2addr[iface]
             else: # last opaque field on the path, send the packet to the dst
                 next_hop.addr = spkt.hdr.dst_addr
+                next_hop.port = SCION_UDP_EH_DATA_PORT # data packet to endhost
             self.send(spkt, next_hop)
         logging.debug("normal_forward()")
 
@@ -526,11 +530,14 @@ def main():
     """
     Initializes and starts router.
     """
-    logging.basicConfig(level=logging.DEBUG)
+    init_logging()
     if len(sys.argv) != 4:
         logging.error("run: %s IP topo_file conf_file", sys.argv[0])
         sys.exit()
+
     router = Router(IPv4HostAddr(sys.argv[1]), sys.argv[2], sys.argv[3])
+
+    logging.info("Started: %s", datetime.datetime.now())
     router.run()
 
 if __name__ == "__main__":

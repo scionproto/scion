@@ -23,6 +23,7 @@ Various utilities for SCION functionality.
 
 from os.path import sys
 import os
+import logging
 
 
 ISD_DIR = '../topology/ISD'
@@ -147,3 +148,11 @@ def update_dict(dictionary, key, values, elem_num=0):
     else:
         dictionary[key] = values
     dictionary[key] = dictionary[key][-elem_num:]
+
+
+def init_logging(level=logging.DEBUG):
+    """
+    Configure logging for components (servers, routers, gateways).
+    """
+    logging.basicConfig(level=level,
+                        format='%(asctime)s [%(levelname)s]\t%(message)s')
