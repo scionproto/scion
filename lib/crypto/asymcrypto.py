@@ -67,7 +67,16 @@ def sign(msg, signing_key):
 
 def verify(msg, sig, verifying_key):
     """
-    TODO
+    Verify a signature.
+
+    :param msg: message that was signed.
+    :type msg: str
+    :param sig: signature to verify.
+    :type sig: bytes
+    :param verifying_key: verifying key from generate_signature_keypair().
+    :type verifying_key: bytes
+    :returns: True or False whether the verification succeeds or fails.
+    :rtype: boolean
     """
     msg_with_sig = sig + msg.encode('ascii')
     try:
