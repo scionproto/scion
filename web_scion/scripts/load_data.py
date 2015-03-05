@@ -42,7 +42,8 @@ print("> {} ISDs added".format(len(isds)))
 
 # Add ADs
 for ad_topo in ads:
-    ad = AD(id=ad_topo.ad_id, isd=isds[ad_topo.isd_id])
+    ad = AD(id=ad_topo.ad_id, isd=isds[ad_topo.isd_id],
+            is_core_ad=ad_topo.is_core_ad)
     ad.save()
     # Routers
     routers = ad_topo.parent_edge_routers + ad_topo.child_edge_routers + \

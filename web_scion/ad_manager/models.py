@@ -14,6 +14,7 @@ class ISD(models.Model):
 class AD(models.Model):
     id = models.CharField(max_length=50, primary_key=True)
     isd = models.ForeignKey('ISD')
+    is_core_ad = models.BooleanField(default=False)
 
     def __str__(self):
         return '{}:{}'.format(self.isd.id, self.id)

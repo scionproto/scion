@@ -6,7 +6,7 @@
 
   <ul>
     {% for ad in object.ad_set.all %}
-      <li><a href="{% url 'ad_detail' ad.id %}">ISD {{ ad }}</a></li>
+      <li><a href="{% url 'ad_detail' ad.id %}">AD {{ ad }}</a></li>
     {% empty %}
       <li>No ADs.</li>
     {% endfor %}
