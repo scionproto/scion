@@ -18,7 +18,7 @@
 
 from lib.crypto.nacl import crypto_sign_ed25519
 from lib.crypto.nacl import crypto_sign_ed25519_open
-from lib.crypto.asymcrypto import sign
+from lib.crypto.asymcrypto import sign, verify
 import time
 import json
 import logging
@@ -64,13 +64,7 @@ def verify_sig_chain_trc(msg, sig, subject, chain, trc, trc_version):
             logging.warning('Signer\'s public key has not been found.')
             return False
         verifying_key = trc.core_ads[subject].subject_sig_key
-    msg_with_sig = sig + msg.encode('ascii')
-    try:
-        crypto_sign_ed25519_open(msg_with_sig, verifying_key)
-        return True
-    except:
-        logging.warning('Invalid signature.')
-        return False
+    return verify(msg, sig, verifying_key)
 
 
 class Certificate(object):

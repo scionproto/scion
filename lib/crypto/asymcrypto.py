@@ -69,7 +69,12 @@ def verify(msg, sig, verifying_key):
     """
     TODO
     """
-    pass
+    msg_with_sig = sig + msg.encode('ascii')
+    try:
+        crypto_sign_ed25519_open(msg_with_sig, verifying_key)
+        return True
+    except:
+        return False
 
 
 def encrypt(msg, private_key, recipient, chain):
