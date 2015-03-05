@@ -35,6 +35,7 @@ import time
 
 from Crypto import Random
 from Crypto.Hash import SHA256
+from lib.crypto.hash_chain import HashChain
 
 
 # TODO PSz: beacon must be revised. We have design slides for a new format.
@@ -60,41 +61,41 @@ class BeaconServer(SCIONElement):
         # self.propagated_beacons = []
         self.beacons = deque()
         self.reg_queue = deque()
-        self.if2rev_tokens = {}  # Contains the currently used revocation tokens
-                                 # for each interface.
+        self.if2rev_tokens = {}  # Contains the currently used revocation token
+                                 # hash-chain for each interface.
         self.seg2rev_tokens = {}  # Contains the currently used revocation
-                                  # tokens for a path-segment.
-        self._init_if_hashes()
+                                  # token hash-chain for a path-segment.
 
-    def _init_if_hashes(self):
+    def _get_if_rev_token(self, if_id):
         """
-        Assigns each interface a random number the corresponding hash.
+        Returns the revocation token for a given interface.
         """
-        self.if2rev_tokens[0] = (32 * b"\x00", 32 * b"\x00")
-        rnd_file = Random.new()
-        for router in self.topology.get_all_edge_routers():
-            pre_img = rnd_file.read(32)
-            img = SHA256.new(pre_img).digest()
-            self.if2rev_tokens[router.interface.if_id] = (pre_img, img)
+        if if_id == 0:
+            return 32 * b"\x00"
+
+        if if_id not in self.if2rev_tokens:
+            start_ele = Random.new().read(32)
+            chain = HashChain(start_ele)
+            self.if2rev_tokens[if_id] = chain
+            return chain.next_element()
+        else:
+            return self.if2rev_tokens[if_id].current_element()
 
     def _get_segment_rev_token(self, pcb):
         """
         Returns the revocation token for a given path-segment.
 
-        Segments with identical hops will always use the same revocation token,
-        unless they get revoked.
+        Segments with identical hops will always use the same revocation token
+        hash chain.
         """
         id = pcb.get_hops_hash()
         if id not in self.seg2rev_tokens:
-            # When the BS registers a new segment, it generates a unique
-            # random number and uses the SHA256-hash of that number to
-            # uniquely identify the segment. By revealing the random number
-            # a BS can revoke that path segment.
-            pre_img = Random.new().read(32)
-            img = SHA256.new(pre_img).digest()
-            self.seg2rev_tokens[id] = (pre_img, img)
-
-        return self.seg2rev_tokens[id][1]
+            start_ele = Random.new().read(32)
+            chain = HashChain(start_ele)
+            self.seg2rev_tokens[id] = chain
+            return chain.next_element()
+        else:
+            return self.seg2rev_tokens[id].current_element()
 
     def propagate_downstream_pcb(self, pcb):
         """
@@ -149,8 +150,8 @@ class BeaconServer(SCIONElement):
                                          ingress_if, egress_if)
         spcbf = SupportPCBField.from_values(isd_id=self.topology.isd_id)
         pcbm = PCBMarking.from_values(self.topology.ad_id, ssf, hof, spcbf,
-                                      self.if2rev_tokens[ingress_if][1],
-                                      self.if2rev_tokens[egress_if][1])
+                                      self._get_if_rev_token(ingress_if),
+                                      self._get_if_rev_token(egress_if))
         peer_markings = []
         # TODO PSz: peering link can be only added when there is
         # IfidReply from router
@@ -161,8 +162,8 @@ class BeaconServer(SCIONElement):
             spf = SupportPeerField.from_values(self.topology.isd_id)
             peer_marking = \
                 PeerMarking.from_values(router_peer.interface.neighbor_ad,
-                                        hof, spf, self.if2rev_tokens[if_id][1],
-                                        self.if2rev_tokens[egress_if][1])
+                                        hof, spf, self._get_if_rev_token(if_id),
+                                        self._get_if_rev_token(egress_if))
             pcbm.ssf.block_size += peer_marking.LEN
             peer_markings.append(peer_marking)
 
