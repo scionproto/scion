@@ -311,6 +311,8 @@ class PathSegment(Marking):
             logging.warning("PathSegment: Data too short for parsing, " +
             "len: %u", dlen)
             return
+        # Populate the info and ROT OFs from the first and second 8-byte blocks
+        # of the segment, respectively.
         self.iof = InfoOpaqueField(raw[0:8])
         self.rotf = ROTField(raw[8:16])
         raw = raw[16:]

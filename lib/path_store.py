@@ -171,7 +171,7 @@ class PathSegmentInfo(object):
         """
         Returns the path length.
         """
-        return random.randint(0, 3)
+        return len(self.pcb.ads)
 
     def get_path_freshness(self):
         """
