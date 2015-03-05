@@ -292,6 +292,112 @@ class LocalBeaconServer(BeaconServer):
         self.requested_certs = {}
         self.requested_trcs = {}
 
+    def _verify_beacon(self, pcb):
+        """
+        Once the necessary certificate and TRC files have been found, verify the
+        beacons.
+        """
+        assert isinstance(pcb, PathSegment)
+        last_pcbm = pcb.get_last_pcbm()
+        cert_isd = last_pcbm.spcbf.isd_id
+        cert_ad = last_pcbm.ad_id
+        cert_version = last_pcbm.ssf.cert_version
+        trc_version = pcb.trcf.trc_version
+        subject = 'ISD:' + str(cert_isd) + '-AD:' + str(cert_ad)
+        cert_file = get_cert_file_path(self.topology.isd_id,
+            self.topology.ad_id, cert_isd, cert_ad, cert_version)
+        if os.path.exists(cert_file):
+            chain = CertificateChain(cert_file)
+        else:
+            chain = CertificateChain.from_values([])
+        trc_file = get_trc_file_path(self.topology.isd_id, self.topology.ad_id,
+            cert_isd, trc_version)
+        trc = TRC(trc_file)
+        data_to_verify = (str(cert_ad).encode('ascii') + last_pcbm.hof.pack() +
+            last_pcbm.spcbf.pack())
+        for peer_marking in pcb.ads[-1].pms:
+            data_to_verify += peer_marking.pack()
+        return verify_sig_chain_trc(data_to_verify.decode('ascii'),
+            pcb.ads[-1].sig, subject, chain, trc, trc_version)
+
+    def _try_to_verify_beacon(self, pcb):
+        """
+        Try to verify a beacon.
+        """
+        assert isinstance(pcb, PathSegment)
+        last_pcbm = pcb.get_last_pcbm()
+        cert_isd = last_pcbm.spcbf.isd_id
+        cert_ad = last_pcbm.ad_id
+        cert_version = last_pcbm.ssf.cert_version
+        trc_version = pcb.trcf.trc_version
+        if self._check_certs_trc(cert_isd, cert_ad, cert_version,
+            trc_version, pcb.trcf.if_id):
+            if self._verify_beacon(pcb):
+                self.registered_beacons.append(pcb)
+                self.beacons.append(pcb)
+                logging.info("Registered valid beacon.")
+            else:
+                logging.info("Invalid beacon.")
+        else:
+            logging.debug("Certificate(s) or TRC missing.")
+            self.unverified_beacons.append(pcb)
+
+    def _is_beacon_registered(self, pcb):
+        """
+        Return True or False whether a beacon was previously registered.
+        """
+        assert isinstance(pcb, PathSegment)
+        for reg_pcb in self.registered_beacons:
+            if reg_pcb.compare_hops(pcb):
+                return True
+        return False
+
+    def _check_certs_trc(self, isd_id, cert_ad, cert_version, trc_version,
+        if_id):
+        """
+        Return True or False whether the necessary Certificate and TRC files are
+        found.
+        """
+        trc_file = get_trc_file_path(self.topology.isd_id, self.topology.ad_id,
+            isd_id, trc_version)
+        if os.path.exists(trc_file):
+            trc = TRC(trc_file)
+            cert_file = get_cert_file_path(self.topology.isd_id,
+                self.topology.ad_id, isd_id, cert_ad, cert_version)
+            self_cert_file = get_cert_file_path(self.topology.isd_id,
+                self.topology.ad_id, self.topology.isd_id, self.topology.ad_id,
+                0)
+            self_cert = CertificateChain(self_cert_file)
+            if (os.path.exists(cert_file) or
+                self_cert.certs[0].issuer in trc.core_ads):
+                return True
+            else:
+                cert_tuple = (isd_id, cert_ad, cert_version)
+                now = int(time.time())
+                if (cert_tuple not in self.requested_certs or
+                    (now - self.requested_certs[cert_tuple] >
+                    LocalBeaconServer.REQUESTS_TIMEOUT)):
+                    new_cert_req = CertRequest.from_values(PT.CERT_REQ_LOCAL,
+                        self.addr, if_id, self.topology.isd_id,
+                        self.topology.ad_id, isd_id, cert_ad, cert_version)
+                    dst_addr = self.topology.certificate_servers[0].addr
+                    self.send(new_cert_req, dst_addr)
+                    self.requested_certs[cert_tuple] = now
+                    return False
+        else:
+            trc_tuple = (isd_id, trc_version)
+            now = int(time.time())
+            if (trc_tuple not in self.requested_trcs or
+                (now - self.requested_trcs[trc_tuple] >
+                LocalBeaconServer.REQUESTS_TIMEOUT)):
+                new_trc_req = TRCRequest.from_values(PT.TRC_REQ_LOCAL,
+                    self.addr, if_id, self.topology.isd_id, self.topology.ad_id,
+                    isd_id, trc_version)
+                dst_addr = self.topology.certificate_servers[0].addr
+                self.send(new_trc_req, dst_addr)
+                self.requested_trcs[trc_tuple] = now
+                return False
+
     def register_up_segment(self, pcb):
         """
         Send up-segment to Local Path Servers
@@ -353,79 +459,7 @@ class LocalBeaconServer(BeaconServer):
             self.beacons.append(beacon.pcb)
         else:
             logging.debug("Beacon never seen before.")
-            last_pcbm = beacon.pcb.get_last_pcbm()
-            cert_isd = last_pcbm.spcbf.isd_id
-            cert_ad = last_pcbm.ad_id
-            cert_version = last_pcbm.ssf.cert_version
-            trc_version = beacon.pcb.trcf.trc_version
-            if self._check_certs_trc(cert_isd, cert_ad, cert_version,
-                trc_version, beacon.pcb.trcf.if_id):
-                if self._verify_beacon(beacon.pcb):
-                    self.registered_beacons.append(beacon.pcb)
-                    self.beacons.append(beacon.pcb)
-                    logging.info("Registered valid beacon.")
-                else:
-                    logging.info("Invalid beacon.")
-                    return
-            else:
-                logging.debug("Certificate(s) or TRC missing.")
-                self.unverified_beacons.append(beacon.pcb)
-
-    def _is_beacon_registered(self, pcb):
-        """
-        Return True or False whether a beacon was previously registered.
-        """
-        assert isinstance(pcb, PathSegment)
-        for reg_pcb in self.registered_beacons:
-            if reg_pcb.compare_hops(pcb):
-                return True
-        return False
-
-    def _check_certs_trc(self, isd_id, cert_ad, cert_version, trc_version,
-        if_id):
-        """
-        Return True or False whether the necessary Certificate and TRC files are
-        found.
-        """
-        trc_file = get_trc_file_path(self.topology.isd_id, self.topology.ad_id,
-            isd_id, trc_version)
-        if os.path.exists(trc_file):
-            trc = TRC(trc_file)
-            cert_file = get_cert_file_path(self.topology.isd_id,
-                self.topology.ad_id, isd_id, cert_ad, cert_version)
-            self_cert_file = get_cert_file_path(self.topology.isd_id,
-                self.topology.ad_id, self.topology.isd_id, self.topology.ad_id,
-                0)
-            self_cert = CertificateChain(self_cert_file)
-            if (os.path.exists(cert_file) or
-                self_cert.certs[0].issuer in trc.core_ads):
-                return True
-            else:
-                cert_tuple = (isd_id, cert_ad, cert_version)
-                now = int(time.time())
-                if (cert_tuple not in self.requested_certs or
-                    (now - self.requested_certs[cert_tuple] >
-                    LocalBeaconServer.REQUESTS_TIMEOUT)):
-                    new_cert_req = CertRequest.from_values(PT.CERT_REQ_LOCAL,
-                        self.addr, if_id, self.topology.isd_id,
-                        self.topology.ad_id, isd_id, cert_ad, cert_version)
-                    dst_addr = self.topology.certificate_servers[0].addr
-                    self.send(new_cert_req, dst_addr)
-                    self.requested_certs[cert_tuple] = now
-                    return False
-        else:
-            trc_tuple = (isd_id, trc_version)
-            now = int(time.time())
-            if (trc_tuple not in self.requested_trcs or
-                (now - self.requested_trcs[trc_tuple] >
-                LocalBeaconServer.REQUESTS_TIMEOUT)):
-                new_trc_req = TRCRequest.from_values(PT.TRC_REQ_LOCAL,
-                    self.addr, if_id, self.topology.isd_id, self.topology.ad_id,
-                    isd_id, trc_version)
-                dst_addr = self.topology.certificate_servers[0].addr
-                self.send(new_trc_req, dst_addr)
-                self.requested_trcs[trc_tuple] = now
-                return False
+            self._try_to_verify_beacon(beacon.pcb)
 
     def process_cert_rep(self, cert_rep):
         """
@@ -458,56 +492,13 @@ class LocalBeaconServer(BeaconServer):
             del self.requested_trcs[(trc_isd, trc_version)]
         self.handle_unverified_beacons()
 
-    def _verify_beacon(self, pcb):
-        """
-        Once the necessary certificate and TRC files have been found, verify the
-        beacons.
-        """
-        assert isinstance(pcb, PathSegment)
-        last_pcbm = pcb.get_last_pcbm()
-        cert_isd = last_pcbm.spcbf.isd_id
-        cert_ad = last_pcbm.ad_id
-        cert_version = last_pcbm.ssf.cert_version
-        trc_version = pcb.trcf.trc_version
-        subject = 'ISD:' + str(cert_isd) + '-AD:' + str(cert_ad)
-        cert_file = get_cert_file_path(self.topology.isd_id,
-            self.topology.ad_id, cert_isd, cert_ad, cert_version)
-        if os.path.exists(cert_file):
-            chain = CertificateChain(cert_file)
-        else:
-            chain = CertificateChain.from_values([])
-        trc_file = get_trc_file_path(self.topology.isd_id, self.topology.ad_id,
-            cert_isd, trc_version)
-        trc = TRC(trc_file)
-        data_to_verify = (str(cert_ad).encode('ascii') + last_pcbm.hof.pack() +
-            last_pcbm.spcbf.pack())
-        for peer_marking in pcb.ads[-1].pms:
-            data_to_verify += peer_marking.pack()
-        return verify_sig_chain_trc(data_to_verify.decode('ascii'),
-            pcb.ads[-1].sig, subject, chain, trc, trc_version)
-
     def handle_unverified_beacons(self):
         """
         Handle beacons which are waiting to be verified.
         """
         for _ in range(len(self.unverified_beacons)):
             pcb = self.unverified_beacons.popleft()
-            last_pcbm = pcb.get_last_pcbm()
-            cert_isd = last_pcbm.spcbf.isd_id
-            cert_ad = last_pcbm.ad_id
-            cert_version = last_pcbm.ssf.cert_version
-            trc_version = pcb.trcf.trc_version
-            if self._check_certs_trc(cert_isd, cert_ad, cert_version,
-                trc_version, pcb.trcf.if_id):
-                if self._verify_beacon(pcb):
-                    self.registered_beacons.append(pcb)
-                    self.beacons.append(pcb)
-                    logging.info("Registered valid beacon.")
-                else:
-                    logging.info("Invalid beacon.")
-            else:
-                logging.debug("Certificate(s) or TRC missing.")
-                self.unverified_beacons.append(pcb)
+            self._try_to_verify_beacon(pcb)
 
 
 def main():
