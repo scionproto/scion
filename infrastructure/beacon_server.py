@@ -28,6 +28,7 @@ from lib.packet.pcb import (PathSegment, ADMarking, PCBMarking, PeerMarking,
     PathConstructionBeacon, PathSegmentInfo, PathSegmentRecords,
     PathSegmentType as PST)
 from lib.packet.scion import SCIONPacket, get_type, PacketType as PT
+from lib.util import init_logging
 import logging
 import sys
 import threading
@@ -381,7 +382,7 @@ def main():
     """
     Main function.
     """
-    logging.basicConfig(level=logging.DEBUG)
+    init_logging()
     if len(sys.argv) != 5:
         logging.error("run: %s <core|local> IP topo_file conf_file",
             sys.argv[0])

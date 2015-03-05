@@ -25,7 +25,7 @@ from lib.packet.pcb import (PathSegmentRequest, PathSegmentRecords,
 from lib.packet.scion import PacketType as PT
 from lib.packet.scion import SCIONPacket, get_type
 from lib.path_db import PathSegmentDB
-from lib.util import update_dict
+from lib.util import update_dict, init_logging
 import logging
 import sys
 
@@ -497,7 +497,7 @@ def main():
     """
     Main function.
     """
-    logging.basicConfig(level=logging.DEBUG)
+    init_logging()
     if len(sys.argv) != 5:
         logging.error("run: %s <core|local>  IP topo_file conf_file",
                       sys.argv[0])
