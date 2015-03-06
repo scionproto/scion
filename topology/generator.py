@@ -16,21 +16,21 @@
 ===========================================
 """
 
-import base64
-import json
-from lib.config import Config
 from lib.topology import Topology
+from lib.config import Config
+from lib.crypto.certificate import (verify_sig_chain_trc, Certificate,
+    CertificateChain, TRC)
+from lib.crypto.asymcrypto import (sign, generate_signature_keypair,
+    generate_cryptobox_keypair)
+from lib.util import (get_cert_file_path, get_sig_key_file_path,
+    get_enc_key_file_path, get_trc_file_path, write_file)
+import json
 import logging
-import os
 import shutil
-import socket
+import os
 import struct
-import subprocess
-import sys
-
-from lib.crypto.asymcrypto import *
-from lib.crypto.certificate import Certificate
-from lib.crypto.trc import TRC
+import socket
+import base64
 
 
 ADCONFIGURATIONS_FILE = 'ADConfigurations.json'
@@ -138,7 +138,7 @@ def create_directories(AD_configs):
     """
     for isd_ad_id in AD_configs:
         (isd_id, ad_id) = isd_ad_id.split('-')
-        cert_path = 'ISD' + isd_id + CERT_DIR
+        cert_path = 'ISD' + isd_id + CERT_DIR + 'AD' + ad_id
         conf_path = 'ISD' + isd_id + CONF_DIR
         topo_path = 'ISD' + isd_id + TOPO_DIR
         sig_keys_path = 'ISD' + isd_id + SIG_KEYS_DIR
@@ -167,25 +167,51 @@ def write_keys_certs(AD_configs):
 
     :param AD_configs: the configurations of all SCION ADs.
     :type AD_configs: dict
+    :returns: the signature and encryption keys.
+    :rtype: dict
     """
+    sig_priv_keys = {}
+    sig_pub_keys = {}
+    enc_pub_keys = {}
     for isd_ad_id in AD_configs:
         (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-        file_name = 'ISD:' + isd_id + '-AD:' + ad_id + '-V:' + '0'
-        cert_file = 'ISD' + isd_id + CERT_DIR + file_name + '.crt'
-        sig_key_file = 'ISD' + isd_id + SIG_KEYS_DIR + file_name + '.key'
-        enc_key_file = 'ISD' + isd_id + ENC_KEYS_DIR + file_name + '.key'
-        (sig_priv, sig_pub) = generate_signature_keypair()
-        (enc_priv, enc_pub) = generate_cryptobox_keypair()
-        cert = Certificate.from_values('ISD:' + isd_id + '-AD:' + ad_id,
-            sig_pub, enc_pub, 'ISD:' + isd_id + '-AD:' + ad_id, sig_priv, 0)
-        with open(sig_key_file, 'w') as key_fh:
-            key_fh.write(str(sig_priv))
-        with open(enc_key_file, 'w') as key_fh:
-            key_fh.write(str(enc_priv))
-        with open(cert_file, 'w') as cert_fh:
-            cert_fh.write(str(cert))
+        sig_key_file = get_sig_key_file_path(isd_id, ad_id, 0)
+        enc_key_file = get_enc_key_file_path(isd_id, ad_id, 0)
+        (sig_pub, sig_priv) = generate_signature_keypair()
+        (enc_pub, enc_priv) = generate_cryptobox_keypair()
+        sig_priv_keys[isd_ad_id] = sig_priv
+        sig_pub_keys[isd_ad_id] = sig_pub
+        enc_pub_keys[isd_ad_id] = enc_pub
+        sig_priv = base64.b64encode(sig_priv).decode('utf-8')
+        enc_priv = base64.b64encode(enc_priv).decode('utf-8')
+        write_file(sig_key_file, sig_priv)
+        write_file(enc_key_file, enc_priv)
+    certs = {}
+    for isd_ad_id in AD_configs:
+        if AD_configs[isd_ad_id]['level'] != CORE_AD:
+            (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
+            iss_isd_ad_id = AD_configs[isd_ad_id]['cert_issuer']
+            (iss_isd_id, iss_ad_id) = iss_isd_ad_id.split(ISD_AD_ID_DIVISOR)
+            cert = Certificate.from_values('ISD:' + isd_id + '-AD:' + ad_id,
+                sig_pub_keys[isd_ad_id], enc_pub_keys[isd_ad_id],
+                'ISD:' + iss_isd_id + '-AD:' + iss_ad_id,
+                sig_priv_keys[iss_isd_ad_id], 0)
+            certs['ISD:' + isd_id + '-AD:' + ad_id] = [cert]
+    for subject in certs:
+        index = 0
+        while certs[subject][index].issuer in certs:
+            certs[subject].append(certs[certs[subject][index].issuer][0])
+            index += 1
+    for subject in certs:
+        chain = CertificateChain.from_values(certs[subject])
+        cert_isd = int(subject[4:].split('-AD:')[0])
+        cert_ad = int(subject[4:].split('-AD:')[1])
+        cert_file = get_cert_file_path(cert_isd, cert_ad, cert_isd, cert_ad, 0)
+        write_file(cert_file, str(chain))
         # Test if parser works
-        cert = Certificate(cert_file)
+        cert = CertificateChain(cert_file)
+    return {'sig_priv_keys': sig_priv_keys, 'sig_pub_keys': sig_pub_keys,
+        'enc_pub_keys': enc_pub_keys}
 
 
 def write_beginning_setup_run_files(AD_configs):
@@ -200,10 +226,8 @@ def write_beginning_setup_run_files(AD_configs):
         file_name = 'ISD:' + isd_id + '-AD:' + ad_id
         setup_file = 'ISD' + isd_id + SETUP_DIR + file_name + '.sh'
         run_file = 'ISD' + isd_id + RUN_DIR + file_name + '.sh'
-        with open(setup_file, 'w') as setup_fh:
-            setup_fh.write('#!/bin/bash\n\n')
-        with open(run_file, 'w') as run_fh:
-            run_fh.write('#!/bin/bash\n\n')
+        write_file(setup_file, '#!/bin/bash\n\n')
+        write_file(run_file, '#!/bin/bash\n\n')
 
 
 def write_topo_files(AD_configs, er_ip_addresses):
@@ -218,13 +242,12 @@ def write_topo_files(AD_configs, er_ip_addresses):
     """
     for isd_ad_id in AD_configs:
         (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-        file_name = 'ISD:' + isd_id + '-AD:' + ad_id + '-V:' + '0'
-        conf_file = 'ISD' + isd_id + CONF_DIR + file_name + '.conf'
-        topo_file = 'ISD' + isd_id + TOPO_DIR + file_name + '.json'
-        trc_file = 'ISD' + isd_id + '/' + 'ISD:' + isd_id + '-V:0.crt'
         file_name = 'ISD:' + isd_id + '-AD:' + ad_id
         setup_file = 'ISD' + isd_id + SETUP_DIR + file_name + '.sh'
         run_file = 'ISD' + isd_id + RUN_DIR + file_name + '.sh'
+        conf_file = 'ISD' + isd_id + CONF_DIR + file_name + '-V:0.conf'
+        topo_file = 'ISD' + isd_id + TOPO_DIR + file_name + '-V:0.json'
+        trc_file = get_trc_file_path(isd_id, ad_id, isd_id, 0)
         is_core = (AD_configs[isd_ad_id]['level'] == CORE_AD)
         if "subnet" in AD_configs[isd_ad_id]:
             first_byte = AD_configs[isd_ad_id]["subnet"].split('.')[0]
@@ -281,8 +304,8 @@ def write_topo_files(AD_configs, er_ip_addresses):
                 run_fh.write(''.join(['screen -d -m -S cs', isd_id, '-', ad_id,
                     '-', str(c_server), ' sh -c \"',
                     "PYTHONPATH=../ python3 cert_server.py ", ip_address, ' ..',
-                    SCRIPTS_DIR, topo_file, ' ..', SCRIPTS_DIR, conf_file,
-                    ' ..', SCRIPTS_DIR, trc_file, log, '\"\n']))
+                    SCRIPTS_DIR, topo_file, ' ..', SCRIPTS_DIR, conf_file, ' ',
+                    trc_file, log, '\"\n']))
                 ip_address = increment_address(ip_address, mask)
             # Write Path Servers
             if (AD_configs[isd_ad_id]['level'] != INTERMEDIATE_AD or
@@ -371,66 +394,76 @@ def write_conf_files(AD_configs):
         config = Config(conf_file)
 
 
-def write_trc_files(AD_configs):
+def write_trc_files(AD_configs, keys):
     """
     Generate the ISD TRCs and store them into files.
 
     :param AD_configs: the configurations of all SCION ADs.
     :type AD_configs: dict
+    :param keys: the signature and encryption keys.
+    :type: dict
     """
+    for isd_ad_id in AD_configs:
+        if AD_configs[isd_ad_id]['level'] == CORE_AD:
+            (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
+            file_name = 'ISD:' + isd_id + '-V:' + '0'
+            trc_file = 'ISD' + isd_id + '/' + file_name + '.crt'
+            # Create core certificate
+            subject = 'ISD:' + isd_id + '-AD:' + ad_id
+            cert = Certificate.from_values(subject,
+                keys['sig_pub_keys'][isd_ad_id],keys['enc_pub_keys'][isd_ad_id],
+                subject, keys['sig_priv_keys'][isd_ad_id], 0)
+            if os.path.exists(trc_file):
+                trc = TRC(trc_file)
+                trc.core_ads[subject] = cert
+                write_file(trc_file, str(trc))
+                # Test if parser works
+                trc = TRC(trc_file)
+            else:
+                core_isps = {'isp.com': 'isp.com_cert_base64'}
+                root_cas = {'ca.com': 'ca.com_cert_base64'}
+                core_ads = {subject: cert}
+                registry_server_addr = 'isd_id-ad_id-ip_address'
+                registry_server_cert = 'reg_server_cert_base64'
+                root_dns_server_addr = 'isd_id-ad_id-ip_address'
+                root_dns_server_cert = 'dns_server_cert_base64'
+                trc_server_addr = 'isd_id-ad_id-ip_address'
+                signatures = {}
+                trc = TRC.from_values(int(isd_id), 0, 1, 1, core_isps, root_cas,
+                    core_ads, {}, registry_server_addr, registry_server_cert,
+                    root_dns_server_addr, root_dns_server_cert, trc_server_addr,
+                    signatures)
+                write_file(trc_file, str(trc))
+                # Test if parser works
+                trc = TRC(trc_file)
+    for isd_ad_id in AD_configs:
+        if AD_configs[isd_ad_id]['level'] == CORE_AD:
+            (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
+            file_name = 'ISD:' + isd_id + '-V:' + '0'
+            trc_file = 'ISD' + isd_id + '/' + file_name + '.crt'
+            subject = 'ISD:' + isd_id + '-AD:' + ad_id
+            if os.path.exists(trc_file):
+                trc = TRC(trc_file)
+                data_to_sign = trc.__str__(with_signatures=False)
+                data_to_sign = data_to_sign.encode('utf-8')
+                sig = sign(data_to_sign, keys['sig_priv_keys'][isd_ad_id])
+                trc.signatures[subject] = sig
+                write_file(trc_file, str(trc))
+                # Test if parser works
+                trc = TRC(trc_file)
     for isd_ad_id in AD_configs:
         (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
         file_name = 'ISD:' + isd_id + '-V:' + '0'
         trc_file = 'ISD' + isd_id + '/' + file_name + '.crt'
-
-        (sig, ver) = generate_signature_keypair()
-        (priv, pub) = generate_cryptobox_keypair()
-        cert = Certificate.from_values('isp1_address', ver, pub, 'isp1_address',
-                                       sig, 0)
-        cert64 = \
-            base64.standard_b64encode(str(cert).encode('ascii')).decode('ascii')
-        core_isps = {'isp1_address' : cert64}
-
-        (sig, ver) = generate_signature_keypair()
-        (priv, pub) = generate_cryptobox_keypair()
-        cert = Certificate.from_values('registry_key', ver, pub, 'registry_key',
-                                       sig, 0)
-        cert64 = \
-            base64.standard_b64encode(str(cert).encode('ascii')).decode('ascii')
-        registry_key = cert64
-
-        (sig, ver) = generate_signature_keypair()
-        (priv, pub) = generate_cryptobox_keypair()
-        cert = Certificate.from_values('path_server', ver, pub, 'path_server',
-                                       sig, 0)
-        cert64 = \
-            base64.standard_b64encode(str(cert).encode('ascii')).decode('ascii')
-        path_key = cert64
-
-        cert = 'create_self_signed_SSL_cert()'
-        cert64 = \
-            base64.standard_b64encode(str(cert).encode('ascii')).decode('ascii')
-        root_cas = {'ca1_address' : cert64}
-
-        (sig, ver) = generate_signature_keypair()
-        (priv, pub) = generate_cryptobox_keypair()
-        cert = Certificate.from_values('dns_server', ver, pub, 'dns_server',
-                                       sig, 0)
-        cert64 = \
-            base64.standard_b64encode(str(cert).encode('ascii')).decode('ascii')
-        root_dns_key = cert64
-
-        root_dns_addr = '1-11-192.168.1.18'
-        trc_server = '1-11-192.168.1.19'
-        policies = {}
-        signatures = {}
-        trc = TRC.from_values(isd_id, 0, core_isps, registry_key, path_key,
-            root_cas, root_dns_key, root_dns_addr, trc_server, 3, 3, policies,
-            signatures)
-        with open(trc_file, 'w') as key_fh:
-            key_fh.write(str(trc))
-        # Test if parser works
-        trc = TRC(trc_file)
+        if os.path.exists(trc_file):
+            dst_path = get_trc_file_path(isd_id, ad_id, isd_id, 0)
+            shutil.copy(trc_file, dst_path)
+    for isd_ad_id in AD_configs:
+        (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
+        file_name = 'ISD:' + isd_id + '-V:' + '0'
+        trc_file = 'ISD' + isd_id + '/' + file_name + '.crt'
+        if os.path.exists(trc_file):
+            os.remove(trc_file)
 
 
 def main():
@@ -457,7 +490,7 @@ def main():
 
     create_directories(AD_configs)
 
-    write_keys_certs(AD_configs)
+    keys = write_keys_certs(AD_configs)
 
     write_conf_files(AD_configs)
 
@@ -465,7 +498,7 @@ def main():
 
     write_topo_files(AD_configs, er_ip_addresses)
 
-    write_trc_files(AD_configs)
+    write_trc_files(AD_configs, keys)
 
 
 if __name__ == "__main__":

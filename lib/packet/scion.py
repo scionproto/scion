@@ -1,30 +1,32 @@
+# Copyright 2014 ETH Zurich
+
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+
+# http://www.apache.org/licenses/LICENSE-2.0
+
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """
-scion.py
-
-Copyright 2014 ETH Zurich
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+:mod:`scion` --- SCION packets
+===========================================
 """
 
 from lib.packet.ext_hdr import ExtensionHeader, ICNExtHdr
 from lib.packet.host_addr import (AddressLengths, IPv4HostAddr,
-                                  IPv6HostAddr, SCIONHostAddr, HostAddr)
+    IPv6HostAddr, SCIONHostAddr, HostAddr)
 from lib.packet.opaque_field import InfoOpaqueField, OpaqueField
 from lib.packet.packet_base import HeaderBase, PacketBase
-from lib.packet.path import PathType, CorePath, PeerPath, CrossOverPath, \
-    EmptyPath, PathBase
-import struct, logging, bitstring
+from lib.packet.path import (PathType, CorePath, PeerPath, CrossOverPath,
+    EmptyPath, PathBase)
 from bitstring import BitArray
+import struct
+import logging
+import bitstring
 
 
 class PacketType(object):
@@ -34,22 +36,20 @@ class PacketType(object):
     DATA = 0  # data packet
     AID_REQ = 1  # Address request to local elements (from SCIONSwitch)
     AID_REP = 2  # AID reply to switch
+    CERT_REQ_LOCAL = 3  # local certificate request (to certificate server)
+    CERT_REQ = 4  # Certificate Request to parent AD
+    CERT_REP = 5  # local certificate reply (from certificate server)
+    TRC_REQ_LOCAL = 6  # TRC file reply to local certificate server
+    TRC_REQ = 7  # Root of Trust file request to parent AD
+    TRC_REP = 8  # Root of Trust file reply from parent AD
     TO_LOCAL_ADDR = 100  # Threshold to distinguish local control packets
     BEACON = 101  # PathSegment type
-    CERT_REQ_LOCAL = 102  # local certificate request (to certificate server)
-    CERT_REP_LOCAL = 103  # local certificate reply (from certificate server)
-    CERT_REQ = 104  # Certificate Request to parent AD
-    CERT_REP = 105  # Certificate Reply from parent AD
     PATH_REQ = 108  # Path request to TDC/lPS
     PATH_REC = 109  # Path record (downpath reg. reply from TDC/lPS)
-    ROT_REQ_LOCAL = 112  # ROT file reply to local certificate server
-    ROT_REP_LOCAL = 113  # ROT file reply from local certificate server
     OFG_KEY_REQ = 114  # opaque field generation key request to CS
     OFG_KEY_REP = 115  # opaque field generation key reply from CS
     IFID_REQ = 116  # IF ID request to the peer router (of the neighbor AD)
     IFID_REP = 117  # IF ID reply from the peer router
-    ROT_REQ = 118  # Root of Trust file request to parent AD
-    ROT_REP = 119  # Root of Trust file reply from parent AD
 
 
 class SignatureType(object):
@@ -69,39 +69,49 @@ class IDSize(object):
     SIZE_AID = 8
 
 TYPES_SRC = {
-        PacketType.BEACON: 16834570,
         PacketType.CERT_REP: 33611786,
+        PacketType.TRC_REP: 134275082,
+        PacketType.BEACON: 16834570,
         PacketType.PATH_REC: 67166218,
-        PacketType.ROT_REP_LOCAL:100720650,
         PacketType.OFG_KEY_REP: 117497866,
-        PacketType.ROT_REP: 134275082,
-        PacketType.CERT_REP_LOCAL:151052298,
         PacketType.IFID_REP: 167829514,
         }
 TYPES_SRC_INV = {v: k for k, v in TYPES_SRC.items()}
 TYPES_DST = {
-        PacketType.CERT_REQ: 33611786,
-        PacketType.PATH_REQ: 67166218,
-        PacketType.ROT_REQ_LOCAL: 100720650,
-        PacketType.OFG_KEY_REQ: 117497866,
-        PacketType.ROT_REQ: 134275082,
         PacketType.CERT_REQ_LOCAL: 151052298,
+        PacketType.CERT_REQ: 33611786,
+        PacketType.TRC_REQ_LOCAL: 100720650,
+        PacketType.TRC_REQ: 134275082,
+        PacketType.PATH_REQ: 67166218,
+        PacketType.OFG_KEY_REQ: 117497866,
         PacketType.IFID_REQ: 167829514,
     }
 TYPES_DST_INV = {v: k for k, v in TYPES_DST.items()}
 
+
 def get_addr_from_type(ptype):
     """
-    TODO
+    Return the IP address associated to a certain type of packet.
+
+    :param ptype: the packet type.
+    :type ptype: int
+    :returns: the associated IP address.
+    :rtype: :class:`IPv4HostAddr`
     """
     if ptype in TYPES_SRC:
         return IPv4HostAddr(TYPES_SRC[ptype])
     else:
         return IPv4HostAddr(TYPES_DST[ptype])
 
+
 def get_type(pkt):
     """
-    returns type of the packet, used for dispatching
+    Return the packet type; used for dispatching.
+
+    :param pkt: the packet.
+    :type pkt: bytes
+    :returns: the packet type.
+    :rtype: int
     """
     isrc_addr = pkt.hdr.src_addr.to_int(endianness='little')
     idst_addr = pkt.hdr.dst_addr.to_int(endianness='little')
@@ -563,12 +573,36 @@ class IFIDReply(SCIONPacket):
 class CertRequest(SCIONPacket):
     """
     Certificate Request packet.
+
+    :cvar ENCRYPT_ALGORITHM: default algorithm used to encrypt messages.
+    :type ENCRYPT_ALGORITHM: str
+    :ivar ingress_if: ingress interface where the beacon comes from.
+    :type ingress_if: int
+    :ivar src_isd: ISD identifier of the requester.
+    :type src_isd: int
+    :ivar src_ad: AD identifier of the requester.
+    :type src_ad: int
+    :ivar cert_isd: Target certificate ISD identifier.
+    :type cert_isd: int
+    :ivar cert_ad:, ad: Target certificate AD identifier.
+    :type cert_ad: int
+    :ivar cert_version: Target certificate version.
+    :type cert_version: int
     """
-    LEN = 14
 
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class CertRequest.
+
+        :param raw: packed packet.
+        :type raw: bytes
+        :returns: the newly created CertRequest instance.
+        :rtype: :class:`CertRequest`
+        """
         SCIONPacket.__init__(self)
-        self.path = None
+        self.ingress_if = 0
+        self.src_isd = 0
+        self.src_ad = 0
         self.cert_isd = 0
         self.cert_ad = 0
         self.cert_version = 0
@@ -576,210 +610,286 @@ class CertRequest(SCIONPacket):
             self.parse(raw)
 
     def parse(self, raw):
+        """
+        Parse a string of bytes and populate the instance variables.
+
+        :param raw: packed packet.
+        :type raw: bytes
+        """
         SCIONPacket.parse(self, raw)
         bits = BitArray(bytes=self.payload)
-        (self.cert_isd, self.cert_version, self.cert_ad) = \
-            bits.unpack("uintbe:16, uintbe:32, uintbe:64")
-        if len(self.payload) - CertRequest.LEN > 0:
-            self.path = PathBase(self.payload[CertRequest.LEN:])
-        else:
-            self.path = self.hdr.path
+        (self.ingress_if, self.src_isd, self.src_ad, self.cert_isd,
+            self.cert_ad, self.cert_version) = bits.unpack("uintbe:16, " +
+            "uintbe:16, uintbe:64, uintbe:16, uintbe:64, uintbe:32")
 
     @classmethod
-    def from_values(cls, req_type, src, dst, path, cert_isd, cert_ad,
-        cert_version):
+    def from_values(cls, req_type, src, ingress_if, src_isd, src_ad, cert_isd,
+        cert_ad, cert_version):
         """
-        Returns a Certificate Request with the values specified.
+        Return a Certificate Request with the values specified.
 
-        @param req_type: Either CERT_REQ_LOCAL (request comes from BS or user)
-            or CERT_REQ.
-        @param src: Source address (must be a 'HostAddr' object).
-        @param dst: Destination address (must be a 'HostAddr' object).
-        @param path: Path to a core or empty (when request comes from user).
-        @param cert_isd: Target certificate ISD ID.
-        @param cert_ad:, ad: Target certificate AD ID.
-        @param cert_version: Target certificate version.
+        :param req_type: Either CERT_REQ_LOCAL (request comes from BS or user)
+                         or CERT_REQ.
+        :type req_type: int
+        :param src: Source address.
+        :type src: :class:`HostAddr`
+        :param ingress_if: ingress interface where the beacon comes from.
+        :type ingress_if: int
+        :param src_isd: ISD identifier of the requester.
+        :type src_isd: int
+        :param src_ad: AD identifier of the requester.
+        :type src_ad: int
+        :param cert_isd: Target certificate ISD identifier.
+        :type cert_isd: int
+        :param cert_ad:, ad: Target certificate AD identifier.
+        :type cert_ad: int
+        :param cert_version: Target certificate version.
+        :type cert_version: int
+        :returns: the newly created CertRequest instance.
+        :rtype: :class:`CertRequest`
         """
         req = CertRequest()
-        if req_type == PacketType.CERT_REQ:
-            req.hdr = SCIONHeader.from_values(src, dst, req_type, path=path)
-        else:
-            req.hdr = SCIONHeader.from_values(src, dst, req_type, path=None)
-        req.path = path
+        dst = get_addr_from_type(req_type)
+        req.hdr = SCIONHeader.from_values(src, dst, req_type)
+        req.ingress_if = ingress_if
+        req.src_isd = src_isd
+        req.src_ad = src_ad
         req.cert_isd = cert_isd
         req.cert_ad = cert_ad
         req.cert_version = cert_version
+        req.payload = bitstring.pack("uintbe:16, uintbe:16, uintbe:64, " +
+            "uintbe:16, uintbe:64, uintbe:32", ingress_if, src_isd, src_ad,
+            cert_isd, cert_ad, cert_version).bytes
         return req
-
-    def pack(self):
-        self.payload = bitstring.pack("uintbe:16, uintbe:32, uintbe:64",
-            self.cert_isd, self.cert_version, self.cert_ad).bytes
-        if self.hdr.common_hdr.type != PacketType.CERT_REQ:
-            self.payload += self.path.pack()
-        return SCIONPacket.pack(self)
 
 
 class CertReply(SCIONPacket):
     """
     Certificate Reply packet.
+
+    :cvar MIN_LEN: minimum length of the packet.
+    :type MIN_LEN: int
+    :ivar cert_isd: Target certificate ISD identifier.
+    :type cert_isd: int
+    :ivar cert_ad: Target certificate AD identifier.
+    :type cert_ad: int
+    :ivar cert_version: Target certificate version.
+    :type cert_version: int
+    :ivar cert: requested certificate's content.
+    :type cert: bytes
     """
     MIN_LEN = 14
 
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class CertReply.
+
+        :param raw: packed packet.
+        :type raw: bytes
+        :returns: the newly created CertReply instance.
+        :rtype: :class:`CertReply`
+        """
         SCIONPacket.__init__(self)
         self.cert_isd = 0
         self.cert_ad = 0
         self.cert_version = 0
-        self.cert = ''
-        self.cert_len = 0
+        self.cert = b''
         if raw:
             self.parse(raw)
 
     def parse(self, raw):
+        """
+        Parse a string of bytes and populate the instance variables.
+
+        :param raw: packed packet.
+        :type raw: bytes
+        """
         SCIONPacket.parse(self, raw)
         bits = BitArray(bytes=self.payload)
-        (self.cert_isd, self.cert_version, self.cert_ad) = \
-            bits.unpack("uintbe:16, uintbe:32, uintbe:64")
-        self.cert_len = len(self.payload) - CertReply.MIN_LEN
-        if self.cert_len > 0:
-            bits = BitArray(bytes=self.payload[CertReply.MIN_LEN:])
-            self.cert = bits.unpack("uintbe:" + str(self.cert_len * 8))[0]
-        else:
-            self.cert = None
+        (self.cert_isd, self.cert_ad, self.cert_version) = \
+            bits.unpack("uintbe:16, uintbe:64, uintbe:32")
+        self.cert = self.payload[CertReply.MIN_LEN:]
 
     @classmethod
-    def from_values(cls, src, dst, path, cert_isd, cert_ad, cert_version, cert):
+    def from_values(cls, dst, cert_isd, cert_ad, cert_version, cert):
         """
-        Returns a Certificate Reply with the values specified.
+        Return a Certificate Reply with the values specified.
 
-        @param src: Source address (must be a 'HostAddr' object).
-        @param dst: Destination address (must be a 'HostAddr' object).
-        @param path: Path to a core or empty (when request comes from user).
-        @param cert_isd: Target certificate ISD ID.
-        @param cert_ad:, ad: Target certificate AD ID.
-        @param cert_version: Target certificate version.
-        @param cert: Target certificate.
+        :param dst: Destination address.
+        :type dst: :class:`HostAddr`
+        :param cert_isd: Target certificate ISD identifier.
+        :type cert_isd: int
+        :param cert_ad:, ad: Target certificate AD identifier.
+        :type cert_ad: int
+        :param cert_version: Target certificate version.
+        :type cert_version: int
+        :param cert: requested certificate's content.
+        :type cert: bytes
+        :returns: the newly created CertReply instance.
+        :rtype: :class:`CertReply`
         """
         rep = CertReply()
-        rep.hdr = SCIONHeader.from_values(src, dst, PacketType.CERT_REP,
-            path=path)
+        src = get_addr_from_type(PacketType.CERT_REP)
+        rep.hdr = SCIONHeader.from_values(src, dst, PacketType.CERT_REP)
         rep.cert_isd = cert_isd
         rep.cert_ad = cert_ad
         rep.cert_version = cert_version
         rep.cert = cert
-        rep.cert_len = len(cert)
+        rep.payload = bitstring.pack("uintbe:16, uintbe:64, uintbe:32",
+            cert_isd, cert_ad, cert_version).bytes + cert
         return rep
 
-    def pack(self):
-        self.payload = bitstring.pack("uintbe:16, uintbe:32, uintbe:64, " +
-            "uintbe:" + str(self.cert_len * 8), self.cert_isd,
-            self.cert_version, self.cert_ad, self.cert).bytes
-        return SCIONPacket.pack(self)
 
+class TRCRequest(SCIONPacket):
+    """
+    TRC Request packet.
 
-class RotRequest(SCIONPacket):
+    :ivar ingress_if: ingress interface where the beacon comes from.
+    :type ingress_if: int
+    :ivar src_isd: ISD identifier of the requester.
+    :type src_isd: int
+    :ivar src_ad: AD identifier of the requester.
+    :type src_ad: int
+    :ivar trc_isd: Target TRC ISD identifier.
+    :type trc_isd: int
+    :ivar trc_version: Target TRC version.
+    :type trc_version: int
     """
-    ROT Request packet.
-    """
-    LEN = 6
 
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class TRCRequest.
+
+        :param raw: packed packet.
+        :type raw: bytes
+        :returns: the newly created TRCRequest instance.
+        :rtype: :class:`TRCRequest`
+        """
         SCIONPacket.__init__(self)
-        self.path = None
-        self.rot_isd = 0
-        self.rot_version = 0
+        self.ingress_if = 0
+        self.src_isd = 0
+        self.src_ad = 0
+        self.trc_isd = 0
+        self.trc_version = 0
         if raw:
             self.parse(raw)
 
     def parse(self, raw):
+        """
+        Parse a string of bytes and populate the instance variables.
+
+        :param raw: packed packet.
+        :type raw: bytes
+        """
         SCIONPacket.parse(self, raw)
         bits = BitArray(bytes=self.payload)
-        (self.rot_isd, self.rot_version) = bits.unpack("uintbe:16, uintbe:32")
-        if len(self.payload) - RotRequest.LEN > 0:
-            self.path = PathBase(self.payload[RotRequest.LEN:])
-        else:
-            self.path = self.hdr.path
+        (self.ingress_if, self.src_isd, self.src_ad, self.trc_isd,
+            self.trc_version) = bits.unpack("uintbe:16, uintbe:16, " +
+            "uintbe:64, uintbe:16, uintbe:32")
 
     @classmethod
-    def from_values(cls, req_type, src, dst, path, rot_isd, rot_version):
+    def from_values(cls, req_type, src, ingress_if, src_isd, src_ad, trc_isd,
+        trc_version):
         """
-        Returns a ROT Request with the values specified.
+        Return a TRC Request with the values specified.
 
-        @param type: Either ROT_REQ_LOCAL (request comes from BS or user)
-            or ROT_REQ.
-        @param src: Source address (must be a 'HostAddr' object).
-        @param dst: Destination address (must be a 'HostAddr' object).
-        @param path: Path to a core or empty (when request comes from user).
-        @param rot_isd: Target ROT ISD ID.
-        @param rot_version: Target ROT version.
+        :param req_type: Either TRC_REQ_LOCAL (request comes from BS or user)
+                         or TRC_REQ.
+        :type req_type: int
+        :param src: Source address.
+        :type src: :class:`HostAddr`
+        :param ingress_if: ingress interface where the beacon comes from.
+        :type ingress_if: int
+        :param src_isd: ISD identifier of the requester.
+        :type src_isd: int
+        :param src_ad: AD identifier of the requester.
+        :type src_ad: int
+        :param trc_isd: Target TRC ISD identifier.
+        :type trc_isd: int
+        :param trc_version: Target TRC version.
+        :type trc_version: int
+        :returns: the newly created TRCRequest instance.
+        :rtype: :class:`TRCRequest`
         """
-        req = RotRequest()
-        if req_type == PacketType.ROT_REQ:
-            req.hdr = SCIONHeader.from_values(src, dst, req_type, path=path)
-        else:
-            req.hdr = SCIONHeader.from_values(src, dst, req_type, path=None)
-        req.path = path
-        req.rot_isd = rot_isd
-        req.rot_version = rot_version
+        req = TRCRequest()
+        dst = get_addr_from_type(req_type)
+        req.hdr = SCIONHeader.from_values(src, dst, req_type)
+        req.ingress_if = ingress_if
+        req.src_isd = src_isd
+        req.src_ad = src_ad
+        req.trc_isd = trc_isd
+        req.trc_version = trc_version
+        req.payload = bitstring.pack("uintbe:16, uintbe:16, uintbe:64, " +
+            "uintbe:16, uintbe:32", ingress_if, src_isd, src_ad,
+            trc_isd, trc_version).bytes
         return req
 
-    def pack(self):
-        self.payload = bitstring.pack("uintbe:16, uintbe:32", self.rot_isd,
-            self.rot_version).bytes
-        if self.hdr.common_hdr.type != PacketType.ROT_REQ:
-            self.payload += self.path.pack()
-        return SCIONPacket.pack(self)
 
-
-class RotReply(SCIONPacket):
+class TRCReply(SCIONPacket):
     """
-    ROT Reply packet.
+    TRC Reply packet.
+
+    :cvar MIN_LEN: minimum length of the packet.
+    :type MIN_LEN: int
+    :ivar trc_isd: Target TRC ISD identifier.
+    :type trc_isd: int
+    :ivar trc_version: Target TRC version.
+    :type trc_version: int
+    :ivar trc: requested TRC's content.
+    :type trc: bytes
     """
     MIN_LEN = 6
 
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class TRCReply.
+
+        :param raw: packed packet.
+        :type raw: bytes
+        :returns: the newly created TRCReply instance.
+        :rtype: :class:`TRCReply`
+        """
         SCIONPacket.__init__(self)
-        self.rot_isd = 0
-        self.rot_version = 0
-        self.rot = b''
-        self.rot_len = 0
+        self.trc_isd = 0
+        self.trc_version = 0
+        self.trc = b''
         if raw:
             self.parse(raw)
 
     def parse(self, raw):
+        """
+        Parse a string of bytes and populate the instance variables.
+
+        :param raw: packed packet.
+        :type raw: bytes
+        """
         SCIONPacket.parse(self, raw)
         bits = BitArray(bytes=self.payload)
-        (self.rot_isd, self.rot_version) = bits.unpack("uintbe:16, uintbe:32")
-        self.rot_len = len(self.payload) - RotReply.MIN_LEN
-        if self.rot_len > 0:
-            bits = BitArray(bytes=self.payload[RotReply.MIN_LEN:])
-            self.rot = bits.unpack("uintbe:" + str(self.rot_len * 8))[0]
-        else:
-            self.rot = None
+        (self.trc_isd, self.trc_version) = bits.unpack("uintbe:16, uintbe:32")
+        self.trc = self.payload[TRCReply.MIN_LEN:]
 
     @classmethod
-    def from_values(cls, src, dst, path, rot_isd, rot_version, rot):
+    def from_values(cls, dst, trc_isd, trc_version, trc):
         """
-        Returns a ROT Reply with the values specified.
+        Return a TRC Reply with the values specified.
 
-        @param src: Source address (must be a 'HostAddr' object).
-        @param dst: Destination address (must be a 'HostAddr' object).
-        @param path: Path to a core or empty (when request comes from user).
-        @param rot_isd: Target ROT ISD ID.
-        @param rot_version: Target ROT version.
-        @param rot: Target ROT.
+        :param dst: Destination address.
+        :type dst: :class:`HostAddr`
+        :param trc_isd: Target TRC ISD identifier.
+        :type trc_isd: int
+        :param trc_version: Target TRC version.
+        :type trc_version: int
+        :param trc: requested TRC's content.
+        :type trc: bytes
+        :returns: the newly created TRCReply instance.
+        :rtype: :class:`TRCReply`
         """
-        rep = RotReply()
-        rep.hdr = SCIONHeader.from_values(src, dst, PacketType.ROT_REP,
-            path=path)
-        rep.rot_isd = rot_isd
-        rep.rot_version = rot_version
-        rep.rot = rot
-        rep.rot_len = len(rot)
+        rep = TRCReply()
+        src = get_addr_from_type(PacketType.TRC_REP)
+        rep.hdr = SCIONHeader.from_values(src, dst, PacketType.TRC_REP)
+        rep.trc_isd = trc_isd
+        rep.trc_version = trc_version
+        rep.trc = trc
+        rep.payload = bitstring.pack("uintbe:16, uintbe:32", trc_isd,
+            trc_version).bytes + trc
         return rep
-
-    def pack(self):
-        self.payload = bitstring.pack("uintbe:16, uintbe:32, uintbe:" +
-            str(self.rot_len * 8), self.rot_isd, self.rot_version,
-            self.rot).bytes
-        return SCIONPacket.pack(self)
