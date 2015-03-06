@@ -16,38 +16,31 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import logging
+
 from bitstring import BitArray
 import bitstring
-import logging
 
 
 class OpaqueFieldType(object):
     """
     Defines constants for the types of the opaque field (first byte of every
-    opaque field, i.e. field).
-
-      Normal opaque field: 0x00 (00000000)
-            TDC crossover: 0x80 (10000000)
-        Non-TDC crossover: 0xc0 (11000000)
-        In-path crossover: 0xe0 (11100000)
-            Intra-TD peer: 0xf0 (11110000)
-            Inter-TD peer: 0xf8 (11111000)
-           Peer crossover: 0x10 (00010000)
-         RoT opaque field: 0xff (11111111)
-    Last-hop opaque field: 0x20 (00100000)
+    opaque field, i.e. field). TODO: Describe the layout of the opaque fields.
 
     .. note::
        This should be converted to an enum.
     """
-    NORMAL_OF = 0x00
-    TDC_XOVR = 0x80
-    NON_TDC_XOVR = 0xc0
-    INPATH_XOVR = 0xe0
-    INTRATD_PEER = 0xf0
-    INTERTD_PEER = 0xf8
-    PEER_XOVR = 0x10
-    ROT_OF = 0xff
-    LAST_OF = 0x20 #indicates last hop OF on the half-path (TODO revise)
+    # Types for HopOpaqueFields (7 MSB bits).
+    NORMAL_OF = 0b0000000
+    LAST_OF = 0b0010000  # indicates last hop OF on the half-path (TODO revise)
+    PEER_XOVR = 0b0001000
+    # Types for Info Opaque Fields (7 MSB bits).
+    TDC_XOVR = 0b1000000
+    NON_TDC_XOVR = 0b1100000
+    INPATH_XOVR = 0b1110000
+    INTRATD_PEER = 0b1111000
+    INTERTD_PEER = 0b1111100
+    ROT_OF = 0b11111111
 
 
 class OpaqueField(object):
@@ -67,7 +60,7 @@ class OpaqueField(object):
         """
         Constructor.
         """
-        self.info = 0 #TODO verify path.PathType in that context
+        self.info = 0  # TODO verify path.PathType in that context
         self.type = 0
         self.parsed = False
         self.raw = None
@@ -95,16 +88,6 @@ class OpaqueField(object):
         """
         pass
 
-    #TODO test: one __eq__ breaks router when two SOFs in a path are identical
-    # def __eq__(self, other):
-    #     if type(other) is type(self):
-    #         return True
-    #     else:
-    #         return False
-
-    # def __ne__(self, other):
-    #     return not self == other
-
     def is_regular(self):
         """
         Returns true if opaque field is regular, false otherwise.
@@ -116,7 +99,7 @@ class OpaqueField(object):
         :returns: `True` if the opaque field is regular, and `False` otherwise.
         :rtype: bool
         """
-        return not BitArray(bytes([self.info]))[0]
+        return not BitArray(bytes([self.info]))[1]
 
     def is_continue(self):
         """
@@ -130,7 +113,7 @@ class OpaqueField(object):
         :returns: `True` if the continue bit is set, and `False` otherwise.
         :rtype: bool
         """
-        return BitArray(bytes([self.info]))[1]
+        return BitArray(bytes([self.info]))[2]
 
     def is_xovr(self):
         """
@@ -145,7 +128,7 @@ class OpaqueField(object):
            otherwise.
         :rtype: bool
         """
-        return BitArray(bytes([self.info]))[2]
+        return BitArray(bytes([self.info]))[3]
 
     def __str__(self):
         pass
@@ -153,14 +136,24 @@ class OpaqueField(object):
     def __repr__(self):
         return self.__str__()
 
+    # TODO test: one __eq__ breaks router when two SOFs in a path are identical
+    def __eq__(self, other):
+        if type(other) is type(self):
+            return self.raw == other.raw
+        else:
+            return False
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
 
 class HopOpaqueField(OpaqueField):
     """
     Opaque field for a hop in a path of the SCION packet header.
 
-    Each hop opaque field has a info (8 bits), ingress/egress interfaces
-    (16 bits) and a MAC (24 bits) authenticating the opaque field. The info
-    field is inherited from the OpaqueField class.
+    Each hop opaque field has a info (8 bits), expiration time (8 bits)
+    ingress/egress interfaces (2 * 12 bits) and a MAC (24 bits) authenticating
+    the opaque field.
 
     :ivar ingress_if: the ingress interface (2 bytes).
     :vartype ingress_if: int
@@ -179,6 +172,7 @@ class HopOpaqueField(OpaqueField):
         :type raw: bytes
         """
         OpaqueField.__init__(self) # TODO: replace with super init trick
+        self.exp_time = 0
         self.ingress_if = 0
         self.egress_if = 0
         self.mac = 0
@@ -199,12 +193,14 @@ class HopOpaqueField(OpaqueField):
             logging.warning("HOF: Data too short for parsing, len: %u", dlen)
             return
         bits = BitArray(bytes=raw)
-        (self.info, self.ingress_if, self.egress_if, self.mac) = \
-            bits.unpack("uintbe:8, uintbe:16, uintbe:16, uintbe:24")
+        (self.info, self.exp_time, ifs, self.mac) = bits.unpack("uintbe:8, " +
+            "uintbe:8, uintbe:24, uintbe:24")
+        self.ingress_if = (ifs & 0xFFF000) >> 12
+        self.egress_if = ifs & 0x000FFF
         self.parsed = True
 
     @classmethod
-    def from_values(cls, ingress_if=0, egress_if=0, mac=0):
+    def from_values(cls, exp_time, ingress_if=0, egress_if=0, mac=0):
         """
         Returns HopOpaqueField with fields populated from values.
 
@@ -219,6 +215,7 @@ class HopOpaqueField(OpaqueField):
         :rtype: HopOpaqueField
         """
         hof = HopOpaqueField()
+        hof.exp_time = exp_time
         hof.ingress_if = ingress_if
         hof.egress_if = egress_if
         hof.mac = mac
@@ -231,20 +228,23 @@ class HopOpaqueField(OpaqueField):
         :returns: the HopOpaqueField as an 8-byte string.
         :rtype: bytes
         """
-        return bitstring.pack("uintbe:8, uintbe:16, uintbe:16, uintbe:24",
-            self.info, self.ingress_if, self.egress_if, self.mac).bytes
+        ifs = (self.ingress_if << 12) | self.egress_if
+        return bitstring.pack("uintbe:8, uintbe:8, uintbe:24, uintbe:24",
+                              self.info, self.exp_time, ifs, self.mac).bytes
 
-    # def __eq__(self, other):
-    #     if type(other) is type(self):
-    #         return (self.ingress_if == other.ingress_if and
-    #                 self.egress_if == other.egress_if and
-    #                 self.mac == other.mac)
-    #     else:
-    #         return False
+    def __eq__(self, other):
+        if type(other) is type(self):
+            return (self.exp_time == other.exp_time and
+                    self.ingress_if == other.ingress_if and
+                    self.egress_if == other.egress_if and
+                    self.mac == other.mac)
+        else:
+            return False
 
     def __str__(self):
-        hof_str = ("[Hop OF info: %u, ingress if: %u, egress if: %u, mac: %x]"
-            % (self.info, self.ingress_if, self.egress_if, self.mac))
+        hof_str = (("[Hop OF info: %u, exp_time: %d, ingress if: %u, " +
+                    "egress if: %u, mac: %x]") % (self.info, self.exp_time,
+                      self.ingress_if, self.egress_if, self.mac))
         return hof_str
 
 
@@ -252,9 +252,9 @@ class InfoOpaqueField(OpaqueField):
     """
     Class for the info opaque field.
 
-    The info opaque field contains type info of the path (1 byte), an expiration
-    timestamp (2 bytes), the ISD ID (2 byte), # hops for this path (1 byte) and
-    a reserved section (2 bytes).
+    The info opaque field contains type info of the path-segment (1 byte),
+    a creation timestamp (4 bytes), the ISD ID (2 byte) and # hops for this
+    segment (1 byte).
     """
 
     def __init__(self, raw=None):
@@ -262,7 +262,7 @@ class InfoOpaqueField(OpaqueField):
         self.timestamp = 0
         self.isd_id = 0
         self.hops = 0
-        self.reserved = 0
+        self.up_flag = False
         self.raw = raw
         if raw is not None:
             self.parse(raw)
@@ -278,27 +278,29 @@ class InfoOpaqueField(OpaqueField):
             logging.warning("IOF: Data too short for parsing, len: %u", dlen)
             return
         bits = BitArray(bytes=raw)
-        (self.info, self.timestamp, self.isd_id, self.hops, self.reserved) = \
-            bits.unpack("uintbe:8, uintbe:16, uintbe:16, uintbe:8, uintbe:16")
+        (self.info, self.timestamp, self.isd_id, self.hops) = \
+            bits.unpack("uintbe:8, uintbe:32, uintbe:16, uintbe:8")
+        self.up_flag = bool(self.info & 0b00000001)
+        self.info >>= 1
         self.parsed = True
 
     @classmethod
-    def from_values(cls, info=0, timestamp=0, isd_id=0, hops=0, reserved=0):
+    def from_values(cls, info=0, up_flag=False, timestamp=0, isd_id=0, hops=0):
         """
         Returns InfoOpaqueField with fields populated from values.
 
         @param info: Opaque field type.
+        @param up_flag: up/down-flag.
         @param timestamp: Beacon's timestamp.
         @param isd_id: Isolation Domanin's ID.
-        @param hops: Number of hops in the path.
-        @param reserved: Reserved section.
+        @param hops: Number of hops in the segment.
         """
         iof = InfoOpaqueField()
         iof.info = info
+        iof.up_flag = up_flag
         iof.timestamp = timestamp
         iof.isd_id = isd_id
         iof.hops = hops
-        iof.reserved = reserved
         return iof
 
     def pack(self):
@@ -308,22 +310,33 @@ class InfoOpaqueField(OpaqueField):
         :returns: a binary string representing the opaque field.
         :rtype: bitstring.BitStream
         """
-        return bitstring.pack("uintbe:8, uintbe:16, uintbe:16, uintbe:8," +
-                              "uintbe:16", self.info, self.timestamp,
-                              self.isd_id, self.hops, self.reserved).bytes
+        info = (self.info << 1) + self.up_flag
+        return bitstring.pack("uintbe:8, uintbe:32, uintbe:16, uintbe:8",
+            info, self.timestamp, self.isd_id, self.hops).bytes
 
     def __str__(self):
-        iof_str = ("[Info OF info: %x, TS: %u, ISD ID: %u, hops: %u]" %
-            (self.info, self.timestamp, self.isd_id, self.hops))
+        iof_str = ("[Info OF info: %x, up: %r, TS: %u, ISD ID: %u, hops: %u]" %
+            (self.info, self.up_flag, self.timestamp, self.isd_id, self.hops))
         return iof_str
+
+    def __eq__(self, other):
+        if type(other) is type(self):
+            return (self.info == other.info and
+                    self.up_flag == other.up_flag and
+                    self.timestamp == other.timestamp and
+                    self.isd_id == other.isd_id and
+                    self.hops == other.hops)
+        else:
+            return False
 
 
 class ROTField(OpaqueField):
     """
     Class for the ROT field.
 
-    The ROT field contains type info of the path (1 byte), the ROT version
-    (4 bytes), the IF ID (2 bytes), and a reserved section (1 byte).
+    The ROT field contains type info of the path-segment (1 byte),
+    the ROT version (4 bytes), the IF ID (2 bytes),
+    and a reserved section (1 byte).
     """
 
     def __init__(self, raw=None):
@@ -380,6 +393,14 @@ class ROTField(OpaqueField):
             (self.info, self.rot_version, self.if_id))
         return rotf_str
 
+    def __eq__(self, other):
+        if type(other) is type(self):
+            return (self.info == other.info and
+                    self.rot_version == other.rot_version and
+                    self.if_id == other.if_id)
+        else:
+            return False
+
 
 class SupportSignatureField(OpaqueField):
     """
@@ -392,7 +413,7 @@ class SupportSignatureField(OpaqueField):
         OpaqueField.__init__(self)
         self.cert_id = 0
         self.sig_len = 0
-        self.block_size = 32
+        self.block_size = 0
         if raw is not None:
             self.parse(raw)
 
@@ -412,14 +433,14 @@ class SupportSignatureField(OpaqueField):
         self.parsed = True
 
     @classmethod
-    def from_values(cls, cert_id=0, sig_len=0, block_size=32):
+    def from_values(cls, block_size, cert_id=0, sig_len=0):
         """
         Returns SupportSignatureField with fields populated from values.
 
-        @param cert_id: ID of the Autonomous Domain's certificate.
-        @param sig_len: Length of the beacon's signature.
         @param block_size: Total marking size for an AD block (peering links
             included.)
+        @param cert_id: ID of the Autonomous Domain's certificate.
+        @param sig_len: Length of the beacon's signature.
         """
         ssf = SupportSignatureField()
         ssf.cert_id = cert_id
@@ -432,12 +453,20 @@ class SupportSignatureField(OpaqueField):
         Returns SupportSignatureField as 8 byte binary string.
         """
         return bitstring.pack("uintbe:32, uintbe:16, uintbe:16", self.cert_id,
-            self.sig_len, self.block_size).bytes
+                              self.sig_len, self.block_size).bytes
 
     def __str__(self):
         ssf_str = ("[Support Signature OF cert_id: %x, sig_len: %u, " +
             "block_size: %u]\n") % (self.cert_id, self.sig_len, self.block_size)
         return ssf_str
+
+    def __eq__(self, other):
+        if type(other) is type(self):
+            return (self.cert_id == other.cert_id and
+                    self.sig_len == other.sig_len and
+                    self.block_size == other.block_size)
+        else:
+            return False
 
 
 class SupportPeerField(OpaqueField):
@@ -470,12 +499,14 @@ class SupportPeerField(OpaqueField):
             return
         bits = BitArray(bytes=raw)
         (self.isd_id, self.bwalloc_f, self.bwalloc_r, self.bw_class,
-            self.reserved) = bits.unpack("uintbe:16, uintbe:8, uintbe:8, " +
-            "uint:1, uint:31")
+            self.reserved) = bits.unpack("uintbe:16, uintbe:8, uintbe:8, "
+                                         "uint:1, uint:31")
         self.parsed = True
 
     @classmethod
-    def from_values(cls, isd_id=0, bwalloc_f=0, bwalloc_r=0, bw_class=0, reserved=0):
+    def from_values(cls, isd_id=0,
+                    bwalloc_f=0, bwalloc_r=0,
+                    bw_class=0, reserved=0):
         """
         Returns SupportPeerField with fields populated from values.
 
@@ -506,6 +537,15 @@ class SupportPeerField(OpaqueField):
             "bwalloc_r: %u, bw_class: %u]\n") % (self.isd_id, self.bwalloc_f,
             self.bwalloc_r, self.bw_class)
         return spf_str
+
+    def __eq__(self, other):
+        if type(other) is type(self):
+            return (self.isd_id == other.isd_id and
+                    self.bwalloc_f == other.bwalloc_f and
+                    self.bwalloc_r == other.bwalloc_r and
+                    self.bw_class == other.bw_class)
+        else:
+            return False
 
 
 class SupportPCBField(OpaqueField):
@@ -543,8 +583,8 @@ class SupportPCBField(OpaqueField):
         bits = BitArray(bytes=raw)
         (self.isd_id, self.bwalloc_f, self.bwalloc_r, self.dyn_bwalloc_f,
             self.dyn_bwalloc_r, self.bebw_f, self.bebw_r) = \
-            bits.unpack("uintbe:16, uintbe:8, uintbe:8, uintbe:8, uintbe:8," +
-                "uintbe:8, uintbe:8")
+            bits.unpack("uintbe:16, uintbe:8, uintbe:8, uintbe:8, uintbe:8, "
+                        "uintbe:8, uintbe:8")
         self.parsed = True
 
     @classmethod
@@ -575,22 +615,24 @@ class SupportPCBField(OpaqueField):
         """
         Returns SupportPCBField as 8 byte binary string.
         """
-        return bitstring.pack("uintbe:16, uintbe:8, uintbe:8, uintbe:8," +
+        return bitstring.pack("uintbe:16, uintbe:8, uintbe:8, uintbe:8, "
             "uintbe:8, uintbe:8, uintbe:8", self.isd_id, self.bwalloc_f,
             self.bwalloc_r, self.dyn_bwalloc_f, self.dyn_bwalloc_r, self.bebw_f,
             self.bebw_r).bytes
-
-    # def __eq__(self, other):
-    #     if type(other) is type(self):
-    #         return (self.info == other.info and
-    #                 self.timestamp == other.timestamp and
-    #                 self.isd_id == other.isd_id and
-    #                 self.hops == other.hops and
-    #                 self.reserved == other.reserved)
-    #     else:
-    #         return False
 
     def __str__(self):
         spcbf_str = ("[Info OF TD ID: %x, bwalloc_f: %u, bwalloc_r: %u]\n" %
             (self.isd_id, self.bwalloc_f, self.bwalloc_r))
         return spcbf_str
+
+    def __eq__(self, other):
+        if type(other) is type(self):
+            return (self.isd_id == other.isd_id and
+                    self.bwalloc_f == other.bwalloc_f and
+                    self.bwalloc_r == other.bwalloc_r and
+                    self.dyn_bwalloc_f == other.dyn_bwalloc_f and
+                    self.dyn_bwalloc_r == other.dyn_bwalloc_f and
+                    self.bebw_f == other.bebw_f and
+                    self.bebw_r == other.bebw_r)
+        else:
+            return False

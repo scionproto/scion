@@ -22,8 +22,9 @@ from lib.packet.scion import (SCIONPacket, get_type, PacketType as PT,
 from infrastructure.scion_elem import SCIONElement
 from lib.packet.path import EmptyPath
 import sys
-import os
 import logging
+import datetime
+import os
 
 
 ISD_PATH = '../topology/ISD'
@@ -129,7 +130,7 @@ class CertServer(SCIONElement):
         rot_isd = rot_req.rot_isd
         rot_version = rot_req.rot_version
         rot_file = (ISD_PATH + rot_isd + '/ISD:' + rot_isd + '-V:' +
-            rot_version + '.xml')
+            rot_version + '.crt')
         if not os.path.exists(rot_file):
             logging.info('ROT file %s not found, sending up stream.', rot_isd)
             self.rot_requests.setdefault((rot_isd, rot_version),
@@ -169,7 +170,7 @@ class CertServer(SCIONElement):
             logging.info("ROT verification failed.")
             return
         rot_file = (ISD_PATH + rot_isd + '/ISD:' + rot_isd + '-V:' +
-            rot_version + '.xml')
+            rot_version + '.crt')
         if not os.path.exists(os.path.dirname(rot_file)):
             os.makedirs(os.path.dirname(rot_file))
         with open(rot_file, 'w') as file_handler:
@@ -204,10 +205,13 @@ def main():
     """
     logging.basicConfig(level=logging.DEBUG)
     if len(sys.argv) != 5:
-        print("run: %s IP topo_file conf_file rot_file" %sys.argv[0])
+        logging.error("run: %s IP topo_file conf_file rot_file", sys.argv[0])
         sys.exit()
+
     cert_server = CertServer(IPv4HostAddr(sys.argv[1]), sys.argv[2],
         sys.argv[3], sys.argv[4])
+
+    logging.info("Started: %s", datetime.datetime.now())
     cert_server.run()
 
 if __name__ == "__main__":

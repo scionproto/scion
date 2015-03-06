@@ -18,10 +18,10 @@ limitations under the License.
 import sys
 import os
 
-_FILE_PATH = ('./lib/crypto/python-tweetnacl-20140309/build/python' +
+_FILE_PATH = ('../lib/crypto/python-tweetnacl-20140309/build/python' +
               sys.version[0:3] + '/tweetnacl.so')
 if os.path.exists(_FILE_PATH):
-    _LIB_PATH = ('./lib/crypto/python-tweetnacl-20140309/build/python' +
+    _LIB_PATH = ('../lib/crypto/python-tweetnacl-20140309/build/python' +
                  sys.version[0:3])
     sys.path.insert(0, _LIB_PATH)
     from tweetnacl import *

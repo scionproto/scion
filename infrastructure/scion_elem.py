@@ -1,5 +1,3 @@
-# server.py
-
 # Copyright 2014 ETH Zurich
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """
 :mod:`server` --- Base class for SCION servers
 ==============================================
@@ -25,16 +22,17 @@ Module docstring here.
 
 """
 
-from lib.topology_parser import Topology
-from lib.config import Config
-from lib.rot import Rot
 from lib.packet.host_addr import HostAddr
+from lib.topology import Topology
+from lib.config import Config
+from lib.crypto.trc import TRC
+import logging
 import socket
 import select
-import logging
+
 
 SCION_UDP_PORT = 30040
-SCION_UDP_PS2EH_PORT = 30041
+SCION_UDP_EH_DATA_PORT = 30041
 BUFLEN = 8092
 
 class SCIONElement(object):
@@ -53,7 +51,7 @@ class SCIONElement(object):
     :vartype addr: :class:`lib.packet.host_addr.HostAddr`
     """
 
-    def __init__(self, addr, topo_file, config_file=None, rot_file=None):
+    def __init__(self, addr, topo_file, config_file=None, trc_file=None):
         """
         Create a new ServerBase instance.
 
@@ -70,13 +68,14 @@ class SCIONElement(object):
         self._addr = None
         self.topology = None
         self.config = None
+        self.trc = None
         self.ifid2addr = {}
         self.addr = addr
         self.parse_topology(topo_file)
         if config_file is not None:
             self.parse_config(config_file)
-        if rot_file is not None:
-            self.parse_rot(rot_file)
+        if trc_file is not None:
+            self.parse_trc(trc_file)
         self.construct_ifid2addr_map()
         self._local_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._local_socket.bind((str(self.addr), SCION_UDP_PORT))
@@ -86,7 +85,8 @@ class SCIONElement(object):
     @property
     def addr(self):
         """
-        The address of the server as a :class:`lib.packet.host_addr.HostAddr` object.
+        The address of the server as a :class:`lib.packet.host_addr.HostAddr`
+        object.
         """
         return self._addr
 
@@ -120,7 +120,6 @@ class SCIONElement(object):
         """
         assert isinstance(topo_file, str)
         self.topology = Topology(topo_file)
-        self.topology.parse()
 
     def parse_config(self, config_file):
         """
@@ -132,15 +131,13 @@ class SCIONElement(object):
         """
         assert isinstance(config_file, str)
         self.config = Config(config_file)
-        self.config.parse()
 
-    def parse_rot(self, rot_file):
+    def parse_trc(self, trc_file):
         """
-        Instantiates a ROTParser and parses the rot given by 'rot_file'.
+        Instantiates a TRCParser and parses the TRC given by 'rot_file'.
         """
-        assert isinstance(rot_file, str)
-        self.rot = Rot(rot_file)
-        self.rot.parse()
+        assert isinstance(trc_file, str)
+        self.trc = TRC(trc_file)
 
     def construct_ifid2addr_map(self):
         """
@@ -148,10 +145,8 @@ class SCIONElement(object):
         of the neighbors connected to those interfaces.
         """
         assert self.topology is not None
-        # assert self.config is not None
-        for router_list in self.topology.routers.values():
-            for router in router_list:
-                self.ifid2addr[router.interface.if_id] = router.addr
+        for edge_router in self.topology.get_all_edge_routers():
+            self.ifid2addr[edge_router.interface.if_id] = edge_router.addr
 
     def handle_request(self, packet, sender, from_local_socket=True):
         """
@@ -165,7 +160,7 @@ class SCIONElement(object):
         Returns first hop addr of down-path or end-host addr.
         """
         opaque_field = spkt.hdr.path.get_first_hop_of()
-        if opaque_field is None: #EmptyPath
+        if opaque_field is None:  # EmptyPath
             return (spkt.hdr.dst_addr, SCION_UDP_PORT)
         else:
             if spkt.hdr.is_on_up_path():
@@ -180,7 +175,7 @@ class SCIONElement(object):
         ``dst.__str__()`` should return a string representing an IPv4 address.
 
         :param packet: the packet to be sent to the destination.
-        :type packet: 
+        :type packet:
         :param dst: the destination IPv4 address.
         :type dst: str
         :param dst_port: the destination port number.
@@ -198,3 +193,10 @@ class SCIONElement(object):
             for sock in recvlist:
                 packet, addr = sock.recvfrom(BUFLEN)
                 self.handle_request(packet, addr, sock == self._local_socket)
+
+    def clean(self):
+        """
+        Close open sockets.
+        """
+        for s in self._sockets:
+            s.close()
