@@ -310,7 +310,7 @@ class ADMarking(Marking):
         ad_str += str(self.pcbm)
         for peer_marking in self.pms:
             ad_str += str(peer_marking)
-        ad_str += ("[Signature: " + base64.b64encode(self.sig).decode('ascii') +
+        ad_str += ("[Signature: " + base64.b64encode(self.sig).decode('utf-8') +
             "]\n")
         return ad_str
 

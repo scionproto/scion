@@ -44,7 +44,7 @@ def generate_cryptobox_keypair():
     xsalsa20, and message authentication code poly1305.
 
     :returns: a key pair containing private key for decryption and public key
-              for encryption (pub_ascii).
+              for encryption.
     :rtype: bytes
     """
     (public_key, private_key) = crypto_box_curve25519xsalsa20poly1305_keypair()
@@ -78,7 +78,7 @@ def verify(msg, sig, verifying_key):
     :returns: True or False whether the verification succeeds or fails.
     :rtype: boolean
     """
-    msg_with_sig = sig + msg.encode('ascii')
+    msg_with_sig = sig + msg.encode('utf-8')
     try:
         crypto_sign_ed25519_open(msg_with_sig, verifying_key)
         return True

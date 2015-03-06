@@ -254,7 +254,7 @@ class Certificate(object):
             logging.warning("The given subject doesn't match the " +
                             "certificate's subject")
             return False
-        data_to_verify = self.__str__(with_signature=False).encode('ascii')
+        data_to_verify = self.__str__(with_signature=False).encode('utf-8')
         msg_with_sig = self.signature + data_to_verify
         try:
             crypto_sign_ed25519_open(msg_with_sig, issuer_cert.subject_sig_key)
@@ -272,12 +272,12 @@ class Certificate(object):
         """
         cert_dict = copy.deepcopy(self.get_cert_dict(with_signature))
         cert_dict['subject_sig_key'] = \
-            base64.b64encode(cert_dict['subject_sig_key']).decode('ascii')
+            base64.b64encode(cert_dict['subject_sig_key']).decode('utf-8')
         cert_dict['subject_enc_key'] = \
-            base64.b64encode(cert_dict['subject_enc_key']).decode('ascii')
+            base64.b64encode(cert_dict['subject_enc_key']).decode('utf-8')
         if with_signature:
             cert_dict['signature'] = \
-                base64.b64encode(cert_dict['signature']).decode('ascii')
+                base64.b64encode(cert_dict['signature']).decode('utf-8')
         cert_str = json.dumps(cert_dict, sort_keys=True, indent=4)
         return cert_str
 
@@ -394,11 +394,11 @@ class CertificateChain(object):
         for cert in self.certs:
             cert_dict = copy.deepcopy(cert.get_cert_dict(True))
             cert_dict['subject_sig_key'] = \
-                base64.b64encode(cert_dict['subject_sig_key']).decode('ascii')
+                base64.b64encode(cert_dict['subject_sig_key']).decode('utf-8')
             cert_dict['subject_enc_key'] = \
-                base64.b64encode(cert_dict['subject_enc_key']).decode('ascii')
+                base64.b64encode(cert_dict['subject_enc_key']).decode('utf-8')
             cert_dict['signature'] = \
-                base64.b64encode(cert_dict['signature']).decode('ascii')
+                base64.b64encode(cert_dict['signature']).decode('utf-8')
             chain_dict[index] = cert_dict
             index += 1
         chain_str = json.dumps(chain_dict, sort_keys=True, indent=4)
@@ -521,7 +521,7 @@ class TRC(object):
         self.root_cas = trc['root_cas']
         for subject in trc['core_ads']:
             cert_dict = \
-                base64.b64decode(trc['core_ads'][subject]).decode('ascii')
+                base64.b64decode(trc['core_ads'][subject]).decode('utf-8')
             cert_dict = json.loads(cert_dict)
             cert_dict['subject_sig_key'] = \
                 base64.b64decode(cert_dict['subject_sig_key'])
@@ -605,7 +605,7 @@ class TRC(object):
         :returns: True or False whether the verification succeeds or fails.
         :rtype: bool
         """
-        data_to_verify = self.__str__(with_signatures=False).encode('ascii')
+        data_to_verify = self.__str__(with_signatures=False).encode('utf-8')
         for signer in self.signatures:
             if signer not in self.core_ads:
                 logging.warning("A signature could not be verified.")
@@ -630,11 +630,11 @@ class TRC(object):
         for subject in trc_dict['core_ads']:
             cert_str = str(trc_dict['core_ads'][subject])
             trc_dict['core_ads'][subject] = \
-                base64.b64encode(cert_str.encode('ascii')).decode('ascii')
+                base64.b64encode(cert_str.encode('utf-8')).decode('utf-8')
         if with_signatures:
             for subject in trc_dict['signatures']:
                 signature = trc_dict['signatures'][subject]
                 trc_dict['signatures'][subject] = \
-                    base64.b64encode(signature).decode('ascii')
+                    base64.b64encode(signature).decode('utf-8')
         trc_str = json.dumps(trc_dict, sort_keys=True, indent=4)
         return trc_str

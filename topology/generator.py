@@ -182,8 +182,8 @@ def write_keys_certs(AD_configs):
         sig_priv_keys[isd_ad_id] = sig_priv
         sig_pub_keys[isd_ad_id] = sig_pub
         enc_pub_keys[isd_ad_id] = enc_pub
-        sig_priv = base64.b64encode(sig_priv).decode('ascii')
-        enc_priv = base64.b64encode(enc_priv).decode('ascii')
+        sig_priv = base64.b64encode(sig_priv).decode('utf-8')
+        enc_priv = base64.b64encode(enc_priv).decode('utf-8')
         write_file(sig_key_file, sig_priv)
         write_file(enc_key_file, enc_priv)
     certs = {}

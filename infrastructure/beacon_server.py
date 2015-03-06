@@ -517,7 +517,7 @@ class LocalBeaconServer(BeaconServer):
         cert_version = cert_rep.cert_version
         cert_file = get_cert_file_path(self.topology.isd_id,
             self.topology.ad_id, cert_isd, cert_ad, cert_version)
-        write_file(cert_file, cert_rep.cert.decode('ascii'))
+        write_file(cert_file, cert_rep.cert.decode('utf-8'))
         if (cert_isd, cert_ad, cert_version) in self.requested_certs:
             del self.requested_certs[(cert_isd, cert_ad, cert_version)]
         self.handle_unverified_beacons()
@@ -532,7 +532,7 @@ class LocalBeaconServer(BeaconServer):
         trc_version = trc_rep.trc_version
         trc_file = get_trc_file_path(self.topology.isd_id, self.topology.ad_id,
             trc_isd, trc_version)
-        write_file(trc_file, trc_rep.trc.decode('ascii'))
+        write_file(trc_file, trc_rep.trc.decode('utf-8'))
         if (trc_isd, trc_version) in self.requested_trcs:
             del self.requested_trcs[(trc_isd, trc_version)]
         self.handle_unverified_beacons()

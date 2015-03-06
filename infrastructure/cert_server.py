@@ -60,7 +60,7 @@ class CertServer(SCIONElement):
             logging.info("New certificate request sent.")
         else:
             logging.info('Certificate file found.')
-            cert = read_file(cert_file).encode('ascii')
+            cert = read_file(cert_file).encode('utf-8')
             cert_rep = CertReply.from_values(self.addr, cert_req.cert_isd,
                 cert_req.cert_ad, cert_req.cert_version, cert)
             if ptype == PT.CERT_REQ_LOCAL:
@@ -82,7 +82,7 @@ class CertServer(SCIONElement):
         cert_file = get_cert_file_path(self.topology.isd_id,
             self.topology.ad_id, cert_rep.cert_isd, cert_rep.cert_ad,
             cert_rep.cert_version)
-        write_file(cert_file, cert_rep.cert.decode('ascii'))
+        write_file(cert_file, cert_rep.cert.decode('utf-8'))
         for dst_addr in self.cert_requests[(cert_rep.cert_isd, cert_rep.cert_ad,
             cert_rep.cert_version)]:
             new_cert_rep = CertReply.from_values(self.addr, cert_rep.cert_isd,
@@ -114,7 +114,7 @@ class CertServer(SCIONElement):
             logging.info("New TRC request sent.")
         else:
             logging.info('TRC file found.')
-            trc = read_file(trc_file).encode('ascii')
+            trc = read_file(trc_file).encode('utf-8')
             trc_rep = TRCReply.from_values(self.addr, trc_req.trc_isd,
                 trc_req.trc_version, trc)
             if ptype == PT.TRC_REQ_LOCAL:
@@ -135,7 +135,7 @@ class CertServer(SCIONElement):
         logging.info("TRC reply received")
         trc_file = get_trc_file_path(self.topology.isd_id, self.topology.ad_id,
             trc_rep.trc_isd, trc_rep.trc_version)
-        write_file(trc_file, trc_rep.trc.decode('ascii'))
+        write_file(trc_file, trc_rep.trc.decode('utf-8'))
         for dst_addr in self.trc_requests[(trc_rep.trc_isd,
             trc_rep.trc_version)]:
             new_trc_rep = TRCReply.from_values(self.addr, trc_rep.trc_isd,
