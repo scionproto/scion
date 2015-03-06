@@ -42,14 +42,14 @@ class TestCertificates(unittest.TestCase):
 
         sig_priv10 = read_file(get_sig_key_file_path(1, 10, 0))
         sig_priv10 = base64.b64decode(sig_priv10)
-        msg = 'abcd'
+        msg = b'abcd'
         sig = sign(msg, sig_priv10)
         print('Sig test:', verify_sig_chain_trc(msg, sig, 'ISD:1-AD:10', cert10,
             trc, 0))
 
         sig_priv13 = read_file(get_sig_key_file_path(1, 13, 0))
         sig_priv13 = base64.b64decode(sig_priv13)
-        msg = 'abd'
+        msg = b'abd'
         sig = sign(msg, sig_priv13)
         chain = CertificateChain.from_values([])
         print('Sig test 2:', verify_sig_chain_trc(msg, sig, 'ISD:1-AD:13',

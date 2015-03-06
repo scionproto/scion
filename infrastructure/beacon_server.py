@@ -154,8 +154,8 @@ class BeaconServer(SCIONElement):
         pcbm = PCBMarking.from_values(self.topology.ad_id, ssf, hof, spcbf,
                                       self.if2rev_tokens[ingress_if][1],
                                       self.if2rev_tokens[egress_if][1])
-        data_to_sign = (str(pcbm.ad_id) + str(pcbm.hof.pack()) +
-                        str(pcbm.spcbf.pack()))
+        data_to_sign = (str(pcbm.ad_id).encode('utf-8') + pcbm.hof.pack() +
+                        pcbm.spcbf.pack())
         peer_markings = []
         # TODO PSz: peering link can be only added when there is
         # IfidReply from router
@@ -168,7 +168,7 @@ class BeaconServer(SCIONElement):
                 PeerMarking.from_values(router_peer.interface.neighbor_ad,
                                         hof, spf, self.if2rev_tokens[if_id][1],
                                         self.if2rev_tokens[egress_if][1])
-            data_to_sign += str(peer_marking.pack())
+            data_to_sign += peer_marking.pack()
             peer_markings.append(peer_marking)
         signature = sign(data_to_sign, self.signing_key)
         return ADMarking.from_values(pcbm, peer_markings, signature)
@@ -356,10 +356,10 @@ class LocalBeaconServer(BeaconServer):
         trc_file = get_trc_file_path(self.topology.isd_id, self.topology.ad_id,
             cert_isd, trc_version)
         trc = TRC(trc_file)
-        data_to_verify = (str(cert_ad) + str(last_pcbm.hof.pack()) +
-                          str(last_pcbm.spcbf.pack()))
+        data_to_verify = (str(cert_ad).encode('utf-8') + last_pcbm.hof.pack() +
+                          last_pcbm.spcbf.pack())
         for peer_marking in pcb.ads[-1].pms:
-            data_to_verify += str(peer_marking.pack())
+            data_to_verify += peer_marking.pack()
         return verify_sig_chain_trc(data_to_verify, pcb.ads[-1].sig, subject,
                                     chain, trc, trc_version)
 

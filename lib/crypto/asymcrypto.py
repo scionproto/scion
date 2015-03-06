@@ -56,7 +56,7 @@ def sign(msg, signing_key):
     Sign a message with a given signing key and return the signature.
 
     :param msg: message to be signed.
-    :type msg: str
+    :type msg: bytes
     :param signing_key: signing key from generate_signature_keypair().
     :type signing_key: bytes
     :returns: ed25519 signature.
@@ -70,7 +70,7 @@ def verify(msg, sig, verifying_key):
     Verify a signature.
 
     :param msg: message that was signed.
-    :type msg: str
+    :type msg: bytes
     :param sig: signature to verify.
     :type sig: bytes
     :param verifying_key: verifying key from generate_signature_keypair().
@@ -78,9 +78,8 @@ def verify(msg, sig, verifying_key):
     :returns: True or False whether the verification succeeds or fails.
     :rtype: boolean
     """
-    msg_with_sig = sig + msg.encode('utf-8')
     try:
-        crypto_sign_ed25519_open(msg_with_sig, verifying_key)
+        crypto_sign_ed25519_open(sig + msg, verifying_key)
         return True
     except:
         return False

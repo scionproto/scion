@@ -209,6 +209,7 @@ class Certificate(object):
         cert.sign_algorithm = Certificate.SIGN_ALGORITHM
         cert.encryption_algorithm = Certificate.ENCRYPT_ALGORITHM
         data_to_sign = cert.__str__(with_signature=False)
+        data_to_sign = data_to_sign.encode('utf-8')
         cert.signature = sign(data_to_sign, iss_priv_key)
         return cert
 

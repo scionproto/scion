@@ -445,6 +445,7 @@ def write_trc_files(AD_configs, keys):
             if os.path.exists(trc_file):
                 trc = TRC(trc_file)
                 data_to_sign = trc.__str__(with_signatures=False)
+                data_to_sign = data_to_sign.encode('utf-8')
                 sig = sign(data_to_sign, keys['sig_priv_keys'][isd_ad_id])
                 trc.signatures[subject] = sig
                 write_file(trc_file, str(trc))
