@@ -3,9 +3,15 @@
 
 # BEGIN subcommand functions
 cmd_init() {
-    echo "Compile the SCION crypto library."
-    cd lib/crypto/python-tweetnacl-20140309/
-    sh do
+    echo "Checking if tweetnacl has been built..."
+    if [ -f lib/crypto/python-tweetnacl-20140309/build/python3.4/tweetnacl.so ] && [ -f lib/crypto/python-tweetnacl-20140309/build/python2.7/tweetnacl.so ]
+    then
+        echo "tweetnacl exists."
+    else
+        echo "tweetnacl.so does not exist. Compiling..."
+        cd lib/crypto/python-tweetnacl-20140309/
+        sh do
+    fi
 }
 
 cmd_topology() {
@@ -25,11 +31,10 @@ cmd_setup() {
 }
 
 cmd_run() {
-    echo "Run network."
+    echo "Running the network..."
     cd infrastructure/
     for d in ../topology/ISD*; do
         for f in $d/run/*; do
-            echo "running $f"
             bash $f
         done
     done
@@ -45,7 +50,16 @@ cmd_clean() {
     sudo ip addr flush dev lo
     sudo ip addr add 127.0.0.1/8 dev lo
     } &> /dev/null
-    echo "Check the output of ip addr to confirm the addresses were correctly flushed."
+    echo "Clean completed. Please check the output of ip addr to confirm the addresses were correctly flushed."
+}
+
+cmd_start(){
+    # placeholder function to run all init functions
+    # cmd_init
+    # cmd_topology
+    # cmd_setup
+    # cmd_run
+    echo "This method has not been fully implemented. Please run init, topology, setup, and run"
 }
 
 cmd_version() {
@@ -62,6 +76,8 @@ cmd_help() {
 	echo
 	cat <<-_EOF
 	Usage:
+	    $PROGRAM start
+	        (not implemented) Performs all tasks (compile crypto lib, creates a topology, adds IP aliases, runs the network)
 	    $PROGRAM init
 	        Compile the SCION crypto library.
 	    $PROGRAM topology
@@ -90,6 +106,7 @@ case "$1" in
     topology|--topology) shift; cmd_topology ;;
     setup|--setup) shift;       cmd_setup ;;
     run|--run) shift;           cmd_run ;;
+    start|--start) shift;       cmd_start ;;
     stop|--stop) shift;         cmd_stop ;;
     clean|--clean) shift;       cmd_clean ;;
     help|--help) shift;         cmd_help ;;
