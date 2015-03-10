@@ -45,13 +45,7 @@ class PacketType(object):
     TRC_REP = 8  # Root of Trust file reply from parent AD
     TO_LOCAL_ADDR = 100  # Threshold to distinguish local control packets
     BEACON = 101  # PathSegment type
-    CERT_REQ_LOCAL = 102  # local certificate request (to certificate server)
-    CERT_REP_LOCAL = 103  # local certificate reply (from certificate server)
-    CERT_REQ = 104  # Certificate Request to parent AD
-    CERT_REP = 105  # Certificate Reply from parent AD
     PATH_MGMT = 108  # Path management packet to CPS/lPS
-    ROT_REQ_LOCAL = 112  # ROT file reply to local certificate server
-    ROT_REP_LOCAL = 113  # ROT file reply from local certificate server
     OFG_KEY_REQ = 114  # opaque field generation key request to CS
     OFG_KEY_REP = 115  # opaque field generation key reply from CS
     IFID_REQ = 116  # IF ID request to the peer router (of the neighbor AD)
