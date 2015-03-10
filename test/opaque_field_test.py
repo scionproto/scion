@@ -52,14 +52,7 @@ class TestOpaqueFields(unittest.TestCase):
         self.assertTrue(iof1.info == iof2.info and
                         iof1.timestamp == iof2.timestamp and
                         iof1.isd_id == iof2.isd_id and
-                        iof1.hops == iof2.hops and
-                        iof1.reserved == iof2.reserved)
-        # self.assertEqual(of1, of2)
-        # self.assertEqual(hof1, hof2)
-        # self.assertEqual(iof1, iof2)
-        # self.assertNotEqual(of1, hof1)
-        # self.assertNotEqual(iof1, hof1)
-        # self.assertNotEqual(of1, iof1)
+                        iof1.hops == iof2.hops)
 
     def test_hop_opaque_field(self):
         """

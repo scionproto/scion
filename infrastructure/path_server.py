@@ -39,10 +39,8 @@ class PathServer(SCIONElement):
         # TODO replace by pathstore instance
         self.down_segments = PathSegmentDB()
         self.core_segments = PathSegmentDB()
-
         self.pending_down = {}  # Dict of pending DOWN _and_ UP_DOWN requests.
         self.pending_core = {}
-
         self.waiting_targets = set()  # Used when local PS doesn't have up-path.
         # TODO replace by some cache data struct. (expiringdict ?)
 
@@ -57,14 +55,13 @@ class PathServer(SCIONElement):
         Handles registration of a down path.
         """
         for pcb in records.pcbs:
-            src_isd = pcb.get_first_ad().spcbf.isd_id
-            src_ad = pcb.get_first_ad().ad_id
-            dst_ad = pcb.get_last_ad().ad_id
-            dst_isd = pcb.get_last_ad().spcbf.isd_id
+            src_isd = pcb.get_first_pcbm().spcbf.isd_id
+            src_ad = pcb.get_first_pcbm().ad_id
+            dst_ad = pcb.get_last_pcbm().ad_id
+            dst_isd = pcb.get_last_pcbm().spcbf.isd_id
             self.down_segments.update(pcb, src_isd, src_ad, dst_isd, dst_ad)
             logging.info("Down-Segment registered (%d, %d) -> (%d, %d)",
                          src_isd, src_ad, dst_isd, dst_ad)
-
         # serve pending requests
         target = (dst_isd, dst_ad)
         if target in self.pending_down:
@@ -156,14 +153,12 @@ class CorePathServer(PathServer):
         """
         if not records.pcbs:
             return
-
         paths_to_propagate = []
         for pcb in records.pcbs:
-            src_isd = pcb.get_first_ad().spcbf.isd_id
-            src_ad = pcb.get_first_ad().ad_id
-            dst_ad = pcb.get_last_ad().ad_id
-            dst_isd = pcb.get_last_ad().spcbf.isd_id
-
+            src_isd = pcb.get_first_pcbm().spcbf.isd_id
+            src_ad = pcb.get_first_pcbm().ad_id
+            dst_ad = pcb.get_last_pcbm().ad_id
+            dst_isd = pcb.get_last_pcbm().spcbf.isd_id
             if (self.down_segments.update(pcb, src_isd, src_ad,
                                           dst_isd, dst_ad) is not None):
                 paths_to_propagate.append(pcb)
@@ -172,11 +167,9 @@ class CorePathServer(PathServer):
             else:
                 logging.info("Down-Segment to (%d, %d) already known.",
                              dst_isd, dst_ad)
-
         # For now we let every CPS know about all the down-paths within an ISD.
         if paths_to_propagate:
             self._propagate_down_path_segments(paths_to_propagate, records.info)
-
         # Serve pending requests.
         target = (dst_isd, dst_ad)
         if target in self.pending_down:
@@ -193,22 +186,20 @@ class CorePathServer(PathServer):
         """
         if not records.pcbs:
             return
-
         for pcb in records.pcbs:
-            src_ad = pcb.get_first_ad().ad_id
-            src_isd = pcb.get_first_ad().spcbf.isd_id
-            dst_ad = pcb.get_last_ad().ad_id
-            dst_isd = pcb.get_last_ad().spcbf.isd_id
+            src_ad = pcb.get_first_pcbm().ad_id
+            src_isd = pcb.get_first_pcbm().spcbf.isd_id
+            dst_ad = pcb.get_last_pcbm().ad_id
+            dst_isd = pcb.get_last_pcbm().spcbf.isd_id
             self.core_segments.update(pcb, src_isd=src_isd, src_ad=src_ad,
                                       dst_isd=dst_isd, dst_ad=dst_ad)
 #             logging.info("Core-Path registered: (%d, %d) -> (%d, %d)",
 #                          src_isd, src_ad, dst_isd, dst_ad)
-
         # Send pending requests that couldn't be processed due to the lack of
         # a core path to the destination PS.
         if self.waiting_targets:
             pcb = records.pcbs[0]
-            next_hop = self.ifid2addr[pcb.get_first_ad().hof.egress_if]
+            next_hop = self.ifid2addr[pcb.get_first_pcbm().hof.egress_if]
             path = pcb.get_path()
             targets = copy.deepcopy(self.waiting_targets)
             for (target_isd, target_ad, info) in targets:
@@ -219,7 +210,6 @@ class CorePathServer(PathServer):
                     self.waiting_targets.remove((target_isd, target_ad, info))
                     logging.debug("Sending path request %s on newly learned "
                                   "path to (%d, %d)", info, dst_isd, dst_ad)
-
         # Serve pending core path requests.
         target = ((src_isd, src_ad), (dst_isd, dst_ad))
         if target in self.pending_core:
@@ -265,7 +255,6 @@ class CorePathServer(PathServer):
         ptype = info.type
         logging.info("PATH_REQ received: type: %d, addr: %d,%d", ptype, dst_isd,
                      dst_ad)
-
         segments_to_send = []
         if ptype == PST.UP:
             logging.warning("CPS received up-segment request! This should not "
@@ -304,8 +293,8 @@ class CorePathServer(PathServer):
                     self.send(request, next_hop)
                     logging.info("Down-Segment request for different ISD. "
                                  "Forwarding request to CPS in (%d, %d).",
-                                 cpaths[0].get_last_ad().spcbf.isd_id,
-                                 cpaths[0].get_last_ad().ad_id)
+                                 cpaths[0].get_last_pcbm().spcbf.isd_id,
+                                 cpaths[0].get_last_pcbm().ad_id)
                 # If no core_path was available, add request to waiting targets.
                 else:
                     self.waiting_targets.add((dst_isd, dst_ad, info))
@@ -324,7 +313,6 @@ class CorePathServer(PathServer):
                              dst_isd, dst_ad)
         else:
             logging.error("CPS received unsupported path request!.")
-
         if segments_to_send:
             self.send_path_segments(pkt, segments_to_send)
 
@@ -351,12 +339,11 @@ class LocalPathServer(PathServer):
         for pcb in records.pcbs:
             self.up_segments.update(pcb, self.topology.isd_id,
                                     self.topology.ad_id,
-                                    pcb.get_first_ad().spcbf.isd_id,
-                                    pcb.get_first_ad().ad_id)
+                                    pcb.get_first_pcbm().spcbf.isd_id,
+                                    pcb.get_first_pcbm().ad_id)
             logging.info("Up-Segment to (%d, %d) registered.",
-                         pcb.get_first_ad().spcbf.isd_id,
-                         pcb.get_first_ad().ad_id)
-
+                         pcb.get_first_pcbm().spcbf.isd_id,
+                         pcb.get_first_pcbm().ad_id)
         # Sending pending targets to the core using first registered up-path.
         if self.waiting_targets:
             pcb = records.pcbs[0]
@@ -370,7 +357,6 @@ class LocalPathServer(PathServer):
                 self.send(path_request, next_hop)
                 logging.info("PATH_REQ sent using (first) registered up-path")
                 self.waiting_targets.remove((isd, ad, info))
-
         # Handling pending UP_PATH requests.
         for path_request in self.pending_up:
             self.send_path_segments(path_request, self.up_segments())
@@ -382,17 +368,15 @@ class LocalPathServer(PathServer):
         """
         if not records.pcbs:
             return
-
         for pcb in records.pcbs:
-            src_ad = pcb.get_first_ad().ad_id
-            src_isd = pcb.get_first_ad().spcbf.isd_id
-            dst_ad = pcb.get_last_ad().ad_id
-            dst_isd = pcb.get_last_ad().spcbf.isd_id
+            src_ad = pcb.get_first_pcbm().ad_id
+            src_isd = pcb.get_first_pcbm().spcbf.isd_id
+            dst_ad = pcb.get_last_pcbm().ad_id
+            dst_isd = pcb.get_last_pcbm().spcbf.isd_id
             self.core_segments.update(pcb, src_isd=src_isd, src_ad=src_ad,
                                       dst_isd=dst_isd, dst_ad=dst_ad)
             logging.info("Core-Segment registered: (%d, %d) -> (%d, %d)",
                          src_isd, src_ad, dst_isd, dst_ad)
-
         # Serve pending core path requests.
         target = ((src_isd, src_ad), (dst_isd, dst_ad))
         if target in self.pending_core:
@@ -415,10 +399,8 @@ class LocalPathServer(PathServer):
             src_isd = self.topology.isd_id
         if src_ad is None:
             src_ad = self.topology.ad_id
-
         info = PathSegmentInfo.from_values(ptype, src_isd, dst_isd,
                                            src_ad, dst_ad)
-
         if not len(self.up_segments):
             logging.info('Pending target added')
             self.waiting_targets.add((dst_isd, dst_ad, info))
@@ -445,9 +427,7 @@ class LocalPathServer(PathServer):
         ptype = info.type
         logging.info("PATH_REQ received: type: %d, addr: %d,%d", ptype, dst_isd,
                      dst_ad)
-
         paths_to_send = []
-
         # Requester wants up-path.
         if ptype in [PST.UP, PST.UP_DOWN]:
             if len(self.up_segments):
@@ -461,7 +441,6 @@ class LocalPathServer(PathServer):
                 else:  # PST.UP
                     self.pending_up.append(pkt)
                 return
-
         # Requester wants down-path.
         if (ptype in [PST.DOWN, PST.UP_DOWN]):
             paths = self.down_segments(dst_isd=dst_isd, dst_ad=dst_ad)
@@ -473,7 +452,6 @@ class LocalPathServer(PathServer):
                             [pkt])
                 self._request_paths_from_core(PST.DOWN, dst_isd, dst_ad)
                 logging.info("No downpath, request is pending.")
-
         # Requester wants core-path.
         if ptype == PST.CORE:
             src_isd = info.src_isd
@@ -487,7 +465,6 @@ class LocalPathServer(PathServer):
                             ((src_isd, src_ad), (dst_isd, dst_ad)), [pkt])
                 self._request_paths_from_core(PST.CORE, dst_isd, dst_ad,
                                               src_isd, src_ad)
-
         if paths_to_send:
             self.send_path_segments(pkt, paths_to_send)
 

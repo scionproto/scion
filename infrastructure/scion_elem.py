@@ -25,7 +25,7 @@ Module docstring here.
 from lib.packet.host_addr import HostAddr
 from lib.topology import Topology
 from lib.config import Config
-from lib.crypto.trc import TRC
+from lib.crypto.certificate import TRC
 import logging
 import socket
 import select

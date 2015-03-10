@@ -1,32 +1,32 @@
+# Copyright 2014 ETH Zurich
+
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+
+# http://www.apache.org/licenses/LICENSE-2.0
+
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """
-pcb.py
-
-Copyright 2014 ETH Zurich
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+:mod:`pcb` --- SCION Beacon
+===========================================
 """
 
 from lib.defines import EXP_TIME_UNIT
 from lib.packet.opaque_field import (SupportSignatureField, HopOpaqueField,
-    SupportPCBField, SupportPeerField, ROTField, InfoOpaqueField)
+    SupportPCBField, SupportPeerField, TRCField, InfoOpaqueField)
 from lib.packet.path import CorePath
 from lib.packet.scion import (SCIONPacket, get_addr_from_type, PacketType,
     SCIONHeader)
-import logging
-
 from Crypto.Hash import SHA256
 from bitstring import BitArray
 import bitstring
+import logging
+import base64
 
 
 class Marking(object):
@@ -220,7 +220,7 @@ class PeerMarking(Marking):
                 self.eg_rev_token)
 
     def __str__(self):
-        pm_str = "[Peer Marking ad_id: %x]\n" % (self.ad_id)
+        pm_str = "[Peer Marking ad_id: %d]\n" % (self.ad_id)
         pm_str += "ig_rev_token: %s\eg_rev_token:%s\n" % (self.ig_rev_token,
                                                           self.eg_rev_token)
         pm_str += str(self.hof) + '\n'
@@ -281,10 +281,10 @@ class ADMarking(Marking):
         @param sig: Beacon's signature.
         """
         ad_marking = ADMarking()
+        pcbm.ssf.sig_len = len(sig)
+        pcbm.ssf.block_size = PCBMarking.LEN + PeerMarking.LEN * len(pms)
         ad_marking.pcbm = pcbm
-        ad_marking.pms = []
-        if pms is not None:
-            ad_marking.pms = pms
+        ad_marking.pms = (pms if pms is not None else [])
         ad_marking.sig = sig
         return ad_marking
 
@@ -310,7 +310,8 @@ class ADMarking(Marking):
         ad_str += str(self.pcbm)
         for peer_marking in self.pms:
             ad_str += str(peer_marking)
-        ad_str += str(self.sig) + "\n"
+        ad_str += ("[Signature: " + base64.b64encode(self.sig).decode('utf-8') +
+            "]\n")
         return ad_str
 
     def __eq__(self, other):
@@ -331,7 +332,7 @@ class PathSegment(Marking):
     def __init__(self, raw=None):
         Marking.__init__(self)
         self.iof = None
-        self.rotf = None
+        self.trcf = None
         self.segment_id = 32 * b"\x00"
         self.ads = []
         self.min_exp_time = 2 ** 8 - 1
@@ -350,7 +351,7 @@ class PathSegment(Marking):
                             "len: %u", dlen)
             return
         self.iof = InfoOpaqueField(raw[0:8])
-        self.rotf = ROTField(raw[8:16])
+        self.trcf = TRCField(raw[8:16])
         self.segment_id = raw[16:48]
         raw = raw[48:]
         for _ in range(self.iof.hops):
@@ -364,7 +365,7 @@ class PathSegment(Marking):
         """
         Returns PathSegment as a binary string.
         """
-        pcb_bytes = self.iof.pack() + self.rotf.pack()
+        pcb_bytes = self.iof.pack() + self.trcf.pack()
         pcb_bytes += self.segment_id
         for ad_marking in self.ads:
             pcb_bytes += ad_marking.pack()
@@ -377,9 +378,7 @@ class PathSegment(Marking):
         if ad_marking.pcbm.hof.exp_time < self.min_exp_time:
             self.min_exp_time = ad_marking.pcbm.hof.exp_time
         self.ads.append(ad_marking)
-        # Increase hops if IOF if necessary.
-        if self.iof.hops < len(self.ads):
-            self.iof.hops = len(self.ads)
+        self.iof.hops = len(self.ads)
 
     def remove_signatures(self):
         """
@@ -409,7 +408,7 @@ class PathSegment(Marking):
         """
         return self.iof.isd_id
 
-    def get_last_ad(self):
+    def get_last_pcbm(self):
         """
         Returns the PCBMarking belonging to the last AD on the path.
         """
@@ -418,7 +417,7 @@ class PathSegment(Marking):
         else:
             return None
 
-    def get_first_ad(self):
+    def get_first_pcbm(self):
         """
         Returns the PCBMarking belonging to the first AD on the path.
         """
@@ -434,10 +433,8 @@ class PathSegment(Marking):
         """
         if not isinstance(other, PathSegment):
             return False
-
         self_hops = [ad.pcbm.ad_id for ad in self.ads]
         other_hops = [ad.pcbm.ad_id for ad in other.ads]
-
         return self_hops == other_hops
 
     def get_hops_hash(self):
@@ -452,7 +449,6 @@ class PathSegment(Marking):
             for pm in ad.pms:
                 h.update(pm.ig_rev_token)
                 h.update(pm.eg_rev_token)
-
         return h.digest()
 
     def get_timestamp(self):
@@ -488,7 +484,7 @@ class PathSegment(Marking):
         while len(raw) > 0:
             pcb = PathSegment()
             pcb.iof = InfoOpaqueField(raw[0:8])
-            pcb.rotf = ROTField(raw[8:16])
+            pcb.trcf = TRCField(raw[8:16])
             pcb.segment_id = raw[16:48]
             raw = raw[48:]
             for _ in range(pcb.iof.hops):
@@ -513,7 +509,7 @@ class PathSegment(Marking):
     def __str__(self):
         pcb_str = "[PathSegment]\n"
         pcb_str += "Segment ID: %s\n" % str(self.segment_id)
-        pcb_str += str(self.iof) + "\n" + str(self.rotf) + "\n"
+        pcb_str += str(self.iof) + "\n" + str(self.trcf) + "\n"
         for ad_marking in self.ads:
             pcb_str += str(ad_marking)
         return pcb_str
@@ -521,7 +517,7 @@ class PathSegment(Marking):
     def __eq__(self, other):
         if type(other) is type(self):
             return (self.iof == other.iof and
-                    self.rotf == other.rotf and
+                    self.trcf == other.trcf and
                     self.ads == other.ads)
         else:
             return False
