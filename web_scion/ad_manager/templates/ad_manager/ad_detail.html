@@ -1,7 +1,14 @@
 {% extends "ad_manager/base.html" %}
+{% load staticfiles %}
+
+{% block js %}
+  {{ block.super }}
+  <script src="https://code.jquery.com/jquery-2.1.3.min.js"></script>
+  <script src="{% static 'js/ad_detail.js' %}"></script>
+{% endblock %}
 
 {% block content %}
-  <h1>AD {{ object.isd_id }}-{{ object.id }}</h1>
+  <h1>AD {{ object }}</h1>
 
   <h4>
     Core AD:
@@ -10,62 +17,24 @@
   </h4>
   <hr />
 
-  <h4>Beacon servers</h4>
-  <table class="table table-striped">
-    <thead>
-    <tr>
-      <th></th>
-      <th class="col-md-4">Address</th>
-    </tr>
-    </thead>
-    <tbody>
-    {% for beacon_server in beacon_servers %}
-      <tr>
-        <td>Beacon server {{ forloop.counter }}</td>
-        <td>{{ beacon_server.addr }}</td>
-      </tr>
-    {% endfor %}
-    </tbody>
-  </table>
-  <br />
+  <div>
+    <div class="col-md-11"></div>
+    <div class="col-md-1">
+      <button type="button" class="btn btn-info" id="update-ad-btn">Update</button>
+    </div>
+  </div>
 
-  <h4>Certificate servers</h4>
-  <table class="table table-striped">
-    <thead>
-    <tr>
-      <th></th>
-      <th class="col-md-4">Address</th>
-    </tr>
-    </thead>
-    <tbody>
-    {% for certificate_server in certificate_servers %}
-      <tr>
-        <td>Certificate server {{ forloop.counter }}</td>
-        <td>{{ certificate_server.addr }}</td>
-      </tr>
-    {% endfor %}
-    </tbody>
-  </table>
-  <br />
+  {% with table_name='Beacon servers' servers=beacon_servers table_id='beacon-servers' %}
+    {% include 'ad_manager/server_table.html' %}
+  {% endwith %}
 
-  <h4>Path servers</h4>
-  <table class="table table-striped">
-    <thead>
-    <tr>
-      <th></th>
-      <th class="col-md-4">Address</th>
-    </tr>
-    </thead>
-    <tbody>
-    {% for path_server in path_servers %}
-      <tr>
-        <td>Path server {{ forloop.counter }}</td>
-        <td>{{ path_server.addr }}</td>
-      </tr>
-    {% endfor %}
-    </tbody>
-  </table>
-  <br />
+  {% with table_name='Certificate servers' servers=certificate_servers table_id='certificate-servers' %}
+    {% include 'ad_manager/server_table.html' %}
+  {% endwith %}
+
+  {% with table_name='Path servers' servers=path_servers table_id='path-servers' %}
+    {% include 'ad_manager/server_table.html' %}
+  {% endwith %}
 
   <h4>Routers</h4>
   <table class="table table-striped">
@@ -93,5 +62,12 @@
     </tbody>
   </table>
   <br />
+
+
+  <!-- JS variables -->
+  <script>
+    var isdAdId = '{{ object }}';
+    var adDetailUrl = '{% url 'ad_status' object.id %}';
+  </script>
 
 {% endblock %}

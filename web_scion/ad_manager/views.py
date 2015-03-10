@@ -1,3 +1,4 @@
+from django.http import JsonResponse
 from django.shortcuts import render
 
 from django.conf import settings
@@ -41,5 +42,12 @@ def index(request):
     routers = sorted(routers, key=lambda r: str(r.addr))
 
     return render(request, 'ad_manager/ad_detail.html', {'config': config,
-                                          'topology': topology,
-                                          'routers': routers})
+                                                         'topology': topology,
+                                                         'routers': routers})
+
+
+def get_ad_status(request, pk):
+    ad = AD.objects.get(id=pk)
+    ad_info = ad.query_ad_status()
+    return JsonResponse({'data': ad_info})
+

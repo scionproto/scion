@@ -6,6 +6,8 @@ from lib.config import Config
 from lib.topology import Topology
 from topology.generator import ISD_AD_ID_DIVISOR, TOPO_DIR, SCRIPTS_DIR
 
+LISTEN_PORT = 9000
+
 
 class MonitoringServer(object):
 
@@ -17,19 +19,23 @@ class MonitoringServer(object):
         self.topology = Topology(self.topo_file)
         self.config = Config(self.config_file)
 
-        self.rpc_server = XMLRPCServerTLS((self.addr, 8000))
+        self.rpc_server = XMLRPCServerTLS((self.addr, LISTEN_PORT))
         self.rpc_server.register_introspection_functions()
 
         # Register functions
         self.rpc_server.register_function(self.get_topology)
         self.rpc_server.register_function(self.get_process_info)
         self.rpc_server.register_function(self.control_process)
+        self.rpc_server.register_function(self.get_ad_info)
 
         print("Server started...")
         self.rpc_server.serve_forever()
 
     def get_supervisor_server(self):
         return xmlrpc.client.ServerProxy('http://localhost:9001/RPC2')
+
+    def get_full_ad_name(self, isd_id, ad_id):
+        return 'ad{}-{}'.format(isd_id, ad_id)
 
     # COMMAND
     def get_topology(self, isd_ad_id):
@@ -41,6 +47,16 @@ class MonitoringServer(object):
         topo_path = ''.join(['..', SCRIPTS_DIR, topo_file])
         return open(topo_path, 'r').read()
 
+    def get_ad_info(self, isd_ad_id):
+        (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
+        ad_name = self.get_full_ad_name(isd_id, ad_id)
+        server = self.get_supervisor_server()
+        all_process_info = server.supervisor.getAllProcessInfo()
+        ad_process_info = list(filter(lambda x: x['group'] == ad_name,
+                                      all_process_info))
+        return list(ad_process_info)
+
+    # COMMAND
     def get_process_info(self, full_process_name):
         server = self.get_supervisor_server()
         info = server.supervisor.getProcessInfo(full_process_name)
@@ -62,11 +78,12 @@ class MonitoringServer(object):
         server = self.get_supervisor_server()
         return server.supervisor.stopProcess(process_name)
 
+    # COMMAND
     def control_process(self, isd_ad_id, process_name, command):
         (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
         assert self.topology.ad_id == int(ad_id) \
                and self.topology.isd_id == int(isd_id)
-        ad_name = 'ad{}-{}'.format(isd_id, ad_id)
+        ad_name = self.get_full_ad_name(isd_id, ad_id)
         full_process_name = '{}:{}'.format(ad_name, process_name)
         if command == 'START':
             res = self.start_process(full_process_name)
