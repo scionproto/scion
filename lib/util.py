@@ -19,87 +19,125 @@
 ===============================
 
 Various utilities for SCION functionality.
-
-.. note::
-   I'm not currently sure what the purpose of this module is. It only contains
-   a single function, but may be expanded in the future. -SM
-
 """
 
-import logging
 from os.path import sys
-import socket
-import struct
-
-from lib.packet.host_addr import IPv4HostAddr
-from lib.packet.opaque_field import InfoOpaqueField
-from lib.packet.path import PathType, CorePath, CrossOverPath, PeerPath
+import os
+import logging
 
 
-#FIXME to remove, as we don't need that anymore with python's SCIONDaemon
-def get_paths(dst_isd, src_ad, dst_ad):
+ISD_DIR = '../topology/ISD'
+CERT_DIR = '/certificates/'
+SIG_KEYS_DIR = '/signature_keys/'
+ENC_KEYS_DIR = '/encryption_keys/'
+
+
+def get_cert_file_path(isd_id, ad_id, cert_isd, cert_ad, cert_version):
     """
-    Requests paths for dst_ad in dst_isd from the path translation server.
+    Return the certificate file path.
 
-    .. note::
-       The path translation server is currently emulated by the clientdaemon.
-       The communication uses UDP and the src/dst ports are set to be (5550 +
-       ADID)/ (3330 + ADID) (e.g for AD6 this would be 5556/3336).
-
-    :param dst_isd: the destination ISD identifier.
-    :type dst_isd: int
-    :param src_aid: the source AD identifier.
-    :type src_aid: int
-    :param dst_aid: the destination AD identifier.
-    :type dst_aid: int
+    :param isd_id: caller's ISD identifier.
+    :type isd_id: int
+    :param ad_id: caller's AD identifier.
+    :type ad_id: int
+    :param cert_isd: the certificate ISD identifier.
+    :type cert_isd: int
+    :param cert_ad: the certificate AD identifier.
+    :type cert_ad: int
+    :param cert_version: the certificate version.
+    :type cert_version: int
+    :returns: the certificate file path.
+    :rtype: str
     """
-    paths = {}
-    data = struct.pack("HH", dst_isd, dst_ad)
-    # print str(data)
-    # Send data to local client-daemon
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    sock.bind(("127.0.0.1", 5550 + src_ad))
-    sock.settimeout(2)
-    socket.socket(socket.AF_INET, socket.SOCK_DGRAM).sendto(
-        data, ("127.0.0.1", 3330 + src_ad))
-    try:
-        while True:
-            data, _ = sock.recvfrom(1024)
-            # format of received path is \x00|ISD|AID|path|FirstHop-IP
-            if data[0] == 0:
-                offset = 11
-                info = InfoOpaqueField(
-                    data[offset:offset + InfoOpaqueField.LEN])
-                if info.info == PathType.CORE:
-                    path = CorePath(data[offset:-4])
-                elif info.info == PathType.CROSS_OVER:
-                    path = CrossOverPath(data[offset:-4])
-                elif info.info == PathType.PEER_LINK:
-                    path = PeerPath(data[offset:-4])
-                else:
-                    logging.info("Can not parse path in packet: "
-                                 "Unknown type %x", info.info)
-                first_hop = IPv4HostAddr(data[-4:])
-                if (dst_isd, dst_ad) not in paths:
-                    paths[(dst_isd, dst_ad)] = [(path, first_hop)]
-                else:
-                    paths[(dst_isd, dst_ad)].append((path, first_hop))
-                # packed = path.pack()
-            elif data[0] == 4:
-                # Received last path
-                logging.info("Received all paths for AD %u", dst_ad)
-                break
-    except socket.timeout:
-        logging.info("Socket timed out.")
-    except:
-        logging.warning("Unexpected error: %s", sys.exc_info()[0])
-    finally:
-#         logging.info("Got the following paths for AD %lu: %s",
-#                      dst_ad, str(paths))
-        sock.close()
+    return (ISD_DIR + str(isd_id) + CERT_DIR + 'AD' + str(ad_id) + '/ISD:' +
+        str(cert_isd) + '-AD:' + str(cert_ad) + '-V:' + str(cert_version) +
+        '.crt')
 
-    return paths
+
+def get_trc_file_path(isd_id, ad_id, trc_isd, trc_version):
+    """
+    Return the TRC file path.
+
+    :param isd_id: caller's ISD identifier.
+    :type isd_id: int
+    :param ad_id: caller's AD identifier.
+    :type ad_id: int
+    :param trc_isd: the TRC ISD identifier.
+    :type trc_isd: int
+    :param trc_version: the TRC version.
+    :type trc_version: int
+    :returns: the TRC file path.
+    :rtype: str
+    """
+    return (ISD_DIR + str(isd_id) + CERT_DIR + 'AD' + str(ad_id) + '/ISD:' +
+        str(trc_isd) + '-V:' + str(trc_version) + '.crt')
+
+
+def get_sig_key_file_path(isd_id, ad_id, version):
+    """
+    Return the signing key file path.
+
+    :param isd_id: the signing key ISD identifier.
+    :type isd_id: int
+    :param ad_id: the signing key AD identifier.
+    :type ad_id: int
+    :param version: the signing key version.
+    :type version: int
+    :returns: the signing key file path.
+    :rtype: str
+    """
+    return (ISD_DIR + str(isd_id) + SIG_KEYS_DIR + 'ISD:' + str(isd_id) +
+        '-AD:' + str(ad_id) + '-V:' + str(version) + '.key')
+
+
+def get_enc_key_file_path(isd_id, ad_id, version):
+    """
+    Return the encryption key file path.
+
+    :param isd_id: the encryption key ISD identifier.
+    :type isd_id: int
+    :param ad_id: the encryption key AD identifier.
+    :type ad_id: int
+    :param version: the encryption key version.
+    :type version: int
+    :returns: the encryption key file path.
+    :rtype: str
+    """
+    return (ISD_DIR + str(isd_id) + ENC_KEYS_DIR + 'ISD:' + str(isd_id) +
+        '-AD:' + str(ad_id) + '-V:' + str(version) + '.key')
+
+
+def read_file(file_path):
+    """
+    Read and return content of a file.
+
+    :param file_path: the path to the file.
+    :type file_path: str
+    :returns: the file content.
+    :rtype: str
+    """
+    if os.path.exists(file_path):
+        with open(file_path, 'r') as file_handler:
+            text = file_handler.read()
+        return text
+    else:
+        return ''
+
+
+def write_file(file_path, text):
+    """
+    Write some text into a file.
+
+    :param file_path: the path to the file.
+    :type file_path: str
+    :param text: the file content.
+    :type text: str
+    """
+    if not os.path.exists(os.path.dirname(file_path)):
+        os.makedirs(os.path.dirname(file_path))
+    with open(file_path, 'w') as file_handler:
+        file_handler.write(text)
+
 
 def update_dict(dictionary, key, values, elem_num=0):
     """
@@ -111,3 +149,10 @@ def update_dict(dictionary, key, values, elem_num=0):
         dictionary[key] = values
     dictionary[key] = dictionary[key][-elem_num:]
 
+
+def init_logging(level=logging.DEBUG):
+    """
+    Configure logging for components (servers, routers, gateways).
+    """
+    logging.basicConfig(level=level,
+                        format='%(asctime)s [%(levelname)s]\t%(message)s')

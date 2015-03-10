@@ -1,201 +1,163 @@
+# Copyright 2014 ETH Zurich
+
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+
+# http://www.apache.org/licenses/LICENSE-2.0
+
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """
-cert_server.py
-
-Copyright 2014 ETH Zurich
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+:mod:`cert_server` --- SCION certificate server
+===========================================
 """
 
 from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.scion import (SCIONPacket, get_type, PacketType as PT,
-    CertRequest, CertReply, RotRequest, RotReply, get_addr_from_type)
+    CertRequest, CertReply, TRCRequest, TRCReply)
 from infrastructure.scion_elem import SCIONElement
-from lib.packet.path import EmptyPath
+from lib.util import (read_file, write_file, get_cert_file_path,
+    get_trc_file_path, init_logging)
 import sys
 import logging
 import datetime
 import os
 
 
-ISD_PATH = '../topology/ISD'
-CERTS_PATH = '/certificates/'
-
-
 class CertServer(SCIONElement):
     """
     The SCION Certificate Server.
     """
-    def __init__(self, addr, topo_file, config_file, rot_file):
-        SCIONElement.__init__(self, addr, topo_file, config_file, rot_file)
+    def __init__(self, addr, topo_file, config_file, trc_file):
+        SCIONElement.__init__(self, addr, topo_file, config_file, trc_file)
         self.cert_requests = {}
-        self.rot_requests = {}
-
-    def _verify_cert(self, cert):
-        """
-        Verifies certificate validity.
-        """
-        return True
+        self.trc_requests = {}
 
     def process_cert_request(self, cert_req):
         """
-        Process a certificate request
+        Process a certificate request.
         """
-        isinstance(cert_req, CertRequest)
+        assert isinstance(cert_req, CertRequest)
         logging.info("Cert request received")
         src_addr = cert_req.hdr.src_addr
-        path = cert_req.path
-        if path is None:
-            # TODO: ask PS
-            # if still None: return
-            pass
-        cert_isd = cert_req.cert_isd
-        cert_ad = cert_req.cert_ad
-        cert_version = cert_req.cert_version
-        cert_file = (ISD_PATH + cert_isd + CERTS_PATH + 'ISD:' + cert_isd +
-            '-AD:' + cert_ad + '-V:' + cert_version + '.crt')
+        ptype = get_type(cert_req)
+        cert_file = get_cert_file_path(self.topology.isd_id,
+            self.topology.ad_id, cert_req.cert_isd, cert_req.cert_ad,
+            cert_req.cert_version)
         if not os.path.exists(cert_file):
-            logging.info('Certificate %s:%s not found, sending up stream.',
-                cert_isd, cert_ad)
-            self.cert_requests.setdefault((cert_isd, cert_ad, cert_version),
-                []).append(src_addr)
-            dst_addr = get_addr_from_type(PT.CERT_REQ)
+            logging.info('Certificate not found.')
+            self.cert_requests.setdefault((cert_req.cert_isd, cert_req.cert_ad,
+                cert_req.cert_version), []).append(src_addr)
             new_cert_req = CertRequest.from_values(PT.CERT_REQ, self.addr,
-                dst_addr, path, cert_isd, cert_ad, cert_version)
+                cert_req.ingress_if, cert_req.src_isd, cert_req.src_ad,
+                cert_req.cert_isd, cert_req.cert_ad, cert_req.cert_version)
+            dst_addr = self.ifid2addr[cert_req.ingress_if]
             self.send(new_cert_req, dst_addr)
+            logging.info("New certificate request sent.")
         else:
-            logging.info('Certificate %s:%s found, sending it back to ' +
-                'requester(%s)', cert_isd, cert_ad, src_addr)
-            with open(cert_file, 'r') as file_handler:
-                cert = file_handler.read()
-            if cert_req.hdr.path is None or cert_req.hdr.path == b'':
-                cert_rep = CertReply.from_values(self.addr, src_addr, None,
-                    cert_isd, cert_ad, cert_version, cert)
-                self.send(cert_rep, src_addr)
+            logging.info('Certificate file found.')
+            cert = read_file(cert_file).encode('utf-8')
+            cert_rep = CertReply.from_values(self.addr, cert_req.cert_isd,
+                cert_req.cert_ad, cert_req.cert_version, cert)
+            if ptype == PT.CERT_REQ_LOCAL:
+                dst_addr = src_addr
             else:
-                path = path.reverse()
-                cert_rep = CertReply.from_values(self.addr, src_addr, path,
-                    cert_isd, cert_ad, cert_version, cert)
-                #cert_rep.hdr.set_downpath()
-                (next_hop, port) = self.get_first_hop(cert_rep)
-                logging.info("Sending cert reply, using path: %s", path)
-                self.send(cert_rep, next_hop, port)
+                for router in self.topology.child_edge_routers:
+                    if (cert_req.src_isd == router.interface.neighbor_isd and
+                        cert_req.src_ad == router.interface.neighbor_ad):
+                        dst_addr = router.addr
+            self.send(cert_rep, dst_addr)
+            logging.info("Certificate reply sent.")
 
     def process_cert_reply(self, cert_rep):
         """
-        process a certificate reply
+        Process a certificate reply.
         """
-        isinstance(cert_rep, CertReply)
-        logging.info("Cert reply received")
-        cert_isd = cert_rep.cert_isd
-        cert_ad = cert_rep.cert_ad
-        cert_version = cert_rep.cert_version
-        cert = cert_rep.cert
-        if not self._verify_cert(cert):
-            logging.info("Certificate verification failed.")
-            return
-        cert_file = (ISD_PATH + cert_isd + CERTS_PATH + 'ISD:' + cert_isd +
-            '-AD:' + cert_ad + '-V:' + cert_version + '.crt')
-        if not os.path.exists(os.path.dirname(cert_file)):
-            os.makedirs(os.path.dirname(cert_file))
-        with open(cert_file, 'w') as file_handler:
-            file_handler.write(cert)
-        for dst_addr in self.cert_requests[(cert_isd, cert_ad, cert_version)]:
-            new_cert_rep = CertReply.from_values(self.addr, dst_addr, None,
-                cert_isd, cert_ad, cert_version, cert)
+        assert isinstance(cert_rep, CertReply)
+        logging.info("Certificate reply received")
+        cert_file = get_cert_file_path(self.topology.isd_id,
+            self.topology.ad_id, cert_rep.cert_isd, cert_rep.cert_ad,
+            cert_rep.cert_version)
+        write_file(cert_file, cert_rep.cert.decode('utf-8'))
+        for dst_addr in self.cert_requests[(cert_rep.cert_isd, cert_rep.cert_ad,
+            cert_rep.cert_version)]:
+            new_cert_rep = CertReply.from_values(self.addr, cert_rep.cert_isd,
+                cert_rep.cert_ad, cert_rep.cert_version, cert_rep.cert)
             self.send(new_cert_rep, dst_addr)
-        del self.cert_requests[(cert_isd, cert_ad, cert_version)]
+        del self.cert_requests[(cert_rep.cert_isd, cert_rep.cert_ad,
+            cert_rep.cert_version)]
+        logging.info("Certificate reply sent.")
 
-    def process_rot_request(self, rot_req):
+    def process_trc_request(self, trc_req):
         """
-        process a ROT request
+        Process a TRC request.
         """
-        isinstance(rot_req, RotRequest)
-        logging.info("ROT request received")
-        src_addr = rot_req.hdr.src_addr
-        path = rot_req.path
-        if path is None:
-            # TODO: ask PS
-            # if still None: return
-            pass
-        rot_isd = rot_req.rot_isd
-        rot_version = rot_req.rot_version
-        rot_file = (ISD_PATH + rot_isd + '/ISD:' + rot_isd + '-V:' +
-            rot_version + '.crt')
-        if not os.path.exists(rot_file):
-            logging.info('ROT file %s not found, sending up stream.', rot_isd)
-            self.rot_requests.setdefault((rot_isd, rot_version),
+        assert isinstance(trc_req, TRCRequest)
+        logging.info("TRC request received")
+        src_addr = trc_req.hdr.src_addr
+        ptype = get_type(trc_req)
+        trc_file = get_trc_file_path(self.topology.isd_id, self.topology.ad_id,
+            trc_req.trc_isd, trc_req.trc_version)
+        if not os.path.exists(trc_file):
+            logging.info('TRC file not found.')
+            self.trc_requests.setdefault((trc_req.trc_isd, trc_req.trc_version),
                 []).append(src_addr)
-            dst_addr = get_addr_from_type(PT.ROT_REQ)
-            new_rot_req = RotRequest.from_values(PT.ROT_REQ, self.addr,
-                dst_addr, path, rot_isd, rot_version)
-            self.send(new_rot_req, dst_addr)
+            new_trc_req = TRCRequest.from_values(PT.TRC_REQ, self.addr,
+                trc_req.ingress_if, trc_req.src_isd, trc_req.src_ad,
+                trc_req.trc_isd, trc_req.trc_version)
+            dst_addr = self.ifid2addr[trc_req.ingress_if]
+            self.send(new_trc_req, dst_addr)
+            logging.info("New TRC request sent.")
         else:
-            logging.info('ROT file %s found, sending it back to requester (%s)',
-                rot_isd, src_addr)
-            with open(rot_file, 'r') as file_handler:
-                rot = file_handler.read()
-            if rot_req.hdr.path is None or rot_req.hdr.path == b'':
-                rot_rep = RotReply.from_values(self.addr, src_addr, None,
-                    rot_isd, rot_version, rot)
-                self.send(rot_rep, src_addr)
+            logging.info('TRC file found.')
+            trc = read_file(trc_file).encode('utf-8')
+            trc_rep = TRCReply.from_values(self.addr, trc_req.trc_isd,
+                trc_req.trc_version, trc)
+            if ptype == PT.TRC_REQ_LOCAL:
+                dst_addr = src_addr
             else:
-                path = path.reverse()
-                rot_rep = RotReply.from_values(self.addr, src_addr, path,
-                    rot_isd, rot_version, rot)
-                #rot_rep.hdr.set_downpath()
-                (next_hop, port) = self.get_first_hop(rot_rep)
-                logging.info("Sending ROT reply, using path: %s", path)
-                self.send(rot_rep, next_hop, port)
+                for router in self.topology.child_edge_routers:
+                    if (trc_req.src_isd == router.interface.neighbor_isd and
+                        trc_req.src_ad == router.interface.neighbor_ad):
+                        dst_addr = router.addr
+            self.send(trc_rep, dst_addr)
+            logging.info("TRC reply sent.")
 
-    def process_rot_reply(self, rot_rep):
+    def process_trc_reply(self, trc_rep):
         """
-        process a ROT reply
+        Process a TRC reply.
         """
-        isinstance(rot_rep, RotReply)
-        logging.info("ROT reply received")
-        rot_isd = rot_rep.rot_isd
-        rot_version = rot_rep.rot_version
-        rot = rot_rep.rot
-        if not self._verify_cert(rot):
-            logging.info("ROT verification failed.")
-            return
-        rot_file = (ISD_PATH + rot_isd + '/ISD:' + rot_isd + '-V:' +
-            rot_version + '.crt')
-        if not os.path.exists(os.path.dirname(rot_file)):
-            os.makedirs(os.path.dirname(rot_file))
-        with open(rot_file, 'w') as file_handler:
-            file_handler.write(rot)
-        for dst_addr in self.rot_requests[(rot_isd, rot_version)]:
-            new_rot_rep = RotReply.from_values(self.addr, dst_addr, None,
-                rot_isd, rot_version, rot)
-            self.send(new_rot_rep, dst_addr)
-        del self.rot_requests[(rot_isd, rot_version)]
+        assert isinstance(trc_rep, TRCReply)
+        logging.info("TRC reply received")
+        trc_file = get_trc_file_path(self.topology.isd_id, self.topology.ad_id,
+            trc_rep.trc_isd, trc_rep.trc_version)
+        write_file(trc_file, trc_rep.trc.decode('utf-8'))
+        for dst_addr in self.trc_requests[(trc_rep.trc_isd,
+            trc_rep.trc_version)]:
+            new_trc_rep = TRCReply.from_values(self.addr, trc_rep.trc_isd,
+                trc_rep.trc_version, trc_rep.trc)
+            self.send(new_trc_rep, dst_addr)
+        del self.trc_requests[(trc_rep.trc_isd, trc_rep.trc_version)]
+        logging.info("TRC reply sent.")
 
     def handle_request(self, packet, sender, from_local_socket=True):
         """
         Main routine to handle incoming SCION packets.
         """
-        isinstance(packet, SCIONPacket)
         spkt = SCIONPacket(packet)
         ptype = get_type(spkt)
         if ptype == PT.CERT_REQ_LOCAL or ptype == PT.CERT_REQ:
             self.process_cert_request(CertRequest(packet))
         elif ptype == PT.CERT_REP:
             self.process_cert_reply(CertReply(packet))
-        elif ptype == PT.ROT_REQ_LOCAL or ptype == PT.ROT_REQ:
-            self.process_rot_request(RotRequest(packet))
-        elif ptype == PT.ROT_REP:
-            self.process_rot_reply(RotReply(packet))
+        elif ptype == PT.TRC_REQ_LOCAL or ptype == PT.TRC_REQ:
+            self.process_trc_request(TRCRequest(packet))
+        elif ptype == PT.TRC_REP:
+            self.process_trc_reply(TRCReply(packet))
         else:
             logging.info("Type not supported")
 
@@ -203,9 +165,9 @@ def main():
     """
     Main function.
     """
-    logging.basicConfig(level=logging.DEBUG)
+    init_logging()
     if len(sys.argv) != 5:
-        logging.error("run: %s IP topo_file conf_file rot_file", sys.argv[0])
+        logging.error("run: %s IP topo_file conf_file trc_file", sys.argv[0])
         sys.exit()
 
     cert_server = CertServer(IPv4HostAddr(sys.argv[1]), sys.argv[2],

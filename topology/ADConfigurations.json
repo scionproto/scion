@@ -32,6 +32,7 @@
     "1-14": {
         "level": "INTERMEDIATE",
         "path_servers": 1,
+	"cert_issuer": "1-11",
         "links": {
             "1-11": "PARENT",
             "1-15": "PEER",
@@ -40,6 +41,7 @@
     },
     "1-15": {
         "level": "INTERMEDIATE",
+	"cert_issuer": "1-12",
         "links": {
             "1-12": "PARENT",
             "1-14": "PEER",
@@ -49,6 +51,7 @@
     },
     "1-16": {
         "level": "INTERMEDIATE",
+	"cert_issuer": "1-13",
         "links": {
             "1-13": "PARENT",
             "1-15": "PEER",
@@ -57,20 +60,32 @@
     },
     "1-17": {
         "level": "LEAF",
+	"cert_issuer": "1-14",
         "links": {
             "1-14": "PARENT"
         }
     },
     "1-18": {
         "level": "LEAF",
+	"cert_issuer": "1-15",
         "links": {
             "1-15": "PARENT"
         }
     },
     "1-19": {
-        "level": "LEAF",
+        "level": "INTERMEDIATE",
+        "path_servers": 1,
+	"cert_issuer": "1-16",
         "links": {
-            "1-16": "PARENT"
+            "1-16": "PARENT",
+            "1-10": "CHILD"
+        }
+    },
+    "1-10": {
+        "level": "LEAF",
+	"cert_issuer": "1-19",
+        "links": {
+            "1-19": "PARENT"
         }
     },
     "2-21": {
@@ -91,6 +106,7 @@
     },
     "2-23": {
         "level": "INTERMEDIATE",
+	"cert_issuer": "2-21",
         "links": {
             "2-21": "PARENT",
             "2-24": "PEER",
@@ -100,6 +116,7 @@
     },
     "2-24": {
         "level": "INTERMEDIATE",
+	"cert_issuer": "2-22",
         "links": {
             "2-22": "PARENT",
             "2-23": "PEER",
@@ -108,12 +125,14 @@
     },
     "2-25": {
         "level": "LEAF",
+	"cert_issuer": "2-23",
         "links": {
             "2-23": "PARENT"
         }
     },
     "2-26": {
         "level": "LEAF",
+	"cert_issuer": "2-24",
         "links": {
             "2-23": "PARENT",
             "2-24": "PARENT"

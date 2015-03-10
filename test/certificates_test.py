@@ -16,68 +16,45 @@
 ===========================================
 """
 
-from lib.crypto.certificate import *
-from lib.crypto.asymcrypto import *
+from lib.crypto.certificate import verify_sig_chain_trc, CertificateChain, TRC
+from lib.crypto.asymcrypto import sign
+from lib.util import (get_cert_file_path, get_trc_file_path, read_file,
+    get_sig_key_file_path)
 import unittest
+import logging
+import base64
 
 
 class TestCertificates(unittest.TestCase):
     """
-    Unit tests for certificates.py and asymcrypto.py.
+    Unit tests for certificate.py and asymcrypto.py.
     """
 
     def test(self):
         """
-        Creates 4 private/public key pairs (priv0 and pub0 are used as root
-        keys) and 4 certificates, cert0 - cert3. cert0 is self signed (root
-        certificate) while the others are signed by the AD above (i.e.,
-        AD0--signs-->AD1--signs-->AD2...). Afterwards the certificate chain is
-        created and verified. In the end a simple message is signed and the
-        resulting signature is then verified.
+        Create a certificate chain and verify it with a TRC file. Sign a message
+        with the private key of the last certificate in the chain and verify it.
         """
-        (sign0, verify0) = generate_signature_keypair()
-        (priv0, pub0) = generate_cryptobox_keypair()
-        cert0 = Certificate.from_values('ISD:11-AD:0', verify0, pub0,
-                                        'ISD:11-AD:0', sign0, 0)
-        (sign1, verify1) = generate_signature_keypair()
-        (priv1, pub1) = generate_cryptobox_keypair()
-        cert1 = Certificate.from_values('ISD:11-AD:1', verify1, pub1,
-                                        'ISD:11-AD:0', sign0, 0)
-        (sign2, verify2) = generate_signature_keypair()
-        (priv2, pub2) = generate_cryptobox_keypair()
-        cert2 = Certificate.from_values('ISD:11-AD:2', verify2, pub2,
-                                        'ISD:11-AD:1', sign1, 0)
-        (sign3, verify3) = generate_signature_keypair()
-        (priv3, pub3) = generate_cryptobox_keypair()
-        cert3 = Certificate.from_values('ISD:11-AD:3', verify3, pub3,
-                                        'ISD:11-AD:2', sign2, 0)
-        print('Certificate:', cert0, sep='\n')
+        cert10 = CertificateChain(get_cert_file_path(1, 10, 1, 10, 0))
+        trc = TRC(get_trc_file_path(1, 10, 1, 0))
+        print('TRC verification', trc.verify())
+        print('Cert Chain verification:', cert10.verify('ISD:1-AD:10', trc, 0))
 
-        chain_list = [cert3, cert2, cert1]
-        chain = CertificateChain.from_values(chain_list)
-        print('Certificate Chain:', chain, sep='\n')
+        sig_priv10 = read_file(get_sig_key_file_path(1, 10, 0))
+        sig_priv10 = base64.b64decode(sig_priv10)
+        msg = b'abcd'
+        sig = sign(msg, sig_priv10)
+        print('Sig test:', verify_sig_chain_trc(msg, sig, 'ISD:1-AD:10', cert10,
+            trc, 0))
 
-        with open('ISD:11-AD:0-V:0.crt', "w") as file_handler:
-                  file_handler.write(str(cert0))
+        sig_priv13 = read_file(get_sig_key_file_path(1, 13, 0))
+        sig_priv13 = base64.b64decode(sig_priv13)
+        msg = b'abd'
+        sig = sign(msg, sig_priv13)
+        chain = CertificateChain.from_values([])
+        print('Sig test 2:', verify_sig_chain_trc(msg, sig, 'ISD:1-AD:13',
+            cert10, trc, 0))
 
-        roots = load_root_certificates('./')
-        print ('Certificate Chain verification:',
-               chain.verify('ISD:11-AD:3', roots, 0), sep='\n')
-
-        print ('Signature Test...')
-        msg = 'hello'
-        msg_with_sig = sign(msg.encode('utf-8'), sign3)
-        print('Message(With Signature):', msg_with_sig, sep='\n')
-        print('Message verification:', verify(msg_with_sig, 'ISD:11-AD:3',
-              chain, roots, 0), sep='\n')
-        
-        print ('CryptoBox Test...')
-        print ('ISD:11-AD:3 encrypts message hello to ISD:11-AD:2:')
-        cipher = encrypt(msg.encode('utf-8'), priv3, 'ISD:11-AD:2', chain)
-        print ('Cipher:', cipher, sep='\n')
-        print ('ISD:11-AD:2 decrypts cipher:')
-        decipher = decrypt(cipher, priv2, 'ISD:11-AD:3', chain)
-        print ('Decrypted message:', str(decipher), sep='\n')
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)

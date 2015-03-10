@@ -1,33 +1,29 @@
-# router.py
 # Copyright 2014 ETH Zurich
+
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
+
 # http://www.apache.org/licenses/LICENSE-2.0
+
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`router` --- Router code
-=============================
-
-Module docstring here.
-
-.. note::
-    Fill in the docstring.
-
+:mod:`router` --- SCION edge router
+===========================================
 """
 
 from infrastructure.scion_elem import (SCIONElement, SCION_UDP_PORT,
                                        SCION_UDP_EH_DATA_PORT)
 from lib.packet.host_addr import IPv4HostAddr
-from lib.packet.opaque_field import OpaqueField
-from lib.packet.opaque_field import OpaqueFieldType as OFT
+from lib.packet.opaque_field import OpaqueField, OpaqueFieldType as OFT
 from lib.packet.pcb import PathConstructionBeacon
-from lib.packet.scion import PacketType as PT
-from lib.packet.scion import SCIONPacket, IFIDRequest, IFIDReply, get_type
+from lib.packet.scion import (PacketType as PT, SCIONPacket, IFIDRequest,
+    IFIDReply, get_type)
+from lib.util import init_logging
 import logging
 import socket
 import sys
@@ -35,7 +31,6 @@ import threading
 import time
 import datetime
 import os
-
 
 class NextHop(object):
     """
@@ -247,7 +242,7 @@ class Router(SCIONElement):
             logging.warning("Interface not initialized.")
             return
         if from_bs:
-            if self.interface.if_id != beacon.pcb.rotf.if_id:
+            if self.interface.if_id != beacon.pcb.trcf.if_id:
                 logging.error("Wrong interface set by BS.")
                 return
             next_hop.addr = self.interface.to_addr
@@ -255,9 +250,31 @@ class Router(SCIONElement):
             self.send(beacon, next_hop, False)
         else:
             # TODO Multiple BS scenario
-            beacon.pcb.rotf.if_id = self.interface.if_id
+            beacon.pcb.trcf.if_id = self.interface.if_id
             next_hop.addr = self.topology.beacon_servers[0].addr
             self.send(beacon, next_hop)
+
+    def relay_cert_server_packet(self, spkt, next_hop, from_local_ad):
+        """
+        Relay packets for certificate servers.
+
+        :param spkt: the SCION packet to forward.
+        :type spkt: :class:`lib.packet.scion.SCIONPacket`
+        :param next_hop: the next hop of the packet.
+        :type next_hop: :class:`NextHop`
+        :param from_local_ad: whether or not the packet is from the local AD.
+        :type from_local_ad: bool
+        """
+        if not self.interface.initialized:
+            logging.warning("Interface not initialized.")
+            return
+        if from_local_ad:
+            next_hop.addr = self.interface.to_addr
+            next_hop.port = self.interface.to_udp_port
+        else:
+            # TODO Multiple CS scenario
+            next_hop.addr = self.topology.certificate_servers[0].addr
+        self.send(spkt, next_hop)
 
     # TODO
     def verify_of(self, spkt):
@@ -302,11 +319,7 @@ class Router(SCIONElement):
                 logging.error("1 interface mismatch %u != %u", iface,
                         self.interface.if_id)
         else:
-            # TODO redesing Certificate Servers
-            if ptype in [PT.CERT_REQ, PT.ROT_REQ, PT.CERT_REP, PT.ROT_REP]:
-                next_hop.addr = \
-                    self.topology.certificate_servers[0].addr
-            elif iface:
+            if iface:
                 next_hop.addr = self.ifid2addr[iface]
             elif ptype in [PT.PATH_REQ, PT.PATH_REC]:
                 next_hop.addr = self.topology.path_servers[0].addr
@@ -505,6 +518,8 @@ class Router(SCIONElement):
             self.process_ifid_reply(packet, next_hop)
         elif ptype == PT.BEACON:
             self.process_pcb(packet, next_hop, from_local_ad)
+        elif ptype in [PT.CERT_REQ, PT.CERT_REP, PT.TRC_REQ, PT.TRC_REP]:
+            self.relay_cert_server_packet(spkt, next_hop, from_local_ad)
         else:
             if ptype == PT.DATA:
                 logging.debug("DATA type %u, %s", ptype, spkt)
@@ -515,7 +530,7 @@ def main():
     """
     Initializes and starts router.
     """
-    logging.basicConfig(level=logging.DEBUG)
+    init_logging()
     if len(sys.argv) != 4:
         logging.error("run: %s IP topo_file conf_file", sys.argv[0])
         sys.exit()
