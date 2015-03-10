@@ -308,7 +308,7 @@ class Router(SCIONElement):
                     self.topology.certificate_servers[0].addr
             elif iface:
                 next_hop.addr = self.ifid2addr[iface]
-            elif ptype in [PT.PATH_REQ, PT.PATH_REC]:
+            elif ptype in [PT.PATH_MGMT, PT.PATH_MGMT]:
                 next_hop.addr = self.topology.path_servers[0].addr
             elif not spkt.hdr.is_last_path_of(): # next path segment
                 spkt.hdr.increase_of(1) # this is next SOF

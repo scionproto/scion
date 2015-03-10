@@ -40,8 +40,7 @@ class PacketType(object):
     CERT_REP_LOCAL = 103  # local certificate reply (from certificate server)
     CERT_REQ = 104  # Certificate Request to parent AD
     CERT_REP = 105  # Certificate Reply from parent AD
-    PATH_REQ = 108  # Path request to TDC/lPS
-    PATH_REC = 109  # Path record (downpath reg. reply from TDC/lPS)
+    PATH_MGMT = 108  # Path management packet to CPS/lPS
     ROT_REQ_LOCAL = 112  # ROT file reply to local certificate server
     ROT_REP_LOCAL = 113  # ROT file reply from local certificate server
     OFG_KEY_REQ = 114  # opaque field generation key request to CS
@@ -71,7 +70,7 @@ class IDSize(object):
 TYPES_SRC = {
         PacketType.BEACON: 16834570,
         PacketType.CERT_REP: 33611786,
-        PacketType.PATH_REC: 67166218,
+        PacketType.PATH_MGMT: 67166218,
         PacketType.ROT_REP_LOCAL:100720650,
         PacketType.OFG_KEY_REP: 117497866,
         PacketType.ROT_REP: 134275082,
@@ -81,7 +80,7 @@ TYPES_SRC = {
 TYPES_SRC_INV = {v: k for k, v in TYPES_SRC.items()}
 TYPES_DST = {
         PacketType.CERT_REQ: 33611786,
-        PacketType.PATH_REQ: 67166218,
+        PacketType.PATH_MGMT: 67166218,
         PacketType.ROT_REQ_LOCAL: 100720650,
         PacketType.OFG_KEY_REQ: 117497866,
         PacketType.ROT_REQ: 134275082,
@@ -362,7 +361,7 @@ class SCIONHeader(HeaderBase):
         """
         self.common_hdr.curr_of_p += number * OpaqueField.LEN
 
-    def set_downpath(self): #FIXME probably not needed
+    def set_downpath(self):  # FIXME probably not needed
         """
         Sets down path flag.
         """

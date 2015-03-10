@@ -20,13 +20,15 @@ from _collections import deque
 import copy
 import datetime
 from infrastructure.scion_elem import SCIONElement
+from lib.crypto.hash_chain import HashChain
 from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.opaque_field import (OpaqueFieldType as OFT, InfoOpaqueField,
     SupportSignatureField, HopOpaqueField, SupportPCBField, SupportPeerField,
     ROTField)
+from lib.packet.path_mgmt import (PathSegmentInfo, PathSegmentRecords,
+    PathSegmentType as PST, PathMgmtPacket, PathMgmtType as PMT)
 from lib.packet.pcb import (PathSegment, ADMarking, PCBMarking, PeerMarking,
-    PathConstructionBeacon, PathSegmentInfo, PathSegmentRecords,
-    PathSegmentType as PST)
+    PathConstructionBeacon)
 from lib.packet.scion import SCIONPacket, get_type, PacketType as PT
 from lib.util import init_logging
 import logging
@@ -36,8 +38,6 @@ import time
 
 from Crypto import Random
 from Crypto.Hash import SHA256
-from lib.crypto.hash_chain import HashChain
-
 
 # TODO PSz: beacon must be revised. We have design slides for a new format.
 class BeaconServer(SCIONElement):
@@ -280,22 +280,26 @@ class CoreBeaconServer(BeaconServer):
                                            self.topology.isd_id,
                                            pcb.get_first_ad().ad_id,
                                            self.topology.ad_id)
+        records = PathSegmentRecords.from_values(info, [pcb])
         # Register core path with local core path server.
         if self.topology.path_servers != []:
             # TODO: pick other than the first path server
             dst = self.topology.path_servers[0].addr
-            path_rec = PathSegmentRecords.from_values(dst, info, [pcb])
+            pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, None,
+                                             dst_addr=dst)
             logging.debug("Registering core path with local PS.")
-            self.send(path_rec, dst)
+            self.send(pkt, dst)
 
         # Register core path with originating core path server.
         pcb.remove_signatures()
         path = pcb.get_path(reverse_direction=True)
-        path_rec = PathSegmentRecords.from_values(self.addr, info, [pcb], path)
+        records = PathSegmentRecords.from_values(info, [pcb])
+        # path_rec = PathSegmentRecords.from_values(self.addr, info, [pcb], path)
+        pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, path)
         if_id = path.get_first_hop_of().ingress_if
         next_hop = self.ifid2addr[if_id]
         logging.debug("Registering core path with originating PS.")
-        self.send(path_rec, next_hop)
+        self.send(pkt, next_hop)
 
     def process_pcb(self, beacon):
         assert isinstance(beacon, PathConstructionBeacon)
@@ -336,8 +340,10 @@ class LocalBeaconServer(BeaconServer):
                                            self.topology.ad_id)
         # TODO: pick other than the first path server
         dst = self.topology.path_servers[0].addr
-        up_path = PathSegmentRecords.from_values(dst, info, [pcb])
-        self.send(up_path, dst)
+        records = PathSegmentRecords.from_values(info, [pcb])
+        pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, None,
+                                         dst_addr=dst)
+        self.send(pkt, dst)
 
     def register_down_segment(self, pcb):
         """
@@ -350,11 +356,11 @@ class LocalBeaconServer(BeaconServer):
                                            pcb.get_first_ad().ad_id,
                                            self.topology.ad_id)
         core_path = pcb.get_path(reverse_direction=True)
-        down_path = PathSegmentRecords.from_values(self.addr, info, [pcb],
-                                                   core_path)
+        records = PathSegmentRecords.from_values(info, [pcb])
+        pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, core_path)
         if_id = core_path.get_first_hop_of().ingress_if
         next_hop = self.ifid2addr[if_id]
-        self.send(down_path, next_hop)
+        self.send(pkt, next_hop)
 
     def register_segments(self):
         """
