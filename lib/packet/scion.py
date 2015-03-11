@@ -23,9 +23,10 @@ from lib.packet.opaque_field import InfoOpaqueField, OpaqueField
 from lib.packet.packet_base import HeaderBase, PacketBase
 from lib.packet.path import (PathType, CorePath, PeerPath, CrossOverPath,
     EmptyPath, PathBase)
-from bitstring import BitArray
-import struct
 import logging
+import struct
+
+from bitstring import BitArray
 import bitstring
 
 
@@ -44,8 +45,7 @@ class PacketType(object):
     TRC_REP = 8  # Root of Trust file reply from parent AD
     TO_LOCAL_ADDR = 100  # Threshold to distinguish local control packets
     BEACON = 101  # PathSegment type
-    PATH_REQ = 108  # Path request to TDC/lPS
-    PATH_REC = 109  # Path record (downpath reg. reply from TDC/lPS)
+    PATH_MGMT = 108  # Path management packet to CPS/lPS
     OFG_KEY_REQ = 114  # opaque field generation key request to CS
     OFG_KEY_REP = 115  # opaque field generation key reply from CS
     IFID_REQ = 116  # IF ID request to the peer router (of the neighbor AD)
@@ -70,9 +70,9 @@ class IDSize(object):
 
 TYPES_SRC = {
         PacketType.CERT_REP: 33611786,
+        PacketType.PATH_MGMT: 67166218,
         PacketType.TRC_REP: 134275082,
         PacketType.BEACON: 16834570,
-        PacketType.PATH_REC: 67166218,
         PacketType.OFG_KEY_REP: 117497866,
         PacketType.IFID_REP: 167829514,
         }
@@ -80,9 +80,9 @@ TYPES_SRC_INV = {v: k for k, v in TYPES_SRC.items()}
 TYPES_DST = {
         PacketType.CERT_REQ_LOCAL: 151052298,
         PacketType.CERT_REQ: 33611786,
+        PacketType.PATH_MGMT: 67166218,
         PacketType.TRC_REQ_LOCAL: 100720650,
         PacketType.TRC_REQ: 134275082,
-        PacketType.PATH_REQ: 67166218,
         PacketType.OFG_KEY_REQ: 117497866,
         PacketType.IFID_REQ: 167829514,
     }
@@ -372,7 +372,7 @@ class SCIONHeader(HeaderBase):
         """
         self.common_hdr.curr_of_p += number * OpaqueField.LEN
 
-    def set_downpath(self): #FIXME probably not needed
+    def set_downpath(self):  # FIXME probably not needed
         """
         Sets down path flag.
         """
