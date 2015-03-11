@@ -4,7 +4,7 @@
 
   <h1>ISDs</h1>
   <ul>
-    {% for isd in object_list %}
+    {% for isd in object_list|dictsort:'id' %}
       <li><a href="{% url 'isd_detail' isd %}">ISD {{ isd }}</a></li>
     {% empty %}
       <li>No ISDs.</li>

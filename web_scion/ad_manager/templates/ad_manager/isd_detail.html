@@ -5,7 +5,7 @@
   <h1> ISD {{ object.id }}</h1>
 
   <ul>
-    {% for ad in object.ad_set.all %}
+    {% for ad in object.ad_set.all|dictsort:'id' %}
       <li><a href="{% url 'ad_detail' ad.id %}">AD {{ ad }}</a></li>
     {% empty %}
       <li>No ADs.</li>

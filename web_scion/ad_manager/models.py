@@ -31,11 +31,6 @@ class SCIONWebElement(models.Model):
     addr = models.IPAddressField()
     ad = models.ForeignKey(AD)
 
-    def save(self, *args, **kwargs):
-        if getattr(self, '_image_changed', True):
-            pass
-        super(SCIONWebElement, self).save(*args, **kwargs)
-
     def id_str(self):
         # FIXME counter
         return "{}{}-{}-1".format(self.prefix, self.ad.isd_id, self.ad_id)
