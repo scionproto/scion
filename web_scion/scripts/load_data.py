@@ -40,11 +40,14 @@ for isd_id in isds:
     isds[isd_id] = isd
 print("> {} ISDs added".format(len(isds)))
 
-# Add ADs
+# First, save all add ADs to avoid IntegrityError
 for ad_topo in ads:
     ad = AD(id=ad_topo.ad_id, isd=isds[ad_topo.isd_id],
             is_core_ad=ad_topo.is_core_ad)
     ad.save()
+
+for ad_topo in ads:
+    ad = AD.objects.get(id=ad_topo.ad_id, isd=isds[ad_topo.isd_id])
     # Routers
     routers = ad_topo.parent_edge_routers + ad_topo.child_edge_routers + \
               ad_topo.peer_edge_routers + ad_topo.routing_edge_routers
@@ -54,7 +57,12 @@ for ad_topo in ads:
 
     try:
         for router in routers:
-            router_element = RouterWeb(addr=router.addr, ad=ad)
+            interface = router.interface
+            neighbor_ad = AD.objects.get(id=interface.neighbor_ad,
+                                         isd=interface.neighbor_isd)
+            router_element = RouterWeb(addr=router.addr, ad=ad,
+                                       neighbor_ad=neighbor_ad,
+                                       neighbor_type=interface.neighbor_type)
             router_element.save()
 
         for bs in beacon_servers:
@@ -68,8 +76,7 @@ for ad_topo in ads:
         for ps in path_servers:
             ps_element = PathServerWeb(addr=ps.addr, ad=ad)
             ps_element.save()
-    except IntegrityError:
+    except IntegrityError as ex:
         pass
 
     print('> AD {} added'.format(ad))
-

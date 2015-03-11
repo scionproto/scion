@@ -37,6 +37,7 @@ class SCIONWebElement(models.Model):
         super(SCIONWebElement, self).save(*args, **kwargs)
 
     def id_str(self):
+        # FIXME counter
         return "{}{}-{}-1".format(self.prefix, self.ad.isd_id, self.ad_id)
 
     def __str__(self):
@@ -71,9 +72,19 @@ class PathServerWeb(SCIONWebElement):
 
 
 class RouterWeb(SCIONWebElement):
+    NEIGHBOR_TYPES = (
+        ('CHILD',) * 2,
+        ('PARENT',) * 2,
+        ('PEER',) * 2,
+        ('ROUTING',) * 2,
+    )
+
+    neighbor_ad = models.ForeignKey(AD, related_name='neighbors')
+    neighbor_type = models.CharField(max_length=10, choices=NEIGHBOR_TYPES)
 
     def id_str(self):
-        return "er{}-{}er?-?".format(self.ad.isd_id, self.ad_id)
+        return "er{}-{}er{}".format(self.ad.isd_id, self.ad_id,
+                                    self.neighbor_ad)
 
     class Meta:
         verbose_name = 'Router'

@@ -1,6 +1,7 @@
 import xmlrpc.client
-from topology.generator import ISD_AD_ID_DIVISOR
 
+
+ISD_AD_ID_DIVISOR = '-'
 
 def get_supervisor_server():
     return xmlrpc.client.ServerProxy('https://localhost:9000')
