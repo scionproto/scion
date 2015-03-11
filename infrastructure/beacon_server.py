@@ -17,9 +17,6 @@
 """
 
 from _collections import deque
-import base64
-import copy
-import datetime
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.asymcrypto import sign
 from lib.crypto.certificate import verify_sig_chain_trc, CertificateChain, TRC
@@ -37,6 +34,9 @@ from lib.packet.scion import (SCIONPacket, get_type, PacketType as PT,
 from lib.util import (read_file, write_file, get_cert_file_path,
     get_sig_key_file_path, get_trc_file_path)
 from lib.util import init_logging
+import base64
+import copy
+import datetime
 import logging
 import os
 import sys
@@ -56,6 +56,10 @@ class BeaconServer(SCIONElement):
             propagation.
         reg_queue: A FIFO queue containing paths for registration with path
             servers.
+        if2rev_tokens: Contains the currently used revocation token
+            hash-chain for each interface.
+        seg2rev_tokens: Contains the currently used revocation token
+            hash-chain for a path-segment.
     """
     # Amount of time units a HOF is valid (time unit is EXP_TIME_UNIT).
     HOF_EXP_TIME = 63
@@ -71,10 +75,8 @@ class BeaconServer(SCIONElement):
                                              self.topology.ad_id, 0)
         self.signing_key = read_file(sig_key_file)
         self.signing_key = base64.b64decode(self.signing_key)
-        self.if2rev_tokens = {}  # Contains the currently used revocation token
-                                 # hash-chain for each interface.
-        self.seg2rev_tokens = {}  # Contains the currently used revocation
-                                  # token hash-chain for a path-segment.
+        self.if2rev_tokens = {}
+        self.seg2rev_tokens = {}
 
     def _get_if_rev_token(self, if_id):
         """

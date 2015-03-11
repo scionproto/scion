@@ -16,8 +16,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import copy
-import datetime
 from infrastructure.scion_elem import SCIONElement
 from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.path_mgmt import (PathSegmentRecords, PathSegmentInfo,
@@ -26,6 +24,8 @@ from lib.packet.scion import PacketType as PT
 from lib.packet.scion import SCIONPacket, get_type
 from lib.path_db import PathSegmentDB
 from lib.util import update_dict, init_logging
+import copy
+import datetime
 import logging
 import sys
 
@@ -249,10 +249,10 @@ class CorePathServer(PathServer):
                     self.send(pkt, next_hop)
 
     def handle_path_request(self, pkt):
-        info = pkt.payload
-        dst_isd = info.dst_isd
-        dst_ad = info.dst_ad
-        ptype = info.type
+        segment_info = pkt.payload
+        dst_isd = segment_info.dst_isd
+        dst_ad = segment_info.dst_ad
+        ptype = segment_info.type
         logging.info("PATH_REQ received: type: %d, addr: %d,%d", ptype, dst_isd,
                      dst_ad)
         segments_to_send = []
@@ -288,7 +288,8 @@ class CorePathServer(PathServer):
                     if_id = path.get_first_hop_of().egress_if
                     next_hop = self.ifid2addr[if_id]
                     request = PathMgmtPacket.from_values(PMT.REQUEST,
-                                                         info, path, self.addr)
+                                                         segment_info,
+                                                         path, self.addr)
                     request.hdr.set_downpath()
                     self.send(request, next_hop)
                     logging.info("Down-Segment request for different ISD. "
@@ -297,10 +298,10 @@ class CorePathServer(PathServer):
                                  cpaths[0].get_last_pcbm().ad_id)
                 # If no core_path was available, add request to waiting targets.
                 else:
-                    self.waiting_targets.add((dst_isd, dst_ad, info))
+                    self.waiting_targets.add((dst_isd, dst_ad, segment_info))
         elif ptype == PST.CORE:
-            src_isd = info.src_isd
-            src_ad = info.src_ad
+            src_isd = segment_info.src_isd
+            src_ad = segment_info.src_ad
             key = ((src_isd, src_ad), (dst_isd, dst_ad))
             paths = self.core_segments(src_isd=src_isd, src_ad=src_ad,
                                        dst_isd=dst_isd, dst_ad=dst_ad)
@@ -421,10 +422,10 @@ class LocalPathServer(PathServer):
         """
         Handles all types of path request.
         """
-        info = pkt.payload
-        dst_isd = info.dst_isd
-        dst_ad = info.dst_ad
-        ptype = info.type
+        segment_info = pkt.payload
+        dst_isd = segment_info.dst_isd
+        dst_ad = segment_info.dst_ad
+        ptype = segment_info.type
         logging.info("PATH_REQ received: type: %d, addr: %d,%d", ptype, dst_isd,
                      dst_ad)
         paths_to_send = []
@@ -454,8 +455,8 @@ class LocalPathServer(PathServer):
                 logging.info("No downpath, request is pending.")
         # Requester wants core-path.
         if ptype == PST.CORE:
-            src_isd = info.src_isd
-            src_ad = info.src_ad
+            src_isd = segment_info.src_isd
+            src_ad = segment_info.src_ad
             paths = self.core_segments(src_isd=src_isd, src_ad=src_ad,
                                        dst_isd=dst_isd, dst_ad=dst_ad)
             if paths:

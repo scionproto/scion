@@ -24,8 +24,8 @@ Contains all the packet formats used for path management.
 
 from lib.packet.packet_base import PayloadBase
 from lib.packet.pcb import PathSegment
-from lib.packet.scion import SCIONPacket, get_addr_from_type, PacketType, \
-    SCIONHeader
+from lib.packet.scion import (SCIONPacket, get_addr_from_type, PacketType,
+    SCIONHeader)
 import logging
 import struct
 

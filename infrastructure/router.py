@@ -24,13 +24,14 @@ from lib.packet.pcb import PathConstructionBeacon
 from lib.packet.scion import (PacketType as PT, SCIONPacket, IFIDRequest,
     IFIDReply, get_type)
 from lib.util import init_logging
+import datetime
 import logging
+import os
 import socket
 import sys
 import threading
 import time
-import datetime
-import os
+
 
 class NextHop(object):
     """
@@ -323,18 +324,18 @@ class Router(SCIONElement):
                 next_hop.addr = self.ifid2addr[iface]
             elif ptype in [PT.PATH_MGMT, PT.PATH_MGMT]:
                 next_hop.addr = self.topology.path_servers[0].addr
-            elif not spkt.hdr.is_last_path_of(): # next path segment
-                spkt.hdr.increase_of(1) # this is next SOF
+            elif not spkt.hdr.is_last_path_of():  # next path segment
+                spkt.hdr.increase_of(1)  # this is next SOF
                 spkt.hdr.common_hdr.curr_iof_p = spkt.hdr.common_hdr.curr_of_p
-                spkt.hdr.increase_of(1) # first HOF of the new path segment
-                if spkt.hdr.is_on_up_path(): # TODO replace by get_first_hop
+                spkt.hdr.increase_of(1)  # first HOF of the new path segment
+                if spkt.hdr.is_on_up_path():  # TODO replace by get_first_hop
                     iface = spkt.hdr.get_current_of().ingress_if
                 else:
                     iface = spkt.hdr.get_current_of().egress_if
                 next_hop.addr = self.ifid2addr[iface]
-            else: # last opaque field on the path, send the packet to the dst
+            else:  # last opaque field on the path, send the packet to the dst
                 next_hop.addr = spkt.hdr.dst_addr
-                next_hop.port = SCION_UDP_EH_DATA_PORT # data packet to endhost
+                next_hop.port = SCION_UDP_EH_DATA_PORT  # data packet to endhost
             self.send(spkt, next_hop)
         logging.debug("normal_forward()")
 
@@ -357,7 +358,7 @@ class Router(SCIONElement):
                 spkt.hdr.increase_of(1)
                 next_iof = spkt.hdr.get_current_of()
                 opaque_field = spkt.hdr.get_relative_of(1)
-                if next_iof.up_flag: # TODO replace by get_first_hop
+                if next_iof.up_flag:  # TODO replace by get_first_hop
                     next_hop.addr = self.ifid2addr[opaque_field.ingress_if]
                 else:
                     next_hop.addr = self.ifid2addr[opaque_field.egress_if]
@@ -479,7 +480,7 @@ class Router(SCIONElement):
         :param ptype: the type of the packet.
         :type ptype: :class:`lib.packet.scion.PacketType`
         """
-        if (spkt.hdr.get_current_of() != spkt.hdr.path.get_of(0) and # TODO PSz
+        if (spkt.hdr.get_current_of() != spkt.hdr.path.get_of(0) and  # TODO PSz
             ptype == PT.DATA and from_local_ad):
             of_info = spkt.hdr.get_current_of().info
             if of_info == OFT.TDC_XOVR:
