@@ -18,8 +18,8 @@ limitations under the License.
 
 from infrastructure.scion_elem import SCIONElement
 from lib.packet.path import PathCombinator
-from lib.packet.pcb import (PathSegmentInfo, PathSegmentRecords,
-    PathSegmentType as PST, PathSegmentRequest)
+from lib.packet.path_mgmt import (PathSegmentInfo, PathSegmentRecords,
+    PathSegmentType as PST, PathMgmtType as PMT, PathMgmtPacket)
 from lib.packet.scion import PacketType as PT
 from lib.packet.scion import SCIONPacket, get_type
 from lib.path_db import PathSegmentDB
@@ -33,6 +33,7 @@ import threading
 WAIT_CYCLES = 3
 SCIOND_API_HOST = "127.255.255.254"
 SCIOND_API_PORT = 3333
+
 
 class SCIONDaemon(SCIONElement):
     """
@@ -91,7 +92,8 @@ class SCIONDaemon(SCIONElement):
         # Create and send out path request.
         info = PathSegmentInfo.from_values(ptype, src_isd, dst_isd,
                                            src_ad, dst_ad)
-        path_request = PathSegmentRequest.from_values(self.addr, info)
+        path_request = PathMgmtPacket.from_values(PMT.REQUEST, info,
+                                                  None, self.addr)
         dst = self.topology.path_servers[0].addr
         self.send(path_request, dst)
 
@@ -231,12 +233,11 @@ class SCIONDaemon(SCIONElement):
         Main routine to handle incoming SCION packets.
         """
         if from_local_socket:  # From PS or CS.
-            spkt = SCIONPacket(packet)
-            ptype = get_type(spkt)
-            if ptype == PT.PATH_REC:
-                self.handle_path_reply(PathSegmentRecords(packet))
+            pkt = PathMgmtPacket(packet)
+            if pkt.type == PMT.RECORDS:
+                self.handle_path_reply(pkt.payload)
             else:
-                logging.warning("Type %d not supported.", ptype)
+                logging.warning("Type %d not supported.", pkt.type)
         else:  # From localhost (SCIONDaemon API)
             self.api_handle_request(packet, sender)
 
