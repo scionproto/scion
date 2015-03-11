@@ -12,10 +12,18 @@ class ISD(models.Model):
         verbose_name = 'ISD'
 
 
+class ADModelManager(models.Manager):
+    def get_query_set(self):
+        return super(ADModelManager, self).get_queryset().select_related('isd')
+
+
 class AD(models.Model):
     id = models.CharField(max_length=50, primary_key=True)
     isd = models.ForeignKey('ISD')
     is_core_ad = models.BooleanField(default=False)
+
+    # Use custom model manager with select_related()
+    objects = ADModelManager()
 
     def query_ad_status(self):
         return monitoring_client.get_ad_info(self.isd.id, self.id)

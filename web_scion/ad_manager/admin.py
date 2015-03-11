@@ -28,9 +28,6 @@ class ServerAdmin(admin.ModelAdmin):
         # Add ordering
         return super().get_queryset(request).order_by('ad_id')
 
-    class Meta:
-        abstract = True
-
 
 class BeaconServerAdmin(ServerAdmin):
     pass
