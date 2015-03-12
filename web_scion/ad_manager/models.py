@@ -2,6 +2,16 @@ from django.db import models
 from ad_manager.util import monitoring_client
 
 
+class SelectRelatedModelManager(models.Manager):
+    def __init__(self, *args):
+        super(SelectRelatedModelManager, self).__init__()
+        self.related_fields = args
+
+    def get_queryset(self):
+        queryset = super(SelectRelatedModelManager, self).get_queryset()
+        return queryset.select_related(*self.related_fields)
+
+
 class ISD(models.Model):
     id = models.CharField(max_length=50, primary_key=True)
 
@@ -12,18 +22,13 @@ class ISD(models.Model):
         verbose_name = 'ISD'
 
 
-class ADModelManager(models.Manager):
-    def get_query_set(self):
-        return super(ADModelManager, self).get_queryset().select_related('isd')
-
-
 class AD(models.Model):
     id = models.CharField(max_length=50, primary_key=True)
     isd = models.ForeignKey('ISD')
     is_core_ad = models.BooleanField(default=False)
 
     # Use custom model manager with select_related()
-    objects = ADModelManager()
+    objects = SelectRelatedModelManager('isd')
 
     def query_ad_status(self):
         return monitoring_client.get_ad_info(self.isd.id, self.id)
@@ -86,8 +91,9 @@ class RouterWeb(SCIONWebElement):
     neighbor_type = models.CharField(max_length=10, choices=NEIGHBOR_TYPES)
 
     def id_str(self):
-        return "er{}-{}er{}".format(self.ad.isd_id, self.ad_id,
-                                    self.neighbor_ad)
+        return "er{}-{}er{}-{}".format(self.ad.isd_id, self.ad_id,
+                                       self.neighbor_ad.isd_id,
+                                       self.neighbor_ad.id)
 
     class Meta:
         verbose_name = 'Router'
