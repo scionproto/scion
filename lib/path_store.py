@@ -16,454 +16,180 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from lib.packet.pcb import PathSegment
-from external.sorted_collection import SortedCollection
-from Crypto.Hash import SHA256
 from collections import defaultdict
-import xml.etree.ElementTree as ET
-import time
+from external.sorted_collection import SortedCollection
+from lib.packet.pcb import PathSegment
+from Crypto.Hash import SHA256
+import json
+import logging
 import random
 import sys
-import logging
+import time
 
 
-class Policy(object):
+class PathPolicy(object):
     """
     Stores a path policy.
     """
-    def __init__(self, policy_file=None):
+    def __init__(self, path_policy_file=None):
         self.best_set_size = 0
-        self.candidates_set_size = 5
-        self.disjointness = 2
+        self.candidates_set_size = 10
+        self.history_limit = 0
         self.update_after_number = 0
         self.update_after_time = 0
-        self.history_limit = 0
-        self.wanted_ads = {}
-        self.unwanted_ads = {}
-        self.min_max = {}
-        self.properties = {}
-        self._policy_file = None
-        self._config = None
-        if policy_file is not None:
-            self.load_file(policy_file)
-            self.parse()
+        self.unwanted_ads = []
+        self.property_ranges = {}
+        self.property_weights = {}
+        if path_policy_file:
+            self.parse(path_policy_file)
 
-    def load_file(self, policy_file):
-        """
-        Loads an XML file and creates an element tree for further parsing.
-        """
-        assert isinstance(policy_file, str)
-        self._policy_file = policy_file
-        self._config = ET.parse(policy_file)
+    def get_path_policy_dict(self):
+        path_policy_dict = {'best_set_size': self.best_set_size,
+                            'candidates_set_size': self.candidates_set_size,
+                            'history_limit': self.history_limit,
+                            'update_after_number': self.update_after_number,
+                            'update_after_time': self.update_after_time,
+                            'unwanted_ads': self.unwanted_ads,
+                            'property_ranges': self.property_ranges,
+                            'property_weights': self.property_weights}
+        return path_policy_dict
 
-    def parse(self):
+    def parse(self, path_policy_file):
         """
         Parses the policies in the path store config file.
         """
-        assert self._config is not None, "Must load file first"
-        policy = self._config.getroot()
-        best_set_size = policy.find("BestSetSize")
-        if best_set_size is not None:
-            self.best_set_size = int(best_set_size.text)
-        candidates_set_size = policy.find("CandidatesSetSize")
-        if candidates_set_size is not None:
-            self.candidates_set_size = int(candidates_set_size.text)
-        disjointness = policy.find("Disjointness")
-        if disjointness is not None:
-            self.disjointness = int(disjointness.text)
-        update_after_number = policy.find("UpdateAfterNumber")
-        if update_after_number is not None:
-            self.update_after_number = int(update_after_number.text)
-        update_after_time = policy.find("UpdateAfterTime")
-        if update_after_time is not None:
-            self.update_after_time = int(update_after_time.text)
-        history_limit = policy.find("HistoryLimit")
-        if history_limit is not None:
-            self.history_limit = int(history_limit.text)
-        filters = policy.find("Filters")
-        for filt in filters:
-            if filt.tag == "WantedAD":
-                value = filt.text.split(":")
-                if int(value[0]) not in self.wanted_ads:
-                    self.wanted_ads[int(value[0])] = []
-                if value[1].isdigit():
-                    self.wanted_ads[int(value[0])].append(int(value[1]))
-            elif filt.tag == "UnwantedAD":
-                value = filt.text.split(":")
-                if int(value[0]) not in self.unwanted_ads:
-                    self.unwanted_ads[int(value[0])] = []
-                if value[1].isdigit():
-                    self.unwanted_ads[int(value[0])].append(int(value[1]))
-            else:
-                self.min_max[filt.tag] = int(filt.text)
-        properties = policy.find("Properties")
-        for propert in properties:
-            self.properties[propert.tag] = int(propert.text)
+        try:
+            with open(path_policy_file) as path_policy_fh:
+                path_policy = json.load(path_policy_fh)
+        except (ValueError, KeyError, TypeError):
+            logging.error("PathPolicy: JSON format error.")
+            return
+        self.best_set_size = path_policy['BestSetSize']
+        self.candidates_set_size = path_policy['CandidatesSetSize']
+        self.history_limit = path_policy['HistoryLimit']
+        self.update_after_number = path_policy['UpdateAfterNumber']
+        self.update_after_time = path_policy['UpdateAfterTime']
+        unwanted_ads = path_policy['UnwantedADs'].split(',')
+        for unwanted_ad in unwanted_ads:
+            unwanted_ad = unwanted_ad.split('-')
+            unwanted_ad = (int(unwanted_ad[0]), int(unwanted_ad[1]))
+            self.unwanted_ads.append(unwanted_ad)
+        property_ranges = path_policy['PropertyRanges']
+        for key in property_ranges:
+            property_range = property_ranges[key].split('-')
+            property_range = (int(property_range[0]), int(property_range[1]))
+            self.property_ranges[key] = property_range
+        self.property_weights = path_policy['PropertyWeights']
 
     def __str__(self):
-        return ("[Policy]\n" +
-            ", ".join(["BestSetSize: " + str(self.best_set_size),
-            "UpdateAfterNumber: " + str(self.update_after_number),
-            "UpdateAfterTime: " + str(self.update_after_time),
-            "HistoryLimit: " + str(self.history_limit),
-            "WantedADs: " + str(self.wanted_ads),
-            "UnwantedADs: " + str(self.unwanted_ads),
-            "MinMax: " + str(self.min_max),
-            "Properties: " + str(self.properties)]))
+        path_policy_dict = self.get_path_policy_dict()
+        path_policy_str = json.dumps(path_policy_dict, sort_keys=True, indent=4)
+        return path_policy_str
 
 
-class PathSegmentInfo(object):
+class PathStoreRecord(object):
     """
-    Stores general information about a path.
+    Path record that gets stored in the the PathStore.
     """
-    def __init__(self, pcb=None, policy=None):
-        assert pcb is not None and policy is not None
+    def __init__(self, pcb):
+        assert isinstance(pcb, PathSegment)
         self.pcb = pcb
-        self.id = ""
+        self.id = pcb.segment_id
         self.fidelity = 0
-        self.set_id()
-        self.set_fidelity(policy)
-        self.timestamp = int(time.time())
+        self.peer_links = pcb.get_n_peer_links()
+        self.hops_length = pcb.get_n_hops()
+        self.disjointness = 0
+        self.last_sent_time = 0
+        self.last_seen_time = int(time.time())
+        self.delay_time = self.last_seen_time - pcb.get_timestamp()
+        self.guaranteed_bandwidth = 0
+        self.available_bandwidth = 0
+        self.total_bandwidth = 0
 
-    def set_id(self):
-        """
-        Computes a path ID, which is the concatenation of all AD blocks' IDs,
-        ingress_ifs and egress_ifs
-        """
-        id_str = ""
-        for ad in self.pcb.ads:
-            id_str += ",".join([str(ad.pcbm.ad_id), str(ad.pcbm.hof.ingress_if),
-                                str(ad.pcbm.hof.egress_if)])
-            id_str += ","
-        id_str += str(self.pcb.iof.timestamp)
-        id_str = id_str.encode('utf-8')
-        self.id = SHA256.new(id_str).hexdigest()
-
-    def set_fidelity(self, policy):
+    def update_fidelity(self, path_policy):
         """
         Computes a path fidelity based on all path properties and considering
         the corresponding weights, which are stored in the path policy.
         """
+        # TODO: adjust function
         self.fidelity = 0
-        self.fidelity += (policy.properties.get("LocalDesirability", 0) *
-                          self.get_local_desirability())
-        self.fidelity += (policy.properties.get("PathLength", 0) *
-                          1.0 / self.get_path_length())
-        self.fidelity -= (policy.properties.get("PathFreshness", 0) *
-                          self.get_path_freshness())
-        self.fidelity += (policy.properties.get("GuaranteedBandwidth", 0) *
-                          self.get_guaranteed_bandwidth())
-        self.fidelity += (policy.properties.get("AvailableBandwidth", 0) *
-                          self.get_available_bandwidth())
-        self.fidelity += (policy.properties.get("TotalBandwidth", 0) *
-                          self.get_total_bandwidth())
-        self.fidelity -= (policy.properties.get("Delay", 0) *
-                          self.get_delay())
-        self.fidelity += (policy.properties.get("Size", 0) *
-                          self.get_size())
-        self.fidelity += (policy.properties.get("Age", 0) *
-                          self.get_age())
-        self.fidelity += (policy.properties.get("PeerLinks", 0) *
-                          self.get_peer_links())
+        self.fidelity += (path_policy.property_weights['PeerLinks'] *
+                          self.peer_links)
+        self.fidelity += (path_policy.property_weights['HopsLength'] *
+                          self.hops_length)
+        self.fidelity += (path_policy.property_weights['Disjointness'] *
+                          self.disjointness)
+        self.fidelity += (path_policy.property_weights['LastSentTime'] *
+                          self.last_sent_time)
+        self.fidelity += (path_policy.property_weights['LastSeenTime'] *
+                          self.last_seen_time)
+        self.fidelity += (path_policy.property_weights['DelayTime'] *
+                          self.delay_time)
+        self.fidelity += (path_policy.property_weights['GuaranteedBandwidth'] *
+                          self.guaranteed_bandwidth)
+        self.fidelity += (path_policy.property_weights['AvailableBandwidth'] *
+                          self.available_bandwidth)
+        self.fidelity += (path_policy.property_weights['TotalBandwidth'] *
+                          self.total_bandwidth)
 
-    def get_local_desirability(self):
-        """
-        Returns the path desirability.
-        """
-        return 0
-
-    def get_path_length(self):
-        """
-        Returns the path length.
-        """
-        return len(self.pcb.ads)
-
-    def get_path_freshness(self):
-        """
-        Return the path freshness.
-
-        Return the *freshness* of the path, defined as the time that has
-        elapsed since the path was last propagated by the beacon server.
-
-        .. warning::
-           This function currently returns 0, since the time that the path was
-           last propagated is not accessible from this class.
-        """
-        return 0
-
-    def get_guaranteed_bandwidth(self):
-        """
-        Returns the path guaranteed bandwidth.
-        """
-        return 0
-
-    def get_available_bandwidth(self):
-        """
-        Returns the path available bandwidth.
-        """
-        return 0
-
-    def get_total_bandwidth(self):
-        """
-        Returns the path total bandwidth.
-        """
-        return 0
-
-    def get_delay(self):
-        """
-        Returns the path delay.
-
-        Return the *delay* of the path, defined as the difference between the
-        time the PCB was created and the time it reaches the beacon server.
-
-        .. warning::
-           This function currently returns 0, as there is no way for this class
-           to access the time the PCB left its origin.
-        """
-        return 0
-
-    def get_size(self):
-        """
-        Returns the path size.
-        """
-        return self.pcb.size
-
-    def get_age(self):
-        """
-        Returns the path age.
-
-        .. warning::
-           The precision of this function is system-dependent and is not
-           guaranteed to be better than 1 second. Thus it is possible that two
-           successive calls to this function will return decreasing values.
-        """
-        return int(time.time()) - self.pcb.get_timestamp()
-
-    def get_peer_links(self):
-        """
-        Returns the number of peering links in the path.
-        """
-        numPLs = 0
-        for ad in self.pcb.ads:
-            numPLs += len(ad.pms)
-        return numPLs
+    def __eq__(self, other):
+        if type(other) is type(self):
+            return self.id == other.id
+        else:
+            return False
 
     def __str__(self):
         path_info_str = ''.join(["[Path]\n", str(self.pcb), "ID: ",
                                  str(self.id), "\n", "Fidelity: ",
-                                 str(self.fidelity), "\n", "Timestamp: ",
-                                 str(self.timestamp), "\n"])
+                                 str(self.fidelity), "\n"])
         return path_info_str
 
 
 class PathStore(object):
     """
     Path Store class.
-
-    :cvar MIN_LOC_DES: the default minimum local desirability for all candidate
-       paths.
-    :vartype MIN_LOC_DES: int
-    :cvar MAX_LOC_DES: the default maximum local desirability for all candidate
-       paths.
-    :vartype MAX_LOC_DES: int
-    :cvar MIN_LEN: the default minimum length for all candidate paths.
-    :vartype MIN_LEN: int
-    :cvar MAX_LEN: the default maximum length for all candidate paths.
-    :vartype MAX_LEN: int
-    :cvar MIN_FRESH: the default minimum freshness for all candidate paths.
-    :vartype MIN_FRESH: int
-    :cvar MAX_FRESH: the default maximum freshness for all candidate paths.
-    :vartype MAX_LEN: int
-    :cvar MIN_GUAR_BW: the default minimum guaranteed bandwidth for all
-       candidate paths.
-    :vartype MIN_GUAR_BW: int
-    :cvar MAX_GUAR_BW: the default maximum guaranteed bandwidth for all
-       candidate paths.
-    :vartype MAX_GUAR_BW: int
-    :cvar MIN_AV_BW: the default minimum available bandwidth for all candidate
-       paths.
-    :vartype MIN_AV_BW: int
-    :cvar MAX_AV_BW: the default maximum available bandwidth for all candidate
-       paths.
-    :vartype MAX_AV_BW: int
-    :cvar MIN_TOT_BW: the default minimum total bandwidth for all candidate
-       paths.
-    :vartype MIN_TOT_BW: int
-    :cvar MAX_TOT_BW: the default maximum total bandwidth for all candidate
-       paths.
-    :vartype MAX_TOT_BW: int
-    :cvar MIN_DELAY: the default minimum delay for all candidate paths.
-    :vartype MIN_DELAY: int
-    :cvar MAX_DELAY: the default maximum delay for all candidate paths.
-    :vartype MAX_DELAY: int
-    :cvar MIN_SIZE: the default minimum size for all candidate paths.
-    :vartype MIN_SIZE: int
-    :cvar MAX_SIZE: the default maximum size for all candidate paths.
-    :vartype MAX_SIZE: int
-    :cvar MIN_AGE: the default minimum age for all candidate paths.
-    :vartype MIN_AGE: int
-    :cvar MAX_AGE: the default maximum age for all candidate paths.
-    :vartype MAX_AGE: int
-    :cvar MIN_PEER: the default minimum number of peering links for all
-       candidate paths.
-    :vartype MIN_PEER: int
-    :cvar MAX_PEER: the default maximum number of peering links for all
-       candidate paths.
-    :vartype MAX_PEER: int
     """
 
-    MIN_LOC_DES = 0
-    MAX_LOC_DES = 100
-    MIN_LEN = 0
-    MAX_LEN = 100
-    MIN_FRESH = 0
-    MAX_FRESH = 100
-    MIN_GUAR_BW = 0
-    MAX_GUAR_BW = 100
-    MIN_AV_BW = 0
-    MAX_AV_BW = 100
-    MIN_TOT_BW = 0
-    MAX_TOT_BW = 100
-    MIN_DELAY = 0
-    MAX_DELAY = 100
-    MIN_SIZE = 0
-    MAX_SIZE = 500
-    MIN_AGE = 0
-    MAX_AGE = 3600
-    MIN_PEER = 1
-    MAX_PEER = 20
-
-    def __init__(self, policy_file):
-        self.policy = Policy(policy_file)
-        self.candidates = SortedCollection([], lambda x: x.fidelity)
+    def __init__(self, path_policy):
+        self.path_policy = path_policy
+        self.candidates = []
         self.best_paths_history = []
 
-    def add_path(self, pcb):
+    def add_record(self, record):
         """
         Possibly add a new path to the candidates list.
 
         :param pcb: The PCB representing the potential path.
         :type pcb: PathSegment
         """
-        path = PathSegmentInfo(pcb, self.policy)
-        if self._check_filters(path):
-            for candidate in self.candidates:
-                if path.id == candidate.id:
-                    candidate.timestamp = int(time.time())
-                    return
-            self.candidates.insert(path)
-            if len(self.candidates) > self.policy.candidates_set_size:
-                self.candidates = self.candidates[1:]
+        assert isinstance(record, PathStoreRecord)
+        for index in range(len(self.candidates)):
+            if self.candidates[index] == record:
+                record.last_sent_time = self.candidates[index].last_sent_time
+                del self.candidates[index]
+                break
+        self.candidates.append(record)
+        self._update_all_disjointness()
+        self._update_all_fidelity()
+        self.candidates = sorted(self.candidates, key=lambda x: x.fidelity)
+        if len(self.candidates) > self.path_policy.candidates_set_size:
+            self.candidates = self.candidates[1:] # first or last depending on
+                                                  # how SortCollection sorts
+                                                  # (i.e. ASC or DESC)
 
-    def _check_filters(self, path):
+    def _update_all_disjointness(self):
         """
-        Runs some checks, including: (un)wanted ADs and min/max property values.
+        Update the disjointness of all path candidates.
         """
-        return (self._check_wanted_ads(path) and
-                self._check_unwanted_ads(path) and
-                self._check_min_max(path) and
-                self._check_disjointness(path))
+        # TODO: define function that checks AD IDs and interfaces
+        pass
 
-    def _check_wanted_ads(self, path):
+    def _update_all_fidelity(self):
         """
-        Checks whether all ADs in the path belong to the white list.
+        Update the fidelity of all path candidates.
         """
-        for ad in path.pcb.ads:
-            if ad.pcbm.ad_id not in self.policy.wanted_ads:
-                return False
-            for interface in self.policy.wanted_ads[ad.pcbm.ad_id]:
-                if (ad.pcbm.hof.ingress_if != interface and
-                    ad.pcbm.hof.egress_if != interface):
-                    return False
-        return True
-
-    def _check_unwanted_ads(self, path):
-        """
-        Checks whether any of the ADs in the path belong to the black list.
-        """
-        for ad in path.pcb.ads:
-            if ad.pcbm.ad_id in self.policy.unwanted_ads:
-                interfaces = self.policy.unwanted_ads[ad.pcbm.ad_id]
-                if len(interfaces) == 0:
-                    return False
-                for interface in interfaces:
-                    if (ad.pcbm.hof.ingress_if == interface or
-                        ad.pcbm.hof.egress_if == interface):
-                        return False
-        return True
-
-    def _check_min_max(self, path):
-        """
-        Checks whether any of the path properties has a value outside the
-        predefined min-max range.
-        """
-        return (
-            (self.policy.min_max.get("MinLocalDesirability",
-                                     PathStore.MIN_LOC_DES) <=
-             path.get_local_desirability() <=
-             self.policy.min_max.get("MaxLocalDesirability",
-                                     PathStore.MAX_LOC_DES)) and
-            (self.policy.min_max.get("MinPathLength",
-                                     PathStore.MIN_LEN) <=
-             path.get_path_length() <=
-             self.policy.min_max.get("MaxPathLength",
-                                     PathStore.MAX_LEN)) and
-            (self.policy.min_max.get("MinPathLength",
-                                     PathStore.MIN_LEN) <=
-             path.get_path_length() <=
-             self.policy.min_max.get("MaxPathLength",
-                                     PathStore.MAX_LEN)) and
-            (self.policy.min_max.get("MinPathFreshness",
-                                     PathStore.MIN_FRESH) <=
-             path.get_path_freshness() <=
-             self.policy.min_max.get("MaxPathFreshness",
-                                     PathStore.MAX_FRESH)) and
-            (self.policy.min_max.get("MinGuaranteedBandwidth",
-                                     PathStore.MIN_GUAR_BW) <=
-             path.get_guaranteed_bandwidth() <=
-             self.policy.min_max.get("MaxGuaranteedBandwidth",
-                                     PathStore.MAX_GUAR_BW)) and
-            (self.policy.min_max.get("MinAvailableBandwidth",
-                                     PathStore.MIN_AV_BW) <=
-             path.get_available_bandwidth() <=
-             self.policy.min_max.get("MaxAvailableBandwidth",
-                                     PathStore.MAX_AV_BW)) and
-            (self.policy.min_max.get("MinTotalBandwidth",
-                                     PathStore.MIN_TOT_BW) <=
-             path.get_total_bandwidth() <=
-             self.policy.min_max.get("MaxTotalBandwidth",
-                                     PathStore.MAX_TOT_BW)) and
-            (self.policy.min_max.get("MinDelay",
-                                     PathStore.MIN_DELAY) <=
-             path.get_delay() <=
-             self.policy.min_max.get("MaxDelay",
-                                     PathStore.MAX_DELAY)) and
-            (self.policy.min_max.get("MinSize",
-                                     PathStore.MIN_SIZE) <=
-             path.get_size() <=
-             self.policy.min_max.get("MaxSize",
-                                     PathStore.MAX_SIZE)) and
-            (self.policy.min_max.get("MinAge",
-                                     PathStore.MIN_AGE) <=
-             path.get_age() <=
-             self.policy.min_max.get("MaxAge",
-                                     PathStore.MAX_AGE)) and
-            (self.policy.min_max.get("MinPeerLinks",
-                                     PathStore.MIN_PEER) <=
-             path.get_peer_links() <=
-             self.policy.min_max.get("MaxPeerLinks",
-                                     PathStore.MAX_PEER)))
-
-    def update_policy(self, policy_file):
-        """
-        Updates the policy in the path store. Also all paths' fidelity as a
-        consequence.
-        """
-        self.policy = Policy(policy_file)
-        for i in range(len(self.candidates)):
-            self.candidates[i].set_fidelity(self.policy)
-        self.candidates = SortedCollection(self.candidates,
-                                           lambda x: x.fidelity)
+        for candidate in self.candidates:
+            candidate.update_fidelity(self.path_policy)
 
     def get_candidates(self, k=10):
         """
@@ -482,21 +208,6 @@ class PathStore(object):
         Returns the latest k best paths.
         """
         return reversed(self.candidates[-k:])
-
-    def _check_disjointness(self, path):
-        """
-        Checks that the paths disjointness is below a certain level, which is
-        stored in the policy.
-        """
-        count = defaultdict(int)
-        for ad in path.pdb.ads:
-            count[ad.pcbm.ad_id] += 1
-        for candidate in self.candidates:
-            for ad in candidate.pcb.ads:
-                count[ad.pcbm.ad_id] += 1
-            if max(count.values()) > self.policy.disjointness:
-                return False
-        return True
 
     def store_selection(self, k=10):
         """

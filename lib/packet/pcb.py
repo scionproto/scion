@@ -454,6 +454,21 @@ class PathSegment(Marking):
                 h.update(pm.eg_rev_token)
         return h.digest()
 
+    def get_n_peer_links(self):
+        """
+        Return the total number of peer links in the PathSegment.
+        """
+        n_peer_links = 0
+        for ad in self.ads:
+            n_peer_links += len(ad.pms)
+        return n_peer_links
+
+    def get_n_hops(self):
+        """
+        Return the number of hops in the PathSegment.
+        """
+        return len(self.ads)
+
     def get_timestamp(self):
         """
         Returns the creation timestamp of this PathSegment.
