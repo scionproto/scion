@@ -63,13 +63,18 @@
     {% endfor %}
     </tbody>
   </table>
-  <br />
 
+  <hr />
+
+  <h1>Topology</h1>
+
+  <div id="topology-info" class="alert" role="alert"></div>
 
   <!-- JS variables -->
   <script>
     var isdAdId = '{{ object }}';
     var adDetailUrl = '{% url 'ad_status' object.id %}';
+    var adCompareUrl = '{% url 'compare_topology' object.id %}';
   </script>
 
 {% endblock %}

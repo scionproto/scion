@@ -1,3 +1,4 @@
+import json
 from django.db import models
 from ad_manager.util import monitoring_client
 
@@ -31,7 +32,31 @@ class AD(models.Model):
     objects = SelectRelatedModelManager('isd')
 
     def query_ad_status(self):
-        return monitoring_client.get_ad_info(self.isd.id, self.id)
+        return monitoring_client.get_ad_info(self.isd_id, self.id)
+
+    def get_remote_topology(self):
+        topology_str = monitoring_client.get_topology(self.isd_id, self.id)
+        if topology_str:
+            topology_dict = json.loads(topology_str)
+            return topology_dict
+        else:
+            return None
+
+    def generate_topology_dict(self):
+        out_dict = {'ISDID': int(self.isd_id), 'ADID': int(self.id),
+                    'Core': int(self.is_core_ad),
+                    'EdgeRouters': {}, 'PathServers': {}, 'BeaconServers': {},
+                    'CertificateServers': {},
+        }
+        for i, router in enumerate(self.routerweb_set.all(), start=1):
+            out_dict['EdgeRouters'][str(i)] = router.get_dict()
+        for i, ps in enumerate(self.pathserverweb_set.all(), start=1):
+            out_dict['PathServers'][str(i)] = ps.get_dict()
+        for i, bs in enumerate(self.beaconserverweb_set.all(), start=1):
+            out_dict['BeaconServers'][str(i)] = bs.get_dict()
+        for i, cs in enumerate(self.certificateserverweb_set.all(), start=1):
+            out_dict['CertificateServers'][str(i)] = cs.get_dict()
+        return out_dict
 
     def __str__(self):
         return '{}-{}'.format(self.isd.id, self.id)
@@ -47,6 +72,9 @@ class SCIONWebElement(models.Model):
     def id_str(self):
         # FIXME counter
         return "{}{}-{}-1".format(self.prefix, self.ad.isd_id, self.ad_id)
+
+    def get_dict(self):
+        return {'AddrType': 'IPv4', 'Addr': self.addr}
 
     def __str__(self):
         return '{} -- {}'.format(self.ad, self.addr)
@@ -94,6 +122,13 @@ class RouterWeb(SCIONWebElement):
         return "er{}-{}er{}-{}".format(self.ad.isd_id, self.ad_id,
                                        self.neighbor_ad.isd_id,
                                        self.neighbor_ad.id)
+
+    def get_dict(self):
+        out_dict = super(RouterWeb, self).get_dict()
+        out_dict['Interface'] = {'NeighborType': self.neighbor_type,
+                                 'NeighborISD': int(self.neighbor_ad.isd_id),
+                                 'NeighborAD': int(self.neighbor_ad.id)}
+        return out_dict
 
     class Meta:
         verbose_name = 'Router'

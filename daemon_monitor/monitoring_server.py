@@ -40,8 +40,8 @@ class MonitoringServer(object):
     # COMMAND
     def get_topology(self, isd_ad_id):
         (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-        assert self.topology.ad_id == int(ad_id) \
-               and self.topology.isd_id == int(isd_id)
+        #assert self.topology.ad_id == int(ad_id) \
+        #       and self.topology.isd_id == int(isd_id)
         file_name = 'ISD:' + isd_id + '-AD:' + ad_id
         topo_file = 'ISD' + isd_id + TOPO_DIR + file_name + '-V:0.json'
         topo_path = ''.join(['..', SCRIPTS_DIR, topo_file])
