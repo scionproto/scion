@@ -20,7 +20,7 @@
   <div>
     <div class="col-md-11"></div>
     <div class="col-md-1">
-      <button type="button" class="btn btn-info" id="update-ad-btn">Update</button>
+      <button type="button" class="btn btn-info" id="update-ad-btn">Update status</button>
     </div>
   </div>
 
@@ -67,9 +67,17 @@
   <hr />
 
   <h1>Topology</h1>
-
+  <p>The stored topology might be out of sync with the actual topology.</p>
+  <div>
+    <button type="button" class="btn btn-info" id="compare-topology-btn">Check topology</button>
+    <a href="{% url 'update_topology' object.id %}" class="click-confirm">
+      <button type="button" class="btn btn-default" id="update-topology-btn">Update topology</button>
+    </a>
+  </div>
+  <br/>
   <div id="topology-info" class="alert" role="alert"></div>
 
+  <br/>
   <!-- JS variables -->
   <script>
     var isdAdId = '{{ object }}';

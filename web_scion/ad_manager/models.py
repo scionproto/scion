@@ -1,6 +1,7 @@
 import json
-from django.db import models
+from django.db import models, IntegrityError
 from ad_manager.util import monitoring_client
+from lib.topology import Topology
 
 
 class SelectRelatedModelManager(models.Manager):
@@ -57,6 +58,46 @@ class AD(models.Model):
         for i, cs in enumerate(self.certificateserverweb_set.all(), start=1):
             out_dict['CertificateServers'][str(i)] = cs.get_dict()
         return out_dict
+
+    def fill_from_topology(self, topology, clear=False):
+        assert isinstance(topology, Topology), \
+            'Instance of the Topology class is required'
+
+        if clear:
+            self.routerweb_set.all().delete()
+            self.pathserverweb_set.all().delete()
+            self.certificateserverweb_set.all().delete()
+            self.beaconserverweb_set.all().delete()
+
+        routers = topology.get_all_edge_routers()
+        beacon_servers = topology.beacon_servers
+        certificate_servers = topology.certificate_servers
+        path_servers = topology.path_servers
+
+        try:
+            for router in routers:
+                interface = router.interface
+                neighbor_ad = AD.objects.get(id=interface.neighbor_ad,
+                                             isd=interface.neighbor_isd)
+                router_element = RouterWeb(addr=router.addr, ad=self,
+                                           neighbor_ad=neighbor_ad,
+                                           neighbor_type=interface.neighbor_type)
+                router_element.save()
+
+            for bs in beacon_servers:
+                bs_element = BeaconServerWeb(addr=bs.addr, ad=self)
+                bs_element.save()
+
+            for cs in certificate_servers:
+                cs_element = CertificateServerWeb(addr=cs.addr, ad=self)
+                cs_element.save()
+
+            for ps in path_servers:
+                ps_element = PathServerWeb(addr=ps.addr, ad=self)
+                ps_element.save()
+        except IntegrityError as ex:
+            pass
+
 
     def __str__(self):
         return '{}-{}'.format(self.isd.id, self.id)

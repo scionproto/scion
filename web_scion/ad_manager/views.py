@@ -1,6 +1,12 @@
+import json
+import tempfile
+from django.core.urlresolvers import reverse
+from django.db import transaction
 from django.http import JsonResponse
+from django.shortcuts import redirect
 from django.views.generic import ListView, DetailView
 from ad_manager.models import AD, ISD
+from lib.topology import Topology
 
 
 class ISDListView(ListView):
@@ -31,7 +37,7 @@ def get_ad_status(request, pk):
 
 
 def compare_remote_topology(request, pk):
-
+    # TODO move to model?
     def addr_key_sort(k):
         return k['Addr']
 
@@ -67,19 +73,31 @@ def compare_remote_topology(request, pk):
             current_fields = element_fields[server_type]
             for key in current_fields:
                 if isinstance(key, str) and rs[key] != cs[key]:
-                    changes.append('"{}" values differ for {}'
+                    changes.append('"{}" values differ for some {}'
                                    .format(key, server_type))
                     continue
                 if isinstance(key, tuple):
                     field_name, nested_fields = key
                     for field in nested_fields:
                         if rs[field_name][field] != cs[field_name][field]:
-                            changes.append('"{}" values differ for {}'
-                                           .format(field_name, server_type))
-
+                            changes.append('"{}:{}" values differ for some {}'
+                                           .format(field_name, field,
+                                                   server_type))
     if changes:
         status = 'CHANGED'
     else:
         status = 'OK'
-
     return JsonResponse({'status': status, 'changes': changes})
+
+
+@transaction.atomic
+def update_from_remote_topology(request, pk):
+    ad = AD.objects.get(id=pk)
+    remote_topology_dict = ad.get_remote_topology()
+    # Write topology to a temp file
+    with tempfile.NamedTemporaryFile(mode='w') as tmp:
+        json.dump(remote_topology_dict, tmp)
+        tmp.flush()
+        remote_topology = Topology(tmp.name)
+    ad.fill_from_topology(remote_topology, clear=True)
+    return redirect(reverse('ad_detail', args=[ad.id]))

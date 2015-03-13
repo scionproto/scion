@@ -48,35 +48,6 @@ for ad_topo in ads:
 
 for ad_topo in ads:
     ad = AD.objects.get(id=ad_topo.ad_id, isd=isds[ad_topo.isd_id])
-    # Routers
-    routers = ad_topo.parent_edge_routers + ad_topo.child_edge_routers + \
-              ad_topo.peer_edge_routers + ad_topo.routing_edge_routers
-    beacon_servers = ad_topo.beacon_servers
-    certificate_servers = ad_topo.certificate_servers
-    path_servers = ad_topo.path_servers
-
-    try:
-        for router in routers:
-            interface = router.interface
-            neighbor_ad = AD.objects.get(id=interface.neighbor_ad,
-                                         isd=interface.neighbor_isd)
-            router_element = RouterWeb(addr=router.addr, ad=ad,
-                                       neighbor_ad=neighbor_ad,
-                                       neighbor_type=interface.neighbor_type)
-            router_element.save()
-
-        for bs in beacon_servers:
-            bs_element = BeaconServerWeb(addr=bs.addr, ad=ad)
-            bs_element.save()
-
-        for cs in certificate_servers:
-            cs_element = CertificateServerWeb(addr=cs.addr, ad=ad)
-            cs_element.save()
-
-        for ps in path_servers:
-            ps_element = PathServerWeb(addr=ps.addr, ad=ad)
-            ps_element.save()
-    except IntegrityError as ex:
-        pass
+    ad.fill_from_topology(ad_topo)
 
     print('> AD {} added'.format(ad))

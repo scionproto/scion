@@ -31,6 +31,7 @@ function initTopologyCheck() {
 
 function compareAdTopology(compareUrl) {
     var $alertDiv = $('#topology-info');
+    $alertDiv.hide();
     $alertDiv.removeClass('alert-success alert-danger');
 
     function alert_no_topology() {
@@ -40,13 +41,13 @@ function compareAdTopology(compareUrl) {
 
     function alert_ok() {
         $alertDiv.addClass('alert-success');
-        $alertDiv.text('OK');
+        $alertDiv.text('Everything is OK');
     }
 
     function alert_changed(changes) {
         $alertDiv.addClass('alert-danger');
-        $alertDiv.html('Inconsistent topology detected<br/>');
-        var $changes_list = $('<ul/>').addClass('changes-list');
+        $alertDiv.html('Stored topology is inconsistent with the remote one<br/>');
+        var $changes_list = $('<ul/>').attr('id', 'changes-list');
         $.each(changes, function(index, value) {
             $('<li>' + value + '</li>').appendTo($changes_list);
         });
@@ -81,4 +82,13 @@ $(document).ready(function() {
 
     initTopologyCheck();
     compareAdTopology(adCompareUrl);
+    $('#compare-topology-btn').click(function() {
+        compareAdTopology(adCompareUrl);
+    });
+
+
+    // Confirmation boxes
+    $('.click-confirm').click(function(e) {
+        return confirm('Are you sure?')
+    })
 });
