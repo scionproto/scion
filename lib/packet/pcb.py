@@ -69,13 +69,63 @@ class Marking(object):
 class PCBMarking(Marking):
     """
     Packs all fields for a specific PCB marking, which includes: the Autonomous
-    Domain's ID, the SupportSignatureField, the HopOpaqueField, the
-    SupportPCBField, and the revocation tokens for the interfaces
-    included in the HOF.
+    Domain's ID (16 bytes), the SupportSignatureField (16 bytes), the
+    HopOpaqueField (16 bytes), the
+    SupportPCBField (16 bytes), and the revocation tokens for the interfaces
+    included in the HOF (16 bytes each for ingress and egress interfaces).
+
+    The format of the marking is as follows::
+
+                             1 1 1 1 1 1 1 1 1 1 2 2 2 2 2 2 2 2 2 2 3 3
+         0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        |                             AD ID                             /
+        /                                                               |
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        |                    Support Signature Field                    /
+        /                                                               |
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        |                       Hop Opaque Field                        /
+        /                                                               |
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        |                       Support PCB Field                       /
+        /                                                               |
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        |              Ingress Interface Revocation Tokens              /
+        /                                                               |
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        |               Egress Interface Revocation Tokens              /
+        /                                                               |
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+    :cvar LEN: the length of the marking in bytes.
+    :vartype LEN: int
+    :ivar ad_id: the AD identifier.
+    :vartype ad_id: int
+    :ivar ssf: the support signature field.
+    :vartype ssf: SupportSignatureField
+    :ivar hof: the hop opaque field.
+    :vartype hof: HopOpaqueField
+    :ivar spcbf: the support PCB field.
+    :vartype spcbf: SupportPCBField
+    :ivar ig_rev_token: the ingress interface revocation tokens.
+    :vartype ig_rev_token: bytes
+    :ivar eg_rev_token: the egress interface revocation tokens.
+    :vartype eg_rev_token: bytes
     """
-    LEN = 32 + 2 * 32
+
+    # pylint: disable=too-many-instance-attributes
+
+    LEN = 96
 
     def __init__(self, raw=None):
+        """
+        Constructor.
+
+        :param raw: the raw bytes from which to construct the PCBMarking.
+        :type raw: bytes
+        """
+
         Marking.__init__(self)
         self.ad_id = 0
         self.ssf = None
@@ -88,7 +138,10 @@ class PCBMarking(Marking):
 
     def parse(self, raw):
         """
-        Populates fields from a raw bytes block.
+        Populate fields from a raw bytes block.
+
+        :param raw: the raw bytes to parse in order to populate the fields.
+        :type raw: bytes
         """
         assert isinstance(raw, bytes)
         self.raw = raw[:]
@@ -103,22 +156,25 @@ class PCBMarking(Marking):
         self.spcbf = SupportPCBField(raw[24:32])
         self.ig_rev_token = raw[32:64]
         self.eg_rev_token = raw[64:96]
-        self.parsed = True
 
     @classmethod
     def from_values(cls, ad_id=0, ssf=None, hof=None, spcbf=None,
                     ig_rev_token=32 * b"\x00", eg_rev_token=32 * b"\x00"):
         """
-        Returns PCBMarking with fields populated from values.
+        Return PCBMarking with fields populated from values.
 
-        @param ad_id: Autonomous Domain's ID.
-        @param ssf: SupportSignatureField object.
-        @param hof: HopOpaqueField object.
-        @param spcbf: SupportPCBField object.
-        @param ig_rev_token: Revocation token for the ingress if
-                             in the HopOpaqueField.
-        @param eg_rev_token: Revocation token for the egress if
-                             in the HopOpaqueField.
+        :param ad_id: the AD identifier.
+        :type ad_id: int
+        :param ssf: the support signature field.
+        :type ssf: :class:`SupportSignatureField`
+        :param hof: the hop opaque field.
+        :type hof: :class:`HopOpaqueField`
+        :param spcbf: the support PCB field.
+        :type spcbf: :class:`SupportPCBField`
+        :param ig_rev_token: the revocation token for the ingress interface.
+        :type ig_rev_token: bytes
+        :param eg_rev_token: the revocation token for the egress interface.
+        :type eg_rev_token: bytes
         """
         pcbm = PCBMarking()
         pcbm.ad_id = ad_id
@@ -132,6 +188,9 @@ class PCBMarking(Marking):
     def pack(self):
         """
         Returns PCBMarking as a binary string.
+
+        :returns: the binary string representing the PCBMarking.
+        :rtype: :class:`bitstring.BitStream`
         """
         return (bitstring.pack("uintbe:64", self.ad_id).bytes +
                 self.ssf.pack() + self.hof.pack() + self.spcbf.pack() +
@@ -160,9 +219,66 @@ class PCBMarking(Marking):
 
 class PeerMarking(Marking):
     """
-    Packs all fields for a specific peer marking.
+    A peer marking in a PCB.
+
+    This class represents a specific peer marking, which consists of an AD ID
+    (8 bytes), hop OF (8 bytes), support PCB field (8 bytes), the ingress
+    interface revocation tokens (32 bytes), and the egress interface revocation
+    tokens (32 bytes), for a total of 88 bytes.
+
+    The :class:`PeerMarking` wire format is as follows::
+
+                             1 1 1 1 1 1 1 1 1 1 2 2 2 2 2 2 2 2 2 2 3 3
+         0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        |                             AD ID                             /
+        /                                                               |
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        |                       Hop Opaque Field                        /
+        /                                                               |
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        |                      Support Peer Field                       /
+        /                                                               |
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        |                                                               /
+        /                                                               /
+        /                                                               /
+        /              Ingress Interface Revocation Tokens              /
+        /                                                               /
+        /                                                               /
+        /                                                               /
+        /                                                               |
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        |                                                               /
+        /                                                               /
+        /                                                               /
+        /               Egress Interface Revocation Tokens              /
+        /                                                               /
+        /                                                               /
+        /                                                               /
+        /                                                               |
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+    Class-wide variables:
+
+    :cvar LEN: the length of the marking in bytes.
+    :vartype LEN: int
+
+    Instance-specific members:
+
+    :ivar ad_id: the AD ID.
+    :vartype ad_id: int
+    :ivar hof: the hop opaque field.
+    :vartype hof: HopOpaqueField
+    :ivar spcbf: the support peer field.
+    :vartype spcbf: SupportPeerField
+    :ivar ig_rev_token: the ingress interface revocation tokens.
+    :vartype ig_rev_token: bytes
+    :ivar eg_rev_token: the egress interface revocation tokens.
+    :vartype eg_rev_token: bytes
     """
-    LEN = 24 + 2 * 32
+
+    LEN = 88
 
     def __init__(self, raw=None):
         Marking.__init__(self)
@@ -199,13 +315,16 @@ class PeerMarking(Marking):
         """
         Returns PeerMarking with fields populated from values.
 
-        @param ad_id: Autonomous Domain's ID.
-        @param hof: HopOpaqueField object.
-        @param spf: SupportPeerField object.
-        @param ig_rev_token: Revocation token for the ingress if
-                             in the HopOpaqueField.
-        @param eg_rev_token: Revocation token for the egress if
-                             in the HopOpaqueField.
+        :param ad_id: the AD identifier.
+        :type ad_id: int
+        :param hof: the hop opaque field.
+        :type hof: :class:`HopOpaqueField`
+        :param spf: the support peer field.
+        :type spf: :class:`SupportPeerField`
+        :param ig_rev_token: the revocation token for the ingress interface.
+        :type ig_rev_token: bytes
+        :param eg_rev_token: the revocation token for the egress interface.
+        :type eg_rev_token: bytes
         """
         peer_marking = PeerMarking()
         peer_marking.ad_id = ad_id
@@ -218,6 +337,9 @@ class PeerMarking(Marking):
     def pack(self):
         """
         Returns PeerMarking as a binary string.
+
+        :returns: the binary string representation of the PeerMarking instance.
+        :rtype: :class:`bitstring.BitStream`
         """
         return (bitstring.pack("uintbe:64", self.ad_id).bytes +
                 self.hof.pack() + self.spf.pack() + self.ig_rev_token +
@@ -245,6 +367,7 @@ class PeerMarking(Marking):
 class ADMarking(Marking):
     """
     Packs all fields for a specific Autonomous Domain.
+    An AD marking, 
 
     :cvar LEN: the length of the marking.
     :vartype LEN: int
@@ -374,6 +497,12 @@ class PathSegment(Marking):
     LEN = 16 + 32
 
     def __init__(self, raw=None):
+        """
+        Constructor.
+
+        :param raw: a raw byte string representing the PCB.
+        :type raw: bytes
+        """
         Marking.__init__(self)
         self.iof = None
         self.rotf = None
@@ -527,7 +656,6 @@ class PathSegment(Marking):
     def set_timestamp(self, timestamp):
         """
         Updates the timestamp in the IOF.
->>>>>>> master
         """
         assert timestamp < 2 ** 32 - 1
         self.iof.timestamp = timestamp
@@ -594,7 +722,11 @@ class PathSegment(Marking):
 class PathConstructionBeacon(SCIONPacket):
     """
     PathConstructionBeacon packet, used for path propagation.
+
+    :ivar pcb: the path segment carried in the PCB.
+    :vartype pcb: :class:`PathSegment`
     """
+
     def __init__(self, raw=None):
         SCIONPacket.__init__(self)
         self.pcb = None
@@ -602,6 +734,12 @@ class PathConstructionBeacon(SCIONPacket):
             self.parse(raw)
 
     def parse(self, raw):
+        """
+        Populate fields from a raw bytes string.
+
+        :param raw: the raw bytes to parse.
+        :type raw: bytes
+        """
         SCIONPacket.parse(self, raw)
         self.pcb = PathSegment(self.payload)
 
@@ -610,9 +748,13 @@ class PathConstructionBeacon(SCIONPacket):
         """
         Returns a PathConstructionBeacon packet with the values specified.
 
-        @param dst: Destination address (must be a 'HostAddr' object)
-        @param pcb: Path Construction PathConstructionBeacon ('PathSegment'
-                    class)
+        :param dst: the destination address.
+        :type dst: :class:`HostAddr`
+        :param pcb: the path segment carried in the PCB.
+        :type pcb: :class:`PathSegment`
+        :returns: a :class:`PathConstructionBeacon` instance with the specified
+           values.
+        :rtype: :class:`PathConstructionBeacon`
         """
         beacon = PathConstructionBeacon()
         beacon.pcb = pcb
@@ -671,6 +813,9 @@ class PathSegmentInfo(object):
     def from_values(cls, pckt_type, src_isd, dst_isd, src_ad, dst_ad):
         """
         Returns PathSegmentInfo with fields populated from values.
+
+        TODO
+
         @param pckt_type: type of request/reply
                           (must be 'PathSegmentType' object)
         @param src_isd, src_ad: address of the source AD
@@ -703,6 +848,8 @@ class PathSegmentRequest(SCIONPacket):
     def from_values(cls, src, info, path=None):
         """
         Returns a Path Request with the values specified.
+
+        TODO
 
         @param src: Source address (must be a 'HostAddr' object)
         @param info: determines type of a path request
@@ -743,6 +890,8 @@ class PathSegmentRecords(SCIONPacket):
     def from_values(cls, dst, info, pcbs, path=None):
         """
         Returns a Path Record with the values specified.
+
+        TODO
 
         @param info: determines type of a path record
                      (object of 'PathSegmentInfo')

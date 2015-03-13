@@ -1,20 +1,23 @@
+#path_db.py
+
+#Copyright 2015 ETH Zurich
+
+#Licensed under the Apache License, Version 2.0 (the "License");
+#you may not use this file except in compliance with the License.
+#You may obtain a copy of the License at
+
+#http://www.apache.org/licenses/LICENSE-2.0
+
+#Unless required by applicable law or agreed to in writing, software
+#distributed under the License is distributed on an "AS IS" BASIS,
+#WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#See the License for the specific language governing permissions and
+#limitations under the License.
 """
-path_db.py
-
-Copyright 2015 ETH Zurich
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+:mod:`path_db` --- Path server database
+=======================================
 """
+
 from lib.packet.pcb import PathSegment
 import logging
 import time
@@ -25,8 +28,20 @@ from pydblite.pydblite import Base
 class PathSegmentDBRecord(object):
     """
     Path record that gets stored in the the PathSegmentDB.
+
+    :ivar pcb: the PCB representing the PathSegment in the record.
+    :vartype pcb: PathSegment
+    :ivar id: the identifier of the path segment.
+    :vartype id: int
     """
+
     def __init__(self, pcb):
+        """
+        Constructor.
+
+        :param pcb: the PCB representing the stored path segment.
+        :type pcb: PathSegment
+        """
         assert isinstance(pcb, PathSegment)
         self.pcb = pcb
         self.id = pcb.segment_id

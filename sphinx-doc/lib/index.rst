@@ -6,9 +6,10 @@ Contents:
 .. toctree::
    :maxdepth: 3
 
-   topology_parser
+   topology
    raw_socket
    config
    util
+   opaque_field
    path_store
    packet/index

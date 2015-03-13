@@ -1,19 +1,22 @@
+#opaque_field.py
+
+#Copyright 2014 ETH Zurich
+
+#Licensed under the Apache License, Version 2.0 (the "License");
+#you may not use this file except in compliance with the License.
+#You may obtain a copy of the License at
+
+#http://www.apache.org/licenses/LICENSE-2.0
+
+#Unless required by applicable law or agreed to in writing, software
+#distributed under the License is distributed on an "AS IS" BASIS,
+#WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#See the License for the specific language governing permissions and
+#limitations under the License.
+
 """
-opaque_field.py
-
-Copyright 2014 ETH Zurich
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+:mod:`opaque_field` --- Opaque Fields
+=====================================
 """
 
 import logging
@@ -289,6 +292,8 @@ class InfoOpaqueField(OpaqueField):
         """
         Returns InfoOpaqueField with fields populated from values.
 
+        TODO
+
         @param info: Opaque field type.
         @param up_flag: up/down-flag.
         @param timestamp: Beacon's timestamp.
@@ -368,6 +373,8 @@ class ROTField(OpaqueField):
         """
         Returns ROTField with fields populated from values.
 
+        TODO
+
         @param rot_version: Version of the Isolation Domanin's ROT file.
         @param if_id: Interface ID.
         @param reserved: Reserved section.
@@ -407,9 +414,38 @@ class SupportSignatureField(OpaqueField):
     Class for the support signature field.
 
     The support signature field contains a certificate ID (4 bytes), the
-    signature length (2 bytes), and the block size (2 bytes).
+    signature length (2 bytes), and the block size (2 bytes), for a total of 8
+    bytes.
+
+    The :class:`SupportSignatureField` wire format is as follows::
+
+                             1 1 1 1 1 1 1 1 1 1 2 2 2 2 2 2 2 2 2 2 3 3
+         0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        |                            Cert ID                            |
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        |          Sig Length           |          Block Size           |
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+    :ivar cert_id: the certificate ID.
+    :vartype cert_id: int
+    :ivar sig_len: the length of the beacon signature in bytes.
+    :vartype sig_len: int
+    :ivar block_size: the size of an AD marking in bytes.
+    :vartype block_size: int
+    :ivar raw: the raw bytes representing the SupportSignatureField parsed
+       during creation.
+    :vartype raw: bytes
     """
+
     def __init__(self, raw=None):
+        """
+        Constructor.
+
+        :param raw: the raw bytes used to populate the SupportSignatureField
+           fields.
+        :type raw: bytes
+        """
         OpaqueField.__init__(self)
         self.cert_id = 0
         self.sig_len = 0
@@ -437,10 +473,12 @@ class SupportSignatureField(OpaqueField):
         """
         Returns SupportSignatureField with fields populated from values.
 
-        @param block_size: Total marking size for an AD block (peering links
-            included.)
-        @param cert_id: ID of the Autonomous Domain's certificate.
-        @param sig_len: Length of the beacon's signature.
+        :param block_size: the size of an AD marking in bytes.
+        :type block_size: int
+        :param cert_id: the certificate ID.
+        :type cert_id: int
+        :param sig_len: the length of the beacon signature in bytes.
+        :type sig_len: int
         """
         ssf = SupportSignatureField()
         ssf.cert_id = cert_id
@@ -475,7 +513,21 @@ class SupportPeerField(OpaqueField):
 
     The support peer field contains the trusted domain id (2 bytes),
     bandwidth allocation left (1 byte), bandwith allocation right (1 byte),
-    the bandwidth class (1 bit), and a reserved section (31 bits).
+    the bandwidth class (1 bit), and a reserved section (31 bits), for a total
+    of 16 bytes.
+
+    The :class:`SupportPeerField` wire format is as follows::
+
+                             1 1 1 1 1 1 1 1 1 1 2 2 2 2 2 2 2 2 2 2 3 3
+         0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        |       Trusted Domain ID       | BW Alloc Left | BW Alloc Right|
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        |*|                            Reserved                         |
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+        * Bandwidth Class
+
     """
     def __init__(self, raw=None):
         OpaqueField.__init__(self)
@@ -509,6 +561,8 @@ class SupportPeerField(OpaqueField):
                     bw_class=0, reserved=0):
         """
         Returns SupportPeerField with fields populated from values.
+
+        TODO
 
         @param isd_id: Isolation Domanin's ID.
         @param bwalloc_f: Allocated bandwidth left.
@@ -592,6 +646,8 @@ class SupportPCBField(OpaqueField):
                     dyn_bwalloc_r=0, bebw_f=0, bebw_r=0):
         """
         Returns SupportPCBField with fields populated from values.
+
+        TODO
 
         @param isd_id: Isolation Domanin's ID.
         @param bwalloc_f: Allocated bandwidth left.
