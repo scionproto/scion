@@ -148,26 +148,26 @@ class Topology(object):
     information for further use.
 
     :ivar is_core_ad: tells whether an AD is a core AD or not.
-    :type is_core_ad: bool
+    :vartype is_core_ad: bool
     :ivar isd_id: the ISD identifier.
-    :type isd_id: int
+    :vartype isd_id: int
     :ivar ad_id: the AD identifier.
-    :type ad_id: int
+    :vartype ad_id: int
     :ivar beacon_servers: beacons servers in the AD.
-    :type beacon_servers: list
+    :vartype beacon_servers: list
     :ivar certificate_servers: certificate servers in the AD.
-    :type certificate_servers: list
+    :vartype certificate_servers: list
     :ivar path_servers: path servers in the AD.
-    :type path_servers: list
+    :vartype path_servers: list
     :ivar parent_edge_routers: edge routers linking the AD to its parents.
-    :type parent_edge_routers: list
+    :vartype parent_edge_routers: list
     :ivar child_edge_routers: edge routers linking the AD to its children.
-    :type child_edge_routers: list
+    :vartype child_edge_routers: list
     :ivar peer_edge_routers: edge router linking the AD to its peers.
-    :type peer_edge_routers: list
+    :vartype peer_edge_routers: list
     :ivar routing_edge_routers: edge router linking the core AD to another core
                                 AD.
-    :type routing_edge_routers: list
+    :vartype routing_edge_routers: list
     """
 
     def __init__(self, topology_file=None):

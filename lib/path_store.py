@@ -1,19 +1,22 @@
+#path_store.py
+
+#Copyright 2014 ETH Zurich
+
+#Licensed under the Apache License, Version 2.0 (the "License");
+#you may not use this file except in compliance with the License.
+#You may obtain a copy of the License at
+
+#http://www.apache.org/licenses/LICENSE-2.0
+
+#Unless required by applicable law or agreed to in writing, software
+#distributed under the License is distributed on an "AS IS" BASIS,
+#WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#See the License for the specific language governing permissions and
+#limitations under the License.
+
 """
-path_store.py
-
-Copyright 2014 ETH Zurich
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+:mod:`path_store` --- Path record storage and selection for path servers
+========================================================================
 """
 
 from collections import defaultdict
@@ -90,7 +93,37 @@ class PathPolicy(object):
 class PathStoreRecord(object):
     """
     Path record that gets stored in the the PathStore.
+
+    :ivar pcb: the PCB representing the record.
+    :vartype pcb: :class:`lib.packet.pcb.PathSegment`
+    :ivar id: the path segment identifier stored in the record's PCB.
+    :vartype id: bytes
+    :ivar fidelity: the fidelity of the path record.
+    :vartype fidelity: float
+    :ivar peer_links: the number of peering links in the path segment.
+    :vartype peer_links: int
+    :ivar hops_length: the length of the path segment in hops.
+    :vartype hops_length: int
+    :ivar disjointness: the disjointness of the path segment compared to the
+       other paths in the PathStore database.
+    :vartype disjointness: int
+    :ivar last_sent_time: the Unix time at which the path segment was last
+       sent.
+    :vartype last_sent_time: int
+    :ivar last_seen_time: the Unix time at which the path segment was last seen
+       by the path server.
+    :vartype last_seen_time: int
+    :ivar delay_time: the time in seconds between the PCB's creation and the
+       time it was last seen by the path server.
+    :vartype delay_time: int
+    :ivar guaranteed_bandwidth: the path segment's guaranteed bandwidth.
+    :vartype guaranteed_bandwidth: int
+    :ivar available_bandwidth: the path segment's available bandwidth.
+    :vartype available_bandwidth: int
+    :ivar total_bandwidth: the path segment's total bandwidth.
+    :vartype total_bandwidth: int
     """
+
     def __init__(self, pcb):
         assert isinstance(pcb, PathSegment)
         self.pcb = pcb
@@ -181,8 +214,15 @@ class PathStore(object):
         """
         Update the disjointness of all path candidates.
         """
-        # TODO: define function that checks AD IDs and interfaces
-        pass
+        ad_count = defaultdict(int)
+        for candidate in self.candidates:
+            for ad_marking in candidate.pcb.ads:
+                ad_count[ad_marking.pcbm.ad_id] += 1
+        for candidate in self.candidates:
+            candidate.disjointness = 0
+            for ad_marking in candidate.pcb.ads:
+                candidate.disjointness += ad_count[ad_marking.pcbm.ad_id]
+
 
     def _update_all_fidelity(self):
         """
@@ -213,13 +253,17 @@ class PathStore(object):
         """
         Stores the best k paths into the path history and reset the list of
         candidates.
+
+        .. warning::
+           This function makes use of the `list.clear()` method and thus
+           requires Python 3.3 or greater.
         """
         self.best_paths_history.insert(0, self.get_paths(k))
         self.candidates.clear()
 
     def __str__(self):
         path_store_str = "[PathStore]\n"
-        path_store_str += str(self.policy) + "\n"
+        path_store_str += str(self.path_policy) + "\n"
         for candidate in self.candidates:
             path_store_str += str(candidate)
         return path_store_str
