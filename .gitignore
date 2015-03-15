@@ -48,6 +48,7 @@ topology/conf-gen
 #########################
 *.so
 *.o
+lib/crypto/python-tweetnacl-20140309/build/
 
 
 # Documentation and Environment files

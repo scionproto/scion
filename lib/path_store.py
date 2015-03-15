@@ -144,19 +144,18 @@ class PathStoreRecord(object):
         Computes a path fidelity based on all path properties and considering
         the corresponding weights, which are stored in the path policy.
         """
-        # TODO: adjust function
         self.fidelity = 0
         self.fidelity += (path_policy.property_weights['PeerLinks'] *
                           self.peer_links)
-        self.fidelity += (path_policy.property_weights['HopsLength'] *
-                          self.hops_length)
+        self.fidelity += (1.0 * path_policy.property_weights['HopsLength'] /
+                          (self.hops_length))
         self.fidelity += (path_policy.property_weights['Disjointness'] *
                           self.disjointness)
         self.fidelity += (path_policy.property_weights['LastSentTime'] *
-                          self.last_sent_time)
+                          (int(time.time()) - self.last_sent_time)**2)
         self.fidelity += (path_policy.property_weights['LastSeenTime'] *
                           self.last_seen_time)
-        self.fidelity += (path_policy.property_weights['DelayTime'] *
+        self.fidelity += (1.0 * path_policy.property_weights['DelayTime'] /
                           self.delay_time)
         self.fidelity += (path_policy.property_weights['GuaranteedBandwidth'] *
                           self.guaranteed_bandwidth)
