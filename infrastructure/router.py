@@ -255,10 +255,10 @@ class Router(SCIONElement):
             next_hop.port = self.interface.to_udp_port
             self.send(beacon, next_hop, False)
         else:
-            # TODO Multiple BS scenario
             beacon.pcb.trcf.if_id = self.interface.if_id
-            next_hop.addr = self.topology.beacon_servers[0].addr
-            self.send(beacon, next_hop)
+            for beacon_server in self.topology.beacon_servers:
+                next_hop.addr = beacon_server.addr
+                self.send(beacon, next_hop)
 
     def relay_cert_server_packet(self, spkt, next_hop, from_local_ad):
         """

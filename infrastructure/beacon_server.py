@@ -33,6 +33,9 @@ from lib.packet.scion import (SCIONPacket, get_type, PacketType as PT,
 from lib.path_store import PathPolicy, PathStoreRecord, PathStore
 from lib.util import (read_file, write_file, get_cert_chain_file_path,
     get_sig_key_file_path, get_trc_file_path, init_logging)
+from Crypto import Random
+from Crypto.Hash import SHA256
+from kazoo.client import KazooClient
 import base64
 import datetime
 import os
@@ -78,6 +81,17 @@ class BeaconServer(SCIONElement):
         self.signing_key = base64.b64decode(self.signing_key)
         self.if2rev_tokens = {}
         self.seg2rev_tokens = {}
+
+        self._init_zookeeper()
+
+    def _init_zookeeper(self):
+        self._zk = KazooClient(hosts='127.0.0.1:2181')  # TODO: def in topo?
+        #TODO add listeners for connection failures
+        self._zk.start()
+        self._zk_sid = "bs-%d-%d" % (self.topology.isd_id, self.topology.ad_id)
+        self._zk_id = "%s" % self.addr
+        self._zk_propagation_lock = self._zk.Lock("/%s" % self._zk_sid,
+                                                  self._zk_id)
 
     def _get_if_rev_token(self, if_id):
         """
@@ -134,11 +148,12 @@ class BeaconServer(SCIONElement):
         """
         # TODO: define function that dispaches the pcbs among the interfaces
         while True:
-            while self.beacons:
-                pcb = self.beacons.popleft()
-                self.propagate_downstream_pcb(pcb)
-                self.reg_queue.append(pcb)
-            time.sleep(self.config.propagation_time)
+            with self._zk_propagation_lock:
+                while self.beacons:
+                    pcb = self.beacons.popleft()
+                    self.propagate_downstream_pcb(pcb)
+                    self.reg_queue.append(pcb)
+                time.sleep(self.config.propagation_time)
 
     def process_pcb(self, beacon):
         """

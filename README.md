@@ -13,7 +13,7 @@ Necessary steps in order to run SCION:
 0. Install required packages with dependencies:
 
     sudo apt-get install python3 python-dev python3-dev python3-pip screen
-    sudo pip3 install bitstring python-pytun pydblite
+    sudo pip3 install bitstring python-pytun pydblite kazoo
 
 1. Compile the crypto library:
 

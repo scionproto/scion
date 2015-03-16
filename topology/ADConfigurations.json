@@ -50,6 +50,7 @@
         }
     },
     "1-16": {
+        "beacon_servers": 2,
         "level": "INTERMEDIATE",
 	"cert_issuer": "1-13",
         "links": {
