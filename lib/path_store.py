@@ -1,26 +1,22 @@
-#path_store.py
+# Copyright 2014 ETH Zurich
 
-#Copyright 2014 ETH Zurich
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 
-#Licensed under the Apache License, Version 2.0 (the "License");
-#you may not use this file except in compliance with the License.
-#You may obtain a copy of the License at
+# http://www.apache.org/licenses/LICENSE-2.0
 
-#http://www.apache.org/licenses/LICENSE-2.0
-
-#Unless required by applicable law or agreed to in writing, software
-#distributed under the License is distributed on an "AS IS" BASIS,
-#WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#See the License for the specific language governing permissions and
-#limitations under the License.
-
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """
 :mod:`path_store` --- Path record storage and selection for path servers
 ========================================================================
 """
 
 from collections import defaultdict
-from external.sorted_collection import SortedCollection
 from lib.packet.pcb import PathSegment
 from Crypto.Hash import SHA256
 import json
@@ -116,6 +112,8 @@ class PathStoreRecord(object):
     :ivar delay_time: the time in seconds between the PCB's creation and the
        time it was last seen by the path server.
     :vartype delay_time: int
+    :ivar expiration_time: the Unix time at which the path segment expires.
+    :vartype expiration_time: int
     :ivar guaranteed_bandwidth: the path segment's guaranteed bandwidth.
     :vartype guaranteed_bandwidth: int
     :ivar available_bandwidth: the path segment's available bandwidth.
@@ -132,9 +130,10 @@ class PathStoreRecord(object):
         self.peer_links = pcb.get_n_peer_links()
         self.hops_length = pcb.get_n_hops()
         self.disjointness = 0
-        self.last_sent_time = 0
+        self.last_sent_time = 1420070400 # year 2015
         self.last_seen_time = int(time.time())
-        self.delay_time = self.last_seen_time - pcb.get_timestamp()
+        self.delay_time = self.last_seen_time - pcb.get_timestamp() + 1
+        self.expiration_time = pcb.get_expiration_time()
         self.guaranteed_bandwidth = 0
         self.available_bandwidth = 0
         self.total_bandwidth = 0
@@ -145,24 +144,28 @@ class PathStoreRecord(object):
         the corresponding weights, which are stored in the path policy.
         """
         self.fidelity = 0
+        now = time.time()
         self.fidelity += (path_policy.property_weights['PeerLinks'] *
                           self.peer_links)
-        self.fidelity += (1.0 * path_policy.property_weights['HopsLength'] /
-                          (self.hops_length))
+        self.fidelity += (10.0 * path_policy.property_weights['HopsLength'] /
+                          self.hops_length)
         self.fidelity += (path_policy.property_weights['Disjointness'] *
                           self.disjointness)
         self.fidelity += (path_policy.property_weights['LastSentTime'] *
-                          (int(time.time()) - self.last_sent_time)**2)
+                          (now - self.last_sent_time) / now)
         self.fidelity += (path_policy.property_weights['LastSeenTime'] *
-                          self.last_seen_time)
-        self.fidelity += (1.0 * path_policy.property_weights['DelayTime'] /
+                          self.last_seen_time / now)
+        self.fidelity += (10.0 * path_policy.property_weights['DelayTime'] /
                           self.delay_time)
+        self.fidelity += (path_policy.property_weights['ExpirationTime'] *
+                          (self.expiration_time - now) / self.expiration_time)
         self.fidelity += (path_policy.property_weights['GuaranteedBandwidth'] *
                           self.guaranteed_bandwidth)
         self.fidelity += (path_policy.property_weights['AvailableBandwidth'] *
                           self.available_bandwidth)
         self.fidelity += (path_policy.property_weights['TotalBandwidth'] *
                           self.total_bandwidth)
+        self.fidelity = int(self.fidelity)
 
     def __eq__(self, other):
         if type(other) is type(self):
@@ -171,9 +174,9 @@ class PathStoreRecord(object):
             return False
 
     def __str__(self):
-        path_info_str = ''.join(["[Path]\n", str(self.pcb), "ID: ",
-                                 str(self.id), "\n", "Fidelity: ",
-                                 str(self.fidelity), "\n"])
+        path_info_str = "[PathStoreRecord]\n"
+        path_info_str += "ID: " + str(self.id) + "\n"
+        path_info_str += "Fidelity: " + str(self.fidelity)
         return path_info_str
 
 
@@ -203,11 +206,10 @@ class PathStore(object):
         self.candidates.append(record)
         self._update_all_disjointness()
         self._update_all_fidelity()
-        self.candidates = sorted(self.candidates, key=lambda x: x.fidelity)
+        self.candidates = sorted(self.candidates, key=lambda x: x.fidelity,
+                                 reverse=True)
         if len(self.candidates) > self.path_policy.candidates_set_size:
-            self.candidates = self.candidates[1:] # first or last depending on
-                                                  # how SortCollection sorts
-                                                  # (i.e. ASC or DESC)
+            self.candidates = self.candidates[:-1]
 
     def _update_all_disjointness(self):
         """
@@ -221,7 +223,6 @@ class PathStore(object):
             candidate.disjointness = 0
             for ad_marking in candidate.pcb.ads:
                 candidate.disjointness += ad_count[ad_marking.pcbm.ad_id]
-
 
     def _update_all_fidelity(self):
         """
@@ -242,12 +243,6 @@ class PathStore(object):
         """
         return self.best_paths_history[0][:k]
 
-    def get_paths(self, k=10):
-        """
-        Returns the latest k best paths.
-        """
-        return reversed(self.candidates[-k:])
-
     def store_selection(self, k=10):
         """
         Stores the best k paths into the path history and reset the list of
@@ -257,12 +252,11 @@ class PathStore(object):
            This function makes use of the `list.clear()` method and thus
            requires Python 3.3 or greater.
         """
-        self.best_paths_history.insert(0, self.get_paths(k))
+        self.best_paths_history.insert(0, self.get_candidates(k))
         self.candidates.clear()
 
     def __str__(self):
-        path_store_str = "[PathStore]\n"
-        path_store_str += str(self.path_policy) + "\n"
+        path_store_str = "[PathStore]"
         for candidate in self.candidates:
-            path_store_str += str(candidate)
+            path_store_str += "\n" + str(candidate)
         return path_store_str

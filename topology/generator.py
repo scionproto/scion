@@ -427,12 +427,13 @@ def write_path_pol_files(AD_configs):
                             'TotalBandwidth': '0-100'
                          },
                          'PropertyWeights': {
-                            'PeerLinks': 6,
+                            'PeerLinks': 7,
                             'HopsLength': 5,
                             'Disjointness': 4,
                             'LastSentTime': 3,
-                            'LastSeenTime': 2,
-                            'DelayTime': 1,
+                            'LastSeenTime': 3,
+                            'DelayTime': 3,
+                            'ExpirationTime': 3,
                             'GuaranteedBandwidth': 0,
                             'AvailableBandwidth': 0,
                             'TotalBandwidth': 0
