@@ -44,7 +44,9 @@ class HashChain(object):
         prev_ele = self._start_ele
         self.entries.append(self._start_ele)
         for _ in range(self._length - 1):
-            self.entries.append(self._hash_func.new(prev_ele).digest())
+            next_ele = self._hash_func.new(prev_ele).digest()
+            self.entries.append(next_ele)
+            prev_ele = next_ele
 
     def current_element(self):
         """
