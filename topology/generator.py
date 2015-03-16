@@ -32,9 +32,10 @@ import os
 import struct
 import socket
 import base64
+import sys
 
 
-ADCONFIGURATIONS_FILE = 'ADConfigurations.json'
+DEFAULT_ADCONFIGURATIONS_FILE = 'ADConfigurations.json'
 
 SCRIPTS_DIR = '/topology/'
 CERT_DIR = '/certificates/'
@@ -518,14 +519,19 @@ def main():
     """
     Main function.
     """
-    if not os.path.isfile(ADCONFIGURATIONS_FILE):
-        logging.error(ADCONFIGURATIONS_FILE + " file missing.")
+    if len(sys.argv) == 1:
+        adconfigurations_file = DEFAULT_ADCONFIGURATIONS_FILE
+    else:
+        adconfigurations_file = sys.argv[1]
+
+    if not os.path.isfile(adconfigurations_file):
+        logging.error(adconfigurations_file + " file missing.")
         sys.exit()
 
     try:
-        AD_configs = json.loads(open(ADCONFIGURATIONS_FILE).read())
+        AD_configs = json.loads(open(adconfigurations_file).read())
     except (ValueError, KeyError, TypeError):
-        logging.error(ADCONFIGURATIONS_FILE + ": JSON format error.")
+        logging.error(adconfigurations_file + ": JSON format error.")
         sys.exit()
 
     if "default_subnet" in AD_configs:
