@@ -21,6 +21,14 @@ import time
 
 from pydblite.pydblite import Base
 
+class DBResult(object):
+    """
+    Enum type for the different result of an insertion.
+    """
+    NONE = 0
+    ENTRY_ADDED = 1
+    ENTRY_UPDATED = 2
+
 
 class PathSegmentDBRecord(object):
     """
@@ -70,8 +78,7 @@ class PathSegmentDB(object):
         """
         Inserts path into database.
 
-        Returns the record ID of the updated path or None if nothing was
-        updated.
+        Returns the result of the operation.
         """
         assert isinstance(pcb, PathSegment)
         record = PathSegmentDBRecord(pcb)
@@ -84,19 +91,19 @@ class PathSegmentDB(object):
                                      dst_isd, dst_ad)
             logging.debug("Created new entry in DB for (%d, %d) -> (%d, %d):" +
                           "\n%s", src_isd, src_ad, dst_isd, dst_ad, record.id)
-            return rec_id
+            return DBResult.ENTRY_ADDED
         else:
             cur_rec = recs[0]['record']
             rec_id = recs[0]['__id__']
             if pcb.get_expiration_time() <= cur_rec.pcb.get_expiration_time():
                 logging.debug("Fresher path-segment for (%d, %d) -> (%d, %d) " +
                               "already known", src_isd, src_ad, dst_isd, dst_ad)
-                return None
+                return DBResult.NONE
             else:
                 cur_rec.pcb.set_timestamp(pcb.get_timestamp())
                 logging.debug("Updated expiration time for segment with ID %s",
                               cur_rec.id)
-                return rec_id
+                return DBResult.ENTRY_UPDATED
 
     def update_all(self, pcbs, src_isd, src_ad, dst_isd, dst_ad):
         """

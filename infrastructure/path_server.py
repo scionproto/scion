@@ -16,18 +16,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from _collections import defaultdict
 from infrastructure.scion_elem import SCIONElement
 from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.path_mgmt import (PathSegmentRecords, PathSegmentInfo,
-    PathSegmentType as PST, PathMgmtPacket, PathMgmtType as PMT)
-from lib.packet.scion import PacketType as PT
-from lib.packet.scion import SCIONPacket, get_type
-from lib.path_db import PathSegmentDB
+    PathSegmentType as PST, PathMgmtPacket, PathMgmtType as PMT,
+    PathSegmentLeases)
+from lib.path_db import PathSegmentDB, DBResult
 from lib.util import update_dict, init_logging
 import copy
 import datetime
 import logging
 import sys
+import time
 
 
 class PathServer(SCIONElement):
@@ -54,23 +55,7 @@ class PathServer(SCIONElement):
         """
         Handles registration of a down path.
         """
-        for pcb in records.pcbs:
-            src_isd = pcb.get_first_pcbm().spcbf.isd_id
-            src_ad = pcb.get_first_pcbm().ad_id
-            dst_ad = pcb.get_last_pcbm().ad_id
-            dst_isd = pcb.get_last_pcbm().spcbf.isd_id
-            self.down_segments.update(pcb, src_isd, src_ad, dst_isd, dst_ad)
-            logging.info("Down-Segment registered (%d, %d) -> (%d, %d)",
-                         src_isd, src_ad, dst_isd, dst_ad)
-        # serve pending requests
-        target = (dst_isd, dst_ad)
-        if target in self.pending_down:
-            segments_to_send = []
-            for path_request in self.pending_down[target]:
-                segments_to_send.extend(self.down_segments(dst_isd=dst_isd,
-                                                           dst_ad=dst_ad))
-                self.send_path_segments(path_request, segments_to_send)
-            del self.pending_down[target]
+        pass
 
     def _handle_core_segment_record(self, records):
         """
@@ -99,17 +84,17 @@ class PathServer(SCIONElement):
         logging.info("Sending PATH_REC, using path: %s", path)
         self.send(path_reply, next_hop, port)
 
-    def dispatch_path_segment_record(self, rec):
+    def dispatch_path_segment_record(self, pkt):
         """
         Dispatches path record packet.
         """
-        assert isinstance(rec, PathSegmentRecords)
-        if rec.info.type == PST.UP:
-            self._handle_up_segment_record(rec)
-        elif rec.info.type == PST.DOWN:
-            self._handle_down_segment_record(rec)
-        elif rec.info.type == PST.CORE:
-            self._handle_core_segment_record(rec)
+        assert isinstance(pkt.payload, PathSegmentRecords)
+        if pkt.payload.info.type == PST.UP:
+            self._handle_up_segment_record(pkt)
+        elif pkt.payload.info.type == PST.DOWN:
+            self._handle_down_segment_record(pkt)
+        elif pkt.payload.info.type == PST.CORE:
+            self._handle_core_segment_record(pkt)
         else:
             logging.error("Wrong path record.")
 
@@ -128,7 +113,7 @@ class PathServer(SCIONElement):
         if pkt.type == PMT.REQUEST:
             self.handle_path_request(pkt)
         elif pkt.type == PMT.RECORDS:
-            self.dispatch_path_segment_record(pkt.payload)
+            self.dispatch_path_segment_record(pkt)
         else:
             logging.warning("Type %d not supported.", pkt.type)
 
@@ -138,19 +123,109 @@ class CorePathServer(PathServer):
     SCION Path Server in a core AD. Stores intra ISD down-paths as well as core
     paths and forwards inter-ISD path requests to the corresponding path server.
     """
+
+    class LeasesDict(object):
+        """
+        Data structure to store leases from other path servers. Keys are segment
+        IDs from path-segments.
+        """
+
+        class Entry(object):
+            """
+            Entry for a LeasesDict.
+            """
+            def __init__(self, isd_id, ad_id, exp_time):
+                self.isd_id = isd_id
+                self.ad_id = ad_id
+                self.exp_time = exp_time
+
+            def __hash__(self):
+                return (self.isd_id << 16) | self.ad_id
+
+            def __eq__(self, other):
+                if type(other) is type(self):
+                    return (self.isd_id == other.isd_id and
+                            self.ad_id == other.ad_id)
+                else:
+                    return False
+
+        def __init__(self, max_capacity=10000):
+            self._leases = defaultdict(set)
+            self._max_capacity = max_capacity
+            self._nentries = 0
+
+        def add_lease(self, segment_id, leaser_isd, leaser_ad, expiration):
+            """
+            Adds a lease to the cache.
+
+            :param segment_id: the segment's ID
+            :type bytes
+            :param leaser_isd, leaser_ad: isd/ad of the leaser
+            :type int
+            :param expiration: expiration time of the lease
+            :type int
+            """
+            if self._nentries >= self._max_capacity:
+                self._purge_entries()
+
+            if self._nentries >= self._max_capacity:
+                logging.warning("Leases dictionary reached full capacity.")
+                return
+
+            entry = self.Entry(leaser_isd, leaser_ad, expiration)
+            if entry not in self._leases[segment_id]:
+                self._nentries += 1
+            else:
+                self._leases[segment_id].remove(entry)
+
+            self._leases[segment_id].add(entry)
+
+        def __getitem__(self, segment_id):
+            now = time.time()
+            if segment_id not in self._leases:
+                return []
+            else:
+                return [(e.isd_id, e.ad_id) for e in self._leases[segment_id]
+                        if e.exp_time > now]
+
+        def _purge_entries(self):
+            """
+            Removes expired leases.
+            """
+            now = int(time.time())
+            for entries in self._leases.items():
+                self._nentries -= len(entries)
+                entries[:] = [e for e in entries if e.exp_time > now]
+                self._nentries += len(entries)
+
     def __init__(self, addr, topo_file, config_file):
         PathServer.__init__(self, addr, topo_file, config_file)
         # Sanity check that we should indeed be a core path server.
         assert self.topology.is_core_ad, "This shouldn't be a core PS!"
 
-    def _handle_up_segment_record(self, records):
-        PathServer._handle_up_segment_record(self, records)
+        self.leases = self.LeasesDict()
+        self.iftoken2seg = defaultdict(set)
+
+    def _add_if_mappings(self, pcb):
+        """
+        Adds interface to segment ID mappings.
+        """
+        for ad in pcb.ads:
+            self.iftoken2seg[ad.pcbm.ig_rev_token].add(pcb.segment_id)
+            self.iftoken2seg[ad.pcbm.eg_rev_token].add(pcb.segment_id)
+            for pm in ad.pms:
+                self.iftoken2seg[pm.ig_rev_token].add(pcb.segment_id)
+                self.iftoken2seg[pm.eg_rev_token].add(pcb.segment_id)
+
+    def _handle_up_segment_record(self, pkt):
+        PathServer._handle_up_segment_record(self, pkt)
         logging.error("Core Path Server received up-path record!")
 
-    def _handle_down_segment_record(self, records):
+    def _handle_down_segment_record(self, pkt):
         """
         Handles registration of a down path.
         """
+        records = pkt.payload
         if not records.pcbs:
             return
         paths_to_propagate = []
@@ -159,11 +234,14 @@ class CorePathServer(PathServer):
             src_ad = pcb.get_first_pcbm().ad_id
             dst_ad = pcb.get_last_pcbm().ad_id
             dst_isd = pcb.get_last_pcbm().spcbf.isd_id
-            if (self.down_segments.update(pcb, src_isd, src_ad,
-                                          dst_isd, dst_ad) is not None):
+            res = self.down_segments.update(pcb, src_isd, src_ad,
+                                            dst_isd, dst_ad)
+            if res != DBResult.NONE:
                 paths_to_propagate.append(pcb)
                 logging.info("Down-Segment registered (%d, %d) -> (%d, %d)",
                              src_isd, src_ad, dst_isd, dst_ad)
+                if res == DBResult.ENTRY_ADDED:
+                    self._add_if_mappings(pcb)
             else:
                 logging.info("Down-Segment to (%d, %d) already known.",
                              dst_isd, dst_ad)
@@ -180,10 +258,11 @@ class CorePathServer(PathServer):
                 self.send_path_segments(path_request, segments_to_send)
             del self.pending_down[target]
 
-    def _handle_core_segment_record(self, records):
+    def _handle_core_segment_record(self, pkt):
         """
         Handles registration of a core path.
         """
+        records = pkt.payload
         if not records.pcbs:
             return
         for pcb in records.pcbs:
@@ -191,8 +270,10 @@ class CorePathServer(PathServer):
             src_isd = pcb.get_first_pcbm().spcbf.isd_id
             dst_ad = pcb.get_last_pcbm().ad_id
             dst_isd = pcb.get_last_pcbm().spcbf.isd_id
-            self.core_segments.update(pcb, src_isd=src_isd, src_ad=src_ad,
-                                      dst_isd=dst_isd, dst_ad=dst_ad)
+            res = self.core_segments.update(pcb, src_isd=src_isd, src_ad=src_ad,
+                                            dst_isd=dst_isd, dst_ad=dst_ad)
+            if res == DBResult.ENTRY_ADDED:
+                self._add_if_mappings(pcb)
 #             logging.info("Core-Path registered: (%d, %d) -> (%d, %d)",
 #                          src_isd, src_ad, dst_isd, dst_ad)
         # Send pending requests that couldn't be processed due to the lack of
@@ -247,6 +328,15 @@ class CorePathServer(PathServer):
                                  router.interface.neighbor_isd,
                                  router.interface.neighbor_ad)
                     self.send(pkt, next_hop)
+
+    def _handle_leases(self, pkt):
+        """
+        Register an incoming lease for a path segment.
+        """
+        assert isinstance(pkt.payload, PathSegmentLeases)
+        for (isd, ad, exp, seg_id) in pkt.payload.leases:
+            self.leases.add_lease(seg_id, isd, ad, exp)
+            logging.debug("Added lease from (%d, %d) for %s", isd, ad, seg_id)
 
     def handle_path_request(self, pkt):
         segment_info = pkt.payload
@@ -317,6 +407,21 @@ class CorePathServer(PathServer):
         if segments_to_send:
             self.send_path_segments(pkt, segments_to_send)
 
+    def handle_request(self, packet, sender, from_local_socket=True):
+        """
+        Main routine to handle incoming SCION packets.
+        """
+        pkt = PathMgmtPacket(packet)
+
+        if pkt.type == PMT.REQUEST:
+            self.handle_path_request(pkt)
+        elif pkt.type == PMT.RECORDS:
+            self.dispatch_path_segment_record(pkt)
+        elif pkt.type == PMT.LEASES:
+            self._handle_leases(pkt)
+        else:
+            logging.warning("Type %d not supported.", pkt.type)
+
 
 class LocalPathServer(PathServer):
     """
@@ -331,10 +436,30 @@ class LocalPathServer(PathServer):
         self.up_segments = PathSegmentDB()
         self.pending_up = []  # List of pending UP requests.
 
-    def _handle_up_segment_record(self, records):
+    def _send_leases(self, orig_pkt, leases):
+        """
+        Sends leases to a CPS.
+        """
+        dst = orig_pkt.hdr.src_addr
+        orig_pkt.hdr.path.reverse()
+        orig_pkt = PathMgmtPacket(orig_pkt.pack())  # PSz: this is
+        # a hack, as path_request with <up-path> only reverses to <down-path>
+        # only, and then reversed packet fails with .get_current_iof()
+        # FIXME: change .reverse() when only one path segment exists
+        path = orig_pkt.hdr.path
+        payload = PathSegmentLeases.from_values(len(leases), leases)
+        leases_pkt = PathMgmtPacket.from_values(PMT.LEASES, payload, path,
+                                                dst_addr=dst)
+
+        (dst, dst_port) = self.get_first_hop(leases_pkt)
+        logging.debug("Sending leases to CPS.")
+        self.send(leases_pkt, dst, dst_port)
+
+    def _handle_up_segment_record(self, pkt):
         """
         Handles Up Path registration from local BS.
         """
+        records = pkt.payload
         if not records.pcbs:
             return
         for pcb in records.pcbs:
@@ -363,12 +488,45 @@ class LocalPathServer(PathServer):
             self.send_path_segments(path_request, self.up_segments())
         self.pending_up = []
 
-    def _handle_core_segment_record(self, records):
+    def _handle_down_segment_record(self, pkt):
+        records = pkt.payload
+        if not records.pcbs:
+            return
+        leases = []
+        for pcb in records.pcbs:
+            src_isd = pcb.get_first_pcbm().spcbf.isd_id
+            src_ad = pcb.get_first_pcbm().ad_id
+            dst_ad = pcb.get_last_pcbm().ad_id
+            dst_isd = pcb.get_last_pcbm().spcbf.isd_id
+            self.down_segments.update(pcb, src_isd, src_ad, dst_isd, dst_ad)
+            # TODO: For now we immediately notify the CPS about the caching of
+            # the path-segment. In the future we should only do that when we
+            # add the segment to the longer-term cache.
+            leases.append((self.topology.isd_id, self.topology.ad_id,
+                           pcb.get_expiration_time(), pcb.segment_id))
+            logging.info("Down-Segment registered (%d, %d) -> (%d, %d)",
+                         src_isd, src_ad, dst_isd, dst_ad)
+        # Send leases to CPS
+        if leases:
+            self._send_leases(pkt, leases)
+        # serve pending requests
+        target = (dst_isd, dst_ad)
+        if target in self.pending_down:
+            segments_to_send = []
+            for path_request in self.pending_down[target]:
+                segments_to_send.extend(self.down_segments(dst_isd=dst_isd,
+                                                           dst_ad=dst_ad))
+                self.send_path_segments(path_request, segments_to_send)
+            del self.pending_down[target]
+
+    def _handle_core_segment_record(self, pkt):
         """
         Handles registration of a core path.
         """
+        records = pkt.payload
         if not records.pcbs:
             return
+        leases = []
         for pcb in records.pcbs:
             src_ad = pcb.get_first_pcbm().ad_id
             src_isd = pcb.get_first_pcbm().spcbf.isd_id
@@ -376,8 +534,14 @@ class LocalPathServer(PathServer):
             dst_isd = pcb.get_last_pcbm().spcbf.isd_id
             self.core_segments.update(pcb, src_isd=src_isd, src_ad=src_ad,
                                       dst_isd=dst_isd, dst_ad=dst_ad)
+            leases.append((self.topology.isd_id, self.topology.ad_id,
+                           pcb.get_expiration_time(), pcb.segment_id))
             logging.info("Core-Segment registered: (%d, %d) -> (%d, %d)",
                          src_isd, src_ad, dst_isd, dst_ad)
+
+        # Send leases to CPS
+        if leases:
+            self._send_leases(pkt, leases)
         # Serve pending core path requests.
         target = ((src_isd, src_ad), (dst_isd, dst_ad))
         if target in self.pending_core:

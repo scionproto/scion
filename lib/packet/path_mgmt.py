@@ -159,7 +159,7 @@ class PathSegmentLeases(PayloadBase):
     caching of path-segments. A lease contains a timestamp and the segment id
     of the path segment being cached.
     """
-    LEASE_LEN = 4 + 32
+    LEASE_LEN = 2 + 2 + 4 + 32
 
     def __init__(self, raw=None):
         PayloadBase.__init__(self)
@@ -174,15 +174,15 @@ class PathSegmentLeases(PayloadBase):
         self.nleases = struct.unpack("!B", raw[0:1])[0]
         offset = 1
         for _ in range(self.nleases):
-            (ts, seg_id) = struct.unpack("!L32s", raw[offset:offset +
+            (isd, ad, ts, seg_id) = struct.unpack("!HHL32s", raw[offset:offset +
                 PathSegmentLeases.LEASE_LEN])
-            self.leases.append((ts, seg_id))
+            self.leases.append((isd, ad, ts, seg_id))
             offset += PathSegmentLeases.LEASE_LEN
 
     def pack(self):
         data = struct.pack("!B", self.nleases)
-        for (ts, seg_id) in self.leases:
-            data += struct.pack("!L32s", ts, seg_id)
+        for (isd, ad, ts, seg_id) in self.leases:
+            data += struct.pack("!HHL32s", isd, ad, ts, seg_id)
 
         return data
 
@@ -193,7 +193,7 @@ class PathSegmentLeases(PayloadBase):
 
         :param nleases: number of leases this packet contains
         :type int
-        :param leases: list of leases as tuples (timestamp, segment id)
+        :param leases: list of leases as tuples (isd, ad, timestamp, segment id)
         :type list
         """
         assert nleases == len(leases)
@@ -202,6 +202,12 @@ class PathSegmentLeases(PayloadBase):
         pkt.leases = leases
 
         return pkt
+
+    def __str__(self):
+        s = "[PathSegmentLeases: N = %d]\n" % self.nleases
+        for (isd, ad, ts, seg_id) in self.leases:
+            s += "leaser: (%d, %d) expires: %d ID:%s\n" % (isd, ad, ts, seg_id)
+        return s
 
 
 class RevocationInfo(PayloadBase):
