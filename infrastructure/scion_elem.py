@@ -23,9 +23,7 @@ Module docstring here.
 """
 
 from lib.config import Config
-from lib.crypto.certificate import TRC
 from lib.packet.host_addr import HostAddr
-from lib.path_store import PathPolicy
 from lib.topology import Topology
 import logging
 import select
@@ -52,8 +50,7 @@ class SCIONElement(object):
     :vartype addr: :class:`lib.packet.host_addr.HostAddr`
     """
 
-    def __init__(self, addr, topo_file, config_file=None, trc_file=None,
-        path_policy_file=None):
+    def __init__(self, addr, topo_file, config_file=None):
         """
         Create a new ServerBase instance.
 
@@ -63,10 +60,6 @@ class SCIONElement(object):
         :type topo_file: str
         :param config_file: the name of the configuration file.
         :type config_file: str
-        :param trc_file: the name of the TRC file.
-        :type trc_file: str
-        :param path_policy_file: the name of the path policy file.
-        :type path_policy_file: str
 
         :returns: the newly-created ServerBase instance
         :rtype: ServerBase
@@ -74,17 +67,11 @@ class SCIONElement(object):
         self._addr = None
         self.topology = None
         self.config = None
-        self.trc = None
-        self.path_policy = None
         self.ifid2addr = {}
         self.addr = addr
         self.parse_topology(topo_file)
         if config_file:
             self.parse_config(config_file)
-        if trc_file:
-            self.parse_trc(trc_file)
-        if path_policy_file:
-            self.parse_path_policy(path_policy_file)
         self.construct_ifid2addr_map()
         self._local_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._local_socket.bind((str(self.addr), SCION_UDP_PORT))
@@ -138,26 +125,6 @@ class SCIONElement(object):
         """
         assert isinstance(config_file, str)
         self.config = Config(config_file)
-
-    def parse_trc(self, trc_file):
-        """
-        Instantiate a TRC object given 'trc_file'.
-
-        :param trc_file: the TRC file name.
-        :type trc_file: str
-        """
-        assert isinstance(trc_file, str)
-        self.trc = TRC(trc_file)
-
-    def parse_path_policy(self, path_policy_file):
-        """
-        Instantiate a PathPolicy object given 'path_policy_file'.
-
-        :param path_policy_file: the path policy file name.
-        :type path_policy_file: str
-        """
-        assert isinstance(path_policy_file, str)
-        self.path_policy = PathPolicy(path_policy_file)
 
     def construct_ifid2addr_map(self):
         """

@@ -127,12 +127,12 @@ class PathStoreRecord(object):
         self.pcb = pcb
         self.id = pcb.segment_id
         self.fidelity = 0
-        self.peer_links = pcb.get_n_peer_links()
-        self.hops_length = pcb.get_n_hops()
+        self.peer_links = 0
+        self.hops_length = 0
         self.disjointness = 0
         self.last_sent_time = 1420070400 # year 2015
         self.last_seen_time = int(time.time())
-        self.delay_time = self.last_seen_time - pcb.get_timestamp() + 1
+        self.delay_time = 0
         self.expiration_time = pcb.get_expiration_time()
         self.guaranteed_bandwidth = 0
         self.available_bandwidth = 0
@@ -147,7 +147,7 @@ class PathStoreRecord(object):
         now = time.time()
         self.fidelity += (path_policy.property_weights['PeerLinks'] *
                           self.peer_links)
-        self.fidelity += (10.0 * path_policy.property_weights['HopsLength'] /
+        self.fidelity += (path_policy.property_weights['HopsLength'] /
                           self.hops_length)
         self.fidelity += (path_policy.property_weights['Disjointness'] *
                           self.disjointness)
@@ -155,7 +155,7 @@ class PathStoreRecord(object):
                           (now - self.last_sent_time) / now)
         self.fidelity += (path_policy.property_weights['LastSeenTime'] *
                           self.last_seen_time / now)
-        self.fidelity += (10.0 * path_policy.property_weights['DelayTime'] /
+        self.fidelity += (path_policy.property_weights['DelayTime'] /
                           self.delay_time)
         self.fidelity += (path_policy.property_weights['ExpirationTime'] *
                           (self.expiration_time - now) / self.expiration_time)
@@ -165,7 +165,6 @@ class PathStoreRecord(object):
                           self.available_bandwidth)
         self.fidelity += (path_policy.property_weights['TotalBandwidth'] *
                           self.total_bandwidth)
-        self.fidelity = int(self.fidelity)
 
     def __eq__(self, other):
         if type(other) is type(self):
@@ -204,12 +203,35 @@ class PathStore(object):
                 del self.candidates[index]
                 break
         self.candidates.append(record)
-        self._update_all_disjointness()
         self._update_all_fidelity()
         self.candidates = sorted(self.candidates, key=lambda x: x.fidelity,
                                  reverse=True)
         if len(self.candidates) > self.path_policy.candidates_set_size:
             self.candidates = self.candidates[:-1]
+
+    def _update_all_peer_links(self):
+        """
+        Update the peer links property of all path candidates.
+        """
+        pl_count = []
+        for candidate in self.candidates:
+            candidate.peer_links = candidate.pcb.get_n_peer_links()
+            pl_count.append(candidate.peer_links)
+        max_peer_links = max(pl_count)
+        for candidate in self.candidates:
+            candidate.peer_links /= max_peer_links
+
+    def _update_all_hops_length(self):
+        """
+        Update the hops length property of all path candidates.
+        """
+        hl_count = []
+        for candidate in self.candidates:
+            candidate.hops_length = candidate.pcb.get_n_hops()
+            hl_count.append(candidate.hops_length)
+        max_hops_length = max(hl_count)
+        for candidate in self.candidates:
+            candidate.hops_length /= max_hops_length
 
     def _update_all_disjointness(self):
         """
@@ -219,15 +241,34 @@ class PathStore(object):
         for candidate in self.candidates:
             for ad_marking in candidate.pcb.ads:
                 ad_count[ad_marking.pcbm.ad_id] += 1
+        tot_ads = sum(ad_count.values())
         for candidate in self.candidates:
-            candidate.disjointness = 0
+            candidate.disjointness = tot_ads
             for ad_marking in candidate.pcb.ads:
-                candidate.disjointness += ad_count[ad_marking.pcbm.ad_id]
+                candidate.disjointness -= ad_count[ad_marking.pcbm.ad_id]
+            candidate.disjointness /= tot_ads
+
+    def _update_all_delay_time(self):
+        """
+        Update the delay time property of all path candidates.
+        """
+        dt_count = []
+        for candidate in self.candidates:
+            candidate.delay_time = (candidate.last_seen_time -
+                                    candidate.pcb.get_timestamp() + 1)
+            dt_count.append(candidate.delay_time)
+        max_delay_time = max(dt_count)
+        for candidate in self.candidates:
+            candidate.delay_time /= max_delay_time
 
     def _update_all_fidelity(self):
         """
         Update the fidelity of all path candidates.
         """
+        self._update_all_peer_links()
+        self._update_all_hops_length()
+        self._update_all_disjointness()
+        self._update_all_delay_time()
         for candidate in self.candidates:
             candidate.update_fidelity(self.path_policy)
 

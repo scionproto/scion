@@ -36,6 +36,7 @@ import sys
 
 
 DEFAULT_ADCONFIGURATIONS_FILE = 'ADConfigurations.json'
+DEFAULT_PATH_POLICY_FILE = 'PathPolicy.json'
 
 SCRIPTS_DIR = '/topology/'
 CERT_DIR = '/certificates/'
@@ -412,34 +413,7 @@ def write_path_pol_files(AD_configs):
         (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
         file_name = 'ISD:' + isd_id + '-AD:' + ad_id + '-V:' + '0'
         path_pol_file = 'ISD' + isd_id + PATH_POL_DIR + file_name + '.json'
-        path_pol_dict = {'BestSetSize': 5,
-                         'CandidatesSetSize': 600,
-                         'UpdateAfterNumber': 10,
-                         'UpdateAfterTime': 3600,
-                         'HistoryLimit': 20,
-                         'UnwantedADs': '1-12,1-15',
-                         'PropertyRanges': {
-                            'PeerLinks': '0-100',
-                            'HopsLength': '1-10',
-                            'DelayTime': '0-60',
-                            'GuaranteedBandwidth': '0-100',
-                            'AvailableBandwidth': '0-100',
-                            'TotalBandwidth': '0-100'
-                         },
-                         'PropertyWeights': {
-                            'PeerLinks': 7,
-                            'HopsLength': 5,
-                            'Disjointness': 4,
-                            'LastSentTime': 3,
-                            'LastSeenTime': 3,
-                            'DelayTime': 3,
-                            'ExpirationTime': 3,
-                            'GuaranteedBandwidth': 0,
-                            'AvailableBandwidth': 0,
-                            'TotalBandwidth': 0
-                         }}
-        with open(path_pol_file, 'w') as path_pol_fh:
-            json.dump(path_pol_dict, path_pol_fh, sort_keys=True, indent=4)
+        shutil.copyfile(DEFAULT_PATH_POLICY_FILE, path_pol_file)
         # Test if parser works
         path_policy = PathPolicy(path_pol_file)
 
@@ -507,7 +481,7 @@ def write_trc_files(AD_configs, keys):
         trc_file = 'ISD' + isd_id + '/' + file_name + '.crt'
         if os.path.exists(trc_file):
             dst_path = get_trc_file_path(isd_id, ad_id, isd_id, 0)
-            shutil.copy(trc_file, dst_path)
+            shutil.copyfile(trc_file, dst_path)
     for isd_ad_id in AD_configs:
         (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
         file_name = 'ISD:' + isd_id + '-V:' + '0'

@@ -31,7 +31,7 @@ from lib.packet.pcb import (PathSegment, ADMarking, PCBMarking, PeerMarking,
     PathConstructionBeacon)
 from lib.packet.scion import (SCIONPacket, get_type, PacketType as PT,
     CertRequest, TRCRequest, CertReply, TRCReply)
-from lib.path_store import PathStoreRecord, PathStore
+from lib.path_store import PathPolicy, PathStoreRecord, PathStore
 from lib.util import (read_file, write_file, get_cert_file_path,
     get_sig_key_file_path, get_trc_file_path)
 from lib.util import init_logging
@@ -69,8 +69,8 @@ class BeaconServer(SCIONElement):
     REGISTERED_PATHS = 100
 
     def __init__(self, addr, topo_file, config_file, path_policy_file):
-        SCIONElement.__init__(self, addr, topo_file, config_file=config_file,
-                              path_policy_file=path_policy_file)
+        SCIONElement.__init__(self, addr, topo_file, config_file=config_file)
+        self.path_policy = PathPolicy(path_policy_file)
         self.beacons = deque()
         self.reg_queue = deque()
         sig_key_file = get_sig_key_file_path(self.topology.isd_id,
@@ -500,7 +500,6 @@ class LocalBeaconServer(BeaconServer):
         # Store path
         path_store_record = PathStoreRecord(pcb)
         self.up_segments.add_record(path_store_record)
-        logging.debug(self.up_segments)
         # Register path
         info = PathSegmentInfo.from_values(PST.UP, self.topology.isd_id,
             self.topology.isd_id, pcb.get_first_pcbm().ad_id,
