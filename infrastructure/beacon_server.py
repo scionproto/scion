@@ -500,6 +500,7 @@ class LocalBeaconServer(BeaconServer):
         # Store path
         path_store_record = PathStoreRecord(pcb)
         self.up_segments.add_record(path_store_record)
+        logging.debug(self.up_segments)
         # Register path
         info = PathSegmentInfo.from_values(PST.UP, self.topology.isd_id,
             self.topology.isd_id, pcb.get_first_pcbm().ad_id,
