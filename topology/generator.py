@@ -413,7 +413,7 @@ def write_path_pol_files(AD_configs):
         file_name = 'ISD:' + isd_id + '-AD:' + ad_id + '-V:' + '0'
         path_pol_file = 'ISD' + isd_id + PATH_POL_DIR + file_name + '.json'
         path_pol_dict = {'BestSetSize': 5,
-                         'CandidatesSetSize': 10,
+                         'CandidatesSetSize': 600,
                          'UpdateAfterNumber': 10,
                          'UpdateAfterTime': 3600,
                          'HistoryLimit': 20,
