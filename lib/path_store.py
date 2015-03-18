@@ -35,8 +35,8 @@ class PathPolicy(object):
     Stores a path policy.
     """
     def __init__(self, path_policy_file=None):
-        self.best_set_size = 0
-        self.candidates_set_size = 10
+        self.best_set_size = 5
+        self.candidates_set_size = 600
         self.history_limit = 0
         self.update_after_number = 0
         self.update_after_time = 0
