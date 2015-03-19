@@ -344,12 +344,15 @@ class PathSegment(Marking):
         Populates fields from a raw bytes block.
         """
         assert isinstance(raw, bytes)
+        self.size = len(raw)
         self.raw = raw[:]
         dlen = len(raw)
         if dlen < PathSegment.LEN:
             logging.warning("PathSegment: Data too short for parsing, " +
                             "len: %u", dlen)
             return
+        # Populate the info and ROT OFs from the first and second 8-byte blocks
+        # of the segment, respectively.
         self.iof = InfoOpaqueField(raw[0:8])
         self.trcf = TRCField(raw[8:16])
         self.segment_id = raw[16:48]
@@ -450,6 +453,21 @@ class PathSegment(Marking):
                 h.update(pm.ig_rev_token)
                 h.update(pm.eg_rev_token)
         return h.digest()
+
+    def get_n_peer_links(self):
+        """
+        Return the total number of peer links in the PathSegment.
+        """
+        n_peer_links = 0
+        for ad in self.ads:
+            n_peer_links += len(ad.pms)
+        return n_peer_links
+
+    def get_n_hops(self):
+        """
+        Return the number of hops in the PathSegment.
+        """
+        return len(self.ads)
 
     def get_timestamp(self):
         """
