@@ -16,6 +16,7 @@
 ===========================================
 """
 
+from lib.crypto.certificate import TRC
 from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.scion import (SCIONPacket, get_type, PacketType as PT,
     CertRequest, CertReply, TRCRequest, TRCReply)
@@ -33,7 +34,8 @@ class CertServer(SCIONElement):
     The SCION Certificate Server.
     """
     def __init__(self, addr, topo_file, config_file, trc_file):
-        SCIONElement.__init__(self, addr, topo_file, config_file, trc_file)
+        SCIONElement.__init__(self, addr, topo_file, config_file=config_file)
+        self.trc = TRC(trc_file)
         self.cert_requests = {}
         self.trc_requests = {}
 
@@ -171,7 +173,7 @@ def main():
         sys.exit()
 
     cert_server = CertServer(IPv4HostAddr(sys.argv[1]), sys.argv[2],
-        sys.argv[3], sys.argv[4])
+                             sys.argv[3], sys.argv[4])
 
     logging.info("Started: %s", datetime.datetime.now())
     cert_server.run()

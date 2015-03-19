@@ -18,7 +18,7 @@ cmd_topology() {
     echo "Create topology, configuration, and execution files."
     mkdir -p logs
     cd topology/
-    PYTHONPATH=../ python3 generator.py
+    PYTHONPATH=../ python3 generator.py $1
 }
 
 cmd_setup() {
@@ -100,10 +100,11 @@ cmd_help() {
 
 PROGRAM="${0##*/}"
 COMMAND="$1"
+ARG="$2"
 
-case "$1" in
+case $COMMAND in
     init|--init) shift;		cmd_init ;;
-    topology|--topology) shift; cmd_topology ;;
+    topology|--topology) shift; cmd_topology $ARG;;
     setup|--setup) shift;       cmd_setup ;;
     run|--run) shift;           cmd_run ;;
     start|--start) shift;       cmd_start ;;

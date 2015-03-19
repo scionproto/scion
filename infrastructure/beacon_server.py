@@ -31,6 +31,7 @@ from lib.packet.pcb import (PathSegment, ADMarking, PCBMarking, PeerMarking,
     PathConstructionBeacon)
 from lib.packet.scion import (SCIONPacket, get_type, PacketType as PT,
     CertRequest, TRCRequest, CertReply, TRCReply)
+from lib.path_store import PathPolicy, PathStoreRecord, PathStore
 from lib.util import (read_file, write_file, get_cert_file_path,
     get_sig_key_file_path, get_trc_file_path)
 from lib.util import init_logging
@@ -67,8 +68,9 @@ class BeaconServer(SCIONElement):
     BEACONS_NO = 5
     REGISTERED_PATHS = 100
 
-    def __init__(self, addr, topo_file, config_file):
-        SCIONElement.__init__(self, addr, topo_file, config_file)
+    def __init__(self, addr, topo_file, config_file, path_policy_file):
+        SCIONElement.__init__(self, addr, topo_file, config_file=config_file)
+        self.path_policy = PathPolicy(path_policy_file)
         self.beacons = deque()
         self.reg_queue = deque()
         sig_key_file = get_sig_key_file_path(self.topology.isd_id,
@@ -130,6 +132,7 @@ class BeaconServer(SCIONElement):
         """
         Main loop to propagate received beacons.
         """
+        # TODO: define function that dispaches the pcbs among the interfaces
         while True:
             while self.beacons:
                 pcb = self.beacons.popleft()
@@ -216,8 +219,9 @@ class CoreBeaconServer(BeaconServer):
     Starts broadcasting beacons down-stream within an ISD and across ISDs
     towards other core beacon servers.
     """
-    def __init__(self, addr, topo_file, config_file):
-        BeaconServer.__init__(self, addr, topo_file, config_file)
+    def __init__(self, addr, topo_file, config_file, path_policy_file):
+        BeaconServer.__init__(self, addr, topo_file, config_file,
+                              path_policy_file)
         # Sanity check that we should indeed be a core beacon server.
         assert self.topology.is_core_ad, "This shouldn't be a core BS!"
 
@@ -336,12 +340,14 @@ class LocalBeaconServer(BeaconServer):
     """
     REQUESTS_TIMEOUT = 10
 
-    def __init__(self, addr, topo_file, config_file):
-        BeaconServer.__init__(self, addr, topo_file, config_file)
+    def __init__(self, addr, topo_file, config_file, path_policy_file):
+        BeaconServer.__init__(self, addr, topo_file, config_file,
+                              path_policy_file)
         # Sanity check that we should indeed be a local beacon server.
         assert not self.topology.is_core_ad, "This shouldn't be a local BS!"
         self.unverified_beacons = deque()
-        self.registered_beacons = []
+        self.up_segments = PathStore(self.path_policy)
+        self.down_segments = PathStore(self.path_policy)
         self.requested_certs = {}
         self.requested_trcs = {}
 
@@ -386,7 +392,6 @@ class LocalBeaconServer(BeaconServer):
         if self._check_certs_trc(cert_isd, cert_ad, cert_version,
             trc_version, pcb.trcf.if_id):
             if self._verify_beacon(pcb):
-                self.registered_beacons.append(pcb)
                 self.beacons.append(pcb)
                 logging.info("Registered valid beacon.")
             else:
@@ -394,17 +399,6 @@ class LocalBeaconServer(BeaconServer):
         else:
             logging.debug("Certificate(s) or TRC missing.")
             self.unverified_beacons.append(pcb)
-
-    def _is_beacon_registered(self, pcb):
-        """
-        Return True or False whether a beacon was previously registered.
-        """
-        assert isinstance(pcb, PathSegment)
-        pcb_hops_hash = pcb.get_hops_hash()
-        for reg_pcb in self.registered_beacons:
-            if reg_pcb.get_hops_hash() == pcb_hops_hash:
-                return True
-        return False
 
     def _check_certs_trc(self, isd_id, cert_ad, cert_version, trc_version,
         if_id):
@@ -452,15 +446,64 @@ class LocalBeaconServer(BeaconServer):
                 self.requested_trcs[trc_tuple] = now
                 return False
 
+    def _check_filters(self, pcb):
+        """
+        Runs some checks, including: (un)wanted ADs and min/max property values.
+        """
+        assert isinstance(pcb, PathSegment)
+        return (self._check_unwanted_ads(pcb) and
+                self._check_property_ranges(pcb))
+
+    def _check_unwanted_ads(self, pcb):
+        """
+        Checks whether any of the ADs in the path belong to the black list.
+        """
+        for ad in pcb.ads:
+            if (pcb.iof.isd_id, ad.pcbm.ad_id) in self.path_policy.unwanted_ads:
+                return False
+        return True
+
+    def _check_property_ranges(self, pcb):
+        """
+        Checks whether any of the path properties has a value outside the
+        predefined min-max range.
+        """
+        return (
+            (self.path_policy.property_ranges['PeerLinks'][0]
+             <= pcb.get_n_peer_links() <=
+             self.path_policy.property_ranges['PeerLinks'][1])
+            and
+            (self.path_policy.property_ranges['HopsLength'][0]
+             <= pcb.get_n_hops() <=
+             self.path_policy.property_ranges['HopsLength'][1])
+            and
+            (self.path_policy.property_ranges['DelayTime'][0]
+             <= int(time.time()) - pcb.get_timestamp() <=
+             self.path_policy.property_ranges['DelayTime'][1])
+            and
+            (self.path_policy.property_ranges['GuaranteedBandwidth'][0]
+             <= 10 <=
+             self.path_policy.property_ranges['GuaranteedBandwidth'][1])
+            and
+            (self.path_policy.property_ranges['AvailableBandwidth'][0]
+             <= 10 <=
+             self.path_policy.property_ranges['AvailableBandwidth'][1])
+            and
+            (self.path_policy.property_ranges['TotalBandwidth'][0]
+             <= 10 <=
+             self.path_policy.property_ranges['TotalBandwidth'][1]))
+
     def register_up_segment(self, pcb):
         """
         Send up-segment to Local Path Servers
         """
-        info = PathSegmentInfo.from_values(PST.UP,
-                                           self.topology.isd_id,
-                                           self.topology.isd_id,
-                                           pcb.get_first_pcbm().ad_id,
-                                           self.topology.ad_id)
+        # Store path
+        path_store_record = PathStoreRecord(pcb)
+        self.up_segments.add_record(path_store_record)
+        # Register path
+        info = PathSegmentInfo.from_values(PST.UP, self.topology.isd_id,
+            self.topology.isd_id, pcb.get_first_pcbm().ad_id,
+            self.topology.ad_id)
         # TODO: pick other than the first path server
         dst = self.topology.path_servers[0].addr
         records = PathSegmentRecords.from_values(info, [pcb])
@@ -472,11 +515,13 @@ class LocalBeaconServer(BeaconServer):
         """
         Send down-segment to Core Path Server
         """
-        info = PathSegmentInfo.from_values(PST.DOWN,
-                                           self.topology.isd_id,
-                                           self.topology.isd_id,
-                                           pcb.get_first_pcbm().ad_id,
-                                           self.topology.ad_id)
+        # Store path
+        path_store_record = PathStoreRecord(pcb)
+        self.down_segments.add_record(path_store_record)
+        # Register path
+        info = PathSegmentInfo.from_values(PST.DOWN, self.topology.isd_id,
+            self.topology.isd_id, pcb.get_first_pcbm().ad_id,
+            self.topology.ad_id)
         core_path = pcb.get_path(reverse_direction=True)
         records = PathSegmentRecords.from_values(info, [pcb])
         pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, core_path)
@@ -511,11 +556,7 @@ class LocalBeaconServer(BeaconServer):
         """
         assert isinstance(beacon, PathConstructionBeacon)
         logging.info("PCB received")
-        if self._is_beacon_registered(beacon.pcb):
-            logging.debug("Beacon already seen before.")
-            self.beacons.append(beacon.pcb)
-        else:
-            logging.debug("Beacon never seen before.")
+        if self._check_filters(beacon.pcb):
             self._try_to_verify_beacon(beacon.pcb)
 
     def process_cert_rep(self, cert_rep):
@@ -563,18 +604,17 @@ def main():
     Main function.
     """
     init_logging()
-    if len(sys.argv) != 5:
-        logging.error("run: %s <core|local> IP topo_file conf_file",
+    if len(sys.argv) != 6:
+        logging.error("run: %s <core|local> IP topo_file conf_file path_policy_file",
             sys.argv[0])
         sys.exit()
 
     if sys.argv[1] == "core":
         beacon_server = CoreBeaconServer(IPv4HostAddr(sys.argv[2]), sys.argv[3],
-                                         sys.argv[4])
+                                         sys.argv[4], sys.argv[5])
     elif sys.argv[1] == "local":
         beacon_server = LocalBeaconServer(IPv4HostAddr(sys.argv[2]),
-                                          sys.argv[3],
-                                          sys.argv[4])
+                                          sys.argv[3], sys.argv[4], sys.argv[5])
     else:
         logging.error("First parameter can only be 'local' or 'core'!")
         sys.exit()

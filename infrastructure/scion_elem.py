@@ -22,13 +22,12 @@ Module docstring here.
 
 """
 
+from lib.config import Config
 from lib.packet.host_addr import HostAddr
 from lib.topology import Topology
-from lib.config import Config
-from lib.crypto.certificate import TRC
 import logging
-import socket
 import select
+import socket
 
 
 SCION_UDP_PORT = 30040
@@ -51,7 +50,7 @@ class SCIONElement(object):
     :vartype addr: :class:`lib.packet.host_addr.HostAddr`
     """
 
-    def __init__(self, addr, topo_file, config_file=None, trc_file=None):
+    def __init__(self, addr, topo_file, config_file=None):
         """
         Create a new ServerBase instance.
 
@@ -68,14 +67,11 @@ class SCIONElement(object):
         self._addr = None
         self.topology = None
         self.config = None
-        self.trc = None
         self.ifid2addr = {}
         self.addr = addr
         self.parse_topology(topo_file)
-        if config_file is not None:
+        if config_file:
             self.parse_config(config_file)
-        if trc_file is not None:
-            self.parse_trc(trc_file)
         self.construct_ifid2addr_map()
         self._local_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._local_socket.bind((str(self.addr), SCION_UDP_PORT))
@@ -112,8 +108,7 @@ class SCIONElement(object):
 
     def parse_topology(self, topo_file):
         """
-        Instantiate a :class:`lib.topology.Topology` object and pases an AD
-        topology from a file.
+        Instantiate a Topology object given 'topo_file'.
 
         :param topo_file: the topology file name.
         :type topo_file: str
@@ -123,21 +118,13 @@ class SCIONElement(object):
 
     def parse_config(self, config_file):
         """
-        Instantiates a ConfigParser and parses the config given by
-        *config_file*.
+        Instantiate a Config object given 'config_file'.
 
         :param config_file: the configuration file name.
         :type config_file: str
         """
         assert isinstance(config_file, str)
         self.config = Config(config_file)
-
-    def parse_trc(self, trc_file):
-        """
-        Instantiates a TRCParser and parses the TRC given by 'rot_file'.
-        """
-        assert isinstance(trc_file, str)
-        self.trc = TRC(trc_file)
 
     def construct_ifid2addr_map(self):
         """

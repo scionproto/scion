@@ -96,7 +96,7 @@ class Router(SCIONElement):
         :type post_ext_handlers: dict
 
         """
-        SCIONElement.__init__(self, addr, topo_file, config_file)
+        SCIONElement.__init__(self, addr, topo_file, config_file=config_file)
         self.interface = None
         for edge_router in self.topology.get_all_edge_routers():
             if edge_router.addr == self.addr:

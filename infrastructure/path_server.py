@@ -36,7 +36,7 @@ class PathServer(SCIONElement):
     The SCION Path Server.
     """
     def __init__(self, addr, topo_file, config_file):
-        SCIONElement.__init__(self, addr, topo_file, config_file)
+        SCIONElement.__init__(self, addr, topo_file, config_file=config_file)
         # TODO replace by pathstore instance
         self.down_segments = PathSegmentDB()
         self.core_segments = PathSegmentDB()
