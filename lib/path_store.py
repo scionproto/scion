@@ -96,22 +96,20 @@ class PathStoreRecord(object):
     :vartype id: bytes
     :ivar fidelity: the fidelity of the path record.
     :vartype fidelity: float
-    :ivar peer_links: the number of peering links in the path segment.
-    :vartype peer_links: int
-    :ivar hops_length: the length of the path segment in hops.
-    :vartype hops_length: int
-    :ivar disjointness: the disjointness of the path segment compared to the
-       other paths in the PathStore database.
-    :vartype disjointness: int
-    :ivar last_sent_time: the Unix time at which the path segment was last
-       sent.
+    :ivar peer_links: the normalized number of peer links in the path segment.
+    :vartype peer_links: float
+    :ivar hops_length: the normalized length of the path segment.
+    :vartype hops_length: float
+    :ivar disjointness: the normalized disjointness of the path segment compared
+                        to the other paths in the PathStore.
+    :vartype disjointness: float
+    :ivar last_sent_time: the Unix time at which the path segment was last sent.
     :vartype last_sent_time: int
-    :ivar last_seen_time: the Unix time at which the path segment was last seen
-       by the path server.
+    :ivar last_seen_time: the Unix time at which the path segment was last seen.
     :vartype last_seen_time: int
-    :ivar delay_time: the time in seconds between the PCB's creation and the
-       time it was last seen by the path server.
-    :vartype delay_time: int
+    :ivar delay_time: the normalized time in seconds between the PCB's creation
+                      and the time it was last seen by the path server.
+    :vartype delay_time: float
     :ivar expiration_time: the Unix time at which the path segment expires.
     :vartype expiration_time: int
     :ivar guaranteed_bandwidth: the path segment's guaranteed bandwidth.
