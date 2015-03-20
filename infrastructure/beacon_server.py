@@ -21,7 +21,7 @@ from infrastructure.scion_elem import SCIONElement
 from lib.crypto.asymcrypto import sign
 from lib.crypto.certificate import verify_sig_chain_trc, CertificateChain, TRC
 from lib.crypto.hash_chain import HashChain
-from lib.packet.host_addr import IPv4HostAddr
+from lib.packet.host_addr import IPv4HostAddr, SCIONAddr
 from lib.packet.opaque_field import (OpaqueFieldType as OFT, InfoOpaqueField,
     SupportSignatureField, HopOpaqueField, SupportPCBField, SupportPeerField,
     TRCField)
@@ -123,8 +123,8 @@ class BeaconServer(SCIONElement):
             new_pcb.trcf.if_id = egress_if
             ad_marking = self._create_ad_marking(ingress_if, egress_if)
             new_pcb.add_ad(ad_marking)
-            beacon = PathConstructionBeacon.from_values(router_child.addr,
-                                                        new_pcb)
+            dst = SCIONAddr.from_values(0, 0, router_child.addr)  # TODO: PSz
+            beacon = PathConstructionBeacon.from_values(dst, new_pcb)
             self.send(beacon, router_child.addr)
             logging.info("Downstream PCB propagated!")
 
@@ -237,8 +237,8 @@ class CoreBeaconServer(BeaconServer):
             new_pcb.trcf.if_id = egress_if
             ad_marking = self._create_ad_marking(ingress_if, egress_if)
             new_pcb.add_ad(ad_marking)
-            beacon = PathConstructionBeacon.from_values(core_router.addr,
-                                                        new_pcb)
+            dst = SCIONAddr.from_values(0, 0, core_router.addr)  # TODO: PSz
+            beacon = PathConstructionBeacon.from_values(dst, new_pcb)
             self.send(beacon, core_router.addr)
             logging.info("Core PCB propagated!")
 
@@ -300,11 +300,13 @@ class CoreBeaconServer(BeaconServer):
         # Register core path with local core path server.
         if self.topology.path_servers != []:
             # TODO: pick other than the first path server
-            dst = self.topology.path_servers[0].addr
+            dst = SCIONAddr.from_values(self.topology.isd_id,
+                                        self.topology.ad_id,
+                                        self.topology.path_servers[0].addr)
             pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, None,
                                              dst_addr=dst)
             logging.debug("Registering core path with local PS.")
-            self.send(pkt, dst)
+            self.send(pkt, dst.host_addr)
         # Register core path with originating core path server.
         path = pcb.get_path(reverse_direction=True)
         records = PathSegmentRecords.from_values(info, [pcb])
@@ -505,11 +507,13 @@ class LocalBeaconServer(BeaconServer):
             self.topology.isd_id, pcb.get_first_pcbm().ad_id,
             self.topology.ad_id)
         # TODO: pick other than the first path server
-        dst = self.topology.path_servers[0].addr
+        dst = SCIONAddr.from_values(self.topology.isd_id,
+                                    self.topology.ad_id,
+                                    self.topology.path_servers[0].addr)
         records = PathSegmentRecords.from_values(info, [pcb])
         pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, None,
                                          dst_addr=dst)
-        self.send(pkt, dst)
+        self.send(pkt, dst.host_addr)
 
     def register_down_segment(self, pcb):
         """

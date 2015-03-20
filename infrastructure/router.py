@@ -18,7 +18,7 @@
 
 from infrastructure.scion_elem import (SCIONElement, SCION_UDP_PORT,
                                        SCION_UDP_EH_DATA_PORT)
-from lib.packet.host_addr import IPv4HostAddr
+from lib.packet.host_addr import IPv4HostAddr, SCIONAddr
 from lib.packet.opaque_field import OpaqueField, OpaqueFieldType as OFT
 from lib.packet.pcb import PathConstructionBeacon
 from lib.packet.scion import (PacketType as PT, SCIONPacket, IFIDRequest,
@@ -99,7 +99,7 @@ class Router(SCIONElement):
         SCIONElement.__init__(self, addr, topo_file, config_file=config_file)
         self.interface = None
         for edge_router in self.topology.get_all_edge_routers():
-            if edge_router.addr == self.addr:
+            if edge_router.addr == self.addr.host_addr:
                 self.interface = edge_router.interface
                 break
         assert self.interface != None
@@ -205,7 +205,8 @@ class Router(SCIONElement):
         ifid_rep = IFIDReply(packet)
         # TODO multiple BSs scenario
         next_hop.addr = self.topology.beacon_servers[0].addr
-        ifid_rep.hdr.dst = next_hop.addr
+        ifid_rep.hdr.dst = SCIONAddr(self.topology.isd_id, self.topology_ad_id,
+                                     next_hop.addr)
         self.send(ifid_rep, next_hop)
         self.interface.initialized = True
 
@@ -222,8 +223,10 @@ class Router(SCIONElement):
         ifid_req = IFIDRequest(packet)
         next_hop.addr = self.interface.to_addr
         next_hop.port = self.interface.to_udp_port
-        ifid_rep = IFIDReply.from_values(next_hop.addr, self.interface.if_id,
-                ifid_req.request_id)
+        dst = ifi_req.hdr.src
+        dst.host_addr = next_hop.addr
+        ifid_rep = IFIDReply.from_values(dst, self.interface.if_id,
+                                         ifid_req.request_id)
         self.send(ifid_rep, next_hop, False)
 
     def process_pcb(self, packet, next_hop, from_bs):
@@ -334,7 +337,7 @@ class Router(SCIONElement):
                     iface = spkt.hdr.get_current_of().egress_if
                 next_hop.addr = self.ifid2addr[iface]
             else:  # last opaque field on the path, send the packet to the dst
-                next_hop.addr = spkt.hdr.dst_addr
+                next_hop.addr = spkt.hdr.dst_addr.host_addr
                 next_hop.port = SCION_UDP_EH_DATA_PORT  # data packet to endhost
             self.send(spkt, next_hop)
         logging.debug("normal_forward()")

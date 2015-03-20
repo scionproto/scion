@@ -23,7 +23,7 @@ Module docstring here.
 """
 
 from lib.config import Config
-from lib.packet.host_addr import HostAddr
+from lib.packet.host_addr import HostAddr, SCIONAddr
 from lib.topology import Topology
 import logging
 import select
@@ -50,12 +50,12 @@ class SCIONElement(object):
     :vartype addr: :class:`lib.packet.host_addr.HostAddr`
     """
 
-    def __init__(self, addr, topo_file, config_file=None):
+    def __init__(self, host_addr, topo_file, config_file=None):
         """
         Create a new ServerBase instance.
 
-        :param addr: the address of the server.
-        :type addr: :class:`HostAddr`
+        :param host_addr: the (local) address of the server.
+        :type host_addr: :class:`HostAddr`
         :param topo_file: the name of the topology file.
         :type topo_file: str
         :param config_file: the name of the configuration file.
@@ -68,20 +68,21 @@ class SCIONElement(object):
         self.topology = None
         self.config = None
         self.ifid2addr = {}
-        self.addr = addr
         self.parse_topology(topo_file)
+        self.addr = SCIONAddr.from_values(self.topology.isd_id,
+                                          self.topology.ad_id, host_addr)
         if config_file:
             self.parse_config(config_file)
         self.construct_ifid2addr_map()
         self._local_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self._local_socket.bind((str(self.addr), SCION_UDP_PORT))
+        self._local_socket.bind((str(self.addr.host_addr), SCION_UDP_PORT))
         self._sockets = [self._local_socket]
-        logging.info("Bound %s:%u", self.addr, SCION_UDP_PORT)
+        logging.info("Bound %s:%u", self.addr.host_addr, SCION_UDP_PORT)
 
     @property
     def addr(self):
         """
-        The address of the server as a :class:`lib.packet.host_addr.HostAddr`
+        The address of the server as a :class:`lib.packet.host_addr.SCIONAddr`
         object.
         """
         return self._addr
@@ -90,19 +91,19 @@ class SCIONElement(object):
     def addr(self, addr):
         """
         Set the address of the server. Must be a
-        :class:`lib.packet.host_addr.HostAddr` object.
+        :class:`lib.packet.host_addr.SCIONAddr` object.
 
         :param addr: the new server address.
-        :type addr: :class:`lib.packet.host_addr.HostAddr`
+        :type addr: :class:`lib.packet.host_addr.SCIONAddr`
         """
         self.set_addr(addr)
 
     def set_addr(self, addr):
         """
-        Sets the address of the server. Must be a lib.HostAddr object
+        Sets the address of the server. Must be a lib.SCIONAddr object
         """
-        if not (isinstance(addr, HostAddr) or addr is None):
-            raise TypeError("Addr must be of type 'HostAddr'")
+        if not (isinstance(addr, SCIONAddr) or addr is None):
+            raise TypeError("Addr must be of type 'SCIONAddr'")
         else:
             self._addr = addr
 
@@ -148,7 +149,7 @@ class SCIONElement(object):
         """
         opaque_field = spkt.hdr.path.get_first_hop_of()
         if opaque_field is None:  # EmptyPath
-            return (spkt.hdr.dst_addr, SCION_UDP_PORT)
+            return (spkt.hdr.dst_addr.host_addr, SCION_UDP_PORT)
         else:
             if spkt.hdr.is_on_up_path():
                 return (self.ifid2addr[opaque_field.ingress_if], SCION_UDP_PORT)

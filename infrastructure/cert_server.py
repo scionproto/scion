@@ -45,7 +45,7 @@ class CertServer(SCIONElement):
         """
         assert isinstance(cert_req, CertRequest)
         logging.info("Cert request received")
-        src_addr = cert_req.hdr.src_addr
+        src_addr = cert_req.hdr.src_addr.host_addr
         ptype = get_type(cert_req)
         cert_file = get_cert_file_path(self.topology.isd_id,
             self.topology.ad_id, cert_req.cert_isd, cert_req.cert_ad,
@@ -100,7 +100,7 @@ class CertServer(SCIONElement):
         """
         assert isinstance(trc_req, TRCRequest)
         logging.info("TRC request received")
-        src_addr = trc_req.hdr.src_addr
+        src_addr = trc_req.hdr.src_addr.host_addr
         ptype = get_type(trc_req)
         trc_file = get_trc_file_path(self.topology.isd_id, self.topology.ad_id,
             trc_req.trc_isd, trc_req.trc_version)

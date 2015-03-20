@@ -26,3 +26,5 @@ Contains constant definitions used throughout the codebase.
 
 MAX_SEGMENT_TTL = 24 * 60 * 60  # Max TTL of a PathSegment in realtime seconds.
 EXP_TIME_UNIT = MAX_SEGMENT_TTL / 2 ** 8  # Time unit for HOF expiration.
+ISD_LEN = 2  # Size of ISD in bytes. 
+AD_LEN = 8  # Size of AD in bytes.
