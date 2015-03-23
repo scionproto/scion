@@ -181,8 +181,9 @@ class Router(SCIONElement):
         next_hop = NextHop()
         next_hop.addr = self.interface.to_addr
         next_hop.port = self.interface.to_udp_port
-        ifid_req = IFIDRequest.from_values(self.interface.addr,
-                self.interface.if_id)
+        src = SCIONAddr.from_values(self.topology.isd_id, self.topology.ad_id,
+                                    self.interface.addr)
+        ifid_req = IFIDRequest.from_values(src, self.interface.if_id)
         while True:
             self.send(ifid_req, next_hop, False)
             logging.info('IFID_REQ sent to %s', next_hop)
@@ -203,11 +204,12 @@ class Router(SCIONElement):
         """
         logging.info('IFID_REP received, len %u', len(packet))
         ifid_rep = IFIDReply(packet)
-        # TODO multiple BSs scenario
-        next_hop.addr = self.topology.beacon_servers[0].addr
-        ifid_rep.hdr.dst = SCIONAddr(self.topology.isd_id, self.topology_ad_id,
-                                     next_hop.addr)
-        self.send(ifid_rep, next_hop)
+        for bs in self.topology.beacon_servers:
+            next_hop.addr = bs.addr
+            ifid_rep.hdr.dst_addr = SCIONAddr.from_values(self.topology.isd_id,
+                                                          self.topology.ad_id,
+                                                          next_hop.addr)
+            self.send(ifid_rep, next_hop)
         self.interface.initialized = True
 
     def process_ifid_request(self, packet, next_hop):
@@ -223,10 +225,11 @@ class Router(SCIONElement):
         ifid_req = IFIDRequest(packet)
         next_hop.addr = self.interface.to_addr
         next_hop.port = self.interface.to_udp_port
-        dst = ifi_req.hdr.src
+        dst = ifid_req.hdr.src_addr
         dst.host_addr = next_hop.addr
         ifid_rep = IFIDReply.from_values(dst, self.interface.if_id,
                                          ifid_req.request_id)
+        logging.info("Sending rep to:\n%s", ifid_rep.pack())
         self.send(ifid_rep, next_hop, False)
 
     def process_pcb(self, packet, next_hop, from_bs):

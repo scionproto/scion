@@ -28,6 +28,7 @@ from bitstring import BitArray
 import bitstring
 import socket
 import struct
+import logging
 
 
 class AddressLengths(object):
@@ -167,7 +168,7 @@ class SCIONAddr(object):
         addr.isd = isd
         addr.ad = ad
         addr.host_addr = host_addr
-        addr.addr_len = ISD_LEN + AD_LEN + addr.addr_len
+        addr.addr_len = ISD_LEN + AD_LEN + addr.host_addr.addr_len
         return addr
 
     def parse(self, raw):
@@ -182,16 +183,13 @@ class SCIONAddr(object):
                                                                     AD_LEN * 8))
         host_addr_len =  addr_len - ISD_LEN - AD_LEN
         if host_addr_len == AddressLengths.HOST_ADDR_IPV4:
-            self.host_addr = IPv4HostAddr()
+            self.host_addr = IPv4HostAddr(raw[ISD_LEN + AD_LEN:])
         elif host_addr_len == AddressLengths.HOST_ADDR_IPV6:
-            self.host_addr = IPv6HostAddr()
+            self.host_addr = IPv6HostAddr(raw[ISD_LEN + AD_LEN:])
         else:
             logging.warning("SCIONAddr: HostAddr unsupported, len: %u",
                             host_addr_len)
             return
-        bits = BitArray(bytes=raw[ISD_LEN + AD_LEN:])
-        (host_addr_int,) = bits.unpack("uintle:%u" % (host_addr_len * 8))
-        self.host_addr.set_addr(host_addr_int)
         self.addr_len = ISD_LEN + AD_LEN + self.host_addr.addr_len
 
     def pack(self):
