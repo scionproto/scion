@@ -139,26 +139,16 @@ class SCIONHostAddr(HostAddr):
         if addr is not None:
             self.addr = addr
 
-class AddressLengths(object):
-    """
-    Defines constants for the types of host addresses in SCION.
-    """
-    ADDR_NA = 0
-    HOST_ADDR_SCION = 8
-    HOST_ADDR_IPV4 = 4
-    HOST_ADDR_IPV6 = 16
-    HOST_ADDR_AIP = 20
 
 class SCIONAddr(object):
     """
     Class for complete SCION addresses.
-    addr ist HostAddr instance
     """
     def __init__(self, raw=None):
         self.isd = None 
         self.ad = None
         self.host_addr = None
-        self.addr_len = 0 
+        self.addr_len = 0
         if raw:
             self.parse(raw)
 
@@ -181,7 +171,7 @@ class SCIONAddr(object):
         bits = BitArray(bytes=raw[:ISD_LEN + AD_LEN])
         (self.isd, self.ad) = bits.unpack("uintbe:%u, uintbe:%u" % (ISD_LEN * 8,
                                                                     AD_LEN * 8))
-        host_addr_len =  addr_len - ISD_LEN - AD_LEN
+        host_addr_len = addr_len - ISD_LEN - AD_LEN
         if host_addr_len == AddressLengths.HOST_ADDR_IPV4:
             self.host_addr = IPv4HostAddr(raw[ISD_LEN + AD_LEN:])
         elif host_addr_len == AddressLengths.HOST_ADDR_IPV6:
@@ -194,7 +184,7 @@ class SCIONAddr(object):
 
     def pack(self):
         pack_str = "uintbe:%u, uintbe:%u" % (ISD_LEN * 8, AD_LEN * 8)
-        return (bitstring.pack(pack_str, self.isd, self.ad).bytes + 
+        return (bitstring.pack(pack_str, self.isd, self.ad).bytes +
                 self.host_addr.addr)
 
     def __str__(self):
