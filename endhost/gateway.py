@@ -123,9 +123,9 @@ class SCIONGateway(object):
         Initiate routing rules, that redirects SCION-supported traffic to TUN
         device.
         """
-        for i in self.scion_hosts.keys():
-            if i != str(self.sd.addr.host_addr):
-                cmd = "/sbin/ip route add %s dev %s" % (i, self._tun_dev.name)
+        for ip in self.scion_hosts.keys():
+            if ip != str(self.sd.addr.host_addr):
+                cmd = "/sbin/ip route add %s dev %s" % (ip, self._tun_dev.name)
                 call(cmd, shell=True)
                 logging.info(cmd)
 

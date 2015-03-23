@@ -23,12 +23,11 @@ Module docstring here.
     Fill in the docstring.
 """
 
-from lib.defines import ISD_LEN, AD_LEN
 from bitstring import BitArray
 import bitstring
+import logging
 import socket
 import struct
-import logging
 
 
 class AddressLengths(object):
@@ -145,47 +144,45 @@ class SCIONAddr(object):
     Class for complete SCION addresses.
     """
     def __init__(self, raw=None):
-        self.isd = None 
-        self.ad = None
+        self.isd_id = None
+        self.ad_id = None
         self.host_addr = None
         self.addr_len = 0
         if raw:
             self.parse(raw)
 
     @classmethod
-    def from_values(cls, isd, ad, host_addr):
+    def from_values(cls, isd_id, ad_id, host_addr):
         addr = SCIONAddr()
-        addr.isd = isd
-        addr.ad = ad
+        addr.isd_id = isd_id
+        addr.ad_id = ad_id
         addr.host_addr = host_addr
-        addr.addr_len = ISD_LEN + AD_LEN + addr.host_addr.addr_len
+        addr.addr_len = 10 + addr.host_addr.addr_len
         return addr
 
     def parse(self, raw):
         assert isinstance(raw, bytes)
         addr_len = len(raw)
-        if addr_len < ISD_LEN + AD_LEN:
+        if addr_len < 10:
             logging.warning("SCIONAddr: Data too short for parsing, len: %u",
                              addr_len)
             return
-        bits = BitArray(bytes=raw[:ISD_LEN + AD_LEN])
-        (self.isd, self.ad) = bits.unpack("uintbe:%u, uintbe:%u" % (ISD_LEN * 8,
-                                                                    AD_LEN * 8))
-        host_addr_len = addr_len - ISD_LEN - AD_LEN
+        bits = BitArray(bytes=raw[:10])
+        (self.isd_id, self.ad_id) = bits.unpack("uintbe:16, uintbe:64")
+        host_addr_len = addr_len - 10
         if host_addr_len == AddressLengths.HOST_ADDR_IPV4:
-            self.host_addr = IPv4HostAddr(raw[ISD_LEN + AD_LEN:])
+            self.host_addr = IPv4HostAddr(raw[10:])
         elif host_addr_len == AddressLengths.HOST_ADDR_IPV6:
-            self.host_addr = IPv6HostAddr(raw[ISD_LEN + AD_LEN:])
+            self.host_addr = IPv6HostAddr(raw[10:])
         else:
             logging.warning("SCIONAddr: HostAddr unsupported, len: %u",
                             host_addr_len)
             return
-        self.addr_len = ISD_LEN + AD_LEN + self.host_addr.addr_len
+        self.addr_len = 10 + self.host_addr.addr_len
 
     def pack(self):
-        pack_str = "uintbe:%u, uintbe:%u" % (ISD_LEN * 8, AD_LEN * 8)
-        return (bitstring.pack(pack_str, self.isd, self.ad).bytes +
-                self.host_addr.addr)
+        return (bitstring.pack("uintbe:16, uintbe:64", self.isd_id,
+                               self.ad_id).bytes + self.host_addr.addr)
 
     def __str__(self):
-        return "(%u, %u, %s)" % (self.isd, self.ad, self.host_addr)
+        return "(%u, %u, %s)" % (self.isd_id, self.ad_id, self.host_addr)
