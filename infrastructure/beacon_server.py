@@ -123,7 +123,8 @@ class BeaconServer(SCIONElement):
             new_pcb.trcf.if_id = egress_if
             ad_marking = self._create_ad_marking(ingress_if, egress_if)
             new_pcb.add_ad(ad_marking)
-            dst = SCIONAddr.from_values(0, 0, router_child.addr)  # TODO: PSz
+            dst = SCIONAddr.from_values(self.topology.isd_id,
+                                        self.topology.ad_id, router_child.addr)
             beacon = PathConstructionBeacon.from_values(dst, new_pcb)
             self.send(beacon, router_child.addr)
             logging.info("Downstream PCB propagated!")
@@ -237,7 +238,8 @@ class CoreBeaconServer(BeaconServer):
             new_pcb.trcf.if_id = egress_if
             ad_marking = self._create_ad_marking(ingress_if, egress_if)
             new_pcb.add_ad(ad_marking)
-            dst = SCIONAddr.from_values(0, 0, core_router.addr)  # TODO: PSz
+            dst = SCIONAddr.from_values(self.topology.isd_id,
+                                        self.topology.ad_id, core_router.addr)
             beacon = PathConstructionBeacon.from_values(dst, new_pcb)
             self.send(beacon, core_router.addr)
             logging.info("Core PCB propagated!")

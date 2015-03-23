@@ -89,6 +89,7 @@ TYPES_DST_INV = {v: k for k, v in TYPES_DST.items()}
 
 
 def get_addr_from_type(ptype):
+    # TODO: revise types and replace by set_type()
     """
     Return the SCION address associated to a certain type of packet.
 
@@ -101,7 +102,7 @@ def get_addr_from_type(ptype):
         addr = IPv4HostAddr(TYPES_SRC[ptype])
     else:
         addr = IPv4HostAddr(TYPES_DST[ptype])
-    return SCIONAddr.from_values(0, 0, addr)  # TODO: revise types
+    return SCIONAddr.from_values(0, 0, addr)
 
 
 def get_type(pkt):
