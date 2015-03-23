@@ -23,7 +23,7 @@ import socket
 from subprocess import call
 from pytun import TunTapDevice, IFF_TUN, IFF_NO_PI
 from endhost.sciond import SCIONDaemon
-from lib.packet.host_addr import IPv4HostAddr
+from lib.packet.host_addr import IPv4HostAddr, SCIONAddr
 from lib.packet.scion import SCIONPacket
 from lib.util import init_logging
 from infrastructure.scion_elem import SCION_UDP_EH_DATA_PORT, BUFLEN
@@ -95,7 +95,8 @@ class SCIONGateway(object):
                 paths = self.sd.get_paths(scion_addr[0], scion_addr[1])
                 #TODO instead calling get_paths() consider cache of fullpaths
                 if paths:
-                    dst = IPv4HostAddr(ip_dst)
+                    dst = SCIONAddr.from_values(scion_addr[0], scion_addr[1],
+                                                IPv4HostAddr(ip_dst))
                     spkt = SCIONPacket.from_values(self.sd.addr, dst,
                                                    raw_packet, paths[0])
                     (next_hop, port) = self.sd.get_first_hop(spkt)
@@ -123,7 +124,7 @@ class SCIONGateway(object):
         device.
         """
         for i in self.scion_hosts.keys():
-            if i != str(self.sd.addr):
+            if i != str(self.sd.addr.host_addr):
                 cmd = "/sbin/ip route add %s dev %s" % (i, self._tun_dev.name)
                 call(cmd, shell=True)
                 logging.info(cmd)
