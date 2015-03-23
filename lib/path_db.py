@@ -21,6 +21,7 @@ import time
 
 from pydblite.pydblite import Base
 
+
 class DBResult(object):
     """
     Enum type for the different result of an insertion.
@@ -28,6 +29,7 @@ class DBResult(object):
     NONE = 0
     ENTRY_ADDED = 1
     ENTRY_UPDATED = 2
+    ENTRY_DELETED = 3
 
 
 class PathSegmentDBRecord(object):
@@ -65,14 +67,20 @@ class PathSegmentDB(object):
 
         self._db = db
 
-    def __getitem__(self, rec_id):
+    def __getitem__(self, seg_id):
         """
-        Returns a path object by record id.
+        Returns a path object by segment id.
         """
-        if rec_id in self._db:
-            return self._db[rec_id]['record'].pcb
+        recs = self._db(id=seg_id)
+        if recs:
+            return recs[0]['record'].pcb
         else:
             return None
+
+    def __contains__(self, seg_id):
+        recs = self._db(id=seg_id)
+
+        return len(recs) > 0
 
     def update(self, pcb, src_isd, src_ad, dst_isd, dst_ad):
         """
@@ -87,14 +95,12 @@ class PathSegmentDB(object):
         assert len(recs) <= 1, "PathDB contains > 1 path with the same ID"
 
         if not recs:
-            rec_id = self._db.insert(record, record.id, src_isd, src_ad,
-                                     dst_isd, dst_ad)
+            self._db.insert(record, record.id, src_isd, src_ad, dst_isd, dst_ad)
             logging.debug("Created new entry in DB for (%d, %d) -> (%d, %d):" +
                           "\n%s", src_isd, src_ad, dst_isd, dst_ad, record.id)
             return DBResult.ENTRY_ADDED
         else:
             cur_rec = recs[0]['record']
-            rec_id = recs[0]['__id__']
             if pcb.get_expiration_time() <= cur_rec.pcb.get_expiration_time():
                 logging.debug("Fresher path-segment for (%d, %d) -> (%d, %d) " +
                               "already known", src_isd, src_ad, dst_isd, dst_ad)
@@ -111,6 +117,17 @@ class PathSegmentDB(object):
         """
         for pcb in pcbs:
             self.update(pcb, src_isd, src_ad, dst_isd, dst_ad)
+
+    def delete(self, segment_id):
+        """
+        Deletes a path segment with a given ID.
+        """
+        recs = self._db(id=segment_id)
+        if recs:
+            self._db.delete(recs)
+            return DBResult.ENTRY_DELETED
+        else:
+            return DBResult.NONE
 
     def __call__(self, *args, **kwargs):
         """
