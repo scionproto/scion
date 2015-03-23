@@ -316,7 +316,8 @@ def write_topo_files(AD_configs, er_ip_addresses):
                 supervisor_fh.write(''.join(['[program:', bs_name, ']\n',
                     'command=/usr/bin/python3 beacon_server.py ',
                     ('core ' if is_core else 'local '), ip_address, ' ..',
-                    SCRIPTS_DIR, topo_file, ' ..', SCRIPTS_DIR, conf_file, '\n',
+                    SCRIPTS_DIR, topo_file, ' ..', SCRIPTS_DIR, conf_file,
+                    ' ..', SCRIPTS_DIR, path_pol_file, '\n',
                     'stdout_logfile=', log_file, '\n']
                     + supervisor_common + ['\n\n']))
                 group_programs.append(bs_name)
