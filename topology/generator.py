@@ -22,7 +22,7 @@ from lib.crypto.certificate import (verify_sig_chain_trc, Certificate,
     CertificateChain, TRC)
 from lib.crypto.asymcrypto import (sign, generate_signature_keypair,
     generate_cryptobox_keypair)
-from lib.util import (get_cert_file_path, get_sig_key_file_path,
+from lib.util import (get_cert_chain_file_path, get_sig_key_file_path,
     get_enc_key_file_path, get_trc_file_path, write_file)
 from lib.path_store import PathPolicy
 import json
@@ -218,7 +218,8 @@ def write_keys_certs(AD_configs):
         chain = CertificateChain.from_values(certs[subject])
         cert_isd = int(subject[4:].split('-AD:')[0])
         cert_ad = int(subject[4:].split('-AD:')[1])
-        cert_file = get_cert_file_path(cert_isd, cert_ad, cert_isd, cert_ad, 0)
+        cert_file = get_cert_chain_file_path(cert_isd, cert_ad, cert_isd,
+                                             cert_ad, 0)
         write_file(cert_file, str(chain))
         # Test if parser works
         cert = CertificateChain(cert_file)
@@ -441,7 +442,9 @@ def write_conf_files(AD_configs):
                      'NumShortestUPs': 3,
                      'RegisterTime': 5,
                      'PropagateTime': 5,
-                     'ResetTime': 600}
+                     'ResetTime': 600,
+                     'SigKeyVersion': 0,
+                     'CertChainVersion': 0}
         if (AD_configs[isd_ad_id]['level'] != INTERMEDIATE_AD or
             "path_servers" in AD_configs[isd_ad_id]):
             conf_dict['RegisterPath'] = 1

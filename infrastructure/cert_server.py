@@ -19,9 +19,9 @@
 from lib.crypto.certificate import TRC
 from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.scion import (SCIONPacket, get_type, PacketType as PT,
-    CertRequest, CertReply, TRCRequest, TRCReply)
+    CertChainRequest, CertChainReply, TRCRequest, TRCReply)
 from infrastructure.scion_elem import SCIONElement
-from lib.util import (read_file, write_file, get_cert_file_path,
+from lib.util import (read_file, write_file, get_cert_chain_file_path,
     get_trc_file_path, init_logging)
 import sys
 import logging
@@ -36,63 +36,77 @@ class CertServer(SCIONElement):
     def __init__(self, addr, topo_file, config_file, trc_file):
         SCIONElement.__init__(self, addr, topo_file, config_file=config_file)
         self.trc = TRC(trc_file)
-        self.cert_requests = {}
+        self.cert_chain_requests = {}
         self.trc_requests = {}
+        self.cert_chains = {}
+        self.trcs = {}
 
-    def process_cert_request(self, cert_req):
+    def process_cert_chain_request(self, cert_chain_req):
         """
-        Process a certificate request.
+        Process a certificate chain request.
         """
-        assert isinstance(cert_req, CertRequest)
-        logging.info("Cert request received")
-        src_addr = cert_req.hdr.src_addr
-        ptype = get_type(cert_req)
-        cert_file = get_cert_file_path(self.topology.isd_id,
-            self.topology.ad_id, cert_req.cert_isd, cert_req.cert_ad,
-            cert_req.cert_version)
-        if not os.path.exists(cert_file):
-            logging.info('Certificate not found.')
-            self.cert_requests.setdefault((cert_req.cert_isd, cert_req.cert_ad,
-                cert_req.cert_version), []).append(src_addr)
-            new_cert_req = CertRequest.from_values(PT.CERT_REQ, self.addr,
-                cert_req.ingress_if, cert_req.src_isd, cert_req.src_ad,
-                cert_req.cert_isd, cert_req.cert_ad, cert_req.cert_version)
-            dst_addr = self.ifid2addr[cert_req.ingress_if]
-            self.send(new_cert_req, dst_addr)
-            logging.info("New certificate request sent.")
+        assert isinstance(cert_chain_req, CertChainRequest)
+        logging.info("Certificate chain request received.")
+        cert_chain = self.cert_chains.get((cert_chain_req.isd_id,
+            cert_chain_req.ad_id, cert_chain_req.version), '')
+        if cert_chain == '':
+            cert_chain_file = get_cert_chain_file_path(self.topology.isd_id,
+                self.topology.ad_id, cert_chain_req.isd_id,
+                cert_chain_req.ad_id, cert_chain_req.version)
+            if os.path.exists(cert_chain_file):
+                cert_chain = read_file(cert_chain_file).encode('utf-8')
+                self.cert_chains[(cert_chain_req.isd_id, cert_chain_req.ad_id,
+                                  cert_chain_req.version)] = cert_chain
+        if cert_chain == '':
+            logging.info('Certificate chain not found.')
+            self.cert_chain_requests.setdefault((cert_chain_req.isd_id,
+                cert_chain_req.ad_id, cert_chain_req.version),
+                []).append(cert_chain_req.hdr.src_addr)
+            new_cert_chain_req = CertChainRequest.from_values(PT.CERT_CHAIN_REQ,
+                self.addr, cert_chain_req.ingress_if, cert_chain_req.src_isd,
+                cert_chain_req.src_ad, cert_chain_req.isd_id,
+                cert_chain_req.ad_id, cert_chain_req.version)
+            dst_addr = self.ifid2addr[cert_chain_req.ingress_if]
+            self.send(new_cert_chain_req, dst_addr)
+            logging.info("New certificate chain request sent.")
         else:
-            logging.info('Certificate file found.')
-            cert = read_file(cert_file).encode('utf-8')
-            cert_rep = CertReply.from_values(self.addr, cert_req.cert_isd,
-                cert_req.cert_ad, cert_req.cert_version, cert)
-            if ptype == PT.CERT_REQ_LOCAL:
-                dst_addr = src_addr
+            logging.info('Certificate chain found.')
+            cert_chain_rep = CertChainReply.from_values(self.addr,
+                cert_chain_req.isd_id, cert_chain_req.ad_id,
+                cert_chain_req.version, cert_chain)
+            if get_type(cert_chain_req) == PT.CERT_CHAIN_REQ_LOCAL:
+                dst_addr = cert_chain_req.hdr.src_addr
             else:
                 for router in self.topology.child_edge_routers:
-                    if (cert_req.src_isd == router.interface.neighbor_isd and
-                        cert_req.src_ad == router.interface.neighbor_ad):
+                    if (cert_chain_req.src_isd == router.interface.neighbor_isd
+                        and
+                        cert_chain_req.src_ad == router.interface.neighbor_ad):
                         dst_addr = router.addr
-            self.send(cert_rep, dst_addr)
-            logging.info("Certificate reply sent.")
+            self.send(cert_chain_rep, dst_addr)
+            logging.info("Certificate chain reply sent.")
 
-    def process_cert_reply(self, cert_rep):
+    def process_cert_chain_reply(self, cert_chain_rep):
         """
-        Process a certificate reply.
+        Process a certificate chain reply.
         """
-        assert isinstance(cert_rep, CertReply)
-        logging.info("Certificate reply received")
-        cert_file = get_cert_file_path(self.topology.isd_id,
-            self.topology.ad_id, cert_rep.cert_isd, cert_rep.cert_ad,
-            cert_rep.cert_version)
-        write_file(cert_file, cert_rep.cert.decode('utf-8'))
-        for dst_addr in self.cert_requests[(cert_rep.cert_isd, cert_rep.cert_ad,
-            cert_rep.cert_version)]:
-            new_cert_rep = CertReply.from_values(self.addr, cert_rep.cert_isd,
-                cert_rep.cert_ad, cert_rep.cert_version, cert_rep.cert)
-            self.send(new_cert_rep, dst_addr)
-        del self.cert_requests[(cert_rep.cert_isd, cert_rep.cert_ad,
-            cert_rep.cert_version)]
-        logging.info("Certificate reply sent.")
+        assert isinstance(cert_chain_rep, CertChainReply)
+        logging.info("Certificate chain reply received")
+        cert_chain = cert_chain_rep.cert_chain.decode('utf-8')
+        self.cert_chains[(cert_chain_rep.isd_id, cert_chain_rep.ad_id,
+                          cert_chain_rep.version)] = cert_chain
+        cert_chain_file = get_cert_chain_file_path(self.topology.isd_id,
+            self.topology.ad_id, cert_chain_rep.isd_id, cert_chain_rep.ad_id,
+            cert_chain_rep.version)
+        write_file(cert_chain_file, cert_chain)
+        for dst_addr in self.cert_chain_requests[(cert_chain_rep.isd_id,
+            cert_chain_rep.ad_id, cert_chain_rep.version)]:
+            new_cert_chain_rep = CertChainReply.from_values(self.addr,
+                cert_chain_rep.isd_id, cert_chain_rep.ad_id,
+                cert_chain_rep.version, cert_chain_rep.cert_chain)
+            self.send(new_cert_chain_rep, dst_addr)
+        del self.cert_chain_requests[(cert_chain_rep.isd_id,
+            cert_chain_rep.ad_id, cert_chain_rep.version)]
+        logging.info("Certificate chain reply sent.")
 
     def process_trc_request(self, trc_req):
         """
@@ -100,27 +114,29 @@ class CertServer(SCIONElement):
         """
         assert isinstance(trc_req, TRCRequest)
         logging.info("TRC request received")
-        src_addr = trc_req.hdr.src_addr
-        ptype = get_type(trc_req)
-        trc_file = get_trc_file_path(self.topology.isd_id, self.topology.ad_id,
-            trc_req.trc_isd, trc_req.trc_version)
-        if not os.path.exists(trc_file):
-            logging.info('TRC file not found.')
-            self.trc_requests.setdefault((trc_req.trc_isd, trc_req.trc_version),
-                []).append(src_addr)
+        trc = self.trcs.get((trc_req.isd_id, trc_req.version), '')
+        if trc == '':
+            trc_file = get_trc_file_path(self.topology.isd_id,
+                self.topology.ad_id, trc_req.isd_id, trc_req.version)
+            if os.path.exists(trc_file):
+                trc = read_file(trc_file).encode('utf-8')
+                self.trcs[(trc_req.isd_id, trc_req.version)] = trc
+        if trc == '':
+            logging.info('TRC not found.')
+            self.trc_requests.setdefault((trc_req.isd_id, trc_req.version),
+                []).append(trc_req.hdr.src_addr)
             new_trc_req = TRCRequest.from_values(PT.TRC_REQ, self.addr,
                 trc_req.ingress_if, trc_req.src_isd, trc_req.src_ad,
-                trc_req.trc_isd, trc_req.trc_version)
+                trc_req.isd_id, trc_req.version)
             dst_addr = self.ifid2addr[trc_req.ingress_if]
             self.send(new_trc_req, dst_addr)
             logging.info("New TRC request sent.")
         else:
-            logging.info('TRC file found.')
-            trc = read_file(trc_file).encode('utf-8')
-            trc_rep = TRCReply.from_values(self.addr, trc_req.trc_isd,
-                trc_req.trc_version, trc)
-            if ptype == PT.TRC_REQ_LOCAL:
-                dst_addr = src_addr
+            logging.info('TRC found.')
+            trc_rep = TRCReply.from_values(self.addr, trc_req.isd_id,
+                trc_req.version, trc)
+            if get_type(trc_req) == PT.TRC_REQ_LOCAL:
+                dst_addr = trc_req.hdr.src_addr
             else:
                 for router in self.topology.child_edge_routers:
                     if (trc_req.src_isd == router.interface.neighbor_isd and
@@ -135,15 +151,16 @@ class CertServer(SCIONElement):
         """
         assert isinstance(trc_rep, TRCReply)
         logging.info("TRC reply received")
+        trc = trc_rep.trc.decode('utf-8')
+        self.trcs[(trc_rep.isd_id, trc_rep.version)] = trc
         trc_file = get_trc_file_path(self.topology.isd_id, self.topology.ad_id,
-            trc_rep.trc_isd, trc_rep.trc_version)
-        write_file(trc_file, trc_rep.trc.decode('utf-8'))
-        for dst_addr in self.trc_requests[(trc_rep.trc_isd,
-            trc_rep.trc_version)]:
-            new_trc_rep = TRCReply.from_values(self.addr, trc_rep.trc_isd,
-                trc_rep.trc_version, trc_rep.trc)
+            trc_rep.isd_id, trc_rep.version)
+        write_file(trc_file, trc)
+        for dst_addr in self.trc_requests[(trc_rep.isd_id, trc_rep.version)]:
+            new_trc_rep = TRCReply.from_values(self.addr, trc_rep.isd_id,
+                trc_rep.version, trc_rep.trc)
             self.send(new_trc_rep, dst_addr)
-        del self.trc_requests[(trc_rep.trc_isd, trc_rep.trc_version)]
+        del self.trc_requests[(trc_rep.isd_id, trc_rep.version)]
         logging.info("TRC reply sent.")
 
     def handle_request(self, packet, sender, from_local_socket=True):
@@ -152,10 +169,10 @@ class CertServer(SCIONElement):
         """
         spkt = SCIONPacket(packet)
         ptype = get_type(spkt)
-        if ptype == PT.CERT_REQ_LOCAL or ptype == PT.CERT_REQ:
-            self.process_cert_request(CertRequest(packet))
-        elif ptype == PT.CERT_REP:
-            self.process_cert_reply(CertReply(packet))
+        if ptype == PT.CERT_CHAIN_REQ_LOCAL or ptype == PT.CERT_CHAIN_REQ:
+            self.process_cert_chain_request(CertChainRequest(packet))
+        elif ptype == PT.CERT_CHAIN_REP:
+            self.process_cert_chain_reply(CertChainReply(packet))
         elif ptype == PT.TRC_REQ_LOCAL or ptype == PT.TRC_REQ:
             self.process_trc_request(TRCRequest(packet))
         elif ptype == PT.TRC_REP:
