@@ -205,7 +205,7 @@ class SCIONHeader(HeaderBase):
     The SCION packet header.
     """
 
-    MIN_LEN = 16
+    MIN_LEN = 16  # Update when values are fixed.
 
     def __init__(self, raw=None):
         HeaderBase.__init__(self)
@@ -394,8 +394,7 @@ class SCIONHeader(HeaderBase):
         Returs 'True' if the current opaque field is the last opaque field,
         'False' otherwise.
         """
-        offset = (SCIONCommonHdr.LEN + self.common_hdr.src_addr_len +
-                  self.common_hdr.dst_addr_len)
+        offset = (SCIONCommonHdr.LEN + OpaqueField.LEN)
         return self.common_hdr.curr_of_p + offset == self.common_hdr.hdr_len
 
     def reverse(self):

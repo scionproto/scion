@@ -18,7 +18,7 @@ limitations under the License.
 from lib.packet.path import (PathType, CorePath, PeerPath, CrossOverPath,
                              EmptyPath, PathBase)
 from lib.packet.opaque_field import InfoOpaqueField
-from lib.packet.host_addr import IPv4HostAddr
+from lib.packet.host_addr import SCIONAddr, IPv4HostAddr
 from lib.packet.scion import SCIONPacket
 from endhost.sciond import SCIONDaemon, SCIOND_API_HOST, SCIOND_API_PORT
 from infrastructure.scion_elem import SCION_UDP_EH_DATA_PORT, BUFLEN
@@ -90,7 +90,8 @@ def ping_app():
     # paths = sd.get_paths(2, 26) # Get paths through function call.
     # assert paths
 
-    spkt = SCIONPacket.from_values(sd.addr, raddr, b"ping", path)
+    dst = SCIONAddr.from_values(2, 26, raddr)
+    spkt = SCIONPacket.from_values(sd.addr, dst, b"ping", path)
     (next_hop, port) = sd.get_first_hop(spkt)
     assert next_hop == hop
     print("Sending packet: %s\nFirst hop: %s:%s\n" % (spkt, next_hop, port))

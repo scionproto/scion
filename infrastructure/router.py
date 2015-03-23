@@ -229,7 +229,6 @@ class Router(SCIONElement):
         dst.host_addr = next_hop.addr
         ifid_rep = IFIDReply.from_values(dst, self.interface.if_id,
                                          ifid_req.request_id)
-        logging.info("Sending rep to:\n%s", ifid_rep.pack())
         self.send(ifid_rep, next_hop, False)
 
     def process_pcb(self, packet, next_hop, from_bs):
