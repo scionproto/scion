@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
+import base64
 import sys
 import xmlrpc.client
 from daemon_monitor.secure_rpc_server import XMLRPCServerTLS
-from lib.config import Config
-from lib.topology import Topology
+from lib.crypto.symcrypto import sha3hash
 from topology.generator import ISD_AD_ID_DIVISOR, TOPO_DIR, SCRIPTS_DIR
 
 LISTEN_PORT = 9000
@@ -11,13 +11,9 @@ LISTEN_PORT = 9000
 
 class MonitoringServer(object):
 
-    def __init__(self, addr, topo_file, config_file):
+    def __init__(self, addr):
         super().__init__()
         self.addr = addr
-        self.topo_file = topo_file
-        self.config_file = config_file
-        self.topology = Topology(self.topo_file)
-        self.config = Config(self.config_file)
 
         self.rpc_server = XMLRPCServerTLS((self.addr, LISTEN_PORT))
         self.rpc_server.register_introspection_functions()
@@ -27,6 +23,7 @@ class MonitoringServer(object):
         self.rpc_server.register_function(self.get_process_info)
         self.rpc_server.register_function(self.control_process)
         self.rpc_server.register_function(self.get_ad_info)
+        self.rpc_server.register_function(self.send_update)
 
         print("Server started...")
         self.rpc_server.serve_forever()
@@ -40,8 +37,6 @@ class MonitoringServer(object):
     # COMMAND
     def get_topology(self, isd_ad_id):
         (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-        #assert self.topology.ad_id == int(ad_id) \
-        #       and self.topology.isd_id == int(isd_id)
         file_name = 'ISD:' + isd_id + '-AD:' + ad_id
         topo_file = 'ISD' + isd_id + TOPO_DIR + file_name + '-V:0.json'
         topo_path = ''.join(['..', SCRIPTS_DIR, topo_file])
@@ -81,8 +76,6 @@ class MonitoringServer(object):
     # COMMAND
     def control_process(self, isd_ad_id, process_name, command):
         (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-        assert self.topology.ad_id == int(ad_id) \
-               and self.topology.isd_id == int(isd_id)
         ad_name = self.get_full_ad_name(isd_id, ad_id)
         full_process_name = '{}:{}'.format(ad_name, process_name)
         if command == 'START':
@@ -96,6 +89,17 @@ class MonitoringServer(object):
             raise Exception('Invalid command')
         return res
 
+    # COMMAND
+    def send_update(self, isd_ad_id, data_dict):
+        base64_data = data_dict['data']
+        received_digest = data_dict['digest']
+        raw_data = base64.b64decode(base64_data)
+        if sha3hash(raw_data) != received_digest:
+            return None
+        with open('out_file.tar.gz', 'wb') as out_file:
+            out_file.write(raw_data)
+        return True
+
 
 if __name__ == "__main__":
-    MonitoringServer(sys.argv[1], sys.argv[2], sys.argv[3])
+    MonitoringServer(sys.argv[1])

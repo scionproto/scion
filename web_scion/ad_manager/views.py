@@ -6,6 +6,7 @@ from django.http import JsonResponse
 from django.shortcuts import redirect
 from django.views.generic import ListView, DetailView
 from ad_manager.models import AD, ISD
+from ad_manager.util import monitoring_client
 from lib.topology import Topology
 
 
@@ -101,3 +102,13 @@ def update_from_remote_topology(request, pk):
         remote_topology = Topology(tmp.name)
     ad.fill_from_topology(remote_topology, clear=True)
     return redirect(reverse('ad_detail', args=[ad.id]))
+
+
+def send_update(request, pk):
+    # TODO move to model?
+    ad = AD.objects.get(id=pk)
+    UPDATE_ARCH = '../dist/scion-0.1.0.tar.gz'
+    raw_data = open(UPDATE_ARCH, 'rb').read()
+    result = monitoring_client.send_update(ad.isd_id, ad.id, raw_data)
+    return JsonResponse({'status': result})
+

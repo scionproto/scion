@@ -9,8 +9,8 @@ import socket
 import socketserver
 import ssl
 import xmlrpc
-from xmlrpc.server import SimpleXMLRPCServer, SimpleXMLRPCDispatcher, \
-                          SimpleXMLRPCRequestHandler
+from xmlrpc.server import (SimpleXMLRPCServer, SimpleXMLRPCDispatcher,
+                           SimpleXMLRPCRequestHandler)
 try:
     import fcntl
 except ImportError:
@@ -39,8 +39,8 @@ class XMLRPCServerTLS(SimpleXMLRPCServer):
             socket.socket(self.address_family, self.socket_type),
             server_side=True,
             cert_reqs=ssl.CERT_NONE,
-            certfile='cert.pem',
-            keyfile='key.pem',
+            certfile='../daemon_monitor/cert.pem',
+            keyfile='../daemon_monitor/key.pem',
             ssl_version=ssl.PROTOCOL_SSLv23,
             )
         if bind_and_activate:
