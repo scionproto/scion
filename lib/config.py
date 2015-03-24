@@ -45,8 +45,6 @@ class Config(object):
     :type pcb_queue_size: int
     :ivar path_server_queue_size: path queue size for the path servers.
     :type path_server_queue_size: int
-    :ivar sig_key_version: initial version of the signing key.
-    :ivar sig_key_version: int
     :ivar cert_chain_version: initial version of the certificate chain.
     :ivar cert_chain_version: int
     """
@@ -70,7 +68,6 @@ class Config(object):
         self.registers_paths = 0
         self.pcb_queue_size = 0
         self.path_server_queue_size = 0
-        self.sig_key_version = 0
         self.cert_chain_version = 0
         if config_file:
             self.parse(config_file)
@@ -98,5 +95,4 @@ class Config(object):
         self.registers_paths = config['RegisterPath']
         self.pcb_queue_size = config['PCBQueueSize']
         self.path_server_queue_size = config['PSQueueSize']
-        self.sig_key_version = config['SigKeyVersion']
         self.cert_chain_version = config['CertChainVersion']

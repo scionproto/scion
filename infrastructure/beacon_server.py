@@ -72,8 +72,7 @@ class BeaconServer(SCIONElement):
         self.beacons = deque()
         self.reg_queue = deque()
         sig_key_file = get_sig_key_file_path(self.topology.isd_id,
-                                             self.topology.ad_id,
-                                             self.config.sig_key_version)
+                                             self.topology.ad_id)
         self.signing_key = read_file(sig_key_file)
         self.signing_key = base64.b64decode(self.signing_key)
         self.if2rev_tokens = {}

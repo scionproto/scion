@@ -72,7 +72,7 @@ def get_trc_file_path(loc_isd, loc_ad, isd_id, version):
         str(isd_id) + '-V:' + str(version) + '.crt')
 
 
-def get_sig_key_file_path(isd_id, ad_id, version):
+def get_sig_key_file_path(isd_id, ad_id):
     """
     Return the signing key file path.
 
@@ -80,16 +80,14 @@ def get_sig_key_file_path(isd_id, ad_id, version):
     :type isd_id: int
     :param ad_id: the signing key AD identifier.
     :type ad_id: int
-    :param version: the signing key version.
-    :type version: int
     :returns: the signing key file path.
     :rtype: str
     """
     return (ISD_DIR + str(isd_id) + SIG_KEYS_DIR + 'ISD:' + str(isd_id) +
-        '-AD:' + str(ad_id) + '-V:' + str(version) + '.key')
+        '-AD:' + str(ad_id) + '.key')
 
 
-def get_enc_key_file_path(isd_id, ad_id, version):
+def get_enc_key_file_path(isd_id, ad_id):
     """
     Return the encryption key file path.
 
@@ -97,13 +95,11 @@ def get_enc_key_file_path(isd_id, ad_id, version):
     :type isd_id: int
     :param ad_id: the encryption key AD identifier.
     :type ad_id: int
-    :param version: the encryption key version.
-    :type version: int
     :returns: the encryption key file path.
     :rtype: str
     """
     return (ISD_DIR + str(isd_id) + ENC_KEYS_DIR + 'ISD:' + str(isd_id) +
-        '-AD:' + str(ad_id) + '-V:' + str(version) + '.key')
+        '-AD:' + str(ad_id) + '.key')
 
 
 def read_file(file_path):

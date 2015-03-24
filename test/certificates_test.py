@@ -18,7 +18,7 @@
 
 from lib.crypto.certificate import verify_sig_chain_trc, CertificateChain, TRC
 from lib.crypto.asymcrypto import sign
-from lib.util import (get_cert_file_path, get_trc_file_path, read_file,
+from lib.util import (get_cert_chain_file_path, get_trc_file_path, read_file,
     get_sig_key_file_path)
 import unittest
 import logging
@@ -35,19 +35,19 @@ class TestCertificates(unittest.TestCase):
         Create a certificate chain and verify it with a TRC file. Sign a message
         with the private key of the last certificate in the chain and verify it.
         """
-        cert10 = CertificateChain(get_cert_file_path(1, 10, 1, 10, 0))
+        cert10 = CertificateChain(get_cert_chain_file_path(1, 10, 1, 10, 0))
         trc = TRC(get_trc_file_path(1, 10, 1, 0))
         print('TRC verification', trc.verify())
         print('Cert Chain verification:', cert10.verify('ISD:1-AD:10', trc, 0))
 
-        sig_priv10 = read_file(get_sig_key_file_path(1, 10, 0))
+        sig_priv10 = read_file(get_sig_key_file_path(1, 10))
         sig_priv10 = base64.b64decode(sig_priv10)
         msg = b'abcd'
         sig = sign(msg, sig_priv10)
         print('Sig test:', verify_sig_chain_trc(msg, sig, 'ISD:1-AD:10', cert10,
             trc, 0))
 
-        sig_priv13 = read_file(get_sig_key_file_path(1, 13, 0))
+        sig_priv13 = read_file(get_sig_key_file_path(1, 13))
         sig_priv13 = base64.b64decode(sig_priv13)
         msg = b'abd'
         sig = sign(msg, sig_priv13)
