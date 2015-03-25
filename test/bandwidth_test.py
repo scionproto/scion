@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 from endhost.sciond import SCIONDaemon
-from lib.packet.host_addr import IPv4HostAddr
+from lib.packet.host_addr import SCIONAddr, IPv4HostAddr
 from lib.packet.scion import SCIONPacket
 from infrastructure.scion_elem import SCION_UDP_EH_DATA_PORT, BUFLEN
 import socket
@@ -77,7 +77,7 @@ class TestBandwidth(unittest.TestCase):
         threading.Thread(target=self.receiver).start()
 
         payload = b"A" * PAYLOAD_SIZE
-        dst = IPv4HostAddr("127.2.26.254")
+        dst = SCIONAddr.from_values(2, 26, IPv4HostAddr("127.2.26.254"))
         spkt = SCIONPacket.from_values(sender.addr, dst, payload, paths[0])
         (next_hop, port) = sender.get_first_hop(spkt)
         print("Sending %d payload bytes (%d packets x %d bytes )\n" %
