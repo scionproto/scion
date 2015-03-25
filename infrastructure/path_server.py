@@ -17,6 +17,7 @@ limitations under the License.
 """
 
 from _collections import defaultdict
+from external.expiring_dict import ExpiringDict
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.hash_chain import HashChain
 from lib.packet.host_addr import IPv4HostAddr
@@ -33,8 +34,6 @@ import datetime
 import logging
 import sys
 import time
-
-from external.expiring_dict import ExpiringDict
 
 
 class PathServer(SCIONElement):
