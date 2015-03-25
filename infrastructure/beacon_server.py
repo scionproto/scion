@@ -35,6 +35,7 @@ from lib.path_store import PathPolicy, PathStoreRecord, PathStore
 from lib.util import (read_file, write_file, get_cert_file_path,
     get_sig_key_file_path, get_trc_file_path)
 from lib.util import init_logging
+from lib.simulator import schedule
 import base64
 import copy
 import datetime
@@ -68,8 +69,8 @@ class BeaconServer(SCIONElement):
     BEACONS_NO = 5
     REGISTERED_PATHS = 100
 
-    def __init__(self, addr, topo_file, config_file, path_policy_file):
-        SCIONElement.__init__(self, addr, topo_file, config_file=config_file)
+    def __init__(self, addr, topo_file, config_file, path_policy_file, is_sim=False):
+        SCIONElement.__init__(self, addr, topo_file, config_file=config_file, is_sim=is_sim)
         self.path_policy = PathPolicy(path_policy_file)
         self.beacons = deque()
         self.reg_queue = deque()
@@ -140,6 +141,16 @@ class BeaconServer(SCIONElement):
                 self.reg_queue.append(pcb)
             time.sleep(self.config.propagation_time)
 
+    def simulate_pcbs_propagation(self):
+        """
+        Simulate beacon propagation
+        """
+        while self.beacons:
+            pcb = self.beacons.popleft()
+            self.propagate_downstream_pcb(pcb)
+            self.reg_queue.append(pcb)
+        schedule(self.config.propagation_time, cb=self.simulate_pcbs_propagation)
+
     def process_pcb(self, beacon):
         """
         Receives beacon and appends it to beacon list.
@@ -207,10 +218,13 @@ class BeaconServer(SCIONElement):
         """
         Run an instance of the Beacon Server.
         """
-        threading.Thread(target=self.handle_pcbs_propagation).start()
-        threading.Thread(target=self.register_segments).start()
-        SCIONElement.run(self)
-
+        if not self.is_sim:
+            threading.Thread(target=self.handle_pcbs_propagation).start()
+            threading.Thread(target=self.register_segments).start()
+            SCIONElement.run(self)
+        else:
+            schedule(0., cb=self.simulate_pcbs_propagation)
+            schedule(0., cb=self.simulate_register_segments)
 
 class CoreBeaconServer(BeaconServer):
     """
@@ -219,9 +233,9 @@ class CoreBeaconServer(BeaconServer):
     Starts broadcasting beacons down-stream within an ISD and across ISDs
     towards other core beacon servers.
     """
-    def __init__(self, addr, topo_file, config_file, path_policy_file):
+    def __init__(self, addr, topo_file, config_file, path_policy_file, is_sim=False):
         BeaconServer.__init__(self, addr, topo_file, config_file,
-                              path_policy_file)
+                              path_policy_file, is_sim)
         # Sanity check that we should indeed be a core beacon server.
         assert self.topology.is_core_ad, "This shouldn't be a core BS!"
 
@@ -269,6 +283,32 @@ class CoreBeaconServer(BeaconServer):
                 self.reg_queue.append(pcb)
             time.sleep(self.config.propagation_time)
 
+    def simulate_pcbs_propagation(self):
+        """
+        Simulate beacon propagatation
+        """
+        # Create beacon for downstream ADs.
+        downstream_pcb = PathSegment()
+        timestamp = int(time.time())
+        downstream_pcb.iof = InfoOpaqueField.from_values(OFT.TDC_XOVR,
+            False, timestamp, self.topology.isd_id)
+        downstream_pcb.trcf = TRCField()
+        self.propagate_downstream_pcb(downstream_pcb)
+        # Create beacon for core ADs.
+        core_pcb = PathSegment()
+        core_pcb.iof = InfoOpaqueField.from_values(OFT.TDC_XOVR, False,
+                                                   timestamp,
+                                                   self.topology.isd_id)
+        core_pcb.trcf = TRCField()
+        self.propagate_core_pcb(core_pcb)
+        # Propagate received beacons. A core beacon server can only receive
+        # beacons from other core beacon servers.
+        while self.beacons:
+            pcb = self.beacons.popleft()
+            self.propagate_core_pcb(pcb)
+            self.reg_queue.append(pcb)
+        schedule(self.config.propagation_time, cb=self.simulate_pcbs_propagation)
+
     def register_segments(self):
         if not self.config.registers_paths:
             logging.info("Path registration unwanted, leaving"
@@ -284,6 +324,21 @@ class CoreBeaconServer(BeaconServer):
                 self.register_core_segment(new_pcb)
                 logging.info("Paths registered")
             time.sleep(self.config.registration_time)
+
+    def simulate_register_segments(self):
+        if not self.config.registers_paths:
+            logging.info("Path registration unwanted, leaving"
+                         "simulate_register_segments")
+            return
+        while self.reg_queue:
+            pcb = self.reg_queue.popleft()
+            new_pcb = copy.deepcopy(pcb)
+            ad_marking = self._create_ad_marking(new_pcb.trcf.if_id, 0)
+            new_pcb.add_ad(ad_marking)
+            new_pcb.segment_id = self._get_segment_rev_token(new_pcb)
+            self.register_core_segment(new_pcb)
+            logging.info("Paths registered")
+        schedule(self.config.registration_time, cb=self.simulate_register_segments)
 
     def register_core_segment(self, pcb):
         """
@@ -340,9 +395,9 @@ class LocalBeaconServer(BeaconServer):
     """
     REQUESTS_TIMEOUT = 10
 
-    def __init__(self, addr, topo_file, config_file, path_policy_file):
+    def __init__(self, addr, topo_file, config_file, path_policy_file, is_sim=False):
         BeaconServer.__init__(self, addr, topo_file, config_file,
-                              path_policy_file)
+                              path_policy_file, is_sim)
         # Sanity check that we should indeed be a local beacon server.
         assert not self.topology.is_core_ad, "This shouldn't be a local BS!"
         self.unverified_beacons = deque()
@@ -549,6 +604,26 @@ class LocalBeaconServer(BeaconServer):
                 self.register_down_segment(new_pcb)
                 logging.info("Paths registered")
             time.sleep(self.config.registration_time)
+
+    def simulate_register_segments(self):
+        """
+        Simulate path registrations according to the received beacons.
+        """
+        if not self.config.registers_paths:
+            logging.info("Path registration unwanted, "
+                         "leaving simulate_register_segments")
+            return
+        while self.reg_queue:
+            pcb = self.reg_queue.popleft()
+            new_pcb = copy.deepcopy(pcb)
+            ad_marking = self._create_ad_marking(new_pcb.trcf.if_id, 0)
+            new_pcb.add_ad(ad_marking)
+            new_pcb.segment_id = self._get_segment_rev_token(new_pcb)
+            new_pcb.remove_signatures()
+            self.register_up_segment(new_pcb)
+            self.register_down_segment(new_pcb)
+            logging.info("Paths registered")
+        schedule(self.config.registration_time, cb=self.simulate_register_segments)
 
     def process_pcb(self, beacon):
         """

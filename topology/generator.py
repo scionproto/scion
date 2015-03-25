@@ -132,7 +132,8 @@ def delete_directories():
         for name in dirs:
             if name.startswith(('ISD')):
                 shutil.rmtree(name)
-
+            if name.startswith(('SIM')):
+                shutil.rmtree(name)           
 
 def create_directories(AD_configs):
     """
@@ -171,7 +172,8 @@ def create_directories(AD_configs):
             os.makedirs(path_pol_path)
         if not os.path.exists(supervisor_path):
             os.makedirs(supervisor_path)
-
+    if not os.path.exists('SIM'):
+        os.makedirs('SIM')
 
 def write_keys_certs(AD_configs):
     """
@@ -242,6 +244,13 @@ def write_beginning_setup_run_files(AD_configs):
         write_file(run_file, '#!/bin/bash\n\n')
 
 
+def write_beginning_sim_run_files():
+    with open('SIM/run.sh', 'w') as fh:
+        fh.write('#!/bin/bash\n\n')
+        fh.write(''.join([
+            'sh -c \"PYTHONPATH=../ python3 sim_test.py ../' + 'SIM/sim.conf' + ' 100.\"\n']))
+
+
 def write_topo_files(AD_configs, er_ip_addresses):
     """
     Generate the AD topologies and store them into files. Update the AD setup
@@ -260,6 +269,7 @@ def write_topo_files(AD_configs, er_ip_addresses):
         conf_file = 'ISD' + isd_id + CONF_DIR + file_name + '-V:0.conf'
         topo_file = 'ISD' + isd_id + TOPO_DIR + file_name + '-V:0.json'
         trc_file = get_trc_file_path(isd_id, ad_id, isd_id, 0)
+        sim_file = 'SIM/sim.conf'
         path_pol_file = 'ISD' + isd_id + PATH_POL_DIR + file_name + '-V:0.json'
         supervisor_file = 'ISD' + isd_id + SUPERVISOR_DIR + file_name + '.conf'
         is_core = (AD_configs[isd_ad_id]['level'] == CORE_AD)
@@ -292,6 +302,7 @@ def write_topo_files(AD_configs, er_ip_addresses):
         group_programs = []
         with open(setup_file, 'a') as setup_fh,\
              open(run_file, 'a') as run_fh,\
+             open(sim_file, 'a') as sim_fh,\
              open(supervisor_file, 'a') as supervisor_fh:
             # Write Beacon Servers
             ip_address = '.'.join([first_byte, isd_id, ad_id, BS_RANGE])
@@ -313,6 +324,12 @@ def write_topo_files(AD_configs, er_ip_addresses):
                     ('core ' if is_core else 'local '), ip_address, ' ..',
                      SCRIPTS_DIR, topo_file, ' ..', SCRIPTS_DIR, conf_file,
                      ' ..', SCRIPTS_DIR, path_pol_file, log, '\"\n']))
+                sim_fh.write(''.join([
+                    'beacon_server ' + ('core ' if is_core
+                    else 'local ') + ip_address + ' ',
+                    '..' + SCRIPTS_DIR + topo_file + ' ',
+                    '..' + SCRIPTS_DIR + conf_file + ' ',
+                    '..' + SCRIPTS_DIR + path_pol_file, '\n']))
                 supervisor_fh.write(''.join(['[program:', bs_name, ']\n',
                     'command=/usr/bin/python3 beacon_server.py ',
                     ('core ' if is_core else 'local '), ip_address, ' ..',
@@ -338,6 +355,11 @@ def write_topo_files(AD_configs, er_ip_addresses):
                     "PYTHONPATH=../ python3 cert_server.py ", ip_address, ' ..',
                     SCRIPTS_DIR, topo_file, ' ..', SCRIPTS_DIR, conf_file,
                     ' ..', SCRIPTS_DIR, trc_file, log, '\"\n']))
+                sim_fh.write(''.join([
+                    "cert_server " + ip_address + ' ',
+                    '..' + SCRIPTS_DIR + topo_file + ' ',
+                    '..' + SCRIPTS_DIR + conf_file + ' ',
+                    '..' + SCRIPTS_DIR + trc_file + '\n']))
                 supervisor_fh.write(''.join(['[program:', cs_name, ']\n',
                     'command=/usr/bin/python3 cert_server.py ', ip_address,
                     ' ..', SCRIPTS_DIR, topo_file, ' ..', SCRIPTS_DIR,
@@ -365,6 +387,11 @@ def write_topo_files(AD_configs, er_ip_addresses):
                         ('core ' if is_core else 'local '), ip_address, ' ..',
                          SCRIPTS_DIR, topo_file, ' ..', SCRIPTS_DIR, conf_file,
                          log, '\"\n']))
+                    sim_fh.write(''.join([
+                        'path_server ' + ('core '
+                        if is_core else 'local ') + ip_address + ' ',
+                        '..' + SCRIPTS_DIR + topo_file + ' ',
+                        '..' + SCRIPTS_DIR + conf_file + '\n']))
                     supervisor_fh.write(''.join(['[program:', ps_name, ']\n',
                         'command=/usr/bin/python3 path_server.py ',
                         ('core ' if is_core else 'local '), ip_address,
@@ -407,6 +434,10 @@ def write_topo_files(AD_configs, er_ip_addresses):
                     ' sh -c \"', 'PYTHONPATH=../ python3 router.py ',
                     ip_address_loc, ' ..', SCRIPTS_DIR, topo_file, ' ..',
                     SCRIPTS_DIR, conf_file, log, '\"\n']))
+                sim_fh.write(''.join([
+                    'router ' + ip_address_loc + ' ',
+                    '..' + SCRIPTS_DIR + topo_file + ' ',
+                    '..' + SCRIPTS_DIR + conf_file + '\n']))
                 supervisor_fh.write(''.join(['[program:', router_name, ']\n',
                     'command=/usr/bin/python3 router.py ', ip_address_loc,
                     ' ..', SCRIPTS_DIR, topo_file, ' ..', SCRIPTS_DIR,
@@ -578,6 +609,8 @@ def main():
     write_path_pol_files(AD_configs)
 
     write_beginning_setup_run_files(AD_configs)
+
+    write_beginning_sim_run_files()
 
     write_topo_files(AD_configs, er_ip_addresses)
 

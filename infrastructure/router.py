@@ -24,6 +24,7 @@ from lib.packet.pcb import PathConstructionBeacon
 from lib.packet.scion import (PacketType as PT, SCIONPacket, IFIDRequest,
     IFIDReply, get_type)
 from lib.util import init_logging
+from lib.simulator import add_element, schedule
 import datetime
 import logging
 import os
@@ -78,7 +79,7 @@ class Router(SCIONElement):
     IFID_REQ_TOUT = 2
 
     def __init__(self, addr, topo_file, config_file, pre_ext_handlers=None,
-                 post_ext_handlers=None):
+                 post_ext_handlers=None, is_sim=False):
         """
         Constructor.
 
@@ -96,7 +97,7 @@ class Router(SCIONElement):
         :type post_ext_handlers: dict
 
         """
-        SCIONElement.__init__(self, addr, topo_file, config_file=config_file)
+        SCIONElement.__init__(self, addr, topo_file, config_file=config_file, is_sim=is_sim)
         self.interface = None
         for edge_router in self.topology.get_all_edge_routers():
             if edge_router.addr == self.addr:
@@ -112,15 +113,22 @@ class Router(SCIONElement):
             self.post_ext_handlers = post_ext_handlers
         else:
             self.post_ext_handlers = {}
-        self._remote_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self._remote_socket.bind((str(self.interface.addr),
-                                  self.interface.udp_port))
-        self._sockets.append(self._remote_socket)
-        logging.info("IP %s:%u", self.interface.addr, self.interface.udp_port)
+
+        if not is_sim:
+            self._remote_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self._remote_socket.bind((str(self.interface.addr),
+                                      self.interface.udp_port))
+            self._sockets.append(self._remote_socket)
+            logging.info("IP %s:%u", self.interface.addr, self.interface.udp_port)
+        else:
+            add_element (str(self.interface.addr), self)
 
     def run(self):
-        threading.Thread(target=self.init_interface).start()
-        SCIONElement.run(self)
+        if not self.is_sim:
+            threading.Thread(target=self.init_interface).start()
+            SCIONElement.run(self)
+        else:
+            schedule(0., cb=self.simulate_init_interface)
 
     def send(self, packet, next_hop, use_local_socket=True):
         """
@@ -141,8 +149,14 @@ class Router(SCIONElement):
         if use_local_socket:
             SCIONElement.send(self, packet, next_hop.addr, next_hop.port)
         else:
-            self._remote_socket.sendto(packet.pack(), (str(next_hop.addr),
-                next_hop.port))
+            if not self.is_sim:
+                self._remote_socket.sendto(packet.pack(), (str(next_hop.addr),
+                    next_hop.port))
+            else:
+                schedule(0., dst = str(next_hop.addr),
+                         args=(packet.pack(),
+                               (str(self.interface.addr), self.interface.udp_port),
+                               (str(next_hop.addr), next_hop.port)))
 
     def handle_extensions(self, spkt, next_hop, pre_routing_phase):
         """
@@ -190,6 +204,24 @@ class Router(SCIONElement):
             if self.interface.initialized:
                 logging.info('Port initialized, leaving init_interface()')
                 break
+
+    def simulate_init_interface(self):
+        """
+        Synchronize and initialize the router's interface with that of a
+        neighboring router.
+        """
+        next_hop = NextHop()
+        next_hop.addr = self.interface.to_addr
+        next_hop.port = self.interface.to_udp_port
+        ifid_req = IFIDRequest.from_values(self.interface.addr,
+                self.interface.if_id)
+
+        self.send(ifid_req, next_hop, False)
+        logging.info('IFID_REQ sent to %s', next_hop)
+        if self.interface.initialized:
+            logging.info('Port initialized, leaving init_interface()')
+        else:
+            schedule(self.IFID_REQ_TOUT, cb=self.simulate_init_interface)
 
     def process_ifid_reply(self, packet, next_hop):
         """

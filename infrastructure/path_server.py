@@ -34,8 +34,8 @@ class PathServer(SCIONElement):
     """
     The SCION Path Server.
     """
-    def __init__(self, addr, topo_file, config_file):
-        SCIONElement.__init__(self, addr, topo_file, config_file=config_file)
+    def __init__(self, addr, topo_file, config_file, is_sim=False):
+        SCIONElement.__init__(self, addr, topo_file, config_file=config_file, is_sim=is_sim)
         # TODO replace by pathstore instance
         self.down_segments = PathSegmentDB()
         self.core_segments = PathSegmentDB()
@@ -138,8 +138,8 @@ class CorePathServer(PathServer):
     SCION Path Server in a core AD. Stores intra ISD down-paths as well as core
     paths and forwards inter-ISD path requests to the corresponding path server.
     """
-    def __init__(self, addr, topo_file, config_file):
-        PathServer.__init__(self, addr, topo_file, config_file)
+    def __init__(self, addr, topo_file, config_file, is_sim=False):
+        PathServer.__init__(self, addr, topo_file, config_file, is_sim)
         # Sanity check that we should indeed be a core path server.
         assert self.topology.is_core_ad, "This shouldn't be a core PS!"
 
@@ -323,8 +323,8 @@ class LocalPathServer(PathServer):
     SCION Path Server in a non-core AD. Stores up-paths to the core and
     registers down-paths with the CPS. Can cache paths learned from a CPS.
     """
-    def __init__(self, addr, topo_file, config_file):
-        PathServer.__init__(self, addr, topo_file, config_file)
+    def __init__(self, addr, topo_file, config_file, is_sim=False):
+        PathServer.__init__(self, addr, topo_file, config_file, is_sim)
         # Sanity check that we should indeed be a local path server.
         assert not self.topology.is_core_ad, "This shouldn't be a local PS!"
         # Database of up-segments to the core.

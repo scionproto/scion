@@ -33,8 +33,8 @@ class CertServer(SCIONElement):
     """
     The SCION Certificate Server.
     """
-    def __init__(self, addr, topo_file, config_file, trc_file):
-        SCIONElement.__init__(self, addr, topo_file, config_file=config_file)
+    def __init__(self, addr, topo_file, config_file, trc_file, is_sim=False):
+        SCIONElement.__init__(self, addr, topo_file, config_file=config_file, is_sim=is_sim)
         self.trc = TRC(trc_file)
         self.cert_requests = {}
         self.trc_requests = {}
