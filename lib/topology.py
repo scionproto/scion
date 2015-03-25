@@ -62,7 +62,7 @@ class ServerElement(Element):
     The ServerElement class represents one of the servers in the AD.
     """
 
-    def __init__(self, server_dict=None, name=None):
+    def __init__(self, server_dict, name=None):
         """
         Initialize an instance of the class ServerElement.
 
@@ -95,7 +95,7 @@ class InterfaceElement(Element):
     :type udp_port: int
     """
 
-    def __init__(self, interface_dict=None, name=None):
+    def __init__(self, interface_dict, name=None):
         """
         Initialize an instance of the class InterfaceElement.
 
@@ -130,7 +130,7 @@ class RouterElement(Element):
     :type interface: :class:`InterfaceElement`
     """
 
-    def __init__(self, router_dict=None, name=None):
+    def __init__(self, router_dict, name=None):
         """
         Initialize an instance of the class RouterElement.
 
