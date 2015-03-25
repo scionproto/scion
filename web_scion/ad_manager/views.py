@@ -107,8 +107,6 @@ def update_from_remote_topology(request, pk):
 def send_update(request, pk):
     # TODO move to model?
     ad = AD.objects.get(id=pk)
-    UPDATE_ARCH = '../dist/scion-0.1.0.tar.gz'
-    raw_data = open(UPDATE_ARCH, 'rb').read()
-    result = monitoring_client.send_update(ad.isd_id, ad.id, raw_data)
+    result = monitoring_client.send_update(ad.isd_id, ad.id)
     return JsonResponse({'status': result})
 

@@ -2,19 +2,22 @@
 
 """Monkey patching standard xmlrpc.server.SimpleXMLRPCServer
 to run over TLS (SSL)
-
-Changes inspired on http://www.cs.technion.ac.il/~danken/SecureXMLRPCServer.py
 """
 import socket
 import socketserver
 import ssl
-import xmlrpc
+import os
+import xmlrpc.client
 from xmlrpc.server import (SimpleXMLRPCServer, SimpleXMLRPCDispatcher,
                            SimpleXMLRPCRequestHandler)
+from daemon_monitor.common import SCION_ROOT
+
 try:
     import fcntl
 except ImportError:
     fcntl = None
+
+CERT_PATH = os.path.join(SCION_ROOT, 'daemon_monitor', 'certs')
 
 
 class XMLRPCServerTLS(SimpleXMLRPCServer):
@@ -39,8 +42,8 @@ class XMLRPCServerTLS(SimpleXMLRPCServer):
             socket.socket(self.address_family, self.socket_type),
             server_side=True,
             cert_reqs=ssl.CERT_NONE,
-            certfile='../daemon_monitor/cert.pem',
-            keyfile='../daemon_monitor/key.pem',
+            certfile=os.path.join(CERT_PATH, 'cert.pem'),
+            keyfile=os.path.join(CERT_PATH, 'key.pem'),
             ssl_version=ssl.PROTOCOL_SSLv23,
             )
         if bind_and_activate:
