@@ -17,7 +17,7 @@
 """
 
 from infrastructure.cert_server import CertServer
-from infrastructure.scion_elem import SCION_UDP_PORT
+from infrastructure.scion_elem import SCION_UDP_PORT, BUFLEN
 from lib.crypto.asymcrypto import sign
 from lib.crypto.certificate import verify_sig_chain_trc, CertificateChain, TRC
 from lib.packet.host_addr import IPv4HostAddr
@@ -25,10 +25,12 @@ from lib.packet.scion import (SCIONPacket, get_type, PacketType as PT,
     CertChainRequest, CertChainReply, TRCRequest, TRCReply)
 from lib.topology import Topology
 from lib.util import (get_cert_chain_file_path, get_trc_file_path, read_file,
-    get_sig_key_file_path)
+    get_sig_key_file_path, write_file)
 import base64
-import socket
 import logging
+import os
+import select
+import socket
 import unittest
 
 
@@ -60,7 +62,7 @@ class TestCertificates(unittest.TestCase):
         sig = sign(msg, sig_priv13)
         chain = CertificateChain.from_values([])
         print('Sig test 2:', verify_sig_chain_trc(msg, sig, 'ISD:1-AD:13',
-            cert10, trc, 0))
+            cert10, trc, 0), '\n')
 
         topology = Topology("../topology/ISD1/topologies/ISD:1-AD:10.json")
         src_addr = IPv4HostAddr("127.0.0.1")
@@ -74,9 +76,21 @@ class TestCertificates(unittest.TestCase):
             topology.ad_id, 1, 0).pack()
         sock.sendto(msg, (str(dst_addr), SCION_UDP_PORT))
 
-        data, addr = sock.recvfrom(1024)
+        temp_file = './temp.txt'
+        timeout = 5
+
+        ready = select.select([sock], [], [], timeout)
+        if not ready[0]:
+            print("Error: no TRC reply was received!")
+            sock.close()
+            return
+
+        data, _ = sock.recvfrom(BUFLEN)
         print("Received TRC reply from local CS.")
         trc_reply = TRCReply(data)
+        write_file(temp_file, trc_reply.trc.decode('utf-8'))
+        trc = TRC(temp_file)
+        assert trc.verify()
 
         print("Sending cert chain request (ISD:1-AD:16-V:0) to local CS.")
         msg = CertChainRequest.from_values(PT.CERT_CHAIN_REQ_LOCAL, src_addr,
@@ -84,10 +98,20 @@ class TestCertificates(unittest.TestCase):
             topology.ad_id, 1, 16, 0).pack()
         sock.sendto(msg, (str(dst_addr), SCION_UDP_PORT))
 
-        data, addr = sock.recvfrom(1024)
+        ready = select.select([sock], [], [], timeout)
+        if not ready[0]:
+            print("Error: no cert chain reply was received!")
+            sock.close()
+            return
+
+        data, _ = sock.recvfrom(BUFLEN)
         print("Received cert chain reply from local CS.")
         cert_chain_reply = CertChainReply(data)
+        write_file(temp_file, cert_chain_reply.cert_chain.decode('utf-8'))
+        cert_chain = CertificateChain(temp_file)
+        assert cert_chain.verify('ISD:1-AD:16', trc, 0)
 
+        os.remove(temp_file)
         sock.close()
 
 
