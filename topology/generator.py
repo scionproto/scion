@@ -22,7 +22,7 @@ from lib.crypto.certificate import (verify_sig_chain_trc, Certificate,
     CertificateChain, TRC)
 from lib.crypto.asymcrypto import (sign, generate_signature_keypair,
     generate_cryptobox_keypair)
-from lib.util import (get_cert_file_path, get_sig_key_file_path,
+from lib.util import (get_cert_chain_file_path, get_sig_key_file_path,
     get_enc_key_file_path, get_trc_file_path, write_file)
 from lib.path_store import PathPolicy
 import json
@@ -57,6 +57,8 @@ LEAF_AD = 'LEAF'
 DEFAULT_BEACON_SERVERS = 1
 DEFAULT_CERTIFICATE_SERVERS = 1
 DEFAULT_PATH_SERVERS = 1
+INITIAL_CERT_VERSION = 0
+INITIAL_TRC_VERSION = 0
 PORT = '50000'
 ISD_AD_ID_DIVISOR = '-'
 BS_RANGE = '1'
@@ -187,8 +189,8 @@ def write_keys_certs(AD_configs):
     enc_pub_keys = {}
     for isd_ad_id in AD_configs:
         (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-        sig_key_file = get_sig_key_file_path(isd_id, ad_id, 0)
-        enc_key_file = get_enc_key_file_path(isd_id, ad_id, 0)
+        sig_key_file = get_sig_key_file_path(isd_id, ad_id)
+        enc_key_file = get_enc_key_file_path(isd_id, ad_id)
         (sig_pub, sig_priv) = generate_signature_keypair()
         (enc_pub, enc_priv) = generate_cryptobox_keypair()
         sig_priv_keys[isd_ad_id] = sig_priv
@@ -207,7 +209,7 @@ def write_keys_certs(AD_configs):
             cert = Certificate.from_values('ISD:' + isd_id + '-AD:' + ad_id,
                 sig_pub_keys[isd_ad_id], enc_pub_keys[isd_ad_id],
                 'ISD:' + iss_isd_id + '-AD:' + iss_ad_id,
-                sig_priv_keys[iss_isd_ad_id], 0)
+                sig_priv_keys[iss_isd_ad_id], INITIAL_CERT_VERSION)
             certs['ISD:' + isd_id + '-AD:' + ad_id] = [cert]
     for subject in certs:
         index = 0
@@ -218,7 +220,8 @@ def write_keys_certs(AD_configs):
         chain = CertificateChain.from_values(certs[subject])
         cert_isd = int(subject[4:].split('-AD:')[0])
         cert_ad = int(subject[4:].split('-AD:')[1])
-        cert_file = get_cert_file_path(cert_isd, cert_ad, cert_isd, cert_ad, 0)
+        cert_file = get_cert_chain_file_path(cert_isd, cert_ad, cert_isd,
+                                             cert_ad, INITIAL_CERT_VERSION)
         write_file(cert_file, str(chain))
         # Test if parser works
         cert = CertificateChain(cert_file)
@@ -257,10 +260,10 @@ def write_topo_files(AD_configs, er_ip_addresses):
         file_name = 'ISD:' + isd_id + '-AD:' + ad_id
         setup_file = 'ISD' + isd_id + SETUP_DIR + file_name + '.sh'
         run_file = 'ISD' + isd_id + RUN_DIR + file_name + '.sh'
-        conf_file = 'ISD' + isd_id + CONF_DIR + file_name + '-V:0.conf'
-        topo_file = 'ISD' + isd_id + TOPO_DIR + file_name + '-V:0.json'
-        trc_file = get_trc_file_path(isd_id, ad_id, isd_id, 0)
-        path_pol_file = 'ISD' + isd_id + PATH_POL_DIR + file_name + '-V:0.json'
+        conf_file = 'ISD' + isd_id + CONF_DIR + file_name + '.conf'
+        topo_file = 'ISD' + isd_id + TOPO_DIR + file_name + '.json'
+        trc_file = get_trc_file_path(isd_id, ad_id, isd_id, INITIAL_TRC_VERSION)
+        path_pol_file = 'ISD' + isd_id + PATH_POL_DIR + file_name + '.json'
         supervisor_file = 'ISD' + isd_id + SUPERVISOR_DIR + file_name + '.conf'
         is_core = (AD_configs[isd_ad_id]['level'] == CORE_AD)
         if "subnet" in AD_configs[isd_ad_id]:
@@ -432,7 +435,7 @@ def write_conf_files(AD_configs):
     """
     for isd_ad_id in AD_configs:
         (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-        file_name = 'ISD:' + isd_id + '-AD:' + ad_id + '-V:' + '0'
+        file_name = 'ISD:' + isd_id + '-AD:' + ad_id
         conf_file = 'ISD' + isd_id + CONF_DIR + file_name + '.conf'
         conf_dict = {'MasterOFGKey': 1234567890,
                      'MasterADKey': 1919191919,
@@ -442,7 +445,8 @@ def write_conf_files(AD_configs):
                      'NumShortestUPs': 3,
                      'RegisterTime': 5,
                      'PropagateTime': 5,
-                     'ResetTime': 600}
+                     'ResetTime': 600,
+                     'CertChainVersion': 0}
         if (AD_configs[isd_ad_id]['level'] != INTERMEDIATE_AD or
             "path_servers" in AD_configs[isd_ad_id]):
             conf_dict['RegisterPath'] = 1
@@ -463,7 +467,7 @@ def write_path_pol_files(AD_configs):
     """
     for isd_ad_id in AD_configs:
         (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-        file_name = 'ISD:' + isd_id + '-AD:' + ad_id + '-V:' + '0'
+        file_name = 'ISD:' + isd_id + '-AD:' + ad_id
         path_pol_file = 'ISD' + isd_id + PATH_POL_DIR + file_name + '.json'
         shutil.copyfile(DEFAULT_PATH_POLICY_FILE, path_pol_file)
         # Test if parser works
@@ -482,7 +486,7 @@ def write_trc_files(AD_configs, keys):
     for isd_ad_id in AD_configs:
         if AD_configs[isd_ad_id]['level'] == CORE_AD:
             (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-            file_name = 'ISD:' + isd_id + '-V:' + '0'
+            file_name = 'ISD:' + isd_id + '-V:' + str(INITIAL_TRC_VERSION)
             trc_file = 'ISD' + isd_id + '/' + file_name + '.crt'
             # Create core certificate
             subject = 'ISD:' + isd_id + '-AD:' + ad_id

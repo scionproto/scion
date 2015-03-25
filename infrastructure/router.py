@@ -524,7 +524,8 @@ class Router(SCIONElement):
             self.process_ifid_reply(packet, next_hop)
         elif ptype == PT.BEACON:
             self.process_pcb(packet, next_hop, from_local_ad)
-        elif ptype in [PT.CERT_REQ, PT.CERT_REP, PT.TRC_REQ, PT.TRC_REP]:
+        elif ptype in [PT.CERT_CHAIN_REQ, PT.CERT_CHAIN_REP, PT.TRC_REQ,
+                       PT.TRC_REP]:
             self.relay_cert_server_packet(spkt, next_hop, from_local_ad)
         else:
             if ptype == PT.DATA:

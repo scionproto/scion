@@ -32,48 +32,47 @@ SIG_KEYS_DIR = '/signature_keys/'
 ENC_KEYS_DIR = '/encryption_keys/'
 
 
-def get_cert_file_path(isd_id, ad_id, cert_isd, cert_ad, cert_version):
+def get_cert_chain_file_path(loc_isd, loc_ad, isd_id, ad_id, version):
     """
-    Return the certificate file path.
+    Return the certificate chain file path.
 
-    :param isd_id: caller's ISD identifier.
+    :param loc_isd: the caller's ISD identifier.
+    :type loc_isd: int
+    :param loc_ad: the caller's AD identifier.
+    :type loc_ad: int
+    :param isd_id: the certificate chain's ISD identifier.
     :type isd_id: int
-    :param ad_id: caller's AD identifier.
+    :param ad_id: the certificate chain's AD identifier.
     :type ad_id: int
-    :param cert_isd: the certificate ISD identifier.
-    :type cert_isd: int
-    :param cert_ad: the certificate AD identifier.
-    :type cert_ad: int
-    :param cert_version: the certificate version.
-    :type cert_version: int
-    :returns: the certificate file path.
+    :param version: the certificate chain's version.
+    :type version: int
+    :returns: the certificate chain file path.
     :rtype: str
     """
-    return (ISD_DIR + str(isd_id) + CERT_DIR + 'AD' + str(ad_id) + '/ISD:' +
-        str(cert_isd) + '-AD:' + str(cert_ad) + '-V:' + str(cert_version) +
-        '.crt')
+    return (ISD_DIR + str(loc_isd) + CERT_DIR + 'AD' + str(loc_ad) + '/ISD:' +
+        str(isd_id) + '-AD:' + str(ad_id) + '-V:' + str(version) + '.crt')
 
 
-def get_trc_file_path(isd_id, ad_id, trc_isd, trc_version):
+def get_trc_file_path(loc_isd, loc_ad, isd_id, version):
     """
     Return the TRC file path.
 
-    :param isd_id: caller's ISD identifier.
+    :param loc_isd: the caller's ISD identifier.
+    :type loc_isd: int
+    :param loc_ad: the caller's AD identifier.
+    :type loc_ad: int
+    :param isd_id: the TRC's ISD identifier.
     :type isd_id: int
-    :param ad_id: caller's AD identifier.
-    :type ad_id: int
-    :param trc_isd: the TRC ISD identifier.
-    :type trc_isd: int
-    :param trc_version: the TRC version.
-    :type trc_version: int
+    :param version: the TRC's version.
+    :type version: int
     :returns: the TRC file path.
     :rtype: str
     """
-    return (ISD_DIR + str(isd_id) + CERT_DIR + 'AD' + str(ad_id) + '/ISD:' +
-        str(trc_isd) + '-V:' + str(trc_version) + '.crt')
+    return (ISD_DIR + str(loc_isd) + CERT_DIR + 'AD' + str(loc_ad) + '/ISD:' +
+        str(isd_id) + '-V:' + str(version) + '.crt')
 
 
-def get_sig_key_file_path(isd_id, ad_id, version):
+def get_sig_key_file_path(isd_id, ad_id):
     """
     Return the signing key file path.
 
@@ -81,16 +80,14 @@ def get_sig_key_file_path(isd_id, ad_id, version):
     :type isd_id: int
     :param ad_id: the signing key AD identifier.
     :type ad_id: int
-    :param version: the signing key version.
-    :type version: int
     :returns: the signing key file path.
     :rtype: str
     """
     return (ISD_DIR + str(isd_id) + SIG_KEYS_DIR + 'ISD:' + str(isd_id) +
-        '-AD:' + str(ad_id) + '-V:' + str(version) + '.key')
+        '-AD:' + str(ad_id) + '.key')
 
 
-def get_enc_key_file_path(isd_id, ad_id, version):
+def get_enc_key_file_path(isd_id, ad_id):
     """
     Return the encryption key file path.
 
@@ -98,13 +95,11 @@ def get_enc_key_file_path(isd_id, ad_id, version):
     :type isd_id: int
     :param ad_id: the encryption key AD identifier.
     :type ad_id: int
-    :param version: the encryption key version.
-    :type version: int
     :returns: the encryption key file path.
     :rtype: str
     """
     return (ISD_DIR + str(isd_id) + ENC_KEYS_DIR + 'ISD:' + str(isd_id) +
-        '-AD:' + str(ad_id) + '-V:' + str(version) + '.key')
+        '-AD:' + str(ad_id) + '.key')
 
 
 def read_file(file_path):
