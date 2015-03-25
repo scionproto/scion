@@ -143,6 +143,8 @@ class SCIONAddr(object):
     """
     Class for complete SCION addresses.
     """
+    ISD_AD_LEN = 10  # Size of (isd_id, ad_id) pair in bytes.
+
     def __init__(self, raw=None):
         self.isd_id = None
         self.ad_id = None
@@ -157,28 +159,28 @@ class SCIONAddr(object):
         addr.isd_id = isd_id
         addr.ad_id = ad_id
         addr.host_addr = host_addr
-        addr.addr_len = 10 + addr.host_addr.addr_len
+        addr.addr_len = SCIONAddr.ISD_AD_LEN + addr.host_addr.addr_len
         return addr
 
     def parse(self, raw):
         assert isinstance(raw, bytes)
         addr_len = len(raw)
-        if addr_len < 10:
+        if addr_len < SCIONAddr.ISD_AD_LEN:
             logging.warning("SCIONAddr: Data too short for parsing, len: %u",
                              addr_len)
             return
-        bits = BitArray(bytes=raw[:10])
+        bits = BitArray(bytes=raw[:SCIONAddr.ISD_AD_LEN])
         (self.isd_id, self.ad_id) = bits.unpack("uintbe:16, uintbe:64")
-        host_addr_len = addr_len - 10
+        host_addr_len = addr_len - SCIONAddr.ISD_AD_LEN
         if host_addr_len == AddressLengths.HOST_ADDR_IPV4:
-            self.host_addr = IPv4HostAddr(raw[10:])
+            self.host_addr = IPv4HostAddr(raw[SCIONAddr.ISD_AD_LEN:])
         elif host_addr_len == AddressLengths.HOST_ADDR_IPV6:
-            self.host_addr = IPv6HostAddr(raw[10:])
+            self.host_addr = IPv6HostAddr(raw[SCIONAddr.ISD_AD_LEN:])
         else:
             logging.warning("SCIONAddr: HostAddr unsupported, len: %u",
                             host_addr_len)
             return
-        self.addr_len = 10 + self.host_addr.addr_len
+        self.addr_len = SCIONAddr.ISD_AD_LEN + self.host_addr.addr_len
 
     def pack(self):
         return (bitstring.pack("uintbe:16, uintbe:64", self.isd_id,
