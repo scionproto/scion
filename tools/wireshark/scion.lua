@@ -358,27 +358,27 @@ function get_type(src_addr, dst_addr)
 from python code
 TYPES_SRC = {
 		PacketType.BEACON: 16834570,
-		PacketType.CERT_REP: 33611786,
+		PacketType.CERT_CHAIN_REP: 33611786,
 		PacketType.PATH_REP_LOCAL: 50389002,
 		PacketType.PATH_REP: 67166218,
 		PacketType.PATH_REP_TDC: 83943434,
 		PacketType.ROT_REP_LOCAL:100720650,
 		PacketType.OFG_KEY_REP: 117497866,
 		PacketType.ROT_REP: 134275082,
-		PacketType.CERT_REP_LOCAL:151052298,
+		PacketType.CERT_CHAIN_REP_LOCAL:151052298,
 		PacketType.IFID_REP: 167829514,
 		PacketType.UP_PATH: 33612000,
 		}
 TYPES_SRC_INV = {v: k for k, v in TYPES_SRC.items()}
 TYPES_DST = {
-		PacketType.CERT_REQ: 33611786,
+		PacketType.CERT_CHAIN_REQ: 33611786,
 		PacketType.PATH_REQ_LOCAL:50389002,
 		PacketType.PATH_REQ: 67166218,
 		PacketType.PATH_REQ_TDC: 83943434,
 		PacketType.ROT_REQ_LOCAL: 100720650,
 		PacketType.OFG_KEY_REQ: 117497866,
 		PacketType.ROT_REQ: 134275082,
-		PacketType.CERT_REQ_LOCAL: 151052298,
+		PacketType.CERT_CHAIN_REQ_LOCAL: 151052298,
 		PacketType.UP_PATH: 33612000,
 		PacketType.PATH_REG: 50389216,
 		PacketType.IFID_REQ: 167829514,
@@ -387,7 +387,7 @@ TYPES_DST = {
 	if src_addr==16834570 then
 		return "BEACON"
 	elseif src_addr==33611786 then
-		return "CERT_REP"
+		return "CERT_CHAIN_REP"
 	elseif src_addr==50389002 then
 		return "PATH_REP_LOCAL"
 	elseif src_addr==67166218 then
@@ -401,7 +401,7 @@ TYPES_DST = {
 	elseif src_addr==134275082 then
 		return "ROT_REP"
 	elseif src_addr==151052298 then
-		return "CERT_REP_LOCAL"
+		return "CERT_CHAIN_REP_LOCAL"
 	elseif src_addr==167829514 then
 		return "IFID_REP"
 	elseif src_addr==33612000 then
@@ -409,7 +409,7 @@ TYPES_DST = {
 	end
 	
 	if dst_addr==33611786 then
-		return "CERT_REQ"
+		return "CERT_CHAIN_REQ"
 	elseif dst_addr==50389002 then
 		return "PATH_REQ_LOCAL"
 	elseif dst_addr==67166218 then
@@ -423,7 +423,7 @@ TYPES_DST = {
 	elseif dst_addr==134275082 then
 		return "ROT_REQ"
 	elseif dst_addr==151052298 then
-		return "CERT_REQ_LOCAL"
+		return "CERT_CHAIN_REQ_LOCAL"
 	elseif dst_addr==33612000 then
 		return "UP_PATH"
 	elseif dst_addr==50389216 then

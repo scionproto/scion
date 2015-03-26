@@ -203,7 +203,6 @@ class SCIONDaemon(SCIONElement):
         # TODO sanity checks
         isd = struct.unpack("H", packet[1:3])[0]
         ad = struct.unpack("Q", packet[3:])[0]
-        print("req for", isd, ad)
         paths = self.get_paths(isd, ad)
         reply = []
         for path in paths:

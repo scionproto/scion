@@ -6,8 +6,8 @@ layer can be multicast)
     TYPE                SRC                 DST                         MSG
 BEACON *        10.224.0.1 (ANYCAST)    UNICAST                         BS->ER
 BEACON **       10.224.0.1 (ANYCAST)    224.224.0.1 (MULTICAST)         ER->BS
-CERT_REQ        UNICAST                 10.224.0.2 (ANYCAST)            CS->CCS
-CERT_REP        10.224.0.2 (ANYCAST)    UNICAST                         CCS->CS
+CERT_CHAIN_REQ        UNICAST                 10.224.0.2 (ANYCAST)            CS->CCS
+CERT_CHAIN_REP        10.224.0.2 (ANYCAST)    UNICAST                         CCS->CS
 #PATH_REQ_LOCAL  UNICAST                 10.224.0.3 (ANYCAST)            EH->PS
 #PATH_REP_LOCAL  10.224.0.3 (ANYCAST)    UNICAST                         PS->EH
 PATH_REQ        UNICAST                 10.224.0.4 (ANYCAST)            PS->CPS
@@ -26,8 +26,8 @@ IFID_REQ ***    UNICAST                 10.224.0.10(UNICAST)            ER->ER
 IFID_REP ***    10.224.0.10 (UNICAST)   UNICAST                         ER->ER
 ROT_REQ         UNICAST                 10.224.0.8 (ANYCAST)            CS->CCS
 ROT_REP         10.224.0.8 (ANYCAST)    UNICAST                         CCS->CS
-CERT_REQ_LOCAL  UNICAST                 10.224.0.9 (ANYCAST)            BS->CS
-CERT_REP_LOCAL  10.224.0.9 (ANYCAST)    UNICAST                         CS->BS
+CERT_CHAIN_REQ_LOCAL  UNICAST                 10.224.0.9 (ANYCAST)            BS->CS
+CERT_CHAIN_REP_LOCAL  10.224.0.9 (ANYCAST)    UNICAST                         CS->BS
 DATA            UNICAST                 UNICAST                         ER->EH 
 DATA            UNICAST                 UNICAST                         EH->ER 
 

@@ -18,7 +18,7 @@ limitations under the License.
 from lib.packet.path import (PathType, CorePath, PeerPath, CrossOverPath,
                              EmptyPath, PathBase)
 from lib.packet.opaque_field import InfoOpaqueField
-from lib.packet.host_addr import IPv4HostAddr
+from lib.packet.host_addr import SCIONAddr, IPv4HostAddr
 from lib.packet.scion import SCIONPacket
 from endhost.sciond import SCIONDaemon, SCIOND_API_HOST, SCIOND_API_PORT
 from infrastructure.scion_elem import SCION_UDP_EH_DATA_PORT, BUFLEN
@@ -80,7 +80,7 @@ def ping_app():
     Simple ping app.
     """
     global pong_received
-    topo_file = "../topology/ISD1/topologies/ISD:1-AD:19-V:0.json"
+    topo_file = "../topology/ISD1/topologies/ISD:1-AD:19.json"
     sd = SCIONDaemon.start(saddr, topo_file, True) # API on
     print("Sending PATH request for (2, 26) in 3 seconds")
     time.sleep(3)
@@ -90,7 +90,8 @@ def ping_app():
     # paths = sd.get_paths(2, 26) # Get paths through function call.
     # assert paths
 
-    spkt = SCIONPacket.from_values(sd.addr, raddr, b"ping", path)
+    dst = SCIONAddr.from_values(2, 26, raddr)
+    spkt = SCIONPacket.from_values(sd.addr, dst, b"ping", path)
     (next_hop, port) = sd.get_first_hop(spkt)
     assert next_hop == hop
     print("Sending packet: %s\nFirst hop: %s:%s\n" % (spkt, next_hop, port))
@@ -109,7 +110,7 @@ def pong_app():
     Simple pong app.
     """
     global ping_received
-    topo_file = "../topology/ISD2/topologies/ISD:2-AD:26-V:0.json"
+    topo_file = "../topology/ISD2/topologies/ISD:2-AD:26.json"
     sd = SCIONDaemon.start(raddr, topo_file)
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind((str(raddr), SCION_UDP_EH_DATA_PORT))

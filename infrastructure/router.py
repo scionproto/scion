@@ -18,7 +18,7 @@
 
 from infrastructure.scion_elem import (SCIONElement, SCION_UDP_PORT,
                                        SCION_UDP_EH_DATA_PORT)
-from lib.packet.host_addr import IPv4HostAddr
+from lib.packet.host_addr import IPv4HostAddr, SCIONAddr
 from lib.packet.opaque_field import OpaqueField, OpaqueFieldType as OFT
 from lib.packet.pcb import PathConstructionBeacon
 from lib.packet.scion import (PacketType as PT, SCIONPacket, IFIDRequest,
@@ -99,7 +99,7 @@ class Router(SCIONElement):
         SCIONElement.__init__(self, addr, topo_file, config_file=config_file)
         self.interface = None
         for edge_router in self.topology.get_all_edge_routers():
-            if edge_router.addr == self.addr:
+            if edge_router.addr == self.addr.host_addr:
                 self.interface = edge_router.interface
                 break
         assert self.interface != None
@@ -181,8 +181,9 @@ class Router(SCIONElement):
         next_hop = NextHop()
         next_hop.addr = self.interface.to_addr
         next_hop.port = self.interface.to_udp_port
-        ifid_req = IFIDRequest.from_values(self.interface.addr,
-                self.interface.if_id)
+        src = SCIONAddr.from_values(self.topology.isd_id, self.topology.ad_id,
+                                    self.interface.addr)
+        ifid_req = IFIDRequest.from_values(src, self.interface.if_id)
         while True:
             self.send(ifid_req, next_hop, False)
             logging.info('IFID_REQ sent to %s', next_hop)
@@ -203,10 +204,12 @@ class Router(SCIONElement):
         """
         logging.info('IFID_REP received, len %u', len(packet))
         ifid_rep = IFIDReply(packet)
-        # TODO multiple BSs scenario
-        next_hop.addr = self.topology.beacon_servers[0].addr
-        ifid_rep.hdr.dst = next_hop.addr
-        self.send(ifid_rep, next_hop)
+        for bs in self.topology.beacon_servers:
+            next_hop.addr = bs.addr
+            ifid_rep.hdr.dst_addr = SCIONAddr.from_values(self.topology.isd_id,
+                                                          self.topology.ad_id,
+                                                          next_hop.addr)
+            self.send(ifid_rep, next_hop)
         self.interface.initialized = True
 
     def process_ifid_request(self, packet, next_hop):
@@ -222,8 +225,10 @@ class Router(SCIONElement):
         ifid_req = IFIDRequest(packet)
         next_hop.addr = self.interface.to_addr
         next_hop.port = self.interface.to_udp_port
-        ifid_rep = IFIDReply.from_values(next_hop.addr, self.interface.if_id,
-                ifid_req.request_id)
+        dst = ifid_req.hdr.src_addr
+        dst.host_addr = next_hop.addr
+        ifid_rep = IFIDReply.from_values(dst, self.interface.if_id,
+                                         ifid_req.request_id)
         self.send(ifid_rep, next_hop, False)
 
     def process_pcb(self, packet, next_hop, from_bs):
@@ -334,7 +339,7 @@ class Router(SCIONElement):
                     iface = spkt.hdr.get_current_of().egress_if
                 next_hop.addr = self.ifid2addr[iface]
             else:  # last opaque field on the path, send the packet to the dst
-                next_hop.addr = spkt.hdr.dst_addr
+                next_hop.addr = spkt.hdr.dst_addr.host_addr
                 next_hop.port = SCION_UDP_EH_DATA_PORT  # data packet to endhost
             self.send(spkt, next_hop)
         logging.debug("normal_forward()")
@@ -519,7 +524,8 @@ class Router(SCIONElement):
             self.process_ifid_reply(packet, next_hop)
         elif ptype == PT.BEACON:
             self.process_pcb(packet, next_hop, from_local_ad)
-        elif ptype in [PT.CERT_REQ, PT.CERT_REP, PT.TRC_REQ, PT.TRC_REP]:
+        elif ptype in [PT.CERT_CHAIN_REQ, PT.CERT_CHAIN_REP, PT.TRC_REQ,
+                       PT.TRC_REP]:
             self.relay_cert_server_packet(spkt, next_hop, from_local_ad)
         else:
             if ptype == PT.DATA:
