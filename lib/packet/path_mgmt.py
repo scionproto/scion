@@ -57,10 +57,11 @@ class RevocationType(object):
     """
     Enum of revocation types.
     """
-    DOWN_SEGMENT = 0
-    CORE_SEGMENT = 1
-    INTERFACE = 2
-    HOP = 3
+    UP_SEGMENT = 0
+    DOWN_SEGMENT = 1
+    CORE_SEGMENT = 2
+    INTERFACE = 3
+    HOP = 4
 
 
 class PathSegmentInfo(PayloadBase):
@@ -293,9 +294,9 @@ class RevocationInfo(PayloadBase):
             return
 
         flags = struct.unpack("!B", raw[0:1])[0]
-        self.rev_type = flags & 0x3
-        self.incl_seg_id = (flags >> 2) & 0x1
-        self.incl_hop = (flags >> 3) & 0x1
+        self.rev_type = flags & 0x7
+        self.incl_seg_id = (flags >> 3) & 0x1
+        self.incl_hop = (flags >> 4) & 0x1
         offset = 1
         if self.incl_seg_id:
             self.seg_id = struct.unpack("!32s", raw[offset:offset + 32])

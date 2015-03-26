@@ -732,13 +732,18 @@ class LocalPathServer(PathServer):
             if not self._verify_revocation(rev_info):
                 logging.info("Revocation verification failed.")
                 continue
-            if rev_info.rev_type in [RT.DOWN_SEGMENT, RT.CORE_SEGMENT]:
+            if rev_info.rev_type in [RT.UP_SEGMENT,
+                                     RT.DOWN_SEGMENT,
+                                     RT.CORE_SEGMENT]:
                 if not rev_info.incl_seg_id or not rev_info.seg_id:
                     logging.info("Segment revocation misses segment ID.")
                     continue
-                seg_db = (self.down_segments if
-                          rev_info.rev_type == RT.DOWN_SEGMENT else
-                          self.core_segments)
+                if rev_info.rev_type == RT.UP_SEGMENT:
+                    seg_db = self.up_segments
+                elif rev_info.rev_type == RT.DOWN_SEGMENT:
+                    seg_db = self.down_segments
+                else:
+                    seg_db = self.core_segments
                 # Check correspondence of revocation token and path segment
                 # (if possible) and delete path segment.
                 if rev_info.seg_id in seg_db:
@@ -753,6 +758,8 @@ class LocalPathServer(PathServer):
                         continue
             elif rev_info.rev_type in [RT.INTERFACE, RT.HOP]:
                 logging.info("Local PS received interface or hop revocation.")
+            else:
+                logging.info("Local PS received unknown revocation type.")
 
     def _request_paths_from_core(self, ptype, dst_isd, dst_ad,
                                  src_isd=None, src_ad=None):

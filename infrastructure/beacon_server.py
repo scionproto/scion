@@ -26,7 +26,8 @@ from lib.packet.opaque_field import (OpaqueFieldType as OFT, InfoOpaqueField,
     SupportSignatureField, HopOpaqueField, SupportPCBField, SupportPeerField,
     TRCField)
 from lib.packet.path_mgmt import (PathSegmentInfo, PathSegmentRecords,
-    PathSegmentType as PST, PathMgmtPacket, PathMgmtType as PMT)
+    PathSegmentType as PST, PathMgmtPacket, PathMgmtType as PMT, RevocationInfo,
+    RevocationPayload, RevocationType as RT)
 from lib.packet.pcb import (PathSegment, ADMarking, PCBMarking, PeerMarking,
     PathConstructionBeacon)
 from lib.packet.scion import (SCIONPacket, get_type, PacketType as PT,
@@ -196,10 +197,6 @@ class BeaconServer(SCIONElement):
             logging.warning("IFID_REP received, to implement")
         elif ptype == PT.BEACON:
             self.process_pcb(PathConstructionBeacon(packet))
-        elif ptype == PT.CERT_REP:
-            self.process_cert_rep(CertReply(packet))
-        elif ptype == PT.TRC_REP:
-            self.process_trc_rep(TRCReply(packet))
         else:
             logging.warning("Type not supported")
 
@@ -307,7 +304,6 @@ class CoreBeaconServer(BeaconServer):
             self.send(pkt, dst)
         # Register core path with originating core path server.
         path = pcb.get_path(reverse_direction=True)
-        records = PathSegmentRecords.from_values(info, [pcb])
         # path_rec = PathSegmentRecords.from_values(self.addr, info, [pcb], path)
         pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, path)
         if_id = path.get_first_hop_of().ingress_if
@@ -590,6 +586,46 @@ class LocalBeaconServer(BeaconServer):
             del self.requested_trcs[(trc_isd, trc_version)]
         self.handle_unverified_beacons()
 
+    def _send_revocation(self, rev_info):
+        """
+        Sends out revocation to the local PS and a CPS and down_stream BS.
+        """
+        assert isinstance(rev_info, RevocationInfo)
+        # Send revocation to CPS.
+        path = self.up_segments.get_candidates()[0].get_path(True)
+        path.up_segment_info.up_flag = True
+        rev_payload = RevocationPayload.from_values([rev_info])
+        pkt = PathMgmtPacket.from_values(PMT.REVOCATIONS, rev_payload, path,
+                                         self.addr)
+        (next_hop, port) = self.get_first_hop(pkt)
+        logging.info("Sending revocation to CPS.")
+        self.send(pkt, next_hop, port)
+
+        # Build segment revocations for local path server.
+        rev_infos = []
+        if rev_info.rev_type == RT.DOWN_SEGMENT:
+            info = copy.deepcopy(rev_info)
+            info.rev_type = RT.UP_SEGMENT
+            rev_infos.append(rev_info)
+        elif rev_info.rev_type == RT.INTERFACE:
+            # Go through all candidates that contain this interface token.
+            for cand in self.up_segments.candidates:
+                if rev_info.rev_token1 in cand.pcb.get_all_iftokens():
+                    info = RevocationInfo.from_values(RT.UP_SEGMENT,
+                        rev_info.rev_token1, rev_info.proof1,
+                        True, cand.pcb.segment_id)
+                    rev_infos.append(info)
+        # Send revocations to local PS.
+        if rev_infos:
+            rev_payload = RevocationPayload.from_values(rev_infos)
+            pkt = PathMgmtPacket.from_values(PMT.REVOCATIONS, rev_payload, None,
+                                             self.addr)
+            dst = self.topology.path_servers[0].addr
+            logging.info("Sending segment revocations to local PS.")
+            self.send(pkt, dst)
+
+        # TODO: Propagate revocations to downstream BSes.
+
     def handle_unverified_beacons(self):
         """
         Handle beacons which are waiting to be verified.
@@ -598,6 +634,26 @@ class LocalBeaconServer(BeaconServer):
             pcb = self.unverified_beacons.popleft()
             self._try_to_verify_beacon(pcb)
 
+    def handle_request(self, packet, sender, from_local_socket=True):
+        """
+        Main routine to handle incoming SCION packets.
+        """
+        spkt = SCIONPacket(packet)
+        ptype = get_type(spkt)
+        if ptype == PT.IFID_REQ:
+            # TODO
+            logging.warning("IFID_REQ received, to implement")
+        elif ptype == PT.IFID_REP:
+            # TODO
+            logging.warning("IFID_REP received, to implement")
+        elif ptype == PT.BEACON:
+            self.process_pcb(PathConstructionBeacon(packet))
+        elif ptype == PT.CERT_REP:
+            self.process_cert_rep(CertReply(packet))
+        elif ptype == PT.TRC_REP:
+            self.process_trc_rep(TRCReply(packet))
+        else:
+            logging.warning("Type not supported")
 
 def main():
     """
