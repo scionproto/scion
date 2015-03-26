@@ -304,7 +304,7 @@ class CorePathServer(PathServer):
         if paths_to_propagate:
             records = PathSegmentRecords.from_values(records.info,
                                                      paths_to_propagate)
-            pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, EmptyPath())
+            pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, None)
             self._propagate_to_core_ads(pkt)
         # Serve pending requests.
         target = (dst_isd, dst_ad)
@@ -332,8 +332,8 @@ class CorePathServer(PathServer):
                                             dst_isd=dst_isd, dst_ad=dst_ad)
             if res == DBResult.ENTRY_ADDED:
                 self._add_if_mappings(pcb)
-#             logging.info("Core-Path registered: (%d, %d) -> (%d, %d)",
-#                          src_isd, src_ad, dst_isd, dst_ad)
+            logging.info("Core-Path registered: (%d, %d) -> (%d, %d)",
+                         src_isd, src_ad, dst_isd, dst_ad)
         # Send pending requests that couldn't be processed due to the lack of
         # a core path to the destination PS.
         if self.waiting_targets:

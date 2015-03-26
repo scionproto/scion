@@ -175,11 +175,11 @@ class LeaseInfo(PayloadBase):
         if len(raw) < LeaseInfo.LEN:
             logging.error("Not enough data to parse LeaseInfo")
             return
-        (self.seg_type, self.isd_isd, self.ad_id, self.exp_time,
+        (self.seg_type, self.isd_id, self.ad_id, self.exp_time,
          self.seg_id) = struct.unpack("!BHHL32s", raw)
 
     def pack(self):
-        return struct.pack("!BHHL32s", self.seg_type, self.isd_isd, self.ad_id,
+        return struct.pack("!BHHL32s", self.seg_type, self.isd_id, self.ad_id,
                            self.exp_time, self.seg_id)
 
     @classmethod
@@ -207,7 +207,7 @@ class LeaseInfo(PayloadBase):
 
     def __str__(self):
         return ("leaser: (%d, %d) seg_type: %d expires: %d ID:%s" %
-                self.isd_isd, self.ad_id, self.seg_type, self.exp_time,
+                self.isd_id, self.ad_id, self.seg_type, self.exp_time,
                 self.seg_id)
 
 
@@ -236,8 +236,7 @@ class PathSegmentLeases(PayloadBase):
 
     def pack(self):
         data = struct.pack("!B", self.nleases)
-        for (isd, ad, ts, seg_id) in self.leases:
-            data += struct.pack("!HHL32s", isd, ad, ts, seg_id)
+        data += b"".join([linfo.pack() for linfo in self.leases])
 
         return data
 
@@ -471,3 +470,7 @@ class PathMgmtPacket(SCIONPacket):
         pkt.type = type
         pkt.payload = payload
         return pkt
+
+    def __str__(self):
+        return (("[PathMgmtPacket type: %d]\n" % self.type) + str(self.hdr) +
+                "\n" + str(self.payload))

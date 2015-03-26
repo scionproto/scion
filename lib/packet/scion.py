@@ -212,8 +212,8 @@ class SCIONHeader(HeaderBase):
         self.common_hdr = None
         self.src_addr = None
         self.dst_addr = None
-        self.path = None
-        self.extension_hdrs = []
+        self._path = None
+        self._extension_hdrs = []
 
         if raw is not None:
             self.parse(raw)
@@ -230,19 +230,84 @@ class SCIONHeader(HeaderBase):
         if ext_hdrs is None:
             ext_hdrs = []
         hdr = SCIONHeader()
+        hdr.common_hdr = SCIONCommonHdr.from_values(pkt_type, src.addr_len,
+                                                    dst.addr_len, next_hdr)
         hdr.src_addr = src
         hdr.dst_addr = dst
         hdr.path = path
         hdr.extension_hdrs = ext_hdrs
-        hdr.common_hdr = SCIONCommonHdr.from_values(pkt_type, src.addr_len,
-                                                    dst.addr_len, next_hdr)
+
+        return hdr
+
+    @property
+    def path(self):
+        """
+        Returns the path in the header.
+        """
+        return self._path
+
+    @path.setter
+    def path(self, path):
+        """
+        Sets path to 'path'.
+        """
+        self.set_path(path)
+
+    def set_path(self, path):
+        """
+        Sets path to 'path' and updates necessary fields..
+        """
+        if self._path is not None:
+            path_len = len(self._path.pack())
+            self.common_hdr.hdr_len -= path_len
+            self.common_hdr.total_len -= path_len
+        self._path = path
         if path is not None:
             path_len = len(path.pack())
-            hdr.common_hdr.hdr_len += path_len
-            hdr.common_hdr.total_len += path_len
+            self.common_hdr.hdr_len += path_len
+            self.common_hdr.total_len += path_len
+
+    @property
+    def extension_hdrs(self):
+        """
+        Returns the extension headers.
+        """
+        return self._extension_hdrs
+
+    @extension_hdrs.setter
+    def extension_hdrs(self, ext_hdrs):
+        """
+        Sets extension headers.
+        """
+        self.set_ext_hdrs(ext_hdrs)
+
+    def set_ext_hdrs(self, ext_hdrs):
+        """
+        Sets extension headers and updates necessary fields.
+        """
+        assert isinstance(ext_hdrs, list)
+        while self._extension_hdrs:
+            self.pop_ext_hdr()
         for ext_hdr in ext_hdrs:
-            hdr.common_hdr.total_len += len(ext_hdr)
-        return hdr
+            self.append_ext_hdr(ext_hdr)
+
+    def append_ext_hdr(self, ext_hdr):
+        """
+        Appends an extension header and updates necessary fields.
+        """
+        assert isinstance(ext_hdr, ExtensionHeader)
+        self._extension_hdrs.append(ext_hdr)
+        self.common_hdr.total_len += len(ext_hdr)
+
+    def pop_ext_hdr(self):
+        """
+        Pops and returns the last extension header and updates necessary fields.
+        """
+        if not self._extension_hdrs:
+            return
+        ext_hdr = self._extension_hdrs.pop()
+        self.common_hdr.total_len -= len(ext_hdr)
+        return ext_hdr
 
     def parse(self, raw):
         """
@@ -278,13 +343,13 @@ class SCIONHeader(HeaderBase):
         else:
             info = InfoOpaqueField(raw[offset:offset + InfoOpaqueField.LEN])
         if info.info == PathType.CORE:
-            self.path = CorePath(raw[offset:self.common_hdr.hdr_len])
+            self._path = CorePath(raw[offset:self.common_hdr.hdr_len])
         elif info.info == PathType.CROSS_OVER:
-            self.path = CrossOverPath(raw[offset:self.common_hdr.hdr_len])
+            self._path = CrossOverPath(raw[offset:self.common_hdr.hdr_len])
         elif info.info == PathType.PEER_LINK:
-            self.path = PeerPath(raw[offset:self.common_hdr.hdr_len])
+            self._path = PeerPath(raw[offset:self.common_hdr.hdr_len])
         elif info.info == PathType.EMPTY:
-            self.path = EmptyPath()  # PSz raw[offset:self.common_hdr.hdr_len])
+            self._path = EmptyPath()  # PSz raw[offset:self.common_hdr.hdr_len])
         else:
             logging.info("Can not parse path in packet: Unknown type %x",
                          info.info)
