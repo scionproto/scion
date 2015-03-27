@@ -1,11 +1,8 @@
 # Copyright 2014 ETH Zurich
-
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-
 # http://www.apache.org/licenses/LICENSE-2.0
-
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -17,6 +14,7 @@
 """
 
 from _collections import deque
+from asyncio.tasks import sleep
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.asymcrypto import sign
 from lib.crypto.certificate import verify_sig_chain_trc, CertificateChain, TRC
@@ -618,7 +616,9 @@ class LocalBeaconServer(BeaconServer):
         """
         assert isinstance(rev_info, RevocationInfo)
         # Send revocation to CPS.
-        path = self.up_segments.get_candidates()[0].get_path(True)
+        up_segment = self.up_segments.get_candidates()[0].pcb
+        assert up_segment.segment_id != rev_info.seg_id
+        path = up_segment.get_path(True)
         path.up_segment_info.up_flag = True
         rev_payload = RevocationPayload.from_values([rev_info])
         pkt = PathMgmtPacket.from_values(PMT.REVOCATIONS, rev_payload, path,
@@ -632,7 +632,7 @@ class LocalBeaconServer(BeaconServer):
         if rev_info.rev_type == RT.DOWN_SEGMENT:
             info = copy.deepcopy(rev_info)
             info.rev_type = RT.UP_SEGMENT
-            rev_infos.append(rev_info)
+            rev_infos.append(info)
         elif rev_info.rev_type == RT.INTERFACE:
             # Go through all candidates that contain this interface token.
             for cand in self.up_segments.candidates:
@@ -680,6 +680,32 @@ class LocalBeaconServer(BeaconServer):
             self.process_trc_rep(TRCReply(packet))
         else:
             logging.warning("Type not supported")
+
+    def _test_revocation(self):
+        logging.debug("Revocation test started. Sending revocation in 30s.")
+        time.sleep(30)
+        rev_pcb = self.down_segments.get_candidates()[0].pcb
+        self.up_segments.remove_segment(rev_pcb.segment_id)
+        self.down_segments.remove_segment(rev_pcb.segment_id)
+        chain = self.seg2rev_tokens[rev_pcb.get_hops_hash()]
+        assert chain.current_element() == rev_pcb.segment_id
+        rev_info = RevocationInfo.from_values(RT.DOWN_SEGMENT,
+                                              chain.current_element(),
+                                              chain.next_element(),
+                                              True, rev_pcb.segment_id)
+        logging.debug("Sending revocation:\n%s", rev_info)
+        self._send_revocation(rev_info)
+
+    def run(self):
+        """
+        Run an instance of the Beacon Server.
+        """
+        if self.topology.isd_id == 2 and self.topology.ad_id == 26:
+            threading.Thread(target=self._test_revocation).start()
+        threading.Thread(target=self.handle_pcbs_propagation).start()
+        threading.Thread(target=self.register_segments).start()
+        SCIONElement.run(self)
+
 
 def main():
     """

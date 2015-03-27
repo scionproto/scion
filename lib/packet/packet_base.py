@@ -145,6 +145,7 @@ class PayloadBase(object):
     """
     def __init__(self):
         self.raw = None
+        self.parsed = False
 
     def parse(self, raw):
         self.raw = raw[:]

@@ -309,9 +309,10 @@ class RevocationInfo(PayloadBase):
                 struct.unpack("!32s32s", raw[offset:offset + 64])
             offset += 64
         self.raw = raw[:offset]
+        self.parsed = True
 
     def pack(self):
-        flags = (self.incl_hop << 3) | (self.incl_seg_id << 2) | self.rev_type
+        flags = (self.incl_hop << 4) | (self.incl_seg_id << 3) | self.rev_type
         data = struct.pack("!B", flags)
         if self.incl_seg_id:
             data += struct.pack("!32s", self.seg_id)
@@ -383,6 +384,9 @@ class RevocationPayload(PayloadBase):
         offset = 0
         while offset < dlen:
             info = RevocationInfo(raw[offset:offset + RevocationInfo.MAX_LEN])
+            if not info.parsed:
+                logging.error("RevocationPayload couldn't be parsed.")
+                return
             self.rev_infos.append(info)
             offset += len(info)
 

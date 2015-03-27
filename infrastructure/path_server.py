@@ -156,6 +156,8 @@ class PathServer(SCIONElement):
             self.handle_path_request(pkt)
         elif pkt.type == PMT.RECORDS:
             self.dispatch_path_segment_record(pkt)
+        elif pkt.type == PMT.REVOCATIONS:
+            self._handle_revocation(pkt)
         else:
             logging.warning("Type %d not supported.", pkt.type)
 
@@ -573,6 +575,8 @@ class CorePathServer(PathServer):
             self.dispatch_path_segment_record(pkt)
         elif pkt.type == PMT.LEASES:
             self._handle_leases(pkt)
+        elif pkt.type == PMT.REVOCATIONS:
+            self._handle_revocation(pkt)
         else:
             logging.warning("Type %d not supported.", pkt.type)
 
