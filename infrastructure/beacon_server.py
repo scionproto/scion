@@ -682,35 +682,6 @@ class LocalBeaconServer(BeaconServer):
         
         # TODO: Propagate revocations to downstream BSes.
         
-    def _process_segment_revocation(self, seg_id):
-        """
-        Processes a segment revocation.
-        """
-        # Get corresponding path segment.
-        rev_pcb = self.down_segments.get_segment(seg_id).pcb
-        if not rev_pcb:
-            return
-        # Clear the corresponding segment from the path stores.
-        self.up_segments.remove_segment(seg_id)
-        self.down_segments.remove_segment(seg_id)
-        # Build revocation info
-        chain = self.seg2rev_tokens[rev_pcb.get_hops_hash()]
-        assert chain.current_element() == rev_pcb.segment_id
-        rev_info = RevocationInfo.from_values(RT.DOWN_SEGMENT,
-                                              chain.current_element(),
-                                              chain.next_element(),
-                                              True, rev_pcb.segment_id)
-        self._send_revocation(rev_info)
-        
-    def _process_interface_revocation(self, if_id):
-        """
-        Processes an interface revocation.
-        """
-        if if_id not in self.if2rev_tokens:
-            logging.error("This interface does not exist.")
-            return
-        
-        
     def handle_unverified_beacons(self):
         """
         Handle beacons which are waiting to be verified.
