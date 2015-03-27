@@ -141,7 +141,7 @@ class TestSCIONDaemon(unittest.TestCase):
         threading.Thread(target=ping_app).start()
         threading.Thread(target=pong_app).start()
 
-        time.sleep(4)
+        time.sleep(8)
         self.assertTrue(ping_received)
         self.assertTrue(pong_received)
 

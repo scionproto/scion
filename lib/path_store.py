@@ -295,13 +295,21 @@ class PathStore(object):
         self.best_paths_history.insert(0, self.get_candidates(k))
         self.candidates.clear()
 
-    def remove_segment(self, seg_id):
+    def remove_segments(self, seg_ids):
         """
-        Removes a segment from the candidates and the best_paths history.
+        Removes segments in 'seg_ids' from the candidates.
         """
-        self.candidates[:] = [c for c in self.candidates if c.id != seg_id]
-        self.best_paths_history[:] = [p for p in self.best_paths_history
-                                      if p.id != seg_id]
+        self.candidates[:] = [c for c in self.candidates if c.id not in seg_ids]
+        
+    def get_segment(self, seg_id):
+        """
+        Returns the segment for the corresponding ID or None.
+        """
+        for rec in self.candidates:
+            if rec.id == seg_id:
+                return rec
+            
+        return None
 
     def __str__(self):
         path_store_str = "[PathStore]"

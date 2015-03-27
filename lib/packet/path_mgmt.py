@@ -299,7 +299,7 @@ class RevocationInfo(PayloadBase):
         self.incl_hop = (flags >> 4) & 0x1
         offset = 1
         if self.incl_seg_id:
-            self.seg_id = struct.unpack("!32s", raw[offset:offset + 32])
+            self.seg_id = struct.unpack("!32s", raw[offset:offset + 32])[0]
             offset += 32
         (self.rev_token1, self.proof1) = struct.unpack("!32s32s",
                                                        raw[offset:offset + 64])

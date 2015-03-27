@@ -227,6 +227,9 @@ class CorePathServer(PathServer):
                 self._leases[segment_id].remove(entry)
 
             self._leases[segment_id].add(entry)
+        
+        def __contains__(self, segment_id):
+            return len(self[segment_id]) > 0
 
         def __getitem__(self, segment_id):
             now = time.time()
@@ -237,7 +240,8 @@ class CorePathServer(PathServer):
                         self._leases[segment_id] if e.exp_time > now]
 
         def __delitem__(self, segment_id):
-            del self._leases[segment_id]
+            if segment_id in self._leases:
+                del self._leases[segment_id]
 
         def _purge_entries(self):
             """
@@ -508,13 +512,13 @@ class CorePathServer(PathServer):
                                      "revoked path segment. Ignoring...")
                         continue
                 # Build revocations
-                for (isd, ad) in self.leases[rev_info.rev_token1]:
+                for (isd, ad, _) in self.leases[rev_info.rev_token1]:
                     # Add only non-core ads, since the revocation gets
                     # broadcasted to all core ads anyway.
                     if (isd, ad) not in self.core_ads:
                         revocations[(isd, ad)].add_rev_info(rev_info)
                 del self.leases[rev_info.rev_token1]
-            elif rev_info.type in [RT.INTERFACE, RT.HOP]:
+            elif rev_info.rev_type in [RT.INTERFACE, RT.HOP]:
                 # Build revocations.
                 if rev_info.rev_type == RT.INTERFACE:
                     segments = self.iftoken2seg[rev_info.rev_token1]
@@ -544,19 +548,19 @@ class CorePathServer(PathServer):
                         else:
                             self.core_segments.delete(sid)
                     del self.leases[sid]
-                del self.iftoken2seg[rev_info.token1]
+                del self.iftoken2seg[rev_info.rev_token1]
             else:
                 logging.warning("Received unknown type of revocation.")
                 return
 
         # Send out revocations to leasers.
-        for ((dst_isd, dst_ad), payload) in revocations:
+        for ((dst_isd, dst_ad), payload) in revocations.items():
             paths = self.down_segments(src_isd=self.topology.isd_id,
                                        src_ad=self.topology.ad_id,
                                        dst_isd=dst_isd, dst_ad=dst_ad)
             if paths:
                 rev_pkt = PathMgmtPacket.from_values(PMT.REVOCATIONS, payload,
-                                                     paths[0], self.addr)
+                                                     paths[0].get_path(), self.addr)
                 rev_pkt.hdr.set_downpath()
                 (dst, dst_port) = self.get_first_hop(rev_pkt)
                 logging.debug("Sending segment revocations to leaser (%d, %d)",

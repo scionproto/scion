@@ -500,6 +500,7 @@ class PathSegment(Marking):
             for pm in ad.pms:
                 tokens.append(pm.ig_rev_token)
                 tokens.append(pm.eg_rev_token)
+        return tokens
 
     @staticmethod
     def deserialize(raw):
