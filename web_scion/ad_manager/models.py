@@ -32,11 +32,21 @@ class AD(models.Model):
     # Use custom model manager with select_related()
     objects = SelectRelatedModelManager('isd')
 
+    def get_monitoring_daemon_host(self):
+        monitoring_daemon_host = 'localhost'
+        beacon_server = self.beaconserverweb_set.first()
+        if beacon_server:
+            monitoring_daemon_host = beacon_server.addr
+        return monitoring_daemon_host
+
     def query_ad_status(self):
-        return monitoring_client.get_ad_info(self.isd_id, self.id)
+        return monitoring_client.get_ad_info(self.isd_id, self.id,
+                                             self.get_monitoring_daemon_host())
 
     def get_remote_topology(self):
-        topology_str = monitoring_client.get_topology(self.isd_id, self.id)
+        md_host = self.get_monitoring_daemon_host()
+        topology_str = monitoring_client.get_topology(self.isd_id, self.id,
+                                                      md_host)
         if topology_str:
             topology_dict = json.loads(topology_str)
             return topology_dict

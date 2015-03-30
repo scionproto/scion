@@ -1,16 +1,15 @@
 import glob
 import os
 import sys
-from django.db import IntegrityError
 
 os.environ['DJANGO_SETTINGS_MODULE'] = 'web_scion.settings'
-BASE_DIR = os.path.dirname(os.path.dirname(__file__))
-sys.path.insert(0, BASE_DIR)
+
+WEB_SCION_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, WEB_SCION_DIR)
 
 import django
 from django.contrib.auth.models import User
-from ad_manager.models import AD, ISD, RouterWeb, BeaconServerWeb, \
-    CertificateServerWeb, PathServerWeb
+from ad_manager.models import AD, ISD
 from lib.topology import Topology
 
 django.setup()

@@ -35,7 +35,7 @@ class MonitoringServer(object):
     # COMMAND
     def get_topology(self, isd_id, ad_id):
         file_name = 'ISD:' + isd_id + '-AD:' + ad_id
-        topo_file = 'ISD' + isd_id + TOPO_DIR + file_name + '-V:0.json'
+        topo_file = 'ISD' + isd_id + TOPO_DIR + file_name + '.json'
         topo_path = ''.join(['..', SCRIPTS_DIR, topo_file])
         return open(topo_path, 'r').read()
 
@@ -81,7 +81,7 @@ class MonitoringServer(object):
             self.stop_process(full_process_name)
             res = self.start_process(full_process_name)
         else:
-            raise Exception('Invalid command')
+            return [False, 'Invalid command']
         return res
 
     def do_update(self):
@@ -89,11 +89,12 @@ class MonitoringServer(object):
 
     # COMMAND
     def send_update(self, isd_id, ad_id, data_dict):
+        # Verify the hash value
         base64_data = data_dict['data']
         received_digest = data_dict['digest']
         raw_data = base64.b64decode(base64_data)
         if hashlib.sha1(raw_data).hexdigest() != received_digest:
-            return None
+            return [False, 'Hash value does not match']
 
         if not os.path.exists(UPDATE_DIR):
             os.makedirs(UPDATE_DIR)

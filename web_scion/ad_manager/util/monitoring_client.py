@@ -4,8 +4,8 @@ import xmlrpc.client
 from daemon_monitor.common import get_monitoring_server
 
 
-def get_ad_info(isd_id, ad_id):
-    s = get_monitoring_server()
+def get_ad_info(isd_id, ad_id, md_host):
+    s = get_monitoring_server(md_host)
     try:
         ad_info = s.get_ad_info(isd_id, ad_id)
         return ad_info
@@ -13,8 +13,8 @@ def get_ad_info(isd_id, ad_id):
         return None
 
 
-def get_topology(isd_id, ad_id):
-    s = get_monitoring_server()
+def get_topology(isd_id, ad_id, md_host):
+    s = get_monitoring_server(md_host)
     try:
         topo = s.get_topology(isd_id, ad_id)
         return topo
@@ -22,13 +22,13 @@ def get_topology(isd_id, ad_id):
         return None
 
 
-def send_update(isd_id, ad_id):
+def send_update(isd_id, ad_id, md_host):
     update_dir = '../dist/'
     arch_name = 'scion-0.1.0.tar.gz'
     with open(update_dir + arch_name, 'rb') as update_fh:
         raw_data = update_fh.read()
 
-    s = get_monitoring_server()
+    s = get_monitoring_server(md_host)
 
     data_digest = hashlib.sha1(raw_data).hexdigest()
     base64_data = str(base64.b64encode(raw_data), 'utf-8')

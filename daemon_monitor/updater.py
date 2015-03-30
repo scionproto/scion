@@ -40,7 +40,7 @@ def start_everything():
 
 def start_monitoring_daemon():
     # First, try to start 'supervisor' if not started
-    exit_status = subprocess.call([SUPERVISORD_PATH, 'status'],
+    exit_status = subprocess.call([SUPERVISORD_PATH, 'reload'],
                                   stdout=subprocess.DEVNULL,
                                   stderr=subprocess.DEVNULL)
     logging.info('Supervisord exit status: {}'.format(exit_status))
