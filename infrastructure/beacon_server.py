@@ -374,7 +374,7 @@ class LocalBeaconServer(BeaconServer):
         else:
             chain = CertificateChain.from_values([])
         trc_file = get_trc_file_path(self.topology.isd_id, self.topology.ad_id,
-            cert_chain_isd, trc_version)
+                                     cert_chain_isd, trc_version)
         trc = TRC(trc_file)
         data_to_verify = (str(cert_chain_ad).encode('utf-8') +
                           last_pcbm.hof.pack() + last_pcbm.spcbf.pack())
@@ -395,7 +395,7 @@ class LocalBeaconServer(BeaconServer):
         trc_version = pcb.trcf.trc_version
         if self._check_certs_trc(cert_chain_isd, cert_chain_ad,
                                  cert_chain_version,
-            trc_version, pcb.trcf.if_id):
+                                 trc_version, pcb.trcf.if_id):
             if self._verify_beacon(pcb):
                 self.beacons.append(pcb)
                 logging.info("Registered valid beacon.")
@@ -405,8 +405,8 @@ class LocalBeaconServer(BeaconServer):
             logging.debug("Certificate(s) or TRC missing.")
             self.unverified_beacons.append(pcb)
 
-    def _check_certs_trc(self, isd_id, ad_id, cert_chain_version, trc_version,
-        if_id):
+    def _check_certs_trc(self, isd_id, ad_id, cert_chain_version,
+                         trc_version, if_id):
         """
         Return True or False whether the necessary Certificate and TRC files are
         found.
@@ -621,7 +621,7 @@ class LocalBeaconServer(BeaconServer):
         if rev_info.rev_type == RT.DOWN_SEGMENT:
             if not self.down_segments.get_segment(rev_info.seg_id):
                 logging.error("Segment to revoke does not exist.")
-                return 
+                return
             info = copy.deepcopy(rev_info)
             info.rev_type = RT.UP_SEGMENT
             rev_infos.append(info)
@@ -630,7 +630,6 @@ class LocalBeaconServer(BeaconServer):
             # Go through all candidates that contain this interface token.
             for cand in (self.down_segments.candidates +
                          self.up_segments.candidates):
-                tokens = cand.pcb.get_all_iftokens()
                 if rev_info.rev_token1 in cand.pcb.get_all_iftokens():
                     to_remove.append(cand.pcb.segment_id)
                     if cand in self.up_segments.candidates:
@@ -644,18 +643,18 @@ class LocalBeaconServer(BeaconServer):
                          self.up_segments.candidates):
                 if (rev_info.rev_token1 in cand.pcb.get_all_iftokens() and
                     rev_info.rev_token2 in cand.pcb.get_all_iftokens()):
-                    to_remove.append(cand.pcb.segment_id)            
+                    to_remove.append(cand.pcb.segment_id)
                     if cand in self.up_segments:
                         info = RevocationInfo.from_values(RT.UP_SEGMENT,
                             rev_info.rev_token1, rev_info.proof1,
                             True, cand.pcb.segment_id,
                             True, rev_info.rev_token2, rev_info.rev_token2)
                         rev_infos.append(info)
-            
+
         # Remove the affected segments from the path stores.
         self.up_segments.remove_segments(to_remove)
         self.down_segments.remove_segments(to_remove)
-        
+
         # Send revocations to local PS.
         if rev_infos:
             rev_payload = RevocationPayload.from_values(rev_infos)
@@ -664,7 +663,7 @@ class LocalBeaconServer(BeaconServer):
             dst = self.topology.path_servers[0].addr
             logging.info("Sending segment revocations to local PS.")
             self.send(pkt, dst)
-            
+
         # Send revocation to CPS.
         if not self.up_segments.get_candidates():
             logging.error("No up path available to send out revocation.")
@@ -679,9 +678,9 @@ class LocalBeaconServer(BeaconServer):
         (next_hop, port) = self.get_first_hop(pkt)
         logging.info("Sending revocation to CPS.")
         self.send(pkt, next_hop, port)
-        
+
         # TODO: Propagate revocations to downstream BSes.
-        
+
     def handle_unverified_beacons(self):
         """
         Handle beacons which are waiting to be verified.
@@ -728,7 +727,7 @@ class LocalBeaconServer(BeaconServer):
 #         rev_info = RevocationInfo.from_values(RT.INTERFACE,
 #                                               chain.current_element(),
 #                                               chain.next_element())
-# 
+#
 #         self._process_revocation(rev_info)
 
     def run(self):
