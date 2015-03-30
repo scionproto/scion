@@ -3,9 +3,9 @@ import base64
 import os
 import sys
 import hashlib
-from daemon_monitor import updater
+from subprocess import Popen
 from daemon_monitor.common import MONITORING_DAEMON_PORT, get_supervisor_server, \
-    UPDATE_DIR
+    UPDATE_DIR, UPDATE_SCRIPT_PATH
 from daemon_monitor.secure_rpc_server import XMLRPCServerTLS
 from topology.generator import TOPO_DIR, SCRIPTS_DIR
 
@@ -85,7 +85,7 @@ class MonitoringServer(object):
         return res
 
     def do_update(self):
-        updater.update_package()
+        Popen([sys.executable, UPDATE_SCRIPT_PATH])
 
     # COMMAND
     def send_update(self, isd_id, ad_id, data_dict):

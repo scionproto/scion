@@ -17,7 +17,9 @@ def get_monitoring_server(host='localhost'):
 
 # Paths
 SCION_ROOT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-UPDATE_DIR = SCION_ROOT + '/daemon_monitor/.update_files/'
+UPDATE_DIR = os.path.join(SCION_ROOT, 'daemon_monitor/.update_files/')
+UPDATE_SCRIPT_PATH = os.path.join(SCION_ROOT, 'daemon_monitor/updater.py')
+SUPERVISORD_PATH = os.path.join(SCION_ROOT, 'supervisor/supervisor.sh')
 
-# Proces names
+# Process names
 MONITORING_DAEMON_PROC_NAME = 'monitoring_daemon'
