@@ -4,8 +4,10 @@ import os
 import sys
 import hashlib
 from subprocess import Popen
-from daemon_monitor.common import MONITORING_DAEMON_PORT, get_supervisor_server, \
-    UPDATE_DIR, UPDATE_SCRIPT_PATH
+from daemon_monitor.common import (get_supervisor_server, UPDATE_DIR,
+                                   MONITORING_DAEMON_PORT, SCION_ROOT,
+                                   UPDATE_SCRIPT_PATH)
+
 from daemon_monitor.secure_rpc_server import XMLRPCServerTLS
 from topology.generator import TOPO_DIR, SCRIPTS_DIR
 
@@ -84,8 +86,8 @@ class MonitoringServer(object):
             return [False, 'Invalid command']
         return res
 
-    def do_update(self):
-        Popen([sys.executable, UPDATE_SCRIPT_PATH])
+    def do_update(self, archive, path):
+        Popen([sys.executable, UPDATE_SCRIPT_PATH, archive, path])
 
     # COMMAND
     def send_update(self, isd_id, ad_id, data_dict):
@@ -99,9 +101,12 @@ class MonitoringServer(object):
         if not os.path.exists(UPDATE_DIR):
             os.makedirs(UPDATE_DIR)
         archive_name = os.path.basename(data_dict['name'])
-        out_file = os.path.join(UPDATE_DIR, archive_name)
-        with open(out_file, 'wb') as out_file:
-            out_file.write(raw_data)
+        out_file_path = os.path.join(UPDATE_DIR, archive_name)
+        with open(out_file_path, 'wb') as out_file_fh:
+            out_file_fh.write(raw_data)
+        # self.do_update(out_file, SCION_ROOT)
+        self.do_update(out_file_path, UPDATE_DIR)
+
         return True
 
 
