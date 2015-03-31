@@ -8,16 +8,18 @@ function updateServerStatus(detailUrl) {
         url: detailUrl,
         dataType: "json"
     }).done(function(data) {
-        var component_data = data['data'];
-        for (var i = 0; i < component_data.length; i++) {
-            var info = component_data[i];
+        var componentData = data['data'];
+        if (!componentData)
+            return;
+        for (var i = 0; i < componentData.length; i++) {
+            var info = componentData[i];
             var name = info['name'];
             var status = info['statename'];
-            var $td_status = $('#' + name + '> .status');
-            if ($td_status.text() != status) {
-                $td_status.text(status);
-                $td_status.fadeTo(0, 0);
-                $td_status.fadeTo(200, 1);
+            var $tdStatus = $('#' + name + '> .status');
+            if ($tdStatus.text() != status) {
+                $tdStatus.text(status);
+                $tdStatus.fadeTo(0, 0);
+                $tdStatus.fadeTo(200, 1);
             }
         }
     }).fail(function(a1, a2, a3) {
@@ -34,24 +36,24 @@ function compareAdTopology(compareUrl) {
     $alertDiv.hide();
     $alertDiv.removeClass('alert-success alert-danger alert-warning');
 
-    function alert_no_topology() {
+    function alertNoTopology() {
         $alertDiv.addClass('alert-warning');
         $alertDiv.text('Cannot get topology');
     }
 
-    function alert_ok() {
+    function alertOk() {
         $alertDiv.addClass('alert-success');
         $alertDiv.text('Everything is OK');
     }
 
-    function alert_changed(changes) {
+    function alertChanged(changes) {
         $alertDiv.addClass('alert-danger');
         $alertDiv.html('Stored topology is inconsistent with the remote one<br/>');
-        var $changes_list = $('<ul/>').attr('id', 'changes-list');
+        var $changesList = $('<ul/>').attr('id', 'changes-list');
         $.each(changes, function(index, value) {
-            $('<li>' + value + '</li>').appendTo($changes_list);
+            $('<li>' + value + '</li>').appendTo($changesList);
         });
-        $alertDiv.append($changes_list);
+        $alertDiv.append($changesList);
     }
 
     $.ajax({
@@ -59,17 +61,23 @@ function compareAdTopology(compareUrl) {
         dataType: "json"
     }).done(function(data) {
         if (data['status'] == 'OK') {
-            alert_ok();
+            alertOk();
         } else if (data['status'] == 'CHANGED') {
-            alert_changed(data['changes']);
+            alertChanged(data['changes']);
         } else {
-            alert_no_topology();
+            alertNoTopology();
         }
     }).fail(function(a1, a2, a3) {
-        alert_no_topology();
+        alertNoTopology();
     }).always(function() {
         $alertDiv.show(500);
     });
+}
+
+function initSendUpdates() {
+}
+
+function sendAdUpdates(sendUrl) {
 }
 
 $(document).ready(function() {
@@ -80,15 +88,18 @@ $(document).ready(function() {
     });
     // setInterval(updateServerStatus, 5000); // repeat every 5 seconds
 
-
     initTopologyCheck();
     compareAdTopology(adCompareUrl);
     $('#compare-topology-btn').click(function() {
         compareAdTopology(adCompareUrl);
     });
 
+    initSendUpdates();
+    $('#send-updates-btn').click(function() {
+        sendAdUpdates(adSendUpdatesUrl);
+    });
 
-    // Confirmation boxes
+    // "Are you sure?" confirmation boxes
     $('.click-confirm').click(function(e) {
         return confirm('Are you sure?')
     })

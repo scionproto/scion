@@ -79,14 +79,13 @@
         </table>
       </div>
 
-
       <div role="tabpanel" class="tab-pane" id="topology">
         <br />
         <p>The stored topology might be out of sync with the real topology.</p>
         <div>
           <button type="button" class="btn btn-info" id="compare-topology-btn">Check topology</button>
-          <a href="{% url 'update_topology' object.id %}" class="click-confirm">
-            <button type="button" class="btn btn-default" id="update-topology-btn">Update topology</button>
+          <a href="{% url 'update_topology' object.id %}">
+            <button type="button" class="btn btn-default click-confirm" id="update-topology-btn">Update local topology</button>
           </a>
         </div>
         <br/>
@@ -95,7 +94,10 @@
 
       <div role="tabpanel" class="tab-pane" id="updates">
         <br />
-        Push updates to the server
+        <p>Push updates to the server</p>
+        <div>
+          <button type="button" class="btn btn-warning click-confirm" id="send-updates-btn">Send updates</button>
+        </div>
       </div>
 
     </div>
@@ -108,6 +110,7 @@
     var isdAdId = '{{ object }}';
     var adDetailUrl = '{% url 'ad_status' object.id %}';
     var adCompareUrl = '{% url 'compare_topology' object.id %}';
+    var adSendUpdatesUrl = '{% url 'send_update' object.id %}'
   </script>
 
 {% endblock %}

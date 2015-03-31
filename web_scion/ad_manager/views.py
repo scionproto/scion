@@ -7,6 +7,7 @@ from django.shortcuts import redirect
 from django.views.generic import ListView, DetailView
 from ad_manager.models import AD, ISD
 from ad_manager.util import monitoring_client
+from daemon_monitor.common import is_success, get_success_data
 from lib.topology import Topology
 
 
@@ -33,8 +34,11 @@ class ADDetailView(DetailView):
 
 def get_ad_status(request, pk):
     ad = AD.objects.get(id=pk)
-    ad_info_list = ad.query_ad_status()
-    return JsonResponse({'data': ad_info_list})
+    ad_info_list_response = ad.query_ad_status()
+    if is_success(ad_info_list_response):
+        return JsonResponse({'data': get_success_data(ad_info_list_response)})
+    else:
+        return JsonResponse({})
 
 
 def compare_remote_topology(request, pk):
@@ -107,6 +111,7 @@ def update_from_remote_topology(request, pk):
 def send_update(request, pk):
     # TODO move to model?
     ad = AD.objects.get(id=pk)
-    result = monitoring_client.send_update(ad.isd_id, ad.id)
+    result = monitoring_client.send_update(ad.isd_id, ad.id,
+                                           ad.get_monitoring_daemon_host())
     return JsonResponse({'status': result})
 

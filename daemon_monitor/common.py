@@ -15,7 +15,31 @@ def get_monitoring_server(host='localhost'):
     url = 'https://{}:{}/'.format(host, MONITORING_DAEMON_PORT)
     return xmlrpc.client.ServerProxy(url)
 
-# Paths
+
+### Responses for monitoring client/server
+
+def response_success(*data):
+    return [True] + list(data)
+
+
+def get_success_data(response):
+    return response[1]
+
+
+def response_failure(*errors):
+    return [False] + list(errors)
+
+
+def get_failure_errors(response):
+    return response[1]
+
+
+def is_success(response):
+    return response[0]
+
+
+### Paths
+
 SCION_ROOT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 UPDATE_DIR = os.path.join(SCION_ROOT, 'daemon_monitor/.update_files/')
 UPDATE_SCRIPT_PATH = os.path.join(SCION_ROOT, 'daemon_monitor/updater.py')

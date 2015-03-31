@@ -1,7 +1,8 @@
 import base64
 import hashlib
 import xmlrpc.client
-from daemon_monitor.common import get_monitoring_server
+from daemon_monitor.common import get_monitoring_server, response_failure, \
+    response_success, is_success, get_success_data
 
 
 def get_ad_info(isd_id, ad_id, md_host):
@@ -10,14 +11,17 @@ def get_ad_info(isd_id, ad_id, md_host):
         ad_info = s.get_ad_info(isd_id, ad_id)
         return ad_info
     except (ConnectionRefusedError, xmlrpc.client.Error) as ex:
-        return None
+        return response_failure('Query failed', str(ex))
 
 
 def get_topology(isd_id, ad_id, md_host):
     s = get_monitoring_server(md_host)
     try:
-        topo = s.get_topology(isd_id, ad_id)
-        return topo
+        topo_response = s.get_topology(isd_id, ad_id)
+        if is_success(topo_response):
+            return get_success_data(topo_response)
+        else:
+            return None
     except (ConnectionRefusedError, xmlrpc.client.Error) as ex:
         return None
 
@@ -37,6 +41,6 @@ def send_update(isd_id, ad_id, md_host):
     try:
         if not s.send_update(isd_id, ad_id, data_dict):
             return 'CANNOT UPDATE'
-        return 'OK'
+        return response_success('OK')
     except (ConnectionRefusedError, xmlrpc.client.Error) as ex:
-        return None
+        return response_failure()
