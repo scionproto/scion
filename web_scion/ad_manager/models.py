@@ -33,9 +33,10 @@ class AD(models.Model):
     objects = SelectRelatedModelManager('isd')
 
     def get_monitoring_daemon_host(self):
-        monitoring_daemon_host = 'localhost'
+        monitoring_daemon_host = '127.0.0.1'
         beacon_server = self.beaconserverweb_set.first()
-        if beacon_server:
+        # TODO fix check for private addresses
+        if beacon_server and not beacon_server.addr.startswith('127.'):
             monitoring_daemon_host = beacon_server.addr
         return monitoring_daemon_host
 

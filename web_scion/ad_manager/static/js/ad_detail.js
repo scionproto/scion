@@ -32,7 +32,7 @@ function initTopologyCheck() {
 function compareAdTopology(compareUrl) {
     var $alertDiv = $('#topology-info');
     $alertDiv.hide();
-    $alertDiv.removeClass('alert-success alert-danger');
+    $alertDiv.removeClass('alert-success alert-danger alert-warning');
 
     function alert_no_topology() {
         $alertDiv.addClass('alert-warning');
@@ -67,8 +67,9 @@ function compareAdTopology(compareUrl) {
         }
     }).fail(function(a1, a2, a3) {
         alert_no_topology();
+    }).always(function() {
+        $alertDiv.show(500);
     });
-    $alertDiv.show(500);
 }
 
 $(document).ready(function() {

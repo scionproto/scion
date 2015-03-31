@@ -4,6 +4,7 @@
 {% block js %}
   {{ block.super }}
   <script src="https://code.jquery.com/jquery-2.1.3.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js"></script>
   <script src="{% static 'js/ad_detail.js' %}"></script>
 {% endblock %}
 
@@ -15,69 +16,93 @@
     {{ object.is_core_ad }}
     <span class="glyphicon glyphicon-{{ object.is_core_ad|yesno:"ok,remove," }}" aria-hidden="true"></span>
   </h4>
-  <hr />
+  <br />
 
-  <div>
-    <div class="col-md-11"></div>
-    <div class="col-md-1">
-      <button type="button" class="btn btn-info" id="update-ad-btn">Update status</button>
+  <div role="tabpanel">
+
+    <!-- Nav tabs -->
+    <ul class="nav nav-tabs" role="tablist">
+      <li role="presentation" class="active"><a href="#servers" aria-controls="servers" role="tab" data-toggle="tab">Servers</a></li>
+      <li role="presentation"><a href="#topology" aria-controls="topology" role="tab" data-toggle="tab">Topology</a></li>
+      <li role="presentation"><a href="#updates" aria-controls="updates" role="tab" data-toggle="tab">Updates</a></li>
+    </ul>
+
+    <!-- Tab panes -->
+    <div class="tab-content">
+
+      <div role="tabpanel" class="tab-pane active" id="servers">
+        <div>
+          <div class="col-md-10"></div>
+          <div class="col-md-2">
+            <button type="button" class="btn btn-info pull-right" id="update-ad-btn">Update status</button>
+          </div>
+        </div>
+
+        {% with table_name='Beacon servers' servers=beacon_servers table_id='beacon-servers' %}
+          {% include 'ad_manager/server_table.html' %}
+        {% endwith %}
+
+        {% with table_name='Certificate servers' servers=certificate_servers table_id='certificate-servers' %}
+          {% include 'ad_manager/server_table.html' %}
+        {% endwith %}
+
+        {% with table_name='Path servers' servers=path_servers table_id='path-servers' %}
+          {% include 'ad_manager/server_table.html' %}
+        {% endwith %}
+
+        <h4>Routers</h4>
+        <table class="table table-striped">
+          <thead>
+          <tr>
+            <th></th>
+            <th class="col-md-1">Address</th>
+            <th class="col-md-2">Interface in-address</th>
+            <th class="col-md-2">Interface out-address</th>
+            <th class="col-md-2">Neighbor AD</th>
+            <th class="col-md-2">Neighbor type</th>
+            <th class="col-md-1">Status</th>
+          </tr>
+          </thead>
+          <tbody>
+          {% for router in routers %}
+            <tr id="{{ router.id_str }}">
+              <td>Router {{ forloop.counter }}</td>
+              <td>{{ router.addr }}</td>
+              <td>{{ router.interface.addr }}</td>
+              <td>{{ router.interface.to_addr }}</td>
+              <td>{{ router.neighbor_ad }}</td>
+              <td>{{ router.neighbor_type }}</td>
+              <td class="status">hi</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+
+      <div role="tabpanel" class="tab-pane" id="topology">
+        <br />
+        <p>The stored topology might be out of sync with the real topology.</p>
+        <div>
+          <button type="button" class="btn btn-info" id="compare-topology-btn">Check topology</button>
+          <a href="{% url 'update_topology' object.id %}" class="click-confirm">
+            <button type="button" class="btn btn-default" id="update-topology-btn">Update topology</button>
+          </a>
+        </div>
+        <br/>
+        <div id="topology-info" class="alert" role="alert"></div>
+      </div>
+
+      <div role="tabpanel" class="tab-pane" id="updates">
+        <br />
+        Push updates to the server
+      </div>
+
     </div>
   </div>
 
-  {% with table_name='Beacon servers' servers=beacon_servers table_id='beacon-servers' %}
-    {% include 'ad_manager/server_table.html' %}
-  {% endwith %}
 
-  {% with table_name='Certificate servers' servers=certificate_servers table_id='certificate-servers' %}
-    {% include 'ad_manager/server_table.html' %}
-  {% endwith %}
 
-  {% with table_name='Path servers' servers=path_servers table_id='path-servers' %}
-    {% include 'ad_manager/server_table.html' %}
-  {% endwith %}
-
-  <h4>Routers</h4>
-  <table class="table table-striped">
-    <thead>
-    <tr>
-      <th></th>
-      <th class="col-md-1">Address</th>
-      <th class="col-md-2">Interface in-address</th>
-      <th class="col-md-2">Interface out-address</th>
-      <th class="col-md-2">Neighbor AD</th>
-      <th class="col-md-2">Neighbor type</th>
-      <th class="col-md-1">Status</th>
-    </tr>
-    </thead>
-    <tbody>
-    {% for router in routers %}
-      <tr id="{{ router.id_str }}">
-        <td>Router {{ forloop.counter }}</td>
-        <td>{{ router.addr }}</td>
-        <td>{{ router.interface.addr }}</td>
-        <td>{{ router.interface.to_addr }}</td>
-        <td>{{ router.neighbor_ad }}</td>
-        <td>{{ router.neighbor_type }}</td>
-        <td class="status">hi</td>
-      </tr>
-    {% endfor %}
-    </tbody>
-  </table>
-
-  <hr />
-
-  <h1>Topology</h1>
-  <p>The stored topology might be out of sync with the actual topology.</p>
-  <div>
-    <button type="button" class="btn btn-info" id="compare-topology-btn">Check topology</button>
-    <a href="{% url 'update_topology' object.id %}" class="click-confirm">
-      <button type="button" class="btn btn-default" id="update-topology-btn">Update topology</button>
-    </a>
-  </div>
-  <br/>
-  <div id="topology-info" class="alert" role="alert"></div>
-
-  <br/>
   <!-- JS variables -->
   <script>
     var isdAdId = '{{ object }}';
