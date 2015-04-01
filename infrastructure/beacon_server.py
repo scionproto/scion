@@ -34,9 +34,7 @@ from lib.path_store import PathPolicy, PathStoreRecord, PathStore
 from lib.util import (read_file, write_file, get_cert_chain_file_path,
     get_sig_key_file_path, get_trc_file_path, init_logging)
 import base64
-import copy
 import datetime
-import logging
 import os
 import sys
 import threading
@@ -44,6 +42,9 @@ import time
 
 from Crypto import Random
 from Crypto.Hash import SHA256
+
+import copy
+import logging
 
 
 class BeaconServer(SCIONElement):
@@ -620,7 +621,7 @@ class LocalBeaconServer(BeaconServer):
         to_remove = []
         if rev_info.rev_type == RT.DOWN_SEGMENT:
             if not self.down_segments.get_segment(rev_info.seg_id):
-                logging.error("Segment to revoke does not exist.")
+                logging.warning("Segment to revoke does not exist.")
                 return
             info = copy.deepcopy(rev_info)
             info.rev_type = RT.UP_SEGMENT
@@ -710,32 +711,10 @@ class LocalBeaconServer(BeaconServer):
         else:
             logging.warning("Type not supported")
 
-#     def _test_revocation(self):
-#         logging.debug("Revocation test started. Sending revocation in 30s.")
-#         time.sleep(30)
-#         # Test segment revocation
-# #         candidates = self.down_segments.get_candidates()
-# #         rev_pcb = candidates[0].pcb
-# #         chain = self.seg2rev_tokens[rev_pcb.get_hops_hash()]
-# #         assert chain.current_element() == rev_pcb.segment_id
-# #         rev_info = RevocationInfo.from_values(RT.DOWN_SEGMENT,
-# #                                               chain.current_element(),
-# #                                               chain.next_element(),
-# #                                               True, rev_pcb.segment_id)
-#         # Test interface revocation
-#         chain = self.if2rev_tokens[304]
-#         rev_info = RevocationInfo.from_values(RT.INTERFACE,
-#                                               chain.current_element(),
-#                                               chain.next_element())
-#
-#         self._process_revocation(rev_info)
-
     def run(self):
         """
         Run an instance of the Beacon Server.
         """
-#         if self.topology.isd_id == 2 and self.topology.ad_id == 26:
-#             threading.Thread(target=self._test_revocation).start()
         threading.Thread(target=self.handle_pcbs_propagation).start()
         threading.Thread(target=self.register_segments).start()
         SCIONElement.run(self)

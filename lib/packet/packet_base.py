@@ -130,7 +130,7 @@ class PacketBase(object):
         return self.__str__()
 
     def __hash__(self):
-        return hash(self.raw)
+        return hash(self.pack())
 
     def __eq__(self, other):
         if type(other) is type(self):
