@@ -17,6 +17,7 @@
 """
 
 from lib.defines import EXP_TIME_UNIT
+from lib.packet.host_addr import SCIONAddr
 from lib.packet.opaque_field import (SupportSignatureField, HopOpaqueField,
     SupportPCBField, SupportPeerField, TRCField, InfoOpaqueField)
 from lib.packet.path import CorePath
@@ -567,7 +568,7 @@ class PathConstructionBeacon(SCIONPacket):
         beacon = PathConstructionBeacon()
         beacon.pcb = pcb
         src = get_addr_from_type(PacketType.BEACON)
-        beacon.hdr = SCIONHeader.from_values(src, dst, PacketType.DATA)
+        beacon.hdr = SCIONHeader.from_values(src, dst)
         return beacon
 
     def pack(self):

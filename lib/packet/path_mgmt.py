@@ -375,8 +375,7 @@ class PathMgmtPacket(SCIONPacket):
             src_addr = get_addr_from_type(PacketType.PATH_MGMT)
         if dst_addr is None:
             dst_addr = get_addr_from_type(PacketType.PATH_MGMT)
-        pkt.hdr = SCIONHeader.from_values(src_addr, dst_addr,
-                                          PacketType.DATA, path)
+        pkt.hdr = SCIONHeader.from_values(src_addr, dst_addr, path)
         pkt.type = type
         pkt.payload = payload
         return pkt
