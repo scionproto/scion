@@ -1,11 +1,8 @@
 # Copyright 2014 ETH Zurich
-
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-
 # http://www.apache.org/licenses/LICENSE-2.0
-
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -17,6 +14,7 @@
 """
 
 from _collections import deque
+from asyncio.tasks import sleep
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.asymcrypto import sign
 from lib.crypto.certificate import verify_sig_chain_trc, CertificateChain, TRC
@@ -26,7 +24,8 @@ from lib.packet.opaque_field import (OpaqueFieldType as OFT, InfoOpaqueField,
     SupportSignatureField, HopOpaqueField, SupportPCBField, SupportPeerField,
     TRCField)
 from lib.packet.path_mgmt import (PathSegmentInfo, PathSegmentRecords,
-    PathSegmentType as PST, PathMgmtPacket, PathMgmtType as PMT)
+    PathSegmentType as PST, PathMgmtPacket, PathMgmtType as PMT, RevocationInfo,
+    RevocationPayload, RevocationType as RT)
 from lib.packet.pcb import (PathSegment, ADMarking, PCBMarking, PeerMarking,
     PathConstructionBeacon)
 from lib.packet.scion import (SCIONPacket, get_type, PacketType as PT,
@@ -34,16 +33,18 @@ from lib.packet.scion import (SCIONPacket, get_type, PacketType as PT,
 from lib.path_store import PathPolicy, PathStoreRecord, PathStore
 from lib.util import (read_file, write_file, get_cert_chain_file_path,
     get_sig_key_file_path, get_trc_file_path, init_logging)
-from Crypto import Random
-from Crypto.Hash import SHA256
 import base64
-import copy
 import datetime
-import logging
 import os
 import sys
 import threading
 import time
+
+from Crypto import Random
+from Crypto.Hash import SHA256
+
+import copy
+import logging
 
 
 class BeaconServer(SCIONElement):
@@ -195,10 +196,6 @@ class BeaconServer(SCIONElement):
             logging.warning("IFID_REP received, to implement")
         elif ptype == PT.BEACON:
             self.process_pcb(PathConstructionBeacon(packet))
-        elif ptype == PT.CERT_CHAIN_REP:
-            self.process_cert_chain_rep(CertChainReply(packet))
-        elif ptype == PT.TRC_REP:
-            self.process_trc_rep(TRCReply(packet))
         else:
             logging.warning("Type not supported")
 
@@ -309,7 +306,6 @@ class CoreBeaconServer(BeaconServer):
             self.send(pkt, dst.host_addr)
         # Register core path with originating core path server.
         path = pcb.get_path(reverse_direction=True)
-        records = PathSegmentRecords.from_values(info, [pcb])
         # path_rec = PathSegmentRecords.from_values(self.addr, info, [pcb], path)
         pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, path)
         if_id = path.get_first_hop_of().ingress_if
@@ -379,7 +375,7 @@ class LocalBeaconServer(BeaconServer):
         else:
             chain = CertificateChain.from_values([])
         trc_file = get_trc_file_path(self.topology.isd_id, self.topology.ad_id,
-            cert_chain_isd, trc_version)
+                                     cert_chain_isd, trc_version)
         trc = TRC(trc_file)
         data_to_verify = (str(cert_chain_ad).encode('utf-8') +
                           last_pcbm.hof.pack() + last_pcbm.spcbf.pack())
@@ -400,7 +396,7 @@ class LocalBeaconServer(BeaconServer):
         trc_version = pcb.trcf.trc_version
         if self._check_certs_trc(cert_chain_isd, cert_chain_ad,
                                  cert_chain_version,
-            trc_version, pcb.trcf.if_id):
+                                 trc_version, pcb.trcf.if_id):
             if self._verify_beacon(pcb):
                 self.beacons.append(pcb)
                 logging.info("Registered valid beacon.")
@@ -410,8 +406,8 @@ class LocalBeaconServer(BeaconServer):
             logging.debug("Certificate(s) or TRC missing.")
             self.unverified_beacons.append(pcb)
 
-    def _check_certs_trc(self, isd_id, ad_id, cert_chain_version, trc_version,
-        if_id):
+    def _check_certs_trc(self, isd_id, ad_id, cert_chain_version,
+                         trc_version, if_id):
         """
         Return True or False whether the necessary Certificate and TRC files are
         found.
@@ -615,6 +611,77 @@ class LocalBeaconServer(BeaconServer):
             del self.trc_requests[(trc_rep.isd_id, trc_rep.version)]
         self.handle_unverified_beacons()
 
+    def _process_revocation(self, rev_info):
+        """
+        Sends out revocation to the local PS and a CPS and down_stream BS.
+        """
+        assert isinstance(rev_info, RevocationInfo)
+        # Build segment revocations for local path server.
+        rev_infos = []
+        to_remove = []
+        if rev_info.rev_type == RT.DOWN_SEGMENT:
+            if not self.down_segments.get_segment(rev_info.seg_id):
+                logging.warning("Segment to revoke does not exist.")
+                return
+            info = copy.deepcopy(rev_info)
+            info.rev_type = RT.UP_SEGMENT
+            rev_infos.append(info)
+            to_remove.append(rev_info.seg_id)
+        elif rev_info.rev_type == RT.INTERFACE:
+            # Go through all candidates that contain this interface token.
+            for cand in (self.down_segments.candidates +
+                         self.up_segments.candidates):
+                if rev_info.rev_token1 in cand.pcb.get_all_iftokens():
+                    to_remove.append(cand.pcb.segment_id)
+                    if cand in self.up_segments.candidates:
+                        info = RevocationInfo.from_values(RT.UP_SEGMENT,
+                            rev_info.rev_token1, rev_info.proof1,
+                            True, cand.pcb.segment_id)
+                        rev_infos.append(info)
+        elif rev_info.rev_type == RT.HOP:
+            # Go through all candidates that contain both interface tokens.
+            for cand in (self.down_segments.candidates +
+                         self.up_segments.candidates):
+                if (rev_info.rev_token1 in cand.pcb.get_all_iftokens() and
+                    rev_info.rev_token2 in cand.pcb.get_all_iftokens()):
+                    to_remove.append(cand.pcb.segment_id)
+                    if cand in self.up_segments:
+                        info = RevocationInfo.from_values(RT.UP_SEGMENT,
+                            rev_info.rev_token1, rev_info.proof1,
+                            True, cand.pcb.segment_id,
+                            True, rev_info.rev_token2, rev_info.rev_token2)
+                        rev_infos.append(info)
+
+        # Remove the affected segments from the path stores.
+        self.up_segments.remove_segments(to_remove)
+        self.down_segments.remove_segments(to_remove)
+
+        # Send revocations to local PS.
+        if rev_infos:
+            rev_payload = RevocationPayload.from_values(rev_infos)
+            pkt = PathMgmtPacket.from_values(PMT.REVOCATIONS, rev_payload, None,
+                                             self.addr)
+            dst = self.topology.path_servers[0].addr
+            logging.info("Sending segment revocations to local PS.")
+            self.send(pkt, dst)
+
+        # Send revocation to CPS.
+        if not self.up_segments.get_candidates():
+            logging.error("No up path available to send out revocation.")
+            return
+        up_segment = self.up_segments.get_candidates()[0].pcb
+        assert up_segment.segment_id != rev_info.seg_id
+        path = up_segment.get_path(True)
+        path.up_segment_info.up_flag = True
+        rev_payload = RevocationPayload.from_values([rev_info])
+        pkt = PathMgmtPacket.from_values(PMT.REVOCATIONS, rev_payload, path,
+                                         self.addr)
+        (next_hop, port) = self.get_first_hop(pkt)
+        logging.info("Sending revocation to CPS.")
+        self.send(pkt, next_hop, port)
+
+        # TODO: Propagate revocations to downstream BSes.
+
     def handle_unverified_beacons(self):
         """
         Handle beacons which are waiting to be verified.
@@ -622,6 +689,35 @@ class LocalBeaconServer(BeaconServer):
         for _ in range(len(self.unverified_beacons)):
             pcb = self.unverified_beacons.popleft()
             self._try_to_verify_beacon(pcb)
+
+    def handle_request(self, packet, sender, from_local_socket=True):
+        """
+        Main routine to handle incoming SCION packets.
+        """
+        spkt = SCIONPacket(packet)
+        ptype = get_type(spkt)
+        if ptype == PT.IFID_REQ:
+            # TODO
+            logging.warning("IFID_REQ received, to implement")
+        elif ptype == PT.IFID_REP:
+            # TODO
+            logging.warning("IFID_REP received, to implement")
+        elif ptype == PT.BEACON:
+            self.process_pcb(PathConstructionBeacon(packet))
+        elif ptype == PT.CERT_CHAIN_REP:
+            self.process_cert_chain_rep(CertChainReply(packet))
+        elif ptype == PT.TRC_REP:
+            self.process_trc_rep(TRCReply(packet))
+        else:
+            logging.warning("Type not supported")
+
+    def run(self):
+        """
+        Run an instance of the Beacon Server.
+        """
+        threading.Thread(target=self.handle_pcbs_propagation).start()
+        threading.Thread(target=self.register_segments).start()
+        SCIONElement.run(self)
 
 
 def main():

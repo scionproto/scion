@@ -22,11 +22,12 @@ from lib.packet.opaque_field import (SupportSignatureField, HopOpaqueField,
 from lib.packet.path import CorePath
 from lib.packet.scion import (SCIONPacket, get_addr_from_type, PacketType,
     SCIONHeader)
+import base64
+import logging
+
 from Crypto.Hash import SHA256
 from bitstring import BitArray
 import bitstring
-import logging
-import base64
 
 
 class Marking(object):
@@ -487,6 +488,19 @@ class PathSegment(Marking):
         Returns the expiration time of the path segment in real time.
         """
         return (self.iof.timestamp + int(self.min_exp_time * EXP_TIME_UNIT))
+
+    def get_all_iftokens(self):
+        """
+        Returns all interface revocation tokens included in the path segment.
+        """
+        tokens = []
+        for ad in self.ads:
+            tokens.append(ad.pcbm.ig_rev_token)
+            tokens.append(ad.pcbm.eg_rev_token)
+            for pm in ad.pms:
+                tokens.append(pm.ig_rev_token)
+                tokens.append(pm.eg_rev_token)
+        return tokens
 
     @staticmethod
     def deserialize(raw):

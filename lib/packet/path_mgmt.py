@@ -57,9 +57,11 @@ class RevocationType(object):
     """
     Enum of revocation types.
     """
-    SEGMENT = 0
-    INTERFACE = 1
-    HOP = 2
+    UP_SEGMENT = 0
+    DOWN_SEGMENT = 1
+    CORE_SEGMENT = 2
+    INTERFACE = 3
+    HOP = 4
 
 
 class PathSegmentInfo(PayloadBase):
@@ -153,13 +155,69 @@ class PathSegmentRecords(PayloadBase):
         return rec
 
 
+class LeaseInfo(PayloadBase):
+    """
+    Class containing necessary information for a path-segment lease.
+    """
+    LEN = 1 + 2 + 2 + 4 + 32
+    def __init__(self, raw=None):
+        PayloadBase.__init__(self)
+        self.seg_type = PathSegmentType.DOWN
+        self.isd_id = 0
+        self.ad_id = 0
+        self.exp_time = 0
+        self.seg_id = b""
+
+        if raw is not None:
+            self.parse(raw)
+
+    def parse(self, raw):
+        PayloadBase.parse(self, raw)
+        if len(raw) < LeaseInfo.LEN:
+            logging.error("Not enough data to parse LeaseInfo")
+            return
+        (self.seg_type, self.isd_id, self.ad_id, self.exp_time,
+         self.seg_id) = struct.unpack("!BHHL32s", raw)
+
+    def pack(self):
+        return struct.pack("!BHHL32s", self.seg_type, self.isd_id, self.ad_id,
+                           self.exp_time, self.seg_id)
+
+    @classmethod
+    def from_values(cls, seg_type, isd_id, ad_id, exp_time, seg_id):
+        """
+        Returns a LeaseInfo object with the specified values.
+
+        :param seg_type: type of the segment (down or core)
+        :type int
+        :param isd_id, ad_id: leasers isd and ad IDs
+        :type int
+        :param exp_time: expiration for the lease
+        :type int
+        :param seg_id: segment ID
+        :type bytes
+        """
+        info = LeaseInfo()
+        info.seg_type = seg_type
+        info.isd_id = isd_id
+        info.ad_id = ad_id
+        info.exp_time = exp_time
+        info.seg_id = seg_id
+
+        return info
+
+    def __str__(self):
+        return ("leaser: (%d, %d) seg_type: %d expires: %d ID:%s" %
+                self.isd_id, self.ad_id, self.seg_type, self.exp_time,
+                self.seg_id)
+
+
 class PathSegmentLeases(PayloadBase):
     """
     PathSegment leases used to notify an authoritative path server about the
     caching of path-segments. A lease contains a timestamp and the segment id
     of the path segment being cached.
     """
-    LEASE_LEN = 4 + 32
 
     def __init__(self, raw=None):
         PayloadBase.__init__(self)
@@ -174,15 +232,12 @@ class PathSegmentLeases(PayloadBase):
         self.nleases = struct.unpack("!B", raw[0:1])[0]
         offset = 1
         for _ in range(self.nleases):
-            (ts, seg_id) = struct.unpack("!L32s", raw[offset:offset +
-                PathSegmentLeases.LEASE_LEN])
-            self.leases.append((ts, seg_id))
-            offset += PathSegmentLeases.LEASE_LEN
+            self.leases.append(LeaseInfo(raw[offset:offset + LeaseInfo.LEN]))
+            offset += LeaseInfo.LEN
 
     def pack(self):
         data = struct.pack("!B", self.nleases)
-        for (ts, seg_id) in self.leases:
-            data += struct.pack("!L32s", ts, seg_id)
+        data += b"".join([linfo.pack() for linfo in self.leases])
 
         return data
 
@@ -193,7 +248,7 @@ class PathSegmentLeases(PayloadBase):
 
         :param nleases: number of leases this packet contains
         :type int
-        :param leases: list of leases as tuples (timestamp, segment id)
+        :param leases: list of leases as tuples (isd, ad, timestamp, segment id)
         :type list
         """
         assert nleases == len(leases)
@@ -203,6 +258,12 @@ class PathSegmentLeases(PayloadBase):
 
         return pkt
 
+    def __str__(self):
+        s = "[PathSegmentLeases: N = %d]\n" % self.nleases
+        for (isd, ad, ts, seg_id) in self.leases:
+            s += "leaser: (%d, %d) expires: %d ID:%s\n" % (isd, ad, ts, seg_id)
+        return s
+
 
 class RevocationInfo(PayloadBase):
     """
@@ -211,11 +272,14 @@ class RevocationInfo(PayloadBase):
     Hop revocation needs a pair of revocation tokens and proofs.
     """
     MIN_LEN = 1 + 2 * 32
-    MAX_LEN = MIN_LEN + 32
+    MAX_LEN = 1 + 5 * 32
 
     def __init__(self, raw=None):
         PayloadBase.__init__(self)
-        self.rev_type = 0
+        self.rev_type = RevocationType.DOWN_SEGMENT
+        self.incl_seg_id = False
+        self.incl_hop = False
+        self.seg_id = b""
         self.rev_token1 = b""
         self.proof1 = b""
         self.rev_token2 = b""
@@ -229,26 +293,38 @@ class RevocationInfo(PayloadBase):
             logging.error("Not enough data to parse RevocationInfo")
             return
 
-        (self.rev_type, self.rev_token1, self.proof1) = \
-            struct.unpack("!B32s32s", raw[:RevocationInfo.MIN_LEN])
-        if self.rev_type == RevocationType.HOP:
-            assert len(raw) == RevocationInfo.MAX_LEN
-            (self.rev_token2, self.proof2) = struct.unpack("!32s32s", raw[65:])
-            self.raw = raw[:]
-        else:
-            self.raw = raw[:RevocationInfo.MIN_LEN]
+        flags = struct.unpack("!B", raw[0:1])[0]
+        self.rev_type = flags & 0x7
+        self.incl_seg_id = (flags >> 3) & 0x1
+        self.incl_hop = (flags >> 4) & 0x1
+        offset = 1
+        if self.incl_seg_id:
+            self.seg_id = struct.unpack("!32s", raw[offset:offset + 32])[0]
+            offset += 32
+        (self.rev_token1, self.proof1) = struct.unpack("!32s32s",
+                                                       raw[offset:offset + 64])
+        offset += 64
+        if self.incl_hop:
+            (self.rev_token2, self.proof2) = \
+                struct.unpack("!32s32s", raw[offset:offset + 64])
+            offset += 64
+        self.raw = raw[:offset]
+        self.parsed = True
 
     def pack(self):
-        data = struct.pack("!B32s32s", self.rev_type, self.rev_token1,
-                           self.proof1)
-        if self.rev_type == RevocationType.HOP:
+        flags = (self.incl_hop << 4) | (self.incl_seg_id << 3) | self.rev_type
+        data = struct.pack("!B", flags)
+        if self.incl_seg_id:
+            data += struct.pack("!32s", self.seg_id)
+        data += struct.pack("!32s32s", self.rev_token1, self.proof1)
+        if self.incl_hop:
             data += struct.pack("!32s32s", self.rev_token2, self.proof2)
 
         return data
 
     @classmethod
-    def from_values(cls, rev_type, rev_token1, proof1,
-                    rev_token2=b"", proof2=b""):
+    def from_values(cls, rev_type, rev_token1, proof1, incl_seg_id=False,
+                    seg_id=b"", incl_hop=False, rev_token2=b"", proof2=b""):
         """
         Returns a RevocationInfo object with the specified values.
 
@@ -258,6 +334,11 @@ class RevocationInfo(PayloadBase):
         :type bytes
         :param proof1: proof for rev_token1
         :type bytes
+        :param incl_seg_id: True if packet includes a segment id
+        :type Bool
+        :param seg_id: segment ID of the revoked segment
+        :type bytes
+        :param incl_hop: True if packet includes a hop revocation token
         :param rev_token2: revocation token for egress if (only for hop rev)
         :type bytes
         :param proof2: proof for rev_token2
@@ -267,15 +348,21 @@ class RevocationInfo(PayloadBase):
         info.rev_type = rev_type
         info.rev_token1 = rev_token1
         info.proof1 = proof1
+        info.incl_seg_id = incl_seg_id
+        info.seg_id = seg_id
+        info.incl_hop = incl_hop
         info.rev_token2 = rev_token2
         info.proof2 = proof2
 
         return info
 
     def __str__(self):
-        s = "[Revocation type: %d\n" % (self.rev_type)
+        s = ("[Revocation type: %d, incl_seg_id: %d, incl_hop: %d]\n" %
+             (self.rev_type, self.incl_seg_id, self.incl_hop))
+        if self.incl_seg_id:
+            s += "SegmentID: %s\n" % (self.seg_id)
         s += "Token1: %s\nProof1: %s\n" % (self.rev_token1, self.proof1)
-        if self.rev_type == RevocationType.HOP:
+        if self.incl_hop:
             s += "Token2: %s\nProof2: %s" % (self.rev_token2, self.proof2)
         return s
 
@@ -292,15 +379,16 @@ class RevocationPayload(PayloadBase):
             self.parse(raw)
 
     def parse(self, raw):
+        PayloadBase.parse(self, raw)
         dlen = len(raw)
         offset = 0
         while offset < dlen:
             info = RevocationInfo(raw[offset:offset + RevocationInfo.MAX_LEN])
+            if not info.parsed:
+                logging.error("RevocationPayload couldn't be parsed.")
+                return
             self.rev_infos.append(info)
-            if info.rev_type == RevocationType.HOP:
-                offset += RevocationInfo.MAX_LEN
-            else:
-                offset += RevocationInfo.MIN_LEN
+            offset += len(info)
 
     def pack(self):
         return b"".join([info.pack() for info in self.rev_infos])
@@ -317,6 +405,13 @@ class RevocationPayload(PayloadBase):
         payload.rev_infos = rev_infos
 
         return payload
+
+    def add_rev_info(self, info):
+        """
+        Adds a revocation info to the list.
+        """
+        assert isinstance(info, RevocationInfo)
+        self.rev_infos.append(info)
 
     def __str__(self):
         return "".join([str(info) + "\n" for info in self.rev_infos])
@@ -380,3 +475,7 @@ class PathMgmtPacket(SCIONPacket):
         pkt.type = type
         pkt.payload = payload
         return pkt
+
+    def __str__(self):
+        return (("[PathMgmtPacket type: %d]\n" % self.type) + str(self.hdr) +
+                "\n" + str(self.payload))
