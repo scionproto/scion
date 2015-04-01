@@ -299,8 +299,16 @@ def write_topo_files(AD_configs, er_ip_addresses):
              open(run_file, 'a') as run_fh,\
              open(supervisor_file, 'a') as supervisor_fh:
             scripts_dir_rel = os.path.join("..", SCRIPTS_DIR)
-            # Create per-AD screen session.
+            # Create per-AD screen session, and cleanup any existing one
+            run_fh.write('screen -S %s -X quit >/dev/null\n' % isd_ad_id)
             run_fh.write('screen -d -m -S %s\n' % isd_ad_id)
+            # Make sure the screen session is up before continuing
+            run_fh.write('for i in `seq 10`; do\n'
+                         '  screen -q -ls %s\n'
+                         '  [ $? -gt 9 ] && break\n'
+                         '  echo -n .\n'
+                         '  sleep 1 || { echo "Can\'t find screen session"; exit 1; }\n'
+                         'done\n' % isd_ad_id)
             # Write Beacon Servers
             ip_address = '.'.join([first_byte, isd_id, ad_id, BS_RANGE])
             supervisor_common = ['autostart=false\n', 'redirect_stderr=True\n',
