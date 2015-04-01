@@ -296,6 +296,8 @@ def write_topo_files(AD_configs, er_ip_addresses):
         with open(setup_file, 'a') as setup_fh,\
              open(run_file, 'a') as run_fh,\
              open(supervisor_file, 'a') as supervisor_fh:
+            # Create per-AD screen session.
+            run_fh.write('screen -d -m -S %s\n' % isd_ad_id)
             # Write Beacon Servers
             ip_address = '.'.join([first_byte, isd_id, ad_id, BS_RANGE])
             supervisor_common = ['autostart=false\n', 'redirect_stderr=True\n',
@@ -308,10 +310,10 @@ def write_topo_files(AD_configs, er_ip_addresses):
                     ' dev lo\n')
                 log_file = '../logs/bs-%s-%s-%s.log' % (isd_id, ad_id,
                                                         str(b_server))
-                log = ' >> %s 2>&1' % (log_file,)
+                log = ' 2>&1 | tee %s' % (log_file,)
                 bs_name = ''.join(['bs', isd_id, '-', ad_id, '-',
                                    str(b_server)])
-                run_fh.write(''.join(['screen -d -m -S ', bs_name,
+                run_fh.write(''.join(['screen -S ', isd_ad_id, ' -X screen -t ', bs_name,
                     ' sh -c \"', 'PYTHONPATH=../ python3 beacon_server.py ',
                     ('core ' if is_core else 'local '), ip_address, ' ..',
                      SCRIPTS_DIR, topo_file, ' ..', SCRIPTS_DIR, conf_file,
@@ -334,11 +336,11 @@ def write_topo_files(AD_configs, er_ip_addresses):
                     ' dev lo\n')
                 log_file = '../logs/cs-%s-%s-%s.log' % (isd_id, ad_id,
                                                         str(c_server))
-                log = ' >> %s 2>&1' % (log_file,)
+                log = ' 2>&1 | tee %s' % (log_file,)
                 cs_name = ''.join(['cs', isd_id, '-', ad_id, '-',
                                    str(c_server)])
-                run_fh.write(''.join(['screen -d -m -S ', cs_name, ' sh -c \"',
-                    "PYTHONPATH=../ python3 cert_server.py ", ip_address, ' ..',
+                run_fh.write(''.join(['screen -S ', isd_ad_id, ' -X screen -t ', cs_name,
+                    ' sh -c \"', "PYTHONPATH=../ python3 cert_server.py ", ip_address, ' ..',
                     SCRIPTS_DIR, topo_file, ' ..', SCRIPTS_DIR, conf_file,
                     ' ..', SCRIPTS_DIR, trc_file, log, '\"\n']))
                 supervisor_fh.write(''.join(['[program:', cs_name, ']\n',
@@ -360,10 +362,10 @@ def write_topo_files(AD_configs, er_ip_addresses):
                         ' dev lo\n')
                     log_file = '../logs/ps-%s-%s-%s.log' % (isd_id, ad_id,
                                                             str(p_server))
-                    log = ' >> %s 2>&1' % (log_file,)
+                    log = ' 2>&1 | tee %s' % (log_file,)
                     ps_name = ''.join(['ps', isd_id, '-', ad_id, '-',
                                        str(p_server)])
-                    run_fh.write(''.join(['screen -d -m -S ', ps_name,
+                    run_fh.write(''.join(['screen -S ', isd_ad_id, ' -X screen -t ', ps_name,
                         ' sh -c \"', 'PYTHONPATH=../ python3 path_server.py ',
                         ('core ' if is_core else 'local '), ip_address, ' ..',
                          SCRIPTS_DIR, topo_file, ' ..', SCRIPTS_DIR, conf_file,
@@ -403,10 +405,10 @@ def write_topo_files(AD_configs, er_ip_addresses):
                 log_file = '../logs/er-%s-%s-%s-%s.log' % (isd_id, ad_id,
                                                            nbr_isd_id,
                                                            nbr_ad_id)
-                log = ' >> %s 2>&1' % (log_file,)
+                log = ' 2>&1 | tee %s' % (log_file,)
                 router_name = ''.join(['er', isd_id, '-', ad_id, 'er',
                                        nbr_isd_id, '-', nbr_ad_id])
-                run_fh.write(''.join(['screen -d -m -S ', router_name,
+                run_fh.write(''.join(['screen -S ', isd_ad_id, ' -X screen -t ', router_name,
                     ' sh -c \"', 'PYTHONPATH=../ python3 router.py ',
                     ip_address_loc, ' ..', SCRIPTS_DIR, topo_file, ' ..',
                     SCRIPTS_DIR, conf_file, log, '\"\n']))
