@@ -85,13 +85,32 @@ class BeaconServer(SCIONElement):
         self._init_zookeeper()
 
     def _init_zookeeper(self):
-        self._zk = KazooClient(hosts='127.0.0.1:2181')  # TODO: def in topo?
+        """
+        Setup the connection to the local zookeeper instance
+        """
+        # Use a chroot, to allow testing of multiple ADs on one zookeeper instance
+        zk_chroot = "%d-%d" % (self.topology.isd_id, self.topology.ad_id)
+        self._zk = KazooClient(hosts='127.0.0.1:2181/%s' % zk_chroot)  # TODO: def in topo?
         #TODO add listeners for connection failures
+        # Stop kazoo from drowning the log with debug spam
+        self._zk.logger.setLevel(logging.INFO)
         self._zk.start()
-        self._zk_sid = "bs-%d-%d" % (self.topology.isd_id, self.topology.ad_id)
-        self._zk_id = "%s" % self.addr
-        self._zk_propagation_lock = self._zk.Lock("/%s" % self._zk_sid,
-                                                  self._zk_id)
+        zk_sid = "bs-%d-%d" % (self.topology.isd_id, self.topology.ad_id)
+        zk_id = "%s" % self.addr
+        # Where to store the incoming PCBs in zookeeper
+        self._zk_pcbs_path = "/%s/pcbs" % zk_sid
+        self._zk.ensure_path(self._zk_pcbs_path)
+        # Used for notify the local zk_process_pcbs thread
+        self._pcb_semaphore = threading.Semaphore(value=0)
+        # Incremented everytime a new PCB is added, used to notify all BSes
+        self._zk_pcb_counter_path = "/%s/pcb_counter" % zk_sid
+        self._zk_pcb_counter = self._zk.Counter(self._zk_pcb_counter_path)
+        # Lock for operating on the pcb queue
+        self._zk_pcb_lock = self._zk.Lock("/%s/pcb_lock" % zk_sid, zk_id)
+        # Where to store PCBs that need registration
+        reg_queue_path = "/%s/reg_queue" % zk_sid
+        self._zk.ensure_path(reg_queue_path)
+        self._zk_reg_queue = self._zk.LockingQueue(reg_queue_path)
 
     def _get_if_rev_token(self, if_id):
         """
@@ -148,12 +167,11 @@ class BeaconServer(SCIONElement):
         """
         # TODO: define function that dispaches the pcbs among the interfaces
         while True:
-            with self._zk_propagation_lock:
-                while self.beacons:
-                    pcb = self.beacons.popleft()
-                    self.propagate_downstream_pcb(pcb)
-                    self.reg_queue.append(pcb)
-                time.sleep(self.config.propagation_time)
+            while self.beacons:
+                pcb = self.beacons.popleft()
+                self.propagate_downstream_pcb(pcb)
+                self.reg_queue.append(pcb)
+            time.sleep(self.config.propagation_time)
 
     def process_pcb(self, beacon):
         """
@@ -370,6 +388,9 @@ class LocalBeaconServer(BeaconServer):
             self.config.cert_chain_version)
         self.cert_chain = CertificateChain(cert_chain_file)
 
+        # Everytime a PCB is added, call _zk_pcbs_watch
+        self._zk.DataWatch(self._zk_pcb_counter_path, self._zk_pcbs_watch)
+
     def _verify_beacon(self, pcb):
         """
         Once the necessary certificate and TRC files have been found, verify the
@@ -399,6 +420,37 @@ class LocalBeaconServer(BeaconServer):
         return verify_sig_chain_trc(data_to_verify, pcb.ads[-1].sig, subject,
                                     chain, trc, trc_version)
 
+    def _zk_pcbs_watch(self, data, stat):
+        """
+        Send notification to process the PCB queue
+        """
+        # Notify the local zk_process_pcbs thread to reprocess the pcb queue
+        self._pcb_semaphore.release()
+        # To prevent the watch from being disabled.
+        return True
+
+    def zk_process_pcbs(self):
+        """
+        Thread to process PSBs from the zookeeper queue
+        """
+        while True:
+            # Block until there are pcbs to be processed
+            self._pcb_semaphore.acquire()
+            logging.debug("zk_process_pcbs() semaphore acquired")
+            # Acquire lock
+            with self._zk_pcb_lock:
+                logging.debug("zk_process_pcbs() got lock")
+                entries = self._zk.get_children(self._zk_pcbs_path)
+                logging.debug("zk_process_pcbs() processing %d entries" % len(entries))
+                for entry in entries:
+                    raw,_ = self._zk.get("%s/%s" % (self._zk_pcbs_path, entry))
+                    pcb = PathSegment(raw=raw)
+                    # If the pcb is verified or invalid, remove from the pcb list
+                    # Otherwise it is unverified, and stays in the list for later
+                    # verification attempts.
+                    if self._try_to_verify_beacon(pcb) in ("verified", "invalid"):
+                        self._zk.delete("%s/%s" % (self._zk_pcbs_path, entry))
+
     def _try_to_verify_beacon(self, pcb):
         """
         Try to verify a beacon.
@@ -415,11 +467,13 @@ class LocalBeaconServer(BeaconServer):
             if self._verify_beacon(pcb):
                 self.beacons.append(pcb)
                 logging.info("Registered valid beacon.")
+                return "verified"
             else:
                 logging.info("Invalid beacon.")
+                return "invalid"
         else:
             logging.debug("Certificate(s) or TRC missing.")
-            self.unverified_beacons.append(pcb)
+            return "unverified"
 
     def _check_certs_trc(self, isd_id, ad_id, cert_chain_version,
                          trc_version, if_id):
@@ -592,7 +646,10 @@ class LocalBeaconServer(BeaconServer):
         assert isinstance(beacon, PathConstructionBeacon)
         logging.info("PCB received")
         if self._check_filters(beacon.pcb):
-            self._try_to_verify_beacon(beacon.pcb)
+            # Add PCB to the zookeeper queue
+            self._zk.create(self._zk_pcbs_path + "/pcb", beacon.pcb.pack(), sequence=True)
+            # Increment the counter, to notify all BSes of the new PCB
+            self._zk_pcb_counter += 1
 
     def process_cert_chain_rep(self, cert_chain_rep):
         """
@@ -610,7 +667,8 @@ class LocalBeaconServer(BeaconServer):
             cert_chain_rep.version) in self.cert_chain_requests:
             del self.cert_chain_requests[(cert_chain_rep.isd_id,
                 cert_chain_rep.ad_id, cert_chain_rep.version)]
-        self.handle_unverified_beacons()
+        # Notify the local zk_process_pcbs thread to reprocess the pcb queue
+        self._pcb_semaphore.release()
 
     def process_trc_rep(self, trc_rep):
         """
@@ -624,7 +682,8 @@ class LocalBeaconServer(BeaconServer):
         self.trcs[(trc_rep.isd_id, trc_rep.version)] = TRC(trc_file)
         if (trc_rep.isd_id, trc_rep.version) in self.trc_requests:
             del self.trc_requests[(trc_rep.isd_id, trc_rep.version)]
-        self.handle_unverified_beacons()
+        # Notify the local zk_process_pcbs thread to reprocess the pcb queue
+        self._pcb_semaphore.release()
 
     def _process_revocation(self, rev_info):
         """
@@ -697,14 +756,6 @@ class LocalBeaconServer(BeaconServer):
 
         # TODO: Propagate revocations to downstream BSes.
 
-    def handle_unverified_beacons(self):
-        """
-        Handle beacons which are waiting to be verified.
-        """
-        for _ in range(len(self.unverified_beacons)):
-            pcb = self.unverified_beacons.popleft()
-            self._try_to_verify_beacon(pcb)
-
     def handle_request(self, packet, sender, from_local_socket=True):
         """
         Main routine to handle incoming SCION packets.
@@ -730,6 +781,7 @@ class LocalBeaconServer(BeaconServer):
         """
         Run an instance of the Beacon Server.
         """
+        threading.Thread(target=self.zk_process_pcbs).start()
         threading.Thread(target=self.handle_pcbs_propagation).start()
         threading.Thread(target=self.register_segments).start()
         SCIONElement.run(self)
