@@ -39,16 +39,16 @@ import sys
 DEFAULT_ADCONFIGURATIONS_FILE = 'ADConfigurations.json'
 DEFAULT_PATH_POLICY_FILE = 'PathPolicy.json'
 
-SCRIPTS_DIR = '/topology/'
-CERT_DIR = '/certificates/'
-CONF_DIR = '/configurations/'
-TOPO_DIR = '/topologies/'
-SIG_KEYS_DIR = '/signature_keys/'
-ENC_KEYS_DIR = '/encryption_keys/'
-SETUP_DIR = '/setup/'
-RUN_DIR = '/run/'
-PATH_POL_DIR = '/path_policies/'
-SUPERVISOR_DIR = '/supervisor/'
+SCRIPTS_DIR = 'topology'
+CERT_DIR = 'certificates'
+CONF_DIR = 'configurations'
+TOPO_DIR = 'topologies'
+SIG_KEYS_DIR = 'signature_keys'
+ENC_KEYS_DIR = 'encryption_keys'
+SETUP_DIR = 'setup'
+RUN_DIR = 'run'
+PATH_POL_DIR = 'path_policies'
+SUPERVISOR_DIR = 'supervisor'
 
 CORE_AD = 'CORE'
 INTERMEDIATE_AD = 'INTERMEDIATE'
@@ -146,15 +146,15 @@ def create_directories(AD_configs):
     """
     for isd_ad_id in AD_configs:
         (isd_id, ad_id) = isd_ad_id.split('-')
-        cert_path = 'ISD' + isd_id + CERT_DIR + 'AD' + ad_id
-        conf_path = 'ISD' + isd_id + CONF_DIR
-        topo_path = 'ISD' + isd_id + TOPO_DIR
-        sig_keys_path = 'ISD' + isd_id + SIG_KEYS_DIR
-        enc_keys_path = 'ISD' + isd_id + ENC_KEYS_DIR
-        setup_path = 'ISD' + isd_id + SETUP_DIR
-        run_path = 'ISD' + isd_id + RUN_DIR
-        path_pol_path = 'ISD' + isd_id + PATH_POL_DIR
-        supervisor_path = 'ISD' + isd_id + SUPERVISOR_DIR
+        cert_path = os.path.join('ISD' + isd_id, CERT_DIR, 'AD' + ad_id)
+        conf_path = os.path.join('ISD' + isd_id, CONF_DIR)
+        topo_path = os.path.join('ISD' + isd_id, TOPO_DIR)
+        sig_keys_path = os.path.join('ISD' + isd_id, SIG_KEYS_DIR)
+        enc_keys_path = os.path.join('ISD' + isd_id, ENC_KEYS_DIR)
+        setup_path = os.path.join('ISD' + isd_id, SETUP_DIR)
+        run_path = os.path.join('ISD' + isd_id, RUN_DIR)
+        path_pol_path = os.path.join('ISD' + isd_id, PATH_POL_DIR)
+        supervisor_path = os.path.join('ISD' + isd_id, SUPERVISOR_DIR)
         if not os.path.exists(cert_path):
             os.makedirs(cert_path)
         if not os.path.exists(conf_path):
@@ -239,8 +239,8 @@ def write_beginning_setup_run_files(AD_configs):
     for isd_ad_id in AD_configs:
         (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
         file_name = 'ISD:' + isd_id + '-AD:' + ad_id
-        setup_file = 'ISD' + isd_id + SETUP_DIR + file_name + '.sh'
-        run_file = 'ISD' + isd_id + RUN_DIR + file_name + '.sh'
+        setup_file = os.path.join('ISD' + isd_id, SETUP_DIR, file_name + '.sh')
+        run_file = os.path.join('ISD' + isd_id, RUN_DIR, file_name + '.sh')
         write_file(setup_file, '#!/bin/bash\n\n')
         write_file(run_file, '#!/bin/bash\n\n')
 
@@ -258,13 +258,15 @@ def write_topo_files(AD_configs, er_ip_addresses):
     for isd_ad_id in AD_configs:
         (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
         file_name = 'ISD:' + isd_id + '-AD:' + ad_id
-        setup_file = 'ISD' + isd_id + SETUP_DIR + file_name + '.sh'
-        run_file = 'ISD' + isd_id + RUN_DIR + file_name + '.sh'
-        conf_file = 'ISD' + isd_id + CONF_DIR + file_name + '.conf'
-        topo_file = 'ISD' + isd_id + TOPO_DIR + file_name + '.json'
+        setup_file = os.path.join('ISD' + isd_id, SETUP_DIR, file_name + '.sh')
+        run_file = os.path.join('ISD' + isd_id, RUN_DIR, file_name + '.sh')
+        supervisor_file = os.path.join('ISD' + isd_id, SUPERVISOR_DIR, file_name + '.conf')
+        topo_file = os.path.join('ISD' + isd_id, TOPO_DIR, file_name + '.json')
+        topo_file_rel = os.path.join("..", SCRIPTS_DIR, topo_file)
+        conf_file_rel = os.path.join("..", SCRIPTS_DIR, 'ISD' + isd_id, CONF_DIR, file_name + '.conf')
         trc_file = get_trc_file_path(isd_id, ad_id, isd_id, INITIAL_TRC_VERSION)
-        path_pol_file = 'ISD' + isd_id + PATH_POL_DIR + file_name + '.json'
-        supervisor_file = 'ISD' + isd_id + SUPERVISOR_DIR + file_name + '.conf'
+        trc_file_rel = os.path.join("..", SCRIPTS_DIR, trc_file)
+        path_pol_file_rel = os.path.join("..", SCRIPTS_DIR, 'ISD' + isd_id, PATH_POL_DIR, file_name + '.json')
         is_core = (AD_configs[isd_ad_id]['level'] == CORE_AD)
         if "subnet" in AD_configs[isd_ad_id]:
             first_byte = AD_configs[isd_ad_id]["subnet"].split('.')[0]
@@ -296,6 +298,17 @@ def write_topo_files(AD_configs, er_ip_addresses):
         with open(setup_file, 'a') as setup_fh,\
              open(run_file, 'a') as run_fh,\
              open(supervisor_file, 'a') as supervisor_fh:
+            scripts_dir_rel = os.path.join("..", SCRIPTS_DIR)
+            # Create per-AD screen session, and cleanup any existing one
+            run_fh.write('screen -S %s -X quit >/dev/null\n' % isd_ad_id)
+            run_fh.write('screen -d -m -S %s\n' % isd_ad_id)
+            # Make sure the screen session is up before continuing
+            run_fh.write('for i in `seq 10`; do\n'
+                         '  screen -q -ls %s\n'
+                         '  [ $? -gt 9 ] && break\n'
+                         '  echo -n .\n'
+                         '  sleep 1 || { echo "Can\'t find screen session"; exit 1; }\n'
+                         'done\n' % isd_ad_id)
             # Write Beacon Servers
             ip_address = '.'.join([first_byte, isd_id, ad_id, BS_RANGE])
             supervisor_common = ['autostart=false\n', 'redirect_stderr=True\n',
@@ -308,19 +321,17 @@ def write_topo_files(AD_configs, er_ip_addresses):
                     ' dev lo\n')
                 log_file = '../logs/bs-%s-%s-%s.log' % (isd_id, ad_id,
                                                         str(b_server))
-                log = ' >> %s 2>&1' % (log_file,)
                 bs_name = ''.join(['bs', isd_id, '-', ad_id, '-',
                                    str(b_server)])
-                run_fh.write(''.join(['screen -d -m -S ', bs_name,
-                    ' sh -c \"', 'PYTHONPATH=../ python3 beacon_server.py ',
-                    ('core ' if is_core else 'local '), ip_address, ' ..',
-                     SCRIPTS_DIR, topo_file, ' ..', SCRIPTS_DIR, conf_file,
-                     ' ..', SCRIPTS_DIR, path_pol_file, log, '\"\n']))
+                run_fh.write(_generate_screen_cmd(
+                    isd_ad_id, bs_name, log_file,
+                    "beacon_server.py",
+                    ('core' if is_core else 'local'), ip_address,
+                    topo_file_rel, conf_file_rel, path_pol_file_rel))
                 supervisor_fh.write(''.join(['[program:', bs_name, ']\n',
                     'command=/usr/bin/python3 beacon_server.py ',
-                    ('core ' if is_core else 'local '), ip_address, ' ..',
-                    SCRIPTS_DIR, topo_file, ' ..', SCRIPTS_DIR, conf_file,
-                    ' ..', SCRIPTS_DIR, path_pol_file, '\n',
+                    ('core ' if is_core else 'local '), ip_address,
+                    " ", topo_file_rel, " ", conf_file_rel, " ", path_pol_file_rel, "\n",
                     'stdout_logfile=', log_file, '\n']
                     + supervisor_common + ['\n\n']))
                 group_programs.append(bs_name)
@@ -334,17 +345,14 @@ def write_topo_files(AD_configs, er_ip_addresses):
                     ' dev lo\n')
                 log_file = '../logs/cs-%s-%s-%s.log' % (isd_id, ad_id,
                                                         str(c_server))
-                log = ' >> %s 2>&1' % (log_file,)
                 cs_name = ''.join(['cs', isd_id, '-', ad_id, '-',
                                    str(c_server)])
-                run_fh.write(''.join(['screen -d -m -S ', cs_name, ' sh -c \"',
-                    "PYTHONPATH=../ python3 cert_server.py ", ip_address, ' ..',
-                    SCRIPTS_DIR, topo_file, ' ..', SCRIPTS_DIR, conf_file,
-                    ' ..', SCRIPTS_DIR, trc_file, log, '\"\n']))
+                run_fh.write(_generate_screen_cmd(
+                    isd_ad_id, cs_name, log_file, "cert_server.py", ip_address,
+                    topo_file_rel, conf_file_rel, trc_file_rel))
                 supervisor_fh.write(''.join(['[program:', cs_name, ']\n',
                     'command=/usr/bin/python3 cert_server.py ', ip_address,
-                    ' ..', SCRIPTS_DIR, topo_file, ' ..', SCRIPTS_DIR,
-                    conf_file, ' ..', SCRIPTS_DIR, trc_file, '\n',
+                    ' ', topo_file_rel, ' ', conf_file_rel, ' ', trc_file_rel, '\n',
                     'stdout_logfile=', log_file, '\n']
                     + supervisor_common + ['\n\n']))
                 group_programs.append(cs_name)
@@ -360,19 +368,17 @@ def write_topo_files(AD_configs, er_ip_addresses):
                         ' dev lo\n')
                     log_file = '../logs/ps-%s-%s-%s.log' % (isd_id, ad_id,
                                                             str(p_server))
-                    log = ' >> %s 2>&1' % (log_file,)
                     ps_name = ''.join(['ps', isd_id, '-', ad_id, '-',
                                        str(p_server)])
-                    run_fh.write(''.join(['screen -d -m -S ', ps_name,
-                        ' sh -c \"', 'PYTHONPATH=../ python3 path_server.py ',
-                        ('core ' if is_core else 'local '), ip_address, ' ..',
-                         SCRIPTS_DIR, topo_file, ' ..', SCRIPTS_DIR, conf_file,
-                         log, '\"\n']))
+                    run_fh.write(_generate_screen_cmd(
+                        isd_ad_id, ps_name, log_file, "path_server.py",
+                        ('core' if is_core else 'local'), ip_address,
+                        topo_file_rel, conf_file_rel))
                     supervisor_fh.write(''.join(['[program:', ps_name, ']\n',
                         'command=/usr/bin/python3 path_server.py ',
                         ('core ' if is_core else 'local '), ip_address,
-                        ' ..', SCRIPTS_DIR, topo_file, ' ..', SCRIPTS_DIR,
-                        conf_file, '\n', 'stdout_logfile=', log_file, '\n']
+                        ' ', topo_file_rel, ' ', conf_file_rel, '\n',
+                        'stdout_logfile=', log_file, '\n']
                         + supervisor_common +['\n\n']))
                     group_programs.append(ps_name)
                     ip_address = increment_address(ip_address, mask)
@@ -403,17 +409,15 @@ def write_topo_files(AD_configs, er_ip_addresses):
                 log_file = '../logs/er-%s-%s-%s-%s.log' % (isd_id, ad_id,
                                                            nbr_isd_id,
                                                            nbr_ad_id)
-                log = ' >> %s 2>&1' % (log_file,)
                 router_name = ''.join(['er', isd_id, '-', ad_id, 'er',
                                        nbr_isd_id, '-', nbr_ad_id])
-                run_fh.write(''.join(['screen -d -m -S ', router_name,
-                    ' sh -c \"', 'PYTHONPATH=../ python3 router.py ',
-                    ip_address_loc, ' ..', SCRIPTS_DIR, topo_file, ' ..',
-                    SCRIPTS_DIR, conf_file, log, '\"\n']))
+                run_fh.write(_generate_screen_cmd(
+                    isd_ad_id, router_name, log_file, "router.py",
+                    ip_address_loc, topo_file_rel, conf_file_rel))
                 supervisor_fh.write(''.join(['[program:', router_name, ']\n',
                     'command=/usr/bin/python3 router.py ', ip_address_loc,
-                    ' ..', SCRIPTS_DIR, topo_file, ' ..', SCRIPTS_DIR,
-                    conf_file, '\n', 'stdout_logfile=', log_file, '\n']
+                    ' ', topo_file_rel, ' ', conf_file_rel, '\n'
+                    'stdout_logfile=', log_file, '\n']
                     + supervisor_common + ['\n\n']))
                 group_programs.append(router_name)
                 edge_router += 1
@@ -425,6 +429,20 @@ def write_topo_files(AD_configs, er_ip_addresses):
         # Test if parser works
         topology = Topology(topo_file)
 
+def _generate_screen_cmd(isd_ad_id, name, log, *args):
+    line = [
+            "screen -S",
+            isd_ad_id,
+            "-X screen -t",
+            name,
+            "sh -c \"trap : 2; PYTHONPATH=../ python3",
+            ]
+    line.extend(args)
+    line.extend([
+        "2>&1 | tee",
+        log,
+        "; echo \\\"\\n(process exited $?)\\\"; exec sh\"\n"])
+    return " ".join(line)
 
 def write_conf_files(AD_configs):
     """
@@ -436,7 +454,7 @@ def write_conf_files(AD_configs):
     for isd_ad_id in AD_configs:
         (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
         file_name = 'ISD:' + isd_id + '-AD:' + ad_id
-        conf_file = 'ISD' + isd_id + CONF_DIR + file_name + '.conf'
+        conf_file = os.path.join('ISD' + isd_id, CONF_DIR, file_name + '.conf')
         conf_dict = {'MasterOFGKey': 1234567890,
                      'MasterADKey': 1919191919,
                      'PCBQueueSize': 10,
@@ -468,7 +486,7 @@ def write_path_pol_files(AD_configs):
     for isd_ad_id in AD_configs:
         (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
         file_name = 'ISD:' + isd_id + '-AD:' + ad_id
-        path_pol_file = 'ISD' + isd_id + PATH_POL_DIR + file_name + '.json'
+        path_pol_file = os.path.join('ISD' + isd_id, PATH_POL_DIR, file_name + '.json')
         shutil.copyfile(DEFAULT_PATH_POLICY_FILE, path_pol_file)
         # Test if parser works
         path_policy = PathPolicy(path_pol_file)

@@ -21,13 +21,13 @@ from lib.packet.host_addr import SCIONAddr
 from lib.packet.opaque_field import (SupportSignatureField, HopOpaqueField,
     SupportPCBField, SupportPeerField, TRCField, InfoOpaqueField)
 from lib.packet.path import CorePath
-from lib.packet.scion import (SCIONPacket, get_addr_from_type, PacketType,
-    SCIONHeader)
+from lib.packet.scion import SCIONPacket, PacketType, SCIONHeader
+import base64
+import logging
+
 from Crypto.Hash import SHA256
 from bitstring import BitArray
 import bitstring
-import logging
-import base64
 
 
 class Marking(object):
@@ -489,6 +489,19 @@ class PathSegment(Marking):
         """
         return (self.iof.timestamp + int(self.min_exp_time * EXP_TIME_UNIT))
 
+    def get_all_iftokens(self):
+        """
+        Returns all interface revocation tokens included in the path segment.
+        """
+        tokens = []
+        for ad in self.ads:
+            tokens.append(ad.pcbm.ig_rev_token)
+            tokens.append(ad.pcbm.eg_rev_token)
+            for pm in ad.pms:
+                tokens.append(pm.ig_rev_token)
+                tokens.append(pm.eg_rev_token)
+        return tokens
+
     @staticmethod
     def deserialize(raw):
         """
@@ -557,17 +570,19 @@ class PathConstructionBeacon(SCIONPacket):
         self.pcb = PathSegment(self.payload)
 
     @classmethod
-    def from_values(cls, dst, pcb):
+    def from_values(cls, src_isd_ad, dst, pcb):
         """
         Returns a PathConstructionBeacon packet with the values specified.
 
+        @param src_isd_ad: Source's (isd_id, ad_id) tuple.
         @param dst: Destination address (must be a 'HostAddr' object)
         @param pcb: Path Construction PathConstructionBeacon ('PathSegment'
                     class)
         """
         beacon = PathConstructionBeacon()
         beacon.pcb = pcb
-        src = get_addr_from_type(PacketType.BEACON)
+        src = SCIONAddr.from_values(src_isd_ad[0], src_isd_ad[1],
+                                    PacketType.BEACON)
         beacon.hdr = SCIONHeader.from_values(src, dst)
         return beacon
 

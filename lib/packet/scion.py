@@ -65,21 +65,6 @@ def get_type(pkt):
     return PacketType.DATA
 
 
-
-def get_addr_from_type(ptype):
-    # TODO: revise types and replace by set_type()
-    """
-    Return the SCION address associated to a certain type of packet.
-
-    :param ptype: the packet type.
-    :type ptype: int
-    :returns: the associated IP address.
-    :rtype: :class:`IPv4HostAddr`
-    """
-    return SCIONAddr.from_values(0, 0, ptype)
-
-
-
 class SCIONCommonHdr(HeaderBase):
     """
     Encapsulates the common header for SCION packets.
@@ -171,8 +156,8 @@ class SCIONHeader(HeaderBase):
         self.common_hdr = None
         self.src_addr = None
         self.dst_addr = None
-        self.path = None
-        self.extension_hdrs = []
+        self._path = None
+        self._extension_hdrs = []
 
         if raw is not None:
             self.parse(raw)
@@ -188,19 +173,84 @@ class SCIONHeader(HeaderBase):
         if ext_hdrs is None:
             ext_hdrs = []
         hdr = SCIONHeader()
+        hdr.common_hdr = SCIONCommonHdr.from_values(src.addr_len, dst.addr_len,
+                                                    next_hdr)
         hdr.src_addr = src
         hdr.dst_addr = dst
         hdr.path = path
         hdr.extension_hdrs = ext_hdrs
-        hdr.common_hdr = SCIONCommonHdr.from_values(src.addr_len, dst.addr_len,
-                                                    next_hdr)
+
+        return hdr
+
+    @property
+    def path(self):
+        """
+        Returns the path in the header.
+        """
+        return self._path
+
+    @path.setter
+    def path(self, path):
+        """
+        Sets path to 'path'.
+        """
+        self.set_path(path)
+
+    def set_path(self, path):
+        """
+        Sets path to 'path' and updates necessary fields..
+        """
+        if self._path is not None:
+            path_len = len(self._path.pack())
+            self.common_hdr.hdr_len -= path_len
+            self.common_hdr.total_len -= path_len
+        self._path = path
         if path is not None:
             path_len = len(path.pack())
-            hdr.common_hdr.hdr_len += path_len
-            hdr.common_hdr.total_len += path_len
+            self.common_hdr.hdr_len += path_len
+            self.common_hdr.total_len += path_len
+
+    @property
+    def extension_hdrs(self):
+        """
+        Returns the extension headers.
+        """
+        return self._extension_hdrs
+
+    @extension_hdrs.setter
+    def extension_hdrs(self, ext_hdrs):
+        """
+        Sets extension headers.
+        """
+        self.set_ext_hdrs(ext_hdrs)
+
+    def set_ext_hdrs(self, ext_hdrs):
+        """
+        Sets extension headers and updates necessary fields.
+        """
+        assert isinstance(ext_hdrs, list)
+        while self._extension_hdrs:
+            self.pop_ext_hdr()
         for ext_hdr in ext_hdrs:
-            hdr.common_hdr.total_len += len(ext_hdr)
-        return hdr
+            self.append_ext_hdr(ext_hdr)
+
+    def append_ext_hdr(self, ext_hdr):
+        """
+        Appends an extension header and updates necessary fields.
+        """
+        assert isinstance(ext_hdr, ExtensionHeader)
+        self._extension_hdrs.append(ext_hdr)
+        self.common_hdr.total_len += len(ext_hdr)
+
+    def pop_ext_hdr(self):
+        """
+        Pops and returns the last extension header and updates necessary fields.
+        """
+        if not self._extension_hdrs:
+            return
+        ext_hdr = self._extension_hdrs.pop()
+        self.common_hdr.total_len -= len(ext_hdr)
+        return ext_hdr
 
     def parse(self, raw):
         """
@@ -231,13 +281,13 @@ class SCIONHeader(HeaderBase):
         else:
             info = InfoOpaqueField(raw[offset:offset + InfoOpaqueField.LEN])
         if info.info == PathType.CORE:
-            self.path = CorePath(raw[offset:self.common_hdr.hdr_len])
+            self._path = CorePath(raw[offset:self.common_hdr.hdr_len])
         elif info.info == PathType.CROSS_OVER:
-            self.path = CrossOverPath(raw[offset:self.common_hdr.hdr_len])
+            self._path = CrossOverPath(raw[offset:self.common_hdr.hdr_len])
         elif info.info == PathType.PEER_LINK:
-            self.path = PeerPath(raw[offset:self.common_hdr.hdr_len])
+            self._path = PeerPath(raw[offset:self.common_hdr.hdr_len])
         elif info.info == PathType.EMPTY:
-            self.path = EmptyPath()  # PSz raw[offset:self.common_hdr.hdr_len])
+            self._path = EmptyPath()  # PSz raw[offset:self.common_hdr.hdr_len])
         else:
             logging.info("Can not parse path in packet: Unknown type %x",
                          info.info)
@@ -466,16 +516,18 @@ class IFIDRequest(SCIONPacket):
         _, self.request_id = struct.unpack("HH", self.payload)
 
     @classmethod
-    def from_values(cls, src, request_id):
+    def from_values(cls, src, dst_isd_ad, request_id):
         """
         Returns a IFIDRequest with the values specified.
 
         @param src: Source address (must be a 'SCIONAddr' object)
+        @param dst_isd_ad: Destination's (isd_id, ad_id) tuple.
         @param request_id: interface number of src (neighboring router).
         """
         req = IFIDRequest()
         req.request_id = request_id
-        dst = get_addr_from_type(PacketType.IFID_REQ)
+        dst = SCIONAddr.from_values(dst_isd_ad[0], dst_isd_ad[1],
+                                    PacketType.IFID_REQ)
         req.hdr = SCIONHeader.from_values(src, dst)
         req.payload = struct.pack("HH", 0, request_id)
         return req
@@ -501,10 +553,11 @@ class IFIDReply(SCIONPacket):
         self.reply_id, self.request_id = struct.unpack("HH", self.payload)
 
     @classmethod
-    def from_values(cls, dst, reply_id, request_id):
+    def from_values(cls, src_isd_ad, dst, reply_id, request_id):
         """
         Returns a IFIDReply with the values specified.
 
+        @param src_isd_ad: Source's (isd_id, ad_id) tuple.
         @param dst: Destination address (must be a 'SCIONAddr' object)
         @param reply_id: interface number of dst (local router).
         @param request_id: interface number of src (neighboring router).
@@ -512,7 +565,8 @@ class IFIDReply(SCIONPacket):
         rep = IFIDReply()
         rep.reply_id = reply_id
         rep.request_id = request_id
-        src = get_addr_from_type(PacketType.IFID_REP)
+        src = SCIONAddr.from_values(src_isd_ad[0], src_isd_ad[1],
+                                    PacketType.IFID_REP)
         rep.hdr = SCIONHeader.from_values(src, dst)
         return rep
 
@@ -598,7 +652,7 @@ class CertChainRequest(SCIONPacket):
         :rtype: :class:`CertChainRequest`
         """
         req = CertChainRequest()
-        dst = get_addr_from_type(req_type)
+        dst = SCIONAddr.from_values(isd_id, src_ad, req_type)
         req.hdr = SCIONHeader.from_values(src, dst)
         req.ingress_if = ingress_if
         req.src_isd = src_isd
@@ -678,7 +732,7 @@ class CertChainReply(SCIONPacket):
         :rtype: :class:`CertChainReply`
         """
         rep = CertChainReply()
-        src = get_addr_from_type(PacketType.CERT_CHAIN_REP)
+        src = SCIONAddr.from_values(isd_id, ad_id, PacketType.CERT_CHAIN_REP)
         rep.hdr = SCIONHeader.from_values(src, dst)
         rep.isd_id = isd_id
         rep.ad_id = ad_id
@@ -761,7 +815,7 @@ class TRCRequest(SCIONPacket):
         :rtype: :class:`TRCRequest`
         """
         req = TRCRequest()
-        dst = get_addr_from_type(req_type)
+        dst = SCIONAddr.from_values(isd_id, src_ad, req_type)
         req.hdr = SCIONHeader.from_values(src, dst)
         req.ingress_if = ingress_if
         req.src_isd = src_isd
@@ -834,7 +888,7 @@ class TRCReply(SCIONPacket):
         :rtype: :class:`TRCReply`
         """
         rep = TRCReply()
-        src = get_addr_from_type(PacketType.TRC_REP)
+        src = SCIONAddr.from_values(isd_id, ad_id, PacketType.TRC_REP)
         rep.hdr = SCIONHeader.from_values(src, dst)
         rep.isd_id = isd_id
         rep.version = version

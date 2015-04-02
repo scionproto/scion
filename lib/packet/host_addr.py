@@ -188,3 +188,7 @@ class SCIONAddr(object):
 
     def __str__(self):
         return "(%u, %u, %s)" % (self.isd_id, self.ad_id, self.host_addr)
+
+    def get_isd_ad(self):
+        return (self.isd_id, self.ad_id)
+

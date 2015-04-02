@@ -18,12 +18,13 @@
 
 from collections import defaultdict
 from lib.packet.pcb import PathSegment
-from Crypto.Hash import SHA256
 import json
 import logging
 import random
 import sys
 import time
+
+from Crypto.Hash import SHA256
 
 
 class PathPolicy(object):
@@ -128,7 +129,7 @@ class PathStoreRecord(object):
         self.peer_links = 0
         self.hops_length = 0
         self.disjointness = 0
-        self.last_sent_time = 1420070400 # year 2015
+        self.last_sent_time = 1420070400  # year 2015
         self.last_seen_time = int(time.time())
         self.delay_time = 0
         self.expiration_time = pcb.get_expiration_time()
@@ -293,6 +294,22 @@ class PathStore(object):
         """
         self.best_paths_history.insert(0, self.get_candidates(k))
         self.candidates.clear()
+
+    def remove_segments(self, seg_ids):
+        """
+        Removes segments in 'seg_ids' from the candidates.
+        """
+        self.candidates[:] = [c for c in self.candidates if c.id not in seg_ids]
+        
+    def get_segment(self, seg_id):
+        """
+        Returns the segment for the corresponding ID or None.
+        """
+        for rec in self.candidates:
+            if rec.id == seg_id:
+                return rec
+            
+        return None
 
     def __str__(self):
         path_store_str = "[PathStore]"
