@@ -303,13 +303,15 @@ class CoreBeaconServer(BeaconServer):
                                         self.topology.ad_id,
                                         self.topology.path_servers[0].addr)
             pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, None,
-                                             dst_addr=dst)
+                                             self.addr.get_isd_ad(), dst)
             logging.debug("Registering core path with local PS.")
             self.send(pkt, dst.host_addr)
         # Register core path with originating core path server.
         path = pcb.get_path(reverse_direction=True)
         # path_rec = PathSegmentRecords.from_values(self.addr, info, [pcb], path)
-        pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, path)
+        dst_isd_ad = (pcb.get_isd(), pcb.get_first_pcbm().ad_id)
+        pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, path, self.addr,
+                                         dst_isd_ad)
         if_id = path.get_first_hop_of().ingress_if
         next_hop = self.ifid2addr[if_id]
         logging.debug("Registering core path with originating PS.")
@@ -530,7 +532,7 @@ class LocalBeaconServer(BeaconServer):
                                     self.topology.path_servers[0].addr)
         records = PathSegmentRecords.from_values(info, [pcb])
         pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, None,
-                                         dst_addr=dst)
+                                         self.addr.get_isd_ad(), dst)
         self.send(pkt, dst.host_addr)
 
     def register_down_segment(self, pcb):
@@ -546,7 +548,9 @@ class LocalBeaconServer(BeaconServer):
             self.topology.ad_id)
         core_path = pcb.get_path(reverse_direction=True)
         records = PathSegmentRecords.from_values(info, [pcb])
-        pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, core_path)
+        dst_isd_ad = (pcb.get_isd(), pcb.get_first_pcbm().ad_id)
+        pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, core_path,
+                                         self.addr, dst_isd_ad)
         if_id = core_path.get_first_hop_of().ingress_if
         next_hop = self.ifid2addr[if_id]
         self.send(pkt, next_hop)
@@ -662,7 +666,7 @@ class LocalBeaconServer(BeaconServer):
         if rev_infos:
             rev_payload = RevocationPayload.from_values(rev_infos)
             pkt = PathMgmtPacket.from_values(PMT.REVOCATIONS, rev_payload, None,
-                                             self.addr)
+                                             self.addr, self.addr.get_isd_ad())
             dst = self.topology.path_servers[0].addr
             logging.info("Sending segment revocations to local PS.")
             self.send(pkt, dst)
@@ -676,8 +680,9 @@ class LocalBeaconServer(BeaconServer):
         path = up_segment.get_path(True)
         path.up_segment_info.up_flag = True
         rev_payload = RevocationPayload.from_values([rev_info])
+        dst_isd_ad = (up_segment.get_isd(), up_segment.get_first_pcbm().ad_id)
         pkt = PathMgmtPacket.from_values(PMT.REVOCATIONS, rev_payload, path,
-                                         self.addr)
+                                         self.addr, dst_isd_ad)
         (next_hop, port) = self.get_first_hop(pkt)
         logging.info("Sending revocation to CPS.")
         self.send(pkt, next_hop, port)

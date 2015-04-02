@@ -450,7 +450,7 @@ class PathMgmtPacket(SCIONPacket):
         return SCIONPacket.pack(self)
 
     @classmethod
-    def from_values(cls, type, payload, path, src_addr=None, dst_addr=None):
+    def from_values(cls, type, payload, path, src_addr, dst_addr):
         """
         Returns a PathMgmtPacket with the values specified.
 
@@ -460,16 +460,20 @@ class PathMgmtPacket(SCIONPacket):
         :type lib.packet.packet_base.PayloadBase
         :param path: the path of the packet
         :type lib.packet.path.PathBase
-        :param src_addr: source address
-        :type lib.packet.host_addr.HostAddr
-        :param dst_addr: destination address
-        :type lib.packet.host_addr.HostAddr
+        :param src_addr: source address (isd_id, ad_id tuple for response)
+        :type lib.packet.host_addr.HostAddr or tuple
+        :param dst_addr: destination address (isd_id, ad_id tuple for request)
+        :type lib.packet.host_addr.HostAddr or tuple
         """
         pkt = PathMgmtPacket()
-        if src_addr is None:
-            src_addr = SCIONAddr.from_values(0, 0, PacketType.PATH_MGMT)
-        if dst_addr is None:
-            dst_addr = SCIONAddr.from_values(0, 0, PacketType.PATH_MGMT)
+        if isinstance(src_addr, tuple) and isinstance(dst_addr, SCIONAddr):
+            src_addr = SCIONAddr.from_values(src_addr[0], src_addr[1],
+                                             PacketType.PATH_MGMT)
+        elif isinstance(src_addr, SCIONAddr) and isinstance(dst_addr, tuple):
+            dst_addr = SCIONAddr.from_values(dst_addr[0], dst_addr[1],
+                                             PacketType.PATH_MGMT)
+        else:
+            logging.error("Unsupported src_addr, dst_addr pair.")
         pkt.hdr = SCIONHeader.from_values(src_addr, dst_addr, path)
         pkt.type = type
         pkt.payload = payload

@@ -118,8 +118,8 @@ class PathServer(SCIONElement):
         path = path_request.hdr.path
         records = PathSegmentRecords.from_values(path_request.payload,
                                                  paths)
-        path_reply = PathMgmtPacket.from_values(PMT.RECORDS, records,
-                                                path, dst_addr=dst)
+        path_reply = PathMgmtPacket.from_values(PMT.RECORDS, records, path,
+                                                self.addr.get_isd_ad(), dst)
         # if path_request.hdr.is_on_up_path():
         #     path_reply.hdr.set_downpath()
         (next_hop, port) = self.get_first_hop(path_reply)
@@ -310,7 +310,8 @@ class CorePathServer(PathServer):
         if paths_to_propagate:
             records = PathSegmentRecords.from_values(records.info,
                                                      paths_to_propagate)
-            pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, None)
+            pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, None,
+                                             self.addr, (0, 0))
             self._propagate_to_core_ads(pkt)
         # Serve pending requests.
         target = (dst_isd, dst_ad)
@@ -350,7 +351,8 @@ class CorePathServer(PathServer):
             for (target_isd, target_ad, info) in targets:
                 if target_isd == dst_isd and target_ad == dst_ad:
                     path_request = PathMgmtPacket.from_values(PMT.REQUEST, info,
-                                                              path, self.addr)
+                                                              path, self.addr,
+                                                              (dst_isd, dst_ad))
                     self.send(path_request, next_hop)
                     self.waiting_targets.remove((target_isd, target_ad, info))
                     logging.debug("Sending path request %s on newly learned "
@@ -387,6 +389,8 @@ class CorePathServer(PathServer):
                     cpath = cpaths[0].get_path()
                     pkt.hdr.path = cpath
                     pkt.hdr.set_downpath()
+                    pkt.hdr.dst_addr.isd_id = isd
+                    pkt.hdr.dst_addr.ad_id = ad
                     if_id = cpath.get_first_hop_of().egress_if
                     next_hop = self.ifid2addr[if_id]
                     logging.info("Sending packet to CPS in (%d, %d).", isd, ad)
@@ -440,17 +444,18 @@ class CorePathServer(PathServer):
                                             dst_isd=dst_isd)
                 if cpaths:
                     path = cpaths[0].get_path()
+                    dst_isd_ad = (cpaths[0].get_last_pcbm().spcbf.isd_id,
+                                  cpaths[0].get_last_pcbm().ad_id)
                     if_id = path.get_first_hop_of().egress_if
                     next_hop = self.ifid2addr[if_id]
                     request = PathMgmtPacket.from_values(PMT.REQUEST,
-                                                         segment_info,
-                                                         path, self.addr)
+                                                         segment_info, path,
+                                                         self.addr, dst_isd_ad)
                     request.hdr.set_downpath()
                     self.send(request, next_hop)
                     logging.info("Down-Segment request for different ISD. "
                                  "Forwarding request to CPS in (%d, %d).",
-                                 cpaths[0].get_last_pcbm().spcbf.isd_id,
-                                 cpaths[0].get_last_pcbm().ad_id)
+                                 *dst_isd_ad)
                 # If no core_path was available, add request to waiting targets.
                 else:
                     self.waiting_targets.add((dst_isd, dst_ad, segment_info))
@@ -486,7 +491,7 @@ class CorePathServer(PathServer):
         rev_infos = pkt.payload.rev_infos
         # Propagate revocation to other CPSes.
         prop_pkt = PathMgmtPacket.from_values(PMT.REVOCATIONS, pkt.payload,
-                                              None, self.addr)
+                                              None, self.addr, (0, 0))
         self._propagate_to_core_ads(prop_pkt, True)
         revocations = defaultdict(RevocationPayload)
         for rev_info in rev_infos:
@@ -560,7 +565,9 @@ class CorePathServer(PathServer):
                                        dst_isd=dst_isd, dst_ad=dst_ad)
             if paths:
                 rev_pkt = PathMgmtPacket.from_values(PMT.REVOCATIONS, payload,
-                                                     paths[0].get_path(), self.addr)
+                                                     paths[0].get_path(),
+                                                     self.addr, 
+                                                     (dst_isd, dst_ad))
                 rev_pkt.hdr.set_downpath()
                 (dst, dst_port) = self.get_first_hop(rev_pkt)
                 logging.debug("Sending segment revocations to leaser (%d, %d)",
@@ -611,7 +618,7 @@ class LocalPathServer(PathServer):
         path = orig_pkt.hdr.path
         payload = PathSegmentLeases.from_values(len(leases), leases)
         leases_pkt = PathMgmtPacket.from_values(PMT.LEASES, payload, path,
-                                                dst_addr=dst)
+                                                self.addr.get_isd_ad(), dst)
 
         (dst, dst_port) = self.get_first_hop(leases_pkt)
         logging.debug("Sending leases to CPS.")
@@ -636,12 +643,14 @@ class LocalPathServer(PathServer):
         if self.waiting_targets:
             pcb = records.pcbs[0]
             path = pcb.get_path(reverse_direction=True)
+            dst_isd_ad = (pcb.get_isd(), pcb.get_first_pcbm().ad_id)
             if_id = path.get_first_hop_of().ingress_if
             next_hop = self.ifid2addr[if_id]
             targets = copy.copy(self.waiting_targets)
             for (isd, ad, info) in targets:
                 path_request = PathMgmtPacket.from_values(PMT.REQUEST, info,
-                                                          path, self.addr)
+                                                          path, self.addr,
+                                                          dst_isd_ad)
                 self.send(path_request, next_hop)
                 logging.info("PATH_REQ sent using (first) registered up-path")
                 self.waiting_targets.remove((isd, ad, info))
@@ -789,12 +798,14 @@ class LocalPathServer(PathServer):
                          ptype, dst_isd, dst_ad)
             pcb = self.up_segments()[0]
             path = pcb.get_path(reverse_direction=True)
+            dst_isd_ad = (pcb.get_isd(), pcb.get_first_pcbm().ad_id)
             path.up_segment_info.up_flag = True  # FIXME: temporary hack. A very
             # first path is _always_ down-path, any subsequent is up-path.
             if_id = path.get_first_hop_of().ingress_if
             next_hop = self.ifid2addr[if_id]
             path_request = PathMgmtPacket.from_values(PMT.REQUEST, info,
-                                                      path, self.addr)
+                                                      path, self.addr,
+                                                      dst_isd_ad)
             self.send(path_request, next_hop)
 
     def handle_path_request(self, pkt):
