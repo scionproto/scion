@@ -16,10 +16,11 @@
 from _collections import deque
 from asyncio.tasks import sleep
 from infrastructure.scion_elem import SCIONElement
+from ipaddress import IPv4Address
 from lib.crypto.asymcrypto import sign
 from lib.crypto.certificate import verify_sig_chain_trc, CertificateChain, TRC
 from lib.crypto.hash_chain import HashChain
-from lib.packet.host_addr import IPv4HostAddr, SCIONAddr
+from lib.packet.host_addr import SCIONAddr
 from lib.packet.opaque_field import (OpaqueFieldType as OFT, InfoOpaqueField,
     SupportSignatureField, HopOpaqueField, SupportPCBField, SupportPeerField,
     TRCField)
@@ -738,10 +739,10 @@ def main():
         sys.exit()
 
     if sys.argv[1] == "core":
-        beacon_server = CoreBeaconServer(IPv4HostAddr(sys.argv[2]), sys.argv[3],
+        beacon_server = CoreBeaconServer(IPv4Address(sys.argv[2]), sys.argv[3],
                                          sys.argv[4], sys.argv[5])
     elif sys.argv[1] == "local":
-        beacon_server = LocalBeaconServer(IPv4HostAddr(sys.argv[2]),
+        beacon_server = LocalBeaconServer(IPv4Address(sys.argv[2]),
                                           sys.argv[3], sys.argv[4], sys.argv[5])
     else:
         logging.error("First parameter can only be 'local' or 'core'!")

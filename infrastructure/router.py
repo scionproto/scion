@@ -18,7 +18,8 @@
 
 from infrastructure.scion_elem import (SCIONElement, SCION_UDP_PORT,
                                        SCION_UDP_EH_DATA_PORT)
-from lib.packet.host_addr import IPv4HostAddr, SCIONAddr
+from ipaddress import IPv4Address
+from lib.packet.host_addr import SCIONAddr
 from lib.packet.opaque_field import OpaqueField, OpaqueFieldType as OFT
 from lib.packet.pcb import PathConstructionBeacon
 from lib.packet.scion import (PacketType as PT, SCIONPacket, IFIDRequest,
@@ -545,7 +546,7 @@ def main():
         logging.error("run: %s IP topo_file conf_file", sys.argv[0])
         sys.exit()
 
-    router = Router(IPv4HostAddr(sys.argv[1]), sys.argv[2], sys.argv[3])
+    router = Router(IPv4Address(sys.argv[1]), sys.argv[2], sys.argv[3])
 
     logging.info("Started: %s", datetime.datetime.now())
     router.run()

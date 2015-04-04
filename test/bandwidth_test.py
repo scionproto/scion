@@ -16,9 +16,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 from endhost.sciond import SCIONDaemon
-from lib.packet.host_addr import SCIONAddr, IPv4HostAddr
+from lib.packet.host_addr import SCIONAddr
 from lib.packet.scion import SCIONPacket
 from infrastructure.scion_elem import SCION_UDP_EH_DATA_PORT, BUFLEN
+from ipaddress import IPv4Address
 import socket
 import threading
 import time
@@ -64,7 +65,7 @@ class TestBandwidth(unittest.TestCase):
         Bandwidth test method. Obtains a path to (2, 26) and sends PACKETS_NO
         packets (each with PAYLOAD_SIZE long payload) to a host in (2, 26).
         """
-        addr = IPv4HostAddr("127.1.19.254")
+        addr = IPv4Address("127.1.19.254")
         topo_file = "../topology/ISD1/topologies/ISD:1-AD:19.json"
         sender = SCIONDaemon.start(addr, topo_file)
 
@@ -77,7 +78,7 @@ class TestBandwidth(unittest.TestCase):
         threading.Thread(target=self.receiver).start()
 
         payload = b"A" * PAYLOAD_SIZE
-        dst = SCIONAddr.from_values(2, 26, IPv4HostAddr("127.2.26.254"))
+        dst = SCIONAddr.from_values(2, 26, IPv4Address("127.2.26.254"))
         spkt = SCIONPacket.from_values(sender.addr, dst, payload, paths[0])
         (next_hop, port) = sender.get_first_hop(spkt)
         print("Sending %d payload bytes (%d packets x %d bytes )\n" %

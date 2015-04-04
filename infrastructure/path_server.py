@@ -19,8 +19,8 @@ limitations under the License.
 from _collections import defaultdict
 from external.expiring_dict import ExpiringDict
 from infrastructure.scion_elem import SCIONElement
+from ipaddress import IPv4Address
 from lib.crypto.hash_chain import HashChain
-from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.path import EmptyPath
 from lib.packet.path_mgmt import (PathSegmentRecords, PathSegmentInfo,
     PathSegmentType as PST, PathMgmtPacket, PathMgmtType as PMT,
@@ -871,10 +871,10 @@ def main():
         sys.exit()
 
     if sys.argv[1] == "core":
-        path_server = CorePathServer(IPv4HostAddr(sys.argv[2]), sys.argv[3],
+        path_server = CorePathServer(IPv4Address(sys.argv[2]), sys.argv[3],
                                      sys.argv[4])
     elif sys.argv[1] == "local":
-        path_server = LocalPathServer(IPv4HostAddr(sys.argv[2]), sys.argv[3],
+        path_server = LocalPathServer(IPv4Address(sys.argv[2]), sys.argv[3],
                                       sys.argv[4])
     else:
         logging.error("First parameter can only be 'local' or 'core'!")

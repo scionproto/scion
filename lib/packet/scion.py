@@ -17,14 +17,14 @@
 """
 
 from lib.packet.ext_hdr import ExtensionHeader, ICNExtHdr
-from lib.packet.host_addr import SCIONAddr, IPv4HostAddr
+from lib.packet.host_addr import SCIONAddr
 from lib.packet.opaque_field import InfoOpaqueField, OpaqueField
 from lib.packet.packet_base import HeaderBase, PacketBase
 from lib.packet.path import (PathType, CorePath, PeerPath, CrossOverPath,
     EmptyPath, PathBase)
 from bitstring import BitArray
 import bitstring
-# from ipaddress import IPv4Address, IPv6Address #TODO
+from ipaddress import IPv4Address
 import logging
 import struct
 
@@ -33,17 +33,17 @@ class PacketType(object):
     """
     Defines constants for the SCION packet types.
     """
-    DATA = IPv4HostAddr("0.0.0.0")  # Data packet
-    BEACON = IPv4HostAddr("10.224.0.1")  # Path Construction Beacon
-    PATH_MGMT = IPv4HostAddr("10.224.0.2")  # Path management packet from/to PS
-    TRC_REQ = IPv4HostAddr("10.224.0.3")  # TRC file request to parent AD
-    TRC_REQ_LOCAL = IPv4HostAddr("10.224.0.4")  # TRC file request to lCS
-    TRC_REP = IPv4HostAddr("10.224.0.5")  # TRC file reply from parent AD
-    CERT_CHAIN_REQ = IPv4HostAddr("10.224.0.6")  # cert chain request to parent AD
-    CERT_CHAIN_REQ_LOCAL = IPv4HostAddr("10.224.0.7")  # local cert chain request
-    CERT_CHAIN_REP = IPv4HostAddr("10.224.0.8")  # cert chain reply from lCS 
-    IFID_REQ = IPv4HostAddr("10.224.0.9")  # IF ID request to the peer router
-    IFID_REP = IPv4HostAddr("10.224.0.10")  # IF ID reply from the peer router
+    DATA = -1  # Data packet
+    BEACON = IPv4Address("10.224.0.1")  # Path Construction Beacon
+    PATH_MGMT = IPv4Address("10.224.0.2")  # Path management packet from/to PS
+    TRC_REQ = IPv4Address("10.224.0.3")  # TRC file request to parent AD
+    TRC_REQ_LOCAL = IPv4Address("10.224.0.4")  # TRC file request to lCS
+    TRC_REP = IPv4Address("10.224.0.5")  # TRC file reply from parent AD
+    CERT_CHAIN_REQ = IPv4Address("10.224.0.6")  # cert chain request to parent AD
+    CERT_CHAIN_REQ_LOCAL = IPv4Address("10.224.0.7")  # local cert chain request
+    CERT_CHAIN_REP = IPv4Address("10.224.0.8")  # cert chain reply from lCS 
+    IFID_REQ = IPv4Address("10.224.0.9")  # IF ID request to the peer router
+    IFID_REP = IPv4Address("10.224.0.10")  # IF ID reply from the peer router
     SRC = [BEACON, PATH_MGMT, CERT_CHAIN_REP, TRC_REP, IFID_REP]
     DST = [PATH_MGMT, TRC_REQ, TRC_REQ_LOCAL, CERT_CHAIN_REQ,
            CERT_CHAIN_REQ_LOCAL, IFID_REQ]

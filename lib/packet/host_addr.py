@@ -25,118 +25,10 @@ Module docstring here.
 
 from bitstring import BitArray
 import bitstring
+from ipaddress import IPv4Address, IPv6Address, IPV4LENGTH, IPV6LENGTH
 import logging
 import socket
 import struct
-
-
-class AddressLengths(object):
-    """
-    Defines constants for the types of host addresses in SCION.
-    """
-    ADDR_NA = 0
-    HOST_ADDR_SCION = 8
-    HOST_ADDR_IPV4 = 4
-    HOST_ADDR_IPV6 = 16
-    HOST_ADDR_AIP = 20
-
-
-class HostAddr(object):
-    """
-    Base class for the different host address types.
-    """
-    def __init__(self):
-        self.addr_len = 0
-        self._addr = 0
-
-    @property
-    def addr(self):
-        return self._addr
-
-    @addr.setter
-    def addr(self, addr):
-        self.set_addr(addr)
-
-    def set_addr(self, addr):
-        self._addr = addr
-
-    def to_int(self, endianness='big'):
-        """
-        Returns the address in integer format.
-
-        :param endianness: the endiannness to use when converting. Must be
-            'big' or 'little'.
-        :type endianness: str
-        :returns: an integer representation of the address stored in the :class:`HostAddr` object.
-        :rtype: int
-        """
-        return int.from_bytes(self.addr, endianness)
-
-    def __str__(self):
-        return str(self.addr)
-
-    def __repr__(self):
-        return self.__str__()
-
-    def __eq__(self, other):
-        return self.addr == other.addr
-
-    def __hash__(self):
-        return hash(self.addr)
-
-
-class IPv4HostAddr(HostAddr):
-    """
-    Class for IPv4 host addresses.
-    """
-    def __init__(self, addr=None):
-        super(IPv4HostAddr, self).__init__()
-        self.addr_len = AddressLengths.HOST_ADDR_IPV4
-        if addr is not None:
-            self.addr = addr
-
-    def set_addr(self, addr):
-        # in case that len(addr) == 4, addr is binary string 
-        if isinstance(addr, str) and len(addr) != 4: 
-            self._addr = socket.inet_aton(addr)
-        elif isinstance(addr, int):
-            self._addr = struct.pack("I", addr)
-        else:
-            self._addr = addr
-
-    def __str__(self):
-        return socket.inet_ntoa(self._addr)
-
-
-class IPv6HostAddr(HostAddr):
-    """
-    Class for IPv6 host addresses.
-    """
-    def __init__(self, addr=None):
-        HostAddr.__init__(self)
-        self.addr_len = AddressLengths.HOST_ADDR_IPV6
-        if addr is not None:
-            self.addr = addr
-
-    def set_addr(self, addr):
-        if isinstance(addr, str):
-            self._addr = socket.inet_pton(socket.AF_INET6, addr)
-        else:
-            self._addr = addr
-
-    def __str__(self):
-        return socket.inet_ntop(socket.AF_INET6, self.addr)
-
-
-class SCIONHostAddr(HostAddr):
-    """
-    Class for SCION host addresses.
-    """
-    def __init__(self, addr=None):
-        HostAddr.__init__(self)
-        self.addr_len = AddressLengths.HOST_ADDR_SCION
-        if addr is not None:
-            self.addr = addr
 
 
 class SCIONAddr(object):
@@ -159,7 +51,11 @@ class SCIONAddr(object):
         addr.isd_id = isd_id
         addr.ad_id = ad_id
         addr.host_addr = host_addr
-        addr.addr_len = SCIONAddr.ISD_AD_LEN + addr.host_addr.addr_len
+        if addr.host_addr.version == 4:
+            host_addr_len = IPV4LENGTH // 8
+        elif addr.host_addr.version == 6:
+            host_addr_len = IPV6LENGTH // 8
+        addr.addr_len = SCIONAddr.ISD_AD_LEN + host_addr_len
         return addr
 
     def parse(self, raw):
@@ -172,19 +68,19 @@ class SCIONAddr(object):
         bits = BitArray(bytes=raw[:SCIONAddr.ISD_AD_LEN])
         (self.isd_id, self.ad_id) = bits.unpack("uintbe:16, uintbe:64")
         host_addr_len = addr_len - SCIONAddr.ISD_AD_LEN
-        if host_addr_len == AddressLengths.HOST_ADDR_IPV4:
-            self.host_addr = IPv4HostAddr(raw[SCIONAddr.ISD_AD_LEN:])
-        elif host_addr_len == AddressLengths.HOST_ADDR_IPV6:
-            self.host_addr = IPv6HostAddr(raw[SCIONAddr.ISD_AD_LEN:])
+        if host_addr_len == IPV4LENGTH // 8: 
+            self.host_addr = IPv4Address(raw[SCIONAddr.ISD_AD_LEN:])
+        elif host_addr_len == IPV6LENGTH // 8: 
+            self.host_addr = IPv6Address(raw[SCIONAddr.ISD_AD_LEN:])
         else:
-            logging.warning("SCIONAddr: HostAddr unsupported, len: %u",
+            logging.warning("SCIONAddr: host address unsupported, len: %u",
                             host_addr_len)
             return
-        self.addr_len = SCIONAddr.ISD_AD_LEN + self.host_addr.addr_len
+        self.addr_len = SCIONAddr.ISD_AD_LEN + host_addr_len
 
     def pack(self):
         return (bitstring.pack("uintbe:16, uintbe:64", self.isd_id,
-                               self.ad_id).bytes + self.host_addr.addr)
+                               self.ad_id).bytes + self.host_addr.packed)
 
     def __str__(self):
         return "(%u, %u, %s)" % (self.isd_id, self.ad_id, self.host_addr)

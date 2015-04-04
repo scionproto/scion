@@ -575,7 +575,7 @@ class PathConstructionBeacon(SCIONPacket):
         Returns a PathConstructionBeacon packet with the values specified.
 
         @param src_isd_ad: Source's (isd_id, ad_id) tuple.
-        @param dst: Destination address (must be a 'HostAddr' object)
+        @param dst: Destination address (must be a 'SCIONAddr' object)
         @param pcb: Path Construction PathConstructionBeacon ('PathSegment'
                     class)
         """

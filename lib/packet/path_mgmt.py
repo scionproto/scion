@@ -461,9 +461,9 @@ class PathMgmtPacket(SCIONPacket):
         :param path: the path of the packet
         :type lib.packet.path.PathBase
         :param src_addr: source address (isd_id, ad_id tuple for response)
-        :type lib.packet.host_addr.HostAddr or tuple
+        :type lib.packet.host_addr.SCIONAddr or tuple
         :param dst_addr: destination address (isd_id, ad_id tuple for request)
-        :type lib.packet.host_addr.HostAddr or tuple
+        :type lib.packet.host_addr.SCIONAddr or tuple
         """
         pkt = PathMgmtPacket()
         if isinstance(src_addr, tuple) and isinstance(dst_addr, SCIONAddr):

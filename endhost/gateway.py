@@ -23,10 +23,11 @@ import socket
 from subprocess import call
 from pytun import TunTapDevice, IFF_TUN, IFF_NO_PI
 from endhost.sciond import SCIONDaemon
-from lib.packet.host_addr import IPv4HostAddr, SCIONAddr
+from lib.packet.host_addr import SCIONAddr
 from lib.packet.scion import SCIONPacket
 from lib.util import init_logging
 from infrastructure.scion_elem import SCION_UDP_EH_DATA_PORT, BUFLEN
+from ipaddress import IPv4Address
 
 
 # Dictionary of destinations that should be reached via SCION.
@@ -96,7 +97,7 @@ class SCIONGateway(object):
                 #TODO instead calling get_paths() consider cache of fullpaths
                 if paths:
                     dst = SCIONAddr.from_values(scion_addr[0], scion_addr[1],
-                                                IPv4HostAddr(ip_dst))
+                                                IPv4Address(ip_dst))
                     spkt = SCIONPacket.from_values(self.sd.addr, dst,
                                                    raw_packet, paths[0])
                     (next_hop, port) = self.sd.get_first_hop(spkt)
@@ -146,7 +147,7 @@ def main():
     if len(sys.argv) != 3:
         logging.error("run: %s addr topology_file", sys.argv[0])
         sys.exit()
-    sgw = SCIONGateway(IPv4HostAddr(sys.argv[1]), sys.argv[2], SCION_HOSTS)
+    sgw = SCIONGateway(IPv4Address(sys.argv[1]), sys.argv[2], SCION_HOSTS)
     try:
         sgw.run()
     except KeyboardInterrupt:

@@ -210,7 +210,7 @@ class SCIONDaemon(SCIONElement):
             # assumed: up-path nad IPv4 addr
             hop = self.ifid2addr[path.get_first_hop_of().ingress_if]
             path_len = len(raw_path) // 8  # Check whether 8 divides path_len?
-            reply.append(struct.pack("B", path_len) + raw_path + hop._addr)
+            reply.append(struct.pack("B", path_len) + raw_path + hop.packed)
         self._api_socket.sendto(b"".join(reply), sender)
 
     def api_handle_request(self, packet, sender):
