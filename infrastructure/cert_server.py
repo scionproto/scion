@@ -145,7 +145,13 @@ class CertServer(SCIONElement):
             if get_type(trc_req) == PT.TRC_REQ_LOCAL:
                 dst_addr = trc_req.hdr.src_addr.host_addr
             else:
+                # Case in which the requester is a child AD
                 for router in self.topology.child_edge_routers:
+                    if (trc_req.src_isd == router.interface.neighbor_isd and
+                        trc_req.src_ad == router.interface.neighbor_ad):
+                        dst_addr = router.addr
+                # Case in which the requester is a sibling AD
+                for router in self.topology.routing_edge_routers:
                     if (trc_req.src_isd == router.interface.neighbor_isd and
                         trc_req.src_ad == router.interface.neighbor_ad):
                         dst_addr = router.addr

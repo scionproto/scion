@@ -70,6 +70,9 @@ class BeaconServer(SCIONElement):
     def __init__(self, addr, topo_file, config_file, path_policy_file):
         SCIONElement.__init__(self, addr, topo_file, config_file=config_file)
         self.path_policy = PathPolicy(path_policy_file)
+        self.unverified_beacons = deque()
+        self.trc_requests = {}
+        self.trcs = {}
         self.beacons = deque()
         self.reg_queue = deque()
         sig_key_file = get_sig_key_file_path(self.topology.isd_id,
@@ -78,6 +81,108 @@ class BeaconServer(SCIONElement):
         self.signing_key = base64.b64decode(self.signing_key)
         self.if2rev_tokens = {}
         self.seg2rev_tokens = {}
+
+    def _check_filters(self, pcb):
+        """
+        Runs some checks, including: unwanted ADs and min/max property values.
+        """
+        assert isinstance(pcb, PathSegment)
+        return (self._check_unwanted_ads(pcb) and
+                self._check_property_ranges(pcb))
+
+    def _check_unwanted_ads(self, pcb):
+        """
+        Checks whether any of the ADs in the path belong to the black list.
+        """
+        for ad in pcb.ads:
+            if (pcb.iof.isd_id, ad.pcbm.ad_id) in self.path_policy.unwanted_ads:
+                return False
+        return True
+
+    def _check_property_ranges(self, pcb):
+        """
+        Checks whether any of the path properties has a value outside the
+        predefined min-max range.
+        """
+        return (
+            (self.path_policy.property_ranges['PeerLinks'][0]
+             <= pcb.get_n_peer_links() <=
+             self.path_policy.property_ranges['PeerLinks'][1])
+            and
+            (self.path_policy.property_ranges['HopsLength'][0]
+             <= pcb.get_n_hops() <=
+             self.path_policy.property_ranges['HopsLength'][1])
+            and
+            (self.path_policy.property_ranges['DelayTime'][0]
+             <= int(time.time()) - pcb.get_timestamp() <=
+             self.path_policy.property_ranges['DelayTime'][1])
+            and
+            (self.path_policy.property_ranges['GuaranteedBandwidth'][0]
+             <= 10 <=
+             self.path_policy.property_ranges['GuaranteedBandwidth'][1])
+            and
+            (self.path_policy.property_ranges['AvailableBandwidth'][0]
+             <= 10 <=
+             self.path_policy.property_ranges['AvailableBandwidth'][1])
+            and
+            (self.path_policy.property_ranges['TotalBandwidth'][0]
+             <= 10 <=
+             self.path_policy.property_ranges['TotalBandwidth'][1]))
+
+    def _try_to_verify_beacon(self, pcb):
+        """
+        Try to verify a beacon.
+        """
+        assert isinstance(pcb, PathSegment)
+        last_pcbm = pcb.get_last_pcbm()
+        if self._check_certs_trc(last_pcbm.spcbf.isd_id, last_pcbm.ad_id,
+            last_pcbm.ssf.cert_chain_version, pcb.trcf.trc_version,
+            pcb.trcf.if_id):
+            if self._verify_beacon(pcb):
+                self.beacons.append(pcb)
+                logging.info("Registered valid beacon.")
+            else:
+                logging.info("Invalid beacon.")
+        else:
+            logging.debug("Certificate(s) or TRC missing.")
+            self.unverified_beacons.append(pcb)
+
+    def _check_certs_trc(self, isd_id, ad_id, cert_chain_version, trc_version,
+                         if_id):
+        """
+        Return True or False whether the necessary Certificate and TRC files are
+        found.
+        """
+        pass
+
+    def _verify_beacon(self, pcb):
+        """
+        Once the necessary certificate and TRC files have been found, verify the
+        beacons.
+        """
+        assert isinstance(pcb, PathSegment)
+        last_pcbm = pcb.get_last_pcbm()
+        cert_chain_isd = last_pcbm.spcbf.isd_id
+        cert_chain_ad = last_pcbm.ad_id
+        cert_chain_version = last_pcbm.ssf.cert_chain_version
+        trc_version = pcb.trcf.trc_version
+        subject = 'ISD:' + str(cert_chain_isd) + '-AD:' + str(cert_chain_ad)
+        cert_chain_file = get_cert_chain_file_path(self.topology.isd_id,
+            self.topology.ad_id, cert_chain_isd, cert_chain_ad,
+            cert_chain_version)
+        if os.path.exists(cert_chain_file):
+            chain = CertificateChain(cert_chain_file)
+        else:
+            chain = CertificateChain.from_values([])
+        trc_file = get_trc_file_path(self.topology.isd_id, self.topology.ad_id,
+            cert_chain_isd, trc_version)
+        trc = TRC(trc_file)
+        data_to_verify = (str(cert_chain_ad).encode('utf-8') +
+                          last_pcbm.hof.pack() + last_pcbm.spcbf.pack())
+        for peer_marking in pcb.ads[-1].pms:
+            data_to_verify += peer_marking.pack()
+        return verify_sig_chain_trc(data_to_verify, pcb.ads[-1].sig, subject,
+                                    chain, trc, trc_version)
 
     def _get_if_rev_token(self, if_id):
         """
@@ -110,48 +215,6 @@ class BeaconServer(SCIONElement):
         else:
             return self.seg2rev_tokens[id].current_element()
 
-    def propagate_downstream_pcb(self, pcb):
-        """
-        Propagates the beacon to all children.
-        """
-        assert isinstance(pcb, PathSegment)
-        ingress_if = pcb.trcf.if_id
-        for router_child in self.topology.child_edge_routers:
-            new_pcb = copy.deepcopy(pcb)
-            egress_if = router_child.interface.if_id
-            new_pcb.trcf.if_id = egress_if
-            ad_marking = self._create_ad_marking(ingress_if, egress_if)
-            new_pcb.add_ad(ad_marking)
-            dst = SCIONAddr.from_values(self.topology.isd_id,
-                                        self.topology.ad_id, router_child.addr)
-            beacon = PathConstructionBeacon.from_values(dst, new_pcb)
-            self.send(beacon, router_child.addr)
-            logging.info("Downstream PCB propagated!")
-
-    def handle_pcbs_propagation(self):
-        """
-        Main loop to propagate received beacons.
-        """
-        # TODO: define function that dispaches the pcbs among the interfaces
-        while True:
-            while self.beacons:
-                pcb = self.beacons.popleft()
-                self.propagate_downstream_pcb(pcb)
-                self.reg_queue.append(pcb)
-            time.sleep(self.config.propagation_time)
-
-    def process_pcb(self, beacon):
-        """
-        Receives beacon and appends it to beacon list.
-        """
-        pass
-
-    def register_segments(self):
-        """
-        Registers paths according to the received beacons.
-        """
-        pass
-
     def _create_ad_marking(self, ingress_if, egress_if):
         """
         Creates an AD Marking with the given ingress and egress interfaces.
@@ -181,6 +244,64 @@ class BeaconServer(SCIONElement):
             peer_markings.append(peer_marking)
         signature = sign(data_to_sign, self.signing_key)
         return ADMarking.from_values(pcbm, peer_markings, signature)
+
+    def propagate_downstream_pcb(self, pcb):
+        """
+        Propagates the beacon to all children.
+        """
+        assert isinstance(pcb, PathSegment)
+        ingress_if = pcb.trcf.if_id
+        for router_child in self.topology.child_edge_routers:
+            new_pcb = copy.deepcopy(pcb)
+            egress_if = router_child.interface.if_id
+            new_pcb.trcf.if_id = egress_if
+            ad_marking = self._create_ad_marking(ingress_if, egress_if)
+            new_pcb.add_ad(ad_marking)
+            dst = SCIONAddr.from_values(self.topology.isd_id,
+                                        self.topology.ad_id, router_child.addr)
+            beacon = PathConstructionBeacon.from_values(dst, new_pcb)
+            self.send(beacon, router_child.addr)
+            logging.info("Downstream PCB propagated!")
+
+    def process_trc_rep(self, trc_rep):
+        """
+        Process the TRC reply.
+        """
+        assert isinstance(trc_rep, TRCReply)
+        logging.info("TRC reply received.")
+        trc_file = get_trc_file_path(self.topology.isd_id, self.topology.ad_id,
+            trc_rep.isd_id, trc_rep.version)
+        write_file(trc_file, trc_rep.trc.decode('utf-8'))
+        self.trcs[(trc_rep.isd_id, trc_rep.version)] = TRC(trc_file)
+        if (trc_rep.isd_id, trc_rep.version) in self.trc_requests:
+            del self.trc_requests[(trc_rep.isd_id, trc_rep.version)]
+        self.handle_unverified_beacons()
+
+    def handle_unverified_beacons(self):
+        """
+        Handle beacons which are waiting to be verified.
+        """
+        for _ in range(len(self.unverified_beacons)):
+            pcb = self.unverified_beacons.popleft()
+            self._try_to_verify_beacon(pcb)
+
+    def handle_pcbs_propagation(self):
+        """
+        Main loop to propagate received beacons.
+        """
+        pass
+
+    def process_pcb(self, beacon):
+        """
+        Receives beacon and appends it to beacon list.
+        """
+        pass
+
+    def register_segments(self):
+        """
+        Registers paths according to the received beacons.
+        """
+        pass
 
     def handle_request(self, packet, sender, from_local_socket=True):
         """
@@ -220,6 +341,39 @@ class CoreBeaconServer(BeaconServer):
                               path_policy_file)
         # Sanity check that we should indeed be a core beacon server.
         assert self.topology.is_core_ad, "This shouldn't be a core BS!"
+        self.core_segments = PathStore(self.path_policy)
+
+    def _check_certs_trc(self, isd_id, ad_id, cert_chain_version, trc_version,
+                         if_id):
+        """
+        Return True or False whether the necessary Certificate and TRC files are
+        found.
+        """
+        trc = self.trcs.get((isd_id, trc_version))
+        if not trc:
+            # Try loading file from disk
+            trc_file = get_trc_file_path(self.topology.isd_id,
+                self.topology.ad_id, isd_id, trc_version)
+            if os.path.exists(trc_file):
+                trc = TRC(trc_file)
+                self.trcs[(isd_id, trc_version)] = trc
+        if not trc:
+            logging.debug(trc_file)
+            # Requesting TRC file from cert server
+            trc_tuple = (isd_id, trc_version)
+            now = int(time.time())
+            if (trc_tuple not in self.trc_requests or
+                (now - self.trc_requests[trc_tuple] >
+                LocalBeaconServer.REQUESTS_TIMEOUT)):
+                new_trc_req = TRCRequest.from_values(PT.TRC_REQ_LOCAL,
+                    self.addr, if_id, self.topology.isd_id, self.topology.ad_id,
+                    isd_id, trc_version)
+                dst_addr = self.topology.certificate_servers[0].addr
+                self.send(new_trc_req, dst_addr)
+                self.trc_requests[trc_tuple] = now
+                return False
+        else:
+            return True
 
     def propagate_core_pcb(self, pcb):
         """
@@ -287,6 +441,10 @@ class CoreBeaconServer(BeaconServer):
         Registers the core segment contained in 'pcb' with the local core path
         server and the originating core path server.
         """
+        # Store path
+        path_store_record = PathStoreRecord(pcb)
+        self.core_segments.add_record(path_store_record)
+        # Register path
         info = PathSegmentInfo.from_values(PST.CORE,
                                            pcb.get_first_pcbm().spcbf.isd_id,
                                            self.topology.isd_id,
@@ -316,17 +474,16 @@ class CoreBeaconServer(BeaconServer):
     def process_pcb(self, beacon):
         assert isinstance(beacon, PathConstructionBeacon)
         logging.info("PCB received")
-        pcb = beacon.pcb
         # Before we append the PCB for further processing we need to check that
         # it hasn't been received before.
-        for ad in pcb.ads:
-            isd_id = ad.pcbm.spcbf.isd_id
-            ad_id = ad.pcbm.ad_id
-            if (isd_id == self.topology.isd_id and
-                ad_id == self.topology.ad_id):
+        for ad in beacon.pcb.ads:
+            if (ad.pcbm.spcbf.isd_id == self.topology.isd_id and
+                ad.pcbm.ad_id == self.topology.ad_id):
                 logging.debug("Core Segment PCB already seen. Dropping...")
                 return
-        self.beacons.append(pcb)
+        logging.debug(beacon.pcb)
+        if self._check_filters(beacon.pcb):
+            self._try_to_verify_beacon(beacon.pcb)
 
 
 class LocalBeaconServer(BeaconServer):
@@ -343,71 +500,17 @@ class LocalBeaconServer(BeaconServer):
                               path_policy_file)
         # Sanity check that we should indeed be a local beacon server.
         assert not self.topology.is_core_ad, "This shouldn't be a local BS!"
-        self.unverified_beacons = deque()
         self.up_segments = PathStore(self.path_policy)
         self.down_segments = PathStore(self.path_policy)
         self.cert_chain_requests = {}
-        self.trc_requests = {}
         self.cert_chains = {}
-        self.trcs = {}
         cert_chain_file = get_cert_chain_file_path(self.topology.isd_id,
             self.topology.ad_id, self.topology.isd_id, self.topology.ad_id,
             self.config.cert_chain_version)
         self.cert_chain = CertificateChain(cert_chain_file)
 
-    def _verify_beacon(self, pcb):
-        """
-        Once the necessary certificate and TRC files have been found, verify the
-        beacons.
-        """
-        assert isinstance(pcb, PathSegment)
-        last_pcbm = pcb.get_last_pcbm()
-        cert_chain_isd = last_pcbm.spcbf.isd_id
-        cert_chain_ad = last_pcbm.ad_id
-        cert_chain_version = last_pcbm.ssf.cert_chain_version
-        trc_version = pcb.trcf.trc_version
-        subject = 'ISD:' + str(cert_chain_isd) + '-AD:' + str(cert_chain_ad)
-        cert_chain_file = get_cert_chain_file_path(self.topology.isd_id,
-            self.topology.ad_id, cert_chain_isd, cert_chain_ad,
-            cert_chain_version)
-        if os.path.exists(cert_chain_file):
-            chain = CertificateChain(cert_chain_file)
-        else:
-            chain = CertificateChain.from_values([])
-        trc_file = get_trc_file_path(self.topology.isd_id, self.topology.ad_id,
-                                     cert_chain_isd, trc_version)
-        trc = TRC(trc_file)
-        data_to_verify = (str(cert_chain_ad).encode('utf-8') +
-                          last_pcbm.hof.pack() + last_pcbm.spcbf.pack())
-        for peer_marking in pcb.ads[-1].pms:
-            data_to_verify += peer_marking.pack()
-        return verify_sig_chain_trc(data_to_verify, pcb.ads[-1].sig, subject,
-                                    chain, trc, trc_version)
-
-    def _try_to_verify_beacon(self, pcb):
-        """
-        Try to verify a beacon.
-        """
-        assert isinstance(pcb, PathSegment)
-        last_pcbm = pcb.get_last_pcbm()
-        cert_chain_isd = last_pcbm.spcbf.isd_id
-        cert_chain_ad = last_pcbm.ad_id
-        cert_chain_version = last_pcbm.ssf.cert_chain_version
-        trc_version = pcb.trcf.trc_version
-        if self._check_certs_trc(cert_chain_isd, cert_chain_ad,
-                                 cert_chain_version,
-                                 trc_version, pcb.trcf.if_id):
-            if self._verify_beacon(pcb):
-                self.beacons.append(pcb)
-                logging.info("Registered valid beacon.")
-            else:
-                logging.info("Invalid beacon.")
-        else:
-            logging.debug("Certificate(s) or TRC missing.")
-            self.unverified_beacons.append(pcb)
-
-    def _check_certs_trc(self, isd_id, ad_id, cert_chain_version,
-                         trc_version, if_id):
+    def _check_certs_trc(self, isd_id, ad_id, cert_chain_version, trc_version,
+                         if_id):
         """
         Return True or False whether the necessary Certificate and TRC files are
         found.
@@ -464,52 +567,17 @@ class LocalBeaconServer(BeaconServer):
                     self.cert_chain_requests[cert_chain_tuple] = now
                     return False
 
-    def _check_filters(self, pcb):
+    def handle_pcbs_propagation(self):
         """
-        Runs some checks, including: (un)wanted ADs and min/max property values.
+        Main loop to propagate received beacons.
         """
-        assert isinstance(pcb, PathSegment)
-        return (self._check_unwanted_ads(pcb) and
-                self._check_property_ranges(pcb))
-
-    def _check_unwanted_ads(self, pcb):
-        """
-        Checks whether any of the ADs in the path belong to the black list.
-        """
-        for ad in pcb.ads:
-            if (pcb.iof.isd_id, ad.pcbm.ad_id) in self.path_policy.unwanted_ads:
-                return False
-        return True
-
-    def _check_property_ranges(self, pcb):
-        """
-        Checks whether any of the path properties has a value outside the
-        predefined min-max range.
-        """
-        return (
-            (self.path_policy.property_ranges['PeerLinks'][0]
-             <= pcb.get_n_peer_links() <=
-             self.path_policy.property_ranges['PeerLinks'][1])
-            and
-            (self.path_policy.property_ranges['HopsLength'][0]
-             <= pcb.get_n_hops() <=
-             self.path_policy.property_ranges['HopsLength'][1])
-            and
-            (self.path_policy.property_ranges['DelayTime'][0]
-             <= int(time.time()) - pcb.get_timestamp() <=
-             self.path_policy.property_ranges['DelayTime'][1])
-            and
-            (self.path_policy.property_ranges['GuaranteedBandwidth'][0]
-             <= 10 <=
-             self.path_policy.property_ranges['GuaranteedBandwidth'][1])
-            and
-            (self.path_policy.property_ranges['AvailableBandwidth'][0]
-             <= 10 <=
-             self.path_policy.property_ranges['AvailableBandwidth'][1])
-            and
-            (self.path_policy.property_ranges['TotalBandwidth'][0]
-             <= 10 <=
-             self.path_policy.property_ranges['TotalBandwidth'][1]))
+        # TODO: define function that dispaches the pcbs among the interfaces
+        while True:
+            while self.beacons:
+                pcb = self.beacons.popleft()
+                self.propagate_downstream_pcb(pcb)
+                self.reg_queue.append(pcb)
+            time.sleep(self.config.propagation_time)
 
     def register_up_segment(self, pcb):
         """
@@ -597,20 +665,6 @@ class LocalBeaconServer(BeaconServer):
                 cert_chain_rep.ad_id, cert_chain_rep.version)]
         self.handle_unverified_beacons()
 
-    def process_trc_rep(self, trc_rep):
-        """
-        Process the TRC reply.
-        """
-        assert isinstance(trc_rep, TRCReply)
-        logging.info("TRC reply received.")
-        trc_file = get_trc_file_path(self.topology.isd_id, self.topology.ad_id,
-            trc_rep.isd_id, trc_rep.version)
-        write_file(trc_file, trc_rep.trc.decode('utf-8'))
-        self.trcs[(trc_rep.isd_id, trc_rep.version)] = TRC(trc_file)
-        if (trc_rep.isd_id, trc_rep.version) in self.trc_requests:
-            del self.trc_requests[(trc_rep.isd_id, trc_rep.version)]
-        self.handle_unverified_beacons()
-
     def _process_revocation(self, rev_info):
         """
         Sends out revocation to the local PS and a CPS and down_stream BS.
@@ -681,43 +735,6 @@ class LocalBeaconServer(BeaconServer):
         self.send(pkt, next_hop, port)
 
         # TODO: Propagate revocations to downstream BSes.
-
-    def handle_unverified_beacons(self):
-        """
-        Handle beacons which are waiting to be verified.
-        """
-        for _ in range(len(self.unverified_beacons)):
-            pcb = self.unverified_beacons.popleft()
-            self._try_to_verify_beacon(pcb)
-
-    def handle_request(self, packet, sender, from_local_socket=True):
-        """
-        Main routine to handle incoming SCION packets.
-        """
-        spkt = SCIONPacket(packet)
-        ptype = get_type(spkt)
-        if ptype == PT.IFID_REQ:
-            # TODO
-            logging.warning("IFID_REQ received, to implement")
-        elif ptype == PT.IFID_REP:
-            # TODO
-            logging.warning("IFID_REP received, to implement")
-        elif ptype == PT.BEACON:
-            self.process_pcb(PathConstructionBeacon(packet))
-        elif ptype == PT.CERT_CHAIN_REP:
-            self.process_cert_chain_rep(CertChainReply(packet))
-        elif ptype == PT.TRC_REP:
-            self.process_trc_rep(TRCReply(packet))
-        else:
-            logging.warning("Type not supported")
-
-    def run(self):
-        """
-        Run an instance of the Beacon Server.
-        """
-        threading.Thread(target=self.handle_pcbs_propagation).start()
-        threading.Thread(target=self.register_segments).start()
-        SCIONElement.run(self)
 
 
 def main():

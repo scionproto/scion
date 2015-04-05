@@ -218,7 +218,7 @@ class PathStore(object):
             pl_count.append(candidate.peer_links)
         max_peer_links = max(pl_count)
         for candidate in self.candidates:
-            candidate.peer_links /= max_peer_links
+            candidate.peer_links /= max_peer_links + 1
 
     def _update_all_hops_length(self):
         """
