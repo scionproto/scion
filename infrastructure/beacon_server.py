@@ -358,7 +358,6 @@ class CoreBeaconServer(BeaconServer):
                 trc = TRC(trc_file)
                 self.trcs[(isd_id, trc_version)] = trc
         if not trc:
-            logging.debug(trc_file)
             # Requesting TRC file from cert server
             trc_tuple = (isd_id, trc_version)
             now = int(time.time())
@@ -481,7 +480,6 @@ class CoreBeaconServer(BeaconServer):
                 ad.pcbm.ad_id == self.topology.ad_id):
                 logging.debug("Core Segment PCB already seen. Dropping...")
                 return
-        logging.debug(beacon.pcb)
         if self._check_filters(beacon.pcb):
             self._try_to_verify_beacon(beacon.pcb)
 
