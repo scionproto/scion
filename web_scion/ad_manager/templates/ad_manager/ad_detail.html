@@ -24,7 +24,7 @@
     <ul class="nav nav-tabs" role="tablist">
       <li role="presentation" class="active"><a href="#servers" aria-controls="servers" role="tab" data-toggle="tab">Servers</a></li>
       <li role="presentation"><a href="#topology" aria-controls="topology" role="tab" data-toggle="tab">Topology</a></li>
-      <li role="presentation"><a href="#updates" aria-controls="updates" role="tab" data-toggle="tab">Updates</a></li>
+      <li role="presentation"><a href="#updates" aria-controls="updates" role="tab" data-toggle="tab">Software updates</a></li>
     </ul>
 
     <!-- Tab panes -->
@@ -92,15 +92,27 @@
 
       <div role="tabpanel" class="tab-pane" id="updates">
         <br />
-        <p>Push updates to the server</p>
-        <div>
-          <button type="button" class="btn btn-warning click-confirm" id="send-updates-btn">Send updates</button>
+        <label for="sel2">Select the update version:</label>
+        <select class="form-control" id="sel2">
+          <option>0.1.0</option>
+        </select>
+        <br />
+        <div class="row">
+          <div class="col-md-2">
+            <button type="button" class="btn btn-warning click-confirm" id="send-updates-btn">Install the update</button>
+          </div>
+          <div>Push updates to the server</div>
+        </div>
+        <br />
+        <div class="row">
+          <div class="col-md-2">
+            <a href="{% url 'download_update' object.id %}" class="btn btn-default" id="download-updates-btn">Download the update</a>
+          </div>
+          <div>Download the SCION distribution</div>
         </div>
       </div>
-
     </div>
   </div>
-
 
 
   <!-- JS variables -->

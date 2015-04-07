@@ -1,14 +1,19 @@
 import json
+import os
 import tempfile
 from django.core.urlresolvers import reverse
 from django.db import transaction
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.shortcuts import redirect
+from django.utils.encoding import smart_str
 from django.views.generic import ListView, DetailView
 from ad_manager.models import AD, ISD
 from ad_manager.util import monitoring_client
-from daemon_monitor.common import is_success, get_success_data
+from daemon_monitor.common import is_success, get_success_data, \
+    ARCHIVE_DIST_PATH
 from lib.topology import Topology
+
+ARCH_NAME = 'scion-0.1.0.tar.gz'
 
 
 class ISDListView(ListView):
@@ -105,13 +110,27 @@ def update_from_remote_topology(request, pk):
         tmp.flush()
         remote_topology = Topology(tmp.name)
     ad.fill_from_topology(remote_topology, clear=True)
-    return redirect(reverse('ad_detail', args=[ad.id]))
+    return redirect(reverse('ad_detail_topology', args=[ad.id]))
 
 
 def send_update(request, pk):
     # TODO move to model?
     ad = AD.objects.get(id=pk)
+    arch_path = os.path.join(ARCHIVE_DIST_PATH, ARCH_NAME)
     result = monitoring_client.send_update(ad.isd_id, ad.id,
-                                           ad.get_monitoring_daemon_host())
+                                           ad.get_monitoring_daemon_host(),
+                                           arch_path)
     return JsonResponse({'status': result})
+
+
+def download_update(request, pk):
+    arch_path = os.path.join(ARCHIVE_DIST_PATH, ARCH_NAME)
+    with open(arch_path, 'rb') as arch_fh:
+        response = HttpResponse(arch_fh.read(),
+                                content_type='application/x-gzip')
+        response['Content-Length'] = arch_fh.tell()
+    response['Content-Disposition'] = ('attachment; '
+                                       'filename={}'.format(ARCH_NAME))
+    return response
+
 

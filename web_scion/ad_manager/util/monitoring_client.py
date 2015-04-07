@@ -1,5 +1,6 @@
 import base64
 import hashlib
+import os
 import xmlrpc.client
 from daemon_monitor.common import (get_monitoring_server, response_failure,
     response_success, is_success, get_success_data)
@@ -27,10 +28,8 @@ def get_topology(isd_id, ad_id, md_host):
         return None
 
 
-def send_update(isd_id, ad_id, md_host):
-    update_dir = '../dist/'
-    arch_name = 'scion-0.1.0.tar.gz'
-    with open(update_dir + arch_name, 'rb') as update_fh:
+def send_update(isd_id, ad_id, md_host, arch_path):
+    with open(arch_path, 'rb') as update_fh:
         raw_data = update_fh.read()
 
     s = get_monitoring_server(md_host)
@@ -38,7 +37,8 @@ def send_update(isd_id, ad_id, md_host):
     data_digest = hashlib.sha1(raw_data).hexdigest()
     base64_data = str(base64.b64encode(raw_data), 'utf-8')
 
-    data_dict = {'data': base64_data, 'digest': data_digest, 'name': arch_name}
+    data_dict = {'data': base64_data, 'digest': data_digest,
+                 'name': os.path.basename(arch_path)}
     try:
         if not s.send_update(isd_id, ad_id, data_dict):
             return 'CANNOT UPDATE'

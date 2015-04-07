@@ -4,9 +4,9 @@ import os
 import sys
 import hashlib
 from subprocess import Popen
-from daemon_monitor.common import (get_supervisor_server, UPDATE_DIR,
+from daemon_monitor.common import (get_supervisor_server, UPDATE_DIR_PATH,
     MONITORING_DAEMON_PORT, UPDATE_SCRIPT_PATH, response_success, is_success,
-    response_failure)
+    response_failure, SCION_ROOT)
 
 from daemon_monitor.secure_rpc_server import XMLRPCServerTLS
 from topology.generator import TOPO_DIR, SCRIPTS_DIR
@@ -103,14 +103,14 @@ class MonitoringServer(object):
         if hashlib.sha1(raw_data).hexdigest() != received_digest:
             return response_failure('Hash value does not match')
 
-        if not os.path.exists(UPDATE_DIR):
-            os.makedirs(UPDATE_DIR)
+        if not os.path.exists(UPDATE_DIR_PATH):
+            os.makedirs(UPDATE_DIR_PATH)
         archive_name = os.path.basename(data_dict['name'])
-        out_file_path = os.path.join(UPDATE_DIR, archive_name)
+        out_file_path = os.path.join(UPDATE_DIR_PATH, archive_name)
         with open(out_file_path, 'wb') as out_file_fh:
             out_file_fh.write(raw_data)
-        # self.do_update(out_file, SCION_ROOT)
-        self.do_update(out_file_path, UPDATE_DIR)
+        self.do_update(out_file_path, SCION_ROOT)
+        # self.do_update(out_file_path, UPDATE_DIR_PATH)
         return response_success()
 
 if __name__ == "__main__":
