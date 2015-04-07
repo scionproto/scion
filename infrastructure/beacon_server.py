@@ -35,8 +35,10 @@ from lib.path_store import PathPolicy, PathStoreRecord, PathStore
 from lib.util import (read_file, write_file, get_cert_chain_file_path,
     get_sig_key_file_path, get_trc_file_path, init_logging, log_exception,
     thread_safety_net)
+from lib.zookeeper import (Zookeeper, ZkConnectionLoss, ZkNoNodeError)
 from Crypto import Random
 from Crypto.Hash import SHA256
+from external.stacktracer import trace_start
 import base64
 import copy
 import datetime
@@ -63,6 +65,10 @@ class BeaconServer(SCIONElement):
     HOF_EXP_TIME = 63
     # Timeout for TRC or Certificate requests.
     REQUESTS_TIMEOUT = 10
+    # ZK path for incoming PCBs
+    ZK_INCOMING_PATH = "/incoming"
+    # ZK path for recent PCBs
+    ZK_RECENT_PATH = "/recent"
 
     def __init__(self, addr, topo_file, config_file, path_policy_file):
         SCIONElement.__init__(self, addr, topo_file, config_file=config_file)
@@ -77,6 +83,23 @@ class BeaconServer(SCIONElement):
         self.signing_key = base64.b64decode(self.signing_key)
         self.if2rev_tokens = {}
         self.seg2rev_tokens = {}
+
+        self._seen_entries = set()
+        # Set when we have connected and read the existing recent and incoming
+        # PCBs
+        self._state_synced = threading.Event()
+        # Set anytime the connection status changes
+        self._connection_event = threading.Semaphore(value=0)
+        # TODO(kormat): def zookeeper host/port in topology
+        self.zk = Zookeeper(
+                self.topology.isd_id, self.topology.ad_id,
+                "bs", self.addr.host_addr, ["localhost:2181"],
+                on_connect=self._on_connect,
+                on_disconnect=self._on_disconnect,
+                ensure_paths=(
+                    self.ZK_INCOMING_PATH,
+                    self.ZK_RECENT_PATH)
+                )
 
     def _get_if_rev_token(self, if_id):
         """
@@ -133,9 +156,26 @@ class BeaconServer(SCIONElement):
         """
         pass
 
-    def process_pcb(self, beacon):
+    def store_pcb(self, beacon):
         """
-        Receives beacon and appends it to beacon list.
+        Receives beacon and stores it for processing.
+        """
+        assert isinstance(beacon, PathConstructionBeacon)
+        if not self._check_filters(beacon.pcb):
+            return
+        try:
+            self.zk.store_shared_item(
+                self.ZK_INCOMING_PATH,
+                "pcb", beacon.pcb.pack())
+        except ZkConnectionLoss:
+            logging.debug("Unable to store PCB in shared path: "
+                          "no connection to ZK")
+            return
+        logging.debug("PCB stored")
+
+    def process_pcbs(self, pcbs):
+        """
+        Processes new beacons and appends them to beacon list.
         """
         pass
 
@@ -188,7 +228,7 @@ class BeaconServer(SCIONElement):
             # TODO
             logging.warning("IFID_REP received, to implement")
         elif ptype == PT.BEACON:
-            self.process_pcb(PathConstructionBeacon(packet))
+            self.store_pcb(PathConstructionBeacon(packet))
         elif ptype == PT.CERT_CHAIN_REP:
             self.process_cert_chain_rep(CertChainReply(packet))
         elif ptype == PT.TRC_REP:
@@ -202,6 +242,7 @@ class BeaconServer(SCIONElement):
         """
         threading.Thread(target=self.handle_pcbs_propagation, daemon=True).start()
         threading.Thread(target=self.register_segments, daemon=True).start()
+        threading.Thread(target=self.read_shared_pcbs, daemon=True).start()
         SCIONElement.run(self)
 
     def _check_filters(self, pcb):
@@ -361,6 +402,105 @@ class BeaconServer(SCIONElement):
             pcb = self.unverified_beacons.popleft()
             self._try_to_verify_beacon(pcb)
 
+    def _on_connect(self):
+        """
+        Callback given to lib.zookeeper to call everytime we connect to
+        Zookeeper
+        """
+        logging.debug("Beaconserver: zk connected")
+        self._connection_event.release()
+
+    def _on_disconnect(self):
+        """
+        Callback given to lib.zookeeper to call everytime we disconnect from
+        Zookeeper
+        """
+        logging.debug("Beaconserver: zk disconnected")
+        self._connection_event.release()
+
+    @thread_safety_net("read_shared_pcbs")
+    def read_shared_pcbs(self):
+        """
+        A thread to handle Zookeeper connects/disconnects
+
+        On connect, it registers us as in-service, and loads the current &
+        previous propagation period's PCBs from the share ZK paths, so that we
+        have enough context should we become master.
+
+        It also setup a watcher to process new PCBs that appear in the shared
+        ZK path.
+        """
+        while True:
+            self._connection_event.acquire()
+            logging.debug("ZK connection event happened")
+            self._state_synced.clear()
+            if not self.zk.is_connected():
+                continue
+            try:
+                # Register that we can now accept and store PCBs in ZK
+                self.zk.join_party()
+                # Prime our path list with the previous propagation period's
+                # set of PCBs
+                logging.debug("Load recent PCBs from shared path: started")
+                recent_entries = self.zk.get_shared_entries(self.ZK_RECENT_PATH)
+                self._process_shared_pcbs(self.ZK_RECENT_PATH, recent_entries)
+                logging.debug("Load recent PCBs from shared path: complete")
+                # Clear our cache of previously-seen shared entries
+                self._seen_entries.clear()
+                # Get notified anytime a new PCB appears in the shared
+                # 'incoming' path. Our callback will be called immediately with
+                # the current entries.
+                self.zk.watch_children(
+                    self.ZK_INCOMING_PATH,
+                    lambda entries: self._process_shared_pcbs(
+                        self.ZK_INCOMING_PATH,
+                        entries))
+            except ZkConnectionLoss:
+                continue
+
+    def _process_shared_pcbs(self, path, entries):
+        """
+        Retrieve new shared beacons send them for local processing.
+        """
+        # Limit the number of entries we try handle
+        # TODO(kormat): move constant to proper place
+        max_entries = 50
+        entries = entries[:max_entries]
+        if path == self.ZK_INCOMING_PATH:
+            # Only read new incoming PCBS
+            entries_set = set(entries)
+            new_set = entries_set - self._seen_entries
+            logging.debug("_process_shared_pcbs() called with %d entries" %
+                          len(entries_set))
+            logging.debug("_process_shared_pcbs() new entries: %s" %
+                          sorted(new_set))
+            # Remove old entries that are no longer in the shared path
+            self._seen_entries = new_set - self._seen_entries | entries_set
+            new_entries = list(new_set)
+        else:
+            # Otherwise we're dealing with the recent pcbs, and we want to
+            # just read them all.
+            new_entries = entries
+        # TODO(kormat): move constant to proper place
+        chunk_size = 10
+        for i in range(0, len(new_entries), chunk_size):
+            pcbs = []
+            for entry in new_entries[i:i+chunk_size]:
+                try:
+                    raw = self.zk.get_shared_item(path, entry)
+                except ZkConnectionLoss:
+                    logging.warning("Unable to retrieve PCB from shared path: "
+                                    "no connection to ZK")
+                    return
+                except ZkNoNodeError:
+                    logging.info("Unable to retrieve PCB from shared path: "
+                                 "no such entry (%s/%s)" % (path, entry))
+                    continue
+                pcbs.append(PathSegment(raw=raw))
+            self.process_pcbs(pcbs)
+        # We've just caught up on all incoming PCBs
+        if path == self.ZK_INCOMING_PATH:
+            self._state_synced.set()
 
 class CoreBeaconServer(BeaconServer):
     """
@@ -402,6 +542,14 @@ class CoreBeaconServer(BeaconServer):
         Generates a new beacon or gets ready to forward the one received.
         """
         while True:
+            # Wait until we have enough context to be a useful master
+            # candidate.
+            self._state_synced.wait()
+            logging.debug("handle_pcbs_propagation() Trying to become master")
+            if not self.zk.get_lock():
+                logging.debug("handle_pcbs_propagation() Not Master, spinning")
+                continue
+            logging.debug("handle_pcbs_propagation() Am master, propagating")
             # Create beacon for downstream ADs.
             downstream_pcb = PathSegment()
             timestamp = int(time.time())
@@ -420,6 +568,13 @@ class CoreBeaconServer(BeaconServer):
             while self.beacons:
                 pcb = self.beacons.popleft()
                 self.propagate_core_pcb(pcb)
+            # Clear old entries
+            try:
+                self.zk.move_shared_items(self.ZK_INCOMING_PATH,
+                                          self.ZK_RECENT_PATH)
+            except ZkConnectionLoss:
+                logging.warning("Connection dropped while moving shared items")
+                continue
             time.sleep(self.config.propagation_time)
 
     @thread_safety_net("register_segments")
@@ -429,6 +584,9 @@ class CoreBeaconServer(BeaconServer):
                          "register_segments")
             return
         while True:
+            logging.debug("register_segments() waiting for lock")
+            self.zk.wait_lock()
+            logging.debug("register_segments() have lock")
             self.register_core_segments()
             time.sleep(self.config.registration_time)
 
@@ -455,17 +613,20 @@ class CoreBeaconServer(BeaconServer):
             logging.debug("Registering core path with local PS.")
             self.send(pkt, dst.host_addr)
 
-    def process_pcb(self, beacon):
-        assert isinstance(beacon, PathConstructionBeacon)
-        logging.info("PCB received")
-        # Before we append the PCB for further processing we need to check that
-        # it hasn't been received before.
-        for ad in beacon.pcb.ads:
-            if (ad.pcbm.spcbf.isd_id == self.topology.isd_id and
-                ad.pcbm.ad_id == self.topology.ad_id):
-                logging.debug("Core Segment PCB already seen. Dropping...")
-                return
-        self._try_to_verify_beacon(beacon.pcb)
+    def process_pcbs(self, pcbs):
+        """
+        Processes new beacons and appends them to beacon list.
+        """
+        logging.info("PCBs received: %d", len(pcbs))
+        for pcb in pcbs:
+            # Before we append the PCB for further processing we need to check
+            # that it hasn't been received before.
+            for ad in pcb.ads:
+                if (ad.pcbm.spcbf.isd_id == self.topology.isd_id and
+                    ad.pcbm.ad_id == self.topology.ad_id):
+                    logging.debug("Core Segment PCB already seen. Dropping...")
+                    continue
+            self._try_to_verify_beacon(pcb)
 
     def _check_certs_trc(self, isd_id, ad_id, cert_chain_version, trc_version,
                          if_id):
@@ -600,18 +761,21 @@ class LocalBeaconServer(BeaconServer):
                          "leaving register_segments")
             return
         while True:
+            logging.debug("register_segments() waiting for lock")
+            self.zk.wait_lock()
+            logging.debug("register_segments() have lock")
             self.register_up_segments()
             self.register_down_segments()
             time.sleep(self.config.registration_time)
 
-    def process_pcb(self, beacon):
+    def process_pcbs(self, pcbs):
         """
-        Receives beacon and appends it to beacon list.
+        Processes new beacons and appends them to beacon list.
         """
-        assert isinstance(beacon, PathConstructionBeacon)
-        logging.info("PCB received")
-        if self._check_filters(beacon.pcb):
-            self._try_to_verify_beacon(beacon.pcb)
+        logging.info("PCBs received: %d", len(pcbs))
+        for pcb in pcbs:
+            if self._check_filters(pcb):
+                self._try_to_verify_beacon(pcb)
 
     def process_cert_chain_rep(self, cert_chain_rep):
         """
@@ -719,9 +883,24 @@ class LocalBeaconServer(BeaconServer):
         """
         # TODO: define function that dispaches the pcbs among the interfaces
         while True:
+            # Wait until we have enough context to be a useful master
+            # candidate.
+            self._state_synced.wait()
+            logging.debug("handle_pcbs_propagation() Trying to become master")
+            if not self.zk.get_lock():
+                logging.debug("handle_pcbs_propagation() Not Master, spinning")
+                continue
+            logging.debug("handle_pcbs_propagation() Am master, propagating")
             best_segments = self.beacons.get_best_segments()
             for pcb in best_segments:
                 self.propagate_downstream_pcb(pcb)
+            # Clear old entries
+            try:
+                self.zk.move_shared_items(self.ZK_INCOMING_PATH,
+                                          self.ZK_RECENT_PATH)
+            except ZkConnectionLoss:
+                logging.warning("Connection dropped while moving shared items")
+                continue
             time.sleep(self.config.propagation_time)
 
     def register_up_segments(self):
@@ -763,6 +942,11 @@ def main():
             sys.argv[0])
         sys.exit()
 
+    # TODO(kormat): un-hardcode this path
+    trace_start(os.path.join(
+                    "../trace",
+                    os.environ['SUPERVISOR_PROCESS_NAME']+".trace.html"))
+
     if sys.argv[1] == "core":
         beacon_server = CoreBeaconServer(IPv4Address(sys.argv[2]), sys.argv[3],
                                          sys.argv[4], sys.argv[5])
@@ -784,4 +968,4 @@ if __name__ == "__main__":
         raise
     except:
         log_exception("Exception in main process:")
-        raise
+        sys.exit(1)
