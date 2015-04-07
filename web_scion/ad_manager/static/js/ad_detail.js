@@ -33,17 +33,20 @@ function initTopologyCheck() {
 
 function compareAdTopology(compareUrl) {
     var $alertDiv = $('#topology-info');
+    var $updateTopoButton = $('#update-topology-btn');
     $alertDiv.hide();
     $alertDiv.removeClass('alert-success alert-danger alert-warning');
 
     function alertNoTopology() {
         $alertDiv.addClass('alert-warning');
         $alertDiv.text('Cannot get topology');
+        $updateTopoButton.hide(200);
     }
 
     function alertOk() {
         $alertDiv.addClass('alert-success');
         $alertDiv.text('Everything is OK');
+        $updateTopoButton.hide(200);
     }
 
     function alertChanged(changes) {
@@ -54,6 +57,7 @@ function compareAdTopology(compareUrl) {
             $('<li>' + value + '</li>').appendTo($changesList);
         });
         $alertDiv.append($changesList);
+        $updateTopoButton.show(200);
     }
 
     $.ajax({
@@ -102,5 +106,17 @@ $(document).ready(function() {
     // "Are you sure?" confirmation boxes
     $('.click-confirm').click(function(e) {
         return confirm('Are you sure?')
-    })
+    });
+
+    // Make tabs persistent
+    if (location.hash.substr(0,2) == "#!") {
+        $("a[href='#" + location.hash.substr(2) + "']").tab("show");
+    }
+    $("a[data-toggle='tab']").on("shown.bs.tab", function (e) {
+        var hash = $(e.target).attr("href");
+        if (hash.substr(0,1) == "#") {
+            location.replace("#!" + hash.substr(1));
+        }
+    });
+
 });

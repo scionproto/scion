@@ -48,10 +48,13 @@ class AD(models.Model):
         md_host = self.get_monitoring_daemon_host()
         topology_str = monitoring_client.get_topology(self.isd_id, self.id,
                                                       md_host)
-        if topology_str:
+        if not topology_str:
+            return None
+
+        try:
             topology_dict = json.loads(topology_str)
             return topology_dict
-        else:
+        except ValueError:
             return None
 
     def generate_topology_dict(self):

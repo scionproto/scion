@@ -7,8 +7,7 @@ import time
 import subprocess
 import xmlrpc.client
 from daemon_monitor.common import (get_supervisor_server,
-                                   MONITORING_DAEMON_PROC_NAME,
-                                   SUPERVISORD_PATH, SCION_ROOT)
+    MONITORING_DAEMON_PROC_NAME, SUPERVISORD_PATH)
 from lib.util import init_logging
 
 THIS_SCRIPT_PATH = os.path.abspath(__file__)

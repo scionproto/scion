@@ -1,8 +1,8 @@
 import base64
 import hashlib
 import xmlrpc.client
-from daemon_monitor.common import get_monitoring_server, response_failure, \
-    response_success, is_success, get_success_data
+from daemon_monitor.common import (get_monitoring_server, response_failure,
+    response_success, is_success, get_success_data)
 
 
 def get_ad_info(isd_id, ad_id, md_host):
@@ -23,6 +23,7 @@ def get_topology(isd_id, ad_id, md_host):
         else:
             return None
     except (ConnectionRefusedError, xmlrpc.client.Error) as ex:
+        # TODO replace with response_failure?
         return None
 
 

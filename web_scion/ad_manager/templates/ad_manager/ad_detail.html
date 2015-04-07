@@ -84,9 +84,7 @@
         <p>The stored topology might be out of sync with the real topology.</p>
         <div>
           <button type="button" class="btn btn-info" id="compare-topology-btn">Check topology</button>
-          <a href="{% url 'update_topology' object.id %}">
-            <button type="button" class="btn btn-default click-confirm" id="update-topology-btn">Update local topology</button>
-          </a>
+          <a href="{% url 'update_topology' object.id %}" class="btn btn-default click-confirm" id="update-topology-btn">Update local topology</a>
         </div>
         <br/>
         <div id="topology-info" class="alert" role="alert"></div>

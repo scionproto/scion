@@ -5,9 +5,8 @@ import sys
 import hashlib
 from subprocess import Popen
 from daemon_monitor.common import (get_supervisor_server, UPDATE_DIR,
-                                   MONITORING_DAEMON_PORT, SCION_ROOT,
-                                   UPDATE_SCRIPT_PATH, response_success,
-                                   is_success, response_failure)
+    MONITORING_DAEMON_PORT, UPDATE_SCRIPT_PATH, response_success, is_success,
+    response_failure)
 
 from daemon_monitor.secure_rpc_server import XMLRPCServerTLS
 from topology.generator import TOPO_DIR, SCRIPTS_DIR
@@ -38,8 +37,8 @@ class MonitoringServer(object):
     # COMMAND
     def get_topology(self, isd_id, ad_id):
         file_name = 'ISD:' + isd_id + '-AD:' + ad_id
-        topo_file = 'ISD' + isd_id + TOPO_DIR + file_name + '.json'
-        topo_path = ''.join(['..', SCRIPTS_DIR, topo_file])
+        topo_file = os.path.join('ISD' + isd_id, TOPO_DIR, file_name + '.json')
+        topo_path = os.path.join('..', SCRIPTS_DIR, topo_file)
         return response_success(open(topo_path, 'r').read())
 
     # COMMAND
