@@ -155,6 +155,34 @@ class BeaconServer(SCIONElement):
         """
         pass
 
+    def _get_trc(self, isd_id, trc_version, if_id):
+        """
+        Get TRC from local storage or memory.
+        """
+        trc = self.trcs.get((isd_id, trc_version))
+        if not trc:
+            # Try loading file from disk
+            trc_file = get_trc_file_path(self.topology.isd_id,
+                self.topology.ad_id, isd_id, trc_version)
+            if os.path.exists(trc_file):
+                trc = TRC(trc_file)
+                self.trcs[(isd_id, trc_version)] = trc
+        if not trc:
+            # Requesting TRC file from cert server
+            trc_tuple = (isd_id, trc_version)
+            now = int(time.time())
+            if (trc_tuple not in self.trc_requests or
+                (now - self.trc_requests[trc_tuple] >
+                LocalBeaconServer.REQUESTS_TIMEOUT)):
+                new_trc_req = TRCRequest.from_values(PT.TRC_REQ_LOCAL,
+                    self.addr, if_id, self.topology.isd_id, self.topology.ad_id,
+                    isd_id, trc_version)
+                dst_addr = self.topology.certificate_servers[0].addr
+                self.send(new_trc_req, dst_addr)
+                self.trc_requests[trc_tuple] = now
+                return None
+        return trc
+
     def _verify_beacon(self, pcb):
         """
         Once the necessary certificate and TRC files have been found, verify the
@@ -346,33 +374,12 @@ class CoreBeaconServer(BeaconServer):
     def _check_certs_trc(self, isd_id, ad_id, cert_chain_version, trc_version,
                          if_id):
         """
-        Return True or False whether the necessary Certificate and TRC files are
-        found.
+        Return True or False whether the necessary TRC file is found.
         """
-        trc = self.trcs.get((isd_id, trc_version))
-        if not trc:
-            # Try loading file from disk
-            trc_file = get_trc_file_path(self.topology.isd_id,
-                self.topology.ad_id, isd_id, trc_version)
-            if os.path.exists(trc_file):
-                trc = TRC(trc_file)
-                self.trcs[(isd_id, trc_version)] = trc
-        if not trc:
-            # Requesting TRC file from cert server
-            trc_tuple = (isd_id, trc_version)
-            now = int(time.time())
-            if (trc_tuple not in self.trc_requests or
-                (now - self.trc_requests[trc_tuple] >
-                LocalBeaconServer.REQUESTS_TIMEOUT)):
-                new_trc_req = TRCRequest.from_values(PT.TRC_REQ_LOCAL,
-                    self.addr, if_id, self.topology.isd_id, self.topology.ad_id,
-                    isd_id, trc_version)
-                dst_addr = self.topology.certificate_servers[0].addr
-                self.send(new_trc_req, dst_addr)
-                self.trc_requests[trc_tuple] = now
-                return False
-        else:
+        if self._get_trc(isd_id, trc_version, if_id):
             return True
+        else:
+            return False
 
     def propagate_core_pcb(self, pcb):
         """
@@ -513,29 +520,8 @@ class LocalBeaconServer(BeaconServer):
         Return True or False whether the necessary Certificate and TRC files are
         found.
         """
-        trc = self.trcs.get((isd_id, trc_version))
-        if not trc:
-            # Try loading file from disk
-            trc_file = get_trc_file_path(self.topology.isd_id,
-                self.topology.ad_id, isd_id, trc_version)
-            if os.path.exists(trc_file):
-                trc = TRC(trc_file)
-                self.trcs[(isd_id, trc_version)] = trc
-        if not trc:
-            # Requesting TRC file from cert server
-            trc_tuple = (isd_id, trc_version)
-            now = int(time.time())
-            if (trc_tuple not in self.trc_requests or
-                (now - self.trc_requests[trc_tuple] >
-                LocalBeaconServer.REQUESTS_TIMEOUT)):
-                new_trc_req = TRCRequest.from_values(PT.TRC_REQ_LOCAL,
-                    self.addr, if_id, self.topology.isd_id, self.topology.ad_id,
-                    isd_id, trc_version)
-                dst_addr = self.topology.certificate_servers[0].addr
-                self.send(new_trc_req, dst_addr)
-                self.trc_requests[trc_tuple] = now
-                return False
-        else:
+        trc = self._get_trc(isd_id, trc_version, if_id)
+        if trc:
             cert_chain = self.cert_chains.get((isd_id, ad_id,
                                                cert_chain_version))
             if not cert_chain:
@@ -564,6 +550,8 @@ class LocalBeaconServer(BeaconServer):
                     self.send(new_cert_chain_req, dst_addr)
                     self.cert_chain_requests[cert_chain_tuple] = now
                     return False
+        else:
+            return False
 
     def handle_pcbs_propagation(self):
         """
