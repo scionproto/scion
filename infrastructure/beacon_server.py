@@ -49,7 +49,6 @@ from Crypto.Hash import SHA256
 import copy
 import logging
 
-
 class BeaconServer(SCIONElement):
     """
     The SCION PathConstructionBeacon Server.
@@ -88,9 +87,11 @@ class BeaconServer(SCIONElement):
         """
         Setup the connection to the local zookeeper instance
         """
-        # Use a chroot, to allow testing of multiple ADs on one zookeeper instance
+        # Use a chroot, to allow testing of multiple ADs on one zookeeper
+        # instance
         zk_chroot = "%d-%d" % (self.topology.isd_id, self.topology.ad_id)
-        self._zk = KazooClient(hosts='127.0.0.1:2181/%s' % zk_chroot)  # TODO: def in topo?
+        #TODO: def in topo?
+        self._zk = KazooClient(hosts='127.0.0.1:2181/%s' % zk_chroot)
         #TODO add listeners for connection failures
         # Stop kazoo from drowning the log with debug spam
         self._zk.logger.setLevel(logging.INFO)
@@ -370,6 +371,9 @@ class LocalBeaconServer(BeaconServer):
     servers.
     """
     REQUESTS_TIMEOUT = 10
+    BEACON_VERIFIED = 0
+    BEACON_UNVERIFIED = 1
+    BEACON_INVALID = 2
 
     def __init__(self, addr, topo_file, config_file, path_policy_file):
         BeaconServer.__init__(self, addr, topo_file, config_file,
@@ -441,14 +445,17 @@ class LocalBeaconServer(BeaconServer):
             with self._zk_pcb_lock:
                 logging.debug("zk_process_pcbs() got lock")
                 entries = self._zk.get_children(self._zk_pcbs_path)
-                logging.debug("zk_process_pcbs() processing %d entries" % len(entries))
+                logging.debug(
+                        "zk_process_pcbs() processing %d entries"
+                        % len(entries))
                 for entry in entries:
                     raw,_ = self._zk.get("%s/%s" % (self._zk_pcbs_path, entry))
                     pcb = PathSegment(raw=raw)
-                    # If the pcb is verified or invalid, remove from the pcb list
-                    # Otherwise it is unverified, and stays in the list for later
-                    # verification attempts.
-                    if self._try_to_verify_beacon(pcb) in ("verified", "invalid"):
+                    # If the pcb is verified or invalid, remove from the pcb
+                    # list. Otherwise it is unverified, and stays in the list
+                    # for later verification attempts.
+                    if self._try_to_verify_beacon(pcb) in
+                            (self.BEACON_VERIFIED, self.BEACON_INVALID):
                         self._zk.delete("%s/%s" % (self._zk_pcbs_path, entry))
 
     def _try_to_verify_beacon(self, pcb):
@@ -467,13 +474,13 @@ class LocalBeaconServer(BeaconServer):
             if self._verify_beacon(pcb):
                 self.beacons.append(pcb)
                 logging.info("Registered valid beacon.")
-                return "verified"
+                return self.BEACON_VERIFIED
             else:
                 logging.info("Invalid beacon.")
-                return "invalid"
+                return self.BEACON_INVALID
         else:
             logging.debug("Certificate(s) or TRC missing.")
-            return "unverified"
+            return self.BEACON_UNVERIFIED
 
     def _check_certs_trc(self, isd_id, ad_id, cert_chain_version,
                          trc_version, if_id):
@@ -647,7 +654,8 @@ class LocalBeaconServer(BeaconServer):
         logging.info("PCB received")
         if self._check_filters(beacon.pcb):
             # Add PCB to the zookeeper queue
-            self._zk.create(self._zk_pcbs_path + "/pcb", beacon.pcb.pack(), sequence=True)
+            self._zk.create(self._zk_pcbs_path + "/pcb",
+                            beacon.pcb.pack(), sequence=True)
             # Increment the counter, to notify all BSes of the new PCB
             self._zk_pcb_counter += 1
 
