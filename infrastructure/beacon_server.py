@@ -186,6 +186,10 @@ class BeaconServer(SCIONElement):
             logging.warning("IFID_REP received, to implement")
         elif ptype == PT.BEACON:
             self.process_pcb(PathConstructionBeacon(packet))
+        elif ptype == PT.CERT_CHAIN_REP:
+            self.process_cert_chain_rep(CertChainReply(packet))
+        elif ptype == PT.TRC_REP:
+            self.process_trc_rep(TRCReply(packet))
         else:
             logging.warning("Type not supported")
 
