@@ -351,9 +351,10 @@ class CorePathServer(PathServer):
             targets = copy.deepcopy(self.waiting_targets)
             for (target_isd, target_ad, info) in targets:
                 if target_isd == dst_isd and target_ad == dst_ad:
+                    dst_isd_ad = ISD_AD(dst_isd, dst_ad)
                     path_request = PathMgmtPacket.from_values(PMT.REQUEST, info,
                                                               path, self.addr,
-                                                              (dst_isd, dst_ad))
+                                                              dst_isd_ad)
                     self.send(path_request, next_hop)
                     self.waiting_targets.remove((target_isd, target_ad, info))
                     logging.debug("Sending path request %s on newly learned "
@@ -568,7 +569,7 @@ class CorePathServer(PathServer):
                 rev_pkt = PathMgmtPacket.from_values(PMT.REVOCATIONS, payload,
                                                      paths[0].get_path(),
                                                      self.addr, 
-                                                     (dst_isd, dst_ad))
+                                                     ISD_AD(dst_isd, dst_ad))
                 rev_pkt.hdr.set_downpath()
                 (dst, dst_port) = self.get_first_hop(rev_pkt)
                 logging.debug("Sending segment revocations to leaser (%d, %d)",
