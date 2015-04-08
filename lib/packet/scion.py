@@ -888,7 +888,8 @@ class TRCReply(SCIONPacket):
         :rtype: :class:`TRCReply`
         """
         rep = TRCReply()
-        src = SCIONAddr.from_values(isd_id, ad_id, PacketType.TRC_REP)
+        # TODO: revise TRC/Cert request/replies 
+        src = SCIONAddr.from_values(dst.isd_id, dst.ad_id, PacketType.TRC_REP)
         rep.hdr = SCIONHeader.from_values(src, dst)
         rep.isd_id = isd_id
         rep.version = version

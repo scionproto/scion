@@ -189,7 +189,7 @@ class BeaconServer(SCIONElement):
         elif ptype == PT.BEACON:
             self.process_pcb(PathConstructionBeacon(packet))
         else:
-            logging.warning("Type not supported")
+            logging.warning("Type not supported: %s", ptype)
 
     def run(self):
         """
