@@ -574,14 +574,14 @@ class PathConstructionBeacon(SCIONPacket):
         """
         Returns a PathConstructionBeacon packet with the values specified.
 
-        @param src_isd_ad: Source's 'ISD_AD' tuple.
+        @param src_isd_ad: Source's 'ISD_AD' namedtuple.
         @param dst: Destination address (must be a 'SCIONAddr' object)
         @param pcb: Path Construction PathConstructionBeacon ('PathSegment'
                     class)
         """
         beacon = PathConstructionBeacon()
         beacon.pcb = pcb
-        src = SCIONAddr.from_values(src_isd_ad.isd, src_isd.ad,
+        src = SCIONAddr.from_values(src_isd_ad.isd, src_isd_ad.ad,
                                     PacketType.BEACON)
         beacon.hdr = SCIONHeader.from_values(src, dst)
         return beacon
