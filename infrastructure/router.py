@@ -23,7 +23,7 @@ from lib.packet.opaque_field import OpaqueField, OpaqueFieldType as OFT
 from lib.packet.pcb import PathConstructionBeacon
 from lib.packet.scion import (PacketType as PT, SCIONPacket, IFIDRequest,
     IFIDReply, get_type)
-from lib.packet.scion_addr import SCIONAddr
+from lib.packet.scion_addr import SCIONAddr, ISD_AD
 from lib.util import init_logging
 import datetime
 import logging
@@ -184,7 +184,8 @@ class Router(SCIONElement):
         next_hop.port = self.interface.to_udp_port
         src = SCIONAddr.from_values(self.topology.isd_id, self.topology.ad_id,
                                     self.interface.addr)
-        dst_isd_ad = (self.interface.neighbor_isd, self.interface.neighbor_ad)
+        dst_isd_ad = ISD_AD(self.interface.neighbor_isd,
+                            self.interface.neighbor_ad)
         ifid_req = IFIDRequest.from_values(src, dst_isd_ad,
                                            self.interface.if_id)
         while True:

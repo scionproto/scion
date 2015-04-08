@@ -22,6 +22,7 @@ from lib.packet.path_mgmt import (PathSegmentInfo, PathSegmentRecords,
     PathSegmentType as PST, PathMgmtType as PMT, PathMgmtPacket)
 from lib.packet.scion import PacketType as PT
 from lib.packet.scion import SCIONPacket, get_type
+from lib.packet.scion_addr import ISD_AD
 from lib.path_db import PathSegmentDB
 from lib.util import update_dict
 import logging
@@ -92,8 +93,9 @@ class SCIONDaemon(SCIONElement):
         # Create and send out path request.
         info = PathSegmentInfo.from_values(ptype, src_isd, dst_isd,
                                            src_ad, dst_ad)
-        path_request = PathMgmtPacket.from_values(PMT.REQUEST, info, None,
-                                                  self.addr, (src_isd, src_ad))
+        path_request = PathMgmtPacket.from_values(PMT.REQUEST, info, 
+                                                  None, self.addr,
+                                                  ISD_AD(src_isd, src_ad))
         dst = self.topology.path_servers[0].addr
         self.send(path_request, dst)
 

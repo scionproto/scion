@@ -28,6 +28,7 @@ from lib.packet.path_mgmt import (PathSegmentRecords, PathSegmentInfo,
     LeaseInfo)
 from lib.packet.pcb import PathSegment
 from lib.path_db import PathSegmentDB, DBResult
+from lib.packet.scion_addr import ISD_AD
 from lib.util import update_dict, init_logging
 import copy
 import datetime
@@ -311,7 +312,7 @@ class CorePathServer(PathServer):
             records = PathSegmentRecords.from_values(records.info,
                                                      paths_to_propagate)
             pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, None,
-                                             self.addr, (0, 0))
+                                             self.addr, ISD_AD(0, 0))
             self._propagate_to_core_ads(pkt)
         # Serve pending requests.
         target = (dst_isd, dst_ad)
@@ -444,7 +445,7 @@ class CorePathServer(PathServer):
                                             dst_isd=dst_isd)
                 if cpaths:
                     path = cpaths[0].get_path()
-                    dst_isd_ad = (cpaths[0].get_last_pcbm().spcbf.isd_id,
+                    dst_isd_ad = ISD_AD(cpaths[0].get_last_pcbm().spcbf.isd_id,
                                   cpaths[0].get_last_pcbm().ad_id)
                     if_id = path.get_first_hop_of().egress_if
                     next_hop = self.ifid2addr[if_id]
@@ -491,7 +492,7 @@ class CorePathServer(PathServer):
         rev_infos = pkt.payload.rev_infos
         # Propagate revocation to other CPSes.
         prop_pkt = PathMgmtPacket.from_values(PMT.REVOCATIONS, pkt.payload,
-                                              None, self.addr, (0, 0))
+                                              None, self.addr, ISD_AD(0, 0))
         self._propagate_to_core_ads(prop_pkt, True)
         revocations = defaultdict(RevocationPayload)
         for rev_info in rev_infos:
@@ -643,7 +644,7 @@ class LocalPathServer(PathServer):
         if self.waiting_targets:
             pcb = records.pcbs[0]
             path = pcb.get_path(reverse_direction=True)
-            dst_isd_ad = (pcb.get_isd(), pcb.get_first_pcbm().ad_id)
+            dst_isd_ad = ISD_AD(pcb.get_isd(), pcb.get_first_pcbm().ad_id)
             if_id = path.get_first_hop_of().ingress_if
             next_hop = self.ifid2addr[if_id]
             targets = copy.copy(self.waiting_targets)
@@ -798,7 +799,7 @@ class LocalPathServer(PathServer):
                          ptype, dst_isd, dst_ad)
             pcb = self.up_segments()[0]
             path = pcb.get_path(reverse_direction=True)
-            dst_isd_ad = (pcb.get_isd(), pcb.get_first_pcbm().ad_id)
+            dst_isd_ad = ISD_AD(pcb.get_isd(), pcb.get_first_pcbm().ad_id)
             path.up_segment_info.up_flag = True  # FIXME: temporary hack. A very
             # first path is _always_ down-path, any subsequent is up-path.
             if_id = path.get_first_hop_of().ingress_if

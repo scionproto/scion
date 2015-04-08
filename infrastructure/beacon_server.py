@@ -30,7 +30,7 @@ from lib.packet.pcb import (PathSegment, ADMarking, PCBMarking, PeerMarking,
     PathConstructionBeacon)
 from lib.packet.scion import (SCIONPacket, get_type, PacketType as PT,
     CertChainRequest, CertChainReply, TRCRequest, TRCReply)
-from lib.packet.scion_addr import SCIONAddr
+from lib.packet.scion_addr import SCIONAddr, ISD_AD
 from lib.path_store import PathPolicy, PathStoreRecord, PathStore
 from lib.util import (read_file, write_file, get_cert_chain_file_path,
     get_sig_key_file_path, get_trc_file_path, init_logging)
@@ -452,7 +452,7 @@ class CoreBeaconServer(BeaconServer):
             self.send(pkt, dst.host_addr)
         # Register core path with originating core path server.
         path = pcb.get_path(reverse_direction=True)
-        dst_isd_ad = (pcb.get_isd(), pcb.get_first_pcbm().ad_id)
+        dst_isd_ad = ISD_AD(pcb.get_isd(), pcb.get_first_pcbm().ad_id)
         pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, path, self.addr,
                                          dst_isd_ad)
         if_id = path.get_first_hop_of().ingress_if
@@ -590,7 +590,7 @@ class LocalBeaconServer(BeaconServer):
             self.topology.ad_id)
         core_path = pcb.get_path(reverse_direction=True)
         records = PathSegmentRecords.from_values(info, [pcb])
-        dst_isd_ad = (pcb.get_isd(), pcb.get_first_pcbm().ad_id)
+        dst_isd_ad = ISD_AD(pcb.get_isd(), pcb.get_first_pcbm().ad_id)
         pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, core_path,
                                          self.addr, dst_isd_ad)
         if_id = core_path.get_first_hop_of().ingress_if
@@ -700,7 +700,8 @@ class LocalBeaconServer(BeaconServer):
         path = up_segment.get_path(True)
         path.up_segment_info.up_flag = True
         rev_payload = RevocationPayload.from_values([rev_info])
-        dst_isd_ad = (up_segment.get_isd(), up_segment.get_first_pcbm().ad_id)
+        dst_isd_ad = ISD_AD(up_segment.get_isd(),
+                            up_segment.get_first_pcbm().ad_id)
         pkt = PathMgmtPacket.from_values(PMT.REVOCATIONS, rev_payload, path,
                                          self.addr, dst_isd_ad)
         (next_hop, port) = self.get_first_hop(pkt)

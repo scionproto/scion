@@ -21,7 +21,7 @@ from lib.packet.opaque_field import InfoOpaqueField, OpaqueField
 from lib.packet.packet_base import HeaderBase, PacketBase
 from lib.packet.path import (PathType, CorePath, PeerPath, CrossOverPath,
     EmptyPath, PathBase)
-from lib.packet.scion_addr import SCIONAddr
+from lib.packet.scion_addr import SCIONAddr, ISD_AD
 from bitstring import BitArray
 import bitstring
 from ipaddress import IPv4Address
@@ -521,12 +521,12 @@ class IFIDRequest(SCIONPacket):
         Returns a IFIDRequest with the values specified.
 
         @param src: Source address (must be a 'SCIONAddr' object)
-        @param dst_isd_ad: Destination's (isd_id, ad_id) tuple.
+        @param dst_isd_ad: Destination's 'ISD_AD' namedtuple.
         @param request_id: interface number of src (neighboring router).
         """
         req = IFIDRequest()
         req.request_id = request_id
-        dst = SCIONAddr.from_values(dst_isd_ad[0], dst_isd_ad[1],
+        dst = SCIONAddr.from_values(dst_isd_ad.isd, dst_isd_ad.ad,
                                     PacketType.IFID_REQ)
         req.hdr = SCIONHeader.from_values(src, dst)
         req.payload = struct.pack("HH", 0, request_id)
@@ -557,7 +557,7 @@ class IFIDReply(SCIONPacket):
         """
         Returns a IFIDReply with the values specified.
 
-        @param src_isd_ad: Source's (isd_id, ad_id) tuple.
+        @param src_isd_ad: Source's 'ISD_AD' namedtuple.
         @param dst: Destination address (must be a 'SCIONAddr' object)
         @param reply_id: interface number of dst (local router).
         @param request_id: interface number of src (neighboring router).
@@ -565,7 +565,7 @@ class IFIDReply(SCIONPacket):
         rep = IFIDReply()
         rep.reply_id = reply_id
         rep.request_id = request_id
-        src = SCIONAddr.from_values(src_isd_ad[0], src_isd_ad[1],
+        src = SCIONAddr.from_values(src_isd_ad.isd, src_isd_ad.ad,
                                     PacketType.IFID_REP)
         rep.hdr = SCIONHeader.from_values(src, dst)
         return rep

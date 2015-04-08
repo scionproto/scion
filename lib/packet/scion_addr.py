@@ -25,10 +25,14 @@ Module docstring here.
 
 from bitstring import BitArray
 import bitstring
+from collections import namedtuple
 from ipaddress import IPv4Address, IPv6Address, IPV4LENGTH, IPV6LENGTH
 import logging
 import socket
 import struct
+
+
+ISD_AD = namedtuple('ISD_AD', ['isd', 'ad'])
 
 
 class SCIONAddr(object):
@@ -86,5 +90,5 @@ class SCIONAddr(object):
         return "(%u, %u, %s)" % (self.isd_id, self.ad_id, self.host_addr)
 
     def get_isd_ad(self):
-        return (self.isd_id, self.ad_id)
+        return ISD_AD(self.isd_id, self.ad_id)
 
