@@ -21,7 +21,7 @@ from lib.packet.opaque_field import (SupportSignatureField, HopOpaqueField,
     SupportPCBField, SupportPeerField, TRCField, InfoOpaqueField)
 from lib.packet.path import CorePath
 from lib.packet.scion import SCIONPacket, PacketType, SCIONHeader
-from lib.packet.scion_addr import SCIONAddr
+from lib.packet.scion_addr import SCIONAddr, ISD_AD
 import base64
 import logging
 
@@ -574,14 +574,14 @@ class PathConstructionBeacon(SCIONPacket):
         """
         Returns a PathConstructionBeacon packet with the values specified.
 
-        @param src_isd_ad: Source's (isd_id, ad_id) tuple.
+        @param src_isd_ad: Source's 'ISD_AD' tuple.
         @param dst: Destination address (must be a 'SCIONAddr' object)
         @param pcb: Path Construction PathConstructionBeacon ('PathSegment'
                     class)
         """
         beacon = PathConstructionBeacon()
         beacon.pcb = pcb
-        src = SCIONAddr.from_values(src_isd_ad[0], src_isd_ad[1],
+        src = SCIONAddr.from_values(src_isd_ad.isd, src_isd.ad,
                                     PacketType.BEACON)
         beacon.hdr = SCIONHeader.from_values(src, dst)
         return beacon
