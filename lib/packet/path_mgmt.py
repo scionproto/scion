@@ -22,10 +22,10 @@ limitations under the License.
 Contains all the packet formats used for path management.
 """
 
-from lib.packet.scion_addr import SCIONAddr
 from lib.packet.packet_base import PayloadBase
 from lib.packet.pcb import PathSegment
 from lib.packet.scion import SCIONPacket, PacketType, SCIONHeader
+from lib.packet.scion_addr import SCIONAddr
 import logging
 import struct
 

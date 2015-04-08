@@ -16,8 +16,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 from endhost.sciond import SCIONDaemon
-from lib.packet.scion_addr import SCIONAddr
 from lib.packet.scion import SCIONPacket
+from lib.packet.scion_addr import SCIONAddr
 from infrastructure.scion_elem import SCION_UDP_EH_DATA_PORT, BUFLEN
 from ipaddress import IPv4Address
 import socket

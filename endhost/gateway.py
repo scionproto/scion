@@ -23,8 +23,8 @@ import socket
 from subprocess import call
 from pytun import TunTapDevice, IFF_TUN, IFF_NO_PI
 from endhost.sciond import SCIONDaemon
-from lib.packet.scion_addr import SCIONAddr
 from lib.packet.scion import SCIONPacket
+from lib.packet.scion_addr import SCIONAddr
 from lib.util import init_logging
 from infrastructure.scion_elem import SCION_UDP_EH_DATA_PORT, BUFLEN
 from ipaddress import IPv4Address

@@ -19,11 +19,11 @@
 from infrastructure.scion_elem import (SCIONElement, SCION_UDP_PORT,
                                        SCION_UDP_EH_DATA_PORT)
 from ipaddress import IPv4Address
-from lib.packet.scion_addr import SCIONAddr
 from lib.packet.opaque_field import OpaqueField, OpaqueFieldType as OFT
 from lib.packet.pcb import PathConstructionBeacon
 from lib.packet.scion import (PacketType as PT, SCIONPacket, IFIDRequest,
     IFIDReply, get_type)
+from lib.packet.scion_addr import SCIONAddr
 from lib.util import init_logging
 import datetime
 import logging
