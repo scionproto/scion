@@ -79,9 +79,32 @@ function compareAdTopology(compareUrl) {
 }
 
 function initSendUpdates() {
+    $('#update-info').hide();
 }
 
 function sendAdUpdates(sendUrl) {
+    initSendUpdates();
+    var $alertDiv = $('#update-info');
+
+    function errorHandler() {
+        $alertDiv.addClass('alert-warning');
+        $alertDiv.text('Something is wrong');
+    }
+
+    $.ajax({
+        url: sendUrl,
+        dataType: "json"
+    }).done(function(data) {
+        if (!data['status'][0]) {
+            errorHandler();
+            return;
+        }
+        $alertDiv.addClass('alert-success');
+        $alertDiv.text('Update started');
+    }).fail(errorHandler
+    ).always(function() {
+        $alertDiv.show(500);
+    });
 }
 
 $(document).ready(function() {
