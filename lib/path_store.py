@@ -188,14 +188,15 @@ class PathStore(object):
         self.candidates = []
         self.best_paths_history = []
 
-    def add_record(self, record):
+    def add_segment(self, pcb):
         """
         Possibly add a new path to the candidates list.
 
         :param pcb: The PCB representing the potential path.
         :type pcb: PathSegment
         """
-        assert isinstance(record, PathStoreRecord)
+        assert isinstance(pcb, PathSegment)
+        record = PathStoreRecord(pcb)
         for index in range(len(self.candidates)):
             if self.candidates[index] == record:
                 record.last_sent_time = self.candidates[index].last_sent_time
@@ -271,17 +272,23 @@ class PathStore(object):
         for candidate in self.candidates:
             candidate.update_fidelity(self.path_policy)
 
-    def get_candidates(self, k=10):
+    def get_best_segments(self, k=10):
         """
-        Returns k path candidates from the temporary buffer.
+        Returns the k best paths from the temporary buffer.
         """
-        return self.candidates[:k]
+        best_paths = []
+        for candidate in self.candidates[:k]:
+            best_paths.append(candidate.pcb)
+        return best_paths
 
     def get_last_selection(self, k=10):
         """
         Returns the latest k best paths from the history.
         """
-        return self.best_paths_history[0][:k]
+        best_paths = []
+        for candidate in self.best_paths_history[0][:k]:
+            best_paths.append(candidate.pcb)
+        return best_paths
 
     def store_selection(self, k=10):
         """
@@ -305,10 +312,9 @@ class PathStore(object):
         """
         Returns the segment for the corresponding ID or None.
         """
-        for rec in self.candidates:
-            if rec.id == seg_id:
-                return rec
-            
+        for record in self.candidates:
+            if record.id == seg_id:
+                return record.pcb
         return None
 
     def __str__(self):

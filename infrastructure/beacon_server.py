@@ -383,10 +383,8 @@ class CoreBeaconServer(BeaconServer):
         """
         Once a beacon has been verified, place it into the right containers.
         """
-        path_store_record = PathStoreRecord(pcb)
-        self.beacons.add_record(path_store_record)
-        path_store_record = PathStoreRecord(pcb)
-        self.core_segments.add_record(path_store_record)
+        self.beacons.add_segment(pcb)
+        self.core_segments.add_segment(pcb)
 
     def handle_pcbs_propagation(self):
         """
@@ -408,9 +406,8 @@ class CoreBeaconServer(BeaconServer):
             self.propagate_core_pcb(core_pcb)
             # Propagate received beacons. A core beacon server can only receive
             # beacons from other core beacon servers.
-            best_paths = self.beacons.get_candidates()
-            for path_store_record in best_paths:
-                pcb = path_store_record.pcb
+            best_segments = self.beacons.get_best_segments()
+            for pcb in best_segments:
                 self.propagate_core_pcb(pcb)
             time.sleep(self.config.propagation_time)
 
@@ -438,16 +435,21 @@ class CoreBeaconServer(BeaconServer):
                          "register_segments")
             return
         while True:
-            best_paths = self.core_segments.get_candidates()
-            for path_store_record in best_paths:
-                pcb = path_store_record.pcb
-                new_pcb = copy.deepcopy(pcb)
-                ad_marking = self._create_ad_marking(new_pcb.trcf.if_id, 0)
-                new_pcb.add_ad(ad_marking)
-                new_pcb.segment_id = self._get_segment_rev_token(new_pcb)
-                self.register_core_segment(new_pcb)
-                logging.info("Core path registered")
+            self.register_core_segments()
             time.sleep(self.config.registration_time)
+
+    def register_core_segments(self):
+        """
+        Register the core segment between core ADs.
+        """
+        best_segments = self.core_segments.get_best_segments()
+        for pcb in best_segments:
+            new_pcb = copy.deepcopy(pcb)
+            ad_marking = self._create_ad_marking(new_pcb.trcf.if_id, 0)
+            new_pcb.add_ad(ad_marking)
+            new_pcb.segment_id = self._get_segment_rev_token(new_pcb)
+            self.register_core_segment(new_pcb)
+            logging.info("Core path registered")
 
     def register_core_segment(self, pcb):
         """
@@ -558,12 +560,9 @@ class LocalBeaconServer(BeaconServer):
         """
         Once a beacon has been verified, place it into the right containers.
         """
-        path_store_record = PathStoreRecord(pcb)
-        self.beacons.add_record(path_store_record)
-        path_store_record = PathStoreRecord(pcb)
-        self.up_segments.add_record(path_store_record)
-        path_store_record = PathStoreRecord(pcb)
-        self.down_segments.add_record(path_store_record)
+        self.beacons.add_segment(pcb)
+        self.up_segments.add_segment(pcb)
+        self.down_segments.add_segment(pcb)
 
     def handle_pcbs_propagation(self):
         """
@@ -571,9 +570,8 @@ class LocalBeaconServer(BeaconServer):
         """
         # TODO: define function that dispaches the pcbs among the interfaces
         while True:
-            best_paths = self.beacons.get_candidates()
-            for path_store_record in best_paths:
-                pcb = path_store_record.pcb
+            best_segments = self.beacons.get_best_segments()
+            for pcb in best_segments:
                 self.propagate_downstream_pcb(pcb)
             time.sleep(self.config.propagation_time)
 
@@ -586,27 +584,37 @@ class LocalBeaconServer(BeaconServer):
                          "leaving register_segments")
             return
         while True:
-            best_paths = self.up_segments.get_candidates()
-            for path_store_record in best_paths:
-                pcb = path_store_record.pcb
-                new_pcb = copy.deepcopy(pcb)
-                ad_marking = self._create_ad_marking(new_pcb.trcf.if_id, 0)
-                new_pcb.add_ad(ad_marking)
-                new_pcb.segment_id = self._get_segment_rev_token(new_pcb)
-                new_pcb.remove_signatures()
-                self.register_up_segment(new_pcb)
-                logging.info("Up path registered")
-            best_paths = self.down_segments.get_candidates()
-            for path_store_record in best_paths:
-                pcb = path_store_record.pcb
-                new_pcb = copy.deepcopy(pcb)
-                ad_marking = self._create_ad_marking(new_pcb.trcf.if_id, 0)
-                new_pcb.add_ad(ad_marking)
-                new_pcb.segment_id = self._get_segment_rev_token(new_pcb)
-                new_pcb.remove_signatures()
-                self.register_down_segment(new_pcb)
-                logging.info("Down path registered")
+            self.register_up_segments()
+            self.register_down_segments()
             time.sleep(self.config.registration_time)
+
+    def register_up_segments(self):
+        """
+        Register the paths to the core.
+        """
+        best_segments = self.up_segments.get_best_segments()
+        for pcb in best_segments:
+            new_pcb = copy.deepcopy(pcb)
+            ad_marking = self._create_ad_marking(new_pcb.trcf.if_id, 0)
+            new_pcb.add_ad(ad_marking)
+            new_pcb.segment_id = self._get_segment_rev_token(new_pcb)
+            new_pcb.remove_signatures()
+            self.register_up_segment(new_pcb)
+            logging.info("Up path registered")
+
+    def register_down_segments(self):
+        """
+        Register the paths from the core.
+        """
+        best_segments = self.down_segments.get_best_segments()
+        for pcb in best_segments:
+            new_pcb = copy.deepcopy(pcb)
+            ad_marking = self._create_ad_marking(new_pcb.trcf.if_id, 0)
+            new_pcb.add_ad(ad_marking)
+            new_pcb.segment_id = self._get_segment_rev_token(new_pcb)
+            new_pcb.remove_signatures()
+            self.register_down_segment(new_pcb)
+            logging.info("Down path registered")
 
     def register_up_segment(self, pcb):
         """
@@ -720,10 +728,10 @@ class LocalBeaconServer(BeaconServer):
             self.send(pkt, dst)
 
         # Send revocation to CPS.
-        if not self.up_segments.get_candidates():
+        if not self.up_segments.get_best_segments():
             logging.error("No up path available to send out revocation.")
             return
-        up_segment = self.up_segments.get_candidates()[0].pcb
+        up_segment = self.up_segments.get_best_segments()[0]
         assert up_segment.segment_id != rev_info.seg_id
         path = up_segment.get_path(True)
         path.up_segment_info.up_flag = True
