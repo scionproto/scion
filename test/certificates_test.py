@@ -20,13 +20,13 @@ from infrastructure.cert_server import CertServer
 from infrastructure.scion_elem import SCION_UDP_PORT, BUFLEN
 from lib.crypto.asymcrypto import sign
 from lib.crypto.certificate import verify_sig_chain_trc, CertificateChain, TRC
-from lib.packet.host_addr import SCIONAddr
-from ipaddress import IPv4Address
+from lib.packet.scion_addr import SCIONAddr
 from lib.packet.scion import (SCIONPacket, get_type, PacketType as PT,
     CertChainRequest, CertChainReply, TRCRequest, TRCReply)
 from lib.topology import Topology
 from lib.util import (get_cert_chain_file_path, get_trc_file_path, read_file,
     get_sig_key_file_path, write_file)
+from ipaddress import IPv4Address
 import base64
 import logging
 import os

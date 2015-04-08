@@ -22,7 +22,7 @@ limitations under the License.
 Contains all the packet formats used for path management.
 """
 
-from lib.packet.host_addr import SCIONAddr
+from lib.packet.scion_addr import SCIONAddr
 from lib.packet.packet_base import PayloadBase
 from lib.packet.pcb import PathSegment
 from lib.packet.scion import SCIONPacket, PacketType, SCIONHeader
@@ -461,9 +461,9 @@ class PathMgmtPacket(SCIONPacket):
         :param path: the path of the packet
         :type lib.packet.path.PathBase
         :param src_addr: source address (isd_id, ad_id tuple for response)
-        :type lib.packet.host_addr.SCIONAddr or tuple
+        :type lib.packet.scion_addr.SCIONAddr or tuple
         :param dst_addr: destination address (isd_id, ad_id tuple for request)
-        :type lib.packet.host_addr.SCIONAddr or tuple
+        :type lib.packet.scion_addr.SCIONAddr or tuple
         """
         pkt = PathMgmtPacket()
         if isinstance(src_addr, tuple) and isinstance(dst_addr, SCIONAddr):

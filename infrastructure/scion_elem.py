@@ -23,7 +23,7 @@ Module docstring here.
 """
 
 from lib.config import Config
-from lib.packet.host_addr import SCIONAddr
+from lib.packet.scion_addr import SCIONAddr
 from lib.topology import Topology
 import ipaddress
 import logging
@@ -48,7 +48,7 @@ class SCIONElement(object):
         corresponding border router addresses in the server's AD.
     :vartype ifid2addr: dict
     :ivar addr: a `SCIONAddr` object representing the server address.
-    :vartype addr: :class:`lib.packet.host_addr.SCIONAddr`
+    :vartype addr: :class:`lib.packet.scion_addr.SCIONAddr`
     """
 
     def __init__(self, host_addr, topo_file, config_file=None):
@@ -83,7 +83,7 @@ class SCIONElement(object):
     @property
     def addr(self):
         """
-        The address of the server as a :class:`lib.packet.host_addr.SCIONAddr`
+        The address of the server as a :class:`lib.packet.scion_addr.SCIONAddr`
         object.
         """
         return self._addr
@@ -92,10 +92,10 @@ class SCIONElement(object):
     def addr(self, addr):
         """
         Set the address of the server. Must be a
-        :class:`lib.packet.host_addr.SCIONAddr` object.
+        :class:`lib.packet.scion_addr.SCIONAddr` object.
 
         :param addr: the new server address.
-        :type addr: :class:`lib.packet.host_addr.SCIONAddr`
+        :type addr: :class:`lib.packet.scion_addr.SCIONAddr`
         """
         self.set_addr(addr)
 

@@ -17,7 +17,7 @@
 """
 
 from lib.defines import EXP_TIME_UNIT
-from lib.packet.host_addr import SCIONAddr
+from lib.packet.scion_addr import SCIONAddr
 from lib.packet.opaque_field import (SupportSignatureField, HopOpaqueField,
     SupportPCBField, SupportPeerField, TRCField, InfoOpaqueField)
 from lib.packet.path import CorePath

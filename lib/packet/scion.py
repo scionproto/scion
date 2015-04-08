@@ -17,7 +17,7 @@
 """
 
 from lib.packet.ext_hdr import ExtensionHeader, ICNExtHdr
-from lib.packet.host_addr import SCIONAddr
+from lib.packet.scion_addr import SCIONAddr
 from lib.packet.opaque_field import InfoOpaqueField, OpaqueField
 from lib.packet.packet_base import HeaderBase, PacketBase
 from lib.packet.path import (PathType, CorePath, PeerPath, CrossOverPath,

@@ -18,7 +18,7 @@ limitations under the License.
 from lib.packet.path import (PathType, CorePath, PeerPath, CrossOverPath,
                              EmptyPath, PathBase)
 from lib.packet.opaque_field import InfoOpaqueField
-from lib.packet.host_addr import SCIONAddr
+from lib.packet.scion_addr import SCIONAddr
 from lib.packet.scion import SCIONPacket
 from endhost.sciond import SCIONDaemon, SCIOND_API_HOST, SCIOND_API_PORT
 from infrastructure.scion_elem import SCION_UDP_EH_DATA_PORT, BUFLEN

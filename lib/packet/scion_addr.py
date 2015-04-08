@@ -1,4 +1,4 @@
-#host_addr.py
+#scion_addr.py
 
 #Copyright 2014 ETH Zurich
 
@@ -14,7 +14,7 @@
 #See the License for the specific language governing permissions and
 #limitations under the License.
 """
-:mod:`host_addr` --- SCION host address specifications
+:mod:`scion_addr` --- SCION host address specifications
 ======================================================
 
 Module docstring here.
