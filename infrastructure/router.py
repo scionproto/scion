@@ -58,7 +58,7 @@ class Router(SCIONElement):
     The SCION Router.
 
     :ivar addr: the router address.
-    :vartype addr: :class:`HostAddr`
+    :vartype addr: :class:`SCIONAddr`
     :ivar topology: the AD topology as seen by the router.
     :vartype topology: :class:`Topology`
     :ivar config: the configuration of the router.
@@ -84,7 +84,7 @@ class Router(SCIONElement):
         Constructor.
 
         :param addr: the router address.
-        :type addr: :class:`HostAddr`
+        :type addr: :class:`ipaddress.IPv4Address`
         :param topo_file: the topology file name.
         :type topo_file: str
         :param config_file: the configuration file name.

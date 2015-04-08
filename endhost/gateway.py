@@ -52,7 +52,7 @@ class SCIONGateway(object):
         Create a new SCIONGateway instance.
 
         :param addr: the address of the gateway.
-        :type addr: :class:`HostAddr`
+        :type addr: :class:`ipaddress.IPv4Address`
         :param topo_file: the name of the topology file.
         :type topo_file: str
         :param config_file: the name of the configuration file.
