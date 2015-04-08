@@ -145,10 +145,12 @@ class CertServer(SCIONElement):
             if get_type(trc_req) == PT.TRC_REQ_LOCAL:
                 dst_addr = trc_req.hdr.src_addr.host_addr
             else:
-                for router in self.topology.child_edge_routers:
+                for router in (self.topology.child_edge_routers +
+                               self.topology.routing_edge_routers):
                     if (trc_req.src_isd == router.interface.neighbor_isd and
                         trc_req.src_ad == router.interface.neighbor_ad):
                         dst_addr = router.addr
+                        break
             self.send(trc_rep, dst_addr)
             logging.info("TRC reply sent.")
 
