@@ -457,7 +457,7 @@ class CorePathServer(PathServer):
                     self.send(request, next_hop)
                     logging.info("Down-Segment request for different ISD. "
                                  "Forwarding request to CPS in (%d, %d).",
-                                 dst_isd_ad)
+                                 dst_isd_ad.isd, dst_isd_ad.ad)
                 # If no core_path was available, add request to waiting targets.
                 else:
                     self.waiting_targets.add((dst_isd, dst_ad, segment_info))
