@@ -17,8 +17,8 @@
 """
 
 from infrastructure.scion_elem import SCIONElement
+from ipaddress import IPv4Address
 from lib.crypto.certificate import TRC
-from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.scion import (SCIONPacket, get_type, PacketType as PT,
     CertChainRequest, CertChainReply, TRCRequest, TRCReply)
 from lib.util import (read_file, write_file, get_cert_chain_file_path,
@@ -199,7 +199,7 @@ def main():
         logging.error("run: %s IP topo_file conf_file trc_file", sys.argv[0])
         sys.exit()
 
-    cert_server = CertServer(IPv4HostAddr(sys.argv[1]), sys.argv[2],
+    cert_server = CertServer(IPv4Address(sys.argv[1]), sys.argv[2],
                              sys.argv[3], sys.argv[4])
 
     logging.info("Started: %s", datetime.datetime.now())

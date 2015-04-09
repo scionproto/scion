@@ -18,11 +18,12 @@
 
 from infrastructure.scion_elem import (SCIONElement, SCION_UDP_PORT,
                                        SCION_UDP_EH_DATA_PORT)
-from lib.packet.host_addr import IPv4HostAddr, SCIONAddr
+from ipaddress import IPv4Address
 from lib.packet.opaque_field import OpaqueField, OpaqueFieldType as OFT
 from lib.packet.pcb import PathConstructionBeacon
 from lib.packet.scion import (PacketType as PT, SCIONPacket, IFIDRequest,
     IFIDReply, get_type)
+from lib.packet.scion_addr import SCIONAddr, ISD_AD
 from lib.util import init_logging
 import datetime
 import logging
@@ -57,7 +58,7 @@ class Router(SCIONElement):
     The SCION Router.
 
     :ivar addr: the router address.
-    :vartype addr: :class:`HostAddr`
+    :vartype addr: :class:`SCIONAddr`
     :ivar topology: the AD topology as seen by the router.
     :vartype topology: :class:`Topology`
     :ivar config: the configuration of the router.
@@ -83,7 +84,7 @@ class Router(SCIONElement):
         Constructor.
 
         :param addr: the router address.
-        :type addr: :class:`HostAddr`
+        :type addr: :class:`ipaddress.IPv4Address`
         :param topo_file: the topology file name.
         :type topo_file: str
         :param config_file: the configuration file name.
@@ -183,7 +184,10 @@ class Router(SCIONElement):
         next_hop.port = self.interface.to_udp_port
         src = SCIONAddr.from_values(self.topology.isd_id, self.topology.ad_id,
                                     self.interface.addr)
-        ifid_req = IFIDRequest.from_values(src, self.interface.if_id)
+        dst_isd_ad = ISD_AD(self.interface.neighbor_isd,
+                            self.interface.neighbor_ad)
+        ifid_req = IFIDRequest.from_values(src, dst_isd_ad,
+                                           self.interface.if_id)
         while True:
             self.send(ifid_req, next_hop, False)
             logging.info('IFID_REQ sent to %s', next_hop)
@@ -227,7 +231,8 @@ class Router(SCIONElement):
         next_hop.port = self.interface.to_udp_port
         dst = ifid_req.hdr.src_addr
         dst.host_addr = next_hop.addr
-        ifid_rep = IFIDReply.from_values(dst, self.interface.if_id,
+        ifid_rep = IFIDReply.from_values(self.addr.get_isd_ad(), dst,
+                                         self.interface.if_id,
                                          ifid_req.request_id)
         self.send(ifid_rep, next_hop, False)
 
@@ -529,7 +534,7 @@ class Router(SCIONElement):
             self.relay_cert_server_packet(spkt, next_hop, from_local_ad)
         else:
             if ptype == PT.DATA:
-                logging.debug("DATA type %u, %s", ptype, spkt)
+                logging.debug("DATA type %s, %s", ptype, spkt)
             self.process_packet(spkt, next_hop, from_local_ad, ptype)
 
 
@@ -542,7 +547,7 @@ def main():
         logging.error("run: %s IP topo_file conf_file", sys.argv[0])
         sys.exit()
 
-    router = Router(IPv4HostAddr(sys.argv[1]), sys.argv[2], sys.argv[3])
+    router = Router(IPv4Address(sys.argv[1]), sys.argv[2], sys.argv[3])
 
     logging.info("Started: %s", datetime.datetime.now())
     router.run()

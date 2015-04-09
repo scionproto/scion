@@ -18,10 +18,11 @@ limitations under the License.
 from lib.packet.path import (PathType, CorePath, PeerPath, CrossOverPath,
                              EmptyPath, PathBase)
 from lib.packet.opaque_field import InfoOpaqueField
-from lib.packet.host_addr import SCIONAddr, IPv4HostAddr
 from lib.packet.scion import SCIONPacket
+from lib.packet.scion_addr import SCIONAddr
 from endhost.sciond import SCIONDaemon, SCIOND_API_HOST, SCIOND_API_PORT
 from infrastructure.scion_elem import SCION_UDP_EH_DATA_PORT, BUFLEN
+from ipaddress import IPv4Address
 import logging
 import time
 import unittest
@@ -65,15 +66,15 @@ def get_paths_via_api(isd, ad):
             logging.info("Can not parse path: Unknown type %x", info.info)
         assert path
         offset += path_len
-        hop = IPv4HostAddr(data[offset:offset+4])
+        hop = IPv4Address(data[offset:offset+4])
         offset += 4
         paths_hops.append((path, hop))
     sock.close()
     return paths_hops
 
 
-saddr = IPv4HostAddr("127.1.19.254")
-raddr = IPv4HostAddr("127.2.26.254")
+saddr = IPv4Address("127.1.19.254")
+raddr = IPv4Address("127.2.26.254")
 
 def ping_app():
     """

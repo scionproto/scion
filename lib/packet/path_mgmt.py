@@ -24,8 +24,8 @@ Contains all the packet formats used for path management.
 
 from lib.packet.packet_base import PayloadBase
 from lib.packet.pcb import PathSegment
-from lib.packet.scion import (SCIONPacket, get_addr_from_type, PacketType,
-    SCIONHeader)
+from lib.packet.scion import SCIONPacket, PacketType, SCIONHeader
+from lib.packet.scion_addr import SCIONAddr, ISD_AD
 import logging
 import struct
 
@@ -450,7 +450,7 @@ class PathMgmtPacket(SCIONPacket):
         return SCIONPacket.pack(self)
 
     @classmethod
-    def from_values(cls, type, payload, path, src_addr=None, dst_addr=None):
+    def from_values(cls, type, payload, path, src_addr, dst_addr):
         """
         Returns a PathMgmtPacket with the values specified.
 
@@ -460,18 +460,21 @@ class PathMgmtPacket(SCIONPacket):
         :type lib.packet.packet_base.PayloadBase
         :param path: the path of the packet
         :type lib.packet.path.PathBase
-        :param src_addr: source address
-        :type lib.packet.host_addr.HostAddr
-        :param dst_addr: destination address
-        :type lib.packet.host_addr.HostAddr
+        :param src_addr: source address (ISD_AD namedtuple for response)
+        :type lib.packet.scion_addr.SCIONAddr or lib.packet.scion_addr.ISD_AD
+        :param dst_addr: destination address (ISD_AD namedtuple for request)
+        :type lib.packet.scion_addr.SCIONAddr or lib.packet.scion_addr.ISD_AD
         """
         pkt = PathMgmtPacket()
-        if src_addr is None:
-            src_addr = get_addr_from_type(PacketType.PATH_MGMT)
-        if dst_addr is None:
-            dst_addr = get_addr_from_type(PacketType.PATH_MGMT)
-        pkt.hdr = SCIONHeader.from_values(src_addr, dst_addr,
-                                          PacketType.DATA, path)
+        if isinstance(src_addr, ISD_AD) and isinstance(dst_addr, SCIONAddr):
+            src_addr = SCIONAddr.from_values(src_addr.isd, src_addr.ad,
+                                             PacketType.PATH_MGMT)
+        elif isinstance(src_addr, SCIONAddr) and isinstance(dst_addr, ISD_AD):
+            dst_addr = SCIONAddr.from_values(dst_addr.isd, dst_addr.ad,
+                                             PacketType.PATH_MGMT)
+        else:
+            logging.error("Unsupported src_addr, dst_addr pair.")
+        pkt.hdr = SCIONHeader.from_values(src_addr, dst_addr, path)
         pkt.type = type
         pkt.payload = payload
         return pkt

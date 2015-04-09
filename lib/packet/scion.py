@@ -17,92 +17,36 @@
 """
 
 from lib.packet.ext_hdr import ExtensionHeader, ICNExtHdr
-from lib.packet.host_addr import SCIONAddr, IPv4HostAddr
 from lib.packet.opaque_field import InfoOpaqueField, OpaqueField
 from lib.packet.packet_base import HeaderBase, PacketBase
 from lib.packet.path import (PathType, CorePath, PeerPath, CrossOverPath,
     EmptyPath, PathBase)
-import logging
-import struct
-
+from lib.packet.scion_addr import SCIONAddr, ISD_AD
 from bitstring import BitArray
 import bitstring
+from ipaddress import IPv4Address
+import logging
+import struct
 
 
 class PacketType(object):
     """
     Defines constants for the SCION packet types.
     """
-    DATA = 0  # data packet
-    AID_REQ = 1  # Address request to local elements (from SCIONSwitch)
-    AID_REP = 2  # AID reply to switch
-    CERT_CHAIN_REQ_LOCAL = 3  # local cert chain request (to certificate server)
-    CERT_CHAIN_REQ = 4  # cert chain request to parent AD
-    CERT_CHAIN_REP = 5  # local cert chain reply (from certificate server)
-    TRC_REQ_LOCAL = 6  # TRC file reply to local certificate server
-    TRC_REQ = 7  # Root of Trust file request to parent AD
-    TRC_REP = 8  # Root of Trust file reply from parent AD
-    TO_LOCAL_ADDR = 100  # Threshold to distinguish local control packets
-    BEACON = 101  # PathSegment type
-    PATH_MGMT = 108  # Path management packet to CPS/lPS
-    OFG_KEY_REQ = 114  # opaque field generation key request to CS
-    OFG_KEY_REP = 115  # opaque field generation key reply from CS
-    IFID_REQ = 116  # IF ID request to the peer router (of the neighbor AD)
-    IFID_REP = 117  # IF ID reply from the peer router
-
-
-class SignatureType(object):
-    """
-    Defines constants for the possible sizes of signatures.
-    """
-    SIZE_128 = 0
-    SIZE_256 = 1
-    SIZE_384 = 2
-
-
-class IDSize(object):
-    """
-    Defines constants for the lengths of AIDs and TIDs.
-    """
-    SIZE_TID = 4
-    SIZE_AID = 8
-
-TYPES_SRC = {
-        PacketType.CERT_CHAIN_REP: 33611786,
-        PacketType.PATH_MGMT: 67166218,
-        PacketType.TRC_REP: 134275082,
-        PacketType.BEACON: 16834570,
-        PacketType.OFG_KEY_REP: 117497866,
-        PacketType.IFID_REP: 167829514,
-        }
-TYPES_SRC_INV = {v: k for k, v in TYPES_SRC.items()}
-TYPES_DST = {
-        PacketType.CERT_CHAIN_REQ_LOCAL: 151052298,
-        PacketType.CERT_CHAIN_REQ: 33611786,
-        PacketType.PATH_MGMT: 67166218,
-        PacketType.TRC_REQ_LOCAL: 100720650,
-        PacketType.TRC_REQ: 134275082,
-        PacketType.OFG_KEY_REQ: 117497866,
-        PacketType.IFID_REQ: 167829514,
-    }
-TYPES_DST_INV = {v: k for k, v in TYPES_DST.items()}
-
-
-def get_addr_from_type(ptype):
-    # TODO: revise types and replace by set_type()
-    """
-    Return the SCION address associated to a certain type of packet.
-
-    :param ptype: the packet type.
-    :type ptype: int
-    :returns: the associated IP address.
-    :rtype: :class:`IPv4HostAddr`
-    """
-    if ptype in TYPES_SRC:
-        addr = IPv4HostAddr(TYPES_SRC[ptype])
-    else:
-        addr = IPv4HostAddr(TYPES_DST[ptype])
-    return SCIONAddr.from_values(0, 0, addr)
+    DATA = -1  # Data packet
+    BEACON = IPv4Address("10.224.0.1")  # Path Construction Beacon
+    PATH_MGMT = IPv4Address("10.224.0.2")  # Path management packet from/to PS
+    TRC_REQ = IPv4Address("10.224.0.3")  # TRC file request to parent AD
+    TRC_REQ_LOCAL = IPv4Address("10.224.0.4")  # TRC file request to lCS
+    TRC_REP = IPv4Address("10.224.0.5")  # TRC file reply from parent AD
+    CERT_CHAIN_REQ = IPv4Address("10.224.0.6")  # cert chain request to parent AD
+    CERT_CHAIN_REQ_LOCAL = IPv4Address("10.224.0.7")  # local cert chain request
+    CERT_CHAIN_REP = IPv4Address("10.224.0.8")  # cert chain reply from lCS 
+    IFID_REQ = IPv4Address("10.224.0.9")  # IF ID request to the peer router
+    IFID_REP = IPv4Address("10.224.0.10")  # IF ID reply from the peer router
+    SRC = [BEACON, PATH_MGMT, CERT_CHAIN_REP, TRC_REP, IFID_REP]
+    DST = [PATH_MGMT, TRC_REQ, TRC_REQ_LOCAL, CERT_CHAIN_REQ,
+           CERT_CHAIN_REQ_LOCAL, IFID_REQ]
 
 
 def get_type(pkt):
@@ -114,12 +58,10 @@ def get_type(pkt):
     :returns: the packet type.
     :rtype: int
     """
-    isrc_addr = pkt.hdr.src_addr.host_addr.to_int(endianness='little')
-    idst_addr = pkt.hdr.dst_addr.host_addr.to_int(endianness='little')
-    if isrc_addr in TYPES_SRC_INV:
-        return TYPES_SRC_INV[isrc_addr]
-    if idst_addr in TYPES_DST_INV:
-        return TYPES_DST_INV[idst_addr]
+    if pkt.hdr.src_addr.host_addr in PacketType.SRC:
+        return pkt.hdr.src_addr.host_addr
+    if pkt.hdr.dst_addr.host_addr in PacketType.DST:
+        return pkt.hdr.dst_addr.host_addr
     return PacketType.DATA
 
 
@@ -132,7 +74,7 @@ class SCIONCommonHdr(HeaderBase):
 
     def __init__(self, raw=None):
         HeaderBase.__init__(self)
-        self.type = PacketType.DATA  # Type of the packet.
+        self.version = 0  # Version of SCION packet.
         self.src_addr_len = 0  # Length of the src address.
         self.dst_addr_len = 0  # Length of the dst address.
         self.total_len = 0  # Total length of the packet.
@@ -145,12 +87,11 @@ class SCIONCommonHdr(HeaderBase):
             self.parse(raw)
 
     @classmethod
-    def from_values(cls, pkt_type, src_addr_len, dst_addr_len, next_hdr):
+    def from_values(cls, src_addr_len, dst_addr_len, next_hdr):
         """
         Returns a SCIONCommonHdr with the values specified.
         """
         chdr = SCIONCommonHdr()
-        chdr.type = pkt_type
         chdr.src_addr_len = src_addr_len
         chdr.dst_addr_len = dst_addr_len
         chdr.next_hdr = next_hdr
@@ -176,7 +117,7 @@ class SCIONCommonHdr(HeaderBase):
          self.next_hdr, self.hdr_len) = \
             bits.unpack("uintbe:16, uintbe:16, uintbe:8, "
                         "uintbe:8, uintbe:8, uintbe:8")
-        self.type = (types & 0xf000) >> 12
+        self.version = (types & 0xf000) >> 12
         self.src_addr_len = (types & 0x0fc0) >> 6
         self.dst_addr_len = types & 0x003f
         self.parsed = True
@@ -186,7 +127,8 @@ class SCIONCommonHdr(HeaderBase):
         """
         Returns the common header as 8 byte binary string.
         """
-        types = (self.type << 12) | (self.dst_addr_len << 6) | self.src_addr_len
+        types = ((self.version << 12) | (self.dst_addr_len << 6) |
+                 self.src_addr_len)
         return bitstring.pack("uintbe:16, uintbe:16, uintbe:8, "
                               "uintbe:8, uintbe:8, uintbe:8",
                               types, self.total_len, self.curr_iof_p,
@@ -194,10 +136,11 @@ class SCIONCommonHdr(HeaderBase):
                               self.hdr_len).bytes
 
     def __str__(self):
-        res = ("[CH type: %u, src len: %u, dst len: %u, total len: %u bytes, "
+        res = ("[CH ver: %u, src len: %u, dst len: %u, total len: %u bytes, "
                "TS: %u, current OF: %u, next hdr: %u, hdr len: %u]") % (
-               self.type, self.src_addr_len, self.dst_addr_len, self.total_len,
-               self.curr_iof_p, self.curr_of_p, self.next_hdr, self.hdr_len)
+               self.version, self.src_addr_len, self.dst_addr_len,
+               self.total_len, self.curr_iof_p, self.curr_of_p, self.next_hdr,
+               self.hdr_len)
         return res
 
 
@@ -220,8 +163,7 @@ class SCIONHeader(HeaderBase):
             self.parse(raw)
 
     @classmethod
-    def from_values(cls, src, dst, pkt_type, path=None,
-                    ext_hdrs=None, next_hdr=0):
+    def from_values(cls, src, dst, path=None, ext_hdrs=None, next_hdr=0):
         """
         Returns a SCIONHeader with the values specified.
         """
@@ -231,8 +173,8 @@ class SCIONHeader(HeaderBase):
         if ext_hdrs is None:
             ext_hdrs = []
         hdr = SCIONHeader()
-        hdr.common_hdr = SCIONCommonHdr.from_values(pkt_type, src.addr_len,
-                                                    dst.addr_len, next_hdr)
+        hdr.common_hdr = SCIONCommonHdr.from_values(src.addr_len, dst.addr_len,
+                                                    next_hdr)
         hdr.src_addr = src
         hdr.dst_addr = dst
         hdr.path = path
@@ -517,8 +459,7 @@ class SCIONPacket(PacketBase):
         @param pkt_type: The type of the packet.
         """
         pkt = SCIONPacket()
-        pkt.hdr = SCIONHeader.from_values(src, dst, pkt_type, path,
-                                          ext_hdrs, next_hdr)
+        pkt.hdr = SCIONHeader.from_values(src, dst, path, ext_hdrs, next_hdr)
         pkt.payload = payload
         return pkt
 
@@ -575,17 +516,19 @@ class IFIDRequest(SCIONPacket):
         _, self.request_id = struct.unpack("HH", self.payload)
 
     @classmethod
-    def from_values(cls, src, request_id):
+    def from_values(cls, src, dst_isd_ad, request_id):
         """
         Returns a IFIDRequest with the values specified.
 
         @param src: Source address (must be a 'SCIONAddr' object)
+        @param dst_isd_ad: Destination's 'ISD_AD' namedtuple.
         @param request_id: interface number of src (neighboring router).
         """
         req = IFIDRequest()
         req.request_id = request_id
-        dst = get_addr_from_type(PacketType.IFID_REQ)
-        req.hdr = SCIONHeader.from_values(src, dst, PacketType.DATA)
+        dst = SCIONAddr.from_values(dst_isd_ad.isd, dst_isd_ad.ad,
+                                    PacketType.IFID_REQ)
+        req.hdr = SCIONHeader.from_values(src, dst)
         req.payload = struct.pack("HH", 0, request_id)
         return req
 
@@ -610,10 +553,11 @@ class IFIDReply(SCIONPacket):
         self.reply_id, self.request_id = struct.unpack("HH", self.payload)
 
     @classmethod
-    def from_values(cls, dst, reply_id, request_id):
+    def from_values(cls, src_isd_ad, dst, reply_id, request_id):
         """
         Returns a IFIDReply with the values specified.
 
+        @param src_isd_ad: Source's 'ISD_AD' namedtuple.
         @param dst: Destination address (must be a 'SCIONAddr' object)
         @param reply_id: interface number of dst (local router).
         @param request_id: interface number of src (neighboring router).
@@ -621,8 +565,9 @@ class IFIDReply(SCIONPacket):
         rep = IFIDReply()
         rep.reply_id = reply_id
         rep.request_id = request_id
-        src = get_addr_from_type(PacketType.IFID_REP)
-        rep.hdr = SCIONHeader.from_values(src, dst, PacketType.DATA)
+        src = SCIONAddr.from_values(src_isd_ad.isd, src_isd_ad.ad,
+                                    PacketType.IFID_REP)
+        rep.hdr = SCIONHeader.from_values(src, dst)
         return rep
 
     def pack(self):
@@ -707,8 +652,8 @@ class CertChainRequest(SCIONPacket):
         :rtype: :class:`CertChainRequest`
         """
         req = CertChainRequest()
-        dst = get_addr_from_type(req_type)
-        req.hdr = SCIONHeader.from_values(src, dst, req_type)
+        dst = SCIONAddr.from_values(isd_id, src_ad, req_type)
+        req.hdr = SCIONHeader.from_values(src, dst)
         req.ingress_if = ingress_if
         req.src_isd = src_isd
         req.src_ad = src_ad
@@ -787,8 +732,8 @@ class CertChainReply(SCIONPacket):
         :rtype: :class:`CertChainReply`
         """
         rep = CertChainReply()
-        src = get_addr_from_type(PacketType.CERT_CHAIN_REP)
-        rep.hdr = SCIONHeader.from_values(src, dst, PacketType.CERT_CHAIN_REP)
+        src = SCIONAddr.from_values(isd_id, ad_id, PacketType.CERT_CHAIN_REP)
+        rep.hdr = SCIONHeader.from_values(src, dst)
         rep.isd_id = isd_id
         rep.ad_id = ad_id
         rep.version = version
@@ -870,8 +815,8 @@ class TRCRequest(SCIONPacket):
         :rtype: :class:`TRCRequest`
         """
         req = TRCRequest()
-        dst = get_addr_from_type(req_type)
-        req.hdr = SCIONHeader.from_values(src, dst, req_type)
+        dst = SCIONAddr.from_values(isd_id, src_ad, req_type)
+        req.hdr = SCIONHeader.from_values(src, dst)
         req.ingress_if = ingress_if
         req.src_isd = src_isd
         req.src_ad = src_ad
@@ -943,8 +888,9 @@ class TRCReply(SCIONPacket):
         :rtype: :class:`TRCReply`
         """
         rep = TRCReply()
-        src = get_addr_from_type(PacketType.TRC_REP)
-        rep.hdr = SCIONHeader.from_values(src, dst, PacketType.TRC_REP)
+        # TODO: revise TRC/Cert request/replies 
+        src = SCIONAddr.from_values(dst.isd_id, dst.ad_id, PacketType.TRC_REP)
+        rep.hdr = SCIONHeader.from_values(src, dst)
         rep.isd_id = isd_id
         rep.version = version
         rep.trc = trc

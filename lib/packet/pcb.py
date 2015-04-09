@@ -20,8 +20,8 @@ from lib.defines import EXP_TIME_UNIT
 from lib.packet.opaque_field import (SupportSignatureField, HopOpaqueField,
     SupportPCBField, SupportPeerField, TRCField, InfoOpaqueField)
 from lib.packet.path import CorePath
-from lib.packet.scion import (SCIONPacket, get_addr_from_type, PacketType,
-    SCIONHeader)
+from lib.packet.scion import SCIONPacket, PacketType, SCIONHeader
+from lib.packet.scion_addr import SCIONAddr, ISD_AD
 import base64
 import logging
 
@@ -570,18 +570,20 @@ class PathConstructionBeacon(SCIONPacket):
         self.pcb = PathSegment(self.payload)
 
     @classmethod
-    def from_values(cls, dst, pcb):
+    def from_values(cls, src_isd_ad, dst, pcb):
         """
         Returns a PathConstructionBeacon packet with the values specified.
 
-        @param dst: Destination address (must be a 'HostAddr' object)
+        @param src_isd_ad: Source's 'ISD_AD' namedtuple.
+        @param dst: Destination address (must be a 'SCIONAddr' object)
         @param pcb: Path Construction PathConstructionBeacon ('PathSegment'
                     class)
         """
         beacon = PathConstructionBeacon()
         beacon.pcb = pcb
-        src = get_addr_from_type(PacketType.BEACON)
-        beacon.hdr = SCIONHeader.from_values(src, dst, PacketType.DATA)
+        src = SCIONAddr.from_values(src_isd_ad.isd, src_isd_ad.ad,
+                                    PacketType.BEACON)
+        beacon.hdr = SCIONHeader.from_values(src, dst)
         return beacon
 
     def pack(self):

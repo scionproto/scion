@@ -16,7 +16,7 @@
 ===========================================
 """
 
-from lib.packet.host_addr import IPv4HostAddr, IPv6HostAddr, SCIONHostAddr
+from ipaddress import IPv4Address, IPv6Address
 import json
 import logging
 
@@ -27,11 +27,9 @@ class Element(object):
     file.
 
     :ivar addr: IP or SCION address of a server or edge router.
-    :type addr: :class:`IPv4HostAddr`, :class:`IPv6HostAddr`, or
-                :class:`SCIONHostAddr`
+    :type addr: :class:`IPv4Address` or :class:`IPv6Address`
     :ivar to_addr: destination IP or SCION address of an edge router.
-    :type to_addr: :class:`IPv4HostAddr`, :class:`IPv6HostAddr`, or
-                   :class:`SCIONHostAddr`
+    :type to_addr: :class:`IPv4Address` or :class:`IPv6Address`
     """
 
     def __init__(self, addr=None, addr_type=None, to_addr=None):
@@ -48,17 +46,13 @@ class Element(object):
         :rtype: :class:`Element`
         """
         if addr_type.lower() == "ipv4":
-            self.addr = IPv4HostAddr(addr)
+            self.addr = IPv4Address(addr)
             if to_addr is not None:
-                self.to_addr = IPv4HostAddr(to_addr)
+                self.to_addr = IPv4Address(to_addr)
         elif addr_type.lower() == "ipv6":
-            self.addr = IPv6HostAddr(addr)
+            self.addr = IPv6Address(addr)
             if to_addr is not None:
-                self.to_addr = IPv6HostAddr(to_addr)
-        elif addr_type.lower() == "scion":
-            self.addr = SCIONHostAddr(int(addr))
-            if to_addr is not None:
-                self.to_addr = SCIONHostAddr(to_addr)
+                self.to_addr = IPv6Address(to_addr)
 
 
 class ServerElement(Element):

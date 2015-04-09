@@ -23,8 +23,9 @@ Module docstring here.
 """
 
 from lib.config import Config
-from lib.packet.host_addr import HostAddr, SCIONAddr
+from lib.packet.scion_addr import SCIONAddr
 from lib.topology import Topology
+import ipaddress
 import logging
 import select
 import socket
@@ -46,8 +47,8 @@ class SCIONElement(object):
     :ivar ifid2addr: a dictionary mapping interface identifiers to the
         corresponding border router addresses in the server's AD.
     :vartype ifid2addr: dict
-    :ivar addr: a `HostAddr` object representing the server address.
-    :vartype addr: :class:`lib.packet.host_addr.HostAddr`
+    :ivar addr: a `SCIONAddr` object representing the server address.
+    :vartype addr: :class:`lib.packet.scion_addr.SCIONAddr`
     """
 
     def __init__(self, host_addr, topo_file, config_file=None):
@@ -55,7 +56,7 @@ class SCIONElement(object):
         Create a new ServerBase instance.
 
         :param host_addr: the (local) address of the server.
-        :type host_addr: :class:`HostAddr`
+        :type host_addr: :class:`ipaddress._BaseAddress`
         :param topo_file: the name of the topology file.
         :type topo_file: str
         :param config_file: the name of the configuration file.
@@ -82,7 +83,7 @@ class SCIONElement(object):
     @property
     def addr(self):
         """
-        The address of the server as a :class:`lib.packet.host_addr.SCIONAddr`
+        The address of the server as a :class:`lib.packet.scion_addr.SCIONAddr`
         object.
         """
         return self._addr
@@ -91,10 +92,10 @@ class SCIONElement(object):
     def addr(self, addr):
         """
         Set the address of the server. Must be a
-        :class:`lib.packet.host_addr.SCIONAddr` object.
+        :class:`lib.packet.scion_addr.SCIONAddr` object.
 
         :param addr: the new server address.
-        :type addr: :class:`lib.packet.host_addr.SCIONAddr`
+        :type addr: :class:`lib.packet.scion_addr.SCIONAddr`
         """
         self.set_addr(addr)
 

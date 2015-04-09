@@ -16,10 +16,10 @@
 from _collections import deque
 from asyncio.tasks import sleep
 from infrastructure.scion_elem import SCIONElement
+from ipaddress import IPv4Address
 from lib.crypto.asymcrypto import sign
 from lib.crypto.certificate import verify_sig_chain_trc, CertificateChain, TRC
 from lib.crypto.hash_chain import HashChain
-from lib.packet.host_addr import IPv4HostAddr, SCIONAddr
 from lib.packet.opaque_field import (OpaqueFieldType as OFT, InfoOpaqueField,
     SupportSignatureField, HopOpaqueField, SupportPCBField, SupportPeerField,
     TRCField)
@@ -30,6 +30,7 @@ from lib.packet.pcb import (PathSegment, ADMarking, PCBMarking, PeerMarking,
     PathConstructionBeacon)
 from lib.packet.scion import (SCIONPacket, get_type, PacketType as PT,
     CertChainRequest, CertChainReply, TRCRequest, TRCReply)
+from lib.packet.scion_addr import SCIONAddr, ISD_AD
 from lib.path_store import PathPolicy, PathStoreRecord, PathStore
 from lib.util import (read_file, write_file, get_cert_chain_file_path,
     get_sig_key_file_path, get_trc_file_path, init_logging)
@@ -120,7 +121,8 @@ class BeaconServer(SCIONElement):
             new_pcb.add_ad(ad_marking)
             dst = SCIONAddr.from_values(self.topology.isd_id,
                                         self.topology.ad_id, router_child.addr)
-            beacon = PathConstructionBeacon.from_values(dst, new_pcb)
+            beacon = PathConstructionBeacon.from_values(self.addr.get_isd_ad(),
+                                                        dst, new_pcb)
             self.send(beacon, router_child.addr)
             logging.info("Downstream PCB propagated!")
 
@@ -191,7 +193,7 @@ class BeaconServer(SCIONElement):
         elif ptype == PT.TRC_REP:
             self.process_trc_rep(TRCReply(packet))
         else:
-            logging.warning("Type not supported")
+            logging.warning("Type not supported: %s", ptype)
 
     def run(self):
         """
@@ -387,7 +389,8 @@ class CoreBeaconServer(BeaconServer):
             new_pcb.add_ad(ad_marking)
             dst = SCIONAddr.from_values(self.topology.isd_id,
                                         self.topology.ad_id, core_router.addr)
-            beacon = PathConstructionBeacon.from_values(dst, new_pcb)
+            beacon = PathConstructionBeacon.from_values(self.addr.get_isd_ad(),
+                                                        dst, new_pcb)
             self.send(beacon, core_router.addr)
             logging.info("Core PCB propagated!")
 
@@ -444,12 +447,14 @@ class CoreBeaconServer(BeaconServer):
                                         self.topology.ad_id,
                                         self.topology.path_servers[0].addr)
             pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, None,
-                                             dst_addr=dst)
+                                             self.addr.get_isd_ad(), dst)
             logging.debug("Registering core path with local PS.")
             self.send(pkt, dst.host_addr)
         # Register core path with originating core path server.
         path = pcb.get_path(reverse_direction=True)
-        pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, path)
+        dst_isd_ad = ISD_AD(pcb.get_isd(), pcb.get_first_pcbm().ad_id)
+        pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, path, self.addr,
+                                         dst_isd_ad)
         if_id = path.get_first_hop_of().ingress_if
         next_hop = self.ifid2addr[if_id]
         logging.debug("Registering core path with originating PS.")
@@ -573,7 +578,7 @@ class LocalBeaconServer(BeaconServer):
                                     self.topology.path_servers[0].addr)
         records = PathSegmentRecords.from_values(info, [pcb])
         pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, None,
-                                         dst_addr=dst)
+                                         self.addr.get_isd_ad(), dst)
         self.send(pkt, dst.host_addr)
 
     def register_down_segment(self, pcb):
@@ -585,7 +590,9 @@ class LocalBeaconServer(BeaconServer):
             self.topology.ad_id)
         core_path = pcb.get_path(reverse_direction=True)
         records = PathSegmentRecords.from_values(info, [pcb])
-        pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, core_path)
+        dst_isd_ad = ISD_AD(pcb.get_isd(), pcb.get_first_pcbm().ad_id)
+        pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, core_path,
+                                         self.addr, dst_isd_ad)
         if_id = core_path.get_first_hop_of().ingress_if
         next_hop = self.ifid2addr[if_id]
         self.send(pkt, next_hop)
@@ -679,7 +686,7 @@ class LocalBeaconServer(BeaconServer):
         if rev_infos:
             rev_payload = RevocationPayload.from_values(rev_infos)
             pkt = PathMgmtPacket.from_values(PMT.REVOCATIONS, rev_payload, None,
-                                             self.addr)
+                                             self.addr, self.addr.get_isd_ad())
             dst = self.topology.path_servers[0].addr
             logging.info("Sending segment revocations to local PS.")
             self.send(pkt, dst)
@@ -693,8 +700,10 @@ class LocalBeaconServer(BeaconServer):
         path = up_segment.get_path(True)
         path.up_segment_info.up_flag = True
         rev_payload = RevocationPayload.from_values([rev_info])
+        dst_isd_ad = ISD_AD(up_segment.get_isd(),
+                            up_segment.get_first_pcbm().ad_id)
         pkt = PathMgmtPacket.from_values(PMT.REVOCATIONS, rev_payload, path,
-                                         self.addr)
+                                         self.addr, dst_isd_ad)
         (next_hop, port) = self.get_first_hop(pkt)
         logging.info("Sending revocation to CPS.")
         self.send(pkt, next_hop, port)
@@ -760,10 +769,10 @@ def main():
         sys.exit()
 
     if sys.argv[1] == "core":
-        beacon_server = CoreBeaconServer(IPv4HostAddr(sys.argv[2]), sys.argv[3],
+        beacon_server = CoreBeaconServer(IPv4Address(sys.argv[2]), sys.argv[3],
                                          sys.argv[4], sys.argv[5])
     elif sys.argv[1] == "local":
-        beacon_server = LocalBeaconServer(IPv4HostAddr(sys.argv[2]),
+        beacon_server = LocalBeaconServer(IPv4Address(sys.argv[2]),
                                           sys.argv[3], sys.argv[4], sys.argv[5])
     else:
         logging.error("First parameter can only be 'local' or 'core'!")
