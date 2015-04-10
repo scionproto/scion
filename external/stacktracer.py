@@ -74,9 +74,9 @@ class TraceDumper(threading.Thread):
             pass
     
     def stacktraces(self):
-        fout = file(self.fpath,"wb+")
+        fout = open(self.fpath,"wb+")
         try:
-            fout.write(stacktraces())
+            fout.write(bytes(stacktraces(), "UTF-8"))
         finally:
             fout.close()
 
