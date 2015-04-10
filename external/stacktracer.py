@@ -11,7 +11,7 @@ stacktracer.stop_trace()
 # Source: http://code.activestate.com/recipes/577334-how-to-debug-deadlocked-multi-threaded-programs/
 
 
-
+from datetime import datetime
 import sys
 import traceback
 from pygments import highlight
@@ -76,6 +76,7 @@ class TraceDumper(threading.Thread):
     def stacktraces(self):
         fout = open(self.fpath,"wb+")
         try:
+            fout.write(bytes("Generated at %s" % datetime.now(), "UTF-8"))
             fout.write(bytes(stacktraces(), "UTF-8"))
         finally:
             fout.close()
