@@ -24,7 +24,7 @@ from lib.packet.pcb import PathConstructionBeacon
 from lib.packet.scion import (PacketType as PT, SCIONPacket, IFIDRequest,
     IFIDReply, get_type)
 from lib.packet.scion_addr import SCIONAddr, ISD_AD
-from lib.util import init_logging
+from lib.util import (init_logging, thread_safety_net, log_exception)
 import datetime
 import logging
 import os
@@ -120,7 +120,7 @@ class Router(SCIONElement):
         logging.info("IP %s:%u", self.interface.addr, self.interface.udp_port)
 
     def run(self):
-        threading.Thread(target=self.init_interface).start()
+        threading.Thread(target=self.init_interface, daemon=True).start()
         SCIONElement.run(self)
 
     def send(self, packet, next_hop, use_local_socket=True):
@@ -174,6 +174,7 @@ class Router(SCIONElement):
         if ext or l < len(spkt.hdr.extension_hdrs):
             logging.warning("Extensions terminated incorrectly.")
 
+    @thread_safety_net("init_interface")
     def init_interface(self):
         """
         Synchronize and initialize the router's interface with that of a
@@ -553,4 +554,11 @@ def main():
     router.run()
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except SystemExit:
+        logging.info("Exiting")
+        raise
+    except:
+        log_exception("Exception in main process:")
+        raise

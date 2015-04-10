@@ -33,7 +33,8 @@ from lib.packet.scion import (SCIONPacket, get_type, PacketType as PT,
 from lib.packet.scion_addr import SCIONAddr, ISD_AD
 from lib.path_store import PathPolicy, PathStoreRecord, PathStore
 from lib.util import (read_file, write_file, get_cert_chain_file_path,
-    get_sig_key_file_path, get_trc_file_path, init_logging)
+    get_sig_key_file_path, get_trc_file_path, init_logging, log_exception,
+    thread_safety_net)
 from Crypto import Random
 from Crypto.Hash import SHA256
 import base64
@@ -199,8 +200,8 @@ class BeaconServer(SCIONElement):
         """
         Run an instance of the Beacon Server.
         """
-        threading.Thread(target=self.handle_pcbs_propagation).start()
-        threading.Thread(target=self.register_segments).start()
+        threading.Thread(target=self.handle_pcbs_propagation, daemon=True).start()
+        threading.Thread(target=self.register_segments, daemon=True).start()
         SCIONElement.run(self)
 
     def _check_filters(self, pcb):
@@ -394,6 +395,7 @@ class CoreBeaconServer(BeaconServer):
             self.send(beacon, core_router.addr)
             logging.info("Core PCB propagated!")
 
+    @thread_safety_net("handle_pcbs_propagation")
     def handle_pcbs_propagation(self):
         """
         Generates a new beacon or gets ready to forward the one received.
@@ -419,6 +421,7 @@ class CoreBeaconServer(BeaconServer):
                 self.propagate_core_pcb(pcb)
             time.sleep(self.config.propagation_time)
 
+    @thread_safety_net("register_segments")
     def register_segments(self):
         if not self.config.registers_paths:
             logging.info("Path registration unwanted, leaving"
@@ -597,6 +600,7 @@ class LocalBeaconServer(BeaconServer):
         next_hop = self.ifid2addr[if_id]
         self.send(pkt, next_hop)
 
+    @thread_safety_net("register_segments")
     def register_segments(self):
         """
         Registers paths according to the received beacons.
@@ -718,6 +722,7 @@ class LocalBeaconServer(BeaconServer):
         self.up_segments.add_segment(pcb)
         self.down_segments.add_segment(pcb)
 
+    @thread_safety_net("handle_pcbs_propagation")
     def handle_pcbs_propagation(self):
         """
         Main loop to propagate received beacons.
@@ -782,4 +787,11 @@ def main():
     beacon_server.run()
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except SystemExit:
+        logging.info("Exiting")
+        raise
+    except:
+        log_exception("Exception in main process:")
+        raise

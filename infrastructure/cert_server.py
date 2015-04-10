@@ -22,7 +22,7 @@ from lib.crypto.certificate import TRC
 from lib.packet.scion import (SCIONPacket, get_type, PacketType as PT,
     CertChainRequest, CertChainReply, TRCRequest, TRCReply)
 from lib.util import (read_file, write_file, get_cert_chain_file_path,
-    get_trc_file_path, init_logging)
+    get_trc_file_path, init_logging, log_exception)
 import collections
 import datetime
 import logging
@@ -206,4 +206,11 @@ def main():
     cert_server.run()
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except SystemExit:
+        logging.info("Exiting")
+        raise
+    except:
+        log_exception("Exception in main process:")
+        raise

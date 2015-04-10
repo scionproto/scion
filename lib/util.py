@@ -167,3 +167,18 @@ def kill_self():
     Sends SIGTERM to self, to allow quitting the process from threads.
     """
     os.kill(os.getpid(), signal.SIGTERM)
+
+def thread_safety_net(name):
+    """
+    Decorator to handle uncaught thread exceptions, log them, then kill the
+    process.
+    """
+    def wrap(f):
+        def wrapper(*args, **kwargs):
+            try:
+                return f(*args, **kwargs)
+            except:
+                log_exception("Exception in %s thread:", name)
+                kill_self()
+        return wrapper
+    return wrap
