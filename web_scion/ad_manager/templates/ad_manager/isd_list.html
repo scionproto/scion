@@ -1,7 +1,6 @@
 {% extends "ad_manager/base.html" %}
 
 {% block content %}
-
   <h1>ISDs</h1>
   <ul>
     {% for isd in object_list|dictsort:'id' %}
@@ -10,5 +9,4 @@
       <li>No ISDs.</li>
     {% endfor %}
   </ul>
-
 {% endblock %}

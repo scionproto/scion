@@ -5,12 +5,11 @@ from django.core.urlresolvers import reverse
 from django.db import transaction
 from django.http import JsonResponse, HttpResponse
 from django.shortcuts import redirect
-from django.utils.encoding import smart_str
 from django.views.generic import ListView, DetailView
 from ad_manager.models import AD, ISD
 from ad_manager.util import monitoring_client
-from daemon_monitor.common import is_success, get_success_data, \
-    ARCHIVE_DIST_PATH
+from ad_management.common import (is_success, get_success_data,
+    ARCHIVE_DIST_PATH)
 from lib.topology import Topology
 
 ARCH_NAME = 'scion-0.1.0.tar.gz'

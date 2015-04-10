@@ -11,10 +11,9 @@ https://docs.djangoproject.com/en/1.7/ref/settings/
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 import os
 import sys
-BASE_DIR = os.path.dirname(os.path.dirname(__file__))
-SCION_DIR = os.path.dirname(BASE_DIR)
-sys.path.insert(0, SCION_DIR)
+from ad_management.common import SCION_ROOT, WEB_SCION_DIR
 
+sys.path.insert(0, SCION_ROOT)
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.7/howto/deployment/checklist/
@@ -63,7 +62,7 @@ WSGI_APPLICATION = 'web_scion.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+        'NAME': os.path.join(WEB_SCION_DIR, 'db.sqlite3'),
     }
 }
 

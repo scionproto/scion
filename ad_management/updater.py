@@ -6,7 +6,7 @@ import logging
 import time
 import subprocess
 import xmlrpc.client
-from daemon_monitor.common import (get_supervisor_server,
+from ad_management.common import (get_supervisor_server,
     MONITORING_DAEMON_PROC_NAME, SUPERVISORD_PATH, SCION_ROOT)
 from lib.util import init_logging
 
@@ -17,46 +17,58 @@ THIS_SCRIPT_NAME = os.path.basename(THIS_SCRIPT_PATH)
 IS_UPDATED_ARG = '--new'
 
 
-# Stop everything
 def stop_everything():
+    """
+    Stop all processes managed by Supervisor.
+    """
     logging.info('Stopping all processes...')
     server = get_supervisor_server()
     try:
         server.supervisor.stopAllProcesses()
     except (ConnectionRefusedError, xmlrpc.client.Fault) as ex:
-        logging.warning('Couldn\'t stop processes')
+        logging.warning('Could not stop processes')
 
 
 # Restart everything
 def start_everything():
+    """
+    Start all processes managed by Supervisor.
+    """
     logging.info('Starting all processes...')
     server = get_supervisor_server()
     try:
         server.supervisor.startAllProcesses()
     except (ConnectionRefusedError, xmlrpc.client.Fault) as ex:
-        logging.warning('Couldn\'t start processes')
+        logging.warning('Could not start processes')
 
 
 def start_monitoring_daemon():
-    # First, try to start 'supervisor' if not started
+    """
+    Start the monitoring daemon process after the update.
+    """
+
+    # First, try to start Supervisor if not started
     exit_status = subprocess.call([SUPERVISORD_PATH, 'reload'],
                                   stdout=subprocess.DEVNULL,
                                   stderr=subprocess.DEVNULL)
     logging.info('Supervisord exit status: {}'.format(exit_status))
 
-    # Second, perform an API call
+    # Second, perform the API call
     logging.info('Starting the monitoring daemon...')
     server = get_supervisor_server()
     try:
         server.supervisor.startProcess(MONITORING_DAEMON_PROC_NAME)
     except (ConnectionRefusedError, xmlrpc.client.Fault) as ex:
-        logging.warning('Couldn\'t start monitoring daemon')
+        logging.warning('Could not start the monitoring daemon')
 
 
 def extract_files(archive_path, target_dir):
+    """
+    Extract the given archive to the given directory, performing some checks.
+    """
+    target_dir = os.path.abspath(target_dir)
     if not os.path.exists(target_dir):
         os.mkdir(target_dir)
-    target_dir = os.path.abspath(target_dir)
     with tarfile.open(archive_path, 'r') as tar_fh:
         # Check that names in the archive don't contain '..' and don't
         # start with '/'.
@@ -65,21 +77,26 @@ def extract_files(archive_path, target_dir):
             if (not abs_path.startswith(target_dir) or
                 not abs_path.startswith(SCION_ROOT)):
                 raise Exception("Updater: unsafe filenames!")
-            # Remove the top leve directory from the member path
+            # Remove the top level directory from a member path
             member.path = os.sep.join(member.path.split(os.sep)[1:])
         logging.info('Extracting the archive...')
         tar_fh.extractall(target_dir)
 
 
 def post_extract():
-    # Run the post-extract procedures using the new (updated) updater
+    """
+    Run the post-extract procedures using the new (updated) updater
+    """
     logging.info('New (updated) updater: started, post-extract procedures.')
     start_monitoring_daemon()
     logging.info('Update: done.')
 
 
 def run_updated_updater():
-    """Does not return"""
+    """
+    Launch the new (updated) updater in the same process. This function
+    does not return.
+    """
     logging.info('Calling the updated version...')
     executable = sys.executable
     args = sys.argv[:]
@@ -89,12 +106,14 @@ def run_updated_updater():
 
 
 def update_package(archive_path, target_dir):
+    """
+    Update the SCION package using the provided distribution archive.
+    """
     # Wait a bit, so the caller has some time to finish
     time.sleep(1)
     logging.info('Update: started.')
     stop_everything()
     extract_files(archive_path, target_dir)
-    # start_everything()
     run_updated_updater()
 
 

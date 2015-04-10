@@ -1,6 +1,6 @@
 from django.contrib import admin
-from ad_manager.models import ISD, AD, BeaconServerWeb, PathServerWeb, \
-    CertificateServerWeb, RouterWeb
+from ad_manager.models import (ISD, AD, BeaconServerWeb, PathServerWeb,
+    CertificateServerWeb, RouterWeb)
 
 
 class ADAdmin(admin.ModelAdmin):

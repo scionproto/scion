@@ -1,10 +1,13 @@
+#!/usr/bin/env python3
+
+# Import ISD/AD data from topology files
+
 import glob
 import os
 import sys
+from ad_management.common import SCION_ROOT, WEB_SCION_DIR
 
 os.environ['DJANGO_SETTINGS_MODULE'] = 'web_scion.settings'
-
-WEB_SCION_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, WEB_SCION_DIR)
 
 import django
@@ -14,7 +17,7 @@ from lib.topology import Topology
 
 django.setup()
 
-# Create superuser
+# Create a superuser
 try:
     User.objects.get(username='admin')
 except User.DoesNotExist:
@@ -22,8 +25,8 @@ except User.DoesNotExist:
     print('> Superuser created')
 
 # Add model instances
-TOPOLOGY_DIR = '../../topology'
-topology_files = glob.glob(TOPOLOGY_DIR + '/ISD*/topologies/*json')
+TOPOLOGY_DIR = os.path.join(SCION_ROOT, 'topology')
+topology_files = glob.glob(os.path.join(TOPOLOGY_DIR, 'ISD*/topologies/*json'))
 isds = {}
 ads = []
 
@@ -45,6 +48,7 @@ for ad_topo in ads:
             is_core_ad=ad_topo.is_core_ad)
     ad.save()
 
+# Add routers, servers, etc.
 for ad_topo in ads:
     ad = AD.objects.get(id=ad_topo.ad_id, isd=isds[ad_topo.isd_id])
     ad.fill_from_topology(ad_topo)

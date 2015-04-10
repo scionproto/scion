@@ -2,7 +2,7 @@ import base64
 import hashlib
 import os
 import xmlrpc.client
-from daemon_monitor.common import (get_monitoring_server, response_failure,
+from ad_management.common import (get_monitoring_server, response_failure,
     response_success, is_success, get_success_data)
 
 
