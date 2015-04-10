@@ -24,6 +24,8 @@ Various utilities for SCION functionality.
 from os.path import sys
 import os
 import logging
+import signal
+import traceback
 
 
 ISD_DIR = '../topology/ISD'
@@ -151,3 +153,17 @@ def init_logging(level=logging.DEBUG):
     """
     logging.basicConfig(level=level,
                         format='%(asctime)s [%(levelname)s]\t%(message)s')
+
+def log_exception(msg, *args, level=logging.CRITICAL, **kwargs):
+    """
+    Properly format an exception before logging
+    """
+    logging.log(level, msg, *args, **kwargs)
+    for line in traceback.format_exc().split("\n"):
+        logging.log(level, line)
+
+def kill_self():
+    """
+    Sends SIGTERM to self, to allow quitting the process from threads.
+    """
+    os.kill(os.getpid(), signal.SIGTERM)
