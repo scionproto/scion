@@ -45,7 +45,7 @@ class PathServer(SCIONElement):
         SCIONElement.__init__(self, addr, topo_file, config_file=config_file)
         # TODO replace by pathstore instance
         self.down_segments = PathSegmentDB()
-        self.core_segments = PathSegmentDB()
+        self.core_segments = PathSegmentDB()  # Direction of the propagation.
         self.pending_down = {}  # Dict of pending DOWN _and_ UP_DOWN requests.
         self.pending_core = {}
         self.waiting_targets = set()  # Used when local PS doesn't have up-path.
