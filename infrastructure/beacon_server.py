@@ -374,7 +374,8 @@ class CoreBeaconServer(BeaconServer):
                               path_policy_file)
         # Sanity check that we should indeed be a core beacon server.
         assert self.topology.is_core_ad, "This shouldn't be a core BS!"
-        self.core_segments = PathStore(self.path_policy)
+        self.beacons = []
+        self.core_segments = []
 
     def propagate_core_pcb(self, pcb):
         """
@@ -416,9 +417,9 @@ class CoreBeaconServer(BeaconServer):
             self.propagate_core_pcb(core_pcb)
             # Propagate received beacons. A core beacon server can only receive
             # beacons from other core beacon servers.
-            best_segments = self.beacons.get_best_segments()
-            for pcb in best_segments:
+            for pcb in self.beacons:
                 self.propagate_core_pcb(pcb)
+            self.beacons = []
             time.sleep(self.config.propagation_time)
 
     @thread_safety_net("register_segments")
@@ -429,6 +430,7 @@ class CoreBeaconServer(BeaconServer):
             return
         while True:
             self.register_core_segments()
+            self.core_segments = []
             time.sleep(self.config.registration_time)
 
     def register_core_segment(self, pcb):
@@ -491,15 +493,14 @@ class CoreBeaconServer(BeaconServer):
         """
         Once a beacon has been verified, place it into the right containers.
         """
-        self.beacons.add_segment(pcb)
-        self.core_segments.add_segment(pcb)
+        self.beacons.append(pcb)
+        self.core_segments.append(pcb)
 
     def register_core_segments(self):
         """
         Register the core segment between core ADs.
         """
-        best_segments = self.core_segments.get_best_segments()
-        for pcb in best_segments:
+        for pcb in self.core_segments:
             new_pcb = copy.deepcopy(pcb)
             ad_marking = self._create_ad_marking(new_pcb.trcf.if_id, 0)
             new_pcb.add_ad(ad_marking)
