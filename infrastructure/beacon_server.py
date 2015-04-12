@@ -436,7 +436,7 @@ class CoreBeaconServer(BeaconServer):
     def register_core_segment(self, pcb):
         """
         Registers the core segment contained in 'pcb' with the local core path
-        server and the originating core path server.
+        server.
         """
         info = PathSegmentInfo.from_values(PST.CORE,
                                            pcb.get_first_pcbm().spcbf.isd_id,
@@ -455,16 +455,6 @@ class CoreBeaconServer(BeaconServer):
                                              self.addr.get_isd_ad(), dst)
             logging.debug("Registering core path with local PS.")
             self.send(pkt, dst.host_addr)
-        # Register core path with originating core path server.
-        return
-        path = pcb.get_path(reverse_direction=True)
-        dst_isd_ad = ISD_AD(pcb.get_isd(), pcb.get_first_pcbm().ad_id)
-        pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, path, self.addr,
-                                         dst_isd_ad)
-        if_id = path.get_first_hop_of().ingress_if
-        next_hop = self.ifid2addr[if_id]
-        logging.debug("Registering core path with originating PS.")
-        self.send(pkt, next_hop)
 
     def process_pcb(self, beacon):
         assert isinstance(beacon, PathConstructionBeacon)

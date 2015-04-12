@@ -121,8 +121,6 @@ class PathServer(SCIONElement):
                                                  paths)
         path_reply = PathMgmtPacket.from_values(PMT.RECORDS, records, path,
                                                 self.addr.get_isd_ad(), dst)
-        # if path_request.hdr.is_on_up_path():
-        #     path_reply.hdr.set_downpath()
         (next_hop, port) = self.get_first_hop(path_reply)
         logging.info("Sending PATH_REC, using path: %s", path)
         self.send(path_reply, next_hop, port)
@@ -390,7 +388,6 @@ class CorePathServer(PathServer):
                 if cpaths:
                     cpath = cpaths[0].get_path(reverse_direction=True)
                     pkt.hdr.path = cpath
-                    # pkt.hdr.set_downpath()
                     pkt.hdr.dst_addr.isd_id = isd
                     pkt.hdr.dst_addr.ad_id = ad
                     if_id = cpath.get_first_hop_of().ingress_if
@@ -453,7 +450,6 @@ class CorePathServer(PathServer):
                     request = PathMgmtPacket.from_values(PMT.REQUEST,
                                                          segment_info, path,
                                                          self.addr, dst_isd_ad)
-                    # request.hdr.set_downpath()
                     self.send(request, next_hop)
                     logging.info("Down-Segment request for different ISD. "
                                  "Forwarding request to CPS in (%d, %d).",
