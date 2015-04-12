@@ -23,6 +23,7 @@ from lib.packet.path import CorePath
 from lib.packet.scion import SCIONPacket, PacketType, SCIONHeader
 from lib.packet.scion_addr import SCIONAddr, ISD_AD
 import base64
+import copy
 import logging
 
 from Crypto.Hash import SHA256
@@ -396,14 +397,15 @@ class PathSegment(Marking):
         Returns the list of HopOpaqueFields in the path.
         """
         hofs = []
+        iof = copy.copy(self.iof)
         if reverse_direction:
             ads = list(reversed(self.ads))
-            self.iof.up_flag = self.iof.up_flag ^ True
+            iof.up_flag = self.iof.up_flag ^ True
         else:
             ads = self.ads
         for ad_marking in ads:
             hofs.append(ad_marking.pcbm.hof)
-        core_path = CorePath.from_values(self.iof, hofs)
+        core_path = CorePath.from_values(iof, hofs)
         return core_path
 
     def get_isd(self):
