@@ -142,6 +142,8 @@ class SCIONDaemon(SCIONElement):
                 src_isd = self.topology.isd_id
                 src_core_ad = self.up_segments()[0].get_first_pcbm().ad_id
                 dst_core_ad = down_segments[0].get_first_pcbm().ad_id
+                print("CORELooking for: (%d, %d)->(%d, %d)" % (src_isd, src_core_ad,
+                        dst_isd, dst_core_ad))
                 core_segments = self.core_segments(src_isd=src_isd,
                                                    src_ad=src_core_ad,
                                                    dst_isd=dst_isd,
@@ -155,6 +157,7 @@ class SCIONDaemon(SCIONElement):
                                                        dst_isd=dst_isd,
                                                        dst_ad=dst_core_ad)
 
+                    print("Core FOUND:", core_segments)
                 full_paths = PathCombinator.build_core_paths(
                     self.up_segments()[0],
                     down_segments[0],
@@ -176,15 +179,30 @@ class SCIONDaemon(SCIONElement):
                 and info.dst_isd == isd and info.dst_ad == ad):
                 self.down_segments.update(pcb, info.src_isd, info.src_ad,
                                           info.dst_isd, info.dst_ad)
-                logging.info("DownPath PATH added for (%d,%d)", isd, ad)
+                logging.info("Down path (%d, %d)->(%d, %d) added.",
+                             info.src_isd, info.src_ad, info.dst_isd,
+                             info.dst_ad)
+                logging.info("(PCB)Down path (%d, %d)->(%d?, %d) added.",
+                             isd, pcb.get_first_pcbm().ad_id, isd, ad)
             elif ((self.topology.isd_id == isd and self.topology.ad_id == ad)
                 and info.type in [PST.UP, PST.UP_DOWN]):
                 self.up_segments.update(pcb, isd, ad, pcb.get_isd(),
                                         pcb.get_first_pcbm().ad_id)
-                logging.info("UP PATH to (%d, %d) added.", isd, ad)
+                logging.info("Up path (%d, %d)->(%d, %d) added.",
+                             info.src_isd, info.src_ad, info.dst_isd,
+                             info.dst_ad)
+                logging.info("(PCB)Up path (%d, %d)->(%d, %d) added.",
+                             isd, pcb.get_first_pcbm().ad_id,
+                             pcb.get_first_pcbm().spcbf.isd_id, ad)
             elif info.type == PST.CORE:
                 self.core_segments.update(pcb, info.src_isd, info.src_ad,
                                           info.dst_isd, info.dst_ad)
+                logging.info("Core path (%d, %d)->(%d, %d) added.",
+                             info.src_isd, info.src_ad, info.dst_isd,
+                             info.dst_ad)
+                logging.info("(PCB)Core path (%d, %d)->(%d, %d) added.",
+                             isd, pcb.get_first_pcbm().ad_id,
+                             pcb.get_last_pcbm().spcbf.isd_id, ad)
             else:
                 logging.warning("Incorrect path in Path Record")
 

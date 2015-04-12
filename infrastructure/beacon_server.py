@@ -454,6 +454,7 @@ class CoreBeaconServer(BeaconServer):
             logging.debug("Registering core path with local PS.")
             self.send(pkt, dst.host_addr)
         # Register core path with originating core path server.
+        return
         path = pcb.get_path(reverse_direction=True)
         dst_isd_ad = ISD_AD(pcb.get_isd(), pcb.get_first_pcbm().ad_id)
         pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, path, self.addr,

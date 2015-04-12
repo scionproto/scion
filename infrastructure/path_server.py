@@ -336,8 +336,8 @@ class CorePathServer(PathServer):
             src_isd = pcb.get_first_pcbm().spcbf.isd_id
             dst_ad = pcb.get_last_pcbm().ad_id
             dst_isd = pcb.get_last_pcbm().spcbf.isd_id
-            res = self.core_segments.update(pcb, src_isd=src_isd, src_ad=src_ad,
-                                            dst_isd=dst_isd, dst_ad=dst_ad)
+            res = self.core_segments.update(pcb, src_isd=dst_isd, src_ad=dst_ad,
+                                            dst_isd=src_isd, dst_ad=src_ad)
             if res == DBResult.ENTRY_ADDED:
                 self._add_if_mappings(pcb)
             logging.info("Core-Path registered: (%d, %d) -> (%d, %d)",
@@ -346,8 +346,8 @@ class CorePathServer(PathServer):
         # a core path to the destination PS.
         if self.waiting_targets:
             pcb = records.pcbs[0]
-            next_hop = self.ifid2addr[pcb.get_first_pcbm().hof.egress_if]
-            path = pcb.get_path()
+            next_hop = self.ifid2addr[pcb.get_last_pcbm().hof.ingress_if]
+            path = pcb.get_path(reverse_direction=True)
             targets = copy.deepcopy(self.waiting_targets)
             for (target_isd, target_ad, info) in targets:
                 if target_isd == dst_isd and target_ad == dst_ad:
@@ -388,12 +388,12 @@ class CorePathServer(PathServer):
                                             src_ad=self.topology.ad_id,
                                             dst_isd=isd, dst_ad=ad)
                 if cpaths:
-                    cpath = cpaths[0].get_path()
+                    cpath = cpaths[0].get_path(reverse_direction=True)
                     pkt.hdr.path = cpath
-                    pkt.hdr.set_downpath()
+                    # pkt.hdr.set_downpath()
                     pkt.hdr.dst_addr.isd_id = isd
                     pkt.hdr.dst_addr.ad_id = ad
-                    if_id = cpath.get_first_hop_of().egress_if
+                    if_id = cpath.get_first_hop_of().ingress_if
                     next_hop = self.ifid2addr[if_id]
                     logging.info("Sending packet to CPS in (%d, %d).", isd, ad)
                     self.send(pkt, next_hop)
@@ -445,15 +445,15 @@ class CorePathServer(PathServer):
                                             src_ad=self.topology.ad_id,
                                             dst_isd=dst_isd)
                 if cpaths:
-                    path = cpaths[0].get_path()
-                    dst_isd_ad = ISD_AD(cpaths[0].get_last_pcbm().spcbf.isd_id,
-                                  cpaths[0].get_last_pcbm().ad_id)
-                    if_id = path.get_first_hop_of().egress_if
+                    path = cpaths[0].get_path(reverse_direction=True)
+                    dst_isd_ad = ISD_AD(cpaths[0].get_first_pcbm().spcbf.isd_id,
+                                  cpaths[0].get_first_pcbm().ad_id)
+                    if_id = path.get_first_hop_of().ingress_if
                     next_hop = self.ifid2addr[if_id]
                     request = PathMgmtPacket.from_values(PMT.REQUEST,
                                                          segment_info, path,
                                                          self.addr, dst_isd_ad)
-                    request.hdr.set_downpath()
+                    # request.hdr.set_downpath()
                     self.send(request, next_hop)
                     logging.info("Down-Segment request for different ISD. "
                                  "Forwarding request to CPS in (%d, %d).",
@@ -704,10 +704,11 @@ class LocalPathServer(PathServer):
             return
         leases = []
         for pcb in records.pcbs:
-            src_ad = pcb.get_first_pcbm().ad_id
-            src_isd = pcb.get_first_pcbm().spcbf.isd_id
-            dst_ad = pcb.get_last_pcbm().ad_id
-            dst_isd = pcb.get_last_pcbm().spcbf.isd_id
+            # Core segments have down-path direction.
+            src_ad = pcb.get_last_pcbm().ad_id
+            src_isd = pcb.get_last_pcbm().spcbf.isd_id
+            dst_ad = pcb.get_first_pcbm().ad_id
+            dst_isd = pcb.get_first_pcbm().spcbf.isd_id
             self.core_segments.update(pcb, src_isd=src_isd, src_ad=src_ad,
                                       dst_isd=dst_isd, dst_ad=dst_ad)
             lease = LeaseInfo.from_values(PST.CORE, self.topology.isd_id,
