@@ -263,9 +263,9 @@ class BeaconServer(SCIONElement):
             if self._verify_beacon(pcb):
                 self._handle_verified_beacon(pcb)
             else:
-                logging.info("Invalid beacon.")
+                logging.warning("Invalid beacon.")
         else:
-            logging.debug("Certificate(s) or TRC missing.")
+            logging.warning("Certificate(s) or TRC missing.")
             self.unverified_beacons.append(pcb)
 
     def _check_certs_trc(self, isd_id, ad_id, cert_chain_version, trc_version,
@@ -466,8 +466,7 @@ class CoreBeaconServer(BeaconServer):
                 ad.pcbm.ad_id == self.topology.ad_id):
                 logging.debug("Core Segment PCB already seen. Dropping...")
                 return
-        if self._check_filters(beacon.pcb):
-            self._try_to_verify_beacon(beacon.pcb)
+        self._try_to_verify_beacon(beacon.pcb)
 
     def _check_certs_trc(self, isd_id, ad_id, cert_chain_version, trc_version,
                          if_id):
