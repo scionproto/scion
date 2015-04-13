@@ -71,12 +71,15 @@
         <br />
         <label for="sel2">Select the update version:</label>
         <select class="form-control" id="sel2">
+          <!-- Static stub -->
           <option>0.1.0</option>
         </select>
         <br />
         <div class="row">
           <div class="col-md-2">
-            <button type="button" class="btn btn-warning" id="send-updates-btn">Install the update</button>
+            <button type="button" class="btn btn-warning click-confirm" id="send-updates-btn" data-confirmation="Are you sure? All unsaved data will be lost!">
+              Install the update
+            </button>
           </div>
           <div>Push updates to the server</div>
         </div>
@@ -90,6 +93,7 @@
         <br />
         <div id="update-info" class="alert" role="alert"></div>
       </div>
+
     </div>
   </div>
 

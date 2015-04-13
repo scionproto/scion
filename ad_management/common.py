@@ -12,8 +12,11 @@ UPDATE_DIR_PATH = os.path.join(MONITORING_DAEMON_DIR, '.update_files')
 UPDATE_SCRIPT_PATH = os.path.join(MONITORING_DAEMON_DIR, 'updater.py')
 CERT_DIR_PATH = os.path.join(MONITORING_DAEMON_DIR, 'certs')
 SUPERVISORD_PATH = os.path.join(SCION_ROOT, 'supervisor', 'supervisor.sh')
-ARCHIVE_DIST_PATH = os.path.join(SCION_ROOT, 'dist')
 WEB_SCION_DIR = os.path.join(SCION_ROOT, 'web_scion')
+
+# TODO modify after update management is implemented
+ARCHIVE_DIST_PATH = os.path.join(SCION_ROOT, 'dist')
+
 
 # Process names
 MONITORING_DAEMON_PROC_NAME = 'monitoring_daemon'
@@ -29,14 +32,21 @@ def get_monitoring_server(host='localhost'):
     return xmlrpc.client.ServerProxy(url)
 
 
-# Response wrappers for monitoring client/server
+# Response wrappers for monitoring client/server.
+# Response is represented as a list, the first element is a boolean value,
+# which shows the nature of the response (True -- success, False -- failure).
+# The rest of the elements are messages or errors, depending on the response
+# type.
 
 def response_success(*data):
     return [True] + list(data)
 
 
 def get_data(response):
-    return response[1]
+    if len(response) >= 2:
+        return response[1]
+    else:
+        return None
 
 
 def get_success_data(response):

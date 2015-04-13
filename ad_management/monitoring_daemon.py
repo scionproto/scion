@@ -115,7 +115,7 @@ class MonitoringDaemon(object):
             return response_failure('Invalid command')
         return response_success(res)
 
-    def do_update(self, archive, path):
+    def run_updater(self, archive, path):
         """
         Launch the updater in a new process.
         """
@@ -136,11 +136,12 @@ class MonitoringDaemon(object):
 
         if not os.path.exists(UPDATE_DIR_PATH):
             os.makedirs(UPDATE_DIR_PATH)
+        assert os.path.isdir(UPDATE_DIR_PATH)
         archive_name = os.path.basename(data_dict['name'])
         out_file_path = os.path.join(UPDATE_DIR_PATH, archive_name)
         with open(out_file_path, 'wb') as out_file_fh:
             out_file_fh.write(raw_data)
-        self.do_update(out_file_path, SCION_ROOT)
+        self.run_updater(out_file_path, SCION_ROOT)
         return response_success()
 
 if __name__ == "__main__":

@@ -1,3 +1,1 @@
 Django==1.7.4
-supervisor==3.1.3
-supervisor-quick==0.1.4

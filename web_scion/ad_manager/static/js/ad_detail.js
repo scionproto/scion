@@ -1,4 +1,9 @@
 
+function showLoadingIndicator(element) {
+    var imgPath = '/static/img/ajax-loader.gif';
+    element.first().html('<img src="' + imgPath + '" />');
+}
+
 function initServerStatus() {
     $('td.status').html('<b>...</b>');
 }
@@ -29,12 +34,12 @@ function updateServerStatus(detailUrl) {
 
 function initTopologyCheck() {
     $('#topology-info').hide();
+    $('#update-topology-btn').hide();
 }
 
 function compareAdTopology(compareUrl) {
     var $alertDiv = $('#topology-info');
     var $updateTopoButton = $('#update-topology-btn');
-    $alertDiv.hide();
     $alertDiv.removeClass('alert-success alert-danger alert-warning');
 
     function alertNoTopology() {
@@ -74,8 +79,11 @@ function compareAdTopology(compareUrl) {
     }).fail(function(a1, a2, a3) {
         alertNoTopology();
     }).always(function() {
+        $alertDiv.hide();
         $alertDiv.show(500);
     });
+    showLoadingIndicator($alertDiv);
+    $alertDiv.show();
 }
 
 function initSendUpdates() {
@@ -85,9 +93,10 @@ function initSendUpdates() {
 function sendAdUpdates(sendUrl) {
     initSendUpdates();
     var $alertDiv = $('#update-info');
+    $alertDiv.removeClass('alert-success alert-danger alert-warning');
 
     function errorHandler() {
-        $alertDiv.addClass('alert-warning');
+        $alertDiv.addClass('alert-danger');
         $alertDiv.text('Something is wrong');
     }
 
@@ -95,7 +104,7 @@ function sendAdUpdates(sendUrl) {
         url: sendUrl,
         dataType: "json"
     }).done(function(data) {
-        if (!data['status'][0]) {
+        if (!data['status']) {
             errorHandler();
             return;
         }
@@ -103,35 +112,46 @@ function sendAdUpdates(sendUrl) {
         $alertDiv.text('Update started');
     }).fail(errorHandler
     ).always(function() {
+        $alertDiv.hide();
         $alertDiv.show(500);
     });
+    showLoadingIndicator($alertDiv);
+    $alertDiv.show();
 }
 
 $(document).ready(function() {
+    // "Are you sure?" confirmation boxes
+    $('.click-confirm').click(function(e) {
+        var confirmation = $(this).data('confirmation') || 'Are you sure?';
+        var res = confirm(confirmation);
+        if (!res) {
+            e.stopImmediatePropagation();
+        }
+        return res;
+    });
+
+    // Status tab callbacks
     initServerStatus();
     updateServerStatus(adDetailUrl);
     $("#update-ad-btn").click(function() {
         updateServerStatus(adDetailUrl);
     });
-    // setInterval(updateServerStatus, 5000); // repeat every 5 seconds
 
+    // Topology tab callbacks
     initTopologyCheck();
     compareAdTopology(adCompareUrl);
     $('#compare-topology-btn').click(function() {
         compareAdTopology(adCompareUrl);
     });
 
+    // Update tab callbacks
     initSendUpdates();
-    $('#send-updates-btn').click(function() {
+    var $sendUpdatesBtn = $('#send-updates-btn');
+    $sendUpdatesBtn.click(function() {
         sendAdUpdates(adSendUpdatesUrl);
     });
 
-    // "Are you sure?" confirmation boxes
-    $('.click-confirm').click(function(e) {
-        return confirm('Are you sure?')
-    });
-
-    // Make tabs persistent
+    // Make tabs persistent. Check https://gist.github.com/josheinstein/5586469
     if (location.hash.substr(0,2) == "#!") {
         $("a[href='#" + location.hash.substr(2) + "']").tab("show");
     }

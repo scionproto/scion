@@ -11,8 +11,9 @@ https://docs.djangoproject.com/en/1.7/ref/settings/
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 import os
 import sys
-from ad_management.common import SCION_ROOT, WEB_SCION_DIR
 
+WEB_SCION_DIR = os.path.dirname(os.path.dirname(__file__))
+SCION_ROOT = os.path.dirname(WEB_SCION_DIR)
 sys.path.insert(0, SCION_ROOT)
 
 # Quick-start development settings - unsuitable for production

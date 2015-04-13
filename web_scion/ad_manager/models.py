@@ -1,10 +1,16 @@
 import json
 from django.db import models, IntegrityError
+from ad_management.common import (is_success, get_success_data)
 from ad_manager.util import monitoring_client
 from lib.topology import Topology
 
 
 class SelectRelatedModelManager(models.Manager):
+    """
+    Model manager that also selects related objects from the database,
+    avoiding multiple similar queries.
+    """
+
     def __init__(self, *args):
         super(SelectRelatedModelManager, self).__init__()
         self.related_fields = args
@@ -33,24 +39,34 @@ class AD(models.Model):
     objects = SelectRelatedModelManager('isd')
 
     def get_monitoring_daemon_host(self):
+        """
+        Return the host where the monitoring daemon is running.
+        """
         monitoring_daemon_host = '127.0.0.1'
         beacon_server = self.beaconserverweb_set.first()
-        # TODO fix check for private addresses
+        # TODO fix the check for private addresses
         if beacon_server and not beacon_server.addr.startswith('127.'):
             monitoring_daemon_host = beacon_server.addr
         return monitoring_daemon_host
 
     def query_ad_status(self):
+        """
+        Return AD status information, which includes servers/routers statuses
+        """
         return monitoring_client.get_ad_info(self.isd_id, self.id,
                                              self.get_monitoring_daemon_host())
 
     def get_remote_topology(self):
+        """
+        Get the corresponding remote topology as a Python dictionary.
+        """
         md_host = self.get_monitoring_daemon_host()
-        topology_str = monitoring_client.get_topology(self.isd_id, self.id,
-                                                      md_host)
-        if not topology_str:
+        topology_response = monitoring_client.get_topology(self.isd_id, self.id,
+                                                           md_host)
+        if not is_success(topology_response):
             return None
 
+        topology_str = get_success_data(topology_response)
         try:
             topology_dict = json.loads(topology_str)
             return topology_dict
@@ -58,6 +74,9 @@ class AD(models.Model):
             return None
 
     def generate_topology_dict(self):
+        """
+        Create a Python dictionary with the stored AD topology.
+        """
         out_dict = {'ISDID': int(self.isd_id), 'ADID': int(self.id),
                     'Core': int(self.is_core_ad),
                     'EdgeRouters': {}, 'PathServers': {}, 'BeaconServers': {},
@@ -74,8 +93,11 @@ class AD(models.Model):
         return out_dict
 
     def fill_from_topology(self, topology, clear=False):
-        assert isinstance(topology, Topology), \
-            'Instance of the Topology class is required'
+        """
+        Add infrastructure elements (servers, routers) to the AD, extracted
+        from the Topology object.
+        """
+        assert isinstance(topology, Topology), 'Topology object expected'
 
         if clear:
             self.routerweb_set.all().delete()
@@ -125,7 +147,7 @@ class SCIONWebElement(models.Model):
     ad = models.ForeignKey(AD)
 
     def id_str(self):
-        # FIXME counter
+        # FIXME How to identify multiple servers of the same type?
         return "{}{}-{}-1".format(self.prefix, self.ad.isd_id, self.ad_id)
 
     def get_dict(self):
