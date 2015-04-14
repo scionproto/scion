@@ -176,15 +176,22 @@ class SCIONDaemon(SCIONElement):
                 and info.dst_isd == isd and info.dst_ad == ad):
                 self.down_segments.update(pcb, info.src_isd, info.src_ad,
                                           info.dst_isd, info.dst_ad)
-                logging.info("DownPath PATH added for (%d,%d)", isd, ad)
+                logging.info("Down path (%d, %d)->(%d, %d) added.",
+                             info.src_isd, info.src_ad, info.dst_isd,
+                             info.dst_ad)
             elif ((self.topology.isd_id == isd and self.topology.ad_id == ad)
                 and info.type in [PST.UP, PST.UP_DOWN]):
                 self.up_segments.update(pcb, isd, ad, pcb.get_isd(),
                                         pcb.get_first_pcbm().ad_id)
-                logging.info("UP PATH to (%d, %d) added.", isd, ad)
+                logging.info("Up path (%d, %d)->(%d, %d) added.",
+                             info.src_isd, info.src_ad, info.dst_isd,
+                             info.dst_ad)
             elif info.type == PST.CORE:
                 self.core_segments.update(pcb, info.src_isd, info.src_ad,
                                           info.dst_isd, info.dst_ad)
+                logging.info("Core path (%d, %d)->(%d, %d) added.",
+                             info.src_isd, info.src_ad, info.dst_isd,
+                             info.dst_ad)
             else:
                 logging.warning("Incorrect path in Path Record")
 

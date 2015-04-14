@@ -263,9 +263,9 @@ class BeaconServer(SCIONElement):
             if self._verify_beacon(pcb):
                 self._handle_verified_beacon(pcb)
             else:
-                logging.info("Invalid beacon.")
+                logging.warning("Invalid beacon.")
         else:
-            logging.debug("Certificate(s) or TRC missing.")
+            logging.warning("Certificate(s) or TRC missing.")
             self.unverified_beacons.append(pcb)
 
     def _check_certs_trc(self, isd_id, ad_id, cert_chain_version, trc_version,
@@ -374,7 +374,8 @@ class CoreBeaconServer(BeaconServer):
                               path_policy_file)
         # Sanity check that we should indeed be a core beacon server.
         assert self.topology.is_core_ad, "This shouldn't be a core BS!"
-        self.core_segments = PathStore(self.path_policy)
+        self.beacons = deque()  # FIXME: Discuss with Lorenzo 
+        self.core_segments = deque()  # FIXME: ditto
 
     def propagate_core_pcb(self, pcb):
         """
@@ -416,8 +417,8 @@ class CoreBeaconServer(BeaconServer):
             self.propagate_core_pcb(core_pcb)
             # Propagate received beacons. A core beacon server can only receive
             # beacons from other core beacon servers.
-            best_segments = self.beacons.get_best_segments()
-            for pcb in best_segments:
+            while self.beacons:
+                pcb = self.beacons.popleft()
                 self.propagate_core_pcb(pcb)
             time.sleep(self.config.propagation_time)
 
@@ -434,7 +435,7 @@ class CoreBeaconServer(BeaconServer):
     def register_core_segment(self, pcb):
         """
         Registers the core segment contained in 'pcb' with the local core path
-        server and the originating core path server.
+        server.
         """
         info = PathSegmentInfo.from_values(PST.CORE,
                                            pcb.get_first_pcbm().spcbf.isd_id,
@@ -453,15 +454,6 @@ class CoreBeaconServer(BeaconServer):
                                              self.addr.get_isd_ad(), dst)
             logging.debug("Registering core path with local PS.")
             self.send(pkt, dst.host_addr)
-        # Register core path with originating core path server.
-        path = pcb.get_path(reverse_direction=True)
-        dst_isd_ad = ISD_AD(pcb.get_isd(), pcb.get_first_pcbm().ad_id)
-        pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, path, self.addr,
-                                         dst_isd_ad)
-        if_id = path.get_first_hop_of().ingress_if
-        next_hop = self.ifid2addr[if_id]
-        logging.debug("Registering core path with originating PS.")
-        self.send(pkt, next_hop)
 
     def process_pcb(self, beacon):
         assert isinstance(beacon, PathConstructionBeacon)
@@ -473,8 +465,7 @@ class CoreBeaconServer(BeaconServer):
                 ad.pcbm.ad_id == self.topology.ad_id):
                 logging.debug("Core Segment PCB already seen. Dropping...")
                 return
-        if self._check_filters(beacon.pcb):
-            self._try_to_verify_beacon(beacon.pcb)
+        self._try_to_verify_beacon(beacon.pcb)
 
     def _check_certs_trc(self, isd_id, ad_id, cert_chain_version, trc_version,
                          if_id):
@@ -490,16 +481,15 @@ class CoreBeaconServer(BeaconServer):
         """
         Once a beacon has been verified, place it into the right containers.
         """
-        self.beacons.add_segment(pcb)
-        self.core_segments.add_segment(pcb)
+        self.beacons.append(pcb)
+        self.core_segments.append(pcb)
 
     def register_core_segments(self):
         """
         Register the core segment between core ADs.
         """
-        best_segments = self.core_segments.get_best_segments()
-        for pcb in best_segments:
-            new_pcb = copy.deepcopy(pcb)
+        while self.core_segments:
+            new_pcb = copy.deepcopy(self.core_segments.popleft())
             ad_marking = self._create_ad_marking(new_pcb.trcf.if_id, 0)
             new_pcb.add_ad(ad_marking)
             new_pcb.segment_id = self._get_segment_rev_token(new_pcb)

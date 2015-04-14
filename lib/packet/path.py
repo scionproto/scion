@@ -552,9 +552,9 @@ class PathCombinator(object):
         # up_ and down_segment. Otherwise, check that up- and down-segment meet
         # at a single core AD.
         if ((core_segment and
-             (core_segment.get_first_pcbm().ad_id !=
-              up_segment.get_first_pcbm().ad_id) or
              (core_segment.get_last_pcbm().ad_id !=
+              up_segment.get_first_pcbm().ad_id) or
+             (core_segment.get_first_pcbm().ad_id !=
               down_segment.get_first_pcbm().ad_id)) or
              (not core_segment and
               (up_segment.get_first_pcbm().ad_id !=
@@ -570,8 +570,8 @@ class PathCombinator(object):
 
         if core_segment:
             full_path.core_segment_info = core_segment.iof
-            full_path.core_segment_info.up_flag = False
-            for block in core_segment.ads:
+            full_path.core_segment_info.up_flag = True
+            for block in reversed(core_segment.ads):
                 full_path.core_segment_hops.append(
                     copy.deepcopy(block.pcbm.hof))
             full_path.core_segment_hops[0].info = OpaqueFieldType.LAST_OF
