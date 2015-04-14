@@ -32,17 +32,13 @@ cmd_setup() {
 
 cmd_run() {
     echo "Running the network..."
-    cd infrastructure/
-    for d in ../topology/ISD*; do
-        for f in $d/run/*; do
-            bash $f
-        done
-    done
+    supervisor/supervisor.sh reload
+    supervisor/supervisor.sh quickstart all
 }
 
 cmd_stop() {
     echo "Terminating this run of the SCION infrastructure"
-    sudo killall screen
+    supervisor/supervisor.sh quickstop all
 }
 
 cmd_clean() {
