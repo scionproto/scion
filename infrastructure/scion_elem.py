@@ -76,6 +76,7 @@ class SCIONElement(object):
             self.parse_config(config_file)
         self.construct_ifid2addr_map()
         self._local_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self._local_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self._local_socket.bind((str(self.addr.host_addr), SCION_UDP_PORT))
         self._sockets = [self._local_socket]
         logging.info("Bound %s:%u", self.addr.host_addr, SCION_UDP_PORT)

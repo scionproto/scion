@@ -56,6 +56,8 @@ class SCIONDaemon(SCIONElement):
         self._api_socket = None
         if run_local_api:
             self._api_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self._api_socket.setsockopt(socket.SOL_SOCKET,
+                                        socket.SO_REUSEADDR, 1)
             self._api_socket.bind((SCIOND_API_HOST, SCIOND_API_PORT))
             self._sockets.append(self._api_socket)
             logging.info("Local API %s:%u", SCIOND_API_HOST, SCIOND_API_PORT)
