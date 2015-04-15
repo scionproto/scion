@@ -148,7 +148,8 @@ class TestSCIONDaemon(unittest.TestCase):
         """
         Testing function. Creates an instance of SCIONDaemon, then verifies path
         requesting, and finally sends packet through SCION. Sender is 127.1.19.1
-        placed in SRC, and receiver is 127.2.26.1 in DST.
+        placed in every AD from `sources`, and receiver is 127.2.26.1 from
+        every AD from `destinations`.
         """
         global SRC, DST, ping_received, pong_received
         for src in sources:
