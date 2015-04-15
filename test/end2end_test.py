@@ -111,7 +111,6 @@ def ping_app():
         pong_received = True
     sock.close()
     sd.clean()
-    sd._local_socket.close()
     print("Leaving ping_app.")
 
 def pong_app():
@@ -179,6 +178,7 @@ if __name__ == "__main__":
               "the arguments. E.g.:\n# python3 end2end_test.py 1,19 2,26")
         sources = [(1, 17), (1, 19), (2, 25), (2, 26)]
         destinations = sources[:]
+        # Randomize order of the connections.
         random.shuffle(sources)
         random.shuffle(destinations)
 
