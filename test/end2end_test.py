@@ -32,7 +32,6 @@ import socket
 import struct
 import threading
 
-ADs = [(1, 17), (1, 18), (1, 19), (2, 26)]
 ping_received = False
 pong_received = False
 SRC = None 
@@ -45,6 +44,7 @@ def get_paths_via_api(isd, ad):
     Test local API.
     """
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind(("127.0.0.1", 5005))
     msg = b'\x00' + struct.pack("H", isd) + struct.pack("Q", ad)
     print("Sending path request to local API.")
@@ -86,8 +86,8 @@ def ping_app():
     topo_file = ("../topology/ISD%d/topologies/ISD:%d-AD:%d.json" % 
                  (SRC.isd, SRC.isd, SRC.ad))
     sd = SCIONDaemon.start(saddr, topo_file, True) # API on
-    print("Sending PATH request for (%d, %d) in 3 seconds" % (DST.isd, DST.ad))
-    time.sleep(3)
+    print("Sending PATH request for (%d, %d) in 1 seconds" % (DST.isd, DST.ad))
+    time.sleep(1)
     # Get paths through local API.
     paths_hops = get_paths_via_api(DST.isd, DST.ad)
     assert paths_hops
@@ -103,6 +103,7 @@ def ping_app():
     sd.send(spkt, next_hop, port)
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind((str(saddr), SCION_UDP_EH_DATA_PORT))
     packet, _ = sock.recvfrom(BUFLEN)
     if SCIONPacket(packet).payload == b"pong":
@@ -111,6 +112,7 @@ def ping_app():
     sock.close()
     sd.clean()
     sd._local_socket.close()
+    print("Leaving ping_app.")
 
 def pong_app():
     """
@@ -121,6 +123,7 @@ def pong_app():
                  (DST.isd, DST.isd, DST.ad))
     sd = SCIONDaemon.start(raddr, topo_file)
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind((str(raddr), SCION_UDP_EH_DATA_PORT))
     packet, _ = sock.recvfrom(BUFLEN)
     spkt = SCIONPacket(packet)
@@ -134,7 +137,7 @@ def pong_app():
         sd.send(spkt, next_hop, port)
     sock.close()
     sd.clean()
-    sd._local_socket.close()
+    print("Leaving pong_app.")
 
 
 class TestSCIONDaemon(unittest.TestCase):
@@ -142,30 +145,41 @@ class TestSCIONDaemon(unittest.TestCase):
     Unit tests for sciond.py. For this test a infrastructure must be running.
     """
 
-    def test(self):
+    def test(self, sources, destinations):
         """
         Testing function. Creates an instance of SCIONDaemon, then verifies path
         requesting, and finally sends packet through SCION. Sender is 127.1.19.1
         placed in SRC, and receiver is 127.2.26.1 in DST.
         """
-        global SRC, DST
-        sources = ADs[:]
-        random.shuffle(sources)
-        random.shuffle(ADs)
+        global SRC, DST, ping_received, pong_received
         for src in sources:
-            for dst in [x for x in ADs if x != src]: 
-                print(src,"->",dst)
+            for dst in [x for x in destinations if x != src]:
                 if src != dst:
                     SRC = ISD_AD(src[0], src[1])
                     DST = ISD_AD(dst[0], dst[1])
                     threading.Thread(target=ping_app).start()
                     threading.Thread(target=pong_app).start()
+                    print("\nTesting:", src, "->", dst)
+                    time.sleep(2)
 
-                    time.sleep(8)
                     self.assertTrue(ping_received)
                     self.assertTrue(pong_received)
+                    ping_received = False
+                    pong_received = False
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
-    print(sys.argv)
-    unittest.main()
+    if len(sys.argv) == 3:
+        isd, ad = sys.argv[1].split(',')
+        sources = [(int(isd), int(ad))]
+        isd, ad = sys.argv[2].split(',')
+        destinations = [(int(isd), int(ad))]
+    else:
+        print("You can specify src and dst by giving 'sISD,sAD dISD,dAD' as "
+              "the arguments. E.g.:\n# python3 end2end_test.py 1,19 2,26")
+        sources = [(1, 17), (1, 19), (2, 25), (2, 26)]
+        destinations = sources[:]
+        random.shuffle(sources)
+        random.shuffle(destinations)
+
+    TestSCIONDaemon().test(sources, destinations)
