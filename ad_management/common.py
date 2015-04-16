@@ -27,10 +27,12 @@ SUPERVISORD_PORT = 9001
 SCION_ROOT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 MONITORING_DAEMON_DIR = os.path.join(SCION_ROOT, 'ad_management')
 UPDATE_DIR_PATH = os.path.join(MONITORING_DAEMON_DIR, '.update_files')
+PACKAGE_DIR_PATH = os.path.join(MONITORING_DAEMON_DIR, '.packages')
 UPDATE_SCRIPT_PATH = os.path.join(MONITORING_DAEMON_DIR, 'updater.py')
 CERT_DIR_PATH = os.path.join(MONITORING_DAEMON_DIR, 'certs')
 SUPERVISORD_PATH = os.path.join(SCION_ROOT, 'supervisor', 'supervisor.sh')
 WEB_SCION_DIR = os.path.join(SCION_ROOT, 'web_scion')
+LOGS_DIR = os.path.join(SCION_ROOT, 'logs')
 
 # TODO modify after update management is implemented
 ARCHIVE_DIST_PATH = os.path.join(SCION_ROOT, 'dist')

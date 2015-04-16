@@ -70,17 +70,30 @@ def start_monitoring_daemon():
     """
     Start the monitoring daemon process after the update.
     """
-    # First, try to start Supervisor if not started
-    exit_status = subprocess.call([SUPERVISORD_PATH, 'reload'],
-                                  stdout=subprocess.DEVNULL,
-                                  stderr=subprocess.DEVNULL)
-    logging.info('Supervisord exit status: {}'.format(exit_status))
-    # Second, perform the API call
-    logging.info('Starting the monitoring daemon...')
+    # 'reload' must start the monitoring daemon automatically
+    logging.info('Restarting Supervisor and the monitoring daemon...')
+    subprocess.call([SUPERVISORD_PATH, 'reload'],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL)
+
+    logging.info('Checking that the monitoring daemon is running...')
     server = get_supervisor_server()
-    try:
-        server.supervisor.startProcess(MONITORING_DAEMON_PROC_NAME)
-    except (ConnectionRefusedError, xmlrpc.client.Fault):
+    started = False
+    for _ in range(3):
+        time.sleep(1)
+        try:
+            process_info = server.supervisor.getProcessInfo(
+                MONITORING_DAEMON_PROC_NAME
+            )
+            if process_info['statename'] == 'RUNNING':
+                started = True
+                break
+        except (ConnectionRefusedError, xmlrpc.client.Fault) as ex:
+            logging.warning('Error:' + str(ex))
+
+    if started:
+        logging.info('The monitoring daemon is running')
+    else:
         logging.warning('Could not start the monitoring daemon')
 
 
@@ -99,15 +112,20 @@ def extract_files(archive_path, target_dir):
     with tarfile.open(archive_path, 'r') as tar_fh:
         # Check that names in the archive don't contain '..' and don't
         # start with '/'.
+        new_members = []
         for member in tar_fh.getmembers():
             abs_path = os.path.abspath(os.path.join(target_dir, member.path))
             if (not abs_path.startswith(target_dir) or
                     not abs_path.startswith(SCION_ROOT)):
                 raise Exception("Updater: unsafe filenames!")
             # Remove the top level directory from a member path
-            member.path = os.sep.join(member.path.split(os.sep)[1:])
+            split_path = member.path.split(os.sep)
+            if len(split_path) > 1:
+                member.path = os.sep.join(split_path[1:])
+                new_members.append(member)
+
         logging.info('Extracting the archive...')
-        tar_fh.extractall(target_dir)
+        tar_fh.extractall(target_dir, members=new_members)
 
 
 def post_extract():

@@ -221,7 +221,9 @@ class MonitoringDaemon(object):
         :param path:
         :type path:
         """
-        Popen([sys.executable, UPDATE_SCRIPT_PATH, archive, path])
+        updater_log = open(os.path.join(LOGS_DIR, 'updater.log'), 'a')
+        Popen([sys.executable, UPDATE_SCRIPT_PATH, archive, path],
+              stdout=updater_log, stderr=updater_log)
 
     def send_update(self, isd_id, ad_id, data_dict):
         """
