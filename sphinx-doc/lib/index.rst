@@ -11,3 +11,4 @@ Contents:
    config
    util
    packet/index
+   zookeeper
