@@ -1,5 +1,6 @@
 {% extends "ad_manager/base.html" %}
 {% load staticfiles %}
+{% load bootstrap3 %}
 
 {% block js %}
   {{ block.super }}
@@ -69,29 +70,37 @@
       <!-- Updates tab -->
       <div role="tabpanel" class="tab-pane" id="updates">
         <br />
-        <label for="sel2">Select the update version:</label>
-        <select class="form-control" id="sel2">
-          <!-- Static stub -->
-          <option>0.1.0</option>
-        </select>
-        <br />
-        <div class="row">
-          <div class="col-md-2">
-            <button type="button" class="btn btn-warning click-confirm" id="send-updates-btn" data-confirmation="Are you sure? All unsaved data will be lost!">
-              Install the update
-            </button>
+
+        <form method="POST" action="{% url 'update_action' object.id %}">
+          {% csrf_token %}
+          {% bootstrap_form choose_version_form %}
+
+          <div class="row">
+            <div class="col-md-2">
+              <button type="submit" class="btn btn-warning click-confirm" id="send-updates-btn"
+                      data-confirmation="Are you sure? All unsaved data will be lost!" name="_install_update">
+                Install the update
+              </button>
+            </div>
+            <div>Push updates to the server</div>
           </div>
-          <div>Push updates to the server</div>
-        </div>
-        <br />
-        <div class="row">
-          <div class="col-md-2">
-            <a href="{% url 'download_update' object.id %}" class="btn btn-default" id="download-updates-btn">Download the update</a>
+
+          <br />
+          <div class="row">
+            <div class="col-md-2">
+              <button type="submit" class="btn btn-default" id="download-updates-btn" name="_download_update">
+                Download the update
+              </button>
+            </div>
+            <div>Download the SCION distribution</div>
           </div>
-          <div>Download the SCION distribution</div>
-        </div>
+
+        </form>
         <br />
-        <div id="update-info" class="alert" role="alert"></div>
+
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
       </div>
 
     </div>
@@ -102,7 +111,6 @@
     var isdAdId = '{{ object }}';
     var adDetailUrl = '{% url 'ad_status' object.id %}';
     var adCompareUrl = '{% url 'compare_topology' object.id %}';
-    var adSendUpdatesUrl = '{% url 'send_update' object.id %}'
   </script>
 
 {% endblock %}

@@ -86,39 +86,6 @@ function compareAdTopology(compareUrl) {
     $alertDiv.show();
 }
 
-function initSendUpdates() {
-    $('#update-info').hide();
-}
-
-function sendAdUpdates(sendUrl) {
-    initSendUpdates();
-    var $alertDiv = $('#update-info');
-    $alertDiv.removeClass('alert-success alert-danger alert-warning');
-
-    function errorHandler() {
-        $alertDiv.addClass('alert-danger');
-        $alertDiv.text('Something is wrong');
-    }
-
-    $.ajax({
-        url: sendUrl,
-        dataType: "json"
-    }).done(function(data) {
-        if (!data['status']) {
-            errorHandler();
-            return;
-        }
-        $alertDiv.addClass('alert-success');
-        $alertDiv.text('Update started');
-    }).fail(errorHandler
-    ).always(function() {
-        $alertDiv.hide();
-        $alertDiv.show(500);
-    });
-    showLoadingIndicator($alertDiv);
-    $alertDiv.show();
-}
-
 $(document).ready(function() {
     // "Are you sure?" confirmation boxes
     $('.click-confirm').click(function(e) {
@@ -142,13 +109,6 @@ $(document).ready(function() {
     compareAdTopology(adCompareUrl);
     $('#compare-topology-btn').click(function() {
         compareAdTopology(adCompareUrl);
-    });
-
-    // Update tab callbacks
-    initSendUpdates();
-    var $sendUpdatesBtn = $('#send-updates-btn');
-    $sendUpdatesBtn.click(function() {
-        sendAdUpdates(adSendUpdatesUrl);
     });
 
     // Make tabs persistent. Check https://gist.github.com/josheinstein/5586469

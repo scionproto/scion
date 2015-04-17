@@ -1,29 +1,31 @@
 # Stdlib
 import json
-import os
 import tempfile
 
 # External packages
+from django.contrib import messages
 from django.core.urlresolvers import reverse
 from django.db import transaction
-from django.http import JsonResponse, HttpResponse, HttpResponseNotFound
+from django.http import (
+    HttpResponse,
+    HttpResponseNotFound,
+    HttpResponseRedirect,
+    JsonResponse,
+)
 from django.shortcuts import redirect
 from django.views.generic import ListView, DetailView
 
 # SCION
 from ad_management.common import (
-    ARCHIVE_DIST_PATH,
-    get_data,
     get_success_data,
     is_success,
     response_failure,
+    get_failure_errors
 )
+from ad_manager.forms import PackageVersionSelectForm
 from ad_manager.models import AD, ISD
 from ad_manager.util import monitoring_client
 from lib.topology import Topology
-
-
-ARCH_NAME = 'scion-0.1.0.tar.gz'
 
 
 class ISDListView(ListView):
@@ -43,10 +45,15 @@ class ADDetailView(DetailView):
         """
         context = super(ADDetailView, self).get_context_data(**kwargs)
         ad = context['object']
+        # Status tab
         context['routers'] = ad.routerweb_set.select_related().all()
         context['path_servers'] = ad.pathserverweb_set.all()
         context['certificate_servers'] = ad.certificateserverweb_set.all()
         context['beacon_servers'] = ad.beaconserverweb_set.all()
+
+        # Update tab
+        context['choose_version_form'] = PackageVersionSelectForm()
+
         return context
 
 
@@ -135,40 +142,60 @@ def update_from_remote_topology(request, pk):
     with tempfile.NamedTemporaryFile(mode='w') as tmp:
         json.dump(remote_topology_dict, tmp)
         tmp.flush()
-        remote_topology = Topology(tmp.name)
+        remote_topology = Topology.from_file(tmp.name)
     ad.fill_from_topology(remote_topology, clear=True)
     return redirect(reverse('ad_detail_topology', args=[ad.id]))
 
 
-def send_update(request, pk):
+def _send_update(request, ad, package):
     """
     Send the update package and initiate the update process.
     """
-    ad = AD.objects.get(id=pk)
-    # FIXME static stub before update management is implemented
-    arch_path = os.path.join(ARCHIVE_DIST_PATH, ARCH_NAME)
-    if not os.path.isfile(arch_path):
-        result = response_failure('Package not found')
-    else:
+    # TODO move to model?
+    if package.exists():
         result = monitoring_client.send_update(ad.isd_id, ad.id,
                                                ad.get_monitoring_daemon_host(),
-                                               arch_path)
-    return JsonResponse({'status': is_success(result),
-                         'data': get_data(result)})
+                                               package.filepath)
+    else:
+        result = response_failure('Package not found')
+
+    if is_success(result):
+        messages.success(request, 'Update started')
+    else:
+        error = get_failure_errors(result)
+        messages.error(request, error)
+    return redirect(reverse('ad_detail_updates', args=[ad.id]))
 
 
-def download_update(request, pk):
+def _download_update(request, ad, package):
     """
     Download the update package straight from the web panel.
     """
-    # FIXME static stub
-    arch_path = os.path.join(ARCHIVE_DIST_PATH, ARCH_NAME)
-    if not os.path.isfile(arch_path):
+
+    if not package.exists():
         return HttpResponseNotFound('Package not found')
-    with open(arch_path, 'rb') as arch_fh:
+
+    with open(package.filepath, 'rb') as arch_fh:
         response = HttpResponse(arch_fh.read(),
                                 content_type='application/x-gzip')
         response['Content-Length'] = arch_fh.tell()
     response['Content-Disposition'] = ('attachment; '
-                                       'filename={}'.format(ARCH_NAME))
+                                       'filename={}'.format(package.name))
     return response
+
+
+def update_action(request, pk):
+    ad = AD.objects.get(id=pk)
+    ad_page = reverse('ad_detail', args=[ad.id])
+    if request.method != 'POST':
+        return HttpResponseRedirect(ad_page)
+
+    form = PackageVersionSelectForm(request.POST)
+    if form.is_valid():
+        package = form.cleaned_data['selected_version']
+        if '_download_update' in request.POST:
+            return _download_update(request, ad, package)
+        if '_install_update' in request.POST:
+            return _send_update(request, ad, package)
+
+    return HttpResponseRedirect(ad_page)

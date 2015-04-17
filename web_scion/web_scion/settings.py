@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/1.7/ref/settings/
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 import os
 import sys
+from django.contrib import messages
 
 WEB_SCION_DIR = os.path.dirname(os.path.dirname(__file__))
 SCION_ROOT = os.path.dirname(WEB_SCION_DIR)
@@ -39,6 +40,7 @@ INSTALLED_APPS = (
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'bootstrap3',
     'ad_manager',
 )
 
@@ -80,6 +82,10 @@ USE_L10N = True
 
 USE_TZ = True
 
+
+MESSAGE_TAGS = {
+    messages.ERROR: 'danger',
+}
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.7/howto/static-files/

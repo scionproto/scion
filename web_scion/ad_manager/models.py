@@ -1,11 +1,18 @@
 # Stdlib
+import glob
 import json
+import os
+import tarfile
 
 # External packages
 from django.db import models, IntegrityError
 
 # SCION
-from ad_management.common import is_success, get_success_data
+from ad_management.common import (
+    get_success_data,
+    is_success,
+    PACKAGE_DIR_PATH,
+)
 from ad_manager.util import monitoring_client
 from lib.topology import Topology
 
@@ -215,3 +222,47 @@ class RouterWeb(SCIONWebElement):
     class Meta:
         verbose_name = 'Router'
         unique_together = (("ad", "addr"),)
+
+
+class PackageVersion(models.Model):
+    name = models.CharField(max_length=50, null=False)
+    date_created = models.DateTimeField(null=False)
+    size = models.IntegerField(null=False)
+    filepath = models.CharField(max_length=400, null=False)
+
+    @staticmethod
+    def discover_packages(clear=True):
+        if clear:
+            PackageVersion.objects.all().delete()
+
+        glob_string = os.path.join(PACKAGE_DIR_PATH, '*.tar')
+        tar_files = glob.glob(glob_string)
+        for filename in tar_files:
+            with tarfile.open(filename, 'r') as tar_fh:
+                try:
+                    # Check metadata
+                    metadata_tarinfo = tar_fh.getmember('META')
+                    metadata_file = tar_fh.extractfile(metadata_tarinfo)
+                    metadata_string = str(metadata_file.read(), 'utf8')
+                    metadata = json.loads(metadata_string)
+                    package_name = os.path.basename(filename)
+                    package_path = os.path.abspath(filename)
+                    package_version = PackageVersion(
+                        name=package_name,
+                        date_created=metadata['date'],
+                        size=os.path.getsize(filename),
+                        filepath=package_path,
+                    )
+                    package_version.save()
+
+                except (KeyError, ValueError) as ex:
+                    pass
+
+    def exists(self):
+        return os.path.isfile(self.filepath)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = 'Package version'
