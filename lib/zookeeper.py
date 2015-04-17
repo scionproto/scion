@@ -173,7 +173,6 @@ class Zookeeper(object):
         """
         self._connected.clear()
         self._lock.clear()
-        self._zk_lock = None
         logging.info("Connection to Zookeeper suspended")
         if self._on_disconnect:
             self._on_disconnect()
@@ -187,7 +186,6 @@ class Zookeeper(object):
         """
         self._connected.clear()
         self._lock.clear()
-        self._zk_lock = None
         logging.info("Connection to Zookeeper lost")
         if self._on_disconnect:
             self._on_disconnect()
@@ -255,20 +253,37 @@ class Zookeeper(object):
         :return: ``True`` if we got the lock, or already had it, otherwise ``False``.
         :rtype: :class:`bool`
         """
+        if self._zk_lock is None:
+            # First-time setup.
+            logging.debug("get_lock: init lock")
+            lock_path = os.path.join(self._prefix, "lock")
+            self._zk_lock = self._zk.Lock(lock_path, self._srv_id)
         if not self.is_connected():
+            self._lock.clear()
+            # Hack suggested by https://github.com/python-zk/kazoo/issues/2
+            self._zk_lock.is_acquired = False
+            logging.debug("get_lock: not connected")
             return False
         if self._lock.is_set():
             # We already have the lock
+            logging.debug("get_lock: already have lock")
             return True
-        if self._zk_lock is None:
-            lock_path = os.path.join(self._prefix, "lock")
-            self._zk_lock = self._zk.Lock(lock_path, self._srv_id)
+        else:
+            # Hack suggested by https://github.com/python-zk/kazoo/issues/2
+            self._zk_lock.is_acquired = False
         try:
+            logging.debug("get_lock: try acquire lock")
             if self._zk_lock.acquire(timeout=timeout):
+                logging.debug("get_lock: acquired lock")
                 self._lock.set()
-        except (LockTimeout, ConnectionLoss, SessionExpiredError):
+            else:
+                logging.debug("get_lock: failed to acquire lock")
+        except (LockTimeout, ConnectionLoss, SessionExpiredError) as e:
+            logging.debug("get_lock: exception acquiring lock: %s", e)
             pass
-        return self._have_lock()
+        ret = self._have_lock()
+        logging.debug("get_lock: do we have the lock? %s", ret)
+        return ret
 
     def _have_lock(self):
         """
