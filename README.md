@@ -13,7 +13,7 @@ Necessary steps in order to run SCION:
 0. Install required packages with dependencies:
 
     sudo apt-get install python python3 python-dev python3-dev python3-pip screen
-    sudo pip3 install bitstring python-pytun pydblite
+    sudo pip3 install bitstring python-pytun pydblite pygments
     sudo pip2 install supervisor==3.1.3
     sudo pip2 install supervisor-quick
 
