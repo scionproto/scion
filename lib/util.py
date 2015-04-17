@@ -195,3 +195,45 @@ def trace():
     path = os.path.join(TRACE_DIR,
                         "%s.trace.html" % os.environ['SUPERVISOR_PROCESS_NAME'])
     trace_start(path)
+
+def timed(limit):
+    """
+    Decorator to measure to execution time of a function, and log a warning if
+    it takes too long. The wrapped function takes an optional `timed_desc`
+    string parameter which is printed as part of the warning. If `timed_desc`
+    isn't passed in, then the wrapped function's path is printed instead.
+
+    :param float limit: If the wrapped function takes more than `limit`
+                        seconds, log a warning.
+    """
+    def wrap(f):
+        def wrapper(*args, timed_desc=None, **kwargs):
+            start = time.time()
+            ret = f(*args, **kwargs)
+            elapsed = time.time() - start
+            if elapsed > limit:
+                if not timed_desc:
+                    timed_desc = "Call to %s.%s" % (f.__module__, f.__name__)
+                logging.warning("%s took too long: %.3fs", timed_desc, elapsed)
+            return ret
+        return wrapper
+    return wrap
+
+def sleep_interval(start, interval, desc):
+    """
+    Sleep until the `interval` seconds have elapsed since `start`.
+
+    If the interval is already over, log a warning with `desc` at the start.
+
+    :param float start: Time (in seconds since the Epoch) the current interval
+                        started.
+    :param float interval: Length (in seconds) of an interval.
+    :param string desc: Description of the operation.
+    """
+    now = time.time()
+    delay = start + interval - now
+    if delay < 0:
+        logging.warning("%s took too long: %.3fs (should have been <= %.3fs)",
+                        desc, now - start, interval)
+        delay = 0
+    time.sleep(delay)
