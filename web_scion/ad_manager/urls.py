@@ -25,4 +25,6 @@ urlpatterns = patterns(
         views.update_from_remote_topology, name='update_topology'),
     url(r'^ads/(?P<pk>\d+)/update_action$',
         views.update_action, name='update_action'),
+    url(r'^ads/(?P<pk>\d+)/refresh_versions$',
+        views.refresh_versions, name='refresh_versions'),
 )

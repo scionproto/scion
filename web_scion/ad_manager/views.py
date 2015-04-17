@@ -9,7 +9,6 @@ from django.db import transaction
 from django.http import (
     HttpResponse,
     HttpResponseNotFound,
-    HttpResponseRedirect,
     JsonResponse,
 )
 from django.shortcuts import redirect
@@ -23,7 +22,7 @@ from ad_management.common import (
     get_failure_errors
 )
 from ad_manager.forms import PackageVersionSelectForm
-from ad_manager.models import AD, ISD
+from ad_manager.models import AD, ISD, PackageVersion
 from ad_manager.util import monitoring_client
 from lib.topology import Topology
 
@@ -188,7 +187,7 @@ def update_action(request, pk):
     ad = AD.objects.get(id=pk)
     ad_page = reverse('ad_detail', args=[ad.id])
     if request.method != 'POST':
-        return HttpResponseRedirect(ad_page)
+        return redirect(ad_page)
 
     form = PackageVersionSelectForm(request.POST)
     if form.is_valid():
@@ -197,5 +196,9 @@ def update_action(request, pk):
             return _download_update(request, ad, package)
         if '_install_update' in request.POST:
             return _send_update(request, ad, package)
+    return redirect(ad_page)
 
-    return HttpResponseRedirect(ad_page)
+
+def refresh_versions(request, pk):
+    PackageVersion.discover_packages()
+    return redirect(reverse('ad_detail_updates', args=[pk]))

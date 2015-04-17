@@ -3,3 +3,7 @@ body {
     padding-top: 50px;
 }
 
+div#refresh-btn-container {
+    margin-top: 28px;
+}
+
