@@ -114,6 +114,8 @@ class Router(SCIONElement):
         else:
             self.post_ext_handlers = {}
         self._remote_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self._remote_socket.setsockopt(socket.SOL_SOCKET,
+                                       socket.SO_REUSEADDR, 1)
         self._remote_socket.bind((str(self.interface.addr),
                                   self.interface.udp_port))
         self._sockets.append(self._remote_socket)

@@ -19,11 +19,12 @@ from lib.packet.path import (PathType, CorePath, PeerPath, CrossOverPath,
                              EmptyPath, PathBase)
 from lib.packet.opaque_field import InfoOpaqueField
 from lib.packet.scion import SCIONPacket
-from lib.packet.scion_addr import SCIONAddr
+from lib.packet.scion_addr import SCIONAddr, ISD_AD
 from endhost.sciond import SCIONDaemon, SCIOND_API_HOST, SCIOND_API_PORT
 from infrastructure.scion_elem import SCION_UDP_EH_DATA_PORT, BUFLEN
 from ipaddress import IPv4Address
 import logging
+import random
 import time
 import unittest
 import sys
@@ -33,13 +34,17 @@ import threading
 
 ping_received = False
 pong_received = False
-
+SRC = None 
+DST = None 
+saddr = IPv4Address("127.1.19.254")
+raddr = IPv4Address("127.2.26.254")
 
 def get_paths_via_api(isd, ad):
     """
     Test local API.
     """
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind(("127.0.0.1", 5005))
     msg = b'\x00' + struct.pack("H", isd) + struct.pack("Q", ad)
     print("Sending path request to local API.")
@@ -73,25 +78,24 @@ def get_paths_via_api(isd, ad):
     return paths_hops
 
 
-saddr = IPv4Address("127.1.19.254")
-raddr = IPv4Address("127.2.26.254")
-
 def ping_app():
     """
     Simple ping app.
     """
     global pong_received
-    topo_file = "../topology/ISD1/topologies/ISD:1-AD:19.json"
+    topo_file = ("../topology/ISD%d/topologies/ISD:%d-AD:%d.json" % 
+                 (SRC.isd, SRC.isd, SRC.ad))
     sd = SCIONDaemon.start(saddr, topo_file, True) # API on
-    print("Sending PATH request for (2, 26) in 3 seconds")
-    time.sleep(3)
-    paths_hops = get_paths_via_api(2, 26) # Get paths through local API.
+    print("Sending PATH request for (%d, %d) in 1 seconds" % (DST.isd, DST.ad))
+    time.sleep(1)
+    # Get paths through local API.
+    paths_hops = get_paths_via_api(DST.isd, DST.ad)
     assert paths_hops
     (path, hop) = paths_hops[0]
     # paths = sd.get_paths(2, 26) # Get paths through function call.
     # assert paths
 
-    dst = SCIONAddr.from_values(2, 26, raddr)
+    dst = SCIONAddr.from_values(DST.isd, DST.ad, raddr)
     spkt = SCIONPacket.from_values(sd.addr, dst, b"ping", path)
     (next_hop, port) = sd.get_first_hop(spkt)
     assert next_hop == hop
@@ -99,21 +103,26 @@ def ping_app():
     sd.send(spkt, next_hop, port)
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind((str(saddr), SCION_UDP_EH_DATA_PORT))
     packet, _ = sock.recvfrom(BUFLEN)
     if SCIONPacket(packet).payload == b"pong":
         print('%s: pong received.' % saddr)
         pong_received = True
     sock.close()
+    sd.clean()
+    print("Leaving ping_app.")
 
 def pong_app():
     """
     Simple pong app.
     """
     global ping_received
-    topo_file = "../topology/ISD2/topologies/ISD:2-AD:26.json"
+    topo_file = ("../topology/ISD%d/topologies/ISD:%d-AD:%d.json" %
+                 (DST.isd, DST.isd, DST.ad))
     sd = SCIONDaemon.start(raddr, topo_file)
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind((str(raddr), SCION_UDP_EH_DATA_PORT))
     packet, _ = sock.recvfrom(BUFLEN)
     spkt = SCIONPacket(packet)
@@ -126,6 +135,8 @@ def pong_app():
         (next_hop, port) = sd.get_first_hop(spkt)
         sd.send(spkt, next_hop, port)
     sock.close()
+    sd.clean()
+    print("Leaving pong_app.")
 
 
 class TestSCIONDaemon(unittest.TestCase):
@@ -133,19 +144,43 @@ class TestSCIONDaemon(unittest.TestCase):
     Unit tests for sciond.py. For this test a infrastructure must be running.
     """
 
-    def test(self):
+    def test(self, sources, destinations):
         """
         Testing function. Creates an instance of SCIONDaemon, then verifies path
         requesting, and finally sends packet through SCION. Sender is 127.1.19.1
-        placed in ISD:1, AD:19, and receiver is 127.2.26.1 in ISD:2, AD:26.
+        placed in every AD from `sources`, and receiver is 127.2.26.1 from
+        every AD from `destinations`.
         """
-        threading.Thread(target=ping_app).start()
-        threading.Thread(target=pong_app).start()
+        global SRC, DST, ping_received, pong_received
+        for src in sources:
+            for dst in [x for x in destinations if x != src]:
+                if src != dst:
+                    SRC = ISD_AD(src[0], src[1])
+                    DST = ISD_AD(dst[0], dst[1])
+                    threading.Thread(target=ping_app).start()
+                    threading.Thread(target=pong_app).start()
+                    print("\nTesting:", src, "->", dst)
+                    time.sleep(2)
 
-        time.sleep(8)
-        self.assertTrue(ping_received)
-        self.assertTrue(pong_received)
+                    self.assertTrue(ping_received)
+                    self.assertTrue(pong_received)
+                    ping_received = False
+                    pong_received = False
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
-    unittest.main()
+    if len(sys.argv) == 3:
+        isd, ad = sys.argv[1].split(',')
+        sources = [(int(isd), int(ad))]
+        isd, ad = sys.argv[2].split(',')
+        destinations = [(int(isd), int(ad))]
+    else:
+        print("You can specify src and dst by giving 'sISD,sAD dISD,dAD' as "
+              "the arguments. E.g.:\n# python3 end2end_test.py 1,19 2,26")
+        sources = [(1, 17), (1, 19), (2, 25), (2, 26)]
+        destinations = sources[:]
+        # Randomize order of the connections.
+        random.shuffle(sources)
+        random.shuffle(destinations)
+
+    TestSCIONDaemon().test(sources, destinations)
