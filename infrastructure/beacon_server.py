@@ -66,9 +66,9 @@ class BeaconServer(SCIONElement):
     # Timeout for TRC or Certificate requests.
     REQUESTS_TIMEOUT = 10
     # ZK path for incoming PCBs
-    ZK_INCOMING_PATH = "/incoming"
+    ZK_INCOMING_PATH = "incoming"
     # ZK path for recent PCBs
-    ZK_RECENT_PATH = "/recent"
+    ZK_RECENT_PATH = "recent"
 
     def __init__(self, addr, topo_file, config_file, path_policy_file):
         SCIONElement.__init__(self, addr, topo_file, config_file=config_file)
