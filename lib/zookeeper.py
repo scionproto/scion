@@ -21,9 +21,10 @@ import logging
 import threading
 import time
 
-from kazoo.client import (KazooClient, KazooState)
+from kazoo.client import (KazooClient, KazooState, KazooRetry)
 from kazoo.handlers.threading import TimeoutError
-from kazoo.exceptions import (LockTimeout, SessionExpiredError, NoNodeError, ConnectionLoss)
+from kazoo.exceptions import (LockTimeout, SessionExpiredError,
+                              NoNodeError, ConnectionLoss)
 from lib.util import (kill_self, thread_safety_net)
 from lib.packet.pcb import PathSegment
 
@@ -74,7 +75,8 @@ class Zookeeper(object):
                            Zookeeper.
         :param on_disconnect: A function called everytime a connection is lost
                               to Zookeeper.
-        :param tuple ensure_paths: A tuple of ZK paths to ensure exist on connect.
+        :param tuple ensure_paths: A tuple of ZK paths to ensure exist on
+                                   connect.
         """
         self._isd_id = isd_id
         self._ad_id = ad_id
@@ -85,8 +87,14 @@ class Zookeeper(object):
         self._on_disconnect = on_disconnect
         self._ensure_paths = ensure_paths
 
-        self._prefix = "/ISD%d-AD%d/%s" % (self._isd_id, self._ad_id, self._srv_name)
-        self._zk = KazooClient(hosts=",".join(zk_hosts), timeout=self._timeout)
+        retry = KazooRetry(max_tries=-1, max_delay=1)
+
+        self._prefix = "/ISD%d-AD%d/%s" % (self._isd_id,
+                                           self._ad_id,
+                                           self._srv_name)
+        self._zk = KazooClient(hosts=",".join(zk_hosts),
+                               timeout=self._timeout,
+                               connection_retry=retry)
         # Stop kazoo from drowning the log with debug spam:
         self._zk.logger.setLevel(logging.ERROR)
         # FIXME(kormat): remove once stable:
@@ -140,7 +148,8 @@ class Zookeeper(object):
             # Short-circuit handler if the state hasn't actually changed
             if self._old_state == self._zk.state:
                 continue
-            logging.debug("Kazoo old state: %s, new state: %s", self._old_state, self._zk.state)
+            logging.debug("Kazoo old state: %s, new state: %s",
+                          self._old_state, self._zk.state)
             self._old_state = self._zk.state
             if self._zk.state == KazooState.CONNECTED:
                 self._state_connected()
@@ -250,7 +259,8 @@ class Zookeeper(object):
         :param float timeout: Time (in seconds) to wait for lock acquisition,
                               or ``None`` to wait forever.
         :type timeout: float or None.
-        :return: ``True`` if we got the lock, or already had it, otherwise ``False``.
+        :return: ``True`` if we got the lock, or already had it, otherwise
+                 ``False``.
         :rtype: :class:`bool`
         """
         if self._zk_lock is None:
@@ -343,7 +353,8 @@ class Zookeeper(object):
         List the items in a shared path.
 
         :param str path: The path the items are stored in. E.g.  ``"shared"``
-        :return: The value of the item, if successfully retrieved, otherwise ``None``
+        :return: The value of the item, if successfully retrieved, otherwise
+                 ``None``
         :rtype: :class:`bytes` or ``None``
         :raises:
             ZkConnectionLoss: if the connection to ZK drops
