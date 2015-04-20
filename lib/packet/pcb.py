@@ -1,11 +1,11 @@
 # Copyright 2014 ETH Zurich
-
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-
-# http://www.apache.org/licenses/LICENSE-2.0
-
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -13,7 +13,7 @@
 # limitations under the License.
 """
 :mod:`pcb` --- SCION Beacon
-===========================================
+===========================
 """
 
 from lib.defines import EXP_TIME_UNIT
@@ -109,13 +109,13 @@ class PCBMarking(Marking):
         """
         Returns PCBMarking with fields populated from values.
 
-        @param ad_id: Autonomous Domain's ID.
-        @param ssf: SupportSignatureField object.
-        @param hof: HopOpaqueField object.
-        @param spcbf: SupportPCBField object.
-        @param ig_rev_token: Revocation token for the ingress if
+        :param ad_id: Autonomous Domain's ID.
+        :param ssf: SupportSignatureField object.
+        :param hof: HopOpaqueField object.
+        :param spcbf: SupportPCBField object.
+        :param ig_rev_token: Revocation token for the ingress if
                              in the HopOpaqueField.
-        @param eg_rev_token: Revocation token for the egress if
+        :param eg_rev_token: Revocation token for the egress if
                              in the HopOpaqueField.
         """
         pcbm = PCBMarking()
@@ -197,12 +197,12 @@ class PeerMarking(Marking):
         """
         Returns PeerMarking with fields populated from values.
 
-        @param ad_id: Autonomous Domain's ID.
-        @param hof: HopOpaqueField object.
-        @param spf: SupportPeerField object.
-        @param ig_rev_token: Revocation token for the ingress if
+        :param ad_id: Autonomous Domain's ID.
+        :param hof: HopOpaqueField object.
+        :param spf: SupportPeerField object.
+        :param ig_rev_token: Revocation token for the ingress if
                              in the HopOpaqueField.
-        @param eg_rev_token: Revocation token for the egress if
+        :param eg_rev_token: Revocation token for the egress if
                              in the HopOpaqueField.
         """
         peer_marking = PeerMarking()
@@ -576,9 +576,9 @@ class PathConstructionBeacon(SCIONPacket):
         """
         Returns a PathConstructionBeacon packet with the values specified.
 
-        @param src_isd_ad: Source's 'ISD_AD' namedtuple.
-        @param dst: Destination address (must be a 'SCIONAddr' object)
-        @param pcb: Path Construction PathConstructionBeacon ('PathSegment'
+        :param src_isd_ad: Source's 'ISD_AD' namedtuple.
+        :param dst: Destination address (must be a 'SCIONAddr' object)
+        :param pcb: Path Construction PathConstructionBeacon ('PathSegment'
                     class)
         """
         beacon = PathConstructionBeacon()

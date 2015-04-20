@@ -1,11 +1,11 @@
 # Copyright 2014 ETH Zurich
-
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-
-# http://www.apache.org/licenses/LICENSE-2.0
-
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -355,11 +355,11 @@ class SupportSignatureField(OpaqueField):
         """
         Returns SupportSignatureField with fields populated from values.
 
-        @param block_size: Total marking size for an AD block (peering links
+        :param block_size: Total marking size for an AD block (peering links
                            included.)
-        @param cert_chain_version: Version of the Autonomous Domain's
+        :param cert_chain_version: Version of the Autonomous Domain's
                                    certificate.
-        @param sig_len: Length of the beacon's signature.
+        :param sig_len: Length of the beacon's signature.
         """
         ssf = SupportSignatureField()
         ssf.cert_chain_version = cert_chain_version

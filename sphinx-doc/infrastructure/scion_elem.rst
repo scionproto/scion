@@ -1,4 +1,5 @@
 
-.. automodule:: lib.packet.packet_base
+.. automodule:: infrastructure.scion_elem
    :special-members: __init__
    :members:
+

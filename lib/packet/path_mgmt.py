@@ -1,23 +1,19 @@
-"""
-path_mgmt.py
-
-Copyright 2015 ETH Zurich
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-"""
+# Copyright 2015 ETH Zurich
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """
 :mod:`path_mgmt` --- Path Management packets
-=============================
+============================================
 
 Contains all the packet formats used for path management.
 """
@@ -103,11 +99,11 @@ class PathSegmentInfo(PayloadBase):
         """
         Returns PathSegmentInfo with fields populated from values.
         :param pckt_type: type of request/reply
-        :type int (PathSegmentType)
+        :type: int (PathSegmentType)
         :param src_isd, src_ad: address of the source AD
-        :type int
+        :type: int
         :param dst_isd, dst_ad: address of the destination AD
-        :type int
+        :type: int
         """
         info = PathSegmentInfo()
         info.type = pckt_type
@@ -145,9 +141,9 @@ class PathSegmentRecords(PayloadBase):
         Returns a Path Record with the values specified.
 
         :param info: type of the path segment records
-        :type PathSegmentInfo
+        :type: PathSegmentInfo
         :param pcbs: list of path segments
-        :type list
+        :type: list
         """
         rec = PathSegmentRecords()
         rec.info = info
@@ -189,13 +185,13 @@ class LeaseInfo(PayloadBase):
         Returns a LeaseInfo object with the specified values.
 
         :param seg_type: type of the segment (down or core)
-        :type int
+        :type: int
         :param isd_id, ad_id: leasers isd and ad IDs
-        :type int
+        :type: int
         :param exp_time: expiration for the lease
-        :type int
+        :type: int
         :param seg_id: segment ID
-        :type bytes
+        :type: bytes
         """
         info = LeaseInfo()
         info.seg_type = seg_type
@@ -247,9 +243,9 @@ class PathSegmentLeases(PayloadBase):
         Returns a PathSegmentLease with the given values.
 
         :param nleases: number of leases this packet contains
-        :type int
+        :type: int
         :param leases: list of leases as tuples (isd, ad, timestamp, segment id)
-        :type list
+        :type: list
         """
         assert nleases == len(leases)
         pkt = PathSegmentLeases()
@@ -329,20 +325,20 @@ class RevocationInfo(PayloadBase):
         Returns a RevocationInfo object with the specified values.
 
         :param rev_type: type of the revocation info
-        :type int (RevocationType)
+        :type: int (RevocationType)
         :param rev_token1: revocation token of interface or path segment
-        :type bytes
+        :type: bytes
         :param proof1: proof for rev_token1
-        :type bytes
+        :type: bytes
         :param incl_seg_id: True if packet includes a segment id
-        :type Bool
+        :type: Bool
         :param seg_id: segment ID of the revoked segment
-        :type bytes
+        :type: bytes
         :param incl_hop: True if packet includes a hop revocation token
         :param rev_token2: revocation token for egress if (only for hop rev)
-        :type bytes
+        :type: bytes
         :param proof2: proof for rev_token2
-        :type bytes
+        :type: bytes
         """
         info = RevocationInfo()
         info.rev_type = rev_type
@@ -399,7 +395,7 @@ class RevocationPayload(PayloadBase):
         Returns a RevocationPayload object with the specified values.
 
         :param rev_infos: list of RevocationInfo objects
-        :type list
+        :type: list
         """
         payload = RevocationPayload()
         payload.rev_infos = rev_infos
@@ -455,15 +451,15 @@ class PathMgmtPacket(SCIONPacket):
         Returns a PathMgmtPacket with the values specified.
 
         :param type: the type of the packet
-        :type class PathMgmtType
+        :type: class PathMgmtType
         :param payload: the payload of the packet
-        :type lib.packet.packet_base.PayloadBase
+        :type: lib.packet.packet_base.PayloadBase
         :param path: the path of the packet
-        :type lib.packet.path.PathBase
+        :type: lib.packet.path.PathBase
         :param src_addr: source address (ISD_AD namedtuple for response)
-        :type lib.packet.scion_addr.SCIONAddr or lib.packet.scion_addr.ISD_AD
+        :type: lib.packet.scion_addr.SCIONAddr or lib.packet.scion_addr.ISD_AD
         :param dst_addr: destination address (ISD_AD namedtuple for request)
-        :type lib.packet.scion_addr.SCIONAddr or lib.packet.scion_addr.ISD_AD
+        :type: lib.packet.scion_addr.SCIONAddr or lib.packet.scion_addr.ISD_AD
         """
         pkt = PathMgmtPacket()
         if isinstance(src_addr, ISD_AD) and isinstance(dst_addr, SCIONAddr):
