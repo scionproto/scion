@@ -26,10 +26,12 @@ import logging
 import signal
 import traceback
 from lib.defines import TOPOLOGY_PATH
+from external.stacktracer import trace_start
 
 CERT_DIR = 'certificates'
 SIG_KEYS_DIR = 'signature_keys'
 ENC_KEYS_DIR = 'encryption_keys'
+TRACE_DIR = "../traces"
 
 
 def _get_isd_prefix(isd_dir):
@@ -172,23 +174,7 @@ def log_exception(msg, *args, level=logging.CRITICAL, **kwargs):
     for line in traceback.format_exc().split("\n"):
         logging.log(level, line)
 
-def kill_self():
-    """
-    Sends SIGTERM to self, to allow quitting the process from threads.
-    """
-    os.kill(os.getpid(), signal.SIGTERM)
-
-def thread_safety_net(name):
-    """
-    Decorator to handle uncaught thread exceptions, log them, then kill the
-    process.
-    """
-    def wrap(f):
-        def wrapper(*args, **kwargs):
-            try:
-                return f(*args, **kwargs)
-            except:
-                log_exception("Exception in %s thread:", name)
-                kill_self()
-        return wrapper
-    return wrap
+def trace():
+    path = os.path.join(TRACE_DIR,
+                        "%s.trace.html" % os.environ['SUPERVISOR_PROCESS_NAME'])
+    trace_start(path)
