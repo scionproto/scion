@@ -1,6 +1,6 @@
 To run the server:
 
-1. Install dependencies
+1. Install dependencies and test the installation
 
   a) Supervisor dependencies
 
@@ -9,6 +9,10 @@ To run the server:
   b) Web app dependencies (Django, etc.)
 
   sudo pip3 install -r requirements.txt
+
+  c) Run tests
+
+  ./manage.py test
 
 2. Run migrations
 
@@ -29,5 +33,3 @@ To run the server:
    Don't forget to run the monitoring daemon:
 
    ./supervisor/supervisor.sh start monitoring_daemon
-
-

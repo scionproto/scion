@@ -1,0 +1,381 @@
+[
+{
+  "pk": 1,
+  "model": "ad_manager.isd",
+  "fields": {}
+},
+{
+  "pk": 2,
+  "model": "ad_manager.isd",
+  "fields": {}
+},
+{
+  "pk": 10,
+  "model": "ad_manager.isd",
+  "fields": {}
+},
+{
+  "pk": 1,
+  "model": "ad_manager.ad",
+  "fields": {
+    "is_core_ad": true,
+    "isd": "1"
+  }
+},
+{
+  "pk": 2,
+  "model": "ad_manager.ad",
+  "fields": {
+    "is_core_ad": false,
+    "isd": "1"
+  }
+},
+{
+  "pk": 3,
+  "model": "ad_manager.ad",
+  "fields": {
+    "is_core_ad": true,
+    "isd": "2"
+  }
+},
+{
+  "pk": 4,
+  "model": "ad_manager.ad",
+  "fields": {
+    "is_core_ad": false,
+    "isd": "2"
+  }
+},
+{
+  "pk": 5,
+  "model": "ad_manager.ad",
+  "fields": {
+    "is_core_ad": false,
+    "isd": "2"
+  }
+},
+{
+  "pk": 6,
+  "model": "ad_manager.ad",
+  "fields": {
+    "is_core_ad": true,
+    "isd": "10"
+  }
+},
+{
+  "pk": 7,
+  "model": "ad_manager.ad",
+  "fields": {
+    "is_core_ad": false,
+    "isd": "10"
+  }
+},
+{
+  "pk": 66,
+  "model": "ad_manager.beaconserverweb",
+  "fields": {
+    "ad": "2",
+    "addr": "127.1.2.1"
+  }
+},
+{
+  "pk": 67,
+  "model": "ad_manager.beaconserverweb",
+  "fields": {
+    "ad": "1",
+    "addr": "127.1.1.1"
+  }
+},
+{
+  "pk": 68,
+  "model": "ad_manager.beaconserverweb",
+  "fields": {
+    "ad": "6",
+    "addr": "127.10.6.1"
+  }
+},
+{
+  "pk": 69,
+  "model": "ad_manager.beaconserverweb",
+  "fields": {
+    "ad": "7",
+    "addr": "127.10.7.1"
+  }
+},
+{
+  "pk": 70,
+  "model": "ad_manager.beaconserverweb",
+  "fields": {
+    "ad": "3",
+    "addr": "127.2.3.1"
+  }
+},
+{
+  "pk": 71,
+  "model": "ad_manager.beaconserverweb",
+  "fields": {
+    "ad": "4",
+    "addr": "127.2.4.1"
+  }
+},
+{
+  "pk": 72,
+  "model": "ad_manager.beaconserverweb",
+  "fields": {
+    "ad": "5",
+    "addr": "127.2.5.1"
+  }
+},
+{
+  "pk": 66,
+  "model": "ad_manager.certificateserverweb",
+  "fields": {
+    "ad": "2",
+    "addr": "127.1.2.21"
+  }
+},
+{
+  "pk": 67,
+  "model": "ad_manager.certificateserverweb",
+  "fields": {
+    "ad": "1",
+    "addr": "127.1.1.21"
+  }
+},
+{
+  "pk": 68,
+  "model": "ad_manager.certificateserverweb",
+  "fields": {
+    "ad": "6",
+    "addr": "127.10.6.21"
+  }
+},
+{
+  "pk": 69,
+  "model": "ad_manager.certificateserverweb",
+  "fields": {
+    "ad": "7",
+    "addr": "127.10.7.21"
+  }
+},
+{
+  "pk": 70,
+  "model": "ad_manager.certificateserverweb",
+  "fields": {
+    "ad": "3",
+    "addr": "127.2.3.21"
+  }
+},
+{
+  "pk": 71,
+  "model": "ad_manager.certificateserverweb",
+  "fields": {
+    "ad": "4",
+    "addr": "127.2.4.21"
+  }
+},
+{
+  "pk": 72,
+  "model": "ad_manager.certificateserverweb",
+  "fields": {
+    "ad": "5",
+    "addr": "127.2.5.21"
+  }
+},
+{
+  "pk": 52,
+  "model": "ad_manager.pathserverweb",
+  "fields": {
+    "ad": "2",
+    "addr": "127.1.2.41"
+  }
+},
+{
+  "pk": 53,
+  "model": "ad_manager.pathserverweb",
+  "fields": {
+    "ad": "1",
+    "addr": "127.1.1.41"
+  }
+},
+{
+  "pk": 54,
+  "model": "ad_manager.pathserverweb",
+  "fields": {
+    "ad": "6",
+    "addr": "127.10.6.41"
+  }
+},
+{
+  "pk": 55,
+  "model": "ad_manager.pathserverweb",
+  "fields": {
+    "ad": "7",
+    "addr": "127.10.7.41"
+  }
+},
+{
+  "pk": 56,
+  "model": "ad_manager.pathserverweb",
+  "fields": {
+    "ad": "3",
+    "addr": "127.2.3.41"
+  }
+},
+{
+  "pk": 57,
+  "model": "ad_manager.pathserverweb",
+  "fields": {
+    "ad": "4",
+    "addr": "127.2.4.41"
+  }
+},
+{
+  "pk": 58,
+  "model": "ad_manager.pathserverweb",
+  "fields": {
+    "ad": "5",
+    "addr": "127.2.5.41"
+  }
+},
+{
+  "pk": 195,
+  "model": "ad_manager.routerweb",
+  "fields": {
+    "neighbor_type": "PARENT",
+    "neighbor_ad": "1",
+    "ad": "2",
+    "addr": "127.1.2.61"
+  }
+},
+{
+  "pk": 196,
+  "model": "ad_manager.routerweb",
+  "fields": {
+    "neighbor_type": "CHILD",
+    "neighbor_ad": "2",
+    "ad": "1",
+    "addr": "127.1.1.63"
+  }
+},
+{
+  "pk": 197,
+  "model": "ad_manager.routerweb",
+  "fields": {
+    "neighbor_type": "ROUTING",
+    "neighbor_ad": "3",
+    "ad": "1",
+    "addr": "127.1.1.61"
+  }
+},
+{
+  "pk": 198,
+  "model": "ad_manager.routerweb",
+  "fields": {
+    "neighbor_type": "CHILD",
+    "neighbor_ad": "7",
+    "ad": "6",
+    "addr": "127.10.6.63"
+  }
+},
+{
+  "pk": 199,
+  "model": "ad_manager.routerweb",
+  "fields": {
+    "neighbor_type": "ROUTING",
+    "neighbor_ad": "3",
+    "ad": "6",
+    "addr": "127.10.6.61"
+  }
+},
+{
+  "pk": 200,
+  "model": "ad_manager.routerweb",
+  "fields": {
+    "neighbor_type": "PARENT",
+    "neighbor_ad": "6",
+    "ad": "7",
+    "addr": "127.10.7.61"
+  }
+},
+{
+  "pk": 201,
+  "model": "ad_manager.routerweb",
+  "fields": {
+    "neighbor_type": "CHILD",
+    "neighbor_ad": "4",
+    "ad": "3",
+    "addr": "127.2.3.65"
+  }
+},
+{
+  "pk": 202,
+  "model": "ad_manager.routerweb",
+  "fields": {
+    "neighbor_type": "CHILD",
+    "neighbor_ad": "5",
+    "ad": "3",
+    "addr": "127.2.3.67"
+  }
+},
+{
+  "pk": 203,
+  "model": "ad_manager.routerweb",
+  "fields": {
+    "neighbor_type": "ROUTING",
+    "neighbor_ad": "6",
+    "ad": "3",
+    "addr": "127.2.3.61"
+  }
+},
+{
+  "pk": 204,
+  "model": "ad_manager.routerweb",
+  "fields": {
+    "neighbor_type": "ROUTING",
+    "neighbor_ad": "1",
+    "ad": "3",
+    "addr": "127.2.3.63"
+  }
+},
+{
+  "pk": 205,
+  "model": "ad_manager.routerweb",
+  "fields": {
+    "neighbor_type": "PARENT",
+    "neighbor_ad": "3",
+    "ad": "4",
+    "addr": "127.2.4.61"
+  }
+},
+{
+  "pk": 206,
+  "model": "ad_manager.routerweb",
+  "fields": {
+    "neighbor_type": "ROUTING",
+    "neighbor_ad": "5",
+    "ad": "4",
+    "addr": "127.2.4.63"
+  }
+},
+{
+  "pk": 207,
+  "model": "ad_manager.routerweb",
+  "fields": {
+    "neighbor_type": "PARENT",
+    "neighbor_ad": "3",
+    "ad": "5",
+    "addr": "127.2.5.61"
+  }
+},
+{
+  "pk": 208,
+  "model": "ad_manager.routerweb",
+  "fields": {
+    "neighbor_type": "ROUTING",
+    "neighbor_ad": "4",
+    "ad": "5",
+    "addr": "127.2.5.63"
+  }
+}
+]

@@ -1,3 +1,5 @@
 Django==1.7.4
 django-bootstrap3==5.3.1
+webtest==2.0.18
+django-webtest==1.7.7
 gitpython==1.0.0
