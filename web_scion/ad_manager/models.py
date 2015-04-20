@@ -33,7 +33,7 @@ class SelectRelatedModelManager(models.Manager):
 
 
 class ISD(models.Model):
-    id = models.CharField(max_length=50, primary_key=True)
+    id = models.IntegerField(primary_key=True)
 
     def __str__(self):
         return str(self.id)
@@ -43,7 +43,7 @@ class ISD(models.Model):
 
 
 class AD(models.Model):
-    id = models.CharField(max_length=50, primary_key=True)
+    id = models.IntegerField(primary_key=True)
     isd = models.ForeignKey('ISD')
     is_core_ad = models.BooleanField(default=False)
 
