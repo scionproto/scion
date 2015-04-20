@@ -87,7 +87,7 @@ def ping_app():
                  (SRC.isd, SRC.isd, SRC.ad))
     sd = SCIONDaemon.start(saddr, topo_file, True) # API on
     print("Sending PATH request for (%d, %d) in 1 seconds" % (DST.isd, DST.ad))
-    time.sleep(1)
+    time.sleep(2)
     # Get paths through local API.
     paths_hops = get_paths_via_api(DST.isd, DST.ad)
     assert paths_hops
@@ -160,7 +160,7 @@ class TestSCIONDaemon(unittest.TestCase):
                     threading.Thread(target=ping_app).start()
                     threading.Thread(target=pong_app).start()
                     print("\nTesting:", src, "->", dst)
-                    time.sleep(2)
+                    time.sleep(3)
 
                     self.assertTrue(ping_received)
                     self.assertTrue(pong_received)
