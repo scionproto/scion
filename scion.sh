@@ -1,7 +1,40 @@
 #!/usr/bin/env bash
 
-
 # BEGIN subcommand functions
+
+PKG_DEPS="python python3 python-dev python3-dev python3-pip screen zookeeperd"
+PIP3_DEPS="bitstring python-pytun pydblite pygments pycrypto kazoo"
+
+cmd_deps() {
+    if [ ! -e /etc/debian_version ]; then
+        deps_debian
+    else
+        echo "As this is not a debian-based OS, please install the equivalents of these packages:"
+        echo "    $PKG_DEPS"
+    fi
+    echo "Installing necessary packages from pip3"
+    pip3 install -q --user $PIP3_DEPS
+    echo "Installing supervisor packages from pip2"
+    pip2 install -q --user supervisor==3.1.3
+    pip2 install -q --user supervisor-quick
+}
+
+deps_debian() {
+    local pkgs=""
+    echo "Checking for necessary debian packages"
+    for pkg in $PKG_DEPS; do
+        dpkg-query -W --showformat='${Status}\n' $pkg 2> /dev/null | \
+            grep -q "install ok installed"
+        if [ $? -ne 0 ]; then
+            pkgs+="$pkg "
+        fi
+    done
+    if [ -n "$pkgs" ]; then
+        echo "Installing missing necessary packages: $pkgs"
+        sudo apt-get install $pkgs
+    fi
+}
+
 cmd_init() {
     echo "Checking if tweetnacl has been built..."
     if [ -f lib/crypto/python-tweetnacl-20140309/build/python3.4/tweetnacl.so ] && [ -f lib/crypto/python-tweetnacl-20140309/build/python2.7/tweetnacl.so ]
@@ -74,6 +107,8 @@ cmd_help() {
 	Usage:
 	    $PROGRAM start
 	        (not implemented) Performs all tasks (compile crypto lib, creates a topology, adds IP aliases, runs the network)
+	    $PROGRAM deps
+	        Install the necessary dependancies.
 	    $PROGRAM init
 	        Compile the SCION crypto library.
 	    $PROGRAM topology
@@ -99,6 +134,7 @@ COMMAND="$1"
 ARG="$2"
 
 case $COMMAND in
+    deps|--deps) shift;		cmd_deps ;;
     init|--init) shift;		cmd_init ;;
     topology|--topology) shift; cmd_topology $ARG;;
     setup|--setup) shift;       cmd_setup ;;
