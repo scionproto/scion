@@ -6,7 +6,7 @@ PKG_DEPS="python python3 python-dev python3-dev python3-pip screen zookeeperd"
 PIP3_DEPS="bitstring python-pytun pydblite pygments pycrypto kazoo"
 
 cmd_deps() {
-    if [ ! -e /etc/debian_version ]; then
+    if [ -e /etc/debian_version ]; then
         deps_debian
     else
         echo "As this is not a debian-based OS, please install the equivalents of these packages:"
