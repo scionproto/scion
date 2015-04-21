@@ -18,14 +18,17 @@ limitations under the License.
 import sys
 import os
 
-_FILE_PATH = ('../lib/crypto/python-tweetnacl-20140309/build/python' +
-              sys.version[0:3] + '/tweetnacl.so')
-if os.path.exists(_FILE_PATH):
-    _LIB_PATH = ('../lib/crypto/python-tweetnacl-20140309/build/python' +
-                 sys.version[0:3])
-    sys.path.insert(0, _LIB_PATH)
+_THIS_FILE_DIR = os.path.dirname(os.path.abspath(__file__))
+_LIB_DIR = os.path.join(
+    _THIS_FILE_DIR,
+    'python-tweetnacl-20140309/build/python{}'.format(sys.version[0:3])
+)
+_LIB_FILE_PATH = os.path.join(_LIB_DIR, 'tweetnacl.so')
+
+if os.path.exists(_LIB_FILE_PATH):
+    sys.path.insert(0, _LIB_DIR)
     from tweetnacl import *
     from tweetnacl import _randreplace, _fromhex
 else:
-    print ('Shared library file does not exist in path ' + _FILE_PATH +
+    print ('Shared library file does not exist in path ' + _LIB_FILE_PATH +
            '. Please run ./scion.sh init to build crypto library.')
