@@ -129,8 +129,13 @@ class AD(models.Model):
                 neighbor_ad = AD.objects.get(id=interface.neighbor_ad,
                                              isd=interface.neighbor_isd)
                 router_element = RouterWeb(
-                    addr=router.addr, ad=self, neighbor_ad=neighbor_ad,
-                    neighbor_type=interface.neighbor_type)
+                    addr=router.addr, ad=self,
+                    neighbor_ad=neighbor_ad,
+                    neighbor_type=interface.neighbor_type,
+                    interface_addr=interface.addr,
+                    interface_toaddr=interface.to_addr,
+                    interface_id=interface.if_id
+                )
                 router_element.save()
 
             for bs in beacon_servers:
@@ -206,6 +211,10 @@ class RouterWeb(SCIONWebElement):
 
     neighbor_ad = models.ForeignKey(AD, related_name='neighbors')
     neighbor_type = models.CharField(max_length=10, choices=NEIGHBOR_TYPES)
+
+    interface_addr = models.IPAddressField()
+    interface_toaddr = models.IPAddressField()
+    interface_id = models.IntegerField()
 
     def id_str(self):
         return "er{}-{}er{}-{}".format(self.ad.isd_id, self.ad_id,

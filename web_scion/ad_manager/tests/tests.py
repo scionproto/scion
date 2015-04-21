@@ -29,7 +29,6 @@ class BasicTestCase(WebTest):
         isd_name = 'ISD 2'
         ad_list = self.app.get(reverse('isd_detail', args=[isd.id]))
         self.assertContains(ad_list, isd_name)
-
         self.assertNotContains(ad_list, str(self.ads[1]))
 
         for ad_id in [3, 4, 5]:
@@ -62,3 +61,8 @@ class BasicTestCase(WebTest):
             row = next(filter(lambda x: r.addr in x.text, router_rows))
             assert str(r.neighbor_ad) in row.text
             assert r.neighbor_type in row.text
+
+        # Test that links to other ADs work
+        ad_2_detail = ad_detail.click(str(self.ads[2]))
+        self.assertEqual(ad_2_detail.status_int, 200)
+        self.assertContains(ad_2_detail, str(self.ads[2]))
