@@ -15,11 +15,11 @@
 :mod:`generator` --- SCION topology generator
 ===========================================
 """
+from lib.defines import TOPOLOGY_PATH
 
 from lib.topology import Topology
 from lib.config import Config
-from lib.crypto.certificate import (verify_sig_chain_trc, Certificate,
-    CertificateChain, TRC)
+from lib.crypto.certificate import (Certificate, CertificateChain, TRC)
 from lib.crypto.asymcrypto import (sign, generate_signature_keypair,
     generate_cryptobox_keypair)
 from lib.util import (get_cert_chain_file_path, get_sig_key_file_path,
@@ -29,7 +29,6 @@ import json
 import logging
 import shutil
 import os
-import sys
 import struct
 import socket
 import base64
@@ -67,6 +66,7 @@ PS_RANGE = '41'
 ER_RANGE = '61'
 
 default_subnet = "127.0.0.0/8"
+out_dir = TOPOLOGY_PATH
 
 
 def increment_address(ip_address, mask, increment=1):
@@ -130,10 +130,10 @@ def delete_directories():
     """
     Delete any ISD* directories if present.
     """
-    for root, dirs, files in os.walk('.'):
-        for name in dirs:
-            if name.startswith(('ISD')):
-                shutil.rmtree(name)
+    _, dirs, _ = next(os.walk(out_dir))
+    for name in dirs:
+        if name.startswith('ISD'):
+            shutil.rmtree(os.path.join(out_dir, name))
 
 
 def create_directories(AD_configs):
@@ -146,33 +146,23 @@ def create_directories(AD_configs):
     """
     for isd_ad_id in AD_configs:
         (isd_id, ad_id) = isd_ad_id.split('-')
-        cert_path = os.path.join('ISD' + isd_id, CERT_DIR, 'AD' + ad_id)
-        conf_path = os.path.join('ISD' + isd_id, CONF_DIR)
-        topo_path = os.path.join('ISD' + isd_id, TOPO_DIR)
-        sig_keys_path = os.path.join('ISD' + isd_id, SIG_KEYS_DIR)
-        enc_keys_path = os.path.join('ISD' + isd_id, ENC_KEYS_DIR)
-        setup_path = os.path.join('ISD' + isd_id, SETUP_DIR)
-        run_path = os.path.join('ISD' + isd_id, RUN_DIR)
-        path_pol_path = os.path.join('ISD' + isd_id, PATH_POL_DIR)
-        supervisor_path = os.path.join('ISD' + isd_id, SUPERVISOR_DIR)
-        if not os.path.exists(cert_path):
-            os.makedirs(cert_path)
-        if not os.path.exists(conf_path):
-            os.makedirs(conf_path)
-        if not os.path.exists(topo_path):
-            os.makedirs(topo_path)
-        if not os.path.exists(sig_keys_path):
-            os.makedirs(sig_keys_path)
-        if not os.path.exists(enc_keys_path):
-            os.makedirs(enc_keys_path)
-        if not os.path.exists(setup_path):
-            os.makedirs(setup_path)
-        if not os.path.exists(run_path):
-            os.makedirs(run_path)
-        if not os.path.exists(path_pol_path):
-            os.makedirs(path_pol_path)
-        if not os.path.exists(supervisor_path):
-            os.makedirs(supervisor_path)
+        isd_name = 'ISD' + isd_id
+        ad_name = 'AD' + ad_id
+        cert_path = os.path.join(isd_name, CERT_DIR, ad_name)
+        conf_path = os.path.join(isd_name, CONF_DIR)
+        topo_path = os.path.join(isd_name, TOPO_DIR)
+        sig_keys_path = os.path.join(isd_name, SIG_KEYS_DIR)
+        enc_keys_path = os.path.join(isd_name, ENC_KEYS_DIR)
+        setup_path = os.path.join(isd_name, SETUP_DIR)
+        run_path = os.path.join(isd_name, RUN_DIR)
+        path_pol_path = os.path.join(isd_name, PATH_POL_DIR)
+        supervisor_path = os.path.join(isd_name, SUPERVISOR_DIR)
+        paths = [cert_path, conf_path, topo_path, sig_keys_path, enc_keys_path,
+                setup_path, run_path, path_pol_path, supervisor_path]
+        for path in paths:
+            full_path = os.path.join(out_dir, path)
+            if not os.path.exists(full_path):
+                os.makedirs(full_path)
 
 
 def write_keys_certs(AD_configs):
@@ -189,8 +179,8 @@ def write_keys_certs(AD_configs):
     enc_pub_keys = {}
     for isd_ad_id in AD_configs:
         (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-        sig_key_file = get_sig_key_file_path(isd_id, ad_id)
-        enc_key_file = get_enc_key_file_path(isd_id, ad_id)
+        sig_key_file = get_sig_key_file_path(isd_id, ad_id, isd_dir=out_dir)
+        enc_key_file = get_enc_key_file_path(isd_id, ad_id, isd_dir=out_dir)
         (sig_pub, sig_priv) = generate_signature_keypair()
         (enc_pub, enc_priv) = generate_cryptobox_keypair()
         sig_priv_keys[isd_ad_id] = sig_priv
@@ -221,7 +211,8 @@ def write_keys_certs(AD_configs):
         cert_isd = int(subject[4:].split('-AD:')[0])
         cert_ad = int(subject[4:].split('-AD:')[1])
         cert_file = get_cert_chain_file_path(cert_isd, cert_ad, cert_isd,
-                                             cert_ad, INITIAL_CERT_VERSION)
+                                             cert_ad, INITIAL_CERT_VERSION,
+                                             isd_dir=out_dir)
         write_file(cert_file, str(chain))
         # Test if parser works
         cert = CertificateChain(cert_file)
@@ -238,11 +229,14 @@ def write_beginning_setup_run_files(AD_configs):
     """
     for isd_ad_id in AD_configs:
         (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-        file_name = 'ISD:' + isd_id + '-AD:' + ad_id
-        setup_file = os.path.join('ISD' + isd_id, SETUP_DIR, file_name + '.sh')
-        run_file = os.path.join('ISD' + isd_id, RUN_DIR, file_name + '.sh')
-        write_file(setup_file, '#!/bin/bash\n\n')
-        write_file(run_file, '#!/bin/bash\n\n')
+        file_name = 'ISD:{}-AD:{}.sh'.format(isd_id, ad_id)
+        setup_file = os.path.join(out_dir, 'ISD' + isd_id,
+                                  SETUP_DIR, file_name)
+        run_file = os.path.join(out_dir, 'ISD' + isd_id,
+                                RUN_DIR, file_name)
+        preamble = '#!/bin/bash\n\n'
+        write_file(setup_file, preamble)
+        write_file(run_file, preamble)
 
 
 def write_topo_files(AD_configs, er_ip_addresses):
@@ -258,9 +252,12 @@ def write_topo_files(AD_configs, er_ip_addresses):
     for isd_ad_id in AD_configs:
         (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
         file_name = 'ISD:' + isd_id + '-AD:' + ad_id
-        setup_file = os.path.join('ISD' + isd_id, SETUP_DIR, file_name + '.sh')
-        run_file = os.path.join('ISD' + isd_id, RUN_DIR, file_name + '.sh')
-        supervisor_file = os.path.join('ISD' + isd_id, SUPERVISOR_DIR, file_name + '.conf')
+        setup_file = os.path.join(out_dir, 'ISD' + isd_id,
+                                  SETUP_DIR, file_name + '.sh')
+        run_file = os.path.join(out_dir, 'ISD' + isd_id,
+                                RUN_DIR, file_name + '.sh')
+        supervisor_file = os.path.join(out_dir, 'ISD' + isd_id,
+                                       SUPERVISOR_DIR, file_name + '.conf')
         topo_file = os.path.join('ISD' + isd_id, TOPO_DIR, file_name + '.json')
         topo_file_rel = os.path.join("..", SCRIPTS_DIR, topo_file)
         conf_file_rel = os.path.join("..", SCRIPTS_DIR, 'ISD' + isd_id, CONF_DIR, file_name + '.conf')
@@ -424,10 +421,11 @@ def write_topo_files(AD_configs, er_ip_addresses):
 
             supervisor_fh.write(''.join(['[group:ad', isd_id, '-', ad_id, ']\n',
                 'programs=', ','.join(group_programs), '\n\n']))
-        with open(topo_file, 'w') as topo_fh:
+        topo_file_abs = os.path.join(out_dir, topo_file)
+        with open(topo_file_abs, 'w') as topo_fh:
             json.dump(topo_dict, topo_fh, sort_keys=True, indent=4)
         # Test if parser works
-        topology = Topology(topo_file)
+        topology = Topology(topo_file_abs)
 
 def _generate_screen_cmd(isd_ad_id, name, log, *args):
     line = [
@@ -453,8 +451,9 @@ def write_conf_files(AD_configs):
     """
     for isd_ad_id in AD_configs:
         (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-        file_name = 'ISD:' + isd_id + '-AD:' + ad_id
-        conf_file = os.path.join('ISD' + isd_id, CONF_DIR, file_name + '.conf')
+        file_name = 'ISD:{}-AD:{}.conf'.format(isd_id, ad_id)
+        conf_file = os.path.join(out_dir, 'ISD' + isd_id,
+                                 CONF_DIR, file_name)
         conf_dict = {'MasterOFGKey': 1234567890,
                      'MasterADKey': 1919191919,
                      'PCBQueueSize': 10,
@@ -476,7 +475,7 @@ def write_conf_files(AD_configs):
         config = Config(conf_file)
 
 
-def write_path_pol_files(AD_configs):
+def write_path_pol_files(AD_configs, path_policy_file):
     """
     Generate the AD path policies and store them into files.
 
@@ -485,11 +484,12 @@ def write_path_pol_files(AD_configs):
     """
     for isd_ad_id in AD_configs:
         (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-        file_name = 'ISD:' + isd_id + '-AD:' + ad_id
-        path_pol_file = os.path.join('ISD' + isd_id, PATH_POL_DIR, file_name + '.json')
-        shutil.copyfile(DEFAULT_PATH_POLICY_FILE, path_pol_file)
+        file_name = 'ISD:{}-AD:{}.json'.format(isd_id, ad_id)
+        new_path_pol_file = os.path.join(out_dir, 'ISD' + isd_id,
+                                         PATH_POL_DIR, file_name)
+        shutil.copyfile(path_policy_file, new_path_pol_file)
         # Test if parser works
-        path_policy = PathPolicy(path_pol_file)
+        path_policy = PathPolicy(new_path_pol_file)
 
 
 def write_trc_files(AD_configs, keys):
@@ -504,8 +504,9 @@ def write_trc_files(AD_configs, keys):
     for isd_ad_id in AD_configs:
         if AD_configs[isd_ad_id]['level'] == CORE_AD:
             (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-            file_name = 'ISD:' + isd_id + '-V:' + str(INITIAL_TRC_VERSION)
-            trc_file = 'ISD' + isd_id + '/' + file_name + '.crt'
+            file_name = 'ISD:{}-V:{}.crt'.format(isd_id,
+                                                 str(INITIAL_TRC_VERSION))
+            trc_file = os.path.join(out_dir, 'ISD' + isd_id, file_name)
             # Create core certificate
             subject = 'ISD:' + isd_id + '-AD:' + ad_id
             cert = Certificate.from_values(subject,
@@ -537,8 +538,8 @@ def write_trc_files(AD_configs, keys):
     for isd_ad_id in AD_configs:
         if AD_configs[isd_ad_id]['level'] == CORE_AD:
             (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-            file_name = 'ISD:' + isd_id + '-V:' + '0'
-            trc_file = 'ISD' + isd_id + '/' + file_name + '.crt'
+            file_name = 'ISD:{}-V:0.crt'.format(isd_id)
+            trc_file = os.path.join(out_dir, 'ISD' + isd_id, file_name)
             subject = 'ISD:' + isd_id + '-AD:' + ad_id
             if os.path.exists(trc_file):
                 trc = TRC(trc_file)
@@ -551,15 +552,16 @@ def write_trc_files(AD_configs, keys):
                 trc = TRC(trc_file)
     for isd_ad_id in AD_configs:
         (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-        file_name = 'ISD:' + isd_id + '-V:' + '0'
-        trc_file = 'ISD' + isd_id + '/' + file_name + '.crt'
+        file_name = 'ISD:{}-V:0.crt'.format(isd_id)
+        trc_file = os.path.join(out_dir, 'ISD' + isd_id, file_name)
         if os.path.exists(trc_file):
-            dst_path = get_trc_file_path(isd_id, ad_id, isd_id, 0)
+            dst_path = get_trc_file_path(isd_id, ad_id, isd_id, 0,
+                                         isd_dir=out_dir)
             shutil.copyfile(trc_file, dst_path)
     for isd_ad_id in AD_configs:
         (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-        file_name = 'ISD:' + isd_id + '-V:' + '0'
-        trc_file = 'ISD' + isd_id + '/' + file_name + '.crt'
+        file_name = 'ISD:{}-V:0.crt'.format(isd_id)
+        trc_file = os.path.join(out_dir, 'ISD' + isd_id, file_name)
         if os.path.exists(trc_file):
             os.remove(trc_file)
 
@@ -570,11 +572,28 @@ def main():
     """
     if len(sys.argv) == 1:
         adconfigurations_file = DEFAULT_ADCONFIGURATIONS_FILE
-    else:
+        path_policy_file = DEFAULT_PATH_POLICY_FILE
+    elif len(sys.argv) == 4:
+        global out_dir
         adconfigurations_file = sys.argv[1]
+        path_policy_file = sys.argv[2]
+        out_dir = os.path.abspath(sys.argv[3])
+    else:
+        logging.error('Invalid number of arguments. '
+                      'RUN: %s ad_confs_file path_policy_file out_dir',
+                      sys.argv[0])
+        sys.exit()
 
     if not os.path.isfile(adconfigurations_file):
         logging.error(adconfigurations_file + " file missing.")
+        sys.exit()
+
+    if not os.path.isfile(path_policy_file):
+        logging.error(path_policy_file + " file missing.")
+        sys.exit()
+
+    if not os.path.isdir(out_dir):
+        logging.error(out_dir + " output directory missing")
         sys.exit()
 
     try:
@@ -584,6 +603,7 @@ def main():
         sys.exit()
 
     if "default_subnet" in AD_configs:
+        global default_subnet
         default_subnet = AD_configs["default_subnet"]
         del AD_configs["default_subnet"]
 
@@ -597,7 +617,7 @@ def main():
 
     write_conf_files(AD_configs)
 
-    write_path_pol_files(AD_configs)
+    write_path_pol_files(AD_configs, path_policy_file)
 
     write_beginning_setup_run_files(AD_configs)
 

@@ -21,20 +21,23 @@
 Various utilities for SCION functionality.
 """
 
-from os.path import sys
 import os
 import logging
 import signal
 import traceback
+from lib.defines import TOPOLOGY_PATH
+
+CERT_DIR = 'certificates'
+SIG_KEYS_DIR = 'signature_keys'
+ENC_KEYS_DIR = 'encryption_keys'
 
 
-ISD_DIR = '../topology/ISD'
-CERT_DIR = '/certificates/'
-SIG_KEYS_DIR = '/signature_keys/'
-ENC_KEYS_DIR = '/encryption_keys/'
+def _get_isd_prefix(isd_dir):
+    return os.path.join(isd_dir, 'ISD')
 
 
-def get_cert_chain_file_path(loc_isd, loc_ad, isd_id, ad_id, version):
+def get_cert_chain_file_path(loc_isd, loc_ad, isd_id, ad_id, version,
+                             isd_dir=TOPOLOGY_PATH):
     """
     Return the certificate chain file path.
 
@@ -51,11 +54,14 @@ def get_cert_chain_file_path(loc_isd, loc_ad, isd_id, ad_id, version):
     :returns: the certificate chain file path.
     :rtype: str
     """
-    return (ISD_DIR + str(loc_isd) + CERT_DIR + 'AD' + str(loc_ad) + '/ISD:' +
-        str(isd_id) + '-AD:' + str(ad_id) + '-V:' + str(version) + '.crt')
+    isd_dir_prefix = _get_isd_prefix(isd_dir)
+    return os.path.join(isd_dir_prefix + str(loc_isd), CERT_DIR,
+                        'AD{}'.format(loc_ad),
+                        'ISD:{}-AD:{}-V:{}.crt'.format(isd_id, ad_id, version))
 
 
-def get_trc_file_path(loc_isd, loc_ad, isd_id, version):
+def get_trc_file_path(loc_isd, loc_ad, isd_id, version,
+                      isd_dir=TOPOLOGY_PATH):
     """
     Return the TRC file path.
 
@@ -70,11 +76,13 @@ def get_trc_file_path(loc_isd, loc_ad, isd_id, version):
     :returns: the TRC file path.
     :rtype: str
     """
-    return (ISD_DIR + str(loc_isd) + CERT_DIR + 'AD' + str(loc_ad) + '/ISD:' +
-        str(isd_id) + '-V:' + str(version) + '.crt')
+    isd_dir_prefix = _get_isd_prefix(isd_dir)
+    return os.path.join(isd_dir_prefix + str(loc_isd), CERT_DIR,
+                        'AD{}'.format(loc_ad),
+                        'ISD:{}-V:{}.crt'.format(isd_id, version))
 
 
-def get_sig_key_file_path(isd_id, ad_id):
+def get_sig_key_file_path(isd_id, ad_id, isd_dir=TOPOLOGY_PATH):
     """
     Return the signing key file path.
 
@@ -85,11 +93,12 @@ def get_sig_key_file_path(isd_id, ad_id):
     :returns: the signing key file path.
     :rtype: str
     """
-    return (ISD_DIR + str(isd_id) + SIG_KEYS_DIR + 'ISD:' + str(isd_id) +
-        '-AD:' + str(ad_id) + '.key')
+    isd_dir_prefix = _get_isd_prefix(isd_dir)
+    return os.path.join(isd_dir_prefix + str(isd_id), SIG_KEYS_DIR,
+                        'ISD:{}-AD:{}.key'.format(isd_id, ad_id))
 
 
-def get_enc_key_file_path(isd_id, ad_id):
+def get_enc_key_file_path(isd_id, ad_id, isd_dir=TOPOLOGY_PATH):
     """
     Return the encryption key file path.
 
@@ -100,8 +109,9 @@ def get_enc_key_file_path(isd_id, ad_id):
     :returns: the encryption key file path.
     :rtype: str
     """
-    return (ISD_DIR + str(isd_id) + ENC_KEYS_DIR + 'ISD:' + str(isd_id) +
-        '-AD:' + str(ad_id) + '.key')
+    isd_dir_prefix = _get_isd_prefix(isd_dir)
+    return os.path.join(isd_dir_prefix + str(isd_id), ENC_KEYS_DIR,
+                        'ISD:{}-AD:{}.key'.format(isd_id, ad_id))
 
 
 def read_file(file_path):
