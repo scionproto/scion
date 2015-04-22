@@ -123,6 +123,11 @@ if ! ( [ $(id -u) -eq 0 ] || groups | grep -q "\<docker\>"; ); then
     exit 1
 fi
 
+if ! type -p docker &>/dev/null; then
+    echo "Error: you don't have docker installed. Please see docker/README.md"
+    exit 1
+fi
+
 case $COMMAND in
     build|build_full)   cmd_build_full ;;
     build_basic)        cmd_build_basic ;;

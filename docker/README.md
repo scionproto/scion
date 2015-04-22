@@ -13,6 +13,10 @@ scratch will take 5-10mins on a fast machine with a decent net connection.
 Subsequent rebuilds are Much faster; if you haven't changed scion.sh, a rebuild
 takes <= 30s.
 
+Before you start, make sure you have Docker installed. On debian-based systems:
+
+    sudo apt-get install docker.io
+
 To build a (full) docker image:
 
     ./docker.sh build
