@@ -41,6 +41,8 @@ class PathServer(SCIONElement):
     """
     The SCION Path Server.
     """
+    MAX_SEG_NO = 5  # TODO: replace by config variable.
+
     def __init__(self, addr, topo_file, config_file):
         SCIONElement.__init__(self, addr, topo_file, config_file=config_file)
         # TODO replace by pathstore instance
@@ -315,10 +317,10 @@ class CorePathServer(PathServer):
         # Serve pending requests.
         target = (dst_isd, dst_ad)
         if target in self.pending_down:
-            segments_to_send = []
+            segments_to_send = self.down_segments(dst_isd=dst_isd,
+                                                  dst_ad=dst_ad)
+            segments_to_send = segments_to_send[:self.MAX_SEG_NO]
             for path_request in self.pending_down[target]:
-                segments_to_send.extend(self.down_segments(dst_isd=dst_isd,
-                                                           dst_ad=dst_ad))
                 self.send_path_segments(path_request, segments_to_send)
             del self.pending_down[target]
 
@@ -360,12 +362,12 @@ class CorePathServer(PathServer):
         # Serve pending core path requests.
         target = ((src_isd, src_ad), (dst_isd, dst_ad))
         if target in self.pending_core:
-            segments_to_send = []
+            segments_to_send = self.core_segments(src_isd=src_isd,
+                                                  src_ad=src_ad,
+                                                  dst_isd=dst_isd,
+                                                  dst_ad=dst_ad)
+            segments_to_send = segments_to_send[:self.MAX_SEG_NO]
             for path_request in self.pending_core[target]:
-                segments_to_send.extend(self.core_segments(src_isd=src_isd,
-                                                           src_ad=src_ad,
-                                                           dst_isd=dst_isd,
-                                                           dst_ad=dst_ad))
                 self.send_path_segments(path_request, segments_to_send)
             del self.pending_core[target]
 
@@ -419,9 +421,9 @@ class CorePathServer(PathServer):
                             "happen")
             return
         elif ptype == PST.DOWN:
-            paths = self.down_segments(dst_isd=dst_isd,
-                                       dst_ad=dst_ad)
+            paths = self.down_segments(dst_isd=dst_isd, dst_ad=dst_ad)
             if paths:
+                paths = paths[:self.MAX_SEG_NO]
                 segments_to_send.extend(paths)
             elif dst_isd == self.topology.isd_id:
                 update_dict(self.pending_down,
@@ -435,9 +437,7 @@ class CorePathServer(PathServer):
             else:
                 # Destination is in a different ISD. Ask a CPS in a this ISD for
                 # a down-path using the first available core path.
-                update_dict(self.pending_down,
-                            (dst_isd, dst_ad),
-                            [pkt])
+                update_dict(self.pending_down, (dst_isd, dst_ad), [pkt])
                 cpaths = self.core_segments(src_isd=self.topology.isd_id,
                                             src_ad=self.topology.ad_id,
                                             dst_isd=dst_isd)
@@ -464,6 +464,7 @@ class CorePathServer(PathServer):
             paths = self.core_segments(src_isd=src_isd, src_ad=src_ad,
                                        dst_isd=dst_isd, dst_ad=dst_ad)
             if paths:
+                paths = paths[:self.MAX_SEG_NO]
                 segments_to_send.extend(paths)
             else:
                 update_dict(self.pending_core, key, [pkt])
@@ -564,7 +565,7 @@ class CorePathServer(PathServer):
             if paths:
                 rev_pkt = PathMgmtPacket.from_values(PMT.REVOCATIONS, payload,
                                                      paths[0].get_path(),
-                                                     self.addr, 
+                                                     self.addr,
                                                      ISD_AD(dst_isd, dst_ad))
                 rev_pkt.hdr.set_downpath()
                 (dst, dst_port) = self.get_first_hop(rev_pkt)
@@ -654,7 +655,8 @@ class LocalPathServer(PathServer):
                 self.waiting_targets.remove((isd, ad, info))
         # Handling pending UP_PATH requests.
         for path_request in self.pending_up:
-            self.send_path_segments(path_request, self.up_segments())
+            self.send_path_segments(path_request,
+                                    self.up_segments()[:self.MAX_SEG_NO])
         self.pending_up = []
 
     def _handle_down_segment_record(self, pkt):
@@ -684,10 +686,10 @@ class LocalPathServer(PathServer):
         # serve pending requests
         target = (dst_isd, dst_ad)
         if target in self.pending_down:
-            segments_to_send = []
+            segments_to_send = self.down_segments(dst_isd=dst_isd,
+                                                  dst_ad=dst_ad)
+            segments_to_send = segments_to_send[:self.MAX_SEG_NO]
             for path_request in self.pending_down[target]:
-                segments_to_send.extend(self.down_segments(dst_isd=dst_isd,
-                                                           dst_ad=dst_ad))
                 self.send_path_segments(path_request, segments_to_send)
             del self.pending_down[target]
 
@@ -721,12 +723,12 @@ class LocalPathServer(PathServer):
         # Serve pending core path requests.
         target = ((src_isd, src_ad), (dst_isd, dst_ad))
         if target in self.pending_core:
-            segments_to_send = []
+            segments_to_send = self.core_segments(src_isd=src_isd,
+                                                  src_ad=src_ad,
+                                                  dst_isd=dst_isd,
+                                                  dst_ad=dst_ad)
+            segments_to_send = segments_to_send[:self.MAX_SEG_NO]
             for path_request in self.pending_core[target]:
-                segments_to_send.extend(self.core_segments(src_isd=src_isd,
-                                                           src_ad=src_ad,
-                                                           dst_isd=dst_isd,
-                                                           dst_ad=dst_ad))
                 self.send_path_segments(path_request, segments_to_send)
             del self.pending_core[target]
 
@@ -821,7 +823,7 @@ class LocalPathServer(PathServer):
         # Requester wants up-path.
         if ptype in [PST.UP, PST.UP_DOWN]:
             if len(self.up_segments):
-                paths_to_send.extend(self.up_segments())
+                paths_to_send.extend(self.up_segments()[:self.MAX_SEG_NO])
             else:
                 if type == PST.UP_DOWN:
                     update_dict(self.pending_down,
@@ -835,7 +837,7 @@ class LocalPathServer(PathServer):
         if (ptype in [PST.DOWN, PST.UP_DOWN]):
             paths = self.down_segments(dst_isd=dst_isd, dst_ad=dst_ad)
             if paths:
-                paths_to_send.extend(paths)
+                paths_to_send.extend(paths[:self.MAX_SEG_NO])
             else:
                 update_dict(self.pending_down,
                             (dst_isd, dst_ad),
@@ -849,7 +851,7 @@ class LocalPathServer(PathServer):
             paths = self.core_segments(src_isd=src_isd, src_ad=src_ad,
                                        dst_isd=dst_isd, dst_ad=dst_ad)
             if paths:
-                paths_to_send.extend(paths)
+                paths_to_send.extend(paths[:self.MAX_SEG_NO])
             else:
                 update_dict(self.pending_core,
                             ((src_isd, src_ad), (dst_isd, dst_ad)), [pkt])
