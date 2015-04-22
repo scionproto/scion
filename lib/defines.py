@@ -24,5 +24,11 @@ Contains constant definitions used throughout the codebase.
 
 """
 
+import os
+
 MAX_SEGMENT_TTL = 24 * 60 * 60  # Max TTL of a PathSegment in realtime seconds.
 EXP_TIME_UNIT = MAX_SEGMENT_TTL / 2 ** 8  # Time unit for HOF expiration.
+
+# Paths
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+TOPOLOGY_PATH = os.path.join(PROJECT_ROOT, 'topology')
