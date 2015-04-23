@@ -40,11 +40,11 @@ cmd_clean_full() {
 }
 
 cmd_run_basic() {
-    docker run -i -t --rm --privileged -h scionbasic scionbasic
+    docker run -i -t --rm --privileged -h scionbasic scionbasic "$@"
 }
 
 cmd_run_full() {
-    docker run -i -t --rm --privileged -h scionfull scionfull
+    docker run -i -t --rm --privileged -h scionfull scionfull "$@"
 }
 
 stop_cntrs() {
@@ -133,8 +133,8 @@ case $COMMAND in
     build_basic)        cmd_build_basic ;;
     clean)              cmd_clean ;;
     clean_full)         cmd_clean_full ;;
-    run|run_full)       cmd_run_full ;;
-    run_basic)          cmd_run_basic ;;
+    run|run_full)       shift; cmd_run_full "$@" ;;
+    run_basic)          shift; cmd_run_basic "$@" ;;
     help)               cmd_help ;;
     *)                  cmd_help ;;
 esac
