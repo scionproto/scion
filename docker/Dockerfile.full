@@ -1,0 +1,6 @@
+FROM scionbasic
+
+RUN ./scion.sh init
+RUN ./scion.sh topology
+RUN ./scion.sh setup
+RUN bash -l -c "make -C sphinx-doc/ html"

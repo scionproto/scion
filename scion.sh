@@ -2,21 +2,21 @@
 
 # BEGIN subcommand functions
 
-PKG_DEPS="python python3 python-dev python-pip python3-dev python3-pip screen zookeeperd"
-PIP3_DEPS="bitstring python-pytun pydblite pygments pycrypto kazoo"
+PKG_DEPS="python python3 python-dev python-pip python3-dev python3-pip screen zookeeperd build-essential"
+PIP3_DEPS="bitstring python-pytun pydblite pygments pycrypto kazoo Sphinx sphinxcontrib-napoleon"
 
 cmd_deps() {
     if [ -e /etc/debian_version ]; then
-        deps_debian
+        deps_debian || exit 1
     else
         echo "As this is not a debian-based OS, please install the equivalents of these packages:"
         echo "    $PKG_DEPS"
     fi
     echo "Installing necessary packages from pip3"
-    pip3 install -q --user $PIP3_DEPS
+    pip3 install --user $PIP3_DEPS
     echo "Installing supervisor packages from pip2"
-    pip2 install -q --user supervisor==3.1.3
-    pip2 install -q --user supervisor-quick
+    pip2 install --user supervisor==3.1.3
+    pip2 install --user supervisor-quick
 }
 
 deps_debian() {
@@ -31,7 +31,7 @@ deps_debian() {
     done
     if [ -n "$pkgs" ]; then
         echo "Installing missing necessary packages: $pkgs"
-        sudo apt-get install $pkgs
+        sudo DEBIAN_FRONTEND=noninteractive apt-get install $APTARGS --no-install-recommends $pkgs
     fi
 }
 
