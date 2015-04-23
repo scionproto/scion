@@ -25,7 +25,7 @@ from kazoo.client import (KazooClient, KazooState, KazooRetry)
 from kazoo.handlers.threading import TimeoutError
 from kazoo.exceptions import (LockTimeout, SessionExpiredError,
                               NoNodeError, ConnectionLoss)
-from lib.util import (kill_self, thread_safety_net)
+from lib.thread import (kill_self, thread_safety_net)
 from lib.packet.pcb import PathSegment
 
 class ZkConnectionLoss(Exception):

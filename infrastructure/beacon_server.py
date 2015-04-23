@@ -34,11 +34,11 @@ from lib.packet.scion_addr import SCIONAddr, ISD_AD
 from lib.path_store import PathPolicy, PathStoreRecord, PathStore
 from lib.util import (read_file, write_file, get_cert_chain_file_path,
     get_sig_key_file_path, get_trc_file_path, init_logging, log_exception,
-    thread_safety_net)
+    trace)
+from lib.thread import thread_safety_net
 from lib.zookeeper import (Zookeeper, ZkConnectionLoss, ZkNoNodeError)
 from Crypto import Random
 from Crypto.Hash import SHA256
-from external.stacktracer import trace_start
 import base64
 import copy
 import datetime
@@ -942,10 +942,7 @@ def main():
             sys.argv[0])
         sys.exit()
 
-    # TODO(kormat): un-hardcode this path
-    trace_start(os.path.join(
-                    "../trace",
-                    os.environ['SUPERVISOR_PROCESS_NAME']+".trace.html"))
+    trace()
 
     if sys.argv[1] == "core":
         beacon_server = CoreBeaconServer(IPv4Address(sys.argv[2]), sys.argv[3],

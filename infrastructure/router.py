@@ -24,7 +24,8 @@ from lib.packet.pcb import PathConstructionBeacon
 from lib.packet.scion import (PacketType as PT, SCIONPacket, IFIDRequest,
     IFIDReply, get_type)
 from lib.packet.scion_addr import SCIONAddr, ISD_AD
-from lib.util import (init_logging, thread_safety_net, log_exception)
+from lib.util import (init_logging, log_exception)
+from lib.thread import thread_safety_net
 import datetime
 import logging
 import os

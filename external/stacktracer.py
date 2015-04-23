@@ -17,6 +17,8 @@ import traceback
 from pygments import highlight
 from pygments.lexers import PythonLexer
 from pygments.formatters import HtmlFormatter
+
+from lib.thread import thread_safety_net
  
  # Taken from http://bzimmer.ziclix.com/2008/12/17/python-thread-dumps/
  
@@ -58,6 +60,7 @@ class TraceDumper(threading.Thread):
         self.stop_requested = threading.Event()
         threading.Thread.__init__(self)
     
+    @thread_safety_net("stacktracer")
     def run(self):
         while not self.stop_requested.isSet():
             time.sleep(self.interval)
