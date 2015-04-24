@@ -1,4 +1,4 @@
 
-.. automodule:: lib.packet.packet_base
+.. automodule:: lib.packet.opaque_field
    :special-members: __init__
    :members:

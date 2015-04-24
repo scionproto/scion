@@ -1,4 +1,3 @@
-
-.. automodule:: lib.packet.packet_base
+.. automodule:: topology.generator
    :special-members: __init__
    :members:

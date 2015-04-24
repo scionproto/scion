@@ -1,4 +1,5 @@
 
-.. automodule:: lib.packet.packet_base
+.. automodule:: infrastructure.cert_server
    :special-members: __init__
    :members:
+

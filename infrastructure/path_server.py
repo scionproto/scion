@@ -1,19 +1,19 @@
+# Copyright 2014 ETH Zurich
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """
-path_server.py
-
-Copyright 2014 ETH Zurich
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+:mod:`path_server` --- SCION path server
+========================================
 """
 
 from _collections import defaultdict
@@ -206,13 +206,13 @@ class CorePathServer(PathServer):
             Adds a lease to the cache.
 
             :param segment_id: the segment's ID
-            :type bytes
+            :type: bytes
             :param leaser_isd, leaser_ad: isd/ad of the leaser
-            :type int
+            :type: int
             :param expiration: expiration time of the lease
-            :type int
+            :type: int
             :param seg_type: type of the segment (down or core)
-            :type int
+            :type: int
             """
             if self._nentries >= self._max_capacity:
                 self._purge_entries()
@@ -228,7 +228,7 @@ class CorePathServer(PathServer):
                 self._leases[segment_id].remove(entry)
 
             self._leases[segment_id].add(entry)
-        
+
         def __contains__(self, segment_id):
             return len(self[segment_id]) > 0
 

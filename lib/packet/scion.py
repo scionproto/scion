@@ -1,11 +1,11 @@
 # Copyright 2014 ETH Zurich
-
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-
-# http://www.apache.org/licenses/LICENSE-2.0
-
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -449,14 +449,14 @@ class SCIONPacket(PacketBase):
         """
         Returns a SCIONPacket with the values specified.
 
-        @param src: Source address (must be a 'SCIONAddr' object)
-        @param dst: Destination address (must be a 'SCIONAddr' object)
-        @param payload: Payload of the packet (either 'bytes' or 'PacketBase')
-        @param path: The path for this packet.
-        @param ext_hdrs: A list of extension headers.
-        @param next_hdr: If 'ext_hdrs' is not None then this must be the type
+        :param src: Source address (must be a 'SCIONAddr' object)
+        :param dst: Destination address (must be a 'SCIONAddr' object)
+        :param payload: Payload of the packet (either 'bytes' or 'PacketBase')
+        :param path: The path for this packet.
+        :param ext_hdrs: A list of extension headers.
+        :param next_hdr: If 'ext_hdrs' is not None then this must be the type
                          of the first extension header in the list.
-        @param pkt_type: The type of the packet.
+        :param pkt_type: The type of the packet.
         """
         pkt = SCIONPacket()
         pkt.hdr = SCIONHeader.from_values(src, dst, path, ext_hdrs, next_hdr)
@@ -587,7 +587,7 @@ class CertChainRequest(SCIONPacket):
     :type src_ad: int
     :ivar isd_id: Target certificate chain's ISD identifier.
     :type isd_id: int
-    :ivar ad_id:, ad: Target certificate chain's AD identifier.
+    :ivar ad_id, ad: Target certificate chain's AD identifier.
     :type ad_id: int
     :ivar version: Target certificate chain's version.
     :type version: int
@@ -644,7 +644,7 @@ class CertChainRequest(SCIONPacket):
         :type src_ad: int
         :param isd_id: Target certificate chain's ISD identifier.
         :type isd_id: int
-        :param ad_id:, ad: Target certificate chain's AD identifier.
+        :param ad_id, ad: Target certificate chain's AD identifier.
         :type ad_id: int
         :param version: Target certificate chain's version.
         :type version: int
@@ -722,7 +722,7 @@ class CertChainReply(SCIONPacket):
         :type dst: :class:`SCIONAddr`
         :param isd_id: Target certificate chain's ISD identifier.
         :type isd_id: int
-        :param ad_id:, ad: Target certificate chain's AD identifier.
+        :param ad_id, ad: Target certificate chain's AD identifier.
         :type ad_id: int
         :param version: Target certificate chain's version.
         :type version: int

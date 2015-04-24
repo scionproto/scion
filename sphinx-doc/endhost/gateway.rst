@@ -1,4 +1,3 @@
-
-.. automodule:: lib.packet.packet_base
+.. automodule:: endhost.gateway
    :special-members: __init__
    :members:

@@ -1,4 +1,3 @@
-
-.. automodule:: lib.packet.packet_base
+.. automodule:: lib.crypto.symcrypto
    :special-members: __init__
    :members:

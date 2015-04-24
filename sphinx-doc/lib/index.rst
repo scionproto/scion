@@ -5,10 +5,8 @@ Contents:
 
 .. toctree::
    :maxdepth: 3
+   :glob:
 
-   topology
-   raw_socket
-   config
-   util
+   *
+   crypto/index
    packet/index
-   zookeeper
