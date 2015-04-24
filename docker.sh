@@ -7,9 +7,17 @@ cmd_build_basic() {
     echo "Copying current working tree for Docker image"
     echo "============================================="
     mkdir -p docker/_build/
-    # Ignore timestamps; only update files if their checksums have changed
-    # Prevents Docker from doing unnecessary cache invalidations.
-    git ls-files -z | rsync -rlpc0 --delete --info=FLIST2,STATS --files-from=- . docker/_build/scion.git/
+    # Just in case it's sitting there from a previous failed run
+    rm -rf docker/_build/scion.tmp
+    # Ignore timestamps; only update files if their checksums have changed. This
+    # prevents Docker from doing unnecessary cache invalidations.
+    # As rsync --from-files cannot delete unknown files in the destionation,
+    # first rsync to a clean dir using --from-files, then rsync again from that
+    # dir to the actual Docker context dir using --delete
+    git ls-files -z | rsync -a0 --files-from=- . docker/_build/scion.tmp/
+    rsync -rlpc --delete --info=FLIST2,STATS docker/_build/scion.tmp/ docker/_build/scion.git/
+    # Cleanup the temp directory
+    rm -rf docker/_build/scion.tmp
     echo
     echo "Setting up Docker basic image"
     echo "============================="
