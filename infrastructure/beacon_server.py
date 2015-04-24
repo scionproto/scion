@@ -70,9 +70,7 @@ class BeaconServer(SCIONElement):
     # Timeout for TRC or Certificate requests.
     REQUESTS_TIMEOUT = 10
     # ZK path for incoming PCBs
-    ZK_INCOMING_PATH = "incoming"
-    # ZK path for recent PCBs
-    ZK_RECENT_PATH = "recent"
+    ZK_PCB_CACHE_PATH = "pcb_cache"
 
     def __init__(self, addr, topo_file, config_file, path_policy_file):
         SCIONElement.__init__(self, addr, topo_file, config_file=config_file)
@@ -88,7 +86,7 @@ class BeaconServer(SCIONElement):
         self.if2rev_tokens = {}
         self.seg2rev_tokens = {}
 
-        self._seen_entries = set()
+        self._latest_entry = 0
         # Set when we have connected and read the existing recent and incoming
         # PCBs
         self._state_synced = threading.Event()
@@ -96,8 +94,7 @@ class BeaconServer(SCIONElement):
         self.zk = Zookeeper(
             self.topology.isd_id, self.topology.ad_id,
             "bs", self.addr.host_addr, ["localhost:2181"],
-            ensure_paths=(self.ZK_INCOMING_PATH,
-                          self.ZK_RECENT_PATH))
+            ensure_paths=(self.ZK_PCB_CACHE_PATH,))
 
     def _get_if_rev_token(self, if_id):
         """
@@ -161,10 +158,11 @@ class BeaconServer(SCIONElement):
         assert isinstance(beacon, PathConstructionBeacon)
         if not self._check_filters(beacon.pcb):
             return
+        segment_id = beacon.pcb.get_hops_hash(hex=True)
         try:
             self.zk.store_shared_item(
-                self.ZK_INCOMING_PATH,
-                "pcb", beacon.pcb.pack())
+                self.ZK_PCB_CACHE_PATH,
+                segment_id, beacon.pcb.pack())
         except ZkConnectionLoss:
             logging.debug("Unable to store PCB in shared path: "
                           "no connection to ZK")
@@ -243,7 +241,7 @@ class BeaconServer(SCIONElement):
         threading.Thread(target=self.register_segments,
                          name="BS register segments",
                          daemon=True).start()
-        threading.Thread(target=self.read_shared_pcbs,
+        threading.Thread(target=self.handle_shared_pcbs,
                          name="BS shared pcbs",
                          daemon=True).start()
         SCIONElement.run(self)
@@ -405,17 +403,18 @@ class BeaconServer(SCIONElement):
             pcb = self.unverified_beacons.popleft()
             self._try_to_verify_beacon(pcb)
 
-    @thread_safety_net("read_shared_pcbs")
-    def read_shared_pcbs(self):
+    @thread_safety_net("handle_shared_pcbs")
+    def handle_shared_pcbs(self):
         """
-        A thread to handle Zookeeper connects/disconnects
+        A thread to handle Zookeeper connects/disconnects and the shared cache
+        of PCBs
 
-        On connect, it registers us as in-service, and loads the current &
-        previous propagation period's PCBs from the share ZK paths, so that we
-        have enough context should we become master.
+        On connect, it registers us as in-service, and loads the shared cache
+        of PCBs from ZK, so that we have enough context should we become
+        master.
 
-        It also setup a watcher to process new PCBs that appear in the shared
-        ZK path.
+        While connected, it calls _read_cached_entries() to read updated PCBS
+        from the cache.
         """
         while True:
             if not self.zk.is_connected():
@@ -427,93 +426,63 @@ class BeaconServer(SCIONElement):
                 if not self._state_synced.is_set():
                     # Register that we can now accept and store PCBs in ZK
                     self.zk.join_party()
-                    # Prime our path list with the previous propagation
-                    # period's set of PCBs
-                    self._read_shared_entries(self.ZK_RECENT_PATH, "recent")
-                    # Clear our cache of previously-seen shared entries
-                    self._seen_entries.clear()
-                self._read_shared_entries(self.ZK_INCOMING_PATH, "incoming")
+                    # Make sure we re-read the entire cache
+                    self._latest_entry = 0
+                self._read_cached_entries()
             except ZkConnectionLoss:
                 continue
             self._state_synced.set()
 
-    def _read_shared_entries(self, path, name):
+    def _read_cached_entries(self):
         """
-        Read all entries from the specified path and return them
+        Read new/updated entries from the shared cache and send them for
+        processesing.
         """
-        desc = "Fetching list of %s PCBs from shared path" % name
-        entries = self.zk.get_shared_entries(
-            path,
+        desc = "Fetching list of PCBs from shared cache"
+        entries_meta = self.zk.get_shared_metadata(
+            self.ZK_PCB_CACHE_PATH,
             timed_desc=desc)
-        desc = "Processing %s PCBs from shared path" % name
-        count = self._process_shared_pcbs(
-            path,
-            entries,
-            timed_desc=desc)
+        if not entries_meta:
+            return 0
+        new = []
+        newest = 0
+        for entry, meta in entries_meta:
+            if meta.last_modified > self._latest_entry:
+                new.append(entry)
+            if meta.last_modified > newest:
+                newest = meta.last_modified
+        self._latest_entry = newest
+        desc = "Processing %s new PCBs from shared path" % len(new)
+        count = self._process_cached_pcbs(new, timed_desc=desc)
         return count
 
     @timed(1.0)
-    def _process_shared_pcbs(self, path, entries):
+    def _process_cached_pcbs(self, entries):
         """
-        Retrieve new shared beacons send them for local processing.
+        Retrieve new beacons from the shared cache and send them for local
+        processing.
         """
-        # Limit the number of entries we try handle
-        # TODO(kormat): move constant to proper place
-        max_entries = 20
-        if path == self.ZK_INCOMING_PATH:
-            # Only read new incoming PCBS
-            entries_set = set(entries)
-            new_set = entries_set - self._seen_entries
-            if len(new_set) > 0:
-                logging.debug("Processing %d new (out of %d total) "
-                              "shared PCBs", len(new_set), len(entries_set))
-            # Remove old entries that are no longer in the shared path
-            self._seen_entries = new_set - self._seen_entries | entries_set
-            new_entries = list(new_set)[:max_entries]
-        else:
-            # Otherwise we're dealing with the recent pcbs, and we want to
-            # just read a reasonable number.
-            new_entries = entries[:max_entries]
         # TODO(kormat): move constant to proper place
         chunk_size = 10
         pcbs = []
-        for i in range(0, len(new_entries), chunk_size):
-            for entry in new_entries[i:i+chunk_size]:
+        for i in range(0, len(entries), chunk_size):
+            for entry in entries[i:i+chunk_size]:
                 try:
-                    raw = self.zk.get_shared_item(path, entry)
+                    raw = self.zk.get_shared_item(self.ZK_PCB_CACHE_PATH,
+                                                  entry)
                 except ZkConnectionLoss:
-                    logging.warning("Unable to retrieve PCB from shared path: "
-                                    "no connection to ZK")
+                    logging.warning("Unable to retrieve PCB from shared "
+                                    "cache: no connection to ZK")
                     break
                 except ZkNoNodeError:
-                    logging.debug("Unable to retrieve PCB from shared path: "
-                                  "no such entry (%s/%s)" % (path, entry))
+                    logging.debug("Unable to retrieve PCB from shared cache: "
+                                  "no such entry (%s/%s)" %
+                                  (self.ZK_PCB_CACHE_PATH, entry))
                     continue
                 pcbs.append(PathSegment(raw=raw))
         self.process_pcbs(pcbs)
         return len(pcbs)
 
-    def _move_shared_pcbs(self):
-        """
-        Move new shared beacons to the 'recent' shared path.
-        """
-        # Check to make sure we didn't just disconnect or reconnect
-        if not (self._state_synced.is_set() and self.zk.have_lock()):
-            return False
-        try:
-            self.zk.move_shared_items(
-                self.ZK_INCOMING_PATH,
-                self.ZK_RECENT_PATH,
-                timed_desc="Moving PCBs from 'incoming' to 'recent'")
-        except ZkConnectionLoss:
-            logging.warning("Connection dropped while moving shared items")
-            return False
-        except ZkNoNodeError:
-            logging.error("Item not found when moving shared items, "
-                          "could mean there are multiple masters. "
-                          "Will drop lock just in case.")
-            return False
-        return True
 
 class CoreBeaconServer(BeaconServer):
     """
@@ -591,10 +560,7 @@ class CoreBeaconServer(BeaconServer):
                 pcb = self.beacons.popleft()
                 count += self.propagate_core_pcb(pcb)
             logging.info("Propagated %d Core PCBs", count)
-            if not self._move_shared_pcbs():
-                self.zk.release_lock()
-                master = False
-                continue
+            # TODO(kormat): prune old PCBs
             sleep_interval(start_propagation, self.config.propagation_time,
                            "PCB propagation")
 
@@ -937,10 +903,7 @@ class LocalBeaconServer(BeaconServer):
             best_segments = self.beacons.get_best_segments()
             for pcb in best_segments:
                 self.propagate_downstream_pcb(pcb)
-            if not self._move_shared_pcbs():
-                self.zk.release_lock()
-                master = False
-                continue
+            # TODO(kormat): prune old PCBs
             sleep_interval(start_propagation, self.config.propagation_time,
                            "PCB propagation")
 

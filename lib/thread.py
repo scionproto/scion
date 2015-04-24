@@ -20,6 +20,7 @@ Threading utilities for SCION.
 
 import os
 import signal
+from functools import wraps
 
 from lib.log import log_exception
 
@@ -35,6 +36,7 @@ def thread_safety_net(name):
     process.
     """
     def wrap(f):
+        @wraps(f)
         def wrapper(*args, **kwargs):
             try:
                 return f(*args, **kwargs)

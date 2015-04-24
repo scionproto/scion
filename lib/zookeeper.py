@@ -24,8 +24,8 @@ from kazoo.client import (KazooClient, KazooState, KazooRetry)
 from kazoo.handlers.threading import TimeoutError
 from kazoo.exceptions import (LockTimeout, SessionExpiredError,
                               NoNodeError, ConnectionLoss)
+from lib.util import timed
 from lib.thread import (kill_self, thread_safety_net)
-from lib.util import (timed)
 
 
 class ZkConnectionLoss(Exception):
@@ -236,25 +236,6 @@ class Zookeeper(object):
             raise ZkConnectionLoss
         logging.debug("Joined party, members are: %s", list(self._party))
 
-    def watch_children(self, path, func):
-        """
-        Register a callback function to be called when a path's children
-        change. This watch does not persist across disconnections.
-
-        :param str path: The path to watch.
-        :param function func: The function to call.
-        :raises:
-            ZkConnectionLoss: if the connection to ZK drops.
-        """
-        if not self.is_connected():
-            raise ZkConnectionLoss
-        path = os.path.join(self._prefix, path)
-        try:
-            self._zk.exists(path)
-            self._zk.ChildrenWatch(path, func=func, allow_session_lost=False)
-        except (ConnectionLoss, SessionExpiredError):
-            raise ZkConnectionLoss
-
     def get_lock(self, timeout=60.0):
         """
         Try to get the lock. Returns immediately if we already have the lock.
@@ -321,7 +302,7 @@ class Zookeeper(object):
         Store an item in a shared path.
 
         :param str path: The path to store the item in. E.g. ``"shared"``
-        :param str name: A prefix for the item entry. E.g. ``"pcb"``
+        :param str name: A name for the item entry. E.g. ``"item01"``
         :param bytes value: The value to store in the item.
         :raises:
             ZkConnectionLoss: if the connection to ZK drops
@@ -329,8 +310,18 @@ class Zookeeper(object):
         if not self.is_connected():
             raise ZkConnectionLoss
         path = os.path.join(self._prefix, path)
+        # First, assume the path already exists (the normal case)
         try:
-            self._zk.create("%s/%s" % (path, name), value, sequence=True)
+            self._zk.set("%s/%s" % (path, name), value)
+            return
+        except (ConnectionLoss, SessionExpiredError):
+            raise ZkConnectionLoss
+        except NoNodeError:
+            pass
+        # Node doesn't exist, so create it instead.
+        try:
+            self._zk.create("%s/%s" % (path, name), value)
+            return
         except (ConnectionLoss, SessionExpiredError):
             raise ZkConnectionLoss
 
@@ -358,72 +349,27 @@ class Zookeeper(object):
         return data
 
     @timed(1.0)
-    def get_shared_entries(self, path):
+    def get_shared_metadata(self, path):
         """
-        List the items in a shared path.
+        List the items in a shared path, with their relevant metadata.
 
         :param str path: The path the items are stored in. E.g.  ``"shared"``
-        :return: The value of the item, if successfully retrieved, otherwise
-                 ``None``
-        :rtype: :class:`bytes` or ``None``
+        :return: A list of (item, metadata) for each item in the shared path.
+        :rtype: [(:class:`bytes`, :class:`ZnodeStat`),...] or ``[]``
         :raises:
             ZkConnectionLoss: if the connection to ZK drops
         """
         if not self.is_connected():
             return []
         path = os.path.join(self._prefix, path)
+        entry_meta = []
         try:
             entries = self._zk.get_children(path)
+            for entry in entries:
+                entry_path = os.path.join(path, entry)
+                meta = self._zk.exists(entry_path)
+                if meta:
+                    entry_meta.append((entry, meta))
         except (ConnectionLoss, SessionExpiredError):
             raise ZkConnectionLoss
-        return entries
-
-    @timed(1.0)
-    def move_shared_items(self, src, dest):
-        """
-        Move items from one shared path to another
-
-        :param str src: The path of the source
-        :param str dest: The path of the destination
-        :raises:
-            ZkConnectionLoss: if the connection to ZK drops
-        """
-        # TODO(kormat): move constants to proper place
-        chunk_size = 50
-        max_entries = 50
-        if not self.is_connected():
-            raise ZkConnectionLoss
-        src = os.path.join(self._prefix, src)
-        dest = os.path.join(self._prefix, dest)
-        try:
-            src_entries = self._zk.get_children(src)
-            dest_entries = self._zk.get_children(dest)
-            # First, copy `max_entries` src entries across, deleting as we go
-            # Delete in chunks, as every operation will trigger watch callbacks
-            # for all BSes in the cluster, and deleting them all at once causes
-            # ZK to timeout.
-            moved = 0
-            for i in range(0, len(src_entries), chunk_size):
-                trans = self._zk.transaction()
-                for entry in src_entries[i:i+chunk_size]:
-                    if moved < max_entries:
-                        data, stat = self._zk.get("%s/%s" % (src, entry))
-                        trans.create("%s/%s" % (dest, entry), data)
-                    trans.delete("%s/%s" % (src, entry))
-                    moved += 1
-                trans.commit()
-            # Second, delete all pre-existing dest entries
-            deleted = 0
-            for i in range(0, len(dest_entries), chunk_size):
-                trans = self._zk.transaction()
-                for entry in dest_entries[i:i+chunk_size]:
-                    trans.delete("%s/%s" % (dest, entry))
-                    deleted += 1
-                trans.commit()
-        except (ConnectionLoss, SessionExpiredError):
-            raise ZkConnectionLoss
-        except NoNodeError:
-            raise ZkNoNodeError
-
-        logging.debug("Moved %d entries, deleted %d entries", moved, deleted)
-        return moved
+        return entry_meta

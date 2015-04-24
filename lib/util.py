@@ -23,6 +23,7 @@ import logging
 from signal import (SIGHUP, SIGINT, SIGQUIT, SIGTERM, SIGUSR1, SIGUSR2, signal)
 import sys
 import time
+from functools import wraps
 
 from lib.defines import TOPOLOGY_PATH
 from external.stacktracer import trace_start
@@ -184,6 +185,7 @@ def timed(limit):
                         seconds, log a warning.
     """
     def wrap(f):
+        @wraps(f)
         def wrapper(*args, timed_desc=None, **kwargs):
             start = time.time()
             ret = f(*args, **kwargs)
