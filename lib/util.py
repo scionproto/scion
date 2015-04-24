@@ -18,9 +18,10 @@
 Various utilities for SCION functionality.
 """
 
-import os
 import logging
+import os
 import signal
+import time
 import traceback
 from lib.defines import TOPOLOGY_PATH
 from external.stacktracer import trace_start
@@ -29,6 +30,24 @@ CERT_DIR = 'certificates'
 SIG_KEYS_DIR = 'signature_keys'
 ENC_KEYS_DIR = 'encryption_keys'
 TRACE_DIR = "../traces"
+
+
+class _StreamErrorHandler(logging.StreamHandler):
+    """
+    A logging StreamHandler that will exit the application if there's a logging
+    exception.
+
+    We don't try to use the normal logging system at this point because we
+    don't know if that's working at all. If it is (e.g. when the exception is a
+    formatting error), when we re-raise the exception, it'll get handled by the
+    normal process.
+    """
+    def handleError(self, record):
+        self.stream.write("Exception in logging module:\n")
+        for line in traceback.format_exc().split("\n"):
+            self.stream.write(line+"\n")
+        self.flush()
+        raise
 
 
 def _get_isd_prefix(isd_dir):
@@ -161,6 +180,7 @@ def init_logging(level=logging.DEBUG):
     Configure logging for components (servers, routers, gateways).
     """
     logging.basicConfig(level=level,
+                        handlers=[_StreamErrorHandler()],
                         format='%(asctime)s [%(levelname)s]\t%(message)s')
 
 def log_exception(msg, *args, level=logging.CRITICAL, **kwargs):
