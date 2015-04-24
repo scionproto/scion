@@ -36,9 +36,10 @@ from lib.packet.scion import (SCIONPacket, get_type, PacketType as PT,
 from lib.packet.scion_addr import SCIONAddr, ISD_AD
 from lib.path_store import PathPolicy, PathStoreRecord, PathStore
 from lib.util import (read_file, write_file, get_cert_chain_file_path,
-    get_sig_key_file_path, get_trc_file_path, init_logging, log_exception,
+    get_sig_key_file_path, get_trc_file_path,
     trace, timed, sleep_interval)
 from lib.thread import thread_safety_net
+from lib.log import (init_logging, log_exception)
 from lib.zookeeper import (Zookeeper, ZkConnectionLoss, ZkNoNodeError)
 from Crypto import Random
 from Crypto.Hash import SHA256

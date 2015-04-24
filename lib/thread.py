@@ -21,11 +21,7 @@ Threading utilities for SCION.
 import os
 import signal
 
-# For log_exception()
-import lib.util
-
-# This is seperated out from lib.util as otherwise there's a circular
-# dependancy between util.py and stacktracer.py, causing import to fail.
+from lib.log import log_exception
 
 def kill_self():
     """
@@ -43,7 +39,7 @@ def thread_safety_net(name):
             try:
                 return f(*args, **kwargs)
             except:
-                lib.util.log_exception("Exception in %s thread:", name)
+                log_exception("Exception in %s thread:", name)
                 kill_self()
         return wrapper
     return wrap

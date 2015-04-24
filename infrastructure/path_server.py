@@ -29,7 +29,8 @@ from lib.packet.path_mgmt import (PathSegmentRecords, PathSegmentInfo,
 from lib.packet.pcb import PathSegment
 from lib.path_db import PathSegmentDB, DBResult
 from lib.packet.scion_addr import ISD_AD
-from lib.util import (update_dict, init_logging, log_exception)
+from lib.util import update_dict
+from lib.log import (init_logging, log_exception)
 import copy
 import datetime
 import logging
