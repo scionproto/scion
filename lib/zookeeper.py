@@ -230,7 +230,7 @@ class Zookeeper(object):
             self._party = self._zk.Party(party_path, self._srv_id)
         try:
             self._party.join()
-        except ConnectionLoss:
+        except (ConnectionLoss, SessionExpiredError):
             raise ZkConnectionLoss
         logging.debug("Joined party, members are: %s", list(self._party))
 
@@ -250,7 +250,7 @@ class Zookeeper(object):
         try:
             self._zk.exists(path)
             self._zk.ChildrenWatch(path, func=func, allow_session_lost=False)
-        except ConnectionLoss:
+        except (ConnectionLoss, SessionExpiredError):
             raise ZkConnectionLoss
 
     def get_lock(self, timeout=60.0):
@@ -372,7 +372,7 @@ class Zookeeper(object):
         path = os.path.join(self._prefix, path)
         try:
             entries = self._zk.get_children(path)
-        except ConnectionLoss:
+        except (ConnectionLoss, SessionExpiredError):
             raise ZkConnectionLoss
         return entries
 
