@@ -3,5 +3,3 @@ FROM scionbasic
 RUN ./scion.sh init
 RUN ./scion.sh topology
 RUN . ~/.profile && make -C sphinx-doc/ html
-
-CMD sudo service zookeeper start; ./scion.sh setup; exec bash -l
