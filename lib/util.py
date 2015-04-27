@@ -19,9 +19,8 @@ Various utilities for SCION functionality.
 """
 
 import os
-import signal
+import logging
 import time
-import traceback
 
 from lib.defines import TOPOLOGY_PATH
 from external.stacktracer import trace_start
@@ -163,6 +162,7 @@ def trace():
                         os.environ['SUPERVISOR_PROCESS_NAME'])
     trace_start(path)
 
+
 def timed(limit):
     """
     Decorator to measure to execution time of a function, and log a warning if
@@ -185,6 +185,7 @@ def timed(limit):
             return ret
         return wrapper
     return wrap
+
 
 def sleep_interval(start, interval, desc):
     """
