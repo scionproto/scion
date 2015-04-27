@@ -38,6 +38,7 @@ SRC = None
 DST = None 
 saddr = IPv4Address("127.1.19.254")
 raddr = IPv4Address("127.2.26.254")
+TOUT = 10  # How long wait for response.
 
 def get_paths_via_api(isd, ad):
     """
@@ -86,7 +87,7 @@ def ping_app():
     topo_file = ("../topology/ISD%d/topologies/ISD:%d-AD:%d.json" % 
                  (SRC.isd, SRC.isd, SRC.ad))
     sd = SCIONDaemon.start(saddr, topo_file, True) # API on
-    print("Sending PATH request for (%d, %d) in 1 seconds" % (DST.isd, DST.ad))
+    print("Sending PATH request for (%d, %d) in 2 seconds" % (DST.isd, DST.ad))
     time.sleep(2)
     # Get paths through local API.
     paths_hops = get_paths_via_api(DST.isd, DST.ad)
@@ -160,8 +161,10 @@ class TestSCIONDaemon(unittest.TestCase):
                     threading.Thread(target=ping_app).start()
                     threading.Thread(target=pong_app).start()
                     print("\nTesting:", src, "->", dst)
-                    time.sleep(3)
-
+                    for _ in range(TOUT):
+                        time.sleep(1)
+                        if ping_received and pong_received:
+                            break
                     self.assertTrue(ping_received)
                     self.assertTrue(pong_received)
                     ping_received = False
