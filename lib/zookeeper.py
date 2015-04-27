@@ -19,7 +19,6 @@
 import os.path
 import logging
 import threading
-import time
 
 from kazoo.client import (KazooClient, KazooState, KazooRetry)
 from kazoo.handlers.threading import TimeoutError
@@ -27,15 +26,17 @@ from kazoo.exceptions import (LockTimeout, SessionExpiredError,
                               NoNodeError, ConnectionLoss)
 from lib.thread import (kill_self, thread_safety_net)
 from lib.util import (timed)
-from lib.packet.pcb import PathSegment
+
 
 class ZkConnectionLoss(Exception):
     """Connection to Zookeeper is lost"""
     pass
 
+
 class ZkNoNodeError(Exception):
     """A node doesn't exist"""
     pass
+
 
 class Zookeeper(object):
     """
@@ -65,8 +66,8 @@ class Zookeeper(object):
 
         :param int isd_id: The ID of the current ISD.
         :param int ad_id: The ID of the current AD.
-        :param str srv_name: Short description of the service. E.g. ``"bs"`` for
-                             Beacon server.
+        :param str srv_name: Short description of the service. E.g. ``"bs"``
+                             for Beacon server.
         :param str srv_id: The ID of the service. E.g. host the service is
                            running on.
         :param list zk_hosts: List of Zookeeper instances to connect to, in the
@@ -124,7 +125,7 @@ class Zookeeper(object):
             self._zk.start()
         except TimeoutError:
             logging.critical(
-                    "Timed out connecting to Zookeeper on startup, exiting")
+                "Timed out connecting to Zookeeper on startup, exiting")
             kill_self()
 
     def _state_listener(self, new_state):
@@ -297,7 +298,7 @@ class Zookeeper(object):
         if self.is_connected():
             try:
                 self._zk_lock.release()
-            except (NoNodeError, ConnectionLoss, SessionExpiredError) as e:
+            except (NoNodeError, ConnectionLoss, SessionExpiredError):
                 pass
         # Hack suggested by https://github.com/python-zk/kazoo/issues/2
         self._zk_lock.is_acquired = False
@@ -425,4 +426,3 @@ class Zookeeper(object):
 
         logging.debug("Moved %d entries, deleted %d entries", moved, deleted)
         return moved
-

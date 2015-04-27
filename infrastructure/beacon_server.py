@@ -94,12 +94,10 @@ class BeaconServer(SCIONElement):
         self._state_synced = threading.Event()
         # TODO(kormat): def zookeeper host/port in topology
         self.zk = Zookeeper(
-                self.topology.isd_id, self.topology.ad_id,
-                "bs", self.addr.host_addr, ["localhost:2181"],
-                ensure_paths=(
-                    self.ZK_INCOMING_PATH,
-                    self.ZK_RECENT_PATH)
-                )
+            self.topology.isd_id, self.topology.ad_id,
+            "bs", self.addr.host_addr, ["localhost:2181"],
+            ensure_paths=(self.ZK_INCOMING_PATH,
+                          self.ZK_RECENT_PATH))
 
     def _get_if_rev_token(self, if_id):
         """
@@ -423,8 +421,8 @@ class BeaconServer(SCIONElement):
                 if not self._state_synced.is_set():
                     # Register that we can now accept and store PCBs in ZK
                     self.zk.join_party()
-                    # Prime our path list with the previous propagation period's
-                    # set of PCBs
+                    # Prime our path list with the previous propagation
+                    # period's set of PCBs
                     self._read_shared_entries(self.ZK_RECENT_PATH, "recent")
                     # Clear our cache of previously-seen shared entries
                     self._seen_entries.clear()
@@ -439,13 +437,13 @@ class BeaconServer(SCIONElement):
         """
         desc = "Fetching list of %s PCBs from shared path" % name
         entries = self.zk.get_shared_entries(
-                path,
-                timed_desc=desc)
+            path,
+            timed_desc=desc)
         desc = "Processing %s PCBs from shared path" % name
         count = self._process_shared_pcbs(
-                path,
-                entries,
-                timed_desc=desc)
+            path,
+            entries,
+            timed_desc=desc)
         return count
 
     @timed(1.0)
@@ -483,7 +481,7 @@ class BeaconServer(SCIONElement):
                     break
                 except ZkNoNodeError:
                     logging.debug("Unable to retrieve PCB from shared path: "
-                                 "no such entry (%s/%s)" % (path, entry))
+                                  "no such entry (%s/%s)" % (path, entry))
                     continue
                 pcbs.append(PathSegment(raw=raw))
         self.process_pcbs(pcbs)
@@ -498,9 +496,9 @@ class BeaconServer(SCIONElement):
             return False
         try:
             self.zk.move_shared_items(
-                    self.ZK_INCOMING_PATH,
-                    self.ZK_RECENT_PATH,
-                    timed_desc="Moving PCBs from 'incoming' to 'recent'")
+                self.ZK_INCOMING_PATH,
+                self.ZK_RECENT_PATH,
+                timed_desc="Moving PCBs from 'incoming' to 'recent'")
         except ZkConnectionLoss:
             logging.warning("Connection dropped while moving shared items")
             return False
@@ -523,7 +521,7 @@ class CoreBeaconServer(BeaconServer):
                               path_policy_file)
         # Sanity check that we should indeed be a core beacon server.
         assert self.topology.is_core_ad, "This shouldn't be a core BS!"
-        self.beacons = deque()  # FIXME: Discuss with Lorenzo 
+        self.beacons = deque()  # FIXME: Discuss with Lorenzo
         self.core_segments = deque()  # FIXME: ditto
 
     def propagate_core_pcb(self, pcb):
@@ -571,14 +569,14 @@ class CoreBeaconServer(BeaconServer):
             # Create beacon for downstream ADs.
             downstream_pcb = PathSegment()
             timestamp = int(time.time())
-            downstream_pcb.iof = InfoOpaqueField.from_values(OFT.TDC_XOVR,
-                False, timestamp, self.topology.isd_id)
+            downstream_pcb.iof = InfoOpaqueField.from_values(
+                OFT.TDC_XOVR, False, timestamp, self.topology.isd_id)
             downstream_pcb.trcf = TRCField()
             self.propagate_downstream_pcb(downstream_pcb)
             # Create beacon for core ADs.
             core_pcb = PathSegment()
-            core_pcb.iof = InfoOpaqueField.from_values(OFT.TDC_XOVR, False,
-                timestamp, self.topology.isd_id)
+            core_pcb.iof = InfoOpaqueField.from_values(
+                OFT.TDC_XOVR, False, timestamp, self.topology.isd_id)
             core_pcb.trcf = TRCField()
             count = self.propagate_core_pcb(core_pcb)
             # Propagate received beacons. A core beacon server can only receive
@@ -603,7 +601,7 @@ class CoreBeaconServer(BeaconServer):
         while True:
             lock = self.zk.have_lock()
             if not lock:
-                logging.debug("register_segements: waiting for lock")
+                logging.debug("register_segments: waiting for lock")
             self.zk.wait_lock()
             if not lock:
                 logging.debug("register_segments: have lock")
@@ -645,7 +643,7 @@ class CoreBeaconServer(BeaconServer):
             # that it hasn't been received before.
             for ad in pcb.ads:
                 if (ad.pcbm.spcbf.isd_id == self.topology.isd_id and
-                    ad.pcbm.ad_id == self.topology.ad_id):
+                        ad.pcbm.ad_id == self.topology.ad_id):
                     count += 1
                     continue
             self._try_to_verify_beacon(pcb)
@@ -912,7 +910,7 @@ class LocalBeaconServer(BeaconServer):
         """
         Main loop to propagate received beacons.
         """
-        # TODO: define function that dispaches the pcbs among the interfaces
+        # TODO: define function that dispatches the pcbs among the interfaces
         master = False
         while True:
             # Wait until we have enough context to be a useful master
