@@ -26,6 +26,7 @@ from kazoo.handlers.threading import TimeoutError
 from kazoo.exceptions import (LockTimeout, SessionExpiredError,
                               NoNodeError, ConnectionLoss)
 from lib.thread import (kill_self, thread_safety_net)
+from lib.util import (timed)
 from lib.packet.pcb import PathSegment
 
 class ZkConnectionLoss(Exception):
@@ -205,11 +206,11 @@ class Zookeeper(object):
         """
         return self._connected.is_set()
 
-    def wait_connected(self):
+    def wait_connected(self, timeout=None):
         """
         Wait until there is a connection to Zookeeper.
         """
-        self._connected.wait()
+        return self._connected.wait(timeout=timeout)
 
     def join_party(self):
         """
@@ -229,7 +230,7 @@ class Zookeeper(object):
             self._party = self._zk.Party(party_path, self._srv_id)
         try:
             self._party.join()
-        except ConnectionLoss:
+        except (ConnectionLoss, SessionExpiredError):
             raise ZkConnectionLoss
         logging.debug("Joined party, members are: %s", list(self._party))
 
@@ -249,7 +250,7 @@ class Zookeeper(object):
         try:
             self._zk.exists(path)
             self._zk.ChildrenWatch(path, func=func, allow_session_lost=False)
-        except ConnectionLoss:
+        except (ConnectionLoss, SessionExpiredError):
             raise ZkConnectionLoss
 
     def get_lock(self, timeout=60.0):
@@ -265,37 +266,43 @@ class Zookeeper(object):
         """
         if self._zk_lock is None:
             # First-time setup.
-            logging.debug("get_lock: init lock")
+            #logging.debug("get_lock: init lock")
             lock_path = os.path.join(self._prefix, "lock")
             self._zk_lock = self._zk.Lock(lock_path, self._srv_id)
         if not self.is_connected():
-            self._lock.clear()
-            # Hack suggested by https://github.com/python-zk/kazoo/issues/2
-            self._zk_lock.is_acquired = False
-            logging.debug("get_lock: not connected")
+            self.release_lock()
+            #logging.debug("get_lock: not connected")
             return False
-        if self._lock.is_set():
+        elif self._lock.is_set():
             # We already have the lock
-            logging.debug("get_lock: already have lock")
+            #logging.debug("get_lock: already have lock")
             return True
-        else:
-            # Hack suggested by https://github.com/python-zk/kazoo/issues/2
-            self._zk_lock.is_acquired = False
         try:
-            logging.debug("get_lock: try acquire lock")
+            #logging.debug("get_lock: try acquire lock")
             if self._zk_lock.acquire(timeout=timeout):
-                logging.debug("get_lock: acquired lock")
+                #logging.debug("get_lock: acquired lock")
                 self._lock.set()
             else:
-                logging.debug("get_lock: failed to acquire lock")
+                #logging.debug("get_lock: failed to acquire lock")
+                pass
         except (LockTimeout, ConnectionLoss, SessionExpiredError) as e:
-            logging.debug("get_lock: exception acquiring lock: %s", e)
+            #logging.debug("get_lock: exception acquiring lock: %s", e)
             pass
-        ret = self._have_lock()
-        logging.debug("get_lock: do we have the lock? %s", ret)
+        ret = self.have_lock()
+        #logging.debug("get_lock: do we have the lock? %s", ret)
         return ret
 
-    def _have_lock(self):
+    def release_lock(self):
+        self._lock.clear()
+        if self.is_connected():
+            try:
+                self._zk_lock.release()
+            except (NoNodeError, ConnectionLoss, SessionExpiredError) as e:
+                pass
+        # Hack suggested by https://github.com/python-zk/kazoo/issues/2
+        self._zk_lock.is_acquired = False
+
+    def have_lock(self):
         """
         Check if we currently hold the lock
         """
@@ -348,6 +355,7 @@ class Zookeeper(object):
             raise ZkConnectionLoss
         return data
 
+    @timed(1.0)
     def get_shared_entries(self, path):
         """
         List the items in a shared path.
@@ -364,10 +372,11 @@ class Zookeeper(object):
         path = os.path.join(self._prefix, path)
         try:
             entries = self._zk.get_children(path)
-        except ConnectionLoss:
+        except (ConnectionLoss, SessionExpiredError):
             raise ZkConnectionLoss
         return entries
 
+    @timed(1.0)
     def move_shared_items(self, src, dest):
         """
         Move items from one shared path to another
@@ -401,7 +410,6 @@ class Zookeeper(object):
                     trans.delete("%s/%s" % (src, entry))
                     moved += 1
                 trans.commit()
-                logging.debug("Moved %d entries", moved)
             # Second, delete all pre-existing dest entries
             deleted = 0
             for i in range(0, len(dest_entries), chunk_size):
@@ -410,7 +418,11 @@ class Zookeeper(object):
                     trans.delete("%s/%s" % (dest, entry))
                     deleted += 1
                 trans.commit()
-                logging.debug("Deleted %d entries", deleted)
-        except ConnectionLoss:
+        except (ConnectionLoss, SessionExpiredError):
             raise ZkConnectionLoss
+        except NoNodeError:
+            raise ZkNoNodeError
+
+        logging.debug("Moved %d entries, deleted %d entries", moved, deleted)
+        return moved
 
