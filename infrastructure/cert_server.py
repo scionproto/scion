@@ -22,7 +22,8 @@ from lib.crypto.certificate import TRC
 from lib.packet.scion import (SCIONPacket, get_type, PacketType as PT,
     CertChainRequest, CertChainReply, TRCRequest, TRCReply)
 from lib.util import (read_file, write_file, get_cert_chain_file_path,
-    get_trc_file_path, init_logging, log_exception)
+    get_trc_file_path)
+from lib.log import (init_logging, log_exception)
 import collections
 import datetime
 import logging
