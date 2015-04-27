@@ -308,7 +308,9 @@ def write_topo_files(AD_configs, er_ip_addresses):
                          'done\n' % isd_ad_id)
             # Write Beacon Servers
             ip_address = '.'.join([first_byte, isd_id, ad_id, BS_RANGE])
-            supervisor_common = ['autostart=false\n', 'redirect_stderr=True\n',
+            supervisor_common = ['autostart=false\n',
+                                 'autorestart=false\n',
+                                 'redirect_stderr=True\n',
                                  'environment=PYTHONPATH=..\n',
                                  'stdout_logfile_maxbytes=0\n']
             for b_server in range(1, number_bs + 1):
@@ -316,7 +318,7 @@ def write_topo_files(AD_configs, er_ip_addresses):
                                                         'Addr': ip_address}
                 setup_fh.write('ip addr add ' + ip_address + '/' + mask +
                     ' dev lo\n')
-                log_file = '../logs/bs-%s-%s-%s.log' % (isd_id, ad_id,
+                log_file = '../logs/bs%s-%s-%s.log' % (isd_id, ad_id,
                                                         str(b_server))
                 bs_name = ''.join(['bs', isd_id, '-', ad_id, '-',
                                    str(b_server)])
@@ -340,7 +342,7 @@ def write_topo_files(AD_configs, er_ip_addresses):
                                                              'Addr': ip_address}
                 setup_fh.write('ip addr add ' + ip_address + '/' + mask +
                     ' dev lo\n')
-                log_file = '../logs/cs-%s-%s-%s.log' % (isd_id, ad_id,
+                log_file = '../logs/cs%s-%s-%s.log' % (isd_id, ad_id,
                                                         str(c_server))
                 cs_name = ''.join(['cs', isd_id, '-', ad_id, '-',
                                    str(c_server)])
@@ -363,7 +365,7 @@ def write_topo_files(AD_configs, er_ip_addresses):
                                                           'Addr': ip_address}
                     setup_fh.write('ip addr add ' + ip_address + '/' + mask +
                         ' dev lo\n')
-                    log_file = '../logs/ps-%s-%s-%s.log' % (isd_id, ad_id,
+                    log_file = '../logs/ps%s-%s-%s.log' % (isd_id, ad_id,
                                                             str(p_server))
                     ps_name = ''.join(['ps', isd_id, '-', ad_id, '-',
                                        str(p_server)])
@@ -403,7 +405,7 @@ def write_topo_files(AD_configs, er_ip_addresses):
                                    'ToUdpPort': int(PORT)}}
                 setup_fh.write('ip addr add ' + ip_address_loc + '/' + mask +
                     ' dev lo\n')
-                log_file = '../logs/er-%s-%s-%s-%s.log' % (isd_id, ad_id,
+                log_file = '../logs/er%s-%ser%s-%s.log' % (isd_id, ad_id,
                                                            nbr_isd_id,
                                                            nbr_ad_id)
                 router_name = ''.join(['er', isd_id, '-', ad_id, 'er',
