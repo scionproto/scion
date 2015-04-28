@@ -645,8 +645,9 @@ class CoreBeaconServer(BeaconServer):
                 if (ad.pcbm.spcbf.isd_id == self.topology.isd_id and
                         ad.pcbm.ad_id == self.topology.ad_id):
                     count += 1
-                    continue
-            self._try_to_verify_beacon(pcb)
+                    break
+            else:
+                self._try_to_verify_beacon(pcb)
         if count:
             logging.debug("Dropped %d previously seen Core Segment PCBs", count)
 
