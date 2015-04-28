@@ -20,7 +20,7 @@ USER scion
 ENV HOME /home/scion
 WORKDIR /home/scion/scion.git
 RUN DEBIAN_FRONTEND=noninteractive APTARGS=-y ./scion.sh deps
-RUN echo "PATH=$HOME/.local/bin:$PATH" >> ~/.profile
+RUN echo "PATH=$HOME/.local/bin:/usr/share/zookeeper/bin:$PATH" >> ~/.profile
 
 USER root
 # Clean out the cached packages now they're no longer necessary
@@ -39,4 +39,4 @@ RUN chown -R scion: /home/scion
 RUN chmod g+s /usr/bin/screen
 
 USER scion
-CMD /home/scion/bin/init.sh
+CMD ["/home/scion/bin/init.sh"]
