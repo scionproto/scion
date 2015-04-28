@@ -20,6 +20,8 @@ Various utilities for SCION functionality.
 
 import os
 import logging
+from signal import (SIGHUP, SIGINT, SIGQUIT, SIGTERM, SIGUSR1, SIGUSR2, signal)
+import sys
 import time
 
 from lib.defines import TOPOLOGY_PATH
@@ -30,6 +32,14 @@ SIG_KEYS_DIR = 'signature_keys'
 ENC_KEYS_DIR = 'encryption_keys'
 TRACE_DIR = '../traces'
 
+_SIG_MAP = {
+    SIGHUP: "SIGHUP",
+    SIGINT: "SIGINT",
+    SIGQUIT: "SIGQUIT",
+    SIGTERM: "SIGTERM",
+    SIGUSR1: "SIGUSR1",
+    SIGUSR2: "SIGUSR2"
+}
 
 def _get_isd_prefix(isd_dir):
     return os.path.join(isd_dir, 'ISD')
@@ -205,3 +215,18 @@ def sleep_interval(start, interval, desc):
                         desc, now - start, interval)
         delay = 0
     time.sleep(delay)
+
+def handle_signals():
+    """
+    Setup basic signal handler for the most common signals
+    """
+    for sig in _SIG_MAP.keys():
+        signal(sig, _signal_handler)
+    pass
+
+def _signal_handler(signum, _):
+    """
+    Basic signal handler function
+    """
+    logging.info("Received %s", _SIG_MAP[signum])
+    sys.exit(0)
