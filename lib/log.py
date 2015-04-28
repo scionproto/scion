@@ -22,6 +22,7 @@ import traceback
 # This file should not include other SCION libraries, to prevent cirular import
 # errors.
 
+
 class _StreamErrorHandler(logging.StreamHandler):
     """
     A logging StreamHandler that will exit the application if there's a logging
@@ -46,7 +47,9 @@ def init_logging(level=logging.DEBUG):
     """
     logging.basicConfig(level=level,
                         handlers=[_StreamErrorHandler()],
-                        format='%(asctime)s [%(levelname)s]\t%(message)s')
+                        format='%(asctime)s [%(levelname)s]\t'
+                               '(%(threadName)s) %(message)s')
+
 
 def log_exception(msg, *args, level=logging.CRITICAL, **kwargs):
     """
