@@ -15,9 +15,9 @@
 :mod:`end2end_test` --- SCION end2end tests
 ===========================================
 """
-from lib.packet.path import (PathType, CorePath, PeerPath, CrossOverPath,
+from lib.packet.path import (CorePath, PeerPath, CrossOverPath,
                              EmptyPath, PathBase)
-from lib.packet.opaque_field import InfoOpaqueField
+from lib.packet.opaque_field import InfoOpaqueField, OpaqueFieldType as OFT
 from lib.packet.scion import SCIONPacket
 from lib.packet.scion_addr import SCIONAddr, ISD_AD
 from endhost.sciond import SCIONDaemon, SCIOND_API_HOST, SCIOND_API_PORT
@@ -60,14 +60,14 @@ def get_paths_via_api(isd, ad):
         raw_path = data[offset:offset+path_len]
         path = None
         info = InfoOpaqueField(raw_path[0:InfoOpaqueField.LEN])
-        if info.info == PathType.CORE:
-            path = CorePath(raw_path)
-        elif info.info == PathType.CROSS_OVER:
-            path = CrossOverPath(raw_path)
-        elif info.info == PathType.PEER_LINK:
-            path = PeerPath(raw_path)
-        elif info.info == PathType.EMPTY:
+        if not path_len:  # Shouldn't happen.
             path = EmptyPath()
+        elif info.info == OFT.TDC_XOVR:
+            path = CorePath(raw_path)
+        elif info.info == OFT.NON_TDC_XOVR:
+            path = CrossOverPath(raw_path)
+        elif info.info == OFT.INTRATD_PEER or info.info == OFT.INTERTD_PEER:
+            path = PeerPath(raw_path)
         else:
             logging.info("Can not parse path: Unknown type %x", info.info)
         assert path
