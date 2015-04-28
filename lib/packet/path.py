@@ -21,17 +21,6 @@ from lib.packet.opaque_field import (InfoOpaqueField, HopOpaqueField,
     OpaqueFieldType)
 
 
-class PathType(object):
-    """
-    Defines constants for the SCION path types.
-    """
-    # TODO Discuss and (probably) remove
-    EMPTY = 0x00  # Empty path
-    CORE = OpaqueFieldType.TDC_XOVR # Path to the core
-    CROSS_OVER = OpaqueFieldType.NON_TDC_XOVR # Path with cross over
-    PEER_LINK = OpaqueFieldType.INTRATD_PEER # Path with peer link
-
-
 class PathBase(object):
     """
     Base class for paths in SCION.
@@ -41,7 +30,6 @@ class PathBase(object):
     information for each AD-level hop.
     """
     def __init__(self):
-        self.type = 0
         self.up_segment_info = None
         self.up_segment_hops = []
         self.down_segment_info = None
@@ -128,7 +116,6 @@ class CorePath(PathBase):
     """
     def __init__(self, raw=None):
         PathBase.__init__(self)
-        self.type = PathType.CORE
         self.core_segment_info = None
         self.core_segment_hops = []
 
@@ -286,7 +273,6 @@ class CrossOverPath(PathBase):
 
     def __init__(self, raw=None):
         PathBase.__init__(self)
-        self.type = PathType.PEER_LINK
         self.up_segment_upstream_ad = None
         self.down_segment_upstream_ad = None
 
@@ -387,7 +373,6 @@ class PeerPath(PathBase):
 
     def __init__(self, raw=None):
         PathBase.__init__(self)
-        self.type = PathType.PEER_LINK
         self.up_segment_peering_link = None
         self.up_segment_upstream_ad = None
         self.down_segment_peering_link = None
@@ -499,7 +484,6 @@ class EmptyPath(PathBase):
     """
     def __init__(self, raw=None):
         PathBase.__init__(self)
-        self.type = PathType.EMPTY
 
         if raw is not None:
             self.parse(raw)
@@ -600,7 +584,10 @@ class PathCombinator(object):
 
         if peer:
             path = PeerPath()
-            info = OpaqueFieldType.INTRATD_PEER
+            if up_segment.get_isd() == down_segment.get_isd():
+                info = OpaqueFieldType.INTRATD_PEER
+            else:
+                info = OpaqueFieldType.INTERTD_PEER
         else:
             path = CrossOverPath()
             info = OpaqueFieldType.NON_TDC_XOVR

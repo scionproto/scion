@@ -395,7 +395,7 @@ class Router(SCIONElement):
                 spkt.hdr.common_hdr.curr_iof_p = spkt.hdr.common_hdr.curr_of_p
                 if self.verify_of(spkt):
                     logging.debug("TODO send() here, find next hop2")
-        elif info == OFT.INTRATD_PEER:
+        elif info == OFT.INTRATD_PEER or info == OFT.INTERTD_PEER:
             if spkt.hdr.is_on_up_path():
                 spkt.hdr.increase_of(1)
             if self.verify_of(spkt):
@@ -405,9 +405,6 @@ class Router(SCIONElement):
                         self.ifid2addr[spkt.hdr.get_current_of().ingress_if])
                 logging.debug("send() here, next: %s", next_hop)
                 self.send(spkt, next_hop)
-        elif info == OFT.INTERTD_PEER:
-            # TODO implement INTERTD_PEER
-            pass
         else:
             logging.warning("Unknown case %u", info)
 
@@ -436,7 +433,8 @@ class Router(SCIONElement):
         # Case: peer path and first opaque field of a down path. We need to
         # increase opaque field pointer as that first opaque field is used for
         # MAC verification only.
-        if (not spkt.hdr.is_on_up_path() and info == OFT.INTRATD_PEER and
+        if (not spkt.hdr.is_on_up_path() and
+            info in [OFT.INTRATD_PEER, OFT.INTERTD_PEER] and
             spkt.hdr.common_hdr.curr_of_p == curr_iof_p + OpaqueField.LEN):
             spkt.hdr.increase_of(1)
 
@@ -464,10 +462,11 @@ class Router(SCIONElement):
 
         info = spkt.hdr.get_current_iof().info
         spkt.hdr.increase_of(1)
-        if info == OFT.INTRATD_PEER:
+        if info in [OFT.INTRATD_PEER, OFT.INTERTD_PEER]:
             of1_info = spkt.hdr.get_relative_of(1).info
             of2_info = spkt.hdr.get_current_of().info
-            if ((of1_info == OFT.INTRATD_PEER and spkt.hdr.is_on_up_path()) or
+            if ((of1_info in [OFT.INTRATD_PEER, OFT.INTERTD_PEER] and
+                 spkt.hdr.is_on_up_path()) or
                 (of2_info == OFT.LAST_OF and not spkt.hdr.is_on_up_path())):
                 spkt.hdr.increase_of(1)
 

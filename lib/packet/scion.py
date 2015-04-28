@@ -17,10 +17,11 @@
 """
 
 from lib.packet.ext_hdr import ExtensionHeader, ICNExtHdr
-from lib.packet.opaque_field import InfoOpaqueField, OpaqueField
+from lib.packet.opaque_field import (InfoOpaqueField, OpaqueField,
+                                     OpaqueFieldType as OFT)
 from lib.packet.packet_base import HeaderBase, PacketBase
-from lib.packet.path import (PathType, CorePath, PeerPath, CrossOverPath,
-    EmptyPath, PathBase)
+from lib.packet.path import (CorePath, PeerPath, CrossOverPath,
+                             EmptyPath, PathBase)
 from lib.packet.scion_addr import SCIONAddr, ISD_AD
 from bitstring import BitArray
 import bitstring
@@ -277,20 +278,18 @@ class SCIONHeader(HeaderBase):
         # Parse opaque fields.
         # PSz: UpPath-only case missing, quick fix:
         if offset == self.common_hdr.hdr_len:
-            info = InfoOpaqueField()
+            self._path = EmptyPath()
         else:
             info = InfoOpaqueField(raw[offset:offset + InfoOpaqueField.LEN])
-        if info.info == PathType.CORE:
-            self._path = CorePath(raw[offset:self.common_hdr.hdr_len])
-        elif info.info == PathType.CROSS_OVER:
-            self._path = CrossOverPath(raw[offset:self.common_hdr.hdr_len])
-        elif info.info == PathType.PEER_LINK:
-            self._path = PeerPath(raw[offset:self.common_hdr.hdr_len])
-        elif info.info == PathType.EMPTY:
-            self._path = EmptyPath()  # PSz raw[offset:self.common_hdr.hdr_len])
-        else:
-            logging.info("Can not parse path in packet: Unknown type %x",
-                         info.info)
+            if info.info == OFT.TDC_XOVR:
+                self._path = CorePath(raw[offset:self.common_hdr.hdr_len])
+            elif info.info == OFT.NON_TDC_XOVR:
+                self._path = CrossOverPath(raw[offset:self.common_hdr.hdr_len])
+            elif info.info == OFT.INTRATD_PEER or info.info == OFT.INTERTD_PEER:
+                self._path = PeerPath(raw[offset:self.common_hdr.hdr_len])
+            else:
+                logging.info("Can not parse path in packet: Unknown type %x",
+                             info.info)
         offset = self.common_hdr.hdr_len
         # Parse extensions headers.
         # FIXME: The last extension header should be a layer 4 protocol header.
