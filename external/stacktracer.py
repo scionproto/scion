@@ -13,6 +13,7 @@ stacktracer.stop_trace()
 
 from datetime import datetime
 import sys
+import threading
 import traceback
 from pygments import highlight
 from pygments.lexers import PythonLexer
@@ -23,9 +24,14 @@ from lib.thread import thread_safety_net
  # Taken from http://bzimmer.ziclix.com/2008/12/17/python-thread-dumps/
  
 def stacktraces():
+    # First map thread IDs to thread names
+    id_name = {}
+    for thread in threading.enumerate():
+        id_name[thread.ident] = thread.name
     code = []
     for threadId, stack in sys._current_frames().items():
-        code.append("\n# ThreadID: %s" % threadId)
+        code.append("\n# ThreadID: %s, Name: %s" %
+                    (threadId, id_name.get(threadId, "UNKNOWN")))
         for filename, lineno, name, line in traceback.extract_stack(stack):
             code.append('File: "%s", line %d, in %s' % (filename, lineno, name))
             if line:
@@ -58,7 +64,7 @@ class TraceDumper(threading.Thread):
         self.interval = interval
         self.fpath = os.path.abspath(fpath)
         self.stop_requested = threading.Event()
-        threading.Thread.__init__(self)
+        threading.Thread.__init__(self, name="TraceDumper")
     
     @thread_safety_net("stacktracer")
     def run(self):

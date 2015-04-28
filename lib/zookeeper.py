@@ -116,7 +116,8 @@ class Zookeeper(object):
         self._state_event = threading.Semaphore(value=0)
         # Use a thread to respond to state changes, as the listener callback
         # must not block.
-        threading.Thread(target=self._state_handler, daemon=True).start()
+        threading.Thread(target=self._state_handler,
+                         name="ZK state handler", daemon=True).start()
         # Listener called every time connection state changes
         self._zk.add_listener(self._state_listener)
 

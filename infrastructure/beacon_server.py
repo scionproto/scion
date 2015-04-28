@@ -237,9 +237,15 @@ class BeaconServer(SCIONElement):
         """
         Run an instance of the Beacon Server.
         """
-        threading.Thread(target=self.handle_pcbs_propagation, daemon=True).start()
-        threading.Thread(target=self.register_segments, daemon=True).start()
-        threading.Thread(target=self.read_shared_pcbs, daemon=True).start()
+        threading.Thread(target=self.handle_pcbs_propagation,
+                         name="BS PCB propagation",
+                         daemon=True).start()
+        threading.Thread(target=self.register_segments,
+                         name="BS register segments",
+                         daemon=True).start()
+        threading.Thread(target=self.read_shared_pcbs,
+                         name="BS shared pcbs",
+                         daemon=True).start()
         SCIONElement.run(self)
 
     def _check_filters(self, pcb):
