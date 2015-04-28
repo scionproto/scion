@@ -37,7 +37,7 @@ from lib.packet.scion_addr import SCIONAddr, ISD_AD
 from lib.path_store import PathPolicy, PathStoreRecord, PathStore
 from lib.util import (read_file, write_file, get_cert_chain_file_path,
     get_sig_key_file_path, get_trc_file_path,
-    trace, timed, sleep_interval)
+    trace, timed, sleep_interval, handle_signals)
 from lib.thread import thread_safety_net
 from lib.log import (init_logging, log_exception)
 from lib.zookeeper import (Zookeeper, ZkConnectionLoss, ZkNoNodeError)
@@ -978,6 +978,7 @@ def main():
     Main function.
     """
     init_logging()
+    handle_signals()
     if len(sys.argv) != 6:
         logging.error("run: %s <core|local> IP topo_file conf_file path_policy_file",
             sys.argv[0])
@@ -1006,4 +1007,5 @@ if __name__ == "__main__":
         raise
     except:
         log_exception("Exception in main process:")
+        logging.critical("Exiting")
         sys.exit(1)

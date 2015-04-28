@@ -22,7 +22,7 @@ from lib.crypto.certificate import TRC
 from lib.packet.scion import (SCIONPacket, get_type, PacketType as PT,
     CertChainRequest, CertChainReply, TRCRequest, TRCReply)
 from lib.util import (read_file, write_file, get_cert_chain_file_path,
-    get_trc_file_path)
+    get_trc_file_path, handle_signals)
 from lib.log import (init_logging, log_exception)
 import collections
 import datetime
@@ -196,6 +196,7 @@ def main():
     Main function.
     """
     init_logging()
+    handle_signals()
     if len(sys.argv) != 5:
         logging.error("run: %s IP topo_file conf_file trc_file", sys.argv[0])
         sys.exit()
@@ -214,4 +215,5 @@ if __name__ == "__main__":
         raise
     except:
         log_exception("Exception in main process:")
-        raise
+        logging.critical("Exiting")
+        sys.exit(1)

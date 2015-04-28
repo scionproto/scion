@@ -25,6 +25,7 @@ from lib.packet.scion import (PacketType as PT, SCIONPacket, IFIDRequest,
     IFIDReply, get_type)
 from lib.packet.scion_addr import SCIONAddr, ISD_AD
 from lib.log import (init_logging, log_exception)
+from lib.util import handle_signals
 from lib.thread import thread_safety_net
 import datetime
 import logging
@@ -546,6 +547,7 @@ def main():
     Initializes and starts router.
     """
     init_logging()
+    handle_signals()
     if len(sys.argv) != 4:
         logging.error("run: %s IP topo_file conf_file", sys.argv[0])
         sys.exit()
@@ -563,4 +565,5 @@ if __name__ == "__main__":
         raise
     except:
         log_exception("Exception in main process:")
-        raise
+        logging.critical("Exiting")
+        sys.exit(1)

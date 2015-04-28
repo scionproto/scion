@@ -29,7 +29,7 @@ from lib.packet.path_mgmt import (PathSegmentRecords, PathSegmentInfo,
 from lib.packet.pcb import PathSegment
 from lib.path_db import PathSegmentDB, DBResult
 from lib.packet.scion_addr import ISD_AD
-from lib.util import update_dict
+from lib.util import (update_dict, handle_signals)
 from lib.log import (init_logging, log_exception)
 import copy
 import datetime
@@ -867,6 +867,7 @@ def main():
     Main function.
     """
     init_logging()
+    handle_signals()
     if len(sys.argv) != 5:
         logging.error("run: %s <core|local>  IP topo_file conf_file",
                       sys.argv[0])
@@ -893,4 +894,5 @@ if __name__ == "__main__":
         raise
     except:
         log_exception("Exception in main process:")
-        raise
+        logging.critical("Exiting")
+        sys.exit(1)
