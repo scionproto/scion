@@ -443,7 +443,7 @@ class PathSegment(Marking):
         other_hops = [ad.pcbm.ad_id for ad in other.ads]
         return self_hops == other_hops
 
-    def get_hops_hash(self):
+    def get_hops_hash(self, hex=False):
         """
         Returns the hash over all the interface revocation tokens included in
         the path segment.
@@ -455,6 +455,8 @@ class PathSegment(Marking):
             for pm in ad.pms:
                 h.update(pm.ig_rev_token)
                 h.update(pm.eg_rev_token)
+        if hex:
+            return h.hexdigest()
         return h.digest()
 
     def get_n_peer_links(self):
