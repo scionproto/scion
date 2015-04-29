@@ -46,7 +46,6 @@ TOPO_DIR = 'topologies'
 SIG_KEYS_DIR = 'signature_keys'
 ENC_KEYS_DIR = 'encryption_keys'
 SETUP_DIR = 'setup'
-RUN_DIR = 'run'
 PATH_POL_DIR = 'path_policies'
 SUPERVISOR_DIR = 'supervisor'
 
@@ -155,11 +154,10 @@ def create_directories(AD_configs):
         sig_keys_path = os.path.join(isd_name, SIG_KEYS_DIR)
         enc_keys_path = os.path.join(isd_name, ENC_KEYS_DIR)
         setup_path = os.path.join(isd_name, SETUP_DIR)
-        run_path = os.path.join(isd_name, RUN_DIR)
         path_pol_path = os.path.join(isd_name, PATH_POL_DIR)
         supervisor_path = os.path.join(isd_name, SUPERVISOR_DIR)
         paths = [cert_path, conf_path, topo_path, sig_keys_path, enc_keys_path,
-                 setup_path, run_path, path_pol_path, supervisor_path]
+                 setup_path, path_pol_path, supervisor_path]
         for path in paths:
             full_path = os.path.join(out_dir, path)
             if not os.path.exists(full_path):
@@ -197,7 +195,8 @@ def write_keys_certs(AD_configs):
             (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
             iss_isd_ad_id = AD_configs[isd_ad_id]['cert_issuer']
             (iss_isd_id, iss_ad_id) = iss_isd_ad_id.split(ISD_AD_ID_DIVISOR)
-            cert = Certificate.from_values('ISD:' + isd_id + '-AD:' + ad_id,
+            cert = Certificate.from_values(
+                'ISD:' + isd_id + '-AD:' + ad_id,
                 sig_pub_keys[isd_ad_id], enc_pub_keys[isd_ad_id],
                 'ISD:' + iss_isd_id + '-AD:' + iss_ad_id,
                 sig_priv_keys[iss_isd_ad_id], INITIAL_CERT_VERSION)
@@ -217,8 +216,9 @@ def write_keys_certs(AD_configs):
         write_file(cert_file, str(chain))
         # Test if parser works
         cert = CertificateChain(cert_file)
-    return {'sig_priv_keys': sig_priv_keys, 'sig_pub_keys': sig_pub_keys,
-        'enc_pub_keys': enc_pub_keys}
+    return {'sig_priv_keys': sig_priv_keys,
+            'sig_pub_keys': sig_pub_keys,
+            'enc_pub_keys': enc_pub_keys}
 
 
 def _path_dict(isd_id, ad_id):
@@ -226,20 +226,18 @@ def _path_dict(isd_id, ad_id):
     file_name = 'ISD:' + isd_id + '-AD:' + ad_id
     setup_file = os.path.join(out_dir, isd_name,
                               SETUP_DIR, file_name + '.sh')
-    run_file = os.path.join(out_dir, isd_name,
-                            RUN_DIR, file_name + '.sh')
     supervisor_file = os.path.join(out_dir, isd_name,
-                                     SUPERVISOR_DIR, file_name + '.conf')
+                                   SUPERVISOR_DIR, file_name + '.conf')
     topo_file = os.path.join(isd_name, TOPO_DIR, file_name + '.json')
     topo_file_rel = os.path.join("..", SCRIPTS_DIR, topo_file)
     conf_file_rel = os.path.join("..", SCRIPTS_DIR, isd_name, CONF_DIR,
-                                   file_name + '.conf')
+                                 file_name + '.conf')
     trc_file = get_trc_file_path(isd_id, ad_id, isd_id, INITIAL_TRC_VERSION,
                                  isd_dir=out_dir)
     trc_file_rel = os.path.join('..', SCRIPTS_DIR,
                                 os.path.relpath(trc_file, out_dir))
     path_pol_file_rel = os.path.join("..", SCRIPTS_DIR, isd_name,
-                                       PATH_POL_DIR, file_name + '.json')
+                                     PATH_POL_DIR, file_name + '.json')
     return locals()
 
 
@@ -256,10 +254,6 @@ def write_topo_files(AD_configs, er_ip_addresses):
     for isd_ad_id in AD_configs:
         (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
         p = _path_dict(isd_id, ad_id)
-        topo_file_rel = p['topo_file_rel']
-        conf_file_rel = p['conf_file_rel']
-        path_pol_file_rel = p['path_pol_file_rel']
-        trc_file_rel = p['trc_file_rel']
         topo_file = p['topo_file']
         is_core = (AD_configs[isd_ad_id]['level'] == CORE_AD)
         if "subnet" in AD_configs[isd_ad_id]:
@@ -288,97 +282,50 @@ def write_topo_files(AD_configs, er_ip_addresses):
                      'CertificateServers': {},
                      'PathServers': {},
                      'EdgeRouters': {}}
-        with open(p['run_file'], 'a') as run_fh:
 
-            # Write header
-            preamble = '#!/bin/bash\n\n'
-            run_fh.write(preamble)
-
-            # Create per-AD screen session, and cleanup any existing one
-            run_fh.write('screen -S %s -X quit >/dev/null\n' % isd_ad_id)
-            run_fh.write('screen -d -m -S %s\n' % isd_ad_id)
-            # Make sure the screen session is up before continuing
-            run_fh.write('for i in `seq 10`; do\n'
-                         '  screen -q -ls %s\n'
-                         '  [ $? -gt 9 ] && break\n'
-                         '  echo -n .\n'
-                         '  sleep 1 || { echo "Can\'t find screen session"; exit 1; }\n'
-                         'done\n' % isd_ad_id)
-            # Write Beacon Servers
-            ip_address = '.'.join([first_byte, isd_id, ad_id, BS_RANGE])
-            for b_server in range(1, number_bs + 1):
-                topo_dict['BeaconServers'][b_server] = {'AddrType': 'IPv4',
-                                                        'Addr': ip_address}
-                log_file = '../logs/bs%s-%s-%s.log' % (isd_id, ad_id,
-                                                        str(b_server))
-                bs_name = ''.join(['bs', isd_id, '-', ad_id, '-',
-                                   str(b_server)])
-                run_fh.write(_generate_screen_cmd(
-                    isd_ad_id, bs_name, log_file,
-                    "beacon_server.py",
-                    ('core' if is_core else 'local'), ip_address,
-                    topo_file_rel, conf_file_rel, path_pol_file_rel))
+        # Write Beacon Servers
+        ip_address = '.'.join([first_byte, isd_id, ad_id, BS_RANGE])
+        for b_server in range(1, number_bs + 1):
+            topo_dict['BeaconServers'][b_server] = {'AddrType': 'IPv4',
+                                                    'Addr': ip_address}
+            ip_address = increment_address(ip_address, mask)
+        # Write Certificate Servers
+        ip_address = '.'.join([first_byte, isd_id, ad_id, CS_RANGE])
+        for c_server in range(1, number_cs + 1):
+            topo_dict['CertificateServers'][c_server] = {'AddrType': 'IPv4',
+                                                         'Addr': ip_address}
+            ip_address = increment_address(ip_address, mask)
+        # Write Path Servers
+        if (AD_configs[isd_ad_id]['level'] != INTERMEDIATE_AD or
+            "path_servers" in AD_configs[isd_ad_id]):
+            ip_address = '.'.join([first_byte, isd_id, ad_id, PS_RANGE])
+            for p_server in range(1, number_ps + 1):
+                topo_dict['PathServers'][p_server] = {'AddrType': 'IPv4',
+                                                      'Addr': ip_address}
                 ip_address = increment_address(ip_address, mask)
-            # Write Certificate Servers
-            ip_address = '.'.join([first_byte, isd_id, ad_id, CS_RANGE])
-            for c_server in range(1, number_cs + 1):
-                topo_dict['CertificateServers'][c_server] = {'AddrType': 'IPv4',
-                                                             'Addr': ip_address}
-                log_file = '../logs/cs%s-%s-%s.log' % (isd_id, ad_id,
-                                                        str(c_server))
-                cs_name = ''.join(['cs', isd_id, '-', ad_id, '-',
-                                   str(c_server)])
-                run_fh.write(_generate_screen_cmd(
-                    isd_ad_id, cs_name, log_file, "cert_server.py", ip_address,
-                    topo_file_rel, conf_file_rel, trc_file_rel))
-                ip_address = increment_address(ip_address, mask)
-            # Write Path Servers
-            if (AD_configs[isd_ad_id]['level'] != INTERMEDIATE_AD or
-                "path_servers" in AD_configs[isd_ad_id]):
-                ip_address = '.'.join([first_byte, isd_id, ad_id, PS_RANGE])
-                for p_server in range(1, number_ps + 1):
-                    topo_dict['PathServers'][p_server] = {'AddrType': 'IPv4',
-                                                          'Addr': ip_address}
-                    log_file = '../logs/ps%s-%s-%s.log' % (isd_id, ad_id,
-                                                            str(p_server))
-                    ps_name = ''.join(['ps', isd_id, '-', ad_id, '-',
-                                       str(p_server)])
-                    run_fh.write(_generate_screen_cmd(
-                        isd_ad_id, ps_name, log_file, "path_server.py",
-                        ('core' if is_core else 'local'), ip_address,
-                        topo_file_rel, conf_file_rel))
-                    ip_address = increment_address(ip_address, mask)
-            # Write Edge Routers
-            edge_router = 1
-            for nbr_isd_ad_id in AD_configs[isd_ad_id].get("links", []):
-                (nbr_isd_id, nbr_ad_id) = nbr_isd_ad_id.split(ISD_AD_ID_DIVISOR)
-                ip_address_loc = er_ip_addresses[(isd_ad_id, nbr_isd_ad_id)][0]
-                ip_address_pub = er_ip_addresses[(isd_ad_id, nbr_isd_ad_id)][1]
-                nbr_ip_address_pub = \
-                    er_ip_addresses[(nbr_isd_ad_id, isd_ad_id)][1]
-                nbr_type = AD_configs[isd_ad_id]["links"][nbr_isd_ad_id]
-                if_id = str(255 + int(ad_id) + int(nbr_ad_id))
-                topo_dict['EdgeRouters'][edge_router] = \
-                    {'AddrType': 'IPv4',
-                     'Addr': ip_address_loc,
-                     'Interface': {'IFID': int(if_id),
-                                   'NeighborISD': int(nbr_isd_id),
-                                   'NeighborAD': int(nbr_ad_id),
-                                   'NeighborType': nbr_type,
-                                   'AddrType': 'IPv4',
-                                   'Addr': ip_address_pub,
-                                   'ToAddr': nbr_ip_address_pub,
-                                   'UdpPort': int(PORT),
-                                   'ToUdpPort': int(PORT)}}
-                log_file = '../logs/er%s-%ser%s-%s.log' % (isd_id, ad_id,
-                                                           nbr_isd_id,
-                                                           nbr_ad_id)
-                router_name = ''.join(['er', isd_id, '-', ad_id, 'er',
-                                       nbr_isd_id, '-', nbr_ad_id])
-                run_fh.write(_generate_screen_cmd(
-                    isd_ad_id, router_name, log_file, "router.py",
-                    ip_address_loc, topo_file_rel, conf_file_rel))
-                edge_router += 1
+        # Write Edge Routers
+        edge_router = 1
+        for nbr_isd_ad_id in AD_configs[isd_ad_id].get("links", []):
+            (nbr_isd_id, nbr_ad_id) = nbr_isd_ad_id.split(ISD_AD_ID_DIVISOR)
+            ip_address_loc = er_ip_addresses[(isd_ad_id, nbr_isd_ad_id)][0]
+            ip_address_pub = er_ip_addresses[(isd_ad_id, nbr_isd_ad_id)][1]
+            nbr_ip_address_pub = \
+                er_ip_addresses[(nbr_isd_ad_id, isd_ad_id)][1]
+            nbr_type = AD_configs[isd_ad_id]["links"][nbr_isd_ad_id]
+            if_id = str(255 + int(ad_id) + int(nbr_ad_id))
+            topo_dict['EdgeRouters'][edge_router] = \
+                {'AddrType': 'IPv4',
+                 'Addr': ip_address_loc,
+                 'Interface': {'IFID': int(if_id),
+                               'NeighborISD': int(nbr_isd_id),
+                               'NeighborAD': int(nbr_ad_id),
+                               'NeighborType': nbr_type,
+                               'AddrType': 'IPv4',
+                               'Addr': ip_address_pub,
+                               'ToAddr': nbr_ip_address_pub,
+                               'UdpPort': int(PORT),
+                               'ToUdpPort': int(PORT)}}
+            edge_router += 1
 
         topo_file_abs = os.path.join(out_dir, topo_file)
         with open(topo_file_abs, 'w') as topo_fh:
@@ -387,13 +334,13 @@ def write_topo_files(AD_configs, er_ip_addresses):
         topology = Topology(topo_file_abs)
 
         write_supervisor_config(topo_dict)
-        write_setup_files(topo_dict, mask)
+        write_setup_file(topo_dict, mask)
 
 
 def _get_typed_elements(topo_dict):
     """
-    Return an iterator over all the elements in the topology along
-    with the corresponding type label.
+    Generator which iterates over all the elements in the topology
+    supplemented with the corresponding type label.
     """
     element_types = ['BeaconServers', 'CertificateServers',
                      'PathServers', 'EdgeRouters']
@@ -402,7 +349,7 @@ def _get_typed_elements(topo_dict):
             yield (element_num, element_dict, element_type)
 
 
-def write_setup_files(topo_dict, mask=None):
+def write_setup_file(topo_dict, mask=None):
     if mask is None:
         mask = default_subnet.split('/')[1]
 
@@ -491,21 +438,6 @@ def write_supervisor_config(topo_dict):
         supervisor_config.write(conf_fh)
 
 
-def _generate_screen_cmd(isd_ad_id, name, log, *args):
-    line = [
-            "screen -S",
-            isd_ad_id,
-            "-X screen -t",
-            name,
-            "sh -c \"trap : 2; PYTHONPATH=../ python3",
-            ]
-    line.extend(args)
-    line.extend([
-        "2>&1 | tee",
-        log,
-        "; echo \\\"\\n(process exited $?)\\\"; exec sh\"\n"])
-    return " ".join(line)
-
 def write_conf_files(AD_configs):
     """
     Generate the AD configurations and store them into files.
@@ -573,9 +505,13 @@ def write_trc_files(AD_configs, keys):
             trc_file = os.path.join(out_dir, 'ISD' + isd_id, file_name)
             # Create core certificate
             subject = 'ISD:' + isd_id + '-AD:' + ad_id
-            cert = Certificate.from_values(subject,
-                keys['sig_pub_keys'][isd_ad_id],keys['enc_pub_keys'][isd_ad_id],
-                subject, keys['sig_priv_keys'][isd_ad_id], 0)
+            cert = Certificate.from_values(
+                subject,
+                keys['sig_pub_keys'][isd_ad_id],
+                keys['enc_pub_keys'][isd_ad_id],
+                subject,
+                keys['sig_priv_keys'][isd_ad_id],
+                0)
             if os.path.exists(trc_file):
                 trc = TRC(trc_file)
                 trc.core_ads[subject] = cert
@@ -592,7 +528,8 @@ def write_trc_files(AD_configs, keys):
                 root_dns_server_cert = 'dns_server_cert_base64'
                 trc_server_addr = 'isd_id-ad_id-ip_address'
                 signatures = {}
-                trc = TRC.from_values(int(isd_id), 0, 1, 1, core_isps, root_cas,
+                trc = TRC.from_values(
+                    int(isd_id), 0, 1, 1, core_isps, root_cas,
                     core_ads, {}, registry_server_addr, registry_server_cert,
                     root_dns_server_addr, root_dns_server_cert, trc_server_addr,
                     signatures)
