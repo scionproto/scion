@@ -18,6 +18,7 @@
 # Stdlib
 import logging
 import os.path
+import queue
 import threading
 import time
 
@@ -46,17 +47,23 @@ class ZkBaseError(SCIONBaseError):
 
 
 class ZkConnectionLoss(ZkBaseError):
-    """Connection to Zookeeper is lost"""
+    """
+    Connection to Zookeeper is lost
+    """
     pass
 
 
 class ZkNoNodeError(ZkBaseError):
-    """A node doesn't exist"""
+    """
+    A node doesn't exist
+    """
     pass
 
 
 class ZkRetryLimit(ZkBaseError):
-    """Operation retries hit limit"""
+    """
+    Operation retries hit limit
+    """
     pass
 
 
@@ -70,9 +77,9 @@ class Zookeeper(object):
 
     E.g. Kazoo's Lock will claim to be held, even if the Zookeeper connection
     has been lost in the meantime. This causes an immediate split-brain problem
-    for anything relying on that lock for synchronization. This is also,
-    unfortunately, no way to inform the local Lock object that the connection
-    is down and therefore the Lock should be released.
+    for anything relying on that lock for synchronization. There is also,
+    unfortunately, no documented way to inform the local Lock object that the
+    connection is down and therefore the Lock should be released.
 
     All of Kazoo's events are done via callbacks. These callbacks must not
     block. If they do, no more Kazoo events can happen.
@@ -121,7 +128,7 @@ class Zookeeper(object):
         # Keep track of the kazoo lock
         self._lock = threading.Event()
         # Used to signal connection state changes
-        self._state_event = threading.Semaphore(value=0)
+        self._state_events = queue.Queue()
         # Kazoo parties
         self._parties = {}
         # Kazoo lock (initialised later)
@@ -180,7 +187,8 @@ class Zookeeper(object):
         Called everytime the Kazoo connection state changes.
         """
         # Signal a connection state change
-        self._state_event.release()
+        logging.debug("Kazoo state changed to %s", new_state)
+        self._state_events.put(new_state)
         # Tell kazoo not to remove this listener:
         return False
 
@@ -192,16 +200,27 @@ class Zookeeper(object):
         old_state = initial_state
         while True:
             # Wait for connection state change
-            self._state_event.acquire()
-            # Short-circuit handler if the state hasn't actually changed
-            if old_state == self._zk.state:
+            new_state = self._state_events.get()
+
+            if (new_state == KazooState.CONNECTED and not
+                    self._state_events.empty()):
+                # Helps prevent some state flapping.
+                logging.debug("Kazoo CONNECTED ignored as the events "
+                              "queue is not empty.")
                 continue
+            # Short-circuit handler if the state hasn't actually changed. This
+            # prooobably shouldn't happen now, so making it an error.
+            if new_state == old_state:
+                logging.error("Kazoo state didn't change from %s, ignoring",
+                              old_state)
+                continue
+
             logging.debug("Kazoo old state: %s, new state: %s",
-                          old_state, self._zk.state)
-            old_state = self._zk.state
-            if self._zk.state == KazooState.CONNECTED:
+                          old_state, new_state)
+            old_state = new_state
+            if new_state == KazooState.CONNECTED:
                 self._state_connected()
-            elif self._zk.state == KazooState.SUSPENDED:
+            elif new_state == KazooState.SUSPENDED:
                 self._state_suspended()
             else:
                 self._state_lost()
