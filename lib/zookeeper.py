@@ -19,6 +19,7 @@
 import os.path
 import logging
 import threading
+import time
 
 from kazoo.client import (KazooClient, KazooState, KazooRetry)
 from kazoo.handlers.threading import TimeoutError
@@ -373,3 +374,39 @@ class Zookeeper(object):
         except (ConnectionLoss, SessionExpiredError):
             raise ZkConnectionLoss
         return entry_meta
+
+    @timed(1.0)
+    def expire_shared_items(self, path, cutoff):
+        """
+        Delete items from a shared path that haven't been modified since
+        `cutoff`
+
+        :param str path: The path the items are stored in. E.g.  ``"shared"``
+        :param int cutoff: Time (in seconds since epoch) before which to expire
+                           items.
+        :return: Number of items expired
+        :rtype: int
+        :raises:
+            ZkConnectionLoss: if the connection to ZK drops
+            ZkNoNodeError: if a node disappears unexpectedly
+        """
+        if not self.is_connected():
+            return
+        entries_meta = self.get_shared_metadata(path)
+        if not entries_meta:
+            return 0
+        count = 0
+        for entry, meta in entries_meta:
+            if meta.last_modified < cutoff:
+                count += 1
+                try:
+                    #logging.debug("Deleting old entry: %s Last modified: %s",
+                    #              os.path.join(self._prefix, path, entry),
+                    #              time.ctime(meta.last_modified))
+                    self._zk.delete(os.path.join(self._prefix, path, entry))
+                except NoNodeError:
+                    # This shouldn't happen, so raise an exception if it does.
+                    raise ZkNoNodeError
+                except (ConnectionLoss, SessionExpiredError):
+                    raise ZkConnectionLoss
+        return count

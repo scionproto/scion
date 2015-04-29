@@ -428,7 +428,9 @@ class BeaconServer(SCIONElement):
                     self.zk.join_party()
                     # Make sure we re-read the entire cache
                     self._latest_entry = 0
-                self._read_cached_entries()
+                count = self._read_cached_entries()
+                if count:
+                    logging.debug("Processed %d new/updated PCBs", count)
             except ZkConnectionLoss:
                 continue
             self._state_synced.set()
@@ -560,7 +562,14 @@ class CoreBeaconServer(BeaconServer):
                 pcb = self.beacons.popleft()
                 count += self.propagate_core_pcb(pcb)
             logging.info("Propagated %d Core PCBs", count)
-            # TODO(kormat): prune old PCBs
+            try:
+                count = self.zk.expire_shared_items(
+                    self.ZK_PCB_CACHE_PATH,
+                    start_propagation - self.config.propagation_time*10)
+            except ZkConnectionLoss:
+                continue
+            if count:
+                logging.debug("Expired %d old PCBs from shared cache", count)
             sleep_interval(start_propagation, self.config.propagation_time,
                            "PCB propagation")
 
@@ -903,7 +912,14 @@ class LocalBeaconServer(BeaconServer):
             best_segments = self.beacons.get_best_segments()
             for pcb in best_segments:
                 self.propagate_downstream_pcb(pcb)
-            # TODO(kormat): prune old PCBs
+            try:
+                count = self.zk.expire_shared_items(
+                    self.ZK_PCB_CACHE_PATH,
+                    start_propagation - self.config.propagation_time*10)
+            except ZkConnectionLoss:
+                continue
+            if count:
+                logging.debug("Expired %d old PCBs from shared cache", count)
             sleep_interval(start_propagation, self.config.propagation_time,
                            "PCB propagation")
 
