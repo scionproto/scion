@@ -15,25 +15,25 @@
 :mod:`generator` --- SCION topology generator
 =============================================
 """
-from lib.defines import TOPOLOGY_PATH
+import base64
+import configparser
+import json
+import logging
+import os
+import shutil
+import socket
+import struct
+import sys
 
-from lib.topology import Topology
+from lib.defines import TOPOLOGY_PATH
 from lib.config import Config
 from lib.crypto.certificate import (Certificate, CertificateChain, TRC)
 from lib.crypto.asymcrypto import (sign, generate_signature_keypair,
     generate_cryptobox_keypair)
+from lib.path_store import PathPolicy
+from lib.topology import Topology
 from lib.util import (get_cert_chain_file_path, get_sig_key_file_path,
     get_enc_key_file_path, get_trc_file_path, write_file)
-from lib.path_store import PathPolicy
-import json
-import logging
-import shutil
-import os
-import struct
-import socket
-import base64
-import configparser
-import sys
 
 
 DEFAULT_ADCONFIGURATIONS_FILE = 'ADConfigurations.json'
@@ -69,6 +69,50 @@ default_subnet = "127.0.0.0/8"
 out_dir = TOPOLOGY_PATH
 
 
+def _get_subnet_params(ad_config):
+    if "subnet" in ad_config:
+        first_byte = ad_config["subnet"].split('.')[0]
+        mask = ad_config["subnet"].split('/')[1]
+    else:
+        first_byte = default_subnet.split('.')[0]
+        mask = default_subnet.split('/')[1]
+    return first_byte, mask
+
+
+def _path_dict(isd_id, ad_id):
+    """
+    Return a dictionary with the computed paths for a given AD.
+    """
+    isd_name = 'ISD{}'.format(isd_id)
+    file_no_ext = 'ISD:{}-AD:{}'.format(isd_id, ad_id)
+
+    setup_file_abs = os.path.join(out_dir, isd_name,
+                                  SETUP_DIR, file_no_ext + '.sh')
+    supervisor_file_abs = os.path.join(out_dir, isd_name,
+                                       SUPERVISOR_DIR, file_no_ext + '.conf')
+
+    topo_path_tail = os.path.join(isd_name, TOPO_DIR, file_no_ext + '.json')
+    topo_file_abs = os.path.join(out_dir, topo_path_tail)
+    topo_file_rel = os.path.join("..", SCRIPTS_DIR, topo_path_tail)
+
+    conf_path_tail = os.path.join(isd_name, CONF_DIR, file_no_ext + '.conf')
+    conf_file_abs = os.path.join(out_dir, conf_path_tail)
+    conf_file_rel = os.path.join("..", SCRIPTS_DIR, conf_path_tail)
+
+    trc_file_abs = get_trc_file_path(isd_id, ad_id, isd_id,
+                                     INITIAL_TRC_VERSION, isd_dir=out_dir)
+    trc_file_rel = os.path.join('..', SCRIPTS_DIR,
+                                os.path.relpath(trc_file_abs, out_dir))
+    trc_temp_file = os.path.join(out_dir, isd_name,
+                                 'ISD:{}-V:0.crt'.format(isd_id))
+
+    path_pol_path_tail = os.path.join(isd_name, PATH_POL_DIR,
+                                      file_no_ext + '.json')
+    path_pol_file_abs = os.path.join(out_dir, path_pol_path_tail)
+    path_pol_file_rel = os.path.join("..", SCRIPTS_DIR, path_pol_path_tail)
+    return locals()
+
+
 def increment_address(ip_address, mask, increment=1):
     """
     Increment an IP address value.
@@ -88,37 +132,31 @@ def increment_address(ip_address, mask, increment=1):
     ip_address_int = ip2int(ip_address)
     ip_address_int += increment
     ip_address = int2ip(ip_address_int)
-    bytes = ip_address.split('.')
-    bits = ''.join([format(int(bytes[0]), '08b'), format(int(bytes[1]), '08b'),
-                    format(int(bytes[2]), '08b'), format(int(bytes[3]), '08b')])
+    ip_bytes = ip_address.split('.')
+    bits = ''.join([format(int(byte), '08b') for byte in ip_bytes])
     if bits[int(mask):] == ('1' * (32 - int(mask))):
         logging.error("Reached a broadcast IP address: " + ip_address)
         sys.exit()
     return ip_address
 
 
-def set_er_ip_addresses(AD_configs):
+def set_er_ip_addresses(ad_configs):
     """
     Set the IP addresses of all edge routers.
 
-    :param AD_configs: the configurations of all SCION ADs.
-    :type AD_configs: dict
+    :param ad_configs: the configurations of all SCION ADs.
+    :type ad_configs: dict
     :returns: the edge router IP addresses.
     :rtype: dict
     """
     er_ip_addresses = {}
-    for isd_ad_id in AD_configs:
-        if "subnet" in AD_configs[isd_ad_id]:
-            first_byte = AD_configs[isd_ad_id]["subnet"].split('.')[0]
-            mask = AD_configs[isd_ad_id]["subnet"].split('/')[1]
-        else:
-            first_byte = default_subnet.split('.')[0]
-            mask = default_subnet.split('/')[1]
+    for isd_ad_id in ad_configs:
+        first_byte, mask = _get_subnet_params(ad_configs[isd_ad_id])
         (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
         ip_address_loc = '.'.join([first_byte, isd_id, ad_id, ER_RANGE])
-        ip_address_pub = \
-            '.'.join([first_byte, isd_id, ad_id, str(int(ER_RANGE) + 1)])
-        for link in AD_configs[isd_ad_id].get("links", []):
+        ip_address_pub = '.'.join([first_byte, isd_id, ad_id,
+                                   str(int(ER_RANGE) + 1)])
+        for link in ad_configs[isd_ad_id].get("links", []):
             er_ip_addresses[(isd_ad_id, link)] = \
                 (ip_address_loc, ip_address_pub)
             ip_address_loc = increment_address(ip_address_loc, mask, 2)
@@ -136,15 +174,15 @@ def delete_directories():
             shutil.rmtree(os.path.join(out_dir, name))
 
 
-def create_directories(AD_configs):
+def create_directories(ad_configs):
     """
     Create the ISD* directories and sub-directories, where all files used to run
     the SCION ADs are stored.
 
-    :param AD_configs: the configurations of all SCION ADs.
-    :type AD_configs: dict
+    :param ad_configs: the configurations of all SCION ADs.
+    :type ad_configs: dict
     """
-    for isd_ad_id in AD_configs:
+    for isd_ad_id in ad_configs:
         (isd_id, ad_id) = isd_ad_id.split('-')
         isd_name = 'ISD' + isd_id
         ad_name = 'AD' + ad_id
@@ -164,19 +202,19 @@ def create_directories(AD_configs):
                 os.makedirs(full_path)
 
 
-def write_keys_certs(AD_configs):
+def write_keys_certs(ad_configs):
     """
     Generate the AD certificates and keys and store them into separate files.
 
-    :param AD_configs: the configurations of all SCION ADs.
-    :type AD_configs: dict
+    :param ad_configs: the configurations of all SCION ADs.
+    :type ad_configs: dict
     :returns: the signature and encryption keys.
     :rtype: dict
     """
     sig_priv_keys = {}
     sig_pub_keys = {}
     enc_pub_keys = {}
-    for isd_ad_id in AD_configs:
+    for isd_ad_id in ad_configs:
         (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
         sig_key_file = get_sig_key_file_path(isd_id, ad_id, isd_dir=out_dir)
         enc_key_file = get_enc_key_file_path(isd_id, ad_id, isd_dir=out_dir)
@@ -189,11 +227,25 @@ def write_keys_certs(AD_configs):
         enc_priv = base64.b64encode(enc_priv).decode('utf-8')
         write_file(sig_key_file, sig_priv)
         write_file(enc_key_file, enc_priv)
+
+    # Generate keys for self-signing
+    self_sign_id = ISD_AD_ID_DIVISOR.join(['0', '0'])
+    (sig_pub, sig_priv) = generate_signature_keypair()
+    (enc_pub, enc_priv) = generate_cryptobox_keypair()
+    sig_priv_keys[self_sign_id] = sig_priv
+    sig_pub_keys[self_sign_id] = sig_pub
+    enc_pub_keys[self_sign_id] = enc_pub
+
     certs = {}
-    for isd_ad_id in AD_configs:
-        if AD_configs[isd_ad_id]['level'] != CORE_AD:
+    for isd_ad_id in ad_configs:
+        if ad_configs[isd_ad_id]['level'] != CORE_AD:
             (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-            iss_isd_ad_id = AD_configs[isd_ad_id]['cert_issuer']
+            ad_config = ad_configs[isd_ad_id]
+            if 'cert_issuer' not in ad_config:
+                logging.warning("No 'cert_issuer' attribute for "
+                                "a non-core AD: {}".format(isd_ad_id))
+                ad_config['cert_issuer'] = self_sign_id
+            iss_isd_ad_id = ad_config['cert_issuer']
             (iss_isd_id, iss_ad_id) = iss_isd_ad_id.split(ISD_AD_ID_DIVISOR)
             cert = Certificate.from_values(
                 'ISD:' + isd_id + '-AD:' + ad_id,
@@ -221,57 +273,30 @@ def write_keys_certs(AD_configs):
             'enc_pub_keys': enc_pub_keys}
 
 
-def _path_dict(isd_id, ad_id):
-    isd_name = 'ISD' + isd_id
-    file_name = 'ISD:' + isd_id + '-AD:' + ad_id
-    setup_file = os.path.join(out_dir, isd_name,
-                              SETUP_DIR, file_name + '.sh')
-    supervisor_file = os.path.join(out_dir, isd_name,
-                                   SUPERVISOR_DIR, file_name + '.conf')
-    topo_file = os.path.join(isd_name, TOPO_DIR, file_name + '.json')
-    topo_file_rel = os.path.join("..", SCRIPTS_DIR, topo_file)
-    conf_file_rel = os.path.join("..", SCRIPTS_DIR, isd_name, CONF_DIR,
-                                 file_name + '.conf')
-    trc_file = get_trc_file_path(isd_id, ad_id, isd_id, INITIAL_TRC_VERSION,
-                                 isd_dir=out_dir)
-    trc_file_rel = os.path.join('..', SCRIPTS_DIR,
-                                os.path.relpath(trc_file, out_dir))
-    path_pol_file_rel = os.path.join("..", SCRIPTS_DIR, isd_name,
-                                     PATH_POL_DIR, file_name + '.json')
-    return locals()
-
-
-def write_topo_files(AD_configs, er_ip_addresses):
+def write_topo_files(ad_configs, er_ip_addresses):
     """
     Generate the AD topologies and store them into files. Update the AD setup
-    and run files.
+    and supervisor files.
 
-    :param AD_configs: the configurations of all SCION ADs.
-    :type AD_configs: dict
+    :param ad_configs: the configurations of all SCION ADs.
+    :type ad_configs: dict
     :param er_ip_addresses: the edge router IP addresses.
     :type er_ip_addresses: dict
     """
-    for isd_ad_id in AD_configs:
+    for isd_ad_id in ad_configs:
         (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-        p = _path_dict(isd_id, ad_id)
-        topo_file = p['topo_file']
-        is_core = (AD_configs[isd_ad_id]['level'] == CORE_AD)
-        if "subnet" in AD_configs[isd_ad_id]:
-            first_byte = AD_configs[isd_ad_id]["subnet"].split('.')[0]
-            mask = AD_configs[isd_ad_id]["subnet"].split('/')[1]
-        else:
-            first_byte = default_subnet.split('.')[0]
-            mask = default_subnet.split('/')[1]
-        if "beacon_servers" in AD_configs[isd_ad_id]:
-            number_bs = AD_configs[isd_ad_id]["beacon_servers"]
+        is_core = (ad_configs[isd_ad_id]['level'] == CORE_AD)
+        first_byte, mask = _get_subnet_params(ad_configs[isd_ad_id])
+        if "beacon_servers" in ad_configs[isd_ad_id]:
+            number_bs = ad_configs[isd_ad_id]["beacon_servers"]
         else:
             number_bs = DEFAULT_BEACON_SERVERS
-        if "certificate_servers" in AD_configs[isd_ad_id]:
-            number_cs = AD_configs[isd_ad_id]["certificate_servers"]
+        if "certificate_servers" in ad_configs[isd_ad_id]:
+            number_cs = ad_configs[isd_ad_id]["certificate_servers"]
         else:
             number_cs = DEFAULT_CERTIFICATE_SERVERS
-        if "path_servers" in AD_configs[isd_ad_id]:
-            number_ps = AD_configs[isd_ad_id]["path_servers"]
+        if "path_servers" in ad_configs[isd_ad_id]:
+            number_ps = ad_configs[isd_ad_id]["path_servers"]
         else:
             number_ps = DEFAULT_PATH_SERVERS
         # Write beginning and general structure
@@ -296,8 +321,8 @@ def write_topo_files(AD_configs, er_ip_addresses):
                                                          'Addr': ip_address}
             ip_address = increment_address(ip_address, mask)
         # Write Path Servers
-        if (AD_configs[isd_ad_id]['level'] != INTERMEDIATE_AD or
-            "path_servers" in AD_configs[isd_ad_id]):
+        if (ad_configs[isd_ad_id]['level'] != INTERMEDIATE_AD or
+            "path_servers" in ad_configs[isd_ad_id]):
             ip_address = '.'.join([first_byte, isd_id, ad_id, PS_RANGE])
             for p_server in range(1, number_ps + 1):
                 topo_dict['PathServers'][p_server] = {'AddrType': 'IPv4',
@@ -305,13 +330,13 @@ def write_topo_files(AD_configs, er_ip_addresses):
                 ip_address = increment_address(ip_address, mask)
         # Write Edge Routers
         edge_router = 1
-        for nbr_isd_ad_id in AD_configs[isd_ad_id].get("links", []):
+        for nbr_isd_ad_id in ad_configs[isd_ad_id].get("links", []):
             (nbr_isd_id, nbr_ad_id) = nbr_isd_ad_id.split(ISD_AD_ID_DIVISOR)
             ip_address_loc = er_ip_addresses[(isd_ad_id, nbr_isd_ad_id)][0]
             ip_address_pub = er_ip_addresses[(isd_ad_id, nbr_isd_ad_id)][1]
             nbr_ip_address_pub = \
                 er_ip_addresses[(nbr_isd_ad_id, isd_ad_id)][1]
-            nbr_type = AD_configs[isd_ad_id]["links"][nbr_isd_ad_id]
+            nbr_type = ad_configs[isd_ad_id]["links"][nbr_isd_ad_id]
             if_id = str(255 + int(ad_id) + int(nbr_ad_id))
             topo_dict['EdgeRouters'][edge_router] = \
                 {'AddrType': 'IPv4',
@@ -327,7 +352,7 @@ def write_topo_files(AD_configs, er_ip_addresses):
                                'ToUdpPort': int(PORT)}}
             edge_router += 1
 
-        topo_file_abs = os.path.join(out_dir, topo_file)
+        topo_file_abs = _path_dict(isd_id, ad_id)['topo_file_abs']
         with open(topo_file_abs, 'w') as topo_fh:
             json.dump(topo_dict, topo_fh, sort_keys=True, indent=4)
         # Test if parser works
@@ -350,13 +375,21 @@ def _get_typed_elements(topo_dict):
 
 
 def write_setup_file(topo_dict, mask=None):
+    """
+    Generate and save the AD setup file.
+
+    :param topo_dict: topology dictionary of a SCION AD.
+    :type topo_dict: dict
+    :param mask: network mask for new interfaces.
+    :type mask: str
+    """
     if mask is None:
         mask = default_subnet.split('/')[1]
 
-    p = _path_dict(str(topo_dict['ISDID']), str(topo_dict['ADID']))
+    p = _path_dict(topo_dict['ISDID'], topo_dict['ADID'])
     preamble = '#!/bin/bash\n\n'
 
-    with open(p['setup_file'], 'a') as setup_fh:
+    with open(p['setup_file_abs'], 'w') as setup_fh:
         setup_fh.write(preamble)
         for (_, element_dict, element_type) in _get_typed_elements(topo_dict):
             ip_address = element_dict['Addr']
@@ -365,6 +398,12 @@ def write_setup_file(topo_dict, mask=None):
 
 
 def write_supervisor_config(topo_dict):
+    """
+    Generate the AD supervisor configuration and store it into a file.
+
+    :param topo_dict: topology dictionary of a SCION AD.
+    :type topo_dict: dict
+    """
     supervisor_common = {
         'autostart': 'false',
         'autorestart': 'false',
@@ -434,18 +473,18 @@ def write_supervisor_config(topo_dict):
     supervisor_config[group_header] = {'programs': ','.join(program_group)}
 
     # Write config
-    with open(p['supervisor_file'], 'w') as conf_fh:
+    with open(p['supervisor_file_abs'], 'w') as conf_fh:
         supervisor_config.write(conf_fh)
 
 
-def write_conf_files(AD_configs):
+def write_conf_files(ad_configs):
     """
     Generate the AD configurations and store them into files.
 
-    :param AD_configs: the configurations of all SCION ADs.
-    :type AD_configs: dict
+    :param ad_configs: the configurations of all SCION ADs.
+    :type ad_configs: dict
     """
-    for isd_ad_id in AD_configs:
+    for isd_ad_id in ad_configs:
         (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
         file_name = 'ISD:{}-AD:{}.conf'.format(isd_id, ad_id)
         conf_file = os.path.join(out_dir, 'ISD' + isd_id,
@@ -460,8 +499,8 @@ def write_conf_files(AD_configs):
                      'PropagateTime': 5,
                      'ResetTime': 600,
                      'CertChainVersion': 0}
-        if (AD_configs[isd_ad_id]['level'] != INTERMEDIATE_AD or
-            "path_servers" in AD_configs[isd_ad_id]):
+        if (ad_configs[isd_ad_id]['level'] != INTERMEDIATE_AD or
+            "path_servers" in ad_configs[isd_ad_id]):
             conf_dict['RegisterPath'] = 1
         else:
             conf_dict['RegisterPath'] = 0
@@ -471,38 +510,34 @@ def write_conf_files(AD_configs):
         config = Config(conf_file)
 
 
-def write_path_pol_files(AD_configs, path_policy_file):
+def write_path_pol_files(ad_configs, path_policy_file):
     """
     Generate the AD path policies and store them into files.
 
-    :param AD_configs: the configurations of all SCION ADs.
-    :type AD_configs: dict
+    :param ad_configs: the configurations of all SCION ADs.
+    :type ad_configs: dict
     """
-    for isd_ad_id in AD_configs:
+    for isd_ad_id in ad_configs:
         (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-        file_name = 'ISD:{}-AD:{}.json'.format(isd_id, ad_id)
-        new_path_pol_file = os.path.join(out_dir, 'ISD' + isd_id,
-                                         PATH_POL_DIR, file_name)
+        new_path_pol_file = _path_dict(isd_id, ad_id)['path_pol_file_abs']
         shutil.copyfile(path_policy_file, new_path_pol_file)
         # Test if parser works
         path_policy = PathPolicy(new_path_pol_file)
 
 
-def write_trc_files(AD_configs, keys):
+def write_trc_files(ad_configs, keys):
     """
     Generate the ISD TRCs and store them into files.
 
-    :param AD_configs: the configurations of all SCION ADs.
-    :type AD_configs: dict
+    :param ad_configs: the configurations of all SCION ADs.
+    :type ad_configs: dict
     :param keys: the signature and encryption keys.
     :type: dict
     """
-    for isd_ad_id in AD_configs:
-        if AD_configs[isd_ad_id]['level'] == CORE_AD:
+    for isd_ad_id in ad_configs:
+        if ad_configs[isd_ad_id]['level'] == CORE_AD:
             (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-            file_name = 'ISD:{}-V:{}.crt'.format(isd_id,
-                                                 str(INITIAL_TRC_VERSION))
-            trc_file = os.path.join(out_dir, 'ISD' + isd_id, file_name)
+            trc_file = _path_dict(isd_id, ad_id)['trc_temp_file']
             # Create core certificate
             subject = 'ISD:' + isd_id + '-AD:' + ad_id
             cert = Certificate.from_values(
@@ -536,11 +571,10 @@ def write_trc_files(AD_configs, keys):
                 write_file(trc_file, str(trc))
                 # Test if parser works
                 trc = TRC(trc_file)
-    for isd_ad_id in AD_configs:
-        if AD_configs[isd_ad_id]['level'] == CORE_AD:
+    for isd_ad_id in ad_configs:
+        if ad_configs[isd_ad_id]['level'] == CORE_AD:
             (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-            file_name = 'ISD:{}-V:0.crt'.format(isd_id)
-            trc_file = os.path.join(out_dir, 'ISD' + isd_id, file_name)
+            trc_file = _path_dict(isd_id, ad_id)['trc_temp_file']
             subject = 'ISD:' + isd_id + '-AD:' + ad_id
             if os.path.exists(trc_file):
                 trc = TRC(trc_file)
@@ -551,18 +585,18 @@ def write_trc_files(AD_configs, keys):
                 write_file(trc_file, str(trc))
                 # Test if parser works
                 trc = TRC(trc_file)
-    for isd_ad_id in AD_configs:
+
+    # Copy the created TRC files to every AD directory, then remove them
+    for isd_ad_id in ad_configs:
         (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-        file_name = 'ISD:{}-V:0.crt'.format(isd_id)
-        trc_file = os.path.join(out_dir, 'ISD' + isd_id, file_name)
+        trc_file = _path_dict(isd_id, ad_id)['trc_temp_file']
         if os.path.exists(trc_file):
             dst_path = get_trc_file_path(isd_id, ad_id, isd_id, 0,
                                          isd_dir=out_dir)
             shutil.copyfile(trc_file, dst_path)
-    for isd_ad_id in AD_configs:
+    for isd_ad_id in ad_configs:
         (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-        file_name = 'ISD:{}-V:0.crt'.format(isd_id)
-        trc_file = os.path.join(out_dir, 'ISD' + isd_id, file_name)
+        trc_file = _path_dict(isd_id, ad_id)['trc_temp_file']
         if os.path.exists(trc_file):
             os.remove(trc_file)
 
@@ -598,31 +632,31 @@ def main():
         sys.exit()
 
     try:
-        AD_configs = json.loads(open(adconfigurations_file).read())
+        ad_configs = json.loads(open(adconfigurations_file).read())
     except (ValueError, KeyError, TypeError):
         logging.error(adconfigurations_file + ": JSON format error.")
         sys.exit()
 
-    if "default_subnet" in AD_configs:
+    if "default_subnet" in ad_configs:
         global default_subnet
-        default_subnet = AD_configs["default_subnet"]
-        del AD_configs["default_subnet"]
+        default_subnet = ad_configs["default_subnet"]
+        del ad_configs["default_subnet"]
 
-    er_ip_addresses = set_er_ip_addresses(AD_configs)
+    er_ip_addresses = set_er_ip_addresses(ad_configs)
 
     delete_directories()
 
-    create_directories(AD_configs)
+    create_directories(ad_configs)
 
-    keys = write_keys_certs(AD_configs)
+    keys = write_keys_certs(ad_configs)
 
-    write_conf_files(AD_configs)
+    write_conf_files(ad_configs)
 
-    write_path_pol_files(AD_configs, path_policy_file)
+    write_path_pol_files(ad_configs, path_policy_file)
 
-    write_topo_files(AD_configs, er_ip_addresses)
+    write_topo_files(ad_configs, er_ip_addresses)
 
-    write_trc_files(AD_configs, keys)
+    write_trc_files(ad_configs, keys)
 
 
 if __name__ == "__main__":
