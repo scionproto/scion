@@ -21,15 +21,14 @@ import json
 import logging
 import os
 import shutil
-import socket
-import struct
 import sys
+from ipaddress import ip_address, ip_network
 
-from lib.defines import TOPOLOGY_PATH
 from lib.config import Config
-from lib.crypto.certificate import (Certificate, CertificateChain, TRC)
 from lib.crypto.asymcrypto import (sign, generate_signature_keypair,
     generate_cryptobox_keypair)
+from lib.crypto.certificate import (Certificate, CertificateChain, TRC)
+from lib.defines import TOPOLOGY_PATH
 from lib.path_store import PathPolicy
 from lib.topology import Topology
 from lib.util import (get_cert_chain_file_path, get_sig_key_file_path,
@@ -71,11 +70,11 @@ out_dir = TOPOLOGY_PATH
 
 def _get_subnet_params(ad_config):
     if "subnet" in ad_config:
-        first_byte = ad_config["subnet"].split('.')[0]
-        mask = ad_config["subnet"].split('/')[1]
+        subnet = ad_config["subnet"]
     else:
-        first_byte = default_subnet.split('.')[0]
-        mask = default_subnet.split('/')[1]
+        subnet = default_subnet
+    first_byte = subnet.split('.')[0]
+    mask = subnet.split('/')[1]
     return first_byte, mask
 
 
@@ -113,12 +112,12 @@ def _path_dict(isd_id, ad_id):
     return locals()
 
 
-def increment_address(ip_address, mask, increment=1):
+def increment_address(ip_addr, mask, increment=1):
     """
     Increment an IP address value.
 
-    :param ip_address: the IP address to increment.
-    :type ip_address: str
+    :param ip_addr: the IP address to increment.
+    :type ip_addr: str
     :param mask: subnet mask for the given IP address.
     :type mask: str
     :param increment: step the IP address must be incremented of.
@@ -127,17 +126,13 @@ def increment_address(ip_address, mask, increment=1):
               reached.
     :rtype: str
     """
-    ip2int = lambda ipstr: struct.unpack('!I', socket.inet_aton(ipstr))[0]
-    int2ip = lambda n: socket.inet_ntoa(struct.pack('!I', n))
-    ip_address_int = ip2int(ip_address)
-    ip_address_int += increment
-    ip_address = int2ip(ip_address_int)
-    ip_bytes = ip_address.split('.')
-    bits = ''.join([format(int(byte), '08b') for byte in ip_bytes])
-    if bits[int(mask):] == ('1' * (32 - int(mask))):
-        logging.error("Reached a broadcast IP address: " + ip_address)
+    subnet = ip_network('{}/{}'.format(ip_addr, mask), strict=False)
+    ip_addr_obj = ip_address(ip_addr) + increment
+
+    if ip_addr_obj >= subnet.broadcast_address:
+        logging.error("Reached a broadcast IP address: " + str(ip_addr_obj))
         sys.exit()
-    return ip_address
+    return str(ip_addr_obj)
 
 
 def set_er_ip_addresses(ad_configs):
@@ -153,14 +148,15 @@ def set_er_ip_addresses(ad_configs):
     for isd_ad_id in ad_configs:
         first_byte, mask = _get_subnet_params(ad_configs[isd_ad_id])
         (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-        ip_address_loc = '.'.join([first_byte, isd_id, ad_id, ER_RANGE])
-        ip_address_pub = '.'.join([first_byte, isd_id, ad_id,
-                                   str(int(ER_RANGE) + 1)])
+        ip_address_loc = ip_address('.'.join([first_byte, isd_id,
+                                              ad_id, ER_RANGE]))
+        ip_address_pub = increment_address(ip_address_loc, mask)
         for link in ad_configs[isd_ad_id].get("links", []):
-            er_ip_addresses[(isd_ad_id, link)] = \
-                (ip_address_loc, ip_address_pub)
+            er_ip_addresses[(isd_ad_id, link)] = (str(ip_address_loc),
+                                                  str(ip_address_pub))
             ip_address_loc = increment_address(ip_address_loc, mask, 2)
             ip_address_pub = increment_address(ip_address_pub, mask, 2)
+
     return er_ip_addresses
 
 
@@ -309,47 +305,47 @@ def write_topo_files(ad_configs, er_ip_addresses):
                      'EdgeRouters': {}}
 
         # Write Beacon Servers
-        ip_address = '.'.join([first_byte, isd_id, ad_id, BS_RANGE])
+        server_addr = '.'.join([first_byte, isd_id, ad_id, BS_RANGE])
         for b_server in range(1, number_bs + 1):
             topo_dict['BeaconServers'][b_server] = {'AddrType': 'IPv4',
-                                                    'Addr': ip_address}
-            ip_address = increment_address(ip_address, mask)
+                                                    'Addr': server_addr}
+            server_addr = increment_address(server_addr, mask)
         # Write Certificate Servers
-        ip_address = '.'.join([first_byte, isd_id, ad_id, CS_RANGE])
+        server_addr = '.'.join([first_byte, isd_id, ad_id, CS_RANGE])
         for c_server in range(1, number_cs + 1):
             topo_dict['CertificateServers'][c_server] = {'AddrType': 'IPv4',
-                                                         'Addr': ip_address}
-            ip_address = increment_address(ip_address, mask)
+                                                         'Addr': server_addr}
+            server_addr = increment_address(server_addr, mask)
         # Write Path Servers
         if (ad_configs[isd_ad_id]['level'] != INTERMEDIATE_AD or
             "path_servers" in ad_configs[isd_ad_id]):
-            ip_address = '.'.join([first_byte, isd_id, ad_id, PS_RANGE])
+            server_addr = '.'.join([first_byte, isd_id, ad_id, PS_RANGE])
             for p_server in range(1, number_ps + 1):
                 topo_dict['PathServers'][p_server] = {'AddrType': 'IPv4',
-                                                      'Addr': ip_address}
-                ip_address = increment_address(ip_address, mask)
+                                                      'Addr': server_addr}
+                server_addr = increment_address(server_addr, mask)
         # Write Edge Routers
         edge_router = 1
         for nbr_isd_ad_id in ad_configs[isd_ad_id].get("links", []):
             (nbr_isd_id, nbr_ad_id) = nbr_isd_ad_id.split(ISD_AD_ID_DIVISOR)
             ip_address_loc = er_ip_addresses[(isd_ad_id, nbr_isd_ad_id)][0]
             ip_address_pub = er_ip_addresses[(isd_ad_id, nbr_isd_ad_id)][1]
-            nbr_ip_address_pub = \
-                er_ip_addresses[(nbr_isd_ad_id, isd_ad_id)][1]
+            nbr_ip_address_pub = er_ip_addresses[(nbr_isd_ad_id, isd_ad_id)][1]
             nbr_type = ad_configs[isd_ad_id]["links"][nbr_isd_ad_id]
             if_id = str(255 + int(ad_id) + int(nbr_ad_id))
-            topo_dict['EdgeRouters'][edge_router] = \
-                {'AddrType': 'IPv4',
-                 'Addr': ip_address_loc,
-                 'Interface': {'IFID': int(if_id),
-                               'NeighborISD': int(nbr_isd_id),
-                               'NeighborAD': int(nbr_ad_id),
-                               'NeighborType': nbr_type,
-                               'AddrType': 'IPv4',
-                               'Addr': ip_address_pub,
-                               'ToAddr': nbr_ip_address_pub,
-                               'UdpPort': int(PORT),
-                               'ToUdpPort': int(PORT)}}
+            topo_dict['EdgeRouters'][edge_router] = {
+                'AddrType': 'IPv4',
+                'Addr': ip_address_loc,
+                'Interface': {'IFID': int(if_id),
+                              'NeighborISD': int(nbr_isd_id),
+                              'NeighborAD': int(nbr_ad_id),
+                              'NeighborType': nbr_type,
+                              'AddrType': 'IPv4',
+                              'Addr': ip_address_pub,
+                              'ToAddr': nbr_ip_address_pub,
+                              'UdpPort': int(PORT),
+                              'ToUdpPort': int(PORT)}
+            }
             edge_router += 1
 
         topo_file_abs = _path_dict(isd_id, ad_id)['topo_file_abs']
@@ -392,8 +388,8 @@ def write_setup_file(topo_dict, mask=None):
     with open(p['setup_file_abs'], 'w') as setup_fh:
         setup_fh.write(preamble)
         for (_, element_dict, element_type) in _get_typed_elements(topo_dict):
-            ip_address = element_dict['Addr']
-            ip_add = 'ip addr add {}/{} dev lo\n'.format(ip_address, mask)
+            ip_addr = element_dict['Addr']
+            ip_add = 'ip addr add {}/{} dev lo\n'.format(ip_addr, mask)
             setup_fh.write(ip_add)
 
 
@@ -420,13 +416,13 @@ def write_supervisor_config(topo_dict):
     p = _path_dict(isd_id, ad_id)
 
     for (num, element_dict, element_type) in _get_typed_elements(topo_dict):
-        ip_address = element_dict['Addr']
+        ip_addr = element_dict['Addr']
         element_location = 'core' if topo_dict['Core'] else 'local'
         if element_type == 'BeaconServers':
             element_name = 'bs{}-{}-{}'.format(isd_id, ad_id, num)
             cmd_args = ['beacon_server.py',
                         element_location,
-                        ip_address,
+                        ip_addr,
                         p['topo_file_rel'],
                         p['conf_file_rel'],
                         p['path_pol_file_rel']]
@@ -434,7 +430,7 @@ def write_supervisor_config(topo_dict):
         elif element_type == 'CertificateServers':
             element_name = 'cs{}-{}-{}'.format(isd_id, ad_id, num)
             cmd_args = ['cert_server.py',
-                        ip_address,
+                        ip_addr,
                         p['topo_file_rel'],
                         p['conf_file_rel'],
                         p['trc_file_rel']]
@@ -442,7 +438,7 @@ def write_supervisor_config(topo_dict):
             element_name = 'ps{}-{}-{}'.format(isd_id, ad_id, num)
             cmd_args = ['path_server.py',
                         element_location,
-                        ip_address,
+                        ip_addr,
                         p['topo_file_rel'],
                         p['conf_file_rel']]
 
@@ -453,7 +449,7 @@ def write_supervisor_config(topo_dict):
             element_name = 'er{}-{}er{}-{}'.format(isd_id, ad_id,
                                                    nbr_isd_id, nbr_ad_id)
             cmd_args = ['router.py',
-                        ip_address,
+                        ip_addr,
                         p['topo_file_rel'],
                         p['conf_file_rel']]
         else:
