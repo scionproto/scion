@@ -196,6 +196,9 @@ class PathStore(object):
         :type pcb: PathSegment
         """
         assert isinstance(pcb, PathSegment)
+        if not self.check_filters(pcb):
+            logging.warning("PathStore: pcb discarded by filters.")
+            return
         record = PathStoreRecord(pcb)
         for index in range(len(self.candidates)):
             if self.candidates[index] == record:
@@ -271,6 +274,53 @@ class PathStore(object):
         self._update_all_delay_time()
         for candidate in self.candidates:
             candidate.update_fidelity(self.path_policy)
+
+    def check_filters(self, pcb):
+        """
+        Runs some checks, including: unwanted ADs and min/max property values.
+        """
+        assert isinstance(pcb, PathSegment)
+        return (self._check_unwanted_ads(pcb) and
+                self._check_property_ranges(pcb))
+
+    def _check_unwanted_ads(self, pcb):
+        """
+        Checks whether any of the ADs in the path belong to the black list.
+        """
+        for ad in pcb.ads:
+            if (pcb.iof.isd_id, ad.pcbm.ad_id) in self.path_policy.unwanted_ads:
+                return False
+        return True
+
+    def _check_property_ranges(self, pcb):
+        """
+        Checks whether any of the path properties has a value outside the
+        predefined min-max range.
+        """
+        return (
+            (self.path_policy.property_ranges['PeerLinks'][0]
+             <= pcb.get_n_peer_links() <=
+             self.path_policy.property_ranges['PeerLinks'][1])
+            and
+            (self.path_policy.property_ranges['HopsLength'][0]
+             <= pcb.get_n_hops() <=
+             self.path_policy.property_ranges['HopsLength'][1])
+            and
+            (self.path_policy.property_ranges['DelayTime'][0]
+             <= int(time.time()) - pcb.get_timestamp() <=
+             self.path_policy.property_ranges['DelayTime'][1])
+            and
+            (self.path_policy.property_ranges['GuaranteedBandwidth'][0]
+             <= 10 <=
+             self.path_policy.property_ranges['GuaranteedBandwidth'][1])
+            and
+            (self.path_policy.property_ranges['AvailableBandwidth'][0]
+             <= 10 <=
+             self.path_policy.property_ranges['AvailableBandwidth'][1])
+            and
+            (self.path_policy.property_ranges['TotalBandwidth'][0]
+             <= 10 <=
+             self.path_policy.property_ranges['TotalBandwidth'][1]))
 
     def get_best_segments(self, k=10):
         """

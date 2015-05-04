@@ -74,9 +74,8 @@ class BeaconServer(SCIONElement):
 
     def __init__(self, addr, topo_file, config_file, path_policy_file):
         SCIONElement.__init__(self, addr, topo_file, config_file=config_file)
-        self.path_policy = PathPolicy(path_policy_file)
         self.unverified_beacons = deque()
-        self.beacons = PathStore(self.path_policy)
+        self.beacons = PathStore(PathPolicy(path_policy_file))
         self.trc_requests = {}
         self.trcs = {}
         sig_key_file = get_sig_key_file_path(self.topology.isd_id,
@@ -245,53 +244,6 @@ class BeaconServer(SCIONElement):
                          name="BS shared pcbs",
                          daemon=True).start()
         SCIONElement.run(self)
-
-    def _check_filters(self, pcb):
-        """
-        Runs some checks, including: unwanted ADs and min/max property values.
-        """
-        assert isinstance(pcb, PathSegment)
-        return (self._check_unwanted_ads(pcb) and
-                self._check_property_ranges(pcb))
-
-    def _check_unwanted_ads(self, pcb):
-        """
-        Checks whether any of the ADs in the path belong to the black list.
-        """
-        for ad in pcb.ads:
-            if (pcb.iof.isd_id, ad.pcbm.ad_id) in self.path_policy.unwanted_ads:
-                return False
-        return True
-
-    def _check_property_ranges(self, pcb):
-        """
-        Checks whether any of the path properties has a value outside the
-        predefined min-max range.
-        """
-        return (
-            (self.path_policy.property_ranges['PeerLinks'][0]
-             <= pcb.get_n_peer_links() <=
-             self.path_policy.property_ranges['PeerLinks'][1])
-            and
-            (self.path_policy.property_ranges['HopsLength'][0]
-             <= pcb.get_n_hops() <=
-             self.path_policy.property_ranges['HopsLength'][1])
-            and
-            (self.path_policy.property_ranges['DelayTime'][0]
-             <= int(time.time()) - pcb.get_timestamp() <=
-             self.path_policy.property_ranges['DelayTime'][1])
-            and
-            (self.path_policy.property_ranges['GuaranteedBandwidth'][0]
-             <= 10 <=
-             self.path_policy.property_ranges['GuaranteedBandwidth'][1])
-            and
-            (self.path_policy.property_ranges['AvailableBandwidth'][0]
-             <= 10 <=
-             self.path_policy.property_ranges['AvailableBandwidth'][1])
-            and
-            (self.path_policy.property_ranges['TotalBandwidth'][0]
-             <= 10 <=
-             self.path_policy.property_ranges['TotalBandwidth'][1]))
 
     def _try_to_verify_beacon(self, pcb):
         """
@@ -677,8 +629,8 @@ class LocalBeaconServer(BeaconServer):
                               path_policy_file)
         # Sanity check that we should indeed be a local beacon server.
         assert not self.topology.is_core_ad, "This shouldn't be a local BS!"
-        self.up_segments = PathStore(self.path_policy)
-        self.down_segments = PathStore(self.path_policy)
+        self.up_segments = PathStore(PathPolicy(path_policy_file))
+        self.down_segments = PathStore(PathPolicy(path_policy_file))
         self.cert_chain_requests = {}
         self.cert_chains = {}
         cert_chain_file = get_cert_chain_file_path(self.topology.isd_id,
