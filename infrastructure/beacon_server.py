@@ -72,8 +72,9 @@ class BeaconServer(SCIONElement):
     # ZK path for incoming PCBs
     ZK_PCB_CACHE_PATH = "pcb_cache"
 
-    def __init__(self, addr, topo_file, config_file):
+    def __init__(self, addr, topo_file, config_file, path_policy_file):
         SCIONElement.__init__(self, addr, topo_file, config_file=config_file)
+        self.path_policy_file = path_policy_file
         self.unverified_beacons = deque()
         self.trc_requests = {}
         self.trcs = {}
@@ -154,7 +155,8 @@ class BeaconServer(SCIONElement):
         Receives beacon and stores it for processing.
         """
         assert isinstance(beacon, PathConstructionBeacon)
-        if not self._check_filters(beacon.pcb):
+        ps = self.get_pathstore_from_pcb(beacon.pcb)
+        if not ps.check_filters(beacon.pcb):
             return
         segment_id = beacon.pcb.get_hops_hash(hex=True)
         try:
@@ -175,6 +177,13 @@ class BeaconServer(SCIONElement):
     def register_segments(self):
         """
         Registers paths according to the received beacons.
+        """
+        pass
+
+    def get_pathstore_from_pcb(self, pcb):
+        """
+        Return PathStore's instance that should store the pcb.
+        Note that CBS has PathStore intance per (ISD, AD).
         """
         pass
 
@@ -445,11 +454,28 @@ class CoreBeaconServer(BeaconServer):
     towards other core beacon servers.
     """
     def __init__(self, addr, topo_file, config_file, path_policy_file):
-        BeaconServer.__init__(self, addr, topo_file, config_file)
+        BeaconServer.__init__(self, addr, topo_file, config_file,
+                              path_policy_file)
         # Sanity check that we should indeed be a core beacon server.
         assert self.topology.is_core_ad, "This shouldn't be a core BS!"
-        self.beacons = deque()  # FIXME: Discuss with Lorenzo
-        self.core_segments = deque()  # FIXME: ditto
+        self.beacons = {}  # Dictionary of PathStores.
+        self.core_segments = {}  # Dictionary of PathStores.
+
+    def get_pathstore_from_pcb(self, pcb):
+        """
+        Return PathStore instance that should store the pcb, creates an instance
+        is necessary. Core Beacon Server has PathStore instance per (isd, ad).
+        """
+        # TODO: discuss with Lorenzo whether we need separate policies for
+        # core_segments and beacons. Now processing logic is quite unified (one
+        # filters check etc...), however there are two containers.
+        isd_id = pcb.get_first_pcbm().spcbf.isd_id
+        ad_id = pcb.get_first_pcbm().ad_id
+        # TODO: thread safety
+        if (isd_id, ad_id) not in self.beacons:
+            self.beacons[(isd_id, ad_id)] = PathStore(self.path_policy_file)
+            self.core_segments[(isd_id, ad_id)] = PathStore(self.path_policy_file)
+        return self.beacons[(isd_id, ad_id)]
 
     def propagate_core_pcb(self, pcb):
         """
@@ -508,8 +534,10 @@ class CoreBeaconServer(BeaconServer):
             count = self.propagate_core_pcb(core_pcb)
             # Propagate received beacons. A core beacon server can only receive
             # beacons from other core beacon servers.
-            while self.beacons:
-                pcb = self.beacons.popleft()
+            beacons = []
+            for ps in self.beacons.values():
+                beacons.extend(ps.get_best_segments())
+            for pcb in beacons:
                 count += self.propagate_core_pcb(pcb)
             logging.info("Propagated %d Core PCBs", count)
             try:
@@ -596,16 +624,21 @@ class CoreBeaconServer(BeaconServer):
         """
         Once a beacon has been verified, place it into the right containers.
         """
-        self.beacons.append(pcb)
-        self.core_segments.append(pcb)
+        isd_id = pcb.get_first_pcbm().spcbf.isd_id
+        ad_id = pcb.get_first_pcbm().ad_id
+        self.beacons[(isd_id, ad_id)].add_segment(pcb)
+        self.core_segments[(isd_id, ad_id)].add_segment(pcb)
 
     def register_core_segments(self):
         """
         Register the core segment between core ADs.
         """
+        core_segments = []
+        for ps in self.core_segments.values():
+            core_segments.extend(ps.get_best_segments())
         count = 0
-        while self.core_segments:
-            new_pcb = copy.deepcopy(self.core_segments.popleft())
+        for pcb in core_segments:
+            new_pcb = copy.deepcopy(pcb)
             ad_marking = self._create_ad_marking(new_pcb.trcf.if_id, 0)
             new_pcb.add_ad(ad_marking)
             new_pcb.segment_id = self._get_segment_rev_token(new_pcb)
@@ -623,7 +656,8 @@ class LocalBeaconServer(BeaconServer):
     """
 
     def __init__(self, addr, topo_file, config_file, path_policy_file):
-        BeaconServer.__init__(self, addr, topo_file, config_file)
+        BeaconServer.__init__(self, addr, topo_file, config_file,
+                              path_policy_file)
         # Sanity check that we should indeed be a local beacon server.
         assert not self.topology.is_core_ad, "This shouldn't be a local BS!"
         self.beacons = PathStore(PathPolicy(path_policy_file))
@@ -674,6 +708,13 @@ class LocalBeaconServer(BeaconServer):
                     return False
         else:
             return False
+
+    def get_pathstore_from_pcb(self, pcb):
+        """
+        Return PathStore's instance that should store the pcb.
+        Local Beacon Server has only one PathStore for PCBs.
+        """
+        return self.beacons
 
     def register_up_segment(self, pcb):
         """
@@ -735,7 +776,8 @@ class LocalBeaconServer(BeaconServer):
         Processes new beacons and appends them to beacon list.
         """
         for pcb in pcbs:
-            if self._check_filters(pcb):
+            ps = self.get_pathstore_from_pcb(pcb)
+            if ps.check_filters(pcb):
                 self._try_to_verify_beacon(pcb)
 
     def process_cert_chain_rep(self, cert_chain_rep):

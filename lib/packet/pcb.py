@@ -21,7 +21,7 @@ from lib.packet.opaque_field import (SupportSignatureField, HopOpaqueField,
     SupportPCBField, SupportPeerField, TRCField, InfoOpaqueField)
 from lib.packet.path import CorePath
 from lib.packet.scion import SCIONPacket, PacketType, SCIONHeader
-from lib.packet.scion_addr import SCIONAddr, ISD_AD
+from lib.packet.scion_addr import SCIONAddr
 import base64
 import copy
 import logging
