@@ -327,7 +327,7 @@ class PathStore(object):
              <= 10 <=
              self.path_policy.property_ranges['TotalBandwidth'][1]))
 
-    def get_best_segments(self, k=10):
+    def get_best_segments(self, k=self.path_policy.best_set_size):
         """
         Returns the k best paths from the temporary buffer.
         """
@@ -336,7 +336,7 @@ class PathStore(object):
             best_paths.append(candidate.pcb)
         return best_paths
 
-    def get_last_selection(self, k=10):
+    def get_last_selection(self, k=self.path_policy.best_set_size):
         """
         Returns the latest k best paths from the history.
         """
@@ -345,7 +345,7 @@ class PathStore(object):
             best_paths.append(candidate.pcb)
         return best_paths
 
-    def store_selection(self, k=10):
+    def store_selection(self, k=self.path_policy.best_set_size):
         """
         Stores the best k paths into the path history and reset the list of
         candidates.
