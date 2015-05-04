@@ -292,7 +292,8 @@ class PathStore(object):
         Checks whether any of the ADs in the path belong to the black list.
         """
         for ad in pcb.ads:
-            if (pcb.iof.isd_id, ad.pcbm.ad_id) in self.path_policy.unwanted_ads:
+            if ((ad.pcbm.spcbf.isd_id, ad.pcbm.ad_id) in
+                self.path_policy.unwanted_ads):
                 return False
         return True
 
