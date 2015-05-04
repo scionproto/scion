@@ -72,10 +72,9 @@ class BeaconServer(SCIONElement):
     # ZK path for incoming PCBs
     ZK_PCB_CACHE_PATH = "pcb_cache"
 
-    def __init__(self, addr, topo_file, config_file, path_policy_file):
+    def __init__(self, addr, topo_file, config_file):
         SCIONElement.__init__(self, addr, topo_file, config_file=config_file)
         self.unverified_beacons = deque()
-        self.beacons = PathStore(PathPolicy(path_policy_file))
         self.trc_requests = {}
         self.trcs = {}
         sig_key_file = get_sig_key_file_path(self.topology.isd_id,
@@ -446,8 +445,7 @@ class CoreBeaconServer(BeaconServer):
     towards other core beacon servers.
     """
     def __init__(self, addr, topo_file, config_file, path_policy_file):
-        BeaconServer.__init__(self, addr, topo_file, config_file,
-                              path_policy_file)
+        BeaconServer.__init__(self, addr, topo_file, config_file)
         # Sanity check that we should indeed be a core beacon server.
         assert self.topology.is_core_ad, "This shouldn't be a core BS!"
         self.beacons = deque()  # FIXME: Discuss with Lorenzo
@@ -625,10 +623,10 @@ class LocalBeaconServer(BeaconServer):
     """
 
     def __init__(self, addr, topo_file, config_file, path_policy_file):
-        BeaconServer.__init__(self, addr, topo_file, config_file,
-                              path_policy_file)
+        BeaconServer.__init__(self, addr, topo_file, config_file)
         # Sanity check that we should indeed be a local beacon server.
         assert not self.topology.is_core_ad, "This shouldn't be a local BS!"
+        self.beacons = PathStore(PathPolicy(path_policy_file))
         self.up_segments = PathStore(PathPolicy(path_policy_file))
         self.down_segments = PathStore(PathPolicy(path_policy_file))
         self.cert_chain_requests = {}

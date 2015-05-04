@@ -197,7 +197,6 @@ class PathStore(object):
         """
         assert isinstance(pcb, PathSegment)
         if not self.check_filters(pcb):
-            logging.warning("PathStore: pcb discarded by filters.")
             return
         record = PathStoreRecord(pcb)
         for index in range(len(self.candidates)):
@@ -280,8 +279,13 @@ class PathStore(object):
         Runs some checks, including: unwanted ADs and min/max property values.
         """
         assert isinstance(pcb, PathSegment)
-        return (self._check_unwanted_ads(pcb) and
-                self._check_property_ranges(pcb))
+        if not self._check_unwanted_ads(pcb):
+            logging.warning("PathStore: pcb discarded (unwanted AD).")
+            return False
+        if not self._check_property_ranges(pcb):
+            logging.warning("PathStore: pcb discarded (property range).")
+            return False
+        return True
 
     def _check_unwanted_ads(self, pcb):
         """
