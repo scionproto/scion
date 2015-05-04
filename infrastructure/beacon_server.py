@@ -16,7 +16,7 @@
 ============================================
 """
 
-from _collections import deque
+from _collections import deque, defaultdict
 from asyncio.tasks import sleep
 from infrastructure.scion_elem import SCIONElement
 from ipaddress import IPv4Address
@@ -458,8 +458,11 @@ class CoreBeaconServer(BeaconServer):
                               path_policy_file)
         # Sanity check that we should indeed be a core beacon server.
         assert self.topology.is_core_ad, "This shouldn't be a core BS!"
-        self.beacons = {}  # Dictionary of PathStores.
-        self.core_segments = {}  # Dictionary of PathStores.
+        self.beacons = defaultdict(self._ps_factory)
+        self.core_segments = defaultdict(self._ps_factory)
+
+    def _ps_factory(self):
+        return PathStore(PathPolicy(self.path_policy_file))
 
     def get_pathstore_from_pcb(self, pcb):
         """
@@ -471,13 +474,6 @@ class CoreBeaconServer(BeaconServer):
         # filters check etc...), however there are two containers.
         isd_id = pcb.get_first_pcbm().spcbf.isd_id
         ad_id = pcb.get_first_pcbm().ad_id
-        # TODO: thread safety
-        if (isd_id, ad_id) not in self.beacons:
-            ps = PathStore(PathPolicy(self.path_policy_file))
-            self.beacons[(isd_id, ad_id)] = ps
-        if (isd_id, ad_id) not in self.core_segments:
-            ps = PathStore(PathPolicy(self.path_policy_file))
-            self.core_segments[(isd_id, ad_id)] = ps
         return self.beacons[(isd_id, ad_id)]
 
     def propagate_core_pcb(self, pcb):
@@ -629,13 +625,6 @@ class CoreBeaconServer(BeaconServer):
         """
         isd_id = pcb.get_first_pcbm().spcbf.isd_id
         ad_id = pcb.get_first_pcbm().ad_id
-        # TODO: thread safety
-        if (isd_id, ad_id) not in self.beacons:
-            ps = PathStore(PathPolicy(self.path_policy_file))
-            self.beacons[(isd_id, ad_id)] = ps
-        if (isd_id, ad_id) not in self.core_segments:
-            ps = PathStore(PathPolicy(self.path_policy_file))
-            self.core_segments[(isd_id, ad_id)] = ps
         self.beacons[(isd_id, ad_id)].add_segment(pcb)
         self.core_segments[(isd_id, ad_id)].add_segment(pcb)
 

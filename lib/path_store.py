@@ -327,25 +327,29 @@ class PathStore(object):
              <= 10 <=
              self.path_policy.property_ranges['TotalBandwidth'][1]))
 
-    def get_best_segments(self, k=self.path_policy.best_set_size):
+    def get_best_segments(self, k=None):
         """
         Returns the k best paths from the temporary buffer.
         """
+        if k is None:
+            k = self.path_policy.best_set_size
         best_paths = []
         for candidate in self.candidates[:k]:
             best_paths.append(candidate.pcb)
         return best_paths
 
-    def get_last_selection(self, k=self.path_policy.best_set_size):
+    def get_last_selection(self, k=None):
         """
         Returns the latest k best paths from the history.
         """
+        if k is None:
+            k = self.path_policy.best_set_size
         best_paths = []
         for candidate in self.best_paths_history[0][:k]:
             best_paths.append(candidate.pcb)
         return best_paths
 
-    def store_selection(self, k=self.path_policy.best_set_size):
+    def store_selection(self, k=None):
         """
         Stores the best k paths into the path history and reset the list of
         candidates.
@@ -354,6 +358,8 @@ class PathStore(object):
            This function makes use of the `list.clear()` method and thus
            requires Python 3.3 or greater.
         """
+        if k is None:
+            k = self.path_policy.best_set_size
         self.best_paths_history.insert(0, self.get_candidates(k))
         self.candidates.clear()
 
