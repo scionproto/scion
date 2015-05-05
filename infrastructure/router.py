@@ -78,7 +78,7 @@ class Router(SCIONElement):
     :vartype post_ext_handlers: dict
     """
 
-    IFID_REQ_TOUT = 2
+    IFID_REQ_TOUT = 0.5  # How often IFID packet is sent to neighboring router.
 
     def __init__(self, addr, topo_file, config_file, pre_ext_handlers=None,
                  post_ext_handlers=None):
@@ -107,6 +107,13 @@ class Router(SCIONElement):
                 break
         assert self.interface != None
         logging.info("Interface: %s", self.interface.__dict__)
+
+        # Determine who sends IFID packets.
+        self._ifid_sender = (
+            (self.topology.isd_id > self.interface.neighbor_isd) or
+            (self.topology.isd_id == self.interface.neighbor_isd and
+             self.topology.ad_id > self.interface.neighbor_ad))
+
         if pre_ext_handlers:
             self.pre_ext_handlers = pre_ext_handlers
         else:
@@ -115,6 +122,7 @@ class Router(SCIONElement):
             self.post_ext_handlers = post_ext_handlers
         else:
             self.post_ext_handlers = {}
+
         self._remote_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._remote_socket.setsockopt(socket.SOL_SOCKET,
                                        socket.SO_REUSEADDR, 1)
@@ -124,7 +132,11 @@ class Router(SCIONElement):
         logging.info("IP %s:%u", self.interface.addr, self.interface.udp_port)
 
     def run(self):
-        threading.Thread(target=self.init_interface, daemon=True).start()
+        if self._ifid_sender:
+            threading.Thread(target=self.sync_interface, daemon=True).start()
+            logging.info("I'm IFID sender, starting sync_interface()")
+        else:
+            logging.info("I'm IFID receiver.")
         SCIONElement.run(self)
 
     def send(self, packet, next_hop, use_local_socket=True):
@@ -178,12 +190,13 @@ class Router(SCIONElement):
         if ext or l < len(spkt.hdr.extension_hdrs):
             logging.warning("Extensions terminated incorrectly.")
 
-    @thread_safety_net("init_interface")
-    def init_interface(self):
+    @thread_safety_net("sync_interface")
+    def sync_interface(self):
         """
         Synchronize and initialize the router's interface with that of a
         neighboring router.
         """
+
         next_hop = NextHop()
         next_hop.addr = self.interface.to_addr
         next_hop.port = self.interface.to_udp_port
@@ -196,9 +209,11 @@ class Router(SCIONElement):
         while True:
             self.send(ifid_req, next_hop, False)
             logging.info('IFID_REQ sent to %s', next_hop)
+            logging.info('IFID_REQ req_id:%d, rep_id:%d', ifid_req.request_id,
+                         ifid_req.reply_id)
             time.sleep(self.IFID_REQ_TOUT)
             if self.interface.initialized:
-                logging.info('Port initialized, leaving init_interface()')
+                logging.info('Port initialized, leaving sync_interface()')
                 break
 
     def process_ifid_reply(self, packet, next_hop):
@@ -213,6 +228,8 @@ class Router(SCIONElement):
         """
         logging.info('IFID_REP received, len %u', len(packet))
         ifid_rep = IFIDReply(packet)
+        logging.info('IFID_REQ req_id:%d, rep_id:%d', ifid_rep.request_id,
+                     ifid_rep.reply_id)
         for bs in self.topology.beacon_servers:
             next_hop.addr = bs.addr
             ifid_rep.hdr.dst_addr = SCIONAddr.from_values(self.topology.isd_id,
@@ -231,6 +248,10 @@ class Router(SCIONElement):
         :type next_hop: :class:`NextHop`
         """
         logging.info('IFID_REQ received, len %u', len(packet))
+        if self._ifid_sender:
+            # Interface configuration error.
+            logging.error("Shouldn't receive IFID_REQ (I'm a sender).")
+            return
         ifid_req = IFIDRequest(packet)
         next_hop.addr = self.interface.to_addr
         next_hop.port = self.interface.to_udp_port

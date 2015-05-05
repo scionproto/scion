@@ -506,6 +506,7 @@ class IFIDRequest(SCIONPacket):
     """
     def __init__(self, raw=None):
         SCIONPacket.__init__(self)
+        self.reply_id = 0  # Always 0 for request.
         self.request_id = None
         if raw:
             self.parse(raw)
@@ -528,11 +529,11 @@ class IFIDRequest(SCIONPacket):
         dst = SCIONAddr.from_values(dst_isd_ad.isd, dst_isd_ad.ad,
                                     PacketType.IFID_REQ)
         req.hdr = SCIONHeader.from_values(src, dst)
-        req.payload = struct.pack("HH", 0, request_id)
+        req.payload = struct.pack("HH", req.reply_id, request_id)
         return req
 
     def pack(self):
-        self.payload = struct.pack("HH", 0, self.request_id)
+        self.payload = struct.pack("HH", self.reply_id, self.request_id)
         return SCIONPacket.pack(self)
 
 
