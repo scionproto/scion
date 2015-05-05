@@ -360,7 +360,7 @@ class PathStore(object):
         """
         if k is None:
             k = self.path_policy.best_set_size
-        self.best_paths_history.insert(0, self.get_candidates(k))
+        self.best_paths_history.insert(0, self.get_best_segments(k))
         self.candidates.clear()
 
     def remove_segments(self, seg_ids):
