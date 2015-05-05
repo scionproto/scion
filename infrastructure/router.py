@@ -212,9 +212,6 @@ class Router(SCIONElement):
             logging.info('IFID_REQ req_id:%d, rep_id:%d', ifid_req.request_id,
                          ifid_req.reply_id)
             time.sleep(self.IFID_REQ_TOUT)
-            if self.interface.initialized:
-                logging.info('Port initialized, leaving sync_interface()')
-                break
 
     def process_ifid_reply(self, packet, next_hop):
         """
@@ -236,7 +233,6 @@ class Router(SCIONElement):
                                                           self.topology.ad_id,
                                                           next_hop.addr)
             self.send(ifid_rep, next_hop)
-        self.interface.initialized = True
 
     def process_ifid_request(self, packet, next_hop):
         """
@@ -275,9 +271,6 @@ class Router(SCIONElement):
         :type from_bs: bool
         """
         beacon = PathConstructionBeacon(packet)
-        if not self.interface.initialized:
-            logging.warning("Interface not initialized.")
-            return
         if from_bs:
             if self.interface.if_id != beacon.pcb.trcf.if_id:
                 logging.error("Wrong interface set by BS.")
@@ -302,9 +295,6 @@ class Router(SCIONElement):
         :param from_local_ad: whether or not the packet is from the local AD.
         :type from_local_ad: bool
         """
-        if not self.interface.initialized:
-            logging.warning("Interface not initialized.")
-            return
         if from_local_ad:
             next_hop.addr = self.interface.to_addr
             next_hop.port = self.interface.to_udp_port
