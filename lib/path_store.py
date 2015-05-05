@@ -16,7 +16,7 @@
 ========================================================================
 """
 
-from collections import defaultdict
+from collections import defaultdict, deque
 from lib.packet.pcb import PathSegment
 import json
 import logging
@@ -186,7 +186,7 @@ class PathStore(object):
     def __init__(self, path_policy):
         self.path_policy = path_policy
         self.candidates = []
-        self.best_paths_history = []
+        self.best_paths_history = deque(maxlen=self.path_policy.history_limit)
 
     def add_segment(self, pcb):
         """
@@ -286,8 +286,9 @@ class PathStore(object):
         Returns the latest k best paths from the history.
         """
         best_paths = []
-        for candidate in self.best_paths_history[0][:k]:
-            best_paths.append(candidate.pcb)
+        if self.best_paths_history[0]:
+            for candidate in self.best_paths_history[0][:k]:
+                best_paths.append(candidate.pcb)
         return best_paths
 
     def store_selection(self, k=10):
@@ -299,7 +300,7 @@ class PathStore(object):
            This function makes use of the `list.clear()` method and thus
            requires Python 3.3 or greater.
         """
-        self.best_paths_history.insert(0, self.get_best_segments(k))
+        self.best_paths_history.appendleft(self.get_best_segments(k))
         self.candidates.clear()
 
     def remove_segments(self, seg_ids):
