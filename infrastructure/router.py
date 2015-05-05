@@ -224,9 +224,14 @@ class Router(SCIONElement):
         :type next_hop: :class:`NextHop`
         """
         logging.info('IFID_REP received, len %u', len(packet))
+        if not self._ifid_sender:
+            # Interface configuration error.
+            logging.error("Shouldn't receive IFID_REP (I'm a receiver).")
+            return
         ifid_rep = IFIDReply(packet)
         logging.info('IFID_REQ req_id:%d, rep_id:%d', ifid_rep.request_id,
                      ifid_rep.reply_id)
+        next_hop.port = SCION_UDP_PORT
         for bs in self.topology.beacon_servers:
             next_hop.addr = bs.addr
             ifid_rep.hdr.dst_addr = SCIONAddr.from_values(self.topology.isd_id,
@@ -249,6 +254,7 @@ class Router(SCIONElement):
             logging.error("Shouldn't receive IFID_REQ (I'm a sender).")
             return
         ifid_req = IFIDRequest(packet)
+        # Send 'pong' packet.
         next_hop.addr = self.interface.to_addr
         next_hop.port = self.interface.to_udp_port
         dst = ifid_req.hdr.src_addr
@@ -257,6 +263,14 @@ class Router(SCIONElement):
                                          self.interface.if_id,
                                          ifid_req.request_id)
         self.send(ifid_rep, next_hop, False)
+        # Forward 'ping' packet to all BSes (to inform that neighbor is alive).
+        ifid_req.reply_id = self.interface.if_id  # BS must determine interface.
+        next_hop.port = SCION_UDP_PORT
+        for bs in self.topology.beacon_servers:
+            next_hop.addr = bs.addr
+            logging.debug("Sending ifid_req: %s",
+                    get_type(SCIONPacket(ifid_req.pack()))==PT.IFID_REQ)
+            self.send(ifid_req, next_hop)
 
     def process_pcb(self, packet, next_hop, from_bs):
         """

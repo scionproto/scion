@@ -32,7 +32,7 @@ from lib.packet.path_mgmt import (PathSegmentInfo, PathSegmentRecords,
 from lib.packet.pcb import (PathSegment, ADMarking, PCBMarking, PeerMarking,
     PathConstructionBeacon)
 from lib.packet.scion import (SCIONPacket, get_type, PacketType as PT,
-    CertChainRequest, CertChainReply, TRCRequest, TRCReply)
+    CertChainRequest, CertChainReply, TRCRequest, TRCReply, IFIDReply)
 from lib.packet.scion_addr import SCIONAddr, ISD_AD
 from lib.path_store import PathPolicy, PathStoreRecord, PathStore
 from lib.util import (read_file, write_file, get_cert_chain_file_path,
@@ -210,18 +210,21 @@ class BeaconServer(SCIONElement):
         signature = sign(data_to_sign, self.signing_key)
         return ADMarking.from_values(pcbm, peer_markings, signature)
 
+    def handle_ifid_packet(self, ipkt, is_request):
+        if is_request:
+            ifid = ipkt.reply_id
+        else:
+            ifid = ipkt.request_id
+        logging.warning("IFID packet for interface %d, %s", ifid, is_request)
+
     def handle_request(self, packet, sender, from_local_socket=True):
         """
         Main routine to handle incoming SCION packets.
         """
         spkt = SCIONPacket(packet)
         ptype = get_type(spkt)
-        if ptype == PT.IFID_REQ:
-            # TODO
-            logging.warning("IFID_REQ received, to implement")
-        elif ptype == PT.IFID_REP:
-            # TODO
-            logging.warning("IFID_REP received, to implement")
+        if ptype == PT.IFID_REQ or ptype == PT.IFID_REP:
+            self.handle_ifid_packet(IFIDReply(packet), ptype == PT.IFID_REQ)
         elif ptype == PT.BEACON:
             self.store_pcb(PathConstructionBeacon(packet))
         elif ptype == PT.CERT_CHAIN_REP:

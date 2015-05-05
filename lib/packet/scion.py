@@ -500,20 +500,21 @@ class SCIONPacket(PacketBase):
         return b"".join(data)
 
 
+# TODO: merge IFIDReq and IFIDRep into one class IFIDPacket
 class IFIDRequest(SCIONPacket):
     """
     IFID Request packet.
     """
     def __init__(self, raw=None):
         SCIONPacket.__init__(self)
-        self.reply_id = 0  # Always 0 for request.
+        self.reply_id = 0  # Always 0 for initial request.
         self.request_id = None
         if raw:
             self.parse(raw)
 
     def parse(self, raw):
         SCIONPacket.parse(self, raw)
-        _, self.request_id = struct.unpack("HH", self.payload)
+        self.reply_id, self.request_id = struct.unpack("HH", self.payload)
 
     @classmethod
     def from_values(cls, src, dst_isd_ad, request_id):
