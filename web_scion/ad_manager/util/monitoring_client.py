@@ -7,6 +7,7 @@ import xmlrpc.client
 # SCION
 from ad_management.common import get_monitoring_server, response_failure
 
+# TODO code duplication???
 
 def get_ad_info(isd_id, ad_id, md_host):
     """
@@ -14,7 +15,7 @@ def get_ad_info(isd_id, ad_id, md_host):
     """
     s = get_monitoring_server(md_host)
     try:
-        ad_info = s.get_ad_info(isd_id, ad_id)
+        ad_info = s.get_ad_info(str(isd_id), str(ad_id))
         return ad_info
     except (ConnectionRefusedError, xmlrpc.client.Error) as ex:
         return response_failure('Query failed', str(ex))
@@ -26,10 +27,22 @@ def get_topology(isd_id, ad_id, md_host):
     """
     s = get_monitoring_server(md_host)
     try:
-        topo_response = s.get_topology(isd_id, ad_id)
+        topo_response = s.get_topology(str(isd_id), str(ad_id))
         return topo_response
     except (ConnectionRefusedError, xmlrpc.client.Error) as ex:
         return response_failure('Cannot get the topology', str(ex))
+
+
+def push_topology(isd_id, ad_id, md_host, topology):
+    """
+    get_topology XML-RPC call to the management daemon
+    """
+    s = get_monitoring_server(md_host)
+    try:
+        topo_response = s.update_topology(str(isd_id), str(ad_id), topology)
+        return topo_response
+    except (ConnectionRefusedError, xmlrpc.client.Error) as ex:
+        return response_failure('Cannot push the topology', str(ex))
 
 
 def send_update(isd_id, ad_id, md_host, arch_path):
@@ -47,7 +60,7 @@ def send_update(isd_id, ad_id, md_host, arch_path):
     data_dict = {'data': base64_data, 'digest': data_digest,
                  'name': os.path.basename(arch_path)}
     try:
-        update_response = s.send_update(isd_id, ad_id, data_dict)
+        update_response = s.send_update(str(isd_id), str(ad_id), data_dict)
         return update_response
     except (ConnectionRefusedError, xmlrpc.client.Error) as ex:
         return response_failure('Cannot send the update', str(ex))

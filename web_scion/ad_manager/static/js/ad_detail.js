@@ -35,23 +35,27 @@ function updateServerStatus(detailUrl) {
 function initTopologyCheck() {
     $('#topology-info').hide();
     $('#update-topology-btn').hide();
+    $('#push-update-topology-btn').hide();
 }
 
 function compareAdTopology(compareUrl) {
     var $alertDiv = $('#topology-info');
     var $updateTopoButton = $('#update-topology-btn');
+    var $pushUpdateTopoButton = $('#push-update-topology-btn');
     $alertDiv.removeClass('alert-success alert-danger alert-warning');
 
     function alertNoTopology() {
         $alertDiv.addClass('alert-warning');
         $alertDiv.text('Cannot get topology');
         $updateTopoButton.hide(200);
+        $pushUpdateTopoButton.hide(200);
     }
 
     function alertOk() {
         $alertDiv.addClass('alert-success');
         $alertDiv.text('Everything is OK');
         $updateTopoButton.hide(200);
+        $pushUpdateTopoButton.hide(200);
     }
 
     function alertChanged(changes) {
@@ -63,6 +67,7 @@ function compareAdTopology(compareUrl) {
         });
         $alertDiv.append($changesList);
         $updateTopoButton.show(200);
+        $pushUpdateTopoButton.show(200);
     }
 
     $.ajax({

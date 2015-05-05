@@ -128,14 +128,37 @@ def compare_remote_topology(request, pk):
         status = 'OK'
     return JsonResponse({'status': status, 'changes': changes})
 
-
 @transaction.atomic
-def update_from_remote_topology(request, pk):
+def update_topology(request, pk):
+    ad = AD.objects.get(id=pk)
+    ad_page = reverse('ad_detail', args=[ad.id])
+    if request.method == 'POST':
+        if '_pull_topology' in request.POST:
+            return _update_from_remote_topology(request, ad)
+        elif '_push_topology' in request.POST:
+            return _push_local_topology(request, ad)
+    return redirect(ad_page)
+
+
+def _push_local_topology(request, ad):
+    local_topo = ad.generate_topology_dict()
+    local_topo_str = json.dumps(local_topo, indent=2)
+    # TODO move to model?
+    md_host = ad.get_monitoring_daemon_host()
+    response = monitoring_client.push_topology(str(ad.isd.id), str(ad.id),
+                                               md_host, local_topo)
+    if is_success(response):
+        messages.success(request, 'OK')
+    else:
+        messages.error(request, get_failure_errors(response))
+    return redirect(reverse('ad_detail_topology', args=[ad.id]))
+
+
+def _update_from_remote_topology(request, ad):
     """
     Atomically retrieve the remote topology and update the stored topology
     for the given AD.
     """
-    ad = AD.objects.get(id=pk)
     remote_topology_dict = ad.get_remote_topology()
     # Write the retrieved topology to a temp file
     with tempfile.NamedTemporaryFile(mode='w') as tmp:
@@ -194,7 +217,7 @@ def update_action(request, pk):
         package = form.cleaned_data['selected_version']
         if '_download_update' in request.POST:
             return _download_update(request, ad, package)
-        if '_install_update' in request.POST:
+        elif '_install_update' in request.POST:
             return _send_update(request, ad, package)
     return redirect(ad_page)
 

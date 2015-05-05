@@ -19,6 +19,7 @@
 # Stdlib
 import base64
 import hashlib
+import json
 import logging
 import os
 import sys
@@ -28,6 +29,7 @@ from subprocess import Popen
 from ad_management.common import (
     get_supervisor_server,
     is_success,
+    LOGS_DIR,
     MONITORING_DAEMON_PORT,
     response_failure,
     response_success,
@@ -37,7 +39,7 @@ from ad_management.common import (
 )
 from ad_management.secure_rpc_server import XMLRPCServerTLS
 from lib.log import init_logging
-from topology.generator import TOPO_DIR, SCRIPTS_DIR
+from topology.generator import ConfigGenerator
 
 
 class MonitoringDaemon(object):
@@ -63,7 +65,8 @@ class MonitoringDaemon(object):
         self.rpc_server.register_introspection_functions()
         # Register functions
         to_register = [self.get_topology, self.get_process_info,
-                       self.control_process, self.get_ad_info]
+                       self.control_process, self.get_ad_info,
+                       self.send_update, self.update_topology]
         for func in to_register:
             self.rpc_server.register_function(func)
         logging.info("Monitoring daemon started")
@@ -82,6 +85,23 @@ class MonitoringDaemon(object):
         """
         return 'ad{}-{}'.format(isd_id, ad_id)
 
+    def get_topo_path(self, isd_id, ad_id):
+        gen = ConfigGenerator()
+        topo_path = gen.path_dict(isd_id, ad_id)['topo_file_abs']
+        return topo_path
+
+    def update_topology(self, isd_id, ad_id, topology):
+        # TODO check security!
+        topo_path = self.get_topo_path(isd_id, ad_id)
+        if not os.path.isfile(topo_path):
+            return response_failure('No AD topology found')
+        with open(topo_path, 'w') as topo_fh:
+            json.dump(topology, topo_fh, indent=2)
+            logging.info('Topology file written')
+        generator = ConfigGenerator()
+        generator.write_derivatives(topology)
+        return response_success('Topology file successfully updated')
+
     def get_topology(self, isd_id, ad_id):
         """
         Read topology file of the given AD.
@@ -96,9 +116,7 @@ class MonitoringDaemon(object):
         """
         isd_id, ad_id = str(isd_id), str(ad_id)
         logging.info('get_topology call')
-        file_name = 'ISD:' + isd_id + '-AD:' + ad_id + '.json'
-        topo_file = os.path.join('ISD' + isd_id, TOPO_DIR, file_name)
-        topo_path = os.path.join('..', SCRIPTS_DIR, topo_file)
+        topo_path = self.get_topo_path(isd_id, ad_id)
         if os.path.isfile(topo_path):
             return response_success(open(topo_path, 'r').read())
         else:

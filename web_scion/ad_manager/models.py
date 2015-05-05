@@ -15,6 +15,7 @@ from ad_management.common import (
 )
 from ad_manager.util import monitoring_client
 from lib.topology import Topology
+from topology.generator import PORT, ConfigGenerator
 
 
 class SelectRelatedModelManager(models.Manager):
@@ -73,7 +74,7 @@ class AD(models.Model):
         Get the corresponding remote topology as a Python dictionary.
         """
         md_host = self.get_monitoring_daemon_host()
-        topology_response = monitoring_client.get_topology(self.isd_id, self.id,
+        topology_response = monitoring_client.get_topology(self.isd.id, self.id,
                                                            md_host)
         if not is_success(topology_response):
             return None
@@ -223,9 +224,18 @@ class RouterWeb(SCIONWebElement):
 
     def get_dict(self):
         out_dict = super(RouterWeb, self).get_dict()
+        port = int(PORT)
+        if_id = ConfigGenerator.generate_if_id(self.ad_id, self.neighbor_ad_id)
         out_dict['Interface'] = {'NeighborType': self.neighbor_type,
                                  'NeighborISD': int(self.neighbor_ad.isd_id),
-                                 'NeighborAD': int(self.neighbor_ad.id)}
+                                 'NeighborAD': int(self.neighbor_ad.id),
+                                 'Addr': str(self.interface_addr),
+                                 'AddrType': 'IPv4',
+                                 'ToAddr': str(self.interface_toaddr),
+                                 'UdpPort': port,
+                                 'ToUdpPort': port,
+                                 'IFID': if_id,
+                                 }
         return out_dict
 
     class Meta:

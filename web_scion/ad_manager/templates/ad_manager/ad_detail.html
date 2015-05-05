@@ -61,7 +61,18 @@
         <p>The stored topology might be out of sync with the real topology.</p>
         <div>
           <button type="button" class="btn btn-info" id="compare-topology-btn">Check topology</button>
-          <a href="{% url 'update_topology' object.id %}" class="btn btn-default click-confirm" id="update-topology-btn">Update local topology</a>
+          <form method="POST" action="{% url 'update_topology' object.id %}">
+            <br />
+            {% csrf_token %}
+            <button type="submit" class="btn btn-default click-confirm" id="update-topology-btn" name="_pull_topology">
+              Update the local topology
+            </button>
+
+            <button type="submit" class="btn btn-default click-confirm" id="push-update-topology-btn" name="_push_topology">
+              Push the topology
+            </button>
+
+          </form>
         </div>
         <br/>
         <div id="topology-info" class="alert" role="alert"></div>
