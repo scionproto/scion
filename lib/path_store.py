@@ -299,7 +299,7 @@ class PathStore(object):
            This function makes use of the `list.clear()` method and thus
            requires Python 3.3 or greater.
         """
-        self.best_paths_history.insert(0, self.get_candidates(k))
+        self.best_paths_history.insert(0, self.get_best_segments(k))
         self.candidates.clear()
 
     def remove_segments(self, seg_ids):
