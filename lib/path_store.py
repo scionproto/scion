@@ -17,16 +17,14 @@
 """
 
 from collections import defaultdict, deque
+from Crypto.Hash import SHA256
 from lib.packet.pcb import PathSegment
 from lib.util import sleep_interval
 import json
 import logging
 import random
 import sys
-import threading
 import time
-
-from Crypto.Hash import SHA256
 
 
 class PathPolicy(object):
@@ -190,7 +188,6 @@ class PathStore(object):
         self.path_policy = path_policy
         self.candidates = []
         self.best_paths_history = deque(maxlen=self.path_policy.history_limit)
-        threading.Thread(target=self._remove_expired_segments()).start()
 
     def add_segment(self, pcb):
         """
@@ -280,6 +277,7 @@ class PathStore(object):
         """
         Returns the k best paths from the temporary buffer.
         """
+        self._remove_expired_segments()
         best_paths = []
         for candidate in self.candidates[:k]:
             best_paths.append(candidate.pcb)
@@ -304,30 +302,30 @@ class PathStore(object):
            This function makes use of the `list.clear()` method and thus
            requires Python 3.3 or greater.
         """
+        self._remove_expired_segments()
         self.best_paths_history.appendleft(self.get_best_segments(k))
         self.candidates.clear()
 
-    @thread_safety_net("_remove_expired_segments")
     def _remove_expired_segments(self):
         """
         Remove candidates if their expiration_time is up.
         """
-        while True:
-            now = time.time()
-            for index in range(len(self.candidates)):
-                if self.candidates[index].expiration_time <= now:
-                    del self.candidates[index]
-            self._update_all_fidelity()
-            self.candidates = sorted(self.candidates, key=lambda x: x.fidelity,
-                                     reverse=True)
-            sleep_interval(time.time(), PathStore.EXPIRED_SEGMENTS_REMOVAL_TIME,
-                           "Expired segments removal.")
+        seg_ids = []
+        now = time.time()
+        for candidate in self.candidates:
+            if candidate.expiration_time <= now:
+                seg_ids.append(candidate.id)
+        self.remove_segments(seg_ids)
 
     def remove_segments(self, seg_ids):
         """
         Removes segments in 'seg_ids' from the candidates.
         """
         self.candidates[:] = [c for c in self.candidates if c.id not in seg_ids]
+        if self.candidates:
+            self._update_all_fidelity()
+            self.candidates = sorted(self.candidates, key=lambda x: x.fidelity,
+                                     reverse=True)
         
     def get_segment(self, seg_id):
         """
