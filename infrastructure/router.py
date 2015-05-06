@@ -35,6 +35,8 @@ import sys
 import threading
 import time
 
+IFID_REQ_TOUT = 0.5  # How often IFID packet is sent to neighboring router.
+
 
 class NextHop(object):
     """
@@ -77,8 +79,6 @@ class Router(SCIONElement):
         those extensions that execute after routing.
     :vartype post_ext_handlers: dict
     """
-
-    IFID_REQ_TOUT = 0.5  # How often IFID packet is sent to neighboring router.
 
     def __init__(self, addr, topo_file, config_file, pre_ext_handlers=None,
                  post_ext_handlers=None):
@@ -211,7 +211,7 @@ class Router(SCIONElement):
             logging.info('IFID_REQ sent to %s', next_hop)
             logging.info('IFID_REQ req_id:%d, rep_id:%d', ifid_req.request_id,
                          ifid_req.reply_id)
-            time.sleep(self.IFID_REQ_TOUT)
+            time.sleep(IFID_REQ_TOUT)
 
     def process_ifid_reply(self, packet, next_hop):
         """

@@ -18,6 +18,7 @@
 
 from _collections import deque, defaultdict
 from asyncio.tasks import sleep
+from infrastructure.router import IFID_REQ_TOUT
 from infrastructure.scion_elem import SCIONElement
 from ipaddress import IPv4Address
 from lib.crypto.asymcrypto import sign
@@ -71,6 +72,8 @@ class BeaconServer(SCIONElement):
     REQUESTS_TIMEOUT = 10
     # ZK path for incoming PCBs
     ZK_PCB_CACHE_PATH = "pcb_cache"
+    # Timeout for interface (link) status.
+    IFID_TOUT = 3.5 * IFID_REQ_TOUT
 
     def __init__(self, addr, topo_file, config_file, path_policy_file):
         SCIONElement.__init__(self, addr, topo_file, config_file=config_file)
@@ -84,6 +87,10 @@ class BeaconServer(SCIONElement):
         self.signing_key = base64.b64decode(self.signing_key)
         self.if2rev_tokens = {}
         self.seg2rev_tokens = {}
+
+        self.ifid_state = {}
+        for ifid in self.ifid2addr:
+            self.ifid_state[ifid] = (0, 0)
 
         self._latest_entry = 0
         # Set when we have connected and read the existing recent and incoming
@@ -193,10 +200,11 @@ class BeaconServer(SCIONElement):
         data_to_sign = (str(pcbm.ad_id).encode('utf-8') + pcbm.hof.pack() +
                         pcbm.spcbf.pack())
         peer_markings = []
-        # TODO PSz: peering link can be only added when there is
-        # IfidReply from router
         for router_peer in self.topology.peer_edge_routers:
             if_id = router_peer.interface.if_id
+            if not self._is_ifid_active(if_id):
+                logging.warning('Peer ifid:%d inactive (not added).', if_id)
+                continue
             hof = HopOpaqueField.from_values(BeaconServer.HOF_EXP_TIME,
                                              if_id, egress_if)
             spf = SupportPeerField.from_values(self.topology.isd_id)
@@ -209,12 +217,23 @@ class BeaconServer(SCIONElement):
         signature = sign(data_to_sign, self.signing_key)
         return ADMarking.from_values(pcbm, peer_markings, signature)
 
+    def _is_ifid_active(self, ifid):
+        logging.debug(self.ifid_state)
+        return self.ifid_state[ifid][1] + self.IFID_TOUT >= time.time()
+
     def handle_ifid_packet(self, ipkt, is_request):
         if is_request:
             ifid = ipkt.reply_id
         else:
             ifid = ipkt.request_id
-        logging.warning("IFID packet for interface %d, %s", ifid, is_request)
+
+        (active_first, active_last) = self.ifid_state[ifid]
+        curr_time = time.time()
+        if active_last + self.IFID_TOUT < curr_time:
+            self.ifid_state[ifid] = (curr_time, curr_time)
+            logging.debug('Interface %d (re)activated', ifid)
+        else:
+            self.ifid_state[ifid] = (active_first, curr_time)
 
     def handle_request(self, packet, sender, from_local_socket=True):
         """
