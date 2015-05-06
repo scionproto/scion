@@ -235,7 +235,6 @@ class PathStore(object):
     """
     Path Store class.
     """
-    EXPIRED_SEGMENTS_REMOVAL_TIME = 60
 
     def __init__(self, path_policy):
         self.path_policy = path_policy
