@@ -43,11 +43,10 @@ class PacketType(object):
     CERT_CHAIN_REQ = IPv4Address("10.224.0.6")  # cert chain request to parent AD
     CERT_CHAIN_REQ_LOCAL = IPv4Address("10.224.0.7")  # local cert chain request
     CERT_CHAIN_REP = IPv4Address("10.224.0.8")  # cert chain reply from lCS 
-    IFID_REQ = IPv4Address("10.224.0.9")  # IF ID request to the peer router
-    IFID_REP = IPv4Address("10.224.0.10")  # IF ID reply from the peer router
-    SRC = [BEACON, PATH_MGMT, CERT_CHAIN_REP, TRC_REP, IFID_REP]
+    IFID_PKT = IPv4Address("10.224.0.9")  # IF ID packet to the peer router
+    SRC = [BEACON, PATH_MGMT, CERT_CHAIN_REP, TRC_REP]
     DST = [PATH_MGMT, TRC_REQ, TRC_REQ_LOCAL, CERT_CHAIN_REQ,
-           CERT_CHAIN_REQ_LOCAL, IFID_REQ]
+           CERT_CHAIN_REQ_LOCAL, IFID_PKT]
 
 
 def get_type(pkt):
@@ -500,10 +499,9 @@ class SCIONPacket(PacketBase):
         return b"".join(data)
 
 
-# TODO: merge IFIDReq and IFIDRep into one class IFIDPacket
-class IFIDRequest(SCIONPacket):
+class IFIDPacket(SCIONPacket):
     """
-    IFID Request packet.
+    IFID packet.
     """
     def __init__(self, raw=None):
         SCIONPacket.__init__(self)
@@ -519,57 +517,19 @@ class IFIDRequest(SCIONPacket):
     @classmethod
     def from_values(cls, src, dst_isd_ad, request_id):
         """
-        Returns a IFIDRequest with the values specified.
+        Returns a IFIDPacket with the values specified.
 
         @param src: Source address (must be a 'SCIONAddr' object)
         @param dst_isd_ad: Destination's 'ISD_AD' namedtuple.
         @param request_id: interface number of src (neighboring router).
         """
-        req = IFIDRequest()
+        req = IFIDPacket()
         req.request_id = request_id
         dst = SCIONAddr.from_values(dst_isd_ad.isd, dst_isd_ad.ad,
-                                    PacketType.IFID_REQ)
+                                    PacketType.IFID_PKT)
         req.hdr = SCIONHeader.from_values(src, dst)
         req.payload = struct.pack("HH", req.reply_id, request_id)
         return req
-
-    def pack(self):
-        self.payload = struct.pack("HH", self.reply_id, self.request_id)
-        return SCIONPacket.pack(self)
-
-
-class IFIDReply(SCIONPacket):
-    """
-    IFID Reply packet.
-    """
-    def __init__(self, raw=None):
-        SCIONPacket.__init__(self)
-        self.reply_id = None
-        self.request_id = None
-        if raw:
-            self.parse(raw)
-
-    def parse(self, raw):
-        SCIONPacket.parse(self, raw)
-        self.reply_id, self.request_id = struct.unpack("HH", self.payload)
-
-    @classmethod
-    def from_values(cls, src_isd_ad, dst, reply_id, request_id):
-        """
-        Returns a IFIDReply with the values specified.
-
-        @param src_isd_ad: Source's 'ISD_AD' namedtuple.
-        @param dst: Destination address (must be a 'SCIONAddr' object)
-        @param reply_id: interface number of dst (local router).
-        @param request_id: interface number of src (neighboring router).
-        """
-        rep = IFIDReply()
-        rep.reply_id = reply_id
-        rep.request_id = request_id
-        src = SCIONAddr.from_values(src_isd_ad.isd, src_isd_ad.ad,
-                                    PacketType.IFID_REP)
-        rep.hdr = SCIONHeader.from_values(src, dst)
-        return rep
 
     def pack(self):
         self.payload = struct.pack("HH", self.reply_id, self.request_id)

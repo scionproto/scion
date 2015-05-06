@@ -18,7 +18,7 @@
 
 from _collections import deque, defaultdict
 from asyncio.tasks import sleep
-from infrastructure.router import IFID_REQ_TOUT
+from infrastructure.router import IFID_PKT_TOUT
 from infrastructure.scion_elem import SCIONElement
 from ipaddress import IPv4Address
 from lib.crypto.asymcrypto import sign
@@ -33,7 +33,7 @@ from lib.packet.path_mgmt import (PathSegmentInfo, PathSegmentRecords,
 from lib.packet.pcb import (PathSegment, ADMarking, PCBMarking, PeerMarking,
     PathConstructionBeacon)
 from lib.packet.scion import (SCIONPacket, get_type, PacketType as PT,
-    CertChainRequest, CertChainReply, TRCRequest, TRCReply, IFIDReply)
+    CertChainRequest, CertChainReply, TRCRequest, TRCReply, IFIDPacket)
 from lib.packet.scion_addr import SCIONAddr, ISD_AD
 from lib.path_store import PathPolicy, PathStoreRecord, PathStore
 from lib.util import (read_file, write_file, get_cert_chain_file_path,
@@ -73,7 +73,7 @@ class BeaconServer(SCIONElement):
     # ZK path for incoming PCBs
     ZK_PCB_CACHE_PATH = "pcb_cache"
     # Timeout for interface (link) status.
-    IFID_TOUT = 3.5 * IFID_REQ_TOUT
+    IFID_TOUT = 3.5 * IFID_PKT_TOUT
 
     def __init__(self, addr, topo_file, config_file, path_policy_file):
         SCIONElement.__init__(self, addr, topo_file, config_file=config_file)
@@ -220,12 +220,8 @@ class BeaconServer(SCIONElement):
     def _is_ifid_active(self, ifid):
         return self.ifid_state[ifid][1] + self.IFID_TOUT >= time.time()
 
-    def handle_ifid_packet(self, ipkt, is_request):
-        if is_request:
-            ifid = ipkt.reply_id
-        else:
-            ifid = ipkt.request_id
-
+    def handle_ifid_packet(self, ipkt):
+        ifid = ipkt.reply_id
         (active_first, active_last) = self.ifid_state[ifid]
         curr_time = time.time()
         if active_last + self.IFID_TOUT < curr_time:
@@ -240,8 +236,8 @@ class BeaconServer(SCIONElement):
         """
         spkt = SCIONPacket(packet)
         ptype = get_type(spkt)
-        if ptype == PT.IFID_REQ or ptype == PT.IFID_REP:
-            self.handle_ifid_packet(IFIDReply(packet), ptype == PT.IFID_REQ)
+        if ptype == PT.IFID_PKT:
+            self.handle_ifid_packet(IFIDPacket(packet))
         elif ptype == PT.BEACON:
             self.store_pcb(PathConstructionBeacon(packet))
         elif ptype == PT.CERT_CHAIN_REP:
