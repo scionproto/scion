@@ -208,9 +208,8 @@ class Router(SCIONElement):
                                            self.interface.if_id)
         while True:
             self.send(ifid_req, next_hop, False)
-            logging.info('IFID_REQ sent to %s', next_hop)
-            logging.info('IFID_REQ req_id:%d, rep_id:%d', ifid_req.request_id,
-                         ifid_req.reply_id)
+            logging.info('Sending IFID_REQ to router: req_id:%d, rep_id:%d',
+                         ifid_req.request_id, ifid_req.reply_id)
             time.sleep(IFID_REQ_TOUT)
 
     def process_ifid_reply(self, packet, next_hop):
@@ -229,9 +228,9 @@ class Router(SCIONElement):
             logging.error("Shouldn't receive IFID_REP (I'm a receiver).")
             return
         ifid_rep = IFIDReply(packet)
-        logging.info('IFID_REQ req_id:%d, rep_id:%d', ifid_rep.request_id,
-                     ifid_rep.reply_id)
         next_hop.port = SCION_UDP_PORT
+        logging.debug('Forwarding IFID_REP to BSes: req_id:%d, rep_id:%d',
+                      ifid_rep.request_id, ifid_rep.reply_id)
         for bs in self.topology.beacon_servers:
             next_hop.addr = bs.addr
             ifid_rep.hdr.dst_addr = SCIONAddr.from_values(self.topology.isd_id,
@@ -266,10 +265,9 @@ class Router(SCIONElement):
         # Forward 'ping' packet to all BSes (to inform that neighbor is alive).
         ifid_req.reply_id = self.interface.if_id  # BS must determine interface.
         next_hop.port = SCION_UDP_PORT
+        logging.debug("Forwarding IFID_REQ to BSes")
         for bs in self.topology.beacon_servers:
             next_hop.addr = bs.addr
-            logging.debug("Sending ifid_req: %s",
-                    get_type(SCIONPacket(ifid_req.pack()))==PT.IFID_REQ)
             self.send(ifid_req, next_hop)
 
     def process_pcb(self, packet, next_hop, from_bs):

@@ -218,7 +218,6 @@ class BeaconServer(SCIONElement):
         return ADMarking.from_values(pcbm, peer_markings, signature)
 
     def _is_ifid_active(self, ifid):
-        logging.debug(self.ifid_state)
         return self.ifid_state[ifid][1] + self.IFID_TOUT >= time.time()
 
     def handle_ifid_packet(self, ipkt, is_request):
