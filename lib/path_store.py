@@ -54,6 +54,59 @@ class PathPolicy(object):
                             'property_weights': self.property_weights}
         return path_policy_dict
 
+    def check_filters(self, pcb):
+        """
+        Runs some checks, including: unwanted ADs and min/max property values.
+        """
+        assert isinstance(pcb, PathSegment)
+        if not self._check_unwanted_ads(pcb):
+            logging.warning("PathStore: pcb discarded (unwanted AD).")
+            return False
+        if not self._check_property_ranges(pcb):
+            logging.warning("PathStore: pcb discarded (property range).")
+            return False
+        return True
+
+    def _check_unwanted_ads(self, pcb):
+        """
+        Checks whether any of the ADs in the path belong to the black list.
+        """
+        for ad in pcb.ads:
+            if ((ad.pcbm.spcbf.isd_id, ad.pcbm.ad_id) in
+                self.unwanted_ads):
+                return False
+        return True
+
+    def _check_property_ranges(self, pcb):
+        """
+        Checks whether any of the path properties has a value outside the
+        predefined min-max range.
+        """
+        return (
+            (self.property_ranges['PeerLinks'][0]
+             <= pcb.get_n_peer_links() <=
+             self.property_ranges['PeerLinks'][1])
+            and
+            (self.property_ranges['HopsLength'][0]
+             <= pcb.get_n_hops() <=
+             self.property_ranges['HopsLength'][1])
+            and
+            (self.property_ranges['DelayTime'][0]
+             <= int(time.time()) - pcb.get_timestamp() <=
+             self.property_ranges['DelayTime'][1])
+            and
+            (self.property_ranges['GuaranteedBandwidth'][0]
+             <= 10 <=
+             self.property_ranges['GuaranteedBandwidth'][1])
+            and
+            (self.property_ranges['AvailableBandwidth'][0]
+             <= 10 <=
+             self.property_ranges['AvailableBandwidth'][1])
+            and
+            (self.property_ranges['TotalBandwidth'][0]
+             <= 10 <=
+             self.property_ranges['TotalBandwidth'][1]))
+
     def parse(self, path_policy_file):
         """
         Parses the policies in the path store config file.
@@ -196,6 +249,8 @@ class PathStore(object):
         :type pcb: PathSegment
         """
         assert isinstance(pcb, PathSegment)
+        if not self.path_policy.check_filters(pcb):
+            return
         record = PathStoreRecord(pcb)
         for index in range(len(self.candidates)):
             if self.candidates[index] == record:
@@ -272,25 +327,29 @@ class PathStore(object):
         for candidate in self.candidates:
             candidate.update_fidelity(self.path_policy)
 
-    def get_best_segments(self, k=10):
+    def get_best_segments(self, k=None):
         """
         Returns the k best paths from the temporary buffer.
         """
+        if k is None:
+            k = self.path_policy.best_set_size
         best_paths = []
         for candidate in self.candidates[:k]:
             best_paths.append(candidate.pcb)
         return best_paths
 
-    def get_last_selection(self, k=10):
+    def get_last_selection(self, k=None):
         """
         Returns the latest k best paths from the history.
         """
+        if k is None:
+            k = self.path_policy.best_set_size
         best_paths = []
         for candidate in self.best_paths_history[0][:k]:
             best_paths.append(candidate.pcb)
         return best_paths
 
-    def store_selection(self, k=10):
+    def store_selection(self, k=None):
         """
         Stores the best k paths into the path history and reset the list of
         candidates.
@@ -299,6 +358,8 @@ class PathStore(object):
            This function makes use of the `list.clear()` method and thus
            requires Python 3.3 or greater.
         """
+        if k is None:
+            k = self.path_policy.best_set_size
         self.best_paths_history.insert(0, self.get_candidates(k))
         self.candidates.clear()
 

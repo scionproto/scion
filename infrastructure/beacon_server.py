@@ -16,7 +16,7 @@
 ============================================
 """
 
-from _collections import deque
+from _collections import deque, defaultdict
 from asyncio.tasks import sleep
 from infrastructure.scion_elem import SCIONElement
 from ipaddress import IPv4Address
@@ -74,9 +74,8 @@ class BeaconServer(SCIONElement):
 
     def __init__(self, addr, topo_file, config_file, path_policy_file):
         SCIONElement.__init__(self, addr, topo_file, config_file=config_file)
-        self.path_policy = PathPolicy(path_policy_file)
+        self.path_policy = PathPolicy(path_policy_file)  # TODO: add 2 policies
         self.unverified_beacons = deque()
-        self.beacons = PathStore(self.path_policy)
         self.trc_requests = {}
         self.trcs = {}
         sig_key_file = get_sig_key_file_path(self.topology.isd_id,
@@ -156,7 +155,7 @@ class BeaconServer(SCIONElement):
         Receives beacon and stores it for processing.
         """
         assert isinstance(beacon, PathConstructionBeacon)
-        if not self._check_filters(beacon.pcb):
+        if not self.path_policy.check_filters(beacon.pcb):
             return
         segment_id = beacon.pcb.get_hops_hash(hex=True)
         try:
@@ -245,53 +244,6 @@ class BeaconServer(SCIONElement):
                          name="BS shared pcbs",
                          daemon=True).start()
         SCIONElement.run(self)
-
-    def _check_filters(self, pcb):
-        """
-        Runs some checks, including: unwanted ADs and min/max property values.
-        """
-        assert isinstance(pcb, PathSegment)
-        return (self._check_unwanted_ads(pcb) and
-                self._check_property_ranges(pcb))
-
-    def _check_unwanted_ads(self, pcb):
-        """
-        Checks whether any of the ADs in the path belong to the black list.
-        """
-        for ad in pcb.ads:
-            if (pcb.iof.isd_id, ad.pcbm.ad_id) in self.path_policy.unwanted_ads:
-                return False
-        return True
-
-    def _check_property_ranges(self, pcb):
-        """
-        Checks whether any of the path properties has a value outside the
-        predefined min-max range.
-        """
-        return (
-            (self.path_policy.property_ranges['PeerLinks'][0]
-             <= pcb.get_n_peer_links() <=
-             self.path_policy.property_ranges['PeerLinks'][1])
-            and
-            (self.path_policy.property_ranges['HopsLength'][0]
-             <= pcb.get_n_hops() <=
-             self.path_policy.property_ranges['HopsLength'][1])
-            and
-            (self.path_policy.property_ranges['DelayTime'][0]
-             <= int(time.time()) - pcb.get_timestamp() <=
-             self.path_policy.property_ranges['DelayTime'][1])
-            and
-            (self.path_policy.property_ranges['GuaranteedBandwidth'][0]
-             <= 10 <=
-             self.path_policy.property_ranges['GuaranteedBandwidth'][1])
-            and
-            (self.path_policy.property_ranges['AvailableBandwidth'][0]
-             <= 10 <=
-             self.path_policy.property_ranges['AvailableBandwidth'][1])
-            and
-            (self.path_policy.property_ranges['TotalBandwidth'][0]
-             <= 10 <=
-             self.path_policy.property_ranges['TotalBandwidth'][1]))
 
     def _try_to_verify_beacon(self, pcb):
         """
@@ -498,8 +450,11 @@ class CoreBeaconServer(BeaconServer):
                               path_policy_file)
         # Sanity check that we should indeed be a core beacon server.
         assert self.topology.is_core_ad, "This shouldn't be a core BS!"
-        self.beacons = deque()  # FIXME: Discuss with Lorenzo
-        self.core_segments = deque()  # FIXME: ditto
+        self.beacons = defaultdict(self._ps_factory)
+        self.core_segments = defaultdict(self._ps_factory)
+
+    def _ps_factory(self):
+        return PathStore(self.path_policy)
 
     def propagate_core_pcb(self, pcb):
         """
@@ -558,8 +513,10 @@ class CoreBeaconServer(BeaconServer):
             count = self.propagate_core_pcb(core_pcb)
             # Propagate received beacons. A core beacon server can only receive
             # beacons from other core beacon servers.
-            while self.beacons:
-                pcb = self.beacons.popleft()
+            beacons = []
+            for ps in self.beacons.values():
+                beacons.extend(ps.get_best_segments())
+            for pcb in beacons:
                 count += self.propagate_core_pcb(pcb)
             logging.info("Propagated %d Core PCBs", count)
             try:
@@ -646,16 +603,21 @@ class CoreBeaconServer(BeaconServer):
         """
         Once a beacon has been verified, place it into the right containers.
         """
-        self.beacons.append(pcb)
-        self.core_segments.append(pcb)
+        isd_id = pcb.get_first_pcbm().spcbf.isd_id
+        ad_id = pcb.get_first_pcbm().ad_id
+        self.beacons[(isd_id, ad_id)].add_segment(pcb)
+        self.core_segments[(isd_id, ad_id)].add_segment(pcb)
 
     def register_core_segments(self):
         """
         Register the core segment between core ADs.
         """
+        core_segments = []
+        for ps in self.core_segments.values():
+            core_segments.extend(ps.get_best_segments())
         count = 0
-        while self.core_segments:
-            new_pcb = copy.deepcopy(self.core_segments.popleft())
+        for pcb in core_segments:
+            new_pcb = copy.deepcopy(pcb)
             ad_marking = self._create_ad_marking(new_pcb.trcf.if_id, 0)
             new_pcb.add_ad(ad_marking)
             new_pcb.segment_id = self._get_segment_rev_token(new_pcb)
@@ -677,6 +639,7 @@ class LocalBeaconServer(BeaconServer):
                               path_policy_file)
         # Sanity check that we should indeed be a local beacon server.
         assert not self.topology.is_core_ad, "This shouldn't be a local BS!"
+        self.beacons = PathStore(self.path_policy)
         self.up_segments = PathStore(self.path_policy)
         self.down_segments = PathStore(self.path_policy)
         self.cert_chain_requests = {}
@@ -785,7 +748,7 @@ class LocalBeaconServer(BeaconServer):
         Processes new beacons and appends them to beacon list.
         """
         for pcb in pcbs:
-            if self._check_filters(pcb):
+            if self.path_policy.check_filters(pcb):
                 self._try_to_verify_beacon(pcb)
 
     def process_cert_chain_rep(self, cert_chain_rep):
