@@ -24,9 +24,4 @@ class SCIONTestException(Exception):
 
 
 class SCIONCommonTest(unittest.TestCase):
-    def shortDescription(self):
-        """
-        Tell nosetests not to use a test method's docstring to identify the
-        test
-        """
-        return None
+    pass
