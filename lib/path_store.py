@@ -33,7 +33,7 @@ class PathPolicy(object):
     """
     def __init__(self, path_policy_file=None):
         self.best_set_size = 5
-        self.candidates_set_size = 600
+        self.candidates_set_size = 20
         self.history_limit = 0
         self.update_after_number = 0
         self.update_after_time = 0
@@ -261,8 +261,9 @@ class PathStore(object):
         self._update_all_fidelity()
         self.candidates = sorted(self.candidates, key=lambda x: x.fidelity,
                                  reverse=True)
-        if len(self.candidates) > self.path_policy.candidates_set_size:
-            self.candidates = self.candidates[:-1]
+        if len(self.candidates) >= self.path_policy.candidates_set_size:
+            self.candidates = self.get_best_segments()
+            self.best_paths_history.appendleft(self.candidates)
 
     def _update_all_peer_links(self):
         """
@@ -339,7 +340,7 @@ class PathStore(object):
             best_paths.append(candidate.pcb)
         return best_paths
 
-    def get_last_selection(self, k=None):
+    def get_latest_history_snapshot(self, k=None):
         """
         Returns the latest k best paths from the history.
         """
@@ -350,21 +351,6 @@ class PathStore(object):
             for candidate in self.best_paths_history[0][:k]:
                 best_paths.append(candidate.pcb)
         return best_paths
-
-    def store_selection(self, k=None):
-        """
-        Stores the best k paths into the path history and reset the list of
-        candidates.
-
-        .. warning::
-           This function makes use of the `list.clear()` method and thus
-           requires Python 3.3 or greater.
-        """
-        if k is None:
-            k = self.path_policy.best_set_size
-        self._remove_expired_segments()
-        self.best_paths_history.appendleft(self.get_best_segments(k))
-        self.candidates.clear()
 
     def _remove_expired_segments(self):
         """
