@@ -54,6 +54,29 @@ import threading
 import time
 
 
+class InterfaceState(object):
+    """
+    Simple class that represents current state of an interface.
+    """
+    # Timeout for interface (link) status.
+    IFID_TOUT = 3.5 * IFID_PKT_TOUT
+
+    def __init__(self):
+        self.active_from = 0
+        self.active_until = 0
+
+    def update(self):
+        curr_time = time.time()
+        if self.active_until + self.IFID_TOUT < curr_time:
+            self.active_from = curr_time
+            logging.debug('Interface %d (re)activated')
+        self.active_until = curr_time
+        logging.debug('state updatedddd')
+
+    def is_active(self):
+        return self.active_until + self.IFID_TOUT >= time.time()
+
+
 class BeaconServer(SCIONElement):
     """
     The SCION PathConstructionBeacon Server.
@@ -72,8 +95,6 @@ class BeaconServer(SCIONElement):
     REQUESTS_TIMEOUT = 10
     # ZK path for incoming PCBs
     ZK_PCB_CACHE_PATH = "pcb_cache"
-    # Timeout for interface (link) status.
-    IFID_TOUT = 3.5 * IFID_PKT_TOUT
 
     def __init__(self, addr, topo_file, config_file, path_policy_file):
         SCIONElement.__init__(self, addr, topo_file, config_file=config_file)
@@ -90,7 +111,7 @@ class BeaconServer(SCIONElement):
 
         self.ifid_state = {}
         for ifid in self.ifid2addr:
-            self.ifid_state[ifid] = (0, 0)
+            self.ifid_state[ifid] = InterfaceState()
 
         self._latest_entry = 0
         # Set when we have connected and read the existing recent and incoming
@@ -202,7 +223,7 @@ class BeaconServer(SCIONElement):
         peer_markings = []
         for router_peer in self.topology.peer_edge_routers:
             if_id = router_peer.interface.if_id
-            if not self._is_ifid_active(if_id):
+            if not self.ifid_state[if_id].is_active():
                 logging.warning('Peer ifid:%d inactive (not added).', if_id)
                 continue
             hof = HopOpaqueField.from_values(BeaconServer.HOF_EXP_TIME,
@@ -217,18 +238,9 @@ class BeaconServer(SCIONElement):
         signature = sign(data_to_sign, self.signing_key)
         return ADMarking.from_values(pcbm, peer_markings, signature)
 
-    def _is_ifid_active(self, ifid):
-        return self.ifid_state[ifid][1] + self.IFID_TOUT >= time.time()
-
     def handle_ifid_packet(self, ipkt):
         ifid = ipkt.reply_id
-        (active_first, active_last) = self.ifid_state[ifid]
-        curr_time = time.time()
-        if active_last + self.IFID_TOUT < curr_time:
-            self.ifid_state[ifid] = (curr_time, curr_time)
-            logging.debug('Interface %d (re)activated', ifid)
-        else:
-            self.ifid_state[ifid] = (active_first, curr_time)
+        self.ifid_state[ifid].update()
 
     def handle_request(self, packet, sender, from_local_socket=True):
         """
