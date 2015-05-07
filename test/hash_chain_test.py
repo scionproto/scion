@@ -15,14 +15,16 @@
 :mod:`hash_chain_test` --- SCION hash chain tests
 =================================================
 """
-from lib.crypto.hash_chain import HashChain
 import logging
 import unittest
 
 from Crypto import Random
 
+from lib.crypto.hash_chain import HashChain
+from test.testcommon import SCIONCommonTest
 
-class TestHashChain(unittest.TestCase):
+
+class TestHashChain(SCIONCommonTest):
     """
     Unit tests for hash_chain.py.
     """

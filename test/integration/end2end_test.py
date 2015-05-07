@@ -84,7 +84,7 @@ def ping_app():
     Simple ping app.
     """
     global pong_received
-    topo_file = ("../topology/ISD%d/topologies/ISD:%d-AD:%d.json" % 
+    topo_file = ("../../topology/ISD%d/topologies/ISD:%d-AD:%d.json" % 
                  (SRC.isd, SRC.isd, SRC.ad))
     sd = SCIONDaemon.start(saddr, topo_file, True) # API on
     print("Sending PATH request for (%d, %d) in 2 seconds" % (DST.isd, DST.ad))
@@ -119,7 +119,7 @@ def pong_app():
     Simple pong app.
     """
     global ping_received
-    topo_file = ("../topology/ISD%d/topologies/ISD:%d-AD:%d.json" %
+    topo_file = ("../../topology/ISD%d/topologies/ISD:%d-AD:%d.json" %
                  (DST.isd, DST.isd, DST.ad))
     sd = SCIONDaemon.start(raddr, topo_file)
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

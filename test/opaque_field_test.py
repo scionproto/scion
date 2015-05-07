@@ -15,12 +15,14 @@
 :mod:`opaque_field_test` --- SCION opaque field tests
 =====================================================
 """
-from lib.packet.opaque_field import (OpaqueField, OpaqueFieldType,
-    HopOpaqueField, InfoOpaqueField)
 import unittest
 
+from lib.packet.opaque_field import (OpaqueField, OpaqueFieldType,
+                                     HopOpaqueField, InfoOpaqueField)
+from test.testcommon import SCIONCommonTest
 
-class TestOpaqueFields(unittest.TestCase):
+
+class TestOpaqueFields(SCIONCommonTest):
     """
     Unit tests for opaque_field.py.
     """

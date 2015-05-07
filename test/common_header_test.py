@@ -15,11 +15,13 @@
 :mod:`common_header_test` --- SCION common header tests
 =======================================================
 """
-from lib.packet.scion import SCIONCommonHdr, PacketType
 import unittest
 
+from lib.packet.scion import SCIONCommonHdr
+from test.testcommon import SCIONCommonTest
 
-class TestCommonHeader(unittest.TestCase):
+
+class TestCommonHeader(SCIONCommonTest):
     """
     Unit tests for scion.py.
     """
