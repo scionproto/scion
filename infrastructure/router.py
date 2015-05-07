@@ -21,8 +21,8 @@ from infrastructure.scion_elem import (SCIONElement, SCION_UDP_PORT,
 from ipaddress import IPv4Address
 from lib.packet.opaque_field import OpaqueField, OpaqueFieldType as OFT
 from lib.packet.pcb import PathConstructionBeacon
-from lib.packet.scion import (PacketType as PT, SCIONPacket, IFIDRequest,
-    IFIDReply, get_type)
+from lib.packet.scion import (PacketType as PT, SCIONPacket, IFIDPacket,
+                              get_type)
 from lib.packet.scion_addr import SCIONAddr, ISD_AD
 from lib.log import (init_logging, log_exception)
 from lib.util import handle_signals
@@ -34,6 +34,8 @@ import socket
 import sys
 import threading
 import time
+
+IFID_PKT_TOUT = 0.5  # How often IFID packet is sent to neighboring router.
 
 
 class NextHop(object):
@@ -78,8 +80,6 @@ class Router(SCIONElement):
     :vartype post_ext_handlers: dict
     """
 
-    IFID_REQ_TOUT = 2
-
     def __init__(self, addr, topo_file, config_file, pre_ext_handlers=None,
                  post_ext_handlers=None):
         """
@@ -107,6 +107,7 @@ class Router(SCIONElement):
                 break
         assert self.interface != None
         logging.info("Interface: %s", self.interface.__dict__)
+
         if pre_ext_handlers:
             self.pre_ext_handlers = pre_ext_handlers
         else:
@@ -115,6 +116,7 @@ class Router(SCIONElement):
             self.post_ext_handlers = post_ext_handlers
         else:
             self.post_ext_handlers = {}
+
         self._remote_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._remote_socket.setsockopt(socket.SOL_SOCKET,
                                        socket.SO_REUSEADDR, 1)
@@ -124,7 +126,7 @@ class Router(SCIONElement):
         logging.info("IP %s:%u", self.interface.addr, self.interface.udp_port)
 
     def run(self):
-        threading.Thread(target=self.init_interface, daemon=True).start()
+        threading.Thread(target=self.sync_interface, daemon=True).start()
         SCIONElement.run(self)
 
     def send(self, packet, next_hop, use_local_socket=True):
@@ -178,12 +180,13 @@ class Router(SCIONElement):
         if ext or l < len(spkt.hdr.extension_hdrs):
             logging.warning("Extensions terminated incorrectly.")
 
-    @thread_safety_net("init_interface")
-    def init_interface(self):
+    @thread_safety_net("sync_interface")
+    def sync_interface(self):
         """
         Synchronize and initialize the router's interface with that of a
         neighboring router.
         """
+
         next_hop = NextHop()
         next_hop.addr = self.interface.to_addr
         next_hop.port = self.interface.to_udp_port
@@ -191,55 +194,32 @@ class Router(SCIONElement):
                                     self.interface.addr)
         dst_isd_ad = ISD_AD(self.interface.neighbor_isd,
                             self.interface.neighbor_ad)
-        ifid_req = IFIDRequest.from_values(src, dst_isd_ad,
+        ifid_req = IFIDPacket.from_values(src, dst_isd_ad,
                                            self.interface.if_id)
         while True:
             self.send(ifid_req, next_hop, False)
-            logging.info('IFID_REQ sent to %s', next_hop)
-            time.sleep(self.IFID_REQ_TOUT)
-            if self.interface.initialized:
-                logging.info('Port initialized, leaving init_interface()')
-                break
-
-    def process_ifid_reply(self, packet, next_hop):
-        """
-        After receiving IFID_REP interface is initialized and all beacon server
-        are informed.
-
-        :param packet: the IFID reply packet to send.
-        :type packet: bytes
-        :param next_hop: the next hop of the reply packet.
-        :type next_hop: :class:`NextHop`
-        """
-        logging.info('IFID_REP received, len %u', len(packet))
-        ifid_rep = IFIDReply(packet)
-        for bs in self.topology.beacon_servers:
-            next_hop.addr = bs.addr
-            ifid_rep.hdr.dst_addr = SCIONAddr.from_values(self.topology.isd_id,
-                                                          self.topology.ad_id,
-                                                          next_hop.addr)
-            self.send(ifid_rep, next_hop)
-        self.interface.initialized = True
+            logging.info('Sending IFID_PKT to router: req_id:%d, rep_id:%d',
+                         ifid_req.request_id, ifid_req.reply_id)
+            time.sleep(IFID_PKT_TOUT)
 
     def process_ifid_request(self, packet, next_hop):
         """
-        After receiving IFID_REQ from neighboring router, IFID_REP is sent back.
+        After receiving IFID_PKT from neighboring router it is completed (by
+        iface information) and passed to local BSes.
 
         :param packet: the IFID request packet to send.
         :type packet: bytes
         :param next_hop: the next hop of the request packet.
         :type next_hop: :class:`NextHop`
         """
-        logging.info('IFID_REQ received, len %u', len(packet))
-        ifid_req = IFIDRequest(packet)
-        next_hop.addr = self.interface.to_addr
-        next_hop.port = self.interface.to_udp_port
-        dst = ifid_req.hdr.src_addr
-        dst.host_addr = next_hop.addr
-        ifid_rep = IFIDReply.from_values(self.addr.get_isd_ad(), dst,
-                                         self.interface.if_id,
-                                         ifid_req.request_id)
-        self.send(ifid_rep, next_hop, False)
+        logging.info('IFID_PKT received, len %u', len(packet))
+        ifid_req = IFIDPacket(packet)
+        # Forward 'alive' packet to all BSes (to inform that neighbor is alive).
+        ifid_req.reply_id = self.interface.if_id  # BS must determine interface.
+        logging.debug("Forwarding IFID_PKT to BSes")
+        for bs in self.topology.beacon_servers:
+            next_hop.addr = bs.addr
+            self.send(ifid_req, next_hop)
 
     def process_pcb(self, packet, next_hop, from_bs):
         """
@@ -254,9 +234,6 @@ class Router(SCIONElement):
         :type from_bs: bool
         """
         beacon = PathConstructionBeacon(packet)
-        if not self.interface.initialized:
-            logging.warning("Interface not initialized.")
-            return
         if from_bs:
             if self.interface.if_id != beacon.pcb.trcf.if_id:
                 logging.error("Wrong interface set by BS.")
@@ -281,9 +258,6 @@ class Router(SCIONElement):
         :param from_local_ad: whether or not the packet is from the local AD.
         :type from_local_ad: bool
         """
-        if not self.interface.initialized:
-            logging.warning("Interface not initialized.")
-            return
         if from_local_ad:
             next_hop.addr = self.interface.to_addr
             next_hop.port = self.interface.to_udp_port
@@ -527,10 +501,8 @@ class Router(SCIONElement):
         ptype = get_type(spkt)
         next_hop = NextHop()
         self.handle_extensions(spkt, next_hop, True)
-        if ptype == PT.IFID_REQ and not from_local_ad:
+        if ptype == PT.IFID_PKT and not from_local_ad:
             self.process_ifid_request(packet, next_hop)
-        elif ptype == PT.IFID_REP and not from_local_ad:
-            self.process_ifid_reply(packet, next_hop)
         elif ptype == PT.BEACON:
             self.process_pcb(packet, next_hop, from_local_ad)
         elif ptype in [PT.CERT_CHAIN_REQ, PT.CERT_CHAIN_REP, PT.TRC_REQ,

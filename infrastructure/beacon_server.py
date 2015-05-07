@@ -18,6 +18,7 @@
 
 from _collections import deque, defaultdict
 from asyncio.tasks import sleep
+from infrastructure.router import IFID_PKT_TOUT
 from infrastructure.scion_elem import SCIONElement
 from ipaddress import IPv4Address
 from lib.crypto.asymcrypto import sign
@@ -32,7 +33,7 @@ from lib.packet.path_mgmt import (PathSegmentInfo, PathSegmentRecords,
 from lib.packet.pcb import (PathSegment, ADMarking, PCBMarking, PeerMarking,
     PathConstructionBeacon)
 from lib.packet.scion import (SCIONPacket, get_type, PacketType as PT,
-    CertChainRequest, CertChainReply, TRCRequest, TRCReply)
+    CertChainRequest, CertChainReply, TRCRequest, TRCReply, IFIDPacket)
 from lib.packet.scion_addr import SCIONAddr, ISD_AD
 from lib.path_store import PathPolicy, PathStoreRecord, PathStore
 from lib.util import (read_file, write_file, get_cert_chain_file_path,
@@ -50,6 +51,29 @@ import os
 import sys
 import threading
 import time
+
+
+class InterfaceState(object):
+    """
+    Simple class that represents current state of an interface.
+    """
+    # Timeout for interface (link) status.
+    IFID_TOUT = 3.5 * IFID_PKT_TOUT
+
+    def __init__(self):
+        self.active_from = 0
+        self.active_until = 0
+
+    def update(self):
+        curr_time = time.time()
+        if self.active_until + self.IFID_TOUT < curr_time:
+            self.active_from = curr_time
+            logging.debug('Interface %d (re)activated')
+        self.active_until = curr_time
+        logging.debug('state updatedddd')
+
+    def is_active(self):
+        return self.active_until + self.IFID_TOUT >= time.time()
 
 
 class BeaconServer(SCIONElement):
@@ -84,6 +108,10 @@ class BeaconServer(SCIONElement):
         self.if2rev_tokens = {}
         self.seg2rev_tokens = {}
         self._if_rev_token_lock = threading.Lock()
+
+        self.ifid_state = {}
+        for ifid in self.ifid2addr:
+            self.ifid_state[ifid] = InterfaceState()
 
         self._latest_entry = 0
         # Set when we have connected and read the existing recent and incoming
@@ -199,10 +227,11 @@ class BeaconServer(SCIONElement):
         data_to_sign = (str(pcbm.ad_id).encode('utf-8') + pcbm.hof.pack() +
                         pcbm.spcbf.pack())
         peer_markings = []
-        # TODO PSz: peering link can be only added when there is
-        # IfidReply from router
         for router_peer in self.topology.peer_edge_routers:
             if_id = router_peer.interface.if_id
+            if not self.ifid_state[if_id].is_active():
+                logging.warning('Peer ifid:%d inactive (not added).', if_id)
+                continue
             hof = HopOpaqueField.from_values(BeaconServer.HOF_EXP_TIME,
                                              if_id, egress_if)
             spf = SupportPeerField.from_values(self.topology.isd_id)
@@ -215,18 +244,18 @@ class BeaconServer(SCIONElement):
         signature = sign(data_to_sign, self.signing_key)
         return ADMarking.from_values(pcbm, peer_markings, signature)
 
+    def handle_ifid_packet(self, ipkt):
+        ifid = ipkt.reply_id
+        self.ifid_state[ifid].update()
+
     def handle_request(self, packet, sender, from_local_socket=True):
         """
         Main routine to handle incoming SCION packets.
         """
         spkt = SCIONPacket(packet)
         ptype = get_type(spkt)
-        if ptype == PT.IFID_REQ:
-            # TODO
-            logging.warning("IFID_REQ received, to implement")
-        elif ptype == PT.IFID_REP:
-            # TODO
-            logging.warning("IFID_REP received, to implement")
+        if ptype == PT.IFID_PKT:
+            self.handle_ifid_packet(IFIDPacket(packet))
         elif ptype == PT.BEACON:
             self.store_pcb(PathConstructionBeacon(packet))
         elif ptype == PT.CERT_CHAIN_REP:

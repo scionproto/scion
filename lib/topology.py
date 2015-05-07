@@ -91,8 +91,6 @@ class InterfaceElement(Element):
     :type to_udp_port: int
     :ivar udp_port: the port number used to send UDP traffic.
     :type udp_port: int
-    :ivar initialized: tells whether the interface was initialized or not.
-    :type initialized: bool
     """
 
     def __init__(self, interface_dict=None):
@@ -112,7 +110,6 @@ class InterfaceElement(Element):
         self.neighbor_type = interface_dict['NeighborType']
         self.to_udp_port = interface_dict['ToUdpPort']
         self.udp_port = interface_dict['UdpPort']
-        self.initialized = False
 
 
 class RouterElement(Element):
