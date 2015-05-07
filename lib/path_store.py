@@ -258,7 +258,8 @@ class PathStore(object):
         self.candidates = sorted(self.candidates, key=lambda x: x.fidelity,
                                  reverse=True)
         if len(self.candidates) >= self.path_policy.candidates_set_size:
-            self.candidates = self.get_best_segments()
+            self._remove_expired_segments()
+            self.candidates = self.candidates[:self.path_policy.best_set_size]
             self.best_paths_history.appendleft(self.candidates)
 
     def _update_all_peer_links(self):
@@ -343,7 +344,7 @@ class PathStore(object):
         if k is None:
             k = self.path_policy.best_set_size
         best_paths = []
-        if self.best_paths_history[0]:
+        if self.best_paths_history:
             for candidate in self.best_paths_history[0][:k]:
                 best_paths.append(candidate.pcb)
         return best_paths

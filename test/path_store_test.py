@@ -40,7 +40,7 @@ class TestPathStore(unittest.TestCase):
         Creates an AD Marking with the given ingress and egress interfaces.
         """
         ssf = SupportSignatureField.from_values(ADMarking.LEN)
-        hof = HopOpaqueField.from_values(0.25, 111, 222)
+        hof = HopOpaqueField.from_values(0.1, 111, 222)
         spcbf = SupportPCBField.from_values(1)
         rev_token = HashChain(Random.new().read(32)).next_element()
         pcbm = PCBMarking.from_values(10, ssf, hof, spcbf, rev_token, rev_token)
@@ -58,11 +58,14 @@ class TestPathStore(unittest.TestCase):
         path_policy_file = "../topology/ISD1/path_policies/ISD:1-AD:10.json"
         path_policy = PathPolicy(path_policy_file)
         test_segments = PathStore(path_policy)
+        print("Best paths: " + str(len(test_segments.get_best_segments())))
         print("Paths in path store: " + str(len(test_segments.candidates)))
+        print("Paths in latest history snapshot: " +
+              str(len(test_segments.get_latest_history_snapshot())) + "\n")
 
         path = 1
-        for _ in range(1, 4):
-            for _ in range(1, 4):
+        for _ in range(1, 6):
+            for _ in range(1, 6):
                 pcb = PathSegment()
                 pcb.segment_id = HashChain(Random.new().read(32)).next_element()
                 pcb.iof = InfoOpaqueField.from_values(OFT.TDC_XOVR, False,
@@ -74,16 +77,19 @@ class TestPathStore(unittest.TestCase):
                       str(pcb.get_expiration_time()))
                 test_segments.add_segment(pcb)
                 path += 1
-            sleep_interval(int(time.time()), 60, "Wait before adding...")
+            print("Best paths: " + str(len(test_segments.get_best_segments())))
             print("Paths in path store: " + str(len(test_segments.candidates)))
-            print("Time: " + str(int(time.time())))
+            print("Paths in latest history snapshot: " +
+                  str(len(test_segments.get_latest_history_snapshot())))
+            print("Time: " + str(int(time.time())) + "\n")
+            time.sleep(5)
         
-        print("Select the best ones...")
-        test_segments.get_best_segments()
+        print("Waiting for some paths to expire...")
+        time.sleep(25)
+        print("Best paths: " + str(len(test_segments.get_best_segments())))
         print("Paths in path store: " + str(len(test_segments.candidates)))
-        print("Store paths in history...")
-        test_segments.store_selection()
-        print("Paths in path store: " + str(len(test_segments.candidates)))
+        print("Paths in latest history snapshot: " +
+              str(len(test_segments.get_latest_history_snapshot())))
 
 
 if __name__ == "__main__":
