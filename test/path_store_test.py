@@ -20,15 +20,12 @@ from Crypto import Random
 from lib.crypto.asymcrypto import sign
 from lib.crypto.hash_chain import HashChain
 from lib.packet.opaque_field import (OpaqueFieldType as OFT, InfoOpaqueField,
-    SupportSignatureField, HopOpaqueField, SupportPCBField, SupportPeerField,
-    TRCField)
-from lib.packet.pcb import (PathSegment, ADMarking, PCBMarking, PeerMarking,
-    PathConstructionBeacon)
+    SupportSignatureField, HopOpaqueField, SupportPCBField, TRCField)
+from lib.packet.pcb import (PathSegment, ADMarking, PCBMarking)
 from lib.path_store import PathPolicy, PathStore
 from lib.util import read_file, get_sig_key_file_path, sleep_interval
 import base64
 import logging
-import threading
 import time
 import unittest
 

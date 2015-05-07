@@ -17,13 +17,9 @@
 """
 
 from collections import defaultdict, deque
-from Crypto.Hash import SHA256
 from lib.packet.pcb import PathSegment
-from lib.util import sleep_interval
 import json
 import logging
-import random
-import sys
 import time
 
 
