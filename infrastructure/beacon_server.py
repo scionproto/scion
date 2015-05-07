@@ -41,7 +41,6 @@ from lib.util import (read_file, write_file, get_cert_chain_file_path,
 from lib.thread import thread_safety_net
 from lib.log import (init_logging, log_exception)
 from lib.zookeeper import (Zookeeper, ZkConnectionLoss, ZkNoNodeError)
-from Crypto import Random
 from Crypto.Hash import SHA256
 import base64
 import copy
@@ -84,6 +83,7 @@ class BeaconServer(SCIONElement):
         self.signing_key = base64.b64decode(self.signing_key)
         self.if2rev_tokens = {}
         self.seg2rev_tokens = {}
+        self._if_rev_token_lock = threading.Lock()
 
         self._latest_entry = 0
         # Set when we have connected and read the existing recent and incoming
@@ -99,15 +99,20 @@ class BeaconServer(SCIONElement):
         """
         Returns the revocation token for a given interface.
         """
+        self._if_rev_token_lock.acquire()
+        ret = None
         if if_id == 0:
-            return 32 * b"\x00"
-        if if_id not in self.if2rev_tokens:
-            start_ele = Random.new().read(32)
+            ret = 32 * b"\x00"
+        elif if_id not in self.if2rev_tokens:
+            seed = bytes("%s %d" % (self.config.master_ad_key, if_id), 'utf-8')
+            start_ele = SHA256.new(seed).digest()
             chain = HashChain(start_ele)
             self.if2rev_tokens[if_id] = chain
-            return chain.next_element()
+            ret = chain.next_element()
         else:
-            return self.if2rev_tokens[if_id].current_element()
+            ret = self.if2rev_tokens[if_id].current_element()
+        self._if_rev_token_lock.release()
+        return ret
 
     def _get_segment_rev_token(self, pcb):
         """
@@ -118,7 +123,8 @@ class BeaconServer(SCIONElement):
         """
         id = pcb.get_hops_hash()
         if id not in self.seg2rev_tokens:
-            start_ele = Random.new().read(32)
+            seed = bytes("%s " % self.config.master_ad_key, 'utf-8') + id
+            start_ele = SHA256.new(seed).digest()
             chain = HashChain(start_ele)
             self.seg2rev_tokens[id] = chain
             return chain.next_element()
