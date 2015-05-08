@@ -44,7 +44,7 @@ class ISD(models.Model):
 
 
 class AD(models.Model):
-    id = models.IntegerField(primary_key=True)
+    id = models.AutoField(primary_key=True)
     isd = models.ForeignKey('ISD')
     is_core_ad = models.BooleanField(default=False)
 
@@ -118,6 +118,8 @@ class AD(models.Model):
             self.pathserverweb_set.all().delete()
             self.certificateserverweb_set.all().delete()
             self.beaconserverweb_set.all().delete()
+
+        self.is_core_ad = topology.is_core_ad
 
         routers = topology.get_all_edge_routers()
         beacon_servers = topology.beacon_servers

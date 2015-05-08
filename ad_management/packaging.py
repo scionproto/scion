@@ -26,7 +26,8 @@ def get_package_metadata(repo, commit):
     return metadata
 
 
-def prepare_package(out_dir=PACKAGE_DIR_PATH, config_paths=None):
+def prepare_package(out_dir=PACKAGE_DIR_PATH,
+                    config_paths=None, commit_hash=None):
     """
     config_paths -- list of paths to topology dirs
 
@@ -34,9 +35,7 @@ def prepare_package(out_dir=PACKAGE_DIR_PATH, config_paths=None):
     repo = Repo(SCION_ROOT)
     assert not repo.bare
 
-    if len(sys.argv) > 1:
-        commit_hash = repo.commit(sys.argv[1])
-    else:
+    if commit_hash is None:
         commit_hash = repo.head.commit.hexsha
 
     commit = repo.commit(commit_hash)
@@ -49,7 +48,7 @@ def prepare_package(out_dir=PACKAGE_DIR_PATH, config_paths=None):
 
     package_prefix = 'scion-package/'
     with open(package_path, 'wb') as out_fh:
-        repo.archive(out_fh, prefix=package_prefix)
+        repo.archive(out_fh, prefix=package_prefix, worktree_attributes=True)
 
     # Append configs
     if config_paths is not None:
@@ -77,7 +76,11 @@ def prepare_package(out_dir=PACKAGE_DIR_PATH, config_paths=None):
 
 
 def main():
-    prepare_package(config_paths='/home/tonyo/scion_ethz/scion/topology/ISD1')
+    commit_hash = None
+    if len(sys.argv) > 1:
+        commit_hash = sys.argv[1]
+    prepare_package(config_paths='/home/tonyo/scion_ethz/scion/topology/ISD1',
+                    commit_hash=commit_hash)
 
 
 if __name__ == '__main__':
