@@ -15,12 +15,14 @@
 :mod:`symcrypto` --- SCION symmetric encryption tests
 =====================================================
 """
-from lib.crypto.symcrypto import *
-
-import unittest
 import logging
+import unittest
 
-class TestSymcrypto(unittest.TestCase):
+from lib.crypto.symcrypto import *
+from test.testcommon import SCIONCommonTest
+
+
+class TestSymcrypto(SCIONCommonTest):
     """
     Unit tests for Symmetric Cryptography.
     """
