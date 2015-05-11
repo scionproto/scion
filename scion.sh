@@ -124,13 +124,13 @@ cmd_help() {
 	    $PROGRAM topology
 	        Create topology, configuration, and execution files.
 	    $PROGRAM setup
-	    	Add IP aliases for ISDs and ADs.
+	        Add IP aliases for ISDs and ADs.
 	    $PROGRAM run
 	        Run network.
 	    $PROGRAM stop
 	        Terminate this run of the SCION infrastructure.
 	    $PROGRAM clean
-	        Flush all the IP aliases of lo. 
+	        Flush all the IP aliases of lo.
 	    $PROGRAM test
 	        Run all unit tests.
 	    $PROGRAM coverage
@@ -145,22 +145,10 @@ cmd_help() {
 
 PROGRAM="${0##*/}"
 COMMAND="$1"
-ARG="$2"
+shift
 
 case $COMMAND in
-    deps|--deps) shift;		cmd_deps ;;
-    init|--init) shift;		cmd_init ;;
-    topology|--topology) shift; cmd_topology $ARG;;
-    setup|--setup) shift;       cmd_setup ;;
-    run|--run) shift;           cmd_run ;;
-    start|--start) shift;       cmd_start ;;
-    stop|--stop) shift;         cmd_stop ;;
-    clean|--clean) shift;       cmd_clean ;;
-    test|--test) shift;         cmd_test ;;
-    coverage|--coverage) shift; cmd_coverage ;;
-    help|--help) shift;         cmd_help ;;
-    version|--version) shift;   cmd_version ;;
-    *)          		cmd_help ;;
+    clean|coverage|deps|help|init|run|setup|start|stop|test|topology|version)
+        "cmd_$COMMAND" "$@" ;;
+    *)  cmd_help ;;
 esac
-exit 0
-
