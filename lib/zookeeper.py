@@ -90,20 +90,22 @@ class Zookeeper(object):
         self._on_disconnect = on_disconnect
         self._ensure_paths = ensure_paths
 
+        # Disable exponential back-off
         retry = KazooRetry(max_tries=-1, max_delay=1)
+        # Stop kazoo from drowning the log with debug spam:
+        logger = logging.getLogger("KazooClient")
+        logger.setLevel(logging.ERROR)
+        # (For low-level kazoo debugging):
+        #import kazoo.loggingsupport
+        #logger.setLevel(kazoo.loggingsupport.BLATHER)
 
         self._prefix = "/ISD%d-AD%d/%s" % (self._isd_id,
                                            self._ad_id,
                                            self._srv_name)
         self._zk = KazooClient(hosts=",".join(zk_hosts),
                                timeout=self._timeout,
-                               connection_retry=retry)
-        # Stop kazoo from drowning the log with debug spam:
-        self._zk.logger.setLevel(logging.ERROR)
-        # FIXME(kormat): remove once stable:
-        # (For low-level kazoo debugging)
-        #import kazoo.loggingsupport
-        #self._zk.logger.setLevel(kazoo.loggingsupport.BLATHER)
+                               connection_retry=retry,
+                               logger=logger)
 
         # Keep track of our connection state
         self._connected = threading.Event()
@@ -140,21 +142,21 @@ class Zookeeper(object):
         return False
 
     @thread_safety_net("_state_handler")
-    def _state_handler(self):
+    def _state_handler(self, initial_state="startup"):
         """
         A thread worker function to wait for Kazoo connection state changes,
         and call the relevant method.
         """
-        self._old_state = "startup"
+        old_state = initial_state
         while True:
             # Wait for connection state change
             self._state_event.acquire()
             # Short-circuit handler if the state hasn't actually changed
-            if self._old_state == self._zk.state:
+            if old_state == self._zk.state:
                 continue
             logging.debug("Kazoo old state: %s, new state: %s",
-                          self._old_state, self._zk.state)
-            self._old_state = self._zk.state
+                          old_state, self._zk.state)
+            old_state = self._zk.state
             if self._zk.state == KazooState.CONNECTED:
                 self._state_connected()
             elif self._zk.state == KazooState.SUSPENDED:
@@ -173,7 +175,7 @@ class Zookeeper(object):
             for path in self._ensure_paths:
                 self._zk.ensure_path(os.path.join(self._prefix, path))
         except (ConnectionLoss, SessionExpiredError):
-            return
+            return False
         self._connected.set()
         if self._on_connect:
             self._on_connect()
