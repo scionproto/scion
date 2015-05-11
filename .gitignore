@@ -60,3 +60,8 @@ venv/
 # Docker working directory
 ##########################
 docker/_build/
+
+# Test coverage
+##########################
+.coverage
+htmlcov/

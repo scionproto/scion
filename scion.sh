@@ -3,7 +3,7 @@
 # BEGIN subcommand functions
 
 PKG_DEPS="python python3 python-dev python-pip python3-dev python3-pip screen zookeeperd build-essential"
-PIP3_DEPS="bitstring python-pytun pydblite pygments pycrypto kazoo Sphinx sphinxcontrib-napoleon nose nose-descriptionfixer"
+PIP3_DEPS="bitstring python-pytun pydblite pygments pycrypto kazoo Sphinx sphinxcontrib-napoleon nose nose-descriptionfixer nose-cov coverage"
 
 cmd_deps() {
     if [ -e /etc/debian_version ]; then
@@ -91,6 +91,16 @@ cmd_start(){
     echo "This method has not been fully implemented. Please run init, topology, setup, and run"
 }
 
+cmd_test(){
+    nosetests -w test
+}
+
+cmd_coverage(){
+    nosetests --with-cov -w test
+    coverage html --omit 'external/*'
+    echo "Coverage report here: file://$PWD/htmlcov/index.html"
+}
+
 cmd_version() {
 	cat <<-_EOF
 	============================================
@@ -121,6 +131,10 @@ cmd_help() {
 	        Terminate this run of the SCION infrastructure.
 	    $PROGRAM clean
 	        Flush all the IP aliases of lo. 
+	    $PROGRAM test
+	        Run all unit tests.
+	    $PROGRAM coverage
+	        Create a html report with unit test code coverage.
 	    $PROGRAM help
 	        Show this text.
 	    $PROGRAM version
@@ -142,6 +156,8 @@ case $COMMAND in
     start|--start) shift;       cmd_start ;;
     stop|--stop) shift;         cmd_stop ;;
     clean|--clean) shift;       cmd_clean ;;
+    test|--test) shift;         cmd_test ;;
+    coverage|--coverage) shift; cmd_coverage ;;
     help|--help) shift;         cmd_help ;;
     version|--version) shift;   cmd_version ;;
     *)          		cmd_help ;;
