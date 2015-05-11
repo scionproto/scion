@@ -65,7 +65,8 @@ class TestCertificates(SCIONCommonTest):
         print('Sig test 2:', verify_sig_chain_trc(msg, sig, 'ISD:1-AD:13',
             cert10, trc, 0), '\n')
 
-        topology = Topology("../topology/ISD1/topologies/ISD:1-AD:10.json")
+        topology = Topology.from_file("../topology/ISD1/topologies/"
+                                      "ISD:1-AD:10.json")
         src_addr = SCIONAddr.from_values(topology.isd_id, topology.ad_id,
                                          IPv4Address("127.0.0.1"))
         dst_addr = topology.certificate_servers[0].addr

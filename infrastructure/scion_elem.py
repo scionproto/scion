@@ -117,7 +117,7 @@ class SCIONElement(object):
         :type topo_file: str
         """
         assert isinstance(topo_file, str)
-        self.topology = Topology(topo_file)
+        self.topology = Topology.from_file(topo_file)
 
     def parse_config(self, config_file):
         """

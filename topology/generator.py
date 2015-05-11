@@ -381,7 +381,7 @@ class ConfigGenerator():
             with open(topo_file_abs, 'w') as topo_fh:
                 json.dump(topo_dict, topo_fh, sort_keys=True, indent=4)
             # Test if parser works
-            topology = Topology(topo_file_abs)
+            topology = Topology.from_file(topo_file_abs)
 
             self.write_supervisor_config(topo_dict)
             self.write_setup_file(topo_dict, mask)
