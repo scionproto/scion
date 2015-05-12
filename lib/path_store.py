@@ -16,15 +16,11 @@
 ========================================================================
 """
 
-from collections import defaultdict
+from collections import defaultdict, deque
 from lib.packet.pcb import PathSegment
 import json
 import logging
-import random
-import sys
 import time
-
-from Crypto.Hash import SHA256
 
 
 class PathPolicy(object):
@@ -33,7 +29,7 @@ class PathPolicy(object):
     """
     def __init__(self, path_policy_file=None):
         self.best_set_size = 5
-        self.candidates_set_size = 600
+        self.candidates_set_size = 20
         self.history_limit = 0
         self.update_after_number = 0
         self.update_after_time = 0
@@ -82,30 +78,32 @@ class PathPolicy(object):
         Checks whether any of the path properties has a value outside the
         predefined min-max range.
         """
-        return (
-            (self.property_ranges['PeerLinks'][0]
-             <= pcb.get_n_peer_links() <=
-             self.property_ranges['PeerLinks'][1])
-            and
-            (self.property_ranges['HopsLength'][0]
-             <= pcb.get_n_hops() <=
-             self.property_ranges['HopsLength'][1])
-            and
-            (self.property_ranges['DelayTime'][0]
-             <= int(time.time()) - pcb.get_timestamp() <=
-             self.property_ranges['DelayTime'][1])
-            and
-            (self.property_ranges['GuaranteedBandwidth'][0]
-             <= 10 <=
-             self.property_ranges['GuaranteedBandwidth'][1])
-            and
-            (self.property_ranges['AvailableBandwidth'][0]
-             <= 10 <=
-             self.property_ranges['AvailableBandwidth'][1])
-            and
-            (self.property_ranges['TotalBandwidth'][0]
-             <= 10 <=
-             self.property_ranges['TotalBandwidth'][1]))
+        check = True
+        if self.property_ranges['PeerLinks']:
+            check = (check and (self.property_ranges['PeerLinks'][0]
+                                <= pcb.get_n_peer_links() <=
+                                self.property_ranges['PeerLinks'][1]))
+        if self.property_ranges['HopsLength']:
+            check = (check and (self.property_ranges['HopsLength'][0]
+                                <= pcb.get_n_hops() <=
+                                self.property_ranges['HopsLength'][1]))
+        if self.property_ranges['DelayTime']:
+            check = (check and (self.property_ranges['DelayTime'][0]
+                                <= int(time.time()) - pcb.get_timestamp() <=
+                                self.property_ranges['DelayTime'][1]))
+        if self.property_ranges['GuaranteedBandwidth']:
+            check = (check and (self.property_ranges['GuaranteedBandwidth'][0]
+                                <= 10 <=
+                                self.property_ranges['GuaranteedBandwidth'][1]))
+        if self.property_ranges['AvailableBandwidth']:
+            check = (check and (self.property_ranges['AvailableBandwidth'][0]
+                                <= 10 <=
+                                self.property_ranges['AvailableBandwidth'][1]))
+        if self.property_ranges['TotalBandwidth']:
+            check = (check and (self.property_ranges['TotalBandwidth'][0]
+                                <= 10 <=
+                                self.property_ranges['TotalBandwidth'][1]))
+        return check
 
     def parse(self, path_policy_file):
         """
@@ -239,7 +237,7 @@ class PathStore(object):
     def __init__(self, path_policy):
         self.path_policy = path_policy
         self.candidates = []
-        self.best_paths_history = []
+        self.best_paths_history = deque(maxlen=self.path_policy.history_limit)
 
     def add_segment(self, pcb):
         """
@@ -261,8 +259,10 @@ class PathStore(object):
         self._update_all_fidelity()
         self.candidates = sorted(self.candidates, key=lambda x: x.fidelity,
                                  reverse=True)
-        if len(self.candidates) > self.path_policy.candidates_set_size:
-            self.candidates = self.candidates[:-1]
+        if len(self.candidates) >= self.path_policy.candidates_set_size:
+            self._remove_expired_segments()
+            self.candidates = self.candidates[:self.path_policy.best_set_size]
+            self.best_paths_history.appendleft(self.candidates)
 
     def _update_all_peer_links(self):
         """
@@ -333,41 +333,44 @@ class PathStore(object):
         """
         if k is None:
             k = self.path_policy.best_set_size
+        self._remove_expired_segments()
         best_paths = []
         for candidate in self.candidates[:k]:
             best_paths.append(candidate.pcb)
         return best_paths
 
-    def get_last_selection(self, k=None):
+    def get_latest_history_snapshot(self, k=None):
         """
         Returns the latest k best paths from the history.
         """
         if k is None:
             k = self.path_policy.best_set_size
         best_paths = []
-        for candidate in self.best_paths_history[0][:k]:
-            best_paths.append(candidate.pcb)
+        if self.best_paths_history:
+            for candidate in self.best_paths_history[0][:k]:
+                best_paths.append(candidate.pcb)
         return best_paths
 
-    def store_selection(self, k=None):
+    def _remove_expired_segments(self):
         """
-        Stores the best k paths into the path history and reset the list of
-        candidates.
-
-        .. warning::
-           This function makes use of the `list.clear()` method and thus
-           requires Python 3.3 or greater.
+        Remove candidates if their expiration_time is up.
         """
-        if k is None:
-            k = self.path_policy.best_set_size
-        self.best_paths_history.insert(0, self.get_candidates(k))
-        self.candidates.clear()
+        seg_ids = []
+        now = time.time()
+        for candidate in self.candidates:
+            if candidate.expiration_time <= now:
+                seg_ids.append(candidate.id)
+        self.remove_segments(seg_ids)
 
     def remove_segments(self, seg_ids):
         """
         Removes segments in 'seg_ids' from the candidates.
         """
         self.candidates[:] = [c for c in self.candidates if c.id not in seg_ids]
+        if self.candidates:
+            self._update_all_fidelity()
+            self.candidates = sorted(self.candidates, key=lambda x: x.fidelity,
+                                     reverse=True)
         
     def get_segment(self, seg_id):
         """

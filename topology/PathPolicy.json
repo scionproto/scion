@@ -1,6 +1,6 @@
 {
     "BestSetSize": 5,
-    "CandidatesSetSize": 600,
+    "CandidatesSetSize": 20,
     "HistoryLimit": 20,
     "PropertyRanges": {
         "AvailableBandwidth": "0-100",
