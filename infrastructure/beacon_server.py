@@ -97,7 +97,7 @@ class BeaconServer(SCIONElement):
 
     def __init__(self, addr, topo_file, config_file, path_policy_file):
         SCIONElement.__init__(self, addr, topo_file, config_file=config_file)
-        self.path_policy = PathPolicy(path_policy_file)  # TODO: add 2 policies
+        self.path_policy = PathPolicy.from_file(path_policy_file)  # TODO: add 2 policies
         self.unverified_beacons = deque()
         self.trc_requests = {}
         self.trcs = {}

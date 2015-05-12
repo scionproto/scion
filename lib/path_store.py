@@ -27,7 +27,7 @@ class PathPolicy(object):
     """
     Stores a path policy.
     """
-    def __init__(self, path_policy_file=None):
+    def __init__(self):
         self.best_set_size = 5
         self.candidates_set_size = 20
         self.history_limit = 0
@@ -36,8 +36,6 @@ class PathPolicy(object):
         self.unwanted_ads = []
         self.property_ranges = {}
         self.property_weights = {}
-        if path_policy_file:
-            self.parse(path_policy_file)
 
     def get_path_policy_dict(self):
         path_policy_dict = {'best_set_size': self.best_set_size,
@@ -68,8 +66,7 @@ class PathPolicy(object):
         Checks whether any of the ADs in the path belong to the black list.
         """
         for ad in pcb.ads:
-            if ((ad.pcbm.spcbf.isd_id, ad.pcbm.ad_id) in
-                self.unwanted_ads):
+            if (ad.pcbm.spcbf.isd_id, ad.pcbm.ad_id) in self.unwanted_ads:
                 return False
         return True
 
@@ -105,16 +102,42 @@ class PathPolicy(object):
                                 self.property_ranges['TotalBandwidth'][1]))
         return check
 
-    def parse(self, path_policy_file):
+    @classmethod
+    def from_file(cls, policy_file):
         """
-        Parses the policies in the path store config file.
+        Create a PathPolicy instance from the file.
+
+        :param policy_file: path to the path policy file
+        :type policy_file: str
+        :returns: the newly created PathPolicy instance
+        :rtype: :class: `PathPolicy`
         """
         try:
-            with open(path_policy_file) as path_policy_fh:
-                path_policy = json.load(path_policy_fh)
+            with open(policy_file) as path_policy_fh:
+                policy_dict = json.load(path_policy_fh)
         except (ValueError, KeyError, TypeError):
             logging.error("PathPolicy: JSON format error.")
             return
+        return cls.from_dict(policy_dict)
+
+    @classmethod
+    def from_dict(cls, policy_dict):
+        """
+        Create a PathPolicy instance from the dictionary.
+
+        :param policy_dict: dictionary representation of path policy
+        :type policy_dict: dict
+        :returns: the newly created PathPolicy instance
+        :rtype: :class:`PathPolicy`
+        """
+        path_policy = cls()
+        path_policy.parse_dict(policy_dict)
+        return path_policy
+
+    def parse_dict(self, path_policy):
+        """
+        Parses the policies from the dictionary.
+        """
         self.best_set_size = path_policy['BestSetSize']
         self.candidates_set_size = path_policy['CandidatesSetSize']
         self.history_limit = path_policy['HistoryLimit']

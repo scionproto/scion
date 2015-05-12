@@ -381,7 +381,7 @@ class ConfigGenerator():
             with open(topo_file_abs, 'w') as topo_fh:
                 json.dump(topo_dict, topo_fh, sort_keys=True, indent=4)
             # Test if parser works
-            topology = Topology(topo_file_abs)
+            topology = Topology.from_file(topo_file_abs)
 
             self.write_supervisor_config(topo_dict)
             self.write_setup_file(topo_dict, mask)
@@ -530,7 +530,7 @@ class ConfigGenerator():
             with open(conf_file, 'w') as conf_fh:
                 json.dump(conf_dict, conf_fh, sort_keys=True, indent=4)
             # Test if parser works
-            config = Config(conf_file)
+            config = Config.from_file(conf_file)
 
     def write_path_pol_files(self, ad_configs, path_policy_file):
         """
@@ -545,7 +545,7 @@ class ConfigGenerator():
             new_path_pol_file = path_dict['path_pol_file_abs']
             shutil.copyfile(path_policy_file, new_path_pol_file)
             # Test if parser works
-            path_policy = PathPolicy(new_path_pol_file)
+            path_policy = PathPolicy.from_file(new_path_pol_file)
 
     def write_trc_files(self, ad_configs, keys):
         """

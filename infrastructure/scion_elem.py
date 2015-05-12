@@ -117,7 +117,7 @@ class SCIONElement(object):
         :type topo_file: str
         """
         assert isinstance(topo_file, str)
-        self.topology = Topology(topo_file)
+        self.topology = Topology.from_file(topo_file)
 
     def parse_config(self, config_file):
         """
@@ -127,7 +127,7 @@ class SCIONElement(object):
         :type config_file: str
         """
         assert isinstance(config_file, str)
-        self.config = Config(config_file)
+        self.config = Config.from_file(config_file)
 
     def construct_ifid2addr_map(self):
         """

@@ -161,12 +161,10 @@ class Topology(object):
     :vartype routing_edge_routers: list
     """
 
-    def __init__(self, topology_file=None):
+    def __init__(self):
         """
         Initialize an instance of the class Topology.
 
-        :param topology_file: the name of the topology file.
-        :type topology_file: str
         :returns: the newly created Topology instance.
         :rtype: :class:`Topology`
         """
@@ -180,23 +178,47 @@ class Topology(object):
         self.child_edge_routers = []
         self.peer_edge_routers = []
         self.routing_edge_routers = []
-        if topology_file:
-            self.parse(topology_file)
 
-    def parse(self, topology_file):
+    @classmethod
+    def from_file(cls, topology_file):
         """
-        Parse a topology file and populate the instance's attributes.
+        Create a Topology instance from the file.
 
-        :param topology_file: the name of the topology file.
+        :param topology_file: path to the topology file
         :type topology_file: str
+        :returns: the newly created Topology instance
+        :rtype: :class: `Topology`
         """
         try:
             with open(topology_file) as topo_fh:
-                topology = json.load(topo_fh)
+                topology_dict = json.load(topo_fh)
         except (ValueError, KeyError, TypeError):
             logging.error("Topology: JSON format error.")
             return
-        self.is_core_ad = True if (topology['Core'] == 1) else False
+        return cls.from_dict(topology_dict)
+
+    @classmethod
+    def from_dict(cls, topology_dict):
+        """
+        Create a Topology instance from the dictionary.
+
+        :param topology_dict: dictionary representation of a topology
+        :type topology_dict: dict
+        :returns: the newly created Topology instance
+        :rtype: :class:`Topology`
+        """
+        topology = cls()
+        topology.parse_dict(topology_dict)
+        return topology
+
+    def parse_dict(self, topology):
+        """
+        Parse a topology dictionary and populate the instance's attributes.
+
+        :param topology: dictionary representation of a topology
+        :type topology: dict
+        """
+        self.is_core_ad = (topology['Core'] == 1)
         self.isd_id = topology['ISDID']
         self.ad_id = topology['ADID']
         for bs_key in topology['BeaconServers']:
