@@ -179,8 +179,8 @@ class Topology(object):
         self.peer_edge_routers = []
         self.routing_edge_routers = []
 
-    @staticmethod
-    def from_file(topology_file):
+    @classmethod
+    def from_file(cls, topology_file):
         """
         Create a Topology instance from the file.
 
@@ -195,12 +195,10 @@ class Topology(object):
         except (ValueError, KeyError, TypeError):
             logging.error("Topology: JSON format error.")
             return
-        topology = Topology()
-        topology.parse_dict(topology_dict)
-        return topology
+        return cls.from_dict(topology_dict)
 
-    @staticmethod
-    def from_dict(topology_dict):
+    @classmethod
+    def from_dict(cls, topology_dict):
         """
         Create a Topology instance from the dictionary.
 
@@ -209,7 +207,7 @@ class Topology(object):
         :returns: the newly created Topology instance
         :rtype: :class:`Topology`
         """
-        topology = Topology()
+        topology = cls()
         topology.parse_dict(topology_dict)
         return topology
 

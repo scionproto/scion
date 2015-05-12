@@ -127,7 +127,7 @@ class SCIONElement(object):
         :type config_file: str
         """
         assert isinstance(config_file, str)
-        self.config = Config(config_file)
+        self.config = Config.from_file(config_file)
 
     def construct_ifid2addr_map(self):
         """
