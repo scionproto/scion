@@ -22,7 +22,7 @@ import threading
 import time
 
 from kazoo.client import (KazooClient, KazooState, KazooRetry)
-from kazoo.handlers.threading import TimeoutError
+from kazoo.handlers.threading import KazooTimeoutError
 from kazoo.exceptions import (LockTimeout, SessionExpiredError,
                               NoNodeError, ConnectionLoss)
 from lib.util import timed
@@ -127,7 +127,7 @@ class Zookeeper(object):
         logging.info("Connecting to Zookeeper")
         try:
             self._zk.start()
-        except TimeoutError:
+        except KazooTimeoutError:
             logging.critical(
                 "Timed out connecting to Zookeeper on startup, exiting")
             kill_self()
