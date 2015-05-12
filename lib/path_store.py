@@ -111,8 +111,8 @@ class PathPolicy(object):
         :rtype: :class: `PathPolicy`
         """
         try:
-            with open(policy_file) as path_fh:
-                policy_dict = json.load(path_fh)
+            with open(policy_file) as path_policy_fh:
+                policy_dict = json.load(path_policy_fh)
         except (ValueError, KeyError, TypeError):
             logging.error("PathPolicy: JSON format error.")
             return

@@ -73,14 +73,14 @@ class Config(object):
         """
         Create a Config instance from the file.
 
-        :param config_file: path to the config file
+        :param config_file: path to the configuration file
         :type config_file: str
         :returns: the newly created Config instance
         :rtype: :class: `Config`
         """
         try:
-            with open(config_file) as config_fh:
-                config_dict = json.load(config_fh)
+            with open(config_file) as conf_fh:
+                config_dict = json.load(conf_fh)
         except (ValueError, KeyError, TypeError):
             logging.error("Config: JSON format error.")
             return
@@ -91,7 +91,7 @@ class Config(object):
         """
         Create a Config instance from the dictionary.
 
-        :param config_dict: dictionary representation of a config
+        :param config_dict: dictionary representation of configuration
         :type config_dict: dict
         :returns: the newly created Config instance
         :rtype: :class:`Config`
