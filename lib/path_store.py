@@ -78,30 +78,32 @@ class PathPolicy(object):
         Checks whether any of the path properties has a value outside the
         predefined min-max range.
         """
-        return (
-            (self.property_ranges['PeerLinks'][0]
-             <= pcb.get_n_peer_links() <=
-             self.property_ranges['PeerLinks'][1])
-            and
-            (self.property_ranges['HopsLength'][0]
-             <= pcb.get_n_hops() <=
-             self.property_ranges['HopsLength'][1])
-            and
-            (self.property_ranges['DelayTime'][0]
-             <= int(time.time()) - pcb.get_timestamp() <=
-             self.property_ranges['DelayTime'][1])
-            and
-            (self.property_ranges['GuaranteedBandwidth'][0]
-             <= 10 <=
-             self.property_ranges['GuaranteedBandwidth'][1])
-            and
-            (self.property_ranges['AvailableBandwidth'][0]
-             <= 10 <=
-             self.property_ranges['AvailableBandwidth'][1])
-            and
-            (self.property_ranges['TotalBandwidth'][0]
-             <= 10 <=
-             self.property_ranges['TotalBandwidth'][1]))
+        check = True
+        if self.property_ranges['PeerLinks']:
+            check = (check and (self.property_ranges['PeerLinks'][0]
+                                <= pcb.get_n_peer_links() <=
+                                self.property_ranges['PeerLinks'][1]))
+        if self.property_ranges['HopsLength']:
+            check = (check and (self.property_ranges['HopsLength'][0]
+                                <= pcb.get_n_hops() <=
+                                self.property_ranges['HopsLength'][1]))
+        if self.property_ranges['DelayTime']:
+            check = (check and (self.property_ranges['DelayTime'][0]
+                                <= int(time.time()) - pcb.get_timestamp() <=
+                                self.property_ranges['DelayTime'][1]))
+        if self.property_ranges['GuaranteedBandwidth']:
+            check = (check and (self.property_ranges['GuaranteedBandwidth'][0]
+                                <= 10 <=
+                                self.property_ranges['GuaranteedBandwidth'][1]))
+        if self.property_ranges['AvailableBandwidth']:
+            check = (check and (self.property_ranges['AvailableBandwidth'][0]
+                                <= 10 <=
+                                self.property_ranges['AvailableBandwidth'][1]))
+        if self.property_ranges['TotalBandwidth']:
+            check = (check and (self.property_ranges['TotalBandwidth'][0]
+                                <= 10 <=
+                                self.property_ranges['TotalBandwidth'][1]))
+        return check
 
     def parse(self, path_policy_file):
         """
