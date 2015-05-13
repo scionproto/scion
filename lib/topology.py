@@ -30,9 +30,11 @@ class Element(object):
     :type addr: :class:`IPv4Address` or :class:`IPv6Address`
     :ivar to_addr: destination IP or SCION address of an edge router.
     :type to_addr: :class:`IPv4Address` or :class:`IPv6Address`
+    :ivar name: element name or id
+    :type name: str
     """
 
-    def __init__(self, addr=None, addr_type=None, to_addr=None):
+    def __init__(self, addr=None, addr_type=None, to_addr=None, name=None):
         """
         Initialize an instance of the class Element.
 
@@ -42,6 +44,8 @@ class Element(object):
         :type addr_type: str
         :param to_addr: destination IP or SCION address of an edge router.
         :type to_addr: str
+        :param name: element name or id
+        :type name: str
         :returns: the newly created Element instance.
         :rtype: :class:`Element`
         """
@@ -53,6 +57,7 @@ class Element(object):
             self.addr = IPv6Address(addr)
             if to_addr is not None:
                 self.to_addr = IPv6Address(to_addr)
+        self.name = str(name)
 
 
 class ServerElement(Element):
@@ -60,16 +65,19 @@ class ServerElement(Element):
     The ServerElement class represents one of the servers in the AD.
     """
 
-    def __init__(self, server_dict=None):
+    def __init__(self, server_dict=None, name=None):
         """
         Initialize an instance of the class ServerElement.
 
         :param server_dict: contains information about a particular server.
         :type server_dict: dict
+        :param name: server element name or id
+        :type name: str
         :returns: the newly created ServerElement instance.
         :rtype: :class:`ServerElement`
         """
-        Element.__init__(self, server_dict['Addr'], server_dict['AddrType'])
+        Element.__init__(self, server_dict['Addr'], server_dict['AddrType'],
+                         name=name)
 
 
 class InterfaceElement(Element):
@@ -120,16 +128,19 @@ class RouterElement(Element):
     :type interface: :class:`InterfaceElement`
     """
 
-    def __init__(self, router_dict=None):
+    def __init__(self, router_dict=None, name=None):
         """
         Initialize an instance of the class RouterElement.
 
         :param router_dict: contains information about an edge router.
         :type router_dict: dict
+        :param name: router element name or id
+        :type name: str
         :returns: the newly created RouterElement instance.
         :rtype: :class:`RouterElement`
         """
-        Element.__init__(self, router_dict['Addr'], router_dict['AddrType'])
+        Element.__init__(self, router_dict['Addr'], router_dict['AddrType'],
+                         name=name)
         self.interface = InterfaceElement(router_dict['Interface'])
 
 
@@ -222,16 +233,20 @@ class Topology(object):
         self.isd_id = topology['ISDID']
         self.ad_id = topology['ADID']
         for bs_key in topology['BeaconServers']:
-            b_server = ServerElement(topology['BeaconServers'][bs_key])
+            b_server = ServerElement(topology['BeaconServers'][bs_key],
+                                     bs_key)
             self.beacon_servers.append(b_server)
         for cs_key in topology['CertificateServers']:
-            c_server = ServerElement(topology['CertificateServers'][cs_key])
+            c_server = ServerElement(topology['CertificateServers'][cs_key],
+                                     cs_key)
             self.certificate_servers.append(c_server)
         for ps_key in topology['PathServers']:
-            p_server = ServerElement(topology['PathServers'][ps_key])
+            p_server = ServerElement(topology['PathServers'][ps_key],
+                                     ps_key)
             self.path_servers.append(p_server)
         for er_key in topology['EdgeRouters']:
-            edge_router = RouterElement(topology['EdgeRouters'][er_key])
+            edge_router = RouterElement(topology['EdgeRouters'][er_key],
+                                        er_key)
             if edge_router.interface.neighbor_type == 'PARENT':
                 self.parent_edge_routers.append(edge_router)
             elif edge_router.interface.neighbor_type == 'CHILD':
