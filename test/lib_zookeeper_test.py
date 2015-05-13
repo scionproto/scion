@@ -112,7 +112,8 @@ class TestLibZookeeperInit(BaseLibZookeeper):
     @mock_wrapper
     def test_timeout_error(self):
         # Raise a TimeoutError when self._zk.start() is called in __init__
-        self.mocks.kclient.return_value.start.side_effect = libzk.TimeoutError
+        self.mocks.kclient.return_value.start.side_effect = \
+            libzk.KazooTimeoutError
         # Setup and call
         inst = self._init_basic_setup()
         # Tests
