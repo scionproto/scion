@@ -1,32 +1,35 @@
 #!/usr/bin/env python3
-import json
-import os
-import tarfile
 import datetime
 import io
+import json
+import os
 import sys
+import tarfile
 from git import Repo
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from ad_management.common import SCION_ROOT, PACKAGE_DIR_PATH
 
+DEFAULT_EXTENSION = '.tar'
 
-def get_package_name(repo, commit):
+
+def get_package_name(commit):
     now = datetime.datetime.now()
-    package_name = "scion_{}_{}.tar".format(commit.hexsha[:8],
-                                            now.strftime("%d_%m_%y"))
+    package_name = "scion_{}_{}{}".format(commit.hexsha[:8],
+                                          now.strftime("%d_%m_%y"),
+                                          DEFAULT_EXTENSION)
     return package_name
 
 
-def get_package_metadata(repo, commit):
-    now = str(datetime.datetime.now())
+def get_package_metadata(commit):
+    now = datetime.datetime.now()
     metadata = {'commit': commit.hexsha,
-                'date': now,
+                'date': str(now),
                 }
     return metadata
 
 
-def prepare_package(out_dir=PACKAGE_DIR_PATH,
+def prepare_package(out_dir=PACKAGE_DIR_PATH, package_name=None,
                     config_paths=None, commit_hash=None):
     """
     config_paths -- list of paths to topology dirs
@@ -39,7 +42,12 @@ def prepare_package(out_dir=PACKAGE_DIR_PATH,
         commit_hash = repo.head.commit.hexsha
 
     commit = repo.commit(commit_hash)
-    package_name = get_package_name(repo, commit)
+
+    if package_name is None:
+        package_name = get_package_name(commit)
+
+    if not package_name.endswith(DEFAULT_EXTENSION):
+        package_name += DEFAULT_EXTENSION
 
     if not os.path.isdir(out_dir):
         os.mkdir(out_dir)
@@ -62,7 +70,7 @@ def prepare_package(out_dir=PACKAGE_DIR_PATH,
                 tar_fh.add(path, arcname)
 
     # Append metadata
-    metadata = get_package_metadata(repo, commit)
+    metadata = get_package_metadata(commit)
     metadata['with_config'] = (config_paths is not None)
     metadata_bytes = bytes(json.dumps(metadata, indent=2), 'utf-8')
     metadata_stream = io.BytesIO(metadata_bytes)

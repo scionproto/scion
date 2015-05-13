@@ -172,12 +172,7 @@ def _update_from_remote_topology(request, ad):
     for the given AD.
     """
     remote_topology_dict = ad.get_remote_topology()
-    # Write the retrieved topology to a temp file
-    # TODO update Topology to accept dict?
-    with tempfile.NamedTemporaryFile(mode='w') as tmp:
-        json.dump(remote_topology_dict, tmp)
-        tmp.flush()
-        remote_topology = Topology.from_file(tmp.name)
+    remote_topology = Topology.from_dict(remote_topology_dict)
     ad.fill_from_topology(remote_topology, clear=True)
     return redirect(reverse('ad_detail_topology', args=[ad.id]))
 
@@ -194,11 +189,12 @@ def _send_update(request, ad, package):
     else:
         result = response_failure('Package not found')
 
+    update_tag = 'updates'
     if is_success(result):
-        messages.success(request, 'Update started')
+        messages.success(request, 'Update started', extra_tags=update_tag)
     else:
         error = get_failure_errors(result)
-        messages.error(request, error)
+        messages.error(request, error, extra_tags=update_tag)
     return redirect(reverse('ad_detail_updates', args=[ad.id]))
 
 
@@ -209,14 +205,7 @@ def _download_update(request, ad, package):
 
     if not package.exists():
         return HttpResponseNotFound('Package not found')
-
-    with open(package.filepath, 'rb') as arch_fh:
-        response = HttpResponse(arch_fh.read(),
-                                content_type='application/x-gzip')
-        response['Content-Length'] = arch_fh.tell()
-    response['Content-Disposition'] = ('attachment; '
-                                       'filename={}'.format(package.name))
-    return response
+    return _download_file_response(package.filepath)
 
 
 def update_action(request, pk):
@@ -240,22 +229,37 @@ def refresh_versions(request, pk):
     return redirect(reverse('ad_detail_updates', args=[pk]))
 
 
+def _download_file_response(file_path, file_name=None, content_type=None):
+    if file_name is None:
+        file_name = os.path.basename(file_path)
+    if content_type is None:
+        content_type = 'application/x-gzip'
+    with open(file_path, 'rb') as file_fh:
+        response = HttpResponse(file_fh.read(), content_type=content_type)
+        response['Content-Length'] = file_fh.tell()
+    response['Content-Disposition'] = ('attachment; '
+                                       'filename={}'.format(file_name))
+    return response
+
+
 def connect_new_ad(request, pk):
     ad = get_object_or_404(AD, id=pk)
-    ad_page = reverse('ad_detail', args=[ad.id])
     topology_page = reverse('ad_detail_topology', args=[pk])
 
     # Chech that remote topology exists
     remote_topology = ad.get_remote_topology()
+    topology_tag = 'topology'
     if not remote_topology:
-        messages.error(request, 'Cannot get the remote topology')
+        messages.error(request, 'Cannot get the remote topology',
+                       extra_tags=topology_tag)
         return redirect(topology_page)
 
     # Find if there are differences
     local_topology = ad.generate_topology_dict()
     if _get_changes(local_topology, remote_topology):
         messages.error(request, 'Topologies are inconsistent, '
-                                'please push or pull the topology')
+                                'please push or pull the topology',
+                       extra_tags=topology_tag)
         return redirect(topology_page)
 
     # Create the new AD
@@ -277,31 +281,17 @@ def connect_new_ad(request, pk):
         config_dirs = [os.path.join(temp_dir, x) for x in os.listdir(temp_dir)]
 
         # Prepare package
+        package_name = 'scion_AD{}:{}'.format(new_ad.isd, new_ad.id)
         package_path = prepare_package(out_dir=package_dir,
-                                       config_paths=config_dirs)
+                                       config_paths=config_dirs,
+                                       package_name=package_name)
 
         # Update models instances
-        with tempfile.NamedTemporaryFile(mode='w') as tmp:
-            json.dump(new_topo, tmp)
-            tmp.flush()
-            new_topo = Topology.from_file(tmp.name)
-
-        with tempfile.NamedTemporaryFile(mode='w') as tmp:
-            json.dump(updated_local_topo, tmp)
-            tmp.flush()
-            updated_local_topo = Topology.from_file(tmp.name)
+        new_topo = Topology.from_dict(new_topo)
+        updated_local_topo = Topology.from_dict(updated_local_topo)
 
         new_ad.fill_from_topology(new_topo, clear=True)
         ad.fill_from_topology(updated_local_topo, clear=True)
 
     # Download stuff
-    # TODO make a function
-    package_name = os.path.basename(package_path)
-    with open(package_path, 'rb') as arch_fh:
-        response = HttpResponse(arch_fh.read(),
-                                content_type='application/x-gzip')
-        response['Content-Length'] = arch_fh.tell()
-    response['Content-Disposition'] = ('attachment; '
-                                       'filename={}'.format(package_name))
-
-    return response
+    return _download_file_response(package_path)
