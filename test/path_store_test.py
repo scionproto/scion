@@ -56,7 +56,7 @@ class TestPathStore(unittest.TestCase):
         
         """
         path_policy_file = "../topology/ISD1/path_policies/ISD:1-AD:10.json"
-        path_policy = PathPolicy(path_policy_file)
+        path_policy = PathPolicy.from_file(path_policy_file)
         test_segments = PathStore(path_policy)
         print("Best paths: " + str(len(test_segments.get_best_segments())))
         print("Paths in path store: " + str(len(test_segments.candidates)))
