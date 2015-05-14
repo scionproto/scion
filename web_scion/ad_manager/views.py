@@ -235,12 +235,15 @@ def update_action(request, pk):
             return _download_update(request, ad, package)
         elif '_install_update' in request.POST:
             return _send_update(request, ad, package)
+        elif '_refresh_packages' in request.POST:
+            return _refresh_versions(request, ad)
     return redirect(ad_page)
 
 
-def refresh_versions(request, pk):
+def _refresh_versions(request, ad):
     PackageVersion.discover_packages()
-    return redirect(reverse('ad_detail_updates', args=[pk]))
+    updates_page = reverse('ad_detail_updates', args=[ad.id])
+    return redirect(updates_page)
 
 
 def _download_file_response(file_path, file_name=None, content_type=None):
