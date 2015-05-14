@@ -61,3 +61,8 @@ def send_update(s, isd_id, ad_id, arch_path):
                  'name': os.path.basename(arch_path)}
     update_response = s.send_update(str(isd_id), str(ad_id), data_dict)
     return update_response
+
+
+@run_remote
+def control_process(s, isd_id, ad_id, process_id, command):
+    return s.control_process(isd_id, ad_id, process_id, command)

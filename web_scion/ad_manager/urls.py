@@ -27,4 +27,6 @@ urlpatterns = patterns(
         views.update_action, name='update_action'),
     url(r'^ads/(?P<pk>\d+)/connect_new_ad$',
         views.connect_new_ad, name='connect_new_ad'),
+    url(r'^ads/(?P<pk>\d+)/control/(?P<proc_id>[\w-]+)/$',
+        views.control_process, name='control_process'),
 )

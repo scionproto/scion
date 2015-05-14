@@ -5,14 +5,22 @@
     <th></th>
     <th class="col-md-3">Address</th>
     <th class="col-md-1">Status</th>
+    <th class="col-md-1"></th>
   </tr>
   </thead>
   <tbody>
   {% for server in servers %}
     <tr id="{{ server.id_str }}">
-      <td> Server {{ forloop.counter }}</td>
+      <td> Server {{ server.name }}</td>
       <td>{{ server.addr }}</td>
       <td class="status">%%%</td>
+      <td class="control-btns">
+        <form method="POST" action="{% url 'control_process' server.ad.id server.id_str%}" class="process-control-form">
+          {% csrf_token %}
+          <button type="submit" class="btn glyphicon glyphicon-stop" name="_stop_process"></button>
+          <button type="submit" class="btn glyphicon glyphicon-play" name="_start_process"></button>
+        </form>
+      </td>
     </tr>
   {% endfor %}
   </tbody>

@@ -96,15 +96,25 @@ class AD(models.Model):
             'EdgeRouters': {}, 'PathServers': {}, 'BeaconServers': {},
             'CertificateServers': {},
         }
-        for i, router in enumerate(self.routerweb_set.all(), start=1):
-            out_dict['EdgeRouters'][str(i)] = router.get_dict()
-        for i, ps in enumerate(self.pathserverweb_set.all(), start=1):
-            out_dict['PathServers'][str(i)] = ps.get_dict()
-        for i, bs in enumerate(self.beaconserverweb_set.all(), start=1):
-            out_dict['BeaconServers'][str(i)] = bs.get_dict()
-        for i, cs in enumerate(self.certificateserverweb_set.all(), start=1):
-            out_dict['CertificateServers'][str(i)] = cs.get_dict()
+        for router in self.routerweb_set.all():
+            out_dict['EdgeRouters'][str(router.name)] = router.get_dict()
+        for ps in self.pathserverweb_set.all():
+            out_dict['PathServers'][str(ps.name)] = ps.get_dict()
+        for bs in self.beaconserverweb_set.all():
+            out_dict['BeaconServers'][str(bs.name)] = bs.get_dict()
+        for cs in self.certificateserverweb_set.all():
+            out_dict['CertificateServers'][str(cs.name)] = cs.get_dict()
         return out_dict
+
+    def get_all_element_ids(self):
+        element_ids = []
+        all_elements = [self.routerweb_set.all(), self.pathserverweb_set.all(),
+                        self.beaconserverweb_set.all(),
+                        self.certificateserverweb_set.all()]
+        for element_group in all_elements:
+            for element in element_group:
+                element_ids.append(element.id_str())
+        return element_ids
 
     def fill_from_topology(self, topology, clear=False):
         """
@@ -133,6 +143,7 @@ class AD(models.Model):
                                              isd=interface.neighbor_isd)
                 router_element = RouterWeb(
                     addr=router.addr, ad=self,
+                    name = router.name,
                     neighbor_ad=neighbor_ad,
                     neighbor_type=interface.neighbor_type,
                     interface_addr=interface.addr,
@@ -142,15 +153,18 @@ class AD(models.Model):
                 router_element.save()
 
             for bs in beacon_servers:
-                bs_element = BeaconServerWeb(addr=bs.addr, ad=self)
+                bs_element = BeaconServerWeb(addr=bs.addr, name=bs.name,
+                                             ad=self)
                 bs_element.save()
 
             for cs in certificate_servers:
-                cs_element = CertificateServerWeb(addr=cs.addr, ad=self)
+                cs_element = CertificateServerWeb(addr=cs.addr, name=cs.name,
+                                                  ad=self)
                 cs_element.save()
 
             for ps in path_servers:
-                ps_element = PathServerWeb(addr=ps.addr, ad=self)
+                ps_element = PathServerWeb(addr=ps.addr, name=ps.name,
+                                           ad=self)
                 ps_element.save()
         except IntegrityError:
             pass
@@ -165,10 +179,12 @@ class AD(models.Model):
 class SCIONWebElement(models.Model):
     addr = models.IPAddressField()
     ad = models.ForeignKey(AD)
+    name = models.CharField(max_length=20, null=True)
 
     def id_str(self):
         # FIXME How to identify multiple servers of the same type?
-        return "{}{}-{}-1".format(self.prefix, self.ad.isd_id, self.ad_id)
+        return "{}{}-{}-{}".format(self.prefix, self.ad.isd_id,
+                                   self.ad_id, self.name)
 
     def get_dict(self):
         return {'AddrType': 'IPv4', 'Addr': self.addr}

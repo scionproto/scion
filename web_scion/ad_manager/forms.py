@@ -11,7 +11,6 @@ class VersionChoiceField(ModelChoiceField):
 
     def label_from_instance(self, obj):
         assert isinstance(obj, PackageVersion)
-        d = obj.date_created
         return "{} -- {}  ({:.2f} Mb)".format(obj.name, obj.date_created.date(),
                                               obj.size / 2 ** 20)
 

@@ -34,10 +34,6 @@ SUPERVISORD_PATH = os.path.join(SCION_ROOT, 'supervisor', 'supervisor.sh')
 WEB_SCION_DIR = os.path.join(SCION_ROOT, 'web_scion')
 LOGS_DIR = os.path.join(SCION_ROOT, 'logs')
 
-# TODO modify after update management is implemented
-ARCHIVE_DIST_PATH = os.path.join(SCION_ROOT, 'dist')
-
-
 # Process names
 MONITORING_DAEMON_PROC_NAME = 'monitoring_daemon'
 

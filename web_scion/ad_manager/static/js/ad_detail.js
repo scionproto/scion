@@ -120,7 +120,7 @@ $(document).ready(function() {
     if (location.hash.substr(0,2) == "#!") {
         $("a[href='#" + location.hash.substr(2) + "']").tab("show");
     }
-    $tabLink = $("a[data-toggle='tab']");
+    var $tabLink = $("a[data-toggle='tab']");
     $tabLink.on("shown.bs.tab", function(e) {
         var hash = $(e.target).attr("href");
         if (hash.substr(0,1) == "#") {
@@ -133,6 +133,21 @@ $(document).ready(function() {
         if ($(e.target).attr('href') == '#servers') {
             $("#update-ad-btn").click();
         }
+    });
+
+    $('.process-control-form > button').click(function(e) {
+        var $form = $(this).parent();
+        var btnName = $(this).attr('name');
+        $.ajax({
+            data: $form.serialize() + "&" + btnName, // get the form data
+            type: $form.attr('method'), // GET or POST
+            url: $form.attr('action'), // the file to call
+            dataType: 'json'
+        }).done(function(response) { // on success..
+            $('#update-ad-btn').click();
+        }).fail(function(e, x, r) { // on error..
+        });
+        return false;
     });
 
 });

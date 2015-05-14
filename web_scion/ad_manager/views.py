@@ -1,5 +1,4 @@
 # Stdlib
-import json
 import os
 import tempfile
 import time
@@ -15,6 +14,7 @@ from django.http import (
     JsonResponse,
 )
 from django.shortcuts import redirect, get_object_or_404
+from django.views.decorators.http import require_POST
 from django.views.generic import ListView, DetailView
 
 # SCION
@@ -51,10 +51,10 @@ class ADDetailView(DetailView):
         context = super(ADDetailView, self).get_context_data(**kwargs)
         ad = context['object']
         # Status tab
-        context['routers'] = ad.routerweb_set.select_related().all()
-        context['path_servers'] = ad.pathserverweb_set.all()
-        context['certificate_servers'] = ad.certificateserverweb_set.all()
-        context['beacon_servers'] = ad.beaconserverweb_set.all()
+        context['routers'] = ad.routerweb_set.select_related().order_by('name')
+        context['path_servers'] = ad.pathserverweb_set.order_by('name')
+        context['certificate_servers'] = ad.certificateserverweb_set.order_by('name')
+        context['beacon_servers'] = ad.beaconserverweb_set.order_by('name')
 
         # Update tab
         context['choose_version_form'] = PackageVersionSelectForm()
@@ -150,21 +150,20 @@ def compare_remote_topology(request, pk):
     return JsonResponse({'status': status, 'changes': changes})
 
 
+@require_POST
 @transaction.atomic
 def update_topology(request, pk):
     ad = get_object_or_404(AD, id=pk)
     ad_page = reverse('ad_detail', args=[ad.id])
-    if request.method == 'POST':
-        if '_pull_topology' in request.POST:
-            return _update_from_remote_topology(request, ad)
-        elif '_push_topology' in request.POST:
-            return _push_local_topology(request, ad)
+    if '_pull_topology' in request.POST:
+        return _update_from_remote_topology(request, ad)
+    elif '_push_topology' in request.POST:
+        return _push_local_topology(request, ad)
     return redirect(ad_page)
 
 
 def _push_local_topology(request, ad):
     local_topo = ad.generate_topology_dict()
-    local_topo_str = json.dumps(local_topo, indent=2)
     # TODO move to model?
     md_host = ad.get_monitoring_daemon_host()
     response = monitoring_client.push_topology(md_host, str(ad.isd.id),
@@ -212,27 +211,25 @@ def _send_update(request, ad, package):
     return redirect(reverse('ad_detail_updates', args=[ad.id]))
 
 
-def _download_update(request, ad, package):
+def _download_update(request, package):
     """
     Download the update package straight from the web panel.
     """
-
     if not package.exists():
         return HttpResponseNotFound('Package not found')
     return _download_file_response(package.filepath)
 
 
+@require_POST
 def update_action(request, pk):
     ad = get_object_or_404(AD, id=pk)
     ad_page = reverse('ad_detail', args=[ad.id])
-    if request.method != 'POST':
-        return redirect(ad_page)
 
     form = PackageVersionSelectForm(request.POST)
     if form.is_valid():
         package = form.cleaned_data['selected_version']
         if '_download_update' in request.POST:
-            return _download_update(request, ad, package)
+            return _download_update(request, package)
         elif '_install_update' in request.POST:
             return _send_update(request, ad, package)
         elif '_refresh_packages' in request.POST:
@@ -260,6 +257,7 @@ def _download_file_response(file_path, file_name=None, content_type=None):
 
 
 def connect_new_ad(request, pk):
+    # TODO POST?
     ad = get_object_or_404(AD, id=pk)
     topology_page = reverse('ad_detail_topology', args=[pk])
 
@@ -312,3 +310,24 @@ def connect_new_ad(request, pk):
 
     # Download stuff
     return _download_file_response(package_path)
+
+
+@require_POST
+def control_process(request, pk, proc_id):
+    ad = get_object_or_404(AD, id=pk)
+
+    ad_elements = ad.get_all_element_ids()
+    assert proc_id in ad_elements
+
+    if '_start_process' in request.POST:
+        command = 'START'
+    elif '_stop_process' in request.POST:
+        command = 'STOP'
+    else:
+        return HttpResponseNotFound('Command not found')
+
+    md_host = ad.get_monitoring_daemon_host()
+    response = monitoring_client.control_process(md_host, ad.isd.id, ad.id,
+                                                 proc_id, command)
+
+    return JsonResponse({'status': is_success(response)})

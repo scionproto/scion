@@ -9,12 +9,13 @@
     <th class="col-md-2 text-center">Neighbor AD</th>
     <th class="col-md-2">Neighbor type</th>
     <th class="col-md-1">Status</th>
+    <th class="col-md-1"></th>
   </tr>
   </thead>
   <tbody>
   {% for router in routers %}
     <tr id="{{ router.id_str }}">
-      <td>Router {{ forloop.counter }}</td>
+      <td>Router {{ router.name }}</td>
       <td class="text-center">{{ router.addr }}</td>
       <td class="text-center">{{ router.interface_addr }}</td>
       <td class="text-center">{{ router.interface_toaddr }}</td>
@@ -22,7 +23,14 @@
         <a href="{% url 'ad_detail' router.neighbor_ad.id %}">{{ router.neighbor_ad }}</a>
       </td>
       <td>{{ router.neighbor_type }}</td>
-      <td class="status">hi</td>
+      <td class="status">???</td>
+      <td class="control-btns">
+        <form method="POST" action="{% url 'control_process' router.ad.id router.id_str%}" class="process-control-form">
+          {% csrf_token %}
+          <button type="submit" class="btn glyphicon glyphicon-stop" name="_stop_process"></button>
+          <button type="submit" class="btn glyphicon glyphicon-play" name="_start_process"></button>
+        </form>
+      </td>
     </tr>
   {% endfor %}
   </tbody>
