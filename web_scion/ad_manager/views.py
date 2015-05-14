@@ -2,6 +2,7 @@
 import json
 import os
 import tempfile
+import time
 from shutil import rmtree
 
 # External packages
@@ -90,12 +91,15 @@ def _get_changes(current_topology, remote_topology):
                                                              'NeighborISD',
                                                              'NeighborType'])]
                       }
-    addr_key_sort = lambda k: k['Addr']
+    key_sort = lambda item: int(item[0])
     for server_type in element_fields.keys():
-        remote_servers = sorted(remote_topology[server_type].values(),
-                                key=addr_key_sort)
-        current_servers = sorted(current_topology[server_type].values(),
-                                 key=addr_key_sort)
+        remote_sorted_with_name = sorted(remote_topology[server_type].items(),
+                                         key=key_sort)
+        current_sorted_with_name = sorted(current_topology[server_type].items(),
+                                          key=key_sort)
+
+        remote_servers = [t[1] for t in remote_sorted_with_name]
+        current_servers = [t[1] for t in current_sorted_with_name]
         if len(remote_servers) != len(current_servers):
             changes.append(
                 'Different number of "{}" servers'.format(server_type)
@@ -105,17 +109,23 @@ def _get_changes(current_topology, remote_topology):
             current_fields = element_fields[server_type]
             for key in current_fields:
                 if isinstance(key, str) and rs[key] != cs[key]:
-                    changes.append('"{}" values differ for some {}'
-                                   .format(key, server_type))
+                    changes.append('"{}" values differ for one of {}. '
+                                   'Local: {}, remote: {}'
+                                   .format(key, server_type, cs[key], rs[key]))
                     continue
                 if isinstance(key, tuple):
                     # Compare nested dictionaries (for 'EdgeRouters')
                     field_name, nested_fields = key
                     for field in nested_fields:
-                        if rs[field_name][field] != cs[field_name][field]:
-                            changes.append('"{}:{}" values differ for some {}'
+                        remote_value = rs[field_name][field]
+                        current_value = cs[field_name][field]
+                        if remote_value != current_value:
+                            changes.append('"{}:{}" differ for one of {}. '
+                                           'Local: {}, remote: {}'
                                            .format(field_name, field,
-                                                   server_type))
+                                                   server_type,
+                                                   remote_value,
+                                                   current_value))
     return changes
 
 
@@ -157,12 +167,16 @@ def _push_local_topology(request, ad):
     local_topo_str = json.dumps(local_topo, indent=2)
     # TODO move to model?
     md_host = ad.get_monitoring_daemon_host()
-    response = monitoring_client.push_topology(str(ad.isd.id), str(ad.id),
-                                               md_host, local_topo)
+    response = monitoring_client.push_topology(md_host, str(ad.isd.id),
+                                               str(ad.id), local_topo)
+    topology_tag = 'topology'
     if is_success(response):
-        messages.success(request, 'OK')
+        messages.success(request, 'OK', extra_tags=topology_tag)
     else:
-        messages.error(request, get_failure_errors(response))
+        messages.error(request, get_failure_errors(response),
+                       extra_tags=topology_tag)
+    # Wait until supervisor is restarting
+    time.sleep(5)
     return redirect(reverse('ad_detail_topology', args=[ad.id]))
 
 
@@ -183,8 +197,8 @@ def _send_update(request, ad, package):
     """
     # TODO move to model?
     if package.exists():
-        result = monitoring_client.send_update(ad.isd_id, ad.id,
-                                               ad.get_monitoring_daemon_host(),
+        result = monitoring_client.send_update(ad.get_monitoring_daemon_host(),
+                                               ad.isd_id, ad.id,
                                                package.filepath)
     else:
         result = response_failure('Package not found')
@@ -281,7 +295,7 @@ def connect_new_ad(request, pk):
         config_dirs = [os.path.join(temp_dir, x) for x in os.listdir(temp_dir)]
 
         # Prepare package
-        package_name = 'scion_AD{}:{}'.format(new_ad.isd, new_ad.id)
+        package_name = 'scion_package_AD{}-{}'.format(new_ad.isd, new_ad.id)
         package_path = prepare_package(out_dir=package_dir,
                                        config_paths=config_dirs,
                                        package_name=package_name)

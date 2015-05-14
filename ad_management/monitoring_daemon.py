@@ -23,6 +23,8 @@ import json
 import logging
 import os
 import sys
+import threading
+import time
 from subprocess import Popen
 
 # SCION
@@ -90,17 +92,29 @@ class MonitoringDaemon(object):
         topo_path = gen.path_dict(isd_id, ad_id)['topo_file_abs']
         return topo_path
 
+    def restart_supervisor_async(self):
+
+        def _restart_supervisor_wait():
+            time.sleep(0.1)
+            server = get_supervisor_server()
+            server.supervisor.restart()
+
+        threading.Thread(target=_restart_supervisor_wait,
+                         name="Restart supervisor daemon",
+                         daemon=True).start()
+
     def update_topology(self, isd_id, ad_id, topology):
         # TODO check security!
         topo_path = self.get_topo_path(isd_id, ad_id)
         if not os.path.isfile(topo_path):
             return response_failure('No AD topology found')
         with open(topo_path, 'w') as topo_fh:
-            json.dump(topology, topo_fh, indent=2)
+            json.dump(topology, topo_fh, sort_keys=True, indent=4)
             logging.info('Topology file written')
         generator = ConfigGenerator()
         generator.write_derivatives(topology)
-        return response_success('Topology file successfully updated')
+        self.restart_supervisor_async()
+        return response_success('Topology file is successfully updated')
 
     def get_topology(self, isd_id, ad_id):
         """

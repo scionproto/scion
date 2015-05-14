@@ -66,16 +66,16 @@ class AD(models.Model):
         """
         Return AD status information, which includes servers/routers statuses
         """
-        return monitoring_client.get_ad_info(self.isd_id, self.id,
-                                             self.get_monitoring_daemon_host())
+        return monitoring_client.get_ad_info(self.get_monitoring_daemon_host(),
+                                             self.isd_id, self.id)
 
     def get_remote_topology(self):
         """
         Get the corresponding remote topology as a Python dictionary.
         """
         md_host = self.get_monitoring_daemon_host()
-        topology_response = monitoring_client.get_topology(self.isd.id, self.id,
-                                                           md_host)
+        topology_response = monitoring_client.get_topology(md_host,
+                                                           self.isd.id, self.id)
         if not is_success(topology_response):
             return None
 

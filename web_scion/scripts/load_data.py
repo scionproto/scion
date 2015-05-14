@@ -35,7 +35,7 @@ isds = {}
 ads = []
 
 for topo_file in topology_files:
-    topology = Topology(topo_file)
+    topology = Topology.from_file(topo_file)
     isds[topology.isd_id] = topology.isd_id
     ads.append(topology)
 

@@ -7,45 +7,46 @@ import xmlrpc.client
 # SCION
 from ad_management.common import get_monitoring_server, response_failure
 
-# TODO code duplication???
 
-def get_ad_info(isd_id, ad_id, md_host):
+def run_remote(func):
+
+    def wrapper(md_host, *args, **kwargs):
+        s = get_monitoring_server(md_host)
+        try:
+            return func(s, *args, **kwargs)
+        except ConnectionRefusedError as ex:
+            return response_failure('Cannot connect to the daemon', str(ex))
+        except xmlrpc.client.Error as ex:
+            return response_failure('Query failed', str(ex))
+
+    return wrapper
+
+@run_remote
+def get_ad_info(s, isd_id, ad_id):
     """
     get_ad_info XML-RPC call to the management daemon
     """
-    s = get_monitoring_server(md_host)
-    try:
-        ad_info = s.get_ad_info(str(isd_id), str(ad_id))
-        return ad_info
-    except (ConnectionRefusedError, xmlrpc.client.Error) as ex:
-        return response_failure('Query failed', str(ex))
+    return s.get_ad_info(str(isd_id), str(ad_id))
 
 
-def get_topology(isd_id, ad_id, md_host):
+@run_remote
+def get_topology(s, isd_id, ad_id):
     """
     get_topology XML-RPC call to the management daemon
     """
-    s = get_monitoring_server(md_host)
-    try:
-        topo_response = s.get_topology(str(isd_id), str(ad_id))
-        return topo_response
-    except (ConnectionRefusedError, xmlrpc.client.Error) as ex:
-        return response_failure('Cannot get the topology', str(ex))
+    return s.get_topology(str(isd_id), str(ad_id))
 
 
-def push_topology(isd_id, ad_id, md_host, topology):
+@run_remote
+def push_topology(s, isd_id, ad_id, topology):
     """
     get_topology XML-RPC call to the management daemon
     """
-    s = get_monitoring_server(md_host)
-    try:
-        topo_response = s.update_topology(str(isd_id), str(ad_id), topology)
-        return topo_response
-    except (ConnectionRefusedError, xmlrpc.client.Error) as ex:
-        return response_failure('Cannot push the topology', str(ex))
+    return s.update_topology(str(isd_id), str(ad_id), topology)
 
 
-def send_update(isd_id, ad_id, md_host, arch_path):
+@run_remote
+def send_update(s, isd_id, ad_id, arch_path):
     """
     send_update XML-RPC call to the management daemon
     """
@@ -53,14 +54,10 @@ def send_update(isd_id, ad_id, md_host, arch_path):
     with open(arch_path, 'rb') as update_fh:
         raw_data = update_fh.read()
 
-    s = get_monitoring_server(md_host)
     data_digest = hashlib.sha1(raw_data).hexdigest()
     base64_data = str(base64.b64encode(raw_data), 'utf-8')
 
     data_dict = {'data': base64_data, 'digest': data_digest,
                  'name': os.path.basename(arch_path)}
-    try:
-        update_response = s.send_update(str(isd_id), str(ad_id), data_dict)
-        return update_response
-    except (ConnectionRefusedError, xmlrpc.client.Error) as ex:
-        return response_failure('Cannot send the update', str(ex))
+    update_response = s.send_update(str(isd_id), str(ad_id), data_dict)
+    return update_response

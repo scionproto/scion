@@ -120,10 +120,18 @@ $(document).ready(function() {
     if (location.hash.substr(0,2) == "#!") {
         $("a[href='#" + location.hash.substr(2) + "']").tab("show");
     }
-    $("a[data-toggle='tab']").on("shown.bs.tab", function (e) {
+    $tabLink = $("a[data-toggle='tab']");
+    $tabLink.on("shown.bs.tab", function(e) {
         var hash = $(e.target).attr("href");
         if (hash.substr(0,1) == "#") {
             location.replace("#!" + hash.substr(1));
+        }
+    });
+
+    // Update server status when the first tab is opened
+    $tabLink.on("shown.bs.tab", function(e) {
+        if ($(e.target).attr('href') == '#servers') {
+            $("#update-ad-btn").click();
         }
     });
 
