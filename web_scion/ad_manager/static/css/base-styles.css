@@ -47,3 +47,7 @@ h4.core-ad-label span.glyphicon {
     font-size: 16px;
     margin-left: 2px;
 }
+
+div.status-block > div {
+    padding-right: 0;
+}

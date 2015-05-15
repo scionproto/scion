@@ -4,8 +4,7 @@
   <tr>
     <th></th>
     <th class="col-md-3">Address</th>
-    <th class="col-md-1">Status</th>
-    <th class="col-md-1"></th>
+    <th class="col-md-2 text-center">Status</th>
   </tr>
   </thead>
   <tbody>
@@ -13,10 +12,9 @@
     <tr id="{{ server.id_str }}">
       <td> Server {{ server.name }}</td>
       <td>{{ server.addr }}</td>
-      <td class="status">%%%</td>
-      <td class="control-btns">
+      <td class="status-column">
         {% with element=server %}
-          {% include 'ad_manager/control_form.html' %}
+          {% include 'ad_manager/status_block.html' %}
         {% endwith %}
       </td>
     </tr>

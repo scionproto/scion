@@ -256,8 +256,8 @@ def _download_file_response(file_path, file_name=None, content_type=None):
     return response
 
 
+@require_POST
 def connect_new_ad(request, pk):
-    # TODO POST?
     ad = get_object_or_404(AD, id=pk)
     topology_page = reverse('ad_detail_topology', args=[pk])
 

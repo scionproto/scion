@@ -68,9 +68,11 @@
         <br />
 
         <p>Connect to this AD by generating a new installation package</p>
-        <a type="submit" class="btn btn-default click-confirm" id="generate-new-btn" href="{% url 'connect_new_ad' object.id %}">
-          Generate
-        </a>
+        <form method="POST" action="{% url 'connect_new_ad' object.id %}">
+          <button type="submit" class="btn btn-default click-confirm" id="generate-new-btn">
+            Generate
+          </button>
+        </form>
 
         <br />
         {% for message in messages %}

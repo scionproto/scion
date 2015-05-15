@@ -8,8 +8,7 @@
     <th class="col-md-2 text-center">Interface out-address</th>
     <th class="col-md-2 text-center">Neighbor AD</th>
     <th class="col-md-2">Neighbor type</th>
-    <th class="col-md-1">Status</th>
-    <th class="col-md-1"></th>
+    <th class="col-md-2 text-center">Status</th>
   </tr>
   </thead>
   <tbody>
@@ -23,10 +22,9 @@
         <a href="{% url 'ad_detail' router.neighbor_ad.id %}">{{ router.neighbor_ad }}</a>
       </td>
       <td>{{ router.neighbor_type }}</td>
-      <td class="status">???</td>
-      <td class="control-btns">
+      <td class="status-column">
         {% with element=router %}
-          {% include 'ad_manager/control_form.html' %}
+          {% include 'ad_manager/status_block.html' %}
         {% endwith %}
       </td>
     </tr>

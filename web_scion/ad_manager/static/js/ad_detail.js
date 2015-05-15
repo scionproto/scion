@@ -1,11 +1,16 @@
 
-function showLoadingIndicator(element) {
+function appendLoadingIndicator(element) {
     var imgPath = '/static/img/ajax-loader.gif';
-    element.first().html('<img src="' + imgPath + '" />');
+    element.first().append('&nbsp;&nbsp;<img src="' + imgPath + '" />');
+}
+
+function showLoadingIndicator(element) {
+    element.first().html('');
+    appendLoadingIndicator(element);
 }
 
 function initServerStatus() {
-    $('td.status').html('<b>...</b>');
+    $('td > div.status-text').html('<b>...</b>');
 }
 
 function updateServerStatus(detailUrl) {
@@ -20,9 +25,9 @@ function updateServerStatus(detailUrl) {
             var info = componentData[i];
             var name = info['name'];
             var status = info['statename'];
-            var $tdStatus = $('#' + name + '> .status');
-            if ($tdStatus.text() != status) {
-                $tdStatus.text(status);
+            var $tdStatus = $('#' + name + ' .status-text');
+            if ($tdStatus.html() != status) {
+                $tdStatus.html(status);
                 $tdStatus.fadeTo(0, 0);
                 $tdStatus.fadeTo(200, 1);
             }
@@ -91,6 +96,20 @@ function compareAdTopology(compareUrl) {
     $alertDiv.show();
 }
 
+function makeTabsPersistent() {
+    // Make tabs persistent. Check https://gist.github.com/josheinstein/5586469
+    if (location.hash.substr(0,2) == "#!") {
+        $("a[href='#" + location.hash.substr(2) + "']").tab("show");
+    }
+    var $tabLink = $("a[data-toggle='tab']");
+    $tabLink.on("shown.bs.tab", function(e) {
+        var hash = $(e.target).attr("href");
+        if (hash.substr(0,1) == "#") {
+            location.replace("#!" + hash.substr(1));
+        }
+    });
+}
+
 $(document).ready(function() {
     // "Are you sure?" confirmation boxes
     $('.click-confirm').click(function(e) {
@@ -116,37 +135,31 @@ $(document).ready(function() {
         compareAdTopology(adCompareUrl);
     });
 
-    // Make tabs persistent. Check https://gist.github.com/josheinstein/5586469
-    if (location.hash.substr(0,2) == "#!") {
-        $("a[href='#" + location.hash.substr(2) + "']").tab("show");
-    }
-    var $tabLink = $("a[data-toggle='tab']");
-    $tabLink.on("shown.bs.tab", function(e) {
-        var hash = $(e.target).attr("href");
-        if (hash.substr(0,1) == "#") {
-            location.replace("#!" + hash.substr(1));
-        }
-    });
+    makeTabsPersistent();
 
     // Update server status when the first tab is opened
+    var $tabLink = $("a[data-toggle='tab']");
     $tabLink.on("shown.bs.tab", function(e) {
         if ($(e.target).attr('href') == '#servers') {
             $("#update-ad-btn").click();
         }
     });
 
+    // Status control forms
     $('.process-control-form > button').click(function(e) {
         var $form = $(this).parent();
         var btnName = $(this).attr('name');
         $.ajax({
-            data: $form.serialize() + "&" + btnName, // get the form data
-            type: $form.attr('method'), // GET or POST
-            url: $form.attr('action'), // the file to call
+            data: $form.serialize() + "&" + btnName, // form data + button
+            type: $form.attr('method'),
+            url: $form.attr('action'),
             dataType: 'json'
-        }).done(function(response) { // on success..
+        }).always(function(response){
             $('#update-ad-btn').click();
-        }).fail(function(e, x, r) { // on error..
         });
+        var $statusCell = $form.parent().siblings('.status-text');
+        appendLoadingIndicator($statusCell);
+
         return false;
     });
 

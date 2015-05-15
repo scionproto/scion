@@ -1,5 +1,0 @@
-<form method="POST" action="{% url 'control_process' element.ad.id element.id_str%}" class="process-control-form">
-  {% csrf_token %}
-  <button type="submit" class="btn glyphicon glyphicon-stop" name="_stop_process"></button>
-  <button type="submit" class="btn glyphicon glyphicon-play" name="_start_process"></button>
-</form>
