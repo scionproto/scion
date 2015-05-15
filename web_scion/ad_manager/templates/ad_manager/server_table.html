@@ -15,12 +15,14 @@
       <td>{{ server.addr }}</td>
       <td class="status">%%%</td>
       <td class="control-btns">
-        <form method="POST" action="{% url 'control_process' server.ad.id server.id_str%}" class="process-control-form">
-          {% csrf_token %}
-          <button type="submit" class="btn glyphicon glyphicon-stop" name="_stop_process"></button>
-          <button type="submit" class="btn glyphicon glyphicon-play" name="_start_process"></button>
-        </form>
+        {% with element=server %}
+          {% include 'ad_manager/control_form.html' %}
+        {% endwith %}
       </td>
+    </tr>
+  {% empty %}
+    <tr>
+      <td colspan="4"><i>No servers</i></td>
     </tr>
   {% endfor %}
   </tbody>

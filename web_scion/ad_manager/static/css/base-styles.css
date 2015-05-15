@@ -20,3 +20,11 @@ div#refresh-btn-container {
     margin-left: 4px;
     margin-right: 4px;
 }
+
+button.glyphicon-stop {
+    color: lightcoral;
+}
+
+button.glyphicon-play {
+    color: green;
+}
