@@ -95,9 +95,11 @@ class BeaconServer(SCIONElement):
     # ZK path for incoming PCBs
     ZK_PCB_CACHE_PATH = "pcb_cache"
 
-    def __init__(self, addr, topo_file, config_file, path_policy_file):
-        SCIONElement.__init__(self, addr, topo_file, config_file=config_file)
-        self.path_policy = PathPolicy.from_file(path_policy_file)  # TODO: add 2 policies
+    def __init__(self, server_id, topo_file, config_file, path_policy_file):
+        SCIONElement.__init__(self, "bs", topo_file, server_id=server_id,
+                              config_file=config_file)
+        # TODO: add 2 policies
+        self.path_policy = PathPolicy.from_file(path_policy_file)
         self.unverified_beacons = deque()
         self.trc_requests = {}
         self.trcs = {}
@@ -480,8 +482,8 @@ class CoreBeaconServer(BeaconServer):
     Starts broadcasting beacons down-stream within an ISD and across ISDs
     towards other core beacon servers.
     """
-    def __init__(self, addr, topo_file, config_file, path_policy_file):
-        BeaconServer.__init__(self, addr, topo_file, config_file,
+    def __init__(self, server_id, topo_file, config_file, path_policy_file):
+        BeaconServer.__init__(self, server_id, topo_file, config_file,
                               path_policy_file)
         # Sanity check that we should indeed be a core beacon server.
         assert self.topology.is_core_ad, "This shouldn't be a core BS!"
@@ -669,8 +671,8 @@ class LocalBeaconServer(BeaconServer):
     servers.
     """
 
-    def __init__(self, addr, topo_file, config_file, path_policy_file):
-        BeaconServer.__init__(self, addr, topo_file, config_file,
+    def __init__(self, server_id, topo_file, config_file, path_policy_file):
+        BeaconServer.__init__(self, server_id, topo_file, config_file,
                               path_policy_file)
         # Sanity check that we should indeed be a local beacon server.
         assert not self.topology.is_core_ad, "This shouldn't be a local BS!"
@@ -957,22 +959,20 @@ def main():
     init_logging()
     handle_signals()
     if len(sys.argv) != 6:
-        logging.error("run: %s <core|local> IP topo_file conf_file path_policy_file",
-            sys.argv[0])
+        logging.error("run: %s <core|local> server_id topo_file "
+                      "conf_file path_policy_file",
+                      sys.argv[0])
         sys.exit()
 
-    trace()
-
     if sys.argv[1] == "core":
-        beacon_server = CoreBeaconServer(IPv4Address(sys.argv[2]), sys.argv[3],
-                                         sys.argv[4], sys.argv[5])
+        beacon_server = CoreBeaconServer(*sys.argv[2:])
     elif sys.argv[1] == "local":
-        beacon_server = LocalBeaconServer(IPv4Address(sys.argv[2]),
-                                          sys.argv[3], sys.argv[4], sys.argv[5])
+        beacon_server = LocalBeaconServer(*sys.argv[2:])
     else:
         logging.error("First parameter can only be 'local' or 'core'!")
         sys.exit()
 
+    trace(beacon_server.id)
     logging.info("Started: %s", datetime.datetime.now())
     beacon_server.run()
 

@@ -42,6 +42,7 @@ _SIG_MAP = {
     SIGUSR2: "SIGUSR2"
 }
 
+
 def _get_isd_prefix(isd_dir):
     return os.path.join(isd_dir, 'ISD')
 
@@ -167,10 +168,8 @@ def update_dict(dictionary, key, values, elem_num=0):
     dictionary[key] = dictionary[key][-elem_num:]
 
 
-def trace():
-    path = os.path.join(TRACE_DIR,
-                        "%s.trace.html" %
-                        os.environ['SUPERVISOR_PROCESS_NAME'])
+def trace(id_):
+    path = os.path.join(TRACE_DIR, "%s.trace.html" % id_)
     trace_start(path)
 
 
@@ -218,6 +217,7 @@ def sleep_interval(start, interval, desc):
         delay = 0
     time.sleep(delay)
 
+
 def handle_signals():
     """
     Setup basic signal handler for the most common signals
@@ -225,6 +225,7 @@ def handle_signals():
     for sig in _SIG_MAP.keys():
         signal(sig, _signal_handler)
     pass
+
 
 def _signal_handler(signum, _):
     """
