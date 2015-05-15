@@ -1,7 +1,12 @@
 {% extends "ad_manager/base.html" %}
 
 {% block content %}
-  <h1>ISD {{ object.id }}</h1>
+  <h1>
+    <a href="{% url 'list_isds' %}" class="glyphicon glyphicon-home"></a>
+    <span class="glyphicon glyphicon-menu-right"></span>
+    ISD {{ object.id }}
+  </h1>
+  <hr>
   <ul>
     {% for ad in object.ad_set.all|dictsort:'id' %}
       <li><a href="{% url 'ad_detail' ad.id %}">AD {{ ad }}</a></li>

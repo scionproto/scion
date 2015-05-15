@@ -10,12 +10,19 @@
 {% endblock %}
 
 {% block content %}
-  <h1>AD {{ object }}</h1>
+  <h1 class="object-path">
+    <a href="{% url 'list_isds' %}" class="glyphicon glyphicon-home"></a>
+    <span class="glyphicon glyphicon-menu-right"></span>
+    <a href="{% url 'isd_detail' object.isd %}">ISD {{ object.isd.id }}</a>
+    <span class="glyphicon glyphicon-menu-right"></span>
+    AD {{ object.id }}
+  </h1>
+  <hr>
 
-  <h4>
+  <h4 class="core-ad-label">
     Core AD:
-    {{ object.is_core_ad }}
-    <span class="glyphicon glyphicon-{{ object.is_core_ad|yesno:"ok,remove," }}" aria-hidden="true"></span>
+    {{ object.is_core_ad|yesno:"Yes,No,???" }}
+    <span class="glyphicon glyphicon-{{ object.is_core_ad|yesno:"ok,remove," }}"></span>
   </h4>
   <br />
 

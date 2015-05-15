@@ -28,3 +28,22 @@ button.glyphicon-stop {
 button.glyphicon-play {
     color: green;
 }
+
+/* Object path */
+h1.object-path a {
+    text-decoration: none;
+}
+
+h1 span.glyphicon-menu-right {
+    font-size: 26px;
+}
+
+h1 span.glyphicon-home {
+    font-size: 30px;
+}
+
+/* Core AD label */
+h4.core-ad-label span.glyphicon {
+    font-size: 16px;
+    margin-left: 2px;
+}
