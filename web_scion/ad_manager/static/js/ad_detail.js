@@ -10,7 +10,7 @@ function showLoadingIndicator(element) {
 }
 
 function initServerStatus() {
-    $('td > div.status-text').html('<b>...</b>');
+    $('td div.status-text').html('<b>...</b>');
 }
 
 function updateServerStatus(detailUrl) {
@@ -19,8 +19,10 @@ function updateServerStatus(detailUrl) {
         dataType: "json"
     }).done(function(data) {
         var componentData = data['data'];
-        if (!componentData)
+        if (!componentData) {
+            initServerStatus();
             return;
+        }
         for (var i = 0; i < componentData.length; i++) {
             var info = componentData[i];
             var name = info['name'];
