@@ -46,8 +46,9 @@ class CertServer(SCIONElement):
     # ZK path for incoming TRCs
     ZK_TRC_CACHE_PATH = "trc_cache"
 
-    def __init__(self, addr, topo_file, config_file, trc_file):
-        SCIONElement.__init__(self, addr, topo_file, config_file=config_file)
+    def __init__(self, server_id, topo_file, config_file, trc_file):
+        SCIONElement.__init__(self, "cs", topo_file, server_id=server_id,
+                              config_file=config_file)
         self.trc = TRC(trc_file)
         self.cert_chain_requests = collections.defaultdict(list)
         self.trc_requests = collections.defaultdict(list)
@@ -397,6 +398,7 @@ class CertServer(SCIONElement):
                          daemon=True).start()
         SCIONElement.run(self)
 
+
 def main():
     """
     Main function.
@@ -404,11 +406,11 @@ def main():
     init_logging()
     handle_signals()
     if len(sys.argv) != 5:
-        logging.error("run: %s IP topo_file conf_file trc_file", sys.argv[0])
+        logging.error("run: %s server_id topo_file conf_file trc_file",
+                      sys.argv[0])
         sys.exit()
 
-    cert_server = CertServer(IPv4Address(sys.argv[1]), sys.argv[2],
-                             sys.argv[3], sys.argv[4])
+    cert_server = CertServer(*sys.argv[1:])
 
     logging.info("Started: %s", datetime.datetime.now())
     cert_server.run()

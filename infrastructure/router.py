@@ -80,7 +80,7 @@ class Router(SCIONElement):
     :vartype post_ext_handlers: dict
     """
 
-    def __init__(self, addr, topo_file, config_file, pre_ext_handlers=None,
+    def __init__(self, router_id, topo_file, config_file, pre_ext_handlers=None,
                  post_ext_handlers=None):
         """
         Constructor.
@@ -99,7 +99,8 @@ class Router(SCIONElement):
         :type post_ext_handlers: dict
 
         """
-        SCIONElement.__init__(self, addr, topo_file, config_file=config_file)
+        SCIONElement.__init__(self, "er", topo_file, server_id=router_id,
+                              config_file=config_file)
         self.interface = None
         for edge_router in self.topology.get_all_edge_routers():
             if edge_router.addr == self.addr.host_addr:
@@ -521,10 +522,10 @@ def main():
     init_logging()
     handle_signals()
     if len(sys.argv) != 4:
-        logging.error("run: %s IP topo_file conf_file", sys.argv[0])
+        logging.error("run: %s router_id topo_file conf_file", sys.argv[0])
         sys.exit()
 
-    router = Router(IPv4Address(sys.argv[1]), sys.argv[2], sys.argv[3])
+    router = Router(*sys.argv[1:])
 
     logging.info("Started: %s", datetime.datetime.now())
     router.run()
