@@ -444,13 +444,12 @@ class ConfigGenerator():
 
         for (num, element_dict, element_type) \
                 in self._get_typed_elements(topo_dict):
-            ip_addr = element_dict['Addr']
             element_location = 'core' if topo_dict['Core'] else 'local'
             if element_type == 'BeaconServers':
                 element_name = 'bs{}-{}-{}'.format(isd_id, ad_id, num)
                 cmd_args = ['beacon_server.py',
                             element_location,
-                            ip_addr,
+                            num,
                             p['topo_file_rel'],
                             p['conf_file_rel'],
                             p['path_pol_file_rel']]
@@ -458,7 +457,7 @@ class ConfigGenerator():
             elif element_type == 'CertificateServers':
                 element_name = 'cs{}-{}-{}'.format(isd_id, ad_id, num)
                 cmd_args = ['cert_server.py',
-                            ip_addr,
+                            num,
                             p['topo_file_rel'],
                             p['conf_file_rel'],
                             p['trc_file_rel']]
@@ -466,7 +465,7 @@ class ConfigGenerator():
                 element_name = 'ps{}-{}-{}'.format(isd_id, ad_id, num)
                 cmd_args = ['path_server.py',
                             element_location,
-                            ip_addr,
+                            num,
                             p['topo_file_rel'],
                             p['conf_file_rel']]
 
@@ -477,7 +476,7 @@ class ConfigGenerator():
                 element_name = 'er{}-{}er{}-{}'.format(isd_id, ad_id,
                                                        nbr_isd_id, nbr_ad_id)
                 cmd_args = ['router.py',
-                            ip_addr,
+                            num,
                             p['topo_file_rel'],
                             p['conf_file_rel']]
             else:

@@ -271,3 +271,23 @@ class Topology(object):
         all_edge_routers.extend(self.peer_edge_routers)
         all_edge_routers.extend(self.routing_edge_routers)
         return all_edge_routers
+
+    def get_own_config(self, server_type, server_id):
+        target = None
+        if server_type == "bs":
+            target = self.beacon_servers
+        elif server_type == "cs":
+            target = self.certificate_servers
+        elif server_type == "ps":
+            target = self.path_servers
+        elif server_type == "er":
+            target = self.get_all_edge_routers()
+        else:
+            logging.error("Unknown server type: \"%s\"", server_type)
+
+        for i in target:
+            if i.name == server_id:
+                return i
+        else:
+            logging.error("Could not find server %s%s-%s-%s", server_type,
+                          self.isd_id, self.ad_id, server_id)

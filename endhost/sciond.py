@@ -44,7 +44,7 @@ class SCIONDaemon(SCIONElement):
     TIMEOUT = 5
 
     def __init__(self, addr, topo_file, run_local_api=False):
-        SCIONElement.__init__(self, addr, topo_file)
+        SCIONElement.__init__(self, "sciond", topo_file, host_addr=addr)
         # TODO replace by pathstore instance
         self.up_segments = PathSegmentDB()
         self.down_segments = PathSegmentDB()

@@ -25,7 +25,6 @@ Module docstring here.
 from lib.config import Config
 from lib.packet.scion_addr import SCIONAddr
 from lib.topology import Topology
-import ipaddress
 import logging
 import select
 import socket
@@ -34,6 +33,7 @@ import socket
 SCION_UDP_PORT = 30040
 SCION_UDP_EH_DATA_PORT = 30041
 BUFLEN = 8092
+
 
 class SCIONElement(object):
     """
@@ -51,16 +51,27 @@ class SCIONElement(object):
     :vartype addr: :class:`lib.packet.scion_addr.SCIONAddr`
     """
 
-    def __init__(self, host_addr, topo_file, config_file=None):
+    def __init__(self, server_type, topo_file, config_file=None, server_id=None,
+                 host_addr=None):
         """
         Create a new ServerBase instance.
 
+        :param server_type: a shorthand of the server type, e.g. "bs" for a
+                            beacon server.
+        :type server_type: str
         :param host_addr: the (local) address of the server.
         :type host_addr: :class:`ipaddress._BaseAddress`
         :param topo_file: the name of the topology file.
         :type topo_file: str
         :param config_file: the name of the configuration file.
         :type config_file: str
+        :param server_id: the local id of the server, e.g. for bs1-10-3, the id
+                          would be '3'. Used to look up config from topology
+                          file.
+        :type server_id: str
+        :param host_addr: the interface to bind to. Only used if server_id isn't
+                          specified.
+        :type host_addr: :class:`ipaddress._BaseAddress`
 
         :returns: the newly-created ServerBase instance
         :rtype: ServerBase
@@ -70,6 +81,13 @@ class SCIONElement(object):
         self.config = None
         self.ifid2addr = {}
         self.parse_topology(topo_file)
+        if server_id is not None:
+            own_config = self.topology.get_own_config(server_type, server_id)
+            self.id = "%s%s-%s-%s" % (server_type, self.topology.isd_id,
+                                      self.topology.ad_id, own_config.name)
+            host_addr = own_config.addr
+        else:
+            self.id = server_type
         self.addr = SCIONAddr.from_values(self.topology.isd_id,
                                           self.topology.ad_id, host_addr)
         if config_file:
@@ -79,7 +97,8 @@ class SCIONElement(object):
         self._local_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self._local_socket.bind((str(self.addr.host_addr), SCION_UDP_PORT))
         self._sockets = [self._local_socket]
-        logging.info("Bound %s:%u", self.addr.host_addr, SCION_UDP_PORT)
+        logging.info("%s: bound %s:%u", self.id, self.addr.host_addr,
+                     SCION_UDP_PORT)
 
     @property
     def addr(self):
