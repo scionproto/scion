@@ -27,11 +27,11 @@ from lib.log import (init_logging, log_exception)
 from lib.thread import thread_safety_net
 from lib.util import timed
 from lib.zookeeper import (Zookeeper, ZkConnectionLoss, ZkNoNodeError)
-from parse import *
 import collections
 import datetime
 import logging
 import os
+import parse
 import sys
 import threading
 import time
@@ -53,7 +53,8 @@ class CertServer(SCIONElement):
         self.trc_requests = collections.defaultdict(list)
         self.cert_chains = {}
         self.trcs = {}
-        self._latest_entry = 0
+        self._latest_entry_cert_chains = 0
+        self._latest_entry_trcs = 0
         # Set when we have connected and read the existing recent and incoming
         # cert chains and TRCs
         self._state_synced = threading.Event()
@@ -218,13 +219,13 @@ class CertServer(SCIONElement):
         """
         Get the isd_id, ad_id, and version values from the entry name.
         """
-        return parse('ISD:{:d}-AD:{:d}-V:{:d}', entry)
+        return parse.parse('ISD:{:d}-AD:{:d}-V:{:d}', entry)
 
     def _get_trc_identifiers(self, entry):
         """
         Get the isd_id and version values from the entry name.
         """
-        return parse('ISD:{:d}-V:{:d}', entry)
+        return parse.parse('ISD:{:d}-V:{:d}', entry)
 
     @thread_safety_net("handle_shared_certs")
     def handle_shared_certs(self):
@@ -251,7 +252,8 @@ class CertServer(SCIONElement):
                     # Register that we can now accept and store cert chains
                     self.zk.join_party()
                     # Make sure we re-read the entire cache
-                    self._latest_entry = 0
+                    self._latest_entry_cert_chains = 0
+                    self._latest_entry_trcs = 0
                 count = self._read_cached_cert_chains()
                 if count:
                     logging.debug("Processed %d new/updated cert chains", count)
@@ -275,11 +277,11 @@ class CertServer(SCIONElement):
         new = []
         newest = 0
         for entry, meta in entries_meta:
-            if meta.last_modified > self._latest_entry:
+            if meta.last_modified > self._latest_entry_cert_chains:
                 new.append(entry)
             if meta.last_modified > newest:
                 newest = meta.last_modified
-        self._latest_entry = newest
+        self._latest_entry_cert_chains = newest
         desc = "Processing %s new cert chains from shared path" % len(new)
         count = self._process_cached_cert_chains(new, timed_desc=desc)
         return count
@@ -292,7 +294,7 @@ class CertServer(SCIONElement):
         """
         # TODO(lorenzo): move constant to proper place
         chunk_size = 10
-        pcbs = []
+        processed = 0
         for i in range(0, len(entries), chunk_size):
             for entry in entries[i:i+chunk_size]:
                 try:
@@ -314,7 +316,8 @@ class CertServer(SCIONElement):
                                                            isd_id, ad_id,
                                                            version)
                 write_file(cert_chain_file, raw.decode('utf-8'))
-        return len(self.cert_chains)
+                processed += 1
+        return processed
 
     def _read_cached_trcs(self):
         """
@@ -329,11 +332,11 @@ class CertServer(SCIONElement):
         new = []
         newest = 0
         for entry, meta in entries_meta:
-            if meta.last_modified > self._latest_entry:
+            if meta.last_modified > self._latest_entry_trcs:
                 new.append(entry)
             if meta.last_modified > newest:
                 newest = meta.last_modified
-        self._latest_entry = newest
+        self._latest_entry_trcs = newest
         desc = "Processing %s new TRCs from shared path" % len(new)
         count = self._process_cached_trcs(new, timed_desc=desc)
         return count
@@ -346,7 +349,7 @@ class CertServer(SCIONElement):
         """
         # TODO(lorenzo): move constant to proper place
         chunk_size = 10
-        pcbs = []
+        processed = 0
         for i in range(0, len(entries), chunk_size):
             for entry in entries[i:i+chunk_size]:
                 try:
@@ -365,7 +368,8 @@ class CertServer(SCIONElement):
                 trc_file = get_trc_file_path(self.topology.isd_id,
                     self.topology.ad_id, isd_id, version)
                 write_file(trc_file, raw.decode('utf-8'))
-        return len(self.trcs)
+                processed += 1
+        return processed
 
     def handle_request(self, packet, sender, from_local_socket=True):
         """
