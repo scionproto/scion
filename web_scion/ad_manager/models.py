@@ -178,7 +178,7 @@ class AD(models.Model):
 
 
 class SCIONWebElement(models.Model):
-    addr = models.IPAddressField()
+    addr = models.GenericIPAddressField()
     ad = models.ForeignKey(AD)
     name = models.CharField(max_length=20, null=True)
 
@@ -232,8 +232,8 @@ class RouterWeb(SCIONWebElement):
     neighbor_ad = models.ForeignKey(AD, related_name='neighbors')
     neighbor_type = models.CharField(max_length=10, choices=NEIGHBOR_TYPES)
 
-    interface_addr = models.IPAddressField()
-    interface_toaddr = models.IPAddressField()
+    interface_addr = models.GenericIPAddressField()
+    interface_toaddr = models.GenericIPAddressField()
     interface_id = models.IntegerField()
 
     def id_str(self):
@@ -314,7 +314,7 @@ class ConnectionRequest(models.Model):
     connect_to = models.ForeignKey(AD, related_name='received_requests')
     new_ad = models.ForeignKey(AD, blank=True, null=True)
     info = models.TextField()
-    router_ip = models.IPAddressField()
+    router_ip = models.GenericIPAddressField()
     status = models.CharField(max_length=20,
                               choices=zip(STATUS_OPTIONS, STATUS_OPTIONS),
                               default='NONE')
