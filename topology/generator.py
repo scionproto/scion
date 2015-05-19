@@ -26,13 +26,13 @@ from ipaddress import ip_address, ip_network
 
 from lib.config import Config
 from lib.crypto.asymcrypto import (sign, generate_signature_keypair,
-    generate_cryptobox_keypair)
+                                   generate_cryptobox_keypair)
 from lib.crypto.certificate import (Certificate, CertificateChain, TRC)
 from lib.defines import TOPOLOGY_PATH
 from lib.path_store import PathPolicy
 from lib.topology import Topology
 from lib.util import (get_cert_chain_file_path, get_sig_key_file_path,
-    get_enc_key_file_path, get_trc_file_path, write_file)
+                      get_enc_key_file_path, get_trc_file_path, write_file)
 
 
 DEFAULT_ADCONFIGURATIONS_FILE = 'ADConfigurations.json'
@@ -286,7 +286,7 @@ class ConfigGenerator():
                                                  isd_dir=self.out_dir)
             write_file(cert_file, str(chain))
             # Test if parser works
-            cert = CertificateChain(cert_file)
+            CertificateChain(cert_file)
         return {'sig_priv_keys': sig_priv_keys,
                 'sig_pub_keys': sig_pub_keys,
                 'enc_pub_keys': enc_pub_keys}
@@ -305,18 +305,12 @@ class ConfigGenerator():
             (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
             is_core = (ad_configs[isd_ad_id]['level'] == CORE_AD)
             first_byte, mask = self._get_subnet_params(ad_configs[isd_ad_id])
-            if "beacon_servers" in ad_configs[isd_ad_id]:
-                number_bs = ad_configs[isd_ad_id]["beacon_servers"]
-            else:
-                number_bs = DEFAULT_BEACON_SERVERS
-            if "certificate_servers" in ad_configs[isd_ad_id]:
-                number_cs = ad_configs[isd_ad_id]["certificate_servers"]
-            else:
-                number_cs = DEFAULT_CERTIFICATE_SERVERS
-            if "path_servers" in ad_configs[isd_ad_id]:
-                number_ps = ad_configs[isd_ad_id]["path_servers"]
-            else:
-                number_ps = DEFAULT_PATH_SERVERS
+            number_bs = ad_configs[isd_ad_id].get("beacon_servers",
+                                                  DEFAULT_BEACON_SERVERS)
+            number_cs = ad_configs[isd_ad_id].get("certificate_servers",
+                                                  DEFAULT_CERTIFICATE_SERVERS)
+            number_ps = ad_configs[isd_ad_id].get("path_servers",
+                                                  DEFAULT_PATH_SERVERS)
             # Write beginning and general structure
             topo_dict = {'Core': 1 if is_core else 0,
                          'ISDID': int(isd_id),
@@ -344,7 +338,7 @@ class ConfigGenerator():
                 server_addr = self._increment_address(server_addr, mask)
             # Write Path Servers
             if (ad_configs[isd_ad_id]['level'] != INTERMEDIATE_AD or
-                "path_servers" in ad_configs[isd_ad_id]):
+                    "path_servers" in ad_configs[isd_ad_id]):
                 server_addr = '.'.join([first_byte, isd_id, ad_id, PS_RANGE])
                 for p_server in range(1, number_ps + 1):
                     topo_dict['PathServers'][p_server] = {
@@ -355,7 +349,7 @@ class ConfigGenerator():
             # Write Edge Routers
             edge_router = 1
             for nbr_isd_ad_id in ad_configs[isd_ad_id].get("links", []):
-                (nbr_isd_id, nbr_ad_id) = nbr_isd_ad_id.split(ISD_AD_ID_DIVISOR)
+                nbr_isd_id, nbr_ad_id = nbr_isd_ad_id.split(ISD_AD_ID_DIVISOR)
                 ip_address_loc, ip_address_pub = \
                     er_ip_addresses[(isd_ad_id, nbr_isd_ad_id)]
                 nbr_ip_address_pub = \
@@ -381,7 +375,7 @@ class ConfigGenerator():
             with open(topo_file_abs, 'w') as topo_fh:
                 json.dump(topo_dict, topo_fh, sort_keys=True, indent=4)
             # Test if parser works
-            topology = Topology.from_file(topo_file_abs)
+            Topology.from_file(topo_file_abs)
 
             self.write_supervisor_config(topo_dict)
             self.write_setup_file(topo_dict, mask)
@@ -522,14 +516,14 @@ class ConfigGenerator():
                          'ResetTime': 600,
                          'CertChainVersion': 0}
             if (ad_configs[isd_ad_id]['level'] != INTERMEDIATE_AD or
-                "path_servers" in ad_configs[isd_ad_id]):
+                    "path_servers" in ad_configs[isd_ad_id]):
                 conf_dict['RegisterPath'] = 1
             else:
                 conf_dict['RegisterPath'] = 0
             with open(conf_file, 'w') as conf_fh:
                 json.dump(conf_dict, conf_fh, sort_keys=True, indent=4)
             # Test if parser works
-            config = Config.from_file(conf_file)
+            Config.from_file(conf_file)
 
     def write_path_pol_files(self, ad_configs, path_policy_file):
         """
@@ -544,7 +538,7 @@ class ConfigGenerator():
             new_path_pol_file = path_dict['path_pol_file_abs']
             shutil.copyfile(path_policy_file, new_path_pol_file)
             # Test if parser works
-            path_policy = PathPolicy.from_file(new_path_pol_file)
+            PathPolicy.from_file(new_path_pol_file)
 
     def write_trc_files(self, ad_configs, keys):
         """
@@ -571,9 +565,6 @@ class ConfigGenerator():
                 if os.path.exists(trc_file):
                     trc = TRC(trc_file)
                     trc.core_ads[subject] = cert
-                    write_file(trc_file, str(trc))
-                    # Test if parser works
-                    trc = TRC(trc_file)
                 else:
                     core_isps = {'isp.com': 'isp.com_cert_base64'}
                     root_cas = {'ca.com': 'ca.com_cert_base64'}
@@ -589,9 +580,10 @@ class ConfigGenerator():
                         core_ads, {}, registry_server_addr,
                         registry_server_cert, root_dns_server_addr,
                         root_dns_server_cert, trc_server_addr, signatures)
-                    write_file(trc_file, str(trc))
-                    # Test if parser works
-                    trc = TRC(trc_file)
+                write_file(trc_file, str(trc))
+                # Test if parser works
+                TRC(trc_file)
+
         for isd_ad_id in ad_configs:
             if ad_configs[isd_ad_id]['level'] == CORE_AD:
                 (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
@@ -605,7 +597,7 @@ class ConfigGenerator():
                     trc.signatures[subject] = sig
                     write_file(trc_file, str(trc))
                     # Test if parser works
-                    trc = TRC(trc_file)
+                    TRC(trc_file)
 
         # Copy the created TRC files to every AD directory, then remove them
         for isd_ad_id in ad_configs:
