@@ -5,6 +5,7 @@ import os
 import tarfile
 
 # External packages
+from django.contrib.auth.models import User
 from django.db import models, IntegrityError
 
 # SCION
@@ -143,7 +144,7 @@ class AD(models.Model):
                                              isd=interface.neighbor_isd)
                 router_element = RouterWeb(
                     addr=router.addr, ad=self,
-                    name = router.name,
+                    name=router.name,
                     neighbor_ad=neighbor_ad,
                     neighbor_type=interface.neighbor_type,
                     interface_addr=interface.addr,
@@ -292,7 +293,7 @@ class PackageVersion(models.Model):
                     )
                     package_version.save()
 
-                except (KeyError, ValueError) as ex:
+                except (KeyError, ValueError):
                     pass
 
     def exists(self):
@@ -303,3 +304,17 @@ class PackageVersion(models.Model):
 
     class Meta:
         verbose_name = 'Package version'
+
+
+class ConnectionRequest(models.Model):
+
+    STATUS_OPTIONS = ['NONE', 'SENT', 'APPROVED', 'DECLINED']
+
+    created_by = models.ForeignKey(User)
+    connect_to = models.ForeignKey(AD, related_name='received_requests')
+    new_ad = models.ForeignKey(AD, blank=True, null=True)
+    info = models.TextField()
+    router_ip = models.IPAddressField()
+    status = models.CharField(max_length=20,
+                              choices=zip(STATUS_OPTIONS, STATUS_OPTIONS),
+                              default='NONE')

@@ -33,6 +33,7 @@
       <li role="presentation" class="active"><a href="#servers" aria-controls="servers" role="tab" data-toggle="tab">Servers</a></li>
       <li role="presentation"><a href="#topology" aria-controls="topology" role="tab" data-toggle="tab">Topology</a></li>
       <li role="presentation"><a href="#updates" aria-controls="updates" role="tab" data-toggle="tab">Software updates</a></li>
+      <li role="presentation"><a href="#requests" aria-controls="requests" role="tab" data-toggle="tab">Connection requests</a></li>
     </ul>
 
     <!-- Tab panes -->
@@ -81,9 +82,9 @@
             <div class="alert alert-{{ message.level_tag }}">{{ message }}</div>
           {% endif %}
         {% endfor %}
-
         <hr />
-        <p>The stored topology might be out of sync with the real topology.</p>
+
+        <p>The stored topology might be out of sync with the real topology</p>
         <div>
           <button type="button" class="btn btn-info" id="compare-topology-btn">Check topology</button>
           <form method="POST" action="{% url 'update_topology' object.id %}">
@@ -152,6 +153,13 @@
             </div>
           </form>
         </div>
+      </div>
+
+      <!-- Updates tab -->
+      <div role="tabpanel" class="tab-pane" id="requests">
+        {% with ad=object %}
+          {% include 'ad_manager/connection_requests.html' %}
+        {% endwith %}
       </div>
     </div>
   </div>

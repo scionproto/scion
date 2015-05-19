@@ -6,16 +6,19 @@ from shutil import rmtree
 
 # External packages
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.core.urlresolvers import reverse
 from django.db import transaction
 from django.http import (
     HttpResponse,
+    HttpResponseForbidden,
     HttpResponseNotFound,
     JsonResponse,
 )
 from django.shortcuts import redirect, get_object_or_404
+from django.utils.decorators import method_decorator
 from django.views.decorators.http import require_POST
-from django.views.generic import ListView, DetailView
+from django.views.generic import ListView, DetailView, FormView
 
 # SCION
 from ad_management.common import (
@@ -26,8 +29,8 @@ from ad_management.common import (
     response_failure,
 )
 from ad_management.packaging import prepare_package
-from ad_manager.forms import PackageVersionSelectForm
-from ad_manager.models import AD, ISD, PackageVersion
+from ad_manager.forms import PackageVersionSelectForm, ConnectionRequestForm
+from ad_manager.models import AD, ISD, PackageVersion, ConnectionRequest
 from ad_manager.util import monitoring_client
 from ad_manager.util.ad_connect import create_new_ad
 from lib.topology import Topology
@@ -58,6 +61,9 @@ class ADDetailView(DetailView):
 
         # Update tab
         context['choose_version_form'] = PackageVersionSelectForm()
+
+        # Connection requests tab
+        context['received_requests'] = ad.received_requests.all()
 
         return context
 
@@ -331,3 +337,50 @@ def control_process(request, pk, proc_id):
                                                  proc_id, command)
 
     return JsonResponse({'status': is_success(response)})
+
+
+class ConnectionRequestView(FormView):
+    form_class = ConnectionRequestForm
+    template_name = 'ad_manager/new_connection_request.html'
+    success_url = ''
+
+    @method_decorator(login_required)
+    def dispatch(self, request, *args, **kwargs):
+        return super().dispatch(request, *args, **kwargs)
+
+    def _get_ad(self):
+        return get_object_or_404(AD, id=self.kwargs['pk'])
+
+    def form_valid(self, form):
+        if not self.request.user.is_authenticated():
+            return HttpResponseForbidden('Authentication required')
+
+        form.instance.connect_to = self._get_ad()
+        form.instance.created_by = self.request.user
+        form.instance.status = 'SENT'
+        form.save()
+        self.success_url = reverse('ad_detail', args=[self._get_ad().id])
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        context_data = super().get_context_data(**kwargs)
+        context_data['ad'] = self._get_ad()
+        return context_data
+
+
+@require_POST
+def request_action(request, pk, req_id):
+    ad = get_object_or_404(AD, id=pk)
+    ad_request = get_object_or_404(ConnectionRequest, id=req_id)
+
+    if '_approve_request' in request.POST:
+        new_status = 'APPROVED'
+    elif '_decline_request' in request.POST:
+        new_status = 'DECLINED'
+    else:
+        return HttpResponseNotFound('Action not found')
+
+    ad_request.status = new_status
+    ad_request.save()
+
+    return redirect(reverse('ad_connection_requests', args=[pk]))

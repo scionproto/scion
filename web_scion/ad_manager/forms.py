@@ -1,6 +1,6 @@
 from django import forms
 from django.forms import ModelChoiceField
-from ad_manager.models import PackageVersion
+from ad_manager.models import PackageVersion, ConnectionRequest
 
 
 class VersionChoiceField(ModelChoiceField):
@@ -21,3 +21,10 @@ class PackageVersionSelectForm(forms.Form):
         empty_label=None,
         queryset=PackageVersion.objects.order_by('-date_created')
     )
+
+
+class ConnectionRequestForm(forms.ModelForm):
+
+    class Meta:
+        model = ConnectionRequest
+        fields = ['info', 'router_ip']

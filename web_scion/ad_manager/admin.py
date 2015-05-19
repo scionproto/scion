@@ -6,6 +6,7 @@ from ad_manager.models import (
     AD,
     BeaconServerWeb,
     CertificateServerWeb,
+    ConnectionRequest,
     ISD,
     PathServerWeb,
     RouterWeb,
@@ -56,3 +57,6 @@ admin.site.register(PathServerWeb, PathServerAdmin)
 class RouterAdmin(ServerAdmin):
     pass
 admin.site.register(RouterWeb, RouterAdmin)
+
+
+admin.site.register(ConnectionRequest)
