@@ -17,16 +17,19 @@
 
 Contains all the packet formats used for path management.
 """
-
-from lib.packet.packet_base import PayloadBase
-from lib.packet.pcb import PathSegment
-from lib.packet.scion import SCIONPacket, PacketType, SCIONHeader
-from lib.packet.scion_addr import SCIONAddr, ISD_AD
+# Stdlib
 import logging
 import struct
 
-from bitstring import BitArray
+# Stdlib
 import bitstring
+from bitstring import BitArray
+
+# SCION
+from lib.packet.packet_base import PayloadBase
+from lib.packet.pcb import PathSegment
+from lib.packet.scion import PacketType, SCIONPacket, SCIONHeader
+from lib.packet.scion_addr import ISD_AD, SCIONAddr
 
 
 class PathMgmtType:
@@ -156,6 +159,7 @@ class LeaseInfo(PayloadBase):
     Class containing necessary information for a path-segment lease.
     """
     LEN = 1 + 2 + 2 + 4 + 32
+
     def __init__(self, raw=None):
         PayloadBase.__init__(self)
         self.seg_type = PathSegmentType.DOWN

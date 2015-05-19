@@ -15,8 +15,10 @@
 :mod:`common_header_test` --- SCION common header tests
 =======================================================
 """
+# Stdlib
 import unittest
 
+# SCION
 from lib.packet.scion import SCIONCommonHdr
 from test.testcommon import SCIONCommonTest
 
@@ -25,7 +27,6 @@ class TestCommonHeader(SCIONCommonTest):
     """
     Unit tests for scion.py.
     """
-
     def test_opaque_field(self):
         sch = SCIONCommonHdr()
         self.assertTrue(sch.version == 0)

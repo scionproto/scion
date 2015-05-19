@@ -15,20 +15,25 @@
 :mod:`bandwidth_test` --- Bandwidth tests
 =========================================
 """
-from endhost.sciond import SCIONDaemon
-from lib.packet.scion import SCIONPacket
-from lib.packet.scion_addr import SCIONAddr
-from infrastructure.scion_elem import SCION_UDP_EH_DATA_PORT, BUFLEN
-from ipaddress import IPv4Address
+# Stdlib
+import logging
 import socket
 import threading
 import time
 import unittest
-import logging
+from ipaddress import IPv4Address
+
+# SCION
+from endhost.sciond import SCIONDaemon
+from lib.defines import SCION_BUFLEN, SCION_UDP_EH_DATA_PORT
+from lib.packet.scion import SCIONPacket
+from lib.packet.scion_addr import SCIONAddr
 
 PACKETS_NO = 1000
 PAYLOAD_SIZE = 1300
-SLEEP = 0.000005 # Time interval between transmission of two consecutive packets
+# Time interval between transmission of two consecutive packets
+SLEEP = 0.000005
+
 
 class TestBandwidth(unittest.TestCase):
     """
@@ -43,21 +48,22 @@ class TestBandwidth(unittest.TestCase):
         rcv_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         rcv_sock.bind((str("127.2.26.254"), SCION_UDP_EH_DATA_PORT))
         rcv_sock.settimeout(1)
-        
+
         i = 0
         try:
-            packet, _ = rcv_sock.recvfrom(BUFLEN)
+            packet, _ = rcv_sock.recvfrom(SCION_BUFLEN)
             i += 1
             start = time.time()
             while i < PACKETS_NO:
-                packet, _ = rcv_sock.recvfrom(BUFLEN)
+                packet, _ = rcv_sock.recvfrom(SCION_BUFLEN)
                 i += 1
             duration = time.time() - start
         except socket.timeout:
-            duration = time.time() - start - 1 # minus timeout
+            duration = time.time() - start - 1  # minus timeout
             print("Timeouted - there are lost packets")
 
-        print("Goodput %.2fKBps, loss %.2f\n" % ((i*PAYLOAD_SIZE)/duration/1000,
+        print("Goodput %.2fKBps, loss %.2f\n" %
+              ((i*PAYLOAD_SIZE)/duration/1000,
                100*float(PACKETS_NO-i)/PACKETS_NO))
 
     def test(self):

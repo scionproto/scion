@@ -15,11 +15,14 @@
 :mod:`ext_hdr` --- Extension header classes
 ===========================================
 """
+# Stdlib
 import logging
 
-from bitstring import BitArray
+# External packages
 import bitstring
+from bitstring import BitArray
 
+# SCION
 from lib.packet.packet_base import HeaderBase
 
 
@@ -45,7 +48,7 @@ class ExtensionHeader(HeaderBase):
         dlen = len(raw)
         if dlen < ExtensionHeader.MIN_LEN:
             logging.warning("Data too short to parse extension hdr: "
-                "data len %u", dlen)
+                            "data len %u", dlen)
             return
         bits = BitArray(bytes=raw)
         self.next_ext, self.hdr_len = bits.unpack("uintbe:8, uintbe:8")
@@ -75,8 +78,9 @@ class ICNExtHdr(ExtensionHeader):
 
     def __init__(self, raw=None):
         ExtensionHeader.__init__(self)
-        self.fwd_flag = 0  # Tells the edge router whether to forward this pkt
-                           # to the local Content Cache or to the next AD.
+        # Tells the edge router whether to forward this pkt
+        # to the local Content Cache or to the next AD.
+        self.fwd_flag = 0
 #         self.src_addr_len = 0  # src addr len (6 bits)
 #         self.dst_addr_len = 0  # dst addr len (6 bits)
 #         self.cid = 0  # Content ID (20 bytes)
@@ -91,7 +95,7 @@ class ICNExtHdr(ExtensionHeader):
         dlen = len(raw)
         if dlen < ExtensionHeader.MIN_LEN:
             logging.warning("Data too short to parse ICN extension hdr: "
-                "data len %u", dlen)
+                            "data len %u", dlen)
             return
         bits = BitArray(bytes=raw)
         (self.next_ext, self.hdr_len, self.fwd_flag, _rsvd) = \
@@ -101,7 +105,8 @@ class ICNExtHdr(ExtensionHeader):
 
     def pack(self):
         return bitstring.pack("uintbe:8, uintbe:8, uintbe:8, uintbe:40",
-            self.next_ext, self.hdr_len, self.fwd_flag, 0).bytes
+                              self.next_ext, self.hdr_len,
+                              self.fwd_flag, 0).bytes
 
     def __len__(self):
         return ICNExtHdr.MIN_LEN

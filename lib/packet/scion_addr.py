@@ -14,20 +14,15 @@
 """
 :mod:`scion_addr` --- SCION host address specifications
 =======================================================
-
-Module docstring here.
-
-.. note::
-    Fill in the docstring.
 """
-
-from bitstring import BitArray
-import bitstring
-from collections import namedtuple
-from ipaddress import IPv4Address, IPv6Address, IPV4LENGTH, IPV6LENGTH
+# Stdlib
 import logging
-import socket
-import struct
+from collections import namedtuple
+from ipaddress import IPV4LENGTH, IPV6LENGTH, IPv4Address, IPv6Address
+
+# External packages
+import bitstring
+from bitstring import BitArray
 
 
 ISD_AD = namedtuple('ISD_AD', ['isd', 'ad'])
@@ -65,14 +60,14 @@ class SCIONAddr(object):
         addr_len = len(raw)
         if addr_len < SCIONAddr.ISD_AD_LEN:
             logging.warning("SCIONAddr: Data too short for parsing, len: %u",
-                             addr_len)
+                            addr_len)
             return
         bits = BitArray(bytes=raw[:SCIONAddr.ISD_AD_LEN])
         (self.isd_id, self.ad_id) = bits.unpack("uintbe:16, uintbe:64")
         host_addr_len = addr_len - SCIONAddr.ISD_AD_LEN
-        if host_addr_len == IPV4LENGTH // 8: 
+        if host_addr_len == IPV4LENGTH // 8:
             self.host_addr = IPv4Address(raw[SCIONAddr.ISD_AD_LEN:])
-        elif host_addr_len == IPV6LENGTH // 8: 
+        elif host_addr_len == IPV6LENGTH // 8:
             self.host_addr = IPv6Address(raw[SCIONAddr.ISD_AD_LEN:])
         else:
             logging.warning("SCIONAddr: host address unsupported, len: %u",
@@ -89,4 +84,3 @@ class SCIONAddr(object):
 
     def get_isd_ad(self):
         return ISD_AD(self.isd_id, self.ad_id)
-

@@ -16,9 +16,15 @@
 ==================================
 """
 
+# Stdlib
 import copy
-from lib.packet.opaque_field import (InfoOpaqueField, HopOpaqueField,
-    OpaqueFieldType)
+
+# SCION
+from lib.packet.opaque_field import (
+    HopOpaqueField,
+    InfoOpaqueField,
+    OpaqueFieldType,
+)
 
 
 class PathBase(object):
@@ -399,7 +405,6 @@ class PeerPath(PathBase):
             HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN])
         offset += HopOpaqueField.LEN
 
-
         # Parse down-segment
         self.down_segment_info = \
             InfoOpaqueField(raw[offset:offset + InfoOpaqueField.LEN])
@@ -529,20 +534,20 @@ class PathCombinator(object):
         down-segment orientation.
         """
         if (not up_segment or not down_segment or
-            not up_segment.ads or not down_segment.ads):
+                not up_segment.ads or not down_segment.ads):
             return None
 
         # If we have a core segment, check that the core_segment connects the
         # up_ and down_segment. Otherwise, check that up- and down-segment meet
         # at a single core AD.
         if ((core_segment and
-             (core_segment.get_last_pcbm().ad_id !=
-              up_segment.get_first_pcbm().ad_id) or
-             (core_segment.get_first_pcbm().ad_id !=
-              down_segment.get_first_pcbm().ad_id)) or
-             (not core_segment and
-              (up_segment.get_first_pcbm().ad_id !=
-               down_segment.get_first_pcbm().ad_id))):
+                (core_segment.get_last_pcbm().ad_id !=
+                 up_segment.get_first_pcbm().ad_id) or
+                (core_segment.get_first_pcbm().ad_id !=
+                 down_segment.get_first_pcbm().ad_id)) or
+                (not core_segment and
+                 (up_segment.get_first_pcbm().ad_id !=
+                  down_segment.get_first_pcbm().ad_id))):
             return None
 
         full_path = CorePath()
@@ -630,7 +635,7 @@ class PathCombinator(object):
         """
         # TODO check if stub ADs are the same...
         if (not up_segment or not down_segment or
-            not up_segment.ads or not down_segment.ads):
+                not up_segment.ads or not down_segment.ads):
             return None
         # looking for xovr and peer points
         xovrs = []
@@ -702,4 +707,3 @@ class PathCombinator(object):
                 if path and path not in paths:
                     paths.append(path)
         return paths
-

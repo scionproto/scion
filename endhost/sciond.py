@@ -15,21 +15,24 @@
 :mod:`sciond` --- Reference endhost SCION Daemon
 ================================================
 """
-
-from infrastructure.scion_elem import SCIONElement
-from lib.packet.path import PathCombinator
-from lib.packet.path_mgmt import (PathSegmentInfo, PathSegmentRecords,
-    PathSegmentType as PST, PathMgmtType as PMT, PathMgmtPacket)
-from lib.packet.scion import PacketType as PT
-from lib.packet.scion import SCIONPacket, get_type
-from lib.packet.scion_addr import ISD_AD
-from lib.path_db import PathSegmentDB
-from lib.util import update_dict
+# Stdlib
 import logging
 import socket
 import struct
 import threading
 
+# SCION
+from infrastructure.scion_elem import SCIONElement
+from lib.packet.path import PathCombinator
+from lib.packet.path_mgmt import (
+    PathMgmtPacket,
+    PathMgmtType as PMT,
+    PathSegmentInfo,
+    PathSegmentType as PST,
+)
+from lib.packet.scion_addr import ISD_AD
+from lib.path_db import PathSegmentDB
+from lib.util import update_dict
 
 WAIT_CYCLES = 3
 SCIOND_API_HOST = "127.255.255.254"
@@ -61,7 +64,6 @@ class SCIONDaemon(SCIONElement):
             self._api_socket.bind((SCIOND_API_HOST, SCIOND_API_PORT))
             self._sockets.append(self._api_socket)
             logging.info("Local API %s:%u", SCIOND_API_HOST, SCIOND_API_PORT)
-
 
     @classmethod
     def start(cls, addr, topo_file, run_local_api=False):
@@ -95,7 +97,7 @@ class SCIONDaemon(SCIONElement):
         # Create and send out path request.
         info = PathSegmentInfo.from_values(ptype, src_isd, dst_isd,
                                            src_ad, dst_ad)
-        path_request = PathMgmtPacket.from_values(PMT.REQUEST, info, 
+        path_request = PathMgmtPacket.from_values(PMT.REQUEST, info,
                                                   None, self.addr,
                                                   ISD_AD(src_isd, src_ad))
         dst = self.topology.path_servers[0].addr
@@ -149,7 +151,7 @@ class SCIONDaemon(SCIONElement):
                                                    dst_isd=dst_isd,
                                                    dst_ad=dst_core_ad)
                 if ((src_isd, src_core_ad) != (dst_isd, dst_core_ad) and
-                    not core_segments):
+                        not core_segments):
                     self._request_paths(PST.CORE, dst_isd, dst_core_ad,
                                         src_ad=src_core_ad)
                     core_segments = self.core_segments(src_isd=src_isd,
@@ -174,15 +176,15 @@ class SCIONDaemon(SCIONElement):
             ad = pcb.get_last_pcbm().ad_id
 
             if ((self.topology.isd_id != isd or self.topology.ad_id != ad)
-                and info.type in [PST.DOWN, PST.UP_DOWN]
-                and info.dst_isd == isd and info.dst_ad == ad):
+                    and info.type in [PST.DOWN, PST.UP_DOWN]
+                    and info.dst_isd == isd and info.dst_ad == ad):
                 self.down_segments.update(pcb, info.src_isd, info.src_ad,
                                           info.dst_isd, info.dst_ad)
                 logging.info("Down path (%d, %d)->(%d, %d) added.",
                              info.src_isd, info.src_ad, info.dst_isd,
                              info.dst_ad)
             elif ((self.topology.isd_id == isd and self.topology.ad_id == ad)
-                and info.type in [PST.UP, PST.UP_DOWN]):
+                    and info.type in [PST.UP, PST.UP_DOWN]):
                 self.up_segments.update(pcb, isd, ad, pcb.get_isd(),
                                         pcb.get_first_pcbm().ad_id)
                 logging.info("Up path (%d, %d)->(%d, %d) added.",
@@ -199,8 +201,8 @@ class SCIONDaemon(SCIONElement):
 
         # Wake up sleeping get_paths().
         if (info.dst_isd, info.dst_ad) in self._waiting_targets[info.type]:
-            for event in \
-                self._waiting_targets[info.type][(info.dst_isd, info.dst_ad)]:
+            for event in self._waiting_targets[info.type][(info.dst_isd,
+                                                           info.dst_ad)]:
                 event.set()
 
     def _api_handle_path_request(self, packet, sender):
@@ -236,9 +238,9 @@ class SCIONDaemon(SCIONElement):
             logging.warning("API: type %d not supported.", packet[0])
 
     def handle_request(self, packet, sender, from_local_socket=True):
-        # PSz: local_socket may be misleading, especially that we have api_socket
-        # which is local (in the localhost sense). What do you think about
-        # changing local_socket to ad_socket
+        # PSz: local_socket may be misleading, especially that we have
+        # api_socket which is local (in the localhost sense). What do you think
+        # about changing local_socket to ad_socket
         """
         Main routine to handle incoming SCION packets.
         """
@@ -250,5 +252,3 @@ class SCIONDaemon(SCIONElement):
                 logging.warning("Type %d not supported.", pkt.type)
         else:  # From localhost (SCIONDaemon API)
             self.api_handle_request(packet, sender)
-
-

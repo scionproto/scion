@@ -15,19 +15,31 @@
 :mod:`scion` --- SCION packets
 ===========================================
 """
-
-from lib.packet.ext_hdr import ExtensionHeader, ICNExtHdr
-from lib.packet.opaque_field import (InfoOpaqueField, OpaqueField,
-                                     OpaqueFieldType as OFT)
-from lib.packet.packet_base import HeaderBase, PacketBase
-from lib.packet.path import (CorePath, PeerPath, CrossOverPath,
-                             EmptyPath, PathBase)
-from lib.packet.scion_addr import SCIONAddr, ISD_AD
-from bitstring import BitArray
-import bitstring
-from ipaddress import IPv4Address
+# Stdlib
 import logging
 import struct
+from ipaddress import IPv4Address
+
+# External packages
+import bitstring
+from bitstring import BitArray
+
+# SCION
+from lib.packet.ext_hdr import ExtensionHeader, ICNExtHdr
+from lib.packet.opaque_field import (
+    InfoOpaqueField,
+    OpaqueField,
+    OpaqueFieldType as OFT,
+)
+from lib.packet.packet_base import HeaderBase, PacketBase
+from lib.packet.path import (
+    CorePath,
+    CrossOverPath,
+    EmptyPath,
+    PathBase,
+    PeerPath,
+)
+from lib.packet.scion_addr import SCIONAddr
 
 
 class PacketType(object):
@@ -42,7 +54,7 @@ class PacketType(object):
     TRC_REP = IPv4Address("10.224.0.5")  # TRC file reply from parent AD
     CERT_CHAIN_REQ = IPv4Address("10.224.0.6")  # cert chain request to parent AD
     CERT_CHAIN_REQ_LOCAL = IPv4Address("10.224.0.7")  # local cert chain request
-    CERT_CHAIN_REP = IPv4Address("10.224.0.8")  # cert chain reply from lCS 
+    CERT_CHAIN_REP = IPv4Address("10.224.0.8")  # cert chain reply from lCS
     IFID_PKT = IPv4Address("10.224.0.9")  # IF ID packet to the peer router
     SRC = [BEACON, PATH_MGMT, CERT_CHAIN_REP, TRC_REP]
     DST = [PATH_MGMT, TRC_REQ, TRC_REQ_LOCAL, CERT_CHAIN_REQ,
@@ -138,9 +150,9 @@ class SCIONCommonHdr(HeaderBase):
     def __str__(self):
         res = ("[CH ver: %u, src len: %u, dst len: %u, total len: %u bytes, "
                "TS: %u, current OF: %u, next hdr: %u, hdr len: %u]") % (
-               self.version, self.src_addr_len, self.dst_addr_len,
-               self.total_len, self.curr_iof_p, self.curr_of_p, self.next_hdr,
-               self.hdr_len)
+                   self.version, self.src_addr_len, self.dst_addr_len,
+                   self.total_len, self.curr_iof_p, self.curr_of_p,
+                   self.next_hdr, self.hdr_len)
         return res
 
 
@@ -583,12 +595,13 @@ class CertChainRequest(SCIONPacket):
         SCIONPacket.parse(self, raw)
         bits = BitArray(bytes=self.payload)
         (self.ingress_if, self.src_isd, self.src_ad, self.isd_id,
-            self.ad_id, self.version) = bits.unpack("uintbe:16, " +
-            "uintbe:16, uintbe:64, uintbe:16, uintbe:64, uintbe:32")
+            self.ad_id, self.version) = bits.unpack(
+                "uintbe:16, uintbe:16, uintbe:64, "
+                "uintbe:16, uintbe:64, uintbe:32")
 
     @classmethod
     def from_values(cls, req_type, src, ingress_if, src_isd, src_ad, isd_id,
-        ad_id, version):
+                    ad_id, version):
         """
         Return a Certificate Chain Request with the values specified.
 
@@ -621,9 +634,9 @@ class CertChainRequest(SCIONPacket):
         req.isd_id = isd_id
         req.ad_id = ad_id
         req.version = version
-        req.payload = bitstring.pack("uintbe:16, uintbe:16, uintbe:64, " +
-            "uintbe:16, uintbe:64, uintbe:32", ingress_if, src_isd, src_ad,
-            isd_id, ad_id, version).bytes
+        req.payload = bitstring.pack(
+            "uintbe:16, uintbe:16, uintbe:64, uintbe:16, uintbe:64, uintbe:32",
+            ingress_if, src_isd, src_ad, isd_id, ad_id, version).bytes
         return req
 
 
@@ -700,7 +713,7 @@ class CertChainReply(SCIONPacket):
         rep.version = version
         rep.cert_chain = cert_chain
         rep.payload = bitstring.pack("uintbe:16, uintbe:64, uintbe:32",
-            isd_id, ad_id, version).bytes + cert_chain
+                                     isd_id, ad_id, version).bytes + cert_chain
         return rep
 
 
@@ -748,12 +761,12 @@ class TRCRequest(SCIONPacket):
         SCIONPacket.parse(self, raw)
         bits = BitArray(bytes=self.payload)
         (self.ingress_if, self.src_isd, self.src_ad, self.isd_id,
-            self.version) = bits.unpack("uintbe:16, uintbe:16, " +
-            "uintbe:64, uintbe:16, uintbe:32")
+            self.version) = bits.unpack(
+                "uintbe:16, uintbe:16, uintbe:64, uintbe:16, uintbe:32")
 
     @classmethod
     def from_values(cls, req_type, src, ingress_if, src_isd, src_ad, isd_id,
-        version):
+                    version):
         """
         Return a TRC Request with the values specified.
 
@@ -783,9 +796,9 @@ class TRCRequest(SCIONPacket):
         req.src_ad = src_ad
         req.isd_id = isd_id
         req.version = version
-        req.payload = bitstring.pack("uintbe:16, uintbe:16, uintbe:64, " +
-            "uintbe:16, uintbe:32", ingress_if, src_isd, src_ad, isd_id,
-            version).bytes
+        req.payload = bitstring.pack(
+            "uintbe:16, uintbe:16, uintbe:64, uintbe:16, uintbe:32",
+            ingress_if, src_isd, src_ad, isd_id, version).bytes
         return req
 
 
@@ -849,12 +862,12 @@ class TRCReply(SCIONPacket):
         :rtype: :class:`TRCReply`
         """
         rep = TRCReply()
-        # TODO: revise TRC/Cert request/replies 
+        # TODO: revise TRC/Cert request/replies
         src = SCIONAddr.from_values(dst.isd_id, dst.ad_id, PacketType.TRC_REP)
         rep.hdr = SCIONHeader.from_values(src, dst)
         rep.isd_id = isd_id
         rep.version = version
         rep.trc = trc
         rep.payload = bitstring.pack("uintbe:16, uintbe:32", isd_id,
-            version).bytes + trc
+                                     version).bytes + trc
         return rep

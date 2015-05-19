@@ -17,18 +17,21 @@
 
 Threading utilities for SCION.
 """
-
+# Stdlib
 import os
 import signal
 from functools import wraps
 
+# SCION
 from lib.log import log_exception
+
 
 def kill_self():
     """
     Sends SIGTERM to self, to allow quitting the process from threads.
     """
     os.kill(os.getpid(), signal.SIGTERM)
+
 
 def thread_safety_net(name):
     """
