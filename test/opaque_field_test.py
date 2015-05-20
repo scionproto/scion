@@ -15,10 +15,16 @@
 :mod:`opaque_field_test` --- SCION opaque field tests
 =====================================================
 """
+# Stdlib
 import unittest
 
-from lib.packet.opaque_field import (OpaqueField, OpaqueFieldType,
-                                     HopOpaqueField, InfoOpaqueField)
+# SCION
+from lib.packet.opaque_field import (
+    HopOpaqueField,
+    InfoOpaqueField,
+    OpaqueField,
+    OpaqueFieldType,
+)
 from test.testcommon import SCIONCommonTest
 
 
@@ -26,7 +32,6 @@ class TestOpaqueFields(SCIONCommonTest):
     """
     Unit tests for opaque_field.py.
     """
-
     def test_opaque_field(self):
         of = OpaqueField()
         self.assertEqual(of.type, OpaqueFieldType.NORMAL_OF)

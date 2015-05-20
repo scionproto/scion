@@ -15,11 +15,14 @@
 :mod:`hash_chain_test` --- SCION hash chain tests
 =================================================
 """
+# Stdlib
 import logging
 import unittest
 
+# External packages
 from Crypto import Random
 
+# SCION
 from lib.crypto.hash_chain import HashChain
 from test.testcommon import SCIONCommonTest
 

@@ -15,30 +15,33 @@
 :mod:`end2end_test` --- SCION end2end tests
 ===========================================
 """
-from lib.packet.path import (CorePath, PeerPath, CrossOverPath,
-                             EmptyPath, PathBase)
-from lib.packet.opaque_field import InfoOpaqueField, OpaqueFieldType as OFT
-from lib.packet.scion import SCIONPacket
-from lib.packet.scion_addr import SCIONAddr, ISD_AD
-from endhost.sciond import SCIONDaemon, SCIOND_API_HOST, SCIOND_API_PORT
-from infrastructure.scion_elem import SCION_UDP_EH_DATA_PORT, BUFLEN
-from ipaddress import IPv4Address
+# Stdlib
 import logging
 import random
-import time
-import unittest
-import sys
 import socket
 import struct
+import sys
 import threading
+import time
+import unittest
+from ipaddress import IPv4Address
+
+# SCION
+from endhost.sciond import SCIOND_API_HOST, SCIOND_API_PORT, SCIONDaemon
+from lib.defines import SCION_BUFLEN, SCION_UDP_EH_DATA_PORT
+from lib.packet.opaque_field import InfoOpaqueField, OpaqueFieldType as OFT
+from lib.packet.path import CorePath, CrossOverPath, EmptyPath, PeerPath
+from lib.packet.scion import SCIONPacket
+from lib.packet.scion_addr import SCIONAddr, ISD_AD
 
 ping_received = False
 pong_received = False
-SRC = None 
-DST = None 
+SRC = None
+DST = None
 saddr = IPv4Address("127.1.19.254")
 raddr = IPv4Address("127.2.26.254")
 TOUT = 10  # How long wait for response.
+
 
 def get_paths_via_api(isd, ad):
     """
@@ -84,9 +87,9 @@ def ping_app():
     Simple ping app.
     """
     global pong_received
-    topo_file = ("../../topology/ISD%d/topologies/ISD:%d-AD:%d.json" % 
+    topo_file = ("../../topology/ISD%d/topologies/ISD:%d-AD:%d.json" %
                  (SRC.isd, SRC.isd, SRC.ad))
-    sd = SCIONDaemon.start(saddr, topo_file, True) # API on
+    sd = SCIONDaemon.start(saddr, topo_file, True)  # API on
     print("Sending PATH request for (%d, %d) in 2 seconds" % (DST.isd, DST.ad))
     time.sleep(2)
     # Get paths through local API.
@@ -106,13 +109,14 @@ def ping_app():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind((str(saddr), SCION_UDP_EH_DATA_PORT))
-    packet, _ = sock.recvfrom(BUFLEN)
+    packet, _ = sock.recvfrom(SCION_BUFLEN)
     if SCIONPacket(packet).payload == b"pong":
         print('%s: pong received.' % saddr)
         pong_received = True
     sock.close()
     sd.clean()
     print("Leaving ping_app.")
+
 
 def pong_app():
     """
@@ -125,7 +129,7 @@ def pong_app():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind((str(raddr), SCION_UDP_EH_DATA_PORT))
-    packet, _ = sock.recvfrom(BUFLEN)
+    packet, _ = sock.recvfrom(SCION_BUFLEN)
     spkt = SCIONPacket(packet)
     if spkt.payload == b"ping":
         # Reverse the packet and send "pong".

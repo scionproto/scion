@@ -15,19 +15,29 @@
 :mod:`path_store_test` --- SCION path store unit test
 =========================================================
 """
-
-from Crypto import Random
-from lib.crypto.asymcrypto import sign
-from lib.crypto.hash_chain import HashChain
-from lib.packet.opaque_field import (OpaqueFieldType as OFT, InfoOpaqueField,
-    SupportSignatureField, HopOpaqueField, SupportPCBField, TRCField)
-from lib.packet.pcb import (PathSegment, ADMarking, PCBMarking)
-from lib.path_store import PathPolicy, PathStore
-from lib.util import read_file, get_sig_key_file_path, sleep_interval
+# Stdlib
 import base64
 import logging
 import time
 import unittest
+
+# External packages
+from Crypto import Random
+
+# SCION
+from lib.crypto.asymcrypto import sign
+from lib.crypto.hash_chain import HashChain
+from lib.packet.opaque_field import (
+    HopOpaqueField,
+    InfoOpaqueField,
+    OpaqueFieldType as OFT,
+    SupportPCBField,
+    SupportSignatureField,
+    TRCField,
+)
+from lib.packet.pcb import ADMarking, PCBMarking, PathSegment
+from lib.path_store import PathPolicy, PathStore
+from lib.util import get_sig_key_file_path, read_file
 
 
 class TestPathStore(unittest.TestCase):
@@ -52,9 +62,6 @@ class TestPathStore(unittest.TestCase):
         return ADMarking.from_values(pcbm, peer_markings, signature)
 
     def test(self):
-        """
-        
-        """
         path_policy_file = "../topology/ISD1/path_policies/ISD:1-AD:10.json"
         path_policy = PathPolicy.from_file(path_policy_file)
         test_segments = PathStore(path_policy)
@@ -83,7 +90,7 @@ class TestPathStore(unittest.TestCase):
                   str(len(test_segments.get_latest_history_snapshot())))
             print("Time: " + str(int(time.time())) + "\n")
             time.sleep(5)
-        
+
         print("Waiting for some paths to expire...")
         time.sleep(25)
         print("Best paths: " + str(len(test_segments.get_best_segments())))

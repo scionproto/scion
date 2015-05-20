@@ -15,25 +15,29 @@
 :mod:`router` --- SCION edge router
 ===========================================
 """
-
-from infrastructure.scion_elem import (SCIONElement, SCION_UDP_PORT,
-                                       SCION_UDP_EH_DATA_PORT)
-from ipaddress import IPv4Address
-from lib.packet.opaque_field import OpaqueField, OpaqueFieldType as OFT
-from lib.packet.pcb import PathConstructionBeacon
-from lib.packet.scion import (PacketType as PT, SCIONPacket, IFIDPacket,
-                              get_type)
-from lib.packet.scion_addr import SCIONAddr, ISD_AD
-from lib.log import (init_logging, log_exception)
-from lib.util import handle_signals
-from lib.thread import thread_safety_net
+# Stdlib
 import datetime
 import logging
-import os
 import socket
 import sys
 import threading
 import time
+
+# SCION
+from infrastructure.scion_elem import SCIONElement
+from lib.defines import SCION_UDP_PORT, SCION_UDP_EH_DATA_PORT
+from lib.log import init_logging, log_exception
+from lib.packet.opaque_field import OpaqueField, OpaqueFieldType as OFT
+from lib.packet.pcb import PathConstructionBeacon
+from lib.packet.scion import (
+    IFIDPacket,
+    PacketType as PT,
+    SCIONPacket,
+    get_type,
+)
+from lib.packet.scion_addr import ISD_AD, SCIONAddr
+from lib.thread import thread_safety_net
+from lib.util import handle_signals
 
 IFID_PKT_TOUT = 0.5  # How often IFID packet is sent to neighboring router.
 
@@ -106,7 +110,7 @@ class Router(SCIONElement):
             if edge_router.addr == self.addr.host_addr:
                 self.interface = edge_router.interface
                 break
-        assert self.interface != None
+        assert self.interface is not None
         logging.info("Interface: %s", self.interface.__dict__)
 
         if pre_ext_handlers:
@@ -149,8 +153,8 @@ class Router(SCIONElement):
         if use_local_socket:
             SCIONElement.send(self, packet, next_hop.addr, next_hop.port)
         else:
-            self._remote_socket.sendto(packet.pack(), (str(next_hop.addr),
-                next_hop.port))
+            self._remote_socket.sendto(
+                packet.pack(), (str(next_hop.addr), next_hop.port))
 
     def handle_extensions(self, spkt, next_hop, pre_routing_phase):
         """
@@ -195,8 +199,7 @@ class Router(SCIONElement):
                                     self.interface.addr)
         dst_isd_ad = ISD_AD(self.interface.neighbor_isd,
                             self.interface.neighbor_ad)
-        ifid_req = IFIDPacket.from_values(src, dst_isd_ad,
-                                           self.interface.if_id)
+        ifid_req = IFIDPacket.from_values(src, dst_isd_ad, self.interface.if_id)
         while True:
             self.send(ifid_req, next_hop, False)
             logging.info('Sending IFID_PKT to router: req_id:%d, rep_id:%d',
@@ -308,7 +311,7 @@ class Router(SCIONElement):
                 self.send(spkt, next_hop, False)
             else:
                 logging.error("1 interface mismatch %u != %u", iface,
-                        self.interface.if_id)
+                              self.interface.if_id)
         else:
             if iface:
                 next_hop.addr = self.ifid2addr[iface]
@@ -378,7 +381,7 @@ class Router(SCIONElement):
                 if not spkt.hdr.is_on_up_path():
                     spkt.hdr.increase_of(2)
                 next_hop.addr = (
-                        self.ifid2addr[spkt.hdr.get_current_of().ingress_if])
+                    self.ifid2addr[spkt.hdr.get_current_of().ingress_if])
                 logging.debug("send() here, next: %s", next_hop)
                 self.send(spkt, next_hop)
         else:
@@ -410,8 +413,8 @@ class Router(SCIONElement):
         # increase opaque field pointer as that first opaque field is used for
         # MAC verification only.
         if (not spkt.hdr.is_on_up_path() and
-            info in [OFT.INTRATD_PEER, OFT.INTERTD_PEER] and
-            spkt.hdr.common_hdr.curr_of_p == curr_iof_p + OpaqueField.LEN):
+                info in [OFT.INTRATD_PEER, OFT.INTERTD_PEER] and
+                spkt.hdr.common_hdr.curr_of_p == curr_iof_p + OpaqueField.LEN):
             spkt.hdr.increase_of(1)
 
         # if spkt.hdr.get_current_of().is_xovr():
@@ -443,12 +446,12 @@ class Router(SCIONElement):
             of2_info = spkt.hdr.get_current_of().info
             if ((of1_info in [OFT.INTRATD_PEER, OFT.INTERTD_PEER] and
                  spkt.hdr.is_on_up_path()) or
-                (of2_info == OFT.LAST_OF and not spkt.hdr.is_on_up_path())):
+                    (of2_info == OFT.LAST_OF and not spkt.hdr.is_on_up_path())):
                 spkt.hdr.increase_of(1)
 
         if self.interface.if_id != iface:  # TODO debug
             logging.error("0 interface mismatch %u != %u", iface,
-                    self.interface.if_id)
+                          self.interface.if_id)
             return
 
         next_hop.addr = self.interface.to_addr
@@ -470,7 +473,7 @@ class Router(SCIONElement):
         :type ptype: :class:`lib.packet.scion.PacketType`
         """
         if (spkt.hdr.get_current_of() != spkt.hdr.path.get_of(0) and  # TODO PSz
-            ptype == PT.DATA and from_local_ad):
+                ptype == PT.DATA and from_local_ad):
             of_info = spkt.hdr.get_current_of().info
             if of_info == OFT.TDC_XOVR:
                 spkt.hdr.common_hdr.curr_iof_p = spkt.hdr.common_hdr.curr_of_p

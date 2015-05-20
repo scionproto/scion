@@ -15,24 +15,29 @@
 :mod:`gateway` --- Reference SCION Gateway based on TUN/TAP device
 ==================================================================
 """
-import sys
-import struct
-import threading
+# Stdlib
 import logging
 import socket
+import struct
+import sys
+import threading
+from ipaddress import IPv4Address
 from subprocess import call
+
+# External packages
 from pytun import TunTapDevice, IFF_TUN, IFF_NO_PI
+
+# SCION
 from endhost.sciond import SCIONDaemon
+from lib.defines import SCION_UDP_EH_DATA_PORT, SCION_BUFLEN
+from lib.log import init_logging
 from lib.packet.scion import SCIONPacket
 from lib.packet.scion_addr import SCIONAddr
-from lib.log import init_logging
-from infrastructure.scion_elem import SCION_UDP_EH_DATA_PORT, BUFLEN
-from ipaddress import IPv4Address
 
 
 # Dictionary of destinations that should be reached via SCION.
 # Format : "IP" : (ISD, AD)
-SCION_HOSTS = {"192.168.5.105" : (2, 26),}
+SCION_HOSTS = {"192.168.5.105": (2, 26), }
 
 
 class SCIONGateway(object):
@@ -67,7 +72,7 @@ class SCIONGateway(object):
         self._data_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._data_socket.bind((str(addr), SCION_UDP_EH_DATA_PORT))
         self.scion_hosts = scion_hosts
-        self._tun_dev = TunTapDevice(flags=IFF_TUN|IFF_NO_PI)
+        self._tun_dev = TunTapDevice(flags=IFF_TUN | IFF_NO_PI)
         self._tun_dev.up()
         self.init_routing()
 
@@ -77,7 +82,7 @@ class SCIONGateway(object):
         """
         threading.Thread(target=self.handle_ip_packets).start()
         while True:
-            packet, _ = self._data_socket.recvfrom(BUFLEN)
+            packet, _ = self._data_socket.recvfrom(SCION_BUFLEN)
             self.handle_scion_packet(SCIONPacket(packet))
 
     def handle_ip_packets(self):
@@ -94,7 +99,7 @@ class SCIONGateway(object):
                 logging.info("Packet to SCION-enabled EH: %s", ip_dst)
                 scion_addr = self.scion_hosts[ip_dst]
                 paths = self.sd.get_paths(scion_addr[0], scion_addr[1])
-                #TODO instead calling get_paths() consider cache of fullpaths
+                # TODO: instead calling get_paths() consider cache of fullpaths
                 if paths:
                     dst = SCIONAddr.from_values(scion_addr[0], scion_addr[1],
                                                 IPv4Address(ip_dst))

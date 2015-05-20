@@ -15,7 +15,7 @@
 :mod:`topology` --- SCION topology parser
 ===========================================
 """
-
+# Stdlib
 from ipaddress import IPv4Address, IPv6Address
 import json
 import logging

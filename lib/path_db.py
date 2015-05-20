@@ -15,11 +15,15 @@
 :mod:`path_db` --- Path Database
 ========================================
 """
-from lib.packet.pcb import PathSegment
+# Stdlib
 import logging
 import time
 
+# External packages
 from pydblite.pydblite import Base
+
+# SCION
+from lib.packet.pcb import PathSegment
 
 
 class DBResult(object):
@@ -60,7 +64,8 @@ class PathSegmentDB(object):
     """
     def __init__(self):
         db = Base("", save_to_file=False)
-        db.create('record', 'id', 'src_isd', 'src_ad', 'dst_isd', 'dst_ad',mode='override')
+        db.create('record', 'id', 'src_isd', 'src_ad', 'dst_isd',
+                  'dst_ad', mode='override')
         db.create_index('id')
         db.create_index('dst_isd')
         db.create_index('dst_ad')

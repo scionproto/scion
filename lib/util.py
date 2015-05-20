@@ -17,16 +17,19 @@
 
 Various utilities for SCION functionality.
 """
-
-import os
+# Stdlib
 import logging
-from signal import (SIGHUP, SIGINT, SIGQUIT, SIGTERM, SIGUSR1, SIGUSR2, signal)
+import os
 import sys
+import signal
 import time
 from functools import wraps
 
-from lib.defines import TOPOLOGY_PATH
+# External packages
 from external.stacktracer import trace_start
+
+# SCION
+from lib.defines import TOPOLOGY_PATH
 
 CERT_DIR = 'certificates'
 SIG_KEYS_DIR = 'signature_keys'
@@ -34,12 +37,12 @@ ENC_KEYS_DIR = 'encryption_keys'
 TRACE_DIR = '../traces'
 
 _SIG_MAP = {
-    SIGHUP: "SIGHUP",
-    SIGINT: "SIGINT",
-    SIGQUIT: "SIGQUIT",
-    SIGTERM: "SIGTERM",
-    SIGUSR1: "SIGUSR1",
-    SIGUSR2: "SIGUSR2"
+    signal.SIGHUP: "SIGHUP",
+    signal.SIGINT: "SIGINT",
+    signal.SIGQUIT: "SIGQUIT",
+    signal.SIGTERM: "SIGTERM",
+    signal.SIGUSR1: "SIGUSR1",
+    signal.SIGUSR2: "SIGUSR2"
 }
 
 
@@ -223,7 +226,7 @@ def handle_signals():
     Setup basic signal handler for the most common signals
     """
     for sig in _SIG_MAP.keys():
-        signal(sig, _signal_handler)
+        signal.signal(sig, _signal_handler)
     pass
 
 
