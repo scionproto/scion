@@ -69,9 +69,9 @@ class InterfaceState(object):
         curr_time = time.time()
         if self.active_until + self.IFID_TOUT < curr_time:
             self.active_from = curr_time
-            logging.debug('Interface %d (re)activated')
+            logging.debug('Interface (re)activated')
         self.active_until = curr_time
-        logging.debug('state updatedddd')
+        # logging.debug('state updatedddd')
 
     def is_active(self):
         return self.active_until + self.IFID_TOUT >= time.time()
@@ -175,8 +175,14 @@ class BeaconServer(SCIONElement):
             new_pcb = copy.deepcopy(pcb)
             egress_if = router_child.interface.if_id
             new_pcb.trcf.if_id = egress_if
-            ad_marking = self._create_ad_marking(ingress_if, egress_if,
-                                                 new_pcb.get_last_pcbm.hof)
+
+            last_pcbm = new_pcb.get_last_pcbm()
+            if last_pcbm:
+                ad_marking = self._create_ad_marking(ingress_if, egress_if,
+                                                     last_pcbm.hof)
+            else:
+                ad_marking = self._create_ad_marking(ingress_if, egress_if)
+
             new_pcb.add_ad(ad_marking)
             dst = SCIONAddr.from_values(self.topology.isd_id,
                                         self.topology.ad_id, router_child.addr)
@@ -220,7 +226,7 @@ class BeaconServer(SCIONElement):
         """
         pass
 
-    def _create_mac(hof, prev_hof):
+    def _create_mac(self, hof, prev_hof):
         """
         Creates MAC for newly created OF.
         Takes newly created OF (with empty MAC) and a previous HOF.
@@ -228,8 +234,7 @@ class BeaconServer(SCIONElement):
         to_mac = hof.pack()
         if prev_hof:
             to_mac += prev_hof.pack()
-        return get_cbcmac(self.config.of_gen_key,
-                          to_mac)[:HopOpaqueField.MAC_LEN]
+        return get_cbcmac(self.of_gen_key, to_mac)[:HopOpaqueField.MAC_LEN]
 
     def _create_ad_marking(self, ingress_if, egress_if, prev_hof=None):
         """
@@ -522,8 +527,13 @@ class CoreBeaconServer(BeaconServer):
             new_pcb = copy.deepcopy(pcb)
             egress_if = core_router.interface.if_id
             new_pcb.trcf.if_id = egress_if
-            ad_marking = self._create_ad_marking(ingress_if, egress_if,
-                                                 new_pcb.get_last_pcbm.hof)
+            last_pcbm = new_pcb.get_last_pcbm()
+            if last_pcbm:
+                ad_marking = self._create_ad_marking(ingress_if, egress_if,
+                                                     last_pcbm.hof)
+            else:
+                ad_marking = self._create_ad_marking(ingress_if, egress_if)
+
             new_pcb.add_ad(ad_marking)
             dst = SCIONAddr.from_values(self.topology.isd_id,
                                         self.topology.ad_id, core_router.addr)
@@ -675,7 +685,7 @@ class CoreBeaconServer(BeaconServer):
         for pcb in core_segments:
             new_pcb = copy.deepcopy(pcb)
             ad_marking = self._create_ad_marking(new_pcb.trcf.if_id, 0,
-                                                 new_pcb.get_last_pcbm.hof)
+                                                 new_pcb.get_last_pcbm().hof)
             new_pcb.add_ad(ad_marking)
             new_pcb.segment_id = self._get_segment_rev_token(new_pcb)
             self.register_core_segment(new_pcb)
@@ -951,7 +961,7 @@ class LocalBeaconServer(BeaconServer):
         for pcb in best_segments:
             new_pcb = copy.deepcopy(pcb)
             ad_marking = self._create_ad_marking(new_pcb.trcf.if_id, 0,
-                                                 new_pcb.get_last_pcbm.hof)
+                                                 new_pcb.get_last_pcbm().hof)
             new_pcb.add_ad(ad_marking)
             new_pcb.segment_id = self._get_segment_rev_token(new_pcb)
             new_pcb.remove_signatures()
@@ -966,7 +976,7 @@ class LocalBeaconServer(BeaconServer):
         for pcb in best_segments:
             new_pcb = copy.deepcopy(pcb)
             ad_marking = self._create_ad_marking(new_pcb.trcf.if_id, 0,
-                                                 new_pcb.get_last_pcbm.hof)
+                                                 new_pcb.get_last_pcbm().hof)
             new_pcb.add_ad(ad_marking)
             new_pcb.segment_id = self._get_segment_rev_token(new_pcb)
             new_pcb.remove_signatures()
