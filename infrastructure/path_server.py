@@ -15,27 +15,36 @@
 :mod:`path_server` --- SCION path server
 ========================================
 """
-
-from _collections import defaultdict
-from external.expiring_dict import ExpiringDict
-from infrastructure.scion_elem import SCIONElement
-from ipaddress import IPv4Address
-from lib.crypto.hash_chain import HashChain
-from lib.packet.path import EmptyPath
-from lib.packet.path_mgmt import (PathSegmentRecords, PathSegmentInfo,
-    PathSegmentType as PST, PathMgmtPacket, PathMgmtType as PMT,
-    PathSegmentLeases, RevocationPayload, RevocationType as RT, RevocationInfo,
-    LeaseInfo)
-from lib.packet.pcb import PathSegment
-from lib.path_db import PathSegmentDB, DBResult
-from lib.packet.scion_addr import ISD_AD
-from lib.util import (update_dict, handle_signals)
-from lib.log import (init_logging, log_exception)
+# Stdlib
 import copy
 import datetime
 import logging
 import sys
 import time
+from _collections import defaultdict
+
+# External packages
+from external.expiring_dict import ExpiringDict
+
+# SCION
+from infrastructure.scion_elem import SCIONElement
+from lib.crypto.hash_chain import HashChain
+from lib.log import init_logging, log_exception
+from lib.packet.path_mgmt import (
+    LeaseInfo,
+    PathMgmtPacket,
+    PathMgmtType as PMT,
+    PathSegmentInfo,
+    PathSegmentLeases,
+    PathSegmentRecords,
+    PathSegmentType as PST,
+    RevocationInfo,
+    RevocationPayload,
+    RevocationType as RT,
+)
+from lib.packet.scion_addr import ISD_AD
+from lib.path_db import DBResult, PathSegmentDB
+from lib.util import handle_signals, update_dict
 
 
 class PathServer(SCIONElement):
@@ -81,8 +90,8 @@ class PathServer(SCIONElement):
         # Verify revocation token.
         if not HashChain.verify(rev_info.proof1, rev_info.rev_token1):
             return False
-        if (rev_info.incl_hop and
-            not HashChain.verify(rev_info.proof2, rev_info.rev_token2)):
+        if (rev_info.incl_hop and not HashChain.verify(rev_info.proof2,
+                                                       rev_info.rev_token2)):
             return False
 
         return True
@@ -99,7 +108,8 @@ class PathServer(SCIONElement):
         tokens = segment.get_all_iftokens()
         if ((rev_info.rev_token1 == segment.segment_id) or
             (not rev_info.incl_hop and rev_info.rev_token1 in tokens) or
-            (rev_info.rev_token1 in tokens and rev_info.rev_token2 in tokens)):
+                (rev_info.rev_token1 in tokens and
+                 rev_info.rev_token2 in tokens)):
             return True
 
         return False
@@ -446,7 +456,7 @@ class CorePathServer(PathServer):
                 if cpaths:
                     path = cpaths[0].get_path(reverse_direction=True)
                     dst_isd_ad = ISD_AD(cpaths[0].get_first_pcbm().spcbf.isd_id,
-                                  cpaths[0].get_first_pcbm().ad_id)
+                                        cpaths[0].get_first_pcbm().ad_id)
                     if_id = path.get_first_hop_of().ingress_if
                     next_hop = self.ifid2addr[if_id]
                     request = PathMgmtPacket.from_values(PMT.REQUEST,

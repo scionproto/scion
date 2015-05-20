@@ -22,17 +22,16 @@ Module docstring here.
 
 """
 
-from lib.config import Config
-from lib.packet.scion_addr import SCIONAddr
-from lib.topology import Topology
+# Stdlib
 import logging
 import select
 import socket
 
-
-SCION_UDP_PORT = 30040
-SCION_UDP_EH_DATA_PORT = 30041
-BUFLEN = 8092
+# SCION
+from lib.config import Config
+from lib.defines import SCION_BUFLEN, SCION_UDP_PORT
+from lib.packet.scion_addr import SCIONAddr
+from lib.topology import Topology
 
 
 class SCIONElement(object):
@@ -200,7 +199,7 @@ class SCIONElement(object):
         while True:
             recvlist, _, _ = select.select(self._sockets, [], [])
             for sock in recvlist:
-                packet, addr = sock.recvfrom(BUFLEN)
+                packet, addr = sock.recvfrom(SCION_BUFLEN)
                 self.handle_request(packet, addr, sock == self._local_socket)
 
     def clean(self):

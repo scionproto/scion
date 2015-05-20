@@ -14,11 +14,9 @@
 """
 :mod:`defines` --- Constants
 ============================
-
 Contains constant definitions used throughout the codebase.
-
 """
-
+# Stdlib
 import os
 
 #: Max TTL of a PathSegment in realtime seconds.
@@ -30,3 +28,10 @@ EXP_TIME_UNIT = MAX_SEGMENT_TTL / 2 ** 8
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 #: Topology subdir path
 TOPOLOGY_PATH = os.path.join(PROJECT_ROOT, 'topology')
+
+#: Buffer size for receiving packets
+SCION_BUFLEN = 8092
+#: Default SCION server data port
+SCION_UDP_PORT = 30040
+#: Default SCION endhost data port
+SCION_UDP_EH_DATA_PORT = 30041

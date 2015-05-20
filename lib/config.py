@@ -15,7 +15,7 @@
 :mod:`config` --- SCION configuration parser
 ============================================
 """
-
+# Stdlib
 import json
 import logging
 

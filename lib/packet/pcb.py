@@ -15,20 +15,29 @@
 :mod:`pcb` --- SCION Beacon
 ===========================
 """
-
-from lib.defines import EXP_TIME_UNIT
-from lib.packet.opaque_field import (SupportSignatureField, HopOpaqueField,
-    SupportPCBField, SupportPeerField, TRCField, InfoOpaqueField)
-from lib.packet.path import CorePath
-from lib.packet.scion import SCIONPacket, PacketType, SCIONHeader
-from lib.packet.scion_addr import SCIONAddr
+# Stdlib
 import base64
 import copy
 import logging
 
+# External packages
+import bitstring
 from Crypto.Hash import SHA256
 from bitstring import BitArray
-import bitstring
+
+# SCION
+from lib.defines import EXP_TIME_UNIT
+from lib.packet.opaque_field import (
+    HopOpaqueField,
+    InfoOpaqueField,
+    SupportPCBField,
+    SupportPeerField,
+    SupportSignatureField,
+    TRCField,
+)
+from lib.packet.path import CorePath
+from lib.packet.scion import PacketType, SCIONHeader, SCIONPacket
+from lib.packet.scion_addr import SCIONAddr
 
 
 class Marking(object):
@@ -312,8 +321,8 @@ class ADMarking(Marking):
         ad_str += str(self.pcbm)
         for peer_marking in self.pms:
             ad_str += str(peer_marking)
-        ad_str += ("[Signature: " + base64.b64encode(self.sig).decode('utf-8') +
-            "]\n")
+        ad_str += ("[Signature: %s]\n" %
+                   base64.b64encode(self.sig).decode('utf-8'))
         return ad_str
 
     def __eq__(self, other):
@@ -593,4 +602,3 @@ class PathConstructionBeacon(SCIONPacket):
     def pack(self):
         self.payload = self.pcb.pack()
         return SCIONPacket.pack(self)
-

@@ -15,12 +15,14 @@
 :mod:`path_store` --- Path record storage and selection for path servers
 ========================================================================
 """
-
-from collections import defaultdict, deque
-from lib.packet.pcb import PathSegment
+# Stdlib
 import json
 import logging
 import time
+from collections import defaultdict, deque
+
+# SCION
+from lib.packet.pcb import PathSegment
 
 
 class PathPolicy(object):
@@ -394,7 +396,7 @@ class PathStore(object):
             self._update_all_fidelity()
             self.candidates = sorted(self.candidates, key=lambda x: x.fidelity,
                                      reverse=True)
-        
+
     def get_segment(self, seg_id):
         """
         Returns the segment for the corresponding ID or None.

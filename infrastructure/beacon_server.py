@@ -15,35 +15,7 @@
 :mod:`beacon_server` --- SCION beacon server
 ============================================
 """
-
-from _collections import deque, defaultdict
-from asyncio.tasks import sleep
-from infrastructure.router import IFID_PKT_TOUT
-from infrastructure.scion_elem import SCIONElement
-from ipaddress import IPv4Address
-from lib.crypto.asymcrypto import sign
-from lib.crypto.certificate import verify_sig_chain_trc, CertificateChain, TRC
-from lib.crypto.hash_chain import HashChain
-from lib.crypto.symcrypto import gen_of_mac, get_roundkey_cache
-from lib.packet.opaque_field import (OpaqueFieldType as OFT, InfoOpaqueField,
-    SupportSignatureField, HopOpaqueField, SupportPCBField, SupportPeerField,
-    TRCField)
-from lib.packet.path_mgmt import (PathSegmentInfo, PathSegmentRecords,
-    PathSegmentType as PST, PathMgmtPacket, PathMgmtType as PMT, RevocationInfo,
-    RevocationPayload, RevocationType as RT)
-from lib.packet.pcb import (PathSegment, ADMarking, PCBMarking, PeerMarking,
-    PathConstructionBeacon)
-from lib.packet.scion import (SCIONPacket, get_type, PacketType as PT,
-    CertChainRequest, CertChainReply, TRCRequest, TRCReply, IFIDPacket)
-from lib.packet.scion_addr import SCIONAddr, ISD_AD
-from lib.path_store import PathPolicy, PathStoreRecord, PathStore
-from lib.util import (read_file, write_file, get_cert_chain_file_path,
-    get_sig_key_file_path, get_trc_file_path,
-    trace, timed, sleep_interval, handle_signals)
-from lib.thread import thread_safety_net
-from lib.log import (init_logging, log_exception)
-from lib.zookeeper import (Zookeeper, ZkConnectionLoss, ZkNoNodeError)
-from Crypto.Hash import SHA256
+# Stdlib
 import base64
 import copy
 import datetime
@@ -53,6 +25,70 @@ import struct
 import sys
 import threading
 import time
+from _collections import defaultdict, deque
+
+# External packages
+from Crypto.Hash import SHA256
+
+# SCION
+from infrastructure.router import IFID_PKT_TOUT
+from infrastructure.scion_elem import SCIONElement
+from lib.crypto.asymcrypto import sign
+from lib.crypto.certificate import CertificateChain, TRC, verify_sig_chain_trc
+from lib.crypto.hash_chain import HashChain
+from lib.crypto.symcrypto import gen_of_mac, get_roundkey_cache
+from lib.log import init_logging, log_exception
+from lib.packet.opaque_field import (
+    HopOpaqueField,
+    InfoOpaqueField,
+    OpaqueFieldType as OFT,
+    SupportPCBField,
+    SupportPeerField,
+    SupportSignatureField,
+    TRCField,
+)
+from lib.packet.path_mgmt import (
+    PathMgmtPacket,
+    PathMgmtType as PMT,
+    PathSegmentInfo,
+    PathSegmentRecords,
+    PathSegmentType as PST,
+    RevocationInfo,
+    RevocationPayload,
+    RevocationType as RT,
+)
+from lib.packet.pcb import (
+    ADMarking,
+    PCBMarking,
+    PathConstructionBeacon,
+    PathSegment,
+    PeerMarking,
+)
+from lib.packet.scion import (
+    CertChainReply,
+    CertChainRequest,
+    IFIDPacket,
+    PacketType as PT,
+    SCIONPacket,
+    TRCReply,
+    TRCRequest,
+    get_type,
+)
+from lib.packet.scion_addr import SCIONAddr, ISD_AD
+from lib.path_store import PathPolicy, PathStore
+from lib.util import (
+    get_cert_chain_file_path,
+    get_sig_key_file_path,
+    get_trc_file_path,
+    handle_signals,
+    read_file,
+    sleep_interval,
+    timed,
+    trace,
+    write_file,
+)
+from lib.thread import thread_safety_net
+from lib.zookeeper import ZkConnectionLoss, ZkNoNodeError, Zookeeper
 
 
 class InterfaceState(object):
@@ -309,8 +345,8 @@ class BeaconServer(SCIONElement):
         assert isinstance(pcb, PathSegment)
         last_pcbm = pcb.get_last_pcbm()
         if self._check_certs_trc(last_pcbm.spcbf.isd_id, last_pcbm.ad_id,
-            last_pcbm.ssf.cert_chain_version, pcb.trcf.trc_version,
-            pcb.trcf.if_id):
+                                 last_pcbm.ssf.cert_chain_version,
+                                 pcb.trcf.trc_version, pcb.trcf.if_id):
             if self._verify_beacon(pcb):
                 self._handle_verified_beacon(pcb)
             else:
@@ -335,7 +371,8 @@ class BeaconServer(SCIONElement):
         if not trc:
             # Try loading file from disk
             trc_file = get_trc_file_path(self.topology.isd_id,
-                self.topology.ad_id, isd_id, trc_version)
+                                         self.topology.ad_id,
+                                         isd_id, trc_version)
             if os.path.exists(trc_file):
                 trc = TRC(trc_file)
                 self.trcs[(isd_id, trc_version)] = trc
@@ -345,9 +382,10 @@ class BeaconServer(SCIONElement):
             now = int(time.time())
             if (trc_tuple not in self.trc_requests or
                 (now - self.trc_requests[trc_tuple] >
-                BeaconServer.REQUESTS_TIMEOUT)):
-                new_trc_req = TRCRequest.from_values(PT.TRC_REQ_LOCAL,
-                    self.addr, if_id, self.topology.isd_id, self.topology.ad_id,
+                    BeaconServer.REQUESTS_TIMEOUT)):
+                new_trc_req = TRCRequest.from_values(
+                    PT.TRC_REQ_LOCAL, self.addr, if_id,
+                    self.topology.isd_id, self.topology.ad_id,
                     isd_id, trc_version)
                 dst_addr = self.topology.certificate_servers[0].addr
                 self.send(new_trc_req, dst_addr)
@@ -367,14 +405,15 @@ class BeaconServer(SCIONElement):
         cert_chain_version = last_pcbm.ssf.cert_chain_version
         trc_version = pcb.trcf.trc_version
         subject = 'ISD:' + str(cert_chain_isd) + '-AD:' + str(cert_chain_ad)
-        cert_chain_file = get_cert_chain_file_path(self.topology.isd_id,
-            self.topology.ad_id, cert_chain_isd, cert_chain_ad,
-            cert_chain_version)
+        cert_chain_file = get_cert_chain_file_path(
+            self.topology.isd_id, self.topology.ad_id,
+            cert_chain_isd, cert_chain_ad, cert_chain_version)
         if os.path.exists(cert_chain_file):
             chain = CertificateChain(cert_chain_file)
         else:
             chain = CertificateChain.from_values([])
-        trc_file = get_trc_file_path(self.topology.isd_id, self.topology.ad_id,
+        trc_file = get_trc_file_path(
+            self.topology.isd_id, self.topology.ad_id,
             cert_chain_isd, trc_version)
         trc = TRC(trc_file)
         data_to_verify = (str(cert_chain_ad).encode('utf-8') +
@@ -396,7 +435,8 @@ class BeaconServer(SCIONElement):
         """
         assert isinstance(trc_rep, TRCReply)
         logging.info("TRC reply received.")
-        trc_file = get_trc_file_path(self.topology.isd_id, self.topology.ad_id,
+        trc_file = get_trc_file_path(
+            self.topology.isd_id, self.topology.ad_id,
             trc_rep.isd_id, trc_rep.version)
         write_file(trc_file, trc_rep.trc.decode('utf-8'))
         self.trcs[(trc_rep.isd_id, trc_rep.version)] = TRC(trc_file)
@@ -711,9 +751,9 @@ class LocalBeaconServer(BeaconServer):
         self.down_segments = PathStore(self.path_policy)
         self.cert_chain_requests = {}
         self.cert_chains = {}
-        cert_chain_file = get_cert_chain_file_path(self.topology.isd_id,
-            self.topology.ad_id, self.topology.isd_id, self.topology.ad_id,
-            self.config.cert_chain_version)
+        cert_chain_file = get_cert_chain_file_path(
+            self.topology.isd_id, self.topology.ad_id, self.topology.isd_id,
+            self.topology.ad_id, self.config.cert_chain_version)
         self.cert_chain = CertificateChain(cert_chain_file)
 
     def _check_certs_trc(self, isd_id, ad_id, cert_chain_version, trc_version,
@@ -728,8 +768,9 @@ class LocalBeaconServer(BeaconServer):
                                                cert_chain_version))
             if not cert_chain:
                 # Try loading file from disk
-                cert_chain_file = get_cert_chain_file_path(self.topology.isd_id,
-                    self.topology.ad_id, isd_id, ad_id, cert_chain_version)
+                cert_chain_file = get_cert_chain_file_path(
+                    self.topology.isd_id, self.topology.ad_id,
+                    isd_id, ad_id, cert_chain_version)
                 if os.path.exists(cert_chain_file):
                     cert_chain = CertificateChain(cert_chain_file)
                     self.cert_chains[(isd_id, ad_id,
@@ -742,9 +783,10 @@ class LocalBeaconServer(BeaconServer):
                 now = int(time.time())
                 if (cert_chain_tuple not in self.cert_chain_requests or
                     (now - self.cert_chain_requests[cert_chain_tuple] >
-                    BeaconServer.REQUESTS_TIMEOUT)):
+                        BeaconServer.REQUESTS_TIMEOUT)):
                     new_cert_chain_req = \
-                        CertChainRequest.from_values(PT.CERT_CHAIN_REQ_LOCAL,
+                        CertChainRequest.from_values(
+                            PT.CERT_CHAIN_REQ_LOCAL,
                             self.addr, if_id, self.topology.isd_id,
                             self.topology.ad_id, isd_id, ad_id,
                             cert_chain_version)
@@ -759,9 +801,9 @@ class LocalBeaconServer(BeaconServer):
         """
         Send up-segment to Local Path Servers
         """
-        info = PathSegmentInfo.from_values(PST.UP, self.topology.isd_id,
-            self.topology.isd_id, pcb.get_first_pcbm().ad_id,
-            self.topology.ad_id)
+        info = PathSegmentInfo.from_values(
+            PST.UP, self.topology.isd_id, self.topology.isd_id,
+            pcb.get_first_pcbm().ad_id, self.topology.ad_id)
         # TODO: pick other than the first path server
         dst = SCIONAddr.from_values(self.topology.isd_id,
                                     self.topology.ad_id,
@@ -775,9 +817,9 @@ class LocalBeaconServer(BeaconServer):
         """
         Send down-segment to Core Path Server
         """
-        info = PathSegmentInfo.from_values(PST.DOWN, self.topology.isd_id,
-            self.topology.isd_id, pcb.get_first_pcbm().ad_id,
-            self.topology.ad_id)
+        info = PathSegmentInfo.from_values(
+            PST.DOWN, self.topology.isd_id, self.topology.isd_id,
+            pcb.get_first_pcbm().ad_id, self.topology.ad_id)
         core_path = pcb.get_path(reverse_direction=True)
         records = PathSegmentRecords.from_values(info, [pcb])
         dst_isd_ad = ISD_AD(pcb.get_isd(), pcb.get_first_pcbm().ad_id)
@@ -824,16 +866,20 @@ class LocalBeaconServer(BeaconServer):
         """
         assert isinstance(cert_chain_rep, CertChainReply)
         logging.info("Certificate chain reply received.")
-        cert_chain_file = get_cert_chain_file_path(self.topology.isd_id,
-            self.topology.ad_id, cert_chain_rep.isd_id, cert_chain_rep.ad_id,
+        cert_chain_file = get_cert_chain_file_path(
+            self.topology.isd_id, self.topology.ad_id,
+            cert_chain_rep.isd_id, cert_chain_rep.ad_id,
             cert_chain_rep.version)
         write_file(cert_chain_file, cert_chain_rep.cert_chain.decode('utf-8'))
-        self.cert_chains[(cert_chain_rep.isd_id, cert_chain_rep.ad_id,
-            cert_chain_rep.version)] = CertificateChain(cert_chain_file)
+        self.cert_chains[
+            (cert_chain_rep.isd_id,
+             cert_chain_rep.ad_id,
+             cert_chain_rep.version)] = CertificateChain(cert_chain_file)
         if (cert_chain_rep.isd_id, cert_chain_rep.ad_id,
-            cert_chain_rep.version) in self.cert_chain_requests:
+                cert_chain_rep.version) in self.cert_chain_requests:
             del self.cert_chain_requests[(cert_chain_rep.isd_id,
-                cert_chain_rep.ad_id, cert_chain_rep.version)]
+                                          cert_chain_rep.ad_id,
+                                          cert_chain_rep.version)]
         self.handle_unverified_beacons()
 
     def _process_revocation(self, rev_info):
@@ -859,22 +905,22 @@ class LocalBeaconServer(BeaconServer):
                 if rev_info.rev_token1 in cand.pcb.get_all_iftokens():
                     to_remove.append(cand.pcb.segment_id)
                     if cand in self.up_segments.candidates:
-                        info = RevocationInfo.from_values(RT.UP_SEGMENT,
-                            rev_info.rev_token1, rev_info.proof1,
-                            True, cand.pcb.segment_id)
+                        info = RevocationInfo.from_values(
+                            RT.UP_SEGMENT, rev_info.rev_token1,
+                            rev_info.proof1, True, cand.pcb.segment_id)
                         rev_infos.append(info)
         elif rev_info.rev_type == RT.HOP:
             # Go through all candidates that contain both interface tokens.
             for cand in (self.down_segments.candidates +
                          self.up_segments.candidates):
                 if (rev_info.rev_token1 in cand.pcb.get_all_iftokens() and
-                    rev_info.rev_token2 in cand.pcb.get_all_iftokens()):
+                        rev_info.rev_token2 in cand.pcb.get_all_iftokens()):
                     to_remove.append(cand.pcb.segment_id)
                     if cand in self.up_segments:
-                        info = RevocationInfo.from_values(RT.UP_SEGMENT,
-                            rev_info.rev_token1, rev_info.proof1,
-                            True, cand.pcb.segment_id,
-                            True, rev_info.rev_token2, rev_info.rev_token2)
+                        info = RevocationInfo.from_values(
+                            RT.UP_SEGMENT, rev_info.rev_token1, rev_info.proof1,
+                            True, cand.pcb.segment_id, True,
+                            rev_info.rev_token2, rev_info.rev_token2)
                         rev_infos.append(info)
 
         # Remove the affected segments from the path stores.

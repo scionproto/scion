@@ -15,18 +15,24 @@
 :mod:`zookeeper` --- Library for interfacing with Zookeeper
 ===========================================================
 """
-
-import os.path
+# Stdlib
 import logging
+import os.path
 import threading
-import time
 
-from kazoo.client import (KazooClient, KazooState, KazooRetry)
+# External packages
+from kazoo.client import KazooClient, KazooRetry, KazooState
+from kazoo.exceptions import (
+    ConnectionLoss,
+    LockTimeout,
+    NoNodeError,
+    SessionExpiredError,
+)
 from kazoo.handlers.threading import KazooTimeoutError
-from kazoo.exceptions import (LockTimeout, SessionExpiredError,
-                              NoNodeError, ConnectionLoss)
+
+# SCION
+from lib.thread import kill_self, thread_safety_net
 from lib.util import timed
-from lib.thread import (kill_self, thread_safety_net)
 
 
 class ZkConnectionLoss(Exception):
@@ -252,30 +258,22 @@ class Zookeeper(object):
         """
         if self._zk_lock is None:
             # First-time setup.
-            #logging.debug("get_lock: init lock")
             lock_path = os.path.join(self._prefix, "lock")
             self._zk_lock = self._zk.Lock(lock_path, self._srv_id)
         if not self.is_connected():
             self.release_lock()
-            #logging.debug("get_lock: not connected")
             return False
         elif self._lock.is_set():
             # We already have the lock
-            #logging.debug("get_lock: already have lock")
             return True
         try:
-            #logging.debug("get_lock: try acquire lock")
             if self._zk_lock.acquire(timeout=timeout):
-                #logging.debug("get_lock: acquired lock")
                 self._lock.set()
             else:
-                #logging.debug("get_lock: failed to acquire lock")
                 pass
-        except (LockTimeout, ConnectionLoss, SessionExpiredError) as e:
-            #logging.debug("get_lock: exception acquiring lock: %s", e)
+        except (LockTimeout, ConnectionLoss, SessionExpiredError):
             pass
         ret = self.have_lock()
-        #logging.debug("get_lock: do we have the lock? %s", ret)
         return ret
 
     def release_lock(self):
@@ -402,9 +400,6 @@ class Zookeeper(object):
             if meta.last_modified < cutoff:
                 count += 1
                 try:
-                    #logging.debug("Deleting old entry: %s Last modified: %s",
-                    #              os.path.join(self._prefix, path, entry),
-                    #              time.ctime(meta.last_modified))
                     self._zk.delete(os.path.join(self._prefix, path, entry))
                 except NoNodeError:
                     # This shouldn't happen, so raise an exception if it does.

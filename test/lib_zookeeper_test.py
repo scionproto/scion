@@ -16,16 +16,19 @@
 :mod:`lib_zookeeper_test` --- lib.zookeeper unit tests
 ======================================================
 """
+# Stdlib
 import logging
 from functools import wraps
-from unittest.mock import (MagicMock, PropertyMock, call)
+from unittest.mock import MagicMock, PropertyMock, call
 
+# External packages
 import nose
 import nose.tools as ntools
-
-from test.testcommon import SCIONTestException, MockCollection
-import lib.zookeeper as libzk
 from kazoo.protocol.states import ZnodeStat
+
+# SCION
+import lib.zookeeper as libzk
+from test.testcommon import MockCollection, SCIONTestException
 
 
 def mock_wrapper(f):

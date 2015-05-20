@@ -82,8 +82,8 @@ class PacketBase(object):
         Set the packet payload.  Expects bytes or a Packet subclass.
         """
         if (not isinstance(new_payload, PacketBase) and
-            not isinstance(new_payload, PayloadBase) and
-            not isinstance(new_payload, bytes)):
+                not isinstance(new_payload, PayloadBase) and
+                not isinstance(new_payload, bytes)):
             raise TypeError("payload must be bytes or packet/payload subclass.")
         else:
             self._payload = new_payload

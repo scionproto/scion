@@ -15,7 +15,7 @@
 :mod:`certificates_test` --- SCION certificates unit test
 =========================================================
 """
-
+# Stdlib
 import base64
 import logging
 import os
@@ -24,15 +24,26 @@ import socket
 import unittest
 from ipaddress import IPv4Address
 
-from infrastructure.scion_elem import SCION_UDP_PORT, BUFLEN
+# SCION
 from lib.crypto.asymcrypto import sign
-from lib.crypto.certificate import verify_sig_chain_trc, CertificateChain, TRC
-from lib.packet.scion import (PacketType as PT, CertChainRequest,
-                              CertChainReply, TRCRequest, TRCReply)
+from lib.crypto.certificate import CertificateChain, TRC, verify_sig_chain_trc
+from lib.defines import SCION_BUFLEN, SCION_UDP_PORT
+from lib.packet.scion import (
+    CertChainReply,
+    CertChainRequest,
+    PacketType as PT,
+    TRCReply,
+    TRCRequest,
+)
 from lib.packet.scion_addr import SCIONAddr
 from lib.topology import Topology
-from lib.util import (get_cert_chain_file_path, get_trc_file_path, read_file,
-                      get_sig_key_file_path, write_file)
+from lib.util import (
+    get_cert_chain_file_path,
+    get_sig_key_file_path,
+    get_trc_file_path,
+    read_file,
+    write_file,
+)
 from test.testcommon import SCIONCommonTest
 
 
@@ -55,15 +66,15 @@ class TestCertificates(SCIONCommonTest):
         msg = b'abcd'
         sig = sign(msg, sig_priv10)
         print('Sig test:', verify_sig_chain_trc(msg, sig, 'ISD:1-AD:10', cert10,
-            trc, 0))
+                                                trc, 0))
 
         sig_priv13 = read_file(get_sig_key_file_path(1, 13))
         sig_priv13 = base64.b64decode(sig_priv13)
         msg = b'abd'
         sig = sign(msg, sig_priv13)
-        chain = CertificateChain.from_values([])
+        CertificateChain.from_values([])
         print('Sig test 2:', verify_sig_chain_trc(msg, sig, 'ISD:1-AD:13',
-            cert10, trc, 0), '\n')
+                                                  cert10, trc, 0), '\n')
 
         topology = Topology.from_file("../topology/ISD1/topologies/"
                                       "ISD:1-AD:10.json")
@@ -74,9 +85,10 @@ class TestCertificates(SCIONCommonTest):
         sock.bind((str(src_addr.host_addr), SCION_UDP_PORT))
 
         print("Sending TRC request (ISD:1-V:0) to local CS.")
-        msg = TRCRequest.from_values(PT.TRC_REQ_LOCAL, src_addr,
-            topology.parent_edge_routers[0].interface.if_id, topology.isd_id,
-            topology.ad_id, 1, 0).pack()
+        msg = TRCRequest.from_values(
+            PT.TRC_REQ_LOCAL, src_addr,
+            topology.parent_edge_routers[0].interface.if_id,
+            topology.isd_id, topology.ad_id, 1, 0).pack()
         sock.sendto(msg, (str(dst_addr), SCION_UDP_PORT))
 
         temp_file = './temp.txt'
@@ -88,7 +100,7 @@ class TestCertificates(SCIONCommonTest):
             sock.close()
             return
 
-        data, _ = sock.recvfrom(BUFLEN)
+        data, _ = sock.recvfrom(SCION_BUFLEN)
         print("Received TRC reply from local CS.")
         trc_reply = TRCReply(data)
         write_file(temp_file, trc_reply.trc.decode('utf-8'))
@@ -96,9 +108,10 @@ class TestCertificates(SCIONCommonTest):
         assert trc.verify()
 
         print("Sending cert chain request (ISD:1-AD:16-V:0) to local CS.")
-        msg = CertChainRequest.from_values(PT.CERT_CHAIN_REQ_LOCAL, src_addr,
-            topology.parent_edge_routers[0].interface.if_id, topology.isd_id,
-            topology.ad_id, 1, 16, 0).pack()
+        msg = CertChainRequest.from_values(
+            PT.CERT_CHAIN_REQ_LOCAL, src_addr,
+            topology.parent_edge_routers[0].interface.if_id,
+            topology.isd_id, topology.ad_id, 1, 16, 0).pack()
         sock.sendto(msg, (str(dst_addr), SCION_UDP_PORT))
 
         ready = select.select([sock], [], [], timeout)
@@ -107,7 +120,7 @@ class TestCertificates(SCIONCommonTest):
             sock.close()
             return
 
-        data, _ = sock.recvfrom(BUFLEN)
+        data, _ = sock.recvfrom(SCION_BUFLEN)
         print("Received cert chain reply from local CS.")
         cert_chain_reply = CertChainReply(data)
         write_file(temp_file, cert_chain_reply.cert_chain.decode('utf-8'))

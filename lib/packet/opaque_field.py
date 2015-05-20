@@ -15,10 +15,12 @@
 :mod:`opaque_field` --- SCION Opaque fields
 ===========================================
 """
-
-from bitstring import BitArray
+# Stdlib
 import logging
+
+# External packages
 import bitstring
+from bitstring import BitArray
 
 
 class OpaqueFieldType(object):
@@ -129,8 +131,8 @@ class HopOpaqueField(OpaqueField):
             logging.warning("HOF: Data too short for parsing, len: %u", dlen)
             return
         bits = BitArray(bytes=raw)
-        (self.info, self.exp_time, ifs, self.mac) = bits.unpack("uintbe:8, " +
-            "uintbe:8, uintbe:24, bytes:3")
+        (self.info, self.exp_time, ifs, self.mac) = bits.unpack(
+            "uintbe:8, uintbe:8, uintbe:24, bytes:3")
         self.ingress_if = (ifs & 0xFFF000) >> 12
         self.egress_if = ifs & 0x000FFF
         self.parsed = True
@@ -171,9 +173,10 @@ class HopOpaqueField(OpaqueField):
             return False
 
     def __str__(self):
-        hof_str = (("[Hop OF info: %u, exp_time: %d, ingress if: %u, " +
-                    "egress if: %u, mac: %s]") % (self.info, self.exp_time,
-                      self.ingress_if, self.egress_if, self.mac))
+        hof_str = ("[Hop OF info: %u, exp_time: %d, ingress if: %u, "
+                   "egress if: %u, mac: %s]" % (
+                       self.info, self.exp_time, self.ingress_if,
+                       self.egress_if, self.mac))
         return hof_str
 
 
@@ -237,12 +240,14 @@ class InfoOpaqueField(OpaqueField):
         Returns InfoOpaqueFIeld as 8 byte binary string.
         """
         info = (self.info << 1) + self.up_flag
-        return bitstring.pack("uintbe:8, uintbe:32, uintbe:16, uintbe:8",
+        return bitstring.pack(
+            "uintbe:8, uintbe:32, uintbe:16, uintbe:8",
             info, self.timestamp, self.isd_id, self.hops).bytes
 
     def __str__(self):
         iof_str = ("[Info OF info: %x, up: %r, TS: %u, ISD ID: %u, hops: %u]" %
-            (self.info, self.up_flag, self.timestamp, self.isd_id, self.hops))
+                   (self.info, self.up_flag, self.timestamp, self.isd_id,
+                    self.hops))
         return iof_str
 
     def __eq__(self, other):
@@ -307,12 +312,13 @@ class TRCField(OpaqueField):
         """
         Returns TRCField as 8 byte binary string.
         """
-        return bitstring.pack("uintbe:8, uintbe:32, uintbe:16, uintbe:8",
+        return bitstring.pack(
+            "uintbe:8, uintbe:32, uintbe:16, uintbe:8",
             self.info, self.trc_version, self.if_id, self.reserved).bytes
 
     def __str__(self):
         trcf_str = ("[TRC OF info: %x, TRCv: %u, IF ID: %u]\n" %
-            (self.info, self.trc_version, self.if_id))
+                    (self.info, self.trc_version, self.if_id))
         return trcf_str
 
     def __eq__(self, other):
@@ -380,9 +386,9 @@ class SupportSignatureField(OpaqueField):
                               self.block_size).bytes
 
     def __str__(self):
-        ssf_str = ("[Support Signature OF cert_chain_version: %x, " +
-            "sig_len: %u, block_size: %u]\n") % (self.cert_chain_version,
-            self.sig_len, self.block_size)
+        ssf_str = ("[Support Signature OF cert_chain_version: %x, "
+                   "sig_len: %u, block_size: %u]\n" % (
+                       self.cert_chain_version, self.sig_len, self.block_size))
         return ssf_str
 
     def __eq__(self, other):
@@ -453,14 +459,16 @@ class SupportPeerField(OpaqueField):
         """
         Returns SupportPeerField as 8 byte binary string.
         """
-        return bitstring.pack("uintbe:16, uintbe:8, uintbe:8, uint:1, uint:31",
+        return bitstring.pack(
+            "uintbe:16, uintbe:8, uintbe:8, uint:1, uint:31",
             self.isd_id, self.bwalloc_f, self.bwalloc_r, self.bw_class,
             self.reserved).bytes
 
     def __str__(self):
-        spf_str = ("[Support Peer OF TD ID: %x, bwalloc_f: %u, " +
-            "bwalloc_r: %u, bw_class: %u]\n") % (self.isd_id, self.bwalloc_f,
-            self.bwalloc_r, self.bw_class)
+        spf_str = ("[Support Peer OF TD ID: %x, bwalloc_f: %u, "
+                   "bwalloc_r: %u, bw_class: %u]\n" % (
+                       self.isd_id, self.bwalloc_f, self.bwalloc_r,
+                       self.bw_class))
         return spf_str
 
     def __eq__(self, other):
@@ -540,14 +548,15 @@ class SupportPCBField(OpaqueField):
         """
         Returns SupportPCBField as 8 byte binary string.
         """
-        return bitstring.pack("uintbe:16, uintbe:8, uintbe:8, uintbe:8, "
+        return bitstring.pack(
+            "uintbe:16, uintbe:8, uintbe:8, uintbe:8, "
             "uintbe:8, uintbe:8, uintbe:8", self.isd_id, self.bwalloc_f,
             self.bwalloc_r, self.dyn_bwalloc_f, self.dyn_bwalloc_r, self.bebw_f,
             self.bebw_r).bytes
 
     def __str__(self):
         spcbf_str = ("[Info OF TD ID: %x, bwalloc_f: %u, bwalloc_r: %u]\n" %
-            (self.isd_id, self.bwalloc_f, self.bwalloc_r))
+                     (self.isd_id, self.bwalloc_f, self.bwalloc_r))
         return spcbf_str
 
     def __eq__(self, other):
