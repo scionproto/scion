@@ -310,6 +310,10 @@ class BeaconServer(SCIONElement):
         Try to verify a beacon.
         """
         assert isinstance(pcb, PathSegment)
+# TODO: REMOVE THESE TWO LINES BEFORE MERGING 
+        self._handle_verified_beacon(pcb)
+        return
+#
         last_pcbm = pcb.get_last_pcbm()
         if self._check_certs_trc(last_pcbm.spcbf.isd_id, last_pcbm.ad_id,
             last_pcbm.ssf.cert_chain_version, pcb.trcf.trc_version,
