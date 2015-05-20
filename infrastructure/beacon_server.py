@@ -24,7 +24,7 @@ from ipaddress import IPv4Address
 from lib.crypto.asymcrypto import sign
 from lib.crypto.certificate import verify_sig_chain_trc, CertificateChain, TRC
 from lib.crypto.hash_chain import HashChain
-from lib.crypto.symcrypto import get_cbcmac, verify_cbcmac, get_roundkey_cache
+from lib.crypto.symcrypto import gen_of_mac, get_roundkey_cache
 from lib.packet.opaque_field import (OpaqueFieldType as OFT, InfoOpaqueField,
     SupportSignatureField, HopOpaqueField, SupportPCBField, SupportPeerField,
     TRCField)
@@ -228,21 +228,6 @@ class BeaconServer(SCIONElement):
         """
         pass
 
-    def _create_mac(self, hof, ts, prev_hof):
-        """
-        Creates MAC for newly created OF.
-        Takes newly created OF (except MAC field), previous HOF, and timestamp.
-        """
-        hof_raw = hof.pack()
-        if prev_hof:
-            # Drop (empty) MAC field.
-            prev_hof_raw = prev_hof.pack()[:-HopOpaqueField.MAC_LEN]
-        else:  # Constant length for CBC-MAC's security.
-            prev_hof_raw = b"\x00" * HopOpaqueField.LEN
-        ts_raw = struct.pack("I", ts)
-        to_mac = hof_raw + prev_hof_raw + ts_raw
-        return get_cbcmac(self.of_gen_key, to_mac)[:HopOpaqueField.MAC_LEN]
-
     def _create_ad_marking(self, ingress_if, egress_if, ts, prev_hof=None):
         """
         Creates an AD Marking with the given ingress and egress interfaces,
@@ -251,7 +236,7 @@ class BeaconServer(SCIONElement):
         ssf = SupportSignatureField.from_values(ADMarking.LEN)
         hof = HopOpaqueField.from_values(BeaconServer.HOF_EXP_TIME,
                                          ingress_if, egress_if)
-        hof.mac = self._create_mac(hof, ts, prev_hof)
+        hof.mac = gen_of_mac(self.of_gen_key, hof, prev_hof, ts)
         spcbf = SupportPCBField.from_values(isd_id=self.topology.isd_id)
         pcbm = PCBMarking.from_values(self.topology.ad_id, ssf, hof, spcbf,
                                       self._get_if_rev_token(ingress_if),
@@ -266,7 +251,7 @@ class BeaconServer(SCIONElement):
                 continue
             hof = HopOpaqueField.from_values(BeaconServer.HOF_EXP_TIME,
                                              if_id, egress_if)
-            hof.mac = self._create_mac(hof, ts, prev_hof)
+            hof.mac = gen_of_mac(self.of_gen_key, hof, prev_hof, ts)
             spf = SupportPeerField.from_values(self.topology.isd_id)
             peer_marking = \
                 PeerMarking.from_values(router_peer.interface.neighbor_ad,

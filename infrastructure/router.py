@@ -19,6 +19,7 @@
 from infrastructure.scion_elem import (SCIONElement, SCION_UDP_PORT,
                                        SCION_UDP_EH_DATA_PORT)
 from ipaddress import IPv4Address
+from lib.crypto.symcrypto import gen_of_mac, get_roundkey_cache
 from lib.packet.opaque_field import OpaqueField, OpaqueFieldType as OFT
 from lib.packet.pcb import PathConstructionBeacon
 from lib.packet.scion import (PacketType as PT, SCIONPacket, IFIDPacket,
@@ -108,6 +109,9 @@ class Router(SCIONElement):
                 break
         assert self.interface != None
         logging.info("Interface: %s", self.interface.__dict__)
+
+        self.of_gen_key = get_roundkey_cache(bytes("%s" %
+            self.config.master_ad_key, 'utf-8'))
 
         if pre_ext_handlers:
             self.pre_ext_handlers = pre_ext_handlers
@@ -268,7 +272,7 @@ class Router(SCIONElement):
         self.send(spkt, next_hop)
 
     # TODO
-    def verify_of(self, spkt):
+    def verify_of(self, spkt, info=None):
         """
         Verifies authentication of current opaque field.
 

@@ -19,6 +19,7 @@ from lib.crypto.python_sha3 import Keccak
 from lib.crypto.aes import AES
 from lib.crypto.gcm import gcm_encrypt
 from lib.crypto.gcm import gcm_decrypt
+from lib.packet.opaque_field import HopOpaqueField
 import os
 import struct
 import math
@@ -333,3 +334,20 @@ def authenticated_decrypt(cache, cipher, auth, inv=None):
     tag = cipher[-16:]
     decipher = gcm_decrypt(cache, inv, ciphertext, auth, tag)
     return decipher
+
+def gen_of_mac(key, hof, prev_hof, ts):
+    """
+    Generates MAC for newly created OF.
+    Takes newly created OF (except MAC field), previous HOF, and timestamp.
+    """
+    # TODO: this is stronly SCION-related, maybe move to other file?
+    hof_raw = hof.pack()
+    if prev_hof:
+        # Drop (empty) MAC field.
+        prev_hof_raw = prev_hof.pack()[:-HopOpaqueField.MAC_LEN]
+    else:
+        # Constant length for CBC-MAC's security.
+        prev_hof_raw = b"\x00" * HopOpaqueField.LEN
+    ts_raw = struct.pack("I", ts)
+    to_mac = hof_raw + prev_hof_raw + ts_raw
+    return get_cbcmac(key, to_mac)[:HopOpaqueField.MAC_LEN]
