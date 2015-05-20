@@ -107,6 +107,8 @@ class HopOpaqueField(OpaqueField):
     ingress/egress interfaces (2 * 12 bits) and a MAC (24 bits) authenticating
     the opaque field.
     """
+    MAC_LEN = 3  # MAC length in bytes.
+
     def __init__(self, raw=None):
         OpaqueField.__init__(self)
         self.exp_time = 0

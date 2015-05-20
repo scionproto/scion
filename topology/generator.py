@@ -505,8 +505,8 @@ class ConfigGenerator():
             file_name = 'ISD:{}-AD:{}.conf'.format(isd_id, ad_id)
             conf_file = os.path.join(self.out_dir, 'ISD' + isd_id,
                                      CONF_DIR, file_name)
-            conf_dict = {'MasterOFGKey': 1234567890,
-                         'MasterADKey': 1919191919,
+            conf_dict = {'MasterOFGKey': 1234567890123456,
+                         'MasterADKey': 1919191919191919,
                          'PCBQueueSize': 10,
                          'PSQueueSize': 10,
                          'NumRegisteredPaths': 10,
