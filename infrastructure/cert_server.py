@@ -128,8 +128,8 @@ class CertServer(SCIONElement):
         try:
             tmp = CertificateChain(cert_chain_file)
             self.zk.store_shared_item(self.ZK_CERT_CHAIN_CACHE_PATH,
-                                      tmp.certs[1].subject +
-                                      "-V:" + str(tmp.certs[1].version),
+                                      tmp.certs[0].subject +
+                                      "-V:" + str(tmp.certs[0].version),
                                       cert_chain)
         except ZkConnectionLoss:
             logging.debug("Unable to store cert chain in shared path: "
