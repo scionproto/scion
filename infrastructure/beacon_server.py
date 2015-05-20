@@ -49,6 +49,7 @@ import copy
 import datetime
 import logging
 import os
+import struct
 import sys
 import threading
 import time
@@ -71,7 +72,6 @@ class InterfaceState(object):
             self.active_from = curr_time
             logging.debug('Interface (re)activated')
         self.active_until = curr_time
-        # logging.debug('state updatedddd')
 
     def is_active(self):
         return self.active_until + self.IFID_TOUT >= time.time()
@@ -179,9 +179,11 @@ class BeaconServer(SCIONElement):
             last_pcbm = new_pcb.get_last_pcbm()
             if last_pcbm:
                 ad_marking = self._create_ad_marking(ingress_if, egress_if,
+                                                     new_pcb.get_timestamp(),
                                                      last_pcbm.hof)
             else:
-                ad_marking = self._create_ad_marking(ingress_if, egress_if)
+                ad_marking = self._create_ad_marking(ingress_if, egress_if,
+                                                     new_pcb.get_timestamp())
 
             new_pcb.add_ad(ad_marking)
             dst = SCIONAddr.from_values(self.topology.isd_id,
@@ -226,24 +228,30 @@ class BeaconServer(SCIONElement):
         """
         pass
 
-    def _create_mac(self, hof, prev_hof):
+    def _create_mac(self, hof, ts, prev_hof):
         """
         Creates MAC for newly created OF.
-        Takes newly created OF (with empty MAC) and a previous HOF.
+        Takes newly created OF (except MAC field), previous HOF, and timestamp.
         """
-        to_mac = hof.pack()
+        hof_raw = hof.pack()
         if prev_hof:
-            to_mac += prev_hof.pack()
+            # Drop (empty) MAC field.
+            prev_hof_raw = prev_hof.pack()[:-HopOpaqueField.MAC_LEN]
+        else:  # Constant length for CBC-MAC's security.
+            prev_hof_raw = b"\x00" * HopOpaqueField.LEN
+        ts_raw = struct.pack("I", ts)
+        to_mac = hof_raw + prev_hof_raw + ts_raw
         return get_cbcmac(self.of_gen_key, to_mac)[:HopOpaqueField.MAC_LEN]
 
-    def _create_ad_marking(self, ingress_if, egress_if, prev_hof=None):
+    def _create_ad_marking(self, ingress_if, egress_if, ts, prev_hof=None):
         """
-        Creates an AD Marking with the given ingress and egress interfaces.
+        Creates an AD Marking with the given ingress and egress interfaces,
+        timestamp, and previous HOF.
         """
         ssf = SupportSignatureField.from_values(ADMarking.LEN)
         hof = HopOpaqueField.from_values(BeaconServer.HOF_EXP_TIME,
                                          ingress_if, egress_if)
-        hof.mac = self._create_mac(hof, prev_hof)
+        hof.mac = self._create_mac(hof, ts, prev_hof)
         spcbf = SupportPCBField.from_values(isd_id=self.topology.isd_id)
         pcbm = PCBMarking.from_values(self.topology.ad_id, ssf, hof, spcbf,
                                       self._get_if_rev_token(ingress_if),
@@ -258,7 +266,7 @@ class BeaconServer(SCIONElement):
                 continue
             hof = HopOpaqueField.from_values(BeaconServer.HOF_EXP_TIME,
                                              if_id, egress_if)
-            hof.mac = self._create_mac(hof, prev_hof)
+            hof.mac = self._create_mac(hof, ts, prev_hof)
             spf = SupportPeerField.from_values(self.topology.isd_id)
             peer_marking = \
                 PeerMarking.from_values(router_peer.interface.neighbor_ad,
@@ -309,11 +317,11 @@ class BeaconServer(SCIONElement):
         """
         Try to verify a beacon.
         """
-        assert isinstance(pcb, PathSegment)
 # TODO: REMOVE THESE TWO LINES BEFORE MERGING 
         self._handle_verified_beacon(pcb)
         return
 #
+        assert isinstance(pcb, PathSegment)
         last_pcbm = pcb.get_last_pcbm()
         if self._check_certs_trc(last_pcbm.spcbf.isd_id, last_pcbm.ad_id,
             last_pcbm.ssf.cert_chain_version, pcb.trcf.trc_version,
@@ -534,9 +542,11 @@ class CoreBeaconServer(BeaconServer):
             last_pcbm = new_pcb.get_last_pcbm()
             if last_pcbm:
                 ad_marking = self._create_ad_marking(ingress_if, egress_if,
+                                                     new_pcb.get_timestamp(),
                                                      last_pcbm.hof)
             else:
-                ad_marking = self._create_ad_marking(ingress_if, egress_if)
+                ad_marking = self._create_ad_marking(ingress_if, egress_if,
+                                                     new_pcb.get_timestamp())
 
             new_pcb.add_ad(ad_marking)
             dst = SCIONAddr.from_values(self.topology.isd_id,
@@ -689,6 +699,7 @@ class CoreBeaconServer(BeaconServer):
         for pcb in core_segments:
             new_pcb = copy.deepcopy(pcb)
             ad_marking = self._create_ad_marking(new_pcb.trcf.if_id, 0,
+                                                 new_pcb.get_timestamp(),
                                                  new_pcb.get_last_pcbm().hof)
             new_pcb.add_ad(ad_marking)
             new_pcb.segment_id = self._get_segment_rev_token(new_pcb)
@@ -965,6 +976,7 @@ class LocalBeaconServer(BeaconServer):
         for pcb in best_segments:
             new_pcb = copy.deepcopy(pcb)
             ad_marking = self._create_ad_marking(new_pcb.trcf.if_id, 0,
+                                                 new_pcb.get_timestamp(),
                                                  new_pcb.get_last_pcbm().hof)
             new_pcb.add_ad(ad_marking)
             new_pcb.segment_id = self._get_segment_rev_token(new_pcb)
@@ -980,6 +992,7 @@ class LocalBeaconServer(BeaconServer):
         for pcb in best_segments:
             new_pcb = copy.deepcopy(pcb)
             ad_marking = self._create_ad_marking(new_pcb.trcf.if_id, 0,
+                                                 new_pcb.get_timestamp(),
                                                  new_pcb.get_last_pcbm().hof)
             new_pcb.add_ad(ad_marking)
             new_pcb.segment_id = self._get_segment_rev_token(new_pcb)
