@@ -499,7 +499,6 @@ class ConfigGenerator():
 
         for (num, element_dict, element_type) \
                 in self._get_typed_elements(topo_dict):
-            ip_addr = element_dict['Addr']
             element_location = 'core' if topo_dict['Core'] else 'local'
             if element_type == 'BeaconServers':
                 element_name = 'bs{}-{}-{}'.format(isd_id, ad_id, num)
