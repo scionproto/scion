@@ -15,10 +15,10 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-from lib.packet.host_addr import IPv4HostAddr
-from lib.packet.path import (PathType, CorePath, PeerPath, CrossOverPath,
+from ipaddress import IPv4Address
+from lib.packet.path import (CorePath, PeerPath, CrossOverPath,
                              EmptyPath, PathBase)
-from lib.packet.opaque_field import InfoOpaqueField
+from lib.packet.opaque_field import InfoOpaqueField, OpaqueFieldType
 from lib.packet.scion import SCIONPacket
 from lib.simulator import schedule, add_element
 from endhost.sim_host import SCIONSimHost, SCIOND_API_PORT
@@ -30,7 +30,8 @@ class SCIONSimApplication(object):
     def __init__(self, host, app_port):
         self.host = host
         host.add_application(self, app_port, self.run, self.sim_recv, self.handle_path_reply)
-        self.addr = str(host.addr);
+        self.addr = str(host.addr.host_addr);
+        logging.info("Application: %s added on host: %s", str(app_port), self.addr)
         self.app_cb = None
         self.app_port = app_port
         self.start_time = 0
@@ -52,6 +53,7 @@ class SCIONSimApplication(object):
 
     #Used as a callback by 
     def handle_path_reply(self, data):
+        logging.info('sim_app: handle_path_reply')
         offset = 0
         paths_hops = []
         while offset < len(data):
@@ -60,19 +62,19 @@ class SCIONSimApplication(object):
             raw_path = data[offset:offset+path_len]
             path = None
             info = InfoOpaqueField(raw_path[0:InfoOpaqueField.LEN])
-            if info.info == PathType.CORE:
+            if info.info == OpaqueFieldType.TDC_XOVR:
                 path = CorePath(raw_path)
-            elif info.info == PathType.CROSS_OVER:
+            elif info.info == OpaqueFieldType.NON_TDC_XOVR:
                 path = CrossOverPath(raw_path)
-            elif info.info == PathType.PEER_LINK:
+            elif info.info == OpaqueFieldType.INTRATD_PEER:
                 path = PeerPath(raw_path)
-            elif info.info == PathType.EMPTY:
+            elif info.info == 0x00:
                 path = EmptyPath()
             else:
                 logging.info("Can not parse path: Unknown type %x", info.info)
             assert path
             offset += path_len
-            hop = IPv4HostAddr(data[offset:offset+4])
+            hop = IPv4Address(data[offset:offset+4])
             offset += 4
             paths_hops.append((path, hop))
         if self.app_cb is not None:

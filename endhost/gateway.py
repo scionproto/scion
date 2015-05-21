@@ -1,11 +1,11 @@
 # Copyright 2015 ETH Zurich
-
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-
-# http://www.apache.org/licenses/LICENSE-2.0
-
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -13,7 +13,7 @@
 # limitations under the License.
 """
 :mod:`gateway` --- Reference SCION Gateway based on TUN/TAP device
-===========================================
+==================================================================
 """
 import sys
 import struct
@@ -23,10 +23,11 @@ import socket
 from subprocess import call
 from pytun import TunTapDevice, IFF_TUN, IFF_NO_PI
 from endhost.sciond import SCIONDaemon
-from lib.packet.host_addr import IPv4HostAddr
 from lib.packet.scion import SCIONPacket
-from lib.util import init_logging
+from lib.packet.scion_addr import SCIONAddr
+from lib.log import init_logging
 from infrastructure.scion_elem import SCION_UDP_EH_DATA_PORT, BUFLEN
+from ipaddress import IPv4Address
 
 
 # Dictionary of destinations that should be reached via SCION.
@@ -51,7 +52,7 @@ class SCIONGateway(object):
         Create a new SCIONGateway instance.
 
         :param addr: the address of the gateway.
-        :type addr: :class:`HostAddr`
+        :type addr: :class:`ipaddress.IPv4Address`
         :param topo_file: the name of the topology file.
         :type topo_file: str
         :param config_file: the name of the configuration file.
@@ -95,7 +96,8 @@ class SCIONGateway(object):
                 paths = self.sd.get_paths(scion_addr[0], scion_addr[1])
                 #TODO instead calling get_paths() consider cache of fullpaths
                 if paths:
-                    dst = IPv4HostAddr(ip_dst)
+                    dst = SCIONAddr.from_values(scion_addr[0], scion_addr[1],
+                                                IPv4Address(ip_dst))
                     spkt = SCIONPacket.from_values(self.sd.addr, dst,
                                                    raw_packet, paths[0])
                     (next_hop, port) = self.sd.get_first_hop(spkt)
@@ -122,9 +124,9 @@ class SCIONGateway(object):
         Initiate routing rules, that redirects SCION-supported traffic to TUN
         device.
         """
-        for i in self.scion_hosts.keys():
-            if i != str(self.sd.addr):
-                cmd = "/sbin/ip route add %s dev %s" % (i, self._tun_dev.name)
+        for ip in self.scion_hosts.keys():
+            if ip != str(self.sd.addr.host_addr):
+                cmd = "/sbin/ip route add %s dev %s" % (ip, self._tun_dev.name)
                 call(cmd, shell=True)
                 logging.info(cmd)
 
@@ -145,7 +147,7 @@ def main():
     if len(sys.argv) != 3:
         logging.error("run: %s addr topology_file", sys.argv[0])
         sys.exit()
-    sgw = SCIONGateway(IPv4HostAddr(sys.argv[1]), sys.argv[2], SCION_HOSTS)
+    sgw = SCIONGateway(IPv4Address(sys.argv[1]), sys.argv[2], SCION_HOSTS)
     try:
         sgw.run()
     except KeyboardInterrupt:

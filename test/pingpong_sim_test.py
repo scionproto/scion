@@ -18,12 +18,14 @@ limitations under the License.
 
 from application.sim_ping_pong import SimPingApp, SimPongApp
 from endhost.sim_host import SCIONSimHost
+from ipaddress import IPv4Address
 from lib.simulator import generate_topology, stop, run
 
 import unittest
 import logging
 import sys
 import os
+import profile
 
 class PingPongSimTest(unittest.TestCase):
     """
@@ -41,13 +43,13 @@ class PingPongSimTest(unittest.TestCase):
         """
         generate_topology("../SIM/sim.conf")
 
-        h1 = SCIONSimHost("127.1.10.254", "../topology/ISD1/topologies/ISD:1-AD:10-V:0.json")
-        h2 = SCIONSimHost("127.2.26.254", "../topology/ISD2/topologies/ISD:2-AD:26-V:0.json")
+        h1 = SCIONSimHost(IPv4Address("127.1.10.254"), "../topology/ISD1/topologies/ISD:1-AD:10.json")
+        h2 = SCIONSimHost(IPv4Address("127.2.26.254"), "../topology/ISD2/topologies/ISD:2-AD:26.json")
 
-        pi = SimPingApp(h1, "127.2.26.254", 26, 2)
+        pi = SimPingApp(h1, IPv4Address("127.2.26.254"), 26, 2)
         po = SimPongApp(h2)
 
-        app_start_time = 80.
+        app_start_time = 20.
         pi.start(app_start_time)
 
         run()
@@ -56,4 +58,7 @@ class PingPongSimTest(unittest.TestCase):
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
+    # def RunMe():
+    #     unittest.main()
+    # profile.run('RunMe()',sort='ncalls')
     unittest.main()

@@ -1,11 +1,11 @@
 # Copyright 2014 ETH Zurich
-
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-
-# http://www.apache.org/licenses/LICENSE-2.0
-
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -329,7 +329,7 @@ class SupportSignatureField(OpaqueField):
     """
     def __init__(self, raw=None):
         OpaqueField.__init__(self)
-        self.cert_version = 0
+        self.cert_chain_version = 0
         self.sig_len = 0
         self.block_size = 0
         if raw is not None:
@@ -346,22 +346,23 @@ class SupportSignatureField(OpaqueField):
             logging.warning("SSF: Data too short for parsing, len: %u", dlen)
             return
         bits = BitArray(bytes=raw)
-        (self.cert_version, self.sig_len, self.block_size) = \
+        (self.cert_chain_version, self.sig_len, self.block_size) = \
             bits.unpack("uintbe:32, uintbe:16, uintbe:16")
         self.parsed = True
 
     @classmethod
-    def from_values(cls, block_size, cert_version=0, sig_len=0):
+    def from_values(cls, block_size, cert_chain_version=0, sig_len=0):
         """
         Returns SupportSignatureField with fields populated from values.
 
-        @param block_size: Total marking size for an AD block (peering links
+        :param block_size: Total marking size for an AD block (peering links
                            included.)
-        @param cert_version: Version of the Autonomous Domain's certificate.
-        @param sig_len: Length of the beacon's signature.
+        :param cert_chain_version: Version of the Autonomous Domain's
+                                   certificate.
+        :param sig_len: Length of the beacon's signature.
         """
         ssf = SupportSignatureField()
-        ssf.cert_version = cert_version
+        ssf.cert_chain_version = cert_chain_version
         ssf.sig_len = sig_len
         ssf.block_size = block_size
         return ssf
@@ -370,17 +371,19 @@ class SupportSignatureField(OpaqueField):
         """
         Returns SupportSignatureField as 8 byte binary string.
         """
-        return bitstring.pack("uintbe:32, uintbe:16, uintbe:16", self.cert_version,
-                              self.sig_len, self.block_size).bytes
+        return bitstring.pack("uintbe:32, uintbe:16, uintbe:16",
+                              self.cert_chain_version, self.sig_len,
+                              self.block_size).bytes
 
     def __str__(self):
-        ssf_str = ("[Support Signature OF cert_version: %x, sig_len: %u, " +
-            "block_size: %u]\n") % (self.cert_version, self.sig_len, self.block_size)
+        ssf_str = ("[Support Signature OF cert_chain_version: %x, " +
+            "sig_len: %u, block_size: %u]\n") % (self.cert_chain_version,
+            self.sig_len, self.block_size)
         return ssf_str
 
     def __eq__(self, other):
         if type(other) is type(self):
-            return (self.cert_version == other.cert_version and
+            return (self.cert_chain_version == other.cert_chain_version and
                     self.sig_len == other.sig_len and
                     self.block_size == other.block_size)
         else:

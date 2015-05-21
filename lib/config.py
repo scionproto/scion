@@ -1,11 +1,11 @@
 # Copyright 2014 ETH Zurich
-
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-
-# http://www.apache.org/licenses/LICENSE-2.0
-
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -13,7 +13,7 @@
 # limitations under the License.
 """
 :mod:`config` --- SCION configuration parser
-========================================
+============================================
 """
 
 import json
@@ -45,14 +45,14 @@ class Config(object):
     :type pcb_queue_size: int
     :ivar path_server_queue_size: path queue size for the path servers.
     :type path_server_queue_size: int
+    :ivar cert_chain_version: initial version of the certificate chain.
+    :ivar cert_chain_version: int
     """
 
-    def __init__(self, config_file=None):
+    def __init__(self):
         """
         Initialize an instance of the class Config.
 
-        :param config_file: the name of the configuration file.
-        :type config_file: str
         :returns: the newly created Config instance.
         :rtype: :class:`Config`
         """
@@ -66,22 +66,47 @@ class Config(object):
         self.registers_paths = 0
         self.pcb_queue_size = 0
         self.path_server_queue_size = 0
-        if config_file:
-            self.parse(config_file)
+        self.cert_chain_version = 0
 
-    def parse(self, config_file):
+    @classmethod
+    def from_file(cls, config_file):
         """
-        Parse a configuration file and populate the instance's attributes.
+        Create a Config instance from the file.
 
-        :param config_file: the name of the configuration file.
+        :param config_file: path to the configuration file
         :type config_file: str
+        :returns: the newly created Config instance
+        :rtype: :class: `Config`
         """
         try:
             with open(config_file) as conf_fh:
-                config = json.load(conf_fh)
+                config_dict = json.load(conf_fh)
         except (ValueError, KeyError, TypeError):
             logging.error("Config: JSON format error.")
             return
+        return cls.from_dict(config_dict)
+
+    @classmethod
+    def from_dict(cls, config_dict):
+        """
+        Create a Config instance from the dictionary.
+
+        :param config_dict: dictionary representation of configuration
+        :type config_dict: dict
+        :returns: the newly created Config instance
+        :rtype: :class:`Config`
+        """
+        config = cls()
+        config.parse_dict(config_dict)
+        return config
+
+    def parse_dict(self, config):
+        """
+        Parse a configuration file and populate the instance's attributes.
+
+        :param config: the name of the configuration file.
+        :type config: dict
+        """
         self.master_of_gen_key = config['MasterOFGKey']
         self.master_ad_key = config['MasterADKey']
         self.n_registered_paths = config['NumRegisteredPaths']
@@ -92,3 +117,4 @@ class Config(object):
         self.registers_paths = config['RegisterPath']
         self.pcb_queue_size = config['PCBQueueSize']
         self.path_server_queue_size = config['PSQueueSize']
+        self.cert_chain_version = config['CertChainVersion']

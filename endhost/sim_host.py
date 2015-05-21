@@ -17,7 +17,7 @@ limitations under the License.
 """
 
 from infrastructure.scion_elem import SCIONElement, SCION_UDP_EH_DATA_PORT
-from lib.packet.host_addr import IPv4HostAddr
+from ipaddress import IPv4Address
 from lib.packet.path import PathCombinator
 from lib.packet.path_mgmt import (PathSegmentInfo, PathSegmentRecords,
     PathSegmentType as PST, PathMgmtType as PMT, PathMgmtPacket)
@@ -26,7 +26,10 @@ from lib.packet.scion import SCIONPacket, get_type
 from lib.path_db import PathSegmentDB
 from lib.simulator import add_element, schedule, unschedule
 from lib.util import update_dict
+from lib.packet.scion_addr import SCIONAddr
+from lib.packet.scion_addr import ISD_AD
 import logging
+from infrastructure.scion_elem import SCION_UDP_PORT
 import struct
 
 SCIOND_API_PORT = 3333
@@ -39,7 +42,17 @@ class SCIONSimHost(SCIONElement):
     TIMEOUT = 5
 
     def __init__(self, addr, topo_file):
-        SCIONElement.__init__(self, IPv4HostAddr(addr), topo_file, is_sim=True)
+        # Constructor of ScionElem
+        self._addr = None
+        self.topology = None
+        self.config = None
+        self.ifid2addr = {}
+        self.parse_topology(topo_file)
+        self.addr = SCIONAddr.from_values(self.topology.isd_id,
+                                          self.topology.ad_id, addr)
+        self.construct_ifid2addr_map()
+        add_element(str(self.addr.host_addr), self)
+
         # TODO replace by pathstore instance
         self.up_segments = PathSegmentDB()
         self.down_segments = PathSegmentDB()
@@ -63,6 +76,18 @@ class SCIONSimHost(SCIONElement):
         #TODO Failure Notification
         pass
 
+    def send(self, packet, dst, dst_port=SCION_UDP_PORT):
+        """
+        Send *packet* to *dst* (to port *dst_port*).
+        """
+        schedule(0., dst=str(dst),
+                 args=(packet.pack(),
+                       (str(self.addr), SCION_UDP_PORT),
+                       (str(dst), dst_port)))
+        
+    def clean(self):
+        pass
+
     def _request_paths(self, requestor, ptype, dst_isd, dst_ad, src_core_ad=None, dst_core_ad=None):
         """
         Sends path request with certain type for (isds, ad).
@@ -81,8 +106,9 @@ class SCIONSimHost(SCIONElement):
             update_dict(self._waiting_targets[ptype], (dst_isd, dst_core_ad), [(eid, requestor, dst_ad)])
             info = PathSegmentInfo.from_values(ptype, src_isd, dst_isd, src_core_ad, dst_core_ad)
 
+
         path_request = PathMgmtPacket.from_values(PMT.REQUEST, info,
-                                                  None, self.addr)
+                                                  None, self.addr, ISD_AD(src_isd, src_ad))
 
         dst = self.topology.path_servers[0].addr
         self.send(path_request, dst)
@@ -142,6 +168,7 @@ class SCIONSimHost(SCIONElement):
         core_segments = self.core_segments(src_isd=src_isd, src_ad=src_core_ad, dst_isd=dst_isd, dst_ad=dst_core_ad)
         logging.debug("(%d, %d)->(%d, %d)", src_isd, src_ad, dst_isd, dst_ad)
         if core_segments:
+            print(self.up_segments())
             up_segment = []
             for us in self.up_segments():
                 if (us.get_first_pcbm().ad_id == src_core_ad):
@@ -149,7 +176,9 @@ class SCIONSimHost(SCIONElement):
                     break
                 
             down_segment = []
-            for us in self.down_segments:
+            print(self.down_segments())
+            print(self.down_segments)
+            for us in self.down_segments():
                 if (us.get_first_pcbm().ad_id == dst_core_ad):
                     down_segment = us
                     break
@@ -262,8 +291,9 @@ class SCIONSimHost(SCIONElement):
             raw_path = path.pack()
             # assumed: up-path nad IPv4 addr
             hop = self.ifid2addr[path.get_first_hop_of().ingress_if]
+            
             path_len = len(raw_path) // 8  # Check whether 8 divides path_len?
-            reply.append(struct.pack("B", path_len) + raw_path + hop._addr)
+            reply.append(struct.pack("B", path_len) + raw_path + hop.packed)
 
         _,_,_,path_cb = self.apps[requestor[1]]
         path_cb(b"".join(reply))
@@ -315,7 +345,7 @@ class SCIONSimHost(SCIONElement):
 
     def sim_recv(self, packet, src, dst):
         if dst[1] == SCION_UDP_EH_DATA_PORT:
-            assert dst[0] == str(self.addr)
+            assert dst[0] == str(self.addr.host_addr)
             #TODO For now, a hack!!
             _,_,recv_cb,_=list(self.apps.values())[0]
             recv_cb(packet, src, dst)
@@ -323,4 +353,8 @@ class SCIONSimHost(SCIONElement):
         #    _,_,recv_cb,_=self.apps[dst[1]]
         #    recv_cb(packet, src, dst)
         else:
-            SCIONElement.sim_recv(self, packet, src, dst)
+            to_local = False
+            if dst[0] == str(self.addr.host_addr) and dst[1] == SCION_UDP_PORT:
+                to_local = True
+            self.handle_request(packet, src, to_local)
+
