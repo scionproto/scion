@@ -563,6 +563,7 @@ class PathCombinator(object):
             for block in reversed(core_segment.ads):
                 full_path.core_segment_hops.append(
                     copy.deepcopy(block.pcbm.hof))
+            full_path.core_segment_hops[-1].info = OpaqueFieldType.LAST_OF
             full_path.core_segment_hops[0].info = OpaqueFieldType.LAST_OF
 
         full_path.down_segment_info = down_segment.iof
