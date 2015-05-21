@@ -20,27 +20,17 @@ import collections
 import logging
 from infrastructure.cert_server import CertServer
 from lib.defines import SCION_UDP_PORT
-from ipaddress import IPv4Address
 from lib.crypto.certificate import TRC
-from lib.log import (init_logging, log_exception)
 from lib.packet.scion import (
     CertChainReply,
-    CertChainRequest,
-    PacketType as PT,
-    SCIONPacket,
-    TRCReply,
-    TRCRequest,
-    get_type,
+    TRCReply
 )
 from lib.packet.scion_addr import SCIONAddr
 from lib.simulator import add_element, schedule
 from lib.util import (
     get_cert_chain_file_path,
     get_trc_file_path,
-    handle_signals,
-    read_file,
-    timed,
-    write_file,
+    write_file
 )
 
 
@@ -79,15 +69,24 @@ class CertServerSim(CertServer):
                        (str(dst), dst_port)))
 
     def sim_recv(self, packet, src, dst):
+        """
+        The receive function called when simulator receives a packet
+        """
         to_local = False
         if dst[0] == str(self.addr.host_addr) and dst[1] == SCION_UDP_PORT:
             to_local = True
         self.handle_request(packet, src, to_local)
 
     def run(self):
+        """
+        Run function should not do anything
+        """
         pass
 
     def clean(self):
+        """
+        Clean function should not do anything
+        """
         pass
 
     def process_cert_chain_reply(self, cert_chain_rep):

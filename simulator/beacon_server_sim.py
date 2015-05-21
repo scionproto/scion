@@ -21,22 +21,28 @@ import logging
 import time
 from _collections import deque, defaultdict
 from Crypto.Hash import SHA256
-from infrastructure.beacon_server import (CoreBeaconServer, 
-    LocalBeaconServer, InterfaceState)
-from infrastructure.router import IFID_PKT_TOUT
-from infrastructure.scion_elem import SCIONElement
-from ipaddress import IPv4Address
-from lib.crypto.certificate import CertificateChain, TRC
+from infrastructure.beacon_server import (
+    CoreBeaconServer,
+    LocalBeaconServer,
+    InterfaceState
+)
+from lib.crypto.certificate import CertificateChain
 from lib.crypto.hash_chain import HashChain
 from lib.defines import SCION_UDP_PORT
-from lib.packet.opaque_field import (OpaqueFieldType as OFT, InfoOpaqueField,
-    TRCField)
+from lib.packet.opaque_field import (
+    OpaqueFieldType as OFT,
+    InfoOpaqueField,
+    TRCField
+)
 from lib.packet.pcb import PathSegment, PathConstructionBeacon
-from lib.packet.scion_addr import SCIONAddr, ISD_AD
+from lib.packet.scion_addr import SCIONAddr
 from lib.path_store import PathPolicy, PathStore
 from lib.simulator import add_element, schedule
-from lib.util import (read_file, write_file, get_cert_chain_file_path,
-    get_sig_key_file_path)
+from lib.util import (
+    read_file,
+    get_cert_chain_file_path,
+    get_sig_key_file_path
+)
 
 
 class CoreBeaconServerSim(CoreBeaconServer):
@@ -58,7 +64,9 @@ class CoreBeaconServerSim(CoreBeaconServer):
         add_element(str(self.addr.host_addr), self)
 
         #Constructor of BS
-        self.path_policy = PathPolicy.from_file(path_policy_file)  # TODO: add 2 policies
+
+        # TODO: add 2 policies
+        self.path_policy = PathPolicy.from_file(path_policy_file) 
         self.unverified_beacons = deque()
         self.trc_requests = {}
         self.trcs = {}
@@ -100,6 +108,9 @@ class CoreBeaconServerSim(CoreBeaconServer):
                        (str(dst), dst_port)))
 
     def sim_recv(self, packet, src, dst):
+        """
+        The receive function called when simulator receives a packet
+        """
         to_local = False
         if dst[0] == str(self.addr.host_addr) and dst[1] == SCION_UDP_PORT:
             to_local = True
@@ -241,7 +252,8 @@ class LocalBeaconServerSim(LocalBeaconServer):
         add_element(str(self.addr.host_addr), self)
 
         #Constructor of BS
-        self.path_policy = PathPolicy.from_file(path_policy_file)  # TODO: add 2 policies
+        # TODO: add 2 policies
+        self.path_policy = PathPolicy.from_file(path_policy_file)
         self.unverified_beacons = deque()
         self.trc_requests = {}
         self.trcs = {}
@@ -291,6 +303,9 @@ class LocalBeaconServerSim(LocalBeaconServer):
                        (str(dst), dst_port)))
 
     def sim_recv(self, packet, src, dst):
+        """
+        The receive function called when simulator receives a packet
+        """
         to_local = False
         if dst[0] == str(self.addr.host_addr) and dst[1] == SCION_UDP_PORT:
             to_local = True

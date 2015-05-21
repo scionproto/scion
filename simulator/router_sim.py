@@ -19,7 +19,6 @@
 import logging
 from infrastructure.router import Router, NextHop, IFID_PKT_TOUT
 from lib.defines import SCION_UDP_PORT
-from ipaddress import IPv4Address
 from lib.packet.scion import IFIDPacket
 from lib.packet.scion_addr import SCIONAddr, ISD_AD
 from lib.simulator import add_element, schedule
@@ -42,7 +41,7 @@ class RouterSim(Router):
         if config_file:
             self.parse_config(config_file)
         self.construct_ifid2addr_map()
-        add_element(str(self.addr.host_addr), self) 
+        add_element(str(self.addr.host_addr), self)
 
         # Constructor of Router
         self.interface = None
@@ -61,7 +60,7 @@ class RouterSim(Router):
             self.post_ext_handlers = post_ext_handlers
         else:
             self.post_ext_handlers = {}
-        add_element (str(self.interface.addr), self)
+        add_element(str(self.interface.addr), self)
 
     def send(self, packet, next_hop, use_local_socket=True):
         """
@@ -75,14 +74,16 @@ class RouterSim(Router):
                      args=(packet.pack(),
                            (str(self.addr), SCION_UDP_PORT),
                            (str(next_hop.addr), next_hop.port)))
-            
         else:
-            schedule(0., dst = str(next_hop.addr),
+            schedule(0., dst=str(next_hop.addr),
                      args=(packet.pack(),
                            (str(self.interface.addr), self.interface.udp_port),
                            (str(next_hop.addr), next_hop.port)))
 
     def sim_recv(self, packet, src, dst):
+        """
+        The receive function called when simulator receives a packet
+        """
         to_local = False
         if dst[0] == str(self.addr.host_addr) and dst[1] == SCION_UDP_PORT:
             to_local = True

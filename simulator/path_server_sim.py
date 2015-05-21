@@ -16,7 +16,6 @@
 ========================================
 """
 
-import logging
 from _collections import defaultdict
 from external.expiring_dict import ExpiringDict
 from infrastructure.path_server import CorePathServer, LocalPathServer
@@ -75,18 +74,19 @@ class CorePathServerSim(CorePathServer):
                        (str(dst), dst_port)))
 
     def sim_recv(self, packet, src, dst):
+        """
+        The receive function called when simulator receives a packet
+        """
         to_local = False
         if dst[0] == str(self.addr.host_addr) and dst[1] == SCION_UDP_PORT:
             to_local = True
         self.handle_request(packet, src, to_local)
 
     def run(self):
-        logging.info('Running Core path Server: %s', str(self.addr))
         pass
 
     def clean(self):
         pass
-    
 
 class LocalPathServerSim(LocalPathServer):
     """
@@ -132,13 +132,15 @@ class LocalPathServerSim(LocalPathServer):
                        (str(dst), dst_port)))
 
     def sim_recv(self, packet, src, dst):
+        """
+        The receive function called when simulator receives a packet
+        """
         to_local = False
         if dst[0] == str(self.addr.host_addr) and dst[1] == SCION_UDP_PORT:
             to_local = True
         self.handle_request(packet, src, to_local)
 
     def run(self):
-        logging.info('Running Local path Server: %s', str(self.addr))
         pass
 
     def clean(self):
