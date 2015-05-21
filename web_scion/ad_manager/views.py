@@ -15,7 +15,7 @@ from django.http import (
     HttpResponseNotFound,
     JsonResponse,
 )
-from django.shortcuts import redirect, get_object_or_404
+from django.shortcuts import redirect, get_object_or_404, render
 from django.utils.decorators import method_decorator
 from django.views.decorators.http import require_POST
 from django.views.generic import ListView, DetailView, FormView
@@ -384,3 +384,10 @@ def request_action(request, pk, req_id):
     ad_request.save()
 
     return redirect(reverse('ad_connection_requests', args=[pk]))
+
+@login_required
+def list_sent_requests(request):
+    user = request.user
+    sent_requests = user.connectionrequest_set.all()
+    return render(request, 'ad_manager/sent_requests.html',
+                  {'sent_requests': sent_requests})

@@ -35,4 +35,6 @@ urlpatterns = patterns(
         views.ConnectionRequestView.as_view(), name='new_connection_request'),
     url(r'^ads/(?P<pk>\d+)/connection_requests/(?P<req_id>\d+)/action/$',
         views.request_action, name='connection_request_action'),
+    url(r'^sent_requests/$',
+        views.list_sent_requests, name='sent_requests'),
 )

@@ -70,6 +70,7 @@
 
         <p>Connect to this AD by generating a new installation package</p>
         <form method="POST" action="{% url 'connect_new_ad' object.id %}">
+          {% csrf_token %}
           <button type="submit" class="btn btn-default click-confirm" id="generate-new-btn">
             Generate
           </button>

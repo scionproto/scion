@@ -19,7 +19,7 @@ function updateServerStatus(detailUrl) {
         dataType: "json"
     }).done(function(data) {
         var componentData = data['data'];
-        if (!componentData) {
+        if (!componentData.length) {
             initServerStatus();
             return;
         }

@@ -143,28 +143,30 @@ class AD(models.Model):
                 neighbor_ad = AD.objects.get(id=interface.neighbor_ad,
                                              isd=interface.neighbor_isd)
                 router_element = RouterWeb(
-                    addr=router.addr, ad=self,
-                    name=router.name,
-                    neighbor_ad=neighbor_ad,
+                    addr=str(router.addr), ad=self,
+                    name=router.name, neighbor_ad=neighbor_ad,
                     neighbor_type=interface.neighbor_type,
-                    interface_addr=interface.addr,
-                    interface_toaddr=interface.to_addr,
+                    interface_addr=str(interface.addr),
+                    interface_toaddr=str(interface.to_addr),
                     interface_id=interface.if_id
                 )
                 router_element.save()
 
             for bs in beacon_servers:
-                bs_element = BeaconServerWeb(addr=bs.addr, name=bs.name,
+                bs_element = BeaconServerWeb(addr=str(bs.addr),
+                                             name=bs.name,
                                              ad=self)
                 bs_element.save()
 
             for cs in certificate_servers:
-                cs_element = CertificateServerWeb(addr=cs.addr, name=cs.name,
+                cs_element = CertificateServerWeb(addr=str(cs.addr),
+                                                  name=cs.name,
                                                   ad=self)
                 cs_element.save()
 
             for ps in path_servers:
-                ps_element = PathServerWeb(addr=ps.addr, name=ps.name,
+                ps_element = PathServerWeb(addr=str(ps.addr),
+                                           name=ps.name,
                                            ad=self)
                 ps_element.save()
         except IntegrityError:

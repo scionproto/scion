@@ -42,6 +42,7 @@ INSTALLED_APPS = (
     'django.contrib.staticfiles',
     'bootstrap3',
     'ad_manager',
+    'debug_toolbar',
 )
 
 MIDDLEWARE_CLASSES = (
@@ -91,3 +92,5 @@ MESSAGE_TAGS = {
 # https://docs.djangoproject.com/en/1.7/howto/static-files/
 
 STATIC_URL = '/static/'
+
+LOGIN_URL = '/admin/'
