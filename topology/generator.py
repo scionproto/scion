@@ -427,7 +427,7 @@ class ConfigGenerator():
             'redirect_stderr': 'true',
             'environment': 'PYTHONPATH=..',
             'stdout_logfile_maxbytes': '0',
-            'startretries': '1',
+            'startretries': '0',
         }
 
         program_group = []
