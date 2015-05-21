@@ -15,6 +15,7 @@
 :mod:`generator` --- SCION topology generator
 =============================================
 """
+# Stdlib
 import base64
 import configparser
 import json
@@ -24,16 +25,24 @@ import shutil
 import sys
 from ipaddress import ip_address, ip_network
 
+# SCION
 from lib.config import Config
-from lib.crypto.asymcrypto import (sign, generate_signature_keypair,
-                                   generate_cryptobox_keypair)
-from lib.crypto.certificate import (Certificate, CertificateChain, TRC)
+from lib.crypto.asymcrypto import (
+    generate_cryptobox_keypair,
+    generate_signature_keypair,
+    sign,
+)
+from lib.crypto.certificate import Certificate, CertificateChain, TRC
 from lib.defines import TOPOLOGY_PATH
 from lib.path_store import PathPolicy
 from lib.topology import Topology
-from lib.util import (get_cert_chain_file_path, get_sig_key_file_path,
-                      get_enc_key_file_path, get_trc_file_path, write_file)
-
+from lib.util import (
+    get_cert_chain_file_path,
+    get_enc_key_file_path,
+    get_sig_key_file_path,
+    get_trc_file_path,
+    write_file,
+)
 
 DEFAULT_ADCONFIGURATIONS_FILE = 'ADConfigurations.json'
 DEFAULT_PATH_POLICY_FILE = 'PathPolicy.json'
