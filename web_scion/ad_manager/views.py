@@ -29,10 +29,14 @@ from ad_management.common import (
     response_failure,
 )
 from ad_management.packaging import prepare_package
-from ad_manager.forms import PackageVersionSelectForm, ConnectionRequestForm
+from ad_manager.forms import (
+    ConnectionRequestForm,
+    NewLinkForm,
+    PackageVersionSelectForm,
+)
 from ad_manager.models import AD, ISD, PackageVersion, ConnectionRequest
 from ad_manager.util import monitoring_client
-from ad_manager.util.ad_connect import create_new_ad
+from ad_manager.util.ad_connect import create_new_ad, link_ads
 from lib.topology import Topology
 
 
@@ -53,11 +57,19 @@ class ADDetailView(DetailView):
         """
         context = super(ADDetailView, self).get_context_data(**kwargs)
         ad = context['object']
+
         # Status tab
-        context['routers'] = ad.routerweb_set.select_related().order_by('name')
-        context['path_servers'] = ad.pathserverweb_set.order_by('name')
-        context['certificate_servers'] = ad.certificateserverweb_set.order_by('name')
-        context['beacon_servers'] = ad.beaconserverweb_set.order_by('name')
+        context['routers'] = ad.routerweb_set.select_related()
+        context['path_servers'] = ad.pathserverweb_set.all()
+        context['certificate_servers'] = ad.certificateserverweb_set.all()
+        context['beacon_servers'] = ad.beaconserverweb_set.all()
+
+        # Sort by name numerically
+        lists_to_sort = ['routers', 'path_servers',
+                         'certificate_servers', 'beacon_servers']
+        for list_name in lists_to_sort:
+            context[list_name] = sorted(context[list_name],
+                                        key=lambda el: int(el.name))
 
         # Update tab
         context['choose_version_form'] = PackageVersionSelectForm()
@@ -181,7 +193,7 @@ def _push_local_topology(request, ad):
         messages.error(request, get_failure_errors(response),
                        extra_tags=topology_tag)
     # Wait until supervisor is restarting
-    time.sleep(5)
+    time.sleep(1)
     return redirect(reverse('ad_detail_topology', args=[ad.id]))
 
 
@@ -262,6 +274,7 @@ def _download_file_response(file_path, file_name=None, content_type=None):
     return response
 
 
+@transaction.atomic
 @require_POST
 def connect_new_ad(request, pk):
     ad = get_object_or_404(AD, id=pk)
@@ -292,6 +305,12 @@ def connect_new_ad(request, pk):
         new_topo, updated_local_topo = create_new_ad(local_topology, new_ad.isd,
                                                      new_ad.id,
                                                      out_dir=temp_dir)
+        # Update models instances
+        new_topo = Topology.from_dict(new_topo)
+        updated_local_topo = Topology.from_dict(updated_local_topo)
+
+        new_ad.fill_from_topology(new_topo, clear=True)
+        ad.fill_from_topology(updated_local_topo, clear=True)
 
         # Resulting package will be stored here
         package_dir = os.path.join(PACKAGE_DIR_PATH, 'AD' + str(new_ad))
@@ -306,13 +325,6 @@ def connect_new_ad(request, pk):
         package_path = prepare_package(out_dir=package_dir,
                                        config_paths=config_dirs,
                                        package_name=package_name)
-
-        # Update models instances
-        new_topo = Topology.from_dict(new_topo)
-        updated_local_topo = Topology.from_dict(updated_local_topo)
-
-        new_ad.fill_from_topology(new_topo, clear=True)
-        ad.fill_from_topology(updated_local_topo, clear=True)
 
     # Download stuff
     return _download_file_response(package_path)
@@ -335,7 +347,6 @@ def control_process(request, pk, proc_id):
     md_host = ad.get_monitoring_daemon_host()
     response = monitoring_client.control_process(md_host, ad.isd.id, ad.id,
                                                  proc_id, command)
-
     return JsonResponse({'status': is_success(response)})
 
 
@@ -368,6 +379,43 @@ class ConnectionRequestView(FormView):
         return context_data
 
 
+class NewLinkView(FormView):
+    form_class = NewLinkForm
+    template_name = 'ad_manager/new_link.html'
+    success_url = ''
+
+    def _get_ad(self):
+        return get_object_or_404(AD, id=self.kwargs['pk'])
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['from_ad'] = self._get_ad()
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context_data = super().get_context_data(**kwargs)
+        context_data['ad'] = self._get_ad()
+        return context_data
+
+    def form_valid(self, form):
+        this_ad = self._get_ad()
+        from_ad = this_ad
+        to_ad = form.cleaned_data['end_point']
+        link_type = form.cleaned_data['link_type']
+
+        if link_type == 'PARENT':
+            from_ad, to_ad = to_ad, from_ad
+
+        if link_type in ['CHILD', 'PARENT']:
+            link_type = 'PARENT_CHILD'
+
+        with transaction.atomic():
+            link_ads(from_ad, to_ad, link_type)
+
+        self.success_url = reverse('ad_detail', args=[this_ad.id])
+        return super().form_valid(form)
+
+
 @require_POST
 def request_action(request, pk, req_id):
     ad = get_object_or_404(AD, id=pk)
@@ -384,6 +432,7 @@ def request_action(request, pk, req_id):
     ad_request.save()
 
     return redirect(reverse('ad_connection_requests', args=[pk]))
+
 
 @login_required
 def list_sent_requests(request):

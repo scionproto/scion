@@ -2,6 +2,8 @@ from copy import deepcopy
 from ipaddress import ip_address
 import json
 import tempfile
+from ad_manager.models import AD
+from lib.topology import Topology
 from lib.util import read_file, write_file
 from topology.generator import ConfigGenerator, PORT, ER_RANGE
 
@@ -58,36 +60,70 @@ def create_next_router(generator, topo_dict):
     return str(last_index + 1), new_router
 
 
-def update_topos(generator, new_topo, existing_topo):
-    new_topo = deepcopy(new_topo)
-    existing_topo = deepcopy(existing_topo)
-    new_id, new_topo_router = create_next_router(generator, new_topo)
-    ex_id, existing_topo_router = create_next_router(generator, existing_topo)
+def link_topologies(generator, first_topo, second_topo, link_type):
+    """
 
-    new_router_if = new_topo_router['Interface']
-    existing_router_if = existing_topo_router['Interface']
+    link_type:
+    ROUTING -- both are ROUTING
+    PEER -- both are PEER
+    PARENT_CHILD -- first_topo is now a parent of second_topo
+    """
+    first_topo = deepcopy(first_topo)
+    second_topo = deepcopy(second_topo)
+    first_router_id, first_topo_router = create_next_router(generator,
+                                                            first_topo)
+    second_router_id, second_topo_router = create_next_router(generator,
+                                                              second_topo)
 
-    new_ad_id = new_topo['ADID']
-    existing_ad_id = existing_topo['ADID']
+    first_router_if = first_topo_router['Interface']
+    second_router_if = second_topo_router['Interface']
 
-    if_id = generator.generate_if_id(new_ad_id, existing_ad_id)
+    first_ad_id = first_topo['ADID']
+    second_ad_id = second_topo['ADID']
 
-    new_router_if['ToAddr'] = existing_router_if['Addr']
-    new_router_if['NeighborISD'] = existing_topo['ISDID']
-    new_router_if['NeighborAD'] = existing_ad_id
-    new_router_if['NeighborType'] = 'PARENT'
-    new_router_if['IFID'] = if_id
+    if_id = generator.generate_if_id(first_ad_id, second_ad_id)
 
-    existing_router_if['ToAddr'] = new_router_if['Addr']
-    existing_router_if['NeighborISD'] = new_topo['ISDID']
-    existing_router_if['NeighborAD'] = new_ad_id
-    existing_router_if['NeighborType'] = 'CHILD'
-    existing_router_if['IFID'] = if_id
+    first_router_if['ToAddr'] = second_router_if['Addr']
+    first_router_if['NeighborISD'] = second_topo['ISDID']
+    first_router_if['NeighborAD'] = second_ad_id
+    first_router_if['IFID'] = if_id
 
-    new_topo['EdgeRouters'][new_id] = new_topo_router
-    existing_topo['EdgeRouters'][ex_id] = existing_topo_router
+    second_router_if['ToAddr'] = first_router_if['Addr']
+    second_router_if['NeighborISD'] = first_topo['ISDID']
+    second_router_if['NeighborAD'] = first_ad_id
+    second_router_if['IFID'] = if_id
 
-    return new_topo, existing_topo
+    if link_type == 'ROUTING':
+        first_router_if['NeighborType'] = 'ROUTING'
+        second_router_if['NeighborType'] = 'ROUTING'
+    elif link_type == 'PEER':
+        first_router_if['NeighborType'] = 'PEER'
+        second_router_if['NeighborType'] = 'PEER'
+    elif link_type == 'PARENT_CHILD':
+        first_router_if['NeighborType'] = 'CHILD'
+        second_router_if['NeighborType'] = 'PARENT'
+    else:
+        raise Exception('Invalid link type')
+
+    first_topo['EdgeRouters'][first_router_id] = first_topo_router
+    second_topo['EdgeRouters'][second_router_id] = second_topo_router
+
+    return first_topo, second_topo
+
+
+def link_ads(first_ad, second_ad, link_type):
+    """Needs transaction!"""
+    first_topo = first_ad.generate_topology_dict()
+    second_topo = second_ad.generate_topology_dict()
+    gen = ConfigGenerator()
+    first_topo, second_topo = link_topologies(gen, first_topo, second_topo,
+                                              link_type)
+
+    new_first_topo = Topology.from_dict(first_topo)
+    new_second_topo = Topology.from_dict(second_topo)
+
+    first_ad.fill_from_topology(new_first_topo, clear=True)
+    second_ad.fill_from_topology(new_second_topo, clear=True)
 
 
 def create_new_ad(parent_ad_topo, isd_id, ad_id, out_dir=None):
@@ -103,7 +139,8 @@ def create_new_ad(parent_ad_topo, isd_id, ad_id, out_dir=None):
     new_topo_path = gen.path_dict(isd_id, ad_id)['topo_file_abs']
     new_topo_file = read_file(new_topo_path)
     new_topo = json.loads(new_topo_file)
-    new_topo, existing_topo = update_topos(gen, new_topo, parent_ad_topo)
+    existing_topo, new_topo = link_topologies(gen, parent_ad_topo, new_topo,
+                                              'PARENT_CHILD')
     write_file(new_topo_path, json.dumps(new_topo))
     gen.write_derivatives(new_topo)
     return new_topo, existing_topo

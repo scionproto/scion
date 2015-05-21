@@ -1,7 +1,10 @@
 
 function appendLoadingIndicator(element) {
     var imgPath = '/static/img/ajax-loader.gif';
-    element.first().append('&nbsp;&nbsp;<img src="' + imgPath + '" />');
+    var status = element.first();
+    if (!status.html().contains(imgPath)) {
+        status.append('&nbsp;&nbsp;<img src="' + imgPath + '" />');
+    }
 }
 
 function showLoadingIndicator(element) {

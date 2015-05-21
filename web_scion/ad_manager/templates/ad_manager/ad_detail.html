@@ -10,14 +10,7 @@
 {% endblock %}
 
 {% block content %}
-  <h1 class="object-path">
-    <a href="{% url 'list_isds' %}" class="glyphicon glyphicon-home"></a>
-    <span class="glyphicon glyphicon-menu-right"></span>
-    <a href="{% url 'isd_detail' object.isd %}">ISD {{ object.isd.id }}</a>
-    <span class="glyphicon glyphicon-menu-right"></span>
-    AD {{ object.id }}
-  </h1>
-  <hr>
+  {% include 'ad_manager/object_path.html' %}
 
   <h4 class="core-ad-label">
     Core AD:
@@ -83,6 +76,10 @@
             <div class="alert alert-{{ message.level_tag }}">{{ message }}</div>
           {% endif %}
         {% endfor %}
+        <hr />
+
+        <p>Create a new link by connecting two existing ADs</p>
+        <a href="{% url 'new_link' object.id %}" class="btn btn-default">Add link</a>
         <hr />
 
         <p>The stored topology might be out of sync with the real topology</p>

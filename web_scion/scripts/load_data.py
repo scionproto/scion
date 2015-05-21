@@ -30,7 +30,8 @@ except User.DoesNotExist:
 
 # Add model instances
 TOPOLOGY_DIR = os.path.join(SCION_ROOT, 'topology')
-topology_files = glob.glob(os.path.join(TOPOLOGY_DIR, 'ISD*/topologies/*json'))
+topology_files = glob.glob(os.path.join(TOPOLOGY_DIR,
+                                        'ISD*/topologies/ISD*.json'))
 isds = {}
 ads = []
 
@@ -38,6 +39,7 @@ for topo_file in topology_files:
     topology = Topology.from_file(topo_file)
     isds[topology.isd_id] = topology.isd_id
     ads.append(topology)
+ads = sorted(ads, key=lambda topo: topo.ad_id)
 
 # Add ISDs
 for isd_id in isds:
@@ -45,6 +47,7 @@ for isd_id in isds:
     isd.save()
     isds[isd_id] = isd
 print("> {} ISDs added".format(len(isds)))
+
 
 # First, save all add ADs to avoid IntegrityError
 for ad_topo in ads:
@@ -56,5 +59,4 @@ for ad_topo in ads:
 for ad_topo in ads:
     ad = AD.objects.get(id=ad_topo.ad_id, isd=isds[ad_topo.isd_id])
     ad.fill_from_topology(ad_topo)
-
     print('> AD {} added'.format(ad))
