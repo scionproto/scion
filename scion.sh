@@ -2,8 +2,8 @@
 
 # BEGIN subcommand functions
 
-PKG_DEPS="python python3 python-dev python-pip python3-dev python3-pip screen zookeeperd build-essential docker.io"
-PIP3_DEPS="bitstring python-pytun pydblite pygments pycrypto kazoo Sphinx sphinxcontrib-napoleon nose nose-descriptionfixer nose-cov coverage parse"
+PKG_DEPS="python python3 python-dev python-pip python3-dev python3-pip screen zookeeperd build-essential docker.io dnsutils"
+PIP3_DEPS="bitstring python-pytun pydblite pygments pycrypto kazoo Sphinx sphinxcontrib-napoleon nose nose-descriptionfixer nose-cov coverage parse dnslib"
 
 cmd_deps() {
     if [ -e /etc/debian_version ]; then

@@ -24,6 +24,7 @@
     "1-13": {
         "level": "CORE",
         "beacon_servers": 2,
+        "dns_servers": 2,
         "links": {
             "1-11": "ROUTING",
             "1-12": "ROUTING",

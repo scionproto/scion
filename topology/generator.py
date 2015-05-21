@@ -25,6 +25,9 @@ import shutil
 import sys
 from ipaddress import ip_address, ip_network
 
+# External packages
+from dnslib.label import DNSLabel
+
 # SCION
 from lib.config import Config
 from lib.crypto.asymcrypto import (
@@ -64,6 +67,7 @@ LEAF_AD = 'LEAF'
 DEFAULT_BEACON_SERVERS = 1
 DEFAULT_CERTIFICATE_SERVERS = 1
 DEFAULT_PATH_SERVERS = 1
+DEFAULT_DNS_SERVERS = 1
 INITIAL_CERT_VERSION = 0
 INITIAL_TRC_VERSION = 0
 PORT = '50000'
@@ -71,7 +75,9 @@ ISD_AD_ID_DIVISOR = '-'
 BS_RANGE = '1'
 CS_RANGE = '21'
 PS_RANGE = '41'
-ER_RANGE = '61'
+DS_RANGE = '61'
+ER_RANGE = '81'
+DEFAULT_DNS_DOMAIN = DNSLabel("scion")
 
 DEFAULT_SUBNET = "127.0.0.0/8"
 
@@ -320,13 +326,20 @@ class ConfigGenerator():
                                                   DEFAULT_CERTIFICATE_SERVERS)
             number_ps = ad_configs[isd_ad_id].get("path_servers",
                                                   DEFAULT_PATH_SERVERS)
+            number_ds = ad_configs[isd_ad_id].get("dns_servers",
+                                                  DEFAULT_DNS_SERVERS)
+            dns_domain = DNSLabel(ad_configs[isd_ad_id].get("dns_domain",
+                                                            DEFAULT_DNS_DOMAIN))
+            dns_domain = dns_domain.add("isd%s" % isd_id).add("ad%s" % ad_id)
             # Write beginning and general structure
             topo_dict = {'Core': 1 if is_core else 0,
                          'ISDID': int(isd_id),
                          'ADID': int(ad_id),
+                         'DnsDomain': str(dns_domain),
                          'BeaconServers': {},
                          'CertificateServers': {},
                          'PathServers': {},
+                         'DNSServers': {},
                          'EdgeRouters': {}}
 
             # Write Beacon Servers
@@ -355,6 +368,14 @@ class ConfigGenerator():
                         'Addr': server_addr
                     }
                     server_addr = self._increment_address(server_addr, mask)
+            # Write DNS Servrs
+            server_addr = '.'.join([first_byte, isd_id, ad_id, DS_RANGE])
+            for d_server in range(1, number_ds + 1):
+                topo_dict['DNSServers'][d_server] = {
+                    'AddrType': 'IPv4',
+                    'Addr': server_addr
+                }
+                server_addr = self._increment_address(server_addr, mask)
             # Write Edge Routers
             edge_router = 1
             for nbr_isd_ad_id in ad_configs[isd_ad_id].get("links", []):
@@ -395,7 +416,7 @@ class ConfigGenerator():
         supplemented with the corresponding type label.
         """
         element_types = ['BeaconServers', 'CertificateServers',
-                         'PathServers', 'EdgeRouters']
+                         'PathServers', 'DNSServers', 'EdgeRouters']
         for element_type in element_types:
             for element_num, element_dict in topo_dict[element_type].items():
                 yield (element_num, element_dict, element_type)
@@ -443,6 +464,7 @@ class ConfigGenerator():
         supervisor_config = configparser.ConfigParser()
 
         isd_id, ad_id = str(topo_dict['ISDID']), str(topo_dict['ADID'])
+        dns_domain = topo_dict['DnsDomain']
         p = self._path_dict(isd_id, ad_id)
 
         for (num, element_dict, element_type) \
@@ -471,7 +493,12 @@ class ConfigGenerator():
                             num,
                             p['topo_file_rel'],
                             p['conf_file_rel']]
-
+            elif element_type == 'DNSServers':
+                element_name = 'ds{}-{}-{}'.format(isd_id, ad_id, num)
+                cmd_args = ['dns_server.py',
+                            num,
+                            str(dns_domain),
+                            p['topo_file_rel']]
             elif element_type == 'EdgeRouters':
                 interface_dict = element_dict['Interface']
                 nbr_isd_id = interface_dict['NeighborISD']
