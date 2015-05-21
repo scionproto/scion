@@ -16,19 +16,24 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 from application.sim_app import SCIONSimApplication
-from lib.packet.host_addr import IPv4HostAddr
-from lib.packet.path import (PathType, CorePath, PeerPath, CrossOverPath,
+from ipaddress import IPv4Address
+from lib.packet.path import (CorePath, PeerPath, CrossOverPath,
                              EmptyPath, PathBase)
 from lib.packet.scion import SCIONPacket
+from lib.packet.scion_addr import SCIONAddr
 from lib.simulator import schedule, terminate
 import logging
 import sys
 import struct
 
 class SimPingApp(SCIONSimApplication):
+    """
+    addr: SCIONAddr
+    """
     _APP_PORT = 5600
     def __init__(self, host, dst_addr, dst_ad, dst_isd):
         SCIONSimApplication.__init__(self, host, SimPingApp._APP_PORT)
+        self._addr = host.addr;
         self.pong_received = False
         self.dst_isd = dst_isd
         self.dst_ad = dst_ad
@@ -44,13 +49,15 @@ class SimPingApp(SCIONSimApplication):
             terminate()
 
     def send_ping(self):
+        logging.info("Sending ping")
         self.app_cb = self._do_send_ping
         self.get_paths_via_api (self.dst_isd, self.dst_ad)
 
     def _do_send_ping(self, paths_hops):
         (path, hop) = paths_hops[0]
 
-        spkt = SCIONPacket.from_values(src=IPv4HostAddr(self.addr), dst=IPv4HostAddr(self.dst_addr), payload=b"ping", path=path)
+        dst = SCIONAddr.from_values(self.dst_isd, self.dst_ad, self.dst_addr)
+        spkt = SCIONPacket.from_values(src=self._addr, dst=dst, payload=b"ping", path=path)
         (next_hop, port) = self.host.get_first_hop(spkt)
         assert next_hop == hop
 

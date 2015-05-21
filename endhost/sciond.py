@@ -1,19 +1,19 @@
+# Copyright 2014 ETH Zurich
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """
-sciond.py
-
-Copyright 2014 ETH Zurich
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+:mod:`sciond` --- Reference endhost SCION Daemon
+================================================
 """
 
 from infrastructure.scion_elem import SCIONElement
@@ -22,6 +22,7 @@ from lib.packet.path_mgmt import (PathSegmentInfo, PathSegmentRecords,
     PathSegmentType as PST, PathMgmtType as PMT, PathMgmtPacket)
 from lib.packet.scion import PacketType as PT
 from lib.packet.scion import SCIONPacket, get_type
+from lib.packet.scion_addr import ISD_AD
 from lib.path_db import PathSegmentDB
 from lib.util import update_dict
 import logging
@@ -55,6 +56,8 @@ class SCIONDaemon(SCIONElement):
         self._api_socket = None
         if run_local_api:
             self._api_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self._api_socket.setsockopt(socket.SOL_SOCKET,
+                                        socket.SO_REUSEADDR, 1)
             self._api_socket.bind((SCIOND_API_HOST, SCIOND_API_PORT))
             self._sockets.append(self._api_socket)
             logging.info("Local API %s:%u", SCIOND_API_HOST, SCIOND_API_PORT)
@@ -92,8 +95,9 @@ class SCIONDaemon(SCIONElement):
         # Create and send out path request.
         info = PathSegmentInfo.from_values(ptype, src_isd, dst_isd,
                                            src_ad, dst_ad)
-        path_request = PathMgmtPacket.from_values(PMT.REQUEST, info,
-                                                  None, self.addr)
+        path_request = PathMgmtPacket.from_values(PMT.REQUEST, info, 
+                                                  None, self.addr,
+                                                  ISD_AD(src_isd, src_ad))
         dst = self.topology.path_servers[0].addr
         self.send(path_request, dst)
 
@@ -174,15 +178,22 @@ class SCIONDaemon(SCIONElement):
                 and info.dst_isd == isd and info.dst_ad == ad):
                 self.down_segments.update(pcb, info.src_isd, info.src_ad,
                                           info.dst_isd, info.dst_ad)
-                logging.info("DownPath PATH added for (%d,%d)", isd, ad)
+                logging.info("Down path (%d, %d)->(%d, %d) added.",
+                             info.src_isd, info.src_ad, info.dst_isd,
+                             info.dst_ad)
             elif ((self.topology.isd_id == isd and self.topology.ad_id == ad)
                 and info.type in [PST.UP, PST.UP_DOWN]):
                 self.up_segments.update(pcb, isd, ad, pcb.get_isd(),
                                         pcb.get_first_pcbm().ad_id)
-                logging.info("UP PATH to (%d, %d) added.", isd, ad)
+                logging.info("Up path (%d, %d)->(%d, %d) added.",
+                             info.src_isd, info.src_ad, info.dst_isd,
+                             info.dst_ad)
             elif info.type == PST.CORE:
                 self.core_segments.update(pcb, info.src_isd, info.src_ad,
                                           info.dst_isd, info.dst_ad)
+                logging.info("Core path (%d, %d)->(%d, %d) added.",
+                             info.src_isd, info.src_ad, info.dst_isd,
+                             info.dst_ad)
             else:
                 logging.warning("Incorrect path in Path Record")
 
@@ -203,7 +214,6 @@ class SCIONDaemon(SCIONElement):
         # TODO sanity checks
         isd = struct.unpack("H", packet[1:3])[0]
         ad = struct.unpack("Q", packet[3:])[0]
-        print("req for", isd, ad)
         paths = self.get_paths(isd, ad)
         reply = []
         for path in paths:
@@ -211,7 +221,7 @@ class SCIONDaemon(SCIONElement):
             # assumed: up-path nad IPv4 addr
             hop = self.ifid2addr[path.get_first_hop_of().ingress_if]
             path_len = len(raw_path) // 8  # Check whether 8 divides path_len?
-            reply.append(struct.pack("B", path_len) + raw_path + hop._addr)
+            reply.append(struct.pack("B", path_len) + raw_path + hop.packed)
         self._api_socket.sendto(b"".join(reply), sender)
 
     def api_handle_request(self, packet, sender):

@@ -1,19 +1,19 @@
 # Copyright 2014 ETH Zurich
-
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-
-# http://www.apache.org/licenses/LICENSE-2.0
-
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`server` --- Base class for SCION servers
-==============================================
+:mod:`scion_elem` --- Base class for SCION servers
+==================================================
 
 Module docstring here.
 
@@ -23,9 +23,9 @@ Module docstring here.
 """
 
 from lib.config import Config
-from lib.packet.host_addr import HostAddr
+from lib.packet.scion_addr import SCIONAddr
 from lib.topology import Topology
-from lib.simulator import add_element, schedule
+import ipaddress
 import logging
 import select
 import socket
@@ -47,16 +47,16 @@ class SCIONElement(object):
     :ivar ifid2addr: a dictionary mapping interface identifiers to the
         corresponding border router addresses in the server's AD.
     :vartype ifid2addr: dict
-    :ivar addr: a `HostAddr` object representing the server address.
-    :vartype addr: :class:`lib.packet.host_addr.HostAddr`
+    :ivar addr: a `SCIONAddr` object representing the server address.
+    :vartype addr: :class:`lib.packet.scion_addr.SCIONAddr`
     """
 
-    def __init__(self, addr, topo_file, config_file=None, is_sim=False):
+    def __init__(self, host_addr, topo_file, config_file=None):
         """
         Create a new ServerBase instance.
 
-        :param addr: the address of the server.
-        :type addr: :class:`HostAddr`
+        :param host_addr: the (local) address of the server.
+        :type host_addr: :class:`ipaddress._BaseAddress`
         :param topo_file: the name of the topology file.
         :type topo_file: str
         :param config_file: the name of the configuration file.
@@ -69,24 +69,22 @@ class SCIONElement(object):
         self.topology = None
         self.config = None
         self.ifid2addr = {}
-        self.addr = addr
-        self.is_sim = is_sim
         self.parse_topology(topo_file)
+        self.addr = SCIONAddr.from_values(self.topology.isd_id,
+                                          self.topology.ad_id, host_addr)
         if config_file:
             self.parse_config(config_file)
         self.construct_ifid2addr_map()
-        if not is_sim:
-            self._local_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            self._local_socket.bind((str(self.addr), SCION_UDP_PORT))
-            self._sockets = [self._local_socket]
-            logging.info("Bound %s:%u", self.addr, SCION_UDP_PORT)
-        else:
-            add_element(str(self.addr), self)
+        self._local_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self._local_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self._local_socket.bind((str(self.addr.host_addr), SCION_UDP_PORT))
+        self._sockets = [self._local_socket]
+        logging.info("Bound %s:%u", self.addr.host_addr, SCION_UDP_PORT)
 
     @property
     def addr(self):
         """
-        The address of the server as a :class:`lib.packet.host_addr.HostAddr`
+        The address of the server as a :class:`lib.packet.scion_addr.SCIONAddr`
         object.
         """
         return self._addr
@@ -95,19 +93,19 @@ class SCIONElement(object):
     def addr(self, addr):
         """
         Set the address of the server. Must be a
-        :class:`lib.packet.host_addr.HostAddr` object.
+        :class:`lib.packet.scion_addr.SCIONAddr` object.
 
         :param addr: the new server address.
-        :type addr: :class:`lib.packet.host_addr.HostAddr`
+        :type addr: :class:`lib.packet.scion_addr.SCIONAddr`
         """
         self.set_addr(addr)
 
     def set_addr(self, addr):
         """
-        Sets the address of the server. Must be a lib.HostAddr object
+        Sets the address of the server. Must be a lib.SCIONAddr object
         """
-        if not (isinstance(addr, HostAddr) or addr is None):
-            raise TypeError("Addr must be of type 'HostAddr'")
+        if not (isinstance(addr, SCIONAddr) or addr is None):
+            raise TypeError("Addr must be of type 'SCIONAddr'")
         else:
             self._addr = addr
 
@@ -119,7 +117,7 @@ class SCIONElement(object):
         :type topo_file: str
         """
         assert isinstance(topo_file, str)
-        self.topology = Topology(topo_file)
+        self.topology = Topology.from_file(topo_file)
 
     def parse_config(self, config_file):
         """
@@ -129,7 +127,7 @@ class SCIONElement(object):
         :type config_file: str
         """
         assert isinstance(config_file, str)
-        self.config = Config(config_file)
+        self.config = Config.from_file(config_file)
 
     def construct_ifid2addr_map(self):
         """
@@ -153,7 +151,7 @@ class SCIONElement(object):
         """
         opaque_field = spkt.hdr.path.get_first_hop_of()
         if opaque_field is None:  # EmptyPath
-            return (spkt.hdr.dst_addr, SCION_UDP_PORT)
+            return (spkt.hdr.dst_addr.host_addr, SCION_UDP_PORT)
         else:
             if spkt.hdr.is_on_up_path():
                 return (self.ifid2addr[opaque_field.ingress_if], SCION_UDP_PORT)
@@ -173,38 +171,22 @@ class SCIONElement(object):
         :param dst_port: the destination port number.
         :type dst_port: int
         """
-        if not self.is_sim:
-            self._local_socket.sendto(packet.pack(), (str(dst), dst_port))
-        else:
-            # This will eventually summon handle_request()
-            # of the instance associated with address dst
-            schedule(0., dst=str(dst),
-                     args=(packet.pack(),
-                           (str(self.addr), SCION_UDP_PORT),
-                           (str(dst), dst_port)))
-
-    def sim_recv(self, packet, src, dst):
-        to_local = False
-        if dst[0] == str(self.addr) and dst[1] == SCION_UDP_PORT:
-            to_local = True
-        self.handle_request(packet, src, to_local)
+        self._local_socket.sendto(packet.pack(), (str(dst), dst_port))
 
     def run(self):
         """
         Main routine to receive packets and pass them to
         :func:`handle_request()`.
         """
-        if not self.is_sim:
-            while True:
-                recvlist, _, _ = select.select(self._sockets, [], [])
-                for sock in recvlist:
-                    packet, addr = sock.recvfrom(BUFLEN)
-                    self.handle_request(packet, addr, sock == self._local_socket)
+        while True:
+            recvlist, _, _ = select.select(self._sockets, [], [])
+            for sock in recvlist:
+                packet, addr = sock.recvfrom(BUFLEN)
+                self.handle_request(packet, addr, sock == self._local_socket)
 
     def clean(self):
         """
         Close open sockets.
         """
-        if not self.is_sim:
-            for s in self._sockets:
-                s.close()
+        for s in self._sockets:
+            s.close()

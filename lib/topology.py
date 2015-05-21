@@ -1,11 +1,11 @@
 # Copyright 2014 ETH Zurich
-
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-
-# http://www.apache.org/licenses/LICENSE-2.0
-
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -16,7 +16,7 @@
 ===========================================
 """
 
-from lib.packet.host_addr import IPv4HostAddr, IPv6HostAddr, SCIONHostAddr
+from ipaddress import IPv4Address, IPv6Address
 import json
 import logging
 
@@ -27,11 +27,9 @@ class Element(object):
     file.
 
     :ivar addr: IP or SCION address of a server or edge router.
-    :type addr: :class:`IPv4HostAddr`, :class:`IPv6HostAddr`, or
-                :class:`SCIONHostAddr`
+    :type addr: :class:`IPv4Address` or :class:`IPv6Address`
     :ivar to_addr: destination IP or SCION address of an edge router.
-    :type to_addr: :class:`IPv4HostAddr`, :class:`IPv6HostAddr`, or
-                   :class:`SCIONHostAddr`
+    :type to_addr: :class:`IPv4Address` or :class:`IPv6Address`
     """
 
     def __init__(self, addr=None, addr_type=None, to_addr=None):
@@ -48,17 +46,13 @@ class Element(object):
         :rtype: :class:`Element`
         """
         if addr_type.lower() == "ipv4":
-            self.addr = IPv4HostAddr(addr)
+            self.addr = IPv4Address(addr)
             if to_addr is not None:
-                self.to_addr = IPv4HostAddr(to_addr)
+                self.to_addr = IPv4Address(to_addr)
         elif addr_type.lower() == "ipv6":
-            self.addr = IPv6HostAddr(addr)
+            self.addr = IPv6Address(addr)
             if to_addr is not None:
-                self.to_addr = IPv6HostAddr(to_addr)
-        elif addr_type.lower() == "scion":
-            self.addr = SCIONHostAddr(int(addr))
-            if to_addr is not None:
-                self.to_addr = SCIONHostAddr(to_addr)
+                self.to_addr = IPv6Address(to_addr)
 
 
 class ServerElement(Element):
@@ -97,8 +91,6 @@ class InterfaceElement(Element):
     :type to_udp_port: int
     :ivar udp_port: the port number used to send UDP traffic.
     :type udp_port: int
-    :ivar initialized: tells whether the interface was initialized or not.
-    :type initialized: bool
     """
 
     def __init__(self, interface_dict=None):
@@ -118,7 +110,6 @@ class InterfaceElement(Element):
         self.neighbor_type = interface_dict['NeighborType']
         self.to_udp_port = interface_dict['ToUdpPort']
         self.udp_port = interface_dict['UdpPort']
-        self.initialized = False
 
 
 class RouterElement(Element):
@@ -170,12 +161,10 @@ class Topology(object):
     :vartype routing_edge_routers: list
     """
 
-    def __init__(self, topology_file=None):
+    def __init__(self):
         """
         Initialize an instance of the class Topology.
 
-        :param topology_file: the name of the topology file.
-        :type topology_file: str
         :returns: the newly created Topology instance.
         :rtype: :class:`Topology`
         """
@@ -189,23 +178,47 @@ class Topology(object):
         self.child_edge_routers = []
         self.peer_edge_routers = []
         self.routing_edge_routers = []
-        if topology_file:
-            self.parse(topology_file)
 
-    def parse(self, topology_file):
+    @classmethod
+    def from_file(cls, topology_file):
         """
-        Parse a topology file and populate the instance's attributes.
+        Create a Topology instance from the file.
 
-        :param topology_file: the name of the topology file.
+        :param topology_file: path to the topology file
         :type topology_file: str
+        :returns: the newly created Topology instance
+        :rtype: :class: `Topology`
         """
         try:
             with open(topology_file) as topo_fh:
-                topology = json.load(topo_fh)
+                topology_dict = json.load(topo_fh)
         except (ValueError, KeyError, TypeError):
             logging.error("Topology: JSON format error.")
             return
-        self.is_core_ad = True if (topology['Core'] == 1) else False
+        return cls.from_dict(topology_dict)
+
+    @classmethod
+    def from_dict(cls, topology_dict):
+        """
+        Create a Topology instance from the dictionary.
+
+        :param topology_dict: dictionary representation of a topology
+        :type topology_dict: dict
+        :returns: the newly created Topology instance
+        :rtype: :class:`Topology`
+        """
+        topology = cls()
+        topology.parse_dict(topology_dict)
+        return topology
+
+    def parse_dict(self, topology):
+        """
+        Parse a topology dictionary and populate the instance's attributes.
+
+        :param topology: dictionary representation of a topology
+        :type topology: dict
+        """
+        self.is_core_ad = (topology['Core'] == 1)
         self.isd_id = topology['ISDID']
         self.ad_id = topology['ADID']
         for bs_key in topology['BeaconServers']:

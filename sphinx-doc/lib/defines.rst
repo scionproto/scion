@@ -1,0 +1,3 @@
+
+.. automodule:: lib.defines
+   :members:

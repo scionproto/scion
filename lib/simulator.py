@@ -58,11 +58,11 @@ def generate_topology(topo_str):
     :rtype: dict
     """
 
-    from lib.packet.host_addr import IPv4HostAddr
-    from infrastructure.beacon_server import CoreBeaconServer, LocalBeaconServer
-    from infrastructure.cert_server import CertServer
-    from infrastructure.path_server import CorePathServer, LocalPathServer
-    from infrastructure.router import Router
+    from ipaddress import IPv4Address
+    from simulator.path_server_sim import CorePathServerSim, LocalPathServerSim
+    from simulator.beacon_server_sim import CoreBeaconServerSim, LocalBeaconServerSim
+    from simulator.router_sim import RouterSim
+    from simulator.cert_server_sim import CertServerSim
 
     global simulator
     simulator = Simulator()
@@ -80,25 +80,25 @@ def generate_topology(topo_str):
         l = s.split()
         if l[0] == "router":
             addr = l[1]
-            obj = Router(IPv4HostAddr(l[1]), l[2], l[3], is_sim=is_sim)
+            obj = RouterSim(IPv4Address(l[1]), l[2], l[3])
         elif l[0] == "cert_server":
             addr = l[1]
-            obj = CertServer(IPv4HostAddr(l[1]), l[2], l[3], l[4], is_sim)
+            obj = CertServerSim(IPv4Address(l[1]), l[2], l[3], l[4])
         elif l[0] == "path_server":
             addr = l[2]
             if l[1] == "core":
-                obj = CorePathServer(IPv4HostAddr(l[2]), l[3], l[4], is_sim)
+                obj = CorePathServerSim(IPv4Address(l[2]), l[3], l[4])
             elif l[1] == "local":
-                obj = LocalPathServer(IPv4HostAddr(l[2]), l[3], l[4], is_sim)
+                obj = LocalPathServerSim(IPv4Address(l[2]), l[3], l[4])
             else:
                 logging.error("First parameter can only be 'local' or 'core'!")
                 sys.exit()
         elif l[0] == 'beacon_server':
             addr = l[2]
             if l[1] == "core":
-                obj = CoreBeaconServer(IPv4HostAddr(l[2]), l[3], l[4], l[5], is_sim)
+                obj = CoreBeaconServerSim(IPv4Address(l[2]), l[3], l[4], l[5])
             elif l[1] == "local":
-                obj = LocalBeaconServer(IPv4HostAddr(l[2]), l[3], l[4], l[5], is_sim)
+                obj = LocalBeaconServerSim(IPv4Address(l[2]), l[3], l[4], l[5])
             else:
                 logging.error("First parameter can only be 'local' or 'core'!")
                 sys.exit()

@@ -1,11 +1,11 @@
 # Copyright 2014 ETH Zurich
-
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-
-# http://www.apache.org/licenses/LICENSE-2.0
-
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -16,13 +16,10 @@
 ========================================================================
 """
 
-from collections import defaultdict
+from collections import defaultdict, deque
 from lib.packet.pcb import PathSegment
-from Crypto.Hash import SHA256
 import json
 import logging
-import random
-import sys
 import time
 
 
@@ -30,17 +27,15 @@ class PathPolicy(object):
     """
     Stores a path policy.
     """
-    def __init__(self, path_policy_file=None):
+    def __init__(self):
         self.best_set_size = 5
-        self.candidates_set_size = 600
+        self.candidates_set_size = 20
         self.history_limit = 0
         self.update_after_number = 0
         self.update_after_time = 0
         self.unwanted_ads = []
         self.property_ranges = {}
         self.property_weights = {}
-        if path_policy_file:
-            self.parse(path_policy_file)
 
     def get_path_policy_dict(self):
         path_policy_dict = {'best_set_size': self.best_set_size,
@@ -53,16 +48,96 @@ class PathPolicy(object):
                             'property_weights': self.property_weights}
         return path_policy_dict
 
-    def parse(self, path_policy_file):
+    def check_filters(self, pcb):
         """
-        Parses the policies in the path store config file.
+        Runs some checks, including: unwanted ADs and min/max property values.
+        """
+        assert isinstance(pcb, PathSegment)
+        if not self._check_unwanted_ads(pcb):
+            logging.warning("PathStore: pcb discarded (unwanted AD).")
+            return False
+        if not self._check_property_ranges(pcb):
+            logging.warning("PathStore: pcb discarded (property range).")
+            return False
+        return True
+
+    def _check_unwanted_ads(self, pcb):
+        """
+        Checks whether any of the ADs in the path belong to the black list.
+        """
+        for ad in pcb.ads:
+            if (ad.pcbm.spcbf.isd_id, ad.pcbm.ad_id) in self.unwanted_ads:
+                return False
+        return True
+
+    def _check_property_ranges(self, pcb):
+        """
+        Checks whether any of the path properties has a value outside the
+        predefined min-max range.
+        """
+        check = True
+        if self.property_ranges['PeerLinks']:
+            check = (check and (self.property_ranges['PeerLinks'][0]
+                                <= pcb.get_n_peer_links() <=
+                                self.property_ranges['PeerLinks'][1]))
+        if self.property_ranges['HopsLength']:
+            check = (check and (self.property_ranges['HopsLength'][0]
+                                <= pcb.get_n_hops() <=
+                                self.property_ranges['HopsLength'][1]))
+        if self.property_ranges['DelayTime']:
+            check = (check and (self.property_ranges['DelayTime'][0]
+                                <= int(time.time()) - pcb.get_timestamp() <=
+                                self.property_ranges['DelayTime'][1]))
+        if self.property_ranges['GuaranteedBandwidth']:
+            check = (check and (self.property_ranges['GuaranteedBandwidth'][0]
+                                <= 10 <=
+                                self.property_ranges['GuaranteedBandwidth'][1]))
+        if self.property_ranges['AvailableBandwidth']:
+            check = (check and (self.property_ranges['AvailableBandwidth'][0]
+                                <= 10 <=
+                                self.property_ranges['AvailableBandwidth'][1]))
+        if self.property_ranges['TotalBandwidth']:
+            check = (check and (self.property_ranges['TotalBandwidth'][0]
+                                <= 10 <=
+                                self.property_ranges['TotalBandwidth'][1]))
+        return check
+
+    @classmethod
+    def from_file(cls, policy_file):
+        """
+        Create a PathPolicy instance from the file.
+
+        :param policy_file: path to the path policy file
+        :type policy_file: str
+        :returns: the newly created PathPolicy instance
+        :rtype: :class: `PathPolicy`
         """
         try:
-            with open(path_policy_file) as path_policy_fh:
-                path_policy = json.load(path_policy_fh)
+            with open(policy_file) as path_policy_fh:
+                policy_dict = json.load(path_policy_fh)
         except (ValueError, KeyError, TypeError):
             logging.error("PathPolicy: JSON format error.")
             return
+        return cls.from_dict(policy_dict)
+
+    @classmethod
+    def from_dict(cls, policy_dict):
+        """
+        Create a PathPolicy instance from the dictionary.
+
+        :param policy_dict: dictionary representation of path policy
+        :type policy_dict: dict
+        :returns: the newly created PathPolicy instance
+        :rtype: :class:`PathPolicy`
+        """
+        path_policy = cls()
+        path_policy.parse_dict(policy_dict)
+        return path_policy
+
+    def parse_dict(self, path_policy):
+        """
+        Parses the policies from the dictionary.
+        """
         self.best_set_size = path_policy['BestSetSize']
         self.candidates_set_size = path_policy['CandidatesSetSize']
         self.history_limit = path_policy['HistoryLimit']
@@ -128,7 +203,7 @@ class PathStoreRecord(object):
         self.peer_links = 0
         self.hops_length = 0
         self.disjointness = 0
-        self.last_sent_time = 1420070400 # year 2015
+        self.last_sent_time = 1420070400  # year 2015
         self.last_seen_time = int(time.time())
         self.delay_time = 0
         self.expiration_time = pcb.get_expiration_time()
@@ -185,16 +260,19 @@ class PathStore(object):
     def __init__(self, path_policy):
         self.path_policy = path_policy
         self.candidates = []
-        self.best_paths_history = []
+        self.best_paths_history = deque(maxlen=self.path_policy.history_limit)
 
-    def add_record(self, record):
+    def add_segment(self, pcb):
         """
         Possibly add a new path to the candidates list.
 
         :param pcb: The PCB representing the potential path.
         :type pcb: PathSegment
         """
-        assert isinstance(record, PathStoreRecord)
+        assert isinstance(pcb, PathSegment)
+        if not self.path_policy.check_filters(pcb):
+            return
+        record = PathStoreRecord(pcb)
         for index in range(len(self.candidates)):
             if self.candidates[index] == record:
                 record.last_sent_time = self.candidates[index].last_sent_time
@@ -204,8 +282,10 @@ class PathStore(object):
         self._update_all_fidelity()
         self.candidates = sorted(self.candidates, key=lambda x: x.fidelity,
                                  reverse=True)
-        if len(self.candidates) > self.path_policy.candidates_set_size:
-            self.candidates = self.candidates[:-1]
+        if len(self.candidates) >= self.path_policy.candidates_set_size:
+            self._remove_expired_segments()
+            self.candidates = self.candidates[:self.path_policy.best_set_size]
+            self.best_paths_history.appendleft(self.candidates)
 
     def _update_all_peer_links(self):
         """
@@ -217,7 +297,7 @@ class PathStore(object):
             pl_count.append(candidate.peer_links)
         max_peer_links = max(pl_count)
         for candidate in self.candidates:
-            candidate.peer_links /= max_peer_links
+            candidate.peer_links /= max_peer_links + 1
 
     def _update_all_hops_length(self):
         """
@@ -270,29 +350,59 @@ class PathStore(object):
         for candidate in self.candidates:
             candidate.update_fidelity(self.path_policy)
 
-    def get_candidates(self, k=10):
+    def get_best_segments(self, k=None):
         """
-        Returns k path candidates from the temporary buffer.
+        Returns the k best paths from the temporary buffer.
         """
-        return self.candidates[:k]
+        if k is None:
+            k = self.path_policy.best_set_size
+        self._remove_expired_segments()
+        best_paths = []
+        for candidate in self.candidates[:k]:
+            best_paths.append(candidate.pcb)
+        return best_paths
 
-    def get_last_selection(self, k=10):
+    def get_latest_history_snapshot(self, k=None):
         """
         Returns the latest k best paths from the history.
         """
-        return self.best_paths_history[0][:k]
+        if k is None:
+            k = self.path_policy.best_set_size
+        best_paths = []
+        if self.best_paths_history:
+            for candidate in self.best_paths_history[0][:k]:
+                best_paths.append(candidate.pcb)
+        return best_paths
 
-    def store_selection(self, k=10):
+    def _remove_expired_segments(self):
         """
-        Stores the best k paths into the path history and reset the list of
-        candidates.
+        Remove candidates if their expiration_time is up.
+        """
+        seg_ids = []
+        now = time.time()
+        for candidate in self.candidates:
+            if candidate.expiration_time <= now:
+                seg_ids.append(candidate.id)
+        self.remove_segments(seg_ids)
 
-        .. warning::
-           This function makes use of the `list.clear()` method and thus
-           requires Python 3.3 or greater.
+    def remove_segments(self, seg_ids):
         """
-        self.best_paths_history.insert(0, self.get_candidates(k))
-        self.candidates.clear()
+        Removes segments in 'seg_ids' from the candidates.
+        """
+        self.candidates[:] = [c for c in self.candidates if c.id not in seg_ids]
+        if self.candidates:
+            self._update_all_fidelity()
+            self.candidates = sorted(self.candidates, key=lambda x: x.fidelity,
+                                     reverse=True)
+        
+    def get_segment(self, seg_id):
+        """
+        Returns the segment for the corresponding ID or None.
+        """
+        for record in self.candidates:
+            if record.id == seg_id:
+                return record.pcb
+        return None
 
     def __str__(self):
         path_store_str = "[PathStore]"

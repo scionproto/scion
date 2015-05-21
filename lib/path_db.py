@@ -1,25 +1,35 @@
+# Copyright 2015 ETH Zurich
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """
-path_db.py
-
-Copyright 2015 ETH Zurich
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+:mod:`path_db` --- Path Database
+========================================
 """
 from lib.packet.pcb import PathSegment
 import logging
 import time
 
 from pydblite.pydblite import Base
+
+
+class DBResult(object):
+    """
+    Enum type for the different result of an insertion.
+    """
+    NONE = 0
+    ENTRY_ADDED = 1
+    ENTRY_UPDATED = 2
+    ENTRY_DELETED = 3
 
 
 class PathSegmentDBRecord(object):
@@ -50,28 +60,33 @@ class PathSegmentDB(object):
     """
     def __init__(self):
         db = Base("", save_to_file=False)
-        db.create('record', 'id', 'src_isd', 'src_ad', 'dst_isd', 'dst_ad', mode='override')
+        db.create('record', 'id', 'src_isd', 'src_ad', 'dst_isd', 'dst_ad',mode='override')
         db.create_index('id')
         db.create_index('dst_isd')
         db.create_index('dst_ad')
 
         self._db = db
 
-    def __getitem__(self, rec_id):
+    def __getitem__(self, seg_id):
         """
-        Returns a path object by record id.
+        Returns a path object by segment id.
         """
-        if rec_id in self._db:
-            return self._db[rec_id]['record'].pcb
+        recs = self._db(id=seg_id)
+        if recs:
+            return recs[0]['record'].pcb
         else:
             return None
+
+    def __contains__(self, seg_id):
+        recs = self._db(id=seg_id)
+
+        return len(recs) > 0
 
     def update(self, pcb, src_isd, src_ad, dst_isd, dst_ad):
         """
         Inserts path into database.
 
-        Returns the record ID of the updated path or None if nothing was
-        updated.
+        Returns the result of the operation.
         """
         assert isinstance(pcb, PathSegment)
         record = PathSegmentDBRecord(pcb)
@@ -80,23 +95,21 @@ class PathSegmentDB(object):
         assert len(recs) <= 1, "PathDB contains > 1 path with the same ID"
 
         if not recs:
-            rec_id = self._db.insert(record, record.id, src_isd, src_ad,
-                                     dst_isd, dst_ad)
+            self._db.insert(record, record.id, src_isd, src_ad, dst_isd, dst_ad)
             logging.debug("Created new entry in DB for (%d, %d) -> (%d, %d):" +
                           "\n%s", src_isd, src_ad, dst_isd, dst_ad, record.id)
-            return rec_id
+            return DBResult.ENTRY_ADDED
         else:
             cur_rec = recs[0]['record']
-            rec_id = recs[0]['__id__']
             if pcb.get_expiration_time() <= cur_rec.pcb.get_expiration_time():
                 logging.debug("Fresher path-segment for (%d, %d) -> (%d, %d) " +
                               "already known", src_isd, src_ad, dst_isd, dst_ad)
-                return None
+                return DBResult.NONE
             else:
                 cur_rec.pcb.set_timestamp(pcb.get_timestamp())
                 logging.debug("Updated expiration time for segment with ID %s",
                               cur_rec.id)
-                return rec_id
+                return DBResult.ENTRY_UPDATED
 
     def update_all(self, pcbs, src_isd, src_ad, dst_isd, dst_ad):
         """
@@ -104,6 +117,17 @@ class PathSegmentDB(object):
         """
         for pcb in pcbs:
             self.update(pcb, src_isd, src_ad, dst_isd, dst_ad)
+
+    def delete(self, segment_id):
+        """
+        Deletes a path segment with a given ID.
+        """
+        recs = self._db(id=segment_id)
+        if recs:
+            self._db.delete(recs)
+            return DBResult.ENTRY_DELETED
+        else:
+            return DBResult.NONE
 
     def __call__(self, *args, **kwargs):
         """
