@@ -1,5 +1,5 @@
 """
-end2end_test.py
+sim_ping_pong.py
 
 Copyright 2014 ETH Zurich
 
