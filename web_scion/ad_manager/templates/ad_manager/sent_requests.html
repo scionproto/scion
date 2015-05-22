@@ -17,7 +17,7 @@
     <tbody>
     {% for request in sent_requests %}
       <tr>
-        <td>{{ request.connect_to }}</td>
+        <td><a href="{{ request.connect_to.get_absolute_url }}">{{ request.connect_to }}</a></td>
         <td><pre>{{ request.info }}</pre></td>
         <td>{{ request.router_ip }}</td>
         <td>{{ request.status}}</td>

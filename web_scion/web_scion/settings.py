@@ -93,4 +93,4 @@ MESSAGE_TAGS = {
 
 STATIC_URL = '/static/'
 
-LOGIN_URL = '/admin/'
+LOGIN_URL = '/login/'

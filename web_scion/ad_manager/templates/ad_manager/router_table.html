@@ -19,7 +19,7 @@
       <td class="text-center">{{ router.interface_addr }}</td>
       <td class="text-center">{{ router.interface_toaddr }}</td>
       <td class="text-center">
-        <a href="{% url 'ad_detail' router.neighbor_ad.id %}">{{ router.neighbor_ad }}</a>
+        <a href="{{ router.neighbor_ad.get_absolute_url }}">{{ router.neighbor_ad }}</a>
       </td>
       <td>{{ router.neighbor_type }}</td>
       <td class="status-column">

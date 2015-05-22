@@ -370,7 +370,7 @@ class ConnectionRequestView(FormView):
         form.instance.created_by = self.request.user
         form.instance.status = 'SENT'
         form.save()
-        self.success_url = reverse('ad_detail', args=[self._get_ad().id])
+        self.success_url = reverse('sent_requests')
         return super().form_valid(form)
 
     def get_context_data(self, **kwargs):

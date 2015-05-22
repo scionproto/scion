@@ -6,6 +6,7 @@ import tarfile
 
 # External packages
 from django.contrib.auth.models import User
+from django.core.urlresolvers import reverse
 from django.db import models, IntegrityError
 
 # SCION
@@ -36,6 +37,9 @@ class SelectRelatedModelManager(models.Manager):
 
 class ISD(models.Model):
     id = models.IntegerField(primary_key=True)
+
+    def get_absolute_url(self):
+        return reverse('isd_detail', args=[self.id])
 
     def __str__(self):
         return str(self.id)
@@ -171,6 +175,9 @@ class AD(models.Model):
                 ps_element.save()
         except IntegrityError:
             pass
+
+    def get_absolute_url(self):
+        return reverse('ad_detail', args=[self.id])
 
     def __str__(self):
         return '{}-{}'.format(self.isd.id, self.id)
