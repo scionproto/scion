@@ -76,22 +76,12 @@ class CoreBeaconServerSim(CoreBeaconServer):
         self.signing_key = base64.b64decode(self.signing_key)
         self.if2rev_tokens = {}
         self.seg2rev_tokens = {}
-        # self._if_rev_token_lock = threading.Lock()
 
         self.ifid_state = {}
         for ifid in self.ifid2addr:
             self.ifid_state[ifid] = InterfaceState()
 
         self._latest_entry = 0
-        # Set when we have connected and read the existing recent and incoming
-        # PCBs
-        # self._state_synced = threading.Event()
-        # # TODO(kormat): def zookeeper host/port in topology
-        # self.zk = Zookeeper(
-        #     self.topology.isd_id, self.topology.ad_id,
-        #     "bs", self.addr.host_addr, ["localhost:2181"],
-        #     ensure_paths=(self.ZK_PCB_CACHE_PATH,))
-
         # Constructor of CBS
         # Sanity check that we should indeed be a core beacon server.
         assert self.topology.is_core_ad, "This shouldn't be a core BS!"
@@ -121,27 +111,16 @@ class CoreBeaconServerSim(CoreBeaconServer):
         Run an instance of the Beacon Server.
         """
         logging.info('Running Core Beacon Server: %s', str(self.addr))
-        schedule(0., cb=self.simulate_pcbs_propagation)
-        schedule(0., cb=self.simulate_register_segments)
+        schedule(0., cb=self.handle_pcbs_propagation)
+        schedule(0., cb=self.register_segments)
 
     def clean(self):
         pass
 
-    def simulate_pcbs_propagation(self):
+    def handle_pcbs_propagation(self):
         """
         Generates a new beacon or gets ready to forward the one received.
         """
-        # self._state_synced.wait()
-        # if not master:
-        #     logging.debug("Trying to become master")
-        # if not self.zk.get_lock():
-        #     if master:
-        #         logging.debug("No longer master")
-        #         master = False
-        #     schedule(0., cb=self.simulate_pcbs_propogation, args=(master))
-        # if not master:
-        #     logging.debug("Became master")
-        #     master = True
         start_propagation = time.time()
         # Create beacon for downstream ADs.
         downstream_pcb = PathSegment()
@@ -166,38 +145,22 @@ class CoreBeaconServerSim(CoreBeaconServer):
             count += self.propagate_core_pcb(pcb)
         logging.info("Propagated %d Core PCBs", count)
 
-        # try:
-        #     count = self.zk.expire_shared_items(
-        #         self.ZK_PCB_CACHE_PATH,
-        #         start_propagation - self.config.propagation_time*10)
-        # except ZkConnectionLoss:
-        #     schedule(0., cb=self.simulate_pcbs_propogation, args=(master))
-        # if count:
-        #     logging.debug("Expired %d old PCBs from shared cache", count)
-        
         now = time.time()
         schedule(start_propagation + self.config.propagation_time - now
-            , cb=self.simulate_pcbs_propagation)
+            , cb=self.handle_pcbs_propagation)
 	
-    def simulate_register_segments(self):
+    def register_segments(self):
         if not self.config.registers_paths:
             logging.info("Path registration unwanted, leaving"
                          "register_segments")
             return
 
-        # lock = self.zk.have_lock()
-        # if not lock:
-        #     logging.debug("simulate_register_segments: waiting for lock")
-        # self.zk.wait_lock()
-        # if not lock:
-        #     logging.debug("simulate_register_segments: have lock")
-        #     lock = True
         start_registration = time.time()
         self.register_core_segments()
 
         now = time.time()
         schedule(start_registration + self.config.registration_time - now
-            , cb=self.simulate_register_segments)
+            , cb=self.register_segments)
 
     def store_pcb(self, beacon):
         """
@@ -216,7 +179,6 @@ class CoreBeaconServerSim(CoreBeaconServer):
         """
         Returns the revocation token for a given interface.
         """
-        # self._if_rev_token_lock.acquire()
         ret = None
         if if_id == 0:
             ret = 32 * b"\x00"
@@ -228,7 +190,6 @@ class CoreBeaconServerSim(CoreBeaconServer):
             ret = chain.next_element()
         else:
             ret = self.if2rev_tokens[if_id].current_element()
-        # self._if_rev_token_lock.release()
         return ret
 
 
@@ -263,21 +224,10 @@ class LocalBeaconServerSim(LocalBeaconServer):
         self.signing_key = base64.b64decode(self.signing_key)
         self.if2rev_tokens = {}
         self.seg2rev_tokens = {}
-        # self._if_rev_token_lock = threading.Lock()
 
         self.ifid_state = {}
         for ifid in self.ifid2addr:
             self.ifid_state[ifid] = InterfaceState()
-
-        # self._latest_entry = 0
-        # Set when we have connected and read the existing recent and incoming
-        # PCBs
-        # self._state_synced = threading.Event()
-        # TODO(kormat): def zookeeper host/port in topology
-        # self.zk = Zookeeper(
-        #     self.topology.isd_id, self.topology.ad_id,
-        #     "bs", self.addr.host_addr, ["localhost:2181"],
-        #     ensure_paths=(self.ZK_PCB_CACHE_PATH,))
 
         # Constructor of LBS
 
@@ -316,47 +266,23 @@ class LocalBeaconServerSim(LocalBeaconServer):
         Run an instance of the Local Beacon Server.
         """
         logging.info('Running Local Beacon Server: %s', str(self.addr))
-        schedule(0., cb=self.simulate_pcbs_propagation)
-        schedule(0., cb=self.simulate_register_segments)
+        schedule(0., cb=self.handle_pcbs_propagation)
+        schedule(0., cb=self.register_segments)
 
-    def simulate_pcbs_propagation(self):
+    def handle_pcbs_propagation(self):
         """
         Main loop to propagate received beacons.
         """
-        # TODO: define function that dispatches the pcbs among the interfaces
-        # # Wait until we have enough context to be a useful master
-        # # candidate.
-        # self._state_synced.wait()
-        # if not master:
-        #     logging.debug("Trying to become master")
-        # if not self.zk.get_lock():
-        #     if master:
-        #         logging.debug("No longer master")
-        #         master = False
-        #     continue
-        # if not master:
-        #     logging.debug("Became master")
-        #     master = True
-        # try:
-        #     count = self.zk.expire_shared_items(
-        #         self.ZK_PCB_CACHE_PATH,
-        #         start_propagation - self.config.propagation_time*10)
-        # except ZkConnectionLoss:
-        #     continue
-        # if count:
-        #     logging.debug("Expired %d old PCBs from shared cache", count)
-        # sleep_interval(start_propagation, self.config.propagation_time,
-        #                "PCB propagation")
         start_propagation = time.time()
         best_segments = self.beacons.get_best_segments()
         for pcb in best_segments:
             self.propagate_downstream_pcb(pcb)
         now = time.time()
         schedule(start_propagation + self.config.propagation_time - now
-            , cb=self.simulate_pcbs_propagation)
+            , cb=self.handle_pcbs_propagation)
 
 
-    def simulate_register_segments(self):
+    def register_segments(self):
         """
         Registers paths according to the received beacons.
         """
@@ -364,19 +290,13 @@ class LocalBeaconServerSim(LocalBeaconServer):
             logging.info("Path registration unwanted, "
                          "leaving register_segments")
             return
-        # lock = self.zk.have_lock()
-        # if not lock:
-        #     logging.debug("register_segements: waiting for lock")
-        # self.zk.wait_lock()
-        # if not lock:
-        #     logging.debug("register_segments: have lock")
-        #     lock = True
+
         start_registration = time.time()
         self.register_up_segments()
         self.register_down_segments()
         now = time.time()
         schedule(start_registration + self.config.registration_time - now
-            , cb=self.simulate_register_segments)
+            , cb=self.register_segments)
 
     def clean(self):
         pass
@@ -388,7 +308,6 @@ class LocalBeaconServerSim(LocalBeaconServer):
         assert isinstance(beacon, PathConstructionBeacon)
         if not self.path_policy.check_filters(beacon.pcb):
             return
-        # segment_id = beacon.pcb.get_hops_hash(hex=True)
         pcb = beacon.pcb
         pcbs = []
         pcbs.append(pcb)
@@ -398,7 +317,6 @@ class LocalBeaconServerSim(LocalBeaconServer):
         """
         Returns the revocation token for a given interface.
         """
-        # self._if_rev_token_lock.acquire()
         ret = None
         if if_id == 0:
             ret = 32 * b"\x00"
@@ -410,5 +328,4 @@ class LocalBeaconServerSim(LocalBeaconServer):
             ret = chain.next_element()
         else:
             ret = self.if2rev_tokens[if_id].current_element()
-        # self._if_rev_token_lock.release()
         return ret
