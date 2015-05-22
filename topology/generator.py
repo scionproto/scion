@@ -15,6 +15,7 @@
 :mod:`generator` --- SCION topology generator
 =============================================
 """
+# Stdlib
 import base64
 import configparser
 import json
@@ -24,16 +25,24 @@ import shutil
 import sys
 from ipaddress import ip_address, ip_network
 
+# SCION
 from lib.config import Config
-from lib.crypto.asymcrypto import (sign, generate_signature_keypair,
-    generate_cryptobox_keypair)
-from lib.crypto.certificate import (Certificate, CertificateChain, TRC)
+from lib.crypto.asymcrypto import (
+    generate_cryptobox_keypair,
+    generate_signature_keypair,
+    sign,
+)
+from lib.crypto.certificate import Certificate, CertificateChain, TRC
 from lib.defines import TOPOLOGY_PATH
 from lib.path_store import PathPolicy
 from lib.topology import Topology
-from lib.util import (get_cert_chain_file_path, get_sig_key_file_path,
-    get_enc_key_file_path, get_trc_file_path, write_file)
-
+from lib.util import (
+    get_cert_chain_file_path,
+    get_enc_key_file_path,
+    get_sig_key_file_path,
+    get_trc_file_path,
+    write_file,
+)
 
 DEFAULT_ADCONFIGURATIONS_FILE = 'ADConfigurations.json'
 DEFAULT_PATH_POLICY_FILE = 'PathPolicy.json'
@@ -219,7 +228,6 @@ class ConfigGenerator():
                 full_path = os.path.join(self.out_dir, path)
                 if not os.path.exists(full_path):
                     os.makedirs(full_path)
-        
         if not os.path.exists('SIM'):
             os.makedirs('SIM')
 
@@ -291,7 +299,7 @@ class ConfigGenerator():
                                                  isd_dir=self.out_dir)
             write_file(cert_file, str(chain))
             # Test if parser works
-            cert = CertificateChain(cert_file)
+            CertificateChain(cert_file)
         return {'sig_priv_keys': sig_priv_keys,
                 'sig_pub_keys': sig_pub_keys,
                 'enc_pub_keys': enc_pub_keys}
@@ -300,8 +308,9 @@ class ConfigGenerator():
         with open('SIM/run.sh', 'w') as fh:
             fh.write('#!/bin/bash\n\n')
             fh.write(''.join([
-                'sh -c \"PYTHONPATH=../ python3 sim_test.py ../' + 'SIM/sim.conf' + ' 100.\"\n']))
-
+                'sh -c \"PYTHONPATH=../ python3 sim_test.py ../' + 
+                'SIM/sim.conf' + 
+                ' 100.\"\n']))
 
     def write_topo_files(self, ad_configs, er_ip_addresses):
         """
@@ -317,18 +326,12 @@ class ConfigGenerator():
             (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
             is_core = (ad_configs[isd_ad_id]['level'] == CORE_AD)
             first_byte, mask = self._get_subnet_params(ad_configs[isd_ad_id])
-            if "beacon_servers" in ad_configs[isd_ad_id]:
-                number_bs = ad_configs[isd_ad_id]["beacon_servers"]
-            else:
-                number_bs = DEFAULT_BEACON_SERVERS
-            if "certificate_servers" in ad_configs[isd_ad_id]:
-                number_cs = ad_configs[isd_ad_id]["certificate_servers"]
-            else:
-                number_cs = DEFAULT_CERTIFICATE_SERVERS
-            if "path_servers" in ad_configs[isd_ad_id]:
-                number_ps = ad_configs[isd_ad_id]["path_servers"]
-            else:
-                number_ps = DEFAULT_PATH_SERVERS
+            number_bs = ad_configs[isd_ad_id].get("beacon_servers",
+                                                  DEFAULT_BEACON_SERVERS)
+            number_cs = ad_configs[isd_ad_id].get("certificate_servers",
+                                                  DEFAULT_CERTIFICATE_SERVERS)
+            number_ps = ad_configs[isd_ad_id].get("path_servers",
+                                                  DEFAULT_PATH_SERVERS)
             # Write beginning and general structure
             topo_dict = {'Core': 1 if is_core else 0,
                          'ISDID': int(isd_id),
@@ -357,7 +360,7 @@ class ConfigGenerator():
                 server_addr = self._increment_address(server_addr, mask)
             # Write Path Servers
             if (ad_configs[isd_ad_id]['level'] != INTERMEDIATE_AD or
-                "path_servers" in ad_configs[isd_ad_id]):
+                    "path_servers" in ad_configs[isd_ad_id]):
                 server_addr = '.'.join([first_byte, isd_id, ad_id, PS_RANGE])
                 for p_server in range(1, number_ps + 1):
                     topo_dict['PathServers'][p_server] = {
@@ -368,7 +371,7 @@ class ConfigGenerator():
             # Write Edge Routers
             edge_router = 1
             for nbr_isd_ad_id in ad_configs[isd_ad_id].get("links", []):
-                (nbr_isd_id, nbr_ad_id) = nbr_isd_ad_id.split(ISD_AD_ID_DIVISOR)
+                nbr_isd_id, nbr_ad_id = nbr_isd_ad_id.split(ISD_AD_ID_DIVISOR)
                 ip_address_loc, ip_address_pub = \
                     er_ip_addresses[(isd_ad_id, nbr_isd_ad_id)]
                 nbr_ip_address_pub = \
@@ -394,7 +397,7 @@ class ConfigGenerator():
             with open(topo_file_abs, 'w') as topo_fh:
                 json.dump(topo_dict, topo_fh, sort_keys=True, indent=4)
             # Test if parser works
-            topology = Topology.from_file(topo_file_abs)
+            Topology.from_file(topo_file_abs)
 
             self.write_supervisor_config(topo_dict)
             self.write_setup_file(topo_dict, mask)
@@ -479,7 +482,6 @@ class ConfigGenerator():
                         topo_file + ' ',
                         conf_file, '\n']))
 
-
     def _get_typed_elements(self, topo_dict):
         """
         Generator which iterates over all the elements in the topology
@@ -527,7 +529,7 @@ class ConfigGenerator():
             'redirect_stderr': 'true',
             'environment': 'PYTHONPATH=..',
             'stdout_logfile_maxbytes': '0',
-            'startretries': '1',
+            'startretries': '0',
         }
 
         program_group = []
@@ -538,13 +540,12 @@ class ConfigGenerator():
 
         for (num, element_dict, element_type) \
                 in self._get_typed_elements(topo_dict):
-            ip_addr = element_dict['Addr']
             element_location = 'core' if topo_dict['Core'] else 'local'
             if element_type == 'BeaconServers':
                 element_name = 'bs{}-{}-{}'.format(isd_id, ad_id, num)
                 cmd_args = ['beacon_server.py',
                             element_location,
-                            ip_addr,
+                            num,
                             p['topo_file_rel'],
                             p['conf_file_rel'],
                             p['path_pol_file_rel']]
@@ -552,7 +553,7 @@ class ConfigGenerator():
             elif element_type == 'CertificateServers':
                 element_name = 'cs{}-{}-{}'.format(isd_id, ad_id, num)
                 cmd_args = ['cert_server.py',
-                            ip_addr,
+                            num,
                             p['topo_file_rel'],
                             p['conf_file_rel'],
                             p['trc_file_rel']]
@@ -560,7 +561,7 @@ class ConfigGenerator():
                 element_name = 'ps{}-{}-{}'.format(isd_id, ad_id, num)
                 cmd_args = ['path_server.py',
                             element_location,
-                            ip_addr,
+                            num,
                             p['topo_file_rel'],
                             p['conf_file_rel']]
 
@@ -571,7 +572,7 @@ class ConfigGenerator():
                 element_name = 'er{}-{}er{}-{}'.format(isd_id, ad_id,
                                                        nbr_isd_id, nbr_ad_id)
                 cmd_args = ['router.py',
-                            ip_addr,
+                            num,
                             p['topo_file_rel'],
                             p['conf_file_rel']]
             else:
@@ -617,14 +618,14 @@ class ConfigGenerator():
                          'ResetTime': 600,
                          'CertChainVersion': 0}
             if (ad_configs[isd_ad_id]['level'] != INTERMEDIATE_AD or
-                "path_servers" in ad_configs[isd_ad_id]):
+                    "path_servers" in ad_configs[isd_ad_id]):
                 conf_dict['RegisterPath'] = 1
             else:
                 conf_dict['RegisterPath'] = 0
             with open(conf_file, 'w') as conf_fh:
                 json.dump(conf_dict, conf_fh, sort_keys=True, indent=4)
             # Test if parser works
-            config = Config.from_file(conf_file)
+            Config.from_file(conf_file)
 
     def write_path_pol_files(self, ad_configs, path_policy_file):
         """
@@ -639,7 +640,7 @@ class ConfigGenerator():
             new_path_pol_file = path_dict['path_pol_file_abs']
             shutil.copyfile(path_policy_file, new_path_pol_file)
             # Test if parser works
-            path_policy = PathPolicy.from_file(new_path_pol_file)
+            PathPolicy.from_file(new_path_pol_file)
 
     def write_trc_files(self, ad_configs, keys):
         """
@@ -666,9 +667,6 @@ class ConfigGenerator():
                 if os.path.exists(trc_file):
                     trc = TRC(trc_file)
                     trc.core_ads[subject] = cert
-                    write_file(trc_file, str(trc))
-                    # Test if parser works
-                    trc = TRC(trc_file)
                 else:
                     core_isps = {'isp.com': 'isp.com_cert_base64'}
                     root_cas = {'ca.com': 'ca.com_cert_base64'}
@@ -684,9 +682,10 @@ class ConfigGenerator():
                         core_ads, {}, registry_server_addr,
                         registry_server_cert, root_dns_server_addr,
                         root_dns_server_cert, trc_server_addr, signatures)
-                    write_file(trc_file, str(trc))
-                    # Test if parser works
-                    trc = TRC(trc_file)
+                write_file(trc_file, str(trc))
+                # Test if parser works
+                TRC(trc_file)
+
         for isd_ad_id in ad_configs:
             if ad_configs[isd_ad_id]['level'] == CORE_AD:
                 (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
@@ -700,7 +699,7 @@ class ConfigGenerator():
                     trc.signatures[subject] = sig
                     write_file(trc_file, str(trc))
                     # Test if parser works
-                    trc = TRC(trc_file)
+                    TRC(trc_file)
 
         # Copy the created TRC files to every AD directory, then remove them
         for isd_ad_id in ad_configs:
@@ -745,7 +744,6 @@ class ConfigGenerator():
         self.write_topo_files(ad_configs, er_ip_addresses)
         self.write_sim_file(ad_configs, er_ip_addresses)
         self.write_trc_files(ad_configs, keys)
-
 
 def main():
     """
