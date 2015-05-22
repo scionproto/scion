@@ -16,12 +16,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-#from lib.packet.host_addr import IPv4HostAddr
-#from infrastructure.beacon_server import CoreBeaconServer, LocalBeaconServer
-#from infrastructure.cert_server import CertServer
-#from infrastructure.path_server import CorePathServer, LocalPathServer
-#from infrastructure.router import Router
-
 from lib.sim_core import Simulator
 
 import logging
