@@ -1,5 +1,5 @@
 """
-sciond.py
+sim_host.py
 
 Copyright 2014 ETH Zurich
 
