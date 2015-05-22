@@ -1,5 +1,5 @@
 """
-end2end_test.py
+sim_app.py
 
 Copyright 2014 ETH Zurich
 
