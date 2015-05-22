@@ -36,7 +36,7 @@ SCIOND_API_PORT = 3333
 
 class SCIONSimHost(SCIONElement):
     """
-    The SCION Daemon used for retrieving and combining paths.
+    The SCION Simulator endhost. Applications can be simulated on this host
     """
 
     TIMEOUT = 5
@@ -103,19 +103,20 @@ class SCIONSimHost(SCIONElement):
         src_ad = self.topology.ad_id
 
         eid = schedule(SCIONSimHost.TIMEOUT,
-                        cb=self._expire_request_timeout,
-                        args=(ptype, requestor))
+                       cb=self._expire_request_timeout,
+                       args=(ptype, requestor))
 
         if ptype == PST.UP_DOWN or ptype == PST.UP or ptype == PST.DOWN: 
-            update_dict(self._waiting_targets[ptype], 
-                (dst_isd, dst_ad), [(eid, requestor, dst_ad)])
+            update_dict(self._waiting_targets[ptype],
+                        (dst_isd, dst_ad), 
+                        [(eid, requestor, dst_ad)])
             info = PathSegmentInfo.from_values(ptype, src_isd, 
-                dst_isd, src_ad, dst_ad)
+                                               dst_isd, src_ad, dst_ad)
         elif ptype == PST.CORE:
             update_dict(self._waiting_targets[ptype], 
-                (dst_isd, dst_core_ad), [(eid, requestor, dst_ad)])
+                        (dst_isd, dst_core_ad), [(eid, requestor, dst_ad)])
             info = PathSegmentInfo.from_values(ptype, src_isd, 
-                dst_isd, src_core_ad, dst_core_ad)
+                                               dst_isd, src_core_ad, dst_core_ad)
 
 
         path_request = PathMgmtPacket.from_values(PMT.REQUEST,
@@ -155,7 +156,7 @@ class SCIONSimHost(SCIONElement):
                 if ((src_isd, src_core_ad) != (dst_isd, dst_core_ad) and
                     not core_segments):
                     self._request_paths(requestor, PST.CORE,
-                     dst_isd, dst_ad, src_core_ad, dst_core_ad)
+                                        dst_isd, dst_ad, src_core_ad, dst_core_ad)
                     return None
 
                 full_paths = PathCombinator.build_core_paths(
@@ -183,7 +184,9 @@ class SCIONSimHost(SCIONElement):
             return None
 
         core_segments = self.core_segments(src_isd=src_isd, 
-            src_ad=src_core_ad, dst_isd=dst_isd, dst_ad=dst_core_ad)
+                                           src_ad=src_core_ad, 
+                                           dst_isd=dst_isd, 
+                                           dst_ad=dst_core_ad)
         logging.debug("(%d, %d)->(%d, %d)", src_isd, src_ad, dst_isd, dst_ad)
         if core_segments:
             up_segment = []
@@ -199,8 +202,8 @@ class SCIONSimHost(SCIONElement):
                     break
 
             if up_segment and down_segment:
-                full_paths = PathCombinator.build_core_paths(up_segment, 
-                    down_segment, core_segments)
+                full_paths = PathCombinator.build_core_paths(
+                    up_segment, down_segment, core_segments)
 
         return full_paths
 
@@ -253,9 +256,9 @@ class SCIONSimHost(SCIONElement):
                 
                 if info.type == PST.UP_DOWN:
                     full_paths = self._get_full_paths(src_isd, src_ad, 
-                        dst_isd, dst_ad)
+                                                      dst_isd, dst_ad)
                     down_segments = self.down_segments(dst_isd=dst_isd, 
-                        dst_ad=dst_ad)
+                                                       dst_ad=dst_ad)
                     if len(self.up_segments) and down_segments:
                         unschedule(eid)
                         self._waiting_targets[info.type][(dst_isd, dst_ad)].remove(
@@ -294,8 +297,8 @@ class SCIONSimHost(SCIONElement):
                     if not full_paths:
                         #TODO What action to be taken?
                         continue
-                elif info.type == PST.DOWN and self.down_segments(dst_isd=dst_isd, 
-                    dst_ad=dst_ad):
+                elif info.type == PST.DOWN and self.down_segments(
+                    dst_isd=dst_isd, dst_ad=dst_ad):
                     full_paths = self._get_full_paths(src_isd, src_ad, 
                         dst_isd, dst_ad)
                     unschedule(eid)
@@ -383,7 +386,8 @@ class SCIONSimHost(SCIONElement):
         if dst[1] == SCION_UDP_EH_DATA_PORT:
             assert dst[0] == str(self.addr.host_addr)
             #TODO For now, a hack!!
-            _,_,recv_cb,_=list(self.apps.values())[0]
+            # Hack is that we are assuming that only one application runs on a host
+            _, _, recv_cb, _ = list(self.apps.values())[0]
             recv_cb(packet, src, dst)
         #if dst[0] == str(self.addr) and dst[1] in self.apps:
         #    _,_,recv_cb,_=self.apps[dst[1]]
