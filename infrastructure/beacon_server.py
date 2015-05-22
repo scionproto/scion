@@ -272,6 +272,8 @@ class BeaconServer(SCIONElement):
         ssf = SupportSignatureField.from_values(ADMarking.LEN)
         hof = HopOpaqueField.from_values(BeaconServer.HOF_EXP_TIME,
                                          ingress_if, egress_if)
+        if prev_hof is None:
+            hof.info = OFT.LAST_OF
         hof.mac = gen_of_mac(self.of_gen_key, hof, prev_hof, ts)
         spcbf = SupportPCBField.from_values(isd_id=self.topology.isd_id)
         pcbm = PCBMarking.from_values(self.topology.ad_id, ssf, hof, spcbf,
