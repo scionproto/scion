@@ -90,9 +90,9 @@ class RouterSim(Router):
         self.handle_request(packet, src, to_local)
 
     def run(self):
-        schedule(0., cb=self.simulate_sync_interface)
+        schedule(0., cb=self.init_interface)
 
-    def simulate_sync_interface(self):
+    def init_interface(self):
         """
         Synchronize and initialize the router's interface with that of a
         neighboring router.
@@ -111,7 +111,7 @@ class RouterSim(Router):
         logging.info('Sending IFID_PKT to router: req_id:%d, rep_id:%d',
                      ifid_req.request_id, ifid_req.reply_id)
 
-        schedule(IFID_PKT_TOUT, cb=self.simulate_sync_interface)
+        schedule(IFID_PKT_TOUT, cb=self.init_interface)
 
 
     def clean(self):
