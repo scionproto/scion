@@ -38,7 +38,7 @@ class SCIONSimApplication(object):
             self.run, self.sim_recv, self.handle_path_reply)
         self.addr = str(host.addr.host_addr)
         logging.info("Application: %s added on host: %s",
-            str(app_port), self.addr)
+                     str(app_port), self.addr)
         self.app_cb = None
         self.app_port = app_port
         self.start_time = 0
@@ -56,9 +56,9 @@ class SCIONSimApplication(object):
         msg = b'\x00' + struct.pack("H", isd) + struct.pack("Q", ad)
         logging.info("Sending path request to local API.")
         eid = schedule(0., dst=self.addr,
-                        args=(msg,
-                            (self.addr, self.app_port),
-                            (self.addr, SCIOND_API_PORT)))
+                       args=(msg, 
+                       (self.addr, self.app_port),
+                       (self.addr, SCIOND_API_PORT)))
         assert eid >= 0
 
     def handle_path_reply(self, data):
