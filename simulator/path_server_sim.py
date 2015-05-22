@@ -26,7 +26,7 @@ from lib.simulator import add_element, schedule
 
 class CorePathServerSim(CorePathServer):
     """
-    Simulator version of SCION Path Server in a core AD
+    Simulator version of the SCION Path Server in a core AD
     """
     def __init__(self, addr, topo_file, config_file):
         self._addr = None
@@ -87,7 +87,7 @@ class CorePathServerSim(CorePathServer):
 
 class LocalPathServerSim(LocalPathServer):
     """
-    Simulator version of SCION Path Server in a local AD
+    Simulator version of the SCION Path Server in a local AD
     """
     def __init__(self, addr, topo_file, config_file):
         self._addr = None
