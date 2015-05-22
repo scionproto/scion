@@ -29,7 +29,6 @@ class CorePathServerSim(CorePathServer):
     Simulator version of SCION Path Server in a core AD
     """
     def __init__(self, addr, topo_file, config_file):
-        # Constructor of ScionElem
         self._addr = None
         self.topology = None
         self.config = None
@@ -42,7 +41,6 @@ class CorePathServerSim(CorePathServer):
         self.construct_ifid2addr_map()
         add_element(str(self.addr.host_addr), self)
 
-        #Constructor of PS
         self.down_segments = PathSegmentDB()
         self.core_segments = PathSegmentDB()  # Direction of the propagation.
         self.pending_down = {}  # Dict of pending DOWN _and_ UP_DOWN requests.
@@ -51,7 +49,6 @@ class CorePathServerSim(CorePathServer):
         # TODO replace by some cache data struct. (expiringdict ?)
         self.revocations = ExpiringDict(1000, 300)
 
-        #Constructor of CPS
         # Sanity check that we should indeed be a core path server.
         assert self.topology.is_core_ad, "This shouldn't be a core PS!"
 
@@ -93,7 +90,6 @@ class LocalPathServerSim(LocalPathServer):
     Simulator version of SCION Path Server in a local AD
     """
     def __init__(self, addr, topo_file, config_file):
-        # Constructor of ScionElem
         self._addr = None
         self.topology = None
         self.config = None
@@ -106,7 +102,6 @@ class LocalPathServerSim(LocalPathServer):
         self.construct_ifid2addr_map()
         add_element(str(self.addr.host_addr), self)
 
-        #Constructor of PS
         self.down_segments = PathSegmentDB()
         self.core_segments = PathSegmentDB()  # Direction of the propagation.
         self.pending_down = {}  # Dict of pending DOWN _and_ UP_DOWN requests.
@@ -114,8 +109,7 @@ class LocalPathServerSim(LocalPathServer):
         self.waiting_targets = set()  # Used when local PS doesn't have up-path.
         # TODO replace by some cache data struct. (expiringdict ?)
         self.revocations = ExpiringDict(1000, 300)
-
-        # Constructor of LPS
+        
         # Sanity check that we should indeed be a local path server.
         assert not self.topology.is_core_ad, "This shouldn't be a local PS!"
         # Database of up-segments to the core.
