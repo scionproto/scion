@@ -37,12 +37,12 @@ from lib.packet.opaque_field import (
 from lib.packet.pcb import PathSegment, PathConstructionBeacon
 from lib.packet.scion_addr import SCIONAddr
 from lib.path_store import PathPolicy, PathStore
-from lib.simulator import add_element, schedule
 from lib.util import (
     read_file,
     get_cert_chain_file_path,
     get_sig_key_file_path
 )
+from simulator.simulator import add_element, schedule
 
 
 class CoreBeaconServerSim(CoreBeaconServer):

@@ -22,6 +22,10 @@ import logging
 import sys
 import os
 
+SCRIPTS_DIR = 'topology'
+SIM_DIR = 'SIM'
+SIM_CONF = 'sim.conf'
+
 def add_element (addr, element):
     logging.debug("adding element with addr %s", addr)
     simulator.add_element(addr, element)
@@ -62,7 +66,8 @@ def generate_topology(topo_str):
     simulator = Simulator()
 
     try:
-        with open("../topology/SIM/sim.conf") as f:
+        sim_conf_file_rel = os.path.join("..", SCRIPTS_DIR, SIM_DIR, SIM_CONF)
+        with open(sim_conf_file_rel) as f:
             content = f.read().splitlines()
             f.close()
     except IOError:

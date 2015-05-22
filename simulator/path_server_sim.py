@@ -22,7 +22,7 @@ from infrastructure.path_server import CorePathServer, LocalPathServer
 from lib.defines import SCION_UDP_PORT
 from lib.packet.scion_addr import SCIONAddr
 from lib.path_db import PathSegmentDB
-from lib.simulator import add_element, schedule
+from simulator.simulator import add_element, schedule
 
 class CorePathServerSim(CorePathServer):
     """

@@ -23,7 +23,7 @@ import profile
 from application.sim_ping_pong import SimPingApp, SimPongApp
 from endhost.sim_host import SCIONSimHost
 from ipaddress import IPv4Address
-from lib.simulator import generate_topology, run
+from simulator.simulator import generate_topology, run
 
 
 class PingPongSimTest(unittest.TestCase):

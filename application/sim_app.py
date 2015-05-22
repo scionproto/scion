@@ -25,8 +25,8 @@ from lib.packet.path import (
     CrossOverPath,
     EmptyPath)
 from lib.packet.opaque_field import InfoOpaqueField, OpaqueFieldType
-from lib.simulator import schedule
 from endhost.sim_host import SCIONSimHost, SCIOND_API_PORT
+from simulator.simulator import schedule
 
 class SCIONSimApplication(object):
     """

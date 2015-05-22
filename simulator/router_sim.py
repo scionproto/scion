@@ -21,7 +21,7 @@ from infrastructure.router import Router, NextHop, IFID_PKT_TOUT
 from lib.defines import SCION_UDP_PORT
 from lib.packet.scion import IFIDPacket
 from lib.packet.scion_addr import SCIONAddr, ISD_AD
-from lib.simulator import add_element, schedule
+from simulator.simulator import add_element, schedule
 
 
 class RouterSim(Router):

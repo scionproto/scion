@@ -19,8 +19,8 @@ limitations under the License.
 from application.sim_app import SCIONSimApplication
 from lib.packet.scion import SCIONPacket
 from lib.packet.scion_addr import SCIONAddr
-from lib.simulator import schedule, terminate
 import logging
+from simulator.simulator import schedule, terminate
 
 class SimPingApp(SCIONSimApplication):
     """

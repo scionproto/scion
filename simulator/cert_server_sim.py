@@ -26,12 +26,12 @@ from lib.packet.scion import (
     TRCReply
 )
 from lib.packet.scion_addr import SCIONAddr
-from lib.simulator import add_element, schedule
 from lib.util import (
     get_cert_chain_file_path,
     get_trc_file_path,
     write_file
 )
+from simulator.simulator import add_element, schedule
 
 
 class CertServerSim(CertServer):

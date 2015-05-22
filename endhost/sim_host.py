@@ -29,8 +29,8 @@ from lib.packet.path_mgmt import (
 )
 from lib.packet.scion_addr import SCIONAddr, ISD_AD
 from lib.path_db import PathSegmentDB
-from lib.simulator import add_element, schedule, unschedule
 from lib.util import update_dict
+from simulator.simulator import add_element, schedule, unschedule
 
 SCIOND_API_PORT = 3333
 
