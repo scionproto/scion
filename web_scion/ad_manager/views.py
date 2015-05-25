@@ -1,16 +1,27 @@
+# Stdlib
 import json
 import os
 import tempfile
+
+# External packages
 from django.core.urlresolvers import reverse
 from django.db import transaction
 from django.http import JsonResponse, HttpResponse, HttpResponseNotFound
 from django.shortcuts import redirect
 from django.views.generic import ListView, DetailView
+
+# SCION
+from ad_management.common import (
+    ARCHIVE_DIST_PATH,
+    get_data,
+    get_success_data,
+    is_success,
+    response_failure,
+)
 from ad_manager.models import AD, ISD
 from ad_manager.util import monitoring_client
-from ad_management.common import (is_success, get_success_data,
-    ARCHIVE_DIST_PATH, get_data, response_failure)
 from lib.topology import Topology
+
 
 ARCH_NAME = 'scion-0.1.0.tar.gz'
 

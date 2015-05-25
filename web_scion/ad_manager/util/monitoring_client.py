@@ -1,8 +1,11 @@
+# Stdlib
 import base64
 import hashlib
 import os
 import xmlrpc.client
-from ad_management.common import (get_monitoring_server, response_failure)
+
+# SCION
+from ad_management.common import get_monitoring_server, response_failure
 
 
 def get_ad_info(isd_id, ad_id, md_host):

@@ -5,15 +5,22 @@
 #
 # Inspired by http://stackoverflow.com/q/5690733/1181370
 
+# Stdlib
+import logging
+import os
 import socket
 import socketserver
 import ssl
-import os
-import logging
 import xmlrpc.client
-from xmlrpc.server import (SimpleXMLRPCServer, SimpleXMLRPCDispatcher,
-                           SimpleXMLRPCRequestHandler)
+from xmlrpc.server import (
+    SimpleXMLRPCDispatcher,
+    SimpleXMLRPCRequestHandler,
+    SimpleXMLRPCServer,
+)
+
+# SCION
 from ad_management.common import CERT_DIR_PATH
+
 
 try:
     import fcntl

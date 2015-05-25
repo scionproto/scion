@@ -2,10 +2,14 @@
 
 # Import ISD/AD data from topology files
 
+# Stdlib
 import glob
 import os
 import sys
+
+# SCION
 from ad_management.common import SCION_ROOT, WEB_SCION_DIR
+
 
 os.environ['DJANGO_SETTINGS_MODULE'] = 'web_scion.settings'
 sys.path.insert(0, WEB_SCION_DIR)

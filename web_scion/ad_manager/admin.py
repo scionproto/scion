@@ -1,6 +1,15 @@
+# External packages
 from django.contrib import admin
-from ad_manager.models import (ISD, AD, BeaconServerWeb, PathServerWeb,
-    CertificateServerWeb, RouterWeb)
+
+# SCION
+from ad_manager.models import (
+    AD,
+    BeaconServerWeb,
+    CertificateServerWeb,
+    ISD,
+    PathServerWeb,
+    RouterWeb,
+)
 
 
 class ADAdmin(admin.ModelAdmin):

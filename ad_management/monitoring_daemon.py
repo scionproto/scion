@@ -1,14 +1,25 @@
 #!/usr/bin/env python3
+
+# Stdlib
 import base64
-import os
-import sys
 import hashlib
 import logging
+import os
+import sys
 from subprocess import Popen
+
+# SCION
+from ad_management.common import (
+    get_supervisor_server,
+    is_success,
+    MONITORING_DAEMON_PORT,
+    response_failure,
+    response_success,
+    SCION_ROOT,
+    UPDATE_DIR_PATH,
+    UPDATE_SCRIPT_PATH,
+)
 from ad_management.secure_rpc_server import XMLRPCServerTLS
-from ad_management.common import (get_supervisor_server, UPDATE_DIR_PATH,
-    MONITORING_DAEMON_PORT, UPDATE_SCRIPT_PATH, SCION_ROOT, response_success,
-    is_success, response_failure)
 from lib.util import init_logging
 from topology.generator import TOPO_DIR, SCRIPTS_DIR
 

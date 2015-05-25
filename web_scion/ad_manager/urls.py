@@ -1,5 +1,9 @@
+# External packages
 from django.conf.urls import patterns, url
+
+# SCION
 from ad_manager import views
+
 
 urlpatterns = patterns('',
     url(r'^isds/$',

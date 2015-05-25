@@ -1,6 +1,11 @@
+# Stdlib
 import json
+
+# External packages
 from django.db import models, IntegrityError
-from ad_management.common import (is_success, get_success_data)
+
+# SCION
+from ad_management.common import is_success, get_success_data
 from ad_manager.util import monitoring_client
 from lib.topology import Topology
 
