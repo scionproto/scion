@@ -39,6 +39,7 @@ class MonitoringDaemon(object):
 
         Read topology file of the given AD.
         """
+        isd_id, ad_id = str(isd_id), str(ad_id)
         logging.info('get_topology call')
         file_name = 'ISD:' + isd_id + '-AD:' + ad_id + '.json'
         topo_file = os.path.join('ISD' + isd_id, TOPO_DIR, file_name)

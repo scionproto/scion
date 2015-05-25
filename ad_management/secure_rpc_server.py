@@ -45,7 +45,7 @@ class XMLRPCServerTLS(SimpleXMLRPCServer):
             cert_reqs=ssl.CERT_NONE,  # TODO
             certfile=os.path.join(CERT_DIR_PATH, 'cert.pem'),
             keyfile=os.path.join(CERT_DIR_PATH, 'key.pem'),
-            ssl_version=ssl.PROTOCOL_SSLv23,
+            ssl_version=ssl.PROTOCOL_TLSv1_2,
         )
         logging.warning('Certificate validation is disabled!')
         if bind_and_activate:
