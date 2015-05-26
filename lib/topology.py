@@ -159,6 +159,8 @@ class Topology(object):
     :vartype beacon_servers: list
     :ivar certificate_servers: certificate servers in the AD.
     :vartype certificate_servers: list
+    :ivar dns_servers: dns servers in the AD.
+    :vartype dns_servers: list
     :ivar path_servers: path servers in the AD.
     :vartype path_servers: list
     :ivar parent_edge_routers: edge routers linking the AD to its parents.
@@ -184,6 +186,7 @@ class Topology(object):
         self.ad_id = 0
         self.beacon_servers = []
         self.certificate_servers = []
+        self.dns_servers = []
         self.path_servers = []
         self.parent_edge_routers = []
         self.child_edge_routers = []
@@ -240,6 +243,10 @@ class Topology(object):
             c_server = ServerElement(topology['CertificateServers'][cs_key],
                                      cs_key)
             self.certificate_servers.append(c_server)
+        for ds_key in topology['DNSServers']:
+            d_server = ServerElement(topology['DNSServers'][ds_key],
+                                     ds_key)
+            self.dns_servers.append(d_server)
         for ps_key in topology['PathServers']:
             p_server = ServerElement(topology['PathServers'][ps_key],
                                      ps_key)
@@ -278,6 +285,8 @@ class Topology(object):
             target = self.beacon_servers
         elif server_type == "cs":
             target = self.certificate_servers
+        elif server_type == "ds":
+            target = self.dns_servers
         elif server_type == "ps":
             target = self.path_servers
         elif server_type == "er":
