@@ -111,14 +111,19 @@ class AD(models.Model):
             out_dict['CertificateServers'][str(cs.name)] = cs.get_dict()
         return out_dict
 
+    def get_all_elements(self):
+        elements = [self.routerweb_set.all(), self.pathserverweb_set.all(),
+                    self.beaconserverweb_set.all(),
+                    self.certificateserverweb_set.all()]
+        for element_group in elements:
+            for element in element_group:
+                yield element
+
     def get_all_element_ids(self):
         element_ids = []
-        all_elements = [self.routerweb_set.all(), self.pathserverweb_set.all(),
-                        self.beaconserverweb_set.all(),
-                        self.certificateserverweb_set.all()]
-        for element_group in all_elements:
-            for element in element_group:
-                element_ids.append(element.id_str())
+        all_elements = self.get_all_elements()
+        for element in all_elements:
+            element_ids.append(element.id_str())
         return element_ids
 
     def fill_from_topology(self, topology, clear=False):

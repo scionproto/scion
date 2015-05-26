@@ -39,4 +39,6 @@ urlpatterns = patterns(
         views.list_sent_requests, name='sent_requests'),
     url(r'^ads/(?P<pk>\d+)/new_link/$',
         views.NewLinkView.as_view(), name='new_link'),
+    url(r'^ads/(?P<pk>\d+)/group_master/$',
+        views.get_group_master, name='get_group_master'),
 )

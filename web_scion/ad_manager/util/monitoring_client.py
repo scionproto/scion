@@ -65,4 +65,10 @@ def send_update(s, isd_id, ad_id, arch_path):
 
 @run_remote
 def control_process(s, isd_id, ad_id, process_id, command):
-    return s.control_process(isd_id, ad_id, process_id, command)
+    return s.control_process(str(isd_id), str(ad_id), process_id, command)
+
+
+@run_remote
+def get_master_ip(s, isd_id, ad_id, server_type):
+    return s.get_master_ip(str(isd_id), str(ad_id), server_type)
+

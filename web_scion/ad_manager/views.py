@@ -93,6 +93,34 @@ def get_ad_status(request, pk):
         return JsonResponse({})
 
 
+def get_group_master(request, pk):
+    ad = get_object_or_404(AD, id=pk)
+    server_type = request.GET.get('server_type', '')
+    if server_type != 'bs':
+        return HttpResponseNotFound('Invalid server type')
+
+    md_host = ad.get_monitoring_daemon_host()
+    response = monitoring_client.get_master_ip(md_host, ad.isd.id, ad.id,
+                                               server_type)
+
+    if is_success(response):
+        master_ip = get_success_data(response)
+        ad_elements = ad.get_all_elements()
+        elements = list(filter(lambda el: str(el.addr) == master_ip,
+                               ad_elements))
+        if not elements:
+            return JsonResponse({'status': False,
+                                 'error': 'No element found'})
+        else:
+            server = elements[0]
+            return JsonResponse({'status': True,
+                                 'server_type': server_type,
+                                 'server_id': server.id_str()})
+    else:
+        return JsonResponse({'status': False,
+                             'error': get_failure_errors(response)})
+
+
 def _get_changes(current_topology, remote_topology):
     changes = []
 

@@ -101,6 +101,27 @@ function compareAdTopology(compareUrl) {
     $alertDiv.show();
 }
 
+function showMasterServers() {
+    var server_types = ['bs'];
+    for (var i = 0; i < server_types.length; i++) {
+        var s_type = server_types[i];
+        var getUrl = getMasterUrl + '?server_type=' + s_type;
+        $.ajax({
+            url: getUrl,
+            dataType: "json"
+        }).done(function(data) {
+            if (data['status']) {
+                var $serverRow = $('#' + data['server_id']);
+                var $serverName = $serverRow.children().first();
+                var badge = ' <span class="badge alert-success">master</span>';
+                $serverName.append(badge);
+            }
+        }).fail(function(a1, a2, a3) {
+            // Smth happened
+        });
+    }
+}
+
 function makeTabsPersistent() {
     // Make tabs persistent. Check https://gist.github.com/josheinstein/5586469
     if (location.hash.substr(0,2) == "#!") {
@@ -132,6 +153,9 @@ $(document).ready(function() {
     $("#update-ad-btn").click(function() {
         updateServerStatus(adDetailUrl);
     });
+    // Show master label
+    showMasterServers();
+
 
     // Topology tab callbacks
     initTopologyCheck();

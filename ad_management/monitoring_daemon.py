@@ -27,6 +27,10 @@ import threading
 import time
 from subprocess import Popen
 
+# External packages
+from kazoo.client import KazooClient
+from kazoo.exceptions import NoNodeError
+
 # SCION
 from ad_management.common import (
     get_supervisor_server,
@@ -68,7 +72,8 @@ class MonitoringDaemon(object):
         # Register functions
         to_register = [self.get_topology, self.get_process_info,
                        self.control_process, self.get_ad_info,
-                       self.send_update, self.update_topology]
+                       self.send_update, self.update_topology,
+                       self.get_master_ip]
         for func in to_register:
             self.rpc_server.register_function(func)
         logging.info("Monitoring daemon started")
@@ -287,6 +292,29 @@ class MonitoringDaemon(object):
             out_file_fh.write(raw_data)
         self.run_updater(out_file_path, SCION_ROOT)
         return response_success()
+
+    def get_master_ip(self, isd_id, ad_id, server_type):
+        if server_type not in ['bs', 'cs', 'ps']:
+            return response_failure('Invalid server type')
+        kc = KazooClient(hosts="localhost:2181")
+        lock_path = '/ISD{}-AD{}/{}/lock'.format(isd_id, ad_id, server_type)
+        get_id = lambda name: name.split('__')[-1]
+        try:
+            kc.start()
+            contenders = kc.get_children(lock_path)
+            if not contenders:
+                return response_failure('No lock contenders found')
+
+            lock_holder_file = sorted(contenders, key=get_id)[0]
+            lock_holder_path = os.path.join(lock_path, lock_holder_file)
+            lock_contents = kc.get(lock_holder_path)
+            ip_addr = str(lock_contents[0], 'utf-8')
+            return response_success(ip_addr)
+        except NoNodeError:
+            return response_failure('No lock data found')
+        finally:
+            kc.stop()
+
 
 if __name__ == "__main__":
     init_logging()
