@@ -85,7 +85,7 @@ class Router(SCIONElement):
     """
 
     def __init__(self, router_id, topo_file, config_file, pre_ext_handlers=None,
-                 post_ext_handlers=None):
+                 post_ext_handlers=None, is_sim=False):
         """
         Constructor.
 
@@ -104,7 +104,7 @@ class Router(SCIONElement):
 
         """
         SCIONElement.__init__(self, "er", topo_file, server_id=router_id,
-                              config_file=config_file)
+                              config_file=config_file, is_sim=is_sim)
         self.interface = None
         for edge_router in self.topology.get_all_edge_routers():
             if edge_router.addr == self.addr.host_addr:
@@ -122,13 +122,14 @@ class Router(SCIONElement):
         else:
             self.post_ext_handlers = {}
 
-        self._remote_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self._remote_socket.setsockopt(socket.SOL_SOCKET,
-                                       socket.SO_REUSEADDR, 1)
-        self._remote_socket.bind((str(self.interface.addr),
-                                  self.interface.udp_port))
-        self._sockets.append(self._remote_socket)
-        logging.info("IP %s:%u", self.interface.addr, self.interface.udp_port)
+        if not is_sim:
+            self._remote_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self._remote_socket.setsockopt(socket.SOL_SOCKET,
+                                           socket.SO_REUSEADDR, 1)
+            self._remote_socket.bind((str(self.interface.addr),
+                                      self.interface.udp_port))
+            self._sockets.append(self._remote_socket)
+            logging.info("IP %s:%u", self.interface.addr, self.interface.udp_port)
 
     def run(self):
         threading.Thread(target=self.sync_interface, daemon=True).start()

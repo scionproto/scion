@@ -16,16 +16,13 @@
 ===============================================
 """
 
-import collections
 import logging
 from infrastructure.cert_server import CertServer
 from lib.defines import SCION_UDP_PORT
-from lib.crypto.certificate import TRC
 from lib.packet.scion import (
     CertChainReply,
     TRCReply
 )
-from lib.packet.scion_addr import SCIONAddr
 from lib.util import (
     get_cert_chain_file_path,
     get_trc_file_path,
@@ -38,26 +35,13 @@ class CertServerSim(CertServer):
     """
     The SCION Certificate Server - Simulator
     """
-    def __init__(self, addr, topo_file, config_file, trc_file):
-        # Constructor of ScionElem
-        self._addr = None
-        self.topology = None
-        self.config = None
-        self.ifid2addr = {}
-        self.parse_topology(topo_file)
-        self.addr = SCIONAddr.from_values(self.topology.isd_id,
-                                          self.topology.ad_id, addr)
-        if config_file:
-            self.parse_config(config_file)
-        self.construct_ifid2addr_map()
+    def __init__(self, server_id, topo_file, config_file, trc_file):
+        """
+        Initialises CertServer with is_sim set to True.
+        """
+        CertServer.__init__(self, server_id, topo_file, config_file, 
+                            trc_file, is_sim=True)
         add_element(str(self.addr.host_addr), self)
-
-        #Constructor of CS
-        self.trc = TRC(trc_file)
-        self.cert_chain_requests = collections.defaultdict(list)
-        self.trc_requests = collections.defaultdict(list)
-        self.cert_chains = {}
-        self.trcs = {}
 
     def send(self, packet, dst, dst_port=SCION_UDP_PORT):
         """

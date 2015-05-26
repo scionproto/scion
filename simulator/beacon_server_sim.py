@@ -16,17 +16,13 @@
 ========================================
 """
 
-import base64
 import logging
 import time
-from _collections import deque, defaultdict
 from Crypto.Hash import SHA256
 from infrastructure.beacon_server import (
     CoreBeaconServer,
-    LocalBeaconServer,
-    InterfaceState
+    LocalBeaconServer
 )
-from lib.crypto.certificate import CertificateChain
 from lib.crypto.hash_chain import HashChain
 from lib.defines import SCION_UDP_PORT
 from lib.packet.opaque_field import (
@@ -35,13 +31,6 @@ from lib.packet.opaque_field import (
     TRCField
 )
 from lib.packet.pcb import PathSegment, PathConstructionBeacon
-from lib.packet.scion_addr import SCIONAddr
-from lib.path_store import PathPolicy, PathStore
-from lib.util import (
-    read_file,
-    get_cert_chain_file_path,
-    get_sig_key_file_path
-)
 from simulator.simulator import add_element, schedule
 
 
@@ -49,44 +38,13 @@ class CoreBeaconServerSim(CoreBeaconServer):
     """
     Simulator version of PathConstructionBeacon Server in a core AD
     """
-    def __init__(self, addr, topo_file, config_file, path_policy_file):
-        # Constructor of ScionElem
-        self._addr = None
-        self.topology = None
-        self.config = None
-        self.ifid2addr = {}
-        self.parse_topology(topo_file)
-        self.addr = SCIONAddr.from_values(self.topology.isd_id,
-                                          self.topology.ad_id, addr)
-        if config_file:
-            self.parse_config(config_file)
-        self.construct_ifid2addr_map()
+    def __init__(self, server_id, topo_file, config_file, path_policy_file):
+        """
+        Initialises CoreBeaconServer with is_sim set to True.
+        """
+        CoreBeaconServer.__init__(self, server_id, topo_file, config_file,
+                                  path_policy_file, is_sim=True)
         add_element(str(self.addr.host_addr), self)
-
-        #Constructor of BS
-
-        # TODO: add 2 policies
-        self.path_policy = PathPolicy.from_file(path_policy_file) 
-        self.unverified_beacons = deque()
-        self.trc_requests = {}
-        self.trcs = {}
-        sig_key_file = get_sig_key_file_path(self.topology.isd_id,
-                                             self.topology.ad_id)
-        self.signing_key = read_file(sig_key_file)
-        self.signing_key = base64.b64decode(self.signing_key)
-        self.if2rev_tokens = {}
-        self.seg2rev_tokens = {}
-
-        self.ifid_state = {}
-        for ifid in self.ifid2addr:
-            self.ifid_state[ifid] = InterfaceState()
-
-        self._latest_entry = 0
-        # Constructor of CBS
-        # Sanity check that we should indeed be a core beacon server.
-        assert self.topology.is_core_ad, "This shouldn't be a core BS!"
-        self.beacons = defaultdict(self._ps_factory)
-        self.core_segments = defaultdict(self._ps_factory)
 
     def send(self, packet, dst, dst_port=SCION_UDP_PORT):
         """
@@ -198,50 +156,14 @@ class LocalBeaconServerSim(LocalBeaconServer):
     """
     Simulator version of PathConstructionBeacon Server in a local AD
     """
-    def __init__(self, addr, topo_file, config_file, path_policy_file):
-        # Constructor of ScionElem
-        self._addr = None
-        self.topology = None
-        self.config = None
-        self.ifid2addr = {}
-        self.parse_topology(topo_file)
-        self.addr = SCIONAddr.from_values(self.topology.isd_id,
-                                          self.topology.ad_id, addr)
-        if config_file:
-            self.parse_config(config_file)
-        self.construct_ifid2addr_map()
+    def __init__(self, server_id, topo_file, config_file, path_policy_file):
+        """
+        Initialises LocalBeaconServer with is_sim set to True.
+        """
+        LocalBeaconServer.__init__(self, server_id, topo_file, config_file,
+                                   path_policy_file, is_sim=True)
         add_element(str(self.addr.host_addr), self)
 
-        #Constructor of BS
-        # TODO: add 2 policies
-        self.path_policy = PathPolicy.from_file(path_policy_file)
-        self.unverified_beacons = deque()
-        self.trc_requests = {}
-        self.trcs = {}
-        sig_key_file = get_sig_key_file_path(self.topology.isd_id,
-                                             self.topology.ad_id)
-        self.signing_key = read_file(sig_key_file)
-        self.signing_key = base64.b64decode(self.signing_key)
-        self.if2rev_tokens = {}
-        self.seg2rev_tokens = {}
-
-        self.ifid_state = {}
-        for ifid in self.ifid2addr:
-            self.ifid_state[ifid] = InterfaceState()
-
-        # Constructor of LBS
-
-        # Sanity check that we should indeed be a local beacon server.
-        assert not self.topology.is_core_ad, "This shouldn't be a local BS!"
-        self.beacons = PathStore(self.path_policy)
-        self.up_segments = PathStore(self.path_policy)
-        self.down_segments = PathStore(self.path_policy)
-        self.cert_chain_requests = {}
-        self.cert_chains = {}
-        cert_chain_file = get_cert_chain_file_path(self.topology.isd_id,
-            self.topology.ad_id, self.topology.isd_id, self.topology.ad_id,
-            self.config.cert_chain_version)
-        self.cert_chain = CertificateChain(cert_chain_file)
 
     def send(self, packet, dst, dst_port=SCION_UDP_PORT):
         """

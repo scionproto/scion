@@ -131,9 +131,10 @@ class BeaconServer(SCIONElement):
     # ZK path for incoming PCBs
     ZK_PCB_CACHE_PATH = "pcb_cache"
 
-    def __init__(self, server_id, topo_file, config_file, path_policy_file):
+    def __init__(self, server_id, topo_file, config_file, path_policy_file, 
+                 is_sim=False):
         SCIONElement.__init__(self, "bs", topo_file, server_id=server_id,
-                              config_file=config_file)
+                              config_file=config_file, is_sim=is_sim)
         # TODO: add 2 policies
         self.path_policy = PathPolicy.from_file(path_policy_file)
         self.unverified_beacons = deque()
@@ -151,15 +152,16 @@ class BeaconServer(SCIONElement):
         for ifid in self.ifid2addr:
             self.ifid_state[ifid] = InterfaceState()
 
-        self._latest_entry = 0
-        # Set when we have connected and read the existing recent and incoming
-        # PCBs
-        self._state_synced = threading.Event()
-        # TODO(kormat): def zookeeper host/port in topology
-        self.zk = Zookeeper(
-            self.topology.isd_id, self.topology.ad_id,
-            "bs", self.addr.host_addr, ["localhost:2181"],
-            ensure_paths=(self.ZK_PCB_CACHE_PATH,))
+        if not is_sim:
+            self._latest_entry = 0
+            # Set when we have connected and read the existing recent and incoming
+            # PCBs
+            self._state_synced = threading.Event()
+            # TODO(kormat): def zookeeper host/port in topology
+            self.zk = Zookeeper(
+                self.topology.isd_id, self.topology.ad_id,
+                "bs", self.addr.host_addr, ["localhost:2181"],
+                ensure_paths=(self.ZK_PCB_CACHE_PATH,))
 
     def _get_if_rev_token(self, if_id):
         """
@@ -522,9 +524,10 @@ class CoreBeaconServer(BeaconServer):
     Starts broadcasting beacons down-stream within an ISD and across ISDs
     towards other core beacon servers.
     """
-    def __init__(self, server_id, topo_file, config_file, path_policy_file):
+    def __init__(self, server_id, topo_file, config_file, path_policy_file,
+                 is_sim=False):
         BeaconServer.__init__(self, server_id, topo_file, config_file,
-                              path_policy_file)
+                              path_policy_file, is_sim=is_sim)
         # Sanity check that we should indeed be a core beacon server.
         assert self.topology.is_core_ad, "This shouldn't be a core BS!"
         self.beacons = defaultdict(self._ps_factory)
@@ -711,9 +714,10 @@ class LocalBeaconServer(BeaconServer):
     servers.
     """
 
-    def __init__(self, server_id, topo_file, config_file, path_policy_file):
+    def __init__(self, server_id, topo_file, config_file, path_policy_file, 
+                 is_sim=False):
         BeaconServer.__init__(self, server_id, topo_file, config_file,
-                              path_policy_file)
+                              path_policy_file, is_sim=is_sim)
         # Sanity check that we should indeed be a local beacon server.
         assert not self.topology.is_core_ad, "This shouldn't be a local BS!"
         self.beacons = PathStore(self.path_policy)

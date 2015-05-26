@@ -28,38 +28,14 @@ class RouterSim(Router):
     """
     Simulator version of the SCION Router
     """
-    def __init__(self, addr, topo_file, config_file, pre_ext_handlers=None,
+    def __init__(self, router_id, topo_file, config_file, pre_ext_handlers=None,
                  post_ext_handlers=None):
-        # Constructor of ScionElem
-        self._addr = None
-        self.topology = None
-        self.config = None
-        self.ifid2addr = {}
-        self.parse_topology(topo_file)
-        self.addr = SCIONAddr.from_values(self.topology.isd_id,
-                                          self.topology.ad_id, addr)
-        if config_file:
-            self.parse_config(config_file)
-        self.construct_ifid2addr_map()
+        """
+        Initialises Router with is_sim set to True.
+        """
+        Router.__init__(self, router_id, topo_file, config_file, 
+                        pre_ext_handlers, post_ext_handlers, is_sim=True)
         add_element(str(self.addr.host_addr), self)
-
-        # Constructor of Router
-        self.interface = None
-        for edge_router in self.topology.get_all_edge_routers():
-            if edge_router.addr == self.addr.host_addr:
-                self.interface = edge_router.interface
-                break
-        assert self.interface != None
-        logging.info("Interface: %s", self.interface.__dict__)
-
-        if pre_ext_handlers:
-            self.pre_ext_handlers = pre_ext_handlers
-        else:
-            self.pre_ext_handlers = {}
-        if post_ext_handlers:
-            self.post_ext_handlers = post_ext_handlers
-        else:
-            self.post_ext_handlers = {}
         add_element(str(self.interface.addr), self)
 
     def send(self, packet, next_hop, use_local_socket=True):
