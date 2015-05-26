@@ -78,26 +78,22 @@ def generate_topology(topo_str):
     for s in content:
         l = s.split()
         if l[0] == "router":
-            addr = l[1]
-            obj = RouterSim(IPv4Address(l[1]), l[2], l[3])
+            obj = RouterSim(l[1], l[2], l[3])
         elif l[0] == "cert_server":
-            addr = l[1]
-            obj = CertServerSim(IPv4Address(l[1]), l[2], l[3], l[4])
+            obj = CertServerSim(l[1], l[2], l[3], l[4])
         elif l[0] == "path_server":
-            addr = l[2]
             if l[1] == "core":
-                obj = CorePathServerSim(IPv4Address(l[2]), l[3], l[4])
+                obj = CorePathServerSim(l[2], l[3], l[4])
             elif l[1] == "local":
-                obj = LocalPathServerSim(IPv4Address(l[2]), l[3], l[4])
+                obj = LocalPathServerSim(l[2], l[3], l[4])
             else:
                 logging.error("First parameter can only be 'local' or 'core'!")
                 sys.exit()
         elif l[0] == 'beacon_server':
-            addr = l[2]
             if l[1] == "core":
-                obj = CoreBeaconServerSim(IPv4Address(l[2]), l[3], l[4], l[5])
+                obj = CoreBeaconServerSim(l[2], l[3], l[4], l[5])
             elif l[1] == "local":
-                obj = LocalBeaconServerSim(IPv4Address(l[2]), l[3], l[4], l[5])
+                obj = LocalBeaconServerSim(l[2], l[3], l[4], l[5])
             else:
                 logging.error("First parameter can only be 'local' or 'core'!")
                 sys.exit()

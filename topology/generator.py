@@ -437,7 +437,7 @@ class ConfigGenerator():
                     sim_fh.write(''.join([
                         'beacon_server ' + 
                         ('core ' if is_core else 'local ') + 
-                        ip_address + ' ',
+                        str(b_server) + ' ',
                         topo_file + ' ',
                         conf_file + ' ',
                         path_pol_file, '\n']))
@@ -449,7 +449,7 @@ class ConfigGenerator():
                 for c_server in range(1, number_cs + 1):
                     sim_fh.write(''.join([
                         'cert_server ' + 
-                        ip_address + ' ',
+                        str(c_server) + ' ',
                         topo_file + ' ',
                         conf_file + ' ',
                         trc_file, '\n']))
@@ -464,7 +464,7 @@ class ConfigGenerator():
                         sim_fh.write(''.join([
                             'path_server ' + 
                             ('core ' if is_core else 'local ') + 
-                            ip_address + ' ',
+                            str(p_server) + ' ',
                             topo_file + ' ',
                             conf_file, '\n']))
                         ip_address = self._increment_address(ip_address, mask)
@@ -478,9 +478,10 @@ class ConfigGenerator():
                         er_ip_addresses[(isd_ad_id, nbr_isd_ad_id)]
                     sim_fh.write(''.join([
                         'router ' + 
-                        ip_address_loc + ' ',
+                        str(edge_router) + ' ',
                         topo_file + ' ',
                         conf_file, '\n']))
+                    edge_router += 1
 
     def _get_typed_elements(self, topo_dict):
         """
