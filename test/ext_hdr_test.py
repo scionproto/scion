@@ -33,38 +33,38 @@ class TestExtensionHeaders(SCIONCommonTest):
         Ensure that parsing a packed extension header results in same extension
         header
         """
-        eh = ExtensionHeader()
-        self.assertFalse(eh.parsed)
-        ehCopy = ExtensionHeader()
-        ehCopy.parse(eh.pack());
-        self.assertTrue(eh.next_ext == ehCopy.next_ext and
-                        eh.hdr_len == ehCopy.hdr_len and
-                        ehCopy.parsed)
+        ext_hdr = ExtensionHeader()
+        self.assertFalse(ext_hdr.parsed)
+        ext_hdr_copy = ExtensionHeader()
+        ext_hdr_copy.parse(ext_hdr.pack())
+        self.assertTrue(ext_hdr.next_ext == ext_hdr_copy.next_ext and
+                        ext_hdr.hdr_len == ext_hdr_copy.hdr_len and
+                        ext_hdr_copy.parsed)
     def test_equality(self):
         """
         Make sure that equality tests between extension headers succeeds for
         the same type of extension headers.
         """
-        eh1 = ExtensionHeader()
-        eh2 = ExtensionHeader()
-        ieh1 = ICNExtHdr()
-        ieh2 = ICNExtHdr()
-        self.assertTrue(eh1.next_ext == eh2.next_ext and
-                        eh1.hdr_len == eh2.hdr_len)
-        self.assertTrue(ieh1.next_ext == ieh2.next_ext and
-                        ieh1.hdr_len == ieh2.hdr_len and
-                        ieh1.fwd_flag == ieh2.fwd_flag)
+        ext_hdr1 = ExtensionHeader()
+        ext_hdr2 = ExtensionHeader()
+        iext_hdr1 = ICNExtHdr()
+        iext_hdr2 = ICNExtHdr()
+        self.assertTrue(ext_hdr1.next_ext == ext_hdr2.next_ext and
+                        ext_hdr1.hdr_len == ext_hdr2.hdr_len)
+        self.assertTrue(iext_hdr1.next_ext == iext_hdr2.next_ext and
+                        iext_hdr1.hdr_len == iext_hdr2.hdr_len and
+                        iext_hdr1.fwd_flag == iext_hdr2.fwd_flag)
     def test_icn_extension_header(self):
         """
-        Ensure that parsing a packed icn extension header results in same icn extension
-        header
+        Ensure that parsing a packed icn extension header results in same icn
+        extension header
         """
-        ieh = ICNExtHdr()
-        iehCopy = ICNExtHdr()
-        iehCopy.parse(ieh.pack());
-        self.assertTrue(ieh.next_ext == iehCopy.next_ext and
-                        ieh.hdr_len == iehCopy.hdr_len and
-                        ieh.fwd_flag == iehCopy.fwd_flag and
-                        iehCopy.parsed)
+        iext_hdr = ICNExtHdr()
+        iext_hdr_copy = ICNExtHdr()
+        iext_hdr_copy.parse(iext_hdr.pack())
+        self.assertTrue(iext_hdr.next_ext == iext_hdr_copy.next_ext and
+                        iext_hdr.hdr_len == iext_hdr_copy.hdr_len and
+                        iext_hdr.fwd_flag == iext_hdr_copy.fwd_flag and
+                        iext_hdr_copy.parsed)
 if __name__ == "__main__":
     unittest.main()
