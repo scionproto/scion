@@ -34,7 +34,7 @@ class MonitoringDaemon(object):
 
         # Register functions
         to_register = [self.get_topology, self.get_process_info,
-                       self.control_process, self.get_ad_info, self.send_update]
+                       self.control_process, self.get_ad_info]
         for func in to_register:
             self.rpc_server.register_function(func)
 
