@@ -1,4 +1,4 @@
-# Copyright 2014 ETH Zurich
+# Copyright 2015 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,6 +24,8 @@ from lib.packet.ext_hdr import (
     ICNExtHdr,
 )
 from test.testcommon import SCIONCommonTest
+
+
 class TestExtensionHeaders(SCIONCommonTest):
     """
     Unit tests for ext_hdr.py.
@@ -42,7 +44,7 @@ class TestExtensionHeaders(SCIONCommonTest):
                         ext_hdr_copy.parsed)
     def test_equality(self):
         """
-        Make sure that equality tests between extension headers succeeds for
+        Ensures that equality tests between extension headers succeeds for
         the same type of extension headers.
         """
         ext_hdr1 = ExtensionHeader()
