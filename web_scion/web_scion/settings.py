@@ -13,7 +13,7 @@ import os
 import sys
 from django.contrib import messages
 
-WEB_SCION_DIR = os.path.dirname(os.path.dirname(__file__))
+WEB_SCION_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCION_ROOT = os.path.dirname(WEB_SCION_DIR)
 sys.path.insert(0, SCION_ROOT)
 

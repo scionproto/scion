@@ -1,14 +1,19 @@
 #!/usr/bin/env python3
+
+# Stdlib
 import datetime
 import io
 import json
 import os
 import sys
 import tarfile
+
+# External packages
 from git import Repo
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from ad_management.common import SCION_ROOT, PACKAGE_DIR_PATH
+from ad_management.common import PACKAGE_DIR_PATH
+from lib.defines import PROJECT_ROOT
 
 DEFAULT_EXTENSION = '.tar'
 
@@ -35,7 +40,7 @@ def prepare_package(out_dir=PACKAGE_DIR_PATH, package_name=None,
     config_paths -- list of paths to topology dirs
 
     """
-    repo = Repo(SCION_ROOT)
+    repo = Repo(PROJECT_ROOT)
     assert not repo.bare
 
     if commit_hash is None:

@@ -39,11 +39,11 @@ from ad_management.common import (
     MONITORING_DAEMON_PORT,
     response_failure,
     response_success,
-    SCION_ROOT,
     UPDATE_DIR_PATH,
     UPDATE_SCRIPT_PATH,
 )
 from ad_management.secure_rpc_server import XMLRPCServerTLS
+from lib.defines import PROJECT_ROOT
 from lib.log import init_logging
 from topology.generator import ConfigGenerator
 
@@ -290,7 +290,7 @@ class MonitoringDaemon(object):
         out_file_path = os.path.join(UPDATE_DIR_PATH, archive_name)
         with open(out_file_path, 'wb') as out_file_fh:
             out_file_fh.write(raw_data)
-        self.run_updater(out_file_path, SCION_ROOT)
+        self.run_updater(out_file_path, PROJECT_ROOT)
         return response_success()
 
     def get_master_id(self, isd_id, ad_id, server_type):

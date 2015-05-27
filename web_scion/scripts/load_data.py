@@ -2,14 +2,12 @@
 
 # Import ISD/AD data from topology files
 
-# Stdlib
 import glob
 import os
 import sys
 
-# SCION
-from ad_management.common import SCION_ROOT, WEB_SCION_DIR
-
+from ad_management.common import WEB_SCION_DIR
+from lib.defines import TOPOLOGY_PATH
 
 os.environ['DJANGO_SETTINGS_MODULE'] = 'web_scion.settings'
 sys.path.insert(0, WEB_SCION_DIR)
@@ -29,8 +27,7 @@ except User.DoesNotExist:
     print('> Superuser created')
 
 # Add model instances
-TOPOLOGY_DIR = os.path.join(SCION_ROOT, 'topology')
-topology_files = glob.glob(os.path.join(TOPOLOGY_DIR,
+topology_files = glob.glob(os.path.join(TOPOLOGY_PATH,
                                         'ISD*/topologies/ISD*.json'))
 isds = {}
 ads = []

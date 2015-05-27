@@ -29,11 +29,10 @@ import xmlrpc.client
 from ad_management.common import (
     get_supervisor_server,
     MONITORING_DAEMON_PROC_NAME,
-    SCION_ROOT,
     SUPERVISORD_PATH,
 )
+from lib.defines import PROJECT_ROOT
 from lib.log import init_logging
-
 
 THIS_SCRIPT_PATH = os.path.abspath(__file__)
 THIS_SCRIPT_DIR = os.path.dirname(THIS_SCRIPT_PATH)
@@ -116,7 +115,7 @@ def extract_files(archive_path, target_dir):
         for member in tar_fh.getmembers():
             abs_path = os.path.abspath(os.path.join(target_dir, member.path))
             if (not abs_path.startswith(target_dir) or
-                    not abs_path.startswith(SCION_ROOT)):
+                    not abs_path.startswith(PROJECT_ROOT)):
                 raise Exception("Updater: unsafe filenames!")
             # Remove the top level directory from a member path
             split_path = member.path.split(os.sep)
