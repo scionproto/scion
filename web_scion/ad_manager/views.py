@@ -100,22 +100,14 @@ def get_group_master(request, pk):
         return HttpResponseNotFound('Invalid server type')
 
     md_host = ad.get_monitoring_daemon_host()
-    response = monitoring_client.get_master_ip(md_host, ad.isd.id, ad.id,
+    response = monitoring_client.get_master_id(md_host, ad.isd.id, ad.id,
                                                server_type)
 
     if is_success(response):
-        master_ip = get_success_data(response)
-        ad_elements = ad.get_all_elements()
-        elements = list(filter(lambda el: str(el.addr) == master_ip,
-                               ad_elements))
-        if not elements:
-            return JsonResponse({'status': False,
-                                 'error': 'No element found'})
-        else:
-            server = elements[0]
-            return JsonResponse({'status': True,
-                                 'server_type': server_type,
-                                 'server_id': server.id_str()})
+        master_id = get_success_data(response)
+        return JsonResponse({'status': True,
+                             'server_type': server_type,
+                             'server_id': master_id})
     else:
         return JsonResponse({'status': False,
                              'error': get_failure_errors(response)})

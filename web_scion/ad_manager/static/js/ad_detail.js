@@ -16,9 +16,9 @@ function initServerStatus() {
     $('td div.status-text').html('<b>...</b>');
 }
 
-function updateServerStatus(detailUrl) {
+function updateServerStatus() {
     $.ajax({
-        url: detailUrl,
+        url: adDetailUrl,
         dataType: "json"
     }).done(function(data) {
         var componentData = data['data'];
@@ -48,7 +48,7 @@ function initTopologyCheck() {
     $('#push-update-topology-btn').hide();
 }
 
-function compareAdTopology(compareUrl) {
+function compareAdTopology() {
     var $alertDiv = $('#topology-info');
     var $updateTopoButton = $('#update-topology-btn');
     var $pushUpdateTopoButton = $('#push-update-topology-btn');
@@ -81,7 +81,7 @@ function compareAdTopology(compareUrl) {
     }
 
     $.ajax({
-        url: compareUrl,
+        url: adCompareUrl,
         dataType: "json"
     }).done(function(data) {
         if (data['status'] == 'OK') {
@@ -102,6 +102,9 @@ function compareAdTopology(compareUrl) {
 }
 
 function showMasterServers() {
+    // Remove all badges
+    $('span.master-badge').remove();
+
     var server_types = ['bs'];
     for (var i = 0; i < server_types.length; i++) {
         var s_type = server_types[i];
@@ -113,7 +116,7 @@ function showMasterServers() {
             if (data['status']) {
                 var $serverRow = $('#' + data['server_id']);
                 var $serverName = $serverRow.children().first();
-                var badge = ' <span class="badge alert-success">master</span>';
+                var badge = ' <span class="master-badge badge alert-success">master</span>';
                 $serverName.append(badge);
             }
         }).fail(function(a1, a2, a3) {
@@ -149,13 +152,13 @@ $(document).ready(function() {
 
     // Status tab callbacks
     initServerStatus();
-    updateServerStatus(adDetailUrl);
+    updateServerStatus();
     $("#update-ad-btn").click(function() {
-        updateServerStatus(adDetailUrl);
+        updateServerStatus();
+        showMasterServers();
     });
-    // Show master label
+    // Show master labels
     showMasterServers();
-
 
     // Topology tab callbacks
     initTopologyCheck();
@@ -170,7 +173,7 @@ $(document).ready(function() {
     var $tabLink = $("a[data-toggle='tab']");
     $tabLink.on("shown.bs.tab", function(e) {
         if ($(e.target).attr('href') == '#servers') {
-            $("#update-ad-btn").click();
+            updateServerStatus();
         }
     });
 
@@ -184,7 +187,7 @@ $(document).ready(function() {
             url: $form.attr('action'),
             dataType: 'json'
         }).always(function(response){
-            $('#update-ad-btn').click();
+            updateServerStatus();
         });
         var $statusCell = $form.parent().siblings('.status-text');
         appendLoadingIndicator($statusCell);

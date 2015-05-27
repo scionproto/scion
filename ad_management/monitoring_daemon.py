@@ -73,7 +73,7 @@ class MonitoringDaemon(object):
         to_register = [self.get_topology, self.get_process_info,
                        self.control_process, self.get_ad_info,
                        self.send_update, self.update_topology,
-                       self.get_master_ip]
+                       self.get_master_id]
         for func in to_register:
             self.rpc_server.register_function(func)
         logging.info("Monitoring daemon started")
@@ -293,7 +293,7 @@ class MonitoringDaemon(object):
         self.run_updater(out_file_path, SCION_ROOT)
         return response_success()
 
-    def get_master_ip(self, isd_id, ad_id, server_type):
+    def get_master_id(self, isd_id, ad_id, server_type):
         if server_type not in ['bs', 'cs', 'ps']:
             return response_failure('Invalid server type')
         kc = KazooClient(hosts="localhost:2181")
@@ -308,8 +308,9 @@ class MonitoringDaemon(object):
             lock_holder_file = sorted(contenders, key=get_id)[0]
             lock_holder_path = os.path.join(lock_path, lock_holder_file)
             lock_contents = kc.get(lock_holder_path)
-            ip_addr = str(lock_contents[0], 'utf-8')
-            return response_success(ip_addr)
+            server_id, _, _ = lock_contents[0].split(b"\x00")
+            server_id = str(server_id, 'utf-8')
+            return response_success(server_id)
         except NoNodeError:
             return response_failure('No lock data found')
         finally:
