@@ -107,12 +107,12 @@ class CertServerSim(CertServer):
         trc = trc_rep.trc
         self.trcs[(trc_rep.isd_id, trc_rep.version)] = trc
         trc_file = get_trc_file_path(self.topology.isd_id, self.topology.ad_id,
-            trc_rep.isd_id, trc_rep.version)
+                                     trc_rep.isd_id, trc_rep.version)
         write_file(trc_file, trc.decode('utf-8'))
         # Reply to all requests for this TRC
         for dst_addr in self.trc_requests[(trc_rep.isd_id, trc_rep.version)]:
             new_trc_rep = TRCReply.from_values(self.addr, trc_rep.isd_id,
-                trc_rep.version, trc_rep.trc)
+                                               trc_rep.version, trc_rep.trc)
             self.send(new_trc_rep, dst_addr)
         del self.trc_requests[(trc_rep.isd_id, trc_rep.version)]
         logging.info("TRC reply sent.")

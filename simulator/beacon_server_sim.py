@@ -104,8 +104,8 @@ class CoreBeaconServerSim(CoreBeaconServer):
         logging.info("Propagated %d Core PCBs", count)
 
         now = time.time()
-        schedule(start_propagation + self.config.propagation_time - now
-            , cb=self.handle_pcbs_propagation)
+        schedule(start_propagation + self.config.propagation_time - now, 
+                 cb=self.handle_pcbs_propagation)
 	
     def register_segments(self):
         if not self.config.registers_paths:
@@ -117,8 +117,8 @@ class CoreBeaconServerSim(CoreBeaconServer):
         self.register_core_segments()
 
         now = time.time()
-        schedule(start_registration + self.config.registration_time - now
-            , cb=self.register_segments)
+        schedule(start_registration + self.config.registration_time - now,
+                 cb=self.register_segments)
 
     def store_pcb(self, beacon):
         """
@@ -141,7 +141,8 @@ class CoreBeaconServerSim(CoreBeaconServer):
         if if_id == 0:
             ret = 32 * b"\x00"
         elif if_id not in self.if2rev_tokens:
-            seed = bytes("%s %d" % (self.config.master_ad_key, if_id), 'utf-8')
+            seed = bytes("%s %d" % (self.config.master_ad_key, if_id), 
+                         'utf-8')
             start_ele = SHA256.new(seed).digest()
             chain = HashChain(start_ele)
             self.if2rev_tokens[if_id] = chain
@@ -200,8 +201,8 @@ class LocalBeaconServerSim(LocalBeaconServer):
         for pcb in best_segments:
             self.propagate_downstream_pcb(pcb)
         now = time.time()
-        schedule(start_propagation + self.config.propagation_time - now
-            , cb=self.handle_pcbs_propagation)
+        schedule(start_propagation + self.config.propagation_time - now, 
+                 cb=self.handle_pcbs_propagation)
 
 
     def register_segments(self):
@@ -217,8 +218,8 @@ class LocalBeaconServerSim(LocalBeaconServer):
         self.register_up_segments()
         self.register_down_segments()
         now = time.time()
-        schedule(start_registration + self.config.registration_time - now
-            , cb=self.register_segments)
+        schedule(start_registration + self.config.registration_time - now, 
+                 cb=self.register_segments)
 
     def clean(self):
         pass

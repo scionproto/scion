@@ -34,8 +34,8 @@ class SCIONSimApplication(object):
     """
     def __init__(self, host, app_port):
         self.host = host
-        host.add_application(self, app_port, 
-            self.run, self.sim_recv, self.handle_path_reply)
+        host.add_application(self, app_port, self.run, 
+                             self.sim_recv, self.handle_path_reply)
         self.addr = str(host.addr.host_addr)
         logging.info("Application: %s added on host: %s",
                      str(app_port), self.addr)
@@ -82,7 +82,8 @@ class SCIONSimApplication(object):
             elif info.info == 0x00:
                 path = EmptyPath()
             else:
-                logging.info("Can not parse path: Unknown type %x", info.info)
+                logging.info("Can not parse path: Unknown type %x", 
+                             info.info)
             assert path
             offset += path_len
             hop = IPv4Address(data[offset:offset+4])

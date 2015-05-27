@@ -67,13 +67,13 @@ class SimPingApp(SCIONSimApplication):
         (path, hop) = paths_hops[0]
 
         dst = SCIONAddr.from_values(self.dst_isd, self.dst_ad, self.dst_addr)
-        spkt = SCIONPacket.from_values(src=self._addr,
-            dst=dst, payload=b"ping", path=path)
+        spkt = SCIONPacket.from_values(src=self._addr, dst=dst, 
+                                       payload=b"ping", path=path)
         (next_hop, port) = self.host.get_first_hop(spkt)
         assert next_hop == hop
 
         logging.info("Sending packet: %s\nFirst hop: %s:%s", 
-            spkt, next_hop, port)
+                     spkt, next_hop, port)
         self.host.send(spkt, next_hop, port)
 
 class SimPongApp(SCIONSimApplication):

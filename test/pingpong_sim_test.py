@@ -42,11 +42,12 @@ class PingPongSimTest(unittest.TestCase):
         generate_topology("../SIM/sim.conf")
 
         host1 = SCIONSimHost(IPv4Address("127.1.10.254"), 
-            "../topology/ISD1/topologies/ISD:1-AD:10.json")
+                             "../topology/ISD1/topologies/ISD:1-AD:10.json")
         host2 = SCIONSimHost(IPv4Address("127.2.26.254"), 
-            "../topology/ISD2/topologies/ISD:2-AD:26.json")
+                             "../topology/ISD2/topologies/ISD:2-AD:26.json")
 
-        ping_application = SimPingApp(host1, IPv4Address("127.2.26.254"), 26, 2)
+        ping_application = SimPingApp(host1, IPv4Address("127.2.26.254"),
+                                      26, 2)
         pong_application = SimPongApp(host2)
 
         app_start_time = 20.
