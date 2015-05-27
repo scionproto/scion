@@ -16,7 +16,7 @@ from ad_management.common import (
     SCION_ROOT,
     SUPERVISORD_PATH,
 )
-from lib.util import init_logging
+from lib.log import init_logging
 
 
 THIS_SCRIPT_PATH = os.path.abspath(__file__)

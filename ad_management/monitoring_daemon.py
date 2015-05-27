@@ -20,7 +20,7 @@ from ad_management.common import (
     UPDATE_SCRIPT_PATH,
 )
 from ad_management.secure_rpc_server import XMLRPCServerTLS
-from lib.util import init_logging
+from lib.log import init_logging
 from topology.generator import TOPO_DIR, SCRIPTS_DIR
 
 
