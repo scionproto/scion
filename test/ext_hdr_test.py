@@ -50,7 +50,9 @@ class TestExtensionHeaderPack(object):
     """
     def test_basic(self):
         ext_hdr = ExtensionHeader()
-        ntools.assert_true(len(ext_hdr.pack()) >= ext_hdr.MIN_LEN)
+        ext_hdr.next_ext = 14
+        ext_hdr.hdr_len = 42
+        ntools.eq_(ext_hdr.pack(), bytes([14,42]))
 
 class TestExtensionHeaderParse(object):
     """
@@ -58,10 +60,10 @@ class TestExtensionHeaderParse(object):
     """
     def test_basic(self):
         ext_hdr = ExtensionHeader()
-        ext_hdr_copy = ExtensionHeader()
-        ext_hdr_copy.parse(ext_hdr.pack())
-        ntools.assert_true(ext_hdr.next_ext == ext_hdr_copy.next_ext)
-        ntools.assert_true(ext_hdr.hdr_len == ext_hdr_copy.hdr_len)
+        ext_hdr.parse(bytes([14,42]))
+        ntools.eq_(ext_hdr.next_ext, 14)
+        ntools.eq_(ext_hdr.hdr_len, 42)
+        ntools.assert_true(ext_hdr.parsed)
 
     def test_len(self):
         ext_hdr = ExtensionHeader()
@@ -90,7 +92,10 @@ class TestICNExtHdrPack(object):
     """
     def test_basic(self):
         iext_hdr = ICNExtHdr()
-        ntools.assert_true(len(iext_hdr.pack()) >= iext_hdr.MIN_LEN)
+        iext_hdr.next_ext = 14
+        iext_hdr.hdr_len = 42
+        iext_hdr.fwd_flag = 10
+        ntools.eq_(iext_hdr.pack(), bytes([14,42,10,0,0,0,0,0]))
 
 class TestICNExtHdrParse(object):
     """
@@ -98,11 +103,11 @@ class TestICNExtHdrParse(object):
     """
     def test_basic(self):
         iext_hdr = ICNExtHdr()
-        iext_hdr_copy = ICNExtHdr()
-        iext_hdr_copy.parse(iext_hdr.pack())
-        ntools.assert_true(iext_hdr.next_ext == iext_hdr_copy.next_ext)
-        ntools.assert_true(iext_hdr.hdr_len == iext_hdr_copy.hdr_len)
-        ntools.assert_true(iext_hdr.fwd_flag == iext_hdr_copy.fwd_flag)
+        iext_hdr.parse(bytes([14,42,10,0,0,0,0,0]))
+        ntools.eq_(iext_hdr.next_ext, 14)
+        ntools.eq_(iext_hdr.hdr_len, 42)
+        ntools.eq_(iext_hdr.fwd_flag, 10)
+        ntools.assert_true(iext_hdr.parsed)
 
     def test_len(self):
         iext_hdr = ICNExtHdr()
