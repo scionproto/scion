@@ -269,7 +269,7 @@ class BeaconServer(SCIONElement):
 
     def _create_ad_marking(self, ingress_if, egress_if, ts, prev_hof=None):
         """
-        Creates an AD Marking with the given ingress and egress interfaces,
+        Creates an AD Marking for given ingress and egress interfaces,
         timestamp, and previous HOF.
         """
         ssf = SupportSignatureField.from_values(ADMarking.LEN)
@@ -343,10 +343,6 @@ class BeaconServer(SCIONElement):
         """
         Try to verify a beacon.
         """
-# TODO: REMOVE THESE TWO LINES BEFORE MERGING 
-        self._handle_verified_beacon(pcb)
-        return
-#
         assert isinstance(pcb, PathSegment)
         last_pcbm = pcb.get_last_pcbm()
         if self._check_certs_trc(last_pcbm.spcbf.isd_id, last_pcbm.ad_id,

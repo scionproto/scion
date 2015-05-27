@@ -297,7 +297,7 @@ class Router(SCIONElement):
 
     def normal_forward(self, spkt, next_hop, from_local_ad, ptype):
         """
-        Process normal forwarding (i.e., current HOF is OFT.NORMAL_OF).
+        Process normal forwarding.
 
         :param spkt: the SCION packet to forward.
         :type spkt: :class:`lib.packet.scion.SCIONPacket`
@@ -310,7 +310,7 @@ class Router(SCIONElement):
         """
 
         curr_hof = spkt.hdr.get_current_of()
-        prev_hof = None  # Used for MAC verification.
+        prev_hof = None
         is_on_up_path = spkt.hdr.is_on_up_path()
         timestamp = spkt.hdr.get_current_iof().timestamp
         if is_on_up_path:
@@ -355,7 +355,7 @@ class Router(SCIONElement):
         """
         logging.debug("crossover_forward()")
         curr_hof = spkt.hdr.get_current_of()
-        prev_hof = None  # Used for MAC verification.
+        prev_hof = None
         is_on_up_path = spkt.hdr.is_on_up_path()
         timestamp = spkt.hdr.get_current_iof().timestamp
 
