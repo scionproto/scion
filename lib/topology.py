@@ -155,6 +155,8 @@ class Topology(object):
     :vartype isd_id: int
     :ivar ad_id: the AD identifier.
     :vartype ad_id: int
+    :ivar dns_domain: the dns domain the dns servers should use.
+    :vartype dns_domain: str
     :ivar beacon_servers: beacons servers in the AD.
     :vartype beacon_servers: list
     :ivar certificate_servers: certificate servers in the AD.
@@ -184,6 +186,7 @@ class Topology(object):
         self.is_core_ad = False
         self.isd_id = 0
         self.ad_id = 0
+        self.dns_domain = ""
         self.beacon_servers = []
         self.certificate_servers = []
         self.dns_servers = []
@@ -235,6 +238,7 @@ class Topology(object):
         self.is_core_ad = (topology['Core'] == 1)
         self.isd_id = topology['ISDID']
         self.ad_id = topology['ADID']
+        self.dns_domain = topology['DnsDomain']
         for bs_key in topology['BeaconServers']:
             b_server = ServerElement(topology['BeaconServers'][bs_key],
                                      bs_key)
