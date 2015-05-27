@@ -42,15 +42,12 @@ class SCIONSimHost(SCIONElement):
     TIMEOUT = 5
 
     def __init__(self, addr, topo_file):
-        # Constructor of ScionElem
-        self._addr = None
-        self.topology = None
-        self.config = None
-        self.ifid2addr = {}
-        self.parse_topology(topo_file)
-        self.addr = SCIONAddr.from_values(self.topology.isd_id,
-                                          self.topology.ad_id, addr)
-        self.construct_ifid2addr_map()
+        """
+        Initializes SimHost by calling constructor of SCIONElement with
+        is_sim variable set to True 
+        """
+        SCIONElement.__init__(self, "host", topo_file, host_addr=addr,
+                              is_sim=True)
         add_element(str(self.addr.host_addr), self)
 
         # TODO replace by pathstore instance
