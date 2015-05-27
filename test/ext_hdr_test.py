@@ -32,8 +32,8 @@ class TestExtensionHeaderInit(object):
     """
     def test_basic(self):
         ext_hdr = ExtensionHeader()
-        ntools.assert_true(ext_hdr.next_ext is not None)
-        ntools.assert_true(ext_hdr.hdr_len is not None)
+        ntools.eq_(ext_hdr.next_ext, 0)
+        ntools.eq_(ext_hdr.hdr_len, 0)
         ntools.assert_false(ext_hdr.parsed)
         ext_hdr2 = ExtensionHeader(ext_hdr.pack())
         ntools.assert_true(ext_hdr2.parsed)
@@ -75,9 +75,9 @@ class TestICNExtHdrInit(object):
     """
     def test_basic(self):
         iext_hdr = ICNExtHdr()
-        ntools.assert_true(iext_hdr.next_ext is not None)
-        ntools.assert_true(iext_hdr.hdr_len is not None)
-        ntools.assert_true(iext_hdr.fwd_flag is not None)
+        ntools.eq_(iext_hdr.next_ext, 0)
+        ntools.eq_(iext_hdr.hdr_len, 0)
+        ntools.eq_(iext_hdr.fwd_flag, 0)
         ntools.assert_false(iext_hdr.parsed)
         iext_hdr2 = ICNExtHdr(iext_hdr.pack())
         ntools.assert_true(iext_hdr2.parsed)
