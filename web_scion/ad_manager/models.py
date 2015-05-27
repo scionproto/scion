@@ -52,6 +52,7 @@ class AD(models.Model):
     id = models.AutoField(primary_key=True)
     isd = models.ForeignKey('ISD')
     is_core_ad = models.BooleanField(default=False)
+    dns_domain = models.CharField(max_length=100, null=True, blank=True)
 
     # Use custom model manager with select_related()
     objects = SelectRelatedModelManager('isd')
@@ -109,12 +110,16 @@ class AD(models.Model):
             out_dict['BeaconServers'][str(bs.name)] = bs.get_dict()
         for cs in self.certificateserverweb_set.all():
             out_dict['CertificateServers'][str(cs.name)] = cs.get_dict()
+        for ds in self.dnsserverweb_set.all():
+            out_dict['DNSServers'][str(ds.name)] = ds.get_dict()
         return out_dict
 
     def get_all_elements(self):
-        elements = [self.routerweb_set.all(), self.pathserverweb_set.all(),
+        elements = [self.routerweb_set.all(),
+                    self.pathserverweb_set.all(),
                     self.beaconserverweb_set.all(),
-                    self.certificateserverweb_set.all()]
+                    self.certificateserverweb_set.all(),
+                    self.dnsserverweb_set.all()]
         for element_group in elements:
             for element in element_group:
                 yield element
@@ -138,6 +143,7 @@ class AD(models.Model):
             self.pathserverweb_set.all().delete()
             self.certificateserverweb_set.all().delete()
             self.beaconserverweb_set.all().delete()
+            self.dnsserverweb_set.all().delete()
 
         self.is_core_ad = topology.is_core_ad
 
@@ -145,6 +151,7 @@ class AD(models.Model):
         beacon_servers = topology.beacon_servers
         certificate_servers = topology.certificate_servers
         path_servers = topology.path_servers
+        dns_servers = topology.dns_servers
 
         try:
             for router in routers:
@@ -178,6 +185,12 @@ class AD(models.Model):
                                            name=ps.name,
                                            ad=self)
                 ps_element.save()
+
+            for ds in dns_servers:
+                ds_element = DnsServerWeb(addr=str(ds.addr),
+                                          name=ds.name,
+                                          ad=self)
+                ds_element.save()
         except IntegrityError:
             pass
 
@@ -232,6 +245,14 @@ class PathServerWeb(SCIONWebElement):
 
     class Meta:
         verbose_name = 'Path server'
+        unique_together = (("ad", "addr"),)
+
+
+class DnsServerWeb(SCIONWebElement):
+    prefix = 'ds'
+
+    class Meta:
+        verbose_name = 'DNS server'
         unique_together = (("ad", "addr"),)
 
 

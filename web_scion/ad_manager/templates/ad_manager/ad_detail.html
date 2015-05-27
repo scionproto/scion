@@ -53,6 +53,10 @@
           {% include 'ad_manager/server_table.html' %}
         {% endwith %}
 
+        {% with table_name='DNS servers' servers=dns_servers table_id='dns-servers' %}
+          {% include 'ad_manager/server_table.html' %}
+        {% endwith %}
+
         {% include 'ad_manager/router_table.html' %}
         <br /><br />
       </div>

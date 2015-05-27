@@ -63,10 +63,12 @@ class ADDetailView(DetailView):
         context['path_servers'] = ad.pathserverweb_set.all()
         context['certificate_servers'] = ad.certificateserverweb_set.all()
         context['beacon_servers'] = ad.beaconserverweb_set.all()
+        context['dns_servers'] = ad.dnsserverweb_set.all()
 
         # Sort by name numerically
         lists_to_sort = ['routers', 'path_servers',
-                         'certificate_servers', 'beacon_servers']
+                         'certificate_servers', 'beacon_servers',
+                         'dns_servers']
         for list_name in lists_to_sort:
             context[list_name] = sorted(context[list_name],
                                         key=lambda el: int(el.name))
