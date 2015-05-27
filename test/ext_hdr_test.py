@@ -67,8 +67,10 @@ class TestExtensionHeaderParse(object):
 
     def test_len(self):
         ext_hdr = ExtensionHeader()
-        ext_hdr.parse(bytes.fromhex('f0'))
+        ext_hdr.parse(bytes([14]))
         ntools.assert_false(ext_hdr.parsed)
+        ntools.eq_(ext_hdr.next_ext, 0)
+        ntools.eq_(ext_hdr.hdr_len, 0)
 
 class TestICNExtHdrInit(object):
     """
@@ -111,8 +113,11 @@ class TestICNExtHdrParse(object):
 
     def test_len(self):
         iext_hdr = ICNExtHdr()
-        iext_hdr.parse(bytes.fromhex('f0 f1 f0 f1 f0 f1 f0'))
+        iext_hdr.parse(bytes([14,42,10,0,0,0,0]))
         ntools.assert_false(iext_hdr.parsed)
+        ntools.eq_(iext_hdr.next_ext, 0)
+        ntools.eq_(iext_hdr.hdr_len, 0)
+        ntools.eq_(iext_hdr.fwd_flag, 0)
 
 if __name__ == "__main__":
     nose.run(defaultTest=__name__)
