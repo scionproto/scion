@@ -1,0 +1,27 @@
+<h4>Routers</h4>
+<table class="table table-striped">
+  <thead>
+  <tr>
+    <th></th>
+    <th class="col-md-1">Address</th>
+    <th class="col-md-2">Interface in-address</th>
+    <th class="col-md-2">Interface out-address</th>
+    <th class="col-md-2">Neighbor AD</th>
+    <th class="col-md-2">Neighbor type</th>
+    <th class="col-md-1">Status</th>
+  </tr>
+  </thead>
+  <tbody>
+  {% for router in routers %}
+    <tr id="{{ router.id_str }}">
+      <td>Router {{ forloop.counter }}</td>
+      <td>{{ router.addr }}</td>
+      <td>{{ router.interface.addr }}</td>
+      <td>{{ router.interface.to_addr }}</td>
+      <td>{{ router.neighbor_ad }}</td>
+      <td>{{ router.neighbor_type }}</td>
+      <td class="status">hi</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>

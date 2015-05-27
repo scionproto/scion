@@ -1,0 +1,108 @@
+{% extends "ad_manager/base.html" %}
+{% load staticfiles %}
+
+{% block js %}
+  {{ block.super }}
+  <script src="https://code.jquery.com/jquery-2.1.3.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js"></script>
+  <script src="{% static 'js/ad_detail.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+  <h1>AD {{ object }}</h1>
+
+  <h4>
+    Core AD:
+    {{ object.is_core_ad }}
+    <span class="glyphicon glyphicon-{{ object.is_core_ad|yesno:"ok,remove," }}" aria-hidden="true"></span>
+  </h4>
+  <br />
+
+  <div role="tabpanel">
+
+    <!-- Nav tabs -->
+    <ul class="nav nav-tabs" role="tablist">
+      <li role="presentation" class="active"><a href="#servers" aria-controls="servers" role="tab" data-toggle="tab">Servers</a></li>
+      <li role="presentation"><a href="#topology" aria-controls="topology" role="tab" data-toggle="tab">Topology</a></li>
+      <li role="presentation"><a href="#updates" aria-controls="updates" role="tab" data-toggle="tab">Software updates</a></li>
+    </ul>
+
+    <!-- Tab panes -->
+    <div class="tab-content">
+
+      <!-- Server status tab -->
+      <div role="tabpanel" class="tab-pane active" id="servers">
+        <div>
+          <div class="col-md-10"></div>
+          <div class="col-md-2">
+            <button type="button" class="btn btn-info pull-right" id="update-ad-btn">Update status</button>
+          </div>
+        </div>
+
+        {% with table_name='Beacon servers' servers=beacon_servers table_id='beacon-servers' %}
+          {% include 'ad_manager/server_table.html' %}
+        {% endwith %}
+
+        {% with table_name='Certificate servers' servers=certificate_servers table_id='certificate-servers' %}
+          {% include 'ad_manager/server_table.html' %}
+        {% endwith %}
+
+        {% with table_name='Path servers' servers=path_servers table_id='path-servers' %}
+          {% include 'ad_manager/server_table.html' %}
+        {% endwith %}
+
+        {% include 'ad_manager/router_table.html' %}
+      </div>
+
+      <!-- Topology tab -->
+      <div role="tabpanel" class="tab-pane" id="topology">
+        <br />
+        <p>The stored topology might be out of sync with the real topology.</p>
+        <div>
+          <button type="button" class="btn btn-info" id="compare-topology-btn">Check topology</button>
+          <a href="{% url 'update_topology' object.id %}" class="btn btn-default click-confirm" id="update-topology-btn">Update local topology</a>
+        </div>
+        <br/>
+        <div id="topology-info" class="alert" role="alert"></div>
+      </div>
+
+      <!-- Updates tab -->
+      <div role="tabpanel" class="tab-pane" id="updates">
+        <br />
+        <label for="sel2">Select the update version:</label>
+        <select class="form-control" id="sel2">
+          <!-- Static stub -->
+          <option>0.1.0</option>
+        </select>
+        <br />
+        <div class="row">
+          <div class="col-md-2">
+            <button type="button" class="btn btn-warning click-confirm" id="send-updates-btn" data-confirmation="Are you sure? All unsaved data will be lost!">
+              Install the update
+            </button>
+          </div>
+          <div>Push updates to the server</div>
+        </div>
+        <br />
+        <div class="row">
+          <div class="col-md-2">
+            <a href="{% url 'download_update' object.id %}" class="btn btn-default" id="download-updates-btn">Download the update</a>
+          </div>
+          <div>Download the SCION distribution</div>
+        </div>
+        <br />
+        <div id="update-info" class="alert" role="alert"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- JS variables passed from the view to JavaScript files -->
+  <script>
+    var isdAdId = '{{ object }}';
+    var adDetailUrl = '{% url 'ad_status' object.id %}';
+    var adCompareUrl = '{% url 'compare_topology' object.id %}';
+    var adSendUpdatesUrl = '{% url 'send_update' object.id %}'
+  </script>
+
+{% endblock %}

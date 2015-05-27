@@ -1,0 +1,20 @@
+<h4>{{ table_name }}</h4>
+<table class="table table-striped" id="{{ table_id }}-table">
+  <thead>
+  <tr>
+    <th></th>
+    <th class="col-md-3">Address</th>
+    <th class="col-md-1">Status</th>
+  </tr>
+  </thead>
+  <tbody>
+  {% for server in servers %}
+    <tr id="{{ server.id_str }}">
+      <td> Server {{ forloop.counter }}</td>
+      <td>{{ server.addr }}</td>
+      <td class="status">%%%</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+<br />
