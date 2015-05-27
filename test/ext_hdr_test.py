@@ -15,58 +15,105 @@
 :mod:`ext_hdr_test` --- SCION extension header tests
 =====================================================
 """
-# Stdlib
-import unittest
+# External packages
+import nose
+import nose.tools as ntools
 
 # SCION
 from lib.packet.ext_hdr import (
     ExtensionHeader,
     ICNExtHdr,
 )
-from test.testcommon import SCIONCommonTest
 
 
-class TestExtensionHeaders(SCIONCommonTest):
+class TestExtensionHeaderInit(object):
     """
-    Unit tests for ext_hdr.py.
+    Unit tests for lib.packet.ext_hdr.ExtensionHeader.__init__
     """
-    def test_extension_header(self):
-        """
-        Ensure that parsing a packed extension header results in same extension
-        header
-        """
+    def test_basic(self):
         ext_hdr = ExtensionHeader()
-        self.assertFalse(ext_hdr.parsed)
-        ext_hdr_copy = ExtensionHeader()
-        ext_hdr_copy.parse(ext_hdr.pack())
-        self.assertTrue(ext_hdr.next_ext == ext_hdr_copy.next_ext and
-                        ext_hdr.hdr_len == ext_hdr_copy.hdr_len and
-                        ext_hdr_copy.parsed)
+        ntools.assert_true(ext_hdr.next_ext is not None)
+        ntools.assert_true(ext_hdr.hdr_len is not None)
+        ntools.assert_false(ext_hdr.parsed)
+        ext_hdr2 = ExtensionHeader(ext_hdr.pack())
+        ntools.assert_true(ext_hdr2.parsed)
+
     def test_equality(self):
-        """
-        Ensures that equality tests between extension headers succeeds for
-        the same type of extension headers.
-        """
         ext_hdr1 = ExtensionHeader()
         ext_hdr2 = ExtensionHeader()
+        ntools.assert_true(ext_hdr1.next_ext == ext_hdr2.next_ext)
+        ntools.assert_true(ext_hdr1.hdr_len == ext_hdr2.hdr_len)
+        ntools.assert_true(ext_hdr1.parsed == ext_hdr2.parsed)
+
+class TestExtensionHeaderPack(object):
+    """
+    Unit tests for lib.packet.ext_hdr.ExtensionHeader.pack
+    """
+    def test_basic(self):
+        ext_hdr = ExtensionHeader()
+        ntools.assert_true(len(ext_hdr.pack()) >= ext_hdr.MIN_LEN)
+
+class TestExtensionHeaderParse(object):
+    """
+    Unit tests for lib.packet.ext_hdr.ExtensionHeader.parse
+    """
+    def test_basic(self):
+        ext_hdr = ExtensionHeader()
+        ext_hdr_copy = ExtensionHeader()
+        ext_hdr_copy.parse(ext_hdr.pack())
+        ntools.assert_true(ext_hdr.next_ext == ext_hdr_copy.next_ext)
+        ntools.assert_true(ext_hdr.hdr_len == ext_hdr_copy.hdr_len)
+
+    def test_len(self):
+        ext_hdr = ExtensionHeader()
+        ext_hdr.parse(bytes.fromhex('f0'))
+        ntools.assert_false(ext_hdr.parsed)
+
+class TestICNExtHdrInit(object):
+    """
+    Unit tests for lib.packet.ext_hdr.ICNExtHdr.__init__
+    """
+    def test_basic(self):
+        iext_hdr = ICNExtHdr()
+        ntools.assert_true(iext_hdr.next_ext is not None)
+        ntools.assert_true(iext_hdr.hdr_len is not None)
+        ntools.assert_true(iext_hdr.fwd_flag is not None)
+        ntools.assert_false(iext_hdr.parsed)
+        iext_hdr2 = ICNExtHdr(iext_hdr.pack())
+        ntools.assert_true(iext_hdr2.parsed)
+
+    def test_equality(self):
         iext_hdr1 = ICNExtHdr()
         iext_hdr2 = ICNExtHdr()
-        self.assertTrue(ext_hdr1.next_ext == ext_hdr2.next_ext and
-                        ext_hdr1.hdr_len == ext_hdr2.hdr_len)
-        self.assertTrue(iext_hdr1.next_ext == iext_hdr2.next_ext and
-                        iext_hdr1.hdr_len == iext_hdr2.hdr_len and
-                        iext_hdr1.fwd_flag == iext_hdr2.fwd_flag)
-    def test_icn_extension_header(self):
-        """
-        Ensure that parsing a packed icn extension header results in same icn
-        extension header
-        """
+        ntools.assert_true(iext_hdr1.next_ext == iext_hdr2.next_ext)
+        ntools.assert_true(iext_hdr1.hdr_len == iext_hdr2.hdr_len)
+        ntools.assert_true(iext_hdr1.fwd_flag == iext_hdr2.fwd_flag)
+        ntools.assert_true(iext_hdr1.parsed == iext_hdr2.parsed)
+
+class TestICNExtHdrPack(object):
+    """
+    Unit tests for lib.packet.ext_hdr.ICNExtHdr.pack
+    """
+    def test_basic(self):
+        iext_hdr = ICNExtHdr()
+        ntools.assert_true(len(iext_hdr.pack()) >= iext_hdr.MIN_LEN)
+
+class TestICNExtHdrParse(object):
+    """
+    Unit tests for lib.packet.ext_hdr.ICNExtHdr.parse
+    """
+    def test_basic(self):
         iext_hdr = ICNExtHdr()
         iext_hdr_copy = ICNExtHdr()
         iext_hdr_copy.parse(iext_hdr.pack())
-        self.assertTrue(iext_hdr.next_ext == iext_hdr_copy.next_ext and
-                        iext_hdr.hdr_len == iext_hdr_copy.hdr_len and
-                        iext_hdr.fwd_flag == iext_hdr_copy.fwd_flag and
-                        iext_hdr_copy.parsed)
+        ntools.assert_true(iext_hdr.next_ext == iext_hdr_copy.next_ext)
+        ntools.assert_true(iext_hdr.hdr_len == iext_hdr_copy.hdr_len)
+        ntools.assert_true(iext_hdr.fwd_flag == iext_hdr_copy.fwd_flag)
+
+    def test_len(self):
+        iext_hdr = ICNExtHdr()
+        iext_hdr.parse(bytes.fromhex('f0 f1 f0 f1 f0 f1 f0'))
+        ntools.assert_false(iext_hdr.parsed)
+
 if __name__ == "__main__":
-    unittest.main()
+    nose.run(defaultTest=__name__)
