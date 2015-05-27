@@ -93,7 +93,7 @@ class ICNExtHdr(ExtensionHeader):
     def parse(self, raw):
         assert isinstance(raw, bytes)
         dlen = len(raw)
-        if dlen < ExtensionHeader.MIN_LEN:
+        if dlen < ICNExtHdr.MIN_LEN:
             logging.warning("Data too short to parse ICN extension hdr: "
                             "data len %u", dlen)
             return
