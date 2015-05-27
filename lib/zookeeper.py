@@ -65,7 +65,7 @@ class Zookeeper(object):
     E.g. if a watch callback blocks, disconnection callbacks will not run.
     """
 
-    def __init__(self, isd_id, ad_id, srv_name, srv_id,
+    def __init__(self, isd_id, ad_id, srv_type, srv_id,
                  zk_hosts, timeout=1.0, on_connect=None,
                  on_disconnect=None, ensure_paths=()):
         """
@@ -73,10 +73,9 @@ class Zookeeper(object):
 
         :param int isd_id: The ID of the current ISD.
         :param int ad_id: The ID of the current AD.
-        :param str srv_name: Short description of the service. E.g. ``"bs"``
+        :param str srv_type: Short description of the service. E.g. ``"bs"``
                              for Beacon server.
-        :param str srv_id: The ID of the service. E.g. host the service is
-                           running on.
+        :param str srv_id: Service instance identifier.
         :param list zk_hosts: List of Zookeeper instances to connect to, in the
                               form of ``["host:port"..]``.
         :param float timeout: Zookeeper session timeout length (in seconds).
@@ -89,7 +88,6 @@ class Zookeeper(object):
         """
         self._isd_id = isd_id
         self._ad_id = ad_id
-        self._srv_name = srv_name
         self._srv_id = srv_id
         self._timeout = timeout
         self._on_connect = on_connect
@@ -107,7 +105,7 @@ class Zookeeper(object):
 
         self._prefix = "/ISD%d-AD%d/%s" % (self._isd_id,
                                            self._ad_id,
-                                           self._srv_name)
+                                           srv_type)
         self._zk = KazooClient(hosts=",".join(zk_hosts),
                                timeout=self._timeout,
                                connection_retry=retry,
@@ -243,7 +241,8 @@ class Zookeeper(object):
             self._party.join()
         except (ConnectionLoss, SessionExpiredError):
             raise ZkConnectionLoss
-        logging.debug("Joined party, members are: %s", list(self._party))
+        members = set([entry.split("\0")[0] for entry in list(self._party)])
+        logging.debug("Joined party, members are: %s", sorted(members))
 
     def get_lock(self, timeout=60.0):
         """

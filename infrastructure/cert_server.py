@@ -30,6 +30,7 @@ import parse
 # SCION
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.certificate import CertificateChain, TRC
+from lib.defines import SCION_UDP_PORT
 from lib.log import init_logging, log_exception
 from lib.packet.scion import (
     CertChainReply,
@@ -74,9 +75,12 @@ class CertServer(SCIONElement):
         # Set when we have connected and read the existing recent and incoming
         # cert chains and TRCs
         self._state_synced = threading.Event()
+        # Add more IPs here if we support dual-stack
+        name_addrs = "\0".join([self.id, str(SCION_UDP_PORT),
+                                str(self.addr.host_addr)])
         # TODO(lorenzo): def zookeeper host/port in topology
         self.zk = Zookeeper(self.topology.isd_id, self.topology.ad_id,
-                            "cs", self.addr.host_addr, ["localhost:2181"],
+                            "cs", name_addrs, ["localhost:2181"],
                             ensure_paths=(self.ZK_CERT_CHAIN_CACHE_PATH,
                                           self.ZK_TRC_CACHE_PATH,))
 

@@ -37,6 +37,7 @@ from lib.crypto.asymcrypto import sign
 from lib.crypto.certificate import CertificateChain, TRC, verify_sig_chain_trc
 from lib.crypto.hash_chain import HashChain
 from lib.crypto.symcrypto import gen_of_mac, get_roundkey_cache
+from lib.defines import SCION_UDP_PORT
 from lib.log import init_logging, log_exception
 from lib.packet.opaque_field import (
     HopOpaqueField,
@@ -159,11 +160,13 @@ class BeaconServer(SCIONElement):
         # Set when we have connected and read the existing recent and incoming
         # PCBs
         self._state_synced = threading.Event()
+        # Add more IPs here if we support dual-stack
+        name_addrs = "\0".join([self.id, str(SCION_UDP_PORT),
+                                str(self.addr.host_addr)])
         # TODO(kormat): def zookeeper host/port in topology
         self.zk = Zookeeper(
-            self.topology.isd_id, self.topology.ad_id,
-            "bs", self.addr.host_addr, ["localhost:2181"],
-            ensure_paths=(self.ZK_PCB_CACHE_PATH,))
+            self.topology.isd_id, self.topology.ad_id, "bs", name_addrs,
+            ["localhost:2181"], ensure_paths=(self.ZK_PCB_CACHE_PATH,))
 
     def _get_if_rev_token(self, if_id):
         """
