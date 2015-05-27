@@ -15,6 +15,9 @@
 :mod:`ext_hdr_test` --- SCION extension header tests
 =====================================================
 """
+# Stdlib
+from unittest.mock import patch
+
 # External packages
 import nose
 import nose.tools as ntools
@@ -35,16 +38,12 @@ class TestExtensionHeaderInit(object):
         ntools.eq_(ext_hdr.next_ext, 0)
         ntools.eq_(ext_hdr.hdr_len, 0)
         ntools.assert_false(ext_hdr.parsed)
-        ext_hdr2 = ExtensionHeader(ext_hdr.pack())
-        ntools.assert_true(ext_hdr2.parsed)
 
-    def test_equality(self):
-        ext_hdr1 = ExtensionHeader()
-        ext_hdr2 = ExtensionHeader()
-        ntools.assert_true(ext_hdr1.next_ext == ext_hdr2.next_ext)
-        ntools.assert_true(ext_hdr1.hdr_len == ext_hdr2.hdr_len)
-        ntools.assert_true(ext_hdr1.parsed == ext_hdr2.parsed)
-
+    @patch("lib.packet.ext_hdr.ExtensionHeader.parse")
+    def test_raw(self, parse):
+        ext_hdr = ExtensionHeader("data")
+        parse.assert_called_once_with("data")
+        
 class TestExtensionHeaderPack(object):
     """
     Unit tests for lib.packet.ext_hdr.ExtensionHeader.pack
@@ -79,16 +78,11 @@ class TestICNExtHdrInit(object):
         ntools.eq_(iext_hdr.hdr_len, 0)
         ntools.eq_(iext_hdr.fwd_flag, 0)
         ntools.assert_false(iext_hdr.parsed)
-        iext_hdr2 = ICNExtHdr(iext_hdr.pack())
-        ntools.assert_true(iext_hdr2.parsed)
 
-    def test_equality(self):
-        iext_hdr1 = ICNExtHdr()
-        iext_hdr2 = ICNExtHdr()
-        ntools.assert_true(iext_hdr1.next_ext == iext_hdr2.next_ext)
-        ntools.assert_true(iext_hdr1.hdr_len == iext_hdr2.hdr_len)
-        ntools.assert_true(iext_hdr1.fwd_flag == iext_hdr2.fwd_flag)
-        ntools.assert_true(iext_hdr1.parsed == iext_hdr2.parsed)
+    @patch("lib.packet.ext_hdr.ICNExtHdr.parse")
+    def test_raw(self, parse):
+        iext_hdr = ICNExtHdr("data")
+        parse.assert_called_once_with("data")
 
 class TestICNExtHdrPack(object):
     """
