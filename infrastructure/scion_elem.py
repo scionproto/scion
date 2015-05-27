@@ -58,8 +58,6 @@ class SCIONElement(object):
         :param server_type: a shorthand of the server type, e.g. "bs" for a
                             beacon server.
         :type server_type: str
-        :param host_addr: the (local) address of the server.
-        :type host_addr: :class:`ipaddress._BaseAddress`
         :param topo_file: the name of the topology file.
         :type topo_file: str
         :param config_file: the name of the configuration file.
