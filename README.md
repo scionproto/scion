@@ -22,7 +22,7 @@ Necessary steps in order to run SCION:
 
 	`./scion.sh topology`
 
-	The resulting directories structuries and files naming will be:
+	The resulting directory structure will be created:
 
 		./topology/ISDX/
 			certificates/ADY/ISD:X-AD:Y-V:Z.crt
@@ -68,7 +68,7 @@ Notes about "topology/ADConfigurations.json":
 
 In order to run the unit tests:
 
-0. `cd test/`
+1. `cd test/`
 
-1. `nosetests`
+2. `nosetests`
 
