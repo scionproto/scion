@@ -20,11 +20,14 @@ import json
 import os
 
 # External packages
+import nose
 import nose.tools as ntools
+from unittest.mock import patch, mock_open
 
 # SCION
 from lib.config import Config
 from lib.defines import TOPOLOGY_PATH
+from test.testcommon import SCIONTestException
 
 
 class BaseLibConfig(object):
@@ -64,34 +67,57 @@ class TestConfigInit(BaseLibConfig):
     def test_basic(self):
         config = Config()
         for attr in self.ATTRS_TO_KEYS.keys():
-            ntools.assert_true(hasattr(config, attr),
-                               "No attribute found: {}".format(attr))
             ntools.eq_(getattr(config, attr), 0)
-
-
-class TestConfigFromDict(BaseLibConfig):
-    """
-    Unit tests for lib.config.Config.from_dict
-    """
-    def test_basic(self):
-        config = Config.from_dict(self.config_json)
-        ntools.assert_true(isinstance(config, Config))
-        self._compare_attributes(config, self.config_json)
-
-    @ntools.raises(KeyError)
-    def test_invalid_dict(self):
-        Config.from_dict({'a': 'b'})
 
 
 class TestConfigFromFile(BaseLibConfig):
     """
     Unit tests for lib.config.Config.from_file
     """
-    def test_basic(self):
-        config = Config.from_file(self.config_path)
-        ntools.assert_true(isinstance(config, Config))
-        self._compare_attributes(config, self.config_json)
+    @patch("lib.config.Config.from_dict")
+    @patch("lib.config.json.load")
+    @patch("builtins.open", new_callable=mock_open)
+    def test_success(self, io_open, load, from_dict):
+        from_dict.return_value = "All ok"
+        ntools.eq_(Config.from_file(self.config_path), "All ok")
+        io_open.assert_called_once_with(self.config_path)
+        load.assert_called_once_with(io_open.return_value)
 
-    @ntools.raises(FileNotFoundError)
-    def test_no_file(self):
-        Config.from_file('')
+    @patch("lib.config.Config.from_dict")
+    @patch("lib.config.json.load")
+    @patch("builtins.open", new_callable=mock_open)
+    def _check_error(self, excp, _, load, from_dict):
+        # Setup
+        load.side_effect = excp  # Raise an exception when json.load() is called
+        from_dict.side_effect = SCIONTestException("from_dict should not "
+                                                   "have been called")
+        # Call
+        ntools.eq_(Config.from_file(self.config_path), None)
+
+    def test_error(self):
+        for excp in (ValueError, KeyError, TypeError):
+            yield self._check_error, excp
+
+
+class TestConfigFromDict(BaseLibConfig):
+    """
+    Unit tests for lib.config.Config.from_dict
+    """
+    @patch("lib.config.Config.parse_dict")
+    def test_basic(self, parse_dict):
+        ntools.assert_is_instance(Config.from_dict(self.config_json), Config)
+        parse_dict.assert_called_once_with(self.config_json)
+
+
+class TestConfigParseDict(BaseLibConfig):
+    """
+    Unit tests for lib.config.Config.parse_dict
+    """
+    def test_basic(self):
+        cfg = Config()
+        cfg.parse_dict(self.config_json)
+        self._compare_attributes(cfg, self.config_json)
+
+
+if __name__ == "__main__":
+    nose.run(defaultTest=__name__)
