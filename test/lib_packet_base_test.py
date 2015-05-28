@@ -15,6 +15,9 @@
 :mod:`lib_packet_base_test` --- Packet base class tests
 =======================================================
 """
+# Stdlib
+from unittest.mock import patch
+
 # External packages
 import nose.tools as ntools
 
@@ -24,6 +27,7 @@ from lib.packet.packet_base import (
     PacketBase,
     PayloadBase
 )
+
 
 class TestHeaderBaseInit(object):
     """
@@ -35,6 +39,7 @@ class TestHeaderBaseInit(object):
         """
         header_base = HeaderBase()
         ntools.assert_false(header_base.parsed)
+
 
 class TestPacketBaseInit(object):
     """
@@ -50,40 +55,65 @@ class TestPacketBaseInit(object):
         ntools.assert_false(packet_base.parsed)
         ntools.eq_(packet_base.raw, None)
 
+
 class TestPacketBasePayload(object):
     """
     Unit tests for lib.packet.packet_base.PacketBase.payload
     """
-    def test_bytes(self):
+    def test_getter_bytes(self):
+        """
+        Test for getting payload as bytes.
+        """
+        packet_base = PacketBase()
+        packet_base._payload = b'data'
+        ntools.eq_(packet_base.payload, b'data')
+
+    @patch("lib.packet.packet_base.PacketBase.set_payload")
+    def test_setter_bytes(self, set_payload):
         """
         Test for setting payload as bytes.
         """
         packet_base = PacketBase()
-        packet_base.payload = b't9gj646'
-        payload = packet_base.payload
-        ntools.eq_(payload, b't9gj646')
+        packet_base.payload = b'data'
+        set_payload.assert_called_once_with(b'data')
 
-    def test_packet_base(self):
+    def test_getter_packet_base(self):
+        """
+        Test for getting payload as PacketBase instance.
+        """
+        payload = PacketBase()
+        packet_base = PacketBase()
+        packet_base._payload = payload
+        ntools.eq_(packet_base.payload, payload)
+
+    @patch("lib.packet.packet_base.PacketBase.set_payload")
+    def test_setter_packet_base(self, set_payload):
         """
         Test for setting payload as PacketBase instance.
         """
         payload = PacketBase()
         packet_base = PacketBase()
         packet_base.payload = payload
-        ntools.eq_(packet_base.payload, payload)
+        set_payload.assert_called_once_with(payload)
+
 
 class TestPacketBaseHdr(object):
     """
     Unit tests for lib.packet.packet_base.PacketBase.hdr
     """
-    def test_basic(self):
-        """
-        Test for setting hdr as HeaderBase instance.
-        """
+    def test_getter(self):
+        packet_base = PacketBase()
+        header = HeaderBase()
+        packet_base._hdr = header
+        ntools.eq_(packet_base.hdr, header)
+
+    @patch("lib.packet.packet_base.PacketBase.set_hdr")
+    def test_setter(self, set_hdr):
         packet_base = PacketBase()
         header = HeaderBase()
         packet_base.hdr = header
-        ntools.eq_(packet_base.hdr, header)
+        set_hdr.assert_called_once_with(header)
+
 
 class TestPacketBaseEq(object):
     """
@@ -97,6 +127,7 @@ class TestPacketBaseEq(object):
         packet_base2.raw = raw
         ntools.eq_(packet_base1, packet_base2)
 
+
 class TestPayloadBaseInit(object):
     """
     Unit tests for lib.packet.packet_base.PayloadBase.__init__
@@ -109,6 +140,7 @@ class TestPayloadBaseInit(object):
         ntools.eq_(payload.raw, None)
         ntools.assert_false(payload.parsed)
 
+
 class TestPayloadBaseParse(object):
     """
     Unit tests for lib.packet.packet_base.PayloadBase.parse
@@ -118,6 +150,7 @@ class TestPayloadBaseParse(object):
         payload.parse("rawstring")
         ntools.eq_(payload.raw, "rawstring")
 
+
 class TestPayloadBasePack(object):
     """
     Unit tests for lib.packet.packet_base.PayloadBase.pack
@@ -126,6 +159,7 @@ class TestPayloadBasePack(object):
         payload = PayloadBase()
         payload.parse("rawstring")
         ntools.eq_(payload.pack(), "rawstring")
+
 
 class TestPayloadBaseLen(object):
     """
@@ -138,6 +172,7 @@ class TestPayloadBaseLen(object):
         payload = PayloadBase()
         payload.raw = "rawstr"
         ntools.eq_(len(payload), len("rawstr"))
+
 
 class TestPayloadBaseEq(object):
     """
