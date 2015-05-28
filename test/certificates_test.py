@@ -22,6 +22,7 @@ import os
 import select
 import socket
 import unittest
+import nose
 from ipaddress import IPv4Address
 
 # SCION
@@ -133,4 +134,4 @@ class TestCertificates(SCIONCommonTest):
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
-    unittest.main()
+    nose.run(defaultTest=__name__)    
