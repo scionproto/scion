@@ -73,39 +73,6 @@ class TestSCIONAddrFromValues(object):
         ntools.eq_(addr.addr_len, addr_len)
 
 
-class TestSCIONAddrPack(object):
-    """
-    Unit tests for lib.packet.scion_addr.SCIONAddr.pack
-    """
-    def test_ipv4(self):
-        """
-        Packing a SCIONAddr containing a IPv4Address
-        """
-        isd_id = 1
-        ad_id = 10
-        host_addr = IPv4Address("10.1.1.1")
-        addr = SCIONAddr.from_values(isd_id, ad_id, host_addr)
-
-        isd_bytes = bytes([0,1])
-        ad_bytes = bytes([0,0,0,0,0,0,0,10])
-        addr_bytes = bytes([10,1,1,1])
-        ntools.eq_(addr.pack(), isd_bytes + ad_bytes + addr_bytes)
-
-    def test_ipv6(self):
-        """
-        Packing a SCIONAddr containing a IPv6Address
-        """
-        isd_id = 1
-        ad_id = 10
-        host_addr = IPv6Address("10:1::10")
-        addr = SCIONAddr.from_values(isd_id, ad_id, host_addr)
-
-        isd_bytes = bytes([0,1])
-        ad_bytes = bytes([0,0,0,0,0,0,0,10])
-        addr_bytes = bytes([0,16,0,1,0,0,0,0,0,0,0,0,0,0,0,16])
-        ntools.eq_(addr.pack(), isd_bytes + ad_bytes + addr_bytes)
-
-
 class TestSCIONAddrParse(object):
     """
     Unit tests for lib.packet.scion_addr.SCIONAddr.parse
@@ -169,6 +136,39 @@ class TestSCIONAddrParse(object):
         ntools.eq_(addr.ad_id, 10)
         ntools.eq_(addr.host_addr, None)
         ntools.eq_(addr.addr_len, 0)
+
+
+class TestSCIONAddrPack(object):
+    """
+    Unit tests for lib.packet.scion_addr.SCIONAddr.pack
+    """
+    def test_ipv4(self):
+        """
+        Packing a SCIONAddr containing a IPv4Address
+        """
+        isd_id = 1
+        ad_id = 10
+        host_addr = IPv4Address("10.1.1.1")
+        addr = SCIONAddr.from_values(isd_id, ad_id, host_addr)
+
+        isd_bytes = bytes([0,1])
+        ad_bytes = bytes([0,0,0,0,0,0,0,10])
+        addr_bytes = bytes([10,1,1,1])
+        ntools.eq_(addr.pack(), isd_bytes + ad_bytes + addr_bytes)
+
+    def test_ipv6(self):
+        """
+        Packing a SCIONAddr containing a IPv6Address
+        """
+        isd_id = 1
+        ad_id = 10
+        host_addr = IPv6Address("10:1::10")
+        addr = SCIONAddr.from_values(isd_id, ad_id, host_addr)
+
+        isd_bytes = bytes([0,1])
+        ad_bytes = bytes([0,0,0,0,0,0,0,10])
+        addr_bytes = bytes([0,16,0,1,0,0,0,0,0,0,0,0,0,0,0,16])
+        ntools.eq_(addr.pack(), isd_bytes + ad_bytes + addr_bytes)
 
 
 if __name__ == "__main__":
