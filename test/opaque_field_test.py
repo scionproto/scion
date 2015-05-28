@@ -46,6 +46,7 @@ class TestOpaqueFieldInit(object):
         ntools.assert_false(op_fld.parsed)
         ntools.assert_true(op_fld.raw is None)
 
+
 class TestHopOpaqueFieldInit(object):
     """
     Unit tests for lib.packet.opaque_field.HopOpaqueField.__init__
@@ -64,6 +65,7 @@ class TestHopOpaqueFieldInit(object):
     def test_raw(self, parse):
         hop_op_fld = HopOpaqueField("data")
         parse.assert_called_once_with("data")
+
 
 class TestHopOpaqueFieldParse(object):
     """
@@ -90,6 +92,7 @@ class TestHopOpaqueFieldParse(object):
         ntools.eq_(hop_op_fld.egress_if, 0)
         ntools.eq_(hop_op_fld.mac, 0)
 
+
 class TestHopOpaqueFieldFromValues(object):
     """
     Unit tests for lib.packet.opaque_field.HopOpaqueField.from_values
@@ -108,6 +111,7 @@ class TestHopOpaqueFieldFromValues(object):
         ntools.eq_(hop_op_fld.egress_if, 0)
         ntools.eq_(hop_op_fld.mac, 0)               
 
+
 class TestHopOpaqueFieldPack(object):
     """
     Unit tests for lib.packet.opaque_field.HopOpaqueField.pack
@@ -122,4 +126,4 @@ class TestHopOpaqueFieldPack(object):
         ntools.eq_(hop_op_fld.pack(),bytes([14,42,10,11,12,13,14,15]))
 
 if __name__ == "__main__":
-    nose.run(defaultTest=__name__)
+    nose.run(defaultTest=__name__) b
