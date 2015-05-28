@@ -47,10 +47,9 @@ from lib.util import (
     read_file,
     write_file,
 )
-from test.testcommon import SCIONCommonTest
 
 
-class TestCertificates(SCIONCommonTest):
+class TestCertificates(object):
     """
     Unit tests for certificate.py and asymcrypto.py.
     """
