@@ -43,7 +43,8 @@ class TestExtensionHeaderInit(object):
     def test_raw(self, parse):
         ext_hdr = ExtensionHeader("data")
         parse.assert_called_once_with("data")
-        
+
+
 class TestExtensionHeaderPack(object):
     """
     Unit tests for lib.packet.ext_hdr.ExtensionHeader.pack
@@ -53,6 +54,7 @@ class TestExtensionHeaderPack(object):
         ext_hdr.next_ext = 14
         ext_hdr.hdr_len = 42
         ntools.eq_(ext_hdr.pack(), bytes([14,42]))
+
 
 class TestExtensionHeaderParse(object):
     """
@@ -72,6 +74,7 @@ class TestExtensionHeaderParse(object):
         ntools.eq_(ext_hdr.next_ext, 0)
         ntools.eq_(ext_hdr.hdr_len, 0)
 
+
 class TestICNExtHdrInit(object):
     """
     Unit tests for lib.packet.ext_hdr.ICNExtHdr.__init__
@@ -88,6 +91,7 @@ class TestICNExtHdrInit(object):
         iext_hdr = ICNExtHdr("data")
         parse.assert_called_once_with("data")
 
+
 class TestICNExtHdrPack(object):
     """
     Unit tests for lib.packet.ext_hdr.ICNExtHdr.pack
@@ -98,6 +102,7 @@ class TestICNExtHdrPack(object):
         iext_hdr.hdr_len = 42
         iext_hdr.fwd_flag = 10
         ntools.eq_(iext_hdr.pack(), bytes([14,42,10,0,0,0,0,0]))
+
 
 class TestICNExtHdrParse(object):
     """
