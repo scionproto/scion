@@ -126,4 +126,4 @@ class TestHopOpaqueFieldPack(object):
         ntools.eq_(hop_op_fld.pack(),bytes([14,42,10,11,12,13,14,15]))
 
 if __name__ == "__main__":
-    nose.run(defaultTest=__name__) b
+    nose.run(defaultTest=__name__)
