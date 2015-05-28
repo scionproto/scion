@@ -22,8 +22,10 @@ import os
 import select
 import socket
 import unittest
-import nose
 from ipaddress import IPv4Address
+
+# External packages
+import nose
 
 # SCION
 from lib.crypto.asymcrypto import sign
