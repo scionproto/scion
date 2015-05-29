@@ -56,6 +56,7 @@ class TestOpaqueFieldIsRegular(object):
     """
     def test_basic(self):
         op_fld = OpaqueField()
+        op_fld.info = BitArray('0b10111111').uint
         ntools.assert_true(op_fld.is_regular())
 
     def test_set(self):
@@ -70,6 +71,7 @@ class TestOpaqueFieldIsContinue(object):
     """
     def test_basic(self):
         op_fld = OpaqueField()
+        op_fld.info = BitArray('0b11011111').uint
         ntools.assert_false(op_fld.is_continue())
 
     def test_set(self):
@@ -84,6 +86,7 @@ class TestOpaqueFieldIsXovr(object):
     """
     def test_basic(self):
         op_fld = OpaqueField()
+        op_fld.info = BitArray('0b11101111').uint
         ntools.assert_false(op_fld.is_xovr())
 
     def test_set(self):
