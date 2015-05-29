@@ -1,14 +1,15 @@
+# Stdlib
+import json
+import os
+import tempfile
 from copy import deepcopy
 from ipaddress import ip_address
-import json
-import tempfile
-from ad_manager.models import AD
+
+# SCION
+from lib.defines import TOPOLOGY_PATH
 from lib.topology import Topology
 from lib.util import read_file, write_file
 from topology.generator import ConfigGenerator, PORT, ER_RANGE
-
-temp_out_dir = '/home/tonyo/scion_ethz/scion/topology/tmp'
-path_policy_file = '/home/tonyo/scion_ethz/scion/topology/PathPolicy.json'
 
 
 def find_last_router(topo_dict):
@@ -131,6 +132,7 @@ def create_new_ad(parent_ad_topo, isd_id, ad_id, out_dir=None):
     ad_dict = {isd_ad_id: {'level': 'LEAF'}}
     gen = ConfigGenerator(out_dir=out_dir)
 
+    path_policy_file = os.path.join(TOPOLOGY_PATH, 'PathPolicy.json')
     with tempfile.NamedTemporaryFile('w') as temp_fh:
         json.dump(ad_dict, temp_fh)
         temp_fh.flush()
@@ -144,19 +146,3 @@ def create_new_ad(parent_ad_topo, isd_id, ad_id, out_dir=None):
     write_file(new_topo_path, json.dumps(new_topo))
     gen.write_derivatives(new_topo)
     return new_topo, existing_topo
-
-
-if __name__ == '__main__':
-    # generate_config()
-
-    config_generator = ConfigGenerator(temp_out_dir)
-
-    old_file = '/home/tonyo/scion_ethz/scion/topology/ISD1/topologies/ISD:1-AD:11.json'
-    old_topo = json.loads(open(old_file).read())
-
-    #new_file = '/home/tonyo/scion_ethz/scion/topology/tmp/ISD12/topologies/ISD:12-AD:34.json'
-    #new_topo = json.loads(open(new_file).read())
-
-
-    create_new_ad(old_topo, 34, 56)
-    a = 1

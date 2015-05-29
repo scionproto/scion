@@ -7,11 +7,12 @@ import json
 import os
 import sys
 import tarfile
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # External packages
 from git import Repo
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# SCION
 from ad_management.common import PACKAGE_DIR_PATH
 from lib.defines import PROJECT_ROOT
 
@@ -92,8 +93,7 @@ def main():
     commit_hash = None
     if len(sys.argv) > 1:
         commit_hash = sys.argv[1]
-    prepare_package(config_paths='/home/tonyo/scion_ethz/scion/topology/ISD1',
-                    commit_hash=commit_hash)
+    prepare_package(commit_hash=commit_hash)
 
 
 if __name__ == '__main__':
