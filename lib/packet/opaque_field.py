@@ -125,7 +125,7 @@ class HopOpaqueField(OpaqueField):
         assert isinstance(raw, bytes)
         self.raw = raw
         dlen = len(raw)
-        if dlen < HopOpaqueField.LEN:
+        if dlen < self.LEN:
             logging.warning("HOF: Data too short for parsing, len: %u", dlen)
             return
         bits = BitArray(bytes=raw)
@@ -202,7 +202,7 @@ class InfoOpaqueField(OpaqueField):
         assert isinstance(raw, bytes)
         self.raw = raw
         dlen = len(raw)
-        if dlen < InfoOpaqueField.LEN:
+        if dlen < self.LEN:
             logging.warning("IOF: Data too short for parsing, len: %u", dlen)
             return
         bits = BitArray(bytes=raw)
@@ -281,7 +281,7 @@ class TRCField(OpaqueField):
         assert isinstance(raw, bytes)
         self.raw = raw
         dlen = len(raw)
-        if dlen < TRCField.LEN:
+        if dlen < self.LEN:
             logging.warning("TRCF: Data too short for parsing, len: %u", dlen)
             return
         bits = BitArray(bytes=raw)
@@ -348,7 +348,7 @@ class SupportSignatureField(OpaqueField):
         assert isinstance(raw, bytes)
         self.raw = raw
         dlen = len(raw)
-        if dlen < SupportSignatureField.LEN:
+        if dlen < self.LEN:
             logging.warning("SSF: Data too short for parsing, len: %u", dlen)
             return
         bits = BitArray(bytes=raw)
@@ -421,7 +421,7 @@ class SupportPeerField(OpaqueField):
         assert isinstance(raw, bytes)
         self.raw = raw
         dlen = len(raw)
-        if dlen < SupportPeerField.LEN:
+        if dlen < self.LEN:
             logging.warning("SPF: Data too short for parsing, len: %u", dlen)
             return
         bits = BitArray(bytes=raw)
@@ -506,7 +506,7 @@ class SupportPCBField(OpaqueField):
         assert isinstance(raw, bytes)
         self.raw = raw
         dlen = len(raw)
-        if dlen < SupportPCBField.LEN:
+        if dlen < self.LEN:
             logging.warning("SPCBF: Data too short for parsing, len: %u", dlen)
             return
         bits = BitArray(bytes=raw)
