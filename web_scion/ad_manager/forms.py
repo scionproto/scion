@@ -16,10 +16,9 @@ class VersionChoiceField(ModelChoiceField):
 
 
 class PackageVersionSelectForm(forms.Form):
-
     selected_version = VersionChoiceField(
         empty_label=None,
-        queryset=PackageVersion.objects.order_by('-date_created')
+        queryset=PackageVersion.objects.order_by('-date_created'),
     )
 
 

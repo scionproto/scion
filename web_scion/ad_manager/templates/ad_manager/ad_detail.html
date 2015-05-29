@@ -119,41 +119,40 @@
         </div>
 
         <div>
-          <form method="POST" action="{% url 'update_action' object.id %}">
-            {% csrf_token %}
+          <div class="col-md-9">
+            <form method="POST" action="{% url 'update_action' object.id %}">
+              {% csrf_token %}
+              {% bootstrap_form choose_version_form %}
+              <br />
+              <div class="row">
+                <div class="col-md-4">
+                  <button type="submit" class="btn btn-warning click-confirm" id="send-updates-btn"
+                          data-confirmation="Are you sure? All unsaved data will be lost!" name="_install_update">
+                    Install the update
+                  </button>
+                </div>
+                <div>Push updates to the server</div>
+              </div>
 
-            <div class="row">
-              <div class="col-md-8">
-                {% bootstrap_form choose_version_form %}
+              <br />
+              <div class="row">
+                <div class="col-md-4">
+                  <button type="submit" class="btn btn-default" id="download-updates-btn" name="_download_update">
+                    Download the update
+                  </button>
+                </div>
+                <div>Download the SCION distribution</div>
               </div>
-              <div class="col-md-2" id="refresh-btn-container">
-                <button type="submit" class="btn btn-default" id="refresh-versions-btn" name="_refresh_packages">
-                  Refresh
-                </button>
-              </div>
-            </div>
-
-            <br />
-            <div class="row">
-              <div class="col-md-3">
-                <button type="submit" class="btn btn-warning click-confirm" id="send-updates-btn"
-                        data-confirmation="Are you sure? All unsaved data will be lost!" name="_install_update">
-                  Install the update
-                </button>
-              </div>
-              <div>Push updates to the server</div>
-            </div>
-
-            <br />
-            <div class="row">
-              <div class="col-md-3">
-                <button type="submit" class="btn btn-default" id="download-updates-btn" name="_download_update">
-                  Download the update
-                </button>
-              </div>
-              <div>Download the SCION distribution</div>
-            </div>
-          </form>
+            </form>
+          </div>
+          <div class="col-md-3" id="refresh-btn-container">
+            <form method="POST" action="{% url 'refresh_versions' object.id %}">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-default" id="refresh-versions-btn" name="_refresh_packages">
+                Refresh
+              </button>
+            </form>
+          </div>
         </div>
       </div>
 

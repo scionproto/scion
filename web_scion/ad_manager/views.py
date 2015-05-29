@@ -264,7 +264,6 @@ def _download_update(request, package):
 def update_action(request, pk):
     ad = get_object_or_404(AD, id=pk)
     ad_page = reverse('ad_detail', args=[ad.id])
-
     form = PackageVersionSelectForm(request.POST)
     if form.is_valid():
         package = form.cleaned_data['selected_version']
@@ -272,12 +271,12 @@ def update_action(request, pk):
             return _download_update(request, package)
         elif '_install_update' in request.POST:
             return _send_update(request, ad, package)
-        elif '_refresh_packages' in request.POST:
-            return _refresh_versions(request, ad)
     return redirect(ad_page)
 
 
-def _refresh_versions(request, ad):
+@require_POST
+def refresh_versions(request, pk):
+    ad = get_object_or_404(AD, id=pk)
     PackageVersion.discover_packages()
     updates_page = reverse('ad_detail_updates', args=[ad.id])
     return redirect(updates_page)
