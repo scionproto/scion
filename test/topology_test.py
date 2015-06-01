@@ -17,7 +17,10 @@
 """
 # Stdlib
 #from unittest.mock import patch
+<<<<<<< HEAD
 from ipaddress import IPv4Address, IPv6Address
+=======
+>>>>>>> Made initial topology_test file with basic construction test for lib.topology.Element
 
 # External packages
 import nose
