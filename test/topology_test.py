@@ -89,5 +89,12 @@ class TestElementInit(object):
         ntools.assert_equal(elem.to_addr, IPv6Address('::1'))
         ntools.assert_is_none(elem.name)
 
+    def test_invalid_addr_type(self):
+        elem = Element('42.42.42.42.42', 'ipv5')
+        ntools.assert_is_none(elem.addr)
+        ntools.assert_is_none(elem.addr_type)
+        ntools.assert_is_none(elem.to_addr)
+        ntools.assert_is_none(elem.name)
+
 if __name__ == "__main__":
     nose.run(defaultTest=__name__)
