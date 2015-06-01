@@ -42,7 +42,9 @@ class Element(object):
         """
         Initialize an instance of the class Element.
 
-        Construct a new instance of the Element class. An element has 
+        Construct a new instance of the Element class. An element must set
+        `addr_type` with an allowed address type (named in `_ADDR_TYPES`) in
+        order to set the `addr` attribute.
 
         :param addr: IP or SCION address of a server or edge router.
         :type addr: str
