@@ -55,16 +55,27 @@ class Element(object):
         :param name: element name or id
         :type name: str
         """
-        if addr_type not in self._ADDR_TYPES:
+        if addr_type in self._ADDR_TYPES:
             if addr_type.lower() == "ipv4":
                 self.addr = IPv4Address(addr)
                 if to_addr is not None:
                     self.to_addr = IPv4Address(to_addr)
+                else:
+                    self.to_addr = None
             elif addr_type.lower() == "ipv6":
                 self.addr = IPv6Address(addr)
                 if to_addr is not None:
                     self.to_addr = IPv6Address(to_addr)
-        self.name = str(name)
+                else:
+                    self.to_addr = None
+        else:
+            self.addr = None
+            self.addr_type = None
+            self.to_addr = None
+        if name is not None:
+            self.name = str(name)
+        else:
+            self.name = None
 
 
 class ServerElement(Element):
