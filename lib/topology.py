@@ -26,6 +26,8 @@ class Element(object):
     The Element class is the base class for elements specified in the topology
     file.
 
+    :cvar _ADDR_TYPES: allowed address types.
+    :vartype _ADDR_TYPES: list
     :ivar addr: IP or SCION address of a server or edge router.
     :type addr: :class:`IPv4Address` or :class:`IPv6Address`
     :ivar to_addr: destination IP or SCION address of an edge router.
@@ -34,9 +36,13 @@ class Element(object):
     :type name: str
     """
 
+    _ADDR_TYPES = ["ipv4", "ipv6"]
+
     def __init__(self, addr=None, addr_type=None, to_addr=None, name=None):
         """
         Initialize an instance of the class Element.
+
+        Construct a new instance of the Element class. An element has 
 
         :param addr: IP or SCION address of a server or edge router.
         :type addr: str
@@ -47,14 +53,15 @@ class Element(object):
         :param name: element name or id
         :type name: str
         """
-        if addr_type.lower() == "ipv4":
-            self.addr = IPv4Address(addr)
-            if to_addr is not None:
-                self.to_addr = IPv4Address(to_addr)
-        elif addr_type.lower() == "ipv6":
-            self.addr = IPv6Address(addr)
-            if to_addr is not None:
-                self.to_addr = IPv6Address(to_addr)
+        if addr_type not in _ADDR_TYPES:
+            if addr_type.lower() == "ipv4":
+                self.addr = IPv4Address(addr)
+                if to_addr is not None:
+                    self.to_addr = IPv4Address(to_addr)
+            elif addr_type.lower() == "ipv6":
+                self.addr = IPv6Address(addr)
+                if to_addr is not None:
+                    self.to_addr = IPv6Address(to_addr)
         self.name = str(name)
 
 
