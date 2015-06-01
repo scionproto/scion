@@ -120,5 +120,21 @@ class TestElementInit(object):
         ntools.assert_is_not_none(elem.name)
         ntools.assert_equal(elem.name, '42')
 
+    def test_to_addr_ipv4(self):
+        elem = Element('192.168.0.1', 'ipv4', '192.168.1.1')
+        ntools.assert_equal(elem.addr, IPv4Address('192.168.0.1'))
+        ntools.assert_is_instance(elem.addr, IPv4Address)
+        ntools.assert_equal(elem.addr_type, 'ipv4')
+        ntools.assert_equal(elem.to_addr, IPv4Address('192.168.1.1'))
+        ntools.assert_is_none(elem.name)
+
+    def test_to_addr_ipv6(self):
+        elem = Element('2001:db8::', 'ipv6', '::1')
+        ntools.assert_equal(elem.addr, IPv6Address('2001:db8::'))
+        ntools.assert_is_instance(elem.addr, IPv6Address)
+        ntools.assert_equal(elem.addr_type, 'ipv6')
+        ntools.assert_equal(elem.to_addr, IPv6Address('::1'))
+        ntools.assert_is_none(elem.name)
+
 if __name__ == "__main__":
     nose.run(defaultTest=__name__)
