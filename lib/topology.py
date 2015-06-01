@@ -57,7 +57,7 @@ class Element(object):
         :returns: the newly created Element instance.
         :rtype: :class:`Element`
         """
-        if addr_type not in _ADDR_TYPES:
+        if addr_type not in self._ADDR_TYPES:
             if addr_type.lower() == "ipv4":
                 self.addr = IPv4Address(addr)
                 if to_addr is not None:
