@@ -55,7 +55,7 @@ class Element(object):
         :param name: element name or id
         :type name: str
         """
-        if addr_type not in _ADDR_TYPES:
+        if addr_type not in self._ADDR_TYPES:
             if addr_type.lower() == "ipv4":
                 self.addr = IPv4Address(addr)
                 if to_addr is not None:
