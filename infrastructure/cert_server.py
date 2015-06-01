@@ -20,12 +20,10 @@ import collections
 import datetime
 import logging
 import os
+import re
 import sys
 import threading
 import time
-
-# External packages
-import parse
 
 # SCION
 from infrastructure.scion_elem import SCIONElement
@@ -84,6 +82,21 @@ class CertServer(SCIONElement):
                             ensure_paths=(self.ZK_CERT_CHAIN_CACHE_PATH,
                                           self.ZK_TRC_CACHE_PATH,))
 
+    def _store_cert_chain_in_zk(self, cert_chain_file, cert_chain):
+        """
+        Store the Certificate Chain in the zookeeper.
+        """
+        try:
+            tmp = CertificateChain(cert_chain_file)
+            self.zk.store_shared_item(self.ZK_CERT_CHAIN_CACHE_PATH,
+                                      tmp.certs[0].subject +
+                                      "-V:" + str(tmp.certs[0].version),
+                                      cert_chain)
+        except ZkConnectionLoss:
+            logging.debug("Unable to store cert chain in shared path: "
+                          "no connection to ZK")
+            return
+
     def process_cert_chain_request(self, cert_chain_req):
         """
         Process a certificate chain request.
@@ -103,6 +116,7 @@ class CertServer(SCIONElement):
                 cert_chain = read_file(cert_chain_file).encode('utf-8')
                 self.cert_chains[(cert_chain_req.isd_id, cert_chain_req.ad_id,
                                   cert_chain_req.version)] = cert_chain
+                self._store_cert_chain_in_zk(cert_chain_file, cert_chain)
         if not cert_chain:
             # Requesting certificate chain file from parent's cert server
             logging.debug('Certificate chain not found.')
@@ -148,16 +162,7 @@ class CertServer(SCIONElement):
             self.topology.isd_id, self.topology.ad_id, cert_chain_rep.isd_id,
             cert_chain_rep.ad_id, cert_chain_rep.version)
         write_file(cert_chain_file, cert_chain.decode('utf-8'))
-        try:
-            tmp = CertificateChain(cert_chain_file)
-            self.zk.store_shared_item(self.ZK_CERT_CHAIN_CACHE_PATH,
-                                      tmp.certs[0].subject +
-                                      "-V:" + str(tmp.certs[0].version),
-                                      cert_chain)
-        except ZkConnectionLoss:
-            logging.debug("Unable to store cert chain in shared path: "
-                          "no connection to ZK")
-            return
+        self._store_cert_chain_in_zk(cert_chain_file, cert_chain)
         # Reply to all requests for this certificate chain
         for dst_addr in self.cert_chain_requests[
                 (cert_chain_rep.isd_id, cert_chain_rep.ad_id,
@@ -166,11 +171,26 @@ class CertServer(SCIONElement):
                 self.addr, cert_chain_rep.isd_id, cert_chain_rep.ad_id,
                 cert_chain_rep.version, cert_chain_rep.cert_chain)
             self.send(new_cert_chain_rep, dst_addr)
-            del self.cert_chain_requests[
-                (cert_chain_rep.isd_id,
-                 cert_chain_rep.ad_id,
-                 cert_chain_rep.version)]
+        del self.cert_chain_requests[
+            (cert_chain_rep.isd_id,
+             cert_chain_rep.ad_id,
+             cert_chain_rep.version)]
         logging.info("Certificate chain reply sent.")
+
+    def _store_trc_in_zk(self, trc_file, trc):
+        """
+        Store the TRC in the zookeeper.
+        """
+        try:
+            tmp = TRC(trc_file)
+            self.zk.store_shared_item(self.ZK_TRC_CACHE_PATH,
+                                      "ISD:" + str(tmp.isd_id) +
+                                      "-V:" + str(tmp.version),
+                                      trc)
+        except ZkConnectionLoss:
+            logging.debug("Unable to store TRC in shared path: "
+                          "no connection to ZK")
+            return
 
     def process_trc_request(self, trc_req):
         """
@@ -187,6 +207,7 @@ class CertServer(SCIONElement):
             if os.path.exists(trc_file):
                 trc = read_file(trc_file).encode('utf-8')
                 self.trcs[(trc_req.isd_id, trc_req.version)] = trc
+                self._store_trc_in_zk(trc_file, trc)
         if not trc:
             # Requesting TRC file from parent's cert server
             logging.debug('TRC not found.')
@@ -227,16 +248,7 @@ class CertServer(SCIONElement):
             self.topology.isd_id, self.topology.ad_id,
             trc_rep.isd_id, trc_rep.version)
         write_file(trc_file, trc.decode('utf-8'))
-        try:
-            tmp = TRC(trc_file)
-            self.zk.store_shared_item(self.ZK_TRC_CACHE_PATH,
-                                      "ISD:" + str(tmp.isd_id) +
-                                      "-V:" + str(tmp.version),
-                                      trc)
-        except ZkConnectionLoss:
-            logging.debug("Unable to store TRC in shared path: "
-                          "no connection to ZK")
-            return
+        self._store_trc_in_zk(trc_file, trc)
         # Reply to all requests for this TRC
         for dst_addr in self.trc_requests[(trc_rep.isd_id, trc_rep.version)]:
             new_trc_rep = TRCReply.from_values(
@@ -250,13 +262,15 @@ class CertServer(SCIONElement):
         """
         Get the isd_id, ad_id, and version values from the entry name.
         """
-        return parse.parse('ISD:{:d}-AD:{:d}-V:{:d}', entry)
+        identifiers = re.split(':|-', entry)
+        return (int(identifiers[1]), int(identifiers[3]), int(identifiers[5]))
 
     def _get_trc_identifiers(self, entry):
         """
         Get the isd_id and version values from the entry name.
         """
-        return parse.parse('ISD:{:d}-V:{:d}', entry)
+        identifiers = re.split(':|-', entry)
+        return (int(identifiers[1]), int(identifiers[3]))
 
     @thread_safety_net("handle_shared_certs")
     def handle_shared_certs(self):
@@ -328,6 +342,15 @@ class CertServer(SCIONElement):
         processed = 0
         for i in range(0, len(entries), chunk_size):
             for entry in entries[i:i+chunk_size]:
+                isd_id, ad_id, version = self._get_cert_chain_identifiers(entry)
+                cert_chain_file = get_cert_chain_file_path(self.topology.isd_id,
+                                                           self.topology.ad_id,
+                                                           isd_id, ad_id,
+                                                           version)
+                if not os.path.exists(cert_chain_file):
+                    continue
+                cert_chain = read_file(cert_chain_file).encode('utf-8')
+                self._store_cert_chain_in_zk(cert_chain_file, cert_chain)
                 try:
                     raw = self.zk.get_shared_item(self.ZK_CERT_CHAIN_CACHE_PATH,
                                                   entry)
@@ -340,13 +363,7 @@ class CertServer(SCIONElement):
                                   "cache: no such entry (%s/%s)" %
                                   (self.ZK_CERT_CHAIN_CACHE_PATH, entry))
                     continue
-                isd_id, ad_id, version = self._get_cert_chain_identifiers(entry)
                 self.cert_chains[(isd_id, ad_id, version)] = raw
-                cert_chain_file = get_cert_chain_file_path(self.topology.isd_id,
-                                                           self.topology.ad_id,
-                                                           isd_id, ad_id,
-                                                           version)
-                write_file(cert_chain_file, raw.decode('utf-8'))
                 processed += 1
         return processed
 
@@ -383,6 +400,14 @@ class CertServer(SCIONElement):
         processed = 0
         for i in range(0, len(entries), chunk_size):
             for entry in entries[i:i+chunk_size]:
+                isd_id, version = self._get_trc_identifiers(entry)
+                trc_file = get_trc_file_path(self.topology.isd_id,
+                                             self.topology.ad_id,
+                                             isd_id, version)
+                if not os.path.exists(trc_file):
+                    continue
+                trc = read_file(trc_file).encode('utf-8')
+                self._store_trc_in_zk(trc_file, trc)
                 try:
                     raw = self.zk.get_shared_item(self.ZK_TRC_CACHE_PATH, entry)
                 except ZkConnectionLoss:
@@ -394,11 +419,7 @@ class CertServer(SCIONElement):
                                   "no such entry (%s/%s)" %
                                   (self.ZK_TRC_CACHE_PATH, entry))
                     continue
-                isd_id, version = self._get_trc_identifiers(entry)
                 self.trcs[(isd_id, version)] = raw
-                trc_file = get_trc_file_path(
-                    self.topology.isd_id, self.topology.ad_id, isd_id, version)
-                write_file(trc_file, raw.decode('utf-8'))
                 processed += 1
         return processed
 
