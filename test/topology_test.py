@@ -96,5 +96,13 @@ class TestElementInit(object):
         ntools.assert_is_none(elem.to_addr)
         ntools.assert_is_none(elem.name)
 
+    def test_uppercase_addr_type(self):
+        elem = Element('192.168.0.1', 'IPv4')
+        ntools.assert_equal(elem.addr, IPv4Address('192.168.0.1'))
+        ntools.assert_is_instance(elem.addr, IPv4Address)
+        ntools.assert_equal(elem.addr_type, 'ipv4')
+        ntools.assert_is_none(elem.to_addr)
+        ntools.assert_is_none(elem.name)
+
 if __name__ == "__main__":
     nose.run(defaultTest=__name__)
