@@ -57,5 +57,13 @@ class TestElementInit(object):
         ntools.assert_is_none(elem.to_addr)
         ntools.assert_is_none(elem.name)
 
+    def test_name(self):
+        elem = Element(name='localhost')
+        ntools.assert_is_none(elem.addr)
+        ntools.assert_is_none(elem.addr_type)
+        ntools.assert_is_none(elem.to_addr)
+        ntools.assert_is_not_none(elem.name)
+        ntools.assert_equal(elem.name, 'localhost')
+
 if __name__ == "__main__":
     nose.run(defaultTest=__name__)
