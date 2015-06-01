@@ -43,13 +43,17 @@ class TestElementInit(object):
 
     def test_ipv4(self):
         elem = Element('192.168.0.1', 'ipv4')
-        ntools.assert_is_none(elem.addr)
-        ntools.assert_is_instance(elem.addr_type, IPv4Address)
+        ntools.assert_equal(elem.addr, IPv4Address('192.168.0.1'))
+        ntools.assert_is_instance(elem.addr, IPv4Address)
+        ntools.assert_equal(elem.addr_type, 'ipv4')
         ntools.assert_is_none(elem.to_addr)
         ntools.assert_is_none(elem.name)
 
     def test_ipv6(self):
         elem = Element('2001:db8::', 'ipv6')
+        ntools.assert_equal(elem.addr, IPv6Address('2001:db8::'))
+        ntools.assert_is_instance(elem.addr, IPv6Address)
+        ntools.assert_equal(elem.addr_type, 'ipv6')
         ntools.assert_is_none(elem.to_addr)
         ntools.assert_is_none(elem.name)
 
