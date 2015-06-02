@@ -22,7 +22,6 @@ import logging
 import struct
 
 # Stdlib
-import bitstring
 from bitstring import BitArray
 
 # SCION

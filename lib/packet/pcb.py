@@ -22,7 +22,6 @@ import logging
 import struct
 
 # External packages
-import bitstring
 from Crypto.Hash import SHA256
 from bitstring import BitArray
 

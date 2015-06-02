@@ -21,7 +21,6 @@ import struct
 from ipaddress import IPv4Address
 
 # External packages
-import bitstring
 from bitstring import BitArray
 
 # SCION
