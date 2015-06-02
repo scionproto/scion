@@ -59,7 +59,7 @@ class PingPongSimTest(unittest.TestCase):
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
-    to_profile = False
+    to_profile = True
 
     def run_test():
         """
@@ -68,7 +68,7 @@ if __name__ == "__main__":
         unittest.main()
 
     if to_profile:
-        profile.run('run_test()', sort='ncalls')
+        profile.run('run_test()', sort='cumtime')
     else:
         run_test()
 
