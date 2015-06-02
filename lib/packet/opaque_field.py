@@ -20,7 +20,6 @@ import logging
 import struct
 
 # External packages
-import bitstring
 from bitstring import BitArray
 
 
@@ -455,12 +454,11 @@ class SupportPeerField(OpaqueField):
     def pack(self):
         """
         Returns SupportPeerField as 8 byte binary string.
-        TODO: Convert into struct.pack
         """
-        return bitstring.pack(
-            "uintbe:16, uintbe:8, uintbe:8, uint:1, uint:31",
-            self.isd_id, self.bwalloc_f, self.bwalloc_r, self.bw_class,
-            self.reserved).bytes
+        data = struct.pack("!HBB", self.isd_id, self.bwalloc_f, 
+                           self.bwalloc_r)
+        data += struct.pack("!I", (self.bw_class << 31) + self.reserved)
+        return data
 
     def __str__(self):
         spf_str = ("[Support Peer OF TD ID: %x, bwalloc_f: %u, "
