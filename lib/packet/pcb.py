@@ -19,6 +19,7 @@
 import base64
 import copy
 import logging
+import struct
 
 # External packages
 import bitstring
@@ -140,7 +141,7 @@ class PCBMarking(Marking):
         """
         Returns PCBMarking as a binary string.
         """
-        return (bitstring.pack("uintbe:64", self.ad_id).bytes +
+        return (struct.pack("!Q", self.ad_id) +
                 self.ssf.pack() + self.hof.pack() + self.spcbf.pack() +
                 self.ig_rev_token + self.eg_rev_token)
 
@@ -226,7 +227,7 @@ class PeerMarking(Marking):
         """
         Returns PeerMarking as a binary string.
         """
-        return (bitstring.pack("uintbe:64", self.ad_id).bytes +
+        return (struct.pack("!Q", self.ad_id) +
                 self.hof.pack() + self.spf.pack() + self.ig_rev_token +
                 self.eg_rev_token)
 

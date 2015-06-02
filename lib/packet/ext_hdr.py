@@ -17,9 +17,9 @@
 """
 # Stdlib
 import logging
+import struct
 
 # External packages
-import bitstring
 from bitstring import BitArray
 
 # SCION
@@ -55,8 +55,7 @@ class ExtensionHeader(HeaderBase):
         self.parsed = True
 
     def pack(self):
-        return bitstring.pack("uintbe:8, uintbe:8",
-                              self.next_ext, self.hdr_len).bytes
+        return struct.pack("!BB", self.next_ext, self.hdr_len)
 
     def __len__(self):
         return 8
@@ -104,9 +103,8 @@ class ICNExtHdr(ExtensionHeader):
         return
 
     def pack(self):
-        return bitstring.pack("uintbe:8, uintbe:8, uintbe:8, uintbe:40",
-                              self.next_ext, self.hdr_len,
-                              self.fwd_flag, 0).bytes
+        return struct.pack("!BBBIB", self.next_ext, self.hdr_len, 
+                           self.fwd_flag, 0, 0)
 
     def __len__(self):
         return ICNExtHdr.MIN_LEN

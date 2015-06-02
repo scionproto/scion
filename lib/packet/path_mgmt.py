@@ -92,10 +92,8 @@ class PathSegmentInfo(PayloadBase):
         """
         Returns PathSegmentInfo as a binary string.
         """
-        return bitstring.pack("uintbe:8, uintbe:16, uintbe:16,"
-                              "uintbe:64, uintbe:64", self.type,
-                              self.src_isd, self.dst_isd,
-                              self.src_ad, self.dst_ad).bytes
+        return struct.pack("!BHHQQ", self.type, self.src_isd, 
+                           self.dst_isd, self.src_ad, self.dst_ad)
 
     @classmethod
     def from_values(cls, pckt_type, src_isd, dst_isd, src_ad, dst_ad):

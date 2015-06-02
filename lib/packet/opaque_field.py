@@ -17,6 +17,7 @@
 """
 # Stdlib
 import logging
+import struct
 
 # External packages
 import bitstring
@@ -156,8 +157,10 @@ class HopOpaqueField(OpaqueField):
         Returns HopOpaqueField as 8 byte binary string.
         """
         ifs = (self.ingress_if << 12) | self.egress_if
-        return bitstring.pack("uintbe:8, uintbe:8, uintbe:24, uintbe:24",
-                              self.info, self.exp_time, ifs, self.mac).bytes
+        data = struct.pack("!BB", self.info, self.exp_time)
+        data += struct.pack("!I", ifs)[1:]
+        data += struct.pack("!I", self.mac)[1:]
+        return data
 
     def __eq__(self, other):
         if type(other) is type(self):
@@ -236,9 +239,9 @@ class InfoOpaqueField(OpaqueField):
         Returns InfoOpaqueFIeld as 8 byte binary string.
         """
         info = (self.info << 1) + self.up_flag
-        return bitstring.pack(
-            "uintbe:8, uintbe:32, uintbe:16, uintbe:8",
-            info, self.timestamp, self.isd_id, self.hops).bytes
+        data = struct.pack("!BIHB", info, self.timestamp, self.isd_id,
+                           self.hops)
+        return data
 
     def __str__(self):
         iof_str = ("[Info OF info: %x, up: %r, TS: %u, ISD ID: %u, hops: %u]" %
@@ -308,9 +311,8 @@ class TRCField(OpaqueField):
         """
         Returns TRCField as 8 byte binary string.
         """
-        return bitstring.pack(
-            "uintbe:8, uintbe:32, uintbe:16, uintbe:8",
-            self.info, self.trc_version, self.if_id, self.reserved).bytes
+        return struct.pack("!BIHB", self.info, self.trc_version, self.if_id,
+                           self.reserved)
 
     def __str__(self):
         trcf_str = ("[TRC OF info: %x, TRCv: %u, IF ID: %u]\n" %
@@ -377,9 +379,8 @@ class SupportSignatureField(OpaqueField):
         """
         Returns SupportSignatureField as 8 byte binary string.
         """
-        return bitstring.pack("uintbe:32, uintbe:16, uintbe:16",
-                              self.cert_chain_version, self.sig_len,
-                              self.block_size).bytes
+        return struct.pack("!IHH", self.cert_chain_version, 
+                           self.sig_len, self.block_size)
 
     def __str__(self):
         ssf_str = ("[Support Signature OF cert_chain_version: %x, "
@@ -454,6 +455,7 @@ class SupportPeerField(OpaqueField):
     def pack(self):
         """
         Returns SupportPeerField as 8 byte binary string.
+        TODO: Convert into struct.pack
         """
         return bitstring.pack(
             "uintbe:16, uintbe:8, uintbe:8, uint:1, uint:31",
@@ -544,11 +546,10 @@ class SupportPCBField(OpaqueField):
         """
         Returns SupportPCBField as 8 byte binary string.
         """
-        return bitstring.pack(
-            "uintbe:16, uintbe:8, uintbe:8, uintbe:8, "
-            "uintbe:8, uintbe:8, uintbe:8", self.isd_id, self.bwalloc_f,
-            self.bwalloc_r, self.dyn_bwalloc_f, self.dyn_bwalloc_r, self.bebw_f,
-            self.bebw_r).bytes
+        return struct.pack(
+            "!HBBBBBB", self.isd_id, self.bwalloc_f, self.bwalloc_r, 
+            self.dyn_bwalloc_f, self.dyn_bwalloc_r, self.bebw_f,
+            self.bebw_r)
 
     def __str__(self):
         spcbf_str = ("[Info OF TD ID: %x, bwalloc_f: %u, bwalloc_r: %u]\n" %

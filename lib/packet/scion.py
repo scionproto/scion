@@ -141,11 +141,9 @@ class SCIONCommonHdr(HeaderBase):
         """
         types = ((self.version << 12) | (self.dst_addr_len << 6) |
                  self.src_addr_len)
-        return bitstring.pack("uintbe:16, uintbe:16, uintbe:8, "
-                              "uintbe:8, uintbe:8, uintbe:8",
-                              types, self.total_len, self.curr_iof_p,
-                              self.curr_of_p, self.next_hdr,
-                              self.hdr_len).bytes
+        return struct.pack("!HHBBBB", types, self.total_len, 
+                           self.curr_iof_p, self.curr_of_p, 
+                           self.next_hdr, self.hdr_len)
 
     def __str__(self):
         res = ("[CH ver: %u, src len: %u, dst len: %u, total len: %u bytes, "
@@ -634,9 +632,8 @@ class CertChainRequest(SCIONPacket):
         req.isd_id = isd_id
         req.ad_id = ad_id
         req.version = version
-        req.payload = bitstring.pack(
-            "uintbe:16, uintbe:16, uintbe:64, uintbe:16, uintbe:64, uintbe:32",
-            ingress_if, src_isd, src_ad, isd_id, ad_id, version).bytes
+        req.payload = struct.pack("!HHQHQI", ingress_if, src_isd, 
+                                  src_ad, isd_id, ad_id, version)
         return req
 
 
@@ -712,8 +709,7 @@ class CertChainReply(SCIONPacket):
         rep.ad_id = ad_id
         rep.version = version
         rep.cert_chain = cert_chain
-        rep.payload = bitstring.pack("uintbe:16, uintbe:64, uintbe:32",
-                                     isd_id, ad_id, version).bytes + cert_chain
+        rep.payload = struct.pack("!HQI", isd_id, ad_id, version) + cert_chain
         return rep
 
 
@@ -796,9 +792,8 @@ class TRCRequest(SCIONPacket):
         req.src_ad = src_ad
         req.isd_id = isd_id
         req.version = version
-        req.payload = bitstring.pack(
-            "uintbe:16, uintbe:16, uintbe:64, uintbe:16, uintbe:32",
-            ingress_if, src_isd, src_ad, isd_id, version).bytes
+        req.payload = struct.pack("!HHQHI", ingress_if, src_isd, src_ad, 
+                                  isd_id, version)
         return req
 
 
@@ -868,6 +863,5 @@ class TRCReply(SCIONPacket):
         rep.isd_id = isd_id
         rep.version = version
         rep.trc = trc
-        rep.payload = bitstring.pack("uintbe:16, uintbe:32", isd_id,
-                                     version).bytes + trc
+        rep.payload = struct.pack("!HI", isd_id, version) + trc
         return rep
