@@ -109,12 +109,14 @@ class HopOpaqueField(OpaqueField):
     ingress/egress interfaces (2 * 12 bits) and a MAC (24 bits) authenticating
     the opaque field.
     """
+    MAC_LEN = 3  # MAC length in bytes.
+
     def __init__(self, raw=None):
         OpaqueField.__init__(self)
         self.exp_time = 0
         self.ingress_if = 0
         self.egress_if = 0
-        self.mac = 0
+        self.mac = b"\x00" * self.MAC_LEN
         if raw is not None:
             self.parse(raw)
 
@@ -130,13 +132,13 @@ class HopOpaqueField(OpaqueField):
             return
         bits = BitArray(bytes=raw)
         (self.info, self.exp_time, ifs, self.mac) = bits.unpack(
-            "uintbe:8, uintbe:8, uintbe:24, uintbe:24")
+            "uintbe:8, uintbe:8, uintbe:24, bytes:3")
         self.ingress_if = (ifs & 0xFFF000) >> 12
         self.egress_if = ifs & 0x000FFF
         self.parsed = True
 
     @classmethod
-    def from_values(cls, exp_time, ingress_if=0, egress_if=0, mac=0):
+    def from_values(cls, exp_time, ingress_if=0, egress_if=0, mac=None):
         """
         Returns HopOpaqueField with fields populated from values.
 
@@ -148,6 +150,8 @@ class HopOpaqueField(OpaqueField):
         hof.exp_time = exp_time
         hof.ingress_if = ingress_if
         hof.egress_if = egress_if
+        if mac is None:
+            mac = b"\x00" * cls.MAC_LEN
         hof.mac = mac
         return hof
 
@@ -156,7 +160,7 @@ class HopOpaqueField(OpaqueField):
         Returns HopOpaqueField as 8 byte binary string.
         """
         ifs = (self.ingress_if << 12) | self.egress_if
-        return bitstring.pack("uintbe:8, uintbe:8, uintbe:24, uintbe:24",
+        return bitstring.pack("uintbe:8, uintbe:8, uintbe:24, bytes:3",
                               self.info, self.exp_time, ifs, self.mac).bytes
 
     def __eq__(self, other):
@@ -170,7 +174,7 @@ class HopOpaqueField(OpaqueField):
 
     def __str__(self):
         hof_str = ("[Hop OF info: %u, exp_time: %d, ingress if: %u, "
-                   "egress if: %u, mac: %x]" % (
+                   "egress if: %u, mac: %s]" % (
                        self.info, self.exp_time, self.ingress_if,
                        self.egress_if, self.mac))
         return hof_str
