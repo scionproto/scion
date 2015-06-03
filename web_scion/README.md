@@ -2,15 +2,11 @@ To run the server:
 
 1. Install dependencies and test the installation
 
-  a) Supervisor dependencies
-
-  sudo pip2 install supervisor==3.1.3 && sudo pip2 install supervisor-quick
-
-  b) Web app dependencies (Django, etc.)
+  a) Install web app dependencies (Django, etc.)
 
   sudo pip3 install -r requirements.txt
 
-  c) Run tests
+  b) Run tests
 
   ./manage.py test
 
@@ -33,3 +29,4 @@ To run the server:
    Don't forget to run the monitoring daemon:
 
    ./supervisor/supervisor.sh start monitoring_daemon
+
