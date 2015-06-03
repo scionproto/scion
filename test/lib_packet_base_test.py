@@ -51,10 +51,10 @@ class TestPacketBaseInit(object):
         Tests proper member initialization.
         """
         packet_base = PacketBase()
-        ntools.eq_(packet_base._hdr, None)
-        ntools.eq_(packet_base._payload, None)
+        ntools.assert_is_none(packet_base._hdr)
+        ntools.assert_is_none(packet_base._payload)
         ntools.assert_false(packet_base.parsed)
-        ntools.eq_(packet_base.raw, None)
+        ntools.assert_is_none(packet_base.raw)
 
 
 class TestPacketBasePayload(object):
@@ -185,7 +185,7 @@ class TestPayloadBaseInit(object):
         Tests proper member initialization.
         """
         payload = PayloadBase()
-        ntools.eq_(payload.raw, None)
+        ntools.assert_is_none(payload.raw)
         ntools.assert_false(payload.parsed)
 
 
