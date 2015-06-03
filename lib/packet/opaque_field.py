@@ -136,6 +136,7 @@ class HopOpaqueField(OpaqueField):
         """
         Returns HopOpaqueField with fields populated from values.
 
+        @param exp_time: Expiry time. An integer in the range [0,255]
         @param ingress_if: Ingress interface.
         @param egress_if: Egress interface.
         @param mac: MAC of ingress/egress interfaces' ID and timestamp.
