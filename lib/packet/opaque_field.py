@@ -66,19 +66,19 @@ class OpaqueField(object):
         """
         Returns true if opaque field is regular, false otherwise.
         """
-        return not ((self.info & (1<<6)) != 0)
+        return not ((self.info & (1 << 6)) != 0)
 
     def is_continue(self):
         """
         Returns true if continue bit is set, false otherwise.
         """
-        return ((self.info & (1<<5)) != 0)
+        return ((self.info & (1 << 5)) != 0)
 
     def is_xovr(self):
         """
         Returns true if crossover point bit is set, false otherwise.
         """
-        return ((self.info & (1<<4)) != 0)
+        return ((self.info & (1 << 4)) != 0)
 
     def __str__(self):
         pass
@@ -125,8 +125,8 @@ class HopOpaqueField(OpaqueField):
             logging.warning("HOF: Data too short for parsing, len: %u", dlen)
             return
         (self.info, self.exp_time) = struct.unpack("!BB", raw[0:2])
-        ifs = struct.unpack("!I", b'\0'+raw[2:5])[0]
-        self.mac = struct.unpack("!I", b'\0'+raw[5:8])[0]
+        ifs = struct.unpack("!I", b'\0' + raw[2:5])[0]
+        self.mac = struct.unpack("!I", b'\0' + raw[5:8])[0]
         self.ingress_if = (ifs & 0xFFF000) >> 12
         self.egress_if = ifs & 0x000FFF
         self.parsed = True
