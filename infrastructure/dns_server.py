@@ -27,8 +27,8 @@ import logging
 import os
 import sys
 import threading
-import time
 from ipaddress import ip_address
+from time import sleep
 
 # External packages
 from dnslib import A, AAAA, DNSLabel, PTR, QTYPE, RCODE, RR, SRV
@@ -102,54 +102,39 @@ class SrvInst(object):
             answer.append(V6REV.add(".".join(reverse_chars)))
         return answer
 
-    def service_records(self, qtype, reply):
+    def forward_records(self, qname, qtype, reply):
         """
-        Generate DNS records for a service.
+        Generate DNS records for a service or instance.
 
+        If it's a service query, then qname will be the service record (E.g.
+        ``"bs.scion."``), and the answer section will be for that record. If
+        it's an instance query, then qname will be the instance record (E.g.
+        ``"bs1-13-1.scion."``), and that will be used in the answer section
+        instead.
+
+        In either case, the additional section will contain A/AAAA records for
+        any fqdn instance records that aren't already in the answer section.
+
+        :param dnslib.DNSLabel qname: Queried DNS record.
         :param str qtype: Query type (e.g. ``"AAAA"``).
         :param dnslib.DNSRecord reply: DNSRecord object to add the replies to.
         """
         # 'answer' section
         if qtype in ["A", "ANY"]:
             for addr in self.v4_addrs:
-                reply.add_answer(RR(self.domain, QTYPE.A, rdata=A(str(addr))))
+                reply.add_answer(RR(qname, QTYPE.A, rdata=A(str(addr))))
         if qtype in ["AAAA", "ANY"]:
             for addr in self.v6_addrs:
-                reply.add_answer(RR(self.domain, QTYPE.AAAA,
-                                    rdata=AAAA(str(addr))))
+                reply.add_answer(RR(qname, QTYPE.AAAA, rdata=AAAA(str(addr))))
         # Always return SRV records in 'answer' section
-        reply.add_answer(RR(self.domain, QTYPE.SRV, rdata=SRV(target=self.fqdn,
-                                                              port=self.port)))
-        # Add instance A/AAAA records to 'additional' response section
-        for addr in self.v4_addrs:
-            reply.add_ar(RR(self.fqdn, QTYPE.A, rdata=A(str(addr))))
-        for addr in self.v6_addrs:
-            reply.add_ar(RR(self.fqdn, QTYPE.AAAA, rdata=AAAA(str(addr))))
-
-    def instance_records(self, qtype, reply):
-        """
-        Generate DNS records for this instance specifically.
-
-        :param str qtype: Query type (e.g. ``"AAAA"``).
-        :param dnslib.DNSRecord reply: DNSRecord object to add the replies to.
-        """
-        # 'answer' section
-        if qtype in ["A", "ANY"]:
-            for addr in self.v4_addrs:
-                reply.add_answer(RR(self.fqdn, QTYPE.A, rdata=A(str(addr))))
-        if qtype in ["AAAA", "ANY"]:
-            for addr in self.v6_addrs:
-                reply.add_answer(RR(self.fqdn, QTYPE.AAAA,
-                                    rdata=AAAA(str(addr))))
-        # Always return SRV records in 'answer' section
-        reply.add_answer(RR(self.fqdn, QTYPE.SRV, rdata=SRV(target=self.fqdn,
-                                                            port=self.port)))
-        # Add instance A/AAAA records to 'additional' response section if not
-        # already in the 'answer' section
-        if qtype not in ["A", "ANY"]:
+        reply.add_answer(RR(qname, QTYPE.SRV, rdata=SRV(target=self.fqdn,
+                                                        port=self.port)))
+        # Add fqdn instance A/AAAA records to 'additional' response section if
+        # they're not already in the 'answer' section.
+        if qname != self.fqdn or qtype not in ["A", "ANY"]:
             for addr in self.v4_addrs:
                 reply.add_ar(RR(self.fqdn, QTYPE.A, rdata=A(str(addr))))
-        if qtype not in ["AAAA", "ANY"]:
+        if qname != self.fqdn or qtype not in ["AAAA", "ANY"]:
             for addr in self.v6_addrs:
                 reply.add_ar(RR(self.fqdn, QTYPE.AAAA, rdata=AAAA(str(addr))))
 
@@ -237,12 +222,12 @@ class ZoneResolver(BaseResolver):
                         reply.header.rcode = RCODE.SERVFAIL
                         return
                     for inst in srv_insts:
-                        inst.service_records(qtype, reply)
+                        inst.forward_records(qname, qtype, reply)
                     return
             # Or is it for an instance?
             inst = self.instances.get(qname)
             if inst:
-                inst.instance_records(qtype, reply)
+                inst.forward_records(qname, qtype, reply)
                 return
             logging.warning("Unknown service/instance: %s", qname)
             reply.header.rcode = RCODE.NXDOMAIN
@@ -388,6 +373,11 @@ class SCIONDnsServer(SCIONElement):
         super().__init__("ds", topo_file, server_id=server_id)
         self.domain = DNSLabel(domain)
         self.lock = threading.Lock()
+        self.services = {}
+        self.instances = {}
+        self.reverse = {}
+
+    def setup(self):
         self.resolver = ZoneResolver(self.lock, self.domain, self.SRV_TYPES)
         self.udp_server = DNSServer(self.resolver, port=SCION_DNS_PORT,
                                     address=str(self.addr.host_addr),
@@ -397,11 +387,11 @@ class SCIONDnsServer(SCIONElement):
                                     address=str(self.addr.host_addr),
                                     server=SCIONDnsTcpServer,
                                     logger=SCIONDnsLogger())
-        self.zk = Zookeeper(
-            self.topology.isd_id, self.topology.ad_id,
-            "ds", self.addr.host_addr, ["localhost:2181"])
         self.name_addrs = "\0".join([self.id, str(SCION_DNS_PORT),
                                      str(self.addr.host_addr)])
+        self.zk = Zookeeper(
+            self.topology.isd_id, self.topology.ad_id,
+            "ds", self.name_addrs, ["localhost:2181"])
         self._parties = {}
         self._join_parties()
 
@@ -419,10 +409,11 @@ class SCIONDnsServer(SCIONElement):
             except ZkConnectionLoss:
                 logging.info("Connection dropped while "
                              "registering for parties")
+                # Clear existing parties, start again.
+                self._parties = {}
                 continue
             else:
                 break
-        self._sync_zk_state()
 
     def _join_party(self, type_):
         prefix = "/ISD%d-AD%d" % (self.topology.isd_id, self.topology.ad_id)
@@ -434,52 +425,64 @@ class SCIONDnsServer(SCIONElement):
         """
         Update shared instance data from ZK.
         """
-        services = {}
-        instances = {}
-        reverse = {}
+        # Clear existing state
+        self.services = {}
+        self.instances = {}
+        self.reverse = {}
 
         # Retrieve alive instance details from ZK for each service.
         for srv_type in self.SRV_TYPES:
             srv_domain = self.domain.add(srv_type)
-            services[srv_domain] = []
+            self.services[srv_domain] = []
             try:
                 srv_set = set(self._parties[srv_type])
             except (ConnectionLoss, SessionExpiredError):
                 # If the connection drops, leave the instance list blank
                 continue
             for i in srv_set:
-                new_inst = SrvInst(i, self.domain)
-                instances[new_inst.fqdn] = new_inst
-                services[srv_domain].append(new_inst)
-                # Build reverse lookup table
-                for rev in new_inst.reverse_pointers():
-                    reverse[rev] = new_inst
-        old_names = set(self._instance_names(self.resolver.instances))
-        new_names = set(self._instance_names(instances))
+                self._mk_srv_inst(i, srv_domain)
+        self._update_zone()
 
+    def _mk_srv_inst(self, inst, srv_domain):
+        new_inst = SrvInst(inst, self.domain)
+        self.instances[new_inst.fqdn] = new_inst
+        self.services[srv_domain].append(new_inst)
+        # Add reverse lookup entries
+        for rev in new_inst.reverse_pointers():
+            self.reverse[rev] = new_inst
+
+    def _update_zone(self):
+        old_names = self._instance_names(self.resolver.instances)
+        new_names = self._instance_names(self.instances)
         # Update DNS zone data
         with self.lock:
-            self.resolver.services = services
-            self.resolver.instances = instances
-            self.resolver.reverse = reverse
+            self.resolver.services = self.services
+            self.resolver.instances = self.instances
+            self.resolver.reverse = self.reverse
+        self._log_changes(old_names, new_names)
 
+    def _log_changes(self, old, new):
         # Calculate additions/removals
-        added = new_names - old_names
+        added = new - old
         if added:
             logging.info("Added instance(s): %s", ",".join(sorted(added)))
-        removed = old_names - new_names
+        removed = old - new
         if removed:
             logging.info("Removed instance(s): %s", ",".join(sorted(removed)))
+        # To allow testing:
+        return added, removed
 
     def _instance_names(self, instances):
-        return [str(inst.id).rstrip(".") for inst in instances.values()]
+        names = [str(inst.id).rstrip(".") for inst in instances.values()]
+        return set(names)
 
     def run(self):
+        self._sync_zk_state()
         self.udp_server.start_thread()
         self.tcp_server.start_thread()
         while self.udp_server.isAlive() and self.tcp_server.isAlive():
             self._sync_zk_state()
-            time.sleep(self.SYNC_TIME)
+            sleep(self.SYNC_TIME)
 
 
 def main():
@@ -493,6 +496,7 @@ def main():
         sys.exit()
 
     scion_dns_server = SCIONDnsServer(*sys.argv[1:])
+    scion_dns_server.setup()
     trace(scion_dns_server.id)
 
     logging.info("Started: %s", datetime.datetime.now())

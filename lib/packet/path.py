@@ -467,12 +467,12 @@ class PeerPath(PathBase):
         s.append(str(self.up_segment_info) + "\n")
         for of in self.up_segment_hops:
             s.append(str(of) + "\n")
-        s.append("Upstream AD: " + str(self.up_segment_upstream_ad) + "\n")
         s.append("Peering link: " + str(self.up_segment_peering_link) + "\n")
+        s.append("Upstream AD: " + str(self.up_segment_upstream_ad) + "\n")
         s.append("</Up-Segment>\n<Down-Segment>\n")
         s.append(str(self.down_segment_info) + "\n")
-        s.append("Peering link: " + str(self.down_segment_peering_link) + "\n")
         s.append("Upstream AD: " + str(self.down_segment_upstream_ad) + "\n")
+        s.append("Peering link: " + str(self.down_segment_peering_link) + "\n")
         for of in self.down_segment_hops:
             s.append(str(of) + "\n")
         s.append("</Down-Segment>\n</Peer-Path>")
@@ -563,6 +563,7 @@ class PathCombinator(object):
             for block in reversed(core_segment.ads):
                 full_path.core_segment_hops.append(
                     copy.deepcopy(block.pcbm.hof))
+            full_path.core_segment_hops[-1].info = OpaqueFieldType.LAST_OF
             full_path.core_segment_hops[0].info = OpaqueFieldType.LAST_OF
 
         full_path.down_segment_info = down_segment.iof
@@ -605,6 +606,7 @@ class PathCombinator(object):
             path.up_segment_hops.append(up_segment.ads[i].pcbm.hof)
         path.up_segment_hops[-1].info = OpaqueFieldType.LAST_OF
         path.up_segment_upstream_ad = up_segment.ads[up_index - 1].pcbm.hof
+        path.up_segment_upstream_ad.info = OpaqueFieldType.NORMAL_OF
 
         if peer:
             up_ad = up_segment.ads[up_index]
@@ -621,6 +623,7 @@ class PathCombinator(object):
         path.down_segment_info.hops -= dw_index
         path.down_segment_info.up_flag = False
         path.down_segment_upstream_ad = down_segment.ads[dw_index - 1].pcbm.hof
+        path.down_segment_upstream_ad.info = OpaqueFieldType.NORMAL_OF
         for i in range(dw_index, len(down_segment.ads)):
             path.down_segment_hops.append(down_segment.ads[i].pcbm.hof)
         path.down_segment_hops[0].info = OpaqueFieldType.LAST_OF
