@@ -23,8 +23,8 @@ import xmlrpc.client
 from lib.defines import PROJECT_ROOT
 
 # Ports
-MONITORING_DAEMON_PORT = 9000
-SUPERVISORD_PORT = 9001
+MONITORING_DAEMON_PORT = 9010
+SUPERVISORD_PORT = 9011
 
 # Paths
 MONITORING_DAEMON_DIR = os.path.join(PROJECT_ROOT, 'ad_management')
