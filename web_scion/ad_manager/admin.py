@@ -13,6 +13,7 @@ from ad_manager.models import (
     RouterWeb,
 )
 
+
 class SortRelatedAdmin(admin.ModelAdmin):
     list_select_related = True
 

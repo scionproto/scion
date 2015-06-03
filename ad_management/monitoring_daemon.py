@@ -50,7 +50,11 @@ from topology.generator import ConfigGenerator
 
 class MonitoringDaemon(object):
     """
+    Daemon which is launched on every AD node.
 
+    It serves as a RPC server for the web panel and as a client to
+    Supervisor and Zookeeper, proxying corresponding commands to them.
+    It also runs updater and generates software packages.
 
     :ivar addr:
     :type addr:
@@ -98,7 +102,10 @@ class MonitoringDaemon(object):
         return topo_path
 
     def restart_supervisor_async(self):
-
+        """
+        Restart Supervisor after some delay, so the initial RPC call has time
+        to finish.
+        """
         def _restart_supervisor_wait():
             time.sleep(0.1)
             server = get_supervisor_server()
@@ -294,6 +301,11 @@ class MonitoringDaemon(object):
         return response_success()
 
     def get_master_id(self, isd_id, ad_id, server_type):
+        """
+        Registered function.
+
+        Get the id of the current master process for a given server type.
+        """
         if server_type not in ['bs', 'cs', 'ps']:
             return response_failure('Invalid server type')
         kc = KazooClient(hosts="localhost:2181")

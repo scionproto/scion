@@ -20,6 +20,9 @@ DEFAULT_EXTENSION = '.tar'
 
 
 def get_package_name(commit):
+    """
+    Generate a package name from a commit hash and date.
+    """
     now = datetime.datetime.now()
     package_name = "scion_{}_{}{}".format(commit.hexsha[:8],
                                           now.strftime("%d_%m_%y"),
@@ -28,6 +31,9 @@ def get_package_name(commit):
 
 
 def get_package_metadata(commit):
+    """
+    Get a dict of package metadata.
+    """
     now = datetime.datetime.now()
     metadata = {'commit': commit.hexsha,
                 'date': str(now),
@@ -38,8 +44,19 @@ def get_package_metadata(commit):
 def prepare_package(out_dir=PACKAGE_DIR_PATH, package_name=None,
                     config_paths=None, commit_hash=None):
     """
-    config_paths -- list of paths to topology dirs
+    Create a package from the provided revision.
 
+    :param out_dir: output directory
+    :type out_dir: str
+    :param package_name: output package name
+    :type package_name: str
+    :param config_paths: paths to configuration files that will be included in
+                         the package
+    :type config_paths: list
+    :param commit_hash: revision which will be packaged
+    :type commit_hash: str
+    :return: path to the generated package
+    :rtype: str
     """
     repo = Repo(PROJECT_ROOT)
     assert not repo.bare
@@ -62,7 +79,8 @@ def prepare_package(out_dir=PACKAGE_DIR_PATH, package_name=None,
 
     package_prefix = 'scion-package/'
     with open(package_path, 'wb') as out_fh:
-        repo.archive(out_fh, prefix=package_prefix, worktree_attributes=True)
+        repo.archive(out_fh, prefix=package_prefix, worktree_attributes=True,
+                     treeish=commit)
 
     # Append configs
     if config_paths is not None:
@@ -89,12 +107,9 @@ def prepare_package(out_dir=PACKAGE_DIR_PATH, package_name=None,
     return package_path
 
 
-def main():
-    commit_hash = None
+if __name__ == '__main__':
     if len(sys.argv) > 1:
         commit_hash = sys.argv[1]
+    else:
+        commit_hash = None
     prepare_package(commit_hash=commit_hash)
-
-
-if __name__ == '__main__':
-    main()

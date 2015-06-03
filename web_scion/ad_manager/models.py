@@ -125,10 +125,8 @@ class AD(models.Model):
                 yield element
 
     def get_all_element_ids(self):
-        element_ids = []
         all_elements = self.get_all_elements()
-        for element in all_elements:
-            element_ids.append(element.id_str())
+        element_ids = [element.id_str() for element in all_elements]
         return element_ids
 
     def fill_from_topology(self, topology, clear=False):

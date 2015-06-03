@@ -26,7 +26,7 @@ urlpatterns = patterns(
     url(r'^ads/(?P<pk>\d+)/update_topology$',
         views.update_topology, name='update_topology'),
     url(r'^ads/(?P<pk>\d+)/update_action$',
-        views.update_action, name='update_action'),
+        views.software_update_action, name='update_action'),
     url(r'^ads/(?P<pk>\d+)/refresh_versions$',
         views.refresh_versions, name='refresh_versions'),
     url(r'^ads/(?P<pk>\d+)/connect_new_ad$',

@@ -70,8 +70,10 @@ class ADDetailView(DetailView):
                          'certificate_servers', 'beacon_servers',
                          'dns_servers']
         for list_name in lists_to_sort:
-            context[list_name] = sorted(context[list_name],
-                                        key=lambda el: int(el.name))
+            context[list_name] = sorted(
+                context[list_name],
+                key=lambda el: int(el.name) if el.name is not None else -1
+            )
 
         # Update tab
         context['choose_version_form'] = PackageVersionSelectForm()
@@ -96,6 +98,9 @@ def get_ad_status(request, pk):
 
 
 def get_group_master(request, pk):
+    """
+    Get the server group master (the one, who holds the lock in ZK).
+    """
     ad = get_object_or_404(AD, id=pk)
     server_type = request.GET.get('server_type', '')
     if server_type != 'bs':
@@ -193,6 +198,9 @@ def compare_remote_topology(request, pk):
 @require_POST
 @transaction.atomic
 def update_topology(request, pk):
+    """
+    Update topology action: either push or pull the topology.
+    """
     ad = get_object_or_404(AD, id=pk)
     ad_page = reverse('ad_detail', args=[ad.id])
     if '_pull_topology' in request.POST:
@@ -261,7 +269,7 @@ def _download_update(request, package):
 
 
 @require_POST
-def update_action(request, pk):
+def software_update_action(request, pk):
     ad = get_object_or_404(AD, id=pk)
     ad_page = reverse('ad_detail', args=[ad.id])
     form = PackageVersionSelectForm(request.POST)
@@ -276,6 +284,9 @@ def update_action(request, pk):
 
 @require_POST
 def refresh_versions(request, pk):
+    """
+    Refresh version choice form element.
+    """
     ad = get_object_or_404(AD, id=pk)
     PackageVersion.discover_packages()
     updates_page = reverse('ad_detail_updates', args=[ad.id])
@@ -298,6 +309,9 @@ def _download_file_response(file_path, file_name=None, content_type=None):
 @transaction.atomic
 @require_POST
 def connect_new_ad(request, pk):
+    """
+    Create and connect new AD automatically.
+    """
     ad = get_object_or_404(AD, id=pk)
     topology_page = reverse('ad_detail_topology', args=[pk])
 
@@ -346,13 +360,15 @@ def connect_new_ad(request, pk):
         package_path = prepare_package(out_dir=package_dir,
                                        config_paths=config_dirs,
                                        package_name=package_name)
-
-    # Download stuff
+    # Return file
     return _download_file_response(package_path)
 
 
 @require_POST
 def control_process(request, pk, proc_id):
+    """
+    Send a control command to an AD element instance.
+    """
     ad = get_object_or_404(AD, id=pk)
 
     ad_elements = ad.get_all_element_ids()
@@ -439,7 +455,9 @@ class NewLinkView(FormView):
 
 @require_POST
 def request_action(request, pk, req_id):
-    ad = get_object_or_404(AD, id=pk)
+    """
+    Approve or decline the sent connection request.
+    """
     ad_request = get_object_or_404(ConnectionRequest, id=req_id)
 
     if '_approve_request' in request.POST:
@@ -457,6 +475,9 @@ def request_action(request, pk, req_id):
 
 @login_required
 def list_sent_requests(request):
+    """
+    List requests, sent by the current user.
+    """
     user = request.user
     sent_requests = user.connectionrequest_set.all()
     return render(request, 'ad_manager/sent_requests.html',
