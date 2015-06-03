@@ -21,9 +21,6 @@ import struct
 from collections import namedtuple
 from ipaddress import IPV4LENGTH, IPV6LENGTH, IPv4Address, IPv6Address
 
-# External packages
-from bitstring import BitArray
-
 
 ISD_AD = namedtuple('ISD_AD', ['isd', 'ad'])
 
@@ -62,8 +59,7 @@ class SCIONAddr(object):
             logging.warning("SCIONAddr: Data too short for parsing, len: %u",
                             addr_len)
             return
-        bits = BitArray(bytes=raw[:self.ISD_AD_LEN])
-        (self.isd_id, self.ad_id) = bits.unpack("uintbe:16, uintbe:64")
+        (self.isd_id, self.ad_id) = struct.unpack("!HQ", raw[:self.ISD_AD_LEN])
         host_addr_len = addr_len - self.ISD_AD_LEN
         if host_addr_len == IPV4LENGTH // 8:
             self.host_addr = IPv4Address(raw[self.ISD_AD_LEN:])
