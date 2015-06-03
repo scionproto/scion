@@ -21,10 +21,6 @@ Contains all the packet formats used for path management.
 import logging
 import struct
 
-# Stdlib
-import bitstring
-from bitstring import BitArray
-
 # SCION
 from lib.packet.packet_base import PayloadBase
 from lib.packet.pcb import PathSegment
@@ -84,18 +80,15 @@ class PathSegmentInfo(PayloadBase):
         Populates fields from a raw bytes block.
         """
         PayloadBase.parse(self, raw)
-        bits = BitArray(bytes=raw)
         (self.type, self.src_isd, self.dst_isd, self.src_ad, self.dst_ad) = \
-            bits.unpack("uintbe:8, uintbe:16, uintbe:16, uintbe:64, uintbe:64")
+            struct.unpack("!BHHQQ", raw)
 
     def pack(self):
         """
         Returns PathSegmentInfo as a binary string.
         """
-        return bitstring.pack("uintbe:8, uintbe:16, uintbe:16,"
-                              "uintbe:64, uintbe:64", self.type,
-                              self.src_isd, self.dst_isd,
-                              self.src_ad, self.dst_ad).bytes
+        return struct.pack("!BHHQQ", self.type, self.src_isd, 
+                           self.dst_isd, self.src_ad, self.dst_ad)
 
     @classmethod
     def from_values(cls, pckt_type, src_isd, dst_isd, src_ad, dst_ad):

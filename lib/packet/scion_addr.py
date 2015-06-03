@@ -17,12 +17,9 @@
 """
 # Stdlib
 import logging
+import struct
 from collections import namedtuple
 from ipaddress import IPV4LENGTH, IPV6LENGTH, IPv4Address, IPv6Address
-
-# External packages
-import bitstring
-from bitstring import BitArray
 
 
 ISD_AD = namedtuple('ISD_AD', ['isd', 'ad'])
@@ -62,8 +59,7 @@ class SCIONAddr(object):
             logging.warning("SCIONAddr: Data too short for parsing, len: %u",
                             addr_len)
             return
-        bits = BitArray(bytes=raw[:self.ISD_AD_LEN])
-        (self.isd_id, self.ad_id) = bits.unpack("uintbe:16, uintbe:64")
+        (self.isd_id, self.ad_id) = struct.unpack("!HQ", raw[:self.ISD_AD_LEN])
         host_addr_len = addr_len - self.ISD_AD_LEN
         if host_addr_len == IPV4LENGTH // 8:
             self.host_addr = IPv4Address(raw[self.ISD_AD_LEN:])
@@ -76,8 +72,8 @@ class SCIONAddr(object):
         self.addr_len = self.ISD_AD_LEN + host_addr_len
 
     def pack(self):
-        return (bitstring.pack("uintbe:16, uintbe:64", self.isd_id,
-                               self.ad_id).bytes + self.host_addr.packed)
+        return (struct.pack("!HQ", self.isd_id,
+                            self.ad_id) + self.host_addr.packed)
 
     def __str__(self):
         return "(%u, %u, %s)" % (self.isd_id, self.ad_id, self.host_addr)

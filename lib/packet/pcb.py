@@ -19,11 +19,10 @@
 import base64
 import copy
 import logging
+import struct
 
 # External packages
-import bitstring
 from Crypto.Hash import SHA256
-from bitstring import BitArray
 
 # SCION
 from lib.defines import EXP_TIME_UNIT
@@ -103,8 +102,7 @@ class PCBMarking(Marking):
         if dlen < PCBMarking.LEN:
             logging.warning("PCBM: Data too short for parsing, len: %u", dlen)
             return
-        bits = BitArray(bytes=raw[:8])
-        self.ad_id = bits.unpack("uintbe:64")[0]
+        self.ad_id = struct.unpack("!Q", raw[:8])[0]
         self.ssf = SupportSignatureField(raw[8:16])
         self.hof = HopOpaqueField(raw[16:24])
         self.spcbf = SupportPCBField(raw[24:32])
@@ -140,7 +138,7 @@ class PCBMarking(Marking):
         """
         Returns PCBMarking as a binary string.
         """
-        return (bitstring.pack("uintbe:64", self.ad_id).bytes +
+        return (struct.pack("!Q", self.ad_id) +
                 self.ssf.pack() + self.hof.pack() + self.spcbf.pack() +
                 self.ig_rev_token + self.eg_rev_token)
 
@@ -191,8 +189,7 @@ class PeerMarking(Marking):
         if dlen < PeerMarking.LEN:
             logging.warning("PM: Data too short for parsing, len: %u", dlen)
             return
-        bits = BitArray(bytes=raw[0:8])
-        self.ad_id = bits.unpack("uintbe:64")[0]
+        self.ad_id = struct.unpack("!Q", raw[0:8])[0]
         self.hof = HopOpaqueField(raw[8:16])
         self.spf = SupportPeerField(raw[16:24])
         self.ig_rev_token = raw[24:56]
@@ -226,7 +223,7 @@ class PeerMarking(Marking):
         """
         Returns PeerMarking as a binary string.
         """
-        return (bitstring.pack("uintbe:64", self.ad_id).bytes +
+        return (struct.pack("!Q", self.ad_id) +
                 self.hof.pack() + self.spf.pack() + self.ig_rev_token +
                 self.eg_rev_token)
 

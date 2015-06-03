@@ -16,14 +16,12 @@
 =====================================================
 """
 # Stdlib
+import struct
 from unittest.mock import patch
 
 # External packages
 import nose
 import nose.tools as ntools
-import bitstring
-from bitstring import BitArray
-
 
 # SCION
 from lib.packet.opaque_field import (
@@ -56,12 +54,12 @@ class TestOpaqueFieldIsRegular(object):
     """
     def test_basic(self):
         op_fld = OpaqueField()
-        op_fld.info = BitArray('0b10111111').uint
+        op_fld.info = 0b10111111
         ntools.assert_true(op_fld.is_regular())
 
     def test_set(self):
         op_fld = OpaqueField()
-        op_fld.info = BitArray('0b01000000').uint
+        op_fld.info = 0b01000000 
         ntools.assert_false(op_fld.is_regular())
 
 
@@ -71,12 +69,12 @@ class TestOpaqueFieldIsContinue(object):
     """
     def test_basic(self):
         op_fld = OpaqueField()
-        op_fld.info = BitArray('0b11011111').uint
+        op_fld.info = 0b11011111
         ntools.assert_false(op_fld.is_continue())
 
     def test_set(self):
         op_fld = OpaqueField()
-        op_fld.info = BitArray('0b00100000').uint
+        op_fld.info = 0b00100000
         ntools.assert_true(op_fld.is_continue())
 
 
@@ -86,12 +84,12 @@ class TestOpaqueFieldIsXovr(object):
     """
     def test_basic(self):
         op_fld = OpaqueField()
-        op_fld.info = BitArray('0b11101111').uint
+        op_fld.info = 0b11101111
         ntools.assert_false(op_fld.is_xovr())
 
     def test_set(self):
         op_fld = OpaqueField()
-        op_fld.info = BitArray('0b00010000').uint
+        op_fld.info = 0b00010000
         ntools.assert_true(op_fld.is_xovr())
 
 
@@ -416,8 +414,11 @@ class TestSupportPeerFieldParse(object):
         ntools.eq_(sup_pr_fld.isd_id, 0x0f2a)
         ntools.eq_(sup_pr_fld.bwalloc_f, 0x0a)
         ntools.eq_(sup_pr_fld.bwalloc_r, 0x0b)
-        ntools.eq_(sup_pr_fld.bw_class, BitArray(bytes.fromhex('81 0d 0e 0f')).unpack("uint:1, uint:31")[0])
-        ntools.eq_(sup_pr_fld.reserved, BitArray(bytes.fromhex('81 0d 0e 0f')).unpack("uint:1, uint:31")[1])
+        data = struct.unpack("!I", bytes.fromhex('81 0d 0e 0f'))[0]
+        bw_class = (data >> 31)
+        reserved = data - (bw_class << 31)
+        ntools.eq_(sup_pr_fld.bw_class, bw_class)
+        ntools.eq_(sup_pr_fld.reserved, reserved)
         ntools.assert_true(sup_pr_fld.parsed)
 
     def test_len(self):
@@ -461,8 +462,9 @@ class TestSupportPeerFieldPack(object):
         sup_pr_fld.isd_id = 0x0f2a
         sup_pr_fld.bwalloc_f = 0x0a
         sup_pr_fld.bwalloc_r = 0x0b
-        sup_pr_fld.bw_class = BitArray(bytes.fromhex('81 0d 0e 0f')).unpack("uint:1, uint:31")[0]
-        sup_pr_fld.reserved = BitArray(bytes.fromhex('81 0d 0e 0f')).unpack("uint:1, uint:31")[1]
+        data = struct.unpack("!I", bytes.fromhex('81 0d 0e 0f'))[0]
+        sup_pr_fld.bw_class = (data >> 31)
+        sup_pr_fld.reserved = data - (sup_pr_fld.bw_class << 31)
         ntools.eq_(sup_pr_fld.pack(),bytes.fromhex('0f 2a 0a 0b 81 0d 0e 0f'))
 
 

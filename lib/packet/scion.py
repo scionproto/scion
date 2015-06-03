@@ -20,10 +20,6 @@ import logging
 import struct
 from ipaddress import IPv4Address
 
-# External packages
-import bitstring
-from bitstring import BitArray
-
 # SCION
 from lib.packet.ext_hdr import ExtensionHeader, ICNExtHdr
 from lib.packet.opaque_field import (
@@ -120,15 +116,12 @@ class SCIONCommonHdr(HeaderBase):
         """
         assert isinstance(raw, bytes)
         dlen = len(raw)
-        if dlen < SCIONCommonHdr.LEN:
+        if dlen < self.LEN:
             logging.warning("Data too short to parse SCION common header: "
                             "data len %u", dlen)
             return
-        bits = BitArray(bytes=raw)
         (types, self.total_len, self.curr_iof_p, self.curr_of_p,
-         self.next_hdr, self.hdr_len) = \
-            bits.unpack("uintbe:16, uintbe:16, uintbe:8, "
-                        "uintbe:8, uintbe:8, uintbe:8")
+         self.next_hdr, self.hdr_len) = struct.unpack("!HHBBBB", raw)
         self.version = (types & 0xf000) >> 12
         self.src_addr_len = (types & 0x0fc0) >> 6
         self.dst_addr_len = types & 0x003f
@@ -141,11 +134,9 @@ class SCIONCommonHdr(HeaderBase):
         """
         types = ((self.version << 12) | (self.dst_addr_len << 6) |
                  self.src_addr_len)
-        return bitstring.pack("uintbe:16, uintbe:16, uintbe:8, "
-                              "uintbe:8, uintbe:8, uintbe:8",
-                              types, self.total_len, self.curr_iof_p,
-                              self.curr_of_p, self.next_hdr,
-                              self.hdr_len).bytes
+        return struct.pack("!HHBBBB", types, self.total_len, 
+                           self.curr_iof_p, self.curr_of_p, 
+                           self.next_hdr, self.hdr_len)
 
     def __str__(self):
         res = ("[CH ver: %u, src len: %u, dst len: %u, total len: %u bytes, "
@@ -308,8 +299,8 @@ class SCIONHeader(HeaderBase):
         # extension headers by a 0 in the type field.
         cur_hdr_type = self.common_hdr.next_hdr
         while cur_hdr_type != 0:
-            bits = BitArray(raw[offset: offset + 2])
-            (next_hdr_type, hdr_len) = bits.unpack("uintbe:8, uintbe:8")
+            (next_hdr_type, hdr_len) = \
+                struct.unpack("!BB", raw[offset:offset + 2])
             logging.info("Found extension hdr of type %u with len %u",
                          cur_hdr_type, hdr_len)
             if cur_hdr_type == ICNExtHdr.TYPE:
@@ -601,11 +592,8 @@ class CertChainRequest(SCIONPacket):
         :type raw: bytes
         """
         SCIONPacket.parse(self, raw)
-        bits = BitArray(bytes=self.payload)
         (self.ingress_if, self.src_isd, self.src_ad, self.isd_id,
-            self.ad_id, self.version) = bits.unpack(
-                "uintbe:16, uintbe:16, uintbe:64, "
-                "uintbe:16, uintbe:64, uintbe:32")
+            self.ad_id, self.version) = struct.unpack("!HHQHQI", self.payload)
 
     @classmethod
     def from_values(cls, req_type, src, ingress_if, src_isd, src_ad, isd_id,
@@ -642,9 +630,8 @@ class CertChainRequest(SCIONPacket):
         req.isd_id = isd_id
         req.ad_id = ad_id
         req.version = version
-        req.payload = bitstring.pack(
-            "uintbe:16, uintbe:16, uintbe:64, uintbe:16, uintbe:64, uintbe:32",
-            ingress_if, src_isd, src_ad, isd_id, ad_id, version).bytes
+        req.payload = struct.pack("!HHQHQI", ingress_if, src_isd, 
+                                  src_ad, isd_id, ad_id, version)
         return req
 
 
@@ -690,10 +677,9 @@ class CertChainReply(SCIONPacket):
         :type raw: bytes
         """
         SCIONPacket.parse(self, raw)
-        bits = BitArray(bytes=self.payload)
         (self.isd_id, self.ad_id, self.version) = \
-            bits.unpack("uintbe:16, uintbe:64, uintbe:32")
-        self.cert_chain = self.payload[CertChainReply.MIN_LEN:]
+            struct.unpack("!HQI", self.payload[0:self.MIN_LEN])
+        self.cert_chain = self.payload[self.MIN_LEN:]
 
     @classmethod
     def from_values(cls, dst, isd_id, ad_id, version, cert_chain):
@@ -720,8 +706,7 @@ class CertChainReply(SCIONPacket):
         rep.ad_id = ad_id
         rep.version = version
         rep.cert_chain = cert_chain
-        rep.payload = bitstring.pack("uintbe:16, uintbe:64, uintbe:32",
-                                     isd_id, ad_id, version).bytes + cert_chain
+        rep.payload = struct.pack("!HQI", isd_id, ad_id, version) + cert_chain
         return rep
 
 
@@ -767,10 +752,8 @@ class TRCRequest(SCIONPacket):
         :type raw: bytes
         """
         SCIONPacket.parse(self, raw)
-        bits = BitArray(bytes=self.payload)
         (self.ingress_if, self.src_isd, self.src_ad, self.isd_id,
-            self.version) = bits.unpack(
-                "uintbe:16, uintbe:16, uintbe:64, uintbe:16, uintbe:32")
+            self.version) = struct.unpack("!HHQHI", self.payload)
 
     @classmethod
     def from_values(cls, req_type, src, ingress_if, src_isd, src_ad, isd_id,
@@ -804,9 +787,8 @@ class TRCRequest(SCIONPacket):
         req.src_ad = src_ad
         req.isd_id = isd_id
         req.version = version
-        req.payload = bitstring.pack(
-            "uintbe:16, uintbe:16, uintbe:64, uintbe:16, uintbe:32",
-            ingress_if, src_isd, src_ad, isd_id, version).bytes
+        req.payload = struct.pack("!HHQHI", ingress_if, src_isd, src_ad, 
+                                  isd_id, version)
         return req
 
 
@@ -849,9 +831,9 @@ class TRCReply(SCIONPacket):
         :type raw: bytes
         """
         SCIONPacket.parse(self, raw)
-        bits = BitArray(bytes=self.payload)
-        (self.isd_id, self.version) = bits.unpack("uintbe:16, uintbe:32")
-        self.trc = self.payload[TRCReply.MIN_LEN:]
+        (self.isd_id, self.version) = \
+            struct.unpack("!HI", self.payload[0:self.MIN_LEN])
+        self.trc = self.payload[self.MIN_LEN:]
 
     @classmethod
     def from_values(cls, dst, isd_id, version, trc):
@@ -876,6 +858,5 @@ class TRCReply(SCIONPacket):
         rep.isd_id = isd_id
         rep.version = version
         rep.trc = trc
-        rep.payload = bitstring.pack("uintbe:16, uintbe:32", isd_id,
-                                     version).bytes + trc
+        rep.payload = struct.pack("!HI", isd_id, version) + trc
         return rep

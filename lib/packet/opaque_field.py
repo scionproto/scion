@@ -17,11 +17,7 @@
 """
 # Stdlib
 import logging
-
-# External packages
-import bitstring
-from bitstring import BitArray
-
+import struct
 
 class OpaqueFieldType(object):
     """
@@ -70,19 +66,19 @@ class OpaqueField(object):
         """
         Returns true if opaque field is regular, false otherwise.
         """
-        return not BitArray(bytes([self.info]))[1]
+        return not ((self.info & (1 << 6)) != 0)
 
     def is_continue(self):
         """
         Returns true if continue bit is set, false otherwise.
         """
-        return BitArray(bytes([self.info]))[2]
+        return ((self.info & (1 << 5)) != 0)
 
     def is_xovr(self):
         """
         Returns true if crossover point bit is set, false otherwise.
         """
-        return BitArray(bytes([self.info]))[3]
+        return ((self.info & (1 << 4)) != 0)
 
     def __str__(self):
         pass
@@ -130,11 +126,11 @@ class HopOpaqueField(OpaqueField):
         if dlen < self.LEN:
             logging.warning("HOF: Data too short for parsing, len: %u", dlen)
             return
-        bits = BitArray(bytes=raw)
-        (self.info, self.exp_time, ifs, self.mac) = bits.unpack(
-            "uintbe:8, uintbe:8, uintbe:24, bytes:3")
-        self.ingress_if = (ifs & 0xFFF000) >> 12
-        self.egress_if = ifs & 0x000FFF
+        (self.info, self.exp_time) = struct.unpack("!BB", raw[0:2])
+        ifs = struct.unpack("!I", b'\0' + raw[2:5])[0]
+        self.mac = raw[5:8]
+        self.ingress_if = (ifs & 0x00FFF000) >> 12
+        self.egress_if = ifs & 0x00000FFF
         self.parsed = True
 
     @classmethod
@@ -142,6 +138,7 @@ class HopOpaqueField(OpaqueField):
         """
         Returns HopOpaqueField with fields populated from values.
 
+        @param exp_time: Expiry time. An integer in the range [0,255]
         @param ingress_if: Ingress interface.
         @param egress_if: Egress interface.
         @param mac: MAC of ingress/egress interfaces' ID and timestamp.
@@ -160,8 +157,10 @@ class HopOpaqueField(OpaqueField):
         Returns HopOpaqueField as 8 byte binary string.
         """
         ifs = (self.ingress_if << 12) | self.egress_if
-        return bitstring.pack("uintbe:8, uintbe:8, uintbe:24, bytes:3",
-                              self.info, self.exp_time, ifs, self.mac).bytes
+        data = struct.pack("!BB", self.info, self.exp_time)
+        data += struct.pack("!I", ifs)[1:]
+        data += self.mac
+        return data
 
     def __eq__(self, other):
         if type(other) is type(self):
@@ -209,9 +208,9 @@ class InfoOpaqueField(OpaqueField):
         if dlen < self.LEN:
             logging.warning("IOF: Data too short for parsing, len: %u", dlen)
             return
-        bits = BitArray(bytes=raw)
         (self.info, self.timestamp, self.isd_id, self.hops) = \
-            bits.unpack("uintbe:8, uintbe:32, uintbe:16, uintbe:8")
+            struct.unpack("!BIHB", raw)
+
         self.up_flag = bool(self.info & 0b00000001)
         self.info >>= 1
         self.parsed = True
@@ -240,9 +239,9 @@ class InfoOpaqueField(OpaqueField):
         Returns InfoOpaqueFIeld as 8 byte binary string.
         """
         info = (self.info << 1) + self.up_flag
-        return bitstring.pack(
-            "uintbe:8, uintbe:32, uintbe:16, uintbe:8",
-            info, self.timestamp, self.isd_id, self.hops).bytes
+        data = struct.pack("!BIHB", info, self.timestamp, self.isd_id,
+                           self.hops)
+        return data
 
     def __str__(self):
         iof_str = ("[Info OF info: %x, up: %r, TS: %u, ISD ID: %u, hops: %u]" %
@@ -288,9 +287,8 @@ class TRCField(OpaqueField):
         if dlen < self.LEN:
             logging.warning("TRCF: Data too short for parsing, len: %u", dlen)
             return
-        bits = BitArray(bytes=raw)
         (self.info, self.trc_version, self.if_id, self.reserved) = \
-            bits.unpack("uintbe:8, uintbe:32, uintbe:16, uintbe:8")
+            struct.unpack("!BIHB", raw)
         self.parsed = True
 
     @classmethod
@@ -312,9 +310,8 @@ class TRCField(OpaqueField):
         """
         Returns TRCField as 8 byte binary string.
         """
-        return bitstring.pack(
-            "uintbe:8, uintbe:32, uintbe:16, uintbe:8",
-            self.info, self.trc_version, self.if_id, self.reserved).bytes
+        return struct.pack("!BIHB", self.info, self.trc_version, self.if_id,
+                           self.reserved)
 
     def __str__(self):
         trcf_str = ("[TRC OF info: %x, TRCv: %u, IF ID: %u]\n" %
@@ -355,9 +352,8 @@ class SupportSignatureField(OpaqueField):
         if dlen < self.LEN:
             logging.warning("SSF: Data too short for parsing, len: %u", dlen)
             return
-        bits = BitArray(bytes=raw)
         (self.cert_chain_version, self.sig_len, self.block_size) = \
-            bits.unpack("uintbe:32, uintbe:16, uintbe:16")
+            struct.unpack("!IHH", raw)
         self.parsed = True
 
     @classmethod
@@ -381,9 +377,8 @@ class SupportSignatureField(OpaqueField):
         """
         Returns SupportSignatureField as 8 byte binary string.
         """
-        return bitstring.pack("uintbe:32, uintbe:16, uintbe:16",
-                              self.cert_chain_version, self.sig_len,
-                              self.block_size).bytes
+        return struct.pack("!IHH", self.cert_chain_version, 
+                           self.sig_len, self.block_size)
 
     def __str__(self):
         ssf_str = ("[Support Signature OF cert_chain_version: %x, "
@@ -428,10 +423,10 @@ class SupportPeerField(OpaqueField):
         if dlen < self.LEN:
             logging.warning("SPF: Data too short for parsing, len: %u", dlen)
             return
-        bits = BitArray(bytes=raw)
-        (self.isd_id, self.bwalloc_f, self.bwalloc_r, self.bw_class,
-            self.reserved) = bits.unpack("uintbe:16, uintbe:8, uintbe:8, "
-                                         "uint:1, uint:31")
+        (self.isd_id, self.bwalloc_f, self.bwalloc_r, data) = \
+            struct.unpack("!HBBI", raw)
+        self.bw_class = data >> 31
+        self.reserved = data - (self.bw_class << 31)
         self.parsed = True
 
     @classmethod
@@ -459,10 +454,10 @@ class SupportPeerField(OpaqueField):
         """
         Returns SupportPeerField as 8 byte binary string.
         """
-        return bitstring.pack(
-            "uintbe:16, uintbe:8, uintbe:8, uint:1, uint:31",
-            self.isd_id, self.bwalloc_f, self.bwalloc_r, self.bw_class,
-            self.reserved).bytes
+        data = struct.pack("!HBB", self.isd_id, self.bwalloc_f, 
+                           self.bwalloc_r)
+        data += struct.pack("!I", (self.bw_class << 31) | self.reserved)
+        return data
 
     def __str__(self):
         spf_str = ("[Support Peer OF TD ID: %x, bwalloc_f: %u, "
@@ -513,11 +508,9 @@ class SupportPCBField(OpaqueField):
         if dlen < self.LEN:
             logging.warning("SPCBF: Data too short for parsing, len: %u", dlen)
             return
-        bits = BitArray(bytes=raw)
         (self.isd_id, self.bwalloc_f, self.bwalloc_r, self.dyn_bwalloc_f,
             self.dyn_bwalloc_r, self.bebw_f, self.bebw_r) = \
-            bits.unpack("uintbe:16, uintbe:8, uintbe:8, uintbe:8, uintbe:8, "
-                        "uintbe:8, uintbe:8")
+            struct.unpack("!HBBBBBB", raw)
         self.parsed = True
 
     @classmethod
@@ -548,11 +541,10 @@ class SupportPCBField(OpaqueField):
         """
         Returns SupportPCBField as 8 byte binary string.
         """
-        return bitstring.pack(
-            "uintbe:16, uintbe:8, uintbe:8, uintbe:8, "
-            "uintbe:8, uintbe:8, uintbe:8", self.isd_id, self.bwalloc_f,
-            self.bwalloc_r, self.dyn_bwalloc_f, self.dyn_bwalloc_r, self.bebw_f,
-            self.bebw_r).bytes
+        return struct.pack(
+            "!HBBBBBB", self.isd_id, self.bwalloc_f, self.bwalloc_r, 
+            self.dyn_bwalloc_f, self.dyn_bwalloc_r, self.bebw_f,
+            self.bebw_r)
 
     def __str__(self):
         spcbf_str = ("[Info OF TD ID: %x, bwalloc_f: %u, bwalloc_r: %u]\n" %
