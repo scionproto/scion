@@ -221,6 +221,13 @@ class TestPayloadBaseLen(object):
         payload.raw = "rawstr"
         ntools.eq_(len(payload), len("rawstr"))
 
+    def test_zero(self):
+        """
+        Tests len() when `raw` is unset.
+        """
+        payload = PayloadBase()
+        ntools.eq_(len(payload), 0)
+
 
 class TestPayloadBaseEq(object):
     """
