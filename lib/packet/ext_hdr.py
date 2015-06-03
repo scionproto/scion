@@ -19,9 +19,6 @@
 import logging
 import struct
 
-# External packages
-from bitstring import BitArray
-
 # SCION
 from lib.packet.packet_base import HeaderBase
 
@@ -50,8 +47,7 @@ class ExtensionHeader(HeaderBase):
             logging.warning("Data too short to parse extension hdr: "
                             "data len %u", dlen)
             return
-        bits = BitArray(bytes=raw)
-        self.next_ext, self.hdr_len = bits.unpack("uintbe:8, uintbe:8")
+        self.next_ext, self.hdr_len = struct.unpack("!BB", raw)
         self.parsed = True
 
     def pack(self):
@@ -96,13 +92,13 @@ class ICNExtHdr(ExtensionHeader):
             logging.warning("Data too short to parse ICN extension hdr: "
                             "data len %u", dlen)
             return
-        bits = BitArray(bytes=raw)
-        (self.next_ext, self.hdr_len, self.fwd_flag, _rsvd) = \
-            bits.unpack("uintbe:8, uintbe:8, uintbe:8, uintbe:40")
+        (self.next_ext, self.hdr_len, self.fwd_flag, _rsvd1, _rsvd2) = \
+            struct.unpack("!BBBIB", raw)
         self.parsed = True
         return
 
     def pack(self):
+        # reserved field is stored in 2 parts - 32 + 8 bits
         return struct.pack("!BBBIB", self.next_ext, self.hdr_len, 
                            self.fwd_flag, 0, 0)
 

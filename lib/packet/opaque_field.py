@@ -19,10 +19,6 @@
 import logging
 import struct
 
-# External packages
-from bitstring import BitArray
-
-
 class OpaqueFieldType(object):
     """
     Defines constants for the types of the opaque field (first byte of every
@@ -70,19 +66,19 @@ class OpaqueField(object):
         """
         Returns true if opaque field is regular, false otherwise.
         """
-        return not BitArray(bytes([self.info]))[1]
+        return not ((self.info & (1<<6)) != 0)
 
     def is_continue(self):
         """
         Returns true if continue bit is set, false otherwise.
         """
-        return BitArray(bytes([self.info]))[2]
+        return ((self.info & (1<<5)) != 0)
 
     def is_xovr(self):
         """
         Returns true if crossover point bit is set, false otherwise.
         """
-        return BitArray(bytes([self.info]))[3]
+        return ((self.info & (1<<4)) != 0)
 
     def __str__(self):
         pass
@@ -128,9 +124,9 @@ class HopOpaqueField(OpaqueField):
         if dlen < self.LEN:
             logging.warning("HOF: Data too short for parsing, len: %u", dlen)
             return
-        bits = BitArray(bytes=raw)
-        (self.info, self.exp_time, ifs, self.mac) = bits.unpack(
-            "uintbe:8, uintbe:8, uintbe:24, uintbe:24")
+        (self.info, self.exp_time) = struct.unpack("!BB", raw[0:2])
+        ifs = struct.unpack("!I", b'\0'+raw[2:5])[0]
+        self.mac = struct.unpack("!I", b'\0'+raw[5:8])[0]
         self.ingress_if = (ifs & 0xFFF000) >> 12
         self.egress_if = ifs & 0x000FFF
         self.parsed = True
@@ -207,9 +203,9 @@ class InfoOpaqueField(OpaqueField):
         if dlen < self.LEN:
             logging.warning("IOF: Data too short for parsing, len: %u", dlen)
             return
-        bits = BitArray(bytes=raw)
         (self.info, self.timestamp, self.isd_id, self.hops) = \
-            bits.unpack("uintbe:8, uintbe:32, uintbe:16, uintbe:8")
+            struct.unpack("!BIHB", raw)
+
         self.up_flag = bool(self.info & 0b00000001)
         self.info >>= 1
         self.parsed = True
@@ -286,9 +282,8 @@ class TRCField(OpaqueField):
         if dlen < self.LEN:
             logging.warning("TRCF: Data too short for parsing, len: %u", dlen)
             return
-        bits = BitArray(bytes=raw)
         (self.info, self.trc_version, self.if_id, self.reserved) = \
-            bits.unpack("uintbe:8, uintbe:32, uintbe:16, uintbe:8")
+            struct.unpack("!BIHB", raw)
         self.parsed = True
 
     @classmethod
@@ -352,9 +347,8 @@ class SupportSignatureField(OpaqueField):
         if dlen < self.LEN:
             logging.warning("SSF: Data too short for parsing, len: %u", dlen)
             return
-        bits = BitArray(bytes=raw)
         (self.cert_chain_version, self.sig_len, self.block_size) = \
-            bits.unpack("uintbe:32, uintbe:16, uintbe:16")
+            struct.unpack("!IHH", raw)
         self.parsed = True
 
     @classmethod
@@ -424,10 +418,10 @@ class SupportPeerField(OpaqueField):
         if dlen < self.LEN:
             logging.warning("SPF: Data too short for parsing, len: %u", dlen)
             return
-        bits = BitArray(bytes=raw)
-        (self.isd_id, self.bwalloc_f, self.bwalloc_r, self.bw_class,
-            self.reserved) = bits.unpack("uintbe:16, uintbe:8, uintbe:8, "
-                                         "uint:1, uint:31")
+        (self.isd_id, self.bwalloc_f, self.bwalloc_r, data) = \
+            struct.unpack("!HBBI", raw)
+        self.bw_class = data >> 31
+        self.reserved = data - (self.bw_class << 31)
         self.parsed = True
 
     @classmethod
@@ -509,11 +503,9 @@ class SupportPCBField(OpaqueField):
         if dlen < self.LEN:
             logging.warning("SPCBF: Data too short for parsing, len: %u", dlen)
             return
-        bits = BitArray(bytes=raw)
         (self.isd_id, self.bwalloc_f, self.bwalloc_r, self.dyn_bwalloc_f,
             self.dyn_bwalloc_r, self.bebw_f, self.bebw_r) = \
-            bits.unpack("uintbe:16, uintbe:8, uintbe:8, uintbe:8, uintbe:8, "
-                        "uintbe:8, uintbe:8")
+            struct.unpack("!HBBBBBB", raw)
         self.parsed = True
 
     @classmethod
