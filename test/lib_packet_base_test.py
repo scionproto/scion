@@ -27,6 +27,7 @@ from lib.packet.packet_base import (
     PacketBase,
     PayloadBase
 )
+from lib.packet.ext_hdr import ExtensionHeader
 
 
 class TestHeaderBaseInit(object):
@@ -147,6 +148,19 @@ class TestPacketBaseSetHdr(object):
         ntools.assert_raises(TypeError, packet_base.set_hdr, 123)
         ntools.assert_raises(TypeError, packet_base.set_hdr, '123')
         ntools.assert_raises(TypeError, packet_base.set_hdr, 123.4)
+
+
+class TestPacketBaseLen(object):
+    """
+    Unit tests for lib.packet.packet_base.PacketBase.__len__
+    """
+    def test_basic(self):
+        packet_base = PacketBase()
+        header = ExtensionHeader(b'data')
+        payload = b'data2'
+        packet_base.hdr = header
+        packet_base.payload = payload
+        ntools.eq_(len(packet_base), len(header) + len(payload))
 
 
 class TestPacketBaseEq(object):
