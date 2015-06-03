@@ -97,6 +97,26 @@ class TestPacketBasePayload(object):
         set_payload.assert_called_once_with(payload)
 
 
+class TestPacketBaseSetPayload(object):
+    """
+    Unit tests for lib.packet.packet_base.PacketBase.set_payload
+    """
+    def test_basic(self):
+        packet_base = PacketBase()
+        payload = PacketBase()
+        packet_base.set_payload(payload)
+        ntools.eq_(packet_base._payload, payload)
+        payload = PayloadBase()
+        packet_base.set_payload(payload)
+        ntools.eq_(packet_base._payload, payload)
+        payload = b'data'
+        packet_base.set_payload(payload)
+        ntools.eq_(packet_base._payload, payload)
+        ntools.assert_raises(TypeError, packet_base.set_payload, 123)
+        ntools.assert_raises(TypeError, packet_base.set_payload, '123')
+        ntools.assert_raises(TypeError, packet_base.set_payload, 123.4)
+
+
 class TestPacketBaseHdr(object):
     """
     Unit tests for lib.packet.packet_base.PacketBase.hdr
@@ -113,6 +133,20 @@ class TestPacketBaseHdr(object):
         header = HeaderBase()
         packet_base.hdr = header
         set_hdr.assert_called_once_with(header)
+
+
+class TestPacketBaseSetHdr(object):
+    """
+    Unit tests for lib.packet.packet_base.PacketBase.set_hdr
+    """
+    def test_basic(self):
+        packet_base = PacketBase()
+        header = HeaderBase()
+        packet_base.set_hdr(header)
+        ntools.eq_(packet_base._hdr, header)
+        ntools.assert_raises(TypeError, packet_base.set_hdr, 123)
+        ntools.assert_raises(TypeError, packet_base.set_hdr, '123')
+        ntools.assert_raises(TypeError, packet_base.set_hdr, 123.4)
 
 
 class TestPacketBaseEq(object):
