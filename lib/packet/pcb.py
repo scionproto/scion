@@ -23,7 +23,6 @@ import struct
 
 # External packages
 from Crypto.Hash import SHA256
-from bitstring import BitArray
 
 # SCION
 from lib.defines import EXP_TIME_UNIT
@@ -103,8 +102,7 @@ class PCBMarking(Marking):
         if dlen < PCBMarking.LEN:
             logging.warning("PCBM: Data too short for parsing, len: %u", dlen)
             return
-        bits = BitArray(bytes=raw[:8])
-        self.ad_id = bits.unpack("uintbe:64")[0]
+        self.ad_id = struct.unpack("!Q", raw[:8])[0]
         self.ssf = SupportSignatureField(raw[8:16])
         self.hof = HopOpaqueField(raw[16:24])
         self.spcbf = SupportPCBField(raw[24:32])
@@ -191,8 +189,7 @@ class PeerMarking(Marking):
         if dlen < PeerMarking.LEN:
             logging.warning("PM: Data too short for parsing, len: %u", dlen)
             return
-        bits = BitArray(bytes=raw[0:8])
-        self.ad_id = bits.unpack("uintbe:64")[0]
+        self.ad_id = struct.unpack("!Q", raw[0:8])[0]
         self.hof = HopOpaqueField(raw[8:16])
         self.spf = SupportPeerField(raw[16:24])
         self.ig_rev_token = raw[24:56]
