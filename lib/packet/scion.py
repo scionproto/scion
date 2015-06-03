@@ -300,7 +300,7 @@ class SCIONHeader(HeaderBase):
         cur_hdr_type = self.common_hdr.next_hdr
         while cur_hdr_type != 0:
             (next_hdr_type, hdr_len) = \
-                struct.unpack("!BB", raw[offset: offset + 2])
+                struct.unpack("!BB", raw[offset:offset + 2])
             logging.info("Found extension hdr of type %u with len %u",
                          cur_hdr_type, hdr_len)
             if cur_hdr_type == ICNExtHdr.TYPE:

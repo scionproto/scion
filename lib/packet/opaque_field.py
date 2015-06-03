@@ -127,8 +127,8 @@ class HopOpaqueField(OpaqueField):
         (self.info, self.exp_time) = struct.unpack("!BB", raw[0:2])
         ifs = struct.unpack("!I", b'\0' + raw[2:5])[0]
         self.mac = struct.unpack("!I", b'\0' + raw[5:8])[0]
-        self.ingress_if = (ifs & 0xFFF000) >> 12
-        self.egress_if = ifs & 0x000FFF
+        self.ingress_if = (ifs & 0x00FFF000) >> 12
+        self.egress_if = ifs & 0x00000FFF
         self.parsed = True
 
     @classmethod
@@ -452,7 +452,7 @@ class SupportPeerField(OpaqueField):
         """
         data = struct.pack("!HBB", self.isd_id, self.bwalloc_f, 
                            self.bwalloc_r)
-        data += struct.pack("!I", (self.bw_class << 31) + self.reserved)
+        data += struct.pack("!I", (self.bw_class << 31) | self.reserved)
         return data
 
     def __str__(self):

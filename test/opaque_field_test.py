@@ -54,14 +54,12 @@ class TestOpaqueFieldIsRegular(object):
     """
     def test_basic(self):
         op_fld = OpaqueField()
-        # '0b10111111' corresponds to 191
-        op_fld.info = 191
+        op_fld.info = 0b10111111
         ntools.assert_true(op_fld.is_regular())
 
     def test_set(self):
         op_fld = OpaqueField()
-        # '0b01000000' corresponds to 64
-        op_fld.info = 64 
+        op_fld.info = 0b01000000 
         ntools.assert_false(op_fld.is_regular())
 
 
@@ -71,14 +69,12 @@ class TestOpaqueFieldIsContinue(object):
     """
     def test_basic(self):
         op_fld = OpaqueField()
-        # '0b11011111' corresponds to 223
-        op_fld.info = 223
+        op_fld.info = 0b11011111
         ntools.assert_false(op_fld.is_continue())
 
     def test_set(self):
         op_fld = OpaqueField()
-        # '0b00100000' corresponds to 32 
-        op_fld.info = 32
+        op_fld.info = 0b00100000
         ntools.assert_true(op_fld.is_continue())
 
 
@@ -88,14 +84,12 @@ class TestOpaqueFieldIsXovr(object):
     """
     def test_basic(self):
         op_fld = OpaqueField()
-        # '0b11101111' corresponds to 239
-        op_fld.info = 239
+        op_fld.info = 0b11101111
         ntools.assert_false(op_fld.is_xovr())
 
     def test_set(self):
         op_fld = OpaqueField()
-        # '0b00010000' corresponds to 16
-        op_fld.info = 16
+        op_fld.info = 0b00010000
         ntools.assert_true(op_fld.is_xovr())
 
 
