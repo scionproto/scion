@@ -1,0 +1,5 @@
+#!/bin/sh
+
+briteFile=$1;
+
+java -classpath ../Java/:../:. Export.OtterExport $briteFile 

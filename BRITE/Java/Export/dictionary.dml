@@ -1,0 +1,208 @@
+
+# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+dictionary [
+
+
+#############  AS
+
+AS [
+
+	#basic AS
+	BaseAS [
+		AS_status boundary
+		router [ id 1  _extends .dictionary.Routers.BorderRouter ] 	
+		host [ id 101  _extends .dictionary.Traffic.BGP.BGPHost ]
+		link [ attach 1(0) attach 101(0) delay 0.001 ] # attach router
+	]
+
+]
+
+#############  Routers
+	
+Routers [	
+
+    	# AS boundary router
+	BorderRouter [	  
+	   	interface [idrange [from 0 to 5]  ] #reserved to connect to hosts within this AS
+		graph [  
+	    	 ProtocolSession [ name bgp    use SSF.OS.BGP4.BGPSession  autoconfig true ]
+    		 ProtocolSession [ name ospf   use SSF.OS.OSPF.sOSPF ]
+	    	 ProtocolSession [ name socket use SSF.OS.Socket.socketMaster ]
+		 ProtocolSession [ name tcp    use SSF.OS.TCP.tcpSessionMaster ]
+		 ProtocolSession [ name ip     use SSF.OS.IP
+        	                       warn_packet_drop true
+                	               warn_no_route true ]
+   		]
+      	]
+
+
+      	# AS-internal routers
+      	SimpleRouter [
+		graph [
+	          ProtocolSession [name ospf use SSF.OS.OSPF.sOSPF]
+        	  ProtocolSession [name ip use SSF.OS.IP]
+	      	]	
+  	]
+       
+  ]
+
+
+
+############### Links
+
+Links [
+	
+	100BaseT [
+	  bitrate 100000000   #100BaseT
+	  latency 0.0001
+	]
+	
+	10BaseT [
+	  bitrate 10000000   #10BaseT
+	  latency 0.0001
+	]		
+
+	InterASLink [
+	  #_extends .dictionary.Links.100BaseT
+	]     
+	
+	IntraASLink [
+
+	]
+]
+
+ 
+#############      TrafficHosts 
+
+Traffic  [
+
+	#############  TCP Traffic ################
+
+	TCP  [
+
+		ClientAndServer [
+		    # Two traffic hosts: one client and one server
+		    host [ id 1 	_extends .dictionary.Traffic.TCP.Client ]
+		    host [ id 2    	_extends .dictionary.Traffic.TCP.Server ]
+		    link [ attach 0(0) attach 1(0) ]
+		    link [ attach 0(1) attach 2(0) ]  #_extends .dictionary.Links.InterASLink
+		]
+
+
+		Client [
+		        interface [id 0 _extends .dictionary.Links.10BaseT]
+			route [dest default interface 0]
+			graph [
+		          ProtocolSession [
+		            name client use SSF.OS.TCP.test.tcpClient
+		            start_time 15.0            # earliest time to send request to server
+		            start_window 1.0          # send request to server at randomly chosen time
+                                      # in interval [start_time, start_time+start_window]
+		            file_size 100000000        # requested file size (payload bytes)
+		            _find .dictionary.Traffic.TCP.appsession.request_size
+		            _find .dictionary.Traffic.TCP.appsession.show_report
+		            _find .dictionary.Traffic.TCP.appsession.debug
+	          	  ]
+        		  ProtocolSession [name socket use SSF.OS.Socket.socketMaster]
+		          ProtocolSession [name tcp use SSF.OS.TCP.tcpSessionMaster
+                	          	 _find .dictionary.Traffic.TCP.tcpinit]
+		          ProtocolSession [name ip use SSF.OS.IP]
+        		]
+	      ]	#End Client
+
+  
+      
+      		Server [
+			interface [id 0 _extends .dictionary.Links.10BaseT]
+			route [dest default interface 0]
+			graph [		
+		          ProtocolSession [
+		            name server use SSF.OS.TCP.test.tcpServer
+		            port 1600          # server's well known port
+		            client_limit 10   # max number of contemporaneously allowed clients. if omitted, default is no limit
+		            _find .dictionary.appsession.request_size
+		            _find .dictionary.appsession.show_report
+		            _find .dictionary.appsession.debug
+          		   ]
+		          ProtocolSession [name socket use SSF.OS.Socket.socketMaster]
+		          ProtocolSession [name tcp use SSF.OS.TCP.tcpSessionMaster
+                		               _find .dictionary.Traffic.TCP.tcpinit]
+		          ProtocolSession [name ip use SSF.OS.IP]
+        		]
+	      ] #End Server	
+      
+	
+	      	# shared TCP configuration
+      
+	      	tcpinit[
+	        	ISS 10000               # initial sequence number
+	        	MSS 1000                # maximum segment size
+		        RcvWndSize  32          # receive buffer size
+	        	SendWndSize 32          # maximum send window size
+		        SendBufferSize 128      # send buffer size
+		        MaxRexmitTimes 12       # maximum retransmission times before drop 
+        		TCP_SLOW_INTERVAL 0.5   # granularity of TCP slow timer
+		        TCP_FAST_INTERVAL 0.2   # granularity of TCP fast(delay-ack) timer
+		        MSL 60.0                # maximum segment lifetime
+		        MaxIdleTime 600.0       # maximum idle time for drop a connection
+		        delayed_ack false       # delayed ack option
+		        fast_recovery true      # implement fast recovery algorithm 
+		        show_report true        # print a summary connection report
+		]
+
+		# the client-server protocol needs to agree on some things
+      	
+		appsession [
+			request_size  4         # client request datagram size (in bytes)
+		        show_report true        # print client-server session summary report
+		        debug true#false        # print verbose client/server diagnostics
+	        ]
+
+	
+	]   #End Traffic.TCP
+
+
+	#############   BGP Traffic #############
+
+	BGP [
+		BGPHost [
+		   # one bgp host
+		   host [ id 3  _extends .dictionary.Traffic.BGP.bgpapp_host]
+		   link [ attach 0(2) attach 3(0)]   #_extends .dictionary.Links.InterASLink
+	        ]
+		
+		# a quiet client/server host with frequency of 6
+		bgpapp_host [
+		  graph [
+		    ProtocolSession [ name ip    use SSF.OS.IP ]
+		    ProtocolSession [ name test  use SSF.OS.BGP4.test.App.AppSession
+                	                 sender true  dest all  frequency 6
+                        	         receiver true
+                                	 verbose true ]
+		  ]	
+		 interface [ id 0 ]
+	 	 route [ dest default interface 0 ]
+		]
+	
+	]  #End TrafficHosts.BGP
+
+	
+
+]   #End TrafficHosts
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

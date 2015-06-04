@@ -1,0 +1,3 @@
+#!/bin/sh
+
+java -Xmx256M -classpath Java/:. GUI.Brite

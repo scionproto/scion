@@ -1,0 +1,156 @@
+==============================================================================
+ BRITE: Boston University Representative Internet Topology Generator
+
+    Alberto Medina, Anukool Lakhina, Ibrahim Matta, John Byers
+	 Department of Computer Science, Boston University
+
+ 
+Copyright (c) 2002 QoS Networking Laboratory (QNL), Boston University.  All
+rights reserved.  Permission to use, copy, modify, and distribute this
+software and its documentation for any purpose and without fee is hereby
+granted, provided that the above copyright notice appear in all copies and
+that both the copyright notice and this permission notice appear in
+supporting documentation.  The QoS Networking Laboratory (QNL) of the
+Computer Science Department at Boston University makes no representations
+about the suitability of this software for any purpose.  It is provided "as
+is" without express or implied warranty.
+
+==============================================================================
+
+
+Thank you for downloading BRITE (v2.1).  Up to date information can be found
+at the BRITE website at http://www.cs.bu.edu/brite/.  
+
+The contents of this README are:
+  0.  Whats new in this version  (Yes, there is support for NS)
+  1.  Requirements
+  2.  Installing
+  3.  Where everything is
+  4.  Bugs, mailing lists and other contact information
+
+
+0. Whats new in this version:
+------------------------------
+
+This is an incremental update version.  Both the C++ and Java versions
+have been merged into a single framework.  The key new features are:
+
+ (1) Two new generation models at both AS and Router levels:
+ 	(i)   Barabasi-Albert 2 (Like BA1, but allows rewiring)
+	(ii)  GLP  (Bu-Towsley:Infocom02 paper)
+ (2) New Export Capabilities to:
+	(i)   NS-2 Simulator
+	(ii)  SSFNet Simulator
+	(iii) Javasim Simulator
+	(iv)  Otter Visualization (improved)
+ (3) New Import Capabilities from:
+	(i)   CAIDA's Skitter Artsdump format
+	(ii)  SCAN project maps (Mercator, Lucent Internet Mapping Project)
+
+The BRITE Analysis Engine (BRIANA) is still being developed and is not
+included in this version.  An alpha version will be ready soon.  If
+you would like an early (early) alpha version, please email
+anukool@cs.bu.edu.
+
+1. Requirements:
+-----------------
+
+BRITE requires Java JDK 1.3 or higher to compile.  
+
+If you want to use the C++ generation engine, then a ANSI-C++
+compliant compiler is also needed for your platform.
+
+BRITE will run on any platform that has both a JDK1.3 compliant VM and
+an ANSI-C++ compliant compiler.  We have tested BRITE under Linux and
+Solaris.  To compile BRITE under Windows, you will find the Cygwin
+toolkit helpful.  Compiled binaries are available upon request, email
+brite-developers@cs.bu.edu.
+
+
+1. Installing:
+----------------
+
+To get BRITE up and running, change your working directory to the
+location where you downloaded the tar.gz BRITE file.  Once there,
+execute the following at the command prompt:
+	
+  $ gunzip BRITE.tar.gz
+  $ tar xvf BRITE.tar.gz
+  $ cd BRITE/   	
+  $ make all	
+
+To run BRITE with the GUI type:
+  $ ./brite &     
+
+2.  Where everything is:
+-------------------------
+
+This version of BRITE has:
+
+ + ~/BRITE/
+    - GUI/		#The GUI source files
+    - C++/		#The C++ source files (also brite executable)	
+    - Java/		#The Java source (and class) files
+    - Makefile		#The main Makefile		
+    - brite		#A helper shell script to launch BRITE (gui)
+    - bin/
+	- scan2brite	 #Converts SCAN format files to BRITE
+	- skitter2brite  #Converts SKITTER (artsdump) files to BRITE
+	- cppgen	 #Command-Line access to C++ Generation Engine
+	- javagen	 #Command-Line access to Java Generation Engine
+	- brite2otter	 #Export BRITE topology for visualization in Otter
+	- brite2ssf	 #Export BRITE topology for simulation in SSFNet
+	- brite2jsim	 #Export BRITE topology for simulation in Javasim
+	- brite2ns 	 #Export BRITE topology for simulation in NS
+	- brite2ns.tcl	 #Tcl script to convert BRITE to NS (Thanks to Stan Rost)
+	- brite2ns.py	 #Python script to convert BRITE to NS (Thanks to Andre Detsch)
+
+
+3.  More Documentation:
+------------------------
+
+While some of the details might be obsolete, we highly recommend that
+you read the BRITE user manual to get the most out of BRITE.  This
+manual describes the BRITE architecture and also includes sections on
+installing, using and extending BRITE with examples.  The current
+version of the user manual can always be downloaded (in Postscript or
+PDF format) from http://www.cs.bu.edu/brite/docs.html.
+
+You may also ask any questions about running BRITE at the BRITE-Users
+mailing list. (see below)
+
+
+4.  Contact Us:
+----------------
+
+There are likely to be many bugs :-) in this version.  If you find
+bugs in BRITE, please email a detailed report describing the bug to
+brite-developers@cs.bu.edu.
+
+Also, if you have extended BRITE or written your own generation model,
+please inform us at the same email address.  We maintain a repository
+of contributed generation models and would like to incorporate your
+generation model in future releases of BRITE.
+
+For general questions about BRITE, please email the BRITE users
+mailing list at brite-users@cs.bu.edu.  You are by default added to
+this list when you download BRITE.  However, if you did not subscribe
+to the list when you downloaded BRITE (or want to receive mail at a
+different address), proceed as follows: Send a blank email to
+brite-users-request@cs.bu.edu with the body of the email containing 
+"subscribe".  This will add you to the list.
+
+Once again, thank you for downloading BRITE.  Enjoy,
+
+The BRITE Team
+April 22nd, 2002
+
+
+
+
+
+
+
+
+
+

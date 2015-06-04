@@ -1,0 +1,7 @@
+#!/bin/sh
+
+briteFile=$1;
+outFile=$2;
+rtoras=$3;
+
+java -classpath ../Java/:../:. Import.SCANImport $briteFile $outFile $rtoras

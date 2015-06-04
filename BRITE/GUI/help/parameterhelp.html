@@ -1,0 +1,256 @@
+<HTML>
+<HEAD>
+<TITLE>Using BRITE</TITLE>
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+<link rel="stylesheet" href="brite.css">
+</HEAD>
+<BODY BGCOLOR=#FFFFFF leftmargin="0" topmargin="0" marginwidth="0" marginheight="0" >
+
+      <table border="0" cellspacing="0" cellpadding="0" background="images/head_bridge_bot.gif" >
+        <tr valign="middle"> 
+          
+    <td class="whitetitletext" >&nbsp;</td>
+          <td class="whitetitletext">BRITE's Topology Generation Parameters </td>
+	  
+          </tr>
+	  <tr>
+    <td class="whitetitletext" >&nbsp;</td>
+    <td class="whitetitletext"> <font size="1">(More information at www.cs.bu.edu/brite/docs.html)</font></td>
+        </tr>
+      </table>
+      
+ 
+    <table border="1" width="100%"  bordercolor="#000000" bordercolorlight="#FFFFFF" bordercolordark="#FFFFFF" cellpadding="0" cellspacing="0">
+      <tr bordercolor="#000000"> 
+        <td width="100%" colspan="3" bgcolor="#FFFFFF"  bordercolorlight="#FFFFFF" bordercolordark="#FFFFFF" class="blackcontenttext"><b>Flat 
+          Topology (AS Only or Router Only) Parameters:</b></td>
+      </tr>
+      <center>
+        <tr bgcolor="#999999"> 
+          <td    bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="whitecontenttext">Parameter</td>
+          <td  bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="whitecontenttext">Meaning</td>
+          <td  bgcolor="#999999"  bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="whitecontenttext">Possible 
+            Values</td>
+        </tr>
+        <tr> 
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">HS</td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Length of 
+             one side of the plane (number of unit squares)</td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Integer 
+            &gt; 0</td>
+        </tr>
+        <tr> 
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">LS</td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Length 
+            of inner plane </td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Integer 
+            &gt; 0</td>
+        </tr>
+        <tr> 
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">N</td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Number 
+            of nodes in the graph</td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">N 
+            &lt;= HS x HS</td>
+        </tr>
+        <tr> 
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Model</td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Use 
+            one of the models built into BRITE</td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Waxman, 
+            Barabasi</td>
+        </tr>
+        <tr> 
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">alpha, 
+            beta</td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Distribution 
+            parameters for Waxman Model</td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">0&lt; 
+            alpha:float &lt; 1 ;&nbsp; beta:float&gt;0</td>
+        </tr>
+        <tr> 
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">m</td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Number 
+            of links added per new node</td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Integer 
+            &gt; 0</td>
+        </tr>
+        <tr> 
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Node 
+            Placement</td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Dictates 
+            how nodes are placed on the plane</td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Random, 
+            Heavy Tailed</td>
+        </tr>
+        <tr> 
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Growth 
+            Type</td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Dictates 
+            how Edges are created between nodes</td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Incremental, 
+            All</td>
+        </tr>
+        <tr> 
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Bandwidth 
+            Distr</td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Dictates 
+            how bandwidth is assigned to edges</td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Constant, 
+            Uniform, Exponential, Heavy-Tailed</td>
+        </tr>
+        <tr> 
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">MaxBW, 
+            MinBW</td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">The 
+            maximum, minimum bandwidth assigned to an edge</td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Float 
+            &gt; 0</td>
+        </tr>
+        <tr> 
+          <td width="100%" colspan="3" bgcolor="#FFFFFF"  class="blackcontenttext"><b>Top 
+            Down Hierarchical Parameters:</b></td>
+        </tr>
+        <tr bgcolor="#999999"> 
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="whitecontenttext">Parameter</td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="whitecontenttext">Meaning</td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="whitecontenttext">Possible 
+            Values</td>
+        </tr>
+        <tr> 
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Edge 
+            Connection </td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Edge 
+            Connection Method used to connect disconnected router topologies in 
+            Top Down Hierarchical Topology Model</td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Random 
+            Node, Smallest Degree Node, Smallest Degree Non-Leaf Node,&nbsp; k-Degree 
+            Node (These were all borrowed from GT-ITM)</td>
+        </tr>
+        <tr> 
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Intra 
+            BW Dist</td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Dictates 
+            how bandwidth is assigned within each AS.&nbsp; (Overrides the bandwidth 
+            distribution selected for router level)</td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Constant, 
+            Uniform, Exponential, Heavy-Tailed</td>
+        </tr>
+        <tr> 
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Intra 
+            BWMax/Min</td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">The 
+            maximum, minimum bandwidth assigned to an edge connecting two routers 
+            in the same AS</td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Float 
+            &gt; 0</td>
+        </tr>
+        <tr> 
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Inter 
+            BW Dist</td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Dictates 
+            how bandwidth is assigned to edges connecting two different ASes.</td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Constant, 
+            Uniform, Exponential, Heavy-Tailed</td>
+        </tr>
+        <tr> 
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Inter 
+            BWMax/Min</td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">The 
+            maximum, minimum bandwidth assigned to an edge connecting border routers.</td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Float 
+            &gt; 0</td>
+        </tr>
+        <tr> 
+          <td width="100%" colspan="3" bgcolor="#FFFFFF"  class="blackcontenttext"><b>Bottom 
+            Up Hierarchical Parameters:</b></td>
+        </tr>
+        <tr bgcolor="#999999"> 
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="whitecontenttext">Parameter</td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="whitecontenttext">Meaning</td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="whitecontenttext">Possible 
+            Values</td>
+        </tr>
+        <tr> 
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">AssignType</td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Dictates 
+            how many routers are given to each AS.&nbsp; If Constant, each AS 
+            gets N/NumAS routers.&nbsp;&nbsp;</td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Constant, 
+            Uniform, Exponential, Heavy-Tailed</td>
+        </tr>
+        <tr> 
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">NumAS</td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Number 
+            of AS nodes to group router nodes into</td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Integer 
+            &gt; 0</td>
+        </tr>
+        <tr> 
+          <td  bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Grouping 
+            Method</td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">How 
+            router nodes are grouped into AS</td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext"><i>RandomPick: 
+            </i> Randomly selects routers according to AssignType for each AS.&nbsp; 
+            As a result, each AS may have disconnected router topologies.<br>
+            <i>RandomWalk: </i> Randomly traverses the graph until the number 
+            of router nodes for each AS is reached.&nbsp; This gurantees that 
+            each AS has a connected corresponding router topology.</td>
+        </tr>
+        <tr> 
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Inter 
+            BW Dist:</td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Dictates 
+            how bandwidth is assigned to edges connecting two different ASes.</td>
+          <td  bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Constant, 
+            Uniform, Exponential, Heavy-Tailed</td>
+        </tr>
+        <tr> 
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Max 
+            BW, Min BW</td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">The 
+            maximum, minimum bandwidth assigned to an edge connecting border routers.</td>
+          <td  bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Float 
+            &gt; 0</td>
+        </tr>
+	</center>
+
+	 <tr bordercolor="#000000"> 
+        <td width="100%" colspan="3" bgcolor="#FFFFFF"  bordercolorlight="#FFFFFF" bordercolordark="#FFFFFF" class="blackcontenttext"><b>Miscellaneous Parameters:</b></td>
+      </tr>
+      <center>     
+	<tr bgcolor="#999999"> 
+          <td    bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF"></td>
+          <td  bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF"></td>
+          <td  bgcolor="#999999"  bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF"></td>
+        </tr>
+	<tr>
+	  <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">Export 
+            Format Options</td>
+          <td   bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">The format that a generated topology should be saved as. 
+  </td>
+          <td  bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF" class="blackcontenttext">
+	  <i>BRITE: </i>  Save current topology in the BRITE file format.   <br><i>OTTER: </i>  Otter is CAIDA's network topology visualization tool and can be found at www.caida.org/tools.  Selecting this option creates a file format that is understood by Otter.
+	 </td>
+        </tr>
+
+	<tr bgcolor="#999999"> 
+          <td    bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF"></td>
+          <td  bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF"></td>
+          <td  bgcolor="#999999"  bordercolor="#000000" bordercolorlight="#000000" bordercolordark="#FFFFFF"></td>
+        </tr>
+
+
+      </center>
+    </table>
+
+     
+</BODY>
+</HTML>
+
+
+
+
+
+
