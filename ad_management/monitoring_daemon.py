@@ -79,7 +79,7 @@ class MonitoringDaemon(object):
         self.rpc_server = XMLRPCServerTLS((self.addr, MONITORING_DAEMON_PORT))
         self.rpc_server.register_introspection_functions()
         # Register functions
-        to_register = [self.get_topology, self.get_process_info,
+        to_register = [self.get_topology,
                        self.control_process, self.get_ad_info,
                        self.send_update, self.update_topology,
                        self.get_master_id]
@@ -186,7 +186,7 @@ class MonitoringDaemon(object):
         logging.info('get_process_info call')
         server = get_supervisor_server()
         info = server.supervisor.getProcessInfo(full_process_name)
-        return response_success(info)
+        return info
 
     def get_process_state(self, full_process_name):
         """
@@ -198,9 +198,8 @@ class MonitoringDaemon(object):
         :rtype:
         """
         info_response = self.get_process_info(full_process_name)
-        if is_success(info_response):
-            info = info_response[1]
-            return info['statename']
+        if info_response:
+            return info_response['statename']
         else:
             return None
 
