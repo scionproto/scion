@@ -34,7 +34,6 @@ from kazoo.exceptions import NoNodeError
 # SCION
 from ad_management.common import (
     get_supervisor_server,
-    is_success,
     LOGS_DIR,
     MONITORING_DAEMON_PORT,
     response_failure,

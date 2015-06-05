@@ -23,7 +23,7 @@ from lib.topology import Topology
 django.setup()
 
 
-def create_superuser():
+def create_users():
     """
     Create the 'admin' superuser if does not exist.
     """
@@ -32,11 +32,17 @@ def create_superuser():
     except User.DoesNotExist:
         User.objects.create_superuser(username='admin', password='admin',
                                       email='')
-        print('> Superuser created')
+        print('> Superuser was created')
+
+    try:
+        User.objects.get(username='user1')
+    except User.DoesNotExist:
+        User.objects.create_user(username='user1', password='user1', email='')
+        print('> User (user1) was created')
 
 
 def load_data():
-    create_superuser()
+    create_users()
 
     # Add model instances
     topology_files = glob.glob(os.path.join(TOPOLOGY_PATH,

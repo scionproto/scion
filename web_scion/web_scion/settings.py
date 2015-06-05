@@ -32,7 +32,6 @@ ALLOWED_HOSTS = []
 
 
 # Application definition
-
 INSTALLED_APPS = (
     'django.contrib.admin',
     'django.contrib.auth',
@@ -43,6 +42,7 @@ INSTALLED_APPS = (
     'bootstrap3',
     'ad_manager',
     'debug_toolbar',
+    'guardian',
 )
 
 MIDDLEWARE_CLASSES = (
@@ -53,6 +53,11 @@ MIDDLEWARE_CLASSES = (
     'django.contrib.auth.middleware.SessionAuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+)
+
+AUTHENTICATION_BACKENDS = (
+    'django.contrib.auth.backends.ModelBackend',  # default
+    'guardian.backends.ObjectPermissionBackend',
 )
 
 ROOT_URLCONF = 'web_scion.urls'
@@ -94,3 +99,6 @@ MESSAGE_TAGS = {
 STATIC_URL = '/static/'
 
 LOGIN_URL = '/login/'
+
+# For django-guardian
+ANONYMOUS_USER_ID = -1
