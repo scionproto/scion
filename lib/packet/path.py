@@ -540,15 +540,16 @@ class PathCombinator(object):
         # If we have a core segment, check that the core_segment connects the
         # up_ and down_segment. Otherwise, check that up- and down-segment meet
         # at a single core AD.
-        if ((core_segment and
-                (core_segment.get_last_pcbm().ad_id !=
-                 up_segment.get_first_pcbm().ad_id) or
-                (core_segment.get_first_pcbm().ad_id !=
-                 down_segment.get_first_pcbm().ad_id)) or
-                (not core_segment and
-                 (up_segment.get_first_pcbm().ad_id !=
-                  down_segment.get_first_pcbm().ad_id))):
-            return None
+        if core_segment:
+            if ((core_segment.get_last_pcbm().ad_id !=
+                    up_segment.get_first_pcbm().ad_id) or
+                    (core_segment.get_first_pcbm().ad_id !=
+                    down_segment.get_first_pcbm().ad_id)):
+                return None
+        else:
+            if (up_segment.get_first_pcbm().ad_id !=
+                    down_segment.get_first_pcbm().ad_id):
+                return None
 
         full_path = CorePath()
         full_path.up_segment_info = up_segment.iof
