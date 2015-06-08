@@ -24,7 +24,7 @@ import nose
 import nose.tools as ntools
 
 # SCION
-from lib.packet.scion_addr import SCIONAddr
+from lib.packet.scion_addr import SCIONAddr, ISD_AD
 
 
 class TestSCIONAddrInit(object):
@@ -52,7 +52,7 @@ class TestSCIONAddrFromValues(object):
         isd_id = 1
         ad_id = 10
         host_addr = IPv4Address("10.1.1.1")
-        addr_len = SCIONAddr.ISD_AD_LEN + (IPV4LENGTH // 8)
+        addr_len = ISD_AD.LEN + (IPV4LENGTH // 8)
 
         addr = SCIONAddr.from_values(isd_id, ad_id, host_addr)
         ntools.eq_(addr.isd_id, isd_id)
@@ -64,7 +64,7 @@ class TestSCIONAddrFromValues(object):
         isd_id = 1
         ad_id = 10
         host_addr = IPv6Address("2001:db8::1000")
-        addr_len = SCIONAddr.ISD_AD_LEN + (IPV6LENGTH // 8)
+        addr_len = ISD_AD.LEN + (IPV6LENGTH // 8)
 
         addr = SCIONAddr.from_values(isd_id, ad_id, host_addr)
         ntools.eq_(addr.isd_id, isd_id)
@@ -113,12 +113,12 @@ class TestSCIONAddrParse(object):
 
     def test_len(self):
         """
-        ISD_AD_LEN is 10 bytes. 
+        ISD_AD.LEN is 4 bytes.
         For any byte stream less than this, parsing should not happen properly
         """ 
         addr = SCIONAddr()
-        # Byte stream size chosen to be 9
-        addr.parse(bytes([0,0,0,0,0,0,0,0,0]))
+        # Byte stream size chosen to be 3
+        addr.parse(bytes([0,0,0]))
         ntools.eq_(addr.isd_id, None)
         ntools.eq_(addr.ad_id, None)
         ntools.eq_(addr.host_addr, None)
@@ -126,7 +126,7 @@ class TestSCIONAddrParse(object):
 
     def test_len_address(self):
         """
-        Byte Stream length is 10+4 for IPv4Address, 10+16 for IPv6Address  
+        Byte Stream length is 4+4 for IPv4Address, 4+16 for IPv6Address
         For any byte stream size other than this, parsing should not happen properly
         """ 
         addr = SCIONAddr()

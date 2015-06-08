@@ -22,14 +22,29 @@ from collections import namedtuple
 from ipaddress import IPV4LENGTH, IPV6LENGTH, IPv4Address, IPv6Address
 
 
-ISD_AD = namedtuple('ISD_AD', ['isd', 'ad'])
+class ISD_AD(namedtuple('ISD_AD', 'isd ad')):
+    """
+    TODO
+    """
+    LEN = 4
+
+    @classmethod
+    def from_raw(cls, raw):
+        isd_ad = struct.unpack("!I", raw)[0]
+        isd = isd_ad >> 20
+        ad = isd_ad & 0x000fffff
+        return ISD_AD(isd, ad)
+
+    def pack(self):
+        isd = self.isd << 20
+        ad = self.ad & 0x000fffff
+        return struct.pack("!I", isd + ad)
 
 
 class SCIONAddr(object):
     """
     Class for complete SCION addresses.
     """
-    ISD_AD_LEN = 10  # Size of (isd_id, ad_id) pair in bytes.
 
     def __init__(self, raw=None):
         self.isd_id = None
@@ -49,31 +64,30 @@ class SCIONAddr(object):
             host_addr_len = IPV4LENGTH // 8
         elif addr.host_addr.version == 6:
             host_addr_len = IPV6LENGTH // 8
-        addr.addr_len = SCIONAddr.ISD_AD_LEN + host_addr_len
+        addr.addr_len = ISD_AD.LEN + host_addr_len
         return addr
 
     def parse(self, raw):
         assert isinstance(raw, bytes)
         addr_len = len(raw)
-        if addr_len < self.ISD_AD_LEN:
+        if addr_len < ISD_AD.LEN:
             logging.warning("SCIONAddr: Data too short for parsing, len: %u",
                             addr_len)
             return
-        (self.isd_id, self.ad_id) = struct.unpack("!HQ", raw[:self.ISD_AD_LEN])
-        host_addr_len = addr_len - self.ISD_AD_LEN
+        (self.isd_id, self.ad_id) = ISD_AD.from_raw(raw[:ISD_AD.LEN])
+        host_addr_len = addr_len - ISD_AD.LEN
         if host_addr_len == IPV4LENGTH // 8:
-            self.host_addr = IPv4Address(raw[self.ISD_AD_LEN:])
+            self.host_addr = IPv4Address(raw[ISD_AD.LEN:])
         elif host_addr_len == IPV6LENGTH // 8:
-            self.host_addr = IPv6Address(raw[self.ISD_AD_LEN:])
+            self.host_addr = IPv6Address(raw[ISD_AD.LEN:])
         else:
             logging.warning("SCIONAddr: host address unsupported, len: %u",
                             host_addr_len)
             return
-        self.addr_len = self.ISD_AD_LEN + host_addr_len
+        self.addr_len = ISD_AD.LEN + host_addr_len
 
     def pack(self):
-        return (struct.pack("!HQ", self.isd_id,
-                            self.ad_id) + self.host_addr.packed)
+        return ISD_AD(self.isd_id, self.ad_id).pack() + self.host_addr.packed
 
     def __str__(self):
         return "(%u, %u, %s)" % (self.isd_id, self.ad_id, self.host_addr)
