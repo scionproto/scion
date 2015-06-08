@@ -26,11 +26,13 @@ from collections import deque
 DEFAULT_ADCONFIGURATIONS_FILE = 'ADConfigurations.json'
 ISD_AD_ID_DIVISOR = '-'
 
-
 MAX_CORE_ADS = 5
 output_graph = True
 
 def parse(topo_file, ISD_NUM):
+    """
+    Parses the topo_file into an ISD numbered - ISD_NUM
+    """
     fd = open(topo_file, 'r')
     parsing_nodes = False
     parsing_edges = False
@@ -45,15 +47,19 @@ def parse(topo_file, ISD_NUM):
                 parsing_nodes = False
             else:
                 values = line.split("\t")
-                original_graph.add_node(int(values[0]), is_core=False)
-                num_outedges.append((int(values[0]), int(values[3])))
+                ad_id = values[0]
+                isd_ad_id = ISD_AD_ID_DIVISOR.join([str(ISD_NUM), ad_id])
+                original_graph.add_node(isd_ad_id, is_core=False)
+                num_outedges.append((isd_ad_id, int(values[3])))
 
         if parsing_edges:
             if line == "\n":
                 parsing_edges = False
             else:
                 values = line.split("\t")
-                original_graph.add_edge(int(values[1]), int(values[2]))
+                source_isd_ad_id = ISD_AD_ID_DIVISOR.join([str(ISD_NUM), values[1]])
+                dest_isd_ad_id = ISD_AD_ID_DIVISOR.join([str(ISD_NUM), values[2]])
+                original_graph.add_edge(source_isd_ad_id, dest_isd_ad_id)
 
         if values[0] == "Nodes:":
             parsing_nodes = True
@@ -100,7 +106,9 @@ def parse(topo_file, ISD_NUM):
 
     for routing_edge in core_ad_graph.edges():
         final_graph.add_edge(routing_edge[0], routing_edge[1], 
-                             label='ROUTING', dir='both', color='red')
+                             label='ROUTING', color='red')
+        final_graph.add_edge(routing_edge[1], routing_edge[0], 
+                             label='ROUTING', color='red')
 
     # BFS
     queue = deque(core_ads)
@@ -121,55 +129,65 @@ def parse(topo_file, ISD_NUM):
                 visited[neighbor] = 1
                 queue.append(neighbor)
             elif neighbor not in final_graph.predecessors(node): 
-                final_graph.add_edge(node, neighbor, label='PC', 
+                final_graph.add_edge(node, neighbor, label='CHILD', 
+                                     color='green')
+                final_graph.add_edge(neighbor, node, label='PARENT', 
                                      color='green')
         visited[node] = 1
 
-    # Changing labels to format ISD-AD
-    for ad in final_graph.nodes():
-        isd_ad_id = ISD_AD_ID_DIVISOR.join([str(ISD_NUM), str(ad)])
-        final_graph.node[ad]['label'] = isd_ad_id
-
     assert len(original_graph.nodes()) == len(final_graph.nodes())
-    # assert len(original_graph.edges()) == len(final_graph.edges())
-    print(final_graph.nodes(data=True))
+    assert 2*len(original_graph.edges()) == len(final_graph.edges())
+    # print(final_graph.nodes(data=True), final_graph.edges())
+
     if output_graph:
         # convert to a graphviz agraph
-        A=nx.to_agraph(final_graph)
+        A = nx.to_agraph(final_graph)
         A.layout(prog='dot')
-        A.draw('topo2.png')
+        img_file = topo_file.split('.')[0] + ".png"
+        A.draw(img_file)
 
     json_convert(final_graph)
 
 def json_convert(graph):
+    """
+    Converts graph object into json format and dumps it in 
+    DEFAULT_ADCONFIGURATIONS_FILE. The name of nodes in graph should be in 
+    the format {ISD}-{AD} 
+    """
     topo_dict = dict()
-    for ad_id in graph.nodes():
-        isd_ad_id = graph.node[ad_id]['label']
+    topo_dict["default_subnet"] = "127.0.0.0/8"
+    for isd_ad_id in graph.nodes():
+        func_labels = lambda x:graph.edge[isd_ad_id][x]['label']
+        list_labels = [func_labels(x) for x in list(graph.edge[isd_ad_id])]
+        
         topo_dict[isd_ad_id] = {"beacon_servers": 1,
                                 "certificate_servers": 1,
                                 "path_servers": 1
                                 }
-        if graph.node[ad_id]['is_core']:
+        if graph.node[isd_ad_id]['is_core']:
             topo_dict[isd_ad_id]["level"] = "CORE"
-        elif graph.out_degree(ad_id) == 0:
+        elif "CHILD" not in list_labels:
             topo_dict[isd_ad_id]["level"] = "LEAF"
         else:
             topo_dict[isd_ad_id]["level"] = "INTERMEDIATE"
         
         links = dict()
-        for neighbor_ad_id in graph.neighbors(ad_id):
-            isd_ad_id_neighbor = graph.node[neighbor_ad_id]['label']
-            links[isd_ad_id_neighbor] = graph.edge[ad_id][neighbor_ad_id]['label']
+        cert_issuer = None
+        for isd_ad_id_neighbor in graph.neighbors(isd_ad_id):
+            links[isd_ad_id_neighbor] = graph.edge[isd_ad_id][isd_ad_id_neighbor]['label']
+            if links[isd_ad_id_neighbor] == "PARENT":
+                cert_issuer = isd_ad_id_neighbor
         topo_dict[isd_ad_id]["links"] = links
 
-    topo_file_abs = "ADConfigurations.json"
-    with open(topo_file_abs, 'w') as topo_fh:
+        if cert_issuer != None:
+            topo_dict[isd_ad_id]["cert_issuer"] = cert_issuer
+
+    with open(DEFAULT_ADCONFIGURATIONS_FILE, 'w') as topo_fh:
         json.dump(topo_dict, topo_fh, sort_keys=True, indent=4)
 
 def main():
     if len(sys.argv) != 2:
-        logging.error("run: %s topo_file ",
-                      sys.argv[0])
+        logging.error("run: %s topo_file", sys.argv[0])
         sys.exit()
 
     parse(sys.argv[1], 1)
