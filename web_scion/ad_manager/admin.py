@@ -1,10 +1,15 @@
 # External packages
+from django.conf import settings
 from django.contrib import admin
+from django.contrib.admin import AdminSite
 from django.contrib.auth import get_permission_codename
+from django.contrib.auth.models import User, Group
 from django.core.urlresolvers import reverse
 from guardian.admin import GuardedModelAdmin
 
 # SCION
+from two_factor.admin import AdminSiteOTPRequired
+from two_factor.models import PhoneDevice
 from ad_manager.models import (
     AD,
     BeaconServerWeb,
@@ -16,6 +21,21 @@ from ad_manager.models import (
     RouterWeb,
 )
 
+
+class MyAdminSite(AdminSiteOTPRequired):
+    def has_permission(self, request):
+        """
+        Every registered active user is allowed to view *at least* one page of
+        the admin website.
+        """
+        return request.user.is_active
+
+if settings.ENABLED_2FA:
+    admin_site = MyAdminSite(name='2fa_admin')
+else:
+    admin_site = AdminSite(name='basic_admin')
+admin_site.register(User)
+admin_site.register(Group)
 
 class PrivilegedChangeAdmin(GuardedModelAdmin):
     list_select_related = True
@@ -43,10 +63,10 @@ class PrivilegedChangeAdmin(GuardedModelAdmin):
 
     def get_queryset(self, request):
         # Add ordering
-        return super().get_queryset(request).order_by('ad_id')
+        return super().get_queryset(request).order_by('id')
 
 
-@admin.register(AD, ISD)
+@admin.register(AD, ISD, site=admin_site)
 class SortRelatedAdmin(PrivilegedChangeAdmin):
     privileged_fields = ('isd', 'is_core_ad',)
 
@@ -55,7 +75,8 @@ class SortRelatedAdmin(PrivilegedChangeAdmin):
                 CertificateServerWeb,
                 PathServerWeb,
                 DnsServerWeb,
-                RouterWeb)
+                RouterWeb,
+                site=admin_site)
 class ServerAdmin(PrivilegedChangeAdmin):
     privileged_fields = ('ad',)
     readonly_fields = ('ad_link',)
@@ -71,4 +92,5 @@ class ServerAdmin(PrivilegedChangeAdmin):
 
 
 # Misc admin models
-admin.site.register(ConnectionRequest)
+admin_site.register(ConnectionRequest)
+admin_site.register(PhoneDevice)

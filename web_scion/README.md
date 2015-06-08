@@ -1,18 +1,20 @@
 To run the server:
 
-1. Install dependencies and test the installation
+1. Install dependencies
 
-  a) Install web app dependencies (Django, etc.)
+   sudo pip3 install -r requirements.txt
 
-  sudo pip3 install -r requirements.txt
+2. Copy and update the private settings file:
 
-  b) Run tests
-
-  ./manage.py test
+   cp web_scion/settings_private.py.dist web_scion/settings_private.py
 
 2. Run migrations
 
   ./manage.py migrate
+
+Optional: test the installation
+
+  ./manage.py test
 
 3. Populate the database from the topology files:
 
@@ -23,7 +25,7 @@ To run the server:
   ./manage.py runserver
 
 5. Open the web admin: http://localhost:8000/
-   
+
    Admin panel is located at http://localhost:8000/admin (login: admin, password: admin)
 
    Don't forget to run the monitoring daemon:

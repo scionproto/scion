@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/1.7/ref/settings/
 import os
 import sys
 from django.contrib import messages
+from django.core.urlresolvers import reverse_lazy
 
 WEB_SCION_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCION_ROOT = os.path.dirname(WEB_SCION_DIR)
@@ -43,6 +44,12 @@ INSTALLED_APPS = (
     'ad_manager',
     'debug_toolbar',
     'guardian',
+
+    # Two-factor authentication
+    'django_otp',
+    'django_otp.plugins.otp_static',
+    'django_otp.plugins.otp_totp',
+    'two_factor',
 )
 
 MIDDLEWARE_CLASSES = (
@@ -53,6 +60,9 @@ MIDDLEWARE_CLASSES = (
     'django.contrib.auth.middleware.SessionAuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+
+    # Two-factor authentication
+    'django_otp.middleware.OTPMiddleware',
 )
 
 AUTHENTICATION_BACKENDS = (
@@ -98,7 +108,17 @@ MESSAGE_TAGS = {
 
 STATIC_URL = '/static/'
 
-LOGIN_URL = '/login/'
-
 # For django-guardian
 ANONYMOUS_USER_ID = -1
+
+ENABLED_2FA = False
+
+if ENABLED_2FA:
+    pass
+else:
+    TWO_FACTOR_PATCH_ADMIN = False
+
+try:
+    from .settings_private import *  # noqa
+except ImportError:
+    pass

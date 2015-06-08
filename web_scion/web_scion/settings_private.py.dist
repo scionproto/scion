@@ -1,0 +1,5 @@
+# Two factor stuff
+
+TWO_FACTOR_SMS_GATEWAY = 'two_factor.gateways.fake.Fake'
+TWILIO_ACCOUNT_SID = ''
+TWILIO_AUTH_TOKEN = ''
