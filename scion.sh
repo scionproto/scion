@@ -54,6 +54,17 @@ cmd_topology() {
     PYTHONPATH=../ python3 generator.py $1
 }
 
+cmd_topo_gen() {
+    echo "Creating topology file using BRITE."
+    cd BRITE/Java
+    make all
+    java Main.Brite ./ASBarabasi.conf ./topo1 ./seed_file
+    python topology_generator.py topo1.brite
+    make clean
+    cd ../..
+    mv BRITE/Java/ADConfigurations.json ./topology
+}
+
 cmd_setup() {
     echo "Add IP aliases for ISDs and ADs."
     for d in topology/ISD*; do
@@ -123,6 +134,8 @@ cmd_help() {
 	        Compile the SCION crypto library.
 	    $PROGRAM topology
 	        Create topology, configuration, and execution files.
+	    $PROGRAM topo_gen
+	        Create a SCION topology using BRITE 
 	    $PROGRAM setup
 	        Add IP aliases for ISDs and ADs.
 	    $PROGRAM run
@@ -148,7 +161,7 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    clean|coverage|deps|help|init|run|setup|start|stop|test|topology|version)
+    clean|coverage|deps|help|init|run|setup|start|stop|test|topology|topo_gen|version)
         "cmd_$COMMAND" "$@" ;;
     *)  cmd_help ;;
 esac
