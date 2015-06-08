@@ -1,7 +1,7 @@
 # External packages
 from django.conf import settings
 from django.conf.urls import patterns, include, url
-from django.contrib.auth.views import login
+from django.contrib.auth.views import login, logout
 from django.core.urlresolvers import reverse, reverse_lazy
 from django.http import HttpResponseRedirect
 
@@ -28,8 +28,12 @@ if settings.ENABLED_2FA:
     settings.LOGIN_URL = reverse_lazy('two_factor:login')
 
 else:
+    # Basic login/logout views
     urlpatterns += patterns(
         '',
-        url(r'^login/$', login, {'template_name': 'admin/login.html'}),
+        url(r'^login/$', login,
+            {'template_name': 'admin/login.html'}),
+        url(r'^logout/$', logout,
+            {'template_name': 'registration/logged_out.html'}),
     )
     settings.LOGIN_URL = '/login/'

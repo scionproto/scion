@@ -32,6 +32,19 @@
             <li><a href="{% url 'list_isds' %}">Home</a></li>
             <li><a href="{% url 'sent_requests' %}">Submitted requests</a></li>
           </ul>
+
+            <ul class="nav navbar-nav navbar-right">
+              <li>
+                <p class="navbar-text">
+                  {% if user.is_authenticated %}
+                    Logged in as: <i>{{ user }}</i> (<a href="{% url 'django.contrib.auth.views.logout' %}?next={{ request.path }}">logout</a>)
+                  {% else %}
+                    <a href="{% url 'django.contrib.auth.views.login' %}?next={{ request.path }}">Login </a>
+                  {% endif %}
+                </p>
+              </li>
+            </ul>
+
         </div>
       </div>
     </nav>

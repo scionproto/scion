@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/1.7/ref/settings/
 import os
 import sys
 from django.contrib import messages
+from django.conf.global_settings import TEMPLATE_CONTEXT_PROCESSORS as TCP
 from django.core.urlresolvers import reverse_lazy
 
 WEB_SCION_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -84,6 +85,11 @@ DATABASES = {
         'NAME': os.path.join(WEB_SCION_DIR, 'db.sqlite3'),
     }
 }
+
+TEMPLATE_CONTEXT_PROCESSORS = TCP + (
+    'django.core.context_processors.request',
+)
+
 
 # Internationalization
 # https://docs.djangoproject.com/en/1.7/topics/i18n/
