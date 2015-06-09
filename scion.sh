@@ -3,7 +3,7 @@
 # BEGIN subcommand functions
 
 PKG_DEPS="python python3 python-dev python-pip python3-dev python3-pip screen zookeeperd build-essential docker.io dnsutils"
-PIP3_DEPS="python-pytun pydblite pygments pycrypto kazoo Sphinx sphinxcontrib-napoleon nose nose-descriptionfixer nose-cov coverage parse dnslib"
+PIP3_DEPS="python-pytun pydblite pygments pycrypto kazoo Sphinx sphinxcontrib-napoleon nose nose-descriptionfixer nose-cov coverage parse dnslib networkx"
 
 cmd_deps() {
     if [ -e /etc/debian_version ]; then
@@ -52,6 +52,16 @@ cmd_topology() {
     mkdir -p logs traces
     cd topology/
     PYTHONPATH=../ python3 generator.py $1
+}
+
+cmd_topo_gen() {
+    echo "Creating topology file using BRITE."
+    cd topology/generator
+    make all
+    java Main.Brite ./ASBarabasi.conf ./topo1 ./seed_file
+    python3 topology_generator.py topo1.brite
+    make clean
+    mv ADConfigurations.json ../
 }
 
 cmd_setup() {
@@ -123,6 +133,8 @@ cmd_help() {
 	        Compile the SCION crypto library.
 	    $PROGRAM topology
 	        Create topology, configuration, and execution files.
+	    $PROGRAM topo_gen
+	        Create a SCION topology using BRITE 
 	    $PROGRAM setup
 	        Add IP aliases for ISDs and ADs.
 	    $PROGRAM run
@@ -148,7 +160,7 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    clean|coverage|deps|help|init|run|setup|start|stop|test|topology|version)
+    clean|coverage|deps|help|init|run|setup|start|stop|test|topology|topo_gen|version)
         "cmd_$COMMAND" "$@" ;;
     *)  cmd_help ;;
 esac

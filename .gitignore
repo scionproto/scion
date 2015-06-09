@@ -40,6 +40,11 @@ traces/*
 *.pyc
 
 
+# Java generated files #
+#########################
+*.class
+
+
 # vim generated files #
 #########################
 *.swp
