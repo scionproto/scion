@@ -19,6 +19,7 @@
 from unittest.mock import patch
 
 # External packages
+import nose
 import nose.tools as ntools
 
 # SCION
@@ -156,7 +157,7 @@ class TestPacketBaseLen(object):
     """
     def test_basic(self):
         packet_base = PacketBase()
-        header = ExtensionHeader(b'data')
+        header = ExtensionHeader(b'da')
         payload = b'data2'
         packet_base.hdr = header
         packet_base.payload = payload
@@ -245,3 +246,7 @@ class TestPayloadBaseEq(object):
         payload1.raw = raw
         payload2.raw = raw
         ntools.eq_(payload1, payload2)
+
+
+if __name__ == "__main__":
+    nose.run(defaultTest=__name__)
