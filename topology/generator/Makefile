@@ -12,3 +12,4 @@ clean:
 	rm -f Main/*.class Export/*.class Graph/*.class Util/*.class Topology/*.class Model/*.class Util/*.class Import/*.class 
 	rm -f Main/*~ Export/*~ Import/*~ Graph/*~ Util/*~ Topology/*~ Model/*~ Util/*~
 	rm -rf javadoc
+	rm *.brite
