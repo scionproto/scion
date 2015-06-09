@@ -37,9 +37,9 @@
               <li>
                 <p class="navbar-text">
                   {% if user.is_authenticated %}
-                    Logged in as: <i>{{ user }}</i> (<a href="{% url 'django.contrib.auth.views.logout' %}?next={{ request.path }}">logout</a>)
+                    Logged in as: <i>{{ user }}</i> (<a href="{{ logout_url }}?next={{ request.path }}">logout</a>)
                   {% else %}
-                    <a href="{% url 'django.contrib.auth.views.login' %}?next={{ request.path }}">Login </a>
+                    <a href="{{ login_url }}?next={{ request.path }}">Login </a>
                   {% endif %}
                 </p>
               </li>

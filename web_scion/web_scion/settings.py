@@ -88,6 +88,7 @@ DATABASES = {
 
 TEMPLATE_CONTEXT_PROCESSORS = TCP + (
     'django.core.context_processors.request',
+    'ad_manager.context_processors.account_urls',
 )
 
 
@@ -119,10 +120,8 @@ ANONYMOUS_USER_ID = -1
 
 ENABLED_2FA = False
 
-if ENABLED_2FA:
-    pass
-else:
-    TWO_FACTOR_PATCH_ADMIN = False
+# 2FA options
+TWO_FACTOR_PATCH_ADMIN = ENABLED_2FA
 
 try:
     from .settings_private import *  # noqa

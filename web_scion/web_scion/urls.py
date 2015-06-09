@@ -8,11 +8,20 @@ from django.http import HttpResponseRedirect
 # SCION
 from ad_manager.admin import admin_site
 
+
+# Basic URLs
 urlpatterns = patterns(
     '',
     url(r'^$', lambda _: HttpResponseRedirect(reverse('list_isds'))),
     url(r'^admin/', include(admin_site.urls)),
     url(r'^ad_manager/', include('ad_manager.urls')),
+)
+
+# Logout
+urlpatterns += patterns(
+    '',
+    url(r'^logout/$', logout,
+        {'template_name': 'registration/logged_out.html'}, name='logout'),
 )
 
 
@@ -32,8 +41,6 @@ else:
     urlpatterns += patterns(
         '',
         url(r'^login/$', login,
-            {'template_name': 'admin/login.html'}),
-        url(r'^logout/$', logout,
-            {'template_name': 'registration/logged_out.html'}),
+            {'template_name': 'admin/login.html'}, name='login'),
     )
-    settings.LOGIN_URL = '/login/'
+    settings.LOGIN_URL = reverse_lazy('login')
