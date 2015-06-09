@@ -102,7 +102,7 @@ class TestHopOpaqueFieldInit(object):
         ntools.eq_(hop_op_fld.exp_time, 0)
         ntools.eq_(hop_op_fld.ingress_if, 0)
         ntools.eq_(hop_op_fld.egress_if, 0)
-        ntools.eq_(hop_op_fld.mac, 0)
+        ntools.eq_(hop_op_fld.mac, b'\x00'*3)
         ntools.assert_false(hop_op_fld.parsed)
 
     @patch("lib.packet.opaque_field.HopOpaqueField.parse")
@@ -117,12 +117,13 @@ class TestHopOpaqueFieldParse(object):
     """
     def test_basic(self):
         hop_op_fld = HopOpaqueField()
-        hop_op_fld.parse(bytes.fromhex('0e 2a 0a 0b 0c 0d 0e 0f'))
+        data = bytes.fromhex('0e 2a 0a 0b 0c') + b'\x01'*3
+        hop_op_fld.parse(data)
         ntools.eq_(hop_op_fld.info, 0x0e)
         ntools.eq_(hop_op_fld.exp_time, 0x2a)
         ntools.eq_(hop_op_fld.ingress_if, 0x0a0)
         ntools.eq_(hop_op_fld.egress_if, 0xb0c)
-        ntools.eq_(hop_op_fld.mac, 0x0d0e0f)
+        ntools.eq_(hop_op_fld.mac, b'\x01'*3)
         ntools.assert_true(hop_op_fld.parsed)
 
     def test_len(self):
@@ -133,7 +134,7 @@ class TestHopOpaqueFieldParse(object):
         ntools.eq_(hop_op_fld.exp_time, 0)
         ntools.eq_(hop_op_fld.ingress_if, 0)
         ntools.eq_(hop_op_fld.egress_if, 0)
-        ntools.eq_(hop_op_fld.mac, 0)
+        ntools.eq_(hop_op_fld.mac, b'\x00'*3)
 
 
 class TestHopOpaqueFieldFromValues(object):
@@ -141,18 +142,18 @@ class TestHopOpaqueFieldFromValues(object):
     Unit tests for lib.packet.opaque_field.HopOpaqueField.from_values
     """
     def test_basic(self):
-        hop_op_fld = HopOpaqueField.from_values(42, 160, 2828, 855567)
+        hop_op_fld = HopOpaqueField.from_values(42, 160, 2828, b'\x01'*3)
         ntools.eq_(hop_op_fld.exp_time, 42)
         ntools.eq_(hop_op_fld.ingress_if, 160)
         ntools.eq_(hop_op_fld.egress_if, 2828)
-        ntools.eq_(hop_op_fld.mac, 855567)
+        ntools.eq_(hop_op_fld.mac, b'\x01'*3)
 
     def test_less_arg(self):
         hop_op_fld = HopOpaqueField.from_values(42)
         ntools.eq_(hop_op_fld.exp_time, 42)
         ntools.eq_(hop_op_fld.ingress_if, 0)
         ntools.eq_(hop_op_fld.egress_if, 0)
-        ntools.eq_(hop_op_fld.mac, 0)               
+        ntools.eq_(hop_op_fld.mac,  b'\x00'*3)               
 
 
 class TestHopOpaqueFieldPack(object):
@@ -165,8 +166,9 @@ class TestHopOpaqueFieldPack(object):
         hop_op_fld.exp_time = 0x2a
         hop_op_fld.ingress_if = 0x0a0
         hop_op_fld.egress_if = 0xb0c
-        hop_op_fld.mac = 0x0d0e0f
-        ntools.eq_(hop_op_fld.pack(),bytes.fromhex('0e 2a 0a 0b 0c 0d 0e 0f'))
+        hop_op_fld.mac = b'\x01'*3
+        data = bytes.fromhex('0e 2a 0a 0b 0c') + b'\x01'*3
+        ntools.eq_(hop_op_fld.pack(), data)
 
 
 class TestInforOpaqueFieldInit(object):
