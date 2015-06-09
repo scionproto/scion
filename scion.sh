@@ -56,13 +56,13 @@ cmd_topology() {
 
 cmd_topo_gen() {
     echo "Creating topology file using BRITE."
-    cd BRITE/Java
+    cd BRITE/
     make all
     java Main.Brite ./ASBarabasi.conf ./topo1 ./seed_file
     python topology_generator.py topo1.brite
     make clean
-    cd ../..
-    mv BRITE/Java/ADConfigurations.json ./topology
+    cd ../
+    mv BRITE/ADConfigurations.json ./topology
 }
 
 cmd_setup() {
