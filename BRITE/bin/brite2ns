@@ -1,6 +1,0 @@
-#!/bin/sh
-
-briteFile=$1;
-rtoras=$2;
-
-java -classpath ../Java/:../:. Export.NSExport $briteFile $rtoras

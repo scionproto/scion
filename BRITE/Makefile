@@ -1,43 +1,14 @@
-#BRITE Makefile.  April 2002
+#----------------------------- MAKEFILE For Java BRITE
 
-all:	c++ java exe  
- 
-clean:  c++clean javaclean guiclean	
+JFLAGS=-O -classpath ../:.
 
-c++:
-	@if test -f C++/Makefile; then\
-	 (cd C++; make) ; \
-	 (make gui);\
-	fi
+all:
+	javac ${JFLAGS} Main/*.java Graph/*.java Model/*.java Import/*.java Export/*.java Util/*.java
 
-c++clean:
-	@if test -f C++/Makefile; then\
-	 (cd C++; make clean); \
-	fi
+javadoc:
+	rm -rf javadoc; mkdir javadoc; javadoc -d javadoc/ Main Topology Model Graph Import Export Util 
 
-java:
-	@if test -f Java/Makefile; then \
-	  (cd Java; make) ; \
-	  (make gui); \
-	fi
-
-javaclean:
-	@if test -f Java/Makefile; then\
-	  (cd Java; make clean) ;\
-	fi
-
-gui:
-	@if test -f GUI/Makefile; then \
-	 (cd GUI; make) ; \
-	fi
-
-guiclean: 
-	@if test -f GUI/Makefile; then\
-	  (cd GUI; make clean ); \
-	fi
-
-exe:
-	@echo "#!/bin/sh" > brite
-	@echo "" >> brite
-	@echo "java -Xmx256M -classpath Java/:. GUI.Brite" >> brite
-	@chmod +x brite
+clean: 
+	rm -f Main/*.class Export/*.class Graph/*.class Util/*.class Topology/*.class Model/*.class Util/*.class Import/*.class 
+	rm -f Main/*~ Export/*~ Import/*~ Graph/*~ Util/*~ Topology/*~ Model/*~ Util/*~
+	rm -rf javadoc
