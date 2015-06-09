@@ -70,16 +70,3 @@ docker/_build/
 ##########################
 .coverage
 htmlcov/
-
-# Graphviz output
-##########################
-*.dot
-
-# BRITE files
-##########################
-errors
-test/out
-BRITE/seed_file
-BRITE/last_seed_file
-topology/SIM
-*.brite
