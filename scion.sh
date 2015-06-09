@@ -3,7 +3,7 @@
 # BEGIN subcommand functions
 
 PKG_DEPS="python python3 python-dev python-pip python3-dev python3-pip screen zookeeperd build-essential docker.io dnsutils"
-PIP3_DEPS="python-pytun pydblite pygments pycrypto kazoo Sphinx sphinxcontrib-napoleon nose nose-descriptionfixer nose-cov coverage parse dnslib"
+PIP3_DEPS="python-pytun pydblite pygments pycrypto kazoo Sphinx sphinxcontrib-napoleon nose nose-descriptionfixer nose-cov coverage parse dnslib networkx"
 
 cmd_deps() {
     if [ -e /etc/debian_version ]; then
@@ -56,13 +56,12 @@ cmd_topology() {
 
 cmd_topo_gen() {
     echo "Creating topology file using BRITE."
-    cd BRITE/
+    cd topology/generator
     make all
     java Main.Brite ./ASBarabasi.conf ./topo1 ./seed_file
-    python topology_generator.py topo1.brite
+    python3 topology_generator.py topo1.brite
     make clean
-    cd ../
-    mv BRITE/ADConfigurations.json ./topology
+    mv ADConfigurations.json ../
 }
 
 cmd_setup() {
