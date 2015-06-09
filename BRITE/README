@@ -1,3 +1,9 @@
+This is just the Java folder of BRITE. Below you can find original README of BRITE
+
+1. Install by typing 'make all'
+2. To generate a new topology, 
+'java Main.Brite {conf_file} {output_file} ./seed_file'
+
 ==============================================================================
  BRITE: Boston University Representative Internet Topology Generator
 
