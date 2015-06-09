@@ -178,11 +178,11 @@ def json_convert(graph):
         links = dict()
         cert_issuer = None
         for isd_ad_id_neighbor in graph.neighbors(isd_ad_id):
-            links[isd_ad_id_neighbor] = graph.edge[isd_ad_id][isd_ad_id_neighbor]['label']
+            links[isd_ad_id_neighbor] = \
+                graph.edge[isd_ad_id][isd_ad_id_neighbor]['label']
             if links[isd_ad_id_neighbor] == "PARENT":
                 cert_issuer = isd_ad_id_neighbor
         topo_dict[isd_ad_id]["links"] = links
-
         if cert_issuer != None:
             topo_dict[isd_ad_id]["cert_issuer"] = cert_issuer
 
@@ -196,7 +196,6 @@ def main():
     if len(sys.argv) != 2:
         logging.error("run: %s topo_file", sys.argv[0])
         sys.exit()
-
     parse(sys.argv[1], 1)
 
 if __name__ == "__main__":
