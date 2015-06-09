@@ -151,6 +151,20 @@ class CoreBeaconServerSim(CoreBeaconServer):
             ret = self.if2rev_tokens[if_id].current_element()
         return ret
 
+    def _check_certs_trc(self, isd_id, ad_id, cert_chain_version, trc_version,
+                         if_id):
+        """
+        Returns True because we don't care if necessary TRC file is present
+        in case of simulator.
+        """
+        return True
+
+    def _verify_beacon(self, pcb):
+        """
+        Returns True because we don't care to verify beacons
+        in case of simulator.
+        """
+        return True
 
 
 class LocalBeaconServerSim(LocalBeaconServer):
@@ -252,3 +266,18 @@ class LocalBeaconServerSim(LocalBeaconServer):
         else:
             ret = self.if2rev_tokens[if_id].current_element()
         return ret
+
+    def _check_certs_trc(self, isd_id, ad_id, cert_chain_version, trc_version,
+                         if_id):
+        """
+        Returns True because we don't care if necessary TRC file is present
+        in case of simulator.
+        """
+        return True
+
+    def _verify_beacon(self, pcb):
+        """
+        Returns True because we don't care to verify beacons
+        in case of simulator.
+        """
+        return True
