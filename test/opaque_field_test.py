@@ -153,7 +153,7 @@ class TestHopOpaqueFieldFromValues(object):
         ntools.eq_(hop_op_fld.exp_time, 42)
         ntools.eq_(hop_op_fld.ingress_if, 0)
         ntools.eq_(hop_op_fld.egress_if, 0)
-        ntools.eq_(hop_op_fld.mac,  b'\x00'*3)               
+        ntools.eq_(hop_op_fld.mac, b'\x00'*3)               
 
 
 class TestHopOpaqueFieldPack(object):
