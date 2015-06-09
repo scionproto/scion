@@ -25,9 +25,9 @@ from collections import deque
 
 DEFAULT_ADCONFIGURATIONS_FILE = 'ADConfigurations.json'
 ISD_AD_ID_DIVISOR = '-'
-MAX_CORE_ADS = 5
+MAX_CORE_ADS = 7
 
-output_graph = True
+output_graph = False
 
 def parse(topo_file, ISD_NUM):
     """

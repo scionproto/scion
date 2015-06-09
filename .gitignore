@@ -71,10 +71,15 @@ docker/_build/
 .coverage
 htmlcov/
 
-# Otter visualisation tool
-##########################
-BRITE/Java/otter-0.9.1/
-
 # Graphviz output
 ##########################
 *.dot
+
+# BRITE files
+##########################
+errors
+test/out
+BRITE/seed_file
+BRITE/last_seed_file
+topology/SIM
+*.brite
