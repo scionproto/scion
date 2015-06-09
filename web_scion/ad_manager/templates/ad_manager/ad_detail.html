@@ -82,9 +82,11 @@
         {% endfor %}
         <hr />
 
-        <p>Create a new link by connecting two existing ADs</p>
-        <a href="{% url 'new_link' object.id %}" class="btn btn-default">Add link</a>
-        <hr />
+        {% if request.user.is_staff %}
+          <p>Create a new link by connecting two existing ADs</p>
+          <a href="{% url 'new_link' object.id %}" class="btn btn-default">Add link</a>
+          <hr />
+        {% endif %}
 
         <p>The stored topology might be out of sync with the real topology</p>
         <div>

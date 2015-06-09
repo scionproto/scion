@@ -7,6 +7,7 @@ from shutil import rmtree
 # External packages
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
 from django.core.urlresolvers import reverse
 from django.db import transaction
 from django.http import (
@@ -81,6 +82,9 @@ class ADDetailView(DetailView):
 
         # Connection requests tab
         context['received_requests'] = ad.received_requests.all()
+
+        # Permissions
+        context['user_has_perm'] = self.request.user.has_perm('change_ad', ad)
 
         return context
 
@@ -203,6 +207,8 @@ def update_topology(request, pk):
     Update topology action: either push or pull the topology.
     """
     ad = get_object_or_404(AD, id=pk)
+    _check_user_permissions(request, ad)
+
     ad_page = reverse('ad_detail', args=[ad.id])
     if '_pull_topology' in request.POST:
         return _update_from_remote_topology(request, ad)
@@ -272,6 +278,8 @@ def _download_update(request, package):
 @require_POST
 def software_update_action(request, pk):
     ad = get_object_or_404(AD, id=pk)
+    _check_user_permissions(request, ad)
+
     ad_page = reverse('ad_detail', args=[ad.id])
     form = PackageVersionSelectForm(request.POST)
     if form.is_valid():
@@ -364,6 +372,10 @@ def connect_new_ad(request, pk):
     # Return file
     return _download_file_response(package_path)
 
+def _check_user_permissions(request, ad):
+    # TODO decorator?
+    if not request.user.has_perm('change_ad', ad):
+        raise PermissionDenied()
 
 @require_POST
 def control_process(request, pk, proc_id):
@@ -371,6 +383,7 @@ def control_process(request, pk, proc_id):
     Send a control command to an AD element instance.
     """
     ad = get_object_or_404(AD, id=pk)
+    _check_user_permissions(request, ad)
 
     ad_elements = ad.get_all_element_ids()
     assert proc_id in ad_elements
@@ -424,6 +437,11 @@ class NewLinkView(FormView):
 
     def _get_ad(self):
         return get_object_or_404(AD, id=self.kwargs['pk'])
+
+    def dispatch(self, request, *args, **kwargs):
+        ad = self._get_ad()
+        _check_user_permissions(request, ad)
+        return super().dispatch(request, *args, **kwargs)
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
