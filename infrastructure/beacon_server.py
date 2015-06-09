@@ -62,7 +62,6 @@ from lib.packet.pcb import (
     PCBMarking,
     PathConstructionBeacon,
     PathSegment,
-    PeerMarking,
 )
 from lib.packet.scion import (
     CertChainReply,
@@ -290,14 +289,15 @@ class BeaconServer(SCIONElement):
             hof = HopOpaqueField.from_values(BeaconServer.HOF_EXP_TIME,
                                              if_id, egress_if)
             hof.mac = gen_of_mac(self.of_gen_key, hof, prev_hof, ts)
-            spf = SupportPeerField.from_values(self.topology.isd_id)
             peer_marking = \
-                PeerMarking.from_values(router_peer.interface.neighbor_ad,
-                                        hof, spf, self._get_if_rev_token(if_id),
-                                        self._get_if_rev_token(egress_if))
+                PCBMarking.from_values(router_peer.interface.neighbor_isd,
+                                       router_peer.interface.neighbor_ad, ssf,
+                                       hof, self._get_if_rev_token(if_id),
+                                       self._get_if_rev_token(egress_if))
             data_to_sign += peer_marking.pack()
             peer_markings.append(peer_marking)
         signature = sign(data_to_sign, self.signing_key)
+        logging.debug("Data to sign:\n%s\nSignature:%s\n", data_to_sign, signature)
         return ADMarking.from_values(pcbm, peer_markings, signature)
 
     def handle_ifid_packet(self, ipkt):
@@ -410,14 +410,15 @@ class BeaconServer(SCIONElement):
             chain = CertificateChain(cert_chain_file)
         else:
             chain = CertificateChain.from_values([])
-        trc_file = get_trc_file_path(
-            self.topology.isd_id, self.topology.ad_id,
-            cert_chain_isd, trc_version)
+        trc_file = get_trc_file_path(self.topology.isd_id, self.topology.ad_id,
+                                     cert_chain_isd, trc_version)
         trc = TRC(trc_file)
         data_to_verify = (str(cert_chain_ad).encode('utf-8') +
                           last_pcbm.hof.pack())
         for peer_marking in pcb.ads[-1].pms:
             data_to_verify += peer_marking.pack()
+        logging.debug("Data to vrfy:\n%s\nSignature:%s\n", data_to_verify,
+                pcb.ads[-1].sig)
         return verify_sig_chain_trc(data_to_verify, pcb.ads[-1].sig, subject,
                                     chain, trc, trc_version)
 

@@ -162,89 +162,6 @@ class PCBMarking(Marking):
             return False
 
 
-class PeerMarking(Marking):
-    """
-    Packs all fields for a specific peer marking.
-    """
-    LEN = 24 + 2 * 32
-
-    def __init__(self, raw=None):
-        Marking.__init__(self)
-        self.ad_id = 0
-        self.hof = None
-        self.spf = None
-        self.ig_rev_token = b""
-        self.eg_rev_token = b""
-        if raw is not None:
-            self.parse(raw)
-
-    def parse(self, raw):
-        """
-        Populates fields from a raw bytes block.
-        """
-        assert isinstance(raw, bytes)
-        self.raw = raw[:]
-        dlen = len(raw)
-        if dlen < PeerMarking.LEN:
-            logging.warning("PM: Data too short for parsing, len: %u", dlen)
-            return
-        self.ad_id = struct.unpack("!Q", raw[0:8])[0]
-        self.hof = HopOpaqueField(raw[8:16])
-        self.spf = SupportPeerField(raw[16:24])
-        self.ig_rev_token = raw[24:56]
-        self.eg_rev_token = raw[56:]
-        self.parsed = True
-
-    @classmethod
-    def from_values(cls, ad_id=0, hof=None, spf=None,
-                    ingress_hash=32 * b"\x00",
-                    egress_hash=32 * b"\x00"):
-        """
-        Returns PeerMarking with fields populated from values.
-
-        :param ad_id: Autonomous Domain's ID.
-        :param hof: HopOpaqueField object.
-        :param spf: SupportPeerField object.
-        :param ig_rev_token: Revocation token for the ingress if
-                             in the HopOpaqueField.
-        :param eg_rev_token: Revocation token for the egress if
-                             in the HopOpaqueField.
-        """
-        peer_marking = PeerMarking()
-        peer_marking.ad_id = ad_id
-        peer_marking.hof = hof
-        peer_marking.spf = spf
-        peer_marking.ig_rev_token = ingress_hash
-        peer_marking.eg_rev_token = egress_hash
-        return peer_marking
-
-    def pack(self):
-        """
-        Returns PeerMarking as a binary string.
-        """
-        return (struct.pack("!Q", self.ad_id) +
-                self.hof.pack() + self.spf.pack() + self.ig_rev_token +
-                self.eg_rev_token)
-
-    def __str__(self):
-        pm_str = "[Peer Marking ad_id: %d]\n" % (self.ad_id)
-        pm_str += "ig_rev_token: %s\eg_rev_token:%s\n" % (self.ig_rev_token,
-                                                          self.eg_rev_token)
-        pm_str += str(self.hof) + '\n'
-        pm_str += str(self.spf)
-        return pm_str
-
-    def __eq__(self, other):
-        if type(other) is type(self):
-            return (self.ad_id == other.ad_id and
-                    self.hof == other.hof and
-                    self.spf == other.spf and
-                    self.ig_rev_token == other.ig_rev_token and
-                    self.eg_rev_token == other.eg_rev_token)
-        else:
-            return False
-
-
 class ADMarking(Marking):
     """
     Packs all fields for a specific Autonomous Domain.
@@ -271,9 +188,9 @@ class ADMarking(Marking):
         self.pcbm = PCBMarking(raw[:PCBMarking.LEN])
         raw = raw[PCBMarking.LEN:]
         while len(raw) > self.pcbm.ssf.sig_len:
-            peer_marking = PeerMarking(raw[:PeerMarking.LEN])
+            peer_marking = PCBMarking(raw[:PCBMarking.LEN])
             self.pms.append(peer_marking)
-            raw = raw[PeerMarking.LEN:]
+            raw = raw[PCBMarking.LEN:]
         self.sig = raw[:]
         self.parsed = True
 
@@ -283,12 +200,12 @@ class ADMarking(Marking):
         Returns ADMarking with fields populated from values.
 
         @param pcbm: PCBMarking object.
-        @param pms: List of PeerMarking objects.
+        @param pms: List of PCBMarking objects.
         @param sig: Beacon's signature.
         """
         ad_marking = ADMarking()
         pcbm.ssf.sig_len = len(sig)
-        pcbm.ssf.block_size = PCBMarking.LEN + PeerMarking.LEN * len(pms)
+        pcbm.ssf.block_size = (1 + len(pms)) * PCBMarking.LEN
         ad_marking.pcbm = pcbm
         ad_marking.pms = (pms if pms is not None else [])
         ad_marking.sig = sig
