@@ -272,16 +272,16 @@ class BeaconServer(SCIONElement):
         Creates an AD Marking for given ingress and egress interfaces,
         timestamp, and previous HOF.
         """
-        ssf = SupportSignatureField.from_values(ADMarking.LEN)
+        ssf = SupportSignatureField.from_values(PCBMarking.LEN)
         hof = HopOpaqueField.from_values(BeaconServer.HOF_EXP_TIME,
                                          ingress_if, egress_if)
         if prev_hof is None:
             hof.info = OFT.LAST_OF
         hof.mac = gen_of_mac(self.of_gen_key, hof, prev_hof, ts)
         spcbf = SupportPCBField.from_values(isd_id=self.topology.isd_id)
-        pcbm = PCBMarking.from_values(self.topology.ad_id, ssf, hof, spcbf,
-                                      self._get_if_rev_token(ingress_if),
-                                      self._get_if_rev_token(egress_if))
+        pcbm = PCBMarking.from_values(self.topology.isd_id, self.topology.ad_id,
+            ssf, hof, spcbf, self._get_if_rev_token(ingress_if),
+            self._get_if_rev_token(egress_if))
         data_to_sign = (str(pcbm.ad_id).encode('utf-8') + pcbm.hof.pack() +
                         pcbm.spcbf.pack())
         peer_markings = []

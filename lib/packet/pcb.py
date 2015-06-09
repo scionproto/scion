@@ -36,7 +36,7 @@ from lib.packet.opaque_field import (
 )
 from lib.packet.path import CorePath
 from lib.packet.scion import PacketType, SCIONHeader, SCIONPacket
-from lib.packet.scion_addr import SCIONAddr
+from lib.packet.scion_addr import SCIONAddr, ISD_AD
 
 
 class Marking(object):
@@ -78,11 +78,13 @@ class PCBMarking(Marking):
     Domain's ID, the SupportSignatureField, the HopOpaqueField, the
     SupportPCBField, and the revocation tokens for the interfaces
     included in the HOF.
+    TODO: this will be used for both top-down and peer links
     """
-    LEN = 32 + 2 * 32
+    LEN = 28 + 2 * 32
 
     def __init__(self, raw=None):
         Marking.__init__(self)
+        self.isd_id = 0
         self.ad_id = 0
         self.ssf = None
         self.hof = None
@@ -102,16 +104,21 @@ class PCBMarking(Marking):
         if dlen < PCBMarking.LEN:
             logging.warning("PCBM: Data too short for parsing, len: %u", dlen)
             return
-        self.ad_id = struct.unpack("!Q", raw[:8])[0]
-        self.ssf = SupportSignatureField(raw[8:16])
-        self.hof = HopOpaqueField(raw[16:24])
-        self.spcbf = SupportPCBField(raw[24:32])
-        self.ig_rev_token = raw[32:64]
-        self.eg_rev_token = raw[64:96]
+        (self.isd_id, self.ad_id) = ISD_AD.from_raw(raw[:ISD_AD.LEN])
+        offset = ISD_AD.LEN
+        self.ssf = SupportSignatureField(raw[offset:offset+SupportSignatureField.LEN])
+        offset += SupportSignatureField.LEN
+        self.hof = HopOpaqueField(raw[offset:offset+HopOpaqueField.LEN])
+        offset += HopOpaqueField.LEN
+        self.spcbf = SupportPCBField(raw[offset:offset+SupportPCBField.LEN])
+        offset += SupportPCBField.LEN
+        self.ig_rev_token = raw[offset:offset+32]
+        offset += 32
+        self.eg_rev_token = raw[offset:offset+32]
         self.parsed = True
 
     @classmethod
-    def from_values(cls, ad_id=0, ssf=None, hof=None, spcbf=None,
+    def from_values(cls, isd_id=0, ad_id=0, ssf=None, hof=None, spcbf=None,
                     ig_rev_token=32 * b"\x00", eg_rev_token=32 * b"\x00"):
         """
         Returns PCBMarking with fields populated from values.
@@ -126,6 +133,7 @@ class PCBMarking(Marking):
                              in the HopOpaqueField.
         """
         pcbm = PCBMarking()
+        pcbm.isd_id = isd_id
         pcbm.ad_id = ad_id
         pcbm.ssf = ssf
         pcbm.hof = hof
@@ -138,12 +146,12 @@ class PCBMarking(Marking):
         """
         Returns PCBMarking as a binary string.
         """
-        return (struct.pack("!Q", self.ad_id) +
+        return (ISD_AD(self.isd_id, self.ad_id).pack() +
                 self.ssf.pack() + self.hof.pack() + self.spcbf.pack() +
                 self.ig_rev_token + self.eg_rev_token)
 
     def __str__(self):
-        pcbm_str = "[PCB Marking ad_id: %d]\n" % (self.ad_id)
+        pcbm_str = "[PCB Marking isd,ad (%d, %d)]\n" % (self.isd_id, self.ad_id)
         pcbm_str += "ig_rev_token: %s\neg_rev_token:%s\n" % (self.ig_rev_token,
                                                              self.eg_rev_token)
         pcbm_str += str(self.ssf)
@@ -250,7 +258,6 @@ class ADMarking(Marking):
     """
     Packs all fields for a specific Autonomous Domain.
     """
-    LEN = PCBMarking.LEN
 
     def __init__(self, raw=None):
         Marking.__init__(self)
@@ -267,7 +274,7 @@ class ADMarking(Marking):
         assert isinstance(raw, bytes)
         self.raw = raw[:]
         dlen = len(raw)
-        if dlen < ADMarking.LEN:
+        if dlen < PCBMarking.LEN:
             logging.warning("AD: Data too short for parsing, len: %u", dlen)
             return
         self.pcbm = PCBMarking(raw[:PCBMarking.LEN])
@@ -586,8 +593,7 @@ class PathConstructionBeacon(SCIONPacket):
 
         :param src_isd_ad: Source's 'ISD_AD' namedtuple.
         :param dst: Destination address (must be a 'SCIONAddr' object)
-        :param pcb: Path Construction PathConstructionBeacon ('PathSegment'
-                    class)
+        :param pcb: Path Construction Beacon ('PathSegment' class)
         """
         beacon = PathConstructionBeacon()
         beacon.pcb = pcb
