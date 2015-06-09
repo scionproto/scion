@@ -27,7 +27,7 @@ DEFAULT_ADCONFIGURATIONS_FILE = 'ADConfigurations.json'
 ISD_AD_ID_DIVISOR = '-'
 MAX_CORE_ADS = 7
 
-output_graph = False
+final_graph = nx.DiGraph()
 
 def parse(topo_file, ISD_NUM):
     """
@@ -95,10 +95,9 @@ def parse(topo_file, ISD_NUM):
                                 reverse=True)
         core_ads = core_ads + neighbor_nodes[:num_extra_nodes]
         core_ad_graph = original_graph.subgraph(core_ads)
-        print neighbor_nodes[:num_extra_nodes]
 
-    print(core_ad_graph.nodes(), core_ad_graph.edges())
-    final_graph = nx.DiGraph()
+    print("Core AD's are:")
+    print(core_ad_graph.nodes())
     for core_ad in core_ads:
         original_graph.node[core_ad]['color'] = 'red'
         original_graph.node[core_ad]['is_core'] = True
@@ -145,14 +144,12 @@ def parse(topo_file, ISD_NUM):
 
     assert len(original_graph.nodes()) == len(final_graph.nodes())
     assert 2*len(original_graph.edges()) == len(final_graph.edges())
-    # print(final_graph.nodes(data=True), final_graph.edges())
-    if output_graph:
-        # convert to a graphviz agraph
+    # convert to a graphviz agraph(NOTE: requires pygraphviz)
+    if False:
         A = nx.to_agraph(final_graph)
         A.layout(prog='dot')
         img_file = topo_file.split('.')[0] + ".png"
         A.draw(img_file)
-    json_convert(final_graph)
 
 def json_convert(graph):
     """
@@ -197,6 +194,7 @@ def main():
         logging.error("run: %s topo_file", sys.argv[0])
         sys.exit()
     parse(sys.argv[1], 1)
+    json_convert(final_graph)
 
 if __name__ == "__main__":
     main()
