@@ -29,7 +29,6 @@ from lib.defines import EXP_TIME_UNIT
 from lib.packet.opaque_field import (
     HopOpaqueField,
     InfoOpaqueField,
-    SupportPCBField,
     SupportPeerField,
     SupportSignatureField,
     TRCField,
@@ -80,7 +79,7 @@ class PCBMarking(Marking):
     included in the HOF.
     TODO: this will be used for both top-down and peer links
     """
-    LEN = 28 + 2 * 32
+    LEN = 20 + 2 * 32
 
     def __init__(self, raw=None):
         Marking.__init__(self)
@@ -88,7 +87,6 @@ class PCBMarking(Marking):
         self.ad_id = 0
         self.ssf = None
         self.hof = None
-        self.spcbf = None
         self.ig_rev_token = 32 * b"\x00"
         self.eg_rev_token = 32 * b"\x00"
         if raw is not None:
@@ -110,15 +108,13 @@ class PCBMarking(Marking):
         offset += SupportSignatureField.LEN
         self.hof = HopOpaqueField(raw[offset:offset+HopOpaqueField.LEN])
         offset += HopOpaqueField.LEN
-        self.spcbf = SupportPCBField(raw[offset:offset+SupportPCBField.LEN])
-        offset += SupportPCBField.LEN
         self.ig_rev_token = raw[offset:offset+32]
         offset += 32
         self.eg_rev_token = raw[offset:offset+32]
         self.parsed = True
 
     @classmethod
-    def from_values(cls, isd_id=0, ad_id=0, ssf=None, hof=None, spcbf=None,
+    def from_values(cls, isd_id=0, ad_id=0, ssf=None, hof=None,
                     ig_rev_token=32 * b"\x00", eg_rev_token=32 * b"\x00"):
         """
         Returns PCBMarking with fields populated from values.
@@ -126,7 +122,6 @@ class PCBMarking(Marking):
         :param ad_id: Autonomous Domain's ID.
         :param ssf: SupportSignatureField object.
         :param hof: HopOpaqueField object.
-        :param spcbf: SupportPCBField object.
         :param ig_rev_token: Revocation token for the ingress if
                              in the HopOpaqueField.
         :param eg_rev_token: Revocation token for the egress if
@@ -137,7 +132,6 @@ class PCBMarking(Marking):
         pcbm.ad_id = ad_id
         pcbm.ssf = ssf
         pcbm.hof = hof
-        pcbm.spcbf = spcbf
         pcbm.ig_rev_token = ig_rev_token
         pcbm.eg_rev_token = eg_rev_token
         return pcbm
@@ -146,9 +140,8 @@ class PCBMarking(Marking):
         """
         Returns PCBMarking as a binary string.
         """
-        return (ISD_AD(self.isd_id, self.ad_id).pack() +
-                self.ssf.pack() + self.hof.pack() + self.spcbf.pack() +
-                self.ig_rev_token + self.eg_rev_token)
+        return (ISD_AD(self.isd_id, self.ad_id).pack() + self.ssf.pack() +
+                self.hof.pack() + self.ig_rev_token + self.eg_rev_token)
 
     def __str__(self):
         pcbm_str = "[PCB Marking isd,ad (%d, %d)]\n" % (self.isd_id, self.ad_id)
@@ -156,7 +149,6 @@ class PCBMarking(Marking):
                                                              self.eg_rev_token)
         pcbm_str += str(self.ssf)
         pcbm_str += str(self.hof) + '\n'
-        pcbm_str += str(self.spcbf)
         return pcbm_str
 
     def __eq__(self, other):
@@ -164,7 +156,6 @@ class PCBMarking(Marking):
             return (self.ad_id == other.ad_id and
                     self.ssf == other.ssf and
                     self.hof == other.hof and
-                    self.spcbf == other.spcbf and
                     self.ig_rev_token == other.ig_rev_token and
                     self.eg_rev_token == other.eg_rev_token)
         else:

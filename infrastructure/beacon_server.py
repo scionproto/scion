@@ -43,7 +43,6 @@ from lib.packet.opaque_field import (
     HopOpaqueField,
     InfoOpaqueField,
     OpaqueFieldType as OFT,
-    SupportPCBField,
     SupportPeerField,
     SupportSignatureField,
     TRCField,
@@ -278,12 +277,10 @@ class BeaconServer(SCIONElement):
         if prev_hof is None:
             hof.info = OFT.LAST_OF
         hof.mac = gen_of_mac(self.of_gen_key, hof, prev_hof, ts)
-        spcbf = SupportPCBField.from_values(isd_id=self.topology.isd_id)
         pcbm = PCBMarking.from_values(self.topology.isd_id, self.topology.ad_id,
-            ssf, hof, spcbf, self._get_if_rev_token(ingress_if),
+            ssf, hof, self._get_if_rev_token(ingress_if),
             self._get_if_rev_token(egress_if))
-        data_to_sign = (str(pcbm.ad_id).encode('utf-8') + pcbm.hof.pack() +
-                        pcbm.spcbf.pack())
+        data_to_sign = str(pcbm.ad_id).encode('utf-8') + pcbm.hof.pack()
         peer_markings = []
         for router_peer in self.topology.peer_edge_routers:
             if_id = router_peer.interface.if_id
@@ -345,7 +342,7 @@ class BeaconServer(SCIONElement):
         """
         assert isinstance(pcb, PathSegment)
         last_pcbm = pcb.get_last_pcbm()
-        if self._check_certs_trc(last_pcbm.spcbf.isd_id, last_pcbm.ad_id,
+        if self._check_certs_trc(last_pcbm.isd_id, last_pcbm.ad_id,
                                  last_pcbm.ssf.cert_chain_version,
                                  pcb.trcf.trc_version, pcb.trcf.if_id):
             if self._verify_beacon(pcb):
@@ -401,7 +398,7 @@ class BeaconServer(SCIONElement):
         """
         assert isinstance(pcb, PathSegment)
         last_pcbm = pcb.get_last_pcbm()
-        cert_chain_isd = last_pcbm.spcbf.isd_id
+        cert_chain_isd = last_pcbm.isd_id
         cert_chain_ad = last_pcbm.ad_id
         cert_chain_version = last_pcbm.ssf.cert_chain_version
         trc_version = pcb.trcf.trc_version
@@ -418,7 +415,7 @@ class BeaconServer(SCIONElement):
             cert_chain_isd, trc_version)
         trc = TRC(trc_file)
         data_to_verify = (str(cert_chain_ad).encode('utf-8') +
-                          last_pcbm.hof.pack() + last_pcbm.spcbf.pack())
+                          last_pcbm.hof.pack())
         for peer_marking in pcb.ads[-1].pms:
             data_to_verify += peer_marking.pack()
         return verify_sig_chain_trc(data_to_verify, pcb.ads[-1].sig, subject,
@@ -661,7 +658,7 @@ class CoreBeaconServer(BeaconServer):
         server.
         """
         info = PathSegmentInfo.from_values(PST.CORE,
-                                           pcb.get_first_pcbm().spcbf.isd_id,
+                                           pcb.get_first_pcbm().isd_id,
                                            self.topology.isd_id,
                                            pcb.get_first_pcbm().ad_id,
                                            self.topology.ad_id)
@@ -686,7 +683,7 @@ class CoreBeaconServer(BeaconServer):
             # Before we append the PCB for further processing we need to check
             # that it hasn't been received before.
             for ad in pcb.ads:
-                if (ad.pcbm.spcbf.isd_id == self.topology.isd_id and
+                if (ad.pcbm.isd_id == self.topology.isd_id and
                         ad.pcbm.ad_id == self.topology.ad_id):
                     count += 1
                     break
@@ -709,7 +706,7 @@ class CoreBeaconServer(BeaconServer):
         """
         Once a beacon has been verified, place it into the right containers.
         """
-        isd_id = pcb.get_first_pcbm().spcbf.isd_id
+        isd_id = pcb.get_first_pcbm().isd_id
         ad_id = pcb.get_first_pcbm().ad_id
         self.beacons[(isd_id, ad_id)].add_segment(pcb)
         self.core_segments[(isd_id, ad_id)].add_segment(pcb)
