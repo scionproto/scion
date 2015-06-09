@@ -8,7 +8,7 @@ from django.core.urlresolvers import reverse
 from guardian.admin import GuardedModelAdmin
 
 # SCION
-from two_factor.admin import AdminSiteOTPRequired
+from two_factor.admin import AdminSiteOTPRequiredMixin
 from two_factor.models import PhoneDevice
 from ad_manager.models import (
     AD,
@@ -22,7 +22,7 @@ from ad_manager.models import (
 )
 
 
-class MyAdminSite(AdminSiteOTPRequired):
+class MyAdminSite(AdminSite):
     def has_permission(self, request):
         """
         Every registered active user is allowed to view *at least* one page of
@@ -30,10 +30,15 @@ class MyAdminSite(AdminSiteOTPRequired):
         """
         return request.user.is_active
 
+
+class MyAdminOTPSite(AdminSiteOTPRequiredMixin, MyAdminSite):
+    pass
+
+
 if settings.ENABLED_2FA:
-    admin_site = MyAdminSite(name='2fa_admin')
+    admin_site = MyAdminOTPSite(name='2fa_admin')
 else:
-    admin_site = AdminSite(name='basic_admin')
+    admin_site = MyAdminSite(name='basic_admin')
 admin_site.register(User)
 admin_site.register(Group)
 

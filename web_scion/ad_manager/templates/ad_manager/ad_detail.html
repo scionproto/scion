@@ -65,6 +65,7 @@
       <div role="tabpanel" class="tab-pane" id="topology">
         <br />
 
+        {% if ad.is_open or request.user.is_staff %}
         <p>Connect to this AD by generating a new installation package</p>
         <form method="POST" action="{% url 'connect_new_ad' object.id %}">
           {% csrf_token %}
@@ -72,8 +73,12 @@
             Generate
           </button>
         </form>
+        {% else %}
+          You cannot connect to this AD automatically: it is not open. Send a connection request instead.
+        {% endif %}
 
         <br />
+
         {% for message in messages %}
           {% if 'topology' in message.tags %}
             <br />

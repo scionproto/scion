@@ -59,6 +59,7 @@ class AD(models.Model):
     id = models.AutoField(primary_key=True)
     isd = models.ForeignKey('ISD')
     is_core_ad = models.BooleanField(default=False)
+    is_open = models.BooleanField(default=True)
     dns_domain = models.CharField(max_length=100, null=True, blank=True)
 
     # Use custom model manager with select_related()

@@ -322,6 +322,9 @@ def connect_new_ad(request, pk):
     Create and connect new AD automatically.
     """
     ad = get_object_or_404(AD, id=pk)
+    if not ad.is_open or not request.user.is_staff:
+        raise PermissionDenied()
+
     topology_page = reverse('ad_detail_topology', args=[pk])
 
     # Chech that remote topology exists

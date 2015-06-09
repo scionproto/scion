@@ -10,7 +10,7 @@ To run the server:
 
 2. Run migrations
 
-  ./manage.py migrate
+  ./manage.py migrate ad_manager
 
 Optional: test the installation
 
