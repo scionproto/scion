@@ -152,6 +152,8 @@ class AD(models.Model):
             self.dnsserverweb_set.all().delete()
 
         self.is_core_ad = topology.is_core_ad
+        self.dns_domain = topology.dns_domain
+        self.save()
 
         routers = topology.get_all_edge_routers()
         beacon_servers = topology.beacon_servers
