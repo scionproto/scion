@@ -5,8 +5,11 @@ Contents:
 
 .. toctree::
    :maxdepth: 3
-   :glob:
 
-   *
-   crypto/index
+   topology
+   raw_socket
+   config
+   util
+   opaque_field
+   path_store
    packet/index

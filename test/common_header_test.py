@@ -27,18 +27,27 @@ class TestCommonHeader(SCIONCommonTest):
     """
     Unit tests for scion.py.
     """
+
     def test_opaque_field(self):
+        """
+
+        """
         sch = SCIONCommonHdr()
         self.assertTrue(sch.version == 0)
 
     def test_equality(self):
+        """
+
+        """
         sch1 = SCIONCommonHdr()
         sch2 = SCIONCommonHdr()
         self.assertTrue(sch1.version == sch2.version)
 
     def test_pack_and_parse(self):
-        sch = SCIONCommonHdr.from_values(4, 4, 0)
+        """
 
+        """
+        sch = SCIONCommonHdr.from_values(4, 4, 0)
         schCopy = SCIONCommonHdr()
         schCopy.parse(sch.pack())
         self.assertTrue(sch.version == schCopy.version)

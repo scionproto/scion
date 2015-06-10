@@ -64,6 +64,16 @@ class SrvInst(object):
     """
     def __init__(self, data, domain):
         """
+        Constructor.
+
+        :param :
+        :type :
+        :param :
+        :type :
+        :param :
+        :type :
+        """
+        """
         Parse a service instances's details from a ZK party entry.
 
         :param bytes data: ZK party entry - service name/port/IPs delimited with
@@ -162,6 +172,16 @@ class ZoneResolver(BaseResolver):
     Handle DNS queries.
     """
     def __init__(self, lock, domain, srv_types):
+        """
+        Constructor.
+
+        :param :
+        :type :
+        :param :
+        :type :
+        :param :
+        :type :
+        """
         """
         :param threading.Lock lock: Lock to coordinate access to instance data.
         :param dnslib.Domain domain: Parent DNS domain.
@@ -290,6 +310,16 @@ class SCIONDnsLogger(DNSLogger):
     for how to configure what gets logged.
     """
     def __init__(self, *args, level=logging.DEBUG, **kwargs):
+        """
+        Constructor.
+
+        :param :
+        :type :
+        :param :
+        :type :
+        :param :
+        :type :
+        """
         self.level = level
         super().__init__(*args, **kwargs)
 
@@ -370,6 +400,16 @@ class SCIONDnsServer(SCIONElement):
     SRV_TYPES = ["bs", "cs", "ds", "ps"]
 
     def __init__(self, server_id, domain, topo_file):
+        """
+        Constructor.
+
+        :param :
+        :type :
+        :param :
+        :type :
+        :param :
+        :type :
+        """
         super().__init__("ds", topo_file, server_id=server_id)
         self.domain = DNSLabel(domain)
         self.lock = threading.Lock()

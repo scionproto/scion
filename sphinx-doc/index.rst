@@ -13,8 +13,6 @@ Contents:
 
    infrastructure/index
    lib/index
-   endhost/index
-   topology/index
 
 Getting Started
 ===============

@@ -87,10 +87,17 @@ class ConfigGenerator():
     Configuration and/or topology generator.
     """
     def __init__(self, out_dir=TOPOLOGY_PATH, subnet=DEFAULT_SUBNET):
+        """
+        Constructor.
+
+        :param out_dir: path to the topology folder.
+        :type out_dir: string
+        :param subnet: default subnet IP.
+        :type subnet: string
+        """
         if not os.path.isdir(out_dir):
             logging.error(out_dir + " output directory missing")
             sys.exit()
-
         self.out_dir = out_dir
         self.subnet = subnet
 
@@ -102,7 +109,6 @@ class ConfigGenerator():
         :type ad_config: dict
         :returns: the pair of the first byte and the mask
         :rtype: (str, str)
-
         """
         if ad_config and "subnet" in ad_config:
             subnet = ad_config["subnet"]
@@ -115,6 +121,13 @@ class ConfigGenerator():
     def _path_dict(self, isd_id, ad_id):
         """
         Return a dictionary with the computed paths for a given AD.
+
+        :param isd_id: ISD identifier.
+        :type isd_id: int
+        :param ad_id: AD identifier.
+        :type ad_id: int
+        :returns: the computed paths for a given AD.
+        :rtype: dict
         """
         isd_name = 'ISD{}'.format(isd_id)
         file_no_ext = 'ISD:{}-AD:{}'.format(isd_id, ad_id)
@@ -165,7 +178,6 @@ class ConfigGenerator():
         """
         subnet = ip_network('{}/{}'.format(ip_addr, mask), strict=False)
         ip_addr_obj = ip_address(ip_addr) + increment
-
         if ip_addr_obj >= subnet.broadcast_address:
             logging.error("Reached a broadcast IP address: " + str(ip_addr_obj))
             sys.exit()
@@ -194,7 +206,6 @@ class ConfigGenerator():
                                                          mask, 2)
                 ip_address_pub = self._increment_address(ip_address_pub,
                                                          mask, 2)
-
         return er_ip_addresses
 
     def delete_directories(self):
@@ -235,8 +246,8 @@ class ConfigGenerator():
 
     def write_keys_certs(self, ad_configs):
         """
-        Generate the AD certificates and keys and store them into
-        separate files.
+        Generate the AD certificates and keys and store them into separate
+        files.
 
         :param ad_configs: the configurations of all SCION ADs.
         :type ad_configs: dict
@@ -414,6 +425,9 @@ class ConfigGenerator():
         """
         Generator which iterates over all the elements in the topology
         supplemented with the corresponding type label.
+
+        :param topo_dict: topology dictionary of a SCION AD.
+        :type topo_dict: dict
         """
         element_types = ['BeaconServers', 'CertificateServers',
                          'PathServers', 'DNSServers', 'EdgeRouters']
@@ -567,6 +581,8 @@ class ConfigGenerator():
 
         :param ad_configs: the configurations of all SCION ADs.
         :type ad_configs: dict
+        :param path_policy_file: path policy file path.
+        :type path_policy_file: string
         """
         for isd_ad_id in ad_configs:
             (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
@@ -650,14 +666,20 @@ class ConfigGenerator():
                 os.remove(trc_file)
 
     def generate_all(self, adconfigurations_file, path_policy_file):
+        """
+        Generate all needed files.
+
+        :param adconfigurations_file: configuration file path.
+        :type adconfigurations_file: string
+        :param path_policy_file: path policy file path.
+        :type path_policy_file: string
+        """
         if not os.path.isfile(adconfigurations_file):
             logging.error(adconfigurations_file + " file missing.")
             sys.exit()
-
         if not os.path.isfile(path_policy_file):
             logging.error(path_policy_file + " file missing.")
             sys.exit()
-
         try:
             ad_configs = json.loads(open(adconfigurations_file).read())
         except (ValueError, KeyError, TypeError):
@@ -667,7 +689,6 @@ class ConfigGenerator():
         if "default_subnet" in ad_configs:
             self.subnet = ad_configs["default_subnet"]
             del ad_configs["default_subnet"]
-
         er_ip_addresses = self.set_er_ip_addresses(ad_configs)
         self.delete_directories()
         self.create_directories(ad_configs)

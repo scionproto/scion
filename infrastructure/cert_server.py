@@ -61,6 +61,16 @@ class CertServer(SCIONElement):
     ZK_TRC_CACHE_PATH = "trc_cache"
 
     def __init__(self, server_id, topo_file, config_file, trc_file):
+        """
+        Constructor.
+
+        :param :
+        :type :
+        :param :
+        :type :
+        :param :
+        :type :
+        """
         SCIONElement.__init__(self, "cs", topo_file, server_id=server_id,
                               config_file=config_file)
         self.trc = TRC(trc_file)
