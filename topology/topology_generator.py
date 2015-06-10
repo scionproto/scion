@@ -144,6 +144,7 @@ def parse(topo_file, ISD_NUM):
 
     assert len(original_graph.nodes()) == len(final_graph.nodes())
     assert 2*len(original_graph.edges()) == len(final_graph.edges())
+    print("Number of AS's in graph generated is", len(original_graph.nodes()))
     # convert to a graphviz agraph(NOTE: requires pygraphviz)
     if False:
         A = nx.to_agraph(final_graph)
