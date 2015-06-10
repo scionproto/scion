@@ -212,10 +212,6 @@ def main():
         logging.error(brite_file + " file missing.")
         sys.exit()
 
-    if not os.path.isfile(DEFAULT_ADCONFIGURATIONS_FILE):
-        logging.error(DEFAULT_ADCONFIGURATIONS_FILE + " file missing.")
-        sys.exit()
-
     scion_graph = parse(sys.argv[1], ISD_NUM=1)
     json_convert(scion_graph)
 
