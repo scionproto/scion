@@ -1,68 +1,46 @@
-# Copyright 2015 ETH Zurich
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#   http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+#path_db.py
+
+#Copyright 2015 ETH Zurich
+
+#Licensed under the Apache License, Version 2.0 (the "License");
+#you may not use this file except in compliance with the License.
+#You may obtain a copy of the License at
+
+#http://www.apache.org/licenses/LICENSE-2.0
+
+#Unless required by applicable law or agreed to in writing, software
+#distributed under the License is distributed on an "AS IS" BASIS,
+#WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#See the License for the specific language governing permissions and
+#limitations under the License.
 """
-:mod:`path_db` --- Path Database
-================================
+:mod:`path_db` --- Path server database
+=======================================
 """
-# Stdlib
+
+from lib.packet.pcb import PathSegment
 import logging
 import time
 
-# External packages
 from pydblite.pydblite import Base
-
-# SCION
-from lib.packet.pcb import PathSegment
-
-
-class DBResult(object):
-    """
-    Enum type for the different result of an insertion.
-
-    :cvar NONE:
-    :type NONE: int
-    :cvar ENTRY_ADDED:
-    :type ENTRY_ADDED: int
-    :cvar ENTRY_UPDATED:
-    :type ENTRY_UPDATED: int
-    :cvar ENTRY_DELETED:
-    :type ENTRY_DELETED: int
-    """
-    NONE = 0
-    ENTRY_ADDED = 1
-    ENTRY_UPDATED = 2
-    ENTRY_DELETED = 3
 
 
 class PathSegmentDBRecord(object):
     """
     Path record that gets stored in the the PathSegmentDB.
 
-    :ivar pcb:
-    :type pcb:
-    :ivar id:
-    :type id:
-    :ivar fidelity:
-    :type fidelity:
+    :ivar pcb: the PCB representing the PathSegment in the record.
+    :vartype pcb: PathSegment
+    :ivar id: the identifier of the path segment.
+    :vartype id: int
     """
 
     def __init__(self, pcb):
         """
-        Initialize an instance of the class PathSegmentDBRecord.
+        Constructor.
 
-        :param pcb:
-        :type pcb:
+        :param pcb: the PCB representing the stored path segment.
+        :type pcb: PathSegment
         """
         assert isinstance(pcb, PathSegment)
         self.pcb = pcb
@@ -72,150 +50,75 @@ class PathSegmentDBRecord(object):
         self.fidelity = pcb.iof.hops
 
     def __eq__(self, other):
-        """
-
-        :param other:
-        :type other:
-
-        :returns:
-        :rtype:
-        """
         if type(other) is type(self):
             return self.id == other.id
         else:
             return False
 
     def __hash__(self):
-        """
-
-        :returns:
-        :rtype:
-        """
         return self.id
 
 
 class PathSegmentDB(object):
     """
     Simple database for paths using PyDBLite.
-
-    :ivar _db:
-    :type _db:
     """
-
     def __init__(self):
-        """
-        Initialize an instance of the class PathSegmentDB.
-        """
         db = Base("", save_to_file=False)
-        db.create('record', 'id', 'src_isd', 'src_ad', 'dst_isd',
-                  'dst_ad', mode='override')
+        db.create('record', 'id', 'src_isd', 'src_ad', 'dst_isd', 'dst_ad')
         db.create_index('id')
         db.create_index('dst_isd')
         db.create_index('dst_ad')
+
         self._db = db
 
-    def __getitem__(self, seg_id):
+    def __getitem__(self, rec_id):
         """
-        Return a path object by segment id.
-
-        :param seg_id:
-        :type seg_id:
-
-        :returns:
-        :rtype:
+        Returns a path object by record id.
         """
-        recs = self._db(id=seg_id)
-        if recs:
-            return recs[0]['record'].pcb
+        if rec_id in self._db:
+            return self._db[rec_id]['record'].pcb
         else:
             return None
 
-    def __contains__(self, seg_id):
-        """
-        
-
-        :param seg_id:
-        :type seg_id:
-
-        :returns:
-        :rtype:
-        """
-        recs = self._db(id=seg_id)
-        return len(recs) > 0
-
     def update(self, pcb, src_isd, src_ad, dst_isd, dst_ad):
         """
-        Insert path into database.
-        Return the result of the operation.
+        Inserts path into database.
 
-        :param pcb:
-        :type pcb:
-        :param src_isd:
-        :type src_isd:
-        :param src_ad:
-        :type src_ad:
-        :param dst_isd:
-        :type dst_isd:
-        :param dst_ad:
-        :type dst_ad:
-
-        :returns:
-        :rtype:
+        Returns the record ID of the updated path or None if nothing was
+        updated.
         """
         assert isinstance(pcb, PathSegment)
         record = PathSegmentDBRecord(pcb)
         recs = self._db(id=record.id)
+
         assert len(recs) <= 1, "PathDB contains > 1 path with the same ID"
+
         if not recs:
-            self._db.insert(record, record.id, src_isd, src_ad, dst_isd, dst_ad)
+            rec_id = self._db.insert(record, record.id, src_isd, src_ad,
+                                     dst_isd, dst_ad)
             logging.debug("Created new entry in DB for (%d, %d) -> (%d, %d):" +
                           "\n%s", src_isd, src_ad, dst_isd, dst_ad, record.id)
-            return DBResult.ENTRY_ADDED
+            return rec_id
         else:
             cur_rec = recs[0]['record']
+            rec_id = recs[0]['__id__']
             if pcb.get_expiration_time() <= cur_rec.pcb.get_expiration_time():
                 logging.debug("Fresher path-segment for (%d, %d) -> (%d, %d) " +
                               "already known", src_isd, src_ad, dst_isd, dst_ad)
-                return DBResult.NONE
+                return None
             else:
-                cur_rec.pcb = pcb
-                logging.debug("Updated segment with ID %s", cur_rec.id)
-                return DBResult.ENTRY_UPDATED
+                cur_rec.pcb.set_timestamp(pcb.get_timestamp())
+                logging.debug("Updated expiration time for segment with ID %s",
+                              cur_rec.id)
+                return rec_id
 
     def update_all(self, pcbs, src_isd, src_ad, dst_isd, dst_ad):
         """
         Updates a list of paths.
-
-        :param pcbs:
-        :type pcbs:
-        :param src_isd:
-        :type src_isd:
-        :param src_ad:
-        :type src_ad:
-        :param dst_isd:
-        :type dst_isd:
-        :param dst_ad:
-        :type dst_ad:
         """
         for pcb in pcbs:
             self.update(pcb, src_isd, src_ad, dst_isd, dst_ad)
-
-    def delete(self, segment_id):
-        """
-        Deletes a path segment with a given ID.
-
-        :param segment_id:
-        :type segment_id:
-
-        :returns:
-        :rtype:
-        """
-        recs = self._db(id=segment_id)
-        if recs:
-            self._db.delete(recs)
-            return DBResult.ENTRY_DELETED
-        else:
-            return DBResult.NONE
 
     def __call__(self, *args, **kwargs):
         """
@@ -223,14 +126,6 @@ class PathSegmentDB(object):
 
         Returns a sorted (path fidelity) list of paths according to the
         criterias specified.
-
-        :param args:
-        :type args:
-        :param kwargs:
-        :type kwargs:
-
-        :returns:
-        :rtype:
         """
         recs = self._db(*args, **kwargs)
         now = int(time.time())
@@ -246,15 +141,10 @@ class PathSegmentDB(object):
             else:
                 valid_recs.append(r)
         self._db.delete(expired_recs)
+
         pcbs = sorted([r['record'] for r in valid_recs],
                       key=lambda x: x.fidelity)
         return [p.pcb for p in pcbs]
 
     def __len__(self):
-        """
-
-
-        :returns:
-        :rtype: int
-        """
         return len(self._db)

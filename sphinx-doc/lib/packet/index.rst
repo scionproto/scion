@@ -2,7 +2,7 @@ SCION Packet Library
 ====================
 
 .. toctree::
-  :maxdepth: 3
-  :glob:
 
-  *
+   host_addr
+   packet_base
+   pcb

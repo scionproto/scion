@@ -1,29 +1,37 @@
-# Copyright 2014 ETH Zurich
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#   http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+#opaque_field.py
+
+#Copyright 2014 ETH Zurich
+
+#Licensed under the Apache License, Version 2.0 (the "License");
+#you may not use this file except in compliance with the License.
+#You may obtain a copy of the License at
+
+#http://www.apache.org/licenses/LICENSE-2.0
+
+#Unless required by applicable law or agreed to in writing, software
+#distributed under the License is distributed on an "AS IS" BASIS,
+#WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#See the License for the specific language governing permissions and
+#limitations under the License.
+
 """
-:mod:`opaque_field` --- SCION Opaque fields
-===========================================
+:mod:`opaque_field` --- Opaque Fields
+=====================================
 """
-# Stdlib
+
 import logging
-import struct
+
+from bitstring import BitArray
+import bitstring
+
 
 class OpaqueFieldType(object):
     """
     Defines constants for the types of the opaque field (first byte of every
-    opaque field, i.e. field).
-    TODO describe here layout of Opaque Fields
+    opaque field, i.e. field). TODO: Describe the layout of the opaque fields.
+
+    .. note::
+       This should be converted to an enum.
     """
     # Types for HopOpaqueFields (7 MSB bits).
     NORMAL_OF = 0b0000000
@@ -35,25 +43,25 @@ class OpaqueFieldType(object):
     INPATH_XOVR = 0b1110000
     INTRATD_PEER = 0b1111000
     INTERTD_PEER = 0b1111100
-    TRC_OF = 0b11111111
+    ROT_OF = 0b11111111
 
 
 class OpaqueField(object):
     """
     Base class for the different kinds of opaque fields in SCION.
+
+    :ivar info: the type of opaque field.
+    :vartype info: int
+    :ivar parsed: true if the opaque field has been parsed.
+    :vartype parsed: bool
+    :ivar raw: the raw bytes of the opaque field.
+    :vartype raw: bytes
     """
     LEN = 8
 
     def __init__(self):
         """
-        Initialize an instance of the class .
-
-        :param :
-        :type :
-        :param :
-        :type :
-        :param :
-        :type :
+        Constructor.
         """
         self.info = 0  # TODO verify path.PathType in that context
         self.type = 0
@@ -63,32 +71,67 @@ class OpaqueField(object):
     def parse(self, raw):
         """
         Populates fields from a raw byte block.
+
+        .. warning::
+           This method must be overridden in child classes. Consider making
+           this method an abstract method.
+
+        :param raw: the raw bytes from which to parse the opaque field.
+        :type raw: bytes
         """
         pass
 
     def pack(self):
         """
         Returns opaque field as 8 byte binary string.
+
+        .. warning::
+           This method must be overridden in child classes. Consider making
+           this method an abstract method.
         """
         pass
 
     def is_regular(self):
         """
         Returns true if opaque field is regular, false otherwise.
+
+        .. warning::
+           As far as I can determine this function does not work due to the
+           lack of consistency in how a "regular" OF is determined.
+
+        :returns: `True` if the opaque field is regular, and `False` otherwise.
+        :rtype: bool
         """
-        return not ((self.info & (1 << 6)) != 0)
+        return not BitArray(bytes([self.info]))[1]
 
     def is_continue(self):
         """
         Returns true if continue bit is set, false otherwise.
+
+        .. warning::
+           As far as I can tell, this function does not work due to the fact
+           that the continue part is not always in the same place in the
+           OpaqueFieldType class.
+
+        :returns: `True` if the continue bit is set, and `False` otherwise.
+        :rtype: bool
         """
-        return ((self.info & (1 << 5)) != 0)
+        return BitArray(bytes([self.info]))[2]
 
     def is_xovr(self):
         """
         Returns true if crossover point bit is set, false otherwise.
+
+        .. warning::
+           As far as I can tell, this function does not work due to the fact
+           that the continue part is not always in the same place in the
+           OpaqueFieldType class.
+
+        :returns: `True` if the crossover point bit is set, and `False`
+           otherwise.
+        :rtype: bool
         """
-        return ((self.info & (1 << 4)) != 0)
+        return BitArray(bytes([self.info]))[3]
 
     def __str__(self):
         pass
@@ -114,73 +157,83 @@ class HopOpaqueField(OpaqueField):
     Each hop opaque field has a info (8 bits), expiration time (8 bits)
     ingress/egress interfaces (2 * 12 bits) and a MAC (24 bits) authenticating
     the opaque field.
+
+    :ivar ingress_if: the ingress interface (2 bytes).
+    :vartype ingress_if: int
+    :ivar egress_if: the egress interface (2 bytes).
+    :vartype egress_if: int
+    :ivar mac: message authentication code (MAC) authenticating the opaque
+       field (3 bytes).
+    :vartype mac: int
     """
-    MAC_LEN = 3  # MAC length in bytes.
 
     def __init__(self, raw=None):
         """
-        Initialize an instance of the class .
+        Constructor.
 
-        :param :
-        :type :
-        :param :
-        :type :
-        :param :
-        :type :
+        :param raw: the raw bytes parsed to populate the opaque field.
+        :type raw: bytes
         """
-        OpaqueField.__init__(self)
+        OpaqueField.__init__(self) # TODO: replace with super init trick
         self.exp_time = 0
         self.ingress_if = 0
         self.egress_if = 0
-        self.mac = b"\x00" * self.MAC_LEN
+        self.mac = 0
         if raw is not None:
             self.parse(raw)
 
     def parse(self, raw):
         """
         Populates fields from a raw byte block.
+
+        :param raw: the raw bytes parsed to populate the opaque field.
+        :type raw: bytes
         """
         assert isinstance(raw, bytes)
         self.raw = raw
         dlen = len(raw)
-        if dlen < self.LEN:
+        if dlen < HopOpaqueField.LEN:
             logging.warning("HOF: Data too short for parsing, len: %u", dlen)
             return
-        (self.info, self.exp_time) = struct.unpack("!BB", raw[0:2])
-        ifs = struct.unpack("!I", b'\0' + raw[2:5])[0]
-        self.mac = raw[5:8]
-        self.ingress_if = (ifs & 0x00FFF000) >> 12
-        self.egress_if = ifs & 0x00000FFF
+        bits = BitArray(bytes=raw)
+        (self.info, self.exp_time, ifs, self.mac) = bits.unpack("uintbe:8, " +
+            "uintbe:8, uintbe:24, uintbe:24")
+        self.ingress_if = (ifs & 0xFFF000) >> 12
+        self.egress_if = ifs & 0x000FFF
         self.parsed = True
 
     @classmethod
-    def from_values(cls, exp_time, ingress_if=0, egress_if=0, mac=None):
+    def from_values(cls, exp_time, ingress_if=0, egress_if=0, mac=0):
         """
         Returns HopOpaqueField with fields populated from values.
 
-        @param exp_time: Expiry time. An integer in the range [0,255]
-        @param ingress_if: Ingress interface.
-        @param egress_if: Egress interface.
-        @param mac: MAC of ingress/egress interfaces' ID and timestamp.
+        :param ingress_if: the ingress interface (2 bytes).
+        :type ingress_if: int
+        :param egress_if: the egress interface (2 bytes).
+        :type egress_if: int
+        :param mac: message authentication code (MAC) authenticating the opaque
+           field (3 bytes).
+        :type mac: int
+        :returns: a HopOpaqueField populated with the given values.
+        :rtype: HopOpaqueField
         """
         hof = HopOpaqueField()
         hof.exp_time = exp_time
         hof.ingress_if = ingress_if
         hof.egress_if = egress_if
-        if mac is None:
-            mac = b"\x00" * cls.MAC_LEN
         hof.mac = mac
         return hof
 
     def pack(self):
         """
         Returns HopOpaqueField as 8 byte binary string.
+
+        :returns: the HopOpaqueField as an 8-byte string.
+        :rtype: bytes
         """
         ifs = (self.ingress_if << 12) | self.egress_if
-        data = struct.pack("!BB", self.info, self.exp_time)
-        data += struct.pack("!I", ifs)[1:]
-        data += self.mac
-        return data
+        return bitstring.pack("uintbe:8, uintbe:8, uintbe:24, uintbe:24",
+                              self.info, self.exp_time, ifs, self.mac).bytes
 
     def __eq__(self, other):
         if type(other) is type(self):
@@ -192,10 +245,9 @@ class HopOpaqueField(OpaqueField):
             return False
 
     def __str__(self):
-        hof_str = ("[Hop OF info: %u, exp_time: %d, ingress if: %u, "
-                   "egress if: %u, mac: %s]" % (
-                       self.info, self.exp_time, self.ingress_if,
-                       self.egress_if, self.mac))
+        hof_str = (("[Hop OF info: %u, exp_time: %d, ingress if: %u, " +
+                    "egress if: %u, mac: %x]") % (self.info, self.exp_time,
+                      self.ingress_if, self.egress_if, self.mac))
         return hof_str
 
 
@@ -209,16 +261,6 @@ class InfoOpaqueField(OpaqueField):
     """
 
     def __init__(self, raw=None):
-        """
-        Initialize an instance of the class .
-
-        :param :
-        :type :
-        :param :
-        :type :
-        :param :
-        :type :
-        """
         OpaqueField.__init__(self)
         self.timestamp = 0
         self.isd_id = 0
@@ -235,12 +277,12 @@ class InfoOpaqueField(OpaqueField):
         assert isinstance(raw, bytes)
         self.raw = raw
         dlen = len(raw)
-        if dlen < self.LEN:
+        if dlen < InfoOpaqueField.LEN:
             logging.warning("IOF: Data too short for parsing, len: %u", dlen)
             return
+        bits = BitArray(bytes=raw)
         (self.info, self.timestamp, self.isd_id, self.hops) = \
-            struct.unpack("!BIHB", raw)
-
+            bits.unpack("uintbe:8, uintbe:32, uintbe:16, uintbe:8")
         self.up_flag = bool(self.info & 0b00000001)
         self.info >>= 1
         self.parsed = True
@@ -249,6 +291,8 @@ class InfoOpaqueField(OpaqueField):
     def from_values(cls, info=0, up_flag=False, timestamp=0, isd_id=0, hops=0):
         """
         Returns InfoOpaqueField with fields populated from values.
+
+        TODO
 
         @param info: Opaque field type.
         @param up_flag: up/down-flag.
@@ -267,16 +311,17 @@ class InfoOpaqueField(OpaqueField):
     def pack(self):
         """
         Returns InfoOpaqueFIeld as 8 byte binary string.
+
+        :returns: a binary string representing the opaque field.
+        :rtype: bitstring.BitStream
         """
         info = (self.info << 1) + self.up_flag
-        data = struct.pack("!BIHB", info, self.timestamp, self.isd_id,
-                           self.hops)
-        return data
+        return bitstring.pack("uintbe:8, uintbe:32, uintbe:16, uintbe:8",
+            info, self.timestamp, self.isd_id, self.hops).bytes
 
     def __str__(self):
         iof_str = ("[Info OF info: %x, up: %r, TS: %u, ISD ID: %u, hops: %u]" %
-                   (self.info, self.up_flag, self.timestamp, self.isd_id,
-                    self.hops))
+            (self.info, self.up_flag, self.timestamp, self.isd_id, self.hops))
         return iof_str
 
     def __eq__(self, other):
@@ -290,28 +335,19 @@ class InfoOpaqueField(OpaqueField):
             return False
 
 
-class TRCField(OpaqueField):
+class ROTField(OpaqueField):
     """
-    Class for the TRC field.
+    Class for the ROT field.
 
-    The TRC field contains type info of the path-segment (1 byte),
-    the TRC version (4 bytes), the IF ID (2 bytes),
+    The ROT field contains type info of the path-segment (1 byte),
+    the ROT version (4 bytes), the IF ID (2 bytes),
     and a reserved section (1 byte).
     """
-    def __init__(self, raw=None):
-        """
-        Initialize an instance of the class .
 
-        :param :
-        :type :
-        :param :
-        :type :
-        :param :
-        :type :
-        """
+    def __init__(self, raw=None):
         OpaqueField.__init__(self)
-        self.info = OpaqueFieldType.TRC_OF
-        self.trc_version = 0
+        self.info = OpaqueFieldType.ROT_OF
+        self.rot_version = 0
         self.if_id = 0
         self.reserved = 0
         if raw is not None:
@@ -324,44 +360,50 @@ class TRCField(OpaqueField):
         assert isinstance(raw, bytes)
         self.raw = raw
         dlen = len(raw)
-        if dlen < self.LEN:
-            logging.warning("TRCF: Data too short for parsing, len: %u", dlen)
+        if dlen < ROTField.LEN:
+            logging.warning("ROTF: Data too short for parsing, len: %u", dlen)
             return
-        (self.info, self.trc_version, self.if_id, self.reserved) = \
-            struct.unpack("!BIHB", raw)
+        bits = BitArray(bytes=raw)
+        (self.info, self.rot_version, self.if_id, self.reserved) = \
+            bits.unpack("uintbe:8, uintbe:32, uintbe:16, uintbe:8")
         self.parsed = True
 
     @classmethod
-    def from_values(cls, trc_version=0, if_id=0, reserved=0):
+    def from_values(cls, rot_version=0, if_id=0, reserved=0):
         """
-        Returns TRCField with fields populated from values.
+        Returns ROTField with fields populated from values.
 
-        @param trc_version: Version of the Isolation Domanin's TRC file.
+        TODO
+
+        @param rot_version: Version of the Isolation Domanin's ROT file.
         @param if_id: Interface ID.
         @param reserved: Reserved section.
         """
-        trcf = TRCField()
-        trcf.trc_version = trc_version
-        trcf.if_id = if_id
-        trcf.reserved = reserved
-        return trcf
+        rotf = ROTField()
+        rotf.rot_version = rot_version
+        rotf.if_id = if_id
+        rotf.reserved = reserved
+        return rotf
 
     def pack(self):
         """
-        Returns TRCField as 8 byte binary string.
+        Returns ROTField as 8 byte binary string.
+
+        :returns: a binary string representing the ROT field.
+        :rtype: bitstring.BitStream
         """
-        return struct.pack("!BIHB", self.info, self.trc_version, self.if_id,
-                           self.reserved)
+        return bitstring.pack("uintbe:8, uintbe:32, uintbe:16, uintbe:8",
+            self.info, self.rot_version, self.if_id, self.reserved).bytes
 
     def __str__(self):
-        trcf_str = ("[TRC OF info: %x, TRCv: %u, IF ID: %u]\n" %
-                    (self.info, self.trc_version, self.if_id))
-        return trcf_str
+        rotf_str = ("[ROT OF info: %x, ROTv: %u, IF ID: %u]\n" %
+            (self.info, self.rot_version, self.if_id))
+        return rotf_str
 
     def __eq__(self, other):
         if type(other) is type(self):
             return (self.info == other.info and
-                    self.trc_version == other.trc_version and
+                    self.rot_version == other.rot_version and
                     self.if_id == other.if_id)
         else:
             return False
@@ -371,22 +413,41 @@ class SupportSignatureField(OpaqueField):
     """
     Class for the support signature field.
 
-    The support signature field contains a certificate version (4 bytes), the
-    signature length (2 bytes), and the block size (2 bytes).
+    The support signature field contains a certificate ID (4 bytes), the
+    signature length (2 bytes), and the block size (2 bytes), for a total of 8
+    bytes.
+
+    The :class:`SupportSignatureField` wire format is as follows::
+
+                             1 1 1 1 1 1 1 1 1 1 2 2 2 2 2 2 2 2 2 2 3 3
+         0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        |                            Cert ID                            |
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        |          Sig Length           |          Block Size           |
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+    :ivar cert_id: the certificate ID.
+    :vartype cert_id: int
+    :ivar sig_len: the length of the beacon signature in bytes.
+    :vartype sig_len: int
+    :ivar block_size: the size of an AD marking in bytes.
+    :vartype block_size: int
+    :ivar raw: the raw bytes representing the SupportSignatureField parsed
+       during creation.
+    :vartype raw: bytes
     """
+
     def __init__(self, raw=None):
         """
-        Initialize an instance of the class .
+        Constructor.
 
-        :param :
-        :type :
-        :param :
-        :type :
-        :param :
-        :type :
+        :param raw: the raw bytes used to populate the SupportSignatureField
+           fields.
+        :type raw: bytes
         """
         OpaqueField.__init__(self)
-        self.cert_chain_version = 0
+        self.cert_id = 0
         self.sig_len = 0
         self.block_size = 0
         if raw is not None:
@@ -399,26 +460,28 @@ class SupportSignatureField(OpaqueField):
         assert isinstance(raw, bytes)
         self.raw = raw
         dlen = len(raw)
-        if dlen < self.LEN:
+        if dlen < SupportSignatureField.LEN:
             logging.warning("SSF: Data too short for parsing, len: %u", dlen)
             return
-        (self.cert_chain_version, self.sig_len, self.block_size) = \
-            struct.unpack("!IHH", raw)
+        bits = BitArray(bytes=raw)
+        (self.cert_id, self.sig_len, self.block_size) = \
+            bits.unpack("uintbe:32, uintbe:16, uintbe:16")
         self.parsed = True
 
     @classmethod
-    def from_values(cls, block_size, cert_chain_version=0, sig_len=0):
+    def from_values(cls, block_size, cert_id=0, sig_len=0):
         """
         Returns SupportSignatureField with fields populated from values.
 
-        :param block_size: Total marking size for an AD block (peering links
-                           included.)
-        :param cert_chain_version: Version of the Autonomous Domain's
-                                   certificate.
-        :param sig_len: Length of the beacon's signature.
+        :param block_size: the size of an AD marking in bytes.
+        :type block_size: int
+        :param cert_id: the certificate ID.
+        :type cert_id: int
+        :param sig_len: the length of the beacon signature in bytes.
+        :type sig_len: int
         """
         ssf = SupportSignatureField()
-        ssf.cert_chain_version = cert_chain_version
+        ssf.cert_id = cert_id
         ssf.sig_len = sig_len
         ssf.block_size = block_size
         return ssf
@@ -427,18 +490,17 @@ class SupportSignatureField(OpaqueField):
         """
         Returns SupportSignatureField as 8 byte binary string.
         """
-        return struct.pack("!IHH", self.cert_chain_version, 
-                           self.sig_len, self.block_size)
+        return bitstring.pack("uintbe:32, uintbe:16, uintbe:16", self.cert_id,
+                              self.sig_len, self.block_size).bytes
 
     def __str__(self):
-        ssf_str = ("[Support Signature OF cert_chain_version: %x, "
-                   "sig_len: %u, block_size: %u]\n" % (
-                       self.cert_chain_version, self.sig_len, self.block_size))
+        ssf_str = ("[Support Signature OF cert_id: %x, sig_len: %u, " +
+            "block_size: %u]\n") % (self.cert_id, self.sig_len, self.block_size)
         return ssf_str
 
     def __eq__(self, other):
         if type(other) is type(self):
-            return (self.cert_chain_version == other.cert_chain_version and
+            return (self.cert_id == other.cert_id and
                     self.sig_len == other.sig_len and
                     self.block_size == other.block_size)
         else:
@@ -451,19 +513,23 @@ class SupportPeerField(OpaqueField):
 
     The support peer field contains the trusted domain id (2 bytes),
     bandwidth allocation left (1 byte), bandwith allocation right (1 byte),
-    the bandwidth class (1 bit), and a reserved section (31 bits).
+    the bandwidth class (1 bit), and a reserved section (31 bits), for a total
+    of 16 bytes.
+
+    The :class:`SupportPeerField` wire format is as follows::
+
+                             1 1 1 1 1 1 1 1 1 1 2 2 2 2 2 2 2 2 2 2 3 3
+         0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        |       Trusted Domain ID       | BW Alloc Left | BW Alloc Right|
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        |*|                            Reserved                         |
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+        * Bandwidth Class
+
     """
     def __init__(self, raw=None):
-        """
-        Initialize an instance of the class .
-
-        :param :
-        :type :
-        :param :
-        :type :
-        :param :
-        :type :
-        """
         OpaqueField.__init__(self)
         self.isd_id = 0
         self.bwalloc_f = 0
@@ -480,13 +546,13 @@ class SupportPeerField(OpaqueField):
         assert isinstance(raw, bytes)
         self.raw = raw
         dlen = len(raw)
-        if dlen < self.LEN:
+        if dlen < SupportPeerField.LEN:
             logging.warning("SPF: Data too short for parsing, len: %u", dlen)
             return
-        (self.isd_id, self.bwalloc_f, self.bwalloc_r, data) = \
-            struct.unpack("!HBBI", raw)
-        self.bw_class = data >> 31
-        self.reserved = data - (self.bw_class << 31)
+        bits = BitArray(bytes=raw)
+        (self.isd_id, self.bwalloc_f, self.bwalloc_r, self.bw_class,
+            self.reserved) = bits.unpack("uintbe:16, uintbe:8, uintbe:8, "
+                                         "uint:1, uint:31")
         self.parsed = True
 
     @classmethod
@@ -495,6 +561,8 @@ class SupportPeerField(OpaqueField):
                     bw_class=0, reserved=0):
         """
         Returns SupportPeerField with fields populated from values.
+
+        TODO
 
         @param isd_id: Isolation Domanin's ID.
         @param bwalloc_f: Allocated bandwidth left.
@@ -514,16 +582,14 @@ class SupportPeerField(OpaqueField):
         """
         Returns SupportPeerField as 8 byte binary string.
         """
-        data = struct.pack("!HBB", self.isd_id, self.bwalloc_f, 
-                           self.bwalloc_r)
-        data += struct.pack("!I", (self.bw_class << 31) | self.reserved)
-        return data
+        return bitstring.pack("uintbe:16, uintbe:8, uintbe:8, uint:1, uint:31",
+            self.isd_id, self.bwalloc_f, self.bwalloc_r, self.bw_class,
+            self.reserved).bytes
 
     def __str__(self):
-        spf_str = ("[Support Peer OF TD ID: %x, bwalloc_f: %u, "
-                   "bwalloc_r: %u, bw_class: %u]\n" % (
-                       self.isd_id, self.bwalloc_f, self.bwalloc_r,
-                       self.bw_class))
+        spf_str = ("[Support Peer OF TD ID: %x, bwalloc_f: %u, " +
+            "bwalloc_r: %u, bw_class: %u]\n") % (self.isd_id, self.bwalloc_f,
+            self.bwalloc_r, self.bw_class)
         return spf_str
 
     def __eq__(self, other):
@@ -547,16 +613,6 @@ class SupportPCBField(OpaqueField):
     bandwidth right (1 byte).
     """
     def __init__(self, raw=None):
-        """
-        Initialize an instance of the class .
-
-        :param :
-        :type :
-        :param :
-        :type :
-        :param :
-        :type :
-        """
         OpaqueField.__init__(self)
         self.isd_id = 0
         self.bwalloc_f = 0
@@ -575,12 +631,14 @@ class SupportPCBField(OpaqueField):
         assert isinstance(raw, bytes)
         self.raw = raw
         dlen = len(raw)
-        if dlen < self.LEN:
+        if dlen < SupportPCBField.LEN:
             logging.warning("SPCBF: Data too short for parsing, len: %u", dlen)
             return
+        bits = BitArray(bytes=raw)
         (self.isd_id, self.bwalloc_f, self.bwalloc_r, self.dyn_bwalloc_f,
             self.dyn_bwalloc_r, self.bebw_f, self.bebw_r) = \
-            struct.unpack("!HBBBBBB", raw)
+            bits.unpack("uintbe:16, uintbe:8, uintbe:8, uintbe:8, uintbe:8, "
+                        "uintbe:8, uintbe:8")
         self.parsed = True
 
     @classmethod
@@ -588,6 +646,8 @@ class SupportPCBField(OpaqueField):
                     dyn_bwalloc_r=0, bebw_f=0, bebw_r=0):
         """
         Returns SupportPCBField with fields populated from values.
+
+        TODO
 
         @param isd_id: Isolation Domanin's ID.
         @param bwalloc_f: Allocated bandwidth left.
@@ -611,14 +671,14 @@ class SupportPCBField(OpaqueField):
         """
         Returns SupportPCBField as 8 byte binary string.
         """
-        return struct.pack(
-            "!HBBBBBB", self.isd_id, self.bwalloc_f, self.bwalloc_r, 
-            self.dyn_bwalloc_f, self.dyn_bwalloc_r, self.bebw_f,
-            self.bebw_r)
+        return bitstring.pack("uintbe:16, uintbe:8, uintbe:8, uintbe:8, "
+            "uintbe:8, uintbe:8, uintbe:8", self.isd_id, self.bwalloc_f,
+            self.bwalloc_r, self.dyn_bwalloc_f, self.dyn_bwalloc_r, self.bebw_f,
+            self.bebw_r).bytes
 
     def __str__(self):
         spcbf_str = ("[Info OF TD ID: %x, bwalloc_f: %u, bwalloc_r: %u]\n" %
-                     (self.isd_id, self.bwalloc_f, self.bwalloc_r))
+            (self.isd_id, self.bwalloc_f, self.bwalloc_r))
         return spcbf_str
 
     def __eq__(self, other):

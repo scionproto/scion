@@ -1,5 +1,4 @@
 # LaTeX output #
-#########################
 *-eps-converted-to.pdf
 *.aux
 *.bbl
@@ -14,7 +13,6 @@
 
 
 # OS generated files #
-#########################
 .DS_Store
 .DS_Store?
 ._*
@@ -23,45 +21,67 @@
 ehthumbs.db
 Thumbs.db
 
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
 
-# SCION generated files #
-#########################
+# C extensions and crypto library files
+*.so
+*.o
+
+# Distribution / packaging
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+venv/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# vim-generated files
+*.swp
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.cache
+nosetests.xml
+coverage.xml
+
+# SCION-generated files
 infrastructure/__pycache__/
 lib/__pycache__/
 lib/packet/__pycache__/
 topology/ISD*
 topology/conf-gen
-traces/*
 *.crt
 
+# Sphinx documentation
+docs/_build/
 
-# Python generated files #
-#########################
-*.pyc
+# PyBuilder
+target/
 
-
-# vim generated files #
-#########################
-*.swp
-
-
-# Crypto library generated files #
-#########################
-*.so
-*.o
-lib/crypto/python-tweetnacl-20140309/build/
-
-
-# Documentation and Environment files
-#########################
+# Custom
 sphinx-doc/_build/
-venv/
 
-# Docker working directory
-##########################
-docker/_build/
-
-# Test coverage
-##########################
-.coverage
-htmlcov/
