@@ -106,9 +106,9 @@ class AD(models.Model):
         """
         out_dict = {
             'ISDID': int(self.isd_id), 'ADID': int(self.id),
-            'Core': int(self.is_core_ad),
+            'Core': int(self.is_core_ad), 'DnsDomain': self.dns_domain,
             'EdgeRouters': {}, 'PathServers': {}, 'BeaconServers': {},
-            'CertificateServers': {},
+            'CertificateServers': {}, 'DNSServers': {},
         }
         for router in self.routerweb_set.all():
             out_dict['EdgeRouters'][str(router.name)] = router.get_dict()

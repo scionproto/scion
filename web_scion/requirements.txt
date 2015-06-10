@@ -4,6 +4,7 @@ django-bootstrap3==5.4.0
 webtest==2.0.18
 gitpython==1.0.1
 django-guardian==1.3.0
+dictdiffer==0.4.0
 
 # 2FA
 twilio==4.4.0

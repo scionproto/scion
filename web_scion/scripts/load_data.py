@@ -66,7 +66,7 @@ def load_data():
     # First, save all add ADs to avoid IntegrityError
     for ad_topo in ads:
         ad = AD(id=ad_topo.ad_id, isd=isds[ad_topo.isd_id],
-                is_core_ad=ad_topo.is_core_ad)
+                is_core_ad=ad_topo.is_core_ad, dns_domain=ad_topo.dns_domain)
         ad.save()
 
     # Add routers, servers, etc.

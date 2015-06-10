@@ -5,6 +5,7 @@ import time
 from shutil import rmtree
 
 # External packages
+import dictdiffer as dictdiffer
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
@@ -124,57 +125,15 @@ def get_group_master(request, pk):
 
 
 def _get_changes(current_topology, remote_topology):
-    changes = []
-
-    keys = ['ADID', 'ISDID', 'Core']
-    for key in keys:
-        if remote_topology[key] != current_topology[key]:
-            changes.append('"{}" values differ'.format(key))
-
-    # Values must match for the keys provided here
-    element_fields = {'PathServers': ['Addr'],
-                      'CertificateServers': ['Addr'],
-                      'BeaconServers': ['Addr'],
-                      'EdgeRouters': ['Addr', ('Interface', ['NeighborAD',
-                                                             'NeighborISD',
-                                                             'NeighborType'])]
-                      }
-    key_sort = lambda item: int(item[0])
-    for server_type in element_fields.keys():
-        remote_sorted_with_name = sorted(remote_topology[server_type].items(),
-                                         key=key_sort)
-        current_sorted_with_name = sorted(current_topology[server_type].items(),
-                                          key=key_sort)
-
-        remote_servers = [t[1] for t in remote_sorted_with_name]
-        current_servers = [t[1] for t in current_sorted_with_name]
-        if len(remote_servers) != len(current_servers):
-            changes.append(
-                'Different number of "{}" servers'.format(server_type)
-            )
-            continue
-        for rs, cs in zip(remote_servers, current_servers):
-            current_fields = element_fields[server_type]
-            for key in current_fields:
-                if isinstance(key, str) and rs[key] != cs[key]:
-                    changes.append('"{}" values differ for one of {}. '
-                                   'Local: {}, remote: {}'
-                                   .format(key, server_type, cs[key], rs[key]))
-                    continue
-                if isinstance(key, tuple):
-                    # Compare nested dictionaries (for 'EdgeRouters')
-                    field_name, nested_fields = key
-                    for field in nested_fields:
-                        remote_value = rs[field_name][field]
-                        current_value = cs[field_name][field]
-                        if remote_value != current_value:
-                            changes.append('"{}:{}" differ for one of {}. '
-                                           'Local: {}, remote: {}'
-                                           .format(field_name, field,
-                                                   server_type,
-                                                   remote_value,
-                                                   current_value))
-    return changes
+    diff_changes = list(dictdiffer.diff(current_topology, remote_topology))
+    processed_changes = []
+    for change in diff_changes:
+        change_type, element, changes = list(change)
+        change = 'Local -> remote: {}, element: {}, changes: {}'.format(
+            change_type, str(element), str(changes)
+        )
+        processed_changes.append(change)
+    return processed_changes
 
 
 def compare_remote_topology(request, pk):
