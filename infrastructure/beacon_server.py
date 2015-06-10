@@ -43,8 +43,6 @@ from lib.packet.opaque_field import (
     HopOpaqueField,
     InfoOpaqueField,
     OpaqueFieldType as OFT,
-    SupportPeerField,
-    SupportSignatureField,
     TRCField,
 )
 from lib.packet.path_mgmt import (
@@ -270,14 +268,13 @@ class BeaconServer(SCIONElement):
         Creates an AD Marking for given ingress and egress interfaces,
         timestamp, and previous HOF.
         """
-        ssf = SupportSignatureField.from_values(PCBMarking.LEN)
         hof = HopOpaqueField.from_values(BeaconServer.HOF_EXP_TIME,
                                          ingress_if, egress_if)
         if prev_hof is None:
             hof.info = OFT.LAST_OF
         hof.mac = gen_of_mac(self.of_gen_key, hof, prev_hof, ts)
         pcbm = PCBMarking.from_values(self.topology.isd_id, self.topology.ad_id,
-            ssf, hof, self._get_if_rev_token(ingress_if),
+            hof, self._get_if_rev_token(ingress_if),
             self._get_if_rev_token(egress_if))
         data_to_sign = str(pcbm.ad_id).encode('utf-8') + pcbm.hof.pack()
         peer_markings = []
@@ -291,7 +288,7 @@ class BeaconServer(SCIONElement):
             hof.mac = gen_of_mac(self.of_gen_key, hof, prev_hof, ts)
             peer_marking = \
                 PCBMarking.from_values(router_peer.interface.neighbor_isd,
-                                       router_peer.interface.neighbor_ad, ssf,
+                                       router_peer.interface.neighbor_ad,
                                        hof, self._get_if_rev_token(if_id),
                                        self._get_if_rev_token(egress_if))
             data_to_sign += peer_marking.pack()
@@ -343,7 +340,7 @@ class BeaconServer(SCIONElement):
         assert isinstance(pcb, PathSegment)
         last_pcbm = pcb.get_last_pcbm()
         if self._check_certs_trc(last_pcbm.isd_id, last_pcbm.ad_id,
-                                 last_pcbm.ssf.cert_chain_version,
+                                 pcb.get_last_adm().cert_chain_version,
                                  pcb.trcf.trc_version, pcb.trcf.if_id):
             if self._verify_beacon(pcb):
                 self._handle_verified_beacon(pcb)
@@ -396,11 +393,12 @@ class BeaconServer(SCIONElement):
         Once the necessary certificate and TRC files have been found, verify the
         beacons.
         """
+        return True
         assert isinstance(pcb, PathSegment)
         last_pcbm = pcb.get_last_pcbm()
         cert_chain_isd = last_pcbm.isd_id
         cert_chain_ad = last_pcbm.ad_id
-        cert_chain_version = last_pcbm.ssf.cert_chain_version
+        cert_chain_version = pcb.get_last_adm().cert_chain_version
         trc_version = pcb.trcf.trc_version
         subject = 'ISD:' + str(cert_chain_isd) + '-AD:' + str(cert_chain_ad)
         cert_chain_file = get_cert_chain_file_path(

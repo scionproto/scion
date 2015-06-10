@@ -29,8 +29,6 @@ from lib.defines import EXP_TIME_UNIT
 from lib.packet.opaque_field import (
     HopOpaqueField,
     InfoOpaqueField,
-    SupportPeerField,
-    SupportSignatureField,
     TRCField,
 )
 from lib.packet.path import CorePath
@@ -79,13 +77,12 @@ class PCBMarking(Marking):
     included in the HOF.
     TODO: this will be used for both top-down and peer links
     """
-    LEN = 20 + 2 * 32
+    LEN = 12 + 2 * 32
 
     def __init__(self, raw=None):
         Marking.__init__(self)
         self.isd_id = 0
         self.ad_id = 0
-        self.ssf = None
         self.hof = None
         self.ig_rev_token = 32 * b"\x00"
         self.eg_rev_token = 32 * b"\x00"
@@ -104,8 +101,6 @@ class PCBMarking(Marking):
             return
         (self.isd_id, self.ad_id) = ISD_AD.from_raw(raw[:ISD_AD.LEN])
         offset = ISD_AD.LEN
-        self.ssf = SupportSignatureField(raw[offset:offset+SupportSignatureField.LEN])
-        offset += SupportSignatureField.LEN
         self.hof = HopOpaqueField(raw[offset:offset+HopOpaqueField.LEN])
         offset += HopOpaqueField.LEN
         self.ig_rev_token = raw[offset:offset+32]
@@ -114,13 +109,12 @@ class PCBMarking(Marking):
         self.parsed = True
 
     @classmethod
-    def from_values(cls, isd_id=0, ad_id=0, ssf=None, hof=None,
+    def from_values(cls, isd_id=0, ad_id=0, hof=None,
                     ig_rev_token=32 * b"\x00", eg_rev_token=32 * b"\x00"):
         """
         Returns PCBMarking with fields populated from values.
 
         :param ad_id: Autonomous Domain's ID.
-        :param ssf: SupportSignatureField object.
         :param hof: HopOpaqueField object.
         :param ig_rev_token: Revocation token for the ingress if
                              in the HopOpaqueField.
@@ -130,7 +124,6 @@ class PCBMarking(Marking):
         pcbm = PCBMarking()
         pcbm.isd_id = isd_id
         pcbm.ad_id = ad_id
-        pcbm.ssf = ssf
         pcbm.hof = hof
         pcbm.ig_rev_token = ig_rev_token
         pcbm.eg_rev_token = eg_rev_token
@@ -140,21 +133,19 @@ class PCBMarking(Marking):
         """
         Returns PCBMarking as a binary string.
         """
-        return (ISD_AD(self.isd_id, self.ad_id).pack() + self.ssf.pack() +
-                self.hof.pack() + self.ig_rev_token + self.eg_rev_token)
+        return (ISD_AD(self.isd_id, self.ad_id).pack() + self.hof.pack() +
+                self.ig_rev_token + self.eg_rev_token)
 
     def __str__(self):
         pcbm_str = "[PCB Marking isd,ad (%d, %d)]\n" % (self.isd_id, self.ad_id)
         pcbm_str += "ig_rev_token: %s\neg_rev_token:%s\n" % (self.ig_rev_token,
                                                              self.eg_rev_token)
-        pcbm_str += str(self.ssf)
         pcbm_str += str(self.hof) + '\n'
         return pcbm_str
 
     def __eq__(self, other):
         if type(other) is type(self):
             return (self.ad_id == other.ad_id and
-                    self.ssf == other.ssf and
                     self.hof == other.hof and
                     self.ig_rev_token == other.ig_rev_token and
                     self.eg_rev_token == other.eg_rev_token)
@@ -172,6 +163,9 @@ class ADMarking(Marking):
         self.pcbm = None
         self.pms = []
         self.sig = b''
+        self.cert_chain_version = 0
+        self.sig_len = 0
+        self.block_size = 0
         if raw is not None:
             self.parse(raw)
 
@@ -182,16 +176,19 @@ class ADMarking(Marking):
         assert isinstance(raw, bytes)
         self.raw = raw[:]
         dlen = len(raw)
-        if dlen < PCBMarking.LEN:
+        if dlen < PCBMarking.LEN + 8:
             logging.warning("AD: Data too short for parsing, len: %u", dlen)
             return
+        (self.cert_chain_version, self.sig_len, self.block_size) = \
+            struct.unpack("!IHH", raw[:8])
+        raw = raw[8:]
         self.pcbm = PCBMarking(raw[:PCBMarking.LEN])
         raw = raw[PCBMarking.LEN:]
-        while len(raw) > self.pcbm.ssf.sig_len:
+        while len(raw) > self.sig_len:
             peer_marking = PCBMarking(raw[:PCBMarking.LEN])
             self.pms.append(peer_marking)
             raw = raw[PCBMarking.LEN:]
-        self.sig = raw[:]
+        self.sig = raw[:]  # TODO check sig_len
         self.parsed = True
 
     @classmethod
@@ -204,18 +201,20 @@ class ADMarking(Marking):
         @param sig: Beacon's signature.
         """
         ad_marking = ADMarking()
-        pcbm.ssf.sig_len = len(sig)
-        pcbm.ssf.block_size = (1 + len(pms)) * PCBMarking.LEN
+        ad_marking.block_size = (1 + len(pms)) * PCBMarking.LEN
         ad_marking.pcbm = pcbm
         ad_marking.pms = (pms if pms is not None else [])
         ad_marking.sig = sig
+        ad_marking.sig_len = len(sig)
         return ad_marking
 
     def pack(self):
         """
         Returns ADMarking as a binary string.
         """
-        ad_bytes = self.pcbm.pack()
+        ad_bytes = struct.pack("!IHH", self.cert_chain_version, self.sig_len,
+                               self.block_size)
+        ad_bytes += self.pcbm.pack()
         for peer_marking in self.pms:
             ad_bytes += peer_marking.pack()
         ad_bytes += self.sig
@@ -226,10 +225,12 @@ class ADMarking(Marking):
         Removes the signature from the AD block.
         """
         self.sig = b''
-        self.pcbm.ssf.sig_len = 0
+        self.sig_len = 0
 
     def __str__(self):
         ad_str = "[Autonomous Domain]\n"
+        ad_str += ("cert_ver: %d, sig_len: %d, block_size: %d\n" %
+                   (self.cert_chain_version, self.sig_len, self.block_size))
         ad_str += str(self.pcbm)
         for peer_marking in self.pms:
             ad_str += str(peer_marking)
@@ -281,10 +282,10 @@ class PathSegment(Marking):
         self.segment_id = raw[16:48]
         raw = raw[48:]
         for _ in range(self.iof.hops):
-            pcbm = PCBMarking(raw[:PCBMarking.LEN])
-            ad_marking = ADMarking(raw[:pcbm.ssf.sig_len + pcbm.ssf.block_size])
+            (_, sig_len, block_size) = struct.unpack("!IHH", raw[:8])
+            ad_marking = ADMarking(raw[:sig_len + block_size + 8])
             self.add_ad(ad_marking)
-            raw = raw[pcbm.ssf.sig_len + pcbm.ssf.block_size:]
+            raw = raw[sig_len + block_size + 8:]
         self.parsed = True
 
     def pack(self):
@@ -334,6 +335,15 @@ class PathSegment(Marking):
         Returns the ISD ID.
         """
         return self.iof.isd_id
+
+    def get_last_adm(self):
+        """
+        Returns the last ADMarking on the path.
+        """
+        if self.ads:
+            return self.ads[-1]
+        else:
+            return None
 
     def get_last_pcbm(self):
         """
@@ -445,11 +455,10 @@ class PathSegment(Marking):
             pcb.segment_id = raw[16:48]
             raw = raw[48:]
             for _ in range(pcb.iof.hops):
-                pcbm = PCBMarking(raw[:PCBMarking.LEN])
-                ad_marking = ADMarking(raw[:pcbm.ssf.sig_len +
-                                           pcbm.ssf.block_size])
+                (_, sig_len, block_size) = struct.unpack("!IHH", raw[:8])
+                ad_marking = ADMarking(raw[:sig_len + block_size + 8])
                 pcb.add_ad(ad_marking)
-                raw = raw[pcbm.ssf.sig_len + pcbm.ssf.block_size:]
+                raw = raw[sig_len + block_size + 8:]
             pcbs.append(pcb)
         return pcbs
 
