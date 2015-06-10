@@ -38,6 +38,7 @@ from ad_manager.forms import (
 from ad_manager.models import AD, ISD, PackageVersion, ConnectionRequest
 from ad_manager.util import monitoring_client
 from ad_manager.util.ad_connect import create_new_ad, link_ads
+from ad_manager.util.errors import HttpResponseUnavailable
 from lib.defines import BEACON_SERVICE
 from lib.topology import Topology
 
@@ -85,7 +86,6 @@ class ADDetailView(DetailView):
 
         # Permissions
         context['user_has_perm'] = self.request.user.has_perm('change_ad', ad)
-
         return context
 
 
@@ -99,7 +99,8 @@ def get_ad_status(request, pk):
     if is_success(ad_info_list_response):
         return JsonResponse({'data': get_success_data(ad_info_list_response)})
     else:
-        return JsonResponse({})
+        error = get_failure_errors(ad_info_list_response)
+        return HttpResponseUnavailable(error)
 
 
 def get_group_master(request, pk):
@@ -114,15 +115,12 @@ def get_group_master(request, pk):
     md_host = ad.get_monitoring_daemon_host()
     response = monitoring_client.get_master_id(md_host, ad.isd.id, ad.id,
                                                server_type)
-
     if is_success(response):
         master_id = get_success_data(response)
-        return JsonResponse({'status': True,
-                             'server_type': server_type,
+        return JsonResponse({'server_type': server_type,
                              'server_id': master_id})
     else:
-        return JsonResponse({'status': False,
-                             'error': get_failure_errors(response)})
+        return HttpResponseUnavailable(get_failure_errors(response))
 
 
 def _get_changes(current_topology, remote_topology):
@@ -187,17 +185,16 @@ def compare_remote_topology(request, pk):
     ad = get_object_or_404(AD, id=pk)
     remote_topology = ad.get_remote_topology()
     if not remote_topology:
-        return JsonResponse({'status': 'FAIL',
-                             'errors': ['Cannot get the remote topology']})
+        return HttpResponseUnavailable('Cannot get the topology')
 
     current_topology = ad.generate_topology_dict()
 
     changes = _get_changes(current_topology, remote_topology)
     if changes:
-        status = 'CHANGED'
+        state = 'CHANGED'
     else:
-        status = 'OK'
-    return JsonResponse({'status': status, 'changes': changes})
+        state = 'OK'
+    return JsonResponse({'state': state, 'changes': changes})
 
 
 @require_POST

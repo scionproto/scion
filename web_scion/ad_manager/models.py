@@ -97,7 +97,7 @@ class AD(models.Model):
         try:
             topology_dict = json.loads(topology_str)
             return topology_dict
-        except ValueError:
+        except (ValueError, TypeError):
             return None
 
     def generate_topology_dict(self):
