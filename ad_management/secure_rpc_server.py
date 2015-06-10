@@ -1,10 +1,23 @@
 #!/usr/bin/env python3
-
-# Monkey patching standard xmlrpc.server.SimpleXMLRPCServer to run over
-# TLS (SSL).
+# Copyright 2014 ETH Zurich
 #
-# Inspired by http://stackoverflow.com/q/5690733/1181370
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+"""
+:mod:`secure_rpc_server` --- SimpleXMLRPCServer to run over TLS (SSL)
+=====================================================================
 
+Inspired by http://stackoverflow.com/q/5690733/1181370
+"""
 # Stdlib
 import logging
 import os
@@ -28,14 +41,39 @@ except ImportError:
     fcntl = None
 
 class XMLRPCServerTLS(SimpleXMLRPCServer):
+    """
+
+
+    :ivar logRequests:
+    :type logRequests:
+    :ivar socket:
+    :type socket:
+    :ivar address_family:
+    :type address_family:
+    :ivar socket_type:
+    :type socket_type:
+    :ivar :
+    :type :
+    """
+
     def __init__(self, addr, requestHandler=SimpleXMLRPCRequestHandler,
                  logRequests=False, allow_none=False, encoding=None,
                  bind_and_activate=True):
         """
-        Overriding __init__ method of the SimpleXMLRPCServer
+        Initialize an instance of the class XMLRPCServerTLS.
 
-        The method is an exact copy, except the TCPServer __init__
-        call, which is rewritten using TLS
+        :param addr:
+        :type addr:
+        :param requestHandler:
+        :type requestHandler:
+        :param logRequests:
+        :type logRequests:
+        :param allow_none:
+        :type allow_none:
+        :param encoding:
+        :type encoding:
+        :param bind_and_activate:
+        :type bind_and_activate:
         """
         self.logRequests = logRequests
 

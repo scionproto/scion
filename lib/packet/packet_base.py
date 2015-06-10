@@ -28,6 +28,16 @@ class HeaderBase(object):
     """
 
     def __init__(self):
+        """
+        Initialize an instance of the class .
+
+        :param :
+        :type :
+        :param :
+        :type :
+        :param :
+        :type :
+        """
         self.parsed = False
 
     def parse(self, raw):
@@ -61,6 +71,16 @@ class PacketBase(object):
     """
 
     def __init__(self):
+        """
+        Initialize an instance of the class .
+
+        :param :
+        :type :
+        :param :
+        :type :
+        :param :
+        :type :
+        """
         self._hdr = None
         self._payload = None
         self.parsed = False
@@ -141,6 +161,16 @@ class PayloadBase(object):
     Interface that payloads of packets must implement.
     """
     def __init__(self):
+        """
+        Initialize an instance of the class .
+
+        :param :
+        :type :
+        :param :
+        :type :
+        :param :
+        :type :
+        """
         self.raw = None
         self.parsed = False
 

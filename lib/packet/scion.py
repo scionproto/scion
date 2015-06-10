@@ -13,7 +13,7 @@
 # limitations under the License.
 """
 :mod:`scion` --- SCION packets
-===========================================
+==============================
 """
 # Stdlib
 import logging
@@ -81,6 +81,16 @@ class SCIONCommonHdr(HeaderBase):
     LEN = 8
 
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class .
+
+        :param :
+        :type :
+        :param :
+        :type :
+        :param :
+        :type :
+        """
         HeaderBase.__init__(self)
         self.version = 0  # Version of SCION packet.
         self.src_addr_len = 0  # Length of the src address.
@@ -155,6 +165,16 @@ class SCIONHeader(HeaderBase):
     MIN_LEN = 16  # Update when values are fixed.
 
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class .
+
+        :param :
+        :type :
+        :param :
+        :type :
+        :param :
+        :type :
+        """
         HeaderBase.__init__(self)
         self.common_hdr = None
         self.src_addr = None
@@ -447,6 +467,16 @@ class SCIONPacket(PacketBase):
     MIN_LEN = 8
 
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class .
+
+        :param :
+        :type :
+        :param :
+        :type :
+        :param :
+        :type :
+        """
         PacketBase.__init__(self)
         self.payload_len = 0
         if raw is not None:
@@ -515,6 +545,16 @@ class IFIDPacket(SCIONPacket):
     IFID packet.
     """
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class .
+
+        :param :
+        :type :
+        :param :
+        :type :
+        :param :
+        :type :
+        """
         SCIONPacket.__init__(self)
         self.reply_id = 0  # Always 0 for initial request.
         self.request_id = None

@@ -13,7 +13,7 @@
 # limitations under the License.
 """
 :mod:`path_store_test` --- SCION path store unit test
-=========================================================
+=====================================================
 """
 # Stdlib
 import base64
@@ -47,7 +47,7 @@ class TestPathStore(unittest.TestCase):
 
     def _create_ad_marking(self):
         """
-        Creates an AD Marking with the given ingress and egress interfaces.
+        Create an AD Marking with the given ingress and egress interfaces.
         """
         ssf = SupportSignatureField.from_values(ADMarking.LEN)
         hof = HopOpaqueField.from_values(1, 111, 222)
@@ -62,6 +62,9 @@ class TestPathStore(unittest.TestCase):
         return ADMarking.from_values(pcbm, peer_markings, signature)
 
     def test(self):
+        """
+        Test the main functionalities of the path store.
+        """
         path_policy_file = "../topology/ISD1/path_policies/ISD:1-AD:10.json"
         path_policy = PathPolicy.from_file(path_policy_file)
         test_segments = PathStore(path_policy)

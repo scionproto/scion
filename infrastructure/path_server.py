@@ -54,6 +54,16 @@ class PathServer(SCIONElement):
     MAX_SEG_NO = 5  # TODO: replace by config variable.
 
     def __init__(self, server_id, topo_file, config_file):
+        """
+        Constructor.
+
+        :param :
+        :type :
+        :param :
+        :type :
+        :param :
+        :type :
+        """
         SCIONElement.__init__(self, "ps", topo_file, server_id=server_id,
                               config_file=config_file)
         # TODO replace by pathstore instance
@@ -192,6 +202,16 @@ class CorePathServer(PathServer):
             Entry for a LeasesDict.
             """
             def __init__(self, isd_id, ad_id, exp_time, seg_type):
+                """
+                Constructor.
+
+                :param :
+                :type :
+                :param :
+                :type :
+                :param :
+                :type :
+                """
                 self.isd_id = isd_id
                 self.ad_id = ad_id
                 self.exp_time = exp_time
@@ -208,6 +228,16 @@ class CorePathServer(PathServer):
                     return False
 
         def __init__(self, max_capacity=10000):
+            """
+            Constructor.
+
+            :param :
+            :type :
+            :param :
+            :type :
+            :param :
+            :type :
+            """
             self._leases = defaultdict(set)
             self._max_capacity = max_capacity
             self._nentries = 0
@@ -267,6 +297,16 @@ class CorePathServer(PathServer):
                 self._nentries += len(entries)
 
     def __init__(self, server_id, topo_file, config_file):
+        """
+        Constructor.
+
+        :param :
+        :type :
+        :param :
+        :type :
+        :param :
+        :type :
+        """
         PathServer.__init__(self, server_id, topo_file, config_file)
         # Sanity check that we should indeed be a core path server.
         assert self.topology.is_core_ad, "This shouldn't be a core PS!"
@@ -609,6 +649,16 @@ class LocalPathServer(PathServer):
     registers down-paths with the CPS. Can cache paths learned from a CPS.
     """
     def __init__(self, server_id, topo_file, config_file):
+        """
+        Constructor.
+
+        :param :
+        :type :
+        :param :
+        :type :
+        :param :
+        :type :
+        """
         PathServer.__init__(self, server_id, topo_file, config_file)
         # Sanity check that we should indeed be a local path server.
         assert not self.topology.is_core_ad, "This shouldn't be a local PS!"

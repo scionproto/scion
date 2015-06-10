@@ -30,6 +30,16 @@ class PathPolicy(object):
     Stores a path policy.
     """
     def __init__(self):
+        """
+        Initialize an instance of the class .
+
+        :param :
+        :type :
+        :param :
+        :type :
+        :param :
+        :type :
+        """
         self.best_set_size = 5
         self.candidates_set_size = 20
         self.history_limit = 0
@@ -198,6 +208,16 @@ class PathStoreRecord(object):
     """
 
     def __init__(self, pcb):
+        """
+        Initialize an instance of the class .
+
+        :param :
+        :type :
+        :param :
+        :type :
+        :param :
+        :type :
+        """
         assert isinstance(pcb, PathSegment)
         self.pcb = pcb
         self.id = pcb.segment_id
@@ -260,6 +280,16 @@ class PathStore(object):
     """
 
     def __init__(self, path_policy):
+        """
+        Initialize an instance of the class .
+
+        :param :
+        :type :
+        :param :
+        :type :
+        :param :
+        :type :
+        """
         self.path_policy = path_policy
         self.candidates = []
         self.best_paths_history = deque(maxlen=self.path_policy.history_limit)

@@ -100,6 +100,16 @@ class InterfaceState(object):
     IFID_TOUT = 3.5 * IFID_PKT_TOUT
 
     def __init__(self):
+        """
+        Constructor.
+
+        :param :
+        :type :
+        :param :
+        :type :
+        :param :
+        :type :
+        """
         self.active_from = 0
         self.active_until = 0
 
@@ -136,6 +146,16 @@ class BeaconServer(SCIONElement):
     def __init__(self, server_id, topo_file, config_file, path_policy_file):
         SCIONElement.__init__(self, "bs", topo_file, server_id=server_id,
                               config_file=config_file)
+        """
+        Constructor.
+
+        :param :
+        :type :
+        :param :
+        :type :
+        :param :
+        :type :
+        """
         # TODO: add 2 policies
         self.path_policy = PathPolicy.from_file(path_policy_file)
         self.unverified_beacons = deque()
@@ -546,6 +566,16 @@ class CoreBeaconServer(BeaconServer):
     def __init__(self, server_id, topo_file, config_file, path_policy_file):
         BeaconServer.__init__(self, server_id, topo_file, config_file,
                               path_policy_file)
+        """
+        Constructor.
+
+        :param :
+        :type :
+        :param :
+        :type :
+        :param :
+        :type :
+        """
         # Sanity check that we should indeed be a core beacon server.
         assert self.topology.is_core_ad, "This shouldn't be a core BS!"
         self.beacons = defaultdict(self._ps_factory)
@@ -743,6 +773,16 @@ class LocalBeaconServer(BeaconServer):
     """
 
     def __init__(self, server_id, topo_file, config_file, path_policy_file):
+        """
+        Constructor.
+
+        :param :
+        :type :
+        :param :
+        :type :
+        :param :
+        :type :
+        """
         BeaconServer.__init__(self, server_id, topo_file, config_file,
                               path_policy_file)
         # Sanity check that we should indeed be a local beacon server.
