@@ -188,7 +188,7 @@ class ADMarking(Marking):
             peer_marking = PCBMarking(raw[:PCBMarking.LEN])
             self.pms.append(peer_marking)
             raw = raw[PCBMarking.LEN:]
-        self.sig = raw[:]  # TODO check sig_len
+        self.sig = raw[:]
         self.parsed = True
 
     @classmethod

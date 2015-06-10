@@ -221,6 +221,7 @@ class BeaconServer(SCIONElement):
                                                      new_pcb.get_timestamp())
 
             new_pcb.add_ad(ad_marking)
+            self._sign_beacon(new_pcb)
             dst = SCIONAddr.from_values(self.topology.isd_id,
                                         self.topology.ad_id, router_child.addr)
             beacon = PathConstructionBeacon.from_values(self.addr.get_isd_ad(),
@@ -276,7 +277,6 @@ class BeaconServer(SCIONElement):
         pcbm = PCBMarking.from_values(self.topology.isd_id, self.topology.ad_id,
             hof, self._get_if_rev_token(ingress_if),
             self._get_if_rev_token(egress_if))
-        data_to_sign = str(pcbm.ad_id).encode('utf-8') + pcbm.hof.pack()
         peer_markings = []
         for router_peer in self.topology.peer_edge_routers:
             if_id = router_peer.interface.if_id
@@ -291,11 +291,8 @@ class BeaconServer(SCIONElement):
                                        router_peer.interface.neighbor_ad,
                                        hof, self._get_if_rev_token(if_id),
                                        self._get_if_rev_token(egress_if))
-            data_to_sign += peer_marking.pack()
             peer_markings.append(peer_marking)
-        signature = sign(data_to_sign, self.signing_key)
-        logging.debug("Data to sign:\n%s\nSignature:%s\n", data_to_sign, signature)
-        return ADMarking.from_values(pcbm, peer_markings, signature)
+        return ADMarking.from_values(pcbm, peer_markings)
 
     def handle_ifid_packet(self, ipkt):
         ifid = ipkt.reply_id
@@ -393,7 +390,6 @@ class BeaconServer(SCIONElement):
         Once the necessary certificate and TRC files have been found, verify the
         beacons.
         """
-        return True
         assert isinstance(pcb, PathSegment)
         last_pcbm = pcb.get_last_pcbm()
         cert_chain_isd = last_pcbm.isd_id
@@ -411,14 +407,27 @@ class BeaconServer(SCIONElement):
         trc_file = get_trc_file_path(self.topology.isd_id, self.topology.ad_id,
                                      cert_chain_isd, trc_version)
         trc = TRC(trc_file)
-        data_to_verify = (str(cert_chain_ad).encode('utf-8') +
-                          last_pcbm.hof.pack())
-        for peer_marking in pcb.ads[-1].pms:
-            data_to_verify += peer_marking.pack()
-        logging.debug("Data to vrfy:\n%s\nSignature:%s\n", data_to_verify,
-                pcb.ads[-1].sig)
-        return verify_sig_chain_trc(data_to_verify, pcb.ads[-1].sig, subject,
+
+        new_pcb = copy.deepcopy(pcb)
+        new_pcb.trcf.if_id = 0
+        new_pcb.ads[-1].sig = b''
+        new_pcb.ads[-1].sig_len = 0
+        return verify_sig_chain_trc(new_pcb.pack(), pcb.ads[-1].sig, subject,
                                     chain, trc, trc_version)
+
+    def _sign_beacon(self, pcb):
+        """
+        TODO: signature goes to the last ADMarking
+        """
+        # if_id field is excluded from signature as it is changed by ingress ERs
+        if pcb.ads[-1].sig:
+            logging.error("PCB already signed.")
+            return
+        (pcb.trcf.if_id, tmp_if_id) = (0, pcb.trcf.if_id)
+        signature = sign(pcb.pack(), self.signing_key)
+        pcb.ads[-1].sig = signature
+        pcb.ads[-1].sig_len = len(signature)
+        pcb.trcf.if_id = tmp_if_id
 
     def _handle_verified_beacon(self, pcb):
         """
@@ -571,6 +580,7 @@ class CoreBeaconServer(BeaconServer):
                                                      new_pcb.get_timestamp())
 
             new_pcb.add_ad(ad_marking)
+            self._sign_beacon(new_pcb)
             dst = SCIONAddr.from_values(self.topology.isd_id,
                                         self.topology.ad_id, core_router.addr)
             beacon = PathConstructionBeacon.from_values(self.addr.get_isd_ad(),
@@ -725,6 +735,7 @@ class CoreBeaconServer(BeaconServer):
                                                  new_pcb.get_last_pcbm().hof)
             new_pcb.add_ad(ad_marking)
             new_pcb.segment_id = self._get_segment_rev_token(new_pcb)
+            # TODO: sign here? discuss
             self.register_core_segment(new_pcb)
             count += 1
         logging.info("Registered %d Core paths", count)
@@ -1009,6 +1020,7 @@ class LocalBeaconServer(BeaconServer):
             new_pcb.add_ad(ad_marking)
             new_pcb.segment_id = self._get_segment_rev_token(new_pcb)
             new_pcb.remove_signatures()
+            # TODO: sign here? discuss
             self.register_up_segment(new_pcb)
             logging.info("Up path registered")
 
@@ -1025,6 +1037,7 @@ class LocalBeaconServer(BeaconServer):
             new_pcb.add_ad(ad_marking)
             new_pcb.segment_id = self._get_segment_rev_token(new_pcb)
             new_pcb.remove_signatures()
+            # TODO: sign here? discuss
             self.register_down_segment(new_pcb)
             logging.info("Down path registered")
 
