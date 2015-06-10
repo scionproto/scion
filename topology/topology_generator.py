@@ -27,11 +27,17 @@ DEFAULT_ADCONFIGURATIONS_FILE = 'ADConfigurations.json'
 ISD_AD_ID_DIVISOR = '-'
 MAX_CORE_ADS = 7
 
-final_graph = nx.DiGraph()
 
 def parse(topo_file, ISD_NUM):
     """
-    Parses the topo_file into a SCION ISD numbered - ISD_NUM
+    Parses the topo_file into a SCION ISD numbered - ISD_NUM 
+
+    :param topo_file: A brite output file to be converted
+    :type topo_file: str
+    :param ISD_NUM: ISD Number of the graph to be generated 
+    :type ISD_NUM: int
+    :returns: the newly created Graph.
+    :rtype: :class:`networkx.DiGraph`
     """
     fd = open(topo_file, 'r')
     parsing_nodes = False
@@ -98,6 +104,7 @@ def parse(topo_file, ISD_NUM):
 
     print("Core AD's are:")
     print(core_ad_graph.nodes())
+    final_graph = nx.DiGraph()
     for core_ad in core_ads:
         original_graph.node[core_ad]['color'] = 'red'
         original_graph.node[core_ad]['is_core'] = True
@@ -151,12 +158,16 @@ def parse(topo_file, ISD_NUM):
         A.layout(prog='dot')
         img_file = topo_file.split('.')[0] + ".png"
         A.draw(img_file)
+    return final_graph
 
 def json_convert(graph):
     """
-    Converts graph object into json format and dumps it in
+    Converts graph into json format and dumps it in
     DEFAULT_ADCONFIGURATIONS_FILE. The name of nodes in graph should be in
     the format {ISD}-{AD}
+
+    :param graph: A graph to be dumped into the json file
+    :type graph: :class: `networkx.DiGraph`
     """
     topo_dict = dict()
     topo_dict["default_subnet"] = "127.0.0.0/8"
@@ -192,10 +203,20 @@ def main():
     Main function
     """
     if len(sys.argv) != 2:
-        logging.error("run: %s topo_file", sys.argv[0])
+        logging.error("run: %s brite_file", sys.argv[0])
         sys.exit()
-    parse(sys.argv[1], 1)
-    json_convert(final_graph)
+
+    brite_file = sys.argv[1]
+    if not os.path.isfile(brite_file):
+        logging.error(brite_file + " file missing.")
+        sys.exit()
+
+    if not os.path.isfile(DEFAULT_ADCONFIGURATIONS_FILE):
+        logging.error(DEFAULT_ADCONFIGURATIONS_FILE + " file missing.")
+        sys.exit()
+
+    scion_graph = parse(sys.argv[1], ISD_NUM=1)
+    json_convert(scion_graph)
 
 if __name__ == "__main__":
     main()
