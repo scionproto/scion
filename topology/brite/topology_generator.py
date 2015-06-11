@@ -41,40 +41,36 @@ def parse(topo_file, ISD_NUM):
     :rtype: :class:`networkx.DiGraph`
     """
     fd = open(topo_file, 'r')
-    parsing_nodes = False
-    parsing_edges = False
+    nodes_count = 0
+    edges_count = 0
 
     original_graph = nx.Graph()
     num_outedges = list()
     for line in fd:
         values = line.split(" ")
-        if parsing_nodes:
-            if line == "\n":
-                parsing_nodes = False
-            else:
-                values = line.split("\t")
-                ad_id = values[0]
-                isd_ad_id = ISD_AD_ID_DIVISOR.join([str(ISD_NUM), ad_id])
-                original_graph.add_node(isd_ad_id, is_core=False)
-                num_outedges.append((isd_ad_id, int(values[3])))
+        if nodes_count > 0:
+            nodes_count -= 1
+            values = line.split("\t")
+            ad_id = values[0]
+            isd_ad_id = ISD_AD_ID_DIVISOR.join([str(ISD_NUM), ad_id])
+            original_graph.add_node(isd_ad_id, is_core=False)
+            num_outedges.append((isd_ad_id, int(values[3])))
 
-        if parsing_edges:
-            if line == "\n":
-                parsing_edges = False
-            else:
-                values = line.split("\t")
-                source_isd_ad_id = ISD_AD_ID_DIVISOR.join([str(ISD_NUM),
-                                                          values[1]])
-                dest_isd_ad_id = ISD_AD_ID_DIVISOR.join([str(ISD_NUM),
-                                                         values[2]])
-                original_graph.add_edge(source_isd_ad_id, dest_isd_ad_id)
+        if edges_count > 0:
+            edges_count -= 1
+            values = line.split("\t")
+            source_isd_ad_id = ISD_AD_ID_DIVISOR.join([str(ISD_NUM),
+                                                      values[1]])
+            dest_isd_ad_id = ISD_AD_ID_DIVISOR.join([str(ISD_NUM),
+                                                     values[2]])
+            original_graph.add_edge(source_isd_ad_id, dest_isd_ad_id)
 
         if values[0] == "Nodes:":
-            parsing_nodes = True
-        elif values[0] == "Edges:":
-            parsing_edges = True
+            nodes_count = int(values[2])
+        if values[0] == "Edges:":
+            edges_count = int(values[2])
 
-    NUM_CORE_ADS = min(MAX_CORE_ADS, int(len(original_graph.nodes())/10))
+    NUM_CORE_ADS = min(MAX_CORE_ADS, int(len(original_graph.nodes()) / 10))
     num_outedges = sorted(num_outedges, key=lambda tup: tup[1],
                           reverse=True)
     core_ads = [(i[0]) for i in num_outedges[:NUM_CORE_ADS]]
@@ -97,6 +93,7 @@ def parse(topo_file, ISD_NUM):
                 if node not in core_ad_graph.nodes():
                     neighbor_nodes.add(node)
 
+        # Sorting nodes based on their outdegree in the original graph
         neighbor_nodes = sorted(neighbor_nodes, 
                                 key=lambda tup: len(original_graph[tup]), 
                                 reverse=True)
