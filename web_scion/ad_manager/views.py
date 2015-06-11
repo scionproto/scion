@@ -331,10 +331,12 @@ def connect_new_ad(request, pk):
     # Return file
     return _download_file_response(package_path)
 
+
 def _check_user_permissions(request, ad):
     # TODO decorator?
     if not request.user.has_perm('change_ad', ad):
         raise PermissionDenied()
+
 
 @require_POST
 def control_process(request, pk, proc_id):
@@ -357,7 +359,10 @@ def control_process(request, pk, proc_id):
     md_host = ad.get_monitoring_daemon_host()
     response = monitoring_client.control_process(md_host, ad.isd.id, ad.id,
                                                  proc_id, command)
-    return JsonResponse({'status': is_success(response)})
+    if is_success(response):
+        return JsonResponse({'status': True})
+    else:
+        return HttpResponseUnavailable(get_failure_errors(response))
 
 
 class ConnectionRequestView(FormView):
