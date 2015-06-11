@@ -1,11 +1,11 @@
 # Copyright 2014 ETH Zurich
-
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-
-# http://www.apache.org/licenses/LICENSE-2.0
-
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -15,8 +15,8 @@
 :mod:`topology` --- SCION topology parser
 ===========================================
 """
-
-from lib.packet.host_addr import IPv4HostAddr, IPv6HostAddr, SCIONHostAddr
+# Stdlib
+from ipaddress import IPv4Address, IPv6Address
 import json
 import logging
 
@@ -27,14 +27,14 @@ class Element(object):
     file.
 
     :ivar addr: IP or SCION address of a server or edge router.
-    :type addr: :class:`IPv4HostAddr`, :class:`IPv6HostAddr`, or
-                :class:`SCIONHostAddr`
+    :type addr: :class:`IPv4Address` or :class:`IPv6Address`
     :ivar to_addr: destination IP or SCION address of an edge router.
-    :type to_addr: :class:`IPv4HostAddr`, :class:`IPv6HostAddr`, or
-                   :class:`SCIONHostAddr`
+    :type to_addr: :class:`IPv4Address` or :class:`IPv6Address`
+    :ivar name: element name or id
+    :type name: str
     """
 
-    def __init__(self, addr=None, addr_type=None, to_addr=None):
+    def __init__(self, addr=None, addr_type=None, to_addr=None, name=None):
         """
         Initialize an instance of the class Element.
 
@@ -44,21 +44,20 @@ class Element(object):
         :type addr_type: str
         :param to_addr: destination IP or SCION address of an edge router.
         :type to_addr: str
+        :param name: element name or id
+        :type name: str
         :returns: the newly created Element instance.
         :rtype: :class:`Element`
         """
         if addr_type.lower() == "ipv4":
-            self.addr = IPv4HostAddr(addr)
+            self.addr = IPv4Address(addr)
             if to_addr is not None:
-                self.to_addr = IPv4HostAddr(to_addr)
+                self.to_addr = IPv4Address(to_addr)
         elif addr_type.lower() == "ipv6":
-            self.addr = IPv6HostAddr(addr)
+            self.addr = IPv6Address(addr)
             if to_addr is not None:
-                self.to_addr = IPv6HostAddr(to_addr)
-        elif addr_type.lower() == "scion":
-            self.addr = SCIONHostAddr(int(addr))
-            if to_addr is not None:
-                self.to_addr = SCIONHostAddr(to_addr)
+                self.to_addr = IPv6Address(to_addr)
+        self.name = str(name)
 
 
 class ServerElement(Element):
@@ -66,16 +65,19 @@ class ServerElement(Element):
     The ServerElement class represents one of the servers in the AD.
     """
 
-    def __init__(self, server_dict=None):
+    def __init__(self, server_dict=None, name=None):
         """
         Initialize an instance of the class ServerElement.
 
         :param server_dict: contains information about a particular server.
         :type server_dict: dict
+        :param name: server element name or id
+        :type name: str
         :returns: the newly created ServerElement instance.
         :rtype: :class:`ServerElement`
         """
-        Element.__init__(self, server_dict['Addr'], server_dict['AddrType'])
+        Element.__init__(self, server_dict['Addr'], server_dict['AddrType'],
+                         name=name)
 
 
 class InterfaceElement(Element):
@@ -97,8 +99,6 @@ class InterfaceElement(Element):
     :type to_udp_port: int
     :ivar udp_port: the port number used to send UDP traffic.
     :type udp_port: int
-    :ivar initialized: tells whether the interface was initialized or not.
-    :type initialized: bool
     """
 
     def __init__(self, interface_dict=None):
@@ -118,7 +118,6 @@ class InterfaceElement(Element):
         self.neighbor_type = interface_dict['NeighborType']
         self.to_udp_port = interface_dict['ToUdpPort']
         self.udp_port = interface_dict['UdpPort']
-        self.initialized = False
 
 
 class RouterElement(Element):
@@ -129,16 +128,19 @@ class RouterElement(Element):
     :type interface: :class:`InterfaceElement`
     """
 
-    def __init__(self, router_dict=None):
+    def __init__(self, router_dict=None, name=None):
         """
         Initialize an instance of the class RouterElement.
 
         :param router_dict: contains information about an edge router.
         :type router_dict: dict
+        :param name: router element name or id
+        :type name: str
         :returns: the newly created RouterElement instance.
         :rtype: :class:`RouterElement`
         """
-        Element.__init__(self, router_dict['Addr'], router_dict['AddrType'])
+        Element.__init__(self, router_dict['Addr'], router_dict['AddrType'],
+                         name=name)
         self.interface = InterfaceElement(router_dict['Interface'])
 
 
@@ -153,10 +155,14 @@ class Topology(object):
     :vartype isd_id: int
     :ivar ad_id: the AD identifier.
     :vartype ad_id: int
+    :ivar dns_domain: the dns domain the dns servers should use.
+    :vartype dns_domain: str
     :ivar beacon_servers: beacons servers in the AD.
     :vartype beacon_servers: list
     :ivar certificate_servers: certificate servers in the AD.
     :vartype certificate_servers: list
+    :ivar dns_servers: dns servers in the AD.
+    :vartype dns_servers: list
     :ivar path_servers: path servers in the AD.
     :vartype path_servers: list
     :ivar parent_edge_routers: edge routers linking the AD to its parents.
@@ -170,55 +176,88 @@ class Topology(object):
     :vartype routing_edge_routers: list
     """
 
-    def __init__(self, topology_file=None):
+    def __init__(self):
         """
         Initialize an instance of the class Topology.
 
-        :param topology_file: the name of the topology file.
-        :type topology_file: str
         :returns: the newly created Topology instance.
         :rtype: :class:`Topology`
         """
         self.is_core_ad = False
         self.isd_id = 0
         self.ad_id = 0
+        self.dns_domain = ""
         self.beacon_servers = []
         self.certificate_servers = []
+        self.dns_servers = []
         self.path_servers = []
         self.parent_edge_routers = []
         self.child_edge_routers = []
         self.peer_edge_routers = []
         self.routing_edge_routers = []
-        if topology_file:
-            self.parse(topology_file)
 
-    def parse(self, topology_file):
+    @classmethod
+    def from_file(cls, topology_file):
         """
-        Parse a topology file and populate the instance's attributes.
+        Create a Topology instance from the file.
 
-        :param topology_file: the name of the topology file.
+        :param topology_file: path to the topology file
         :type topology_file: str
+        :returns: the newly created Topology instance
+        :rtype: :class: `Topology`
         """
         try:
             with open(topology_file) as topo_fh:
-                topology = json.load(topo_fh)
+                topology_dict = json.load(topo_fh)
         except (ValueError, KeyError, TypeError):
             logging.error("Topology: JSON format error.")
             return
-        self.is_core_ad = True if (topology['Core'] == 1) else False
+        return cls.from_dict(topology_dict)
+
+    @classmethod
+    def from_dict(cls, topology_dict):
+        """
+        Create a Topology instance from the dictionary.
+
+        :param topology_dict: dictionary representation of a topology
+        :type topology_dict: dict
+        :returns: the newly created Topology instance
+        :rtype: :class:`Topology`
+        """
+        topology = cls()
+        topology.parse_dict(topology_dict)
+        return topology
+
+    def parse_dict(self, topology):
+        """
+        Parse a topology dictionary and populate the instance's attributes.
+
+        :param topology: dictionary representation of a topology
+        :type topology: dict
+        """
+        self.is_core_ad = (topology['Core'] == 1)
         self.isd_id = topology['ISDID']
         self.ad_id = topology['ADID']
+        self.dns_domain = topology['DnsDomain']
         for bs_key in topology['BeaconServers']:
-            b_server = ServerElement(topology['BeaconServers'][bs_key])
+            b_server = ServerElement(topology['BeaconServers'][bs_key],
+                                     bs_key)
             self.beacon_servers.append(b_server)
         for cs_key in topology['CertificateServers']:
-            c_server = ServerElement(topology['CertificateServers'][cs_key])
+            c_server = ServerElement(topology['CertificateServers'][cs_key],
+                                     cs_key)
             self.certificate_servers.append(c_server)
+        for ds_key in topology['DNSServers']:
+            d_server = ServerElement(topology['DNSServers'][ds_key],
+                                     ds_key)
+            self.dns_servers.append(d_server)
         for ps_key in topology['PathServers']:
-            p_server = ServerElement(topology['PathServers'][ps_key])
+            p_server = ServerElement(topology['PathServers'][ps_key],
+                                     ps_key)
             self.path_servers.append(p_server)
         for er_key in topology['EdgeRouters']:
-            edge_router = RouterElement(topology['EdgeRouters'][er_key])
+            edge_router = RouterElement(topology['EdgeRouters'][er_key],
+                                        er_key)
             if edge_router.interface.neighbor_type == 'PARENT':
                 self.parent_edge_routers.append(edge_router)
             elif edge_router.interface.neighbor_type == 'CHILD':
@@ -243,3 +282,25 @@ class Topology(object):
         all_edge_routers.extend(self.peer_edge_routers)
         all_edge_routers.extend(self.routing_edge_routers)
         return all_edge_routers
+
+    def get_own_config(self, server_type, server_id):
+        target = None
+        if server_type == "bs":
+            target = self.beacon_servers
+        elif server_type == "cs":
+            target = self.certificate_servers
+        elif server_type == "ds":
+            target = self.dns_servers
+        elif server_type == "ps":
+            target = self.path_servers
+        elif server_type == "er":
+            target = self.get_all_edge_routers()
+        else:
+            logging.error("Unknown server type: \"%s\"", server_type)
+
+        for i in target:
+            if i.name == server_id:
+                return i
+        else:
+            logging.error("Could not find server %s%s-%s-%s", server_type,
+                          self.isd_id, self.ad_id, server_id)

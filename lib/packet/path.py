@@ -1,35 +1,30 @@
+# Copyright 2014 ETH Zurich
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """
-path.py
-
-Copyright 2014 ETH Zurich
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+:mod:`path` --- SCION Path packets
+==================================
 """
 
+# Stdlib
 import copy
-from lib.packet.opaque_field import (InfoOpaqueField, HopOpaqueField,
-    OpaqueFieldType)
 
-
-class PathType(object):
-    """
-    Defines constants for the SCION path types.
-    """
-    # TODO Discuss and (probably) remove
-    EMPTY = 0x00  # Empty path
-    CORE = OpaqueFieldType.TDC_XOVR # Path to the core
-    CROSS_OVER = OpaqueFieldType.NON_TDC_XOVR # Path with cross over
-    PEER_LINK = OpaqueFieldType.INTRATD_PEER # Path with peer link
+# SCION
+from lib.packet.opaque_field import (
+    HopOpaqueField,
+    InfoOpaqueField,
+    OpaqueFieldType,
+)
 
 
 class PathBase(object):
@@ -41,7 +36,6 @@ class PathBase(object):
     information for each AD-level hop.
     """
     def __init__(self):
-        self.type = 0
         self.up_segment_info = None
         self.up_segment_hops = []
         self.down_segment_info = None
@@ -128,7 +122,6 @@ class CorePath(PathBase):
     """
     def __init__(self, raw=None):
         PathBase.__init__(self)
-        self.type = PathType.CORE
         self.core_segment_info = None
         self.core_segment_hops = []
 
@@ -286,7 +279,6 @@ class CrossOverPath(PathBase):
 
     def __init__(self, raw=None):
         PathBase.__init__(self)
-        self.type = PathType.PEER_LINK
         self.up_segment_upstream_ad = None
         self.down_segment_upstream_ad = None
 
@@ -387,7 +379,6 @@ class PeerPath(PathBase):
 
     def __init__(self, raw=None):
         PathBase.__init__(self)
-        self.type = PathType.PEER_LINK
         self.up_segment_peering_link = None
         self.up_segment_upstream_ad = None
         self.down_segment_peering_link = None
@@ -413,7 +404,6 @@ class PeerPath(PathBase):
         self.up_segment_upstream_ad = \
             HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN])
         offset += HopOpaqueField.LEN
-
 
         # Parse down-segment
         self.down_segment_info = \
@@ -477,12 +467,12 @@ class PeerPath(PathBase):
         s.append(str(self.up_segment_info) + "\n")
         for of in self.up_segment_hops:
             s.append(str(of) + "\n")
-        s.append("Upstream AD: " + str(self.up_segment_upstream_ad) + "\n")
         s.append("Peering link: " + str(self.up_segment_peering_link) + "\n")
+        s.append("Upstream AD: " + str(self.up_segment_upstream_ad) + "\n")
         s.append("</Up-Segment>\n<Down-Segment>\n")
         s.append(str(self.down_segment_info) + "\n")
-        s.append("Peering link: " + str(self.down_segment_peering_link) + "\n")
         s.append("Upstream AD: " + str(self.down_segment_upstream_ad) + "\n")
+        s.append("Peering link: " + str(self.down_segment_peering_link) + "\n")
         for of in self.down_segment_hops:
             s.append(str(of) + "\n")
         s.append("</Down-Segment>\n</Peer-Path>")
@@ -499,7 +489,6 @@ class EmptyPath(PathBase):
     """
     def __init__(self, raw=None):
         PathBase.__init__(self)
-        self.type = PathType.EMPTY
 
         if raw is not None:
             self.parse(raw)
@@ -545,21 +534,22 @@ class PathCombinator(object):
         down-segment orientation.
         """
         if (not up_segment or not down_segment or
-            not up_segment.ads or not down_segment.ads):
+                not up_segment.ads or not down_segment.ads):
             return None
 
         # If we have a core segment, check that the core_segment connects the
         # up_ and down_segment. Otherwise, check that up- and down-segment meet
         # at a single core AD.
-        if ((core_segment and
-             (core_segment.get_first_pcbm().ad_id !=
-              up_segment.get_first_pcbm().ad_id) or
-             (core_segment.get_last_pcbm().ad_id !=
-              down_segment.get_first_pcbm().ad_id)) or
-             (not core_segment and
-              (up_segment.get_first_pcbm().ad_id !=
-               down_segment.get_first_pcbm().ad_id))):
-            return None
+        if core_segment:
+            if ((core_segment.get_last_pcbm().ad_id !=
+                    up_segment.get_first_pcbm().ad_id) or
+                    (core_segment.get_first_pcbm().ad_id !=
+                    down_segment.get_first_pcbm().ad_id)):
+                return None
+        else:
+            if (up_segment.get_first_pcbm().ad_id !=
+                    down_segment.get_first_pcbm().ad_id):
+                return None
 
         full_path = CorePath()
         full_path.up_segment_info = up_segment.iof
@@ -570,10 +560,11 @@ class PathCombinator(object):
 
         if core_segment:
             full_path.core_segment_info = core_segment.iof
-            full_path.core_segment_info.up_flag = False
-            for block in core_segment.ads:
+            full_path.core_segment_info.up_flag = True
+            for block in reversed(core_segment.ads):
                 full_path.core_segment_hops.append(
                     copy.deepcopy(block.pcbm.hof))
+            full_path.core_segment_hops[-1].info = OpaqueFieldType.LAST_OF
             full_path.core_segment_hops[0].info = OpaqueFieldType.LAST_OF
 
         full_path.down_segment_info = down_segment.iof
@@ -600,7 +591,10 @@ class PathCombinator(object):
 
         if peer:
             path = PeerPath()
-            info = OpaqueFieldType.INTRATD_PEER
+            if up_segment.get_isd() == down_segment.get_isd():
+                info = OpaqueFieldType.INTRATD_PEER
+            else:
+                info = OpaqueFieldType.INTERTD_PEER
         else:
             path = CrossOverPath()
             info = OpaqueFieldType.NON_TDC_XOVR
@@ -613,6 +607,7 @@ class PathCombinator(object):
             path.up_segment_hops.append(up_segment.ads[i].pcbm.hof)
         path.up_segment_hops[-1].info = OpaqueFieldType.LAST_OF
         path.up_segment_upstream_ad = up_segment.ads[up_index - 1].pcbm.hof
+        path.up_segment_upstream_ad.info = OpaqueFieldType.NORMAL_OF
 
         if peer:
             up_ad = up_segment.ads[up_index]
@@ -629,6 +624,7 @@ class PathCombinator(object):
         path.down_segment_info.hops -= dw_index
         path.down_segment_info.up_flag = False
         path.down_segment_upstream_ad = down_segment.ads[dw_index - 1].pcbm.hof
+        path.down_segment_upstream_ad.info = OpaqueFieldType.NORMAL_OF
         for i in range(dw_index, len(down_segment.ads)):
             path.down_segment_hops.append(down_segment.ads[i].pcbm.hof)
         path.down_segment_hops[0].info = OpaqueFieldType.LAST_OF
@@ -643,7 +639,7 @@ class PathCombinator(object):
         """
         # TODO check if stub ADs are the same...
         if (not up_segment or not down_segment or
-            not up_segment.ads or not down_segment.ads):
+                not up_segment.ads or not down_segment.ads):
             return None
         # looking for xovr and peer points
         xovrs = []
@@ -715,4 +711,3 @@ class PathCombinator(object):
                 if path and path not in paths:
                     paths.append(path)
         return paths
-

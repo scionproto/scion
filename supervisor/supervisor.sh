@@ -4,6 +4,7 @@
 SCRIPT_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 INFR_PATH="${SCRIPT_DIR}/../infrastructure"
 cd $INFR_PATH
+mkdir -p ../logs
 
 # Wrap the 'supervisorctl' command
 OPTIONS="$@"

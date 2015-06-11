@@ -1,11 +1,11 @@
 # Copyright 2014 ETH Zurich
-
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-
-# http://www.apache.org/licenses/LICENSE-2.0
-
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -13,20 +13,30 @@
 # limitations under the License.
 """
 :mod:`pcb` --- SCION Beacon
-===========================================
+===========================
 """
-
-from lib.defines import EXP_TIME_UNIT
-from lib.packet.opaque_field import (SupportSignatureField, HopOpaqueField,
-    SupportPCBField, SupportPeerField, TRCField, InfoOpaqueField)
-from lib.packet.path import CorePath
-from lib.packet.scion import (SCIONPacket, get_addr_from_type, PacketType,
-    SCIONHeader)
-from Crypto.Hash import SHA256
-from bitstring import BitArray
-import bitstring
-import logging
+# Stdlib
 import base64
+import copy
+import logging
+import struct
+
+# External packages
+from Crypto.Hash import SHA256
+
+# SCION
+from lib.defines import EXP_TIME_UNIT
+from lib.packet.opaque_field import (
+    HopOpaqueField,
+    InfoOpaqueField,
+    SupportPCBField,
+    SupportPeerField,
+    SupportSignatureField,
+    TRCField,
+)
+from lib.packet.path import CorePath
+from lib.packet.scion import PacketType, SCIONHeader, SCIONPacket
+from lib.packet.scion_addr import SCIONAddr
 
 
 class Marking(object):
@@ -92,8 +102,7 @@ class PCBMarking(Marking):
         if dlen < PCBMarking.LEN:
             logging.warning("PCBM: Data too short for parsing, len: %u", dlen)
             return
-        bits = BitArray(bytes=raw[:8])
-        self.ad_id = bits.unpack("uintbe:64")[0]
+        self.ad_id = struct.unpack("!Q", raw[:8])[0]
         self.ssf = SupportSignatureField(raw[8:16])
         self.hof = HopOpaqueField(raw[16:24])
         self.spcbf = SupportPCBField(raw[24:32])
@@ -107,13 +116,13 @@ class PCBMarking(Marking):
         """
         Returns PCBMarking with fields populated from values.
 
-        @param ad_id: Autonomous Domain's ID.
-        @param ssf: SupportSignatureField object.
-        @param hof: HopOpaqueField object.
-        @param spcbf: SupportPCBField object.
-        @param ig_rev_token: Revocation token for the ingress if
+        :param ad_id: Autonomous Domain's ID.
+        :param ssf: SupportSignatureField object.
+        :param hof: HopOpaqueField object.
+        :param spcbf: SupportPCBField object.
+        :param ig_rev_token: Revocation token for the ingress if
                              in the HopOpaqueField.
-        @param eg_rev_token: Revocation token for the egress if
+        :param eg_rev_token: Revocation token for the egress if
                              in the HopOpaqueField.
         """
         pcbm = PCBMarking()
@@ -129,7 +138,7 @@ class PCBMarking(Marking):
         """
         Returns PCBMarking as a binary string.
         """
-        return (bitstring.pack("uintbe:64", self.ad_id).bytes +
+        return (struct.pack("!Q", self.ad_id) +
                 self.ssf.pack() + self.hof.pack() + self.spcbf.pack() +
                 self.ig_rev_token + self.eg_rev_token)
 
@@ -180,8 +189,7 @@ class PeerMarking(Marking):
         if dlen < PeerMarking.LEN:
             logging.warning("PM: Data too short for parsing, len: %u", dlen)
             return
-        bits = BitArray(bytes=raw[0:8])
-        self.ad_id = bits.unpack("uintbe:64")[0]
+        self.ad_id = struct.unpack("!Q", raw[0:8])[0]
         self.hof = HopOpaqueField(raw[8:16])
         self.spf = SupportPeerField(raw[16:24])
         self.ig_rev_token = raw[24:56]
@@ -195,12 +203,12 @@ class PeerMarking(Marking):
         """
         Returns PeerMarking with fields populated from values.
 
-        @param ad_id: Autonomous Domain's ID.
-        @param hof: HopOpaqueField object.
-        @param spf: SupportPeerField object.
-        @param ig_rev_token: Revocation token for the ingress if
+        :param ad_id: Autonomous Domain's ID.
+        :param hof: HopOpaqueField object.
+        :param spf: SupportPeerField object.
+        :param ig_rev_token: Revocation token for the ingress if
                              in the HopOpaqueField.
-        @param eg_rev_token: Revocation token for the egress if
+        :param eg_rev_token: Revocation token for the egress if
                              in the HopOpaqueField.
         """
         peer_marking = PeerMarking()
@@ -215,7 +223,7 @@ class PeerMarking(Marking):
         """
         Returns PeerMarking as a binary string.
         """
-        return (bitstring.pack("uintbe:64", self.ad_id).bytes +
+        return (struct.pack("!Q", self.ad_id) +
                 self.hof.pack() + self.spf.pack() + self.ig_rev_token +
                 self.eg_rev_token)
 
@@ -310,8 +318,8 @@ class ADMarking(Marking):
         ad_str += str(self.pcbm)
         for peer_marking in self.pms:
             ad_str += str(peer_marking)
-        ad_str += ("[Signature: " + base64.b64encode(self.sig).decode('utf-8') +
-            "]\n")
+        ad_str += ("[Signature: %s]\n" %
+                   base64.b64encode(self.sig).decode('utf-8'))
         return ad_str
 
     def __eq__(self, other):
@@ -395,14 +403,15 @@ class PathSegment(Marking):
         Returns the list of HopOpaqueFields in the path.
         """
         hofs = []
+        iof = copy.copy(self.iof)
         if reverse_direction:
             ads = list(reversed(self.ads))
-            self.iof.up_flag = self.iof.up_flag ^ True
+            iof.up_flag = self.iof.up_flag ^ True
         else:
             ads = self.ads
         for ad_marking in ads:
             hofs.append(ad_marking.pcbm.hof)
-        core_path = CorePath.from_values(self.iof, hofs)
+        core_path = CorePath.from_values(iof, hofs)
         return core_path
 
     def get_isd(self):
@@ -440,7 +449,7 @@ class PathSegment(Marking):
         other_hops = [ad.pcbm.ad_id for ad in other.ads]
         return self_hops == other_hops
 
-    def get_hops_hash(self):
+    def get_hops_hash(self, hex=False):
         """
         Returns the hash over all the interface revocation tokens included in
         the path segment.
@@ -452,6 +461,8 @@ class PathSegment(Marking):
             for pm in ad.pms:
                 h.update(pm.ig_rev_token)
                 h.update(pm.eg_rev_token)
+        if hex:
+            return h.hexdigest()
         return h.digest()
 
     def get_n_peer_links(self):
@@ -487,6 +498,19 @@ class PathSegment(Marking):
         Returns the expiration time of the path segment in real time.
         """
         return (self.iof.timestamp + int(self.min_exp_time * EXP_TIME_UNIT))
+
+    def get_all_iftokens(self):
+        """
+        Returns all interface revocation tokens included in the path segment.
+        """
+        tokens = []
+        for ad in self.ads:
+            tokens.append(ad.pcbm.ig_rev_token)
+            tokens.append(ad.pcbm.eg_rev_token)
+            for pm in ad.pms:
+                tokens.append(pm.ig_rev_token)
+                tokens.append(pm.eg_rev_token)
+        return tokens
 
     @staticmethod
     def deserialize(raw):
@@ -556,21 +580,22 @@ class PathConstructionBeacon(SCIONPacket):
         self.pcb = PathSegment(self.payload)
 
     @classmethod
-    def from_values(cls, dst, pcb):
+    def from_values(cls, src_isd_ad, dst, pcb):
         """
         Returns a PathConstructionBeacon packet with the values specified.
 
-        @param dst: Destination address (must be a 'HostAddr' object)
-        @param pcb: Path Construction PathConstructionBeacon ('PathSegment'
+        :param src_isd_ad: Source's 'ISD_AD' namedtuple.
+        :param dst: Destination address (must be a 'SCIONAddr' object)
+        :param pcb: Path Construction PathConstructionBeacon ('PathSegment'
                     class)
         """
         beacon = PathConstructionBeacon()
         beacon.pcb = pcb
-        src = get_addr_from_type(PacketType.BEACON)
-        beacon.hdr = SCIONHeader.from_values(src, dst, PacketType.DATA)
+        src = SCIONAddr.from_values(src_isd_ad.isd, src_isd_ad.ad,
+                                    PacketType.BEACON)
+        beacon.hdr = SCIONHeader.from_values(src, dst)
         return beacon
 
     def pack(self):
         self.payload = self.pcb.pack()
         return SCIONPacket.pack(self)
-

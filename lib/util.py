@@ -1,79 +1,102 @@
-#util.py
-
-#Copyright 2014 ETH Zurich
-
-#Licensed under the Apache License, Version 2.0 (the "License");
-#you may not use this file except in compliance with the License.
-#You may obtain a copy of the License at
-
-#http://www.apache.org/licenses/LICENSE-2.0
-
-#Unless required by applicable law or agreed to in writing, software
-#distributed under the License is distributed on an "AS IS" BASIS,
-#WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#See the License for the specific language governing permissions and
-#limitations under the License.
-
+# Copyright 2014 ETH Zurich
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """
 :mod:`util` --- SCION utilities
 ===============================
 
 Various utilities for SCION functionality.
 """
-
-from os.path import sys
-import os
+# Stdlib
 import logging
+import os
+import sys
+import signal
+import time
+from functools import wraps
+
+# External packages
+from external.stacktracer import trace_start
+
+# SCION
+from lib.defines import TOPOLOGY_PATH
+
+CERT_DIR = 'certificates'
+SIG_KEYS_DIR = 'signature_keys'
+ENC_KEYS_DIR = 'encryption_keys'
+TRACE_DIR = '../traces'
+
+_SIG_MAP = {
+    signal.SIGHUP: "SIGHUP",
+    signal.SIGINT: "SIGINT",
+    signal.SIGQUIT: "SIGQUIT",
+    signal.SIGTERM: "SIGTERM",
+    signal.SIGUSR1: "SIGUSR1",
+    signal.SIGUSR2: "SIGUSR2"
+}
 
 
-ISD_DIR = '../topology/ISD'
-CERT_DIR = '/certificates/'
-SIG_KEYS_DIR = '/signature_keys/'
-ENC_KEYS_DIR = '/encryption_keys/'
+def _get_isd_prefix(isd_dir):
+    return os.path.join(isd_dir, 'ISD')
 
 
-def get_cert_file_path(isd_id, ad_id, cert_isd, cert_ad, cert_version):
+def get_cert_chain_file_path(loc_isd, loc_ad, isd_id, ad_id, version,
+                             isd_dir=TOPOLOGY_PATH):
     """
-    Return the certificate file path.
+    Return the certificate chain file path.
 
-    :param isd_id: caller's ISD identifier.
+    :param loc_isd: the caller's ISD identifier.
+    :type loc_isd: int
+    :param loc_ad: the caller's AD identifier.
+    :type loc_ad: int
+    :param isd_id: the certificate chain's ISD identifier.
     :type isd_id: int
-    :param ad_id: caller's AD identifier.
+    :param ad_id: the certificate chain's AD identifier.
     :type ad_id: int
-    :param cert_isd: the certificate ISD identifier.
-    :type cert_isd: int
-    :param cert_ad: the certificate AD identifier.
-    :type cert_ad: int
-    :param cert_version: the certificate version.
-    :type cert_version: int
-    :returns: the certificate file path.
+    :param version: the certificate chain's version.
+    :type version: int
+    :returns: the certificate chain file path.
     :rtype: str
     """
-    return (ISD_DIR + str(isd_id) + CERT_DIR + 'AD' + str(ad_id) + '/ISD:' +
-        str(cert_isd) + '-AD:' + str(cert_ad) + '-V:' + str(cert_version) +
-        '.crt')
+    isd_dir_prefix = _get_isd_prefix(isd_dir)
+    return os.path.join(isd_dir_prefix + str(loc_isd), CERT_DIR,
+                        'AD{}'.format(loc_ad),
+                        'ISD:{}-AD:{}-V:{}.crt'.format(isd_id, ad_id, version))
 
 
-def get_trc_file_path(isd_id, ad_id, trc_isd, trc_version):
+def get_trc_file_path(loc_isd, loc_ad, isd_id, version,
+                      isd_dir=TOPOLOGY_PATH):
     """
     Return the TRC file path.
 
-    :param isd_id: caller's ISD identifier.
+    :param loc_isd: the caller's ISD identifier.
+    :type loc_isd: int
+    :param loc_ad: the caller's AD identifier.
+    :type loc_ad: int
+    :param isd_id: the TRC's ISD identifier.
     :type isd_id: int
-    :param ad_id: caller's AD identifier.
-    :type ad_id: int
-    :param trc_isd: the TRC ISD identifier.
-    :type trc_isd: int
-    :param trc_version: the TRC version.
-    :type trc_version: int
+    :param version: the TRC's version.
+    :type version: int
     :returns: the TRC file path.
     :rtype: str
     """
-    return (ISD_DIR + str(isd_id) + CERT_DIR + 'AD' + str(ad_id) + '/ISD:' +
-        str(trc_isd) + '-V:' + str(trc_version) + '.crt')
+    isd_dir_prefix = _get_isd_prefix(isd_dir)
+    return os.path.join(isd_dir_prefix + str(loc_isd), CERT_DIR,
+                        'AD{}'.format(loc_ad),
+                        'ISD:{}-V:{}.crt'.format(isd_id, version))
 
 
-def get_sig_key_file_path(isd_id, ad_id, version):
+def get_sig_key_file_path(isd_id, ad_id, isd_dir=TOPOLOGY_PATH):
     """
     Return the signing key file path.
 
@@ -81,16 +104,15 @@ def get_sig_key_file_path(isd_id, ad_id, version):
     :type isd_id: int
     :param ad_id: the signing key AD identifier.
     :type ad_id: int
-    :param version: the signing key version.
-    :type version: int
     :returns: the signing key file path.
     :rtype: str
     """
-    return (ISD_DIR + str(isd_id) + SIG_KEYS_DIR + 'ISD:' + str(isd_id) +
-        '-AD:' + str(ad_id) + '-V:' + str(version) + '.key')
+    isd_dir_prefix = _get_isd_prefix(isd_dir)
+    return os.path.join(isd_dir_prefix + str(isd_id), SIG_KEYS_DIR,
+                        'ISD:{}-AD:{}.key'.format(isd_id, ad_id))
 
 
-def get_enc_key_file_path(isd_id, ad_id, version):
+def get_enc_key_file_path(isd_id, ad_id, isd_dir=TOPOLOGY_PATH):
     """
     Return the encryption key file path.
 
@@ -98,13 +120,12 @@ def get_enc_key_file_path(isd_id, ad_id, version):
     :type isd_id: int
     :param ad_id: the encryption key AD identifier.
     :type ad_id: int
-    :param version: the encryption key version.
-    :type version: int
     :returns: the encryption key file path.
     :rtype: str
     """
-    return (ISD_DIR + str(isd_id) + ENC_KEYS_DIR + 'ISD:' + str(isd_id) +
-        '-AD:' + str(ad_id) + '-V:' + str(version) + '.key')
+    isd_dir_prefix = _get_isd_prefix(isd_dir)
+    return os.path.join(isd_dir_prefix + str(isd_id), ENC_KEYS_DIR,
+                        'ISD:{}-AD:{}.key'.format(isd_id, ad_id))
 
 
 def read_file(file_path):
@@ -150,9 +171,68 @@ def update_dict(dictionary, key, values, elem_num=0):
     dictionary[key] = dictionary[key][-elem_num:]
 
 
-def init_logging(level=logging.DEBUG):
+def trace(id_):
+    path = os.path.join(TRACE_DIR, "%s.trace.html" % id_)
+    trace_start(path)
+
+
+def timed(limit):
     """
-    Configure logging for components (servers, routers, gateways).
+    Decorator to measure to execution time of a function, and log a warning if
+    it takes too long. The wrapped function takes an optional `timed_desc`
+    string parameter which is printed as part of the warning. If `timed_desc`
+    isn't passed in, then the wrapped function's path is printed instead.
+
+    :param float limit: If the wrapped function takes more than `limit`
+                        seconds, log a warning.
     """
-    logging.basicConfig(level=level,
-                        format='%(asctime)s [%(levelname)s]\t%(message)s')
+    def wrap(f):
+        @wraps(f)
+        def wrapper(*args, timed_desc=None, **kwargs):
+            start = time.time()
+            ret = f(*args, **kwargs)
+            elapsed = time.time() - start
+            if elapsed > limit:
+                if not timed_desc:
+                    timed_desc = "Call to %s.%s" % (f.__module__, f.__name__)
+                logging.warning("%s took too long: %.3fs", timed_desc, elapsed)
+            return ret
+        return wrapper
+    return wrap
+
+
+def sleep_interval(start, interval, desc):
+    """
+    Sleep until the `interval` seconds have elapsed since `start`.
+
+    If the interval is already over, log a warning with `desc` at the start.
+
+    :param float start: Time (in seconds since the Epoch) the current interval
+                        started.
+    :param float interval: Length (in seconds) of an interval.
+    :param string desc: Description of the operation.
+    """
+    now = time.time()
+    delay = start + interval - now
+    if delay < 0:
+        logging.warning("%s took too long: %.3fs (should have been <= %.3fs)",
+                        desc, now - start, interval)
+        delay = 0
+    time.sleep(delay)
+
+
+def handle_signals():
+    """
+    Setup basic signal handler for the most common signals
+    """
+    for sig in _SIG_MAP.keys():
+        signal.signal(sig, _signal_handler)
+    pass
+
+
+def _signal_handler(signum, _):
+    """
+    Basic signal handler function
+    """
+    logging.info("Received %s", _SIG_MAP[signum])
+    sys.exit(0)

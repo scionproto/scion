@@ -1,19 +1,19 @@
+# Copyright 2015 ETH Zurich
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """
-hash_chain.py
-
-Copyright 2015 ETH Zurich
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+:mod:`hash_chain` --- Generic hash-chain implementation
+=======================================================
 """
 
 from Crypto.Hash import SHA256
@@ -74,15 +74,15 @@ class HashChain(object):
         Verifies that a given element belongs to a hash chain.
 
         :param start_ele: the starting element for verification
-        :type bytes
+        :type: bytes
         :param target_ele: the target element, i.e. the one that needs to be
-        verified
-        :type bytes
+                           verified
+        :type: bytes
         :param max_tries: the maximum number of tries before aborting the search
-        :type int
+        :type: int
         :param hash_func: the hash function to be used (must implement the
-        hashlib interface)
-        :type object
+                          hashlib interface)
+        :type: object
         """
         cur_ele = start_ele
         for _ in range(max_tries):

@@ -1,11 +1,11 @@
 # Copyright 2014 ETH Zurich
-
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-
-# http://www.apache.org/licenses/LICENSE-2.0
-
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -13,7 +13,7 @@
 # limitations under the License.
 """
 :mod:`certificate` --- SCION certificate parser
-===========================================
+===============================================
 """
 
 from lib.crypto.nacl import crypto_sign_ed25519
@@ -433,7 +433,7 @@ class TRC(object):
     :ivar registry_server_addr: the root registry server's address.
     :type registry_server_addr: str
     :ivar registry_server_cert: the root registry server's certificate.
-    :type registry_server_cert:str
+    :type registry_server_cert: str
     :ivar root_dns_server_addr: the root DNS server's address.
     :type root_dns_server_addr: str
     :ivar root_dns_server_cert: the root DNS server's certificate.
@@ -569,7 +569,7 @@ class TRC(object):
         :param registry_server_addr: the root registry server's address.
         :type registry_server_addr: str
         :param registry_server_cert: the root registry server's certificate.
-        :type registry_server_cert:str
+        :type registry_server_cert: str
         :param root_dns_server_addr: the root DNS server's address.
         :type root_dns_server_addr: str
         :param root_dns_server_cert: the root DNS server's certificate.

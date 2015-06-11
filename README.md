@@ -3,69 +3,56 @@ SCION
 
 Python implementation of [SCION](http://www.netsec.ethz.ch/research/SCION), a future Internet architecture.
 
-* [doc](https://github.com/netsec-ethz/scion/tree/master/doc) contains documentation and material to present SCION
-* [infrastructure](https://github.com/netsec-ethz/scion/tree/master/infrastructure)
-* [lib](https://github.com/netsec-ethz/scion/tree/master/lib) contains the most relevant SCION libraries
-* [topology](https://github.com/netsec-ethz/scion/tree/servers/topology) contains the scripts to generate the SCION configuration and topology files, as well as the certificates and ROT files
+* [doc](/doc) contains documentation and material to present SCION
+* [infrastructure](/infrastructure) contains the code of the SCION infrastructure elements (servers, routers)
+* [lib](/lib) contains the most relevant SCION libraries
+* [topology](/topology) contains the scripts to generate the SCION configuration and topology files, as well as the certificates and ROT files
 
 Necessary steps in order to run SCION:
 
-0. Install required packages with dependencies:
+1. Install required packages with dependencies:
 
-    sudo apt-get install python3 python3-pip screen
-    sudo pip3 install bitstring python-pytun pydblite
+	`./scion.sh deps`
 
-1. Compile the crypto library:
+2. Compile the crypto library:
 
-	./scion.sh init
+	`./scion.sh init`
 
-2. Create the topology and configuration files (according to “topology/ADConfigurations.json”):
+3. Create the topology and configuration files (according to "topology/ADConfigurations.json"):
 
-	./scion.sh topology
+	`./scion.sh topology`
 
-	The resulting directories structuries and files naming will be:
+	The resulting directory structure will be created:
 
-	./topology/ISDX/
+		./topology/ISDX/
+			certificates/ADY/ISD:X-AD:Y-V:Z.crt
+			configurations/ISD:X-AD:Y.conf
+			encryption_keys/ISD:X-AD:Y.key
+			path_policies/ISD:X-AD:Y.json
+			setup/ISD:X-AD:Y.sh
+			signature_keys/ISD:X-AD:Y.key
+			supervisor/ISD:X-AD:Y.conf
+			topologies/ISD:X-AD:Y.json
+			ISD:X-V:Z.crt (TRC file)
 
->	certificates/ISD:X-AD:Y-V:Z.crt
+4. Configure the loopback interface accordingly:
 
->	configurations/ISD:X-AD:Y-V:Z.conf
+ 	`./scion.sh setup`
 
->	encryption_keys/ISD:X-AD:Y-V:Z.key
+5. Run the infrastructure:
 
->	run/ISD:X-AD:Y.sh
+	`./scion.sh run`
 
->	setup/ISD:X-AD:Y.sh
+6. Stop the infrastructure:
 
->	signature_keys/ISD:X-AD:Y-V:Z.key
+	`./scion.sh stop`
 
->	topologies/ISD:X-AD:Y-V:Z.json
+7. Flush all IP addresses assigned to the loopback interface:
 
->	ISD:X-V:Z.crt (TRC file)
+	`./scion.sh clean`
 
-3. Configure the loopback interface accordingly:
 
- 	./scion.sh setup
-
-4. Run the infrastructure
-
-	./scion.sh run
-
-5. Stop the infrastructure
-
-	./scion.sh stop
-
-6. Flush all IP addresses assigned to the loopback interface
-
-	./scion.sh clean
-
-In order to run the unit tests:
-
-0. cd test/
-
-1. PYTHONPATH=../ python3 *_test.py (arguments)
-
-Notes about “topology/ADConfigurations.json”:
+Notes about "topology/ADConfigurations.json":
 
 * default_subnet (optional): subnet used if one is not defined at the AD level.
 
@@ -73,6 +60,15 @@ Notes about “topology/ADConfigurations.json”:
 
 * level: can either be CORE, INTERMEDIATE, or LEAF.
 
-* beacon_servers, certificate_servers, path_servers (all optional): number of such servers in a specific AD (override the default value 1).
+* beacon_servers, certificate_servers, path_servers, dns_servers (all optional): number of such servers in a specific AD (override the default value 1).
 
 * links: keys are ISD_ID-AD_ID (format also used for the keys of the JSON file itself) and values can either be PARENT, CHILD, PEER, or ROUTING.
+ 
+## Tests
+
+In order to run the unit tests:
+
+1. `cd test/`
+
+2. `nosetests`
+

@@ -31,6 +31,7 @@ lib/__pycache__/
 lib/packet/__pycache__/
 topology/ISD*
 topology/conf-gen
+traces/*
 *.crt
 
 
@@ -55,3 +56,12 @@ lib/crypto/python-tweetnacl-20140309/build/
 #########################
 sphinx-doc/_build/
 venv/
+
+# Docker working directory
+##########################
+docker/_build/
+
+# Test coverage
+##########################
+.coverage
+htmlcov/

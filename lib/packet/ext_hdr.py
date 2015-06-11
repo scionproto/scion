@@ -1,25 +1,25 @@
+# Copyright 2014 ETH Zurich
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """
-ext_hdr.py
-
-Copyright 2014 ETH Zurich
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+:mod:`ext_hdr` --- Extension header classes
+===========================================
 """
+# Stdlib
 import logging
+import struct
 
-from bitstring import BitArray
-import bitstring
-
+# SCION
 from lib.packet.packet_base import HeaderBase
 
 
@@ -43,17 +43,15 @@ class ExtensionHeader(HeaderBase):
     def parse(self, raw):
         assert isinstance(raw, bytes)
         dlen = len(raw)
-        if dlen < ExtensionHeader.MIN_LEN:
+        if dlen < self.MIN_LEN:
             logging.warning("Data too short to parse extension hdr: "
-                "data len %u", dlen)
+                            "data len %u", dlen)
             return
-        bits = BitArray(bytes=raw)
-        self.next_ext, self.hdr_len = bits.unpack("uintbe:8, uintbe:8")
+        self.next_ext, self.hdr_len = struct.unpack("!BB", raw)
         self.parsed = True
 
     def pack(self):
-        return bitstring.pack("uintbe:8, uintbe:8",
-                              self.next_ext, self.hdr_len).bytes
+        return struct.pack("!BB", self.next_ext, self.hdr_len)
 
     def __len__(self):
         return 8
@@ -75,8 +73,9 @@ class ICNExtHdr(ExtensionHeader):
 
     def __init__(self, raw=None):
         ExtensionHeader.__init__(self)
-        self.fwd_flag = 0  # Tells the edge router whether to forward this pkt
-                           # to the local Content Cache or to the next AD.
+        # Tells the edge router whether to forward this pkt
+        # to the local Content Cache or to the next AD.
+        self.fwd_flag = 0
 #         self.src_addr_len = 0  # src addr len (6 bits)
 #         self.dst_addr_len = 0  # dst addr len (6 bits)
 #         self.cid = 0  # Content ID (20 bytes)
@@ -89,19 +88,19 @@ class ICNExtHdr(ExtensionHeader):
     def parse(self, raw):
         assert isinstance(raw, bytes)
         dlen = len(raw)
-        if dlen < ExtensionHeader.MIN_LEN:
+        if dlen < self.MIN_LEN:
             logging.warning("Data too short to parse ICN extension hdr: "
-                "data len %u", dlen)
+                            "data len %u", dlen)
             return
-        bits = BitArray(bytes=raw)
-        (self.next_ext, self.hdr_len, self.fwd_flag, _rsvd) = \
-            bits.unpack("uintbe:8, uintbe:8, uintbe:8, uintbe:40")
+        (self.next_ext, self.hdr_len, self.fwd_flag, _rsvd1, _rsvd2) = \
+            struct.unpack("!BBBIB", raw)
         self.parsed = True
         return
 
     def pack(self):
-        return bitstring.pack("uintbe:8, uintbe:8, uintbe:8, uintbe:40",
-            self.next_ext, self.hdr_len, self.fwd_flag, 0).bytes
+        # reserved field is stored in 2 parts - 32 + 8 bits
+        return struct.pack("!BBBIB", self.next_ext, self.hdr_len, 
+                           self.fwd_flag, 0, 0)
 
     def __len__(self):
         return ICNExtHdr.MIN_LEN
