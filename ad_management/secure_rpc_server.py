@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # Copyright 2014 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -41,9 +40,9 @@ except ImportError:
     fcntl = None
 
 
-class XMLRPCServerTLS(SimpleXMLRPCServer):
+class XMLRPCServerTLS(socketserver.ThreadingMixIn, SimpleXMLRPCServer):
     """
-
+    XML-RPC server with TLS enabled.
 
     :ivar logRequests:
     :type logRequests:
@@ -56,7 +55,6 @@ class XMLRPCServerTLS(SimpleXMLRPCServer):
     :ivar :
     :type :
     """
-
     def __init__(self, addr, requestHandler=SimpleXMLRPCRequestHandler,
                  logRequests=False, allow_none=False, encoding=None,
                  bind_and_activate=True):
