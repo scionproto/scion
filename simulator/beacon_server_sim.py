@@ -23,14 +23,25 @@ from infrastructure.beacon_server import (
     CoreBeaconServer,
     LocalBeaconServer
 )
+from lib.crypto.asymcrypto import sign
 from lib.crypto.hash_chain import HashChain
 from lib.defines import SCION_UDP_PORT
 from lib.packet.opaque_field import (
-    OpaqueFieldType as OFT,
+    HopOpaqueField,
     InfoOpaqueField,
-    TRCField
+    OpaqueFieldType as OFT,
+    SupportPCBField,
+    SupportPeerField,
+    SupportSignatureField,
+    TRCField,
 )
-from lib.packet.pcb import PathSegment, PathConstructionBeacon
+from lib.packet.pcb import (
+    ADMarking,
+    PCBMarking,
+    PathConstructionBeacon,
+    PathSegment,
+    PeerMarking,
+)
 from simulator.simulator import add_element, schedule
 
 
@@ -166,6 +177,42 @@ class CoreBeaconServerSim(CoreBeaconServer):
         """
         return True
 
+    def _create_ad_marking(self, ingress_if, egress_if, ts, prev_hof=None):
+        """
+        Creates an AD Marking for given ingress and egress interfaces,
+        timestamp, and previous HOF. Mac is not used since we are simulating.
+        """
+        ssf = SupportSignatureField.from_values(ADMarking.LEN)
+        hof = HopOpaqueField.from_values(self.HOF_EXP_TIME,
+                                         ingress_if, egress_if)
+        if prev_hof is None:
+            hof.info = OFT.LAST_OF
+        # hof.mac = gen_of_mac(self.of_gen_key, hof, prev_hof, ts)
+        spcbf = SupportPCBField.from_values(isd_id=self.topology.isd_id)
+        pcbm = PCBMarking.from_values(self.topology.ad_id, ssf, hof, spcbf,
+                                      self._get_if_rev_token(ingress_if),
+                                      self._get_if_rev_token(egress_if))
+        data_to_sign = (str(pcbm.ad_id).encode('utf-8') + pcbm.hof.pack() +
+                        pcbm.spcbf.pack())
+        peer_markings = []
+        for router_peer in self.topology.peer_edge_routers:
+            if_id = router_peer.interface.if_id
+            if not self.ifid_state[if_id].is_active():
+                logging.warning('Peer ifid:%d inactive (not added).', if_id)
+                continue
+            hof = HopOpaqueField.from_values(self.HOF_EXP_TIME,
+                                             if_id, egress_if)
+            # hof.mac = gen_of_mac(self.of_gen_key, hof, prev_hof, ts)
+            spf = SupportPeerField.from_values(self.topology.isd_id)
+            peer_marking = \
+                PeerMarking.from_values(router_peer.interface.neighbor_ad,
+                                        hof, spf, self._get_if_rev_token(if_id),
+                                        self._get_if_rev_token(egress_if))
+            data_to_sign += peer_marking.pack()
+            peer_markings.append(peer_marking)
+        signature = sign(data_to_sign, self.signing_key)
+        return ADMarking.from_values(pcbm, peer_markings, signature)
+
 
 class LocalBeaconServerSim(LocalBeaconServer):
     """
@@ -281,3 +328,39 @@ class LocalBeaconServerSim(LocalBeaconServer):
         in case of simulator.
         """
         return True
+
+    def _create_ad_marking(self, ingress_if, egress_if, ts, prev_hof=None):
+        """
+        Creates an AD Marking for given ingress and egress interfaces,
+        timestamp, and previous HOF. Mac is not used since we are simulating
+        """
+        ssf = SupportSignatureField.from_values(ADMarking.LEN)
+        hof = HopOpaqueField.from_values(self.HOF_EXP_TIME,
+                                         ingress_if, egress_if)
+        if prev_hof is None:
+            hof.info = OFT.LAST_OF
+        # hof.mac = gen_of_mac(self.of_gen_key, hof, prev_hof, ts)
+        spcbf = SupportPCBField.from_values(isd_id=self.topology.isd_id)
+        pcbm = PCBMarking.from_values(self.topology.ad_id, ssf, hof, spcbf,
+                                      self._get_if_rev_token(ingress_if),
+                                      self._get_if_rev_token(egress_if))
+        data_to_sign = (str(pcbm.ad_id).encode('utf-8') + pcbm.hof.pack() +
+                        pcbm.spcbf.pack())
+        peer_markings = []
+        for router_peer in self.topology.peer_edge_routers:
+            if_id = router_peer.interface.if_id
+            if not self.ifid_state[if_id].is_active():
+                logging.warning('Peer ifid:%d inactive (not added).', if_id)
+                continue
+            hof = HopOpaqueField.from_values(self.HOF_EXP_TIME,
+                                             if_id, egress_if)
+            # hof.mac = gen_of_mac(self.of_gen_key, hof, prev_hof, ts)
+            spf = SupportPeerField.from_values(self.topology.isd_id)
+            peer_marking = \
+                PeerMarking.from_values(router_peer.interface.neighbor_ad,
+                                        hof, spf, self._get_if_rev_token(if_id),
+                                        self._get_if_rev_token(egress_if))
+            data_to_sign += peer_marking.pack()
+            peer_markings.append(peer_marking)
+        signature = sign(data_to_sign, self.signing_key)
+        return ADMarking.from_values(pcbm, peer_markings, signature)

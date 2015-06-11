@@ -92,3 +92,9 @@ class RouterSim(Router):
 
     def clean(self):
         pass
+
+    def verify_of(self, hof, prev_hof, ts):
+        """
+        Returns True because we don't care about mac in a simulator.
+        """
+        return True
