@@ -1,14 +1,16 @@
 
 # External packages
+import tempfile
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse
+from django.utils import timezone
 from django_webtest import WebTest
 from unittest.mock import patch
 
 # SCION
 from ad_management.common import response_success
-from ad_manager.models import ISD, AD
+from ad_manager.models import ISD, AD, PackageVersion
 
 
 class BasicWebTest(WebTest):
@@ -25,11 +27,27 @@ class BasicWebTest(WebTest):
         for ad in AD.objects.all():
             self.ads[ad.id] = ad
 
-    def get_ad_detail(self, ad, *args, **kwargs):
+    def _get_ad_detail(self, ad, *args, **kwargs):
         if isinstance(ad, AD):
             ad = ad.id
         assert isinstance(ad, int)
         return self.app.get(reverse('ad_detail', args=[ad]), *args, **kwargs)
+
+    def _find_form_by_action(self, response, view_name, *args, **kwargs):
+        if args is None:
+            args = []
+        url = reverse(view_name, *args, **kwargs)
+        all_forms = response.forms.values()
+        form = next(filter(lambda f: f.action == url, all_forms))
+        return form
+
+    def _create_users(self):
+        self.admin_user = User.objects.create_superuser(username='admin',
+                                                        password='admin',
+                                                        email='')
+        self.user = User.objects.create_user(username='user1',
+                                             password='user1',
+                                             email='')
 
 
 class TestListIsds(BasicWebTest):
@@ -74,7 +92,7 @@ class TestAdDetail(BasicWebTest):
 
     def test_servers_page(self):
         ad = self.ads[1]
-        ad_detail = self.get_ad_detail(ad)
+        ad_detail = self._get_ad_detail(ad)
         self.assertContains(ad_detail, str(ad))
         html = ad_detail.html
         beacon_servers = html.find(id="beacon-servers-table")
@@ -114,7 +132,7 @@ class TestAdDetail(BasicWebTest):
         for is_core_value, page_value in value_map.items():
             ad.is_core_ad = is_core_value
             ad.save()
-            ad_detail = self.get_ad_detail(ad)
+            ad_detail = self._get_ad_detail(ad)
             core_container = ad_detail.html.find(id='core-label')
             self.assertIn(page_value, core_container.text,
                           'Invalid label: core')
@@ -123,7 +141,7 @@ class TestAdDetail(BasicWebTest):
         for is_open_value, page_value in value_map.items():
             ad.is_open = is_open_value
             ad.save()
-            ad_detail = self.get_ad_detail(ad)
+            ad_detail = self._get_ad_detail(ad)
             open_container = ad_detail.html.find(id='open-label')
             self.assertIn(page_value, open_container.text,
                           'Invalid label: open')
@@ -136,15 +154,10 @@ class TestUsersAndPermissions(BasicWebTest):
     def setUp(self):
         super().setUp()
         assert not settings.ENABLED_2FA
-        self.admin_user = User.objects.create_superuser(username='admin',
-                                                        password='admin',
-                                                        email='')
-        self.user = User.objects.create_user(username='user1',
-                                             password='user1',
-                                             email='')
+        self._create_users()
 
     def test_login_admin(self):
-        ad_detail = self.get_ad_detail(self.ads[1])
+        ad_detail = self._get_ad_detail(self.ads[1])
         self.assertNotContains(ad_detail, 'admin')
         login_page = ad_detail.click('Login')
         login_form = login_page.form
@@ -179,7 +192,7 @@ class TestUsersAndPermissions(BasicWebTest):
     def test_nonpriv_user_control(self):
         ad = self.ads[1]
         bs = ad.beaconserverweb_set.first()
-        ad_detail = self.get_ad_detail(ad)
+        ad_detail = self._get_ad_detail(ad)
 
         # No control buttons
         self.assertFalse(ad_detail.html.findAll('form', self.CONTROL_CLASS))
@@ -193,16 +206,57 @@ class TestUsersAndPermissions(BasicWebTest):
     def test_priv_user_control(self, control_process):
         ad = self.ads[1]
         bs = ad.beaconserverweb_set.first()
-        ad_detail = self.get_ad_detail(ad, user=self.admin_user)
+        ad_detail = self._get_ad_detail(ad, user=self.admin_user)
 
         self.assertTrue(ad_detail.html.findAll('form', self.CONTROL_CLASS))
 
         # Find the bs control form
-        control_url = reverse('control_process', args=[ad.id, bs.id_str()])
-        bs_control_form = next(filter(lambda f: f.action == control_url,
-                                      ad_detail.forms.values()))
+        bs_control_form = self._find_form_by_action(ad_detail,
+                                                    'control_process',
+                                                    args=[ad.id, bs.id_str()])
 
         # Press the "start" button
         control_process.return_value = response_success('ok')
         res = bs_control_form.submit('_start_process')
         self.assertTrue(res.json)
+
+
+class TestPackageDownload(BasicWebTest):
+
+    def setUp(self):
+        super().setUp()
+        self._create_users()
+
+    def _get_download_form(self, get_args=None):
+        if get_args is None:
+            get_args = {}
+
+        ad = self.ads[1]
+        ad_detail = self._get_ad_detail(ad, **get_args)
+
+        download_form = self._find_form_by_action(ad_detail, 'update_action',
+                                                  args=[ad.id])
+        return download_form
+
+    def test_nonpriv_user(self):
+        download_form = self._get_download_form()
+        res = download_form.submit('_download_update', expect_errors=True)
+        self.assertEqual(res.status_code, 403)
+
+    def test_download(self):
+        data = b'123'
+        with tempfile.NamedTemporaryFile() as tmp_file:
+            tmp_file.write(data)
+            tmp_file.flush()
+
+            package = PackageVersion(name='test_package',
+                                     filepath=tmp_file.name,
+                                     date_created=timezone.now(),
+                                     size=tmp_file.tell())
+            package.save()
+
+            args = {'user': self.admin_user}
+            download_form = self._get_download_form(get_args=args)
+            download_form.fields['selected_version'] = package
+            res = download_form.submit('_download_update').maybe_follow()
+            self.assertEqual(data, res.body)
