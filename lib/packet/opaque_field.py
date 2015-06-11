@@ -46,14 +46,7 @@ class OpaqueField(object):
 
     def __init__(self):
         """
-        Initialize an instance of the class .
-
-        :param :
-        :type :
-        :param :
-        :type :
-        :param :
-        :type :
+        Initialize an instance of the class OpaqueField.
         """
         self.info = 0  # TODO verify path.PathType in that context
         self.type = 0
@@ -119,14 +112,10 @@ class HopOpaqueField(OpaqueField):
 
     def __init__(self, raw=None):
         """
-        Initialize an instance of the class .
+        Initialize an instance of the class HopOpaqueField.
 
-        :param :
-        :type :
-        :param :
-        :type :
-        :param :
-        :type :
+        :param raw:
+        :type raw:
         """
         OpaqueField.__init__(self)
         self.exp_time = 0
@@ -210,14 +199,10 @@ class InfoOpaqueField(OpaqueField):
 
     def __init__(self, raw=None):
         """
-        Initialize an instance of the class .
+        Initialize an instance of the class InfoOpaqueField.
 
-        :param :
-        :type :
-        :param :
-        :type :
-        :param :
-        :type :
+        :param raw:
+        :type raw:
         """
         OpaqueField.__init__(self)
         self.timestamp = 0
@@ -300,14 +285,10 @@ class TRCField(OpaqueField):
     """
     def __init__(self, raw=None):
         """
-        Initialize an instance of the class .
+        Initialize an instance of the class TRCField.
 
-        :param :
-        :type :
-        :param :
-        :type :
-        :param :
-        :type :
+        :param raw:
+        :type raw:
         """
         OpaqueField.__init__(self)
         self.info = OpaqueFieldType.TRC_OF
@@ -376,14 +357,10 @@ class SupportSignatureField(OpaqueField):
     """
     def __init__(self, raw=None):
         """
-        Initialize an instance of the class .
+        Initialize an instance of the class SupportSignatureField.
 
-        :param :
-        :type :
-        :param :
-        :type :
-        :param :
-        :type :
+        :param raw:
+        :type raw:
         """
         OpaqueField.__init__(self)
         self.cert_chain_version = 0
@@ -455,14 +432,10 @@ class SupportPeerField(OpaqueField):
     """
     def __init__(self, raw=None):
         """
-        Initialize an instance of the class .
+        Initialize an instance of the class SupportPeerField.
 
-        :param :
-        :type :
-        :param :
-        :type :
-        :param :
-        :type :
+        :param raw:
+        :type raw:
         """
         OpaqueField.__init__(self)
         self.isd_id = 0
@@ -548,14 +521,10 @@ class SupportPCBField(OpaqueField):
     """
     def __init__(self, raw=None):
         """
-        Initialize an instance of the class .
+        Initialize an instance of the class SupportPCBField.
 
-        :param :
-        :type :
-        :param :
-        :type :
-        :param :
-        :type :
+        :param raw:
+        :type raw:
         """
         OpaqueField.__init__(self)
         self.isd_id = 0

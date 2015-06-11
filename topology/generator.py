@@ -88,7 +88,7 @@ class ConfigGenerator():
     """
     def __init__(self, out_dir=TOPOLOGY_PATH, subnet=DEFAULT_SUBNET):
         """
-        Constructor.
+        Initialize an instance of the class ConfigGenerator.
 
         :param out_dir: path to the topology folder.
         :type out_dir: string
@@ -107,6 +107,7 @@ class ConfigGenerator():
 
         :param ad_config: AD configuration dictionary (optional)
         :type ad_config: dict
+
         :returns: the pair of the first byte and the mask
         :rtype: (str, str)
         """
@@ -126,6 +127,7 @@ class ConfigGenerator():
         :type isd_id: int
         :param ad_id: AD identifier.
         :type ad_id: int
+
         :returns: the computed paths for a given AD.
         :rtype: dict
         """
@@ -172,6 +174,7 @@ class ConfigGenerator():
         :type mask: str
         :param increment: step the IP address must be incremented of.
         :type increment: int
+
         :returns: the incremented IP address. It fails if a broadcast address is
                   reached.
         :rtype: str
@@ -189,6 +192,7 @@ class ConfigGenerator():
 
         :param ad_configs: the configurations of all SCION ADs.
         :type ad_configs: dict
+
         :returns: the edge router IP addresses.
         :rtype: dict
         """
@@ -251,6 +255,7 @@ class ConfigGenerator():
 
         :param ad_configs: the configurations of all SCION ADs.
         :type ad_configs: dict
+        
         :returns: the signature and encryption keys.
         :rtype: dict
         """

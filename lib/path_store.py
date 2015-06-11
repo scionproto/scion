@@ -29,16 +29,10 @@ class PathPolicy(object):
     """
     Stores a path policy.
     """
+
     def __init__(self):
         """
-        Initialize an instance of the class .
-
-        :param :
-        :type :
-        :param :
-        :type :
-        :param :
-        :type :
+        Initialize an instance of the class PathPolicy.
         """
         self.best_set_size = 5
         self.candidates_set_size = 20
@@ -50,6 +44,12 @@ class PathPolicy(object):
         self.property_weights = {}
 
     def get_path_policy_dict(self):
+        """
+        Return path policy info in a dictionary.
+
+        :returns: Path policy info in a dictionary.
+        :rtype: dict
+        """
         path_policy_dict = {'best_set_size': self.best_set_size,
                             'candidates_set_size': self.candidates_set_size,
                             'history_limit': self.history_limit,
@@ -63,6 +63,13 @@ class PathPolicy(object):
     def check_filters(self, pcb):
         """
         Runs some checks, including: unwanted ADs and min/max property values.
+
+        :param pcb: beacon to analyze.
+        :type pcb: :class:`PathSegment`
+
+        :returns: True if any unwanted AD is present or a range is not
+                  respected.
+        :rtype: bool
         """
         assert isinstance(pcb, PathSegment)
         if not self._check_unwanted_ads(pcb):
@@ -76,6 +83,9 @@ class PathPolicy(object):
     def _check_unwanted_ads(self, pcb):
         """
         Checks whether any of the ADs in the path belong to the black list.
+
+        :param pcb: beacon to analyze.
+        :type pcb: :class:`PathSegment`
         """
         for ad in pcb.ads:
             if (ad.pcbm.spcbf.isd_id, ad.pcbm.ad_id) in self.unwanted_ads:
@@ -86,6 +96,9 @@ class PathPolicy(object):
         """
         Checks whether any of the path properties has a value outside the
         predefined min-max range.
+
+        :param pcb: beacon to analyze.
+        :type pcb: :class:`PathSegment`
         """
         check = True
         if self.property_ranges['PeerLinks']:
@@ -121,6 +134,7 @@ class PathPolicy(object):
 
         :param policy_file: path to the path policy file
         :type policy_file: str
+
         :returns: the newly created PathPolicy instance
         :rtype: :class: `PathPolicy`
         """
@@ -139,7 +153,8 @@ class PathPolicy(object):
 
         :param policy_dict: dictionary representation of path policy
         :type policy_dict: dict
-        :returns: the newly created PathPolicy instance
+
+        :returns: the newly created PathPolicy instance.
         :rtype: :class:`PathPolicy`
         """
         path_policy = cls()
@@ -149,6 +164,9 @@ class PathPolicy(object):
     def parse_dict(self, path_policy):
         """
         Parses the policies from the dictionary.
+
+        :param path_policy: path policy.
+        :type path_policy: dict
         """
         self.best_set_size = path_policy['BestSetSize']
         self.candidates_set_size = path_policy['CandidatesSetSize']
@@ -209,14 +227,10 @@ class PathStoreRecord(object):
 
     def __init__(self, pcb):
         """
-        Initialize an instance of the class .
+        Initialize an instance of the class PathStoreRecord.
 
-        :param :
-        :type :
-        :param :
-        :type :
-        :param :
-        :type :
+        :param pcb: beacon to analyze.
+        :type pcb: :class:`PathSegment`
         """
         assert isinstance(pcb, PathSegment)
         self.pcb = pcb
@@ -237,6 +251,9 @@ class PathStoreRecord(object):
         """
         Computes a path fidelity based on all path properties and considering
         the corresponding weights, which are stored in the path policy.
+
+        :param path_policy: path policy.
+        :type path_policy: dict
         """
         self.fidelity = 0
         now = time.time()
@@ -262,12 +279,21 @@ class PathStoreRecord(object):
                           self.total_bandwidth)
 
     def __eq__(self, other):
+        """
+        Compare two path store records.
+
+        :param other: second path store record.
+        :type other: :class:`PathStoreRecord`
+        """
         if type(other) is type(self):
             return self.id == other.id
         else:
             return False
 
     def __str__(self):
+        """
+        Return a string with the path store record data.
+        """
         path_info_str = "[PathStoreRecord]\n"
         path_info_str += "ID: " + str(self.id) + "\n"
         path_info_str += "Fidelity: " + str(self.fidelity)
@@ -281,14 +307,10 @@ class PathStore(object):
 
     def __init__(self, path_policy):
         """
-        Initialize an instance of the class .
+        Initialize an instance of the class PathStore.
 
-        :param :
-        :type :
-        :param :
-        :type :
-        :param :
-        :type :
+        :param path_policy: path policy.
+        :type path_policy: dict
         """
         self.path_policy = path_policy
         self.candidates = []
@@ -384,7 +406,10 @@ class PathStore(object):
 
     def get_best_segments(self, k=None):
         """
-        Returns the k best paths from the temporary buffer.
+        Return the k best paths from the temporary buffer.
+
+        :param k: default best set size.
+        :type k: int
         """
         if k is None:
             k = self.path_policy.best_set_size
@@ -396,7 +421,10 @@ class PathStore(object):
 
     def get_latest_history_snapshot(self, k=None):
         """
-        Returns the latest k best paths from the history.
+        Return the latest k best paths from the history.
+
+        :param k: default best set size.
+        :type k: int
         """
         if k is None:
             k = self.path_policy.best_set_size
@@ -419,7 +447,10 @@ class PathStore(object):
 
     def remove_segments(self, seg_ids):
         """
-        Removes segments in 'seg_ids' from the candidates.
+        Remove segments in 'seg_ids' from the candidates.
+
+        :param seg_ids: list of segment IDs to remove.
+        :type seg_ids: list
         """
         self.candidates[:] = [c for c in self.candidates if c.id not in seg_ids]
         if self.candidates:
@@ -429,7 +460,10 @@ class PathStore(object):
 
     def get_segment(self, seg_id):
         """
-        Returns the segment for the corresponding ID or None.
+        Return the segment for the corresponding ID or None.
+
+        :param seg_ids: ID of the segment to return.
+        :type seg_ids: int
         """
         for record in self.candidates:
             if record.id == seg_id:
@@ -437,6 +471,9 @@ class PathStore(object):
         return None
 
     def __str__(self):
+        """
+        Return a string with the path store data.
+        """
         path_store_str = "[PathStore]"
         for candidate in self.candidates:
             path_store_str += "\n" + str(candidate)

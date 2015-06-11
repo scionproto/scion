@@ -67,14 +67,10 @@ class PathSegmentInfo(PayloadBase):
 
     def __init__(self, raw=None):
         """
-        Initialize an instance of the class .
+        Initialize an instance of the class PathSegmentInfo.
 
-        :param :
-        :type :
-        :param :
-        :type :
-        :param :
-        :type :
+        :param raw:
+        :type raw:
         """
         PayloadBase.__init__(self)
         self.type = 0
@@ -128,14 +124,10 @@ class PathSegmentRecords(PayloadBase):
     """
     def __init__(self, raw=None):
         """
-        Initialize an instance of the class .
+        Initialize an instance of the class PathSegmentRecords.
 
-        :param :
-        :type :
-        :param :
-        :type :
-        :param :
-        :type :
+        :param raw:
+        :type raw:
         """
         PayloadBase.__init__(self)
         self.info = None
@@ -175,14 +167,10 @@ class LeaseInfo(PayloadBase):
 
     def __init__(self, raw=None):
         """
-        Initialize an instance of the class .
+        Initialize an instance of the class LeaseInfo.
 
-        :param :
-        :type :
-        :param :
-        :type :
-        :param :
-        :type :
+        :param raw:
+        :type raw:
         """
         PayloadBase.__init__(self)
         self.seg_type = PathSegmentType.DOWN
@@ -244,14 +232,10 @@ class PathSegmentLeases(PayloadBase):
 
     def __init__(self, raw=None):
         """
-        Initialize an instance of the class .
+        Initialize an instance of the class PathSegmentLeases.
 
-        :param :
-        :type :
-        :param :
-        :type :
-        :param :
-        :type :
+        :param raw:
+        :type raw:
         """
         PayloadBase.__init__(self)
         self.nleases = 0  # The number of leases contained in this packet.
@@ -309,14 +293,10 @@ class RevocationInfo(PayloadBase):
 
     def __init__(self, raw=None):
         """
-        Initialize an instance of the class .
+        Initialize an instance of the class RevocationInfo.
 
-        :param :
-        :type :
-        :param :
-        :type :
-        :param :
-        :type :
+        :param raw:
+        :type raw:
         """
         PayloadBase.__init__(self)
         self.rev_type = RevocationType.DOWN_SEGMENT
@@ -416,14 +396,10 @@ class RevocationPayload(PayloadBase):
     """
     def __init__(self, raw=None):
         """
-        Initialize an instance of the class .
+        Initialize an instance of the class RevocationPayload.
 
-        :param :
-        :type :
-        :param :
-        :type :
-        :param :
-        :type :
+        :param raw:
+        :type raw:
         """
         PayloadBase.__init__(self)
         self.rev_infos = []
@@ -476,14 +452,10 @@ class PathMgmtPacket(SCIONPacket):
     """
     def __init__(self, raw=None):
         """
-        Initialize an instance of the class .
+        Initialize an instance of the class PathMgmtPacket.
 
-        :param :
-        :type :
-        :param :
-        :type :
-        :param :
-        :type :
+        :param raw:
+        :type raw:
         """
         SCIONPacket.__init__(self)
         self.type = 0

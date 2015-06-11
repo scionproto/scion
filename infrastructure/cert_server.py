@@ -62,14 +62,16 @@ class CertServer(SCIONElement):
 
     def __init__(self, server_id, topo_file, config_file, trc_file):
         """
-        Constructor.
+        Initialize an instance of the class CertServer.
 
-        :param :
-        :type :
-        :param :
-        :type :
-        :param :
-        :type :
+        :param server_id: server identifier.
+        :type server_id: int
+        :param topo_file: topology file.
+        :type topo_file: string
+        :param config_file: configuration file.
+        :type config_file: string
+        :param trc_file: TRC file.
+        :type trc_file: string
         """
         SCIONElement.__init__(self, "cs", topo_file, server_id=server_id,
                               config_file=config_file)
@@ -95,6 +97,11 @@ class CertServer(SCIONElement):
     def _store_cert_chain_in_zk(self, cert_chain_file, cert_chain):
         """
         Store the Certificate Chain in the zookeeper.
+
+        :param cert_chain_file: certificate chain file.
+        :type cert_chain_file: string
+        :param cert_chain: certificate chain.
+        :type cert_chain: CertificateChain
         """
         try:
             tmp = CertificateChain(cert_chain_file)
@@ -110,6 +117,9 @@ class CertServer(SCIONElement):
     def process_cert_chain_request(self, cert_chain_req):
         """
         Process a certificate chain request.
+
+        :param cert_chain_req: certificate chain request.
+        :type cert_chain_req: CertChainRequest
         """
         assert isinstance(cert_chain_req, CertChainRequest)
         logging.info("Certificate chain request received.")
@@ -162,6 +172,9 @@ class CertServer(SCIONElement):
     def process_cert_chain_reply(self, cert_chain_rep):
         """
         Process a certificate chain reply.
+
+        :param cert_chain_rep: certificate chain reply.
+        :type cert_chain_rep: CertChainReply
         """
         assert isinstance(cert_chain_rep, CertChainReply)
         logging.info("Certificate chain reply received")
@@ -190,6 +203,11 @@ class CertServer(SCIONElement):
     def _store_trc_in_zk(self, trc_file, trc):
         """
         Store the TRC in the zookeeper.
+
+        :param trc_file: TRC file.
+        :type trc_file: string.
+        :param trc: TRC.
+        :type trc: TRC.
         """
         try:
             tmp = TRC(trc_file)
@@ -205,6 +223,9 @@ class CertServer(SCIONElement):
     def process_trc_request(self, trc_req):
         """
         Process a TRC request.
+
+        :param trc_req: TRC request.
+        :type trc_req: TRCRequest.
         """
         assert isinstance(trc_req, TRCRequest)
         logging.info("TRC request received")
@@ -249,6 +270,9 @@ class CertServer(SCIONElement):
     def process_trc_reply(self, trc_rep):
         """
         Process a TRC reply.
+
+        :param trc_rep: TRC reply.
+        :type trc_rep: TRCReply
         """
         assert isinstance(trc_rep, TRCReply)
         logging.info("TRC reply received")
@@ -271,6 +295,12 @@ class CertServer(SCIONElement):
     def _get_cert_chain_identifiers(self, entry):
         """
         Get the isd_id, ad_id, and version values from the entry name.
+
+        :param entry: certificate chain full name.
+        :type entry: string
+
+        :returns: certificate chain identifiers.
+        :rtype: tuple
         """
         identifiers = re.split(':|-', entry)
         return (int(identifiers[1]), int(identifiers[3]), int(identifiers[5]))
@@ -278,6 +308,12 @@ class CertServer(SCIONElement):
     def _get_trc_identifiers(self, entry):
         """
         Get the isd_id and version values from the entry name.
+
+        :param entry: TRC full name
+        :type entry: string
+
+        :returns: TRC identifiers.
+        :rtype: tuple
         """
         identifiers = re.split(':|-', entry)
         return (int(identifiers[1]), int(identifiers[3]))
@@ -323,6 +359,9 @@ class CertServer(SCIONElement):
         """
         Read new/updated entries from the shared cache and send them for
         processesing.
+
+        :returns: number of processed cached certificate chains.
+        :rtype: int
         """
         desc = "Fetching list of cert chains from shared cache"
         entries_meta = self.zk.get_shared_metadata(
@@ -346,6 +385,12 @@ class CertServer(SCIONElement):
         """
         Retrieve new cert chains from the shared cache and send them for local
         processing.
+
+        :param entries: certificate chains.
+        :type entries: bytes
+
+        :returns: number of processed certificate chains.
+        :rtype: int
         """
         # TODO(lorenzo): move constant to proper place
         chunk_size = 10
@@ -381,6 +426,9 @@ class CertServer(SCIONElement):
         """
         Read new/updated entries from the shared cache and send them for
         processesing.
+
+        :returns: number of processed cached TRCs.
+        :rtype: int
         """
         desc = "Fetching list of TRCs from shared cache"
         entries_meta = self.zk.get_shared_metadata(self.ZK_TRC_CACHE_PATH,
@@ -404,6 +452,12 @@ class CertServer(SCIONElement):
         """
         Retrieve new TRCs from the shared cache and send them for local
         processing.
+
+        :param entries: TRCs.
+        :type entries: bytes
+
+        :returns: number of processed cached TRCs.
+        :rtype: int
         """
         # TODO(lorenzo): move constant to proper place
         chunk_size = 10
@@ -436,6 +490,13 @@ class CertServer(SCIONElement):
     def handle_request(self, packet, sender, from_local_socket=True):
         """
         Main routine to handle incoming SCION packets.
+
+        :param packet: incoming packet.
+        :type packet: bytes
+        :param sender:
+        :type sender:
+        :param from_local_socket:
+        :type from_local_socket:
         """
         spkt = SCIONPacket(packet)
         ptype = get_type(spkt)

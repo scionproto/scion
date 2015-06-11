@@ -29,14 +29,7 @@ class HeaderBase(object):
 
     def __init__(self):
         """
-        Initialize an instance of the class .
-
-        :param :
-        :type :
-        :param :
-        :type :
-        :param :
-        :type :
+        Initialize an instance of the class HeaderBase.
         """
         self.parsed = False
 
@@ -72,14 +65,7 @@ class PacketBase(object):
 
     def __init__(self):
         """
-        Initialize an instance of the class .
-
-        :param :
-        :type :
-        :param :
-        :type :
-        :param :
-        :type :
+        Initialize an instance of the class PacketBase.
         """
         self._hdr = None
         self._payload = None
@@ -162,14 +148,7 @@ class PayloadBase(object):
     """
     def __init__(self):
         """
-        Initialize an instance of the class .
-
-        :param :
-        :type :
-        :param :
-        :type :
-        :param :
-        :type :
+        Initialize an instance of the class PayloadBase.
         """
         self.raw = None
         self.parsed = False

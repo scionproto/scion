@@ -46,8 +46,6 @@ class Element(object):
         :type to_addr: str
         :param name: element name or id
         :type name: str
-        :returns: the newly created Element instance.
-        :rtype: :class:`Element`
         """
         if addr_type.lower() == "ipv4":
             self.addr = IPv4Address(addr)
@@ -73,8 +71,6 @@ class ServerElement(Element):
         :type server_dict: dict
         :param name: server element name or id
         :type name: str
-        :returns: the newly created ServerElement instance.
-        :rtype: :class:`ServerElement`
         """
         Element.__init__(self, server_dict['Addr'], server_dict['AddrType'],
                          name=name)
@@ -107,8 +103,6 @@ class InterfaceElement(Element):
 
         :param interface_dict: contains information about the interface.
         :type interface_dict: dict
-        :returns: the newly created InterfaceElement instance.
-        :rtype: :class:`InterfaceElement`
         """
         Element.__init__(self, interface_dict['Addr'],
                          interface_dict['AddrType'], interface_dict['ToAddr'])
@@ -136,8 +130,6 @@ class RouterElement(Element):
         :type router_dict: dict
         :param name: router element name or id
         :type name: str
-        :returns: the newly created RouterElement instance.
-        :rtype: :class:`RouterElement`
         """
         Element.__init__(self, router_dict['Addr'], router_dict['AddrType'],
                          name=name)
@@ -179,9 +171,6 @@ class Topology(object):
     def __init__(self):
         """
         Initialize an instance of the class Topology.
-
-        :returns: the newly created Topology instance.
-        :rtype: :class:`Topology`
         """
         self.is_core_ad = False
         self.isd_id = 0
@@ -203,6 +192,7 @@ class Topology(object):
 
         :param topology_file: path to the topology file
         :type topology_file: str
+
         :returns: the newly created Topology instance
         :rtype: :class: `Topology`
         """
@@ -221,6 +211,7 @@ class Topology(object):
 
         :param topology_dict: dictionary representation of a topology
         :type topology_dict: dict
+
         :returns: the newly created Topology instance
         :rtype: :class:`Topology`
         """
@@ -284,6 +275,14 @@ class Topology(object):
         return all_edge_routers
 
     def get_own_config(self, server_type, server_id):
+        """
+
+
+        :param server_type:
+        :type server_type:
+        :param server_id:
+        :type server_id:
+        """
         target = None
         if server_type == "bs":
             target = self.beacon_servers

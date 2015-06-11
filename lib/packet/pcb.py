@@ -45,14 +45,7 @@ class Marking(object):
     """
     def __init__(self):
         """
-        Initialize an instance of the class .
-
-        :param :
-        :type :
-        :param :
-        :type :
-        :param :
-        :type :
+        Initialize an instance of the class Marking.
         """
         self.parsed = False
         self.raw = None
@@ -93,14 +86,10 @@ class PCBMarking(Marking):
 
     def __init__(self, raw=None):
         """
-        Initialize an instance of the class .
+        Initialize an instance of the class PCBMarking.
 
-        :param :
-        :type :
-        :param :
-        :type :
-        :param :
-        :type :
+        :param raw:
+        :type raw:
         """
         Marking.__init__(self)
         self.ad_id = 0
@@ -191,14 +180,10 @@ class PeerMarking(Marking):
 
     def __init__(self, raw=None):
         """
-        Initialize an instance of the class .
+        Initialize an instance of the class PeerMarking.
 
-        :param :
-        :type :
-        :param :
-        :type :
-        :param :
-        :type :
+        :param raw:
+        :type raw:
         """
         Marking.__init__(self)
         self.ad_id = 0
@@ -284,14 +269,10 @@ class ADMarking(Marking):
 
     def __init__(self, raw=None):
         """
-        Initialize an instance of the class .
+        Initialize an instance of the class ADMarking.
 
-        :param :
-        :type :
-        :param :
-        :type :
-        :param :
-        :type :
+        :param raw:
+        :type raw:
         """
         Marking.__init__(self)
         self.pcbm = None
@@ -379,14 +360,10 @@ class PathSegment(Marking):
 
     def __init__(self, raw=None):
         """
-        Initialize an instance of the class .
+        Initialize an instance of the class PathSegment.
 
-        :param :
-        :type :
-        :param :
-        :type :
-        :param :
-        :type :
+        :param raw:
+        :type raw:
         """
         Marking.__init__(self)
         self.iof = None
@@ -621,14 +598,10 @@ class PathConstructionBeacon(SCIONPacket):
     """
     def __init__(self, raw=None):
         """
-        Initialize an instance of the class .
+        Initialize an instance of the class PathConstructionBeacon.
 
-        :param :
-        :type :
-        :param :
-        :type :
-        :param :
-        :type :
+        :param raw:
+        :type raw:
         """
         SCIONPacket.__init__(self)
         self.pcb = None
