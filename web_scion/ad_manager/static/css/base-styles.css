@@ -42,11 +42,14 @@ h1 span.glyphicon-home {
     font-size: 30px;
 }
 
-/* Core AD label */
-h4.core-ad-label span.glyphicon {
+/* AD labels */
+h4.ad-label span.glyphicon {
     font-size: 16px;
     margin-left: 2px;
 }
+
+
+
 
 div.status-block > div {
     padding-right: 0;
