@@ -97,12 +97,10 @@ class ConfigGenerator():
     def _get_subnet_params(self, ad_config=None):
         """
         Return the first byte and the mask of the subnet.
-
         :param ad_config: AD configuration dictionary (optional)
         :type ad_config: dict
         :returns: the pair of the first byte and the mask
         :rtype: (str, str)
-
         """
         if ad_config and "subnet" in ad_config:
             subnet = ad_config["subnet"]
@@ -152,7 +150,6 @@ class ConfigGenerator():
     def _increment_address(self, ip_addr, mask, increment=1):
         """
         Increment an IP address value.
-
         :param ip_addr: the IP address to increment.
         :type ip_addr: str
         :param mask: subnet mask for the given IP address.
@@ -174,7 +171,6 @@ class ConfigGenerator():
     def set_er_ip_addresses(self, ad_configs):
         """
         Set the IP addresses of all edge routers.
-
         :param ad_configs: the configurations of all SCION ADs.
         :type ad_configs: dict
         :returns: the edge router IP addresses.
@@ -212,7 +208,6 @@ class ConfigGenerator():
         """
         Create the ISD* directories and sub-directories, where all files used
         to run the SCION ADs are stored.
-
         :param ad_configs: the configurations of all SCION ADs.
         :type ad_configs: dict
         """
@@ -241,7 +236,6 @@ class ConfigGenerator():
         """
         Generate the AD certificates and keys and store them into
         separate files.
-
         :param ad_configs: the configurations of all SCION ADs.
         :type ad_configs: dict
         :returns: the signature and encryption keys.
@@ -322,7 +316,6 @@ class ConfigGenerator():
         """
         Generate the AD topologies and store them into files. Update the AD
         setup and supervisor files.
-
         :param ad_configs: the configurations of all SCION ADs.
         :type ad_configs: dict
         :param er_ip_addresses: the edge router IP addresses.
@@ -518,7 +511,6 @@ class ConfigGenerator():
     def write_setup_file(self, topo_dict, mask=None):
         """
         Generate and save the AD setup file.
-
         :param topo_dict: topology dictionary of a SCION AD.
         :type topo_dict: dict
         :param mask: network mask for new interfaces.
@@ -541,7 +533,6 @@ class ConfigGenerator():
     def write_supervisor_config(self, topo_dict):
         """
         Generate the AD supervisor configuration and store it into a file.
-
         :param topo_dict: topology dictionary of a SCION AD.
         :type topo_dict: dict
         """
@@ -626,7 +617,6 @@ class ConfigGenerator():
     def write_conf_files(self, ad_configs):
         """
         Generate the AD configurations and store them into files.
-
         :param ad_configs: the configurations of all SCION ADs.
         :type ad_configs: dict
         """
@@ -658,7 +648,6 @@ class ConfigGenerator():
     def write_path_pol_files(self, ad_configs, path_policy_file):
         """
         Generate the AD path policies and store them into files.
-
         :param ad_configs: the configurations of all SCION ADs.
         :type ad_configs: dict
         """
@@ -673,7 +662,6 @@ class ConfigGenerator():
     def write_trc_files(self, ad_configs, keys):
         """
         Generate the ISD TRCs and store them into files.
-
         :param ad_configs: the configurations of all SCION ADs.
         :type ad_configs: dict
         :param keys: the signature and encryption keys.
