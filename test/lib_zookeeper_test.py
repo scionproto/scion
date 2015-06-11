@@ -1,5 +1,4 @@
-# Copyright 2014 ETH Zurich
-
+# Copyright 2015 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -38,7 +37,8 @@ def mock_wrapper(f):
     """
     @wraps(f)
     def wrap(self, *args, **kwargs):
-        self.mocks = MockCollection()
+        if not hasattr(self, "mocks"):
+            self.mocks = MockCollection()
         self.mocks.add('lib.zookeeper.KazooClient', 'kclient')
         self.mocks.add('lib.zookeeper.KazooRetry', 'kretry')
         self.mocks.add('kazoo.recipe.party.Party', 'kparty')
@@ -54,8 +54,9 @@ def mock_wrapper(f):
         try:
             return f(self, *args, **kwargs)
         finally:
-            self.mocks.stop()
-            del self.mocks
+            if hasattr(self, "mocks"):
+                self.mocks.stop()
+                del self.mocks
     return wrap
 
 

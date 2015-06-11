@@ -24,6 +24,9 @@ import socket
 import unittest
 from ipaddress import IPv4Address
 
+# External packages
+import nose
+
 # SCION
 from lib.crypto.asymcrypto import sign
 from lib.crypto.certificate import CertificateChain, TRC, verify_sig_chain_trc
@@ -44,10 +47,9 @@ from lib.util import (
     read_file,
     write_file,
 )
-from test.testcommon import SCIONCommonTest
 
 
-class TestCertificates(SCIONCommonTest):
+class TestCertificates(object):
     """
     Unit tests for certificate.py and asymcrypto.py.
     """
@@ -133,4 +135,4 @@ class TestCertificates(SCIONCommonTest):
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
-    unittest.main()
+    nose.run(defaultTest=__name__)    

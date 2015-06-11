@@ -155,10 +155,14 @@ class Topology(object):
     :vartype isd_id: int
     :ivar ad_id: the AD identifier.
     :vartype ad_id: int
+    :ivar dns_domain: the dns domain the dns servers should use.
+    :vartype dns_domain: str
     :ivar beacon_servers: beacons servers in the AD.
     :vartype beacon_servers: list
     :ivar certificate_servers: certificate servers in the AD.
     :vartype certificate_servers: list
+    :ivar dns_servers: dns servers in the AD.
+    :vartype dns_servers: list
     :ivar path_servers: path servers in the AD.
     :vartype path_servers: list
     :ivar parent_edge_routers: edge routers linking the AD to its parents.
@@ -182,8 +186,10 @@ class Topology(object):
         self.is_core_ad = False
         self.isd_id = 0
         self.ad_id = 0
+        self.dns_domain = ""
         self.beacon_servers = []
         self.certificate_servers = []
+        self.dns_servers = []
         self.path_servers = []
         self.parent_edge_routers = []
         self.child_edge_routers = []
@@ -232,6 +238,7 @@ class Topology(object):
         self.is_core_ad = (topology['Core'] == 1)
         self.isd_id = topology['ISDID']
         self.ad_id = topology['ADID']
+        self.dns_domain = topology['DnsDomain']
         for bs_key in topology['BeaconServers']:
             b_server = ServerElement(topology['BeaconServers'][bs_key],
                                      bs_key)
@@ -240,6 +247,10 @@ class Topology(object):
             c_server = ServerElement(topology['CertificateServers'][cs_key],
                                      cs_key)
             self.certificate_servers.append(c_server)
+        for ds_key in topology['DNSServers']:
+            d_server = ServerElement(topology['DNSServers'][ds_key],
+                                     ds_key)
+            self.dns_servers.append(d_server)
         for ps_key in topology['PathServers']:
             p_server = ServerElement(topology['PathServers'][ps_key],
                                      ps_key)
@@ -278,6 +289,8 @@ class Topology(object):
             target = self.beacon_servers
         elif server_type == "cs":
             target = self.certificate_servers
+        elif server_type == "ds":
+            target = self.dns_servers
         elif server_type == "ps":
             target = self.path_servers
         elif server_type == "er":

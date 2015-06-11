@@ -2,8 +2,8 @@
 
 # BEGIN subcommand functions
 
-PKG_DEPS="python python3 python-dev python-pip python3-dev python3-pip screen zookeeperd build-essential docker.io"
-PIP3_DEPS="bitstring python-pytun pydblite pygments pycrypto kazoo Sphinx sphinxcontrib-napoleon nose nose-descriptionfixer nose-cov coverage parse"
+PKG_DEPS="python python3 python-dev python-pip python3-dev python3-pip screen zookeeperd build-essential docker.io dnsutils"
+PIP3_DEPS="python-pytun pydblite pygments pycrypto kazoo Sphinx sphinxcontrib-napoleon nose nose-descriptionfixer nose-cov coverage parse dnslib"
 
 cmd_deps() {
     if [ -e /etc/debian_version ]; then
@@ -92,11 +92,11 @@ cmd_start(){
 }
 
 cmd_test(){
-    nosetests -w test
+    nosetests -w test "$@"
 }
 
 cmd_coverage(){
-    nosetests --with-cov -w test
+    nosetests --with-cov -w test "$@"
     coverage html --omit 'external/*'
     echo "Coverage report here: file://$PWD/htmlcov/index.html"
 }
@@ -147,7 +147,7 @@ PROGRAM="${0##*/}"
 COMMAND="$1"
 shift
 
-case $COMMAND in
+case "$COMMAND" in
     clean|coverage|deps|help|init|run|setup|start|stop|test|topology|version)
         "cmd_$COMMAND" "$@" ;;
     *)  cmd_help ;;

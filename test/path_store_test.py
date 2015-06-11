@@ -50,7 +50,7 @@ class TestPathStore(unittest.TestCase):
         Creates an AD Marking with the given ingress and egress interfaces.
         """
         ssf = SupportSignatureField.from_values(ADMarking.LEN)
-        hof = HopOpaqueField.from_values(0.1, 111, 222)
+        hof = HopOpaqueField.from_values(1, 111, 222)
         spcbf = SupportPCBField.from_values(1)
         rev_token = HashChain(Random.new().read(32)).next_element()
         pcbm = PCBMarking.from_values(10, ssf, hof, spcbf, rev_token, rev_token)

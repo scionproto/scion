@@ -51,12 +51,20 @@ class MockCollection(object):
     def __init__(self):
         self._patcher = {}
 
-    def add(self, target, name):
+    def add(self, target, name, new=None, autospec=True):
         """
         Create a patcher for `target`, and use `name` for the mock object made
         available after `start()`
         """
-        self._patcher[name] = patch(target, autospec=True)
+        # Don't redo an existing patch
+        if name in self._patcher:
+            return
+        kwargs = {}
+        if new is None:
+            kwargs["autospec"] = autospec
+        else:
+            kwargs["new"] = new
+        self._patcher[name] = patch(target, **kwargs)
 
     def start(self):
         """
@@ -64,7 +72,9 @@ class MockCollection(object):
         available.
         """
         for name, patcher in self._patcher.items():
-            setattr(self, name, patcher.start())
+            # Make sure we don't start a patcher twice
+            if not hasattr(self, name):
+                setattr(self, name, patcher.start())
 
     def stop(self):
         """

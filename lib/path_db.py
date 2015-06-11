@@ -111,9 +111,8 @@ class PathSegmentDB(object):
                               "already known", src_isd, src_ad, dst_isd, dst_ad)
                 return DBResult.NONE
             else:
-                cur_rec.pcb.set_timestamp(pcb.get_timestamp())
-                logging.debug("Updated expiration time for segment with ID %s",
-                              cur_rec.id)
+                cur_rec.pcb = pcb
+                logging.debug("Updated segment with ID %s", cur_rec.id)
                 return DBResult.ENTRY_UPDATED
 
     def update_all(self, pcbs, src_isd, src_ad, dst_isd, dst_ad):
