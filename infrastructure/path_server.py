@@ -55,14 +55,14 @@ class PathServer(SCIONElement):
 
     def __init__(self, server_id, topo_file, config_file):
         """
-        Constructor.
+        Initialize an instance of the class PathServer.
 
-        :param :
-        :type :
-        :param :
-        :type :
-        :param :
-        :type :
+        :param server_id:
+        :type server_id:
+        :param topo_file:
+        :type topo_file:
+        :param config_file:
+        :type config_file:
         """
         SCIONElement.__init__(self, "ps", topo_file, server_id=server_id,
                               config_file=config_file)

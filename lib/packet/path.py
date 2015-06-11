@@ -37,14 +37,7 @@ class PathBase(object):
     """
     def __init__(self):
         """
-        Initialize an instance of the class .
-
-        :param :
-        :type :
-        :param :
-        :type :
-        :param :
-        :type :
+        Initialize an instance of the class PathBase.
         """
         self.up_segment_info = None
         self.up_segment_hops = []
@@ -132,14 +125,10 @@ class CorePath(PathBase):
     """
     def __init__(self, raw=None):
         """
-        Initialize an instance of the class .
+        Initialize an instance of the class CorePath.
 
-        :param :
-        :type :
-        :param :
-        :type :
-        :param :
-        :type :
+        :param raw:
+        :type raw:
         """
         PathBase.__init__(self)
         self.core_segment_info = None
@@ -299,14 +288,10 @@ class CrossOverPath(PathBase):
 
     def __init__(self, raw=None):
         """
-        Initialize an instance of the class .
+        Initialize an instance of the class CrossOverPath.
 
-        :param :
-        :type :
-        :param :
-        :type :
-        :param :
-        :type :
+        :param raw:
+        :type raw:
         """
         PathBase.__init__(self)
         self.up_segment_upstream_ad = None
@@ -409,14 +394,10 @@ class PeerPath(PathBase):
 
     def __init__(self, raw=None):
         """
-        Initialize an instance of the class .
+        Initialize an instance of the class PeerPath.
 
-        :param :
-        :type :
-        :param :
-        :type :
-        :param :
-        :type :
+        :param raw:
+        :type raw:
         """
         PathBase.__init__(self)
         self.up_segment_peering_link = None
@@ -529,14 +510,10 @@ class EmptyPath(PathBase):
     """
     def __init__(self, raw=None):
         """
-        Initialize an instance of the class .
+        Initialize an instance of the class EmptyPath.
 
-        :param :
-        :type :
-        :param :
-        :type :
-        :param :
-        :type :
+        :param raw:
+        :type raw:
         """
         PathBase.__init__(self)
 
