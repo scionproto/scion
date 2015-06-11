@@ -16,6 +16,7 @@
 ============================================
 """
 
+import argparse
 import json
 import logging
 import networkx as nx
@@ -69,6 +70,8 @@ def parse(topo_file, ISD_NUM):
             nodes_count = int(values[2])
         if values[0] == "Edges:":
             edges_count = int(values[2])
+
+    # print(nx.minimum_edge_cut(original_graph))
 
     NUM_CORE_ADS = min(MAX_CORE_ADS, int(len(original_graph.nodes()) / 10))
     num_outedges = sorted(num_outedges, key=lambda tup: tup[1],
@@ -200,16 +203,36 @@ def main():
     """
     Main function
     """
-    if len(sys.argv) != 2:
+    if len(sys.argv) < 2:
         logging.error("run: %s brite_file", sys.argv[0])
         sys.exit()
 
-    brite_file = sys.argv[1]
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-a', action='append', dest='collection',
+                        default=[],
+                        help='Add a new isd',
+                        )
+    parser.add_argument('-dir', action='store_true', default=False,
+                        dest='from_directory',
+                        help='Convert all files in a directory into corresponding isd')
+    parser.add_argument('-s', action='store', dest='directory_name',
+                        help='Directory name')
+
+    results = parser.parse_args()
+    from_directory = results.from_directory
+    directory_name = results.directory_name
+
+    if from_directory:
+        if not os.path.isdir(directory_name):
+            logging.error(directory_name + " directory missing.")
+            sys.exit()
+        
+    brite_file = results.collection[0]
     if not os.path.isfile(brite_file):
         logging.error(brite_file + " file missing.")
         sys.exit()
 
-    scion_graph = parse(sys.argv[1], ISD_NUM=1)
+    scion_graph = parse(brite_file, ISD_NUM=1)
     json_convert(scion_graph)
 
 if __name__ == "__main__":
