@@ -81,10 +81,9 @@ class TestSCIONAddrParse(object):
         """
         Parsing a byte stream corresponding to a IPv4Address
         """
-        isd_bytes = bytes([0,1])
-        ad_bytes = bytes([0,0,0,0,0,0,0,10])
+        isd_ad_bytes = bytes([0,16,0,10])
         addr_bytes = bytes([10,1,1,1])
-        all_bytes = isd_bytes + ad_bytes + addr_bytes
+        all_bytes = isd_ad_bytes + addr_bytes
         addr_len = len(all_bytes)
 
         addr = SCIONAddr()
@@ -98,10 +97,9 @@ class TestSCIONAddrParse(object):
         """
         Parsing a byte stream corresponding to a IPv6Address
         """
-        isd_bytes = bytes([0,1])
-        ad_bytes = bytes([0,0,0,0,0,0,0,10])
+        isd_ad_bytes = bytes([0,16,0,10])
         addr_bytes = bytes([0,16,0,1,0,0,0,0,0,0,0,0,0,0,0,16])
-        all_bytes = isd_bytes + ad_bytes + addr_bytes
+        all_bytes = isd_ad_bytes + addr_bytes
         addr_len = len(all_bytes)
 
         addr = SCIONAddr()
@@ -131,7 +129,7 @@ class TestSCIONAddrParse(object):
         """ 
         addr = SCIONAddr()
         # Byte stream size chosen to be 11
-        addr.parse(bytes([0,0,0,0,0,0,0,0,0,10,0]))
+        addr.parse(bytes([0,0,0,10]))
         ntools.eq_(addr.isd_id, 0)
         ntools.eq_(addr.ad_id, 10)
         ntools.eq_(addr.host_addr, None)
@@ -151,10 +149,9 @@ class TestSCIONAddrPack(object):
         host_addr = IPv4Address("10.1.1.1")
         addr = SCIONAddr.from_values(isd_id, ad_id, host_addr)
 
-        isd_bytes = bytes([0,1])
-        ad_bytes = bytes([0,0,0,0,0,0,0,10])
+        isd_ad_bytes = bytes([0,16,0,10])
         addr_bytes = bytes([10,1,1,1])
-        ntools.eq_(addr.pack(), isd_bytes + ad_bytes + addr_bytes)
+        ntools.eq_(addr.pack(), isd_ad_bytes + addr_bytes)
 
     def test_ipv6(self):
         """
@@ -165,10 +162,9 @@ class TestSCIONAddrPack(object):
         host_addr = IPv6Address("10:1::10")
         addr = SCIONAddr.from_values(isd_id, ad_id, host_addr)
 
-        isd_bytes = bytes([0,1])
-        ad_bytes = bytes([0,0,0,0,0,0,0,10])
+        isd_ad_bytes = bytes([0,16,0,10])
         addr_bytes = bytes([0,16,0,1,0,0,0,0,0,0,0,0,0,0,0,16])
-        ntools.eq_(addr.pack(), isd_bytes + ad_bytes + addr_bytes)
+        ntools.eq_(addr.pack(), isd_ad_bytes + addr_bytes)
 
 
 if __name__ == "__main__":
