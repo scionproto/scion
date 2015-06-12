@@ -13,6 +13,9 @@ from topology.generator import ConfigGenerator, PORT
 
 
 def find_last_router(topo_dict):
+    """
+    Return a tuple: (index, router_dict)
+    """
     assert 'EdgeRouters' in topo_dict
     routers = topo_dict['EdgeRouters']
     if routers:
@@ -131,12 +134,15 @@ def link_ads(first_ad, second_ad, link_type):
     second_ad.fill_from_topology(new_second_topo, clear=True)
 
 
-def create_new_ad(parent_ad_topo, isd_id, ad_id, out_dir=None):
+def create_new_ad(parent_ad_topo, isd_id, ad_id, out_dir):
+    assert isinstance(parent_ad_topo, dict), 'Invalid topology dict'
     isd_ad_id = '{}-{}'.format(isd_id, ad_id)
     ad_dict = {isd_ad_id: {'level': 'LEAF'}}
     gen = ConfigGenerator(out_dir=out_dir)
 
     path_policy_file = os.path.join(TOPOLOGY_PATH, 'PathPolicy.json')
+
+    # Write basic config files for the new AD
     with tempfile.NamedTemporaryFile('w') as temp_fh:
         json.dump(ad_dict, temp_fh)
         temp_fh.flush()
@@ -147,6 +153,7 @@ def create_new_ad(parent_ad_topo, isd_id, ad_id, out_dir=None):
     new_topo = json.loads(new_topo_file)
     existing_topo, new_topo = link_topologies(gen, parent_ad_topo, new_topo,
                                               'PARENT_CHILD')
+    # Update the config files for the new AD
     write_file(new_topo_path, json.dumps(new_topo))
     gen.write_derivatives(new_topo)
     return new_topo, existing_topo

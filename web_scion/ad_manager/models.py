@@ -311,6 +311,7 @@ class PackageVersion(models.Model):
     name = models.CharField(max_length=50, null=False)
     date_created = models.DateTimeField(null=False)
     size = models.IntegerField(null=False)
+    # TODO change to FilePathField?
     filepath = models.CharField(max_length=400, null=False)
 
     @staticmethod
@@ -363,3 +364,8 @@ class ConnectionRequest(models.Model):
     status = models.CharField(max_length=20,
                               choices=zip(STATUS_OPTIONS, STATUS_OPTIONS),
                               default='NONE')
+    # TODO change to FilePathField?
+    package_path = models.CharField(max_length=1000, blank=True, null=True)
+
+    def is_approved(self):
+        return self.status == 'APPROVED'

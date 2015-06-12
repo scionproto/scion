@@ -23,6 +23,7 @@ from django.views.decorators.http import require_POST
 from django.views.generic import ListView, DetailView, FormView
 
 # SCION
+from guardian.shortcuts import assign_perm
 from ad_management.common import (
     get_failure_errors,
     get_success_data,
@@ -38,7 +39,7 @@ from ad_manager.forms import (
 )
 from ad_manager.models import AD, ISD, PackageVersion, ConnectionRequest
 from ad_manager.util import monitoring_client
-from ad_manager.util.ad_connect import create_new_ad, link_ads
+from ad_manager.util.ad_connect import create_new_ad, link_ads, find_last_router
 from ad_manager.util.errors import HttpResponseUnavailable
 from lib.defines import BEACON_SERVICE
 from lib.topology import Topology
@@ -436,24 +437,84 @@ class NewLinkView(FormView):
         return super().form_valid(form)
 
 
+def download_approved_package(request, req_id):
+    ad_request = get_object_or_404(ConnectionRequest, id=req_id)
+
+    if not ad_request.is_approved():
+        raise PermissionDenied('Request is not approved')
+
+    _check_user_permissions(request, ad_request.new_ad)
+    return _download_file_response(ad_request.package_path)
+
+
+def approve_request(ad, ad_request):
+    # TODO remove duplication: check connect_new_ad()
+
+    # Create the new AD
+    new_ad = AD.objects.create(isd=ad.isd)
+    parent_topo = ad.generate_topology_dict()
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        new_topo, parent_topo = create_new_ad(parent_topo,
+                                              new_ad.isd.id,
+                                              new_ad.id,
+                                              out_dir=temp_dir)
+
+        # Adjust router ips/ports
+        _, new_topo_router = find_last_router(new_topo)
+        new_topo_router['Addr'] = ad_request.router_ip
+
+        _, parent_topo_router = find_last_router(parent_topo)
+        parent_topo_router['Interface']['ToAddr'] = ad_request.router_ip
+
+        new_topo = Topology.from_dict(new_topo)
+        parent_topo = Topology.from_dict(parent_topo)
+
+        new_ad.fill_from_topology(new_topo, clear=True)
+        ad.fill_from_topology(parent_topo, clear=True)
+
+        # Resulting package will be stored here
+        package_dir = os.path.join(PACKAGE_DIR_PATH, 'AD' + str(new_ad))
+        if os.path.exists(package_dir):
+            rmtree(package_dir)
+        os.makedirs(package_dir)
+
+        config_dirs = [os.path.join(temp_dir, x) for x in os.listdir(temp_dir)]
+
+        # Prepare package
+        package_name = 'scion_package_AD{}-{}'.format(new_ad.isd, new_ad.id)
+        ad_request.package_path = prepare_package(out_dir=package_dir,
+                                                  config_paths=config_dirs,
+                                                  package_name=package_name)
+        ad_request.new_ad = new_ad
+        ad_request.status = 'APPROVED'
+
+        # Give permissions to the user
+        request_creator = ad_request.created_by
+        assign_perm('change_ad', request_creator, new_ad)
+
+
+@transaction.atomic
 @require_POST
-def request_action(request, pk, req_id):
+def request_action(request, req_id):
     """
     Approve or decline the sent connection request.
     """
     ad_request = get_object_or_404(ConnectionRequest, id=req_id)
+    ad = ad_request.connect_to
+    _check_user_permissions(request, ad)
 
     if '_approve_request' in request.POST:
-        new_status = 'APPROVED'
+        if not ad_request.is_approved():
+            approve_request(ad, ad_request)
     elif '_decline_request' in request.POST:
-        new_status = 'DECLINED'
+        ad_request.status = 'DECLINED'
     else:
         return HttpResponseNotFound('Action not found')
 
-    ad_request.status = new_status
     ad_request.save()
 
-    return redirect(reverse('ad_connection_requests', args=[pk]))
+    return redirect(reverse('ad_connection_requests', args=[ad.id]))
 
 
 @login_required

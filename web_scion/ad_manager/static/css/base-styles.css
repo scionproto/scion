@@ -48,9 +48,12 @@ h4.ad-label span.glyphicon {
     margin-left: 2px;
 }
 
-
-
-
 div.status-block > div {
     padding-right: 0;
+}
+
+/* Connection request form */
+a.download-package {
+    font-size: 24px;
+    margin-left: 4px;
 }

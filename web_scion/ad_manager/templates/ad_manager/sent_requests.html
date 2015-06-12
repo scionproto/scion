@@ -9,8 +9,9 @@
     <tr>
       <th class="col-md-1">AD</th>
       <th>Info</th>
-      <th class="col-md-2">Router IP</th>
+      <th class="col-md-2">Router</th>
       <th class="col-md-1">Status</th>
+      <th class="col-md-1">Actions</th>
     </tr>
     </thead>
 
@@ -21,6 +22,11 @@
         <td><pre>{{ request.info }}</pre></td>
         <td>{{ request.router_ip }}</td>
         <td>{{ request.status}}</td>
+        <td>
+          {% if request.is_approved %}
+            <a href="{% url 'download_request_package' request.id %}">Download</a>
+          {% endif %}
+        </td>
       </tr>
     {% empty %}
       <tr>
