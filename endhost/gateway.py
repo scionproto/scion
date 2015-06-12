@@ -49,7 +49,6 @@ class SCIONGateway(object):
     :vartype scion_hosts: dict
     :ivar _tun_dev: TUN device .
     :vartype _tun_dev: :class:`TunTapDevice`
-
     """
 
     def __init__(self, addr, topo_file, scion_hosts):

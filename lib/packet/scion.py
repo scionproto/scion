@@ -13,7 +13,7 @@
 # limitations under the License.
 """
 :mod:`scion` --- SCION packets
-===========================================
+==============================
 """
 # Stdlib
 import logging
@@ -81,6 +81,12 @@ class SCIONCommonHdr(HeaderBase):
     LEN = 8
 
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class SCIONCommonHdr.
+
+        :param raw:
+        :type raw:
+        """
         HeaderBase.__init__(self)
         self.version = 0  # Version of SCION packet.
         self.src_addr_len = 0  # Length of the src address.
@@ -155,6 +161,12 @@ class SCIONHeader(HeaderBase):
     MIN_LEN = 16  # Update when values are fixed.
 
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class SCIONHeader.
+
+        :param raw:
+        :type raw:
+        """
         HeaderBase.__init__(self)
         self.common_hdr = None
         self.src_addr = None
@@ -447,6 +459,12 @@ class SCIONPacket(PacketBase):
     MIN_LEN = 8
 
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class SCIONPacket.
+
+        :param raw:
+        :type raw:
+        """
         PacketBase.__init__(self)
         self.payload_len = 0
         if raw is not None:
@@ -515,6 +533,12 @@ class IFIDPacket(SCIONPacket):
     IFID packet.
     """
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class IFIDPacket.
+
+        :param raw:
+        :type raw:
+        """
         SCIONPacket.__init__(self)
         self.reply_id = 0  # Always 0 for initial request.
         self.request_id = None
@@ -571,8 +595,6 @@ class CertChainRequest(SCIONPacket):
 
         :param raw: packed packet.
         :type raw: bytes
-        :returns: the newly created CertChainRequest instance.
-        :rtype: :class:`CertChainRequest`
         """
         SCIONPacket.__init__(self)
         self.ingress_if = 0
@@ -658,8 +680,6 @@ class CertChainReply(SCIONPacket):
 
         :param raw: packed packet.
         :type raw: bytes
-        :returns: the newly created CertChainReply instance.
-        :rtype: :class:`CertChainReply`
         """
         SCIONPacket.__init__(self)
         self.isd_id = 0
@@ -732,8 +752,6 @@ class TRCRequest(SCIONPacket):
 
         :param raw: packed packet.
         :type raw: bytes
-        :returns: the newly created TRCRequest instance.
-        :rtype: :class:`TRCRequest`
         """
         SCIONPacket.__init__(self)
         self.ingress_if = 0
@@ -813,8 +831,6 @@ class TRCReply(SCIONPacket):
 
         :param raw: packed packet.
         :type raw: bytes
-        :returns: the newly created TRCReply instance.
-        :rtype: :class:`TRCReply`
         """
         SCIONPacket.__init__(self)
         self.isd_id = 0

@@ -39,7 +39,7 @@ def generate_signature_keypair():
 
 def generate_cryptobox_keypair():
     """
-    Generates a key pair for CryptoBox scheme. The CryptoBox scheme constructs
+    Generate a key pair for CryptoBox scheme. The CryptoBox scheme constructs
     public-key based encryption involving ECDH over Curve 25519, stream cipher
     xsalsa20, and message authentication code poly1305.
 
@@ -59,6 +59,7 @@ def sign(msg, signing_key):
     :type msg: bytes
     :param signing_key: signing key from generate_signature_keypair().
     :type signing_key: bytes
+
     :returns: ed25519 signature.
     :rtype: bytes
     """
@@ -75,6 +76,7 @@ def verify(msg, sig, verifying_key):
     :type sig: bytes
     :param verifying_key: verifying key from generate_signature_keypair().
     :type verifying_key: bytes
+
     :returns: True or False whether the verification succeeds or fails.
     :rtype: boolean
     """
@@ -87,23 +89,25 @@ def verify(msg, sig, verifying_key):
 
 def encrypt(msg, private_key, recipient, chain):
     """
-    Encrypts a message with CryptoBox scheme under a given private key and
+    Encrypt a message with CryptoBox scheme under a given private key and
     recipient's public key stored in certificate chain structure.
 
-    Args:
-        msg: Plaintext to be encrypted, as a bytes object.
-        private_key: Sender's private key from generate_cryptobox_keypair(), as
-        a base64 encoded string.
-        recipient: Recipient's subject, as a string.
-        chain: Certificate chain containing the recipient's certificate.
+    :param msg: Plaintext to be encrypted.
+    :type msg: string
+    :param private_key: Sender's private key from generate_cryptobox_keypair().
+    :type private_key: bytes
+    :param recipient: Recipient's subject.
+    :type recipient: string
+    :param chain: Certificate chain containing the recipient's certificate.
+    :type chain: :class:`CertificateChain`
+        
+    :returns: Protected ciphertext.
+    :rtype: bytes
 
-    Returns:
-        Protected ciphertext, as a base64-encoded string.
-
-    Raises:
-        ValueError: An error occurred when private key is NULL or msg is NULL.
-        LookupError: An error occurred when recipient's public key has not been
-        found in certificate chain.
+    .. Raises:
+       ValueError: An error occurred when private key is NULL or msg is NULL.
+       LookupError: An error occurred when recipient's public key has not been
+       found in certificate chain.
     """
     if private_key is None:
         raise ValueError('Private key is NULL.')
@@ -124,23 +128,26 @@ def encrypt(msg, private_key, recipient, chain):
 
 def decrypt(cipher, private_key, sender, chain):
     """
-    Decrypts a ciphertext with CryptoBox scheme under a given private key and
+    Decrypt a ciphertext with CryptoBox scheme under a given private key and
     sender's public key stored in certificate chain structure.
 
-    Args:
-        cipher: Plaintext to be encrypted, as a base64-encoded string.
-        private_key: Recipient's private key from generate_cryptobox_keypair(),
-        as a base64 encoded string.
-        sender: Sender's subject, as a string.
-        chain: Certificate chain containing the sender's certificate.
+    :param cipher: Ciphertext to be decrypted.
+    :type cipher: string
+    :param private_key: Recipient's private key from
+                        generate_cryptobox_keypair().
+    :type private_key: bytes
+    :param sender: Sender's subject.
+    :type sender: string
+    :param chain: Certificate chain containing the sender's certificate.
+    :type chain: :class:`CertificateChain`
+        
+    :returns: Decrypted result.
+    :rtype: bytes
 
-    Returns:
-        Decrypted result, as a bytes object.
-
-    Raises:
-        ValueError: An error occurred when private key is NULL or msg is NULL.
-        LookupError: An error occurred when sender's public key has not been
-        found in certificate chain.
+    .. Raises:
+       ValueError: An error occurred when private key is NULL or msg is NULL.
+       LookupError: An error occurred when sender's public key has not been
+       found in certificate chain.
     """
     if cipher is None:
         raise ValueError("Ciphertext is NULL.")
