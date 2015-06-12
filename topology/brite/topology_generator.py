@@ -58,7 +58,7 @@ def parse(brite_files):
     assert NUM_ISDS == len(brite_files)
     print("Number of ISD's is {}".format(NUM_ISDS))
 
-    core_ad_model_graph = nx.cycle_graph(NUM_ISDS)
+    core_ad_model_graph = nx.complete_graph(NUM_ISDS)
     # Core AD connections: Connecting each core AD in an ISD with
     # every other Core AD in a cycle fashion
     for src_isd_id in range(MIN_ISD_NUM, NUM_ISDS + 1):
