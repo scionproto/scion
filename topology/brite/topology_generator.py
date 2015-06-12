@@ -31,6 +31,26 @@ MAX_CORE_ADS = 7
 MIN_ISD_NUM = 1
 
 
+def read_from_dir(dir_name):
+    """
+    Read all brite files from a directory 
+
+    :param dir_name: The directory in which files are to be converted
+    :type dir_name: str
+    :returns: list of files in the directory
+    :rtype: list
+    """
+    if not os.path.isdir(dir_name):
+        logging.error(dir_name + " directory missing.")
+        sys.exit()
+
+    list_files = [f for f in os.listdir(dir_name)
+                  if os.path.isfile(os.path.join(dir_name,f))]
+    if len(list_files) == 0:
+        logging.error("No files in " + dir_name + ".")
+        sys.exit()
+    return list_files
+
 def parse(brite_files):
     """
     Parse a list of topology files each into a seperate ISD
@@ -84,9 +104,8 @@ def _parse(topo_file, ISD_NUM):
     :type topo_file: str
     :param ISD_NUM: ISD Number of the graph to be generated 
     :type ISD_NUM: int
-    :returns: the newly created Graph.
-    TODO
-    :rtype: :class:`networkx.DiGraph`
+    :returns: the newly created Graph alonmg with list of core ad nodes
+    :rtype: (`networkx.DiGraph`, list)
     """
     fd = open(topo_file, 'r')
     nodes_count = 0
@@ -256,26 +275,17 @@ def main():
         sys.exit()
 
     parser = argparse.ArgumentParser(description='SCION Topology generator')
-    parser.add_argument('-a', action='append', dest='collection',
-                        default=[],
-                        help='Add a new isd',
-                        )
-    # parser.add_argument('-dir', action='store_true', default=False,
-    #                     dest='from_directory',
-    #                     help='Convert all files in a directory into corresponding isd')
-    # parser.add_argument('-s', action='store', dest='directory_name',
-    #                     help='Directory name')
-
+    parser.add_argument('-d', '--dir', action='store', default=None,
+                        dest='from_directory',
+                        help='Convert all files in a specified directory \
+                        into corresponding isd')
+    parser.add_argument('-f', '--files', action='store', dest='collection', nargs='+',
+                        help="Convert specified files into respective isd's")
     results = parser.parse_args()
-    print(results.collection)
-    # from_directory = results.from_directory
-    # directory_name = results.directory_name
-
-    # if from_directory:
-    #     if not os.path.isdir(directory_name):
-    #         logging.error(directory_name + " directory missing.")
-    #         sys.exit()
-    brite_files = results.collection
+    if results.from_directory != None:
+        brite_files = read_from_dir(results.from_directory)
+    else:
+        brite_files = results.collection
     scion_graph = parse(brite_files)
     json_convert(scion_graph)
 
