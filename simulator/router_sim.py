@@ -42,7 +42,7 @@ class RouterSim(Router):
         """
         Send *packet* to *dst* (to port *dst_port*).
         """
-        logging.info("Sending packet to %s", next_hop)
+        logging.info("Sending packet to %s from %s", next_hop, self.addr.host_addr)
         self.handle_extensions(packet, next_hop, False)
         if use_local_socket:
             # SCIONElement.send(self, packet, next_hop.addr, next_hop.port)
