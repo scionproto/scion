@@ -28,9 +28,55 @@ from collections import deque
 DEFAULT_ADCONFIGURATIONS_FILE = 'ADConfigurations.json'
 ISD_AD_ID_DIVISOR = '-'
 MAX_CORE_ADS = 7
+MIN_ISD_NUM = 1
 
 
-def parse(topo_file, ISD_NUM):
+def parse(brite_files):
+    """
+    Parse a list of topology files each into a seperate ISD
+
+    :param brite_files: list of brite output files to be converted
+    :type brite_files: list
+    """
+    ISD_dict = dict()
+    core_ad_dict = dict()
+    ISD_number = MIN_ISD_NUM
+    final_graph = nx.DiGraph()
+    core_ads = list()
+    for brite_file in brite_files:
+        if not os.path.isfile(brite_file):
+            logging.error(brite_file + " file missing.")
+            sys.exit()
+        result = _parse(brite_file, ISD_number)
+        ISD_dict[ISD_number] = result[0]
+        core_ad_dict[ISD_number] = result[1]
+        core_ads += core_ad_dict[ISD_number]
+        final_graph = nx.union(final_graph, ISD_dict[ISD_number])
+        ISD_number += 1
+
+    NUM_ISDS = ISD_number - 1
+    assert NUM_ISDS == len(brite_files)
+    print("Number of ISD's is {}".format(NUM_ISDS))
+
+    core_ad_model_graph = nx.cycle_graph(NUM_ISDS)
+    # Core AD connections: Connecting each core AD in an ISD with
+    # every other Core AD in a cycle fashion
+    for src_isd_id in range(MIN_ISD_NUM, NUM_ISDS + 1):
+        for dest_isd_id in range(MIN_ISD_NUM, NUM_ISDS + 1):
+            src_core_ads = core_ad_dict[src_isd_id]
+            dest_core_ads = core_ad_dict[dest_isd_id]
+            if core_ad_model_graph[src_isd_id - 1].get(dest_isd_id - 1) == None:
+                continue
+            for src_ad in src_core_ads:
+                for dest_ad in dest_core_ads:
+                    final_graph.add_edge(src_ad, dest_ad,
+                                         label='ROUTING', color='red')
+    # core_ad_graph = final_graph.subgraph(core_ads)
+    # print(core_ad_graph.nodes(), core_ad_graph.edges())
+    assert nx.is_connected(final_graph.to_undirected())
+    return final_graph
+
+def _parse(topo_file, ISD_NUM):
     """
     Parses the topo_file into a SCION ISD numbered - ISD_NUM 
 
@@ -39,6 +85,7 @@ def parse(topo_file, ISD_NUM):
     :param ISD_NUM: ISD Number of the graph to be generated 
     :type ISD_NUM: int
     :returns: the newly created Graph.
+    TODO
     :rtype: :class:`networkx.DiGraph`
     """
     fd = open(topo_file, 'r')
@@ -103,8 +150,6 @@ def parse(topo_file, ISD_NUM):
         core_ads = core_ads + neighbor_nodes[:num_extra_nodes]
         core_ad_graph = original_graph.subgraph(core_ads)
 
-    print("Core AD's are:")
-    print(core_ad_graph.nodes())
     final_graph = nx.DiGraph()
     for core_ad in core_ads:
         original_graph.node[core_ad]['color'] = 'red'
@@ -152,14 +197,17 @@ def parse(topo_file, ISD_NUM):
 
     assert len(original_graph.nodes()) == len(final_graph.nodes())
     assert 2*len(original_graph.edges()) == len(final_graph.edges())
-    print("Number of AS's in graph generated is", len(original_graph.nodes()))
+
+    print("ISD {} has {} AS's".format(ISD_NUM, len(original_graph.nodes())))
+    print("Core AD's are:")
+    print(core_ad_graph.nodes())
     # convert to a graphviz agraph(NOTE: requires pygraphviz)
     if False:
         A = nx.to_agraph(final_graph)
         A.layout(prog='dot')
         img_file = topo_file.split('.')[0] + ".png"
         A.draw(img_file)
-    return final_graph
+    return(final_graph, core_ad_graph.nodes())
 
 def json_convert(graph):
     """
@@ -204,35 +252,31 @@ def main():
     Main function
     """
     if len(sys.argv) < 2:
-        logging.error("run: %s brite_file", sys.argv[0])
+        logging.error("run: %s -h", sys.argv[0])
         sys.exit()
 
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description='SCION Topology generator')
     parser.add_argument('-a', action='append', dest='collection',
                         default=[],
                         help='Add a new isd',
                         )
-    parser.add_argument('-dir', action='store_true', default=False,
-                        dest='from_directory',
-                        help='Convert all files in a directory into corresponding isd')
-    parser.add_argument('-s', action='store', dest='directory_name',
-                        help='Directory name')
+    # parser.add_argument('-dir', action='store_true', default=False,
+    #                     dest='from_directory',
+    #                     help='Convert all files in a directory into corresponding isd')
+    # parser.add_argument('-s', action='store', dest='directory_name',
+    #                     help='Directory name')
 
     results = parser.parse_args()
-    from_directory = results.from_directory
-    directory_name = results.directory_name
+    print(results.collection)
+    # from_directory = results.from_directory
+    # directory_name = results.directory_name
 
-    if from_directory:
-        if not os.path.isdir(directory_name):
-            logging.error(directory_name + " directory missing.")
-            sys.exit()
-        
-    brite_file = results.collection[0]
-    if not os.path.isfile(brite_file):
-        logging.error(brite_file + " file missing.")
-        sys.exit()
-
-    scion_graph = parse(brite_file, ISD_NUM=1)
+    # if from_directory:
+    #     if not os.path.isdir(directory_name):
+    #         logging.error(directory_name + " directory missing.")
+    #         sys.exit()
+    brite_files = results.collection
+    scion_graph = parse(brite_files)
     json_convert(scion_graph)
 
 if __name__ == "__main__":
