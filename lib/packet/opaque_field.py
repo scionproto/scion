@@ -45,6 +45,9 @@ class OpaqueField(object):
     LEN = 8
 
     def __init__(self):
+        """
+        Initialize an instance of the class OpaqueField.
+        """
         self.info = 0  # TODO verify path.PathType in that context
         self.type = 0
         self.parsed = False
@@ -108,6 +111,12 @@ class HopOpaqueField(OpaqueField):
     MAC_LEN = 3  # MAC length in bytes.
 
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class HopOpaqueField.
+
+        :param raw:
+        :type raw:
+        """
         OpaqueField.__init__(self)
         self.exp_time = 0
         self.ingress_if = 0
@@ -189,6 +198,12 @@ class InfoOpaqueField(OpaqueField):
     """
 
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class InfoOpaqueField.
+
+        :param raw:
+        :type raw:
+        """
         OpaqueField.__init__(self)
         self.timestamp = 0
         self.isd_id = 0
@@ -269,6 +284,12 @@ class TRCField(OpaqueField):
     and a reserved section (1 byte).
     """
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class TRCField.
+
+        :param raw:
+        :type raw:
+        """
         OpaqueField.__init__(self)
         self.info = OpaqueFieldType.TRC_OF
         self.trc_version = 0

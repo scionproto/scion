@@ -42,11 +42,35 @@ SCIOND_API_PORT = 3333
 class SCIONDaemon(SCIONElement):
     """
     The SCION Daemon used for retrieving and combining paths.
-    """
 
+    :cvar TIMEOUT:
+    :type TIMEOUT:
+    :ivar up_segments:
+    :type up_segments:
+    :ivar down_segments:
+    :type down_segments:
+    :ivar core_segments:
+    :type core_segments:
+    :ivar _waiting_targets:
+    :type _waiting_targets:
+    :ivar _api_socket:
+    :type _api_socket:
+    :ivar _sockets:
+    :type _sockets:
+    """
     TIMEOUT = 5
 
     def __init__(self, addr, topo_file, run_local_api=False):
+        """
+        Initialize an instance of the class SCIONDaemon.
+
+        :param addr:
+        :type addr:
+        :param topo_file:
+        :type topo_file:
+        :param run_local_api:
+        :type run_local_api:
+        """
         SCIONElement.__init__(self, "sciond", topo_file, host_addr=addr)
         # TODO replace by pathstore instance
         self.up_segments = PathSegmentDB()
@@ -73,7 +97,13 @@ class SCIONDaemon(SCIONElement):
         Example of usage:
         sd = SCIONDaemon.start(addr, topo_file)
         paths = sd.get_paths(isd_id, ad_id)
-        ...
+        
+        :param :
+        :type :
+        :param :
+        :type :
+        :param :
+        :type :
         """
         sd = cls(addr, topo_file, run_local_api)
         t = threading.Thread(target=sd.run)
@@ -83,17 +113,26 @@ class SCIONDaemon(SCIONElement):
 
     def _request_paths(self, ptype, dst_isd, dst_ad, src_isd=None, src_ad=None):
         """
-        Sends path request with certain type for (isd, ad).
+        Send a path request of a certain type for an (isd, ad).
+
+        :param ptype:
+        :type ptype:
+        :param dst_isd: destination ISD identifier.
+        :type dst_isd: int
+        :param dst_ad: destination AD identifier.
+        :type dst_ad: int
+        :param src_isd: source ISD identifier.
+        :type src_isd: int
+        :param src_ad: source AD identifier.
+        :type src_ad: int
         """
         if src_isd is None:
             src_isd = self.topology.isd_id
         if src_ad is None:
             src_ad = self.topology.ad_id
-
         # Create an event that we can wait on for the path reply.
         event = threading.Event()
         update_dict(self._waiting_targets[ptype], (dst_isd, dst_ad), [event])
-
         # Create and send out path request.
         info = PathSegmentInfo.from_values(ptype, src_isd, dst_isd,
                                            src_ad, dst_ad)
@@ -102,7 +141,6 @@ class SCIONDaemon(SCIONElement):
                                                   ISD_AD(src_isd, src_ad))
         dst = self.topology.path_servers[0].addr
         self.send(path_request, dst)
-
         # Wait for path reply and clear us from the waiting list when we got it.
         cycle_cnt = 0
         while cycle_cnt < WAIT_CYCLES:
@@ -124,7 +162,12 @@ class SCIONDaemon(SCIONElement):
 
     def get_paths(self, dst_isd, dst_ad):
         """
-        Returns a list of paths.
+        Return a list of paths.
+
+        :param dst_isd: ISD identifier.
+        :type dst_isd: int
+        :param dst_ad: AD identifier.
+        :type dst_ad: int
         """
         full_paths = []
         down_segments = self.down_segments(dst_isd=dst_isd, dst_ad=dst_ad)
@@ -158,23 +201,23 @@ class SCIONDaemon(SCIONElement):
                                                        src_ad=src_core_ad,
                                                        dst_isd=dst_isd,
                                                        dst_ad=dst_core_ad)
-
                 full_paths = PathCombinator.build_core_paths(
                     self.up_segments()[0],
                     down_segments[0],
                     core_segments)
-
         return full_paths
 
     def handle_path_reply(self, path_reply):
         """
-        Handles path reply from local path server.
+        Handle path reply from local path server.
+
+        :param path_reply:
+        :type path_reply:
         """
         info = path_reply.info
         for pcb in path_reply.pcbs:
             isd = pcb.get_isd()
             ad = pcb.get_last_pcbm().ad_id
-
             if ((self.topology.isd_id != isd or self.topology.ad_id != ad)
                     and info.type in [PST.DOWN, PST.UP_DOWN]
                     and info.dst_isd == isd and info.dst_ad == ad):
@@ -198,7 +241,6 @@ class SCIONDaemon(SCIONElement):
                              info.dst_ad)
             else:
                 logging.warning("Incorrect path in Path Record")
-
         # Wake up sleeping get_paths().
         if (info.dst_isd, info.dst_ad) in self._waiting_targets[info.type]:
             for event in self._waiting_targets[info.type][(info.dst_isd,
@@ -212,6 +254,11 @@ class SCIONDaemon(SCIONElement):
         Reply:
           |path1_len(1B)|path1(path1_len*8B)|first_hop_IP(4B)|path2_len(1B)...
          or b"" when no path found. Only IPv4 supported currently.
+
+        :param packet:
+        :type packet:
+        :param sender:
+        :type sender:
         """
         # TODO sanity checks
         isd = struct.unpack("H", packet[1:3])[0]
@@ -228,7 +275,12 @@ class SCIONDaemon(SCIONElement):
 
     def api_handle_request(self, packet, sender):
         """
-        Handles local API's requests.
+        Handle local API's requests.
+
+        :param packet:
+        :type packet:
+        :param sender:
+        :type sender:
         """
         if packet[0] == 0:  # path request
             logging.info('API: path request from %s.', sender)
@@ -243,6 +295,13 @@ class SCIONDaemon(SCIONElement):
         # about changing local_socket to ad_socket
         """
         Main routine to handle incoming SCION packets.
+
+        :param packet:
+        :type packet:
+        :param sender:
+        :type sender:
+        :param from_local_socket:
+        :type from_local_socket:
         """
         if from_local_socket:  # From PS or CS.
             pkt = PathMgmtPacket(packet)

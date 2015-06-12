@@ -44,9 +44,24 @@ class ISD_AD(namedtuple('ISD_AD', 'isd ad')):
 class SCIONAddr(object):
     """
     Class for complete SCION addresses.
+
+    :ivar isd_id: ISD identifier.
+    :type isd_id: int
+    :ivar ad_id: AD identifier.
+    :type ad_id: int
+    :ivar host_addr: host address.
+    :type host_addr: string
+    :ivar addr_len: address length.
+    :type addr_len: int
     """
 
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class SCIONAddr.
+
+        :param raw: raw bytes.
+        :type raw: bytes
+        """
         self.isd_id = None
         self.ad_id = None
         self.host_addr = None
@@ -56,6 +71,19 @@ class SCIONAddr(object):
 
     @classmethod
     def from_values(cls, isd_id, ad_id, host_addr):
+        """
+        Create an instance of the class SCIONAddr.
+
+        :param isd_id: ISD identifier.
+        :type isd_id: int
+        :param ad_id: AD identifier.
+        :type ad_id: int
+        :param host_addr: host IP addresses.
+        :type host_addr: string
+
+        :returns: SCION address.
+        :rtype: :class:`SCIONAddr`
+        """
         addr = SCIONAddr()
         addr.isd_id = isd_id
         addr.ad_id = ad_id
@@ -68,6 +96,12 @@ class SCIONAddr(object):
         return addr
 
     def parse(self, raw):
+        """
+        Parse a raw byte string.
+
+        :param raw: raw bytes.
+        :type raw: bytes
+        """
         assert isinstance(raw, bytes)
         addr_len = len(raw)
         if addr_len < ISD_AD.LEN:
@@ -87,10 +121,25 @@ class SCIONAddr(object):
         self.addr_len = ISD_AD.LEN + host_addr_len
 
     def pack(self):
+        """
+        Pack the class variables into a byte string.
+
+        :returns: a byte string containing ISD ID, AD ID, and host address.
+        :rtype: bytes
+        """
         return ISD_AD(self.isd_id, self.ad_id).pack() + self.host_addr.packed
 
     def __str__(self):
+        """
+        Return a string containing ISD ID, AD ID, and host address.
+        """
         return "(%u, %u, %s)" % (self.isd_id, self.ad_id, self.host_addr)
 
     def get_isd_ad(self):
+        """
+        Return a tuple containing ISD ID and AD ID.
+
+        :returns: a tuple containing ISD ID and AD ID.
+        :rtype: tuple
+        """
         return ISD_AD(self.isd_id, self.ad_id)

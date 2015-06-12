@@ -53,6 +53,7 @@ class TestCertificates(object):
     """
     Unit tests for certificate.py and asymcrypto.py.
     """
+    
     def test(self):
         """
         Create a certificate chain and verify it with a TRC file. Sign a message

@@ -32,8 +32,18 @@ class _StreamErrorHandler(logging.StreamHandler):
     don't know if that's working at all. If it is (e.g. when the exception is a
     formatting error), when we re-raise the exception, it'll get handled by the
     normal process.
+
+    :ivar stream:
+    :type stream:
     """
+
     def handleError(self, record):
+        """
+
+
+        :param record:
+        :type record:
+        """
         self.stream.write("Exception in logging module:\n")
         for line in traceback.format_exc().split("\n"):
             self.stream.write(line+"\n")
@@ -44,6 +54,9 @@ class _StreamErrorHandler(logging.StreamHandler):
 def init_logging(level=logging.DEBUG):
     """
     Configure logging for components (servers, routers, gateways).
+
+    :param level:
+    :type level:
     """
     logging.basicConfig(level=level,
                         handlers=[_StreamErrorHandler()],
@@ -53,7 +66,16 @@ def init_logging(level=logging.DEBUG):
 
 def log_exception(msg, *args, level=logging.CRITICAL, **kwargs):
     """
-    Properly format an exception before logging
+    Properly format an exception before logging.
+
+    :param msg:
+    :type msg:
+    :param args:
+    :type args:
+    :param level:
+    :type level:
+    :param kwargs:
+    :type kwargs:
     """
     logging.log(level, msg, *args, **kwargs)
     for line in traceback.format_exc().split("\n"):

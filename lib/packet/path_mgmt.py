@@ -66,6 +66,12 @@ class PathSegmentInfo(PayloadBase):
     LEN = 21
 
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class PathSegmentInfo.
+
+        :param raw:
+        :type raw:
+        """
         PayloadBase.__init__(self)
         self.type = 0
         self.src_isd = 0
@@ -117,6 +123,12 @@ class PathSegmentRecords(PayloadBase):
     determined through info field (object of PathSegmentInfo).
     """
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class PathSegmentRecords.
+
+        :param raw:
+        :type raw:
+        """
         PayloadBase.__init__(self)
         self.info = None
         self.pcbs = None
@@ -154,6 +166,12 @@ class LeaseInfo(PayloadBase):
     LEN = 1 + 2 + 2 + 4 + 32
 
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class LeaseInfo.
+
+        :param raw:
+        :type raw:
+        """
         PayloadBase.__init__(self)
         self.seg_type = PathSegmentType.DOWN
         self.isd_id = 0
@@ -213,6 +231,12 @@ class PathSegmentLeases(PayloadBase):
     """
 
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class PathSegmentLeases.
+
+        :param raw:
+        :type raw:
+        """
         PayloadBase.__init__(self)
         self.nleases = 0  # The number of leases contained in this packet.
         self.leases = []  # List of leases. Tuples (TS, ID)
@@ -268,6 +292,12 @@ class RevocationInfo(PayloadBase):
     MAX_LEN = 1 + 5 * 32
 
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class RevocationInfo.
+
+        :param raw:
+        :type raw:
+        """
         PayloadBase.__init__(self)
         self.rev_type = RevocationType.DOWN_SEGMENT
         self.incl_seg_id = False
@@ -365,6 +395,12 @@ class RevocationPayload(PayloadBase):
     Payload for revocation messages. List of RevocationInfo objects.
     """
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class RevocationPayload.
+
+        :param raw:
+        :type raw:
+        """
         PayloadBase.__init__(self)
         self.rev_infos = []
 
@@ -415,6 +451,12 @@ class PathMgmtPacket(SCIONPacket):
     Container for all path management packets.
     """
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class PathMgmtPacket.
+
+        :param raw:
+        :type raw:
+        """
         SCIONPacket.__init__(self)
         self.type = 0
 
