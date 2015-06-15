@@ -43,20 +43,25 @@ def read_from_dir(dir_name):
     if not os.path.isdir(dir_name):
         logging.error(dir_name + " directory missing.")
         sys.exit()
-
+    # All files in the directory will be read
     list_files = [f for f in os.listdir(dir_name)
                   if os.path.isfile(os.path.join(dir_name,f))]
     if len(list_files) == 0:
         logging.error("No files in " + dir_name + ".")
         sys.exit()
+    # Ordering the files w.r.t their name
+    list_files = sorted(list_files)
     return list_files
 
 def parse(brite_files):
     """
-    Parse a list of topology files each into a seperate ISD
+    1. Parse a list of topology files each into a seperate ISD
+    2. All the core AD's in ISD's are interconnected using some model topology
 
     :param brite_files: list of brite output files to be converted
     :type brite_files: list
+    :returns: the newly created SCION Graph.
+    :rtype: :class:`networkx.DiGraph`
     """
     ISD_dict = dict()
     core_ad_dict = dict()
@@ -78,9 +83,9 @@ def parse(brite_files):
     assert NUM_ISDS == len(brite_files)
     print("Number of ISD's is {}".format(NUM_ISDS))
 
-    core_ad_model_graph = nx.complete_graph(NUM_ISDS)
+    core_ad_model_graph = nx.cycle_graph(NUM_ISDS)
     # Core AD connections: Connecting each core AD in an ISD with
-    # every other Core AD in a cycle fashion
+    # every other Core AD according to the model graph
     for src_isd_id in range(MIN_ISD_NUM, NUM_ISDS + 1):
         for dest_isd_id in range(MIN_ISD_NUM, NUM_ISDS + 1):
             src_core_ads = core_ad_dict[src_isd_id]
@@ -91,20 +96,18 @@ def parse(brite_files):
                 for dest_ad in dest_core_ads:
                     final_graph.add_edge(src_ad, dest_ad,
                                          label='ROUTING', color='red')
-    # core_ad_graph = final_graph.subgraph(core_ads)
-    # print(core_ad_graph.nodes(), core_ad_graph.edges())
     assert nx.is_connected(final_graph.to_undirected())
     return final_graph
 
 def _parse(topo_file, ISD_NUM):
     """
-    Parses the topo_file into a SCION ISD numbered - ISD_NUM 
+    Parses a topo_file into a SCION ISD numbered - ISD_NUM 
 
     :param topo_file: A brite output file to be converted
     :type topo_file: str
     :param ISD_NUM: ISD Number of the graph to be generated 
     :type ISD_NUM: int
-    :returns: the newly created Graph alonmg with list of core ad nodes
+    :returns: the created Graph along with a list of core ad nodes
     :rtype: (`networkx.DiGraph`, list)
     """
     fd = open(topo_file, 'r')
@@ -136,8 +139,6 @@ def _parse(topo_file, ISD_NUM):
             nodes_count = int(values[2])
         if values[0] == "Edges:":
             edges_count = int(values[2])
-
-    # print(nx.minimum_edge_cut(original_graph))
 
     NUM_CORE_ADS = min(MAX_CORE_ADS, int(len(original_graph.nodes()) / 10))
     num_outedges = sorted(num_outedges, key=lambda tup: tup[1],
@@ -279,7 +280,8 @@ def main():
                         dest='from_directory',
                         help='Convert all files in a specified directory \
                         into corresponding isd')
-    parser.add_argument('-f', '--files', action='store', dest='collection', nargs='+',
+    parser.add_argument('-f', '--files', action='store', dest='collection', 
+                        nargs='+',
                         help="Convert specified files into respective isd's")
     results = parser.parse_args()
     if results.from_directory != None:
