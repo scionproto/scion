@@ -1,4 +1,5 @@
 {% extends "ad_manager/base.html" %}
+{% load bootstrap3 %}
 
 {% block content %}
   {% with object=ad %}
@@ -9,7 +10,7 @@
   <br />
   <form action="" method="POST">
     {% csrf_token %}
-    {{ form.as_p }}
-    <input type="submit" value="Send message" />
+    {% bootstrap_form form %}
+    <input class="btn btn-info" type="submit" value="Create link" />
   </form>
 {% endblock %}

@@ -20,7 +20,7 @@
       <tr>
         <td><a href="{{ request.connect_to.get_absolute_url }}">{{ request.connect_to }}</a></td>
         <td><pre>{{ request.info }}</pre></td>
-        <td>{{ request.router_ip }}</td>
+        <td>{{ request.router_ip }} : {{ request.router_port }}</td>
         <td>{{ request.status}}</td>
         <td>
           {% if request.is_approved %}

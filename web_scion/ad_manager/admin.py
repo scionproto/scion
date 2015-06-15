@@ -80,7 +80,6 @@ class SortRelatedAdmin(PrivilegedChangeAdmin):
                 CertificateServerWeb,
                 PathServerWeb,
                 DnsServerWeb,
-                RouterWeb,
                 site=admin_site)
 class ServerAdmin(PrivilegedChangeAdmin):
     privileged_fields = ('ad',)
@@ -90,11 +89,19 @@ class ServerAdmin(PrivilegedChangeAdmin):
     def ad_link(self, obj):
         link = reverse('admin:{}_ad_change'.format(self.opts.app_label),
                        args=[obj.ad.id])
-        return '<a href="{}">Change AD</a>'.format(link)
+        return '<a href="{}">Edit AD</a>'.format(link)
     ad_link.allow_tags = True
     # FIXME hack. How to remove this completely?
     ad_link.short_description = ':'
 
+@admin.register(RouterWeb, site=admin_site)
+class RouterAdmin(ServerAdmin):
+
+    def get_fields(self, request, obj=None):
+        fields = super().get_fields(request, obj)
+        fields += (('interface_addr', 'interface_port'),
+                   ('interface_toaddr', 'interface_toport'))
+        return fields
 
 # Misc admin models
 admin_site.register(ConnectionRequest)

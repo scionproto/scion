@@ -462,7 +462,7 @@ def approve_request(ad, ad_request):
 
         # Adjust router ips/ports
         _, new_topo_router = find_last_router(new_topo)
-        new_topo_router['Addr'] = ad_request.router_ip
+        new_topo_router['Interface']['Addr'] = ad_request.router_ip
 
         _, parent_topo_router = find_last_router(parent_topo)
         parent_topo_router['Interface']['ToAddr'] = ad_request.router_ip

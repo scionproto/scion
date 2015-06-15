@@ -279,6 +279,8 @@ class RouterWeb(SCIONWebElement):
     interface_addr = models.GenericIPAddressField()
     interface_toaddr = models.GenericIPAddressField()
     interface_id = models.IntegerField()
+    interface_port = models.IntegerField(default=int(PORT))
+    interface_toport = models.IntegerField(default=int(PORT))
 
     def id_str(self):
         return "er{}-{}er{}-{}".format(self.ad.isd_id, self.ad_id,
@@ -287,18 +289,15 @@ class RouterWeb(SCIONWebElement):
 
     def get_dict(self):
         out_dict = super(RouterWeb, self).get_dict()
-        port = int(PORT)
-        # FIXME(rev112)
-        if_id = int(self.neighbor_ad.id)
         out_dict['Interface'] = {'NeighborType': self.neighbor_type,
                                  'NeighborISD': int(self.neighbor_ad.isd_id),
                                  'NeighborAD': int(self.neighbor_ad.id),
                                  'Addr': str(self.interface_addr),
                                  'AddrType': 'IPv4',
                                  'ToAddr': str(self.interface_toaddr),
-                                 'UdpPort': port,
-                                 'ToUdpPort': port,
-                                 'IFID': if_id,
+                                 'UdpPort': self.interface_port,
+                                 'ToUdpPort': self.interface_toport,
+                                 'IFID': self.interface_id,
                                  }
         return out_dict
 
@@ -361,6 +360,7 @@ class ConnectionRequest(models.Model):
     new_ad = models.ForeignKey(AD, blank=True, null=True)
     info = models.TextField()
     router_ip = models.GenericIPAddressField()
+    router_port = models.IntegerField(default=int(PORT))
     status = models.CharField(max_length=20,
                               choices=zip(STATUS_OPTIONS, STATUS_OPTIONS),
                               default='NONE')
