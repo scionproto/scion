@@ -59,7 +59,7 @@ class TestOpaqueFieldIsRegular(object):
 
     def test_set(self):
         op_fld = OpaqueField()
-        op_fld.info = 0b01000000 
+        op_fld.info = 0b01000000
         ntools.assert_false(op_fld.is_regular())
 
 
@@ -232,7 +232,7 @@ class TestInfoOpaqueFieldFromValues(object):
         ntools.eq_(inf_op_fld.timestamp, 0)
         ntools.eq_(inf_op_fld.isd_id, 0)
         ntools.eq_(inf_op_fld.hops, 0)
-        ntools.assert_false(inf_op_fld.up_flag)               
+        ntools.assert_false(inf_op_fld.up_flag)
 
 
 class TestInfoOpaqueFieldPack(object):
