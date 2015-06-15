@@ -154,13 +154,24 @@ class TestPacketBaseEq(object):
     """
     Unit tests for lib.packet.packet_base.PacketBase.__eq__
     """
-    def test_basic(self):
+    def test_eq(self):
+        """
+        Tests comparison with object of same type
+        """
         packet_base1 = PacketBase()
         packet_base2 = PacketBase()
         raw = "rawstring"
         packet_base1.raw = raw
         packet_base2.raw = raw
         ntools.eq_(packet_base1, packet_base2)
+
+    def test_neq(self):
+        """
+        Tests comparison with an object not of the same type
+        """
+        packet_base1 = PacketBase()
+        packet_base2 = b'test'
+        ntools.assert_not_equals(packet_base1, packet_base2)
 
 
 class TestPayloadBaseInit(object):
@@ -222,9 +233,9 @@ class TestPayloadBaseEq(object):
     """
     Unit tests for lib.packet.packet_base.PayloadBase.__eq__
     """
-    def test_basic(self):
+    def test_eq(self):
         """
-        Tests equality of two PayloadBase instances.
+        Tests comparison with object of same type
         """
         payload1 = PayloadBase()
         payload2 = PayloadBase()
@@ -232,6 +243,14 @@ class TestPayloadBaseEq(object):
         payload1.raw = raw
         payload2.raw = raw
         ntools.eq_(payload1, payload2)
+
+    def test_neq(self):
+        """
+        Tests comparison with an object not of the same type
+        """
+        payload1 = PayloadBase()
+        payload2 = b'test'
+        ntools.assert_not_equals(payload1, payload2)
 
 
 if __name__ == "__main__":
