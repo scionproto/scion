@@ -135,7 +135,7 @@ class HopOpaqueField(OpaqueField):
         if dlen < self.LEN:
             logging.warning("HOF: Data too short for parsing, len: %u", dlen)
             return
-        (self.info, self.exp_time) = struct.unpack("!BB", raw[0:2])
+        (self.info, self.exp_time) = struct.unpack("!BB", raw[:2])
         ifs = struct.unpack("!I", b'\0' + raw[2:5])[0]
         self.mac = raw[5:8]
         self.ingress_if = (ifs & 0x00FFF000) >> 12
@@ -459,7 +459,7 @@ class SupportPeerField(OpaqueField):
         (self.isd_id, self.bwalloc_f, self.bwalloc_r, data) = \
             struct.unpack("!HBBI", raw)
         self.bw_class = data >> 31
-        self.reserved = data - (self.bw_class << 31)
+        self.reserved = data & ~(1 << 31)
         self.parsed = True
 
     @classmethod
