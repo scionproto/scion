@@ -146,7 +146,7 @@ class TestPacketBaseLen(object):
         header = b'data1'
         payload = b'data2'
         packet_base._hdr = header
-        packet_base.payload = payload
+        packet_base._payload = payload
         ntools.eq_(len(packet_base), len(header) + len(payload))
 
 
@@ -156,7 +156,7 @@ class TestPacketBaseEq(object):
     """
     def test_eq(self):
         """
-        Tests comparison with object of same type
+        Tests comparison with object of same type, same raw values
         """
         packet_base1 = PacketBase()
         packet_base2 = PacketBase()
@@ -166,6 +166,16 @@ class TestPacketBaseEq(object):
         ntools.eq_(packet_base1, packet_base2)
 
     def test_neq(self):
+        """
+        Tests comparison with object of same type, but different raw values
+        """
+        packet_base1 = PacketBase()
+        packet_base2 = PacketBase()
+        packet_base1.raw = 'raw1'
+        packet_base2.raw = 'raw2'
+        ntools.assert_not_equals(packet_base1, packet_base2)
+
+    def test_type_neq(self):
         """
         Tests comparison with an object not of the same type
         """
@@ -235,7 +245,7 @@ class TestPayloadBaseEq(object):
     """
     def test_eq(self):
         """
-        Tests comparison with object of same type
+        Tests comparison with object of same type, same raw values
         """
         payload1 = PayloadBase()
         payload2 = PayloadBase()
@@ -245,6 +255,16 @@ class TestPayloadBaseEq(object):
         ntools.eq_(payload1, payload2)
 
     def test_neq(self):
+        """
+        Tests comparison with object of same type, but different raw values
+        """
+        payload1 = PayloadBase()
+        payload2 = PayloadBase()
+        payload1.raw = 'raw1'
+        payload2.raw = 'raw2'
+        ntools.assert_not_equals(payload1, payload2)
+
+    def test_type_neq(self):
         """
         Tests comparison with an object not of the same type
         """
