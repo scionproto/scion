@@ -227,7 +227,7 @@ def _parse(topo_file, ISD_NUM):
         A.layout(prog='dot')
         img_file = topo_file.split('.')[0] + ".png"
         A.draw(img_file)
-    return(final_graph, core_ad_graph.nodes())
+    return final_graph, core_ad_graph.nodes()
 
 def json_convert(graph):
     """
