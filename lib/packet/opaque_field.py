@@ -69,19 +69,19 @@ class OpaqueField(object):
         """
         Returns true if opaque field is regular, false otherwise.
         """
-        return not ((self.info & (1 << 6)) != 0)
+        return (self.info & (1 << 6) == 0)
 
     def is_continue(self):
         """
         Returns true if continue bit is set, false otherwise.
         """
-        return ((self.info & (1 << 5)) != 0)
+        return not (self.info & (1 << 5) == 0)
 
     def is_xovr(self):
         """
         Returns true if crossover point bit is set, false otherwise.
         """
-        return ((self.info & (1 << 4)) != 0)
+        return not (self.info & (1 << 4) == 0)
 
     def __str__(self):
         pass
