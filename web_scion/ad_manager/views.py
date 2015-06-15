@@ -526,3 +526,35 @@ def list_sent_requests(request):
     sent_requests = user.connectionrequest_set.all()
     return render(request, 'ad_manager/sent_requests.html',
                   {'sent_requests': sent_requests})
+
+
+def network_view(request):
+    ad_graph_tmp = []
+    ad_index = {}
+    ad_index_rev = {}
+    for i, ad in enumerate(AD.objects.all()):
+        ad_index[i] = ad
+        ad_index_rev[ad] = i
+        ad_graph_tmp.append([r.neighbor_ad for r in ad.routerweb_set.all()])
+
+    # Rewrite neighbors
+    ad_graph = []
+    for neighbors in ad_graph_tmp:
+        ad_graph.append([ad_index_rev[n] for n in neighbors])
+
+    graph = {'nodes': [], 'links': []}
+    for index, neighbors in enumerate(ad_graph):
+        ad = ad_index[index]
+        graph['nodes'].append({
+            'name': 'AD {}-{}'.format(ad.isd_id, ad.id),
+            'group': ad.isd_id,
+        })
+        for n in neighbors:
+            if index < n:
+                graph['links'].append({
+                    'source': index,
+                    'target': n,
+                    'value': 1,
+                })
+
+    return render(request, 'ad_manager/network_view.html', {'data': graph})

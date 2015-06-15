@@ -54,4 +54,10 @@ connection_request_patterns = patterns(
         views.download_approved_package, name='download_request_package'),
 )
 
-urlpatterns = isd_patterns + ad_patterns + connection_request_patterns
+misc = patterns(
+    '',
+    url(r'^network/$',
+        views.network_view, name='network_view'),
+)
+
+urlpatterns = isd_patterns + ad_patterns + connection_request_patterns + misc

@@ -57,3 +57,21 @@ a.download-package {
     font-size: 24px;
     margin-left: 4px;
 }
+
+/* Network graph */
+.link {
+  fill: none;
+  stroke: #666;
+  stroke-width: 2px;
+}
+
+.node circle {
+  fill: #ccc;
+  stroke: #fff;
+  stroke-width: 2px;
+}
+
+text {
+  font: 10px sans-serif;
+  pointer-events: none;
+}
