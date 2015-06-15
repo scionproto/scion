@@ -51,7 +51,7 @@ cmd_topology() {
     echo "Create topology, configuration, and execution files."
     mkdir -p logs traces
     cd topology/
-    PYTHONPATH=../ python3 generator.py $1
+    PYTHONPATH=../ python3 generator.py $@
 }
 
 cmd_setup() {
