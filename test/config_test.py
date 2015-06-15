@@ -52,13 +52,6 @@ class BaseLibConfig(object):
         'cert_chain_version': 'CertChainVersion',
     }
 
-    def _compare_attributes(self, config, config_dict):
-        ntools.eq_(len(config.__dict__),
-                   len(self.ATTRS_TO_KEYS),
-                   "Unequal number of keys/attributes: is something missing?")
-        for attr, key in self.ATTRS_TO_KEYS.items():
-            ntools.eq_(getattr(config, attr), config_dict[key])
-
 
 class TestConfigInit(BaseLibConfig):
     """
@@ -117,6 +110,13 @@ class TestConfigParseDict(BaseLibConfig):
         cfg = Config()
         cfg.parse_dict(self.config_json)
         self._compare_attributes(cfg, self.config_json)
+
+    def _compare_attributes(self, config, config_dict):
+        ntools.eq_(len(config.__dict__),
+                   len(self.ATTRS_TO_KEYS),
+                   "Unequal number of keys/attributes: is something missing?")
+        for attr, key in self.ATTRS_TO_KEYS.items():
+            ntools.eq_(getattr(config, attr), config_dict[key])
 
 
 if __name__ == "__main__":
