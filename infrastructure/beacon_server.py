@@ -986,7 +986,7 @@ class CoreBeaconServer(BeaconServer):
     def _process_segment_revocation(self, rev_info):
         if rev_info.rev_type != RT.CORE_SEGMENT:
             logging.warning("CBS received a down-segment revocation.")
-            return
+            return []
         rev_infos = []
         to_remove = []
         path_store = None
@@ -994,13 +994,13 @@ class CoreBeaconServer(BeaconServer):
             if ps.get_segment(rev_info.seg_id):
                 path_store = ps
                 break
-            if path_store is None:
-                logging.warning("Segment to revoke does not exist.")
-                break
-            info = copy.deepcopy(rev_info)
-            info.rev_type = RT.UP_SEGMENT
-            rev_infos.append(info)
-            to_remove.append(rev_info.seg_id)
+        if path_store is None:
+            logging.warning("Segment to revoke does not exist.")
+            return []
+        info = copy.deepcopy(rev_info)
+        info.rev_type = RT.UP_SEGMENT
+        rev_infos.append(info)
+        to_remove.append(rev_info.seg_id)
 
         # Remove the affected segments from the path stores.
         path_store.remove_segments(to_remove)
