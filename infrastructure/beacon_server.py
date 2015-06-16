@@ -100,7 +100,8 @@ class InterfaceState(object):
 
     INACTIVE = 0
     ACTIVE = 1
-    REVOKED = 2
+    TIMED_OUT = 2
+    REVOKED = 3
 
     def __init__(self):
         """
@@ -108,28 +109,60 @@ class InterfaceState(object):
         """
         self.active_since = 0
         self.last_updated = 0
-        self.state = self.INACTIVE
+        self._state = self.INACTIVE
+        self._lock = threading.RLock()
+
+    @property
+    def state(self):
+        """
+        Returns the state of the object.
+        """
+        return self._state
+    
+    @state.setter
+    def state(self, new_state):
+        """
+        Updates the state of the object.
+        """
+        assert self.INACTIVE <= new_state <= self.REVOKED 
+        with self._lock:
+            self._state = new_state
 
     def update(self):
         """
-
+        Updates the state of the object.
         """
-        curr_time = time.time()
-        if self.last_updated + self.IFID_TOUT < curr_time:
-            self.active_since = curr_time
-            self.state = self.ACTIVE
-            logging.debug('Interface (re)activated')
-        self.last_updated = curr_time
+        with self._lock:
+            curr_time = time.time()
+            if (self.state != self.ACTIVE and
+                self.last_updated + self.IFID_TOUT < curr_time):
+                self.active_since = curr_time
+                self.state = self.ACTIVE
+                logging.debug('Interface activated')
+            self.last_updated = curr_time
 
     def is_active(self):
-        return (self.state == self.ACTIVE and
-                self.last_updated + self.IFID_TOUT >= time.time())
-
+        if self.state == self.ACTIVE:
+            if self.last_updated + self.IFID_TOUT >= time.time():
+                return True
+            else:
+                self.state = self.TIMED_OUT
+                return False
+        else:
+            return False
+                
     def is_expired(self):
-        return (self.state == self.ACTIVE and
-                self.last_updated + self.IFID_TOUT < time.time())
+        if self.state == self.TIMED_OUT:
+            return True
+        elif (self.state == self.ACTIVE and
+              self.last_updated + self.IFID_TOUT < time.time()):
+            self.state = self.TIMED_OUT
+            return False
+        else:
+            return False
 
-
+    def is_revoked(self):
+        return (self.state == self.REVOKED)
 
 class BeaconServer(SCIONElement):
     """
@@ -641,6 +674,62 @@ class BeaconServer(SCIONElement):
         """
         assert isinstance(rev_info, RevocationInfo)
         logging.info("Processing revocation:\n%s", str(rev_info))
+        # Build segment revocations for local path server.
+        rev_infos = []
+        if rev_info.rev_type in [RT.DOWN_SEGMENT, RT.CORE_SEGMENT]:
+            rev_infos = self._process_segment_revocation(rev_info)
+        elif rev_info.rev_type == RT.INTERFACE:
+            rev_infos = self._process_interface_revocation(rev_info)
+        elif rev_info.rev_type == RT.HOP:
+            rev_infos = self._process_hop_revocation(rev_info)
+
+        # Send revocations to local PS.
+        if rev_infos:
+            rev_payload = RevocationPayload.from_values(rev_infos)
+            pkt = PathMgmtPacket.from_values(PMT.REVOCATIONS, rev_payload, None,
+                                             self.addr, self.addr.get_isd_ad())
+            dst = self.topology.path_servers[0].addr
+            logging.info("Sending segment revocations to local PS.")
+            self.send(pkt, dst)
+            
+    def _process_segment_revocation(self, rev_info):
+        """
+        Processes a segment revocation.
+        
+        :param rev_info: The RevocationInfo object.
+        :type rev_info: RevocationInfo
+        
+        :returns: List of RevocationInfo objects that have to be sent to the 
+                  local PathServer.
+        :rtype: list
+        """
+        pass
+    
+    def _process_interface_revocation(self, rev_info):
+        """
+        Processes an interface revocation.
+        
+        :param rev_info: The RevocationInfo object.
+        :type rev_info: RevocationInfo
+        
+        :returns: List of RevocationInfo objects that have to be sent to the 
+                  local PathServer.
+        :rtype: list
+        """
+        pass
+    
+    def _process_hop_revocation(self, rev_info):
+        """
+        Processes a hop revocation.
+        
+        :param rev_info: The RevocationInfo object.
+        :type rev_info: RevocationInfo
+        
+        :returns: List of RevocationInfo objects that have to be sent to the 
+                  local PathServer.
+        :rtype: list
+        """
+        pass
 
     @thread_safety_net("_handle_if_timeouts")
     def _handle_if_timeouts(self):
@@ -653,14 +742,15 @@ class BeaconServer(SCIONElement):
             for (if_id, if_state) in self.ifid_state.items():
                 # Check if interface has timed-out.
                 if if_state.is_expired():
-                    if_state.state = InterfaceState.REVOKED
-                    logging.info("Issuing revocation for IF %d.", if_id)
-                    # Issue revocation
-                    assert if_id in self.if2rev_tokens
-                    chain = self.if2rev_tokens[if_id]
-                    rev_info = RevocationInfo.from_values(RT.INTERFACE,
-                        chain.current_element(), chain.next_element())
-                    self._process_revocation(rev_info)
+                    with if_state._lock:
+                        logging.info("Issuing revocation for IF %d.", if_id)
+                        # Issue revocation
+                        assert if_id in self.if2rev_tokens
+                        chain = self.if2rev_tokens[if_id]
+                        rev_info = RevocationInfo.from_values(RT.INTERFACE,
+                            chain.current_element(), chain.next_element())
+                        self._process_revocation(rev_info)
+                        if_state.state = InterfaceState.REVOKED
             sleep_interval(start_time, self.IF_TIMEOUT_INTERVAL,
                            "Handle IF timeouts")
 
@@ -903,67 +993,74 @@ class CoreBeaconServer(BeaconServer):
             self.register_core_segment(new_pcb)
             count += 1
         logging.info("Registered %d Core paths", count)
-
-    def _process_revocation(self, rev_info):
-        BeaconServer._process_revocation(self, rev_info)
-        # Build segment revocations for local path server.
+        
+    def _process_segment_revocation(self, rev_info):
+        if rev_info.rev_type != RT.CORE_SEGMENT:
+            logging.warning("CBS received a down-segment revocation.")
+            return
         rev_infos = []
         to_remove = []
-        if rev_info.rev_type == RT.CORE_SEGMENT:
-            path_store = None
-            for ps in self.core_segments.values():
-                if ps.get_segment(rev_info.seg_id):
-                    path_store = ps
-                    break
+        path_store = None
+        for ps in self.core_segments.values():
+            if ps.get_segment(rev_info.seg_id):
+                path_store = ps
+                break
             if path_store is None:
                 logging.warning("Segment to revoke does not exist.")
-                return
+                break
             info = copy.deepcopy(rev_info)
             info.rev_type = RT.UP_SEGMENT
             rev_infos.append(info)
-            to_remove.append(rev_info.seg_id)
-        elif rev_info.rev_type == RT.INTERFACE:
-            candidates = []
-            for ps in self.core_segments.values():
-                candidates += ps.candidates
-            # Go through all candidates that contain this interface token.
-            for cand in candidates:
-                if rev_info.rev_token1 in cand.pcb.get_all_iftokens():
-                    to_remove.append(cand.pcb.segment_id)
-                    info = RevocationInfo.from_values(
-                        RT.CORE_SEGMENT, rev_info.rev_token1,
-                        rev_info.proof1, True, cand.pcb.segment_id)
-                    rev_infos.append(info)
-        elif rev_info.rev_type == RT.HOP:
-            candidates = []
-            for ps in self.core_segments.values():
-                candidates += ps.candidates
-            # Go through all candidates that contain both interface tokens.
-            for cand in candidates:
-                if (rev_info.rev_token1 in cand.pcb.get_all_iftokens() and
-                        rev_info.rev_token2 in cand.pcb.get_all_iftokens()):
-                    to_remove.append(cand.pcb.segment_id)
-                    info = RevocationInfo.from_values(
-                        RT.CORE_SEGMENT, rev_info.rev_token1, rev_info.proof1,
-                        True, cand.pcb.segment_id, True,
-                        rev_info.rev_token2, rev_info.rev_token2)
-                    rev_infos.append(info)
-
+            to_remove.append(rev_info.seg_id)     
+        
+        # Remove the affected segments from the path stores.
+        path_store.remove_segments(to_remove)   
+        return rev_infos
+    
+    def _process_interface_revocation(self, rev_info):
+        candidates = []
+        to_remove = []
+        rev_infos = []
+        for ps in self.core_segments.values():
+            candidates += ps.candidates
+        # Go through all candidates that contain this interface token.
+        for cand in candidates:
+            if rev_info.rev_token1 in cand.pcb.get_all_iftokens():
+                to_remove.append(cand.pcb.segment_id)
+                info = RevocationInfo.from_values(
+                    RT.CORE_SEGMENT, rev_info.rev_token1,
+                    rev_info.proof1, True, cand.pcb.segment_id)
+                rev_infos.append(info)
+                
         # Remove the affected segments from the path stores.
         for ps in self.core_segments.values():
             ps.remove_segments(to_remove)
-
-        # Send revocations to local PS.
-        if rev_infos:
-            rev_payload = RevocationPayload.from_values(rev_infos)
-            pkt = PathMgmtPacket.from_values(PMT.REVOCATIONS, rev_payload, None,
-                                             self.addr, self.addr.get_isd_ad())
-            dst = self.topology.path_servers[0].addr
-            logging.info("Sending segment revocations to local PS.")
-            self.send(pkt, dst)
-
-        # TODO: Propagate revocations to other core BSes.
-
+        
+        return rev_infos
+    
+    def _process_hop_revocation(self, rev_info):
+        candidates = []
+        to_remove = []
+        rev_infos = []
+        for ps in self.core_segments.values():
+            candidates += ps.candidates
+        # Go through all candidates that contain both interface tokens.
+        for cand in candidates:
+            if (rev_info.rev_token1 in cand.pcb.get_all_iftokens() and
+                    rev_info.rev_token2 in cand.pcb.get_all_iftokens()):
+                to_remove.append(cand.pcb.segment_id)
+                info = RevocationInfo.from_values(
+                    RT.CORE_SEGMENT, rev_info.rev_token1, rev_info.proof1,
+                    True, cand.pcb.segment_id, True,
+                    rev_info.rev_token2, rev_info.rev_token2)
+                rev_infos.append(info)
+                
+        # Remove the affected segments from the path stores.
+        if to_remove:
+            for ps in self.core_segments.values():
+                ps.remove_segments(to_remove)
+        
+        return rev_infos    
 
 class LocalBeaconServer(BeaconServer):
     """
@@ -1147,56 +1244,7 @@ class LocalBeaconServer(BeaconServer):
         """
         Send out revocation to the local PS and a CPS and down_stream BS.
         """
-        BeaconServer._process_revocation(self, rev_info)
-        # Build segment revocations for local path server.
-        rev_infos = []
-        to_remove = []
-        if rev_info.rev_type == RT.DOWN_SEGMENT:
-            if not self.down_segments.get_segment(rev_info.seg_id):
-                logging.warning("Segment to revoke does not exist.")
-                return
-            info = copy.deepcopy(rev_info)
-            info.rev_type = RT.UP_SEGMENT
-            rev_infos.append(info)
-            to_remove.append(rev_info.seg_id)
-        elif rev_info.rev_type == RT.INTERFACE:
-            # Go through all candidates that contain this interface token.
-            for cand in (self.down_segments.candidates +
-                         self.up_segments.candidates):
-                if rev_info.rev_token1 in cand.pcb.get_all_iftokens():
-                    to_remove.append(cand.pcb.segment_id)
-                    if cand in self.up_segments.candidates:
-                        info = RevocationInfo.from_values(
-                            RT.UP_SEGMENT, rev_info.rev_token1,
-                            rev_info.proof1, True, cand.pcb.segment_id)
-                        rev_infos.append(info)
-        elif rev_info.rev_type == RT.HOP:
-            # Go through all candidates that contain both interface tokens.
-            for cand in (self.down_segments.candidates +
-                         self.up_segments.candidates):
-                if (rev_info.rev_token1 in cand.pcb.get_all_iftokens() and
-                        rev_info.rev_token2 in cand.pcb.get_all_iftokens()):
-                    to_remove.append(cand.pcb.segment_id)
-                    if cand in self.up_segments:
-                        info = RevocationInfo.from_values(
-                            RT.UP_SEGMENT, rev_info.rev_token1, rev_info.proof1,
-                            True, cand.pcb.segment_id, True,
-                            rev_info.rev_token2, rev_info.rev_token2)
-                        rev_infos.append(info)
-
-        # Remove the affected segments from the path stores.
-        self.up_segments.remove_segments(to_remove)
-        self.down_segments.remove_segments(to_remove)
-
-        # Send revocations to local PS.
-        if rev_infos:
-            rev_payload = RevocationPayload.from_values(rev_infos)
-            pkt = PathMgmtPacket.from_values(PMT.REVOCATIONS, rev_payload, None,
-                                             self.addr, self.addr.get_isd_ad())
-            dst = self.topology.path_servers[0].addr
-            logging.info("Sending segment revocations to local PS.")
-            self.send(pkt, dst)
-
+        super()._process_revocation(rev_info)
         # Send revocation to CPS.
         if not self.up_segments.get_best_segments():
             logging.error("No up path available to send out revocation.")
@@ -1220,8 +1268,62 @@ class LocalBeaconServer(BeaconServer):
         logging.info("Sending revocation to CPS.")
         self.send(pkt, next_hop, port)
 
-        # TODO: Propagate revocations to downstream BSes.
+        
+    def _process_segment_revocation(self, rev_info):
+        rev_infos = []
+        if not self.down_segments.get_segment(rev_info.seg_id):
+            logging.warning("Segment to revoke does not exist.")
+            return []
+        info = copy.deepcopy(rev_info)
+        info.rev_type = RT.UP_SEGMENT
+        rev_infos.append(info)
+        # Remove the affected segments from the path stores.
+        self.up_segments.remove_segments([rev_info.seg_id])
+        self.down_segments.remove_segments([rev_info.seg_id])
+        
+        return rev_infos
+    
+    def _process_interface_revocation(self, rev_info):
+        to_remove = []
+        rev_infos = []
+        for cand in (self.down_segments.candidates +
+                     self.up_segments.candidates):
+            if rev_info.rev_token1 in cand.pcb.get_all_iftokens():
+                to_remove.append(cand.pcb.segment_id)
+                if cand in self.up_segments.candidates:
+                    info = RevocationInfo.from_values(
+                        RT.UP_SEGMENT, rev_info.rev_token1,
+                        rev_info.proof1, True, cand.pcb.segment_id)
+                    rev_infos.append(info)
+                
+        # Remove the affected segments from the path stores.
+        self.up_segments.remove_segments(to_remove)
+        self.down_segments.remove_segments(to_remove)
+        
+        return rev_infos
+    
+    def _process_hop_revocation(self, rev_info):
+        to_remove = []
+        rev_infos = []
+        # Go through all candidates that contain both interface tokens.
+        for cand in (self.down_segments.candidates +
+                     self.up_segments.candidates):
+            if (rev_info.rev_token1 in cand.pcb.get_all_iftokens() and
+                    rev_info.rev_token2 in cand.pcb.get_all_iftokens()):
+                to_remove.append(cand.pcb.segment_id)
+                if cand in self.up_segments:
+                    info = RevocationInfo.from_values(
+                        RT.UP_SEGMENT, rev_info.rev_token1, rev_info.proof1,
+                        True, cand.pcb.segment_id, True,
+                        rev_info.rev_token2, rev_info.rev_token2)
+                    rev_infos.append(info)
 
+        # Remove the affected segments from the path stores.
+        self.up_segments.remove_segments(to_remove)
+        self.down_segments.remove_segments(to_remove)
+        
+        return rev_infos
+    
     def _handle_verified_beacon(self, pcb):
         """
         Once a beacon has been verified, place it into the right containers.
