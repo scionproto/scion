@@ -111,13 +111,15 @@ class SCIONSimHost(SCIONElement):
                                                dst_isd, src_ad, dst_ad)
         elif ptype == PST.CORE:
             update_dict(self._waiting_targets[ptype], 
-                        (dst_isd, dst_core_ad), [(eid, requestor, dst_ad)])
+                        (dst_isd, dst_core_ad), 
+                        [(eid, requestor, dst_ad)])
             info = PathSegmentInfo.from_values(ptype, src_isd, 
                                                dst_isd, src_core_ad, dst_core_ad)
 
 
-        path_request = PathMgmtPacket.from_values(PMT.REQUEST,
-         info, None, self.addr, ISD_AD(src_isd, src_ad))
+        path_request = PathMgmtPacket.from_values(PMT.REQUEST, info,
+                                                  None, self.addr,
+                                                  ISD_AD(src_isd, src_ad))
 
         dst = self.topology.path_servers[0].addr
         self.send(path_request, dst)
