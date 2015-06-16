@@ -80,9 +80,8 @@ class TestPathBaseReverse(BasePath):
         """
         self.path.up_segment_info = self.iof[0]
         self.path.down_segment_info = self.iof[1]
-        self.path.up_segment_hops = [self.hof[0], self.hof[1], self.hof[2]]
-        self.path.down_segment_hops = [self.hof[0], self.hof[1], self.hof[2],
-                                       self.hof[3], self.hof[4]]
+        self.path.up_segment_hops = self.hof[:3]
+        self.path.down_segment_hops = self.hof[:]
         iof1_ = copy.copy(self.iof[0])
         iof2_ = copy.copy(self.iof[1])
         self.path.reverse()
@@ -90,61 +89,59 @@ class TestPathBaseReverse(BasePath):
         iof2_.up_flag ^= True
         ntools.eq_(self.path.up_segment_info, iof2_)
         ntools.eq_(self.path.down_segment_info, iof1_)
-        ntools.eq_(self.path.up_segment_hops, [self.hof[4], self.hof[3],
-                                               self.hof[2], self.hof[1],
-                                               self.hof[0]])
-        ntools.eq_(self.path.down_segment_hops, [self.hof[2], self.hof[1],
-                                                 self.hof[0]])
+        ntools.eq_(self.path.up_segment_hops, self.hof[::-1])
+        ntools.eq_(self.path.down_segment_hops, self.hof[2::-1])
 
     def test_without_info(self):
         """
         Tests PathBase.reverse, with up_segment_info and down_segment_info unset
         """
-        self.path.up_segment_hops = [self.hof[0], self.hof[1], self.hof[2]]
-        self.path.down_segment_hops = [self.hof[0], self.hof[1], self.hof[2],
-                                       self.hof[3], self.hof[4]]
+        self.path.up_segment_hops = self.hof[:3]
+        self.path.down_segment_hops = self.hof[:]
         self.path.reverse()
-        ntools.eq_(self.path.up_segment_hops, [self.hof[4], self.hof[3],
-                                               self.hof[2], self.hof[1],
-                                               self.hof[0]])
-        ntools.eq_(self.path.down_segment_hops, [self.hof[2], self.hof[1],
-                                                 self.hof[0]])
+        ntools.eq_(self.path.up_segment_hops, self.hof[::-1])
+        ntools.eq_(self.path.down_segment_hops, self.hof[2::-1])
 
 
 class TestPathBaseIsLastHop(BasePath):
     """
     Unit tests for lib.packet.path.PathBase.is_last_hop
     """
+    def _check(self, idx, truth):
+        self.path.up_segment_hops = self.hof[:3]
+        self.path.down_segment_hops = self.hof[:]
+        ntools.eq_(self.path.is_last_hop(self.hof[idx]), truth)
+
     def test(self):
-        self.path.up_segment_hops = [self.hof[0], self.hof[1], self.hof[2]]
-        self.path.down_segment_hops = [self.hof[0], self.hof[1], self.hof[2],
-                                       self.hof[3], self.hof[4]]
-        ntools.assert_true(self.path.is_last_hop(self.hof[4]))
-        ntools.assert_false(self.path.is_last_hop(self.hof[3]))
-        ntools.assert_false(self.path.is_last_hop(self.hof[0]))
+        for idx, truth in ((4, True), (3, False), (1, False)):
+            yield self._check, idx, truth
 
 
 class TestPathBaseIsFirstHop(BasePath):
     """
     Unit tests for lib.packet.path.PathBase.is_first_hop
     """
+    def _check(self, idx, truth):
+        self.path.up_segment_hops = self.hof[:3]
+        self.path.down_segment_hops = self.hof[:]
+        ntools.eq_(self.path.is_first_hop(self.hof[idx]), truth)
+
     def test(self):
-        self.path.up_segment_hops = [self.hof[0], self.hof[1], self.hof[2]]
-        self.path.down_segment_hops = [self.hof[0], self.hof[1], self.hof[2],
-                                       self.hof[3], self.hof[4]]
-        ntools.assert_true(self.path.is_first_hop(self.hof[0]))
-        ntools.assert_false(self.path.is_first_hop(self.hof[1]))
-        ntools.assert_false(self.path.is_first_hop(self.hof[4]))
+        for idx, truth in ((0, True), (1, False), (4, False)):
+            yield self._check, idx, truth
 
 
 class TestPathBaseGetFirstHopOf(BasePath):
     """
     Unit tests for lib.packet.path.PathBase.get_first_hop_of
     """
-    def test(self):
-        self.path.down_segment_hops = [self.hof[2], self.hof[3], self.hof[4]]
+    def test_with_down_hops(self):
+        self.path.down_segment_hops = self.hof[2:5]
         ntools.eq_(self.path.get_first_hop_of(), self.hof[2])
-        self.path.up_segment_hops = [self.hof[0], self.hof[1], self.hof[2]]
+
+    def test_with_up_hops(self):
+        self.path.down_segment_hops = self.hof[2:5]
+        self.path.up_segment_hops = self.hof[:3]
         ntools.eq_(self.path.get_first_hop_of(), self.hof[0])
 
 
@@ -152,16 +149,18 @@ class TestPathBaseGetOf(BasePath):
     """
     Unit tests for lib.packet.path.PathBase.get_of
     """
-    def test(self):
+    def _check(self, idx):
         self.path.up_segment_info = self.iof[0]
         self.path.down_segment_info = self.iof[1]
-        self.path.down_segment_hops = [self.hof[2], self.hof[3], self.hof[4]]
-        self.path.up_segment_hops = [self.hof[0], self.hof[1], self.hof[2]]
-        ofs = [self.iof[0], self.hof[0], self.hof[1], self.hof[2], self.iof[1],
-               self.hof[2], self.hof[3], self.hof[4]]
-        for i, opaque_field in enumerate(ofs):
-            ntools.eq_(self.path.get_of(i), opaque_field)
-        ntools.eq_(self.path.get_of(8), None)
+        self.path.down_segment_hops = self.hof[2:5]
+        self.path.up_segment_hops = self.hof[:3]
+        ofs = [self.iof[0]] + self.hof[:3] + [self.iof[1]] + self.hof[2:5] + \
+              [None]
+        ntools.eq_(self.path.get_of(idx), ofs[idx])
+
+    def test(self):
+        for i in range(9):
+            yield self._check, i
 
 
 class TestCorePathInit(BasePath):
