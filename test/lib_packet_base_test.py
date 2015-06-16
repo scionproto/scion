@@ -28,7 +28,6 @@ from lib.packet.packet_base import (
     PacketBase,
     PayloadBase
 )
-from lib.packet.ext_hdr import ExtensionHeader
 
 
 class TestHeaderBaseInit(object):
@@ -62,7 +61,7 @@ class TestPacketBasePayload(object):
     """
     Unit tests for lib.packet.packet_base.PacketBase.payload
     """
-    def test_getter_bytes(self):
+    def test_getter(self):
         """
         Test for getting payload as bytes.
         """
@@ -71,7 +70,7 @@ class TestPacketBasePayload(object):
         ntools.eq_(packet_base.payload, b'data')
 
     @patch("lib.packet.packet_base.PacketBase.set_payload")
-    def test_setter_bytes(self, set_payload):
+    def test_setter(self, set_payload):
         """
         Test for setting payload as bytes.
         """
@@ -79,44 +78,26 @@ class TestPacketBasePayload(object):
         packet_base.payload = b'data'
         set_payload.assert_called_once_with(b'data')
 
-    def test_getter_packet_base(self):
-        """
-        Test for getting payload as PacketBase instance.
-        """
-        payload = PacketBase()
-        packet_base = PacketBase()
-        packet_base._payload = payload
-        ntools.eq_(packet_base.payload, payload)
-
-    @patch("lib.packet.packet_base.PacketBase.set_payload")
-    def test_setter_packet_base(self, set_payload):
-        """
-        Test for setting payload as PacketBase instance.
-        """
-        payload = PacketBase()
-        packet_base = PacketBase()
-        packet_base.payload = payload
-        set_payload.assert_called_once_with(payload)
-
 
 class TestPacketBaseSetPayload(object):
     """
     Unit tests for lib.packet.packet_base.PacketBase.set_payload
     """
-    def test_basic(self):
+    def check_success(self, payload):
+        # Setup
         packet_base = PacketBase()
-        payload = PacketBase()
+        # Call
         packet_base.set_payload(payload)
+        # Tests
         ntools.eq_(packet_base._payload, payload)
-        payload = PayloadBase()
-        packet_base.set_payload(payload)
-        ntools.eq_(packet_base._payload, payload)
-        payload = b'data'
-        packet_base.set_payload(payload)
-        ntools.eq_(packet_base._payload, payload)
+
+    def test_success(self):
+        for i in PacketBase(), PayloadBase(), b'test':
+            yield self.check_success, i
+
+    def test_failure(self):
+        packet_base = PacketBase()
         ntools.assert_raises(TypeError, packet_base.set_payload, 123)
-        ntools.assert_raises(TypeError, packet_base.set_payload, '123')
-        ntools.assert_raises(TypeError, packet_base.set_payload, 123.4)
 
 
 class TestPacketBaseHdr(object):
@@ -125,30 +106,35 @@ class TestPacketBaseHdr(object):
     """
     def test_getter(self):
         packet_base = PacketBase()
-        header = HeaderBase()
-        packet_base._hdr = header
-        ntools.eq_(packet_base.hdr, header)
+        packet_base._hdr = 'data'
+        ntools.eq_(packet_base.hdr, 'data')
 
     @patch("lib.packet.packet_base.PacketBase.set_hdr")
     def test_setter(self, set_hdr):
         packet_base = PacketBase()
-        header = HeaderBase()
-        packet_base.hdr = header
-        set_hdr.assert_called_once_with(header)
+        packet_base.hdr = 'data'
+        set_hdr.assert_called_once_with('data')
 
 
 class TestPacketBaseSetHdr(object):
     """
     Unit tests for lib.packet.packet_base.PacketBase.set_hdr
     """
-    def test_basic(self):
+    def test_success(self):
+        """
+        Tests set_hdr when called with correct argument type
+        """
         packet_base = PacketBase()
         header = HeaderBase()
         packet_base.set_hdr(header)
         ntools.eq_(packet_base._hdr, header)
-        ntools.assert_raises(TypeError, packet_base.set_hdr, 123)
+
+    def test_failure(self):
+        """
+        Tests set_hdr with incorrect argument type
+        """
+        packet_base = PacketBase()
         ntools.assert_raises(TypeError, packet_base.set_hdr, '123')
-        ntools.assert_raises(TypeError, packet_base.set_hdr, 123.4)
 
 
 class TestPacketBaseLen(object):
@@ -157,10 +143,10 @@ class TestPacketBaseLen(object):
     """
     def test_basic(self):
         packet_base = PacketBase()
-        header = ExtensionHeader(b'da')
+        header = b'data1'
         payload = b'data2'
-        packet_base.hdr = header
-        packet_base.payload = payload
+        packet_base._hdr = header
+        packet_base._payload = payload
         ntools.eq_(len(packet_base), len(header) + len(payload))
 
 
@@ -168,13 +154,34 @@ class TestPacketBaseEq(object):
     """
     Unit tests for lib.packet.packet_base.PacketBase.__eq__
     """
-    def test_basic(self):
+    def test_eq(self):
+        """
+        Tests comparison with object of same type, same raw values
+        """
         packet_base1 = PacketBase()
         packet_base2 = PacketBase()
         raw = "rawstring"
         packet_base1.raw = raw
         packet_base2.raw = raw
         ntools.eq_(packet_base1, packet_base2)
+
+    def test_neq(self):
+        """
+        Tests comparison with object of same type, but different raw values
+        """
+        packet_base1 = PacketBase()
+        packet_base2 = PacketBase()
+        packet_base1.raw = 'raw1'
+        packet_base2.raw = 'raw2'
+        ntools.assert_not_equals(packet_base1, packet_base2)
+
+    def test_type_neq(self):
+        """
+        Tests comparison with an object not of the same type
+        """
+        packet_base1 = PacketBase()
+        packet_base2 = b'test'
+        ntools.assert_not_equals(packet_base1, packet_base2)
 
 
 class TestPayloadBaseInit(object):
@@ -196,7 +203,7 @@ class TestPayloadBaseParse(object):
     """
     def test_basic(self):
         payload = PayloadBase()
-        raw = [1,2,3,4]
+        raw = [1, 2, 3, 4]
         payload.parse(raw)
         ntools.eq_(payload.raw, raw)
         ntools.assert_is_not(payload.raw, raw)
@@ -208,7 +215,7 @@ class TestPayloadBasePack(object):
     """
     def test_basic(self):
         payload = PayloadBase()
-        payload.parse("rawstring")
+        payload.raw = "rawstring"
         ntools.eq_(payload.pack(), "rawstring")
 
 
@@ -236,9 +243,9 @@ class TestPayloadBaseEq(object):
     """
     Unit tests for lib.packet.packet_base.PayloadBase.__eq__
     """
-    def test_basic(self):
+    def test_eq(self):
         """
-        Tests equality of two PayloadBase instances.
+        Tests comparison with object of same type, same raw values
         """
         payload1 = PayloadBase()
         payload2 = PayloadBase()
@@ -246,6 +253,24 @@ class TestPayloadBaseEq(object):
         payload1.raw = raw
         payload2.raw = raw
         ntools.eq_(payload1, payload2)
+
+    def test_neq(self):
+        """
+        Tests comparison with object of same type, but different raw values
+        """
+        payload1 = PayloadBase()
+        payload2 = PayloadBase()
+        payload1.raw = 'raw1'
+        payload2.raw = 'raw2'
+        ntools.assert_not_equals(payload1, payload2)
+
+    def test_type_neq(self):
+        """
+        Tests comparison with an object not of the same type
+        """
+        payload1 = PayloadBase()
+        payload2 = b'test'
+        ntools.assert_not_equals(payload1, payload2)
 
 
 if __name__ == "__main__":

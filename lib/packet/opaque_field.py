@@ -69,19 +69,19 @@ class OpaqueField(object):
         """
         Returns true if opaque field is regular, false otherwise.
         """
-        return not ((self.info & (1 << 6)) != 0)
+        return (self.info & (1 << 6) == 0)
 
     def is_continue(self):
         """
         Returns true if continue bit is set, false otherwise.
         """
-        return ((self.info & (1 << 5)) != 0)
+        return not (self.info & (1 << 5) == 0)
 
     def is_xovr(self):
         """
         Returns true if crossover point bit is set, false otherwise.
         """
-        return ((self.info & (1 << 4)) != 0)
+        return not (self.info & (1 << 4) == 0)
 
     def __str__(self):
         pass
@@ -135,11 +135,12 @@ class HopOpaqueField(OpaqueField):
         if dlen < self.LEN:
             logging.warning("HOF: Data too short for parsing, len: %u", dlen)
             return
-        (self.info, self.exp_time) = struct.unpack("!BB", raw[0:2])
-        ifs = struct.unpack("!I", b'\0' + raw[2:5])[0]
+        (self.info, self.exp_time) = struct.unpack("!BB", raw[:2])
+        # A byte added as length of three bytes can't be unpacked
+        (ifs,) = struct.unpack("!I", b'\0' + raw[2:5])
         self.mac = raw[5:8]
-        self.ingress_if = (ifs & 0x00FFF000) >> 12
-        self.egress_if = ifs & 0x00000FFF
+        self.ingress_if = (ifs & 0xFFF000) >> 12
+        self.egress_if = ifs & 0x000FFF
         self.parsed = True
 
     @classmethod
@@ -167,6 +168,7 @@ class HopOpaqueField(OpaqueField):
         """
         ifs = (self.ingress_if << 12) | self.egress_if
         data = struct.pack("!BB", self.info, self.exp_time)
+        # Ingress and egress interface info is packed into three bytes 
         data += struct.pack("!I", ifs)[1:]
         data += self.mac
         return data

@@ -698,7 +698,7 @@ class CertChainReply(SCIONPacket):
         """
         SCIONPacket.parse(self, raw)
         (self.isd_id, self.ad_id, self.version) = \
-            struct.unpack("!HQI", self.payload[0:self.MIN_LEN])
+            struct.unpack("!HQI", self.payload[:self.MIN_LEN])
         self.cert_chain = self.payload[self.MIN_LEN:]
 
     @classmethod
@@ -848,7 +848,7 @@ class TRCReply(SCIONPacket):
         """
         SCIONPacket.parse(self, raw)
         (self.isd_id, self.version) = \
-            struct.unpack("!HI", self.payload[0:self.MIN_LEN])
+            struct.unpack("!HI", self.payload[:self.MIN_LEN])
         self.trc = self.payload[self.MIN_LEN:]
 
     @classmethod
