@@ -304,6 +304,8 @@ class CorePathServer(PathServer):
             return
         paths_to_propagate = []
         for pcb in records.pcbs:
+            assert pcb.segment_id != 32 * b"\x00", ("Trying to register a" +
+                   " segment with ID 0:\n%s" % pcb)
             src_isd = pcb.get_first_pcbm().spcbf.isd_id
             src_ad = pcb.get_first_pcbm().ad_id
             dst_ad = pcb.get_last_pcbm().ad_id
@@ -344,6 +346,8 @@ class CorePathServer(PathServer):
         if not records.pcbs:
             return
         for pcb in records.pcbs:
+            assert pcb.segment_id != 32 * b"\x00", ("Trying to register a" +
+                   " segment with ID 0:\n%s" % pcb)
             src_ad = pcb.get_first_pcbm().ad_id
             src_isd = pcb.get_first_pcbm().spcbf.isd_id
             dst_ad = pcb.get_last_pcbm().ad_id
@@ -498,6 +502,8 @@ class CorePathServer(PathServer):
             return
         else:
             self.revocations[hash(pkt.payload)] = pkt.payload
+            logging.debug("Received revocation from %s:\n%s", pkt.hdr.src_addr,
+                          pkt.payload)
 
         rev_infos = pkt.payload.rev_infos
         # Propagate revocation to other CPSes.
@@ -514,6 +520,8 @@ class CorePathServer(PathServer):
                 if not rev_info.incl_seg_id or not rev_info.seg_id:
                     logging.info("Segment revocation misses segment ID.")
                     continue
+                assert rev_info.seg_id != 32 * b"\x00", ("Trying to revoke a" +
+                   " segment with ID 0:\n%s" % rev_info)
                 seg_db = (self.down_segments if
                           rev_info.rev_type == RT.DOWN_SEGMENT else
                           self.core_segments)
@@ -543,6 +551,10 @@ class CorePathServer(PathServer):
                                 self.iftoken2seg[rev_info.rev_token2])
                 while segments:
                     sid = segments.pop()
+                    # Delete segment from DB.
+                    self.down_segments.delete(sid)
+                    self.core_segments.delete(sid)
+                    # Prepare revocations for leasers.
                     if sid not in self.leases:
                         continue
                     for (isd, ad, seg_type) in self.leases[sid]:
@@ -558,11 +570,6 @@ class CorePathServer(PathServer):
                             info.proof2 = rev_info.proof2
                         if (isd, ad) not in self.core_ads:
                             revocations[(isd, ad)].add_rev_info(info)
-                        # Delete segment from DB.
-                        if seg_type == PST.DOWN:
-                            self.down_segments.delete(sid)
-                        else:
-                            self.core_segments.delete(sid)
                     del self.leases[sid]
                 del self.iftoken2seg[rev_info.rev_token1]
             else:
@@ -643,6 +650,8 @@ class LocalPathServer(PathServer):
         if not records.pcbs:
             return
         for pcb in records.pcbs:
+            assert pcb.segment_id != 32 * b"\x00", ("Trying to register a" +
+                   " segment with ID 0:\n%s" % pcb)
             self.up_segments.update(pcb, self.topology.isd_id,
                                     self.topology.ad_id,
                                     pcb.get_first_pcbm().spcbf.isd_id,
@@ -677,6 +686,8 @@ class LocalPathServer(PathServer):
             return
         leases = []
         for pcb in records.pcbs:
+            assert pcb.segment_id != 32 * b"\x00", ("Trying to register a" +
+                   " segment with ID 0:\n%s" % pcb)
             src_isd = pcb.get_first_pcbm().spcbf.isd_id
             src_ad = pcb.get_first_pcbm().ad_id
             dst_ad = pcb.get_last_pcbm().ad_id
@@ -714,6 +725,8 @@ class LocalPathServer(PathServer):
             return
         leases = []
         for pcb in records.pcbs:
+            assert pcb.segment_id != 32 * b"\x00", ("Trying to register a" +
+                   " segment with ID 0:\n%s" % pcb)
             # Core segments have down-path direction.
             src_ad = pcb.get_last_pcbm().ad_id
             src_isd = pcb.get_last_pcbm().spcbf.isd_id
@@ -754,6 +767,8 @@ class LocalPathServer(PathServer):
             return
         else:
             self.revocations[hash(pkt.payload)] = pkt.payload
+            logging.debug("Received revocation from %s:\n%s", pkt.hdr.src_addr,
+                          pkt.payload)
 
         rev_infos = pkt.payload.rev_infos
 

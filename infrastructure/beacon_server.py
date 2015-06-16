@@ -21,7 +21,6 @@ import copy
 import datetime
 import logging
 import os
-import struct
 import sys
 import threading
 import time
@@ -97,21 +96,32 @@ class InterfaceState(object):
     Simple class that represents current state of an interface.
     """
     # Timeout for interface (link) status.
-    IFID_TOUT = 3.5 * IFID_PKT_TOUT
+    IFID_TOUT = 5 * IFID_PKT_TOUT
+
+    INACTIVE = 0
+    ACTIVE = 1
+    REVOKED = 2
 
     def __init__(self):
-        self.active_from = 0
-        self.active_until = 0
+        self.active_since = 0
+        self.last_updated = 0
+        self.state = self.INACTIVE
 
     def update(self):
         curr_time = time.time()
-        if self.active_until + self.IFID_TOUT < curr_time:
-            self.active_from = curr_time
+        if self.last_updated + self.IFID_TOUT < curr_time:
+            self.active_since = curr_time
+            self.state = self.ACTIVE
             logging.debug('Interface (re)activated')
-        self.active_until = curr_time
+        self.last_updated = curr_time
 
     def is_active(self):
-        return self.active_until + self.IFID_TOUT >= time.time()
+        return (self.state == self.ACTIVE and
+                self.last_updated + self.IFID_TOUT >= time.time())
+
+    def is_expired(self):
+        return (self.state == self.ACTIVE and
+                self.last_updated + self.IFID_TOUT < time.time())
 
 
 class BeaconServer(SCIONElement):
@@ -132,6 +142,8 @@ class BeaconServer(SCIONElement):
     REQUESTS_TIMEOUT = 10
     # ZK path for incoming PCBs
     ZK_PCB_CACHE_PATH = "pcb_cache"
+    # Interval to checked for timed out interfaces.
+    IF_TIMEOUT_INTERVAL = 1
 
     def __init__(self, server_id, topo_file, config_file, path_policy_file):
         SCIONElement.__init__(self, "bs", topo_file, server_id=server_id,
@@ -337,6 +349,9 @@ class BeaconServer(SCIONElement):
         threading.Thread(target=self.handle_shared_pcbs,
                          name="BS shared pcbs",
                          daemon=True).start()
+        threading.Thread(target=self._handle_if_timeouts,
+                         name="BS IF timeouts",
+                         daemon=True).start()
         SCIONElement.run(self)
 
     def _try_to_verify_beacon(self, pcb):
@@ -430,6 +445,12 @@ class BeaconServer(SCIONElement):
         """
         pass
 
+    def process_cert_chain_rep(self, cert_chain_rep):
+        """
+        Process the Certificate chain reply.
+        """
+        pass
+
     def process_trc_rep(self, trc_rep):
         """
         Process the TRC reply.
@@ -518,7 +539,7 @@ class BeaconServer(SCIONElement):
         chunk_size = 10
         pcbs = []
         for i in range(0, len(entries), chunk_size):
-            for entry in entries[i:i+chunk_size]:
+            for entry in entries[i:i + chunk_size]:
                 try:
                     raw = self.zk.get_shared_item(self.ZK_PCB_CACHE_PATH,
                                                   entry)
@@ -534,6 +555,35 @@ class BeaconServer(SCIONElement):
                 pcbs.append(PathSegment(raw=raw))
         self.process_pcbs(pcbs)
         return len(pcbs)
+
+    def _process_revocation(self, rev_info):
+        """
+        Sends out revocation to the local PS, to down_stream BSes and a CPS.
+        """
+        assert isinstance(rev_info, RevocationInfo)
+        logging.info("Processing revocation:\n%s", str(rev_info))
+
+    @thread_safety_net("_handle_if_timeouts")
+    def _handle_if_timeouts(self):
+        """
+        Periodically checks each interface state and issues an if revocation, if
+        no keep-alive message was received for IFID_TOUT.
+        """
+        while True:
+            start_time = time.time()
+            for (if_id, if_state) in self.ifid_state.items():
+                # Check if interface has timed-out.
+                if if_state.is_expired():
+                    if_state.state = InterfaceState.REVOKED
+                    logging.info("Issuing revocation for IF %d.", if_id)
+                    # Issue revocation
+                    assert if_id in self.if2rev_tokens
+                    chain = self.if2rev_tokens[if_id]
+                    rev_info = RevocationInfo.from_values(RT.INTERFACE,
+                        chain.current_element(), chain.next_element())
+                    self._process_revocation(rev_info)
+            sleep_interval(start_time, self.IF_TIMEOUT_INTERVAL,
+                           "Handle IF timeouts")
 
 
 class CoreBeaconServer(BeaconServer):
@@ -628,7 +678,7 @@ class CoreBeaconServer(BeaconServer):
             try:
                 count = self.zk.expire_shared_items(
                     self.ZK_PCB_CACHE_PATH,
-                    start_propagation - self.config.propagation_time*10)
+                    start_propagation - self.config.propagation_time * 10)
             except ZkConnectionLoss:
                 continue
             if count:
@@ -729,9 +779,71 @@ class CoreBeaconServer(BeaconServer):
                                                  new_pcb.get_last_pcbm().hof)
             new_pcb.add_ad(ad_marking)
             new_pcb.segment_id = self._get_segment_rev_token(new_pcb)
+            assert new_pcb.segment_id != 32 * b"\x00", ("Trying to register a" +
+                   " segment with ID 0:\n%s" % new_pcb)
             self.register_core_segment(new_pcb)
             count += 1
         logging.info("Registered %d Core paths", count)
+
+    def _process_revocation(self, rev_info):
+        BeaconServer._process_revocation(self, rev_info)
+        # Build segment revocations for local path server.
+        rev_infos = []
+        to_remove = []
+        if rev_info.rev_type == RT.CORE_SEGMENT:
+            path_store = None
+            for ps in self.core_segments.values():
+                if ps.get_segment(rev_info.seg_id):
+                    path_store = ps
+                    break
+            if path_store is None:
+                logging.warning("Segment to revoke does not exist.")
+                return
+            info = copy.deepcopy(rev_info)
+            info.rev_type = RT.UP_SEGMENT
+            rev_infos.append(info)
+            to_remove.append(rev_info.seg_id)
+        elif rev_info.rev_type == RT.INTERFACE:
+            candidates = []
+            for ps in self.core_segments.values():
+                candidates += ps.candidates
+            # Go through all candidates that contain this interface token.
+            for cand in candidates:
+                if rev_info.rev_token1 in cand.pcb.get_all_iftokens():
+                    to_remove.append(cand.pcb.segment_id)
+                    info = RevocationInfo.from_values(
+                        RT.CORE_SEGMENT, rev_info.rev_token1,
+                        rev_info.proof1, True, cand.pcb.segment_id)
+                    rev_infos.append(info)
+        elif rev_info.rev_type == RT.HOP:
+            candidates = []
+            for ps in self.core_segments.values():
+                candidates += ps.candidates
+            # Go through all candidates that contain both interface tokens.
+            for cand in candidates:
+                if (rev_info.rev_token1 in cand.pcb.get_all_iftokens() and
+                        rev_info.rev_token2 in cand.pcb.get_all_iftokens()):
+                    to_remove.append(cand.pcb.segment_id)
+                    info = RevocationInfo.from_values(
+                        RT.CORE_SEGMENT, rev_info.rev_token1, rev_info.proof1,
+                        True, cand.pcb.segment_id, True,
+                        rev_info.rev_token2, rev_info.rev_token2)
+                    rev_infos.append(info)
+
+        # Remove the affected segments from the path stores.
+        for ps in self.core_segments.values():
+            ps.remove_segments(to_remove)
+
+        # Send revocations to local PS.
+        if rev_infos:
+            rev_payload = RevocationPayload.from_values(rev_infos)
+            pkt = PathMgmtPacket.from_values(PMT.REVOCATIONS, rev_payload, None,
+                                             self.addr, self.addr.get_isd_ad())
+            dst = self.topology.path_servers[0].addr
+            logging.info("Sending segment revocations to local PS.")
+            self.send(pkt, dst)
+
+        # TODO: Propagate revocations to other core BSes.
 
 
 class LocalBeaconServer(BeaconServer):
@@ -887,7 +999,7 @@ class LocalBeaconServer(BeaconServer):
         """
         Sends out revocation to the local PS and a CPS and down_stream BS.
         """
-        assert isinstance(rev_info, RevocationInfo)
+        BeaconServer._process_revocation(self, rev_info)
         # Build segment revocations for local path server.
         rev_infos = []
         to_remove = []
@@ -943,8 +1055,14 @@ class LocalBeaconServer(BeaconServer):
             return
         up_segment = self.up_segments.get_best_segments()[0]
         assert up_segment.segment_id != rev_info.seg_id
+        # Add first hop opaque field.
+        up_segment = copy.deepcopy(up_segment)
+        ad_marking = self._create_ad_marking(up_segment.trcf.if_id, 0,
+                                             up_segment.get_timestamp(),
+                                             up_segment.get_last_pcbm().hof)
+        up_segment.add_ad(ad_marking)
         path = up_segment.get_path(True)
-        path.up_segment_info.up_flag = True
+        # path.up_segment_info.up_flag = True
         rev_payload = RevocationPayload.from_values([rev_info])
         dst_isd_ad = ISD_AD(up_segment.get_isd(),
                             up_segment.get_first_pcbm().ad_id)
@@ -992,7 +1110,7 @@ class LocalBeaconServer(BeaconServer):
             try:
                 count = self.zk.expire_shared_items(
                     self.ZK_PCB_CACHE_PATH,
-                    start_propagation - self.config.propagation_time*10)
+                    start_propagation - self.config.propagation_time * 10)
             except ZkConnectionLoss:
                 continue
             if count:
