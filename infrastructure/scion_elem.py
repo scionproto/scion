@@ -40,14 +40,14 @@ class SCIONElement(object):
     provides.
 
     :ivar topology: the topology of the AD as seen by the server.
-    :vartype topology: :class:`Topology`
+    :type topology: :class:`Topology`
     :ivar config: the configuration of the AD in which the server is located.
-    :vartype config: :class:`lib.config.Config`
+    :type config: :class:`lib.config.Config`
     :ivar ifid2addr: a dictionary mapping interface identifiers to the
-        corresponding border router addresses in the server's AD.
-    :vartype ifid2addr: dict
+                     corresponding border router addresses in the server's AD.
+    :type ifid2addr: dict
     :ivar addr: a `SCIONAddr` object representing the server address.
-    :vartype addr: :class:`lib.packet.scion_addr.SCIONAddr`
+    :type addr: :class:`lib.packet.scion_addr.SCIONAddr`
     """
 
     def __init__(self, server_type, topo_file, config_file=None, server_id=None,
@@ -102,6 +102,9 @@ class SCIONElement(object):
         """
         The address of the server as a :class:`lib.packet.scion_addr.SCIONAddr`
         object.
+
+        :returns:
+        :type:
         """
         return self._addr
 
@@ -118,7 +121,7 @@ class SCIONElement(object):
 
     def set_addr(self, addr):
         """
-        Sets the address of the server. Must be a lib.SCIONAddr object
+        Set the address of the server. Must be a lib.SCIONAddr object
         """
         if not (isinstance(addr, SCIONAddr) or addr is None):
             raise TypeError("Addr must be of type 'SCIONAddr'")
@@ -158,12 +161,25 @@ class SCIONElement(object):
         """
         Main routine to handle incoming SCION packets. Subclasses have to
         override this to provide their functionality.
+
+        :param packet:
+        :type packet:
+        :param sender:
+        :type sender:
+        :param from_local_socket:
+        :type from_local_socket:
         """
         pass
 
     def get_first_hop(self, spkt):
         """
         Returns first hop addr of down-path or end-host addr.
+
+        :param spkt:
+        :type spkt:
+
+        :returns:
+        :rtype:
         """
         opaque_field = spkt.hdr.path.get_first_hop_of()
         if opaque_field is None:  # EmptyPath

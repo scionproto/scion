@@ -28,6 +28,9 @@ import math
 def _append_pkcs7_padding(msg):
     """
     PKCS7 Padding functions to a given message msg.
+
+    :param msg:
+    :type msg:
     """
     numpads = 16 - (len(msg) % 16)
     return msg + bytes([numpads]*numpads)
@@ -35,6 +38,9 @@ def _append_pkcs7_padding(msg):
 def _strip_pkcs7_padding(msg):
     """
     Strip PKCS7 Padding from to a given message msg with PKCS7 padding.
+
+    :param msg:
+    :type msg:
     """
     if len(msg)%16 or not msg:
         raise ValueError('Bytes of len %d can\'t be PCKS7-padded' % len(msg))
@@ -50,14 +56,14 @@ def get_random_bytes(size):
     default random resource from operating systems. e.g., /dev/urandom on Linux
     OS.
 
-    Args:
-        size: Length of generated random bytes, should be greater than 0.
+    :param size: Length of generated random bytes, should be greater than 0.
+    :type size:
 
-    Returns:
-    	Random output, as a bytes object.
+    :returns: Random output, as a bytes object.
+    :rtype:
 
-    Raises:
-        ValueError: An error occurred when size is not a positive integer.
+    ...Raises:
+       ValueError: An error occurred when size is not a positive integer.
     """
     if size > 0:
         return os.urandom(size)
@@ -68,17 +74,18 @@ def sha3hash(inp=None, algo='SHA3-512'):
     """
     Sha3 hash function with given data and supported algorithm options.
 
-    Args:
-        data: Hash input, as a string. Default value is NULL.
-        algo: Supported SHA3 algorithms, as a string. Algorithms include
-        `SHA3-224`, `SHA3-256`, `SHA3-384`, and `SHA3-512`. Default option is
-        `SHA3-512`.
+    :param inp: Hash input, as a string. Default value is NULL.
+    :type inp:
+    :param algo: Supported SHA3 algorithms, as a string. Algorithms include
+                 `SHA3-224`, `SHA3-256`, `SHA3-384`, and `SHA3-512`.
+                 Default option is `SHA3-512`.
+    :type algo:
 
-    Returns:
-        Hash output, as a bytes object.
+    :returns: Hash output, as a bytes object.
+    :rtype:
 
-    Raises:
-        ValueError: An error occurred when algorithm is not recognized.
+    ...Raises:
+       ValueError: An error occurred when algorithm is not recognized.
     """
     if algo == 'SHA3-224':
         return Keccak(c=448, r=1152, n=224, data=inp).hexdigest()
@@ -99,15 +106,15 @@ def get_roundkey_cache(key):
     authenticated_encrypt and authenticated_decrypt), or CBC-MAC (see get_cbcmac
     and verify_cbcmac).
 
-    Args:
-        key: Symmetric key for AES cipher, as a bytes object.
+    :param key: Symmetric key for AES cipher, as a bytes object.
+    :type key:
 
-    Returns:
-        Expanded round key cache, as a list.
+    :returns: Expanded round key cache, as a list.
+    :rtype:
 
-    Raises:
-    	ValueError: An error occurred when key is NULL or length of key is
-    	incorrect.
+    ...Raises:
+       ValueError: An error occurred when key is NULL or length of key is
+       incorrect.
     """
     if key is None:
         raise ValueError('Key is NULL.')
@@ -131,17 +138,19 @@ def cbc_encrypt(cache, msg, inv=None):
     """
     CBC cipher encryption on a given message with pre-expanded key cache.
 
-    Args:
-        cache: Expanded round key cache by calling get_roundkey_cache.
-        msg: Plaintext to be encrypted, as a bytes object.
-        inv: Initialized vector for CBC cipher, as a bytes object. Default
-        value is NULL.
+    :param cache: Expanded round key cache by calling get_roundkey_cache.
+    :type cache:
+    :param msg: Plaintext to be encrypted, as a bytes object.
+    :type msg:
+    :param inv: Initialized vector for CBC cipher, as a bytes object. Default
+                value is NULL.
+    :type inv:
 
-    Returns:
-        Encrypted block cipher, as a bytes object.
+    :returns: Encrypted block cipher, as a bytes object.
+    :rtype:
 
-    Raises:
-    	ValueError: An error occurred when cache is NULL or msg is NULL.
+    ...Raises:
+       ValueError: An error occurred when cache is NULL or msg is NULL.
     """
     if cache is None:
         raise ValueError('Key cache is NULL.')

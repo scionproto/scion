@@ -30,6 +30,18 @@ def get_hosts_by_srvname(service_name, dns_ip, dns_port=SCION_DNS_PORT,
     """
     Return list of alive instances for given service name, or None when DNS
     query fails
+
+    :param service_name:
+    :type service_name:
+    :param dns_ip:
+    :type dns_ip:
+    :param dns_port:
+    :type dns_port:
+    :param timeout:
+    :type timeout:
+
+    :returns: alive instances for a given service name.
+    :rtype: list
     """
     # FIXME(kormat): this function isn't finished/tested/anything.
     q = DNSRecord.question(service_name, "ANY")
@@ -37,7 +49,6 @@ def get_hosts_by_srvname(service_name, dns_ip, dns_port=SCION_DNS_PORT,
         reply_pkt = q.send(dns_ip, dns_port, timeout=timeout)
     except socket.timeout:
         return None  # DNS query failed
-
     reply = DNSRecord.parse(reply_pkt)
     hosts = []
     if reply and reply.rr:

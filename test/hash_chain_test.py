@@ -32,15 +32,15 @@ class TestHashChain(SCIONCommonTest):
     Unit tests for hash_chain.py.
     """
     def test_hash_chain(self):
+        """
+        Test the hash chain APIs.
+        """
         N = 20
         hc = HashChain(Random.new().read(32), N)
-
         target = hc.next_element()
         self.assertTrue(target == hc.current_element())
-
         for _ in range(N - 1):
             self.assertTrue(HashChain.verify(hc.next_element(), target))
-
         self.assertFalse(HashChain.verify(Random.new().read(32), target))
 
 if __name__ == "__main__":

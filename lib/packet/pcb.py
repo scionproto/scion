@@ -44,6 +44,9 @@ class Marking(object):
     Base class for all marking objects.
     """
     def __init__(self):
+        """
+        Initialize an instance of the class Marking.
+        """
         self.parsed = False
         self.raw = None
 
@@ -82,6 +85,12 @@ class PCBMarking(Marking):
     LEN = 32 + 2 * 32
 
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class PCBMarking.
+
+        :param raw:
+        :type raw:
+        """
         Marking.__init__(self)
         self.ad_id = 0
         self.ssf = None
@@ -170,6 +179,12 @@ class PeerMarking(Marking):
     LEN = 24 + 2 * 32
 
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class PeerMarking.
+
+        :param raw:
+        :type raw:
+        """
         Marking.__init__(self)
         self.ad_id = 0
         self.hof = None
@@ -253,6 +268,12 @@ class ADMarking(Marking):
     LEN = PCBMarking.LEN
 
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class ADMarking.
+
+        :param raw:
+        :type raw:
+        """
         Marking.__init__(self)
         self.pcbm = None
         self.pms = []
@@ -338,6 +359,12 @@ class PathSegment(Marking):
     LEN = 16 + 32
 
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class PathSegment.
+
+        :param raw:
+        :type raw:
+        """
         Marking.__init__(self)
         self.iof = None
         self.trcf = None
@@ -570,6 +597,12 @@ class PathConstructionBeacon(SCIONPacket):
     PathConstructionBeacon packet, used for path propagation.
     """
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class PathConstructionBeacon.
+
+        :param raw:
+        :type raw:
+        """
         SCIONPacket.__init__(self)
         self.pcb = None
         if raw:

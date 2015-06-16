@@ -36,6 +36,9 @@ class PathBase(object):
     information for each AD-level hop.
     """
     def __init__(self):
+        """
+        Initialize an instance of the class PathBase.
+        """
         self.up_segment_info = None
         self.up_segment_hops = []
         self.down_segment_info = None
@@ -121,6 +124,12 @@ class CorePath(PathBase):
     | hop OF 1 | ... | hop OF N |
     """
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class CorePath.
+
+        :param raw:
+        :type raw:
+        """
         PathBase.__init__(self)
         self.core_segment_info = None
         self.core_segment_hops = []
@@ -278,6 +287,12 @@ class CrossOverPath(PathBase):
     """
 
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class CrossOverPath.
+
+        :param raw:
+        :type raw:
+        """
         PathBase.__init__(self)
         self.up_segment_upstream_ad = None
         self.down_segment_upstream_ad = None
@@ -378,6 +393,12 @@ class PeerPath(PathBase):
     """
 
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class PeerPath.
+
+        :param raw:
+        :type raw:
+        """
         PathBase.__init__(self)
         self.up_segment_peering_link = None
         self.up_segment_upstream_ad = None
@@ -488,6 +509,12 @@ class EmptyPath(PathBase):
     SCION path but still uses SCION packets for communication.
     """
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class EmptyPath.
+
+        :param raw:
+        :type raw:
+        """
         PathBase.__init__(self)
 
         if raw is not None:
@@ -540,15 +567,16 @@ class PathCombinator(object):
         # If we have a core segment, check that the core_segment connects the
         # up_ and down_segment. Otherwise, check that up- and down-segment meet
         # at a single core AD.
-        if ((core_segment and
-                (core_segment.get_last_pcbm().ad_id !=
-                 up_segment.get_first_pcbm().ad_id) or
-                (core_segment.get_first_pcbm().ad_id !=
-                 down_segment.get_first_pcbm().ad_id)) or
-                (not core_segment and
-                 (up_segment.get_first_pcbm().ad_id !=
-                  down_segment.get_first_pcbm().ad_id))):
-            return None
+        if core_segment:
+            if ((core_segment.get_last_pcbm().ad_id !=
+                    up_segment.get_first_pcbm().ad_id) or
+                    (core_segment.get_first_pcbm().ad_id !=
+                    down_segment.get_first_pcbm().ad_id)):
+                return None
+        else:
+            if (up_segment.get_first_pcbm().ad_id !=
+                    down_segment.get_first_pcbm().ad_id):
+                return None
 
         full_path = CorePath()
         full_path.up_segment_info = up_segment.iof

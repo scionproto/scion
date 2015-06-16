@@ -52,9 +52,6 @@ class Config(object):
     def __init__(self):
         """
         Initialize an instance of the class Config.
-
-        :returns: the newly created Config instance.
-        :rtype: :class:`Config`
         """
         self.master_of_gen_key = 0
         self.master_ad_key = 0
@@ -71,10 +68,11 @@ class Config(object):
     @classmethod
     def from_file(cls, config_file):
         """
-        Create a Config instance from the file.
+        Create a Config instance from the configuration file.
 
         :param config_file: path to the configuration file
         :type config_file: str
+
         :returns: the newly created Config instance
         :rtype: :class: `Config`
         """
@@ -93,6 +91,7 @@ class Config(object):
 
         :param config_dict: dictionary representation of configuration
         :type config_dict: dict
+        
         :returns: the newly created Config instance
         :rtype: :class:`Config`
         """

@@ -45,6 +45,9 @@ class OpaqueField(object):
     LEN = 8
 
     def __init__(self):
+        """
+        Initialize an instance of the class OpaqueField.
+        """
         self.info = 0  # TODO verify path.PathType in that context
         self.type = 0
         self.parsed = False
@@ -66,19 +69,19 @@ class OpaqueField(object):
         """
         Returns true if opaque field is regular, false otherwise.
         """
-        return not ((self.info & (1 << 6)) != 0)
+        return (self.info & (1 << 6) == 0)
 
     def is_continue(self):
         """
         Returns true if continue bit is set, false otherwise.
         """
-        return ((self.info & (1 << 5)) != 0)
+        return not (self.info & (1 << 5) == 0)
 
     def is_xovr(self):
         """
         Returns true if crossover point bit is set, false otherwise.
         """
-        return ((self.info & (1 << 4)) != 0)
+        return not (self.info & (1 << 4) == 0)
 
     def __str__(self):
         pass
@@ -108,6 +111,12 @@ class HopOpaqueField(OpaqueField):
     MAC_LEN = 3  # MAC length in bytes.
 
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class HopOpaqueField.
+
+        :param raw:
+        :type raw:
+        """
         OpaqueField.__init__(self)
         self.exp_time = 0
         self.ingress_if = 0
@@ -189,6 +198,12 @@ class InfoOpaqueField(OpaqueField):
     """
 
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class InfoOpaqueField.
+
+        :param raw:
+        :type raw:
+        """
         OpaqueField.__init__(self)
         self.timestamp = 0
         self.isd_id = 0
@@ -269,6 +284,12 @@ class TRCField(OpaqueField):
     and a reserved section (1 byte).
     """
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class TRCField.
+
+        :param raw:
+        :type raw:
+        """
         OpaqueField.__init__(self)
         self.info = OpaqueFieldType.TRC_OF
         self.trc_version = 0
@@ -335,6 +356,12 @@ class SupportSignatureField(OpaqueField):
     signature length (2 bytes), and the block size (2 bytes).
     """
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class SupportSignatureField.
+
+        :param raw:
+        :type raw:
+        """
         OpaqueField.__init__(self)
         self.cert_chain_version = 0
         self.sig_len = 0
@@ -404,6 +431,12 @@ class SupportPeerField(OpaqueField):
     the bandwidth class (1 bit), and a reserved section (31 bits).
     """
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class SupportPeerField.
+
+        :param raw:
+        :type raw:
+        """
         OpaqueField.__init__(self)
         self.isd_id = 0
         self.bwalloc_f = 0
@@ -487,6 +520,12 @@ class SupportPCBField(OpaqueField):
     bandwidth right (1 byte).
     """
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class SupportPCBField.
+
+        :param raw:
+        :type raw:
+        """
         OpaqueField.__init__(self)
         self.isd_id = 0
         self.bwalloc_f = 0

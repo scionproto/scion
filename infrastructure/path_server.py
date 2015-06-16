@@ -54,6 +54,16 @@ class PathServer(SCIONElement):
     MAX_SEG_NO = 5  # TODO: replace by config variable.
 
     def __init__(self, server_id, topo_file, config_file):
+        """
+        Initialize an instance of the class PathServer.
+
+        :param server_id:
+        :type server_id:
+        :param topo_file:
+        :type topo_file:
+        :param config_file:
+        :type config_file:
+        """
         SCIONElement.__init__(self, "ps", topo_file, server_id=server_id,
                               config_file=config_file)
         # TODO replace by pathstore instance
@@ -86,6 +96,9 @@ class PathServer(SCIONElement):
     def _verify_revocation(self, rev_info):
         """
         Verifies the different types of revocations.
+
+        :returns:
+        :rtype:
         """
         # Verify revocation token.
         if not HashChain.verify(rev_info.proof1, rev_info.rev_token1):
@@ -99,6 +112,9 @@ class PathServer(SCIONElement):
     def _check_correspondence(self, rev_info, segment):
         """
         Checks that a revocation corresponds to a path segment.
+
+        :returns:
+        :rtype:
         """
         assert rev_info.incl_seg_id
 
@@ -191,16 +207,41 @@ class CorePathServer(PathServer):
             """
             Entry for a LeasesDict.
             """
+
             def __init__(self, isd_id, ad_id, exp_time, seg_type):
+                """
+                Initialize an instance of the class Entry.
+
+                :param isd_id:
+                :type isd_id:
+                :param ad_id:
+                :type ad_id:
+                :param exp_time:
+                :type exp_time:
+                :param seg_type:
+                :type seg_type:
+                """
                 self.isd_id = isd_id
                 self.ad_id = ad_id
                 self.exp_time = exp_time
                 self.seg_type = seg_type
 
             def __hash__(self):
+                """
+
+
+                :returns:
+                :rtype:
+                """
                 return (self.isd_id << 16) | self.ad_id
 
             def __eq__(self, other):
+                """
+
+
+                :returns:
+                :rtype:
+                """
                 if type(other) is type(self):
                     return (self.isd_id == other.isd_id and
                             self.ad_id == other.ad_id)
@@ -208,6 +249,12 @@ class CorePathServer(PathServer):
                     return False
 
         def __init__(self, max_capacity=10000):
+            """
+            Initialize an instance of the class LeasesDict.
+
+            :param max_capacity:
+            :type max_capacity:
+            """
             self._leases = defaultdict(set)
             self._max_capacity = max_capacity
             self._nentries = 0
@@ -218,13 +265,15 @@ class CorePathServer(PathServer):
             Adds a lease to the cache.
 
             :param segment_id: the segment's ID
-            :type: bytes
+            :type segment_id: bytes
             :param leaser_isd, leaser_ad: isd/ad of the leaser
-            :type: int
+            :type leaser_isd: int
+            :param leaser_ad:
+            :type leaser_ad: int
             :param expiration: expiration time of the lease
-            :type: int
+            :type expiration: int
             :param seg_type: type of the segment (down or core)
-            :type: int
+            :type seg_type: int
             """
             if self._nentries >= self._max_capacity:
                 self._purge_entries()
@@ -242,9 +291,21 @@ class CorePathServer(PathServer):
             self._leases[segment_id].add(entry)
 
         def __contains__(self, segment_id):
+            """
+
+
+            :returns:
+            :rtype:
+            """
             return len(self[segment_id]) > 0
 
         def __getitem__(self, segment_id):
+            """
+
+
+            :returns:
+            :rtype:
+            """
             now = time.time()
             if segment_id not in self._leases:
                 return []
@@ -258,7 +319,7 @@ class CorePathServer(PathServer):
 
         def _purge_entries(self):
             """
-            Removes expired leases.
+            Remove expired leases.
             """
             now = int(time.time())
             for entries in self._leases.items():
@@ -267,14 +328,22 @@ class CorePathServer(PathServer):
                 self._nentries += len(entries)
 
     def __init__(self, server_id, topo_file, config_file):
+        """
+        Initialize an instance of the class CorePathServer.
+
+        :param server_id:
+        :type server_id:
+        :param topo_file:
+        :type topo_file:
+        :param config_file:
+        :type config_file:
+        """
         PathServer.__init__(self, server_id, topo_file, config_file)
         # Sanity check that we should indeed be a core path server.
         assert self.topology.is_core_ad, "This shouldn't be a core PS!"
-
         self.leases = self.LeasesDict()
         self.iftoken2seg = defaultdict(set)
         self.core_ads = set()
-
         # Init core ads set.
         for router in self.topology.routing_edge_routers:
             self.core_ads.add((router.interface.neighbor_isd,
@@ -282,7 +351,7 @@ class CorePathServer(PathServer):
 
     def _add_if_mappings(self, pcb):
         """
-        Adds interface to segment ID mappings.
+        Add interface to segment ID mappings.
         """
         for ad in pcb.ads:
             self.iftoken2seg[ad.pcbm.ig_rev_token].add(pcb.segment_id)
@@ -292,12 +361,15 @@ class CorePathServer(PathServer):
                 self.iftoken2seg[pm.eg_rev_token].add(pcb.segment_id)
 
     def _handle_up_segment_record(self, pkt):
+        """
+
+        """
         PathServer._handle_up_segment_record(self, pkt)
         logging.error("Core Path Server received up-path record!")
 
     def _handle_down_segment_record(self, pkt):
         """
-        Handles registration of a down path.
+        Handle registration of a down path.
         """
         records = pkt.payload
         if not records.pcbs:
@@ -340,7 +412,7 @@ class CorePathServer(PathServer):
 
     def _handle_core_segment_record(self, pkt):
         """
-        Handles registration of a core path.
+        Handle registration of a core path.
         """
         records = pkt.payload
         if not records.pcbs:
@@ -389,12 +461,12 @@ class CorePathServer(PathServer):
 
     def _propagate_to_core_ads(self, pkt, inter_isd=False):
         """
-        Propagates 'pkt' to other core ADs.
+        Propagate 'pkt' to other core ADs.
 
         :param pkt: the packet to propagate (without path)
-        :type lib.packet.packet_base.PacketBase
+        :type pkt: lib.packet.packet_base.PacketBase
         :param inter_isd: whether the packet should be propagated across ISDs
-        :type bool
+        :type inter_isd: bool
         """
         # FIXME: For new we broadcast the path to every CPS in the core, even
         # the one we just received it from. Can we avoid that?
@@ -416,6 +488,9 @@ class CorePathServer(PathServer):
     def _handle_leases(self, pkt):
         """
         Register an incoming lease for a path segment.
+
+        :param pkt:
+        :type pkt:
         """
         assert isinstance(pkt.payload, PathSegmentLeases)
         for linfo in pkt.payload.leases:
@@ -425,6 +500,11 @@ class CorePathServer(PathServer):
                           linfo.ad_id, linfo.seg_id)
 
     def handle_path_request(self, pkt):
+        """
+
+        :param pkt:
+        :type pkt:
+        """
         segment_info = pkt.payload
         dst_isd = segment_info.dst_isd
         dst_ad = segment_info.dst_ad
@@ -495,6 +575,9 @@ class CorePathServer(PathServer):
     def _handle_revocation(self, pkt):
         """
         Handles a revocation of a segment, interface or hop.
+
+        :param pkt:
+        :type pkt:
         """
         assert isinstance(pkt.payload, RevocationPayload)
         if hash(pkt.payload) in self.revocations:
@@ -595,6 +678,13 @@ class CorePathServer(PathServer):
     def handle_request(self, packet, sender, from_local_socket=True):
         """
         Main routine to handle incoming SCION packets.
+
+        :param packet:
+        :type packet:
+        :param sender:
+        :type sender:
+        :param from_local_socket:
+        :type from_local_socket:
         """
         pkt = PathMgmtPacket(packet)
 
@@ -615,7 +705,18 @@ class LocalPathServer(PathServer):
     SCION Path Server in a non-core AD. Stores up-paths to the core and
     registers down-paths with the CPS. Can cache paths learned from a CPS.
     """
+
     def __init__(self, server_id, topo_file, config_file):
+        """
+        Initialize an instance of the class LocalPathServer.
+
+        :param server_id:
+        :type server_id:
+        :param topo_file:
+        :type topo_file:
+        :param config_file:
+        :type config_file:
+        """
         PathServer.__init__(self, server_id, topo_file, config_file)
         # Sanity check that we should indeed be a local path server.
         assert not self.topology.is_core_ad, "This shouldn't be a local PS!"
@@ -625,7 +726,12 @@ class LocalPathServer(PathServer):
 
     def _send_leases(self, orig_pkt, leases):
         """
-        Sends leases to a CPS.
+        Send leases to a CPS.
+
+        :param orig_pkt:
+        :type orig_pkt:
+        :param leases:
+        :type leases:
         """
         dst = orig_pkt.hdr.src_addr
         orig_pkt.hdr.path.reverse()
@@ -644,7 +750,10 @@ class LocalPathServer(PathServer):
 
     def _handle_up_segment_record(self, pkt):
         """
-        Handles Up Path registration from local BS.
+        Handle Up Path registration from local BS.
+
+        :param pkt:
+        :type pkt:
         """
         records = pkt.payload
         if not records.pcbs:
@@ -681,6 +790,12 @@ class LocalPathServer(PathServer):
         self.pending_up = []
 
     def _handle_down_segment_record(self, pkt):
+        """
+
+
+        :param pkt:
+        :type pkt:
+        """
         records = pkt.payload
         if not records.pcbs:
             return
@@ -718,7 +833,10 @@ class LocalPathServer(PathServer):
 
     def _handle_core_segment_record(self, pkt):
         """
-        Handles registration of a core path.
+        Handle registration of a core path.
+
+        :param pkt:
+        :type pkt:
         """
         records = pkt.payload
         if not records.pcbs:
@@ -760,6 +878,9 @@ class LocalPathServer(PathServer):
     def _handle_revocation(self, pkt):
         """
         Handles a revocation of a segment.
+
+        :param pkt:
+        :type pkt:
         """
         assert isinstance(pkt.payload, RevocationPayload)
         if hash(pkt.payload) in self.revocations:
@@ -809,7 +930,18 @@ class LocalPathServer(PathServer):
     def _request_paths_from_core(self, ptype, dst_isd, dst_ad,
                                  src_isd=None, src_ad=None):
         """
-        Tries to request core PS for given target (isd, ad).
+        Try to request core PS for given target (isd, ad).
+
+        :param ptype:
+        :type ptype:
+        :param dst_isd:
+        :type dst_isd:
+        :param dst_ad:
+        :type dst_ad:
+        :param src_isd:
+        :type src_isd:
+        :param src_ad:
+        :type src_ad:
         """
         assert ptype in [PST.DOWN, PST.CORE]
         if src_isd is None:
@@ -838,7 +970,10 @@ class LocalPathServer(PathServer):
 
     def handle_path_request(self, pkt):
         """
-        Handles all types of path request.
+        Handle all types of path request.
+
+        :param pkt:
+        :type pkt:
         """
         segment_info = pkt.payload
         dst_isd = segment_info.dst_isd

@@ -103,11 +103,17 @@ class InterfaceState(object):
     REVOKED = 2
 
     def __init__(self):
+        """
+        Initialize an instance of the class InterfaceState.
+        """
         self.active_since = 0
         self.last_updated = 0
         self.state = self.INACTIVE
 
     def update(self):
+        """
+
+        """
         curr_time = time.time()
         if self.last_updated + self.IFID_TOUT < curr_time:
             self.active_since = curr_time
@@ -122,6 +128,7 @@ class InterfaceState(object):
     def is_expired(self):
         return (self.state == self.ACTIVE and
                 self.last_updated + self.IFID_TOUT < time.time())
+
 
 
 class BeaconServer(SCIONElement):
@@ -148,6 +155,18 @@ class BeaconServer(SCIONElement):
     def __init__(self, server_id, topo_file, config_file, path_policy_file):
         SCIONElement.__init__(self, "bs", topo_file, server_id=server_id,
                               config_file=config_file)
+        """
+        Initialize an instance of the class BeaconServer.
+
+        :param server_id: server identifier.
+        :type server_id: int
+        :param topo_file: topology file.
+        :type topo_file: string
+        :param config_file: configuration file.
+        :type config_file: string
+        :param path_policy_file: path policy file.
+        :type path_policy_file: string
+        """
         # TODO: add 2 policies
         self.path_policy = PathPolicy.from_file(path_policy_file)
         self.unverified_beacons = deque()
@@ -183,6 +202,9 @@ class BeaconServer(SCIONElement):
     def _get_if_rev_token(self, if_id):
         """
         Returns the revocation token for a given interface.
+
+        :param if_id: interface identifier.
+        :type if_id: int
         """
         self._if_rev_token_lock.acquire()
         ret = None
@@ -205,6 +227,9 @@ class BeaconServer(SCIONElement):
 
         Segments with identical hops will always use the same revocation token
         hash chain.
+
+        :param pcb: path segment.
+        :type pcb: PathSegment
         """
         id = pcb.get_hops_hash()
         if id not in self.seg2rev_tokens:
@@ -219,6 +244,9 @@ class BeaconServer(SCIONElement):
     def propagate_downstream_pcb(self, pcb):
         """
         Propagates the beacon to all children.
+
+        :param pcb: path segment.
+        :type pcb: PathSegment
         """
         assert isinstance(pcb, PathSegment)
         ingress_if = pcb.trcf.if_id
@@ -253,6 +281,9 @@ class BeaconServer(SCIONElement):
     def store_pcb(self, beacon):
         """
         Receives beacon and stores it for processing.
+
+        :param pcb: path construction beacon.
+        :type pcb: PathConstructionBeacon
         """
         assert isinstance(beacon, PathConstructionBeacon)
         if not self.path_policy.check_filters(beacon.pcb):
@@ -283,6 +314,15 @@ class BeaconServer(SCIONElement):
         """
         Creates an AD Marking for given ingress and egress interfaces,
         timestamp, and previous HOF.
+
+        :param ingress_if: ingress interface.
+        :type ingress_if: int
+        :param egress_if: egress interface.
+        :type egress_if: int
+        :param ts:
+        :type ts:
+        :param prev_hof:
+        :type prev_hof:
         """
         ssf = SupportSignatureField.from_values(ADMarking.LEN)
         hof = HopOpaqueField.from_values(BeaconServer.HOF_EXP_TIME,
@@ -316,6 +356,12 @@ class BeaconServer(SCIONElement):
         return ADMarking.from_values(pcbm, peer_markings, signature)
 
     def handle_ifid_packet(self, ipkt):
+        """
+
+
+        :param ipkt:
+        :type ipkt:
+        """
         ifid = ipkt.reply_id
         self.ifid_state[ifid].update()
 
@@ -357,6 +403,9 @@ class BeaconServer(SCIONElement):
     def _try_to_verify_beacon(self, pcb):
         """
         Try to verify a beacon.
+
+        :param pcb: path segment to verify.
+        :type pcb: PathSegment
         """
         assert isinstance(pcb, PathSegment)
         last_pcbm = pcb.get_last_pcbm()
@@ -376,12 +425,30 @@ class BeaconServer(SCIONElement):
         """
         Return True or False whether the necessary Certificate and TRC files are
         found.
+
+        :param isd_id: ISD identifier.
+        :type isd_id: int
+        :param ad_id: AD identifier.
+        :type ad_id: int
+        :param cert_chain_version: certificate chain file version.
+        :type cert_chain_version: int
+        :param trc_version: TRC file version.
+        :type trc_version: int
+        :param if_id: interface identifier.
+        :type if_id: int
         """
         pass
 
     def _get_trc(self, isd_id, trc_version, if_id):
         """
         Get TRC from local storage or memory.
+
+        :param isd_id: ISD identifier.
+        :type isd_id: int
+        :param trc_version: TRC file version.
+        :type trc_version: int
+        :param if_id: interface identifier.
+        :type if_id: int
         """
         trc = self.trcs.get((isd_id, trc_version))
         if not trc:
@@ -413,6 +480,9 @@ class BeaconServer(SCIONElement):
         """
         Once the necessary certificate and TRC files have been found, verify the
         beacons.
+
+        :param pcb: path segment to verify.
+        :type pcb: PathSegment
         """
         assert isinstance(pcb, PathSegment)
         last_pcbm = pcb.get_last_pcbm()
@@ -442,6 +512,9 @@ class BeaconServer(SCIONElement):
     def _handle_verified_beacon(self, pcb):
         """
         Once a beacon has been verified, place it into the right containers.
+
+        :param pcb: verified path segment.
+        :type pcb: PathSegment
         """
         pass
 
@@ -454,6 +527,9 @@ class BeaconServer(SCIONElement):
     def process_trc_rep(self, trc_rep):
         """
         Process the TRC reply.
+
+        :param trc_rep: TRC reply.
+        :type trc_rep: TRCReply
         """
         assert isinstance(trc_rep, TRCReply)
         logging.info("TRC reply received.")
@@ -534,6 +610,9 @@ class BeaconServer(SCIONElement):
         """
         Retrieve new beacons from the shared cache and send them for local
         processing.
+
+        :param entries: cached path segments.
+        :param entries: list
         """
         # TODO(kormat): move constant to proper place
         chunk_size = 10
@@ -596,17 +675,37 @@ class CoreBeaconServer(BeaconServer):
     def __init__(self, server_id, topo_file, config_file, path_policy_file):
         BeaconServer.__init__(self, server_id, topo_file, config_file,
                               path_policy_file)
+        """
+        Initialize an instance of the class CoreBeaconServer.
+
+        :param server_id: server identifier.
+        :type server_id: int
+        :param topo_file: topology file.
+        :type topo_file: string
+        :param config_file: configuration file.
+        :type config_file: string
+        :param path_policy_file: path policy file.
+        :type path_policy_file: string
+        """
         # Sanity check that we should indeed be a core beacon server.
         assert self.topology.is_core_ad, "This shouldn't be a core BS!"
         self.beacons = defaultdict(self._ps_factory)
         self.core_segments = defaultdict(self._ps_factory)
 
     def _ps_factory(self):
+        """
+
+        :returns:
+        :rtype:
+        """
         return PathStore(self.path_policy)
 
     def propagate_core_pcb(self, pcb):
         """
         Propagates the core beacons to other core ADs.
+
+        :returns:
+        :rtype:
         """
         assert isinstance(pcb, PathSegment)
         ingress_if = pcb.trcf.if_id
@@ -636,7 +735,7 @@ class CoreBeaconServer(BeaconServer):
     @thread_safety_net("handle_pcbs_propagation")
     def handle_pcbs_propagation(self):
         """
-        Generates a new beacon or gets ready to forward the one received.
+        Generate a new beacon or gets ready to forward the one received.
         """
         master = False
         while True:
@@ -688,6 +787,9 @@ class CoreBeaconServer(BeaconServer):
 
     @thread_safety_net("register_segments")
     def register_segments(self):
+        """
+
+        """
         if not self.config.registers_paths:
             logging.info("Path registration unwanted, leaving"
                          "register_segments")
@@ -707,7 +809,7 @@ class CoreBeaconServer(BeaconServer):
 
     def register_core_segment(self, pcb):
         """
-        Registers the core segment contained in 'pcb' with the local core path
+        Register the core segment contained in 'pcb' with the local core path
         server.
         """
         info = PathSegmentInfo.from_values(PST.CORE,
@@ -729,7 +831,7 @@ class CoreBeaconServer(BeaconServer):
 
     def process_pcbs(self, pcbs):
         """
-        Processes new beacons and appends them to beacon list.
+        Process new beacons and appends them to beacon list.
         """
         count = 0
         for pcb in pcbs:
@@ -749,6 +851,20 @@ class CoreBeaconServer(BeaconServer):
                          if_id):
         """
         Return True or False whether the necessary TRC file is found.
+
+        :param isd_id: ISD identifier.
+        :type isd_id: int
+        :param ad_id: AD identifier.
+        :type ad_id: int
+        :param cert_chain_version: certificate chain file version.
+        :type cert_chain_version: int
+        :param trc_version: TRC file version.
+        :type trc_version: int
+        :param if_id: interface identifier.
+        :type if_id: int
+
+        :returns: True if the files exist, False otherwise.
+        :rtype: bool
         """
         if self._get_trc(isd_id, trc_version, if_id):
             return True
@@ -758,6 +874,9 @@ class CoreBeaconServer(BeaconServer):
     def _handle_verified_beacon(self, pcb):
         """
         Once a beacon has been verified, place it into the right containers.
+
+        :param pcb: verified path segment.
+        :type pcb: PathSegment
         """
         isd_id = pcb.get_first_pcbm().spcbf.isd_id
         ad_id = pcb.get_first_pcbm().ad_id
@@ -855,6 +974,18 @@ class LocalBeaconServer(BeaconServer):
     """
 
     def __init__(self, server_id, topo_file, config_file, path_policy_file):
+        """
+        Initialize an instance of the class LocalBeaconServer.
+
+        :param server_id: server identifier.
+        :type server_id: int
+        :param topo_file: topology file.
+        :type topo_file: string
+        :param config_file: configuration file.
+        :type config_file: string
+        :param path_policy_file: path policy file.
+        :type path_policy_file: string
+        """
         BeaconServer.__init__(self, server_id, topo_file, config_file,
                               path_policy_file)
         # Sanity check that we should indeed be a local beacon server.
@@ -874,6 +1005,20 @@ class LocalBeaconServer(BeaconServer):
         """
         Return True or False whether the necessary Certificate and TRC files are
         found.
+
+        :param isd_id: ISD identifier.
+        :type isd_id: int
+        :param ad_id: AD identifier.
+        :type ad_id: int
+        :param cert_chain_version: certificate chain file version.
+        :type cert_chain_version: int
+        :param trc_version: TRC file version.
+        :type trc_version: int
+        :param if_id: interface identifier.
+        :type if_id: int
+
+        :returns: True if the files exist, False otherwise.
+        :rtype: bool
         """
         trc = self._get_trc(isd_id, trc_version, if_id)
         if trc:
@@ -945,7 +1090,7 @@ class LocalBeaconServer(BeaconServer):
     @thread_safety_net("register_segments")
     def register_segments(self):
         """
-        Registers paths according to the received beacons.
+        Register paths according to the received beacons.
         """
         if not self.config.registers_paths:
             logging.info("Path registration unwanted, "
@@ -967,7 +1112,7 @@ class LocalBeaconServer(BeaconServer):
 
     def process_pcbs(self, pcbs):
         """
-        Processes new beacons and appends them to beacon list.
+        Process new beacons and appends them to beacon list.
         """
         for pcb in pcbs:
             if self.path_policy.check_filters(pcb):
@@ -976,6 +1121,9 @@ class LocalBeaconServer(BeaconServer):
     def process_cert_chain_rep(self, cert_chain_rep):
         """
         Process the Certificate chain reply.
+
+        :param cert_chain_rep: certificate chain reply.
+        :type cert_chain_rep: CertChainReply
         """
         assert isinstance(cert_chain_rep, CertChainReply)
         logging.info("Certificate chain reply received.")
@@ -997,7 +1145,7 @@ class LocalBeaconServer(BeaconServer):
 
     def _process_revocation(self, rev_info):
         """
-        Sends out revocation to the local PS and a CPS and down_stream BS.
+        Send out revocation to the local PS and a CPS and down_stream BS.
         """
         BeaconServer._process_revocation(self, rev_info)
         # Build segment revocations for local path server.
