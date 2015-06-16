@@ -401,11 +401,11 @@ class ConfigGenerator():
                 nbr_ip_address_pub = \
                     er_ip_addresses[(nbr_isd_ad_id, isd_ad_id)][1]
                 nbr_type = ad_configs[isd_ad_id]["links"][nbr_isd_ad_id]
-                if_id = str(255 + int(ad_id) + int(nbr_ad_id))
+                if_id = edge_router
                 topo_dict['EdgeRouters'][edge_router] = {
                     'AddrType': 'IPv4',
                     'Addr': ip_address_loc,
-                    'Interface': {'IFID': int(if_id),
+                    'Interface': {'IFID': if_id,
                                   'NeighborISD': int(nbr_isd_id),
                                   'NeighborAD': int(nbr_ad_id),
                                   'NeighborType': nbr_type,
