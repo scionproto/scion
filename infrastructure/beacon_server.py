@@ -134,35 +134,33 @@ class InterfaceState(object):
         """
         with self._lock:
             curr_time = time.time()
-            if (self.state != self.ACTIVE and
-                self.last_updated + self.IFID_TOUT < curr_time):
+            if self.state != self.ACTIVE:
                 self.active_since = curr_time
                 self.state = self.ACTIVE
                 logging.debug('Interface activated')
             self.last_updated = curr_time
 
     def is_active(self):
-        if self.state == self.ACTIVE:
-            if self.last_updated + self.IFID_TOUT >= time.time():
-                return True
-            else:
+        with self._lock:
+            if self.state == self.ACTIVE:
+                if self.last_updated + self.IFID_TOUT >= time.time():
+                    return True
                 self.state = self.TIMED_OUT
                 return False
-        else:
             return False
                 
     def is_expired(self):
-        if self.state == self.TIMED_OUT:
-            return True
-        elif (self.state == self.ACTIVE and
-              self.last_updated + self.IFID_TOUT < time.time()):
-            self.state = self.TIMED_OUT
-            return False
-        else:
+        with self._lock:
+            if self.state == self.TIMED_OUT:
+                return True
+            elif (self.state == self.ACTIVE and
+                  self.last_updated + self.IFID_TOUT < time.time()):
+                self.state = self.TIMED_OUT
+                return False
             return False
 
     def is_revoked(self):
-        return (self.state == self.REVOKED)
+        return self.state == self.REVOKED
 
 class BeaconServer(SCIONElement):
     """
