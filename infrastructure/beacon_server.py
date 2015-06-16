@@ -112,55 +112,46 @@ class InterfaceState(object):
         self._state = self.INACTIVE
         self._lock = threading.RLock()
 
-    @property
-    def state(self):
-        """
-        Returns the state of the object.
-        """
-        return self._state
-    
-    @state.setter
-    def state(self, new_state):
-        """
-        Updates the state of the object.
-        """
-        assert self.INACTIVE <= new_state <= self.REVOKED 
-        with self._lock:
-            self._state = new_state
-
     def update(self):
         """
         Updates the state of the object.
         """
         with self._lock:
             curr_time = time.time()
-            if self.state != self.ACTIVE:
+            if self._state != self.ACTIVE:
                 self.active_since = curr_time
-                self.state = self.ACTIVE
+                self._state = self.ACTIVE
                 logging.debug('Interface activated')
             self.last_updated = curr_time
 
+    def set_revoked(self):
+        """
+        Sets the state of the interface to revoked.
+        """
+        with self._lock:
+            self._state = self.REVOKED
+
     def is_active(self):
         with self._lock:
-            if self.state == self.ACTIVE:
+            if self._state == self.ACTIVE:
                 if self.last_updated + self.IFID_TOUT >= time.time():
                     return True
-                self.state = self.TIMED_OUT
+                self._state = self.TIMED_OUT
                 return False
             return False
-                
+
     def is_expired(self):
         with self._lock:
-            if self.state == self.TIMED_OUT:
+            if self._state == self.TIMED_OUT:
                 return True
-            elif (self.state == self.ACTIVE and
+            elif (self._state == self.ACTIVE and
                   self.last_updated + self.IFID_TOUT < time.time()):
-                self.state = self.TIMED_OUT
+                self._state = self.TIMED_OUT
                 return False
             return False
 
     def is_revoked(self):
-        return self.state == self.REVOKED
+        return self._state == self.REVOKED
 
 class BeaconServer(SCIONElement):
     """
@@ -689,41 +680,41 @@ class BeaconServer(SCIONElement):
             dst = self.topology.path_servers[0].addr
             logging.info("Sending segment revocations to local PS.")
             self.send(pkt, dst)
-            
+
     def _process_segment_revocation(self, rev_info):
         """
         Processes a segment revocation.
-        
+
         :param rev_info: The RevocationInfo object.
         :type rev_info: RevocationInfo
-        
-        :returns: List of RevocationInfo objects that have to be sent to the 
+
+        :returns: List of RevocationInfo objects that have to be sent to the
                   local PathServer.
         :rtype: list
         """
         pass
-    
+
     def _process_interface_revocation(self, rev_info):
         """
         Processes an interface revocation.
-        
+
         :param rev_info: The RevocationInfo object.
         :type rev_info: RevocationInfo
-        
-        :returns: List of RevocationInfo objects that have to be sent to the 
+
+        :returns: List of RevocationInfo objects that have to be sent to the
                   local PathServer.
         :rtype: list
         """
         pass
-    
+
     def _process_hop_revocation(self, rev_info):
         """
         Processes a hop revocation.
-        
+
         :param rev_info: The RevocationInfo object.
         :type rev_info: RevocationInfo
-        
-        :returns: List of RevocationInfo objects that have to be sent to the 
+
+        :returns: List of RevocationInfo objects that have to be sent to the
                   local PathServer.
         :rtype: list
         """
@@ -748,7 +739,7 @@ class BeaconServer(SCIONElement):
                         rev_info = RevocationInfo.from_values(RT.INTERFACE,
                             chain.current_element(), chain.next_element())
                         self._process_revocation(rev_info)
-                        if_state.state = InterfaceState.REVOKED
+                        if_state.set_revoked()
             sleep_interval(start_time, self.IF_TIMEOUT_INTERVAL,
                            "Handle IF timeouts")
 
@@ -991,7 +982,7 @@ class CoreBeaconServer(BeaconServer):
             self.register_core_segment(new_pcb)
             count += 1
         logging.info("Registered %d Core paths", count)
-        
+
     def _process_segment_revocation(self, rev_info):
         if rev_info.rev_type != RT.CORE_SEGMENT:
             logging.warning("CBS received a down-segment revocation.")
@@ -1009,12 +1000,12 @@ class CoreBeaconServer(BeaconServer):
             info = copy.deepcopy(rev_info)
             info.rev_type = RT.UP_SEGMENT
             rev_infos.append(info)
-            to_remove.append(rev_info.seg_id)     
-        
+            to_remove.append(rev_info.seg_id)
+
         # Remove the affected segments from the path stores.
-        path_store.remove_segments(to_remove)   
+        path_store.remove_segments(to_remove)
         return rev_infos
-    
+
     def _process_interface_revocation(self, rev_info):
         candidates = []
         to_remove = []
@@ -1029,13 +1020,13 @@ class CoreBeaconServer(BeaconServer):
                     RT.CORE_SEGMENT, rev_info.rev_token1,
                     rev_info.proof1, True, cand.pcb.segment_id)
                 rev_infos.append(info)
-                
+
         # Remove the affected segments from the path stores.
         for ps in self.core_segments.values():
             ps.remove_segments(to_remove)
-        
+
         return rev_infos
-    
+
     def _process_hop_revocation(self, rev_info):
         candidates = []
         to_remove = []
@@ -1052,13 +1043,13 @@ class CoreBeaconServer(BeaconServer):
                     True, cand.pcb.segment_id, True,
                     rev_info.rev_token2, rev_info.rev_token2)
                 rev_infos.append(info)
-                
+
         # Remove the affected segments from the path stores.
         if to_remove:
             for ps in self.core_segments.values():
                 ps.remove_segments(to_remove)
-        
-        return rev_infos    
+
+        return rev_infos
 
 class LocalBeaconServer(BeaconServer):
     """
@@ -1266,7 +1257,7 @@ class LocalBeaconServer(BeaconServer):
         logging.info("Sending revocation to CPS.")
         self.send(pkt, next_hop, port)
 
-        
+
     def _process_segment_revocation(self, rev_info):
         rev_infos = []
         if not self.down_segments.get_segment(rev_info.seg_id):
@@ -1278,9 +1269,9 @@ class LocalBeaconServer(BeaconServer):
         # Remove the affected segments from the path stores.
         self.up_segments.remove_segments([rev_info.seg_id])
         self.down_segments.remove_segments([rev_info.seg_id])
-        
+
         return rev_infos
-    
+
     def _process_interface_revocation(self, rev_info):
         to_remove = []
         rev_infos = []
@@ -1293,13 +1284,13 @@ class LocalBeaconServer(BeaconServer):
                         RT.UP_SEGMENT, rev_info.rev_token1,
                         rev_info.proof1, True, cand.pcb.segment_id)
                     rev_infos.append(info)
-                
+
         # Remove the affected segments from the path stores.
         self.up_segments.remove_segments(to_remove)
         self.down_segments.remove_segments(to_remove)
-        
+
         return rev_infos
-    
+
     def _process_hop_revocation(self, rev_info):
         to_remove = []
         rev_infos = []
@@ -1319,9 +1310,9 @@ class LocalBeaconServer(BeaconServer):
         # Remove the affected segments from the path stores.
         self.up_segments.remove_segments(to_remove)
         self.down_segments.remove_segments(to_remove)
-        
+
         return rev_infos
-    
+
     def _handle_verified_beacon(self, pcb):
         """
         Once a beacon has been verified, place it into the right containers.
