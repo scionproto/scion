@@ -24,7 +24,10 @@ from lib.packet.path import (
     PeerPath,
     CrossOverPath,
     EmptyPath)
-from lib.packet.opaque_field import InfoOpaqueField, OpaqueFieldType
+from lib.packet.opaque_field import (
+    InfoOpaqueField, 
+    OpaqueFieldType as OFT
+)
 from endhost.sim_host import SCIONSimHost, SCIOND_API_PORT
 from simulator.simulator import schedule
 
@@ -73,16 +76,16 @@ class SCIONSimApplication(object):
             raw_path = data[offset:offset+path_len]
             path = None
             info = InfoOpaqueField(raw_path[0:InfoOpaqueField.LEN])
-            if info.info == OpaqueFieldType.TDC_XOVR:
+            if info.info == OFT.TDC_XOVR:
                 path = CorePath(raw_path)
-            elif info.info == OpaqueFieldType.NON_TDC_XOVR:
+            elif info.info == OFT.NON_TDC_XOVR:
                 path = CrossOverPath(raw_path)
-            elif info.info == OpaqueFieldType.INTRATD_PEER:
+            elif info.info == OFT.INTRATD_PEER or info.info == OFT.INTERTD_PEER:
                 path = PeerPath(raw_path)
             elif info.info == 0x00:
                 path = EmptyPath()
             else:
-                logging.info("Can not parse path: Unknown type %x", 
+                logging.info("Can not parse path in packet: Unknown type %x",
                              info.info)
             assert path
             offset += path_len
