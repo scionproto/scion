@@ -1,0 +1,16 @@
+{
+    "default_subnet": "127.0.0.0/8",
+    "1-11": {
+        "level": "CORE",
+        "links": {
+            "1-12": "CHILD"
+        }
+    },
+    "1-12": {
+        "level": "LEAF",
+        "cert_issuer": "1-11",
+        "links": {
+            "1-11": "PARENT"
+        }
+    }
+}
