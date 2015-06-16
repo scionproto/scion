@@ -532,10 +532,14 @@ def network_view(request):
     ad_graph_tmp = []
     ad_index = {}
     ad_index_rev = {}
-    for i, ad in enumerate(AD.objects.all()):
+    ads = AD.objects.all()
+    # TODO check optimizations
+    ads = ads.prefetch_related('routerweb_set__neighbor_ad')
+    for i, ad in enumerate(ads):
         ad_index[i] = ad
         ad_index_rev[ad] = i
-        ad_graph_tmp.append([r.neighbor_ad for r in ad.routerweb_set.all()])
+        ad_routers = ad.routerweb_set.all()
+        ad_graph_tmp.append([r.neighbor_ad for r in ad_routers])
 
     # Rewrite neighbors
     ad_graph = []
@@ -548,6 +552,7 @@ def network_view(request):
         graph['nodes'].append({
             'name': 'AD {}-{}'.format(ad.isd_id, ad.id),
             'group': ad.isd_id,
+            'url': ad.get_absolute_url(),
         })
         for n in neighbors:
             if index < n:

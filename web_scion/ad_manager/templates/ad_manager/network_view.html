@@ -10,6 +10,7 @@
 
   <h2>Network graph</h2>
   <hr />
+  <i>Double click on a node to open the corresponding AD page.</i>
   <svg></svg>
 
   <script>
@@ -42,6 +43,7 @@
       .attr("class", "node")
       .on("mouseover", mouseover)
       .on("mouseout", mouseout)
+      .on('dblclick', dblclick)
       .call(force.drag);
 
     node.append("circle")
@@ -63,6 +65,11 @@
       node
         .attr("transform", function(d) { return "translate(" + d.x + ","
                                                              + d.y + ")"; });
+    }
+
+    function dblclick() {
+      var url = d3.select(this).data()[0].url;
+      window.open(url, '_blank');
     }
 
     function mouseover() {
