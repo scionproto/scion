@@ -1,0 +1,60 @@
+{
+    "default_subnet": "127.0.0.0/8",
+    "2-200": {
+        "level": "CORE",
+        "links": {
+            "2-201": "ROUTING",
+            "2-202": "ROUTING",
+            "2-210": "CHILD"
+        }
+    },
+    "2-201": {
+        "level": "CORE",
+        "links": {
+            "2-200": "ROUTING",
+            "2-202": "ROUTING",
+            "2-211": "CHILD"
+        }
+    },
+    "2-202": {
+        "level": "CORE",
+        "links": {
+            "2-200": "ROUTING",
+            "2-201": "ROUTING",
+            "2-230": "CHILD"
+        }
+    },
+    "2-210": {
+        "level": "INTERMEDIATE",
+        "cert_issuer": "2-200",
+        "links": {
+            "2-200": "PARENT",
+            "2-220": "CHILD"
+        }
+    },
+    "2-211": {
+        "level": "INTERMEDIATE",
+        "cert_issuer": "2-201",
+        "links": {
+            "2-201": "PARENT",
+            "2-230": "CHILD"
+        }
+    },
+    "2-220": {
+        "level": "INTERMEDIATE",
+        "cert_issuer": "2-210",
+        "links": {
+            "2-210": "PARENT",
+            "2-230": "CHILD"
+        }
+    },
+    "2-230": {
+        "level": "LEAF",
+        "cert_issuer": "2-220",
+        "links": {
+            "2-220": "PARENT",
+            "2-211": "PARENT",
+            "2-202": "PARENT"
+        }
+    }
+}
