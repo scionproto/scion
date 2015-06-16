@@ -9,8 +9,9 @@ from django_webtest import WebTest
 from unittest.mock import patch
 
 # SCION
+from guardian.shortcuts import assign_perm
 from ad_management.common import response_success
-from ad_manager.models import ISD, AD, PackageVersion
+from ad_manager.models import ISD, AD, PackageVersion, ConnectionRequest
 
 
 class BasicWebTest(WebTest):
@@ -40,6 +41,14 @@ class BasicWebTest(WebTest):
         all_forms = response.forms.values()
         form = next(filter(lambda f: f.action == url, all_forms))
         return form
+
+
+class BasicWebTestUsers(BasicWebTest):
+
+    def setUp(self):
+        super().setUp()
+        assert not settings.ENABLED_2FA
+        self._create_users()
 
     def _create_users(self):
         self.admin_user = User.objects.create_superuser(username='admin',
@@ -147,14 +156,9 @@ class TestAdDetail(BasicWebTest):
                           'Invalid label: open')
 
 
-class TestUsersAndPermissions(BasicWebTest):
+class TestUsersAndPermissions(BasicWebTestUsers):
 
     CONTROL_CLASS = 'process-control-form'
-
-    def setUp(self):
-        super().setUp()
-        assert not settings.ENABLED_2FA
-        self._create_users()
 
     def test_login_admin(self):
         ad_detail = self._get_ad_detail(self.ads[1])
@@ -221,11 +225,7 @@ class TestUsersAndPermissions(BasicWebTest):
         self.assertTrue(res.json)
 
 
-class TestPackageDownload(BasicWebTest):
-
-    def setUp(self):
-        super().setUp()
-        self._create_users()
+class TestPackageDownload(BasicWebTestUsers):
 
     def _get_download_form(self, get_args=None):
         if get_args is None:
@@ -260,3 +260,69 @@ class TestPackageDownload(BasicWebTest):
             download_form.fields['selected_version'] = package
             res = download_form.submit('_download_update').maybe_follow()
             self.assertEqual(data, res.body)
+
+
+class TestConnectionRequests(BasicWebTestUsers):
+
+    def _get_request_page(self, ad_id):
+        requests_page = reverse('ad_connection_requests', args=[ad_id])
+        return requests_page
+
+    def test_view_nopriv(self):
+        ad = self.ads[2]
+        requests_page = self._get_request_page(ad.id)
+
+        # Anon user
+        ad_requests = self.app.get(requests_page)
+        self.assertNotContains(ad_requests, 'Received requests')
+        self.assertNotContains(ad_requests, 'Created by')
+
+        # Non-priv user
+        ad_requests = self.app.get(requests_page, user=self.user)
+        self.assertNotContains(ad_requests, 'Received requests')
+        self.assertNotContains(ad_requests, 'Created by')
+
+    def test_priv_user(self):
+        ad = self.ads[2]
+        requests_page = self._get_request_page(ad.id)
+
+        # Admin user
+        ad_requests = self.app.get(requests_page, user=self.admin_user)
+        self.assertContains(ad_requests, 'Received requests')
+
+        # User which has access to the AD
+        assign_perm('change_ad', self.user, ad)
+        ad_requests = self.app.get(requests_page, user=self.user)
+        self.assertContains(ad_requests, 'Received requests')
+
+    def test_send_request(self):
+        ad = self.ads[2]
+        requests_page = self._get_request_page(ad.id)
+        sent_requests_page = reverse('sent_requests')
+        self.assertEqual(len(ConnectionRequest.objects.all()), 0)
+
+        # Fill and submit the form
+        ad_requests = self.app.get(requests_page, user=self.admin_user)
+        request_form = ad_requests.click('New request').maybe_follow().form
+        request_form['router_ip'] = '123.234.123.234'
+        request_form['router_port'] = 12345
+        request_form['info'] = 'test info'
+        request_form.submit()
+        self.assertEqual(len(ConnectionRequest.objects.all()), 1)
+
+        # Check that the sent request is listed at the 'sent requests' page
+        sent_requests = self.app.get(sent_requests_page, user=self.admin_user)
+        self.assertIn('submitted by admin', sent_requests.html.text)
+        sent_table = sent_requests.html.find(id="sent-requests-tbl")
+        for s in [ad, '123.234.123.234', 12345, 'test info', 'SENT']:
+            self.assertIn(str(s), str(sent_table))
+
+        # Check that the request is listed in the 'received' table
+        # for admins and authorized users
+        assign_perm('change_ad', self.user, ad)
+        ad_requests_admin = self.app.get(requests_page, user=self.admin_user)
+        ad_requests_user = self.app.get(requests_page, user=self.user)
+        for response in [ad_requests_admin, ad_requests_user]:
+            received_table = response.html.find(id="received-requests-tbl")
+            for s in ['123.234.123.234', 'test info', 'SENT', 'admin']:
+                self.assertIn(str(s), str(received_table))
