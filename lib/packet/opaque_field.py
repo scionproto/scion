@@ -136,10 +136,11 @@ class HopOpaqueField(OpaqueField):
             logging.warning("HOF: Data too short for parsing, len: %u", dlen)
             return
         (self.info, self.exp_time) = struct.unpack("!BB", raw[:2])
-        ifs = struct.unpack("!I", b'\0' + raw[2:5])[0]
+        # A byte added as length of three bytes can't be unpacked
+        (ifs,) = struct.unpack("!I", b'\0' + raw[2:5])
         self.mac = raw[5:8]
-        self.ingress_if = (ifs & 0x00FFF000) >> 12
-        self.egress_if = ifs & 0x00000FFF
+        self.ingress_if = (ifs & 0xFFF000) >> 12
+        self.egress_if = ifs & 0x000FFF
         self.parsed = True
 
     @classmethod
@@ -167,6 +168,7 @@ class HopOpaqueField(OpaqueField):
         """
         ifs = (self.ingress_if << 12) | self.egress_if
         data = struct.pack("!BB", self.info, self.exp_time)
+        # Ingress and egress interface info is packed into three bytes 
         data += struct.pack("!I", ifs)[1:]
         data += self.mac
         return data
