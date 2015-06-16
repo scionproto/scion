@@ -439,11 +439,9 @@ class NewLinkView(FormView):
 
 def download_approved_package(request, req_id):
     ad_request = get_object_or_404(ConnectionRequest, id=req_id)
-
+    _check_user_permissions(request, ad_request.new_ad)
     if not ad_request.is_approved():
         raise PermissionDenied('Request is not approved')
-
-    _check_user_permissions(request, ad_request.new_ad)
     return _download_file_response(ad_request.package_path)
 
 
@@ -511,9 +509,7 @@ def request_action(request, req_id):
         ad_request.status = 'DECLINED'
     else:
         return HttpResponseNotFound('Action not found')
-
     ad_request.save()
-
     return redirect(reverse('ad_connection_requests', args=[ad.id]))
 
 

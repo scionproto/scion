@@ -309,6 +309,8 @@ class TestConnectionRequests(BasicWebTestUsers):
         request_form['info'] = 'test info'
         request_form.submit()
         self.assertEqual(len(ConnectionRequest.objects.all()), 1)
+        request = ConnectionRequest.objects.first()
+        self.assertEqual(request.created_by, self.admin_user)
 
         # Check that the sent request is listed at the 'sent requests' page
         sent_requests = self.app.get(sent_requests_page, user=self.admin_user)
@@ -326,3 +328,33 @@ class TestConnectionRequests(BasicWebTestUsers):
             received_table = response.html.find(id="received-requests-tbl")
             for s in ['123.234.123.234', 'test info', 'SENT', 'admin']:
                 self.assertIn(str(s), str(received_table))
+
+    def test_decline_request(self):
+        ad = self.ads[2]
+        ad_requests_page = self._get_request_page(ad.id)
+        sent_requests_page = reverse('sent_requests')
+
+        request = ConnectionRequest(created_by=self.user, connect_to=ad,
+                                    info='test info', status='SENT',
+                                    router_ip='123.123.123.123')
+        request.save()
+
+        ad_requests = self.app.get(ad_requests_page, user=self.admin_user)
+        self.assertContains(ad_requests, '123.123.123.123')
+        sent_requests = self.app.get(sent_requests_page, user=self.user)
+        self.assertContains(sent_requests, '123.123.123.123')
+
+        control_form = self._find_form_by_action(ad_requests,
+                                                 'connection_request_action',
+                                                 args=[request.id])
+        ad_requests = control_form.submit('_decline_request',
+                                          user=self.admin_user).maybe_follow()
+        self.assertContains(ad_requests, 'DECLINED')
+        sent_requests = self.app.get(sent_requests_page, user=self.user)
+        self.assertContains(sent_requests, 'DECLINED')
+
+        # Check that it's impossible to download the package
+        download_url = reverse('download_request_package', args=[request.id])
+        resp = self.app.get(download_url, expect_errors=True)
+        self.assertEqual(resp.status_int, 403)
+        self.assertIsNone(request.package_path)
