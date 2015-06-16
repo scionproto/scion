@@ -204,7 +204,7 @@ class PeerMarking(Marking):
         if dlen < PeerMarking.LEN:
             logging.warning("PM: Data too short for parsing, len: %u", dlen)
             return
-        self.ad_id = struct.unpack("!Q", raw[0:8])[0]
+        self.ad_id = struct.unpack("!Q", raw[:8])[0]
         self.hof = HopOpaqueField(raw[8:16])
         self.spf = SupportPeerField(raw[16:24])
         self.ig_rev_token = raw[24:56]
