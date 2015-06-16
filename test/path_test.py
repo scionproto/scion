@@ -38,14 +38,23 @@ class BasePath(object):
     def setup(self):
         self.path = PathBase()
         self.core_path = CorePath()
-        self.iof1 = InfoOpaqueField.from_values(24, True, 45, 18, 3)
-        self.iof2 = InfoOpaqueField.from_values(3, False, 9, 65, 5)
-        self.iof3 = InfoOpaqueField.from_values(6, False, 29, 51, 3)
-        self.hof1 = HopOpaqueField.from_values(120, 8, 5, 7683)
-        self.hof2 = HopOpaqueField.from_values(140, 5, 56, 3472)
-        self.hof3 = HopOpaqueField.from_values(80, 12, 22, 6458)
-        self.hof4 = HopOpaqueField.from_values(12, 98, 3, 876)
-        self.hof5 = HopOpaqueField.from_values(90, 235, 55, 794)
+        self.iof1 = InfoOpaqueField.from_values(info=24, up_flag=True,
+                                                timestamp=45, isd_id=18, hops=3)
+        self.iof2 = InfoOpaqueField.from_values(info=3, up_flag=False,
+                                                timestamp=9, isd_id=65, hops=5)
+        self.iof3 = InfoOpaqueField.from_values(info=6, up_flag=False,
+                                                timestamp=29, isd_id=51, hops=3)
+
+        self.hof1 = HopOpaqueField.from_values(exp_time=120, ingress_if=8,
+                                               egress_if=5, mac=7683)
+        self.hof2 = HopOpaqueField.from_values(exp_time=140, ingress_if=5,
+                                               egress_if=56, mac=3472)
+        self.hof3 = HopOpaqueField.from_values(exp_time=80, ingress_if=12,
+                                               egress_if=22, mac=6458)
+        self.hof4 = HopOpaqueField.from_values(exp_time=12, ingress_if=98,
+                                               egress_if=3, mac=876)
+        self.hof5 = HopOpaqueField.from_values(exp_time=90, ingress_if=235,
+                                               egress_if=55, mac=794)
 
     def teardown(self):
         self.path = None
@@ -82,7 +91,8 @@ class TestPathBaseReverse(BasePath):
         self.path.up_segment_info = self.iof1
         self.path.down_segment_info = self.iof2
         self.path.up_segment_hops = [self.hof1, self.hof2, self.hof3]
-        self.path.down_segment_hops = [self.hof1, self.hof2, self.hof3, self.hof4, self.hof5]
+        self.path.down_segment_hops = [self.hof1, self.hof2, self.hof3,
+                                       self.hof4, self.hof5]
         iof1_ = copy.copy(self.iof1)
         iof2_ = copy.copy(self.iof2)
         self.path.reverse()
@@ -90,8 +100,10 @@ class TestPathBaseReverse(BasePath):
         iof2_.up_flag ^= True
         ntools.eq_(self.path.up_segment_info, iof2_)
         ntools.eq_(self.path.down_segment_info, iof1_)
-        ntools.eq_(self.path.up_segment_hops, [self.hof5, self.hof4, self.hof3, self.hof2, self.hof1])
-        ntools.eq_(self.path.down_segment_hops, [self.hof3, self.hof2, self.hof1])
+        ntools.eq_(self.path.up_segment_hops, [self.hof5, self.hof4,
+                                               self.hof3, self.hof2, self.hof1])
+        ntools.eq_(self.path.down_segment_hops, [self.hof3, self.hof2,
+                                                 self.hof1])
 
 
 class TestPathBaseIsLastHop(BasePath):
@@ -100,7 +112,8 @@ class TestPathBaseIsLastHop(BasePath):
     """
     def test(self):
         self.path.up_segment_hops = [self.hof1, self.hof2, self.hof3]
-        self.path.down_segment_hops = [self.hof1, self.hof2, self.hof3, self.hof4, self.hof5]
+        self.path.down_segment_hops = [self.hof1, self.hof2, self.hof3,
+                                       self.hof4, self.hof5]
         ntools.assert_true(self.path.is_last_hop(self.hof5))
         ntools.assert_false(self.path.is_last_hop(self.hof4))
         ntools.assert_false(self.path.is_last_hop(self.hof1))
@@ -112,7 +125,8 @@ class TestPathBaseIsFirstHop(BasePath):
     """
     def test(self):
         self.path.up_segment_hops = [self.hof1, self.hof2, self.hof3]
-        self.path.down_segment_hops = [self.hof1, self.hof2, self.hof3, self.hof4, self.hof5]
+        self.path.down_segment_hops = [self.hof1, self.hof2, self.hof3,
+                                       self.hof4, self.hof5]
         ntools.assert_true(self.path.is_first_hop(self.hof1))
         ntools.assert_false(self.path.is_first_hop(self.hof2))
         ntools.assert_false(self.path.is_first_hop(self.hof5))
@@ -138,7 +152,8 @@ class TestPathBaseGetOf(BasePath):
         self.path.down_segment_info = self.iof2
         self.path.down_segment_hops = [self.hof3, self.hof4, self.hof5]
         self.path.up_segment_hops = [self.hof1, self.hof2, self.hof3]
-        ofs = [self.iof1, self.hof1, self.hof2, self.hof3, self.iof2, self.hof3, self.hof4, self.hof5]
+        ofs = [self.iof1, self.hof1, self.hof2, self.hof3, self.iof2,
+               self.hof3, self.hof4, self.hof5]
         for i, opaque_field in enumerate(ofs):
             ntools.eq_(self.path.get_of(i), opaque_field)
         ntools.eq_(self.path.get_of(8), None)
@@ -179,7 +194,8 @@ class TestCorePathParse(BasePath):
         ntools.eq_(self.core_path.core_segment_info, self.iof3)
         ntools.eq_(self.core_path.up_segment_hops, [self.hof1, self.hof2])
         ntools.eq_(self.core_path.down_segment_hops, [self.hof3, self.hof5])
-        ntools.eq_(self.core_path.core_segment_hops, [self.hof2, self.hof3, self.hof4])
+        ntools.eq_(self.core_path.core_segment_hops, [self.hof2, self.hof3,
+                                                      self.hof4])
         ntools.assert_true(self.core_path.parsed)
 
     def test_bad_length(self):
@@ -220,7 +236,8 @@ class TestCorePathReverse(BasePath):
         self.core_path.core_segment_hops = [self.hof1, self.hof2, self.hof3]
         self.core_path.reverse()
         reverse.assert_called_once_with(self.core_path)
-        ntools.eq_(self.core_path.core_segment_hops, [self.hof3, self.hof2, self.hof1])
+        ntools.eq_(self.core_path.core_segment_hops, [self.hof3, self.hof2,
+                                                      self.hof1])
         iof1_.up_flag ^= True
         ntools.eq_(self.core_path.core_segment_info, iof1_)
 
@@ -236,7 +253,8 @@ class TestCorePathReverse(BasePath):
         self.core_path.core_segment_hops = [self.hof1, self.hof2, self.hof3]
         self.core_path.reverse()
         reverse.assert_called_once_with(self.core_path)
-        ntools.eq_(self.core_path.core_segment_hops, [self.hof3, self.hof2, self.hof1])
+        ntools.eq_(self.core_path.core_segment_hops, [self.hof3, self.hof2,
+                                                      self.hof1])
         iof1_.up_flag ^= True
         ntools.eq_(self.core_path.core_segment_info, iof1_)
 
@@ -252,7 +270,8 @@ class TestCorePathGetOf(BasePath):
         self.core_path.up_segment_hops = [self.hof1, self.hof2]
         self.core_path.down_segment_hops = [self.hof3, self.hof5]
         self.core_path.core_segment_hops = [self.hof2, self.hof3, self.hof4]
-        ofs = [self.iof1, self.hof1, self.hof2, self.iof3, self.hof2, self.hof3, self.hof4, self.iof2, self.hof3, self.hof5]
+        ofs = [self.iof1, self.hof1, self.hof2, self.iof3, self.hof2,
+               self.hof3, self.hof4, self.iof2, self.hof3, self.hof5]
         for i, opaque_field in enumerate(ofs):
             ntools.eq_(self.core_path.get_of(i), opaque_field)
         ntools.eq_(self.core_path.get_of(10), None)
@@ -264,13 +283,15 @@ class TestCorePathFromValues(BasePath):
     """
     def test(self):
         self.core_path = CorePath.from_values(self.iof1, [self.hof1, self.hof2],
-                                         self.iof2, [self.hof2, self.hof3, self.hof4], 
-                                         self.iof3, [self.hof3, self.hof5])
+                                              self.iof2, [self.hof2, self.hof3,
+                                                          self.hof4],
+                                              self.iof3, [self.hof3, self.hof5])
         ntools.eq_(self.core_path.up_segment_info, self.iof1)
         ntools.eq_(self.core_path.core_segment_info, self.iof2)
         ntools.eq_(self.core_path.down_segment_info, self.iof3)
         ntools.eq_(self.core_path.up_segment_hops, [self.hof1, self.hof2])
-        ntools.eq_(self.core_path.core_segment_hops, [self.hof2, self.hof3, self.hof4])
+        ntools.eq_(self.core_path.core_segment_hops, [self.hof2, self.hof3,
+                                                      self.hof4])
         ntools.eq_(self.core_path.down_segment_hops, [self.hof3, self.hof5])
 
 
@@ -280,13 +301,15 @@ class TestCorePathFromValues(BasePath):
     """
     def test(self):
         self.core_path = CorePath.from_values(self.iof1, [self.hof1, self.hof2],
-                                         self.iof2, [self.hof2, self.hof3, self.hof4], 
-                                         self.iof3, [self.hof3, self.hof5])
+                                              self.iof2, [self.hof2, self.hof3,
+                                                          self.hof4],
+                                              self.iof3, [self.hof3, self.hof5])
         ntools.eq_(self.core_path.up_segment_info, self.iof1)
         ntools.eq_(self.core_path.core_segment_info, self.iof2)
         ntools.eq_(self.core_path.down_segment_info, self.iof3)
         ntools.eq_(self.core_path.up_segment_hops, [self.hof1, self.hof2])
-        ntools.eq_(self.core_path.core_segment_hops, [self.hof2, self.hof3, self.hof4])
+        ntools.eq_(self.core_path.core_segment_hops, [self.hof2, self.hof3,
+                                                      self.hof4])
         ntools.eq_(self.core_path.down_segment_hops, [self.hof3, self.hof5])
 
 
