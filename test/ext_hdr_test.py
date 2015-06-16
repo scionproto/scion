@@ -48,7 +48,7 @@ class TestExtensionHeaderInit(object):
         """
 
         """
-        ext_hdr = ExtensionHeader("data")
+        ExtensionHeader("data")
         parse.assert_called_once_with("data")
 
 
@@ -64,7 +64,7 @@ class TestExtensionHeaderPack(object):
         ext_hdr = ExtensionHeader()
         ext_hdr.next_ext = 14
         ext_hdr.hdr_len = 42
-        ntools.eq_(ext_hdr.pack(), bytes([14,42]))
+        ntools.eq_(ext_hdr.pack(), bytes([14, 42]))
 
 
 class TestExtensionHeaderParse(object):
@@ -77,7 +77,7 @@ class TestExtensionHeaderParse(object):
 
         """
         ext_hdr = ExtensionHeader()
-        ext_hdr.parse(bytes([14,42]))
+        ext_hdr.parse(bytes([14, 42]))
         ntools.eq_(ext_hdr.next_ext, 14)
         ntools.eq_(ext_hdr.hdr_len, 42)
         ntools.assert_true(ext_hdr.parsed)
@@ -113,7 +113,7 @@ class TestICNExtHdrInit(object):
         """
 
         """
-        iext_hdr = ICNExtHdr("data")
+        ICNExtHdr("data")
         parse.assert_called_once_with("data")
 
 
@@ -130,7 +130,7 @@ class TestICNExtHdrPack(object):
         iext_hdr.next_ext = 14
         iext_hdr.hdr_len = 42
         iext_hdr.fwd_flag = 10
-        ntools.eq_(iext_hdr.pack(), bytes([14,42,10,0,0,0,0,0]))
+        ntools.eq_(iext_hdr.pack(), bytes([14, 42, 10, 0, 0, 0, 0, 0]))
 
 
 class TestICNExtHdrParse(object):
@@ -143,7 +143,7 @@ class TestICNExtHdrParse(object):
 
         """
         iext_hdr = ICNExtHdr()
-        iext_hdr.parse(bytes([14,42,10,0,0,0,0,0]))
+        iext_hdr.parse(bytes([14, 42, 10, 0, 0, 0, 0, 0]))
         ntools.eq_(iext_hdr.next_ext, 14)
         ntools.eq_(iext_hdr.hdr_len, 42)
         ntools.eq_(iext_hdr.fwd_flag, 10)
@@ -154,12 +154,11 @@ class TestICNExtHdrParse(object):
 
         """
         iext_hdr = ICNExtHdr()
-        iext_hdr.parse(bytes([14,42,10,0,0,0,0]))
+        iext_hdr.parse(bytes([14, 42, 10, 0, 0, 0, 0]))
         ntools.assert_false(iext_hdr.parsed)
         ntools.eq_(iext_hdr.next_ext, 0)
         ntools.eq_(iext_hdr.hdr_len, 0)
         ntools.eq_(iext_hdr.fwd_flag, 0)
-
 
 if __name__ == "__main__":
     nose.run(defaultTest=__name__)
