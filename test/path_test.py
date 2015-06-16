@@ -20,6 +20,7 @@ import copy
 from unittest.mock import patch
 
 # External packages
+import nose
 import nose.tools as ntools
 
 # SCION
@@ -31,11 +32,34 @@ from lib.packet.path import (
 from lib.packet.opaque_field import (
     HopOpaqueField,
     InfoOpaqueField,
-    # OpaqueFieldType,
 )
 
+class BasePath(object):
+    def setup(self):
+        self.path = PathBase()
+        self.core_path = CorePath()
+        self.iof1 = InfoOpaqueField.from_values(24, True, 45, 18, 3)
+        self.iof2 = InfoOpaqueField.from_values(3, False, 9, 65, 5)
+        self.iof3 = InfoOpaqueField.from_values(6, False, 29, 51, 3)
+        self.hof1 = HopOpaqueField.from_values(120, 8, 5, 7683)
+        self.hof2 = HopOpaqueField.from_values(140, 5, 56, 3472)
+        self.hof3 = HopOpaqueField.from_values(80, 12, 22, 6458)
+        self.hof4 = HopOpaqueField.from_values(12, 98, 3, 876)
+        self.hof5 = HopOpaqueField.from_values(90, 235, 55, 794)
 
-class TestPathBaseInit(object):
+    def teardown(self):
+        self.path = None
+        self.iof1 = None
+        self.iof2 = None
+        self.iof3 = None
+        self.hof1 = None
+        self.hof2 = None
+        self.hof3 = None
+        self.hof4 = None
+        self.hof5 = None
+        self.core_path = None
+
+class TestPathBaseInit(BasePath):
     """
     Unit tests for lib.packet.path.PathBase.__init__
     """
@@ -43,139 +67,103 @@ class TestPathBaseInit(object):
         """
         Tests proper member initialization.
         """
-        path = PathBase()
-        ntools.eq_(path.up_segment_info, None)
-        ntools.eq_(path.up_segment_hops, [])
-        ntools.eq_(path.down_segment_info, None)
-        ntools.eq_(path.down_segment_hops, [])
-        ntools.assert_false(path.parsed)
+        ntools.eq_(self.path.up_segment_info, None)
+        ntools.eq_(self.path.up_segment_hops, [])
+        ntools.eq_(self.path.down_segment_info, None)
+        ntools.eq_(self.path.down_segment_hops, [])
+        ntools.assert_false(self.path.parsed)
 
 
-class TestPathBaseReverse(object):
+class TestPathBaseReverse(BasePath):
     """
     Unit tests for lib.packet.path.PathBase.reverse
     """
     def test(self):
-        path = PathBase()
-        iof1 = InfoOpaqueField.from_values(24, True, 45, 18, 3)
-        iof2 = InfoOpaqueField.from_values(3, False, 9, 65, 5)
-        hof1 = HopOpaqueField.from_values(120, 8, 5, 7683)
-        hof2 = HopOpaqueField.from_values(140, 5, 56, 3472)
-        hof3 = HopOpaqueField.from_values(80, 12, 22, 6458)
-        hof4 = HopOpaqueField.from_values(12, 98, 3, 876)
-        hof5 = HopOpaqueField.from_values(90, 235, 55, 794)
-        path.up_segment_info = iof1
-        path.down_segment_info = iof2
-        path.up_segment_hops = [hof1, hof2, hof3]
-        path.down_segment_hops = [hof1, hof2, hof3, hof4, hof5]
-        iof1_ = copy.copy(iof1)
-        iof2_ = copy.copy(iof2)
-        path.reverse()
+        self.path.up_segment_info = self.iof1
+        self.path.down_segment_info = self.iof2
+        self.path.up_segment_hops = [self.hof1, self.hof2, self.hof3]
+        self.path.down_segment_hops = [self.hof1, self.hof2, self.hof3, self.hof4, self.hof5]
+        iof1_ = copy.copy(self.iof1)
+        iof2_ = copy.copy(self.iof2)
+        self.path.reverse()
         iof1_.up_flag ^= True
         iof2_.up_flag ^= True
-        ntools.eq_(path.up_segment_info, iof2_)
-        ntools.eq_(path.down_segment_info, iof1_)
-        ntools.eq_(path.up_segment_hops, [hof5, hof4, hof3, hof2, hof1])
-        ntools.eq_(path.down_segment_hops, [hof3, hof2, hof1])
+        ntools.eq_(self.path.up_segment_info, iof2_)
+        ntools.eq_(self.path.down_segment_info, iof1_)
+        ntools.eq_(self.path.up_segment_hops, [self.hof5, self.hof4, self.hof3, self.hof2, self.hof1])
+        ntools.eq_(self.path.down_segment_hops, [self.hof3, self.hof2, self.hof1])
 
 
-class TestPathBaseIsLastHop(object):
+class TestPathBaseIsLastHop(BasePath):
     """
     Unit tests for lib.packet.path.PathBase.is_last_hop
     """
     def test(self):
-        path = PathBase()
-        hof1 = HopOpaqueField.from_values(120, 8, 5, 7683)
-        hof2 = HopOpaqueField.from_values(140, 5, 56, 3472)
-        hof3 = HopOpaqueField.from_values(80, 12, 22, 6458)
-        hof4 = HopOpaqueField.from_values(12, 98, 3, 876)
-        hof5 = HopOpaqueField.from_values(90, 235, 55, 794)
-        path.up_segment_hops = [hof1, hof2, hof3]
-        path.down_segment_hops = [hof1, hof2, hof3, hof4, hof5]
-        ntools.assert_true(path.is_last_hop(hof5))
-        ntools.assert_false(path.is_last_hop(hof4))
-        ntools.assert_false(path.is_last_hop(hof1))
+        self.path.up_segment_hops = [self.hof1, self.hof2, self.hof3]
+        self.path.down_segment_hops = [self.hof1, self.hof2, self.hof3, self.hof4, self.hof5]
+        ntools.assert_true(self.path.is_last_hop(self.hof5))
+        ntools.assert_false(self.path.is_last_hop(self.hof4))
+        ntools.assert_false(self.path.is_last_hop(self.hof1))
 
 
-class TestPathBaseIsFirstHop(object):
+class TestPathBaseIsFirstHop(BasePath):
     """
     Unit tests for lib.packet.path.PathBase.is_first_hop
     """
     def test(self):
-        path = PathBase()
-        hof1 = HopOpaqueField.from_values(120, 8, 5, 7683)
-        hof2 = HopOpaqueField.from_values(140, 5, 56, 3472)
-        hof3 = HopOpaqueField.from_values(80, 12, 22, 6458)
-        hof4 = HopOpaqueField.from_values(12, 98, 3, 876)
-        hof5 = HopOpaqueField.from_values(90, 235, 55, 794)
-        path.up_segment_hops = [hof1, hof2, hof3]
-        path.down_segment_hops = [hof1, hof2, hof3, hof4, hof5]
-        ntools.assert_true(path.is_first_hop(hof1))
-        ntools.assert_false(path.is_first_hop(hof2))
-        ntools.assert_false(path.is_first_hop(hof5))
+        self.path.up_segment_hops = [self.hof1, self.hof2, self.hof3]
+        self.path.down_segment_hops = [self.hof1, self.hof2, self.hof3, self.hof4, self.hof5]
+        ntools.assert_true(self.path.is_first_hop(self.hof1))
+        ntools.assert_false(self.path.is_first_hop(self.hof2))
+        ntools.assert_false(self.path.is_first_hop(self.hof5))
 
 
-class TestPathBaseGetFirstHopOf(object):
+class TestPathBaseGetFirstHopOf(BasePath):
     """
     Unit tests for lib.packet.path.PathBase.get_first_hop_of
     """
     def test(self):
-        path = PathBase()
-        hof1 = HopOpaqueField.from_values(120, 8, 5, 7683)
-        hof2 = HopOpaqueField.from_values(140, 5, 56, 3472)
-        hof3 = HopOpaqueField.from_values(80, 12, 22, 6458)
-        hof4 = HopOpaqueField.from_values(12, 98, 3, 876)
-        hof5 = HopOpaqueField.from_values(90, 235, 55, 794)
-        path.down_segment_hops = [hof3, hof4, hof5]
-        ntools.eq_(path.get_first_hop_of(), hof3)
-        path.up_segment_hops = [hof1, hof2, hof3]
-        ntools.eq_(path.get_first_hop_of(), hof1)
+        self.path.down_segment_hops = [self.hof3, self.hof4, self.hof5]
+        ntools.eq_(self.path.get_first_hop_of(), self.hof3)
+        self.path.up_segment_hops = [self.hof1, self.hof2, self.hof3]
+        ntools.eq_(self.path.get_first_hop_of(), self.hof1)
 
 
-class TestPathBaseGetOf(object):
+class TestPathBaseGetOf(BasePath):
     """
     Unit tests for lib.packet.path.PathBase.get_of
     """
     def test(self):
-        path = PathBase()
-        iof1 = InfoOpaqueField.from_values(24, True, 45, 18, 3)
-        iof2 = InfoOpaqueField.from_values(3, False, 9, 65, 5)
-        hof1 = HopOpaqueField.from_values(120, 8, 5, 7683)
-        hof2 = HopOpaqueField.from_values(140, 5, 56, 3472)
-        hof3 = HopOpaqueField.from_values(80, 12, 22, 6458)
-        hof4 = HopOpaqueField.from_values(12, 98, 3, 876)
-        hof5 = HopOpaqueField.from_values(90, 235, 55, 794)
-        path.up_segment_info = iof1
-        path.down_segment_info = iof2
-        path.down_segment_hops = [hof3, hof4, hof5]
-        path.up_segment_hops = [hof1, hof2, hof3]
-        ofs = [iof1, hof1, hof2, hof3, iof2, hof3, hof4, hof5]
+        self.path.up_segment_info = self.iof1
+        self.path.down_segment_info = self.iof2
+        self.path.down_segment_hops = [self.hof3, self.hof4, self.hof5]
+        self.path.up_segment_hops = [self.hof1, self.hof2, self.hof3]
+        ofs = [self.iof1, self.hof1, self.hof2, self.hof3, self.iof2, self.hof3, self.hof4, self.hof5]
         for i, opaque_field in enumerate(ofs):
-            ntools.eq_(path.get_of(i), opaque_field)
-        ntools.eq_(path.get_of(8), None)
+            ntools.eq_(self.path.get_of(i), opaque_field)
+        ntools.eq_(self.path.get_of(8), None)
 
 
-class TestCorePathInit(object):
+class TestCorePathInit(BasePath):
     """
     Unit tests for lib.packet.path.CorePath.__init__
     """
     def test_basic(self):
-        core_path = CorePath()
-        ntools.eq_(core_path.up_segment_info, None)
-        ntools.eq_(core_path.up_segment_hops, [])
-        ntools.eq_(core_path.down_segment_info, None)
-        ntools.eq_(core_path.down_segment_hops, [])
-        ntools.assert_false(core_path.parsed)
-        ntools.eq_(core_path.core_segment_info, None)
-        ntools.eq_(core_path.core_segment_hops, [])
+        ntools.eq_(self.core_path.up_segment_info, None)
+        ntools.eq_(self.core_path.up_segment_hops, [])
+        ntools.eq_(self.core_path.down_segment_info, None)
+        ntools.eq_(self.core_path.down_segment_hops, [])
+        ntools.assert_false(self.core_path.parsed)
+        ntools.eq_(self.core_path.core_segment_info, None)
+        ntools.eq_(self.core_path.core_segment_hops, [])
 
     @patch("lib.packet.path.CorePath.parse")
     def test_raw(self, parse):
-        core_path = CorePath("data")
+        self.core_path = CorePath("data")
         parse.assert_called_once_with("data")
 
 
-class TestCorePathParse(object):
+class TestCorePathParse(BasePath):
     """
     Unit tests for lib.packet.path.CorePath.parse
     """
@@ -185,177 +173,124 @@ class TestCorePathParse(object):
               b'\x00P8\x00\r\x90\x00P\x00\xc0\x16\x00\x19:\x00\x0c\x06 \x03'\
               b'\x00\x03l\x06\x00\x00\x00\t\x00A\x02\x00P\x00\xc0\x16\x00'\
               b'\x19:\x00Z\x0e\xb07\x00\x03\x1a'
-        core_path = CorePath()
-        core_path.parse(raw)
-        iof1 = InfoOpaqueField.from_values(24, True, 45, 18, 2)
-        iof2 = InfoOpaqueField.from_values(3, False, 9, 65, 2)
-        iof3 = InfoOpaqueField.from_values(6, False, 29, 51, 3)
-        hof1 = HopOpaqueField.from_values(120, 8, 5, 7683)
-        hof2 = HopOpaqueField.from_values(140, 5, 56, 3472)
-        hof3 = HopOpaqueField.from_values(80, 12, 22, 6458)
-        hof4 = HopOpaqueField.from_values(12, 98, 3, 876)
-        hof5 = HopOpaqueField.from_values(90, 235, 55, 794)
-        ntools.eq_(core_path.up_segment_info, iof1)
-        ntools.eq_(core_path.down_segment_info, iof2)
-        ntools.eq_(core_path.core_segment_info, iof3)
-        ntools.eq_(core_path.up_segment_hops, [hof1, hof2])
-        ntools.eq_(core_path.down_segment_hops, [hof3, hof5])
-        ntools.eq_(core_path.core_segment_hops, [hof2, hof3, hof4])
-        ntools.assert_true(core_path.parsed)
+        self.core_path.parse(raw)
+        ntools.eq_(self.core_path.up_segment_info, self.iof1)
+        ntools.eq_(self.core_path.down_segment_info, self.iof2)
+        ntools.eq_(self.core_path.core_segment_info, self.iof3)
+        ntools.eq_(self.core_path.up_segment_hops, [self.hof1, self.hof2])
+        ntools.eq_(self.core_path.down_segment_hops, [self.hof3, self.hof5])
+        ntools.eq_(self.core_path.core_segment_hops, [self.hof2, self.hof3, self.hof4])
+        ntools.assert_true(self.core_path.parsed)
 
     def test_bad_length(self):
         raw = b'1\x00\x00\x00-\x00\x12\x02\x00x\x00\x80\x05\x00\x1e\x03\x00'\
               b'\x8c\x00P8\x00\r\x90\x0c\x00\x00\x00\x1d\x003\x03\x00\x8c'
-        core_path = CorePath()
-        core_path.parse(raw)
-        ntools.assert_false(core_path.parsed)
+        self.core_path = CorePath()
+        self.core_path.parse(raw)
+        ntools.assert_false(self.core_path.parsed)
 
 
-class TestCorePathPack(object):
+class TestCorePathPack(BasePath):
     """
     Unit tests for lib.packet.path.CorePath.pack
     """
     def test(self):
-        core_path = CorePath()
-        iof1 = InfoOpaqueField.from_values(24, True, 45, 18, 2)
-        iof2 = InfoOpaqueField.from_values(3, False, 9, 65, 2)
-        iof3 = InfoOpaqueField.from_values(6, False, 29, 51, 3)
-        hof1 = HopOpaqueField.from_values(120, 8, 5, 7683)
-        hof2 = HopOpaqueField.from_values(140, 5, 56, 3472)
-        hof3 = HopOpaqueField.from_values(80, 12, 22, 6458)
-        hof4 = HopOpaqueField.from_values(12, 98, 3, 876)
-        hof5 = HopOpaqueField.from_values(90, 235, 55, 794)
-        core_path.up_segment_info = iof1
-        core_path.down_segment_info = iof2
-        core_path.core_segment_info = iof3
-        core_path.up_segment_hops = [hof1, hof2]
-        core_path.down_segment_hops = [hof3, hof5]
-        core_path.core_segment_hops = [hof2, hof3, hof4]
+        self.core_path.up_segment_info = self.iof1
+        self.core_path.down_segment_info = self.iof2
+        self.core_path.core_segment_info = self.iof3
+        self.core_path.up_segment_hops = [self.hof1, self.hof2]
+        self.core_path.down_segment_hops = [self.hof3, self.hof5]
+        self.core_path.core_segment_hops = [self.hof2, self.hof3, self.hof4]
         packed = b'1\x00\x00\x00-\x00\x12\x02\x00x\x00\x80\x05\x00\x1e\x03\x00'\
               b'\x8c\x00P8\x00\r\x90\x0c\x00\x00\x00\x1d\x003\x03\x00\x8c'\
               b'\x00P8\x00\r\x90\x00P\x00\xc0\x16\x00\x19:\x00\x0c\x06 \x03'\
               b'\x00\x03l\x06\x00\x00\x00\t\x00A\x02\x00P\x00\xc0\x16\x00'\
               b'\x19:\x00Z\x0e\xb07\x00\x03\x1a'
-        ntools.eq_(core_path.pack(), packed)
+        ntools.eq_(self.core_path.pack(), packed)
 
 
-class TestCorePathReverse(object):
+class TestCorePathReverse(BasePath):
     """
     Unit tests for lib.packet.path.CorePath.reverse
     """
     @patch("lib.packet.path.PathBase.reverse")
     def test(self, reverse):
-        core_path = CorePath()
-        iof1 = InfoOpaqueField.from_values(24, True, 45, 18, 2)
-        iof1_ = copy.copy(iof1)
-        hof1 = HopOpaqueField.from_values(120, 8, 5, 7683)
-        hof2 = HopOpaqueField.from_values(140, 5, 56, 3472)
-        hof3 = HopOpaqueField.from_values(80, 12, 22, 6458)
-        core_path.core_segment_info = iof1
-        core_path.core_segment_hops = [hof1, hof2, hof3]
-        core_path.reverse()
-        reverse.assert_called_once_with(core_path)
-        ntools.eq_(core_path.core_segment_hops, [hof3, hof2, hof1])
+        iof1_ = copy.copy(self.iof1)
+        self.core_path.core_segment_info = self.iof1
+        self.core_path.core_segment_hops = [self.hof1, self.hof2, self.hof3]
+        self.core_path.reverse()
+        reverse.assert_called_once_with(self.core_path)
+        ntools.eq_(self.core_path.core_segment_hops, [self.hof3, self.hof2, self.hof1])
         iof1_.up_flag ^= True
-        ntools.eq_(core_path.core_segment_info, iof1_)
+        ntools.eq_(self.core_path.core_segment_info, iof1_)
 
 
-class TestCorePathReverse(object):
+class TestCorePathReverse(BasePath):
     """
     Unit tests for lib.packet.path.CorePath.reverse
     """
     @patch("lib.packet.path.PathBase.reverse")
     def test(self, reverse):
-        core_path = CorePath()
-        iof1 = InfoOpaqueField.from_values(24, True, 45, 18, 2)
-        iof1_ = copy.copy(iof1)
-        hof1 = HopOpaqueField.from_values(120, 8, 5, 7683)
-        hof2 = HopOpaqueField.from_values(140, 5, 56, 3472)
-        hof3 = HopOpaqueField.from_values(80, 12, 22, 6458)
-        core_path.core_segment_info = iof1
-        core_path.core_segment_hops = [hof1, hof2, hof3]
-        core_path.reverse()
-        reverse.assert_called_once_with(core_path)
-        ntools.eq_(core_path.core_segment_hops, [hof3, hof2, hof1])
+        iof1_ = copy.copy(self.iof1)
+        self.core_path.core_segment_info = self.iof1
+        self.core_path.core_segment_hops = [self.hof1, self.hof2, self.hof3]
+        self.core_path.reverse()
+        reverse.assert_called_once_with(self.core_path)
+        ntools.eq_(self.core_path.core_segment_hops, [self.hof3, self.hof2, self.hof1])
         iof1_.up_flag ^= True
-        ntools.eq_(core_path.core_segment_info, iof1_)
+        ntools.eq_(self.core_path.core_segment_info, iof1_)
 
 
-class TestCorePathGetOf(object):
+class TestCorePathGetOf(BasePath):
     """
     Unit tests for lib.packet.path.CorePath.get_of
     """
     def test(self):
-        core_path = CorePath()
-        iof1 = InfoOpaqueField.from_values(24, True, 45, 18, 2)
-        iof2 = InfoOpaqueField.from_values(3, False, 9, 65, 2)
-        iof3 = InfoOpaqueField.from_values(6, False, 29, 51, 3)
-        hof1 = HopOpaqueField.from_values(120, 8, 5, 7683)
-        hof2 = HopOpaqueField.from_values(140, 5, 56, 3472)
-        hof3 = HopOpaqueField.from_values(80, 12, 22, 6458)
-        hof4 = HopOpaqueField.from_values(12, 98, 3, 876)
-        hof5 = HopOpaqueField.from_values(90, 235, 55, 794)
-        core_path.up_segment_info = iof1
-        core_path.down_segment_info = iof2
-        core_path.core_segment_info = iof3
-        core_path.up_segment_hops = [hof1, hof2]
-        core_path.down_segment_hops = [hof3, hof5]
-        core_path.core_segment_hops = [hof2, hof3, hof4]
-        ofs = [iof1, hof1, hof2, iof3, hof2, hof3, hof4, iof2, hof3, hof5]
+        self.core_path.up_segment_info = self.iof1
+        self.core_path.down_segment_info = self.iof2
+        self.core_path.core_segment_info = self.iof3
+        self.core_path.up_segment_hops = [self.hof1, self.hof2]
+        self.core_path.down_segment_hops = [self.hof3, self.hof5]
+        self.core_path.core_segment_hops = [self.hof2, self.hof3, self.hof4]
+        ofs = [self.iof1, self.hof1, self.hof2, self.iof3, self.hof2, self.hof3, self.hof4, self.iof2, self.hof3, self.hof5]
         for i, opaque_field in enumerate(ofs):
-            ntools.eq_(core_path.get_of(i), opaque_field)
-        ntools.eq_(core_path.get_of(10), None)
+            ntools.eq_(self.core_path.get_of(i), opaque_field)
+        ntools.eq_(self.core_path.get_of(10), None)
 
 
-class TestCorePathFromValues(object):
+class TestCorePathFromValues(BasePath):
     """
     Unit tests for lib.packet.path.CorePath.from_values
     """
     def test(self):
-        iof1 = InfoOpaqueField.from_values(24, True, 45, 18, 2)
-        iof2 = InfoOpaqueField.from_values(3, False, 9, 65, 2)
-        iof3 = InfoOpaqueField.from_values(6, False, 29, 51, 3)
-        hof1 = HopOpaqueField.from_values(120, 8, 5, 7683)
-        hof2 = HopOpaqueField.from_values(140, 5, 56, 3472)
-        hof3 = HopOpaqueField.from_values(80, 12, 22, 6458)
-        hof4 = HopOpaqueField.from_values(12, 98, 3, 876)
-        hof5 = HopOpaqueField.from_values(90, 235, 55, 794)
-        core_path = CorePath.from_values(iof1, [hof1, hof2], 
-                                         iof2, [hof2, hof3, hof4], 
-                                         iof3, [hof3, hof5])
-        ntools.eq_(core_path.up_segment_info, iof1)
-        ntools.eq_(core_path.core_segment_info, iof2)
-        ntools.eq_(core_path.down_segment_info, iof3)
-        ntools.eq_(core_path.up_segment_hops, [hof1, hof2])
-        ntools.eq_(core_path.core_segment_hops, [hof2, hof3, hof4])
-        ntools.eq_(core_path.down_segment_hops, [hof3, hof5])
+        self.core_path = CorePath.from_values(self.iof1, [self.hof1, self.hof2],
+                                         self.iof2, [self.hof2, self.hof3, self.hof4], 
+                                         self.iof3, [self.hof3, self.hof5])
+        ntools.eq_(self.core_path.up_segment_info, self.iof1)
+        ntools.eq_(self.core_path.core_segment_info, self.iof2)
+        ntools.eq_(self.core_path.down_segment_info, self.iof3)
+        ntools.eq_(self.core_path.up_segment_hops, [self.hof1, self.hof2])
+        ntools.eq_(self.core_path.core_segment_hops, [self.hof2, self.hof3, self.hof4])
+        ntools.eq_(self.core_path.down_segment_hops, [self.hof3, self.hof5])
 
 
-class TestCorePathFromValues(object):
+class TestCorePathFromValues(BasePath):
     """
     Unit tests for lib.packet.path.CorePath.from_values
     """
     def test(self):
-        iof1 = InfoOpaqueField.from_values(24, True, 45, 18, 2)
-        iof2 = InfoOpaqueField.from_values(3, False, 9, 65, 2)
-        iof3 = InfoOpaqueField.from_values(6, False, 29, 51, 3)
-        hof1 = HopOpaqueField.from_values(120, 8, 5, 7683)
-        hof2 = HopOpaqueField.from_values(140, 5, 56, 3472)
-        hof3 = HopOpaqueField.from_values(80, 12, 22, 6458)
-        hof4 = HopOpaqueField.from_values(12, 98, 3, 876)
-        hof5 = HopOpaqueField.from_values(90, 235, 55, 794)
-        core_path = CorePath.from_values(iof1, [hof1, hof2], 
-                                         iof2, [hof2, hof3, hof4], 
-                                         iof3, [hof3, hof5])
-        ntools.eq_(core_path.up_segment_info, iof1)
-        ntools.eq_(core_path.core_segment_info, iof2)
-        ntools.eq_(core_path.down_segment_info, iof3)
-        ntools.eq_(core_path.up_segment_hops, [hof1, hof2])
-        ntools.eq_(core_path.core_segment_hops, [hof2, hof3, hof4])
-        ntools.eq_(core_path.down_segment_hops, [hof3, hof5])
+        self.core_path = CorePath.from_values(self.iof1, [self.hof1, self.hof2],
+                                         self.iof2, [self.hof2, self.hof3, self.hof4], 
+                                         self.iof3, [self.hof3, self.hof5])
+        ntools.eq_(self.core_path.up_segment_info, self.iof1)
+        ntools.eq_(self.core_path.core_segment_info, self.iof2)
+        ntools.eq_(self.core_path.down_segment_info, self.iof3)
+        ntools.eq_(self.core_path.up_segment_hops, [self.hof1, self.hof2])
+        ntools.eq_(self.core_path.core_segment_hops, [self.hof2, self.hof3, self.hof4])
+        ntools.eq_(self.core_path.down_segment_hops, [self.hof3, self.hof5])
 
 
-class TestCorePathStr(object):
+class TestCorePathStr(BasePath):
     """
     Unit tests for lib.packet.path.CorePath.__str__
     """
@@ -363,7 +298,7 @@ class TestCorePathStr(object):
         pass
 
 
-class TestCrossOverPathInit(object):
+class TestCrossOverPathInit(BasePath):
     """
     Unit tests for lib.packet.path.CrossOverPath.__init__
     """
