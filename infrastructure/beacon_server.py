@@ -424,8 +424,8 @@ class BeaconServer(SCIONElement):
         assert isinstance(pcb, PathSegment)
         last_pcbm = pcb.get_last_pcbm()
         if self._check_certs_trc(last_pcbm.isd_id, last_pcbm.ad_id,
-                                 pcb.get_last_adm().cert_chain_version,
-                                 pcb.trcf.trc_version, pcb.trcf.if_id):
+                                 pcb.get_last_adm().cert_ver,
+                                 pcb.trcf.trc_ver, pcb.trcf.if_id):
             if self._verify_beacon(pcb):
                 self._handle_verified_beacon(pcb)
             else:
@@ -434,8 +434,7 @@ class BeaconServer(SCIONElement):
             logging.warning("Certificate(s) or TRC missing.")
             self.unverified_beacons.append(pcb)
 
-    def _check_certs_trc(self, isd_id, ad_id, cert_chain_version, trc_version,
-                         if_id):
+    def _check_certs_trc(self, isd_id, ad_id, cert_ver, trc_ver, if_id):
         """
         Return True or False whether the necessary Certificate and TRC files are
         found.
@@ -444,38 +443,38 @@ class BeaconServer(SCIONElement):
         :type isd_id: int
         :param ad_id: AD identifier.
         :type ad_id: int
-        :param cert_chain_version: certificate chain file version.
-        :type cert_chain_version: int
-        :param trc_version: TRC file version.
-        :type trc_version: int
+        :param cert_ver: certificate chain file version.
+        :type cert_ver: int
+        :param trc_ver: TRC file version.
+        :type trc_ver: int
         :param if_id: interface identifier.
         :type if_id: int
         """
         pass
 
-    def _get_trc(self, isd_id, trc_version, if_id):
+    def _get_trc(self, isd_id, trc_ver, if_id):
         """
         Get TRC from local storage or memory.
 
         :param isd_id: ISD identifier.
         :type isd_id: int
-        :param trc_version: TRC file version.
-        :type trc_version: int
+        :param trc_ver: TRC file version.
+        :type trc_ver: int
         :param if_id: interface identifier.
         :type if_id: int
         """
-        trc = self.trcs.get((isd_id, trc_version))
+        trc = self.trcs.get((isd_id, trc_ver))
         if not trc:
             # Try loading file from disk
             trc_file = get_trc_file_path(self.topology.isd_id,
                                          self.topology.ad_id,
-                                         isd_id, trc_version)
+                                         isd_id, trc_ver)
             if os.path.exists(trc_file):
                 trc = TRC(trc_file)
-                self.trcs[(isd_id, trc_version)] = trc
+                self.trcs[(isd_id, trc_ver)] = trc
         if not trc:
             # Requesting TRC file from cert server
-            trc_tuple = (isd_id, trc_version)
+            trc_tuple = (isd_id, trc_ver)
             now = int(time.time())
             if (trc_tuple not in self.trc_requests or
                 (now - self.trc_requests[trc_tuple] >
@@ -483,7 +482,7 @@ class BeaconServer(SCIONElement):
                 new_trc_req = TRCRequest.from_values(
                     PT.TRC_REQ_LOCAL, self.addr, if_id,
                     self.topology.isd_id, self.topology.ad_id,
-                    isd_id, trc_version)
+                    isd_id, trc_ver)
                 dst_addr = self.topology.certificate_servers[0].addr
                 self.send(new_trc_req, dst_addr)
                 self.trc_requests[trc_tuple] = now
@@ -502,18 +501,18 @@ class BeaconServer(SCIONElement):
         last_pcbm = pcb.get_last_pcbm()
         cert_chain_isd = last_pcbm.isd_id
         cert_chain_ad = last_pcbm.ad_id
-        cert_chain_version = pcb.get_last_adm().cert_chain_version
-        trc_version = pcb.trcf.trc_version
+        cert_ver = pcb.get_last_adm().cert_ver
+        trc_ver = pcb.trcf.trc_ver
         subject = 'ISD:' + str(cert_chain_isd) + '-AD:' + str(cert_chain_ad)
         cert_chain_file = get_cert_chain_file_path(
             self.topology.isd_id, self.topology.ad_id,
-            cert_chain_isd, cert_chain_ad, cert_chain_version)
+            cert_chain_isd, cert_chain_ad, cert_ver)
         if os.path.exists(cert_chain_file):
             chain = CertificateChain(cert_chain_file)
         else:
             chain = CertificateChain.from_values([])
         trc_file = get_trc_file_path(self.topology.isd_id, self.topology.ad_id,
-                                     cert_chain_isd, trc_version)
+                                     cert_chain_isd, trc_ver)
         trc = TRC(trc_file)
 
         new_pcb = copy.deepcopy(pcb)
@@ -521,7 +520,7 @@ class BeaconServer(SCIONElement):
         new_pcb.ads[-1].sig = b''
         new_pcb.ads[-1].sig_len = 0
         return verify_sig_chain_trc(new_pcb.pack(), pcb.ads[-1].sig, subject,
-                                    chain, trc, trc_version)
+                                    chain, trc, trc_ver)
 
     def _sign_beacon(self, pcb):
         """
@@ -935,8 +934,7 @@ class CoreBeaconServer(BeaconServer):
         if count:
             logging.debug("Dropped %d previously seen Core Segment PCBs", count)
 
-    def _check_certs_trc(self, isd_id, ad_id, cert_chain_version, trc_version,
-                         if_id):
+    def _check_certs_trc(self, isd_id, ad_id, cert_ver, trc_ver, if_id):
         """
         Return True or False whether the necessary TRC file is found.
 
@@ -944,17 +942,17 @@ class CoreBeaconServer(BeaconServer):
         :type isd_id: int
         :param ad_id: AD identifier.
         :type ad_id: int
-        :param cert_chain_version: certificate chain file version.
-        :type cert_chain_version: int
-        :param trc_version: TRC file version.
-        :type trc_version: int
+        :param cert_ver: certificate chain file version.
+        :type cert_ver: int
+        :param trc_ver: TRC file version.
+        :type trc_ver: int
         :param if_id: interface identifier.
         :type if_id: int
 
         :returns: True if the files exist, False otherwise.
         :rtype: bool
         """
-        if self._get_trc(isd_id, trc_version, if_id):
+        if self._get_trc(isd_id, trc_ver, if_id):
             return True
         else:
             return False
@@ -1093,11 +1091,10 @@ class LocalBeaconServer(BeaconServer):
         self.cert_chains = {}
         cert_chain_file = get_cert_chain_file_path(
             self.topology.isd_id, self.topology.ad_id, self.topology.isd_id,
-            self.topology.ad_id, self.config.cert_chain_version)
+            self.topology.ad_id, self.config.cert_ver)
         self.cert_chain = CertificateChain(cert_chain_file)
 
-    def _check_certs_trc(self, isd_id, ad_id, cert_chain_version, trc_version,
-                         if_id):
+    def _check_certs_trc(self, isd_id, ad_id, cert_ver, trc_ver, if_id):
         """
         Return True or False whether the necessary Certificate and TRC files are
         found.
@@ -1106,34 +1103,32 @@ class LocalBeaconServer(BeaconServer):
         :type isd_id: int
         :param ad_id: AD identifier.
         :type ad_id: int
-        :param cert_chain_version: certificate chain file version.
-        :type cert_chain_version: int
-        :param trc_version: TRC file version.
-        :type trc_version: int
+        :param cert_ver: certificate chain file version.
+        :type cert_ver: int
+        :param trc_ver: TRC file version.
+        :type trc_ver: int
         :param if_id: interface identifier.
         :type if_id: int
 
         :returns: True if the files exist, False otherwise.
         :rtype: bool
         """
-        trc = self._get_trc(isd_id, trc_version, if_id)
+        trc = self._get_trc(isd_id, trc_ver, if_id)
         if trc:
-            cert_chain = self.cert_chains.get((isd_id, ad_id,
-                                               cert_chain_version))
+            cert_chain = self.cert_chains.get((isd_id, ad_id, cert_ver))
             if not cert_chain:
                 # Try loading file from disk
                 cert_chain_file = get_cert_chain_file_path(
                     self.topology.isd_id, self.topology.ad_id,
-                    isd_id, ad_id, cert_chain_version)
+                    isd_id, ad_id, cert_ver)
                 if os.path.exists(cert_chain_file):
                     cert_chain = CertificateChain(cert_chain_file)
-                    self.cert_chains[(isd_id, ad_id,
-                                      cert_chain_version)] = cert_chain
+                    self.cert_chains[(isd_id, ad_id, cert_ver)] = cert_chain
             if cert_chain or self.cert_chain.certs[0].issuer in trc.core_ads:
                 return True
             else:
                 # Requesting certificate chain file from cert server
-                cert_chain_tuple = (isd_id, ad_id, cert_chain_version)
+                cert_chain_tuple = (isd_id, ad_id, cert_ver)
                 now = int(time.time())
                 if (cert_chain_tuple not in self.cert_chain_requests or
                     (now - self.cert_chain_requests[cert_chain_tuple] >
@@ -1142,8 +1137,7 @@ class LocalBeaconServer(BeaconServer):
                         CertChainRequest.from_values(
                             PT.CERT_CHAIN_REQ_LOCAL,
                             self.addr, if_id, self.topology.isd_id,
-                            self.topology.ad_id, isd_id, ad_id,
-                            cert_chain_version)
+                            self.topology.ad_id, isd_id, ad_id, cert_ver)
                     dst_addr = self.topology.certificate_servers[0].addr
                     self.send(new_cert_chain_req, dst_addr)
                     self.cert_chain_requests[cert_chain_tuple] = now

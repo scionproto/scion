@@ -164,8 +164,8 @@ class ADMarking(Marking):
     """
     Packs all fields for a specific Autonomous Domain.
     """
-    FIRST_ROW_LEN = 8  # Length of a first row (containg cert version, signature
-                       # lenght, and block size) of every ADMarking.
+    FIRST_ROW_LEN = 8  # Length of a first row (containg cert version, and
+                       # lenghts of signature, ASD, and block) of ADMarking
 
     def __init__(self, raw=None):
         """
@@ -178,9 +178,10 @@ class ADMarking(Marking):
         self.pcbm = None
         self.pms = []
         self.sig = b''
-        self.cert_chain_version = 0
+        self.cert_ver = 0
         self.sig_len = 0
-        self.block_size = 0
+        self.asd_len = 0
+        self.block_len = 0
         if raw is not None:
             self.parse(raw)
 
@@ -191,12 +192,12 @@ class ADMarking(Marking):
         assert isinstance(raw, bytes)
         self.raw = raw[:]
         dlen = len(raw)
-        if dlen < PCBMarking.LEN + FIRST_ROW_LEN:
+        if dlen < PCBMarking.LEN + self.FIRST_ROW_LEN:
             logging.warning("AD: Data too short for parsing, len: %u", dlen)
             return
-        (self.cert_chain_version, self.sig_len, self.block_size) = \
-            struct.unpack("!IHH", raw[:FIRST_ROW_LEN])
-        raw = raw[8:]
+        (self.cert_ver, self.sig_len, self.block_len) = \
+            struct.unpack("!IHH", raw[:self.FIRST_ROW_LEN])
+        raw = raw[self.FIRST_ROW_LEN:]
         self.pcbm = PCBMarking(raw[:PCBMarking.LEN])
         raw = raw[PCBMarking.LEN:]
         while len(raw) > self.sig_len:
@@ -216,7 +217,7 @@ class ADMarking(Marking):
         @param sig: Beacon's signature.
         """
         ad_marking = ADMarking()
-        ad_marking.block_size = (1 + len(pms)) * PCBMarking.LEN
+        ad_marking.block_len = (1 + len(pms)) * PCBMarking.LEN
         ad_marking.pcbm = pcbm
         ad_marking.pms = (pms if pms is not None else [])
         ad_marking.sig = sig
@@ -227,8 +228,8 @@ class ADMarking(Marking):
         """
         Returns ADMarking as a binary string.
         """
-        ad_bytes = struct.pack("!IHH", self.cert_chain_version, self.sig_len,
-                               self.block_size)
+        ad_bytes = struct.pack("!IHH", self.cert_ver, self.sig_len,
+                               self.block_len)
         ad_bytes += self.pcbm.pack()
         for peer_marking in self.pms:
             ad_bytes += peer_marking.pack()
@@ -244,8 +245,8 @@ class ADMarking(Marking):
 
     def __str__(self):
         ad_str = "[Autonomous Domain]\n"
-        ad_str += ("cert_ver: %d, sig_len: %d, block_size: %d\n" %
-                   (self.cert_chain_version, self.sig_len, self.block_size))
+        ad_str += ("cert_ver: %d, sig_len: %d, block_len: %d\n" %
+                   (self.cert_ver, self.sig_len, self.block_len))
         ad_str += str(self.pcbm)
         for peer_marking in self.pms:
             ad_str += str(peer_marking)
@@ -303,10 +304,10 @@ class PathSegment(Marking):
         self.segment_id = raw[16:48]
         raw = raw[48:]
         for _ in range(self.iof.hops):
-            (_, sig_len, block_size) = struct.unpack("!IHH", raw[:8])
-            ad_marking = ADMarking(raw[:sig_len + block_size + 8])
+            (_, sig_len, block_len) = struct.unpack("!IHH", raw[:8])
+            ad_marking = ADMarking(raw[:sig_len + block_len + 8])
             self.add_ad(ad_marking)
-            raw = raw[sig_len + block_size + 8:]
+            raw = raw[sig_len + block_len + 8:]
         self.parsed = True
 
     def pack(self):
@@ -476,10 +477,10 @@ class PathSegment(Marking):
             pcb.segment_id = raw[16:48]
             raw = raw[48:]
             for _ in range(pcb.iof.hops):
-                (_, sig_len, block_size) = struct.unpack("!IHH", raw[:8])
-                ad_marking = ADMarking(raw[:sig_len + block_size + 8])
+                (_, sig_len, block_len) = struct.unpack("!IHH", raw[:8])
+                ad_marking = ADMarking(raw[:sig_len + block_len + 8])
                 pcb.add_ad(ad_marking)
-                raw = raw[sig_len + block_size + 8:]
+                raw = raw[sig_len + block_len + 8:]
             pcbs.append(pcb)
         return pcbs
 

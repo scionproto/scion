@@ -294,7 +294,7 @@ class TRCField(OpaqueField):
         """
         OpaqueField.__init__(self)
         self.info = OpaqueFieldType.TRC_OF
-        self.trc_version = 0
+        self.trc_ver = 0
         self.if_id = 0
         self.reserved = 0
         if raw is not None:
@@ -310,21 +310,21 @@ class TRCField(OpaqueField):
         if dlen < self.LEN:
             logging.warning("TRCF: Data too short for parsing, len: %u", dlen)
             return
-        (self.info, self.trc_version, self.if_id, self.reserved) = \
+        (self.info, self.trc_ver, self.if_id, self.reserved) = \
             struct.unpack("!BIHB", raw)
         self.parsed = True
 
     @classmethod
-    def from_values(cls, trc_version=0, if_id=0, reserved=0):
+    def from_values(cls, trc_ver=0, if_id=0, reserved=0):
         """
         Returns TRCField with fields populated from values.
 
-        @param trc_version: Version of the Isolation Domanin's TRC file.
+        @param trc_ver: Version of the Isolation Domanin's TRC file.
         @param if_id: Interface ID.
         @param reserved: Reserved section.
         """
         trcf = TRCField()
-        trcf.trc_version = trc_version
+        trcf.trc_ver = trc_ver
         trcf.if_id = if_id
         trcf.reserved = reserved
         return trcf
@@ -333,18 +333,18 @@ class TRCField(OpaqueField):
         """
         Returns TRCField as 8 byte binary string.
         """
-        return struct.pack("!BIHB", self.info, self.trc_version, self.if_id,
+        return struct.pack("!BIHB", self.info, self.trc_ver, self.if_id,
                            self.reserved)
 
     def __str__(self):
         trcf_str = ("[TRC OF info: %x, TRCv: %u, IF ID: %u]\n" %
-                    (self.info, self.trc_version, self.if_id))
+                    (self.info, self.trc_ver, self.if_id))
         return trcf_str
 
     def __eq__(self, other):
         if type(other) is type(self):
             return (self.info == other.info and
-                    self.trc_version == other.trc_version and
+                    self.trc_ver == other.trc_ver and
                     self.if_id == other.if_id)
         else:
             return False

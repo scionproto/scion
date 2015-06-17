@@ -370,7 +370,7 @@ class TestTRCFieldInit(object):
     def test_basic(self):
         trc_fld = TRCField()
         ntools.eq_(trc_fld.info, OpaqueFieldType.TRC_OF)
-        ntools.eq_(trc_fld.trc_version, 0)
+        ntools.eq_(trc_fld.trc_ver, 0)
         ntools.eq_(trc_fld.if_id, 0)
         ntools.eq_(trc_fld.reserved, 0)
         ntools.assert_false(trc_fld.parsed)
@@ -391,7 +391,7 @@ class TestTRCFieldParse(object):
         trc_fld.parse(data)
         ntools.eq_(trc_fld.raw, data)
         ntools.eq_(trc_fld.info, 0x0f)
-        ntools.eq_(trc_fld.trc_version, 0x2a0a0b0c)
+        ntools.eq_(trc_fld.trc_ver, 0x2a0a0b0c)
         ntools.eq_(trc_fld.if_id, 0x0d0e)
         ntools.eq_(trc_fld.reserved, 0x0f)
         ntools.assert_true(trc_fld.parsed)
@@ -402,7 +402,7 @@ class TestTRCFieldParse(object):
         trc_fld.parse(data)
         ntools.eq_(trc_fld.raw, data)
         ntools.eq_(trc_fld.info, OpaqueFieldType.TRC_OF)
-        ntools.eq_(trc_fld.trc_version, 0)
+        ntools.eq_(trc_fld.trc_ver, 0)
         ntools.eq_(trc_fld.if_id, 0)
         ntools.eq_(trc_fld.reserved, 0)
         ntools.assert_false(trc_fld.parsed)
@@ -414,13 +414,13 @@ class TestTRCFieldFromValues(object):
     """
     def test_basic(self):
         trc_fld = TRCField.from_values(705301260, 3342, 15)
-        ntools.eq_(trc_fld.trc_version, 705301260)
+        ntools.eq_(trc_fld.trc_ver, 705301260)
         ntools.eq_(trc_fld.if_id, 3342)
         ntools.eq_(trc_fld.reserved, 15)
 
     def test_less_arg(self):
         trc_fld = TRCField.from_values()
-        ntools.eq_(trc_fld.trc_version, 0)
+        ntools.eq_(trc_fld.trc_ver, 0)
         ntools.eq_(trc_fld.if_id, 0)
         ntools.eq_(trc_fld.reserved, 0)
 
@@ -432,7 +432,7 @@ class TestTRCFieldPack(object):
     def test_basic(self):
         trc_fld = TRCField()
         trc_fld.info = 0x0f
-        trc_fld.trc_version = 0x2a0a0b0c
+        trc_fld.trc_ver = 0x2a0a0b0c
         trc_fld.if_id = 0x0d0e
         trc_fld.reserved = 0x0f
         ntools.eq_(trc_fld.pack(), bytes.fromhex('0f 2a 0a 0b 0c 0d 0e 0f'))
