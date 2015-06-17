@@ -18,6 +18,7 @@
 # Stdlib
 import struct
 from unittest.mock import patch
+from bitstring import BitArray
 
 # External packages
 import nose
@@ -205,6 +206,20 @@ class TestLeaseInfoParse(object):
         ntools.eq_(les_inf.exp_time, 0)
         ntools.eq_(les_inf.seg_id, b"")
 
+
+class TestLeaseInfoPack(object):
+    """
+    Unit tests for lib.packet.path_mgmt.LeaseInfo.from_values
+    """
+    def test_basic(self):
+        les_inf = LeaseInfo.from_values(0x0e, 0x2a0a, 0x0b0c, 0x01020304, b"superlengthybigstringoflength32.")
+        ntools.eq_(les_inf.seg_type, 0x0e)
+        ntools.eq_(les_inf.isd_id, 0x2a0a)
+        ntools.eq_(les_inf.ad_id, 0x0b0c)
+        ntools.eq_(les_inf.exp_time, 0x01020304)
+        ntools.eq_(les_inf.seg_id, b"superlengthybigstringoflength32.")
+
+
 class TestLeaseInfoFromValues(object):
     """
     Unit tests for lib.packet.path_mgmt.LeaseInfo.from_values
@@ -216,6 +231,66 @@ class TestLeaseInfoFromValues(object):
         ntools.eq_(les_inf.ad_id, 0x0b0c)
         ntools.eq_(les_inf.exp_time, 0x01020304)
         ntools.eq_(les_inf.seg_id, b"superlengthybigstringoflength32.")
+
+
+class TestPathSegmentLeases(object):
+    """
+    Unit tests for lib.packet.path_mgmt.PathSegmentLeases.__init__
+    """
+    @patch("lib.packet.packet_base.PayloadBase.__init__")
+    def test_basic(self, __init__):
+        pth_seg_les = PathSegmentLeases()
+        ntools.eq_(pth_seg_les.nleases, 0)
+        ntools.eq_(pth_seg_les.leases, [])
+        __init__.assert_called_once_with(pth_seg_les)
+
+    @patch("lib.packet.path_mgmt.PathSegmentLeases.parse")
+    def test_raw(self, parse):
+        PathSegmentLeases("data")
+        parse.assert_called_once_with("data")
+
+
+class TestPathSegmentLeasesParse(object):
+    """
+    Unit tests for lib.packet.path_mgmt.PathSegmentLeases.parse
+    """
+    @patch("lib.packet.packet_base.PayloadBase.parse")
+    def test_basic(self, parse):
+        pth_seg_les = PathSegmentLeases()
+        data = bytes.fromhex('04')
+        for i in range(0x04):
+        	data = data + bytes.fromhex('0e 2a0a 0b0c 01020304') + b"superlengthybigstringoflength32" + struct.pack("!B", i)
+        pth_seg_les.parse(data)
+        parse.assert_called()
+        ntools.eq_(pth_seg_les.nleases, 0x04)
+        for i in range(0x04):
+        	ntools.eq_(pth_seg_les.leases[i].pack(), bytes.fromhex('0e 2a0a 0b0c 01020304') + b"superlengthybigstringoflength32" + struct.pack("!B", i))
+
+
+class TestPathSegmentLeasesPack(object):
+    """
+    Unit tests for lib.packet.path_mgmt.PathSegmentLeases.pack
+    """
+    def test_basic(self):
+        pth_seg_les = PathSegmentLeases()
+        pth_seg_les.nleases = 0x04
+        data = bytes.fromhex('04')
+        for i in range(0x04):
+        	temp = bytes.fromhex('0e 2a0a 0b0c 01020304') + b"superlengthybigstringoflength32" + struct.pack("!B", i)
+        	linfo = LeaseInfo(temp)
+        	data = data + temp
+        	pth_seg_les.leases.append(linfo)
+        ntools.eq_(pth_seg_les.pack(), data)
+
+
+class TestPathSegmentLeasesFromValues(object):
+    """
+    Unit tests for lib.packet.path_mgmt.PathSegmentLeases.from_values
+    """
+    def test_basic(self):
+        pth_seg_les = PathSegmentLeases.from_values(4, "data")
+        ntools.eq_(pth_seg_les.nleases, 4)
+        ntools.eq_(pth_seg_les.leases, "data")
 
 if __name__ == "__main__":
     nose.run(defaultTest=__name__)
