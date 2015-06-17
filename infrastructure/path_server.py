@@ -376,10 +376,10 @@ class CorePathServer(PathServer):
             return
         paths_to_propagate = []
         for pcb in records.pcbs:
-            src_isd = pcb.get_first_pcbm().spcbf.isd_id
+            src_isd = pcb.get_first_pcbm().isd_id
             src_ad = pcb.get_first_pcbm().ad_id
             dst_ad = pcb.get_last_pcbm().ad_id
-            dst_isd = pcb.get_last_pcbm().spcbf.isd_id
+            dst_isd = pcb.get_last_pcbm().isd_id
             res = self.down_segments.update(pcb, src_isd, src_ad,
                                             dst_isd, dst_ad)
             if res != DBResult.NONE:
@@ -417,9 +417,9 @@ class CorePathServer(PathServer):
             return
         for pcb in records.pcbs:
             src_ad = pcb.get_first_pcbm().ad_id
-            src_isd = pcb.get_first_pcbm().spcbf.isd_id
+            src_isd = pcb.get_first_pcbm().isd_id
             dst_ad = pcb.get_last_pcbm().ad_id
-            dst_isd = pcb.get_last_pcbm().spcbf.isd_id
+            dst_isd = pcb.get_last_pcbm().isd_id
             res = self.core_segments.update(pcb, src_isd=dst_isd, src_ad=dst_ad,
                                             dst_isd=src_isd, dst_ad=src_ad)
             if res == DBResult.ENTRY_ADDED:
@@ -535,7 +535,7 @@ class CorePathServer(PathServer):
                                             dst_isd=dst_isd)
                 if cpaths:
                     path = cpaths[0].get_path(reverse_direction=True)
-                    dst_isd_ad = ISD_AD(cpaths[0].get_first_pcbm().spcbf.isd_id,
+                    dst_isd_ad = ISD_AD(cpaths[0].get_first_pcbm().isd_id,
                                         cpaths[0].get_first_pcbm().ad_id)
                     if_id = path.get_first_hop_of().ingress_if
                     next_hop = self.ifid2addr[if_id]
@@ -754,10 +754,10 @@ class LocalPathServer(PathServer):
         for pcb in records.pcbs:
             self.up_segments.update(pcb, self.topology.isd_id,
                                     self.topology.ad_id,
-                                    pcb.get_first_pcbm().spcbf.isd_id,
+                                    pcb.get_first_pcbm().isd_id,
                                     pcb.get_first_pcbm().ad_id)
             logging.info("Up-Segment to (%d, %d) registered.",
-                         pcb.get_first_pcbm().spcbf.isd_id,
+                         pcb.get_first_pcbm().isd_id,
                          pcb.get_first_pcbm().ad_id)
         # Sending pending targets to the core using first registered up-path.
         if self.waiting_targets:
@@ -792,10 +792,10 @@ class LocalPathServer(PathServer):
             return
         leases = []
         for pcb in records.pcbs:
-            src_isd = pcb.get_first_pcbm().spcbf.isd_id
+            src_isd = pcb.get_first_pcbm().isd_id
             src_ad = pcb.get_first_pcbm().ad_id
             dst_ad = pcb.get_last_pcbm().ad_id
-            dst_isd = pcb.get_last_pcbm().spcbf.isd_id
+            dst_isd = pcb.get_last_pcbm().isd_id
             self.down_segments.update(pcb, src_isd, src_ad, dst_isd, dst_ad)
             # TODO: For now we immediately notify the CPS about the caching of
             # the path-segment. In the future we should only do that when we
@@ -834,9 +834,9 @@ class LocalPathServer(PathServer):
         for pcb in records.pcbs:
             # Core segments have down-path direction.
             src_ad = pcb.get_last_pcbm().ad_id
-            src_isd = pcb.get_last_pcbm().spcbf.isd_id
+            src_isd = pcb.get_last_pcbm().isd_id
             dst_ad = pcb.get_first_pcbm().ad_id
-            dst_isd = pcb.get_first_pcbm().spcbf.isd_id
+            dst_isd = pcb.get_first_pcbm().isd_id
             self.core_segments.update(pcb, src_isd=src_isd, src_ad=src_ad,
                                       dst_isd=dst_isd, dst_ad=dst_ad)
             lease = LeaseInfo.from_values(PST.CORE, self.topology.isd_id,
