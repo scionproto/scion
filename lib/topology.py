@@ -26,8 +26,6 @@ class Element(object):
     The Element class is the base class for elements specified in the topology
     file.
 
-    :cvar _ADDR_TYPES: allowed address types.
-    :vartype _ADDR_TYPES: list
     :ivar addr: IP or SCION address of a server or edge router.
     :type addr: :class:`IPv4Address` or :class:`IPv6Address`
     :ivar name: element name or id
