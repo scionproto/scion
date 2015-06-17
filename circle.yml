@@ -1,0 +1,14 @@
+machine:
+  python:
+    version: 3.4.2
+
+dependencies:
+  cache_directories:
+    - "/var/cache/apt"
+  post:
+    - "./scion.sh init"
+    - "./scion.sh topology"
+
+test:
+  override:
+    - ./scion.sh test
