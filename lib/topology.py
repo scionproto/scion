@@ -16,7 +16,7 @@
 ===========================================
 """
 # Stdlib
-from ipaddress import IPv4Address, IPv6Address
+from ipaddress import IPv4Address, IPv6Address, ip_address
 import json
 import logging
 
@@ -30,54 +30,86 @@ class Element(object):
     :vartype _ADDR_TYPES: list
     :ivar addr: IP or SCION address of a server or edge router.
     :type addr: :class:`IPv4Address` or :class:`IPv6Address`
-    :ivar to_addr: destination IP or SCION address of an edge router.
-    :type to_addr: :class:`IPv4Address` or :class:`IPv6Address`
     :ivar name: element name or id
     :type name: str
     """
 
-    _ADDR_TYPES = ["ipv4", "ipv6"]
-
-    def __init__(self, addr=None, addr_type=None, to_addr=None, name=None):
+    def __init__(self, addr=None, name=None):
         """
         Initialize an instance of the class Element.
 
-        Construct a new instance of the Element class. An element must set
-        `addr_type` with an allowed address type (named in `_ADDR_TYPES`) in
-        order to set the `addr` attribute.
-
-        :param addr: IP or SCION address of a server or edge router.
+        :param addr: IP or SCION address of the element
         :type addr: str
-        :param addr_type: type of the given address.
-        :type addr_type: str
-        :param to_addr: destination IP or SCION address of an edge router.
-        :type to_addr: str
         :param name: element name or id
         :type name: str
         """
-        if addr_type is not None and addr_type.lower() in self._ADDR_TYPES:
-            if addr_type.lower() == 'ipv4':
-                self.addr = IPv4Address(addr)
-                self.addr_type = 'ipv4'
-                if to_addr is not None:
-                    self.to_addr = IPv4Address(to_addr)
-                else:
-                    self.to_addr = None
-            elif addr_type.lower() == 'ipv6':
-                self.addr = IPv6Address(addr)
-                self.addr_type = 'ipv6'
-                if to_addr is not None:
-                    self.to_addr = IPv6Address(to_addr)
-                else:
-                    self.to_addr = None
+        self.addr = addr
+        self.name = name
+
+    @property
+    def addr(self):
+        """
+        Return the address of the element.
+
+        Return the element's address as an instance of an object representing
+        the appropriate type of address. Currently this is :class:`IPv4Address`
+        and :class:`IPv6Address`.
+
+        :returns: the address of the element.
+        :rtype: :class:`IPv4Address` or :class:`IPv6Address`
+        """
+        return self._addr
+
+    @addr.setter
+    def addr(self, value):
+        """
+        Set the address formatted as the appropriate type.
+
+        Set the address of the element according to the format of `value`. If
+        `value` is a string representing an IPv4 address, set the address to be
+        of the type :class:`IPv4Address`, and similarly for other address
+        types. If `value` is an integer less than 2\*\*32, then it is converted
+        to an IPv4 address. Currently only IPv4 and IPv6 addresses are
+        supported.
+
+        :param value: the value of the address in the appropriate format
+        :type value: str
+        """
+        if value is None:
+            self._addr = None
         else:
-            self.addr = None
-            self.addr_type = None
-            self.to_addr = None
-        if name is not None:
-            self.name = str(name)
+            try:
+                self._addr = ip_address(value)
+            except ValueError:
+                # TODO (@syclops): When new address types are added here (e.g.
+                # SCION addresses), add the appropriate code to set the address
+                # here.
+                raise
+            except:
+                raise
+
+    @property
+    def name(self):
+        """
+        Return the element's name.
+
+        :returns: the name of the element.
+        :rtype: str
+        """
+        return self._name
+
+    @name.setter
+    def name(self, value):
+        """
+        Set the name of the element.
+
+        Set the element's name to the appropriate string. If the name `None` is
+        given, set the name to `None` rather than to the string `'None'`.
+        """
+        if value is None:
+            self._name = None
         else:
-            self.name = None
+            self._name = str(value)
 
 
 class ServerElement(Element):
@@ -94,8 +126,7 @@ class ServerElement(Element):
         :param name: server element name or id
         :type name: str
         """
-        Element.__init__(self, server_dict['Addr'], server_dict['AddrType'],
-                         name=name)
+        Element.__init__(self, server_dict['Addr'], name)
 
 
 class InterfaceElement(Element):
@@ -119,21 +150,37 @@ class InterfaceElement(Element):
     :type udp_port: int
     """
 
-    def __init__(self, interface_dict=None):
+    def __init__(self, interface_dict=None, name=None):
         """
         Initialize an instance of the class InterfaceElement.
 
         :param interface_dict: contains information about the interface.
         :type interface_dict: dict
         """
-        Element.__init__(self, interface_dict['Addr'],
-                         interface_dict['AddrType'], interface_dict['ToAddr'])
+        Element.__init__(self, interface_dict['Addr'], name)
+        self.to_addr = interface_dict['ToAddr']
         self.if_id = interface_dict['IFID']
         self.neighbor_ad = interface_dict['NeighborAD']
         self.neighbor_isd = interface_dict['NeighborISD']
         self.neighbor_type = interface_dict['NeighborType']
         self.to_udp_port = interface_dict['ToUdpPort']
         self.udp_port = interface_dict['UdpPort']
+
+    @property
+    def to_addr(self):
+        return self._to_addr
+
+    @to_addr.setter
+    def to_addr(self, value):
+        try:
+            self._to_addr = ip_address(value)
+        except ValueError:
+            # TODO (@syclops): When new address types are added here (e.g.
+            # SCION addresses), add the appropriate code to set the address
+            # here.
+            raise
+        except:
+            raise
 
 
 class RouterElement(Element):
@@ -153,8 +200,7 @@ class RouterElement(Element):
         :param name: router element name or id
         :type name: str
         """
-        Element.__init__(self, router_dict['Addr'], router_dict['AddrType'],
-                         name=name)
+        Element.__init__(self, router_dict['Addr'], name)
         self.interface = InterfaceElement(router_dict['Interface'])
 
 
