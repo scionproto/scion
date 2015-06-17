@@ -801,13 +801,9 @@ class LocalPathServer(PathServer):
             return
         leases = []
         for pcb in records.pcbs:
-<<<<<<< HEAD
             assert pcb.segment_id != 32 * b"\x00", ("Trying to register a" +
                    " segment with ID 0:\n%s" % pcb)
-            src_isd = pcb.get_first_pcbm().spcbf.isd_id
-=======
             src_isd = pcb.get_first_pcbm().isd_id
->>>>>>> master
             src_ad = pcb.get_first_pcbm().ad_id
             dst_ad = pcb.get_last_pcbm().ad_id
             dst_isd = pcb.get_last_pcbm().isd_id
