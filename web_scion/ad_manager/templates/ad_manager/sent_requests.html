@@ -19,9 +19,27 @@
     {% for request in sent_requests %}
       <tr>
         <td><a href="{{ request.connect_to.get_absolute_url }}">{{ request.connect_to }}</a></td>
-        <td><pre>{{ request.info }}</pre></td>
+        <td>
+          <pre>{{ request.info }}</pre>
+          {% comment %}
+            FIXME(rev112): duplicated code, see connection_requests.html
+          {% endcomment %}
+          <div class="collapse" id="info-{{ request.id }}">
+            <div class="well">
+              <b>Bound socket</b> {{ request.router_bound_ip }} : {{ request.router_bound_port }} <br />
+              <b>Public socket</b> {{ request.router_public_ip }} : {{ request.router_public_port }} <br />
+              {% if request.new_ad %}
+                New AD: <a href="{% url 'ad_detail' request.new_ad.id %}">{{ request.new_ad }}</a>
+              {% endif %}
+            </div>
+          </div>
+        </td>
         <td>{{ request.router_bound_ip }} : {{ request.router_bound_port }}</td>
-        <td>{{ request.status}}</td>
+        <td>
+          <a role="button" data-toggle="collapse" href="#info-{{ request.id }}" aria-expanded="false" aria-controls="collapseExample">
+            {{ request.status}}
+          </a>
+        </td>
         <td>
           {% if request.is_approved %}
             <a href="{% url 'download_request_package' request.id %}">Download</a>

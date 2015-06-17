@@ -6,7 +6,7 @@
   <h2>Create a new connection request</h2>
   <hr />
 
-  <b>Connecting to:</b> {{ ad }}
+  <b>Connecting to:</b> <a href="{{ ad.get_absolute_url }}">AD {{ ad }}</a>
   <br />
   {% if ad.is_open %}
     This AD is OPEN. Your connection request will be processed automatically.

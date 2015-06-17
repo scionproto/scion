@@ -26,10 +26,10 @@
           <pre>{{ request.info }}</pre>
           <div class="collapse" id="info-{{ request.id }}">
             <div class="well">
+              <b>Bound socket</b> {{ request.router_bound_ip }} : {{ request.router_bound_port }} <br />
+              <b>Public socket</b> {{ request.router_public_ip }} : {{ request.router_public_port }} <br />
               {% if request.new_ad %}
                 New AD: <a href="{% url 'ad_detail' request.new_ad.id %}">{{ request.new_ad }}</a>
-              {% else %}
-                No additional information.
               {% endif %}
             </div>
           </div>
