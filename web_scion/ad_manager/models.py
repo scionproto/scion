@@ -359,8 +359,10 @@ class ConnectionRequest(models.Model):
     connect_to = models.ForeignKey(AD, related_name='received_requests')
     new_ad = models.ForeignKey(AD, blank=True, null=True)
     info = models.TextField()
-    router_ip = models.GenericIPAddressField()
-    router_port = models.IntegerField(default=int(PORT))
+    router_bound_ip = models.GenericIPAddressField()
+    router_bound_port = models.IntegerField(default=int(PORT))
+    router_public_ip = models.GenericIPAddressField(blank=True, null=True)
+    router_public_port = models.IntegerField(blank=True, null=True)
     status = models.CharField(max_length=20,
                               choices=zip(STATUS_OPTIONS, STATUS_OPTIONS),
                               default='NONE')

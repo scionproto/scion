@@ -350,6 +350,12 @@ class ConnectionRequestView(FormView):
         con_request = form.instance
         con_request.status = 'SENT'
 
+        if not con_request.router_public_ip:
+            # Public = Bound
+            con_request.router_public_ip = con_request.router_bound_ip
+            con_request.router_public_port = con_request.router_bound_port
+        con_request.save()
+
         self.success_url = reverse('sent_requests')
         if connect_to.is_open:
             # Create new AD
@@ -428,10 +434,13 @@ def approve_request(ad, ad_request):
 
         # Adjust router ips/ports
         _, new_topo_router = find_last_router(new_topo)
-        new_topo_router['Interface']['Addr'] = ad_request.router_ip
+        new_topo_router['Interface']['Addr'] = ad_request.router_bound_ip
+        new_topo_router['Interface']['UdpPort'] = ad_request.router_bound_port
 
         _, parent_topo_router = find_last_router(parent_topo)
-        parent_topo_router['Interface']['ToAddr'] = ad_request.router_ip
+        parent_router_if = parent_topo_router['Interface']
+        parent_router_if['ToAddr'] = ad_request.router_public_ip
+        parent_router_if['UdpPort'] = ad_request.router_public_port
 
         new_topo = Topology.from_dict(new_topo)
         parent_topo = Topology.from_dict(parent_topo)

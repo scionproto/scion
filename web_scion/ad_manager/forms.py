@@ -29,8 +29,13 @@ class ConnectionRequestForm(forms.ModelForm):
 
     class Meta:
         model = ConnectionRequest
-        fields = ['info', 'router_ip', 'router_port']
-        labels = {'router_ip': 'Router external IP'}
+        fields = ('info', 'router_bound_ip', 'router_bound_port',
+                  'router_public_ip', 'router_public_port')
+        labels = {'router_bound_ip': 'Router bound IP',
+                  'router_public_ip': 'Router external IP (leave blank if '
+                                      'it is the same as the bound IP)',
+                  'router_public_port': 'Router bound IP (leave blank if '
+                                     'public IP is not used)'}
 
 
 class NewLinkForm(forms.Form):

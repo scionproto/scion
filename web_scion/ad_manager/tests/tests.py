@@ -297,6 +297,8 @@ class TestConnectionRequests(BasicWebTestUsers):
 
     def test_send_request(self):
         ad = self.ads[2]
+        ad.is_open = False
+        ad.save()
         requests_page = self._get_request_page(ad.id)
         sent_requests_page = reverse('sent_requests')
         self.assertEqual(len(ConnectionRequest.objects.all()), 0)
@@ -304,8 +306,8 @@ class TestConnectionRequests(BasicWebTestUsers):
         # Fill and submit the form
         ad_requests = self.app.get(requests_page, user=self.admin_user)
         request_form = ad_requests.click('New request').maybe_follow().form
-        request_form['router_ip'] = '123.234.123.234'
-        request_form['router_port'] = 12345
+        request_form['router_bound_ip'] = '123.234.123.234'
+        request_form['router_bound_port'] = 12345
         request_form['info'] = 'test info'
         request_form.submit()
         self.assertEqual(len(ConnectionRequest.objects.all()), 1)
@@ -336,7 +338,7 @@ class TestConnectionRequests(BasicWebTestUsers):
 
         request = ConnectionRequest(created_by=self.user, connect_to=ad,
                                     info='test info', status='SENT',
-                                    router_ip='123.123.123.123')
+                                    router_bound_ip='123.123.123.123')
         request.save()
 
         ad_requests = self.app.get(ad_requests_page, user=self.admin_user)
