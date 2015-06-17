@@ -42,11 +42,11 @@ class BasePath(object):
                     InfoOpaqueField.from_values(3, False, 9, 65, 5),
                     InfoOpaqueField.from_values(6, False, 29, 51, 3)]
 
-        self.hof = [HopOpaqueField.from_values(120, 8, 5, 7683),
-                    HopOpaqueField.from_values(140, 5, 56, 3472),
-                    HopOpaqueField.from_values(80, 12, 22, 6458),
-                    HopOpaqueField.from_values(12, 98, 3, 876),
-                    HopOpaqueField.from_values(90, 235, 55, 794)]
+        self.hof = [HopOpaqueField.from_values(120, 8, 5, b'\x01\x02\x03'),
+                    HopOpaqueField.from_values(140, 5, 56, b'\x04\x05\x06'),
+                    HopOpaqueField.from_values(80, 12, 22, b'\x07\x08\x09'),
+                    HopOpaqueField.from_values(12, 98, 3, b'\x0A\x0B\x0C'),
+                    HopOpaqueField.from_values(90, 235, 55, b'\x0D\x0E\x0F')]
 
     def teardown(self):
         self.path = None
@@ -184,13 +184,13 @@ class TestCorePathParse(BasePath):
     Unit tests for lib.packet.path.CorePath.parse
     """
     def test(self):
-        raw = b'1\x00\x00\x00-\x00\x12\x03\x00x\x00\x80\x05\x00\x1e\x03\x00' \
-              b'\x8c\x00P8\x00\r\x90\x00P\x00\xc0\x16\x00\x19:\x0c\x00\x00' \
-              b'\x00\x1d\x003\x03\x00P\x00\xc0\x16\x00\x19:\x00\x8c\x00P8\x00' \
-              b'\r\x90\x00x\x00\x80\x05\x00\x1e\x03\x06\x00\x00\x00\t\x00A' \
-              b'\x05\x00x\x00\x80\x05\x00\x1e\x03\x00\x8c\x00P8\x00\r\x90' \
-              b'\x00P\x00\xc0\x16\x00\x19:\x00\x0c\x06 \x03\x00\x03l\x00Z' \
-              b'\x0e\xb07\x00\x03\x1a'
+        raw = b'1\x00\x00\x00-\x00\x12\x03\x00x\x00\x80\x05\x01\x02\x03\x00' \
+              b'\x8c\x00P8\x04\x05\x06\x00P\x00\xc0\x16\x07\x08\t\x0c\x00\x00' \
+              b'\x00\x1d\x003\x03\x00P\x00\xc0\x16\x07\x08\t\x00\x8c\x00P8' \
+              b'\x04\x05\x06\x00x\x00\x80\x05\x01\x02\x03\x06\x00\x00\x00' \
+              b'\t\x00A\x05\x00x\x00\x80\x05\x01\x02\x03\x00\x8c\x00P8\x04' \
+              b'\x05\x06\x00P\x00\xc0\x16\x07\x08\t\x00\x0c\x06 \x03\n\x0b' \
+              b'\x0c\x00Z\x0e\xb07\r\x0e\x0f'
         self.core_path.parse(raw)
         ntools.eq_(self.core_path.up_segment_info, self.iof[0])
         ntools.eq_(self.core_path.down_segment_info, self.iof[1])
@@ -212,13 +212,13 @@ class TestCorePathPack(BasePath):
         self.core_path.up_segment_hops = self.hof[:3]
         self.core_path.down_segment_hops = self.hof[:]
         self.core_path.core_segment_hops = self.hof[2::-1]
-        packed = b'1\x00\x00\x00-\x00\x12\x03\x00x\x00\x80\x05\x00\x1e\x03'\
-                 b'\x00\x8c\x00P8\x00\r\x90\x00P\x00\xc0\x16\x00\x19:\x0c\x00'\
-                 b'\x00\x00\x1d\x003\x03\x00P\x00\xc0\x16\x00\x19:\x00\x8c'\
-                 b'\x00P8\x00\r\x90\x00x\x00\x80\x05\x00\x1e\x03\x06\x00\x00'\
-                 b'\x00\t\x00A\x05\x00x\x00\x80\x05\x00\x1e\x03\x00\x8c\x00P8'\
-                 b'\x00\r\x90\x00P\x00\xc0\x16\x00\x19:\x00\x0c\x06 '\
-                 b'\x03\x00\x03l\x00Z\x0e\xb07\x00\x03\x1a'
+        packed = b'1\x00\x00\x00-\x00\x12\x03\x00x\x00\x80\x05\x01\x02\x03' \
+                 b'\x00\x8c\x00P8\x04\x05\x06\x00P\x00\xc0\x16\x07\x08\t\x0c' \
+                 b'\x00\x00\x00\x1d\x003\x03\x00P\x00\xc0\x16\x07\x08\t\x00' \
+                 b'\x8c\x00P8\x04\x05\x06\x00x\x00\x80\x05\x01\x02\x03\x06' \
+                 b'\x00\x00\x00\t\x00A\x05\x00x\x00\x80\x05\x01\x02\x03\x00' \
+                 b'\x8c\x00P8\x04\x05\x06\x00P\x00\xc0\x16\x07\x08\t\x00\x0c' \
+                 b'\x06 \x03\n\x0b\x0c\x00Z\x0e\xb07\r\x0e\x0f'
         ntools.eq_(self.core_path.pack(), packed)
 
 
