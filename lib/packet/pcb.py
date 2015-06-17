@@ -112,9 +112,9 @@ class PCBMarking(Marking):
         offset = ISD_AD.LEN
         self.hof = HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN])
         offset += HopOpaqueField.LEN
-        self.ig_rev_token = raw[offset:offset+32]
+        self.ig_rev_token = raw[offset:offset + 32]
         offset += 32
-        self.eg_rev_token = raw[offset:offset+32]
+        self.eg_rev_token = raw[offset:offset + 32]
         self.parsed = True
 
     @classmethod
