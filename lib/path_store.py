@@ -88,7 +88,7 @@ class PathPolicy(object):
         :type pcb: :class:`PathSegment`
         """
         for ad in pcb.ads:
-            if (ad.pcbm.spcbf.isd_id, ad.pcbm.ad_id) in self.unwanted_ads:
+            if (ad.pcbm.isd_id, ad.pcbm.ad_id) in self.unwanted_ads:
                 return False
         return True
 

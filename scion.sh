@@ -3,7 +3,6 @@
 # BEGIN subcommand functions
 
 PKG_DEPS="python python3 python-dev python-pip python3-dev python3-pip screen zookeeperd build-essential docker.io dnsutils"
-PIP3_DEPS="python-pytun pydblite pygments pycrypto kazoo alabaster==0.7.4 Sphinx sphinxcontrib-napoleon nose nose-descriptionfixer nose-cov coverage parse dnslib"
 
 cmd_deps() {
     # Treat all non-zero returns as fatal errors. Prevents issues like pip
@@ -16,7 +15,7 @@ cmd_deps() {
         echo "    $PKG_DEPS"
     fi
     echo "Installing necessary packages from pip3"
-    pip3 install --user $PIP3_DEPS
+    pip3 install --user -r requirements.txt
     echo "Installing supervisor packages from pip2"
     pip2 install --user supervisor==3.1.3
     pip2 install --user supervisor-quick
