@@ -17,7 +17,7 @@
 """
 #Stdlib
 import copy
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 # External packages
 import nose
@@ -227,54 +227,42 @@ class TestCorePathReverse(BasePath):
     Unit tests for lib.packet.path.CorePath.reverse
     """
     @patch("lib.packet.path.PathBase.reverse")
-    def test(self, reverse):
+    def test_with_info(self, reverse):
         iof1_ = copy.copy(self.iof[0])
         self.core_path.core_segment_info = self.iof[0]
-        self.core_path.core_segment_hops = [self.hof[0], self.hof[1],
-                                            self.hof[2]]
+        self.core_path.core_segment_hops = MagicMock()
         self.core_path.reverse()
         reverse.assert_called_once_with(self.core_path)
-        ntools.eq_(self.core_path.core_segment_hops, [self.hof[2], self.hof[1],
-                                                      self.hof[0]])
+        self.core_path.core_segment_hops.reverse.assert_called_once_with()
         iof1_.up_flag ^= True
         ntools.eq_(self.core_path.core_segment_info, iof1_)
 
-
-class TestCorePathReverse(BasePath):
-    """
-    Unit tests for lib.packet.path.CorePath.reverse
-    """
     @patch("lib.packet.path.PathBase.reverse")
-    def test(self, reverse):
-        iof1_ = copy.copy(self.iof[0])
-        self.core_path.core_segment_info = self.iof[0]
-        self.core_path.core_segment_hops = [self.hof[0], self.hof[1],
-                                            self.hof[2]]
+    def test_without_info(self, reverse):
+        self.core_path.core_segment_hops = MagicMock()
         self.core_path.reverse()
         reverse.assert_called_once_with(self.core_path)
-        ntools.eq_(self.core_path.core_segment_hops, [self.hof[2], self.hof[1],
-                                                      self.hof[0]])
-        iof1_.up_flag ^= True
-        ntools.eq_(self.core_path.core_segment_info, iof1_)
+        self.core_path.core_segment_hops.reverse.assert_called_once_with()
 
 
 class TestCorePathGetOf(BasePath):
     """
     Unit tests for lib.packet.path.CorePath.get_of
     """
-    def test(self):
+    def _check(self, idx):
         self.core_path.up_segment_info = self.iof[0]
         self.core_path.down_segment_info = self.iof[1]
         self.core_path.core_segment_info = self.iof[2]
-        self.core_path.up_segment_hops = [self.hof[0], self.hof[1]]
+        self.core_path.up_segment_hops = self.hof[:2]
         self.core_path.down_segment_hops = [self.hof[2], self.hof[4]]
-        self.core_path.core_segment_hops = [self.hof[1], self.hof[2],
-                                            self.hof[3]]
-        ofs = [self.iof[0], self.hof[0], self.hof[1], self.iof[2], self.hof[1],
-               self.hof[2], self.hof[3], self.iof[1], self.hof[2], self.hof[4]]
-        for i, opaque_field in enumerate(ofs):
-            ntools.eq_(self.core_path.get_of(i), opaque_field)
-        ntools.eq_(self.core_path.get_of(10), None)
+        self.core_path.core_segment_hops = self.hof[1:4]
+        ofs = [self.iof[0]] + self.hof[:2] + [self.iof[2]] + self.hof[1:4] \
+                            + [self.iof[1], self.hof[2], self.hof[4], None]
+        ntools.eq_(self.core_path.get_of(idx), ofs[idx])
+
+    def test(self):
+        for i in range(11):
+            yield self._check, i
 
 
 class TestCorePathFromValues(BasePath):
@@ -282,45 +270,17 @@ class TestCorePathFromValues(BasePath):
     Unit tests for lib.packet.path.CorePath.from_values
     """
     def test(self):
-        up_hops = [self.hof[0], self.hof[1]]
-        core_hops = [self.hof[1], self.hof[2], self.hof[3]]
+        up_hops = self.hof[:2]
+        core_hops = self.hof[1:4]
         down_hops = [self.hof[2], self.hof[4]]
         self.core_path = CorePath.from_values(self.iof[0], up_hops, self.iof[1],
                                               core_hops, self.iof[2], down_hops)
         ntools.eq_(self.core_path.up_segment_info, self.iof[0])
         ntools.eq_(self.core_path.core_segment_info, self.iof[1])
         ntools.eq_(self.core_path.down_segment_info, self.iof[2])
-        ntools.eq_(self.core_path.up_segment_hops, [self.hof[0], self.hof[1]])
-        ntools.eq_(self.core_path.core_segment_hops, [self.hof[1], self.hof[2],
-                                                      self.hof[3]])
+        ntools.eq_(self.core_path.up_segment_hops, self.hof[:2])
+        ntools.eq_(self.core_path.core_segment_hops, self.hof[1:4])
         ntools.eq_(self.core_path.down_segment_hops, [self.hof[2], self.hof[4]])
-
-
-class TestCorePathFromValues(BasePath):
-    """
-    Unit tests for lib.packet.path.CorePath.from_values
-    """
-    def test(self):
-        up_hops = [self.hof[0], self.hof[1]]
-        core_hops = [self.hof[1], self.hof[2], self.hof[3]]
-        down_hops = [self.hof[2], self.hof[4]]
-        self.core_path = CorePath.from_values(self.iof[0], up_hops, self.iof[1],
-                                              core_hops, self.iof[2], down_hops)
-        ntools.eq_(self.core_path.up_segment_info, self.iof[0])
-        ntools.eq_(self.core_path.core_segment_info, self.iof[1])
-        ntools.eq_(self.core_path.down_segment_info, self.iof[2])
-        ntools.eq_(self.core_path.up_segment_hops, [self.hof[0], self.hof[1]])
-        ntools.eq_(self.core_path.core_segment_hops, [self.hof[1], self.hof[2],
-                                                      self.hof[3]])
-        ntools.eq_(self.core_path.down_segment_hops, [self.hof[2], self.hof[4]])
-
-
-class TestCorePathStr(BasePath):
-    """
-    Unit tests for lib.packet.path.CorePath.__str__
-    """
-    def test(self):
-        pass
 
 
 class TestCrossOverPathInit(BasePath):
