@@ -48,8 +48,9 @@ from lib.util import (
     write_file,
 )
 
-DEFAULT_ADCONFIGURATIONS_FILE = 'ADConfigurations.json'
-DEFAULT_PATH_POLICY_FILE = 'PathPolicy.json'
+DEFAULT_ADCONFIGURATIONS_FILE = os.path.join(TOPOLOGY_PATH,
+                                             'ADConfigurations.json')
+DEFAULT_PATH_POLICY_FILE = os.path.join(TOPOLOGY_PATH, 'PathPolicy.json')
 
 SCRIPTS_DIR = 'topology'
 CERT_DIR = 'certificates'
