@@ -859,7 +859,7 @@ class CoreBeaconServer(BeaconServer):
                                                  new_pcb.get_last_pcbm().hof)
             new_pcb.add_ad(ad_marking)
             new_pcb.segment_id = self._get_segment_rev_token(new_pcb)
-            # TODO: sign here? discuss
+            # TODO(psz): sign here? discuss
             self.register_core_segment(new_pcb)
             count += 1
         logging.info("Registered %d Core paths", count)
@@ -1173,7 +1173,7 @@ class LocalBeaconServer(BeaconServer):
             new_pcb.add_ad(ad_marking)
             new_pcb.segment_id = self._get_segment_rev_token(new_pcb)
             new_pcb.remove_signatures()
-            # TODO: sign here? discuss
+            # TODO(psz): sign here? discuss
             self.register_up_segment(new_pcb)
             logging.info("Up path registered")
 
@@ -1190,7 +1190,7 @@ class LocalBeaconServer(BeaconServer):
             new_pcb.add_ad(ad_marking)
             new_pcb.segment_id = self._get_segment_rev_token(new_pcb)
             new_pcb.remove_signatures()
-            # TODO: sign here? discuss
+            # TODO(psz): sign here? discuss
             self.register_down_segment(new_pcb)
             logging.info("Down path registered")
 

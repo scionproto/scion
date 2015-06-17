@@ -74,11 +74,9 @@ class Marking(object):
 
 class PCBMarking(Marking):
     """
-    Packs all fields for a specific PCB marking, which includes: the Autonomous
-    Domain's ID, the SupportSignatureField, the HopOpaqueField, the
-    SupportPCBField, and the revocation tokens for the interfaces
+    Pack all fields for a specific PCB marking, which include: ISD and AD
+    numbers, the HopOpaqueField, and the revocation tokens for the interfaces
     included in the HOF.
-    TODO: this will be used for both top-down and peer links
     """
     LEN = 12 + 2 * 32
 
@@ -166,6 +164,8 @@ class ADMarking(Marking):
     """
     Packs all fields for a specific Autonomous Domain.
     """
+    FIRST_ROW_LEN = 8  # Length of a first row (containg cert version, signature
+                       # lenght, and block size) of every ADMarking.
 
     def __init__(self, raw=None):
         """
@@ -191,11 +191,11 @@ class ADMarking(Marking):
         assert isinstance(raw, bytes)
         self.raw = raw[:]
         dlen = len(raw)
-        if dlen < PCBMarking.LEN + 8:
+        if dlen < PCBMarking.LEN + FIRST_ROW_LEN:
             logging.warning("AD: Data too short for parsing, len: %u", dlen)
             return
         (self.cert_chain_version, self.sig_len, self.block_size) = \
-            struct.unpack("!IHH", raw[:8])
+            struct.unpack("!IHH", raw[:FIRST_ROW_LEN])
         raw = raw[8:]
         self.pcbm = PCBMarking(raw[:PCBMarking.LEN])
         raw = raw[PCBMarking.LEN:]

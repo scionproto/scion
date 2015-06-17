@@ -24,18 +24,40 @@ from ipaddress import IPV4LENGTH, IPV6LENGTH, IPv4Address, IPv6Address
 
 class ISD_AD(namedtuple('ISD_AD', 'isd ad')):
     """
-    TODO
+    Class for representing isd,ad pair.
+
+    :ivar isd: ISD identifier.
+    :type isd: int
+    :ivar ad: AD identifier.
+    :type ad: int
     """
     LEN = 4
 
     @classmethod
     def from_raw(cls, raw):
+        """
+        Create an instance of the class ISD_AD.
+
+        :param raw: a byte string containing ISD ID, AD ID. ISD and AD are
+                    respectively represented as 12 and 20 most significant bits.
+        :type isd_id: bytes
+
+        :returns: ISD, AD tuple.
+        :rtype: :class:`ISD_AD`
+        """
         isd_ad = struct.unpack("!I", raw)[0]
         isd = isd_ad >> 20
         ad = isd_ad & 0x000fffff
         return ISD_AD(isd, ad)
 
     def pack(self):
+        """
+        Pack the class variables into a byte string.
+
+        :returns: a 4B long byte string containing ISD ID (first 12 bits),
+                  AD ID (remaining 20 bits).
+        :rtype: bytes
+        """
         isd = self.isd << 20
         ad = self.ad & 0x000fffff
         return struct.pack("!I", isd + ad)
