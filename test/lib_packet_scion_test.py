@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`common_header_test` --- SCION common header tests
-=======================================================
+:mod:`lib_packet_scion_test` --- lib.packet.scion unit tests
+============================================================
 """
 # Stdlib
 import unittest
@@ -26,9 +26,9 @@ from test.testcommon import SCIONCommonTest
 from lib.packet.scion import SCIONCommonHdr
 
 
-class TestCommonHeader(SCIONCommonTest):
+class TestSCIONCommonHdr(SCIONCommonTest):
     """
-    Unit tests for scion.py.
+    Unit tests for lib.packet.scion.SCIONCommonHdr
     """
 
     def test_opaque_field(self):

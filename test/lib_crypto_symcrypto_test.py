@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`symcrypto` --- SCION symmetric encryption tests
-=====================================================
+:mod:`lib_crypto_symcrypto_test` --- lib.crypto.symcrypto unit tests
+====================================================================
 """
 # Stdlib
 import logging

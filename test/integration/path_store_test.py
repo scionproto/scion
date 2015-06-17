@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`path_store_test` --- SCION path store unit test
-=====================================================
+:mod:`path_store_test` --- SCION path store integration test
+============================================================
 """
 # Stdlib
 import base64
@@ -61,7 +61,7 @@ class TestPathStore(unittest.TestCase):
         """
         Test the main functionalities of the path store.
         """
-        path_policy_file = "../topology/ISD1/path_policies/ISD:1-AD:10.json"
+        path_policy_file = "../../topology/ISD1/path_policies/ISD:1-AD:10.json"
         path_policy = PathPolicy.from_file(path_policy_file)
         test_segments = PathStore(path_policy)
         print("Best paths: " + str(len(test_segments.get_best_segments())))

@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`certificates_test` --- SCION certificates unit test
-=========================================================
+:mod:`certificates_test` --- SCION certificates integration test
+================================================================
 """
 # Stdlib
 import base64
@@ -21,7 +21,6 @@ import logging
 import os
 import select
 import socket
-import unittest
 from ipaddress import IPv4Address
 
 # External packages
@@ -53,7 +52,7 @@ class TestCertificates(object):
     """
     Unit tests for certificate.py and asymcrypto.py.
     """
-    
+
     def test(self):
         """
         Create a certificate chain and verify it with a TRC file. Sign a message
@@ -79,7 +78,7 @@ class TestCertificates(object):
         print('Sig test 2:', verify_sig_chain_trc(msg, sig, 'ISD:1-AD:13',
                                                   cert10, trc, 0), '\n')
 
-        topology = Topology.from_file("../topology/ISD1/topologies/"
+        topology = Topology.from_file("../../topology/ISD1/topologies/"
                                       "ISD:1-AD:10.json")
         src_addr = SCIONAddr.from_values(topology.isd_id, topology.ad_id,
                                          IPv4Address("127.0.0.1"))
@@ -136,4 +135,4 @@ class TestCertificates(object):
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
-    nose.run(defaultTest=__name__)    
+    nose.run(defaultTest=__name__)
