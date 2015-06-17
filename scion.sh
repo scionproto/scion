@@ -94,11 +94,11 @@ cmd_start(){
 }
 
 cmd_test(){
-    nosetests -w test "$@"
+    PYTHONPATH=. nosetests -w test "$@"
 }
 
 cmd_coverage(){
-    nosetests --with-cov -w test "$@"
+    PYTHONPATH=. nosetests --with-cov -w test "$@"
     coverage html --omit 'external/*'
     echo "Coverage report here: file://$PWD/htmlcov/index.html"
 }
