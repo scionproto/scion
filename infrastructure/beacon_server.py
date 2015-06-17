@@ -489,11 +489,14 @@ class BeaconServer(SCIONElement):
 
     def _sign_beacon(self, pcb):
         """
-        TODO: signature goes to the last ADMarking
+        Sign a beacon. Signature is appended to the last ADMarking.
+
+        :param pcb: beacon to sign.
+        :type pcb: PathSegment
         """
         # if_id field is excluded from signature as it is changed by ingress ERs
         if pcb.ads[-1].sig:
-            logging.error("PCB already signed.")
+            logging.warning("PCB already signed.")
             return
         (pcb.trcf.if_id, tmp_if_id) = (0, pcb.trcf.if_id)
         signature = sign(pcb.pack(), self.signing_key)

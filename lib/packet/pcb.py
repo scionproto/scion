@@ -110,7 +110,7 @@ class PCBMarking(Marking):
             return
         (self.isd_id, self.ad_id) = ISD_AD.from_raw(raw[:ISD_AD.LEN])
         offset = ISD_AD.LEN
-        self.hof = HopOpaqueField(raw[offset:offset+HopOpaqueField.LEN])
+        self.hof = HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN])
         offset += HopOpaqueField.LEN
         self.ig_rev_token = raw[offset:offset+32]
         offset += 32
@@ -118,8 +118,8 @@ class PCBMarking(Marking):
         self.parsed = True
 
     @classmethod
-    def from_values(cls, isd_id=0, ad_id=0, hof=None,
-                    ig_rev_token=32 * b"\x00", eg_rev_token=32 * b"\x00"):
+    def from_values(cls, isd_id, ad_id, hof, ig_rev_token=32 * b"\x00",
+                    eg_rev_token=32 * b"\x00"):
         """
         Returns PCBMarking with fields populated from values.
 
