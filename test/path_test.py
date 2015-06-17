@@ -27,7 +27,9 @@ import nose.tools as ntools
 from lib.packet.path import (
     CorePath,
     CrossOverPath,
+    EmptyPath,
     PathBase,
+    PeerPath,
 )
 from lib.packet.opaque_field import (
     HopOpaqueField,
@@ -49,10 +51,10 @@ class BasePath(object):
                     HopOpaqueField.from_values(90, 235, 55, b'\x0D\x0E\x0F')]
 
     def teardown(self):
-        self.path = None
-        self.core_path = None
-        self.iof = None
-        self.hof = None
+        del self.path
+        del self.core_path
+        del self.iof
+        del self.hof
 
 
 class TestPathBaseInit(BasePath):
@@ -283,7 +285,7 @@ class TestCorePathFromValues(BasePath):
         ntools.eq_(self.core_path.down_segment_hops, [self.hof[2], self.hof[4]])
 
 
-class TestCrossOverPathInit(BasePath):
+class TestCrossOverPathInit(object):
     """
     Unit tests for lib.packet.path.CrossOverPath.__init__
     """
@@ -298,6 +300,210 @@ class TestCrossOverPathInit(BasePath):
     def test_raw(self, parse):
         co_path = CrossOverPath("data")
         parse.assert_called_once_with("data")
+
+
+class TestCrossOverPathParse(BasePath):
+    """
+    Unit tests for lib.packet.path.CrossOverPath.parse
+    """
+    def test(self):
+        pass
+
+
+class TestCrossOverPathPack(BasePath):
+    """
+    Unit tests for lib.packet.path.CrossOverPath.pack
+    """
+    def test(self):
+        pass
+
+class TestCrossOverPathReverse(object):
+    """
+    Unit tests for lib.packet.path.CrossOverPath.reverse
+    """
+    @patch("lib.packet.path.PathBase.reverse")
+    def test(self, reverse):
+        co_path = CrossOverPath()
+        co_path.up_segment_upstream_ad = 1
+        co_path.down_segment_upstream_ad = 2
+        co_path.reverse()
+        reverse.assert_called_once_with(co_path)
+        ntools.eq_(co_path.up_segment_upstream_ad, 2)
+        ntools.eq_(co_path.down_segment_upstream_ad, 1)
+
+
+class TestCrossOverPathGetOf(BasePath):
+    """
+    Unit tests for lib.packet.path.CrossOverPath.get_of
+    """
+    def _check(self, idx):
+        co_path = CrossOverPath()
+        co_path.up_segment_info = 0
+        co_path.up_segment_hops = [1, 2, 3]
+        co_path.up_segment_upstream_ad = 4
+        co_path.down_segment_info = 5
+        co_path.down_segment_upstream_ad = 6
+        co_path.down_segment_hops = [7, 8, 9]
+        ofs = list(range(10))
+        ntools.eq_(co_path.get_of(idx), ofs[idx])
+
+    def test(self):
+        for i in range(10):
+            yield self._check, i
+
+
+class TestPeerPathInit(object):
+    """
+    Unit tests for lib.packet.path.PeerPath.__init__
+    """
+    @patch("lib.packet.path.PathBase.__init__")
+    def test_basic(self, __init__):
+        peer_path = PeerPath()
+        __init__.assert_called_once_with(peer_path)
+        ntools.assert_is_none(peer_path.up_segment_peering_link)
+        ntools.assert_is_none(peer_path.up_segment_upstream_ad)
+        ntools.assert_is_none(peer_path.down_segment_peering_link)
+        ntools.assert_is_none(peer_path.down_segment_upstream_ad)
+
+    @patch("lib.packet.path.PeerPath.parse")
+    def test_raw(self, parse):
+        peer_path = PeerPath('rawstring')
+        parse.assert_called_once_with('rawstring')
+
+
+class TestPeerPathParse(object):
+    """
+    Unit tests for lib.packet.path.PeerPath.parse
+    """
+    def test(self):
+        pass
+
+
+class TestPeerPathPack(object):
+    """
+    Unit tests for lib.packet.path.PeerPath.pack
+    """
+    def test(self):
+        pass
+
+
+class TestPeerPathReverse(object):
+    """
+    Unit tests for lib.packet.path.PeerPath.reverse
+    """
+    @patch("lib.packet.path.PathBase.reverse")
+    def test(self, reverse):
+        peer_path = PeerPath()
+        peer_path.up_segment_upstream_ad = 1
+        peer_path.down_segment_upstream_ad = 2
+        peer_path.up_segment_peering_link = 3
+        peer_path.down_segment_peering_link = 4
+        peer_path.reverse()
+        reverse.assert_called_once_with(peer_path)
+        ntools.eq_(peer_path.up_segment_upstream_ad, 2)
+        ntools.eq_(peer_path.down_segment_upstream_ad, 1)
+        ntools.eq_(peer_path.up_segment_peering_link, 4)
+        ntools.eq_(peer_path.down_segment_peering_link, 3)
+
+
+class TestPeerPathGetOf(BasePath):
+    """
+    Unit tests for lib.packet.path.PeerPath.get_of
+    """
+    def _check(self, idx):
+        peer_path = PeerPath()
+        peer_path.up_segment_info = 0
+        peer_path.up_segment_hops = [1, 2, 3]
+        peer_path.up_segment_peering_link = 4
+        peer_path.up_segment_upstream_ad = 5
+        peer_path.down_segment_info = 6
+        peer_path.down_segment_upstream_ad = 7
+        peer_path.down_segment_peering_link = 8
+        peer_path.down_segment_hops = [9, 10, 11]
+        ofs = list(range(12))
+        ntools.eq_(peer_path.get_of(idx), ofs[idx])
+
+    def test(self):
+        for i in range(12):
+            yield self._check, i
+
+
+class TestEmptyPathInit(object):
+    """
+    Unit tests for lib.packet.path.EmptyPath.__init__
+    """
+    @patch("lib.packet.path.PathBase.__init__")
+    def test_basic(self, __init__):
+        empty_path = EmptyPath()
+        __init__.assert_called_once_with(empty_path)
+
+    @patch("lib.packet.path.EmptyPath.parse")
+    def test_raw(self, parse):
+        empty_path = EmptyPath('rawstring')
+        parse.assert_called_once_with('rawstring')
+
+
+class TestEmptyPathParse(object):
+    """
+    Unit tests for lib.packet.path.EmptyPath.parse
+    """
+    def test_basic(self):
+        empty_path = EmptyPath()
+        raw = b'\01' * InfoOpaqueField.LEN
+        empty_path.parse(raw)
+        ntools.eq_(empty_path.up_segment_info, InfoOpaqueField(raw))
+        ntools.eq_(empty_path.up_segment_info, empty_path.down_segment_info)
+        ntools.assert_true(empty_path.parsed)
+
+    def test_wrong_type(self):
+        empty_path = EmptyPath()
+        ntools.assert_raises(AssertionError, empty_path.parse, 10)
+
+
+class TestEmptyPathPack(object):
+    """
+    Unit tests for lib.packet.path.EmptyPath.pack
+    """
+    def test(self):
+        empty_path = EmptyPath()
+        ntools.eq_(empty_path.pack(), b'')
+
+
+class TestEmptyPathIsFirstHop(object):
+    """
+    Unit tests for lib.packet.path.EmptyPath.is_first_hop
+    """
+    def test(self):
+        empty_path = EmptyPath()
+        ntools.assert_true(empty_path.is_first_hop(1))
+
+
+class TestEmptyPathIsLastHop(object):
+    """
+    Unit tests for lib.packet.path.EmptyPath.is_last_hop
+    """
+    def test(self):
+        empty_path = EmptyPath()
+        ntools.assert_true(empty_path.is_last_hop(1))
+
+
+class TestEmptyPathGetFirstHopOf(object):
+    """
+    Unit tests for lib.packet.path.EmptyPath.get_first_hop_of
+    """
+    def test(self):
+        empty_path = EmptyPath()
+        ntools.assert_is_none(empty_path.get_first_hop_of())
+
+
+class TestEmptyPathGetOf(object):
+    """
+    Unit tests for lib.packet.path.EmptyPath.get_of
+    """
+    def test(self):
+        empty_path = EmptyPath()
+        empty_path.up_segment_info = 1
+        ntools.eq_(empty_path.get_of(123), 1)
 
 
 if __name__ == "__main__":
