@@ -3,9 +3,12 @@
 # BEGIN subcommand functions
 
 PKG_DEPS="python python3 python-dev python-pip python3-dev python3-pip screen zookeeperd build-essential docker.io dnsutils"
-PIP3_DEPS="python-pytun pydblite pygments pycrypto kazoo Sphinx sphinxcontrib-napoleon nose nose-descriptionfixer nose-cov coverage parse dnslib"
+PIP3_DEPS="python-pytun pydblite pygments pycrypto kazoo alabaster==0.7.4 Sphinx sphinxcontrib-napoleon nose nose-descriptionfixer nose-cov coverage parse dnslib"
 
 cmd_deps() {
+    # Treat all non-zero returns as fatal errors. Prevents issues like pip
+    # package failing to install, causing the rest to be ignored.
+    set -e
     if [ -e /etc/debian_version ]; then
         deps_debian || exit 1
     else
