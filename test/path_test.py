@@ -144,6 +144,8 @@ class TestPathBaseGetFirstHopOf(BasePath):
         self.path.up_segment_hops = self.hof[:3]
         ntools.eq_(self.path.get_first_hop_of(), self.hof[0])
 
+    def test_without_hops(self):
+        ntools.eq_(self.path.get_first_hop_of(), None)
 
 class TestPathBaseGetOf(BasePath):
     """
@@ -168,11 +170,6 @@ class TestCorePathInit(BasePath):
     Unit tests for lib.packet.path.CorePath.__init__
     """
     def test_basic(self):
-        ntools.eq_(self.core_path.up_segment_info, None)
-        ntools.eq_(self.core_path.up_segment_hops, [])
-        ntools.eq_(self.core_path.down_segment_info, None)
-        ntools.eq_(self.core_path.down_segment_hops, [])
-        ntools.assert_false(self.core_path.parsed)
         ntools.eq_(self.core_path.core_segment_info, None)
         ntools.eq_(self.core_path.core_segment_hops, [])
 
@@ -182,52 +179,47 @@ class TestCorePathInit(BasePath):
         parse.assert_called_once_with("data")
 
 
-# class TestCorePathParse(BasePath):
-#     """
-#     Unit tests for lib.packet.path.CorePath.parse
-#     """
-#     def test(self):
-#         raw = b'1\x00\x00\x00-\x00\x12\x02\x00x\x00\x80\x05\x00\x1e\x03\x00'\
-#               b'\x8c\x00P8\x00\r\x90\x0c\x00\x00\x00\x1d\x003\x03\x00\x8c'\
-#               b'\x00P8\x00\r\x90\x00P\x00\xc0\x16\x00\x19:\x00\x0c\x06 \x03'\
-#               b'\x00\x03l\x06\x00\x00\x00\t\x00A\x02\x00P\x00\xc0\x16\x00'\
-#               b'\x19:\x00Z\x0e\xb07\x00\x03\x1a'
-#         self.core_path.parse(raw)
-#         ntools.eq_(self.core_path.up_segment_info, self.iof[0])
-#         ntools.eq_(self.core_path.down_segment_info, self.iof[1])
-#         ntools.eq_(self.core_path.core_segment_info, self.iof[2])
-#         ntools.eq_(self.core_path.up_segment_hops, [self.hof[0], self.hof[1]])
-#         ntools.eq_(self.core_path.down_segment_hops, [self.hof[2], self.hof[4]])
-#         ntools.eq_(self.core_path.core_segment_hops, [self.hof[1], self.hof[2],
-#                                                       self.hof[3]])
-#         ntools.assert_true(self.core_path.parsed)
-#
-#     def test_bad_length(self):
-#         raw = b'1\x00\x00\x00-\x00\x12\x02\x00x\x00\x80\x05\x00\x1e\x03\x00'\
-#               b'\x8c\x00P8\x00\r\x90\x0c\x00\x00\x00\x1d\x003\x03\x00\x8c'
-#         self.core_path = CorePath()
-#         self.core_path.parse(raw)
-#         ntools.assert_false(self.core_path.parsed)
-#
-#
-# class TestCorePathPack(BasePath):
-#     """
-#     Unit tests for lib.packet.path.CorePath.pack
-#     """
-#     def test(self):
-#         self.core_path.up_segment_info = self.iof[0]
-#         self.core_path.down_segment_info = self.iof[1]
-#         self.core_path.core_segment_info = self.iof[2]
-#         self.core_path.up_segment_hops = [self.hof[0], self.hof[1]]
-#         self.core_path.down_segment_hops = [self.hof[2], self.hof[4]]
-#         self.core_path.core_segment_hops = [self.hof[1], self.hof[2],
-#                                             self.hof[3]]
-#         packed = b'1\x00\x00\x00-\x00\x12\x02\x00x\x00\x80\x05\x00\x1e\x03\x00'\
-#               b'\x8c\x00P8\x00\r\x90\x0c\x00\x00\x00\x1d\x003\x03\x00\x8c'\
-#               b'\x00P8\x00\r\x90\x00P\x00\xc0\x16\x00\x19:\x00\x0c\x06 \x03'\
-#               b'\x00\x03l\x06\x00\x00\x00\t\x00A\x02\x00P\x00\xc0\x16\x00'\
-#               b'\x19:\x00Z\x0e\xb07\x00\x03\x1a'
-#         ntools.eq_(self.core_path.pack(), packed)
+class TestCorePathParse(BasePath):
+    """
+    Unit tests for lib.packet.path.CorePath.parse
+    """
+    def test(self):
+        raw = b'1\x00\x00\x00-\x00\x12\x03\x00x\x00\x80\x05\x00\x1e\x03\x00' \
+              b'\x8c\x00P8\x00\r\x90\x00P\x00\xc0\x16\x00\x19:\x0c\x00\x00' \
+              b'\x00\x1d\x003\x03\x00P\x00\xc0\x16\x00\x19:\x00\x8c\x00P8\x00' \
+              b'\r\x90\x00x\x00\x80\x05\x00\x1e\x03\x06\x00\x00\x00\t\x00A' \
+              b'\x05\x00x\x00\x80\x05\x00\x1e\x03\x00\x8c\x00P8\x00\r\x90' \
+              b'\x00P\x00\xc0\x16\x00\x19:\x00\x0c\x06 \x03\x00\x03l\x00Z' \
+              b'\x0e\xb07\x00\x03\x1a'
+        self.core_path.parse(raw)
+        ntools.eq_(self.core_path.up_segment_info, self.iof[0])
+        ntools.eq_(self.core_path.down_segment_info, self.iof[1])
+        ntools.eq_(self.core_path.core_segment_info, self.iof[2])
+        ntools.eq_(self.core_path.up_segment_hops, self.hof[:3])
+        ntools.eq_(self.core_path.down_segment_hops, self.hof[:])
+        ntools.eq_(self.core_path.core_segment_hops, self.hof[2::-1])
+        ntools.assert_true(self.core_path.parsed)
+
+
+class TestCorePathPack(BasePath):
+    """
+    Unit tests for lib.packet.path.CorePath.pack
+    """
+    def test(self):
+        self.core_path.up_segment_info = self.iof[0]
+        self.core_path.down_segment_info = self.iof[1]
+        self.core_path.core_segment_info = self.iof[2]
+        self.core_path.up_segment_hops = self.hof[:3]
+        self.core_path.down_segment_hops = self.hof[:]
+        self.core_path.core_segment_hops = self.hof[2::-1]
+        packed = b'1\x00\x00\x00-\x00\x12\x03\x00x\x00\x80\x05\x00\x1e\x03'\
+                 b'\x00\x8c\x00P8\x00\r\x90\x00P\x00\xc0\x16\x00\x19:\x0c\x00'\
+                 b'\x00\x00\x1d\x003\x03\x00P\x00\xc0\x16\x00\x19:\x00\x8c'\
+                 b'\x00P8\x00\r\x90\x00x\x00\x80\x05\x00\x1e\x03\x06\x00\x00'\
+                 b'\x00\t\x00A\x05\x00x\x00\x80\x05\x00\x1e\x03\x00\x8c\x00P8'\
+                 b'\x00\r\x90\x00P\x00\xc0\x16\x00\x19:\x00\x0c\x06 '\
+                 b'\x03\x00\x03l\x00Z\x0e\xb07\x00\x03\x1a'
+        ntools.eq_(self.core_path.pack(), packed)
 
 
 class TestCorePathReverse(BasePath):
