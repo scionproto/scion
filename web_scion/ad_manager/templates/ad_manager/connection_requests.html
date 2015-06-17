@@ -22,9 +22,24 @@
     {% for request in received_requests %}
       <tr>
         <td>{{ request.created_by }}</td>
-        <td><pre>{{ request.info }}</pre></td>
+        <td>
+          <pre>{{ request.info }}</pre>
+          <div class="collapse" id="info-{{ request.id }}">
+            <div class="well">
+              {% if request.new_ad %}
+                New AD: <a href="{% url 'ad_detail' request.new_ad.id %}">{{ request.new_ad }}</a>
+              {% else %}
+                No additional information.
+              {% endif %}
+            </div>
+          </div>
+        </td>
         <td>{{ request.router_ip }}</td>
-        <td>{{ request.status}}</td>
+        <td>
+          <a role="button" data-toggle="collapse" href="#info-{{ request.id }}" aria-expanded="false" aria-controls="collapseExample">
+            {{ request.status}}
+          </a>
+        </td>
         <td>
           <form method="POST" action="{% url 'connection_request_action' request.id %}" class="request-approve-form">
             {% csrf_token %}
@@ -35,12 +50,9 @@
               Decline
             </button>
 
-          {% if request.is_approved %}
-            <span>
-            <a href="{% url 'download_request_package' request.id %}" class="download-package glyphicon glyphicon-download-alt" title="Download package"></a>
-            </span>
-          {% endif %}
-
+            {% if request.is_approved %}
+              <a href="{% url 'download_request_package' request.id %}" class="download-package glyphicon glyphicon-download-alt" title="Download package"></a>
+            {% endif %}
           </form>
         </td>
       </tr>

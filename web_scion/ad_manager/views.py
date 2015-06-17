@@ -272,17 +272,9 @@ def _download_file_response(file_path, file_name=None, content_type=None):
     return response
 
 
-@transaction.atomic
-@require_POST
-def connect_new_ad(request, pk):
-    """
-    Create and connect new AD automatically.
-    """
-    ad = get_object_or_404(AD, id=pk)
-    if not ad.is_open or not request.user.is_staff:
-        raise PermissionDenied()
-
-    topology_page = reverse('ad_detail_topology', args=[pk])
+def _connect_new_ad(request, ad):
+    # TODO(rev112): Remove or move to approve_request()
+    topology_page = reverse('ad_detail_topology', args=[ad.id])
 
     # Chech that remote topology exists
     remote_topology = ad.get_remote_topology()
@@ -300,41 +292,9 @@ def connect_new_ad(request, pk):
                        extra_tags=topology_tag)
         return redirect(topology_page)
 
-    # Create the new AD
-    new_ad = AD.objects.create(isd=ad.isd)
-
-    with tempfile.TemporaryDirectory() as temp_dir:
-
-        # Create/Update configs
-        new_topo, updated_local_topo = create_new_ad(local_topology, new_ad.isd,
-                                                     new_ad.id,
-                                                     out_dir=temp_dir)
-        # Update models instances
-        new_topo = Topology.from_dict(new_topo)
-        updated_local_topo = Topology.from_dict(updated_local_topo)
-
-        new_ad.fill_from_topology(new_topo, clear=True)
-        ad.fill_from_topology(updated_local_topo, clear=True)
-
-        # Resulting package will be stored here
-        package_dir = os.path.join(PACKAGE_DIR_PATH, 'AD' + str(new_ad))
-        if os.path.exists(package_dir):
-            rmtree(package_dir)
-        os.makedirs(package_dir)
-
-        config_dirs = [os.path.join(temp_dir, x) for x in os.listdir(temp_dir)]
-
-        # Prepare package
-        package_name = 'scion_package_AD{}-{}'.format(new_ad.isd, new_ad.id)
-        package_path = prepare_package(out_dir=package_dir,
-                                       config_paths=config_dirs,
-                                       package_name=package_name)
-    # Return file
-    return _download_file_response(package_path)
-
 
 def _check_user_permissions(request, ad):
-    # TODO decorator?
+    # TODO(rev112) decorator?
     if not request.user.has_perm('change_ad', ad):
         raise PermissionDenied()
 
@@ -382,11 +342,19 @@ class ConnectionRequestView(FormView):
         if not self.request.user.is_authenticated():
             return HttpResponseForbidden('Authentication required')
 
-        form.instance.connect_to = self._get_ad()
+        connect_to = self._get_ad()
+        form.instance.connect_to = connect_to
         form.instance.created_by = self.request.user
-        form.instance.status = 'SENT'
         form.save()
+
+        con_request = form.instance
+        con_request.status = 'SENT'
+
         self.success_url = reverse('sent_requests')
+        if connect_to.is_open:
+            # Create new AD
+            approve_request(connect_to, con_request)
+
         return super().form_valid(form)
 
     def get_context_data(self, **kwargs):
@@ -445,8 +413,8 @@ def download_approved_package(request, req_id):
     return _download_file_response(ad_request.package_path)
 
 
+@transaction.atomic
 def approve_request(ad, ad_request):
-    # TODO remove duplication: check connect_new_ad()
 
     # Create the new AD
     new_ad = AD.objects.create(isd=ad.isd)
@@ -486,6 +454,7 @@ def approve_request(ad, ad_request):
                                                   package_name=package_name)
         ad_request.new_ad = new_ad
         ad_request.status = 'APPROVED'
+        ad_request.save()
 
         # Give permissions to the user
         request_creator = ad_request.created_by
@@ -529,7 +498,7 @@ def network_view(request):
     ad_index = {}
     ad_index_rev = {}
     ads = AD.objects.all()
-    # TODO check optimizations
+    # TODO(rev112) check optimizations
     ads = ads.prefetch_related('routerweb_set__neighbor_ad')
     for i, ad in enumerate(ads):
         ad_index[i] = ad

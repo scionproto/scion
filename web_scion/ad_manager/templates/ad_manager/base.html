@@ -43,6 +43,9 @@
                 <p class="navbar-text">
                   {% if user.is_authenticated %}
                     Logged in as: <i>{{ user }}</i> (<a href="{{ logout_url }}?next={{ request.path }}">logout</a>)
+                    {% if user.is_staff %}
+                      || <a href="{% url 'admin:index' %}">Admin panel</a>
+                    {% endif %}
                   {% else %}
                     <a href="{{ login_url }}?next={{ request.path }}">Login </a>
                   {% endif %}

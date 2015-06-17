@@ -4,11 +4,22 @@
 {% block content %}
   <br />
   <h2>Create a new connection request</h2>
+  <hr />
+
+  <b>Connecting to:</b> {{ ad }}
   <br />
-  <form action="" method="POST">
+  {% if ad.is_open %}
+    This AD is OPEN. Your connection request will be processed automatically.
+  {% else %}
+    This AD is CLOSED. Your connection request will be reviewed by AD admins.
+  {% endif %}
+  <br />
+  <br />
+
+  <form action="#" method="POST">
     {% csrf_token %}
-    <b>Connect to:</b> {{ ad }}
     {% bootstrap_form form %}
     <input class="btn btn-info" type="submit" value="Send message" />
   </form>
+
 {% endblock %}

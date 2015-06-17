@@ -32,8 +32,6 @@ ad_patterns = patterns(
         views.software_update_action, name='update_action'),
     url(r'^ads/(?P<pk>\d+)/refresh_versions$',
         views.refresh_versions, name='refresh_versions'),
-    url(r'^ads/(?P<pk>\d+)/connect_new_ad$',
-        views.connect_new_ad, name='connect_new_ad'),
     url(r'^ads/(?P<pk>\d+)/control/(?P<proc_id>[\w-]+)/$',
         views.control_process, name='control_process'),
     url(r'^ads/(?P<pk>\d+)/new_link/$',
