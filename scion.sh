@@ -2,32 +2,43 @@
 
 # BEGIN subcommand functions
 
-PKG_DEPS="python python3 python-dev python-pip python3-dev python3-pip screen zookeeperd build-essential docker.io dnsutils"
-
 cmd_deps() {
+    dep_type=${1:-ALL}
     # Treat all non-zero returns as fatal errors. Prevents issues like pip
     # package failing to install, causing the rest to be ignored.
     set -e
+    case "$dep_type" in
+      ALL)
+        deps_pkgs ;;
+      pkgs)
+        deps_pkgs
+        return ;;
+    esac
+    case "$dep_type" in
+      ALL)
+        deps_pip3 ;;
+      pip)
+        deps_pip3
+        return ;;
+    esac
+    deps_misc
+}
+
+deps_pkgs() {
     if [ -e /etc/debian_version ]; then
-        deps_debian || exit 1
+        deps_debian
     else
         echo "As this is not a debian-based OS, please install the equivalents of these packages:"
-        echo "    $PKG_DEPS"
+        cat pkgs_debian.txt
     fi
-    echo "Installing necessary packages from pip3"
-    pip3 install --user -r requirements.txt
-    echo "Installing supervisor packages from pip2"
-    pip2 install --user supervisor==3.1.3
-    pip2 install --user supervisor-quick
 }
 
 deps_debian() {
     local pkgs=""
     echo "Checking for necessary debian packages"
-    for pkg in $PKG_DEPS; do
-        dpkg-query -W --showformat='${Status}\n' $pkg 2> /dev/null | \
-            grep -q "install ok installed"
-        if [ $? -ne 0 ]; then
+    for pkg in $(< pkgs_debian.txt); do
+        if ! dpkg-query -W --showformat='${Status}\n' $pkg 2> /dev/null | \
+            grep -q "install ok installed"; then
             pkgs+="$pkg "
         fi
     done
@@ -35,6 +46,18 @@ deps_debian() {
         echo "Installing missing necessary packages: $pkgs"
         sudo DEBIAN_FRONTEND=noninteractive apt-get install $APTARGS --no-install-recommends $pkgs
     fi
+}
+
+deps_pip3() {
+    echo "Installing necessary packages from pip3"
+    pip3 install --user -r requirements.txt
+}
+
+
+deps_misc() {
+    echo "Installing supervisor packages from pip2"
+    pip2 install --user supervisor==3.1.3
+    pip2 install --user supervisor-quick
 }
 
 cmd_init() {
