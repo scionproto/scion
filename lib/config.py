@@ -45,8 +45,8 @@ class Config(object):
     :type pcb_queue_size: int
     :ivar path_server_queue_size: path queue size for the path servers.
     :type path_server_queue_size: int
-    :ivar cert_chain_version: initial version of the certificate chain.
-    :ivar cert_chain_version: int
+    :ivar cert_ver: initial version of the certificate chain.
+    :ivar cert_ver: int
     """
 
     def __init__(self):
@@ -63,7 +63,7 @@ class Config(object):
         self.registers_paths = 0
         self.pcb_queue_size = 0
         self.path_server_queue_size = 0
-        self.cert_chain_version = 0
+        self.cert_ver = 0
 
     @classmethod
     def from_file(cls, config_file):
@@ -116,4 +116,4 @@ class Config(object):
         self.registers_paths = config['RegisterPath']
         self.pcb_queue_size = config['PCBQueueSize']
         self.path_server_queue_size = config['PSQueueSize']
-        self.cert_chain_version = config['CertChainVersion']
+        self.cert_ver = config['CertChainVersion']
