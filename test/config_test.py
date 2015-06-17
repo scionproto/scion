@@ -49,7 +49,7 @@ class BaseLibConfig(object):
         'registers_paths': 'RegisterPath',
         'pcb_queue_size': 'PCBQueueSize',
         'path_server_queue_size': 'PSQueueSize',
-        'cert_chain_version': 'CertChainVersion',
+        'cert_ver': 'CertChainVersion',
     }
 
 
