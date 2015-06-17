@@ -124,12 +124,13 @@ class InterfaceState(object):
                 logging.debug('Interface activated')
             self.last_updated = curr_time
 
-    def set_revoked(self):
+    def revoke_if_expired(self):
         """
         Sets the state of the interface to revoked.
         """
         with self._lock:
-            self._state = self.REVOKED
+            if self._state == self.TIMED_OUT:
+                self._state = self.REVOKED
 
     def is_active(self):
         with self._lock:
@@ -731,15 +732,14 @@ class BeaconServer(SCIONElement):
             for (if_id, if_state) in self.ifid_state.items():
                 # Check if interface has timed-out.
                 if if_state.is_expired():
-                    with if_state._lock:
-                        logging.info("Issuing revocation for IF %d.", if_id)
-                        # Issue revocation
-                        assert if_id in self.if2rev_tokens
-                        chain = self.if2rev_tokens[if_id]
-                        rev_info = RevocationInfo.from_values(RT.INTERFACE,
-                            chain.current_element(), chain.next_element())
-                        self._process_revocation(rev_info)
-                        if_state.set_revoked()
+                    logging.info("Issuing revocation for IF %d.", if_id)
+                    # Issue revocation
+                    assert if_id in self.if2rev_tokens
+                    chain = self.if2rev_tokens[if_id]
+                    rev_info = RevocationInfo.from_values(RT.INTERFACE,
+                        chain.current_element(), chain.next_element())
+                    self._process_revocation(rev_info)
+                    if_state.revoke_if_expired()
             sleep_interval(start_time, self.IF_TIMEOUT_INTERVAL,
                            "Handle IF timeouts")
 
