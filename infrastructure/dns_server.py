@@ -123,7 +123,7 @@ class SrvInst(object):
         :param qtype: Query type (e.g. ``"AAAA"``).
         :type qtype:
         :param reply: DNSRecord object to add the replies to.
-        :type reply.
+        :type reply:
         """
         # 'answer' section
         if qtype in ["A", "ANY"]:
