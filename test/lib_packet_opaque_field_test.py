@@ -12,11 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`opaque_field_test` --- SCION opaque field tests
-=====================================================
+:mod:`lib_packet_opaque_field_test` --- lib.packet.opaque_field unit tests
+==========================================================================
 """
 # Stdlib
-import struct
 from unittest.mock import patch
 
 # External packages

@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`scion_addr_test` --- SCION address tests
-==============================================
+:mod:`lib_packet_scion_addr_test` --- lib.packet.scion_addr unit tests
+======================================================================
 """
 # Stdlib
 from ipaddress import IPV4LENGTH, IPV6LENGTH, IPv4Address, IPv6Address
@@ -47,7 +47,7 @@ class TestSCIONAddrInit(object):
         """
         Test from raw input.
         """
-        addr = SCIONAddr("data")
+        SCIONAddr("data")
         parse.assert_called_once_with("data")
 
 
@@ -94,8 +94,8 @@ class TestSCIONAddrParse(object):
         """
         Parse a byte stream corresponding to a IPv4Address
         """
-        isd_ad_bytes = bytes([0,16,0,10])
-        addr_bytes = bytes([10,1,1,1])
+        isd_ad_bytes = bytes([0, 16, 0, 10])
+        addr_bytes = bytes([10, 1, 1, 1])
         all_bytes = isd_ad_bytes + addr_bytes
         addr_len = len(all_bytes)
         addr = SCIONAddr()
@@ -109,8 +109,8 @@ class TestSCIONAddrParse(object):
         """
         Parse a byte stream corresponding to a IPv6Address
         """
-        isd_ad_bytes = bytes([0,16,0,10])
-        addr_bytes = bytes([0,16,0,1,0,0,0,0,0,0,0,0,0,0,0,16])
+        isd_ad_bytes = bytes([0, 16, 0, 10])
+        addr_bytes = bytes([0, 16, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16])
         all_bytes = isd_ad_bytes + addr_bytes
         addr_len = len(all_bytes)
         addr = SCIONAddr()
@@ -124,10 +124,10 @@ class TestSCIONAddrParse(object):
         """
         ISD_AD.LEN is 4 bytes.
         For any byte stream less than this, parsing should not happen properly.
-        """ 
+        """
         addr = SCIONAddr()
         # Byte stream size chosen to be 3
-        addr.parse(bytes([0,0,0]))
+        addr.parse(bytes([0, 0, 0]))
         ntools.eq_(addr.isd_id, None)
         ntools.eq_(addr.ad_id, None)
         ntools.eq_(addr.host_addr, None)
@@ -138,10 +138,10 @@ class TestSCIONAddrParse(object):
         Byte Stream length is 4+4 for IPv4Address, 4+16 for IPv6Address.
         For any byte stream size other than this, parsing should not happen
         properly.
-        """ 
+        """
         addr = SCIONAddr()
         # Byte stream size chosen to be 11
-        addr.parse(bytes([0,0,0,10]))
+        addr.parse(bytes([0, 0, 0, 10]))
         ntools.eq_(addr.isd_id, 0)
         ntools.eq_(addr.ad_id, 10)
         ntools.eq_(addr.host_addr, None)
@@ -161,8 +161,8 @@ class TestSCIONAddrPack(object):
         host_addr = IPv4Address("10.1.1.1")
         addr = SCIONAddr.from_values(isd_id, ad_id, host_addr)
 
-        isd_ad_bytes = bytes([0,16,0,10])
-        addr_bytes = bytes([10,1,1,1])
+        isd_ad_bytes = bytes([0, 16, 0, 10])
+        addr_bytes = bytes([10, 1, 1, 1])
         ntools.eq_(addr.pack(), isd_ad_bytes + addr_bytes)
 
     def test_ipv6(self):
@@ -174,8 +174,8 @@ class TestSCIONAddrPack(object):
         host_addr = IPv6Address("10:1::10")
         addr = SCIONAddr.from_values(isd_id, ad_id, host_addr)
 
-        isd_ad_bytes = bytes([0,16,0,10])
-        addr_bytes = bytes([0,16,0,1,0,0,0,0,0,0,0,0,0,0,0,16])
+        isd_ad_bytes = bytes([0, 16, 0, 10])
+        addr_bytes = bytes([0, 16, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16])
         ntools.eq_(addr.pack(), isd_ad_bytes + addr_bytes)
 
 
