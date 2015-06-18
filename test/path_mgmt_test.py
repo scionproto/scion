@@ -211,6 +211,7 @@ class TestLeaseInfoParse(object):
         les_inf = LeaseInfo()
         data = bytes.fromhex('0e 2a0a 0b0c 01020304') + \
                b"superlengthybigstringoflength3"
+        les_inf.parse(data)
         ntools.eq_(les_inf.seg_type, PathSegmentType.DOWN)
         ntools.eq_(les_inf.isd_id, 0)
         ntools.eq_(les_inf.ad_id, 0)
@@ -308,6 +309,139 @@ class TestPathSegmentLeasesFromValues(object):
         pth_seg_les = PathSegmentLeases.from_values(4, "data")
         ntools.eq_(pth_seg_les.nleases, 4)
         ntools.eq_(pth_seg_les.leases, "data")
+
+
+class TestRevocationInfoInit(object):
+    """
+    Unit tests for lib.packet.path_mgmt.RevocationInfo.__init__
+    """
+    @patch("lib.packet.packet_base.PayloadBase.__init__")
+    def test_basic(self, __init__):
+        rev_inf = RevocationInfo()
+        ntools.eq_(rev_inf.rev_type, RevocationType.DOWN_SEGMENT)
+        ntools.eq_(rev_inf.incl_seg_id, False)
+        ntools.eq_(rev_inf.incl_hop, False)
+        ntools.eq_(rev_inf.seg_id, b"")
+        ntools.eq_(rev_inf.rev_token1, b"")
+        ntools.eq_(rev_inf.proof1, b"")
+        ntools.eq_(rev_inf.rev_token2, b"")
+        ntools.eq_(rev_inf.proof2, b"")
+        __init__.assert_called_once_with(rev_inf)
+
+    @patch("lib.packet.path_mgmt.RevocationInfo.parse")
+    def test_raw(self, parse):
+        RevocationInfo("data")
+        parse.assert_called_once_with("data")
+
+
+class TestRevocationInfoParse(object):
+    """
+    Unit tests for lib.packet.path_mgmt.RevocationInfo.parse
+    """
+    def test_basic(self):
+        rev_inf = RevocationInfo()
+        data = struct.pack("!B", 0b00000101) + b"superlengthybigstringoflength321" + \
+               b"superlengthybigstringoflength322"
+        rev_inf.parse(data)
+        ntools.eq_(rev_inf.rev_type, 0b00000101 & 0x7)
+        ntools.eq_(rev_inf.incl_seg_id, (0b00000101 >> 3) & 0x1)
+        ntools.eq_(rev_inf.incl_hop, (0b00000101 >> 4) & 0x1)
+        ntools.eq_(rev_inf.seg_id, b"")
+        ntools.eq_(rev_inf.rev_token1, b"superlengthybigstringoflength321")
+        ntools.eq_(rev_inf.proof1, b"superlengthybigstringoflength322")
+        ntools.eq_(rev_inf.rev_token2, b"")
+        ntools.eq_(rev_inf.proof2, b"")
+
+    def test_var_size(self):
+        rev_inf = RevocationInfo()
+        data = struct.pack("!B", 0b00011011) + b"superlengthybigstringoflength321" + \
+               b"superlengthybigstringoflength322" + \
+               b"superlengthybigstringoflength323" + \
+               b"superlengthybigstringoflength324" + \
+               b"superlengthybigstringoflength325"
+        rev_inf.parse(data)
+        ntools.eq_(rev_inf.rev_type, 0b00011011 & 0x7)
+        ntools.eq_(rev_inf.incl_seg_id, (0b00011011 >> 3) & 0x1)
+        ntools.eq_(rev_inf.incl_hop, (0b00011011 >> 4) & 0x1)
+        ntools.eq_(rev_inf.seg_id, b"superlengthybigstringoflength321")
+        ntools.eq_(rev_inf.rev_token1, b"superlengthybigstringoflength322")
+        ntools.eq_(rev_inf.proof1, b"superlengthybigstringoflength323")
+        ntools.eq_(rev_inf.rev_token2, b"superlengthybigstringoflength324")
+        ntools.eq_(rev_inf.proof2, b"superlengthybigstringoflength325")
+
+    def test_len(self):
+        rev_inf = RevocationInfo()
+        data = b"randomshortstring"
+        rev_inf.parse(data)
+        ntools.eq_(rev_inf.rev_type, RevocationType.DOWN_SEGMENT)
+        ntools.eq_(rev_inf.incl_seg_id, False)
+        ntools.eq_(rev_inf.incl_hop, False)
+        ntools.eq_(rev_inf.seg_id, b"")
+        ntools.eq_(rev_inf.rev_token1, b"")
+        ntools.eq_(rev_inf.proof1, b"")
+        ntools.eq_(rev_inf.rev_token2, b"")
+        ntools.eq_(rev_inf.proof2, b"")
+
+
+class TestRevocationInfoPack(object):
+    """
+    Unit tests for lib.packet.path_mgmt.RevocationInfo.from_values
+    """
+    def test_basic(self):
+        rev_inf = RevocationInfo()
+        rev_inf.rev_type = 0b00011011 & 0x7
+        rev_inf.incl_seg_id = (0b00011011 >> 3) & 0x1
+        rev_inf.incl_hop = (0b00011011 >> 4) & 0x1
+        rev_inf.seg_id = b"superlengthybigstringoflength321"
+        rev_inf.rev_token1 = b"superlengthybigstringoflength322"
+        rev_inf.proof1 = b"superlengthybigstringoflength323"
+        rev_inf.rev_token2 = b"superlengthybigstringoflength324"
+        rev_inf.proof2 = b"superlengthybigstringoflength325"
+        data = struct.pack("!B", 0b00011011) + b"superlengthybigstringoflength321" + \
+               b"superlengthybigstringoflength322" + \
+               b"superlengthybigstringoflength323" + \
+               b"superlengthybigstringoflength324" + \
+               b"superlengthybigstringoflength325"
+        ntools.eq_(rev_inf.pack(), data)
+
+    def test_var_size(self):
+        rev_inf = RevocationInfo()
+        rev_inf.rev_type = 0b00000101 & 0x7
+        rev_inf.incl_seg_id = (0b00000101 >> 3) & 0x1
+        rev_inf.incl_hop = (0b00000101 >> 4) & 0x1
+        rev_inf.rev_token1 = b"superlengthybigstringoflength321"
+        rev_inf.proof1 = b"superlengthybigstringoflength322"
+        data = struct.pack("!B", 0b00000101) + b"superlengthybigstringoflength321" + \
+               b"superlengthybigstringoflength322"
+        ntools.eq_(rev_inf.pack(), data)
+
+
+class TestRevocationInfoFromValues(object):
+    """
+    Unit tests for lib.packet.path_mgmt.RevocationInfo.from_values
+    """
+    def test_basic(self):
+        rev_inf = RevocationInfo.from_values("data1", "data2", "data3", "data4", \
+                                             "data5", "data6", "data7", "data8")
+        ntools.eq_(rev_inf.rev_type, "data1")
+        ntools.eq_(rev_inf.rev_token1, "data2")
+        ntools.eq_(rev_inf.proof1, "data3")
+        ntools.eq_(rev_inf.incl_seg_id, "data4")
+        ntools.eq_(rev_inf.incl_hop, "data6")
+        ntools.eq_(rev_inf.seg_id, "data5")
+        ntools.eq_(rev_inf.rev_token2, "data7")
+        ntools.eq_(rev_inf.proof2, "data8")
+
+    def test_less_arg(self):
+        rev_inf = RevocationInfo.from_values("data1", "data2", "data3")
+        ntools.eq_(rev_inf.rev_type, "data1")
+        ntools.eq_(rev_inf.rev_token1, "data2")
+        ntools.eq_(rev_inf.proof1, "data3")
+        ntools.eq_(rev_inf.incl_seg_id, False)
+        ntools.eq_(rev_inf.incl_hop, False)
+        ntools.eq_(rev_inf.seg_id, b"")
+        ntools.eq_(rev_inf.rev_token2, b"")
+        ntools.eq_(rev_inf.proof2, b"")
 
 if __name__ == "__main__":
     nose.run(defaultTest=__name__)
