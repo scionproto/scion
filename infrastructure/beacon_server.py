@@ -349,8 +349,7 @@ class BeaconServer(SCIONElement):
             hof.info = OFT.LAST_OF
         hof.mac = gen_of_mac(self.of_gen_key, hof, prev_hof, ts)
         pcbm = PCBMarking.from_values(self.topology.isd_id, self.topology.ad_id,
-            hof, self._get_if_rev_token(ingress_if),
-            self._get_if_rev_token(egress_if))
+                                      hof, self._get_if_rev_token(ingress_if))
         peer_markings = []
         for router_peer in self.topology.peer_edge_routers:
             if_id = router_peer.interface.if_id
@@ -363,10 +362,10 @@ class BeaconServer(SCIONElement):
             peer_marking = \
                 PCBMarking.from_values(router_peer.interface.neighbor_isd,
                                        router_peer.interface.neighbor_ad,
-                                       hof, self._get_if_rev_token(if_id),
-                                       self._get_if_rev_token(egress_if))
+                                       hof, self._get_if_rev_token(if_id))
             peer_markings.append(peer_marking)
-        return ADMarking.from_values(pcbm, peer_markings)
+        return ADMarking.from_values(pcbm, peer_markings,
+                                     self._get_if_rev_token(egress_if))
 
     def handle_ifid_packet(self, ipkt):
         """
