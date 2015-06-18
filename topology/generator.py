@@ -76,9 +76,9 @@ DEFAULT_DNS_DOMAIN = DNSLabel("scion")
 
 DEFAULT_SUBNET = "127.0.0.0/8"
 IP_ADDRESS_BASE = "127.0.0.1"
-CURR_IP_ADDRESS = IP_ADDRESS_BASE
 
 class ConfigGenerator():
+    curr_ip_address = IP_ADDRESS_BASE
     """
     Configuration and/or topology generator.
     """
@@ -192,20 +192,22 @@ class ConfigGenerator():
         :returns: the edge router IP addresses.
         :rtype: dict
         """
-        global CURR_IP_ADDRESS
         er_ip_addresses = {}
         for isd_ad_id in ad_configs:
             first_byte, mask = self._get_subnet_params(ad_configs[isd_ad_id])
             (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-            ip_address_loc = CURR_IP_ADDRESS
+            ip_address_loc = self.curr_ip_address
             ip_address_pub = self._increment_address(ip_address_loc, mask)
-            CURR_IP_ADDRESS = self._increment_address(CURR_IP_ADDRESS, mask, 2)
+            self.curr_ip_address = self._increment_address(self.curr_ip_address, 
+                                                           mask, 2)
             for link in ad_configs[isd_ad_id].get("links", []):
                 er_ip_addresses[(isd_ad_id, link)] = (str(ip_address_loc),
                                                       str(ip_address_pub))
-                ip_address_loc = CURR_IP_ADDRESS
+                ip_address_loc = self.curr_ip_address
                 ip_address_pub = self._increment_address(ip_address_loc, mask)
-                CURR_IP_ADDRESS = self._increment_address(CURR_IP_ADDRESS, mask, 2)
+                self.curr_ip_address = self._increment_address(self.curr_ip_address, 
+                                                               mask, 
+                                                               2)
         return er_ip_addresses
 
     def delete_directories(self):
@@ -328,7 +330,6 @@ class ConfigGenerator():
         :param er_ip_addresses: the edge router IP addresses.
         :type er_ip_addresses: dict
         """
-        global CURR_IP_ADDRESS
         for isd_ad_id in ad_configs:
             (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
             is_core = (ad_configs[isd_ad_id]['level'] == CORE_AD)
@@ -359,32 +360,32 @@ class ConfigGenerator():
             for b_server in range(1, number_bs + 1):
                 topo_dict['BeaconServers'][b_server] = {
                     'AddrType': 'IPv4',
-                    'Addr': CURR_IP_ADDRESS
+                    'Addr': self.curr_ip_address
                 }
-                CURR_IP_ADDRESS = self._increment_address(CURR_IP_ADDRESS, mask)
+                self.curr_ip_address = self._increment_address(self.curr_ip_address, mask)
             # Write Certificate Servers
             for c_server in range(1, number_cs + 1):
                 topo_dict['CertificateServers'][c_server] = {
                     'AddrType': 'IPv4',
-                    'Addr': CURR_IP_ADDRESS
+                    'Addr': self.curr_ip_address
                 }
-                CURR_IP_ADDRESS = self._increment_address(CURR_IP_ADDRESS, mask)
+                self.curr_ip_address = self._increment_address(self.curr_ip_address, mask)
             # Write Path Servers
             if (ad_configs[isd_ad_id]['level'] != INTERMEDIATE_AD or
                     "path_servers" in ad_configs[isd_ad_id]):
                 for p_server in range(1, number_ps + 1):
                     topo_dict['PathServers'][p_server] = {
                         'AddrType': 'IPv4',
-                        'Addr': CURR_IP_ADDRESS
+                        'Addr': self.curr_ip_address
                     }
-                    CURR_IP_ADDRESS = self._increment_address(CURR_IP_ADDRESS, mask)
+                    self.curr_ip_address = self._increment_address(self.curr_ip_address, mask)
             # Write DNS Servrs
             for d_server in range(1, number_ds + 1):
                 topo_dict['DNSServers'][d_server] = {
                     'AddrType': 'IPv4',
-                    'Addr': CURR_IP_ADDRESS
+                    'Addr': self.curr_ip_address
                 }
-                CURR_IP_ADDRESS = self._increment_address(CURR_IP_ADDRESS, mask)
+                self.curr_ip_address = self._increment_address(self.curr_ip_address, mask)
             # Write Edge Routers
             edge_router = 1
             for nbr_isd_ad_id in ad_configs[isd_ad_id].get("links", []):
