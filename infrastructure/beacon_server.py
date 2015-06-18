@@ -429,7 +429,7 @@ class BeaconServer(SCIONElement):
             if self._verify_beacon(pcb):
                 self._handle_verified_beacon(pcb)
             else:
-                logging.warning("Invalid beacon.")
+                logging.warning("Invalid beacon. %s", pcb)
         else:
             logging.warning("Certificate(s) or TRC missing.")
             self.unverified_beacons.append(pcb)
