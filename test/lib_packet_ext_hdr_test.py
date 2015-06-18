@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`ext_hdr_test` --- SCION extension header tests
-=====================================================
+:mod:`lib_packet_ext_hdr_test` --- lib.packet.ext_hdr unit tests
+================================================================
 """
 # Stdlib
 from unittest.mock import patch

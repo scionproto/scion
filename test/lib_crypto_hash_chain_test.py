@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`hash_chain_test` --- SCION hash chain tests
-=================================================
+:mod:`lib_crypto_hash_chain_test` --- lib.crypto.hash_chain unit tests
+======================================================================
 """
 # Stdlib
 import logging
