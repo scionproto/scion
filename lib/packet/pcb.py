@@ -206,12 +206,12 @@ class ADMarking(Marking):
         """
         Returns ADMarking with fields populated from values.
 
-        @param pcbm: PCBMarking object.
-        @param pms: List of PCBMarking objects.
-        @param eg_rev_token: Revocation token for the egress if
+        :param pcbm: PCBMarking object.
+        :param pms: List of PCBMarking objects.
+        :param eg_rev_token: Revocation token for the egress if
                              in the HopOpaqueField.
-        @param sig: Beacon's signature.
-        @param asd: Additional Signed Data appended to the beacon.
+        :param sig: Beacon's signature.
+        :param asd: Additional Signed Data appended to the beacon.
         """
         ad_marking = ADMarking()
         ad_marking.block_len = (1 + len(pms)) * PCBMarking.LEN
