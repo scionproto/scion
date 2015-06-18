@@ -22,9 +22,12 @@ import unittest
 # External packages
 from Crypto import Random
 
+# Has to be imported before anything else so that any relevant decorators are
+# patched.
+from test.testcommon import SCIONCommonTest
+
 # SCION
 from lib.crypto.hash_chain import HashChain
-from test.testcommon import SCIONCommonTest
 
 
 class TestHashChain(SCIONCommonTest):
