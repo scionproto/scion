@@ -12,3 +12,4 @@ dependencies:
 test:
   override:
     - ./scion.sh test
+    - make -C sphinx-doc html
