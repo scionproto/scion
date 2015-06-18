@@ -758,7 +758,6 @@ class LocalPathServer(PathServer):
         if not records.pcbs:
             return
         for pcb in records.pcbs:
-            logging.debug("REGISTERED %s", pcb)
             assert pcb.segment_id != 32 * b"\x00", ("Trying to register a" +
                    " segment with ID 0:\n%s" % pcb)
             self.up_segments.update(pcb, self.topology.isd_id,
