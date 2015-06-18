@@ -25,9 +25,12 @@ import nose
 import nose.tools as ntools
 from kazoo.protocol.states import ZnodeStat
 
+# Has to be imported before anything else so that any relevant decorators are
+# patched.
+from test.testcommon import MockCollection, SCIONTestException
+
 # SCION
 import lib.zookeeper as libzk
-from test.testcommon import MockCollection, SCIONTestException
 
 
 def mock_wrapper(f):

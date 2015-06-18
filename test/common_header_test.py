@@ -18,9 +18,12 @@
 # Stdlib
 import unittest
 
+# Has to be imported before anything else so that any relevant decorators are
+# patched.
+from test.testcommon import SCIONCommonTest
+
 # SCION
 from lib.packet.scion import SCIONCommonHdr
-from test.testcommon import SCIONCommonTest
 
 
 class TestCommonHeader(SCIONCommonTest):

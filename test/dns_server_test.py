@@ -26,11 +26,14 @@ import nose.tools as ntools
 from dnslib import DNSLabel, DNSRecord, QTYPE, RCODE
 from dnslib import A, AAAA, PTR, RR, SRV
 
+# Has to be imported before anything else so that any relevant decorators are
+# patched.
+from test.testcommon import MockCollection, SCIONTestException
+
 # SCION
 from infrastructure.dns_server import SCIONDnsServer, SrvInst, ZoneResolver
 from lib.defines import SCION_DNS_PORT
 from lib.zookeeper import ZkConnectionLoss, ConnectionLoss, SessionExpiredError
-from test.testcommon import MockCollection, SCIONTestException
 
 
 class BaseDNSServer(object):
