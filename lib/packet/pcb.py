@@ -29,7 +29,6 @@ from lib.defines import EXP_TIME_UNIT, HASH_LEN
 from lib.packet.opaque_field import (
     HopOpaqueField,
     InfoOpaqueField,
-    TRCField,
 )
 from lib.packet.path import CorePath
 from lib.packet.scion import PacketType, SCIONHeader, SCIONPacket
@@ -283,7 +282,7 @@ class PathSegment(Marking):
     """
     Packs all PathSegment fields for a specific beacon.
     """
-    LEN = 16 + HASH_LEN
+    MIN_LEN = 14 + HASH_LEN
 
     def __init__(self, raw=None):
         """
@@ -294,7 +293,8 @@ class PathSegment(Marking):
         """
         Marking.__init__(self)
         self.iof = None
-        self.trcf = None
+        self.trc_ver = 0
+        self.if_id = 0
         self.segment_id = HASH_LEN * b"\x00"
         self.ads = []
         self.min_exp_time = 2 ** 8 - 1
@@ -309,16 +309,19 @@ class PathSegment(Marking):
         self.size = len(raw)
         self.raw = raw[:]
         dlen = len(raw)
-        if dlen < PathSegment.LEN:
+        if dlen < PathSegment.MIN_LEN:
             logging.warning("PathSegment: Data too short for parsing, " +
                             "len: %u", dlen)
             return
         # Populate the info and ROT OFs from the first and second 8-byte blocks
         # of the segment, respectively.
-        self.iof = InfoOpaqueField(raw[0:8])
-        self.trcf = TRCField(raw[8:16])
-        self.segment_id = raw[16:48]
-        raw = raw[48:]
+        self.iof = InfoOpaqueField(raw[:InfoOpaqueField.LEN])
+        offset = InfoOpaqueField.LEN
+        self.trc_ver, self.if_id = struct.unpack("!IH", raw[offset:offset + 6])
+        offset += 6  # 4B for trc_ver and 2B for if_id.
+        self.segment_id = raw[offset:offset + HASH_LEN]
+        offset += HASH_LEN
+        raw = raw[offset:]
         for _ in range(self.iof.hops):
             (_, asd_len, sig_len, block_len) = struct.unpack("!HHHH",
                 raw[:ADMarking.FIRST_ROW_LEN])
@@ -332,7 +335,8 @@ class PathSegment(Marking):
         """
         Returns PathSegment as a binary string.
         """
-        pcb_bytes = self.iof.pack() + self.trcf.pack()
+        pcb_bytes = self.iof.pack()
+        pcb_bytes += struct.pack("!IH", self.trc_ver, self.if_id)
         pcb_bytes += self.segment_id
         for ad_marking in self.ads:
             pcb_bytes += ad_marking.pack()
@@ -492,16 +496,20 @@ class PathSegment(Marking):
         """
         assert isinstance(raw, bytes)
         dlen = len(raw)
-        if dlen < PathSegment.LEN:
+        if dlen < PathSegment.MIN_LEN:
             logging.warning("HPB: Data too short for parsing, len: %u", dlen)
             return
         pcbs = []
         while len(raw) > 0:
             pcb = PathSegment()
-            pcb.iof = InfoOpaqueField(raw[0:8])
-            pcb.trcf = TRCField(raw[8:16])
-            pcb.segment_id = raw[16:48]
-            raw = raw[48:]
+            pcb.iof = InfoOpaqueField(raw[:InfoOpaqueField.LEN])
+            offset = InfoOpaqueField.LEN
+            pcb.trc_ver, pcb.if_id = struct.unpack("!IH",
+                                                   raw[offset:offset + 6])
+            offset += 6  # 4B for trc_ver and 2B for if_id.
+            pcb.segment_id = raw[offset:offset + HASH_LEN]
+            offset += HASH_LEN
+            raw = raw[offset:]
             for _ in range(pcb.iof.hops):
                 (_, asd_len, sig_len, block_len) = \
                     struct.unpack("!HHHH", raw[:ADMarking.FIRST_ROW_LEN])
@@ -525,7 +533,8 @@ class PathSegment(Marking):
     def __str__(self):
         pcb_str = "[PathSegment]\n"
         pcb_str += "Segment ID: %s\n" % str(self.segment_id)
-        pcb_str += str(self.iof) + "\n" + str(self.trcf) + "\n"
+        pcb_str += str(self.iof) + "\n"
+        pcb_str += "trc_ver: %d, if_id: %d\n" % (self.trc_ver, self.if_id)
         for ad_marking in self.ads:
             pcb_str += str(ad_marking)
         return pcb_str
@@ -533,7 +542,7 @@ class PathSegment(Marking):
     def __eq__(self, other):
         if type(other) is type(self):
             return (self.iof == other.iof and
-                    self.trcf == other.trcf and
+                    self.trc_ver == other.trc_ver and
                     self.ads == other.ads)
         else:
             return False

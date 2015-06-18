@@ -42,7 +42,6 @@ from lib.packet.opaque_field import (
     HopOpaqueField,
     InfoOpaqueField,
     OpaqueFieldType as OFT,
-    TRCField,
 )
 from lib.packet.path_mgmt import (
     PathMgmtPacket,
@@ -268,11 +267,11 @@ class BeaconServer(SCIONElement):
         :type pcb: PathSegment
         """
         assert isinstance(pcb, PathSegment)
-        ingress_if = pcb.trcf.if_id
+        ingress_if = pcb.if_id
         for router_child in self.topology.child_edge_routers:
             new_pcb = copy.deepcopy(pcb)
             egress_if = router_child.interface.if_id
-            new_pcb.trcf.if_id = egress_if
+            new_pcb.if_id = egress_if
 
             last_pcbm = new_pcb.get_last_pcbm()
             if last_pcbm:
@@ -425,7 +424,7 @@ class BeaconServer(SCIONElement):
         last_pcbm = pcb.get_last_pcbm()
         if self._check_certs_trc(last_pcbm.isd_id, last_pcbm.ad_id,
                                  pcb.get_last_adm().cert_ver,
-                                 pcb.trcf.trc_ver, pcb.trcf.if_id):
+                                 pcb.trc_ver, pcb.if_id):
             if self._verify_beacon(pcb):
                 self._handle_verified_beacon(pcb)
             else:
@@ -502,7 +501,7 @@ class BeaconServer(SCIONElement):
         cert_chain_isd = last_pcbm.isd_id
         cert_chain_ad = last_pcbm.ad_id
         cert_ver = pcb.get_last_adm().cert_ver
-        trc_ver = pcb.trcf.trc_ver
+        trc_ver = pcb.trc_ver
         subject = 'ISD:' + str(cert_chain_isd) + '-AD:' + str(cert_chain_ad)
         cert_chain_file = get_cert_chain_file_path(
             self.topology.isd_id, self.topology.ad_id,
@@ -516,7 +515,7 @@ class BeaconServer(SCIONElement):
         trc = TRC(trc_file)
 
         new_pcb = copy.deepcopy(pcb)
-        new_pcb.trcf.if_id = 0
+        new_pcb.if_id = 0
         new_pcb.ads[-1].sig = b''
         new_pcb.ads[-1].sig_len = 0
         return verify_sig_chain_trc(new_pcb.pack(), pcb.ads[-1].sig, subject,
@@ -533,11 +532,11 @@ class BeaconServer(SCIONElement):
         if pcb.ads[-1].sig:
             logging.warning("PCB already signed.")
             return
-        (pcb.trcf.if_id, tmp_if_id) = (0, pcb.trcf.if_id)
+        (pcb.if_id, tmp_if_id) = (0, pcb.if_id)
         signature = sign(pcb.pack(), self.signing_key)
         pcb.ads[-1].sig = signature
         pcb.ads[-1].sig_len = len(signature)
-        pcb.trcf.if_id = tmp_if_id
+        pcb.if_id = tmp_if_id
 
     def _handle_verified_beacon(self, pcb):
         """
@@ -794,12 +793,12 @@ class CoreBeaconServer(BeaconServer):
         :rtype:
         """
         assert isinstance(pcb, PathSegment)
-        ingress_if = pcb.trcf.if_id
+        ingress_if = pcb.if_id
         count = 0
         for core_router in self.topology.routing_edge_routers:
             new_pcb = copy.deepcopy(pcb)
             egress_if = core_router.interface.if_id
-            new_pcb.trcf.if_id = egress_if
+            new_pcb.if_id = egress_if
             last_pcbm = new_pcb.get_last_pcbm()
             if last_pcbm:
                 ad_marking = self._create_ad_marking(ingress_if, egress_if,
@@ -845,13 +844,11 @@ class CoreBeaconServer(BeaconServer):
             timestamp = int(time.time())
             downstream_pcb.iof = InfoOpaqueField.from_values(
                 OFT.TDC_XOVR, False, timestamp, self.topology.isd_id)
-            downstream_pcb.trcf = TRCField()
             self.propagate_downstream_pcb(downstream_pcb)
             # Create beacon for core ADs.
             core_pcb = PathSegment()
             core_pcb.iof = InfoOpaqueField.from_values(
                 OFT.TDC_XOVR, False, timestamp, self.topology.isd_id)
-            core_pcb.trcf = TRCField()
             count = self.propagate_core_pcb(core_pcb)
             # Propagate received beacons. A core beacon server can only receive
             # beacons from other core beacon servers.
@@ -979,7 +976,7 @@ class CoreBeaconServer(BeaconServer):
         count = 0
         for pcb in core_segments:
             new_pcb = copy.deepcopy(pcb)
-            ad_marking = self._create_ad_marking(new_pcb.trcf.if_id, 0,
+            ad_marking = self._create_ad_marking(new_pcb.if_id, 0,
                                                  new_pcb.get_timestamp(),
                                                  new_pcb.get_last_pcbm().hof)
             new_pcb.add_ad(ad_marking)
@@ -1246,7 +1243,7 @@ class LocalBeaconServer(BeaconServer):
         assert up_segment.segment_id != rev_info.seg_id
         # Add first hop opaque field.
         up_segment = copy.deepcopy(up_segment)
-        ad_marking = self._create_ad_marking(up_segment.trcf.if_id, 0,
+        ad_marking = self._create_ad_marking(up_segment.if_id, 0,
                                              up_segment.get_timestamp(),
                                              up_segment.get_last_pcbm().hof)
         up_segment.add_ad(ad_marking)
@@ -1368,7 +1365,7 @@ class LocalBeaconServer(BeaconServer):
         best_segments = self.up_segments.get_best_segments()
         for pcb in best_segments:
             new_pcb = copy.deepcopy(pcb)
-            ad_marking = self._create_ad_marking(new_pcb.trcf.if_id, 0,
+            ad_marking = self._create_ad_marking(new_pcb.if_id, 0,
                                                  new_pcb.get_timestamp(),
                                                  new_pcb.get_last_pcbm().hof)
             new_pcb.add_ad(ad_marking)
@@ -1385,7 +1382,7 @@ class LocalBeaconServer(BeaconServer):
         best_segments = self.down_segments.get_best_segments()
         for pcb in best_segments:
             new_pcb = copy.deepcopy(pcb)
-            ad_marking = self._create_ad_marking(new_pcb.trcf.if_id, 0,
+            ad_marking = self._create_ad_marking(new_pcb.if_id, 0,
                                                  new_pcb.get_timestamp(),
                                                  new_pcb.get_last_pcbm().hof)
             new_pcb.add_ad(ad_marking)

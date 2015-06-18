@@ -31,7 +31,6 @@ from lib.packet.opaque_field import (
     HopOpaqueField,
     InfoOpaqueField,
     OpaqueFieldType as OFT,
-    TRCField,
 )
 from lib.packet.pcb import ADMarking, PCBMarking, PathSegment
 from lib.path_store import PathPolicy, PathStore
@@ -76,7 +75,6 @@ class TestPathStore(unittest.TestCase):
                 pcb.segment_id = HashChain(Random.new().read(32)).next_element()
                 pcb.iof = InfoOpaqueField.from_values(OFT.TDC_XOVR, False,
                                                       int(time.time()), path)
-                pcb.trcf = TRCField()
                 ad_marking = self._create_ad_marking()
                 pcb.add_ad(ad_marking)
                 print("insert path " + str(path) + ", exp time: " +
