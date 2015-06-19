@@ -48,11 +48,11 @@ class TestElementInit(object):
         ntools.assert_is_instance(elem.addr, IPv6Address)
 
     def test_name_basic(self):
-        elem = Element(None, 'localhost')
+        elem = Element(name='localhost')
         ntools.assert_equal(elem.name, 'localhost')
 
     def test_name_numeric(self):
-        elem = Element(None, 42)
+        elem = Element(name=42)
         ntools.assert_equal(elem.name, '42')
 
     def test_invalid_addr_type(self):
