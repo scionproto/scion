@@ -90,7 +90,7 @@ class TestPathSegmentInfoPack(object):
         pth_seg_info.dst_isd = 0x0b0c
         pth_seg_info.src_ad = 0x0102030405060708
         pth_seg_info.dst_ad = 0x9192939495969798
-        ntools.eq_(pth_seg_info.pack(), 
+        ntools.eq_(pth_seg_info.pack(),
                    bytes.fromhex('0e 2a0a 0b0c 0102030405060708 9192939495969798'))
 
 
@@ -132,18 +132,19 @@ class TestPathSegmentRecordsParse(object):
     """
     @patch("lib.packet.packet_base.PayloadBase.parse")
     @patch("lib.packet.pcb.PathSegment.deserialize")
-    @patch("lib.packet.path_mgmt.PathSegmentInfo.parse")
-    def test_basic(self, parse, deserialize, parse_payload):
+    @patch("lib.packet.path_mgmt.PathSegmentInfo")
+    def test_basic(self, pth_seg_info, deserialize, parse_payload):
         deserialize.return_value = "data1"
-        parse_payload.return_value = "data2"
+        pth_seg_info.return_value = "data2"
+        pth_seg_info.LEN = PathSegmentInfo.LEN
         pth_seg_rec = PathSegmentRecords()
-        data = "randomstring"
+        data = b"randomstring"
         pth_seg_rec.parse(data)
         parse_payload.assert_called_once_with(pth_seg_rec, data)
+        pth_seg_info.assert_called_once_with(data[:PathSegmentInfo.LEN])
         deserialize.assert_called_once_with(data[PathSegmentInfo.LEN:])
-        parse.assert_called_once_with(data[:PathSegmentInfo.LEN])
-        #ntools.assert_true(isinstance(, ))
         ntools.eq_(pth_seg_rec.pcbs, "data1")
+        ntools.eq_(pth_seg_rec.info, "data2")
 
 
 class TestPathSegmentRecordsPack(object):
@@ -547,6 +548,134 @@ class TestPathMgmtPacketInit(object):
     def test_raw(self, parse):
         PathMgmtPacket("data")
         parse.assert_called_once_with("data")
+
+
+class TestPathMgmtPacketParse(object):
+    """
+    Unit tests for lib.packet.path_mgmt.PathMgmtPacket.parse
+    """
+    @patch("lib.packet.scion.SCIONPacket.set_payload")
+    @patch("lib.packet.path_mgmt.PathSegmentInfo")
+    @patch("lib.packet.scion.SCIONPacket.parse")
+    def test_request(self, parse, inf, set_pld):
+        pth_mgmt_pkt = PathMgmtPacket()
+        pth_mgmt_pkt._payload = struct.pack("!B", PathMgmtType.REQUEST) + b"data1"
+        inf.return_value = "data2"
+        pth_mgmt_pkt.parse("data3")
+        parse.assert_called_once_with(pth_mgmt_pkt, "data3")
+        ntools.eq_(pth_mgmt_pkt.type, PathMgmtType.REQUEST)
+        inf.assert_called_once_with(b"data1")
+        set_pld.assert_called_once_with("data2")
+
+    @patch("lib.packet.scion.SCIONPacket.set_payload")
+    @patch("lib.packet.path_mgmt.PathSegmentRecords")
+    @patch("lib.packet.scion.SCIONPacket.parse")
+    def test_records(self, parse, rec, set_pld):
+        pth_mgmt_pkt = PathMgmtPacket()
+        pth_mgmt_pkt._payload = struct.pack("!B", PathMgmtType.RECORDS) + b"data1"
+        rec.return_value = "data2"
+        pth_mgmt_pkt.parse("data3")
+        parse.assert_called_once_with(pth_mgmt_pkt, "data3")
+        ntools.eq_(pth_mgmt_pkt.type, PathMgmtType.RECORDS)
+        rec.assert_called_once_with(b"data1")
+        set_pld.assert_called_once_with("data2")
+
+    @patch("lib.packet.scion.SCIONPacket.set_payload")
+    @patch("lib.packet.path_mgmt.PathSegmentLeases")
+    @patch("lib.packet.scion.SCIONPacket.parse")
+    def test_leases(self, parse, les, set_pld):
+        pth_mgmt_pkt = PathMgmtPacket()
+        pth_mgmt_pkt._payload = struct.pack("!B", PathMgmtType.LEASES) + b"data1"
+        les.return_value = "data2"
+        pth_mgmt_pkt.parse("data3")
+        parse.assert_called_once_with(pth_mgmt_pkt, "data3")
+        ntools.eq_(pth_mgmt_pkt.type, PathMgmtType.LEASES)
+        les.assert_called_once_with(b"data1")
+        set_pld.assert_called_once_with("data2")
+
+    @patch("lib.packet.scion.SCIONPacket.set_payload")
+    @patch("lib.packet.path_mgmt.RevocationPayload")
+    @patch("lib.packet.scion.SCIONPacket.parse")
+    def test_revocation(self, parse, rev, set_pld):
+        pth_mgmt_pkt = PathMgmtPacket()
+        pth_mgmt_pkt._payload = struct.pack("!B", PathMgmtType.REVOCATIONS) + b"data1"
+        rev.return_value = "data2"
+        pth_mgmt_pkt.parse("data3")
+        parse.assert_called_once_with(pth_mgmt_pkt, "data3")
+        ntools.eq_(pth_mgmt_pkt.type, PathMgmtType.REVOCATIONS)
+        rev.assert_called_once_with(b"data1")
+        set_pld.assert_called_once_with("data2")
+
+
+class TestPathMgmtPacketPack(object):
+    """
+    Unit tests for lib.packet.path_mgmt.PathMgmtPacket.pack
+    """
+    @patch("lib.packet.scion.SCIONPacket.set_payload")
+    @patch("lib.packet.scion.SCIONPacket.pack")
+    def test_basic(self, pack_scion, set_pld):
+        pth_mgmt_pkt = PathMgmtPacket()
+        pth_mgmt_pkt.type = 3
+        pack_scion.return_value = "data1"
+        pth_mgmt_pkt._payload = MagicMock(spec_set=['pack'])
+        pth_mgmt_pkt.payload.pack.return_value = b"data2"
+        ntools.eq_(pth_mgmt_pkt.pack(), "data1")
+        set_pld.assert_called_once_with(struct.pack("!B", 3) + b"data2")
+        pack_scion.assert_called_once_with(pth_mgmt_pkt)
+
+
+class TestPathMgmtPacketFromValues(object):
+    """
+    Unit tests for lib.packet.path_mgmt.PathMgmtPacket.from_values
+    """
+    @patch("lib.packet.scion.SCIONPacket.set_payload")
+    @patch("lib.packet.packet_base.PacketBase.set_hdr")
+    @patch("lib.packet.scion.SCIONHeader.from_values")
+    @patch("lib.packet.scion_addr.SCIONAddr.from_values")
+    def test_basic(self, from_values, from_values_hdr, set_hdr, set_pld):
+        src_addr = ISD_AD("data1", "data2")
+        dst_addr = SCIONAddr()
+        from_values.return_value = "data3"
+        from_values_hdr.return_value = "data4"
+        pth_mgmt_pkt = PathMgmtPacket.from_values("data5", "data6", "data7",
+                                                  src_addr, dst_addr)
+        from_values.assert_called_once_with("data1", "data2", PacketType.PATH_MGMT)
+        from_values_hdr.assert_called_once_with("data3", dst_addr, "data7")
+        set_hdr.assert_called_once_with("data4")
+        ntools.eq_(pth_mgmt_pkt.type, "data5")
+        set_pld.assert_called_once_with("data6")
+        ntools.assert_true(isinstance(pth_mgmt_pkt, PathMgmtPacket))
+
+    @patch("lib.packet.scion.SCIONPacket.set_payload")
+    @patch("lib.packet.packet_base.PacketBase.set_hdr")
+    @patch("lib.packet.scion.SCIONHeader.from_values")
+    @patch("lib.packet.scion_addr.SCIONAddr.from_values")
+    def test_basic2(self, from_values, from_values_hdr, set_hdr, set_pld):
+        src_addr = SCIONAddr()
+        dst_addr = ISD_AD("data1", "data2")
+        from_values.return_value = "data3"
+        from_values_hdr.return_value = "data4"
+        pth_mgmt_pkt = PathMgmtPacket.from_values("data5", "data6", "data7",
+                                                  src_addr, dst_addr)
+        from_values.assert_called_once_with("data1", "data2", PacketType.PATH_MGMT)
+        from_values_hdr.assert_called_once_with(src_addr, "data3", "data7")
+        set_hdr.assert_called_once_with("data4")
+        ntools.eq_(pth_mgmt_pkt.type, "data5")
+        set_pld.assert_called_once_with("data6")
+        ntools.assert_true(isinstance(pth_mgmt_pkt, PathMgmtPacket))
+
+    @patch("lib.packet.scion.SCIONPacket.set_payload")
+    @patch("lib.packet.packet_base.PacketBase.set_hdr")
+    @patch("lib.packet.scion.SCIONHeader.from_values")
+    def test_invalid(self, from_values, set_hdr, set_pld):
+        from_values.return_value = "data6"
+        pth_mgmt_pkt = PathMgmtPacket.from_values("data1", "data2", "data3",
+                                                  "data4", "data5")
+        from_values.assert_called_once_with("data4", "data5", "data3")
+        set_hdr.assert_called_once_with("data6")
+        ntools.eq_(pth_mgmt_pkt.type, "data1")
+        set_pld.assert_called_once_with("data2")
+        ntools.assert_true(isinstance(pth_mgmt_pkt, PathMgmtPacket))
 
 if __name__ == "__main__":
     nose.run(defaultTest=__name__)
