@@ -55,7 +55,7 @@ def read_from_dir(dir_name):
     print("Files being converted are: \n{}\n".format(list_files))
     return list_files
 
-def parse(brite_files):
+def parse(brite_files, dot_output_file):
     """
     1. Parse a list of topology files each into a seperate ISD
     2. All the core AD's in ISD's are interconnected using some model topology
@@ -97,7 +97,16 @@ def parse(brite_files):
                 for dest_ad in dest_core_ads:
                     final_graph.add_edge(src_ad, dest_ad,
                                          label='ROUTING', color='red')
+    # Ensuring that final graph is connected
     assert nx.is_connected(final_graph.to_undirected())
+    if dot_output_file != None:
+        try:
+            from networkx import pygraphviz
+        except ImportError:
+            raise ImportError('Graphviz is not available for python3.' +
+                               'Install it for python instead')
+        print("Generating the dot file {}".format(dot_output_file))
+        nx.write_dot(final_graph, dot_output_file)
     return final_graph
 
 def _parse(topo_file, ISD_NUM):
@@ -222,12 +231,6 @@ def _parse(topo_file, ISD_NUM):
     print("ISD {} has {} AS's".format(ISD_NUM, len(original_graph.nodes())))
     print("Core AD's are:")
     print(core_ad_graph.nodes())
-    # convert to a graphviz agraph(NOTE: requires pygraphviz)
-    if False:
-        A = nx.to_agraph(final_graph)
-        A.layout(prog='dot')
-        img_file = topo_file.split('.')[0] + ".png"
-        A.draw(img_file)
     return final_graph, core_ad_graph.nodes()
 
 def json_convert(graph):
@@ -283,17 +286,23 @@ def main():
                         dest='from_directory',
                         help='Convert each files in the specified directory \
                         into an isd')
-    parser.add_argument('-f', '--files',
+    parser.add_argument('-f', '--files', '--file',
                         action='store',
                         dest='collection',
                         nargs='+',
                         help="Convert files into respective isd's")
+    parser.add_argument('-o', '--out',
+                        action='store',
+                        default=None,
+                        dest='dot_output_file',
+                        help="Generates a dot output file(pygraphviz does not \
+                              work in python 3.x, works only in python 2.x).")
     results = parser.parse_args()
     if results.from_directory != None:
         brite_files = read_from_dir(results.from_directory)
     else:
         brite_files = results.collection
-    scion_graph = parse(brite_files)
+    scion_graph = parse(brite_files, results.dot_output_file)
     json_convert(scion_graph)
 
 if __name__ == "__main__":
