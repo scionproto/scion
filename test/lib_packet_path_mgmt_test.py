@@ -279,21 +279,14 @@ class TestPathSegmentLeasesParse(object):
     @patch("lib.packet.packet_base.PayloadBase.parse")
     def test_basic(self, parse, les_inf):
         pth_seg_les = PathSegmentLeases()
-        data = bytes.fromhex('04')
-        for i in range(0x04):
-            data += bytes.fromhex('0e 2a0a 0b0c 01020304') + \
-                b"superlengthybigstringoflength32" + struct.pack("!B", i)
-        les_inf.LEN = LeaseInfo.LEN
+        data = struct.pack("!B", 0x04) +b"abcd"
+        les_inf.LEN = 1
         les_inf.side_effect = ["data0", "data1", "data2", "data3"]
         pth_seg_les.parse(data)
-        parse.assert_called(pth_seg_les, data)
-        temp = bytes.fromhex('0e 2a0a 0b0c 01020304') + \
-            b"superlengthybigstringoflength32"
-        les_inf.assert_has_calls([call(temp + struct.pack("!B", 0)),
-                                  call(temp + struct.pack("!B", 1)),
-                                  call(temp + struct.pack("!B", 2)),
-                                  call(temp + struct.pack("!B", 3))])
+        parse.assert_called_once_with(pth_seg_les, data)
         ntools.eq_(pth_seg_les.nleases, 0x04)
+        les_inf.assert_has_calls([call(b"a"), call(b"b"), call(b"c"),
+                                  call(b"d")])
         for i in range(0x04):
             ntools.eq_(pth_seg_les.leases[i], "data" + str(i))
 
@@ -494,34 +487,18 @@ class TestRevocationPayloadParse(object):
     @patch("lib.packet.packet_base.PayloadBase.parse")
     def test_basic(self, parse, rev_inf):
         rev_pld = RevocationPayload()
-        data = b""
+        data = "abcde"
         side_effect = []
-        for i in range(0x04):
+        for i in range(len(data)):
             side_effect.append(MagicMock(spec_set=['__len__', 'parsed']))
-            side_effect[i].__len__.return_value = RevocationInfo.MAX_LEN
+            side_effect[i].__len__.return_value = 1
             side_effect[i].parsed = True
-            data += struct.pack("!B", 0b00011011) + \
-                b"superlengthybigstringoflength321" \
-                b"superlengthybigstringoflength322" \
-                b"superlengthybigstringoflength323" \
-                b"superlengthybigstringoflength324" \
-                b"superlengthybigstringoflength32" + struct.pack("!B", i)
-        rev_inf.MAX_LEN = RevocationInfo.MAX_LEN
+        rev_inf.MAX_LEN = 1
         rev_inf.side_effect = side_effect
         rev_pld.parse(data)
         parse.assert_called_once_with(rev_pld, data)
-        temp = struct.pack("!B", 0b00011011) + \
-            b"superlengthybigstringoflength321" \
-            b"superlengthybigstringoflength322" \
-            b"superlengthybigstringoflength323" \
-            b"superlengthybigstringoflength324" \
-            b"superlengthybigstringoflength32"
-        rev_inf.assert_has_calls([call(temp + struct.pack("!B", 0)),
-                                  call(temp + struct.pack("!B", 1)),
-                                  call(temp + struct.pack("!B", 2)),
-                                  call(temp + struct.pack("!B", 3))])
-        for i in range(0x04):
-            ntools.eq_(rev_pld.rev_infos[i], side_effect[i])
+        rev_inf.assert_has_calls([call(i) for i in data])
+        ntools.eq_(rev_pld.rev_infos[i], side_effect[i])
 
     @patch("lib.packet.packet_base.PayloadBase.parse")
     def test_len(self, parse):
