@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`lib_packet_path_test.py` --- SCION path packet tests
+:mod:`lib_packet_path_test` --- lib.packet.path unit tests
 ==========================================================
 """
 #Stdlib
@@ -365,7 +365,7 @@ class TestCorePathFromValues(BasePath):
     """
     Unit tests for lib.packet.path.CorePath.from_values
     """
-    def test(self):
+    def test_basic(self):
         up_hops = self.hof[:2]
         core_hops = self.hof[1:4]
         down_hops = [self.hof[2], self.hof[4]]
@@ -377,6 +377,15 @@ class TestCorePathFromValues(BasePath):
         ntools.eq_(self.core_path.up_segment_hops, self.hof[:2])
         ntools.eq_(self.core_path.core_segment_hops, self.hof[1:4])
         ntools.eq_(self.core_path.down_segment_hops, [self.hof[2], self.hof[4]])
+
+    def test_less_arg(self):
+        self.core_path = CorePath.from_values()
+        ntools.assert_is_none(self.core_path.up_segment_info)
+        ntools.assert_is_none(self.core_path.core_segment_info)
+        ntools.assert_is_none(self.core_path.down_segment_info)
+        ntools.eq_(self.core_path.up_segment_hops, [])
+        ntools.eq_(self.core_path.core_segment_hops, [])
+        ntools.eq_(self.core_path.down_segment_hops, [])
 
 
 class TestCrossOverPathInit(object):
