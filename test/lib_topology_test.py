@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`topology_test` --- SCION topology tests
-=============================================
+:mod:`lib_topology_test` --- SCION topology tests
+=================================================
 """
 # Stdlib
 from ipaddress import IPv4Address, IPv6Address
