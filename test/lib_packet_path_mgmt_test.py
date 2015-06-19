@@ -305,14 +305,16 @@ class TestPathSegmentLeasesPack(object):
     def test_basic(self):
         pth_seg_les = PathSegmentLeases()
         pth_seg_les.nleases = 0x04
-        data = bytes.fromhex('04')
+        data = struct.pack("!B", 0x04)
         for i in range(0x04):
-            temp = bytes.fromhex('0e 2a0a 0b0c 01020304') + \
-                b"superlengthybigstringoflength32" + struct.pack("!B", i)
-            linfo = LeaseInfo(temp)
-            data += temp
+            linfo = LeaseInfo()
             pth_seg_les.leases.append(linfo)
+            pth_seg_les.leases[i] = MagicMock(spec_set=['pack'])
+            pth_seg_les.leases[i].pack.return_value = struct.pack("!B", i)
+            data += struct.pack("!B", i)
         ntools.eq_(pth_seg_les.pack(), data)
+        for i in range(0x04):
+            pth_seg_les.leases[i].pack.assert_called_once_with()
 
 
 class TestPathSegmentLeasesFromValues(object):
@@ -505,7 +507,7 @@ class TestRevocationPayloadParse(object):
                 b"superlengthybigstringoflength324" \
                 b"superlengthybigstringoflength32" + struct.pack("!B", i)
         rev_inf.MAX_LEN = RevocationInfo.MAX_LEN
-        rev_inf.side_effect = side_effect 
+        rev_inf.side_effect = side_effect
         rev_pld.parse(data)
         parse.assert_called_once_with(rev_pld, data)
         temp = struct.pack("!B", 0b00011011) + \
@@ -536,16 +538,14 @@ class TestRevocationPayloadPack(object):
         rev_pld = RevocationPayload()
         data = b""
         for i in range(0x04):
-            temp = struct.pack("!B", 0b00011011) + \
-                b"superlengthybigstringoflength321" \
-                b"superlengthybigstringoflength322" \
-                b"superlengthybigstringoflength323" \
-                b"superlengthybigstringoflength324" \
-                b"superlengthybigstringoflength32" + struct.pack("!B", i)
-            rinfo = RevocationInfo(temp)
-            data += temp
+            rinfo = RevocationInfo()
             rev_pld.rev_infos.append(rinfo)
+            rev_pld.rev_infos[i] = MagicMock(spec_set=['pack'])
+            rev_pld.rev_infos[i].pack.return_value = struct.pack("!B", i)
+            data += struct.pack("!B", i)
         ntools.eq_(rev_pld.pack(), data)
+        for i in range(0x04):
+            rev_pld.rev_infos[i].pack.assert_called_once_with()
 
 
 class TestRevocationPayloadFromValues(object):
