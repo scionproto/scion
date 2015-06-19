@@ -364,7 +364,6 @@ class TestRevocationInfoParse(object):
         ntools.assert_true(rev_inf.parsed)
         ntools.eq_(rev_inf.raw, data)
 
-
     def test_var_size(self):
         rev_inf = RevocationInfo()
         data = struct.pack("!B", 0b00011011) + \
@@ -382,8 +381,8 @@ class TestRevocationInfoParse(object):
         ntools.eq_(rev_inf.proof1, b"superlengthybigstringoflength323")
         ntools.eq_(rev_inf.rev_token2, b"superlengthybigstringoflength324")
         ntools.eq_(rev_inf.proof2, b"superlengthybigstringoflength325")
-        ntools.assert_true(rev_inf.parsed)
         ntools.eq_(rev_inf.raw, data)
+        ntools.assert_true(rev_inf.parsed)
 
     def test_len(self):
         rev_inf = RevocationInfo()
@@ -445,8 +444,8 @@ class TestRevocationInfoFromValues(object):
         ntools.eq_(rev_inf.rev_token1, "data2")
         ntools.eq_(rev_inf.proof1, "data3")
         ntools.eq_(rev_inf.incl_seg_id, "data4")
-        ntools.eq_(rev_inf.incl_hop, "data6")
         ntools.eq_(rev_inf.seg_id, "data5")
+        ntools.eq_(rev_inf.incl_hop, "data6")
         ntools.eq_(rev_inf.rev_token2, "data7")
         ntools.eq_(rev_inf.proof2, "data8")
         ntools.assert_is_instance(rev_inf, RevocationInfo)
@@ -457,11 +456,10 @@ class TestRevocationInfoFromValues(object):
         ntools.eq_(rev_inf.rev_token1, "data2")
         ntools.eq_(rev_inf.proof1, "data3")
         ntools.eq_(rev_inf.incl_seg_id, False)
-        ntools.eq_(rev_inf.incl_hop, False)
         ntools.eq_(rev_inf.seg_id, b"")
+        ntools.eq_(rev_inf.incl_hop, False)
         ntools.eq_(rev_inf.rev_token2, b"")
         ntools.eq_(rev_inf.proof2, b"")
-        ntools.assert_is_instance(rev_inf, RevocationInfo)
 
 
 class TestRevocationPayloadInit(object):
@@ -496,7 +494,7 @@ class TestRevocationPayloadParse(object):
                 b"superlengthybigstringoflength324" + \
                 b"superlengthybigstringoflength32" + struct.pack("!B", i)
         rev_pld.parse(data)
-        parse.assert_called()
+        parse.assert_called_once_with(rev_pld, data)
         for i in range(0x04):
             temp = struct.pack("!B", 0b00011011) + \
                 b"superlengthybigstringoflength321" + \
@@ -676,7 +674,6 @@ class TestPathMgmtPacketFromValues(object):
         set_hdr.assert_called_once_with("data4")
         ntools.eq_(pth_mgmt_pkt.type, "data5")
         set_pld.assert_called_once_with("data6")
-        ntools.assert_is_instance(pth_mgmt_pkt, PathMgmtPacket)
 
     @patch("lib.packet.scion.SCIONPacket.set_payload")
     @patch("lib.packet.packet_base.PacketBase.set_hdr")
@@ -689,7 +686,6 @@ class TestPathMgmtPacketFromValues(object):
         set_hdr.assert_called_once_with("data6")
         ntools.eq_(pth_mgmt_pkt.type, "data1")
         set_pld.assert_called_once_with("data2")
-        ntools.assert_is_instance(pth_mgmt_pkt, PathMgmtPacket)
 
 if __name__ == "__main__":
     nose.run(defaultTest=__name__)
