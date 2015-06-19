@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`path_tests` --- SCION path packet tests
-=============================================
+:mod:`lib_packet_path_test.py` --- SCION path packet tests
+==========================================================
 """
 #Stdlib
 import copy
@@ -118,6 +118,9 @@ class TestPathBaseIsLastHop(BasePath):
         for idx, truth in ((4, True), (3, False), (1, False)):
             yield self._check, idx, truth
 
+    def test_with_none(self):
+        ntools.eq_(self.path.is_last_hop(None), True)
+
 
 class TestPathBaseIsFirstHop(BasePath):
     """
@@ -132,22 +135,26 @@ class TestPathBaseIsFirstHop(BasePath):
         for idx, truth in ((0, True), (1, False), (4, False)):
             yield self._check, idx, truth
 
+    def test_with_none(self):
+        ntools.eq_(self.path.is_last_hop(None), True)
+
 
 class TestPathBaseGetFirstHopOf(BasePath):
     """
     Unit tests for lib.packet.path.PathBase.get_first_hop_of
     """
-    def test_with_down_hops(self):
-        self.path.down_segment_hops = self.hof[2:5]
-        ntools.eq_(self.path.get_first_hop_of(), self.hof[2])
-
     def test_with_up_hops(self):
         self.path.down_segment_hops = self.hof[2:5]
         self.path.up_segment_hops = self.hof[:3]
         ntools.eq_(self.path.get_first_hop_of(), self.hof[0])
 
+    def test_with_down_hops(self):
+        self.path.down_segment_hops = self.hof[2:5]
+        ntools.eq_(self.path.get_first_hop_of(), self.hof[2])
+
     def test_without_hops(self):
         ntools.eq_(self.path.get_first_hop_of(), None)
+
 
 class TestPathBaseGetOf(BasePath):
     """
