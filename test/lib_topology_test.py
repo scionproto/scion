@@ -18,7 +18,6 @@
 # Stdlib
 #from unittest.mock import patch
 from ipaddress import IPv4Address, IPv6Address
-from ipaddress import IPv4Address, IPv6Address
 
 # External packages
 import nose
