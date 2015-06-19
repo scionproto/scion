@@ -207,22 +207,42 @@ class CorePath(PathBase):
 
     def pack(self):
         """
-        Packs the opaque fields and returns a byte array.
+        Packs the opaque fields and returns a byte string.
+        """
+        return self._pack_up_segment() + self._pack_core_segment() + \
+            self._pack_down_segment()
+
+    def _pack_up_segment(self):
+        """
+        Packs the up segment opaque fields and returns a byte string.
         """
         data = []
         if self.up_segment_info:
             data.append(self.up_segment_info.pack())
             for of in self.up_segment_hops:
                 data.append(of.pack())
+        return b"".join(data)
+
+    def _pack_core_segment(self):
+        """
+        Packs the core segment opaque fields and returns a byte string.
+        """
+        data = []
         if self.core_segment_info:
             data.append(self.core_segment_info.pack())
             for of in self.core_segment_hops:
                 data.append(of.pack())
+        return b"".join(data)
+
+    def _pack_down_segment(self):
+        """
+        Packs the down segment opaque fields and returns a byte string.
+        """
+        data = []
         if self.down_segment_info:
             data.append(self.down_segment_info.pack())
             for of in self.down_segment_hops:
                 data.append(of.pack())
-
         return b"".join(data)
 
     def reverse(self):
