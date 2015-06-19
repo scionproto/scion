@@ -103,29 +103,23 @@ class InterfaceElement(Element):
         :type interface_dict: dict
         """
         super().__init__(interface_dict['Addr'], name)
-        self.to_addr = interface_dict['ToAddr']
         self.if_id = interface_dict['IFID']
         self.neighbor_ad = interface_dict['NeighborAD']
         self.neighbor_isd = interface_dict['NeighborISD']
         self.neighbor_type = interface_dict['NeighborType']
         self.to_udp_port = interface_dict['ToUdpPort']
         self.udp_port = interface_dict['UdpPort']
-
-    @property
-    def to_addr(self):
-        return self._to_addr
-
-    @to_addr.setter
-    def to_addr(self, value):
-        try:
-            self._to_addr = ip_address(value)
-        except ValueError:
-            # TODO (@syclops): When new address types are added here (e.g.
-            # SCION addresses), add the appropriate code to set the address
-            # here.
-            raise
-        except:
-            raise
+        to_addr = interface_dict['ToAddr']
+        if to_addr is None:
+            self.to_addr = None
+        else:
+            try:
+                self.to_addr = ip_address(to_addr)
+            except ValueError:
+                # TODO (@syclops): When new address types are added here (e.g.
+                # SCION addresses), add the appropriate code to set the address
+                # here.
+                raise
 
 
 class RouterElement(Element):
