@@ -114,11 +114,11 @@ class TestPathSegmentRecordsInit(object):
     Unit tests for lib.packet.path_mgmt.PathSegmentRecords.__init__
     """
     @patch("lib.packet.packet_base.PayloadBase.__init__")
-    def test_basic(self, __init__):
+    def test_basic(self, init):
         pth_seg_rec = PathSegmentRecords()
         ntools.assert_is_none(pth_seg_rec.info)
         ntools.assert_is_none(pth_seg_rec.pcbs)
-        __init__.assert_called_once_with(pth_seg_rec)
+        init.assert_called_once_with(pth_seg_rec)
 
     @patch("lib.packet.path_mgmt.PathSegmentRecords.parse")
     def test_raw(self, parse):
@@ -286,7 +286,7 @@ class TestPathSegmentLeasesParse(object):
         les_inf.LEN = LeaseInfo.LEN
         les_inf.side_effect = ["data0", "data1", "data2", "data3"]
         pth_seg_les.parse(data)
-        parse.assert_called()
+        parse.assert_called(pth_seg_les, data)
         temp = bytes.fromhex('0e 2a0a 0b0c 01020304') + \
             b"superlengthybigstringoflength32"
         les_inf.assert_has_calls([call(temp + struct.pack("!B", 0)),
@@ -381,9 +381,9 @@ class TestRevocationInfoParse(object):
             b"superlengthybigstringoflength324" \
             b"superlengthybigstringoflength325"
         rev_inf.parse(data)
-        ntools.eq_(rev_inf.rev_type, 0b00011011 & 0x7)
-        ntools.eq_(rev_inf.incl_seg_id, (0b00011011 >> 3) & 0x1)
-        ntools.eq_(rev_inf.incl_hop, (0b00011011 >> 4) & 0x1)
+        ntools.eq_(rev_inf.rev_type, 0b011)
+        ntools.eq_(rev_inf.incl_seg_id, 0b1)
+        ntools.eq_(rev_inf.incl_hop, 0b1)
         ntools.eq_(rev_inf.seg_id, b"superlengthybigstringoflength321")
         ntools.eq_(rev_inf.rev_token1, b"superlengthybigstringoflength322")
         ntools.eq_(rev_inf.proof1, b"superlengthybigstringoflength323")
@@ -412,9 +412,9 @@ class TestRevocationInfoPack(object):
     """
     def test_basic(self):
         rev_inf = RevocationInfo()
-        rev_inf.rev_type = 0b00000101 & 0x7
-        rev_inf.incl_seg_id = (0b00000101 >> 3) & 0x1
-        rev_inf.incl_hop = (0b00000101 >> 4) & 0x1
+        rev_inf.rev_type = 0b00000101
+        rev_inf.incl_seg_id = 0b0
+        rev_inf.incl_hop = 0b0
         rev_inf.rev_token1 = b"superlengthybigstringoflength321"
         rev_inf.proof1 = b"superlengthybigstringoflength322"
         data = struct.pack("!B", 0b00000101) + \
@@ -424,9 +424,9 @@ class TestRevocationInfoPack(object):
 
     def test_var_size(self):
         rev_inf = RevocationInfo()
-        rev_inf.rev_type = 0b00011011 & 0x7
-        rev_inf.incl_seg_id = (0b00011011 >> 3) & 0x1
-        rev_inf.incl_hop = (0b00011011 >> 4) & 0x1
+        rev_inf.rev_type = 0b00011011
+        rev_inf.incl_seg_id = 0b1
+        rev_inf.incl_hop = 0b1
         rev_inf.seg_id = b"superlengthybigstringoflength321"
         rev_inf.rev_token1 = b"superlengthybigstringoflength322"
         rev_inf.proof1 = b"superlengthybigstringoflength323"
