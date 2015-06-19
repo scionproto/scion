@@ -16,6 +16,7 @@
 =============================================
 """
 # Stdlib
+import argparse
 import base64
 import configparser
 import json
@@ -47,8 +48,9 @@ from lib.util import (
     write_file,
 )
 
-DEFAULT_ADCONFIGURATIONS_FILE = 'ADConfigurations.json'
-DEFAULT_PATH_POLICY_FILE = 'PathPolicy.json'
+DEFAULT_ADCONFIGURATIONS_FILE = os.path.join(TOPOLOGY_PATH,
+                                             'ADConfigurations.json')
+DEFAULT_PATH_POLICY_FILE = os.path.join(TOPOLOGY_PATH, 'PathPolicy.json')
 
 SCRIPTS_DIR = 'topology'
 CERT_DIR = 'certificates'
@@ -708,22 +710,19 @@ def main():
     """
     Main function.
     """
-    if len(sys.argv) == 1:
-        adconfigurations_file = DEFAULT_ADCONFIGURATIONS_FILE
-        path_policy_file = DEFAULT_PATH_POLICY_FILE
-        out_dir = TOPOLOGY_PATH
-    elif len(sys.argv) == 4:
-        adconfigurations_file = sys.argv[1]
-        path_policy_file = sys.argv[2]
-        out_dir = os.path.abspath(sys.argv[3])
-    else:
-        logging.error('Invalid number of arguments. '
-                      'RUN: %s ad_confs_file path_policy_file out_dir',
-                      sys.argv[0])
-        sys.exit()
-
-    generator = ConfigGenerator(out_dir)
-    generator.generate_all(adconfigurations_file, path_policy_file)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-c', '--ad-config',
+                        default=DEFAULT_ADCONFIGURATIONS_FILE,
+                        help='AD configurations file')
+    parser.add_argument('-p', '--path-policy',
+                        default=DEFAULT_PATH_POLICY_FILE,
+                        help='Path policy file')
+    parser.add_argument('-o', '--output-dir',
+                        default=TOPOLOGY_PATH,
+                        help='Output directory')
+    args = parser.parse_args()
+    generator = ConfigGenerator(os.path.abspath(args.output_dir))
+    generator.generate_all(args.ad_config, args.path_policy)
 
 
 if __name__ == "__main__":
