@@ -44,7 +44,7 @@ class TestPathSegmentInfoInit(object):
     """
     Unit tests for lib.packet.path_mgmt.PathSegmentInfo.__init__
     """
-    @patch("lib.packet.packet_base.PayloadBase.__init__")
+    @patch("lib.packet.packet_base.PayloadBase.__init__", autospec=True)
     def test_basic(self, init):
         pth_seg_info = PathSegmentInfo()
         ntools.eq_(pth_seg_info.type, 0)
@@ -54,7 +54,7 @@ class TestPathSegmentInfoInit(object):
         ntools.eq_(pth_seg_info.dst_ad, 0)
         init.assert_called_once_with(pth_seg_info)
 
-    @patch("lib.packet.path_mgmt.PathSegmentInfo.parse")
+    @patch("lib.packet.path_mgmt.PathSegmentInfo.parse", autospec=True)
     def test_raw(self, parse):
         PathSegmentInfo("data")
         parse.assert_called_once_with("data")
