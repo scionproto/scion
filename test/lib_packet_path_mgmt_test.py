@@ -504,7 +504,8 @@ class TestRevocationPayloadParse(object):
                 b"superlengthybigstringoflength32" + struct.pack("!B", i)
             ntools.eq_(rev_pld.rev_infos[i].pack(), temp)
 
-    def test_len(self):
+    @patch("lib.packet.packet_base.PayloadBase.parse")
+    def test_len(self, parse):
         rev_pld = RevocationPayload()
         rev_pld.parse("smalldata")
         ntools.eq_(rev_pld.rev_infos, [])
@@ -538,6 +539,19 @@ class TestRevocationPayloadFromValues(object):
         rev_pld = RevocationPayload.from_values("data")
         ntools.eq_(rev_pld.rev_infos, "data")
         ntools.assert_is_instance(rev_pld, RevocationPayload)
+
+
+class TestRevocationPayloadAddRevInfo(object):
+    """
+    Unit tests for lib.packet.path_mgmt.RevocationPayload.add_rev_info
+    """
+    def test_basic(self):
+        rev_pld = RevocationPayload()
+        rev_inf = RevocationInfo()
+        rev_pld.rev_infos = MagicMock(spec_set=['append'])
+        rev_pld.add_rev_info(rev_inf)
+        rev_pld.rev_infos.append.assert_called_once_with(rev_inf)
+
 
 class TestPathMgmtPacketInit(object):
     """
@@ -615,6 +629,15 @@ class TestPathMgmtPacketParse(object):
         rev.assert_called_once_with(b"data1")
         set_pld.assert_called_once_with("data2")
 
+    @patch("lib.packet.scion.SCIONPacket.parse")
+    def test_invalid_type(self, parse):
+        pth_mgmt_pkt = PathMgmtPacket()
+        pth_mgmt_pkt._payload = struct.pack("!B", 5)
+        pth_mgmt_pkt.parse("data")
+        parse.assert_called_once_with(pth_mgmt_pkt, "data")
+        ntools.eq_(pth_mgmt_pkt.type, 5)
+        ntools.eq_(pth_mgmt_pkt.payload, struct.pack("!B", 5))
+
 
 class TestPathMgmtPacketPack(object):
     """
@@ -631,6 +654,14 @@ class TestPathMgmtPacketPack(object):
         ntools.eq_(pth_mgmt_pkt.pack(), "data1")
         pth_mgmt_pkt.payload.pack.assert_called_once_with()
         set_pld.assert_called_once_with(struct.pack("!B", 3) + b"data2")
+        pack_scion.assert_called_once_with(pth_mgmt_pkt)
+
+    @patch("lib.packet.scion.SCIONPacket.pack")
+    def test_bytes(self, pack_scion):
+        pth_mgmt_pkt = PathMgmtPacket()
+        pth_mgmt_pkt._payload = b"data1"
+        pack_scion.return_value = "data2"
+        ntools.eq_(pth_mgmt_pkt.pack(), "data2")
         pack_scion.assert_called_once_with(pth_mgmt_pkt)
 
 
