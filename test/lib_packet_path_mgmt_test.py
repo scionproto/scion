@@ -215,7 +215,7 @@ class TestLeaseInfoParse(object):
     def test_len(self, parse):
         les_inf = LeaseInfo()
         data = bytes.fromhex('0e 2a0a 0b0c 01020304') + \
-               b"superlengthybigstringoflength3"
+            b"superlengthybigstringoflength3"
         les_inf.parse(data)
         parse.assert_called_once_with(les_inf, data)
         ntools.eq_(les_inf.seg_type, PathSegmentType.DOWN)
@@ -400,7 +400,7 @@ class TestRevocationInfoParse(object):
 
 class TestRevocationInfoPack(object):
     """
-    Unit tests for lib.packet.path_mgmt.RevocationInfo.from_values
+    Unit tests for lib.packet.path_mgmt.RevocationInfo.pack
     """
     def test_basic(self):
         rev_inf = RevocationInfo()
@@ -708,13 +708,13 @@ class TestPathMgmtPacketFromValues(object):
     @patch("lib.packet.packet_base.PacketBase.set_hdr")
     @patch("lib.packet.scion.SCIONHeader.from_values")
     def test_invalid(self, from_values, set_hdr, set_pld):
-        from_values.return_value = "data6"
-        pth_mgmt_pkt = PathMgmtPacket.from_values("data1", "data2", "data3",
-                                                  "data4", "data5")
-        from_values.assert_called_once_with("data4", "data5", "data3")
-        set_hdr.assert_called_once_with("data6")
-        ntools.eq_(pth_mgmt_pkt.type, "data1")
-        set_pld.assert_called_once_with("data2")
+        from_values.return_value = "data"
+        pth_mgmt_pkt = PathMgmtPacket.from_values("type", "payload", "path",
+                                                  "src_addr", "dst_addr")
+        from_values.assert_called_once_with("src_addr", "dst_addr", "path")
+        set_hdr.assert_called_once_with("data")
+        ntools.eq_(pth_mgmt_pkt.type, "type")
+        set_pld.assert_called_once_with("payload")
 
 if __name__ == "__main__":
     nose.run(defaultTest=__name__)
