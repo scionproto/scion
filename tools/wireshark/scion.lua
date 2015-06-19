@@ -53,15 +53,18 @@ function scion_proto.dissector(buffer,pinfo,tree)
 	--debug
 	--srclen=4
 	--dstlen=4
-	
+	ISD_AD_LEN=4 
+
 	srcaddr=buffer(8,srclen)
+	srcaddr_host=buffer(8+ISD_AD_LEN,srclen-ISD_AD_LEN)
 	dstaddr=buffer(8+srclen,dstlen)
+	dstaddr_host=buffer(8+srclen+ISD_AD_LEN,dstlen-ISD_AD_LEN)
 	
 
 	--check packet type
 	ptype=""
 	if srclen > 0 and dstlen > 0 and srclen < hdr_len and dstlen < hdr_len then
-		ptype=get_type(srcaddr:le_uint(),dstaddr:le_uint())
+		ptype=get_type(srcaddr_host:le_uint(),dstaddr_host:le_uint())
 	end
 
 
@@ -123,9 +126,26 @@ end
 function process_data(buffer,pinfo,tree)
 	--check src and destination address
 	local srcdst_field = ProtoField.string("srcdst","Source/Destination address")
-	local srcdst_tree = scion_tree:add(srcdst_field,buffer(8,8),"Source/Destination address")
-	srcdst_tree:add(buffer(8,srclen),"Source adress: " .. srcaddr)
-	srcdst_tree:add(buffer(8+srclen,dstlen),"Destination adress: " .. dstaddr)
+	local srcdst_tree = scion_tree:add(srcdst_field,buffer(8,srclen+dstlen),"Source/Destination address")
+
+	local srcaddr=buffer(8,srclen)
+	local src_isd_id=bit.rshift(buffer(8,4):uint(),20)  --first 20 bits are ISD ID
+	local src_ad_id=bit.band(buffer(8,4):uint(),0x000fffff)
+
+	local srcaddr_host=buffer(8+ISD_AD_LEN,srclen-ISD_AD_LEN):uint()
+	local srcaddr_host_text= buffer(8+ISD_AD_LEN+1,1):uint() .. "." .. buffer(8+ISD_AD_LEN+1,1):uint() .. "." .. buffer(8+ISD_AD_LEN+2,1):uint() .. "." .. buffer(8+ISD_AD_LEN+3,1):uint()
+
+	local dstaddr=buffer(8+srclen,dstlen)
+	local dst_isd_id=bit.rshift(buffer(8+srclen,4):uint(),20) --first 20 bits are ISD ID
+	local dst_ad_id=bit.band(buffer(8+srclen,4):uint(),0x000fffff)
+	local dstaddr_host=buffer(8+srclen+ISD_AD_LEN,dstlen-ISD_AD_LEN):uint()
+	local dstaddr_host_text= buffer(8+srclen+ISD_AD_LEN,1):uint() .. "." .. buffer(8+srclen+ISD_AD_LEN+1,1):uint() .. "." .. buffer(8+srclen+ISD_AD_LEN+2,1):uint() .. "." .. buffer(8+srclen+ISD_AD_LEN+3,1):uint()
+	
+	--srcdst_tree:add(buffer(8,srclen),"Source adress: " .. srcaddr)
+	--srcdst_tree:add(buffer(8+srclen,dstlen),"Destination adress: " .. dstaddr)
+	srcdst_tree:add(buffer(8,srclen),"Source adress: " .. srcaddr .. ", ISD_ID:" .. src_isd_id .. ", AD_ID:" .. src_ad_id .. ", HOST Adress:" .. srcaddr_host_text)
+	srcdst_tree:add(buffer(8+srclen,dstlen),"Destination adress: " .. dstaddr .. ", ISD_ID:" .. dst_isd_id .. ", AD_ID:" .. dst_ad_id .. ", HOST Adress:" .. dstaddr_host_text)
+	--srcdst_tree:add(buffer(8+srclen,dstlen),"Destination adress: " .. dstaddr)
 
 	--analyze opaque field
 	process_of(buffer,pinfo,tree)
@@ -446,8 +466,9 @@ table_ip =DissectorTable.get("ip.proto")
 table_ip:add(40,scion_proto)
 
 --SCION packet on UDP
---assume UDP 33300-33399 are for SCION
+--assume UDP 30040 is for SCION
 table_udp=DissectorTable.get("udp.port")
-for i=33300,33399, 1 do
-	table_udp:add(i,scion_proto)
-end
+table_udp:add(30040,scion_proto)
+--for i=30040,30040, 1 do
+--	table_udp:add(i,scion_proto)
+--end
