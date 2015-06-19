@@ -41,71 +41,20 @@ class Element(object):
         :param name: element name or id
         :type name: str
         """
-        self.addr = addr
-        self.name = name
-
-    @property
-    def addr(self):
-        """
-        Return the address of the element.
-
-        Return the element's address as an instance of an object representing
-        the appropriate type of address. Currently this is :class:`IPv4Address`
-        and :class:`IPv6Address`.
-
-        :returns: the address of the element.
-        :rtype: :class:`IPv4Address` or :class:`IPv6Address`
-        """
-        return self._addr
-
-    @addr.setter
-    def addr(self, value):
-        """
-        Set the address formatted as the appropriate type.
-
-        Set the address of the element according to the format of `value`. If
-        `value` is a string representing an IPv4 address, set the address to be
-        of the type :class:`IPv4Address`, and similarly for other address
-        types. If `value` is an integer less than 2\*\*32, then it is converted
-        to an IPv4 address. Currently only IPv4 and IPv6 addresses are
-        supported.
-
-        :param value: the value of the address in the appropriate format
-        :type value: str
-        """
-        if value is None:
-            self._addr = None
+        if addr is None:
+            self.addr = None
         else:
             try:
-                self._addr = ip_address(value)
+                self.addr = ip_address(addr)
             except ValueError:
                 # TODO (@syclops): When new address types are added here (e.g.
                 # SCION addresses), add the appropriate code to set the address
                 # here.
                 raise
-
-    @property
-    def name(self):
-        """
-        Return the element's name.
-
-        :returns: the name of the element.
-        :rtype: str
-        """
-        return self._name
-
-    @name.setter
-    def name(self, value):
-        """
-        Set the name of the element.
-
-        Set the element's name to the appropriate string. If the name `None` is
-        given, set the name to `None` rather than to the string `'None'`.
-        """
-        if value is None:
-            self._name = None
+        if name is None:
+            self.name = None
         else:
-            self._name = str(value)
+            self.name = str(name)
 
 
 class ServerElement(Element):
