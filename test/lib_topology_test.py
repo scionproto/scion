@@ -16,14 +16,11 @@
 =============================================
 """
 # Stdlib
-#from unittest.mock import patch
 from ipaddress import IPv4Address, IPv6Address
 
 # External packages
 import nose
 import nose.tools as ntools
-#import bitstring
-#from bitstring import BitArray
 
 # SCION
 from lib.topology import (
