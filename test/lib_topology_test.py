@@ -27,6 +27,7 @@ from lib.topology import (
     Element
 )
 
+
 class TestElementInit(object):
     """
     Unit tests for lib.topology.Element construction.
