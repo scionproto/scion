@@ -56,15 +56,15 @@ class TestPathSegmentInfoInit(object):
 
     @patch("lib.packet.path_mgmt.PathSegmentInfo.parse", autospec=True)
     def test_raw(self, parse):
-        PathSegmentInfo("data")
-        parse.assert_called_once_with("data")
+        pth_seg_info = PathSegmentInfo("data")
+        parse.assert_called_once_with(pth_seg_info, "data")
 
 
 class TestPathSegmentInfoParse(object):
     """
     Unit tests for lib.packet.path_mgmt.PathSegmentInfo.parse
     """
-    @patch("lib.packet.packet_base.PayloadBase.parse")
+    @patch("lib.packet.packet_base.PayloadBase.parse", autospec=True)
     def test_basic(self, parse):
         pth_seg_info = PathSegmentInfo()
         data = bytes.fromhex('0e 2a0a 0b0c 0102030405060708 9192939495969798')
@@ -113,25 +113,25 @@ class TestPathSegmentRecordsInit(object):
     """
     Unit tests for lib.packet.path_mgmt.PathSegmentRecords.__init__
     """
-    @patch("lib.packet.packet_base.PayloadBase.__init__")
+    @patch("lib.packet.packet_base.PayloadBase.__init__", autospec=True)
     def test_basic(self, init):
         pth_seg_rec = PathSegmentRecords()
         ntools.assert_is_none(pth_seg_rec.info)
         ntools.assert_is_none(pth_seg_rec.pcbs)
         init.assert_called_once_with(pth_seg_rec)
 
-    @patch("lib.packet.path_mgmt.PathSegmentRecords.parse")
+    @patch("lib.packet.path_mgmt.PathSegmentRecords.parse", autospec=True)
     def test_raw(self, parse):
-        PathSegmentRecords("data")
-        parse.assert_called_once_with("data")
+        pth_seg_rec = PathSegmentRecords("data")
+        parse.assert_called_once_with(pth_seg_rec, "data")
 
 
 class TestPathSegmentRecordsParse(object):
     """
     Unit tests for lib.packet.path_mgmt.PathSegmentRecords.parse
     """
-    @patch("lib.packet.packet_base.PayloadBase.parse")
-    @patch("lib.packet.pcb.PathSegment.deserialize")
+    @patch("lib.packet.packet_base.PayloadBase.parse", autospec=True)
+    @patch("lib.packet.pcb.PathSegment.deserialize", autospec=True)
     @patch("lib.packet.path_mgmt.PathSegmentInfo")
     def test_basic(self, pth_seg_info, deserialize, parse_payload):
         deserialize.return_value = "data1"
