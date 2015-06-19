@@ -207,7 +207,6 @@ class TestCorePathParse(BasePath):
         parse_up.return_value = 1
         parse_core.return_value = 3
         self.core_path.parse(data)
-        parse_up.assert_called_once_with(data)
         parse_core.assert_called_once_with(data, 1)
         ntools.assert_true(self.core_path.parsed)
 
@@ -219,8 +218,6 @@ class TestCorePathParse(BasePath):
         parse_up.return_value = 1
         parse_core.return_value = 2
         self.core_path.parse(data)
-        parse_up.assert_called_once_with(data)
-        parse_core.assert_called_once_with(data, 1)
         parse_down.assert_called_once_with(data, 2)
         ntools.assert_true(self.core_path.parsed)
 
