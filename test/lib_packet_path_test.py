@@ -36,8 +36,9 @@ from lib.packet.opaque_field import (
     InfoOpaqueField,
 )
 
+
 class BasePath(object):
-    def setup(self):
+    def __init__(self):
         self.path = PathBase()
         self.core_path = CorePath()
         self.iof = [InfoOpaqueField.from_values(24, True, 45, 18, 3),
@@ -50,7 +51,7 @@ class BasePath(object):
                     HopOpaqueField.from_values(12, 98, 3, b'\x0A\x0B\x0C'),
                     HopOpaqueField.from_values(90, 235, 55, b'\x0D\x0E\x0F')]
 
-    def teardown(self):
+    def __del__(self):
         del self.path
         del self.core_path
         del self.iof
@@ -160,18 +161,17 @@ class TestPathBaseGetOf(BasePath):
     """
     Unit tests for lib.packet.path.PathBase.get_of
     """
-    def _check(self, idx):
+    def _check(self, idx, val):
         self.path.up_segment_info = self.iof[0]
         self.path.down_segment_info = self.iof[1]
         self.path.down_segment_hops = self.hof[2:5]
         self.path.up_segment_hops = self.hof[:3]
-        ofs = [self.iof[0]] + self.hof[:3] + [self.iof[1]] + self.hof[2:5] + \
-              [None]
-        ntools.eq_(self.path.get_of(idx), ofs[idx])
+        ntools.eq_(self.path.get_of(idx), val)
 
     def test(self):
-        for i in range(9):
-            yield self._check, i
+        for i, v in enumerate([self.iof[0]] + self.hof[:3] + [self.iof[1]] +
+                              self.hof[2:5] + [None]):
+            yield self._check, i, v
 
 
 class TestCorePathInit(BasePath):
@@ -192,22 +192,112 @@ class TestCorePathParse(BasePath):
     """
     Unit tests for lib.packet.path.CorePath.parse
     """
-    def test(self):
-        raw = b'1\x00\x00\x00-\x00\x12\x03\x00x\x00\x80\x05\x01\x02\x03\x00' \
-              b'\x8c\x00P8\x04\x05\x06\x00P\x00\xc0\x16\x07\x08\t\x0c\x00\x00' \
-              b'\x00\x1d\x003\x03\x00P\x00\xc0\x16\x07\x08\t\x00\x8c\x00P8' \
-              b'\x04\x05\x06\x00x\x00\x80\x05\x01\x02\x03\x06\x00\x00\x00' \
-              b'\t\x00A\x05\x00x\x00\x80\x05\x01\x02\x03\x00\x8c\x00P8\x04' \
-              b'\x05\x06\x00P\x00\xc0\x16\x07\x08\t\x00\x0c\x06 \x03\n\x0b' \
-              b'\x0c\x00Z\x0e\xb07\r\x0e\x0f'
-        self.core_path.parse(raw)
-        ntools.eq_(self.core_path.up_segment_info, self.iof[0])
-        ntools.eq_(self.core_path.down_segment_info, self.iof[1])
-        ntools.eq_(self.core_path.core_segment_info, self.iof[2])
-        ntools.eq_(self.core_path.up_segment_hops, self.hof[:3])
-        ntools.eq_(self.core_path.down_segment_hops, self.hof[:])
-        ntools.eq_(self.core_path.core_segment_hops, self.hof[2::-1])
+    @patch("lib.packet.path.CorePath._parse_up_segment")
+    def test_with_up_segment(self, parse_up):
+        data = bytes.fromhex('0a 0b 0c')
+        parse_up.return_value = 3
+        self.core_path.parse(data)
+        parse_up.assert_called_once_with(data)
         ntools.assert_true(self.core_path.parsed)
+
+    @patch("lib.packet.path.CorePath._parse_core_segment")
+    @patch("lib.packet.path.CorePath._parse_up_segment")
+    def test_with_core_segment(self, parse_up, parse_core):
+        data = bytes.fromhex('0a 0b 0c')
+        parse_up.return_value = 1
+        parse_core.return_value = 3
+        self.core_path.parse(data)
+        parse_up.assert_called_once_with(data)
+        parse_core.assert_called_once_with(data, 1)
+        ntools.assert_true(self.core_path.parsed)
+
+    @patch("lib.packet.path.CorePath._parse_down_segment")
+    @patch("lib.packet.path.CorePath._parse_core_segment")
+    @patch("lib.packet.path.CorePath._parse_up_segment")
+    def test_with_down_segment(self, parse_up, parse_core, parse_down):
+        data = bytes.fromhex('0a 0b 0c')
+        parse_up.return_value = 1
+        parse_core.return_value = 2
+        self.core_path.parse(data)
+        parse_up.assert_called_once_with(data)
+        parse_core.assert_called_once_with(data, 1)
+        parse_down.assert_called_once_with(data, 2)
+        ntools.assert_true(self.core_path.parsed)
+
+    def test_wrong_type(self):
+        ntools.assert_raises(AssertionError, self.core_path.parse, 123)
+
+
+class TestCorePathParseUpSegment(BasePath):
+    """
+    Unit tests for lib.packet.path.CorePath._parse_up_segment
+    """
+    @patch("lib.packet.path.HopOpaqueField")
+    @patch("lib.packet.path.InfoOpaqueField")
+    def test(self, info_of, hop_of):
+        mock_iof = MagicMock(spec=['hops'])
+        info_of.return_value = mock_iof
+        info_of.return_value.hops = 1
+        info_of.LEN = InfoOpaqueField.LEN
+        hop_of.return_value = 'data1'
+        hop_of.LEN = HopOpaqueField.LEN
+        data = 'long_data'
+        offset = self.core_path._parse_up_segment(data)
+        info_of.assert_called_once_with(data[:InfoOpaqueField.LEN])
+        hop_of.assert_called_once_with(data[InfoOpaqueField.LEN:
+                                            InfoOpaqueField.LEN +
+                                            HopOpaqueField.LEN])
+        ntools.eq_(self.core_path.up_segment_info, mock_iof)
+        ntools.eq_(self.core_path.up_segment_hops, ['data1'])
+        ntools.eq_(offset, InfoOpaqueField.LEN + HopOpaqueField.LEN)
+
+
+class TestCorePathParseCoreSegment(BasePath):
+    """
+    Unit tests for lib.packet.path.CorePath._parse_core_segment
+    """
+    @patch("lib.packet.path.HopOpaqueField")
+    @patch("lib.packet.path.InfoOpaqueField")
+    def test(self, info_of, hop_of):
+        mock_iof = MagicMock(spec=['hops'])
+        info_of.return_value = mock_iof
+        info_of.return_value.hops = 1
+        info_of.LEN = InfoOpaqueField.LEN
+        hop_of.return_value = 'data1'
+        hop_of.LEN = HopOpaqueField.LEN
+        data = 'long_data'
+        offset = self.core_path._parse_core_segment(data, 0)
+        info_of.assert_called_once_with(data[:InfoOpaqueField.LEN])
+        hop_of.assert_called_once_with(data[InfoOpaqueField.LEN:
+                                            InfoOpaqueField.LEN +
+                                            HopOpaqueField.LEN])
+        ntools.eq_(self.core_path.core_segment_info, mock_iof)
+        ntools.eq_(self.core_path.core_segment_hops, ['data1'])
+        ntools.eq_(offset, InfoOpaqueField.LEN + HopOpaqueField.LEN)
+
+
+class TestCorePathParseDownSegment(BasePath):
+    """
+    Unit tests for lib.packet.path.CorePath._parse_down_segment
+    """
+    @patch("lib.packet.path.HopOpaqueField")
+    @patch("lib.packet.path.InfoOpaqueField")
+    def test(self, info_of, hop_of):
+        mock_iof = MagicMock(spec=['hops'])
+        info_of.return_value = mock_iof
+        info_of.return_value.hops = 1
+        info_of.LEN = InfoOpaqueField.LEN
+        hop_of.return_value = 'data1'
+        hop_of.LEN = HopOpaqueField.LEN
+        data = 'long_data'
+        offset = self.core_path._parse_down_segment(data, 0)
+        info_of.assert_called_once_with(data[:InfoOpaqueField.LEN])
+        hop_of.assert_called_once_with(data[InfoOpaqueField.LEN:
+                                            InfoOpaqueField.LEN +
+                                            HopOpaqueField.LEN])
+        ntools.eq_(self.core_path.down_segment_info, mock_iof)
+        ntools.eq_(self.core_path.down_segment_hops, ['data1'])
+        ntools.eq_(offset, InfoOpaqueField.LEN + HopOpaqueField.LEN)
 
 
 class TestCorePathPack(BasePath):
@@ -258,20 +348,20 @@ class TestCorePathGetOf(BasePath):
     """
     Unit tests for lib.packet.path.CorePath.get_of
     """
-    def _check(self, idx):
+    def _check(self, idx, val):
         self.core_path.up_segment_info = self.iof[0]
         self.core_path.down_segment_info = self.iof[1]
         self.core_path.core_segment_info = self.iof[2]
         self.core_path.up_segment_hops = self.hof[:2]
         self.core_path.down_segment_hops = [self.hof[2], self.hof[4]]
         self.core_path.core_segment_hops = self.hof[1:4]
-        ofs = [self.iof[0]] + self.hof[:2] + [self.iof[2]] + self.hof[1:4] \
-                            + [self.iof[1], self.hof[2], self.hof[4], None]
-        ntools.eq_(self.core_path.get_of(idx), ofs[idx])
+        ntools.eq_(self.core_path.get_of(idx), val)
 
     def test(self):
-        for i in range(11):
-            yield self._check, i
+        for i, v in enumerate([self.iof[0]] + self.hof[:2] + [self.iof[2]] +
+                              self.hof[1:4] + [self.iof[1], self.hof[2],
+                                               self.hof[4], None]):
+            yield self._check, i, v
 
 
 class TestCorePathFromValues(BasePath):
@@ -297,9 +387,9 @@ class TestCrossOverPathInit(object):
     Unit tests for lib.packet.path.CrossOverPath.__init__
     """
     @patch("lib.packet.path.PathBase.__init__")
-    def test_basic(self, __init__):
+    def test_basic(self, init):
         co_path = CrossOverPath()
-        __init__.assert_called_once_with(co_path)
+        init.assert_called_once_with(co_path)
         ntools.eq_(co_path.up_segment_upstream_ad, None)
         ntools.eq_(co_path.down_segment_upstream_ad, None)
 
@@ -364,9 +454,9 @@ class TestPeerPathInit(object):
     Unit tests for lib.packet.path.PeerPath.__init__
     """
     @patch("lib.packet.path.PathBase.__init__")
-    def test_basic(self, __init__):
+    def test_basic(self, init):
         peer_path = PeerPath()
-        __init__.assert_called_once_with(peer_path)
+        init.assert_called_once_with(peer_path)
         ntools.assert_is_none(peer_path.up_segment_peering_link)
         ntools.assert_is_none(peer_path.up_segment_upstream_ad)
         ntools.assert_is_none(peer_path.down_segment_peering_link)
@@ -440,9 +530,9 @@ class TestEmptyPathInit(object):
     Unit tests for lib.packet.path.EmptyPath.__init__
     """
     @patch("lib.packet.path.PathBase.__init__")
-    def test_basic(self, __init__):
+    def test_basic(self, init):
         empty_path = EmptyPath()
-        __init__.assert_called_once_with(empty_path)
+        init.assert_called_once_with(empty_path)
 
     @patch("lib.packet.path.EmptyPath.parse")
     def test_raw(self, parse):
