@@ -83,8 +83,6 @@ class Element(object):
                 # SCION addresses), add the appropriate code to set the address
                 # here.
                 raise
-            except:
-                raise
 
     @property
     def name(self):
