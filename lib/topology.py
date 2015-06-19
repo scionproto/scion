@@ -71,7 +71,7 @@ class ServerElement(Element):
         :param name: server element name or id
         :type name: str
         """
-        super().__init__(self, server_dict['Addr'], name)
+        super().__init__(server_dict['Addr'], name)
 
 
 class InterfaceElement(Element):
@@ -102,7 +102,7 @@ class InterfaceElement(Element):
         :param interface_dict: contains information about the interface.
         :type interface_dict: dict
         """
-        super().__init__(self, interface_dict['Addr'], name)
+        super().__init__(interface_dict['Addr'], name)
         self.to_addr = interface_dict['ToAddr']
         self.if_id = interface_dict['IFID']
         self.neighbor_ad = interface_dict['NeighborAD']
@@ -145,7 +145,7 @@ class RouterElement(Element):
         :param name: router element name or id
         :type name: str
         """
-        super().__init__(self, router_dict['Addr'], name)
+        super().__init__(router_dict['Addr'], name)
         self.interface = InterfaceElement(router_dict['Interface'])
 
 
