@@ -536,8 +536,81 @@ class TestPeerPathParse(object):
     """
     Unit tests for lib.packet.path.PeerPath.parse
     """
-    def test(self):
-        pass
+    @patch("lib.packet.path.PeerPath._parse_down_segment")
+    @patch("lib.packet.path.PeerPath._parse_up_segment")
+    def test_basic(self, parse_up, parse_down):
+        data = bytes.fromhex('0a 0b 0c')
+        parse_up.return_value = 1
+        peer_path = PeerPath()
+        peer_path.parse(data)
+        parse_up.assert_called_once_with(data)
+        parse_down.assert_called_once_with(data, 1)
+        ntools.assert_true(peer_path.parsed)
+
+    def test_wrong_type(self):
+        peer_path = PeerPath()
+        ntools.assert_raises(AssertionError, peer_path.parse, 123)
+
+
+class TestPeerPathParseUpSegment(object):
+    """
+    Unit tests for lib.packet.path.PeerPath._parse_up_segment
+    """
+    @patch("lib.packet.path.HopOpaqueField")
+    @patch("lib.packet.path.InfoOpaqueField")
+    def test(self, info_of, hop_of):
+        mock_iof = MagicMock(spec=['hops'])
+        info_of.return_value = mock_iof
+        info_of.return_value.hops = 1
+        info_of.LEN = InfoOpaqueField.LEN
+        hop_of.return_value = 'data1'
+        hop_of.LEN = HopOpaqueField.LEN
+        data = 'some_oh_very_very_long_data_string'
+        peer_path = PeerPath()
+        offset = peer_path._parse_up_segment(data)
+        info_of.assert_called_once_with(data[:InfoOpaqueField.LEN])
+        calls = [call(data[InfoOpaqueField.LEN:InfoOpaqueField.LEN +
+                           HopOpaqueField.LEN]),
+                 call(data[InfoOpaqueField.LEN + HopOpaqueField.LEN:
+                           InfoOpaqueField.LEN + 2 * HopOpaqueField.LEN]),
+                 call(data[InfoOpaqueField.LEN + 2 * HopOpaqueField.LEN:
+                           InfoOpaqueField.LEN + 3 * HopOpaqueField.LEN])]
+        hop_of.assert_has_calls(calls)
+        ntools.eq_(peer_path.up_segment_info, mock_iof)
+        ntools.eq_(peer_path.up_segment_hops, ['data1'])
+        ntools.eq_(peer_path.up_segment_peering_link, 'data1')
+        ntools.eq_(peer_path.up_segment_upstream_ad, 'data1')
+        ntools.eq_(offset, InfoOpaqueField.LEN + 3 * HopOpaqueField.LEN)
+
+
+class TestPeerPathParseDownSegment(object):
+    """
+    Unit tests for lib.packet.path.PeerPath._parse_down_segment
+    """
+    @patch("lib.packet.path.HopOpaqueField")
+    @patch("lib.packet.path.InfoOpaqueField")
+    def test(self, info_of, hop_of):
+        mock_iof = MagicMock(spec=['hops'])
+        info_of.return_value = mock_iof
+        info_of.return_value.hops = 1
+        info_of.LEN = InfoOpaqueField.LEN
+        hop_of.return_value = 'data1'
+        hop_of.LEN = HopOpaqueField.LEN
+        data = 'some_oh_very_very_long_data_string'
+        peer_path = PeerPath()
+        peer_path._parse_down_segment(data, 0)
+        info_of.assert_called_once_with(data[:InfoOpaqueField.LEN])
+        calls = [call(data[InfoOpaqueField.LEN:InfoOpaqueField.LEN +
+                           HopOpaqueField.LEN]),
+                 call(data[InfoOpaqueField.LEN + HopOpaqueField.LEN:
+                           InfoOpaqueField.LEN + 2 * HopOpaqueField.LEN]),
+                 call(data[InfoOpaqueField.LEN + 2 * HopOpaqueField.LEN:
+                           InfoOpaqueField.LEN + 3 * HopOpaqueField.LEN])]
+        hop_of.assert_has_calls(calls)
+        ntools.eq_(peer_path.down_segment_info, mock_iof)
+        ntools.eq_(peer_path.down_segment_upstream_ad, 'data1')
+        ntools.eq_(peer_path.down_segment_peering_link, 'data1')
+        ntools.eq_(peer_path.down_segment_hops, ['data1'])
 
 
 class TestPeerPathPack(object):
