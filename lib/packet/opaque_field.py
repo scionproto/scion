@@ -35,7 +35,6 @@ class OpaqueFieldType(object):
     INPATH_XOVR = 0b1110000
     INTRATD_PEER = 0b1111000
     INTERTD_PEER = 0b1111100
-    TRC_OF = 0b11111111
 
 
 class OpaqueField(object):
