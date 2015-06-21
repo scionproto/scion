@@ -713,8 +713,53 @@ class TestPeerPathPack(object):
     """
     Unit tests for lib.packet.path.PeerPath.pack
     """
+    @patch("lib.packet.path.PeerPath._pack_down_segment")
+    @patch("lib.packet.path.PeerPath._pack_up_segment")
+    def test(self, pack_up, pack_down):
+        peer_path = PeerPath()
+        pack_up.return_value = b'str1'
+        pack_down.return_value = b'str2'
+        ntools.eq_(peer_path.pack(), b'str1' + b'str2')
+
+
+class TestPeerPathPackUpSegment(object):
+    """
+    Unit tests for lib.packet.path.PeerPath._pack_up_segment
+    """
     def test(self):
-        pass
+        peer_path = PeerPath()
+        peer_path.up_segment_info = MagicMock(spec=['pack'])
+        peer_path.up_segment_info.pack.return_value = b'packed_iof'
+        hof_mock = MagicMock(spec=['pack'])
+        hof_mock.pack.return_value = b'packed_hof'
+        peer_path.up_segment_hops = [hof_mock, hof_mock]
+        peer_path.up_segment_upstream_ad = MagicMock(spec=['pack'])
+        peer_path.up_segment_upstream_ad.pack.return_value = b'packed_ad'
+        peer_path.up_segment_peering_link = MagicMock(spec=['pack'])
+        peer_path.up_segment_peering_link.pack.return_value = b'packed_link'
+        packed = b'packed_iof' + b'packed_hof' + b'packed_hof' + \
+                 b'packed_link' + b'packed_ad'
+        ntools.eq_(peer_path._pack_up_segment(), packed)
+
+
+class TestPeerPathPackDownSegment(object):
+    """
+    Unit tests for lib.packet.path.PeerPath._pack_down_segment
+    """
+    def test(self):
+        peer_path = PeerPath()
+        peer_path.down_segment_info = MagicMock(spec=['pack'])
+        peer_path.down_segment_info.pack.return_value = b'packed_iof'
+        hof_mock = MagicMock(spec=['pack'])
+        hof_mock.pack.return_value = b'packed_hof'
+        peer_path.down_segment_hops = [hof_mock, hof_mock]
+        peer_path.down_segment_upstream_ad = MagicMock(spec=['pack'])
+        peer_path.down_segment_upstream_ad.pack.return_value = b'packed_ad'
+        peer_path.down_segment_peering_link = MagicMock(spec=['pack'])
+        peer_path.down_segment_peering_link.pack.return_value = b'packed_link'
+        packed = b'packed_iof' + b'packed_ad' + b'packed_link' + \
+                 b'packed_hof' + b'packed_hof'
+        ntools.eq_(peer_path._pack_down_segment(), packed)
 
 
 class TestPeerPathReverse(object):
