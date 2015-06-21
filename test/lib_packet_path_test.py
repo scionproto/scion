@@ -301,21 +301,68 @@ class TestCorePathPack(BasePath):
     """
     Unit tests for lib.packet.path.CorePath.pack
     """
-    def test(self):
-        self.core_path.up_segment_info = self.iof[0]
-        self.core_path.down_segment_info = self.iof[1]
-        self.core_path.core_segment_info = self.iof[2]
-        self.core_path.up_segment_hops = self.hof[:3]
-        self.core_path.down_segment_hops = self.hof[:]
-        self.core_path.core_segment_hops = self.hof[2::-1]
-        packed = b'1\x00\x00\x00-\x00\x12\x03\x00x\x00\x80\x05\x01\x02\x03' \
-                 b'\x00\x8c\x00P8\x04\x05\x06\x00P\x00\xc0\x16\x07\x08\t\x0c' \
-                 b'\x00\x00\x00\x1d\x003\x03\x00P\x00\xc0\x16\x07\x08\t\x00' \
-                 b'\x8c\x00P8\x04\x05\x06\x00x\x00\x80\x05\x01\x02\x03\x06' \
-                 b'\x00\x00\x00\t\x00A\x05\x00x\x00\x80\x05\x01\x02\x03\x00' \
-                 b'\x8c\x00P8\x04\x05\x06\x00P\x00\xc0\x16\x07\x08\t\x00\x0c' \
-                 b'\x06 \x03\n\x0b\x0c\x00Z\x0e\xb07\r\x0e\x0f'
-        ntools.eq_(self.core_path.pack(), packed)
+    @patch("lib.packet.path.CorePath._pack_down_segment")
+    @patch("lib.packet.path.CorePath._pack_core_segment")
+    @patch("lib.packet.path.CorePath._pack_up_segment")
+    def test(self, pack_up, pack_core, pack_down):
+        pack_up.return_value = b'str1'
+        pack_core.return_value = b'str2'
+        pack_down.return_value = b'str3'
+        ntools.eq_(self.core_path.pack(), b'str1' + b'str2' + b'str3')
+
+
+class TestCorePathPackUpSegment(BasePath):
+    """
+    Unit tests for lib.packet.path.CorePath._pack_up_segment
+    """
+    def test_with_info(self):
+        self.core_path.up_segment_info = MagicMock(spec=['pack'])
+        self.core_path.up_segment_info.pack.return_value = b'packed_iof'
+        hof_mock = MagicMock(spec=['pack'])
+        hof_mock.pack.return_value = b'packed_hof'
+        self.core_path.up_segment_hops = [hof_mock, hof_mock]
+        packed = b'packed_iof' + b'packed_hof' + b'packed_hof'
+        ntools.eq_(self.core_path._pack_up_segment(), packed)
+
+    def test_without_info(self):
+        self.core_path.up_segment_info = None
+        ntools.eq_(self.core_path._pack_up_segment(), b'')
+
+
+class TestCorePathPackCoreSegment(BasePath):
+    """
+    Unit tests for lib.packet.path.CorePath._pack_core_segment
+    """
+    def test_with_info(self):
+        self.core_path.core_segment_info = MagicMock(spec=['pack'])
+        self.core_path.core_segment_info.pack.return_value = b'packed_iof'
+        hof_mock = MagicMock(spec=['pack'])
+        hof_mock.pack.return_value = b'packed_hof'
+        self.core_path.core_segment_hops = [hof_mock, hof_mock]
+        packed = b'packed_iof' + b'packed_hof' + b'packed_hof'
+        ntools.eq_(self.core_path._pack_core_segment(), packed)
+
+    def test_without_info(self):
+        self.core_path.core_segment_info = None
+        ntools.eq_(self.core_path._pack_core_segment(), b'')
+
+
+class TestCorePathPackDownSegment(BasePath):
+    """
+    Unit tests for lib.packet.path.CorePath._pack_down_segment
+    """
+    def test_with_info(self):
+        self.core_path.down_segment_info = MagicMock(spec=['pack'])
+        self.core_path.down_segment_info.pack.return_value = b'packed_iof'
+        hof_mock = MagicMock(spec=['pack'])
+        hof_mock.pack.return_value = b'packed_hof'
+        self.core_path.down_segment_hops = [hof_mock, hof_mock]
+        packed = b'packed_iof' + b'packed_hof' + b'packed_hof'
+        ntools.eq_(self.core_path._pack_down_segment(), packed)
+
+    def test_without_info(self):
+        self.core_path.down_segment_info = None
+        ntools.eq_(self.core_path._pack_down_segment(), b'')
 
 
 class TestCorePathReverse(BasePath):
