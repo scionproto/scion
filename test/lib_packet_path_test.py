@@ -527,12 +527,52 @@ class TestCrossOverPathParseDownSegment(object):
         ntools.eq_(co_path.down_segment_hops, ['data1'])
 
 
-class TestCrossOverPathPack(BasePath):
+class TestCrossOverPathPack(object):
     """
     Unit tests for lib.packet.path.CrossOverPath.pack
     """
+    @patch("lib.packet.path.CrossOverPath._pack_down_segment")
+    @patch("lib.packet.path.CrossOverPath._pack_up_segment")
+    def test(self, pack_up, pack_down):
+        co_path = CrossOverPath()
+        pack_up.return_value = b'str1'
+        pack_down.return_value = b'str2'
+        ntools.eq_(co_path.pack(), b'str1' + b'str2')
+
+
+class TestCrossOverPathPackUpSegment(object):
+    """
+    Unit tests for lib.packet.path.CrossOverPath._pack_up_segment
+    """
     def test(self):
-        pass
+        co_path = CrossOverPath()
+        co_path.up_segment_info = MagicMock(spec=['pack'])
+        co_path.up_segment_info.pack.return_value = b'packed_iof'
+        hof_mock = MagicMock(spec=['pack'])
+        hof_mock.pack.return_value = b'packed_hof'
+        co_path.up_segment_hops = [hof_mock, hof_mock]
+        co_path.up_segment_upstream_ad = MagicMock(spec=['pack'])
+        co_path.up_segment_upstream_ad.pack.return_value = b'packed_ad'
+        packed = b'packed_iof' + b'packed_hof' + b'packed_hof' + b'packed_ad'
+        ntools.eq_(co_path._pack_up_segment(), packed)
+
+
+class TestCrossOverPathPackDownSegment(object):
+    """
+    Unit tests for lib.packet.path.CrossOverPath._pack_down_segment
+    """
+    def test(self):
+        co_path = CrossOverPath()
+        co_path.down_segment_info = MagicMock(spec=['pack'])
+        co_path.down_segment_info.pack.return_value = b'packed_iof'
+        hof_mock = MagicMock(spec=['pack'])
+        hof_mock.pack.return_value = b'packed_hof'
+        co_path.down_segment_hops = [hof_mock, hof_mock]
+        co_path.down_segment_upstream_ad = MagicMock(spec=['pack'])
+        co_path.down_segment_upstream_ad.pack.return_value = b'packed_ad'
+        packed = b'packed_iof' + b'packed_ad' + b'packed_hof' + b'packed_hof'
+        ntools.eq_(co_path._pack_down_segment(), packed)
+
 
 class TestCrossOverPathReverse(object):
     """
