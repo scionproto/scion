@@ -296,7 +296,7 @@ class TestPathSegmentLeasesParse(object):
            new_callable=MagicMock)
     def test_basic(self, parse, les_inf):
         pth_seg_les = PathSegmentLeases()
-        data = struct.pack("!B", 0x04) +b"abcd"
+        data = struct.pack("!B", 0x04) + b"abcd"
         les_inf.LEN = 1
         les_inf.side_effect = ["data0", "data1", "data2", "data3"]
         pth_seg_les.parse(data)
