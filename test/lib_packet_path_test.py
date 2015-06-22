@@ -15,7 +15,7 @@
 :mod:`lib_packet_path_test` --- lib.packet.path unit tests
 ==========================================================
 """
-#Stdlib
+# Stdlib
 import copy
 from unittest.mock import patch, MagicMock, call
 
@@ -41,10 +41,15 @@ class BasePath(object):
     def __init__(self):
         self.path = PathBase()
         self.core_path = CorePath()
+
+        # Initialize InfoOpaqueFields as:
+        # InfoOpaqueField.from_values(info, up_flag, timestamp, isd_id, hops)
         self.iof = [InfoOpaqueField.from_values(24, True, 45, 18, 3),
                     InfoOpaqueField.from_values(3, False, 9, 65, 5),
                     InfoOpaqueField.from_values(6, False, 29, 51, 3)]
 
+        # Initialize HopOpaqueFields as:
+        # HopOpaqueField.from_values(exp_time, ingress_if, egress_if, mac)
         self.hof = [HopOpaqueField.from_values(120, 8, 5, b'\x01\x02\x03'),
                     HopOpaqueField.from_values(140, 5, 56, b'\x04\x05\x06'),
                     HopOpaqueField.from_values(80, 12, 22, b'\x07\x08\x09'),
@@ -448,7 +453,7 @@ class TestCrossOverPathInit(object):
 
     @patch("lib.packet.path.CrossOverPath.parse")
     def test_raw(self, parse):
-        co_path = CrossOverPath("data")
+        CrossOverPath("data")
         parse.assert_called_once_with("data")
 
 
@@ -601,8 +606,7 @@ class TestCrossOverPathGetOf(BasePath):
         co_path.down_segment_info = 5
         co_path.down_segment_upstream_ad = 6
         co_path.down_segment_hops = [7, 8, 9]
-        ofs = list(range(10))
-        ntools.eq_(co_path.get_of(idx), ofs[idx])
+        ntools.eq_(co_path.get_of(idx), idx)
 
     def test(self):
         for i in range(10):
@@ -624,7 +628,7 @@ class TestPeerPathInit(object):
 
     @patch("lib.packet.path.PeerPath.parse")
     def test_raw(self, parse):
-        peer_path = PeerPath('rawstring')
+        PeerPath('rawstring')
         parse.assert_called_once_with('rawstring')
 
 
@@ -795,8 +799,7 @@ class TestPeerPathGetOf(BasePath):
         peer_path.down_segment_upstream_ad = 7
         peer_path.down_segment_peering_link = 8
         peer_path.down_segment_hops = [9, 10, 11]
-        ofs = list(range(12))
-        ntools.eq_(peer_path.get_of(idx), ofs[idx])
+        ntools.eq_(peer_path.get_of(idx), idx)
 
     def test(self):
         for i in range(12):
@@ -814,7 +817,7 @@ class TestEmptyPathInit(object):
 
     @patch("lib.packet.path.EmptyPath.parse")
     def test_raw(self, parse):
-        empty_path = EmptyPath('rawstring')
+        EmptyPath('rawstring')
         parse.assert_called_once_with('rawstring')
 
 
