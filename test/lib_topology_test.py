@@ -39,9 +39,9 @@ class TestElementInit(object):
         ntools.assert_is_none(elem.name)
 
     @patch('lib.topology.ip_address')
-    def test_ip_addr(self, ip_address):
+    def test_ip_addr(self, ip_addr):
         elem = Element('192.168.0.1')
-        ip_address.assert_called_with('192.168.0.1')
+        ip_addr.assert_called_with('192.168.0.1')
 
     def test_name_basic(self):
         elem = Element(name='localhost')
