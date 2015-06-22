@@ -34,6 +34,8 @@ ad_patterns = patterns(
         views.refresh_versions, name='refresh_versions'),
     url(r'^ads/(?P<pk>\d+)/control/(?P<proc_id>[\w-]+)/$',
         views.control_process, name='control_process'),
+    url(r'^ads/(?P<pk>\d+)/log/(?P<proc_id>[\w-]+)/$',
+        views.read_log, name='read_log'),
     url(r'^ads/(?P<pk>\d+)/new_link/$',
         views.NewLinkView.as_view(), name='new_link'),
     url(r'^ads/(?P<pk>\d+)/group_master/$',

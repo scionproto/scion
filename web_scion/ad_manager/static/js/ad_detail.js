@@ -156,6 +156,29 @@ function statusControl() {
     });
 }
 
+function displayLogs() {
+
+    function refreshLog(logUrl) {
+        var $logOutput = $('#log-output');
+        showLoadingIndicator($logOutput);
+        $.ajax({
+            url: logUrl,
+            dataType: "json"
+        }).done(function(result) {
+            $logOutput.text(result['data']);
+        }).fail(function(a1, a2, a3) {
+            $logOutput.text('Something went wrong.')
+        });
+    }
+
+    $('.status-text').click(function() {
+        var logUrl = $(this).data('log-url');
+        refreshLog(logUrl);
+        $('#logModal').modal();
+
+    });
+}
+
 $(document).ready(function() {
     // "Are you sure?" confirmation boxes
     $('.click-confirm').click(function(e) {
@@ -196,4 +219,7 @@ $(document).ready(function() {
 
     // Status control forms
     statusControl();
+
+    // Display log files
+    displayLogs();
 });

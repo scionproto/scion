@@ -81,7 +81,7 @@ class MonitoringDaemon(object):
         to_register = [self.get_topology,
                        self.control_process, self.get_ad_info,
                        self.send_update, self.update_topology,
-                       self.get_master_id]
+                       self.get_master_id, self.tail_process_log]
         for func in to_register:
             self.rpc_server.register_function(func)
         logging.info("Monitoring daemon started")
@@ -258,6 +258,23 @@ class MonitoringDaemon(object):
         else:
             return response_failure('Invalid command')
         return response_success(res)
+
+    def tail_process_log(self, process_name, offset, length):
+        """
+        Read the last part of a log file.
+
+        :param process_name:
+        :type process_name: str
+        :param offset:
+        :type offset: int
+        :param length:
+        :type length: int
+        :return:
+        """
+        server = get_supervisor_server()
+        data = server.supervisor.tailProcessStdoutLog(process_name,
+                                                      offset, length)
+        return response_success(data)
 
     def run_updater(self, archive, path):
         """

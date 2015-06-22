@@ -72,3 +72,9 @@ def control_process(s, isd_id, ad_id, process_id, command):
 @run_remote
 def get_master_id(s, isd_id, ad_id, server_type):
     return s.get_master_id(str(isd_id), str(ad_id), server_type)
+
+
+@run_remote
+def read_log(s, process_name):
+    to_read = 4000
+    return s.tail_process_log(process_name, 0, to_read)

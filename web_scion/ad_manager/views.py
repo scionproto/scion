@@ -308,7 +308,8 @@ def control_process(request, pk, proc_id):
     _check_user_permissions(request, ad)
 
     ad_elements = ad.get_all_element_ids()
-    assert proc_id in ad_elements
+    if proc_id not in ad_elements:
+        return HttpResponseNotFound('Element not found')
 
     if '_start_process' in request.POST:
         command = 'START'
@@ -322,6 +323,27 @@ def control_process(request, pk, proc_id):
                                                  proc_id, command)
     if is_success(response):
         return JsonResponse({'status': True})
+    else:
+        return HttpResponseUnavailable(get_failure_errors(response))
+
+
+def read_log(request, pk, proc_id):
+    # FIXME(rev112): minor duplication, see control_process()
+    ad = get_object_or_404(AD, id=pk)
+    _check_user_permissions(request, ad)
+
+    ad_elements = ad.get_all_element_ids()
+    if proc_id not in ad_elements:
+        return HttpResponseNotFound('Element not found')
+    proc_id = ad.get_full_process_name(proc_id)
+
+    md_host = ad.get_monitoring_daemon_host()
+    response = monitoring_client.read_log(md_host, proc_id)
+    if is_success(response):
+        log_data = get_success_data(response)[0]
+        if '\n' in log_data:
+            log_data = log_data[log_data.index('\n') + 1:]
+        return JsonResponse({'data': log_data})
     else:
         return HttpResponseUnavailable(get_failure_errors(response))
 

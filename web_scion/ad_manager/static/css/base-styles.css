@@ -52,6 +52,10 @@ div.status-block > div {
     padding-right: 0;
 }
 
+div.status-text:hover {
+    color: dodgerblue;
+}
+
 /* Connection request form */
 a.download-package {
     font-size: 24px;

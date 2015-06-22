@@ -205,6 +205,12 @@ class AD(models.Model):
     def get_absolute_url(self):
         return reverse('ad_detail', args=[self.id])
 
+    def get_full_process_name(self, id_str):
+        if ':' in id_str:
+            return id_str
+        else:
+            return "ad{}-{}:{}".format(self.isd.id, self.id, id_str)
+
     def __str__(self):
         return '{}-{}'.format(self.isd.id, self.id)
 
