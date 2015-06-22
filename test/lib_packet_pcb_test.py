@@ -16,7 +16,7 @@
 ========================================================
 """
 # Stdlib
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, Mock
 
 # External packages
 import nose
@@ -24,13 +24,17 @@ import nose.tools as ntools
 
 # SCION
 from lib.packet.opaque_field import HopOpaqueField
+from lib.packet.packet_base import HeaderBase
 from lib.packet.pcb import (
     ADMarking,
     Marking,
-    PCBMarking,
+    PathConstructionBeacon,
     PathSegment,
+    PCBMarking,
     REV_TOKEN_LEN)
+from lib.packet.scion import PacketType
 from lib.packet.scion_addr import ISD_AD
+from lib.defines import EXP_TIME_UNIT
 
 
 class TestMarkingInit(object):
@@ -345,8 +349,22 @@ class TestPathSegmentAddAd(object):
     """
     Unit test for lib.packet.pcb.PathSegment.add_ad
     """
-    def test(self):
-        pass
+    def test_higher_exp_time(self):
+        path_segment = PathSegment()
+        ad_marking = MagicMock(spec_set=['pcbm'])
+        ad_marking.pcbm.hof.exp_time = path_segment.min_exp_time + 1
+        path_segment.iof = MagicMock(spec_set=['hops'])
+        path_segment.add_ad(ad_marking)
+        ntools.assert_in(ad_marking, path_segment.ads)
+        ntools.eq_(path_segment.iof.hops, len(path_segment.ads))
+
+    def test_lower_exp_time(self):
+        path_segment = PathSegment()
+        ad_marking = MagicMock(spec_set=['pcbm'])
+        ad_marking.pcbm.hof.exp_time = path_segment.min_exp_time - 1
+        path_segment.iof = MagicMock(spec_set=['hops'])
+        path_segment.add_ad(ad_marking)
+        ntools.eq_(path_segment.min_exp_time, ad_marking.pcbm.hof.exp_time)
 
 
 class TestPathSegmentRemoveSignatures(object):
@@ -354,7 +372,13 @@ class TestPathSegmentRemoveSignatures(object):
     Unit test for lib.packet.pcb.PathSegment.remove_signatures
     """
     def test(self):
-        pass
+        path_segment = PathSegment()
+        path_segment.ads = [Mock(spec=['remove_signature']) for i in
+                            range(3)]
+
+        path_segment.remove_signatures()
+        for ad in path_segment.ads:
+            ad.remove_signature.assert_called_once_with()
 
 
 class TestPathSegmentRemoveAsds(object):
@@ -362,7 +386,12 @@ class TestPathSegmentRemoveAsds(object):
     Unit test for lib.packet.pcb.PathSegment.remove_asds
     """
     def test(self):
-        pass
+        path_segment = PathSegment()
+        path_segment.ads = [Mock(spec=['remove_asd']) for i in
+                            range(3)]
+        path_segment.remove_asds()
+        for ad in path_segment.ads:
+            ad.remove_asd.assert_called_once_with()
 
 
 class TestPathSegmentGetPath(object):
@@ -378,39 +407,76 @@ class TestPathSegmentGetIsd(object):
     Unit test for lib.packet.pcb.PathSegment.get_isd
     """
     def test(self):
-        pass
+        path_segment = PathSegment()
+        path_segment.iof = Mock(spec=['isd_id'])
+        ntools.eq_(path_segment.iof.isd_id, path_segment.get_isd())
 
 
 class TestPathSegmentGetLastAdm(object):
     """
     Unit test for lib.packet.pcb.PathSegment.get_last_adm
     """
-    def test(self):
-        pass
+    def test_basic(self):
+        path_segment = PathSegment()
+        path_segment.ads = [Mock() for i in range(3)]
+        ntools.eq_(path_segment.get_last_adm(), path_segment.ads[-1])
+
+    def test_empty(self):
+        path_segment = PathSegment()
+        ntools.assert_is_none(path_segment.get_last_adm())
 
 
 class TestPathSegmentGetLastPcbm(object):
     """
     Unit test for lib.packet.pcb.PathSegment.get_last_pcbm
     """
-    def test(self):
-        pass
+    def test_basic(self):
+        path_segment = PathSegment()
+        path_segment.ads = [Mock(spec=['pcbm']) for i in range(3)]
+        ntools.eq_(path_segment.get_last_pcbm(), path_segment.ads[-1].pcbm)
+
+    def test_empty(self):
+        path_segment = PathSegment()
+        ntools.assert_is_none(path_segment.get_last_pcbm())
 
 
 class TestPathSegmentGetFirstPcbm(object):
     """
     Unit test for lib.packet.pcb.PathSegment.get_first_pcbm
     """
-    def test(self):
-        pass
+    def test_basic(self):
+        path_segment = PathSegment()
+        path_segment.ads = [Mock(spec=['pcbm']) for i in range(3)]
+        ntools.eq_(path_segment.get_first_pcbm(), path_segment.ads[0].pcbm)
+
+    def test_empty(self):
+        path_segment = PathSegment()
+        ntools.assert_is_none(path_segment.get_first_pcbm())
 
 
 class TestPathSegmentCompareHops(object):
     """
     Unit test for lib.packet.pcb.PathSegment.compare_hops
     """
-    def test(self):
-        pass
+    def test_equal(self):
+        path_segment = PathSegment()
+        ads = [Mock(spec=['pcbm']) for i in range(3)]
+        path_segment.ads = ads
+        other = PathSegment()
+        other.ads = ads
+        ntools.assert_true(path_segment.compare_hops(other))
+
+    def test_unequal(self):
+        path_segment = PathSegment()
+        ads = [Mock(spec=['pcbm']) for i in range(3)]
+        path_segment.ads = ads
+        other = PathSegment()
+        other.ads = ads[:2]
+        ntools.assert_false(path_segment.compare_hops(other))
+
+    def test_wrong_type(self):
+        path_segment = PathSegment()
+        ntools.assert_false(path_segment.compare_hops(123))
 
 
 class TestPathSegmentGetHopsHash(object):
@@ -426,7 +492,13 @@ class TestPathSegmentGetNPeerLinks(object):
     Unit test for lib.packet.pcb.PathSegment.get_n_peer_links
     """
     def test(self):
-        pass
+        ads = [MagicMock(spec=['pms']) for i in range(3)]
+        ads[0].pms.__len__.return_value = 10
+        ads[1].pms.__len__.return_value = 20
+        ads[2].pms.__len__.return_value = 30
+        path_segment = PathSegment()
+        path_segment.ads = ads
+        ntools.eq_(path_segment.get_n_peer_links(), 60)
 
 
 class TestPathSegmentGetNHops(object):
@@ -434,7 +506,11 @@ class TestPathSegmentGetNHops(object):
     Unit test for lib.packet.pcb.PathSegment.get_n_hops
     """
     def test(self):
-        pass
+        ads = MagicMock()
+        ads.__len__.return_value = 123
+        path_segment = PathSegment()
+        path_segment.ads = ads
+        ntools.eq_(path_segment.get_n_hops(), 123)
 
 
 class TestPathSegmentGetTimestamp(object):
@@ -442,15 +518,26 @@ class TestPathSegmentGetTimestamp(object):
     Unit test for lib.packet.pcb.PathSegment.get_timestamp
     """
     def test(self):
-        pass
+        iof = Mock(spec=['timestamp'])
+        path_segment = PathSegment()
+        path_segment.iof = iof
+        ntools.eq_(path_segment.get_timestamp(), iof.timestamp)
 
 
 class TestPathSegmentSetTimestamp(object):
     """
     Unit test for lib.packet.pcb.PathSegment.set_timestamp
     """
-    def test(self):
-        pass
+    def test_failure(self):
+        path_segment = PathSegment()
+        ntools.assert_raises(AssertionError, path_segment.set_timestamp,
+                             2 ** 32)
+
+    def test_success(self):
+        path_segment = PathSegment()
+        path_segment.iof = Mock(spec=['timestamp'])
+        path_segment.set_timestamp(123)
+        ntools.eq_(path_segment.iof.timestamp, 123)
 
 
 class TestPathSegmentGetExpirationTime(object):
@@ -458,7 +545,12 @@ class TestPathSegmentGetExpirationTime(object):
     Unit test for lib.packet.pcb.PathSegment.get_expiration_time
     """
     def test(self):
-        pass
+        path_segment = PathSegment()
+        path_segment.iof = Mock(spec=['timestamp'])
+        path_segment.iof.timestamp = 123
+        path_segment.min_exp_time = 456
+        ntools.eq_(path_segment.get_expiration_time(),
+                   123 + int(456 * EXP_TIME_UNIT))
 
 
 class TestPathSegmentGetAllIftokens(object):
@@ -489,40 +581,91 @@ class TestPathSegmentEq(object):
     """
     Unit test for lib.packet.pcb.PathSegment.__eq__
     """
-    def test(self):
-        pass
+    def test_equal(self):
+        path_seg1 = PathSegment()
+        path_seg2 = PathSegment()
+        (path_seg1.iof, path_seg1.trc_ver, path_seg1.ads) = (1, 2, 3)
+        (path_seg2.iof, path_seg2.trc_ver, path_seg2.ads) = (1, 2, 3)
+        ntools.eq_(path_seg1, path_seg2)
+
+    def test_unequal(self):
+        path_seg1 = PathSegment()
+        path_seg2 = PathSegment()
+        (path_seg1.iof, path_seg1.trc_ver, path_seg1.ads) = (1, 2, 3)
+        (path_seg2.iof, path_seg2.trc_ver, path_seg2.ads) = (1, 2, 4)
+        ntools.assert_not_equals(path_seg1, path_seg2)
+
+    def test_unequal_type(self):
+        path_seg1 = PathSegment()
+        path_seg2 = 123
+        ntools.assert_not_equals(path_seg1, path_seg2)
 
 
 class TestPathConstructionBeaconInit(object):
     """
     Unit test for lib.packet.pcb.PathConstructionBeacon.__init__
     """
-    def test(self):
-        pass
+    @patch("lib.packet.pcb.SCIONPacket.__init__")
+    def test(self, init):
+        pcb = PathConstructionBeacon()
+        init.assert_called_once_with(pcb)
+        ntools.assert_is_none(pcb.pcb)
+
+    @patch("lib.packet.pcb.PathConstructionBeacon.parse")
+    def test_with_args(self, parse):
+        PathConstructionBeacon('data')
+        parse.assert_called_once_with('data')
 
 
 class TestPathConstructionBeaconParse(object):
     """
     Unit test for lib.packet.pcb.PathConstructionBeacon.parse
     """
-    def test(self):
-        pass
+    @patch("lib.packet.pcb.PathSegment")
+    @patch("lib.packet.pcb.SCIONPacket.parse")
+    def test(self, parse, path_segment):
+        pcb = PathConstructionBeacon()
+        pcb._payload = Mock()
+        path_segment.return_value = 'path_seg'
+        pcb.parse('data')
+        parse.assert_called_once_with(pcb, 'data')
+        path_segment.assert_called_once_with(pcb.payload)
+        ntools.eq_(pcb.pcb, 'path_seg')
 
 
 class TestPathConstructionBeaconFromValues(object):
     """
     Unit test for lib.packet.pcb.PathConstructionBeacon.from_values
     """
-    def test(self):
-        pass
+    @patch("lib.packet.pcb.SCIONHeader.from_values")
+    @patch("lib.packet.pcb.SCIONAddr.from_values")
+    def test(self, scion_addr, scion_header):
+        src_isd_ad = Mock(spec=['isd', 'ad'])
+        dst, pcb = Mock(), Mock()
+        scion_addr.return_value = 'src'
+        scion_header.return_value = Mock(spec=HeaderBase)
+        beacon = PathConstructionBeacon.from_values(src_isd_ad, dst, pcb)
+        scion_addr.assert_called_once_with(src_isd_ad.isd, src_isd_ad.ad,
+                                           PacketType.BEACON)
+        scion_header.assert_called_once_with('src', dst)
+        ntools.eq_(beacon.pcb, pcb)
+        ntools.eq_(beacon.hdr, scion_header.return_value)
 
 
 class TestPathConstructionBeaconPack(object):
     """
     Unit test for lib.packet.pcb.PathConstructionBeacon.pack
     """
-    def test(self):
-        pass
+    @patch("lib.packet.pcb.SCIONPacket.set_payload")
+    @patch("lib.packet.pcb.SCIONPacket.pack")
+    def test(self, pack, set_payload):
+        pcb = PathConstructionBeacon()
+        pcb.pcb = Mock(spec=['pack'])
+        pcb.pcb.pack.return_value = b'payload'
+        pack.return_value = b'packed'
+        ntools.eq_(pcb.pack(), b'packed')
+        pack.assert_called_once_with(pcb)
+        set_payload.assert_called_once_with(b'payload')
 
 
 if __name__ == "__main__":
