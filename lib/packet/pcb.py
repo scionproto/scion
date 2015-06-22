@@ -218,9 +218,9 @@ class ADMarking(Marking):
         :param asd: Additional Signed Data appended to the beacon.
         """
         ad_marking = ADMarking()
-        ad_marking.block_len = (1 + len(pms)) * PCBMarking.LEN
         ad_marking.pcbm = pcbm
         ad_marking.pms = (pms if pms is not None else [])
+        ad_marking.block_len = (1 + len(ad_marking.pms)) * PCBMarking.LEN
         ad_marking.sig = sig
         ad_marking.sig_len = len(sig)
         ad_marking.asd = asd
