@@ -16,7 +16,6 @@
 =================================================
 """
 # Stdlib
-from ipaddress import ip_address
 from unittest.mock import patch
 
 # External packages
