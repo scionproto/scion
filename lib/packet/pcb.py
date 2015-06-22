@@ -25,11 +25,14 @@ import struct
 from Crypto.Hash import SHA256
 
 # SCION
-from lib.defines import EXP_TIME_UNIT, HASH_LEN
+from lib.defines import EXP_TIME_UNIT
 from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
 from lib.packet.path import CorePath
 from lib.packet.scion import PacketType, SCIONHeader, SCIONPacket
 from lib.packet.scion_addr import SCIONAddr, ISD_AD
+
+#: Default value for lenght (in bytes) of a revocation token.
+REV_TOKEN_LEN = 32
 
 
 class Marking(object):
@@ -75,7 +78,7 @@ class PCBMarking(Marking):
     interfaces included in the HOF. (Revocation token for egress interface is
     included within ADMarking.)
     """
-    LEN = 12 + HASH_LEN
+    LEN = 12 + REV_TOKEN_LEN
 
     def __init__(self, raw=None):
         """
@@ -88,7 +91,7 @@ class PCBMarking(Marking):
         self.isd_id = 0
         self.ad_id = 0
         self.hof = None
-        self.ig_rev_token = HASH_LEN * b"\x00"
+        self.ig_rev_token = REV_TOKEN_LEN * b"\x00"
         if raw is not None:
             self.parse(raw)
 
@@ -106,11 +109,12 @@ class PCBMarking(Marking):
         offset = ISD_AD.LEN
         self.hof = HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN])
         offset += HopOpaqueField.LEN
-        self.ig_rev_token = raw[offset:offset + HASH_LEN]
+        self.ig_rev_token = raw[offset:offset + REV_TOKEN_LEN]
         self.parsed = True
 
     @classmethod
-    def from_values(cls, isd_id, ad_id, hof, ig_rev_token=HASH_LEN * b"\x00"):
+    def from_values(cls, isd_id, ad_id, hof,
+                    ig_rev_token=REV_TOKEN_LEN * b"\x00"):
         """
         Returns PCBMarking with fields populated from values.
 
@@ -152,8 +156,8 @@ class ADMarking(Marking):
     """
     Packs all fields for a specific Autonomous Domain.
     """
-    FIRST_ROW_LEN = 8  # Length of a first row (containg cert version, and
-                       # lenghts of signature, ASD, and block) of ADMarking
+    METADATA_LEN = 8  # Length of a first row (containg cert version, and
+                      # lenghts of signature, ASD, and block) of ADMarking
 
     def __init__(self, raw=None):
         """
@@ -167,7 +171,7 @@ class ADMarking(Marking):
         self.pms = []
         self.sig = b''
         self.asd = b''
-        self.eg_rev_token = HASH_LEN * b"\x00"
+        self.eg_rev_token = REV_TOKEN_LEN * b"\x00"
         self.cert_ver = 0
         self.sig_len = 0
         self.asd_len = 0
@@ -182,27 +186,27 @@ class ADMarking(Marking):
         assert isinstance(raw, bytes)
         self.raw = raw[:]
         dlen = len(raw)
-        if dlen < PCBMarking.LEN + self.FIRST_ROW_LEN + HASH_LEN:
+        if dlen < PCBMarking.LEN + self.METADATA_LEN + REV_TOKEN_LEN:
             logging.warning("AD: Data too short for parsing, len: %u", dlen)
             return
         (self.cert_ver, self.sig_len, self.asd_len, self.block_len) = \
-            struct.unpack("!HHHH", raw[:self.FIRST_ROW_LEN])
-        raw = raw[self.FIRST_ROW_LEN:]
+            struct.unpack("!HHHH", raw[:self.METADATA_LEN])
+        raw = raw[self.METADATA_LEN:]
         self.pcbm = PCBMarking(raw[:PCBMarking.LEN])
         raw = raw[PCBMarking.LEN:]
-        while len(raw) > self.sig_len + self.asd_len + HASH_LEN:
+        while len(raw) > self.sig_len + self.asd_len + REV_TOKEN_LEN:
             peer_marking = PCBMarking(raw[:PCBMarking.LEN])
             self.pms.append(peer_marking)
             raw = raw[PCBMarking.LEN:]
         self.asd = raw[:self.asd_len]
         raw = raw[self.asd_len:]
-        self.eg_rev_token = raw[:HASH_LEN]
-        self.sig = raw[HASH_LEN:]
+        self.eg_rev_token = raw[:REV_TOKEN_LEN]
+        self.sig = raw[REV_TOKEN_LEN:]
         self.parsed = True
 
     @classmethod
-    def from_values(cls, pcbm=None, pms=None, eg_rev_token=HASH_LEN * b"\x00",
-                    sig=b'', asd=b''):
+    def from_values(cls, pcbm=None, pms=None,
+                    eg_rev_token=REV_TOKEN_LEN * b"\x00", sig=b'', asd=b''):
         """
         Returns ADMarking with fields populated from values.
 
@@ -248,7 +252,7 @@ class ADMarking(Marking):
     def remove_asd(self):
         """
         Removes the Additional Signed Data (ASD) from the AD block.
-        Note that after ASD is remove, a corresponding signature is invalid.
+        Note that after ASD is removed, a corresponding signature is invalid.
         """
         self.asd = b''
         self.asd_len = 0
@@ -281,7 +285,7 @@ class PathSegment(Marking):
     """
     Packs all PathSegment fields for a specific beacon.
     """
-    MIN_LEN = 14 + HASH_LEN
+    MIN_LEN = 14 + REV_TOKEN_LEN
 
     def __init__(self, raw=None):
         """
@@ -294,7 +298,7 @@ class PathSegment(Marking):
         self.iof = None
         self.trc_ver = 0
         self.if_id = 0
-        self.segment_id = HASH_LEN * b"\x00"
+        self.segment_id = REV_TOKEN_LEN * b"\x00"
         self.ads = []
         self.min_exp_time = 2 ** 8 - 1
         if raw is not None:
@@ -318,14 +322,14 @@ class PathSegment(Marking):
         offset = InfoOpaqueField.LEN
         self.trc_ver, self.if_id = struct.unpack("!IH", raw[offset:offset + 6])
         offset += 6  # 4B for trc_ver and 2B for if_id.
-        self.segment_id = raw[offset:offset + HASH_LEN]
-        offset += HASH_LEN
+        self.segment_id = raw[offset:offset + REV_TOKEN_LEN]
+        offset += REV_TOKEN_LEN
         raw = raw[offset:]
         for _ in range(self.iof.hops):
             (_, asd_len, sig_len, block_len) = struct.unpack("!HHHH",
-                raw[:ADMarking.FIRST_ROW_LEN])
+                raw[:ADMarking.METADATA_LEN])
             ad_len = (sig_len + asd_len + block_len +
-                      ADMarking.FIRST_ROW_LEN + HASH_LEN)
+                      ADMarking.METADATA_LEN + REV_TOKEN_LEN)
             ad_marking = ADMarking(raw[:ad_len])
             self.add_ad(ad_marking)
             raw = raw[ad_len:]
@@ -361,7 +365,7 @@ class PathSegment(Marking):
     def remove_asds(self):
         """
         Removes the Additional Signed Data (ASD) from each AD block.
-        Note that after ASD is remove, a corresponding signature is invalid.
+        Note that after ASD is removed, a corresponding signature is invalid.
         """
         for ad_marking in self.ads:
             ad_marking.remove_asd()
@@ -505,14 +509,14 @@ class PathSegment(Marking):
             pcb.trc_ver, pcb.if_id = struct.unpack("!IH",
                                                    raw[offset:offset + 6])
             offset += 6  # 4B for trc_ver and 2B for if_id.
-            pcb.segment_id = raw[offset:offset + HASH_LEN]
-            offset += HASH_LEN
+            pcb.segment_id = raw[offset:offset + REV_TOKEN_LEN]
+            offset += REV_TOKEN_LEN
             raw = raw[offset:]
             for _ in range(pcb.iof.hops):
                 (_, asd_len, sig_len, block_len) = \
-                    struct.unpack("!HHHH", raw[:ADMarking.FIRST_ROW_LEN])
+                    struct.unpack("!HHHH", raw[:ADMarking.METADATA_LEN])
                 ad_len = (sig_len + asd_len + block_len +
-                          ADMarking.FIRST_ROW_LEN + HASH_LEN)
+                          ADMarking.METADATA_LEN + REV_TOKEN_LEN)
                 ad_marking = ADMarking(raw[:ad_len])
                 pcb.add_ad(ad_marking)
                 raw = raw[ad_len:]
