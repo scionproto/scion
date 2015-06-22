@@ -25,10 +25,10 @@ import nose.tools as ntools
 # SCION
 from lib.packet.opaque_field import HopOpaqueField
 from lib.packet.pcb import (
+    ADMarking,
     Marking,
     PCBMarking,
-    REV_TOKEN_LEN,
-)
+    REV_TOKEN_LEN)
 from lib.packet.scion_addr import ISD_AD
 
 
@@ -99,6 +99,7 @@ class TestPCBMarkingParse(object):
         hop_of.return_value = 'hop_of'
         hop_of.LEN = HopOpaqueField.LEN
         pcbm.parse(data)
+        ntools.eq_(pcbm.raw, data)
         isd_ad.from_raw.assert_called_once_with(data[:ISD_AD.LEN])
         ntools.eq_(pcbm.isd_id, 12)
         ntools.eq_(pcbm.ad_id, 34)
@@ -113,6 +114,11 @@ class TestPCBMarkingParse(object):
     def test_wrong_type(self):
         pcbm = PCBMarking()
         ntools.assert_raises(AssertionError, pcbm.parse, 123)
+
+    def test_bad_length(self):
+        pcbm = PCBMarking()
+        pcbm.parse(bytes(range(PCBMarking.LEN - 1)))
+        ntools.assert_false(pcbm.parsed)
 
 
 class TestPCBMarkingFromValues(object):
@@ -168,6 +174,47 @@ class TestPCBMarkingEq(object):
         pcbm2 = 123
         ntools.assert_not_equals(pcbm1, pcbm2)
 
+
+class TestADMarkingInit(object):
+    """
+    Unit test for lib.packet.pcb.ADMarking.__init__
+    """
+    @patch("lib.packet.pcb.Marking.__init__")
+    def test_no_args(self, marking_init):
+        ad_marking = ADMarking()
+        marking_init.assert_called_once_with(ad_marking)
+        ntools.assert_is_none(ad_marking.pcbm)
+        ntools.eq_(ad_marking.pms, [])
+        ntools.eq_(ad_marking.sig, b'')
+        ntools.eq_(ad_marking.asd, b'')
+        ntools.eq_(ad_marking.eg_rev_token, REV_TOKEN_LEN * b"\x00")
+        ntools.eq_(ad_marking.cert_ver, 0)
+        ntools.eq_(ad_marking.sig_len, 0)
+        ntools.eq_(ad_marking.asd_len, 0)
+        ntools.eq_(ad_marking.block_len, 0)
+
+    @patch("lib.packet.pcb.ADMarking.parse")
+    def test_with_args(self, parse):
+        ADMarking('data')
+        parse.assert_called_once_with('data')
+
+
+class TestADMarkingParse(object):
+    """
+    Unit test for lib.packet.pcb.ADMarking.parse
+    """
+    def test(self):
+        pass
+
+    def test_wrong_type(self):
+        ad_marking = ADMarking()
+        ntools.assert_raises(AssertionError, ad_marking.parse, 123)
+
+    def test_bad_length(self):
+        ad_marking = ADMarking()
+        dlen = PCBMarking.LEN + ADMarking.METADATA_LEN + REV_TOKEN_LEN
+        ad_marking.parse(bytes(range(dlen - 1)))
+        ntools.assert_false(ad_marking.parsed)
 
 if __name__ == "__main__":
     nose.run(defaultTest=__name__)
