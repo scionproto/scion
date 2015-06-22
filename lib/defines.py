@@ -37,6 +37,3 @@ SCION_UDP_PORT = 30040
 SCION_UDP_EH_DATA_PORT = 30041
 #: Default DNS UDP/TCP port
 SCION_DNS_PORT = 30053
-
-#: Default value for lenght (in bytes) of cryptographic hash
-HASH_LEN = 32

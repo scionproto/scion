@@ -355,10 +355,9 @@ class CorePathServer(PathServer):
         """
         for ad in pcb.ads:
             self.iftoken2seg[ad.pcbm.ig_rev_token].add(pcb.segment_id)
-            self.iftoken2seg[ad.pcbm.eg_rev_token].add(pcb.segment_id)
+            self.iftoken2seg[ad.eg_rev_token].add(pcb.segment_id)
             for pm in ad.pms:
                 self.iftoken2seg[pm.ig_rev_token].add(pcb.segment_id)
-                self.iftoken2seg[pm.eg_rev_token].add(pcb.segment_id)
 
     def _handle_up_segment_record(self, pkt):
         """

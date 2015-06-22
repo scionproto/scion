@@ -248,8 +248,9 @@ class Router(SCIONElement):
         :type from_bs:
         """
         beacon = PathConstructionBeacon(packet)
+        logging.info('PCB:%s', beacon)
         if from_bs:
-            if self.interface.if_id != beacon.pcb.trcf.if_id:
+            if self.interface.if_id != beacon.pcb.if_id:
                 logging.error("Wrong interface set by BS.")
                 return
             next_hop.addr = self.interface.to_addr
@@ -257,7 +258,7 @@ class Router(SCIONElement):
             self.send(beacon, next_hop, False)
         else:
             # TODO Multiple BS scenario
-            beacon.pcb.trcf.if_id = self.interface.if_id
+            beacon.pcb.if_id = self.interface.if_id
             next_hop.addr = self.topology.beacon_servers[0].addr
             self.send(beacon, next_hop)
 

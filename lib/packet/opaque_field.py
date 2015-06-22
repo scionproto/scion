@@ -35,7 +35,6 @@ class OpaqueFieldType(object):
     INPATH_XOVR = 0b1110000
     INTRATD_PEER = 0b1111000
     INTERTD_PEER = 0b1111100
-    TRC_OF = 0b11111111
 
 
 class OpaqueField(object):
@@ -273,78 +272,5 @@ class InfoOpaqueField(OpaqueField):
                     self.timestamp == other.timestamp and
                     self.isd_id == other.isd_id and
                     self.hops == other.hops)
-        else:
-            return False
-
-
-class TRCField(OpaqueField):
-    """
-    Class for the TRC field.
-
-    The TRC field contains type info of the path-segment (1 byte),
-    the TRC version (4 bytes), the IF ID (2 bytes),
-    and a reserved section (1 byte).
-    """
-    def __init__(self, raw=None):
-        """
-        Initialize an instance of the class TRCField.
-
-        :param raw:
-        :type raw:
-        """
-        OpaqueField.__init__(self)
-        self.info = OpaqueFieldType.TRC_OF
-        self.trc_ver = 0
-        self.if_id = 0
-        self.reserved = 0
-        if raw is not None:
-            self.parse(raw)
-
-    def parse(self, raw):
-        """
-        Populates fields from a raw byte block.
-        """
-        assert isinstance(raw, bytes)
-        self.raw = raw
-        dlen = len(raw)
-        if dlen < self.LEN:
-            logging.warning("TRCF: Data too short for parsing, len: %u", dlen)
-            return
-        (self.info, self.trc_ver, self.if_id, self.reserved) = \
-            struct.unpack("!BIHB", raw)
-        self.parsed = True
-
-    @classmethod
-    def from_values(cls, trc_ver=0, if_id=0, reserved=0):
-        """
-        Returns TRCField with fields populated from values.
-
-        @param trc_ver: Version of the Isolation Domanin's TRC file.
-        @param if_id: Interface ID.
-        @param reserved: Reserved section.
-        """
-        trcf = TRCField()
-        trcf.trc_ver = trc_ver
-        trcf.if_id = if_id
-        trcf.reserved = reserved
-        return trcf
-
-    def pack(self):
-        """
-        Returns TRCField as 8 byte binary string.
-        """
-        return struct.pack("!BIHB", self.info, self.trc_ver, self.if_id,
-                           self.reserved)
-
-    def __str__(self):
-        trcf_str = ("[TRC OF info: %x, TRCv: %u, IF ID: %u]\n" %
-                    (self.info, self.trc_ver, self.if_id))
-        return trcf_str
-
-    def __eq__(self, other):
-        if type(other) is type(self):
-            return (self.info == other.info and
-                    self.trc_ver == other.trc_ver and
-                    self.if_id == other.if_id)
         else:
             return False
