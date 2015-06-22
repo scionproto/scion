@@ -158,7 +158,7 @@ function process_beacon(buffer,pinfo,tree)
 
 	local of_tree = scion_tree:add(of_field,buffer(of_offset,16),"Opaque field ") --size = 16 (SOF and ROTOF)
 	
-	oftypename="Special OF"
+	oftypename="Info OF"
 	of_sof_tree=of_tree:add(buffer(of_offset,8),"Opaque filed type: " .. oftypename .. " (0x" .. string.format("%x",buffer(of_offset,1):uint()) .. ")")
 	if timestamp + 8   == of_offset then  --8 means size of common header and 
 		of_sof_tree:append_text(", Current special OF(timestamp)")
@@ -166,10 +166,9 @@ function process_beacon(buffer,pinfo,tree)
 	if curr_of + 8   == of_offset then  --8 means size of common header and 
 		of_sof_tree:append_text(", Current OF")
 	end
-	of_sof_tree:add(buffer(of_offset+1,2),"Timestamp: " .. buffer(of_offset+1,2))
-	of_sof_tree:add(buffer(of_offset+3,2),"ISD ID: " .. buffer(of_offset+3,2))
-	of_sof_tree:add(buffer(of_offset+5,1),"Hops: " .. buffer(of_offset+5,1))
-	of_sof_tree:add(buffer(of_offset+6,2),"Reserved: " .. buffer(of_offset+6,2))
+	of_sof_tree:add(buffer(of_offset+1,4),"Timestamp: " .. buffer(of_offset+1,4))
+	of_sof_tree:add(buffer(of_offset+5,2),"ISD ID: " .. buffer(of_offset+5,2))
+	of_sof_tree:add(buffer(of_offset+7,1),"Hops: " .. buffer(of_offset+7,1))
 
 
 
@@ -186,6 +185,11 @@ function process_beacon(buffer,pinfo,tree)
 	of_rot_tree:add(buffer(of_offset+3,2),"ISD ID: " .. buffer(of_offset+3,2))
 	of_rot_tree:add(buffer(of_offset+6,2),"Reserved: " .. buffer(of_offset+6,2))
 
+
+	--Segment ID
+	of_offset=of_offset+8
+	of_segment_tree=of_tree:add(buffer(of_offset,32),"Segment ID = " ..  buffer(of_offset,32))
+	of_offset=of_offset+32
 
 
 	--PCBMarking
@@ -212,10 +216,19 @@ function process_beacon(buffer,pinfo,tree)
 		local signature_length= buffer(of_offset+8+4,2):uint()
 		local signature_length= buffer(of_offset+8+6,2):uint()
 
-
+--[[
+Each hop opaque field has a info (8 bits), expiration time (8 bits)
+    ingress/egress interfaces (2 * 12 bits) and a MAC (24 bits) authenticating
+    the opaque fiel
+--]]
 		local hof_tree=pcbsub_tree:add(buffer(of_offset+16,8),"Hop opaque field: " .. buffer(of_offset+16,8))
-		hof_tree:add(buffer(of_offset+16+1,2),"Ingress IF: " .. buffer(of_offset+16+1,2))
-		hof_tree:add(buffer(of_offset+16+3,2),"Egress IF: " .. buffer(of_offset+16+3,2))
+		hof_tree:add(buffer(of_offset+16,1),"Info: " .. buffer(of_offset+16,1))
+		hof_tree:add(buffer(of_offset+16+1,1),"Expiration time: " .. buffer(of_offset+16+1,1):uint())
+		local ingress_egress=buffer(of_offset+16+2,3):uint()
+		local ingress_if=bit.rshift(ingress_egress,12)
+		local egress_if=bit.band(ingress_egress,0x0fff)
+		hof_tree:add(buffer(of_offset+16+2,3),"Ingress IF: " .. ingress_if)
+		hof_tree:add(buffer(of_offset+16+2,3),"Egress IF: " .. egress_if)
 		hof_tree:add(buffer(of_offset+16+5,3),"MAC: " .. buffer(of_offset+16+5,3))
 	
 		local spf_tree=pcbsub_tree:add(buffer(of_offset+24,8),"Support PCB field: " .. buffer(of_offset+24,8))
@@ -240,8 +253,13 @@ function process_beacon(buffer,pinfo,tree)
 
 			offset_hof=8
 			local hof_tree=pcbsub_tree:add(buffer(of_offset+offset_hof,8),"Hop opaque field: " .. buffer(of_offset+offset_hof,8))
-			hof_tree:add(buffer(of_offset+offset_hof+1,2),"Ingress IF: " .. buffer(of_offset+offset_hof+1,2))
-			hof_tree:add(buffer(of_offset+offset_hof+3,2),"Egress IF: " .. buffer(of_offset+offset_hof+3,2))
+			hof_tree:add(buffer(of_offset+offset_hof,1),"Info: " .. buffer(of_offset+offset_hof,1))
+			hof_tree:add(buffer(of_offset+offset_hof+1,1),"Expiration time: " .. buffer(of_offset+offset_hof+1,1):uint())
+			local ingress_egress=buffer(of_offset+offset_hof+2,3):uint()
+			local ingress_if=bit.rshift(ingress_egress,12)
+			local egress_if=bit.band(ingress_egress,0x0fff)
+			hof_tree:add(buffer(of_offset+offset_hof+2,3),"Ingress IF: " .. ingress_if)
+			hof_tree:add(buffer(of_offset+offset_hof+2,3),"Egress IF: " .. egress_if)
 			hof_tree:add(buffer(of_offset+offset_hof+5,3),"MAC: " .. buffer(of_offset+offset_hof+5,3))
 		
 			pcbsub_tree:append_text(", Ingress IF: " .. buffer(of_offset+offset_hof+1,2):uint() .. ", Egress IF: " .. buffer(of_offset+offset_hof+3,2))
@@ -268,21 +286,10 @@ end
 
 function process_of(buffer,pinfo,tree)
 --Opaque field
---TODO: add ProtoField
 
-	local num_special_op=2
-	--[[	
-	if ptype=="DATA" then	
-		num_special_op=2
-	elseif ptype=="BEACON" then
-		num_special_op=1
-	end
-	--]]
-
-	local num_op=0 -- num_op= hops in special opaque field
-	--for i=0, num_special_op + num_op -1 , 1 do 
+	local num_op= (hdr_len - 24)/8 -- num_op= hops in special opaque field
 	local i=0
-	while i <  num_special_op + num_op do
+	while i <  num_op do
 		local of_offset=8+srclen+dstlen + 8*i
 
 		--check range
@@ -300,49 +307,63 @@ function process_of(buffer,pinfo,tree)
 		local oftype=buffer(of_offset,1):uint()
 		local oftypename="???"
 
+		-- Hop OF
+		NORMAL_OF = 0x0
+		LAST_OF = 0x10
+		PEER_XOVR = 0x08
+
+		-- Info OF
+		TDC_XOVR=0x40
+		NON_TDC_XOVR=0x60
+		INPATH_XOVR=0x70
+		INTRATD_PEER=0x78
+		INTERTD_PEER=0x7c
+
+		-- MSB 7bit
+		local oftype=bit.rshift(oftype,1) 
+
+		--is Info OF?
+		if oftype == TDC_XOVR or oftype == NON_TDC_XOVR or oftype == INPATH_XOVR or iftype ==  INTRATD_PEER or oftype == INTERTD_PEER or oftype == TRC_OF then
+			if oftype == TDC_XOVR then
+				oftypename="Info OF TDC_XOVER"
+			elseif oftype == NON_TDC_XOVR then
+				oftypename="Info OF NON_TDC_XOVR"
+			elseif oftype == INPATH_XOVR then
+				oftypename="Info OF INPATH_XOVR"
+			elseif oftype == INTRATD_PEER then
+				oftypename="Info OF INTRATD_PEER"
+			elseif oftype == INTERTD_PEER then
+				oftypename="Info OF INTERTD_PEER"
+			end
 
 
-		if oftype == 0x80 then
-			oftypename="Special OF"
-			of_tree:append_text(", Special OF")
-			of_tree:add(buffer(of_offset,1),"Opaque filed type: " .. oftypename .. " (0x" .. string.format("%x",buffer(of_offset,1):uint()) .. ")")
-			of_tree:add(buffer(of_offset+1,2),"Timestamp: " .. buffer(of_offset+1,2))
-			of_tree:add(buffer(of_offset+3,2),"ISD ID: " .. buffer(of_offset+3,2))
-			of_tree:add(buffer(of_offset+5,1),"Hops: " .. buffer(of_offset+5,1))
-			of_tree:add(buffer(of_offset+6,2),"Reserved: " .. buffer(of_offset+6,2))
+			of_tree:append_text(", Info OF")
+			of_tree:add(buffer(of_offset,1),"Opaque filed type: " .. oftypename .. " (0x" .. string.format("%x",oftype) .. ")")
+			of_tree:add(buffer(of_offset+1,4),"Timestamp: " .. buffer(of_offset+1,4))
+			of_tree:add(buffer(of_offset+5,2),"ISD ID: " .. buffer(of_offset+5,2))
+			of_tree:add(buffer(of_offset+7,1),"Hops: " .. buffer(of_offset+7,1))
 			
-			num_op = num_op + buffer(of_offset+5,1):uint() -- plus hops
+			--num_op = num_op + buffer(of_offset+7,1):uint() -- plus hops
 
-		elseif oftype == 0xff then
-			oftypename="ROT OF"
-			of_tree:append_text(", ROT OF")
-			of_tree:add(buffer(of_offset,1),"Opaque filed type: " .. oftypename .. " (0x" .. string.format("%x",buffer(of_offset,1):uint()) .. ")")
-			of_tree:add(buffer(of_offset+1,2),"ROT version: " .. buffer(of_offset+1,4))
-			of_tree:add(buffer(of_offset+3,2),"ISD ID: " .. buffer(of_offset+5,2))
-			of_tree:add(buffer(of_offset+6,2),"Reserved: " .. buffer(of_offset+7,1))
+
+		--Hop OF
 		else
-			if oftype==0x0 then
-				oftypename="Normal OF"
-			-- elseif oftype == 0x80 then
-			elseif oftype == 0x20 then
-				oftypename="TDC XOVR"
-			elseif oftype == 0xc0 then
-				oftypename="NON TDC XOVR"
-			elseif oftype == 0xe0 then
-				oftypename="INPATH XOVR"
-			elseif oftype == 0xf0 then
-				oftypename="TNTRATD PEER"
-			elseif oftype == 0xf8 then
-				oftypename="INTERTD PEER"
-			elseif oftype == 0x10 then
-				oftypename="PEER XOVR"
-
+			if oftype==NORMAL_OF then
+				oftypename="NORMAL_OF"
+			elseif oftype == LAST_OF then
+				oftypename="LAST_OF"
+			elseif oftype == PEER_XOVR then
+				oftypename="PEER_XOVR"
 			end
 			
-			of_tree:append_text(", Ingress IF: " .. buffer(of_offset+1,2):uint() .. ", Egress IF: " .. buffer(of_offset+3,2):uint())
 			of_tree:add(buffer(of_offset,1),"Opaque filed type: " .. oftypename .. " (0x" .. string.format("%x",buffer(of_offset,1):uint()) .. ")" )
-			of_tree:add(buffer(of_offset+1,2),"Ingress IF: " .. buffer(of_offset+1,2))
-			of_tree:add(buffer(of_offset+3,2),"Egress IF: " .. buffer(of_offset+3,2))
+			local ingress_egress=buffer(of_offset+2,3):uint()
+			local ingress_if=bit.rshift(ingress_egress,12)
+			local egress_if=bit.band(ingress_egress,0x0fff)
+			of_tree:append_text(", Ingress IF: " .. ingress_if .. ", Egress IF: " .. egress_if)
+			of_tree:add(buffer(of_offset+1,1),"Expiration time: " .. buffer(of_offset+1,1):uint())
+			of_tree:add(buffer(of_offset+2,3),"Ingress IF: " .. ingress_if)
+			of_tree:add(buffer(of_offset+2,3),"Egress IF: " .. egress_if)
 			of_tree:add(buffer(of_offset+5,3),"MAC: " .. buffer(of_offset+5,3))
 
 		end
