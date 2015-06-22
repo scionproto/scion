@@ -16,7 +16,8 @@
 =================================================
 """
 # Stdlib
-from ipaddress import IPv4Address, IPv6Address
+from ipaddress import ip_address
+from unittest.mock import patch
 
 # External packages
 import nose
@@ -37,15 +38,10 @@ class TestElementInit(object):
         ntools.assert_is_none(elem.addr)
         ntools.assert_is_none(elem.name)
 
-    def test_ipv4(self):
+    @patch('lib.topology.ip_address')
+    def test_ip_addr(self, ip_address):
         elem = Element('192.168.0.1')
-        ntools.assert_equal(elem.addr, IPv4Address('192.168.0.1'))
-        ntools.assert_is_instance(elem.addr, IPv4Address)
-
-    def test_ipv6(self):
-        elem = Element('2001:db8::')
-        ntools.assert_equal(elem.addr, IPv6Address('2001:db8::'))
-        ntools.assert_is_instance(elem.addr, IPv6Address)
+        ip_address.assert_called_with('192.168.0.1')
 
     def test_name_basic(self):
         elem = Element(name='localhost')
