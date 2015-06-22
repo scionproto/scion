@@ -53,6 +53,7 @@
     node.append("text")
       .attr("x", 12)
       .attr("dy", ".35em")
+      .style("font-weight", function(d) { return d.core ? "bold" : "500"; })
       .text(function(d) { return d.name; });
 
     function tick() {

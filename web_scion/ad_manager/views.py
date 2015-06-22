@@ -527,6 +527,7 @@ def network_view(request):
             'name': 'AD {}-{}'.format(ad.isd_id, ad.id),
             'group': ad.isd_id,
             'url': ad.get_absolute_url(),
+            'core': int(ad.is_core_ad),
         })
         for n in neighbors:
             if index < n:
