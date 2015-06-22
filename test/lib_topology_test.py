@@ -40,7 +40,7 @@ class TestElementInit(object):
 
     @patch('lib.topology.ip_address')
     def test_ip_addr(self, ip_addr):
-        elem = Element('192.168.0.1')
+        Element('192.168.0.1')
         ip_addr.assert_called_with('192.168.0.1')
 
     def test_name_basic(self):
