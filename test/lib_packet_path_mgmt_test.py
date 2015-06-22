@@ -44,8 +44,7 @@ class TestPathSegmentInfoInit(object):
     """
     Unit tests for lib.packet.path_mgmt.PathSegmentInfo.__init__
     """
-    @patch("lib.packet.packet_base.PayloadBase.__init__", spec_set=[],
-           new_callable=MagicMock)
+    @patch("lib.packet.packet_base.PayloadBase.__init__", autospec=True)
     def test_basic(self, init):
         pth_seg_info = PathSegmentInfo()
         ntools.eq_(pth_seg_info.type, 0)
@@ -66,8 +65,7 @@ class TestPathSegmentInfoParse(object):
     """
     Unit tests for lib.packet.path_mgmt.PathSegmentInfo.parse
     """
-    @patch("lib.packet.packet_base.PayloadBase.parse", spec_set=[],
-           new_callable=MagicMock)
+    @patch("lib.packet.packet_base.PayloadBase.parse", autospec=True)
     def test_basic(self, parse):
         pth_seg_info = PathSegmentInfo()
         data = bytes.fromhex('0e 2a0a 0b0c 0102030405060708 9192939495969798')
@@ -317,9 +315,7 @@ class TestPathSegmentLeasesPack(object):
         pth_seg_les.nleases = 0x04
         data = struct.pack("!B", 0x04)
         for i in range(0x04):
-            linfo = LeaseInfo()
-            pth_seg_les.leases.append(linfo)
-            pth_seg_les.leases[i] = MagicMock(spec_set=['pack'])
+            pth_seg_les.leases.append(MagicMock(spec_set=['pack']))
             pth_seg_les.leases[i].pack.return_value = struct.pack("!B", i)
             data += struct.pack("!B", i)
         ntools.eq_(pth_seg_les.pack(), data)
@@ -539,9 +535,7 @@ class TestRevocationPayloadPack(object):
         rev_pld = RevocationPayload()
         data = b""
         for i in range(0x04):
-            rinfo = RevocationInfo()
-            rev_pld.rev_infos.append(rinfo)
-            rev_pld.rev_infos[i] = MagicMock(spec_set=['pack'])
+            rev_pld.rev_infos.append(MagicMock(spec_set=['pack']))
             rev_pld.rev_infos[i].pack.return_value = struct.pack("!B", i)
             data += struct.pack("!B", i)
         ntools.eq_(rev_pld.pack(), data)
