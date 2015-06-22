@@ -86,10 +86,8 @@ def parse(brite_files, dot_output_file):
     # Core AD connections: Connecting each core AD in an ISD with
     # every other Core AD according to the model graph
     core_ad_model_graph = nx.complete_graph(count_isds)
-    for src_isd_id in range(MIN_ISD_NUM, count_isds + 1):
-        for dest_isd_id in range(MIN_ISD_NUM, count_isds + 1):
-            src_core_ads = core_ad_dict[src_isd_id]
-            dest_core_ads = core_ad_dict[dest_isd_id]
+    for (src_isd_id, src_core_ads) in core_ad_dict.items():
+        for (dest_isd_id, dest_core_ads) in core_ad_dict.items():
             # isd numbers are 1-indexed 
             if core_ad_model_graph[src_isd_id - 1].get(dest_isd_id - 1) == None:
                 continue
