@@ -28,6 +28,7 @@ from lib.packet.pcb import (
     ADMarking,
     Marking,
     PCBMarking,
+    PathSegment,
     REV_TOKEN_LEN)
 from lib.packet.scion_addr import ISD_AD
 
@@ -247,6 +248,61 @@ class TestADMarkingFromValues(object):
         ntools.eq_(ad_marking.asd, b'')
         ntools.eq_(ad_marking.asd_len, 0)
         ntools.eq_(ad_marking.eg_rev_token, REV_TOKEN_LEN * b'\x00')
+
+
+class TestADMarkingPack(object):
+    """
+    Unit test for lib.packet.pcb.ADMarking.pack
+    """
+    def test(self):
+        pass
+
+
+class TestADMarkingRemoveSignature(object):
+    """
+    Unit test for lib.packet.pcb.ADMarking.remove_signature
+    """
+    def test(self):
+        ad_marking = ADMarking()
+        ad_marking.remove_signature()
+        ntools.eq_(ad_marking.sig, b'')
+        ntools.eq_(ad_marking.sig_len, 0)
+
+
+class TestADMarkingRemoveAsd(object):
+    """
+    Unit test for lib.packet.pcb.ADMarking.remove_asd
+    """
+    def test(self):
+        ad_marking = ADMarking()
+        ad_marking.remove_asd()
+        ntools.eq_(ad_marking.asd, b'')
+        ntools.eq_(ad_marking.asd_len, 0)
+
+
+class TestADMarkingEq(object):
+    """
+    Unit test for lib.packet.pcb.ADMarking.__eq__
+    """
+    def test_equal(self):
+        ad_marking1 = ADMarking.from_values('pcbm', ['pms'], b'eg_rev_token',
+                                            b'sig', b'asd')
+        ad_marking2 = ADMarking.from_values('pcbm', ['pms'], b'eg_rev_token',
+                                            b'sig', b'asd')
+        ntools.eq_(ad_marking1, ad_marking2)
+
+    def test_unequal(self):
+        ad_marking1 = ADMarking.from_values('pcbm', ['pms'], b'eg_rev_token',
+                                            b'sig1', b'asd')
+        ad_marking2 = ADMarking.from_values('pcbm', ['pms'], b'eg_rev_token',
+                                            b'sig2', b'asd')
+        ntools.assert_not_equals(ad_marking1, ad_marking2)
+
+    def test_unequal_type(self):
+        ad_marking1 = ADMarking()
+        ad_marking2 = 123
+        ntools.assert_not_equals(ad_marking1, ad_marking2)
+
 
 if __name__ == "__main__":
     nose.run(defaultTest=__name__)
