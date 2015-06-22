@@ -207,14 +207,14 @@ class CorePath(PathBase):
 
     def pack(self):
         """
-        Packs the opaque fields and returns a byte string.
+        Packs the opaque fields and returns a byte array.
         """
         return self._pack_up_segment() + self._pack_core_segment() + \
             self._pack_down_segment()
 
     def _pack_up_segment(self):
         """
-        Packs the up segment opaque fields and returns a byte string.
+        Packs the up segment opaque fields and returns a byte array.
         """
         data = []
         if self.up_segment_info:
@@ -225,7 +225,7 @@ class CorePath(PathBase):
 
     def _pack_core_segment(self):
         """
-        Packs the core segment opaque fields and returns a byte string.
+        Packs the core segment opaque fields and returns a byte array.
         """
         data = []
         if self.core_segment_info:
@@ -236,7 +236,7 @@ class CorePath(PathBase):
 
     def _pack_down_segment(self):
         """
-        Packs the down segment opaque fields and returns a byte string.
+        Packs the down segment opaque fields and returns a byte array.
         """
         data = []
         if self.down_segment_info:
@@ -401,13 +401,13 @@ class CrossOverPath(PathBase):
 
     def pack(self):
         """
-        Packs the opaque fields and returns a byte string.
+        Packs the opaque fields and returns a byte array.
         """
         return self._pack_up_segment() + self._pack_down_segment()
 
     def _pack_up_segment(self):
         """
-        Packs the up segment opaque fields and returns a byte string.
+        Packs the up segment opaque fields and returns a byte array.
         """
         data = [self.up_segment_info.pack()]
         for of in self.up_segment_hops:
@@ -417,7 +417,7 @@ class CrossOverPath(PathBase):
 
     def _pack_down_segment(self):
         """
-        Packs the down segment opaque fields and returns a byte string.
+        Packs the down segment opaque fields and returns a byte array.
         """
         data = [self.down_segment_info.pack(),
                 self.down_segment_upstream_ad.pack()]
@@ -541,13 +541,13 @@ class PeerPath(PathBase):
 
     def pack(self):
         """
-        Packs the opaque fields and returns a byte string.
+        Packs the opaque fields and returns a byte array.
         """
         return self._pack_up_segment() + self._pack_down_segment()
 
     def _pack_up_segment(self):
         """
-        Packs the up segment opaque fields and returns a byte string.
+        Packs the up segment opaque fields and returns a byte array.
         """
         data = [self.up_segment_info.pack()]
         for of in self.up_segment_hops:
@@ -558,7 +558,7 @@ class PeerPath(PathBase):
 
     def _pack_down_segment(self):
         """
-        Packs the down segment opaque fields and returns a byte string.
+        Packs the down segment opaque fields and returns a byte array.
         """
         data = [self.down_segment_info.pack(),
                 self.down_segment_upstream_ad.pack(),
