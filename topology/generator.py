@@ -82,7 +82,8 @@ class ConfigGenerator():
     """
     Configuration and/or topology generator.
     """
-    def __init__(self, out_dir=TOPOLOGY_PATH, subnet=DEFAULT_SUBNET):
+    def __init__(self, out_dir=TOPOLOGY_PATH, subnet=DEFAULT_SUBNET,
+                 next_ip_address=IP_ADDRESS_BASE):
         """
         Initialize an instance of the class ConfigGenerator.
 
@@ -96,6 +97,7 @@ class ConfigGenerator():
             sys.exit()
         self.out_dir = out_dir
         self.subnet = subnet
+        self.next_ip_address = next_ip_address
 
     def _get_subnet_params(self, ad_config=None):
         """
@@ -721,7 +723,6 @@ def main():
         sys.exit()
 
     generator = ConfigGenerator(out_dir)
-    generator.next_ip_address = IP_ADDRESS_BASE
     generator.generate_all(adconfigurations_file, path_policy_file)
 
 
