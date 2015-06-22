@@ -354,9 +354,9 @@ class TestRevocationInfoParse(object):
             b"superlengthybigstringoflength321" \
             b"superlengthybigstringoflength322"
         rev_inf.parse(data)
-        ntools.eq_(rev_inf.rev_type, 0b00000101 & 0x7)
-        ntools.eq_(rev_inf.incl_seg_id, (0b00000101 >> 3) & 0x1)
-        ntools.eq_(rev_inf.incl_hop, (0b00000101 >> 4) & 0x1)
+        ntools.eq_(rev_inf.rev_type, 0b101)
+        ntools.eq_(rev_inf.incl_seg_id, 0b0)
+        ntools.eq_(rev_inf.incl_hop, 0b0)
         ntools.eq_(rev_inf.seg_id, b"")
         ntools.eq_(rev_inf.rev_token1, b"superlengthybigstringoflength321")
         ntools.eq_(rev_inf.proof1, b"superlengthybigstringoflength322")
