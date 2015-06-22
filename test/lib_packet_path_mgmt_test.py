@@ -524,6 +524,7 @@ class TestRevocationPayloadParse(object):
     def test_len(self, parse):
         rev_pld = RevocationPayload()
         rev_pld.parse("smalldata")
+        parse.assert_called_once_with(rev_pld, "smalldata")
         ntools.eq_(rev_pld.rev_infos, [])
 
 
