@@ -16,7 +16,7 @@
 ===========================================
 """
 # Stdlib
-from ipaddress import IPv4Address, IPv6Address, ip_address
+from ipaddress import ip_address
 import json
 import logging
 
