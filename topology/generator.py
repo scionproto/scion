@@ -74,21 +74,18 @@ INITIAL_CERT_VERSION = 0
 INITIAL_TRC_VERSION = 0
 PORT = '50000'
 ISD_AD_ID_DIVISOR = '-'
-BS_RANGE = '1'
-CS_RANGE = '21'
-PS_RANGE = '41'
-DS_RANGE = '61'
-ER_RANGE = '81'
 DEFAULT_DNS_DOMAIN = DNSLabel("scion")
 
 DEFAULT_SUBNET = "127.0.0.0/8"
+IP_ADDRESS_BASE = "127.0.0.1"
 
 
 class ConfigGenerator():
     """
     Configuration and/or topology generator.
     """
-    def __init__(self, out_dir=TOPOLOGY_PATH, subnet=DEFAULT_SUBNET):
+    def __init__(self, out_dir=TOPOLOGY_PATH, subnet=DEFAULT_SUBNET,
+                 next_ip_address=IP_ADDRESS_BASE):
         """
         Initialize an instance of the class ConfigGenerator.
 
@@ -102,6 +99,7 @@ class ConfigGenerator():
             sys.exit()
         self.out_dir = out_dir
         self.subnet = subnet
+        self.next_ip_address = next_ip_address
 
     def _get_subnet_params(self, ad_config=None):
         """
@@ -202,16 +200,18 @@ class ConfigGenerator():
         for isd_ad_id in ad_configs:
             first_byte, mask = self._get_subnet_params(ad_configs[isd_ad_id])
             (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-            ip_address_loc = ip_address('.'.join([first_byte, isd_id,
-                                                  ad_id, ER_RANGE]))
+            ip_address_loc = self.next_ip_address
             ip_address_pub = self._increment_address(ip_address_loc, mask)
+            self.next_ip_address = \
+                self._increment_address(self.next_ip_address, mask, 2)
             for link in ad_configs[isd_ad_id].get("links", []):
                 er_ip_addresses[(isd_ad_id, link)] = (str(ip_address_loc),
                                                       str(ip_address_pub))
-                ip_address_loc = self._increment_address(ip_address_loc,
-                                                         mask, 2)
-                ip_address_pub = self._increment_address(ip_address_pub,
-                                                         mask, 2)
+                ip_address_loc = self.next_ip_address
+                ip_address_pub = \
+                    self._increment_address(ip_address_loc, mask)
+                self.next_ip_address = \
+                    self._increment_address(self.next_ip_address, mask, 2)
         return er_ip_addresses
 
     def delete_directories(self):
@@ -361,39 +361,39 @@ class ConfigGenerator():
                          'EdgeRouters': {}}
 
             # Write Beacon Servers
-            server_addr = '.'.join([first_byte, isd_id, ad_id, BS_RANGE])
             for b_server in range(1, number_bs + 1):
                 topo_dict['BeaconServers'][b_server] = {
                     'AddrType': 'IPv4',
-                    'Addr': server_addr
+                    'Addr': self.next_ip_address
                 }
-                server_addr = self._increment_address(server_addr, mask)
+                self.next_ip_address = \
+                    self._increment_address(self.next_ip_address, mask)
             # Write Certificate Servers
-            server_addr = '.'.join([first_byte, isd_id, ad_id, CS_RANGE])
             for c_server in range(1, number_cs + 1):
                 topo_dict['CertificateServers'][c_server] = {
                     'AddrType': 'IPv4',
-                    'Addr': server_addr
+                    'Addr': self.next_ip_address
                 }
-                server_addr = self._increment_address(server_addr, mask)
+                self.next_ip_address = \
+                    self._increment_address(self.next_ip_address, mask)
             # Write Path Servers
             if (ad_configs[isd_ad_id]['level'] != INTERMEDIATE_AD or
                     "path_servers" in ad_configs[isd_ad_id]):
-                server_addr = '.'.join([first_byte, isd_id, ad_id, PS_RANGE])
                 for p_server in range(1, number_ps + 1):
                     topo_dict['PathServers'][p_server] = {
                         'AddrType': 'IPv4',
-                        'Addr': server_addr
+                        'Addr': self.next_ip_address
                     }
-                    server_addr = self._increment_address(server_addr, mask)
+                    self.next_ip_address = \
+                        self._increment_address(self.next_ip_address, mask)
             # Write DNS Servrs
-            server_addr = '.'.join([first_byte, isd_id, ad_id, DS_RANGE])
             for d_server in range(1, number_ds + 1):
                 topo_dict['DNSServers'][d_server] = {
                     'AddrType': 'IPv4',
-                    'Addr': server_addr
+                    'Addr': self.next_ip_address
                 }
-                server_addr = self._increment_address(server_addr, mask)
+                self.next_ip_address = \
+                    self._increment_address(self.next_ip_address, mask)
             # Write Edge Routers
             edge_router = 1
             for nbr_isd_ad_id in ad_configs[isd_ad_id].get("links", []):
@@ -403,11 +403,11 @@ class ConfigGenerator():
                 nbr_ip_address_pub = \
                     er_ip_addresses[(nbr_isd_ad_id, isd_ad_id)][1]
                 nbr_type = ad_configs[isd_ad_id]["links"][nbr_isd_ad_id]
-                if_id = str(255 + int(ad_id) + int(nbr_ad_id))
+                if_id = edge_router
                 topo_dict['EdgeRouters'][edge_router] = {
                     'AddrType': 'IPv4',
                     'Addr': ip_address_loc,
-                    'Interface': {'IFID': int(if_id),
+                    'Interface': {'IFID': if_id,
                                   'NeighborISD': int(nbr_isd_id),
                                   'NeighborAD': int(nbr_ad_id),
                                   'NeighborType': nbr_type,
