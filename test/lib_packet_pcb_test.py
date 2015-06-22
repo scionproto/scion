@@ -304,5 +304,226 @@ class TestADMarkingEq(object):
         ntools.assert_not_equals(ad_marking1, ad_marking2)
 
 
+class TestPathSegmentInit(object):
+    """
+    Unit test for lib.packet.pcb.PathSegment.__init__
+    """
+    @patch("lib.packet.pcb.Marking.__init__")
+    def test(self, init):
+        path_segment = PathSegment()
+        init.assert_called_once_with(path_segment)
+        ntools.assert_is_none(path_segment.iof)
+        ntools.eq_(path_segment.trc_ver, 0)
+        ntools.eq_(path_segment.if_id, 0)
+        ntools.eq_(path_segment.segment_id, REV_TOKEN_LEN * b"\x00")
+        ntools.eq_(path_segment.ads, [])
+        ntools.eq_(path_segment.min_exp_time, 2 ** 8 - 1)
+
+    @patch("lib.packet.pcb.PathSegment.parse")
+    def test_with_args(self, parse):
+        PathSegment('data')
+        parse.assert_called_once_with('data')
+
+
+class TestPathSegmentParse(object):
+    """
+    Unit test for lib.packet.pcb.PathSegment.parse
+    """
+    def test(self):
+        pass
+
+
+class TestPathSegmentPack(object):
+    """
+    Unit test for lib.packet.pcb.PathSegment.pack
+    """
+    def test(self):
+        pass
+
+
+class TestPathSegmentAddAd(object):
+    """
+    Unit test for lib.packet.pcb.PathSegment.add_ad
+    """
+    def test(self):
+        pass
+
+
+class TestPathSegmentRemoveSignatures(object):
+    """
+    Unit test for lib.packet.pcb.PathSegment.remove_signatures
+    """
+    def test(self):
+        pass
+
+
+class TestPathSegmentRemoveAsds(object):
+    """
+    Unit test for lib.packet.pcb.PathSegment.remove_asds
+    """
+    def test(self):
+        pass
+
+
+class TestPathSegmentGetPath(object):
+    """
+    Unit test for lib.packet.pcb.PathSegment.get_path
+    """
+    def test(self):
+        pass
+
+
+class TestPathSegmentGetIsd(object):
+    """
+    Unit test for lib.packet.pcb.PathSegment.get_isd
+    """
+    def test(self):
+        pass
+
+
+class TestPathSegmentGetLastAdm(object):
+    """
+    Unit test for lib.packet.pcb.PathSegment.get_last_adm
+    """
+    def test(self):
+        pass
+
+
+class TestPathSegmentGetLastPcbm(object):
+    """
+    Unit test for lib.packet.pcb.PathSegment.get_last_pcbm
+    """
+    def test(self):
+        pass
+
+
+class TestPathSegmentGetFirstPcbm(object):
+    """
+    Unit test for lib.packet.pcb.PathSegment.get_first_pcbm
+    """
+    def test(self):
+        pass
+
+
+class TestPathSegmentCompareHops(object):
+    """
+    Unit test for lib.packet.pcb.PathSegment.compare_hops
+    """
+    def test(self):
+        pass
+
+
+class TestPathSegmentGetHopsHash(object):
+    """
+    Unit test for lib.packet.pcb.PathSegment.get_hops_hash
+    """
+    def test(self):
+        pass
+
+
+class TestPathSegmentGetNPeerLinks(object):
+    """
+    Unit test for lib.packet.pcb.PathSegment.get_n_peer_links
+    """
+    def test(self):
+        pass
+
+
+class TestPathSegmentGetNHops(object):
+    """
+    Unit test for lib.packet.pcb.PathSegment.get_n_hops
+    """
+    def test(self):
+        pass
+
+
+class TestPathSegmentGetTimestamp(object):
+    """
+    Unit test for lib.packet.pcb.PathSegment.get_timestamp
+    """
+    def test(self):
+        pass
+
+
+class TestPathSegmentSetTimestamp(object):
+    """
+    Unit test for lib.packet.pcb.PathSegment.set_timestamp
+    """
+    def test(self):
+        pass
+
+
+class TestPathSegmentGetExpirationTime(object):
+    """
+    Unit test for lib.packet.pcb.PathSegment.get_expiration_time
+    """
+    def test(self):
+        pass
+
+
+class TestPathSegmentGetAllIftokens(object):
+    """
+    Unit test for lib.packet.pcb.PathSegment.get_all_iftokens
+    """
+    def test(self):
+        pass
+
+
+class TestPathSegmentDeserialize(object):
+    """
+    Unit test for lib.packet.pcb.PathSegment.deserialize
+    """
+    def test(self):
+        pass
+
+
+class TestPathSegmentSerialize(object):
+    """
+    Unit test for lib.packet.pcb.PathSegment.serialize
+    """
+    def test(self):
+        pass
+
+
+class TestPathSegmentEq(object):
+    """
+    Unit test for lib.packet.pcb.PathSegment.__eq__
+    """
+    def test(self):
+        pass
+
+
+class TestPathConstructionBeaconInit(object):
+    """
+    Unit test for lib.packet.pcb.PathConstructionBeacon.__init__
+    """
+    def test(self):
+        pass
+
+
+class TestPathConstructionBeaconParse(object):
+    """
+    Unit test for lib.packet.pcb.PathConstructionBeacon.parse
+    """
+    def test(self):
+        pass
+
+
+class TestPathConstructionBeaconFromValues(object):
+    """
+    Unit test for lib.packet.pcb.PathConstructionBeacon.from_values
+    """
+    def test(self):
+        pass
+
+
+class TestPathConstructionBeaconPack(object):
+    """
+    Unit test for lib.packet.pcb.PathConstructionBeacon.pack
+    """
+    def test(self):
+        pass
+
+
 if __name__ == "__main__":
     nose.run(defaultTest=__name__)
