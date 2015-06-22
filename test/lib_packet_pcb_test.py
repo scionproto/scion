@@ -216,5 +216,37 @@ class TestADMarkingParse(object):
         ad_marking.parse(bytes(range(dlen - 1)))
         ntools.assert_false(ad_marking.parsed)
 
+
+class TestADMarkingFromValues(object):
+    """
+    Unit test for lib.packet.pcb.ADMarking.from_values
+    """
+    def test(self):
+        pcbm = MagicMock()
+        pms = [MagicMock(), MagicMock()]
+        eg_rev_token = bytes(range(REV_TOKEN_LEN))
+        sig = b'sig_bytes'
+        asd = b'asd_bytes'
+        ad_marking = ADMarking.from_values(pcbm, pms, eg_rev_token, sig, asd)
+        ntools.eq_(ad_marking.block_len, (1 + len(pms)) * PCBMarking.LEN)
+        ntools.eq_(ad_marking.pcbm, pcbm)
+        ntools.eq_(ad_marking.pms, pms)
+        ntools.eq_(ad_marking.sig, sig)
+        ntools.eq_(ad_marking.sig_len, len(sig))
+        ntools.eq_(ad_marking.asd, asd)
+        ntools.eq_(ad_marking.asd_len, len(asd))
+        ntools.eq_(ad_marking.eg_rev_token, eg_rev_token)
+
+    def test_less_arg(self):
+        ad_marking = ADMarking()
+        ntools.eq_(ad_marking.block_len, PCBMarking.LEN)
+        ntools.assert_is_none(ad_marking.pcbm)
+        ntools.eq_(ad_marking.pms, [])
+        ntools.eq_(ad_marking.sig, b'')
+        ntools.eq_(ad_marking.sig_len, 0)
+        ntools.eq_(ad_marking.asd, b'')
+        ntools.eq_(ad_marking.asd_len, 0)
+        ntools.eq_(ad_marking.eg_rev_token, REV_TOKEN_LEN * b'\x00')
+
 if __name__ == "__main__":
     nose.run(defaultTest=__name__)
