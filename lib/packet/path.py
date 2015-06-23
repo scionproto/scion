@@ -566,6 +566,21 @@ class PeerPath(PathBase):
 
         return "".join(s)
 
+    def get_first_hop_of(self):
+        """
+        Depending on up_segment flag returns the first up- or down-segment hop.
+        """
+        if self.up_segment_hops:
+            if self.up_segment_hops[0].info == OpaqueFieldType.LAST_OF:
+                return self.up_segment_peering_link
+            return self.up_segment_hops[0]
+        elif self.down_segment_hops:
+            if self.down_segment_hops[0].info == OpaqueFieldType.LAST_OF:
+                return self.down_segment_peering_link
+            return self.down_segment_hops[0]
+        else:
+            return None
+
 
 class EmptyPath(PathBase):
     """
@@ -602,9 +617,6 @@ class EmptyPath(PathBase):
 
     def is_last_hop(self, hop):
         return True
-
-    def get_first_hop_of(self):
-        return None
 
     def get_of(self, index):
         return self.up_segment_info
