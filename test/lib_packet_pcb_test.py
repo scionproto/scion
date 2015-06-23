@@ -465,9 +465,57 @@ class TestPathSegmentParse(object):
     """
     Unit test for lib.packet.pcb.PathSegment.parse
     """
-    def test(self):
-        # TODO: refactor code
-        pass
+    def test_wrong_type(self):
+        path_segment = PathSegment()
+        ntools.assert_raises(AssertionError, path_segment.parse, 123)
+
+    def test_bad_len(self):
+        path_segment = PathSegment()
+        data = b'\x00' * (PathSegment.MIN_LEN - 1)
+        path_segment.parse(data)
+        ntools.assert_false(path_segment.parsed)
+
+    @patch("lib.packet.pcb.PathSegment._parse_hops", autospec=True)
+    @patch("lib.packet.pcb.InfoOpaqueField", autospec=True)
+    def test(self, info_of, parse_hops):
+        path_segment = PathSegment()
+        dlen = PathSegment.MIN_LEN
+        data = bytes(range(dlen))
+        info_of.LEN = 1
+        info_of.return_value = 'info_of'
+        path_segment.parse(data)
+        ntools.eq_(path_segment.size, dlen)
+        ntools.eq_(path_segment.raw, data)
+        ntools.eq_(path_segment.iof, 'info_of')
+        info_of.assert_called_once_with(data[:1])
+        offset = 1
+        ntools.eq_(path_segment.trc_ver, 0x01020304)
+        ntools.eq_(path_segment.if_id, 0x0506)
+        offset += 6
+        ntools.eq_(path_segment.segment_id, data[offset:offset + REV_TOKEN_LEN])
+        offset += REV_TOKEN_LEN
+        parse_hops.assert_called_once_with(path_segment, data[offset:])
+        ntools.assert_true(path_segment.parsed)
+
+
+class TestPathSegmentParseHops(object):
+    """
+    Unit test for lib.packet.pcb.PathSegment._parse_hops
+    """
+    @patch("lib.packet.pcb.REV_TOKEN_LEN", new_callable=int)
+    @patch("lib.packet.pcb.PathSegment.add_ad", autospec=True)
+    @patch("lib.packet.pcb.ADMarking", autospec=True)
+    def test(self, ad_marking, add_ad, rev_token_len):
+        path_segment = PathSegment()
+        path_segment.iof = MagicMock(spec_set=['hops'])
+        path_segment.iof.hops = 2
+        ad_marking.METADATA_LEN = ADMarking.METADATA_LEN
+        data = 2 * (bytes.fromhex('0000 0001 0002 0003') + 6 * b'\x00')
+        ad_marking.side_effect = ['ad_marking0', 'ad_marking1']
+        path_segment._parse_hops(data)
+        ad_marking.assert_has_calls([call(data[:14]), call(data[14:])])
+        add_ad.assert_has_calls([call(path_segment, 'ad_marking0'),
+                                 call(path_segment, 'ad_marking1')])
 
 
 class TestPathSegmentPack(object):
