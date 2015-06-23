@@ -686,7 +686,11 @@ class TestPathSegmentSerialize(object):
     Unit test for lib.packet.pcb.PathSegment.serialize
     """
     def test(self):
-        pass
+        pcbs = [Mock(spec=['pack']) for i in range(3)]
+        (pcbs[0].pack.return_value, pcbs[1].pack.return_value,
+         pcbs[2].pack.return_value) = (b'data0', b'data1', b'data2')
+        ntools.eq_(PathSegment.serialize(pcbs), b''.join([b'data0', b'data1',
+                                                          b'data2']))
 
 
 class TestPathSegmentEq(object):
