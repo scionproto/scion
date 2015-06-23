@@ -278,13 +278,12 @@ class TestADMarkingParseMetadata(object):
     """
     def test(self):
         data = bytes.fromhex('0102 0304 0506 0708')
-        (cert_ver, sig_len, asd_len, block_len) = struct.unpack("!HHHH", data)
         ad_marking = ADMarking()
         ad_marking._parse_metadata(data)
-        ntools.eq_(ad_marking.cert_ver, cert_ver)
-        ntools.eq_(ad_marking.sig_len, sig_len)
-        ntools.eq_(ad_marking.asd_len, asd_len)
-        ntools.eq_(ad_marking.block_len, block_len)
+        ntools.eq_(ad_marking.cert_ver, 0x0102)
+        ntools.eq_(ad_marking.sig_len, 0x0304)
+        ntools.eq_(ad_marking.asd_len, 0x0506)
+        ntools.eq_(ad_marking.block_len, 0x0708)
 
     def test_bad_length(self):
         ad_marking = ADMarking()
