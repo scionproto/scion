@@ -120,6 +120,7 @@ cmd_test(){
 }
 
 cmd_coverage(){
+    set -e
     PYTHONPATH=. nosetests --with-cov -w test "$@"
     coverage html --omit 'external/*'
     echo "Coverage report here: file://$PWD/htmlcov/index.html"

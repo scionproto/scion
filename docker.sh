@@ -21,6 +21,14 @@ cmd_build() {
     echo "Copying current working tree for Docker image"
     echo "============================================="
     mkdir -p "${build_dir:?}"
+    copy_tree
+    echo
+    echo "Building Docker image"
+    echo "====================="
+    docker_build "build.log"
+}
+
+copy_tree() {
     # Just in case it's sitting there from a previous failed run
     rm -rf docker/_build/.scion.tmp
     # Ignore timestamps; only update files if their checksums have changed.
@@ -29,16 +37,10 @@ cmd_build() {
     # rsync to a clean dir using --from-files, then rsync again from that dir
     # to the actual Docker context dir using --delete
     git ls-files -z | rsync -a0 --files-from=- . docker/_build/.scion.tmp/
-    rsync -rlpc --delete --info=FLIST2,STATS \
-      docker/_build/.scion.tmp/ "${build_dir}/scion.git/"
-    # Fix timestamps so that docker doesn't unnecessarily rebuild
-    touch --date="@0" "${build_dir}/scion.git/"
-    # Cleanup the temp directory
-    rm -rf docker/_build/.scion.tmp
-    echo
-    echo "Building Docker image"
-    echo "====================="
-    docker_build "build.log"
+    rsync -a --delete docker/_build/.scion.tmp/ "${build_dir}/scion.git/"
+    # Set all timestamps to the epoch to force docker to only use checksums for
+    # checking if a file has changed.
+    find "${build_dir}/scion.git/" -print0 | xargs -0 touch --date="@0"
 }
 
 docker_build() {
@@ -69,7 +71,22 @@ cmd_clean_full() {
 }
 
 cmd_run() {
-    docker run -i -t --rm --privileged -h scion scion "$@"
+    local args="-i -t --privileged -h scion"
+    args+=" -v $PWD/htmlcov:/home/scion/scion.git/htmlcov"
+    args+=" -v $PWD/sphinx-doc/_build:/home/scion/scion.git/sphinx-doc/_build"
+    # Can't use --rm in circleci, their environment doesn't allow it, so it
+    # just throws an error
+    [ -n "$CIRCLECI" ] || args+=" --rm"
+    # As we have to squash all timestamps for docker, sphinx's build process
+    # fails to notice updates :(
+    [ -e sphinx-doc/_build/ ] && rm -rf sphinx-doc/_build
+    # An earlier bug could cause htmlcov to be owned by root, so just nuke it
+    # to be safe
+    [ -e htmlcov/ ] && rm -rf htmlcov/
+    # Make sure these exist, otherwise they'll be owned by root, and the scion
+    # user in the docker image won't be able to write to them
+    mkdir -p htmlcov sphinx-doc/_build
+    docker run $args scion "$@"
 }
 
 stop_cntrs() {
@@ -154,4 +171,3 @@ case $COMMAND in
     help)               cmd_help ;;
     *)                  cmd_help ;;
 esac
-exit 0
