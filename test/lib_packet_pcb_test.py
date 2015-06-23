@@ -16,6 +16,7 @@
 ========================================================
 """
 # Stdlib
+import struct
 from unittest.mock import patch, MagicMock, Mock
 
 # External packages
@@ -208,8 +209,27 @@ class TestADMarkingParse(object):
     """
     Unit test for lib.packet.pcb.ADMarking.parse
     """
-    def test(self):
-        pass
+    @patch("lib.packet.pcb.ADMarking._parse_peers")
+    @patch("lib.packet.pcb.ADMarking._parse_pcbm")
+    @patch("lib.packet.pcb.ADMarking._parse_metadata")
+    def test(self, parse_metadata, parse_pcbm, parse_peers):
+        ad_marking = ADMarking()
+        # using a larger length as a buffer
+        dlen = (PCBMarking.LEN + ADMarking.METADATA_LEN + REV_TOKEN_LEN) * 2
+        data = bytes(range(dlen))
+        parse_peers.return_value = PCBMarking.LEN
+        ad_marking.parse(data)
+        parse_metadata.assert_called_once_with(data[:ADMarking.METADATA_LEN])
+        data = data[ADMarking.METADATA_LEN:]
+        parse_pcbm.assert_called_once_with(data[:PCBMarking.LEN])
+        data = data[PCBMarking.LEN:]
+        parse_peers.assert_called_once_with(data)
+        data = data[PCBMarking.LEN:]
+        ntools.eq_(ad_marking.asd, data[:ad_marking.asd_len])
+        data = data[ad_marking.asd_len:]
+        ntools.eq_(ad_marking.eg_rev_token, data[:REV_TOKEN_LEN])
+        ntools.eq_(ad_marking.sig, data[REV_TOKEN_LEN:])
+        ntools.assert_true(ad_marking.parsed)
 
     def test_wrong_type(self):
         ad_marking = ADMarking()
@@ -220,6 +240,61 @@ class TestADMarkingParse(object):
         dlen = PCBMarking.LEN + ADMarking.METADATA_LEN + REV_TOKEN_LEN
         ad_marking.parse(bytes(range(dlen - 1)))
         ntools.assert_false(ad_marking.parsed)
+
+
+class TestADMarkingParseMetadata(object):
+    """
+    Unit test for lib.packet.pcb.ADMarking._parse_metadata
+    """
+    def test(self):
+        data = bytes.fromhex('0102 0304 0506 0708')
+        (cert_ver, sig_len, asd_len, block_len) = struct.unpack("!HHHH", data)
+        ad_marking = ADMarking()
+        ad_marking._parse_metadata(data)
+        ntools.eq_(ad_marking.cert_ver, cert_ver)
+        ntools.eq_(ad_marking.sig_len, sig_len)
+        ntools.eq_(ad_marking.asd_len, asd_len)
+        ntools.eq_(ad_marking.block_len, block_len)
+
+    def test_bad_length(self):
+        ad_marking = ADMarking()
+        ntools.assert_raises(AssertionError, ad_marking._parse_metadata,
+                             b'\x00' * (ad_marking.METADATA_LEN - 1))
+
+
+class TestADMarkingParsePcbm(object):
+    """
+    Unit test for lib.packet.pcb.ADMarking._parse_pcbm
+    """
+    @patch("lib.packet.pcb.PCBMarking")
+    def test(self, pcb_marking):
+        data = b'\x00' * PCBMarking.LEN
+        pcb_marking.LEN = PCBMarking.LEN
+        pcb_marking.return_value = 'pcb_marking'
+        ad_marking = ADMarking()
+        ad_marking._parse_pcbm(data)
+        pcb_marking.assert_called_once_with(data)
+        ntools.eq_(ad_marking.pcbm, 'pcb_marking')
+
+    def test_bad_length(self):
+        ad_marking = ADMarking()
+        ntools.assert_raises(AssertionError, ad_marking._parse_pcbm,
+                             b'\x00' * (PCBMarking.LEN - 1))
+
+
+class TestADMarkingParsePeers(object):
+    """
+    Unit test for lib.packet.pcb.ADMarking._parse_peers
+    """
+    @patch("lib.packet.pcb.PCBMarking")
+    def test(self, pcb_marking):
+        ad_marking = ADMarking()
+        data = bytes(range(PCBMarking.LEN))
+        pcb_marking.LEN = PCBMarking.LEN
+        pcb_marking.return_value = 'pcb_marking'
+        offset = ad_marking._parse_peers(data)
+        ntools.eq_(ad_marking.pms, ['pcb_marking'])
+        ntools.eq_(offset, PCBMarking.LEN)
 
 
 class TestADMarkingFromValues(object):
