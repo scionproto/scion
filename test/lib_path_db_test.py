@@ -184,7 +184,6 @@ class TestPathSegmentDBUpdate(object):
         pcb.get_expiration_time.assert_called_once_with()
         cur_rec.pcb.get_expiration_time.assert_called_once_with()
 
-
     @patch("lib.path_db.PathSegmentDBRecord", autospec=True)
     def test_entry_update(self, db_rec):
         pcb = MagicMock(spec_set=['__class__', 'get_expiration_time'])
