@@ -80,15 +80,14 @@ class TestMarkingNe(object):
     def test_false(self, eq):
         marking = Marking()
         eq.return_value = True
-        ntools.assert_false(marking.__ne__(123))
+        ntools.assert_false(marking != 123)
         eq.assert_called_once_with(123)
 
     @patch("lib.packet.pcb.Marking.__eq__")
     def test_true(self, eq):
         marking = Marking()
         eq.return_value = False
-        ntools.assert_true(marking.__ne__(123))
-        eq.assert_called_once_with(123)
+        ntools.assert_true(marking != 123)
 
 
 class TestMarkingHash(object):
@@ -99,7 +98,7 @@ class TestMarkingHash(object):
         marking = Marking()
         marking.raw = MagicMock()
         marking.raw.__hash__.return_value = 123
-        ntools.eq_(marking.__hash__(), 123)
+        ntools.eq_(hash(marking), 123)
         marking.raw.__hash__.assert_called_once_with()
 
 
@@ -141,8 +140,7 @@ class TestPCBMarkingParse(object):
         ntools.eq_(pcbm.isd_id, 12)
         ntools.eq_(pcbm.ad_id, 34)
         offset = ISD_AD.LEN
-        hop_of.assert_called_once_with(data[ISD_AD.LEN:ISD_AD.LEN +
-                                            HopOpaqueField.LEN])
+        hop_of.assert_called_once_with(data[offset:offset + HopOpaqueField.LEN])
         ntools.eq_(pcbm.hof, 'hop_of')
         offset += HopOpaqueField.LEN
         ntools.eq_(pcbm.ig_rev_token, data[offset:offset + REV_TOKEN_LEN])
