@@ -316,15 +316,17 @@ class TestADMarkingParsePeers(object):
     """
     Unit test for lib.packet.pcb.ADMarking._parse_peers
     """
+    @patch("lib.packet.pcb.REV_TOKEN_LEN", new_callable=int)
     @patch("lib.packet.pcb.PCBMarking", autospec=True)
-    def test(self, pcb_marking):
+    def test(self, pcb_marking, rev_token_len):
         ad_marking = ADMarking()
-        data = bytes(range(PCBMarking.LEN))
-        pcb_marking.LEN = PCBMarking.LEN
-        pcb_marking.return_value = 'pcb_marking'
+        pcb_marking.LEN = 1
+        rev_token_len = 0
+        data = b'abcd'
+        pcb_marking.side_effect = ['data' + str(i) for i in range(4)]
         offset = ad_marking._parse_peers(data)
-        ntools.eq_(ad_marking.pms, ['pcb_marking'])
-        ntools.eq_(offset, PCBMarking.LEN)
+        ntools.eq_(ad_marking.pms, ['data' + str(i) for i in range(4)])
+        ntools.eq_(offset, 4)
 
 
 class TestADMarkingFromValues(object):
@@ -371,13 +373,13 @@ class TestADMarkingPack(object):
         ad_marking.pcbm = Mock(spec_set=['pack'])
         ad_marking.pcbm.pack.return_value = b'packed_pcbm'
         pm = Mock(spec_set=['pack'])
-        pm.pack.return_value = b'packed_pm'
-        ad_marking.pms = [pm]
+        pm.pack.side_effect = [b'packed_pm1', b'packed_pm2']
+        ad_marking.pms = [pm] * 2
         ad_marking.asd = b'asd'
         ad_marking.eg_rev_token = b'eg_rev_token'
         ad_marking.sig = b'sig'
         ad_bytes = bytes.fromhex("0001 0002 0003 0004") + b'packed_pcbm' + \
-            b'packed_pm' + b'asd' + b'eg_rev_token' + b'sig'
+            b'packed_pm1' + b'packed_pm2' + b'asd' + b'eg_rev_token' + b'sig'
         ntools.eq_(ad_marking.pack(), ad_bytes)
 
 
@@ -472,10 +474,10 @@ class TestPathSegmentPack(object):
         (path_segment.trc_ver, path_segment.if_id) = (1, 2)
         path_segment.segment_id = b'segment_id'
         ad_marking = Mock(spec_set=['pack'])
-        ad_marking.pack.return_value = b'ad_marking'
-        path_segment.ads = [ad_marking]
+        ad_marking.pack.side_effect = [b'ad_marking1', b'ad_marking2']
+        path_segment.ads = [ad_marking] * 2
         pcb_bytes = b'packed_iof' + bytes.fromhex("00 00 00 01 00 02") + \
-                    b'segment_id' + b'ad_marking'
+                    b'segment_id' + b'ad_marking1' + b'ad_marking2'
         ntools.eq_(path_segment.pack(), pcb_bytes)
 
 
