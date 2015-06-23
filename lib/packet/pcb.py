@@ -358,15 +358,21 @@ class PathSegment(Marking):
         self.segment_id = raw[offset:offset + REV_TOKEN_LEN]
         offset += REV_TOKEN_LEN
         raw = raw[offset:]
+        self._parse_hops(raw)
+        self.parsed = True
+
+    def _parse_hops(self, raw):
+        """
+        Populates AD Hops from a raw bytes block.
+        """
         for _ in range(self.iof.hops):
-            (_, asd_len, sig_len, block_len) = struct.unpack("!HHHH",
-                raw[:ADMarking.METADATA_LEN])
+            (_, asd_len, sig_len, block_len) = \
+                struct.unpack("!HHHH", raw[:ADMarking.METADATA_LEN])
             ad_len = (sig_len + asd_len + block_len +
                       ADMarking.METADATA_LEN + REV_TOKEN_LEN)
             ad_marking = ADMarking(raw[:ad_len])
             self.add_ad(ad_marking)
             raw = raw[ad_len:]
-        self.parsed = True
 
     def pack(self):
         """
