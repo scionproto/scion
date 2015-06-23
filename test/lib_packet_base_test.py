@@ -69,14 +69,14 @@ class TestPacketBasePayload(object):
         packet_base._payload = b'data'
         ntools.eq_(packet_base.payload, b'data')
 
-    @patch("lib.packet.packet_base.PacketBase.set_payload")
+    @patch("lib.packet.packet_base.PacketBase.set_payload", autospec=True)
     def test_setter(self, set_payload):
         """
         Test for setting payload as bytes.
         """
         packet_base = PacketBase()
         packet_base.payload = b'data'
-        set_payload.assert_called_once_with(b'data')
+        set_payload.assert_called_once_with(packet_base, b'data')
 
 
 class TestPacketBaseSetPayload(object):
@@ -109,11 +109,11 @@ class TestPacketBaseHdr(object):
         packet_base._hdr = 'data'
         ntools.eq_(packet_base.hdr, 'data')
 
-    @patch("lib.packet.packet_base.PacketBase.set_hdr")
+    @patch("lib.packet.packet_base.PacketBase.set_hdr", autospec=True)
     def test_setter(self, set_hdr):
         packet_base = PacketBase()
         packet_base.hdr = 'data'
-        set_hdr.assert_called_once_with('data')
+        set_hdr.assert_called_once_with(packet_base, 'data')
 
 
 class TestPacketBaseSetHdr(object):
