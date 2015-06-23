@@ -422,6 +422,7 @@ class TestPathSegmentParse(object):
     Unit test for lib.packet.pcb.PathSegment.parse
     """
     def test(self):
+        # TODO: refactor code
         pass
 
 
@@ -430,7 +431,17 @@ class TestPathSegmentPack(object):
     Unit test for lib.packet.pcb.PathSegment.pack
     """
     def test(self):
-        pass
+        path_segment = PathSegment()
+        path_segment.iof = Mock(spec=['pack'])
+        path_segment.iof.pack.return_value = b'packed_iof'
+        (path_segment.trc_ver, path_segment.if_id) = (1, 2)
+        path_segment.segment_id = b'segment_id'
+        ad_marking = Mock(spec=['pack'])
+        ad_marking.pack.return_value = b'ad_marking'
+        path_segment.ads = [ad_marking]
+        pcb_bytes = b'packed_iof' + struct.pack("!IH", 1, 2) + b'segment_id' \
+                    + b'ad_marking'
+        ntools.eq_(path_segment.pack(), pcb_bytes)
 
 
 class TestPathSegmentAddAd(object):
