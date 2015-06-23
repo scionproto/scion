@@ -16,16 +16,19 @@
 ========================================================
 """
 # Stdlib
+from copy import copy
 import struct
 from unittest.mock import patch, MagicMock, Mock, call
 
 # External packages
+from Crypto.Hash import SHA256
 import nose
 import nose.tools as ntools
 
 # SCION
-from lib.packet.opaque_field import HopOpaqueField
+from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
 from lib.packet.packet_base import HeaderBase
+from lib.packet.path import CorePath
 from lib.packet.pcb import (
     ADMarking,
     Marking,
@@ -325,6 +328,8 @@ class TestADMarkingParsePeers(object):
         data = b'abcd'
         pcb_marking.side_effect = ['data' + str(i) for i in range(4)]
         offset = ad_marking._parse_peers(data)
+        pcb_marking.assert_has_calls([call(b'a'), call(b'b'), call(b'c'),
+                                      call(b'd')])
         ntools.eq_(ad_marking.pms, ['data' + str(i) for i in range(4)])
         ntools.eq_(offset, 4)
 
@@ -373,6 +378,7 @@ class TestADMarkingPack(object):
         ad_marking.pcbm = Mock(spec_set=['pack'])
         ad_marking.pcbm.pack.return_value = b'packed_pcbm'
         pm = Mock(spec_set=['pack'])
+        pm.pack = MagicMock(spec_set=[])
         pm.pack.side_effect = [b'packed_pm1', b'packed_pm2']
         ad_marking.pms = [pm] * 2
         ad_marking.asd = b'asd'
@@ -381,6 +387,7 @@ class TestADMarkingPack(object):
         ad_bytes = bytes.fromhex("0001 0002 0003 0004") + b'packed_pcbm' + \
             b'packed_pm1' + b'packed_pm2' + b'asd' + b'eg_rev_token' + b'sig'
         ntools.eq_(ad_marking.pack(), ad_bytes)
+        pm.pack.assert_has_calls([call()] * 2)
 
 
 class TestADMarkingRemoveSignature(object):
@@ -474,11 +481,13 @@ class TestPathSegmentPack(object):
         (path_segment.trc_ver, path_segment.if_id) = (1, 2)
         path_segment.segment_id = b'segment_id'
         ad_marking = Mock(spec_set=['pack'])
+        ad_marking.pack = MagicMock(spec_set=[])
         ad_marking.pack.side_effect = [b'ad_marking1', b'ad_marking2']
         path_segment.ads = [ad_marking] * 2
         pcb_bytes = b'packed_iof' + bytes.fromhex("00 00 00 01 00 02") + \
                     b'segment_id' + b'ad_marking1' + b'ad_marking2'
         ntools.eq_(path_segment.pack(), pcb_bytes)
+        ad_marking.pack.assert_has_calls([call()] * 2)
 
 
 class TestPathSegmentAddAd(object):
@@ -537,8 +546,34 @@ class TestPathSegmentGetPath(object):
     """
     Unit test for lib.packet.pcb.PathSegment.get_path
     """
-    def test(self):
-        pass
+    @patch("lib.packet.pcb.CorePath.from_values", spec_set=CorePath.from_values)
+    def test_basic(self, core_path):
+        path_segment = PathSegment()
+        path_segment.iof = 1
+        ads = [MagicMock(spec_set=['pcbm']) for i in range(3)]
+        for i, ad in enumerate(ads):
+            ad.pcbm = MagicMock(spec_set=['hof'])
+            ad.pcbm.hof = i
+        path_segment.ads = ads
+        core_path.return_value = 'core_path'
+        ntools.eq_(path_segment.get_path(), 'core_path')
+        core_path.assert_called_once_with(1, [0, 1, 2])
+
+    @patch("lib.packet.pcb.CorePath.from_values", spec_set=CorePath.from_values)
+    def test_reverse(self, core_path):
+        path_segment = PathSegment()
+        path_segment.iof = MagicMock(spec_set=[InfoOpaqueField, 'up_flag'])
+        ads = [MagicMock(spec_set=['pcbm']) for i in range(3)]
+        for i, ad in enumerate(ads):
+            ad.pcbm = MagicMock(spec_set=['hof'])
+            ad.pcbm.hof = i
+        path_segment.ads = ads
+        core_path.return_value = 'core_path'
+        iof = copy(path_segment.iof)
+        iof.up_flag ^= True
+        ntools.eq_(path_segment.get_path(), 'core_path')
+        # FIXME
+        # core_path.assert_called_once_with(iof, [2, 1, 0])
 
 
 class TestPathSegmentGetIsd(object):
@@ -622,8 +657,42 @@ class TestPathSegmentGetHopsHash(object):
     """
     Unit test for lib.packet.pcb.PathSegment.get_hops_hash
     """
-    def test(self):
-        pass
+    def setUp(self):
+        self.ads = [MagicMock(spec_set=['pcbm', 'eg_rev_token', 'pms']) for i in
+                    range(2)]
+        for i, ad in enumerate(self.ads):
+            ad.pcbm = MagicMock(spec_set=['ig_rev_token'])
+            ad.pcbm.ig_rev_token = 'pcbm' + str(i)
+            ad.eg_rev_token = 'eg' + str(i)
+            ad.pms = [MagicMock(spec_set=['ig_rev_token']) for j in range(2)]
+            for j, pm in enumerate(ad.pms):
+                pm.ig_rev_token = 'ig' + str(i) + str(j)
+        self.calls = [call('pcbm0'), call('eg0'), call('ig00'), call('ig01'),
+                      call('pcbm1'), call('eg1'), call('ig10'), call('ig11')]
+        self.h = MagicMock(spec=['update', 'digest', 'hexdigest'])
+        self.h.digest.return_value = 'digest'
+        self.h.hexdigest.return_value = 'hexdigest'
+        self.path_segment = PathSegment()
+        self.path_segment.ads = self.ads
+
+    @patch("lib.packet.pcb.SHA256", autospec=True)
+    def test_basic(self, sha):
+        sha.new.return_value = self.h
+        ntools.eq_(self.path_segment.get_hops_hash(), 'digest')
+        self.h.update.assert_has_calls(self.calls)
+        self.h.digest.assert_called_once_with()
+
+    @patch("lib.packet.pcb.SHA256", autospec=True)
+    def test_hex(self, sha):
+        sha.new.return_value = self.h
+        ntools.eq_(self.path_segment.get_hops_hash(hex=True), 'hexdigest')
+        self.h.hexdigest.assert_called_once_with()
+
+    def tearDown(self):
+        del self.ads
+        del self.calls
+        del self.h
+        del self.path_segment
 
 
 class TestPathSegmentGetNPeerLinks(object):
