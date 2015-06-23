@@ -189,20 +189,53 @@ class ADMarking(Marking):
         if dlen < PCBMarking.LEN + self.METADATA_LEN + REV_TOKEN_LEN:
             logging.warning("AD: Data too short for parsing, len: %u", dlen)
             return
-        (self.cert_ver, self.sig_len, self.asd_len, self.block_len) = \
-            struct.unpack("!HHHH", raw[:self.METADATA_LEN])
+        self._parse_metadata(raw[:self.METADATA_LEN])
         raw = raw[self.METADATA_LEN:]
-        self.pcbm = PCBMarking(raw[:PCBMarking.LEN])
+        self._parse_pcbm(raw[:PCBMarking.LEN])
         raw = raw[PCBMarking.LEN:]
-        while len(raw) > self.sig_len + self.asd_len + REV_TOKEN_LEN:
-            peer_marking = PCBMarking(raw[:PCBMarking.LEN])
-            self.pms.append(peer_marking)
-            raw = raw[PCBMarking.LEN:]
+        offset = self._parse_peers(raw)
+        raw = raw[offset:]
         self.asd = raw[:self.asd_len]
         raw = raw[self.asd_len:]
         self.eg_rev_token = raw[:REV_TOKEN_LEN]
         self.sig = raw[REV_TOKEN_LEN:]
         self.parsed = True
+
+    def _parse_metadata(self, raw):
+        """
+        Populates metadata fields from a raw bytes block.
+
+        :param raw:
+        :return:
+        """
+        assert len(raw) == self.METADATA_LEN
+        (self.cert_ver, self.sig_len, self.asd_len, self.block_len) = \
+            struct.unpack("!HHHH", raw)
+
+    def _parse_pcbm(self, raw):
+        """
+        Populates PCBMarking field from a raw bytes block.
+
+        :param raw:
+        :return:
+        """
+        assert len(raw) == PCBMarking.LEN
+        self.pcbm = PCBMarking(raw)
+
+    def _parse_peers(self, raw):
+        """
+        Populated Peer Marking fields from a raw bytes block
+
+        :param raw:
+        :return:
+        """
+        offset = 0
+        while len(raw) > self.sig_len + self.asd_len + REV_TOKEN_LEN:
+            peer_marking = PCBMarking(raw[:PCBMarking.LEN])
+            self.pms.append(peer_marking)
+            raw = raw[PCBMarking.LEN:]
+            offset += PCBMarking.LEN
+        return offset
 
     @classmethod
     def from_values(cls, pcbm=None, pms=None,
