@@ -157,6 +157,7 @@ function statusControl() {
 }
 
 function displayLogs() {
+    // Callbacks for showing log dialogs
 
     function refreshLog(logUrl) {
         var $logOutput = $('#log-output');
@@ -171,11 +172,20 @@ function displayLogs() {
         });
     }
 
+    var $logWindow = $('#logModal');
+
+    // Open log modal window
     $('.status-text').click(function() {
         var logUrl = $(this).data('log-url');
         refreshLog(logUrl);
-        $('#logModal').modal();
+        $logWindow.modal();
+        $logWindow.data('url', logUrl);
+    });
 
+    // Refresh log button
+    $('#refresh-log').click(function() {
+        var logUrl = $logWindow.data('url');
+        refreshLog(logUrl);
     });
 }
 

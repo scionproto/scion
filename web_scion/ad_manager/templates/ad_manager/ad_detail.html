@@ -160,6 +160,8 @@
     </div>
   </div>
 
+  {% include 'ad_manager/log_modal.html' %}
+
   <!-- JS variables passed from the view to JavaScript files -->
   <script>
     var isdAdId = '{{ object }}';
@@ -167,5 +169,4 @@
     var adCompareUrl = '{% url 'compare_topology' object.id %}';
     var getMasterUrl = '{% url 'get_group_master' object.id %}';
   </script>
-
 {% endblock %}
