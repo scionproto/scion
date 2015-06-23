@@ -16,7 +16,6 @@
 =====================================================
 """
 # Stdlib
-import struct
 from unittest.mock import patch, MagicMock, call
 
 # External packages
@@ -24,12 +23,12 @@ import nose
 import nose.tools as ntools
 
 # SCION
+from lib.packet.pcb import PathSegment
 from lib.path_db import (
     DBResult,
     PathSegmentDB,
     PathSegmentDBRecord
 )
-from lib.packet.pcb import PathSegment
 
 
 class TestPathSegmentDBRecordInit(object):
