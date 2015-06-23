@@ -112,10 +112,10 @@ class TestPathSegmentDBGetItem(object):
     """
     def test_basic(self):
         cur_rec = MagicMock(spec_set=['pcb'])
+        cur_rec.pcb = "data1"
         pth_seg_db = PathSegmentDB()
         pth_seg_db._db = MagicMock(spec_set=[])
         pth_seg_db._db.return_value = {0: {'record': cur_rec}}
-        pth_seg_db._db.return_value[0]['record'].pcb = "data1"
         ntools.eq_(pth_seg_db["data2"], "data1")
         pth_seg_db._db.assert_called_once_with(id="data2")
 
@@ -242,9 +242,10 @@ class TestPathSegmentDBCall(object):
     def test_basic(self, time):
         recs = []
         for i in range(5):
-            recs.append({'record': MagicMock(spec_set=['pcb', 'fidelity'])})
-            recs[i]['record'].pcb.get_expiration_time.return_value = 1
-            recs[i]['record'].fidelity = i
+            cur_rec = MagicMock(spec_set=['pcb', 'fidelity'])
+            cur_rec.pcb.get_expiration_time.return_value = 1
+            cur_rec.fidelity = i
+            recs.append({'record': cur_rec})
         time.return_value = 0
         pth_seg_db = PathSegmentDB()
         pth_seg_db._db = MagicMock(spec_set=['delete'])
@@ -260,9 +261,10 @@ class TestPathSegmentDBCall(object):
     def test_expiration(self, time):
         recs = []
         for i in range(5):
-            recs.append({'record': MagicMock(spec_set=['pcb']), 'src_isd': 0,
+            cur_rec = MagicMock(spec_set=['pcb'])
+            cur_rec.pcb.get_expiration_time.return_value = -1
+            recs.append({'record': cur_rec, 'src_isd': 0,
                          'src_ad': 1, 'dst_isd': 2, 'dst_ad': 3})
-            recs[i]['record'].pcb.get_expiration_time.return_value = -1
         time.return_value = 0
         pth_seg_db = PathSegmentDB()
         pth_seg_db._db = MagicMock(spec_set=['delete'])
