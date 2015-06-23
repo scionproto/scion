@@ -20,6 +20,7 @@ import argparse
 import json
 import logging
 import os
+import random
 import sys
 from collections import deque
 
@@ -55,13 +56,17 @@ def read_from_dir(dir_name):
     print("Files being converted are: \n{}\n".format(list_files))
     return list_files
 
-def parse(brite_files, dot_output_file):
+def parse(brite_files, dot_output_file, avg_out_degree):
     """
     1. Parse a list of topology files each into a seperate ISD
     2. All the core AD's in ISD's are interconnected using some model topology
 
     :param brite_files: list of brite output files to be converted
     :type brite_files: list
+    :param dot_output_file: Name of dot file which will be created
+    :type dot_output_file: str
+    :param avg_out_degree: Avg. degree of an ISD in inter-ISD connections
+    :type avg_out_degree: int
     :returns: the newly created SCION Graph.
     :rtype: :class:`networkx.DiGraph`
     """
@@ -69,7 +74,7 @@ def parse(brite_files, dot_output_file):
     core_ad_dict = dict()
     num_isd = MIN_ISD_NUM
     final_graph = nx.DiGraph()
-
+    # ISD's are numbered starting from MIN_ISD_NUM
     for brite_file in brite_files:
         if not os.path.isfile(brite_file):
             logging.error(brite_file + " file missing.")
@@ -81,20 +86,50 @@ def parse(brite_files, dot_output_file):
         num_isd += 1
     count_isds = num_isd - 1
     assert count_isds == len(brite_files)
-    print("Number of ISD's is {}".format(count_isds))
-
-    # Core AD connections: Connecting each core AD in an ISD with
-    # every other Core AD according to the model graph
-    core_ad_model_graph = nx.complete_graph(count_isds)
+    print("Total number of ISD's is {}".format(count_isds))
+    print("Average degree of connection between ISD's is {}"
+          .format(avg_out_degree))
+    isd_graph = nx.MultiDiGraph()
+    curr_num_edges = 0
+    max_num_edges = count_isds * avg_out_degree
+    # Adding edges in circular fashion to ensure that isd graph remains
+    # connected
+    for isd in range(MIN_ISD_NUM, count_isds + 1):
+        neighbor_isd = isd + 1
+        if isd == count_isds:
+            neighbor_isd = MIN_ISD_NUM
+        isd_graph.add_edge(isd, neighbor_isd)
+        curr_num_edges += 2
+    while curr_num_edges < max_num_edges:
+        isd_list = list(ISD_dict.keys())
+        # Among all the ones with least outdegree, we choose 2 randomly 
+        random.shuffle(isd_list)
+        num_outedges = sorted(isd_list,
+                              key=lambda isd: isd_graph.degree(isd))
+        isd = num_outedges[0]
+        neighbor_isd = num_outedges[1]
+        isd_graph.add_edge(isd, neighbor_isd)
+        curr_num_edges += 2
+    new_routing_edges = 0
     for (src_isd_id, src_core_ads) in core_ad_dict.items():
         for (dest_isd_id, dest_core_ads) in core_ad_dict.items():
-            # isd numbers are 1-indexed 
-            if core_ad_model_graph[src_isd_id - 1].get(dest_isd_id - 1) == None:
-                continue
-            for src_ad in src_core_ads:
-                for dest_ad in dest_core_ads:
-                    final_graph.add_edge(src_ad, dest_ad,
-                                         label='ROUTING', color='red')
+            new_edges = isd_graph.number_of_edges(src_isd_id, dest_isd_id)
+            all_core_ad_conn = \
+                [(x,y) for x in src_core_ads for y in dest_core_ads]
+            # Number of new edges is atmost the
+            # number of all possible inter-ISD connections
+            new_edges = min(new_edges, len(all_core_ad_conn))
+            # Randomly choosing core-ad connections
+            sampled_core_ad_conn = random.sample(all_core_ad_conn, new_edges)
+            for (src_core_ad, dest_core_ad) in sampled_core_ad_conn:
+                final_graph.add_edge(src_core_ad, dest_core_ad,
+                                     label='ROUTING', color='red')
+                final_graph.add_edge(dest_core_ad, src_core_ad,
+                                     label='ROUTING', color='red')
+                new_routing_edges += 2
+    core_nodes = [x for x in final_graph.nodes() if final_graph.node[x]["is_core"]]
+    nx.write_dot(final_graph.subgraph(core_nodes), "scion.dot")
+    print("{} inter-ISD routing edges added".format(new_routing_edges))
     # Ensuring that final graph is connected
     assert nx.is_connected(final_graph.to_undirected())
     if dot_output_file != None:
@@ -102,7 +137,7 @@ def parse(brite_files, dot_output_file):
             from networkx import pygraphviz
         except ImportError:
             raise ImportError('Graphviz is not available for python3.' +
-                               'Install it for python instead')
+                               'Install it for python2 instead')
         print("Generating the dot file {}".format(dot_output_file))
         nx.write_dot(final_graph, dot_output_file)
     return final_graph
@@ -282,13 +317,19 @@ def main():
                         action='store',
                         default=None,
                         dest='from_directory',
-                        help='Convert each files in the specified directory \
-                        into an isd')
+                        help="Convert each files in the specified directory \
+                              into an isd")
     parser.add_argument('-f', '--files', '--file',
                         action='store',
                         dest='collection',
                         nargs='+',
                         help="Convert files into respective isd's")
+    parser.add_argument('-c', '--degree',
+                        action='store',
+                        default=3,
+                        dest='degree',
+                        help="Set the average degree of connections between \
+                              core AD's")
     parser.add_argument('-o', '--out',
                         action='store',
                         default=None,
@@ -300,7 +341,7 @@ def main():
         brite_files = read_from_dir(results.from_directory)
     else:
         brite_files = results.collection
-    scion_graph = parse(brite_files, results.dot_output_file)
+    scion_graph = parse(brite_files, results.dot_output_file, int(results.degree))
     json_convert(scion_graph)
 
 if __name__ == "__main__":
