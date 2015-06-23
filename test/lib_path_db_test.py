@@ -174,13 +174,16 @@ class TestPathSegmentDBUpdate(object):
         pcb.get_expiration_time.return_value = -1
         record = MagicMock(spec_set=['id'])
         record.id = "str"
-        recs = {0: {'record': MagicMock(spec_set=['pcb'])}}
-        recs[0]['record'].pcb.get_expiration_time.return_value = 0
+        cur_rec = MagicMock(spec_set=['pcb'])
+        cur_rec.pcb.get_expiration_time.return_value = 0
         db_rec.return_value = record
         pth_seg_db = PathSegmentDB()
         pth_seg_db._db = MagicMock(spec_set=[])
-        pth_seg_db._db.return_value = recs
+        pth_seg_db._db.return_value = {0: {'record': cur_rec}}
         ntools.eq_(pth_seg_db.update(pcb, 1, 2, 3, 4), DBResult.NONE)
+        pcb.get_expiration_time.assert_called_once_with()
+        cur_rec.pcb.get_expiration_time.assert_called_once_with()
+
 
     @patch("lib.path_db.PathSegmentDBRecord", autospec=True)
     def test_entry_update(self, db_rec):
@@ -189,14 +192,14 @@ class TestPathSegmentDBUpdate(object):
         pcb.get_expiration_time.return_value = 1
         record = MagicMock(spec_set=['id'])
         record.id = "str"
-        recs = {0: {'record': MagicMock(spec_set=['pcb', 'id'])}}
-        recs[0]['record'].pcb.get_expiration_time.return_value = 0
+        cur_rec = MagicMock(spec_set=['pcb', 'id'])
+        cur_rec.pcb.get_expiration_time.return_value = 0
         db_rec.return_value = record
         pth_seg_db = PathSegmentDB()
         pth_seg_db._db = MagicMock(spec_set=[])
-        pth_seg_db._db.return_value = recs
+        pth_seg_db._db.return_value = {0: {'record': cur_rec}}
         ntools.eq_(pth_seg_db.update(pcb, 1, 2, 3, 4), DBResult.ENTRY_UPDATED)
-        ntools.eq_(recs[0]['record'].pcb, pcb)
+        ntools.eq_(cur_rec.pcb, pcb)
 
 
 class TestPathSegmentDBUpdateAll(object):
@@ -265,6 +268,8 @@ class TestPathSegmentDBCall(object):
         pth_seg_db._db.return_value = recs
         ntools.eq_(pth_seg_db("data"), [])
         pth_seg_db._db.delete.assert_called_once_with(recs)
+        for i in range(5):
+            recs[i]['record'].pcb.get_expiration_time.assert_called_once_with()
 
 
 class TestPathSegmentDBLen(object):
