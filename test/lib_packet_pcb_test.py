@@ -17,7 +17,7 @@
 """
 # Stdlib
 import struct
-from unittest.mock import patch, MagicMock, Mock
+from unittest.mock import patch, MagicMock, Mock, call
 
 # External packages
 import nose
@@ -333,15 +333,15 @@ class TestADMarkingFromValues(object):
     """
     def test(self):
         pcbm = MagicMock()
-        pms = [MagicMock(), MagicMock()]
+        pms = ['pms0', 'pms1']
         eg_rev_token = bytes(range(REV_TOKEN_LEN))
         sig = b'sig_bytes'
         asd = b'asd_bytes'
         ad_marking = ADMarking.from_values(pcbm, pms, eg_rev_token, sig, asd)
         ntools.assert_is_instance(ad_marking, ADMarking)
-        ntools.eq_(ad_marking.block_len, (1 + len(pms)) * PCBMarking.LEN)
         ntools.eq_(ad_marking.pcbm, pcbm)
         ntools.eq_(ad_marking.pms, pms)
+        ntools.eq_(ad_marking.block_len, 3 * PCBMarking.LEN)
         ntools.eq_(ad_marking.sig, sig)
         ntools.eq_(ad_marking.sig_len, len(sig))
         ntools.eq_(ad_marking.asd, asd)
@@ -350,9 +350,9 @@ class TestADMarkingFromValues(object):
 
     def test_less_arg(self):
         ad_marking = ADMarking.from_values()
-        ntools.eq_(ad_marking.block_len, PCBMarking.LEN)
         ntools.assert_is_none(ad_marking.pcbm)
         ntools.eq_(ad_marking.pms, [])
+        ntools.eq_(ad_marking.block_len, PCBMarking.LEN)
         ntools.eq_(ad_marking.sig, b'')
         ntools.eq_(ad_marking.sig_len, 0)
         ntools.eq_(ad_marking.asd, b'')
@@ -376,8 +376,8 @@ class TestADMarkingPack(object):
         ad_marking.asd = b'asd'
         ad_marking.eg_rev_token = b'eg_rev_token'
         ad_marking.sig = b'sig'
-        ad_bytes = struct.pack("!HHHH", 1, 2, 3, 4) + b'packed_pcbm' + \
-                   b'packed_pm' + b'asd' + b'eg_rev_token' + b'sig'
+        ad_bytes = bytes.fromhex("0001 0002 0003 0004") + b'packed_pcbm' + \
+            b'packed_pm' + b'asd' + b'eg_rev_token' + b'sig'
         ntools.eq_(ad_marking.pack(), ad_bytes)
 
 
@@ -387,6 +387,8 @@ class TestADMarkingRemoveSignature(object):
     """
     def test(self):
         ad_marking = ADMarking()
+        ad_marking.sig = b'sig'
+        ad_marking.sig_len = 3
         ad_marking.remove_signature()
         ntools.eq_(ad_marking.sig, b'')
         ntools.eq_(ad_marking.sig_len, 0)
@@ -398,6 +400,8 @@ class TestADMarkingRemoveAsd(object):
     """
     def test(self):
         ad_marking = ADMarking()
+        ad_marking.asd = b'asd'
+        ad_marking.asd_len = 3
         ad_marking.remove_asd()
         ntools.eq_(ad_marking.asd, b'')
         ntools.eq_(ad_marking.asd_len, 0)
@@ -470,8 +474,8 @@ class TestPathSegmentPack(object):
         ad_marking = Mock(spec_set=['pack'])
         ad_marking.pack.return_value = b'ad_marking'
         path_segment.ads = [ad_marking]
-        pcb_bytes = b'packed_iof' + struct.pack("!IH", 1, 2) + b'segment_id' \
-                    + b'ad_marking'
+        pcb_bytes = b'packed_iof' + bytes.fromhex("00 00 00 01 00 02") + \
+                    b'segment_id' + b'ad_marking'
         ntools.eq_(path_segment.pack(), pcb_bytes)
 
 
@@ -479,22 +483,26 @@ class TestPathSegmentAddAd(object):
     """
     Unit test for lib.packet.pcb.PathSegment.add_ad
     """
+    def test_lower_exp_time(self):
+        path_segment = PathSegment()
+        ad_marking = MagicMock(spec_set=['pcbm'])
+        ad_marking.pcbm = MagicMock(spec_set=['hof'])
+        ad_marking.pcbm.hof = MagicMock(spec_set=['exp_time'])
+        ad_marking.pcbm.hof.exp_time = path_segment.min_exp_time - 1
+        path_segment.iof = MagicMock(spec_set=['hops'])
+        path_segment.add_ad(ad_marking)
+        ntools.eq_(path_segment.min_exp_time, ad_marking.pcbm.hof.exp_time)
+
     def test_higher_exp_time(self):
         path_segment = PathSegment()
         ad_marking = MagicMock(spec_set=['pcbm'])
+        ad_marking.pcbm = MagicMock(spec_set=['hof'])
+        ad_marking.pcbm.hof = MagicMock(spec_set=['exp_time'])
         ad_marking.pcbm.hof.exp_time = path_segment.min_exp_time + 1
         path_segment.iof = MagicMock(spec_set=['hops'])
         path_segment.add_ad(ad_marking)
         ntools.assert_in(ad_marking, path_segment.ads)
         ntools.eq_(path_segment.iof.hops, len(path_segment.ads))
-
-    def test_lower_exp_time(self):
-        path_segment = PathSegment()
-        ad_marking = MagicMock(spec_set=['pcbm'])
-        ad_marking.pcbm.hof.exp_time = path_segment.min_exp_time - 1
-        path_segment.iof = MagicMock(spec_set=['hops'])
-        path_segment.add_ad(ad_marking)
-        ntools.eq_(path_segment.min_exp_time, ad_marking.pcbm.hof.exp_time)
 
 
 class TestPathSegmentRemoveSignatures(object):
@@ -505,7 +513,6 @@ class TestPathSegmentRemoveSignatures(object):
         path_segment = PathSegment()
         path_segment.ads = [Mock(spec_set=['remove_signature']) for i in
                             range(3)]
-
         path_segment.remove_signatures()
         for ad in path_segment.ads:
             ad.remove_signature.assert_called_once_with()
@@ -666,6 +673,7 @@ class TestPathSegmentSetTimestamp(object):
     def test_success(self):
         path_segment = PathSegment()
         path_segment.iof = Mock(spec_set=['timestamp'])
+        path_segment.iof.timestamp = 456
         path_segment.set_timestamp(123)
         ntools.eq_(path_segment.iof.timestamp, 123)
 
@@ -695,7 +703,7 @@ class TestPathSegmentGetAllIftokens(object):
         ads[0].eg_rev_token, ads[1].eg_rev_token = 'eg_rev_token0', \
                                                    'eg_rev_token1'
         ads[0].pms, ads[1].pms = [Mock(spec_set=['ig_rev_token'])], \
-                                [Mock(spec_set=['ig_rev_token'])]
+                                 [Mock(spec_set=['ig_rev_token'])]
         ads[0].pms[0].ig_rev_token, ads[1].pms[0].ig_rev_token = \
             'pm_ig_rev_token0', 'pm_ig_rev_token1'
         path_segment.ads = ads
@@ -789,15 +797,15 @@ class TestPathConstructionBeaconFromValues(object):
     @patch("lib.packet.pcb.SCIONAddr.from_values", spec=SCIONAddr.from_values)
     def test(self, scion_addr, scion_header):
         src_isd_ad = Mock(spec_set=['isd', 'ad'])
-        dst, pcb = Mock(), Mock()
+        dst, pcb = 'dst', 'pcb'
         scion_addr.return_value = 'src'
         scion_header.return_value = Mock(spec=HeaderBase)
         beacon = PathConstructionBeacon.from_values(src_isd_ad, dst, pcb)
         ntools.assert_is_instance(beacon, PathConstructionBeacon)
+        ntools.eq_(beacon.pcb, pcb)
         scion_addr.assert_called_once_with(src_isd_ad.isd, src_isd_ad.ad,
                                            PacketType.BEACON)
         scion_header.assert_called_once_with('src', dst)
-        ntools.eq_(beacon.pcb, pcb)
         ntools.eq_(beacon.hdr, scion_header.return_value)
 
 
