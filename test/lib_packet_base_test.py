@@ -16,7 +16,7 @@
 =======================================================
 """
 # Stdlib
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 # External packages
 import nose
@@ -150,6 +150,19 @@ class TestPacketBaseLen(object):
         ntools.eq_(len(packet_base), len(header) + len(payload))
 
 
+class TestPacketBaseHash(object):
+    """
+    Unit tests for lib.packet.packet_base.PacketBase.__hash__
+    """
+    @patch("lib.packet.packet_base.PacketBase.pack", autospec=True)
+    def test(self, pack):
+        packet_base = PacketBase()
+        pack.return_value = MagicMock()
+        pack.return_value.__hash__.return_value = 123
+        ntools.eq_(hash(packet_base), 123)
+        pack.return_value.__hash__.assert_called_once_with()
+
+
 class TestPacketBaseEq(object):
     """
     Unit tests for lib.packet.packet_base.PacketBase.__eq__
@@ -237,6 +250,18 @@ class TestPayloadBaseLen(object):
         """
         payload = PayloadBase()
         ntools.eq_(len(payload), 0)
+
+
+class TestPayloadBaseHash(object):
+    """
+    Unit tests for lib.packet.packet_base.PayloadBase.__hash__
+    """
+    def test(self):
+        payload = PayloadBase()
+        payload.raw = MagicMock()
+        payload.raw.__hash__.return_value = 123
+        ntools.eq_(hash(payload), 123)
+        payload.raw.__hash__.assert_called_once_with()
 
 
 class TestPayloadBaseEq(object):
