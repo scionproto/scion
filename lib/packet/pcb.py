@@ -358,13 +358,15 @@ class PathSegment(Marking):
         self.segment_id = raw[offset:offset + REV_TOKEN_LEN]
         offset += REV_TOKEN_LEN
         raw = raw[offset:]
-        self._parse_hops(raw)
+        offset += self._parse_hops(raw)
         self.parsed = True
+        return offset
 
     def _parse_hops(self, raw):
         """
         Populates AD Hops from a raw bytes block.
         """
+        offset = 0
         for _ in range(self.iof.hops):
             (_, asd_len, sig_len, block_len) = \
                 struct.unpack("!HHHH", raw[:ADMarking.METADATA_LEN])
@@ -373,6 +375,8 @@ class PathSegment(Marking):
             ad_marking = ADMarking(raw[:ad_len])
             self.add_ad(ad_marking)
             raw = raw[ad_len:]
+            offset += ad_len
+        return offset
 
     def pack(self):
         """
@@ -543,23 +547,9 @@ class PathSegment(Marking):
         pcbs = []
         while len(raw) > 0:
             pcb = PathSegment()
-            pcb.iof = InfoOpaqueField(raw[:InfoOpaqueField.LEN])
-            offset = InfoOpaqueField.LEN
-            pcb.trc_ver, pcb.if_id = struct.unpack("!IH",
-                                                   raw[offset:offset + 6])
-            offset += 6  # 4B for trc_ver and 2B for if_id.
-            pcb.segment_id = raw[offset:offset + REV_TOKEN_LEN]
-            offset += REV_TOKEN_LEN
-            raw = raw[offset:]
-            for _ in range(pcb.iof.hops):
-                (_, asd_len, sig_len, block_len) = \
-                    struct.unpack("!HHHH", raw[:ADMarking.METADATA_LEN])
-                ad_len = (sig_len + asd_len + block_len +
-                          ADMarking.METADATA_LEN + REV_TOKEN_LEN)
-                ad_marking = ADMarking(raw[:ad_len])
-                pcb.add_ad(ad_marking)
-                raw = raw[ad_len:]
+            offset = pcb.parse(raw)
             pcbs.append(pcb)
+            raw = raw[offset:]
         return pcbs
 
     @staticmethod
