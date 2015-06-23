@@ -124,7 +124,6 @@ class TestPathSegmentDBGetItem(object):
         pth_seg_db._db = MagicMock(spec_set=[])
         pth_seg_db._db.return_value = False
         ntools.assert_is_none(pth_seg_db["data"])
-        pth_seg_db._db.assert_called_once_with(id="data")
 
 
 class TestPathSegmentDBContains(object):
@@ -147,7 +146,6 @@ class TestPathSegmentDBContains(object):
         pth_seg_db._db = MagicMock(spec_set=[])
         pth_seg_db._db.return_value = recs
         ntools.assert_false("data" in pth_seg_db)
-        pth_seg_db._db.assert_called_once_with(id="data")
 
 
 class TestPathSegmentDBUpdate(object):
@@ -183,8 +181,6 @@ class TestPathSegmentDBUpdate(object):
         pth_seg_db._db = MagicMock(spec_set=[])
         pth_seg_db._db.return_value = recs
         ntools.eq_(pth_seg_db.update(pcb, 1, 2, 3, 4), DBResult.NONE)
-        db_rec.assert_called_once_with(pcb)
-        pth_seg_db._db.assert_called_once_with(id="str")
 
     @patch("lib.path_db.PathSegmentDBRecord", autospec=True)
     def test_entry_update(self, db_rec):
@@ -200,8 +196,6 @@ class TestPathSegmentDBUpdate(object):
         pth_seg_db._db = MagicMock(spec_set=[])
         pth_seg_db._db.return_value = recs
         ntools.eq_(pth_seg_db.update(pcb, 1, 2, 3, 4), DBResult.ENTRY_UPDATED)
-        db_rec.assert_called_once_with(pcb)
-        pth_seg_db._db.assert_called_once_with(id="str")
         ntools.eq_(recs[0]['record'].pcb, pcb)
 
 
@@ -236,7 +230,6 @@ class TestPathSegmentDBDelete(object):
         pth_seg_db._db = MagicMock(spec_set=[])
         pth_seg_db._db.return_value = False
         ntools.eq_(pth_seg_db.delete("data"), DBResult.NONE)
-        pth_seg_db._db.assert_called_once_with(id="data")
 
 
 class TestPathSegmentDBCall(object):
@@ -271,8 +264,6 @@ class TestPathSegmentDBCall(object):
         pth_seg_db._db = MagicMock(spec_set=['delete'])
         pth_seg_db._db.return_value = recs
         ntools.eq_(pth_seg_db("data"), [])
-        pth_seg_db._db.assert_called_once_with("data")
-        time.assert_called_with()
         pth_seg_db._db.delete.assert_called_once_with(recs)
 
 
