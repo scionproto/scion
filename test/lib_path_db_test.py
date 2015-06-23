@@ -253,6 +253,8 @@ class TestPathSegmentDBCall(object):
         pth_seg_db._db.assert_called_once_with("data")
         time.assert_called_once_with()
         pth_seg_db._db.delete.assert_called_once_with([])
+        for i in range(5):
+            recs[i]['record'].pcb.get_expiration_time.assert_called_once_with()
 
     @patch("lib.path_db.time.time", autospec=True)
     def test_expiration(self, time):
@@ -267,8 +269,6 @@ class TestPathSegmentDBCall(object):
         pth_seg_db._db.return_value = recs
         ntools.eq_(pth_seg_db("data"), [])
         pth_seg_db._db.delete.assert_called_once_with(recs)
-        for i in range(5):
-            recs[i]['record'].pcb.get_expiration_time.assert_called_once_with()
 
 
 class TestPathSegmentDBLen(object):
