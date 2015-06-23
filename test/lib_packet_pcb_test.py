@@ -33,8 +33,8 @@ from lib.packet.pcb import (
     PathSegment,
     PCBMarking,
     REV_TOKEN_LEN)
-from lib.packet.scion import PacketType
-from lib.packet.scion_addr import ISD_AD
+from lib.packet.scion import PacketType, SCIONHeader
+from lib.packet.scion_addr import ISD_AD, SCIONAddr
 from lib.defines import EXP_TIME_UNIT
 
 
@@ -76,14 +76,14 @@ class TestMarkingNe(object):
     """
     Unit test for lib.packet.pcb.Marking.__ne__
     """
-    @patch("lib.packet.pcb.Marking.__eq__")
+    @patch("lib.packet.pcb.Marking.__eq__", autospec=True)
     def test_false(self, eq):
         marking = Marking()
         eq.return_value = True
         ntools.assert_false(marking != 123)
-        eq.assert_called_once_with(123)
+        eq.assert_called_once_with(marking, 123)
 
-    @patch("lib.packet.pcb.Marking.__eq__")
+    @patch("lib.packet.pcb.Marking.__eq__", autospec=True)
     def test_true(self, eq):
         marking = Marking()
         eq.return_value = False
@@ -106,7 +106,7 @@ class TestPCBMarkingInit(object):
     """
     Unit test for lib.packet.pcb.PCBMarking.__init__
     """
-    @patch("lib.packet.pcb.Marking.__init__")
+    @patch("lib.packet.pcb.Marking.__init__", autospec=True)
     def test_basic(self, marking_init):
         pcbm = PCBMarking()
         marking_init.assert_called_once_with(pcbm)
@@ -115,18 +115,18 @@ class TestPCBMarkingInit(object):
         ntools.assert_is_none(pcbm.hof)
         ntools.eq_(pcbm.ig_rev_token, REV_TOKEN_LEN * b"\x00")
 
-    @patch("lib.packet.pcb.PCBMarking.parse")
+    @patch("lib.packet.pcb.PCBMarking.parse", autospec=True)
     def test_raw(self, parse):
-        PCBMarking('rawstring')
-        parse.assert_called_once_with('rawstring')
+        pcbm = PCBMarking('rawstring')
+        parse.assert_called_once_with(pcbm, 'rawstring')
 
 
 class TestPCBMarkingParse(object):
     """
     Unit test for lib.packet.pcb.PCBMarking.parse
     """
-    @patch("lib.packet.pcb.HopOpaqueField")
-    @patch("lib.packet.pcb.ISD_AD")
+    @patch("lib.packet.pcb.HopOpaqueField", autospec=True)
+    @patch("lib.packet.pcb.ISD_AD", autospec=True)
     def test(self, isd_ad, hop_of):
         pcbm = PCBMarking()
         data = bytes(range(PCBMarking.LEN))
@@ -182,7 +182,7 @@ class TestPCBMarkingPack(object):
         pcbm.hof.pack = MagicMock(spec_set=[])
         pcbm.hof.pack.return_value = b'hof'
         pcbm.ig_rev_token = b'ig_rev_token'
-        isd_ad.return_value = MagicMock(spec=['pack'])
+        isd_ad.return_value = MagicMock(spec_set=['pack'])
         isd_ad.return_value.pack.return_value = b'(isd, ad)'
         packed = pcbm.pack()
         isd_ad.assert_called_once_with(1, 2)
@@ -215,7 +215,7 @@ class TestADMarkingInit(object):
     """
     Unit test for lib.packet.pcb.ADMarking.__init__
     """
-    @patch("lib.packet.pcb.Marking.__init__")
+    @patch("lib.packet.pcb.Marking.__init__", autospec=True)
     def test_no_args(self, marking_init):
         ad_marking = ADMarking()
         marking_init.assert_called_once_with(ad_marking)
@@ -229,19 +229,19 @@ class TestADMarkingInit(object):
         ntools.eq_(ad_marking.asd_len, 0)
         ntools.eq_(ad_marking.block_len, 0)
 
-    @patch("lib.packet.pcb.ADMarking.parse")
+    @patch("lib.packet.pcb.ADMarking.parse", autospec=True)
     def test_with_args(self, parse):
-        ADMarking('data')
-        parse.assert_called_once_with('data')
+        ad_marking = ADMarking('data')
+        parse.assert_called_once_with(ad_marking, 'data')
 
 
 class TestADMarkingParse(object):
     """
     Unit test for lib.packet.pcb.ADMarking.parse
     """
-    @patch("lib.packet.pcb.ADMarking._parse_peers")
-    @patch("lib.packet.pcb.ADMarking._parse_pcbm")
-    @patch("lib.packet.pcb.ADMarking._parse_metadata")
+    @patch("lib.packet.pcb.ADMarking._parse_peers", autospec=True)
+    @patch("lib.packet.pcb.ADMarking._parse_pcbm", autospec=True)
+    @patch("lib.packet.pcb.ADMarking._parse_metadata", autospec=True)
     def test(self, parse_metadata, parse_pcbm, parse_peers):
         ad_marking = ADMarking()
         # using a larger length as a buffer
@@ -249,11 +249,12 @@ class TestADMarkingParse(object):
         data = bytes(range(dlen))
         parse_peers.return_value = PCBMarking.LEN
         ad_marking.parse(data)
-        parse_metadata.assert_called_once_with(data[:ADMarking.METADATA_LEN])
+        parse_metadata.assert_called_once_with(ad_marking,
+                                               data[:ADMarking.METADATA_LEN])
         data = data[ADMarking.METADATA_LEN:]
-        parse_pcbm.assert_called_once_with(data[:PCBMarking.LEN])
+        parse_pcbm.assert_called_once_with(ad_marking, data[:PCBMarking.LEN])
         data = data[PCBMarking.LEN:]
-        parse_peers.assert_called_once_with(data)
+        parse_peers.assert_called_once_with(ad_marking, data)
         data = data[PCBMarking.LEN:]
         ntools.eq_(ad_marking.asd, data[:ad_marking.asd_len])
         data = data[ad_marking.asd_len:]
@@ -295,7 +296,7 @@ class TestADMarkingParsePcbm(object):
     """
     Unit test for lib.packet.pcb.ADMarking._parse_pcbm
     """
-    @patch("lib.packet.pcb.PCBMarking")
+    @patch("lib.packet.pcb.PCBMarking", autospec=True)
     def test(self, pcb_marking):
         data = b'\x00' * PCBMarking.LEN
         pcb_marking.LEN = PCBMarking.LEN
@@ -315,7 +316,7 @@ class TestADMarkingParsePeers(object):
     """
     Unit test for lib.packet.pcb.ADMarking._parse_peers
     """
-    @patch("lib.packet.pcb.PCBMarking")
+    @patch("lib.packet.pcb.PCBMarking", autospec=True)
     def test(self, pcb_marking):
         ad_marking = ADMarking()
         data = bytes(range(PCBMarking.LEN))
@@ -367,9 +368,9 @@ class TestADMarkingPack(object):
         ad_marking = ADMarking()
         (ad_marking.cert_ver, ad_marking.sig_len, ad_marking.asd_len,
          ad_marking.block_len) = (1, 2, 3, 4)
-        ad_marking.pcbm = Mock(spec=['pack'])
+        ad_marking.pcbm = Mock(spec_set=['pack'])
         ad_marking.pcbm.pack.return_value = b'packed_pcbm'
-        pm = Mock(spec=['pack'])
+        pm = Mock(spec_set=['pack'])
         pm.pack.return_value = b'packed_pm'
         ad_marking.pms = [pm]
         ad_marking.asd = b'asd'
@@ -430,7 +431,7 @@ class TestPathSegmentInit(object):
     """
     Unit test for lib.packet.pcb.PathSegment.__init__
     """
-    @patch("lib.packet.pcb.Marking.__init__")
+    @patch("lib.packet.pcb.Marking.__init__", autospec=True)
     def test(self, init):
         path_segment = PathSegment()
         init.assert_called_once_with(path_segment)
@@ -441,10 +442,10 @@ class TestPathSegmentInit(object):
         ntools.eq_(path_segment.ads, [])
         ntools.eq_(path_segment.min_exp_time, 2 ** 8 - 1)
 
-    @patch("lib.packet.pcb.PathSegment.parse")
+    @patch("lib.packet.pcb.PathSegment.parse", autospec=True)
     def test_with_args(self, parse):
-        PathSegment('data')
-        parse.assert_called_once_with('data')
+        path_segment = PathSegment('data')
+        parse.assert_called_once_with(path_segment, 'data')
 
 
 class TestPathSegmentParse(object):
@@ -462,11 +463,11 @@ class TestPathSegmentPack(object):
     """
     def test(self):
         path_segment = PathSegment()
-        path_segment.iof = Mock(spec=['pack'])
+        path_segment.iof = Mock(spec_set=['pack'])
         path_segment.iof.pack.return_value = b'packed_iof'
         (path_segment.trc_ver, path_segment.if_id) = (1, 2)
         path_segment.segment_id = b'segment_id'
-        ad_marking = Mock(spec=['pack'])
+        ad_marking = Mock(spec_set=['pack'])
         ad_marking.pack.return_value = b'ad_marking'
         path_segment.ads = [ad_marking]
         pcb_bytes = b'packed_iof' + struct.pack("!IH", 1, 2) + b'segment_id' \
@@ -502,7 +503,7 @@ class TestPathSegmentRemoveSignatures(object):
     """
     def test(self):
         path_segment = PathSegment()
-        path_segment.ads = [Mock(spec=['remove_signature']) for i in
+        path_segment.ads = [Mock(spec_set=['remove_signature']) for i in
                             range(3)]
 
         path_segment.remove_signatures()
@@ -516,7 +517,7 @@ class TestPathSegmentRemoveAsds(object):
     """
     def test(self):
         path_segment = PathSegment()
-        path_segment.ads = [Mock(spec=['remove_asd']) for i in
+        path_segment.ads = [Mock(spec_set=['remove_asd']) for i in
                             range(3)]
         path_segment.remove_asds()
         for ad in path_segment.ads:
@@ -537,7 +538,7 @@ class TestPathSegmentGetIsd(object):
     """
     def test(self):
         path_segment = PathSegment()
-        path_segment.iof = Mock(spec=['isd_id'])
+        path_segment.iof = Mock(spec_set=['isd_id'])
         ntools.eq_(path_segment.iof.isd_id, path_segment.get_isd())
 
 
@@ -561,7 +562,7 @@ class TestPathSegmentGetLastPcbm(object):
     """
     def test_basic(self):
         path_segment = PathSegment()
-        path_segment.ads = [Mock(spec=['pcbm']) for i in range(3)]
+        path_segment.ads = [Mock(spec_set=['pcbm']) for i in range(3)]
         ntools.eq_(path_segment.get_last_pcbm(), path_segment.ads[-1].pcbm)
 
     def test_empty(self):
@@ -575,7 +576,7 @@ class TestPathSegmentGetFirstPcbm(object):
     """
     def test_basic(self):
         path_segment = PathSegment()
-        path_segment.ads = [Mock(spec=['pcbm']) for i in range(3)]
+        path_segment.ads = [Mock(spec_set=['pcbm']) for i in range(3)]
         ntools.eq_(path_segment.get_first_pcbm(), path_segment.ads[0].pcbm)
 
     def test_empty(self):
@@ -589,7 +590,7 @@ class TestPathSegmentCompareHops(object):
     """
     def test_equal(self):
         path_segment = PathSegment()
-        ads = [Mock(spec=['pcbm']) for i in range(3)]
+        ads = [Mock(spec_set=['pcbm']) for i in range(3)]
         path_segment.ads = ads
         other = PathSegment()
         other.ads = ads
@@ -597,7 +598,7 @@ class TestPathSegmentCompareHops(object):
 
     def test_unequal(self):
         path_segment = PathSegment()
-        ads = [Mock(spec=['pcbm']) for i in range(3)]
+        ads = [Mock(spec_set=['pcbm']) for i in range(3)]
         path_segment.ads = ads
         other = PathSegment()
         other.ads = ads[:2]
@@ -621,7 +622,7 @@ class TestPathSegmentGetNPeerLinks(object):
     Unit test for lib.packet.pcb.PathSegment.get_n_peer_links
     """
     def test(self):
-        ads = [MagicMock(spec=['pms']) for i in range(3)]
+        ads = [MagicMock(spec_set=['pms']) for i in range(3)]
         ads[0].pms.__len__.return_value = 10
         ads[1].pms.__len__.return_value = 20
         ads[2].pms.__len__.return_value = 30
@@ -647,7 +648,7 @@ class TestPathSegmentGetTimestamp(object):
     Unit test for lib.packet.pcb.PathSegment.get_timestamp
     """
     def test(self):
-        iof = Mock(spec=['timestamp'])
+        iof = Mock(spec_set=['timestamp'])
         path_segment = PathSegment()
         path_segment.iof = iof
         ntools.eq_(path_segment.get_timestamp(), iof.timestamp)
@@ -664,7 +665,7 @@ class TestPathSegmentSetTimestamp(object):
 
     def test_success(self):
         path_segment = PathSegment()
-        path_segment.iof = Mock(spec=['timestamp'])
+        path_segment.iof = Mock(spec_set=['timestamp'])
         path_segment.set_timestamp(123)
         ntools.eq_(path_segment.iof.timestamp, 123)
 
@@ -675,7 +676,7 @@ class TestPathSegmentGetExpirationTime(object):
     """
     def test(self):
         path_segment = PathSegment()
-        path_segment.iof = Mock(spec=['timestamp'])
+        path_segment.iof = Mock(spec_set=['timestamp'])
         path_segment.iof.timestamp = 123
         path_segment.min_exp_time = 456
         ntools.eq_(path_segment.get_expiration_time(),
@@ -688,13 +689,13 @@ class TestPathSegmentGetAllIftokens(object):
     """
     def test(self):
         path_segment = PathSegment()
-        ads = [Mock(spec=['pcbm', 'eg_rev_token', 'pms']) for i in range(2)]
+        ads = [Mock(spec_set=['pcbm', 'eg_rev_token', 'pms']) for i in range(2)]
         ads[0].pcbm.ig_rev_token, ads[1].pcbm.ig_rev_token = 'ig_rev_token0', \
                                                              'ig_rev_token1'
         ads[0].eg_rev_token, ads[1].eg_rev_token = 'eg_rev_token0', \
                                                    'eg_rev_token1'
-        ads[0].pms, ads[1].pms = [Mock(spec=['ig_rev_token'])], \
-                                [Mock(spec=['ig_rev_token'])]
+        ads[0].pms, ads[1].pms = [Mock(spec_set=['ig_rev_token'])], \
+                                [Mock(spec_set=['ig_rev_token'])]
         ads[0].pms[0].ig_rev_token, ads[1].pms[0].ig_rev_token = \
             'pm_ig_rev_token0', 'pm_ig_rev_token1'
         path_segment.ads = ads
@@ -716,7 +717,7 @@ class TestPathSegmentSerialize(object):
     Unit test for lib.packet.pcb.PathSegment.serialize
     """
     def test(self):
-        pcbs = [Mock(spec=['pack']) for i in range(3)]
+        pcbs = [Mock(spec_set=['pack']) for i in range(3)]
         (pcbs[0].pack.return_value, pcbs[1].pack.return_value,
          pcbs[2].pack.return_value) = (b'data0', b'data1', b'data2')
         ntools.eq_(PathSegment.serialize(pcbs), b''.join([b'data0', b'data1',
@@ -751,24 +752,24 @@ class TestPathConstructionBeaconInit(object):
     """
     Unit test for lib.packet.pcb.PathConstructionBeacon.__init__
     """
-    @patch("lib.packet.pcb.SCIONPacket.__init__")
+    @patch("lib.packet.pcb.SCIONPacket.__init__", autospec=True)
     def test(self, init):
         pcb = PathConstructionBeacon()
         init.assert_called_once_with(pcb)
         ntools.assert_is_none(pcb.pcb)
 
-    @patch("lib.packet.pcb.PathConstructionBeacon.parse")
+    @patch("lib.packet.pcb.PathConstructionBeacon.parse", autospec=True)
     def test_with_args(self, parse):
-        PathConstructionBeacon('data')
-        parse.assert_called_once_with('data')
+        pcb = PathConstructionBeacon('data')
+        parse.assert_called_once_with(pcb, 'data')
 
 
 class TestPathConstructionBeaconParse(object):
     """
     Unit test for lib.packet.pcb.PathConstructionBeacon.parse
     """
-    @patch("lib.packet.pcb.PathSegment")
-    @patch("lib.packet.pcb.SCIONPacket.parse")
+    @patch("lib.packet.pcb.PathSegment", autospec=True)
+    @patch("lib.packet.pcb.SCIONPacket.parse", autospec=True)
     def test(self, parse, path_segment):
         pcb = PathConstructionBeacon()
         pcb._payload = Mock()
@@ -783,10 +784,11 @@ class TestPathConstructionBeaconFromValues(object):
     """
     Unit test for lib.packet.pcb.PathConstructionBeacon.from_values
     """
-    @patch("lib.packet.pcb.SCIONHeader.from_values")
-    @patch("lib.packet.pcb.SCIONAddr.from_values")
+    @patch("lib.packet.pcb.SCIONHeader.from_values",
+           spec=SCIONHeader.from_values)
+    @patch("lib.packet.pcb.SCIONAddr.from_values", spec=SCIONAddr.from_values)
     def test(self, scion_addr, scion_header):
-        src_isd_ad = Mock(spec=['isd', 'ad'])
+        src_isd_ad = Mock(spec_set=['isd', 'ad'])
         dst, pcb = Mock(), Mock()
         scion_addr.return_value = 'src'
         scion_header.return_value = Mock(spec=HeaderBase)
@@ -803,16 +805,16 @@ class TestPathConstructionBeaconPack(object):
     """
     Unit test for lib.packet.pcb.PathConstructionBeacon.pack
     """
-    @patch("lib.packet.pcb.SCIONPacket.set_payload")
-    @patch("lib.packet.pcb.SCIONPacket.pack")
+    @patch("lib.packet.pcb.SCIONPacket.set_payload", autospec=True)
+    @patch("lib.packet.pcb.SCIONPacket.pack", autospec=True)
     def test(self, pack, set_payload):
         pcb = PathConstructionBeacon()
-        pcb.pcb = Mock(spec=['pack'])
+        pcb.pcb = Mock(spec_set=['pack'])
         pcb.pcb.pack.return_value = b'payload'
         pack.return_value = b'packed'
         ntools.eq_(pcb.pack(), b'packed')
         pack.assert_called_once_with(pcb)
-        set_payload.assert_called_once_with(b'payload')
+        set_payload.assert_called_once_with(pcb, b'payload')
 
 
 if __name__ == "__main__":
