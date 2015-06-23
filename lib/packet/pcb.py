@@ -145,7 +145,8 @@ class PCBMarking(Marking):
 
     def __eq__(self, other):
         if type(other) is type(self):
-            return (self.ad_id == other.ad_id and
+            return (self.isd_id == other.isd_id and
+                    self.ad_id == other.ad_id and
                     self.hof == other.hof and
                     self.ig_rev_token == other.ig_rev_token)
         else:
