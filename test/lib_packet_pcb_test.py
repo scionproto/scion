@@ -173,21 +173,21 @@ class TestPCBMarkingPack(object):
     """
     Unit test for lib.packet.pcb.PCBMarking.pack
     """
-    @patch("lib.packet.pcb.ISD_AD")
+    @patch("lib.packet.pcb.ISD_AD", autospec=True)
     def test(self, isd_ad):
         pcbm = PCBMarking()
         pcbm.isd_id = 1
         pcbm.ad_id = 2
-        pcbm.hof = MagicMock(spec=['pack'])
+        pcbm.hof = MagicMock(spec_set=['pack'])
+        pcbm.hof.pack = MagicMock(spec_set=[])
         pcbm.hof.pack.return_value = b'hof'
         pcbm.ig_rev_token = b'ig_rev_token'
         isd_ad.return_value = MagicMock(spec=['pack'])
         isd_ad.return_value.pack.return_value = b'(isd, ad)'
-        isd_ad.pack.return_value = b'(isd, ad)'
         packed = pcbm.pack()
         isd_ad.assert_called_once_with(1, 2)
-        isd_ad.pack.assert_called_once()
-        pcbm.hof.pack.assert_called_once()
+        isd_ad.return_value.pack.assert_called_once_with()
+        pcbm.hof.pack.assert_called_once_with()
         ntools.eq_(packed, b'(isd, ad)' + b'hof' + b'ig_rev_token')
 
 
