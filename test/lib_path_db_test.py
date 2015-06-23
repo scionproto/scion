@@ -100,9 +100,8 @@ class TestPathSegmentDBInit(object):
         base.return_value = db
         pth_seg_db = PathSegmentDB()
         base.assert_called_once_with("", save_to_file=False)
-        db.create.assert_called_once_with('record', 'id', 'src_isd',
-                                          'src_ad', 'dst_isd', 'dst_ad',
-                                          mode='override')
+        db.create.assert_called_once_with('record', 'id', 'src_isd', 'src_ad',
+                                          'dst_isd', 'dst_ad', mode='override')
         db.create_index.assert_has_calls([call('id'), call('dst_isd'),
                                           call('dst_ad')])
         ntools.eq_(pth_seg_db._db, db)
