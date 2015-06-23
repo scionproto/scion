@@ -483,7 +483,8 @@ class TestPathSegmentParse(object):
         data = bytes(range(dlen))
         info_of.LEN = 1
         info_of.return_value = 'info_of'
-        path_segment.parse(data)
+        parse_hops.return_value = 10
+        ret = path_segment.parse(data)
         ntools.eq_(path_segment.size, dlen)
         ntools.eq_(path_segment.raw, data)
         ntools.eq_(path_segment.iof, 'info_of')
@@ -496,6 +497,7 @@ class TestPathSegmentParse(object):
         offset += REV_TOKEN_LEN
         parse_hops.assert_called_once_with(path_segment, data[offset:])
         ntools.assert_true(path_segment.parsed)
+        ntools.eq_(ret, offset + 10)
 
 
 class TestPathSegmentParseHops(object):
@@ -512,10 +514,11 @@ class TestPathSegmentParseHops(object):
         ad_marking.METADATA_LEN = ADMarking.METADATA_LEN
         data = 2 * (bytes.fromhex('0000 0001 0002 0003') + 6 * b'\x00')
         ad_marking.side_effect = ['ad_marking0', 'ad_marking1']
-        path_segment._parse_hops(data)
+        offset = path_segment._parse_hops(data)
         ad_marking.assert_has_calls([call(data[:14]), call(data[14:])])
         add_ad.assert_has_calls([call(path_segment, 'ad_marking0'),
                                  call(path_segment, 'ad_marking1')])
+        ntools.eq_(offset, 28)
 
 
 class TestPathSegmentPack(object):
@@ -619,7 +622,7 @@ class TestPathSegmentGetPath(object):
         core_path.return_value = 'core_path'
         iof = copy(path_segment.iof)
         iof.up_flag ^= True
-        ntools.eq_(path_segment.get_path(), 'core_path')
+        ntools.eq_(path_segment.get_path(reverse_direction=True), 'core_path')
         # FIXME
         # core_path.assert_called_once_with(iof, [2, 1, 0])
 
@@ -835,8 +838,25 @@ class TestPathSegmentDeserialize(object):
     """
     Unit test for lib.packet.pcb.PathSegment.deserialize
     """
-    def test(self):
-        pass
+    def test_wrong_type(self):
+        ntools.assert_raises(AssertionError, PathSegment.deserialize, 123)
+
+    def test_bad_length(self):
+        data = b'\x00' * (PathSegment.MIN_LEN - 1)
+        ntools.assert_is_none(PathSegment.deserialize(data))
+
+    @patch("lib.packet.pcb.PathSegment", autospec=True)
+    def test(self, path_segment):
+        path_segment.MIN_LEN = 0
+        pcbs = [MagicMock(spec_set=['parse']), MagicMock(spec_set=['parse'])]
+        for i, pcb in enumerate(pcbs):
+            pcb.parse = MagicMock(spec_set=[])
+            pcb.parse.return_value = i + 1
+        path_segment.side_effect = pcbs
+        data = bytes(range(3))
+        ntools.eq_(PathSegment.deserialize(data), pcbs)
+        pcbs[0].parse.assert_called_once_with(data)
+        pcbs[1].parse.assert_called_once_with(data[1:])
 
 
 class TestPathSegmentSerialize(object):
