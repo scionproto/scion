@@ -111,11 +111,11 @@ class TestPathSegmentDBGetItem(object):
     Unit tests for lib.path_db.PathSegmentDB.__getitem__
     """
     def test_basic(self):
-        recs = {0: {'record': MagicMock(spec_set=['pcb'])}}
-        recs[0]['record'].pcb = "data1"
+        cur_rec = MagicMock(spec_set=['pcb'])
         pth_seg_db = PathSegmentDB()
         pth_seg_db._db = MagicMock(spec_set=[])
-        pth_seg_db._db.return_value = recs
+        pth_seg_db._db.return_value = {0: {'record': cur_rec}}
+        pth_seg_db._db.return_value[0]['record'].pcb = "data1"
         ntools.eq_(pth_seg_db["data2"], "data1")
         pth_seg_db._db.assert_called_once_with(id="data2")
 
