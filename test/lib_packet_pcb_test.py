@@ -243,7 +243,7 @@ class TestADMarkingFromValues(object):
         ntools.eq_(ad_marking.eg_rev_token, eg_rev_token)
 
     def test_less_arg(self):
-        ad_marking = ADMarking()
+        ad_marking = ADMarking.from_values()
         ntools.eq_(ad_marking.block_len, PCBMarking.LEN)
         ntools.assert_is_none(ad_marking.pcbm)
         ntools.eq_(ad_marking.pms, [])
