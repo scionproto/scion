@@ -657,7 +657,20 @@ class TestPathSegmentGetAllIftokens(object):
     Unit test for lib.packet.pcb.PathSegment.get_all_iftokens
     """
     def test(self):
-        pass
+        path_segment = PathSegment()
+        ads = [Mock(spec=['pcbm', 'eg_rev_token', 'pms']) for i in range(2)]
+        ads[0].pcbm.ig_rev_token, ads[1].pcbm.ig_rev_token = 'ig_rev_token0', \
+                                                             'ig_rev_token1'
+        ads[0].eg_rev_token, ads[1].eg_rev_token = 'eg_rev_token0', \
+                                                   'eg_rev_token1'
+        ads[0].pms, ads[1].pms = [Mock(spec=['ig_rev_token'])], \
+                                [Mock(spec=['ig_rev_token'])]
+        ads[0].pms[0].ig_rev_token, ads[1].pms[0].ig_rev_token = \
+            'pm_ig_rev_token0', 'pm_ig_rev_token1'
+        path_segment.ads = ads
+        tokens = ['ig_rev_token0', 'eg_rev_token0', 'pm_ig_rev_token0',
+                  'ig_rev_token1', 'eg_rev_token1', 'pm_ig_rev_token1']
+        ntools.eq_(path_segment.get_all_iftokens(), tokens)
 
 
 class TestPathSegmentDeserialize(object):
