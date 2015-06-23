@@ -72,6 +72,37 @@ class TestMarkingEq(object):
         ntools.assert_not_equals(marking1, marking2)
 
 
+class TestMarkingNe(object):
+    """
+    Unit test for lib.packet.pcb.Marking.__ne__
+    """
+    @patch("lib.packet.pcb.Marking.__eq__")
+    def test_false(self, eq):
+        marking = Marking()
+        eq.return_value = True
+        ntools.assert_false(marking.__ne__(123))
+        eq.assert_called_once_with(123)
+
+    @patch("lib.packet.pcb.Marking.__eq__")
+    def test_true(self, eq):
+        marking = Marking()
+        eq.return_value = False
+        ntools.assert_true(marking.__ne__(123))
+        eq.assert_called_once_with(123)
+
+
+class TestMarkingHash(object):
+    """
+    Unit test for lib.packet.pcb.Marking.__hash__
+    """
+    def test(self):
+        marking = Marking()
+        marking.raw = MagicMock()
+        marking.raw.__hash__.return_value = 123
+        ntools.eq_(marking.__hash__(), 123)
+        marking.raw.__hash__.assert_called_once_with()
+
+
 class TestPCBMarkingInit(object):
     """
     Unit test for lib.packet.pcb.PCBMarking.__init__
