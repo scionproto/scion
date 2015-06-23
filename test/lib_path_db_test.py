@@ -55,9 +55,9 @@ class TestPathSegmentDBRecordEq(object):
         pcb.__class__ = PathSegment
         pth_seg_db_rec1 = PathSegmentDBRecord(pcb)
         pth_seg_db_rec2 = PathSegmentDBRecord(pcb)
-        id = "data"
-        pth_seg_db_rec1.id = id
-        pth_seg_db_rec2.id = id
+        id_ = "data"
+        pth_seg_db_rec1.id = id_
+        pth_seg_db_rec2.id = id_
         ntools.eq_(pth_seg_db_rec1, pth_seg_db_rec2)
 
     def test_neq(self):
