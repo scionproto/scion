@@ -334,7 +334,20 @@ class TestADMarkingPack(object):
     Unit test for lib.packet.pcb.ADMarking.pack
     """
     def test(self):
-        pass
+        ad_marking = ADMarking()
+        (ad_marking.cert_ver, ad_marking.sig_len, ad_marking.asd_len,
+         ad_marking.block_len) = (1, 2, 3, 4)
+        ad_marking.pcbm = Mock(spec=['pack'])
+        ad_marking.pcbm.pack.return_value = b'packed_pcbm'
+        pm = Mock(spec=['pack'])
+        pm.pack.return_value = b'packed_pm'
+        ad_marking.pms = [pm]
+        ad_marking.asd = b'asd'
+        ad_marking.eg_rev_token = b'eg_rev_token'
+        ad_marking.sig = b'sig'
+        ad_bytes = struct.pack("!HHHH", 1, 2, 3, 4) + b'packed_pcbm' + \
+                   b'packed_pm' + b'asd' + b'eg_rev_token' + b'sig'
+        ntools.eq_(ad_marking.pack(), ad_bytes)
 
 
 class TestADMarkingRemoveSignature(object):
