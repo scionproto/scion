@@ -162,6 +162,7 @@ class TestPCBMarkingFromValues(object):
     """
     def test(self):
         pcbm = PCBMarking.from_values(1, 2, 3, 4)
+        ntools.assert_is_instance(pcbm, PCBMarking)
         ntools.eq_(pcbm.isd_id, 1)
         ntools.eq_(pcbm.ad_id, 2)
         ntools.eq_(pcbm.hof, 3)
@@ -337,6 +338,7 @@ class TestADMarkingFromValues(object):
         sig = b'sig_bytes'
         asd = b'asd_bytes'
         ad_marking = ADMarking.from_values(pcbm, pms, eg_rev_token, sig, asd)
+        ntools.assert_is_instance(ad_marking, ADMarking)
         ntools.eq_(ad_marking.block_len, (1 + len(pms)) * PCBMarking.LEN)
         ntools.eq_(ad_marking.pcbm, pcbm)
         ntools.eq_(ad_marking.pms, pms)
@@ -790,6 +792,7 @@ class TestPathConstructionBeaconFromValues(object):
         scion_addr.return_value = 'src'
         scion_header.return_value = Mock(spec=HeaderBase)
         beacon = PathConstructionBeacon.from_values(src_isd_ad, dst, pcb)
+        ntools.assert_is_instance(beacon, PathConstructionBeacon)
         scion_addr.assert_called_once_with(src_isd_ad.isd, src_isd_ad.ad,
                                            PacketType.BEACON)
         scion_header.assert_called_once_with('src', dst)
