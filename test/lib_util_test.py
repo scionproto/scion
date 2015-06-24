@@ -17,7 +17,7 @@
 """
 # Stdlib
 import time
-from unittest.mock import patch, MagicMock, call, mock_open
+from unittest.mock import patch, call, mock_open
 
 # External packages
 import nose
@@ -138,21 +138,15 @@ class TestReadFile(object):
     """
     Unit tests for lib.util.read_file
     """
-    @patch("builtins.open", autospec=True)
     @patch("lib.util.os.path.exists", autospec=True)
-    def test_basic(self, exists, open_f):
+    def test_basic(self, exists):
         exists.return_value = True
-        file_handler = MagicMock(spec_set=['read'])
-        file_handler.read.return_value = "Text"
-        with_init = MagicMock(spec_set=['__enter__', '__exit__'])
-        with_init.__enter__.return_value = file_handler
-        open_f.return_value = with_init
-        ntools.eq_(read_file("File_Path"), "Text")
-        exists.assert_called_once_with("File_Path")
-        open_f.assert_called_once_with("File_Path", 'r')
-        with_init.__enter__.assert_called_once_with()
-        file_handler.read.assert_called_once_with()
-        with_init.__exit__.assert_called_once_with(None, None, None)
+        with patch('lib.util.open', mock_open(read_data="file contents"),
+                   create=True) as open_f:
+            ntools.eq_(read_file("File_Path"), "file contents")
+            exists.assert_called_once_with("File_Path")
+            open_f.assert_called_once_with("File_Path", 'r')
+            open_f.return_value.read.assert_called_once_with()
 
     @patch("lib.util.os.path.exists", autospec=True)
     def test_not_exist(self, exists):
@@ -164,23 +158,18 @@ class TestWriteFile(object):
     """
     Unit tests for lib.util.write_file
     """
-    @patch("builtins.open", autospec=True)
     @patch("lib.util.os.path.exists", autospec=True)
     @patch("lib.util.os.path.dirname", autospec=True)
-    def test_basic(self, dirname, exists, open_f):
+    def test_basic(self, dirname, exists):
         dirname.return_value = "Dir_Name"
         exists.return_value = True
-        file_handler = MagicMock(spec_set=['write'])
-        with_init = MagicMock(spec_set=['__enter__', '__exit__'])
-        with_init.__enter__.return_value = file_handler
-        open_f.return_value = with_init
-        write_file("File_Path", "Text")
-        dirname.assert_called_once_with("File_Path")
-        exists.assert_called_once_with("Dir_Name")
-        open_f.assert_called_once_with("File_Path", 'w')
-        with_init.__enter__.assert_called_once_with()
-        file_handler.write.assert_called_once_with("Text")
-        with_init.__exit__.assert_called_once_with(None, None, None)
+        with patch('lib.util.open', mock_open(),
+                   create=True) as open_f:
+            write_file("File_Path", "Text")
+            dirname.assert_called_once_with("File_Path")
+            exists.assert_called_once_with("Dir_Name")
+            open_f.assert_called_once_with("File_Path", 'w')
+            open_f.return_value.write.assert_called_once_with("Text")
 
     @patch("builtins.open", autospec=True)
     @patch("lib.util.os.makedirs", autospec=True)
@@ -261,7 +250,7 @@ class TestSleepInterval(object):
         time.assert_called_once_with()
         sleep.assert_called_once_with(2)
 
-    @patch("lib.util.logging.warning", autospec=True)    
+    @patch("lib.util.logging.warning", autospec=True)
     def test_zero(self, warning, time, sleep):
         time.return_value = 3
         sleep_interval(0, 2, "desc")
