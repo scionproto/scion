@@ -16,7 +16,6 @@
 =====================================================
 """
 # Stdlib
-import time
 from unittest.mock import patch, call, mock_open
 
 # External packages
@@ -221,19 +220,22 @@ class TestTimed(object):
     """
     Unit tests for lib.util.timed
     """
-    @timed(0.1)
-    def wrapped(self, sleep):
-        time.sleep(sleep)
-        return sleep
+    @timed(1.0)
+    def wrapped(self):
+        pass
 
     @patch("lib.util.logging.warning", autospec=True)
-    def test_basic(self, warning):
-        self.wrapped(0.0)
+    @patch("lib.util.time.time", autospec=True)
+    def test_basic(self, time_, warning):
+        time_.side_effect = [0, 0.1]
+        self.wrapped()
         ntools.eq_(warning.call_count, 0)
 
     @patch("lib.util.logging.warning", autospec=True)
-    def test_limit_exceeded(self, warning):
-        self.wrapped(0.2)
+    @patch("lib.util.time.time", autospec=True)
+    def test_limit_exceeded(self, time_, warning):
+        time_.side_effect = [0, 2.0]
+        self.wrapped()
         ntools.eq_(warning.call_count, 1)
 
 
@@ -244,18 +246,18 @@ class TestSleepInterval(object):
     """
     Unit tests for lib.util.sleep_interval
     """
-    def test_basic(self, warning, time, sleep):
-        time.return_value = 3
+    def test_basic(self, warning, time_, sleep_):
+        time_.return_value = 3
         sleep_interval(3, 2, "desc")
-        time.assert_called_once_with()
+        time_.assert_called_once_with()
         ntools.eq_(warning.call_count, 0)
-        sleep.assert_called_once_with(2)
+        sleep_.assert_called_once_with(2)
 
-    def test_zero(self, warning, time, sleep):
-        time.return_value = 3
+    def test_zero(self, warning, time_, sleep_):
+        time_.return_value = 3
         sleep_interval(0, 2, "desc")
         ntools.eq_(warning.call_count, 1)
-        sleep.assert_called_once_with(0)
+        sleep_.assert_called_once_with(0)
 
 
 class TestHandleSignals(object):
