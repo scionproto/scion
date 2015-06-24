@@ -42,7 +42,7 @@ from lib.util import (
     trace,
     TRACE_DIR,
     update_dict,
-    write_file,
+    write_file
 )
 
 
