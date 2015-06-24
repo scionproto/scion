@@ -134,9 +134,9 @@ class TestReadFile(object):
     """
     Unit tests for lib.util.read_file
     """
-    @patch("lib.util.os.path.exists", autospec=True)
     @patch("builtins.open", autospec=True)
-    def test_basic(self, open_f, exists):
+    @patch("lib.util.os.path.exists", autospec=True)
+    def test_basic(self, exists, open_f):
         exists.return_value = True
         file_handler = MagicMock(spec_set=['read'])
         file_handler.read.return_value = "Text"
@@ -160,10 +160,10 @@ class TestWriteFile(object):
     """
     Unit tests for lib.util.write_file
     """
-    @patch("lib.util.os.path.dirname", autospec=True)
-    @patch("lib.util.os.path.exists", autospec=True)
     @patch("builtins.open", autospec=True)
-    def test_basic(self, open_f, exists, dirname):
+    @patch("lib.util.os.path.exists", autospec=True)
+    @patch("lib.util.os.path.dirname", autospec=True)
+    def test_basic(self, dirname, exists, open_f):
         dirname.return_value = "Dir_Name"
         exists.return_value = True
         file_handler = MagicMock(spec_set=['write'])
@@ -178,11 +178,11 @@ class TestWriteFile(object):
         file_handler.write.assert_called_once_with("Text")
         with_init.__exit__.assert_called_once_with(None, None, None)
 
-    @patch("lib.util.os.makedirs", autospec=True)
-    @patch("lib.util.os.path.dirname", autospec=True)
-    @patch("lib.util.os.path.exists", autospec=True)
     @patch("builtins.open", autospec=True)
-    def test_not_exist(self, open_f, exists, dirname, mkdir):
+    @patch("lib.util.os.makedirs", autospec=True)
+    @patch("lib.util.os.path.exists", autospec=True)
+    @patch("lib.util.os.path.dirname", autospec=True)
+    def test_not_exist(self, dirname, exists, mkdir, open_f):
         dirname.return_value = "Dir_Name"
         exists.return_value = False
         write_file("File_Path", "Text")
@@ -258,9 +258,9 @@ class TestSignalHandler(object):
     """
     Unit tests for lib.util._signal_handler
     """
-    @patch("lib.util.logging.info", autospec=True)
     @patch("lib.util.sys.exit", autospec=True)
-    def test_basic(self, exit, info):
+    @patch("lib.util.logging.info", autospec=True)
+    def test_basic(self, info, exit):
         _signal_handler(1, 2)
         info.assert_called_once_with("Received %s", _SIG_MAP[1])
         exit.assert_called_once_with(0)
