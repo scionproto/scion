@@ -238,15 +238,15 @@ class TestTimed(object):
         time.sleep(sleep)
         return sleep
 
-    @patch("lib.util.logging.warning")
+    @patch("lib.util.logging.warning", autospec=True)
     def test_basic(self, warning):
         self.wrapped(0.0)
-        warning.assert_has_calls([])
+        ntools.eq_(warning.call_count, 0)
 
-    @patch("lib.util.logging.warning")
+    @patch("lib.util.logging.warning", autospec=True)
     def test_limit_exceeded(self, warning):
         self.wrapped(0.02)
-        warning.assert_called_once()
+        ntools.eq_(warning.call_count, 1)
 
 
 @patch("lib.util.time.sleep", autospec=True)
@@ -256,14 +256,16 @@ class TestSleepInterval(object):
     Unit tests for lib.util.sleep_interval
     """
     def test_basic(self, time, sleep):
-        time.return_value = 0
+        time.return_value = 3
         sleep_interval(3, 2, "desc")
         time.assert_called_once_with()
-        sleep.assert_called_once_with(5)
+        sleep.assert_called_once_with(2)
 
-    def test_zero(self, time, sleep):
+    @patch("lib.util.logging.warning", autospec=True)    
+    def test_zero(self, warning, time, sleep):
         time.return_value = 3
         sleep_interval(0, 2, "desc")
+        ntools.eq_(warning.call_count, 1)
         sleep.assert_called_once_with(0)
 
 
