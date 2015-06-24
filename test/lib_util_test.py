@@ -133,12 +133,11 @@ class TestGetEncKeyFilePath(object):
         get_enc_key_file_path(1, 2)
         isd_prefix.assert_called_once_with(TOPOLOGY_PATH)
 
-
+@patch("lib.util.os.path.exists", autospec=True)
 class TestReadFile(object):
     """
     Unit tests for lib.util.read_file
     """
-    @patch("lib.util.os.path.exists", autospec=True)
     def test_basic(self, exists):
         exists.return_value = True
         with patch('lib.util.open', mock_open(read_data="file contents"),
@@ -148,7 +147,6 @@ class TestReadFile(object):
             open_f.assert_called_once_with("File_Path", 'r')
             open_f.return_value.read.assert_called_once_with()
 
-    @patch("lib.util.os.path.exists", autospec=True)
     def test_not_exist(self, exists):
         exists.return_value = False
         ntools.eq_(read_file("File_Path"), '')
