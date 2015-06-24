@@ -133,6 +133,7 @@ class TestGetEncKeyFilePath(object):
         get_enc_key_file_path(1, 2)
         isd_prefix.assert_called_once_with(TOPOLOGY_PATH)
 
+
 @patch("lib.util.os.path.exists", autospec=True)
 class TestReadFile(object):
     """
