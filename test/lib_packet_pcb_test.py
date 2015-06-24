@@ -16,7 +16,6 @@
 ========================================================
 """
 # Stdlib
-from copy import copy
 from unittest.mock import patch, MagicMock, call
 
 # External packages
@@ -24,7 +23,7 @@ import nose
 import nose.tools as ntools
 
 # SCION
-from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
+from lib.packet.opaque_field import HopOpaqueField
 from lib.packet.packet_base import HeaderBase
 from lib.packet.path import CorePath
 from lib.packet.pcb import (
@@ -97,7 +96,7 @@ class TestMarkingHash(object):
     """
     def test(self):
         marking = Marking()
-        marking.raw = MagicMock()
+        marking.raw = MagicMock(spec_set=['__hash__'])
         marking.raw.__hash__.return_value = 123
         ntools.eq_(hash(marking), 123)
         marking.raw.__hash__.assert_called_once_with()
@@ -337,7 +336,7 @@ class TestADMarkingFromValues(object):
     Unit test for lib.packet.pcb.ADMarking.from_values
     """
     def test(self):
-        pcbm = MagicMock()
+        pcbm = MagicMock(spec_set=[])
         pms = ['pms0', 'pms1']
         eg_rev_token = bytes(range(REV_TOKEN_LEN))
         sig = b'sig_bytes'
@@ -611,11 +610,11 @@ class TestPathSegmentGetPath(object):
         core_path.assert_called_once_with(1, [0, 1, 2])
 
     @patch("lib.packet.pcb.CorePath.from_values", spec_set=CorePath.from_values)
-    def test_reverse(self, core_path):
+    def _check_reverse(self, flag, core_path):
         path_segment = PathSegment()
         path_segment.iof = MagicMock(spec_set=['up_flag'])
         type(path_segment.iof).__copy__ = lambda self: self
-        path_segment.iof.up_flag = True
+        path_segment.iof.up_flag = flag
         ads = [MagicMock(spec_set=['pcbm']) for i in range(3)]
         for i, ad in enumerate(ads):
             ad.pcbm = MagicMock(spec_set=['hof'])
@@ -623,8 +622,12 @@ class TestPathSegmentGetPath(object):
         path_segment.ads = ads
         core_path.return_value = 'core_path'
         ntools.eq_(path_segment.get_path(reverse_direction=True), 'core_path')
-        ntools.assert_false(path_segment.iof.up_flag)
+        ntools.eq_(path_segment.iof.up_flag, not flag)
         core_path.assert_called_once_with(path_segment.iof, [2, 1, 0])
+
+    def test_reverse(self):
+        for flag in True, False:
+            yield self._check_reverse, flag
 
 
 class TestPathSegmentGetIsd(object):
@@ -643,7 +646,7 @@ class TestPathSegmentGetLastAdm(object):
     """
     def test_basic(self):
         path_segment = PathSegment()
-        path_segment.ads = [MagicMock() for i in range(3)]
+        path_segment.ads = [MagicMock(spec_set=[]) for i in range(3)]
         ntools.eq_(path_segment.get_last_adm(), path_segment.ads[-1])
 
     def test_empty(self):
@@ -768,7 +771,7 @@ class TestPathSegmentGetNHops(object):
     Unit test for lib.packet.pcb.PathSegment.get_n_hops
     """
     def test(self):
-        ads = MagicMock()
+        ads = MagicMock(spec_set=['__len__'])
         ads.__len__.return_value = 123
         path_segment = PathSegment()
         path_segment.ads = ads
@@ -822,7 +825,8 @@ class TestPathSegmentGetAllIftokens(object):
     """
     def test(self):
         path_segment = PathSegment()
-        ads = [MagicMock(spec_set=['pcbm', 'eg_rev_token', 'pms']) for i in range(2)]
+        ads = [MagicMock(spec_set=['pcbm', 'eg_rev_token', 'pms']) for i in
+               range(2)]
         ads[0].pcbm.ig_rev_token, ads[1].pcbm.ig_rev_token = 'ig_rev_token0', \
                                                              'ig_rev_token1'
         ads[0].eg_rev_token, ads[1].eg_rev_token = 'eg_rev_token0', \
@@ -923,7 +927,7 @@ class TestPathConstructionBeaconParse(object):
     @patch("lib.packet.pcb.SCIONPacket.parse", autospec=True)
     def test(self, parse, path_segment):
         pcb = PathConstructionBeacon()
-        pcb._payload = MagicMock()
+        pcb._payload = MagicMock(spec_set=[])
         path_segment.return_value = 'path_seg'
         pcb.parse('data')
         parse.assert_called_once_with(pcb, 'data')
@@ -936,8 +940,9 @@ class TestPathConstructionBeaconFromValues(object):
     Unit test for lib.packet.pcb.PathConstructionBeacon.from_values
     """
     @patch("lib.packet.pcb.SCIONHeader.from_values",
-           spec=SCIONHeader.from_values)
-    @patch("lib.packet.pcb.SCIONAddr.from_values", spec=SCIONAddr.from_values)
+           spec_set=SCIONHeader.from_values)
+    @patch("lib.packet.pcb.SCIONAddr.from_values",
+           spec_set=SCIONAddr.from_values)
     def test(self, scion_addr, scion_header):
         src_isd_ad = MagicMock(spec_set=['isd', 'ad'])
         dst, pcb = 'dst', 'pcb'
