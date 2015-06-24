@@ -16,6 +16,7 @@
 =====================================================
 """
 # Stdlib
+import time
 from unittest.mock import patch, MagicMock, call, mock_open
 
 # External packages
@@ -226,6 +227,26 @@ class TestTrace(object):
         trace(3)
         join.assert_called_once_with(TRACE_DIR, "3.trace.html")
         trace_start.assert_called_once_with("Path")
+
+
+class TestTimed(object):
+    """
+    Unit tests for lib.util.timed
+    """
+    @timed(0.01)
+    def wrapped(self, sleep):
+        time.sleep(sleep)
+        return sleep
+
+    @patch("lib.util.logging.warning")
+    def test_basic(self, warning):
+        self.wrapped(0.0)
+        warning.assert_has_calls([])
+
+    @patch("lib.util.logging.warning")
+    def test_limit_exceeded(self, warning):
+        self.wrapped(0.02)
+        warning.assert_called_once()
 
 
 @patch("lib.util.time.sleep", autospec=True)
