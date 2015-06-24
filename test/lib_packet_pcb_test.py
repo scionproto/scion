@@ -17,11 +17,9 @@
 """
 # Stdlib
 from copy import copy
-import struct
-from unittest.mock import patch, MagicMock, Mock, call
+from unittest.mock import patch, MagicMock, call
 
 # External packages
-from Crypto.Hash import SHA256
 import nose
 import nose.tools as ntools
 
@@ -375,9 +373,9 @@ class TestADMarkingPack(object):
         ad_marking = ADMarking()
         (ad_marking.cert_ver, ad_marking.sig_len, ad_marking.asd_len,
          ad_marking.block_len) = (1, 2, 3, 4)
-        ad_marking.pcbm = Mock(spec_set=['pack'])
+        ad_marking.pcbm = MagicMock(spec_set=['pack'])
         ad_marking.pcbm.pack.return_value = b'packed_pcbm'
-        pm = Mock(spec_set=['pack'])
+        pm = MagicMock(spec_set=['pack'])
         pm.pack = MagicMock(spec_set=[])
         pm.pack.side_effect = [b'packed_pm1', b'packed_pm2']
         ad_marking.pms = [pm] * 2
@@ -387,6 +385,7 @@ class TestADMarkingPack(object):
         ad_bytes = bytes.fromhex("0001 0002 0003 0004") + b'packed_pcbm' + \
             b'packed_pm1' + b'packed_pm2' + b'asd' + b'eg_rev_token' + b'sig'
         ntools.eq_(ad_marking.pack(), ad_bytes)
+        ad_marking.pcbm.pack.assert_called_once_with()
         pm.pack.assert_has_calls([call()] * 2)
 
 
@@ -527,17 +526,18 @@ class TestPathSegmentPack(object):
     """
     def test(self):
         path_segment = PathSegment()
-        path_segment.iof = Mock(spec_set=['pack'])
+        path_segment.iof = MagicMock(spec_set=['pack'])
         path_segment.iof.pack.return_value = b'packed_iof'
         (path_segment.trc_ver, path_segment.if_id) = (1, 2)
         path_segment.segment_id = b'segment_id'
-        ad_marking = Mock(spec_set=['pack'])
+        ad_marking = MagicMock(spec_set=['pack'])
         ad_marking.pack = MagicMock(spec_set=[])
         ad_marking.pack.side_effect = [b'ad_marking1', b'ad_marking2']
         path_segment.ads = [ad_marking] * 2
         pcb_bytes = b'packed_iof' + bytes.fromhex("00 00 00 01 00 02") + \
                     b'segment_id' + b'ad_marking1' + b'ad_marking2'
         ntools.eq_(path_segment.pack(), pcb_bytes)
+        path_segment.iof.pack.assert_called_once_with()
         ad_marking.pack.assert_has_calls([call()] * 2)
 
 
@@ -573,7 +573,7 @@ class TestPathSegmentRemoveSignatures(object):
     """
     def test(self):
         path_segment = PathSegment()
-        path_segment.ads = [Mock(spec_set=['remove_signature']) for i in
+        path_segment.ads = [MagicMock(spec_set=['remove_signature']) for i in
                             range(3)]
         path_segment.remove_signatures()
         for ad in path_segment.ads:
@@ -586,7 +586,7 @@ class TestPathSegmentRemoveAsds(object):
     """
     def test(self):
         path_segment = PathSegment()
-        path_segment.ads = [Mock(spec_set=['remove_asd']) for i in
+        path_segment.ads = [MagicMock(spec_set=['remove_asd']) for i in
                             range(3)]
         path_segment.remove_asds()
         for ad in path_segment.ads:
@@ -620,7 +620,8 @@ class TestPathSegmentGetPath(object):
             ad.pcbm.hof = i
         path_segment.ads = ads
         core_path.return_value = 'core_path'
-        iof = copy(path_segment.iof)
+        iof = MagicMock(spec_set=['up_flag'])
+        type(iof).__copy__ = lambda self: self
         iof.up_flag ^= True
         ntools.eq_(path_segment.get_path(reverse_direction=True), 'core_path')
         # FIXME
@@ -633,7 +634,7 @@ class TestPathSegmentGetIsd(object):
     """
     def test(self):
         path_segment = PathSegment()
-        path_segment.iof = Mock(spec_set=['isd_id'])
+        path_segment.iof = MagicMock(spec_set=['isd_id'])
         ntools.eq_(path_segment.iof.isd_id, path_segment.get_isd())
 
 
@@ -643,7 +644,7 @@ class TestPathSegmentGetLastAdm(object):
     """
     def test_basic(self):
         path_segment = PathSegment()
-        path_segment.ads = [Mock() for i in range(3)]
+        path_segment.ads = [MagicMock() for i in range(3)]
         ntools.eq_(path_segment.get_last_adm(), path_segment.ads[-1])
 
     def test_empty(self):
@@ -657,7 +658,7 @@ class TestPathSegmentGetLastPcbm(object):
     """
     def test_basic(self):
         path_segment = PathSegment()
-        path_segment.ads = [Mock(spec_set=['pcbm']) for i in range(3)]
+        path_segment.ads = [MagicMock(spec_set=['pcbm']) for i in range(3)]
         ntools.eq_(path_segment.get_last_pcbm(), path_segment.ads[-1].pcbm)
 
     def test_empty(self):
@@ -671,7 +672,7 @@ class TestPathSegmentGetFirstPcbm(object):
     """
     def test_basic(self):
         path_segment = PathSegment()
-        path_segment.ads = [Mock(spec_set=['pcbm']) for i in range(3)]
+        path_segment.ads = [MagicMock(spec_set=['pcbm']) for i in range(3)]
         ntools.eq_(path_segment.get_first_pcbm(), path_segment.ads[0].pcbm)
 
     def test_empty(self):
@@ -685,7 +686,7 @@ class TestPathSegmentCompareHops(object):
     """
     def test_equal(self):
         path_segment = PathSegment()
-        ads = [Mock(spec_set=['pcbm']) for i in range(3)]
+        ads = [MagicMock(spec_set=['pcbm']) for i in range(3)]
         path_segment.ads = ads
         other = PathSegment()
         other.ads = ads
@@ -693,7 +694,7 @@ class TestPathSegmentCompareHops(object):
 
     def test_unequal(self):
         path_segment = PathSegment()
-        ads = [Mock(spec_set=['pcbm']) for i in range(3)]
+        ads = [MagicMock(spec_set=['pcbm']) for i in range(3)]
         path_segment.ads = ads
         other = PathSegment()
         other.ads = ads[:2]
@@ -713,23 +714,32 @@ class TestPathSegmentGetHopsHash(object):
                     range(2)]
         for i, ad in enumerate(self.ads):
             ad.pcbm = MagicMock(spec_set=['ig_rev_token'])
-            ad.pcbm.ig_rev_token = 'pcbm' + str(i)
-            ad.eg_rev_token = 'eg' + str(i)
+            ad.pcbm.ig_rev_token = 'pcbm_ig_rev' + str(i)
+            ad.eg_rev_token = 'eg_rev' + str(i)
             ad.pms = [MagicMock(spec_set=['ig_rev_token']) for j in range(2)]
             for j, pm in enumerate(ad.pms):
-                pm.ig_rev_token = 'ig' + str(i) + str(j)
-        self.calls = [call('pcbm0'), call('eg0'), call('ig00'), call('ig01'),
-                      call('pcbm1'), call('eg1'), call('ig10'), call('ig11')]
+                pm.ig_rev_token = 'pm_ig_rev' + str(i) + str(j)
+        self.calls = [call('pcbm_ig_rev0'), call('eg_rev0'),
+                      call('pm_ig_rev00'), call('pm_ig_rev01'),
+                      call('pcbm_ig_rev1'), call('eg_rev1'),
+                      call('pm_ig_rev10'), call('pm_ig_rev11')]
         self.h = MagicMock(spec=['update', 'digest', 'hexdigest'])
         self.h.digest.return_value = 'digest'
         self.h.hexdigest.return_value = 'hexdigest'
         self.path_segment = PathSegment()
         self.path_segment.ads = self.ads
 
+    def tearDown(self):
+        del self.ads
+        del self.calls
+        del self.h
+        del self.path_segment
+
     @patch("lib.packet.pcb.SHA256", autospec=True)
     def test_basic(self, sha):
         sha.new.return_value = self.h
         ntools.eq_(self.path_segment.get_hops_hash(), 'digest')
+        sha.new.assert_called_once_with()
         self.h.update.assert_has_calls(self.calls)
         self.h.digest.assert_called_once_with()
 
@@ -738,12 +748,6 @@ class TestPathSegmentGetHopsHash(object):
         sha.new.return_value = self.h
         ntools.eq_(self.path_segment.get_hops_hash(hex=True), 'hexdigest')
         self.h.hexdigest.assert_called_once_with()
-
-    def tearDown(self):
-        del self.ads
-        del self.calls
-        del self.h
-        del self.path_segment
 
 
 class TestPathSegmentGetNPeerLinks(object):
@@ -777,7 +781,7 @@ class TestPathSegmentGetTimestamp(object):
     Unit test for lib.packet.pcb.PathSegment.get_timestamp
     """
     def test(self):
-        iof = Mock(spec_set=['timestamp'])
+        iof = MagicMock(spec_set=['timestamp'])
         path_segment = PathSegment()
         path_segment.iof = iof
         ntools.eq_(path_segment.get_timestamp(), iof.timestamp)
@@ -794,7 +798,7 @@ class TestPathSegmentSetTimestamp(object):
 
     def test_success(self):
         path_segment = PathSegment()
-        path_segment.iof = Mock(spec_set=['timestamp'])
+        path_segment.iof = MagicMock(spec_set=['timestamp'])
         path_segment.iof.timestamp = 456
         path_segment.set_timestamp(123)
         ntools.eq_(path_segment.iof.timestamp, 123)
@@ -806,7 +810,7 @@ class TestPathSegmentGetExpirationTime(object):
     """
     def test(self):
         path_segment = PathSegment()
-        path_segment.iof = Mock(spec_set=['timestamp'])
+        path_segment.iof = MagicMock(spec_set=['timestamp'])
         path_segment.iof.timestamp = 123
         path_segment.min_exp_time = 456
         ntools.eq_(path_segment.get_expiration_time(),
@@ -819,13 +823,13 @@ class TestPathSegmentGetAllIftokens(object):
     """
     def test(self):
         path_segment = PathSegment()
-        ads = [Mock(spec_set=['pcbm', 'eg_rev_token', 'pms']) for i in range(2)]
+        ads = [MagicMock(spec_set=['pcbm', 'eg_rev_token', 'pms']) for i in range(2)]
         ads[0].pcbm.ig_rev_token, ads[1].pcbm.ig_rev_token = 'ig_rev_token0', \
                                                              'ig_rev_token1'
         ads[0].eg_rev_token, ads[1].eg_rev_token = 'eg_rev_token0', \
                                                    'eg_rev_token1'
-        ads[0].pms, ads[1].pms = [Mock(spec_set=['ig_rev_token'])], \
-                                 [Mock(spec_set=['ig_rev_token'])]
+        ads[0].pms, ads[1].pms = [MagicMock(spec_set=['ig_rev_token'])], \
+                                 [MagicMock(spec_set=['ig_rev_token'])]
         ads[0].pms[0].ig_rev_token, ads[1].pms[0].ig_rev_token = \
             'pm_ig_rev_token0', 'pm_ig_rev_token1'
         path_segment.ads = ads
@@ -855,6 +859,7 @@ class TestPathSegmentDeserialize(object):
         path_segment.side_effect = pcbs
         data = bytes(range(3))
         ntools.eq_(PathSegment.deserialize(data), pcbs)
+        path_segment.assert_has_calls([call(), call()])
         pcbs[0].parse.assert_called_once_with(data)
         pcbs[1].parse.assert_called_once_with(data[1:])
 
@@ -864,7 +869,7 @@ class TestPathSegmentSerialize(object):
     Unit test for lib.packet.pcb.PathSegment.serialize
     """
     def test(self):
-        pcbs = [Mock(spec_set=['pack']) for i in range(3)]
+        pcbs = [MagicMock(spec_set=['pack']) for i in range(3)]
         (pcbs[0].pack.return_value, pcbs[1].pack.return_value,
          pcbs[2].pack.return_value) = (b'data0', b'data1', b'data2')
         ntools.eq_(PathSegment.serialize(pcbs), b''.join([b'data0', b'data1',
@@ -919,7 +924,7 @@ class TestPathConstructionBeaconParse(object):
     @patch("lib.packet.pcb.SCIONPacket.parse", autospec=True)
     def test(self, parse, path_segment):
         pcb = PathConstructionBeacon()
-        pcb._payload = Mock()
+        pcb._payload = MagicMock()
         path_segment.return_value = 'path_seg'
         pcb.parse('data')
         parse.assert_called_once_with(pcb, 'data')
@@ -935,10 +940,10 @@ class TestPathConstructionBeaconFromValues(object):
            spec=SCIONHeader.from_values)
     @patch("lib.packet.pcb.SCIONAddr.from_values", spec=SCIONAddr.from_values)
     def test(self, scion_addr, scion_header):
-        src_isd_ad = Mock(spec_set=['isd', 'ad'])
+        src_isd_ad = MagicMock(spec_set=['isd', 'ad'])
         dst, pcb = 'dst', 'pcb'
         scion_addr.return_value = 'src'
-        scion_header.return_value = Mock(spec=HeaderBase)
+        scion_header.return_value = MagicMock(spec=HeaderBase)
         beacon = PathConstructionBeacon.from_values(src_isd_ad, dst, pcb)
         ntools.assert_is_instance(beacon, PathConstructionBeacon)
         ntools.eq_(beacon.pcb, pcb)
@@ -956,7 +961,7 @@ class TestPathConstructionBeaconPack(object):
     @patch("lib.packet.pcb.SCIONPacket.pack", autospec=True)
     def test(self, pack, set_payload):
         pcb = PathConstructionBeacon()
-        pcb.pcb = Mock(spec_set=['pack'])
+        pcb.pcb = MagicMock(spec_set=['pack'])
         pcb.pcb.pack.return_value = b'payload'
         pack.return_value = b'packed'
         ntools.eq_(pcb.pack(), b'packed')
