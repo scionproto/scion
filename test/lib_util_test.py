@@ -206,7 +206,7 @@ class TestUpdateDict(object):
         update_dict(dictionary, 'key', [3])
         ntools.eq_(dictionary['key'], [1, 2, 3])
 
-    def not_present(self):
+    def test_not_present(self):
         dictionary = {}
         update_dict(dictionary, 'key', [1, 2, 3, 4], 2)
         ntools.eq_(dictionary['key'], [3, 4])
