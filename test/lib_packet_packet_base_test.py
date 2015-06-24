@@ -157,7 +157,7 @@ class TestPacketBaseHash(object):
     @patch("lib.packet.packet_base.PacketBase.pack", autospec=True)
     def test(self, pack):
         packet_base = PacketBase()
-        pack.return_value = MagicMock()
+        pack.return_value = MagicMock(spec_set=['__hash__'])
         pack.return_value.__hash__.return_value = 123
         ntools.eq_(hash(packet_base), 123)
         pack.return_value.__hash__.assert_called_once_with()
@@ -258,7 +258,7 @@ class TestPayloadBaseHash(object):
     """
     def test(self):
         payload = PayloadBase()
-        payload.raw = MagicMock()
+        payload.raw = MagicMock(spec_set=['__hash__'])
         payload.raw.__hash__.return_value = 123
         ntools.eq_(hash(payload), 123)
         payload.raw.__hash__.assert_called_once_with()
