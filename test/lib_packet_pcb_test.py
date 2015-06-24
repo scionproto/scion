@@ -615,15 +615,10 @@ class TestPathSegmentGetPath(object):
         path_segment.iof = MagicMock(spec_set=['up_flag'])
         type(path_segment.iof).__copy__ = lambda self: self
         path_segment.iof.up_flag = flag
-        ads = [MagicMock(spec_set=['pcbm']) for i in range(3)]
-        for i, ad in enumerate(ads):
-            ad.pcbm = MagicMock(spec_set=['hof'])
-            ad.pcbm.hof = i
-        path_segment.ads = ads
         core_path.return_value = 'core_path'
         ntools.eq_(path_segment.get_path(reverse_direction=True), 'core_path')
         ntools.eq_(path_segment.iof.up_flag, not flag)
-        core_path.assert_called_once_with(path_segment.iof, [2, 1, 0])
+        core_path.assert_called_once_with(path_segment.iof, [])
 
     def test_reverse(self):
         for flag in True, False:
@@ -725,7 +720,7 @@ class TestPathSegmentGetHopsHash(object):
                       call('pm_ig_rev00'), call('pm_ig_rev01'),
                       call('pcbm_ig_rev1'), call('eg_rev1'),
                       call('pm_ig_rev10'), call('pm_ig_rev11')]
-        self.h = MagicMock(spec=['update', 'digest', 'hexdigest'])
+        self.h = MagicMock(spec_set=['update', 'digest', 'hexdigest'])
         self.h.digest.return_value = 'digest'
         self.h.hexdigest.return_value = 'hexdigest'
         self.path_segment = PathSegment()
@@ -947,7 +942,7 @@ class TestPathConstructionBeaconFromValues(object):
         src_isd_ad = MagicMock(spec_set=['isd', 'ad'])
         dst, pcb = 'dst', 'pcb'
         scion_addr.return_value = 'src'
-        scion_header.return_value = MagicMock(spec=HeaderBase)
+        scion_header.return_value = MagicMock(spec_set=HeaderBase)
         beacon = PathConstructionBeacon.from_values(src_isd_ad, dst, pcb)
         ntools.assert_is_instance(beacon, PathConstructionBeacon)
         ntools.eq_(beacon.pcb, pcb)
