@@ -238,17 +238,18 @@ class TestTimed(object):
 
 @patch("lib.util.time.sleep", autospec=True)
 @patch("lib.util.time.time", autospec=True)
+@patch("lib.util.logging.warning", autospec=True)
 class TestSleepInterval(object):
     """
     Unit tests for lib.util.sleep_interval
     """
-    def test_basic(self, time, sleep):
+    def test_basic(self, warning, time, sleep):
         time.return_value = 3
         sleep_interval(3, 2, "desc")
         time.assert_called_once_with()
+        ntools.eq_(warning.call_count, 0)
         sleep.assert_called_once_with(2)
 
-    @patch("lib.util.logging.warning", autospec=True)
     def test_zero(self, warning, time, sleep):
         time.return_value = 3
         sleep_interval(0, 2, "desc")
