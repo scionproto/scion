@@ -209,20 +209,40 @@ class CorePath(PathBase):
         """
         Packs the opaque fields and returns a byte array.
         """
+        return self._pack_up_segment() + self._pack_core_segment() + \
+            self._pack_down_segment()
+
+    def _pack_up_segment(self):
+        """
+        Packs the up segment opaque fields and returns a byte array.
+        """
         data = []
         if self.up_segment_info:
             data.append(self.up_segment_info.pack())
             for of in self.up_segment_hops:
                 data.append(of.pack())
+        return b"".join(data)
+
+    def _pack_core_segment(self):
+        """
+        Packs the core segment opaque fields and returns a byte array.
+        """
+        data = []
         if self.core_segment_info:
             data.append(self.core_segment_info.pack())
             for of in self.core_segment_hops:
                 data.append(of.pack())
+        return b"".join(data)
+
+    def _pack_down_segment(self):
+        """
+        Packs the down segment opaque fields and returns a byte array.
+        """
+        data = []
         if self.down_segment_info:
             data.append(self.down_segment_info.pack())
             for of in self.down_segment_hops:
                 data.append(of.pack())
-
         return b"".join(data)
 
     def reverse(self):
@@ -383,16 +403,26 @@ class CrossOverPath(PathBase):
         """
         Packs the opaque fields and returns a byte array.
         """
-        data = []
-        data.append(self.up_segment_info.pack())
+        return self._pack_up_segment() + self._pack_down_segment()
+
+    def _pack_up_segment(self):
+        """
+        Packs the up segment opaque fields and returns a byte array.
+        """
+        data = [self.up_segment_info.pack()]
         for of in self.up_segment_hops:
             data.append(of.pack())
         data.append(self.up_segment_upstream_ad.pack())
-        data.append(self.down_segment_info.pack())
-        data.append(self.down_segment_upstream_ad.pack())
+        return b"".join(data)
+
+    def _pack_down_segment(self):
+        """
+        Packs the down segment opaque fields and returns a byte array.
+        """
+        data = [self.down_segment_info.pack(),
+                self.down_segment_upstream_ad.pack()]
         for of in self.down_segment_hops:
             data.append(of.pack())
-
         return b"".join(data)
 
     def reverse(self):
@@ -513,18 +543,28 @@ class PeerPath(PathBase):
         """
         Packs the opaque fields and returns a byte array.
         """
-        data = []
-        data.append(self.up_segment_info.pack())
+        return self._pack_up_segment() + self._pack_down_segment()
+
+    def _pack_up_segment(self):
+        """
+        Packs the up segment opaque fields and returns a byte array.
+        """
+        data = [self.up_segment_info.pack()]
         for of in self.up_segment_hops:
             data.append(of.pack())
         data.append(self.up_segment_peering_link.pack())
         data.append(self.up_segment_upstream_ad.pack())
-        data.append(self.down_segment_info.pack())
-        data.append(self.down_segment_upstream_ad.pack())
-        data.append(self.down_segment_peering_link.pack())
+        return b"".join(data)
+
+    def _pack_down_segment(self):
+        """
+        Packs the down segment opaque fields and returns a byte array.
+        """
+        data = [self.down_segment_info.pack(),
+                self.down_segment_upstream_ad.pack(),
+                self.down_segment_peering_link.pack()]
         for of in self.down_segment_hops:
             data.append(of.pack())
-
         return b"".join(data)
 
     def reverse(self):
