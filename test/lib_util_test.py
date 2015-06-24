@@ -57,92 +57,77 @@ class TestGetIsdPrefix(object):
         join.assert_called_once_with("data2", 'ISD')
 
 
+@patch("lib.util.os.path.join", autospec=True)
+@patch("lib.util._get_isd_prefix", autospec=True)
 class TestGetCertChainFilePath(object):
     """
     Unit tests for lib.util.get_cert_chain_file_path
     """
-    @patch("lib.util._get_isd_prefix", autospec=True)
-    @patch("lib.util.os.path.join", autospec=True)
-    def test_basic(self, join, gip):
-        gip.return_value = "data1"
+    def test_basic(self, isd_prefix, join):
+        isd_prefix.return_value = "data1"
         join.return_value = "data2"
         ntools.eq_(get_cert_chain_file_path(1, 2, 3, 4, 5, 6), "data2")
-        gip.assert_called_once_with(6)
-        join.assert_called_once_with("data11", CERT_DIR, 'AD{}'.format(2),
-                                     'ISD:{}-AD:{}-V:{}.crt'.format(3, 4, 5))
+        isd_prefix.assert_called_once_with(6)
+        join.assert_called_once_with("data11", CERT_DIR, 'AD2',
+                                     'ISD:3-AD:4-V:5.crt')
 
-    @patch("lib.util._get_isd_prefix", autospec=True)
-    @patch("lib.util.os.path.join", autospec=True)
-    def test_len(self, join, gip):
-        join.return_value = "data"
-        ntools.eq_(get_cert_chain_file_path(1, 2, 3, 4, 5), "data")
-        gip.assert_called_once_with(TOPOLOGY_PATH)
+    def test_len(self, isd_prefix, join):
+        get_cert_chain_file_path(1, 2, 3, 4, 5)
+        isd_prefix.assert_called_once_with(TOPOLOGY_PATH)
 
 
+@patch("lib.util.os.path.join", autospec=True)
+@patch("lib.util._get_isd_prefix", autospec=True)
 class TestGetTRCFilePath(object):
     """
     Unit tests for lib.util.get_trc_file_path
     """
-    @patch("lib.util._get_isd_prefix", autospec=True)
-    @patch("lib.util.os.path.join", autospec=True)
-    def test_basic(self, join, gip):
-        gip.return_value = "data1"
+    def test_basic(self, isd_prefix, join):
+        isd_prefix.return_value = "data1"
         join.return_value = "data2"
         ntools.eq_(get_trc_file_path(1, 2, 3, 4, 5), "data2")
-        gip.assert_called_once_with(5)
-        join.assert_called_once_with("data11", CERT_DIR, 'AD{}'.format(2),
-                                     'ISD:{}-V:{}.crt'.format(3, 4))
+        isd_prefix.assert_called_once_with(5)
+        join.assert_called_once_with("data11", CERT_DIR, 'AD2', 'ISD:3-V:4.crt')
 
-    @patch("lib.util._get_isd_prefix", autospec=True)
-    @patch("lib.util.os.path.join", autospec=True)
-    def test_len(self, join, gip):
-        join.return_value = "data"
-        ntools.eq_(get_trc_file_path(1, 2, 3, 4), "data")
-        gip.assert_called_once_with(TOPOLOGY_PATH)
+    def test_len(self, isd_prefix, join):
+        get_trc_file_path(1, 2, 3, 4)
+        isd_prefix.assert_called_once_with(TOPOLOGY_PATH)
 
 
+@patch("lib.util.os.path.join", autospec=True)
+@patch("lib.util._get_isd_prefix", autospec=True)
 class TestGetSigKeyFilePath(object):
     """
     Unit tests for lib.util.et_sig_key_file_path
     """
-    @patch("lib.util._get_isd_prefix", autospec=True)
-    @patch("lib.util.os.path.join", autospec=True)
-    def test_basic(self, join, gip):
-        gip.return_value = "data1"
+    def test_basic(self, isd_prefix, join):
+        isd_prefix.return_value = "data1"
         join.return_value = "data2"
         ntools.eq_(get_sig_key_file_path(1, 2, 3), "data2")
-        gip.assert_called_once_with(3)
-        join.assert_called_once_with("data11", SIG_KEYS_DIR,
-                                     'ISD:{}-AD:{}.key'.format(1, 2))
+        isd_prefix.assert_called_once_with(3)
+        join.assert_called_once_with("data11", SIG_KEYS_DIR, 'ISD:1-AD:2.key')
 
-    @patch("lib.util._get_isd_prefix", autospec=True)
-    @patch("lib.util.os.path.join", autospec=True)
-    def test_len(self, join, gip):
-        join.return_value = "data"
-        ntools.eq_(get_sig_key_file_path(1, 2), "data")
-        gip.assert_called_once_with(TOPOLOGY_PATH)
+    def test_len(self, isd_prefix, join):
+        get_sig_key_file_path(1, 2)
+        isd_prefix.assert_called_once_with(TOPOLOGY_PATH)
 
 
+@patch("lib.util.os.path.join", autospec=True)
+@patch("lib.util._get_isd_prefix", autospec=True)
 class TestGetEncKeyFilePath(object):
     """
     Unit tests for lib.util.get_enc_key_file_path
     """
-    @patch("lib.util._get_isd_prefix", autospec=True)
-    @patch("lib.util.os.path.join", autospec=True)
-    def test_basic(self, join, gip):
-        gip.return_value = "data1"
+    def test_basic(self, isd_prefix, join):
+        isd_prefix.return_value = "data1"
         join.return_value = "data2"
         ntools.eq_(get_enc_key_file_path(1, 2, 3), "data2")
-        gip.assert_called_once_with(3)
-        join.assert_called_once_with("data11", ENC_KEYS_DIR,
-                                     'ISD:{}-AD:{}.key'.format(1, 2))
+        isd_prefix.assert_called_once_with(3)
+        join.assert_called_once_with("data11", ENC_KEYS_DIR, 'ISD:1-AD:2.key')
 
-    @patch("lib.util._get_isd_prefix", autospec=True)
-    @patch("lib.util.os.path.join", autospec=True)
-    def test_len(self, join, gip):
-        join.return_value = "data"
-        ntools.eq_(get_enc_key_file_path(1, 2), "data")
-        gip.assert_called_once_with(TOPOLOGY_PATH)
+    def test_len(self, isd_prefix, join):
+        get_enc_key_file_path(1, 2)
+        isd_prefix.assert_called_once_with(TOPOLOGY_PATH)
 
 
 class TestReadFile(object):
@@ -240,20 +225,18 @@ class TestTrace(object):
         trace_start.assert_called_once_with("Path")
 
 
+@patch("lib.util.time.sleep", autospec=True)
+@patch("lib.util.time.time", autospec=True)
 class TestSleepInterval(object):
     """
     Unit tests for lib.util.sleep_interval
     """
-    @patch("lib.util.time.sleep", autospec=True)
-    @patch("lib.util.time.time", autospec=True)
     def test_basic(self, time, sleep):
         time.return_value = 0
         sleep_interval(3, 4, 5)
         time.assert_called_once_with()
         sleep.assert_called_once_with(7)
 
-    @patch("lib.util.time.sleep", autospec=True)
-    @patch("lib.util.time.time", autospec=True)
     def test_zero(self, time, sleep):
         time.return_value = 8
         sleep_interval(3, 4, 5)
