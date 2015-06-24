@@ -187,43 +187,43 @@ class TestCorePathInit(BasePath):
         ntools.eq_(self.core_path.core_segment_info, None)
         ntools.eq_(self.core_path.core_segment_hops, [])
 
-    @patch("lib.packet.path.CorePath.parse")
+    @patch("lib.packet.path.CorePath.parse", autospec=True)
     def test_raw(self, parse):
         self.core_path = CorePath("data")
-        parse.assert_called_once_with("data")
+        parse.assert_called_once_with(self.core_path, "data")
 
 
 class TestCorePathParse(BasePath):
     """
     Unit tests for lib.packet.path.CorePath.parse
     """
-    @patch("lib.packet.path.CorePath._parse_up_segment")
+    @patch("lib.packet.path.CorePath._parse_up_segment", autospec=True)
     def test_with_up_segment(self, parse_up):
         data = bytes.fromhex('0a 0b 0c')
         parse_up.return_value = 3
         self.core_path.parse(data)
-        parse_up.assert_called_once_with(data)
+        parse_up.assert_called_once_with(self.core_path, data)
         ntools.assert_true(self.core_path.parsed)
 
-    @patch("lib.packet.path.CorePath._parse_core_segment")
-    @patch("lib.packet.path.CorePath._parse_up_segment")
+    @patch("lib.packet.path.CorePath._parse_core_segment", autospec=True)
+    @patch("lib.packet.path.CorePath._parse_up_segment", autospec=True)
     def test_with_core_segment(self, parse_up, parse_core):
         data = bytes.fromhex('0a 0b 0c')
         parse_up.return_value = 1
         parse_core.return_value = 3
         self.core_path.parse(data)
-        parse_core.assert_called_once_with(data, 1)
+        parse_core.assert_called_once_with(self.core_path, data, 1)
         ntools.assert_true(self.core_path.parsed)
 
-    @patch("lib.packet.path.CorePath._parse_down_segment")
-    @patch("lib.packet.path.CorePath._parse_core_segment")
-    @patch("lib.packet.path.CorePath._parse_up_segment")
+    @patch("lib.packet.path.CorePath._parse_down_segment", autospec=True)
+    @patch("lib.packet.path.CorePath._parse_core_segment", autospec=True)
+    @patch("lib.packet.path.CorePath._parse_up_segment", autospec=True)
     def test_with_down_segment(self, parse_up, parse_core, parse_down):
         data = bytes.fromhex('0a 0b 0c')
         parse_up.return_value = 1
         parse_core.return_value = 2
         self.core_path.parse(data)
-        parse_down.assert_called_once_with(data, 2)
+        parse_down.assert_called_once_with(self.core_path, data, 2)
         ntools.assert_true(self.core_path.parsed)
 
     def test_wrong_type(self):
@@ -234,10 +234,10 @@ class TestCorePathParseUpSegment(BasePath):
     """
     Unit tests for lib.packet.path.CorePath._parse_up_segment
     """
-    @patch("lib.packet.path.HopOpaqueField")
-    @patch("lib.packet.path.InfoOpaqueField")
+    @patch("lib.packet.path.HopOpaqueField", autospec=True)
+    @patch("lib.packet.path.InfoOpaqueField", autospec=True)
     def test(self, info_of, hop_of):
-        mock_iof = MagicMock(spec=['hops'])
+        mock_iof = MagicMock(spec_set=['hops'])
         info_of.return_value = mock_iof
         info_of.return_value.hops = 1
         info_of.LEN = InfoOpaqueField.LEN
@@ -258,10 +258,10 @@ class TestCorePathParseCoreSegment(BasePath):
     """
     Unit tests for lib.packet.path.CorePath._parse_core_segment
     """
-    @patch("lib.packet.path.HopOpaqueField")
-    @patch("lib.packet.path.InfoOpaqueField")
+    @patch("lib.packet.path.HopOpaqueField", autospec=True)
+    @patch("lib.packet.path.InfoOpaqueField", autospec=True)
     def test(self, info_of, hop_of):
-        mock_iof = MagicMock(spec=['hops'])
+        mock_iof = MagicMock(spec_set=['hops'])
         info_of.return_value = mock_iof
         info_of.return_value.hops = 1
         info_of.LEN = InfoOpaqueField.LEN
@@ -282,10 +282,10 @@ class TestCorePathParseDownSegment(BasePath):
     """
     Unit tests for lib.packet.path.CorePath._parse_down_segment
     """
-    @patch("lib.packet.path.HopOpaqueField")
-    @patch("lib.packet.path.InfoOpaqueField")
+    @patch("lib.packet.path.HopOpaqueField", autospec=True)
+    @patch("lib.packet.path.InfoOpaqueField", autospec=True)
     def test(self, info_of, hop_of):
-        mock_iof = MagicMock(spec=['hops'])
+        mock_iof = MagicMock(spec_set=['hops'])
         info_of.return_value = mock_iof
         info_of.return_value.hops = 1
         info_of.LEN = InfoOpaqueField.LEN
@@ -306,9 +306,9 @@ class TestCorePathPack(BasePath):
     """
     Unit tests for lib.packet.path.CorePath.pack
     """
-    @patch("lib.packet.path.CorePath._pack_down_segment")
-    @patch("lib.packet.path.CorePath._pack_core_segment")
-    @patch("lib.packet.path.CorePath._pack_up_segment")
+    @patch("lib.packet.path.CorePath._pack_down_segment", autospec=True)
+    @patch("lib.packet.path.CorePath._pack_core_segment", autospec=True)
+    @patch("lib.packet.path.CorePath._pack_up_segment", autospec=True)
     def test(self, pack_up, pack_core, pack_down):
         pack_up.return_value = b'str1'
         pack_core.return_value = b'str2'
@@ -321,9 +321,9 @@ class TestCorePathPackUpSegment(BasePath):
     Unit tests for lib.packet.path.CorePath._pack_up_segment
     """
     def test_with_info(self):
-        self.core_path.up_segment_info = MagicMock(spec=['pack'])
+        self.core_path.up_segment_info = MagicMock(spec_set=['pack'])
         self.core_path.up_segment_info.pack.return_value = b'packed_iof'
-        hof_mock = MagicMock(spec=['pack'])
+        hof_mock = MagicMock(spec_set=['pack'])
         hof_mock.pack.return_value = b'packed_hof'
         self.core_path.up_segment_hops = [hof_mock, hof_mock]
         packed = b'packed_iof' + b'packed_hof' + b'packed_hof'
@@ -339,9 +339,9 @@ class TestCorePathPackCoreSegment(BasePath):
     Unit tests for lib.packet.path.CorePath._pack_core_segment
     """
     def test_with_info(self):
-        self.core_path.core_segment_info = MagicMock(spec=['pack'])
+        self.core_path.core_segment_info = MagicMock(spec_set=['pack'])
         self.core_path.core_segment_info.pack.return_value = b'packed_iof'
-        hof_mock = MagicMock(spec=['pack'])
+        hof_mock = MagicMock(spec_set=['pack'])
         hof_mock.pack.return_value = b'packed_hof'
         self.core_path.core_segment_hops = [hof_mock, hof_mock]
         packed = b'packed_iof' + b'packed_hof' + b'packed_hof'
@@ -357,9 +357,9 @@ class TestCorePathPackDownSegment(BasePath):
     Unit tests for lib.packet.path.CorePath._pack_down_segment
     """
     def test_with_info(self):
-        self.core_path.down_segment_info = MagicMock(spec=['pack'])
+        self.core_path.down_segment_info = MagicMock(spec_set=['pack'])
         self.core_path.down_segment_info.pack.return_value = b'packed_iof'
-        hof_mock = MagicMock(spec=['pack'])
+        hof_mock = MagicMock(spec_set=['pack'])
         hof_mock.pack.return_value = b'packed_hof'
         self.core_path.down_segment_hops = [hof_mock, hof_mock]
         packed = b'packed_iof' + b'packed_hof' + b'packed_hof'
@@ -374,20 +374,20 @@ class TestCorePathReverse(BasePath):
     """
     Unit tests for lib.packet.path.CorePath.reverse
     """
-    @patch("lib.packet.path.PathBase.reverse")
+    @patch("lib.packet.path.PathBase.reverse", autospec=True)
     def test_with_info(self, reverse):
         iof1_ = copy.copy(self.iof[0])
         self.core_path.core_segment_info = self.iof[0]
-        self.core_path.core_segment_hops = MagicMock()
+        self.core_path.core_segment_hops = MagicMock(spec_set=['reverse'])
         self.core_path.reverse()
         reverse.assert_called_once_with(self.core_path)
         self.core_path.core_segment_hops.reverse.assert_called_once_with()
         iof1_.up_flag ^= True
         ntools.eq_(self.core_path.core_segment_info, iof1_)
 
-    @patch("lib.packet.path.PathBase.reverse")
+    @patch("lib.packet.path.PathBase.reverse", autospec=True)
     def test_without_info(self, reverse):
-        self.core_path.core_segment_hops = MagicMock()
+        self.core_path.core_segment_hops = MagicMock(spec_set=['reverse'])
         self.core_path.reverse()
         reverse.assert_called_once_with(self.core_path)
         self.core_path.core_segment_hops.reverse.assert_called_once_with()
@@ -444,32 +444,32 @@ class TestCrossOverPathInit(object):
     """
     Unit tests for lib.packet.path.CrossOverPath.__init__
     """
-    @patch("lib.packet.path.PathBase.__init__")
+    @patch("lib.packet.path.PathBase.__init__", autospec=True)
     def test_basic(self, init):
         co_path = CrossOverPath()
         init.assert_called_once_with(co_path)
         ntools.eq_(co_path.up_segment_upstream_ad, None)
         ntools.eq_(co_path.down_segment_upstream_ad, None)
 
-    @patch("lib.packet.path.CrossOverPath.parse")
+    @patch("lib.packet.path.CrossOverPath.parse", autospec=True)
     def test_raw(self, parse):
-        CrossOverPath("data")
-        parse.assert_called_once_with("data")
+        co_path = CrossOverPath("data")
+        parse.assert_called_once_with(co_path, "data")
 
 
 class TestCrossOverPathParse(object):
     """
     Unit tests for lib.packet.path.CrossOverPath.parse
     """
-    @patch("lib.packet.path.CrossOverPath._parse_down_segment")
-    @patch("lib.packet.path.CrossOverPath._parse_up_segment")
+    @patch("lib.packet.path.CrossOverPath._parse_down_segment", autospec=True)
+    @patch("lib.packet.path.CrossOverPath._parse_up_segment", autospec=True)
     def test_basic(self, parse_up, parse_down):
         data = bytes.fromhex('0a 0b 0c')
         parse_up.return_value = 1
         co_path = CrossOverPath()
         co_path.parse(data)
-        parse_up.assert_called_once_with(data)
-        parse_down.assert_called_once_with(data, 1)
+        parse_up.assert_called_once_with(co_path, data)
+        parse_down.assert_called_once_with(co_path, data, 1)
         ntools.assert_true(co_path.parsed)
 
     def test_wrong_type(self):
@@ -481,10 +481,10 @@ class TestCrossOverPathParseUpSegment(object):
     """
     Unit tests for lib.packet.path.CrossOverPath._parse_up_segment
     """
-    @patch("lib.packet.path.HopOpaqueField")
-    @patch("lib.packet.path.InfoOpaqueField")
+    @patch("lib.packet.path.HopOpaqueField", autospec=True)
+    @patch("lib.packet.path.InfoOpaqueField", autospec=True)
     def test(self, info_of, hop_of):
-        mock_iof = MagicMock(spec=['hops'])
+        mock_iof = MagicMock(spec_set=['hops'])
         info_of.return_value = mock_iof
         info_of.return_value.hops = 1
         info_of.LEN = InfoOpaqueField.LEN
@@ -509,10 +509,10 @@ class TestCrossOverPathParseDownSegment(object):
     """
     Unit tests for lib.packet.path.CrossOverPath._parse_down_segment
     """
-    @patch("lib.packet.path.HopOpaqueField")
-    @patch("lib.packet.path.InfoOpaqueField")
+    @patch("lib.packet.path.HopOpaqueField", autospec=True)
+    @patch("lib.packet.path.InfoOpaqueField", autospec=True)
     def test(self, info_of, hop_of):
-        mock_iof = MagicMock(spec=['hops'])
+        mock_iof = MagicMock(spec_set=['hops'])
         info_of.return_value = mock_iof
         info_of.return_value.hops = 1
         info_of.LEN = InfoOpaqueField.LEN
@@ -536,8 +536,8 @@ class TestCrossOverPathPack(object):
     """
     Unit tests for lib.packet.path.CrossOverPath.pack
     """
-    @patch("lib.packet.path.CrossOverPath._pack_down_segment")
-    @patch("lib.packet.path.CrossOverPath._pack_up_segment")
+    @patch("lib.packet.path.CrossOverPath._pack_down_segment", autospec=True)
+    @patch("lib.packet.path.CrossOverPath._pack_up_segment", autospec=True)
     def test(self, pack_up, pack_down):
         co_path = CrossOverPath()
         pack_up.return_value = b'str1'
@@ -551,12 +551,12 @@ class TestCrossOverPathPackUpSegment(object):
     """
     def test(self):
         co_path = CrossOverPath()
-        co_path.up_segment_info = MagicMock(spec=['pack'])
+        co_path.up_segment_info = MagicMock(spec_set=['pack'])
         co_path.up_segment_info.pack.return_value = b'packed_iof'
-        hof_mock = MagicMock(spec=['pack'])
+        hof_mock = MagicMock(spec_set=['pack'])
         hof_mock.pack.return_value = b'packed_hof'
         co_path.up_segment_hops = [hof_mock, hof_mock]
-        co_path.up_segment_upstream_ad = MagicMock(spec=['pack'])
+        co_path.up_segment_upstream_ad = MagicMock(spec_set=['pack'])
         co_path.up_segment_upstream_ad.pack.return_value = b'packed_ad'
         packed = b'packed_iof' + b'packed_hof' + b'packed_hof' + b'packed_ad'
         ntools.eq_(co_path._pack_up_segment(), packed)
@@ -568,12 +568,12 @@ class TestCrossOverPathPackDownSegment(object):
     """
     def test(self):
         co_path = CrossOverPath()
-        co_path.down_segment_info = MagicMock(spec=['pack'])
+        co_path.down_segment_info = MagicMock(spec_set=['pack'])
         co_path.down_segment_info.pack.return_value = b'packed_iof'
-        hof_mock = MagicMock(spec=['pack'])
+        hof_mock = MagicMock(spec_set=['pack'])
         hof_mock.pack.return_value = b'packed_hof'
         co_path.down_segment_hops = [hof_mock, hof_mock]
-        co_path.down_segment_upstream_ad = MagicMock(spec=['pack'])
+        co_path.down_segment_upstream_ad = MagicMock(spec_set=['pack'])
         co_path.down_segment_upstream_ad.pack.return_value = b'packed_ad'
         packed = b'packed_iof' + b'packed_ad' + b'packed_hof' + b'packed_hof'
         ntools.eq_(co_path._pack_down_segment(), packed)
@@ -583,7 +583,7 @@ class TestCrossOverPathReverse(object):
     """
     Unit tests for lib.packet.path.CrossOverPath.reverse
     """
-    @patch("lib.packet.path.PathBase.reverse")
+    @patch("lib.packet.path.PathBase.reverse", autospec=True)
     def test(self, reverse):
         co_path = CrossOverPath()
         co_path.up_segment_upstream_ad = 1
@@ -617,7 +617,7 @@ class TestPeerPathInit(object):
     """
     Unit tests for lib.packet.path.PeerPath.__init__
     """
-    @patch("lib.packet.path.PathBase.__init__")
+    @patch("lib.packet.path.PathBase.__init__", autospec=True)
     def test_basic(self, init):
         peer_path = PeerPath()
         init.assert_called_once_with(peer_path)
@@ -626,25 +626,25 @@ class TestPeerPathInit(object):
         ntools.assert_is_none(peer_path.down_segment_peering_link)
         ntools.assert_is_none(peer_path.down_segment_upstream_ad)
 
-    @patch("lib.packet.path.PeerPath.parse")
+    @patch("lib.packet.path.PeerPath.parse", autospec=True)
     def test_raw(self, parse):
-        PeerPath('rawstring')
-        parse.assert_called_once_with('rawstring')
+        peer_path = PeerPath('rawstring')
+        parse.assert_called_once_with(peer_path, 'rawstring')
 
 
 class TestPeerPathParse(object):
     """
     Unit tests for lib.packet.path.PeerPath.parse
     """
-    @patch("lib.packet.path.PeerPath._parse_down_segment")
-    @patch("lib.packet.path.PeerPath._parse_up_segment")
+    @patch("lib.packet.path.PeerPath._parse_down_segment", autospec=True)
+    @patch("lib.packet.path.PeerPath._parse_up_segment", autospec=True)
     def test_basic(self, parse_up, parse_down):
         data = bytes.fromhex('0a 0b 0c')
         parse_up.return_value = 1
         peer_path = PeerPath()
         peer_path.parse(data)
-        parse_up.assert_called_once_with(data)
-        parse_down.assert_called_once_with(data, 1)
+        parse_up.assert_called_once_with(peer_path, data)
+        parse_down.assert_called_once_with(peer_path, data, 1)
         ntools.assert_true(peer_path.parsed)
 
     def test_wrong_type(self):
@@ -656,10 +656,10 @@ class TestPeerPathParseUpSegment(object):
     """
     Unit tests for lib.packet.path.PeerPath._parse_up_segment
     """
-    @patch("lib.packet.path.HopOpaqueField")
-    @patch("lib.packet.path.InfoOpaqueField")
+    @patch("lib.packet.path.HopOpaqueField", autospec=True)
+    @patch("lib.packet.path.InfoOpaqueField", autospec=True)
     def test(self, info_of, hop_of):
-        mock_iof = MagicMock(spec=['hops'])
+        mock_iof = MagicMock(spec_set=['hops'])
         info_of.return_value = mock_iof
         info_of.return_value.hops = 1
         info_of.LEN = InfoOpaqueField.LEN
@@ -687,10 +687,10 @@ class TestPeerPathParseDownSegment(object):
     """
     Unit tests for lib.packet.path.PeerPath._parse_down_segment
     """
-    @patch("lib.packet.path.HopOpaqueField")
-    @patch("lib.packet.path.InfoOpaqueField")
+    @patch("lib.packet.path.HopOpaqueField", autospec=True)
+    @patch("lib.packet.path.InfoOpaqueField", autospec=True)
     def test(self, info_of, hop_of):
-        mock_iof = MagicMock(spec=['hops'])
+        mock_iof = MagicMock(spec_set=['hops'])
         info_of.return_value = mock_iof
         info_of.return_value.hops = 1
         info_of.LEN = InfoOpaqueField.LEN
@@ -717,8 +717,8 @@ class TestPeerPathPack(object):
     """
     Unit tests for lib.packet.path.PeerPath.pack
     """
-    @patch("lib.packet.path.PeerPath._pack_down_segment")
-    @patch("lib.packet.path.PeerPath._pack_up_segment")
+    @patch("lib.packet.path.PeerPath._pack_down_segment", autospec=True)
+    @patch("lib.packet.path.PeerPath._pack_up_segment", autospec=True)
     def test(self, pack_up, pack_down):
         peer_path = PeerPath()
         pack_up.return_value = b'str1'
@@ -732,14 +732,14 @@ class TestPeerPathPackUpSegment(object):
     """
     def test(self):
         peer_path = PeerPath()
-        peer_path.up_segment_info = MagicMock(spec=['pack'])
+        peer_path.up_segment_info = MagicMock(spec_set=['pack'])
         peer_path.up_segment_info.pack.return_value = b'packed_iof'
-        hof_mock = MagicMock(spec=['pack'])
+        hof_mock = MagicMock(spec_set=['pack'])
         hof_mock.pack.return_value = b'packed_hof'
         peer_path.up_segment_hops = [hof_mock, hof_mock]
-        peer_path.up_segment_upstream_ad = MagicMock(spec=['pack'])
+        peer_path.up_segment_upstream_ad = MagicMock(spec_set=['pack'])
         peer_path.up_segment_upstream_ad.pack.return_value = b'packed_ad'
-        peer_path.up_segment_peering_link = MagicMock(spec=['pack'])
+        peer_path.up_segment_peering_link = MagicMock(spec_set=['pack'])
         peer_path.up_segment_peering_link.pack.return_value = b'packed_link'
         packed = b'packed_iof' + b'packed_hof' + b'packed_hof' + \
                  b'packed_link' + b'packed_ad'
@@ -752,14 +752,14 @@ class TestPeerPathPackDownSegment(object):
     """
     def test(self):
         peer_path = PeerPath()
-        peer_path.down_segment_info = MagicMock(spec=['pack'])
+        peer_path.down_segment_info = MagicMock(spec_set=['pack'])
         peer_path.down_segment_info.pack.return_value = b'packed_iof'
-        hof_mock = MagicMock(spec=['pack'])
+        hof_mock = MagicMock(spec_set=['pack'])
         hof_mock.pack.return_value = b'packed_hof'
         peer_path.down_segment_hops = [hof_mock, hof_mock]
-        peer_path.down_segment_upstream_ad = MagicMock(spec=['pack'])
+        peer_path.down_segment_upstream_ad = MagicMock(spec_set=['pack'])
         peer_path.down_segment_upstream_ad.pack.return_value = b'packed_ad'
-        peer_path.down_segment_peering_link = MagicMock(spec=['pack'])
+        peer_path.down_segment_peering_link = MagicMock(spec_set=['pack'])
         peer_path.down_segment_peering_link.pack.return_value = b'packed_link'
         packed = b'packed_iof' + b'packed_ad' + b'packed_link' + \
                  b'packed_hof' + b'packed_hof'
@@ -770,7 +770,7 @@ class TestPeerPathReverse(object):
     """
     Unit tests for lib.packet.path.PeerPath.reverse
     """
-    @patch("lib.packet.path.PathBase.reverse")
+    @patch("lib.packet.path.PathBase.reverse", autospec=True)
     def test(self, reverse):
         peer_path = PeerPath()
         peer_path.up_segment_upstream_ad = 1
@@ -810,15 +810,15 @@ class TestEmptyPathInit(object):
     """
     Unit tests for lib.packet.path.EmptyPath.__init__
     """
-    @patch("lib.packet.path.PathBase.__init__")
+    @patch("lib.packet.path.PathBase.__init__", autospec=True)
     def test_basic(self, init):
         empty_path = EmptyPath()
         init.assert_called_once_with(empty_path)
 
-    @patch("lib.packet.path.EmptyPath.parse")
+    @patch("lib.packet.path.EmptyPath.parse", autospec=True)
     def test_raw(self, parse):
-        EmptyPath('rawstring')
-        parse.assert_called_once_with('rawstring')
+        empty_path = EmptyPath('rawstring')
+        parse.assert_called_once_with(empty_path, 'rawstring')
 
 
 class TestEmptyPathParse(object):
