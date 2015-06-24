@@ -221,7 +221,7 @@ class TestTimed(object):
     """
     Unit tests for lib.util.timed
     """
-    @timed(0.01)
+    @timed(0.1)
     def wrapped(self, sleep):
         time.sleep(sleep)
         return sleep
@@ -233,7 +233,7 @@ class TestTimed(object):
 
     @patch("lib.util.logging.warning", autospec=True)
     def test_limit_exceeded(self, warning):
-        self.wrapped(0.02)
+        self.wrapped(0.2)
         ntools.eq_(warning.call_count, 1)
 
 
