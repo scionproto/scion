@@ -99,15 +99,12 @@ class RouterAdmin(ServerAdmin):
 
     def get_fields(self, request, obj=None):
         fields = super().get_fields(request, obj)
-        fields += (('interface_addr', 'interface_port'),
+        fields += ('interface_id',
+                   ('interface_addr', 'interface_port'),
                    ('interface_toaddr', 'interface_toport'),
                    ('neighbor_ad','neighbor_type'))
         return fields
 
-    def get_readonly_fields(self, request, obj=None):
-        ro_fields = super().get_readonly_fields(request, obj)
-        ro_fields += ('neighbor_ad',)
-        return ro_fields
 
 # Misc admin models
 admin_site.register(ConnectionRequest)

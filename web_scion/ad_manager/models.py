@@ -172,7 +172,9 @@ class AD(models.Model):
                     neighbor_type=interface.neighbor_type,
                     interface_addr=str(interface.addr),
                     interface_toaddr=str(interface.to_addr),
-                    interface_id=interface.if_id
+                    interface_id=interface.if_id,
+                    interface_port=interface.udp_port,
+                    interface_toport=interface.to_udp_port,
                 )
                 router_element.save()
 
