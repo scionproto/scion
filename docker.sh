@@ -13,7 +13,7 @@ get_params() {
   image_tag=$(echo "$branch" | tr '/' '.')
 }
 
-cmd_build_basic() {
+cmd_build() {
     set -e
     set -o pipefail
     get_params
@@ -31,38 +31,28 @@ cmd_build_basic() {
     git ls-files -z | rsync -a0 --files-from=- . docker/_build/.scion.tmp/
     rsync -rlpc --delete --info=FLIST2,STATS \
       docker/_build/.scion.tmp/ "${build_dir}/scion.git/"
+    # Fix timestamps so that docker doesn't unnecessarily rebuild
+    touch --date="@0" "${build_dir}/scion.git/"
     # Cleanup the temp directory
     rm -rf docker/_build/.scion.tmp
     echo
-    echo "Building Docker basic image"
-    echo "==========================="
-    cp -a docker/Dockerfile "$build_dir"
-    docker_build "scion/basic" "build-basic.log"
-}
-
-cmd_build_full() {
-    set -e
-    set -o pipefail
-    cmd_build_basic
-    echo
-    echo "Building Docker full image"
-    echo "============================"
-    cp -a docker/Dockerfile.full "$build_dir/Dockerfile"
-    docker_build "scion/full" "build-full.log"
+    echo "Building Docker image"
+    echo "====================="
+    docker_build "build.log"
 }
 
 docker_build() {
     set -e
     set -o pipefail
-    local image_name="$1"; shift
     local log_file="$1"; shift
+    local image_name="scion"
     echo "Image: $image_name:$image_tag"
     echo "Log: $build_dir/$log_file"
     echo "============================"
     echo
-    docker build -t "${image_name:?}:${image_tag:?}" "${build_dir:?}" |
-      tee "$build_dir/${log_file:?}"
-    docker tag "$image_name:$image_tag" "$image_name:latest"
+    docker build -t "${image_name:?}:${image_tag:?}" "${build_dir:?}/scion.git" |
+        tee "$build_dir/${log_file:?}"
+    docker tag -f "$image_name:$image_tag" "$image_name:latest"
 }
 
 cmd_clean() {
@@ -78,12 +68,8 @@ cmd_clean_full() {
     rm -rf docker/_build/
 }
 
-cmd_run_basic() {
-    docker run -i -t --rm --privileged -h scionbasic scion/basic "$@"
-}
-
-cmd_run_full() {
-    docker run -i -t --rm --privileged -h scionfull scion/full "$@"
+cmd_run() {
+    docker run -i -t --rm --privileged -h scion scion "$@"
 }
 
 stop_cntrs() {
@@ -134,15 +120,8 @@ cmd_help() {
 	cat <<-_EOF
 	Usage:
 	    $PROGRAM build
-	    $PROGRAM build_full
-            Build both Docker images (with all scion setup done)
-	    $PROGRAM build_basic
-            Build the basic Docker image (with just scion deps installed)
 	    $PROGRAM run
-	    $PROGRAM run_full
-	        Run the full Docker image.
-	    $PROGRAM run_basic
-	        Run the basic Docker image.
+	        Run the Docker image.
 	    $PROGRAM clean
 	        Remove all Docker containers and unused images.
 	    $PROGRAM clean_full
@@ -168,12 +147,10 @@ if ! type -p docker &>/dev/null; then
 fi
 
 case $COMMAND in
-    build|build_full)   cmd_build_full ;;
-    build_basic)        cmd_build_basic ;;
+    build)              cmd_build ;;
     clean)              cmd_clean ;;
     clean_full)         cmd_clean_full ;;
-    run|run_full)       shift; cmd_run_full "$@" ;;
-    run_basic)          shift; cmd_run_basic "$@" ;;
+    run)                shift; cmd_run "$@" ;;
     help)               cmd_help ;;
     *)                  cmd_help ;;
 esac

@@ -1,5 +1,0 @@
-FROM scion/basic
-
-RUN ./scion.sh init
-RUN ./scion.sh topology
-RUN . ~/.profile && make -C sphinx-doc/ html
