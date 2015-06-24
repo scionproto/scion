@@ -613,19 +613,18 @@ class TestPathSegmentGetPath(object):
     @patch("lib.packet.pcb.CorePath.from_values", spec_set=CorePath.from_values)
     def test_reverse(self, core_path):
         path_segment = PathSegment()
-        path_segment.iof = MagicMock(spec_set=[InfoOpaqueField, 'up_flag'])
+        path_segment.iof = MagicMock(spec_set=['up_flag'])
+        type(path_segment.iof).__copy__ = lambda self: self
+        path_segment.iof.up_flag = True
         ads = [MagicMock(spec_set=['pcbm']) for i in range(3)]
         for i, ad in enumerate(ads):
             ad.pcbm = MagicMock(spec_set=['hof'])
             ad.pcbm.hof = i
         path_segment.ads = ads
         core_path.return_value = 'core_path'
-        iof = MagicMock(spec_set=['up_flag'])
-        type(iof).__copy__ = lambda self: self
-        iof.up_flag ^= True
         ntools.eq_(path_segment.get_path(reverse_direction=True), 'core_path')
-        # FIXME
-        # core_path.assert_called_once_with(iof, [2, 1, 0])
+        ntools.assert_false(path_segment.iof.up_flag)
+        core_path.assert_called_once_with(path_segment.iof, [2, 1, 0])
 
 
 class TestPathSegmentGetIsd(object):
