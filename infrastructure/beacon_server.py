@@ -694,7 +694,7 @@ class BeaconServer(SCIONElement):
     def _process_revocation(self, rev_info):
         """
         Sends out revocation to the local PS, to down_stream BSes and a CPS.
-        
+
         :param rev_info: The RevocationInfo object
         :type rev_info: RevocationInfo
         """
@@ -784,7 +784,7 @@ class BeaconServer(SCIONElement):
                     if_state.revoke_if_expired()
             sleep_interval(start_time, self.IF_TIMEOUT_INTERVAL,
                            "Handle IF timeouts")
-        
+
 
 class CoreBeaconServer(BeaconServer):
     """
