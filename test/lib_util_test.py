@@ -69,7 +69,7 @@ class TestGetCertChainFilePath(object):
         ntools.eq_(get_cert_chain_file_path(1, 2, 3, 4, 5, 6), "data2")
         isd_prefix.assert_called_once_with(6)
         join.assert_any_call("isd_prefix1", CERT_DIR, 'AD2',
-                                     'ISD:3-AD:4-V:5.crt')
+                             'ISD:3-AD:4-V:5.crt')
 
     def test_len(self, isd_prefix, join):
         get_cert_chain_file_path(1, 2, 3, 4, 5)
@@ -87,8 +87,7 @@ class TestGetTRCFilePath(object):
         join.return_value = "data2"
         ntools.eq_(get_trc_file_path(1, 2, 3, 4, 5), "data2")
         isd_prefix.assert_called_once_with(5)
-        join.assert_any_call("isd_prefix1", CERT_DIR, 'AD2',
-                                     'ISD:3-V:4.crt')
+        join.assert_any_call("isd_prefix1", CERT_DIR, 'AD2', 'ISD:3-V:4.crt')
 
     def test_len(self, isd_prefix, join):
         get_trc_file_path(1, 2, 3, 4)
@@ -106,8 +105,7 @@ class TestGetSigKeyFilePath(object):
         join.return_value = "data2"
         ntools.eq_(get_sig_key_file_path(1, 2, 3), "data2")
         isd_prefix.assert_called_once_with(3)
-        join.assert_any_call("isd_prefix1", SIG_KEYS_DIR,
-                                     'ISD:1-AD:2.key')
+        join.assert_any_call("isd_prefix1", SIG_KEYS_DIR, 'ISD:1-AD:2.key')
 
     def test_len(self, isd_prefix, join):
         get_sig_key_file_path(1, 2)
@@ -125,8 +123,7 @@ class TestGetEncKeyFilePath(object):
         join.return_value = "data2"
         ntools.eq_(get_enc_key_file_path(1, 2, 3), "data2")
         isd_prefix.assert_called_once_with(3)
-        join.assert_any_call("isd_prefix1", ENC_KEYS_DIR,
-                                     'ISD:1-AD:2.key')
+        join.assert_any_call("isd_prefix1", ENC_KEYS_DIR, 'ISD:1-AD:2.key')
 
     def test_len(self, isd_prefix, join):
         get_enc_key_file_path(1, 2)
