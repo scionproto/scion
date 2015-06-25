@@ -25,7 +25,8 @@ import nose.tools as ntools
 # SCION
 from lib.packet.pcb import PathSegment
 from lib.path_store import (
-    PathPolicy
+    PathPolicy,
+    PathStoreRecord
 )
 
 
@@ -290,11 +291,80 @@ class TestPathPolicyParseDict(object):
         ntools.eq_(pth_pol2.update_after_number, "update_after_number")
         ntools.eq_(pth_pol2.update_after_time, "update_after_time")
         ntools.eq_(pth_pol2.unwanted_ads, [(1, 11), (2, 12)])
-        ntools.eq_(pth_pol2.property_ranges['key1'], (1,11))
-        ntools.eq_(pth_pol2.property_ranges['key2'], (2,12))
+        ntools.eq_(pth_pol2.property_ranges['key1'], (1, 11))
+        ntools.eq_(pth_pol2.property_ranges['key2'], (2, 12))
         ntools.eq_(len(pth_pol2.property_ranges), 2)
         ntools.eq_(pth_pol2.property_weights, "property_weights")
 
+
+class TestPathStoreRecordInit(object):
+    """
+    Unit tests for lib.path_store.PathStoreRecord.__init__
+    """
+    @patch("lib.path_store.time.time")
+    def test_basic(self, time_):
+        pcb = MagicMock(spec_set=['__class__', 'segment_id',
+                                  'get_expiration_time'])
+        pcb.__class__ = PathSegment
+        pcb.segment_id = "id"
+        pcb.get_expiration_time.return_value = "get_expiration_time"
+        time_.return_value = 23
+        pth_str_rec = PathStoreRecord(pcb)
+        ntools.eq_(pth_str_rec.pcb, pcb)
+        ntools.eq_(pth_str_rec.id, pcb.segment_id)
+        ntools.eq_(pth_str_rec.fidelity, 0)
+        ntools.eq_(pth_str_rec.peer_links, 0)
+        ntools.eq_(pth_str_rec.hops_length, 0)
+        ntools.eq_(pth_str_rec.disjointness, 0)
+        ntools.eq_(pth_str_rec.last_sent_time, 1420070400)
+        ntools.eq_(pth_str_rec.last_seen_time, 23)
+        ntools.eq_(pth_str_rec.delay_time, 0)
+        ntools.eq_(pth_str_rec.expiration_time, "get_expiration_time")
+        ntools.eq_(pth_str_rec.guaranteed_bandwidth, 0)
+        ntools.eq_(pth_str_rec.available_bandwidth, 0)
+        ntools.eq_(pth_str_rec.total_bandwidth, 0)
+        time_.assert_called_once_with()
+        pcb.get_expiration_time.assert_called_once_with()
+
+
+class TestPathStoreRecordUpdateFidelity(object):
+    """
+    Unit tests for lib.path_store.PathStoreRecord.update_fidelity
+    """
+    # TODO
+    @patch("lib.path_store.time.time")
+    def test_basic(self, time_):
+        pass
+
+
+class TestPathStoreRecordEQ(object):
+    """
+    Unit tests for lib.path_store.PathStoreRecord.__eq__
+    """
+    def __init__(self):
+        self.pcb = MagicMock(spec_set=['__class__', 'segment_id',
+                                       'get_expiration_time'])
+        self.pcb.__class__ = PathSegment
+
+    def test_eq(self):
+        pth_str_rec1 = PathStoreRecord(self.pcb)
+        pth_str_rec2 = PathStoreRecord(self.pcb)
+        id_ = "id"
+        pth_str_rec1.id = id_
+        pth_str_rec2.id = id_
+        ntools.eq_(pth_str_rec1, pth_str_rec2)
+
+    def test_neq(self):
+        pth_str_rec1 = PathStoreRecord(self.pcb)
+        pth_str_rec2 = PathStoreRecord(self.pcb)
+        pth_str_rec1.id = "id1"
+        pth_str_rec2.id = "id2"
+        ntools.assert_not_equals(pth_str_rec1, pth_str_rec2)
+
+    def test_type_neq(self):
+        pth_str_rec1 = PathStoreRecord(self.pcb)
+        pth_str_rec2 = b'test'
+        ntools.assert_not_equals(pth_str_rec1, pth_str_rec2)
 
 if __name__ == "__main__":
     nose.run(defaultTest=__name__)
