@@ -79,9 +79,8 @@ def parse(brite_files, dot_output_file, avg_out_degree):
         if not os.path.isfile(brite_file):
             logging.error(brite_file + " file missing.")
             sys.exit()
-        result = _parse(brite_file, num_isd)
-        ISD_dict[num_isd] = result[0]
-        core_ad_dict[num_isd] = result[1]
+        (ISD_dict[num_isd], core_ad_dict[num_isd]) = \
+            _parse(brite_file, num_isd)
         final_graph = nx.union(final_graph, ISD_dict[num_isd])
         num_isd += 1
     count_isds = num_isd - 1
@@ -315,7 +314,6 @@ def main():
     parser = argparse.ArgumentParser(description='SCION Topology generator')
     parser.add_argument('-d', '--dir',
                         action='store',
-                        default=None,
                         dest='from_directory',
                         help="Convert each files in the specified directory \
                               into an isd")
@@ -328,8 +326,8 @@ def main():
                         action='store',
                         default=3,
                         dest='degree',
-                        help="Set the average degree of connections between \
-                              core AD's")
+                        help="Set the average degree of connections \
+                              between core AD's of different ISD's")
     parser.add_argument('-o', '--out',
                         action='store',
                         default=None,
@@ -337,6 +335,8 @@ def main():
                         help="Generates a dot output file(pygraphviz does not \
                               work in python 3.x, works only in python 2.x).")
     results = parser.parse_args()
+    if not (results.from_directory or results.collection):
+        parser.error('No files provided. Add -d or -f as argument')
     if results.from_directory != None:
         brite_files = read_from_dir(results.from_directory)
     else:
