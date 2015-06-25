@@ -39,7 +39,7 @@ from ad_manager.forms import (
 )
 from ad_manager.models import AD, ISD, PackageVersion, ConnectionRequest
 from ad_manager.util import monitoring_client
-from ad_manager.util.ad_connect import create_new_ad, link_ads, find_last_router
+from ad_manager.util.ad_connect import create_new_ad_files, link_ads, find_last_router
 from ad_manager.util.errors import HttpResponseUnavailable
 from lib.defines import BEACON_SERVICE
 from lib.topology import Topology
@@ -449,7 +449,7 @@ def approve_request(ad, ad_request):
     parent_topo = ad.generate_topology_dict()
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        new_topo, parent_topo = create_new_ad(parent_topo,
+        new_topo, parent_topo = create_new_ad_files(parent_topo,
                                               new_ad.isd.id,
                                               new_ad.id,
                                               out_dir=temp_dir)

@@ -1,10 +1,21 @@
 # Stdlib
 import copy
+import glob
 import json
+import os
+import re
 import tempfile
 from ipaddress import ip_address
 
 # SCION
+from ad_manager.models import (
+    BeaconServerWeb,
+    CertificateServerWeb,
+    PathServerWeb,
+    RouterWeb,
+    DnsServerWeb,
+    AD)
+from lib.defines import TOPOLOGY_PATH
 from lib.topology import Topology
 from lib.util import read_file, write_file
 from topology.generator import (
@@ -29,33 +40,72 @@ def find_last_router(topo_dict):
         return None
 
 
-def create_next_router(generator, topo_dict):
+def find_next_ip_local():
+    max_ip = ip_address(IP_ADDRESS_BASE)
+    topo_files = glob.glob(os.path.join(TOPOLOGY_PATH,
+                                        'ISD*/topologies/ISD*.json'))
+
+    ip_addr_re = re.compile(r'"((\d{1,3}\.){3}\d{1,3})"')
+    for path in topo_files:
+        contents = open(path).read()
+        for match in re.finditer(ip_addr_re, contents):
+            ip_addr = ip_address(match.group(1))
+            if ip_addr > max_ip:
+                max_ip = ip_addr
+    return str(max_ip + 1)
+
+
+def find_next_ip_global():
+    max_ip = ip_address(IP_ADDRESS_BASE)
+
+    # Servers
+    object_groups = [PathServerWeb.objects.all(),
+                     DnsServerWeb.objects.all(),
+                     CertificateServerWeb.objects.all(),
+                     BeaconServerWeb.objects.all()]
+    for group in object_groups:
+        for element in group:
+            element_addr = ip_address(element.addr)
+            if element_addr > max_ip:
+                max_ip = element_addr
+
+    # Routers
+    for router in RouterWeb.objects.all():
+        ip_addrs = [router.addr, router.interface_addr, router.interface_toaddr]
+        for addr in ip_addrs:
+            addr = ip_address(addr)
+            if addr > max_ip:
+                max_ip = addr
+
+    return max_ip + 1
+
+
+def ip_generator():
+    next_ip = find_next_ip_global()
+    while True:
+        yield str(next_ip)
+        next_ip += 1
+
+
+def create_next_router(topo_dict, ip_gen):
     router_item = find_last_router(topo_dict)
-    first_byte, mask = generator.get_subnet_params()
     if router_item:
         _, last_router = router_item
         new_router = copy.deepcopy(last_router)
-        lr_addr = last_router['Addr']
-        lr_interface_addr = last_router['Interface']['Addr']
-
         last_index = sorted(topo_dict['EdgeRouters'].keys(),
                             key=lambda x: -int(x))[0]
         router_index = int(last_index) + 1
 
-        # FIXME(rev112): find a free address
-        # Create a function which search all topology files for IP addresses,
-        # and increment the greatest one?
-        nr_addr = generator.increment_address(lr_addr, mask, 2)
-        nr_if_addr = generator.increment_address(lr_interface_addr, mask, 2)
+        nr_addr = next(ip_gen)
+        nr_if_addr = next(ip_gen)
 
         new_router['Addr'] = nr_addr
         new_router['Interface']['Addr'] = nr_if_addr
         new_router['Interface']['ToAddr'] = 'NULL'
         new_router['Interface']['IFID'] = router_index
     else:
-        # FIXME(rev112): find a free address
-        ip_address_loc = ip_address(IP_ADDRESS_BASE)
-        ip_address_pub = generator.increment_address(ip_address_loc, mask)
+        ip_address_loc = next(ip_gen)
+        ip_address_pub = next(ip_gen)
         router_index = 1
         new_router = {
             'AddrType': 'IPv4',
@@ -72,7 +122,7 @@ def create_next_router(generator, topo_dict):
     return str(router_index), new_router
 
 
-def link_topologies(generator, first_topo, second_topo, link_type):
+def link_topologies(first_topo, second_topo, link_type):
     """
 
     link_type:
@@ -82,10 +132,11 @@ def link_topologies(generator, first_topo, second_topo, link_type):
     """
     first_topo = copy.deepcopy(first_topo)
     second_topo = copy.deepcopy(second_topo)
-    first_router_id, first_topo_router = create_next_router(generator,
-                                                            first_topo)
-    second_router_id, second_topo_router = create_next_router(generator,
-                                                              second_topo)
+    ip_gen = ip_generator()
+    first_router_id, first_topo_router = create_next_router(first_topo,
+                                                            ip_gen)
+    second_router_id, second_topo_router = create_next_router(second_topo,
+                                                              ip_gen)
 
     first_router_if = first_topo_router['Interface']
     second_router_if = second_topo_router['Interface']
@@ -121,10 +172,11 @@ def link_topologies(generator, first_topo, second_topo, link_type):
 
 def link_ads(first_ad, second_ad, link_type):
     """Needs transaction!"""
+    assert isinstance(first_ad, AD)
+    assert isinstance(second_ad, AD)
     first_topo = first_ad.generate_topology_dict()
     second_topo = second_ad.generate_topology_dict()
-    gen = ConfigGenerator()
-    first_topo, second_topo = link_topologies(gen, first_topo, second_topo,
+    first_topo, second_topo = link_topologies(first_topo, second_topo,
                                               link_type)
 
     new_first_topo = Topology.from_dict(first_topo)
@@ -134,7 +186,7 @@ def link_ads(first_ad, second_ad, link_type):
     second_ad.fill_from_topology(new_second_topo, clear=True)
 
 
-def create_new_ad(parent_ad_topo, isd_id, ad_id, out_dir):
+def create_new_ad_files(parent_ad_topo, isd_id, ad_id, out_dir):
     assert isinstance(parent_ad_topo, dict), 'Invalid topology dict'
     isd_ad_id = '{}-{}'.format(isd_id, ad_id)
     ad_dict = {isd_ad_id: {'level': 'LEAF'}}
@@ -151,7 +203,7 @@ def create_new_ad(parent_ad_topo, isd_id, ad_id, out_dir):
     new_topo_path = gen.path_dict(isd_id, ad_id)['topo_file_abs']
     new_topo_file = read_file(new_topo_path)
     new_topo = json.loads(new_topo_file)
-    existing_topo, new_topo = link_topologies(gen, parent_ad_topo, new_topo,
+    existing_topo, new_topo = link_topologies(parent_ad_topo, new_topo,
                                               'PARENT_CHILD')
     # Update the config files for the new AD
     write_file(new_topo_path, json.dumps(new_topo))
