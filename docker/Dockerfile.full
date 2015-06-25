@@ -1,4 +1,4 @@
-FROM scionbasic
+FROM scion/basic
 
 RUN ./scion.sh init
 RUN ./scion.sh topology

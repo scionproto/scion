@@ -21,15 +21,15 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install --download-only --no-install-
 USER scion
 ENV HOME /home/scion
 WORKDIR /home/scion/scion.git
-COPY _build/scion.git/scion.sh /home/scion/scion.git/
+COPY scion.git/scion.sh /home/scion/scion.git/
 
 # Copy over pkgs_debian.txt. If it has changed, then re-run the remaining steps.
-COPY _build/scion.git/pkgs_debian.txt /home/scion/scion.git/
+COPY scion.git/pkgs_debian.txt /home/scion/scion.git/
 RUN sudo chown -R scion: /home/scion
 RUN DEBIAN_FRONTEND=noninteractive APTARGS=-y ./scion.sh deps pkgs
 
 # Copy over requirements.txt. If it has changed, then re-run the remaining steps.
-COPY _build/scion.git/requirements.txt /home/scion/scion.git/
+COPY scion.git/requirements.txt /home/scion/scion.git/
 RUN sudo chown -R scion: /home/scion
 RUN ./scion.sh deps pip3
 
@@ -44,11 +44,11 @@ RUN sudo apt-get clean
 
 RUN echo "PATH=$HOME/.local/bin:/usr/share/zookeeper/bin:$PATH" >> ~/.profile
 # Now copy over the current branch
-COPY _build/scion.git /home/scion/scion.git
+COPY scion.git /home/scion/scion.git
 # Copy over init.sh:
-COPY init.sh /home/scion/bin/
+COPY scion.git/docker/init.sh /home/scion/bin/
 # Install basic screen config
-COPY screenrc /home/scion/.screenrc
+COPY scion.git/docker/screenrc /home/scion/.screenrc
 
 # Fix ownership one last time:
 RUN sudo chown -R scion: /home/scion

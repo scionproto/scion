@@ -11,5 +11,8 @@ dependencies:
 
 test:
   override:
-    - ./scion.sh test
+    - ./scion.sh coverage
     - make -C sphinx-doc html
+  post:
+    - cp -a htmlcov "$CIRCLE_ARTIFACTS"/coverage
+    - cp -a sphinx-doc/_build/html "$CIRCLE_ARTIFACTS"/docs
