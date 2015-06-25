@@ -54,7 +54,7 @@ class TestGetIsdPrefix(object):
     def test_basic(self, join):
         join.return_value = "data1"
         ntools.eq_(_get_isd_prefix("data2"), "data1")
-        join.assert_called_once_with("data2", 'ISD')
+        join.assert_any_call("data2", 'ISD')
 
 
 @patch("lib.util.os.path.join", autospec=True)
@@ -68,7 +68,7 @@ class TestGetCertChainFilePath(object):
         join.return_value = "data2"
         ntools.eq_(get_cert_chain_file_path(1, 2, 3, 4, 5, 6), "data2")
         isd_prefix.assert_called_once_with(6)
-        join.assert_called_once_with("isd_prefix1", CERT_DIR, 'AD2',
+        join.assert_any_call("isd_prefix1", CERT_DIR, 'AD2',
                                      'ISD:3-AD:4-V:5.crt')
 
     def test_len(self, isd_prefix, join):
@@ -87,7 +87,7 @@ class TestGetTRCFilePath(object):
         join.return_value = "data2"
         ntools.eq_(get_trc_file_path(1, 2, 3, 4, 5), "data2")
         isd_prefix.assert_called_once_with(5)
-        join.assert_called_once_with("isd_prefix1", CERT_DIR, 'AD2',
+        join.assert_any_call("isd_prefix1", CERT_DIR, 'AD2',
                                      'ISD:3-V:4.crt')
 
     def test_len(self, isd_prefix, join):
@@ -106,7 +106,7 @@ class TestGetSigKeyFilePath(object):
         join.return_value = "data2"
         ntools.eq_(get_sig_key_file_path(1, 2, 3), "data2")
         isd_prefix.assert_called_once_with(3)
-        join.assert_called_once_with("isd_prefix1", SIG_KEYS_DIR,
+        join.assert_any_call("isd_prefix1", SIG_KEYS_DIR,
                                      'ISD:1-AD:2.key')
 
     def test_len(self, isd_prefix, join):
@@ -125,7 +125,7 @@ class TestGetEncKeyFilePath(object):
         join.return_value = "data2"
         ntools.eq_(get_enc_key_file_path(1, 2, 3), "data2")
         isd_prefix.assert_called_once_with(3)
-        join.assert_called_once_with("isd_prefix1", ENC_KEYS_DIR,
+        join.assert_any_call("isd_prefix1", ENC_KEYS_DIR,
                                      'ISD:1-AD:2.key')
 
     def test_len(self, isd_prefix, join):
@@ -212,7 +212,7 @@ class TestTrace(object):
     def test_basic(self, join, trace_start):
         join.return_value = "Path"
         trace(3)
-        join.assert_called_once_with(TRACE_DIR, "3.trace.html")
+        join.assert_any_call(TRACE_DIR, "3.trace.html")
         trace_start.assert_called_once_with("Path")
 
 
