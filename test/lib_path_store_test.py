@@ -340,7 +340,7 @@ class TestPathStoreRecordUpdateFidelity(object):
         path_policy.property_weights['LastSentTime'] = 3
         path_policy.property_weights['LastSeenTime'] = 4
         path_policy.property_weights['DelayTime'] = 5
-        path_policy.property_weights['ExpirationTime'] = 6 
+        path_policy.property_weights['ExpirationTime'] = 6
         path_policy.property_weights['GuaranteedBandwidth'] = 7
         path_policy.property_weights['AvailableBandwidth'] = 8
         path_policy.property_weights['TotalBandwidth'] = 9
