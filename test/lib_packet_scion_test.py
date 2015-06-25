@@ -754,5 +754,79 @@ class TestIFIDPacketPack(object):
         pack.assert_called_once_with(packet)
 
 
+class TestCertChainRequestInit(object):
+    """
+    Unit tests for lib.packet.scion.CertChainRequest.__init__
+    """
+    @patch("lib.packet.scion.SCIONPacket.__init__", autospec=True)
+    def test_basic(self, init):
+        req = CertChainRequest()
+        init.assert_called_once_with(req)
+        ntools.eq_(req.ingress_if, 0)
+        ntools.eq_(req.src_isd, 0)
+        ntools.eq_(req.src_ad, 0)
+        ntools.eq_(req.isd_id, 0)
+        ntools.eq_(req.ad_id, 0)
+        ntools.eq_(req.version, 0)
+
+    @patch("lib.packet.scion.CertChainRequest.parse", autospec=True)
+    def test_with_args(self, parse):
+        req = CertChainRequest('data')
+        parse.assert_called_once_with(req, 'data')
+
+
+class TestCertChainRequestParse(object):
+    """
+    Unit tests for lib.packet.scion.CertChainRequest.parse
+    """
+    @patch("lib.packet.scion.SCIONPacket.parse", autospec=True)
+    def test(self, parse):
+        req = CertChainRequest()
+        req._payload = bytes.fromhex('0102 0304 05060708090a0b0c 0d0e'
+                                     '0f10111213141516 1718191a')
+        req.parse('data')
+        parse.assert_called_once_with(req, 'data')
+        ntools.eq_(req.ingress_if, 0x102)
+        ntools.eq_(req.src_isd, 0x304)
+        ntools.eq_(req.src_ad, 0x5060708090a0b0c)
+        ntools.eq_(req.isd_id, 0x0d0e)
+        ntools.eq_(req.ad_id, 0x0f10111213141516)
+        ntools.eq_(req.version, 0x1718191a)
+
+
+class TestCertChainRequestFromValues(object):
+    """
+    Unit tests for lib.packet.scion.CertChainRequest.from_values
+    """
+    @patch("lib.packet.scion.CertChainRequest.set_payload", autospec=True)
+    @patch("lib.packet.scion.CertChainRequest.set_hdr", autospec=True)
+    @patch("lib.packet.scion.SCIONHeader.from_values",
+           spec_set=SCIONHeader.from_values)
+    @patch("lib.packet.scion.SCIONAddr.from_values",
+           spec_set=SCIONAddr.from_values)
+    def test(self, scion_addr, scion_hdr, set_hdr, set_payload):
+        scion_addr.return_value = 'dst'
+        dst_isd_ad = MagicMock(spec_set=['isd', 'ad'])
+        scion_hdr.return_value = 'hdr'
+        (ingress_if, src_isd, src_ad, isd_id, ad_id, version) = \
+            (0x0102, 0x0304, 0x0506, 0x0708, 0x090a, 0x0b0c)
+        req = CertChainRequest.from_values('req_type', 'src', ingress_if,
+                                           src_isd, src_ad, isd_id, ad_id,
+                                           version)
+        ntools.assert_is_instance(req, CertChainRequest)
+        scion_addr.assert_called_once_with(isd_id, src_ad, 'req_type')
+        scion_hdr.assert_called_once_with('src', 'dst')
+        set_hdr.assert_called_once_with(req, 'hdr')
+        ntools.eq_(req.ingress_if, ingress_if)
+        ntools.eq_(req.src_isd, src_isd)
+        ntools.eq_(req.src_ad, src_ad)
+        ntools.eq_(req.isd_id, isd_id)
+        ntools.eq_(req.ad_id, ad_id)
+        ntools.eq_(req.version, version)
+        payload = bytes.fromhex('0102 0304 0000000000000506 0708 '
+                                '000000000000090a 00000b0c')
+        set_payload.assert_called_once_with(req, payload)
+
+
 if __name__ == "__main__":
     nose.run(defaultTest=__name__)
