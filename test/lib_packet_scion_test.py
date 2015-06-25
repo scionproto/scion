@@ -29,7 +29,7 @@ from lib.packet.path import PathBase
 from lib.packet.scion import (
     get_type,
     SCIONCommonHdr, SCIONHeader, SCIONPacket, IFIDPacket, PacketType,
-    CertChainRequest)
+    CertChainRequest, CertChainReply)
 from lib.packet.scion_addr import SCIONAddr
 
 
@@ -806,7 +806,6 @@ class TestCertChainRequestFromValues(object):
            spec_set=SCIONAddr.from_values)
     def test(self, scion_addr, scion_hdr, set_hdr, set_payload):
         scion_addr.return_value = 'dst'
-        dst_isd_ad = MagicMock(spec_set=['isd', 'ad'])
         scion_hdr.return_value = 'hdr'
         (ingress_if, src_isd, src_ad, isd_id, ad_id, version) = \
             (0x0102, 0x0304, 0x0506, 0x0708, 0x090a, 0x0b0c)
@@ -826,6 +825,72 @@ class TestCertChainRequestFromValues(object):
         payload = bytes.fromhex('0102 0304 0000000000000506 0708 '
                                 '000000000000090a 00000b0c')
         set_payload.assert_called_once_with(req, payload)
+
+
+class TestCertChainReplyInit(object):
+    """
+    Unit tests for lib.packet.scion.CertChainReply.__init__
+    """
+    @patch("lib.packet.scion.SCIONPacket.__init__", autospec=True)
+    def test_basic(self, init):
+        rep = CertChainReply()
+        init.assert_called_once_with(rep)
+        ntools.eq_(rep.isd_id, 0)
+        ntools.eq_(rep.ad_id, 0)
+        ntools.eq_(rep.version, 0)
+        ntools.eq_(rep.cert_chain, b'')
+
+    @patch("lib.packet.scion.CertChainReply.parse", autospec=True)
+    def test_with_args(self, parse):
+        rep = CertChainReply('data')
+        parse.assert_called_once_with(rep, 'data')
+
+
+class TestCertChainReplyParse(object):
+    """
+    Unit tests for lib.packet.scion.CertChainReply.parse
+    """
+    @patch("lib.packet.scion.SCIONPacket.parse", autospec=True)
+    def test(self, parse):
+        rep = CertChainReply()
+        rep._payload = bytes.fromhex('0102 05060708090a0b0c 1718191a') + \
+            b'\x00' * 10
+        rep.parse('data')
+        parse.assert_called_once_with(rep, 'data')
+        ntools.eq_(rep.isd_id, 0x0102)
+        ntools.eq_(rep.ad_id, 0x05060708090a0b0c)
+        ntools.eq_(rep.version, 0x1718191a)
+        ntools.eq_(rep.cert_chain, b'\x00' * 10)
+
+
+class TestCertChainReplyFromValues(object):
+    """
+    Unit tests for lib.packet.scion.CertChainReply.from_values
+    """
+    @patch("lib.packet.scion.CertChainReply.set_payload", autospec=True)
+    @patch("lib.packet.scion.CertChainReply.set_hdr", autospec=True)
+    @patch("lib.packet.scion.SCIONHeader.from_values",
+           spec_set=SCIONHeader.from_values)
+    @patch("lib.packet.scion.SCIONAddr.from_values",
+           spec_set=SCIONAddr.from_values)
+    def test(self, scion_addr, scion_hdr, set_hdr, set_payload):
+        scion_addr.return_value = 'src'
+        scion_hdr.return_value = 'hdr'
+        (isd_id, ad_id, version) = (0x0102, 0x0304, 0x0506)
+        rep = CertChainReply.from_values('dst', isd_id, ad_id, version,
+                                         b'cert_chain')
+        ntools.assert_is_instance(rep, CertChainReply)
+        scion_addr.assert_called_once_with(isd_id, ad_id,
+                                           PacketType.CERT_CHAIN_REP)
+        scion_hdr.assert_called_once_with('src', 'dst')
+        set_hdr.assert_called_once_with(rep, 'hdr')
+        ntools.eq_(rep.isd_id, isd_id)
+        ntools.eq_(rep.ad_id, ad_id)
+        ntools.eq_(rep.version, version)
+        ntools.eq_(rep.cert_chain, b'cert_chain')
+        payload = bytes.fromhex('0102 0000000000000304 00000506') + \
+                  b'cert_chain'
+        set_payload.assert_called_once_with(rep, payload)
 
 
 if __name__ == "__main__":
