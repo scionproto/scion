@@ -331,10 +331,36 @@ class TestPathStoreRecordUpdateFidelity(object):
     """
     Unit tests for lib.path_store.PathStoreRecord.update_fidelity
     """
-    # TODO
     @patch("lib.path_store.time.time")
     def test_basic(self, time_):
-        pass
+        path_policy = PathPolicy()
+        path_policy.property_weights['PeerLinks'] = 10
+        path_policy.property_weights['HopsLength'] = 1
+        path_policy.property_weights['Disjointness'] = 2
+        path_policy.property_weights['LastSentTime'] = 3
+        path_policy.property_weights['LastSeenTime'] = 4
+        path_policy.property_weights['DelayTime'] = 5
+        path_policy.property_weights['ExpirationTime'] = 6 
+        path_policy.property_weights['GuaranteedBandwidth'] = 7
+        path_policy.property_weights['AvailableBandwidth'] = 8
+        path_policy.property_weights['TotalBandwidth'] = 9
+        pcb = MagicMock(spec_set=['__class__', 'segment_id',
+                                  'get_expiration_time'])
+        pcb.__class__ = PathSegment
+        pth_str_rec = PathStoreRecord(pcb)
+        pth_str_rec.peer_links = 10 ** 5
+        pth_str_rec.hops_length = (1 / (10 ** 4))
+        pth_str_rec.disjointness = 10 ** 3
+        pth_str_rec.last_sent_time = -99
+        pth_str_rec.last_seen_time = 10
+        pth_str_rec.delay_time = 1
+        pth_str_rec.expiration_time = 10 / 9
+        pth_str_rec.guaranteed_bandwidth = 10 ** -2
+        pth_str_rec.available_bandwidth = 10 ** -3
+        pth_str_rec.total_bandwidth = 10 ** -4
+        time_.return_value = 1
+        pth_str_rec.update_fidelity(path_policy)
+        ntools.assert_almost_equal(pth_str_rec.fidelity, 1012345.6789)
 
 
 class TestPathStoreRecordEQ(object):
