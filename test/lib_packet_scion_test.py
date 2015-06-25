@@ -27,8 +27,7 @@ from lib.packet.ext_hdr import ExtensionHeader
 from lib.packet.opaque_field import OpaqueField
 from lib.packet.path import PathBase
 from lib.packet.scion import (
-    get_type,
-    SCIONCommonHdr, SCIONHeader, SCIONPacket, IFIDPacket, PacketType,
+    get_type, SCIONCommonHdr, SCIONHeader, SCIONPacket, IFIDPacket, PacketType,
     CertChainRequest, CertChainReply, TRCRequest, TRCReply)
 from lib.packet.scion_addr import SCIONAddr
 
@@ -214,6 +213,24 @@ class TestSCIONHeaderFromValues(object):
         ntools.eq_(hdr.dst_addr, dst)
         set_path.assert_called_once_with(hdr, path)
         set_ext_hdrs.assert_called_once_with(hdr, ext_hdrs)
+
+    @patch("lib.packet.scion.SCIONHeader.set_ext_hdrs", autospec=True)
+    @patch("lib.packet.scion.SCIONHeader.set_path", autospec=True)
+    @patch("lib.packet.scion.SCIONCommonHdr.from_values",
+           spec_set=SCIONCommonHdr.from_values)
+    def test_less_args(self, scion_common_hdr, set_path, set_ext_hdrs):
+        src = MagicMock(spec_set=['addr_len', '__class__'])
+        dst = MagicMock(spec_set=['addr_len', '__class__'])
+        dst.__class__ = src.__class__ = SCIONAddr
+        scion_common_hdr.return_value = 'scion_common_hdr'
+        hdr = SCIONHeader.from_values(src, dst)
+        ntools.assert_is_instance(hdr, SCIONHeader)
+        scion_common_hdr.assert_called_once_with(src.addr_len, dst.addr_len, 0)
+        ntools.eq_(hdr.common_hdr, 'scion_common_hdr')
+        ntools.eq_(hdr.src_addr, src)
+        ntools.eq_(hdr.dst_addr, dst)
+        set_path.assert_called_once_with(hdr, None)
+        set_ext_hdrs.assert_called_once_with(hdr, [])
 
 
 class TestSCIONHeaderPath(object):
@@ -538,6 +555,29 @@ class TestSCIONHeaderIsLastPathOf(object):
         ntools.assert_false(hdr.is_last_path_of())
 
 
+class TestSCIONHeaderIsFirstPathOf(object):
+    """
+    Unit tests for lib.packet.scion.SCIONHeader.is_first_path_of
+    """
+    def test_true(self):
+        hdr = SCIONHeader()
+        hdr.common_hdr = MagicMock(spec_set=['curr_of_p', 'src_addr_len',
+                                             'dst_addr_len'])
+        hdr.common_hdr.src_addr_len = 123
+        hdr.common_hdr.dst_addr_len = 456
+        hdr.common_hdr.curr_of_p = 123 + 456
+        ntools.assert_true(hdr.is_first_path_of())
+
+    def test_false(self):
+        hdr = SCIONHeader()
+        hdr.common_hdr = MagicMock(spec_set=['curr_of_p', 'src_addr_len',
+                                             'dst_addr_len'])
+        hdr.common_hdr.src_addr_len = 123
+        hdr.common_hdr.dst_addr_len = 456
+        hdr.common_hdr.curr_of_p = 123 + 456 + 1
+        ntools.assert_false(hdr.is_first_path_of())
+
+
 class TestSCIONHeaderReverse(object):
     """
     Unit tests for lib.packet.scion.SCIONHeader.reverse
@@ -675,7 +715,7 @@ class TestSCIONPacketPack(object):
         packet._payload.pack.return_value = b'packed_payload'
         ntools.eq_(packet.pack(), b'packed_hdrpacked_payload')
 
-    def test_payload_packetbase(self):
+    def test_payload_bytes(self):
         packet = SCIONPacket()
         packet._hdr = MagicMock(spec_set=['pack'])
         packet._hdr.pack.return_value = b'packed_hdr'
