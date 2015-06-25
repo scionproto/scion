@@ -724,7 +724,7 @@ class BeaconServer(SCIONElement):
 
         :param rev_info: The RevocationInfo object.
         :type rev_info: RevocationInfo
-        
+
         :returns: List of RevocationInfo objects that have to be sent to the
                   local PathServer.
         :rtype: list
