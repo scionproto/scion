@@ -16,8 +16,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from lib.sim_core import Simulator
-
 import logging
 import sys
 import os
@@ -57,6 +55,7 @@ def generate_topology(topo_str):
     """
 
     from ipaddress import IPv4Address
+    from lib.sim_core import Simulator
     from simulator.path_server_sim import CorePathServerSim, LocalPathServerSim
     from simulator.beacon_server_sim import CoreBeaconServerSim, LocalBeaconServerSim
     from simulator.router_sim import RouterSim
