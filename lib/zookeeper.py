@@ -347,6 +347,26 @@ class Zookeeper(object):
         except (ConnectionLoss, SessionExpiredError):
             raise ZkConnectionLoss
         return data
+    
+    def delete_shared_item(self, path, entry):
+        """
+        Retrieve a specific item from a shared path.
+
+        :param str path: The path the item is stored in. E.g. ``"shared"``
+        :param str entry: The name of the entry. E.g. ``"pcb0000002046"``
+        :raises:
+            ZkConnectionLoss: if the connection to ZK drops
+            ZkNoNodeError: if the entry does not exist
+        """   
+        if not self.is_connected():
+            raise ZkConnectionLoss
+        try:
+            self._zk.delete(os.path.join(self._prefix, path, entry))
+            return
+        except (ConnectionLoss, SessionExpiredError):
+            raise ZkConnectionLoss
+        except NoNodeError:
+            raise ZkNoNodeError           
 
     @timed(1.0)
     def get_shared_metadata(self, path):
@@ -373,36 +393,3 @@ class Zookeeper(object):
         except (ConnectionLoss, SessionExpiredError):
             raise ZkConnectionLoss
         return entry_meta
-
-    @timed(1.0)
-    def expire_shared_items(self, path, cutoff):
-        """
-        Delete items from a shared path that haven't been modified since
-        `cutoff`
-
-        :param str path: The path the items are stored in. E.g.  ``"shared"``
-        :param int cutoff: Time (in seconds since epoch) before which to expire
-                           items.
-        :return: Number of items expired
-        :rtype: int
-        :raises:
-            ZkConnectionLoss: if the connection to ZK drops
-            ZkNoNodeError: if a node disappears unexpectedly
-        """
-        if not self.is_connected():
-            return
-        entries_meta = self.get_shared_metadata(path)
-        if not entries_meta:
-            return 0
-        count = 0
-        for entry, meta in entries_meta:
-            if meta.last_modified < cutoff:
-                count += 1
-                try:
-                    self._zk.delete(os.path.join(self._prefix, path, entry))
-                except NoNodeError:
-                    # This shouldn't happen, so raise an exception if it does.
-                    raise ZkNoNodeError
-                except (ConnectionLoss, SessionExpiredError):
-                    raise ZkConnectionLoss
-        return count

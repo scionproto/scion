@@ -305,16 +305,19 @@ class PathStore(object):
     Path Store class.
     """
 
-    def __init__(self, path_policy):
+    def __init__(self, path_policy, delegate=None):
         """
         Initialize an instance of the class PathStore.
 
         :param path_policy: path policy.
         :type path_policy: dict
+        :param delegate: A delegate that implements callbacks.
+        :type delegate: object
         """
         self.path_policy = path_policy
         self.candidates = []
         self.best_paths_history = deque(maxlen=self.path_policy.history_limit)
+        self._delegate = delegate
 
     def add_segment(self, pcb):
         """
@@ -444,6 +447,9 @@ class PathStore(object):
             if candidate.expiration_time <= now:
                 rec_ids.append(candidate.id)
         self.remove_segments(rec_ids)
+        # If set, inform the delegate about the expired segments.
+        if rec_ids and hasattr(self._delegate, "segments_expired"):
+            self._delegate.segments_expired(self, rec_ids) 
 
     def remove_segments(self, rec_ids):
         """
@@ -452,6 +458,8 @@ class PathStore(object):
         :param rec_ids: list of record IDs to remove.
         :type rec_ids: list
         """
+        if not rec_ids:
+            return
         self.candidates[:] = [c for c in self.candidates if c.id not in rec_ids]
         if self.candidates:
             self._update_all_fidelity()
