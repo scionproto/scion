@@ -18,7 +18,7 @@
 
 3. Populate the database from the topology files
 
-    `PYTHONPATH=.. python3 ./scripts/load_data.py`
+    `python3 ./scripts/load_data.py`
 
 4. Run the server
 

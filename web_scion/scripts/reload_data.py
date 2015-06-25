@@ -8,41 +8,54 @@ Import ISD/AD data from topology files
 import glob
 import os
 import sys
+from os.path import dirname as dir
+sys.path.insert(0, dir(dir(dir(os.path.abspath(__file__)))))
 
+# External packages
+import django
+
+# SCION
 from ad_management.common import WEB_SCION_DIR
 from lib.defines import TOPOLOGY_PATH
-
-os.environ['DJANGO_SETTINGS_MODULE'] = 'web_scion.settings'
-sys.path.insert(0, WEB_SCION_DIR)
-
-import django
-from django.contrib.auth.models import User
-from ad_manager.models import AD, ISD
 from lib.topology import Topology
 
+# Set up the Django environment
+os.environ['DJANGO_SETTINGS_MODULE'] = 'web_scion.settings'
+sys.path.insert(0, WEB_SCION_DIR)
 django.setup()
 
+# Django app imports
+from ad_manager.models import AD, ISD
+from django.contrib.auth.models import User
 
-def create_users():
+
+def clear_everything():
+    print('> Deleting everything...')
+    ISD.objects.all().delete()
+
+
+def add_users():
     """
-    Create the 'admin' superuser if does not exist.
+    Create a superuser ('admin') and an ordinary user ('user1')
     """
     try:
-        User.objects.get(username='admin')
+        User.objects.get(username='admin').delete()
     except User.DoesNotExist:
-        User.objects.create_superuser(username='admin', password='admin',
-                                      email='')
-        print('> Superuser was created')
+        pass
+    User.objects.create_superuser(username='admin', password='admin', email='')
+    print('> Superuser was created')
 
     try:
-        User.objects.get(username='user1')
+        User.objects.get(username='user1').delete()
     except User.DoesNotExist:
-        User.objects.create_user(username='user1', password='user1', email='')
-        print('> User (user1) was created')
+        pass
+    User.objects.create_user(username='user1', password='user1', email='')
+    print('> User (user1) was created')
 
 
-def load_data():
-    create_users()
+def reload_data():
+    clear_everything()
+    add_users()
 
     # Add model instances
     topology_files = glob.glob(os.path.join(TOPOLOGY_PATH,
@@ -76,4 +89,4 @@ def load_data():
         print('> AD {} is loaded'.format(ad))
 
 if __name__ == "__main__":
-    load_data()
+    reload_data()
