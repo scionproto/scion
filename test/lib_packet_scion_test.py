@@ -29,7 +29,7 @@ from lib.packet.path import PathBase
 from lib.packet.scion import (
     get_type,
     SCIONCommonHdr, SCIONHeader, SCIONPacket, IFIDPacket, PacketType,
-    CertChainRequest, CertChainReply)
+    CertChainRequest, CertChainReply, TRCRequest)
 from lib.packet.scion_addr import SCIONAddr
 
 
@@ -891,6 +891,72 @@ class TestCertChainReplyFromValues(object):
         payload = bytes.fromhex('0102 0000000000000304 00000506') + \
                   b'cert_chain'
         set_payload.assert_called_once_with(rep, payload)
+
+
+class TestTRCRequestInit(object):
+    """
+    Unit tests for lib.packet.scion.TRCRequest.__init__
+    """
+    @patch("lib.packet.scion.SCIONPacket.__init__", autospec=True)
+    def test_basic(self, init):
+        req = TRCRequest()
+        init.assert_called_once_with(req)
+        ntools.eq_(req.ingress_if, 0)
+        ntools.eq_(req.src_isd, 0)
+        ntools.eq_(req.src_ad, 0)
+        ntools.eq_(req.isd_id, 0)
+        ntools.eq_(req.version, 0)
+
+    @patch("lib.packet.scion.TRCRequest.parse", autospec=True)
+    def test_with_args(self, parse):
+        req = TRCRequest('data')
+        parse.assert_called_once_with(req, 'data')
+
+
+class TestTRCRequestParse(object):
+    """
+    Unit tests for lib.packet.scion.TRCRequest.parse
+    """
+    @patch("lib.packet.scion.SCIONPacket.parse", autospec=True)
+    def test(self, parse):
+        req = TRCRequest()
+        req._payload = bytes.fromhex('0102 0304 0000000000000506 0708 0000090a')
+        req.parse('data')
+        ntools.eq_(req.ingress_if, 0x102)
+        ntools.eq_(req.src_isd, 0x304)
+        ntools.eq_(req.src_ad, 0x506)
+        ntools.eq_(req.isd_id, 0x708)
+        ntools.eq_(req.version, 0x90a)
+
+
+class TestTRCRequestFromValues(object):
+    """
+    Unit tests for lib.packet.scion.TRCRequest.from_values
+    """
+    @patch("lib.packet.scion.TRCRequest.set_payload", autospec=True)
+    @patch("lib.packet.scion.TRCRequest.set_hdr", autospec=True)
+    @patch("lib.packet.scion.SCIONHeader.from_values",
+           spec_set=SCIONHeader.from_values)
+    @patch("lib.packet.scion.SCIONAddr.from_values",
+           spec_set=SCIONAddr.from_values)
+    def test(self, scion_addr, scion_hdr, set_hdr, set_payload):
+        scion_addr.return_value = 'dst'
+        scion_hdr.return_value = 'hdr'
+        (ingress_if, src_isd, src_ad, isd_id, version) = (0x102, 0x304, 0x506,
+                                                          0x708, 0x90a)
+        req = TRCRequest.from_values('req_type', 'src', ingress_if, src_isd,
+                                     src_ad, isd_id, version)
+        ntools.assert_is_instance(req, TRCRequest)
+        scion_addr.assert_called_once_with(isd_id, src_ad, 'req_type')
+        scion_hdr.assert_called_once_with('src', 'dst')
+        set_hdr.assert_called_once_with(req, 'hdr')
+        ntools.eq_(req.ingress_if, ingress_if)
+        ntools.eq_(req.src_isd, src_isd)
+        ntools.eq_(req.src_ad, src_ad)
+        ntools.eq_(req.isd_id, isd_id)
+        ntools.eq_(req.version, version)
+        payload = bytes.fromhex('0102 0304 0000000000000506 0708 0000090a')
+        set_payload.assert_called_once_with(req, payload)
 
 
 if __name__ == "__main__":
