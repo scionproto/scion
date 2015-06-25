@@ -28,7 +28,8 @@ from lib.packet.opaque_field import OpaqueField
 from lib.packet.path import PathBase
 from lib.packet.scion import (
     get_type,
-    SCIONCommonHdr, SCIONHeader, SCIONPacket)
+    SCIONCommonHdr, SCIONHeader, SCIONPacket, IFIDPacket, PacketType,
+    CertChainRequest)
 from lib.packet.scion_addr import SCIONAddr
 
 
@@ -680,6 +681,77 @@ class TestSCIONPacketPack(object):
         packet._hdr.pack.return_value = b'packed_hdr'
         packet._payload = b'packed_payload'
         ntools.eq_(packet.pack(), b'packed_hdrpacked_payload')
+
+
+class TestIFIDPacketInit(object):
+    """
+    Unit tests for lib.packet.scion.IFIDPacket.__init__
+    """
+    @patch("lib.packet.scion.SCIONPacket.__init__", autospec=True)
+    def test_basic(self, init):
+        packet = IFIDPacket()
+        init.assert_called_once_with(packet)
+        ntools.eq_(packet.reply_id, 0)
+        ntools.assert_is_none(packet.request_id)
+
+    @patch("lib.packet.scion.IFIDPacket.parse", autospec=True)
+    def test_with_args(self, parse):
+        packet = IFIDPacket('data')
+        parse.assert_called_once_with(packet, 'data')
+
+
+class TestIFIDPacketParse(object):
+    """
+    Unit tests for lib.packet.scion.IFIDPacket.parse
+    """
+    @patch("lib.packet.scion.SCIONPacket.parse", autospec=True)
+    def test(self, parse):
+        packet = IFIDPacket()
+        packet._payload = bytes.fromhex('0102 0304')
+        packet.parse('data')
+        parse.assert_called_once_with(packet, 'data')
+        ntools.eq_(packet.reply_id, 0x102)
+        ntools.eq_(packet.request_id, 0x304)
+
+
+class TestIFIDPacketFromValues(object):
+    """
+    Unit tests for lib.packet.scion.IFIDPacket.from_values
+    """
+    @patch("lib.packet.scion.IFIDPacket.set_payload", autospec=True)
+    @patch("lib.packet.scion.IFIDPacket.set_hdr", autospec=True)
+    @patch("lib.packet.scion.SCIONHeader.from_values",
+           spec_set=SCIONHeader.from_values)
+    @patch("lib.packet.scion.SCIONAddr.from_values",
+           spec_set=SCIONAddr.from_values)
+    def test(self, scion_addr, scion_hdr, set_hdr, set_payload):
+        scion_addr.return_value = 'dst'
+        dst_isd_ad = MagicMock(spec_set=['isd', 'ad'])
+        scion_hdr.return_value = 'hdr'
+        packet = IFIDPacket.from_values('src', dst_isd_ad, 0x0102)
+        ntools.assert_is_instance(packet, IFIDPacket)
+        ntools.eq_(packet.request_id, 0x0102)
+        scion_addr.assert_called_once_with(dst_isd_ad.isd, dst_isd_ad.ad,
+                                           PacketType.IFID_PKT)
+        scion_hdr.assert_called_once_with('src', 'dst')
+        set_hdr.assert_called_once_with(packet, 'hdr')
+        set_payload.assert_called_once_with(packet, bytes.fromhex('0000 0102'))
+
+
+class TestIFIDPacketPack(object):
+    """
+    Unit tests for lib.packet.scion.IFIDPacket.pack
+    """
+    @patch("lib.packet.scion.SCIONPacket.pack", autospec=True)
+    @patch("lib.packet.scion.IFIDPacket.set_payload", autospec=True)
+    def test(self, set_payload, pack):
+        packet = IFIDPacket()
+        packet.reply_id = 0x0102
+        packet.request_id = 0x0304
+        pack.return_value = b'packed_ifid'
+        ntools.eq_(packet.pack(), b'packed_ifid')
+        set_payload.assert_called_once_with(packet, bytes.fromhex('0102 0304'))
+        pack.assert_called_once_with(packet)
 
 
 if __name__ == "__main__":
