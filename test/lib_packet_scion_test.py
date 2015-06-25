@@ -29,7 +29,7 @@ from lib.packet.path import PathBase
 from lib.packet.scion import (
     get_type,
     SCIONCommonHdr, SCIONHeader, SCIONPacket, IFIDPacket, PacketType,
-    CertChainRequest, CertChainReply, TRCRequest)
+    CertChainRequest, CertChainReply, TRCRequest, TRCReply)
 from lib.packet.scion_addr import SCIONAddr
 
 
@@ -957,6 +957,67 @@ class TestTRCRequestFromValues(object):
         ntools.eq_(req.version, version)
         payload = bytes.fromhex('0102 0304 0000000000000506 0708 0000090a')
         set_payload.assert_called_once_with(req, payload)
+
+
+class TestTRCReplyInit(object):
+    """
+    Unit tests for lib.packet.scion.TRCReply.__init__
+    """
+    @patch("lib.packet.scion.SCIONPacket.__init__", autospec=True)
+    def test_basic(self, init):
+        rep = TRCReply()
+        init.assert_called_once_with(rep)
+        ntools.eq_(rep.isd_id, 0)
+        ntools.eq_(rep.version, 0)
+        ntools.eq_(rep.trc, b'')
+
+    @patch("lib.packet.scion.TRCReply.parse", autospec=True)
+    def test_with_args(self, parse):
+        rep = TRCReply('data')
+        parse.assert_called_once_with(rep, 'data')
+
+
+class TestTRCReplyParse(object):
+    """
+    Unit tests for lib.packet.scion.TRCReply.parse
+    """
+    @patch("lib.packet.scion.SCIONPacket.parse", autospec=True)
+    def test(self, parse):
+        rep = TRCReply()
+        rep._payload = bytes.fromhex('0102 03040506') + b'\x00' * 10
+        rep.parse('data')
+        parse.assert_called_once_with(rep, 'data')
+        ntools.eq_(rep.isd_id, 0x0102)
+        ntools.eq_(rep.version, 0x03040506)
+        ntools.eq_(rep.trc, b'\x00' * 10)
+
+
+class TestTRCReplyFromValues(object):
+    """
+    Unit tests for lib.packet.scion.TRCReply.from_values
+    """
+    @patch("lib.packet.scion.TRCReply.set_payload", autospec=True)
+    @patch("lib.packet.scion.TRCReply.set_hdr", autospec=True)
+    @patch("lib.packet.scion.SCIONHeader.from_values",
+           spec_set=SCIONHeader.from_values)
+    @patch("lib.packet.scion.SCIONAddr.from_values",
+           spec_set=SCIONAddr.from_values)
+    def test(self, scion_addr, scion_hdr, set_hdr, set_payload):
+        scion_addr.return_value = 'src'
+        scion_hdr.return_value = 'hdr'
+        (isd_id, version) = (0x0102, 0x03040506)
+        dst = MagicMock(spec_set=['isd_id', 'ad_id'])
+        rep = TRCReply.from_values(dst, isd_id, version, b'trc')
+        ntools.assert_is_instance(rep, TRCReply)
+        scion_addr.assert_called_once_with(dst.isd_id, dst.ad_id,
+                                           PacketType.TRC_REP)
+        scion_hdr.assert_called_once_with('src', dst)
+        set_hdr.assert_called_once_with(rep, 'hdr')
+        ntools.eq_(rep.isd_id, isd_id)
+        ntools.eq_(rep.version, version)
+        ntools.eq_(rep.trc, b'trc')
+        payload = bytes.fromhex('0102 03040506') + b'trc'
+        set_payload.assert_called_once_with(rep, payload)
 
 
 if __name__ == "__main__":
