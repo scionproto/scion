@@ -14,7 +14,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='routerweb',
             name='neighbor_ad',
-            field=models.ForeignKey(related_name='neighbors', default='DEFAULT', to='ad_manager.AD'),
+            field=models.ForeignKey(related_name='neighbors', default='0', to='ad_manager.AD'),
             preserve_default=False,
         ),
         migrations.AddField(
