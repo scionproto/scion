@@ -288,10 +288,10 @@ class SCIONHeader(HeaderBase):
     def _parse_common_hdr(self, raw, offset):
         """
         Parses the raw data and populates the common header fields accordingly.
-        :return:
+        :return: offset in the raw data till which it has been parsed
         """
         self.common_hdr = \
-            SCIONCommonHdr(raw[offset: offset + SCIONCommonHdr.LEN])
+            SCIONCommonHdr(raw[offset:offset + SCIONCommonHdr.LEN])
         assert self.common_hdr.parsed
         offset += SCIONCommonHdr.LEN
         # Create appropriate SCIONAddr objects.
@@ -307,7 +307,7 @@ class SCIONHeader(HeaderBase):
         """
         Parses the raw data to opaque fields and populates the path field
         accordingly.
-        :return:
+        :return: offset in the raw data till which it has been parsed
         """
         # PSz: UpPath-only case missing, quick fix:
         if offset == self.common_hdr.hdr_len:
@@ -329,7 +329,7 @@ class SCIONHeader(HeaderBase):
         """
         Parses the raw data and populates the extension header fields
         accordingly.
-        :return:
+        :return: offset in the raw data till which it has been parsed
         """
         # FIXME: The last extension header should be a layer 4 protocol header.
         # At the moment this is not support and we just indicate the end of the
