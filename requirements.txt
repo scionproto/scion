@@ -1,5 +1,4 @@
 Sphinx
-alabaster==0.7.4
 coverage
 dnslib
 kazoo
