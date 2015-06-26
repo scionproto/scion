@@ -547,7 +547,7 @@ class IFIDPacket(SCIONPacket):
 
     def parse(self, raw):
         SCIONPacket.parse(self, raw)
-        self.reply_id, self.request_id = struct.unpack("HH", self.payload)
+        self.reply_id, self.request_id = struct.unpack("!HH", self.payload)
 
     @classmethod
     def from_values(cls, src, dst_isd_ad, request_id):
@@ -563,11 +563,11 @@ class IFIDPacket(SCIONPacket):
         dst = SCIONAddr.from_values(dst_isd_ad.isd, dst_isd_ad.ad,
                                     PacketType.IFID_PKT)
         req.hdr = SCIONHeader.from_values(src, dst)
-        req.payload = struct.pack("HH", req.reply_id, request_id)
+        req.payload = struct.pack("!HH", req.reply_id, request_id)
         return req
 
     def pack(self):
-        self.payload = struct.pack("HH", self.reply_id, self.request_id)
+        self.payload = struct.pack("!HH", self.reply_id, self.request_id)
         return SCIONPacket.pack(self)
 
 
