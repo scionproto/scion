@@ -194,8 +194,7 @@ class BeaconServer(SCIONElement):
                                              self.topology.ad_id)
         self.signing_key = read_file(sig_key_file)
         self.signing_key = base64.b64decode(self.signing_key)
-        self.of_gen_key = get_roundkey_cache(bytes("%s" %
-            self.config.master_ad_key, 'utf-8'))
+        self.of_gen_key = get_roundkey_cache(self.config.master_ad_key)
         logging.info(self.config.__dict__)
         self.if2rev_tokens = {}
         self.seg2rev_tokens = {}
@@ -229,7 +228,7 @@ class BeaconServer(SCIONElement):
         if if_id == 0:
             ret = 32 * b"\x00"
         elif if_id not in self.if2rev_tokens:
-            seed = bytes("%s %d" % (self.config.master_ad_key, if_id), 'utf-8')
+            seed = self.config.master_ad_key + bytes("%d" % if_id, 'utf-8')
             start_ele = SHA256.new(seed).digest()
             chain = HashChain(start_ele)
             self.if2rev_tokens[if_id] = chain
@@ -251,7 +250,7 @@ class BeaconServer(SCIONElement):
         """
         id = pcb.get_hops_hash()
         if id not in self.seg2rev_tokens:
-            seed = bytes("%s " % self.config.master_ad_key, 'utf-8') + id
+            seed = self.config.master_ad_key + id
             start_ele = SHA256.new(seed).digest()
             chain = HashChain(start_ele)
             self.seg2rev_tokens[id] = chain

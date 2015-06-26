@@ -16,6 +16,7 @@
 ================================================
 """
 # Stdlib
+import base64
 import json
 import os
 
@@ -119,7 +120,11 @@ class TestConfigParseDict(BaseLibConfig):
                    len(self.ATTRS_TO_KEYS),
                    "Unequal number of keys/attributes: is something missing?")
         for attr, key in self.ATTRS_TO_KEYS.items():
-            ntools.eq_(getattr(config, attr), config_dict[key])
+            if attr in ['master_of_gen_key', 'master_ad_key']:
+                ntools.eq_(getattr(config, attr), 
+                           base64.b64decode(bytes(config_dict[key], 'utf-8')))
+            else:
+                ntools.eq_(getattr(config, attr), config_dict[key])
 
 
 if __name__ == "__main__":

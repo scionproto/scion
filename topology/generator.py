@@ -28,6 +28,7 @@ from ipaddress import ip_address, ip_network
 
 # External packages
 from dnslib.label import DNSLabel
+from Crypto import Random
 
 # SCION
 from lib.config import Config
@@ -562,8 +563,10 @@ class ConfigGenerator():
             file_name = 'ISD:{}-AD:{}.conf'.format(isd_id, ad_id)
             conf_file = os.path.join(self.out_dir, 'ISD' + isd_id,
                                      CONF_DIR, file_name)
-            conf_dict = {'MasterOFGKey': 1234567890123456,
-                         'MasterADKey': 1919191919191919,
+            master_of_gen_key = base64.b64encode(Random.new().read(16))
+            master_ad_key = base64.b64encode(Random.new().read(16))
+            conf_dict = {'MasterOFGKey': master_of_gen_key.decode("utf-8"),
+                         'MasterADKey': master_ad_key.decode("utf-8"),
                          'PCBQueueSize': 10,
                          'PSQueueSize': 10,
                          'NumRegisteredPaths': 10,
