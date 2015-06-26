@@ -26,6 +26,7 @@ import nose.tools as ntools
 from lib.packet.pcb import PathSegment
 from lib.path_store import (
     PathPolicy,
+    PathStore,
     PathStoreRecord
 )
 
@@ -72,7 +73,7 @@ class TestPathPolicyGetPathPolicyDict(object):
         ntools.eq_(len(dict_), 8)
 
 
-@patch("lib.path_store.logging.warning")
+@patch("lib.path_store.logging.warning", autospec=True)
 class TestPathPolicyCheckFilters(object):
     """
     Unit tests for lib.path_store.PathPolicy.check_filters
@@ -81,9 +82,9 @@ class TestPathPolicyCheckFilters(object):
         pcb = MagicMock(spec_set=['__class__'])
         pcb.__class__ = PathSegment
         pth_pol = PathPolicy()
-        pth_pol._check_unwanted_ads = MagicMock()
+        pth_pol._check_unwanted_ads = MagicMock(spec_set=[])
         pth_pol._check_unwanted_ads.return_value = True
-        pth_pol._check_property_ranges = MagicMock()
+        pth_pol._check_property_ranges = MagicMock(spec_set=[])
         pth_pol._check_property_ranges.return_value = True
         ntools.assert_true(pth_pol.check_filters(pcb))
         ntools.eq_(wrng.call_count, 0)
@@ -92,7 +93,7 @@ class TestPathPolicyCheckFilters(object):
         pcb = MagicMock(spec_set=['__class__'])
         pcb.__class__ = PathSegment
         pth_pol = PathPolicy()
-        pth_pol._check_unwanted_ads = MagicMock()
+        pth_pol._check_unwanted_ads = MagicMock(spec_set=[])
         pth_pol._check_unwanted_ads.return_value = False
         ntools.assert_false(pth_pol.check_filters(pcb))
         wrng.assert_called_once_with("PathStore: pcb discarded (unwanted AD).")
@@ -101,9 +102,9 @@ class TestPathPolicyCheckFilters(object):
         pcb = MagicMock(spec_set=['__class__'])
         pcb.__class__ = PathSegment
         pth_pol = PathPolicy()
-        pth_pol._check_unwanted_ads = MagicMock()
+        pth_pol._check_unwanted_ads = MagicMock(spec_set=[])
         pth_pol._check_unwanted_ads.return_value = True
-        pth_pol._check_property_ranges = MagicMock()
+        pth_pol._check_property_ranges = MagicMock(spec_set=[])
         pth_pol._check_property_ranges.return_value = False
         ntools.assert_false(pth_pol.check_filters(pcb))
         wrng.assert_called_once_with("PathStore: pcb discarded (property range)"
@@ -301,7 +302,7 @@ class TestPathStoreRecordInit(object):
     """
     Unit tests for lib.path_store.PathStoreRecord.__init__
     """
-    @patch("lib.path_store.time.time")
+    @patch("lib.path_store.time.time", autospec=True)
     def test_basic(self, time_):
         pcb = MagicMock(spec_set=['__class__', 'segment_id',
                                   'get_expiration_time'])
@@ -331,7 +332,7 @@ class TestPathStoreRecordUpdateFidelity(object):
     """
     Unit tests for lib.path_store.PathStoreRecord.update_fidelity
     """
-    @patch("lib.path_store.time.time")
+    @patch("lib.path_store.time.time", autospec=True)
     def test_basic(self, time_):
         path_policy = PathPolicy()
         path_policy.property_weights['PeerLinks'] = 10
