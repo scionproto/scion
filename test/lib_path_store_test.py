@@ -260,7 +260,6 @@ class TestPathPolicyParseDict(object):
         ntools.eq_(pth_pol2.update_after_number, "update_after_number")
         ntools.eq_(pth_pol2.update_after_time, "update_after_time")
         ntools.eq_(pth_pol2.property_ranges, {'key1': (1, 11), 'key2': (2, 12)})
-        ntools.eq_(len(pth_pol2.property_ranges), 2)
         ntools.eq_(pth_pol2.property_weights, "property_weights")
 
 
