@@ -408,7 +408,7 @@ class SCIONHeader(HeaderBase):
         if iof is not None:
             return iof.up_flag
         else:
-            True  # FIXME for now True for EmptyPath.
+            return True  # FIXME for now True for EmptyPath.
 
     def is_last_path_of(self):
         """
