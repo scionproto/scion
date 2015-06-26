@@ -138,8 +138,8 @@ class SCIONCommonHdr(HeaderBase):
         """
         Returns the common header as 8 byte binary string.
         """
-        types = ((self.version << 12) | (self.dst_addr_len << 6) |
-                 self.src_addr_len)
+        types = ((self.version << 12) | (self.src_addr_len << 6) |
+                 self.dst_addr_len)
         return struct.pack("!HHBBBB", types, self.total_len, 
                            self.curr_iof_p, self.curr_of_p, 
                            self.next_hdr, self.hdr_len)
