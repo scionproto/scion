@@ -27,8 +27,8 @@ import sys
 from ipaddress import ip_address, ip_network
 
 # External packages
-from dnslib.label import DNSLabel
 from Crypto import Random
+from dnslib.label import DNSLabel
 
 # SCION
 from lib.config import Config
