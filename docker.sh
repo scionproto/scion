@@ -79,11 +79,11 @@ cmd_clean_full() {
 }
 
 cmd_run_basic() {
-    docker run -i -t --rm --privileged -h scionbasic scionbasic "$@"
+    docker run -i -t --rm --privileged -h scionbasic scion/basic "$@"
 }
 
 cmd_run_full() {
-    docker run -i -t --rm --privileged -h scionfull scionfull "$@"
+    docker run -i -t --rm --privileged -h scionfull scion/full "$@"
 }
 
 stop_cntrs() {
