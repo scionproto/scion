@@ -107,10 +107,8 @@ class Config(object):
         :param config: the name of the configuration file.
         :type config: dict
         """
-        self.master_of_gen_key = \
-            base64.b64decode(bytes(config['MasterOFGKey'], 'utf-8'))
-        self.master_ad_key = \
-            base64.b64decode(bytes(config['MasterADKey'], 'utf-8'))
+        self.master_of_gen_key = base64.b64decode(config['MasterOFGKey'])
+        self.master_ad_key = base64.b64decode(config['MasterADKey'])
         self.n_registered_paths = config['NumRegisteredPaths']
         self.n_shortest_up_paths = config['NumShortestUPs']
         self.propagation_time = config['PropagateTime']

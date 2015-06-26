@@ -120,11 +120,11 @@ class TestConfigParseDict(BaseLibConfig):
                    len(self.ATTRS_TO_KEYS),
                    "Unequal number of keys/attributes: is something missing?")
         for attr, key in self.ATTRS_TO_KEYS.items():
+            value = getattr(config, attr)
             if attr in ['master_of_gen_key', 'master_ad_key']:
-                ntools.eq_(getattr(config, attr), 
-                           base64.b64decode(bytes(config_dict[key], 'utf-8')))
+                ntools.eq_(value, base64.b64decode(config_dict[key]))
             else:
-                ntools.eq_(getattr(config, attr), config_dict[key])
+                ntools.eq_(value, config_dict[key])
 
 
 if __name__ == "__main__":

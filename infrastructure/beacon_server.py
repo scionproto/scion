@@ -248,15 +248,15 @@ class BeaconServer(SCIONElement):
         :param pcb: path segment.
         :type pcb: PathSegment
         """
-        id = pcb.get_hops_hash()
-        if id not in self.seg2rev_tokens:
-            seed = self.config.master_ad_key + id
+        id_ = pcb.get_hops_hash()
+        if id_ not in self.seg2rev_tokens:
+            seed = self.config.master_ad_key + id_
             start_ele = SHA256.new(seed).digest()
             chain = HashChain(start_ele)
-            self.seg2rev_tokens[id] = chain
+            self.seg2rev_tokens[id_] = chain
             return chain.next_element()
         else:
-            return self.seg2rev_tokens[id].current_element()
+            return self.seg2rev_tokens[id_].current_element()
 
     def propagate_downstream_pcb(self, pcb):
         """
