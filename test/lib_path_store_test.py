@@ -154,7 +154,7 @@ class TestPathPolicyCheckPropertyRanges(object):
     def test_peer_link_false(self):
         pth_pol = PathPolicy()
         pth_pol.property_ranges = self.d
-        pth_pol.property_ranges['PeerLinks'].extend([2, 0])
+        pth_pol.property_ranges['PeerLinks'].extend([0, 2])
         pcb = MagicMock(spec_set=['get_n_peer_links'])
         pcb.get_n_peer_links.return_value = 3
         ntools.assert_false(pth_pol._check_property_ranges(pcb))
@@ -192,47 +192,23 @@ class TestPathPolicyCheckPropertyRanges(object):
     def test_delay_time_false(self, time_):
         pth_pol = PathPolicy()
         pth_pol.property_ranges = self.d
-        pth_pol.property_ranges['DelayTime'].extend([2, 0])
+        pth_pol.property_ranges['DelayTime'].extend([0, 2])
         time_.return_value = 2
         pcb = MagicMock(spec_set=['get_timestamp'])
-        pcb.get_timestamp.return_value = 1
+        pcb.get_timestamp.return_value = 3
         ntools.assert_false(pth_pol._check_property_ranges(pcb))
 
-    def test_guaranteed_bandwidth_true(self):
+    def _check_bandwidth(self, key, range_, result):
         pth_pol = PathPolicy()
         pth_pol.property_ranges = self.d
-        pth_pol.property_ranges['GuaranteedBandwidth'].extend([0, 20])
-        ntools.assert_true(pth_pol._check_property_ranges("pcb"))
+        pth_pol.property_ranges['GuaranteedBandwidth'].extend(range_)
+        ntools.eq_(pth_pol._check_property_ranges("pcb"), result)
 
-    def test_guaranteed_bandwidth_false(self):
-        pth_pol = PathPolicy()
-        pth_pol.property_ranges = self.d
-        pth_pol.property_ranges['GuaranteedBandwidth'].extend([20, 0])
-        ntools.assert_false(pth_pol._check_property_ranges("pcb"))
-
-    def test_available_bandwidth_true(self):
-        pth_pol = PathPolicy()
-        pth_pol.property_ranges = self.d
-        pth_pol.property_ranges['AvailableBandwidth'].extend([0, 20])
-        ntools.assert_true(pth_pol._check_property_ranges("pcb"))
-
-    def test_available_bandwidth_false(self):
-        pth_pol = PathPolicy()
-        pth_pol.property_ranges = self.d
-        pth_pol.property_ranges['AvailableBandwidth'].extend([20, 0])
-        ntools.assert_false(pth_pol._check_property_ranges("pcb"))
-
-    def test_total_bandwidth_true(self):
-        pth_pol = PathPolicy()
-        pth_pol.property_ranges = self.d
-        pth_pol.property_ranges['TotalBandwidth'].extend([0, 20])
-        ntools.assert_true(pth_pol._check_property_ranges("pcb"))
-
-    def test_total_bandwidth_false(self):
-        pth_pol = PathPolicy()
-        pth_pol.property_ranges = self.d
-        pth_pol.property_ranges['TotalBandwidth'].extend([20, 0])
-        ntools.assert_false(pth_pol._check_property_ranges("pcb"))
+    def test_bandwidth(self):
+        for key in ('GuaranteedBandwidth', 'AvailableBandwidth',
+                    'TotalBandwidth'):
+            yield self._check_bandwidth, key, [0, 20], True
+            yield self._check_bandwidth, key, [0, 9], False
 
 
 class TestPathPolicyFromFile(object):
@@ -284,9 +260,7 @@ class TestPathPolicyParseDict(object):
         ntools.eq_(pth_pol2.history_limit, "history_limit")
         ntools.eq_(pth_pol2.update_after_number, "update_after_number")
         ntools.eq_(pth_pol2.update_after_time, "update_after_time")
-        ntools.eq_(pth_pol2.unwanted_ads, [(1, 11), (2, 12)])
-        ntools.eq_(pth_pol2.property_ranges['key1'], (1, 11))
-        ntools.eq_(pth_pol2.property_ranges['key2'], (2, 12))
+        ntools.eq_(pth_pol2.property_ranges, {'key1': (1, 11), 'key2': (2, 12)})
         ntools.eq_(len(pth_pol2.property_ranges), 2)
         ntools.eq_(pth_pol2.property_weights, "property_weights")
 
