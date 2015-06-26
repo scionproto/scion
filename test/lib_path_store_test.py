@@ -85,7 +85,7 @@ class TestPathPolicyCheckFilters(object):
         pth_pol._check_unwanted_ads = MagicMock(spec_set=[])
         pth_pol._check_unwanted_ads.return_value = False
         ntools.assert_false(pth_pol.check_filters(pcb))
-        wrng.assert_called_once_with("PathStore: pcb discarded (unwanted AD).")
+        ntools.eq_(wrng.call_count, 1)
 
     def test_property_ranges(self, wrng):
         pcb = MagicMock(spec_set=PathSegment)
@@ -95,8 +95,7 @@ class TestPathPolicyCheckFilters(object):
         pth_pol._check_property_ranges = MagicMock(spec_set=[])
         pth_pol._check_property_ranges.return_value = False
         ntools.assert_false(pth_pol.check_filters(pcb))
-        wrng.assert_called_once_with("PathStore: pcb discarded (property range)"
-                                     ".")
+        ntools.eq_(wrng.call_count, 1)
 
 
 class TestPathPolicyCheckUnwantedAds(object):
