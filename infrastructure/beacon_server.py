@@ -77,7 +77,6 @@ from lib.packet.scion import (
 )
 from lib.packet.scion_addr import SCIONAddr, ISD_AD
 from lib.path_store import PathPolicy, PathStore
-from lib.simulator import schedule
 from lib.util import (
     get_cert_chain_file_path,
     get_sig_key_file_path,
@@ -134,9 +133,10 @@ class BeaconServer(SCIONElement):
     # ZK path for incoming PCBs
     ZK_PCB_CACHE_PATH = "pcb_cache"
 
-    def __init__(self, server_id, topo_file, config_file, path_policy_file):
+    def __init__(self, server_id, topo_file, config_file, path_policy_file, 
+                 is_sim=False):
         SCIONElement.__init__(self, "bs", topo_file, server_id=server_id,
-                              config_file=config_file)
+                              config_file=config_file, is_sim=is_sim)
         # TODO: add 2 policies
         self.path_policy = PathPolicy.from_file(path_policy_file)
         self.unverified_beacons = deque()
@@ -146,8 +146,9 @@ class BeaconServer(SCIONElement):
                                              self.topology.ad_id)
         self.signing_key = read_file(sig_key_file)
         self.signing_key = base64.b64decode(self.signing_key)
-        self.of_gen_key = get_roundkey_cache(bytes("%s" %
-            self.config.master_ad_key, 'utf-8'))
+        if not is_sim:
+            self.of_gen_key = get_roundkey_cache(bytes("%s" %
+                self.config.master_ad_key, 'utf-8'))
         logging.info(self.config.__dict__)
         self.if2rev_tokens = {}
         self.seg2rev_tokens = {}
@@ -157,17 +158,18 @@ class BeaconServer(SCIONElement):
         for ifid in self.ifid2addr:
             self.ifid_state[ifid] = InterfaceState()
 
-        self._latest_entry = 0
-        # Set when we have connected and read the existing recent and incoming
-        # PCBs
-        self._state_synced = threading.Event()
         # Add more IPs here if we support dual-stack
         name_addrs = "\0".join([self.id, str(SCION_UDP_PORT),
                                 str(self.addr.host_addr)])
-        # TODO(kormat): def zookeeper host/port in topology
-        self.zk = Zookeeper(
-            self.topology.isd_id, self.topology.ad_id, "bs", name_addrs,
-            ["localhost:2181"], ensure_paths=(self.ZK_PCB_CACHE_PATH,))
+        if not is_sim:
+            self._latest_entry = 0
+            # Set when we have connected and read the existing recent and incoming
+            # PCBs
+            self._state_synced = threading.Event()
+            # TODO(kormat): def zookeeper host/port in topology
+            self.zk = Zookeeper(
+                self.topology.isd_id, self.topology.ad_id, "bs", name_addrs,
+                ["localhost:2181"], ensure_paths=(self.ZK_PCB_CACHE_PATH,))
 
     def _get_if_rev_token(self, if_id):
         """
@@ -256,17 +258,7 @@ class BeaconServer(SCIONElement):
                           "no connection to ZK")
             return
 
-    def simulate_pcbs_propagation(self):
-        """
-        Simulate beacon propagation
-        """
-        while self.beacons:
-            pcb = self.beacons.popleft()
-            self.propagate_downstream_pcb(pcb)
-            self.reg_queue.append(pcb)
-        schedule(self.config.propagation_time, cb=self.simulate_pcbs_propagation)
-
-    def process_pcbs(self, beacon):
+    def process_pcbs(self, pcbs):
         """
         Processes new beacons and appends them to beacon list.
         """
@@ -339,20 +331,16 @@ class BeaconServer(SCIONElement):
         """
         Run an instance of the Beacon Server.
         """
-        if not self.is_sim:
-            threading.Thread(target=self.handle_pcbs_propagation,
-                             name="BS PCB propagation",
-                             daemon=True).start()
-            threading.Thread(target=self.register_segments,
-                             name="BS register segments",
-                             daemon=True).start()
-            threading.Thread(target=self.handle_shared_pcbs,
-                             name="BS shared pcbs",
-                             daemon=True).start()
-            SCIONElement.run(self)
-        else:
-            schedule(0., cb=self.simulate_pcbs_propagation)
-            schedule(0., cb=self.simulate_register_segments)
+        threading.Thread(target=self.handle_pcbs_propagation,
+                         name="BS PCB propagation",
+                         daemon=True).start()
+        threading.Thread(target=self.register_segments,
+                         name="BS register segments",
+                         daemon=True).start()
+        threading.Thread(target=self.handle_shared_pcbs,
+                         name="BS shared pcbs",
+                         daemon=True).start()
+        SCIONElement.run(self)
 
     def _try_to_verify_beacon(self, pcb):
         """
@@ -549,7 +537,7 @@ class BeaconServer(SCIONElement):
                 pcbs.append(PathSegment(raw=raw))
         self.process_pcbs(pcbs)
         return len(pcbs)
-    
+
 
 class CoreBeaconServer(BeaconServer):
     """
@@ -558,9 +546,10 @@ class CoreBeaconServer(BeaconServer):
     Starts broadcasting beacons down-stream within an ISD and across ISDs
     towards other core beacon servers.
     """
-    def __init__(self, server_id, topo_file, config_file, path_policy_file, is_sim=False):
+    def __init__(self, server_id, topo_file, config_file, path_policy_file,
+                 is_sim=False):
         BeaconServer.__init__(self, server_id, topo_file, config_file,
-                              path_policy_file, is_sim)
+                              path_policy_file, is_sim=is_sim)
         # Sanity check that we should indeed be a core beacon server.
         assert self.topology.is_core_ad, "This shouldn't be a core BS!"
         self.beacons = defaultdict(self._ps_factory)
@@ -651,32 +640,6 @@ class CoreBeaconServer(BeaconServer):
             sleep_interval(start_propagation, self.config.propagation_time,
                            "PCB propagation")
 
-    def simulate_pcbs_propagation(self):
-        """
-        Simulate beacon propagatation
-        """
-        # Create beacon for downstream ADs.
-        downstream_pcb = PathSegment()
-        timestamp = int(time.time())
-        downstream_pcb.iof = InfoOpaqueField.from_values(OFT.TDC_XOVR,
-            False, timestamp, self.topology.isd_id)
-        downstream_pcb.trcf = TRCField()
-        self.propagate_downstream_pcb(downstream_pcb)
-        # Create beacon for core ADs.
-        core_pcb = PathSegment()
-        core_pcb.iof = InfoOpaqueField.from_values(OFT.TDC_XOVR, False,
-                                                   timestamp,
-                                                   self.topology.isd_id)
-        core_pcb.trcf = TRCField()
-        self.propagate_core_pcb(core_pcb)
-        # Propagate received beacons. A core beacon server can only receive
-        # beacons from other core beacon servers.
-        while self.beacons:
-            pcb = self.beacons.popleft()
-            self.propagate_core_pcb(pcb)
-            self.reg_queue.append(pcb)
-        schedule(self.config.propagation_time, cb=self.simulate_pcbs_propagation)
-
     @thread_safety_net("register_segments")
     def register_segments(self):
         if not self.config.registers_paths:
@@ -695,21 +658,6 @@ class CoreBeaconServer(BeaconServer):
             self.register_core_segments()
             sleep_interval(start_registration, self.config.registration_time,
                            "Path registration")
-
-    def simulate_register_segments(self):
-        if not self.config.registers_paths:
-            logging.info("Path registration unwanted, leaving"
-                         "simulate_register_segments")
-            return
-        while self.reg_queue:
-            pcb = self.reg_queue.popleft()
-            new_pcb = copy.deepcopy(pcb)
-            ad_marking = self._create_ad_marking(new_pcb.trcf.if_id, 0)
-            new_pcb.add_ad(ad_marking)
-            new_pcb.segment_id = self._get_segment_rev_token(new_pcb)
-            self.register_core_segment(new_pcb)
-            logging.info("Paths registered")
-        schedule(self.config.registration_time, cb=self.simulate_register_segments)
 
     def register_core_segment(self, pcb):
         """
@@ -797,10 +745,11 @@ class LocalBeaconServer(BeaconServer):
     Receives, processes, and propagates beacons received by other beacon
     servers.
     """
+
     def __init__(self, server_id, topo_file, config_file, path_policy_file, 
                  is_sim=False):
         BeaconServer.__init__(self, server_id, topo_file, config_file,
-                              path_policy_file, is_sim)
+                              path_policy_file, is_sim=is_sim)
         # Sanity check that we should indeed be a local beacon server.
         assert not self.topology.is_core_ad, "This shouldn't be a local BS!"
         self.beacons = PathStore(self.path_policy)
@@ -891,6 +840,10 @@ class LocalBeaconServer(BeaconServer):
         """
         Registers paths according to the received beacons.
         """
+        if not self.config.registers_paths:
+            logging.info("Path registration unwanted, "
+                         "leaving register_segments")
+            return
         while True:
             lock = self.zk.have_lock()
             if not lock:
@@ -912,26 +865,6 @@ class LocalBeaconServer(BeaconServer):
         for pcb in pcbs:
             if self.path_policy.check_filters(pcb):
                 self._try_to_verify_beacon(pcb)
-
-    def simulate_register_segments(self):
-        """
-        Simulate path registrations according to the received beacons.
-        """
-        if not self.config.registers_paths:
-            logging.info("Path registration unwanted, "
-                         "leaving simulate_register_segments")
-            return
-        while self.reg_queue:
-            pcb = self.reg_queue.popleft()
-            new_pcb = copy.deepcopy(pcb)
-            ad_marking = self._create_ad_marking(new_pcb.trcf.if_id, 0)
-            new_pcb.add_ad(ad_marking)
-            new_pcb.segment_id = self._get_segment_rev_token(new_pcb)
-            new_pcb.remove_signatures()
-            self.register_up_segment(new_pcb)
-            self.register_down_segment(new_pcb)
-            logging.info("Paths registered")
-        schedule(self.config.registration_time, cb=self.simulate_register_segments)
 
     def process_cert_chain_rep(self, cert_chain_rep):
         """

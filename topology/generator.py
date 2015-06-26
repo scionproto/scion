@@ -201,6 +201,8 @@ class ConfigGenerator():
         for name in dirs:
             if name.startswith('ISD'):
                 shutil.rmtree(os.path.join(self.out_dir, name))
+            if name.startswith('SIM'):
+                shutil.rmtree(os.path.join(self.out_dir, name))
 
     def create_directories(self, ad_configs):
         """
@@ -227,6 +229,8 @@ class ConfigGenerator():
                 full_path = os.path.join(self.out_dir, path)
                 if not os.path.exists(full_path):
                     os.makedirs(full_path)
+        if not os.path.exists('SIM'):
+            os.makedirs('SIM')
 
     def write_keys_certs(self, ad_configs):
         """
@@ -300,6 +304,14 @@ class ConfigGenerator():
                 'sig_pub_keys': sig_pub_keys,
                 'enc_pub_keys': enc_pub_keys}
 
+    def write_beginning_sim_run_files(self):
+        with open('SIM/run.sh', 'w') as fh:
+            fh.write('#!/bin/bash\n\n')
+            fh.write(''.join([
+                'sh -c \"PYTHONPATH=../ python3 sim_test.py ../' + 
+                'SIM/sim.conf' + 
+                ' 100.\"\n']))
+
     def write_topo_files(self, ad_configs, er_ip_addresses):
         """
         Generate the AD topologies and store them into files. Update the AD
@@ -343,6 +355,7 @@ class ConfigGenerator():
                     'Addr': server_addr
                 }
                 server_addr = self._increment_address(server_addr, mask)
+                break
             # Write Certificate Servers
             server_addr = '.'.join([first_byte, isd_id, ad_id, CS_RANGE])
             for c_server in range(1, number_cs + 1):
@@ -402,6 +415,87 @@ class ConfigGenerator():
 
             self.write_supervisor_config(topo_dict)
             self.write_setup_file(topo_dict, mask)
+
+    def write_sim_file(self, ad_configs, er_ip_addresses):
+        """
+        Writing into sim.conf file
+        """
+        sim_file = 'SIM/sim.conf'
+        for isd_ad_id in ad_configs:
+            (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
+            is_core = (ad_configs[isd_ad_id]['level'] == CORE_AD)
+            first_byte, mask = self._get_subnet_params(ad_configs[isd_ad_id])
+
+            topo_file = self._path_dict(isd_id, ad_id)['topo_file_rel']
+            path_pol_file = self._path_dict(isd_id, ad_id)['path_pol_file_rel']
+            conf_file = self._path_dict(isd_id, ad_id)['conf_file_rel']
+            trc_file = self._path_dict(isd_id, ad_id)['trc_file_rel']
+
+            if "beacon_servers" in ad_configs[isd_ad_id]:
+                number_bs = ad_configs[isd_ad_id]["beacon_servers"]
+            else:
+                number_bs = DEFAULT_BEACON_SERVERS
+            if "certificate_servers" in ad_configs[isd_ad_id]:
+                number_cs = ad_configs[isd_ad_id]["certificate_servers"]
+            else:
+                number_cs = DEFAULT_CERTIFICATE_SERVERS
+            if "path_servers" in ad_configs[isd_ad_id]:
+                number_ps = ad_configs[isd_ad_id]["path_servers"]
+            else:
+                number_ps = DEFAULT_PATH_SERVERS
+
+            with open(sim_file, 'a') as sim_fh:
+                # Beacon Servers
+                ip_address = '.'.join([first_byte, isd_id, ad_id, BS_RANGE])
+                for b_server in range(1, number_bs + 1):
+                    sim_fh.write(''.join([
+                        'beacon_server ' + 
+                        ('core ' if is_core else 'local ') + 
+                        str(b_server) + ' ',
+                        topo_file + ' ',
+                        conf_file + ' ',
+                        path_pol_file, '\n']))
+                    ip_address = self._increment_address(ip_address, mask)
+                    break
+
+                # Certificate Servers
+                ip_address = '.'.join([first_byte, isd_id, ad_id, CS_RANGE])
+                for c_server in range(1, number_cs + 1):
+                    sim_fh.write(''.join([
+                        'cert_server ' + 
+                        str(c_server) + ' ',
+                        topo_file + ' ',
+                        conf_file + ' ',
+                        trc_file, '\n']))
+                    ip_address = self._increment_address(ip_address, mask)
+                    break
+
+                # Path Servers
+                if (ad_configs[isd_ad_id]['level'] != INTERMEDIATE_AD or
+                    "path_servers" in ad_configs[isd_ad_id]):
+                    ip_address = '.'.join([first_byte, isd_id, ad_id, PS_RANGE])
+                    for p_server in range(1, number_ps + 1):
+                        sim_fh.write(''.join([
+                            'path_server ' + 
+                            ('core ' if is_core else 'local ') + 
+                            str(p_server) + ' ',
+                            topo_file + ' ',
+                            conf_file, '\n']))
+                        ip_address = self._increment_address(ip_address, mask)
+                        break
+
+                # Edge Routers
+                edge_router = 1
+                for nbr_isd_ad_id in ad_configs[isd_ad_id].get("links", []):
+                    (nbr_isd_id, nbr_ad_id) = nbr_isd_ad_id.split(ISD_AD_ID_DIVISOR)
+                    ip_address_loc, ip_address_pub = \
+                        er_ip_addresses[(isd_ad_id, nbr_isd_ad_id)]
+                    sim_fh.write(''.join([
+                        'router ' + 
+                        str(edge_router) + ' ',
+                        topo_file + ' ',
+                        conf_file, '\n']))
+                    edge_router += 1
 
     def _get_typed_elements(self, topo_dict):
         """
@@ -662,9 +756,10 @@ class ConfigGenerator():
         keys = self.write_keys_certs(ad_configs)
         self.write_conf_files(ad_configs)
         self.write_path_pol_files(ad_configs, path_policy_file)
+        self.write_beginning_sim_run_files()
         self.write_topo_files(ad_configs, er_ip_addresses)
+        self.write_sim_file(ad_configs, er_ip_addresses)
         self.write_trc_files(ad_configs, keys)
-
 
 def main():
     """

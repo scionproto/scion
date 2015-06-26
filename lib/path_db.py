@@ -64,12 +64,8 @@ class PathSegmentDB(object):
     """
     def __init__(self):
         db = Base("", save_to_file=False)
-<<<<<<< HEAD
-        db.create('record', 'id', 'src_isd', 'src_ad', 'dst_isd', 'dst_ad', mode='override')
-=======
         db.create('record', 'id', 'src_isd', 'src_ad', 'dst_isd',
                   'dst_ad', mode='override')
->>>>>>> master
         db.create_index('id')
         db.create_index('dst_isd')
         db.create_index('dst_ad')

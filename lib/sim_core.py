@@ -1,7 +1,7 @@
 """
-sim.py
+sim_core.py
 
-Copyright 2014 ETH Zurich
+Copyright 2015 ETH Zurich
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -40,7 +40,7 @@ class Event:
         self.args = args
 
     def __lt__(self, other):
-        return self.event_time<other.event_time
+        return self.event_time < other.event_time
 
     def get_eid(self):
         """
@@ -82,7 +82,12 @@ class Simulator:
 
     def add_event (self, time, **kwargs):
         """
-        Schedule a Event
+        Schedule a Event 
+        Event can be described either by
+        1. Providing a Callback function to be summoned
+        2. Specifying the IP address of the Object to be called
+            (Implicitly assumes that the Function to be called is sim_recv())
+        
 
         :param time: relative time that the event would be executed (sec)
         :type time: double
@@ -106,10 +111,6 @@ class Simulator:
         if not isinstance(args, tuple):
             return -1
 
-        # Event can be described either by
-        #  1. Providing a Callback function to be summoned
-        #  2. Specifying the IP address of the Object to be called
-        #      (Implicitly assumes that the Function to be called is sim_recv())
         if 'dst' in kwargs:
             dst = kwargs['dst']
             try:

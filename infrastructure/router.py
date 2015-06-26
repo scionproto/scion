@@ -37,11 +37,10 @@ from lib.packet.scion import (
     get_type,
 )
 from lib.packet.scion_addr import ISD_AD, SCIONAddr
-from lib.simulator import add_element, schedule
 from lib.thread import thread_safety_net
 from lib.util import handle_signals
 
-IFID_PKT_TOUT = 0.5  # How often IFID packet is sent to neighboring router.
+IFID_PKT_TOUT = 25  # How often IFID packet is sent to neighboring router.
 
 
 class NextHop(object):
@@ -85,6 +84,7 @@ class Router(SCIONElement):
         those extensions that execute after routing.
     :vartype post_ext_handlers: dict
     """
+
     def __init__(self, router_id, topo_file, config_file, pre_ext_handlers=None,
                  post_ext_handlers=None, is_sim=False):
         """
@@ -127,24 +127,17 @@ class Router(SCIONElement):
             self.post_ext_handlers = {}
 
         if not is_sim:
-            self._remote_socket = socket.socket(socket.AF_INET, 
-                                                socket.SOCK_DGRAM)
+            self._remote_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             self._remote_socket.setsockopt(socket.SOL_SOCKET,
                                            socket.SO_REUSEADDR, 1)
             self._remote_socket.bind((str(self.interface.addr),
                                       self.interface.udp_port))
             self._sockets.append(self._remote_socket)
-            logging.info("IP %s:%u", self.interface.addr, 
-                         self.interface.udp_port)
-        else:
-            add_element (str(self.interface.addr), self)
+            logging.info("IP %s:%u", self.interface.addr, self.interface.udp_port)
 
     def run(self):
-        if not self.is_sim:
-            threading.Thread(target=self.sync_interface, daemon=True).start()
-            SCIONElement.run(self)
-        else:
-            schedule(0., cb=self.simulate_init_interface)
+        threading.Thread(target=self.sync_interface, daemon=True).start()
+        SCIONElement.run(self)
 
     def send(self, packet, next_hop, use_local_socket=True):
         """
@@ -165,14 +158,8 @@ class Router(SCIONElement):
         if use_local_socket:
             SCIONElement.send(self, packet, next_hop.addr, next_hop.port)
         else:
-            if not self.is_sim:
-                self._remote_socket.sendto(
-                    packet.pack(), (str(next_hop.addr), next_hop.port))
-            else:
-                schedule(0., dst = str(next_hop.addr),
-                         args=(packet.pack(),
-                               (str(self.interface.addr), self.interface.udp_port),
-                               (str(next_hop.addr), next_hop.port)))
+            self._remote_socket.sendto(
+                packet.pack(), (str(next_hop.addr), next_hop.port))
 
     def handle_extensions(self, spkt, next_hop, pre_routing_phase):
         """
@@ -223,44 +210,6 @@ class Router(SCIONElement):
             logging.info('Sending IFID_PKT to router: req_id:%d, rep_id:%d',
                          ifid_req.request_id, ifid_req.reply_id)
             time.sleep(IFID_PKT_TOUT)
-
-    def simulate_init_interface(self):
-        """
-        Synchronize and initialize the router's interface with that of a
-        neighboring router.
-        """
-        next_hop = NextHop()
-        next_hop.addr = self.interface.to_addr
-        next_hop.port = self.interface.to_udp_port
-        src = SCIONAddr.from_values(self.topology.isd_id, self.topology.ad_id,
-                                    self.interface.addr)
-        dst_isd_ad = ISD_AD(self.interface.neighbor_isd,
-                            self.interface.neighbor_ad)
-        ifid_req = IFIDPacket.from_values(src, dst_isd_ad, self.interface.if_id)
-        self.send(ifid_req, next_hop, False)
-        logging.info('IFID_REQ sent to %s', next_hop)
-        if self.interface.initialized:
-            logging.info('Port initialized, leaving init_interface()')
-        else:
-            schedule(self.IFID_REQ_TOUT, cb=self.simulate_init_interface)
-
-    def process_ifid_reply(self, packet, next_hop):
-        """
-        After receiving IFID_REP interface is initialized and all beacon server
-        are informed.
-
-        :param packet: the IFID reply packet to send.
-        :type packet: bytes
-        :param next_hop: the next hop of the reply packet.
-        :type next_hop: :class:`NextHop`
-        """
-        logging.info('IFID_REP received, len %u', len(packet))
-        ifid_rep = IFIDPacket(packet)
-        # TODO multiple BSs scenario
-        next_hop.addr = self.topology.beacon_servers[0].addr
-        ifid_rep.hdr.dst = next_hop.addr
-        self.send(ifid_rep, next_hop)
-        self.interface.initialized = True
 
     def process_ifid_request(self, packet, next_hop):
         """

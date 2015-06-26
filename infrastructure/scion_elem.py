@@ -21,6 +21,7 @@ Module docstring here.
     Fill in the docstring.
 
 """
+
 # Stdlib
 import logging
 import select
@@ -31,8 +32,6 @@ from lib.config import Config
 from lib.defines import SCION_BUFLEN, SCION_UDP_PORT
 from lib.packet.scion_addr import SCIONAddr
 from lib.topology import Topology
-from lib.simulator import add_element, schedule
-
 
 
 class SCIONElement(object):
@@ -50,6 +49,7 @@ class SCIONElement(object):
     :ivar addr: a `SCIONAddr` object representing the server address.
     :vartype addr: :class:`lib.packet.scion_addr.SCIONAddr`
     """
+
     def __init__(self, server_type, topo_file, config_file=None, server_id=None,
                  host_addr=None, is_sim=False):
         """
@@ -77,7 +77,6 @@ class SCIONElement(object):
         self.topology = None
         self.config = None
         self.ifid2addr = {}
-        self.is_sim = is_sim
         self.parse_topology(topo_file)
         if server_id is not None:
             own_config = self.topology.get_own_config(server_type, server_id)
@@ -98,8 +97,6 @@ class SCIONElement(object):
             self._sockets = [self._local_socket]
             logging.info("%s: bound %s:%u", self.id, self.addr.host_addr,
                          SCION_UDP_PORT)
-        else:
-            add_element(str(self.addr), self)
 
     @property
     def addr(self):
@@ -191,39 +188,22 @@ class SCIONElement(object):
         :param dst_port: the destination port number.
         :type dst_port: int
         """
-        if not self.is_sim:
-            self._local_socket.sendto(packet.pack(), (str(dst), dst_port))
-        else:
-            # This will eventually summon handle_request()
-            # of the instance associated with address dst
-            schedule(0., dst=str(dst),
-                     args=(packet.pack(),
-                           (str(self.addr), SCION_UDP_PORT),
-                           (str(dst), dst_port)))
-
-    def sim_recv(self, packet, src, dst):
-        to_local = False
-        if dst[0] == str(self.addr) and dst[1] == SCION_UDP_PORT:
-            to_local = True
-        self.handle_request(packet, src, to_local)
+        self._local_socket.sendto(packet.pack(), (str(dst), dst_port))
 
     def run(self):
         """
         Main routine to receive packets and pass them to
         :func:`handle_request()`.
         """
-        if not self.is_sim:
-            while True:
-                recvlist, _, _ = select.select(self._sockets, [], [])
-                for sock in recvlist:
-                    packet, addr = sock.recvfrom(SCION_BUFLEN)
-                    self.handle_request(packet, addr, 
-                                        sock == self._local_socket)
+        while True:
+            recvlist, _, _ = select.select(self._sockets, [], [])
+            for sock in recvlist:
+                packet, addr = sock.recvfrom(SCION_BUFLEN)
+                self.handle_request(packet, addr, sock == self._local_socket)
 
     def clean(self):
         """
         Close open sockets.
         """
-        if not self.is_sim:
-            for s in self._sockets:
-                s.close()
+        for s in self._sockets:
+            s.close()
