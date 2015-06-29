@@ -347,7 +347,7 @@ class Zookeeper(object):
         except (ConnectionLoss, SessionExpiredError):
             raise ZkConnectionLoss
         return data
-    
+
     def delete_shared_item(self, path, entry):
         """
         Retrieve a specific item from a shared path.
@@ -357,7 +357,7 @@ class Zookeeper(object):
         :raises:
             ZkConnectionLoss: if the connection to ZK drops
             ZkNoNodeError: if the entry does not exist
-        """   
+        """
         if not self.is_connected():
             raise ZkConnectionLoss
         try:

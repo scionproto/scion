@@ -703,14 +703,14 @@ class BeaconServer(SCIONElement):
                 pcbs.append(PathSegment(raw=raw))
         self.process_pcbs(pcbs)
         return len(pcbs)
-    
+
     @timed(1.0)
     def _remove_expired_pcbs(self):
         """
         Remove expired PCBs from the shared path.
         """
         del_count = 0
-        if self._expired_pcbs and self.zk.get_lock():
+        if self._expired_pcbs and self.zk.have_lock():
             while self._expired_pcbs:
                 rec_id = self._expired_pcbs.popleft()
                 try:

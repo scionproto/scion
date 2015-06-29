@@ -986,9 +986,6 @@ class TestLibZookeeperDeleteSharedItem(BaseLibZookeeper):
         """
         inst = self._init_basic_setup()
         inst.is_connected = MagicMock(spec_set=[], return_value=True)
-        metadata = [["entry1", MagicMock(spec_set=ZnodeStat, last_modified=1)]]
-        inst.get_shared_metadata = MagicMock(
-            spec_set=[], return_value=metadata)
         inst._zk.delete.side_effect = exception
         # Call
         ntools.assert_raises(
