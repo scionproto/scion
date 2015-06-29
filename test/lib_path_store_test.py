@@ -464,6 +464,7 @@ class TestPathStoreUpdateAllPeerLinks(object):
             pth_str.candidates[i].pcb = pcb
         pth_str._update_all_peer_links()
         for i in range(5):
+            pth_str.candidates[i].pcb.get_n_peer_links.assert_called_once_with()
             ntools.assert_almost_equal(pth_str.candidates[i].peer_links,
                                        ((2 * i + 1) / 10))
 
@@ -484,6 +485,7 @@ class TestPathStoreUpdateAllHopsLength(object):
             pth_str.candidates[i].pcb = pcb
         pth_str._update_all_hops_length()
         for i in range(5):
+            pth_str.candidates[i].pcb.get_n_hops.assert_called_once_with()
             ntools.assert_almost_equal(pth_str.candidates[i].hops_length,
                                        ((2 * i + 2) / 10))
 
@@ -530,6 +532,7 @@ class TestPathStoreUpdateAllDelayTime(object):
             pth_str.candidates[i].last_seen_time = 2 * i + 2
         pth_str._update_all_delay_time()
         for i in range(5):
+            pth_str.candidates[i].pcb.get_timestamp.assert_called_once_with()
             ntools.assert_almost_equal(pth_str.candidates[i].delay_time,
                                        ((2 * i + 2) / 10))
 
