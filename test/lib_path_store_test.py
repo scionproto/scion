@@ -378,9 +378,9 @@ class TestPathStoreInit(object):
         ntools.eq_(pth_str.best_paths_history, "best_paths_history")
 
 
-class TestPathStoreInit(object):
+class TestPathStoreAddSegment(object):
     """
-    Unit tests for lib.path_store.PathStore.__init__
+    Unit tests for lib.path_store.PathStore.add_segment
     """
     def setUp(self):
         self.pcb = MagicMock(spec_set=PathSegment)
