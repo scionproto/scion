@@ -117,8 +117,8 @@ def add_random_edges(isd_graph, core_ad_dict, max_degree):
         [isd, neighbor_isd] = random.sample(denser_isds, 2)
         isd_graph.add_edge(isd, neighbor_isd)
         # Break if one of the nodes has reached max_degree 
-        if isd_graph.degree(isd) >= max_degree or \
-           isd_graph.degree(neighbor_isd) >= max_degree:
+        if (isd_graph.degree(isd) >= max_degree or
+            isd_graph.degree(neighbor_isd) >= max_degree):
            break
     return isd_graph
 
