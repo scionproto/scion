@@ -20,7 +20,7 @@ import json
 import logging
 import time
 from collections import defaultdict, deque
-from unittest.mock import patch, call, mock_open, MagicMock
+
 # SCION
 from lib.packet.pcb import PathSegment
 
