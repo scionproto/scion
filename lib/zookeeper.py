@@ -362,11 +362,10 @@ class Zookeeper(object):
             raise ZkConnectionLoss
         try:
             self._zk.delete(os.path.join(self._prefix, path, entry))
-            return
         except (ConnectionLoss, SessionExpiredError):
             raise ZkConnectionLoss
         except NoNodeError:
-            raise ZkNoNodeError           
+            raise ZkNoNodeError
 
     @timed(1.0)
     def get_shared_metadata(self, path):
