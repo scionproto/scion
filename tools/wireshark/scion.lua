@@ -50,15 +50,16 @@ function scion_proto.dissector(buffer,pinfo,tree)
 
 
 	-- Source address and destination adress
-	--debug
-	--srclen=4
-	--dstlen=4
-	ISD_AD_LEN=4 
+	ISD_AD_LEN=4  -- ISD ID 12 bits, AD ID 20 bits
+	CMN_HDR_LEN=8 -- common header length
+	OPAQUEFIELD_LEN=8
+	IPV4_ADDR_LEN=4
+	IPV6_ADDR_LEN=16
 
-	srcaddr=buffer(8,srclen)
-	srcaddr_host=buffer(8+ISD_AD_LEN,srclen-ISD_AD_LEN)
-	dstaddr=buffer(8+srclen,dstlen)
-	dstaddr_host=buffer(8+srclen+ISD_AD_LEN,dstlen-ISD_AD_LEN)
+	srcaddr=buffer(CMN_HDR_LEN,srclen)
+	srcaddr_host=buffer(CMN_HDR_LEN+ISD_AD_LEN,srclen-ISD_AD_LEN)
+	dstaddr=buffer(CMN_HDR_LEN+srclen,dstlen)
+	dstaddr_host=buffer(CMN_HDR_LEN+srclen+ISD_AD_LEN,dstlen-ISD_AD_LEN)
 	
 
 	--check packet type
@@ -72,7 +73,7 @@ function scion_proto.dissector(buffer,pinfo,tree)
 	pinfo.cols.protocol = "SCION"
 	scion_tree = tree:add(scion_proto,buffer(0, hdr_len),"SCION Protocol")
 	local sch_field = ProtoField.string("sch","Common header")
-	local sch_tree = scion_tree:add(sch_field,buffer(0,8),"Common header" .. ", Type:" .. ptype .. ", " ..path_direction)
+	local sch_tree = scion_tree:add(sch_field,buffer(0,CMN_HDR_LEN),"Common header" .. ", Type:" .. ptype .. ", " ..path_direction)
 	
 
 	--sch_tree:add_packet_field(scion_ch_version, buffer(0,1),ENC_ASCII)
@@ -126,25 +127,35 @@ end
 function process_data(buffer,pinfo,tree)
 	--check src and destination address
 	local srcdst_field = ProtoField.string("srcdst","Source/Destination address")
-	local srcdst_tree = scion_tree:add(srcdst_field,buffer(8,srclen+dstlen),"Source/Destination address")
+	local srcdst_tree = scion_tree:add(srcdst_field,buffer(CMN_HDR_LEN,srclen+dstlen),"Source/Destination address")
 
-	local srcaddr=buffer(8,srclen)
-	local src_isd_id=bit.rshift(buffer(8,4):uint(),20)  --first 20 bits are ISD ID
-	local src_ad_id=bit.band(buffer(8,4):uint(),0x000fffff)
+	local srcaddr=buffer(CMN_HDR_LEN,srclen)
+	local src_isd_id=bit.rshift(buffer(CMN_HDR_LEN,4):uint(),20)  --first 12 bits are ISD ID
+	local src_ad_id=bit.band(buffer(CMN_HDR_LEN,4):uint(),0x000fffff) -- 20 bits are AD ID
 
-	local srcaddr_host=buffer(8+ISD_AD_LEN,srclen-ISD_AD_LEN):uint()
-	local srcaddr_host_text= buffer(8+ISD_AD_LEN+1,1):uint() .. "." .. buffer(8+ISD_AD_LEN+1,1):uint() .. "." .. buffer(8+ISD_AD_LEN+2,1):uint() .. "." .. buffer(8+ISD_AD_LEN+3,1):uint()
+	local srcaddr_host=buffer(CMN_HDR_LEN+ISD_AD_LEN,srclen-ISD_AD_LEN):uint()
+	local srcaddr_host_text=""
+	if srclen-ISD_AD_LEN == IPV4_ADDR_LEN then 
+		srcaddr_host_text= buffer(CMN_HDR_LEN+ISD_AD_LEN+1,1):uint() .. "." .. buffer(CMN_HDR_LEN+ISD_AD_LEN+1,1):uint() .. "." .. buffer(CMN_HDR_LEN+ISD_AD_LEN+2,1):uint() .. "." .. buffer(CMN_HDR_LEN+ISD_AD_LEN+3,1):uint()
+	else
+		-- TODO show IPv6 address
+	end
 
-	local dstaddr=buffer(8+srclen,dstlen)
-	local dst_isd_id=bit.rshift(buffer(8+srclen,4):uint(),20) --first 20 bits are ISD ID
-	local dst_ad_id=bit.band(buffer(8+srclen,4):uint(),0x000fffff)
-	local dstaddr_host=buffer(8+srclen+ISD_AD_LEN,dstlen-ISD_AD_LEN):uint()
-	local dstaddr_host_text= buffer(8+srclen+ISD_AD_LEN,1):uint() .. "." .. buffer(8+srclen+ISD_AD_LEN+1,1):uint() .. "." .. buffer(8+srclen+ISD_AD_LEN+2,1):uint() .. "." .. buffer(8+srclen+ISD_AD_LEN+3,1):uint()
+	local dstaddr=buffer(CMN_HDR_LEN+srclen,dstlen)
+	local dst_isd_id=bit.rshift(buffer(CMN_HDR_LEN+srclen,4):uint(),20) --first 12 bits are ISD ID
+	local dst_ad_id=bit.band(buffer(CMN_HDR_LEN+srclen,4):uint(),0x000fffff)
+	local dstaddr_host=buffer(CMN_HDR_LEN+srclen+ISD_AD_LEN,dstlen-ISD_AD_LEN):uint()
+	local dstaddr_host_text=""
+	if dstlen-ISD_AD_LEN == IPV4_ADDR_LEN then 
+		dstaddr_host_text= buffer(CMN_HDR_LEN+srclen+ISD_AD_LEN,1):uint() .. "." .. buffer(CMN_HDR_LEN+srclen+ISD_AD_LEN+1,1):uint() .. "." .. buffer(CMN_HDR_LEN+srclen+ISD_AD_LEN+2,1):uint() .. "." .. buffer(CMN_HDR_LEN+srclen+ISD_AD_LEN+3,1):uint()
+	else
+		-- TODO show IPv6 address
+	end
 	
 	--srcdst_tree:add(buffer(8,srclen),"Source adress: " .. srcaddr)
 	--srcdst_tree:add(buffer(8+srclen,dstlen),"Destination adress: " .. dstaddr)
-	srcdst_tree:add(buffer(8,srclen),"Source adress: " .. srcaddr .. ", ISD_ID:" .. src_isd_id .. ", AD_ID:" .. src_ad_id .. ", HOST Adress:" .. srcaddr_host_text)
-	srcdst_tree:add(buffer(8+srclen,dstlen),"Destination adress: " .. dstaddr .. ", ISD_ID:" .. dst_isd_id .. ", AD_ID:" .. dst_ad_id .. ", HOST Adress:" .. dstaddr_host_text)
+	srcdst_tree:add(buffer(CMN_HDR_LEN,srclen),"Source adress: " .. srcaddr .. ", ISD_ID:" .. src_isd_id .. ", AD_ID:" .. src_ad_id .. ", HOST Adress:" .. srcaddr_host_text)
+	srcdst_tree:add(buffer(CMN_HDR_LEN+srclen,dstlen),"Destination adress: " .. dstaddr .. ", ISD_ID:" .. dst_isd_id .. ", AD_ID:" .. dst_ad_id .. ", HOST Adress:" .. dstaddr_host_text)
 	--srcdst_tree:add(buffer(8+srclen,dstlen),"Destination adress: " .. dstaddr)
 
 	--analyze opaque field
@@ -152,18 +163,21 @@ function process_data(buffer,pinfo,tree)
 end
 
 function process_beacon(buffer,pinfo,tree)
+	-- TODO Update the code for supporting the latest version of PCB
+
+
 	--analyze opaque field
 	local of_field = ProtoField.string("of","Opaque field")
-	local of_offset=8+srclen+dstlen;
+	local of_offset=CMN_HDR_LEN+srclen+dstlen;
 
 	local of_tree = scion_tree:add(of_field,buffer(of_offset,16),"Opaque field ") --size = 16 (SOF and ROTOF)
 	
 	oftypename="Info OF"
 	of_sof_tree=of_tree:add(buffer(of_offset,8),"Opaque filed type: " .. oftypename .. " (0x" .. string.format("%x",buffer(of_offset,1):uint()) .. ")")
-	if timestamp + 8   == of_offset then  --8 means size of common header and 
-		of_sof_tree:append_text(", Current special OF(timestamp)")
+	if timestamp + CMN_HDR_LEN   == of_offset then  
+		of_sof_tree:append_text(", Current IOF")
 	end
-	if curr_of + 8   == of_offset then  --8 means size of common header and 
+	if curr_of + CMN_HDR_LEN   == of_offset then  
 		of_sof_tree:append_text(", Current OF")
 	end
 	of_sof_tree:add(buffer(of_offset+1,4),"Timestamp: " .. buffer(of_offset+1,4))
@@ -175,10 +189,10 @@ function process_beacon(buffer,pinfo,tree)
 	of_offset=of_offset+8
 	oftypename="ROT OF"
 	of_rot_tree=of_tree:add(buffer(of_offset,8),"Opaque filed type: " .. oftypename .. " (0x" .. string.format("%x",buffer(of_offset,1):uint()) .. ")")
-	if timestamp + 8   == of_offset then  --8 means size of common header and 
-		of_rot_tree:append_text(", Current special OF(timestamp)")
+	if timestamp + CMN_HDR_LEN   == of_offset then  
+		of_rot_tree:append_text(", Current IOF")
 	end
-	if curr_of + 8   == of_offset then  --8 means size of common header and 
+	if curr_of + CMN_HDR_LEN   == of_offset then  
 		of_rot_tree:append_text(", Current OF")
 	end
 	of_rot_tree:add(buffer(of_offset+1,2),"ROT version: " .. buffer(of_offset+1,2))
@@ -287,20 +301,20 @@ end
 function process_of(buffer,pinfo,tree)
 --Opaque field
 
-	local num_op= (hdr_len - 24)/8 -- num_op= hops in special opaque field
+	local num_op= (hdr_len - 24)/OPAQUEFIELD_LEN -- num_op= hops in special opaque field
 	local i=0
 	while i <  num_op do
-		local of_offset=8+srclen+dstlen + 8*i
+		local of_offset=8+srclen+dstlen + OPAQUEFIELD_LEN*i
 
 		--check range
-		if of_offset + 8 > hdr_len then
+		if of_offset + OPAQUEFIELD_LEN > hdr_len then
 			scion_tree:add_expert_info(PI_MALFORMED, PI_ERROR, "cannot read opaque field. Hdr_len is small?")
 			return
 		end
 
 
 		local of_field = ProtoField.string("of"..i,"Opaque field"..i)
-		local of_tree = scion_tree:add(of_field,buffer(of_offset,8),"Opaque field ".. i)
+		local of_tree = scion_tree:add(of_field,buffer(of_offset,OPAQUEFIELD_LEN),"Opaque field ".. i)
 
 		
 		--check OF type
@@ -370,10 +384,10 @@ function process_of(buffer,pinfo,tree)
 
 		
 		--check timestamp field and curr OF field refer this OF
-		if timestamp + 8   == of_offset then  --8 means size of common header and 
-			of_tree:append_text(", Current special OF(timestamp)")
+		if timestamp + CMN_HDR_LEN   == of_offset then 
+			of_tree:append_text(", Current IOF")
 		end
-		if curr_of + 8   == of_offset then  --8 means size of common header and 
+		if curr_of + CMN_HDR_LEN   == of_offset then   
 			of_tree:append_text(", Current OF")
 		end
 			
