@@ -30,17 +30,12 @@ from lib.packet.opaque_field import (
     HopOpaqueField,
     InfoOpaqueField,
     OpaqueFieldType as OFT,
-    SupportPCBField,
-    SupportPeerField,
-    SupportSignatureField,
-    TRCField,
 )
 from lib.packet.pcb import (
     ADMarking,
     PCBMarking,
     PathConstructionBeacon,
     PathSegment,
-    PeerMarking,
 )
 from simulator.simulator import add_element, schedule
 
@@ -96,13 +91,11 @@ class CoreBeaconServerSim(CoreBeaconServer):
         timestamp = int(time.time())
         downstream_pcb.iof = InfoOpaqueField.from_values(
             OFT.TDC_XOVR, False, timestamp, self.topology.isd_id)
-        downstream_pcb.trcf = TRCField()
         self.propagate_downstream_pcb(downstream_pcb)
         # Create beacon for core ADs.
         core_pcb = PathSegment()
         core_pcb.iof = InfoOpaqueField.from_values(
             OFT.TDC_XOVR, False, timestamp, self.topology.isd_id)
-        core_pcb.trcf = TRCField()
         count = self.propagate_core_pcb(core_pcb)
 
         # Propagate received beacons. A core beacon server can only receive
@@ -147,13 +140,15 @@ class CoreBeaconServerSim(CoreBeaconServer):
     def _get_if_rev_token(self, if_id):
         """
         Returns the revocation token for a given interface.
+
+        :param if_id: interface identifier.
+        :type if_id: int
         """
         ret = None
         if if_id == 0:
             ret = 32 * b"\x00"
         elif if_id not in self.if2rev_tokens:
-            seed = bytes("%s %d" % (self.config.master_ad_key, if_id), 
-                         'utf-8')
+            seed = self.config.master_ad_key + bytes("%d" % if_id, 'utf-8')
             start_ele = SHA256.new(seed).digest()
             chain = HashChain(start_ele)
             self.if2rev_tokens[if_id] = chain
@@ -180,20 +175,24 @@ class CoreBeaconServerSim(CoreBeaconServer):
     def _create_ad_marking(self, ingress_if, egress_if, ts, prev_hof=None):
         """
         Creates an AD Marking for given ingress and egress interfaces,
-        timestamp, and previous HOF. Mac is not used since we are simulating.
+        timestamp, and previous HOF.
+
+        :param ingress_if: ingress interface.
+        :type ingress_if: int
+        :param egress_if: egress interface.
+        :type egress_if: int
+        :param ts:
+        :type ts:
+        :param prev_hof:
+        :type prev_hof:
         """
-        ssf = SupportSignatureField.from_values(ADMarking.LEN)
         hof = HopOpaqueField.from_values(self.HOF_EXP_TIME,
                                          ingress_if, egress_if)
         if prev_hof is None:
             hof.info = OFT.LAST_OF
         # hof.mac = gen_of_mac(self.of_gen_key, hof, prev_hof, ts)
-        spcbf = SupportPCBField.from_values(isd_id=self.topology.isd_id)
-        pcbm = PCBMarking.from_values(self.topology.ad_id, ssf, hof, spcbf,
-                                      self._get_if_rev_token(ingress_if),
-                                      self._get_if_rev_token(egress_if))
-        data_to_sign = (str(pcbm.ad_id).encode('utf-8') + pcbm.hof.pack() +
-                        pcbm.spcbf.pack())
+        pcbm = PCBMarking.from_values(self.topology.isd_id, self.topology.ad_id,
+                                      hof, self._get_if_rev_token(ingress_if))
         peer_markings = []
         for router_peer in self.topology.peer_edge_routers:
             if_id = router_peer.interface.if_id
@@ -203,15 +202,13 @@ class CoreBeaconServerSim(CoreBeaconServer):
             hof = HopOpaqueField.from_values(self.HOF_EXP_TIME,
                                              if_id, egress_if)
             # hof.mac = gen_of_mac(self.of_gen_key, hof, prev_hof, ts)
-            spf = SupportPeerField.from_values(self.topology.isd_id)
             peer_marking = \
-                PeerMarking.from_values(router_peer.interface.neighbor_ad,
-                                        hof, spf, self._get_if_rev_token(if_id),
-                                        self._get_if_rev_token(egress_if))
-            data_to_sign += peer_marking.pack()
+                PCBMarking.from_values(router_peer.interface.neighbor_isd,
+                                       router_peer.interface.neighbor_ad,
+                                       hof, self._get_if_rev_token(if_id))
             peer_markings.append(peer_marking)
-        signature = sign(data_to_sign, self.signing_key)
-        return ADMarking.from_values(pcbm, peer_markings, signature)
+        return ADMarking.from_values(pcbm, peer_markings,
+                                     self._get_if_rev_token(egress_if))
 
 
 class LocalBeaconServerSim(LocalBeaconServer):
@@ -300,12 +297,15 @@ class LocalBeaconServerSim(LocalBeaconServer):
     def _get_if_rev_token(self, if_id):
         """
         Returns the revocation token for a given interface.
+
+        :param if_id: interface identifier.
+        :type if_id: int
         """
         ret = None
         if if_id == 0:
             ret = 32 * b"\x00"
         elif if_id not in self.if2rev_tokens:
-            seed = bytes("%s %d" % (self.config.master_ad_key, if_id), 'utf-8')
+            seed = self.config.master_ad_key + bytes("%d" % if_id, 'utf-8')
             start_ele = SHA256.new(seed).digest()
             chain = HashChain(start_ele)
             self.if2rev_tokens[if_id] = chain
@@ -332,20 +332,24 @@ class LocalBeaconServerSim(LocalBeaconServer):
     def _create_ad_marking(self, ingress_if, egress_if, ts, prev_hof=None):
         """
         Creates an AD Marking for given ingress and egress interfaces,
-        timestamp, and previous HOF. Mac is not used since we are simulating
+        timestamp, and previous HOF.
+
+        :param ingress_if: ingress interface.
+        :type ingress_if: int
+        :param egress_if: egress interface.
+        :type egress_if: int
+        :param ts:
+        :type ts:
+        :param prev_hof:
+        :type prev_hof:
         """
-        ssf = SupportSignatureField.from_values(ADMarking.LEN)
         hof = HopOpaqueField.from_values(self.HOF_EXP_TIME,
                                          ingress_if, egress_if)
         if prev_hof is None:
             hof.info = OFT.LAST_OF
         # hof.mac = gen_of_mac(self.of_gen_key, hof, prev_hof, ts)
-        spcbf = SupportPCBField.from_values(isd_id=self.topology.isd_id)
-        pcbm = PCBMarking.from_values(self.topology.ad_id, ssf, hof, spcbf,
-                                      self._get_if_rev_token(ingress_if),
-                                      self._get_if_rev_token(egress_if))
-        data_to_sign = (str(pcbm.ad_id).encode('utf-8') + pcbm.hof.pack() +
-                        pcbm.spcbf.pack())
+        pcbm = PCBMarking.from_values(self.topology.isd_id, self.topology.ad_id,
+                                      hof, self._get_if_rev_token(ingress_if))
         peer_markings = []
         for router_peer in self.topology.peer_edge_routers:
             if_id = router_peer.interface.if_id
@@ -355,12 +359,10 @@ class LocalBeaconServerSim(LocalBeaconServer):
             hof = HopOpaqueField.from_values(self.HOF_EXP_TIME,
                                              if_id, egress_if)
             # hof.mac = gen_of_mac(self.of_gen_key, hof, prev_hof, ts)
-            spf = SupportPeerField.from_values(self.topology.isd_id)
             peer_marking = \
-                PeerMarking.from_values(router_peer.interface.neighbor_ad,
-                                        hof, spf, self._get_if_rev_token(if_id),
-                                        self._get_if_rev_token(egress_if))
-            data_to_sign += peer_marking.pack()
+                PCBMarking.from_values(router_peer.interface.neighbor_isd,
+                                       router_peer.interface.neighbor_ad,
+                                       hof, self._get_if_rev_token(if_id))
             peer_markings.append(peer_marking)
-        signature = sign(data_to_sign, self.signing_key)
-        return ADMarking.from_values(pcbm, peer_markings, signature)
+        return ADMarking.from_values(pcbm, peer_markings,
+                                     self._get_if_rev_token(egress_if))

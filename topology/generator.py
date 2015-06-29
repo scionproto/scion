@@ -252,8 +252,9 @@ class ConfigGenerator():
                 full_path = os.path.join(self.out_dir, path)
                 if not os.path.exists(full_path):
                     os.makedirs(full_path)
-        if not os.path.exists('SIM'):
-            os.makedirs('SIM')
+        SIM_path = os.path.join(self.out_dir, 'SIM')
+        if not os.path.exists(SIM_path):
+            os.makedirs(SIM_path)
 
     def write_keys_certs(self, ad_configs):
         """
@@ -330,7 +331,7 @@ class ConfigGenerator():
                 'enc_pub_keys': enc_pub_keys}
 
     def write_beginning_sim_run_files(self):
-        with open('SIM/run.sh', 'w') as fh:
+        with open('topology/SIM/run.sh', 'w') as fh:
             fh.write('#!/bin/bash\n\n')
             fh.write(''.join([
                 'sh -c \"PYTHONPATH=../ python3 sim_test.py ../' + 
@@ -445,7 +446,7 @@ class ConfigGenerator():
         """
         Writing into sim.conf file
         """
-        sim_file = 'SIM/sim.conf'
+        sim_file = 'topology/SIM/sim.conf'
         for isd_ad_id in ad_configs:
             (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
             is_core = (ad_configs[isd_ad_id]['level'] == CORE_AD)
