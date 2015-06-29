@@ -19,6 +19,11 @@
 from Crypto.Hash import SHA256
 
 
+class HashChainExhausted(Exception):
+    """The hash chain is exhausted"""
+    pass
+
+
 class HashChain(object):
     """
     Class encapsulating a generic hash-chain.
@@ -68,6 +73,9 @@ class HashChain(object):
             next_ele = self._hash_func.new(prev_ele).digest()
             self.entries.append(next_ele)
             prev_ele = next_ele
+            
+        # Initialize to first element.
+        self._next_ele_ptr = self._length - 2
 
     def current_element(self):
         """
@@ -84,9 +92,19 @@ class HashChain(object):
         """
         if self._next_ele_ptr < 0:
             return None
-        next_ele = self.entries[self._next_ele_ptr]
+        return self.entries[self._next_ele_ptr]
+    
+    def move_to_next_element(self):
+        """
+        Adjusts the internal pointer s.t. current_element() returns the next
+        element.
+        
+        :raises:
+            HashChainExhausted: if there are no more elements in the chain
+        """
+        if self._next_ele_ptr == 0:
+            raise HashChainExhausted
         self._next_ele_ptr -= 1
-        return next_ele
 
     @staticmethod
     def verify(start_ele, target_ele, max_tries=50, hash_func=SHA256):
