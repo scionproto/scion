@@ -56,6 +56,89 @@ def read_from_dir(dir_name):
     print("Files being converted are: \n{}\n".format(list_files))
     return list_files
 
+def gen_base_isd_graph(isd_list, degree):
+    """
+    Generate an ISD graph with each vertex having specified degree
+
+    :param isd_list: List of isd's
+    :type isd_list: list
+    :param degree: The degree of isd connections
+    :type degree: int
+    :returns: An ISD graph
+    :rtype: :class: `networkx.MultiDiGraph`
+    """
+    isd_graph = nx.MultiDiGraph()
+    count_isds = len(isd_list)
+    curr_num_edges = 0
+    # Adding edges with degree chosen as degree
+    max_num_edges = count_isds * degree
+    # Adding edges in circular fashion to ensure that isd graph remains
+    # connected
+    for isd in range(MIN_ISD_NUM, count_isds + 1):
+        neighbor_isd = isd + 1
+        if isd == count_isds:
+            neighbor_isd = MIN_ISD_NUM
+        isd_graph.add_edge(isd, neighbor_isd)
+        curr_num_edges += 2
+    # Continue adding edges between ISD's of least degree till the number
+    # of edges is max_num_edges
+    while curr_num_edges < max_num_edges:
+        isd_list_shuffle = isd_list
+        # Among all the ones with least outdegree, we choose 2 randomly 
+        random.shuffle(isd_list_shuffle)
+        num_outedges = sorted(isd_list_shuffle,
+                              key=lambda isd: isd_graph.degree(isd))
+        isd = num_outedges[0]
+        neighbor_isd = num_outedges[1]
+        isd_graph.add_edge(isd, neighbor_isd)
+        curr_num_edges += 2
+    return isd_graph
+
+def add_random_edges(isd_graph, core_ad_dict, max_degree):
+    """
+    Add edges to selected ISD's to make them denser(Internet-like)
+    such that no node has degree more than max_degree
+
+    :param isd_graph: The ISD graph upon which edges will be added
+    :type isd_graph: :class: `networkx.MultiDiGraph`
+    :param core_ad_dict: Dict with key:isd number, value:Core AD list
+    :type core_ad_dict: dict
+    :param max_degree: The maximum degree an ISD can have
+    :type max_degree: int
+    """
+    # Sorting based on number of core AD's in an ISD
+    isd_sorted_list = sorted(core_ad_dict.keys(),
+                             key=lambda isd: len(core_ad_dict[isd]))
+    count_isds = len(isd_sorted_list)
+    # Choosing half of the ISD's with higher core AD's to interconnect them
+    denser_isds = isd_sorted_list[int(count_isds / 2):]
+    print("ISD's with denser connections: {}".format(denser_isds))
+    while len(denser_isds) >= 2:
+        [isd, neighbor_isd] = random.sample(denser_isds, 2)
+        isd_graph.add_edge(isd, neighbor_isd)
+        # Break if one of the nodes has reached max_degree 
+        if isd_graph.degree(isd) >= max_degree or \
+           isd_graph.degree(neighbor_isd) >= max_degree:
+           break
+    return isd_graph
+
+def graph_to_dot(graph, dot_output_file):
+    """
+    Convert a networkx graph to dot file. Will work with python2 only
+
+    :param graph: A networkx graph
+    :type graph: :class: `networkx.DiGraph`
+    :param dot_output_file: The dot file which will be created
+    :type dot_output_file: str
+    """
+    try:
+        from networkx import pygraphviz
+    except ImportError:
+        raise ImportError('Pygraphviz is not available for python3.' +
+                           'Install it for python2 instead')
+    print("Generating the dot file: {}".format(dot_output_file))
+    nx.write_dot(graph, dot_output_file)
+
 def parse(brite_files, dot_output_file, min_degree, max_degree):
     """
     1. Parse a list of topology files each into a seperate ISD
@@ -90,51 +173,8 @@ def parse(brite_files, dot_output_file, min_degree, max_degree):
     print("Total number of ISD's is {}".format(count_isds))
     print("Min and Max degree of connection between ISD's are {}, {}"
           .format(min_degree, max_degree))
-
-    isd_graph = nx.MultiDiGraph()
-    curr_num_edges = 0
-    # Adding edges with degree chosen as min_degree
-    max_num_edges = count_isds * min_degree
-    # Adding edges in circular fashion to ensure that isd graph remains
-    # connected
-    for isd in range(MIN_ISD_NUM, count_isds + 1):
-        neighbor_isd = isd + 1
-        if isd == count_isds:
-            neighbor_isd = MIN_ISD_NUM
-        isd_graph.add_edge(isd, neighbor_isd)
-        curr_num_edges += 2
-    while curr_num_edges < max_num_edges:
-        isd_list = list(ISD_dict.keys())
-        # Among all the ones with least outdegree, we choose 2 randomly 
-        random.shuffle(isd_list)
-        num_outedges = sorted(isd_list,
-                              key=lambda isd: isd_graph.degree(isd))
-        isd = num_outedges[0]
-        neighbor_isd = num_outedges[1]
-        isd_graph.add_edge(isd, neighbor_isd)
-        curr_num_edges += 2
-
-    # Sorting based on number of core AD's in an ISD
-    isd_sorted_list = sorted(core_ad_dict.keys(),
-                             key=lambda isd: len(core_ad_dict[isd]))
-    # Choosing half of the ISD's with higher core AD's to interconnect them
-    denser_isds = isd_sorted_list[int(count_isds / 2):]
-    print("ISD's with denser connections: {}".format(denser_isds))
-    # Increasing the degree by atmost (max_degree - min_degree)
-    max_num_edges = int(len(denser_isds) * \
-                    random.uniform(0, max_degree - min_degree))
-    curr_num_edges = 0
-    # Repeating the above process
-    while curr_num_edges < max_num_edges:
-        isd_list = denser_isds
-        # Among all the ones with least outdegree, we choose 2 randomly 
-        random.shuffle(isd_list)
-        num_outedges = sorted(isd_list,
-                              key=lambda isd: isd_graph.degree(isd))
-        isd = num_outedges[0]
-        neighbor_isd = num_outedges[1]
-        isd_graph.add_edge(isd, neighbor_isd)
-        curr_num_edges += 2
+    isd_graph = gen_base_isd_graph(list(ISD_dict.keys()), min_degree)
+    isd_graph = add_random_edges(isd_graph, core_ad_dict, max_degree)
     # Adding the edges to final graph using the ISD graph
     new_routing_edges = 0
     for (src_isd_id, src_core_ads) in core_ad_dict.items():
@@ -153,37 +193,28 @@ def parse(brite_files, dot_output_file, min_degree, max_degree):
                 final_graph.add_edge(dest_core_ad, src_core_ad,
                                      label='ROUTING', color='red')
                 new_routing_edges += 2
-    core_nodes = [x for x in final_graph.nodes() if final_graph.node[x]["is_core"]]
     print("{} inter-ISD routing edges added".format(new_routing_edges))
-    # Ensuring that final graph is connected
     assert nx.is_connected(final_graph.to_undirected())
     if dot_output_file != None:
-        try:
-            from networkx import pygraphviz
-        except ImportError:
-            raise ImportError('Graphviz is not available for python3.' +
-                               'Install it for python2 instead')
-        print("Generating the dot file {}".format(dot_output_file))
-        nx.write_dot(final_graph, dot_output_file)
+        graph_to_dot(final_graph, dot_output_file)
     return final_graph
 
-def _parse(topo_file, ISD_NUM):
+def read_topo_file(topo_file, ISD_NUM):
     """
-    Parses a topo_file into a SCION ISD numbered - ISD_NUM 
+    Read BRITE topology file and convert it into a networkx graph
 
-    :param topo_file: A brite output file to be converted
+    :param topo_file: BRITE file to be converted
     :type topo_file: str
     :param ISD_NUM: ISD Number of the graph to be generated 
     :type ISD_NUM: int
-    :returns: the created Graph along with a list of core ad nodes
-    :rtype: (`networkx.DiGraph`, list)
+    :returns: Networkx Graph and a list containing degree of each AD
+    :rvar: (`networkx.Graph`, list)
     """
     fd = open(topo_file, 'r')
-    nodes_count = 0
-    edges_count = 0
-
     original_graph = nx.Graph()
     num_outedges = list()
+    nodes_count = 0
+    edges_count = 0
     for line in fd:
         values = line.split(" ")
         if nodes_count > 0:
@@ -193,7 +224,6 @@ def _parse(topo_file, ISD_NUM):
             isd_ad_id = ISD_AD_ID_DIVISOR.join([str(ISD_NUM), ad_id])
             original_graph.add_node(isd_ad_id, is_core=False)
             num_outedges.append((isd_ad_id, int(values[3])))
-
         if edges_count > 0:
             edges_count -= 1
             values = line.split("\t")
@@ -202,12 +232,24 @@ def _parse(topo_file, ISD_NUM):
             dest_isd_ad_id = ISD_AD_ID_DIVISOR.join([str(ISD_NUM),
                                                      values[2]])
             original_graph.add_edge(source_isd_ad_id, dest_isd_ad_id)
-
         if values[0] == "Nodes:":
             nodes_count = int(values[2])
         if values[0] == "Edges:":
             edges_count = int(values[2])
+    return (original_graph, num_outedges)
 
+def _parse(topo_file, ISD_NUM):
+    """
+    Parse a topo_file into a SCION ISD numbered - ISD_NUM 
+
+    :param topo_file: A BRITE output file to be converted
+    :type topo_file: str
+    :param ISD_NUM: ISD Number of the graph to be generated 
+    :type ISD_NUM: int
+    :returns: the created Graph along with a list of core ad nodes
+    :rtype: (`networkx.DiGraph`, list)
+    """
+    (original_graph, num_outedges) = read_topo_file(topo_file, ISD_NUM)
     NUM_CORE_ADS = min(MAX_CORE_ADS, int(len(original_graph.nodes()) / 10))
     num_outedges = sorted(num_outedges, key=lambda tup: tup[1],
                           reverse=True)
