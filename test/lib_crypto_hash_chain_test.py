@@ -21,13 +21,14 @@ import unittest
 
 # External packages
 from Crypto import Random
+import nose.tools as ntools
 
 # Has to be imported before anything else so that any relevant decorators are
 # patched.
 from test.testcommon import SCIONCommonTest
 
 # SCION
-from lib.crypto.hash_chain import HashChain
+from lib.crypto.hash_chain import HashChain, HashChainExhausted
 
 
 class TestHashChain(SCIONCommonTest):
@@ -40,10 +41,12 @@ class TestHashChain(SCIONCommonTest):
         """
         N = 20
         hc = HashChain(Random.new().read(32), N)
-        target = hc.next_element()
-        self.assertTrue(target == hc.current_element())
-        for _ in range(N - 1):
+        target = hc.current_element()
+        self.assertTrue(target is not None)
+        for _ in range(N - 2):
             self.assertTrue(HashChain.verify(hc.next_element(), target))
+            hc.move_to_next_element()
+        ntools.assert_raises(HashChainExhausted, hc.move_to_next_element)
         self.assertFalse(HashChain.verify(Random.new().read(32), target))
 
 if __name__ == "__main__":

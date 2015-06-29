@@ -234,7 +234,7 @@ class PathStoreRecord(object):
         """
         assert isinstance(pcb, PathSegment)
         self.pcb = pcb
-        self.id = pcb.segment_id
+        self.id = pcb.get_hops_hash(hex=True)
         self.fidelity = 0
         self.peer_links = 0
         self.hops_length = 0
@@ -438,35 +438,35 @@ class PathStore(object):
         """
         Remove candidates if their expiration_time is up.
         """
-        seg_ids = []
+        rec_ids = []
         now = time.time()
         for candidate in self.candidates:
             if candidate.expiration_time <= now:
-                seg_ids.append(candidate.id)
-        self.remove_segments(seg_ids)
+                rec_ids.append(candidate.id)
+        self.remove_segments(rec_ids)
 
-    def remove_segments(self, seg_ids):
+    def remove_segments(self, rec_ids):
         """
-        Remove segments in 'seg_ids' from the candidates.
+        Remove segments in 'rec_ids' from the candidates.
 
-        :param seg_ids: list of segment IDs to remove.
-        :type seg_ids: list
+        :param rec_ids: list of record IDs to remove.
+        :type rec_ids: list
         """
-        self.candidates[:] = [c for c in self.candidates if c.id not in seg_ids]
+        self.candidates[:] = [c for c in self.candidates if c.id not in rec_ids]
         if self.candidates:
             self._update_all_fidelity()
             self.candidates = sorted(self.candidates, key=lambda x: x.fidelity,
                                      reverse=True)
 
-    def get_segment(self, seg_id):
+    def get_segment(self, rec_id):
         """
-        Return the segment for the corresponding ID or None.
+        Return the segment for the corresponding record ID or None.
 
-        :param seg_ids: ID of the segment to return.
-        :type seg_ids: int
+        :param rec_id: ID of the segment to return.
+        :type rec_id: string
         """
         for record in self.candidates:
-            if record.id == seg_id:
+            if record.id == rec_id:
                 return record.pcb
         return None
 
