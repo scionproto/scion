@@ -40,7 +40,7 @@ from lib.packet.scion_addr import ISD_AD, SCIONAddr
 from lib.thread import thread_safety_net
 from lib.util import handle_signals
 
-IFID_PKT_TOUT = 25  # How often IFID packet is sent to neighboring router.
+IFID_PKT_TOUT = 1  # How often IFID packet is sent to neighboring router.
 
 
 class NextHop(object):
