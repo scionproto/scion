@@ -41,10 +41,10 @@ class PingPongSimTest(unittest.TestCase):
         and Receiver is 127.2.26.254 in ISD:2 AD:26
         """
         generate_topology("../SIM/sim.conf")
-        src_isd_ad = ISD_AD(1,100)
-        dst_isd_ad = ISD_AD(1,16)
-        src_host_addr = IPv4Address("127.1.100.254")
-        dst_host_addr = IPv4Address("127.1.16.254")
+        src_isd_ad = ISD_AD(1,10)
+        dst_isd_ad = ISD_AD(2,26)
+        src_host_addr = IPv4Address("127.1.10.254")
+        dst_host_addr = IPv4Address("127.2.26.254")
         src_topo_path = (
             "../topology/ISD{}/topologies/ISD:{}-AD:{}.json"
             .format(src_isd_ad.isd, src_isd_ad.isd, src_isd_ad.ad)
