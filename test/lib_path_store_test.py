@@ -270,14 +270,14 @@ class TestPathStoreRecordInit(object):
     @patch("lib.path_store.time.time", autospec=True)
     def test_basic(self, time_):
         pcb = MagicMock(spec_set=['__class__', 'segment_id',
-                                  'get_expiration_time'])
+                                  'get_expiration_time', 'get_hops_hash'])
         pcb.__class__ = PathSegment
         pcb.segment_id = "id"
         pcb.get_expiration_time.return_value = "get_expiration_time"
         time_.return_value = 23
         pth_str_rec = PathStoreRecord(pcb)
         ntools.eq_(pth_str_rec.pcb, pcb)
-        ntools.eq_(pth_str_rec.id, pcb.segment_id)
+        ntools.eq_(pth_str_rec.id, pcb.get_hops_hash())
         ntools.eq_(pth_str_rec.fidelity, 0)
         ntools.eq_(pth_str_rec.peer_links, 0)
         ntools.eq_(pth_str_rec.hops_length, 0)
@@ -311,7 +311,7 @@ class TestPathStoreRecordUpdateFidelity(object):
         path_policy.property_weights['AvailableBandwidth'] = 8
         path_policy.property_weights['TotalBandwidth'] = 9
         pcb = MagicMock(spec_set=['__class__', 'segment_id',
-                                  'get_expiration_time'])
+                                  'get_expiration_time', 'get_hops_hash'])
         pcb.__class__ = PathSegment
         pth_str_rec = PathStoreRecord(pcb)
         pth_str_rec.peer_links = 10 ** 5
@@ -335,7 +335,7 @@ class TestPathStoreRecordEQ(object):
     """
     def setUp(self):
         self.pcb = MagicMock(spec_set=['__class__', 'segment_id',
-                                       'get_expiration_time'])
+                                       'get_expiration_time', 'get_hops_hash'])
         self.pcb.__class__ = PathSegment
 
     def tearDown(self):
