@@ -1,4 +1,4 @@
-# Copyright 2015 ETH Zurich
+# Copyright 2014 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,11 +24,19 @@ import nose.tools as ntools
 
 # SCION
 from lib.packet.ext_hdr import ExtensionHeader
-from lib.packet.opaque_field import OpaqueField
 from lib.packet.path import PathBase
+from lib.packet.opaque_field import OpaqueField
 from lib.packet.scion import (
-    get_type, SCIONCommonHdr, SCIONHeader, SCIONPacket, IFIDPacket, PacketType,
-    CertChainRequest, CertChainReply, TRCRequest, TRCReply)
+    CertChainReply,
+    CertChainRequest,
+    IFIDPacket,
+    get_type,
+    SCIONCommonHdr,
+    SCIONHeader,
+    SCIONPacket,
+    PacketType,
+    TRCReply,
+    TRCRequest)
 from lib.packet.scion_addr import SCIONAddr
 
 
@@ -120,17 +128,17 @@ class TestSCIONCommonHdrParse(object):
 
     def test_full(self):
         hdr = SCIONCommonHdr()
-        data = bytes.fromhex('a102 0304 05 06 07 08')
+        data = bytes([0b11110000, 0b00111111]) + \
+            bytes.fromhex('0304 05 06 07 08')
         hdr.parse(data)
         ntools.eq_(hdr.total_len, 0x0304)
         ntools.eq_(hdr.curr_iof_p, 0x05)
         ntools.eq_(hdr.curr_of_p, 0x06)
         ntools.eq_(hdr.next_hdr, 0x07)
         ntools.eq_(hdr.hdr_len, 0x08)
-        types = 0xa102
-        ntools.eq_(hdr.version, (types & 0xf000) >> 12)
-        ntools.eq_(hdr.src_addr_len, (types & 0x0fc0) >> 6)
-        ntools.eq_(hdr.dst_addr_len, types & 0x003f)
+        ntools.eq_(hdr.version, 0b1111)
+        ntools.eq_(hdr.src_addr_len, 0b000000)
+        ntools.eq_(hdr.dst_addr_len, 0b111111)
         ntools.assert_true(hdr.parsed)
 
 
@@ -140,15 +148,16 @@ class TestSCIONCommonHdrPack(object):
     """
     def test(self):
         hdr = SCIONCommonHdr()
-        hdr.version = 0xa
-        hdr.dst_addr_len = 0x2
-        hdr.src_addr_len = 0x4
+        hdr.version = 0b1111
+        hdr.src_addr_len = 0b000000
+        hdr.dst_addr_len = 0b111111
         hdr.total_len = 0x304
         hdr.curr_iof_p = 0x5
         hdr.curr_of_p = 0x6
         hdr.next_hdr = 0x7
         hdr.hdr_len = 0x8
-        packed = bytes.fromhex('a102 0304 05 06 07 08')
+        packed = bytes([0b11110000, 0b00111111]) + \
+            bytes.fromhex('0304 05 06 07 08')
         ntools.eq_(hdr.pack(), packed)
 
 
@@ -224,11 +233,6 @@ class TestSCIONHeaderFromValues(object):
         dst.__class__ = src.__class__ = SCIONAddr
         scion_common_hdr.return_value = 'scion_common_hdr'
         hdr = SCIONHeader.from_values(src, dst)
-        ntools.assert_is_instance(hdr, SCIONHeader)
-        scion_common_hdr.assert_called_once_with(src.addr_len, dst.addr_len, 0)
-        ntools.eq_(hdr.common_hdr, 'scion_common_hdr')
-        ntools.eq_(hdr.src_addr, src)
-        ntools.eq_(hdr.dst_addr, dst)
         set_path.assert_called_once_with(hdr, None)
         set_ext_hdrs.assert_called_once_with(hdr, [])
 
@@ -267,8 +271,6 @@ class TestSCIONHeaderSetPath(object):
 
     def test_not_none(self):
         hdr = SCIONHeader()
-        hdr._path = MagicMock(spec_set=['pack'])
-        hdr._path.pack.return_value = b'old_path'
         hdr.common_hdr = MagicMock(spec_set=['hdr_len', 'total_len'])
         hdr.common_hdr.hdr_len = 100
         hdr.common_hdr.total_len = 200
@@ -276,10 +278,8 @@ class TestSCIONHeaderSetPath(object):
         path.pack.return_value = b'packed_path'
         hdr.set_path(path)
         ntools.eq_(hdr._path, path)
-        ntools.eq_(hdr.common_hdr.hdr_len,
-                   100 - len(b'old_path') + len(b'packed_path'))
-        ntools.eq_(hdr.common_hdr.total_len,
-                   200 - len(b'old_path') + len(b'packed_path'))
+        ntools.eq_(hdr.common_hdr.hdr_len, 100 + len(b'packed_path'))
+        ntools.eq_(hdr.common_hdr.total_len, 200 + len(b'packed_path'))
 
 
 class TestSCIONHeaderExtensionHdrs(object):
@@ -330,12 +330,12 @@ class TestSCIONHeaderAppendExtHdr(object):
         hdr = SCIONHeader()
         hdr._extension_hdrs = []
         hdr.common_hdr = MagicMock(spec_set=['total_len'])
-        hdr.common_hdr.total_len = 0
+        hdr.common_hdr.total_len = 456
         ext_hdr = MagicMock(spec_set=ExtensionHeader)
         ext_hdr.__len__.return_value = 123
         hdr.append_ext_hdr(ext_hdr)
         ntools.assert_in(ext_hdr, hdr._extension_hdrs)
-        ntools.eq_(hdr.common_hdr.total_len, 123)
+        ntools.eq_(hdr.common_hdr.total_len, 123 + 456)
 
 
 class TestSCIONHeaderPopExtHdr(object):
@@ -374,7 +374,7 @@ class TestSCIONHeaderPack(object):
         hdr = SCIONHeader()
         hdr.common_hdr = MagicMock(spec_set=['pack'])
         hdr.common_hdr.pack.return_value = b'common_hdr'
-        hdr.src_addr= MagicMock(spec_set=['pack'])
+        hdr.src_addr = MagicMock(spec_set=['pack'])
         hdr.src_addr.pack.return_value = b'src_addr'
         hdr.dst_addr = MagicMock(spec_set=['pack'])
         hdr.dst_addr.pack.return_value = b'dst_addr'
@@ -382,7 +382,7 @@ class TestSCIONHeaderPack(object):
         hdr._extension_hdrs = [MagicMock(spec_set=['pack']) for i in range(2)]
         for i, ext_hdr in enumerate(hdr._extension_hdrs):
             ext_hdr.pack.return_value = b'ext_hdr' + str.encode(str(i))
-        packed = b'common_hdrsrc_addrdst_addr'+ packed_path + \
+        packed = b'common_hdrsrc_addrdst_addr' + packed_path + \
                  b'ext_hdr0ext_hdr1'
         ntools.eq_(hdr.pack(), packed)
 
@@ -490,9 +490,9 @@ class TestSCIONHeaderIncreaseOf(object):
     def test(self):
         hdr = SCIONHeader()
         hdr.common_hdr = MagicMock(spec_set=['curr_of_p'])
-        hdr.common_hdr.curr_of_p = 0
+        hdr.common_hdr.curr_of_p = 456
         hdr.increase_of(123)
-        ntools.eq_(hdr.common_hdr.curr_of_p, 123 * OpaqueField.LEN)
+        ntools.eq_(hdr.common_hdr.curr_of_p, 456 + 123 * OpaqueField.LEN)
 
 
 class TestSCIONHeaderSetDownpath(object):
@@ -650,7 +650,7 @@ class TestSCIONPacketFromValues(object):
     @patch("lib.packet.scion.SCIONHeader.from_values",
            spec_set=SCIONHeader.from_values)
     def test_less_args(self, scion_hdr, set_payload, set_hdr):
-        packet = SCIONPacket.from_values('src', 'dst', 'payload')
+        SCIONPacket.from_values('src', 'dst', 'payload')
         scion_hdr.assert_called_once_with('src', 'dst', None, None, 0)
 
 
@@ -750,8 +750,8 @@ class TestIFIDPacketParse(object):
         packet._payload = bytes.fromhex('0102 0304')
         packet.parse('data')
         parse.assert_called_once_with(packet, 'data')
-        ntools.eq_(packet.reply_id, 0x102)
-        ntools.eq_(packet.request_id, 0x304)
+        ntools.eq_(packet.reply_id, 0x0102)
+        ntools.eq_(packet.request_id, 0x0304)
 
 
 class TestIFIDPacketFromValues(object):
@@ -826,9 +826,9 @@ class TestCertChainRequestParse(object):
                                      '0f10111213141516 1718191a')
         req.parse('data')
         parse.assert_called_once_with(req, 'data')
-        ntools.eq_(req.ingress_if, 0x102)
-        ntools.eq_(req.src_isd, 0x304)
-        ntools.eq_(req.src_ad, 0x5060708090a0b0c)
+        ntools.eq_(req.ingress_if, 0x0102)
+        ntools.eq_(req.src_isd, 0x0304)
+        ntools.eq_(req.src_ad, 0x05060708090a0b0c)
         ntools.eq_(req.isd_id, 0x0d0e)
         ntools.eq_(req.ad_id, 0x0f10111213141516)
         ntools.eq_(req.version, 0x1718191a)
@@ -929,7 +929,7 @@ class TestCertChainReplyFromValues(object):
         ntools.eq_(rep.version, version)
         ntools.eq_(rep.cert_chain, b'cert_chain')
         payload = bytes.fromhex('0102 0000000000000304 00000506') + \
-                  b'cert_chain'
+            b'cert_chain'
         set_payload.assert_called_once_with(rep, payload)
 
 
@@ -962,11 +962,12 @@ class TestTRCRequestParse(object):
         req = TRCRequest()
         req._payload = bytes.fromhex('0102 0304 0000000000000506 0708 0000090a')
         req.parse('data')
-        ntools.eq_(req.ingress_if, 0x102)
-        ntools.eq_(req.src_isd, 0x304)
-        ntools.eq_(req.src_ad, 0x506)
-        ntools.eq_(req.isd_id, 0x708)
-        ntools.eq_(req.version, 0x90a)
+        parse.assert_called_once_with(req, 'data')
+        ntools.eq_(req.ingress_if, 0x0102)
+        ntools.eq_(req.src_isd, 0x0304)
+        ntools.eq_(req.src_ad, 0x0000000000000506)
+        ntools.eq_(req.isd_id, 0x0708)
+        ntools.eq_(req.version, 0x0000090a)
 
 
 class TestTRCRequestFromValues(object):
@@ -982,8 +983,8 @@ class TestTRCRequestFromValues(object):
     def test(self, scion_addr, scion_hdr, set_hdr, set_payload):
         scion_addr.return_value = 'dst'
         scion_hdr.return_value = 'hdr'
-        (ingress_if, src_isd, src_ad, isd_id, version) = (0x102, 0x304, 0x506,
-                                                          0x708, 0x90a)
+        (ingress_if, src_isd, src_ad, isd_id, version) = \
+            (0x0102, 0x0304, 0x0506, 0x0708, 0x090a)
         req = TRCRequest.from_values('req_type', 'src', ingress_if, src_isd,
                                      src_ad, isd_id, version)
         ntools.assert_is_instance(req, TRCRequest)
