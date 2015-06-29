@@ -372,14 +372,18 @@ class BeaconServer(SCIONElement):
         return ADMarking.from_values(pcbm, peer_markings,
                                      self._get_if_rev_token(egress_if))
     
-    def _extend_pcb(self, pcb):
+    def _terminate_pcb(self, pcb):
         """
-        Copies a PCB, extends it with the local hop and adds the segment ID.
+        Copies a PCB, terminates it and adds the segment ID.
         
-        :param pcb: The PCB to extend.
+        Terminating a PCB means adding a opaque field with the egress IF set
+        to 0, i.e., there is no AD to forward a packet containing this path
+        segment to.
+        
+        :param pcb: The PCB to terminate.
         :type pcb: PathSegment
         
-        :returns: Extended PCB
+        :returns: Terminated PCB
         :rtype: PathSegment
         """
         pcb = copy.deepcopy(pcb)
@@ -1011,7 +1015,7 @@ class CoreBeaconServer(BeaconServer):
             core_segments.extend(ps.get_best_segments())
         count = 0
         for pcb in core_segments:
-            pcb = self._extend_pcb(pcb)
+            pcb = self._terminate_pcb(pcb)
             assert pcb.segment_id != 32 * b"\x00", ("Trying to register a" +
                    " segment with ID 0:\n%s" % pcb)
             # TODO(psz): sign here? discuss
@@ -1035,7 +1039,7 @@ class CoreBeaconServer(BeaconServer):
                 to_remove.append(cand.id)
                 # Build the actual PathSegment that gets revoked, due to the
                 # interface revocation.
-                pcb = self._extend_pcb(cand.pcb)
+                pcb = self._terminate_pcb(cand.pcb)
                 info = RevocationInfo.from_values(
                     RT.CORE_SEGMENT, rev_info.rev_token1,
                     rev_info.proof1, True, pcb.segment_id)
@@ -1064,7 +1068,7 @@ class CoreBeaconServer(BeaconServer):
                 to_remove.append(cand.id)
                 # Build the actual PathSegment that gets revoked, due to the
                 # interface revocation.
-                pcb = self._extend_pcb(cand.pcb)
+                pcb = self._terminate_pcb(cand.pcb)
                 info = RevocationInfo.from_values(
                     RT.CORE_SEGMENT, rev_info.rev_token1, rev_info.proof1,
                     True, pcb.segment_id, True,
@@ -1264,7 +1268,7 @@ class LocalBeaconServer(BeaconServer):
         up_segment = self.up_segments.get_best_segments()[0]
         
         # Add first hop opaque field.
-        up_segment = self._extend_pcb(up_segment)
+        up_segment = self._terminate_pcb(up_segment)
         assert up_segment.segment_id != rev_info.seg_id
         path = up_segment.get_path(True)
         rev_payload = RevocationPayload.from_values([rev_info])
@@ -1290,7 +1294,7 @@ class LocalBeaconServer(BeaconServer):
                 if cand in self.up_segments.candidates:
                     # Build the actual PathSegment that gets revoked, due to the
                     # interface revocation.
-                    pcb = self._extend_pcb(cand.pcb)
+                    pcb = self._terminate_pcb(cand.pcb)
                     info = RevocationInfo.from_values(
                         RT.UP_SEGMENT, rev_info.rev_token1,
                         rev_info.proof1, True, pcb.segment_id)
@@ -1318,7 +1322,7 @@ class LocalBeaconServer(BeaconServer):
                 if cand in self.up_segments:
                     # Build the actual PathSegment that gets revoked, due to the
                     # interface revocation.
-                    pcb = self._extend_pcb(cand.pcb)
+                    pcb = self._terminate_pcb(cand.pcb)
                     info = RevocationInfo.from_values(
                         RT.UP_SEGMENT, rev_info.rev_token1, rev_info.proof1,
                         True, pcb.segment_id, True,
@@ -1381,7 +1385,7 @@ class LocalBeaconServer(BeaconServer):
         """
         best_segments = self.up_segments.get_best_segments()
         for pcb in best_segments:
-            pcb = self._extend_pcb(pcb)
+            pcb = self._terminate_pcb(pcb)
             pcb.remove_signatures()
             # TODO(psz): sign here? discuss
             self.register_up_segment(pcb)
@@ -1393,7 +1397,7 @@ class LocalBeaconServer(BeaconServer):
         """
         best_segments = self.down_segments.get_best_segments()
         for pcb in best_segments:
-            pcb = self._extend_pcb(pcb)
+            pcb = self._terminate_pcb(pcb)
             pcb.remove_signatures()
             # TODO(psz): sign here? discuss
             self.register_down_segment(pcb)
