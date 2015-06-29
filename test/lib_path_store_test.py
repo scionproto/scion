@@ -588,19 +588,23 @@ class TestPathStoreGetBestSegments(object):
         ntools.eq_(pth_str.get_best_segments(), [0, 1, 2, 3])
 
 
+
 class TestPathStoreGetLatestHistorySnapshot(object):
     """
     Unit tests for lib.path_store.get_latest_history_snapshot
     """
-    def setUp(self):
-        self.path_policy = MagicMock(spec_set=['history_limit'])
-        self.path_policy.history_limit = 3
-
-    def tearDown(self):
-        del self.path_policy
+    def _setup(self, attrs=None):
+        def_attrs = {'history_limit': 3}
+        if attrs:
+            def_attrs.update(attrs)
+        path_policy = MagicMock(spec_set=list(def_attrs.keys()))
+        path_policy.history_limit = 3
+        for k, v in def_attrs.items():
+            setattr(path_policy, k, v)
+        return path_policy
 
     def test_basic(self):
-        pth_str = PathStore(self.path_policy)
+        pth_str = PathStore(self._setup())
         pth_str.best_paths_history = [1]
         pth_str.best_paths_history[0] = [MagicMock(spec_set=['pcb'])
                                          for i in range(5)]
@@ -609,10 +613,7 @@ class TestPathStoreGetLatestHistorySnapshot(object):
         ntools.eq_(pth_str.get_latest_history_snapshot(3), [0, 1, 2])
 
     def test_less_arg(self):
-        path_policy = MagicMock(spec_set=['history_limit', 'best_set_size'])
-        path_policy.history_limit = 3
-        path_policy.best_set_size = 4
-        pth_str = PathStore(path_policy)
+        pth_str = PathStore(self._setup({'best_set_size': 4}))
         pth_str.best_paths_history = [1]
         pth_str.best_paths_history[0] = [MagicMock(spec_set=['pcb'])
                                          for i in range(5)]
@@ -621,7 +622,7 @@ class TestPathStoreGetLatestHistorySnapshot(object):
         ntools.eq_(pth_str.get_latest_history_snapshot(), [0, 1, 2, 3])
 
     def test_false(self):
-        pth_str = PathStore(self.path_policy)
+        pth_str = PathStore(self._setup())
         ntools.eq_(pth_str.get_latest_history_snapshot(3), [])
 
 
