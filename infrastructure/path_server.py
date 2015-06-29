@@ -588,10 +588,6 @@ class CorePathServer(PathServer):
                           pkt.payload)
 
         rev_infos = pkt.payload.rev_infos
-        # Propagate revocation to other CPSes.
-        prop_pkt = PathMgmtPacket.from_values(PMT.REVOCATIONS, pkt.payload,
-                                              None, self.addr, ISD_AD(0, 0))
-        self._propagate_to_core_ads(prop_pkt, True)
         revocations = defaultdict(RevocationPayload)
         for rev_info in rev_infos:
             # Verify revocation.
@@ -657,6 +653,11 @@ class CorePathServer(PathServer):
             else:
                 logging.warning("Received unknown type of revocation.")
                 return
+            
+        # Propagate revocation to other CPSes.
+        prop_pkt = PathMgmtPacket.from_values(PMT.REVOCATIONS, pkt.payload,
+                                              None, self.addr, ISD_AD(0, 0))
+        self._propagate_to_core_ads(prop_pkt, True)
 
         # Send out revocations to leasers.
         for ((dst_isd, dst_ad), payload) in revocations.items():
