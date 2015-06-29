@@ -25,7 +25,10 @@ import nose.tools as ntools
 # SCION
 from lib.packet.ext_hdr import ExtensionHeader
 from lib.packet.path import PathBase
-from lib.packet.opaque_field import OpaqueField
+from lib.packet.opaque_field import (
+    OpaqueField,
+    OpaqueFieldType as OFT
+)
 from lib.packet.scion import (
     CertChainReply,
     CertChainRequest,
@@ -36,7 +39,8 @@ from lib.packet.scion import (
     SCIONPacket,
     PacketType,
     TRCReply,
-    TRCRequest)
+    TRCRequest
+)
 from lib.packet.scion_addr import SCIONAddr
 
 
@@ -361,9 +365,127 @@ class TestSCIONHeaderParse(object):
     """
     Unit tests for lib.packet.scion.SCIONHeader.parse
     """
-    def test(self):
-        # TODO: refactor code
-        pass
+    def test_bad_type(self):
+        hdr = SCIONHeader()
+        ntools.assert_raises(AssertionError, hdr.parse, 123)
+
+    def test_bad_length(self):
+        hdr = SCIONHeader()
+        data = b'\x00' * (SCIONHeader.MIN_LEN - 1)
+        hdr.parse(data)
+        ntools.assert_false(hdr.parsed)
+
+    @patch("lib.packet.scion.SCIONHeader._parse_extension_hdrs", autospec=True)
+    @patch("lib.packet.scion.SCIONHeader._parse_opaque_fields", autospec=True)
+    @patch("lib.packet.scion.SCIONHeader._parse_common_hdr", autospec=True)
+    def test_full(self, parse_hdr, parse_ofs, parse_ext_hdrs):
+        hdr = SCIONHeader()
+        data = b'\x00' * SCIONHeader.MIN_LEN
+        parse_hdr.return_value = 123
+        parse_ofs.return_value = 456
+        parse_ext_hdrs.return_value = 789
+        ntools.eq_(hdr.parse(data), 789)
+        parse_hdr.assert_called_once_with(hdr, data, 0)
+        parse_ofs.assert_called_once_with(hdr, data, 123)
+        parse_ext_hdrs.assert_called_once_with(hdr, data, 456)
+        ntools.assert_true(hdr.parsed)
+
+
+class TestSCIONHeaderParseCommonHdr(object):
+    """
+    Unit tests for lib.packet.scion.SCIONHeader._parse_common_hdr
+    """
+    @patch("lib.packet.scion.SCIONCommonHdr", autospec=True)
+    def test_fail(self, scion_common_hdr):
+        hdr = SCIONHeader()
+        common_hdr = MagicMock(spec_set=['parsed'])
+        common_hdr.parsed = False
+        scion_common_hdr.return_value = common_hdr
+        ntools.assert_raises(AssertionError, hdr._parse_common_hdr, b'\x00' *
+                             10, 0)
+
+    @patch("lib.packet.scion.SCIONAddr", autospec=True)
+    @patch("lib.packet.scion.SCIONCommonHdr", autospec=True)
+    def test(self, scion_common_hdr, scion_addr):
+        hdr = SCIONHeader()
+        data = bytes(range(12))
+        common_hdr = MagicMock(spec_set=['parsed', 'src_addr_len',
+                                         'dst_addr_len'])
+        common_hdr.parsed = True
+        common_hdr.src_addr_len = 3
+        common_hdr.dst_addr_len = 5
+        scion_common_hdr.return_value = common_hdr
+        scion_common_hdr.LEN = 2
+        scion_addr.side_effect = ['src_addr', 'dst_addr']
+        ntools.eq_(hdr._parse_common_hdr(data, 2), 2 + 2 + 3 + 5)
+        scion_common_hdr.assert_called_once_with(data[2:4])
+        ntools.eq_(hdr.common_hdr, common_hdr)
+        scion_addr.assert_has_calls([call(data[4:7]), call(data[7:12])])
+        ntools.eq_(hdr.src_addr, 'src_addr')
+        ntools.eq_(hdr.dst_addr, 'dst_addr')
+
+
+class TestSCIONHeaderParseOpaqueFields(object):
+    """
+    Unit tests for lib.packet.scion.SCIONHeader._parse_opaque_fields
+    """
+    @patch("lib.packet.scion.EmptyPath", autospec=True)
+    def test_empty_path(self, empty_path):
+        hdr = SCIONHeader()
+        hdr.common_hdr = MagicMock(spec_set=['hdr_len'])
+        hdr.common_hdr.hdr_len = 123
+        empty_path.return_value = 'empty_path'
+        ntools.eq_(hdr._parse_opaque_fields(b'\x00' * 10, 123), 123)
+        empty_path.assert_called_once_with()
+        ntools.eq_(hdr._path, 'empty_path')
+
+    @patch("lib.packet.scion.PeerPath", autospec=True)
+    @patch("lib.packet.scion.CrossOverPath", autospec=True)
+    @patch("lib.packet.scion.CorePath", autospec=True)
+    @patch("lib.packet.scion.InfoOpaqueField", autospec=True)
+    def _check(self, oft, path, iof, core_path, cross_over_path, peer_path):
+        hdr = SCIONHeader()
+        info = MagicMock(spec_set=['info'])
+        info.info = oft
+        iof.return_value = info
+        core_path.return_value = 'core_path'
+        cross_over_path.return_value = 'cross_over_path'
+        peer_path.return_value = 'peer_path'
+        common_hdr = MagicMock(spec_set=['hdr_len'])
+        common_hdr.hdr_len = 3
+        hdr.common_hdr = common_hdr
+        data = bytes(range(10))
+        ntools.eq_(hdr._parse_opaque_fields(data, 0), 3)
+        ntools.eq_(hdr._path, path)
+
+    def test_other_paths(self):
+        ofts = [OFT.TDC_XOVR, OFT.NON_TDC_XOVR, OFT.INTRATD_PEER,
+                OFT.INTERTD_PEER, 123]
+        paths = ['core_path', 'cross_over_path', 'peer_path', 'peer_path', None]
+        for oft, path in zip(ofts, paths):
+            yield self._check, oft, path
+
+
+class TestSCIONHeaderParseExtensionHdrs(object):
+    """
+    Unit tests for lib.packet.scion.SCIONHeader._parse_extension_hdrs
+    """
+    @patch("lib.packet.scion.ExtensionHeader", autospec=True)
+    @patch("lib.packet.scion.ICNExtHdr", autospec=True)
+    def test(self, icn_ext_hdr, ext_hdr):
+        hdr = SCIONHeader()
+        hdr._extension_hdrs = ['old_ext_hdr']
+        hdr.common_hdr = MagicMock(spec_set=['next_hdr'])
+        hdr.common_hdr.next_hdr = 1
+        icn_ext_hdr.TYPE = 1
+        icn_ext_hdr.return_value = 'icn_ext_hdr'
+        ext_hdr.return_value = 'ext_hdr'
+        data = bytes.fromhex('00 02 03 12 00 02 34')
+        ntools.eq_(hdr._parse_extension_hdrs(data, 1), 1 + 3 + 2)
+        icn_ext_hdr.assert_called_once_with(data[1:4])
+        ext_hdr.assert_called_once_with(data[4:6])
+        ntools.eq_(hdr._extension_hdrs, ['old_ext_hdr', 'icn_ext_hdr',
+                                         'ext_hdr'])
 
 
 class TestSCIONHeaderPack(object):
