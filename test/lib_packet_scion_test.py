@@ -304,7 +304,7 @@ class TestSCIONHeaderExtensionHdrs(object):
 
 class TestSCIONHeaderSetExtHdrs(object):
     """
-    Unit tests for lib.packet.scion.SCIONHeader.set_path
+    Unit tests for lib.packet.scion.SCIONHeader.set_ext_hdrs
     """
     def test_bad_type(self):
         hdr = SCIONHeader()
@@ -315,10 +315,10 @@ class TestSCIONHeaderSetExtHdrs(object):
     def test_full(self, pop, append):
         hdr = SCIONHeader()
         ext_hdrs = ['ext_hdr0', 'ext_hdr1']
-        # hdr._extension_hdrs = ['old_ext_hdr' + str(i) for i in range(3)]
-        # FIXME: pop_ext_hdr side effect should 'pop' hdr._extension_hdrs
+        hdr._extension_hdrs = MagicMock(spect_set=['__bool__'])
+        hdr._extension_hdrs.__bool__.side_effect = [True, True, False]
         hdr.set_ext_hdrs(ext_hdrs)
-        # pop.assert_has_calls([call()] * 3)
+        pop.assert_has_calls([call(hdr)] * 2)
         append.assert_has_calls([call(hdr, 'ext_hdr0'), call(hdr, 'ext_hdr1')])
 
 
