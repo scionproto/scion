@@ -24,37 +24,35 @@ SCRIPTS_DIR = 'topology'
 SIM_DIR = 'SIM'
 SIM_CONF = 'sim.conf'
 
-def add_element (addr, element):
+def add_element(addr, element):
+    """Add an element and its address to simulator""" 
     logging.debug("adding element with addr %s", addr)
     simulator.add_element(addr, element)
 
 def schedule(time, **kwargs):
+    """Schedule an event"""
     return simulator.add_event(time, **kwargs)
 
 def unschedule(eid):
+    """Unschedule an event"""
     simulator.remove_event(eid)
 
 def stop(time):
     simulator.set_stop_time(time)
 
 def terminate():
+    """Terminate the simulator"""
     simulator.terminate()
 
 def run():
+    """Start the simulator"""
     simulator.run()
 
-def generate_topology(topo_str):
+def generate_topology():
     """
-    Instantiate all SCION Elements as specified in topo_str
-
-    :param topo_str: Topology Configuration File
-    :type topo_str: str
-
-    :returns: dict that maps IP Addresses to SCION Elements
-    :rtype: dict
+    Instantiate all SCION Elements from sim.conf file
     """
 
-    from ipaddress import IPv4Address
     from lib.sim_core import Simulator
     from simulator.path_server_sim import CorePathServerSim, LocalPathServerSim
     from simulator.beacon_server_sim import CoreBeaconServerSim, LocalBeaconServerSim
@@ -70,29 +68,28 @@ def generate_topology(topo_str):
             content = f.read().splitlines()
             f.close()
     except IOError:
-        logging.error ("Failed to open ../topology/SIM/sim.conf")
+        logging.error("Failed to open ../topology/SIM/sim.conf")
         sys.exit()
 
-    is_sim = True
     for s in content:
         l = s.split()
         if l[0] == "router":
-            obj = RouterSim(l[1], l[2], l[3])
+            RouterSim(l[1], l[2], l[3])
         elif l[0] == "cert_server":
-            obj = CertServerSim(l[1], l[2], l[3], l[4])
+            CertServerSim(l[1], l[2], l[3], l[4])
         elif l[0] == "path_server":
             if l[1] == "core":
-                obj = CorePathServerSim(l[2], l[3], l[4])
+                CorePathServerSim(l[2], l[3], l[4])
             elif l[1] == "local":
-                obj = LocalPathServerSim(l[2], l[3], l[4])
+                LocalPathServerSim(l[2], l[3], l[4])
             else:
                 logging.error("First parameter can only be 'local' or 'core'!")
                 sys.exit()
         elif l[0] == 'beacon_server':
             if l[1] == "core":
-                obj = CoreBeaconServerSim(l[2], l[3], l[4], l[5])
+                CoreBeaconServerSim(l[2], l[3], l[4], l[5])
             elif l[1] == "local":
-                obj = LocalBeaconServerSim(l[2], l[3], l[4], l[5])
+                LocalBeaconServerSim(l[2], l[3], l[4], l[5])
             else:
                 logging.error("First parameter can only be 'local' or 'core'!")
                 sys.exit()

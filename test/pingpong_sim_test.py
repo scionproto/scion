@@ -40,7 +40,7 @@ class PingPongSimTest(unittest.TestCase):
         Creates two end-hosts---Sender is 127.1.10.254 in ISD:1 AD:10,
         and Receiver is 127.2.26.254 in ISD:2 AD:26
         """
-        generate_topology("../SIM/sim.conf")
+        generate_topology()
         src_isd_ad = ISD_AD(1,10)
         dst_isd_ad = ISD_AD(2,26)
         src_host_addr = IPv4Address("127.1.10.254")
