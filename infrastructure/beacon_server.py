@@ -724,7 +724,7 @@ class BeaconServer(SCIONElement):
                     continue
                 del_count += 1
         return del_count
-    
+
     def _process_revocation(self, rev_info):
         """
         Sends out revocation to the local PS, to down_stream BSes and a CPS.
