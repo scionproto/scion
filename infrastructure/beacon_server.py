@@ -221,7 +221,7 @@ class BeaconServer(SCIONElement):
         self.zk = Zookeeper(
             self.topology.isd_id, self.topology.ad_id, "bs", name_addrs,
             ["localhost:2181"], ensure_paths=(self.ZK_PCB_CACHE_PATH,))
-        
+
         # Queue to hold expired to be removed in the `handle_handle_shared_pcbs`
         # thread.
         self._expired_pcbs = deque(maxlen=100)
