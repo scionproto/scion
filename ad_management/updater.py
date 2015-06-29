@@ -69,17 +69,23 @@ def start_monitoring_daemon():
     """
     Start the monitoring daemon process after the update.
     """
-    # 'reload' must start the monitoring daemon automatically
+    # 'reload' might not start the monitoring daemon automatically
     logging.info('Restarting Supervisor and the monitoring daemon...')
     subprocess.call([SUPERVISORD_PATH, 'reload'],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL)
 
+    # Start the monigoring daemon
+    server = get_supervisor_server()
+    server.supervisor.startProcess(MONITORING_DAEMON_PROC_NAME)
+
     logging.info('Checking that the monitoring daemon is running...')
     server = get_supervisor_server()
     started = False
-    for _ in range(3):
-        time.sleep(1)
+    retries = 3
+    sleep_before_try = 1
+    for _ in range(retries):
+        time.sleep(sleep_before_try)
         try:
             process_info = server.supervisor.getProcessInfo(
                 MONITORING_DAEMON_PROC_NAME
