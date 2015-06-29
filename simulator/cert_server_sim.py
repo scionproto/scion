@@ -39,7 +39,7 @@ class CertServerSim(CertServer):
         """
         Initialises CertServer with is_sim set to True.
         """
-        CertServer.__init__(self, server_id, topo_file, config_file, 
+        CertServer.__init__(self, server_id, topo_file, config_file,
                             trc_file, is_sim=True)
         add_element(str(self.addr.host_addr), self)
 

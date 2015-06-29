@@ -28,7 +28,7 @@ class CorePathServerSim(CorePathServer):
         """
         Initialises CorePathServer with is_sim set to True.
         """
-        CorePathServer.__init__(self, server_id, topo_file, config_file, 
+        CorePathServer.__init__(self, server_id, topo_file, config_file,
                                 is_sim=True)
         add_element(str(self.addr.host_addr), self)
 
@@ -64,7 +64,7 @@ class LocalPathServerSim(LocalPathServer):
         """
         Initialises LocalPathServer with is_sim set to True.
         """
-        LocalPathServer.__init__(self, server_id, topo_file, config_file, 
+        LocalPathServer.__init__(self, server_id, topo_file, config_file,
                                 is_sim=True)
         add_element(str(self.addr.host_addr), self)
 

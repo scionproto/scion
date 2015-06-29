@@ -33,7 +33,7 @@ class RouterSim(Router):
         """
         Initialises Router with is_sim set to True.
         """
-        Router.__init__(self, router_id, topo_file, config_file, 
+        Router.__init__(self, router_id, topo_file, config_file,
                         pre_ext_handlers, post_ext_handlers, is_sim=True)
         add_element(str(self.addr.host_addr), self)
         add_element(str(self.interface.addr), self)

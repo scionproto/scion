@@ -23,7 +23,6 @@ from infrastructure.beacon_server import (
     CoreBeaconServer,
     LocalBeaconServer
 )
-from lib.crypto.asymcrypto import sign
 from lib.crypto.hash_chain import HashChain
 from lib.defines import SCION_UDP_PORT
 from lib.packet.opaque_field import (
@@ -108,9 +107,9 @@ class CoreBeaconServerSim(CoreBeaconServer):
         logging.info("Propagated %d Core PCBs", count)
 
         now = time.time()
-        schedule(start_propagation + self.config.propagation_time - now, 
+        schedule(start_propagation + self.config.propagation_time - now,
                  cb=self.handle_pcbs_propagation)
-	
+
     def register_segments(self):
         if not self.config.registers_paths:
             logging.info("Path registration unwanted, leaving"
@@ -259,7 +258,7 @@ class LocalBeaconServerSim(LocalBeaconServer):
         for pcb in best_segments:
             self.propagate_downstream_pcb(pcb)
         now = time.time()
-        schedule(start_propagation + self.config.propagation_time - now, 
+        schedule(start_propagation + self.config.propagation_time - now,
                  cb=self.handle_pcbs_propagation)
 
 
@@ -276,7 +275,7 @@ class LocalBeaconServerSim(LocalBeaconServer):
         self.register_up_segments()
         self.register_down_segments()
         now = time.time()
-        schedule(start_registration + self.config.registration_time - now, 
+        schedule(start_registration + self.config.registration_time - now,
                  cb=self.register_segments)
 
     def clean(self):
