@@ -1,11 +1,12 @@
 # Stdlib
+import json
 import os
 import tempfile
 import time
 from shutil import rmtree
 
 # External packages
-import dictdiffer as dictdiffer
+import dictdiffer
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
@@ -39,10 +40,16 @@ from ad_manager.forms import (
 )
 from ad_manager.models import AD, ISD, PackageVersion, ConnectionRequest
 from ad_manager.util import monitoring_client
-from ad_manager.util.ad_connect import create_new_ad_files, link_ads, find_last_router
+from ad_manager.util.ad_connect import (
+    create_new_ad_files,
+    find_last_router,
+    link_ads,
+)
 from ad_manager.util.errors import HttpResponseUnavailable
 from lib.defines import BEACON_SERVICE
 from lib.topology import Topology
+from lib.util import write_file
+from topology.generator import ConfigGenerator
 
 
 class ISDListView(ListView):
@@ -114,8 +121,7 @@ def get_group_master(request, pk):
     if server_type != BEACON_SERVICE:
         return HttpResponseNotFound('Invalid server type')
 
-    md_host = ad.get_monitoring_daemon_host()
-    response = monitoring_client.get_master_id(md_host, ad.isd.id, ad.id,
+    response = monitoring_client.get_master_id(ad.md_host, ad.isd.id, ad.id,
                                                server_type)
     if is_success(response):
         master_id = get_success_data(response)
@@ -177,8 +183,7 @@ def update_topology(request, pk):
 def _push_local_topology(request, ad):
     local_topo = ad.generate_topology_dict()
     # TODO move to model?
-    md_host = ad.get_monitoring_daemon_host()
-    response = monitoring_client.push_topology(md_host, str(ad.isd.id),
+    response = monitoring_client.push_topology(ad.md_host, str(ad.isd.id),
                                                str(ad.id), local_topo)
     topology_tag = 'topology'
     if is_success(response):
@@ -208,8 +213,7 @@ def _send_update(request, ad, package):
     """
     # TODO move to model?
     if package.exists():
-        result = monitoring_client.send_update(ad.get_monitoring_daemon_host(),
-                                               ad.isd_id, ad.id,
+        result = monitoring_client.send_update(ad.md_host, ad.isd_id, ad.id,
                                                package.filepath)
     else:
         result = response_failure('Package not found')
@@ -318,8 +322,7 @@ def control_process(request, pk, proc_id):
     else:
         return HttpResponseNotFound('Command not found')
 
-    md_host = ad.get_monitoring_daemon_host()
-    response = monitoring_client.control_process(md_host, ad.isd.id, ad.id,
+    response = monitoring_client.control_process(ad.md_host, ad.isd.id, ad.id,
                                                  proc_id, command)
     if is_success(response):
         return JsonResponse({'status': True})
@@ -337,8 +340,7 @@ def read_log(request, pk, proc_id):
         return HttpResponseNotFound('Element not found')
     proc_id = ad.get_full_process_name(proc_id)
 
-    md_host = ad.get_monitoring_daemon_host()
-    response = monitoring_client.read_log(md_host, proc_id)
+    response = monitoring_client.read_log(ad.md_host, proc_id)
     if is_success(response):
         log_data = get_success_data(response)[0]
         if '\n' in log_data:
@@ -441,34 +443,50 @@ def download_approved_package(request, req_id):
     return _download_file_response(ad_request.package_path)
 
 
-@transaction.atomic
 def approve_request(ad, ad_request):
 
     # Create the new AD
-    new_ad = AD.objects.create(isd=ad.isd)
-    parent_topo = ad.generate_topology_dict()
+    new_id = AD.objects.latest('id').id + 1
+    new_ad = AD.objects.create(id=new_id, isd=ad.isd,
+                               md_host=ad_request.router_public_ip)
+    parent_topo_dict = ad.generate_topology_dict()
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        new_topo, parent_topo = create_new_ad_files(parent_topo,
-                                              new_ad.isd.id,
-                                              new_ad.id,
-                                              out_dir=temp_dir)
+        new_topo_dict, parent_topo_dict = create_new_ad_files(parent_topo_dict,
+                                                              new_ad.isd.id,
+                                                              new_ad.id,
+                                                              out_dir=temp_dir)
 
         # Adjust router ips/ports
-        _, new_topo_router = find_last_router(new_topo)
+        if ad_request.router_public_ip is None:
+            ad_request.router_public_ip = ad_request.router_bound_ip
+
+        if ad_request.router_public_port is None:
+            ad_request.router_public_port = ad_request.router_bound_port
+
+        _, new_topo_router = find_last_router(new_topo_dict)
         new_topo_router['Interface']['Addr'] = ad_request.router_bound_ip
         new_topo_router['Interface']['UdpPort'] = ad_request.router_bound_port
 
-        _, parent_topo_router = find_last_router(parent_topo)
+        _, parent_topo_router = find_last_router(parent_topo_dict)
         parent_router_if = parent_topo_router['Interface']
         parent_router_if['ToAddr'] = ad_request.router_public_ip
         parent_router_if['UdpPort'] = ad_request.router_public_port
 
-        new_topo = Topology.from_dict(new_topo)
-        parent_topo = Topology.from_dict(parent_topo)
+        new_topo = Topology.from_dict(new_topo_dict)
+        parent_topo = Topology.from_dict(parent_topo_dict)
 
         new_ad.fill_from_topology(new_topo, clear=True)
         ad.fill_from_topology(parent_topo, clear=True)
+
+        # Update the new topology on disk:
+        # Write new config files to disk, regenerate everything else
+        # FIXME(rev112): minor duplication, see ad_connect.create_new_ad_files()
+        gen = ConfigGenerator(out_dir=temp_dir)
+        new_topo_path = gen.path_dict(new_ad.isd.id, new_ad.id)['topo_file_abs']
+        write_file(new_topo_path, json.dumps(new_topo_dict,
+                                             sort_keys=4, indent=4))
+        gen.write_derivatives(new_topo_dict)
 
         # Resulting package will be stored here
         package_dir = os.path.join(PACKAGE_DIR_PATH, 'AD' + str(new_ad))
@@ -476,10 +494,9 @@ def approve_request(ad, ad_request):
             rmtree(package_dir)
         os.makedirs(package_dir)
 
-        config_dirs = [os.path.join(temp_dir, x) for x in os.listdir(temp_dir)]
-
         # Prepare package
         package_name = 'scion_package_AD{}-{}'.format(new_ad.isd, new_ad.id)
+        config_dirs = [os.path.join(temp_dir, x) for x in os.listdir(temp_dir)]
         ad_request.package_path = prepare_package(out_dir=package_dir,
                                                   config_paths=config_dirs,
                                                   package_name=package_name)
@@ -490,6 +507,9 @@ def approve_request(ad, ad_request):
         # Give permissions to the user
         request_creator = ad_request.created_by
         assign_perm('change_ad', request_creator, new_ad)
+
+        new_ad.save()
+        ad.save()
 
 
 @transaction.atomic

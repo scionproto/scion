@@ -4,6 +4,7 @@ import glob
 import json
 import os
 import re
+import shutil
 import tempfile
 from ipaddress import ip_address
 
@@ -15,9 +16,10 @@ from ad_manager.models import (
     RouterWeb,
     DnsServerWeb,
     AD)
+from ad_manager.util.common import is_private_address
 from lib.defines import TOPOLOGY_PATH
 from lib.topology import Topology
-from lib.util import read_file, write_file
+from lib.util import read_file, write_file, get_trc_file_path
 from topology.generator import (
     ConfigGenerator,
     DEFAULT_PATH_POLICY_FILE,
@@ -43,7 +45,7 @@ def find_last_router(topo_dict):
 def find_next_ip_local():
     max_ip = ip_address(IP_ADDRESS_BASE)
     topo_files = glob.glob(os.path.join(TOPOLOGY_PATH,
-                                        'ISD*/topologies/ISD*.json'))
+                                        'ISD*', 'topologies', 'ISD*.json'))
 
     ip_addr_re = re.compile(r'"((\d{1,3}\.){3}\d{1,3})"')
     for path in topo_files:
@@ -66,7 +68,7 @@ def find_next_ip_global():
     for group in object_groups:
         for element in group:
             element_addr = ip_address(element.addr)
-            if element_addr > max_ip:
+            if element_addr > max_ip and is_private_address(element_addr):
                 max_ip = element_addr
 
     # Routers
@@ -74,7 +76,7 @@ def find_next_ip_global():
         ip_addrs = [router.addr, router.interface_addr, router.interface_toaddr]
         for addr in ip_addrs:
             addr = ip_address(addr)
-            if addr > max_ip:
+            if addr > max_ip and is_private_address(addr):
                 max_ip = addr
 
     return max_ip + 1
@@ -186,6 +188,19 @@ def link_ads(first_ad, second_ad, link_type):
     second_ad.fill_from_topology(new_second_topo, clear=True)
 
 
+def get_some_trc_path(isd_id):
+    dst_path = get_trc_file_path(isd_id, 0, isd_id, 0,
+                                 isd_dir=TOPOLOGY_PATH)
+    components = os.path.normpath(dst_path).split(os.sep)
+
+    components[-2] = 'AD*'
+    files_glob = os.path.join(os.sep, *components)
+    files = glob.glob(files_glob)
+    if not files:
+        raise Exception("No TRC files found: cannot generate the package")
+    return files[0]
+
+
 def create_new_ad_files(parent_ad_topo, isd_id, ad_id, out_dir):
     assert isinstance(parent_ad_topo, dict), 'Invalid topology dict'
     isd_ad_id = '{}-{}'.format(isd_id, ad_id)
@@ -200,12 +215,19 @@ def create_new_ad_files(parent_ad_topo, isd_id, ad_id, out_dir):
         temp_fh.flush()
         gen.generate_all(temp_fh.name, path_policy_file)
 
+    # Copy TRC file
+    trc_path = get_some_trc_path(isd_id)
+    if trc_path:
+        dst_path = get_trc_file_path(isd_id, ad_id, isd_id, 0,
+                                     isd_dir=out_dir)
+        shutil.copyfile(trc_path, dst_path)
+
     new_topo_path = gen.path_dict(isd_id, ad_id)['topo_file_abs']
     new_topo_file = read_file(new_topo_path)
     new_topo = json.loads(new_topo_file)
     existing_topo, new_topo = link_topologies(parent_ad_topo, new_topo,
                                               'PARENT_CHILD')
     # Update the config files for the new AD
-    write_file(new_topo_path, json.dumps(new_topo))
+    write_file(new_topo_path, json.dumps(new_topo, sort_keys=4, indent=4))
     gen.write_derivatives(new_topo)
     return new_topo, existing_topo

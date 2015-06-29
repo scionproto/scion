@@ -170,7 +170,10 @@ class MonitoringDaemon(object):
         all_process_info = server.supervisor.getAllProcessInfo()
         ad_process_info = list(filter(lambda x: x['group'] == ad_name,
                                       all_process_info))
-        return response_success(list(ad_process_info))
+        if ad_process_info:
+            return response_success(list(ad_process_info))
+        else:
+            return response_failure('AD not found')
 
     def get_process_info(self, full_process_name):
         """

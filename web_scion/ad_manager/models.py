@@ -1,6 +1,7 @@
 # Stdlib
 import glob
 import json
+import logging
 import os
 import tarfile
 
@@ -61,34 +62,22 @@ class AD(models.Model):
     is_core_ad = models.BooleanField(default=False)
     is_open = models.BooleanField(default=True)
     dns_domain = models.CharField(max_length=100, null=True, blank=True)
+    md_host = models.IPAddressField(default='127.0.0.1')
 
     # Use custom model manager with select_related()
     objects = SelectRelatedModelManager('isd')
-
-    def get_monitoring_daemon_host(self):
-        """
-        Return the host where the monitoring daemon is running.
-        """
-        monitoring_daemon_host = '127.0.0.1'
-        beacon_server = self.beaconserverweb_set.first()
-        # TODO fix the check for private addresses
-        if beacon_server and not beacon_server.addr.startswith('127.'):
-            monitoring_daemon_host = beacon_server.addr
-        return monitoring_daemon_host
 
     def query_ad_status(self):
         """
         Return AD status information, which includes servers/routers statuses
         """
-        return monitoring_client.get_ad_info(self.get_monitoring_daemon_host(),
-                                             self.isd_id, self.id)
+        return monitoring_client.get_ad_info(self.md_host, self.isd_id, self.id)
 
     def get_remote_topology(self):
         """
         Get the corresponding remote topology as a Python dictionary.
         """
-        md_host = self.get_monitoring_daemon_host()
-        topology_response = monitoring_client.get_topology(md_host,
+        topology_response = monitoring_client.get_topology(self.md_host,
                                                            self.isd.id, self.id)
         if not is_success(topology_response):
             return None
@@ -166,6 +155,7 @@ class AD(models.Model):
                 interface = router.interface
                 neighbor_ad = AD.objects.get(id=interface.neighbor_ad,
                                              isd=interface.neighbor_isd)
+                # TODO(rev112): rewrite with create?
                 router_element = RouterWeb(
                     addr=str(router.addr), ad=self,
                     name=router.name, neighbor_ad=neighbor_ad,
@@ -202,7 +192,9 @@ class AD(models.Model):
                                           ad=self)
                 ds_element.save()
         except IntegrityError:
-            pass
+            logging.warning("Integrity error in AD.fill_from_topology(): "
+                            "ignoring")
+            raise
 
     def get_absolute_url(self):
         return reverse('ad_detail', args=[self.id])
@@ -284,9 +276,9 @@ class RouterWeb(SCIONWebElement):
     neighbor_ad = models.ForeignKey(AD, related_name='neighbors')
     neighbor_type = models.CharField(max_length=10, choices=NEIGHBOR_TYPES)
 
+    interface_id = models.IntegerField()
     interface_addr = models.GenericIPAddressField()
     interface_toaddr = models.GenericIPAddressField()
-    interface_id = models.IntegerField()
     interface_port = models.IntegerField(default=int(PORT))
     interface_toport = models.IntegerField(default=int(PORT))
 

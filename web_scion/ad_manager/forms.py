@@ -34,8 +34,8 @@ class ConnectionRequestForm(forms.ModelForm):
         labels = {'router_bound_ip': 'Router bound IP',
                   'router_public_ip': 'Router external IP (leave blank if '
                                       'it is the same as the bound IP)',
-                  'router_public_port': 'Router bound IP (leave blank if '
-                                     'public IP is not used)'}
+                  'router_public_port': 'Router external port (leave blank if '
+                                        'default or if not used)'}
 
 
 class NewLinkForm(forms.Form):

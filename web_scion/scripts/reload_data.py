@@ -59,7 +59,7 @@ def reload_data():
 
     # Add model instances
     topology_files = glob.glob(os.path.join(TOPOLOGY_PATH,
-                                            'ISD*/topologies/ISD*.json'))
+                                            'ISD*', 'topologies', 'ISD*.json'))
     isds = {}
     ads = []
 
