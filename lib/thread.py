@@ -28,7 +28,7 @@ from lib.log import log_exception
 
 def kill_self():
     """
-    Sends SIGTERM to self, to allow quitting the process from threads.
+    Send SIGTERM to self, to allow quitting the process from threads.
     """
     os.kill(os.getpid(), signal.SIGTERM)
 
@@ -37,6 +37,12 @@ def thread_safety_net(name):
     """
     Decorator to handle uncaught thread exceptions, log them, then kill the
     process.
+
+    :param name: thread name.
+    :type name: string
+
+    :returns: decorator to handle uncaught thread exceptions.
+    :rtype: function
     """
     def wrap(f):
         @wraps(f)

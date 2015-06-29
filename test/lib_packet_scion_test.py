@@ -12,33 +12,45 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`common_header_test` --- SCION common header tests
-=======================================================
+:mod:`lib_packet_scion_test` --- lib.packet.scion unit tests
+============================================================
 """
 # Stdlib
 import unittest
 
-# SCION
-from lib.packet.scion import SCIONCommonHdr
+# Has to be imported before anything else so that any relevant decorators are
+# patched.
 from test.testcommon import SCIONCommonTest
 
+# SCION
+from lib.packet.scion import SCIONCommonHdr
 
-class TestCommonHeader(SCIONCommonTest):
+
+class TestSCIONCommonHdr(SCIONCommonTest):
     """
-    Unit tests for scion.py.
+    Unit tests for lib.packet.scion.SCIONCommonHdr
     """
+
     def test_opaque_field(self):
+        """
+
+        """
         sch = SCIONCommonHdr()
         self.assertTrue(sch.version == 0)
 
     def test_equality(self):
+        """
+
+        """
         sch1 = SCIONCommonHdr()
         sch2 = SCIONCommonHdr()
         self.assertTrue(sch1.version == sch2.version)
 
     def test_pack_and_parse(self):
-        sch = SCIONCommonHdr.from_values(4, 4, 0)
+        """
 
+        """
+        sch = SCIONCommonHdr.from_values(4, 4, 0)
         schCopy = SCIONCommonHdr()
         schCopy.parse(sch.pack())
         self.assertTrue(sch.version == schCopy.version)

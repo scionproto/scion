@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`path_store_test` --- SCION path store unit test
-=========================================================
+:mod:`path_store_test` --- SCION path store integration test
+============================================================
 """
 # Stdlib
 import base64
@@ -31,9 +31,6 @@ from lib.packet.opaque_field import (
     HopOpaqueField,
     InfoOpaqueField,
     OpaqueFieldType as OFT,
-    SupportPCBField,
-    SupportSignatureField,
-    TRCField,
 )
 from lib.packet.pcb import ADMarking, PCBMarking, PathSegment
 from lib.path_store import PathPolicy, PathStore
@@ -47,22 +44,23 @@ class TestPathStore(unittest.TestCase):
 
     def _create_ad_marking(self):
         """
-        Creates an AD Marking with the given ingress and egress interfaces.
+        Create an AD Marking with the given ingress and egress interfaces.
         """
-        ssf = SupportSignatureField.from_values(ADMarking.LEN)
         hof = HopOpaqueField.from_values(1, 111, 222)
-        spcbf = SupportPCBField.from_values(1)
         rev_token = HashChain(Random.new().read(32)).next_element()
-        pcbm = PCBMarking.from_values(10, ssf, hof, spcbf, rev_token, rev_token)
+        pcbm = PCBMarking.from_values(1, 10, hof, rev_token)
         peer_markings = []
         signing_key = read_file(get_sig_key_file_path(1, 10))
         signing_key = base64.b64decode(signing_key)
-        data_to_sign = (b'11' + pcbm.hof.pack() + pcbm.spcbf.pack())
+        data_to_sign = (b'11' + pcbm.hof.pack())
         signature = sign(data_to_sign, signing_key)
-        return ADMarking.from_values(pcbm, peer_markings, signature)
+        return ADMarking.from_values(pcbm, peer_markings, rev_token, signature)
 
     def test(self):
-        path_policy_file = "../topology/ISD1/path_policies/ISD:1-AD:10.json"
+        """
+        Test the main functionalities of the path store.
+        """
+        path_policy_file = "../../topology/ISD1/path_policies/ISD:1-AD:10.json"
         path_policy = PathPolicy.from_file(path_policy_file)
         test_segments = PathStore(path_policy)
         print("Best paths: " + str(len(test_segments.get_best_segments())))
@@ -77,7 +75,6 @@ class TestPathStore(unittest.TestCase):
                 pcb.segment_id = HashChain(Random.new().read(32)).next_element()
                 pcb.iof = InfoOpaqueField.from_values(OFT.TDC_XOVR, False,
                                                       int(time.time()), path)
-                pcb.trcf = TRCField()
                 ad_marking = self._create_ad_marking()
                 pcb.add_ad(ad_marking)
                 print("insert path " + str(path) + ", exp time: " +

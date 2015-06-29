@@ -16,6 +16,7 @@
 ============================================
 """
 # Stdlib
+import base64
 import json
 import logging
 
@@ -26,9 +27,9 @@ class Config(object):
     information for further use.
 
     :ivar master_of_gen_key: the master opaque field generation key file.
-    :type master_of_gen_key: int
+    :type master_of_gen_key: bytes
     :ivar master_ad_key: AD certificate servers priv key.
-    :type master_ad_key: int
+    :type master_ad_key: bytes
     :ivar n_registered_paths: the number of registered paths.
     :type n_registered_paths: int
     :ivar n_shortest_up_paths: the number of shortest up-paths.
@@ -45,16 +46,13 @@ class Config(object):
     :type pcb_queue_size: int
     :ivar path_server_queue_size: path queue size for the path servers.
     :type path_server_queue_size: int
-    :ivar cert_chain_version: initial version of the certificate chain.
-    :ivar cert_chain_version: int
+    :ivar cert_ver: initial version of the certificate chain.
+    :ivar cert_ver: int
     """
 
     def __init__(self):
         """
         Initialize an instance of the class Config.
-
-        :returns: the newly created Config instance.
-        :rtype: :class:`Config`
         """
         self.master_of_gen_key = 0
         self.master_ad_key = 0
@@ -66,15 +64,16 @@ class Config(object):
         self.registers_paths = 0
         self.pcb_queue_size = 0
         self.path_server_queue_size = 0
-        self.cert_chain_version = 0
+        self.cert_ver = 0
 
     @classmethod
     def from_file(cls, config_file):
         """
-        Create a Config instance from the file.
+        Create a Config instance from the configuration file.
 
         :param config_file: path to the configuration file
         :type config_file: str
+
         :returns: the newly created Config instance
         :rtype: :class: `Config`
         """
@@ -93,6 +92,7 @@ class Config(object):
 
         :param config_dict: dictionary representation of configuration
         :type config_dict: dict
+        
         :returns: the newly created Config instance
         :rtype: :class:`Config`
         """
@@ -107,8 +107,8 @@ class Config(object):
         :param config: the name of the configuration file.
         :type config: dict
         """
-        self.master_of_gen_key = config['MasterOFGKey']
-        self.master_ad_key = config['MasterADKey']
+        self.master_of_gen_key = base64.b64decode(config['MasterOFGKey'])
+        self.master_ad_key = base64.b64decode(config['MasterADKey'])
         self.n_registered_paths = config['NumRegisteredPaths']
         self.n_shortest_up_paths = config['NumShortestUPs']
         self.propagation_time = config['PropagateTime']
@@ -117,4 +117,4 @@ class Config(object):
         self.registers_paths = config['RegisterPath']
         self.pcb_queue_size = config['PCBQueueSize']
         self.path_server_queue_size = config['PSQueueSize']
-        self.cert_chain_version = config['CertChainVersion']
+        self.cert_ver = config['CertChainVersion']

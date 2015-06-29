@@ -36,6 +36,9 @@ class PathBase(object):
     information for each AD-level hop.
     """
     def __init__(self):
+        """
+        Initialize an instance of the class PathBase.
+        """
         self.up_segment_info = None
         self.up_segment_hops = []
         self.down_segment_info = None
@@ -121,6 +124,12 @@ class CorePath(PathBase):
     | hop OF 1 | ... | hop OF N |
     """
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class CorePath.
+
+        :param raw:
+        :type raw:
+        """
         PathBase.__init__(self)
         self.core_segment_info = None
         self.core_segment_hops = []
@@ -137,51 +146,103 @@ class CorePath(PathBase):
         """
         assert isinstance(raw, bytes)
         # Parse up-segment
+        offset = self._parse_up_segment(raw)
+        # Parse core-segment
+        if len(raw) != offset:
+            offset = self._parse_core_segment(raw, offset)
+        # Parse down-segment
+        if len(raw) != offset:
+            self._parse_down_segment(raw, offset)
+
+        self.parsed = True
+
+    def _parse_up_segment(self, raw):
+        """
+        Parses the raw data and populates the up_segment fields.
+
+        :param raw: bytes
+        :return: offset in the raw data till which it has been parsed
+        """
         self.up_segment_info = InfoOpaqueField(raw[:InfoOpaqueField.LEN])
         offset = InfoOpaqueField.LEN
         for _ in range(self.up_segment_info.hops):
             self.up_segment_hops.append(
                 HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN]))
             offset += HopOpaqueField.LEN
-        # Parse core-segment
-        if len(raw) != offset:
-            self.core_segment_info = \
-                InfoOpaqueField(raw[offset:offset + InfoOpaqueField.LEN])
-            offset += InfoOpaqueField.LEN
-            for _ in range(self.core_segment_info.hops):
-                self.core_segment_hops.append(
-                    HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN]))
-                offset += HopOpaqueField.LEN
-        # Parse down-segment
-        if len(raw) != offset:
-            self.down_segment_info = \
-                InfoOpaqueField(raw[offset:offset + InfoOpaqueField.LEN])
-            offset += InfoOpaqueField.LEN
-            for _ in range(self.down_segment_info.hops):
-                self.down_segment_hops.append(
-                    HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN]))
-                offset += HopOpaqueField.LEN
+        return offset
 
-        self.parsed = True
+    def _parse_core_segment(self, raw, offset):
+        """
+        Parses the raw data and populates the core_segment fields.
+
+        :param raw: bytes
+        :param offset: int
+        :return: offset in the raw data till which it has been parsed
+        """
+        self.core_segment_info = \
+            InfoOpaqueField(raw[offset:offset + InfoOpaqueField.LEN])
+        offset += InfoOpaqueField.LEN
+        for _ in range(self.core_segment_info.hops):
+            self.core_segment_hops.append(
+                HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN]))
+            offset += HopOpaqueField.LEN
+        return offset
+
+    def _parse_down_segment(self, raw, offset):
+        """
+        Parses the raw data and populates the down_segment fields.
+
+        :param raw: bytes
+        :param offset: int
+        :return: offset in the raw data till which it has been parsed
+        """
+        self.down_segment_info = \
+            InfoOpaqueField(raw[offset:offset + InfoOpaqueField.LEN])
+        offset += InfoOpaqueField.LEN
+        for _ in range(self.down_segment_info.hops):
+            self.down_segment_hops.append(
+                HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN]))
+            offset += HopOpaqueField.LEN
+        return offset
 
     def pack(self):
         """
         Packs the opaque fields and returns a byte array.
+        """
+        return self._pack_up_segment() + self._pack_core_segment() + \
+            self._pack_down_segment()
+
+    def _pack_up_segment(self):
+        """
+        Packs the up segment opaque fields and returns a byte array.
         """
         data = []
         if self.up_segment_info:
             data.append(self.up_segment_info.pack())
             for of in self.up_segment_hops:
                 data.append(of.pack())
+        return b"".join(data)
+
+    def _pack_core_segment(self):
+        """
+        Packs the core segment opaque fields and returns a byte array.
+        """
+        data = []
         if self.core_segment_info:
             data.append(self.core_segment_info.pack())
             for of in self.core_segment_hops:
                 data.append(of.pack())
+        return b"".join(data)
+
+    def _pack_down_segment(self):
+        """
+        Packs the down segment opaque fields and returns a byte array.
+        """
+        data = []
         if self.down_segment_info:
             data.append(self.down_segment_info.pack())
             for of in self.down_segment_hops:
                 data.append(of.pack())
-
         return b"".join(data)
 
     def reverse(self):
@@ -278,6 +339,12 @@ class CrossOverPath(PathBase):
     """
 
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class CrossOverPath.
+
+        :param raw:
+        :type raw:
+        """
         PathBase.__init__(self)
         self.up_segment_upstream_ad = None
         self.down_segment_upstream_ad = None
@@ -291,6 +358,18 @@ class CrossOverPath(PathBase):
         """
         assert isinstance(raw, bytes)
         # Parse up-segment
+        offset = self._parse_up_segment(raw)
+        # Parse down-segment
+        self._parse_down_segment(raw, offset)
+        self.parsed = True
+
+    def _parse_up_segment(self, raw):
+        """
+        Parses the raw data and populates the up_segment fields.
+
+        :param raw: bytes
+        :type raw:
+        """
         self.up_segment_info = InfoOpaqueField(raw[:InfoOpaqueField.LEN])
         offset = InfoOpaqueField.LEN
         for _ in range(self.up_segment_info.hops):
@@ -300,8 +379,15 @@ class CrossOverPath(PathBase):
         self.up_segment_upstream_ad = \
             HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN])
         offset += HopOpaqueField.LEN
+        return offset
 
-        # Parse down-segment
+    def _parse_down_segment(self, raw, offset):
+        """
+        Parses the raw data and populates the down_segment fields.
+
+        :param raw: bytes
+        :type raw:
+        """
         self.down_segment_info = \
             InfoOpaqueField(raw[offset:offset + InfoOpaqueField.LEN])
         offset += InfoOpaqueField.LEN
@@ -313,22 +399,30 @@ class CrossOverPath(PathBase):
                 HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN]))
             offset += HopOpaqueField.LEN
 
-        self.parsed = True
-
     def pack(self):
         """
         Packs the opaque fields and returns a byte array.
         """
-        data = []
-        data.append(self.up_segment_info.pack())
+        return self._pack_up_segment() + self._pack_down_segment()
+
+    def _pack_up_segment(self):
+        """
+        Packs the up segment opaque fields and returns a byte array.
+        """
+        data = [self.up_segment_info.pack()]
         for of in self.up_segment_hops:
             data.append(of.pack())
         data.append(self.up_segment_upstream_ad.pack())
-        data.append(self.down_segment_info.pack())
-        data.append(self.down_segment_upstream_ad.pack())
+        return b"".join(data)
+
+    def _pack_down_segment(self):
+        """
+        Packs the down segment opaque fields and returns a byte array.
+        """
+        data = [self.down_segment_info.pack(),
+                self.down_segment_upstream_ad.pack()]
         for of in self.down_segment_hops:
             data.append(of.pack())
-
         return b"".join(data)
 
     def reverse(self):
@@ -378,6 +472,12 @@ class PeerPath(PathBase):
     """
 
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class PeerPath.
+
+        :param raw:
+        :type raw:
+        """
         PathBase.__init__(self)
         self.up_segment_peering_link = None
         self.up_segment_upstream_ad = None
@@ -392,6 +492,18 @@ class PeerPath(PathBase):
         """
         assert isinstance(raw, bytes)
         # Parse up-segment
+        offset = self._parse_up_segment(raw)
+        # Parse down-segment
+        self._parse_down_segment(raw, offset)
+        self.parsed = True
+
+    def _parse_up_segment(self, raw):
+        """
+        Parses the raw data and populates the down_segment fields.
+
+        :param raw:
+        :return
+        """
         self.up_segment_info = InfoOpaqueField(raw[:InfoOpaqueField.LEN])
         offset = InfoOpaqueField.LEN
         for _ in range(self.up_segment_info.hops):
@@ -404,8 +516,15 @@ class PeerPath(PathBase):
         self.up_segment_upstream_ad = \
             HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN])
         offset += HopOpaqueField.LEN
+        return offset
 
-        # Parse down-segment
+    def _parse_down_segment(self, raw, offset):
+        """
+        Parses the raw data and populates the down_segment fields.
+
+        :param raw:
+        :param offset:
+        """
         self.down_segment_info = \
             InfoOpaqueField(raw[offset:offset + InfoOpaqueField.LEN])
         offset += InfoOpaqueField.LEN
@@ -420,24 +539,32 @@ class PeerPath(PathBase):
                 HopOpaqueField(raw[offset:offset + HopOpaqueField.LEN]))
             offset += HopOpaqueField.LEN
 
-        self.parsed = True
-
     def pack(self):
         """
         Packs the opaque fields and returns a byte array.
         """
-        data = []
-        data.append(self.up_segment_info.pack())
+        return self._pack_up_segment() + self._pack_down_segment()
+
+    def _pack_up_segment(self):
+        """
+        Packs the up segment opaque fields and returns a byte array.
+        """
+        data = [self.up_segment_info.pack()]
         for of in self.up_segment_hops:
             data.append(of.pack())
         data.append(self.up_segment_peering_link.pack())
         data.append(self.up_segment_upstream_ad.pack())
-        data.append(self.down_segment_info.pack())
-        data.append(self.down_segment_upstream_ad.pack())
-        data.append(self.down_segment_peering_link.pack())
+        return b"".join(data)
+
+    def _pack_down_segment(self):
+        """
+        Packs the down segment opaque fields and returns a byte array.
+        """
+        data = [self.down_segment_info.pack(),
+                self.down_segment_upstream_ad.pack(),
+                self.down_segment_peering_link.pack()]
         for of in self.down_segment_hops:
             data.append(of.pack())
-
         return b"".join(data)
 
     def reverse(self):
@@ -488,6 +615,12 @@ class EmptyPath(PathBase):
     SCION path but still uses SCION packets for communication.
     """
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class EmptyPath.
+
+        :param raw:
+        :type raw:
+        """
         PathBase.__init__(self)
 
         if raw is not None:

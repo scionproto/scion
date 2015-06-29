@@ -23,6 +23,11 @@ from unittest.mock import patch
 def noop_decorator(*args, **kwargs):
     """
     A no-op decorator, to allow testing of decorated functions/methods.
+
+    :param args: positional arguments.
+    :type args: list
+    :param kwargs: dictionary with keyword arguments and their values.
+    :type kwargs: dict
     """
     def wrap(f):
         def wrapper(*args, **kwargs):
@@ -36,10 +41,16 @@ patch('lib.thread.thread_safety_net', noop_decorator).start()
 
 
 class SCIONTestException(Exception):
+    """
+    SCIONTestException class.
+    """
     pass
 
 
 class SCIONCommonTest(unittest.TestCase):
+    """
+    SCIONCommonTest class.
+    """
     pass
 
 
@@ -49,12 +60,24 @@ class MockCollection(object):
     be used from a unittesting decorator.
     """
     def __init__(self):
+        """
+        Initialize an instance of the class MockCollection.
+        """
         self._patcher = {}
 
     def add(self, target, name, new=None, autospec=True):
         """
         Create a patcher for `target`, and use `name` for the mock object made
-        available after `start()`
+        available after `start()`.
+
+        :param target:
+        :type target:
+        :param name:
+        :type name:
+        :param new:
+        :type new:
+        :param autospec:
+        :type autospec:
         """
         # Don't redo an existing patch
         if name in self._patcher:

@@ -1,0 +1,13 @@
+Sphinx
+coverage
+dnslib
+kazoo
+nose
+nose-cov
+nose-descriptionfixer
+parse
+pycrypto
+pydblite
+pygments
+python-pytun
+sphinxcontrib-napoleon

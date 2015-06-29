@@ -35,7 +35,6 @@ class OpaqueFieldType(object):
     INPATH_XOVR = 0b1110000
     INTRATD_PEER = 0b1111000
     INTERTD_PEER = 0b1111100
-    TRC_OF = 0b11111111
 
 
 class OpaqueField(object):
@@ -45,6 +44,9 @@ class OpaqueField(object):
     LEN = 8
 
     def __init__(self):
+        """
+        Initialize an instance of the class OpaqueField.
+        """
         self.info = 0  # TODO verify path.PathType in that context
         self.type = 0
         self.parsed = False
@@ -66,19 +68,19 @@ class OpaqueField(object):
         """
         Returns true if opaque field is regular, false otherwise.
         """
-        return not ((self.info & (1 << 6)) != 0)
+        return (self.info & (1 << 6) == 0)
 
     def is_continue(self):
         """
         Returns true if continue bit is set, false otherwise.
         """
-        return ((self.info & (1 << 5)) != 0)
+        return not (self.info & (1 << 5) == 0)
 
     def is_xovr(self):
         """
         Returns true if crossover point bit is set, false otherwise.
         """
-        return ((self.info & (1 << 4)) != 0)
+        return not (self.info & (1 << 4) == 0)
 
     def __str__(self):
         pass
@@ -108,6 +110,12 @@ class HopOpaqueField(OpaqueField):
     MAC_LEN = 3  # MAC length in bytes.
 
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class HopOpaqueField.
+
+        :param raw:
+        :type raw:
+        """
         OpaqueField.__init__(self)
         self.exp_time = 0
         self.ingress_if = 0
@@ -126,11 +134,12 @@ class HopOpaqueField(OpaqueField):
         if dlen < self.LEN:
             logging.warning("HOF: Data too short for parsing, len: %u", dlen)
             return
-        (self.info, self.exp_time) = struct.unpack("!BB", raw[0:2])
-        ifs = struct.unpack("!I", b'\0' + raw[2:5])[0]
+        (self.info, self.exp_time) = struct.unpack("!BB", raw[:2])
+        # A byte added as length of three bytes can't be unpacked
+        (ifs,) = struct.unpack("!I", b'\0' + raw[2:5])
         self.mac = raw[5:8]
-        self.ingress_if = (ifs & 0x00FFF000) >> 12
-        self.egress_if = ifs & 0x00000FFF
+        self.ingress_if = (ifs & 0xFFF000) >> 12
+        self.egress_if = ifs & 0x000FFF
         self.parsed = True
 
     @classmethod
@@ -158,6 +167,7 @@ class HopOpaqueField(OpaqueField):
         """
         ifs = (self.ingress_if << 12) | self.egress_if
         data = struct.pack("!BB", self.info, self.exp_time)
+        # Ingress and egress interface info is packed into three bytes 
         data += struct.pack("!I", ifs)[1:]
         data += self.mac
         return data
@@ -189,6 +199,12 @@ class InfoOpaqueField(OpaqueField):
     """
 
     def __init__(self, raw=None):
+        """
+        Initialize an instance of the class InfoOpaqueField.
+
+        :param raw:
+        :type raw:
+        """
         OpaqueField.__init__(self)
         self.timestamp = 0
         self.isd_id = 0
@@ -256,309 +272,5 @@ class InfoOpaqueField(OpaqueField):
                     self.timestamp == other.timestamp and
                     self.isd_id == other.isd_id and
                     self.hops == other.hops)
-        else:
-            return False
-
-
-class TRCField(OpaqueField):
-    """
-    Class for the TRC field.
-
-    The TRC field contains type info of the path-segment (1 byte),
-    the TRC version (4 bytes), the IF ID (2 bytes),
-    and a reserved section (1 byte).
-    """
-    def __init__(self, raw=None):
-        OpaqueField.__init__(self)
-        self.info = OpaqueFieldType.TRC_OF
-        self.trc_version = 0
-        self.if_id = 0
-        self.reserved = 0
-        if raw is not None:
-            self.parse(raw)
-
-    def parse(self, raw):
-        """
-        Populates fields from a raw byte block.
-        """
-        assert isinstance(raw, bytes)
-        self.raw = raw
-        dlen = len(raw)
-        if dlen < self.LEN:
-            logging.warning("TRCF: Data too short for parsing, len: %u", dlen)
-            return
-        (self.info, self.trc_version, self.if_id, self.reserved) = \
-            struct.unpack("!BIHB", raw)
-        self.parsed = True
-
-    @classmethod
-    def from_values(cls, trc_version=0, if_id=0, reserved=0):
-        """
-        Returns TRCField with fields populated from values.
-
-        @param trc_version: Version of the Isolation Domanin's TRC file.
-        @param if_id: Interface ID.
-        @param reserved: Reserved section.
-        """
-        trcf = TRCField()
-        trcf.trc_version = trc_version
-        trcf.if_id = if_id
-        trcf.reserved = reserved
-        return trcf
-
-    def pack(self):
-        """
-        Returns TRCField as 8 byte binary string.
-        """
-        return struct.pack("!BIHB", self.info, self.trc_version, self.if_id,
-                           self.reserved)
-
-    def __str__(self):
-        trcf_str = ("[TRC OF info: %x, TRCv: %u, IF ID: %u]\n" %
-                    (self.info, self.trc_version, self.if_id))
-        return trcf_str
-
-    def __eq__(self, other):
-        if type(other) is type(self):
-            return (self.info == other.info and
-                    self.trc_version == other.trc_version and
-                    self.if_id == other.if_id)
-        else:
-            return False
-
-
-class SupportSignatureField(OpaqueField):
-    """
-    Class for the support signature field.
-
-    The support signature field contains a certificate version (4 bytes), the
-    signature length (2 bytes), and the block size (2 bytes).
-    """
-    def __init__(self, raw=None):
-        OpaqueField.__init__(self)
-        self.cert_chain_version = 0
-        self.sig_len = 0
-        self.block_size = 0
-        if raw is not None:
-            self.parse(raw)
-
-    def parse(self, raw):
-        """
-        Populates fields from a raw byte block.
-        """
-        assert isinstance(raw, bytes)
-        self.raw = raw
-        dlen = len(raw)
-        if dlen < self.LEN:
-            logging.warning("SSF: Data too short for parsing, len: %u", dlen)
-            return
-        (self.cert_chain_version, self.sig_len, self.block_size) = \
-            struct.unpack("!IHH", raw)
-        self.parsed = True
-
-    @classmethod
-    def from_values(cls, block_size, cert_chain_version=0, sig_len=0):
-        """
-        Returns SupportSignatureField with fields populated from values.
-
-        :param block_size: Total marking size for an AD block (peering links
-                           included.)
-        :param cert_chain_version: Version of the Autonomous Domain's
-                                   certificate.
-        :param sig_len: Length of the beacon's signature.
-        """
-        ssf = SupportSignatureField()
-        ssf.cert_chain_version = cert_chain_version
-        ssf.sig_len = sig_len
-        ssf.block_size = block_size
-        return ssf
-
-    def pack(self):
-        """
-        Returns SupportSignatureField as 8 byte binary string.
-        """
-        return struct.pack("!IHH", self.cert_chain_version, 
-                           self.sig_len, self.block_size)
-
-    def __str__(self):
-        ssf_str = ("[Support Signature OF cert_chain_version: %x, "
-                   "sig_len: %u, block_size: %u]\n" % (
-                       self.cert_chain_version, self.sig_len, self.block_size))
-        return ssf_str
-
-    def __eq__(self, other):
-        if type(other) is type(self):
-            return (self.cert_chain_version == other.cert_chain_version and
-                    self.sig_len == other.sig_len and
-                    self.block_size == other.block_size)
-        else:
-            return False
-
-
-class SupportPeerField(OpaqueField):
-    """
-    Class for the support peer field.
-
-    The support peer field contains the trusted domain id (2 bytes),
-    bandwidth allocation left (1 byte), bandwith allocation right (1 byte),
-    the bandwidth class (1 bit), and a reserved section (31 bits).
-    """
-    def __init__(self, raw=None):
-        OpaqueField.__init__(self)
-        self.isd_id = 0
-        self.bwalloc_f = 0
-        self.bwalloc_r = 0
-        self.bw_class = 0
-        self.reserved = 0
-        if raw is not None:
-            self.parse(raw)
-
-    def parse(self, raw):
-        """
-        Populates fields from a raw byte block.
-        """
-        assert isinstance(raw, bytes)
-        self.raw = raw
-        dlen = len(raw)
-        if dlen < self.LEN:
-            logging.warning("SPF: Data too short for parsing, len: %u", dlen)
-            return
-        (self.isd_id, self.bwalloc_f, self.bwalloc_r, data) = \
-            struct.unpack("!HBBI", raw)
-        self.bw_class = data >> 31
-        self.reserved = data - (self.bw_class << 31)
-        self.parsed = True
-
-    @classmethod
-    def from_values(cls, isd_id=0,
-                    bwalloc_f=0, bwalloc_r=0,
-                    bw_class=0, reserved=0):
-        """
-        Returns SupportPeerField with fields populated from values.
-
-        @param isd_id: Isolation Domanin's ID.
-        @param bwalloc_f: Allocated bandwidth left.
-        @param bwalloc_r: Allocated bandwidth right.
-        @param bw_class: Bandwidth class.
-        @param reserved: Reserved section.
-        """
-        spf = SupportPeerField()
-        spf.isd_id = isd_id
-        spf.bwalloc_f = bwalloc_f
-        spf.bwalloc_r = bwalloc_r
-        spf.bw_class = bw_class
-        spf.reserved = reserved
-        return spf
-
-    def pack(self):
-        """
-        Returns SupportPeerField as 8 byte binary string.
-        """
-        data = struct.pack("!HBB", self.isd_id, self.bwalloc_f, 
-                           self.bwalloc_r)
-        data += struct.pack("!I", (self.bw_class << 31) | self.reserved)
-        return data
-
-    def __str__(self):
-        spf_str = ("[Support Peer OF TD ID: %x, bwalloc_f: %u, "
-                   "bwalloc_r: %u, bw_class: %u]\n" % (
-                       self.isd_id, self.bwalloc_f, self.bwalloc_r,
-                       self.bw_class))
-        return spf_str
-
-    def __eq__(self, other):
-        if type(other) is type(self):
-            return (self.isd_id == other.isd_id and
-                    self.bwalloc_f == other.bwalloc_f and
-                    self.bwalloc_r == other.bwalloc_r and
-                    self.bw_class == other.bw_class)
-        else:
-            return False
-
-
-class SupportPCBField(OpaqueField):
-    """
-    Class for the support PCB field.
-
-    The support PCB field contains the trusted domain id (2 bytes),
-    bandwidth allocation left (1 byte), bandwith allocation right (1 byte),
-    dynamic bandwidth allocation left (1 byte), dynamic bandwidth allocation
-    right (1 byte), best effort bandwidth left (1 byte), and best effort
-    bandwidth right (1 byte).
-    """
-    def __init__(self, raw=None):
-        OpaqueField.__init__(self)
-        self.isd_id = 0
-        self.bwalloc_f = 0
-        self.bwalloc_r = 0
-        self.dyn_bwalloc_f = 0
-        self.dyn_bwalloc_r = 0
-        self.bebw_f = 0
-        self.bebw_r = 0
-        if raw is not None:
-            self.parse(raw)
-
-    def parse(self, raw):
-        """
-        Populates fields from a raw byte block.
-        """
-        assert isinstance(raw, bytes)
-        self.raw = raw
-        dlen = len(raw)
-        if dlen < self.LEN:
-            logging.warning("SPCBF: Data too short for parsing, len: %u", dlen)
-            return
-        (self.isd_id, self.bwalloc_f, self.bwalloc_r, self.dyn_bwalloc_f,
-            self.dyn_bwalloc_r, self.bebw_f, self.bebw_r) = \
-            struct.unpack("!HBBBBBB", raw)
-        self.parsed = True
-
-    @classmethod
-    def from_values(cls, isd_id=0, bwalloc_f=0, bwalloc_r=0, dyn_bwalloc_f=0,
-                    dyn_bwalloc_r=0, bebw_f=0, bebw_r=0):
-        """
-        Returns SupportPCBField with fields populated from values.
-
-        @param isd_id: Isolation Domanin's ID.
-        @param bwalloc_f: Allocated bandwidth left.
-        @param bwalloc_r: Allocated bandwidth right.
-        @param dyn_bwalloc_f: Dynamic allocated bandwidth left.
-        @param dyn_bwalloc_r: Dynamic allocated bandwidth right.
-        @param bebw_f: Best effort bandwidth left.
-        @param bebw_r: Best effort bandwidth right.
-        """
-        spcbf = SupportPCBField()
-        spcbf.isd_id = isd_id
-        spcbf.bwalloc_f = bwalloc_f
-        spcbf.bwalloc_r = bwalloc_r
-        spcbf.dyn_bwalloc_f = dyn_bwalloc_f
-        spcbf.dyn_bwalloc_r = dyn_bwalloc_r
-        spcbf.bebw_f = bebw_f
-        spcbf.bebw_r = bebw_r
-        return spcbf
-
-    def pack(self):
-        """
-        Returns SupportPCBField as 8 byte binary string.
-        """
-        return struct.pack(
-            "!HBBBBBB", self.isd_id, self.bwalloc_f, self.bwalloc_r, 
-            self.dyn_bwalloc_f, self.dyn_bwalloc_r, self.bebw_f,
-            self.bebw_r)
-
-    def __str__(self):
-        spcbf_str = ("[Info OF TD ID: %x, bwalloc_f: %u, bwalloc_r: %u]\n" %
-                     (self.isd_id, self.bwalloc_f, self.bwalloc_r))
-        return spcbf_str
-
-    def __eq__(self, other):
-        if type(other) is type(self):
-            return (self.isd_id == other.isd_id and
-                    self.bwalloc_f == other.bwalloc_f and
-                    self.bwalloc_r == other.bwalloc_r and
-                    self.dyn_bwalloc_f == other.dyn_bwalloc_f and
-                    self.dyn_bwalloc_r == other.dyn_bwalloc_f and
-                    self.bebw_f == other.bebw_f and
-                    self.bebw_r == other.bebw_r)
         else:
             return False

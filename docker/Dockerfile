@@ -12,31 +12,47 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y bu
 # Pre-download some of the known major dependancies, to speed up rebuilds.
 RUN DEBIAN_FRONTEND=noninteractive apt-get install --download-only --no-install-recommends -y python python3 python-dev python3-dev screen zookeeperd
 
-# Just copy over scion.sh for now, to install dependancies. Don't want docker
-# to re-run this step everytime anything in the repo changes.
-COPY _build/scion.git/scion.sh /home/scion/scion.git/
-RUN chown -R scion: /home/scion
+################################################################################
+# Handle installing all dependancies up-front. That way code changes don't cause
+# the expensive part of the image build to be re-run.
+################################################################################
+
+# Copy over scion.sh. If it has changed, everything gets rebuilt.
 USER scion
 ENV HOME /home/scion
 WORKDIR /home/scion/scion.git
-RUN DEBIAN_FRONTEND=noninteractive APTARGS=-y ./scion.sh deps
-RUN echo "PATH=$HOME/.local/bin:/usr/share/zookeeper/bin:$PATH" >> ~/.profile
+COPY scion.git/scion.sh /home/scion/scion.git/
 
-USER root
+# Copy over pkgs_debian.txt. If it has changed, then re-run the remaining steps.
+COPY scion.git/pkgs_debian.txt /home/scion/scion.git/
+RUN sudo chown -R scion: /home/scion
+RUN DEBIAN_FRONTEND=noninteractive APTARGS=-y ./scion.sh deps pkgs
+
+# Copy over requirements.txt. If it has changed, then re-run the remaining steps.
+COPY scion.git/requirements.txt /home/scion/scion.git/
+RUN sudo chown -R scion: /home/scion
+RUN ./scion.sh deps pip3
+
+RUN ./scion.sh deps
+
 # Clean out the cached packages now they're no longer necessary
-RUN apt-get clean
+RUN sudo apt-get clean
 
+################################################################################
+# All dependancies are now installed, carry on with the rest.
+################################################################################
+
+RUN echo "PATH=$HOME/.local/bin:/usr/share/zookeeper/bin:$PATH" >> ~/.profile
 # Now copy over the current branch
-COPY _build/scion.git /home/scion/scion.git
+COPY scion.git /home/scion/scion.git
 # Copy over init.sh:
-COPY init.sh /home/scion/bin/
+COPY scion.git/docker/init.sh /home/scion/bin/
 # Install basic screen config
-COPY screenrc /home/scion/.screenrc
+COPY scion.git/docker/screenrc /home/scion/.screenrc
 
-# Fix ownership:
-RUN chown -R scion: /home/scion
+# Fix ownership one last time:
+RUN sudo chown -R scion: /home/scion
 # Fix some image problems:
-RUN chmod g+s /usr/bin/screen
+RUN sudo chmod g+s /usr/bin/screen
 
-USER scion
 CMD ["/home/scion/bin/init.sh"]

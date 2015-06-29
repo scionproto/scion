@@ -25,9 +25,12 @@ import nose
 import nose.tools as ntools
 from kazoo.protocol.states import ZnodeStat
 
+# Has to be imported before anything else so that any relevant decorators are
+# patched.
+from test.testcommon import MockCollection, SCIONTestException
+
 # SCION
 import lib.zookeeper as libzk
-from test.testcommon import MockCollection, SCIONTestException
 
 
 def mock_wrapper(f):
@@ -63,12 +66,27 @@ def mock_wrapper(f):
 class BaseLibZookeeper(object):
     """
     Base class for lib.zookeeper unit tests
+
+    :cvar default_args:
+    :type default_args:
+    :cvar default_hosts:
+    :type default_hosts:
+    :cvar default_retry:
+    :type default_retry:
+    :ivar mocks:
+    :type mocks:
     """
     default_args = [1, 2, "srvname", "srvid"]
     default_hosts = ["host1:9521", "host2:339"]
     default_retry = "asdfas"
 
     def _init_basic_setup(self, **kwargs):
+        """
+        Initiator.
+
+        :param kwargs: keyword arguments and their values.
+        :type kwargs: dictionary
+        """
         self.mocks.kretry.return_value = self.default_retry
         all_args = self.default_args + [self.default_hosts]
         return libzk.Zookeeper(*all_args, **kwargs)
@@ -78,8 +96,12 @@ class TestLibZookeeperInit(BaseLibZookeeper):
     """
     Unit tests for lib.zookeeper.Zookeeper.__init__
     """
+
     @mock_wrapper
     def test_basic(self):
+        """
+        Test ZK's basic functionalities.
+        """
         # Setup and call
         inst = self._init_basic_setup()
         # Tests
@@ -105,6 +127,9 @@ class TestLibZookeeperInit(BaseLibZookeeper):
 
     @mock_wrapper
     def test_timeout(self):
+        """
+        Test ZK timeout.
+        """
         # Setup and call
         self._init_basic_setup(timeout=4.5)
         # Tests
@@ -115,6 +140,9 @@ class TestLibZookeeperInit(BaseLibZookeeper):
 
     @mock_wrapper
     def test_timeout_error(self):
+        """
+        Test timeout error.
+        """
         # Raise a TimeoutError when self._zk.start() is called in __init__
         self.mocks.kclient.return_value.start.side_effect = \
             libzk.KazooTimeoutError
@@ -129,8 +157,12 @@ class TestLibZookeeperStateListener(BaseLibZookeeper):
     """
     Unit tests for lib.zookeeper.Zookeeper._state_listener
     """
+
     @mock_wrapper
     def test(self):
+        """
+        Test basic functionalities.
+        """
         # Setup and call
         inst = self._init_basic_setup()
         # Call, and make sure it returns False
@@ -143,7 +175,16 @@ class TestLibZookeeperStateHandler(BaseLibZookeeper):
     """
     Unit tests for lib.zookeeper.Zookeeper._state_handler
     """
+
     def _setup(self, initial_state, new_state):
+        """
+        Initialize the ZK state.
+
+        :param initial_state:
+        :type initial_state:
+        :param new_state:
+        :type new_state:
+        """
         inst = self._init_basic_setup()
         # Setup inst._state_event to allow a single iteration of the loop
         inst._state_event.acquire = MagicMock(spec_set=[], side_effect=[0])
@@ -160,6 +201,14 @@ class TestLibZookeeperStateHandler(BaseLibZookeeper):
 
     @mock_wrapper
     def _check(self, old_state, new_state):
+        """
+        Compare ZK states.
+
+        :param old_state:
+        :type old_state:
+        :param new_state:
+        :type new_state:
+        """
         inst = self._setup(old_state, new_state)
         # Call
         ntools.assert_raises(StopIteration, inst._state_handler,
@@ -182,6 +231,9 @@ class TestLibZookeeperStateHandler(BaseLibZookeeper):
         ntools.eq_(inst._state_lost.call_count, lost)
 
     def test(self):
+        """
+        Run main tests.
+        """
         test_inputs = (
             (libzk.KazooState.CONNECTED, libzk.KazooState.CONNECTED),
             ("startup", libzk.KazooState.CONNECTED),
@@ -199,8 +251,12 @@ class TestLibZookeeperStateConnected(BaseLibZookeeper):
     """
     Unit tests for lib.zookeeper.Zookeeper._state_connected
     """
+
     @mock_wrapper
     def test_basic(self):
+        """
+        Test basic functionalities.
+        """
         inst = self._init_basic_setup()
         # Call
         inst._state_connected()
@@ -210,6 +266,9 @@ class TestLibZookeeperStateConnected(BaseLibZookeeper):
 
     @mock_wrapper
     def test_ensure_paths(self):
+        """
+        Test ...
+        """
         inst = self._init_basic_setup(ensure_paths=("asfw", "weasg"))
         # Call
         inst._state_connected()
@@ -220,6 +279,9 @@ class TestLibZookeeperStateConnected(BaseLibZookeeper):
 
     @mock_wrapper
     def test_connectionloss(self):
+        """
+        Test ...
+        """
         inst = self._init_basic_setup()
         # Raise ConnectionLoss when _zk.ensure_path() is called
         inst._zk.ensure_path.side_effect = [libzk.ConnectionLoss]
@@ -228,6 +290,9 @@ class TestLibZookeeperStateConnected(BaseLibZookeeper):
 
     @mock_wrapper
     def test_sessionexpired(self):
+        """
+        Test ...
+        """
         inst = self._init_basic_setup()
         # Raise SessionExpiredError when _zk.ensure_path() is called
         inst._zk.ensure_path.side_effect = [libzk.SessionExpiredError]
@@ -236,6 +301,9 @@ class TestLibZookeeperStateConnected(BaseLibZookeeper):
 
     @mock_wrapper
     def test_on_connect(self):
+        """
+        Test ...
+        """
         on_c = MagicMock(spec_set=[])
         inst = self._init_basic_setup(on_connect=on_c)
         # Call
@@ -252,8 +320,17 @@ class TestLibZookeeperStateDisconnected(BaseLibZookeeper):
     _state_suspended and _state_lost currently have almost identical code, so
     test them both in the same way.
     """
+
     @mock_wrapper
     def _check(self, f_name, test_callback=False):
+        """
+        Test ...
+
+        :param f_name:
+        :type f_name:
+        :param test_callback:
+        :type test_callback:
+        """
         on_d = None
         if test_callback:
             on_d = MagicMock(spec_set=[])
@@ -279,8 +356,15 @@ class TestLibZookeeperConnection(BaseLibZookeeper):
     """
     Unit tests for lib.zookeeper connection methods.
     """
+
     @mock_wrapper
     def _is_connected_check(self, connected):
+        """
+        Test ...
+
+        :param connected:
+        :type connected:
+        """
         inst = self._init_basic_setup()
         inst._connected.is_set.return_value = connected
         # Call
@@ -289,11 +373,20 @@ class TestLibZookeeperConnection(BaseLibZookeeper):
         inst._connected.is_set.assert_called_with()
 
     def test_is_connected(self):
+        """
+        Test ...
+        """
         for connected in True, False:
             yield self._is_connected_check, connected
 
     @mock_wrapper
     def _wait_connected_check(self, timeout):
+        """
+        Test ...
+
+        :param timeout:
+        :type timeout:
+        """
         inst = self._init_basic_setup()
         inst._connected.wait.return_value = 33
         # Call
@@ -302,6 +395,9 @@ class TestLibZookeeperConnection(BaseLibZookeeper):
         inst._connected.wait.assert_called_with(timeout=timeout)
 
     def test_wait_connected(self):
+        """
+        Test ...
+        """
         for timeout in None, 1, 15:
             yield self._wait_connected_check, timeout
 
@@ -310,8 +406,12 @@ class TestLibZookeeperParty(BaseLibZookeeper):
     """
     Unit tests for lib.zookeeper Party methods.
     """
+
     @mock_wrapper
     def test_not_connected(self):
+        """
+        Test ...
+        """
         inst = self._init_basic_setup()
         inst._connected.is_set.return_value = False
         # Call
@@ -321,6 +421,9 @@ class TestLibZookeeperParty(BaseLibZookeeper):
 
     @mock_wrapper
     def test_no_party(self):
+        """
+        Test ...
+        """
         inst = self._init_basic_setup()
         inst._connected.is_set.return_value = True
         # Call
@@ -332,6 +435,9 @@ class TestLibZookeeperParty(BaseLibZookeeper):
 
     @mock_wrapper
     def test_have_party(self):
+        """
+        Test ...
+        """
         inst = self._init_basic_setup()
         inst._connected.is_set.return_value = True
         inst._party = self.mocks.kparty
@@ -343,6 +449,12 @@ class TestLibZookeeperParty(BaseLibZookeeper):
 
     @mock_wrapper
     def _join_exception_check(self, exception):
+        """
+        Test ...
+
+        :param exception:
+        :type exception:
+        """
         inst = self._init_basic_setup()
         inst._connected.is_set.return_value = True
         inst._party = MagicMock(spec_set=["join"])
@@ -353,6 +465,9 @@ class TestLibZookeeperParty(BaseLibZookeeper):
         inst._party.join.assert_called_once_with()
 
     def test_join_exceptions(self):
+        """
+        Test ...
+        """
         for excp in libzk.ConnectionLoss, libzk.SessionExpiredError:
             yield self._join_exception_check, excp
 
@@ -361,8 +476,12 @@ class TestLibZookeeperGetLock(BaseLibZookeeper):
     """
     Unit tests for lib.zookeeper.Zookeeper.get_lock()
     """
+
     @mock_wrapper
     def test_no_lock(self):
+        """
+        Test ...
+        """
         inst = self._init_basic_setup()
         # Short-circuit the rest of get_lock() by making is_connected raise
         # StopIteration.
@@ -375,6 +494,9 @@ class TestLibZookeeperGetLock(BaseLibZookeeper):
 
     @mock_wrapper
     def test_not_connected(self):
+        """
+        Test ...
+        """
         inst = self._init_basic_setup()
         inst.is_connected = MagicMock(spec_set=[], return_value=False)
         inst.release_lock = MagicMock(spec_set=[])
@@ -388,6 +510,9 @@ class TestLibZookeeperGetLock(BaseLibZookeeper):
 
     @mock_wrapper
     def test_have_lock(self):
+        """
+        Test ...
+        """
         inst = self._init_basic_setup()
         inst.is_connected = MagicMock(spec_set=[], return_value=True)
         inst._lock.is_set.return_value = True
@@ -401,6 +526,9 @@ class TestLibZookeeperGetLock(BaseLibZookeeper):
 
     @mock_wrapper
     def test_acquire(self):
+        """
+        Test ...
+        """
         inst = self._init_basic_setup()
         inst.is_connected = MagicMock(spec_set=[], return_value=True)
         inst._lock.is_set.return_value = False
@@ -416,6 +544,12 @@ class TestLibZookeeperGetLock(BaseLibZookeeper):
 
     @mock_wrapper
     def _acquire_exception_check(self, exception):
+        """
+        Test ...
+
+        :param exception:
+        :type exception:
+        """
         inst = self._init_basic_setup()
         inst.is_connected = MagicMock(spec_set=[], return_value=True)
         inst._lock.is_set.return_value = False
@@ -427,6 +561,9 @@ class TestLibZookeeperGetLock(BaseLibZookeeper):
         inst._zk_lock.acquire.assert_called_once_with(timeout=60.0)
 
     def test_acquire_exceptions(self):
+        """
+        Test ...
+        """
         for excp in (libzk.LockTimeout, libzk.ConnectionLoss,
                      libzk.SessionExpiredError):
             yield self._acquire_exception_check, excp
@@ -436,8 +573,12 @@ class TestLibZookeeperReleaseLock(BaseLibZookeeper):
     """
     Unit tests for lib.zookeeper.Zookeeper.release_lock()
     """
+
     @mock_wrapper
     def test_not_connected(self):
+        """
+        Test ...
+        """
         inst = self._init_basic_setup()
         inst.is_connected = MagicMock(spec_set=[], return_value=False)
         inst._zk_lock = self.mocks.klock
@@ -453,6 +594,9 @@ class TestLibZookeeperReleaseLock(BaseLibZookeeper):
 
     @mock_wrapper
     def test_release(self):
+        """
+        Test ...
+        """
         inst = self._init_basic_setup()
         inst.is_connected = MagicMock(spec_set=[], return_value=True)
         inst._zk_lock = self.mocks.klock
@@ -463,6 +607,12 @@ class TestLibZookeeperReleaseLock(BaseLibZookeeper):
 
     @mock_wrapper
     def _exception_check(self, exception):
+        """
+        Test ...
+
+        :param exception:
+        :type exception:
+        """
         inst = self._init_basic_setup()
         inst.is_connected = MagicMock(spec_set=[], return_value=True)
         inst._zk_lock = self.mocks.klock
@@ -474,6 +624,9 @@ class TestLibZookeeperReleaseLock(BaseLibZookeeper):
         ntools.assert_false(inst._zk_lock.is_acquired)
 
     def test_exceptions(self):
+        """
+        Test ...
+        """
         for excp in (libzk.NoNodeError, libzk.ConnectionLoss,
                      libzk.SessionExpiredError):
             yield self._exception_check, excp
@@ -483,8 +636,17 @@ class TestLibZookeeperLockUtilities(BaseLibZookeeper):
     """
     Unit tests for lib.zookeeper locking utility methods.
     """
+
     @mock_wrapper
     def _have_lock_check(self, connected, have_lock):
+        """
+        Test ...
+
+        :param connected:
+        :type connected:
+        :param have_lock:
+        :type have_lock:
+        """
         inst = self._init_basic_setup()
         inst.is_connected = MagicMock(spec_set=[], return_value=connected)
         inst._lock.is_set.return_value = have_lock
@@ -497,6 +659,9 @@ class TestLibZookeeperLockUtilities(BaseLibZookeeper):
             inst._lock.is_set.assert_called_once_with()
 
     def test_have_lock(self):
+        """
+        Test ...
+        """
         for connected, have_lock in (
                 (False, False),
                 (False, True),
@@ -506,6 +671,9 @@ class TestLibZookeeperLockUtilities(BaseLibZookeeper):
 
     @mock_wrapper
     def test_wait_lock(self):
+        """
+        Test ...
+        """
         inst = self._init_basic_setup()
         inst._lock = self.mocks.pyevent
         # Call
@@ -518,8 +686,12 @@ class TestLibZookeeperStoreSharedItems(BaseLibZookeeper):
     """
     Unit tests for lib.zookeeper.Zookeeper.store_shared_item
     """
+
     @mock_wrapper
     def test_not_connected(self):
+        """
+        Test ...
+        """
         inst = self._init_basic_setup()
         inst.is_connected = MagicMock(spec_set=[], return_value=False)
         # Call
@@ -530,6 +702,9 @@ class TestLibZookeeperStoreSharedItems(BaseLibZookeeper):
 
     @mock_wrapper
     def test_exists(self):
+        """
+        Test ...
+        """
         inst = self._init_basic_setup()
         inst.is_connected = MagicMock(spec_set=[], return_value=True)
         inst._zk.create.side_effect = SCIONTestException(
@@ -541,6 +716,12 @@ class TestLibZookeeperStoreSharedItems(BaseLibZookeeper):
 
     @mock_wrapper
     def _exists_exception_check(self, exception):
+        """
+        Test ...
+
+        :param exception:
+        :type exception:
+        """
         inst = self._init_basic_setup()
         inst.is_connected = MagicMock(spec_set=[], return_value=True)
         inst._zk.set.side_effect = exception
@@ -551,11 +732,17 @@ class TestLibZookeeperStoreSharedItems(BaseLibZookeeper):
         inst._zk.set.assert_called_once_with("%s/p/n" % inst._prefix, "v")
 
     def test_exists_exception(self):
+        """
+        Test ...
+        """
         for i in libzk.ConnectionLoss, libzk.SessionExpiredError:
             yield self._exists_exception_check, i
 
     @mock_wrapper
     def test_create(self):
+        """
+        Test ...
+        """
         inst = self._init_basic_setup()
         inst.is_connected = MagicMock(spec_set=[], return_value=True)
         inst._zk.set.side_effect = libzk.NoNodeError
@@ -566,6 +753,12 @@ class TestLibZookeeperStoreSharedItems(BaseLibZookeeper):
 
     @mock_wrapper
     def _create_exception_check(self, exception):
+        """
+        Test ...
+
+        :param exception:
+        :type exception:
+        """
         inst = self._init_basic_setup()
         inst.is_connected = MagicMock(spec_set=[], return_value=True)
         inst._zk.set.side_effect = libzk.NoNodeError
@@ -577,6 +770,9 @@ class TestLibZookeeperStoreSharedItems(BaseLibZookeeper):
         inst._zk.create.assert_called_once_with("%s/p/n" % inst._prefix, "v")
 
     def test_create_exception(self):
+        """
+        Test ...
+        """
         for i in libzk.ConnectionLoss, libzk.SessionExpiredError:
             yield self._create_exception_check, i
 
@@ -585,8 +781,12 @@ class TestLibZookeeperGetSharedItem(BaseLibZookeeper):
     """
     Unit tests for lib.zookeeper.Zookeeper.get_shared_item
     """
+
     @mock_wrapper
     def test_not_connected(self):
+        """
+        Test ...
+        """
         inst = self._init_basic_setup()
         inst.is_connected = MagicMock(spec_set=[], return_value=False)
         # Call
@@ -598,6 +798,9 @@ class TestLibZookeeperGetSharedItem(BaseLibZookeeper):
 
     @mock_wrapper
     def test_success(self):
+        """
+        Test ...
+        """
         inst = self._init_basic_setup()
         inst.is_connected = MagicMock(spec_set=[], return_value=True)
         inst._zk.get.return_value = ("nodedata", "metadata")
@@ -609,6 +812,14 @@ class TestLibZookeeperGetSharedItem(BaseLibZookeeper):
 
     @mock_wrapper
     def _exception_check(self, exception, result):
+        """
+        Test ...
+
+        :param exception:
+        :type exception:
+        :param result:
+        :type result:
+        """
         inst = self._init_basic_setup()
         inst.is_connected = MagicMock(spec_set=[], return_value=True)
         inst._zk.get.side_effect = exception
@@ -620,6 +831,9 @@ class TestLibZookeeperGetSharedItem(BaseLibZookeeper):
                                              (inst._prefix, "path", "entry"))
 
     def test_exception(self):
+        """
+        Test ...
+        """
         for excp, result in (
                 (libzk.NoNodeError, libzk.ZkNoNodeError),
                 (libzk.ConnectionLoss, libzk.ZkConnectionLoss),
@@ -631,8 +845,12 @@ class TestLibZookeeperGetSharedMetadata(BaseLibZookeeper):
     """
     Unit tests for lib.zookeeper.Zookeeper.get_shared_metadata
     """
+
     @mock_wrapper
     def test_not_connected(self):
+        """
+        Test ...
+        """
         inst = self._init_basic_setup()
         inst.is_connected = MagicMock(spec_set=[], return_value=False)
         inst._zk.get_children.side_effect = SCIONTestException(
@@ -644,6 +862,9 @@ class TestLibZookeeperGetSharedMetadata(BaseLibZookeeper):
 
     @mock_wrapper
     def test_get(self):
+        """
+        Test ...
+        """
         inst = self._init_basic_setup()
         inst.is_connected = MagicMock(spec_set=[], return_value=True)
         inst._zk.get_children.return_value = ["entry1", "entry2"]
@@ -659,6 +880,12 @@ class TestLibZookeeperGetSharedMetadata(BaseLibZookeeper):
 
     @mock_wrapper
     def _get_children_exception_check(self, exception):
+        """
+        Test ...
+
+        :param exception:
+        :type exception:
+        """
         inst = self._init_basic_setup()
         inst.is_connected = MagicMock(spec_set=[], return_value=True)
         inst._zk.get_children.side_effect = exception
@@ -669,11 +896,20 @@ class TestLibZookeeperGetSharedMetadata(BaseLibZookeeper):
         inst._zk.get_children.assert_called_once_with("%s/path" % inst._prefix)
 
     def test_get_children_exception(self):
+        """
+        Test ...
+        """
         for excp in libzk.ConnectionLoss, libzk.SessionExpiredError:
             yield self._get_children_exception_check, excp
 
     @mock_wrapper
     def _exists_exception_check(self, exception):
+        """
+        Test ...
+
+        :param exception:
+        :type exception:
+        """
         inst = self._init_basic_setup()
         inst.is_connected = MagicMock(spec_set=[], return_value=True)
         inst._zk.get_children.return_value = ["entry1", "entry2"]
@@ -687,6 +923,9 @@ class TestLibZookeeperGetSharedMetadata(BaseLibZookeeper):
             "%s/path/entry1" % inst._prefix)
 
     def test_exists_exception(self):
+        """
+        Test ...
+        """
         for excp in libzk.ConnectionLoss, libzk.SessionExpiredError:
             yield self._exists_exception_check, excp
 
@@ -695,8 +934,12 @@ class TestLibZookeeperExpireSharedItems(BaseLibZookeeper):
     """
     Unit tests for lib.zookeeper.Zookeeper.expire_shared_items
     """
+
     @mock_wrapper
     def test_not_connected(self):
+        """
+        Test ...
+        """
         inst = self._init_basic_setup()
         inst.is_connected = MagicMock(spec_set=[], return_value=False)
         inst.get_shared_metadata = MagicMock(
@@ -707,6 +950,9 @@ class TestLibZookeeperExpireSharedItems(BaseLibZookeeper):
 
     @mock_wrapper
     def test_no_entries(self):
+        """
+        Test ...
+        """
         inst = self._init_basic_setup()
         inst.is_connected = MagicMock(spec_set=[], return_value=True)
         inst.get_shared_metadata = MagicMock(spec_set=[], return_value=[])
@@ -718,6 +964,9 @@ class TestLibZookeeperExpireSharedItems(BaseLibZookeeper):
 
     @mock_wrapper
     def test_expire(self):
+        """
+        Test ...
+        """
         inst = self._init_basic_setup()
         inst.is_connected = MagicMock(spec_set=[], return_value=True)
         metadata = [
@@ -737,6 +986,14 @@ class TestLibZookeeperExpireSharedItems(BaseLibZookeeper):
 
     @mock_wrapper
     def _exception_check(self, exception, result):
+        """
+        Test ...
+
+        :param exception:
+        :type exception:
+        :param result:
+        :type result:
+        """
         inst = self._init_basic_setup()
         inst.is_connected = MagicMock(spec_set=[], return_value=True)
         metadata = [["entry1", MagicMock(spec_set=ZnodeStat, last_modified=1)]]
@@ -748,6 +1005,9 @@ class TestLibZookeeperExpireSharedItems(BaseLibZookeeper):
             result, inst.expire_shared_items, "path", 100)
 
     def test_exceptions(self):
+        """
+        Test ...
+        """
         for excp, result in (
                 (libzk.ConnectionLoss, libzk.ZkConnectionLoss),
                 (libzk.SessionExpiredError, libzk.ZkConnectionLoss),

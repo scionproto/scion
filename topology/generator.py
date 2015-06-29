@@ -16,6 +16,7 @@
 =============================================
 """
 # Stdlib
+import argparse
 import base64
 import configparser
 import json
@@ -26,6 +27,7 @@ import sys
 from ipaddress import ip_address, ip_network
 
 # External packages
+from Crypto import Random
 from dnslib.label import DNSLabel
 
 # SCION
@@ -47,8 +49,9 @@ from lib.util import (
     write_file,
 )
 
-DEFAULT_ADCONFIGURATIONS_FILE = 'ADConfigurations.json'
-DEFAULT_PATH_POLICY_FILE = 'PathPolicy.json'
+DEFAULT_ADCONFIGURATIONS_FILE = os.path.join(TOPOLOGY_PATH,
+                                             'ADConfigurations.json')
+DEFAULT_PATH_POLICY_FILE = os.path.join(TOPOLOGY_PATH, 'PathPolicy.json')
 
 SCRIPTS_DIR = 'topology'
 CERT_DIR = 'certificates'
@@ -72,33 +75,40 @@ INITIAL_CERT_VERSION = 0
 INITIAL_TRC_VERSION = 0
 PORT = '50000'
 ISD_AD_ID_DIVISOR = '-'
-BS_RANGE = '1'
-CS_RANGE = '21'
-PS_RANGE = '41'
-DS_RANGE = '61'
-ER_RANGE = '81'
 DEFAULT_DNS_DOMAIN = DNSLabel("scion")
 
 DEFAULT_SUBNET = "127.0.0.0/8"
+IP_ADDRESS_BASE = "127.0.0.1"
 
 
 class ConfigGenerator():
     """
     Configuration and/or topology generator.
     """
-    def __init__(self, out_dir=TOPOLOGY_PATH, subnet=DEFAULT_SUBNET):
+    def __init__(self, out_dir=TOPOLOGY_PATH, subnet=DEFAULT_SUBNET,
+                 next_ip_address=IP_ADDRESS_BASE):
+        """
+        Initialize an instance of the class ConfigGenerator.
+
+        :param out_dir: path to the topology folder.
+        :type out_dir: string
+        :param subnet: default subnet IP.
+        :type subnet: string
+        """
         if not os.path.isdir(out_dir):
             logging.error(out_dir + " output directory missing")
             sys.exit()
-
         self.out_dir = out_dir
         self.subnet = subnet
+        self.next_ip_address = next_ip_address
 
     def _get_subnet_params(self, ad_config=None):
         """
         Return the first byte and the mask of the subnet.
+
         :param ad_config: AD configuration dictionary (optional)
         :type ad_config: dict
+
         :returns: the pair of the first byte and the mask
         :rtype: (str, str)
         """
@@ -113,6 +123,14 @@ class ConfigGenerator():
     def _path_dict(self, isd_id, ad_id):
         """
         Return a dictionary with the computed paths for a given AD.
+
+        :param isd_id: ISD identifier.
+        :type isd_id: int
+        :param ad_id: AD identifier.
+        :type ad_id: int
+
+        :returns: the computed paths for a given AD.
+        :rtype: dict
         """
         isd_name = 'ISD{}'.format(isd_id)
         file_no_ext = 'ISD:{}-AD:{}'.format(isd_id, ad_id)
@@ -150,19 +168,20 @@ class ConfigGenerator():
     def _increment_address(self, ip_addr, mask, increment=1):
         """
         Increment an IP address value.
+
         :param ip_addr: the IP address to increment.
         :type ip_addr: str
         :param mask: subnet mask for the given IP address.
         :type mask: str
         :param increment: step the IP address must be incremented of.
         :type increment: int
+
         :returns: the incremented IP address. It fails if a broadcast address is
                   reached.
         :rtype: str
         """
         subnet = ip_network('{}/{}'.format(ip_addr, mask), strict=False)
         ip_addr_obj = ip_address(ip_addr) + increment
-
         if ip_addr_obj >= subnet.broadcast_address:
             logging.error("Reached a broadcast IP address: " + str(ip_addr_obj))
             sys.exit()
@@ -171,8 +190,10 @@ class ConfigGenerator():
     def set_er_ip_addresses(self, ad_configs):
         """
         Set the IP addresses of all edge routers.
+
         :param ad_configs: the configurations of all SCION ADs.
         :type ad_configs: dict
+
         :returns: the edge router IP addresses.
         :rtype: dict
         """
@@ -180,17 +201,18 @@ class ConfigGenerator():
         for isd_ad_id in ad_configs:
             first_byte, mask = self._get_subnet_params(ad_configs[isd_ad_id])
             (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-            ip_address_loc = ip_address('.'.join([first_byte, isd_id,
-                                                  ad_id, ER_RANGE]))
+            ip_address_loc = self.next_ip_address
             ip_address_pub = self._increment_address(ip_address_loc, mask)
+            self.next_ip_address = \
+                self._increment_address(self.next_ip_address, mask, 2)
             for link in ad_configs[isd_ad_id].get("links", []):
                 er_ip_addresses[(isd_ad_id, link)] = (str(ip_address_loc),
                                                       str(ip_address_pub))
-                ip_address_loc = self._increment_address(ip_address_loc,
-                                                         mask, 2)
-                ip_address_pub = self._increment_address(ip_address_pub,
-                                                         mask, 2)
-
+                ip_address_loc = self.next_ip_address
+                ip_address_pub = \
+                    self._increment_address(ip_address_loc, mask)
+                self.next_ip_address = \
+                    self._increment_address(self.next_ip_address, mask, 2)
         return er_ip_addresses
 
     def delete_directories(self):
@@ -208,6 +230,7 @@ class ConfigGenerator():
         """
         Create the ISD* directories and sub-directories, where all files used
         to run the SCION ADs are stored.
+
         :param ad_configs: the configurations of all SCION ADs.
         :type ad_configs: dict
         """
@@ -234,10 +257,12 @@ class ConfigGenerator():
 
     def write_keys_certs(self, ad_configs):
         """
-        Generate the AD certificates and keys and store them into
-        separate files.
+        Generate the AD certificates and keys and store them into separate
+        files.
+
         :param ad_configs: the configurations of all SCION ADs.
         :type ad_configs: dict
+        
         :returns: the signature and encryption keys.
         :rtype: dict
         """
@@ -316,6 +341,7 @@ class ConfigGenerator():
         """
         Generate the AD topologies and store them into files. Update the AD
         setup and supervisor files.
+
         :param ad_configs: the configurations of all SCION ADs.
         :type ad_configs: dict
         :param er_ip_addresses: the edge router IP addresses.
@@ -348,40 +374,39 @@ class ConfigGenerator():
                          'EdgeRouters': {}}
 
             # Write Beacon Servers
-            server_addr = '.'.join([first_byte, isd_id, ad_id, BS_RANGE])
             for b_server in range(1, number_bs + 1):
                 topo_dict['BeaconServers'][b_server] = {
                     'AddrType': 'IPv4',
-                    'Addr': server_addr
+                    'Addr': self.next_ip_address
                 }
-                server_addr = self._increment_address(server_addr, mask)
-                break
+                self.next_ip_address = \
+                    self._increment_address(self.next_ip_address, mask)
             # Write Certificate Servers
-            server_addr = '.'.join([first_byte, isd_id, ad_id, CS_RANGE])
             for c_server in range(1, number_cs + 1):
                 topo_dict['CertificateServers'][c_server] = {
                     'AddrType': 'IPv4',
-                    'Addr': server_addr
+                    'Addr': self.next_ip_address
                 }
-                server_addr = self._increment_address(server_addr, mask)
+                self.next_ip_address = \
+                    self._increment_address(self.next_ip_address, mask)
             # Write Path Servers
             if (ad_configs[isd_ad_id]['level'] != INTERMEDIATE_AD or
                     "path_servers" in ad_configs[isd_ad_id]):
-                server_addr = '.'.join([first_byte, isd_id, ad_id, PS_RANGE])
                 for p_server in range(1, number_ps + 1):
                     topo_dict['PathServers'][p_server] = {
                         'AddrType': 'IPv4',
-                        'Addr': server_addr
+                        'Addr': self.next_ip_address
                     }
-                    server_addr = self._increment_address(server_addr, mask)
+                    self.next_ip_address = \
+                        self._increment_address(self.next_ip_address, mask)
             # Write DNS Servrs
-            server_addr = '.'.join([first_byte, isd_id, ad_id, DS_RANGE])
             for d_server in range(1, number_ds + 1):
                 topo_dict['DNSServers'][d_server] = {
                     'AddrType': 'IPv4',
-                    'Addr': server_addr
+                    'Addr': self.next_ip_address
                 }
-                server_addr = self._increment_address(server_addr, mask)
+                self.next_ip_address = \
+                    self._increment_address(self.next_ip_address, mask)
             # Write Edge Routers
             edge_router = 1
             for nbr_isd_ad_id in ad_configs[isd_ad_id].get("links", []):
@@ -391,11 +416,11 @@ class ConfigGenerator():
                 nbr_ip_address_pub = \
                     er_ip_addresses[(nbr_isd_ad_id, isd_ad_id)][1]
                 nbr_type = ad_configs[isd_ad_id]["links"][nbr_isd_ad_id]
-                if_id = str(255 + int(ad_id) + int(nbr_ad_id))
+                if_id = edge_router
                 topo_dict['EdgeRouters'][edge_router] = {
                     'AddrType': 'IPv4',
                     'Addr': ip_address_loc,
-                    'Interface': {'IFID': int(if_id),
+                    'Interface': {'IFID': if_id,
                                   'NeighborISD': int(nbr_isd_id),
                                   'NeighborAD': int(nbr_ad_id),
                                   'NeighborType': nbr_type,
@@ -446,7 +471,6 @@ class ConfigGenerator():
 
             with open(sim_file, 'a') as sim_fh:
                 # Beacon Servers
-                ip_address = '.'.join([first_byte, isd_id, ad_id, BS_RANGE])
                 for b_server in range(1, number_bs + 1):
                     sim_fh.write(''.join([
                         'beacon_server ' + 
@@ -455,11 +479,9 @@ class ConfigGenerator():
                         topo_file + ' ',
                         conf_file + ' ',
                         path_pol_file, '\n']))
-                    ip_address = self._increment_address(ip_address, mask)
                     break
 
                 # Certificate Servers
-                ip_address = '.'.join([first_byte, isd_id, ad_id, CS_RANGE])
                 for c_server in range(1, number_cs + 1):
                     sim_fh.write(''.join([
                         'cert_server ' + 
@@ -467,13 +489,11 @@ class ConfigGenerator():
                         topo_file + ' ',
                         conf_file + ' ',
                         trc_file, '\n']))
-                    ip_address = self._increment_address(ip_address, mask)
                     break
 
                 # Path Servers
                 if (ad_configs[isd_ad_id]['level'] != INTERMEDIATE_AD or
                     "path_servers" in ad_configs[isd_ad_id]):
-                    ip_address = '.'.join([first_byte, isd_id, ad_id, PS_RANGE])
                     for p_server in range(1, number_ps + 1):
                         sim_fh.write(''.join([
                             'path_server ' + 
@@ -481,7 +501,6 @@ class ConfigGenerator():
                             str(p_server) + ' ',
                             topo_file + ' ',
                             conf_file, '\n']))
-                        ip_address = self._increment_address(ip_address, mask)
                         break
 
                 # Edge Routers
@@ -501,6 +520,9 @@ class ConfigGenerator():
         """
         Generator which iterates over all the elements in the topology
         supplemented with the corresponding type label.
+
+        :param topo_dict: topology dictionary of a SCION AD.
+        :type topo_dict: dict
         """
         element_types = ['BeaconServers', 'CertificateServers',
                          'PathServers', 'DNSServers', 'EdgeRouters']
@@ -511,6 +533,7 @@ class ConfigGenerator():
     def write_setup_file(self, topo_dict, mask=None):
         """
         Generate and save the AD setup file.
+
         :param topo_dict: topology dictionary of a SCION AD.
         :type topo_dict: dict
         :param mask: network mask for new interfaces.
@@ -533,6 +556,7 @@ class ConfigGenerator():
     def write_supervisor_config(self, topo_dict):
         """
         Generate the AD supervisor configuration and store it into a file.
+
         :param topo_dict: topology dictionary of a SCION AD.
         :type topo_dict: dict
         """
@@ -617,6 +641,7 @@ class ConfigGenerator():
     def write_conf_files(self, ad_configs):
         """
         Generate the AD configurations and store them into files.
+
         :param ad_configs: the configurations of all SCION ADs.
         :type ad_configs: dict
         """
@@ -625,8 +650,10 @@ class ConfigGenerator():
             file_name = 'ISD:{}-AD:{}.conf'.format(isd_id, ad_id)
             conf_file = os.path.join(self.out_dir, 'ISD' + isd_id,
                                      CONF_DIR, file_name)
-            conf_dict = {'MasterOFGKey': 1234567890123456,
-                         'MasterADKey': 1919191919191919,
+            master_of_gen_key = base64.b64encode(Random.new().read(16))
+            master_ad_key = base64.b64encode(Random.new().read(16))
+            conf_dict = {'MasterOFGKey': master_of_gen_key.decode("utf-8"),
+                         'MasterADKey': master_ad_key.decode("utf-8"),
                          'PCBQueueSize': 10,
                          'PSQueueSize': 10,
                          'NumRegisteredPaths': 10,
@@ -648,8 +675,11 @@ class ConfigGenerator():
     def write_path_pol_files(self, ad_configs, path_policy_file):
         """
         Generate the AD path policies and store them into files.
+
         :param ad_configs: the configurations of all SCION ADs.
         :type ad_configs: dict
+        :param path_policy_file: path policy file path.
+        :type path_policy_file: string
         """
         for isd_ad_id in ad_configs:
             (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
@@ -662,6 +692,7 @@ class ConfigGenerator():
     def write_trc_files(self, ad_configs, keys):
         """
         Generate the ISD TRCs and store them into files.
+
         :param ad_configs: the configurations of all SCION ADs.
         :type ad_configs: dict
         :param keys: the signature and encryption keys.
@@ -732,14 +763,20 @@ class ConfigGenerator():
                 os.remove(trc_file)
 
     def generate_all(self, adconfigurations_file, path_policy_file):
+        """
+        Generate all needed files.
+
+        :param adconfigurations_file: configuration file path.
+        :type adconfigurations_file: string
+        :param path_policy_file: path policy file path.
+        :type path_policy_file: string
+        """
         if not os.path.isfile(adconfigurations_file):
             logging.error(adconfigurations_file + " file missing.")
             sys.exit()
-
         if not os.path.isfile(path_policy_file):
             logging.error(path_policy_file + " file missing.")
             sys.exit()
-
         try:
             ad_configs = json.loads(open(adconfigurations_file).read())
         except (ValueError, KeyError, TypeError):
@@ -749,7 +786,6 @@ class ConfigGenerator():
         if "default_subnet" in ad_configs:
             self.subnet = ad_configs["default_subnet"]
             del ad_configs["default_subnet"]
-
         er_ip_addresses = self.set_er_ip_addresses(ad_configs)
         self.delete_directories()
         self.create_directories(ad_configs)
@@ -761,26 +797,24 @@ class ConfigGenerator():
         self.write_sim_file(ad_configs, er_ip_addresses)
         self.write_trc_files(ad_configs, keys)
 
+
 def main():
     """
     Main function.
     """
-    if len(sys.argv) == 1:
-        adconfigurations_file = DEFAULT_ADCONFIGURATIONS_FILE
-        path_policy_file = DEFAULT_PATH_POLICY_FILE
-        out_dir = TOPOLOGY_PATH
-    elif len(sys.argv) == 4:
-        adconfigurations_file = sys.argv[1]
-        path_policy_file = sys.argv[2]
-        out_dir = os.path.abspath(sys.argv[3])
-    else:
-        logging.error('Invalid number of arguments. '
-                      'RUN: %s ad_confs_file path_policy_file out_dir',
-                      sys.argv[0])
-        sys.exit()
-
-    generator = ConfigGenerator(out_dir)
-    generator.generate_all(adconfigurations_file, path_policy_file)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-c', '--ad-config',
+                        default=DEFAULT_ADCONFIGURATIONS_FILE,
+                        help='AD configurations file')
+    parser.add_argument('-p', '--path-policy',
+                        default=DEFAULT_PATH_POLICY_FILE,
+                        help='Path policy file')
+    parser.add_argument('-o', '--output-dir',
+                        default=TOPOLOGY_PATH,
+                        help='Output directory')
+    args = parser.parse_args()
+    generator = ConfigGenerator(os.path.abspath(args.output_dir))
+    generator.generate_all(args.ad_config, args.path_policy)
 
 
 if __name__ == "__main__":

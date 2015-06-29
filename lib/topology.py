@@ -16,7 +16,7 @@
 ===========================================
 """
 # Stdlib
-from ipaddress import IPv4Address, IPv6Address
+from ipaddress import ip_address
 import json
 import logging
 
@@ -28,36 +28,33 @@ class Element(object):
 
     :ivar addr: IP or SCION address of a server or edge router.
     :type addr: :class:`IPv4Address` or :class:`IPv6Address`
-    :ivar to_addr: destination IP or SCION address of an edge router.
-    :type to_addr: :class:`IPv4Address` or :class:`IPv6Address`
     :ivar name: element name or id
     :type name: str
     """
 
-    def __init__(self, addr=None, addr_type=None, to_addr=None, name=None):
+    def __init__(self, addr=None, name=None):
         """
         Initialize an instance of the class Element.
 
-        :param addr: IP or SCION address of a server or edge router.
+        :param addr: IP or SCION address of the element
         :type addr: str
-        :param addr_type: type of the given address.
-        :type addr_type: str
-        :param to_addr: destination IP or SCION address of an edge router.
-        :type to_addr: str
         :param name: element name or id
         :type name: str
-        :returns: the newly created Element instance.
-        :rtype: :class:`Element`
         """
-        if addr_type.lower() == "ipv4":
-            self.addr = IPv4Address(addr)
-            if to_addr is not None:
-                self.to_addr = IPv4Address(to_addr)
-        elif addr_type.lower() == "ipv6":
-            self.addr = IPv6Address(addr)
-            if to_addr is not None:
-                self.to_addr = IPv6Address(to_addr)
-        self.name = str(name)
+        if addr is None:
+            self.addr = None
+        else:
+            try:
+                self.addr = ip_address(addr)
+            except ValueError:
+                # TODO (@syclops): When new address types are added here (e.g.
+                # SCION addresses), add the appropriate code to set the address
+                # here.
+                raise
+        if name is None:
+            self.name = None
+        else:
+            self.name = str(name)
 
 
 class ServerElement(Element):
@@ -73,11 +70,8 @@ class ServerElement(Element):
         :type server_dict: dict
         :param name: server element name or id
         :type name: str
-        :returns: the newly created ServerElement instance.
-        :rtype: :class:`ServerElement`
         """
-        Element.__init__(self, server_dict['Addr'], server_dict['AddrType'],
-                         name=name)
+        super().__init__(server_dict['Addr'], name)
 
 
 class InterfaceElement(Element):
@@ -101,23 +95,31 @@ class InterfaceElement(Element):
     :type udp_port: int
     """
 
-    def __init__(self, interface_dict=None):
+    def __init__(self, interface_dict=None, name=None):
         """
         Initialize an instance of the class InterfaceElement.
 
         :param interface_dict: contains information about the interface.
         :type interface_dict: dict
-        :returns: the newly created InterfaceElement instance.
-        :rtype: :class:`InterfaceElement`
         """
-        Element.__init__(self, interface_dict['Addr'],
-                         interface_dict['AddrType'], interface_dict['ToAddr'])
+        super().__init__(interface_dict['Addr'], name)
         self.if_id = interface_dict['IFID']
         self.neighbor_ad = interface_dict['NeighborAD']
         self.neighbor_isd = interface_dict['NeighborISD']
         self.neighbor_type = interface_dict['NeighborType']
         self.to_udp_port = interface_dict['ToUdpPort']
         self.udp_port = interface_dict['UdpPort']
+        to_addr = interface_dict['ToAddr']
+        if to_addr is None:
+            self.to_addr = None
+        else:
+            try:
+                self.to_addr = ip_address(to_addr)
+            except ValueError:
+                # TODO (@syclops): When new address types are added here (e.g.
+                # SCION addresses), add the appropriate code to set the address
+                # here.
+                raise
 
 
 class RouterElement(Element):
@@ -136,11 +138,8 @@ class RouterElement(Element):
         :type router_dict: dict
         :param name: router element name or id
         :type name: str
-        :returns: the newly created RouterElement instance.
-        :rtype: :class:`RouterElement`
         """
-        Element.__init__(self, router_dict['Addr'], router_dict['AddrType'],
-                         name=name)
+        super().__init__(router_dict['Addr'], name)
         self.interface = InterfaceElement(router_dict['Interface'])
 
 
@@ -179,9 +178,6 @@ class Topology(object):
     def __init__(self):
         """
         Initialize an instance of the class Topology.
-
-        :returns: the newly created Topology instance.
-        :rtype: :class:`Topology`
         """
         self.is_core_ad = False
         self.isd_id = 0
@@ -203,6 +199,7 @@ class Topology(object):
 
         :param topology_file: path to the topology file
         :type topology_file: str
+
         :returns: the newly created Topology instance
         :rtype: :class: `Topology`
         """
@@ -221,6 +218,7 @@ class Topology(object):
 
         :param topology_dict: dictionary representation of a topology
         :type topology_dict: dict
+
         :returns: the newly created Topology instance
         :rtype: :class:`Topology`
         """
@@ -284,6 +282,14 @@ class Topology(object):
         return all_edge_routers
 
     def get_own_config(self, server_type, server_id):
+        """
+
+
+        :param server_type:
+        :type server_type:
+        :param server_id:
+        :type server_id:
+        """
         target = None
         if server_type == "bs":
             target = self.beacon_servers

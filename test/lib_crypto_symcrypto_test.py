@@ -12,12 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`symcrypto` --- SCION symmetric encryption tests
-=====================================================
+:mod:`lib_crypto_symcrypto_test` --- lib.crypto.symcrypto unit tests
+====================================================================
 """
 # Stdlib
 import logging
 import unittest
+
+# Has to be imported before anything else so that any relevant decorators are
+# patched.
+from test.testcommon import SCIONCommonTest
 
 # SCION
 from lib.crypto.symcrypto import (
@@ -31,7 +35,6 @@ from lib.crypto.symcrypto import (
     sha3hash,
     verify_cbcmac,
 )
-from test.testcommon import SCIONCommonTest
 
 
 class TestSymcrypto(SCIONCommonTest):

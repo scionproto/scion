@@ -47,6 +47,15 @@ _SIG_MAP = {
 
 
 def _get_isd_prefix(isd_dir):
+    """
+
+
+    :param isd_dir:
+    :type isd_dir:
+
+    :returns:
+    :rtype:
+    """
     return os.path.join(isd_dir, 'ISD')
 
 
@@ -65,6 +74,7 @@ def get_cert_chain_file_path(loc_isd, loc_ad, isd_id, ad_id, version,
     :type ad_id: int
     :param version: the certificate chain's version.
     :type version: int
+
     :returns: the certificate chain file path.
     :rtype: str
     """
@@ -87,6 +97,7 @@ def get_trc_file_path(loc_isd, loc_ad, isd_id, version,
     :type isd_id: int
     :param version: the TRC's version.
     :type version: int
+
     :returns: the TRC file path.
     :rtype: str
     """
@@ -104,6 +115,7 @@ def get_sig_key_file_path(isd_id, ad_id, isd_dir=TOPOLOGY_PATH):
     :type isd_id: int
     :param ad_id: the signing key AD identifier.
     :type ad_id: int
+
     :returns: the signing key file path.
     :rtype: str
     """
@@ -120,6 +132,7 @@ def get_enc_key_file_path(isd_id, ad_id, isd_dir=TOPOLOGY_PATH):
     :type isd_id: int
     :param ad_id: the encryption key AD identifier.
     :type ad_id: int
+
     :returns: the encryption key file path.
     :rtype: str
     """
@@ -134,6 +147,7 @@ def read_file(file_path):
 
     :param file_path: the path to the file.
     :type file_path: str
+
     :returns: the file content.
     :rtype: str
     """
@@ -162,7 +176,7 @@ def write_file(file_path, text):
 
 def update_dict(dictionary, key, values, elem_num=0):
     """
-    Updates dictionary. Used for managing a temporary paths' cache.
+    Update dictionary. Used for managing a temporary paths' cache.
     """
     if key in dictionary:
         dictionary[key].extend(values)
@@ -172,6 +186,12 @@ def update_dict(dictionary, key, values, elem_num=0):
 
 
 def trace(id_):
+    """
+
+
+    :param id_:
+    :type id_:
+    """
     path = os.path.join(TRACE_DIR, "%s.trace.html" % id_)
     trace_start(path)
 
@@ -183,8 +203,9 @@ def timed(limit):
     string parameter which is printed as part of the warning. If `timed_desc`
     isn't passed in, then the wrapped function's path is printed instead.
 
-    :param float limit: If the wrapped function takes more than `limit`
+    :param limit: If the wrapped function takes more than `limit`
                         seconds, log a warning.
+    :type limit: float
     """
     def wrap(f):
         @wraps(f)
@@ -207,10 +228,13 @@ def sleep_interval(start, interval, desc):
 
     If the interval is already over, log a warning with `desc` at the start.
 
-    :param float start: Time (in seconds since the Epoch) the current interval
+    :param start: Time (in seconds since the Epoch) the current interval
                         started.
-    :param float interval: Length (in seconds) of an interval.
-    :param string desc: Description of the operation.
+    :type start: float
+    :param interval: Length (in seconds) of an interval.
+    :type interval: float
+    :param desc: Description of the operation.
+    :type desc: string
     """
     now = time.time()
     delay = start + interval - now
@@ -233,6 +257,9 @@ def handle_signals():
 def _signal_handler(signum, _):
     """
     Basic signal handler function
+
+    :param signum:
+    :type signum:
     """
     logging.info("Received %s", _SIG_MAP[signum])
     sys.exit(0)
