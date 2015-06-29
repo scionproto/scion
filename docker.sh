@@ -1,37 +1,68 @@
 #!/bin/bash
 
+branch=
+build_dir=
+image_tag=
+
+get_params() {
+  # If we're on a local branch, use that. If we're on a detached HEAD from a
+  # remote branch, or from a bare rev id, use that instead.
+  branch=$(git status | head -n1 |
+           awk '/^On branch|HEAD detached at/ {print $NF}')
+  build_dir="docker/_build/$branch"
+  image_tag=$(echo "$branch" | tr '/' '.')
+}
+
 cmd_build_basic() {
-    stop_cntrs
-    del_cntrs
+    set -e
+    set -o pipefail
+    get_params
     echo
     echo "Copying current working tree for Docker image"
     echo "============================================="
-    mkdir -p docker/_build/
+    mkdir -p "${build_dir:?}"
     # Just in case it's sitting there from a previous failed run
-    rm -rf docker/_build/scion.tmp
-    # Ignore timestamps; only update files if their checksums have changed. This
-    # prevents Docker from doing unnecessary cache invalidations.
-    # As rsync --from-files cannot delete unknown files in the destionation,
-    # first rsync to a clean dir using --from-files, then rsync again from that
-    # dir to the actual Docker context dir using --delete
-    git ls-files -z | rsync -a0 --files-from=- . docker/_build/scion.tmp/
-    rsync -rlpc --delete --info=FLIST2,STATS docker/_build/scion.tmp/ docker/_build/scion.git/
+    rm -rf docker/_build/.scion.tmp
+    # Ignore timestamps; only update files if their checksums have changed.
+    # This prevents Docker from doing unnecessary cache invalidations. As
+    # rsync --from-files cannot delete unknown files in the destionation, first
+    # rsync to a clean dir using --from-files, then rsync again from that dir
+    # to the actual Docker context dir using --delete
+    git ls-files -z | rsync -a0 --files-from=- . docker/_build/.scion.tmp/
+    rsync -rlpc --delete --info=FLIST2,STATS \
+      docker/_build/.scion.tmp/ "${build_dir}/scion.git/"
     # Cleanup the temp directory
-    rm -rf docker/_build/scion.tmp
+    rm -rf docker/_build/.scion.tmp
     echo
-    echo "Setting up Docker basic image"
-    echo "============================="
-    docker build -t scionbasic docker || exit 1
-    del_imgs
+    echo "Building Docker basic image"
+    echo "==========================="
+    cp -a docker/Dockerfile "$build_dir"
+    docker_build "scion/basic" "build-basic.log"
 }
 
 cmd_build_full() {
+    set -e
+    set -o pipefail
     cmd_build_basic
     echo
-    echo "Setting up Docker full image"
+    echo "Building Docker full image"
     echo "============================"
-    docker build -t scionfull - < docker/Dockerfile.full || exit 1
-    del_imgs
+    cp -a docker/Dockerfile.full "$build_dir/Dockerfile"
+    docker_build "scion/full" "build-full.log"
+}
+
+docker_build() {
+    set -e
+    set -o pipefail
+    local image_name="$1"; shift
+    local log_file="$1"; shift
+    echo "Image: $image_name:$image_tag"
+    echo "Log: $build_dir/$log_file"
+    echo "============================"
+    echo
+    docker build -t "${image_name:?}:${image_tag:?}" "${build_dir:?}" |
+      tee "$build_dir/${log_file:?}"
+    docker tag "$image_name:$image_tag" "$image_name:latest"
 }
 
 cmd_clean() {
@@ -48,11 +79,11 @@ cmd_clean_full() {
 }
 
 cmd_run_basic() {
-    docker run -i -t --rm --privileged -h scionbasic scionbasic "$@"
+    docker run -i -t --rm --privileged -h scionbasic scion/basic "$@"
 }
 
 cmd_run_full() {
-    docker run -i -t --rm --privileged -h scionfull scionfull "$@"
+    docker run -i -t --rm --privileged -h scionfull scion/full "$@"
 }
 
 stop_cntrs() {
