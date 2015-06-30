@@ -229,7 +229,7 @@ class TestLeaseInfoParse(object):
 
 class TestLeaseInfoPack(object):
     """
-    Unit tests for lib.packet.path_mgmt.LeaseInfo.from_values
+    Unit tests for lib.packet.path_mgmt.LeaseInfo.pack
     """
     def test_basic(self):
         les_inf = LeaseInfo()
