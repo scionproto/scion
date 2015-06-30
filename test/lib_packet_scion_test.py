@@ -237,6 +237,7 @@ class TestSCIONHeaderFromValues(object):
         dst.__class__ = src.__class__ = SCIONAddr
         scion_common_hdr.return_value = 'scion_common_hdr'
         hdr = SCIONHeader.from_values(src, dst)
+        scion_common_hdr.assert_called_once_with(src.addr_len, dst.addr_len, 0)
         set_path.assert_called_once_with(hdr, None)
         set_ext_hdrs.assert_called_once_with(hdr, [])
 
@@ -281,6 +282,7 @@ class TestSCIONHeaderSetPath(object):
         path = MagicMock(spec_set=['pack'])
         path.pack.return_value = b'packed_path'
         hdr.set_path(path)
+        path.pack.assert_called_once_with()
         ntools.eq_(hdr._path, path)
         ntools.eq_(hdr.common_hdr.hdr_len, 100 + len(b'packed_path'))
         ntools.eq_(hdr.common_hdr.total_len, 200 + len(b'packed_path'))
@@ -315,7 +317,7 @@ class TestSCIONHeaderSetExtHdrs(object):
     def test_full(self, pop, append):
         hdr = SCIONHeader()
         ext_hdrs = ['ext_hdr0', 'ext_hdr1']
-        hdr._extension_hdrs = MagicMock(spect_set=['__bool__'])
+        hdr._extension_hdrs = MagicMock(spec_set=['__bool__'])
         hdr._extension_hdrs.__bool__.side_effect = [True, True, False]
         hdr.set_ext_hdrs(ext_hdrs)
         pop.assert_has_calls([call(hdr)] * 2)
