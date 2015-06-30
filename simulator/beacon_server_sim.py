@@ -23,12 +23,16 @@ from infrastructure.beacon_server import (
     CoreBeaconServer,
     LocalBeaconServer
 )
-from lib.crypto.hash_chain import HashChain
+from lib.crypto.hash_chain import HashChain, HashChainExhausted
 from lib.defines import SCION_UDP_PORT
 from lib.packet.opaque_field import (
     HopOpaqueField,
     InfoOpaqueField,
     OpaqueFieldType as OFT,
+)
+from lib.packet.path_mgmt import (
+    RevocationInfo,
+    RevocationType as RT,
 )
 from lib.packet.pcb import (
     ADMarking,
@@ -76,6 +80,7 @@ class CoreBeaconServerSim(CoreBeaconServer):
         logging.info('Running Core Beacon Server: %s', str(self.addr))
         schedule(0., cb=self.handle_pcbs_propagation)
         schedule(0., cb=self.register_segments)
+        schedule(0., cb=self._handle_if_timeouts)
 
     def clean(self):
         pass
@@ -209,6 +214,32 @@ class CoreBeaconServerSim(CoreBeaconServer):
         return ADMarking.from_values(pcbm, peer_markings,
                                      self._get_if_rev_token(egress_if))
 
+    def _handle_if_timeouts(self):
+        """
+        Periodically checks each interface state and issues an if revocation, if
+        no keep-alive message was received for IFID_TOUT.
+        """
+        start_time = time.time()
+        for (if_id, if_state) in self.ifid_state.items():
+            # Check if interface has timed-out.
+            if if_state.is_expired():
+                logging.info("Issuing revocation for IF %d.", if_id)
+                # Issue revocation
+                assert if_id in self.if2rev_tokens
+                chain = self.if2rev_tokens[if_id]
+                rev_info = RevocationInfo.from_values(RT.INTERFACE,
+                    chain.current_element(), chain.next_element())
+                self._process_revocation(rev_info)
+                # Advance the hash chain for the corresponding IF.
+                try:
+                    chain.move_to_next_element()
+                except HashChainExhausted:
+                    # TODO(shitz): Add code to handle hash chain exhaustion.
+                    logging.warning("Hash chain for IF %s is exhausted.")
+                if_state.revoke_if_expired()
+        now = time.time()
+        schedule(start_time + self.IF_TIMEOUT_INTERVAL - now,
+                 cb=self._handle_if_timeouts)
 
 class LocalBeaconServerSim(LocalBeaconServer):
     """
@@ -248,6 +279,7 @@ class LocalBeaconServerSim(LocalBeaconServer):
         logging.info('Running Local Beacon Server: %s', str(self.addr))
         schedule(0., cb=self.handle_pcbs_propagation)
         schedule(0., cb=self.register_segments)
+        schedule(0., cb=self._handle_if_timeouts)
 
     def handle_pcbs_propagation(self):
         """
@@ -365,3 +397,30 @@ class LocalBeaconServerSim(LocalBeaconServer):
             peer_markings.append(peer_marking)
         return ADMarking.from_values(pcbm, peer_markings,
                                      self._get_if_rev_token(egress_if))
+
+    def _handle_if_timeouts(self):
+        """
+        Periodically checks each interface state and issues an if revocation, if
+        no keep-alive message was received for IFID_TOUT.
+        """
+        start_time = time.time()
+        for (if_id, if_state) in self.ifid_state.items():
+            # Check if interface has timed-out.
+            if if_state.is_expired():
+                logging.info("Issuing revocation for IF %d.", if_id)
+                # Issue revocation
+                assert if_id in self.if2rev_tokens
+                chain = self.if2rev_tokens[if_id]
+                rev_info = RevocationInfo.from_values(RT.INTERFACE,
+                    chain.current_element(), chain.next_element())
+                self._process_revocation(rev_info)
+                # Advance the hash chain for the corresponding IF.
+                try:
+                    chain.move_to_next_element()
+                except HashChainExhausted:
+                    # TODO(shitz): Add code to handle hash chain exhaustion.
+                    logging.warning("Hash chain for IF %s is exhausted.")
+                if_state.revoke_if_expired()
+        now = time.time()
+        schedule(start_time + self.IF_TIMEOUT_INTERVAL - now,
+                 cb=self._handle_if_timeouts)
