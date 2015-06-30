@@ -18,26 +18,27 @@ limitations under the License.
 
 import logging
 import struct
-from simulator.sim_host import SCIONSimHost, SCIOND_API_PORT
 from ipaddress import IPv4Address
+from lib.packet.opaque_field import (
+    InfoOpaqueField, 
+    OpaqueFieldType as OFT,
+)
 from lib.packet.path import (
     CorePath,
     PeerPath,
     CrossOverPath,
-    EmptyPath)
-from lib.packet.opaque_field import (
-    InfoOpaqueField, 
-    OpaqueFieldType as OFT
+    EmptyPath,
 )
+from simulator.endhost.sim_host import SCIONSimHost, SCIOND_API_PORT
 from simulator.simulator import schedule
 
 class SCIONSimApplication(object):
     """
-    An application to be simulated on a host(SCIONSimHost) 
+    An application to be simulated on a host(SCIONSimHost)
     """
     def __init__(self, host, app_port):
         self.host = host
-        host.add_application(self, app_port, self.run, 
+        host.add_application(self, app_port, self.run,
                              self.sim_recv, self.handle_path_reply)
         self.addr = str(host.addr.host_addr)
         logging.info("Application: %s added on host: %s",

@@ -17,8 +17,8 @@ limitations under the License.
 """
 
 import logging
-import sys
 import os
+import sys
 
 SCRIPTS_DIR = 'topology'
 SIM_DIR = 'SIM'
@@ -38,6 +38,7 @@ def unschedule(eid):
     simulator.remove_event(eid)
 
 def stop(time):
+    """Stop the simulator"""
     simulator.set_stop_time(time)
 
 def terminate():
@@ -53,11 +54,11 @@ def generate_topology():
     Instantiate all SCION Elements from sim.conf file
     """
 
-    from lib.sim_core import Simulator
-    from simulator.path_server_sim import CorePathServerSim, LocalPathServerSim
     from simulator.beacon_server_sim import CoreBeaconServerSim, LocalBeaconServerSim
-    from simulator.router_sim import RouterSim
     from simulator.cert_server_sim import CertServerSim
+    from simulator.lib.sim_core import Simulator
+    from simulator.path_server_sim import CorePathServerSim, LocalPathServerSim
+    from simulator.router_sim import RouterSim
 
     global simulator
     simulator = Simulator()

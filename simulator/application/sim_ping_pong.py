@@ -16,10 +16,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from application.sim_app import SCIONSimApplication
+import logging
 from lib.packet.scion import SCIONPacket
 from lib.packet.scion_addr import SCIONAddr
-import logging
+from simulator.application.sim_app import SCIONSimApplication
 from simulator.simulator import schedule, terminate
 
 class SimPingApp(SCIONSimApplication):

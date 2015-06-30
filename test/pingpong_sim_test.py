@@ -20,10 +20,10 @@ import logging
 import profile
 import unittest
 
-from application.sim_ping_pong import SimPingApp, SimPongApp
-from endhost.sim_host import SCIONSimHost
 from ipaddress import IPv4Address
 from lib.packet.scion_addr import ISD_AD
+from simulator.application.sim_ping_pong import SimPingApp, SimPongApp
+from simulator.endhost.sim_host import SCIONSimHost
 from simulator.simulator import generate_topology, run
 
 
