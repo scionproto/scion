@@ -24,11 +24,11 @@ import nose.tools as ntools
 
 # SCION
 from lib.packet.ext_hdr import ExtensionHeader
-from lib.packet.path import PathBase
 from lib.packet.opaque_field import (
     OpaqueField,
     OpaqueFieldType as OFT
 )
+from lib.packet.path import PathBase
 from lib.packet.scion import (
     CertChainReply,
     CertChainRequest,
