@@ -21,21 +21,37 @@ from unittest.mock import patch, MagicMock, call
 
 # External packages
 import nose
+import nose.tools as ntools
 
 # SCION
 from lib.log import (
     init_logging,
-    log_exception
-)
+    log_exception,
+    _StreamErrorHandler)
+from test.testcommon import SCIONTestException
 
 
 class TestStreamErrorHandlerHandleError(object):
     """
     Unit tests for lib.log._StreamErrorHandler.handleError
     """
-    # @patch("lib.log._StreamErrorHandler.stream", autospec=True)
-    def test(self):
-        pass
+    @patch("lib.log.traceback.format_exc", autospec=True)
+    @patch("lib.log.logging.StreamHandler", autospec=True)
+    def test(self, log_sh, format_exc):
+        handler = _StreamErrorHandler()
+        handler.stream = MagicMock(spec_set=['write'])
+        handler.stream.write = MagicMock(spec_set=[])
+        handler.flush = MagicMock(spec_set=[])
+        format_exc.return_value = MagicMock(spec_set=['split'])
+        format_exc.return_value.split.return_value = ['line0', 'line1']
+        try:
+            raise SCIONTestException
+        except:
+            ntools.assert_raises(SCIONTestException, handler.handleError, "hi")
+        calls = [call("Exception in logging module:\n"), call('line0\n'),
+                 call('line1\n')]
+        handler.stream.write.assert_has_calls(calls)
+        handler.flush.assert_called_once_with()
 
 
 class TestInitLogging(object):
