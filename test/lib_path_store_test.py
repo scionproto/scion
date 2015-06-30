@@ -227,25 +227,15 @@ class TestPathPolicyFromFile(object):
             from_dict.assert_called_once_with("policy_dict")
 
     @patch("lib.path_store.logging.error", autospec=True)
-    def test_value_error(self, error_):
+    def _check_error(self, key, error_):
         with patch('lib.path_store.open', mock_open(), create=True) as open_f:
-            open_f.side_effect = [ValueError]
+            open_f.side_effect = key
             ntools.assert_is_none(PathPolicy.from_file("policy_file"))
             ntools.eq_(error_.call_count, 1)
 
-    @patch("lib.path_store.logging.error", autospec=True)
-    def test_key_error(self, error_):
-        with patch('lib.path_store.open', mock_open(), create=True) as open_f:
-            open_f.side_effect = [KeyError]
-            ntools.assert_is_none(PathPolicy.from_file("policy_file"))
-            ntools.eq_(error_.call_count, 1)
-
-    @patch("lib.path_store.logging.error", autospec=True)
-    def test_type_error(self, error_):
-        with patch('lib.path_store.open', mock_open(), create=True) as open_f:
-            open_f.side_effect = [TypeError]
-            ntools.assert_is_none(PathPolicy.from_file("policy_file"))
-            ntools.eq_(error_.call_count, 1)
+    def test_error(self):
+        for key in (ValueError, KeyError, TypeError):
+            yield self._check_error, key
 
 
 class TestPathPolicyFromDict(object):
