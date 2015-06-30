@@ -576,6 +576,7 @@ class PathSegment(Marking):
         if type(other) is type(self):
             return (self.iof == other.iof and
                     self.trc_ver == other.trc_ver and
+                    self.segment_id == other.segment_id and
                     self.ads == other.ads)
         else:
             return False
