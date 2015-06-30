@@ -419,10 +419,10 @@ class TestSCIONHeaderParseCommonHdr(object):
         scion_common_hdr.return_value = common_hdr
         scion_common_hdr.LEN = 2
         scion_addr.side_effect = ['src_addr', 'dst_addr']
-        ntools.eq_(hdr._parse_common_hdr(data, 2), 2 + 2 + 3 + 5)
-        scion_common_hdr.assert_called_once_with(data[2:4])
+        ntools.eq_(hdr._parse_common_hdr(data, 1), 1 + 2 + 3 + 5)
+        scion_common_hdr.assert_called_once_with(data[1:3])
         ntools.eq_(hdr.common_hdr, common_hdr)
-        scion_addr.assert_has_calls([call(data[4:7]), call(data[7:12])])
+        scion_addr.assert_has_calls([call(data[3:6]), call(data[6:11])])
         ntools.eq_(hdr.src_addr, 'src_addr')
         ntools.eq_(hdr.dst_addr, 'dst_addr')
 
