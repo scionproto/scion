@@ -605,18 +605,18 @@ class TestPathStoreGetLatestHistorySnapshot(object):
 
     def test_basic(self):
         pth_str = PathStore(self._setup())
-        pth_str.best_paths_history = [1]
-        pth_str.best_paths_history[0] = [MagicMock(spec_set=['pcb'])
-                                         for i in range(5)]
+        pth_str.best_paths_history = []
+        pth_str.best_paths_history.append([MagicMock(spec_set=['pcb'])
+                                           for i in range(5)])
         for i in range(5):
             pth_str.best_paths_history[0][i].pcb = i
         ntools.eq_(pth_str.get_latest_history_snapshot(3), [0, 1, 2])
 
     def test_less_arg(self):
         pth_str = PathStore(self._setup({'best_set_size': 4}))
-        pth_str.best_paths_history = [1]
-        pth_str.best_paths_history[0] = [MagicMock(spec_set=['pcb'])
-                                         for i in range(5)]
+        pth_str.best_paths_history = []
+        pth_str.best_paths_history.append([MagicMock(spec_set=['pcb'])
+                                           for i in range(5)])
         for i in range(5):
             pth_str.best_paths_history[0][i].pcb = i
         ntools.eq_(pth_str.get_latest_history_snapshot(), [0, 1, 2, 3])
