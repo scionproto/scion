@@ -18,6 +18,7 @@ limitations under the License.
 
 import logging
 import struct
+from simulator.sim_host import SCIONSimHost, SCIOND_API_PORT
 from ipaddress import IPv4Address
 from lib.packet.path import (
     CorePath,
@@ -28,7 +29,6 @@ from lib.packet.opaque_field import (
     InfoOpaqueField, 
     OpaqueFieldType as OFT
 )
-from endhost.sim_host import SCIONSimHost, SCIOND_API_PORT
 from simulator.simulator import schedule
 
 class SCIONSimApplication(object):
