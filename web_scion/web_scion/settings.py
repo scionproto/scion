@@ -22,9 +22,6 @@ sys.path.insert(0, SCION_ROOT)
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.7/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'j(ssxvxi!8t)-p80t3&(va2oa510%4q)j$njf(zius3&72dj8t'
-
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
@@ -75,17 +72,6 @@ ROOT_URLCONF = 'web_scion.urls'
 
 WSGI_APPLICATION = 'web_scion.wsgi.application'
 
-
-# Database
-# https://docs.djangoproject.com/en/1.7/ref/settings/#databases
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(WEB_SCION_DIR, 'db.sqlite3'),
-    }
-}
-
 TEMPLATE_CONTEXT_PROCESSORS = TCP + (
     'django.core.context_processors.request',
     'ad_manager.context_processors.account_urls',
@@ -124,6 +110,7 @@ ENABLED_2FA = False
 TWO_FACTOR_PATCH_ADMIN = ENABLED_2FA
 
 try:
-    from .settings_private import *  # noqa
+    from .settings_private import *
 except ImportError:
-    pass
+    sys.exit("No private settings file found (settings_private.py). "
+             "Use settings_private.dist.py as a template.")

@@ -29,10 +29,24 @@
 1. Build the full SCION image (from the SCION root directory):
 
     `./docker.sh build`
-    
+
 2. Build and run the web image:
 
     `./web_scion/docker/run_docker.sh`
+
+### Using PostgreSQL
+
+By default an SQLite database is used. One can switch to using PostgreSQL for improved performance and flexibility.
+
+1. Install additional system dependencies
+
+    `sudo apt-get install python3-psycopg2`
+
+2. Update DATABASES in `web_scion/settings_private.py`
+
+3. Run the PostgreSQL docker image
+
+    `./scripts/postgres_run.sh`
 
 ## Usage
 
@@ -43,3 +57,4 @@
  Don't forget to run the monitoring daemon if you want to manage server elements:
 
     `./supervisor/supervisor.sh start monitoring_daemon`
+
