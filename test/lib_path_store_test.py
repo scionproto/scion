@@ -200,7 +200,7 @@ class TestPathPolicyCheckPropertyRanges(object):
     def _check_bandwidth(self, key, range_, result):
         pth_pol = PathPolicy()
         pth_pol.property_ranges = self.d
-        pth_pol.property_ranges['GuaranteedBandwidth'].extend(range_)
+        pth_pol.property_ranges[key].extend(range_)
         ntools.eq_(pth_pol._check_property_ranges("pcb"), result)
 
     def test_bandwidth(self):
@@ -225,6 +225,27 @@ class TestPathPolicyFromFile(object):
             open_f.assert_called_once_with("policy_file")
             load.assert_called_once_with(open_f.return_value)
             from_dict.assert_called_once_with("policy_dict")
+
+    @patch("lib.path_store.logging.error", autospec=True)
+    def test_value_error(self, error_):
+        with patch('lib.path_store.open', mock_open(), create=True) as open_f:
+            open_f.side_effect = [ValueError]
+            ntools.assert_is_none(PathPolicy.from_file("policy_file"))
+            ntools.eq_(error_.call_count, 1)
+
+    @patch("lib.path_store.logging.error", autospec=True)
+    def test_key_error(self, error_):
+        with patch('lib.path_store.open', mock_open(), create=True) as open_f:
+            open_f.side_effect = [KeyError]
+            ntools.assert_is_none(PathPolicy.from_file("policy_file"))
+            ntools.eq_(error_.call_count, 1)
+
+    @patch("lib.path_store.logging.error", autospec=True)
+    def test_type_error(self, error_):
+        with patch('lib.path_store.open', mock_open(), create=True) as open_f:
+            open_f.side_effect = [TypeError]
+            ntools.assert_is_none(PathPolicy.from_file("policy_file"))
+            ntools.eq_(error_.call_count, 1)
 
 
 class TestPathPolicyFromDict(object):
