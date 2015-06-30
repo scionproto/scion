@@ -12,15 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`router_sim` --- SCION edge router sim
-===========================================
+:mod:`router_sim` --- SCION edge router(simulator)
+==================================================
 """
-
+# Stdlib
 import logging
+
+# SCION
 from infrastructure.router import Router, NextHop, IFID_PKT_TOUT
 from lib.defines import SCION_UDP_PORT
 from lib.packet.scion import IFIDPacket
 from lib.packet.scion_addr import SCIONAddr, ISD_AD
+
+# SCION Simulator
 from simulator.simulator import add_element, schedule
 
 

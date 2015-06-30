@@ -1,41 +1,46 @@
+# Copyright 2015 ETH Zurich
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """
-sim_core.py
-
-Copyright 2015 ETH Zurich
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+:mod:`sim_core` --- Core of SCION Simulator
+===========================================
 """
 
 import logging
 from itertools import count
 from queue import PriorityQueue
 
-class Event:
+
+class Event(object):
     """
-    Description of Events that will be simulated
+    Generic class for an event to be simulated
     """
 
     def __init__(self, event_id, event_time, cb, args):
         """
+        Initialize an event
+
         :param event_id: unique ID to identify the event
         :type event_id: int
+        :param event_time: time at which event is scheduled
+        :type event_time: float
         :param cb: function to be executed
         :type cb: callback function
         :param args: arguments to be passed onto the callback function
         :type args: tuple
         """
-        self.eid = event_id;
-        self.event_time = event_time;
+        self.eid = event_id
+        self.event_time = event_time
         self.cb = cb
         self.args = args
 
@@ -62,99 +67,104 @@ class Event:
         """
         self.cb(*self.args)
 
-class Simulator:
+class Simulator(object):
+    """
+    The SCION Simulator
+    """
     def __init__(self):
         """
         Create a Simulator instance.
-
-        :returns: the newly-created Simulator instance
-        :rtype: Simulator
         """
-        self.element_list={}
+        self.element_list = {}
         self.event_pq = PriorityQueue()
         self.curr_time = 0
         self.stop_time = 0
-        self.event_id = count()	# unique sequence count
-        self.removed = []	# list of removed (not expired or executed) events
+        # unique sequence count
+        self.event_id = count()
+        # list of removed (not expired or executed) events
+        self.removed = []
 
-    def add_element (self, addr, element):
+    def add_element(self, addr, element):
+        """
+        Add an element along with its IP address to simulator
+        The element's sim_recv will be called to send a packet to this address
+
+        :param addr: The address corresponding to element
+        :type addr: str
+        :param element: The entity which is to be simulated
+        :type element:
+        """
         self.element_list[addr] = element
 
-    def add_event (self, time, **kwargs):
+    def add_event(self, time, **kwargs):
         """
-        Schedule a Event 
+        Schedule a Event
         Event can be described either by
         1. Providing a Callback function to be summoned
         2. Specifying the IP address of the Object to be called
             (Implicitly assumes that the Function to be called is sim_recv())
-        
 
         :param time: relative time that the event would be executed (sec)
-        :type time: double
+        :type time: float
         :param cb: callback function to be executed
+        :type cb:
         :type kwargs: arguments as a dictionary
         :param kwargs: dictionary
-
         :returns: event id
         :rtype: int
         """
         if time < 0:
             return -1
-
         event_time = self.curr_time + time
-
         if 'args' in kwargs:
             args = kwargs['args']
         else:
             args = ()
-
         if not isinstance(args, tuple):
             return -1
-
         if 'dst' in kwargs:
             dst = kwargs['dst']
             try:
-                o = self.element_list[dst]
+                elem = self.element_list[dst]
             except KeyError:
                 logging.warning('no object mapped to %s', dst)
                 return -1
 
-            o = self.element_list[dst]
+            elem = self.element_list[dst]
             try:
-                cb = getattr(o, 'sim_recv')
+                function = getattr(elem, 'sim_recv')
             except AttributeError:
                 logging.warning('could not find sim_recv()')
                 return -1
             if len(args) != 3:
                 logging.warning('arg should be (pkt, src, dst)')
                 return -1
-
         elif 'cb' in kwargs:
-            cb = kwargs['cb']
+            function = kwargs['cb']
         else:
             logging.warning('invalid description of the event')
             return -1
-
         eid = next(self.event_id)
+        self.event_pq.put(Event(eid, event_time, function, args))
+        return eid
 
-        self.event_pq.put(Event(eid, event_time, cb, args))
-
-        return eid   
-
-    def remove_event (self, event_id):
+    def remove_event(self, event_id):
         """
-        Remove Event specified by event_id
+        Remove event specified by event_id
+
+        :param event_id: The id of event to be removed
+        :type event_id: int
         """
         self.removed.append(event_id)
 
     def set_stop_time(self, time):
         """
-        Set time at which the simulator will stop
+        Any event after this time will not be run
 
         :param time: time at which the simulator will terminate (sec)
         :type time: double
         """
-        self.stop_time = time;
+        self.stop_time = time
 
     def get_curr_time(self):
         """
@@ -164,10 +174,9 @@ class Simulator:
 
     def run(self):
         """
-        Start the simulation. Simulation will terminate if 
+        Start the simulation. Simulation will terminate if
         no event is scheduled or if stop time is reached.
         """
-
         for k in self.element_list:
             self.element_list[k].run()
 
@@ -179,7 +188,6 @@ class Simulator:
             elif event.get_eid() not in self.removed:
                 self.curr_time = event_time
                 event.run()
-
         self.clean()
 
     def terminate(self):

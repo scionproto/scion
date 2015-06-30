@@ -12,12 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`path_server_sim` --- SCION path server sim
-========================================
+:mod:`path_server_sim` --- SCION path server(simulator)
+=======================================================
 """
-
+# SCION
 from infrastructure.path_server import CorePathServer, LocalPathServer
 from lib.defines import SCION_UDP_PORT
+
+# SCION Simulator
 from simulator.simulator import add_element, schedule
 
 class CorePathServerSim(CorePathServer):

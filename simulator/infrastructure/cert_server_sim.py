@@ -12,11 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`cert_server_sim` --- SCION certificate server sim
-===============================================
+:mod:`cert_server_sim` --- SCION certificate server(simulator)
+==============================================================
 """
-
+# Stdlib
 import logging
+
+# SCION
 from infrastructure.cert_server import CertServer
 from lib.defines import SCION_UDP_PORT
 from lib.packet.scion import (
@@ -28,6 +30,8 @@ from lib.util import (
     get_trc_file_path,
     write_file
 )
+
+# SCION Simulator
 from simulator.simulator import add_element, schedule
 
 

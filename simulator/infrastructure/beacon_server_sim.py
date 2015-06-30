@@ -12,13 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`beacon_server_sim` --- SCION beacon server sim
-========================================
+:mod:`beacon_server_sim` --- SCION beacon server(simulator)
+===========================================================
 """
-
+# Stdlib
 import logging
 import time
+
+# External packages
 from Crypto.Hash import SHA256
+
+# SCION
 from infrastructure.beacon_server import (
     CoreBeaconServer,
     LocalBeaconServer
@@ -40,6 +44,8 @@ from lib.packet.pcb import (
     PathConstructionBeacon,
     PathSegment,
 )
+
+# SCION Simulator
 from simulator.simulator import add_element, schedule
 
 
@@ -50,6 +56,15 @@ class CoreBeaconServerSim(CoreBeaconServer):
     def __init__(self, server_id, topo_file, config_file, path_policy_file):
         """
         Initialises CoreBeaconServer with is_sim set to True.
+
+        :param server_id: server identifier.
+        :type server_id: int
+        :param topo_file: topology file.
+        :type topo_file: string
+        :param config_file: configuration file.
+        :type config_file: string
+        :param path_policy_file: path policy file.
+        :type path_policy_file: string        
         """
         CoreBeaconServer.__init__(self, server_id, topo_file, config_file,
                                   path_policy_file, is_sim=True)

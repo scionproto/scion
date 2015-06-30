@@ -1,21 +1,21 @@
+# Copyright 2015 ETH Zurich
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """
-simulator.py
-
-Copyright 2015 ETH Zurich
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+:mod:`simulator` --- SCION Simulator
+===========================================
 """
-
+# Stdlib
 import logging
 import os
 import sys
@@ -24,45 +24,87 @@ SCRIPTS_DIR = 'topology'
 SIM_DIR = 'SIM'
 SIM_CONF = 'sim.conf'
 
+
 def add_element(addr, element):
-    """Add an element and its address to simulator""" 
+    """
+    Add an element along with its IP address to simulator
+    The element's sim_recv will be called to send a packet to this address
+
+    :param addr: The address corresponding to element
+    :type addr: str
+    :param element: The entity which is to be simulated
+    :type element:
+    """ 
     logging.debug("adding element with addr %s", addr)
     simulator.add_element(addr, element)
 
 def schedule(time, **kwargs):
-    """Schedule an event"""
+    """
+    Schedule a Event
+    Event can be described either by
+    1. Providing a Callback function to be summoned
+    2. Specifying the IP address of the Object to be called
+        (Implicitly assumes that the Function to be called is sim_recv())
+
+    :param time: relative time that the event would be executed (sec)
+    :type time: float
+    :param cb: callback function to be executed
+    :type cb:
+    :type kwargs: arguments as a dictionary
+    :param kwargs: dictionary
+    :returns: event id
+    :rtype: int
+    """
     return simulator.add_event(time, **kwargs)
 
 def unschedule(eid):
-    """Unschedule an event"""
+    """
+    Unschedule specfied event
+
+    :param eid: Event id to be removed
+    :type eid: int
+    """
     simulator.remove_event(eid)
 
 def stop(time):
-    """Stop the simulator"""
+    """
+    Stop the simulator at specfied time
+
+    :param time: Stop time
+    :type time: float
+    """
     simulator.set_stop_time(time)
 
 def terminate():
-    """Terminate the simulator"""
+    """
+    Terminate the simulator
+    """
     simulator.terminate()
 
 def run():
-    """Start the simulator"""
+    """
+    Start the simulator
+    """
     simulator.run()
 
 def generate_topology():
     """
     Instantiate all SCION Elements from sim.conf file
     """
-
-    from simulator.beacon_server_sim import CoreBeaconServerSim, LocalBeaconServerSim
-    from simulator.cert_server_sim import CertServerSim
+    from simulator.infrastructure.beacon_server_sim import (
+        CoreBeaconServerSim,
+        LocalBeaconServerSim
+    )
+    from simulator.infrastructure.cert_server_sim import CertServerSim
+    from simulator.infrastructure.path_server_sim import (
+        CorePathServerSim,
+        LocalPathServerSim
+    )
+    from simulator.infrastructure.router_sim import RouterSim
     from simulator.lib.sim_core import Simulator
-    from simulator.path_server_sim import CorePathServerSim, LocalPathServerSim
-    from simulator.router_sim import RouterSim
 
     global simulator
     simulator = Simulator()
-
     try:
         sim_conf_file_rel = os.path.join("..", SCRIPTS_DIR, SIM_DIR, SIM_CONF)
         with open(sim_conf_file_rel) as f:
@@ -71,29 +113,28 @@ def generate_topology():
     except IOError:
         logging.error("Failed to open ../topology/SIM/sim.conf")
         sys.exit()
-
-    for s in content:
-        l = s.split()
-        if l[0] == "router":
-            RouterSim(l[1], l[2], l[3])
-        elif l[0] == "cert_server":
-            CertServerSim(l[1], l[2], l[3], l[4])
-        elif l[0] == "path_server":
-            if l[1] == "core":
-                CorePathServerSim(l[2], l[3], l[4])
-            elif l[1] == "local":
-                LocalPathServerSim(l[2], l[3], l[4])
+    for line in content:
+        items = line.split()
+        if items[0] == "router":
+            RouterSim(items[1], items[2], items[3])
+        elif items[0] == "cert_server":
+            CertServerSim(items[1], items[2], items[3], items[4])
+        elif items[0] == "path_server":
+            if items[1] == "core":
+                CorePathServerSim(items[2], items[3], items[4])
+            elif items[1] == "local":
+                LocalPathServerSim(items[2], items[3], items[4])
             else:
                 logging.error("First parameter can only be 'local' or 'core'!")
                 sys.exit()
-        elif l[0] == 'beacon_server':
-            if l[1] == "core":
-                CoreBeaconServerSim(l[2], l[3], l[4], l[5])
-            elif l[1] == "local":
-                LocalBeaconServerSim(l[2], l[3], l[4], l[5])
+        elif items[0] == 'beacon_server':
+            if items[1] == "core":
+                CoreBeaconServerSim(items[2], items[3], items[4], items[5])
+            elif items[1] == "local":
+                LocalBeaconServerSim(items[2], items[3], items[4], items[5])
             else:
                 logging.error("First parameter can only be 'local' or 'core'!")
                 sys.exit()
         else:
-            logging.error("Invalid SCIONElement %s", l[0])
+            logging.error("Invalid SCIONElement %s", items[0])
             sys.exit()
