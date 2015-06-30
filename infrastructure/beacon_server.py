@@ -190,6 +190,8 @@ class BeaconServer(SCIONElement):
         :type config_file: string
         :param path_policy_file: path policy file.
         :type path_policy_file: string
+        :param is_sim: running on simulator
+        :type is_sim: bool
         """
         # TODO: add 2 policies
         self.path_policy = PathPolicy.from_file(path_policy_file)
@@ -815,6 +817,8 @@ class CoreBeaconServer(BeaconServer):
         :type config_file: string
         :param path_policy_file: path policy file.
         :type path_policy_file: string
+        :param is_sim: running on simulator
+        :type is_sim: bool
         """
         # Sanity check that we should indeed be a core beacon server.
         assert self.topology.is_core_ad, "This shouldn't be a core BS!"
@@ -1107,6 +1111,8 @@ class LocalBeaconServer(BeaconServer):
         :type config_file: string
         :param path_policy_file: path policy file.
         :type path_policy_file: string
+        :param is_sim: running on simulator
+        :type is_sim: bool
         """
         BeaconServer.__init__(self, server_id, topo_file, config_file,
                               path_policy_file, is_sim=is_sim)

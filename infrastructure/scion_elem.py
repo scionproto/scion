@@ -72,6 +72,8 @@ class SCIONElement(object):
 
         :returns: the newly-created ServerBase instance
         :rtype: ServerBase
+        :param is_sim: running for simulator
+        :type is_sim: bool
         """
         self._addr = None
         self.topology = None
