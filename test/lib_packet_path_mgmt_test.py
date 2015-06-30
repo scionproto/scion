@@ -229,16 +229,18 @@ class TestLeaseInfoParse(object):
 
 class TestLeaseInfoPack(object):
     """
-    Unit tests for lib.packet.path_mgmt.LeaseInfo.from_values
+    Unit tests for lib.packet.path_mgmt.LeaseInfo.pack
     """
     def test_basic(self):
-        les_inf = LeaseInfo.from_values(0x0e, 0x2a0a, 0x0b0c, 0x01020304,
-                                        b"superlengthybigstringoflength32.")
-        ntools.eq_(les_inf.seg_type, 0x0e)
-        ntools.eq_(les_inf.isd_id, 0x2a0a)
-        ntools.eq_(les_inf.ad_id, 0x0b0c)
-        ntools.eq_(les_inf.exp_time, 0x01020304)
-        ntools.eq_(les_inf.seg_id, b"superlengthybigstringoflength32.")
+        les_inf = LeaseInfo()
+        les_inf.seg_type = 0x0e
+        les_inf.isd_id = 0x2a0a
+        les_inf.ad_id = 0x0b0c
+        les_inf.exp_time = 0x01020304
+        les_inf.seg_id = b"superlengthybigstringoflength32."
+        data = bytes.fromhex('0e 2a0a 0b0c 01020304') + \
+            b"superlengthybigstringoflength32."
+        ntools.eq_(les_inf.pack(), data)
 
 
 class TestLeaseInfoFromValues(object):
