@@ -657,6 +657,64 @@ class PathCombinator(object):
     """
     Class that contains functions required to build end-to-end SCION paths.
     """
+    @staticmethod
+    def _check_connected(up_segment, core_segment, down_segment):
+        # If we have a core segment, check that the core_segment connects the
+        # up_ and down_segment. Otherwise, check that up- and down-segment meet
+        # at a single core AD.
+        if core_segment:
+            if ((core_segment.get_last_pcbm().ad_id !=
+                    up_segment.get_first_pcbm().ad_id) or
+                    (core_segment.get_first_pcbm().ad_id !=
+                    down_segment.get_first_pcbm().ad_id)):
+                return False
+        else:
+            if (up_segment.get_first_pcbm().ad_id !=
+                    down_segment.get_first_pcbm().ad_id):
+                return False
+        return True
+
+    @staticmethod
+    def _join_up_segment(path, up_segment):
+        """
+        Takes a path and up_segment and populates the up_segment fields of
+        the path.
+        """
+        path.up_segment_info = up_segment.iof
+        path.up_segment_info.up_flag = True
+        for block in reversed(up_segment.ads):
+            path.up_segment_hops.append(copy.deepcopy(block.pcbm.hof))
+        path.up_segment_hops[-1].info = OpaqueFieldType.LAST_OF
+        return path
+
+    @staticmethod
+    def _join_core_segment(path, core_segment):
+        """
+        Takes a path and core_segment and populates the core_segment fields of
+        the path.
+        """
+        if core_segment:
+            path.core_segment_info = core_segment.iof
+            path.core_segment_info.up_flag = True
+            for block in reversed(core_segment.ads):
+                path.core_segment_hops.append(
+                    copy.deepcopy(block.pcbm.hof))
+            path.core_segment_hops[-1].info = OpaqueFieldType.LAST_OF
+            path.core_segment_hops[0].info = OpaqueFieldType.LAST_OF
+        return path
+
+    @staticmethod
+    def _join_down_segment(path, down_segment):
+        """
+        Takes a path and down_segment and populates the down_segment fields of
+        the path.
+        """
+        path.down_segment_info = down_segment.iof
+        path.down_segment_info.up_flag = False
+        for block in down_segment.ads:
+            path.down_segment_hops.append(copy.deepcopy(block.pcbm.hof))
+        path.down_segment_hops[0].info = OpaqueFieldType.LAST_OF
+        return path
 
     @staticmethod
     def _build_core_path(up_segment, core_segment, down_segment):
@@ -670,41 +728,14 @@ class PathCombinator(object):
                 not up_segment.ads or not down_segment.ads):
             return None
 
-        # If we have a core segment, check that the core_segment connects the
-        # up_ and down_segment. Otherwise, check that up- and down-segment meet
-        # at a single core AD.
-        if core_segment:
-            if ((core_segment.get_last_pcbm().ad_id !=
-                    up_segment.get_first_pcbm().ad_id) or
-                    (core_segment.get_first_pcbm().ad_id !=
-                    down_segment.get_first_pcbm().ad_id)):
-                return None
-        else:
-            if (up_segment.get_first_pcbm().ad_id !=
-                    down_segment.get_first_pcbm().ad_id):
-                return None
+        if not PathCombinator._check_connected(up_segment, core_segment,
+                                               down_segment):
+            return None
 
         full_path = CorePath()
-        full_path.up_segment_info = up_segment.iof
-        full_path.up_segment_info.up_flag = True
-        for block in reversed(up_segment.ads):
-            full_path.up_segment_hops.append(copy.deepcopy(block.pcbm.hof))
-        full_path.up_segment_hops[-1].info = OpaqueFieldType.LAST_OF
-
-        if core_segment:
-            full_path.core_segment_info = core_segment.iof
-            full_path.core_segment_info.up_flag = True
-            for block in reversed(core_segment.ads):
-                full_path.core_segment_hops.append(
-                    copy.deepcopy(block.pcbm.hof))
-            full_path.core_segment_hops[-1].info = OpaqueFieldType.LAST_OF
-            full_path.core_segment_hops[0].info = OpaqueFieldType.LAST_OF
-
-        full_path.down_segment_info = down_segment.iof
-        full_path.down_segment_info.up_flag = False
-        for block in down_segment.ads:
-            full_path.down_segment_hops.append(copy.deepcopy(block.pcbm.hof))
-        full_path.down_segment_hops[0].info = OpaqueFieldType.LAST_OF
+        full_path = PathCombinator._join_up_segment(full_path, up_segment)
+        full_path = PathCombinator._join_core_segment(full_path, core_segment)
+        full_path = PathCombinator._join_down_segment(full_path, down_segment)
         return full_path
 
     @staticmethod
