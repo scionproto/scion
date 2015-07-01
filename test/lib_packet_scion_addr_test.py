@@ -179,5 +179,17 @@ class TestSCIONAddrPack(object):
         ntools.eq_(addr.pack(), isd_ad_bytes + addr_bytes)
 
 
+class TestSCIONAddrGetISDAD(object):
+    """
+    Unit tests for lib.packet.scion_addr.SCIONAddr.get_isd_ad
+    """
+    def test_basic(self):
+        isd_id = 1
+        ad_id = 10
+        host_addr = IPv6Address("10:1::10")
+        addr = SCIONAddr.from_values(isd_id, ad_id, host_addr)
+        ntools.eq_(addr.get_isd_ad(), ISD_AD(isd_id, ad_id))
+
+
 if __name__ == "__main__":
     nose.run(defaultTest=__name__)
