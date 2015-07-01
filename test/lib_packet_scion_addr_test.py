@@ -183,13 +183,14 @@ class TestSCIONAddrGetISDAD(object):
     """
     Unit tests for lib.packet.scion_addr.SCIONAddr.get_isd_ad
     """
-    def test_basic(self):
-        isd_id = 1
-        ad_id = 10
-        host_addr = IPv6Address("10:1::10")
-        addr = SCIONAddr.from_values(isd_id, ad_id, host_addr)
-        ntools.eq_(addr.get_isd_ad(), ISD_AD(isd_id, ad_id))
-
+    @patch("lib.packet.scion_addr.ISD_AD", autospec=True)
+    def test_basic(self, isd_ad_):
+        isd_ad_.return_value = "data"
+        addr = SCIONAddr()
+        addr.isd_id = "isd_id"
+        addr.ad_id = "ad_id"
+        ntools.eq_(addr.get_isd_ad(), "data")
+        isd_ad_.assert_called_once_with("isd_id", "ad_id")
 
 if __name__ == "__main__":
     nose.run(defaultTest=__name__)
