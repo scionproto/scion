@@ -16,6 +16,7 @@
 ============================================
 """
 # Stdlib
+import base64
 import json
 import logging
 
@@ -26,9 +27,9 @@ class Config(object):
     information for further use.
 
     :ivar master_of_gen_key: the master opaque field generation key file.
-    :type master_of_gen_key: int
+    :type master_of_gen_key: bytes
     :ivar master_ad_key: AD certificate servers priv key.
-    :type master_ad_key: int
+    :type master_ad_key: bytes
     :ivar n_registered_paths: the number of registered paths.
     :type n_registered_paths: int
     :ivar n_shortest_up_paths: the number of shortest up-paths.
@@ -106,8 +107,8 @@ class Config(object):
         :param config: the name of the configuration file.
         :type config: dict
         """
-        self.master_of_gen_key = config['MasterOFGKey']
-        self.master_ad_key = config['MasterADKey']
+        self.master_of_gen_key = base64.b64decode(config['MasterOFGKey'])
+        self.master_ad_key = base64.b64decode(config['MasterADKey'])
         self.n_registered_paths = config['NumRegisteredPaths']
         self.n_shortest_up_paths = config['NumShortestUPs']
         self.propagation_time = config['PropagateTime']

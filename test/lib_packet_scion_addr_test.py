@@ -179,5 +179,18 @@ class TestSCIONAddrPack(object):
         ntools.eq_(addr.pack(), isd_ad_bytes + addr_bytes)
 
 
+class TestSCIONAddrGetISDAD(object):
+    """
+    Unit tests for lib.packet.scion_addr.SCIONAddr.get_isd_ad
+    """
+    @patch("lib.packet.scion_addr.ISD_AD", autospec=True)
+    def test_basic(self, isd_ad_):
+        isd_ad_.return_value = "data"
+        addr = SCIONAddr()
+        addr.isd_id = "isd_id"
+        addr.ad_id = "ad_id"
+        ntools.eq_(addr.get_isd_ad(), "data")
+        isd_ad_.assert_called_once_with("isd_id", "ad_id")
+
 if __name__ == "__main__":
     nose.run(defaultTest=__name__)

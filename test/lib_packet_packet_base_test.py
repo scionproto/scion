@@ -16,7 +16,7 @@
 =======================================================
 """
 # Stdlib
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 # External packages
 import nose
@@ -69,14 +69,14 @@ class TestPacketBasePayload(object):
         packet_base._payload = b'data'
         ntools.eq_(packet_base.payload, b'data')
 
-    @patch("lib.packet.packet_base.PacketBase.set_payload")
+    @patch("lib.packet.packet_base.PacketBase.set_payload", autospec=True)
     def test_setter(self, set_payload):
         """
         Test for setting payload as bytes.
         """
         packet_base = PacketBase()
         packet_base.payload = b'data'
-        set_payload.assert_called_once_with(b'data')
+        set_payload.assert_called_once_with(packet_base, b'data')
 
 
 class TestPacketBaseSetPayload(object):
@@ -109,11 +109,11 @@ class TestPacketBaseHdr(object):
         packet_base._hdr = 'data'
         ntools.eq_(packet_base.hdr, 'data')
 
-    @patch("lib.packet.packet_base.PacketBase.set_hdr")
+    @patch("lib.packet.packet_base.PacketBase.set_hdr", autospec=True)
     def test_setter(self, set_hdr):
         packet_base = PacketBase()
         packet_base.hdr = 'data'
-        set_hdr.assert_called_once_with('data')
+        set_hdr.assert_called_once_with(packet_base, 'data')
 
 
 class TestPacketBaseSetHdr(object):
@@ -148,6 +148,19 @@ class TestPacketBaseLen(object):
         packet_base._hdr = header
         packet_base._payload = payload
         ntools.eq_(len(packet_base), len(header) + len(payload))
+
+
+class TestPacketBaseHash(object):
+    """
+    Unit tests for lib.packet.packet_base.PacketBase.__hash__
+    """
+    @patch("lib.packet.packet_base.PacketBase.pack", autospec=True)
+    def test(self, pack):
+        packet_base = PacketBase()
+        pack.return_value = MagicMock(spec_set=['__hash__'])
+        pack.return_value.__hash__.return_value = 123
+        ntools.eq_(hash(packet_base), 123)
+        pack.return_value.__hash__.assert_called_once_with()
 
 
 class TestPacketBaseEq(object):
@@ -237,6 +250,18 @@ class TestPayloadBaseLen(object):
         """
         payload = PayloadBase()
         ntools.eq_(len(payload), 0)
+
+
+class TestPayloadBaseHash(object):
+    """
+    Unit tests for lib.packet.packet_base.PayloadBase.__hash__
+    """
+    def test(self):
+        payload = PayloadBase()
+        payload.raw = MagicMock(spec_set=['__hash__'])
+        payload.raw.__hash__.return_value = 123
+        ntools.eq_(hash(payload), 123)
+        payload.raw.__hash__.assert_called_once_with()
 
 
 class TestPayloadBaseEq(object):

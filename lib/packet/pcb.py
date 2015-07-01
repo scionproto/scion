@@ -145,7 +145,8 @@ class PCBMarking(Marking):
 
     def __eq__(self, other):
         if type(other) is type(self):
-            return (self.ad_id == other.ad_id and
+            return (self.isd_id == other.isd_id and
+                    self.ad_id == other.ad_id and
                     self.hof == other.hof and
                     self.ig_rev_token == other.ig_rev_token)
         else:
@@ -189,20 +190,53 @@ class ADMarking(Marking):
         if dlen < PCBMarking.LEN + self.METADATA_LEN + REV_TOKEN_LEN:
             logging.warning("AD: Data too short for parsing, len: %u", dlen)
             return
-        (self.cert_ver, self.sig_len, self.asd_len, self.block_len) = \
-            struct.unpack("!HHHH", raw[:self.METADATA_LEN])
+        self._parse_metadata(raw[:self.METADATA_LEN])
         raw = raw[self.METADATA_LEN:]
-        self.pcbm = PCBMarking(raw[:PCBMarking.LEN])
+        self._parse_pcbm(raw[:PCBMarking.LEN])
         raw = raw[PCBMarking.LEN:]
-        while len(raw) > self.sig_len + self.asd_len + REV_TOKEN_LEN:
-            peer_marking = PCBMarking(raw[:PCBMarking.LEN])
-            self.pms.append(peer_marking)
-            raw = raw[PCBMarking.LEN:]
+        offset = self._parse_peers(raw)
+        raw = raw[offset:]
         self.asd = raw[:self.asd_len]
         raw = raw[self.asd_len:]
         self.eg_rev_token = raw[:REV_TOKEN_LEN]
         self.sig = raw[REV_TOKEN_LEN:]
         self.parsed = True
+
+    def _parse_metadata(self, raw):
+        """
+        Populates metadata fields from a raw bytes block.
+
+        :param raw:
+        :return:
+        """
+        assert len(raw) == self.METADATA_LEN
+        (self.cert_ver, self.sig_len, self.asd_len, self.block_len) = \
+            struct.unpack("!HHHH", raw)
+
+    def _parse_pcbm(self, raw):
+        """
+        Populates PCBMarking field from a raw bytes block.
+
+        :param raw:
+        :return:
+        """
+        assert len(raw) == PCBMarking.LEN
+        self.pcbm = PCBMarking(raw)
+
+    def _parse_peers(self, raw):
+        """
+        Populated Peer Marking fields from a raw bytes block
+
+        :param raw:
+        :return:
+        """
+        offset = 0
+        while len(raw) > self.sig_len + self.asd_len + REV_TOKEN_LEN:
+            peer_marking = PCBMarking(raw[:PCBMarking.LEN])
+            self.pms.append(peer_marking)
+            raw = raw[PCBMarking.LEN:]
+            offset += PCBMarking.LEN
+        return offset
 
     @classmethod
     def from_values(cls, pcbm=None, pms=None,
@@ -218,9 +252,9 @@ class ADMarking(Marking):
         :param asd: Additional Signed Data appended to the beacon.
         """
         ad_marking = ADMarking()
-        ad_marking.block_len = (1 + len(pms)) * PCBMarking.LEN
         ad_marking.pcbm = pcbm
         ad_marking.pms = (pms if pms is not None else [])
+        ad_marking.block_len = (1 + len(ad_marking.pms)) * PCBMarking.LEN
         ad_marking.sig = sig
         ad_marking.sig_len = len(sig)
         ad_marking.asd = asd
@@ -325,15 +359,25 @@ class PathSegment(Marking):
         self.segment_id = raw[offset:offset + REV_TOKEN_LEN]
         offset += REV_TOKEN_LEN
         raw = raw[offset:]
+        offset += self._parse_hops(raw)
+        self.parsed = True
+        return offset
+
+    def _parse_hops(self, raw):
+        """
+        Populates AD Hops from a raw bytes block.
+        """
+        offset = 0
         for _ in range(self.iof.hops):
-            (_, asd_len, sig_len, block_len) = struct.unpack("!HHHH",
-                raw[:ADMarking.METADATA_LEN])
+            (_, asd_len, sig_len, block_len) = \
+                struct.unpack("!HHHH", raw[:ADMarking.METADATA_LEN])
             ad_len = (sig_len + asd_len + block_len +
                       ADMarking.METADATA_LEN + REV_TOKEN_LEN)
             ad_marking = ADMarking(raw[:ad_len])
             self.add_ad(ad_marking)
             raw = raw[ad_len:]
-        self.parsed = True
+            offset += ad_len
+        return offset
 
     def pack(self):
         """
@@ -504,23 +548,9 @@ class PathSegment(Marking):
         pcbs = []
         while len(raw) > 0:
             pcb = PathSegment()
-            pcb.iof = InfoOpaqueField(raw[:InfoOpaqueField.LEN])
-            offset = InfoOpaqueField.LEN
-            pcb.trc_ver, pcb.if_id = struct.unpack("!IH",
-                                                   raw[offset:offset + 6])
-            offset += 6  # 4B for trc_ver and 2B for if_id.
-            pcb.segment_id = raw[offset:offset + REV_TOKEN_LEN]
-            offset += REV_TOKEN_LEN
-            raw = raw[offset:]
-            for _ in range(pcb.iof.hops):
-                (_, asd_len, sig_len, block_len) = \
-                    struct.unpack("!HHHH", raw[:ADMarking.METADATA_LEN])
-                ad_len = (sig_len + asd_len + block_len +
-                          ADMarking.METADATA_LEN + REV_TOKEN_LEN)
-                ad_marking = ADMarking(raw[:ad_len])
-                pcb.add_ad(ad_marking)
-                raw = raw[ad_len:]
+            offset = pcb.parse(raw)
             pcbs.append(pcb)
+            raw = raw[offset:]
         return pcbs
 
     @staticmethod
