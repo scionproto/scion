@@ -48,9 +48,7 @@ class TestStreamErrorHandlerHandleError(object):
             raise SCIONTestException
         except:
             ntools.assert_raises(SCIONTestException, handler.handleError, "hi")
-        calls = [call("Exception in logging module:\n"), call('line0\n'),
-                 call('line1\n')]
-        handler.stream.write.assert_has_calls(calls)
+        ntools.eq_(handler.stream.write.call_count, 3)
         handler.flush.assert_called_once_with()
 
 
