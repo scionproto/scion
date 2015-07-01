@@ -17,6 +17,7 @@
 ==============================================
 """
 # Stdlib
+import importlib
 import logging
 import os
 import subprocess
@@ -26,9 +27,9 @@ import time
 import xmlrpc.client
 
 # SCION
+import ad_management.monitoring_daemon as md
 from ad_management.common import (
     get_supervisor_server,
-    MONITORING_DAEMON_PROC_NAME,
     SUPERVISORD_PATH,
 )
 from lib.defines import PROJECT_ROOT
@@ -65,7 +66,7 @@ def start_everything():
         logging.warning('Could not start processes')
 
 
-def start_monitoring_daemon():
+def restart_monitoring_daemon():
     """
     Start the monitoring daemon process after the update.
     """
@@ -75,31 +76,9 @@ def start_monitoring_daemon():
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL)
 
-    # Start the monigoring daemon
-    server = get_supervisor_server()
-    server.supervisor.startProcess(MONITORING_DAEMON_PROC_NAME)
-
-    logging.info('Checking that the monitoring daemon is running...')
-    server = get_supervisor_server()
-    started = False
-    retries = 3
-    sleep_before_try = 1
-    for _ in range(retries):
-        time.sleep(sleep_before_try)
-        try:
-            process_info = server.supervisor.getProcessInfo(
-                MONITORING_DAEMON_PROC_NAME
-            )
-            if process_info['statename'] == 'RUNNING':
-                started = True
-                break
-        except (ConnectionRefusedError, xmlrpc.client.Fault) as ex:
-            logging.warning('Error:' + str(ex))
-
-    if started:
-        logging.info('The monitoring daemon is running')
-    else:
-        logging.warning('Could not start the monitoring daemon')
+    # Restart the monitoring daemon
+    importlib.reload(md)
+    md.start_md()
 
 
 def extract_files(archive_path, target_dir):
@@ -138,7 +117,7 @@ def post_extract():
     Run the post-extract procedures using the new (updated) updater.
     """
     logging.info('New (updated) updater: started, post-extract procedures.')
-    start_monitoring_daemon()
+    restart_monitoring_daemon()
     logging.info('Update: done.')
 
 

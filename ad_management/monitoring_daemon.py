@@ -23,8 +23,8 @@ import json
 import logging
 import os
 import sys
-import threading
 import time
+import xmlrpc.client
 from subprocess import Popen
 
 # External packages
@@ -32,10 +32,12 @@ from kazoo.client import KazooClient
 from kazoo.exceptions import NoNodeError
 
 # SCION
+from multiprocessing import Process
 from ad_management.common import (
     get_supervisor_server,
     LOGS_DIR,
     MONITORING_DAEMON_PORT,
+    MONITORING_DAEMON_PROC_NAME,
     response_failure,
     response_success,
     UPDATE_DIR_PATH,
@@ -50,6 +52,36 @@ from lib.defines import (
 )
 from lib.log import init_logging
 from topology.generator import ConfigGenerator
+
+
+def start_md():
+    # Start the monigoring daemon
+    retries = 3
+    sleep_before_try = 1
+    server = get_supervisor_server()
+    started = False
+
+    logging.info('Trying to start the monitoring daemon')
+    for _ in range(retries):
+        time.sleep(sleep_before_try)
+        try:
+            server.supervisor.startProcess(MONITORING_DAEMON_PROC_NAME,
+                                           wait=True)
+
+            process_info = server.supervisor.getProcessInfo(
+                MONITORING_DAEMON_PROC_NAME
+            )
+            if process_info['statename'] == 'RUNNING':
+                started = True
+                break
+        except (ConnectionRefusedError, xmlrpc.client.Fault) as ex:
+            logging.warning('Error:' + str(ex))
+
+    if started:
+        logging.info('The monitoring daemon is running')
+    else:
+        logging.warning('Could not start the monitoring daemon')
+    return started
 
 
 class MonitoringDaemon(object):
@@ -107,17 +139,19 @@ class MonitoringDaemon(object):
 
     def restart_supervisor_async(self):
         """
-        Restart Supervisor after some delay, so the initial RPC call has time
-        to finish.
+        Restart Supervisor and the monitoring daemon after some delay, so the
+        initial RPC call has time to finish.
         """
+        wait_before_restart = 0.1
+
         def _restart_supervisor_wait():
-            time.sleep(0.1)
+            time.sleep(wait_before_restart)
             server = get_supervisor_server()
             server.supervisor.restart()
+            start_md()
 
-        threading.Thread(target=_restart_supervisor_wait,
-                         name="Restart supervisor daemon",
-                         daemon=True).start()
+        p = Process(target=_restart_supervisor_wait)
+        p.start()
 
     def update_topology(self, isd_id, ad_id, topology):
         # TODO check security!
