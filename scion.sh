@@ -76,6 +76,10 @@ cmd_topology() {
     echo "Create topology, configuration, and execution files."
     mkdir -p logs traces
     PYTHONPATH=./ python3 topology/generator.py "$@"
+    echo "Purging ZooKeeper cache."
+    sudo service zookeeper stop
+    sudo rm /var/lib/zookeeper/version-2/*
+    sudo service zookeeper start
 }
 
 cmd_setup() {

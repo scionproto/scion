@@ -930,9 +930,9 @@ class TestLibZookeeperGetSharedMetadata(BaseLibZookeeper):
             yield self._exists_exception_check, excp
 
 
-class TestLibZookeeperExpireSharedItems(BaseLibZookeeper):
+class TestLibZookeeperDeleteSharedItem(BaseLibZookeeper):
     """
-    Unit tests for lib.zookeeper.Zookeeper.expire_shared_items
+    Unit tests for lib.zookeeper.Zookeeper.delete_shared_item
     """
 
     @mock_wrapper
@@ -942,47 +942,37 @@ class TestLibZookeeperExpireSharedItems(BaseLibZookeeper):
         """
         inst = self._init_basic_setup()
         inst.is_connected = MagicMock(spec_set=[], return_value=False)
-        inst.get_shared_metadata = MagicMock(
-            spec_set=[], side_effect=SCIONTestException(
-                "get_shared_metadata shouldn't have been called"))
         # Call
-        ntools.assert_is_none(inst.expire_shared_items("path", 100))
-
-    @mock_wrapper
-    def test_no_entries(self):
-        """
-        Test ...
-        """
-        inst = self._init_basic_setup()
-        inst.is_connected = MagicMock(spec_set=[], return_value=True)
-        inst.get_shared_metadata = MagicMock(spec_set=[], return_value=[])
-        inst._zk.delete = MagicMock(
-            spec_set=[], side_effect=SCIONTestException(
-                "_zk.delete shouldn't have been called"))
-        # Call
-        ntools.eq_(inst.expire_shared_items("path", 100), 0)
-
-    @mock_wrapper
-    def test_expire(self):
-        """
-        Test ...
-        """
-        inst = self._init_basic_setup()
-        inst.is_connected = MagicMock(spec_set=[], return_value=True)
-        metadata = [
-            ["entry1", MagicMock(spec_set=ZnodeStat, last_modified=1)],
-            ["entry2", MagicMock(spec_set=ZnodeStat, last_modified=99)],
-            ["entry3", MagicMock(spec_set=ZnodeStat, last_modified=101)],
-            ["entry4", MagicMock(spec_set=ZnodeStat, last_modified=10000)],
-        ]
-        inst.get_shared_metadata = MagicMock(
-            spec_set=[], return_value=metadata)
-        # Call
-        ntools.eq_(inst.expire_shared_items("path", 100), 2)
+        ntools.assert_raises(libzk.ZkConnectionLoss,
+                             inst.delete_shared_item,
+                             "path", "entry")
         # Tests
-        inst._zk.delete.assert_has_calls([
-            call("%s/path/entry1" % inst._prefix),
-            call("%s/path/entry2" % inst._prefix)])
+        inst.is_connected.assert_called_once_with()
+
+    @mock_wrapper
+    def test_no_entry(self):
+        """
+        Test ...
+        """
+        inst = self._init_basic_setup()
+        inst.is_connected = MagicMock(spec_set=[], return_value=True)
+        inst._zk.delete = MagicMock(
+            spec_set=[], side_effect=libzk.NoNodeError)
+        # Call
+        ntools.assert_raises(libzk.ZkNoNodeError,
+                             inst.delete_shared_item,
+                             "path", "entry")
+
+    @mock_wrapper
+    def test_success(self):
+        """
+        Test ...
+        """
+        inst = self._init_basic_setup()
+        inst.is_connected = MagicMock(spec_set=[], return_value=True)
+        inst._zk.delete = MagicMock(spec_set=[])
+        # Call
+        ntools.assert_is_none(inst.delete_shared_item("path", "entry"))
 
     @mock_wrapper
     def _exception_check(self, exception, result):
@@ -996,13 +986,10 @@ class TestLibZookeeperExpireSharedItems(BaseLibZookeeper):
         """
         inst = self._init_basic_setup()
         inst.is_connected = MagicMock(spec_set=[], return_value=True)
-        metadata = [["entry1", MagicMock(spec_set=ZnodeStat, last_modified=1)]]
-        inst.get_shared_metadata = MagicMock(
-            spec_set=[], return_value=metadata)
         inst._zk.delete.side_effect = exception
         # Call
         ntools.assert_raises(
-            result, inst.expire_shared_items, "path", 100)
+            result, inst.delete_shared_item, "path", "entry")
 
     def test_exceptions(self):
         """

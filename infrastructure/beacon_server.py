@@ -154,6 +154,7 @@ class InterfaceState(object):
     def is_revoked(self):
         return self._state == self.REVOKED
 
+
 class BeaconServer(SCIONElement):
     """
     The SCION PathConstructionBeacon Server.
@@ -220,6 +221,10 @@ class BeaconServer(SCIONElement):
         self.zk = Zookeeper(
             self.topology.isd_id, self.topology.ad_id, "bs", name_addrs,
             ["localhost:2181"], ensure_paths=(self.ZK_PCB_CACHE_PATH,))
+
+        # Queue to hold expired to be removed in the `handle_handle_shared_pcbs`
+        # thread.
+        self._expired_pcbs = deque(maxlen=100)
 
     def _get_if_rev_token(self, if_id):
         """
@@ -635,6 +640,10 @@ class BeaconServer(SCIONElement):
                     self.zk.join_party()
                     # Make sure we re-read the entire cache
                     self._latest_entry = 0
+                # If necessary, remove expired PCBs from the cache.
+                del_count = self._remove_expired_pcbs()
+                if del_count:
+                    logging.debug("Removed %d expired PCBs.", del_count)
                 count = self._read_cached_entries()
                 if count:
                     logging.debug("Processed %d new/updated PCBs", count)
@@ -694,6 +703,27 @@ class BeaconServer(SCIONElement):
                 pcbs.append(PathSegment(raw=raw))
         self.process_pcbs(pcbs)
         return len(pcbs)
+
+    @timed(1.0)
+    def _remove_expired_pcbs(self):
+        """
+        Remove expired PCBs from the shared path.
+        """
+        del_count = 0
+        if self._expired_pcbs and self.zk.have_lock():
+            while self._expired_pcbs:
+                rec_id = self._expired_pcbs.popleft()
+                try:
+                    self.zk.delete_shared_item(self.ZK_PCB_CACHE_PATH, rec_id)
+                except ZkConnectionLoss:
+                    logging.warning("Lost connection to ZK while deleting PCBs")
+                    self.zk.release_lock()
+                    return del_count
+                except ZkNoNodeError:
+                    logging.debug("Tried to delete an inexistent PCB from ZK.")
+                    continue
+                del_count += 1
+        return del_count
 
     def _process_revocation(self, rev_info):
         """
@@ -788,6 +818,21 @@ class BeaconServer(SCIONElement):
                     if_state.revoke_if_expired()
             sleep_interval(start_time, self.IF_TIMEOUT_INTERVAL,
                            "Handle IF timeouts")
+            
+    def segments_expired(self, path_store, rec_ids):
+        """
+        Callback for a PathStore instance to call when segments get removed
+        from the store due to expiration.
+        
+        :param path_store: The PathStore instance that is calling the callback.
+        :type path_store: PathStore
+        :param rec_ids: List of removed record IDs.
+        :type rec_ids: list
+        """
+        # Add the record IDs to the _expired_pcbs queue for later processing
+        # in handle_shared_pcbs()
+        logging.debug("Path store expired %d PCBs.", len(rec_ids))
+        self._expired_pcbs.extend(rec_ids)
 
 
 class CoreBeaconServer(BeaconServer):
@@ -823,7 +868,7 @@ class CoreBeaconServer(BeaconServer):
         :returns:
         :rtype:
         """
-        return PathStore(self.path_policy)
+        return PathStore(self.path_policy, delegate=self)
 
     def propagate_core_pcb(self, pcb):
         """
@@ -898,14 +943,6 @@ class CoreBeaconServer(BeaconServer):
             for pcb in beacons:
                 count += self.propagate_core_pcb(pcb)
             logging.info("Propagated %d Core PCBs", count)
-            try:
-                count = self.zk.expire_shared_items(
-                    self.ZK_PCB_CACHE_PATH,
-                    start_propagation - self.config.propagation_time * 10)
-            except ZkConnectionLoss:
-                continue
-            if count:
-                logging.debug("Expired %d old PCBs from shared cache", count)
             sleep_interval(start_propagation, self.config.propagation_time,
                            "PCB propagation")
 
@@ -1108,8 +1145,8 @@ class LocalBeaconServer(BeaconServer):
         # Sanity check that we should indeed be a local beacon server.
         assert not self.topology.is_core_ad, "This shouldn't be a local BS!"
         self.beacons = PathStore(self.path_policy)
-        self.up_segments = PathStore(self.path_policy)
-        self.down_segments = PathStore(self.path_policy)
+        self.up_segments = PathStore(self.path_policy, delegate=self)
+        self.down_segments = PathStore(self.path_policy, delegate=self)
         self.cert_chain_requests = {}
         self.cert_chains = {}
         cert_chain_file = get_cert_chain_file_path(
@@ -1368,14 +1405,6 @@ class LocalBeaconServer(BeaconServer):
             best_segments = self.beacons.get_best_segments()
             for pcb in best_segments:
                 self.propagate_downstream_pcb(pcb)
-            try:
-                count = self.zk.expire_shared_items(
-                    self.ZK_PCB_CACHE_PATH,
-                    start_propagation - self.config.propagation_time * 10)
-            except ZkConnectionLoss:
-                continue
-            if count:
-                logging.debug("Expired %d old PCBs from shared cache", count)
             sleep_interval(start_propagation, self.config.propagation_time,
                            "PCB propagation")
 
