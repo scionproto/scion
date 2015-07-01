@@ -820,16 +820,10 @@ class PathCombinator(object):
         return path
 
     @staticmethod
-    def _build_shortcut_path(up_segment, down_segment):
+    def _get_xovrs_peers(up_segment, down_segment):
         """
-        Takes PCB objects (up/down_segment) and tries to combine
-        them as short path
+        Collects the xovr and peer points from up_segment, down_segment.
         """
-        # TODO check if stub ADs are the same...
-        if (not up_segment or not down_segment or
-                not up_segment.ads or not down_segment.ads):
-            return None
-        # looking for xovr and peer points
         xovrs = []
         peers = []
         for up_i in range(1, len(up_segment.ads)):
@@ -847,6 +841,23 @@ class PathCombinator(object):
         # select shortest path xovrs (preferred) or peers
         xovrs.sort(key=lambda tup: sum(tup))
         peers.sort(key=lambda tup: sum(tup))
+        return xovrs, peers
+
+    @staticmethod
+    def _build_shortcut_path(up_segment, down_segment):
+        """
+        Takes PCB objects (up/down_segment) and tries to combine
+        them as short path
+        """
+        # TODO check if stub ADs are the same...
+        if (not up_segment or not down_segment or
+                not up_segment.ads or not down_segment.ads):
+            return None
+
+        # looking for xovr and peer points
+        (xovrs, peers) = PathCombinator._get_xovrs_peers(up_segment,
+                                                         down_segment)
+
         if not xovrs and not peers:
             return None
         elif xovrs and peers:
