@@ -10,15 +10,21 @@ Python implementation of [SCION](http://www.netsec.ethz.ch/research/SCION), a fu
 
 Necessary steps in order to run SCION:
 
-1. Install required packages with dependencies:
+1. Make sure that `~/.local/bin` can be found in your $PATH variable. 
+
+	For example, do the following to update $PATH in your `~/.profile` and apply the changes to your session:
+
+	`echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.profile && source ~/.profile`
+	
+2. Install required packages with dependencies:
 
 	`./scion.sh deps`
 
-2. Compile the crypto library:
+3. Compile the crypto library:
 
 	`./scion.sh init`
 
-3. Create the topology and configuration files (according to "topology/ADConfigurations.json"):
+4. Create the topology and configuration files (according to "topology/ADConfigurations.json"):
 
 	`./scion.sh topology`
 
@@ -35,19 +41,19 @@ Necessary steps in order to run SCION:
 			topologies/ISD:X-AD:Y.json
 			ISD:X-V:Z.crt (TRC file)
 
-4. Configure the loopback interface accordingly:
+5. Configure the loopback interface accordingly:
 
  	`./scion.sh setup`
 
-5. Run the infrastructure:
+6. Run the infrastructure:
 
 	`./scion.sh run`
 
-6. Stop the infrastructure:
+7. Stop the infrastructure:
 
 	`./scion.sh stop`
 
-7. Flush all IP addresses assigned to the loopback interface:
+8. Flush all IP addresses assigned to the loopback interface:
 
 	`./scion.sh clean`
 
