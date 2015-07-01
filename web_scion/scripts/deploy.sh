@@ -1,4 +1,8 @@
 #!/bin/bash
+set -e
+
+SCRIPT_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+cd "$SCRIPT_DIR/../.."
 
 mkdir -p logs traces
 ./scion.sh deps
@@ -6,6 +10,9 @@ mkdir -p logs traces
 
 # Kill the previous instance of supervisor
 RE_SUPERVISOR="supervisord -c.*supervisor/supervisord.conf"
-pkill -f "$RE_SUPERVISOR" && sleep 1 && pkill -9 -f "$RE_SUPERVISOR"
+pkill -f "$RE_SUPERVISOR" || true
+sleep 1
+pkill -9 -f "$RE_SUPERVISOR" || true
 
-./supervisor/supervisor.sh restart monitoring_daemon
+# Start the monitoring daemon
+./supervisor/supervisor.sh start monitoring_daemon

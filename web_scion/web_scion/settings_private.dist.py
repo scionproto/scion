@@ -7,13 +7,15 @@ SECRET_KEY = 'j(ssxvxi!8t)-p80t3&(va2oa510%4q)j$njf(zius3fasdfasdfas'
 
 # Database
 # https://docs.djangoproject.com/en/1.7/ref/settings/#databases
-DATABASES1 = {
+DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': os.path.join(WEB_DIR, 'db.sqlite3'),
     }
 }
 
+"""
+# PostgreSQL settings
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
@@ -24,8 +26,9 @@ DATABASES = {
         'PORT': '5432',
     }
 }
+"""
 
-### Two factor authlentication
+# Two factor authlentication
 TWO_FACTOR_SMS_GATEWAY = 'two_factor.gateways.fake.Fake'
 # TWO_FACTOR_SMS_GATEWAY = 'two_factor.gateways.twilio.gateway.Twilio'
 

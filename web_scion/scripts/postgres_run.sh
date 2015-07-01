@@ -9,13 +9,16 @@ USER_NAME=scionuser
 USER_PASS=scionpass
 DB_NAME=sciondb
 
+CONTAINER_PORT=5432
+
 # Stop previous container
-sudo docker kill scion-postgres || true
-sudo docker rm scion-postgres || true
+sudo docker kill scion-postgres &> /dev/null || true
+sudo docker rm scion-postgres &> /dev/null || true
 
 # Run the new container
+echo "Container id:"
 POSTGRES_PASS=postgres
-sudo docker run --name scion-postgres -e POSTGRES_PASSWORD=$POSTGRES_PASS -d -p 5432:5432 postgres
+sudo docker run --name scion-postgres -e POSTGRES_PASSWORD=$POSTGRES_PASS -d -p $CONTAINER_PORT:5432 postgres
 sleep 5
 
 # Create db
@@ -35,3 +38,4 @@ python3 ../manage.py migrate
 # Seed the db
 python3 ../scripts/reload_data.py
 
+echo "Container was started at 127.0.0.1:$CONTAINER_PORT"
