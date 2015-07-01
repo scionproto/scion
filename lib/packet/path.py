@@ -739,6 +739,51 @@ class PathCombinator(object):
         return full_path
 
     @staticmethod
+    def _join_up_segment_shortcuts(path, up_segment, info, up_index):
+        """
+        Populates the up_segment fields of a shortcut path.
+        """
+        path.up_segment_info = up_segment.iof
+        path.up_segment_info.info = info
+        path.up_segment_info.hops -= up_index
+        path.up_segment_info.up_flag = True
+        for i in reversed(range(up_index, len(up_segment.ads))):
+            path.up_segment_hops.append(up_segment.ads[i].pcbm.hof)
+        path.up_segment_hops[-1].info = OpaqueFieldType.LAST_OF
+        path.up_segment_upstream_ad = up_segment.ads[up_index - 1].pcbm.hof
+        path.up_segment_upstream_ad.info = OpaqueFieldType.NORMAL_OF
+        return path
+
+    @staticmethod
+    def _join_down_segment_shortcuts(path, down_segment, info, dw_index):
+        """
+        Populates the down_segment fields of a shortcut path.
+        """
+        path.down_segment_info = down_segment.iof
+        path.down_segment_info.info = info
+        path.down_segment_info.hops -= dw_index
+        path.down_segment_info.up_flag = False
+        path.down_segment_upstream_ad = down_segment.ads[dw_index - 1].pcbm.hof
+        path.down_segment_upstream_ad.info = OpaqueFieldType.NORMAL_OF
+        for i in range(dw_index, len(down_segment.ads)):
+            path.down_segment_hops.append(down_segment.ads[i].pcbm.hof)
+        path.down_segment_hops[0].info = OpaqueFieldType.LAST_OF
+        return path
+
+    @staticmethod
+    def _join_shortcuts_peer(path, up_ad, down_ad):
+        """
+        Populates the peering link fields of a shortcut path.
+        """
+        for up_peer in up_ad.pms:
+            for down_peer in down_ad.pms:
+                if (up_peer.ad_id == down_ad.pcbm.ad_id and
+                        down_peer.ad_id == up_ad.pcbm.ad_id):
+                    path.up_segment_peering_link = up_peer.hof
+                    path.down_segment_peering_link = down_peer.hof
+        return path
+
+    @staticmethod
     def _join_shortcuts(up_segment, down_segment, point, peer=True):
         """
         Joins up_ and down_segment (objects of PCB class) into a shortcut
@@ -763,36 +808,15 @@ class PathCombinator(object):
             path = CrossOverPath()
             info = OpaqueFieldType.NON_TDC_XOVR
 
-        path.up_segment_info = up_segment.iof
-        path.up_segment_info.info = info
-        path.up_segment_info.hops -= up_index
-        path.up_segment_info.up_flag = True
-        for i in reversed(range(up_index, len(up_segment.ads))):
-            path.up_segment_hops.append(up_segment.ads[i].pcbm.hof)
-        path.up_segment_hops[-1].info = OpaqueFieldType.LAST_OF
-        path.up_segment_upstream_ad = up_segment.ads[up_index - 1].pcbm.hof
-        path.up_segment_upstream_ad.info = OpaqueFieldType.NORMAL_OF
-
+        path = PathCombinator._join_up_segment_shortcuts(path, up_segment,
+                                                         info, up_index)
         if peer:
-            up_ad = up_segment.ads[up_index]
-            down_ad = down_segment.ads[dw_index]
-            for up_peer in up_ad.pms:
-                for down_peer in down_ad.pms:
-                    if (up_peer.ad_id == down_ad.pcbm.ad_id and
-                            down_peer.ad_id == up_ad.pcbm.ad_id):
-                        path.up_segment_peering_link = up_peer.hof
-                        path.down_segment_peering_link = down_peer.hof
+            path = PathCombinator._join_shortcuts_peer(path, up_segment.ads[
+                up_index], down_segment.ads[dw_index])
 
-        path.down_segment_info = down_segment.iof
-        path.down_segment_info.info = info
-        path.down_segment_info.hops -= dw_index
-        path.down_segment_info.up_flag = False
-        path.down_segment_upstream_ad = down_segment.ads[dw_index - 1].pcbm.hof
-        path.down_segment_upstream_ad.info = OpaqueFieldType.NORMAL_OF
-        for i in range(dw_index, len(down_segment.ads)):
-            path.down_segment_hops.append(down_segment.ads[i].pcbm.hof)
-        path.down_segment_hops[0].info = OpaqueFieldType.LAST_OF
-
+        path = PathCombinator._join_down_segment_shortcuts(path,
+                                                           down_segment,
+                                                           info, dw_index)
         return path
 
     @staticmethod
