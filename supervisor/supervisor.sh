@@ -6,6 +6,9 @@ INFR_PATH="${SCRIPT_DIR}/../infrastructure"
 cd $INFR_PATH
 mkdir -p ../logs
 
+# Add ~/.local/bin to $PATH
+export PATH="$PATH:$HOME/.local/bin"
+
 # Wrap the 'supervisorctl' command
 OPTIONS="$@"
 CONF_FILE="${SCRIPT_DIR}/supervisord.conf"
