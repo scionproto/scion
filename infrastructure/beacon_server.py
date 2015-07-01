@@ -275,7 +275,6 @@ class BeaconServer(SCIONElement):
         for router_child in self.topology.child_edge_routers:
             new_pcb = copy.deepcopy(pcb)
             egress_if = router_child.interface.if_id
-            new_pcb.if_id = egress_if
 
             last_pcbm = new_pcb.get_last_pcbm()
             if last_pcbm:
@@ -838,7 +837,6 @@ class CoreBeaconServer(BeaconServer):
         for core_router in self.topology.routing_edge_routers:
             new_pcb = copy.deepcopy(pcb)
             egress_if = core_router.interface.if_id
-            new_pcb.if_id = egress_if
             last_pcbm = new_pcb.get_last_pcbm()
             if last_pcbm:
                 ad_marking = self._create_ad_marking(ingress_if, egress_if,

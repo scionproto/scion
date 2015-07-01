@@ -249,7 +249,7 @@ class Router(SCIONElement):
         beacon = PathConstructionBeacon(packet)
         logging.info('PCB:%s', beacon)
         if from_bs:
-            if self.interface.if_id != beacon.pcb.if_id:
+            if self.interface.if_id != beacon.pcb.get_last_pcbm().hof.egress_if:
                 logging.error("Wrong interface set by BS.")
                 return
             next_hop.addr = self.interface.to_addr
