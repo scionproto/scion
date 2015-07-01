@@ -382,8 +382,10 @@ class TestPathStoreInit(object):
         path_policy = MagicMock(spec_set=['history_limit'])
         path_policy.history_limit = 3
         deque_.return_value = "best_paths_history"
-        pth_str = PathStore(path_policy)
+        beacon_ttl = 10
+        pth_str = PathStore(path_policy, beacon_ttl)
         ntools.eq_(pth_str.path_policy, path_policy)
+        ntools.eq_(pth_str.beacon_ttl, beacon_ttl)
         ntools.eq_(pth_str.candidates, [])
         deque_.assert_called_once_with(maxlen=3)
         ntools.eq_(pth_str.best_paths_history, "best_paths_history")
@@ -403,7 +405,7 @@ class TestPathStoreAddSegment(object):
         path_policy = MagicMock(spec_set=['history_limit', 'check_filters'])
         path_policy.history_limit = 3
         path_policy.check_filters.return_value = False
-        pth_str = PathStore(path_policy)
+        pth_str = PathStore(path_policy, 10)
         pth_str.add_segment(self.pcb)
         path_policy.check_filters.assert_called_once_with(self.pcb)
 
@@ -417,7 +419,7 @@ class TestPathStoreAddSegment(object):
         record.last_sent_time = 7
         record.fidelity = 7
         pth_str_rec.return_value = record
-        pth_str = PathStore(path_policy)
+        pth_str = PathStore(path_policy, 10)
         pth_str.candidates = [MagicMock(spec_set=['last_sent_time', '__eq__',
                                                   'fidelity'])
                               for i in range(5)]
@@ -444,7 +446,7 @@ class TestPathStoreAddSegment(object):
         record = MagicMock(spec_set=['fidelity'])
         record.fidelity = 7
         pth_str_rec.return_value = record
-        pth_str = PathStore(path_policy)
+        pth_str = PathStore(path_policy, 10)
         pth_str.candidates = [MagicMock(spec_set=['fidelity'])
                               for i in range(5)]
         for i in range(5):
@@ -466,7 +468,7 @@ class TestPathStoreUpdateAllPeerLinks(object):
     def test_basic(self):
         path_policy = MagicMock(spec_set=['history_limit'])
         path_policy.history_limit = 3
-        pth_str = PathStore(path_policy)
+        pth_str = PathStore(path_policy, 10)
         pth_str.candidates = [MagicMock(spec_set=['pcb', 'peer_links'])
                               for i in range(5)]
         for i in range(5):
@@ -487,7 +489,7 @@ class TestPathStoreUpdateAllHopsLength(object):
     def test_basic(self):
         path_policy = MagicMock(spec_set=['history_limit'])
         path_policy.history_limit = 3
-        pth_str = PathStore(path_policy)
+        pth_str = PathStore(path_policy, 10)
         pth_str.candidates = [MagicMock(spec_set=['pcb', 'hops_length'])
                               for i in range(5)]
         for i in range(5):
@@ -508,7 +510,7 @@ class TestPathStoreUpdateAllDisjointness(object):
     def test_basic(self):
         path_policy = MagicMock(spec_set=['history_limit'])
         path_policy.history_limit = 3
-        pth_str = PathStore(path_policy)
+        pth_str = PathStore(path_policy, 10)
         pth_str.candidates = [MagicMock(spec_set=['pcb', 'disjointness'])
                               for i in range(5)]
         for i in range(5):
@@ -532,7 +534,7 @@ class TestPathStoreUpdateAllDelayTime(object):
     def test_basic(self):
         path_policy = MagicMock(spec_set=['history_limit'])
         path_policy.history_limit = 3
-        pth_str = PathStore(path_policy)
+        pth_str = PathStore(path_policy, 10)
         pth_str.candidates = [MagicMock(spec_set=['pcb', 'delay_time',
                                                   'last_seen_time'])
                               for i in range(5)]
@@ -555,7 +557,7 @@ class TestPathStoreUpdateAllFidelity(object):
     def test_basic(self):
         path_policy = MagicMock(spec_set=['history_limit'])
         path_policy.history_limit = 3
-        pth_str = PathStore(path_policy)
+        pth_str = PathStore(path_policy, 10)
         pth_str._update_all_peer_links = MagicMock(spec_set=[])
         pth_str._update_all_hops_length = MagicMock(spec_set=[])
         pth_str._update_all_disjointness = MagicMock(spec_set=[])
@@ -579,7 +581,7 @@ class TestPathStoreGetBestSegments(object):
     def test_basic(self):
         path_policy = MagicMock(spec_set=['history_limit'])
         path_policy.history_limit = 3
-        pth_str = PathStore(path_policy)
+        pth_str = PathStore(path_policy, 10)
         pth_str._remove_expired_segments = MagicMock(spec_set=[])
         pth_str.candidates = [MagicMock(spec_set=['pcb']) for i in range(5)]
         for i in range(5):
@@ -591,7 +593,7 @@ class TestPathStoreGetBestSegments(object):
         path_policy = MagicMock(spec_set=['history_limit', 'best_set_size'])
         path_policy.history_limit = 3
         path_policy.best_set_size = 4
-        pth_str = PathStore(path_policy)
+        pth_str = PathStore(path_policy, 10)
         pth_str._remove_expired_segments = MagicMock(spec_set=[])
         pth_str.candidates = [MagicMock(spec_set=['pcb']) for i in range(5)]
         for i in range(5):
@@ -615,7 +617,7 @@ class TestPathStoreGetLatestHistorySnapshot(object):
         return path_policy
 
     def test_basic(self):
-        pth_str = PathStore(self._setup())
+        pth_str = PathStore(self._setup(), 10)
         pth_str.best_paths_history = []
         pth_str.best_paths_history.append([MagicMock(spec_set=['pcb'])
                                            for i in range(5)])
@@ -624,7 +626,7 @@ class TestPathStoreGetLatestHistorySnapshot(object):
         ntools.eq_(pth_str.get_latest_history_snapshot(3), [0, 1, 2])
 
     def test_less_arg(self):
-        pth_str = PathStore(self._setup({'best_set_size': 4}))
+        pth_str = PathStore(self._setup({'best_set_size': 4}), 10)
         pth_str.best_paths_history = []
         pth_str.best_paths_history.append([MagicMock(spec_set=['pcb'])
                                            for i in range(5)])
@@ -633,7 +635,7 @@ class TestPathStoreGetLatestHistorySnapshot(object):
         ntools.eq_(pth_str.get_latest_history_snapshot(), [0, 1, 2, 3])
 
     def test_false(self):
-        pth_str = PathStore(self._setup())
+        pth_str = PathStore(self._setup(), 10)
         ntools.eq_(pth_str.get_latest_history_snapshot(3), [])
 
 
@@ -645,13 +647,14 @@ class TestPathStoreRemoveExpiredSegments(object):
     def test_basic(self, time_):
         path_policy = MagicMock(spec_set=['history_limit'])
         path_policy.history_limit = 3
-        pth_str = PathStore(path_policy)
-        pth_str.candidates = [MagicMock(spec_set=['expiration_time', 'id'])
+        beacon_ttl = 1
+        pth_str = PathStore(path_policy, beacon_ttl)
+        pth_str.candidates = [MagicMock(spec_set=['last_seen_time', 'id'])
                               for i in range(5)]
         for i in range(5):
-            pth_str.candidates[i].expiration_time = i
+            pth_str.candidates[i].last_seen_time = i
             pth_str.candidates[i].id = i
-        time_.return_value = 2
+        time_.return_value = 3
         pth_str.remove_segments = MagicMock(spec_set=[])
         pth_str._remove_expired_segments()
         pth_str.remove_segments.assert_called_once_with([0, 1, 2])
@@ -669,7 +672,7 @@ class TestPathStoreRemoveSegments(object):
         del self.path_policy
 
     def test_basic(self):
-        pth_str = PathStore(self.path_policy)
+        pth_str = PathStore(self.path_policy, 10)
         pth_str.candidates = [MagicMock(spec_set=['id', 'fidelity'])
                               for i in range(5)]
         for i in range(5):
@@ -683,7 +686,7 @@ class TestPathStoreRemoveSegments(object):
         pth_str._update_all_fidelity.assert_called_once_with()
 
     def test_none(self):
-        pth_str = PathStore(self.path_policy)
+        pth_str = PathStore(self.path_policy, 10)
         pth_str.candidates = [MagicMock(spec_set=['id']) for i in range(5)]
         for i in range(5):
             pth_str.candidates[i].id = i
@@ -703,7 +706,7 @@ class TestPathStoreGetSegment(object):
         del self.path_policy
 
     def test_basic(self):
-        pth_str = PathStore(self.path_policy)
+        pth_str = PathStore(self.path_policy, 10)
         pth_str.candidates = [MagicMock(spec_set=['id', 'pcb'])
                               for i in range(5)]
         for i in range(5):
@@ -712,7 +715,7 @@ class TestPathStoreGetSegment(object):
         ntools.eq_(pth_str.get_segment(2), 2)
 
     def test_not_present(self):
-        pth_str = PathStore(self.path_policy)
+        pth_str = PathStore(self.path_policy, 10)
         pth_str.candidates = [MagicMock(spec_set=['id']) for i in range(5)]
         ntools.assert_is_none(pth_str.get_segment(2))
 

@@ -174,6 +174,8 @@ class BeaconServer(SCIONElement):
     ZK_PCB_CACHE_PATH = "pcb_cache"
     # Interval to checked for timed out interfaces.
     IF_TIMEOUT_INTERVAL = 1
+    # Number of propagation intervals a PCB is considered fresh.
+    PCB_FRESHNESS_MULTIPLIER = 5
 
     def __init__(self, server_id, topo_file, config_file, path_policy_file):
         SCIONElement.__init__(self, "bs", topo_file, server_id=server_id,
@@ -192,6 +194,8 @@ class BeaconServer(SCIONElement):
         """
         # TODO: add 2 policies
         self.path_policy = PathPolicy.from_file(path_policy_file)
+        self.beacon_ttl = (self.PCB_FRESHNESS_MULTIPLIER *
+                           self.config.propagation_time)
         self.unverified_beacons = deque()
         self.trc_requests = {}
         self.trcs = {}
@@ -823,7 +827,7 @@ class CoreBeaconServer(BeaconServer):
         :returns:
         :rtype:
         """
-        return PathStore(self.path_policy)
+        return PathStore(self.path_policy, self.beacon_ttl)
 
     def propagate_core_pcb(self, pcb):
         """
@@ -901,7 +905,7 @@ class CoreBeaconServer(BeaconServer):
             try:
                 count = self.zk.expire_shared_items(
                     self.ZK_PCB_CACHE_PATH,
-                    start_propagation - self.config.propagation_time * 10)
+                    time.time() - self.beacon_ttl)
             except ZkConnectionLoss:
                 continue
             if count:
@@ -1107,9 +1111,9 @@ class LocalBeaconServer(BeaconServer):
                               path_policy_file)
         # Sanity check that we should indeed be a local beacon server.
         assert not self.topology.is_core_ad, "This shouldn't be a local BS!"
-        self.beacons = PathStore(self.path_policy)
-        self.up_segments = PathStore(self.path_policy)
-        self.down_segments = PathStore(self.path_policy)
+        self.beacons = PathStore(self.path_policy, self.beacon_ttl)
+        self.up_segments = PathStore(self.path_policy, self.beacon_ttl)
+        self.down_segments = PathStore(self.path_policy, self.beacon_ttl)
         self.cert_chain_requests = {}
         self.cert_chains = {}
         cert_chain_file = get_cert_chain_file_path(
@@ -1371,7 +1375,7 @@ class LocalBeaconServer(BeaconServer):
             try:
                 count = self.zk.expire_shared_items(
                     self.ZK_PCB_CACHE_PATH,
-                    start_propagation - self.config.propagation_time * 10)
+                    time.time() - self.beacon_ttl)
             except ZkConnectionLoss:
                 continue
             if count:
