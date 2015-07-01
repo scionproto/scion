@@ -82,14 +82,24 @@ class PathBase(object):
         """
         return hop is None or hop == self.up_segment_hops[0]
 
+    def get_first_hop_of_p(self):
+        """
+        Returns offset to the first HopOpaqueField of the path.
+        """
+        if self.up_segment_hops or self.down_segment_hops:
+            return InfoOpaqueField.LEN
+        else:
+            return 0
+
     def get_first_hop_of(self):
         """
-        Depending on up_segment flag returns the first up- or down-segment hop.
+        Returns the first HopOpaqueField of the path.
         """
-        if self.up_segment_hops:
-            return self.up_segment_hops[0]
-        elif self.down_segment_hops:
-            return self.down_segment_hops[0]
+        offset = self.get_first_hop_of_p()
+        if offset:
+            offset -= InfoOpaqueField.LEN
+            n = offset // HopOpaqueField.LEN
+            return self.get_of(n + 1)
         else:
             return None
 
@@ -137,9 +147,6 @@ class CorePath(PathBase):
         if raw is not None:
             self.parse(raw)
 
-    # TODO PSz: a flag is needed to distinguish downPath-only case. I.e. if
-    # SCIONPacket.up_path is false and path has only one special OF, then it
-    # should parse only DownPath. It would be easier to put down/up flag to SOF.
     def parse(self, raw):
         """
         Parses the raw data and populates the fields accordingly.
@@ -606,20 +613,20 @@ class PeerPath(PathBase):
 
         return "".join(s)
 
-    def get_first_hop_of(self):
+    def get_first_hop_of_p(self):
         """
         Depending on up_segment flag returns the first up- or down-segment hop.
         """
         if self.up_segment_hops:
-            if self.up_segment_hops[0].info == OpaqueFieldType.LAST_OF:
-                return self.up_segment_peering_link
-            return self.up_segment_hops[0]
+            first_segment_hops = self.up_segment_hops
         elif self.down_segment_hops:
-            if self.down_segment_hops[0].info == OpaqueFieldType.LAST_OF:
-                return self.down_segment_peering_link
-            return self.down_segment_hops[0]
+            first_segment_hops = self.down_segment_hops
         else:
-            return None
+            return 0
+
+        if first_segment_hops[0].info == OpaqueFieldType.LAST_OF:
+            return InfoOpaqueField.LEN + HopOpaqueField.LEN
+        return InfoOpaqueField.LEN
 
 
 class EmptyPath(PathBase):
