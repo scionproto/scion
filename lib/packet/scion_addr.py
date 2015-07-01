@@ -72,7 +72,7 @@ class SCIONAddr(object):
     :ivar ad_id: AD identifier.
     :type ad_id: int
     :ivar host_addr: host address.
-    :type host_addr: string
+    :type host_addr: IPv4Address or IPv6Address
     :ivar addr_len: address length.
     :type addr_len: int
     """
@@ -101,7 +101,7 @@ class SCIONAddr(object):
         :param ad_id: AD identifier.
         :type ad_id: int
         :param host_addr: host IP addresses.
-        :type host_addr: string
+        :type host_addr: IPv4Address or IPv6Address
 
         :returns: SCION address.
         :rtype: :class:`SCIONAddr`
