@@ -142,10 +142,6 @@ class PathServer(SCIONElement):
         """
         dst = path_request.hdr.src_addr
         path_request.hdr.path.reverse()
-        path_request = PathMgmtPacket(path_request.pack())  # PSz: this is
-        # a hack, as path_request with <up-path> only reverses to <down-path>
-        # only, and then reversed packet fails with .get_current_iof()
-        # FIXME: change .reverse() when only one path segment exists
         path = path_request.hdr.path
         records = PathSegmentRecords.from_values(path_request.payload,
                                                  paths)

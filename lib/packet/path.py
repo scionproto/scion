@@ -108,10 +108,13 @@ class PathBase(object):
         Returns the opaque field for the given index.
         """
         # Build temporary flat list of opaque fields.
-        tmp = [self.up_segment_info]
-        tmp.extend(self.up_segment_hops)
-        tmp.append(self.down_segment_info)
-        tmp.extend(self.down_segment_hops)
+        tmp = []
+        if self.up_segment_info:
+            tmp.append(self.up_segment_info)
+            tmp.extend(self.up_segment_hops)
+        if self.down_segment_info:
+            tmp.append(self.down_segment_info)
+            tmp.extend(self.down_segment_hops)
         if index >= len(tmp):
             return None
         else:
@@ -263,8 +266,10 @@ class CorePath(PathBase):
         Returns the opaque field for the given index.
         """
         # Build temporary flat list of opaque fields.
-        tmp = [self.up_segment_info]
-        tmp.extend(self.up_segment_hops)
+        tmp = []
+        if self.up_segment_info:
+            tmp.append(self.up_segment_info)
+            tmp.extend(self.up_segment_hops)
         if self.core_segment_info:
             tmp.append(self.core_segment_info)
             tmp.extend(self.core_segment_hops)
