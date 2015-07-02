@@ -224,6 +224,7 @@ class SCIONHeader(HeaderBase):
             path_len = len(path.pack())
             self.common_hdr.hdr_len += path_len
             self.common_hdr.total_len += path_len
+        self.set_first_of_pointers()
 
     @property
     def extension_hdrs(self):
@@ -443,23 +444,23 @@ class SCIONHeader(HeaderBase):
         offset = (SCIONCommonHdr.LEN + OpaqueField.LEN)
         return self.common_hdr.curr_of_p + offset == self.common_hdr.hdr_len
 
-    def is_first_path_of(self):
-        """
-        Returs 'True' if the current opaque field is the very first opaque field
-        (i.e., InfoOpaqueField), 'False' otherwise.
-        """
-        return self.common_hdr.curr_of_p == (self.common_hdr.src_addr_len +
-                                             self.common_hdr.dst_addr_len)
-
     def reverse(self):
         """
         Reverses the header.
         """
         (self.src_addr, self.dst_addr) = (self.dst_addr, self.src_addr)
         self.path.reverse()
-        self.common_hdr.curr_of_p = (self.common_hdr.src_addr_len +
-                                     self.common_hdr.dst_addr_len)
-        self.common_hdr.curr_iof_p = self.common_hdr.curr_of_p
+        self.set_first_of_pointers()
+
+    def set_first_of_pointers(self):
+        """
+        Sets pointers of current info and hop opaque fields to initial values.
+        """
+        self.common_hdr.curr_iof_p = (self.common_hdr.src_addr_len +
+                                      self.common_hdr.dst_addr_len)
+        self.common_hdr.curr_of_p = self.common_hdr.curr_iof_p
+        if self.path:
+            self.common_hdr.curr_of_p += self.path.get_first_hop_of_p()
 
     def __len__(self):
         length = self.common_hdr.hdr_len

@@ -370,6 +370,7 @@ class Router(SCIONElement):
                 spkt.hdr.increase_of(1)
                 next_iof = spkt.hdr.get_current_of()
                 opaque_field = spkt.hdr.get_relative_of(1)
+                logging.debug(spkt)
                 if next_iof.up_flag:  # TODO replace by get_first_hop
                     next_hop.addr = self.ifid2addr[opaque_field.ingress_if]
                 else:
@@ -487,8 +488,7 @@ class Router(SCIONElement):
         :param ptype: the type of the packet.
         :type ptype: :class:`lib.packet.scion.PacketType`
         """
-        if (not spkt.hdr.is_first_path_of() and
-                ptype == PT.DATA and from_local_ad):
+        if from_local_ad:
             self.write_to_egress_iface(spkt, next_hop)
         else:
             self.forward_packet(spkt, next_hop, from_local_ad, ptype)

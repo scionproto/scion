@@ -679,29 +679,6 @@ class TestSCIONHeaderIsLastPathOf(object):
         ntools.assert_false(hdr.is_last_path_of())
 
 
-class TestSCIONHeaderIsFirstPathOf(object):
-    """
-    Unit tests for lib.packet.scion.SCIONHeader.is_first_path_of
-    """
-    def test_true(self):
-        hdr = SCIONHeader()
-        hdr.common_hdr = MagicMock(spec_set=['curr_of_p', 'src_addr_len',
-                                             'dst_addr_len'])
-        hdr.common_hdr.src_addr_len = 123
-        hdr.common_hdr.dst_addr_len = 456
-        hdr.common_hdr.curr_of_p = 123 + 456
-        ntools.assert_true(hdr.is_first_path_of())
-
-    def test_false(self):
-        hdr = SCIONHeader()
-        hdr.common_hdr = MagicMock(spec_set=['curr_of_p', 'src_addr_len',
-                                             'dst_addr_len'])
-        hdr.common_hdr.src_addr_len = 123
-        hdr.common_hdr.dst_addr_len = 456
-        hdr.common_hdr.curr_of_p = 123 + 456 + 1
-        ntools.assert_false(hdr.is_first_path_of())
-
-
 class TestSCIONHeaderReverse(object):
     """
     Unit tests for lib.packet.scion.SCIONHeader.reverse
