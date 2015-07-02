@@ -247,7 +247,6 @@ class Router(SCIONElement):
         :type from_bs:
         """
         beacon = PathConstructionBeacon(packet)
-        logging.info('PCB:%s', beacon)
         if from_bs:
             if self.interface.if_id != beacon.pcb.get_last_pcbm().hof.egress_if:
                 logging.error("Wrong interface set by BS.")
