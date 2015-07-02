@@ -672,6 +672,9 @@ class ConfigGenerator():
                          'PropagateTime': 5,
                          'ResetTime': 600,
                          'CertChainVersion': 0}
+            if self.is_sim:
+                conf_dict['PropagateTime'] = 10
+                conf_dict['RegisterTime'] = 10
             if (ad_configs[isd_ad_id]['level'] != INTERMEDIATE_AD or
                     "path_servers" in ad_configs[isd_ad_id]):
                 conf_dict['RegisterPath'] = 1
