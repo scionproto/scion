@@ -343,7 +343,6 @@ class PathSegment(Marking):
         Populates fields from a raw bytes block.
         """
         assert isinstance(raw, bytes)
-        self.size = len(raw)
         self.raw = raw[:]
         dlen = len(raw)
         if dlen < PathSegment.MIN_LEN:
