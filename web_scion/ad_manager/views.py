@@ -60,7 +60,7 @@ class ISDListView(ListView):
 class ISDDetailView(ListView):
     model = AD
     template_name = 'ad_manager/isd_detail.html'
-    paginate_by = 8
+    paginate_by = 20
 
     def __init__(self, **kwargs):
         self.isd = None
@@ -69,7 +69,7 @@ class ISDDetailView(ListView):
     def get_queryset(self):
         isd = get_object_or_404(ISD, id=int(self.kwargs['pk']))
         self.isd = isd
-        queryset = isd.ad_set.all()
+        queryset = isd.ad_set.all().order_by('id')
         return queryset
 
     def get_context_data(self, **kwargs):

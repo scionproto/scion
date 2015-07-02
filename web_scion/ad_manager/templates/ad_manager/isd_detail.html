@@ -8,7 +8,7 @@
   </h1>
   <hr>
   <ul>
-    {% for ad in object_list|dictsort:'id' %}
+    {% for ad in object_list %}
       <li>
         <a href="{% url 'ad_detail' ad.id %}">AD {{ ad }}</a>
         {% if ad.is_core_ad %} <span class="badge alert-warning">core</span> {% endif %}

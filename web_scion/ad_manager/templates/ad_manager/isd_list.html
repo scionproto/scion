@@ -8,7 +8,7 @@
   </h1>
   <hr>
   <ul>
-    {% for isd in object_list|dictsort:'id' %}
+    {% for isd in object_list %}
       <li><a href="{% url 'isd_detail' isd %}">ISD {{ isd }}</a></li>
     {% empty %}
       <li>No ISDs.</li>
