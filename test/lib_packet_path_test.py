@@ -34,7 +34,7 @@ from lib.packet.path import (
 from lib.packet.opaque_field import (
     HopOpaqueField,
     InfoOpaqueField,
-)
+    OpaqueFieldType)
 
 
 class BasePath(object):
@@ -111,38 +111,80 @@ class TestPathBaseReverse(BasePath):
         ntools.eq_(self.path.down_segment_hops, self.hof[2::-1])
 
 
+class TestPathBaseGetFirstHopOfP(BasePath):
+    """
+    Unit tests for lib.packet.path.PathBase.get_first_hop_of_p
+    """
+    def test_with_up_seg_hops(self):
+        self.path.up_segment_hops = ['up_hop0']
+        ntools.eq_(self.path.get_first_hop_of_p(), InfoOpaqueField.LEN)
+
+    def test_with_down_seg_hops(self):
+        self.path.up_segment_hops = []
+        self.path.down_segment_hops = ['down_hop0']
+        ntools.eq_(self.path.get_first_hop_of_p(), InfoOpaqueField.LEN)
+
+    def test_without_hops(self):
+        self.path.up_segment_hops = []
+        self.path.down_segment_hops = []
+        ntools.eq_(self.path.get_first_hop_of_p(), 0)
+
+
 class TestPathBaseGetFirstHopOf(BasePath):
     """
     Unit tests for lib.packet.path.PathBase.get_first_hop_of
     """
-    def test_with_up_hops(self):
-        self.path.down_segment_hops = self.hof[2:5]
-        self.path.up_segment_hops = self.hof[:3]
-        ntools.eq_(self.path.get_first_hop_of(), self.hof[0])
+    @patch("lib.packet.path.PathBase.get_of", autospec=True)
+    @patch("lib.packet.path.PathBase.get_first_hop_of_p", autospec=True)
+    def test_with_hops(self, offset, get_of):
+        offset.return_value = 123
+        n = (123 - InfoOpaqueField.LEN) // HopOpaqueField.LEN
+        get_of.return_value = 'first_hof'
+        ntools.eq_(self.path.get_first_hop_of(), 'first_hof')
+        offset.assert_called_once_with(self.path)
+        get_of.assert_called_once_with(self.path, n + 1)
 
-    def test_with_down_hops(self):
-        self.path.down_segment_hops = self.hof[2:5]
-        ntools.eq_(self.path.get_first_hop_of(), self.hof[2])
-
-    def test_without_hops(self):
-        ntools.eq_(self.path.get_first_hop_of(), None)
+    @patch("lib.packet.path.PathBase.get_first_hop_of_p", autospec=True)
+    def test_without_hops(self, offset):
+        offset.return_value = 0
+        ntools.assert_is_none(self.path.get_first_hop_of())
 
 
 class TestPathBaseGetOf(BasePath):
     """
     Unit tests for lib.packet.path.PathBase.get_of
     """
-    def _check(self, idx, val):
+    def _check_full(self, idx, val):
         self.path.up_segment_info = self.iof[0]
         self.path.down_segment_info = self.iof[1]
         self.path.down_segment_hops = self.hof[2:5]
         self.path.up_segment_hops = self.hof[:3]
         ntools.eq_(self.path.get_of(idx), val)
 
-    def test(self):
+    def test_full(self):
         for i, v in enumerate([self.iof[0]] + self.hof[:3] + [self.iof[1]] +
                               self.hof[2:5] + [None]):
-            yield self._check, i, v
+            yield self._check_full, i, v
+
+    def _check_without_up_segment(self, idx, val):
+        self.path.up_segment_info = None
+        self.path.down_segment_info = self.iof[1]
+        self.path.down_segment_hops = self.hof[2:5]
+        ntools.eq_(self.path.get_of(idx), val)
+
+    def test_without_up_segment(self):
+        for i, v in enumerate([self.iof[1]] + self.hof[2:5]):
+            yield self._check_without_up_segment, i, v
+
+    def _check_without_down_segment(self, idx, val):
+        self.path.up_segment_info = self.iof[0]
+        self.path.up_segment_hops = self.hof[:3]
+        self.path.down_segment_info = None
+        ntools.eq_(self.path.get_of(idx), val)
+
+    def test_without_down_segment(self):
+        for i, v in enumerate([self.iof[0]] + self.hof[:3]):
+            yield self._check_without_down_segment, i, v
 
 
 class TestCorePathInit(BasePath):
@@ -770,6 +812,41 @@ class TestPeerPathGetOf(BasePath):
     def test(self):
         for i in range(12):
             yield self._check, i
+
+
+class TestPeerPathGetFirstHopOfP(object):
+    """
+    Unit tests for lib.packet.path.PeerPath.get_first_hop_of_p
+    """
+    def test_with_up_seg_hops_last(self):
+        peer_path = PeerPath()
+        peer_path.up_segment_hops = [MagicMock(spec_set=['info'])]
+        peer_path.up_segment_hops[0].info = OpaqueFieldType.LAST_OF
+        ntools.eq_(peer_path.get_first_hop_of_p(),
+                   InfoOpaqueField.LEN + HopOpaqueField.LEN)
+
+    def test_with_up_seg_hops(self):
+        peer_path = PeerPath()
+        peer_path.up_segment_hops = [MagicMock(spec_set=['info'])]
+        peer_path.up_segment_hops[0].info = 123
+        ntools.eq_(peer_path.get_first_hop_of_p(), InfoOpaqueField.LEN)
+
+    def test_with_down_seg_hops_last(self):
+        peer_path = PeerPath()
+        peer_path.down_segment_hops = [MagicMock(spec_set=['info'])]
+        peer_path.down_segment_hops[0].info = OpaqueFieldType.LAST_OF
+        ntools.eq_(peer_path.get_first_hop_of_p(),
+                   InfoOpaqueField.LEN + HopOpaqueField.LEN)
+
+    def test_with_down_seg_hops(self):
+        peer_path = PeerPath()
+        peer_path.down_segment_hops = [MagicMock(spec_set=['info'])]
+        peer_path.down_segment_hops[0].info = 123
+        ntools.eq_(peer_path.get_first_hop_of_p(), InfoOpaqueField.LEN)
+
+    def test_without_hops(self):
+        peer_path = PeerPath()
+        ntools.eq_(peer_path.get_first_hop_of_p(), 0)
 
 
 class TestEmptyPathInit(object):
