@@ -641,7 +641,7 @@ class EmptyPath(PathBase):
     This is currently needed for intra AD communication, which doesn't need a
     SCION path but still uses SCION packets for communication.
     """
-    def __init__(self, raw=None):
+    def __init__(self):
         """
         Initialize an instance of the class EmptyPath.
 
@@ -649,17 +649,6 @@ class EmptyPath(PathBase):
         :type raw:
         """
         PathBase.__init__(self)
-
-        if raw is not None:
-            self.parse(raw)
-
-    def parse(self, raw):
-        assert isinstance(raw, bytes)
-        self.up_segment_info = InfoOpaqueField(raw[:InfoOpaqueField.LEN])
-        # We do this so we can still reverse the segment.
-        self.down_segment_info = self.up_segment_info
-
-        self.parsed = True
 
     def pack(self):
         return b''
@@ -671,7 +660,7 @@ class EmptyPath(PathBase):
         return True
 
     def get_of(self, index):
-        return self.up_segment_info
+        return None
 
     def __str__(self):
         return "<Empty-Path></Empty-Path>"
