@@ -8,7 +8,7 @@
 {% endblock %}
 
 {% block content %}
-  {% include 'ad_manager/object_path.html' %}
+  {% include 'ad_manager/partials/object_path.html' %}
 
   <h4 id="core-label" class="ad-label">
     Core AD:
@@ -45,22 +45,22 @@
         </div>
 
         {% with table_name='Beacon servers' servers=beacon_servers table_id='beacon-servers' %}
-          {% include 'ad_manager/server_table.html' %}
+          {% include 'ad_manager/partials/server_table.html' %}
         {% endwith %}
 
         {% with table_name='Certificate servers' servers=certificate_servers table_id='certificate-servers' %}
-          {% include 'ad_manager/server_table.html' %}
+          {% include 'ad_manager/partials/server_table.html' %}
         {% endwith %}
 
         {% with table_name='Path servers' servers=path_servers table_id='path-servers' %}
-          {% include 'ad_manager/server_table.html' %}
+          {% include 'ad_manager/partials/server_table.html' %}
         {% endwith %}
 
         {% with table_name='DNS servers' servers=dns_servers table_id='dns-servers' %}
-          {% include 'ad_manager/server_table.html' %}
+          {% include 'ad_manager/partials/server_table.html' %}
         {% endwith %}
 
-        {% include 'ad_manager/router_table.html' %}
+        {% include 'ad_manager/partials/router_table.html' %}
         <br /><br />
       </div>
 
@@ -154,13 +154,13 @@
       <!-- Requests tab -->
       <div role="tabpanel" class="tab-pane" id="requests">
         {% with ad=object %}
-          {% include 'ad_manager/connection_requests.html' %}
+          {% include 'ad_manager/partials/connection_requests.html' %}
         {% endwith %}
       </div>
     </div>
   </div>
 
-  {% include 'ad_manager/log_modal.html' %}
+  {% include 'ad_manager/partials/log_modal.html' %}
 
   <!-- JS variables passed from the view to JavaScript files -->
   <script>

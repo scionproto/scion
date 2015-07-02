@@ -7,6 +7,10 @@
     ISD {{ object.id }}
   </h1>
   <hr>
+
+  <p>
+    Total number of ADs: {{ paginator.count }}
+  </p>
   <ul>
     {% for ad in object_list %}
       <li>
@@ -18,6 +22,6 @@
     {% endfor %}
   </ul>
 
-  {% include 'ad_manager/pagination_footer.html' %}
+  {% include 'ad_manager/partials/pagination_footer.html' %}
 
 {% endblock %}
