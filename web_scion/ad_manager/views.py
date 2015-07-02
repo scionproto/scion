@@ -54,10 +54,28 @@ from topology.generator import ConfigGenerator
 
 class ISDListView(ListView):
     model = ISD
+    paginate_by = 8
 
 
-class ISDDetailView(DetailView):
-    model = ISD
+class ISDDetailView(ListView):
+    model = AD
+    template_name = 'ad_manager/isd_detail.html'
+    paginate_by = 8
+
+    def __init__(self, **kwargs):
+        self.isd = None
+        super().__init__(**kwargs)
+
+    def get_queryset(self):
+        isd = get_object_or_404(ISD, id=int(self.kwargs['pk']))
+        self.isd = isd
+        queryset = isd.ad_set.all()
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['object'] = self.isd
+        return context
 
 
 class ADDetailView(DetailView):
