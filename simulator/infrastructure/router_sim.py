@@ -17,10 +17,11 @@
 """
 # Stdlib
 import logging
+import time
 
 # SCION
 from infrastructure.router import Router, NextHop, IFID_PKT_TOUT
-from lib.defines import SCION_UDP_PORT
+from lib.defines import SCION_UDP_PORT, EXP_TIME_UNIT
 from lib.packet.scion import IFIDPacket
 from lib.packet.scion_addr import SCIONAddr, ISD_AD
 
@@ -100,6 +101,18 @@ class RouterSim(Router):
 
     def verify_of(self, hof, prev_hof, ts):
         """
-        Returns True because we don't care about mac in a simulator.
+        Verify freshness and authentication of an opaque field.
+
+        :param hof: the hop opaque field that is verified.
+        :type hof: :class:`lib.packet.opaque_field.HopOpaqueField`
+        :param prev_hof: previous hop opaque field (according to order of PCB
+                         propagation) required for verification.
+        :type prev_hof: :class:`lib.packet.opaque_field.HopOpaqueField` or None
+        :param ts: timestamp against which the opaque field is verified.
+        :type ts: int
         """
-        return True
+        if int(time.time()) <= ts + hof.exp_time * EXP_TIME_UNIT:
+            return True
+        else:
+            logging.warning("Dropping packet due to expired OF.")
+        return False
