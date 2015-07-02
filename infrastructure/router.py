@@ -144,7 +144,11 @@ class Router(SCIONElement):
         """
         Run the router threads.
         """
-        threading.Thread(target=self.sync_interface, daemon=True).start()
+        threading.Thread(
+            target=thread_safety_net,
+            args=("sync_interface", self.sync_interface),
+            name="Sync Interfaces",
+            daemon=True).start()
         SCIONElement.run(self)
 
     def send(self, packet, next_hop, use_local_socket=True):
@@ -196,7 +200,6 @@ class Router(SCIONElement):
         if ext or l < len(spkt.hdr.extension_hdrs):
             logging.warning("Extensions terminated incorrectly.")
 
-    @thread_safety_net("sync_interface")
     def sync_interface(self):
         """
         Synchronize and initialize the router's interface with that of a

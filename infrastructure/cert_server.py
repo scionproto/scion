@@ -318,7 +318,6 @@ class CertServer(SCIONElement):
         identifiers = re.split(':|-', entry)
         return (int(identifiers[1]), int(identifiers[3]))
 
-    @thread_safety_net("handle_shared_certs")
     def handle_shared_certs(self):
         """
         A thread to handle Zookeeper connects/disconnects and the shared cache
@@ -515,9 +514,11 @@ class CertServer(SCIONElement):
         """
         Run an instance of the Certificate Server.
         """
-        threading.Thread(target=self.handle_shared_certs,
-                         name="CS shared certs",
-                         daemon=True).start()
+        threading.Thread(
+            target=thread_safety_net,
+            args=("handle_shared_certs", self.handle_shared_certs),
+            name="CS shared certs",
+            daemon=True).start()
         SCIONElement.run(self)
 
 

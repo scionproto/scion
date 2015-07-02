@@ -66,8 +66,10 @@ class TraceDumper(threading.Thread):
         self.stop_requested = threading.Event()
         threading.Thread.__init__(self, name="TraceDumper")
     
-    @thread_safety_net("stacktracer")
     def run(self):
+        thread_safety_net("stacktracer", self._run)
+
+    def _run(self):
         while not self.stop_requested.isSet():
             time.sleep(self.interval)
             if self.auto or not os.path.isfile(self.fpath):
