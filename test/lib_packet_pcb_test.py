@@ -483,7 +483,6 @@ class TestPathSegmentParse(object):
         info_of.return_value = 'info_of'
         parse_hops.return_value = 10
         ret = path_segment.parse(data)
-        ntools.eq_(path_segment.size, dlen)
         ntools.eq_(path_segment.raw, data)
         ntools.eq_(path_segment.iof, 'info_of')
         info_of.assert_called_once_with(data[:1])
