@@ -70,18 +70,6 @@ class PathBase(object):
         self.up_segment_hops.reverse()
         self.down_segment_hops.reverse()
 
-    def is_last_hop(self, hop):
-        """
-        Returns true if 'hop' equals to the last down-segment hop.
-        """
-        return hop is None or hop == self.down_segment_hops[-1]
-
-    def is_first_hop(self, hop):
-        """
-        Returns true if 'hop' equals to the first up-segment hop.
-        """
-        return hop is None or hop == self.up_segment_hops[0]
-
     def get_first_hop_of_p(self):
         """
         Returns offset to the first HopOpaqueField of the path.
@@ -652,12 +640,6 @@ class EmptyPath(PathBase):
 
     def pack(self):
         return b''
-
-    def is_first_hop(self, hop):
-        return True
-
-    def is_last_hop(self, hop):
-        return True
 
     def get_of(self, index):
         return None

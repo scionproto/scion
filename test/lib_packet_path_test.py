@@ -111,40 +111,6 @@ class TestPathBaseReverse(BasePath):
         ntools.eq_(self.path.down_segment_hops, self.hof[2::-1])
 
 
-class TestPathBaseIsLastHop(BasePath):
-    """
-    Unit tests for lib.packet.path.PathBase.is_last_hop
-    """
-    def _check(self, idx, truth):
-        self.path.up_segment_hops = self.hof[:3]
-        self.path.down_segment_hops = self.hof[:]
-        ntools.eq_(self.path.is_last_hop(self.hof[idx]), truth)
-
-    def test(self):
-        for idx, truth in ((4, True), (3, False), (1, False)):
-            yield self._check, idx, truth
-
-    def test_with_none(self):
-        ntools.eq_(self.path.is_last_hop(None), True)
-
-
-class TestPathBaseIsFirstHop(BasePath):
-    """
-    Unit tests for lib.packet.path.PathBase.is_first_hop
-    """
-    def _check(self, idx, truth):
-        self.path.up_segment_hops = self.hof[:3]
-        self.path.down_segment_hops = self.hof[:]
-        ntools.eq_(self.path.is_first_hop(self.hof[idx]), truth)
-
-    def test(self):
-        for idx, truth in ((0, True), (1, False), (4, False)):
-            yield self._check, idx, truth
-
-    def test_with_none(self):
-        ntools.eq_(self.path.is_last_hop(None), True)
-
-
 class TestPathBaseGetFirstHopOf(BasePath):
     """
     Unit tests for lib.packet.path.PathBase.get_first_hop_of
@@ -815,28 +781,6 @@ class TestEmptyPathInit(object):
         empty_path = EmptyPath()
         init.assert_called_once_with(empty_path)
 
-    @patch("lib.packet.path.EmptyPath.parse", autospec=True)
-    def test_raw(self, parse):
-        empty_path = EmptyPath('rawstring')
-        parse.assert_called_once_with(empty_path, 'rawstring')
-
-
-class TestEmptyPathParse(object):
-    """
-    Unit tests for lib.packet.path.EmptyPath.parse
-    """
-    def test_basic(self):
-        empty_path = EmptyPath()
-        raw = b'\01' * InfoOpaqueField.LEN
-        empty_path.parse(raw)
-        ntools.eq_(empty_path.up_segment_info, InfoOpaqueField(raw))
-        ntools.eq_(empty_path.up_segment_info, empty_path.down_segment_info)
-        ntools.assert_true(empty_path.parsed)
-
-    def test_wrong_type(self):
-        empty_path = EmptyPath()
-        ntools.assert_raises(AssertionError, empty_path.parse, 10)
-
 
 class TestEmptyPathPack(object):
     """
@@ -845,24 +789,6 @@ class TestEmptyPathPack(object):
     def test(self):
         empty_path = EmptyPath()
         ntools.eq_(empty_path.pack(), b'')
-
-
-class TestEmptyPathIsFirstHop(object):
-    """
-    Unit tests for lib.packet.path.EmptyPath.is_first_hop
-    """
-    def test(self):
-        empty_path = EmptyPath()
-        ntools.assert_true(empty_path.is_first_hop(1))
-
-
-class TestEmptyPathIsLastHop(object):
-    """
-    Unit tests for lib.packet.path.EmptyPath.is_last_hop
-    """
-    def test(self):
-        empty_path = EmptyPath()
-        ntools.assert_true(empty_path.is_last_hop(1))
 
 
 class TestEmptyPathGetFirstHopOf(object):
@@ -881,7 +807,7 @@ class TestEmptyPathGetOf(object):
     def test(self):
         empty_path = EmptyPath()
         empty_path.up_segment_info = 1
-        ntools.eq_(empty_path.get_of(123), 1)
+        ntools.assert_is_none(empty_path.get_of(123))
 
 
 if __name__ == "__main__":
