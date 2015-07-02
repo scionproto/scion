@@ -28,6 +28,10 @@ DATABASES = {
 }
 """
 
+INSTALLED_APPS_LOCAL = (
+    # 'debug_toolbar',
+)
+
 # Two factor authlentication
 TWO_FACTOR_SMS_GATEWAY = 'two_factor.gateways.fake.Fake'
 # TWO_FACTOR_SMS_GATEWAY = 'two_factor.gateways.twilio.gateway.Twilio'

@@ -1,12 +1,14 @@
-FROM scionfull
+FROM scion:latest
 
 WORKDIR ./web_scion/
 
 RUN pip3 install --user -r requirements.txt
 
+RUN cp ./web_scion/settings_private.dist.py ./web_scion/settings_private.py
+
 RUN ./manage.py migrate
 
-RUN PYTHONPATH=.. python3 scripts/load_data.py
+RUN python3 scripts/reload_data.py
 
 EXPOSE 8000
 

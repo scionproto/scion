@@ -13,5 +13,7 @@ if ! ( [ $(id -u) -eq 0 ] || groups | grep -q "\<docker\>"; ); then
     exit 1                                                         
 fi                                                                 
 
-cd "$(dirname "$0")"
+SCRIPT_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+cd $SCRIPT_DIR
+
 build_image && run_image
