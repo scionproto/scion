@@ -62,7 +62,7 @@ deps_misc() {
 
 cmd_init() {
     echo "Checking if tweetnacl has been built..."
-    if [ -f lib/crypto/python-tweetnacl-20140309/build/python3.4/tweetnacl.so ] && [ -f lib/crypto/python-tweetnacl-20140309/build/python2.7/tweetnacl.so ]
+    if [ -f lib/crypto/python-tweetnacl-20140309/build/python3.4/tweetnacl.so ]
     then
         echo "tweetnacl exists."
     else
