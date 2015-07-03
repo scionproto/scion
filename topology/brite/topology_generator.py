@@ -39,6 +39,7 @@ def read_from_dir(dir_name):
 
     :param dir_name: The directory in which files are to be converted
     :type dir_name: str
+
     :returns: list of files in the directory
     :rtype: list
     """
@@ -64,6 +65,7 @@ def gen_base_isd_graph(isd_list, degree):
     :type isd_list: list
     :param degree: The degree of isd connections
     :type degree: int
+
     :returns: An ISD graph
     :rtype: :class: `networkx.MultiDiGraph`
     """
@@ -72,6 +74,9 @@ def gen_base_isd_graph(isd_list, degree):
     curr_num_edges = 0
     # Adding edges with degree chosen as degree
     max_num_edges = count_isds * degree
+    if len(isd_list) < 2:
+        isd_graph.add_node(MIN_ISD_NUM)
+        return isd_graph
     # Adding edges in circular fashion to ensure that isd graph remains
     # connected
     for isd in range(MIN_ISD_NUM, count_isds + 1):
@@ -84,7 +89,7 @@ def gen_base_isd_graph(isd_list, degree):
     # of edges is max_num_edges
     while curr_num_edges < max_num_edges:
         isd_list_shuffle = isd_list
-        # Among all the ones with least outdegree, we choose 2 randomly 
+        # Among all the ones with least outdegree, we choose 2 randomly
         random.shuffle(isd_list_shuffle)
         num_outedges = sorted(isd_list_shuffle,
                               key=lambda isd: isd_graph.degree(isd))
@@ -116,10 +121,10 @@ def add_random_edges(isd_graph, core_ad_dict, max_degree):
     while len(denser_isds) >= 2:
         [isd, neighbor_isd] = random.sample(denser_isds, 2)
         isd_graph.add_edge(isd, neighbor_isd)
-        # Break if one of the nodes has reached max_degree 
+        # Break if one of the nodes has reached max_degree
         if (isd_graph.degree(isd) >= max_degree or
             isd_graph.degree(neighbor_isd) >= max_degree):
-           break
+            break
     return isd_graph
 
 def graph_to_dot(graph, dot_output_file):
@@ -152,6 +157,7 @@ def parse(brite_files, dot_output_file, min_degree, max_degree):
     :type min_degree: int
     :param max_degree: Maximum degree of any ISD in inter-ISD connections
     :type max_degree: int
+
     :returns: the newly created SCION Graph.
     :rtype: :class:`networkx.DiGraph`
     """
@@ -181,7 +187,7 @@ def parse(brite_files, dot_output_file, min_degree, max_degree):
         for (dest_isd_id, dest_core_ads) in core_ad_dict.items():
             new_edges = isd_graph.number_of_edges(src_isd_id, dest_isd_id)
             all_core_ad_conn = \
-                [(x,y) for x in src_core_ads for y in dest_core_ads]
+                [(x, y) for x in src_core_ads for y in dest_core_ads]
             # Number of new edges is atmost the
             # number of all possible inter-ISD connections
             new_edges = min(new_edges, len(all_core_ad_conn))
@@ -205,7 +211,7 @@ def read_topo_file(topo_file, ISD_NUM):
 
     :param topo_file: BRITE file to be converted
     :type topo_file: str
-    :param ISD_NUM: ISD Number of the graph to be generated 
+    :param ISD_NUM: ISD Number of the graph to be generated
     :type ISD_NUM: int
     :returns: Networkx Graph and a list containing degree of each AD
     :rvar: (`networkx.Graph`, list)
@@ -240,11 +246,11 @@ def read_topo_file(topo_file, ISD_NUM):
 
 def _parse(topo_file, ISD_NUM):
     """
-    Parse a topo_file into a SCION ISD numbered - ISD_NUM 
+    Parse a topo_file into a SCION ISD numbered - ISD_NUM
 
     :param topo_file: A BRITE output file to be converted
     :type topo_file: str
-    :param ISD_NUM: ISD Number of the graph to be generated 
+    :param ISD_NUM: ISD Number of the graph to be generated
     :type ISD_NUM: int
     :returns: the created Graph along with a list of core ad nodes
     :rtype: (`networkx.DiGraph`, list)
@@ -274,8 +280,8 @@ def _parse(topo_file, ISD_NUM):
                     neighbor_nodes.add(node)
 
         # Sorting nodes based on their outdegree in the original graph
-        neighbor_nodes = sorted(neighbor_nodes, 
-                                key=lambda tup: len(original_graph[tup]), 
+        neighbor_nodes = sorted(neighbor_nodes,
+                                key=lambda tup: len(original_graph[tup]),
                                 reverse=True)
         core_ads = core_ads + neighbor_nodes[:num_extra_nodes]
         core_ad_graph = original_graph.subgraph(core_ads)
@@ -392,7 +398,7 @@ def main():
                         help="Convert files into respective isd's")
     parser.add_argument('-c', '--degree',
                         action='store',
-                        default=[3,5],
+                        default=[3, 5],
                         dest='degree',
                         nargs=2,
                         help="Set the min and max degree of connections \
