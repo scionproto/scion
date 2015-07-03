@@ -269,18 +269,13 @@ class SCIONTime(object):
 
     # While running the simulator, this is set to True
     is_sim = False
-    # As simulator is not yet started while generating the topology,
-    # a hack to use get_time() function
-    topo = False
 
     @staticmethod
     def get_time():
         """
         Get current time
         """
-        if SCIONTime.is_sim and SCIONTime.topo:
-            return 0
-        elif SCIONTime.is_sim:
+        if SCIONTime.is_sim:
             from simulator.simulator import get_sim_time
             return get_sim_time()
         else:

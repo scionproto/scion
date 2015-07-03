@@ -797,10 +797,6 @@ class ConfigGenerator():
             logging.error(adconfigurations_file + ": JSON format error.")
             sys.exit()
 
-        if self.is_sim:
-            SCIONTime.is_sim = True
-            SCIONTime.topo = True
-
         if "default_subnet" in ad_configs:
             self.subnet = ad_configs["default_subnet"]
             del ad_configs["default_subnet"]
