@@ -369,7 +369,6 @@ class Router(SCIONElement):
                 spkt.hdr.increase_of(1)
                 next_iof = spkt.hdr.get_current_of()
                 opaque_field = spkt.hdr.get_relative_of(1)
-                logging.debug(spkt)
                 if next_iof.up_flag:  # TODO replace by get_first_hop
                     next_hop.addr = self.ifid2addr[opaque_field.ingress_if]
                 else:
