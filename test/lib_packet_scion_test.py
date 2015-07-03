@@ -262,7 +262,8 @@ class TestSCIONHeaderSetPath(object):
     """
     Unit tests for lib.packet.scion.SCIONHeader.set_path
     """
-    def test_with_none(self):
+    @patch("lib.packet.scion.SCIONHeader.set_first_of_pointers", autospec=True)
+    def test_with_none(self, set_first_of_pointers):
         hdr = SCIONHeader()
         hdr._path = MagicMock(spec_set=['pack'])
         hdr._path.pack.return_value = b'old_path'
@@ -273,8 +274,10 @@ class TestSCIONHeaderSetPath(object):
         ntools.eq_(hdr.common_hdr.hdr_len, 100 - len(b'old_path'))
         ntools.eq_(hdr.common_hdr.total_len, 200 - len(b'old_path'))
         ntools.assert_is_none(hdr._path)
+        set_first_of_pointers.assert_called_once_with(hdr)
 
-    def test_not_none(self):
+    @patch("lib.packet.scion.SCIONHeader.set_first_of_pointers", autospec=True)
+    def test_not_none(self, set_first_of_pointers):
         hdr = SCIONHeader()
         hdr.common_hdr = MagicMock(spec_set=['hdr_len', 'total_len'])
         hdr.common_hdr.hdr_len = 100
@@ -683,21 +686,47 @@ class TestSCIONHeaderReverse(object):
     """
     Unit tests for lib.packet.scion.SCIONHeader.reverse
     """
-    def test(self):
+    @patch("lib.packet.scion.SCIONHeader.set_first_of_pointers", autospec=True)
+    def test(self, set_first_of_pointers):
         hdr = SCIONHeader()
         hdr.src_addr = 'src_addr'
         hdr.dst_addr = 'dst_addr'
         hdr._path = MagicMock(spec_set=['reverse'])
-        hdr.common_hdr = MagicMock(spec_set=['curr_of_p', 'curr_iof_p',
-                                             'src_addr_len', 'dst_addr_len'])
-        hdr.common_hdr.src_addr_len = 123
-        hdr.common_hdr.dst_addr_len = 456
         hdr.reverse()
         ntools.eq_(hdr.src_addr, 'dst_addr')
         ntools.eq_(hdr.dst_addr, 'src_addr')
         hdr._path.reverse.assert_called_once_with()
-        ntools.eq_(hdr.common_hdr.curr_of_p, 123 + 456)
+        set_first_of_pointers.assert_called_once_with(hdr)
+
+
+class TestSCIONHeaderSetFirstOfPointers(object):
+    """
+    Unit tests for lib.packet.scion.SCIONHeader.set_first_of_pointers
+    """
+    def test_without_path(self):
+        hdr = SCIONHeader()
+        common_hdr = MagicMock(spec_set=['curr_iof_p', 'src_addr_len',
+                                         'dst_addr_len', 'curr_of_p'])
+        common_hdr.src_addr_len = 123
+        common_hdr.dst_addr_len = 456
+        hdr.common_hdr = common_hdr
+        hdr.set_first_of_pointers()
         ntools.eq_(hdr.common_hdr.curr_iof_p, 123 + 456)
+        ntools.eq_(hdr.common_hdr.curr_of_p, 123 + 456)
+
+    def test_with_path(self):
+        hdr = SCIONHeader()
+        common_hdr = MagicMock(spec_set=['curr_iof_p', 'src_addr_len',
+                                         'dst_addr_len', 'curr_of_p'])
+        common_hdr.src_addr_len = 123
+        common_hdr.dst_addr_len = 456
+        hdr.common_hdr = common_hdr
+        path = MagicMock(spec_set=['get_first_hop_of_p'])
+        path.get_first_hop_of_p.return_value = 789
+        hdr._path = path
+        hdr.set_first_of_pointers()
+        path.get_first_hop_of_p.assert_called_once_with()
+        ntools.eq_(hdr.common_hdr.curr_of_p, 123 + 456 + 789)
 
 
 class TestSCIONHeaderLen(object):
