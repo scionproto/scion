@@ -15,8 +15,13 @@
 :mod:`sim_core` --- Core of SCION Simulator
 ===========================================
 """
-
+# Stdlib
 import logging
+
+# SCION
+from lib.util import SCIONTime
+
+# External
 from itertools import count
 from queue import PriorityQueue
 
@@ -84,6 +89,7 @@ class Simulator(object):
         self.event_id = count()
         # list of removed (not expired or executed) events
         self.removed = []
+        SCIONTime.is_sim = True
 
     def add_element(self, addr, element):
         """

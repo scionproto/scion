@@ -17,7 +17,6 @@
 """
 # Stdlib
 import logging
-import time
 
 # External packages
 from Crypto.Hash import SHA256
@@ -44,6 +43,7 @@ from lib.packet.pcb import (
     PathConstructionBeacon,
     PathSegment,
 )
+from lib.util import SCIONTime
 
 # SCION Simulator
 from simulator.simulator import add_element, schedule
@@ -104,10 +104,10 @@ class CoreBeaconServerSim(CoreBeaconServer):
         """
         Generates a new beacon or gets ready to forward the one received.
         """
-        start_propagation = time.time()
+        start_propagation = SCIONTime.get_time()
         # Create beacon for downstream ADs.
         downstream_pcb = PathSegment()
-        timestamp = int(time.time())
+        timestamp = int(SCIONTime.get_time())
         downstream_pcb.iof = InfoOpaqueField.from_values(
             OFT.TDC_XOVR, False, timestamp, self.topology.isd_id)
         self.propagate_downstream_pcb(downstream_pcb)
@@ -126,7 +126,7 @@ class CoreBeaconServerSim(CoreBeaconServer):
             count += self.propagate_core_pcb(pcb)
         logging.info("Propagated %d Core PCBs", count)
 
-        now = time.time()
+        now = SCIONTime.get_time()
         schedule(start_propagation + self.config.propagation_time - now,
                  cb=self.handle_pcbs_propagation)
 
@@ -136,10 +136,10 @@ class CoreBeaconServerSim(CoreBeaconServer):
                          "register_segments")
             return
 
-        start_registration = time.time()
+        start_registration = SCIONTime.get_time()
         self.register_core_segments()
 
-        now = time.time()
+        now = SCIONTime.get_time()
         schedule(start_registration + self.config.registration_time - now,
                  cb=self.register_segments)
 
@@ -234,7 +234,7 @@ class CoreBeaconServerSim(CoreBeaconServer):
         Periodically checks each interface state and issues an if revocation, if
         no keep-alive message was received for IFID_TOUT.
         """
-        start_time = time.time()
+        start_time = SCIONTime.get_time()
         for (if_id, if_state) in self.ifid_state.items():
             # Check if interface has timed-out.
             if if_state.is_expired():
@@ -252,7 +252,7 @@ class CoreBeaconServerSim(CoreBeaconServer):
                     # TODO(shitz): Add code to handle hash chain exhaustion.
                     logging.warning("Hash chain for IF %s is exhausted.")
                 if_state.revoke_if_expired()
-        now = time.time()
+        now = SCIONTime.get_time()
         schedule(start_time + self.IF_TIMEOUT_INTERVAL - now,
                  cb=self._handle_if_timeouts)
 
@@ -300,11 +300,11 @@ class LocalBeaconServerSim(LocalBeaconServer):
         """
         Main loop to propagate received beacons.
         """
-        start_propagation = time.time()
+        start_propagation = SCIONTime.get_time()
         best_segments = self.beacons.get_best_segments()
         for pcb in best_segments:
             self.propagate_downstream_pcb(pcb)
-        now = time.time()
+        now = SCIONTime.get_time()
         schedule(start_propagation + self.config.propagation_time - now,
                  cb=self.handle_pcbs_propagation)
 
@@ -317,10 +317,10 @@ class LocalBeaconServerSim(LocalBeaconServer):
                          "leaving register_segments")
             return
 
-        start_registration = time.time()
+        start_registration = SCIONTime.get_time()
         self.register_up_segments()
         self.register_down_segments()
-        now = time.time()
+        now = SCIONTime.get_time()
         schedule(start_registration + self.config.registration_time - now,
                  cb=self.register_segments)
 
@@ -417,7 +417,7 @@ class LocalBeaconServerSim(LocalBeaconServer):
         Periodically checks each interface state and issues an if revocation, if
         no keep-alive message was received for IFID_TOUT.
         """
-        start_time = time.time()
+        start_time = SCIONTime.get_time()
         for (if_id, if_state) in self.ifid_state.items():
             # Check if interface has timed-out.
             if if_state.is_expired():
@@ -435,6 +435,6 @@ class LocalBeaconServerSim(LocalBeaconServer):
                     # TODO(shitz): Add code to handle hash chain exhaustion.
                     logging.warning("Hash chain for IF %s is exhausted.")
                 if_state.revoke_if_expired()
-        now = time.time()
+        now = SCIONTime.get_time()
         schedule(start_time + self.IF_TIMEOUT_INTERVAL - now,
                  cb=self._handle_if_timeouts)

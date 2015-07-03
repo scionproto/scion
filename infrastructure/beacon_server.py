@@ -82,6 +82,7 @@ from lib.util import (
     timed,
     trace,
     write_file,
+    SCIONTime,
 )
 from lib.zookeeper import ZkConnectionLoss, ZkNoNodeError, Zookeeper
 
@@ -115,7 +116,7 @@ class InterfaceState(object):
         :rtype: int
         """
         with self._lock:
-            curr_time = time.time()
+            curr_time = SCIONTime.get_time()
             prev_state = self._state
             if self._state != self.ACTIVE:
                 self.active_since = curr_time
@@ -135,7 +136,7 @@ class InterfaceState(object):
     def is_active(self):
         with self._lock:
             if self._state == self.ACTIVE:
-                if self.last_updated + self.IFID_TOUT >= time.time():
+                if self.last_updated + self.IFID_TOUT >= SCIONTime.get_time():
                     return True
                 self._state = self.TIMED_OUT
                 return False
@@ -146,7 +147,7 @@ class InterfaceState(object):
             if self._state == self.TIMED_OUT:
                 return True
             elif (self._state == self.ACTIVE and
-                  self.last_updated + self.IFID_TOUT < time.time()):
+                  self.last_updated + self.IFID_TOUT < SCIONTime.get_time()):
                 self._state = self.TIMED_OUT
                 return False
             return False
@@ -510,7 +511,7 @@ class BeaconServer(SCIONElement):
         if not trc:
             # Requesting TRC file from cert server
             trc_tuple = (isd_id, trc_ver)
-            now = int(time.time())
+            now = int(SCIONTime.get_time())
             if (trc_tuple not in self.trc_requests or
                 (now - self.trc_requests[trc_tuple] >
                     BeaconServer.REQUESTS_TIMEOUT)):
@@ -773,7 +774,7 @@ class BeaconServer(SCIONElement):
         no keep-alive message was received for IFID_TOUT.
         """
         while True:
-            start_time = time.time()
+            start_time = SCIONTime.get_time()
             for (if_id, if_state) in self.ifid_state.items():
                 # Check if interface has timed-out.
                 if if_state.is_expired():
@@ -886,10 +887,10 @@ class CoreBeaconServer(BeaconServer):
             if not master:
                 logging.debug("Became master")
                 master = True
-            start_propagation = time.time()
+            start_propagation = SCIONTime.get_time()
             # Create beacon for downstream ADs.
             downstream_pcb = PathSegment()
-            timestamp = int(time.time())
+            timestamp = int(SCIONTime.get_time())
             downstream_pcb.iof = InfoOpaqueField.from_values(
                 OFT.TDC_XOVR, False, timestamp, self.topology.isd_id)
             self.propagate_downstream_pcb(downstream_pcb)
@@ -934,7 +935,7 @@ class CoreBeaconServer(BeaconServer):
             if not lock:
                 logging.debug("register_segments: have lock")
                 lock = True
-            start_registration = time.time()
+            start_registration = SCIONTime.get_time()
             self.register_core_segments()
             sleep_interval(start_registration, self.config.registration_time,
                            "Path registration")
@@ -1163,7 +1164,7 @@ class LocalBeaconServer(BeaconServer):
             else:
                 # Requesting certificate chain file from cert server
                 cert_chain_tuple = (isd_id, ad_id, cert_ver)
-                now = int(time.time())
+                now = int(SCIONTime.get_time())
                 if (cert_chain_tuple not in self.cert_chain_requests or
                     (now - self.cert_chain_requests[cert_chain_tuple] >
                         BeaconServer.REQUESTS_TIMEOUT)):
@@ -1228,7 +1229,7 @@ class LocalBeaconServer(BeaconServer):
             if not lock:
                 logging.debug("register_segments: have lock")
                 lock = True
-            start_registration = time.time()
+            start_registration = SCIONTime.get_time()
             self.register_up_segments()
             self.register_down_segments()
             sleep_interval(start_registration, self.config.registration_time,
@@ -1375,7 +1376,7 @@ class LocalBeaconServer(BeaconServer):
             if not master:
                 logging.debug("Became master")
                 master = True
-            start_propagation = time.time()
+            start_propagation = SCIONTime.get_time()
             best_segments = self.beacons.get_best_segments()
             for pcb in best_segments:
                 self.propagate_downstream_pcb(pcb)

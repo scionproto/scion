@@ -58,7 +58,7 @@ class PingPongSimTest(unittest.TestCase):
         ping_application = SimPingApp(host1, dst_host_addr,
                                       dst_isd_ad.ad, dst_isd_ad.isd)
         pong_application = SimPongApp(host2)
-        app_start_time = 20.
+        app_start_time = 40.
         ping_application.start(app_start_time)
         run()
         logging.info("Simulation terminated")

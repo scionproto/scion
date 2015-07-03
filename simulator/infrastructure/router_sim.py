@@ -17,13 +17,13 @@
 """
 # Stdlib
 import logging
-import time
 
 # SCION
 from infrastructure.router import Router, NextHop, IFID_PKT_TOUT
 from lib.defines import SCION_UDP_PORT, EXP_TIME_UNIT
 from lib.packet.scion import IFIDPacket
 from lib.packet.scion_addr import SCIONAddr, ISD_AD
+from lib.util import SCIONTime
 
 # SCION Simulator
 from simulator.simulator import add_element, schedule
@@ -110,7 +110,7 @@ class RouterSim(Router):
         :param ts: timestamp against which the opaque field is verified.
         :type ts: int
         """
-        if int(time.time()) <= ts + hof.exp_time * EXP_TIME_UNIT:
+        if int(SCIONTime.get_time()) <= ts + hof.exp_time * EXP_TIME_UNIT:
             return True
         else:
             logging.warning("Dropping packet due to expired OF.")

@@ -20,7 +20,6 @@ import copy
 import datetime
 import logging
 import sys
-import time
 from _collections import defaultdict
 
 # External packages
@@ -44,7 +43,7 @@ from lib.packet.path_mgmt import (
 )
 from lib.packet.scion_addr import ISD_AD
 from lib.path_db import DBResult, PathSegmentDB
-from lib.util import handle_signals, update_dict
+from lib.util import handle_signals, update_dict, SCIONTime
 
 
 class PathServer(SCIONElement):
@@ -308,7 +307,7 @@ class CorePathServer(PathServer):
             :returns:
             :rtype:
             """
-            now = time.time()
+            now = SCIONTime.get_time()
             if segment_id not in self._leases:
                 return []
             else:
@@ -323,7 +322,7 @@ class CorePathServer(PathServer):
             """
             Remove expired leases.
             """
-            now = int(time.time())
+            now = int(SCIONTime.get_time())
             for entries in self._leases.items():
                 self._nentries -= len(entries)
                 entries[:] = [e for e in entries if e.exp_time > now]

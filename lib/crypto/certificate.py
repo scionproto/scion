@@ -19,7 +19,7 @@
 from lib.crypto.nacl import crypto_sign_ed25519
 from lib.crypto.nacl import crypto_sign_ed25519_open
 from lib.crypto.asymcrypto import sign, verify
-import time
+from lib.util import SCIONTime
 import json
 import logging
 import base64
@@ -205,7 +205,7 @@ class Certificate(object):
         cert.subject_enc_key = subject_enc_key
         cert.issuer = issuer
         cert.version = version
-        cert.issuing_time = int(time.time())
+        cert.issuing_time = int(SCIONTime.get_time())
         cert.expiration_time = cert.issuing_time + Certificate.VALIDITY_PERIOD
         cert.sign_algorithm = Certificate.SIGN_ALGORITHM
         cert.encryption_algorithm = Certificate.ENCRYPT_ALGORITHM
@@ -251,7 +251,7 @@ class Certificate(object):
         :returns: True or False whether the verification succeeds or fails.
         :rtype: bool
         """
-        if int(time.time()) >= self.expiration_time:
+        if int(SCIONTime.get_time()) >= self.expiration_time:
             logging.warning("The certificate is expired.")
             return False
         if subject != self.subject:
@@ -590,7 +590,7 @@ class TRC(object):
         trc = TRC()
         trc.isd_id = isd_id
         trc.version = version
-        trc.time = int(time.time())
+        trc.time = int(SCIONTime.get_time())
         trc.core_quorum = core_quorum
         trc.trc_quorum = trc_quorum
         trc.core_isps = core_isps

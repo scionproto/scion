@@ -47,6 +47,7 @@ from lib.util import (
     get_sig_key_file_path,
     get_trc_file_path,
     write_file,
+    SCIONTime,
 )
 
 DEFAULT_ADCONFIGURATIONS_FILE = os.path.join(TOPOLOGY_PATH,
@@ -795,6 +796,10 @@ class ConfigGenerator():
         except (ValueError, KeyError, TypeError):
             logging.error(adconfigurations_file + ": JSON format error.")
             sys.exit()
+
+        if self.is_sim:
+            SCIONTime.is_sim = True
+            SCIONTime.topo = True
 
         if "default_subnet" in ad_configs:
             self.subnet = ad_configs["default_subnet"]

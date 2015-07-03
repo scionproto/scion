@@ -17,13 +17,13 @@
 """
 # Stdlib
 import logging
-import time
 
 # External packages
 from pydblite.pydblite import Base
 
 # SCION
 from lib.packet.pcb import PathSegment
+from lib.util import SCIONTime
 
 
 class DBResult(object):
@@ -233,7 +233,7 @@ class PathSegmentDB(object):
         :rtype:
         """
         recs = self._db(*args, **kwargs)
-        now = int(time.time())
+        now = int(SCIONTime.get_time())
         expired_recs = []
         valid_recs = []
         # Remove expired path from the cache.

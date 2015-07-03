@@ -38,7 +38,7 @@ from lib.packet.scion import (
 )
 from lib.packet.scion_addr import ISD_AD, SCIONAddr
 from lib.thread import thread_safety_net
-from lib.util import handle_signals
+from lib.util import handle_signals, SCIONTime
 
 IFID_PKT_TOUT = 1  # How often IFID packet is sent to neighboring router.
 
@@ -295,7 +295,7 @@ class Router(SCIONElement):
         :param ts: timestamp against which the opaque field is verified.
         :type ts: int
         """
-        if int(time.time()) <= ts + hof.exp_time * EXP_TIME_UNIT:
+        if int(SCIONTime.get_time()) <= ts + hof.exp_time * EXP_TIME_UNIT:
             if verify_of_mac(self.of_gen_key, hof, prev_hof, ts):
                 return True
             else:

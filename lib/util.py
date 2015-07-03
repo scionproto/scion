@@ -210,9 +210,9 @@ def timed(limit):
     def wrap(f):
         @wraps(f)
         def wrapper(*args, timed_desc=None, **kwargs):
-            start = time.time()
+            start = SCIONTime.get_time()
             ret = f(*args, **kwargs)
-            elapsed = time.time() - start
+            elapsed = SCIONTime.get_time() - start
             if elapsed > limit:
                 if not timed_desc:
                     timed_desc = "Call to %s.%s" % (f.__module__, f.__name__)
@@ -236,7 +236,7 @@ def sleep_interval(start, interval, desc):
     :param desc: Description of the operation.
     :type desc: string
     """
-    now = time.time()
+    now = SCIONTime.get_time()
     delay = start + interval - now
     if delay < 0:
         logging.warning("%s took too long: %.3fs (should have been <= %.3fs)",
@@ -263,3 +263,25 @@ def _signal_handler(signum, _):
     """
     logging.info("Received %s", _SIG_MAP[signum])
     sys.exit(0)
+
+
+class SCIONTime(object):
+
+    # While running the simulator, this is set to True
+    is_sim = False
+    # As simulator is not yet started while generating the topology,
+    # a hack to use get_time() function
+    topo = False
+
+    @staticmethod
+    def get_time():
+        """
+        Get current time
+        """
+        if SCIONTime.is_sim and SCIONTime.topo:
+            return 0
+        elif SCIONTime.is_sim:
+            from simulator.simulator import get_sim_time
+            return get_sim_time()
+        else:
+            return time.time()

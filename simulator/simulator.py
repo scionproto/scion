@@ -93,6 +93,13 @@ def run():
     simulator.run()
 
 
+def get_sim_time():
+    """
+    Get Virtual Time
+    """
+    return simulator.get_curr_time()
+
+
 def generate_topology():
     """
     Instantiate all SCION Elements from sim.conf file
