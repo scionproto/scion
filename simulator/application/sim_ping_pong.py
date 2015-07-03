@@ -99,6 +99,7 @@ class SimPingApp(SCIONSimApplication):
                      spkt, next_hop, port)
         self.host.send(spkt, next_hop, port)
 
+
 class SimPongApp(SCIONSimApplication):
     """
     Simulator Pong application

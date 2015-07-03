@@ -79,7 +79,10 @@ class CertServerSim(CertServer):
 
     def process_cert_chain_reply(self, cert_chain_rep):
         """
-        Process a certificate chain reply(No zookeeper).
+        Process a certificate chain reply.
+
+        :param cert_chain_rep: certificate chain reply.
+        :type cert_chain_rep: CertChainReply
         """
         assert isinstance(cert_chain_rep, CertChainReply)
         logging.info("Certificate chain reply received")
@@ -91,16 +94,18 @@ class CertServerSim(CertServer):
             cert_chain_rep.version)
         write_file(cert_chain_file, cert_chain.decode('utf-8'))
         # Reply to all requests for this certificate chain
-        for dst_addr in self.cert_chain_requests[(cert_chain_rep.isd_id,
-            cert_chain_rep.ad_id, cert_chain_rep.version)]:
-            new_cert_chain_rep = CertChainReply.from_values(self.addr,
-                cert_chain_rep.isd_id, cert_chain_rep.ad_id,
+        for dst_addr in self.cert_chain_requests[
+                (cert_chain_rep.isd_id, cert_chain_rep.ad_id,
+                 cert_chain_rep.version)]:
+            new_cert_chain_rep = CertChainReply.from_values(
+                self.addr, cert_chain_rep.isd_id, cert_chain_rep.ad_id,
                 cert_chain_rep.version, cert_chain_rep.cert_chain)
             self.send(new_cert_chain_rep, dst_addr)
-        del self.cert_chain_requests[(cert_chain_rep.isd_id,
-            cert_chain_rep.ad_id, cert_chain_rep.version)]
+        del self.cert_chain_requests[
+            (cert_chain_rep.isd_id,
+             cert_chain_rep.ad_id,
+             cert_chain_rep.version)]
         logging.info("Certificate chain reply sent.")
-
 
     def process_trc_reply(self, trc_rep):
         """
@@ -120,5 +125,3 @@ class CertServerSim(CertServer):
             self.send(new_trc_rep, dst_addr)
         del self.trc_requests[(trc_rep.isd_id, trc_rep.version)]
         logging.info("TRC reply sent.")
-
-

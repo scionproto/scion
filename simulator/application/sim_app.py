@@ -83,8 +83,8 @@ class SCIONSimApplication(object):
         logging.info("Sending path request to local API.")
         eid = schedule(0., dst=self.addr,
                        args=(msg,
-                       (self.addr, self.app_port),
-                       (self.addr, SCIOND_API_PORT)))
+                             (self.addr, self.app_port),
+                             (self.addr, SCIOND_API_PORT)))
         assert eid >= 0
 
     def handle_path_reply(self, data):
@@ -106,7 +106,8 @@ class SCIONSimApplication(object):
                 path = CorePath(raw_path)
             elif info.info == OFT.NON_TDC_XOVR:
                 path = CrossOverPath(raw_path)
-            elif info.info == OFT.INTRATD_PEER or info.info == OFT.INTERTD_PEER:
+            elif (info.info == OFT.INTRATD_PEER or
+                  info.info == OFT.INTERTD_PEER):
                 path = PeerPath(raw_path)
             elif info.info == 0x00:
                 path = EmptyPath()

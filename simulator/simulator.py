@@ -34,9 +34,10 @@ def add_element(addr, element):
     :type addr: str
     :param element: The entity which is to be simulated
     :type element:
-    """ 
+    """
     logging.debug("adding element with addr %s", addr)
     simulator.add_element(addr, element)
+
 
 def schedule(time, **kwargs):
     """
@@ -57,6 +58,7 @@ def schedule(time, **kwargs):
     """
     return simulator.add_event(time, **kwargs)
 
+
 def unschedule(eid):
     """
     Unschedule specfied event
@@ -65,6 +67,7 @@ def unschedule(eid):
     :type eid: int
     """
     simulator.remove_event(eid)
+
 
 def stop(time):
     """
@@ -75,17 +78,20 @@ def stop(time):
     """
     simulator.set_stop_time(time)
 
+
 def terminate():
     """
     Terminate the simulator
     """
     simulator.terminate()
 
+
 def run():
     """
     Start the simulator
     """
     simulator.run()
+
 
 def generate_topology():
     """

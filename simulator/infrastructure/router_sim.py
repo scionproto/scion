@@ -48,7 +48,7 @@ class RouterSim(Router):
         Send *packet* to *dst* (to port *dst_port*).
         """
         logging.info("Sending packet to %s from %s",
-                      next_hop, self.addr.host_addr)
+                     next_hop, self.addr.host_addr)
         self.handle_extensions(packet, next_hop, False)
         if use_local_socket:
             # SCIONElement.send(self, packet, next_hop.addr, next_hop.port)
@@ -87,14 +87,13 @@ class RouterSim(Router):
         dst_isd_ad = ISD_AD(self.interface.neighbor_isd,
                             self.interface.neighbor_ad)
         ifid_req = IFIDPacket.from_values(src, dst_isd_ad,
-                                           self.interface.if_id)
+                                          self.interface.if_id)
 
         self.send(ifid_req, next_hop, False)
         logging.info('Sending IFID_PKT to router: req_id:%d, rep_id:%d',
                      ifid_req.request_id, ifid_req.reply_id)
 
         schedule(IFID_PKT_TOUT, cb=self.sync_interface)
-
 
     def clean(self):
         pass

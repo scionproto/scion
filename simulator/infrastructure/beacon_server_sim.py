@@ -64,7 +64,7 @@ class CoreBeaconServerSim(CoreBeaconServer):
         :param config_file: configuration file.
         :type config_file: string
         :param path_policy_file: path policy file.
-        :type path_policy_file: string        
+        :type path_policy_file: string
         """
         CoreBeaconServer.__init__(self, server_id, topo_file, config_file,
                                   path_policy_file, is_sim=True)
@@ -256,6 +256,7 @@ class CoreBeaconServerSim(CoreBeaconServer):
         schedule(start_time + self.IF_TIMEOUT_INTERVAL - now,
                  cb=self._handle_if_timeouts)
 
+
 class LocalBeaconServerSim(LocalBeaconServer):
     """
     Simulator version of PathConstructionBeacon Server in a local AD
@@ -267,7 +268,6 @@ class LocalBeaconServerSim(LocalBeaconServer):
         LocalBeaconServer.__init__(self, server_id, topo_file, config_file,
                                    path_policy_file, is_sim=True)
         add_element(str(self.addr.host_addr), self)
-
 
     def send(self, packet, dst, dst_port=SCION_UDP_PORT):
         """
@@ -307,7 +307,6 @@ class LocalBeaconServerSim(LocalBeaconServer):
         now = time.time()
         schedule(start_propagation + self.config.propagation_time - now,
                  cb=self.handle_pcbs_propagation)
-
 
     def register_segments(self):
         """

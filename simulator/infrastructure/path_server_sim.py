@@ -22,6 +22,7 @@ from lib.defines import SCION_UDP_PORT
 # SCION Simulator
 from simulator.simulator import add_element, schedule
 
+
 class CorePathServerSim(CorePathServer):
     """
     Simulator version of the SCION Path Server in a core AD
@@ -58,6 +59,7 @@ class CorePathServerSim(CorePathServer):
     def clean(self):
         pass
 
+
 class LocalPathServerSim(LocalPathServer):
     """
     Simulator version of the SCION Path Server in a local AD
@@ -67,7 +69,7 @@ class LocalPathServerSim(LocalPathServer):
         Initialises LocalPathServer with is_sim set to True.
         """
         LocalPathServer.__init__(self, server_id, topo_file, config_file,
-                                is_sim=True)
+                                 is_sim=True)
         add_element(str(self.addr.host_addr), self)
 
     def send(self, packet, dst, dst_port=SCION_UDP_PORT):
