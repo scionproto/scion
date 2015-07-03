@@ -74,7 +74,5 @@ Notes about "topology/ADConfigurations.json":
 
 In order to run the unit tests:
 
-1. `cd test/`
-
-2. `nosetests`
+  `./scion.sh test`
 
