@@ -360,3 +360,15 @@ class TestConnectionRequests(BasicWebTestUsers):
         resp = self.app.get(download_url, expect_errors=True)
         self.assertEqual(resp.status_int, 403)
         self.assertIsNone(request.package_path)
+
+
+class TestNewLink(BasicWebTestUsers):
+
+    def test_permissions(self):
+        ad = self.ads[2]
+        new_link_page = reverse('new_link', args=[ad.id])
+        resp = self.app.get(new_link_page, user=self.admin_user)
+        self.assertContains(resp, 'Link type')
+
+        resp = self.app.get(new_link_page, user=self.user, expect_errors=True)
+        self.assertEqual(resp.status_code, 403)
