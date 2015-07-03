@@ -25,6 +25,8 @@ Necessary steps to use the topology generator
 
 5. The -o switch can be used to generate a dot output file. But this does not work with python3. It only works with python2. Install pygraphviz using pip2 to use this switch.
 
+6. Packages necessary for using Topology Generator: networkx, argparse. Additionally one can also install pygraphviz to generate a dot output file.
+
 All command options for running topology_generator.py
 
 	a) -f (or) --file: Give all brite files seperately one after another

@@ -93,7 +93,7 @@ def gen_base_isd_graph(isd_list, degree):
         # Among all the ones with least outdegree, we choose 2 randomly
         random.shuffle(isd_list_shuffle)
         num_outedges = sorted(isd_list_shuffle,
-                              key=lambda isd: isd_graph.degree(isd))
+                              key=lambda node: isd_graph.degree(node))
         isd = num_outedges[0]
         neighbor_isd = num_outedges[1]
         isd_graph.add_edge(isd, neighbor_isd)
@@ -115,7 +115,7 @@ def add_random_edges(isd_graph, core_ad_dict, max_degree):
     """
     # Sorting based on number of core AD's in an ISD
     isd_sorted_list = sorted(core_ad_dict.keys(),
-                             key=lambda isd: len(core_ad_dict[isd]))
+                             key=lambda node: len(core_ad_dict[node]))
     count_isds = len(isd_sorted_list)
     # Choosing half of the ISD's with higher core AD's to interconnect them
     denser_isds = isd_sorted_list[int(count_isds / 2):]
@@ -125,7 +125,7 @@ def add_random_edges(isd_graph, core_ad_dict, max_degree):
         isd_graph.add_edge(isd, neighbor_isd)
         # Break if one of the nodes has reached max_degree
         if (isd_graph.degree(isd) >= max_degree or
-            isd_graph.degree(neighbor_isd) >= max_degree):
+                isd_graph.degree(neighbor_isd) >= max_degree):
             break
     return isd_graph
 
@@ -165,7 +165,7 @@ def parse(brite_files, dot_output_file, min_degree, max_degree):
     :returns: the newly created SCION Graph.
     :rtype: :class:`networkx.DiGraph`
     """
-    ISD_dict = dict()
+    isd_dict = dict()
     core_ad_dict = dict()
     num_isd = MIN_ISD_NUM
     final_graph = nx.DiGraph()
@@ -174,16 +174,16 @@ def parse(brite_files, dot_output_file, min_degree, max_degree):
         if not os.path.isfile(brite_file):
             logging.error(brite_file + " file missing.")
             sys.exit()
-        (ISD_dict[num_isd], core_ad_dict[num_isd]) = \
+        (isd_dict[num_isd], core_ad_dict[num_isd]) = \
             _parse(brite_file, num_isd)
-        final_graph = nx.union(final_graph, ISD_dict[num_isd])
+        final_graph = nx.union(final_graph, isd_dict[num_isd])
         num_isd += 1
     count_isds = num_isd - 1
     assert count_isds == len(brite_files)
     print("Total number of ISD's is {}".format(count_isds))
     print("Min and Max degree of connection between ISD's are {}, {}"
           .format(min_degree, max_degree))
-    isd_graph = gen_base_isd_graph(list(ISD_dict.keys()), min_degree)
+    isd_graph = gen_base_isd_graph(list(isd_dict.keys()), min_degree)
     isd_graph = add_random_edges(isd_graph, core_ad_dict, max_degree)
     # Adding the edges to final graph using the ISD graph
     new_routing_edges = 0
@@ -210,14 +210,15 @@ def parse(brite_files, dot_output_file, min_degree, max_degree):
     return final_graph
 
 
-def read_topo_file(topo_file, ISD_NUM):
+def read_topo_file(topo_file, isd_num):
     """
     Read BRITE topology file and convert it into a networkx graph
 
     :param topo_file: BRITE file to be converted
     :type topo_file: str
-    :param ISD_NUM: ISD Number of the graph to be generated
-    :type ISD_NUM: int
+    :param isd_num: ISD Number of the graph to be generated
+    :type isd_num: int
+
     :returns: Networkx Graph and a list containing degree of each AD
     :rvar: (`networkx.Graph`, list)
     """
@@ -232,53 +233,54 @@ def read_topo_file(topo_file, ISD_NUM):
             nodes_count -= 1
             values = line.split("\t")
             ad_id = values[0]
-            isd_ad_id = ISD_AD_ID_DIVISOR.join([str(ISD_NUM), ad_id])
+            isd_ad_id = ISD_AD_ID_DIVISOR.join([str(isd_num), ad_id])
             original_graph.add_node(isd_ad_id, is_core=False)
             num_outedges.append((isd_ad_id, int(values[3])))
         if edges_count > 0:
             edges_count -= 1
             values = line.split("\t")
-            source_isd_ad_id = ISD_AD_ID_DIVISOR.join([str(ISD_NUM),
+            source_isd_ad_id = ISD_AD_ID_DIVISOR.join([str(isd_num),
                                                       values[1]])
-            dest_isd_ad_id = ISD_AD_ID_DIVISOR.join([str(ISD_NUM),
+            dest_isd_ad_id = ISD_AD_ID_DIVISOR.join([str(isd_num),
                                                      values[2]])
             original_graph.add_edge(source_isd_ad_id, dest_isd_ad_id)
         if values[0] == "Nodes:":
             nodes_count = int(values[2])
         if values[0] == "Edges:":
             edges_count = int(values[2])
-    return (original_graph, num_outedges)
+    return original_graph, num_outedges
 
 
-def _parse(topo_file, ISD_NUM):
+def _parse(topo_file, isd_num):
     """
-    Parse a topo_file into a SCION ISD numbered - ISD_NUM
+    Parse a topo_file into a SCION ISD numbered - isd_num
 
     :param topo_file: A BRITE output file to be converted
     :type topo_file: str
-    :param ISD_NUM: ISD Number of the graph to be generated
-    :type ISD_NUM: int
+    :param isd_num: ISD Number of the graph to be generated
+    :type isd_num: int
+
     :returns: the created Graph along with a list of core ad nodes
     :rtype: (`networkx.DiGraph`, list)
     """
-    (original_graph, num_outedges) = read_topo_file(topo_file, ISD_NUM)
-    NUM_CORE_ADS = min(MAX_CORE_ADS, int(len(original_graph.nodes()) / 10))
+    (original_graph, num_outedges) = read_topo_file(topo_file, isd_num)
+    num_core_ads = min(MAX_CORE_ADS, int(len(original_graph.nodes()) / 10))
     num_outedges = sorted(num_outedges, key=lambda tup: tup[1],
                           reverse=True)
-    core_ads = [(i[0]) for i in num_outedges[:NUM_CORE_ADS]]
+    core_ads = [(i[0]) for i in num_outedges[:num_core_ads]]
     core_ad_graph = original_graph.subgraph(core_ads)
 
     # Ensuring that core ad graph is connected
     if not nx.is_connected(core_ad_graph):
         # If not connected, the new core ad graph is formed from
         # the largest connected component. Nodes are added to it from its
-        # neighbors to make size of core_ad_graph = NUM_CORE_ADS
+        # neighbors to make size of core_ad_graph = num_core_ads
         graphs = list(nx.connected_component_subgraphs(core_ad_graph))
         graphs = sorted(graphs, key=lambda graph: len(graph.nodes()),
                         reverse=True)
         core_ad_graph = graphs[0]
         core_ads = core_ad_graph.nodes()
-        num_extra_nodes = NUM_CORE_ADS - len(core_ads)
+        num_extra_nodes = num_core_ads - len(core_ads)
         neighbor_nodes = set()
         for neighbor in [original_graph.neighbors(node)
                          for node in core_ad_graph]:
@@ -316,7 +318,7 @@ def _parse(topo_file, ISD_NUM):
         for neighbor in original_graph.neighbors(node):
             if neighbor in core_ads:
                 continue
-            elif visited.get(neighbor) == None:
+            elif visited.get(neighbor) is None:
                 final_graph.add_node(neighbor, is_core=False)
                 final_graph.add_edge(node, neighbor, label='CHILD',
                                      color='green')
@@ -339,9 +341,9 @@ def _parse(topo_file, ISD_NUM):
         visited[node] = 1
 
     assert len(original_graph.nodes()) == len(final_graph.nodes())
-    assert 2*len(original_graph.edges()) == len(final_graph.edges())
+    assert 2 * len(original_graph.edges()) == len(final_graph.edges())
 
-    print("ISD {} has {} AS's".format(ISD_NUM, len(original_graph.nodes())))
+    print("ISD {} has {} AS's".format(isd_num, len(original_graph.nodes())))
     print("Core AD's are:")
     print(core_ad_graph.nodes())
     return final_graph, core_ad_graph.nodes()
@@ -359,8 +361,8 @@ def json_convert(graph):
     topo_dict = dict()
     topo_dict["default_subnet"] = "127.0.0.0/8"
     for isd_ad_id in graph.nodes():
-        list_labels = [lambda x: graph.edge[isd_ad_id][x]['label'](x)
-                       for x in list(graph.edge[isd_ad_id])]
+        func_labels = lambda x: graph.edge[isd_ad_id][x]['label']
+        list_labels = [func_labels(x) for x in list(graph.edge[isd_ad_id])]
         topo_dict[isd_ad_id] = {"beacon_servers": 1,
                                 "certificate_servers": 1,
                                 "path_servers": 1
