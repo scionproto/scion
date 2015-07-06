@@ -721,11 +721,11 @@ class TestSCIONHeaderSetFirstOfPointers(object):
         common_hdr.src_addr_len = 123
         common_hdr.dst_addr_len = 456
         hdr.common_hdr = common_hdr
-        path = MagicMock(spec_set=['get_first_hop_of_p'])
-        path.get_first_hop_of_p.return_value = 789
+        path = MagicMock(spec_set=['get_first_hop_offset'])
+        path.get_first_hop_offset.return_value = 789
         hdr._path = path
         hdr.set_first_of_pointers()
-        path.get_first_hop_of_p.assert_called_once_with()
+        path.get_first_hop_offset.assert_called_once_with()
         ntools.eq_(hdr.common_hdr.curr_of_p, 123 + 456 + 789)
 
 

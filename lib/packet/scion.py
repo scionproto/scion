@@ -460,7 +460,7 @@ class SCIONHeader(HeaderBase):
                                       self.common_hdr.dst_addr_len)
         self.common_hdr.curr_of_p = self.common_hdr.curr_iof_p
         if self.path:
-            self.common_hdr.curr_of_p += self.path.get_first_hop_of_p()
+            self.common_hdr.curr_of_p += self.path.get_first_hop_offset()
 
     def __len__(self):
         length = self.common_hdr.hdr_len

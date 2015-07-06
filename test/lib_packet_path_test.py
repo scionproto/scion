@@ -111,23 +111,23 @@ class TestPathBaseReverse(BasePath):
         ntools.eq_(self.path.down_segment_hops, self.hof[2::-1])
 
 
-class TestPathBaseGetFirstHopOfP(BasePath):
+class TestPathBaseGetFirstHopOffset(BasePath):
     """
-    Unit tests for lib.packet.path.PathBase.get_first_hop_of_p
+    Unit tests for lib.packet.path.PathBase.get_first_hop_offset
     """
     def test_with_up_seg_hops(self):
         self.path.up_segment_hops = ['up_hop0']
-        ntools.eq_(self.path.get_first_hop_of_p(), InfoOpaqueField.LEN)
+        ntools.eq_(self.path.get_first_hop_offset(), InfoOpaqueField.LEN)
 
     def test_with_down_seg_hops(self):
         self.path.up_segment_hops = []
         self.path.down_segment_hops = ['down_hop0']
-        ntools.eq_(self.path.get_first_hop_of_p(), InfoOpaqueField.LEN)
+        ntools.eq_(self.path.get_first_hop_offset(), InfoOpaqueField.LEN)
 
     def test_without_hops(self):
         self.path.up_segment_hops = []
         self.path.down_segment_hops = []
-        ntools.eq_(self.path.get_first_hop_of_p(), 0)
+        ntools.eq_(self.path.get_first_hop_offset(), 0)
 
 
 class TestPathBaseGetFirstHopOf(BasePath):
@@ -135,7 +135,7 @@ class TestPathBaseGetFirstHopOf(BasePath):
     Unit tests for lib.packet.path.PathBase.get_first_hop_of
     """
     @patch("lib.packet.path.PathBase.get_of", autospec=True)
-    @patch("lib.packet.path.PathBase.get_first_hop_of_p", autospec=True)
+    @patch("lib.packet.path.PathBase.get_first_hop_offset", autospec=True)
     def test_with_hops(self, offset, get_of):
         offset.return_value = 123
         n = (123 - InfoOpaqueField.LEN) // HopOpaqueField.LEN
@@ -144,7 +144,7 @@ class TestPathBaseGetFirstHopOf(BasePath):
         offset.assert_called_once_with(self.path)
         get_of.assert_called_once_with(self.path, n + 1)
 
-    @patch("lib.packet.path.PathBase.get_first_hop_of_p", autospec=True)
+    @patch("lib.packet.path.PathBase.get_first_hop_offset", autospec=True)
     def test_without_hops(self, offset):
         offset.return_value = 0
         ntools.assert_is_none(self.path.get_first_hop_of())
@@ -814,39 +814,39 @@ class TestPeerPathGetOf(BasePath):
             yield self._check, i
 
 
-class TestPeerPathGetFirstHopOfP(object):
+class TestPeerPathGetFirstHopOffset(object):
     """
-    Unit tests for lib.packet.path.PeerPath.get_first_hop_of_p
+    Unit tests for lib.packet.path.PeerPath.get_first_hop_offset
     """
     def test_with_up_seg_hops_last(self):
         peer_path = PeerPath()
         peer_path.up_segment_hops = [MagicMock(spec_set=['info'])]
         peer_path.up_segment_hops[0].info = OpaqueFieldType.LAST_OF
-        ntools.eq_(peer_path.get_first_hop_of_p(),
+        ntools.eq_(peer_path.get_first_hop_offset(),
                    InfoOpaqueField.LEN + HopOpaqueField.LEN)
 
     def test_with_up_seg_hops(self):
         peer_path = PeerPath()
         peer_path.up_segment_hops = [MagicMock(spec_set=['info'])]
         peer_path.up_segment_hops[0].info = 123
-        ntools.eq_(peer_path.get_first_hop_of_p(), InfoOpaqueField.LEN)
+        ntools.eq_(peer_path.get_first_hop_offset(), InfoOpaqueField.LEN)
 
     def test_with_down_seg_hops_last(self):
         peer_path = PeerPath()
         peer_path.down_segment_hops = [MagicMock(spec_set=['info'])]
         peer_path.down_segment_hops[0].info = OpaqueFieldType.LAST_OF
-        ntools.eq_(peer_path.get_first_hop_of_p(),
+        ntools.eq_(peer_path.get_first_hop_offset(),
                    InfoOpaqueField.LEN + HopOpaqueField.LEN)
 
     def test_with_down_seg_hops(self):
         peer_path = PeerPath()
         peer_path.down_segment_hops = [MagicMock(spec_set=['info'])]
         peer_path.down_segment_hops[0].info = 123
-        ntools.eq_(peer_path.get_first_hop_of_p(), InfoOpaqueField.LEN)
+        ntools.eq_(peer_path.get_first_hop_offset(), InfoOpaqueField.LEN)
 
     def test_without_hops(self):
         peer_path = PeerPath()
-        ntools.eq_(peer_path.get_first_hop_of_p(), 0)
+        ntools.eq_(peer_path.get_first_hop_offset(), 0)
 
 
 class TestEmptyPathInit(object):

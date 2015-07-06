@@ -70,7 +70,7 @@ class PathBase(object):
         self.up_segment_hops.reverse()
         self.down_segment_hops.reverse()
 
-    def get_first_hop_of_p(self):
+    def get_first_hop_offset(self):
         """
         Returns offset to the first HopOpaqueField of the path.
         """
@@ -83,7 +83,7 @@ class PathBase(object):
         """
         Returns the first HopOpaqueField of the path.
         """
-        offset = self.get_first_hop_of_p()
+        offset = self.get_first_hop_offset()
         if offset:
             offset -= InfoOpaqueField.LEN
             n = offset // HopOpaqueField.LEN
@@ -606,7 +606,7 @@ class PeerPath(PathBase):
 
         return "".join(s)
 
-    def get_first_hop_of_p(self):
+    def get_first_hop_offset(self):
         """
         Depending on up_segment flag returns the first up- or down-segment hop.
         """
