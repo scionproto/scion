@@ -70,26 +70,24 @@ class PathBase(object):
         self.up_segment_hops.reverse()
         self.down_segment_hops.reverse()
 
-    def is_last_hop(self, hop):
+    def get_first_hop_offset(self):
         """
-        Returns true if 'hop' equals to the last down-segment hop.
+        Returns offset to the first HopOpaqueField of the path.
         """
-        return hop is None or hop == self.down_segment_hops[-1]
-
-    def is_first_hop(self, hop):
-        """
-        Returns true if 'hop' equals to the first up-segment hop.
-        """
-        return hop is None or hop == self.up_segment_hops[0]
+        if self.up_segment_hops or self.down_segment_hops:
+            return InfoOpaqueField.LEN
+        else:
+            return 0
 
     def get_first_hop_of(self):
         """
-        Depending on up_segment flag returns the first up- or down-segment hop.
+        Returns the first HopOpaqueField of the path.
         """
-        if self.up_segment_hops:
-            return self.up_segment_hops[0]
-        elif self.down_segment_hops:
-            return self.down_segment_hops[0]
+        offset = self.get_first_hop_offset()
+        if offset:
+            offset -= InfoOpaqueField.LEN
+            n = offset // HopOpaqueField.LEN
+            return self.get_of(n + 1)
         else:
             return None
 
@@ -98,10 +96,13 @@ class PathBase(object):
         Returns the opaque field for the given index.
         """
         # Build temporary flat list of opaque fields.
-        tmp = [self.up_segment_info]
-        tmp.extend(self.up_segment_hops)
-        tmp.append(self.down_segment_info)
-        tmp.extend(self.down_segment_hops)
+        tmp = []
+        if self.up_segment_info:
+            tmp.append(self.up_segment_info)
+            tmp.extend(self.up_segment_hops)
+        if self.down_segment_info:
+            tmp.append(self.down_segment_info)
+            tmp.extend(self.down_segment_hops)
         if index >= len(tmp):
             return None
         else:
@@ -137,9 +138,6 @@ class CorePath(PathBase):
         if raw is not None:
             self.parse(raw)
 
-    # TODO PSz: a flag is needed to distinguish downPath-only case. I.e. if
-    # SCIONPacket.up_path is false and path has only one special OF, then it
-    # should parse only DownPath. It would be easier to put down/up flag to SOF.
     def parse(self, raw):
         """
         Parses the raw data and populates the fields accordingly.
@@ -256,8 +254,10 @@ class CorePath(PathBase):
         Returns the opaque field for the given index.
         """
         # Build temporary flat list of opaque fields.
-        tmp = [self.up_segment_info]
-        tmp.extend(self.up_segment_hops)
+        tmp = []
+        if self.up_segment_info:
+            tmp.append(self.up_segment_info)
+            tmp.extend(self.up_segment_hops)
         if self.core_segment_info:
             tmp.append(self.core_segment_info)
             tmp.extend(self.core_segment_hops)
@@ -606,6 +606,21 @@ class PeerPath(PathBase):
 
         return "".join(s)
 
+    def get_first_hop_offset(self):
+        """
+        Depending on up_segment flag returns the first up- or down-segment hop.
+        """
+        if self.up_segment_hops:
+            first_segment_hops = self.up_segment_hops
+        elif self.down_segment_hops:
+            first_segment_hops = self.down_segment_hops
+        else:
+            return 0
+
+        if first_segment_hops[0].info == OpaqueFieldType.LAST_OF:
+            return InfoOpaqueField.LEN + HopOpaqueField.LEN
+        return InfoOpaqueField.LEN
+
 
 class EmptyPath(PathBase):
     """
@@ -614,7 +629,7 @@ class EmptyPath(PathBase):
     This is currently needed for intra AD communication, which doesn't need a
     SCION path but still uses SCION packets for communication.
     """
-    def __init__(self, raw=None):
+    def __init__(self):
         """
         Initialize an instance of the class EmptyPath.
 
@@ -623,31 +638,11 @@ class EmptyPath(PathBase):
         """
         PathBase.__init__(self)
 
-        if raw is not None:
-            self.parse(raw)
-
-    def parse(self, raw):
-        assert isinstance(raw, bytes)
-        self.up_segment_info = InfoOpaqueField(raw[:InfoOpaqueField.LEN])
-        # We do this so we can still reverse the segment.
-        self.down_segment_info = self.up_segment_info
-
-        self.parsed = True
-
     def pack(self):
         return b''
 
-    def is_first_hop(self, hop):
-        return True
-
-    def is_last_hop(self, hop):
-        return True
-
-    def get_first_hop_of(self):
-        return None
-
     def get_of(self, index):
-        return self.up_segment_info
+        return None
 
     def __str__(self):
         return "<Empty-Path></Empty-Path>"
