@@ -658,6 +658,153 @@ class PathCombinator(object):
     Class that contains functions required to build end-to-end SCION paths.
     """
     @staticmethod
+    def build_shortcut_paths(up_segments, down_segments):
+        """
+        Returns a list of all shortcut paths (peering and crossover paths) that
+        can be built using the provided up- and down-segments.
+        """
+        paths = []
+        for up in up_segments:
+            for down in down_segments:
+                path = PathCombinator._build_shortcut_path(up, down)
+                if path and path not in paths:
+                    paths.append(path)
+
+        return paths
+
+    @staticmethod
+    def build_core_paths(up_segment, down_segment, core_segments):
+        """
+        Returns list of all paths that can be built as combination of segments
+        from up_segments, core_segments and down_segments.
+        """
+        paths = []
+        if not core_segments:
+            path = PathCombinator._build_core_path(up_segment, [],
+                                                   down_segment)
+            if path:
+                paths.append(path)
+        else:
+            for core_segment in core_segments:
+                path = PathCombinator._build_core_path(
+                    up_segment, core_segment, down_segment)
+                if path and path not in paths:
+                    paths.append(path)
+        return paths
+
+    @staticmethod
+    def _build_shortcut_path(up_segment, down_segment):
+        """
+        Takes PCB objects (up/down_segment) and tries to combine
+        them as short path
+        """
+        # TODO check if stub ADs are the same...
+        if (not up_segment or not down_segment or
+                not up_segment.ads or not down_segment.ads):
+            return None
+
+        # looking for xovr and peer points
+        (xovrs, peers) = PathCombinator._get_xovrs_peers(up_segment,
+                                                         down_segment)
+
+        if not xovrs and not peers:
+            return None
+        elif xovrs and peers:
+            if sum(peers[-1]) > sum(xovrs[-1]):
+                return PathCombinator._join_shortcuts(
+                    up_segment, down_segment, peers[-1], True)
+            else:
+                return PathCombinator._join_shortcuts(
+                    up_segment, down_segment, xovrs[-1], False)
+        elif xovrs:
+            return PathCombinator._join_shortcuts(
+                up_segment, down_segment, xovrs[-1], False)
+        else:  # peers only
+            return PathCombinator._join_shortcuts(
+                up_segment, down_segment, peers[-1], True)
+
+    @staticmethod
+    def _build_core_path(up_segment, core_segment, down_segment):
+        """
+        Joins up_, core_ and down_segment into core fullpath. core_segment can
+        be 'None' in case of a intra-ISD core_segment of length 0.
+        Returns object of CorePath class. core_segment (if exists) has to have
+        down-segment orientation.
+        """
+        if (not up_segment or not down_segment or
+                not up_segment.ads or not down_segment.ads):
+            return None
+
+        if not PathCombinator._check_connected(up_segment, core_segment,
+                                               down_segment):
+            return None
+
+        full_path = CorePath()
+        full_path = PathCombinator._join_up_segment(full_path, up_segment)
+        full_path = PathCombinator._join_core_segment(full_path, core_segment)
+        full_path = PathCombinator._join_down_segment(full_path, down_segment)
+        return full_path
+
+    @staticmethod
+    def _get_xovrs_peers(up_segment, down_segment):
+        """
+        Collects the xovr and peer points from up_segment, down_segment.
+        """
+        xovrs = []
+        peers = []
+        for up_i in range(1, len(up_segment.ads)):
+            for down_i in range(1, len(down_segment.ads)):
+                up_ad = up_segment.ads[up_i]
+                down_ad = down_segment.ads[down_i]
+                if up_ad.pcbm.ad_id == down_ad.pcbm.ad_id:
+                    xovrs.append((up_i, down_i))
+                else:
+                    for up_peer in up_ad.pms:
+                        for down_peer in down_ad.pms:
+                            if (up_peer.ad_id == down_ad.pcbm.ad_id and
+                                    down_peer.ad_id == up_ad.pcbm.ad_id):
+                                peers.append((up_i, down_i))
+        # select shortest path xovrs (preferred) or peers
+        xovrs.sort(key=lambda tup: sum(tup))
+        peers.sort(key=lambda tup: sum(tup))
+        return xovrs, peers
+
+    @staticmethod
+    def _join_shortcuts(up_segment, down_segment, point, peer=True):
+        """
+        Joins up_ and down_segment (objects of PCB class) into a shortcut
+        fullpath.
+        Depending on the scenario returns an object of type PeerPath or
+        CrossOverPath class.
+        point: tuple (up_segment_index, down_segment_index) position of
+               peer/xovr link
+        peer:  true for peer, false for xovr path
+        """
+        up_segment = copy.deepcopy(up_segment)
+        down_segment = copy.deepcopy(down_segment)
+        (up_index, dw_index) = point
+
+        if peer:
+            path = PeerPath()
+            if up_segment.get_isd() == down_segment.get_isd():
+                info = OpaqueFieldType.INTRATD_PEER
+            else:
+                info = OpaqueFieldType.INTERTD_PEER
+        else:
+            path = CrossOverPath()
+            info = OpaqueFieldType.NON_TDC_XOVR
+
+        path = PathCombinator._join_up_segment_shortcuts(path, up_segment,
+                                                         info, up_index)
+        if peer:
+            path = PathCombinator._join_shortcuts_peer(
+                path, up_segment.ads[up_index], down_segment.ads[dw_index])
+
+        path = PathCombinator._join_down_segment_shortcuts(
+            path, down_segment, info, dw_index)
+        return path
+
+    @staticmethod
     def _check_connected(up_segment, core_segment, down_segment):
         # If we have a core segment, check that the core_segment connects the
         # up_ and down_segment. Otherwise, check that up- and down-segment meet
@@ -666,7 +813,7 @@ class PathCombinator(object):
             if ((core_segment.get_last_pcbm().ad_id !=
                     up_segment.get_first_pcbm().ad_id) or
                     (core_segment.get_first_pcbm().ad_id !=
-                    down_segment.get_first_pcbm().ad_id)):
+                     down_segment.get_first_pcbm().ad_id)):
                 return False
         else:
             if (up_segment.get_first_pcbm().ad_id !=
@@ -693,14 +840,15 @@ class PathCombinator(object):
         Takes a path and core_segment and populates the core_segment fields of
         the path.
         """
-        if core_segment:
-            path.core_segment_info = core_segment.iof
-            path.core_segment_info.up_flag = True
-            for block in reversed(core_segment.ads):
-                path.core_segment_hops.append(
-                    copy.deepcopy(block.pcbm.hof))
-            path.core_segment_hops[-1].info = OpaqueFieldType.LAST_OF
-            path.core_segment_hops[0].info = OpaqueFieldType.LAST_OF
+        if not core_segment:
+            return path
+        path.core_segment_info = core_segment.iof
+        path.core_segment_info.up_flag = True
+        for block in reversed(core_segment.ads):
+            path.core_segment_hops.append(
+                copy.deepcopy(block.pcbm.hof))
+        path.core_segment_hops[-1].info = OpaqueFieldType.LAST_OF
+        path.core_segment_hops[0].info = OpaqueFieldType.LAST_OF
         return path
 
     @staticmethod
@@ -715,28 +863,6 @@ class PathCombinator(object):
             path.down_segment_hops.append(copy.deepcopy(block.pcbm.hof))
         path.down_segment_hops[0].info = OpaqueFieldType.LAST_OF
         return path
-
-    @staticmethod
-    def _build_core_path(up_segment, core_segment, down_segment):
-        """
-        Joins up_, core_ and down_segment into core fullpath. core_segment can
-        be 'None' in case of a intra-ISD core_segment of length 0.
-        Returns object of CorePath class. core_segment (if exists) has to have
-        down-segment orientation.
-        """
-        if (not up_segment or not down_segment or
-                not up_segment.ads or not down_segment.ads):
-            return None
-
-        if not PathCombinator._check_connected(up_segment, core_segment,
-                                               down_segment):
-            return None
-
-        full_path = CorePath()
-        full_path = PathCombinator._join_up_segment(full_path, up_segment)
-        full_path = PathCombinator._join_core_segment(full_path, core_segment)
-        full_path = PathCombinator._join_down_segment(full_path, down_segment)
-        return full_path
 
     @staticmethod
     def _join_up_segment_shortcuts(path, up_segment, info, up_index):
@@ -782,131 +908,3 @@ class PathCombinator(object):
                     path.up_segment_peering_link = up_peer.hof
                     path.down_segment_peering_link = down_peer.hof
         return path
-
-    @staticmethod
-    def _join_shortcuts(up_segment, down_segment, point, peer=True):
-        """
-        Joins up_ and down_segment (objects of PCB class) into a shortcut
-        fullpath.
-        Depending on the scenario returns an object of type PeerPath or
-        CrossOverPath class.
-        point: tuple (up_segment_index, down_segment_index) position of
-               peer/xovr link
-        peer:  true for peer, false for xovr path
-        """
-        up_segment = copy.deepcopy(up_segment)
-        down_segment = copy.deepcopy(down_segment)
-        (up_index, dw_index) = point
-
-        if peer:
-            path = PeerPath()
-            if up_segment.get_isd() == down_segment.get_isd():
-                info = OpaqueFieldType.INTRATD_PEER
-            else:
-                info = OpaqueFieldType.INTERTD_PEER
-        else:
-            path = CrossOverPath()
-            info = OpaqueFieldType.NON_TDC_XOVR
-
-        path = PathCombinator._join_up_segment_shortcuts(path, up_segment,
-                                                         info, up_index)
-        if peer:
-            path = PathCombinator._join_shortcuts_peer(path, up_segment.ads[
-                up_index], down_segment.ads[dw_index])
-
-        path = PathCombinator._join_down_segment_shortcuts(path,
-                                                           down_segment,
-                                                           info, dw_index)
-        return path
-
-    @staticmethod
-    def _get_xovrs_peers(up_segment, down_segment):
-        """
-        Collects the xovr and peer points from up_segment, down_segment.
-        """
-        xovrs = []
-        peers = []
-        for up_i in range(1, len(up_segment.ads)):
-            for down_i in range(1, len(down_segment.ads)):
-                up_ad = up_segment.ads[up_i]
-                down_ad = down_segment.ads[down_i]
-                if up_ad.pcbm.ad_id == down_ad.pcbm.ad_id:
-                    xovrs.append((up_i, down_i))
-                else:
-                    for up_peer in up_ad.pms:
-                        for down_peer in down_ad.pms:
-                            if (up_peer.ad_id == down_ad.pcbm.ad_id and
-                                    down_peer.ad_id == up_ad.pcbm.ad_id):
-                                peers.append((up_i, down_i))
-        # select shortest path xovrs (preferred) or peers
-        xovrs.sort(key=lambda tup: sum(tup))
-        peers.sort(key=lambda tup: sum(tup))
-        return xovrs, peers
-
-    @staticmethod
-    def _build_shortcut_path(up_segment, down_segment):
-        """
-        Takes PCB objects (up/down_segment) and tries to combine
-        them as short path
-        """
-        # TODO check if stub ADs are the same...
-        if (not up_segment or not down_segment or
-                not up_segment.ads or not down_segment.ads):
-            return None
-
-        # looking for xovr and peer points
-        (xovrs, peers) = PathCombinator._get_xovrs_peers(up_segment,
-                                                         down_segment)
-
-        if not xovrs and not peers:
-            return None
-        elif xovrs and peers:
-            if sum(peers[-1]) > sum(xovrs[-1]):
-                return PathCombinator._join_shortcuts(up_segment, down_segment,
-                                                      peers[-1], True)
-            else:
-                return PathCombinator._join_shortcuts(up_segment, down_segment,
-                                                      xovrs[-1], False)
-        elif xovrs:
-            return PathCombinator._join_shortcuts(up_segment, down_segment,
-                                                  xovrs[-1],
-                                                  False)
-        else:  # peers only
-            return PathCombinator._join_shortcuts(up_segment, down_segment,
-                                                  peers[-1],
-                                                  True)
-
-    @staticmethod
-    def build_shortcut_paths(up_segments, down_segments):
-        """
-        Returns a list of all shortcut paths (peering and crossover paths) that
-        can be built using the provided up- and down-segments.
-        """
-        paths = []
-        for up in up_segments:
-            for down in down_segments:
-                path = PathCombinator._build_shortcut_path(up, down)
-                if path and path not in paths:
-                    paths.append(path)
-
-        return paths
-
-    @staticmethod
-    def build_core_paths(up_segment, down_segment, core_segments):
-        """
-        Returns list of all paths that can be built as combination of segments
-        from up_segments, core_segments and down_segments.
-        """
-        paths = []
-        if not core_segments:
-            path = PathCombinator._build_core_path(up_segment, [], down_segment)
-            if path:
-                paths.append(path)
-        else:
-            for core_segment in core_segments:
-                path = PathCombinator._build_core_path(up_segment,
-                                                       core_segment,
-                                                       down_segment)
-                if path and path not in paths:
-                    paths.append(path)
-        return paths
