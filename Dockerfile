@@ -37,7 +37,7 @@ RUN DEBIAN_FRONTEND=noninteractive APTARGS=-y ./scion.sh deps pkgs
 # Copy over requirements.txt. If it has changed, then re-run the remaining steps.
 COPY requirements.txt $BASE/
 RUN sudo chown -R scion: $HOME
-RUN ./scion.sh deps pip3
+RUN ./scion.sh deps pip
 
 RUN ./scion.sh deps
 
