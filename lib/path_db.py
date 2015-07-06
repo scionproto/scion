@@ -168,18 +168,13 @@ class PathSegmentDB(object):
         assert len(recs) <= 1, "PathDB contains > 1 path with the same ID"
         if not recs:
             self._db.insert(record, record.id, src_isd, src_ad, dst_isd, dst_ad)
-            logging.debug("Created new entry in DB for (%d, %d) -> (%d, %d):" +
-                          "\n%s", src_isd, src_ad, dst_isd, dst_ad, record.id)
             return DBResult.ENTRY_ADDED
         else:
             cur_rec = recs[0]['record']
             if pcb.get_expiration_time() <= cur_rec.pcb.get_expiration_time():
-                logging.debug("Fresher path-segment for (%d, %d) -> (%d, %d) " +
-                              "already known", src_isd, src_ad, dst_isd, dst_ad)
                 return DBResult.NONE
             else:
                 cur_rec.pcb = pcb
-                logging.debug("Updated segment with ID %s", cur_rec.id)
                 return DBResult.ENTRY_UPDATED
 
     def update_all(self, pcbs, src_isd, src_ad, dst_isd, dst_ad):
