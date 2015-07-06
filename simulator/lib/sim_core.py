@@ -31,7 +31,7 @@ class Event(object):
     Generic class for an event to be simulated
     """
 
-    def __init__(self, event_id, event_time, cb, args):
+    def __init__(self, event_id, event_time, cb_func, args):
         """
         Initialize an event
 
@@ -39,14 +39,14 @@ class Event(object):
         :type event_id: int
         :param event_time: time at which event is scheduled
         :type event_time: float
-        :param cb: function to be executed
-        :type cb: callback function
+        :param cb_func: function to be executed
+        :type cb_func: callback function
         :param args: arguments to be passed onto the callback function
         :type args: tuple
         """
         self.eid = event_id
         self.event_time = event_time
-        self.cb = cb
+        self.cb_func = cb_func
         self.args = args
 
     def __lt__(self, other):
@@ -70,7 +70,7 @@ class Event(object):
         """
         Executes the event
         """
-        self.cb(*self.args)
+        self.cb_func(*self.args)
 
 
 class Simulator(object):

@@ -209,7 +209,6 @@ class CoreBeaconServerSim(CoreBeaconServer):
                                          ingress_if, egress_if)
         if prev_hof is None:
             hof.info = OFT.LAST_OF
-        # hof.mac = gen_of_mac(self.of_gen_key, hof, prev_hof, ts)
         pcbm = PCBMarking.from_values(self.topology.isd_id, self.topology.ad_id,
                                       hof, self._get_if_rev_token(ingress_if))
         peer_markings = []
@@ -392,7 +391,6 @@ class LocalBeaconServerSim(LocalBeaconServer):
                                          ingress_if, egress_if)
         if prev_hof is None:
             hof.info = OFT.LAST_OF
-        # hof.mac = gen_of_mac(self.of_gen_key, hof, prev_hof, ts)
         pcbm = PCBMarking.from_values(self.topology.isd_id, self.topology.ad_id,
                                       hof, self._get_if_rev_token(ingress_if))
         peer_markings = []

@@ -15,21 +15,25 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-
+# Stdlib
 import logging
 import struct
+
+# SCION
 from infrastructure.scion_elem import SCIONElement
 from lib.defines import SCION_UDP_PORT, SCION_UDP_EH_DATA_PORT
 from lib.packet.path import PathCombinator
 from lib.packet.path_mgmt import (
+    PathMgmtPacket,
+    PathMgmtType as PMT,
     PathSegmentInfo,
     PathSegmentType as PST,
-    PathMgmtType as PMT,
-    PathMgmtPacket
 )
 from lib.packet.scion_addr import ISD_AD
 from lib.path_db import PathSegmentDB
 from lib.util import update_dict
+
+# SCION Simulator
 from simulator.simulator import add_element, schedule, unschedule
 
 SCIOND_API_PORT = 3333
@@ -238,6 +242,16 @@ class SCIONSimHost(SCIONElement):
             else:
                 logging.warning("Incorrect path in Path Record")
 
+        self.handle_waiting_targets(path_reply)
+
+    def handle_waiting_targets(self, path_reply):
+        """
+        Handles waiting request from path reply
+
+        :param path_reply:
+        :type path_reply:
+        """
+        info = path_reply.info
         if (info.dst_isd, info.dst_ad) in self._waiting_targets[info.type]:
             for (eid, requestor, dst_ad) in \
                 self._waiting_targets[info.type][(info.dst_isd, info.dst_ad)]:
@@ -252,7 +266,7 @@ class SCIONSimHost(SCIONElement):
                                                       dst_isd, dst_ad)
                     down_segments = self.down_segments(dst_isd=dst_isd,
                                                        dst_ad=dst_ad)
-                    if len(self.up_segments) and down_segments:
+                    if self.up_segments and down_segments:
                         unschedule(eid)
                         self._waiting_targets[info.type]\
                             [(dst_isd, dst_ad)].remove(event)
@@ -260,12 +274,10 @@ class SCIONSimHost(SCIONElement):
                         continue
 
                     if not full_paths:
-                        src_core_ad = (
+                        src_core_ad = \
                             self.up_segments()[0].get_first_pcbm().ad_id
-                            )
-                        dst_core_ad = (
+                        dst_core_ad = \
                             down_segments[0].get_first_pcbm().ad_id
-                            )
                         self._request_paths(requestor, PST.CORE,
                                             dst_isd, dst_ad,
                                             src_core_ad, dst_core_ad)
@@ -274,7 +286,8 @@ class SCIONSimHost(SCIONElement):
                     src_core_ad = info.src_ad
                     dst_core_ad = info.dst_ad
                     full_paths = self._get_full_paths(src_isd, src_ad,
-                        dst_isd, dst_ad, src_core_ad, dst_core_ad)
+                                                      dst_isd, dst_ad,
+                                                      src_core_ad, dst_core_ad)
                     if self.core_segments(src_isd=src_isd,
                                           src_ad=src_core_ad,
                                           dst_isd=dst_isd,
@@ -288,17 +301,9 @@ class SCIONSimHost(SCIONElement):
                     if not full_paths:
                         # TODO What action to be taken?
                         continue
-                elif info.type == PST.UP and len(self.up_segments):
-                    full_paths = self._get_full_paths(src_isd, src_ad,
-                        dst_isd, dst_ad)
-                    unschedule(eid)
-                    self._waiting_targets[info.type]\
-                        [(dst_isd, dst_ad)].remove(event)
-                    if not full_paths:
-                        # TODO What action to be taken?
-                        continue
-                elif (info.type == PST.DOWN and
-                      self.down_segments(dst_isd=dst_isd, dst_ad=dst_ad)):
+                elif ((info.type == PST.UP and self.up_segments) or
+                      (info.type == PST.DOWN and
+                       self.down_segments(dst_isd=dst_isd, dst_ad=dst_ad))):
                     full_paths = self._get_full_paths(src_isd, src_ad,
                                                       dst_isd, dst_ad)
                     unschedule(eid)
@@ -307,9 +312,7 @@ class SCIONSimHost(SCIONElement):
                     if not full_paths:
                         # TODO What action to be taken?
                         continue
-
                 self._api_send_path_reply(full_paths, requestor)
-
             if len(self._waiting_targets[info.type]
                    [(info.dst_isd, info.dst_ad)]) == 0:
                 del self._waiting_targets[info.type]\

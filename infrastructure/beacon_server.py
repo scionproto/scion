@@ -203,8 +203,7 @@ class BeaconServer(SCIONElement):
                                              self.topology.ad_id)
         self.signing_key = read_file(sig_key_file)
         self.signing_key = base64.b64decode(self.signing_key)
-        if not is_sim:
-            self.of_gen_key = get_roundkey_cache(self.config.master_ad_key)
+        self.of_gen_key = get_roundkey_cache(self.config.master_ad_key)
         logging.info(self.config.__dict__)
         self.if2rev_tokens = {}
         self.seg2rev_tokens = {}

@@ -31,6 +31,10 @@ from external.stacktracer import trace_start
 # SCION
 from lib.defines import TOPOLOGY_PATH
 
+# SCION Simulator
+from simulator.simulator import get_sim_time
+
+
 CERT_DIR = 'certificates'
 SIG_KEYS_DIR = 'signature_keys'
 ENC_KEYS_DIR = 'encryption_keys'
@@ -276,7 +280,6 @@ class SCIONTime(object):
         Get current time
         """
         if SCIONTime.is_sim:
-            from simulator.simulator import get_sim_time
             return get_sim_time()
         else:
             return time.time()
