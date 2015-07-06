@@ -147,7 +147,11 @@ class Router(SCIONElement):
         """
         Run the router threads.
         """
-        threading.Thread(target=self.sync_interface, daemon=True).start()
+        threading.Thread(
+            target=thread_safety_net,
+            args=("sync_interface", self.sync_interface),
+            name="Sync Interfaces",
+            daemon=True).start()
         SCIONElement.run(self)
 
     def send(self, packet, next_hop, use_local_socket=True):
@@ -199,7 +203,6 @@ class Router(SCIONElement):
         if ext or l < len(spkt.hdr.extension_hdrs):
             logging.warning("Extensions terminated incorrectly.")
 
-    @thread_safety_net("sync_interface")
     def sync_interface(self):
         """
         Synchronize and initialize the router's interface with that of a
@@ -250,9 +253,8 @@ class Router(SCIONElement):
         :type from_bs:
         """
         beacon = PathConstructionBeacon(packet)
-        logging.info('PCB:%s', beacon)
         if from_bs:
-            if self.interface.if_id != beacon.pcb.if_id:
+            if self.interface.if_id != beacon.pcb.get_last_pcbm().hof.egress_if:
                 logging.error("Wrong interface set by BS.")
                 return
             next_hop.addr = self.interface.to_addr
@@ -490,8 +492,7 @@ class Router(SCIONElement):
         :param ptype: the type of the packet.
         :type ptype: :class:`lib.packet.scion.PacketType`
         """
-        if (not spkt.hdr.is_first_path_of() and
-                ptype == PT.DATA and from_local_ad):
+        if from_local_ad:
             self.write_to_egress_iface(spkt, next_hop)
         else:
             self.forward_packet(spkt, next_hop, from_local_ad, ptype)

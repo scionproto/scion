@@ -2,10 +2,8 @@
 
 # Small script to fully setup environment
 
-if [ $(hostname) == "scionfull" ]; then
-    sudo service zookeeper start
-    ./scion.sh setup
-fi
+sudo service zookeeper start
+./scion.sh setup
 
 # Can't be fixed during build due to
 # https://github.com/docker/docker/issues/6828

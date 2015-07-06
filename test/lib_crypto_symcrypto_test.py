@@ -19,10 +19,6 @@
 import logging
 import unittest
 
-# Has to be imported before anything else so that any relevant decorators are
-# patched.
-from test.testcommon import SCIONCommonTest
-
 # SCION
 from lib.crypto.symcrypto import (
     authenticated_decrypt,
@@ -35,6 +31,7 @@ from lib.crypto.symcrypto import (
     sha3hash,
     verify_cbcmac,
 )
+from test.testcommon import SCIONCommonTest
 
 
 class TestSymcrypto(SCIONCommonTest):
