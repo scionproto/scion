@@ -23,12 +23,9 @@ import unittest
 from Crypto import Random
 import nose.tools as ntools
 
-# Has to be imported before anything else so that any relevant decorators are
-# patched.
-from test.testcommon import SCIONCommonTest
-
 # SCION
 from lib.crypto.hash_chain import HashChain, HashChainExhausted
+from test.testcommon import SCIONCommonTest
 
 
 class TestHashChain(SCIONCommonTest):
