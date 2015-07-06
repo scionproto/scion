@@ -997,6 +997,67 @@ class TestPathCombinatorBuildShortcutPath(object):
             yield self._check_xovrs_peers, xovrs, peers, [5, 7, 9], False
 
 
+class TestPathCombinatorBuildCorePath(object):
+    """
+    Unit tests for lib.packet.path.PathCombinator._build_core_path
+    """
+    def setUp(self):
+        self.up_seg = MagicMock(spec_set=['ads'])
+        self.up_seg.ads = [123]
+        self.down_seg = MagicMock(spec_set=['ads'])
+        self.down_seg.ads = [456]
+
+    def tearDown(self):
+        del self.up_seg
+        del self.down_seg
+
+    def _check_none(self, up_seg, down_seg):
+        ntools.assert_is_none(PathCombinator._build_core_path(
+            up_seg, 'core_seg', down_seg))
+
+    def test_none(self):
+        up_segs = [[], [1], MagicMock(spec_set=['ads']),
+                       MagicMock(spec_set=['ads'])]
+        up_segs[2].ads = []
+        up_segs[3].ads = [456]
+        down_segs = [123, [], [2], MagicMock(spec_set=['ads'])]
+        down_segs[3].ads = []
+        for up_seg, down_seg in zip(up_segs, down_segs):
+            yield self._check_none, up_seg, down_seg
+
+    @patch("lib.packet.path.PathCombinator._check_connected", spec_set=[],
+           new_callable=MagicMock)
+    def test_not_connected(self, check_connected):
+        check_connected.return_value = False
+        ntools.assert_is_none(PathCombinator._build_core_path(
+            self.up_seg, 'core_seg', self.down_seg))
+        check_connected.assert_called_once_with(self.up_seg, 'core_seg',
+                                                self.down_seg)
+
+    @patch("lib.packet.path.PathCombinator._join_down_segment", spec_set=[],
+           new_callable=MagicMock)
+    @patch("lib.packet.path.PathCombinator._join_core_segment", spec_set=[],
+           new_callable=MagicMock)
+    @patch("lib.packet.path.PathCombinator._join_up_segment", spec_set=[],
+           new_callable=MagicMock)
+    @patch("lib.packet.path.CorePath", autospec=True)
+    @patch("lib.packet.path.PathCombinator._check_connected", spec_set=[],
+           new_callable=MagicMock)
+    def test_full(self, check_connected, core_path, join_up, join_core,
+                  join_down):
+        check_connected.return_value = True
+        core_path.return_value = 'core_path'
+        join_up.return_value = 'up_join'
+        join_core.return_value = 'core_join'
+        join_down.return_value = 'down_join'
+        ntools.eq_(PathCombinator._build_core_path(self.up_seg, 'core_seg',
+                                                   self.down_seg), 'down_join')
+        core_path.assert_called_once_with()
+        join_up.assert_called_once_with('core_path', self.up_seg)
+        join_core.assert_called_once_with('up_join', 'core_seg')
+        join_down.assert_called_once_with('core_join', self.down_seg)
+
+
 class TestPathCombinatorCheckConnected(object):
     """
     Unit tests for lib.packet.path.PathCombinator._check_connected
