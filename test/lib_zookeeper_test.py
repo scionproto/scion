@@ -25,12 +25,9 @@ import nose
 import nose.tools as ntools
 from kazoo.protocol.states import ZnodeStat
 
-# Has to be imported before anything else so that any relevant decorators are
-# patched.
-from test.testcommon import MockCollection, SCIONTestException
-
 # SCION
 import lib.zookeeper as libzk
+from test.testcommon import MockCollection, SCIONTestException
 
 
 def mock_wrapper(f):
@@ -49,6 +46,7 @@ def mock_wrapper(f):
         self.mocks.add('lib.zookeeper.threading.Thread', 'pythread')
         self.mocks.add('lib.zookeeper.threading.Event', 'pyevent')
         self.mocks.add('lib.zookeeper.threading.Semaphore', 'pysemaphore')
+        self.mocks.add('lib.zookeeper.thread_safety_net', 'thread_safety_net')
         self.mocks.add('lib.zookeeper.kill_self', 'kill_self')
         self.mocks.start()
         self.mocks.kclient.return_value.mock_add_spec(['Party', 'Lock'])
@@ -119,9 +117,10 @@ class TestLibZookeeperInit(BaseLibZookeeper):
         ntools.eq_(inst._zk_lock, None)
         self.mocks.pysemaphore.assert_called_with(value=0)
         ntools.assert_false(inst._state_event.called)
-        self.mocks.pythread.assert_called_with(target=inst._state_handler,
-                                               name="ZK state handler",
-                                               daemon=True)
+        self.mocks.pythread.assert_called_with(
+            target=self.mocks.thread_safety_net,
+            args=('_state_handler', inst._state_handler,),
+            name="ZK state handler", daemon=True)
         inst._zk.add_listener.assert_called_with(inst._state_listener)
         inst._zk.start.assert_called_with()
 

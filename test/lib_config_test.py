@@ -25,13 +25,10 @@ import nose
 import nose.tools as ntools
 from unittest.mock import patch, mock_open
 
-# Has to be imported before anything else so that any relevant decorators are
-# patched.
-from test.testcommon import SCIONTestException
-
 # SCION
 from lib.config import Config
 from lib.defines import TOPOLOGY_PATH
+from test.testcommon import SCIONTestException
 
 
 class BaseLibConfig(object):

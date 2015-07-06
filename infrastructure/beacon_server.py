@@ -430,18 +430,26 @@ class BeaconServer(SCIONElement):
         """
         Run an instance of the Beacon Server.
         """
-        threading.Thread(target=self.handle_pcbs_propagation,
-                         name="BS PCB propagation",
-                         daemon=True).start()
-        threading.Thread(target=self.register_segments,
-                         name="BS register segments",
-                         daemon=True).start()
-        threading.Thread(target=self.handle_shared_pcbs,
-                         name="BS shared pcbs",
-                         daemon=True).start()
-        threading.Thread(target=self._handle_if_timeouts,
-                         name="BS IF timeouts",
-                         daemon=True).start()
+        threading.Thread(
+            target=thread_safety_net,
+            args=("handle_pcbs_propagation", self.handle_pcbs_propagation),
+            name="BS PCB propagation",
+            daemon=True).start()
+        threading.Thread(
+            target=thread_safety_net,
+            args=("register_segments", self.register_segments),
+            name="BS register segments",
+            daemon=True).start()
+        threading.Thread(
+            target=thread_safety_net,
+            args=("handle_shared_pcbs", self.handle_shared_pcbs),
+            name="BS shared pcbs",
+            daemon=True).start()
+        threading.Thread(
+            target=thread_safety_net,
+            args=("_handle_if_timeouts", self._handle_if_timeouts),
+            name="BS IF timeouts",
+            daemon=True).start()
         SCIONElement.run(self)
 
     def _try_to_verify_beacon(self, pcb):
@@ -610,7 +618,6 @@ class BeaconServer(SCIONElement):
             pcb = self.unverified_beacons.popleft()
             self._try_to_verify_beacon(pcb)
 
-    @thread_safety_net("handle_shared_pcbs")
     def handle_shared_pcbs(self):
         """
         A thread to handle Zookeeper connects/disconnects and the shared cache
@@ -761,7 +768,6 @@ class BeaconServer(SCIONElement):
         """
         pass
 
-    @thread_safety_net("_handle_if_timeouts")
     def _handle_if_timeouts(self):
         """
         Periodically checks each interface state and issues an if revocation, if
@@ -858,7 +864,6 @@ class CoreBeaconServer(BeaconServer):
             count += 1
         return count
 
-    @thread_safety_net("handle_pcbs_propagation")
     def handle_pcbs_propagation(self):
         """
         Generate a new beacon or gets ready to forward the one received.
@@ -909,7 +914,6 @@ class CoreBeaconServer(BeaconServer):
             sleep_interval(start_propagation, self.config.propagation_time,
                            "PCB propagation")
 
-    @thread_safety_net("register_segments")
     def register_segments(self):
         """
 
@@ -1167,7 +1171,6 @@ class LocalBeaconServer(BeaconServer):
         next_hop = self.ifid2addr[if_id]
         self.send(pkt, next_hop)
 
-    @thread_safety_net("register_segments")
     def register_segments(self):
         """
         Register paths according to the received beacons.
@@ -1279,7 +1282,6 @@ class LocalBeaconServer(BeaconServer):
         self.up_segments.add_segment(pcb)
         self.down_segments.add_segment(pcb)
 
-    @thread_safety_net("handle_pcbs_propagation")
     def handle_pcbs_propagation(self):
         """
         Main loop to propagate received beacons.

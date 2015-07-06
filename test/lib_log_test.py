@@ -25,9 +25,10 @@ import nose.tools as ntools
 
 # SCION
 from lib.log import (
+    _StreamErrorHandler,
     init_logging,
     log_exception,
-    _StreamErrorHandler)
+)
 from test.testcommon import SCIONTestException
 
 
