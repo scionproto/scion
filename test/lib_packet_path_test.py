@@ -935,6 +935,68 @@ class TestPathCombinatorBuildCorePaths(object):
         build_path.assert_has_calls(calls)
 
 
+class TestPathCombinatorBuildShortcutPath(object):
+    """
+    Unit tests for lib.packet.path.PathCombinator._build_shortcut_path
+    """
+    def setUp(self):
+        self.up_seg = MagicMock(spec_set=['ads'])
+        self.up_seg.ads = [123]
+        self.down_seg = MagicMock(spec_set=['ads'])
+        self.down_seg.ads = [456]
+
+    def tearDown(self):
+        del self.up_seg
+        del self.down_seg
+
+    def _check_none(self, up_seg, down_seg):
+        ntools.assert_is_none(PathCombinator._build_shortcut_path(up_seg,
+                                                                  down_seg))
+
+    def test_none(self):
+        up_segs = [[], [1], MagicMock(spec_set=['ads']),
+                       MagicMock(spec_set=['ads'])]
+        up_segs[2].ads = []
+        up_segs[3].ads = [456]
+        down_segs = [123, [], [2], MagicMock(spec_set=['ads'])]
+        down_segs[3].ads = []
+        for up_seg, down_seg in zip(up_segs, down_segs):
+            yield self._check_none, up_seg, down_seg
+
+    @patch("lib.packet.path.PathCombinator._get_xovrs_peers", spec_set=[],
+           new_callable=MagicMock)
+    def test_no_xovrs_peers(self, get_xovrs_peers):
+        get_xovrs_peers.return_value = [], []
+        ntools.assert_is_none(PathCombinator._build_shortcut_path(
+            self.up_seg, self.down_seg))
+        get_xovrs_peers.assert_called_once_with(self.up_seg, self.down_seg)
+
+    @patch("lib.packet.path.PathCombinator._join_shortcuts", spec_set=[],
+           new_callable=MagicMock)
+    @patch("lib.packet.path.PathCombinator._get_xovrs_peers", spec_set=[],
+           new_callable=MagicMock)
+    def _check_xovrs_peers(self, xovrs, peers, point, peer, get_xovrs_peers,
+                           join_shortcuts):
+        get_xovrs_peers.return_value = xovrs, peers
+        join_shortcuts.return_value = 'path'
+        ntools.eq_(PathCombinator._build_shortcut_path(self.up_seg,
+                                                       self.down_seg), 'path')
+        join_shortcuts.assert_called_once_with(self.up_seg, self.down_seg,
+                                               point, peer)
+
+    def test_with_peers(self):
+        xovrs_list = [[1, [2, 3, 4]], []]
+        peers_list = [[5, [6, 7, 8]]] * 2
+        for xovrs, peers in zip(xovrs_list, peers_list):
+            yield self._check_xovrs_peers, xovrs, peers, [6, 7, 8], True
+
+    def test_with_xovrs(self):
+        xovrs_list = [[3, [5, 7, 9]]] * 2
+        peers_list = [[1, [2, 4, 6]], []]
+        for xovrs, peers in zip(xovrs_list, peers_list):
+            yield self._check_xovrs_peers, xovrs, peers, [5, 7, 9], False
+
+
 class TestPathCombinatorCheckConnected(object):
     """
     Unit tests for lib.packet.path.PathCombinator._check_connected
