@@ -48,11 +48,9 @@ class TestThreadSafetyNet(object):
     """
     Unit tests for lib.thread.thread_safety_net
     """
-    @thread_safety_net("no_exp")
     def no_exception_f(self):
         return "test_data"
 
-    @thread_safety_net("exp")
     def exception_f(self):
         raise Exception('')
         return "test_data"
@@ -60,12 +58,12 @@ class TestThreadSafetyNet(object):
     @patch("lib.thread.kill_self", autospec=True)
     @patch("lib.thread.log_exception", autospec=True)
     def test_exception(self, log_test, kill_test):
-        ntools.assert_is_none(self.exception_f())
+        ntools.assert_is_none(thread_safety_net("exp", self.exception_f))
         log_test.assert_called_once_with("Exception in %s thread:", "exp")
         kill_test.assert_called_once_with()
 
     def test_no_exception(self):
-        ntools.eq_(self.no_exception_f(), "test_data")
+        ntools.eq_(thread_safety_net("n_exp", self.no_exception_f), "test_data")
 
 if __name__ == "__main__":
     nose.run(defaultTest=__name__)
