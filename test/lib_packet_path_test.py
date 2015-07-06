@@ -888,6 +888,53 @@ class TestEmptyPathGetOf(object):
         empty_path.up_segment_info = 1
         ntools.assert_is_none(empty_path.get_of(123))
 
+
+class TestPathCombinatorBuildShortcutPaths(object):
+    """
+    Unit tests for lib.packet.path.PathCombinator.build_shortcut_paths
+    """
+    @patch("lib.packet.path.PathCombinator._build_shortcut_path",
+           spec_set=[], new_callable=MagicMock)
+    def test(self, build_path):
+        up_segments = ['up0', 'up1']
+        down_segments = ['down0', 'down1']
+        build_path.side_effect = ['path0', 'path1', 'path1', None]
+        paths = ['path0', 'path1']
+        ntools.eq_(PathCombinator.build_shortcut_paths(up_segments,
+                                                       down_segments), paths)
+        calls = [call(*x) for x in product(up_segments, down_segments)]
+        build_path.assert_has_calls(calls)
+
+
+class TestPathCombinatorBuildCorePaths(object):
+    """
+    Unit tests for lib.packet.path.PathCombinator.build_core_paths
+    """
+    @patch("lib.packet.path.PathCombinator._build_core_path",
+           spec_set=[], new_callable=MagicMock)
+    def test_without_core(self, build_path):
+        build_path.return_value = 'path0'
+        ntools.eq_(PathCombinator.build_core_paths('up', 'down', None),
+                   ['path0'])
+        build_path.assert_called_once_with('up', [], 'down')
+
+    @patch("lib.packet.path.PathCombinator._build_core_path",
+           spec_set=[], new_callable=MagicMock)
+    def test_empty_without_core(self, build_path):
+        build_path.return_value = None
+        ntools.eq_(PathCombinator.build_core_paths('up', 'down', None), [])
+
+    @patch("lib.packet.path.PathCombinator._build_core_path",
+           spec_set=[], new_callable=MagicMock)
+    def test_with_core(self, build_path):
+        core_segments = ['core0', 'core1', 'core2', 'core3']
+        build_path.side_effect = ['path0', 'path1', 'path1', None]
+        ntools.eq_(PathCombinator.build_core_paths('up', 'down', core_segments),
+                   ['path0', 'path1'])
+        calls = [call('up', cs, 'down') for cs in core_segments]
+        build_path.assert_has_calls(calls)
+
+
 class TestPathCombinatorCheckConnected(object):
     """
     Unit tests for lib.packet.path.PathCombinator._check_connected
@@ -945,52 +992,6 @@ class TestPathCombinatorCheckConnected(object):
         self.down_seg.get_first_pcbm.return_value.ad_id = 123
         ntools.assert_true(PathCombinator._check_connected(self.up_seg,
                                                            None, self.down_seg))
-
-
-class TestPathCombinatorBuildShortcutPaths(object):
-    """
-    Unit tests for lib.packet.path.PathCombinator.build_shortcut_paths
-    """
-    @patch("lib.packet.path.PathCombinator._build_shortcut_path",
-           spec_set=[], new_callable=MagicMock)
-    def test(self, build_path):
-        up_segments = ['up0', 'up1']
-        down_segments = ['down0', 'down1']
-        build_path.side_effect = ['path0', 'path1', 'path1', None]
-        paths = ['path0', 'path1']
-        ntools.eq_(PathCombinator.build_shortcut_paths(up_segments,
-                                                       down_segments), paths)
-        calls = [call(*x) for x in product(up_segments, down_segments)]
-        build_path.assert_has_calls(calls)
-
-
-class TestPathCombinatorBuildCorePaths(object):
-    """
-    Unit tests for lib.packet.path.PathCombinator.build_core_paths
-    """
-    @patch("lib.packet.path.PathCombinator._build_core_path",
-           spec_set=[], new_callable=MagicMock)
-    def test_without_core(self, build_path):
-        build_path.return_value = 'path0'
-        ntools.eq_(PathCombinator.build_core_paths('up', 'down', None),
-                   ['path0'])
-        build_path.assert_called_once_with('up', [], 'down')
-
-    @patch("lib.packet.path.PathCombinator._build_core_path",
-           spec_set=[], new_callable=MagicMock)
-    def test_empty_without_core(self, build_path):
-        build_path.return_value = None
-        ntools.eq_(PathCombinator.build_core_paths('up', 'down', None), [])
-
-    @patch("lib.packet.path.PathCombinator._build_core_path",
-           spec_set=[], new_callable=MagicMock)
-    def test_with_core(self, build_path):
-        core_segments = ['core0', 'core1', 'core2', 'core3']
-        build_path.side_effect = ['path0', 'path1', 'path1', None]
-        ntools.eq_(PathCombinator.build_core_paths('up', 'down', core_segments),
-                   ['path0', 'path1'])
-        calls = [call('up', cs, 'down') for cs in core_segments]
-        build_path.assert_has_calls(calls)
 
 
 if __name__ == "__main__":
