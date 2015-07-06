@@ -350,26 +350,36 @@ class ConfigGenerator():
         """
         Generate the AD topologies and store them into files. Update the AD
         setup and supervisor files.
+        In simulator mode, write the conf file also
 
         :param ad_configs: the configurations of all SCION ADs.
         :type ad_configs: dict
         :param er_ip_addresses: the edge router IP addresses.
         :type er_ip_addresses: dict
         """
+        sim_file = os.path.join(self.out_dir, SIM_DIR, SIM_CONF_FILE)
         for isd_ad_id in ad_configs:
             (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
             is_core = (ad_configs[isd_ad_id]['level'] == CORE_AD)
             first_byte, mask = self._get_subnet_params(ad_configs[isd_ad_id])
+            topo_file = self._path_dict(isd_id, ad_id)['topo_file_rel']
+            path_pol_file = self._path_dict(isd_id, ad_id)['path_pol_file_rel']
+            conf_file = self._path_dict(isd_id, ad_id)['conf_file_rel']
+            trc_file = self._path_dict(isd_id, ad_id)['trc_file_rel']
             number_bs = ad_configs[isd_ad_id].get("beacon_servers",
                                                   DEFAULT_BEACON_SERVERS)
-            if self.is_sim:
-                number_bs = 1
             number_cs = ad_configs[isd_ad_id].get("certificate_servers",
                                                   DEFAULT_CERTIFICATE_SERVERS)
             number_ps = ad_configs[isd_ad_id].get("path_servers",
                                                   DEFAULT_PATH_SERVERS)
             number_ds = ad_configs[isd_ad_id].get("dns_servers",
                                                   DEFAULT_DNS_SERVERS)
+            if self.is_sim:
+                number_bs = 1
+                number_cs = 1
+                number_ps = 1
+                number_ds = 0
+                sim_conf_output = ''
             dns_domain = DNSLabel(ad_configs[isd_ad_id].get("dns_domain",
                                                             DEFAULT_DNS_DOMAIN))
             dns_domain = dns_domain.add("isd%s" % isd_id).add("ad%s" % ad_id)
@@ -392,6 +402,14 @@ class ConfigGenerator():
                 }
                 self.next_ip_address = \
                     self._increment_address(self.next_ip_address, mask)
+                if self.is_sim:
+                    sim_conf_output += ''.join([
+                        'beacon_server ',
+                        ('core ' if is_core else 'local '), 
+                        str(b_server) + ' ',
+                        topo_file + ' ',
+                        conf_file + ' ',
+                        path_pol_file, '\n'])
             # Write Certificate Servers
             for c_server in range(1, number_cs + 1):
                 topo_dict['CertificateServers'][c_server] = {
@@ -400,6 +418,13 @@ class ConfigGenerator():
                 }
                 self.next_ip_address = \
                     self._increment_address(self.next_ip_address, mask)
+                if self.is_sim:
+                    sim_conf_output += ''.join([
+                        'cert_server ',
+                        str(c_server) + ' ',
+                        topo_file + ' ',
+                        conf_file + ' ',
+                        trc_file, '\n'])
             # Write Path Servers
             if (ad_configs[isd_ad_id]['level'] != INTERMEDIATE_AD or
                     "path_servers" in ad_configs[isd_ad_id]):
@@ -410,6 +435,13 @@ class ConfigGenerator():
                     }
                     self.next_ip_address = \
                         self._increment_address(self.next_ip_address, mask)
+                    if self.is_sim:
+                        sim_conf_output += ''.join([
+                            'path_server ',
+                            ('core ' if is_core else 'local '), 
+                            str(p_server) + ' ',
+                            topo_file + ' ',
+                            conf_file, '\n'])
             # Write DNS Servrs
             for d_server in range(1, number_ds + 1):
                 topo_dict['DNSServers'][d_server] = {
@@ -441,91 +473,24 @@ class ConfigGenerator():
                                   'UdpPort': int(PORT),
                                   'ToUdpPort': int(PORT)}
                 }
+                if self.is_sim:
+                    sim_conf_output += ''.join([
+                        'router ',
+                        str(edge_router) + ' ',
+                        topo_file + ' ',
+                        conf_file, '\n'])
                 edge_router += 1
-
             topo_file_abs = self._path_dict(isd_id, ad_id)['topo_file_abs']
             with open(topo_file_abs, 'w') as topo_fh:
                 json.dump(topo_dict, topo_fh, sort_keys=True, indent=4)
+            if self.is_sim:
+                with open(sim_file, 'a') as sim_fh:
+                    sim_fh.write(sim_conf_output)
             # Test if parser works
             Topology.from_file(topo_file_abs)
 
             self.write_supervisor_config(topo_dict)
             self.write_setup_file(topo_dict, mask)
-
-    def write_sim_file(self, ad_configs):
-        """
-        Writing into sim.conf file
-
-        :param ad_configs: the configurations of all SCION ADs.
-        :type ad_configs: dict
-        """
-        sim_file = os.path.join(self.out_dir, SIM_DIR, SIM_CONF_FILE)
-        for isd_ad_id in ad_configs:
-            (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-            is_core = (ad_configs[isd_ad_id]['level'] == CORE_AD)
-            first_byte, mask = self._get_subnet_params(ad_configs[isd_ad_id])
-
-            topo_file = self._path_dict(isd_id, ad_id)['topo_file_rel']
-            path_pol_file = self._path_dict(isd_id, ad_id)['path_pol_file_rel']
-            conf_file = self._path_dict(isd_id, ad_id)['conf_file_rel']
-            trc_file = self._path_dict(isd_id, ad_id)['trc_file_rel']
-
-            if "beacon_servers" in ad_configs[isd_ad_id]:
-                number_bs = ad_configs[isd_ad_id]["beacon_servers"]
-            else:
-                number_bs = DEFAULT_BEACON_SERVERS
-            if "certificate_servers" in ad_configs[isd_ad_id]:
-                number_cs = ad_configs[isd_ad_id]["certificate_servers"]
-            else:
-                number_cs = DEFAULT_CERTIFICATE_SERVERS
-            if "path_servers" in ad_configs[isd_ad_id]:
-                number_ps = ad_configs[isd_ad_id]["path_servers"]
-            else:
-                number_ps = DEFAULT_PATH_SERVERS
-
-            with open(sim_file, 'a') as sim_fh:
-                # Beacon Servers
-                for b_server in range(1, number_bs + 1):
-                    sim_fh.write(''.join([
-                        'beacon_server ' + 
-                        ('core ' if is_core else 'local ') + 
-                        str(b_server) + ' ',
-                        topo_file + ' ',
-                        conf_file + ' ',
-                        path_pol_file, '\n']))
-                    break
-
-                # Certificate Servers
-                for c_server in range(1, number_cs + 1):
-                    sim_fh.write(''.join([
-                        'cert_server ' + 
-                        str(c_server) + ' ',
-                        topo_file + ' ',
-                        conf_file + ' ',
-                        trc_file, '\n']))
-                    break
-
-                # Path Servers
-                if (ad_configs[isd_ad_id]['level'] != INTERMEDIATE_AD or
-                    "path_servers" in ad_configs[isd_ad_id]):
-                    for p_server in range(1, number_ps + 1):
-                        sim_fh.write(''.join([
-                            'path_server ' + 
-                            ('core ' if is_core else 'local ') + 
-                            str(p_server) + ' ',
-                            topo_file + ' ',
-                            conf_file, '\n']))
-                        break
-
-                # Edge Routers
-                edge_router = 1
-                for nbr_isd_ad_id in ad_configs[isd_ad_id].get("links", []):
-                    sim_fh.write(''.join([
-                        'router ' + 
-                        str(edge_router) + ' ',
-                        topo_file + ' ',
-                        conf_file, '\n']))
-                    edge_router += 1
 
     def _get_typed_elements(self, topo_dict):
         """
@@ -806,10 +771,9 @@ class ConfigGenerator():
         keys = self.write_keys_certs(ad_configs)
         self.write_conf_files(ad_configs)
         self.write_path_pol_files(ad_configs, path_policy_file)
-        self.write_topo_files(ad_configs, er_ip_addresses)
         if self.is_sim:
             self.write_beginning_sim_run_files()
-            self.write_sim_file(ad_configs)
+        self.write_topo_files(ad_configs, er_ip_addresses)
         self.write_trc_files(ad_configs, keys)
 
 
