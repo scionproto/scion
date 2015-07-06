@@ -78,7 +78,7 @@ class PathServer(SCIONElement):
 
     def _add_if_mappings(self, pcb):
         """
-        Add interface to segment ID mappings.
+        Add if revocation token to segment ID mappings.
         """
         for ad in pcb.ads:
             self.iftoken2seg[ad.pcbm.ig_rev_token].add(pcb.segment_id)

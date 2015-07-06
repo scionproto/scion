@@ -148,7 +148,7 @@ class InterfaceState(object):
             elif (self._state == self.ACTIVE and
                   self.last_updated + self.IFID_TOUT < time.time()):
                 self._state = self.TIMED_OUT
-                return False
+                return True
             return False
 
     def is_revoked(self):
@@ -711,8 +711,14 @@ class BeaconServer(SCIONElement):
         if rev_info.rev_type in [RT.DOWN_SEGMENT, RT.CORE_SEGMENT]:
             self._process_segment_revocation(rev_info)
         elif rev_info.rev_type == RT.INTERFACE:
+            if not if_id1:
+                logging.error("Trying to revoke IF with ID 0.")
+                return
             self._process_interface_revocation(rev_info, if_id1)
         elif rev_info.rev_type == RT.HOP:
+            if not if_id1 or not if_id2:
+                logging.error("Trying to revoke IF with ID 0.")
+                return
             self._process_hop_revocation(rev_info, (if_id1, if_id2))
 
         # Send revocations to local PS.
@@ -1027,9 +1033,15 @@ class CoreBeaconServer(BeaconServer):
             if cand.id in processed:
                 continue
             processed.add(cand.id)
-            # If the beacon was received on this interface, removed it from
-            # the store.
-            if cand.pcb.if_id == if_id:
+            # If the beacon was received on this interface, remove it from
+            # the store. We also check, if the interface didn't come up in
+            # the mean time. Caveat: There is a small chance that a valid
+            # beacon gets removed, in case a new beacon reaches the BS through
+            # the interface, which is getting revoked, before the keep-alive
+            # message updates the interface state to 'ACTIVE'. However,
+            # worst, the valid beacon would get added within the next
+            # propagation period.
+            if self.ifid_state[if_id].is_expired() and cand.pcb.if_id == if_id:
                 to_remove.append(cand.id)
 
         # Remove the affected segments from the path stores.
@@ -1244,9 +1256,15 @@ class LocalBeaconServer(BeaconServer):
             if cand.id in processed:
                 continue
             processed.add(cand.id)
-            # If the beacon was received on this interface, removed it from
-            # the store.
-            if cand.pcb.if_id == if_id:
+            # If the beacon was received on this interface, remove it from
+            # the store. We also check, if the interface didn't come up in
+            # the mean time. Caveat: There is a small chance that a valid
+            # beacon gets removed, in case a new beacon reaches the BS through
+            # the interface, which is getting revoked, before the keep-alive
+            # message updates the interface state to 'ACTIVE'. However,
+            # worst, the valid beacon would get added within the next
+            # propagation period.
+            if self.ifid_state[if_id].is_expired() and cand.pcb.if_id == if_id:
                 to_remove.append(cand.id)
 
         # Remove the affected segments from the path stores.
