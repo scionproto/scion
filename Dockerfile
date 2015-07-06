@@ -12,7 +12,7 @@ COPY docker/pkgs_purge.txt $BASE/docker/
 RUN bash -c 'DEBIAN_FRONTEND=noninteractive apt-get purge --auto-remove -y $(< docker/pkgs_purge.txt)'
 
 # Pre-install some of the largest indirect dependancies, to speed up rebuild when
-# scion.sh changes for any reason.
+# deps.sh changes for any reason.
 RUN apt-get update
 COPY docker/pkgs_preinstall.txt $BASE/docker/
 RUN bash -c 'DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y $(< docker/pkgs_preinstall.txt)'
@@ -25,21 +25,21 @@ RUN bash -c 'DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recomme
 RUN useradd -s /bin/bash scion
 RUN echo "scion ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/scion
 
-# Copy over scion.sh. If it has changed, everything gets rebuilt.
+# Copy over deps.sh. If it has changed, everything gets rebuilt.
 USER scion
-COPY scion.sh $BASE/
+COPY deps.sh $BASE/
 
 # Copy over pkgs_debian.txt. If it has changed, then re-run the remaining steps.
 COPY pkgs_debian.txt $BASE/
 RUN sudo chown -R scion: $HOME
-RUN DEBIAN_FRONTEND=noninteractive APTARGS=-y ./scion.sh deps pkgs
+RUN APTARGS=-y ./deps.sh pkgs
 
 # Copy over requirements.txt. If it has changed, then re-run the remaining steps.
 COPY requirements.txt $BASE/
 RUN sudo chown -R scion: $HOME
-RUN ./scion.sh deps pip
+RUN ./deps.sh pip
 
-RUN ./scion.sh deps
+RUN ./deps.sh misc
 
 RUN sudo rm -rf /usr/share/man
 # Clean out the cached packages now they're no longer necessary
@@ -49,6 +49,8 @@ RUN sudo du -hsx /
 #################################################################################
 ## All dependancies are now installed, carry on with the rest.
 #################################################################################
+
+COPY scion.sh $BASE/
 
 # Pre-build crypto library, so that unrelated code changes don't force a rebuild every time.
 COPY lib/crypto/python-tweetnacl-20140309/ $BASE/lib/crypto/python-tweetnacl-20140309/

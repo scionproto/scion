@@ -10,15 +10,15 @@ Python implementation of [SCION](http://www.netsec.ethz.ch/research/SCION), a fu
 
 Necessary steps in order to run SCION:
 
-1. Make sure that `~/.local/bin` can be found in your $PATH variable. 
+1. Make sure that `~/.local/bin` can be found in your $PATH variable.
 
 	For example, do the following to update $PATH in your `~/.profile` and apply the changes to your session:
 
 	`echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.profile && source ~/.profile`
-	
+
 2. Install required packages with dependencies:
 
-	`./scion.sh deps`
+	`./deps.sh all`
 
 3. Compile the crypto library:
 
