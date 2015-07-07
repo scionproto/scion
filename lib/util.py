@@ -34,7 +34,6 @@ from lib.defines import TOPOLOGY_PATH
 # SCION Simulator
 from simulator.simulator import get_sim_time
 
-
 CERT_DIR = 'certificates'
 SIG_KEYS_DIR = 'signature_keys'
 ENC_KEYS_DIR = 'encryption_keys'

@@ -110,8 +110,8 @@ class PathPolicy(object):
                                 <= pcb.get_n_hops() <=
                                 self.property_ranges['HopsLength'][1]))
         if self.property_ranges['DelayTime']:
-            check = (check and (self.property_ranges['DelayTime'][0]
-                                <= int(SCIONTime.get_time()) - pcb.get_timestamp() <=
+            check = (check and (self.property_ranges['DelayTime'][0] <=
+                                int(SCIONTime.get_time()) - pcb.get_timestamp() <= 
                                 self.property_ranges['DelayTime'][1]))
         if self.property_ranges['GuaranteedBandwidth']:
             check = (check and (self.property_ranges['GuaranteedBandwidth'][0]
@@ -267,7 +267,7 @@ class PathStoreRecord(object):
             self.fidelity += (path_policy.property_weights['LastSentTime'] *
                               (now - self.last_sent_time) / now)
             self.fidelity += (path_policy.property_weights['LastSeenTime'] *
-                              self.last_seen_time / now)            
+                              self.last_seen_time / now)
         self.fidelity += (path_policy.property_weights['DelayTime'] /
                           self.delay_time)
         self.fidelity += (path_policy.property_weights['ExpirationTime'] *

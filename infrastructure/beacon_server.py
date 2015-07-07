@@ -176,7 +176,7 @@ class BeaconServer(SCIONElement):
     # Interval to checked for timed out interfaces.
     IF_TIMEOUT_INTERVAL = 1
 
-    def __init__(self, server_id, topo_file, config_file, path_policy_file, 
+    def __init__(self, server_id, topo_file, config_file, path_policy_file,
                  is_sim=False):
         SCIONElement.__init__(self, "bs", topo_file, server_id=server_id,
                               config_file=config_file, is_sim=is_sim)
@@ -218,8 +218,8 @@ class BeaconServer(SCIONElement):
                                 str(self.addr.host_addr)])
         if not is_sim:
             self._latest_entry = 0
-            # Set when we have connected and read the existing recent and incoming
-            # PCBs
+            # Set when we have connected and read the existing recent and
+            # incoming PCBs
             self._state_synced = threading.Event()
             # TODO(kormat): def zookeeper host/port in topology
             self.zk = Zookeeper(
@@ -266,7 +266,6 @@ class BeaconServer(SCIONElement):
             self.seg2rev_tokens[id_] = chain
 
         return self.seg2rev_tokens[id_].current_element()
-
 
     def propagate_downstream_pcb(self, pcb):
         """
@@ -1067,7 +1066,7 @@ class LocalBeaconServer(BeaconServer):
     servers.
     """
 
-    def __init__(self, server_id, topo_file, config_file, path_policy_file, 
+    def __init__(self, server_id, topo_file, config_file, path_policy_file,
                  is_sim=False):
         """
         Initialize an instance of the class LocalBeaconServer.

@@ -47,7 +47,6 @@ from lib.util import (
     get_sig_key_file_path,
     get_trc_file_path,
     write_file,
-    SCIONTime,
 )
 
 DEFAULT_ADCONFIGURATIONS_FILE = os.path.join(TOPOLOGY_PATH,
@@ -98,7 +97,7 @@ class ConfigGenerator():
         :param subnet: default subnet IP.
         :type subnet: string
         :param is_sim: Generate conf files for the Simulator
-        :type is_sim: bool        
+        :type is_sim: bool
         """
         if not os.path.isdir(out_dir):
             logging.error(out_dir + " output directory missing")
@@ -338,13 +337,11 @@ class ConfigGenerator():
                 'enc_pub_keys': enc_pub_keys}
 
     def write_beginning_sim_run_files(self):
-        file_path =  os.path.join(self.out_dir, SIM_DIR, 'run.sh')
+        file_path = os.path.join(self.out_dir, SIM_DIR, 'run.sh')
         with open(file_path, 'w') as fh:
             fh.write('#!/bin/bash\n\n')
-            fh.write(''.join([
-                'sh -c \"PYTHONPATH=../ python3 sim_test.py ../' + 
-                'SIM/sim.conf' + 
-                ' 100.\"\n']))
+            fh.write('sh -c "PYTHONPATH=../ python3 sim_test.py ../'
+                     'SIM/sim.conf 100."\n')
 
     def write_topo_files(self, ad_configs, er_ip_addresses):
         """
@@ -465,10 +462,10 @@ class ConfigGenerator():
             is_core = (ad_configs[isd_ad_id]['level'] == CORE_AD)
             first_byte, mask = self._get_subnet_params(ad_configs[isd_ad_id])
 
-            topo_file = self._path_dict(isd_id, ad_id)['topo_file_rel']
-            path_pol_file = self._path_dict(isd_id, ad_id)['path_pol_file_rel']
-            conf_file = self._path_dict(isd_id, ad_id)['conf_file_rel']
-            trc_file = self._path_dict(isd_id, ad_id)['trc_file_rel']
+            topo_file = self._path_dict(isd_id, ad_id)['topo_file_abs']
+            path_pol_file = self._path_dict(isd_id, ad_id)['path_pol_file_abs']
+            conf_file = self._path_dict(isd_id, ad_id)['conf_file_abs']
+            trc_file = self._path_dict(isd_id, ad_id)['trc_file_abs']
 
             if "beacon_servers" in ad_configs[isd_ad_id]:
                 number_bs = ad_configs[isd_ad_id]["beacon_servers"]

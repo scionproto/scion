@@ -348,7 +348,8 @@ class CorePathServer(PathServer):
         :param is_sim: running for simulator
         :type is_sim: bool
         """
-        PathServer.__init__(self, server_id, topo_file, config_file, is_sim)
+        PathServer.__init__(self, server_id, topo_file, config_file,
+                            is_sim=is_sim)
         # Sanity check that we should indeed be a core path server.
         assert self.topology.is_core_ad, "This shouldn't be a core PS!"
         self.leases = self.LeasesDict()
@@ -738,7 +739,8 @@ class LocalPathServer(PathServer):
         :param is_sim: running for simulator
         :type is_sim: bool
         """
-        PathServer.__init__(self, server_id, topo_file, config_file, is_sim)
+        PathServer.__init__(self, server_id, topo_file, config_file,
+                            is_sim=is_sim)
         # Sanity check that we should indeed be a local path server.
         assert not self.topology.is_core_ad, "This shouldn't be a local PS!"
         # Database of up-segments to the core.

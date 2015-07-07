@@ -60,7 +60,7 @@ class CertServer(SCIONElement):
     # ZK path for incoming TRCs
     ZK_TRC_CACHE_PATH = "trc_cache"
 
-    def __init__(self, server_id, topo_file, config_file, trc_file, 
+    def __init__(self, server_id, topo_file, config_file, trc_file,
                  is_sim=False):
         """
         Initialize an instance of the class CertServer.
@@ -90,8 +90,8 @@ class CertServer(SCIONElement):
         name_addrs = "\0".join([self.id, str(SCION_UDP_PORT),
                                 str(self.addr.host_addr)])
         if not is_sim:
-            # Set when we have connected and read the existing recent and incoming
-            # cert chains and TRCs
+            # Set when we have connected and read the existing recent and
+            # incoming cert chains and TRCs
             self._state_synced = threading.Event()
             # TODO(lorenzo): def zookeeper host/port in topology
             self.zk = Zookeeper(self.topology.isd_id, self.topology.ad_id,
