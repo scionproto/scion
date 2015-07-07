@@ -466,62 +466,41 @@ class ConfigGenerator():
             path_pol_file = self._path_dict(isd_id, ad_id)['path_pol_file_abs']
             conf_file = self._path_dict(isd_id, ad_id)['conf_file_abs']
             trc_file = self._path_dict(isd_id, ad_id)['trc_file_abs']
-
-            if "beacon_servers" in ad_configs[isd_ad_id]:
-                number_bs = ad_configs[isd_ad_id]["beacon_servers"]
-            else:
-                number_bs = DEFAULT_BEACON_SERVERS
-            if "certificate_servers" in ad_configs[isd_ad_id]:
-                number_cs = ad_configs[isd_ad_id]["certificate_servers"]
-            else:
-                number_cs = DEFAULT_CERTIFICATE_SERVERS
-            if "path_servers" in ad_configs[isd_ad_id]:
-                number_ps = ad_configs[isd_ad_id]["path_servers"]
-            else:
-                number_ps = DEFAULT_PATH_SERVERS
+            # Since we are running a simulator
+            number_bs = 1
+            number_cs = ad_configs[isd_ad_id].get("certificate_servers",
+                                                  DEFAULT_CERTIFICATE_SERVERS)
+            number_ps = ad_configs[isd_ad_id].get("path_servers",
+                                                  DEFAULT_PATH_SERVERS)
 
             with open(sim_file, 'a') as sim_fh:
                 # Beacon Servers
                 for b_server in range(1, number_bs + 1):
-                    sim_fh.write(''.join([
-                        'beacon_server ' + 
-                        ('core ' if is_core else 'local ') + 
-                        str(b_server) + ' ',
-                        topo_file + ' ',
-                        conf_file + ' ',
-                        path_pol_file, '\n']))
-                    break
-
+                    sim_fh.write(' '.join([
+                        'beacon_server', ('core' if is_core else 'local'),
+                        str(b_server), topo_file,
+                        conf_file, path_pol_file]) + '\n')
                 # Certificate Servers
                 for c_server in range(1, number_cs + 1):
-                    sim_fh.write(''.join([
-                        'cert_server ' + 
-                        str(c_server) + ' ',
-                        topo_file + ' ',
-                        conf_file + ' ',
-                        trc_file, '\n']))
-                    break
-
+                    sim_fh.write(' '.join([
+                        'cert_server',
+                        str(c_server), topo_file,
+                        conf_file, trc_file]) + '\n')
                 # Path Servers
                 if (ad_configs[isd_ad_id]['level'] != INTERMEDIATE_AD or
-                    "path_servers" in ad_configs[isd_ad_id]):
+                        "path_servers" in ad_configs[isd_ad_id]):
                     for p_server in range(1, number_ps + 1):
-                        sim_fh.write(''.join([
-                            'path_server ' + 
-                            ('core ' if is_core else 'local ') + 
-                            str(p_server) + ' ',
-                            topo_file + ' ',
-                            conf_file, '\n']))
-                        break
-
+                        sim_fh.write(' '.join([
+                            'path_server', ('core' if is_core else 'local'),
+                            str(p_server), topo_file,
+                            conf_file]) + '\n')
                 # Edge Routers
                 edge_router = 1
                 for nbr_isd_ad_id in ad_configs[isd_ad_id].get("links", []):
-                    sim_fh.write(''.join([
-                        'router ' + 
-                        str(edge_router) + ' ',
-                        topo_file + ' ',
-                        conf_file, '\n']))
+                    sim_fh.write(' '.join([
+                        'router',
+                        str(edge_router), topo_file,
+                        conf_file]) + '\n')
                     edge_router += 1
 
     def _get_typed_elements(self, topo_dict):

@@ -15,15 +15,17 @@
 :mod:`certificate` --- SCION certificate parser
 ===============================================
 """
-
-from lib.crypto.nacl import crypto_sign_ed25519
-from lib.crypto.nacl import crypto_sign_ed25519_open
-from lib.crypto.asymcrypto import sign, verify
+# Stdlib
 import base64
 import copy
 import json
 import logging
 import time
+
+# SCION
+from lib.crypto.nacl import crypto_sign_ed25519
+from lib.crypto.nacl import crypto_sign_ed25519_open
+from lib.crypto.asymcrypto import sign, verify
 
 
 def verify_sig_chain_trc(msg, sig, subject, chain, trc, trc_version):
