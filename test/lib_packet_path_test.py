@@ -1094,8 +1094,86 @@ class TestPathCombinatorJoinShortcuts(object):
     """
     Unit tests for lib.packet.path.PathCombinator._join_shortcuts
     """
-    def test(self):
-        pass
+    @patch("lib.packet.path.PathCombinator._join_down_segment_shortcuts",
+           spec_set=[], new_callable=MagicMock)
+    @patch("lib.packet.path.PathCombinator._join_up_segment_shortcuts",
+           spec_set=[], new_callable=MagicMock)
+    @patch("lib.packet.path.CrossOverPath", autospec=True)
+    @patch("lib.packet.path.copy.deepcopy", spec_set=[], new_callable=MagicMock)
+    def test_not_peer(self, deepcopy, cross_over_path, join_up, join_down):
+        deepcopy.side_effect = ['up_seg_cpy', 'dw_seg_cpy']
+        point = (2, 5)
+        cross_over_path.return_value = 'cross_over_path'
+        join_up.return_value = 'up_joined'
+        join_down.return_value = 'down_joined'
+        ntools.eq_(PathCombinator._join_shortcuts('up_seg', 'dw_seg', point,
+                                                  False), 'down_joined')
+        deepcopy.assert_has_calls([call('up_seg'), call('dw_seg')])
+        cross_over_path.assert_called_once_with()
+        join_up.assert_called_once_with('cross_over_path', 'up_seg_cpy',
+                                        OpaqueFieldType.NON_TDC_XOVR, 2)
+        join_down.assert_called_once_with('up_joined', 'dw_seg_cpy',
+                                          OpaqueFieldType.NON_TDC_XOVR, 5)
+
+    @patch("lib.packet.path.PathCombinator._join_down_segment_shortcuts",
+           spec_set=[], new_callable=MagicMock)
+    @patch("lib.packet.path.PathCombinator._join_shortcuts_peer",
+           spec_set=[], new_callable=MagicMock)
+    @patch("lib.packet.path.PathCombinator._join_up_segment_shortcuts",
+           spec_set=[], new_callable=MagicMock)
+    @patch("lib.packet.path.PeerPath", autospec=True)
+    @patch("lib.packet.path.copy.deepcopy", spec_set=[], new_callable=MagicMock)
+    def test_peer_intra(self, deepcopy, peer_path, join_up, join_peer,
+                        join_down):
+        up_seg_cpy = MagicMock(spec_set=['get_isd', 'ads'])
+        up_seg_cpy.get_isd.return_value = 123
+        up_seg_cpy.ads = ['up_ad' + str(i) for i in range(6)]
+        dw_seg_cpy = MagicMock(spec_set=['get_isd', 'ads'])
+        dw_seg_cpy.get_isd.return_value = 123
+        dw_seg_cpy.ads = ['dw_ad' + str(i) for i in range(6)]
+        deepcopy.side_effect = [up_seg_cpy, dw_seg_cpy]
+        point = (2, 5)
+        peer_path.return_value = 'peer_path'
+        join_up.return_value = 'up_joined'
+        join_peer.return_value = 'peer_joined'
+        join_down.return_value = 'down_joined'
+        ntools.eq_(PathCombinator._join_shortcuts('up_seg', 'dw_seg', point,
+                                                  True), 'down_joined')
+        peer_path.assert_called_once_with()
+        join_up.assert_called_once_with('peer_path', up_seg_cpy,
+                                        OpaqueFieldType.INTRATD_PEER, 2)
+        join_peer.assert_called_once_with('up_joined', up_seg_cpy.ads[2],
+                                          dw_seg_cpy.ads[5])
+        join_down.assert_called_once_with('peer_joined', dw_seg_cpy,
+                                          OpaqueFieldType.INTRATD_PEER, 5)
+
+    @patch("lib.packet.path.PathCombinator._join_down_segment_shortcuts",
+           spec_set=[], new_callable=MagicMock)
+    @patch("lib.packet.path.PathCombinator._join_shortcuts_peer",
+           spec_set=[], new_callable=MagicMock)
+    @patch("lib.packet.path.PathCombinator._join_up_segment_shortcuts",
+           spec_set=[], new_callable=MagicMock)
+    @patch("lib.packet.path.PeerPath", autospec=True)
+    @patch("lib.packet.path.copy.deepcopy", spec_set=[], new_callable=MagicMock)
+    def test_peer_inter(self, deepcopy, peer_path, join_up, join_peer,
+                        join_down):
+        up_seg_cpy = MagicMock(spec_set=['get_isd', 'ads'])
+        up_seg_cpy.get_isd.return_value = 123
+        up_seg_cpy.ads = ['up_ad' + str(i) for i in range(6)]
+        dw_seg_cpy = MagicMock(spec_set=['get_isd', 'ads'])
+        dw_seg_cpy.get_isd.return_value = 456
+        dw_seg_cpy.ads = ['dw_ad' + str(i) for i in range(6)]
+        deepcopy.side_effect = [up_seg_cpy, dw_seg_cpy]
+        point = (2, 5)
+        peer_path.return_value = 'peer_path'
+        join_peer.return_value = 'peer_joined'
+        join_down.return_value = 'down_joined'
+        ntools.eq_(PathCombinator._join_shortcuts('up_seg', 'dw_seg', point,
+                                                  True), 'down_joined')
+        join_up.assert_called_once_with('peer_path', up_seg_cpy,
+                                        OpaqueFieldType.INTERTD_PEER, 2)
+        join_down.assert_called_once_with('peer_joined', dw_seg_cpy,
+                                          OpaqueFieldType.INTERTD_PEER, 5)
 
 
 class TestPathCombinatorCheckConnected(object):
