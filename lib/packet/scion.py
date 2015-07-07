@@ -641,7 +641,7 @@ class CertChainRequest(SCIONPacket):
         """
         SCIONPacket.parse(self, raw)
         raw = self.payload
-        self.ingress_if = struct.unpack("!H", raw[:2])
+        (self.ingress_if, ) = struct.unpack("!H", raw[:2])
         raw = raw[2:]
         (self.src_isd, self.src_ad) = ISD_AD.from_raw(raw[:ISD_AD.LEN])
         raw = raw[ISD_AD.LEN:]
@@ -811,7 +811,7 @@ class TRCRequest(SCIONPacket):
         raw = raw[2:]
         (self.src_isd, self.src_ad) = ISD_AD.from_raw(raw[:ISD_AD.LEN])
         raw = raw[ISD_AD.LEN:]
-        self.isd_id = struct.unpack("!H", raw[:2])
+        (self.isd_id, ) = struct.unpack("!H", raw[:2])
         raw = raw[2:]
         (self.version, ) = struct.unpack("!I", raw[:4])
 

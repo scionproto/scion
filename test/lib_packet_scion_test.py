@@ -952,15 +952,14 @@ class TestCertChainRequestParse(object):
     @patch("lib.packet.scion.SCIONPacket.parse", autospec=True)
     def test(self, parse):
         req = CertChainRequest()
-        req._payload = bytes.fromhex('0102 0304 05060708090a0b0c 0d0e'
-                                     '0f10111213141516 1718191a')
+        req._payload = bytes.fromhex('0102 0bc0021d 021004c6 1718191a')
         req.parse('data')
         parse.assert_called_once_with(req, 'data')
         ntools.eq_(req.ingress_if, 0x0102)
-        ntools.eq_(req.src_isd, 0x0304)
-        ntools.eq_(req.src_ad, 0x05060708090a0b0c)
-        ntools.eq_(req.isd_id, 0x0d0e)
-        ntools.eq_(req.ad_id, 0x0f10111213141516)
+        ntools.eq_(req.src_isd, 188)
+        ntools.eq_(req.src_ad, 541)
+        ntools.eq_(req.isd_id, 33)
+        ntools.eq_(req.ad_id, 1222)
         ntools.eq_(req.version, 0x1718191a)
 
 
@@ -978,7 +977,7 @@ class TestCertChainRequestFromValues(object):
         scion_addr.return_value = 'dst'
         scion_hdr.return_value = 'hdr'
         (ingress_if, src_isd, src_ad, isd_id, ad_id, version) = \
-            (0x0102, 0x0304, 0x0506, 0x0708, 0x090a, 0x0b0c)
+            (0x0102, 1, 393232, 13, 985, 0x0b0c)
         req = CertChainRequest.from_values('req_type', 'src', ingress_if,
                                            src_isd, src_ad, isd_id, ad_id,
                                            version)
@@ -992,8 +991,7 @@ class TestCertChainRequestFromValues(object):
         ntools.eq_(req.isd_id, isd_id)
         ntools.eq_(req.ad_id, ad_id)
         ntools.eq_(req.version, version)
-        payload = bytes.fromhex('0102 0304 0000000000000506 0708 '
-                                '000000000000090a 00000b0c')
+        payload = bytes.fromhex('0102 00160010 00d003d9 00000b0c')
         set_payload.assert_called_once_with(req, payload)
 
 
@@ -1023,12 +1021,12 @@ class TestCertChainReplyParse(object):
     @patch("lib.packet.scion.SCIONPacket.parse", autospec=True)
     def test(self, parse):
         rep = CertChainReply()
-        rep._payload = bytes.fromhex('0102 05060708090a0b0c 1718191a') + \
+        rep._payload = bytes.fromhex('0bc0021d 1718191a') + \
             b'\x00' * 10
         rep.parse('data')
         parse.assert_called_once_with(rep, 'data')
-        ntools.eq_(rep.isd_id, 0x0102)
-        ntools.eq_(rep.ad_id, 0x05060708090a0b0c)
+        ntools.eq_(rep.isd_id, 188)
+        ntools.eq_(rep.ad_id, 541)
         ntools.eq_(rep.version, 0x1718191a)
         ntools.eq_(rep.cert_chain, b'\x00' * 10)
 
@@ -1046,7 +1044,7 @@ class TestCertChainReplyFromValues(object):
     def test(self, scion_addr, scion_hdr, set_hdr, set_payload):
         scion_addr.return_value = 'src'
         scion_hdr.return_value = 'hdr'
-        (isd_id, ad_id, version) = (0x0102, 0x0304, 0x0506)
+        (isd_id, ad_id, version) = (188, 541, 0x0506)
         rep = CertChainReply.from_values('dst', isd_id, ad_id, version,
                                          b'cert_chain')
         ntools.assert_is_instance(rep, CertChainReply)
@@ -1058,7 +1056,7 @@ class TestCertChainReplyFromValues(object):
         ntools.eq_(rep.ad_id, ad_id)
         ntools.eq_(rep.version, version)
         ntools.eq_(rep.cert_chain, b'cert_chain')
-        payload = bytes.fromhex('0102 0000000000000304 00000506') + \
+        payload = bytes.fromhex('0bc0021d 00000506') + \
             b'cert_chain'
         set_payload.assert_called_once_with(rep, payload)
 
@@ -1090,12 +1088,12 @@ class TestTRCRequestParse(object):
     @patch("lib.packet.scion.SCIONPacket.parse", autospec=True)
     def test(self, parse):
         req = TRCRequest()
-        req._payload = bytes.fromhex('0102 0304 0000000000000506 0708 0000090a')
+        req._payload = bytes.fromhex('0102 00160010 0708 0000090a')
         req.parse('data')
         parse.assert_called_once_with(req, 'data')
         ntools.eq_(req.ingress_if, 0x0102)
-        ntools.eq_(req.src_isd, 0x0304)
-        ntools.eq_(req.src_ad, 0x0000000000000506)
+        ntools.eq_(req.src_isd, 1)
+        ntools.eq_(req.src_ad, 393232)
         ntools.eq_(req.isd_id, 0x0708)
         ntools.eq_(req.version, 0x0000090a)
 
@@ -1114,7 +1112,7 @@ class TestTRCRequestFromValues(object):
         scion_addr.return_value = 'dst'
         scion_hdr.return_value = 'hdr'
         (ingress_if, src_isd, src_ad, isd_id, version) = \
-            (0x0102, 0x0304, 0x0506, 0x0708, 0x090a)
+            (0x0102, 1, 393232, 0x0708, 0x090a)
         req = TRCRequest.from_values('req_type', 'src', ingress_if, src_isd,
                                      src_ad, isd_id, version)
         ntools.assert_is_instance(req, TRCRequest)
@@ -1126,7 +1124,7 @@ class TestTRCRequestFromValues(object):
         ntools.eq_(req.src_ad, src_ad)
         ntools.eq_(req.isd_id, isd_id)
         ntools.eq_(req.version, version)
-        payload = bytes.fromhex('0102 0304 0000000000000506 0708 0000090a')
+        payload = bytes.fromhex('0102 00160010 0708 0000090a')
         set_payload.assert_called_once_with(req, payload)
 
 

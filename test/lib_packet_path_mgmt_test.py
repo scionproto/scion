@@ -67,14 +67,14 @@ class TestPathSegmentInfoParse(object):
     @patch("lib.packet.packet_base.PayloadBase.parse", autospec=True)
     def test_basic(self, parse):
         pth_seg_info = PathSegmentInfo()
-        data = bytes.fromhex('0e 2a0a 0b0c 0102030405060708 9192939495969798')
+        data = bytes.fromhex('0e 0bc0021d 021004c6')
         pth_seg_info.parse(data)
         parse.assert_called_once_with(pth_seg_info, data)
         ntools.eq_(pth_seg_info.type, 0xe)
-        ntools.eq_(pth_seg_info.src_isd, 0x2a0a)
-        ntools.eq_(pth_seg_info.dst_isd, 0x0b0c)
-        ntools.eq_(pth_seg_info.src_ad, 0x0102030405060708)
-        ntools.eq_(pth_seg_info.dst_ad, 0x9192939495969798)
+        ntools.eq_(pth_seg_info.src_isd, 188)
+        ntools.eq_(pth_seg_info.src_ad,  541)
+        ntools.eq_(pth_seg_info.dst_isd, 33)
+        ntools.eq_(pth_seg_info.dst_ad, 1222)
 
 
 class TestPathSegmentInfoPack(object):
@@ -84,13 +84,11 @@ class TestPathSegmentInfoPack(object):
     def test_basic(self):
         pth_seg_info = PathSegmentInfo()
         pth_seg_info.type = 0xe
-        pth_seg_info.src_isd = 0x2a0a
-        pth_seg_info.dst_isd = 0x0b0c
-        pth_seg_info.src_ad = 0x0102030405060708
-        pth_seg_info.dst_ad = 0x9192939495969798
-        ntools.eq_(pth_seg_info.pack(),
-                   bytes.fromhex('0e 2a0a 0b0c 0102030405060708'
-                                 '9192939495969798'))
+        pth_seg_info.src_isd = 188
+        pth_seg_info.src_ad = 541
+        pth_seg_info.dst_isd = 33
+        pth_seg_info.dst_ad = 1222
+        ntools.eq_(pth_seg_info.pack(), bytes.fromhex('0e 0bc0021d 021004c6'))
 
 
 class TestPathSegmentInfoFromValues(object):
@@ -203,13 +201,13 @@ class TestLeaseInfoParse(object):
     @patch("lib.packet.packet_base.PayloadBase.parse", autospec=True)
     def test_basic(self, parse):
         les_inf = LeaseInfo()
-        data = bytes.fromhex('0e 2a0a 0b0c 01020304') + \
+        data = bytes.fromhex('0e 021004c6 01020304') + \
             b"superlengthybigstringoflength32."
         les_inf.parse(data)
         parse.assert_called_once_with(les_inf, data)
         ntools.eq_(les_inf.seg_type, 0x0e)
-        ntools.eq_(les_inf.isd_id, 0x2a0a)
-        ntools.eq_(les_inf.ad_id, 0x0b0c)
+        ntools.eq_(les_inf.isd_id, 33)
+        ntools.eq_(les_inf.ad_id, 1222)
         ntools.eq_(les_inf.exp_time, 0x01020304)
         ntools.eq_(les_inf.seg_id, b"superlengthybigstringoflength32.")
 
@@ -234,11 +232,11 @@ class TestLeaseInfoPack(object):
     def test_basic(self):
         les_inf = LeaseInfo()
         les_inf.seg_type = 0x0e
-        les_inf.isd_id = 0x2a0a
-        les_inf.ad_id = 0x0b0c
+        les_inf.isd_id = 33
+        les_inf.ad_id = 1222
         les_inf.exp_time = 0x01020304
         les_inf.seg_id = b"superlengthybigstringoflength32."
-        data = bytes.fromhex('0e 2a0a 0b0c 01020304') + \
+        data = bytes.fromhex('0e 021004c6 01020304') + \
             b"superlengthybigstringoflength32."
         ntools.eq_(les_inf.pack(), data)
 
