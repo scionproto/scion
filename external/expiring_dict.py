@@ -10,12 +10,12 @@ The values stored in the following way:
 }
 NOTE: iteration over dict and also keys() do not remove expired values!
 '''
-# SCION
-from lib.util import SCIONTime
-
-# External
+# Stdlib
 from collections import OrderedDict
 from threading import RLock
+
+# SCION
+from lib.util import SCIONTime
 
 
 class ExpiringDict(OrderedDict):
