@@ -340,8 +340,8 @@ class ConfigGenerator():
         file_path = os.path.join(self.out_dir, SIM_DIR, 'run.sh')
         with open(file_path, 'w') as fh:
             fh.write('#!/bin/bash\n\n')
-            fh.write('sh -c "PYTHONPATH=../ python3 sim_test.py ../'
-                     'SIM/sim.conf 100."\n')
+            fh.write('sh -c "PYTHONPATH=../ python3 sim_test.py'
+                     '../SIM/sim.conf 100."\n')
 
     def write_topo_files(self, ad_configs, er_ip_addresses):
         """

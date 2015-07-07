@@ -22,6 +22,7 @@ import sys
 
 # SCION
 from lib.defines import TOPOLOGY_PATH
+from lib.util import SCIONTime
 
 SIM_DIR = 'SIM'
 SIM_CONF = 'sim.conf'
@@ -110,6 +111,7 @@ def init_simulator():
 
     global simulator
     simulator = Simulator()
+    SCIONTime.set_time_method(get_sim_time)
     read_sim_file()
 
 
@@ -131,7 +133,7 @@ def init_elements(data):
     """
     Initialize all infrastructure in simulator mode
 
-    :param data: Simulator conf file data 
+    :param data: Simulator conf file data
     :type data: str
     """
     from simulator.infrastructure.beacon_server_sim import (

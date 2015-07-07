@@ -31,9 +31,6 @@ from external.stacktracer import trace_start
 # SCION
 from lib.defines import TOPOLOGY_PATH
 
-# SCION Simulator
-from simulator.simulator import get_sim_time
-
 CERT_DIR = 'certificates'
 SIG_KEYS_DIR = 'signature_keys'
 ENC_KEYS_DIR = 'encryption_keys'
@@ -270,15 +267,18 @@ def _signal_handler(signum, _):
 
 class SCIONTime(object):
 
-    # While running the simulator, this is set to True
-    is_sim = False
-
-    @staticmethod
-    def get_time():
+    _custom_time = None
+    
+    @classmethod
+    def get_time(cls):
         """
         Get current time
         """
-        if SCIONTime.is_sim:
-            return get_sim_time()
+        if cls._custom_time:
+            return cls._custom_time()
         else:
             return time.time()
+
+    @classmethod
+    def set_time_method(cls, method=None):
+        cls._custom_time = method

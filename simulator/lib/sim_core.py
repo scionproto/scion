@@ -89,7 +89,6 @@ class Simulator(object):
         self.event_id = count()
         # list of removed (not expired or executed) events
         self.removed = []
-        SCIONTime.is_sim = True
 
     def add_element(self, addr, element):
         """
