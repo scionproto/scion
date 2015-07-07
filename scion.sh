@@ -68,6 +68,10 @@ cmd_coverage(){
     echo "Coverage report here: file://$PWD/htmlcov/index.html"
 }
 
+cmd_lint() {
+    flake8 --config flake8.ini "${@:-.}" | sort -t: -k1,1 -k2n,2 -k3n,3
+}
+
 cmd_version() {
 	cat <<-_EOF
 	============================================
@@ -113,7 +117,7 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    clean|coverage|help|init|run|setup|start|stop|test|topology|version)
+    clean|coverage|help|init|lint|run|setup|start|stop|test|topology|version)
         "cmd_$COMMAND" "$@" ;;
     *)  cmd_help ;;
 esac

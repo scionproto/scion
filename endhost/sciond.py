@@ -97,7 +97,7 @@ class SCIONDaemon(SCIONElement):
         Example of usage:
         sd = SCIONDaemon.start(addr, topo_file)
         paths = sd.get_paths(isd_id, ad_id)
-        
+
         :param :
         :type :
         :param :

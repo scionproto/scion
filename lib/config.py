@@ -92,7 +92,7 @@ class Config(object):
 
         :param config_dict: dictionary representation of configuration
         :type config_dict: dict
-        
+
         :returns: the newly created Config instance
         :rtype: :class:`Config`
         """

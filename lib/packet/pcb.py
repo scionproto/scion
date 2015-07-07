@@ -157,8 +157,9 @@ class ADMarking(Marking):
     """
     Packs all fields for a specific Autonomous Domain.
     """
-    METADATA_LEN = 8  # Length of a first row (containg cert version, and
-                      # lenghts of signature, ASD, and block) of ADMarking
+    # Length of a first row (containg cert version, and lenghts of signature,
+    # ASD, and block) of ADMarking
+    METADATA_LEN = 8
 
     def __init__(self, raw=None):
         """

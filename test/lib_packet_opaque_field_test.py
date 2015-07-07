@@ -26,7 +26,6 @@ import nose.tools as ntools
 from lib.packet.opaque_field import (
     HopOpaqueField,
     InfoOpaqueField,
-    OpaqueFieldType,
     OpaqueField,
 )
 

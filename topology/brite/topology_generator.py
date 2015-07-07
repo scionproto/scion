@@ -57,6 +57,7 @@ def read_from_dir(dir_name):
     print("Files being converted are: \n{}\n".format(list_files))
     return list_files
 
+
 def gen_base_isd_graph(isd_list, degree):
     """
     Generate an ISD graph with each vertex having specified degree
@@ -99,6 +100,7 @@ def gen_base_isd_graph(isd_list, degree):
         curr_num_edges += 2
     return isd_graph
 
+
 def add_random_edges(isd_graph, core_ad_dict, max_degree):
     """
     Add edges to selected ISD's to make them denser(Internet-like)
@@ -123,9 +125,10 @@ def add_random_edges(isd_graph, core_ad_dict, max_degree):
         isd_graph.add_edge(isd, neighbor_isd)
         # Break if one of the nodes has reached max_degree
         if (isd_graph.degree(isd) >= max_degree or
-            isd_graph.degree(neighbor_isd) >= max_degree):
+                isd_graph.degree(neighbor_isd) >= max_degree):
             break
     return isd_graph
+
 
 def graph_to_dot(graph, dot_output_file):
     """
@@ -137,12 +140,13 @@ def graph_to_dot(graph, dot_output_file):
     :type dot_output_file: str
     """
     try:
-        from networkx import pygraphviz
+        from networkx import pygraphviz   # noqa
     except ImportError:
         raise ImportError('Pygraphviz is not available for python3.' +
-                           'Install it for python2 instead')
+                          'Install it for python2 instead')
     print("Generating the dot file: {}".format(dot_output_file))
     nx.write_dot(graph, dot_output_file)
+
 
 def parse(brite_files, dot_output_file, min_degree, max_degree):
     """
@@ -201,9 +205,10 @@ def parse(brite_files, dot_output_file, min_degree, max_degree):
                 new_routing_edges += 2
     print("{} inter-ISD routing edges added".format(new_routing_edges))
     assert nx.is_connected(final_graph.to_undirected())
-    if dot_output_file != None:
+    if dot_output_file is not None:
         graph_to_dot(final_graph, dot_output_file)
     return final_graph
+
 
 def read_topo_file(topo_file, ISD_NUM):
     """
@@ -244,6 +249,7 @@ def read_topo_file(topo_file, ISD_NUM):
             edges_count = int(values[2])
     return (original_graph, num_outedges)
 
+
 def _parse(topo_file, ISD_NUM):
     """
     Parse a topo_file into a SCION ISD numbered - ISD_NUM
@@ -264,9 +270,9 @@ def _parse(topo_file, ISD_NUM):
 
     # Ensuring that core ad graph is connected
     if not nx.is_connected(core_ad_graph):
-        # If not connected, the new core ad graph is formed from 
-        # the largest connected component. Nodes are added to it from its 
-        # neighbors to make size of core_ad_graph = NUM_CORE_ADS
+        # If not connected, the new core ad graph is formed from the largest
+        # connected component. Nodes are added to it from its neighbors to make
+        # size of core_ad_graph = NUM_CORE_ADS
         graphs = list(nx.connected_component_subgraphs(core_ad_graph))
         graphs = sorted(graphs, key=lambda graph: len(graph.nodes()),
                         reverse=True)
@@ -274,7 +280,8 @@ def _parse(topo_file, ISD_NUM):
         core_ads = core_ad_graph.nodes()
         num_extra_nodes = NUM_CORE_ADS - len(core_ads)
         neighbor_nodes = set()
-        for neighbor in [original_graph.neighbors(node) for node in core_ad_graph]:
+        for neighbor in [original_graph.neighbors(node)
+                         for node in core_ad_graph]:
             for node in neighbor:
                 if node not in core_ad_graph.nodes():
                     neighbor_nodes.add(node)
@@ -309,7 +316,7 @@ def _parse(topo_file, ISD_NUM):
         for neighbor in original_graph.neighbors(node):
             if neighbor in core_ads:
                 continue
-            elif visited.get(neighbor) == None:
+            elif visited.get(neighbor) is None:
                 final_graph.add_node(neighbor, is_core=False)
                 final_graph.add_edge(node, neighbor, label='CHILD',
                                      color='green')
@@ -338,6 +345,7 @@ def _parse(topo_file, ISD_NUM):
     print("Core AD's are:")
     print(core_ad_graph.nodes())
     return final_graph, core_ad_graph.nodes()
+
 
 def json_convert(graph):
     """
@@ -371,11 +379,12 @@ def json_convert(graph):
             if links[isd_ad_id_neighbor] == "PARENT":
                 cert_issuer = isd_ad_id_neighbor
         topo_dict[isd_ad_id]["links"] = links
-        if cert_issuer != None:
+        if cert_issuer is not None:
             topo_dict[isd_ad_id]["cert_issuer"] = cert_issuer
 
     with open(DEFAULT_ADCONFIGURATIONS_FILE, 'w') as topo_fh:
         json.dump(topo_dict, topo_fh, sort_keys=True, indent=4)
+
 
 def main():
     """
@@ -412,11 +421,11 @@ def main():
     results = parser.parse_args()
     if not (results.from_directory or results.collection):
         parser.error('No files provided. Add -d or -f as argument')
-    if results.from_directory != None:
+    if results.from_directory is not None:
         brite_files = read_from_dir(results.from_directory)
     else:
         brite_files = results.collection
-    scion_graph = parse(brite_files, results.dot_output_file, \
+    scion_graph = parse(brite_files, results.dot_output_file,
                         int(results.degree[0]), int(results.degree[1]))
     json_convert(scion_graph)
 

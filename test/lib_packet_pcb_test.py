@@ -321,7 +321,7 @@ class TestADMarkingParsePeers(object):
     def test(self, pcb_marking, rev_token_len):
         ad_marking = ADMarking()
         pcb_marking.LEN = 1
-        rev_token_len = 0
+        rev_token_len = 0   # noqa
         data = b'abcd'
         pcb_marking.side_effect = ['data' + str(i) for i in range(4)]
         offset = ad_marking._parse_peers(data)

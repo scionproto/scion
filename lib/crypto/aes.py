@@ -10,7 +10,8 @@
 #
 # Licensed under the Apache License, Version 2.0
 # http://www.apache.org/licenses/
-#
+
+# flake8: noqa
 import os
 import sys
 import math
