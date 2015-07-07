@@ -73,7 +73,7 @@ class HashChain(object):
             next_ele = self._hash_func.new(prev_ele).digest()
             self.entries.append(next_ele)
             prev_ele = next_ele
-            
+
         # Initialize to first element.
         self._next_ele_ptr = self._length - 2
 
@@ -93,12 +93,12 @@ class HashChain(object):
         if self._next_ele_ptr < 0:
             return None
         return self.entries[self._next_ele_ptr]
-    
+
     def move_to_next_element(self):
         """
         Adjusts the internal pointer s.t. current_element() returns the next
         element.
-        
+
         :raises:
             HashChainExhausted: if there are no more elements in the chain
         """

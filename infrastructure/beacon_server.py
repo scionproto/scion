@@ -110,7 +110,7 @@ class InterfaceState(object):
     def update(self):
         """
         Updates the state of the object.
-        
+
         :returns: The previous state
         :rtype: int
         """
@@ -121,7 +121,7 @@ class InterfaceState(object):
                 self.active_since = curr_time
                 self._state = self.ACTIVE
             self.last_updated = curr_time
-            
+
             return prev_state
 
     def revoke_if_expired(self):
@@ -153,6 +153,7 @@ class InterfaceState(object):
 
     def is_revoked(self):
         return self._state == self.REVOKED
+
 
 class BeaconServer(SCIONElement):
     """
@@ -262,7 +263,6 @@ class BeaconServer(SCIONElement):
 
         return self.seg2rev_tokens[id_].current_element()
 
-
     def propagate_downstream_pcb(self, pcb):
         """
         Propagates the beacon to all children.
@@ -370,18 +370,18 @@ class BeaconServer(SCIONElement):
 
         return ADMarking.from_values(pcbm, peer_markings,
                                      self._get_if_rev_token(egress_if))
-    
+
     def _terminate_pcb(self, pcb):
         """
         Copies a PCB, terminates it and adds the segment ID.
-        
+
         Terminating a PCB means adding a opaque field with the egress IF set
         to 0, i.e., there is no AD to forward a packet containing this path
         segment to.
-        
+
         :param pcb: The PCB to terminate.
         :type pcb: PathSegment
-        
+
         :returns: Terminated PCB
         :rtype: PathSegment
         """
@@ -391,7 +391,7 @@ class BeaconServer(SCIONElement):
                                            pcb.get_last_pcbm().hof)
         pcb.add_ad(last_hop)
         pcb.segment_id = self._get_segment_rev_token(pcb)
-        
+
         return pcb
 
     def handle_ifid_packet(self, ipkt):
@@ -781,8 +781,9 @@ class BeaconServer(SCIONElement):
                     # Issue revocation
                     assert if_id in self.if2rev_tokens
                     chain = self.if2rev_tokens[if_id]
-                    rev_info = RevocationInfo.from_values(RT.INTERFACE,
-                        chain.current_element(), chain.next_element())
+                    rev_info = RevocationInfo.from_values(
+                        RT.INTERFACE, chain.current_element(),
+                        chain.next_element())
                     self._process_revocation(rev_info, if_id)
                     # Advance the hash chain for the corresponding IF.
                     try:
@@ -1018,8 +1019,8 @@ class CoreBeaconServer(BeaconServer):
         count = 0
         for pcb in core_segments:
             pcb = self._terminate_pcb(pcb)
-            assert pcb.segment_id != 32 * b"\x00", ("Trying to register a" +
-                   " segment with ID 0:\n%s" % pcb)
+            assert pcb.segment_id != 32 * b"\x00", \
+                "Trying to register a segment with ID 0:\n%s" % pcb
             # TODO(psz): sign here? discuss
             self.register_core_segment(pcb)
             count += 1
@@ -1234,7 +1235,7 @@ class LocalBeaconServer(BeaconServer):
             logging.error("No up path available to send out revocation.")
             return
         up_segment = self.up_segments.get_best_segments()[0]
-        
+
         # Add first hop opaque field.
         up_segment = self._terminate_pcb(up_segment)
         assert up_segment.segment_id != rev_info.seg_id

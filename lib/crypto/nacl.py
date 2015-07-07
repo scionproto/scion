@@ -15,7 +15,7 @@
 :mod:`nacl` --- NaCl library loader
 ===================================
 """
-#Stdlib
+# Stdlib
 import sys
 import os
 
@@ -28,8 +28,8 @@ _LIB_FILE_PATH = os.path.join(_LIB_DIR, 'tweetnacl.so')
 
 if os.path.exists(_LIB_FILE_PATH):
     sys.path.insert(0, _LIB_DIR)
-    from tweetnacl import *
-    from tweetnacl import _randreplace, _fromhex
+    from tweetnacl import *   # noqa
+    from tweetnacl import _randreplace, _fromhex   # noqa
 else:
-    print ('Shared library file does not exist in path ' + _LIB_FILE_PATH +
-           '. Please run ./scion.sh init to build crypto library.')
+    print('Shared library file does not exist in path ' + _LIB_FILE_PATH +
+          '. Please run ./scion.sh init to build crypto library.')
