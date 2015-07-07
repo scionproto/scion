@@ -1058,6 +1058,38 @@ class TestPathCombinatorBuildCorePath(object):
         join_down.assert_called_once_with('core_join', self.down_seg)
 
 
+class TestPathCombinatorGetXovrsPeers(object):
+    """
+    Unit tests for lib.packet.path.PathCombinator._get_xovrs_peers
+    """
+    def test(self):
+        up_seg = MagicMock(spec_set=['ads'])
+        down_seg = MagicMock(spec_set=['ads'])
+        up_seg.ads = [MagicMock(spec_set=['pcbm', 'pms']) for i in range(5)]
+        down_seg.ads = [MagicMock(spec_set=['pcbm', 'pms']) for i in range(7)]
+        for up_ad in up_seg.ads:
+            up_ad.pcbm = MagicMock(spec_set=['ad_id'])
+        for down_ad in down_seg.ads:
+            down_ad.pcbm = MagicMock(spec_set=['ad_id'])
+        # for xovrs
+        up_seg.ads[1].pcbm.ad_id = down_seg.ads[6].pcbm.ad_id = 1
+        up_seg.ads[3].pcbm.ad_id = down_seg.ads[2].pcbm.ad_id = 3
+
+        # for peers
+        up_seg.ads[2].pms = [MagicMock(spec_set=['ad_id']) for i in range(3)]
+        up_seg.ads[4].pms = [MagicMock(spec_set=['ad_id']) for i in range(2)]
+        down_seg.ads[5].pms = [MagicMock(spec_set=['ad_id']) for i in range(3)]
+        down_seg.ads[1].pms = [MagicMock(spec_set=['ad_id']) for i in range(4)]
+        up_seg.ads[2].pms[1].ad_id = down_seg.ads[5].pcbm.ad_id = 4
+        down_seg.ads[5].pms[2].ad_id = up_seg.ads[2].pcbm.ad_id = 5
+        up_seg.ads[4].pms[0].ad_id = down_seg.ads[1].pcbm.ad_id = 6
+        down_seg.ads[1].pms[1].ad_id = up_seg.ads[4].pcbm.ad_id = 7
+
+        xovrs, peers = PathCombinator._get_xovrs_peers(up_seg, down_seg)
+        ntools.eq_(xovrs, [(3, 2), (1, 6)])
+        ntools.eq_(peers, [(4, 1), (2, 5)])
+
+
 class TestPathCombinatorCheckConnected(object):
     """
     Unit tests for lib.packet.path.PathCombinator._check_connected
