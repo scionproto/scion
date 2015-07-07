@@ -20,7 +20,9 @@ import logging
 import os
 import sys
 
-SCRIPTS_DIR = 'topology'
+# SCION
+from lib.defines import TOPOLOGY_PATH
+
 SIM_DIR = 'SIM'
 SIM_CONF = 'sim.conf'
 
@@ -100,9 +102,37 @@ def get_sim_time():
     return simulator.get_curr_time()
 
 
-def generate_topology():
+def init_simulator():
     """
-    Instantiate all SCION Elements from sim.conf file
+    Initializes the global simulator and creates all the infrastructure
+    """
+    from simulator.lib.sim_core import Simulator
+
+    global simulator
+    simulator = Simulator()
+    read_sim_file()
+
+
+def read_sim_file():
+    """
+    Read sim.conf file
+    """
+    sim_conf_file = os.path.join(TOPOLOGY_PATH, SIM_DIR, SIM_CONF)
+    if not os.path.isfile(sim_conf_file):
+        logging.error(sim_conf_file + " file missing.")
+        sys.exit()
+    with open(sim_conf_file) as f:
+        content = f.read().splitlines()
+        f.close()
+    init_elements(content)
+
+
+def init_elements(data):
+    """
+    Initialize all infrastructure in simulator mode
+
+    :param data: Simulator conf file data 
+    :type data: str
     """
     from simulator.infrastructure.beacon_server_sim import (
         CoreBeaconServerSim,
@@ -114,19 +144,8 @@ def generate_topology():
         LocalPathServerSim
     )
     from simulator.infrastructure.router_sim import RouterSim
-    from simulator.lib.sim_core import Simulator
-
-    global simulator
-    simulator = Simulator()
-    try:
-        sim_conf_file_rel = os.path.join("..", SCRIPTS_DIR, SIM_DIR, SIM_CONF)
-        with open(sim_conf_file_rel) as f:
-            content = f.read().splitlines()
-            f.close()
-    except IOError:
-        logging.error("Failed to open ../topology/SIM/sim.conf")
-        sys.exit()
-    for line in content:
+    
+    for line in data:
         items = line.split()
         if items[0] == "router":
             RouterSim(items[1], items[2], items[3])

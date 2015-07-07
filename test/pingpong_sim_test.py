@@ -27,7 +27,7 @@ from lib.packet.scion_addr import ISD_AD
 # SCION Simulator
 from simulator.application.sim_ping_pong import SimPingApp, SimPongApp
 from simulator.endhost.sim_host import SCIONSimHost
-from simulator.simulator import generate_topology, run
+from simulator.simulator import init_simulator, run
 
 
 class PingPongSimTest(unittest.TestCase):
@@ -43,7 +43,7 @@ class PingPongSimTest(unittest.TestCase):
         Creates two end-hosts---Sender is 127.1.10.254 in ISD:1 AD:10,
         and Receiver is 127.2.26.254 in ISD:2 AD:26
         """
-        generate_topology()
+        init_simulator()
         src_isd_ad = ISD_AD(1,10)
         dst_isd_ad = ISD_AD(2,26)
         src_host_addr = IPv4Address("127.1.10.254")
