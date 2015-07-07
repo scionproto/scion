@@ -63,7 +63,7 @@ class PathSegmentInfo(PayloadBase):
     """
     PathSegmentInfo class used in sending path requests/replies.
     """
-    LEN = 21
+    LEN = 1 + 2 * ISD_AD.LEN
 
     def __init__(self, raw=None):
         """
@@ -86,15 +86,19 @@ class PathSegmentInfo(PayloadBase):
         Populates fields from a raw bytes block.
         """
         PayloadBase.parse(self, raw)
-        (self.type, self.src_isd, self.dst_isd, self.src_ad, self.dst_ad) = \
-            struct.unpack("!BHHQQ", raw)
+        self.type = raw[0]
+        raw = raw[1:]
+        (self.src_isd, self.src_ad) = ISD_AD.from_raw(raw[:ISD_AD.LEN])
+        raw = raw[ISD_AD.LEN:]
+        (self.dst_isd, self.dst_ad) = ISD_AD.from_raw(raw[:ISD_AD.LEN])
 
     def pack(self):
         """
         Returns PathSegmentInfo as a binary string.
         """
-        return struct.pack("!BHHQQ", self.type, self.src_isd, 
-                           self.dst_isd, self.src_ad, self.dst_ad)
+        return (struct.pack("B", self.type) +
+                ISD_AD(self.src_isd, self.src_ad).pack() +
+                ISD_AD(self.dst_isd, self.dst_ad).pack())
 
     @classmethod
     def from_values(cls, pckt_type, src_isd, dst_isd, src_ad, dst_ad):
@@ -163,7 +167,7 @@ class LeaseInfo(PayloadBase):
     """
     Class containing necessary information for a path-segment lease.
     """
-    LEN = 1 + 2 + 2 + 4 + 32
+    LEN = 1 + ISD_AD.LEN + 4 + 32
 
     def __init__(self, raw=None):
         """
@@ -187,12 +191,16 @@ class LeaseInfo(PayloadBase):
         if len(raw) < LeaseInfo.LEN:
             logging.error("Not enough data to parse LeaseInfo")
             return
-        (self.seg_type, self.isd_id, self.ad_id, self.exp_time,
-         self.seg_id) = struct.unpack("!BHHL32s", raw)
+        self.seg_type = raw[0]
+        raw = raw[1:]
+        (self.isd_id, self.ad_id) = ISD_AD.from_raw(raw[:ISD_AD.LEN])
+        raw = raw[ISD_AD.LEN:]
+        (self.exp_time, self.seg_id) = struct.unpack("!L32s", raw)
 
     def pack(self):
-        return struct.pack("!BHHL32s", self.seg_type, self.isd_id, self.ad_id,
-                           self.exp_time, self.seg_id)
+        return (struct.pack("!B", self.seg_type) +
+                ISD_AD(self.isd_id, self.ad_id).pack() +
+                struct.pack("!L32s", self.exp_time, self.seg_id))
 
     @classmethod
     def from_values(cls, seg_type, isd_id, ad_id, exp_time, seg_id):
