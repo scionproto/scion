@@ -258,7 +258,7 @@ class ConfigGenerator():
 
         :param ad_configs: the configurations of all SCION ADs.
         :type ad_configs: dict
-        
+
         :returns: the signature and encryption keys.
         :rtype: dict
         """

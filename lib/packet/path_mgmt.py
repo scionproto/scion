@@ -93,7 +93,7 @@ class PathSegmentInfo(PayloadBase):
         """
         Returns PathSegmentInfo as a binary string.
         """
-        return struct.pack("!BHHQQ", self.type, self.src_isd, 
+        return struct.pack("!BHHQQ", self.type, self.src_isd,
                            self.dst_isd, self.src_ad, self.dst_ad)
 
     @classmethod

@@ -132,7 +132,6 @@ class PathSegmentDB(object):
 
     def __contains__(self, seg_id):
         """
-        
 
         :param seg_id:
         :type seg_id:

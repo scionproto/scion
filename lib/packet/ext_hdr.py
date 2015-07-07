@@ -145,7 +145,7 @@ class ICNExtHdr(ExtensionHeader):
         :rtype:
         """
         # reserved field is stored in 2 parts - 32 + 8 bits
-        return struct.pack("!BBBIB", self.next_ext, self.hdr_len, 
+        return struct.pack("!BBBIB", self.next_ext, self.hdr_len,
                            self.fwd_flag, 0, 0)
 
     def __len__(self):

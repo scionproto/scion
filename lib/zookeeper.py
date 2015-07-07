@@ -100,8 +100,8 @@ class Zookeeper(object):
         logger = logging.getLogger("KazooClient")
         logger.setLevel(logging.ERROR)
         # (For low-level kazoo debugging):
-        #import kazoo.loggingsupport
-        #logger.setLevel(kazoo.loggingsupport.BLATHER)
+        # import kazoo.loggingsupport
+        # logger.setLevel(kazoo.loggingsupport.BLATHER)
 
         self._prefix = "/ISD%d-AD%d/%s" % (self._isd_id,
                                            self._ad_id,

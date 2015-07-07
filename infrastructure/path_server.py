@@ -371,8 +371,8 @@ class CorePathServer(PathServer):
             return
         paths_to_propagate = []
         for pcb in records.pcbs:
-            assert pcb.segment_id != 32 * b"\x00", ("Trying to register a" +
-                   " segment with ID 0:\n%s" % pcb)
+            assert pcb.segment_id != 32 * b"\x00", \
+                "Trying to register a segment with ID 0:\n%s" % pcb
             src_isd = pcb.get_first_pcbm().isd_id
             src_ad = pcb.get_first_pcbm().ad_id
             dst_ad = pcb.get_last_pcbm().ad_id
@@ -413,8 +413,8 @@ class CorePathServer(PathServer):
         if not records.pcbs:
             return
         for pcb in records.pcbs:
-            assert pcb.segment_id != 32 * b"\x00", ("Trying to register a" +
-                   " segment with ID 0:\n%s" % pcb)
+            assert pcb.segment_id != 32 * b"\x00", \
+                "Trying to register a segment with ID 0:\n%s" % pcb
             src_ad = pcb.get_first_pcbm().ad_id
             src_isd = pcb.get_first_pcbm().isd_id
             dst_ad = pcb.get_last_pcbm().ad_id
@@ -597,7 +597,7 @@ class CorePathServer(PathServer):
             else:
                 logging.warning("Received unknown type of revocation.")
                 continue
-            
+
         # Propagate revocation to other CPSes.
         prop_pkt = PathMgmtPacket.from_values(PMT.REVOCATIONS, pkt.payload,
                                               None, self.addr, ISD_AD(0, 0))
@@ -618,7 +618,7 @@ class CorePathServer(PathServer):
                 logging.debug("Sending segment revocations to leaser (%d, %d)",
                               dst_isd, dst_ad)
                 self.send(rev_pkt, dst, dst_port)
-                
+
     def _handle_segment_revocation(self, rev_info, leaser_revocations):
         """
         Handles a segment revocation.
@@ -776,8 +776,8 @@ class LocalPathServer(PathServer):
         if not records.pcbs:
             return
         for pcb in records.pcbs:
-            assert pcb.segment_id != 32 * b"\x00", ("Trying to register a" +
-                   " segment with ID 0:\n%s" % pcb)
+            assert pcb.segment_id != 32 * b"\x00", \
+                "Trying to register a segment with ID 0:\n%s" % pcb
             res = self.up_segments.update(pcb, self.topology.isd_id,
                                           self.topology.ad_id,
                                           pcb.get_first_pcbm().isd_id,
@@ -820,8 +820,8 @@ class LocalPathServer(PathServer):
             return
         leases = []
         for pcb in records.pcbs:
-            assert pcb.segment_id != 32 * b"\x00", ("Trying to register a" +
-                   " segment with ID 0:\n%s" % pcb)
+            assert pcb.segment_id != 32 * b"\x00", \
+                "Trying to register a segment with ID 0:\n%s" % pcb
             src_isd = pcb.get_first_pcbm().isd_id
             src_ad = pcb.get_first_pcbm().ad_id
             dst_ad = pcb.get_last_pcbm().ad_id
@@ -865,8 +865,8 @@ class LocalPathServer(PathServer):
             return
         leases = []
         for pcb in records.pcbs:
-            assert pcb.segment_id != 32 * b"\x00", ("Trying to register a" +
-                   " segment with ID 0:\n%s" % pcb)
+            assert pcb.segment_id != 32 * b"\x00", \
+                "Trying to register a segment with ID 0:\n%s" % pcb
             # Core segments have down-path direction.
             src_ad = pcb.get_last_pcbm().ad_id
             src_isd = pcb.get_last_pcbm().isd_id
@@ -930,7 +930,7 @@ class LocalPathServer(PathServer):
                 self._handle_if_or_hop_revocation(rev_info)
             else:
                 logging.info("Local PS received unknown revocation type.")
-                
+
     def _handle_segment_revocation(self, rev_info):
         """
         Handles a segment revocation.
@@ -977,7 +977,7 @@ class LocalPathServer(PathServer):
             self.up_segments.delete(sid)
             self.down_segments.delete(sid)
             self.core_segments.delete(sid)
-            
+
         del self.iftoken2seg[rev_info.rev_token1]
 
     def _request_paths_from_core(self, ptype, dst_isd, dst_ad,
