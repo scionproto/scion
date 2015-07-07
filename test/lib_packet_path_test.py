@@ -1090,6 +1090,14 @@ class TestPathCombinatorGetXovrsPeers(object):
         ntools.eq_(peers, [(4, 1), (2, 5)])
 
 
+class TestPathCombinatorJoinShortcuts(object):
+    """
+    Unit tests for lib.packet.path.PathCombinator._join_shortcuts
+    """
+    def test(self):
+        pass
+
+
 class TestPathCombinatorCheckConnected(object):
     """
     Unit tests for lib.packet.path.PathCombinator._check_connected
@@ -1147,6 +1155,170 @@ class TestPathCombinatorCheckConnected(object):
         self.down_seg.get_first_pcbm.return_value.ad_id = 123
         ntools.assert_true(PathCombinator._check_connected(self.up_seg,
                                                            None, self.down_seg))
+
+
+class TestPathCombinatorJoinUpSegment(object):
+    """
+    Unit tests for lib.packet.path.PathCombinator._join_up_segment
+    """
+    @patch("lib.packet.path.copy.deepcopy", spec_set=[], new_callable=MagicMock)
+    def test(self, deepcopy):
+        path = MagicMock(spec_set=['up_segment_info', 'up_segment_hops'])
+        path.up_segment_hops = [5, 6]
+        up_segment = MagicMock(spec_set=['iof', 'ads'])
+        up_segment.iof = MagicMock(spec_set=['up_flag'])
+        up_segment.ads = [MagicMock(spec_set=['pcbm']) for i in range(3)]
+        for i, block in enumerate(up_segment.ads):
+            block.pcbm = MagicMock(spec_set=['hof'])
+            block.pcbm.hof = i
+        last_hop = MagicMock(spec_set=['info'])
+        deepcopy.side_effect = ['1', '2', last_hop]
+        path_ = PathCombinator._join_up_segment(path, up_segment)
+        ntools.eq_(path_.up_segment_info, up_segment.iof)
+        ntools.assert_true(path_.up_segment_info.up_flag)
+        ntools.eq_(path_.up_segment_hops, [5, 6, '1', '2', last_hop])
+        deepcopy.assert_has_calls([call(2), call(1), call(0)])
+        ntools.eq_(path_.up_segment_hops[-1].info, OpaqueFieldType.LAST_OF)
+
+
+class TestPathCombinatorJoinCoreSegment(object):
+    """
+    Unit tests for lib.packet.path.PathCombinator._join_core_segment
+    """
+    def test_none(self):
+        ntools.eq_(PathCombinator._join_core_segment('path', None), 'path')
+
+    @patch("lib.packet.path.copy.deepcopy", spec_set=[], new_callable=MagicMock)
+    def test(self, deepcopy):
+        path = MagicMock(spec_set=['core_segment_info', 'core_segment_hops'])
+        first_hop = MagicMock(spec_set=['info'])
+        path.core_segment_hops = [first_hop, 6]
+        core_segment = MagicMock(spec_set=['iof', 'ads'])
+        core_segment.iof = MagicMock(spec_set=['up_flag'])
+        core_segment.ads = [MagicMock(spec_set=['pcbm']) for i in range(3)]
+        for i, block in enumerate(core_segment.ads):
+            block.pcbm = MagicMock(spec_set=['hof'])
+            block.pcbm.hof = i
+        last_hop = MagicMock(spec_set=['info'])
+        deepcopy.side_effect = ['1', '2', last_hop]
+        path_ = PathCombinator._join_core_segment(path, core_segment)
+        ntools.eq_(path_.core_segment_info, core_segment.iof)
+        ntools.assert_true(path_.core_segment_info.up_flag)
+        ntools.eq_(path_.core_segment_hops, [first_hop, 6, '1', '2', last_hop])
+        deepcopy.assert_has_calls([call(2), call(1), call(0)])
+        ntools.eq_(path_.core_segment_hops[-1].info, OpaqueFieldType.LAST_OF)
+        ntools.eq_(path_.core_segment_hops[0].info, OpaqueFieldType.LAST_OF)
+
+
+class TestPathCombinatorJoinDownSegment(object):
+    """
+    Unit tests for lib.packet.path.PathCombinator._join_down_segment
+    """
+    @patch("lib.packet.path.copy.deepcopy", spec_set=[], new_callable=MagicMock)
+    def test(self, deepcopy):
+        path = MagicMock(spec_set=['down_segment_info', 'down_segment_hops'])
+        first_hop = MagicMock(spec_set=['info'])
+        path.down_segment_hops = [first_hop, 6]
+        down_segment = MagicMock(spec_set=['iof', 'ads'])
+        down_segment.iof = MagicMock(spec_set=['up_flag'])
+        down_segment.ads = [MagicMock(spec_set=['pcbm']) for i in range(3)]
+        for i, block in enumerate(down_segment.ads):
+            block.pcbm = MagicMock(spec_set=['hof'])
+            block.pcbm.hof = i
+        deepcopy.side_effect = ['1', '2', '3']
+        path_ = PathCombinator._join_down_segment(path, down_segment)
+        ntools.eq_(path_.down_segment_info, down_segment.iof)
+        ntools.assert_false(path_.down_segment_info.up_flag)
+        ntools.eq_(path_.down_segment_hops, [first_hop, 6, '1', '2', '3'])
+        deepcopy.assert_has_calls([call(0), call(1), call(2)])
+        ntools.eq_(path_.down_segment_hops[0].info, OpaqueFieldType.LAST_OF)
+
+
+class TestPathCombinatorJoinUpSegmentShortcuts(object):
+    """
+    Unit tests for lib.packet.path.PathCombinator._join_up_segment_shortcuts
+    """
+    def test(self):
+        path = MagicMock(spec_set=['up_segment_info', 'up_segment_hops',
+                                   'up_segment_upstream_ad'])
+        path.up_segment_hops = [9, 10]
+        up_segment = MagicMock(spec_set=['iof', 'ads'])
+        up_segment.iof = MagicMock(spec_set=['info', 'hops', 'up_flag'])
+        up_segment.iof.hops = 10
+        up_segment.ads = [MagicMock(spec_set=['pcbm']) for i in range(6)]
+        for i, block in enumerate(up_segment.ads):
+            block.pcbm = MagicMock(spec_set=['hof'])
+            block.pcbm.hof = i
+        last_hop = up_segment.ads[3].pcbm.hof = MagicMock(spec_set=['info'])
+        up_index = 3
+        upstream_ad = up_segment.ads[up_index - 1].pcbm.hof = \
+            MagicMock(spec_set=['info'])
+        path_ = PathCombinator._join_up_segment_shortcuts(path, up_segment,
+                                                          'info', up_index)
+        ntools.eq_(path_.up_segment_info, up_segment.iof)
+        ntools.eq_(path_.up_segment_info.info, 'info')
+        ntools.eq_(path_.up_segment_info.hops, 7)
+        ntools.assert_true(path_.up_segment_info.up_flag)
+        ntools.eq_(path_.up_segment_hops, [9, 10, 5, 4, last_hop])
+        ntools.eq_(path_.up_segment_hops[-1].info, OpaqueFieldType.LAST_OF)
+        ntools.eq_(path_.up_segment_upstream_ad, upstream_ad)
+        ntools.eq_(path_.up_segment_upstream_ad.info, OpaqueFieldType.NORMAL_OF)
+
+
+class TestPathCombinatorJoinDownSegmentShortcuts(object):
+    """
+    Unit tests for lib.packet.path.PathCombinator._join_down_segment_shortcuts
+    """
+    def test(self):
+        path = MagicMock(spec_set=['down_segment_info', 'down_segment_hops',
+                                   'down_segment_upstream_ad'])
+        first_hop = MagicMock(spec_set=['info'])
+        path.down_segment_hops = [first_hop, 10]
+        down_segment = MagicMock(spec_set=['iof', 'ads'])
+        down_segment.iof = MagicMock(spec_set=['info', 'hops', 'up_flag'])
+        down_segment.iof.hops = 10
+        down_segment.ads = [MagicMock(spec_set=['pcbm']) for i in range(6)]
+        for i, block in enumerate(down_segment.ads):
+            block.pcbm = MagicMock(spec_set=['hof'])
+            block.pcbm.hof = i
+        dw_index = 3
+        upstream_ad = down_segment.ads[dw_index - 1].pcbm.hof = \
+            MagicMock(spec_set=['info'])
+        path_ = PathCombinator._join_down_segment_shortcuts(path, down_segment,
+                                                            'info', dw_index)
+        ntools.eq_(path_.down_segment_info, down_segment.iof)
+        ntools.eq_(path_.down_segment_info.info, 'info')
+        ntools.eq_(path_.down_segment_info.hops, 7)
+        ntools.assert_false(path_.down_segment_info.up_flag)
+        ntools.eq_(path_.down_segment_upstream_ad, upstream_ad)
+        ntools.eq_(path_.down_segment_upstream_ad.info,
+                   OpaqueFieldType.NORMAL_OF)
+        ntools.eq_(path_.down_segment_hops, [first_hop, 10, 3, 4, 5])
+        ntools.eq_(path_.down_segment_hops[0].info, OpaqueFieldType.LAST_OF)
+
+
+class TestPathCombinatorJoinShortcutsPeer(object):
+    """
+    Unit tests for lib.packet.path.PathCombinator._join_shortcuts_peer
+    """
+    def test(self):
+        path = MagicMock(spec_set=['up_segment_peering_link',
+                                   'down_segment_peering_link'])
+        up_ad = MagicMock(spec_set=['pms', 'pcbm'])
+        up_ad.pcbm = MagicMock(spec_set=['ad_id'])
+        up_ad.pcbm.ad_id = 123
+        down_ad = MagicMock(spec_set=['pms', 'pcbm'])
+        down_ad.pcbm = MagicMock(spec_set=['ad_id'])
+        down_ad.pcbm.ad_id = 456
+        up_ad.pms = [MagicMock(spec_set=['ad_id', 'hof']) for i in range(2)]
+        down_ad.pms = [MagicMock(spec_set=['ad_id', 'hof']) for i in range(3)]
+        up_ad.pms[1].ad_id = 456
+        up_ad.pms[1].hof = 'up_hof1'
+        down_ad.pms[0].ad_id = 123
+        down_ad.pms[0].hof = 'down_hof0'
+        path_ = PathCombinator._join_shortcuts_peer(path, up_ad, down_ad)
+        ntools.eq_(path_.up_segment_peering_link, 'up_hof1')
+        ntools.eq_(path_.down_segment_peering_link, 'down_hof0')
 
 
 if __name__ == "__main__":
