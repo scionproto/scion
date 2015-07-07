@@ -43,15 +43,24 @@ class PacketType(object):
     Defines constants for the SCION packet types.
     """
     DATA = -1  # Data packet
-    BEACON = IPv4Address("10.224.0.1")  # Path Construction Beacon
-    PATH_MGMT = IPv4Address("10.224.0.2")  # Path management packet from/to PS
-    TRC_REQ = IPv4Address("10.224.0.3")  # TRC file request to parent AD
-    TRC_REQ_LOCAL = IPv4Address("10.224.0.4")  # TRC file request to lCS
-    TRC_REP = IPv4Address("10.224.0.5")  # TRC file reply from parent AD
-    CERT_CHAIN_REQ = IPv4Address("10.224.0.6")  # cert chain request to parent AD
-    CERT_CHAIN_REQ_LOCAL = IPv4Address("10.224.0.7")  # local cert chain request
-    CERT_CHAIN_REP = IPv4Address("10.224.0.8")  # cert chain reply from lCS
-    IFID_PKT = IPv4Address("10.224.0.9")  # IF ID packet to the peer router
+    # Path Construction Beacon
+    BEACON = IPv4Address("10.224.0.1")
+    # Path management packet from/to PS
+    PATH_MGMT = IPv4Address("10.224.0.2")
+    # TRC file request to parent AD
+    TRC_REQ = IPv4Address("10.224.0.3")
+    # TRC file request to lCS
+    TRC_REQ_LOCAL = IPv4Address("10.224.0.4")
+    # TRC file reply from parent AD
+    TRC_REP = IPv4Address("10.224.0.5")
+    # cert chain request to parent AD
+    CERT_CHAIN_REQ = IPv4Address("10.224.0.6")
+    # local cert chain request
+    CERT_CHAIN_REQ_LOCAL = IPv4Address("10.224.0.7")
+    # cert chain reply from lCS
+    CERT_CHAIN_REP = IPv4Address("10.224.0.8")
+    # IF ID packet to the peer router
+    IFID_PKT = IPv4Address("10.224.0.9")
     SRC = [BEACON, PATH_MGMT, CERT_CHAIN_REP, TRC_REP]
     DST = [PATH_MGMT, TRC_REQ, TRC_REQ_LOCAL, CERT_CHAIN_REQ,
            CERT_CHAIN_REQ_LOCAL, IFID_PKT]
@@ -140,8 +149,8 @@ class SCIONCommonHdr(HeaderBase):
         """
         types = ((self.version << 12) | (self.src_addr_len << 6) |
                  self.dst_addr_len)
-        return struct.pack("!HHBBBB", types, self.total_len, 
-                           self.curr_iof_p, self.curr_of_p, 
+        return struct.pack("!HHBBBB", types, self.total_len,
+                           self.curr_iof_p, self.curr_of_p,
                            self.next_hdr, self.hdr_len)
 
     def __str__(self):
@@ -224,6 +233,7 @@ class SCIONHeader(HeaderBase):
             path_len = len(path.pack())
             self.common_hdr.hdr_len += path_len
             self.common_hdr.total_len += path_len
+        self.set_first_of_pointers()
 
     @property
     def extension_hdrs(self):
@@ -443,23 +453,23 @@ class SCIONHeader(HeaderBase):
         offset = (SCIONCommonHdr.LEN + OpaqueField.LEN)
         return self.common_hdr.curr_of_p + offset == self.common_hdr.hdr_len
 
-    def is_first_path_of(self):
-        """
-        Returs 'True' if the current opaque field is the very first opaque field
-        (i.e., InfoOpaqueField), 'False' otherwise.
-        """
-        return self.common_hdr.curr_of_p == (self.common_hdr.src_addr_len +
-                                             self.common_hdr.dst_addr_len)
-
     def reverse(self):
         """
         Reverses the header.
         """
         (self.src_addr, self.dst_addr) = (self.dst_addr, self.src_addr)
         self.path.reverse()
-        self.common_hdr.curr_of_p = (self.common_hdr.src_addr_len +
-                                     self.common_hdr.dst_addr_len)
-        self.common_hdr.curr_iof_p = self.common_hdr.curr_of_p
+        self.set_first_of_pointers()
+
+    def set_first_of_pointers(self):
+        """
+        Sets pointers of current info and hop opaque fields to initial values.
+        """
+        self.common_hdr.curr_iof_p = (self.common_hdr.src_addr_len +
+                                      self.common_hdr.dst_addr_len)
+        self.common_hdr.curr_of_p = self.common_hdr.curr_iof_p
+        if self.path:
+            self.common_hdr.curr_of_p += self.path.get_first_hop_offset()
 
     def __len__(self):
         length = self.common_hdr.hdr_len
@@ -677,7 +687,7 @@ class CertChainRequest(SCIONPacket):
         req.isd_id = isd_id
         req.ad_id = ad_id
         req.version = version
-        req.payload = struct.pack("!HHQHQI", ingress_if, src_isd, 
+        req.payload = struct.pack("!HHQHQI", ingress_if, src_isd,
                                   src_ad, isd_id, ad_id, version)
         return req
 
@@ -830,7 +840,7 @@ class TRCRequest(SCIONPacket):
         req.src_ad = src_ad
         req.isd_id = isd_id
         req.version = version
-        req.payload = struct.pack("!HHQHI", ingress_if, src_isd, src_ad, 
+        req.payload = struct.pack("!HHQHI", ingress_if, src_isd, src_ad,
                                   isd_id, version)
         return req
 

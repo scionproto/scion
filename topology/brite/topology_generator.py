@@ -140,7 +140,7 @@ def graph_to_dot(graph, dot_output_file):
     :type dot_output_file: str
     """
     try:
-        from networkx import pygraphviz
+        from networkx import pygraphviz   # noqa
     except ImportError:
         raise ImportError('Pygraphviz is not available for python3.' +
                           'Install it for python2 instead')
@@ -272,9 +272,9 @@ def _parse(topo_file, isd_num):
 
     # Ensuring that core ad graph is connected
     if not nx.is_connected(core_ad_graph):
-        # If not connected, the new core ad graph is formed from
-        # the largest connected component. Nodes are added to it from its
-        # neighbors to make size of core_ad_graph = num_core_ads
+        # If not connected, the new core ad graph is formed from the largest
+        # connected component. Nodes are added to it from its neighbors to make
+        # size of core_ad_graph = num_core_ads
         graphs = list(nx.connected_component_subgraphs(core_ad_graph))
         graphs = sorted(graphs, key=lambda graph: len(graph.nodes()),
                         reverse=True)

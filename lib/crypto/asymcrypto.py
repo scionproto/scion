@@ -23,7 +23,6 @@ from lib.crypto.nacl import crypto_sign_ed25519_open
 from lib.crypto.nacl import crypto_box_curve25519xsalsa20poly1305
 from lib.crypto.nacl import crypto_box_curve25519xsalsa20poly1305_open
 from lib.crypto.nacl import randombytes
-import logging
 
 
 def generate_signature_keypair():
@@ -100,7 +99,7 @@ def encrypt(msg, private_key, recipient, chain):
     :type recipient: string
     :param chain: Certificate chain containing the recipient's certificate.
     :type chain: :class:`CertificateChain`
-        
+
     :returns: Protected ciphertext.
     :rtype: bytes
 
@@ -140,7 +139,7 @@ def decrypt(cipher, private_key, sender, chain):
     :type sender: string
     :param chain: Certificate chain containing the sender's certificate.
     :type chain: :class:`CertificateChain`
-        
+
     :returns: Decrypted result.
     :rtype: bytes
 

@@ -50,7 +50,7 @@ def stop_everything():
     server = get_supervisor_server()
     try:
         server.supervisor.stopAllProcesses()
-    except (ConnectionRefusedError, xmlrpc.client.Fault) as ex:
+    except (ConnectionRefusedError, xmlrpc.client.Fault):
         logging.warning('Could not stop processes')
 
 
@@ -62,7 +62,7 @@ def start_everything():
     server = get_supervisor_server()
     try:
         server.supervisor.startAllProcesses()
-    except (ConnectionRefusedError, xmlrpc.client.Fault) as ex:
+    except (ConnectionRefusedError, xmlrpc.client.Fault):
         logging.warning('Could not start processes')
 
 
@@ -80,7 +80,7 @@ def start_monitoring_daemon():
     server = get_supervisor_server()
     try:
         server.supervisor.startProcess(MONITORING_DAEMON_PROC_NAME)
-    except (ConnectionRefusedError, xmlrpc.client.Fault) as ex:
+    except (ConnectionRefusedError, xmlrpc.client.Fault):
         logging.warning('Could not start the monitoring daemon')
 
 
@@ -102,7 +102,7 @@ def extract_files(archive_path, target_dir):
         for member in tar_fh.getmembers():
             abs_path = os.path.abspath(os.path.join(target_dir, member.path))
             if (not abs_path.startswith(target_dir) or
-                not abs_path.startswith(SCION_ROOT)):
+                    not abs_path.startswith(SCION_ROOT)):
                 raise Exception("Updater: unsafe filenames!")
             # Remove the top level directory from a member path
             member.path = os.sep.join(member.path.split(os.sep)[1:])

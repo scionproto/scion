@@ -20,26 +20,6 @@ import unittest
 from unittest.mock import patch
 
 
-def noop_decorator(*args, **kwargs):
-    """
-    A no-op decorator, to allow testing of decorated functions/methods.
-
-    :param args: positional arguments.
-    :type args: list
-    :param kwargs: dictionary with keyword arguments and their values.
-    :type kwargs: dict
-    """
-    def wrap(f):
-        def wrapper(*args, **kwargs):
-            return f(*args, **kwargs)
-        return wrapper
-    return wrap
-
-# Replace thread_safey_net decorator with noop_decorator, to allow testing.
-# This has to be done before any source that uses the decorator is imported.
-patch('lib.thread.thread_safety_net', noop_decorator).start()
-
-
 class SCIONTestException(Exception):
     """
     SCIONTestException class.

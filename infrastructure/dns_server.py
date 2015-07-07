@@ -62,7 +62,7 @@ class SrvInst(object):
     """
     Represents a service instance.
     """
-    
+
     def __init__(self, data, domain):
         """
         Initialize an instance of the class SrvInst.

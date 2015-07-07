@@ -100,8 +100,8 @@ class Zookeeper(object):
         logger = logging.getLogger("KazooClient")
         logger.setLevel(logging.ERROR)
         # (For low-level kazoo debugging):
-        #import kazoo.loggingsupport
-        #logger.setLevel(kazoo.loggingsupport.BLATHER)
+        # import kazoo.loggingsupport
+        # logger.setLevel(kazoo.loggingsupport.BLATHER)
 
         self._prefix = "/ISD%d-AD%d/%s" % (self._isd_id,
                                            self._ad_id,
@@ -123,8 +123,10 @@ class Zookeeper(object):
         self._state_event = threading.Semaphore(value=0)
         # Use a thread to respond to state changes, as the listener callback
         # must not block.
-        threading.Thread(target=self._state_handler,
-                         name="ZK state handler", daemon=True).start()
+        threading.Thread(
+            target=thread_safety_net,
+            args=("_state_handler", self._state_handler),
+            name="ZK state handler", daemon=True).start()
         # Listener called every time connection state changes
         self._zk.add_listener(self._state_listener)
 
@@ -145,7 +147,6 @@ class Zookeeper(object):
         # Tell kazoo not to remove this listener:
         return False
 
-    @thread_safety_net("_state_handler")
     def _state_handler(self, initial_state="startup"):
         """
         A thread worker function to wait for Kazoo connection state changes,

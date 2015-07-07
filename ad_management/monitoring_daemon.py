@@ -86,7 +86,7 @@ class MonitoringDaemon(object):
         """
         Read topology file of the given AD.
         Registered function.
-        
+
         :param isd_id: ISD identifier.
         :type isd_id: int
         :param ad_id: AD identifier.
@@ -108,7 +108,7 @@ class MonitoringDaemon(object):
         """
         Get status of all processes for the given AD.
         Registered function.
-        
+
         :param isd_id: ISD identifier.
         :type isd_id: int
         :param ad_id: AD identifier.
@@ -128,7 +128,7 @@ class MonitoringDaemon(object):
         """
         Get process information (status, running time, etc.).
         Registered function.
-        
+
         :param full_process_name:
         :type full_process_name:
         :returns:
