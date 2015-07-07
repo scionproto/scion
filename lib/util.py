@@ -266,7 +266,11 @@ def _signal_handler(signum, _):
 
 
 class SCIONTime(object):
-
+    """
+    A class to return current time
+    """
+    # Function which would return time upon calling it
+    #  Can be set using set_time_method
     _custom_time = None
     
     @classmethod
@@ -281,4 +285,7 @@ class SCIONTime(object):
 
     @classmethod
     def set_time_method(cls, method=None):
+        """
+        Set the method used to get time
+        """
         cls._custom_time = method
