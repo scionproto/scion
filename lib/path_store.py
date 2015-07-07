@@ -111,8 +111,8 @@ class PathPolicy(object):
                                 self.property_ranges['HopsLength'][1]))
         if self.property_ranges['DelayTime']:
             check = (check and (self.property_ranges['DelayTime'][0] <=
-                                int(SCIONTime.get_time()) - pcb.get_timestamp() <= 
-                                self.property_ranges['DelayTime'][1]))
+                                int(SCIONTime.get_time()) - pcb.get_timestamp()
+                                <= self.property_ranges['DelayTime'][1]))
         if self.property_ranges['GuaranteedBandwidth']:
             check = (check and (self.property_ranges['GuaranteedBandwidth'][0]
                                 <= 10 <=
