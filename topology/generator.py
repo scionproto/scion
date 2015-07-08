@@ -81,7 +81,7 @@ DEFAULT_SUBNET = "127.0.0.0/8"
 IP_ADDRESS_BASE = "127.0.0.1"
 
 
-class ConfigGenerator():
+class ConfigGenerator:
     """
     Configuration and/or topology generator.
     """
@@ -200,7 +200,6 @@ class ConfigGenerator():
         er_ip_addresses = {}
         for isd_ad_id in ad_configs:
             first_byte, mask = self.get_subnet_params(ad_configs[isd_ad_id])
-            (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
             ip_address_loc = self.next_ip_address
             ip_address_pub = self.increment_address(ip_address_loc, mask)
             self.next_ip_address = \
@@ -325,10 +324,6 @@ class ConfigGenerator():
                 'sig_pub_keys': sig_pub_keys,
                 'enc_pub_keys': enc_pub_keys}
 
-    @staticmethod
-    def generate_if_id(ad_id, nbr_ad_id):
-        return 255 + int(ad_id) + int(nbr_ad_id)
-
     def write_topo_files(self, ad_configs, er_ip_addresses):
         """
         Generate the AD topologies and store them into files. Update the AD
@@ -433,9 +428,18 @@ class ConfigGenerator():
             self.write_derivatives(topo_dict, mask=mask)
 
     def write_derivatives(self, topo_dict, **kwargs):
-        assert isinstance(topo_dict, dict)
+        """
+        Write files, derived from the topology: supervisor configuration,
+        setup files.
+
+        :param topo_dict: topology dictionary of a SCION AD
+        :type topo_dict: dict
+        :param kwargs: misc arguments
+        :type kwargs: dict
+        :return:
+        """
         self.write_supervisor_config(topo_dict)
-        self.write_setup_file(topo_dict, mask=kwargs.get('mask', ''))
+        self.write_setup_file(topo_dict, mask=kwargs.get('mask'))
 
     def _get_typed_elements(self, topo_dict):
         """
@@ -460,7 +464,7 @@ class ConfigGenerator():
         :param mask: network mask for new interfaces.
         :type mask: str
         """
-        if not mask:
+        if mask is None:
             _, mask = self.get_subnet_params()
 
         p = self.path_dict(topo_dict['ISDID'], topo_dict['ADID'])
@@ -495,7 +499,7 @@ class ConfigGenerator():
 
         isd_id, ad_id = str(topo_dict['ISDID']), str(topo_dict['ADID'])
         dns_domain = topo_dict['DnsDomain']
-        p = self.path_dict(isd_id, ad_id)
+        p = self.path_dict(int(isd_id), int(ad_id))
 
         for (num, element_dict, element_type) \
                 in self._get_typed_elements(topo_dict):
