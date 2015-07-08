@@ -3,6 +3,7 @@ coverage
 dnslib
 flake8
 kazoo
+networkx
 nose
 nose-cov
 nose-descriptionfixer
