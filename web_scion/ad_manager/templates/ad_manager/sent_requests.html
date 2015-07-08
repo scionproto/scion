@@ -29,7 +29,7 @@
               <b>Bound socket</b> {{ request.router_bound_ip }} : {{ request.router_bound_port }} <br />
               <b>Public socket</b> {{ request.router_public_ip }} : {{ request.router_public_port }} <br />
               {% if request.new_ad %}
-                New AD: <a href="{% url 'ad_detail' request.new_ad.id %}">{{ request.new_ad }}</a>
+                New AD: <a href="{{ request.new_ad.get_absolute_url }}">{{ request.new_ad }}</a>
               {% endif %}
             </div>
           </div>

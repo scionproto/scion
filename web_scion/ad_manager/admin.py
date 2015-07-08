@@ -42,6 +42,7 @@ else:
 admin_site.register(User)
 admin_site.register(Group)
 
+
 class PrivilegedChangeAdmin(GuardedModelAdmin):
     list_select_related = True
 
@@ -82,9 +83,10 @@ class SortRelatedAdmin(PrivilegedChangeAdmin):
                 DnsServerWeb,
                 site=admin_site)
 class ServerAdmin(PrivilegedChangeAdmin):
+    fields = ('name', 'addr', ('ad', 'ad_link'),)
     privileged_fields = ('ad',)
     readonly_fields = ('ad_link',)
-    fields = ('name', 'addr', ('ad', 'ad_link'),)
+    raw_id_fields = ('ad',)
 
     def ad_link(self, obj):
         link = reverse('admin:{}_ad_change'.format(self.opts.app_label),
@@ -94,15 +96,18 @@ class ServerAdmin(PrivilegedChangeAdmin):
     # FIXME hack. How to remove this completely?
     ad_link.short_description = ':'
 
+
 @admin.register(RouterWeb, site=admin_site)
 class RouterAdmin(ServerAdmin):
 
     def get_fields(self, request, obj=None):
+        # FIXME is there a way to make it more explicit?
+        self.raw_id_fields += ('neighbor_ad',)
         fields = super().get_fields(request, obj)
         fields += ('interface_id',
                    ('interface_addr', 'interface_port'),
                    ('interface_toaddr', 'interface_toport'),
-                   ('neighbor_ad','neighbor_type'))
+                   ('neighbor_ad', 'neighbor_type'))
         return fields
 
 

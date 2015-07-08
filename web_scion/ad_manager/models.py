@@ -33,13 +33,13 @@ class SelectRelatedModelManager(models.Manager):
     avoiding multiple similar queries.
     """
 
-    def __init__(self, *args):
-        super(SelectRelatedModelManager, self).__init__()
-        self.related_fields = args
-
     def get_queryset(self):
         queryset = super(SelectRelatedModelManager, self).get_queryset()
-        return queryset.select_related(*self.related_fields)
+        related_fields = getattr(self.model, 'related_fields', [])
+        if not related_fields:
+            return queryset.select_related()
+        else:
+            return queryset.select_related(*related_fields)
 
 
 class ISD(models.Model):
@@ -65,7 +65,7 @@ class AD(models.Model):
     md_host = models.IPAddressField(default='127.0.0.1')
 
     # Use custom model manager with select_related()
-    objects = SelectRelatedModelManager('isd')
+    objects = SelectRelatedModelManager()
 
     def query_ad_status(self):
         """
@@ -368,6 +368,9 @@ class ConnectionRequest(models.Model):
                               default='NONE')
     # TODO change to FilePathField?
     package_path = models.CharField(max_length=1000, blank=True, null=True)
+
+    related_fields = ('new_ad__isd', 'connect_to__isd', 'created_by')
+    objects = SelectRelatedModelManager()
 
     def is_approved(self):
         return self.status == 'APPROVED'
