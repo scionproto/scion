@@ -1092,8 +1092,8 @@ class TestTRCRequestParse(object):
         req.parse('data')
         parse.assert_called_once_with(req, 'data')
         ntools.eq_(req.ingress_if, 0x0102)
-        ntools.eq_(req.src_isd, 1)
-        ntools.eq_(req.src_ad, 393232)
+        ntools.eq_(req.src_isd, 0x001)
+        ntools.eq_(req.src_ad, 0x60010)
         ntools.eq_(req.isd_id, 0x0708)
         ntools.eq_(req.version, 0x0000090a)
 
@@ -1112,7 +1112,7 @@ class TestTRCRequestFromValues(object):
         scion_addr.return_value = 'dst'
         scion_hdr.return_value = 'hdr'
         (ingress_if, src_isd, src_ad, isd_id, version) = \
-            (0x0102, 0x1, 0x60010, 0x0708, 0x090a)
+            (0x0102, 0x001, 0x60010, 0x0708, 0x090a)
         req = TRCRequest.from_values('req_type', 'src', ingress_if, src_isd,
                                      src_ad, isd_id, version)
         ntools.assert_is_instance(req, TRCRequest)
