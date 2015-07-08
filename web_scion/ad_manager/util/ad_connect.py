@@ -9,7 +9,7 @@ from ipaddress import ip_address
 from lib.defines import TOPOLOGY_PATH
 from lib.topology import Topology
 from lib.util import read_file, write_file
-from topology.generator import ConfigGenerator, PORT, ER_RANGE
+from topology.generator import ConfigGenerator, PORT
 
 
 def find_last_router(topo_dict):
@@ -45,17 +45,20 @@ def create_next_router(generator, topo_dict):
     else:
         isd_id = str(topo_dict['ISDID'])
         ad_id = str(topo_dict['ADID'])
+        # Legacy approach, fixed in later commits
+        er_range = '81'
         ip_address_loc = ip_address('.'.join([first_byte, isd_id,
-                                              ad_id, ER_RANGE]))
+                                              ad_id, er_range]))
         ip_address_pub = generator.increment_address(ip_address_loc, mask)
         new_router = {
-                    'AddrType': 'IPv4',
-                    'Addr': str(ip_address_loc),
-                    'Interface': {
-                        'AddrType': 'IPv4',
-                        'Addr': str(ip_address_pub),
-                        'UdpPort': int(PORT),
-                        'ToUdpPort': int(PORT)}
+            'AddrType': 'IPv4',
+            'Addr': str(ip_address_loc),
+            'Interface': {
+                'AddrType': 'IPv4',
+                'Addr': str(ip_address_pub),
+                'UdpPort': int(PORT),
+                'ToUdpPort': int(PORT),
+            },
         }
         last_index = 0
     return str(last_index + 1), new_router

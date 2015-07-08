@@ -21,6 +21,7 @@ def run_remote(func):
 
     return wrapper
 
+
 @run_remote
 def get_ad_info(s, isd_id, ad_id):
     """
@@ -71,4 +72,3 @@ def control_process(s, isd_id, ad_id, process_id, command):
 @run_remote
 def get_master_id(s, isd_id, ad_id, server_type):
     return s.get_master_id(str(isd_id), str(ad_id), server_type)
-
