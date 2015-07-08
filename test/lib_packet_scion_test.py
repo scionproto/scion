@@ -1106,7 +1106,8 @@ class TestTRCRequestParse(object):
     """
     Unit tests for lib.packet.scion.TRCRequest.parse
     """
-    @patch("lib.packet.scion.ISD_AD.from_raw", spec_set=[], new_callable=MagicMock)
+    @patch("lib.packet.scion.ISD_AD.from_raw", spec_set=[],
+           new_callable=MagicMock)
     @patch("lib.packet.scion.SCIONPacket.parse", autospec=True)
     def test(self, parse, isd_ad):
         req = TRCRequest()

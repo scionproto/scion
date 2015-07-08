@@ -741,8 +741,8 @@ class CertChainReply(SCIONPacket):
         """
         SCIONPacket.parse(self, raw)
         (self.isd_id, self.ad_id) = ISD_AD.from_raw(self.payload[:ISD_AD.LEN])
-        (self.version, ) = struct.unpack("!I",
-            self.payload[ISD_AD.LEN:ISD_AD.LEN + 4])
+        (self.version, ) = \
+            struct.unpack("!I", self.payload[ISD_AD.LEN:ISD_AD.LEN + 4])
         self.cert_chain = self.payload[self.MIN_LEN:]
 
     @classmethod
