@@ -41,7 +41,10 @@ class ConnectionRequestForm(forms.ModelForm):
 class NewLinkForm(forms.Form):
     link_types = ['PARENT', 'CHILD', 'PEER', 'ROUTING']
 
-    end_point = forms.ModelChoiceField(queryset=AD.objects.none())
+    end_point = forms.ModelChoiceField(
+        queryset=AD.objects.none(),
+        widget=forms.TextInput(attrs={'placeholder': 'AD id, for example, 20'})
+    )
     link_type = forms.ChoiceField(choices=zip(link_types, link_types))
 
     def __init__(self, *args, **kwargs):

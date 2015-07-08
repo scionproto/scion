@@ -417,7 +417,9 @@ class NewLinkView(FormView):
     success_url = ''
 
     def _get_ad(self):
-        return get_object_or_404(AD, id=self.kwargs['pk'])
+        if not hasattr(self, 'ad'):
+            self.ad = get_object_or_404(AD, id=self.kwargs['pk'])
+        return self.ad
 
     def dispatch(self, request, *args, **kwargs):
         ad = self._get_ad()
