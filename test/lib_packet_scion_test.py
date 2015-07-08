@@ -41,7 +41,7 @@ from lib.packet.scion import (
     TRCReply,
     TRCRequest
 )
-from lib.packet.scion_addr import SCIONAddr
+from lib.packet.scion_addr import ISD_AD, SCIONAddr
 
 
 class TestGetType(object):
@@ -949,10 +949,13 @@ class TestCertChainRequestParse(object):
     """
     Unit tests for lib.packet.scion.CertChainRequest.parse
     """
+    @patch("lib.packet.scion.ISD_AD.from_raw", spec_set=[],
+           new_callable=MagicMock)
     @patch("lib.packet.scion.SCIONPacket.parse", autospec=True)
-    def test(self, parse):
+    def test(self, parse, isd_ad):
         req = CertChainRequest()
-        req._payload = bytes.fromhex('0102 0bc0021d 021004c6 1718191a')
+        raw = req._payload = bytes.fromhex('0102 0bc0021d 021004c6 1718191a')
+        isd_ad.side_effect = [(0x0bc, 0x0021d), (0x021, 0x004c6)]
         req.parse('data')
         parse.assert_called_once_with(req, 'data')
         ntools.eq_(req.ingress_if, 0x0102)
@@ -960,6 +963,8 @@ class TestCertChainRequestParse(object):
         ntools.eq_(req.src_ad, 0x0021d)
         ntools.eq_(req.isd_id, 0x021)
         ntools.eq_(req.ad_id, 0x004c6)
+        isd_ad.assert_has_calls([call(raw[2:2 + ISD_AD.LEN]),
+                                 call(raw[2 + ISD_AD.LEN:2 + 2 * ISD_AD.LEN])])
         ntools.eq_(req.version, 0x1718191a)
 
 
@@ -967,17 +972,22 @@ class TestCertChainRequestFromValues(object):
     """
     Unit tests for lib.packet.scion.CertChainRequest.from_values
     """
+    @patch("lib.packet.scion.ISD_AD", autospec=True)
     @patch("lib.packet.scion.CertChainRequest.set_payload", autospec=True)
     @patch("lib.packet.scion.CertChainRequest.set_hdr", autospec=True)
     @patch("lib.packet.scion.SCIONHeader.from_values",
            spec_set=SCIONHeader.from_values)
     @patch("lib.packet.scion.SCIONAddr.from_values",
            spec_set=SCIONAddr.from_values)
-    def test(self, scion_addr, scion_hdr, set_hdr, set_payload):
+    def test(self, scion_addr, scion_hdr, set_hdr, set_payload, isd_ad):
         scion_addr.return_value = 'dst'
         scion_hdr.return_value = 'hdr'
         (ingress_if, src_isd, src_ad, isd_id, ad_id, version) = \
             (0x0102, 0x001, 0x60010, 0x00d, 0x003d9, 0x0b0c)
+        isd_ads = [MagicMock(spec_set=['pack']), MagicMock(spec_set=['pack'])]
+        isd_ads[0].pack.return_value = bytes.fromhex('00160010')
+        isd_ads[1].pack.return_value = bytes.fromhex('00d003d9')
+        isd_ad.side_effect = isd_ads
         req = CertChainRequest.from_values('req_type', 'src', ingress_if,
                                            src_isd, src_ad, isd_id, ad_id,
                                            version)
@@ -991,6 +1001,9 @@ class TestCertChainRequestFromValues(object):
         ntools.eq_(req.isd_id, isd_id)
         ntools.eq_(req.ad_id, ad_id)
         ntools.eq_(req.version, version)
+        isd_ad.assert_has_calls([call(src_isd, src_ad), call(isd_id, ad_id)])
+        isd_ads[0].pack.assert_called_once_with()
+        isd_ads[1].pack.assert_called_once_with()
         payload = bytes.fromhex('0102 00160010 00d003d9 00000b0c')
         set_payload.assert_called_once_with(req, payload)
 
@@ -1018,13 +1031,16 @@ class TestCertChainReplyParse(object):
     """
     Unit tests for lib.packet.scion.CertChainReply.parse
     """
+    @patch("lib.packet.scion.ISD_AD.from_raw", spec_set=[],
+           new_callable=MagicMock)
     @patch("lib.packet.scion.SCIONPacket.parse", autospec=True)
-    def test(self, parse):
+    def test(self, parse, isd_ad):
         rep = CertChainReply()
-        rep._payload = bytes.fromhex('0bc0021d 1718191a') + \
-            b'\x00' * 10
+        raw = rep._payload = bytes.fromhex('0bc0021d 1718191a') + b'\x00' * 10
+        isd_ad.return_value = (0x0bc, 0x0021d)
         rep.parse('data')
         parse.assert_called_once_with(rep, 'data')
+        isd_ad.assert_called_once_with(raw[:ISD_AD.LEN])
         ntools.eq_(rep.isd_id, 0x0bc)
         ntools.eq_(rep.ad_id, 0x0021d)
         ntools.eq_(rep.version, 0x1718191a)
@@ -1035,16 +1051,19 @@ class TestCertChainReplyFromValues(object):
     """
     Unit tests for lib.packet.scion.CertChainReply.from_values
     """
+    @patch("lib.packet.scion.ISD_AD", autospec=True)
     @patch("lib.packet.scion.CertChainReply.set_payload", autospec=True)
     @patch("lib.packet.scion.CertChainReply.set_hdr", autospec=True)
     @patch("lib.packet.scion.SCIONHeader.from_values",
            spec_set=SCIONHeader.from_values)
     @patch("lib.packet.scion.SCIONAddr.from_values",
            spec_set=SCIONAddr.from_values)
-    def test(self, scion_addr, scion_hdr, set_hdr, set_payload):
+    def test(self, scion_addr, scion_hdr, set_hdr, set_payload, isd_ad):
         scion_addr.return_value = 'src'
         scion_hdr.return_value = 'hdr'
         (isd_id, ad_id, version) = (0x0bc, 0x0021d, 0x0506)
+        isd_ad_mock = isd_ad.return_value = MagicMock(spec_set=['pack'])
+        isd_ad_mock.pack.return_value = bytes.fromhex('0bc0021d')
         rep = CertChainReply.from_values('dst', isd_id, ad_id, version,
                                          b'cert_chain')
         ntools.assert_is_instance(rep, CertChainReply)
@@ -1056,6 +1075,8 @@ class TestCertChainReplyFromValues(object):
         ntools.eq_(rep.ad_id, ad_id)
         ntools.eq_(rep.version, version)
         ntools.eq_(rep.cert_chain, b'cert_chain')
+        isd_ad.assert_called_once_with(isd_id, ad_id)
+        isd_ad_mock.pack.assert_called_once_with()
         payload = bytes.fromhex('0bc0021d 00000506') + \
             b'cert_chain'
         set_payload.assert_called_once_with(rep, payload)
@@ -1085,13 +1106,16 @@ class TestTRCRequestParse(object):
     """
     Unit tests for lib.packet.scion.TRCRequest.parse
     """
+    @patch("lib.packet.scion.ISD_AD.from_raw", spec_set=[], new_callable=MagicMock)
     @patch("lib.packet.scion.SCIONPacket.parse", autospec=True)
-    def test(self, parse):
+    def test(self, parse, isd_ad):
         req = TRCRequest()
-        req._payload = bytes.fromhex('0102 00160010 0708 0000090a')
+        raw = req._payload = bytes.fromhex('0102 00160010 0708 0000090a')
+        isd_ad.return_value = (0x001, 0x60010)
         req.parse('data')
         parse.assert_called_once_with(req, 'data')
         ntools.eq_(req.ingress_if, 0x0102)
+        isd_ad.assert_called_once_with(raw[2:2 + ISD_AD.LEN])
         ntools.eq_(req.src_isd, 0x001)
         ntools.eq_(req.src_ad, 0x60010)
         ntools.eq_(req.isd_id, 0x0708)
@@ -1102,17 +1126,20 @@ class TestTRCRequestFromValues(object):
     """
     Unit tests for lib.packet.scion.TRCRequest.from_values
     """
+    @patch("lib.packet.scion.ISD_AD", autospec=True)
     @patch("lib.packet.scion.TRCRequest.set_payload", autospec=True)
     @patch("lib.packet.scion.TRCRequest.set_hdr", autospec=True)
     @patch("lib.packet.scion.SCIONHeader.from_values",
            spec_set=SCIONHeader.from_values)
     @patch("lib.packet.scion.SCIONAddr.from_values",
            spec_set=SCIONAddr.from_values)
-    def test(self, scion_addr, scion_hdr, set_hdr, set_payload):
+    def test(self, scion_addr, scion_hdr, set_hdr, set_payload, isd_ad):
         scion_addr.return_value = 'dst'
         scion_hdr.return_value = 'hdr'
         (ingress_if, src_isd, src_ad, isd_id, version) = \
             (0x0102, 0x001, 0x60010, 0x0708, 0x090a)
+        isd_ad_mock = isd_ad.return_value = MagicMock(spec_set=['pack'])
+        isd_ad_mock.pack.return_value = bytes.fromhex('00160010')
         req = TRCRequest.from_values('req_type', 'src', ingress_if, src_isd,
                                      src_ad, isd_id, version)
         ntools.assert_is_instance(req, TRCRequest)
@@ -1124,6 +1151,8 @@ class TestTRCRequestFromValues(object):
         ntools.eq_(req.src_ad, src_ad)
         ntools.eq_(req.isd_id, isd_id)
         ntools.eq_(req.version, version)
+        isd_ad.assert_called_once_with(src_isd, src_ad)
+        isd_ad_mock.pack.assert_called_once_with()
         payload = bytes.fromhex('0102 00160010 0708 0000090a')
         set_payload.assert_called_once_with(req, payload)
 
