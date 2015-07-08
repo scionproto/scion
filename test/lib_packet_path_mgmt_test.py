@@ -64,33 +64,45 @@ class TestPathSegmentInfoParse(object):
     """
     Unit tests for lib.packet.path_mgmt.PathSegmentInfo.parse
     """
+    @patch("lib.packet.path_mgmt.ISD_AD.from_raw", spec_set=[],
+           new_callable=MagicMock)
     @patch("lib.packet.packet_base.PayloadBase.parse", autospec=True)
-    def test_basic(self, parse):
+    def test_basic(self, parse, isd_ad):
         pth_seg_info = PathSegmentInfo()
-        data = bytes.fromhex('0e 2a0a 0b0c 0102030405060708 9192939495969798')
+        data = bytes.fromhex('0e 0bc0021d 021004c6')
+        isd_ad.side_effect = [(0x0bc, 0x0021d), (0x021, 0x004c6)]
         pth_seg_info.parse(data)
         parse.assert_called_once_with(pth_seg_info, data)
-        ntools.eq_(pth_seg_info.type, 0xe)
-        ntools.eq_(pth_seg_info.src_isd, 0x2a0a)
-        ntools.eq_(pth_seg_info.dst_isd, 0x0b0c)
-        ntools.eq_(pth_seg_info.src_ad, 0x0102030405060708)
-        ntools.eq_(pth_seg_info.dst_ad, 0x9192939495969798)
+        ntools.eq_(pth_seg_info.type, 0x0e)
+        ntools.eq_(pth_seg_info.src_isd, 0x0bc)
+        ntools.eq_(pth_seg_info.src_ad,  0x0021d)
+        ntools.eq_(pth_seg_info.dst_isd, 0x021)
+        ntools.eq_(pth_seg_info.dst_ad, 0x004c6)
+        calls = [call(data[1:1 + ISD_AD.LEN]),
+                 call(data[1 + ISD_AD.LEN: 1 + 2 * ISD_AD.LEN])]
+        isd_ad.assert_has_calls(calls)
 
 
 class TestPathSegmentInfoPack(object):
     """
     Unit tests for lib.packet.path_mgmt.PathSegmentInfo.pack
     """
-    def test_basic(self):
+    @patch("lib.packet.path_mgmt.ISD_AD", autospec=True)
+    def test_basic(self, isd_ad):
         pth_seg_info = PathSegmentInfo()
-        pth_seg_info.type = 0xe
-        pth_seg_info.src_isd = 0x2a0a
-        pth_seg_info.dst_isd = 0x0b0c
-        pth_seg_info.src_ad = 0x0102030405060708
-        pth_seg_info.dst_ad = 0x9192939495969798
-        ntools.eq_(pth_seg_info.pack(),
-                   bytes.fromhex('0e 2a0a 0b0c 0102030405060708'
-                                 '9192939495969798'))
+        pth_seg_info.type = 0x0e
+        pth_seg_info.src_isd = 0x0bc
+        pth_seg_info.src_ad = 0x0021d
+        pth_seg_info.dst_isd = 0x021
+        pth_seg_info.dst_ad = 0x004c6
+        isd_ads = [MagicMock(spec_set=['pack']), MagicMock(spec_set=['pack'])]
+        isd_ads[0].pack.return_value = bytes.fromhex('0bc0021d')
+        isd_ads[1].pack.return_value = bytes.fromhex('021004c6')
+        isd_ad.side_effect = isd_ads
+        ntools.eq_(pth_seg_info.pack(), bytes.fromhex('0e 0bc0021d 021004c6'))
+        isd_ad.assert_has_calls([call(0x0bc, 0x0021d), call(0x021, 0x004c6)])
+        isd_ads[0].pack.assert_called_once_with()
+        isd_ads[1].pack.assert_called_once_with()
 
 
 class TestPathSegmentInfoFromValues(object):
@@ -98,10 +110,10 @@ class TestPathSegmentInfoFromValues(object):
     Unit tests for lib.packet.path_mgmt.PathSegmentInfo.from_values
     """
     def test_basic(self):
-        pth_seg_info = PathSegmentInfo.from_values(0xe, 0x2a0a, 0x0b0c,
+        pth_seg_info = PathSegmentInfo.from_values(0x0e, 0x2a0a, 0x0b0c,
                                                    0x0102030405060708,
                                                    0x9192939495969798)
-        ntools.eq_(pth_seg_info.type, 0xe)
+        ntools.eq_(pth_seg_info.type, 0x0e)
         ntools.eq_(pth_seg_info.src_isd, 0x2a0a)
         ntools.eq_(pth_seg_info.dst_isd, 0x0b0c)
         ntools.eq_(pth_seg_info.src_ad, 0x0102030405060708)
@@ -200,16 +212,20 @@ class TestLeaseInfoParse(object):
     """
     Unit tests for lib.packet.path_mgmt.LeaseInfo.parse
     """
+    @patch("lib.packet.path_mgmt.ISD_AD.from_raw", spec_set=[],
+           new_callable=MagicMock)
     @patch("lib.packet.packet_base.PayloadBase.parse", autospec=True)
-    def test_basic(self, parse):
+    def test_basic(self, parse, isd_ad):
         les_inf = LeaseInfo()
-        data = bytes.fromhex('0e 2a0a 0b0c 01020304') + \
+        data = bytes.fromhex('0e 021004c6 01020304') + \
             b"superlengthybigstringoflength32."
+        isd_ad.return_value = (0x021, 0x004c6)
         les_inf.parse(data)
         parse.assert_called_once_with(les_inf, data)
         ntools.eq_(les_inf.seg_type, 0x0e)
-        ntools.eq_(les_inf.isd_id, 0x2a0a)
-        ntools.eq_(les_inf.ad_id, 0x0b0c)
+        isd_ad.assert_called_once_with(data[1:1 + ISD_AD.LEN])
+        ntools.eq_(les_inf.isd_id, 0x021)
+        ntools.eq_(les_inf.ad_id, 0x004c6)
         ntools.eq_(les_inf.exp_time, 0x01020304)
         ntools.eq_(les_inf.seg_id, b"superlengthybigstringoflength32.")
 
@@ -231,16 +247,22 @@ class TestLeaseInfoPack(object):
     """
     Unit tests for lib.packet.path_mgmt.LeaseInfo.pack
     """
-    def test_basic(self):
+    @patch("lib.packet.path_mgmt.ISD_AD", autospec=True)
+    def test_basic(self, isd_ad):
         les_inf = LeaseInfo()
         les_inf.seg_type = 0x0e
-        les_inf.isd_id = 0x2a0a
-        les_inf.ad_id = 0x0b0c
+        les_inf.isd_id = 0x021
+        les_inf.ad_id = 0x004c6
         les_inf.exp_time = 0x01020304
         les_inf.seg_id = b"superlengthybigstringoflength32."
-        data = bytes.fromhex('0e 2a0a 0b0c 01020304') + \
+        data = bytes.fromhex('0e 021004c6 01020304') + \
             b"superlengthybigstringoflength32."
+        isd_ad_mock = MagicMock(spec_set=['pack'])
+        isd_ad_mock.pack.return_value = bytes.fromhex('021004c6')
+        isd_ad.return_value = isd_ad_mock
         ntools.eq_(les_inf.pack(), data)
+        isd_ad.assert_called_once_with(0x021, 0x004c6)
+        isd_ad_mock.pack.assert_called_once_with()
 
 
 class TestLeaseInfoFromValues(object):

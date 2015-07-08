@@ -250,7 +250,7 @@ class SCIONDaemon(SCIONElement):
     def _api_handle_path_request(self, packet, sender):
         """
         Path request:
-          | \x00 (1B) | ISD (2B) |  AD (8B)  |
+          | \x00 (1B) | ISD (12bits) |  AD (20bits)  |
         Reply:
           |path1_len(1B)|path1(path1_len*8B)|first_hop_IP(4B)|path2_len(1B)...
          or b"" when no path found. Only IPv4 supported currently.
@@ -260,9 +260,7 @@ class SCIONDaemon(SCIONElement):
         :param sender:
         :type sender:
         """
-        # TODO sanity checks
-        isd = struct.unpack("H", packet[1:3])[0]
-        ad = struct.unpack("Q", packet[3:])[0]
+        (isd, ad) = ISD_AD.from_raw(packet[1:ISD_AD.LEN + 1])
         paths = self.get_paths(isd, ad)
         reply = []
         for path in paths:
