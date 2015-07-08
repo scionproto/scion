@@ -113,3 +113,6 @@ ENABLED_2FA = False
 
 # 2FA options
 TWO_FACTOR_PATCH_ADMIN = ENABLED_2FA
+
+# Security settings
+CSRF_COOKIE_HTTPONLY = True
