@@ -955,7 +955,7 @@ class TestPathCombinatorBuildShortcutPath(object):
 
     def test_none(self):
         up_segs = [[], [1], MagicMock(spec_set=['ads']),
-                       MagicMock(spec_set=['ads'])]
+                   MagicMock(spec_set=['ads'])]
         up_segs[2].ads = []
         up_segs[3].ads = [456]
         down_segs = [123, [], [2], MagicMock(spec_set=['ads'])]
@@ -1017,7 +1017,7 @@ class TestPathCombinatorBuildCorePath(object):
 
     def test_none(self):
         up_segs = [[], [1], MagicMock(spec_set=['ads']),
-                       MagicMock(spec_set=['ads'])]
+                   MagicMock(spec_set=['ads'])]
         up_segs[2].ads = []
         up_segs[3].ads = [456]
         down_segs = [123, [], [2], MagicMock(spec_set=['ads'])]
@@ -1196,14 +1196,14 @@ class TestPathCombinatorCheckConnected(object):
         del self.up_seg
         del self.down_seg
 
-    def test1(self):
+    def test_up_seg_disconnected(self):
         self.core_seg.get_last_pcbm.return_value.ad_id = 123
         self.up_seg.get_first_pcbm.return_value.ad_id = 456
         ntools.assert_false(PathCombinator._check_connected(self.up_seg,
                                                             self.core_seg,
                                                             'down_seg'))
 
-    def test2(self):
+    def test_down_seg_disconnected(self):
         self.core_seg.get_last_pcbm.return_value.ad_id = 123
         self.up_seg.get_first_pcbm.return_value.ad_id = 123
         self.core_seg.get_first_pcbm.return_value.ad_id = 456
@@ -1212,7 +1212,7 @@ class TestPathCombinatorCheckConnected(object):
                                                             self.core_seg,
                                                             self.down_seg))
 
-    def test3(self):
+    def test_connected_with_core(self):
         self.core_seg.get_last_pcbm.return_value.ad_id = 123
         self.up_seg.get_first_pcbm.return_value.ad_id = 123
         self.core_seg.get_first_pcbm.return_value.ad_id = 456
@@ -1221,14 +1221,14 @@ class TestPathCombinatorCheckConnected(object):
                                                            self.core_seg,
                                                            self.down_seg))
 
-    def test4(self):
+    def test_disconnected_without_core(self):
         self.up_seg.get_first_pcbm.return_value.ad_id = 123
         self.down_seg.get_first_pcbm.return_value.ad_id = 456
         ntools.assert_false(PathCombinator._check_connected(self.up_seg,
                                                             None,
                                                             self.down_seg))
 
-    def test5(self):
+    def test_connected_without_core(self):
         self.up_seg.get_first_pcbm.return_value.ad_id = 123
         self.down_seg.get_first_pcbm.return_value.ad_id = 123
         ntools.assert_true(PathCombinator._check_connected(self.up_seg,
