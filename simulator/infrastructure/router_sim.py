@@ -100,7 +100,8 @@ class RouterSim(Router):
 
     def verify_of(self, hof, prev_hof, ts):
         """
-        Verify freshness and authentication of an opaque field.
+        Verify freshness of an opaque field.
+        We do not check authentication of the MAC(simulator) 
 
         :param hof: the hop opaque field that is verified.
         :type hof: :class:`lib.packet.opaque_field.HopOpaqueField`
