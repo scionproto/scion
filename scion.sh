@@ -69,6 +69,7 @@ cmd_coverage(){
 }
 
 cmd_lint() {
+    set -o pipefail
     flake8 --config flake8.ini "${@:-.}" | sort -t: -k1,1 -k2n,2 -k3n,3
 }
 
