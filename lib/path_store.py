@@ -240,7 +240,7 @@ class PathStoreRecord(object):
         self.hops_length = 0
         self.disjointness = 0
         self.last_sent_time = 1420070400  # year 2015
-        self.last_seen_time = int(time.time())
+        self.last_seen_time = time.time()
         self.delay_time = 0
         self.expiration_time = pcb.get_expiration_time()
         self.guaranteed_bandwidth = 0
@@ -305,14 +305,17 @@ class PathStore(object):
     Path Store class.
     """
 
-    def __init__(self, path_policy):
+    def __init__(self, path_policy, beacon_ttl):
         """
         Initialize an instance of the class PathStore.
 
         :param path_policy: path policy.
         :type path_policy: dict
+        :param beacon_ttl: Time (in seconds) until a PCB gets evicted from the
+                           path store
         """
         self.path_policy = path_policy
+        self.beacon_ttl = beacon_ttl
         self.candidates = []
         self.best_paths_history = deque(maxlen=self.path_policy.history_limit)
 
@@ -441,7 +444,7 @@ class PathStore(object):
         rec_ids = []
         now = time.time()
         for candidate in self.candidates:
-            if candidate.expiration_time <= now:
+            if candidate.last_seen_time + self.beacon_ttl <= now:
                 rec_ids.append(candidate.id)
         self.remove_segments(rec_ids)
 
