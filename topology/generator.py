@@ -497,9 +497,9 @@ class ConfigGenerator:
         program_group = []
         supervisor_config = configparser.ConfigParser()
 
-        isd_id, ad_id = str(topo_dict['ISDID']), str(topo_dict['ADID'])
+        isd_id, ad_id = topo_dict['ISDID'], topo_dict['ADID']
         dns_domain = topo_dict['DnsDomain']
-        p = self.path_dict(int(isd_id), int(ad_id))
+        p = self.path_dict(isd_id, ad_id)
 
         for (num, element_dict, element_type) \
                 in self._get_typed_elements(topo_dict):
