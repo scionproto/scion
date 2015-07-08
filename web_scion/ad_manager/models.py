@@ -82,10 +82,11 @@ class AD(models.Model):
         """
         Create a Python dictionary with the stored AD topology.
         """
-        out_dict = {'ISDID': int(self.isd_id), 'ADID': int(self.id),
-                    'Core': int(self.is_core_ad),
-                    'EdgeRouters': {}, 'PathServers': {}, 'BeaconServers': {},
-                    'CertificateServers': {},
+        out_dict = {
+            'ISDID': int(self.isd_id), 'ADID': int(self.id),
+            'Core': int(self.is_core_ad),
+            'EdgeRouters': {}, 'PathServers': {}, 'BeaconServers': {},
+            'CertificateServers': {},
         }
         for i, router in enumerate(self.routerweb_set.all(), start=1):
             out_dict['EdgeRouters'][str(i)] = router.get_dict()
@@ -120,9 +121,9 @@ class AD(models.Model):
                 interface = router.interface
                 neighbor_ad = AD.objects.get(id=interface.neighbor_ad,
                                              isd=interface.neighbor_isd)
-                router_element = RouterWeb(addr=router.addr, ad=self,
-                                           neighbor_ad=neighbor_ad,
-                                           neighbor_type=interface.neighbor_type)
+                router_element = RouterWeb(
+                    addr=router.addr, ad=self, neighbor_ad=neighbor_ad,
+                    neighbor_type=interface.neighbor_type)
                 router_element.save()
 
             for bs in beacon_servers:
@@ -136,9 +137,8 @@ class AD(models.Model):
             for ps in path_servers:
                 ps_element = PathServerWeb(addr=ps.addr, ad=self)
                 ps_element.save()
-        except IntegrityError as ex:
+        except IntegrityError:
             pass
-
 
     def __str__(self):
         return '{}-{}'.format(self.isd.id, self.id)

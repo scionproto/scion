@@ -35,6 +35,7 @@ def _append_pkcs7_padding(msg):
     numpads = 16 - (len(msg) % 16)
     return msg + bytes([numpads]*numpads)
 
+
 def _strip_pkcs7_padding(msg):
     """
     Strip PKCS7 Padding from to a given message msg with PKCS7 padding.
@@ -42,13 +43,14 @@ def _strip_pkcs7_padding(msg):
     :param msg:
     :type msg:
     """
-    if len(msg)%16 or not msg:
+    if len(msg) % 16 or not msg:
         raise ValueError('Bytes of len %d can\'t be PCKS7-padded' % len(msg))
     numpads = msg[-1]
     if numpads > 16:
         raise ValueError('Bytes ending with %r can\'t be PCKS7-padded' %
                          msg[-1])
     return msg[:-numpads]
+
 
 def get_random_bytes(size):
     """
@@ -69,6 +71,7 @@ def get_random_bytes(size):
         return os.urandom(size)
     else:
         raise ValueError('Invalid len, %s. Should be greater than 0.' % size)
+
 
 def sha3hash(inp=None, algo='SHA3-512'):
     """
@@ -97,6 +100,7 @@ def sha3hash(inp=None, algo='SHA3-512'):
         return Keccak(c=1024, r=576, n=512, data=inp).hexdigest()
     else:
         raise ValueError("Hash algorithm does not implement.")
+
 
 def get_roundkey_cache(key):
     """
@@ -133,6 +137,7 @@ def get_roundkey_cache(key):
                              'Size should be 16, 24, or either 32 bytes.')
         expanded_keysize = 16 * (nbr_rounds + 1)
         return aes.expandKey(key, size, expanded_keysize)
+
 
 def cbc_encrypt(cache, msg, inv=None):
     """
@@ -181,7 +186,7 @@ def cbc_encrypt(cache, msg, inv=None):
             for j in range(int(math.ceil(float(len(string_in))/16))):
                 start = j * 16
                 end = start + 16
-                if  end > len(string_in):
+                if end > len(string_in):
                     end = len(string_in)
                 plaintext = string_in[start:end]
                 for i in range(16):
@@ -194,6 +199,7 @@ def cbc_encrypt(cache, msg, inv=None):
                 output.extend(cipher)
         return struct.pack('B' * len(output), *output)
 
+
 def cbc_decrypt(cache, cipher, inv=None):
     """
     CBC cipher decryption on a given cipher with pre-expanded key cache.
@@ -202,13 +208,13 @@ def cbc_decrypt(cache, cipher, inv=None):
         cache: Expanded round key cache by calling get_roundkey_cache.
         cipher: Ciphertext to be decrypted, as a bytes object.
         inv: Initialized vector for CBC cipher, as a bytes object. Default
-        value is NULL. 
+        value is NULL.
 
     Returns:
         Decrypted output, as a bytes object.
 
     Raises:
-    	ValueError: An error occurred when cache is NULL or ciphertext is NULL.
+        ValueError: An error occurred when cache is NULL or ciphertext is NULL.
     """
     if cache is None:
         raise ValueError('Key cache is NULL.')
@@ -238,7 +244,7 @@ def cbc_decrypt(cache, cipher, inv=None):
             inv = [0] * 16
         # char firstRound
         first_round = True
-        if cipher != None:
+        if cipher is not None:
             for j in range(int(math.ceil(float(len(cipher))/16))):
                 start = j * 16
                 end = start + 16
@@ -252,10 +258,11 @@ def cbc_decrypt(cache, cipher, inv=None):
                     else:
                         plaintext[i] = iput[i] ^ output[i]
                 first_round = False
-                string_out += struct.pack('B' *len(plaintext), *plaintext)
+                string_out += struct.pack('B' * len(plaintext), *plaintext)
                 iput = ciphertext
         string_out = _strip_pkcs7_padding(string_out)
         return string_out
+
 
 def get_cbcmac(cache, msg):
     """
@@ -270,7 +277,7 @@ def get_cbcmac(cache, msg):
         MAC output, as a bytes object.
 
     Raises:
-    	ValueError: An error occurred when cache is NULL or ciphertext is NULL.
+        ValueError: An error occurred when cache is NULL or ciphertext is NULL.
     """
     if cache is None:
         raise ValueError('Key cache is NULL.')
@@ -281,6 +288,7 @@ def get_cbcmac(cache, msg):
         inv[0] = len(msg)
         cipher = cbc_encrypt(cache, msg, inv)
         return cipher[-16:]
+
 
 def verify_cbcmac(cache, msg, rmac):
     """
@@ -296,7 +304,7 @@ def verify_cbcmac(cache, msg, rmac):
         Verification result, as a boolean value.
 
     Raises:
-    	ValueError: An error occurred when cache is NULL or msg is NULL.
+        ValueError: An error occurred when cache is NULL or msg is NULL.
     """
     if cache is None:
         raise ValueError('Key cache is NULL.')
@@ -305,6 +313,7 @@ def verify_cbcmac(cache, msg, rmac):
     else:
         mac = get_cbcmac(cache, msg)
         return mac == rmac
+
 
 def authenticated_encrypt(cache, msg, auth, inv=None):
     """
@@ -323,6 +332,7 @@ def authenticated_encrypt(cache, msg, auth, inv=None):
     """
     cipher, tag = gcm_encrypt(cache, inv, msg, auth)
     return cipher+tag
+
 
 def authenticated_decrypt(cache, cipher, auth, inv=None):
     """
@@ -344,6 +354,7 @@ def authenticated_decrypt(cache, cipher, auth, inv=None):
     decipher = gcm_decrypt(cache, inv, ciphertext, auth, tag)
     return decipher
 
+
 def gen_of_mac(key, hof, prev_hof, ts):
     """
     Generates MAC for newly created OF.
@@ -360,6 +371,7 @@ def gen_of_mac(key, hof, prev_hof, ts):
     ts_raw = struct.pack("I", ts)
     to_mac = hof_raw + prev_hof_raw + ts_raw
     return get_cbcmac(key, to_mac)[:HopOpaqueField.MAC_LEN]
+
 
 def verify_of_mac(key, hof, prev_hof, ts):
     """

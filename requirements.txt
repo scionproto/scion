@@ -1,6 +1,7 @@
 Sphinx
 coverage
 dnslib
+flake8
 kazoo
 nose
 nose-cov

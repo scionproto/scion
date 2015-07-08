@@ -599,7 +599,6 @@ class TestPathStoreGetBestSegments(object):
         ntools.eq_(pth_str.get_best_segments(), [0, 1, 2, 3])
 
 
-
 class TestPathStoreGetLatestHistorySnapshot(object):
     """
     Unit tests for lib.path_store.get_latest_history_snapshot

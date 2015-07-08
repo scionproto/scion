@@ -16,8 +16,8 @@
 ===========================================
 """
 from lib.crypto.aes import AES
-import binascii
 import struct
+
 
 def _xor_strings(xs, ys):
     """
@@ -32,6 +32,7 @@ def _xor_strings(xs, ys):
     """
     y = [xs[j] ^ ys[j] for j in range(len(xs))]
     return struct.pack('B' * len(y), *y)
+
 
 def _gcm_rightshift(vec):
     """
@@ -48,6 +49,7 @@ def _gcm_rightshift(vec):
         vec[x] = c
     vec[0] >>= 1
     return vec
+
 
 def _gcm_gf_mult(a, b):
     """
@@ -72,6 +74,7 @@ def _gcm_gf_mult(a, b):
         V[0] ^= poly[bit]
     return Z
 
+
 def _ghash(h, auth_data, data):
     """
 
@@ -90,7 +93,7 @@ def _ghash(h, auth_data, data):
     x = auth_data
     x += bytes.fromhex('00'*v)
     if data is not None:
-    	x += data
+        x += data
     x += bytes.fromhex('00'*u)
     x += struct.pack('>QQ', len(auth_data) * 8, len(data) * 8)
     y = [0] * 16
@@ -100,6 +103,7 @@ def _ghash(h, auth_data, data):
         y = [y[j] ^ block[j] for j in range(16)]
         y = _gcm_gf_mult(y, vec_h)
     return struct.pack('B' * len(y), *y)
+
 
 def _inc32(block):
     """
@@ -113,6 +117,7 @@ def _inc32(block):
     counter, = struct.unpack('>L', block[12:])
     counter += 1
     return block[:12] + struct.pack('>L', counter)
+
 
 def _gctr(cipher, expandedKey, nbrRounds, icb, plaintext):
     """
@@ -142,6 +147,7 @@ def _gctr(cipher, expandedKey, nbrRounds, icb, plaintext):
         plaintext_block = plaintext[i:i+16]
         y += _xor_strings(plaintext_block, encrypted[:len(plaintext_block)])
     return y
+
 
 def gcm_decrypt(key_cache, iv, encrypted, auth_data, tag):
     """
@@ -188,6 +194,7 @@ def gcm_decrypt(key_cache, iv, encrypted, auth_data, tag):
         raise ValueError('Decrypted data is invalid')
     else:
         return decrypted
+
 
 def gcm_encrypt(key_cache, iv, plaintext, auth_data):
     """

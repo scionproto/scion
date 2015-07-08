@@ -1,18 +1,23 @@
 machine:
-  python:
-    version: 3.4.2
+    python:
+        version: 3.4.2
+    services:
+        - docker
 
 dependencies:
-  cache_directories:
-    - "/var/cache/apt"
-  post:
-    - "./scion.sh init"
-    - "./scion.sh topology"
+    cache_directories:
+        - "~/cache"
+    override:
+        - docker/cache.sh restore
+        - mv ~/cache ~/cache.old; mkdir ~/cache
+        - ./docker.sh build
+        - docker/cache.sh save
 
 test:
-  override:
-    - ./scion.sh coverage
-    - make -C sphinx-doc html
-  post:
-    - cp -a htmlcov "$CIRCLE_ARTIFACTS"/coverage
-    - cp -a sphinx-doc/_build/html "$CIRCLE_ARTIFACTS"/docs
+    override:
+        - ./docker.sh run bash -lc "./scion.sh coverage -v"
+        - ./docker.sh run bash -lc "./scion.sh lint"
+        - ./docker.sh run bash -lc "make -C sphinx-doc html"
+    post:
+        - cp -a htmlcov "$CIRCLE_ARTIFACTS"/coverage
+        - cp -a sphinx-doc/_build/html "$CIRCLE_ARTIFACTS"/docs

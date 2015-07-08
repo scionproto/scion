@@ -5,7 +5,8 @@ from django.conf.urls import patterns, url
 from ad_manager import views
 
 
-urlpatterns = patterns('',
+urlpatterns = patterns(
+    '',
     url(r'^isds/$',
         views.ISDListView.as_view(), name='list_isds'),
     url(r'^isds/(?P<pk>\d+)/$',
