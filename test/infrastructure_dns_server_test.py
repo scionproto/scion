@@ -24,7 +24,7 @@ from unittest.mock import MagicMock, call, patch
 import nose
 import nose.tools as ntools
 from dnslib import DNSLabel, DNSRecord, QTYPE, RCODE
-from dnslib import A, AAAA, PTR, RR, SRV
+from dnslib import A, AAAA, NS, PTR, RR, SRV
 
 # SCION
 from infrastructure.dns_server import SCIONDnsServer, SrvInst, ZoneResolver
@@ -53,7 +53,7 @@ class BaseDNSServer(object):
 
     def _setup_zoneresolver(self):
         self.lock = MagicMock(spec_set=["__enter__", "__exit__"])
-        return ZoneResolver(self.lock, self.DOMAIN, ["bs", "cs"])
+        return ZoneResolver(self.lock, self.DOMAIN)
 
 
 class TestSrvInstInit(BaseDNSServer):
@@ -213,6 +213,37 @@ class TestSrvInstReverseRecord(BaseDNSServer):
             yield self._check, rev
 
 
+class TestSrvInstNsRecords(BaseDNSServer):
+    """
+    Unit tests for infrastructure.dns_server.SrvInst.ns_records
+    """
+    def _check(self, v4addr, v6addr):
+        # Setup
+        data_items = [self.NAME, str(self.PORT)]
+        calls = [call(RR(self.DOMAIN, QTYPE.NS, rdata=NS(self.FQDN)))]
+        if v4addr:
+            data_items.append(v4addr)
+            calls.append(call(RR(self.FQDN, QTYPE.A, rdata=A(v4addr))))
+        if v6addr:
+            data_items.append(v6addr)
+            calls.append(call(RR(self.FQDN, QTYPE.AAAA, rdata=AAAA(v6addr))))
+        inst = self._setup_srvinst(data_items)
+        reply = MagicMock(spec_set=DNSRecord)
+        reply.add_ar = MagicMock(spec_set=[])
+        # Call
+        inst.ns_records(reply)
+        # Tests
+        reply.add_ar.assert_has_calls(calls, any_order=True)
+
+    def test(self):
+        for v4, v6 in (
+            (self.V4_ADDR, None),
+            (None, self.V6_ADDR),
+            (self.V4_ADDR, self.V6_ADDR)
+        ):
+            yield self._check, v4, v6
+
+
 class TestZoneResolverResolve(BaseDNSServer):
     """
     Unit tests for infrastructure.dns_server.ZoneResolver.resolve
@@ -222,6 +253,7 @@ class TestZoneResolverResolve(BaseDNSServer):
         inst = self._setup_zoneresolver()
         inst.resolve_forward = MagicMock(spec_set=[])
         inst.resolve_reverse = MagicMock(spec_set=[])
+        inst.add_nameservers = MagicMock(spec_set=[])
         request = MagicMock(spec_set=DNSRecord)
         reply = request.reply.return_value = "2345as"
         qname = request.q.qname = DNSLabel("a.tiny.teacup")
@@ -231,6 +263,7 @@ class TestZoneResolverResolve(BaseDNSServer):
         # Tests
         inst.resolve_forward.assert_called_once_with(qname, qtype, reply)
         ntools.eq_(inst.resolve_reverse.call_count, 0)
+        inst.add_nameservers.assert_called_once_with(reply)
 
     def test_forward(self):
         for qtype in ["A", "AAAA", "ANY", "SRV"]:
@@ -241,6 +274,7 @@ class TestZoneResolverResolve(BaseDNSServer):
         inst = self._setup_zoneresolver()
         inst.resolve_forward = MagicMock(spec_set=[])
         inst.resolve_reverse = MagicMock(spec_set=[])
+        inst.add_nameservers = MagicMock(spec_set=[])
         request = MagicMock(spec_set=DNSRecord)
         reply = request.reply.return_value = "2345as"
         qname = request.q.qname = DNSLabel("teacup.tiny.a")
@@ -250,12 +284,14 @@ class TestZoneResolverResolve(BaseDNSServer):
         # Tests
         ntools.eq_(inst.resolve_forward.call_count, 0)
         inst.resolve_reverse.assert_called_once_with(qname, reply)
+        inst.add_nameservers.assert_called_once_with(reply)
 
     def test_unsupported(self):
         # Setup
         inst = self._setup_zoneresolver()
         inst.resolve_forward = MagicMock(spec_set=[])
         inst.resolve_reverse = MagicMock(spec_set=[])
+        inst.add_nameservers = MagicMock(spec_set=[])
         request = MagicMock(spec_set=DNSRecord)
         reply = request.reply.return_value = MagicMock(spec_set=["header"])
         reply.header = MagicMock(spec_set=["rcode"])
@@ -266,6 +302,7 @@ class TestZoneResolverResolve(BaseDNSServer):
         # Tests
         ntools.eq_(inst.resolve_forward.call_count, 0)
         ntools.eq_(inst.resolve_reverse.call_count, 0)
+        ntools.eq_(inst.add_nameservers.call_count, 0)
         ntools.eq_(reply.header.rcode, RCODE.NXDOMAIN)
 
 
@@ -359,6 +396,24 @@ class TestZoneResolverResolveReverse(BaseDNSServer):
         ntools.eq_(reply.header.rcode, RCODE.NXDOMAIN)
 
 
+class TestZoneResolverAddNameservers(BaseDNSServer):
+    """
+    Unit tests for infrastructure.dns_server.ZoneResolver.add_nameservers
+    """
+    def test_nses(self):
+        # Setup
+        inst = self._setup_zoneresolver()
+        ds_inst = MagicMock(SrvInst, autospec=True)
+        ds_inst.ns_records = MagicMock(spec_set=[])
+        inst.services[self.DOMAIN.add("ds")] = [ds_inst] * 3
+        reply = MagicMock(spec_set=["header"])
+        # Call
+        inst.add_nameservers(reply)
+        # Test
+        calls = [call(reply)] * 3
+        ds_inst.ns_records.assert_has_calls(calls)
+
+
 def dns_init_wrapper(f):
     @wraps(f)
     def wrap(self, *args, **kwargs):
@@ -437,7 +492,7 @@ class TestSCIONDnsServerSetup(BaseDNSServer):
         server.setup()
         # Tests
         self.mocks.zone_resolver.assert_called_once_with(
-            self.mocks.lock.return_value, self.DOMAIN, server.SRV_TYPES)
+            self.mocks.lock.return_value, self.DOMAIN)
         self.mocks.dns_server.assert_any_call(
             self.mocks.zone_resolver.return_value, port=SCION_DNS_PORT,
             address="127.0.0.1", server=self.mocks.dns_udp_server,
