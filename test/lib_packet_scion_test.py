@@ -956,10 +956,10 @@ class TestCertChainRequestParse(object):
         req.parse('data')
         parse.assert_called_once_with(req, 'data')
         ntools.eq_(req.ingress_if, 0x0102)
-        ntools.eq_(req.src_isd, 188)
-        ntools.eq_(req.src_ad, 541)
-        ntools.eq_(req.isd_id, 33)
-        ntools.eq_(req.ad_id, 1222)
+        ntools.eq_(req.src_isd, 0x0bc)
+        ntools.eq_(req.src_ad, 0x0021d)
+        ntools.eq_(req.isd_id, 0x021)
+        ntools.eq_(req.ad_id, 0x004c6)
         ntools.eq_(req.version, 0x1718191a)
 
 
@@ -977,7 +977,7 @@ class TestCertChainRequestFromValues(object):
         scion_addr.return_value = 'dst'
         scion_hdr.return_value = 'hdr'
         (ingress_if, src_isd, src_ad, isd_id, ad_id, version) = \
-            (0x0102, 1, 393232, 13, 985, 0x0b0c)
+            (0x0102, 0x001, 0x60010, 0x00d, 0x003d9, 0x0b0c)
         req = CertChainRequest.from_values('req_type', 'src', ingress_if,
                                            src_isd, src_ad, isd_id, ad_id,
                                            version)
@@ -1025,8 +1025,8 @@ class TestCertChainReplyParse(object):
             b'\x00' * 10
         rep.parse('data')
         parse.assert_called_once_with(rep, 'data')
-        ntools.eq_(rep.isd_id, 188)
-        ntools.eq_(rep.ad_id, 541)
+        ntools.eq_(rep.isd_id, 0x0bc)
+        ntools.eq_(rep.ad_id, 0x0021d)
         ntools.eq_(rep.version, 0x1718191a)
         ntools.eq_(rep.cert_chain, b'\x00' * 10)
 
@@ -1044,7 +1044,7 @@ class TestCertChainReplyFromValues(object):
     def test(self, scion_addr, scion_hdr, set_hdr, set_payload):
         scion_addr.return_value = 'src'
         scion_hdr.return_value = 'hdr'
-        (isd_id, ad_id, version) = (188, 541, 0x0506)
+        (isd_id, ad_id, version) = (0x0bc, 0x0021d, 0x0506)
         rep = CertChainReply.from_values('dst', isd_id, ad_id, version,
                                          b'cert_chain')
         ntools.assert_is_instance(rep, CertChainReply)
@@ -1112,7 +1112,7 @@ class TestTRCRequestFromValues(object):
         scion_addr.return_value = 'dst'
         scion_hdr.return_value = 'hdr'
         (ingress_if, src_isd, src_ad, isd_id, version) = \
-            (0x0102, 1, 393232, 0x0708, 0x090a)
+            (0x0102, 0x1, 0x60010, 0x0708, 0x090a)
         req = TRCRequest.from_values('req_type', 'src', ingress_if, src_isd,
                                      src_ad, isd_id, version)
         ntools.assert_is_instance(req, TRCRequest)

@@ -86,7 +86,7 @@ class PathSegmentInfo(PayloadBase):
         Populates fields from a raw bytes block.
         """
         PayloadBase.parse(self, raw)
-        self.type = raw[0]
+        (self.type, ) = struct.unpack("!B", raw[:1])
         raw = raw[1:]
         (self.src_isd, self.src_ad) = ISD_AD.from_raw(raw[:ISD_AD.LEN])
         raw = raw[ISD_AD.LEN:]
@@ -191,7 +191,7 @@ class LeaseInfo(PayloadBase):
         if len(raw) < LeaseInfo.LEN:
             logging.error("Not enough data to parse LeaseInfo")
             return
-        self.seg_type = raw[0]
+        (self.seg_type, ) = struct.unpack("!B", raw[:1])
         raw = raw[1:]
         (self.isd_id, self.ad_id) = ISD_AD.from_raw(raw[:ISD_AD.LEN])
         raw = raw[ISD_AD.LEN:]

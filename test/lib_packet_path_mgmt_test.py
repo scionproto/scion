@@ -70,11 +70,11 @@ class TestPathSegmentInfoParse(object):
         data = bytes.fromhex('0e 0bc0021d 021004c6')
         pth_seg_info.parse(data)
         parse.assert_called_once_with(pth_seg_info, data)
-        ntools.eq_(pth_seg_info.type, 0xe)
-        ntools.eq_(pth_seg_info.src_isd, 188)
-        ntools.eq_(pth_seg_info.src_ad,  541)
-        ntools.eq_(pth_seg_info.dst_isd, 33)
-        ntools.eq_(pth_seg_info.dst_ad, 1222)
+        ntools.eq_(pth_seg_info.type, 0x0e)
+        ntools.eq_(pth_seg_info.src_isd, 0x0bc)
+        ntools.eq_(pth_seg_info.src_ad,  0x0021d)
+        ntools.eq_(pth_seg_info.dst_isd, 0x021)
+        ntools.eq_(pth_seg_info.dst_ad, 0x004c6)
 
 
 class TestPathSegmentInfoPack(object):
@@ -83,11 +83,11 @@ class TestPathSegmentInfoPack(object):
     """
     def test_basic(self):
         pth_seg_info = PathSegmentInfo()
-        pth_seg_info.type = 0xe
-        pth_seg_info.src_isd = 188
-        pth_seg_info.src_ad = 541
-        pth_seg_info.dst_isd = 33
-        pth_seg_info.dst_ad = 1222
+        pth_seg_info.type = 0x0e
+        pth_seg_info.src_isd = 0x0bc
+        pth_seg_info.src_ad = 0x0021d
+        pth_seg_info.dst_isd = 0x021
+        pth_seg_info.dst_ad = 0x004c6
         ntools.eq_(pth_seg_info.pack(), bytes.fromhex('0e 0bc0021d 021004c6'))
 
 
@@ -96,10 +96,10 @@ class TestPathSegmentInfoFromValues(object):
     Unit tests for lib.packet.path_mgmt.PathSegmentInfo.from_values
     """
     def test_basic(self):
-        pth_seg_info = PathSegmentInfo.from_values(0xe, 0x2a0a, 0x0b0c,
+        pth_seg_info = PathSegmentInfo.from_values(0x0e, 0x2a0a, 0x0b0c,
                                                    0x0102030405060708,
                                                    0x9192939495969798)
-        ntools.eq_(pth_seg_info.type, 0xe)
+        ntools.eq_(pth_seg_info.type, 0x0e)
         ntools.eq_(pth_seg_info.src_isd, 0x2a0a)
         ntools.eq_(pth_seg_info.dst_isd, 0x0b0c)
         ntools.eq_(pth_seg_info.src_ad, 0x0102030405060708)
@@ -206,8 +206,8 @@ class TestLeaseInfoParse(object):
         les_inf.parse(data)
         parse.assert_called_once_with(les_inf, data)
         ntools.eq_(les_inf.seg_type, 0x0e)
-        ntools.eq_(les_inf.isd_id, 33)
-        ntools.eq_(les_inf.ad_id, 1222)
+        ntools.eq_(les_inf.isd_id, 0x021)
+        ntools.eq_(les_inf.ad_id, 0x004c6)
         ntools.eq_(les_inf.exp_time, 0x01020304)
         ntools.eq_(les_inf.seg_id, b"superlengthybigstringoflength32.")
 
@@ -232,8 +232,8 @@ class TestLeaseInfoPack(object):
     def test_basic(self):
         les_inf = LeaseInfo()
         les_inf.seg_type = 0x0e
-        les_inf.isd_id = 33
-        les_inf.ad_id = 1222
+        les_inf.isd_id = 0x021
+        les_inf.ad_id = 0x004c6
         les_inf.exp_time = 0x01020304
         les_inf.seg_id = b"superlengthybigstringoflength32."
         data = bytes.fromhex('0e 021004c6 01020304') + \
