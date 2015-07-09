@@ -19,30 +19,37 @@
 from infrastructure.path_server import CorePathServer, LocalPathServer
 from lib.defines import SCION_UDP_PORT
 
-# SCION Simulator
-from simulator.simulator import add_element, schedule
-
 
 class CorePathServerSim(CorePathServer):
     """
     Simulator version of the SCION Path Server in a core AD
     """
-    def __init__(self, server_id, topo_file, config_file):
+    def __init__(self, server_id, topo_file, config_file, simulator):
         """
         Initialises CorePathServer with is_sim set to True.
+
+        :param server_id:
+        :type server_id:
+        :param topo_file:
+        :type topo_file:
+        :param config_file:
+        :type config_file:
+        :param simulator: Instance of simulator class
+        :type simulator: Simulator
         """
         CorePathServer.__init__(self, server_id, topo_file, config_file,
                                 is_sim=True)
-        add_element(str(self.addr.host_addr), self)
+        self.simulator = simulator
+        simulator.add_element(str(self.addr.host_addr), self)
 
     def send(self, packet, dst, dst_port=SCION_UDP_PORT):
         """
         Send *packet* to *dst* (to port *dst_port*).
         """
-        schedule(0., dst=str(dst),
-                 args=(packet.pack(),
-                       (str(self.addr), SCION_UDP_PORT),
-                       (str(dst), dst_port)))
+        self.simulator.add_event(0., dst=str(dst),
+                                 args=(packet.pack(),
+                                       (str(self.addr), SCION_UDP_PORT),
+                                       (str(dst), dst_port)))
 
     def sim_recv(self, packet, src, dst):
         """
@@ -64,22 +71,32 @@ class LocalPathServerSim(LocalPathServer):
     """
     Simulator version of the SCION Path Server in a local AD
     """
-    def __init__(self, server_id, topo_file, config_file):
+    def __init__(self, server_id, topo_file, config_file, simulator):
         """
         Initialises LocalPathServer with is_sim set to True.
+
+        :param server_id:
+        :type server_id:
+        :param topo_file:
+        :type topo_file:
+        :param config_file:
+        :type config_file:
+        :param simulator: Instance of simulator class
+        :type simulator: Simulator
         """
         LocalPathServer.__init__(self, server_id, topo_file, config_file,
                                  is_sim=True)
-        add_element(str(self.addr.host_addr), self)
+        self.simulator = simulator
+        simulator.add_element(str(self.addr.host_addr), self)
 
     def send(self, packet, dst, dst_port=SCION_UDP_PORT):
         """
         Send *packet* to *dst* (to port *dst_port*).
         """
-        schedule(0., dst=str(dst),
-                 args=(packet.pack(),
-                       (str(self.addr), SCION_UDP_PORT),
-                       (str(dst), dst_port)))
+        self.simulator.add_event(0., dst=str(dst),
+                                 args=(packet.pack(),
+                                       (str(self.addr), SCION_UDP_PORT),
+                                       (str(dst), dst_port)))
 
     def sim_recv(self, packet, src, dst):
         """

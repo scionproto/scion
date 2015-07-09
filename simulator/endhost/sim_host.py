@@ -33,9 +33,6 @@ from lib.packet.scion_addr import ISD_AD
 from lib.path_db import PathSegmentDB
 from lib.util import update_dict
 
-# SCION Simulator
-from simulator.simulator import add_element, schedule, unschedule
-
 SCIOND_API_PORT = 3333
 
 
@@ -46,14 +43,15 @@ class SCIONSimHost(SCIONElement):
 
     TIMEOUT = 5
 
-    def __init__(self, addr, topo_file):
+    def __init__(self, addr, topo_file, simulator):
         """
         Initializes SimHost by calling constructor of SCIONElement with
         is_sim variable set to True
         """
         SCIONElement.__init__(self, "host", topo_file, host_addr=addr,
                               is_sim=True)
-        add_element(str(self.addr.host_addr), self)
+        self.simulator = simulator
+        simulator.add_element(str(self.addr.host_addr), self)
 
         # TODO replace by pathstore instance
         self.up_segments = PathSegmentDB()
@@ -88,10 +86,10 @@ class SCIONSimHost(SCIONElement):
         """
         Send *packet* to *dst* (to port *dst_port*).
         """
-        schedule(0., dst=str(dst),
-                 args=(packet.pack(),
-                       (str(self.addr), SCION_UDP_PORT),
-                       (str(dst), dst_port)))
+        self.simulator.add_event(0., dst=str(dst),
+                                 args=(packet.pack(),
+                                       (str(self.addr), SCION_UDP_PORT),
+                                       (str(dst), dst_port)))
 
     def clean(self):
         pass
@@ -104,9 +102,9 @@ class SCIONSimHost(SCIONElement):
         src_isd = self.topology.isd_id
         src_ad = self.topology.ad_id
 
-        eid = schedule(SCIONSimHost.TIMEOUT,
-                       cb=self._expire_request_timeout,
-                       args=(ptype, requestor))
+        eid = self.simulator.add_event(SCIONSimHost.TIMEOUT,
+                                       cb=self._expire_request_timeout,
+                                       args=(ptype, requestor))
 
         if ptype == PST.UP_DOWN or ptype == PST.UP or ptype == PST.DOWN:
             update_dict(self._waiting_targets[ptype],
@@ -267,7 +265,7 @@ class SCIONSimHost(SCIONElement):
                     down_segments = self.down_segments(dst_isd=dst_isd,
                                                        dst_ad=dst_ad)
                     if self.up_segments and down_segments:
-                        unschedule(eid)
+                        self.simulator.remove_event(eid)
                         self._waiting_targets[info.type]\
                             [(dst_isd, dst_ad)].remove(event)
                     else:
@@ -292,7 +290,7 @@ class SCIONSimHost(SCIONElement):
                                           src_ad=src_core_ad,
                                           dst_isd=dst_isd,
                                           dst_ad=dst_core_ad):
-                        unschedule(eid)
+                        self.simulator.remove_event(eid)
                         self._waiting_targets[info.type]\
                             [(dst_isd, dst_core_ad)].remove(event)
                     else:
@@ -306,7 +304,7 @@ class SCIONSimHost(SCIONElement):
                        self.down_segments(dst_isd=dst_isd, dst_ad=dst_ad))):
                     full_paths = self._get_full_paths(src_isd, src_ad,
                                                       dst_isd, dst_ad)
-                    unschedule(eid)
+                    self.simulator.remove_event(eid)
                     self._waiting_targets[info.type]\
                         [(dst_isd, dst_ad)].remove(event)
                     if not full_paths:

@@ -24,7 +24,6 @@ from lib.packet.scion_addr import SCIONAddr
 
 # SCION Simulator
 from simulator.application.sim_app import SCIONSimApplication
-from simulator.simulator import schedule, terminate
 
 
 class SimPingApp(SCIONSimApplication):
@@ -57,7 +56,7 @@ class SimPingApp(SCIONSimApplication):
         """
         Run ping application at start_time
         """
-        schedule(self.start_time, cb=self.send_ping)
+        self.simulator.add_event(self.start_time, cb=self.send_ping)
 
     def handle_packet(self, packet, sender):
         """
@@ -70,7 +69,7 @@ class SimPingApp(SCIONSimApplication):
         if SCIONPacket(packet).payload == b"pong":
             logging.info('%s: pong received', self.addr)
             self.pong_received = True
-            terminate()
+            self.simulator.terminate()
 
     def send_ping(self):
         """

@@ -25,23 +25,38 @@ from lib.packet.scion import IFIDPacket
 from lib.packet.scion_addr import SCIONAddr, ISD_AD
 from lib.util import SCIONTime
 
-# SCION Simulator
-from simulator.simulator import add_element, schedule
-
 
 class RouterSim(Router):
     """
     Simulator version of the SCION Router
     """
-    def __init__(self, router_id, topo_file, config_file, pre_ext_handlers=None,
-                 post_ext_handlers=None):
+    def __init__(self, router_id, topo_file, config_file, simulator,
+                 pre_ext_handlers=None, post_ext_handlers=None):
         """
         Initialises Router with is_sim set to True.
+
+        :param router_id:
+        :type router_id:
+        :param topo_file: the topology file name.
+        :type topo_file: str
+        :param config_file: the configuration file name.
+        :type config_file: str
+        :param simulator: Instance of simulator class.
+        :type simulator: Simulator
+        :param pre_ext_handlers: a map of extension header types to handlers
+                                 for those extensions that execute before
+                                 routing.
+        :type pre_ext_handlers: dict
+        :param post_ext_handlers: a map of extension header types to handlers
+                                  for those extensions that execute after
+                                  routing.
+        :type post_ext_handlers: dict
         """
         Router.__init__(self, router_id, topo_file, config_file,
                         pre_ext_handlers, post_ext_handlers, is_sim=True)
-        add_element(str(self.addr.host_addr), self)
-        add_element(str(self.interface.addr), self)
+        self.simulator = simulator
+        simulator.add_element(str(self.addr.host_addr), self)
+        simulator.add_element(str(self.interface.addr), self)
 
     def send(self, packet, next_hop, use_local_socket=True):
         """
@@ -52,15 +67,18 @@ class RouterSim(Router):
         self.handle_extensions(packet, next_hop, False)
         if use_local_socket:
             # SCIONElement.send(self, packet, next_hop.addr, next_hop.port)
-            schedule(0., dst=str(next_hop.addr),
-                     args=(packet.pack(),
-                           (str(self.addr), SCION_UDP_PORT),
-                           (str(next_hop.addr), next_hop.port)))
+            self.simulator.add_event(0., dst=str(next_hop.addr),
+                                     args=(packet.pack(),
+                                           (str(self.addr), SCION_UDP_PORT),
+                                           (str(next_hop.addr),
+                                            next_hop.port)))
         else:
-            schedule(0., dst=str(next_hop.addr),
-                     args=(packet.pack(),
-                           (str(self.interface.addr), self.interface.udp_port),
-                           (str(next_hop.addr), next_hop.port)))
+            self.simulator.add_event(0., dst=str(next_hop.addr),
+                                     args=(packet.pack(),
+                                           (str(self.interface.addr),
+                                            self.interface.udp_port),
+                                           (str(next_hop.addr),
+                                            next_hop.port)))
 
     def sim_recv(self, packet, src, dst):
         """
@@ -72,7 +90,7 @@ class RouterSim(Router):
         self.handle_request(packet, src, to_local)
 
     def run(self):
-        schedule(0., cb=self.sync_interface)
+        self.simulator.add_event(0., cb=self.sync_interface)
 
     def sync_interface(self):
         """
@@ -93,7 +111,7 @@ class RouterSim(Router):
         logging.info('Sending IFID_PKT to router: req_id:%d, rep_id:%d',
                      ifid_req.request_id, ifid_req.reply_id)
 
-        schedule(IFID_PKT_TOUT, cb=self.sync_interface)
+        self.simulator.add_event(IFID_PKT_TOUT, cb=self.sync_interface)
 
     def clean(self):
         pass

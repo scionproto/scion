@@ -31,30 +31,39 @@ from lib.util import (
     write_file
 )
 
-# SCION Simulator
-from simulator.simulator import add_element, schedule
-
 
 class CertServerSim(CertServer):
     """
     The SCION Certificate Server - Simulator
     """
-    def __init__(self, server_id, topo_file, config_file, trc_file):
+    def __init__(self, server_id, topo_file, config_file, trc_file, simulator):
         """
         Initialises CertServer with is_sim set to True.
+
+        :param server_id: server identifier.
+        :type server_id: int
+        :param topo_file: topology file.
+        :type topo_file: string
+        :param config_file: configuration file.
+        :type config_file: string
+        :param trc_file: TRC file.
+        :type trc_file: string
+        :param simulator: running for simulator
+        :type simulator: Simulator
         """
         CertServer.__init__(self, server_id, topo_file, config_file,
                             trc_file, is_sim=True)
-        add_element(str(self.addr.host_addr), self)
+        self.simulator = simulator
+        simulator.add_element(str(self.addr.host_addr), self)
 
     def send(self, packet, dst, dst_port=SCION_UDP_PORT):
         """
         Send *packet* to *dst* (to port *dst_port*).
         """
-        schedule(0., dst=str(dst),
-                 args=(packet.pack(),
-                       (str(self.addr), SCION_UDP_PORT),
-                       (str(dst), dst_port)))
+        self.simulator.add_event(0., dst=str(dst),
+                                 args=(packet.pack(),
+                                       (str(self.addr), SCION_UDP_PORT),
+                                       (str(dst), dst_port)))
 
     def sim_recv(self, packet, src, dst):
         """

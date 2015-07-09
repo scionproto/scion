@@ -45,15 +45,13 @@ from lib.packet.pcb import (
 )
 from lib.util import SCIONTime
 
-# SCION Simulator
-from simulator.simulator import add_element, schedule
-
 
 class CoreBeaconServerSim(CoreBeaconServer):
     """
     Simulator version of PathConstructionBeacon Server in a core AD
     """
-    def __init__(self, server_id, topo_file, config_file, path_policy_file):
+    def __init__(self, server_id, topo_file, config_file, path_policy_file,
+                 simulator):
         """
         Initialises CoreBeaconServer with is_sim set to True.
 
@@ -65,23 +63,26 @@ class CoreBeaconServerSim(CoreBeaconServer):
         :type config_file: string
         :param path_policy_file: path policy file.
         :type path_policy_file: string
+        :param simulator: Instance of simulator class.
+        :type simulator: Simulator
         """
         CoreBeaconServer.__init__(self, server_id, topo_file, config_file,
                                   path_policy_file, is_sim=True)
-        add_element(str(self.addr.host_addr), self)
+        simulator.add_element(str(self.addr.host_addr), self)
+        self.simulator = simulator
 
     def send(self, packet, dst, dst_port=SCION_UDP_PORT):
         """
         Send *packet* to *dst* (to port *dst_port*).
         """
-        schedule(0., dst=str(dst),
-                 args=(packet.pack(),
-                       (str(self.addr), SCION_UDP_PORT),
-                       (str(dst), dst_port)))
+        self.simulator.add_event(0., dst=str(dst),
+                                 args=(packet.pack(),
+                                       (str(self.addr), SCION_UDP_PORT),
+                                       (str(dst), dst_port)))
 
     def sim_recv(self, packet, src, dst):
         """
-        The receive function called when simulator receives a packet
+        The receive function called when simulator receives a packet.
         """
         to_local = False
         if dst[0] == str(self.addr.host_addr) and dst[1] == SCION_UDP_PORT:
@@ -93,9 +94,9 @@ class CoreBeaconServerSim(CoreBeaconServer):
         Run an instance of the Beacon Server.
         """
         logging.info('Running Core Beacon Server: %s', str(self.addr))
-        schedule(0., cb=self.handle_pcbs_propagation)
-        schedule(0., cb=self.register_segments)
-        schedule(0., cb=self._handle_if_timeouts)
+        self.simulator.add_event(0., cb=self.handle_pcbs_propagation)
+        self.simulator.add_event(0., cb=self.register_segments)
+        self.simulator.add_event(0., cb=self._handle_if_timeouts)
 
     def clean(self):
         pass
@@ -127,8 +128,10 @@ class CoreBeaconServerSim(CoreBeaconServer):
         logging.info("Propagated %d Core PCBs", count)
 
         now = SCIONTime.get_time()
-        schedule(start_propagation + self.config.propagation_time - now,
-                 cb=self.handle_pcbs_propagation)
+        self.simulator.add_event(
+            start_propagation + self.config.propagation_time - now,
+            cb=self.handle_pcbs_propagation
+        )
 
     def register_segments(self):
         if not self.config.registers_paths:
@@ -140,8 +143,10 @@ class CoreBeaconServerSim(CoreBeaconServer):
         self.register_core_segments()
 
         now = SCIONTime.get_time()
-        schedule(start_registration + self.config.registration_time - now,
-                 cb=self.register_segments)
+        self.simulator.add_event(
+            start_registration + self.config.registration_time - now,
+            cb=self.register_segments
+        )
 
     def store_pcb(self, beacon):
         """
@@ -252,30 +257,43 @@ class CoreBeaconServerSim(CoreBeaconServer):
                     logging.warning("Hash chain for IF %s is exhausted.")
                 if_state.revoke_if_expired()
         now = SCIONTime.get_time()
-        schedule(start_time + self.IF_TIMEOUT_INTERVAL - now,
-                 cb=self._handle_if_timeouts)
+        self.simulator.add_event(start_time + self.IF_TIMEOUT_INTERVAL - now,
+                                 cb=self._handle_if_timeouts)
 
 
 class LocalBeaconServerSim(LocalBeaconServer):
     """
     Simulator version of PathConstructionBeacon Server in a local AD
     """
-    def __init__(self, server_id, topo_file, config_file, path_policy_file):
+    def __init__(self, server_id, topo_file, config_file, path_policy_file,
+                 simulator):
         """
         Initialises LocalBeaconServer with is_sim set to True.
+
+        :param server_id: server identifier.
+        :type server_id: int
+        :param topo_file: topology file.
+        :type topo_file: string
+        :param config_file: configuration file.
+        :type config_file: string
+        :param path_policy_file: path policy file.
+        :type path_policy_file: string
+        :param simulator: Instance of simulator class
+        :type simulator: Simulator
         """
         LocalBeaconServer.__init__(self, server_id, topo_file, config_file,
                                    path_policy_file, is_sim=True)
-        add_element(str(self.addr.host_addr), self)
+        self.simulator = simulator
+        simulator.add_element(str(self.addr.host_addr), self)
 
     def send(self, packet, dst, dst_port=SCION_UDP_PORT):
         """
         Send *packet* to *dst* (to port *dst_port*).
         """
-        schedule(0., dst=str(dst),
-                 args=(packet.pack(),
-                       (str(self.addr), SCION_UDP_PORT),
-                       (str(dst), dst_port)))
+        self.simulator.add_event(0., dst=str(dst),
+                                 args=(packet.pack(),
+                                       (str(self.addr), SCION_UDP_PORT),
+                                       (str(dst), dst_port)))
 
     def sim_recv(self, packet, src, dst):
         """
@@ -291,9 +309,9 @@ class LocalBeaconServerSim(LocalBeaconServer):
         Run an instance of the Local Beacon Server.
         """
         logging.info('Running Local Beacon Server: %s', str(self.addr))
-        schedule(0., cb=self.handle_pcbs_propagation)
-        schedule(0., cb=self.register_segments)
-        schedule(0., cb=self._handle_if_timeouts)
+        self.simulator.add_event(0., cb=self.handle_pcbs_propagation)
+        self.simulator.add_event(0., cb=self.register_segments)
+        self.simulator.add_event(0., cb=self._handle_if_timeouts)
 
     def handle_pcbs_propagation(self):
         """
@@ -304,8 +322,10 @@ class LocalBeaconServerSim(LocalBeaconServer):
         for pcb in best_segments:
             self.propagate_downstream_pcb(pcb)
         now = SCIONTime.get_time()
-        schedule(start_propagation + self.config.propagation_time - now,
-                 cb=self.handle_pcbs_propagation)
+        self.simulator.add_event(
+            start_propagation + self.config.propagation_time - now,
+            cb=self.handle_pcbs_propagation
+        )
 
     def register_segments(self):
         """
@@ -320,8 +340,10 @@ class LocalBeaconServerSim(LocalBeaconServer):
         self.register_up_segments()
         self.register_down_segments()
         now = SCIONTime.get_time()
-        schedule(start_registration + self.config.registration_time - now,
-                 cb=self.register_segments)
+        self.simulator.add_event(
+            start_registration + self.config.registration_time - now,
+            cb=self.register_segments
+        )
 
     def clean(self):
         pass
@@ -434,5 +456,5 @@ class LocalBeaconServerSim(LocalBeaconServer):
                     logging.warning("Hash chain for IF %s is exhausted.")
                 if_state.revoke_if_expired()
         now = SCIONTime.get_time()
-        schedule(start_time + self.IF_TIMEOUT_INTERVAL - now,
-                 cb=self._handle_if_timeouts)
+        self.simulator.add_event(start_time + self.IF_TIMEOUT_INTERVAL - now,
+                                 cb=self._handle_if_timeouts)

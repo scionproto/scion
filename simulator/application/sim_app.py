@@ -34,7 +34,6 @@ from lib.packet.path import (
 
 # SCION Simulator
 from simulator.endhost.sim_host import SCIOND_API_PORT
-from simulator.simulator import schedule
 
 
 class SCIONSimApplication(object):
@@ -60,6 +59,7 @@ class SCIONSimApplication(object):
         self.app_cb = None
         self.app_port = app_port
         self.start_time = 0
+        self.simulator = host.simulator
 
     def start(self, start_time):
         """
@@ -81,10 +81,10 @@ class SCIONSimApplication(object):
         """
         msg = b'\x00' + struct.pack("H", isd) + struct.pack("Q", ad)
         logging.info("Sending path request to local API.")
-        eid = schedule(0., dst=self.addr,
-                       args=(msg,
-                             (self.addr, self.app_port),
-                             (self.addr, SCIOND_API_PORT)))
+        eid = self.simulator.add_event(0., dst=self.addr,
+                                       args=(msg,
+                                             (self.addr, self.app_port),
+                                             (self.addr, SCIOND_API_PORT)))
         assert eid >= 0
 
     def handle_path_reply(self, data):

@@ -27,7 +27,7 @@ from lib.packet.scion_addr import ISD_AD
 # SCION Simulator
 from simulator.application.sim_ping_pong import SimPingApp, SimPongApp
 from simulator.endhost.sim_host import SCIONSimHost
-from simulator.simulator import init_simulator, run
+from simulator.simulator import init_simulator
 
 
 class PingPongSimTest(unittest.TestCase):
@@ -43,7 +43,7 @@ class PingPongSimTest(unittest.TestCase):
         Creates two end-hosts---Sender is 127.1.10.254 in ISD:1 AD:10,
         and Receiver is 127.2.26.254 in ISD:2 AD:26
         """
-        init_simulator()
+        simulator = init_simulator()
         src_isd_ad = ISD_AD(1, 10)
         dst_isd_ad = ISD_AD(2, 26)
         src_host_addr = IPv4Address("127.1.10.254")
@@ -56,14 +56,14 @@ class PingPongSimTest(unittest.TestCase):
             "../../topology/ISD{}/topologies/ISD:{}-AD:{}.json"
             .format(dst_isd_ad.isd, dst_isd_ad.isd, dst_isd_ad.ad)
             )
-        host1 = SCIONSimHost(src_host_addr, src_topo_path)
-        host2 = SCIONSimHost(dst_host_addr, dst_topo_path)
+        host1 = SCIONSimHost(src_host_addr, src_topo_path, simulator)
+        host2 = SCIONSimHost(dst_host_addr, dst_topo_path, simulator)
         ping_application = SimPingApp(host1, dst_host_addr,
                                       dst_isd_ad.ad, dst_isd_ad.isd)
         pong_application = SimPongApp(host2)
         app_start_time = 40.
         ping_application.start(app_start_time)
-        run()
+        simulator.run()
         logging.info("Simulation terminated")
         assert ping_application.pong_received and pong_application.ping_received
 
