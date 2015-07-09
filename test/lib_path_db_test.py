@@ -29,7 +29,6 @@ from lib.path_db import (
     PathSegmentDB,
     PathSegmentDBRecord
 )
-from lib.util import SCIONTime
 
 
 class TestPathSegmentDBRecordInit(object):
@@ -239,7 +238,8 @@ class TestPathSegmentDBCall(object):
     """
     Unit tests for lib.path_db.PathSegmentDB.__call__
     """
-    @patch("lib.path_db.SCIONTime.get_time", spec=SCIONTime.get_time)
+    @patch("lib.path_store.SCIONTime.get_time", spec_set=[],
+           new_callable=MagicMock)
     def test_basic(self, time):
         recs = []
         for i in range(5):
@@ -258,7 +258,8 @@ class TestPathSegmentDBCall(object):
         for i in range(5):
             recs[i]['record'].pcb.get_expiration_time.assert_called_once_with()
 
-    @patch("lib.path_db.SCIONTime.get_time", spec=SCIONTime.get_time)
+    @patch("lib.path_store.SCIONTime.get_time", spec_set=[],
+           new_callable=MagicMock)
     def test_expiration(self, time):
         recs = []
         for i in range(5):
