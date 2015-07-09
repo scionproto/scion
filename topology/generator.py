@@ -81,7 +81,7 @@ DEFAULT_SUBNET = "127.0.0.0/8"
 IP_ADDRESS_BASE = "127.0.0.1"
 
 
-class ConfigGenerator:
+class ConfigGenerator(object):
     """
     Configuration and/or topology generator.
     """
