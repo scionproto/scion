@@ -1,5 +1,6 @@
 {% extends "ad_manager/base.html" %}
 {% load staticfiles %}
+{% load bootstrap3 %}
 
 {% block js %}
   {{ block.super }}
@@ -9,12 +10,12 @@
 {% endblock %}
 
 {% block content %}
-  <h1>AD {{ object }}</h1>
+  {% include 'ad_manager/object_path.html' %}
 
-  <h4>
+  <h4 class="core-ad-label">
     Core AD:
-    {{ object.is_core_ad }}
-    <span class="glyphicon glyphicon-{{ object.is_core_ad|yesno:"ok,remove," }}" aria-hidden="true"></span>
+    {{ object.is_core_ad|yesno:"Yes,No,???" }}
+    <span class="glyphicon glyphicon-{{ object.is_core_ad|yesno:"ok,remove," }}"></span>
   </h4>
   <br />
 
@@ -25,6 +26,7 @@
       <li role="presentation" class="active"><a href="#servers" aria-controls="servers" role="tab" data-toggle="tab">Servers</a></li>
       <li role="presentation"><a href="#topology" aria-controls="topology" role="tab" data-toggle="tab">Topology</a></li>
       <li role="presentation"><a href="#updates" aria-controls="updates" role="tab" data-toggle="tab">Software updates</a></li>
+      <li role="presentation"><a href="#requests" aria-controls="requests" role="tab" data-toggle="tab">Connection requests</a></li>
     </ul>
 
     <!-- Tab panes -->
@@ -51,49 +53,115 @@
           {% include 'ad_manager/server_table.html' %}
         {% endwith %}
 
+        {% with table_name='DNS servers' servers=dns_servers table_id='dns-servers' %}
+          {% include 'ad_manager/server_table.html' %}
+        {% endwith %}
+
         {% include 'ad_manager/router_table.html' %}
+        <br /><br />
       </div>
 
       <!-- Topology tab -->
       <div role="tabpanel" class="tab-pane" id="topology">
         <br />
-        <p>The stored topology might be out of sync with the real topology.</p>
+
+        <p>Connect to this AD by generating a new installation package</p>
+        <form method="POST" action="{% url 'connect_new_ad' object.id %}">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-default click-confirm" id="generate-new-btn">
+            Generate
+          </button>
+        </form>
+
+        <br />
+        {% for message in messages %}
+          {% if 'topology' in message.tags %}
+            <br />
+            <div class="alert alert-{{ message.level_tag }}">{{ message }}</div>
+          {% endif %}
+        {% endfor %}
+        <hr />
+
+        <p>Create a new link by connecting two existing ADs</p>
+        <a href="{% url 'new_link' object.id %}" class="btn btn-default">Add link</a>
+        <hr />
+
+        <p>The stored topology might be out of sync with the real topology</p>
         <div>
           <button type="button" class="btn btn-info" id="compare-topology-btn">Check topology</button>
-          <a href="{% url 'update_topology' object.id %}" class="btn btn-default click-confirm" id="update-topology-btn">Update local topology</a>
+          <form method="POST" action="{% url 'update_topology' object.id %}">
+            <br />
+            {% csrf_token %}
+            <button type="submit" class="btn btn-default click-confirm" id="update-topology-btn" name="_pull_topology">
+              Update the local topology
+            </button>
+
+            <button type="submit" class="btn btn-default click-confirm" id="push-update-topology-btn" name="_push_topology">
+              Push the topology
+            </button>
+
+          </form>
         </div>
         <br/>
         <div id="topology-info" class="alert" role="alert"></div>
+
       </div>
 
       <!-- Updates tab -->
       <div role="tabpanel" class="tab-pane" id="updates">
         <br />
-        <label for="sel2">Select the update version:</label>
-        <select class="form-control" id="sel2">
-          <!-- Static stub -->
-          <option>0.1.0</option>
-        </select>
-        <br />
-        <div class="row">
-          <div class="col-md-2">
-            <button type="button" class="btn btn-warning click-confirm" id="send-updates-btn" data-confirmation="Are you sure? All unsaved data will be lost!">
-              Install the update
-            </button>
-          </div>
-          <div>Push updates to the server</div>
+        <div>
+          {% for message in messages %}
+            {% if 'updates' in message.tags %}
+              <div class="alert alert-{{ message.level_tag }}">{{ message }}</div>
+            {% endif %}
+          {% endfor %}
         </div>
-        <br />
-        <div class="row">
-          <div class="col-md-2">
-            <a href="{% url 'download_update' object.id %}" class="btn btn-default" id="download-updates-btn">Download the update</a>
+
+        <div>
+          <div class="col-md-9">
+            <form method="POST" action="{% url 'update_action' object.id %}">
+              {% csrf_token %}
+              {% bootstrap_form choose_version_form %}
+              <br />
+              <div class="row">
+                <div class="col-md-4">
+                  <button type="submit" class="btn btn-warning click-confirm" id="send-updates-btn"
+                          data-confirmation="Are you sure? All unsaved data will be lost!" name="_install_update">
+                    Install the update
+                  </button>
+                </div>
+                <div>Push updates to the server</div>
+              </div>
+
+              <br />
+              <div class="row">
+                <div class="col-md-4">
+                  <button type="submit" class="btn btn-default" id="download-updates-btn" name="_download_update">
+                    Download the update
+                  </button>
+                </div>
+                <div>Download the SCION distribution</div>
+              </div>
+            </form>
           </div>
-          <div>Download the SCION distribution</div>
+          <div class="col-md-3" id="refresh-btn-container">
+            <form method="POST" action="{% url 'refresh_versions' object.id %}">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-default" id="refresh-versions-btn" name="_refresh_packages">
+                Refresh
+              </button>
+            </form>
+          </div>
         </div>
-        <br />
-        <div id="update-info" class="alert" role="alert"></div>
       </div>
 
+      <!-- Updates tab -->
+      <div role="tabpanel" class="tab-pane" id="requests">
+        {% with ad=object %}
+          {% include 'ad_manager/connection_requests.html' %}
+        {% endwith %}
+      </div>
     </div>
   </div>
 
@@ -102,7 +170,7 @@
     var isdAdId = '{{ object }}';
     var adDetailUrl = '{% url 'ad_status' object.id %}';
     var adCompareUrl = '{% url 'compare_topology' object.id %}';
-    var adSendUpdatesUrl = '{% url 'send_update' object.id %}'
+    var getMasterUrl = '{% url 'get_group_master' object.id %}';
   </script>
 
 {% endblock %}

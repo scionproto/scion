@@ -1,0 +1,13 @@
+{% extends "ad_manager/base.html" %}
+
+{% block content %}
+  <br />
+  <h2>Create a new connection request</h2>
+  <br />
+  <form action="" method="POST">
+    {% csrf_token %}
+    <b>Connect to:</b> {{ ad }}
+    {{ form.as_p }}
+    <input type="submit" value="Send message" />
+  </form>
+{% endblock %}

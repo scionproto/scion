@@ -3,3 +3,51 @@ body {
     padding-top: 50px;
 }
 
+div#refresh-btn-container {
+    margin-top: 28px;
+}
+
+.text-center {
+    text-align: center;
+}
+
+/* Control buttons in server_table.html */
+.control-btns button {
+    font-size: 1.2em;
+    top: 0;
+    padding: 0;
+    border: 0;
+    margin-left: 4px;
+    margin-right: 4px;
+}
+
+button.glyphicon-stop {
+    color: lightcoral;
+}
+
+button.glyphicon-play {
+    color: green;
+}
+
+/* Object path */
+h1.object-path a {
+    text-decoration: none;
+}
+
+h1 span.glyphicon-menu-right {
+    font-size: 26px;
+}
+
+h1 span.glyphicon-home {
+    font-size: 30px;
+}
+
+/* Core AD label */
+h4.core-ad-label span.glyphicon {
+    font-size: 16px;
+    margin-left: 2px;
+}
+
+div.status-block > div {
+    padding-right: 0;
+}

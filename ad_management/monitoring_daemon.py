@@ -19,30 +19,42 @@
 # Stdlib
 import base64
 import hashlib
+import json
 import logging
 import os
 import sys
+import threading
+import time
 from subprocess import Popen
+
+# External packages
+from kazoo.client import KazooClient
+from kazoo.exceptions import NoNodeError
 
 # SCION
 from ad_management.common import (
     get_supervisor_server,
     is_success,
+    LOGS_DIR,
     MONITORING_DAEMON_PORT,
     response_failure,
     response_success,
-    SCION_ROOT,
     UPDATE_DIR_PATH,
     UPDATE_SCRIPT_PATH,
 )
 from ad_management.secure_rpc_server import XMLRPCServerTLS
+from lib.defines import PROJECT_ROOT
 from lib.log import init_logging
-from topology.generator import TOPO_DIR, SCRIPTS_DIR
+from topology.generator import ConfigGenerator
 
 
 class MonitoringDaemon(object):
     """
+    Daemon which is launched on every AD node.
 
+    It serves as a RPC server for the web panel and as a client to
+    Supervisor and Zookeeper, proxying corresponding commands to them.
+    It also runs updater and generates software packages.
 
     :ivar addr:
     :type addr:
@@ -63,7 +75,9 @@ class MonitoringDaemon(object):
         self.rpc_server.register_introspection_functions()
         # Register functions
         to_register = [self.get_topology, self.get_process_info,
-                       self.control_process, self.get_ad_info]
+                       self.control_process, self.get_ad_info,
+                       self.send_update, self.update_topology,
+                       self.get_master_id]
         for func in to_register:
             self.rpc_server.register_function(func)
         logging.info("Monitoring daemon started")
@@ -82,6 +96,38 @@ class MonitoringDaemon(object):
         """
         return 'ad{}-{}'.format(isd_id, ad_id)
 
+    def get_topo_path(self, isd_id, ad_id):
+        gen = ConfigGenerator()
+        topo_path = gen.path_dict(isd_id, ad_id)['topo_file_abs']
+        return topo_path
+
+    def restart_supervisor_async(self):
+        """
+        Restart Supervisor after some delay, so the initial RPC call has time
+        to finish.
+        """
+        def _restart_supervisor_wait():
+            time.sleep(0.1)
+            server = get_supervisor_server()
+            server.supervisor.restart()
+
+        threading.Thread(target=_restart_supervisor_wait,
+                         name="Restart supervisor daemon",
+                         daemon=True).start()
+
+    def update_topology(self, isd_id, ad_id, topology):
+        # TODO check security!
+        topo_path = self.get_topo_path(isd_id, ad_id)
+        if not os.path.isfile(topo_path):
+            return response_failure('No AD topology found')
+        with open(topo_path, 'w') as topo_fh:
+            json.dump(topology, topo_fh, sort_keys=True, indent=4)
+            logging.info('Topology file written')
+        generator = ConfigGenerator()
+        generator.write_derivatives(topology)
+        self.restart_supervisor_async()
+        return response_success('Topology file is successfully updated')
+
     def get_topology(self, isd_id, ad_id):
         """
         Read topology file of the given AD.
@@ -96,9 +142,7 @@ class MonitoringDaemon(object):
         """
         isd_id, ad_id = str(isd_id), str(ad_id)
         logging.info('get_topology call')
-        file_name = 'ISD:' + isd_id + '-AD:' + ad_id + '.json'
-        topo_file = os.path.join('ISD' + isd_id, TOPO_DIR, file_name)
-        topo_path = os.path.join('..', SCRIPTS_DIR, topo_file)
+        topo_path = self.get_topo_path(isd_id, ad_id)
         if os.path.isfile(topo_path):
             return response_success(open(topo_path, 'r').read())
         else:
@@ -221,7 +265,9 @@ class MonitoringDaemon(object):
         :param path:
         :type path:
         """
-        Popen([sys.executable, UPDATE_SCRIPT_PATH, archive, path])
+        updater_log = open(os.path.join(LOGS_DIR, 'updater.log'), 'a')
+        Popen([sys.executable, UPDATE_SCRIPT_PATH, archive, path],
+              stdout=updater_log, stderr=updater_log)
 
     def send_update(self, isd_id, ad_id, data_dict):
         """
@@ -251,8 +297,37 @@ class MonitoringDaemon(object):
         out_file_path = os.path.join(UPDATE_DIR_PATH, archive_name)
         with open(out_file_path, 'wb') as out_file_fh:
             out_file_fh.write(raw_data)
-        self.run_updater(out_file_path, SCION_ROOT)
+        self.run_updater(out_file_path, PROJECT_ROOT)
         return response_success()
+
+    def get_master_id(self, isd_id, ad_id, server_type):
+        """
+        Registered function.
+
+        Get the id of the current master process for a given server type.
+        """
+        if server_type not in ['bs', 'cs', 'ps']:
+            return response_failure('Invalid server type')
+        kc = KazooClient(hosts="localhost:2181")
+        lock_path = '/ISD{}-AD{}/{}/lock'.format(isd_id, ad_id, server_type)
+        get_id = lambda name: name.split('__')[-1]
+        try:
+            kc.start()
+            contenders = kc.get_children(lock_path)
+            if not contenders:
+                return response_failure('No lock contenders found')
+
+            lock_holder_file = sorted(contenders, key=get_id)[0]
+            lock_holder_path = os.path.join(lock_path, lock_holder_file)
+            lock_contents = kc.get(lock_holder_path)
+            server_id, _, _ = lock_contents[0].split(b"\x00")
+            server_id = str(server_id, 'utf-8')
+            return response_success(server_id)
+        except NoNodeError:
+            return response_failure('No lock data found')
+        finally:
+            kc.stop()
+
 
 if __name__ == "__main__":
     init_logging()

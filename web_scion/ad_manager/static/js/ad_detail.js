@@ -1,28 +1,38 @@
 
-function showLoadingIndicator(element) {
+function appendLoadingIndicator(element) {
     var imgPath = '/static/img/ajax-loader.gif';
-    element.first().html('<img src="' + imgPath + '" />');
+    var status = element.first();
+    if (!status.html().contains(imgPath)) {
+        status.append('&nbsp;&nbsp;<img src="' + imgPath + '" />');
+    }
+}
+
+function showLoadingIndicator(element) {
+    element.first().html('');
+    appendLoadingIndicator(element);
 }
 
 function initServerStatus() {
-    $('td.status').html('<b>...</b>');
+    $('td div.status-text').html('<b>...</b>');
 }
 
-function updateServerStatus(detailUrl) {
+function updateServerStatus() {
     $.ajax({
-        url: detailUrl,
+        url: adDetailUrl,
         dataType: "json"
     }).done(function(data) {
         var componentData = data['data'];
-        if (!componentData)
+        if (!componentData || !componentData.length) {
+            initServerStatus();
             return;
+        }
         for (var i = 0; i < componentData.length; i++) {
             var info = componentData[i];
             var name = info['name'];
             var status = info['statename'];
-            var $tdStatus = $('#' + name + '> .status');
-            if ($tdStatus.text() != status) {
-                $tdStatus.text(status);
+            var $tdStatus = $('#' + name + ' .status-text');
+            if ($tdStatus.html() != status) {
+                $tdStatus.html(status);
                 $tdStatus.fadeTo(0, 0);
                 $tdStatus.fadeTo(200, 1);
             }
@@ -35,23 +45,27 @@ function updateServerStatus(detailUrl) {
 function initTopologyCheck() {
     $('#topology-info').hide();
     $('#update-topology-btn').hide();
+    $('#push-update-topology-btn').hide();
 }
 
-function compareAdTopology(compareUrl) {
+function compareAdTopology() {
     var $alertDiv = $('#topology-info');
     var $updateTopoButton = $('#update-topology-btn');
+    var $pushUpdateTopoButton = $('#push-update-topology-btn');
     $alertDiv.removeClass('alert-success alert-danger alert-warning');
 
     function alertNoTopology() {
         $alertDiv.addClass('alert-warning');
         $alertDiv.text('Cannot get topology');
         $updateTopoButton.hide(200);
+        $pushUpdateTopoButton.hide(200);
     }
 
     function alertOk() {
         $alertDiv.addClass('alert-success');
         $alertDiv.text('Everything is OK');
         $updateTopoButton.hide(200);
+        $pushUpdateTopoButton.hide(200);
     }
 
     function alertChanged(changes) {
@@ -63,10 +77,11 @@ function compareAdTopology(compareUrl) {
         });
         $alertDiv.append($changesList);
         $updateTopoButton.show(200);
+        $pushUpdateTopoButton.show(200);
     }
 
     $.ajax({
-        url: compareUrl,
+        url: adCompareUrl,
         dataType: "json"
     }).done(function(data) {
         if (data['status'] == 'OK') {
@@ -86,37 +101,42 @@ function compareAdTopology(compareUrl) {
     $alertDiv.show();
 }
 
-function initSendUpdates() {
-    $('#update-info').hide();
+function showMasterServers() {
+    // Remove all badges
+    $('span.master-badge').remove();
+
+    var server_types = ['bs'];
+    for (var i = 0; i < server_types.length; i++) {
+        var s_type = server_types[i];
+        var getUrl = getMasterUrl + '?server_type=' + s_type;
+        $.ajax({
+            url: getUrl,
+            dataType: "json"
+        }).done(function(data) {
+            if (data['status']) {
+                var $serverRow = $('#' + data['server_id']);
+                var $serverName = $serverRow.children().first();
+                var badge = ' <span class="master-badge badge alert-success">master</span>';
+                $serverName.append(badge);
+            }
+        }).fail(function(a1, a2, a3) {
+            // Smth happened
+        });
+    }
 }
 
-function sendAdUpdates(sendUrl) {
-    initSendUpdates();
-    var $alertDiv = $('#update-info');
-    $alertDiv.removeClass('alert-success alert-danger alert-warning');
-
-    function errorHandler() {
-        $alertDiv.addClass('alert-danger');
-        $alertDiv.text('Something is wrong');
+function makeTabsPersistent() {
+    // Make tabs persistent. Check https://gist.github.com/josheinstein/5586469
+    if (location.hash.substr(0,2) == "#!") {
+        $("a[href='#" + location.hash.substr(2) + "']").tab("show");
     }
-
-    $.ajax({
-        url: sendUrl,
-        dataType: "json"
-    }).done(function(data) {
-        if (!data['status']) {
-            errorHandler();
-            return;
+    var $tabLink = $("a[data-toggle='tab']");
+    $tabLink.on("shown.bs.tab", function(e) {
+        var hash = $(e.target).attr("href");
+        if (hash.substr(0,1) == "#") {
+            location.replace("#!" + hash.substr(1));
         }
-        $alertDiv.addClass('alert-success');
-        $alertDiv.text('Update started');
-    }).fail(errorHandler
-    ).always(function() {
-        $alertDiv.hide();
-        $alertDiv.show(500);
     });
-    showLoadingIndicator($alertDiv);
-    $alertDiv.show();
 }
 
 $(document).ready(function() {
@@ -132,10 +152,13 @@ $(document).ready(function() {
 
     // Status tab callbacks
     initServerStatus();
-    updateServerStatus(adDetailUrl);
+    updateServerStatus();
     $("#update-ad-btn").click(function() {
-        updateServerStatus(adDetailUrl);
+        updateServerStatus();
+        showMasterServers();
     });
+    // Show master labels
+    showMasterServers();
 
     // Topology tab callbacks
     initTopologyCheck();
@@ -144,22 +167,32 @@ $(document).ready(function() {
         compareAdTopology(adCompareUrl);
     });
 
-    // Update tab callbacks
-    initSendUpdates();
-    var $sendUpdatesBtn = $('#send-updates-btn');
-    $sendUpdatesBtn.click(function() {
-        sendAdUpdates(adSendUpdatesUrl);
+    makeTabsPersistent();
+
+    // Update server status when the first tab is opened
+    var $tabLink = $("a[data-toggle='tab']");
+    $tabLink.on("shown.bs.tab", function(e) {
+        if ($(e.target).attr('href') == '#servers') {
+            updateServerStatus();
+        }
     });
 
-    // Make tabs persistent. Check https://gist.github.com/josheinstein/5586469
-    if (location.hash.substr(0,2) == "#!") {
-        $("a[href='#" + location.hash.substr(2) + "']").tab("show");
-    }
-    $("a[data-toggle='tab']").on("shown.bs.tab", function (e) {
-        var hash = $(e.target).attr("href");
-        if (hash.substr(0,1) == "#") {
-            location.replace("#!" + hash.substr(1));
-        }
+    // Status control forms
+    $('.process-control-form > button').click(function(e) {
+        var $form = $(this).parent();
+        var btnName = $(this).attr('name');
+        $.ajax({
+            data: $form.serialize() + "&" + btnName, // form data + button
+            type: $form.attr('method'),
+            url: $form.attr('action'),
+            dataType: 'json'
+        }).always(function(response){
+            updateServerStatus();
+        });
+        var $statusCell = $form.parent().siblings('.status-text');
+        appendLoadingIndicator($statusCell);
+
+        return false;
     });
 
 });

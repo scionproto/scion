@@ -1,26 +1,36 @@
 <h4>Routers</h4>
-<table class="table table-striped">
+<table class="table table-striped element-table" id="routers-table">
   <thead>
   <tr>
     <th></th>
-    <th class="col-md-1">Address</th>
-    <th class="col-md-2">Interface in-address</th>
-    <th class="col-md-2">Interface out-address</th>
-    <th class="col-md-2">Neighbor AD</th>
+    <th class="col-md-1 text-center">Address</th>
+    <th class="col-md-2 text-center">Interface in-address</th>
+    <th class="col-md-2 text-center">Interface out-address</th>
+    <th class="col-md-2 text-center">Neighbor AD</th>
     <th class="col-md-2">Neighbor type</th>
-    <th class="col-md-1">Status</th>
+    <th class="col-md-2 text-center">Status</th>
   </tr>
   </thead>
   <tbody>
   {% for router in routers %}
     <tr id="{{ router.id_str }}">
-      <td>Router {{ forloop.counter }}</td>
-      <td>{{ router.addr }}</td>
-      <td>{{ router.interface.addr }}</td>
-      <td>{{ router.interface.to_addr }}</td>
-      <td>{{ router.neighbor_ad }}</td>
+      <td>Router {{ router.name }}</td>
+      <td class="text-center">{{ router.addr }}</td>
+      <td class="text-center">{{ router.interface_addr }}</td>
+      <td class="text-center">{{ router.interface_toaddr }}</td>
+      <td class="text-center">
+        <a href="{{ router.neighbor_ad.get_absolute_url }}">{{ router.neighbor_ad }}</a>
+      </td>
       <td>{{ router.neighbor_type }}</td>
-      <td class="status">hi</td>
+      <td class="status-column">
+        {% with element=router %}
+          {% include 'ad_manager/status_block.html' %}
+        {% endwith %}
+      </td>
+    </tr>
+  {% empty %}
+    <tr>
+      <td colspan="8"><i>No routers</i></td>
     </tr>
   {% endfor %}
   </tbody>

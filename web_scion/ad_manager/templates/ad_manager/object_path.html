@@ -1,0 +1,12 @@
+{% comment %}
+This element is also called 'Breadcrumbs': http://en.wikipedia.org/wiki/Breadcrumb_%28navigation%29
+{% endcomment %}
+
+<h1 class="object-path">
+  <a href="{% url 'list_isds' %}" class="glyphicon glyphicon-home"></a>
+  <span class="glyphicon glyphicon-menu-right"></span>
+  <a href="{{ object.isd.get_absolute_url }}">ISD {{ object.isd.id }}</a>
+  <span class="glyphicon glyphicon-menu-right"></span>
+  AD {{ object.id }}
+</h1>
+<hr>
