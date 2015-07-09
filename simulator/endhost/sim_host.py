@@ -20,7 +20,7 @@ import logging
 import struct
 
 # SCION
-from infrastructure.scion_elem import SCIONElement
+from endhost.sciond import SCIONDaemon
 from lib.defines import SCION_UDP_PORT, SCION_UDP_EH_DATA_PORT
 from lib.packet.path import PathCombinator
 from lib.packet.path_mgmt import (
@@ -36,7 +36,7 @@ from lib.util import update_dict
 SCIOND_API_PORT = 3333
 
 
-class SCIONSimHost(SCIONElement):
+class SCIONSimHost(SCIONDaemon):
     """
     The SCION Simulator endhost. Applications can be simulated on this host
     """
@@ -45,23 +45,21 @@ class SCIONSimHost(SCIONElement):
 
     def __init__(self, addr, topo_file, simulator):
         """
-        Initializes SimHost by calling constructor of SCIONElement with
+        Initializes SimHost by calling constructor of SCIONDaemon with
         is_sim variable set to True
+
+        :param addr:
+        :type addr:
+        :param topo_file:
+        :type topo_file:
+        :param run_local_api:
+        :type run_local_api:
+        :param simulator: Instance of simulator class.
+        :type simulator: Simulator
         """
-        SCIONElement.__init__(self, "host", topo_file, host_addr=addr,
-                              is_sim=True)
+        SCIONDaemon.__init__(self, addr, topo_file, is_sim=True)
         self.simulator = simulator
         simulator.add_element(str(self.addr.host_addr), self)
-
-        # TODO replace by pathstore instance
-        self.up_segments = PathSegmentDB()
-        self.down_segments = PathSegmentDB()
-        self.core_segments = PathSegmentDB()
-        self._waiting_targets = {PST.UP: {},
-                                 PST.DOWN: {},
-                                 PST.CORE: {},
-                                 PST.UP_DOWN: {}}
-
         self.apps = {}
 
     def add_application(self, app, port, run_cb, recv_cb, path_cb):
@@ -94,49 +92,60 @@ class SCIONSimHost(SCIONElement):
     def clean(self):
         pass
 
-    def _request_paths(self, requestor, ptype, dst_isd, dst_ad,
-                       src_core_ad=None, dst_core_ad=None):
+    def _request_paths(self, ptype, dst_isd, dst_ad, src_isd=None,
+                       src_ad=None, requestor=None):
         """
         Sends path request with certain type for (isds, ad).
-        """
-        src_isd = self.topology.isd_id
-        src_ad = self.topology.ad_id
 
+        :param ptype:
+        :type ptype:
+        :param dst_isd: destination ISD identifier.
+        :type dst_isd: int
+        :param dst_ad: destination AD identifier.
+        :type dst_ad: int
+        :param src_isd: source ISD identifier.
+        :type src_isd: int
+        :param src_ad: source AD identifier.
+        :type src_ad: int
+        :param requestor: (Host address, Application port)
+        :type requestor: (IPv4Address, int)
+        """
+        if src_isd is None:
+            src_isd = self.topology.isd_id
+        if src_ad is None:
+            src_ad = self.topology.ad_id
         eid = self.simulator.add_event(SCIONSimHost.TIMEOUT,
                                        cb=self._expire_request_timeout,
                                        args=(ptype, requestor))
-
-        if ptype == PST.UP_DOWN or ptype == PST.UP or ptype == PST.DOWN:
-            update_dict(self._waiting_targets[ptype],
-                        (dst_isd, dst_ad),
-                        [(eid, requestor, dst_ad)])
-            info = PathSegmentInfo.from_values(ptype, src_isd, dst_isd,
-                                               src_ad, dst_ad)
-        elif ptype == PST.CORE:
-            update_dict(self._waiting_targets[ptype],
-                        (dst_isd, dst_core_ad),
-                        [(eid, requestor, dst_ad)])
-            info = PathSegmentInfo.from_values(ptype, src_isd, dst_isd,
-                                               src_core_ad, dst_core_ad)
-
+        update_dict(self._waiting_targets[ptype], (dst_isd, dst_ad),
+                    [(eid, requestor)])
+        # Create and send out path request.
+        info = PathSegmentInfo.from_values(ptype, src_isd, dst_isd,
+                                           src_ad, dst_ad)
         path_request = PathMgmtPacket.from_values(PMT.REQUEST, info,
                                                   None, self.addr,
                                                   ISD_AD(src_isd, src_ad))
-
         dst = self.topology.path_servers[0].addr
         self.send(path_request, dst)
 
     def get_paths(self, dst_isd, dst_ad, requestor):
         """
-        Returns a list of paths.
+        Return a list of paths.
+
+        :param dst_isd: ISD identifier.
+        :type dst_isd: int
+        :param dst_ad: AD identifier.
+        :type dst_ad: int
+        :param requestor: (Host address, Application port)
+        :type requestor: (IPv4Address, int)
         """
         full_paths = []
         down_segments = self.down_segments(dst_isd=dst_isd, dst_ad=dst_ad)
         # Fetch down-paths if necessary.
         if not down_segments:
-            self._request_paths(requestor, PST.UP_DOWN, dst_isd, dst_ad)
+            self._request_paths(PST.UP_DOWN, dst_isd, dst_ad,
+                                requestor=requestor)
             return None
-
         if len(self.up_segments) and down_segments:
             full_paths = PathCombinator.build_shortcut_paths(self.up_segments(),
                                                              down_segments)
@@ -153,12 +162,11 @@ class SCIONSimHost(SCIONElement):
                                                    src_ad=src_core_ad,
                                                    dst_isd=dst_isd,
                                                    dst_ad=dst_core_ad)
-
                 if ((src_isd, src_core_ad) != (dst_isd, dst_core_ad) and
-                    not core_segments):
-                    self._request_paths(requestor, PST.CORE,
-                                        dst_isd, dst_ad,
-                                        src_core_ad, dst_core_ad)
+                        not core_segments):
+                    self._request_paths(PST.CORE, dst_isd, dst_core_ad,
+                                        src_ad=src_core_ad,
+                                        requestor=requestor)
                     return None
 
                 full_paths = PathCombinator.build_core_paths(
@@ -205,43 +213,6 @@ class SCIONSimHost(SCIONElement):
 
         return full_paths
 
-    def handle_path_reply(self, path_reply):
-        """
-        Handle path reply from local path server.
-
-        :param path_reply:
-        :type path_reply:
-        """
-        info = path_reply.info
-        for pcb in path_reply.pcbs:
-            isd = pcb.get_isd()
-            ad = pcb.get_last_pcbm().ad_id
-            if ((self.topology.isd_id != isd or self.topology.ad_id != ad)
-                    and info.type in [PST.DOWN, PST.UP_DOWN]
-                    and info.dst_isd == isd and info.dst_ad == ad):
-                self.down_segments.update(pcb, info.src_isd, info.src_ad,
-                                          info.dst_isd, info.dst_ad)
-                logging.info("Down path (%d, %d)->(%d, %d) added.",
-                             info.src_isd, info.src_ad, info.dst_isd,
-                             info.dst_ad)
-            elif ((self.topology.isd_id == isd and self.topology.ad_id == ad)
-                    and info.type in [PST.UP, PST.UP_DOWN]):
-                self.up_segments.update(pcb, isd, ad, pcb.get_isd(),
-                                        pcb.get_first_pcbm().ad_id)
-                logging.info("Up path (%d, %d)->(%d, %d) added.",
-                             info.src_isd, info.src_ad, info.dst_isd,
-                             info.dst_ad)
-            elif info.type == PST.CORE:
-                self.core_segments.update(pcb, info.src_isd, info.src_ad,
-                                          info.dst_isd, info.dst_ad)
-                logging.info("Core path (%d, %d)->(%d, %d) added.",
-                             info.src_isd, info.src_ad, info.dst_isd,
-                             info.dst_ad)
-            else:
-                logging.warning("Incorrect path in Path Record")
-
-        self.handle_waiting_targets(path_reply)
-
     def handle_waiting_targets(self, path_reply):
         """
         Handles waiting request from path reply
@@ -251,13 +222,14 @@ class SCIONSimHost(SCIONElement):
         """
         info = path_reply.info
         if (info.dst_isd, info.dst_ad) in self._waiting_targets[info.type]:
-            for (eid, requestor, dst_ad) in \
+            for (eid, requestor) in \
                 self._waiting_targets[info.type][(info.dst_isd, info.dst_ad)]:
 
                 src_isd = self.topology.isd_id
                 src_ad = self.topology.ad_id
                 dst_isd = info.dst_isd
-                event = (eid, requestor, dst_ad)
+                dst_ad = info.dst_ad
+                event = (eid, requestor)
 
                 if info.type == PST.UP_DOWN:
                     full_paths = self._get_full_paths(src_isd, src_ad,
@@ -276,10 +248,10 @@ class SCIONSimHost(SCIONElement):
                             self.up_segments()[0].get_first_pcbm().ad_id
                         dst_core_ad = \
                             down_segments[0].get_first_pcbm().ad_id
-                        self._request_paths(requestor, PST.CORE,
-                                            dst_isd, dst_ad,
-                                            src_core_ad, dst_core_ad)
-                        continue
+                        self._request_paths(PST.CORE, dst_isd, dst_core_ad,
+                                            src_ad=src_core_ad,
+                                            requestor=requestor)
+                    continue
                 elif info.type == PST.CORE:
                     src_core_ad = info.src_ad
                     dst_core_ad = info.dst_ad
@@ -338,6 +310,11 @@ class SCIONSimHost(SCIONElement):
         Reply:
           |path1_len(1B)|path1(path1_len*8B)|first_hop_IP(4B)|path2_len(1B)...
          or b"" when no path found. Only IPv4 supported currently.
+
+        :param packet:
+        :type packet:
+        :param sender:
+        :type sender:
         """
         # TODO sanity checks
         isd = struct.unpack("H", packet[1:3])[0]
@@ -352,29 +329,18 @@ class SCIONSimHost(SCIONElement):
 
     def api_handle_request(self, packet, sender):
         """
-        Handles local API's requests.
+        Handle local API's requests.
+
+        :param packet:
+        :type packet:
+        :param sender:
+        :type sender:
         """
         if packet[0] == 0:  # path request
             logging.info('API: path request from %s.', sender)
             self._api_handle_path_request(packet, sender)
         else:
             logging.warning("API: type %d not supported.", packet[0])
-
-    def handle_request(self, packet, sender, from_local_socket=True):
-        # PSz: local_socket may be misleading, especially that we have api_socket
-        # which is local (in the localhost sense). What do you think about
-        # changing local_socket to ad_socket
-        """
-        Main routine to handle incoming SCION packets.
-        """
-        if from_local_socket:  # From PS or CS.
-            pkt = PathMgmtPacket(packet)
-            if pkt.type == PMT.RECORDS:
-                self.handle_path_reply(pkt.payload)
-            else:
-                logging.warning("Type %d not supported.", pkt.type)
-        else:  # From localhost (SCIONSimHost API)
-            self.api_handle_request(packet, sender)
 
     def sim_recv(self, packet, src, dst):
         """

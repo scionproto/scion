@@ -60,7 +60,7 @@ class SCIONDaemon(SCIONElement):
     """
     TIMEOUT = 5
 
-    def __init__(self, addr, topo_file, run_local_api=False):
+    def __init__(self, addr, topo_file, run_local_api=False, is_sim=False):
         """
         Initialize an instance of the class SCIONDaemon.
 
@@ -71,7 +71,8 @@ class SCIONDaemon(SCIONElement):
         :param run_local_api:
         :type run_local_api:
         """
-        SCIONElement.__init__(self, "sciond", topo_file, host_addr=addr)
+        SCIONElement.__init__(self, "sciond", topo_file, host_addr=addr,
+                              is_sim=is_sim)
         # TODO replace by pathstore instance
         self.up_segments = PathSegmentDB()
         self.down_segments = PathSegmentDB()
@@ -241,6 +242,16 @@ class SCIONDaemon(SCIONElement):
                              info.dst_ad)
             else:
                 logging.warning("Incorrect path in Path Record")
+        self.handle_waiting_targets(path_reply)
+
+    def handle_waiting_targets(self, path_reply):
+        """
+        Handles waiting request from path reply
+
+        :param path_reply:
+        :type path_reply:
+        """
+        info = path_reply.info
         # Wake up sleeping get_paths().
         if (info.dst_isd, info.dst_ad) in self._waiting_targets[info.type]:
             for event in self._waiting_targets[info.type][(info.dst_isd,
