@@ -99,7 +99,6 @@ class CertServer(SCIONElement):
                                 ensure_paths=(self.ZK_CERT_CHAIN_CACHE_PATH,
                                               self.ZK_TRC_CACHE_PATH,))
 
-
     def _store_cert_chain_in_zk(self, cert_chain_file, cert_chain):
         """
         Store the Certificate Chain in the zookeeper.
