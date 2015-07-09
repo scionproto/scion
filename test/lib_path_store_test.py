@@ -23,13 +23,13 @@ import nose
 import nose.tools as ntools
 
 # SCION
-from lib.util import SCIONTime
 from lib.packet.pcb import PathSegment
 from lib.path_store import (
     PathPolicy,
     PathStore,
     PathStoreRecord
 )
+from lib.util import SCIONTime
 
 
 class TestPathPolicyInit(object):
