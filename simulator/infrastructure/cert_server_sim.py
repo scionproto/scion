@@ -98,9 +98,9 @@ class CertServerSim(CertServer):
         cert_chain = cert_chain_rep.cert_chain
         self.cert_chains[(cert_chain_rep.isd_id, cert_chain_rep.ad_id,
                           cert_chain_rep.version)] = cert_chain
-        cert_chain_file = get_cert_chain_file_path(self.topology.isd_id,
-            self.topology.ad_id, cert_chain_rep.isd_id, cert_chain_rep.ad_id,
-            cert_chain_rep.version)
+        cert_chain_file = get_cert_chain_file_path(
+            self.topology.isd_id, self.topology.ad_id, cert_chain_rep.isd_id,
+            cert_chain_rep.ad_id, cert_chain_rep.version)
         write_file(cert_chain_file, cert_chain.decode('utf-8'))
         # Reply to all requests for this certificate chain
         for dst_addr in self.cert_chain_requests[

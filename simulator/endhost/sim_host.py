@@ -180,6 +180,7 @@ class SCIONSimHost(SCIONDaemon):
                 src_ad = self.topology.ad_id
                 dst_isd = info.dst_isd
                 dst_ad = info.dst_ad
+                dst_isd_ad = (dst_isd, dst_ad)
                 event = (eid, requester)
 
                 if info.type == PST.UP_DOWN:
@@ -189,8 +190,8 @@ class SCIONSimHost(SCIONDaemon):
                                                        dst_ad=dst_ad)
                     if self.up_segments and down_segments:
                         self.simulator.remove_event(eid)
-                        self._waiting_targets[info.type]\
-                            [(dst_isd, dst_ad)].remove(event)
+                        self._waiting_targets[info.type][dst_isd_ad]\
+                            .remove(event)
                     else:
                         continue
 
@@ -214,8 +215,8 @@ class SCIONSimHost(SCIONDaemon):
                                           dst_isd=dst_isd,
                                           dst_ad=dst_core_ad):
                         self.simulator.remove_event(eid)
-                        self._waiting_targets[info.type]\
-                            [(dst_isd, dst_core_ad)].remove(event)
+                        self._waiting_targets[info.type][dst_isd_ad]\
+                            .remove(event)
                     else:
                         continue
 
@@ -228,16 +229,14 @@ class SCIONSimHost(SCIONDaemon):
                     full_paths = self._get_full_paths(src_isd, src_ad,
                                                       dst_isd, dst_ad)
                     self.simulator.remove_event(eid)
-                    self._waiting_targets[info.type]\
-                        [(dst_isd, dst_ad)].remove(event)
+                    self._waiting_targets[info.type][dst_isd_ad].remove(event)
                     if not full_paths:
                         # TODO What action to be taken?
                         continue
                 self._api_send_path_reply(full_paths, requester)
             if len(self._waiting_targets[info.type]
                    [(info.dst_isd, info.dst_ad)]) == 0:
-                del self._waiting_targets[info.type]\
-                    [(info.dst_isd, info.dst_ad)]
+                del self._waiting_targets[info.type][dst_isd_ad]
 
     def _api_send_path_reply(self, paths, requester):
         """
