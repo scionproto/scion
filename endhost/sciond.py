@@ -69,6 +69,8 @@ class SCIONDaemon(SCIONElement):
         :type topo_file:
         :param run_local_api:
         :type run_local_api:
+        :param is_sim: running on simulator
+        :type is_sim: bool
         """
         SCIONElement.__init__(self, "sciond", topo_file, host_addr=addr,
                               is_sim=is_sim)
@@ -115,6 +117,8 @@ class SCIONDaemon(SCIONElement):
                        requester=None):
         """
         Send a path request of a certain type for an (isd, ad).
+        The requester argument holds the address of requester. Used in simulator
+        to send path reply.
 
         :param ptype:
         :type ptype:
@@ -126,7 +130,7 @@ class SCIONDaemon(SCIONElement):
         :type src_isd: int
         :param src_ad: source AD identifier.
         :type src_ad: int
-        :param requester: Path requester
+        :param requester: Path requester address(used in simulator).
         :type requester:
         """
         if src_isd is None:
@@ -166,12 +170,14 @@ class SCIONDaemon(SCIONElement):
     def get_paths(self, dst_isd, dst_ad, requester=None):
         """
         Return a list of paths.
+        The requester argument holds the address of requester. Used in simulator
+        to send path reply.
 
         :param dst_isd: ISD identifier.
         :type dst_isd: int
         :param dst_ad: AD identifier.
         :type dst_ad: int
-        :param requester: Path requester
+        :param requester: Path requester address(used in simulator).
         :type requester:
         """
         full_paths = []
