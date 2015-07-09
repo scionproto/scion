@@ -22,7 +22,6 @@ import sys
 
 # SCION
 from lib.defines import TOPOLOGY_PATH
-from lib.util import SCIONTime
 
 # SCION Simulator
 from simulator.lib.sim_core import Simulator
@@ -41,13 +40,6 @@ SIM_DIR = 'SIM'
 SIM_CONF = 'sim.conf'
 
 
-def get_sim_time():
-    """
-    Get Virtual Time
-    """
-    return simulator.get_curr_time()
-
-
 def init_simulator():
     """
     Initializes the global simulator and creates all the infrastructure
@@ -57,7 +49,6 @@ def init_simulator():
     """
     global simulator
     simulator = Simulator()
-    SCIONTime.set_time_method(get_sim_time)
     read_sim_file()
     data = read_sim_file()
     init_elements(data)
