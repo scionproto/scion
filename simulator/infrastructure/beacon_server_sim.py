@@ -246,8 +246,9 @@ class CoreBeaconServerSim(CoreBeaconServer):
                 # Issue revocation
                 assert if_id in self.if2rev_tokens
                 chain = self.if2rev_tokens[if_id]
-                rev_info = RevocationInfo.from_values(RT.INTERFACE,
-                    chain.current_element(), chain.next_element())
+                rev_info = RevocationInfo.from_values(
+                    RT.INTERFACE, chain.current_element(),
+                    chain.next_element())
                 self._process_revocation(rev_info)
                 # Advance the hash chain for the corresponding IF.
                 try:
@@ -445,8 +446,9 @@ class LocalBeaconServerSim(LocalBeaconServer):
                 # Issue revocation
                 assert if_id in self.if2rev_tokens
                 chain = self.if2rev_tokens[if_id]
-                rev_info = RevocationInfo.from_values(RT.INTERFACE,
-                    chain.current_element(), chain.next_element())
+                rev_info = RevocationInfo.from_values(
+                    RT.INTERFACE, chain.current_element(),
+                    chain.next_element())
                 self._process_revocation(rev_info)
                 # Advance the hash chain for the corresponding IF.
                 try:

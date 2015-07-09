@@ -43,15 +43,14 @@ SIM_CONF = 'sim.conf'
 def init_simulator():
     """
     Initializes the global simulator and creates all the infrastructure
-    
+
     :returns: The simulator instance
     :rtype: Simulator
     """
-    global simulator
     simulator = Simulator()
     read_sim_file()
     data = read_sim_file()
-    init_elements(data)
+    init_elements(data, simulator)
     return simulator
 
 
@@ -72,13 +71,15 @@ def read_sim_file():
     return content
 
 
-def init_elements(data):
+def init_elements(data, simulator):
     """
     Initialize all infrastructure in simulator mode
 
     :param data: Simulator conf file data
     :type data: str
-    """    
+    :param simulator: Running instance of Simulator
+    :type simulator: Simulator
+    """
     for line in data:
         items = line.split()
         if items[0] == "router":

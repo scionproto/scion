@@ -272,7 +272,7 @@ class SCIONTime(object):
     # Function which would return time upon calling it
     #  Can be set using set_time_method
     _custom_time = None
-    
+
     @classmethod
     def get_time(cls):
         """

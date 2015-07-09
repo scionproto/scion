@@ -30,7 +30,6 @@ from lib.packet.path_mgmt import (
     PathSegmentType as PST,
 )
 from lib.packet.scion_addr import ISD_AD
-from lib.path_db import PathSegmentDB
 from lib.util import update_dict
 
 SCIOND_API_PORT = 3333
@@ -175,8 +174,8 @@ class SCIONSimHost(SCIONDaemon):
         info = path_reply.info
         if (info.dst_isd, info.dst_ad) in self._waiting_targets[info.type]:
             for (eid, requestor) in \
-                self._waiting_targets[info.type][(info.dst_isd, info.dst_ad)]:
-
+                    self._waiting_targets[info.type][(info.dst_isd,
+                                                      info.dst_ad)]:
                 src_isd = self.topology.isd_id
                 src_ad = self.topology.ad_id
                 dst_isd = info.dst_isd

@@ -70,7 +70,7 @@ class PingPongSimTest(unittest.TestCase):
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     to_profile = False
-    
+
     def run_test():
         """
         Calls main function in unit test
