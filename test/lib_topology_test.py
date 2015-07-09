@@ -186,7 +186,7 @@ class TestTopologyFromFile(object):
     @patch("lib.topology.json.load", autospec=True)
     def _check_fail(self, error, json_load, log_error):
         json_load.side_effect = error
-        with patch('lib.topology.open', mock_open(), create=True) as open_f:
+        with patch('lib.topology.open', mock_open(), create=True):
             topology = Topology.from_file('filename')
             ntools.assert_is_none(topology)
             ntools.eq_(log_error.call_count, 1)
@@ -221,8 +221,8 @@ class TestTopologyParseDict(object):
         ps = {'m': 'n', 'o': 'p'}
         er = {'er' + str(i): 'router' + str(i) for i in range(5)}
         topo_dict = {'Core': 0, 'ISDID': 1, 'ADID': 2, 'DnsDomain': 3,
-                    'BeaconServers': bs, 'CertificateServers': cs,
-                    'DNSServers': ds, 'PathServers': ps, 'EdgeRouters': er}
+                     'BeaconServers': bs, 'CertificateServers': cs,
+                     'DNSServers': ds, 'PathServers': ps, 'EdgeRouters': er}
         server_elem.side_effect = ['bs0', 'bs1', 'cs0', 'cs1', 'ds0', 'ds1',
                                    'ps0', 'ps1']
         routers = [MagicMock(spec_set=['interface']) for i in range(5)]
