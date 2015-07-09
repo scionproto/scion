@@ -303,6 +303,7 @@ class Topology(object):
             target = self.get_all_edge_routers()
         else:
             logging.error("Unknown server type: \"%s\"", server_type)
+            return
 
         for i in target:
             if i.name == server_id:
