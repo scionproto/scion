@@ -46,6 +46,7 @@ class ISD(models.Model):
 
     class Meta:
         verbose_name = 'ISD'
+        ordering = ['id']
 
 
 class AD(models.Model):
@@ -200,6 +201,7 @@ class AD(models.Model):
 
     class Meta:
         verbose_name = 'AD'
+        ordering = ['id']
 
 
 class SCIONWebElement(models.Model):

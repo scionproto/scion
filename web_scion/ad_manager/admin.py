@@ -14,24 +14,6 @@ from ad_manager.models import (
 )
 
 
-class SortRelatedAdmin(admin.ModelAdmin):
-    list_select_related = True
-
-    def get_queryset(self, request):
-        # Add ordering
-        return super().get_queryset(request).order_by('id')
-
-
-class ADAdmin(SortRelatedAdmin):
-    pass
-admin.site.register(AD, ADAdmin)
-
-
-class ISDAdmin(SortRelatedAdmin):
-    pass
-admin.site.register(ISD, ISDAdmin)
-
-
 class ServerAdmin(admin.ModelAdmin):
     list_select_related = True
 
@@ -65,4 +47,6 @@ class DnsServerAdmin(ServerAdmin):
 admin.site.register(DnsServerWeb, DnsServerAdmin)
 
 
+admin.site.register(AD)
+admin.site.register(ISD)
 admin.site.register(ConnectionRequest)
