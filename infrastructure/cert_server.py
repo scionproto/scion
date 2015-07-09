@@ -86,18 +86,19 @@ class CertServer(SCIONElement):
         self._latest_entry_cert_chains = 0
         self._latest_entry_trcs = 0
 
-        # Add more IPs here if we support dual-stack
-        name_addrs = "\0".join([self.id, str(SCION_UDP_PORT),
-                                str(self.addr.host_addr)])
         if not is_sim:
+            # Add more IPs here if we support dual-stack
+            name_addrs = "\0".join([self.id, str(SCION_UDP_PORT),
+                                    str(self.addr.host_addr)])
             # Set when we have connected and read the existing recent and
             # incoming cert chains and TRCs
             self._state_synced = threading.Event()
             # TODO(lorenzo): def zookeeper host/port in topology
             self.zk = Zookeeper(self.topology.isd_id, self.topology.ad_id,
-                                "cs", self.addr.host_addr, ["localhost:2181"],
+                                "cs", name_addrs, ["localhost:2181"],
                                 ensure_paths=(self.ZK_CERT_CHAIN_CACHE_PATH,
                                               self.ZK_TRC_CACHE_PATH,))
+
 
     def _store_cert_chain_in_zk(self, cert_chain_file, cert_chain):
         """
