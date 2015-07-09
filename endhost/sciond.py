@@ -1,5 +1,4 @@
-# Copyright 2014 ETH Zurich
-#
+# Copyright 2014 ETH Zurich #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -113,7 +112,7 @@ class SCIONDaemon(SCIONElement):
         return sd
 
     def _request_paths(self, ptype, dst_isd, dst_ad, src_isd=None, src_ad=None,
-                       requestor=None):
+                       requester=None):
         """
         Send a path request of a certain type for an (isd, ad).
 
@@ -127,8 +126,8 @@ class SCIONDaemon(SCIONElement):
         :type src_isd: int
         :param src_ad: source AD identifier.
         :type src_ad: int
-        :param requestor: Path requestor
-        :type requestor:
+        :param requester: Path requester
+        :type requester:
         """
         if src_isd is None:
             src_isd = self.topology.isd_id
@@ -164,7 +163,7 @@ class SCIONDaemon(SCIONElement):
             event.clear()
             cycle_cnt += 1
 
-    def get_paths(self, dst_isd, dst_ad, requestor=None):
+    def get_paths(self, dst_isd, dst_ad, requester=None):
         """
         Return a list of paths.
 
@@ -172,15 +171,15 @@ class SCIONDaemon(SCIONElement):
         :type dst_isd: int
         :param dst_ad: AD identifier.
         :type dst_ad: int
-        :param requestor: Path requestor
-        :type requestor:
+        :param requester: Path requester
+        :type requester:
         """
         full_paths = []
         down_segments = self.down_segments(dst_isd=dst_isd, dst_ad=dst_ad)
         # Fetch down-paths if necessary.
         if not down_segments:
             self._request_paths(PST.UP_DOWN, dst_isd, dst_ad,
-                                requestor=requestor)
+                                requester=requester)
             down_segments = self.down_segments(dst_isd=dst_isd, dst_ad=dst_ad)
         if len(self.up_segments) and down_segments:
             full_paths = PathCombinator.build_shortcut_paths(self.up_segments(),
@@ -204,7 +203,7 @@ class SCIONDaemon(SCIONElement):
                         not core_segments):
                     self._request_paths(PST.CORE, dst_isd, dst_core_ad,
                                         src_ad=src_core_ad,
-                                        requestor=requestor)
+                                        requester=requester)
                     core_segments = self.core_segments(src_isd=src_isd,
                                                        src_ad=src_core_ad,
                                                        dst_isd=dst_isd,

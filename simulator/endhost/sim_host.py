@@ -75,7 +75,7 @@ class SCIONSimHost(SCIONDaemon):
             _, run_cb, _, _ = self.apps[port]
             run_cb()
 
-    def _expire_request_timeout(self, ptype, requestor):
+    def _expire_request_timeout(self, ptype, requester):
         # TODO Failure Notification
         pass
 
@@ -92,7 +92,7 @@ class SCIONSimHost(SCIONDaemon):
         pass
 
     def _request_paths(self, ptype, dst_isd, dst_ad, src_isd=None,
-                       src_ad=None, requestor=None):
+                       src_ad=None, requester=None):
         """
         Sends path request with certain type for (isds, ad).
 
@@ -106,8 +106,8 @@ class SCIONSimHost(SCIONDaemon):
         :type src_isd: int
         :param src_ad: source AD identifier.
         :type src_ad: int
-        :param requestor: (Host address, Application port)
-        :type requestor: (IPv4Address, int)
+        :param requester: (Host address, Application port)
+        :type requester: (IPv4Address, int)
         """
         if src_isd is None:
             src_isd = self.topology.isd_id
@@ -115,9 +115,9 @@ class SCIONSimHost(SCIONDaemon):
             src_ad = self.topology.ad_id
         eid = self.simulator.add_event(SCIONSimHost.TIMEOUT,
                                        cb=self._expire_request_timeout,
-                                       args=(ptype, requestor))
+                                       args=(ptype, requester))
         update_dict(self._waiting_targets[ptype], (dst_isd, dst_ad),
-                    [(eid, requestor)])
+                    [(eid, requester)])
         # Create and send out path request.
         info = PathSegmentInfo.from_values(ptype, src_isd, dst_isd,
                                            src_ad, dst_ad)
@@ -173,14 +173,14 @@ class SCIONSimHost(SCIONDaemon):
         """
         info = path_reply.info
         if (info.dst_isd, info.dst_ad) in self._waiting_targets[info.type]:
-            for (eid, requestor) in \
+            for (eid, requester) in \
                     self._waiting_targets[info.type][(info.dst_isd,
                                                       info.dst_ad)]:
                 src_isd = self.topology.isd_id
                 src_ad = self.topology.ad_id
                 dst_isd = info.dst_isd
                 dst_ad = info.dst_ad
-                event = (eid, requestor)
+                event = (eid, requester)
 
                 if info.type == PST.UP_DOWN:
                     full_paths = self._get_full_paths(src_isd, src_ad,
@@ -201,7 +201,7 @@ class SCIONSimHost(SCIONDaemon):
                             down_segments[0].get_first_pcbm().ad_id
                         self._request_paths(PST.CORE, dst_isd, dst_core_ad,
                                             src_ad=src_core_ad,
-                                            requestor=requestor)
+                                            requester=requester)
                     continue
                 elif info.type == PST.CORE:
                     src_core_ad = info.src_ad
@@ -233,15 +233,15 @@ class SCIONSimHost(SCIONDaemon):
                     if not full_paths:
                         # TODO What action to be taken?
                         continue
-                self._api_send_path_reply(full_paths, requestor)
+                self._api_send_path_reply(full_paths, requester)
             if len(self._waiting_targets[info.type]
                    [(info.dst_isd, info.dst_ad)]) == 0:
                 del self._waiting_targets[info.type]\
                     [(info.dst_isd, info.dst_ad)]
 
-    def _api_send_path_reply(self, paths, requestor):
+    def _api_send_path_reply(self, paths, requester):
         """
-        Send path reply to the requestor
+        Send path reply to the requester
         """
         reply = []
         for path in paths:
@@ -251,7 +251,7 @@ class SCIONSimHost(SCIONDaemon):
             path_len = len(raw_path) // 8  # Check whether 8 divides path_len?
             reply.append(struct.pack("B", path_len) + raw_path + hop.packed)
 
-        _, _, _, path_cb = self.apps[requestor[1]]
+        _, _, _, path_cb = self.apps[requester[1]]
         path_cb(b"".join(reply))
 
     def _api_handle_path_request(self, packet, sender):
@@ -273,7 +273,7 @@ class SCIONSimHost(SCIONDaemon):
 
         logging.info("Request for %d, %d", isd, ad)
 
-        full_paths = self.get_paths(isd, ad, requestor=sender)
+        full_paths = self.get_paths(isd, ad, requester=sender)
         if full_paths:
             self._api_send_path_reply(self, full_paths, sender)
             return
