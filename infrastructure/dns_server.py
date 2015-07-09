@@ -31,7 +31,7 @@ from ipaddress import ip_address
 from time import sleep
 
 # External packages
-from dnslib import A, AAAA, DNSLabel, PTR, QTYPE, RCODE, RR, SRV
+from dnslib import A, AAAA, DNSLabel, NS, PTR, QTYPE, RCODE, RR, SRV
 from dnslib.server import (
     BaseResolver,
     DNSLogger,
@@ -155,6 +155,20 @@ class SrvInst(object):
         """
         reply.add_answer(RR(qname, QTYPE.PTR, rdata=PTR(label=self.fqdn)))
 
+    def ns_records(self, reply):
+        """
+        (Only makes sense for ds instances)
+        Add additional NS records to the reply
+
+        :param reply: DNSRecord object to add the replies to.
+        :type reply:
+        """
+        reply.add_ar(RR(self.domain, QTYPE.NS, rdata=NS(self.fqdn)))
+        for addr in self.v4_addrs:
+            reply.add_ar(RR(self.fqdn, QTYPE.A, rdata=A(str(addr))))
+        for addr in self.v6_addrs:
+            reply.add_ar(RR(self.fqdn, QTYPE.AAAA, rdata=AAAA(str(addr))))
+
     def __repr__(self):
         """
 
@@ -176,7 +190,7 @@ class ZoneResolver(BaseResolver):
     Handle DNS queries.
     """
 
-    def __init__(self, lock, domain, srv_types):
+    def __init__(self, lock, domain):
         """
         Initialize an instance of the class ZoneResolver.
 
@@ -184,10 +198,7 @@ class ZoneResolver(BaseResolver):
         :type lock:
         :param domain: Parent DNS domain.
         :type domain:
-        :param srv_types: List of supported service types. E.g. ``["bs", "cs"]``
-        :type srv_types:
         """
-        self.srv_types = srv_types
         self.services = {}
         self.instances = {}
         self.reverse = {}
@@ -210,8 +221,10 @@ class ZoneResolver(BaseResolver):
 
         if qtype in ["A", "AAAA", "ANY", "SRV"]:
             self.resolve_forward(qname, qtype, reply)
+            self.add_nameservers(reply)
         elif qtype == "PTR":
             self.resolve_reverse(qname, reply)
+            self.add_nameservers(reply)
         else:
             # Not a request type we support
             logging.warning("Unsupported query type: %s", qtype)
@@ -273,6 +286,16 @@ class ZoneResolver(BaseResolver):
             else:
                 logging.warning("Unknown reverse record: %s", qname)
                 reply.header.rcode = RCODE.NXDOMAIN
+
+    def add_nameservers(self, reply):
+        """
+        Add all current nameservers to a DNS response
+
+        :param reply: The DNSRecord to populate with the reply.
+        :type reply:
+        """
+        for inst in self.services.get(self.domain.add("ds"), []):
+            inst.ns_records(reply)
 
 
 class SCIONDnsTcpServer(TCPServer):
@@ -547,7 +570,7 @@ class SCIONDnsServer(SCIONElement):
         """
 
         """
-        self.resolver = ZoneResolver(self.lock, self.domain, self.SRV_TYPES)
+        self.resolver = ZoneResolver(self.lock, self.domain)
         self.udp_server = DNSServer(self.resolver, port=SCION_DNS_PORT,
                                     address=str(self.addr.host_addr),
                                     server=SCIONDnsUdpServer,
