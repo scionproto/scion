@@ -45,7 +45,7 @@ def create_next_router(generator, topo_dict):
     else:
         isd_id = str(topo_dict['ISDID'])
         ad_id = str(topo_dict['ADID'])
-        # Legacy approach, fixed in later commits
+        # FIXME(rev112): Legacy approach, fixed in later commits
         er_range = '81'
         ip_address_loc = ip_address('.'.join([first_byte, isd_id,
                                               ad_id, er_range]))
@@ -85,7 +85,8 @@ def link_topologies(generator, first_topo, second_topo, link_type):
     first_ad_id = first_topo['ADID']
     second_ad_id = second_topo['ADID']
 
-    if_id = generator.generate_if_id(first_ad_id, second_ad_id)
+    # FIXME(rev112)
+    if_id = first_ad_id + second_ad_id
 
     first_router_if['ToAddr'] = second_router_if['Addr']
     first_router_if['NeighborISD'] = second_topo['ISDID']

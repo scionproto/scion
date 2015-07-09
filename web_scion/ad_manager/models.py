@@ -17,7 +17,7 @@ from ad_management.common import (
 )
 from ad_manager.util import monitoring_client
 from lib.topology import Topology
-from topology.generator import PORT, ConfigGenerator
+from topology.generator import PORT
 
 
 class SelectRelatedModelManager(models.Manager):
@@ -279,7 +279,8 @@ class RouterWeb(SCIONWebElement):
     def get_dict(self):
         out_dict = super(RouterWeb, self).get_dict()
         port = int(PORT)
-        if_id = ConfigGenerator.generate_if_id(self.ad_id, self.neighbor_ad_id)
+        # FIXME(rev112)
+        if_id = int(self.neighbor_ad.id)
         out_dict['Interface'] = {'NeighborType': self.neighbor_type,
                                  'NeighborISD': int(self.neighbor_ad.isd_id),
                                  'NeighborAD': int(self.neighbor_ad.id),
