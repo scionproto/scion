@@ -9,12 +9,12 @@ import glob
 import os
 import sys
 from os.path import dirname as d
-from django.db import transaction
 
 sys.path.insert(0, d(d(d(os.path.abspath(__file__)))))
 
 # External packages
 import django
+from django.db import transaction
 
 # SCION
 from ad_management.common import WEB_SCION_DIR
@@ -129,4 +129,7 @@ def reload_data():
     transaction.set_autocommit(True)
 
 if __name__ == "__main__":
-    reload_data()
+    if len(sys.argv) > 1 and sys.argv[1] == 'users':
+        add_users()
+    else:
+        reload_data()
