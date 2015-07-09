@@ -128,54 +128,6 @@ class SCIONSimHost(SCIONDaemon):
         dst = self.topology.path_servers[0].addr
         self.send(path_request, dst)
 
-    def get_paths(self, dst_isd, dst_ad, requestor):
-        """
-        Return a list of paths.
-
-        :param dst_isd: ISD identifier.
-        :type dst_isd: int
-        :param dst_ad: AD identifier.
-        :type dst_ad: int
-        :param requestor: (Host address, Application port)
-        :type requestor: (IPv4Address, int)
-        """
-        full_paths = []
-        down_segments = self.down_segments(dst_isd=dst_isd, dst_ad=dst_ad)
-        # Fetch down-paths if necessary.
-        if not down_segments:
-            self._request_paths(PST.UP_DOWN, dst_isd, dst_ad,
-                                requestor=requestor)
-            return None
-        if len(self.up_segments) and down_segments:
-            full_paths = PathCombinator.build_shortcut_paths(self.up_segments(),
-                                                             down_segments)
-            if not full_paths:
-                # No shortcut path could be built. Select an up and down path
-                # and request a set of core-paths connecting them.
-                # For now we just choose the first up-/down-path.
-                # TODO: Atm an application can't choose the up-/down-path to be
-                #       be used. Discuss with Pawel.
-                src_isd = self.topology.isd_id
-                src_core_ad = self.up_segments()[0].get_first_pcbm().ad_id
-                dst_core_ad = down_segments[0].get_first_pcbm().ad_id
-                core_segments = self.core_segments(src_isd=src_isd,
-                                                   src_ad=src_core_ad,
-                                                   dst_isd=dst_isd,
-                                                   dst_ad=dst_core_ad)
-                if ((src_isd, src_core_ad) != (dst_isd, dst_core_ad) and
-                        not core_segments):
-                    self._request_paths(PST.CORE, dst_isd, dst_core_ad,
-                                        src_ad=src_core_ad,
-                                        requestor=requestor)
-                    return None
-
-                full_paths = PathCombinator.build_core_paths(
-                    self.up_segments()[0],
-                    down_segments[0],
-                    core_segments)
-
-        return full_paths
-
     def _get_full_paths(self, src_isd, src_ad, dst_isd, dst_ad,
                         src_core_ad=None, dst_core_ad=None):
         """
@@ -322,7 +274,7 @@ class SCIONSimHost(SCIONDaemon):
 
         logging.info("Request for %d, %d", isd, ad)
 
-        full_paths = self.get_paths(isd, ad, sender)
+        full_paths = self.get_paths(isd, ad, requestor=sender)
         if full_paths:
             self._api_send_path_reply(self, full_paths, sender)
             return
