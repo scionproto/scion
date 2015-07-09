@@ -23,6 +23,7 @@ import nose
 import nose.tools as ntools
 
 # SCION
+from lib.util import SCIONTime
 from lib.packet.pcb import PathSegment
 from lib.path_store import (
     PathPolicy,
@@ -175,7 +176,7 @@ class TestPathPolicyCheckPropertyRanges(object):
         pcb.get_n_hops.return_value = 3
         ntools.assert_false(pth_pol._check_property_ranges(pcb))
 
-    @patch("lib.path_store.time.time", autospec=True)
+    @patch("lib.path_store.SCIONTime.get_time", spec=SCIONTime.get_time)
     def test_delay_time_true(self, time_):
         pth_pol = PathPolicy()
         pth_pol.property_ranges = self.d
@@ -187,7 +188,7 @@ class TestPathPolicyCheckPropertyRanges(object):
         time_.assert_called_once_with()
         pcb.get_timestamp.assert_called_once_with()
 
-    @patch("lib.path_store.time.time", autospec=True)
+    @patch("lib.path_store.SCIONTime.get_time", spec=SCIONTime.get_time)
     def test_delay_time_false(self, time_):
         pth_pol = PathPolicy()
         pth_pol.property_ranges = self.d
@@ -278,7 +279,7 @@ class TestPathStoreRecordInit(object):
     """
     Unit tests for lib.path_store.PathStoreRecord.__init__
     """
-    @patch("lib.path_store.time.time", autospec=True)
+    @patch("lib.path_store.SCIONTime.get_time", spec=SCIONTime.get_time)
     def test_basic(self, time_):
         pcb = MagicMock(spec_set=['__class__', 'segment_id',
                                   'get_expiration_time', 'get_hops_hash'])
@@ -308,7 +309,7 @@ class TestPathStoreRecordUpdateFidelity(object):
     """
     Unit tests for lib.path_store.PathStoreRecord.update_fidelity
     """
-    @patch("lib.path_store.time.time", autospec=True)
+    @patch("lib.path_store.SCIONTime.get_time", spec=SCIONTime.get_time)
     def test_basic(self, time_):
         path_policy = PathPolicy()
         path_policy.property_weights['PeerLinks'] = 10
@@ -640,7 +641,7 @@ class TestPathStoreRemoveExpiredSegments(object):
     """
     Unit tests for lib.path_store._remove_expired_segments
     """
-    @patch("lib.path_store.time.time", autospec=True)
+    @patch("lib.path_store.SCIONTime.get_time", spec=SCIONTime.get_time)
     def test_basic(self, time_):
         path_policy = MagicMock(spec_set=['history_limit'])
         path_policy.history_limit = 3
