@@ -113,7 +113,7 @@ class Router(SCIONElement):
                                   for those extensions that execute after
                                   routing.
         :type post_ext_handlers: dict
-        :param is_sim: running for simulator
+        :param is_sim: running in simulator
         :type is_sim: bool
         """
         SCIONElement.__init__(self, "er", topo_file, server_id=router_id,

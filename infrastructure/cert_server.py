@@ -73,7 +73,7 @@ class CertServer(SCIONElement):
         :type config_file: string
         :param trc_file: TRC file.
         :type trc_file: string
-        :param is_sim: running for simulator
+        :param is_sim: running in simulator
         :type is_sim: bool
         """
         SCIONElement.__init__(self, "cs", topo_file, server_id=server_id,

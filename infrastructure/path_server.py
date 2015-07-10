@@ -62,7 +62,7 @@ class PathServer(SCIONElement):
         :type topo_file:
         :param config_file:
         :type config_file:
-        :param is_sim: running for simulator
+        :param is_sim: running in simulator
         :type is_sim: bool
         """
         SCIONElement.__init__(self, "ps", topo_file, server_id=server_id,
@@ -345,7 +345,7 @@ class CorePathServer(PathServer):
         :type topo_file:
         :param config_file:
         :type config_file:
-        :param is_sim: running for simulator
+        :param is_sim: running in simulator
         :type is_sim: bool
         """
         PathServer.__init__(self, server_id, topo_file, config_file,
