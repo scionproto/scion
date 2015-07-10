@@ -109,7 +109,7 @@ class Simulator(object):
         Event can be described either by
         1. Providing a Callback function to be summoned
         2. Specifying the IP address of the Object to be called
-            (Implicitly assumes that the Function to be called is sim_recv())
+        (Implicitly assumes that the Function to be called is sim_recv())
 
         :param time: relative time that the event would be executed (sec)
         :type time: float

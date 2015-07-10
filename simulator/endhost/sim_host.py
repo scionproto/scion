@@ -13,7 +13,7 @@
 # limitations under the License.
 """
 :mod:`sim_host` --- SCION Host for Simulator
-===========================================
+============================================
 """
 # Stdlib
 import logging
