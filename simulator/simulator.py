@@ -29,7 +29,6 @@ from simulator.infrastructure.beacon_server_sim import (
     CoreBeaconServerSim,
     LocalBeaconServerSim
 )
-from simulator.infrastructure.cert_server_sim import CertServerSim
 from simulator.infrastructure.path_server_sim import (
     CorePathServerSim,
     LocalPathServerSim
@@ -85,7 +84,7 @@ def init_elements(data, simulator):
         if items[0] == "router":
             RouterSim(items[1], items[2], items[3], simulator)
         elif items[0] == "cert_server":
-            CertServerSim(items[1], items[2], items[3], items[4], simulator)
+            pass
         elif items[0] == "path_server":
             if items[1] == "core":
                 CorePathServerSim(items[2], items[3], items[4], simulator)
