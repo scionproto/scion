@@ -19,22 +19,23 @@
 import os
 import xmlrpc.client
 
+# SCION
+from lib.defines import PROJECT_ROOT
+
+
 # Ports
-MONITORING_DAEMON_PORT = 9000
-SUPERVISORD_PORT = 9001
+MONITORING_DAEMON_PORT = 9010
+SUPERVISORD_PORT = 9011
 
 # Paths
-SCION_ROOT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-MONITORING_DAEMON_DIR = os.path.join(SCION_ROOT, 'ad_management')
+MONITORING_DAEMON_DIR = os.path.join(PROJECT_ROOT, 'ad_management')
 UPDATE_DIR_PATH = os.path.join(MONITORING_DAEMON_DIR, '.update_files')
+PACKAGE_DIR_PATH = os.path.join(MONITORING_DAEMON_DIR, '.packages')
 UPDATE_SCRIPT_PATH = os.path.join(MONITORING_DAEMON_DIR, 'updater.py')
 CERT_DIR_PATH = os.path.join(MONITORING_DAEMON_DIR, 'certs')
-SUPERVISORD_PATH = os.path.join(SCION_ROOT, 'supervisor', 'supervisor.sh')
-WEB_SCION_DIR = os.path.join(SCION_ROOT, 'web_scion')
-
-# TODO modify after update management is implemented
-ARCHIVE_DIST_PATH = os.path.join(SCION_ROOT, 'dist')
-
+SUPERVISORD_PATH = os.path.join(PROJECT_ROOT, 'supervisor', 'supervisor.sh')
+WEB_SCION_DIR = os.path.join(PROJECT_ROOT, 'web_scion')
+LOGS_DIR = os.path.join(PROJECT_ROOT, 'logs')
 
 # Process names
 MONITORING_DAEMON_PROC_NAME = 'monitoring_daemon'

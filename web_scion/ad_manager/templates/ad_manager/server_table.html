@@ -1,18 +1,26 @@
 <h4>{{ table_name }}</h4>
-<table class="table table-striped" id="{{ table_id }}-table">
+<table class="table table-striped element-table" id="{{ table_id }}-table">
   <thead>
   <tr>
     <th></th>
     <th class="col-md-3">Address</th>
-    <th class="col-md-1">Status</th>
+    <th class="col-md-2 text-center">Status</th>
   </tr>
   </thead>
   <tbody>
   {% for server in servers %}
     <tr id="{{ server.id_str }}">
-      <td> Server {{ forloop.counter }}</td>
+      <td> Server {{ server.name }}</td>
       <td>{{ server.addr }}</td>
-      <td class="status">%%%</td>
+      <td class="status-column">
+        {% with element=server %}
+          {% include 'ad_manager/status_block.html' %}
+        {% endwith %}
+      </td>
+    </tr>
+  {% empty %}
+    <tr>
+      <td colspan="4"><i>No servers</i></td>
     </tr>
   {% endfor %}
   </tbody>

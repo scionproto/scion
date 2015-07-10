@@ -83,7 +83,7 @@ DEFAULT_SUBNET = "127.0.0.0/8"
 IP_ADDRESS_BASE = "127.0.0.1"
 
 
-class ConfigGenerator():
+class ConfigGenerator(object):
     """
     Configuration and/or topology generator.
     """
@@ -107,7 +107,7 @@ class ConfigGenerator():
         self.next_ip_address = next_ip_address
         self.is_sim = is_sim
 
-    def _get_subnet_params(self, ad_config=None):
+    def get_subnet_params(self, ad_config=None):
         """
         Return the first byte and the mask of the subnet.
 
@@ -125,7 +125,7 @@ class ConfigGenerator():
         mask = subnet.split('/')[1]
         return first_byte, mask
 
-    def _path_dict(self, isd_id, ad_id):
+    def path_dict(self, isd_id, ad_id):
         """
         Return a dictionary with the computed paths for a given AD.
 
@@ -170,7 +170,7 @@ class ConfigGenerator():
         path_pol_file_rel = os.path.join("..", SCRIPTS_DIR, path_pol_path_tail)
         return locals()
 
-    def _increment_address(self, ip_addr, mask, increment=1):
+    def increment_address(self, ip_addr, mask, increment=1):
         """
         Increment an IP address value.
 
@@ -204,20 +204,19 @@ class ConfigGenerator():
         """
         er_ip_addresses = {}
         for isd_ad_id in ad_configs:
-            first_byte, mask = self._get_subnet_params(ad_configs[isd_ad_id])
-            (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
+            first_byte, mask = self.get_subnet_params(ad_configs[isd_ad_id])
             ip_address_loc = self.next_ip_address
-            ip_address_pub = self._increment_address(ip_address_loc, mask)
+            ip_address_pub = self.increment_address(ip_address_loc, mask)
             self.next_ip_address = \
-                self._increment_address(self.next_ip_address, mask, 2)
+                self.increment_address(self.next_ip_address, mask, 2)
             for link in ad_configs[isd_ad_id].get("links", []):
                 er_ip_addresses[(isd_ad_id, link)] = (str(ip_address_loc),
                                                       str(ip_address_pub))
                 ip_address_loc = self.next_ip_address
                 ip_address_pub = \
-                    self._increment_address(ip_address_loc, mask)
+                    self.increment_address(ip_address_loc, mask)
                 self.next_ip_address = \
-                    self._increment_address(self.next_ip_address, mask, 2)
+                    self.increment_address(self.next_ip_address, mask, 2)
         return er_ip_addresses
 
     def delete_directories(self):
@@ -356,7 +355,7 @@ class ConfigGenerator():
         for isd_ad_id in ad_configs:
             (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
             is_core = (ad_configs[isd_ad_id]['level'] == CORE_AD)
-            first_byte, mask = self._get_subnet_params(ad_configs[isd_ad_id])
+            first_byte, mask = self.get_subnet_params(ad_configs[isd_ad_id])
             number_bs = ad_configs[isd_ad_id].get("beacon_servers",
                                                   DEFAULT_BEACON_SERVERS)
             if self.is_sim:
@@ -388,7 +387,7 @@ class ConfigGenerator():
                     'Addr': self.next_ip_address
                 }
                 self.next_ip_address = \
-                    self._increment_address(self.next_ip_address, mask)
+                    self.increment_address(self.next_ip_address, mask)
             # Write Certificate Servers
             for c_server in range(1, number_cs + 1):
                 topo_dict['CertificateServers'][c_server] = {
@@ -396,7 +395,7 @@ class ConfigGenerator():
                     'Addr': self.next_ip_address
                 }
                 self.next_ip_address = \
-                    self._increment_address(self.next_ip_address, mask)
+                    self.increment_address(self.next_ip_address, mask)
             # Write Path Servers
             if (ad_configs[isd_ad_id]['level'] != INTERMEDIATE_AD or
                     "path_servers" in ad_configs[isd_ad_id]):
@@ -406,7 +405,7 @@ class ConfigGenerator():
                         'Addr': self.next_ip_address
                     }
                     self.next_ip_address = \
-                        self._increment_address(self.next_ip_address, mask)
+                        self.increment_address(self.next_ip_address, mask)
             # Write DNS Servrs
             for d_server in range(1, number_ds + 1):
                 topo_dict['DNSServers'][d_server] = {
@@ -414,7 +413,7 @@ class ConfigGenerator():
                     'Addr': self.next_ip_address
                 }
                 self.next_ip_address = \
-                    self._increment_address(self.next_ip_address, mask)
+                    self.increment_address(self.next_ip_address, mask)
             # Write Edge Routers
             edge_router = 1
             for nbr_isd_ad_id in ad_configs[isd_ad_id].get("links", []):
@@ -440,14 +439,27 @@ class ConfigGenerator():
                 }
                 edge_router += 1
 
-            topo_file_abs = self._path_dict(isd_id, ad_id)['topo_file_abs']
+            topo_file_abs = self.path_dict(isd_id, ad_id)['topo_file_abs']
             with open(topo_file_abs, 'w') as topo_fh:
                 json.dump(topo_dict, topo_fh, sort_keys=True, indent=4)
             # Test if parser works
             Topology.from_file(topo_file_abs)
 
-            self.write_supervisor_config(topo_dict)
-            self.write_setup_file(topo_dict, mask)
+            self.write_derivatives(topo_dict, mask=mask)
+
+    def write_derivatives(self, topo_dict, **kwargs):
+        """
+        Write files, derived from the topology: supervisor configuration,
+        setup files.
+
+        :param topo_dict: topology dictionary of a SCION AD
+        :type topo_dict: dict
+        :param kwargs: misc arguments
+        :type kwargs: dict
+        :return:
+        """
+        self.write_supervisor_config(topo_dict)
+        self.write_setup_file(topo_dict, mask=kwargs.get('mask'))
 
     def write_sim_file(self, ad_configs):
         """
@@ -527,9 +539,9 @@ class ConfigGenerator():
         :type mask: str
         """
         if mask is None:
-            _, mask = self._get_subnet_params()
+            _, mask = self.get_subnet_params()
 
-        p = self._path_dict(topo_dict['ISDID'], topo_dict['ADID'])
+        p = self.path_dict(topo_dict['ISDID'], topo_dict['ADID'])
         preamble = '#!/bin/bash\n\n'
 
         with open(p['setup_file_abs'], 'w') as setup_fh:
@@ -559,9 +571,9 @@ class ConfigGenerator():
         program_group = []
         supervisor_config = configparser.ConfigParser()
 
-        isd_id, ad_id = str(topo_dict['ISDID']), str(topo_dict['ADID'])
+        isd_id, ad_id = topo_dict['ISDID'], topo_dict['ADID']
         dns_domain = topo_dict['DnsDomain']
-        p = self._path_dict(isd_id, ad_id)
+        p = self.path_dict(isd_id, ad_id)
 
         for (num, element_dict, element_type) \
                 in self._get_typed_elements(topo_dict):
@@ -673,7 +685,7 @@ class ConfigGenerator():
         """
         for isd_ad_id in ad_configs:
             (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-            path_dict = self._path_dict(isd_id, ad_id)
+            path_dict = self.path_dict(isd_id, ad_id)
             new_path_pol_file = path_dict['path_pol_file_abs']
             shutil.copyfile(path_policy_file, new_path_pol_file)
             # Test if parser works
@@ -691,7 +703,7 @@ class ConfigGenerator():
         for isd_ad_id in ad_configs:
             if ad_configs[isd_ad_id]['level'] == CORE_AD:
                 (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-                trc_file = self._path_dict(isd_id, ad_id)['trc_temp_file']
+                trc_file = self.path_dict(isd_id, ad_id)['trc_temp_file']
                 # Create core certificate
                 subject = 'ISD:' + isd_id + '-AD:' + ad_id
                 cert = Certificate.from_values(
@@ -726,7 +738,7 @@ class ConfigGenerator():
         for isd_ad_id in ad_configs:
             if ad_configs[isd_ad_id]['level'] == CORE_AD:
                 (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-                trc_file = self._path_dict(isd_id, ad_id)['trc_temp_file']
+                trc_file = self.path_dict(isd_id, ad_id)['trc_temp_file']
                 subject = 'ISD:' + isd_id + '-AD:' + ad_id
                 if os.path.exists(trc_file):
                     trc = TRC(trc_file)
@@ -741,14 +753,14 @@ class ConfigGenerator():
         # Copy the created TRC files to every AD directory, then remove them
         for isd_ad_id in ad_configs:
             (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-            trc_file = self._path_dict(isd_id, ad_id)['trc_temp_file']
+            trc_file = self.path_dict(isd_id, ad_id)['trc_temp_file']
             if os.path.exists(trc_file):
                 dst_path = get_trc_file_path(isd_id, ad_id, isd_id, 0,
                                              isd_dir=self.out_dir)
                 shutil.copyfile(trc_file, dst_path)
         for isd_ad_id in ad_configs:
             (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-            trc_file = self._path_dict(isd_id, ad_id)['trc_temp_file']
+            trc_file = self.path_dict(isd_id, ad_id)['trc_temp_file']
             if os.path.exists(trc_file):
                 os.remove(trc_file)
 
@@ -774,8 +786,7 @@ class ConfigGenerator():
             sys.exit()
 
         if "default_subnet" in ad_configs:
-            self.subnet = ad_configs["default_subnet"]
-            del ad_configs["default_subnet"]
+            self.subnet = ad_configs.pop("default_subnet")
         er_ip_addresses = self.set_er_ip_addresses(ad_configs)
         self.delete_directories()
         self.create_directories(ad_configs)

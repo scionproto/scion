@@ -1,0 +1,15 @@
+{% extends "ad_manager/base.html" %}
+
+{% block content %}
+  {% with object=ad %}
+    {% include 'ad_manager/object_path.html' %}
+  {% endwith %}
+
+  <h2>Create a new link</h2>
+  <br />
+  <form action="" method="POST">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <input type="submit" value="Send message" />
+  </form>
+{% endblock %}

@@ -1,0 +1,32 @@
+{% extends "ad_manager/base.html" %}
+
+{% block content %}
+  <h2>Connection requests submitted by <i>{{ user.username }}</i></h2>
+  <br />
+
+  <table class="table">
+    <thead>
+    <tr>
+      <th class="col-md-1">AD</th>
+      <th>Info</th>
+      <th class="col-md-2">Router IP</th>
+      <th class="col-md-1">Status</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    {% for request in sent_requests %}
+      <tr>
+        <td><a href="{{ request.connect_to.get_absolute_url }}">{{ request.connect_to }}</a></td>
+        <td><pre>{{ request.info }}</pre></td>
+        <td>{{ request.router_ip }}</td>
+        <td>{{ request.status}}</td>
+      </tr>
+    {% empty %}
+      <tr>
+        <td colspan="4"><i>No requests</i></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}
