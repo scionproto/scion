@@ -107,7 +107,7 @@ class TestInterfaceElementInit(object):
 
     @patch("lib.topology.ip_address", autospec=True)
     @patch("lib.topology.Element.__init__", autospec=True)
-    def test_addr_success(self, element_init, ip_address):
+    def test_to_addr_success(self, element_init, ip_address):
         self.interface_dict['ToAddr'] = '12.34.56.78'
         ip_address.return_value = 7
         interface = InterfaceElement(self.interface_dict)
@@ -115,7 +115,7 @@ class TestInterfaceElementInit(object):
         ntools.eq_(interface.to_addr, 7)
 
     @patch("lib.topology.Element.__init__", autospec=True)
-    def test_addr_fail(self, element_init):
+    def test_to_addr_fail(self, element_init):
         self.interface_dict['ToAddr'] = '2342.232.342.11'
         ntools.assert_raises(ValueError, InterfaceElement, self.interface_dict)
 
