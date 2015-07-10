@@ -472,12 +472,12 @@ class ConfigGenerator(object):
         for isd_ad_id in ad_configs:
             (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
             is_core = (ad_configs[isd_ad_id]['level'] == CORE_AD)
-            first_byte, mask = self._get_subnet_params(ad_configs[isd_ad_id])
+            first_byte, mask = self.get_subnet_params(ad_configs[isd_ad_id])
 
-            topo_file = self._path_dict(isd_id, ad_id)['topo_file_abs']
-            path_pol_file = self._path_dict(isd_id, ad_id)['path_pol_file_abs']
-            conf_file = self._path_dict(isd_id, ad_id)['conf_file_abs']
-            trc_file = self._path_dict(isd_id, ad_id)['trc_file_abs']
+            topo_file = self.path_dict(isd_id, ad_id)['topo_file_abs']
+            path_pol_file = self.path_dict(isd_id, ad_id)['path_pol_file_abs']
+            conf_file = self.path_dict(isd_id, ad_id)['conf_file_abs']
+            trc_file = self.path_dict(isd_id, ad_id)['trc_file_abs']
             # Since we are running a simulator
             number_bs = 1
             number_cs = ad_configs[isd_ad_id].get("certificate_servers",
