@@ -91,6 +91,23 @@ class PathBase(object):
         else:
             return None
 
+    def get_first_info_offset(self):
+        """
+        Returns offset to the first InfoOpaqueField of the path.
+        """
+        return 0
+
+    def get_first_info_of(self):
+        """
+        Returns the first InfoOpaqueField of the path.
+        """
+        offset = self.get_first_info_offset()
+        if offset:
+            offset -= InfoOpaqueField.LEN
+            n = offset // HopOpaqueField.LEN
+            return self.get_of(n + 1)
+        return self.get_of(0)
+
     def get_of(self, index):
         """
         Returns the opaque field for the given index.
@@ -441,6 +458,28 @@ class CrossOverPath(PathBase):
         tmp.append(self.down_segment_upstream_ad)
         tmp.extend(self.down_segment_hops)
         return tmp[index]
+
+    def get_first_hop_offset(self):
+        """
+        Returns offset to the first HopOpaqueField of the path.
+        """
+        if self.up_segment_hops:
+            if len(self.up_segment_hops) == 1:  # On-path case.
+                return 2 * InfoOpaqueField.LEN + 3 * HopOpaqueField.LEN
+            return InfoOpaqueField.LEN
+        elif self.down_segment_hops:
+            return InfoOpaqueField.LEN
+        else:
+            return 0
+
+    def get_first_info_offset(self):
+        """
+        Returns offset to the first InfoOpaqueField of the path.
+        Handles on-path case.
+        """
+        if self.up_segment_hops and len(self.up_segment_hops) == 1:
+                return InfoOpaqueField.LEN + 2 * HopOpaqueField.LEN
+        return 0
 
     def __str__(self):
         s = []

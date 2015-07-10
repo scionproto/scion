@@ -383,7 +383,17 @@ class Router(SCIONElement):
             if self.verify_of(curr_hof, prev_hof, timestamp):
                 spkt.hdr.increase_of(2)
                 opaque_field = spkt.hdr.get_relative_of(2)
-                next_hop.addr = self.ifid2addr[opaque_field.egress_if]
+                if opaque_field.egress_if:
+                    next_hop.addr = self.ifid2addr[opaque_field.egress_if]
+                else:  # Send to endhost (on-path case), TODO: check lenght
+                    spkt.hdr.common_hdr.curr_iof_p = \
+                        spkt.hdr.common_hdr.curr_of_p
+                    timestamp = spkt.hdr.get_current_iof().timestamp
+                    prev_hof = spkt.hdr.get_relative_of(1)
+                    if not self.verify_of(opaque_field, prev_hof, timestamp):
+                        return
+                    next_hop.addr = spkt.hdr.dst_addr.host_addr
+                    next_hop.port = SCION_UDP_EH_DATA_PORT
                 logging.debug("send() here, find next hop1")
                 self.send(spkt, next_hop)
         elif info == OFT.INPATH_XOVR:  # TODO: implement that case
