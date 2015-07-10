@@ -38,7 +38,7 @@ from lib.packet.scion import (
 )
 from lib.packet.scion_addr import ISD_AD, SCIONAddr
 from lib.thread import thread_safety_net
-from lib.util import handle_signals
+from lib.util import handle_signals, SCIONTime
 
 IFID_PKT_TOUT = 1  # How often IFID packet is sent to neighboring router.
 
@@ -95,7 +95,7 @@ class Router(SCIONElement):
     """
 
     def __init__(self, router_id, topo_file, config_file, pre_ext_handlers=None,
-                 post_ext_handlers=None):
+                 post_ext_handlers=None, is_sim=False):
         """
         Initialize an instance of the class Router.
 
@@ -113,9 +113,11 @@ class Router(SCIONElement):
                                   for those extensions that execute after
                                   routing.
         :type post_ext_handlers: dict
+        :param is_sim: running in simulator
+        :type is_sim: bool
         """
         SCIONElement.__init__(self, "er", topo_file, server_id=router_id,
-                              config_file=config_file)
+                              config_file=config_file, is_sim=is_sim)
         self.interface = None
         for edge_router in self.topology.get_all_edge_routers():
             if edge_router.addr == self.addr.host_addr:
@@ -132,13 +134,16 @@ class Router(SCIONElement):
             self.post_ext_handlers = post_ext_handlers
         else:
             self.post_ext_handlers = {}
-        self._remote_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self._remote_socket.setsockopt(socket.SOL_SOCKET,
-                                       socket.SO_REUSEADDR, 1)
-        self._remote_socket.bind((str(self.interface.addr),
-                                  self.interface.udp_port))
-        self._sockets.append(self._remote_socket)
-        logging.info("IP %s:%u", self.interface.addr, self.interface.udp_port)
+        if not is_sim:
+            self._remote_socket = socket.socket(socket.AF_INET,
+                                                socket.SOCK_DGRAM)
+            self._remote_socket.setsockopt(socket.SOL_SOCKET,
+                                           socket.SO_REUSEADDR, 1)
+            self._remote_socket.bind((str(self.interface.addr),
+                                      self.interface.udp_port))
+            self._sockets.append(self._remote_socket)
+            logging.info("IP %s:%u", self.interface.addr,
+                         self.interface.udp_port)
 
     def run(self):
         """
@@ -294,7 +299,7 @@ class Router(SCIONElement):
         :param ts: timestamp against which the opaque field is verified.
         :type ts: int
         """
-        if int(time.time()) <= ts + hof.exp_time * EXP_TIME_UNIT:
+        if int(SCIONTime.get_time()) <= ts + hof.exp_time * EXP_TIME_UNIT:
             if verify_of_mac(self.of_gen_key, hof, prev_hof, ts):
                 return True
             else:

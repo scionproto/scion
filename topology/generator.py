@@ -62,6 +62,8 @@ ENC_KEYS_DIR = 'encryption_keys'
 SETUP_DIR = 'setup'
 PATH_POL_DIR = 'path_policies'
 SUPERVISOR_DIR = 'supervisor'
+SIM_DIR = 'SIM'
+SIM_CONF_FILE = 'sim.conf'
 
 CORE_AD = 'CORE'
 INTERMEDIATE_AD = 'INTERMEDIATE'
@@ -86,7 +88,7 @@ class ConfigGenerator(object):
     Configuration and/or topology generator.
     """
     def __init__(self, out_dir=TOPOLOGY_PATH, subnet=DEFAULT_SUBNET,
-                 next_ip_address=IP_ADDRESS_BASE):
+                 next_ip_address=IP_ADDRESS_BASE, is_sim=False):
         """
         Initialize an instance of the class ConfigGenerator.
 
@@ -94,6 +96,8 @@ class ConfigGenerator(object):
         :type out_dir: string
         :param subnet: default subnet IP.
         :type subnet: string
+        :param is_sim: Generate conf files for the Simulator
+        :type is_sim: bool
         """
         if not os.path.isdir(out_dir):
             logging.error(out_dir + " output directory missing")
@@ -101,6 +105,7 @@ class ConfigGenerator(object):
         self.out_dir = out_dir
         self.subnet = subnet
         self.next_ip_address = next_ip_address
+        self.is_sim = is_sim
 
     def get_subnet_params(self, ad_config=None):
         """
@@ -222,6 +227,8 @@ class ConfigGenerator(object):
         for name in dirs:
             if name.startswith('ISD'):
                 shutil.rmtree(os.path.join(self.out_dir, name))
+            if name.startswith('SIM'):
+                shutil.rmtree(os.path.join(self.out_dir, name))
 
     def create_directories(self, ad_configs):
         """
@@ -249,6 +256,10 @@ class ConfigGenerator(object):
                 full_path = os.path.join(self.out_dir, path)
                 if not os.path.exists(full_path):
                     os.makedirs(full_path)
+        if self.is_sim:
+            sim_path = os.path.join(self.out_dir, 'SIM')
+            if not os.path.exists(sim_path):
+                os.makedirs(sim_path)
 
     def write_keys_certs(self, ad_configs):
         """
@@ -324,6 +335,13 @@ class ConfigGenerator(object):
                 'sig_pub_keys': sig_pub_keys,
                 'enc_pub_keys': enc_pub_keys}
 
+    def write_beginning_sim_run_files(self):
+        file_path = os.path.join(self.out_dir, SIM_DIR, 'run.sh')
+        with open(file_path, 'w') as fh:
+            fh.write('#!/bin/bash\n\n')
+            fh.write('sh -c "PYTHONPATH=../ python3 sim_test.py'
+                     '../SIM/sim.conf 100."\n')
+
     def write_topo_files(self, ad_configs, er_ip_addresses):
         """
         Generate the AD topologies and store them into files. Update the AD
@@ -340,6 +358,8 @@ class ConfigGenerator(object):
             first_byte, mask = self.get_subnet_params(ad_configs[isd_ad_id])
             number_bs = ad_configs[isd_ad_id].get("beacon_servers",
                                                   DEFAULT_BEACON_SERVERS)
+            if self.is_sim:
+                number_bs = 1
             number_cs = ad_configs[isd_ad_id].get("certificate_servers",
                                                   DEFAULT_CERTIFICATE_SERVERS)
             number_ps = ad_configs[isd_ad_id].get("path_servers",
@@ -440,6 +460,60 @@ class ConfigGenerator(object):
         """
         self.write_supervisor_config(topo_dict)
         self.write_setup_file(topo_dict, mask=kwargs.get('mask'))
+
+    def write_sim_file(self, ad_configs):
+        """
+        Writing into sim.conf file
+
+        :param ad_configs: the configurations of all SCION ADs.
+        :type ad_configs: dict
+        """
+        sim_file = os.path.join(self.out_dir, SIM_DIR, SIM_CONF_FILE)
+        for isd_ad_id in ad_configs:
+            (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
+            is_core = (ad_configs[isd_ad_id]['level'] == CORE_AD)
+            first_byte, mask = self.get_subnet_params(ad_configs[isd_ad_id])
+
+            topo_file = self.path_dict(isd_id, ad_id)['topo_file_abs']
+            path_pol_file = self.path_dict(isd_id, ad_id)['path_pol_file_abs']
+            conf_file = self.path_dict(isd_id, ad_id)['conf_file_abs']
+            trc_file = self.path_dict(isd_id, ad_id)['trc_file_abs']
+            # Since we are running a simulator
+            number_bs = 1
+            number_cs = ad_configs[isd_ad_id].get("certificate_servers",
+                                                  DEFAULT_CERTIFICATE_SERVERS)
+            number_ps = ad_configs[isd_ad_id].get("path_servers",
+                                                  DEFAULT_PATH_SERVERS)
+
+            with open(sim_file, 'a') as sim_fh:
+                # Beacon Servers
+                for b_server in range(1, number_bs + 1):
+                    sim_fh.write(' '.join([
+                        'beacon_server', ('core' if is_core else 'local'),
+                        str(b_server), topo_file,
+                        conf_file, path_pol_file]) + '\n')
+                # Certificate Servers
+                for c_server in range(1, number_cs + 1):
+                    sim_fh.write(' '.join([
+                        'cert_server',
+                        str(c_server), topo_file,
+                        conf_file, trc_file]) + '\n')
+                # Path Servers
+                if (ad_configs[isd_ad_id]['level'] != INTERMEDIATE_AD or
+                        "path_servers" in ad_configs[isd_ad_id]):
+                    for p_server in range(1, number_ps + 1):
+                        sim_fh.write(' '.join([
+                            'path_server', ('core' if is_core else 'local'),
+                            str(p_server), topo_file,
+                            conf_file]) + '\n')
+                # Edge Routers
+                edge_router = 1
+                for nbr_isd_ad_id in ad_configs[isd_ad_id].get("links", []):
+                    sim_fh.write(' '.join([
+                        'router',
+                        str(edge_router), topo_file,
+                        conf_file]) + '\n')
+                    edge_router += 1
 
     def _get_typed_elements(self, topo_dict):
         """
@@ -587,6 +661,9 @@ class ConfigGenerator(object):
                          'PropagateTime': 5,
                          'ResetTime': 600,
                          'CertChainVersion': 0}
+            if self.is_sim:
+                conf_dict['PropagateTime'] = 10
+                conf_dict['RegisterTime'] = 10
             if (ad_configs[isd_ad_id]['level'] != INTERMEDIATE_AD or
                     "path_servers" in ad_configs[isd_ad_id]):
                 conf_dict['RegisterPath'] = 1
@@ -717,6 +794,9 @@ class ConfigGenerator(object):
         self.write_conf_files(ad_configs)
         self.write_path_pol_files(ad_configs, path_policy_file)
         self.write_topo_files(ad_configs, er_ip_addresses)
+        if self.is_sim:
+            self.write_beginning_sim_run_files()
+            self.write_sim_file(ad_configs)
         self.write_trc_files(ad_configs, keys)
 
 
@@ -728,6 +808,9 @@ def main():
     parser.add_argument('-c', '--ad-config',
                         default=DEFAULT_ADCONFIGURATIONS_FILE,
                         help='AD configurations file')
+    parser.add_argument('-s', '--sim',
+                        action='store_true',
+                        help='Simulator')
     parser.add_argument('-p', '--path-policy',
                         default=DEFAULT_PATH_POLICY_FILE,
                         help='Path policy file')
@@ -735,7 +818,8 @@ def main():
                         default=TOPOLOGY_PATH,
                         help='Output directory')
     args = parser.parse_args()
-    generator = ConfigGenerator(os.path.abspath(args.output_dir))
+    generator = ConfigGenerator(os.path.abspath(args.output_dir),
+                                is_sim=args.sim)
     generator.generate_all(args.ad_config, args.path_policy)
 
 

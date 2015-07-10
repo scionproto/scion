@@ -18,11 +18,11 @@
 # Stdlib
 import json
 import logging
-import time
 from collections import defaultdict, deque
 
 # SCION
 from lib.packet.pcb import PathSegment
+from lib.util import SCIONTime
 
 
 class PathPolicy(object):
@@ -110,9 +110,9 @@ class PathPolicy(object):
                                 <= pcb.get_n_hops() <=
                                 self.property_ranges['HopsLength'][1]))
         if self.property_ranges['DelayTime']:
-            check = (check and (self.property_ranges['DelayTime'][0]
-                                <= int(time.time()) - pcb.get_timestamp() <=
-                                self.property_ranges['DelayTime'][1]))
+            check = (check and (self.property_ranges['DelayTime'][0] <=
+                                int(SCIONTime.get_time()) - pcb.get_timestamp()
+                                <= self.property_ranges['DelayTime'][1]))
         if self.property_ranges['GuaranteedBandwidth']:
             check = (check and (self.property_ranges['GuaranteedBandwidth'][0]
                                 <= 10 <=
@@ -240,7 +240,7 @@ class PathStoreRecord(object):
         self.hops_length = 0
         self.disjointness = 0
         self.last_sent_time = 1420070400  # year 2015
-        self.last_seen_time = int(time.time())
+        self.last_seen_time = int(SCIONTime.get_time())
         self.delay_time = 0
         self.expiration_time = pcb.get_expiration_time()
         self.guaranteed_bandwidth = 0
@@ -256,17 +256,18 @@ class PathStoreRecord(object):
         :type path_policy: dict
         """
         self.fidelity = 0
-        now = time.time()
+        now = SCIONTime.get_time()
         self.fidelity += (path_policy.property_weights['PeerLinks'] *
                           self.peer_links)
         self.fidelity += (path_policy.property_weights['HopsLength'] /
                           self.hops_length)
         self.fidelity += (path_policy.property_weights['Disjointness'] *
                           self.disjointness)
-        self.fidelity += (path_policy.property_weights['LastSentTime'] *
-                          (now - self.last_sent_time) / now)
-        self.fidelity += (path_policy.property_weights['LastSeenTime'] *
-                          self.last_seen_time / now)
+        if now != 0:
+            self.fidelity += (path_policy.property_weights['LastSentTime'] *
+                              (now - self.last_sent_time) / now)
+            self.fidelity += (path_policy.property_weights['LastSeenTime'] *
+                              self.last_seen_time / now)
         self.fidelity += (path_policy.property_weights['DelayTime'] /
                           self.delay_time)
         self.fidelity += (path_policy.property_weights['ExpirationTime'] *
@@ -439,7 +440,7 @@ class PathStore(object):
         Remove candidates if their expiration_time is up.
         """
         rec_ids = []
-        now = time.time()
+        now = SCIONTime.get_time()
         for candidate in self.candidates:
             if candidate.expiration_time <= now:
                 rec_ids.append(candidate.id)

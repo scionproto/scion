@@ -210,9 +210,9 @@ def timed(limit):
     def wrap(f):
         @wraps(f)
         def wrapper(*args, timed_desc=None, **kwargs):
-            start = time.time()
+            start = SCIONTime.get_time()
             ret = f(*args, **kwargs)
-            elapsed = time.time() - start
+            elapsed = SCIONTime.get_time() - start
             if elapsed > limit:
                 if not timed_desc:
                     timed_desc = "Call to %s.%s" % (f.__module__, f.__name__)
@@ -236,7 +236,7 @@ def sleep_interval(start, interval, desc):
     :param desc: Description of the operation.
     :type desc: string
     """
-    now = time.time()
+    now = SCIONTime.get_time()
     delay = start + interval - now
     if delay < 0:
         logging.warning("%s took too long: %.3fs (should have been <= %.3fs)",
@@ -263,3 +263,29 @@ def _signal_handler(signum, _):
     """
     logging.info("Received %s", _SIG_MAP[signum])
     sys.exit(0)
+
+
+class SCIONTime(object):
+    """
+    A class to return current time
+    """
+    # Function which would return time upon calling it
+    #  Can be set using set_time_method
+    _custom_time = None
+
+    @classmethod
+    def get_time(cls):
+        """
+        Get current time
+        """
+        if cls._custom_time:
+            return cls._custom_time()
+        else:
+            return time.time()
+
+    @classmethod
+    def set_time_method(cls, method=None):
+        """
+        Set the method used to get time
+        """
+        cls._custom_time = method

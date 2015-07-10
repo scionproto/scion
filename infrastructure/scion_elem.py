@@ -51,7 +51,7 @@ class SCIONElement(object):
     """
 
     def __init__(self, server_type, topo_file, config_file=None, server_id=None,
-                 host_addr=None):
+                 host_addr=None, is_sim=False):
         """
         Create a new ServerBase instance.
 
@@ -72,6 +72,8 @@ class SCIONElement(object):
 
         :returns: the newly-created ServerBase instance
         :rtype: ServerBase
+        :param is_sim: running in simulator
+        :type is_sim: bool
         """
         self._addr = None
         self.topology = None
@@ -90,12 +92,15 @@ class SCIONElement(object):
         if config_file:
             self.parse_config(config_file)
         self.construct_ifid2addr_map()
-        self._local_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self._local_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self._local_socket.bind((str(self.addr.host_addr), SCION_UDP_PORT))
-        self._sockets = [self._local_socket]
-        logging.info("%s: bound %s:%u", self.id, self.addr.host_addr,
-                     SCION_UDP_PORT)
+        if not is_sim:
+            self._local_socket = socket.socket(socket.AF_INET,
+                                               socket.SOCK_DGRAM)
+            self._local_socket.setsockopt(socket.SOL_SOCKET,
+                                          socket.SO_REUSEADDR, 1)
+            self._local_socket.bind((str(self.addr.host_addr), SCION_UDP_PORT))
+            self._sockets = [self._local_socket]
+            logging.info("%s: bound %s:%u", self.id, self.addr.host_addr,
+                         SCION_UDP_PORT)
 
     @property
     def addr(self):

@@ -20,7 +20,6 @@ import copy
 import datetime
 import logging
 import sys
-import time
 from _collections import defaultdict
 
 # External packages
@@ -44,7 +43,7 @@ from lib.packet.path_mgmt import (
 )
 from lib.packet.scion_addr import ISD_AD
 from lib.path_db import DBResult, PathSegmentDB
-from lib.util import handle_signals, update_dict
+from lib.util import handle_signals, update_dict, SCIONTime
 
 
 class PathServer(SCIONElement):
@@ -53,7 +52,7 @@ class PathServer(SCIONElement):
     """
     MAX_SEG_NO = 5  # TODO: replace by config variable.
 
-    def __init__(self, server_id, topo_file, config_file):
+    def __init__(self, server_id, topo_file, config_file, is_sim=False):
         """
         Initialize an instance of the class PathServer.
 
@@ -63,9 +62,11 @@ class PathServer(SCIONElement):
         :type topo_file:
         :param config_file:
         :type config_file:
+        :param is_sim: running in simulator
+        :type is_sim: bool
         """
         SCIONElement.__init__(self, "ps", topo_file, server_id=server_id,
-                              config_file=config_file)
+                              config_file=config_file, is_sim=is_sim)
         # TODO replace by pathstore instance
         self.down_segments = PathSegmentDB()
         self.core_segments = PathSegmentDB()  # Direction of the propagation.
@@ -313,7 +314,7 @@ class CorePathServer(PathServer):
             :returns:
             :rtype:
             """
-            now = time.time()
+            now = SCIONTime.get_time()
             if segment_id not in self._leases:
                 return []
             else:
@@ -328,13 +329,13 @@ class CorePathServer(PathServer):
             """
             Remove expired leases.
             """
-            now = int(time.time())
+            now = int(SCIONTime.get_time())
             for entries in self._leases.items():
                 self._nentries -= len(entries)
                 entries[:] = [e for e in entries if e.exp_time > now]
                 self._nentries += len(entries)
 
-    def __init__(self, server_id, topo_file, config_file):
+    def __init__(self, server_id, topo_file, config_file, is_sim=False):
         """
         Initialize an instance of the class CorePathServer.
 
@@ -344,8 +345,11 @@ class CorePathServer(PathServer):
         :type topo_file:
         :param config_file:
         :type config_file:
+        :param is_sim: running in simulator
+        :type is_sim: bool
         """
-        PathServer.__init__(self, server_id, topo_file, config_file)
+        PathServer.__init__(self, server_id, topo_file, config_file,
+                            is_sim=is_sim)
         # Sanity check that we should indeed be a core path server.
         assert self.topology.is_core_ad, "This shouldn't be a core PS!"
         self.leases = self.LeasesDict()
@@ -722,8 +726,7 @@ class LocalPathServer(PathServer):
     SCION Path Server in a non-core AD. Stores up-paths to the core and
     registers down-paths with the CPS. Can cache paths learned from a CPS.
     """
-
-    def __init__(self, server_id, topo_file, config_file):
+    def __init__(self, server_id, topo_file, config_file, is_sim=False):
         """
         Initialize an instance of the class LocalPathServer.
 
@@ -733,8 +736,11 @@ class LocalPathServer(PathServer):
         :type topo_file:
         :param config_file:
         :type config_file:
+        :param is_sim: running in simulator
+        :type is_sim: bool
         """
-        PathServer.__init__(self, server_id, topo_file, config_file)
+        PathServer.__init__(self, server_id, topo_file, config_file,
+                            is_sim=is_sim)
         # Sanity check that we should indeed be a local path server.
         assert not self.topology.is_core_ad, "This shouldn't be a local PS!"
         # Database of up-segments to the core.

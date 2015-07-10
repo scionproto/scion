@@ -10,10 +10,12 @@ The values stored in the following way:
 }
 NOTE: iteration over dict and also keys() do not remove expired values!
 '''
-
+# Stdlib
 from collections import OrderedDict
 from threading import RLock
-import time
+
+# SCION
+from lib.util import SCIONTime
 
 
 class ExpiringDict(OrderedDict):
@@ -31,7 +33,7 @@ class ExpiringDict(OrderedDict):
         try:
             with self.lock:
                 item = OrderedDict.__getitem__(self, key)
-                if time.time() - item[1] < self.max_age:
+                if SCIONTime.get_time() - item[1] < self.max_age:
                     return True
                 else:
                     del self[key]
@@ -45,7 +47,7 @@ class ExpiringDict(OrderedDict):
         """
         with self.lock:
             item = OrderedDict.__getitem__(self, key)
-            item_age = time.time() - item[1]
+            item_age = SCIONTime.get_time() - item[1]
             if item_age < self.max_age:
                 if with_age:
                     return item[0], item_age
@@ -60,7 +62,7 @@ class ExpiringDict(OrderedDict):
         with self.lock:
             if len(self) == self.max_len:
                 self.popitem(last=False)
-            OrderedDict.__setitem__(self, key, (value, time.time()))
+            OrderedDict.__setitem__(self, key, (value, SCIONTime.get_time()))
 
     def pop(self, key, default=None):
         """ Get item from the dict and remove it.

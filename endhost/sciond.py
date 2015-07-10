@@ -60,7 +60,7 @@ class SCIONDaemon(SCIONElement):
     """
     TIMEOUT = 5
 
-    def __init__(self, addr, topo_file, run_local_api=False):
+    def __init__(self, addr, topo_file, run_local_api=False, is_sim=False):
         """
         Initialize an instance of the class SCIONDaemon.
 
@@ -70,8 +70,11 @@ class SCIONDaemon(SCIONElement):
         :type topo_file:
         :param run_local_api:
         :type run_local_api:
+        :param is_sim: running on simulator
+        :type is_sim: bool
         """
-        SCIONElement.__init__(self, "sciond", topo_file, host_addr=addr)
+        SCIONElement.__init__(self, "sciond", topo_file, host_addr=addr,
+                              is_sim=is_sim)
         # TODO replace by pathstore instance
         self.up_segments = PathSegmentDB()
         self.down_segments = PathSegmentDB()
@@ -111,9 +114,12 @@ class SCIONDaemon(SCIONElement):
         t.start()
         return sd
 
-    def _request_paths(self, ptype, dst_isd, dst_ad, src_isd=None, src_ad=None):
+    def _request_paths(self, ptype, dst_isd, dst_ad, src_isd=None, src_ad=None,
+                       requester=None):
         """
         Send a path request of a certain type for an (isd, ad).
+        The requester argument holds the address of requester. Used in simulator
+        to send path reply.
 
         :param ptype:
         :type ptype:
@@ -125,6 +131,8 @@ class SCIONDaemon(SCIONElement):
         :type src_isd: int
         :param src_ad: source AD identifier.
         :type src_ad: int
+        :param requester: Path requester address(used in simulator).
+        :type requester:
         """
         if src_isd is None:
             src_isd = self.topology.isd_id
@@ -160,20 +168,25 @@ class SCIONDaemon(SCIONElement):
             event.clear()
             cycle_cnt += 1
 
-    def get_paths(self, dst_isd, dst_ad):
+    def get_paths(self, dst_isd, dst_ad, requester=None):
         """
         Return a list of paths.
+        The requester argument holds the address of requester. Used in simulator
+        to send path reply.
 
         :param dst_isd: ISD identifier.
         :type dst_isd: int
         :param dst_ad: AD identifier.
         :type dst_ad: int
+        :param requester: Path requester address(used in simulator).
+        :type requester:
         """
         full_paths = []
         down_segments = self.down_segments(dst_isd=dst_isd, dst_ad=dst_ad)
         # Fetch down-paths if necessary.
         if not down_segments:
-            self._request_paths(PST.UP_DOWN, dst_isd, dst_ad)
+            self._request_paths(PST.UP_DOWN, dst_isd, dst_ad,
+                                requester=requester)
             down_segments = self.down_segments(dst_isd=dst_isd, dst_ad=dst_ad)
         if len(self.up_segments) and down_segments:
             full_paths = PathCombinator.build_shortcut_paths(self.up_segments(),
@@ -196,7 +209,8 @@ class SCIONDaemon(SCIONElement):
                 if ((src_isd, src_core_ad) != (dst_isd, dst_core_ad) and
                         not core_segments):
                     self._request_paths(PST.CORE, dst_isd, dst_core_ad,
-                                        src_ad=src_core_ad)
+                                        src_ad=src_core_ad,
+                                        requester=requester)
                     core_segments = self.core_segments(src_isd=src_isd,
                                                        src_ad=src_core_ad,
                                                        dst_isd=dst_isd,
@@ -241,6 +255,16 @@ class SCIONDaemon(SCIONElement):
                              info.dst_ad)
             else:
                 logging.warning("Incorrect path in Path Record")
+        self.handle_waiting_targets(path_reply)
+
+    def handle_waiting_targets(self, path_reply):
+        """
+        Handles waiting request from path reply
+
+        :param path_reply:
+        :type path_reply:
+        """
+        info = path_reply.info
         # Wake up sleeping get_paths().
         if (info.dst_isd, info.dst_ad) in self._waiting_targets[info.type]:
             for event in self._waiting_targets[info.type][(info.dst_isd,
