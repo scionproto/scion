@@ -736,7 +736,7 @@ class LocalPathServer(PathServer):
         :type topo_file:
         :param config_file:
         :type config_file:
-        :param is_sim: running for simulator
+        :param is_sim: running in simulator
         :type is_sim: bool
         """
         PathServer.__init__(self, server_id, topo_file, config_file,
