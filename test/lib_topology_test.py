@@ -43,8 +43,9 @@ class TestElementInit(object):
 
     @patch("lib.topology.ip_address", autospec=True)
     def test_ip_addr(self, ip_addr):
-        Element('192.168.0.1')
+        element = Element('192.168.0.1')
         ip_addr.assert_called_with('192.168.0.1')
+        ntools.eq_(element.addr, ip_addr.return_value)
 
     def test_name_basic(self):
         elem = Element(name='localhost')
@@ -88,7 +89,7 @@ class TestInterfaceElementInit(object):
         del self.interface_dict
 
     @patch("lib.topology.Element.__init__", autospec=True)
-    def test_addr_none(self, element_init):
+    def test_to_addr_none(self, element_init):
         interface = InterfaceElement(self.interface_dict, 'name')
         element_init.assert_called_once_with(interface, 0, 'name')
         ntools.eq_(interface.if_id, 1)
@@ -309,6 +310,7 @@ class TestTopologyGetOwnConfig(object):
         edge_routers[2].name = 'name'
         get_edge_routers.return_value = edge_routers
         ntools.eq_(topology.get_own_config('er', 'name'), edge_routers[2])
+        get_edge_routers.assert_called_once_with(topology)
 
     @patch("lib.topology.logging.error", autospec=True)
     @patch("lib.topology.Topology.get_all_edge_routers", autospec=True)
