@@ -1,6 +1,7 @@
 Sphinx
 coverage
 dnslib
+dnspython3
 flake8
 kazoo
 networkx
