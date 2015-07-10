@@ -1,10 +1,5 @@
-# Stdlib
-import json
-import os
-
 # External packages
 from django.test import TestCase
-from unittest.mock import patch, mock_open
 
 # SCION
 from ad_manager.models import AD, ISD

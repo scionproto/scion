@@ -13,14 +13,13 @@ import os
 import sys
 from django.contrib import messages
 from django.conf.global_settings import TEMPLATE_CONTEXT_PROCESSORS as TCP
-from django.core.urlresolvers import reverse_lazy
 
 WEB_SCION_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCION_ROOT = os.path.dirname(WEB_SCION_DIR)
 sys.path.insert(0, SCION_ROOT)
 
 try:
-    from .settings_private import *
+    from .settings_private import *  # noqa
 except ImportError:
     sys.exit("No private settings file found (settings_private.py). "
              "Use settings_private.dist.py as a template.")
