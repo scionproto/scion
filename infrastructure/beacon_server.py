@@ -214,10 +214,10 @@ class BeaconServer(SCIONElement):
         for ifid in self.ifid2addr:
             self.ifid_state[ifid] = InterfaceState()
 
-        # Add more IPs here if we support dual-stack
-        name_addrs = "\0".join([self.id, str(SCION_UDP_PORT),
-                                str(self.addr.host_addr)])
         if not is_sim:
+            # Add more IPs here if we support dual-stack
+            name_addrs = "\0".join([self.id, str(SCION_UDP_PORT),
+                                    str(self.addr.host_addr)])
             self._latest_entry = 0
             # Set when we have connected and read the existing recent and
             # incoming PCBs
