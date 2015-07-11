@@ -655,6 +655,51 @@ class TestCrossOverPathGetOf(BasePath):
             yield self._check, i
 
 
+class TestCrossOverGetFirstHopOffset(object):
+    """
+    Unit tests for lib.packet.path.CrossOverPath.get_first_hop_offset
+    """
+    def test_with_up_hops_on_path(self):
+        co_path = CrossOverPath()
+        co_path.up_segment_hops = ['up_hop0']
+        ntools.eq_(co_path.get_first_hop_offset(),
+                   2 * InfoOpaqueField.LEN + 3 * HopOpaqueField.LEN)
+
+    def test_with_up_hops(self):
+        co_path = CrossOverPath()
+        co_path.up_segment_hops = ['up_hop0', 'up_hop1']
+        ntools.eq_(co_path.get_first_hop_offset(), InfoOpaqueField.LEN)
+
+    def test_with_down_hops(self):
+        co_path = CrossOverPath()
+        co_path.down_segment_hops = ['dw_hop0', 'dw_hop1']
+        ntools.eq_(co_path.get_first_hop_offset(), InfoOpaqueField.LEN)
+
+    def test_no_hops(self):
+        co_path = CrossOverPath()
+        ntools.eq_(co_path.get_first_hop_offset(), 0)
+
+
+class TestCrossOverGetFirstInfoOffset(object):
+    """
+    Unit tests for lib.packet.path.CrossOverPath.get_first_info_offset
+    """
+    def test_on_path(self):
+        co_path = CrossOverPath()
+        co_path.up_segment_hops = ['up_hop0']
+        ntools.eq_(co_path.get_first_info_offset(),
+                   InfoOpaqueField.LEN + 2 * HopOpaqueField.LEN)
+
+    def test_not_up_path(self):
+        co_path = CrossOverPath()
+        co_path.up_segment_hops = ['up_hop0', 'up_hop0']
+        ntools.eq_(co_path.get_first_info_offset(), 0)
+
+    def test_no_up_hops(self):
+        co_path = CrossOverPath()
+        ntools.eq_(co_path.get_first_info_offset(), 0)
+
+
 class TestPeerPathInit(object):
     """
     Unit tests for lib.packet.path.PeerPath.__init__
