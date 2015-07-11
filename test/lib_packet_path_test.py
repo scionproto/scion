@@ -690,7 +690,7 @@ class TestCrossOverGetFirstInfoOffset(object):
         ntools.eq_(co_path.get_first_info_offset(),
                    InfoOpaqueField.LEN + 2 * HopOpaqueField.LEN)
 
-    def test_not_up_path(self):
+    def test_not_on_path(self):
         co_path = CrossOverPath()
         co_path.up_segment_hops = ['up_hop0', 'up_hop0']
         ntools.eq_(co_path.get_first_info_offset(), 0)
