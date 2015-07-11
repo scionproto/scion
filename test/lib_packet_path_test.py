@@ -152,6 +152,38 @@ class TestPathBaseGetFirstHopOf(BasePath):
         ntools.assert_is_none(self.path.get_first_hop_of())
 
 
+class TestPathBaseGetFirstInfoOffset(object):
+    """
+    Unit tests for lib.packet.path.PathBase.get_first_info_offset
+    """
+    def test(self):
+        path = PathBase()
+        ntools.eq_(path.get_first_info_offset(), 0)
+
+
+class TestPathBaseGetFirstInfoOf(object):
+    """
+    Unit tests for lib.packet.path.PathBase.get_first_info_of
+    """
+    @patch("lib.packet.path.PathBase.get_of", autospec=True)
+    @patch("lib.packet.path.PathBase.get_first_info_offset", autospec=True)
+    def test_offset_non_zero(self, offset, get_of):
+        path = PathBase()
+        offset.return_value = 123
+        n = (123 - InfoOpaqueField.LEN) // HopOpaqueField.LEN
+        ntools.eq_(path.get_first_info_of(), get_of.return_value)
+        offset.assert_called_once_with(path)
+        get_of.assert_called_once_with(path, n + 1)
+
+    @patch("lib.packet.path.PathBase.get_of", autospec=True)
+    @patch("lib.packet.path.PathBase.get_first_info_offset", autospec=True)
+    def test_offset_zero(self, offset, get_of):
+        path = PathBase()
+        offset.return_value = 0
+        ntools.eq_(path.get_first_info_of(), get_of.return_value)
+        get_of.assert_called_once_with(path, 0)
+
+
 class TestPathBaseGetOf(BasePath):
     """
     Unit tests for lib.packet.path.PathBase.get_of
