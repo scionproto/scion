@@ -17,7 +17,7 @@ test:
     override:
         - ./docker.sh run bash -lc "./scion.sh coverage -v"
         - ./docker.sh run bash -lc "./scion.sh lint"
-        - ./docker.sh run bash -lc "make -C sphinx-doc html"
+        - ./docker.sh run bash -lc "make -C sphinx-doc clean html"
     post:
         - cp -a htmlcov "$CIRCLE_ARTIFACTS"/coverage
         - cp -a sphinx-doc/_build/html "$CIRCLE_ARTIFACTS"/docs
