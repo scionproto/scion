@@ -478,7 +478,7 @@ class CrossOverPath(PathBase):
         Handles on-path case.
         """
         if self.up_segment_hops and len(self.up_segment_hops) == 1:
-                return InfoOpaqueField.LEN + 2 * HopOpaqueField.LEN
+            return InfoOpaqueField.LEN + 2 * HopOpaqueField.LEN
         return 0
 
     def __str__(self):
