@@ -27,11 +27,10 @@ import logging
 import os
 import sys
 import threading
-from ipaddress import ip_address
 from time import sleep
 
 # External packages
-from dnslib import A, AAAA, DNSLabel, NS, PTR, QTYPE, RCODE, RR, SRV
+from dnslib import A, DNSLabel, QTYPE, RCODE, RR
 from dnslib.server import (
     BaseResolver,
     DNSLogger,
@@ -52,138 +51,6 @@ from lib.thread import kill_self
 from lib.util import handle_signals, trace
 from lib.zookeeper import ZkConnectionLoss, Zookeeper
 
-#: IPv4 reverse lookup domain
-V4REV = DNSLabel("in-addr.arpa")
-#: IPv6 reverse lookup domain
-V6REV = DNSLabel("ip6.arpa")
-
-
-class SrvInst(object):
-    """
-    Represents a service instance.
-    """
-
-    def __init__(self, data, domain):
-        """
-        Initialize an instance of the class SrvInst.
-
-        :param data: ZK party entry - service name/port/IPs delimited with nul
-                     bytes.
-        :type data:
-        :param domain: The parent DNS domain.
-        :type domain:
-        """
-        name, port, *addresses = data.split("\0")
-        self.id = DNSLabel(name)
-        self.domain = domain
-        self.fqdn = self.domain.add(self.id)
-        self.port = int(port)
-        self.v4_addrs = []
-        self.v6_addrs = []
-        for addr in addresses:
-            ip = ip_address(addr)
-            if ip.version == 4:
-                self.v4_addrs.append(ip)
-            elif ip.version == 6:
-                self.v6_addrs.append(ip)
-
-    def reverse_pointers(self):
-        """
-        Generate the reverse DNS labels for the instances's IP addresses (for
-        both IPv4 and IPv6). http://stackoverflow.com/a/30007941
-
-        :returns: List of reverse DNS labels.
-                  E.g.``["3.0.0.127.in-addr.arpa."]``
-        :rtype:
-        """
-        answer = []
-        for addr in self.v4_addrs:
-            reverse_octets = addr.exploded.split(".")[::-1]
-            answer.append(V4REV.add(".".join(reverse_octets)))
-        for addr in self.v6_addrs:
-            reverse_chars = addr.exploded[::-1].replace(":", "")
-            answer.append(V6REV.add(".".join(reverse_chars)))
-        return answer
-
-    def forward_records(self, qname, qtype, reply):
-        """
-        Generate DNS records for a service or instance.
-
-        If it's a service query, then qname will be the service record (E.g.
-        ``"bs.scion."``), and the answer section will be for that record. If
-        it's an instance query, then qname will be the instance record (E.g.
-        ``"bs1-13-1.scion."``), and that will be used in the answer section
-        instead.
-
-        In either case, the additional section will contain A/AAAA records for
-        any fqdn instance records that aren't already in the answer section.
-
-        :param qname: Queried DNS record.
-        :type qname:
-        :param qtype: Query type (e.g. ``"AAAA"``).
-        :type qtype:
-        :param reply: DNSRecord object to add the replies to.
-        :type reply:
-        """
-        # 'answer' section
-        if qtype in ["A", "ANY"]:
-            for addr in self.v4_addrs:
-                reply.add_answer(RR(qname, QTYPE.A, rdata=A(str(addr))))
-        if qtype in ["AAAA", "ANY"]:
-            for addr in self.v6_addrs:
-                reply.add_answer(RR(qname, QTYPE.AAAA, rdata=AAAA(str(addr))))
-        # Always return SRV records in 'answer' section
-        reply.add_answer(RR(qname, QTYPE.SRV, rdata=SRV(target=self.fqdn,
-                                                        port=self.port)))
-        # Add fqdn instance A/AAAA records to 'additional' response section if
-        # they're not already in the 'answer' section.
-        if qname != self.fqdn or qtype not in ["A", "ANY"]:
-            for addr in self.v4_addrs:
-                reply.add_ar(RR(self.fqdn, QTYPE.A, rdata=A(str(addr))))
-        if qname != self.fqdn or qtype not in ["AAAA", "ANY"]:
-            for addr in self.v6_addrs:
-                reply.add_ar(RR(self.fqdn, QTYPE.AAAA, rdata=AAAA(str(addr))))
-
-    def reverse_record(self, qname, reply):
-        """
-        Generate a DNS PTR record for this instance.
-
-        :param qname: The requested PTR record name.
-        :type qname:
-        :param reply: DNSRecord object to add the replies to.
-        :type reply:
-        """
-        reply.add_answer(RR(qname, QTYPE.PTR, rdata=PTR(label=self.fqdn)))
-
-    def ns_records(self, reply):
-        """
-        (Only makes sense for ds instances)
-        Add additional NS records to the reply
-
-        :param reply: DNSRecord object to add the replies to.
-        :type reply:
-        """
-        reply.add_ar(RR(self.domain, QTYPE.NS, rdata=NS(self.fqdn)))
-        for addr in self.v4_addrs:
-            reply.add_ar(RR(self.fqdn, QTYPE.A, rdata=A(str(addr))))
-        for addr in self.v6_addrs:
-            reply.add_ar(RR(self.fqdn, QTYPE.AAAA, rdata=AAAA(str(addr))))
-
-    def __repr__(self):
-        """
-
-
-        :returns:
-        :rtype:
-        """
-        ips = []
-        for addr in self.v4_addrs:
-            ips.append(str(addr))
-        for addr in self.v6_addrs:
-            ips.append(str(addr))
-        return "<SrvInst id: %s port: %s IPs: %s>" % (self.fqdn, self.port,
-                                                      ",".join(ips))
-
 
 class ZoneResolver(BaseResolver):
     """
@@ -199,11 +66,9 @@ class ZoneResolver(BaseResolver):
         :param domain: Parent DNS domain.
         :type domain:
         """
-        self.services = {}
-        self.instances = {}
-        self.reverse = {}
         self.lock = lock
         self.domain = domain
+        self.services = {}
 
     def resolve(self, request, _):
         """
@@ -219,12 +84,8 @@ class ZoneResolver(BaseResolver):
         qname = request.q.qname
         qtype = QTYPE[request.q.qtype]
 
-        if qtype in ["A", "AAAA", "ANY", "SRV"]:
+        if qtype == "A":
             self.resolve_forward(qname, qtype, reply)
-            self.add_nameservers(reply)
-        elif qtype == "PTR":
-            self.resolve_reverse(qname, reply)
-            self.add_nameservers(reply)
         else:
             # Not a request type we support
             logging.warning("Unsupported query type: %s", qtype)
@@ -250,52 +111,20 @@ class ZoneResolver(BaseResolver):
             return
         with self.lock:
             # Is the request for a service alias?
-            for srv_domain, srv_insts in self.services.items():
+            for srv_domain, addrs in self.services.items():
                 if qname.matchSuffix(srv_domain):
-                    if not srv_insts:
+                    if not addrs:
                         # If there are no instances, we are unable to read from
                         # ZK (or else the relevant service is down), so return
                         # SERVFAIL
                         reply.header.rcode = RCODE.SERVFAIL
                         return
-                    for inst in srv_insts:
-                        inst.forward_records(qname, qtype, reply)
+                    for addr in addrs:
+                        reply.add_answer(RR(qname, QTYPE.A, rdata=A(addr)))
                     return
-            # Or is it for an instance?
-            inst = self.instances.get(qname)
-            if inst:
-                inst.forward_records(qname, qtype, reply)
-                return
-            logging.warning("Unknown service/instance: %s", qname)
+            logging.warning("Unknown service: %s", qname)
             reply.header.rcode = RCODE.NXDOMAIN
             return
-
-    def resolve_reverse(self, qname, reply):
-        """
-        Build a response to a reverse DNS query (i.e. one that contains an IP
-        address)
-
-        :param qname: The query's target.
-        :type qname:
-        :param reply: The DNSRecord to populate with the reply.
-        :type reply:
-        """
-        with self.lock:
-            if qname in self.reverse:
-                self.reverse[qname].reverse_record(qname, reply)
-            else:
-                logging.warning("Unknown reverse record: %s", qname)
-                reply.header.rcode = RCODE.NXDOMAIN
-
-    def add_nameservers(self, reply):
-        """
-        Add all current nameservers to a DNS response
-
-        :param reply: The DNSRecord to populate with the reply.
-        :type reply:
-        """
-        for inst in self.services.get(self.domain.add("ds"), []):
-            inst.ns_records(reply)
 
 
 class SCIONDnsTcpServer(TCPServer):
@@ -563,8 +392,6 @@ class SCIONDnsServer(SCIONElement):
         self.domain = DNSLabel(domain)
         self.lock = threading.Lock()
         self.services = {}
-        self.instances = {}
-        self.reverse = {}
 
     def setup(self):
         """
@@ -630,8 +457,6 @@ class SCIONDnsServer(SCIONElement):
         """
         # Clear existing state
         self.services = {}
-        self.instances = {}
-        self.reverse = {}
 
         # Retrieve alive instance details from ZK for each service.
         for srv_type in self.SRV_TYPES:
@@ -643,10 +468,13 @@ class SCIONDnsServer(SCIONElement):
                 # If the connection drops, leave the instance list blank
                 continue
             for i in srv_set:
-                self._mk_srv_inst(i, srv_domain)
-        self._update_zone()
+                self._parse_srv_inst(i, srv_domain)
 
-    def _mk_srv_inst(self, inst, srv_domain):
+        # Update DNS zone data
+        with self.lock:
+            self.resolver.services = self.services
+
+    def _parse_srv_inst(self, inst, srv_domain):
         """
 
         :param inst:
@@ -654,58 +482,8 @@ class SCIONDnsServer(SCIONElement):
         :param srv_domain:
         :type srv_domain:
         """
-        new_inst = SrvInst(inst, self.domain)
-        self.instances[new_inst.fqdn] = new_inst
-        self.services[srv_domain].append(new_inst)
-        # Add reverse lookup entries
-        for rev in new_inst.reverse_pointers():
-            self.reverse[rev] = new_inst
-
-    def _update_zone(self):
-        """
-
-        """
-        old_names = self._instance_names(self.resolver.instances)
-        new_names = self._instance_names(self.instances)
-        # Update DNS zone data
-        with self.lock:
-            self.resolver.services = self.services
-            self.resolver.instances = self.instances
-            self.resolver.reverse = self.reverse
-        self._log_changes(old_names, new_names)
-
-    def _log_changes(self, old, new):
-        """
-
-        :param old:
-        :type old:
-        :param new:
-        :type new:
-
-        :returns:
-        :rtype:
-        """
-        # Calculate additions/removals
-        added = new - old
-        if added:
-            logging.info("Added instance(s): %s", ",".join(sorted(added)))
-        removed = old - new
-        if removed:
-            logging.info("Removed instance(s): %s", ",".join(sorted(removed)))
-        # To allow testing:
-        return added, removed
-
-    def _instance_names(self, instances):
-        """
-
-        :param instances:
-        :type instances:
-
-        :returns:
-        :rtype:
-        """
-        names = [str(inst.id).rstrip(".") for inst in instances.values()]
-        return set(names)
+        name, port, *addresses = inst.split("\0")
+        self.services[srv_domain].extend(addresses)
 
     def run(self):
         """
