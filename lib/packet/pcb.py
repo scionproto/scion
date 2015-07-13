@@ -31,7 +31,7 @@ from lib.packet.path import CorePath
 from lib.packet.scion import PacketType, SCIONHeader, SCIONPacket
 from lib.packet.scion_addr import SCIONAddr, ISD_AD
 
-#: Default value for lenght (in bytes) of a revocation token.
+#: Default value for length (in bytes) of a revocation token.
 REV_TOKEN_LEN = 32
 
 
@@ -157,7 +157,7 @@ class ADMarking(Marking):
     """
     Packs all fields for a specific Autonomous Domain.
     """
-    # Length of a first row (containg cert version, and lenghts of signature,
+    # Length of a first row (containg cert version, and lengths of signature,
     # ASD, and block) of ADMarking
     METADATA_LEN = 8
 

@@ -385,7 +385,7 @@ class Router(SCIONElement):
                 opaque_field = spkt.hdr.get_relative_of(2)
                 if opaque_field.egress_if:
                     next_hop.addr = self.ifid2addr[opaque_field.egress_if]
-                else:  # Send to endhost (on-path case), TODO: check lenght
+                else:  # Send to endhost (on-path case), TODO: check length
                     spkt.hdr.common_hdr.curr_iof_p = \
                         spkt.hdr.common_hdr.curr_of_p
                     timestamp = spkt.hdr.get_current_iof().timestamp
