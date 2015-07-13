@@ -36,6 +36,7 @@ from lib.util import (
     get_trc_file_path,
     handle_signals,
     read_file,
+    SCIONTime,
     SIG_KEYS_DIR,
     sleep_interval,
     timed,
@@ -43,7 +44,7 @@ from lib.util import (
     TRACE_DIR,
     update_dict,
     write_file,
-    SCIONTime)
+)
 
 
 class TestGetIsdPrefix(object):
