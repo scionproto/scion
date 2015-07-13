@@ -16,7 +16,7 @@
 =====================================================
 """
 # Stdlib
-from unittest.mock import patch, call, mock_open
+from unittest.mock import patch, call, mock_open, MagicMock
 
 # External packages
 import nose
@@ -42,8 +42,8 @@ from lib.util import (
     trace,
     TRACE_DIR,
     update_dict,
-    write_file
-)
+    write_file,
+    SCIONTime)
 
 
 class TestGetIsdPrefix(object):
@@ -278,6 +278,35 @@ class TestSignalHandler(object):
         _signal_handler(1, 2)
         info.assert_called_once_with("Received %s", _SIG_MAP[1])
         exit.assert_called_once_with(0)
+
+
+class TestSCIONTimeGetTime(object):
+    """
+    Unit tests for lib.util.SCIONTime.get_time
+    """
+    @patch("lib.util.time.time", autospec=True)
+    def test_basic(self, mock_time):
+        t = SCIONTime.get_time()
+        mock_time.assert_called_once_with()
+        ntools.eq_(t, mock_time.return_value)
+
+    def test_custom_time(self):
+        custom_time = SCIONTime._custom_time = MagicMock(spec_set=[])
+        t = SCIONTime.get_time()
+        ntools.eq_(t, custom_time.return_value)
+        custom_time.assert_called_once_with()
+        SCIONTime._custom_time = None  # needed for other tests
+
+
+class TestSCIONTimeSetTimeMethod(object):
+    """
+    Unit tests for lib.util.SCIONTime.set_time_method
+    """
+    def test(self):
+        SCIONTime.set_time_method('time_method')
+        ntools.eq_(SCIONTime._custom_time, 'time_method')
+        SCIONTime._custom_time = None  # needed for other tests
+
 
 if __name__ == "__main__":
     nose.run(defaultTest=__name__)
