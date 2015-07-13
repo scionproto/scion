@@ -291,22 +291,23 @@ class TestSCIONTimeGetTime(object):
         mock_time.assert_called_once_with()
         ntools.eq_(t, mock_time.return_value)
 
-    def test_custom_time(self):
-        custom_time = SCIONTime._custom_time = MagicMock(spec_set=[])
+    @patch("lib.util.SCIONTime._custom_time", spec_set=[],
+           new_callable=MagicMock)
+    def test_custom_time(self, custom_time):
         t = SCIONTime.get_time()
         ntools.eq_(t, custom_time.return_value)
         custom_time.assert_called_once_with()
-        SCIONTime._custom_time = None  # needed for other tests
 
 
 class TestSCIONTimeSetTimeMethod(object):
     """
     Unit tests for lib.util.SCIONTime.set_time_method
     """
-    def test(self):
+    @patch("lib.util.SCIONTime._custom_time", spec_set=[],
+           new_callable=MagicMock)
+    def test(self, custom_time):
         SCIONTime.set_time_method('time_method')
         ntools.eq_(SCIONTime._custom_time, 'time_method')
-        SCIONTime._custom_time = None  # needed for other tests
 
 
 if __name__ == "__main__":
