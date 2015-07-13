@@ -707,26 +707,30 @@ class TestSCIONHeaderSetFirstOfPointers(object):
         hdr = SCIONHeader()
         common_hdr = MagicMock(spec_set=['curr_iof_p', 'src_addr_len',
                                          'dst_addr_len', 'curr_of_p'])
-        common_hdr.src_addr_len = 123
-        common_hdr.dst_addr_len = 456
+        common_hdr.curr_of_p = 123
+        common_hdr.curr_iof_p = 456
         hdr.common_hdr = common_hdr
         hdr.set_first_of_pointers()
-        ntools.eq_(hdr.common_hdr.curr_iof_p, 123 + 456)
-        ntools.eq_(hdr.common_hdr.curr_of_p, 123 + 456)
+        ntools.eq_(hdr.common_hdr.curr_of_p, 123)
+        ntools.eq_(hdr.common_hdr.curr_iof_p, 456)
 
     def test_with_path(self):
         hdr = SCIONHeader()
         common_hdr = MagicMock(spec_set=['curr_iof_p', 'src_addr_len',
                                          'dst_addr_len', 'curr_of_p'])
-        common_hdr.src_addr_len = 123
-        common_hdr.dst_addr_len = 456
+        common_hdr.src_addr_len = 12
+        common_hdr.dst_addr_len = 34
         hdr.common_hdr = common_hdr
-        path = MagicMock(spec_set=['get_first_hop_offset'])
-        path.get_first_hop_offset.return_value = 789
+        path = MagicMock(spec_set=['get_first_hop_offset',
+                                   'get_first_info_offset'])
+        path.get_first_hop_offset.return_value = 56
+        path.get_first_info_offset.return_value = 78
         hdr._path = path
         hdr.set_first_of_pointers()
         path.get_first_hop_offset.assert_called_once_with()
-        ntools.eq_(hdr.common_hdr.curr_of_p, 123 + 456 + 789)
+        path.get_first_info_offset.assert_called_once_with()
+        ntools.eq_(hdr.common_hdr.curr_of_p, 12 + 34 + 56)
+        ntools.eq_(hdr.common_hdr.curr_iof_p, 12 + 34 + 78)
 
 
 class TestSCIONHeaderLen(object):
