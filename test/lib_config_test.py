@@ -17,8 +17,6 @@
 """
 # Stdlib
 import base64
-import json
-import os
 
 # External packages
 import nose
@@ -27,7 +25,6 @@ from unittest.mock import patch, mock_open
 
 # SCION
 from lib.config import Config
-from lib.defines import TOPOLOGY_PATH
 from test.testcommon import SCIONTestException
 
 
@@ -35,10 +32,6 @@ class BaseLibConfig(object):
     """
     Base class for lib.config unit tests
     """
-    config_path = os.path.join(TOPOLOGY_PATH,
-                               'ISD1', 'configurations', 'ISD:1-AD:10.conf')
-    config_json = json.load(open(config_path))
-
     ATTRS_TO_KEYS = {
         'master_of_gen_key': 'MasterOFGKey',
         'master_ad_key': 'MasterADKey',
@@ -73,8 +66,8 @@ class TestConfigFromFile(BaseLibConfig):
     @patch("builtins.open", new_callable=mock_open)
     def test_success(self, io_open, load, from_dict):
         from_dict.return_value = "All ok"
-        ntools.eq_(Config.from_file(self.config_path), "All ok")
-        io_open.assert_called_once_with(self.config_path)
+        ntools.eq_(Config.from_file("path"), "All ok")
+        io_open.assert_called_once_with("path")
         load.assert_called_once_with(io_open.return_value)
 
     @patch("lib.config.Config.from_dict")
@@ -86,7 +79,7 @@ class TestConfigFromFile(BaseLibConfig):
         from_dict.side_effect = SCIONTestException("from_dict should not "
                                                    "have been called")
         # Call
-        ntools.eq_(Config.from_file(self.config_path), None)
+        ntools.eq_(Config.from_file("path"), None)
 
     def test_error(self):
         for excp in (ValueError, KeyError, TypeError):
@@ -99,14 +92,28 @@ class TestConfigFromDict(BaseLibConfig):
     """
     @patch("lib.config.Config.parse_dict")
     def test_basic(self, parse_dict):
-        ntools.assert_is_instance(Config.from_dict(self.config_json), Config)
-        parse_dict.assert_called_once_with(self.config_json)
+        ntools.assert_is_instance(Config.from_dict("dict"), Config)
+        parse_dict.assert_called_once_with("dict")
 
 
 class TestConfigParseDict(BaseLibConfig):
     """
     Unit tests for lib.config.Config.parse_dict
     """
+    config_json = {
+        "CertChainVersion": 0,
+        "MasterADKey": "Xf93o3Wz/4Gb0m6CXEaxag==",
+        "MasterOFGKey": "8clgjqBlI6f3FwAZ419i4A==",
+        "NumRegisteredPaths": 10,
+        "NumShortestUPs": 3,
+        "PCBQueueSize": 10,
+        "PSQueueSize": 10,
+        "PropagateTime": 5,
+        "RegisterPath": 1,
+        "RegisterTime": 5,
+        "ResetTime": 600
+    }
+
     def test_basic(self):
         cfg = Config()
         cfg.parse_dict(self.config_json)
