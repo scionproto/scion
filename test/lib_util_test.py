@@ -303,11 +303,18 @@ class TestSCIONTimeSetTimeMethod(object):
     """
     Unit tests for lib.util.SCIONTime.set_time_method
     """
-    @patch("lib.util.SCIONTime._custom_time", spec_set=[],
-           new_callable=MagicMock)
-    def test(self, custom_time):
-        SCIONTime.set_time_method('time_method')
-        ntools.eq_(SCIONTime._custom_time, 'time_method')
+    class MockSCIONTime(SCIONTime):
+        pass
+
+    def setUp(self):
+        self.MockSCIONTime._custom_time = 'before'
+
+    def tearDown(self):
+        self.MockSCIONTime._custom_time = None
+
+    def test(self):
+        self.MockSCIONTime.set_time_method('time_method')
+        ntools.eq_(self.MockSCIONTime._custom_time, 'time_method')
 
 
 if __name__ == "__main__":
