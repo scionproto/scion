@@ -465,11 +465,10 @@ class SCIONHeader(HeaderBase):
         """
         Sets pointers of current info and hop opaque fields to initial values.
         """
-        self.common_hdr.curr_iof_p = (self.common_hdr.src_addr_len +
-                                      self.common_hdr.dst_addr_len)
-        self.common_hdr.curr_of_p = self.common_hdr.curr_iof_p
+        tmp = self.common_hdr.src_addr_len + self.common_hdr.dst_addr_len
         if self.path:
-            self.common_hdr.curr_of_p += self.path.get_first_hop_offset()
+            self.common_hdr.curr_of_p = tmp + self.path.get_first_hop_offset()
+            self.common_hdr.curr_iof_p = tmp + self.path.get_first_info_offset()
 
     def __len__(self):
         length = self.common_hdr.hdr_len

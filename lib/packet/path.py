@@ -91,6 +91,23 @@ class PathBase(object):
         else:
             return None
 
+    def get_first_info_offset(self):
+        """
+        Returns offset to the first InfoOpaqueField of the path.
+        """
+        return 0
+
+    def get_first_info_of(self):
+        """
+        Returns the first InfoOpaqueField of the path.
+        """
+        offset = self.get_first_info_offset()
+        if offset:
+            offset -= InfoOpaqueField.LEN
+            n = offset // HopOpaqueField.LEN
+            return self.get_of(n + 1)
+        return self.get_of(0)
+
     def get_of(self, index):
         """
         Returns the opaque field for the given index.
@@ -336,6 +353,12 @@ class CrossOverPath(PathBase):
     | info OF down-segment | upstream AD OF | hop OF 1 | ... | hop OF N |
     The upstream AD OF is needed to verify the last hop of the up-segment /
     first hop of the down-segment respectively.
+
+    On-path case (e.g., destination is on up/down-segment) is a special case
+    handled by this class. Then one segment (down- or up-segment depending
+    whether destination is upstream or downstream AD) is used only for MAC
+    verification and for determination whether path can terminate at destination
+    AD (i.e., its last egress interface has to equal 0).
     """
 
     def __init__(self, raw=None):
@@ -441,6 +464,33 @@ class CrossOverPath(PathBase):
         tmp.append(self.down_segment_upstream_ad)
         tmp.extend(self.down_segment_hops)
         return tmp[index]
+
+    def get_first_hop_offset(self):
+        """
+        Returns offset to the first HopOpaqueField of the path.
+        """
+        if self.up_segment_hops:
+            # Check whether this is on-path case.
+            if len(self.up_segment_hops) == 1:
+                # Return offset to first HopOpaqueField used for routing (not
+                # for only MAC verification) of down_segment.
+                return 2 * InfoOpaqueField.LEN + 3 * HopOpaqueField.LEN
+            return InfoOpaqueField.LEN
+        elif self.down_segment_hops:
+            return InfoOpaqueField.LEN
+        else:
+            return 0
+
+    def get_first_info_offset(self):
+        """
+        Returns offset to the first InfoOpaqueField of the path.
+        Handles on-path case.
+        """
+        if self.up_segment_hops and len(self.up_segment_hops) == 1:
+            # If up_segment is used only for MAC verification (on-path case),
+            # then return offset to first InfoOpaqueField of down_segment.
+            return InfoOpaqueField.LEN + 2 * HopOpaqueField.LEN
+        return 0
 
     def __str__(self):
         s = []
