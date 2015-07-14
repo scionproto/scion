@@ -195,7 +195,7 @@ class Router(SCIONElement):
             handlers = self.pre_ext_handlers
         else:
             handlers = self.post_ext_handlers
-        
+
         ext_nr = spkt.hdr.common_hdr.next_hdr
         l = 0
         for ext_hdr in spkt.hdr.extension_hdrs:
@@ -206,7 +206,7 @@ class Router(SCIONElement):
             else:
                 logging.warning("No handler for extension type %u", ext_nr)
         if ext_nr:
-            logging.warning("Extensions terminated incorrectly: last extension"+ \
+            logging.warning("Extensions terminated incorrectly: last extension" +
                             "has a non-empty next extension field")
 
     def sync_interface(self):
