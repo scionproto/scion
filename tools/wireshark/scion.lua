@@ -50,18 +50,22 @@ function scion_proto.dissector(buffer,pinfo,tree)
 
 
 	-- Source address and destination adress
-	--debug
-	--srclen=4
-	--dstlen=4
-	
-	srcaddr=buffer(8,srclen)
-	dstaddr=buffer(8+srclen,dstlen)
+	ISD_AD_LEN=4  -- ISD ID 12 bits, AD ID 20 bits
+	CMN_HDR_LEN=8 -- common header length
+	OPAQUEFIELD_LEN=8
+	IPV4_ADDR_LEN=4
+	IPV6_ADDR_LEN=16
+
+	srcaddr=buffer(CMN_HDR_LEN,srclen)
+	srcaddr_host=buffer(CMN_HDR_LEN+ISD_AD_LEN,srclen-ISD_AD_LEN)
+	dstaddr=buffer(CMN_HDR_LEN+srclen,dstlen)
+	dstaddr_host=buffer(CMN_HDR_LEN+srclen+ISD_AD_LEN,dstlen-ISD_AD_LEN)
 	
 
 	--check packet type
 	ptype=""
 	if srclen > 0 and dstlen > 0 and srclen < hdr_len and dstlen < hdr_len then
-		ptype=get_type(srcaddr:le_uint(),dstaddr:le_uint())
+		ptype=get_type(srcaddr_host:le_uint(),dstaddr_host:le_uint())
 	end
 
 
@@ -69,7 +73,7 @@ function scion_proto.dissector(buffer,pinfo,tree)
 	pinfo.cols.protocol = "SCION"
 	scion_tree = tree:add(scion_proto,buffer(0, hdr_len),"SCION Protocol")
 	local sch_field = ProtoField.string("sch","Common header")
-	local sch_tree = scion_tree:add(sch_field,buffer(0,8),"Common header" .. ", Type:" .. ptype .. ", " ..path_direction)
+	local sch_tree = scion_tree:add(sch_field,buffer(0,CMN_HDR_LEN),"Common header" .. ", Type:" .. ptype .. ", " ..path_direction)
 	
 
 	--sch_tree:add_packet_field(scion_ch_version, buffer(0,1),ENC_ASCII)
@@ -123,49 +127,83 @@ end
 function process_data(buffer,pinfo,tree)
 	--check src and destination address
 	local srcdst_field = ProtoField.string("srcdst","Source/Destination address")
-	local srcdst_tree = scion_tree:add(srcdst_field,buffer(8,8),"Source/Destination address")
-	srcdst_tree:add(buffer(8,srclen),"Source adress: " .. srcaddr)
-	srcdst_tree:add(buffer(8+srclen,dstlen),"Destination adress: " .. dstaddr)
+	local srcdst_tree = scion_tree:add(srcdst_field,buffer(CMN_HDR_LEN,srclen+dstlen),"Source/Destination address")
+
+	local srcaddr=buffer(CMN_HDR_LEN,srclen)
+	local src_isd_id=bit.rshift(buffer(CMN_HDR_LEN,4):uint(),20)  --first 12 bits are ISD ID
+	local src_ad_id=bit.band(buffer(CMN_HDR_LEN,4):uint(),0x000fffff) -- 20 bits are AD ID
+
+	local srcaddr_host=buffer(CMN_HDR_LEN+ISD_AD_LEN,srclen-ISD_AD_LEN):uint()
+	local srcaddr_host_text=""
+	if srclen-ISD_AD_LEN == IPV4_ADDR_LEN then 
+		srcaddr_host_text= buffer(CMN_HDR_LEN+ISD_AD_LEN+1,1):uint() .. "." .. buffer(CMN_HDR_LEN+ISD_AD_LEN+1,1):uint() .. "." .. buffer(CMN_HDR_LEN+ISD_AD_LEN+2,1):uint() .. "." .. buffer(CMN_HDR_LEN+ISD_AD_LEN+3,1):uint()
+	else
+		-- TODO show IPv6 address
+	end
+
+	local dstaddr=buffer(CMN_HDR_LEN+srclen,dstlen)
+	local dst_isd_id=bit.rshift(buffer(CMN_HDR_LEN+srclen,4):uint(),20) --first 12 bits are ISD ID
+	local dst_ad_id=bit.band(buffer(CMN_HDR_LEN+srclen,4):uint(),0x000fffff)
+	local dstaddr_host=buffer(CMN_HDR_LEN+srclen+ISD_AD_LEN,dstlen-ISD_AD_LEN):uint()
+	local dstaddr_host_text=""
+	if dstlen-ISD_AD_LEN == IPV4_ADDR_LEN then 
+		dstaddr_host_text= buffer(CMN_HDR_LEN+srclen+ISD_AD_LEN,1):uint() .. "." .. buffer(CMN_HDR_LEN+srclen+ISD_AD_LEN+1,1):uint() .. "." .. buffer(CMN_HDR_LEN+srclen+ISD_AD_LEN+2,1):uint() .. "." .. buffer(CMN_HDR_LEN+srclen+ISD_AD_LEN+3,1):uint()
+	else
+		-- TODO show IPv6 address
+	end
+	
+	--srcdst_tree:add(buffer(8,srclen),"Source adress: " .. srcaddr)
+	--srcdst_tree:add(buffer(8+srclen,dstlen),"Destination adress: " .. dstaddr)
+	srcdst_tree:add(buffer(CMN_HDR_LEN,srclen),"Source adress: " .. srcaddr .. ", ISD_ID:" .. src_isd_id .. ", AD_ID:" .. src_ad_id .. ", HOST Adress:" .. srcaddr_host_text)
+	srcdst_tree:add(buffer(CMN_HDR_LEN+srclen,dstlen),"Destination adress: " .. dstaddr .. ", ISD_ID:" .. dst_isd_id .. ", AD_ID:" .. dst_ad_id .. ", HOST Adress:" .. dstaddr_host_text)
+	--srcdst_tree:add(buffer(8+srclen,dstlen),"Destination adress: " .. dstaddr)
 
 	--analyze opaque field
 	process_of(buffer,pinfo,tree)
 end
 
 function process_beacon(buffer,pinfo,tree)
+	-- TODO Update the code for supporting the latest version of PCB
+
+
 	--analyze opaque field
 	local of_field = ProtoField.string("of","Opaque field")
-	local of_offset=8+srclen+dstlen;
+	local of_offset=CMN_HDR_LEN+srclen+dstlen;
 
 	local of_tree = scion_tree:add(of_field,buffer(of_offset,16),"Opaque field ") --size = 16 (SOF and ROTOF)
 	
-	oftypename="Special OF"
+	oftypename="Info OF"
 	of_sof_tree=of_tree:add(buffer(of_offset,8),"Opaque filed type: " .. oftypename .. " (0x" .. string.format("%x",buffer(of_offset,1):uint()) .. ")")
-	if timestamp + 8   == of_offset then  --8 means size of common header and 
-		of_sof_tree:append_text(", Current special OF(timestamp)")
+	if timestamp + CMN_HDR_LEN   == of_offset then  
+		of_sof_tree:append_text(", Current IOF")
 	end
-	if curr_of + 8   == of_offset then  --8 means size of common header and 
+	if curr_of + CMN_HDR_LEN   == of_offset then  
 		of_sof_tree:append_text(", Current OF")
 	end
-	of_sof_tree:add(buffer(of_offset+1,2),"Timestamp: " .. buffer(of_offset+1,2))
-	of_sof_tree:add(buffer(of_offset+3,2),"ISD ID: " .. buffer(of_offset+3,2))
-	of_sof_tree:add(buffer(of_offset+5,1),"Hops: " .. buffer(of_offset+5,1))
-	of_sof_tree:add(buffer(of_offset+6,2),"Reserved: " .. buffer(of_offset+6,2))
+	of_sof_tree:add(buffer(of_offset+1,4),"Timestamp: " .. buffer(of_offset+1,4))
+	of_sof_tree:add(buffer(of_offset+5,2),"ISD ID: " .. buffer(of_offset+5,2))
+	of_sof_tree:add(buffer(of_offset+7,1),"Hops: " .. buffer(of_offset+7,1))
 
 
 
 	of_offset=of_offset+8
 	oftypename="ROT OF"
 	of_rot_tree=of_tree:add(buffer(of_offset,8),"Opaque filed type: " .. oftypename .. " (0x" .. string.format("%x",buffer(of_offset,1):uint()) .. ")")
-	if timestamp + 8   == of_offset then  --8 means size of common header and 
-		of_rot_tree:append_text(", Current special OF(timestamp)")
+	if timestamp + CMN_HDR_LEN   == of_offset then  
+		of_rot_tree:append_text(", Current IOF")
 	end
-	if curr_of + 8   == of_offset then  --8 means size of common header and 
+	if curr_of + CMN_HDR_LEN   == of_offset then  
 		of_rot_tree:append_text(", Current OF")
 	end
 	of_rot_tree:add(buffer(of_offset+1,2),"ROT version: " .. buffer(of_offset+1,2))
 	of_rot_tree:add(buffer(of_offset+3,2),"ISD ID: " .. buffer(of_offset+3,2))
 	of_rot_tree:add(buffer(of_offset+6,2),"Reserved: " .. buffer(of_offset+6,2))
 
+
+	--Segment ID
+	of_offset=of_offset+8
+	of_segment_tree=of_tree:add(buffer(of_offset,32),"Segment ID = " ..  buffer(of_offset,32))
+	of_offset=of_offset+32
 
 
 	--PCBMarking
@@ -192,10 +230,19 @@ function process_beacon(buffer,pinfo,tree)
 		local signature_length= buffer(of_offset+8+4,2):uint()
 		local signature_length= buffer(of_offset+8+6,2):uint()
 
-
+--[[
+Each hop opaque field has a info (8 bits), expiration time (8 bits)
+    ingress/egress interfaces (2 * 12 bits) and a MAC (24 bits) authenticating
+    the opaque fiel
+--]]
 		local hof_tree=pcbsub_tree:add(buffer(of_offset+16,8),"Hop opaque field: " .. buffer(of_offset+16,8))
-		hof_tree:add(buffer(of_offset+16+1,2),"Ingress IF: " .. buffer(of_offset+16+1,2))
-		hof_tree:add(buffer(of_offset+16+3,2),"Egress IF: " .. buffer(of_offset+16+3,2))
+		hof_tree:add(buffer(of_offset+16,1),"Info: " .. buffer(of_offset+16,1))
+		hof_tree:add(buffer(of_offset+16+1,1),"Expiration time: " .. buffer(of_offset+16+1,1):uint())
+		local ingress_egress=buffer(of_offset+16+2,3):uint()
+		local ingress_if=bit.rshift(ingress_egress,12)
+		local egress_if=bit.band(ingress_egress,0x0fff)
+		hof_tree:add(buffer(of_offset+16+2,3),"Ingress IF: " .. ingress_if)
+		hof_tree:add(buffer(of_offset+16+2,3),"Egress IF: " .. egress_if)
 		hof_tree:add(buffer(of_offset+16+5,3),"MAC: " .. buffer(of_offset+16+5,3))
 	
 		local spf_tree=pcbsub_tree:add(buffer(of_offset+24,8),"Support PCB field: " .. buffer(of_offset+24,8))
@@ -220,8 +267,13 @@ function process_beacon(buffer,pinfo,tree)
 
 			offset_hof=8
 			local hof_tree=pcbsub_tree:add(buffer(of_offset+offset_hof,8),"Hop opaque field: " .. buffer(of_offset+offset_hof,8))
-			hof_tree:add(buffer(of_offset+offset_hof+1,2),"Ingress IF: " .. buffer(of_offset+offset_hof+1,2))
-			hof_tree:add(buffer(of_offset+offset_hof+3,2),"Egress IF: " .. buffer(of_offset+offset_hof+3,2))
+			hof_tree:add(buffer(of_offset+offset_hof,1),"Info: " .. buffer(of_offset+offset_hof,1))
+			hof_tree:add(buffer(of_offset+offset_hof+1,1),"Expiration time: " .. buffer(of_offset+offset_hof+1,1):uint())
+			local ingress_egress=buffer(of_offset+offset_hof+2,3):uint()
+			local ingress_if=bit.rshift(ingress_egress,12)
+			local egress_if=bit.band(ingress_egress,0x0fff)
+			hof_tree:add(buffer(of_offset+offset_hof+2,3),"Ingress IF: " .. ingress_if)
+			hof_tree:add(buffer(of_offset+offset_hof+2,3),"Egress IF: " .. egress_if)
 			hof_tree:add(buffer(of_offset+offset_hof+5,3),"MAC: " .. buffer(of_offset+offset_hof+5,3))
 		
 			pcbsub_tree:append_text(", Ingress IF: " .. buffer(of_offset+offset_hof+1,2):uint() .. ", Egress IF: " .. buffer(of_offset+offset_hof+3,2))
@@ -248,91 +300,94 @@ end
 
 function process_of(buffer,pinfo,tree)
 --Opaque field
---TODO: add ProtoField
 
-	local num_special_op=2
-	--[[	
-	if ptype=="DATA" then	
-		num_special_op=2
-	elseif ptype=="BEACON" then
-		num_special_op=1
-	end
-	--]]
-
-	local num_op=0 -- num_op= hops in special opaque field
-	--for i=0, num_special_op + num_op -1 , 1 do 
+	local num_op= (hdr_len - 24)/OPAQUEFIELD_LEN -- num_op= hops in special opaque field
 	local i=0
-	while i <  num_special_op + num_op do
-		local of_offset=8+srclen+dstlen + 8*i
+	while i <  num_op do
+		local of_offset=8+srclen+dstlen + OPAQUEFIELD_LEN*i
 
 		--check range
-		if of_offset + 8 > hdr_len then
+		if of_offset + OPAQUEFIELD_LEN > hdr_len then
 			scion_tree:add_expert_info(PI_MALFORMED, PI_ERROR, "cannot read opaque field. Hdr_len is small?")
 			return
 		end
 
 
 		local of_field = ProtoField.string("of"..i,"Opaque field"..i)
-		local of_tree = scion_tree:add(of_field,buffer(of_offset,8),"Opaque field ".. i)
+		local of_tree = scion_tree:add(of_field,buffer(of_offset,OPAQUEFIELD_LEN),"Opaque field ".. i)
 
 		
 		--check OF type
 		local oftype=buffer(of_offset,1):uint()
 		local oftypename="???"
 
+		-- Hop OF
+		NORMAL_OF = 0x0
+		LAST_OF = 0x10
+		PEER_XOVR = 0x08
+
+		-- Info OF
+		TDC_XOVR=0x40
+		NON_TDC_XOVR=0x60
+		INPATH_XOVR=0x70
+		INTRATD_PEER=0x78
+		INTERTD_PEER=0x7c
+
+		-- MSB 7bit
+		local oftype=bit.rshift(oftype,1) 
+
+		--is Info OF?
+		if oftype == TDC_XOVR or oftype == NON_TDC_XOVR or oftype == INPATH_XOVR or iftype ==  INTRATD_PEER or oftype == INTERTD_PEER or oftype == TRC_OF then
+			if oftype == TDC_XOVR then
+				oftypename="Info OF TDC_XOVER"
+			elseif oftype == NON_TDC_XOVR then
+				oftypename="Info OF NON_TDC_XOVR"
+			elseif oftype == INPATH_XOVR then
+				oftypename="Info OF INPATH_XOVR"
+			elseif oftype == INTRATD_PEER then
+				oftypename="Info OF INTRATD_PEER"
+			elseif oftype == INTERTD_PEER then
+				oftypename="Info OF INTERTD_PEER"
+			end
 
 
-		if oftype == 0x80 then
-			oftypename="Special OF"
-			of_tree:append_text(", Special OF")
-			of_tree:add(buffer(of_offset,1),"Opaque filed type: " .. oftypename .. " (0x" .. string.format("%x",buffer(of_offset,1):uint()) .. ")")
-			of_tree:add(buffer(of_offset+1,2),"Timestamp: " .. buffer(of_offset+1,2))
-			of_tree:add(buffer(of_offset+3,2),"ISD ID: " .. buffer(of_offset+3,2))
-			of_tree:add(buffer(of_offset+5,1),"Hops: " .. buffer(of_offset+5,1))
-			of_tree:add(buffer(of_offset+6,2),"Reserved: " .. buffer(of_offset+6,2))
+			of_tree:append_text(", Info OF")
+			of_tree:add(buffer(of_offset,1),"Opaque filed type: " .. oftypename .. " (0x" .. string.format("%x",oftype) .. ")")
+			of_tree:add(buffer(of_offset+1,4),"Timestamp: " .. buffer(of_offset+1,4))
+			of_tree:add(buffer(of_offset+5,2),"ISD ID: " .. buffer(of_offset+5,2))
+			of_tree:add(buffer(of_offset+7,1),"Hops: " .. buffer(of_offset+7,1))
 			
-			num_op = num_op + buffer(of_offset+5,1):uint() -- plus hops
+			--num_op = num_op + buffer(of_offset+7,1):uint() -- plus hops
 
-		elseif oftype == 0xff then
-			oftypename="ROT OF"
-			of_tree:append_text(", ROT OF")
-			of_tree:add(buffer(of_offset,1),"Opaque filed type: " .. oftypename .. " (0x" .. string.format("%x",buffer(of_offset,1):uint()) .. ")")
-			of_tree:add(buffer(of_offset+1,2),"ROT version: " .. buffer(of_offset+1,4))
-			of_tree:add(buffer(of_offset+3,2),"ISD ID: " .. buffer(of_offset+5,2))
-			of_tree:add(buffer(of_offset+6,2),"Reserved: " .. buffer(of_offset+7,1))
+
+		--Hop OF
 		else
-			if oftype==0x0 then
-				oftypename="Normal OF"
-			-- elseif oftype == 0x80 then
-			elseif oftype == 0x20 then
-				oftypename="TDC XOVR"
-			elseif oftype == 0xc0 then
-				oftypename="NON TDC XOVR"
-			elseif oftype == 0xe0 then
-				oftypename="INPATH XOVR"
-			elseif oftype == 0xf0 then
-				oftypename="TNTRATD PEER"
-			elseif oftype == 0xf8 then
-				oftypename="INTERTD PEER"
-			elseif oftype == 0x10 then
-				oftypename="PEER XOVR"
-
+			if oftype==NORMAL_OF then
+				oftypename="NORMAL_OF"
+			elseif oftype == LAST_OF then
+				oftypename="LAST_OF"
+			elseif oftype == PEER_XOVR then
+				oftypename="PEER_XOVR"
 			end
 			
-			of_tree:append_text(", Ingress IF: " .. buffer(of_offset+1,2):uint() .. ", Egress IF: " .. buffer(of_offset+3,2):uint())
 			of_tree:add(buffer(of_offset,1),"Opaque filed type: " .. oftypename .. " (0x" .. string.format("%x",buffer(of_offset,1):uint()) .. ")" )
-			of_tree:add(buffer(of_offset+1,2),"Ingress IF: " .. buffer(of_offset+1,2))
-			of_tree:add(buffer(of_offset+3,2),"Egress IF: " .. buffer(of_offset+3,2))
+			local ingress_egress=buffer(of_offset+2,3):uint()
+			local ingress_if=bit.rshift(ingress_egress,12)
+			local egress_if=bit.band(ingress_egress,0x0fff)
+			of_tree:append_text(", Ingress IF: " .. ingress_if .. ", Egress IF: " .. egress_if)
+			of_tree:add(buffer(of_offset+1,1),"Expiration time: " .. buffer(of_offset+1,1):uint())
+			of_tree:add(buffer(of_offset+2,3),"Ingress IF: " .. ingress_if)
+			of_tree:add(buffer(of_offset+2,3),"Egress IF: " .. egress_if)
 			of_tree:add(buffer(of_offset+5,3),"MAC: " .. buffer(of_offset+5,3))
 
 		end
 
 		
 		--check timestamp field and curr OF field refer this OF
-		if timestamp + 8   == of_offset then  --8 means size of common header and 
-			of_tree:append_text(", Current special OF(timestamp)")
+		if timestamp + CMN_HDR_LEN   == of_offset then 
+			of_tree:append_text(", Current IOF")
 		end
-		if curr_of + 8   == of_offset then  --8 means size of common header and 
+		if curr_of + CMN_HDR_LEN   == of_offset then   
 			of_tree:append_text(", Current OF")
 		end
 			
@@ -446,8 +501,9 @@ table_ip =DissectorTable.get("ip.proto")
 table_ip:add(40,scion_proto)
 
 --SCION packet on UDP
---assume UDP 33300-33399 are for SCION
+--assume UDP 30040 is for SCION
 table_udp=DissectorTable.get("udp.port")
-for i=33300,33399, 1 do
-	table_udp:add(i,scion_proto)
-end
+table_udp:add(30040,scion_proto)
+--for i=30040,30040, 1 do
+--	table_udp:add(i,scion_proto)
+--end
