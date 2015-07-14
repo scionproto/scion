@@ -16,7 +16,7 @@
 =====================================================
 """
 # Stdlib
-from unittest.mock import patch, call, mock_open
+from unittest.mock import patch, call, mock_open, MagicMock
 
 # External packages
 import nose
@@ -36,13 +36,14 @@ from lib.util import (
     get_trc_file_path,
     handle_signals,
     read_file,
+    SCIONTime,
     SIG_KEYS_DIR,
     sleep_interval,
     timed,
     trace,
     TRACE_DIR,
     update_dict,
-    write_file
+    write_file,
 )
 
 
@@ -278,6 +279,43 @@ class TestSignalHandler(object):
         _signal_handler(1, 2)
         info.assert_called_once_with("Received %s", _SIG_MAP[1])
         exit.assert_called_once_with(0)
+
+
+class TestSCIONTimeGetTime(object):
+    """
+    Unit tests for lib.util.SCIONTime.get_time
+    """
+    @patch("lib.util.time.time", autospec=True)
+    def test_basic(self, mock_time):
+        t = SCIONTime.get_time()
+        mock_time.assert_called_once_with()
+        ntools.eq_(t, mock_time.return_value)
+
+    @patch("lib.util.SCIONTime._custom_time", spec_set=[],
+           new_callable=MagicMock)
+    def test_custom_time(self, custom_time):
+        t = SCIONTime.get_time()
+        ntools.eq_(t, custom_time.return_value)
+        custom_time.assert_called_once_with()
+
+
+class TestSCIONTimeSetTimeMethod(object):
+    """
+    Unit tests for lib.util.SCIONTime.set_time_method
+    """
+    class MockSCIONTime(SCIONTime):
+        pass
+
+    def setUp(self):
+        self.MockSCIONTime._custom_time = 'before'
+
+    def tearDown(self):
+        self.MockSCIONTime._custom_time = None
+
+    def test(self):
+        self.MockSCIONTime.set_time_method('time_method')
+        ntools.eq_(self.MockSCIONTime._custom_time, 'time_method')
+
 
 if __name__ == "__main__":
     nose.run(defaultTest=__name__)
