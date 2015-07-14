@@ -206,7 +206,8 @@ class Router(SCIONElement):
             else:
                 logging.warning("No handler for extension type %u", ext_nr)
         if ext_nr:
-            logging.warning("Extensions terminated incorrectly: last extension has a non-empty next extension field")
+            logging.warning("Extensions terminated incorrectly: last extension"+ \
+                            "has a non-empty next extension field")
 
     def sync_interface(self):
         """
