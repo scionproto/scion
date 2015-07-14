@@ -195,14 +195,17 @@ class Router(SCIONElement):
             handlers = self.pre_ext_handlers
         else:
             handlers = self.post_ext_handlers
-        ext = spkt.hdr.common_hdr.next_hdr
+        
+		ext_nr = spkt.hdr.common_hdr.next_hdr
         l = 0
-        while ext and l < len(spkt.hdr.extension_hdrs):
-            if ext in handlers:
-                handlers[ext](spkt, next_hop)
-            ext = ext.next_ext
-            l += 1
-        if ext or l < len(spkt.hdr.extension_hdrs):
+        for ext_hdr in spkt.hdr.extension_hdrs:
+            if ext_nr in handlers:
+                handlers[ext_nr](self.config, spkt, next_hop)
+                ext_nr = ext_hdr.next_ext
+                l += 1
+            else:
+                logging.critical("No handler for extension type %u", ext_nr)
+        if ext_nr or l < len(spkt.hdr.extension_hdrs):
             logging.warning("Extensions terminated incorrectly.")
 
     def sync_interface(self):
