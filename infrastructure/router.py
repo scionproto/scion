@@ -196,7 +196,7 @@ class Router(SCIONElement):
         else:
             handlers = self.post_ext_handlers
         
-		ext_nr = spkt.hdr.common_hdr.next_hdr
+	ext_nr = spkt.hdr.common_hdr.next_hdr
         l = 0
         for ext_hdr in spkt.hdr.extension_hdrs:
             if ext_nr in handlers:
