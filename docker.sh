@@ -77,16 +77,19 @@ cmd_run() {
     # Can't use --rm in circleci, their environment doesn't allow it, so it
     # just throws an error
     [ -n "$CIRCLECI" ] || args+=" --rm"
-    # As we have to squash all timestamps for docker, sphinx's build process
-    # fails to notice updates :(
-    [ -e sphinx-doc/_build/ ] && rm -rf sphinx-doc/_build
-    # An earlier bug could cause htmlcov to be owned by root, so just nuke it
-    # to be safe
-    [ -e htmlcov/ ] && rm -rf htmlcov/
-    # Make sure these exist, otherwise they'll be owned by root, and the scion
-    # user in the docker image won't be able to write to them
-    mkdir -p htmlcov sphinx-doc/_build
+    setup_volumes
     docker run $args scion "$@"
+}
+
+setup_volumes() {
+    set -e
+    for i in htmlcov sphinx-doc/_build; do
+        mkdir -p "$i"
+        # Check dir exists, and is owned by the current (effective) user. If
+        # it's owned by the wrong user, the docker environment won't be able to
+        # write to it.
+        [ -O "$i" ] || { echo "Error: '$i' dir not owned by $LOGNAME"; exit 1; }
+    done
 }
 
 stop_cntrs() {
