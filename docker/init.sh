@@ -3,7 +3,6 @@
 # Small script to fully setup environment
 
 sudo service zookeeper start
-./scion.sh setup
 
 # Can't be fixed during build due to
 # https://github.com/docker/docker/issues/6828

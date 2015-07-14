@@ -20,15 +20,6 @@ cmd_topology() {
     PYTHONPATH=./ python3 topology/generator.py "$@"
 }
 
-cmd_setup() {
-    echo "Add IP aliases for ISDs and ADs."
-    for d in topology/ISD*; do
-        for f in $d/setup/*; do
-            sudo bash $f
-        done
-    done
-}
-
 cmd_run() {
     echo "Running the network..."
     supervisor/supervisor.sh reload
@@ -40,21 +31,12 @@ cmd_stop() {
     supervisor/supervisor.sh quickstop all
 }
 
-cmd_clean() {
-    {
-    sudo ip addr flush dev lo
-    sudo ip addr add 127.0.0.1/8 dev lo
-    } &> /dev/null
-    echo "Clean completed. Please check the output of ip addr to confirm the addresses were correctly flushed."
-}
-
 cmd_start(){
     # placeholder function to run all init functions
     # cmd_init
     # cmd_topology
-    # cmd_setup
     # cmd_run
-    echo "This method has not been fully implemented. Please run init, topology, setup, and run"
+    echo "This method has not been fully implemented. Please run init, topology and run"
 }
 
 cmd_test(){
@@ -93,14 +75,10 @@ cmd_help() {
 	        Compile the SCION crypto library.
 	    $PROGRAM topology
 	        Create topology, configuration, and execution files.
-	    $PROGRAM setup
-	        Add IP aliases for ISDs and ADs.
 	    $PROGRAM run
 	        Run network.
 	    $PROGRAM stop
 	        Terminate this run of the SCION infrastructure.
-	    $PROGRAM clean
-	        Flush all the IP aliases of lo.
 	    $PROGRAM test
 	        Run all unit tests.
 	    $PROGRAM coverage
@@ -118,7 +96,7 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    clean|coverage|help|init|lint|run|setup|start|stop|test|topology|version)
+    coverage|help|init|lint|run|start|stop|test|topology|version)
         "cmd_$COMMAND" "$@" ;;
     *)  cmd_help ;;
 esac
