@@ -59,7 +59,6 @@ CONF_DIR = 'configurations'
 TOPO_DIR = 'topologies'
 SIG_KEYS_DIR = 'signature_keys'
 ENC_KEYS_DIR = 'encryption_keys'
-SETUP_DIR = 'setup'
 PATH_POL_DIR = 'path_policies'
 SUPERVISOR_DIR = 'supervisor'
 SIM_DIR = 'SIM'
@@ -140,8 +139,6 @@ class ConfigGenerator(object):
         isd_name = 'ISD{}'.format(isd_id)
         file_no_ext = 'ISD:{}-AD:{}'.format(isd_id, ad_id)
 
-        setup_file_abs = os.path.join(self.out_dir, isd_name,
-                                      SETUP_DIR, file_no_ext + '.sh')
         supervisor_file_abs = os.path.join(self.out_dir, isd_name,
                                            SUPERVISOR_DIR,
                                            file_no_ext + '.conf')
@@ -247,11 +244,10 @@ class ConfigGenerator(object):
             topo_path = os.path.join(isd_name, TOPO_DIR)
             sig_keys_path = os.path.join(isd_name, SIG_KEYS_DIR)
             enc_keys_path = os.path.join(isd_name, ENC_KEYS_DIR)
-            setup_path = os.path.join(isd_name, SETUP_DIR)
             path_pol_path = os.path.join(isd_name, PATH_POL_DIR)
             supervisor_path = os.path.join(isd_name, SUPERVISOR_DIR)
             paths = [cert_path, conf_path, topo_path, sig_keys_path,
-                     enc_keys_path, setup_path, path_pol_path, supervisor_path]
+                     enc_keys_path, path_pol_path, supervisor_path]
             for path in paths:
                 full_path = os.path.join(self.out_dir, path)
                 if not os.path.exists(full_path):
@@ -459,7 +455,6 @@ class ConfigGenerator(object):
         :return:
         """
         self.write_supervisor_config(topo_dict)
-        self.write_setup_file(topo_dict, mask=kwargs.get('mask'))
 
     def write_sim_file(self, ad_configs):
         """
@@ -528,29 +523,6 @@ class ConfigGenerator(object):
         for element_type in element_types:
             for element_num, element_dict in topo_dict[element_type].items():
                 yield (element_num, element_dict, element_type)
-
-    def write_setup_file(self, topo_dict, mask=None):
-        """
-        Generate and save the AD setup file.
-
-        :param topo_dict: topology dictionary of a SCION AD.
-        :type topo_dict: dict
-        :param mask: network mask for new interfaces.
-        :type mask: str
-        """
-        if mask is None:
-            _, mask = self.get_subnet_params()
-
-        p = self.path_dict(topo_dict['ISDID'], topo_dict['ADID'])
-        preamble = '#!/bin/bash\n\n'
-
-        with open(p['setup_file_abs'], 'w') as setup_fh:
-            setup_fh.write(preamble)
-            for (_, element_dict, element_type) \
-                    in self._get_typed_elements(topo_dict):
-                ip_addr = element_dict['Addr']
-                ip_add = 'ip addr add {}/{} dev lo\n'.format(ip_addr, mask)
-                setup_fh.write(ip_add)
 
     def write_supervisor_config(self, topo_dict):
         """
