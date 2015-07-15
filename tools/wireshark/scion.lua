@@ -4,7 +4,7 @@ scion_proto = Proto("scion","SCION","SCION Protocol")
 --define protocol fields
 scion_ch_version=ProtoField.uint8("scion.ch.version","Version",base.HEX, nil, 0xf0)
 scion_ch_srclen=ProtoField.uint16("scion.ch.srclen","Source address length",base.DEC, nil, 0x0fc0)
-scion_ch_dstlen=ProtoField.uint8("scion.ch.dstlen","Dstination address length",base.DEC, nil, 0x3f)
+scion_ch_dstlen=ProtoField.uint8("scion.ch.dstlen","Destination address length",base.DEC, nil, 0x3f)
 scion_ch_totallen=ProtoField.uint8("scion.ch.totallen","Total length",base.DEC)
 scion_ch_timestamp=ProtoField.uint8("scion.ch.timestamp","Timestamp",base.DEC)
 scion_ch_currof=ProtoField.uint8("scion.ch.currof","Current opaque field",base.DEC)
