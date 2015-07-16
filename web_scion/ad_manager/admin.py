@@ -99,6 +99,8 @@ class ServerAdmin(PrivilegedChangeAdmin):
 
 @admin.register(RouterWeb, site=admin_site)
 class RouterAdmin(ServerAdmin):
+    list_display = ('ad', 'addr', 'neighbor_ad', 'neighbor_type',
+                    'interface_addr', 'interface_toaddr')
 
     def get_fields(self, request, obj=None):
         # FIXME is there a way to make it more explicit?
