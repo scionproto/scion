@@ -21,7 +21,8 @@ import struct
 from ipaddress import IPv4Address
 
 # SCION
-from lib.packet.ext_hdr import ExtensionHeader, ICNExtHdr
+from lib.defines import L4_PROTO
+from lib.packet.ext_hdr import ExtensionHeader, TracerouteExt
 from lib.packet.opaque_field import (
     InfoOpaqueField,
     OpaqueField,
@@ -345,14 +346,16 @@ class SCIONHeader(HeaderBase):
         # At the moment this is not support and we just indicate the end of the
         # extension headers by a 0 in the type field.
         cur_hdr_type = self.common_hdr.next_hdr
-        while cur_hdr_type != 0:
+        while cur_hdr_type not in L4_PROTO:
             (next_hdr_type, hdr_len) = \
                 struct.unpack("!BB", raw[offset:offset + 2])
+            # Calculate correct hdr_len in bytes
+            hdr_len = (hdr_len + 1) * ExtensionHeader.MIN_LEN
             logging.info("Found extension hdr of type %u with len %u",
                          cur_hdr_type, hdr_len)
-            if cur_hdr_type == ICNExtHdr.TYPE:
+            if cur_hdr_type == TracerouteExt.TYPE:
                 self.extension_hdrs.append(
-                    ICNExtHdr(raw[offset:offset + hdr_len]))
+                    TracerouteExt(raw[offset:offset + hdr_len]))
             else:
                 self.extension_hdrs.append(
                     ExtensionHeader(raw[offset:offset + hdr_len]))

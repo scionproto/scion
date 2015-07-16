@@ -26,7 +26,12 @@ import time
 # SCION
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.symcrypto import get_roundkey_cache, verify_of_mac
-from lib.defines import SCION_UDP_PORT, SCION_UDP_EH_DATA_PORT, EXP_TIME_UNIT
+from lib.defines import (
+    SCION_UDP_PORT,
+    SCION_UDP_EH_DATA_PORT,
+    EXP_TIME_UNIT,
+    L4_PROTO
+)
 from lib.log import init_logging, log_exception
 from lib.packet.opaque_field import OpaqueField, OpaqueFieldType as OFT
 from lib.packet.pcb import PathConstructionBeacon
@@ -195,14 +200,16 @@ class Router(SCIONElement):
             handlers = self.pre_ext_handlers
         else:
             handlers = self.post_ext_handlers
-        ext = spkt.hdr.common_hdr.next_hdr
-        l = 0
-        while ext and l < len(spkt.hdr.extension_hdrs):
-            if ext in handlers:
-                handlers[ext](spkt, next_hop)
-            ext = ext.next_ext
-            l += 1
-        if ext or l < len(spkt.hdr.extension_hdrs):
+        ext_nr = spkt.hdr.common_hdr.next_hdr
+        for ext_hdr in spkt.hdr.extension_hdrs:
+            if ext_nr in handlers:
+                handlers[ext_nr](spkt=spkt, next_hop=next_hop, ext=ext_hdr,
+                                 conf=self.config, topo=self.topology,
+                                 iface=self.interface)
+            else:
+                logging.debug("No handler for extension type %u", ext_nr)
+            ext_nr = ext_hdr.next_hdr
+        if ext_nr not in L4_PROTO:
             logging.warning("Extensions terminated incorrectly.")
 
     def sync_interface(self):
@@ -552,8 +559,12 @@ def main():
         logging.error("run: %s router_id topo_file conf_file", sys.argv[0])
         sys.exit()
 
-    router = Router(*sys.argv[1:])
-
+    # router = Router(*sys.argv[1:])
+#### How to run with extension handler
+    from lib.packet.ext_hdr import TracerouteExt, traceroute_ext_handler
+    pre_handlers = {TracerouteExt.TYPE :  traceroute_ext_handler}
+    router = Router(*sys.argv[1:], pre_ext_handlers=pre_handlers)
+####
     logging.info("Started: %s", datetime.datetime.now())
     router.run()
 
