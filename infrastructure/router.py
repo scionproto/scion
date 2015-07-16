@@ -200,9 +200,9 @@ class Router(SCIONElement):
         for ext_hdr in spkt.hdr.extension_hdrs:
             if ext_nr in handlers:
                 handlers[ext_nr](spkt, next_hop, self.config)
-            ext_nr = ext_hdr.next_ext
             else:
                 logging.warning("No handler for extension type %u", ext_nr)
+            ext_nr = ext_hdr.next_ext
         if ext_nr:
             logging.warning("Extensions terminated incorrectly: last " +
                             "extension has a non-empty next extension field")
