@@ -197,12 +197,10 @@ class Router(SCIONElement):
             handlers = self.post_ext_handlers
 
         ext_nr = spkt.hdr.common_hdr.next_hdr
-        l = 0
         for ext_hdr in spkt.hdr.extension_hdrs:
             if ext_nr in handlers:
                 handlers[ext_nr](spkt, next_hop, self.config)
-                ext_nr = ext_hdr.next_ext
-                l += 1
+            ext_nr = ext_hdr.next_ext
             else:
                 logging.warning("No handler for extension type %u", ext_nr)
         if ext_nr:
