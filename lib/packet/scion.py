@@ -22,7 +22,7 @@ from ipaddress import IPv4Address
 
 # SCION
 from lib.defines import L4_PROTO
-from lib.packet.ext_hdr import ExtensionHeader
+from lib.packet.ext_hdr import ExtensionHeader, EXTENSIONS
 from lib.packet.ext.traceroute import TracerouteExt
 from lib.packet.opaque_field import (
     InfoOpaqueField,
@@ -349,9 +349,6 @@ class SCIONHeader(HeaderBase):
         accordingly.
         :return: offset in the raw data till which it has been parsed
         """
-        # FIXME: The last extension header should be a layer 4 protocol header.
-        # At the moment this is not support and we just indicate the end of the
-        # extension headers by a 0 in the type field.
         cur_hdr_type = self.common_hdr.next_hdr
         while cur_hdr_type not in L4_PROTO:
             (next_hdr_type, hdr_len) = \
@@ -360,12 +357,12 @@ class SCIONHeader(HeaderBase):
             hdr_len = (hdr_len + 1) * ExtensionHeader.MIN_LEN
             logging.info("Found extension hdr of type %u with len %u",
                          cur_hdr_type, hdr_len)
-            if cur_hdr_type == TracerouteExt.TYPE:
+            if cur_hdr_type in EXTENSIONS:
                 self.extension_hdrs.append(
-                    TracerouteExt(raw[offset:offset + hdr_len]))
+                    EXTENSIONS[cur_hdr_type](raw[offset:offset + hdr_len]))
             else:
-                self.extension_hdrs.append(
-                    ExtensionHeader(raw[offset:offset + hdr_len]))
+                # TODO(PSz): fail here?
+                logging.warning("Extension %u unsupported." % cur_hdr_type)
             cur_hdr_type = next_hdr_type
             offset += hdr_len
         self.l4_proto = cur_hdr_type

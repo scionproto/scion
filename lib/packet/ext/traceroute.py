@@ -32,7 +32,6 @@ class TracerouteExt(ExtensionHeader):
     |    ISD_1      |      AD_1       |    IFID_1   |   Timestamp_1  |
     ...
     """
-    MIN_LEN = 8
     TYPE = 221  # Extension header type
 
     def __init__(self, raw=None):
