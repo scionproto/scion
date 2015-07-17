@@ -51,7 +51,7 @@ class TracerouteExt(ExtensionHeader):
 
     def parse_payload(self):
         """
-
+        Parse payload to extract hop informations. 
         """
         # Drop padding from the first row
         payload = self.payload[6:]
@@ -63,14 +63,14 @@ class TracerouteExt(ExtensionHeader):
 
     def append_hop(self, isd, ad, if_id, timestamp):
         """
-
+        Append hop's information as a new field in the extension.
         """
         self.hops.append((isd, ad, if_id, timestamp))
         self._hdr_len += 1  # Increase by 8 bytes.
 
     def pack(self):
         """
-
+        Pack extension to bytes.
 
         :returns:
         :rtype:
@@ -85,7 +85,6 @@ class TracerouteExt(ExtensionHeader):
 
     def __str__(self):
         """
-
 
         :returns:
         :rtype:
@@ -107,4 +106,5 @@ def traceroute_ext_handler(**kwargs):
     topo = kwargs['topo']
     iface = kwargs['iface']
     ts = int(time.time() * 1000) % 2**16  # Truncate milliseconds to 2 bytes
+    # Append an information about hop
     ext.append_hop(topo.isd_id, topo.ad_id, iface.if_id, ts)
