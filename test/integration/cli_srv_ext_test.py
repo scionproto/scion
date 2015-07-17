@@ -12,26 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`end2end_test` --- SCION end2end tests
+:mod:`cli_srv_ext_test` --- SCION client-server test with an extension
 ===========================================
 """
 # Stdlib
 import logging
-import random
 import socket
-import sys
 import threading
 import time
-import unittest
 from ipaddress import IPv4Address
 
 # SCION
-from endhost.sciond import SCIOND_API_HOST, SCIOND_API_PORT, SCIONDaemon
+from endhost.sciond import SCIONDaemon
 from lib.defines import SCION_BUFLEN, SCION_UDP_EH_DATA_PORT
-from lib.packet.ext_hdr import TracerouteExt
-from lib.packet.opaque_field import InfoOpaqueField, OpaqueFieldType as OFT
+from lib.packet.ext.traceroute import TracerouteExt
+from lib.packet.ext_hdr import ExtensionHeader
 from lib.packet.scion import SCIONPacket
-from lib.packet.scion_addr import SCIONAddr, ISD_AD
+from lib.packet.scion_addr import SCIONAddr
 
 TOUT = 10  # How long wait for response.
 CLI_ISD = 1
@@ -60,11 +57,16 @@ def client():
     dst = SCIONAddr.from_values(SRV_ISD, SRV_AD, IPv4Address(SRV_IP))
     # Set payload
     payload = b"request to server"
+    # Create plain extension with payload b"test"
+    e1 = ExtensionHeader()
+    e1.set_payload(b'test')
     # Create empty Traceroute extensions
-    ext = TracerouteExt()
-    # Create a SCION packet with the extension
-    spkt = SCIONPacket.from_values(sd.addr, dst, payload, path, ext_hdrs=[ext],
-                                   next_hdr = ext.TYPE)
+    e2 = TracerouteExt()
+    # Create another plain extension
+    e3 = ExtensionHeader()
+    # Create a SCION packet with the extensions
+    spkt = SCIONPacket.from_values(sd.addr, dst, payload, path,
+                                   ext_hdrs=[e1, e2, e3])
     # Determine first hop (i.e., local address of border router)
     (next_hop, port) = sd.get_first_hop(spkt)
     print("CLI: Sending packet: %s\nFirst hop: %s:%s" % (spkt, next_hop, port))

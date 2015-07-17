@@ -560,11 +560,11 @@ def main():
         sys.exit()
 
     # router = Router(*sys.argv[1:])
-#### How to run with extension handler
-    from lib.packet.ext_hdr import TracerouteExt, traceroute_ext_handler
-    pre_handlers = {TracerouteExt.TYPE :  traceroute_ext_handler}
+    # Run router with an extension handler
+    from lib.packet.ext.traceroute import TracerouteExt, traceroute_ext_handler
+    pre_handlers = {TracerouteExt.TYPE: traceroute_ext_handler}
     router = Router(*sys.argv[1:], pre_ext_handlers=pre_handlers)
-####
+    #
     logging.info("Started: %s", datetime.datetime.now())
     router.run()
 
