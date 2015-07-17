@@ -22,7 +22,7 @@ from ipaddress import IPv4Address
 
 # SCION
 from lib.defines import L4_PROTO
-from lib.packet.ext_hdr import ExtensionHeader, EXTENSIONS
+from lib.packet.ext_hdr import ExtensionHeader
 from lib.packet.ext.traceroute import TracerouteExt
 from lib.packet.opaque_field import (
     InfoOpaqueField,
@@ -38,6 +38,12 @@ from lib.packet.path import (
     PeerPath,
 )
 from lib.packet.scion_addr import ISD_AD, SCIONAddr
+
+# Dictionary of supported extensions (i.e., parsed by SCIONHeader)
+EXTENSIONS = {
+    ExtensionHeader.TYPE: ExtensionHeader,
+    TracerouteExt.TYPE: TracerouteExt
+}
 
 
 class PacketType(object):

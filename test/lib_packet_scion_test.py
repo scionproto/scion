@@ -471,28 +471,6 @@ class TestSCIONHeaderParseOpaqueFields(object):
             yield self._check, oft, path
 
 
-class TestSCIONHeaderParseExtensionHdrs(object):
-    """
-    Unit tests for lib.packet.scion.SCIONHeader._parse_extension_hdrs
-    """
-    @patch("lib.packet.scion.ExtensionHeader", autospec=True)
-    @patch("lib.packet.scion.ICNExtHdr", autospec=True)
-    def test(self, icn_ext_hdr, ext_hdr):
-        hdr = SCIONHeader()
-        hdr._extension_hdrs = ['old_ext_hdr']
-        hdr.common_hdr = MagicMock(spec_set=['next_hdr'])
-        hdr.common_hdr.next_hdr = 1
-        icn_ext_hdr.TYPE = 1
-        icn_ext_hdr.return_value = 'icn_ext_hdr'
-        ext_hdr.return_value = 'ext_hdr'
-        data = bytes.fromhex('00 02 03 12 00 02 34')
-        ntools.eq_(hdr._parse_extension_hdrs(data, 1), 1 + 3 + 2)
-        icn_ext_hdr.assert_called_once_with(data[1:4])
-        ext_hdr.assert_called_once_with(data[4:6])
-        ntools.eq_(hdr._extension_hdrs, ['old_ext_hdr', 'icn_ext_hdr',
-                                         'ext_hdr'])
-
-
 class TestSCIONHeaderPack(object):
     """
     Unit tests for lib.packet.scion.SCIONHeader.pack

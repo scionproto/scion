@@ -21,13 +21,7 @@ import struct
 
 # SCION
 from lib.packet.packet_base import HeaderBase
-from lib.packet.ext.traceroute import TracerouteExt
 
-# Dictionary of supported extensions (i.e., parsed by SCIONHeader)
-EXTENSIONS = {
-    ExtensionHeader.TYPE: ExtensionHeader,
-    TracerouteExt.TYPE: TracerouteExt
-}
 
 class ExtensionHeader(HeaderBase):
     """

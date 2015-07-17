@@ -51,7 +51,7 @@ class TracerouteExt(ExtensionHeader):
 
     def parse_payload(self):
         """
-        Parse payload to extract hop informations. 
+        Parse payload to extract hop informations.
         """
         # Drop padding from the first row
         payload = self.payload[6:]
