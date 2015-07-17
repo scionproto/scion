@@ -86,13 +86,13 @@ class ExtensionHeader(HeaderBase):
         payload_len = len(payload)
         if payload_len < 6:  # FIXME(PSz): Should we (or ext developer) pad it?
             logging.warning("Extension is unpadded, adding padding.")
-            payload += b"\x00" * abs(payload_len - 6)
+            payload += b"\x00" * (6 - payload_len)
             payload_len = 6
         payload_len -= 6  # After -6 it should be a multiplication of 8.
         to_pad = payload_len % self.MIN_LEN
         if to_pad:  # FIXME(PSz): Should we (or ext developer) pad it?
             logging.warning("Extension is unpadded, adding padding.")
-            payload += (self.MIN_LEN - to_pad) * b"\x00"
+            payload += b"\x00" * (self.MIN_LEN - to_pad)
             payload_len += self.MIN_LEN - to_pad
         self._hdr_len = payload_len // self.MIN_LEN
         self.payload = payload
