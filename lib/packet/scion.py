@@ -364,7 +364,7 @@ class SCIONHeader(HeaderBase):
             logging.info("Found extension hdr of type %u with len %u",
                          cur_hdr_type, hdr_len)
             if cur_hdr_type in EXTENSIONS:
-                self.extension_hdrs.append(
+                self.append_ext_hdr(
                     EXTENSIONS[cur_hdr_type](raw[offset:offset + hdr_len]))
             else:
                 # TODO(PSz): fail here?
