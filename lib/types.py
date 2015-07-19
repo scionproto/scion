@@ -20,6 +20,8 @@ For all type classes that are used in multiple parts of the infrastructure.
 
 
 class TypeBase(object):  # pragma: no cover
+    """
+    """
     @classmethod
     def to_str(cls, type_):
         for attr in dir(cls):
@@ -32,6 +34,8 @@ class TypeBase(object):  # pragma: no cover
 # Basic types
 ############################
 class AddrType(TypeBase):
+    """
+    """
     NONE = 0
     IPV4 = 1
     IPV6 = 2
@@ -66,6 +70,8 @@ class OpaqueFieldType(TypeBase):
 # Payload class/types
 ############################
 class PayloadClass(TypeBase):
+    """
+    """
     PCB = 0
     IFID = 1
     CERT = 2
@@ -73,6 +79,8 @@ class PayloadClass(TypeBase):
 
 
 class CertMgmtType(TypeBase):
+    """
+    """
     CERT_CHAIN_REQ = 0
     CERT_CHAIN_REPLY = 1
     TRC_REQ = 2
@@ -103,10 +111,14 @@ class PathSegmentType(TypeBase):
 
 
 class PCBType(TypeBase):
+    """
+    """
     SEGMENT = 0
 
 
 class IFIDType(object):
+    """
+    """
     PAYLOAD = 0
 
 
@@ -114,6 +126,8 @@ class IFIDType(object):
 # Router types
 ############################
 class RouterFlag(TypeBase):
+    """
+    """
     ERROR = 0
     NO_PROCESS = 1
     FORWARD = 2

@@ -35,7 +35,7 @@ extensions = [
     'sphinx.ext.coverage',
     'sphinx.ext.pngmath',
     'sphinx.ext.inheritance_diagram',
-    'sphinxcontrib.napoleon',
+    'sphinx.ext.napoleon',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
