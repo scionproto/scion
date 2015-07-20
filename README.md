@@ -1,6 +1,8 @@
 SCION
 =====
 
+All PRs to pawel
+
 Python implementation of [SCION](http://www.netsec.ethz.ch/research/SCION), a future Internet architecture.
 
 * [doc](/doc) contains documentation and material to present SCION
