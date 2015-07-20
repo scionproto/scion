@@ -219,9 +219,10 @@ class TestSCIONDnsServerSetup(BaseDNSServer):
         server = SCIONDnsServer("srvid", self.DOMAIN, "topofile")
         server._join_parties = MagicMock(spec_set=[])
         server.id = "srvid"
-        server.topology = MagicMock(spec_set=["isd_id", "ad_id"])
+        server.topology = MagicMock(spec_set=["isd_id", "ad_id", "zookeepers"])
         server.topology.isd_id = 30
         server.topology.ad_id = 10
+        server.topology.zookeepers = ["zk0", "zk1"]
         # Call
         server.setup()
         # Tests
@@ -238,7 +239,7 @@ class TestSCIONDnsServerSetup(BaseDNSServer):
         ntools.eq_(self.mocks.dns_server.call_count, 2)
         self.mocks.zookeeper.assert_called_once_with(
             30, 10, "ds", "srvid\0%d\000127.0.0.1" % SCION_DNS_PORT,
-            ["localhost:2181"])
+            ["zk0", "zk1"])
         ntools.eq_(server._parties, {})
         server._join_parties.assert_called_once_with()
 

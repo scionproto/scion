@@ -263,7 +263,7 @@ class TestTopologyParseDict(object):
         ntools.eq_(topology.peer_edge_routers, [7, routers[2]])
         ntools.eq_(topology.routing_edge_routers, [8, routers[3]])
         ntools.eq_(sorted(topology.zookeepers),
-                   [('zk0.scion', 2181), ('zk1.scion', 2182)])
+                   [('zk0.scion:2181'), ('zk1.scion:2182')])
         ntools.eq_(log_warning.call_count, 1)
 
 
