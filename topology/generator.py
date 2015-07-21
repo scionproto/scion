@@ -182,7 +182,7 @@ class ConfigGenerator(object):
         p = {}
         p['base_dir_tail'] = os.path.join(
             gen_paths['isd_name'], ZOOKEEPER_DIR,
-            "ISD{}-AD{}-ZK{}".format(isd_id, ad_id, zk_id))
+            "ISD{}-AD{}".format(isd_id, ad_id))
         p['base_dir_abs'], p['base_dir_rel'] = abs_rel(p['base_dir_tail'])
         p['data_dir_abs'], p['data_dir_rel'] = abs_rel(p['base_dir_tail'],
                                                        'data.%s' % zk_id)
@@ -467,6 +467,11 @@ class ConfigGenerator(object):
             if not zks:
                 zks = self.default_zookeepers
             for key, zk in zks.items():
+                if not zk.addr:
+                    # If there's no predefined addr, assign one.
+                    zk.addr = self.next_ip_address
+                    self.next_ip_address = \
+                        self.increment_address(self.next_ip_address, mask)
                 topo_dict['Zookeepers'][key] = zk.dict_()
 
             topo_file_abs = self.path_dict(isd_id, ad_id)['topo_file_abs']
@@ -871,8 +876,11 @@ class ConfigGenerator(object):
 
 class ZKTopo(object):
     def __init__(self, config, def_config):
+        self.addr = None
         self.manage = config.get("manage", False)
-        self.addr = config["addr"]
+        if not self.manage:
+            # A ZK we don't manage must have an assigned IP in the topology
+            self.addr = config["addr"]
         self.clientPort = config.get(
             "client_port", int(def_config["clientPort"]))
         self.leaderPort = config.get(
@@ -884,6 +892,7 @@ class ZKTopo(object):
         return {
             "Manage": self.manage,
             "Addr": self.addr,
+            'AddrType': 'IPv4',
             "ClientPort": self.clientPort,
             "LeaderPort": self.leaderPort,
             "ElectionPort": self.electionPort,

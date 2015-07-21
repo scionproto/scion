@@ -29,23 +29,21 @@
         "zookeepers": {
             "1": {
                 "manage": true,
-                "addr": "localhost",
                 "client_port": 4000,
                 "leader_port": 4001,
                 "election_port": 4002
             },
             "2": {
                 "manage": true,
-                "addr": "localhost",
-                "client_port": 2184
+                "client_port": 4003,
+                "leader_port": 4004,
+                "election_port": 4006
             },
             "3": {
                 "manage": true,
-                "addr": "localhost",
-                "client_port": 2184,
-                "client_port": 4003,
-                "leader_port": 4004,
-                "election_port": 4005
+                "client_port": 4007,
+                "leader_port": 4008,
+                "election_port": 4009
             }
         }
     },

@@ -222,10 +222,10 @@ class BeaconServer(SCIONElement):
             # Set when we have connected and read the existing recent and
             # incoming PCBs
             self._state_synced = threading.Event()
-            # TODO(kormat): def zookeeper host/port in topology
             self.zk = Zookeeper(
                 self.topology.isd_id, self.topology.ad_id, "bs", name_addrs,
-                ["localhost:2181"], ensure_paths=(self.ZK_PCB_CACHE_PATH,))
+                self.topology.zookeepers,
+                ensure_paths=(self.ZK_PCB_CACHE_PATH,))
 
     def _get_if_rev_token(self, if_id):
         """

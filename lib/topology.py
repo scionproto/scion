@@ -268,7 +268,7 @@ class Topology(object):
             else:
                 logging.warning("Encountered unknown neighbor type")
         for zk in topology['Zookeepers'].values():
-            self.zookeepers.append((zk['Addr'], zk['ClientPort']))
+            self.zookeepers.append("%s:%s" % (zk['Addr'], zk['ClientPort']))
 
     def get_all_edge_routers(self):
         """
