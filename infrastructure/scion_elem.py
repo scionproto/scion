@@ -195,6 +195,27 @@ class SCIONElement(object):
             else:
                 return (self.ifid2addr[opaque_field.egress_if], SCION_UDP_PORT)
 
+
+    def get_first_hop_from_scion_hdr(self, hdr):
+        """
+        Returns first hop addr of down-path or end-host addr from scion header.
+
+        :param hdr:
+        :type hdr:
+
+        :returns:
+        :rtype:
+        """
+        opaque_field = hdr.path.get_first_hop_of()
+        if opaque_field is None:  # EmptyPath
+            return (hdr.dst_addr.host_addr, SCION_UDP_PORT)
+        else:
+            if hdr.is_on_up_path():
+                return (self.ifid2addr[opaque_field.ingress_if], SCION_UDP_PORT)
+            else:
+                return (self.ifid2addr[opaque_field.egress_if], SCION_UDP_PORT)
+
+
     def send(self, packet, dst, dst_port=SCION_UDP_PORT):
         """
         Send *packet* to *dst* (to port *dst_port*) using the local socket.
