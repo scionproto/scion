@@ -436,25 +436,17 @@ class BeaconServer(SCIONElement):
         Run an instance of the Beacon Server.
         """
         threading.Thread(
-            target=thread_safety_net,
-            args=("handle_pcbs_propagation", self.handle_pcbs_propagation),
-            name="BS PCB propagation",
-            daemon=True).start()
+            target=thread_safety_net, args=(self.handle_pcbs_propagation,),
+            name="BS.handle_pcbs_propagation", daemon=True).start()
         threading.Thread(
-            target=thread_safety_net,
-            args=("register_segments", self.register_segments),
-            name="BS register segments",
-            daemon=True).start()
+            target=thread_safety_net, args=(self.register_segments,),
+            name="BS.register_segments", daemon=True).start()
         threading.Thread(
-            target=thread_safety_net,
-            args=("handle_shared_pcbs", self.handle_shared_pcbs),
-            name="BS shared pcbs",
-            daemon=True).start()
+            target=thread_safety_net, args=(self.handle_shared_pcbs,),
+            name="BS.handle_shared_pcbs", daemon=True).start()
         threading.Thread(
-            target=thread_safety_net,
-            args=("_handle_if_timeouts", self._handle_if_timeouts),
-            name="BS IF timeouts",
-            daemon=True).start()
+            target=thread_safety_net, args=(self._handle_if_timeouts,),
+            name="BS._handle_if_timeouts", daemon=True).start()
         SCIONElement.run(self)
 
     def _try_to_verify_beacon(self, pcb):
