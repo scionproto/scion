@@ -1,15 +1,14 @@
 SCION Docker testing image
 ==========================
 
-This directory, along with the top-level docker.sh script, provide a hermetic
-build and test environment for SCION.
+This directory, along with the top-level docker.sh script and Dockerfile,
+provide a hermetic build and test environment for SCION.
 
-There are docker image is a basic ubuntu environment, with your working tree,
-and all scion dependancies installed, and all SCION setup steps done (i.e.
-`./scion.sh init topology setup`). A full build from scratch will take 5-10mins
-on a fast machine with a decent net connection.  Subsequent rebuilds are Much
-faster; if you haven't changed scion.sh or the dependancy list, a rebuild takes
-<= 15s.
+The docker image is a basic ubuntu environment, with your working tree, and all
+scion dependancies installed, and all SCION setup steps done (i.e. `./scion.sh
+init topology`). A full build from scratch will take 5-10mins on a fast machine
+with a decent net connection. Subsequent rebuilds are Much faster; if you
+haven't changed deps.sh or the dependancy list, a rebuild takes <= 15s.
 
 Before you start, make sure you have Docker installed. On debian-based systems:
 
@@ -34,6 +33,8 @@ Notes:
 ------
  * As `docker.sh` copies your *working tree*, if you're trying to test a commit
    before sending for review/etc, make sure your working directory is clean
-   before building the image.
- * Currently there is no way to view generated output (like code coverage, or
-   sphinx-docs) outside of the image.
+   before building the image. Any new files must be at least added to git,
+   even if you haven't committed them, otherwise docker.sh will skip them.
+ * The code coverage and sphinx-docs outputs are made available outside the
+   container transparently, in the same directories (`htmlcov/` and
+   `sphinx-doc/_build`) as external builds use.
