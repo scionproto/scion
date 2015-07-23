@@ -22,7 +22,7 @@ from collections import defaultdict, deque
 
 # SCION
 from lib.packet.pcb import PathSegment
-from lib.util import SCIONTime
+from lib.util import SCIONTime, load_json_file
 
 
 class PathPolicy(object):
@@ -138,13 +138,7 @@ class PathPolicy(object):
         :returns: the newly created PathPolicy instance
         :rtype: :class: `PathPolicy`
         """
-        try:
-            with open(policy_file) as path_policy_fh:
-                policy_dict = json.load(path_policy_fh)
-        except (ValueError, KeyError, TypeError):
-            logging.error("PathPolicy: JSON format error.")
-            return
-        return cls.from_dict(policy_dict)
+        return cls.from_dict(load_json_file(policy_file))
 
     @classmethod
     def from_dict(cls, policy_dict):

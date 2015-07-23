@@ -19,10 +19,13 @@
 import unittest
 from unittest.mock import patch
 
+# SCION
+from lib.errors import SCIONBaseError
 
-class SCIONTestException(Exception):
+
+class SCIONTestError(SCIONBaseError):
     """
-    SCIONTestException class.
+    SCIONTestError class.
     """
     pass
 

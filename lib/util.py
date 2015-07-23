@@ -18,10 +18,11 @@
 Various utilities for SCION functionality.
 """
 # Stdlib
+import json
 import logging
 import os
-import sys
 import signal
+import sys
 import time
 from functools import wraps
 
@@ -30,6 +31,7 @@ from external.stacktracer import trace_start
 
 # SCION
 from lib.defines import TOPOLOGY_PATH
+from lib.errors import SCIONIOError, SCIONJSONError
 
 CERT_DIR = 'certificates'
 SIG_KEYS_DIR = 'signature_keys'
@@ -143,35 +145,70 @@ def get_enc_key_file_path(isd_id, ad_id, isd_dir=TOPOLOGY_PATH):
 
 def read_file(file_path):
     """
-    Read and return content of a file.
+    Read and return contents of a file.
 
     :param file_path: the path to the file.
     :type file_path: str
 
     :returns: the file content.
     :rtype: str
+    :raises:
+        lib.errors.SCIONIOError: error opening/reading from file.
     """
-    if os.path.exists(file_path):
-        with open(file_path, 'r') as file_handler:
-            text = file_handler.read()
-        return text
-    else:
-        return ''
+    try:
+        with open(file_path) as file_handler:
+            return file_handler.read()
+    except OSError as e:
+        raise SCIONIOError("Unable to open '%s': %s" % (file_path, e.strerror))
 
 
 def write_file(file_path, text):
     """
-    Write some text into a file.
+    Write some text into a file, creating its directory as needed.
 
     :param file_path: the path to the file.
     :type file_path: str
     :param text: the file content.
     :type text: str
+    :raises:
+        lib.errors.SCIONIOError: error creating/writing to file
     """
-    if not os.path.exists(os.path.dirname(file_path)):
-        os.makedirs(os.path.dirname(file_path))
-    with open(file_path, 'w') as file_handler:
-        file_handler.write(text)
+    dir_ = os.path.dirname(file_path)
+    try:
+        os.makedirs(dir_, exist_ok=True)
+    except OSError as e:
+        raise SCIONIOError("Error creating '%s' dir: %s" %
+                           (dir_, e.strerror)) from None
+    try:
+        with open(file_path, 'w') as file_handler:
+            file_handler.write(text)
+    except OSError as e:
+        raise SCIONIOError("Error creating/writing to '%s': %s" %
+                           (file_path, e.strerror)) from None
+
+
+def load_json_file(file_path):
+    """
+    Read and parse a JSON config file.
+
+    :param file_path: the path to the file.
+    :type file_path: str
+
+    :returns: JSON data
+    :rtype: dict
+    :raises:
+        lib.errors.SCIONIOError: error opening/reading from file.
+        lib.errors.SCIONJSONError: error parsing file.
+    """
+    try:
+        with open(file_path) as f:
+            return json.load(f)
+    except OSError as e:
+        raise SCIONIOError("Error opening '%s': %s" %
+                           (file_path, e.strerror)) from None
+    except (ValueError, KeyError, TypeError) as e:
+        raise SCIONJSONError("Error parsing '%s': %s" %
+                             (file_path, e)) from None
 
 
 def update_dict(dictionary, key, values, elem_num=0):
@@ -251,7 +288,6 @@ def handle_signals():
     """
     for sig in _SIG_MAP.keys():
         signal.signal(sig, _signal_handler)
-    pass
 
 
 def _signal_handler(signum, _):
