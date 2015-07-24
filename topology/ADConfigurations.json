@@ -1,5 +1,11 @@
 {
     "default_subnet": "127.0.0.0/8",
+    "default_zookeepers": {
+        "1": {
+            "manage": false,
+            "addr": "localhost"
+        }
+    },
     "1-11": {
         "level": "CORE",
         "beacon_servers": 1,
@@ -19,6 +25,26 @@
             "1-13": "ROUTING",
             "1-15": "CHILD",
             "2-22": "ROUTING"
+        },
+        "zookeepers": {
+            "1": {
+                "manage": true,
+                "client_port": 4000,
+                "leader_port": 4001,
+                "election_port": 4002
+            },
+            "2": {
+                "manage": true,
+                "client_port": 4003,
+                "leader_port": 4004,
+                "election_port": 4006
+            },
+            "3": {
+                "manage": true,
+                "client_port": 4007,
+                "leader_port": 4008,
+                "election_port": 4009
+            }
         }
     },
     "1-13": {

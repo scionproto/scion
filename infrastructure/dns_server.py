@@ -410,7 +410,7 @@ class SCIONDnsServer(SCIONElement):
                                      str(self.addr.host_addr)])
         self.zk = Zookeeper(
             self.topology.isd_id, self.topology.ad_id,
-            "ds", self.name_addrs, ["localhost:2181"])
+            "ds", self.name_addrs, self.topology.zookeepers)
         self._parties = {}
         self._join_parties()
 

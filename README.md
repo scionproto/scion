@@ -24,7 +24,7 @@ Necessary steps in order to run SCION:
 
 	`./scion.sh init`
 
-4. Create the topology and configuration files (according to "topology/ADConfigurations.json"):
+4. Create the topology and configuration files (according to `topology/ADConfigurations.json`):
 
 	`./scion.sh topology`
 
@@ -35,30 +35,20 @@ Necessary steps in order to run SCION:
 			configurations/ISD:X-AD:Y.conf
 			encryption_keys/ISD:X-AD:Y.key
 			path_policies/ISD:X-AD:Y.json
-			setup/ISD:X-AD:Y.sh
 			signature_keys/ISD:X-AD:Y.key
 			supervisor/ISD:X-AD:Y.conf
 			topologies/ISD:X-AD:Y.json
-			ISD:X-V:Z.crt (TRC file)
+			zookeeper/ISDX-ADY/
 
-5. Configure the loopback interface accordingly:
-
- 	`./scion.sh setup`
-
-6. Run the infrastructure:
+5. Run the infrastructure:
 
 	`./scion.sh run`
 
-7. Stop the infrastructure:
+6. Stop the infrastructure:
 
 	`./scion.sh stop`
 
-8. Flush all IP addresses assigned to the loopback interface:
-
-	`./scion.sh clean`
-
-
-Notes about "topology/ADConfigurations.json":
+Notes about `topology/ADConfigurations.json`:
 
 * default_subnet (optional): subnet used if one is not defined at the AD level.
 
@@ -69,7 +59,7 @@ Notes about "topology/ADConfigurations.json":
 * beacon_servers, certificate_servers, path_servers, dns_servers (all optional): number of such servers in a specific AD (override the default value 1).
 
 * links: keys are ISD_ID-AD_ID (format also used for the keys of the JSON file itself) and values can either be PARENT, CHILD, PEER, or ROUTING.
- 
+
 ## Tests
 
 In order to run the unit tests:

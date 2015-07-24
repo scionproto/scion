@@ -221,9 +221,15 @@ class TestTopologyParseDict(object):
         ds = {'i': 'j', 'k': 'l'}
         ps = {'m': 'n', 'o': 'p'}
         er = {'er' + str(i): 'router' + str(i) for i in range(5)}
-        topo_dict = {'Core': 0, 'ISDID': 1, 'ADID': 2, 'DnsDomain': 3,
-                     'BeaconServers': bs, 'CertificateServers': cs,
-                     'DNSServers': ds, 'PathServers': ps, 'EdgeRouters': er}
+        zk = {'zk0': {'Addr': 'zk0.scion', 'ClientPort': 2181},
+              'zk1': {'Addr': 'zk1.scion', 'ClientPort': 2182}}
+        topo_dict = {
+            'Core': 0, 'ISDID': 1, 'ADID': 2,
+            'DnsDomain': 3, 'BeaconServers': bs,
+            'CertificateServers': cs, 'DNSServers': ds,
+            'PathServers': ps, 'EdgeRouters': er,
+            'Zookeepers': zk,
+        }
         server_elem.side_effect = ['bs0', 'bs1', 'cs0', 'cs1', 'ds0', 'ds1',
                                    'ps0', 'ps1']
         routers = [MagicMock(spec_set=['interface']) for i in range(5)]
@@ -256,6 +262,8 @@ class TestTopologyParseDict(object):
         ntools.eq_(topology.child_edge_routers, [6, routers[1]])
         ntools.eq_(topology.peer_edge_routers, [7, routers[2]])
         ntools.eq_(topology.routing_edge_routers, [8, routers[3]])
+        ntools.eq_(sorted(topology.zookeepers),
+                   [('zk0.scion:2181'), ('zk1.scion:2182')])
         ntools.eq_(log_warning.call_count, 1)
 
 

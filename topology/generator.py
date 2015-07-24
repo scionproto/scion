@@ -39,6 +39,7 @@ from lib.crypto.asymcrypto import (
 )
 from lib.crypto.certificate import Certificate, CertificateChain, TRC
 from lib.defines import TOPOLOGY_PATH
+from lib.log import log_exception
 from lib.path_store import PathPolicy
 from lib.topology import Topology
 from lib.util import (
@@ -52,6 +53,8 @@ from lib.util import (
 DEFAULT_ADCONFIGURATIONS_FILE = os.path.join(TOPOLOGY_PATH,
                                              'ADConfigurations.json')
 DEFAULT_PATH_POLICY_FILE = os.path.join(TOPOLOGY_PATH, 'PathPolicy.json')
+DEFAULT_ZK_CONFIG = os.path.join(TOPOLOGY_PATH, "Zookeeper.json")
+DEFAULT_ZK_LOG4J = os.path.join(TOPOLOGY_PATH, "Zookeeper.log4j")
 
 SCRIPTS_DIR = 'topology'
 CERT_DIR = 'certificates'
@@ -63,6 +66,9 @@ PATH_POL_DIR = 'path_policies'
 SUPERVISOR_DIR = 'supervisor'
 SIM_DIR = 'SIM'
 SIM_CONF_FILE = 'sim.conf'
+
+ZOOKEEPER_DIR = 'zookeeper'
+ZOOKEEPER_CFG = "zoo.cfg"
 
 CORE_AD = 'CORE'
 INTERMEDIATE_AD = 'INTERMEDIATE'
@@ -105,6 +111,7 @@ class ConfigGenerator(object):
         self.subnet = subnet
         self.next_ip_address = next_ip_address
         self.is_sim = is_sim
+        self.default_zookeepers = {}
 
     def get_subnet_params(self, ad_config=None):
         """
@@ -166,6 +173,24 @@ class ConfigGenerator(object):
         path_pol_file_abs = os.path.join(self.out_dir, path_pol_path_tail)
         path_pol_file_rel = os.path.join("..", SCRIPTS_DIR, path_pol_path_tail)
         return locals()
+
+    def zk_path_dict(self, isd_id, ad_id, zk_id):
+        def abs_rel(*paths):
+            return os.path.join(self.out_dir, *paths), \
+                os.path.join('..', SCRIPTS_DIR, *paths)
+        gen_paths = self.path_dict(isd_id, ad_id)
+        p = {}
+        p['base_dir_tail'] = os.path.join(
+            gen_paths['isd_name'], ZOOKEEPER_DIR,
+            "ISD{}-AD{}".format(isd_id, ad_id))
+        p['base_dir_abs'], p['base_dir_rel'] = abs_rel(p['base_dir_tail'])
+        p['data_dir_abs'], p['data_dir_rel'] = abs_rel(p['base_dir_tail'],
+                                                       'data.%s' % zk_id)
+        p['cfg_abs'], p['cfg_rel'] = abs_rel(p['base_dir_tail'],
+                                             'zoo.cfg.%s' % zk_id)
+        p['myid_abs'] = os.path.join(p['data_dir_abs'], 'myid')
+        p['log4j_abs'] = os.path.join(p['base_dir_abs'], 'log4j.properties')
+        return p
 
     def increment_address(self, ip_addr, mask, increment=1):
         """
@@ -249,9 +274,7 @@ class ConfigGenerator(object):
             paths = [cert_path, conf_path, topo_path, sig_keys_path,
                      enc_keys_path, path_pol_path, supervisor_path]
             for path in paths:
-                full_path = os.path.join(self.out_dir, path)
-                if not os.path.exists(full_path):
-                    os.makedirs(full_path)
+                os.makedirs(os.path.join(self.out_dir, path), exist_ok=True)
         if self.is_sim:
             sim_path = os.path.join(self.out_dir, 'SIM')
             if not os.path.exists(sim_path):
@@ -366,15 +389,18 @@ class ConfigGenerator(object):
                                                             DEFAULT_DNS_DOMAIN))
             dns_domain = dns_domain.add("isd%s" % isd_id).add("ad%s" % ad_id)
             # Write beginning and general structure
-            topo_dict = {'Core': 1 if is_core else 0,
-                         'ISDID': int(isd_id),
-                         'ADID': int(ad_id),
-                         'DnsDomain': str(dns_domain),
-                         'BeaconServers': {},
-                         'CertificateServers': {},
-                         'PathServers': {},
-                         'DNSServers': {},
-                         'EdgeRouters': {}}
+            topo_dict = {
+                'Core': 1 if is_core else 0,
+                'ISDID': int(isd_id),
+                'ADID': int(ad_id),
+                'DnsDomain': str(dns_domain),
+                'BeaconServers': {},
+                'CertificateServers': {},
+                'PathServers': {},
+                'DNSServers': {},
+                'EdgeRouters': {},
+                'Zookeepers': {},
+            }
 
             # Write Beacon Servers
             for b_server in range(1, number_bs + 1):
@@ -434,6 +460,19 @@ class ConfigGenerator(object):
                                   'ToUdpPort': int(PORT)}
                 }
                 edge_router += 1
+            # Write Zookeepers
+            zks = {}
+            for key, val in ad_configs[isd_ad_id].get("zookeepers", {}).items():
+                zks[key] = ZKTopo(val, self.zk_config["Default"])
+            if not zks:
+                zks = self.default_zookeepers
+            for key, zk in zks.items():
+                if not zk.addr:
+                    # If there's no predefined addr, assign one.
+                    zk.addr = self.next_ip_address
+                    self.next_ip_address = \
+                        self.increment_address(self.next_ip_address, mask)
+                topo_dict['Zookeepers'][key] = zk.dict_()
 
             topo_file_abs = self.path_dict(isd_id, ad_id)['topo_file_abs']
             with open(topo_file_abs, 'w') as topo_fh:
@@ -455,6 +494,43 @@ class ConfigGenerator(object):
         :return:
         """
         self.write_supervisor_config(topo_dict)
+        self.write_zookeeper_config(topo_dict)
+
+    def write_zookeeper_config(self, topo_dict):
+        """
+        Generate the AD Zookeeper configurations.
+
+        :param topo_dict: topology dictionary of a SCION AD.
+        :type topo_dict: dict
+        """
+        isd_id, ad_id = topo_dict['ISDID'], topo_dict['ADID']
+
+        # Build up server block
+        servers = []
+        for zk_id, zk_dict in topo_dict['Zookeepers'].items():
+            servers.append("server.%s=%s:%d:%d" %
+                           (zk_id, zk_dict['Addr'], zk_dict['LeaderPort'],
+                            zk_dict['ElectionPort']))
+        server_block = "\n".join(sorted(servers))
+
+        for zk_id, zk_dict in topo_dict['Zookeepers'].items():
+            if not zk_dict.get("Manage", False):
+                # We don't manage this zookeeper instance, so no need to
+                # write configs for it.
+                continue
+            paths = self.zk_path_dict(isd_id, ad_id, zk_id)
+            for path in "base_dir_abs", "data_dir_abs":
+                os.makedirs(paths[path], exist_ok=True)
+            shutil.copyfile(DEFAULT_ZK_LOG4J, paths['log4j_abs'])
+            with open(paths['cfg_abs'], 'w') as fh:
+                for s in ['tickTime', 'initLimit', 'syncLimit']:
+                    fh.write("%s=%s\n" % (s, self.zk_config["Default"][s]))
+                fh.write("dataDir=%s\n" % paths['data_dir_rel'])
+                fh.write("clientPort=%d\n" % zk_dict["ClientPort"])
+                fh.write("clientPortAddress=%s\n" % zk_dict["Addr"])
+                fh.write("%s\n" % server_block)
+            with open(paths['myid_abs'], 'w') as fh:
+                fh.write("%s\n" % zk_id)
 
     def write_sim_file(self, ad_configs):
         """
@@ -519,7 +595,8 @@ class ConfigGenerator(object):
         :type topo_dict: dict
         """
         element_types = ['BeaconServers', 'CertificateServers',
-                         'PathServers', 'DNSServers', 'EdgeRouters']
+                         'PathServers', 'DNSServers', 'EdgeRouters',
+                         'Zookeepers']
         for element_type in element_types:
             for element_num, element_dict in topo_dict[element_type].items():
                 yield (element_num, element_dict, element_type)
@@ -541,7 +618,7 @@ class ConfigGenerator(object):
         }
 
         program_group = []
-        supervisor_config = configparser.ConfigParser()
+        supervisor_config = configparser.ConfigParser(interpolation=None)
 
         isd_id, ad_id = topo_dict['ISDID'], topo_dict['ADID']
         dns_domain = topo_dict['DnsDomain']
@@ -550,6 +627,7 @@ class ConfigGenerator(object):
         for (num, element_dict, element_type) \
                 in self._get_typed_elements(topo_dict):
             element_location = 'core' if topo_dict['Core'] else 'local'
+            server_config = supervisor_common.copy()
             if element_type == 'BeaconServers':
                 element_name = 'bs{}-{}-{}'.format(isd_id, ad_id, num)
                 cmd_args = ['beacon_server.py',
@@ -558,7 +636,6 @@ class ConfigGenerator(object):
                             p['topo_file_rel'],
                             p['conf_file_rel'],
                             p['path_pol_file_rel']]
-
             elif element_type == 'CertificateServers':
                 element_name = 'cs{}-{}-{}'.format(isd_id, ad_id, num)
                 cmd_args = ['cert_server.py',
@@ -589,15 +666,30 @@ class ConfigGenerator(object):
                             num,
                             p['topo_file_rel'],
                             p['conf_file_rel']]
+            elif element_type == 'Zookeepers':
+                if not element_dict['Manage']:
+                    continue
+                element_name = 'zk{}-{}-{}'.format(isd_id, ad_id, num)
+                zk_paths = self.zk_path_dict(isd_id, ad_id, num)
+                class_path = ":".join([
+                    zk_paths['base_dir_rel'],
+                    self.zk_config["Environment"]["CLASSPATH"],
+                ])
+                server_config['command'] = ' '.join([
+                    '/usr/bin/java',
+                    '-cp', class_path,
+                    self.zk_config["Environment"]["ZOOMAIN"],
+                    zk_paths["cfg_rel"]
+                ])
             else:
                 assert False, 'Invalid element type'
 
-            command_line = '/usr/bin/python3 '
-            command_line += ' '.join(['"{}"'.format(arg) for arg in cmd_args])
-            log_file = '../logs/{}.log'.format(element_name)
-            server_config = supervisor_common.copy()
-            server_config.update({'command': command_line,
-                                  'stdout_logfile': log_file})
+            if 'command' not in server_config:
+                server_config['command'] = ' '.join(
+                    ['/usr/bin/python3'] +
+                    ['"{}"'.format(arg) for arg in cmd_args])
+            server_config['stdout_logfile'] = \
+                '../logs/{}.log'.format(element_name)
 
             supervisor_config['program:' + element_name] = server_config
             program_group.append(element_name)
@@ -736,7 +828,8 @@ class ConfigGenerator(object):
             if os.path.exists(trc_file):
                 os.remove(trc_file)
 
-    def generate_all(self, adconfigurations_file, path_policy_file):
+    def generate_all(self, adconfigurations_file, path_policy_file,
+                     zk_config_file):
         """
         Generate all needed files.
 
@@ -754,11 +847,20 @@ class ConfigGenerator(object):
         try:
             ad_configs = json.loads(open(adconfigurations_file).read())
         except (ValueError, KeyError, TypeError):
-            logging.error(adconfigurations_file + ": JSON format error.")
-            sys.exit()
+            log_exception(adconfigurations_file + ": JSON format error")
+            sys.exit(1)
+        try:
+            self.zk_config = json.loads(open(zk_config_file).read())
+        except (ValueError, KeyError, TypeError):
+            log_exception(zk_config_file + ": JSON format error")
+            sys.exit(1)
 
         if "default_subnet" in ad_configs:
             self.subnet = ad_configs.pop("default_subnet")
+        for key, val in ad_configs.get("default_zookeepers", {}).items():
+            self.default_zookeepers[key] = ZKTopo(val,
+                                                  self.zk_config["Default"])
+        ad_configs.pop("default_zookeepers", None)
         er_ip_addresses = self.set_er_ip_addresses(ad_configs)
         self.delete_directories()
         self.create_directories(ad_configs)
@@ -770,6 +872,31 @@ class ConfigGenerator(object):
             self.write_beginning_sim_run_files()
             self.write_sim_file(ad_configs)
         self.write_trc_files(ad_configs, keys)
+
+
+class ZKTopo(object):
+    def __init__(self, config, def_config):
+        self.addr = None
+        self.manage = config.get("manage", False)
+        if not self.manage:
+            # A ZK we don't manage must have an assigned IP in the topology
+            self.addr = config["addr"]
+        self.clientPort = config.get(
+            "client_port", int(def_config["clientPort"]))
+        self.leaderPort = config.get(
+            "leader_port", int(def_config["leaderPort"]))
+        self.electionPort = config.get(
+            "election_port", int(def_config["electionPort"]))
+
+    def dict_(self):
+        return {
+            "Manage": self.manage,
+            "Addr": self.addr,
+            'AddrType': 'IPv4',
+            "ClientPort": self.clientPort,
+            "LeaderPort": self.leaderPort,
+            "ElectionPort": self.electionPort,
+        }
 
 
 def main():
@@ -789,10 +916,13 @@ def main():
     parser.add_argument('-o', '--output-dir',
                         default=TOPOLOGY_PATH,
                         help='Output directory')
+    parser.add_argument('-z', '--zk-config',
+                        default=DEFAULT_ZK_CONFIG,
+                        help='Zookeeper configuration file')
     args = parser.parse_args()
     generator = ConfigGenerator(os.path.abspath(args.output_dir),
                                 is_sim=args.sim)
-    generator.generate_all(args.ad_config, args.path_policy)
+    generator.generate_all(args.ad_config, args.path_policy, args.zk_config)
 
 
 if __name__ == "__main__":
