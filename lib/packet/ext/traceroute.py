@@ -33,6 +33,8 @@ class TracerouteExt(ExtensionHeader):
     ...
     """
     TYPE = 221  # Extension header type
+    PADDING_LEN = 6
+    HOP_LEN = 8  # Size of every hop information.
 
     def __init__(self, raw=None):
         """
@@ -42,7 +44,7 @@ class TracerouteExt(ExtensionHeader):
         :type raw:
         """
         self.hops = []
-        ExtensionHeader.__init__(self)
+        super().__init__(self)
         if raw is not None:
             # Parse metadata and payload
             self.parse(raw)
@@ -54,12 +56,12 @@ class TracerouteExt(ExtensionHeader):
         Parse payload to extract hop informations.
         """
         # Drop padding from the first row
-        payload = self.payload[6:]
+        payload = self.payload[PADDING_LEN:]
         while payload:
             isd, ad = ISD_AD.from_raw(payload[:ISD_AD.LEN])  # 4 bytes
-            if_id, timestamp = struct.unpack("!HH", payload[ISD_AD.LEN:8])
+            if_id, timestamp = struct.unpack("!HH", payload[ISD_AD.LEN:HOP_LEN])
             self.hops.append((isd, ad, if_id, timestamp))
-            payload = payload[8:]
+            payload = payload[HOP_LEN:]
 
     def append_hop(self, isd, ad, if_id, timestamp):
         """
@@ -77,7 +79,9 @@ class TracerouteExt(ExtensionHeader):
         """
         hops_packed = [b"\x00" * 6]  # Padding.
         for hop in self.hops:
+            # Pack ISD & AD.
             tmp = ISD_AD(hop[0], hop[1]).pack()
+            # Pack if_id and timestamp.
             tmp += struct.pack("!HH", hop[2], hop[3])
             hops_packed.append(tmp)
         self.payload = b"".join(hops_packed)
@@ -89,12 +93,12 @@ class TracerouteExt(ExtensionHeader):
         :returns:
         :rtype:
         """
-        ret_str = "[Traceroute Ext - start]\n"
-        ret_str += "  [next_hdr:%d, len:%d]\n" % (self.next_hdr, len(self))
+        tmp = ["[Traceroute Ext - start]"]
+        tmp.append("  [next_hdr:%d, len:%d]" % (self.next_hdr, len(self)))
         for hops in self.hops:
-            ret_str += "    ISD:%d AD:%d IFID:%d TS:%d\n" % hops
-        ret_str += "[Traceroute Ext - end]"
-        return ret_str
+            tmp.append("    ISD:%d AD:%d IFID:%d TS:%d" % hops)
+        tmp.append("[Traceroute Ext - end]")
+        return "\n".join(tmp) 
 
 
 def traceroute_ext_handler(**kwargs):

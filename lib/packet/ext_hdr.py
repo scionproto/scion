@@ -16,11 +16,21 @@
 ===========================================
 """
 # Stdlib
+import binascii
 import logging
 import struct
 
 # SCION
 from lib.packet.packet_base import HeaderBase
+
+
+class ExtensionType(object):
+    """
+    Constants for two types of extensions. These values are shared with L4
+    protocol values, and an appropriate value is placed in next_hdr type.
+    """
+    HOP_BY_HOP = 0
+    END2END = 222
 
 
 class ExtensionHeader(HeaderBase):
@@ -40,6 +50,8 @@ class ExtensionHeader(HeaderBase):
     """
     MIN_LEN = 8
     TYPE = 200  # Type for a plain extension.
+    SUBHDR_LEN = 2 # FIXME(PSz): resize to 3
+    MIN_PAYLOAD_LEN = self.MIN_LEN - self.SUBHDR_LEN
 
     def __init__(self, raw=None):
         """
@@ -51,13 +63,13 @@ class ExtensionHeader(HeaderBase):
                          bytes is calculated as (next_hdr + 1) * 8.
         :type _hdr_len: int
         :param next_hdr: indication of a next extension header. Must be set
-                          by SCIONHeader's pack().
+                         by SCIONHeader's pack().
         :type next_hdr: int
         """
         HeaderBase.__init__(self)
         self.next_hdr = 0
         self._hdr_len = 0
-        self.payload = b"\x00" * 6
+        self.payload = b"\x00" * MIN_PAYLOAD_LEN 
         if raw is not None:
             self.parse(raw)
 
@@ -74,27 +86,20 @@ class ExtensionHeader(HeaderBase):
             logging.warning("Data too short to parse extension hdr: "
                             "data len %u", dlen)
             return
-        self.next_hdr, self._hdr_len = struct.unpack("!BB", raw[:2])
+        self.next_hdr, self._hdr_len = struct.unpack("!BB",
+                                                     raw[:self.SUBHDR_LEN])
         assert dlen == len(self)
-        self.set_payload(raw[2:])
+        self.set_payload(raw[self.SUBHDR_LEN:])
         self.parsed = True
 
     def set_payload(self, payload):
         """
-        Set payload, pad to 8 bytes if necessary, and update _hdr_len.
+        Set payload and update _hdr_len.
         """
         payload_len = len(payload)
-        if payload_len < 6:  # FIXME(PSz): Should we (or ext developer) pad it?
-            logging.warning("Extension is unpadded, adding padding.")
-            payload += b"\x00" * (6 - payload_len)
-            payload_len = 6
-        payload_len -= 6  # After -6 it should be a multiplication of 8.
-        to_pad = payload_len % self.MIN_LEN
-        if to_pad:  # FIXME(PSz): Should we (or ext developer) pad it?
-            logging.warning("Extension is unpadded, adding padding.")
-            payload += b"\x00" * (self.MIN_LEN - to_pad)
-            payload_len += self.MIN_LEN - to_pad
-        self._hdr_len = payload_len // self.MIN_LEN
+        # Length of extension must be padded to 8B.
+        assert not (payload_len + self.SUBHDR_LEN) % self.MIN_LEN
+        self._hdr_len = payload_len + self.SUBHDR_LEN // self.MIN_LEN
         self.payload = payload
 
     def pack(self):
@@ -113,6 +118,7 @@ class ExtensionHeader(HeaderBase):
         """
 
         """
+        payload_hex = binascii.hexlify(self.payload)
         return "[EH next hdr: %u, len: %u, payload: %s]" % (self.next_hdr,
                                                             len(self),
-                                                            self.payload)
+                                                            payload_hex)

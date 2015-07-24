@@ -1,4 +1,4 @@
-# Copyright 2014 ETH Zurich
+# Copyright 2015 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 # limitations under the License.
 """
 :mod:`cli_srv_ext_test` --- SCION client-server test with an extension
-===========================================
+======================================================================
 """
 # Stdlib
 import logging

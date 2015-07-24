@@ -39,4 +39,4 @@ SCION_UDP_EH_DATA_PORT = 30041
 SCION_DNS_PORT = 30053
 
 #: (Pseudo)supported layer-4 protocols, see /etc/protocols for details
-L4_PROTO = [0, 1, 6, 17]
+L4_PROTO = [1, 6, 17]

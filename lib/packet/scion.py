@@ -42,7 +42,7 @@ from lib.packet.scion_addr import ISD_AD, SCIONAddr
 # Dictionary of supported extensions (i.e., parsed by SCIONHeader)
 EXTENSIONS = {
     ExtensionHeader.TYPE: ExtensionHeader,
-    TracerouteExt.TYPE: TracerouteExt
+    TracerouteExt.TYPE: TracerouteExt,
 }
 
 
@@ -190,13 +190,13 @@ class SCIONHeader(HeaderBase):
         self.dst_addr = None
         self._path = None
         self._extension_hdrs = []
-        self.l4_proto = 0
+        self.l4_proto = 1
 
         if raw is not None:
             self.parse(raw)
 
     @classmethod
-    def from_values(cls, src, dst, path=None, ext_hdrs=None, l4_proto=0):
+    def from_values(cls, src, dst, path=None, ext_hdrs=None, l4_proto=1):
         """
         Returns a SCIONHeader with the values specified.
         """

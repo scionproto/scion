@@ -27,12 +27,13 @@ import time
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.symcrypto import get_roundkey_cache, verify_of_mac
 from lib.defines import (
+    EXP_TIME_UNIT,
+    L4_PROTO,
     SCION_UDP_PORT,
     SCION_UDP_EH_DATA_PORT,
-    EXP_TIME_UNIT,
-    L4_PROTO
 )
 from lib.log import init_logging, log_exception
+from lib.packet.ext.traceroute import TracerouteExt, traceroute_ext_handler
 from lib.packet.opaque_field import OpaqueField, OpaqueFieldType as OFT
 from lib.packet.pcb import PathConstructionBeacon
 from lib.packet.scion import (
@@ -559,12 +560,11 @@ def main():
         logging.error("run: %s router_id topo_file conf_file", sys.argv[0])
         sys.exit()
 
+    # Run router without extensions handling:
     # router = Router(*sys.argv[1:])
-    # Run router with an extension handler
-    from lib.packet.ext.traceroute import TracerouteExt, traceroute_ext_handler
+    # Run router with an extension handler:
     pre_handlers = {TracerouteExt.TYPE: traceroute_ext_handler}
     router = Router(*sys.argv[1:], pre_ext_handlers=pre_handlers)
-    #
     logging.info("Started: %s", datetime.datetime.now())
     router.run()
 
