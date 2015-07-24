@@ -30,14 +30,12 @@ class ExtensionType(object):
     protocol values, and an appropriate value is placed in next_hdr type.
     """
     HOP_BY_HOP = 0
-    END2END = 222
+    END_TO_END = 222
 
 
 class ExtensionHeader(HeaderBase):
     """
-    Base class for extension headers.
-    For each extension header there should be a subclass of this class (e.g
-    StrideExtensionHeader).
+    Abstract base class for extension headers.
 
     :cvar MIN_LEN:
     :type MIN_LEN: int
@@ -49,9 +47,10 @@ class ExtensionHeader(HeaderBase):
     :type parsed:
     """
     MIN_LEN = 8
-    TYPE = 200  # Type for a plain extension.
-    SUBHDR_LEN = 2 # FIXME(PSz): resize to 3
-    MIN_PAYLOAD_LEN = self.MIN_LEN - self.SUBHDR_LEN
+    EXT_TYPE = None  # Type of extension (hop-by-hop or end-to-end).
+    EXT_NO = None  # Number of extension.
+    SUBHDR_LEN = 3 # FIXME(PSz): resize to 3
+    MIN_PAYLOAD_LEN = MIN_LEN - SUBHDR_LEN
 
     def __init__(self, raw=None):
         """
@@ -67,9 +66,9 @@ class ExtensionHeader(HeaderBase):
         :type next_hdr: int
         """
         HeaderBase.__init__(self)
-        self.next_hdr = 0
+        self.next_hdr = 0 
         self._hdr_len = 0
-        self.payload = b"\x00" * MIN_PAYLOAD_LEN 
+        self.payload = b"\x00" * self.MIN_PAYLOAD_LEN
         if raw is not None:
             self.parse(raw)
 
@@ -86,8 +85,9 @@ class ExtensionHeader(HeaderBase):
             logging.warning("Data too short to parse extension hdr: "
                             "data len %u", dlen)
             return
-        self.next_hdr, self._hdr_len = struct.unpack("!BB",
-                                                     raw[:self.SUBHDR_LEN])
+        self.next_hdr, self._hdr_len, ext_no = struct.unpack("!BBB",
+            raw[:self.SUBHDR_LEN])
+        assert ext_no == self.EXT_NO
         assert dlen == len(self)
         self.set_payload(raw[self.SUBHDR_LEN:])
         self.parsed = True
@@ -106,7 +106,12 @@ class ExtensionHeader(HeaderBase):
         """
 
         """
-        return struct.pack("!BB", self.next_hdr, self._hdr_len) + self.payload
+        # Length of extension must be padded to 8B.
+        assert not (len(self.payload) + self.SUBHDR_LEN) % self.MIN_LEN
+        # next_hdr must be set for packing.
+        assert self.next_hdr is not None
+        return (struct.pack("!BBB", self.next_hdr, self._hdr_len, self.EXT_NO) +
+                self.payload)
 
     def __len__(self):
         """
@@ -122,3 +127,17 @@ class ExtensionHeader(HeaderBase):
         return "[EH next hdr: %u, len: %u, payload: %s]" % (self.next_hdr,
                                                             len(self),
                                                             payload_hex)
+
+
+class HopByHopExtension(ExtensionHeader):
+    """
+    Base class for hop-by-hop extensions.
+    """
+    EXT_TYPE = ExtensionType.HOP_BY_HOP
+
+
+class EndToEndExtension(ExtensionHeader):
+    """
+    Base class for end-to-end extensions.
+    """
+    EXT_TYPE = ExtensionType.END_TO_END

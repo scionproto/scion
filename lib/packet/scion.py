@@ -22,7 +22,7 @@ from ipaddress import IPv4Address
 
 # SCION
 from lib.defines import L4_PROTO
-from lib.packet.ext_hdr import ExtensionHeader
+from lib.packet.ext_hdr import ExtensionType
 from lib.packet.ext.traceroute import TracerouteExt
 from lib.packet.opaque_field import (
     InfoOpaqueField,
@@ -41,8 +41,7 @@ from lib.packet.scion_addr import ISD_AD, SCIONAddr
 
 # Dictionary of supported extensions (i.e., parsed by SCIONHeader)
 EXTENSIONS = {
-    ExtensionHeader.TYPE: ExtensionHeader,
-    TracerouteExt.TYPE: TracerouteExt,
+    (ExtensionType.HOP_BY_HOP, TracerouteExt.EXT_NO): TracerouteExt,
 }
 
 
@@ -357,18 +356,19 @@ class SCIONHeader(HeaderBase):
         """
         cur_hdr_type = self.common_hdr.next_hdr
         while cur_hdr_type not in L4_PROTO:
-            (next_hdr_type, hdr_len) = \
-                struct.unpack("!BB", raw[offset:offset + 2])
+            (next_hdr_type, hdr_len, ext_no) = \
+                struct.unpack("!BBB", raw[offset:offset + 3])
             # Calculate correct hdr_len in bytes
             hdr_len = (hdr_len + 1) * ExtensionHeader.MIN_LEN
-            logging.info("Found extension hdr of type %u with len %u",
-                         cur_hdr_type, hdr_len)
+            logging.info("Found extension hdr of type (%u, %u) with len %u",
+                         cur_hdr_type, ext_no, hdr_len)
             if cur_hdr_type in EXTENSIONS:
-                self.append_ext_hdr(
-                    EXTENSIONS[cur_hdr_type](raw[offset:offset + hdr_len]))
+                constructor = EXTENSIONS[(cur_hdr_type, ext_no)]
+                self.append_ext_hdr(constructor(raw[offset:offset + hdr_len]))
             else:
                 # TODO(PSz): fail here?
-                logging.warning("Extension %u unsupported." % cur_hdr_type)
+                logging.warning("Extension (%u, %u) unsupported." %
+                                (cur_hdr_type, ext_no))
             cur_hdr_type = next_hdr_type
             offset += hdr_len
         self.l4_proto = cur_hdr_type

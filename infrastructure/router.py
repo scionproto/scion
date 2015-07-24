@@ -33,6 +33,7 @@ from lib.defines import (
     SCION_UDP_EH_DATA_PORT,
 )
 from lib.log import init_logging, log_exception
+from lib.packet.ext_hdr import ExtensionType
 from lib.packet.ext.traceroute import TracerouteExt, traceroute_ext_handler
 from lib.packet.opaque_field import OpaqueField, OpaqueFieldType as OFT
 from lib.packet.pcb import PathConstructionBeacon
@@ -47,6 +48,7 @@ from lib.thread import thread_safety_net
 from lib.util import handle_signals, SCIONTime
 
 IFID_PKT_TOUT = 1  # How often IFID packet is sent to neighboring router.
+MAX_EXT = 4  # Maximum number of hop-by-hop extensions processed by router.
 
 
 class NextHop(object):
@@ -201,16 +203,22 @@ class Router(SCIONElement):
             handlers = self.pre_ext_handlers
         else:
             handlers = self.post_ext_handlers
-        ext_nr = spkt.hdr.common_hdr.next_hdr
-        for ext_hdr in spkt.hdr.extension_hdrs:
+        ext_type = spkt.hdr.common_hdr.next_hdr
+        c = 0
+        # Hop-by-hop extensions must be first (just after path), and process
+        # only MAX_EXT number of them.
+        while ext_type == ExtensionType.HOP_BY_HOP and c < MAX_EXT:
+            ext_hdr = spkt.hdr.extension_hdrs[c]
+            ext_nr = ext_hdr.EXT_NO
             if ext_nr in handlers:
                 handlers[ext_nr](spkt=spkt, next_hop=next_hop, ext=ext_hdr,
                                  conf=self.config, topo=self.topology,
                                  iface=self.interface)
             else:
                 logging.debug("No handler for extension type %u", ext_nr)
-            ext_nr = ext_hdr.next_hdr
-        if ext_nr not in L4_PROTO:
+            ext_type = ext_hdr.next_hdr
+            c += 1
+        if c < MAX_EXT and ext_type not in L4_PROTO:
             logging.warning("Extensions terminated incorrectly.")
 
     def sync_interface(self):
@@ -563,7 +571,7 @@ def main():
     # Run router without extensions handling:
     # router = Router(*sys.argv[1:])
     # Run router with an extension handler:
-    pre_handlers = {TracerouteExt.TYPE: traceroute_ext_handler}
+    pre_handlers = {TracerouteExt.EXT_NO: traceroute_ext_handler}
     router = Router(*sys.argv[1:], pre_ext_handlers=pre_handlers)
     logging.info("Started: %s", datetime.datetime.now())
     router.run()

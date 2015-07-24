@@ -26,7 +26,6 @@ from ipaddress import IPv4Address
 from endhost.sciond import SCIONDaemon
 from lib.defines import SCION_BUFLEN, SCION_UDP_EH_DATA_PORT
 from lib.packet.ext.traceroute import TracerouteExt
-from lib.packet.ext_hdr import ExtensionHeader
 from lib.packet.scion import SCIONPacket
 from lib.packet.scion_addr import SCIONAddr
 
@@ -57,16 +56,10 @@ def client():
     dst = SCIONAddr.from_values(SRV_ISD, SRV_AD, IPv4Address(SRV_IP))
     # Set payload
     payload = b"request to server"
-    # Create plain extension with payload b"test"
-    e1 = ExtensionHeader()
-    e1.set_payload(b'test')
     # Create empty Traceroute extensions
-    e2 = TracerouteExt()
-    # Create another plain extension
-    e3 = ExtensionHeader()
+    ext = TracerouteExt()
     # Create a SCION packet with the extensions
-    spkt = SCIONPacket.from_values(sd.addr, dst, payload, path,
-                                   ext_hdrs=[e1, e2, e3])
+    spkt = SCIONPacket.from_values(sd.addr, dst, payload, path, ext_hdrs=[ext])
     # Determine first hop (i.e., local address of border router)
     (next_hop, port) = sd.get_first_hop(spkt)
     print("CLI: Sending packet: %s\nFirst hop: %s:%s" % (spkt, next_hop, port))

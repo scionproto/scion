@@ -20,19 +20,19 @@ import struct
 import time
 
 # SCION
-from lib.packet.ext_hdr import ExtensionHeader
+from lib.packet.ext_hdr import HopByHopExtension
 from lib.packet.scion_addr import ISD_AD
 
 
-class TracerouteExt(ExtensionHeader):
+class TracerouteExt(HopByHopExtension):
     """
-    0          8         16           32            48               64
-    | next hdr | hdr len |               (padding)                   |
+    0          8         16     24    32            48               64
+    | next hdr | hdr len | 0x00 |               (padding)            |
     |    ISD_0      |      AD_0       |    IFID_0   |   Timestamp_0  |
     |    ISD_1      |      AD_1       |    IFID_1   |   Timestamp_1  |
     ...
     """
-    TYPE = 221  # Extension header type
+    EXT_NO = 0
     PADDING_LEN = 6
     HOP_LEN = 8  # Size of every hop information.
 
@@ -44,7 +44,7 @@ class TracerouteExt(ExtensionHeader):
         :type raw:
         """
         self.hops = []
-        super().__init__(self)
+        HopByHopExtension.__init__(self)
         if raw is not None:
             # Parse metadata and payload
             self.parse(raw)
@@ -56,7 +56,7 @@ class TracerouteExt(ExtensionHeader):
         Parse payload to extract hop informations.
         """
         # Drop padding from the first row
-        payload = self.payload[PADDING_LEN:]
+        payload = self.payload[self.PADDING_LEN:]
         while payload:
             isd, ad = ISD_AD.from_raw(payload[:ISD_AD.LEN])  # 4 bytes
             if_id, timestamp = struct.unpack("!HH", payload[ISD_AD.LEN:HOP_LEN])
@@ -77,7 +77,7 @@ class TracerouteExt(ExtensionHeader):
         :returns:
         :rtype:
         """
-        hops_packed = [b"\x00" * 6]  # Padding.
+        hops_packed = [b"\x00" * self.PADDING_LEN]  # Padding.
         for hop in self.hops:
             # Pack ISD & AD.
             tmp = ISD_AD(hop[0], hop[1]).pack()
@@ -85,7 +85,7 @@ class TracerouteExt(ExtensionHeader):
             tmp += struct.pack("!HH", hop[2], hop[3])
             hops_packed.append(tmp)
         self.payload = b"".join(hops_packed)
-        return ExtensionHeader.pack(self)
+        return HopByHopExtension.pack(self)
 
     def __str__(self):
         """
