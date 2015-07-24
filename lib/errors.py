@@ -41,8 +41,29 @@ class SCIONIOError(SCIONBaseError):
     pass
 
 
+class SCIONIndexError(SCIONBaseError):
+    """
+    Index error (accessing out of bound index on array)
+    """
+    pass
+
+
 class SCIONJSONError(SCIONBaseError):
     """
     JSON parsing error.
+    """
+    pass
+
+
+class SCIONParseError(SCIONBaseError):
+    """
+    Parsing error.
+    """
+    pass
+
+
+class SCIONTypeError(SCIONBaseError):
+    """
+    Wrong type.
     """
     pass

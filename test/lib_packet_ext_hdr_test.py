@@ -16,7 +16,7 @@
 ================================================================
 """
 # Stdlib
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 # External packages
 import nose
@@ -72,25 +72,23 @@ class TestExtensionHeaderParse(object):
     Unit tests for lib.packet.ext_hdr.ExtensionHeader.parse
     """
 
-    def test_basic(self):
+    @patch("lib.packet.ext_hdr.Raw", autospec=True)
+    def test_basic(self, raw):
         """
 
         """
+        # Setup
         ext_hdr = ExtensionHeader()
-        ext_hdr.parse(bytes([14, 42]))
+        data = bytes([14, 42])
+        raw.return_value = MagicMock(spec_set=["pop"])
+        raw.return_value.pop.return_value = data
+        # Call
+        ext_hdr.parse(data)
+        # Tests
+        raw.assert_called_once_with(data, "ExtensionHeader", ext_hdr.MIN_LEN)
         ntools.eq_(ext_hdr.next_ext, 14)
         ntools.eq_(ext_hdr.hdr_len, 42)
         ntools.assert_true(ext_hdr.parsed)
-
-    def test_len(self):
-        """
-
-        """
-        ext_hdr = ExtensionHeader()
-        ext_hdr.parse(bytes([14]))
-        ntools.assert_false(ext_hdr.parsed)
-        ntools.eq_(ext_hdr.next_ext, 0)
-        ntools.eq_(ext_hdr.hdr_len, 0)
 
 
 class TestICNExtHdrInit(object):
@@ -117,6 +115,31 @@ class TestICNExtHdrInit(object):
         parse.assert_called_once_with(iext_hdr, "data")
 
 
+class TestICNExtHdrParse(object):
+    """
+    Unit tests for lib.packet.ext_hdr.ICNExtHdr.parse
+    """
+    @patch("lib.packet.ext_hdr.Raw", autospec=True)
+    def test_basic(self, raw):
+        """
+
+        """
+        # Setup
+        iext_hdr = ICNExtHdr()
+        data = bytes([14, 42, 10, 0, 0, 0, 0, 0])
+        raw.return_value = MagicMock(spec_set=["pop"])
+        raw.return_value.pop.return_value = data
+        # Call
+        iext_hdr.parse(data)
+        # Tests
+        raw.assert_called_once_with(data, "ICNExtHdr",
+                                    iext_hdr.MIN_LEN, min_=True)
+        ntools.eq_(iext_hdr.next_ext, 14)
+        ntools.eq_(iext_hdr.hdr_len, 42)
+        ntools.eq_(iext_hdr.fwd_flag, 10)
+        ntools.assert_true(iext_hdr.parsed)
+
+
 class TestICNExtHdrPack(object):
     """
     Unit tests for lib.packet.ext_hdr.ICNExtHdr.pack
@@ -132,33 +155,6 @@ class TestICNExtHdrPack(object):
         iext_hdr.fwd_flag = 10
         ntools.eq_(iext_hdr.pack(), bytes([14, 42, 10, 0, 0, 0, 0, 0]))
 
-
-class TestICNExtHdrParse(object):
-    """
-    Unit tests for lib.packet.ext_hdr.ICNExtHdr.parse
-    """
-
-    def test_basic(self):
-        """
-
-        """
-        iext_hdr = ICNExtHdr()
-        iext_hdr.parse(bytes([14, 42, 10, 0, 0, 0, 0, 0]))
-        ntools.eq_(iext_hdr.next_ext, 14)
-        ntools.eq_(iext_hdr.hdr_len, 42)
-        ntools.eq_(iext_hdr.fwd_flag, 10)
-        ntools.assert_true(iext_hdr.parsed)
-
-    def test_len(self):
-        """
-
-        """
-        iext_hdr = ICNExtHdr()
-        iext_hdr.parse(bytes([14, 42, 10, 0, 0, 0, 0]))
-        ntools.assert_false(iext_hdr.parsed)
-        ntools.eq_(iext_hdr.next_ext, 0)
-        ntools.eq_(iext_hdr.hdr_len, 0)
-        ntools.eq_(iext_hdr.fwd_flag, 0)
 
 if __name__ == "__main__":
     nose.run(defaultTest=__name__)
