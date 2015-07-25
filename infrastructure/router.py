@@ -22,6 +22,7 @@ import socket
 import sys
 import threading
 import time
+import argparse
 
 # SCION
 from infrastructure.scion_elem import SCIONElement
@@ -550,11 +551,13 @@ def main():
     """
     init_logging()
     handle_signals()
-    if len(sys.argv) != 4:
-        logging.error("run: %s router_id topo_file conf_file", sys.argv[0])
-        sys.exit()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('router_id', help='Router identifier')
+    parser.add_argument('topo_file', help='Topology file')
+    parser.add_argument('conf_file', help='AD configuration file')
+    args = parser.parse_args()
 
-    router = Router(*sys.argv[1:])
+    router = Router(args.router_id, args.topo_file, args.conf_file)
 
     logging.info("Started: %s", datetime.datetime.now())
     router.run()

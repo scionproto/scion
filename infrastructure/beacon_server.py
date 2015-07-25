@@ -24,6 +24,7 @@ import os
 import sys
 import threading
 import time
+import argparse
 from _collections import defaultdict, deque
 
 # External packages
@@ -1358,16 +1359,22 @@ def main():
     """
     init_logging()
     handle_signals()
-    if len(sys.argv) != 6:
-        logging.error("run: %s <core|local> server_id topo_file "
-                      "conf_file path_policy_file",
-                      sys.argv[0])
-        sys.exit()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('type', choices=['core', 'local'],
+                        help='Core or local path server')
+    parser.add_argument('server_id', help='Server identifier')
+    parser.add_argument('topo_file', help='Topology file')
+    parser.add_argument('conf_file', help='AD configuration file')
+    parser.add_argument('path_policy_file', help='AD path policy file')
+    args = parser.parse_args()
 
-    if sys.argv[1] == "core":
-        beacon_server = CoreBeaconServer(*sys.argv[2:])
-    elif sys.argv[1] == "local":
-        beacon_server = LocalBeaconServer(*sys.argv[2:])
+    if args.type == "core":
+        beacon_server = CoreBeaconServer(args.server_id, args.topo_file,
+                                         args.conf_file, args.path_policy_file)
+    elif args.type == "local":
+        beacon_server = LocalBeaconServer(args.server_id, args.topo_file,
+                                          args.conf_file,
+                                          args.path_policy_file)
     else:
         logging.error("First parameter can only be 'local' or 'core'!")
         sys.exit()
