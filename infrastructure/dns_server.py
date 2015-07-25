@@ -27,6 +27,7 @@ import logging
 import os
 import sys
 import threading
+import argparse
 from time import sleep
 
 # External packages
@@ -503,11 +504,13 @@ def main():
     """
     init_logging()
     handle_signals()
-    if len(sys.argv) != 4:
-        logging.error("run: %s server_id domain topo_file", sys.argv[0])
-        sys.exit()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('server', help='Server identifier')
+    parser.add_argument('domain', help='Domain')
+    parser.add_argument('topology', help='Topology file')
+    args = parser.parse_args()
 
-    scion_dns_server = SCIONDnsServer(*sys.argv[1:])
+    scion_dns_server = SCIONDnsServer(args.server, args.domain, args.topology)
     scion_dns_server.setup()
     trace(scion_dns_server.id)
 
