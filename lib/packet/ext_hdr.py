@@ -67,7 +67,7 @@ class ExtensionHeader(HeaderBase):
         :type next_hdr: int
         """
         HeaderBase.__init__(self)
-        self.next_hdr = 0 
+        self.next_hdr = 0
         self._hdr_len = 0
         self.payload = b"\x00" * self.MIN_PAYLOAD_LEN
         if raw is not None:
