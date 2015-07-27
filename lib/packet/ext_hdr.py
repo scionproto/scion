@@ -46,7 +46,8 @@ class ExtensionHeader(HeaderBase):
     :ivar parsed:
     :type parsed:
     """
-    MIN_LEN = 8
+    LINE_LEN = 8  # Length of extension must be multiplication of LINE_LEN.
+    MIN_LEN = LINE_LEN
     EXT_TYPE = None  # Type of extension (hop-by-hop or end-to-end).
     EXT_NO = None  # Number of extension.
     SUBHDR_LEN = 3
@@ -98,8 +99,8 @@ class ExtensionHeader(HeaderBase):
         """
         payload_len = len(payload)
         # Length of extension must be padded to 8B.
-        assert not (payload_len + self.SUBHDR_LEN) % self.MIN_LEN
-        self._hdr_len = (payload_len + self.SUBHDR_LEN) // self.MIN_LEN - 1
+        assert not (payload_len + self.SUBHDR_LEN) % self.LINE_LEN
+        self._hdr_len = (payload_len + self.SUBHDR_LEN) // self.LINE_LEN - 1
         self.payload = payload
 
     def pack(self):
@@ -107,7 +108,7 @@ class ExtensionHeader(HeaderBase):
 
         """
         # Length of extension must be padded to 8B.
-        assert not (len(self.payload) + self.SUBHDR_LEN) % self.MIN_LEN
+        assert not (len(self.payload) + self.SUBHDR_LEN) % self.LINE_LEN
         # next_hdr must be set for packing.
         assert self.next_hdr is not None
         return (struct.pack("!BBB", self.next_hdr, self._hdr_len, self.EXT_NO) +
@@ -117,7 +118,7 @@ class ExtensionHeader(HeaderBase):
         """
         Return length of extenion header in bytes.
         """
-        return (self._hdr_len + 1) * self.MIN_LEN
+        return (self._hdr_len + 1) * self.LINE_LEN
 
     def __str__(self):
         """
