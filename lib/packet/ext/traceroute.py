@@ -95,7 +95,9 @@ class TracerouteExt(HopByHopExtension):
         :rtype:
         """
         tmp = ["[Traceroute Ext - start]"]
-        tmp.append("  [next_hdr:%d, len:%d]" % (self.next_hdr, len(self)))
+        tmp.append("  [next_hdr:%d, ext_no:%d, len:%d]" % (self.next_hdr,
+                                                           self.EXT_NO,
+                                                           len(self)))
         for hops in self.hops:
             tmp.append("    ISD:%d AD:%d IFID:%d TS:%d" % hops)
         tmp.append("[Traceroute Ext - end]")

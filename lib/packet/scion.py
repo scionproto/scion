@@ -22,7 +22,7 @@ from ipaddress import IPv4Address
 
 # SCION
 from lib.defines import L4_PROTO
-from lib.packet.ext_hdr import ExtensionType
+from lib.packet.ext_hdr import ExtensionType, ExtensionHeader
 from lib.packet.ext.traceroute import TracerouteExt
 from lib.packet.opaque_field import (
     InfoOpaqueField,
@@ -202,22 +202,35 @@ class SCIONHeader(HeaderBase):
         assert isinstance(src, SCIONAddr)
         assert isinstance(dst, SCIONAddr)
         assert path is None or isinstance(path, PathBase)
-        if ext_hdrs is None:
-            ext_hdrs = []
-        if ext_hdrs:
-            next_hdr = ext_hdrs[0].TYPE
-        else:
-            next_hdr = l4_proto
         hdr = SCIONHeader()
         hdr.common_hdr = SCIONCommonHdr.from_values(src.addr_len, dst.addr_len,
-                                                    next_hdr)
+                                                    l4_proto)
         hdr.src_addr = src
         hdr.dst_addr = dst
         hdr.l4_proto = l4_proto
         hdr.path = path
+        if ext_hdrs is None:
+            ext_hdrs = []
         hdr.extension_hdrs = ext_hdrs
+        hdr.set_next_hdrs()
 
         return hdr
+
+    def set_next_hdrs(self):
+        """
+        Set correct next_hdr fields.
+        """
+        # Set the first and the last next_hdr.
+        if self.extension_hdrs:
+            self.common_hdr.next_hdr = self.extension_hdrs[0].EXT_TYPE
+            self.extension_hdrs[-1].next_hdr = self.l4_proto
+        else:
+            self.common_hdr.next_hdr = self.l4_proto
+        # Set next_hdr fields according to the extension chain
+        l = 0
+        while l < len(self.extension_hdrs) - 1:
+            self.extension_hdrs[l].next_hdr = self.extension_hdrs[l+1].EXT_TYPE
+            l += 1
 
     @property
     def path(self):
@@ -359,10 +372,10 @@ class SCIONHeader(HeaderBase):
             (next_hdr_type, hdr_len, ext_no) = \
                 struct.unpack("!BBB", raw[offset:offset + 3])
             # Calculate correct hdr_len in bytes
-            hdr_len = (hdr_len + 1) * ExtensionHeader.MIN_LEN
+            hdr_len = (hdr_len + 1) * ExtensionHeader.LINE_LEN
             logging.info("Found extension hdr of type (%u, %u) with len %u",
                          cur_hdr_type, ext_no, hdr_len)
-            if cur_hdr_type in EXTENSIONS:
+            if (cur_hdr_type, ext_no) in EXTENSIONS:
                 constructor = EXTENSIONS[(cur_hdr_type, ext_no)]
                 self.append_ext_hdr(constructor(raw[offset:offset + hdr_len]))
             else:
@@ -378,23 +391,12 @@ class SCIONHeader(HeaderBase):
         """
         Packs the header and returns a byte array.
         """
-        # Set the first and the last next_hdr.
-        if self.extension_hdrs:
-            self.common_hdr.next_hdr = self.extension_hdrs[0].TYPE
-            self.extension_hdrs[-1].next_hdr = self.l4_proto
-        else:
-            self.common_hdr.next_hdr = self.l4_proto
         data = []
         data.append(self.common_hdr.pack())
         data.append(self.src_addr.pack())
         data.append(self.dst_addr.pack())
         if self.path is not None:
             data.append(self.path.pack())
-        # Set next_hdr fields according to the extension chain
-        l = 0
-        while l < len(self.extension_hdrs) - 1:
-            self.extension_hdrs[l].next_hdr = self.extension_hdrs[l+1].TYPE
-            l += 1
         # Pack extensions
         for ext_hdr in self.extension_hdrs:
             data.append(ext_hdr.pack())
@@ -532,7 +534,7 @@ class SCIONPacket(PacketBase):
 
     @classmethod
     def from_values(cls, src, dst, payload, path=None,
-                    ext_hdrs=None, next_hdr=0, pkt_type=PacketType.DATA):
+                    ext_hdrs=None, next_hdr=1, pkt_type=PacketType.DATA):
         """
         Returns a SCIONPacket with the values specified.
 

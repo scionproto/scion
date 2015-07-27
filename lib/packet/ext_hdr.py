@@ -87,7 +87,7 @@ class ExtensionHeader(HeaderBase):
                             "data len %u", dlen)
             return
         self.next_hdr, self._hdr_len, ext_no = struct.unpack("!BBB",
-            raw[:self.SUBHDR_LEN])
+                raw[:self.SUBHDR_LEN])
         assert ext_no == self.EXT_NO
         assert dlen == len(self)
         self.set_payload(raw[self.SUBHDR_LEN:])
