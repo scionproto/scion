@@ -49,7 +49,7 @@ class ExtensionHeader(HeaderBase):
     MIN_LEN = 8
     EXT_TYPE = None  # Type of extension (hop-by-hop or end-to-end).
     EXT_NO = None  # Number of extension.
-    SUBHDR_LEN = 3 # FIXME(PSz): resize to 3
+    SUBHDR_LEN = 3
     MIN_PAYLOAD_LEN = MIN_LEN - SUBHDR_LEN
 
     def __init__(self, raw=None):
@@ -99,7 +99,7 @@ class ExtensionHeader(HeaderBase):
         payload_len = len(payload)
         # Length of extension must be padded to 8B.
         assert not (payload_len + self.SUBHDR_LEN) % self.MIN_LEN
-        self._hdr_len = payload_len + self.SUBHDR_LEN // self.MIN_LEN
+        self._hdr_len = (payload_len + self.SUBHDR_LEN) // self.MIN_LEN - 1
         self.payload = payload
 
     def pack(self):

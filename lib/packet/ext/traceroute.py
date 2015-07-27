@@ -33,7 +33,7 @@ class TracerouteExt(HopByHopExtension):
     ...
     """
     EXT_NO = 0
-    PADDING_LEN = 6
+    PADDING_LEN = 5
     HOP_LEN = 8  # Size of every hop information.
 
     def __init__(self, raw=None):
@@ -59,9 +59,10 @@ class TracerouteExt(HopByHopExtension):
         payload = self.payload[self.PADDING_LEN:]
         while payload:
             isd, ad = ISD_AD.from_raw(payload[:ISD_AD.LEN])  # 4 bytes
-            if_id, timestamp = struct.unpack("!HH", payload[ISD_AD.LEN:HOP_LEN])
+            if_id, timestamp = struct.unpack("!HH",
+                                             payload[ISD_AD.LEN:self.HOP_LEN])
             self.hops.append((isd, ad, if_id, timestamp))
-            payload = payload[HOP_LEN:]
+            payload = payload[self.HOP_LEN:]
 
     def append_hop(self, isd, ad, if_id, timestamp):
         """
@@ -79,7 +80,7 @@ class TracerouteExt(HopByHopExtension):
         """
         hops_packed = [b"\x00" * self.PADDING_LEN]  # Padding.
         for hop in self.hops:
-            # Pack ISD & AD.
+            # Pack ISD and AD.
             tmp = ISD_AD(hop[0], hop[1]).pack()
             # Pack if_id and timestamp.
             tmp += struct.pack("!HH", hop[2], hop[3])
@@ -98,7 +99,7 @@ class TracerouteExt(HopByHopExtension):
         for hops in self.hops:
             tmp.append("    ISD:%d AD:%d IFID:%d TS:%d" % hops)
         tmp.append("[Traceroute Ext - end]")
-        return "\n".join(tmp) 
+        return "\n".join(tmp)
 
 
 def traceroute_ext_handler(**kwargs):
