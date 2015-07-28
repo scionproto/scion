@@ -59,7 +59,7 @@ def client():
     # Set payload
     payload = b"request to server"
     # Create empty Traceroute extensions
-    ext = TracerouteExt(routers_no)
+    ext = TracerouteExt.from_values(routers_no)
     # Create a SCION packet with the extensions
     spkt = SCIONPacket.from_values(sd.addr, dst, payload, path, ext_hdrs=[ext])
     # Determine first hop (i.e., local address of border router)
