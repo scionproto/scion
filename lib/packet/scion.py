@@ -188,7 +188,7 @@ class SCIONHeader(HeaderBase):
         self.src_addr = None
         self.dst_addr = None
         self._path = None
-        self._extension_hdrs = []
+        self.extension_hdrs = []
         self.l4_proto = 1
 
         if raw is not None:
@@ -211,12 +211,11 @@ class SCIONHeader(HeaderBase):
         hdr.path = path
         if ext_hdrs is None:
             ext_hdrs = []
-        hdr.extension_hdrs = ext_hdrs
-        hdr.set_next_hdrs()
+        hdr.add_extensions(ext_hdrs)
 
         return hdr
 
-    def set_next_hdrs(self):
+    def _set_next_hdrs(self):
         """
         Set correct next_hdr fields.
         """
@@ -261,47 +260,22 @@ class SCIONHeader(HeaderBase):
             self.common_hdr.total_len += path_len
         self.set_first_of_pointers()
 
-    @property
-    def extension_hdrs(self):
+    def add_extensions(self, ext_hdrs):
         """
-        Returns the extension headers.
+        Add extension headers and updates necessary fields.
         """
-        return self._extension_hdrs
+        for ext in ext_hdrs:
+            self.extension_hdrs.append(ext)
+            self.common_hdr.total_len += len(ext)
+        self._set_next_hdrs()
 
-    @extension_hdrs.setter
-    def extension_hdrs(self, ext_hdrs):
+    def remove_extensions(self):
         """
-        Sets extension headers.
+        Removes all extensions and updates necessary fields.
         """
-        self.set_ext_hdrs(ext_hdrs)
-
-    def set_ext_hdrs(self, ext_hdrs):
-        """
-        Sets extension headers and updates necessary fields.
-        """
-        assert isinstance(ext_hdrs, list)
-        while self._extension_hdrs:
-            self.pop_ext_hdr()
-        for ext_hdr in ext_hdrs:
-            self.append_ext_hdr(ext_hdr)
-
-    def append_ext_hdr(self, ext_hdr):
-        """
-        Appends an extension header and updates necessary fields.
-        """
-        assert isinstance(ext_hdr, ExtensionHeader)
-        self._extension_hdrs.append(ext_hdr)
-        self.common_hdr.total_len += len(ext_hdr)
-
-    def pop_ext_hdr(self):
-        """
-        Pops and returns the last extension header and updates necessary fields.
-        """
-        if not self._extension_hdrs:
-            return
-        ext_hdr = self._extension_hdrs.pop()
-        self.common_hdr.total_len -= len(ext_hdr)
-        return ext_hdr
+        for ext in self.extension_hdrs:
+            self.common_hdr.total_len -= len(ext)
+        self.extension_hdrs = []
 
     def parse(self, raw):
         """
@@ -376,8 +350,8 @@ class SCIONHeader(HeaderBase):
             logging.info("Found extension hdr of type (%u, %u) with len %u",
                          cur_hdr_type, ext_no, hdr_len)
             if (cur_hdr_type, ext_no) in EXTENSIONS:
-                constructor = EXTENSIONS[(cur_hdr_type, ext_no)]
-                self.append_ext_hdr(constructor(raw[offset:offset + hdr_len]))
+                constr = EXTENSIONS[(cur_hdr_type, ext_no)]
+                self.extension_hdrs.append(constr(raw[offset:offset + hdr_len]))
             else:
                 # TODO(PSz): fail here?
                 logging.warning("Extension (%u, %u) unsupported." %
