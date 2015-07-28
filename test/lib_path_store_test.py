@@ -16,7 +16,7 @@
 ==========================================================================
 """
 # Stdlib
-from unittest.mock import patch, mock_open, MagicMock
+from unittest.mock import patch, MagicMock
 
 # External packages
 import nose
@@ -218,26 +218,13 @@ class TestPathPolicyFromFile(object):
     """
     @patch("lib.path_store.PathPolicy.from_dict", spec_set=[],
            new_callable=MagicMock)
-    @patch("lib.path_store.json.load", autospec=True)
+    @patch("lib.path_store.load_json_file", autospec=True)
     def test_basic(self, load, from_dict):
         load.return_value = "policy_dict"
         from_dict.return_value = "from_dict"
-        with patch('lib.path_store.open', mock_open(), create=True) as open_f:
-            ntools.eq_(PathPolicy.from_file("policy_file"), "from_dict")
-            open_f.assert_called_once_with("policy_file")
-            load.assert_called_once_with(open_f.return_value)
-            from_dict.assert_called_once_with("policy_dict")
-
-    @patch("lib.path_store.logging.error", autospec=True)
-    def _check_error(self, key, error_):
-        with patch('lib.path_store.open', mock_open(), create=True) as open_f:
-            open_f.side_effect = key
-            ntools.assert_is_none(PathPolicy.from_file("policy_file"))
-            ntools.eq_(error_.call_count, 1)
-
-    def test_error(self):
-        for key in (ValueError, KeyError, TypeError):
-            yield self._check_error, key
+        ntools.eq_(PathPolicy.from_file("policy_file"), "from_dict")
+        load.assert_called_once_with("policy_file")
+        from_dict.assert_called_once_with("policy_dict")
 
 
 class TestPathPolicyFromDict(object):

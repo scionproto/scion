@@ -16,6 +16,7 @@
 =====================================================
 """
 # Stdlib
+import builtins
 from unittest.mock import patch, call, mock_open, MagicMock
 
 # External packages
@@ -24,6 +25,7 @@ import nose.tools as ntools
 
 # SCION
 from lib.defines import TOPOLOGY_PATH
+from lib.errors import SCIONIOError, SCIONJSONError
 from lib.util import (
     _get_isd_prefix,
     _SIG_MAP,
@@ -35,6 +37,7 @@ from lib.util import (
     get_sig_key_file_path,
     get_trc_file_path,
     handle_signals,
+    load_json_file,
     read_file,
     SCIONTime,
     SIG_KEYS_DIR,
@@ -131,52 +134,76 @@ class TestGetEncKeyFilePath(object):
         isd_prefix.assert_called_once_with(TOPOLOGY_PATH)
 
 
-@patch("lib.util.os.path.exists", autospec=True)
 class TestReadFile(object):
     """
     Unit tests for lib.util.read_file
     """
-    def test_basic(self, exists):
-        exists.return_value = True
-        with patch('lib.util.open', mock_open(read_data="file contents"),
-                   create=True) as open_f:
-            ntools.eq_(read_file("File_Path"), "file contents")
-            exists.assert_called_once_with("File_Path")
-            open_f.assert_called_once_with("File_Path", 'r')
-            open_f.return_value.read.assert_called_once_with()
+    @patch.object(builtins, 'open',
+                  mock_open(read_data="file contents"))
+    def test_basic(self):
+        ntools.eq_(read_file("File_Path"), "file contents")
+        builtins.open.assert_called_once_with("File_Path")
+        builtins.open.return_value.read.assert_called_once_with()
 
-    def test_not_exist(self, exists):
-        exists.return_value = False
-        ntools.eq_(read_file("File_Path"), '')
+    @patch.object(builtins, 'open', mock_open())
+    def test_error(self):
+        builtins.open.side_effect = IsADirectoryError
+        ntools.assert_raises(SCIONIOError, read_file, "File_Path")
 
 
 class TestWriteFile(object):
     """
     Unit tests for lib.util.write_file
     """
-    @patch("lib.util.os.path.exists", autospec=True)
-    @patch("lib.util.os.path.dirname", autospec=True)
-    def test_basic(self, dirname, exists):
-        dirname.return_value = "Dir_Name"
-        exists.return_value = True
-        with patch('lib.util.open', mock_open(),
-                   create=True) as open_f:
-            write_file("File_Path", "Text")
-            dirname.assert_called_once_with("File_Path")
-            exists.assert_called_once_with("Dir_Name")
-            open_f.assert_called_once_with("File_Path", 'w')
-            open_f.return_value.write.assert_called_once_with("Text")
-
-    @patch("builtins.open", autospec=True)
+    @patch.object(builtins, 'open', mock_open())
     @patch("lib.util.os.makedirs", autospec=True)
-    @patch("lib.util.os.path.exists", autospec=True)
     @patch("lib.util.os.path.dirname", autospec=True)
-    def test_not_exist(self, dirname, exists, mkdir, open_f):
+    def test_basic(self, dirname, makedirs):
         dirname.return_value = "Dir_Name"
-        exists.return_value = False
         write_file("File_Path", "Text")
-        dirname.assert_has_calls([call("File_Path"), call("File_Path")])
-        mkdir.assert_called_once_with("Dir_Name")
+        dirname.assert_called_once_with("File_Path")
+        makedirs.assert_called_once_with("Dir_Name", exist_ok=True)
+        builtins.open.assert_called_once_with("File_Path", 'w')
+        builtins.open.return_value.write.assert_called_once_with("Text")
+
+    @patch("lib.util.os.makedirs", autospec=True)
+    def test_mkdir_error(self, mkdir):
+        mkdir.side_effect = FileNotFoundError
+        ntools.assert_raises(SCIONIOError, write_file, "File_Path", "Text")
+
+    @patch.object(builtins, 'open', mock_open())
+    @patch("lib.util.os.makedirs", autospec=True)
+    def test_file_error(self, mkdir):
+        builtins.open.side_effect = PermissionError
+        ntools.assert_raises(SCIONIOError, write_file, "File_Path", "Text")
+
+
+class TestLoadJSONFile(object):
+    """
+    Unit tests for lib.util.load_json_file
+    """
+    @patch.object(builtins, 'open', mock_open())
+    @patch("lib.util.json.load", autospec=True)
+    def test_basic(self, json_load):
+        json_load.return_value = "JSON dict"
+        ntools.eq_(load_json_file("File_Path"), "JSON dict")
+        builtins.open.assert_called_once_with("File_Path")
+        json_load.assert_called_once_with(builtins.open.return_value)
+
+    @patch.object(builtins, 'open', mock_open())
+    def test_file_error(self):
+        builtins.open.side_effect = IsADirectoryError
+        ntools.assert_raises(SCIONIOError, load_json_file, "File_Path")
+
+    @patch.object(builtins, 'open', mock_open())
+    @patch("lib.util.json.load", autospec=True)
+    def _check_json_error(self, excp, json_load):
+        json_load.side_effect = excp
+        ntools.assert_raises(SCIONJSONError, load_json_file, "File_Path")
+
+    def test_json_error(self):
+        for excp in ValueError, KeyError, TypeError:
+            yield self._check_json_error, excp
 
 
 class TestUpdateDict(object):

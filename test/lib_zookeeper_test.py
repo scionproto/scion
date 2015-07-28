@@ -27,7 +27,7 @@ from kazoo.protocol.states import ZnodeStat
 
 # SCION
 import lib.zookeeper as libzk
-from test.testcommon import MockCollection, SCIONTestException
+from test.testcommon import MockCollection, SCIONTestError
 
 
 def mock_wrapper(f):
@@ -224,7 +224,7 @@ class TestLibZookeeperStateHandler(BaseLibZookeeper):
         elif new_state == libzk.KazooState.LOST:
             lost = 1
         else:
-            raise SCIONTestException("Invalid new state")
+            raise SCIONTestError("Invalid new state")
         ntools.eq_(inst._state_connected.call_count, connected)
         ntools.eq_(inst._state_suspended.call_count, suspended)
         ntools.eq_(inst._state_lost.call_count, lost)
@@ -499,7 +499,7 @@ class TestLibZookeeperGetLock(BaseLibZookeeper):
         inst = self._init_basic_setup()
         inst.is_connected = MagicMock(spec_set=[], return_value=False)
         inst.release_lock = MagicMock(spec_set=[])
-        inst._lock.is_set.side_effect = SCIONTestException(
+        inst._lock.is_set.side_effect = SCIONTestError(
             "this should not have been reached")
         # Call
         ntools.assert_false(inst.get_lock())
@@ -516,7 +516,7 @@ class TestLibZookeeperGetLock(BaseLibZookeeper):
         inst.is_connected = MagicMock(spec_set=[], return_value=True)
         inst._lock.is_set.return_value = True
         inst._zk_lock = self.mocks.klock
-        inst._zk_lock.acquire.side_effect = SCIONTestException(
+        inst._zk_lock.acquire.side_effect = SCIONTestError(
             "_zk_lock.acquire should not have been reached")
         # Call
         ntools.assert_true(inst.get_lock())
@@ -582,7 +582,7 @@ class TestLibZookeeperReleaseLock(BaseLibZookeeper):
         inst.is_connected = MagicMock(spec_set=[], return_value=False)
         inst._zk_lock = self.mocks.klock
         inst._zk_lock.is_acquired = True
-        inst._zk_lock.release.side_effect = SCIONTestException(
+        inst._zk_lock.release.side_effect = SCIONTestError(
             "_zk_lock.release() shouldn't have been called")
         # Call
         inst.release_lock()
@@ -706,7 +706,7 @@ class TestLibZookeeperStoreSharedItems(BaseLibZookeeper):
         """
         inst = self._init_basic_setup()
         inst.is_connected = MagicMock(spec_set=[], return_value=True)
-        inst._zk.create.side_effect = SCIONTestException(
+        inst._zk.create.side_effect = SCIONTestError(
             "_zk.create shouldn't have been called")
         # Call
         inst.store_shared_item('p', 'n', 'v')
@@ -852,7 +852,7 @@ class TestLibZookeeperGetSharedMetadata(BaseLibZookeeper):
         """
         inst = self._init_basic_setup()
         inst.is_connected = MagicMock(spec_set=[], return_value=False)
-        inst._zk.get_children.side_effect = SCIONTestException(
+        inst._zk.get_children.side_effect = SCIONTestError(
             "_zk.get_children should not have been reached")
         # Call
         ntools.eq_(inst.get_shared_metadata("path"), [])
@@ -942,7 +942,7 @@ class TestLibZookeeperExpireSharedItems(BaseLibZookeeper):
         inst = self._init_basic_setup()
         inst.is_connected = MagicMock(spec_set=[], return_value=False)
         inst.get_shared_metadata = MagicMock(
-            spec_set=[], side_effect=SCIONTestException(
+            spec_set=[], side_effect=SCIONTestError(
                 "get_shared_metadata shouldn't have been called"))
         # Call
         ntools.assert_is_none(inst.expire_shared_items("path", 100))
@@ -956,7 +956,7 @@ class TestLibZookeeperExpireSharedItems(BaseLibZookeeper):
         inst.is_connected = MagicMock(spec_set=[], return_value=True)
         inst.get_shared_metadata = MagicMock(spec_set=[], return_value=[])
         inst._zk.delete = MagicMock(
-            spec_set=[], side_effect=SCIONTestException(
+            spec_set=[], side_effect=SCIONTestError(
                 "_zk.delete shouldn't have been called"))
         # Call
         ntools.eq_(inst.expire_shared_items("path", 100), 0)

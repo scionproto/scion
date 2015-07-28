@@ -16,7 +16,7 @@
 =================================================
 """
 # Stdlib
-from unittest.mock import patch, MagicMock, mock_open
+from unittest.mock import patch, MagicMock
 
 # External packages
 import nose
@@ -172,29 +172,13 @@ class TestTopologyFromFile(object):
     """
     @patch("lib.topology.Topology.from_dict", spec_set=[],
            new_callable=MagicMock)
-    @patch("lib.topology.json.load", autospec=True)
-    def test(self, json_load, from_dict):
-        json_load.return_value = 'topo_dict'
+    @patch("lib.topology.load_json_file", autospec=True)
+    def test(self, load, from_dict):
+        load.return_value = 'topo_dict'
         from_dict.return_value = 'topology'
-        with patch('lib.topology.open', mock_open(), create=True) as open_f:
-            topology = Topology.from_file('filename')
-            open_f.assert_called_once_with('filename')
-            json_load.assert_called_once_with(open_f.return_value)
-            from_dict.assert_called_once_with('topo_dict')
-            ntools.eq_(topology, 'topology')
-
-    @patch("lib.topology.logging.error", autospec=True)
-    @patch("lib.topology.json.load", autospec=True)
-    def _check_fail(self, error, json_load, log_error):
-        json_load.side_effect = error
-        with patch('lib.topology.open', mock_open(), create=True):
-            topology = Topology.from_file('filename')
-            ntools.assert_is_none(topology)
-            ntools.eq_(log_error.call_count, 1)
-
-    def test_fail(self):
-        for error in [ValueError, KeyError, TypeError]:
-            yield self._check_fail, error
+        ntools.eq_(Topology.from_file('filename'), 'topology')
+        load.assert_called_once_with('filename')
+        from_dict.assert_called_once_with('topo_dict')
 
 
 class TestTopologyFromDict(object):
