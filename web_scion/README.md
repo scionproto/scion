@@ -57,4 +57,3 @@ By default an SQLite database is used. One can switch to using PostgreSQL for im
  Don't forget to run the monitoring daemon if you want to manage server elements:
 
     `./supervisor/supervisor.sh start monitoring_daemon`
-
