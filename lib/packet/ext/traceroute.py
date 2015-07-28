@@ -13,7 +13,7 @@
 # limitations under the License.
 """
 :mod:`traceroute` --- Traceroute extension header and its handler
-===========================================
+=================================================================
 """
 # Stdlib
 import struct
@@ -26,14 +26,15 @@ from lib.packet.scion_addr import ISD_AD
 
 class TracerouteExt(HopByHopExtension):
     """
-    0          8         16     24    32            48               64
-    | next hdr | hdr len | 0x00 |               (padding)            |
-    |    ISD_0      |      AD_0       |    IFID_0   |   Timestamp_0  |
-    |    ISD_1      |      AD_1       |    IFID_1   |   Timestamp_1  |
+    0          8         16       24        32            48               64
+    | next hdr | hdr len |  0x00  | hops_no |         (padding)            |
+    |    ISD_0      |          AD_0         |    IFID_0   |   Timestamp_0  |
+    |    ISD_1      |          AD_1         |    IFID_1   |   Timestamp_1  |
     ...
+    |                              (padding)                               |
     """
     EXT_NO = 0
-    PADDING_LEN = 5
+    PADDING_LEN = 4
     HOP_LEN = 8  # Size of every hop information.
 
     def __init__(self, raw=None):
@@ -44,20 +45,36 @@ class TracerouteExt(HopByHopExtension):
         :type raw:
         """
         self.hops = []
+        self.hops_no = 0
         HopByHopExtension.__init__(self)
         if raw is not None:
             # Parse metadata and payload
             self.parse(raw)
             # Now parse payload
             self.parse_payload()
+        else:
+            self.set_payload(b"\x00" * (1 + self.PADDING_LEN))
+
+    @classmethod
+    def from_values(cls, hops_no):
+        """
+        Construct extension with allocated space for `hops_no` routers.
+        """
+        ext = TracerouteExt()
+        first_row = b"\x00" * (1 + ext.PADDING_LEN)
+        # Allocate space for every hop's information.
+        ext.set_payload(first_row + b"\x00" * ext.LINE_LEN * hops_no)
+        return ext
 
     def parse_payload(self):
         """
         Parse payload to extract hop informations.
         """
-        # Drop padding from the first row
-        payload = self.payload[self.PADDING_LEN:]
-        while payload:
+        # Read number of hops.
+        self.hops_no, = struct.unpack("!B", self.payload[:1])
+        # Drop padding from the first row.
+        payload = self.payload[1 + self.PADDING_LEN:]
+        for _ in range(self.hops_no):
             isd, ad = ISD_AD.from_raw(payload[:ISD_AD.LEN])  # 4 bytes
             if_id, timestamp = struct.unpack("!HH",
                                              payload[ISD_AD.LEN:self.HOP_LEN])
@@ -68,8 +85,9 @@ class TracerouteExt(HopByHopExtension):
         """
         Append hop's information as a new field in the extension.
         """
+        assert self.hops_no + 1 <= self._hdr_len
         self.hops.append((isd, ad, if_id, timestamp))
-        self._hdr_len += 1  # Increase by 8 bytes.
+        self.hops_no += 1
 
     def pack(self):
         """
@@ -78,7 +96,8 @@ class TracerouteExt(HopByHopExtension):
         :returns:
         :rtype:
         """
-        hops_packed = [b"\x00" * self.PADDING_LEN]  # Padding.
+        hops_packed = [struct.pack("!B", self.hops_no)]
+        hops_packed += [b"\x00" * self.PADDING_LEN]  # Padding.
         for hop in self.hops:
             # Pack ISD and AD.
             tmp = ISD_AD(hop[0], hop[1]).pack()
@@ -95,9 +114,10 @@ class TracerouteExt(HopByHopExtension):
         :rtype:
         """
         tmp = ["[Traceroute Ext - start]"]
-        tmp.append("  [next_hdr:%d, ext_no:%d, len:%d]" % (self.next_hdr,
-                                                           self.EXT_NO,
-                                                           len(self)))
+        tmp.append("  [next_hdr:%d ext_no:%d hop:%d len:%d]" % (self.next_hdr,
+                                                                self.EXT_NO,
+                                                                self.hops_no,
+                                                                len(self)))
         for hops in self.hops:
             tmp.append("    ISD:%d AD:%d IFID:%d TS:%d" % hops)
         tmp.append("[Traceroute Ext - end]")

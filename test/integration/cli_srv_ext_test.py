@@ -52,12 +52,14 @@ def client():
     assert paths
     # Get a first path
     path = paths[0]
+    # Determine number of border routers on path
+    routers_no = (path.get_ad_hops() - 1) * 2
     # Create a SCION address to the destination
     dst = SCIONAddr.from_values(SRV_ISD, SRV_AD, IPv4Address(SRV_IP))
     # Set payload
     payload = b"request to server"
     # Create empty Traceroute extensions
-    ext = TracerouteExt()
+    ext = TracerouteExt(routers_no)
     # Create a SCION packet with the extensions
     spkt = SCIONPacket.from_values(sd.addr, dst, payload, path, ext_hdrs=[ext])
     # Determine first hop (i.e., local address of border router)
