@@ -2,7 +2,7 @@
 
 1. Go to `web_scion/`, install the dependencies
 
-    `sudo pip3 --user install -r requirements.txt`
+    `pip3 install --user -r requirements.txt`
 
 2. Copy the private settings file, update it if necessary
 
