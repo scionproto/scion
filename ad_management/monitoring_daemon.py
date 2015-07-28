@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`monitoring_daemon` --- Ad management tool daemon
+:mod:`monitoring_daemon` --- AD management tool daemon
 ======================================================
 """
 # Stdlib
@@ -47,6 +47,7 @@ from ad_management.secure_rpc_server import XMLRPCServerTLS
 from lib.defines import (
     BEACON_SERVICE,
     CERTIFICATE_SERVICE,
+    DNS_SERVICE,
     PATH_SERVICE,
     PROJECT_ROOT,
 )
@@ -364,7 +365,7 @@ class MonitoringDaemon(object):
         Get the id of the current master process for a given server type.
         """
         if server_type not in [BEACON_SERVICE, CERTIFICATE_SERVICE,
-                               PATH_SERVICE]:
+                               PATH_SERVICE, DNS_SERVICE]:
             return response_failure('Invalid server type')
         kc = KazooClient(hosts="localhost:2181")
         lock_path = '/ISD{}-AD{}/{}/lock'.format(isd_id, ad_id, server_type)

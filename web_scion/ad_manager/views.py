@@ -1,4 +1,5 @@
 # Stdlib
+import copy
 import json
 import os
 import tempfile
@@ -46,7 +47,7 @@ from ad_manager.util.ad_connect import (
     link_ads,
 )
 from ad_manager.util.errors import HttpResponseUnavailable
-from lib.defines import BEACON_SERVICE
+from lib.defines import BEACON_SERVICE, DNS_SERVICE
 from lib.topology import Topology
 from lib.util import write_file
 from topology.generator import ConfigGenerator
@@ -136,7 +137,8 @@ def get_group_master(request, pk):
     """
     ad = get_object_or_404(AD, id=pk)
     server_type = request.GET.get('server_type', '')
-    if server_type != BEACON_SERVICE:
+    fetch_server_types = [BEACON_SERVICE, DNS_SERVICE]
+    if server_type not in fetch_server_types:
         return HttpResponseNotFound('Invalid server type')
 
     response = monitoring_client.get_master_id(ad.md_host, ad.isd.id, ad.id,
@@ -150,6 +152,14 @@ def get_group_master(request, pk):
 
 
 def _get_changes(current_topology, remote_topology):
+    current_topology = copy.deepcopy(current_topology)
+    remote_topology = copy.deepcopy(remote_topology)
+
+    exclude_key_list = ['Zookeepers']
+    for exclude_key in exclude_key_list:
+        current_topology.pop(exclude_key, None)
+        remote_topology.pop(exclude_key, None)
+
     diff_changes = list(dictdiffer.diff(current_topology, remote_topology))
     processed_changes = []
     for change in diff_changes:
