@@ -534,9 +534,6 @@ void process_pcb(struct rte_mbuf *m, uint8_t from_bs) {
   struct ipv4_hdr *ipv4_hdr;
   struct udp_hdr *udp_hdr;
   PathConstructionBeacon *pcb;
-  // SCIONCommonHeader *sch;
-  // HopOpaqueField *hof;
-  // InfoOpaqueField *iof;
 
   printf("process pcb\n");
 
@@ -550,7 +547,7 @@ void process_pcb(struct rte_mbuf *m, uint8_t from_bs) {
                                    sizeof(struct ipv4_hdr) +
                                    sizeof(struct udp_hdr));
 
-  if (from_bs) {
+  if (from_bs) { //from local beacon server to neighbor router
     uint8_t last_pcbm_index = sizeof(pcb->payload.ads) / sizeof(ADMarking) - 1;
     HopOpaqueField *last_hof = &(pcb->payload).ads[last_pcbm_index].pcbm.hof;
 
@@ -561,13 +558,13 @@ void process_pcb(struct rte_mbuf *m, uint8_t from_bs) {
 
     ipv4_hdr->dst_addr = TO_ADDR;
     udp_hdr->dst_port = TO_PORT;
-    l2fwd_send_packet(m, DPDK_EGRESS_PORT); // replace with remote socket?
+    l2fwd_send_packet(m, DPDK_EGRESS_PORT); 
 
-  } else {
+  } else {  //from neighbor router to local beacon server
     pcb->payload.if_id = iflist[0].scion_ifid;
     ipv4_hdr->dst_addr = beacon_servers[0];
     udp_hdr->dst_port = SCION_UDP_PORT;
-    l2fwd_send_packet(m, DPDK_EGRESS_PORT);
+    l2fwd_send_packet(m, DPDK_LOCAL_PORT);
   }
 }
 
