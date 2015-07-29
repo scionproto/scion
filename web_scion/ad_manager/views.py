@@ -48,7 +48,6 @@ from ad_manager.util.ad_connect import (
 )
 from ad_manager.util.errors import HttpResponseUnavailable
 from lib.defines import BEACON_SERVICE, DNS_SERVICE
-from lib.topology import Topology
 from lib.util import write_file
 from topology.generator import ConfigGenerator
 
@@ -230,8 +229,7 @@ def _update_from_remote_topology(request, ad):
     for the given AD.
     """
     remote_topology_dict = ad.get_remote_topology()
-    remote_topology = Topology.from_dict(remote_topology_dict)
-    ad.fill_from_topology(remote_topology, clear=True)
+    ad.fill_from_topology(remote_topology_dict, clear=True)
     return redirect(reverse('ad_detail_topology', args=[ad.id]))
 
 
@@ -503,11 +501,8 @@ def approve_request(ad, ad_request):
         parent_router_if['ToAddr'] = ad_request.router_public_ip
         parent_router_if['UdpPort'] = ad_request.router_public_port
 
-        new_topo = Topology.from_dict(new_topo_dict)
-        parent_topo = Topology.from_dict(parent_topo_dict)
-
-        new_ad.fill_from_topology(new_topo, clear=True)
-        ad.fill_from_topology(parent_topo, clear=True)
+        new_ad.fill_from_topology(new_topo_dict, clear=True)
+        ad.fill_from_topology(parent_topo_dict, clear=True)
 
         # Update the new topology on disk:
         # Write new config files to disk, regenerate everything else

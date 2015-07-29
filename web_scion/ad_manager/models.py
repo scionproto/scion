@@ -1,4 +1,5 @@
 # Stdlib
+import copy
 import glob
 import json
 import logging
@@ -6,6 +7,7 @@ import os
 import tarfile
 
 # External packages
+import jsonfield
 from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse
 from django.db import models, IntegrityError
@@ -17,13 +19,13 @@ from ad_management.common import (
     PACKAGE_DIR_PATH,
 )
 from ad_manager.util import monitoring_client
+from ad_manager.util.common import empty_dict
 from lib.defines import (
     BEACON_SERVICE,
     CERTIFICATE_SERVICE,
     DNS_SERVICE,
     PATH_SERVICE,
 )
-from lib.topology import Topology
 from topology.generator import PORT
 
 
@@ -63,6 +65,7 @@ class AD(models.Model):
     is_open = models.BooleanField(default=True)
     dns_domain = models.CharField(max_length=100, null=True, blank=True)
     md_host = models.IPAddressField(default='127.0.0.1')
+    original_topology = jsonfield.JSONField(default=empty_dict)
 
     # Use custom model manager with select_related()
     objects = SelectRelatedModelManager()
@@ -93,12 +96,14 @@ class AD(models.Model):
         """
         Create a Python dictionary with the stored AD topology.
         """
-        out_dict = {
+        assert isinstance(self.original_topology, dict)
+        out_dict = copy.deepcopy(self.original_topology)
+        out_dict.update({
             'ISDID': int(self.isd_id), 'ADID': int(self.id),
             'Core': int(self.is_core_ad), 'DnsDomain': self.dns_domain,
             'EdgeRouters': {}, 'PathServers': {}, 'BeaconServers': {},
             'CertificateServers': {}, 'DNSServers': {},
-        }
+        })
         for router in self.routerweb_set.all():
             out_dict['EdgeRouters'][str(router.name)] = router.get_dict()
         for ps in self.pathserverweb_set.all():
@@ -126,12 +131,12 @@ class AD(models.Model):
         element_ids = [element.id_str() for element in all_elements]
         return element_ids
 
-    def fill_from_topology(self, topology, clear=False):
+    def fill_from_topology(self, topology_dict, clear=False):
         """
         Add infrastructure elements (servers, routers) to the AD, extracted
-        from the Topology object.
+        from the topology dictionary.
         """
-        assert isinstance(topology, Topology), 'Topology object expected'
+        assert isinstance(topology_dict, dict), 'Dictionary expected'
 
         if clear:
             self.routerweb_set.all().delete()
@@ -140,50 +145,51 @@ class AD(models.Model):
             self.beaconserverweb_set.all().delete()
             self.dnsserverweb_set.all().delete()
 
-        self.is_core_ad = topology.is_core_ad
-        self.dns_domain = topology.dns_domain
+        self.original_topology = topology_dict
+        self.is_core_ad = (topology_dict['Core'] == 1)
+        self.dns_domain = topology_dict['DnsDomain']
         self.save()
 
-        routers = topology.get_all_edge_routers()
-        beacon_servers = topology.beacon_servers
-        certificate_servers = topology.certificate_servers
-        path_servers = topology.path_servers
-        dns_servers = topology.dns_servers
+        routers = topology_dict["EdgeRouters"]
+        beacon_servers = topology_dict["BeaconServers"]
+        certificate_servers = topology_dict["CertificateServers"]
+        path_servers = topology_dict["PathServers"]
+        dns_servers = topology_dict["DNSServers"]
 
         try:
-            for router in routers:
-                interface = router.interface
-                neighbor_ad = AD.objects.get(id=interface.neighbor_ad,
-                                             isd=interface.neighbor_isd)
+            for name, router in routers.items():
+                interface = router["Interface"]
+                neighbor_ad = AD.objects.get(id=interface["NeighborAD"],
+                                             isd=interface["NeighborISD"])
                 RouterWeb.objects.create(
-                    addr=str(router.addr), ad=self,
-                    name=router.name, neighbor_ad=neighbor_ad,
-                    neighbor_type=interface.neighbor_type,
-                    interface_addr=str(interface.addr),
-                    interface_toaddr=str(interface.to_addr),
-                    interface_id=interface.if_id,
-                    interface_port=interface.udp_port,
-                    interface_toport=interface.to_udp_port,
+                    addr=router["Addr"], ad=self,
+                    name=name, neighbor_ad=neighbor_ad,
+                    neighbor_type=interface["NeighborType"],
+                    interface_addr=interface["Addr"],
+                    interface_toaddr=interface["ToAddr"],
+                    interface_id=interface["IFID"],
+                    interface_port=interface["UdpPort"],
+                    interface_toport=interface["ToUdpPort"],
                 )
 
-            for bs in beacon_servers:
-                BeaconServerWeb.objects.create(addr=str(bs.addr),
-                                               name=bs.name,
+            for name, bs in beacon_servers.items():
+                BeaconServerWeb.objects.create(addr=bs["Addr"],
+                                               name=name,
                                                ad=self)
 
-            for cs in certificate_servers:
-                CertificateServerWeb.objects.create(addr=str(cs.addr),
-                                                    name=cs.name,
+            for name, cs in certificate_servers.items():
+                CertificateServerWeb.objects.create(addr=cs["Addr"],
+                                                    name=name,
                                                     ad=self)
 
-            for ps in path_servers:
-                PathServerWeb.objects.create(addr=str(ps.addr),
-                                             name=ps.name,
+            for name, ps in path_servers.items():
+                PathServerWeb.objects.create(addr=ps["Addr"],
+                                             name=name,
                                              ad=self)
 
-            for ds in dns_servers:
-                DnsServerWeb.objects.create(addr=str(ds.addr),
-                                            name=ds.name,
+            for name, ds in dns_servers.items():
+                DnsServerWeb.objects.create(addr=str(ds["Addr"]),
+                                            name=name,
                                             ad=self)
         except IntegrityError:
             logging.warning("Integrity error in AD.fill_from_topology(): "

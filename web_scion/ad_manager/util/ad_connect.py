@@ -18,7 +18,6 @@ from ad_manager.models import (
     AD)
 from ad_manager.util.common import is_private_address
 from lib.defines import TOPOLOGY_PATH
-from lib.topology import Topology
 from lib.util import read_file, write_file, get_trc_file_path
 from topology.generator import (
     ConfigGenerator,
@@ -181,11 +180,8 @@ def link_ads(first_ad, second_ad, link_type):
     first_topo, second_topo = link_topologies(first_topo, second_topo,
                                               link_type)
 
-    new_first_topo = Topology.from_dict(first_topo)
-    new_second_topo = Topology.from_dict(second_topo)
-
-    first_ad.fill_from_topology(new_first_topo, clear=True)
-    second_ad.fill_from_topology(new_second_topo, clear=True)
+    first_ad.fill_from_topology(first_topo, clear=True)
+    second_ad.fill_from_topology(second_topo, clear=True)
 
 
 def get_some_trc_path(isd_id):

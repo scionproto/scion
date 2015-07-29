@@ -8,7 +8,7 @@ from ad_manager.util.ad_connect import link_ads
 
 class TestLinkAds(TestCase):
     """
-    Unit tests for ad_manager.util.ad_connect.find_next_ip
+    Functional tests for ad_manager.util.ad_connect.link_ads
     """
     def test_basic(self):
         isd = ISD.objects.create(id=1)

@@ -1,535 +1,577 @@
 [
 {
-    "model": "ad_manager.isd",
+    "fields": {},
     "pk": 1,
-    "fields": {}
+    "model": "ad_manager.isd"
 },
 {
-    "model": "ad_manager.isd",
+    "fields": {},
     "pk": 2,
-    "fields": {}
+    "model": "ad_manager.isd"
 },
 {
-    "model": "ad_manager.isd",
+    "fields": {},
     "pk": 10,
-    "fields": {}
+    "model": "ad_manager.isd"
 },
 {
-    "model": "ad_manager.ad",
+    "fields": {
+        "dns_domain": "ad1.isd1.scion.",
+        "is_open": true,
+        "original_topology": "{\"Zookeepers\":{},\"BeaconServers\":{\"1\":{\"Addr\":\"127.0.0.51\",\"AddrType\":\"IPv4\"}},\"EdgeRouters\":{\"2\":{\"Addr\":\"127.0.0.19\",\"AddrType\":\"IPv4\",\"Interface\":{\"Addr\":\"127.0.0.20\",\"ToUdpPort\":50000,\"IFID\":2,\"NeighborAD\":2,\"NeighborType\":\"CHILD\",\"ToAddr\":\"127.0.0.40\",\"NeighborISD\":1,\"UdpPort\":50000,\"AddrType\":\"IPv4\"}},\"1\":{\"Addr\":\"127.0.0.17\",\"AddrType\":\"IPv4\",\"Interface\":{\"Addr\":\"127.0.0.18\",\"ToUdpPort\":50000,\"IFID\":1,\"NeighborAD\":3,\"NeighborType\":\"ROUTING\",\"ToAddr\":\"127.0.0.2\",\"NeighborISD\":2,\"UdpPort\":50000,\"AddrType\":\"IPv4\"}}},\"ADID\":1,\"CertificateServers\":{\"1\":{\"Addr\":\"127.0.0.52\",\"AddrType\":\"IPv4\"}},\"Core\":1,\"DnsDomain\":\"ad1.isd1.scion.\",\"PathServers\":{\"1\":{\"Addr\":\"127.0.0.53\",\"AddrType\":\"IPv4\"}},\"ISDID\":1,\"DNSServers\":{\"1\":{\"Addr\":\"127.0.0.54\",\"AddrType\":\"IPv4\"}}}",
+        "isd": 1,
+        "is_core_ad": true,
+        "md_host": "127.0.0.1"
+    },
     "pk": 1,
-    "fields": {
-        "is_open": true,
-        "is_core_ad": true,
-        "isd": 1,
-        "dns_domain": "ad1.isd1.scion."
-    }
+    "model": "ad_manager.ad"
 },
 {
-    "model": "ad_manager.ad",
+    "fields": {
+        "dns_domain": "ad2.isd1.scion.",
+        "is_open": true,
+        "original_topology": "{\"Zookeepers\":{},\"BeaconServers\":{\"1\":{\"Addr\":\"127.0.0.67\",\"AddrType\":\"IPv4\"}},\"EdgeRouters\":{\"1\":{\"Addr\":\"127.0.0.39\",\"AddrType\":\"IPv4\",\"Interface\":{\"Addr\":\"127.0.0.40\",\"ToUdpPort\":50000,\"IFID\":1,\"NeighborAD\":1,\"NeighborType\":\"PARENT\",\"ToAddr\":\"127.0.0.20\",\"NeighborISD\":1,\"UdpPort\":50000,\"AddrType\":\"IPv4\"}}},\"ADID\":2,\"CertificateServers\":{\"1\":{\"Addr\":\"127.0.0.68\",\"AddrType\":\"IPv4\"}},\"Core\":0,\"DnsDomain\":\"ad2.isd1.scion.\",\"PathServers\":{\"1\":{\"Addr\":\"127.0.0.69\",\"AddrType\":\"IPv4\"}},\"ISDID\":1,\"DNSServers\":{\"1\":{\"Addr\":\"127.0.0.70\",\"AddrType\":\"IPv4\"}}}",
+        "isd": 1,
+        "is_core_ad": false,
+        "md_host": "127.0.0.1"
+    },
     "pk": 2,
-    "fields": {
-        "is_open": true,
-        "is_core_ad": false,
-        "isd": 1,
-        "dns_domain": "ad2.isd1.scion."
-    }
+    "model": "ad_manager.ad"
 },
 {
-    "model": "ad_manager.ad",
+    "fields": {
+        "dns_domain": "ad3.isd2.scion.",
+        "is_open": true,
+        "original_topology": "{\"Zookeepers\":{},\"BeaconServers\":{\"1\":{\"Addr\":\"127.0.0.43\",\"AddrType\":\"IPv4\"}},\"EdgeRouters\":{\"2\":{\"Addr\":\"127.0.0.3\",\"AddrType\":\"IPv4\",\"Interface\":{\"Addr\":\"127.0.0.4\",\"ToUdpPort\":50000,\"IFID\":2,\"NeighborAD\":4,\"NeighborType\":\"CHILD\",\"ToAddr\":\"127.0.0.28\",\"NeighborISD\":2,\"UdpPort\":50000,\"AddrType\":\"IPv4\"}},\"3\":{\"Addr\":\"127.0.0.5\",\"AddrType\":\"IPv4\",\"Interface\":{\"Addr\":\"127.0.0.6\",\"ToUdpPort\":50000,\"IFID\":3,\"NeighborAD\":6,\"NeighborType\":\"ROUTING\",\"ToAddr\":\"127.0.0.12\",\"NeighborISD\":10,\"UdpPort\":50000,\"AddrType\":\"IPv4\"}},\"4\":{\"Addr\":\"127.0.0.7\",\"AddrType\":\"IPv4\",\"Interface\":{\"Addr\":\"127.0.0.8\",\"ToUdpPort\":50000,\"IFID\":4,\"NeighborAD\":5,\"NeighborType\":\"CHILD\",\"ToAddr\":\"127.0.0.34\",\"NeighborISD\":2,\"UdpPort\":50000,\"AddrType\":\"IPv4\"}},\"1\":{\"Addr\":\"127.0.0.1\",\"AddrType\":\"IPv4\",\"Interface\":{\"Addr\":\"127.0.0.2\",\"ToUdpPort\":50000,\"IFID\":1,\"NeighborAD\":1,\"NeighborType\":\"ROUTING\",\"ToAddr\":\"127.0.0.18\",\"NeighborISD\":1,\"UdpPort\":50000,\"AddrType\":\"IPv4\"}}},\"ADID\":3,\"CertificateServers\":{\"1\":{\"Addr\":\"127.0.0.44\",\"AddrType\":\"IPv4\"}},\"Core\":1,\"DnsDomain\":\"ad3.isd2.scion.\",\"PathServers\":{\"1\":{\"Addr\":\"127.0.0.45\",\"AddrType\":\"IPv4\"}},\"ISDID\":2,\"DNSServers\":{\"1\":{\"Addr\":\"127.0.0.46\",\"AddrType\":\"IPv4\"}}}",
+        "isd": 2,
+        "is_core_ad": true,
+        "md_host": "127.0.0.1"
+    },
     "pk": 3,
-    "fields": {
-        "is_open": true,
-        "is_core_ad": true,
-        "isd": 2,
-        "dns_domain": "ad3.isd2.scion."
-    }
+    "model": "ad_manager.ad"
 },
 {
-    "model": "ad_manager.ad",
+    "fields": {
+        "dns_domain": "ad4.isd2.scion.",
+        "is_open": true,
+        "original_topology": "{\"Zookeepers\":{},\"BeaconServers\":{\"1\":{\"Addr\":\"127.0.0.59\",\"AddrType\":\"IPv4\"}},\"EdgeRouters\":{\"2\":{\"Addr\":\"127.0.0.29\",\"AddrType\":\"IPv4\",\"Interface\":{\"Addr\":\"127.0.0.30\",\"ToUdpPort\":50000,\"IFID\":2,\"NeighborAD\":5,\"NeighborType\":\"ROUTING\",\"ToAddr\":\"127.0.0.36\",\"NeighborISD\":2,\"UdpPort\":50000,\"AddrType\":\"IPv4\"}},\"1\":{\"Addr\":\"127.0.0.27\",\"AddrType\":\"IPv4\",\"Interface\":{\"Addr\":\"127.0.0.28\",\"ToUdpPort\":50000,\"IFID\":1,\"NeighborAD\":3,\"NeighborType\":\"PARENT\",\"ToAddr\":\"127.0.0.4\",\"NeighborISD\":2,\"UdpPort\":50000,\"AddrType\":\"IPv4\"}}},\"ADID\":4,\"CertificateServers\":{\"1\":{\"Addr\":\"127.0.0.60\",\"AddrType\":\"IPv4\"}},\"Core\":0,\"DnsDomain\":\"ad4.isd2.scion.\",\"PathServers\":{\"1\":{\"Addr\":\"127.0.0.61\",\"AddrType\":\"IPv4\"}},\"ISDID\":2,\"DNSServers\":{\"1\":{\"Addr\":\"127.0.0.62\",\"AddrType\":\"IPv4\"}}}",
+        "isd": 2,
+        "is_core_ad": false,
+        "md_host": "127.0.0.1"
+    },
     "pk": 4,
-    "fields": {
-        "is_open": true,
-        "is_core_ad": false,
-        "isd": 2,
-        "dns_domain": "ad4.isd2.scion."
-    }
+    "model": "ad_manager.ad"
 },
 {
-    "model": "ad_manager.ad",
+    "fields": {
+        "dns_domain": "ad5.isd2.scion.",
+        "is_open": true,
+        "original_topology": "{\"Zookeepers\":{},\"BeaconServers\":{\"1\":{\"Addr\":\"127.0.0.63\",\"AddrType\":\"IPv4\"}},\"EdgeRouters\":{\"2\":{\"Addr\":\"127.0.0.35\",\"AddrType\":\"IPv4\",\"Interface\":{\"Addr\":\"127.0.0.36\",\"ToUdpPort\":50000,\"IFID\":2,\"NeighborAD\":4,\"NeighborType\":\"ROUTING\",\"ToAddr\":\"127.0.0.30\",\"NeighborISD\":2,\"UdpPort\":50000,\"AddrType\":\"IPv4\"}},\"1\":{\"Addr\":\"127.0.0.33\",\"AddrType\":\"IPv4\",\"Interface\":{\"Addr\":\"127.0.0.34\",\"ToUdpPort\":50000,\"IFID\":1,\"NeighborAD\":3,\"NeighborType\":\"PARENT\",\"ToAddr\":\"127.0.0.8\",\"NeighborISD\":2,\"UdpPort\":50000,\"AddrType\":\"IPv4\"}}},\"ADID\":5,\"CertificateServers\":{\"1\":{\"Addr\":\"127.0.0.64\",\"AddrType\":\"IPv4\"}},\"Core\":0,\"DnsDomain\":\"ad5.isd2.scion.\",\"PathServers\":{\"1\":{\"Addr\":\"127.0.0.65\",\"AddrType\":\"IPv4\"}},\"ISDID\":2,\"DNSServers\":{\"1\":{\"Addr\":\"127.0.0.66\",\"AddrType\":\"IPv4\"}}}",
+        "isd": 2,
+        "is_core_ad": false,
+        "md_host": "127.0.0.1"
+    },
     "pk": 5,
-    "fields": {
-        "is_open": true,
-        "is_core_ad": false,
-        "isd": 2,
-        "dns_domain": "ad5.isd2.scion."
-    }
+    "model": "ad_manager.ad"
 },
 {
-    "model": "ad_manager.ad",
-    "pk": 6,
     "fields": {
+        "dns_domain": "ad6.isd10.scion.",
         "is_open": true,
+        "original_topology": "{\"Zookeepers\":{},\"BeaconServers\":{\"1\":{\"Addr\":\"127.0.0.47\",\"AddrType\":\"IPv4\"}},\"EdgeRouters\":{\"2\":{\"Addr\":\"127.0.0.13\",\"AddrType\":\"IPv4\",\"Interface\":{\"Addr\":\"127.0.0.14\",\"ToUdpPort\":50000,\"IFID\":2,\"NeighborAD\":7,\"NeighborType\":\"CHILD\",\"ToAddr\":\"127.0.0.24\",\"NeighborISD\":10,\"UdpPort\":50000,\"AddrType\":\"IPv4\"}},\"1\":{\"Addr\":\"127.0.0.11\",\"AddrType\":\"IPv4\",\"Interface\":{\"Addr\":\"127.0.0.12\",\"ToUdpPort\":50000,\"IFID\":1,\"NeighborAD\":3,\"NeighborType\":\"ROUTING\",\"ToAddr\":\"127.0.0.6\",\"NeighborISD\":2,\"UdpPort\":50000,\"AddrType\":\"IPv4\"}}},\"ADID\":6,\"CertificateServers\":{\"1\":{\"Addr\":\"127.0.0.48\",\"AddrType\":\"IPv4\"}},\"Core\":1,\"DnsDomain\":\"ad6.isd10.scion.\",\"PathServers\":{\"1\":{\"Addr\":\"127.0.0.49\",\"AddrType\":\"IPv4\"}},\"ISDID\":10,\"DNSServers\":{\"1\":{\"Addr\":\"127.0.0.50\",\"AddrType\":\"IPv4\"}}}",
+        "isd": 10,
         "is_core_ad": true,
-        "isd": 10,
-        "dns_domain": "ad6.isd10.scion."
-    }
+        "md_host": "127.0.0.1"
+    },
+    "pk": 6,
+    "model": "ad_manager.ad"
 },
 {
-    "model": "ad_manager.ad",
-    "pk": 7,
     "fields": {
+        "dns_domain": "ad7.isd10.scion.",
         "is_open": true,
-        "is_core_ad": false,
+        "original_topology": "{\"Zookeepers\":{},\"BeaconServers\":{\"1\":{\"Addr\":\"127.0.0.55\",\"AddrType\":\"IPv4\"}},\"EdgeRouters\":{\"1\":{\"Addr\":\"127.0.0.23\",\"AddrType\":\"IPv4\",\"Interface\":{\"Addr\":\"127.0.0.24\",\"ToUdpPort\":50000,\"IFID\":1,\"NeighborAD\":6,\"NeighborType\":\"PARENT\",\"ToAddr\":\"127.0.0.14\",\"NeighborISD\":10,\"UdpPort\":50000,\"AddrType\":\"IPv4\"}}},\"ADID\":7,\"CertificateServers\":{\"1\":{\"Addr\":\"127.0.0.56\",\"AddrType\":\"IPv4\"}},\"Core\":0,\"DnsDomain\":\"ad7.isd10.scion.\",\"PathServers\":{\"1\":{\"Addr\":\"127.0.0.57\",\"AddrType\":\"IPv4\"}},\"ISDID\":10,\"DNSServers\":{\"1\":{\"Addr\":\"127.0.0.58\",\"AddrType\":\"IPv4\"}}}",
         "isd": 10,
-        "dns_domain": "ad7.isd10.scion."
-    }
+        "is_core_ad": false,
+        "md_host": "127.0.0.1"
+    },
+    "pk": 7,
+    "model": "ad_manager.ad"
 },
 {
-    "model": "ad_manager.beaconserverweb",
-    "pk": 70,
     "fields": {
-        "addr": "127.1.1.1",
         "name": "1",
-        "ad": 1
-    }
-},
-{
-    "model": "ad_manager.beaconserverweb",
-    "pk": 71,
-    "fields": {
-        "addr": "127.1.2.1",
-        "name": "1",
-        "ad": 2
-    }
-},
-{
-    "model": "ad_manager.beaconserverweb",
-    "pk": 72,
-    "fields": {
-        "addr": "127.2.3.1",
-        "name": "1",
-        "ad": 3
-    }
-},
-{
-    "model": "ad_manager.beaconserverweb",
-    "pk": 73,
-    "fields": {
-        "addr": "127.2.4.1",
-        "name": "1",
-        "ad": 4
-    }
-},
-{
-    "model": "ad_manager.beaconserverweb",
-    "pk": 74,
-    "fields": {
-        "addr": "127.2.5.1",
-        "name": "1",
-        "ad": 5
-    }
-},
-{
-    "model": "ad_manager.beaconserverweb",
-    "pk": 75,
-    "fields": {
-        "addr": "127.10.6.1",
-        "name": "1",
-        "ad": 6
-    }
-},
-{
-    "model": "ad_manager.beaconserverweb",
-    "pk": 76,
-    "fields": {
-        "addr": "127.10.7.1",
-        "name": "1",
-        "ad": 7
-    }
-},
-{
-    "model": "ad_manager.certificateserverweb",
-    "pk": 61,
-    "fields": {
-        "addr": "127.1.1.21",
-        "name": "1",
-        "ad": 1
-    }
-},
-{
-    "model": "ad_manager.certificateserverweb",
-    "pk": 62,
-    "fields": {
-        "addr": "127.1.2.21",
-        "name": "1",
-        "ad": 2
-    }
-},
-{
-    "model": "ad_manager.certificateserverweb",
-    "pk": 63,
-    "fields": {
-        "addr": "127.2.3.21",
-        "name": "1",
-        "ad": 3
-    }
-},
-{
-    "model": "ad_manager.certificateserverweb",
-    "pk": 64,
-    "fields": {
-        "addr": "127.2.4.21",
-        "name": "1",
-        "ad": 4
-    }
-},
-{
-    "model": "ad_manager.certificateserverweb",
-    "pk": 65,
-    "fields": {
-        "addr": "127.2.5.21",
-        "name": "1",
-        "ad": 5
-    }
-},
-{
-    "model": "ad_manager.certificateserverweb",
-    "pk": 66,
-    "fields": {
-        "addr": "127.10.6.21",
-        "name": "1",
-        "ad": 6
-    }
-},
-{
-    "model": "ad_manager.certificateserverweb",
-    "pk": 67,
-    "fields": {
-        "addr": "127.10.7.21",
-        "name": "1",
-        "ad": 7
-    }
-},
-{
-    "model": "ad_manager.pathserverweb",
-    "pk": 49,
-    "fields": {
-        "addr": "127.1.1.41",
-        "name": "1",
-        "ad": 1
-    }
-},
-{
-    "model": "ad_manager.pathserverweb",
-    "pk": 50,
-    "fields": {
-        "addr": "127.1.2.41",
-        "name": "1",
-        "ad": 2
-    }
-},
-{
-    "model": "ad_manager.pathserverweb",
-    "pk": 51,
-    "fields": {
-        "addr": "127.2.3.41",
-        "name": "1",
-        "ad": 3
-    }
-},
-{
-    "model": "ad_manager.pathserverweb",
-    "pk": 52,
-    "fields": {
-        "addr": "127.2.4.41",
-        "name": "1",
-        "ad": 4
-    }
-},
-{
-    "model": "ad_manager.pathserverweb",
-    "pk": 53,
-    "fields": {
-        "addr": "127.2.5.41",
-        "name": "1",
-        "ad": 5
-    }
-},
-{
-    "model": "ad_manager.pathserverweb",
-    "pk": 54,
-    "fields": {
-        "addr": "127.10.6.41",
-        "name": "1",
-        "ad": 6
-    }
-},
-{
-    "model": "ad_manager.pathserverweb",
-    "pk": 55,
-    "fields": {
-        "addr": "127.10.7.41",
-        "name": "1",
-        "ad": 7
-    }
-},
-{
-    "model": "ad_manager.dnsserverweb",
-    "pk": 64,
-    "fields": {
-        "addr": "127.1.1.61",
-        "name": "1",
-        "ad": 1
-    }
-},
-{
-    "model": "ad_manager.dnsserverweb",
-    "pk": 65,
-    "fields": {
-        "addr": "127.1.2.61",
-        "name": "1",
-        "ad": 2
-    }
-},
-{
-    "model": "ad_manager.dnsserverweb",
-    "pk": 66,
-    "fields": {
-        "addr": "127.2.3.61",
-        "name": "1",
-        "ad": 3
-    }
-},
-{
-    "model": "ad_manager.dnsserverweb",
-    "pk": 67,
-    "fields": {
-        "addr": "127.2.4.61",
-        "name": "1",
-        "ad": 4
-    }
-},
-{
-    "model": "ad_manager.dnsserverweb",
-    "pk": 68,
-    "fields": {
-        "addr": "127.2.5.61",
-        "name": "1",
-        "ad": 5
-    }
-},
-{
-    "model": "ad_manager.dnsserverweb",
-    "pk": 69,
-    "fields": {
-        "addr": "127.10.6.61",
-        "name": "1",
-        "ad": 6
-    }
-},
-{
-    "model": "ad_manager.dnsserverweb",
-    "pk": 70,
-    "fields": {
-        "addr": "127.10.7.61",
-        "name": "1",
-        "ad": 7
-    }
-},
-{
-    "model": "ad_manager.routerweb",
-    "pk": 152,
-    "fields": {
-        "addr": "127.1.1.81",
-        "neighbor_ad": 2,
         "ad": 1,
-        "interface_id": 258,
-        "interface_addr": "127.1.1.82",
-        "interface_toaddr": "127.1.2.82",
-        "neighbor_type": "CHILD",
-        "name": "1"
-    }
+        "addr": "127.0.0.51"
+    },
+    "pk": 136,
+    "model": "ad_manager.beaconserverweb"
 },
 {
-    "model": "ad_manager.routerweb",
-    "pk": 153,
     "fields": {
-        "addr": "127.1.1.83",
-        "neighbor_ad": 3,
-        "ad": 1,
-        "interface_id": 259,
-        "interface_addr": "127.1.1.84",
-        "interface_toaddr": "127.2.3.86",
-        "neighbor_type": "ROUTING",
-        "name": "2"
-    }
-},
-{
-    "model": "ad_manager.routerweb",
-    "pk": 154,
-    "fields": {
-        "addr": "127.1.2.81",
-        "neighbor_ad": 1,
+        "name": "1",
         "ad": 2,
-        "interface_id": 258,
-        "interface_addr": "127.1.2.82",
-        "interface_toaddr": "127.1.1.82",
-        "neighbor_type": "PARENT",
-        "name": "1"
-    }
+        "addr": "127.0.0.67"
+    },
+    "pk": 137,
+    "model": "ad_manager.beaconserverweb"
 },
 {
-    "model": "ad_manager.routerweb",
-    "pk": 155,
     "fields": {
-        "addr": "127.2.3.87",
-        "neighbor_ad": 4,
+        "name": "1",
         "ad": 3,
-        "interface_id": 262,
-        "interface_addr": "127.2.3.88",
-        "interface_toaddr": "127.2.4.84",
-        "neighbor_type": "CHILD",
-        "name": "4"
-    }
+        "addr": "127.0.0.43"
+    },
+    "pk": 138,
+    "model": "ad_manager.beaconserverweb"
 },
 {
-    "model": "ad_manager.routerweb",
-    "pk": 156,
     "fields": {
-        "addr": "127.2.3.83",
-        "neighbor_ad": 5,
-        "ad": 3,
-        "interface_id": 263,
-        "interface_addr": "127.2.3.84",
-        "interface_toaddr": "127.2.5.84",
-        "neighbor_type": "CHILD",
-        "name": "2"
-    }
-},
-{
-    "model": "ad_manager.routerweb",
-    "pk": 157,
-    "fields": {
-        "addr": "127.2.3.85",
-        "neighbor_ad": 1,
-        "ad": 3,
-        "interface_id": 259,
-        "interface_addr": "127.2.3.86",
-        "interface_toaddr": "127.1.1.84",
-        "neighbor_type": "ROUTING",
-        "name": "3"
-    }
-},
-{
-    "model": "ad_manager.routerweb",
-    "pk": 158,
-    "fields": {
-        "addr": "127.2.3.81",
-        "neighbor_ad": 6,
-        "ad": 3,
-        "interface_id": 264,
-        "interface_addr": "127.2.3.82",
-        "interface_toaddr": "127.10.6.84",
-        "neighbor_type": "ROUTING",
-        "name": "1"
-    }
-},
-{
-    "model": "ad_manager.routerweb",
-    "pk": 159,
-    "fields": {
-        "addr": "127.2.4.83",
-        "neighbor_ad": 3,
+        "name": "1",
         "ad": 4,
-        "interface_id": 262,
-        "interface_addr": "127.2.4.84",
-        "interface_toaddr": "127.2.3.88",
-        "neighbor_type": "PARENT",
-        "name": "2"
-    }
+        "addr": "127.0.0.59"
+    },
+    "pk": 139,
+    "model": "ad_manager.beaconserverweb"
 },
 {
-    "model": "ad_manager.routerweb",
-    "pk": 160,
     "fields": {
-        "addr": "127.2.4.81",
-        "neighbor_ad": 5,
-        "ad": 4,
-        "interface_id": 264,
-        "interface_addr": "127.2.4.82",
-        "interface_toaddr": "127.2.5.82",
-        "neighbor_type": "ROUTING",
-        "name": "1"
-    }
-},
-{
-    "model": "ad_manager.routerweb",
-    "pk": 161,
-    "fields": {
-        "addr": "127.2.5.83",
-        "neighbor_ad": 3,
+        "name": "1",
         "ad": 5,
-        "interface_id": 263,
-        "interface_addr": "127.2.5.84",
-        "interface_toaddr": "127.2.3.84",
-        "neighbor_type": "PARENT",
-        "name": "2"
-    }
+        "addr": "127.0.0.63"
+    },
+    "pk": 140,
+    "model": "ad_manager.beaconserverweb"
 },
 {
-    "model": "ad_manager.routerweb",
-    "pk": 162,
     "fields": {
-        "addr": "127.2.5.81",
-        "neighbor_ad": 4,
-        "ad": 5,
-        "interface_id": 264,
-        "interface_addr": "127.2.5.82",
-        "interface_toaddr": "127.2.4.82",
-        "neighbor_type": "ROUTING",
-        "name": "1"
-    }
-},
-{
-    "model": "ad_manager.routerweb",
-    "pk": 163,
-    "fields": {
-        "addr": "127.10.6.81",
-        "neighbor_ad": 7,
+        "name": "1",
         "ad": 6,
-        "interface_id": 268,
-        "interface_addr": "127.10.6.82",
-        "interface_toaddr": "127.10.7.82",
-        "neighbor_type": "CHILD",
-        "name": "1"
-    }
+        "addr": "127.0.0.47"
+    },
+    "pk": 141,
+    "model": "ad_manager.beaconserverweb"
 },
 {
-    "model": "ad_manager.routerweb",
-    "pk": 164,
     "fields": {
-        "addr": "127.10.6.83",
-        "neighbor_ad": 3,
-        "ad": 6,
-        "interface_id": 264,
-        "interface_addr": "127.10.6.84",
-        "interface_toaddr": "127.2.3.82",
-        "neighbor_type": "ROUTING",
-        "name": "2"
-    }
-},
-{
-    "model": "ad_manager.routerweb",
-    "pk": 165,
-    "fields": {
-        "addr": "127.10.7.81",
-        "neighbor_ad": 6,
+        "name": "1",
         "ad": 7,
-        "interface_id": 268,
-        "interface_addr": "127.10.7.82",
-        "interface_toaddr": "127.10.6.82",
-        "neighbor_type": "PARENT",
-        "name": "1"
-    }
+        "addr": "127.0.0.55"
+    },
+    "pk": 142,
+    "model": "ad_manager.beaconserverweb"
+},
+{
+    "fields": {
+        "name": "1",
+        "ad": 1,
+        "addr": "127.0.0.52"
+    },
+    "pk": 118,
+    "model": "ad_manager.certificateserverweb"
+},
+{
+    "fields": {
+        "name": "1",
+        "ad": 2,
+        "addr": "127.0.0.68"
+    },
+    "pk": 119,
+    "model": "ad_manager.certificateserverweb"
+},
+{
+    "fields": {
+        "name": "1",
+        "ad": 3,
+        "addr": "127.0.0.44"
+    },
+    "pk": 120,
+    "model": "ad_manager.certificateserverweb"
+},
+{
+    "fields": {
+        "name": "1",
+        "ad": 4,
+        "addr": "127.0.0.60"
+    },
+    "pk": 121,
+    "model": "ad_manager.certificateserverweb"
+},
+{
+    "fields": {
+        "name": "1",
+        "ad": 5,
+        "addr": "127.0.0.64"
+    },
+    "pk": 122,
+    "model": "ad_manager.certificateserverweb"
+},
+{
+    "fields": {
+        "name": "1",
+        "ad": 6,
+        "addr": "127.0.0.48"
+    },
+    "pk": 123,
+    "model": "ad_manager.certificateserverweb"
+},
+{
+    "fields": {
+        "name": "1",
+        "ad": 7,
+        "addr": "127.0.0.56"
+    },
+    "pk": 124,
+    "model": "ad_manager.certificateserverweb"
+},
+{
+    "fields": {
+        "name": "1",
+        "ad": 1,
+        "addr": "127.0.0.53"
+    },
+    "pk": 94,
+    "model": "ad_manager.pathserverweb"
+},
+{
+    "fields": {
+        "name": "1",
+        "ad": 2,
+        "addr": "127.0.0.69"
+    },
+    "pk": 95,
+    "model": "ad_manager.pathserverweb"
+},
+{
+    "fields": {
+        "name": "1",
+        "ad": 3,
+        "addr": "127.0.0.45"
+    },
+    "pk": 96,
+    "model": "ad_manager.pathserverweb"
+},
+{
+    "fields": {
+        "name": "1",
+        "ad": 4,
+        "addr": "127.0.0.61"
+    },
+    "pk": 97,
+    "model": "ad_manager.pathserverweb"
+},
+{
+    "fields": {
+        "name": "1",
+        "ad": 5,
+        "addr": "127.0.0.65"
+    },
+    "pk": 98,
+    "model": "ad_manager.pathserverweb"
+},
+{
+    "fields": {
+        "name": "1",
+        "ad": 6,
+        "addr": "127.0.0.49"
+    },
+    "pk": 99,
+    "model": "ad_manager.pathserverweb"
+},
+{
+    "fields": {
+        "name": "1",
+        "ad": 7,
+        "addr": "127.0.0.57"
+    },
+    "pk": 100,
+    "model": "ad_manager.pathserverweb"
+},
+{
+    "fields": {
+        "name": "1",
+        "ad": 1,
+        "addr": "127.0.0.54"
+    },
+    "pk": 124,
+    "model": "ad_manager.dnsserverweb"
+},
+{
+    "fields": {
+        "name": "1",
+        "ad": 2,
+        "addr": "127.0.0.70"
+    },
+    "pk": 125,
+    "model": "ad_manager.dnsserverweb"
+},
+{
+    "fields": {
+        "name": "1",
+        "ad": 3,
+        "addr": "127.0.0.46"
+    },
+    "pk": 126,
+    "model": "ad_manager.dnsserverweb"
+},
+{
+    "fields": {
+        "name": "1",
+        "ad": 4,
+        "addr": "127.0.0.62"
+    },
+    "pk": 127,
+    "model": "ad_manager.dnsserverweb"
+},
+{
+    "fields": {
+        "name": "1",
+        "ad": 5,
+        "addr": "127.0.0.66"
+    },
+    "pk": 128,
+    "model": "ad_manager.dnsserverweb"
+},
+{
+    "fields": {
+        "name": "1",
+        "ad": 6,
+        "addr": "127.0.0.50"
+    },
+    "pk": 129,
+    "model": "ad_manager.dnsserverweb"
+},
+{
+    "fields": {
+        "name": "1",
+        "ad": 7,
+        "addr": "127.0.0.58"
+    },
+    "pk": 130,
+    "model": "ad_manager.dnsserverweb"
+},
+{
+    "fields": {
+        "name": "1",
+        "ad": 1,
+        "addr": "127.0.0.17",
+        "interface_port": 50000,
+        "interface_addr": "127.0.0.18",
+        "interface_toport": 50000,
+        "neighbor_ad": 3,
+        "interface_id": 1,
+        "interface_toaddr": "127.0.0.2",
+        "neighbor_type": "ROUTING"
+    },
+    "pk": 307,
+    "model": "ad_manager.routerweb"
+},
+{
+    "fields": {
+        "name": "2",
+        "ad": 1,
+        "addr": "127.0.0.19",
+        "interface_port": 50000,
+        "interface_addr": "127.0.0.20",
+        "interface_toport": 50000,
+        "neighbor_ad": 2,
+        "interface_id": 2,
+        "interface_toaddr": "127.0.0.40",
+        "neighbor_type": "CHILD"
+    },
+    "pk": 308,
+    "model": "ad_manager.routerweb"
+},
+{
+    "fields": {
+        "name": "1",
+        "ad": 2,
+        "addr": "127.0.0.39",
+        "interface_port": 50000,
+        "interface_addr": "127.0.0.40",
+        "interface_toport": 50000,
+        "neighbor_ad": 1,
+        "interface_id": 1,
+        "interface_toaddr": "127.0.0.20",
+        "neighbor_type": "PARENT"
+    },
+    "pk": 309,
+    "model": "ad_manager.routerweb"
+},
+{
+    "fields": {
+        "name": "1",
+        "ad": 3,
+        "addr": "127.0.0.1",
+        "interface_port": 50000,
+        "interface_addr": "127.0.0.2",
+        "interface_toport": 50000,
+        "neighbor_ad": 1,
+        "interface_id": 1,
+        "interface_toaddr": "127.0.0.18",
+        "neighbor_type": "ROUTING"
+    },
+    "pk": 310,
+    "model": "ad_manager.routerweb"
+},
+{
+    "fields": {
+        "name": "4",
+        "ad": 3,
+        "addr": "127.0.0.7",
+        "interface_port": 50000,
+        "interface_addr": "127.0.0.8",
+        "interface_toport": 50000,
+        "neighbor_ad": 5,
+        "interface_id": 4,
+        "interface_toaddr": "127.0.0.34",
+        "neighbor_type": "CHILD"
+    },
+    "pk": 311,
+    "model": "ad_manager.routerweb"
+},
+{
+    "fields": {
+        "name": "2",
+        "ad": 3,
+        "addr": "127.0.0.3",
+        "interface_port": 50000,
+        "interface_addr": "127.0.0.4",
+        "interface_toport": 50000,
+        "neighbor_ad": 4,
+        "interface_id": 2,
+        "interface_toaddr": "127.0.0.28",
+        "neighbor_type": "CHILD"
+    },
+    "pk": 312,
+    "model": "ad_manager.routerweb"
+},
+{
+    "fields": {
+        "name": "3",
+        "ad": 3,
+        "addr": "127.0.0.5",
+        "interface_port": 50000,
+        "interface_addr": "127.0.0.6",
+        "interface_toport": 50000,
+        "neighbor_ad": 6,
+        "interface_id": 3,
+        "interface_toaddr": "127.0.0.12",
+        "neighbor_type": "ROUTING"
+    },
+    "pk": 313,
+    "model": "ad_manager.routerweb"
+},
+{
+    "fields": {
+        "name": "1",
+        "ad": 4,
+        "addr": "127.0.0.27",
+        "interface_port": 50000,
+        "interface_addr": "127.0.0.28",
+        "interface_toport": 50000,
+        "neighbor_ad": 3,
+        "interface_id": 1,
+        "interface_toaddr": "127.0.0.4",
+        "neighbor_type": "PARENT"
+    },
+    "pk": 314,
+    "model": "ad_manager.routerweb"
+},
+{
+    "fields": {
+        "name": "2",
+        "ad": 4,
+        "addr": "127.0.0.29",
+        "interface_port": 50000,
+        "interface_addr": "127.0.0.30",
+        "interface_toport": 50000,
+        "neighbor_ad": 5,
+        "interface_id": 2,
+        "interface_toaddr": "127.0.0.36",
+        "neighbor_type": "ROUTING"
+    },
+    "pk": 315,
+    "model": "ad_manager.routerweb"
+},
+{
+    "fields": {
+        "name": "1",
+        "ad": 5,
+        "addr": "127.0.0.33",
+        "interface_port": 50000,
+        "interface_addr": "127.0.0.34",
+        "interface_toport": 50000,
+        "neighbor_ad": 3,
+        "interface_id": 1,
+        "interface_toaddr": "127.0.0.8",
+        "neighbor_type": "PARENT"
+    },
+    "pk": 316,
+    "model": "ad_manager.routerweb"
+},
+{
+    "fields": {
+        "name": "2",
+        "ad": 5,
+        "addr": "127.0.0.35",
+        "interface_port": 50000,
+        "interface_addr": "127.0.0.36",
+        "interface_toport": 50000,
+        "neighbor_ad": 4,
+        "interface_id": 2,
+        "interface_toaddr": "127.0.0.30",
+        "neighbor_type": "ROUTING"
+    },
+    "pk": 317,
+    "model": "ad_manager.routerweb"
+},
+{
+    "fields": {
+        "name": "1",
+        "ad": 6,
+        "addr": "127.0.0.11",
+        "interface_port": 50000,
+        "interface_addr": "127.0.0.12",
+        "interface_toport": 50000,
+        "neighbor_ad": 3,
+        "interface_id": 1,
+        "interface_toaddr": "127.0.0.6",
+        "neighbor_type": "ROUTING"
+    },
+    "pk": 318,
+    "model": "ad_manager.routerweb"
+},
+{
+    "fields": {
+        "name": "2",
+        "ad": 6,
+        "addr": "127.0.0.13",
+        "interface_port": 50000,
+        "interface_addr": "127.0.0.14",
+        "interface_toport": 50000,
+        "neighbor_ad": 7,
+        "interface_id": 2,
+        "interface_toaddr": "127.0.0.24",
+        "neighbor_type": "CHILD"
+    },
+    "pk": 319,
+    "model": "ad_manager.routerweb"
+},
+{
+    "fields": {
+        "name": "1",
+        "ad": 7,
+        "addr": "127.0.0.23",
+        "interface_port": 50000,
+        "interface_addr": "127.0.0.24",
+        "interface_toport": 50000,
+        "neighbor_ad": 6,
+        "interface_id": 1,
+        "interface_toaddr": "127.0.0.14",
+        "neighbor_type": "PARENT"
+    },
+    "pk": 320,
+    "model": "ad_manager.routerweb"
 }
 ]
