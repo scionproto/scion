@@ -241,4 +241,10 @@ typedef struct {
 
 #pragma pack(pop)
 
+
+//DPDK port
+#define DPDK_EGRESS_PORT 0
+#define DPDK_LOCAL_PORT 1
+
+
 #endif /* _ROUTE_H_ */

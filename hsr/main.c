@@ -69,6 +69,8 @@
 #include <rte_mempool.h>
 #include <rte_mbuf.h>
 
+#include "scion.h"
+
 #define RTE_LOGTYPE_L2FWD RTE_LOGTYPE_USER1
 
 #define MBUF_SIZE (2048 + sizeof(struct rte_mbuf) + RTE_PKTMBUF_HEADROOM)
@@ -243,8 +245,7 @@ l2fwd_simple_forward(struct rte_mbuf *m, unsigned portid)
 	//sasaki
 	printf("debug\n");
         uint8_t from_local_socket=0;
-#define DPDK_WAN_PORT 0
-        if(portid != DPDK_WAN_PORT) from_local_socket=1;
+        if(portid != DPDK_EGRESS_PORT) from_local_socket=1;
         handle_request(m, 0/*sender*/, from_local_socket);
         return;
 		//
