@@ -32,7 +32,8 @@ from lib.packet.pcb import (
     PathConstructionBeacon,
     PathSegment,
     PCBMarking,
-    REV_TOKEN_LEN)
+    REV_TOKEN_LEN
+)
 from lib.packet.scion import PacketType, SCIONHeader
 from lib.packet.scion_addr import ISD_AD, SCIONAddr
 from lib.defines import EXP_TIME_UNIT
@@ -127,33 +128,32 @@ class TestPCBMarkingParse(object):
     """
     @patch("lib.packet.pcb.HopOpaqueField", autospec=True)
     @patch("lib.packet.pcb.ISD_AD", autospec=True)
-    def test(self, isd_ad, hop_of):
+    @patch("lib.packet.pcb.Raw", autospec=True)
+    def test(self, raw, isd_ad, hop_of):
+        # Setup
+        raw.return_value = MagicMock(spec_set=["pop"])
+        raw.return_value.pop.side_effect = (
+            "pop isd_ad", "pop hof", "pop rev tkn")
         pcbm = PCBMarking()
-        data = bytes(range(PCBMarking.LEN))
+        data = b"data"
         isd_ad.from_raw.return_value = (12, 34)
         isd_ad.LEN = ISD_AD.LEN
         hop_of.return_value = 'hop_of'
         hop_of.LEN = HopOpaqueField.LEN
+        # Call
         pcbm.parse(data)
+        # Tests
         ntools.eq_(pcbm.raw, data)
-        isd_ad.from_raw.assert_called_once_with(data[:ISD_AD.LEN])
+        raw.assert_called_once_with(data, "PCBMarking", pcbm.LEN)
+        raw.return_value.pop.assert_has_calls(
+            [call(ISD_AD.LEN), call(hop_of.LEN), call(REV_TOKEN_LEN)])
+        isd_ad.from_raw.assert_called_once_with("pop isd_ad")
         ntools.eq_(pcbm.isd_id, 12)
         ntools.eq_(pcbm.ad_id, 34)
-        offset = ISD_AD.LEN
-        hop_of.assert_called_once_with(data[offset:offset + HopOpaqueField.LEN])
+        hop_of.assert_called_once_with("pop hof")
         ntools.eq_(pcbm.hof, 'hop_of')
-        offset += HopOpaqueField.LEN
-        ntools.eq_(pcbm.ig_rev_token, data[offset:offset + REV_TOKEN_LEN])
+        ntools.eq_(pcbm.ig_rev_token, "pop rev tkn")
         ntools.assert_true(pcbm.parsed)
-
-    def test_wrong_type(self):
-        pcbm = PCBMarking()
-        ntools.assert_raises(AssertionError, pcbm.parse, 123)
-
-    def test_bad_length(self):
-        pcbm = PCBMarking()
-        pcbm.parse(bytes(range(PCBMarking.LEN - 1)))
-        ntools.assert_false(pcbm.parsed)
 
 
 class TestPCBMarkingFromValues(object):
@@ -240,95 +240,59 @@ class TestADMarkingParse(object):
     Unit test for lib.packet.pcb.ADMarking.parse
     """
     @patch("lib.packet.pcb.ADMarking._parse_peers", autospec=True)
-    @patch("lib.packet.pcb.ADMarking._parse_pcbm", autospec=True)
-    @patch("lib.packet.pcb.ADMarking._parse_metadata", autospec=True)
-    def test(self, parse_metadata, parse_pcbm, parse_peers):
-        ad_marking = ADMarking()
-        # using a larger length as a buffer
-        dlen = (PCBMarking.LEN + ADMarking.METADATA_LEN + REV_TOKEN_LEN) * 2
-        data = bytes(range(dlen))
-        parse_peers.return_value = PCBMarking.LEN
-        ad_marking.parse(data)
-        parse_metadata.assert_called_once_with(ad_marking,
-                                               data[:ADMarking.METADATA_LEN])
-        data = data[ADMarking.METADATA_LEN:]
-        parse_pcbm.assert_called_once_with(ad_marking, data[:PCBMarking.LEN])
-        data = data[PCBMarking.LEN:]
-        parse_peers.assert_called_once_with(ad_marking, data)
-        data = data[PCBMarking.LEN:]
-        ntools.eq_(ad_marking.asd, data[:ad_marking.asd_len])
-        data = data[ad_marking.asd_len:]
-        ntools.eq_(ad_marking.eg_rev_token, data[:REV_TOKEN_LEN])
-        ntools.eq_(ad_marking.sig, data[REV_TOKEN_LEN:])
-        ntools.assert_true(ad_marking.parsed)
-
-    def test_wrong_type(self):
-        ad_marking = ADMarking()
-        ntools.assert_raises(AssertionError, ad_marking.parse, 123)
-
-    def test_bad_length(self):
-        ad_marking = ADMarking()
-        dlen = PCBMarking.LEN + ADMarking.METADATA_LEN + REV_TOKEN_LEN
-        ad_marking.parse(bytes(range(dlen - 1)))
-        ntools.assert_false(ad_marking.parsed)
-
-
-class TestADMarkingParseMetadata(object):
-    """
-    Unit test for lib.packet.pcb.ADMarking._parse_metadata
-    """
-    def test(self):
-        data = bytes.fromhex('0102 0304 0506 0708')
-        ad_marking = ADMarking()
-        ad_marking._parse_metadata(data)
-        ntools.eq_(ad_marking.cert_ver, 0x0102)
-        ntools.eq_(ad_marking.sig_len, 0x0304)
-        ntools.eq_(ad_marking.asd_len, 0x0506)
-        ntools.eq_(ad_marking.block_len, 0x0708)
-
-    def test_bad_length(self):
-        ad_marking = ADMarking()
-        ntools.assert_raises(AssertionError, ad_marking._parse_metadata,
-                             b'\x00' * (ad_marking.METADATA_LEN - 1))
-
-
-class TestADMarkingParsePcbm(object):
-    """
-    Unit test for lib.packet.pcb.ADMarking._parse_pcbm
-    """
     @patch("lib.packet.pcb.PCBMarking", autospec=True)
-    def test(self, pcb_marking):
-        data = b'\x00' * PCBMarking.LEN
-        pcb_marking.LEN = PCBMarking.LEN
+    @patch("lib.packet.pcb.Raw", autospec=True)
+    def test(self, raw, pcb_marking, parse_peers):
+        # Setup
+        min_len = PCBMarking.LEN + ADMarking.METADATA_LEN + REV_TOKEN_LEN
+        raw.return_value = MagicMock(spec_set=["pop"])
+        raw.return_value.pop.side_effect = (
+            bytes(range(ADMarking.METADATA_LEN)),
+            "pop pcbm", "pop asd", "pop rev tkn", "pop sig")
+        ad_marking = ADMarking()
         pcb_marking.return_value = 'pcb_marking'
-        ad_marking = ADMarking()
-        ad_marking._parse_pcbm(data)
-        pcb_marking.assert_called_once_with(data)
+        pcb_marking.LEN = PCBMarking.LEN
+        # using a larger length as a buffer
+        # Call
+        ad_marking.parse(b"data")
+        # Tests
+        ntools.eq_(ad_marking.raw, b"data")
+        raw.assert_called_once_with(b"data", "ADMarking", min_len, min_=True)
+        raw.return_value.pop.assert_has_calls([
+            call(ad_marking.METADATA_LEN), call(pcb_marking.LEN),
+            call(ad_marking.asd_len), call(REV_TOKEN_LEN), call(),
+        ])
+        ntools.eq_(ad_marking.cert_ver, 0x0001)
+        ntools.eq_(ad_marking.sig_len, 0x0203)
+        ntools.eq_(ad_marking.asd_len, 0x0405)
+        ntools.eq_(ad_marking.block_len, 0x0607)
+        pcb_marking.assert_called_once_with("pop pcbm")
         ntools.eq_(ad_marking.pcbm, 'pcb_marking')
-
-    def test_bad_length(self):
-        ad_marking = ADMarking()
-        ntools.assert_raises(AssertionError, ad_marking._parse_pcbm,
-                             b'\x00' * (PCBMarking.LEN - 1))
+        parse_peers.assert_called_once_with(ad_marking, raw.return_value)
+        ntools.eq_(ad_marking.asd, "pop asd")
+        ntools.eq_(ad_marking.eg_rev_token, "pop rev tkn")
+        ntools.eq_(ad_marking.sig, "pop sig")
+        ntools.assert_true(ad_marking.parsed)
 
 
 class TestADMarkingParsePeers(object):
     """
     Unit test for lib.packet.pcb.ADMarking._parse_peers
     """
-    @patch("lib.packet.pcb.REV_TOKEN_LEN", new_callable=int)
     @patch("lib.packet.pcb.PCBMarking", autospec=True)
-    def test(self, pcb_marking, rev_token_len):
+    def test(self, pcb_marking):
+        # Setup
+        data = MagicMock(spec_set=["__len__", "pop"])
+        data.__len__.side_effect = [REV_TOKEN_LEN+2, REV_TOKEN_LEN+1, 0]
+        data.pop.side_effect = ("pop pcbm0", "pop pcbm1")
         ad_marking = ADMarking()
         pcb_marking.LEN = 1
-        rev_token_len = 0   # noqa
-        data = b'abcd'
-        pcb_marking.side_effect = ['data' + str(i) for i in range(4)]
-        offset = ad_marking._parse_peers(data)
-        pcb_marking.assert_has_calls([call(b'a'), call(b'b'), call(b'c'),
-                                      call(b'd')])
-        ntools.eq_(ad_marking.pms, ['data' + str(i) for i in range(4)])
-        ntools.eq_(offset, 4)
+        pcb_marking.side_effect = ['data0', 'data1']
+        # Call
+        ad_marking._parse_peers(data)
+        # Tests
+        pcb_marking.assert_has_calls([call('pop pcbm0'), call('pop pcbm1')])
+        ntools.eq_(ad_marking.pms, ['data0', 'data1'])
 
 
 class TestADMarkingFromValues(object):
@@ -463,59 +427,61 @@ class TestPathSegmentParse(object):
     """
     Unit test for lib.packet.pcb.PathSegment.parse
     """
-    def test_wrong_type(self):
-        path_segment = PathSegment()
-        ntools.assert_raises(AssertionError, path_segment.parse, 123)
-
-    def test_bad_len(self):
-        path_segment = PathSegment()
-        data = b'\x00' * (PathSegment.MIN_LEN - 1)
-        path_segment.parse(data)
-        ntools.assert_false(path_segment.parsed)
-
     @patch("lib.packet.pcb.PathSegment._parse_hops", autospec=True)
     @patch("lib.packet.pcb.InfoOpaqueField", autospec=True)
-    def test(self, info_of, parse_hops):
+    @patch("lib.packet.pcb.Raw", autospec=True)
+    def test(self, raw, info_of, parse_hops):
+        # Setup
+        raw.return_value = MagicMock(spec_set=["pop", "offset"])
+        raw.return_value.pop.side_effect = (
+            "pop iof", bytes(range(6)), "pop seg id")
+        raw.return_value.offset.return_value = 44
         path_segment = PathSegment()
-        dlen = PathSegment.MIN_LEN
-        data = bytes(range(dlen))
         info_of.LEN = 1
         info_of.return_value = 'info_of'
-        parse_hops.return_value = 10
-        ret = path_segment.parse(data)
-        ntools.eq_(path_segment.raw, data)
+        # Call
+        ntools.eq_(path_segment.parse(b"data"), 44)
+        # Tests
+        ntools.eq_(path_segment.raw, b"data")
+        raw.assert_called_once_with(b"data", "PathSegment",
+                                    path_segment.MIN_LEN, min_=True)
+        raw.return_value.pop.assert_has_calls([
+            call(info_of.LEN), call(6), call(REV_TOKEN_LEN)])
+        info_of.assert_called_once_with("pop iof")
         ntools.eq_(path_segment.iof, 'info_of')
-        info_of.assert_called_once_with(data[:1])
-        offset = 1
-        ntools.eq_(path_segment.trc_ver, 0x01020304)
-        ntools.eq_(path_segment.if_id, 0x0506)
-        offset += 6
-        ntools.eq_(path_segment.segment_id, data[offset:offset + REV_TOKEN_LEN])
-        offset += REV_TOKEN_LEN
-        parse_hops.assert_called_once_with(path_segment, data[offset:])
+        ntools.eq_(path_segment.trc_ver, 0x00010203)
+        ntools.eq_(path_segment.if_id, 0x0405)
+        ntools.eq_(path_segment.segment_id, "pop seg id")
+        parse_hops.assert_called_once_with(path_segment, raw.return_value)
         ntools.assert_true(path_segment.parsed)
-        ntools.eq_(ret, offset + 10)
 
 
 class TestPathSegmentParseHops(object):
     """
     Unit test for lib.packet.pcb.PathSegment._parse_hops
     """
-    @patch("lib.packet.pcb.REV_TOKEN_LEN", new_callable=int)
     @patch("lib.packet.pcb.PathSegment.add_ad", autospec=True)
     @patch("lib.packet.pcb.ADMarking", autospec=True)
-    def test(self, ad_marking, add_ad, rev_token_len):
+    def test(self, ad_marking, add_ad):
+        # Setup
+        data = MagicMock(spec_set=["get", "pop"])
+        data.get.side_effect = [bytes(range(8))] * 2
+        data.pop.side_effect = ("pop adm0", "pop adm1")
         path_segment = PathSegment()
         path_segment.iof = MagicMock(spec_set=['hops'])
         path_segment.iof.hops = 2
         ad_marking.METADATA_LEN = ADMarking.METADATA_LEN
-        data = 2 * (bytes.fromhex('0000 0001 0002 0003') + 6 * b'\x00')
         ad_marking.side_effect = ['ad_marking0', 'ad_marking1']
-        offset = path_segment._parse_hops(data)
-        ad_marking.assert_has_calls([call(data[:14]), call(data[14:])])
+        # Call
+        path_segment._parse_hops(data)
+        # Tests
+        data.get.assert_has_calls([call(8), call(8)])
+        data.pop.assert_has_calls([
+            call(0x0203 + 0x0405 + 0x0607 +
+                 ADMarking.METADATA_LEN + REV_TOKEN_LEN)] * 2)
+        ad_marking.assert_has_calls([call("pop adm0"), call("pop adm1")])
         add_ad.assert_has_calls([call(path_segment, 'ad_marking0'),
                                  call(path_segment, 'ad_marking1')])
-        ntools.eq_(offset, 28)
 
 
 class TestPathSegmentPack(object):
@@ -839,26 +805,29 @@ class TestPathSegmentDeserialize(object):
     """
     Unit test for lib.packet.pcb.PathSegment.deserialize
     """
-    def test_wrong_type(self):
-        ntools.assert_raises(AssertionError, PathSegment.deserialize, 123)
-
-    def test_bad_length(self):
-        data = b'\x00' * (PathSegment.MIN_LEN - 1)
-        ntools.assert_is_none(PathSegment.deserialize(data))
-
     @patch("lib.packet.pcb.PathSegment", autospec=True)
-    def test(self, path_segment):
-        path_segment.MIN_LEN = 0
+    @patch("lib.packet.pcb.Raw", autospec=True)
+    def test(self, raw, path_segment):
+        # Setup
+        raw.return_value = MagicMock(spec_set=["__len__", "get", "pop"])
+        raw.return_value.__len__.side_effect = [2, 1, 0]
+        raw.return_value.get.side_effect = ["data0data1", "data1"]
         pcbs = [MagicMock(spec_set=['parse']), MagicMock(spec_set=['parse'])]
         for i, pcb in enumerate(pcbs):
             pcb.parse = MagicMock(spec_set=[])
             pcb.parse.return_value = i + 1
         path_segment.side_effect = pcbs
-        data = bytes(range(3))
+        data = b"data"
+        # Call
         ntools.eq_(PathSegment.deserialize(data), pcbs)
+        # Tests
+        raw.assert_called_once_with(data, "PathSegment", path_segment.MIN_LEN,
+                                    min_=True)
         path_segment.assert_has_calls([call(), call()])
-        pcbs[0].parse.assert_called_once_with(data)
-        pcbs[1].parse.assert_called_once_with(data[1:])
+        raw.return_value.get.assert_has_calls([call(), call()])
+        raw.return_value.pop.assert_has_calls([call(1), call(2)])
+        pcbs[0].parse.assert_called_once_with("data0data1")
+        pcbs[1].parse.assert_called_once_with("data1")
 
 
 class TestPathSegmentSerialize(object):

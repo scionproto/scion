@@ -16,14 +16,15 @@
 ======================================================================
 """
 # Stdlib
-from ipaddress import IPV4LENGTH, IPV6LENGTH, IPv4Address, IPv6Address
-from unittest.mock import patch
+from ipaddress import IPv4Address, IPv6Address
+from unittest.mock import MagicMock, patch
 
 # External packages
 import nose
 import nose.tools as ntools
 
 # SCION
+from lib.errors import SCIONParseError
 from lib.packet.scion_addr import SCIONAddr, ISD_AD
 
 
@@ -56,33 +57,20 @@ class TestSCIONAddrFromValues(object):
     Unit tests for lib.packet.scion_addr.SCIONAddr.from_values
     """
 
-    def test_ipv4(self):
-        """
-        Create an IPv4Address from values.
-        """
+    def test(self):
+        # Setup
         isd_id = 1
         ad_id = 10
-        host_addr = IPv4Address("10.1.1.1")
-        addr_len = ISD_AD.LEN + (IPV4LENGTH // 8)
+        host_addr = MagicMock(spec_set=["packed"])
+        host_addr.packed = "123"
+        # Call
         addr = SCIONAddr.from_values(isd_id, ad_id, host_addr)
+        # Tests
+        ntools.assert_is_instance(addr, SCIONAddr)
         ntools.eq_(addr.isd_id, isd_id)
         ntools.eq_(addr.ad_id, ad_id)
         ntools.eq_(addr.host_addr, host_addr)
-        ntools.eq_(addr.addr_len, addr_len)
-
-    def test_ipv6(self):
-        """
-        Create an IPv6Address from values.
-        """
-        isd_id = 1
-        ad_id = 10
-        host_addr = IPv6Address("2001:db8::1000")
-        addr_len = ISD_AD.LEN + (IPV6LENGTH // 8)
-        addr = SCIONAddr.from_values(isd_id, ad_id, host_addr)
-        ntools.eq_(addr.isd_id, isd_id)
-        ntools.eq_(addr.ad_id, ad_id)
-        ntools.eq_(addr.host_addr, host_addr)
-        ntools.eq_(addr.addr_len, addr_len)
+        ntools.eq_(addr.addr_len, ISD_AD.LEN + 3)
 
 
 class TestSCIONAddrParse(object):
@@ -90,62 +78,42 @@ class TestSCIONAddrParse(object):
     Unit tests for lib.packet.scion_addr.SCIONAddr.parse
     """
 
-    def test_ipv4(self):
-        """
-        Parse a byte stream corresponding to a IPv4Address
-        """
-        isd_ad_bytes = bytes([0, 16, 0, 10])
-        addr_bytes = bytes([10, 1, 1, 1])
-        all_bytes = isd_ad_bytes + addr_bytes
-        addr_len = len(all_bytes)
+    @patch("lib.packet.scion_addr.ISD_AD.from_raw", spec_set=[],
+           new_callable=MagicMock)
+    @patch("lib.packet.scion_addr.Raw", autospec=True)
+    def _check(self, ip, raw, isdad_raw):
+        # Setup
+        data = b"sadr" + ip.packed
+        raw.return_value = MagicMock(spec_set=["__len__", "pop"])
+        raw.return_value.__len__.side_effect = [len(data), len(ip.packed)]
+        raw.return_value.pop.side_effect = ("pop isd_ad", ip.packed)
+        isdad_raw.return_value = (1, 10)
         addr = SCIONAddr()
-        addr.parse(all_bytes)
+        # Call
+        addr.parse(data)
+        # Tests
+        raw.assert_called_once_with(data, "SCIONAddr", 8, min_=True)
+        isdad_raw.assert_called_once_with("pop isd_ad")
+        ntools.eq_(addr.addr_len, len(data))
         ntools.eq_(addr.isd_id, 1)
         ntools.eq_(addr.ad_id, 10)
-        ntools.eq_(addr.host_addr, IPv4Address("10.1.1.1"))
-        ntools.eq_(addr.addr_len, addr_len)
+        ntools.eq_(addr.host_addr, ip)
 
-    def test_ipv6(self):
-        """
-        Parse a byte stream corresponding to a IPv6Address
-        """
-        isd_ad_bytes = bytes([0, 16, 0, 10])
-        addr_bytes = bytes([0, 16, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16])
-        all_bytes = isd_ad_bytes + addr_bytes
-        addr_len = len(all_bytes)
-        addr = SCIONAddr()
-        addr.parse(all_bytes)
-        ntools.eq_(addr.isd_id, 1)
-        ntools.eq_(addr.ad_id, 10)
-        ntools.eq_(addr.host_addr, IPv6Address("10:1::10"))
-        ntools.eq_(addr.addr_len, addr_len)
+    def test(self):
+        for ip in IPv4Address("10.1.1.1"), IPv6Address("10:1::10"):
+            yield self._check, ip
 
-    def test_len(self):
-        """
-        ISD_AD.LEN is 4 bytes.
-        For any byte stream less than this, parsing should not happen properly.
-        """
+    @patch("lib.packet.scion_addr.ISD_AD.from_raw", spec_set=[],
+           new_callable=MagicMock())
+    @patch("lib.packet.scion_addr.Raw", autospec=True)
+    def test_len_address(self, raw, isdad_raw):
+        # Setup
+        raw.return_value = MagicMock(spec_set=["__len__", "pop"])
+        raw.return_value.__len__.side_effect = (0, 1)
+        isdad_raw.return_value = (1, 10)
         addr = SCIONAddr()
-        # Byte stream size chosen to be 3
-        addr.parse(bytes([0, 0, 0]))
-        ntools.eq_(addr.isd_id, None)
-        ntools.eq_(addr.ad_id, None)
-        ntools.eq_(addr.host_addr, None)
-        ntools.eq_(addr.addr_len, 0)
-
-    def test_len_address(self):
-        """
-        Byte Stream length is 4+4 for IPv4Address, 4+16 for IPv6Address.
-        For any byte stream size other than this, parsing should not happen
-        properly.
-        """
-        addr = SCIONAddr()
-        # Byte stream size chosen to be 11
-        addr.parse(bytes([0, 0, 0, 10]))
-        ntools.eq_(addr.isd_id, 0)
-        ntools.eq_(addr.ad_id, 10)
-        ntools.eq_(addr.host_addr, None)
-        ntools.eq_(addr.addr_len, 0)
+        # Call
+        ntools.assert_raises(SCIONParseError, addr.parse, b"data")
 
 
 class TestSCIONAddrPack(object):

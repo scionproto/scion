@@ -16,11 +16,11 @@
 ===========================================
 """
 # Stdlib
-import logging
 import struct
 
 # SCION
 from lib.packet.packet_base import HeaderBase
+from lib.util import Raw
 
 
 class ExtensionHeader(HeaderBase):
@@ -47,7 +47,7 @@ class ExtensionHeader(HeaderBase):
         :param raw:
         :type raw:
         """
-        HeaderBase.__init__(self)
+        super().__init__()
         self.next_ext = 0
         self.hdr_len = 0
         if raw is not None:
@@ -60,13 +60,9 @@ class ExtensionHeader(HeaderBase):
         :param raw:
         :type raw:
         """
-        assert isinstance(raw, bytes)
-        dlen = len(raw)
-        if dlen < self.MIN_LEN:
-            logging.warning("Data too short to parse extension hdr: "
-                            "data len %u", dlen)
-            return
-        self.next_ext, self.hdr_len = struct.unpack("!BB", raw)
+        data = Raw(raw, "ExtensionHeader", self.MIN_LEN)
+        self.next_ext, self.hdr_len = struct.unpack(
+            "!BB", data.pop(self.MIN_LEN))
         self.parsed = True
 
     def pack(self):
@@ -114,7 +110,7 @@ class ICNExtHdr(ExtensionHeader):
         :param raw:
         :type raw:
         """
-        ExtensionHeader.__init__(self)
+        super().__init__()
         self.fwd_flag = 0
         if raw is not None:
             self.parse(raw)
@@ -126,16 +122,10 @@ class ICNExtHdr(ExtensionHeader):
         :param raw:
         :type raw:
         """
-        assert isinstance(raw, bytes)
-        dlen = len(raw)
-        if dlen < self.MIN_LEN:
-            logging.warning("Data too short to parse ICN extension hdr: "
-                            "data len %u", dlen)
-            return
-        (self.next_ext, self.hdr_len, self.fwd_flag, _rsvd1, _rsvd2) = \
-            struct.unpack("!BBBIB", raw)
+        data = Raw(raw, "ICNExtHdr", self.MIN_LEN, min_=True)
+        self.next_ext, self.hdr_len, self.fwd_flag, _rsvd1, _rsvd2 = \
+            struct.unpack("!BBBIB", data.pop(self.MIN_LEN))
         self.parsed = True
-        return
 
     def pack(self):
         """
