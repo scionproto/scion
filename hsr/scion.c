@@ -132,6 +132,7 @@ int send_local(struct rte_mbuf *m, uint32_t next_ifid) {
   if (next_ifid != 0) {
     uint8_t dpdk_port = 0xff;
     int i;
+  //TODO remove this loop for improving performance
     for (i = 1; i <= MAX_NUM_ROUTER; i++) {
       if (i == MAX_NUM_ROUTER) {
         // can not find the egress router that has next_ifid
@@ -261,7 +262,6 @@ void normal_forward(struct rte_mbuf *m, uint32_t from_local_ad) {
     // Increment index of OF
     sch->currentOF += sizeof(HopOpaqueField);
 
-    // send_single_packet(m, DPDK_EGRESS_PORT);
     printf("send packet to neighbor AD\n");
     send_egress(m);
   } else {
@@ -276,6 +276,7 @@ void normal_forward(struct rte_mbuf *m, uint32_t from_local_ad) {
 
     int ret = send_local(m, next_ifid);
     if (ret < 0) {
+	//send to host
       struct ipv4_hdr *ipv4_hdr;
       struct udp_hdr *udp_hdr;
       ipv4_hdr = (struct ipv4_hdr *)(rte_pktmbuf_mtod(
@@ -319,13 +320,9 @@ void crossover_forward(struct rte_mbuf *m, uint32_t from_local_ad) {
                               sizeof(struct ipv4_hdr) + sizeof(struct udp_hdr));
   sch = &(scion_hdr->commonHeader);
   hof = (HopOpaqueField *)((unsigned char *)sch + sch->currentOF +
-                           SCION_COMMON_HEADER_LEN); // currentOF is an offset
-                                                     // from
-                                                     // common header
+                           SCION_COMMON_HEADER_LEN); /
   iof = (InfoOpaqueField *)((unsigned char *)sch + sch->currentIOF +
-                            SCION_COMMON_HEADER_LEN); // currentOF is an offset
-                                                      // from
-                                                      // common header
+                            SCION_COMMON_HEADER_LEN);
 
   uint8_t info = iof->type >> 1; // info is MSB 7bits
 
