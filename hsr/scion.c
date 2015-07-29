@@ -100,6 +100,26 @@ void scion_init() {
 
 int l2fwd_send_packet(struct rte_mbuf *m, uint8_t port);
 
+// send a packet to neighbor AD router
+int send_egress(struct rte_mbuf *m) {
+  struct ipv4_hdr *ipv4_hdr;
+  struct udp_hdr *udp_hdr;
+  ipv4_hdr = (struct ipv4_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
+      struct ether_hdr));
+  udp_hdr = (struct udp_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
+                                   struct ether_hdr) +
+                               sizeof(struct ipv4_hdr));
+
+  // Specify output dpdk port.
+  uint8_t dpdk_port = iflist[0].dpdk_port;
+  // Update destination IP address and UDP port number
+  ipv4_hdr->dst_addr = iflist[0].addr;
+  udp_hdr->dst_port = iflist[0].udp_port;
+
+  l2fwd_send_packet(m, DPDK_EGRESS_PORT);
+}
+
+// send a packet to the edge router that has next_ifid in this AD
 int send_local(struct rte_mbuf *m, uint32_t next_ifid) {
   struct ipv4_hdr *ipv4_hdr;
   struct udp_hdr *udp_hdr;
@@ -128,7 +148,9 @@ int send_local(struct rte_mbuf *m, uint32_t next_ifid) {
     udp_hdr->dst_port = iflist[i].udp_port;
 
     l2fwd_send_packet(m, dpdk_port);
+    return 1;
   }
+  return -1;
 }
 
 uint8_t get_type(SCIONHeader *hdr) {
@@ -194,19 +216,12 @@ uint8_t is_xovr(HopOpaqueField *currOF) {
 
 void normal_forward(struct rte_mbuf *m, uint32_t from_local_ad) {
   struct ether_hdr *eth_hdr;
-  struct ipv4_hdr *ipv4_hdr;
-  struct udp_hdr *udp_hdr;
   SCIONHeader *scion_hdr;
   SCIONCommonHeader *sch;
   HopOpaqueField *hof;
   InfoOpaqueField *iof;
 
   printf("normal forward\n");
-  ipv4_hdr = (struct ipv4_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
-      struct ether_hdr));
-  udp_hdr = (struct udp_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
-                                   struct ether_hdr) +
-                               sizeof(struct ipv4_hdr));
   scion_hdr = (SCIONHeader *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
                                   struct ether_hdr) +
                               sizeof(struct ipv4_hdr) + sizeof(struct udp_hdr));
@@ -248,7 +263,7 @@ void normal_forward(struct rte_mbuf *m, uint32_t from_local_ad) {
 
     // send_single_packet(m, DPDK_EGRESS_PORT);
     printf("send packet to neighbor AD\n");
-    l2fwd_send_packet(m, DPDK_EGRESS_PORT);
+    send_egress(m);
   } else {
     // Send this SCION packet to the egress router in this AD
     uint8_t egress_dpdk_port = 0xff;
@@ -259,20 +274,16 @@ void normal_forward(struct rte_mbuf *m, uint32_t from_local_ad) {
 
     printf("next ifid %d", next_ifid);
 
-    if (next_ifid != 0) {
-      for (i = 0; i < MAX_NUM_ROUTER; i++) {
-        if (iflist[i].scion_ifid == next_ifid) {
-          break;
-        }
-      }
-      // Specify output dpdk port.
-      egress_dpdk_port = iflist[i].dpdk_port;
-      // Update destination IP address and UDP port number
-      ipv4_hdr->dst_addr = iflist[i].addr;
-      udp_hdr->dst_port = iflist[i].udp_port;
-      //}else if (ptype ==  PATH_MGMT or ptype == PT.PATH_MGMT){  // TODO handle
-      // path mgmt packet
-    } else {
+    int ret = send_local(m, next_ifid);
+    if (ret < 0) {
+      struct ipv4_hdr *ipv4_hdr;
+      struct udp_hdr *udp_hdr;
+      ipv4_hdr = (struct ipv4_hdr *)(rte_pktmbuf_mtod(
+          m, unsigned char *)+sizeof(struct ether_hdr));
+      udp_hdr = (struct udp_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
+                                       struct ether_hdr) +
+                                   sizeof(struct ipv4_hdr));
+
       printf("send to host\n");
       // last opaque field on the path, send the packet to the dstestination
       // host
@@ -281,11 +292,9 @@ void normal_forward(struct rte_mbuf *m, uint32_t from_local_ad) {
       rte_memcpy((void *)&ipv4_hdr->dst_addr,
                  (void *)&scion_hdr->dstAddr + SCION_ISD_AD_LEN,
                  SCION_HOST_ADDR_LEN);
-    }
-    // send_single_packet(m, egress_dpdk_port);
-    printf("DPDK port = %d\n", egress_dpdk_port);
 
-    l2fwd_send_packet(m, egress_dpdk_port);
+      l2fwd_send_packet(m, DPDK_LOCAL_PORT);
+    }
   }
 }
 
@@ -352,28 +361,14 @@ void crossover_forward(struct rte_mbuf *m, uint32_t from_local_ad) {
                                       // between uint32 and 24bit field
       uint16_t egress_if = (ntohl(hof->ingress_egress_if) >> 8) & 0x000fff;
       uint16_t next_ifid = 0xff;
-      if (is_on_up_path(iof)) // 0 for DEBUG
-      {
+      if (is_on_up_path(iof)) {
         next_ifid = ingress_if;
       } else {
         next_ifid = egress_if;
       }
 
       if (next_ifid != 0) {
-        uint8_t egress_dpdk_port = 0xff;
-        int i;
-        for (i = 0; i < MAX_NUM_ROUTER; i++) {
-          if (iflist[i].scion_ifid == next_ifid) {
-            break;
-          }
-        }
-        // Specify output dpdk port.
-        egress_dpdk_port = iflist[i].dpdk_port;
-        // Update destination IP address and UDP port number
-        ipv4_hdr->dst_addr = iflist[i].addr;
-        udp_hdr->dst_port = iflist[i].udp_port;
-
-        l2fwd_send_packet(m, egress_dpdk_port);
+        send_local(m, next_ifid);
       }
     }
 
@@ -393,20 +388,7 @@ void crossover_forward(struct rte_mbuf *m, uint32_t from_local_ad) {
     uint16_t egress_if = (ntohl(hof->ingress_egress_if) >> 8) & 0x000fff;
     uint16_t next_ifid = egress_if;
     if (next_ifid != 0) {
-      uint8_t egress_dpdk_port = 0xff;
-      int i;
-      for (i = 0; i < MAX_NUM_ROUTER; i++) {
-        if (iflist[i].scion_ifid == next_ifid) {
-          break;
-        }
-      }
-      // Specify output dpdk port.
-      egress_dpdk_port = iflist[i].dpdk_port;
-      // Update destination IP address and UDP port number
-      ipv4_hdr->dst_addr = iflist[i].addr;
-      udp_hdr->dst_port = iflist[i].udp_port;
-
-      l2fwd_send_packet(m, egress_dpdk_port);
+      send_local(m, next_ifid);
     }
 
   } else if (info == INPATH_XOVR) {
@@ -448,20 +430,7 @@ void crossover_forward(struct rte_mbuf *m, uint32_t from_local_ad) {
          8); // 12bit is  egress if and 8 bit gap between uint32 and 24bit field
     uint16_t next_ifid = ingress_if;
     if (next_ifid != 0) {
-      uint8_t egress_dpdk_port = 0xff;
-      int i;
-      for (i = 0; i < MAX_NUM_ROUTER; i++) {
-        if (iflist[i].scion_ifid == next_ifid) {
-          break;
-        }
-      }
-      // Specify output dpdk port.
-      egress_dpdk_port = iflist[i].dpdk_port;
-      // Update destination IP address and UDP port number
-      ipv4_hdr->dst_addr = iflist[i].addr;
-      udp_hdr->dst_port = iflist[i].udp_port;
-
-      l2fwd_send_packet(m, egress_dpdk_port);
+      send_local(m, next_ifid);
     }
 
   } else {
@@ -594,7 +563,7 @@ void process_pcb(struct rte_mbuf *m, uint8_t from_bs) {
       return;
     }
 
-    ipv4_hdr->dst_addr = iflist[0].addr; // neighbor router IP
+    ipv4_hdr->dst_addr = iflist[0].addr;    // neighbor router IP
     udp_hdr->dst_port = iflist[0].udp_port; // neighbor router port
     l2fwd_send_packet(m, DPDK_EGRESS_PORT);
 
@@ -682,7 +651,7 @@ void write_to_egress_iface(struct rte_mbuf *m) {
     }
   }
 
-  l2fwd_send_packet(m, DPDK_EGRESS_PORT);
+  send_egress(m);
 }
 
 void process_packet(struct rte_mbuf *m, uint8_t from_local_socket,
