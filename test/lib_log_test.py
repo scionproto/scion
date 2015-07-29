@@ -29,7 +29,7 @@ from lib.log import (
     init_logging,
     log_exception,
 )
-from test.testcommon import SCIONTestException
+from test.testcommon import SCIONTestError
 
 
 class TestStreamErrorHandlerHandleError(object):
@@ -46,9 +46,9 @@ class TestStreamErrorHandlerHandleError(object):
         format_exc.return_value = MagicMock(spec_set=['split'])
         format_exc.return_value.split.return_value = ['line0', 'line1']
         try:
-            raise SCIONTestException
+            raise SCIONTestError
         except:
-            ntools.assert_raises(SCIONTestException, handler.handleError, "hi")
+            ntools.assert_raises(SCIONTestError, handler.handleError, "hi")
         ntools.eq_(handler.stream.write.call_count, 3)
         handler.flush.assert_called_once_with()
 

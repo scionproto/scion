@@ -21,11 +21,10 @@ import base64
 # External packages
 import nose
 import nose.tools as ntools
-from unittest.mock import patch, mock_open
+from unittest.mock import patch
 
 # SCION
 from lib.config import Config
-from test.testcommon import SCIONTestException
 
 
 class BaseLibConfig(object):
@@ -62,28 +61,11 @@ class TestConfigFromFile(BaseLibConfig):
     Unit tests for lib.config.Config.from_file
     """
     @patch("lib.config.Config.from_dict")
-    @patch("lib.config.json.load")
-    @patch("builtins.open", new_callable=mock_open)
-    def test_success(self, io_open, load, from_dict):
+    @patch("lib.config.load_json_file")
+    def test_success(self, load, from_dict):
         from_dict.return_value = "All ok"
         ntools.eq_(Config.from_file("path"), "All ok")
-        io_open.assert_called_once_with("path")
-        load.assert_called_once_with(io_open.return_value)
-
-    @patch("lib.config.Config.from_dict")
-    @patch("lib.config.json.load")
-    @patch("builtins.open", new_callable=mock_open)
-    def _check_error(self, excp, _, load, from_dict):
-        # Setup
-        load.side_effect = excp  # Raise an exception when json.load() is called
-        from_dict.side_effect = SCIONTestException("from_dict should not "
-                                                   "have been called")
-        # Call
-        ntools.eq_(Config.from_file("path"), None)
-
-    def test_error(self):
-        for excp in (ValueError, KeyError, TypeError):
-            yield self._check_error, excp
+        load.assert_called_once_with("path")
 
 
 class TestConfigFromDict(BaseLibConfig):

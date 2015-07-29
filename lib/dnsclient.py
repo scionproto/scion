@@ -27,13 +27,27 @@ from dns.resolver import Resolver
 
 # SCION
 from lib.defines import SCION_DNS_PORT
+from lib.errors import SCIONBaseError
 
 
-class DNSLibException(Exception):
+class DNSLibError(SCIONBaseError):
+    """
+    DNSLibError: Base lib.dns exception
+    """
     pass
 
 
-class DNSLibTimeout(DNSLibException):
+class DNSLibTimeout(DNSLibError):
+    """
+    DNSLibTimeout
+    """
+    pass
+
+
+class DNSLibNxDomain(DNSLibError):
+    """
+    DNSLibNxDomain: name doesn't exist.
+    """
     pass
 
 
@@ -62,6 +76,10 @@ class DNSClient(object):
         :param string qname: A relative DNS record to query. E.g. ``"bs"``
         :returns: A list of IP address objects
         :rtype: :class:`ipaddress._BaseAddress`
+        :raises:
+            DNSLibTimeout: No responses received.
+            DNSLibNxDomain: Name doesn't exist.
+            DNSLibError: Unexpected error.
         """
         try:
             results = self.resolver.query(qname)
@@ -69,8 +87,8 @@ class DNSClient(object):
             raise DNSLibTimeout("No responses within %ss" %
                                 self.resolver.lifetime) from None
         except dns.resolver.NXDOMAIN:
-            raise DNSLibException("Name (%s) does not exist" % qname) from None
+            raise DNSLibNxDomain("Name (%s) does not exist" % qname) from None
         except Exception as e:
-            raise DNSLibException("Unhandled exception in resolver.") from e
+            raise DNSLibError("Unhandled exception in resolver.") from e
         shuffle(results)
         return [ip_address(addr) for addr in results]

@@ -31,16 +31,24 @@ from kazoo.exceptions import (
 from kazoo.handlers.threading import KazooTimeoutError
 
 # SCION
+from lib.errors import SCIONBaseError
 from lib.thread import kill_self, thread_safety_net
 from lib.util import timed
 
 
-class ZkConnectionLoss(Exception):
+class ZkBaseError(SCIONBaseError):
+    """
+    Base exception class for all lib.zookeeper exceptions
+    """
+    pass
+
+
+class ZkConnectionLoss(ZkBaseError):
     """Connection to Zookeeper is lost"""
     pass
 
 
-class ZkNoNodeError(Exception):
+class ZkNoNodeError(ZkBaseError):
     """A node doesn't exist"""
     pass
 
