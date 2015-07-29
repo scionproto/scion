@@ -65,6 +65,8 @@ uint32_t certificate_servers[10];
 #define TO_ADDR IPv4(2, 2, 2, 2)
 #define TO_PORT 33040
 
+uint32_t my_ifid; // the current router's IFID
+
 void scion_init() {
   // fill interface list
   // TODO read topology configuration
@@ -91,6 +93,9 @@ void scion_init() {
 
   beacon_servers[0] = IPv4(7, 7, 7, 7);
   certificate_servers[0] = IPv4(8, 8, 8, 8);
+
+  my_ifid=333;
+
 }
 
 int l2fwd_send_packet(struct rte_mbuf *m, uint8_t port);
@@ -549,7 +554,7 @@ void process_pcb(struct rte_mbuf *m, uint8_t from_bs) {
     uint8_t last_pcbm_index = sizeof(pcb->payload.ads) / sizeof(ADMarking) - 1;
     HopOpaqueField *last_hof = &(pcb->payload).ads[last_pcbm_index].pcbm.hof;
 
-    if (iflist[0].scion_ifid != EGRESS_IF(last_hof)) {
+    if (my_ifid != EGRESS_IF(last_hof)) {
       // Wrong interface set by BS.
       return;
     }
