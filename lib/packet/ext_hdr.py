@@ -93,24 +93,34 @@ class ExtensionHeader(HeaderBase):
         self.set_payload(raw[self.SUBHDR_LEN:])
         self.parsed = True
 
+    def _init_size(self, additional_lines):
+        """
+        Initialize `additional_lines` of payload.
+        All extensions have to have constant size.
+        """
+        self._hdr_len = additional_lines
+        first_row = b"\x00" * self.MIN_PAYLOAD_LEN
+        # Allocate additional lines.
+        self.set_payload(first_row + b"\x00" * self.LINE_LEN * additional_lines)
+
     def set_payload(self, payload):
         """
-        Set payload and update _hdr_len.
+        Set payload. Payload length must be equal to allocated space for the
+        extensions.
         """
         payload_len = len(payload)
         # Length of extension must be padded to 8B.
         assert not (payload_len + self.SUBHDR_LEN) % self.LINE_LEN
-        self._hdr_len = (payload_len + self.SUBHDR_LEN) // self.LINE_LEN - 1
+        # Encode payload length.
+        pay_len_enc = (payload_len + self.SUBHDR_LEN) // self.LINE_LEN - 1
+        # Check whether payload length is correct.
+        assert self._hdr_len == pay_len_enc
         self.payload = payload
 
     def pack(self):
         """
-
+        Pack to byte array.
         """
-        # Length of extension must be padded to 8B.
-        assert not (len(self.payload) + self.SUBHDR_LEN) % self.LINE_LEN
-        # next_hdr must be set for packing.
-        assert self.next_hdr is not None
         return (struct.pack("!BBB", self.next_hdr, self._hdr_len, self.EXT_NO) +
                 self.payload)
 

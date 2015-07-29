@@ -35,7 +35,7 @@ class TracerouteExt(HopByHopExtension):
     """
     EXT_NO = 0
     PADDING_LEN = 4
-    HOP_LEN = 8  # Size of every hop information.
+    HOP_LEN = HopByHopExtension.LINE_LEN  # Size of every hop information.
 
     def __init__(self, raw=None):
         """
@@ -56,14 +56,13 @@ class TracerouteExt(HopByHopExtension):
             self.set_payload(b"\x00" * (1 + self.PADDING_LEN))
 
     @classmethod
-    def from_values(cls, hops_no):
+    def from_values(cls, max_hops_no):
         """
-        Construct extension with allocated space for `hops_no` routers.
+        Construct extension with allocated space for `additional_lines`.
+        All extensions have constant size.
         """
         ext = TracerouteExt()
-        first_row = b"\x00" * (1 + ext.PADDING_LEN)
-        # Allocate space for every hop's information.
-        ext.set_payload(first_row + b"\x00" * ext.LINE_LEN * hops_no)
+        ext._init_size(max_hops_no)
         return ext
 
     def parse_payload(self):
@@ -85,7 +84,8 @@ class TracerouteExt(HopByHopExtension):
         """
         Append hop's information as a new field in the extension.
         """
-        assert self.hops_no + 1 <= self._hdr_len
+        # Check whether
+        assert self.hops_no < self._hdr_len
         self.hops.append((isd, ad, if_id, timestamp))
         self.hops_no += 1
 
@@ -104,7 +104,10 @@ class TracerouteExt(HopByHopExtension):
             # Pack if_id and timestamp.
             tmp += struct.pack("!HH", hop[2], hop[3])
             hops_packed.append(tmp)
-        self.payload = b"".join(hops_packed)
+        # Compute and set padding for the rest of the payload.
+        pad_hops = self._hdr_len - self.hops_no
+        hops_packed.append(b"\x00" * self.HOP_LEN * pad_hops)
+        self.set_payload(b"".join(hops_packed))
         return HopByHopExtension.pack(self)
 
     def __str__(self):
