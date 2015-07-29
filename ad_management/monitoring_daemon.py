@@ -167,6 +167,15 @@ class MonitoringDaemon(object):
         self.restart_supervisor_async()
         return response_success('Topology file is successfully updated')
 
+    def _read_topology(self, isd_id, ad_id):
+        topo_path = self.get_topo_path(isd_id, ad_id)
+        try:
+            return open(topo_path, 'r').read()
+        except OSError as e:
+            logging.error("Error opening {}: {}".format(topo_path,
+                                                        str(e)))
+            return None
+
     def get_topology(self, isd_id, ad_id):
         """
         Read topology file of the given AD.
@@ -181,11 +190,11 @@ class MonitoringDaemon(object):
         """
         isd_id, ad_id = str(isd_id), str(ad_id)
         logging.info('get_topology call')
-        topo_path = self.get_topo_path(isd_id, ad_id)
-        if os.path.isfile(topo_path):
-            return response_success(open(topo_path, 'r').read())
+        topology = self._read_topology(isd_id, ad_id)
+        if topology:
+            return response_success(topology)
         else:
-            return response_failure('No topology file found')
+            return response_failure('Cannot read topology file')
 
     def get_ad_info(self, isd_id, ad_id):
         """
@@ -367,7 +376,19 @@ class MonitoringDaemon(object):
         if server_type not in [BEACON_SERVICE, CERTIFICATE_SERVICE,
                                PATH_SERVICE, DNS_SERVICE]:
             return response_failure('Invalid server type')
-        kc = KazooClient(hosts="localhost:2181")
+
+        topology_str = self._read_topology(isd_id, ad_id)
+        try:
+            topology = json.loads(topology_str)
+        except (ValueError, KeyError, TypeError):
+            return response_failure('Cannot parse topology file')
+
+        # Read zookeeper config
+        zookeeper_dict = topology["Zookeepers"]
+        zookeper_hosts = ["{}:{}".format(zk_host["Addr"], zk_host["ClientPort"])
+                          for zk_host in zookeeper_dict.values()]
+
+        kc = KazooClient(hosts=','.join(zookeper_hosts))
         lock_path = '/ISD{}-AD{}/{}/lock'.format(isd_id, ad_id, server_type)
         get_id = lambda name: name.split('__')[-1]
         try:
