@@ -160,7 +160,7 @@ uint8_t get_type(SCIONHeader *hdr) {
 }
 
 uint8_t is_on_up_path(InfoOpaqueField *currOF) {
-  // printf("type=%x\n",currOF->type );
+   printf("type=%x\n",currOF->type );
   if ((currOF->type & 0x1) ==
       1) { // low bit of type field is used for uppath/downpath flag
     return 1;
@@ -214,21 +214,20 @@ void normal_forward(struct rte_mbuf *m, uint32_t from_local_ad) {
                               sizeof(struct ipv4_hdr) + sizeof(struct udp_hdr));
   sch = &(scion_hdr->commonHeader);
   hof = (HopOpaqueField *)((unsigned char *)sch +
-                           sch->currentOF); // currentOF is an offset from
+                           sch->currentOF + SCION_COMMON_HEADER_LEN); // currentOF is an offset from
                                             // common header
   iof = (InfoOpaqueField *)((unsigned char *)sch +
-                            sch->currentIOF); // currentOF is an offset from
+                            sch->currentIOF + SCION_COMMON_HEADER_LEN); // currentOF is an offset from
                                               // common header
 
-  printf("Index %d, InEggress %04x\n", sch->currentOF,
-         ntohl(hof->ingress_egress_if));
+  printf("OF offset %d, IOF offset %d, InEggress %04x\n", sch->currentOF, sch->currentIOF, ntohl(hof->ingress_egress_if));
 
   uint16_t ingress_if = INGRESS_IF(hof);
   uint16_t egress_if = EGRESS_IF(hof);
   printf("Ingress %d, Egress %d\n", INGRESS_IF(hof), EGRESS_IF(hof));
   // unsigned char *dump;
   // int i;
-  // dump=hof;
+  // dump=iof;
   // for(i=0;i<8;i++) printf("%x",dump[i]);
   // printf("\n");
 
@@ -310,10 +309,10 @@ void crossover_forward(struct rte_mbuf *m, uint32_t from_local_ad) {
                               sizeof(struct ipv4_hdr) + sizeof(struct udp_hdr));
   sch = &(scion_hdr->commonHeader);
   hof = (HopOpaqueField *)((unsigned char *)sch +
-                           sch->currentOF); // currentOF is an offset from
+                           sch->currentOF  + SCION_COMMON_HEADER_LEN); // currentOF is an offset from
                                             // common header
   iof = (InfoOpaqueField *)((unsigned char *)sch +
-                            sch->currentIOF); // currentOF is an offset from
+                            sch->currentIOF  + SCION_COMMON_HEADER_LEN); // currentOF is an offset from
                                               // common header
 
   uint8_t info = iof->type >> 1; // info is MSB 7bits
@@ -342,7 +341,7 @@ void crossover_forward(struct rte_mbuf *m, uint32_t from_local_ad) {
       sch->currentOF += sizeof(HopOpaqueField);
 
       InfoOpaqueField *next_iof =
-          (InfoOpaqueField *)((unsigned char *)sch + sch->currentOF);
+          (InfoOpaqueField *)((unsigned char *)sch + sch->currentOF  + SCION_COMMON_HEADER_LEN);
 
       uint16_t ingress_if = ntohl(hof->ingress_egress_if) >>
                             (12 + 8); // 12bit is  egress if and 8 bit gap
@@ -421,7 +420,7 @@ void crossover_forward(struct rte_mbuf *m, uint32_t from_local_ad) {
     while (is_regular_) {
       sch->currentOF += sizeof(HopOpaqueField) * 2;
       HopOpaqueField *hof =
-          (HopOpaqueField *)((unsigned char *)sch + sch->currentOF);
+          (HopOpaqueField *)((unsigned char *)sch + sch->currentOF  + SCION_COMMON_HEADER_LEN);
       is_regular_ = is_regular(hof);
     }
     sch->currentIOF = sch->currentOF;
@@ -504,8 +503,8 @@ void forward_packet(struct rte_mbuf *m, uint32_t from_local_ad, uint8_t ptype) {
                                   struct ether_hdr) +
                               sizeof(struct ipv4_hdr) + sizeof(struct udp_hdr));
   sch = &(scion_hdr->commonHeader);
-  hof = (HopOpaqueField *)((unsigned char *)sch + sch->currentOF);
-  iof = (InfoOpaqueField *)((unsigned char *)sch + sch->currentIOF);
+  hof = (HopOpaqueField *)((unsigned char *)sch + sch->currentOF + SCION_COMMON_HEADER_LEN);
+  iof = (InfoOpaqueField *)((unsigned char *)sch + sch->currentIOF + SCION_COMMON_HEADER_LEN);
 
   uint8_t new_segment = 0;
   while (is_regular(hof)) {
@@ -525,7 +524,7 @@ void forward_packet(struct rte_mbuf *m, uint32_t from_local_ad, uint8_t ptype) {
       sch->currentOF == curr_iof_p + sizeof(HopOpaqueField))
     sch->currentOF += sizeof(HopOpaqueField);
 
-  hof = (HopOpaqueField *)((unsigned char *)sch + sch->currentOF);
+  hof = (HopOpaqueField *)((unsigned char *)sch + sch->currentOF  + SCION_COMMON_HEADER_LEN);
   if (hof->type == LAST_OF && is_last_path_of(sch) && !new_segment)
     crossover_forward(m, from_local_ad);
   else
@@ -631,10 +630,10 @@ void write_to_egress_iface(struct rte_mbuf *m) {
                               sizeof(struct ipv4_hdr) + sizeof(struct udp_hdr));
   sch = &(scion_hdr->commonHeader);
   hof = (HopOpaqueField *)((unsigned char *)sch +
-                           sch->currentOF); // currentOF is an offset from
+                           sch->currentOF  + SCION_COMMON_HEADER_LEN); // currentOF is an offset from
                                             // common header
   iof = (InfoOpaqueField *)((unsigned char *)sch +
-                            sch->currentIOF); // currentOF is an offset from
+                            sch->currentIOF  + SCION_COMMON_HEADER_LEN); // currentOF is an offset from
                                               // common header
 
   uint8_t info = hof->type;
@@ -649,21 +648,21 @@ void write_to_egress_iface(struct rte_mbuf *m) {
   sch->currentOF += sizeof(HopOpaqueField);
 
   hof = (HopOpaqueField *)((unsigned char *)sch +
-                           sch->currentOF); // currentOF is an offset from
+                           sch->currentOF  + SCION_COMMON_HEADER_LEN); // currentOF is an offset from
                                             // common header
 
   info = hof->type;
   if (info == INTRATD_PEER || info == INTERTD_PEER) {
     if (is_on_up_path(iof)) {
       HopOpaqueField *previous_hof =
-          (HopOpaqueField *)((unsigned char *)sch + sch->currentOF);
+          (HopOpaqueField *)((unsigned char *)sch + sch->currentOF  + SCION_COMMON_HEADER_LEN);
       uint8_t previous_info = previous_hof->type;
       if (previous_info == INTRATD_PEER || previous_info == INTERTD_PEER) {
         sch->currentOF += sizeof(HopOpaqueField);
       }
     } else {
 
-      hof = (HopOpaqueField *)((unsigned char *)sch + sch->currentOF);
+      hof = (HopOpaqueField *)((unsigned char *)sch + sch->currentOF  + SCION_COMMON_HEADER_LEN);
       if (hof->type == LAST_OF) {
         sch->currentOF += sizeof(HopOpaqueField);
       }
