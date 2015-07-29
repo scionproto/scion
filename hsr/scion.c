@@ -71,20 +71,21 @@ void scion_init() {
   // fill interface list
   // TODO read topology configuration
 
-  // egress port
+  // egress port (neighbor AD's router)
   iflist[0].addr = IPv4(1, 1, 1, 1);
   iflist[0].udp_port = 33040;
   iflist[0].scion_ifid = 111;
-  iflist[0].dpdk_port = 0;
+  iflist[0].dpdk_port = DPDK_EGRESS_PORT;
   iflist[0].is_local_port = 0;
 
-  // local port
+  // local port (other egress router in this AD)
   iflist[1].addr = IPv4(2, 2, 2, 2);
   iflist[1].udp_port = 33040;
   iflist[1].scion_ifid = 286;
-  iflist[1].dpdk_port = 1;
+  iflist[1].dpdk_port = DPDK_LOCAL_PORT;
   iflist[1].is_local_port = 1;
 
+  // local port (other egress router in this AD)
   // iflist[2].addr = IPv4 (3, 3, 3, 3);
   // iflist[2].udp_port = 33040;
   // iflist[2].dpdk_port = 6;
@@ -556,12 +557,12 @@ void process_pcb(struct rte_mbuf *m, uint8_t from_bs) {
       return;
     }
 
-    ipv4_hdr->dst_addr = TO_ADDR;
-    udp_hdr->dst_port = TO_PORT;
+    ipv4_hdr->dst_addr = iflist[0].addr;  //neighbor router IP
+    udp_hdr->dst_port = iflist[0].udp_port;  //neighbor router port
     l2fwd_send_packet(m, DPDK_EGRESS_PORT); 
 
   } else {  //from neighbor router to local beacon server
-    pcb->payload.if_id = iflist[0].scion_ifid;
+    pcb->payload.if_id = my_ifid;
     ipv4_hdr->dst_addr = beacon_servers[0];
     udp_hdr->dst_port = SCION_UDP_PORT;
     l2fwd_send_packet(m, DPDK_LOCAL_PORT);
