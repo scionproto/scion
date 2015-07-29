@@ -17,8 +17,9 @@
 """
 # Stdlib
 import base64
-import json
-import logging
+
+# SCION
+from lib.util import load_json_file
 
 
 class Config(object):
@@ -75,15 +76,9 @@ class Config(object):
         :type config_file: str
 
         :returns: the newly created Config instance
-        :rtype: :class: `Config`
+        :rtype: :class:`Config`
         """
-        try:
-            with open(config_file) as conf_fh:
-                config_dict = json.load(conf_fh)
-        except (ValueError, KeyError, TypeError):
-            logging.error("Config: JSON format error.")
-            return
-        return cls.from_dict(config_dict)
+        return cls.from_dict(load_json_file(config_file))
 
     @classmethod
     def from_dict(cls, config_dict):

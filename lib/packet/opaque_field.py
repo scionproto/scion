@@ -16,8 +16,10 @@
 ===========================================
 """
 # Stdlib
-import logging
 import struct
+
+# SCION
+from lib.util import Raw
 
 
 class OpaqueFieldType(object):
@@ -117,7 +119,7 @@ class HopOpaqueField(OpaqueField):
         :param raw:
         :type raw:
         """
-        OpaqueField.__init__(self)
+        super().__init__()
         self.exp_time = 0
         self.ingress_if = 0
         self.egress_if = 0
@@ -129,16 +131,12 @@ class HopOpaqueField(OpaqueField):
         """
         Populates fields from a raw byte block.
         """
-        assert isinstance(raw, bytes)
+        data = Raw(raw, "HopOpaqueField", self.LEN)
         self.raw = raw
-        dlen = len(raw)
-        if dlen < self.LEN:
-            logging.warning("HOF: Data too short for parsing, len: %u", dlen)
-            return
-        (self.info, self.exp_time) = struct.unpack("!BB", raw[:2])
+        self.info, self.exp_time = struct.unpack("!BB", data.pop(2))
         # A byte added as length of three bytes can't be unpacked
-        (ifs,) = struct.unpack("!I", b'\0' + raw[2:5])
-        self.mac = raw[5:8]
+        ifs = struct.unpack("!I", b'\0' + data.pop(3))[0]
+        self.mac = data.pop(3)
         self.ingress_if = (ifs & 0xFFF000) >> 12
         self.egress_if = ifs & 0x000FFF
         self.parsed = True
@@ -206,7 +204,7 @@ class InfoOpaqueField(OpaqueField):
         :param raw:
         :type raw:
         """
-        OpaqueField.__init__(self)
+        super().__init__()
         self.timestamp = 0
         self.isd_id = 0
         self.hops = 0
@@ -219,15 +217,10 @@ class InfoOpaqueField(OpaqueField):
         """
         Populates fields from a raw byte block.
         """
-        assert isinstance(raw, bytes)
         self.raw = raw
-        dlen = len(raw)
-        if dlen < self.LEN:
-            logging.warning("IOF: Data too short for parsing, len: %u", dlen)
-            return
-        (self.info, self.timestamp, self.isd_id, self.hops) = \
-            struct.unpack("!BIHB", raw)
-
+        data = Raw(raw, "InfoOpaqueField", self.LEN)
+        self.info, self.timestamp, self.isd_id, self.hops = \
+            struct.unpack("!BIHB", data.pop(self.LEN))
         self.up_flag = bool(self.info & 0b00000001)
         self.info >>= 1
         self.parsed = True

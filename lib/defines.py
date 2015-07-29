@@ -17,6 +17,7 @@
 Contains constant definitions used throughout the codebase.
 """
 # Stdlib
+import ipaddress
 import os
 
 #: Max TTL of a PathSegment in realtime seconds.
@@ -40,3 +41,8 @@ SCION_DNS_PORT = 30053
 
 #: (Pseudo)supported layer-4 protocols, see /etc/protocols for details
 L4_PROTO = [1, 6, 17]
+
+#: Length of IPV4 address, in bytes
+IPV4BYTES = ipaddress.IPV4LENGTH // 8
+#: Length of IPV6 address, in bytes
+IPV6BYTES = ipaddress.IPV6LENGTH // 8

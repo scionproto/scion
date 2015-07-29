@@ -23,6 +23,8 @@ import nose
 import nose.tools as ntools
 
 # SCION
+from lib.errors import SCIONParseError
+from lib.packet.ext_hdr import ExtensionHeader
 from lib.packet.opaque_field import (
     OpaqueField,
     OpaqueFieldType as OFT
@@ -40,7 +42,7 @@ from lib.packet.scion import (
     TRCReply,
     TRCRequest
 )
-from lib.packet.scion_addr import ISD_AD, SCIONAddr
+from lib.packet.scion_addr import SCIONAddr
 
 
 class TestGetType(object):
@@ -119,21 +121,18 @@ class TestSCIONCommonHdrParse(object):
     """
     Unit tests for lib.packet.scion.SCIONCommonHdr.parse
     """
-    def test_wrong_type(self):
-        hdr = SCIONCommonHdr()
-        ntools.assert_raises(AssertionError, hdr.parse, 123)
-
-    def test_bad_length(self):
-        hdr = SCIONCommonHdr()
-        dlen = SCIONCommonHdr.LEN - 1
-        hdr.parse(b'\x00' * dlen)
-        ntools.assert_false(hdr.parsed)
-
-    def test_full(self):
-        hdr = SCIONCommonHdr()
-        data = bytes([0b11110000, 0b00111111]) + \
+    @patch("lib.packet.scion.Raw", autospec=True)
+    def test(self, raw):
+        # Setup
+        raw.return_value = MagicMock(spec_set=["pop"])
+        raw.return_value.pop.return_value = bytes([0b11110000, 0b00111111]) + \
             bytes.fromhex('0304 05 06 07 08')
+        hdr = SCIONCommonHdr()
+        data = b"data"
+        # Call
         hdr.parse(data)
+        # Tests
+        raw.assert_called_once_with(data, "SCIONCommonHdr", hdr.LEN)
         ntools.eq_(hdr.total_len, 0x0304)
         ntools.eq_(hdr.curr_iof_p, 0x05)
         ntools.eq_(hdr.curr_of_p, 0x06)
@@ -307,29 +306,22 @@ class TestSCIONHeaderParse(object):
     """
     Unit tests for lib.packet.scion.SCIONHeader.parse
     """
-    def test_bad_type(self):
-        hdr = SCIONHeader()
-        ntools.assert_raises(AssertionError, hdr.parse, 123)
-
-    def test_bad_length(self):
-        hdr = SCIONHeader()
-        data = b'\x00' * (SCIONHeader.MIN_LEN - 1)
-        hdr.parse(data)
-        ntools.assert_false(hdr.parsed)
-
     @patch("lib.packet.scion.SCIONHeader._parse_extension_hdrs", autospec=True)
     @patch("lib.packet.scion.SCIONHeader._parse_opaque_fields", autospec=True)
     @patch("lib.packet.scion.SCIONHeader._parse_common_hdr", autospec=True)
-    def test_full(self, parse_hdr, parse_ofs, parse_ext_hdrs):
+    @patch("lib.packet.scion.Raw", autospec=True)
+    def test(self, raw, parse_hdr, parse_ofs, parse_ext_hdrs):
+        # Setup
+        raw.return_value = MagicMock(spec_set=["offset"])
         hdr = SCIONHeader()
-        data = b'\x00' * SCIONHeader.MIN_LEN
-        parse_hdr.return_value = 123
-        parse_ofs.return_value = 456
-        parse_ext_hdrs.return_value = 789
-        ntools.eq_(hdr.parse(data), 789)
-        parse_hdr.assert_called_once_with(hdr, data, 0)
-        parse_ofs.assert_called_once_with(hdr, data, 123)
-        parse_ext_hdrs.assert_called_once_with(hdr, data, 456)
+        data = b"data"
+        # Call
+        ntools.eq_(hdr.parse(data), raw.return_value.offset())
+        # Tests
+        raw.assert_called_once_with(data, "SCIONHeader", hdr.MIN_LEN, min_=True)
+        parse_hdr.assert_called_once_with(hdr, raw.return_value)
+        parse_ofs.assert_called_once_with(hdr, raw.return_value)
+        parse_ext_hdrs.assert_called_once_with(hdr, raw.return_value)
         ntools.assert_true(hdr.parsed)
 
 
@@ -337,32 +329,23 @@ class TestSCIONHeaderParseCommonHdr(object):
     """
     Unit tests for lib.packet.scion.SCIONHeader._parse_common_hdr
     """
-    @patch("lib.packet.scion.SCIONCommonHdr", autospec=True)
-    def test_fail(self, scion_common_hdr):
-        hdr = SCIONHeader()
-        common_hdr = MagicMock(spec_set=['parsed'])
-        common_hdr.parsed = False
-        scion_common_hdr.return_value = common_hdr
-        ntools.assert_raises(AssertionError, hdr._parse_common_hdr, b'\x00' *
-                             10, 0)
-
     @patch("lib.packet.scion.SCIONAddr", autospec=True)
     @patch("lib.packet.scion.SCIONCommonHdr", autospec=True)
     def test(self, scion_common_hdr, scion_addr):
+        # Setup
         hdr = SCIONHeader()
-        data = bytes(range(12))
-        common_hdr = MagicMock(spec_set=['parsed', 'src_addr_len',
-                                         'dst_addr_len'])
-        common_hdr.parsed = True
-        common_hdr.src_addr_len = 3
-        common_hdr.dst_addr_len = 5
+        data = MagicMock(spec_set=["pop"])
+        data.pop.side_effect = ("pop hdr", "pop src", "pop dst")
+        common_hdr = MagicMock(spec_set=['src_addr_len', 'dst_addr_len'])
         scion_common_hdr.return_value = common_hdr
         scion_common_hdr.LEN = 2
         scion_addr.side_effect = ['src_addr', 'dst_addr']
-        ntools.eq_(hdr._parse_common_hdr(data, 1), 1 + 2 + 3 + 5)
-        scion_common_hdr.assert_called_once_with(data[1:3])
+        # Call
+        hdr._parse_common_hdr(data)
+        # Tests
+        scion_common_hdr.assert_called_once_with("pop hdr")
         ntools.eq_(hdr.common_hdr, common_hdr)
-        scion_addr.assert_has_calls([call(data[3:6]), call(data[6:11])])
+        scion_addr.assert_has_calls([call("pop src"), call("pop dst")])
         ntools.eq_(hdr.src_addr, 'src_addr')
         ntools.eq_(hdr.dst_addr, 'dst_addr')
 
@@ -373,11 +356,16 @@ class TestSCIONHeaderParseOpaqueFields(object):
     """
     @patch("lib.packet.scion.EmptyPath", autospec=True)
     def test_empty_path(self, empty_path):
+        # Setup
         hdr = SCIONHeader()
         hdr.common_hdr = MagicMock(spec_set=['hdr_len'])
         hdr.common_hdr.hdr_len = 123
         empty_path.return_value = 'empty_path'
-        ntools.eq_(hdr._parse_opaque_fields(b'\x00' * 10, 123), 123)
+        data = MagicMock(spec_set=['offset'])
+        data.offset.return_value = 123
+        # Call
+        hdr._parse_opaque_fields(data)
+        # Tests
         empty_path.assert_called_once_with()
         ntools.eq_(hdr._path, 'empty_path')
 
@@ -386,6 +374,7 @@ class TestSCIONHeaderParseOpaqueFields(object):
     @patch("lib.packet.scion.CorePath", autospec=True)
     @patch("lib.packet.scion.InfoOpaqueField", autospec=True)
     def _check(self, oft, path, iof, core_path, cross_over_path, peer_path):
+        # Setup
         hdr = SCIONHeader()
         info = MagicMock(spec_set=['info'])
         info.info = oft
@@ -393,40 +382,33 @@ class TestSCIONHeaderParseOpaqueFields(object):
         core_path.return_value = 'core_path'
         cross_over_path.return_value = 'cross_over_path'
         peer_path.return_value = 'peer_path'
-        common_hdr = MagicMock(spec_set=['hdr_len'])
-        common_hdr.hdr_len = 3
-        hdr.common_hdr = common_hdr
-        data = bytes(range(10))
-        ntools.eq_(hdr._parse_opaque_fields(data, 0), 3)
+        hdr.common_hdr = MagicMock(spec_set=['hdr_len'])
+        data = MagicMock(spec_set=['offset', 'get', 'pop'])
+        data.get.return_value = "get iof"
+        data.pop.return_value = "get path"
+        # Call
+        hdr._parse_opaque_fields(data)
+        # Tests
         ntools.eq_(hdr._path, path)
 
     def test_other_paths(self):
         ofts = [OFT.TDC_XOVR, OFT.NON_TDC_XOVR, OFT.INTRATD_PEER,
-                OFT.INTERTD_PEER, 123]
-        paths = ['core_path', 'cross_over_path', 'peer_path', 'peer_path', None]
+                OFT.INTERTD_PEER]
+        paths = ['core_path', 'cross_over_path', 'peer_path', 'peer_path']
         for oft, path in zip(ofts, paths):
             yield self._check, oft, path
 
-
-class TestSCIONHeaderParseExtensionHdrs(object):
-    """
-    Unit tests for lib.packet.scion.SCIONHeader._parse_extension_hdrs
-    """
-    def test(self):
+    @patch("lib.packet.scion.InfoOpaqueField", autospec=True)
+    def test_unknown_type(self, iof):
+        # Setup
         hdr = SCIONHeader()
-        hdr.common_hdr = MagicMock(spec_set=['next_hdr'])
-        hdr.common_hdr.next_hdr = 0xc8  # 200
-        raw = bytes.fromhex('12 01 01') + bytes(range(13)) \
-            + bytes.fromhex('dd 01 02') + bytes(range(13)) \
-            + bytes.fromhex('00 01 03') + bytes(range(13))
-        extns = {0xc8: MagicMock(spec_set=[], return_value='ext1'),
-                 0xdd: MagicMock(spec_set=[], return_value='ext2')}
-        with patch("lib.packet.scion.EXTENSIONS", new=extns):
-            offset = hdr._parse_extension_hdrs(raw, 0)
-            extns[0xc8].assert_called_once_with(raw[:16])
-            extns[0xdd].assert_called_once_with(raw[32:48])
-            ntools.eq_(hdr.l4_proto, 0)
-            ntools.eq_(offset, 48)
+        info = MagicMock(spec_set=['info'])
+        info.info = 34
+        iof.return_value = info
+        hdr.common_hdr = MagicMock(spec_set=['hdr_len'])
+        data = MagicMock(spec_set=['offset', 'get', 'pop'])
+        # Call
+        ntools.assert_raises(SCIONParseError, hdr._parse_opaque_fields, data)
 
 
 class TestSCIONHeaderPack(object):
@@ -765,31 +747,30 @@ class TestSCIONPacketParse(object):
     """
     Unit tests for lib.packet.scion.SCIONPacket.parse
     """
-    def test_bad_type(self):
-        packet = SCIONPacket()
-        ntools.assert_raises(AssertionError, packet.parse, 123)
-
-    def test_bad_length(self):
-        packet = SCIONPacket()
-        data = b'\x00' * (SCIONPacket.MIN_LEN - 1)
-        packet.parse(data)
-        ntools.assert_false(packet.parsed)
-
     @patch("lib.packet.scion.SCIONPacket.set_payload", autospec=True)
     @patch("lib.packet.scion.SCIONPacket.set_hdr", autospec=True)
     @patch("lib.packet.scion.SCIONHeader", autospec=True)
-    def test_full(self, scion_hdr, set_hdr, set_payload):
+    @patch("lib.packet.scion.Raw", autospec=True)
+    def test_full(self, raw, scion_hdr, set_hdr, set_payload):
+        # Setup
+        raw.return_value = MagicMock(spec_set=["__len__", "get", "pop"])
+        raw.return_value.__len__.return_value = 42
+        raw.return_value.get.return_value = "get hdr"
+        raw.return_value.pop.return_value = "get payload"
         packet = SCIONPacket()
         packet._hdr = 'header'
-        data = bytes(range(SCIONPacket.MIN_LEN))
+        data = b"data"
         scion_hdr.return_value = 'scion_header'
+        # Call
         packet.parse(data)
+        # Tests
         ntools.eq_(packet.raw, data)
-        scion_hdr.assert_called_once_with(data)
+        raw.assert_called_once_with(data, "SCIONPacket", packet.MIN_LEN,
+                                    min_=True)
+        scion_hdr.assert_called_once_with("get hdr")
         set_hdr.assert_called_once_with(packet, 'scion_header')
-        hdr_len = len(packet.hdr)
-        ntools.eq_(packet.payload_len, len(data) - hdr_len)
-        set_payload.assert_called_once_with(packet, data[hdr_len:])
+        ntools.eq_(packet.payload_len, 42)
+        set_payload.assert_called_once_with(packet, "get payload")
         ntools.assert_true(packet.parsed)
 
 
@@ -912,19 +893,29 @@ class TestCertChainRequestParse(object):
     @patch("lib.packet.scion.ISD_AD.from_raw", spec_set=[],
            new_callable=MagicMock)
     @patch("lib.packet.scion.SCIONPacket.parse", autospec=True)
-    def test(self, parse, isd_ad):
+    @patch("lib.packet.scion.Raw", autospec=True)
+    def test(self, raw, parse, isd_ad):
+        # Setup
+        raw.return_value = MagicMock(spec_set=["pop"])
+        raw.return_value.pop.side_effect = (
+            bytes.fromhex('0102'), "pop src isd_ad",
+            "pop dst isd_ad", bytes.fromhex("1718191a"),
+        )
         req = CertChainRequest()
-        raw = req._payload = bytes.fromhex('0102 0bc0021d 021004c6 1718191a')
+        req._payload = b"payload"
         isd_ad.side_effect = [(0x0bc, 0x0021d), (0x021, 0x004c6)]
-        req.parse('data')
-        parse.assert_called_once_with(req, 'data')
+        # Call
+        req.parse(b"data")
+        # Tests
+        parse.assert_called_once_with(req, b'data')
+        raw.assert_called_once_with(b"payload", "CertChainRequest", req.LEN)
+        isd_ad.assert_has_calls([call("pop src isd_ad"),
+                                 call("pop dst isd_ad")])
         ntools.eq_(req.ingress_if, 0x0102)
         ntools.eq_(req.src_isd, 0x0bc)
         ntools.eq_(req.src_ad, 0x0021d)
         ntools.eq_(req.isd_id, 0x021)
         ntools.eq_(req.ad_id, 0x004c6)
-        isd_ad.assert_has_calls([call(raw[2:2 + ISD_AD.LEN]),
-                                 call(raw[2 + ISD_AD.LEN:2 + 2 * ISD_AD.LEN])])
         ntools.eq_(req.version, 0x1718191a)
 
 
@@ -994,17 +985,26 @@ class TestCertChainReplyParse(object):
     @patch("lib.packet.scion.ISD_AD.from_raw", spec_set=[],
            new_callable=MagicMock)
     @patch("lib.packet.scion.SCIONPacket.parse", autospec=True)
-    def test(self, parse, isd_ad):
+    @patch("lib.packet.scion.Raw", autospec=True)
+    def test(self, raw, parse, isd_ad):
+        # Setup
+        raw.return_value = MagicMock(spec_set=["pop"])
+        raw.return_value.pop.side_effect = (
+            "pop isd_ad", bytes.fromhex('01020304'), "pop chain")
         rep = CertChainReply()
-        raw = rep._payload = bytes.fromhex('0bc0021d 1718191a') + b'\x00' * 10
+        rep._payload = b"payload"
         isd_ad.return_value = (0x0bc, 0x0021d)
-        rep.parse('data')
-        parse.assert_called_once_with(rep, 'data')
-        isd_ad.assert_called_once_with(raw[:ISD_AD.LEN])
-        ntools.eq_(rep.isd_id, 0x0bc)
+        # Call
+        rep.parse(b'data')
+        # Tests
+        parse.assert_called_once_with(rep, b'data')
+        raw.assert_called_once_with(b"payload", "CertChainReply", rep.MIN_LEN,
+                                    min_=True)
+        isd_ad.assert_called_once_with("pop isd_ad")
+        ntools.eq_(rep.isd_id, 0xbc)
         ntools.eq_(rep.ad_id, 0x0021d)
-        ntools.eq_(rep.version, 0x1718191a)
-        ntools.eq_(rep.cert_chain, b'\x00' * 10)
+        ntools.eq_(rep.version, 0x01020304)
+        ntools.eq_(rep.cert_chain, "pop chain")
 
 
 class TestCertChainReplyFromValues(object):
@@ -1069,18 +1069,28 @@ class TestTRCRequestParse(object):
     @patch("lib.packet.scion.ISD_AD.from_raw", spec_set=[],
            new_callable=MagicMock)
     @patch("lib.packet.scion.SCIONPacket.parse", autospec=True)
-    def test(self, parse, isd_ad):
+    @patch("lib.packet.scion.Raw", autospec=True)
+    def test(self, raw, parse, isd_ad):
+        # Setup
+        raw.return_value = MagicMock(spec_set=["pop"])
+        raw.return_value.pop.side_effect = (
+            bytes.fromhex('0102'), "pop src isd_ad",
+            bytes.fromhex('0304'), bytes.fromhex("1718191a"),
+        )
         req = TRCRequest()
-        raw = req._payload = bytes.fromhex('0102 00160010 0708 0000090a')
+        req._payload = b"payload"
         isd_ad.return_value = (0x001, 0x60010)
+        # Call
         req.parse('data')
+        # Tests
         parse.assert_called_once_with(req, 'data')
+        raw.assert_called_once_with(b"payload", "TRCRequest", req.LEN)
         ntools.eq_(req.ingress_if, 0x0102)
-        isd_ad.assert_called_once_with(raw[2:2 + ISD_AD.LEN])
+        isd_ad.assert_called_once_with("pop src isd_ad")
         ntools.eq_(req.src_isd, 0x001)
         ntools.eq_(req.src_ad, 0x60010)
-        ntools.eq_(req.isd_id, 0x0708)
-        ntools.eq_(req.version, 0x0000090a)
+        ntools.eq_(req.isd_id, 0x0304)
+        ntools.eq_(req.version, 0x1718191a)
 
 
 class TestTRCRequestFromValues(object):
@@ -1141,11 +1151,20 @@ class TestTRCReplyParse(object):
     Unit tests for lib.packet.scion.TRCReply.parse
     """
     @patch("lib.packet.scion.SCIONPacket.parse", autospec=True)
-    def test(self, parse):
+    @patch("lib.packet.scion.Raw", autospec=True)
+    def test(self, raw, parse):
+        # Setup
+        raw.return_value = MagicMock(spec_set=["pop"])
+        raw.return_value.pop.side_effect = (
+            bytes.fromhex('0102 03040506'), b'\x00' * 10)
         rep = TRCReply()
-        rep._payload = bytes.fromhex('0102 03040506') + b'\x00' * 10
+        rep._payload = b"payload"
+        # Call
         rep.parse('data')
+        # Tests
         parse.assert_called_once_with(rep, 'data')
+        raw.assert_called_once_with(b"payload", "TRCReply", rep.MIN_LEN,
+                                    min_=True)
         ntools.eq_(rep.isd_id, 0x0102)
         ntools.eq_(rep.version, 0x03040506)
         ntools.eq_(rep.trc, b'\x00' * 10)

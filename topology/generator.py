@@ -24,6 +24,7 @@ import logging
 import os
 import shutil
 import sys
+from io import StringIO
 from ipaddress import ip_address, ip_network
 
 # External packages
@@ -39,7 +40,6 @@ from lib.crypto.asymcrypto import (
 )
 from lib.crypto.certificate import Certificate, CertificateChain, TRC
 from lib.defines import TOPOLOGY_PATH
-from lib.log import log_exception
 from lib.path_store import PathPolicy
 from lib.topology import Topology
 from lib.util import (
@@ -47,6 +47,7 @@ from lib.util import (
     get_enc_key_file_path,
     get_sig_key_file_path,
     get_trc_file_path,
+    load_json_file,
     write_file,
 )
 
@@ -356,10 +357,11 @@ class ConfigGenerator(object):
 
     def write_beginning_sim_run_files(self):
         file_path = os.path.join(self.out_dir, SIM_DIR, 'run.sh')
-        with open(file_path, 'w') as fh:
-            fh.write('#!/bin/bash\n\n')
-            fh.write('sh -c "PYTHONPATH=../ python3 sim_test.py'
-                     '../SIM/sim.conf 100."\n')
+        text = StringIO()
+        text.write('#!/bin/bash\n\n')
+        text.write('sh -c "PYTHONPATH=../ python3 sim_test.py'
+                   '../SIM/sim.conf 100."\n')
+        write_file(file_path, text.getvalue())
 
     def write_topo_files(self, ad_configs, er_ip_addresses):
         """
@@ -475,8 +477,8 @@ class ConfigGenerator(object):
                 topo_dict['Zookeepers'][key] = zk.dict_()
 
             topo_file_abs = self.path_dict(isd_id, ad_id)['topo_file_abs']
-            with open(topo_file_abs, 'w') as topo_fh:
-                json.dump(topo_dict, topo_fh, sort_keys=True, indent=4)
+            write_file(topo_file_abs,
+                       json.dumps(topo_dict, sort_keys=True, indent=4))
             # Test if parser works
             Topology.from_file(topo_file_abs)
 
@@ -522,15 +524,15 @@ class ConfigGenerator(object):
             for path in "base_dir_abs", "data_dir_abs":
                 os.makedirs(paths[path], exist_ok=True)
             shutil.copyfile(DEFAULT_ZK_LOG4J, paths['log4j_abs'])
-            with open(paths['cfg_abs'], 'w') as fh:
-                for s in ['tickTime', 'initLimit', 'syncLimit']:
-                    fh.write("%s=%s\n" % (s, self.zk_config["Default"][s]))
-                fh.write("dataDir=%s\n" % paths['data_dir_rel'])
-                fh.write("clientPort=%d\n" % zk_dict["ClientPort"])
-                fh.write("clientPortAddress=%s\n" % zk_dict["Addr"])
-                fh.write("%s\n" % server_block)
-            with open(paths['myid_abs'], 'w') as fh:
-                fh.write("%s\n" % zk_id)
+            text = StringIO()
+            for s in ['tickTime', 'initLimit', 'syncLimit']:
+                text.write("%s=%s\n" % (s, self.zk_config["Default"][s]))
+            text.write("dataDir=%s\n" % paths['data_dir_rel'])
+            text.write("clientPort=%d\n" % zk_dict["ClientPort"])
+            text.write("clientPortAddress=%s\n" % zk_dict["Addr"])
+            text.write("%s\n" % server_block)
+            write_file(paths['cfg_abs'], text.getvalue())
+            write_file(paths['myid_abs'], "%s\n" % zk_id)
 
     def write_sim_file(self, ad_configs):
         """
@@ -556,35 +558,30 @@ class ConfigGenerator(object):
             number_ps = ad_configs[isd_ad_id].get("path_servers",
                                                   DEFAULT_PATH_SERVERS)
 
-            with open(sim_file, 'a') as sim_fh:
-                # Beacon Servers
-                for b_server in range(1, number_bs + 1):
-                    sim_fh.write(' '.join([
-                        'beacon_server', ('core' if is_core else 'local'),
-                        str(b_server), topo_file,
-                        conf_file, path_pol_file]) + '\n')
-                # Certificate Servers
-                for c_server in range(1, number_cs + 1):
-                    sim_fh.write(' '.join([
-                        'cert_server',
-                        str(c_server), topo_file,
-                        conf_file, trc_file]) + '\n')
-                # Path Servers
-                if (ad_configs[isd_ad_id]['level'] != INTERMEDIATE_AD or
-                        "path_servers" in ad_configs[isd_ad_id]):
-                    for p_server in range(1, number_ps + 1):
-                        sim_fh.write(' '.join([
-                            'path_server', ('core' if is_core else 'local'),
-                            str(p_server), topo_file,
-                            conf_file]) + '\n')
-                # Edge Routers
-                edge_router = 1
-                for nbr_isd_ad_id in ad_configs[isd_ad_id].get("links", []):
-                    sim_fh.write(' '.join([
-                        'router',
-                        str(edge_router), topo_file,
-                        conf_file]) + '\n')
-                    edge_router += 1
+            text = StringIO()
+            # Beacon Servers
+            for b_server in range(1, number_bs + 1):
+                text.write(' '.join([
+                    'beacon_server', ('core' if is_core else 'local'),
+                    str(b_server), topo_file, conf_file, path_pol_file]) + '\n')
+            # Certificate Servers
+            for c_server in range(1, number_cs + 1):
+                text.write(' '.join(['cert_server', str(c_server), topo_file,
+                                     conf_file, trc_file]) + '\n')
+            # Path Servers
+            if (ad_configs[isd_ad_id]['level'] != INTERMEDIATE_AD or
+                    "path_servers" in ad_configs[isd_ad_id]):
+                for p_server in range(1, number_ps + 1):
+                    text.write(' '.join([
+                        'path_server', ('core' if is_core else 'local'),
+                        str(p_server), topo_file, conf_file]) + '\n')
+            # Edge Routers
+            edge_router = 1
+            for nbr_isd_ad_id in ad_configs[isd_ad_id].get("links", []):
+                text.write(' '.join(['router', str(edge_router), topo_file,
+                                     conf_file]) + '\n')
+                edge_router += 1
+            write_file(sim_file, text.getvalue())
 
     def _get_typed_elements(self, topo_dict):
         """
@@ -698,8 +695,9 @@ class ConfigGenerator(object):
         supervisor_config[group_header] = {'programs': ','.join(program_group)}
 
         # Write config
-        with open(p['supervisor_file_abs'], 'w') as conf_fh:
-            supervisor_config.write(conf_fh)
+        text = StringIO()
+        supervisor_config.write(text)
+        write_file(p['supervisor_file_abs'], text.getvalue())
 
     def write_conf_files(self, ad_configs):
         """
@@ -733,8 +731,8 @@ class ConfigGenerator(object):
                 conf_dict['RegisterPath'] = 1
             else:
                 conf_dict['RegisterPath'] = 0
-            with open(conf_file, 'w') as conf_fh:
-                json.dump(conf_dict, conf_fh, sort_keys=True, indent=4)
+            write_file(conf_file,
+                       json.dumps(conf_dict, sort_keys=True, indent=4))
             # Test if parser works
             Config.from_file(conf_file)
 
@@ -844,16 +842,8 @@ class ConfigGenerator(object):
         if not os.path.isfile(path_policy_file):
             logging.error(path_policy_file + " file missing.")
             sys.exit()
-        try:
-            ad_configs = json.loads(open(adconfigurations_file).read())
-        except (ValueError, KeyError, TypeError):
-            log_exception(adconfigurations_file + ": JSON format error")
-            sys.exit(1)
-        try:
-            self.zk_config = json.loads(open(zk_config_file).read())
-        except (ValueError, KeyError, TypeError):
-            log_exception(zk_config_file + ": JSON format error")
-            sys.exit(1)
+        ad_configs = load_json_file(adconfigurations_file)
+        self.zk_config = load_json_file(zk_config_file)
 
         if "default_subnet" in ad_configs:
             self.subnet = ad_configs.pop("default_subnet")

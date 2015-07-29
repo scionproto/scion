@@ -216,10 +216,9 @@ class TestPayloadBaseParse(object):
     """
     def test_basic(self):
         payload = PayloadBase()
-        raw = [1, 2, 3, 4]
+        raw = b"asdf"
         payload.parse(raw)
         ntools.eq_(payload.raw, raw)
-        ntools.assert_is_not(payload.raw, raw)
 
 
 class TestPayloadBasePack(object):

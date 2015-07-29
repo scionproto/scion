@@ -22,6 +22,7 @@ import struct
 
 # SCION
 from lib.packet.packet_base import HeaderBase
+from lib.util import Raw
 
 
 class ExtensionType(object):
@@ -66,7 +67,7 @@ class ExtensionHeader(HeaderBase):
                          by SCIONHeader's pack().
         :type next_hdr: int
         """
-        HeaderBase.__init__(self)
+        super().__init__()
         self.next_hdr = 0
         self._hdr_len = 0
         self.payload = b"\x00" * self.MIN_PAYLOAD_LEN
@@ -80,17 +81,12 @@ class ExtensionHeader(HeaderBase):
         :param raw:
         :type raw:
         """
-        assert isinstance(raw, bytes)
-        dlen = len(raw)
-        if dlen < self.MIN_LEN:
-            logging.warning("Data too short to parse extension hdr: "
-                            "data len %u", dlen)
-            return
+        data = Raw(raw, "ExtensionHeader", self.MIN_LEN, min_=True)
         self.next_hdr, self._hdr_len, ext_no = \
-            struct.unpack("!BBB", raw[:self.SUBHDR_LEN])
+            struct.unpack("!BBB", data.pop(self.SUBHDR_LEN))
         assert ext_no == self.EXT_NO
-        assert dlen == len(self)
-        self.set_payload(raw[self.SUBHDR_LEN:])
+        assert len(raw) == len(self)
+        self.set_payload(data.pop())
         self.parsed = True
 
     def _init_size(self, additional_lines):
