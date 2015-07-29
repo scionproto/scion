@@ -41,16 +41,14 @@
 
 #include "scion.h"
 
-
 #define INGRESS_IF(HOF)                                                        \
   (ntohl(HOF->ingress_egress_if) >>                                            \
    (12 +                                                                       \
     8)) // 12bit is  egress if and 8 bit gap between uint32 and 24bit field
 #define EGRESS_IF(HOF) ((ntohl(HOF->ingress_egress_if) >> 8) & 0x000fff)
 
-
 typedef struct {
-  uint32_t addr; // IP address of an edge router
+  uint32_t addr;     // IP address of an edge router
   uint16_t udp_port; // UDP port
   uint8_t dpdk_port; // Phicical port (NIC)
   uint16_t scion_ifid;
@@ -71,14 +69,14 @@ void scion_init() {
   // fill interface list
   // TODO read topology configuration
 
-  //egress port
+  // egress port
   iflist[0].addr = IPv4(1, 1, 1, 1);
   iflist[0].udp_port = 33040;
   iflist[0].scion_ifid = 111;
   iflist[0].dpdk_port = 0;
   iflist[0].is_local_port = 0;
 
-  //local port
+  // local port
   iflist[1].addr = IPv4(2, 2, 2, 2);
   iflist[1].udp_port = 33040;
   iflist[1].scion_ifid = 286;
@@ -131,10 +129,28 @@ uint8_t is_on_up_path(InfoOpaqueField *currOF) {
   }
   return 0;
 }
+uint8_t is_last_path_of(SCIONCommonHeader *sch) {
+  uint8_t offset = SCION_COMMON_HEADER_LEN + sizeof(HopOpaqueField);
+  return sch->currentOF == offset + sch->headerLen;
+}
 
-uint8_t is_reqular(HopOpaqueField *currOF) {
+uint8_t is_regular(HopOpaqueField *currOF) {
+  // printf("type=%x\n",currOF->type );
+  if ((currOF->type & (1 << 6)) == 0) {
+    return 0;
+  }
+  return 1;
+}
+uint8_t is_continue(HopOpaqueField *currOF) {
   // printf("type=%x\n",currOF->type );
   if ((currOF->type & (1 << 5)) == 0) {
+    return 0;
+  }
+  return 1;
+}
+uint8_t is_xovr(HopOpaqueField *currOF) {
+  // printf("type=%x\n",currOF->type );
+  if ((currOF->type & (1 << 4)) == 0) {
     return 0;
   }
   return 1;
@@ -219,7 +235,7 @@ void normal_forward(struct rte_mbuf *m, uint32_t from_local_ad) {
       ipv4_hdr->dst_addr = iflist[i].addr;
       udp_hdr->dst_port = iflist[i].udp_port;
       //}else if (ptype ==  PATH_MGMT or ptype == PT.PATH_MGMT){  // TODO handle
-      //path mgmt packet
+      // path mgmt packet
     } else {
       printf("send to host\n");
       // last opaque field on the path, send the packet to the dstestination
@@ -365,12 +381,12 @@ void crossover_forward(struct rte_mbuf *m, uint32_t from_local_ad) {
     //   spkt.hdr.common_hdr.curr_iof_p = spkt.hdr.common_hdr.curr_of_p;
     //   LOG(DEBUG) << "TODO send() here, find next hop2";
     //}
-    uint8_t is_regular = 1;
-    while (is_regular) {
+    uint8_t is_regular_ = 1;
+    while (is_regular_) {
       sch->currentOF += sizeof(HopOpaqueField) * 2;
       HopOpaqueField *hof =
           (HopOpaqueField *)((unsigned char *)sch + sch->currentOF);
-      is_regular = is_reqular(hof);
+      is_regular_ = is_regular(hof);
     }
     sch->currentIOF = sch->currentOF;
 
@@ -414,23 +430,71 @@ void crossover_forward(struct rte_mbuf *m, uint32_t from_local_ad) {
 }
 
 void forward_packet(struct rte_mbuf *m, uint32_t from_local_ad, uint8_t ptype) {
-  // TODO check Info opack field
-  // TODO check type is PEER
 
-  // TODO check xover of nomal
-  // crossover_forward(m,from_local_ad);
+  // C++ code
+  /*
+ bool new_segment = false;
+        while (!spkt.hdr.get_current_of()->is_regular()) {
+            spkt.hdr.common_hdr.curr_iof_p = spkt.hdr.common_hdr.curr_of_p;
+            spkt.hdr.increase_of(1);
+            new_segment = true;
+        }
 
-  normal_forward(m, from_local_ad);
+        while (spkt.hdr.get_current_of()->is_continue())
+            spkt.hdr.increase_of(1);
+
+        int info = spkt.hdr.get_current_iof()->info;
+        int curr_iof_p = spkt.hdr.common_hdr.curr_iof_p;
+        // Case: peer path and first opaque field of a down path. We need to
+        // increase opaque field pointer as that first opaque field is used for
+        // MAC verification only.
+        if (!spkt.hdr.is_on_up_path() &&
+                (info == OpaqueFieldType::INTRATD_PEER
+                    || info == OpaqueFieldType::INTERTD_PEER) &&
+                spkt.hdr.common_hdr.curr_of_p == curr_iof_p + OpaqueField::LEN)
+            spkt.hdr.increase_of(1);
+
+        if (spkt.hdr.get_current_of()->info == OpaqueFieldType::LAST_OF
+            && !spkt.hdr.is_last_path_of() && !new_segment)
+            crossover_forward(spkt, next_hop, from_local_ad, info);
+        else
+            normal_forward(spkt, next_hop, from_local_ad, ptype);
+*/
+  SCIONHeader *scion_hdr;
+  SCIONCommonHeader *sch;
+  HopOpaqueField *hof;
+  InfoOpaqueField *iof;
+  scion_hdr = (SCIONHeader *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
+                                  struct ether_hdr) +
+                              sizeof(struct ipv4_hdr) + sizeof(struct udp_hdr));
+  sch = &(scion_hdr->commonHeader);
+  hof = (HopOpaqueField *)((unsigned char *)sch + sch->currentOF);
+  iof = (InfoOpaqueField *)((unsigned char *)sch + sch->currentIOF);
+
+  uint8_t new_segment = 0;
+  while (is_regular(hof)) {
+    sch->currentIOF = sch->currentOF;
+    sch->currentOF += sizeof(HopOpaqueField);
+    new_segment = 1;
+  }
+
+  while (is_continue(hof)) {
+    sch->currentOF += sizeof(HopOpaqueField);
+  }
+
+  int info = iof->type;
+  int curr_iof_p = sch->currentIOF;
+
+  if (!is_on_up_path(iof) && (info == INTRATD_PEER || info == INTERTD_PEER) &&
+      sch->currentOF == curr_iof_p + sizeof(HopOpaqueField))
+    sch->currentOF += sizeof(HopOpaqueField);
+
+  hof = (HopOpaqueField *)((unsigned char *)sch + sch->currentOF);
+  if (hof->type == LAST_OF && is_last_path_of(sch) && !new_segment)
+    crossover_forward(m, from_local_ad);
+  else
+    normal_forward(m, from_local_ad);
 }
-
-// void
-// process_scion_packet (struct rte_mbuf *m, uint32_t from_local_ad)
-//{
-
-// TODO check it is first path
-
-// forward_packet (m, from_local_ad);
-//}
 
 void process_ifid_request(struct rte_mbuf *m) {
   struct ether_hdr *eth_hdr;
