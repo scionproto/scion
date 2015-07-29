@@ -40,7 +40,8 @@
 #include <rte_string_fns.h>
 
 
-#define DPDK_WAN_PORT 3
+#define DPDK_WAN_PORT 0
+#define DPDK_LOCAL_PORT 1
 
 #define INGRESS_IF(HOF) ( ntohl (HOF->ingress_egress_if) >> (12 + 8) ) //12bit is  egress if and 8 bit gap between uint32 and 24bit field 
 #define EGRESS_IF(HOF) ( (ntohl (HOF->ingress_egress_if) >> 8) & 0x000fff )
@@ -61,7 +62,7 @@ typedef struct
 #define MAX_NUM_BEACON_SERVERS 1 
 NextHop iflist[MAX_NUM_ROUTER];
 uint32_t beacon_servers[MAX_NUM_BEACON_SERVERS];
-uint32_t certificate__servers[10];
+uint32_t certificate_servers[10];
 
 
 // Todo: read from topology file.
@@ -77,23 +78,23 @@ scion_init ()
   iflist[0].addr = IPv4 (1, 1, 1, 1);
   iflist[0].udp_port = 33040;
   iflist[0].scion_ifid = 111;
-  iflist[0].dpdk_port = 1;
+  iflist[0].dpdk_port = 0;
   iflist[0].is_local_port = 0;
 
   iflist[1].addr = IPv4 (2, 2, 2, 2);
   iflist[1].udp_port = 33040;
   iflist[1].scion_ifid = 286;
-  iflist[1].dpdk_port = 5;
+  iflist[1].dpdk_port = 1;
   iflist[1].is_local_port = 1;
 
-  iflist[2].addr = IPv4 (3, 3, 3, 3);
-  iflist[2].udp_port = 33040;
-  iflist[2].dpdk_port = 6;
-  iflist[2].scion_ifid = 287;
-  iflist[2].is_local_port = 1;
+  //iflist[2].addr = IPv4 (3, 3, 3, 3);
+  //iflist[2].udp_port = 33040;
+  //iflist[2].dpdk_port = 6;
+  //iflist[2].scion_ifid = 287;
+  //iflist[2].is_local_port = 1;
 
   beacon_servers[0] = IPv4 (7, 7, 7, 7);
-  certificate__servers[0] = IPv4 (8, 8, 8, 8);
+  certificate_servers[0] = IPv4 (8, 8, 8, 8);
 
 }
 
@@ -130,13 +131,23 @@ uint8_t
 is_on_up_path (InfoOpaqueField * currOF)
 {
   //printf("type=%x\n",currOF->type );
-  if ((currOF->type & 0x1) == 0)
+  if ((currOF->type & 0x1) == 1)
     {				//low bit of type field is used for uppath/downpath flag
       return 1;
     }
   return 0;
 }
 
+uint8_t
+is_reqular (HopOpaqueField * currOF)
+{
+  //printf("type=%x\n",currOF->type );
+  if ((currOF->type & (1<<5) ) == 0)
+    {			
+      return 0;
+    }
+  return 1;
+}
 
 
 void
@@ -150,7 +161,7 @@ normal_forward (struct rte_mbuf *m, uint32_t from_local_ad)
   HopOpaqueField *hof;
   InfoOpaqueField *iof;
 
-  //printf("normal forward\n");
+  printf("normal forward\n");
   ipv4_hdr =
     (struct ipv4_hdr *) (rte_pktmbuf_mtod (m, unsigned char *) +
 			 sizeof (struct ether_hdr));
@@ -166,10 +177,10 @@ normal_forward (struct rte_mbuf *m, uint32_t from_local_ad)
   iof = (InfoOpaqueField *) ((unsigned char *) sch + sch->currentIOF);	// currentOF is an offset from common header
 
 
-  //printf("Index %d, InEggress %04x\n",sch->currentOF, ntohl(hof->ingress_egress_if));
+  printf("Index %d, InEggress %04x\n",sch->currentOF, ntohl(hof->ingress_egress_if));
   uint16_t ingress_if = ntohl (hof->ingress_egress_if) >> (12 + 8);	//12bit is  egress if and 8 bit gap between uint32 and 24bit field 
   uint16_t egress_if = (ntohl (hof->ingress_egress_if) >> 8) & 0x000fff;
-  //printf("Ingress %d, Egress %d\n",ingress_if, egress_if );
+  printf("Ingress %d, Egress %d\n",ingress_if, egress_if );
   //unsigned char *dump;
   //int i;
   //dump=hof;
@@ -178,7 +189,7 @@ normal_forward (struct rte_mbuf *m, uint32_t from_local_ad)
 
   //Get next scion egress interface
   uint16_t next_ifid = 0xff;
-  if (is_on_up_path (iof) & 0)	// 0 for DEBUG
+  if (is_on_up_path (iof) )
     {
       next_ifid = ingress_if;
     }
@@ -195,6 +206,7 @@ normal_forward (struct rte_mbuf *m, uint32_t from_local_ad)
       sch->currentOF += sizeof (HopOpaqueField);
 
       //send_single_packet(m, DPDK_WAN_PORT);
+  	printf("send packet to neighbor AD\n");
       l2fwd_send_packet (m, DPDK_WAN_PORT);
     }
   else
@@ -202,8 +214,11 @@ normal_forward (struct rte_mbuf *m, uint32_t from_local_ad)
       //Send this SCION packet to the egress router in this AD
       uint8_t egress_dpdk_port = 0xff;
       int i;
+	printf("send packet to egress router\n");
 
       // Convert Egress ID to IP adress of the edge router
+
+	printf("next ifid %d", next_ifid);
 
       if (next_ifid != 0)
 	{
@@ -223,15 +238,16 @@ normal_forward (struct rte_mbuf *m, uint32_t from_local_ad)
 	}
       else
 	{
+	printf("send to host\n");
 	  // last opaque field on the path, send the packet to the dstestination host
 
 	  //update destination IP address to the end hostadress
-	  rte_memcpy (ipv4_hdr->dst_addr,
+	  rte_memcpy ((void*)&ipv4_hdr->dst_addr,
 		      (void *)&scion_hdr->dstAddr + SCION_ISD_LEN + SCION_AD_LEN,
 		      SCION_HOST_ADDR_LEN);
 	}
       //send_single_packet(m, egress_dpdk_port);
-      //printf("DPDK port = %d\n", egress_dpdk_port);
+      printf("DPDK port = %d\n", egress_dpdk_port);
 
       l2fwd_send_packet (m, egress_dpdk_port);
     }
@@ -269,6 +285,7 @@ crossover_forward (struct rte_mbuf *m, uint32_t from_local_ad)
 
   if (info == TDC_XOVR)
     {
+	////C++ code
       //if (is_on_up_path(iof))
       //prev_hof = spkt.hdr.get_relative_of(-1);
       //if (verify_of(curr_hof, prev_hof, timestamp)) {
@@ -286,9 +303,54 @@ crossover_forward (struct rte_mbuf *m, uint32_t from_local_ad)
       // else {
       // LOG(ERROR) << "Mac verification failed.";
       // }
+
+	if(is_on_up_path(iof)){
+      		sch->currentOF += sizeof (HopOpaqueField);
+
+		InfoOpaqueField *next_iof = (InfoOpaqueField *) ((unsigned char *) sch + sch->currentOF);
+
+
+		uint16_t ingress_if = ntohl (hof->ingress_egress_if) >> (12 + 8);	//12bit is  egress if and 8 bit gap between uint32 and 24bit field 
+		uint16_t egress_if = (ntohl (hof->ingress_egress_if) >> 8) & 0x000fff;
+  		uint16_t next_ifid = 0xff;
+		if (is_on_up_path (iof))	// 0 for DEBUG
+		{
+			next_ifid = ingress_if;
+		}
+		else
+		{
+			next_ifid = egress_if;
+		}
+		
+
+		if (next_ifid != 0)
+		{
+			uint8_t egress_dpdk_port = 0xff;
+			int i;
+			for (i = 0; i < MAX_NUM_ROUTER; i++)
+			{
+				if (iflist[i].scion_ifid == next_ifid)
+				{
+					break;
+				}
+			}
+			//Specify output dpdk port.
+			egress_dpdk_port = iflist[i].dpdk_port;
+			//Update destination IP address and UDP port number
+			ipv4_hdr->dst_addr = iflist[i].addr;
+			udp_hdr->dst_port = iflist[i].udp_port;
+      		
+			l2fwd_send_packet (m, egress_dpdk_port);
+		}
+
+
+
+	}
+
     }
   else if (info == NON_TDC_XOVR)
     {
+	////C++ code
       //prev_hof = spkt.hdr.get_relative_of(1);
       //if (verify_of(curr_hof, prev_hof, timestamp)) {
       //    spkt.hdr.increase_of(2);
@@ -298,9 +360,34 @@ crossover_forward (struct rte_mbuf *m, uint32_t from_local_ad)
       //    LOG(DEBUG) << "send() here, find next hop1";
       //    send(spkt, next_hop);
       // }
+
+	    sch->currentOF += sizeof (HopOpaqueField)*2;
+	    uint16_t egress_if = (ntohl (hof->ingress_egress_if) >> 8) & 0x000fff;
+	uint16_t next_ifid=egress_if;
+	    if (next_ifid != 0)
+	    {
+		    uint8_t egress_dpdk_port = 0xff;
+		    int i;
+		    for (i = 0; i < MAX_NUM_ROUTER; i++)
+		    {
+			    if (iflist[i].scion_ifid == next_ifid)
+			    {
+				    break;
+			    }
+		    }
+		    //Specify output dpdk port.
+		    egress_dpdk_port = iflist[i].dpdk_port;
+		    //Update destination IP address and UDP port number
+		    ipv4_hdr->dst_addr = iflist[i].addr;
+		    udp_hdr->dst_port = iflist[i].udp_port;
+	    
+		    l2fwd_send_packet (m, egress_dpdk_port);
+	    }
+
     }
   else if (info == INPATH_XOVR)
     {
+	////C++ code
       //if (verify_of(curr_hof, prev_hof, timestamp)) {
       //    bool is_regular = true;
       //   while (is_regular) {
@@ -310,9 +397,18 @@ crossover_forward (struct rte_mbuf *m, uint32_t from_local_ad)
       //   spkt.hdr.common_hdr.curr_iof_p = spkt.hdr.common_hdr.curr_of_p;    
       //   LOG(DEBUG) << "TODO send() here, find next hop2";
       //}
+	uint8_t is_regular=1;
+	while(is_regular){
+	    sch->currentOF += sizeof (HopOpaqueField)*2;
+	    HopOpaqueField *hof = (HopOpaqueField *) ((unsigned char *) sch + sch->currentOF);
+	    is_regular=is_reqular(hof);
+	}
+	sch->currentIOF = sch->currentOF;
+
     }
   else if (info == INTRATD_PEER || info == INTERTD_PEER)
     {
+	////C++ code
       //spkt.hdr.increase_of(1);
       //prev_hof = spkt.hdr.get_relative_of(1);
       //if (verify_of(curr_hof, prev_hof, timestamp)) {
@@ -321,6 +417,32 @@ crossover_forward (struct rte_mbuf *m, uint32_t from_local_ad)
       //    LOG(DEBUG) << "send() here, next: " << next_hop.to_string();
       //    send(spkt, next_hop);
       //}
+
+	    sch->currentOF += sizeof (HopOpaqueField);
+	    uint16_t ingress_if = ntohl (hof->ingress_egress_if) >> (12 + 8);	//12bit is  egress if and 8 bit gap between uint32 and 24bit field 
+	uint16_t next_ifid=ingress_if;
+	    if (next_ifid != 0)
+	    {
+		    uint8_t egress_dpdk_port = 0xff;
+		    int i;
+		    for (i = 0; i < MAX_NUM_ROUTER; i++)
+		    {
+			    if (iflist[i].scion_ifid == next_ifid)
+			    {
+				    break;
+			    }
+		    }
+		    //Specify output dpdk port.
+		    egress_dpdk_port = iflist[i].dpdk_port;
+		    //Update destination IP address and UDP port number
+		    ipv4_hdr->dst_addr = iflist[i].addr;
+		    udp_hdr->dst_port = iflist[i].udp_port;
+	    
+		    l2fwd_send_packet (m, egress_dpdk_port);
+	    }
+
+
+
     }
   else
     {
@@ -342,14 +464,14 @@ forward_packet (struct rte_mbuf *m, uint32_t from_local_ad, uint8_t ptype)
   normal_forward (m, from_local_ad);
 }
 
-void
-process_scion_packet (struct rte_mbuf *m, uint32_t from_local_ad)
-{
+//void
+//process_scion_packet (struct rte_mbuf *m, uint32_t from_local_ad)
+//{
 
   //TODO check it is first path
 
-  forward_packet (m, from_local_ad);
-}
+ // forward_packet (m, from_local_ad);
+//}
 
 void
 process_ifid_request (struct rte_mbuf *m) {
@@ -358,7 +480,7 @@ process_ifid_request (struct rte_mbuf *m) {
   struct udp_hdr *udp_hdr;
   IFIDHeader *ifid_hdr;
 
-  //printf("process ifid request\n");
+  printf("process ifid request\n");
   ipv4_hdr =
     (struct ipv4_hdr *) (rte_pktmbuf_mtod (m, unsigned char *) +
        sizeof (struct ether_hdr));
@@ -389,6 +511,8 @@ process_pcb (struct rte_mbuf *m, uint8_t from_bs) {
   // SCIONCommonHeader *sch;
   // HopOpaqueField *hof;
   // InfoOpaqueField *iof;
+
+printf("process pcb\n");
 
   ipv4_hdr =
     (struct ipv4_hdr *) (rte_pktmbuf_mtod (m, unsigned char *) +
@@ -425,11 +549,80 @@ process_pcb (struct rte_mbuf *m, uint8_t from_bs) {
 
 void 
 relay_cert_server_packet (struct rte_mbuf *m, uint8_t from_local_socket) {
-  // read certificate servers from topology first
+  struct ipv4_hdr *ipv4_hdr = (struct ipv4_hdr *) (rte_pktmbuf_mtod (m, unsigned char *) +
+       sizeof (struct ether_hdr));
+ 
+	if(from_local_socket){
+		ipv4_hdr->dst_addr = iflist[0].addr;
+    		l2fwd_send_packet(m, DPDK_WAN_PORT);
+	}else{
+		ipv4_hdr->dst_addr = certificate_servers[0];
+    		l2fwd_send_packet(m, DPDK_LOCAL_PORT);
+	}
+}
+
+void write_to_egress_iface(struct rte_mbuf *m){
+	struct ether_hdr *eth_hdr;
+	struct ipv4_hdr *ipv4_hdr;
+	struct udp_hdr *udp_hdr;
+	SCIONHeader *scion_hdr;
+	SCIONCommonHeader *sch;
+	HopOpaqueField *hof;
+	InfoOpaqueField *iof;
+
+	ipv4_hdr =
+		(struct ipv4_hdr *) (rte_pktmbuf_mtod (m, unsigned char *) +
+				sizeof (struct ether_hdr));
+	udp_hdr =
+		(struct udp_hdr *) (rte_pktmbuf_mtod (m, unsigned char *) +
+				sizeof (struct ether_hdr) + sizeof (struct ipv4_hdr));
+	scion_hdr =
+		(SCIONHeader *) (rte_pktmbuf_mtod (m, unsigned char *) +
+				sizeof (struct ether_hdr) + sizeof (struct ipv4_hdr) +
+				sizeof (struct udp_hdr));
+	sch = &(scion_hdr->commonHeader);
+	hof = (HopOpaqueField *) ((unsigned char *) sch + sch->currentOF);	// currentOF is an offset from common header
+	iof = (InfoOpaqueField *) ((unsigned char *) sch + sch->currentIOF);	// currentOF is an offset from common header
+
+
+	uint8_t info = hof->type ;
+	if (info == TDC_XOVR){
+		sch->currentIOF = sch->currentOF;
+		sch->currentOF += sizeof (HopOpaqueField);
+	}else if( info == NON_TDC_XOVR){
+		sch->currentIOF = sch->currentOF;
+		sch->currentOF += sizeof (HopOpaqueField)*2;
+	}
+
+	sch->currentOF += sizeof (HopOpaqueField);
+
+	hof = (HopOpaqueField *) ((unsigned char *) sch + sch->currentOF);	// currentOF is an offset from common header
+	
+	info = hof->type ;
+	if( info == INTRATD_PEER || info == INTERTD_PEER){
+		if(is_on_up_path(iof)){
+			HopOpaqueField *previous_hof = (HopOpaqueField *) ((unsigned char *) sch + sch->currentOF);
+			uint8_t previous_info = previous_hof->type;
+			if( previous_info == INTRATD_PEER || previous_info == INTERTD_PEER){
+				sch->currentOF += sizeof (HopOpaqueField);
+				
+}
+		}else{
+			
+			hof = (HopOpaqueField *) ((unsigned char *) sch + sch->currentOF);
+			if(hof->type ==LAST_OF){
+				sch->currentOF += sizeof (HopOpaqueField);
+			}
+		}
+	}
+ 
+    l2fwd_send_packet(m, DPDK_WAN_PORT);
 }
 
 void 
 process_packet (struct rte_mbuf *m, uint8_t from_local_socket, uint8_t ptype) {
+  printf("process packet\n");
+
   if (from_local_socket) 
     write_to_egress_iface(m);
   else
@@ -444,12 +637,15 @@ handle_request (struct rte_mbuf *m, uint8_t from_local_socket, uint32_t ptype)
   struct udp_hdr *udp_hdr;
   SCIONHeader *scion_hdr;
 
-  //printf("handle_request\n");
+  printf("handle_request\n");
 
   eth_hdr = rte_pktmbuf_mtod (m, struct ether_hdr *);
 
-  if (m->ol_flags & PKT_RX_IPV4_HDR || eth_hdr->ether_type == 30040)
+  //if (m->ol_flags & PKT_RX_IPV4_HDR || eth_hdr->ether_type == 30040)
+  //if (m->ol_flags & PKT_RX_IPV4_HDR )
+  if (m->ol_flags & PKT_RX_IPV4_HDR || eth_hdr->ether_type == ntohs(0x0800))
     {
+	printf("test %x\n",eth_hdr->ether_type);
       ipv4_hdr =
 	(struct ipv4_hdr *) (rte_pktmbuf_mtod (m, unsigned char *) +
 			     sizeof (struct ether_hdr));
@@ -476,6 +672,9 @@ handle_request (struct rte_mbuf *m, uint8_t from_local_socket, uint32_t ptype)
 
       else if (ptype == DATA_PACKET)
         process_packet(m, from_local_socket, ptype);
+      else{
+	printf("%d %d ?????\n",ptype, DATA_PACKET);
+      }
 
     }
 }
