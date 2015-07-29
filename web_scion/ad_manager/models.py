@@ -155,8 +155,7 @@ class AD(models.Model):
                 interface = router.interface
                 neighbor_ad = AD.objects.get(id=interface.neighbor_ad,
                                              isd=interface.neighbor_isd)
-                # TODO(rev112): rewrite with create?
-                router_element = RouterWeb(
+                RouterWeb.objects.create(
                     addr=str(router.addr), ad=self,
                     name=router.name, neighbor_ad=neighbor_ad,
                     neighbor_type=interface.neighbor_type,
@@ -166,31 +165,26 @@ class AD(models.Model):
                     interface_port=interface.udp_port,
                     interface_toport=interface.to_udp_port,
                 )
-                router_element.save()
 
             for bs in beacon_servers:
-                bs_element = BeaconServerWeb(addr=str(bs.addr),
-                                             name=bs.name,
-                                             ad=self)
-                bs_element.save()
+                BeaconServerWeb.objects.create(addr=str(bs.addr),
+                                               name=bs.name,
+                                               ad=self)
 
             for cs in certificate_servers:
-                cs_element = CertificateServerWeb(addr=str(cs.addr),
-                                                  name=cs.name,
-                                                  ad=self)
-                cs_element.save()
+                CertificateServerWeb.objects.create(addr=str(cs.addr),
+                                                    name=cs.name,
+                                                    ad=self)
 
             for ps in path_servers:
-                ps_element = PathServerWeb(addr=str(ps.addr),
-                                           name=ps.name,
-                                           ad=self)
-                ps_element.save()
+                PathServerWeb.objects.create(addr=str(ps.addr),
+                                             name=ps.name,
+                                             ad=self)
 
             for ds in dns_servers:
-                ds_element = DnsServerWeb(addr=str(ds.addr),
-                                          name=ds.name,
-                                          ad=self)
-                ds_element.save()
+                DnsServerWeb.objects.create(addr=str(ds.addr),
+                                            name=ds.name,
+                                            ad=self)
         except IntegrityError:
             logging.warning("Integrity error in AD.fill_from_topology(): "
                             "ignoring")
