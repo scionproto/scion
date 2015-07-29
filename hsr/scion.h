@@ -36,6 +36,8 @@
 #define SCION_HOST_ADDR_LEN 4
 #define SCION_HOST_OFFSET (SCION_ISD_LEN + SCION_AD_LEN)
 
+#define SCION_COMMON_HEADER_LEN 8
+
 #define SCION_DEFAULT_MTU 576
 
 /*Comments needed*/
