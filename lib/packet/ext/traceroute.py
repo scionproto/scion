@@ -58,8 +58,7 @@ class TracerouteExt(HopByHopExtension):
     @classmethod
     def from_values(cls, max_hops_no):
         """
-        Construct extension with allocated space for `additional_lines`.
-        All extensions have constant size.
+        Construct extension with allocated space for `max_hops_no`.
         """
         ext = TracerouteExt()
         ext._init_size(max_hops_no)
