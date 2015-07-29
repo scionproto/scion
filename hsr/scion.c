@@ -101,6 +101,38 @@ void scion_init() {
 
 int l2fwd_send_packet(struct rte_mbuf *m, uint8_t port);
 
+int send_local (struct rte_mbuf *m, uint32_t next_ifid){
+  struct ipv4_hdr *ipv4_hdr;
+  struct udp_hdr *udp_hdr;
+  ipv4_hdr = (struct ipv4_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
+      struct ether_hdr));
+  udp_hdr = (struct udp_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
+                                   struct ether_hdr) +
+                               sizeof(struct ipv4_hdr));
+ 
+      if (next_ifid != 0) {
+        uint8_t dpdk_port = 0xff;
+        int i;
+        for (i = 1; i <= MAX_NUM_ROUTER; i++) {
+	  if (i==MAX_NUM_ROUTER){
+		// can not find the egress router that has next_ifid
+		return -1;
+	}
+          if (iflist[i].scion_ifid == next_ifid) {
+            break;
+          }
+        }
+        // Specify output dpdk port.
+        dpdk_port = iflist[i].dpdk_port;
+        // Update destination IP address and UDP port number
+        ipv4_hdr->dst_addr = iflist[i].addr;
+        udp_hdr->dst_port = iflist[i].udp_port;
+
+        l2fwd_send_packet(m, dpdk_port);
+      }
+
+}
+
 uint8_t get_type(SCIONHeader *hdr) {
   SCIONAddr *src = (SCIONAddr *)(&hdr->srcAddr);
   SCIONAddr *dst = (SCIONAddr *)(&hdr->dstAddr);
@@ -190,12 +222,10 @@ void normal_forward(struct rte_mbuf *m, uint32_t from_local_ad) {
 
   printf("Index %d, InEggress %04x\n", sch->currentOF,
          ntohl(hof->ingress_egress_if));
-  uint16_t ingress_if =
-      ntohl(hof->ingress_egress_if) >>
-      (12 +
-       8); // 12bit is  egress if and 8 bit gap between uint32 and 24bit field
-  uint16_t egress_if = (ntohl(hof->ingress_egress_if) >> 8) & 0x000fff;
-  printf("Ingress %d, Egress %d\n", ingress_if, egress_if);
+
+  uint16_t ingress_if = INGRESS_IF(hof);
+  uint16_t egress_if = EGRESS_IF(hof);
+  printf("Ingress %d, Egress %d\n", INGRESS_IF(hof), EGRESS_IF(hof));
   // unsigned char *dump;
   // int i;
   // dump=hof;
