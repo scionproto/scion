@@ -17,7 +17,6 @@
 """
 # Stdlib
 import binascii
-import logging
 import struct
 
 # SCION

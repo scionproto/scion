@@ -24,7 +24,6 @@ import nose.tools as ntools
 
 # SCION
 from lib.errors import SCIONParseError
-from lib.packet.ext_hdr import ExtensionHeader
 from lib.packet.opaque_field import (
     OpaqueField,
     OpaqueFieldType as OFT
