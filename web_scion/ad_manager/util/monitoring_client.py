@@ -9,6 +9,9 @@ from ad_management.common import get_monitoring_server, response_failure
 
 
 def run_remote(func):
+    """
+    Decorator which prepares the monitoring server and wraps errors.
+    """
 
     def wrapper(md_host, *args, **kwargs):
         s = get_monitoring_server(md_host)

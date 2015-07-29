@@ -51,7 +51,7 @@ class PrivilegedChangeAdmin(GuardedModelAdmin):
         codename = get_permission_codename('change', opts)
 
         # If there is an 'ad' attribute then it's a foreign key, so extend
-        # user permissions for this ad to the current object
+        # user permissions for this AD to the current object
         ad = getattr(obj, 'ad', None)
         if ad and isinstance(ad, AD):
             obj = ad
@@ -60,7 +60,7 @@ class PrivilegedChangeAdmin(GuardedModelAdmin):
 
     def get_readonly_fields(self, request, obj=None):
         """
-        Make fields specified in 'privileged fields' read-only
+        Make fields listed in 'privileged fields' read-only
         """
         fields = super().get_readonly_fields(request, obj)
         if not request.user.has_perm('change_ad'):

@@ -12,5 +12,6 @@ def empty_dict():
     Needed for default value of JSONField.
 
     :return: empty dictionary
+    :rtype: dict
     """
     return {}

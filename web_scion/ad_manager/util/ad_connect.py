@@ -47,6 +47,7 @@ def find_next_ip_local():
                                         'ISD*', 'topologies', 'ISD*.json'))
 
     ip_addr_re = re.compile(r'"((\d{1,3}\.){3}\d{1,3})"')
+    # Scan all config files for IP addresses, select the largest
     for path in topo_files:
         contents = open(path).read()
         for match in re.finditer(ip_addr_re, contents):

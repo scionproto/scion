@@ -570,10 +570,14 @@ def list_sent_requests(request):
 
 
 def network_view(request):
+    """
+    Prepare network graph visualization.
+    """
+    ads = AD.objects.all()
     ad_graph_tmp = []
+    # Direct and reverse index <-> AD mappings
     ad_index = {}
     ad_index_rev = {}
-    ads = AD.objects.all()
     # TODO(rev112) check optimizations
     ads = ads.prefetch_related('routerweb_set__neighbor_ad')
     for i, ad in enumerate(ads):
@@ -582,7 +586,7 @@ def network_view(request):
         ad_routers = ad.routerweb_set.all()
         ad_graph_tmp.append([r.neighbor_ad for r in ad_routers])
 
-    # Rewrite neighbors
+    # Build a list with all neighbors
     ad_graph = []
     for neighbors in ad_graph_tmp:
         ad_graph.append([ad_index_rev[n] for n in neighbors])

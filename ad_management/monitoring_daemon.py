@@ -347,7 +347,7 @@ class MonitoringDaemon(object):
         :type ad_id: int
         :param data_dict:
         :type data_dict:
-        :returns:
+        :returns: confirmation or error
         :rtype:
         """
         # Verify the hash value
@@ -368,10 +368,19 @@ class MonitoringDaemon(object):
         return response_success()
 
     def get_master_id(self, isd_id, ad_id, server_type):
+
         """
+        Get the id of the current master process for a given server type.
         Registered function.
 
-        Get the id of the current master process for a given server type.
+        :param isd_id: ISD identifier.
+        :type isd_id: int
+        :param ad_id: AD identifier.
+        :type ad_id: int
+        :param server_type: one of 'bs', 'cs', 'ps' or 'ds'
+        :type server_type: str
+        :returns: master server id or error
+        :rtype:
         """
         if server_type not in [BEACON_SERVICE, CERTIFICATE_SERVICE,
                                PATH_SERVICE, DNS_SERVICE]:
