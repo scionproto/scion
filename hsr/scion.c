@@ -39,8 +39,8 @@
 #include <rte_udp.h>
 #include <rte_string_fns.h>
 
-#define DPDK_WAN_PORT 0
-#define DPDK_LOCAL_PORT 1
+#include "scion.h"
+
 
 #define INGRESS_IF(HOF)                                                        \
   (ntohl(HOF->ingress_egress_if) >>                                            \
@@ -48,7 +48,6 @@
     8)) // 12bit is  egress if and 8 bit gap between uint32 and 24bit field
 #define EGRESS_IF(HOF) ((ntohl(HOF->ingress_egress_if) >> 8) & 0x000fff)
 
-#include "scion.h"
 
 typedef struct {
   uint32_t addr; // IP address of an edge router
@@ -72,12 +71,14 @@ void scion_init() {
   // fill interface list
   // TODO read topology configuration
 
+  //egress port
   iflist[0].addr = IPv4(1, 1, 1, 1);
   iflist[0].udp_port = 33040;
   iflist[0].scion_ifid = 111;
   iflist[0].dpdk_port = 0;
   iflist[0].is_local_port = 0;
 
+  //local port
   iflist[1].addr = IPv4(2, 2, 2, 2);
   iflist[1].udp_port = 33040;
   iflist[1].scion_ifid = 286;
@@ -193,9 +194,9 @@ void normal_forward(struct rte_mbuf *m, uint32_t from_local_ad) {
     // Increment index of OF
     sch->currentOF += sizeof(HopOpaqueField);
 
-    // send_single_packet(m, DPDK_WAN_PORT);
+    // send_single_packet(m, DPDK_EGRESS_PORT);
     printf("send packet to neighbor AD\n");
-    l2fwd_send_packet(m, DPDK_WAN_PORT);
+    l2fwd_send_packet(m, DPDK_EGRESS_PORT);
   } else {
     // Send this SCION packet to the egress router in this AD
     uint8_t egress_dpdk_port = 0xff;
@@ -455,7 +456,7 @@ void process_ifid_request(struct rte_mbuf *m) {
   for (i = 0; i < MAX_NUM_BEACON_SERVERS; i++) {
     ipv4_hdr->dst_addr = beacon_servers[i];
     udp_hdr->dst_port = SCION_UDP_PORT;
-    l2fwd_send_packet(m, DPDK_WAN_PORT);
+    l2fwd_send_packet(m, DPDK_EGRESS_PORT);
   }
 }
 
@@ -491,13 +492,13 @@ void process_pcb(struct rte_mbuf *m, uint8_t from_bs) {
 
     ipv4_hdr->dst_addr = TO_ADDR;
     udp_hdr->dst_port = TO_PORT;
-    l2fwd_send_packet(m, DPDK_WAN_PORT); // replace with remote socket?
+    l2fwd_send_packet(m, DPDK_EGRESS_PORT); // replace with remote socket?
 
   } else {
     pcb->payload.if_id = iflist[0].scion_ifid;
     ipv4_hdr->dst_addr = beacon_servers[0];
     udp_hdr->dst_port = SCION_UDP_PORT;
-    l2fwd_send_packet(m, DPDK_WAN_PORT);
+    l2fwd_send_packet(m, DPDK_EGRESS_PORT);
   }
 }
 
@@ -507,7 +508,7 @@ void relay_cert_server_packet(struct rte_mbuf *m, uint8_t from_local_socket) {
 
   if (from_local_socket) {
     ipv4_hdr->dst_addr = iflist[0].addr;
-    l2fwd_send_packet(m, DPDK_WAN_PORT);
+    l2fwd_send_packet(m, DPDK_EGRESS_PORT);
   } else {
     ipv4_hdr->dst_addr = certificate_servers[0];
     l2fwd_send_packet(m, DPDK_LOCAL_PORT);
@@ -572,7 +573,7 @@ void write_to_egress_iface(struct rte_mbuf *m) {
     }
   }
 
-  l2fwd_send_packet(m, DPDK_WAN_PORT);
+  l2fwd_send_packet(m, DPDK_EGRESS_PORT);
 }
 
 void process_packet(struct rte_mbuf *m, uint8_t from_local_socket,
