@@ -226,7 +226,7 @@ void normal_forward(struct rte_mbuf *m, uint32_t from_local_ad) {
 
       // update destination IP address to the end hostadress
       rte_memcpy((void *)&ipv4_hdr->dst_addr,
-                 (void *)&scion_hdr->dstAddr + SCION_ISD_LEN + SCION_AD_LEN,
+                 (void *)&scion_hdr->dstAddr + SCION_ISD_AD_LEN,
                  SCION_HOST_ADDR_LEN);
     }
     // send_single_packet(m, egress_dpdk_port);
