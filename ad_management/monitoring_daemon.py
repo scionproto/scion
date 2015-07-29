@@ -54,17 +54,18 @@ from lib.defines import (
 from lib.log import init_logging
 from topology.generator import ConfigGenerator
 
+MD_START_RETRIES = 3
+MD_SLEEP_BEFORE_TRY = 1
+
 
 def start_md():
     # Start the monigoring daemon
-    retries = 3
-    sleep_before_try = 1
     server = get_supervisor_server()
     started = False
 
     logging.info('Trying to start the monitoring daemon')
-    for _ in range(retries):
-        time.sleep(sleep_before_try)
+    for _ in range(MD_START_RETRIES):
+        time.sleep(MD_SLEEP_BEFORE_TRY)
         try:
             server.supervisor.startProcess(MONITORING_DAEMON_PROC_NAME,
                                            wait=True)
@@ -138,24 +139,24 @@ class MonitoringDaemon(object):
         topo_path = gen.path_dict(isd_id, ad_id)['topo_file_abs']
         return topo_path
 
-    def restart_supervisor_async(self):
+    def stop_process_group_async(self, isd_id, ad_id):
         """
-        Restart Supervisor and the monitoring daemon after some delay, so the
+        Stop all the processes for the specified AD after some delay, so the
         initial RPC call has time to finish.
         """
         wait_before_restart = 0.1
 
-        def _restart_supervisor_wait():
+        def _stop_process_group_wait():
             time.sleep(wait_before_restart)
             server = get_supervisor_server()
-            server.supervisor.restart()
+            server.supervisor.stopProcessGroup("ad{}-{}".format(isd_id, ad_id))
             start_md()
 
-        p = Process(target=_restart_supervisor_wait)
+        p = Process(target=_stop_process_group_wait)
         p.start()
 
     def update_topology(self, isd_id, ad_id, topology):
-        # TODO check security!
+        # TODO(rev112) check security!
         topo_path = self.get_topo_path(isd_id, ad_id)
         if not os.path.isfile(topo_path):
             return response_failure('No AD topology found')
@@ -164,7 +165,7 @@ class MonitoringDaemon(object):
             logging.info('Topology file written')
         generator = ConfigGenerator()
         generator.write_derivatives(topology)
-        self.restart_supervisor_async()
+        self.stop_process_group_async(isd_id, ad_id)
         return response_success('Topology file is successfully updated')
 
     def _read_topology(self, isd_id, ad_id):
