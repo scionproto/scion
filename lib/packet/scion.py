@@ -215,6 +215,15 @@ class SCIONHeader(HeaderBase):
 
         return hdr
 
+    def add_extensions(self, ext_hdrs):
+        """
+        Add extension headers and updates necessary fields.
+        """
+        for ext in ext_hdrs:
+            self.extension_hdrs.append(ext)
+            self.common_hdr.total_len += len(ext)
+        self._set_next_hdrs()
+
     def _set_next_hdrs(self):
         """
         Set correct next_hdr fields.
@@ -230,6 +239,15 @@ class SCIONHeader(HeaderBase):
         while l < len(self.extension_hdrs) - 1:
             self.extension_hdrs[l].next_hdr = self.extension_hdrs[l+1].EXT_TYPE
             l += 1
+
+    def remove_extensions(self):
+        """
+        Removes all extensions and updates necessary fields.
+        """
+        for ext in self.extension_hdrs:
+            self.common_hdr.total_len -= len(ext)
+        self.extension_hdrs = []
+        self.common_hdr.next_hdr = self.l4_proto
 
     @property
     def path(self):
@@ -259,23 +277,6 @@ class SCIONHeader(HeaderBase):
             self.common_hdr.hdr_len += path_len
             self.common_hdr.total_len += path_len
         self.set_first_of_pointers()
-
-    def add_extensions(self, ext_hdrs):
-        """
-        Add extension headers and updates necessary fields.
-        """
-        for ext in ext_hdrs:
-            self.extension_hdrs.append(ext)
-            self.common_hdr.total_len += len(ext)
-        self._set_next_hdrs()
-
-    def remove_extensions(self):
-        """
-        Removes all extensions and updates necessary fields.
-        """
-        for ext in self.extension_hdrs:
-            self.common_hdr.total_len -= len(ext)
-        self.extension_hdrs = []
 
     def parse(self, raw):
         """

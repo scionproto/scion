@@ -34,9 +34,10 @@ class TestExtensionHeaderInit(object):
     """
     def test_basic(self):
         ext_hdr = ExtensionHeader()
+        ext_hdr.EXT_NO = 0
         ntools.eq_(ext_hdr.next_hdr, 0)
         ntools.eq_(ext_hdr._hdr_len, 0)
-        ntools.eq_(ext_hdr.payload, b"\x00" * 6)
+        ntools.eq_(ext_hdr.payload, b"\x00" * 5)
         ntools.assert_false(ext_hdr.parsed)
 
     @patch("lib.packet.ext_hdr.ExtensionHeader.parse", autospec=True)
@@ -74,11 +75,13 @@ class TestExtensionHeaderParse(object):
     def test_full(self, set_payload, ext_hdr_len):
         ext_hdr_len.return_value = 8
         ext_hdr = ExtensionHeader()
+        ext_hdr.EXT_NO = 3
         ext_hdr.parse(bytes.fromhex('01 02 03 04 05 06 07 08'))
         ntools.eq_(ext_hdr.next_hdr, 0x01)
         ntools.eq_(ext_hdr._hdr_len, 0x02)
-        set_payload.assert_called_once_with(ext_hdr, bytes.fromhex('03 04 05 '
-                                                                   '06 07 08'))
+        ntools.eq_(ext_hdr.EXT_NO, 0x03)
+        set_payload.assert_called_once_with(ext_hdr, bytes.fromhex('04 05 06'
+                                                                   '07 08'))
         ntools.assert_true(ext_hdr.parsed)
 
 
@@ -87,24 +90,26 @@ class TestExtensionHeaderSetPayload(object):
     Unit tests for lib.packet.ext_hdr.ExtensionHeader.set_payload
     """
     def test_short_payload(self):
-        payload = bytes.fromhex('01 02 03')
+        payload = bytes.fromhex('01 02 03 04 05')
         ext_hdr = ExtensionHeader()
         ext_hdr.set_payload(payload)
         ntools.eq_(ext_hdr._hdr_len, 0)
-        ntools.eq_(ext_hdr.payload, bytes.fromhex('01 02 03 00 00 00'))
+        ntools.eq_(ext_hdr.payload, bytes.fromhex('01 02 03 04 05'))
 
     def test_not_multiple(self):
-        payload = bytes(range(9))
+        payload = bytes(range(13))
         ext_hdr = ExtensionHeader()
+        ext_hdr._init_size(1)
         ext_hdr.set_payload(payload)
         ntools.eq_(ext_hdr._hdr_len, 1)
-        ntools.eq_(ext_hdr.payload, payload + b"\x00" * 5)
+        ntools.eq_(ext_hdr.payload, payload)
 
     def test_multiple(self):
-        payload = bytes(range(6 + 8))
+        payload = bytes(range(5 + 2*8))
         ext_hdr = ExtensionHeader()
+        ext_hdr._init_size(2)
         ext_hdr.set_payload(payload)
-        ntools.eq_(ext_hdr._hdr_len, 1)
+        ntools.eq_(ext_hdr._hdr_len, 2)
         ntools.eq_(ext_hdr.payload, payload)
 
 
@@ -116,7 +121,8 @@ class TestExtensionHeaderPack(object):
         ext_hdr = ExtensionHeader()
         ext_hdr.next_hdr = 14
         ext_hdr._hdr_len = 42
-        ext_hdr.payload = bytes.fromhex('01 02 03')
+        ext_hdr.EXT_NO = 1
+        ext_hdr.payload = bytes.fromhex('02 03')
         ntools.eq_(ext_hdr.pack(), bytes([14, 42, 1, 2, 3]))
 
 

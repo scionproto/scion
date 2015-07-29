@@ -177,7 +177,7 @@ class TestSCIONHeaderInit(object):
         ntools.assert_is_none(hdr.src_addr)
         ntools.assert_is_none(hdr.dst_addr)
         ntools.assert_is_none(hdr._path)
-        ntools.eq_(hdr._extension_hdrs, [])
+        ntools.eq_(hdr.extension_hdrs, [])
         ntools.eq_(hdr.l4_proto, 0)
 
     @patch("lib.packet.scion.SCIONHeader.parse", autospec=True)
@@ -206,11 +206,11 @@ class TestSCIONHeaderFromValues(object):
         ntools.assert_raises(AssertionError, SCIONHeader.from_values, src,
                              dst, path='path')
 
-    @patch("lib.packet.scion.SCIONHeader.set_ext_hdrs", autospec=True)
+    @patch("lib.packet.scion.SCIONHeader.add_extensions", autospec=True)
     @patch("lib.packet.scion.SCIONHeader.set_path", autospec=True)
     @patch("lib.packet.scion.SCIONCommonHdr.from_values",
            spec_set=SCIONCommonHdr.from_values)
-    def test_full(self, scion_common_hdr, set_path, set_ext_hdrs):
+    def test_full(self, scion_common_hdr, set_path, add_extensions):
         src = MagicMock(spec_set=['addr_len', '__class__'])
         dst = MagicMock(spec_set=['addr_len', '__class__'])
         dst.__class__ = src.__class__ = SCIONAddr
@@ -226,13 +226,13 @@ class TestSCIONHeaderFromValues(object):
         ntools.eq_(hdr.dst_addr, dst)
         ntools.eq_(hdr.l4_proto, 34)
         set_path.assert_called_once_with(hdr, path)
-        set_ext_hdrs.assert_called_once_with(hdr, ext_hdrs)
+        add_extensions.assert_called_once_with(hdr, ext_hdrs)
 
-    @patch("lib.packet.scion.SCIONHeader.set_ext_hdrs", autospec=True)
+    @patch("lib.packet.scion.SCIONHeader.add_extensions", autospec=True)
     @patch("lib.packet.scion.SCIONHeader.set_path", autospec=True)
     @patch("lib.packet.scion.SCIONCommonHdr.from_values",
            spec_set=SCIONCommonHdr.from_values)
-    def test_less_args(self, scion_common_hdr, set_path, set_ext_hdrs):
+    def test_less_args(self, scion_common_hdr, set_path, add_extensions):
         src = MagicMock(spec_set=['addr_len', '__class__'])
         dst = MagicMock(spec_set=['addr_len', '__class__'])
         dst.__class__ = src.__class__ = SCIONAddr
@@ -240,7 +240,7 @@ class TestSCIONHeaderFromValues(object):
         hdr = SCIONHeader.from_values(src, dst, l4_proto=12)
         scion_common_hdr.assert_called_once_with(src.addr_len, dst.addr_len, 12)
         set_path.assert_called_once_with(hdr, None)
-        set_ext_hdrs.assert_called_once_with(hdr, [])
+        add_extensions.assert_called_once_with(hdr, [])
 
 
 class TestSCIONHeaderPath(object):
@@ -296,75 +296,12 @@ class TestSCIONHeaderExtensionHdrs(object):
     """
     Unit tests for lib.packet.scion.SCIONHeader.extension_hdrs
     """
-    def test_getter(self):
-        hdr = SCIONHeader()
-        hdr._extension_hdrs = 'ext_hdrs'
-        ntools.eq_(hdr.extension_hdrs, 'ext_hdrs')
 
-    @patch("lib.packet.scion.SCIONHeader.set_ext_hdrs", autospec=True)
-    def test_setter(self, set_ext_hdrs):
+    @patch("lib.packet.scion.SCIONHeader._set_next_hdrs", autospec=True)
+    def test_add_extensions(self, add_extensions):
         hdr = SCIONHeader()
         hdr.extension_hdrs = 'ext_hdrs'
-        set_ext_hdrs.assert_called_once_with(hdr, 'ext_hdrs')
-
-
-class TestSCIONHeaderSetExtHdrs(object):
-    """
-    Unit tests for lib.packet.scion.SCIONHeader.set_ext_hdrs
-    """
-    def test_bad_type(self):
-        hdr = SCIONHeader()
-        ntools.assert_raises(AssertionError, hdr.set_ext_hdrs, 123)
-
-    @patch("lib.packet.scion.SCIONHeader.append_ext_hdr", autospec=True)
-    @patch("lib.packet.scion.SCIONHeader.pop_ext_hdr", autospec=True)
-    def test_full(self, pop, append):
-        hdr = SCIONHeader()
-        ext_hdrs = ['ext_hdr0', 'ext_hdr1']
-        hdr._extension_hdrs = MagicMock(spec_set=['__bool__'])
-        hdr._extension_hdrs.__bool__.side_effect = [True, True, False]
-        hdr.set_ext_hdrs(ext_hdrs)
-        pop.assert_has_calls([call(hdr)] * 2)
-        append.assert_has_calls([call(hdr, 'ext_hdr0'), call(hdr, 'ext_hdr1')])
-
-
-class TestSCIONHeaderAppendExtHdr(object):
-    """
-    Unit tests for lib.packet.scion.SCIONHeader.append_ext_hdr
-    """
-    def test_bad_type(self):
-        hdr = SCIONHeader()
-        ntools.assert_raises(AssertionError, hdr.append_ext_hdr, 123)
-
-    def test_full(self):
-        hdr = SCIONHeader()
-        hdr._extension_hdrs = []
-        hdr.common_hdr = MagicMock(spec_set=['total_len'])
-        hdr.common_hdr.total_len = 456
-        ext_hdr = MagicMock(spec_set=ExtensionHeader)
-        ext_hdr.__len__.return_value = 123
-        hdr.append_ext_hdr(ext_hdr)
-        ntools.assert_in(ext_hdr, hdr._extension_hdrs)
-        ntools.eq_(hdr.common_hdr.total_len, 123 + 456)
-
-
-class TestSCIONHeaderPopExtHdr(object):
-    """
-    Unit tests for lib.packet.scion.SCIONHeader.pop_ext_hdr
-    """
-    def test_none(self):
-        hdr = SCIONHeader()
-        hdr._extension_hdrs = []
-        ntools.assert_is_none(hdr.pop_ext_hdr())
-
-    def test_full(self):
-        hdr = SCIONHeader()
-        hdr._extension_hdrs = ['ext_hdr0', 'ext_hdr1']
-        hdr.common_hdr = MagicMock(spec_set=['total_len'])
-        hdr.common_hdr.total_len = 10
-        ntools.eq_(hdr.pop_ext_hdr(), 'ext_hdr1')
-        ntools.eq_(hdr._extension_hdrs, ['ext_hdr0'])
-        ntools.eq_(hdr.common_hdr.total_len, 10 - len('ext_hdr1'))
+        _set_next_hdrs.assert_called_once_with()
 
 
 class TestSCIONHeaderParse(object):
@@ -476,8 +413,7 @@ class TestSCIONHeaderParseExtensionHdrs(object):
     """
     Unit tests for lib.packet.scion.SCIONHeader._parse_extension_hdrs
     """
-    @patch("lib.packet.scion.SCIONHeader.append_ext_hdr", autospec=True)
-    def test(self, append_ext_hdr):
+    def test(self):
         hdr = SCIONHeader()
         hdr.common_hdr = MagicMock(spec_set=['next_hdr'])
         hdr.common_hdr.next_hdr = 0xc8  # 200
@@ -490,8 +426,6 @@ class TestSCIONHeaderParseExtensionHdrs(object):
             offset = hdr._parse_extension_hdrs(raw, 0)
             extns[0xc8].assert_called_once_with(raw[:16])
             extns[0xdd].assert_called_once_with(raw[32:48])
-            append_ext_hdr.assert_has_calls([call(hdr, 'ext1'),
-                                             call(hdr, 'ext2')])
             ntools.eq_(hdr.l4_proto, 0)
             ntools.eq_(offset, 48)
 
@@ -510,17 +444,17 @@ class TestSCIONHeaderPack(object):
         hdr.dst_addr = MagicMock(spec_set=['pack'])
         hdr.dst_addr.pack.return_value = b'dst_addr'
         hdr._path = path
-        hdr._extension_hdrs = [MagicMock(spec_set=['pack', 'TYPE', 'next_hdr'])
+        hdr.extension_hdrs = [MagicMock(spec_set=['pack', 'TYPE', 'next_hdr'])
                                for i in range(2)]
-        for i, ext_hdr in enumerate(hdr._extension_hdrs):
+        for i, ext_hdr in enumerate(hdr.extension_hdrs):
             ext_hdr.pack.return_value = b'ext_hdr' + str.encode(str(i))
             ext_hdr.TYPE = i + 10
         packed = b'common_hdrsrc_addrdst_addr' + packed_path + \
                  b'ext_hdr0ext_hdr1'
         ntools.eq_(hdr.pack(), packed)
         ntools.eq_(hdr.common_hdr.next_hdr, 10)
-        ntools.eq_(hdr._extension_hdrs[-1].next_hdr, 123)
-        ntools.eq_(hdr._extension_hdrs[0].next_hdr, hdr._extension_hdrs[1].TYPE)
+        ntools.eq_(hdr.extension_hdrs[-1].next_hdr, 123)
+        ntools.eq_(hdr.extension_hdrs[0].next_hdr, hdr.extension_hdrs[1].TYPE)
 
     def test_with_ext_hdr(self):
         paths = [None, MagicMock(spec_set=['pack'])]
@@ -763,7 +697,7 @@ class TestSCIONHeaderLen(object):
         hdr = SCIONHeader()
         hdr.common_hdr = MagicMock(spec_set=['hdr_len'])
         hdr.common_hdr.hdr_len = 123
-        hdr._extension_hdrs = ['ext_hdr0', 'ext_hdr01']
+        hdr.extension_hdrs = ['ext_hdr0', 'ext_hdr01']
         ntools.eq_(len(hdr), 123 + len('ext_hdr0') + len('ext_hdr01'))
 
 
