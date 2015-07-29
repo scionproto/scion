@@ -86,8 +86,8 @@ class ExtensionHeader(HeaderBase):
             logging.warning("Data too short to parse extension hdr: "
                             "data len %u", dlen)
             return
-        self.next_hdr, self._hdr_len, ext_no = struct.unpack("!BBB",
-                raw[:self.SUBHDR_LEN])
+        self.next_hdr, self._hdr_len, ext_no = \
+            struct.unpack("!BBB", raw[:self.SUBHDR_LEN])
         assert ext_no == self.EXT_NO
         assert dlen == len(self)
         self.set_payload(raw[self.SUBHDR_LEN:])

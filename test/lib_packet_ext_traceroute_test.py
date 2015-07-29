@@ -30,7 +30,8 @@ class TestTracerouteExtInit(object):
     """
     Unit tests for lib.packet.ext.traceroute.TracerouteExt.__init__
     """
-    @patch("lib.packet.ext.traceroute.ExtensionHeader.__init__", autospec=True)
+    @patch("lib.packet.ext.traceroute.HopByHopExtension.__init__",
+           autospec=True)
     def test_basic(self, ext_hdr_init):
         ext = TracerouteExt()
         ntools.eq_(ext.hops, [])
@@ -38,7 +39,7 @@ class TestTracerouteExtInit(object):
 
     @patch("lib.packet.ext.traceroute.TracerouteExt.parse_payload",
            autospec=True)
-    @patch("lib.packet.ext.traceroute.ExtensionHeader.parse", autospec=True)
+    @patch("lib.packet.ext.traceroute.HopByHopExtension.parse", autospec=True)
     def test_raw(self, parse, parse_payload):
         ext = TracerouteExt('data')
         parse.assert_called_once_with(ext, 'data')
@@ -54,7 +55,8 @@ class TestTracerouteExtParsePayload(object):
     def test(self, isd_ad):
         ext = TracerouteExt()
         ext.hops = [1]
-        ext.payload = b'\x00' * 6 + bytes.fromhex('0102 0304 0506 0708') * 2
+        ext.payload = (b"\x02" + b'\x00' * 4 +
+                       bytes.fromhex('0102 0304 0506 0708') * 2)
         isd_ad.side_effect = [(1, 2), (3, 4)]
         ext.parse_payload()
         ntools.eq_(ext.hops, [1, (1, 2, 0x0506, 0x0708),
@@ -71,22 +73,24 @@ class TestTracerouteExtAppendHop(object):
         ext._hdr_len = 2
         ext.append_hop(3, 4, 5, 6)
         ntools.eq_(ext.hops, [1, (3, 4, 5, 6)])
-        ntools.eq_(ext._hdr_len, 3)
+        ntools.eq_(ext._hdr_len, 2)
 
 
 class TestTracerouteExtPack(object):
     """
     Unit tests for lib.packet.ext.traceroute.TracerouteExt.pack
     """
-    @patch("lib.packet.ext.traceroute.ExtensionHeader.pack", autospec=True)
+    @patch("lib.packet.ext.traceroute.HopByHopExtension.pack", autospec=True)
     @patch("lib.packet.ext.traceroute.ISD_AD", autospec=True)
     def test(self, isd_ad, ext_hdr_pack):
         isd_ad_mock = isd_ad.return_value = MagicMock(spec_set=['pack'])
-        isd_ad_mock.pack.side_effect = [b'isd_ad1', b'isd_ad2']
-        ext = TracerouteExt()
+        isd_ad_mock.pack.side_effect = [b'ad_1', b'ad_2']
+        ext = TracerouteExt.from_values(2)
+        ext.hops_no = 2
         ext.hops = [(1, 2, 3, 4), (5, 6, 7, 8)]
-        payload = b'\x00' * 6 + b'isd_ad1' + bytes.fromhex('0003 0004') \
-                  + b'isd_ad2' + bytes.fromhex('0007 0008')
+        payload = (b'\x02' + b'\x00' * 4 + b'ad_1' +
+                   bytes.fromhex('0003 0004') + b'ad_2' +
+                   bytes.fromhex('0007 0008'))
         ntools.eq_(ext.pack(), ext_hdr_pack.return_value)
         isd_ad.assert_any_call(1, 2)
         isd_ad.assert_any_call(5, 6)

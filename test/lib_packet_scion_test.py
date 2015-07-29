@@ -23,7 +23,6 @@ import nose
 import nose.tools as ntools
 
 # SCION
-from lib.packet.ext_hdr import ExtensionHeader
 from lib.packet.opaque_field import (
     OpaqueField,
     OpaqueFieldType as OFT
@@ -178,7 +177,7 @@ class TestSCIONHeaderInit(object):
         ntools.assert_is_none(hdr.dst_addr)
         ntools.assert_is_none(hdr._path)
         ntools.eq_(hdr.extension_hdrs, [])
-        ntools.eq_(hdr.l4_proto, 0)
+        ntools.eq_(hdr.l4_proto, 1)
 
     @patch("lib.packet.scion.SCIONHeader.parse", autospec=True)
     def test_with_args(self, parse):
@@ -298,9 +297,9 @@ class TestSCIONHeaderExtensionHdrs(object):
     """
 
     @patch("lib.packet.scion.SCIONHeader._set_next_hdrs", autospec=True)
-    def test_add_extensions(self, add_extensions):
+    def test_add_extensions(self, _set_next_hdrs):
         hdr = SCIONHeader()
-        hdr.extension_hdrs = 'ext_hdrs'
+        hdr.add_extensions('ext_hdrs')
         _set_next_hdrs.assert_called_once_with()
 
 
@@ -417,9 +416,9 @@ class TestSCIONHeaderParseExtensionHdrs(object):
         hdr = SCIONHeader()
         hdr.common_hdr = MagicMock(spec_set=['next_hdr'])
         hdr.common_hdr.next_hdr = 0xc8  # 200
-        raw = bytes.fromhex('12 01') + bytes(range(14)) \
-            + bytes.fromhex('dd 01') + bytes(range(14)) \
-            + bytes.fromhex('00 01') + bytes(range(14))
+        raw = bytes.fromhex('12 01 01') + bytes(range(13)) \
+            + bytes.fromhex('dd 01 02') + bytes(range(13)) \
+            + bytes.fromhex('00 01 03') + bytes(range(13))
         extns = {0xc8: MagicMock(spec_set=[], return_value='ext1'),
                  0xdd: MagicMock(spec_set=[], return_value='ext2')}
         with patch("lib.packet.scion.EXTENSIONS", new=extns):
@@ -445,7 +444,7 @@ class TestSCIONHeaderPack(object):
         hdr.dst_addr.pack.return_value = b'dst_addr'
         hdr._path = path
         hdr.extension_hdrs = [MagicMock(spec_set=['pack', 'TYPE', 'next_hdr'])
-                               for i in range(2)]
+                              for i in range(2)]
         for i, ext_hdr in enumerate(hdr.extension_hdrs):
             ext_hdr.pack.return_value = b'ext_hdr' + str.encode(str(i))
             ext_hdr.TYPE = i + 10
@@ -468,6 +467,7 @@ class TestSCIONHeaderPack(object):
         hdr.common_hdr = MagicMock(spec_set=['pack', 'next_hdr'])
         hdr.common_hdr.pack.return_value = b'common_hdr'
         hdr.l4_proto = 123
+        hdr._set_next_hdrs()
         hdr.src_addr = MagicMock(spec_set=['pack'])
         hdr.src_addr.pack.return_value = b'src_addr'
         hdr.dst_addr = MagicMock(spec_set=['pack'])
@@ -741,7 +741,7 @@ class TestSCIONPacketFromValues(object):
            spec_set=SCIONHeader.from_values)
     def test_less_args(self, scion_hdr, set_payload, set_hdr):
         SCIONPacket.from_values('src', 'dst', 'payload')
-        scion_hdr.assert_called_once_with('src', 'dst', None, None, 0)
+        scion_hdr.assert_called_once_with('src', 'dst', None, None, 1)
 
 
 class TestSCIONPacketSetPayload(object):

@@ -30,8 +30,8 @@ class TracerouteExt(HopByHopExtension):
     | next hdr | hdr len |  0x00  | hops_no |         (padding)            |
     |    ISD_0      |          AD_0         |    IFID_0   |   Timestamp_0  |
     |    ISD_1      |          AD_1         |    IFID_1   |   Timestamp_1  |
-    ...
-    |                              (padding)                               |
+                                    ...
+    |                     (padding)  or HOP info                           |
     """
     EXT_NO = 0
     PADDING_LEN = 4
