@@ -60,6 +60,7 @@ typedef struct {
 NextHop iflist[MAX_NUM_ROUTER];
 uint32_t beacon_servers[MAX_NUM_BEACON_SERVERS];
 uint32_t certificate_servers[10];
+uint32_t path_servers[10];
 
 // Todo: read from topology file.
 #define TO_ADDR IPv4(2, 2, 2, 2)
@@ -94,6 +95,7 @@ void scion_init() {
 
   beacon_servers[0] = IPv4(7, 7, 7, 7);
   certificate_servers[0] = IPv4(8, 8, 8, 8);
+  path_servers[0] = IPv4(8, 8, 8, 8);
 
   my_ifid = 333;
 }
@@ -132,7 +134,7 @@ int send_local(struct rte_mbuf *m, uint32_t next_ifid) {
   if (next_ifid != 0) {
     uint8_t dpdk_port = 0xff;
     int i;
-  //TODO remove this loop for improving performance
+    // TODO remove this loop for improving performance
     for (i = 1; i <= MAX_NUM_ROUTER; i++) {
       if (i == MAX_NUM_ROUTER) {
         // can not find the egress router that has next_ifid
@@ -215,7 +217,8 @@ uint8_t is_xovr(HopOpaqueField *currOF) {
   return 1;
 }
 
-void normal_forward(struct rte_mbuf *m, uint32_t from_local_ad) {
+void normal_forward(struct rte_mbuf *m, uint32_t from_local_ad,
+                    uint32_t ptype) {
   struct ether_hdr *eth_hdr;
   SCIONHeader *scion_hdr;
   SCIONCommonHeader *sch;
@@ -265,36 +268,49 @@ void normal_forward(struct rte_mbuf *m, uint32_t from_local_ad) {
     printf("send packet to neighbor AD\n");
     send_egress(m);
   } else {
-    // Send this SCION packet to the egress router in this AD
-    uint8_t egress_dpdk_port = 0xff;
-    int i;
-    printf("send packet to egress router\n");
-
-    // Convert Egress ID to IP adress of the edge router
-
-    printf("next ifid %d", next_ifid);
-
-    int ret = send_local(m, next_ifid);
-    if (ret < 0) {
-	//send to host
+    // from neighbor AD
+    if (ptype == PATH_MGMT_PACKET) {
       struct ipv4_hdr *ipv4_hdr;
       struct udp_hdr *udp_hdr;
       ipv4_hdr = (struct ipv4_hdr *)(rte_pktmbuf_mtod(
           m, unsigned char *)+sizeof(struct ether_hdr));
-      udp_hdr = (struct udp_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
-                                       struct ether_hdr) +
-                                   sizeof(struct ipv4_hdr));
+      ipv4_hdr->dst_addr = path_servers[0];
 
-      printf("send to host\n");
-      // last opaque field on the path, send the packet to the dstestination
-      // host
+    } else {
 
-      // update destination IP address to the end hostadress
-      rte_memcpy((void *)&ipv4_hdr->dst_addr,
-                 (void *)&scion_hdr->dstAddr + SCION_ISD_AD_LEN,
-                 SCION_HOST_ADDR_LEN);
+      // Send this SCION packet to the egress router in this AD
+      uint8_t egress_dpdk_port = 0xff;
+      int i;
+      printf("send packet to egress router\n");
 
-      l2fwd_send_packet(m, DPDK_LOCAL_PORT);
+      // Convert Egress ID to IP adress of the edge router
+
+      printf("next ifid %d", next_ifid);
+
+      int ret = send_local(m, next_ifid);
+      // send_local returns -1 when the specified ifid is not found in iflist.
+      if (ret < 0) {
+        // send to host
+        struct ipv4_hdr *ipv4_hdr;
+        struct udp_hdr *udp_hdr;
+        ipv4_hdr = (struct ipv4_hdr *)(rte_pktmbuf_mtod(
+            m, unsigned char *)+sizeof(struct ether_hdr));
+        udp_hdr =
+            (struct udp_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
+                                   struct ether_hdr) +
+                               sizeof(struct ipv4_hdr));
+
+        printf("send to host\n");
+        // last opaque field on the path, send the packet to the dstestination
+        // host
+
+        // update destination IP address to the end hostadress
+        rte_memcpy((void *)&ipv4_hdr->dst_addr,
+                   (void *)&scion_hdr->dstAddr + SCION_ISD_AD_LEN,
+                   SCION_HOST_ADDR_LEN);
+
+        l2fwd_send_packet(m, DPDK_LOCAL_PORT);
+      }
     }
   }
 }
@@ -320,7 +336,7 @@ void crossover_forward(struct rte_mbuf *m, uint32_t from_local_ad) {
                               sizeof(struct ipv4_hdr) + sizeof(struct udp_hdr));
   sch = &(scion_hdr->commonHeader);
   hof = (HopOpaqueField *)((unsigned char *)sch + sch->currentOF +
-                           SCION_COMMON_HEADER_LEN); /
+                           SCION_COMMON_HEADER_LEN);
   iof = (InfoOpaqueField *)((unsigned char *)sch + sch->currentIOF +
                             SCION_COMMON_HEADER_LEN);
 
@@ -435,7 +451,8 @@ void crossover_forward(struct rte_mbuf *m, uint32_t from_local_ad) {
   }
 }
 
-void forward_packet(struct rte_mbuf *m, uint32_t from_local_ad, uint8_t ptype) {
+void forward_packet(struct rte_mbuf *m, uint32_t from_local_ad,
+                    uint32_t ptype) {
 
   // C++ code
   /*
@@ -502,7 +519,7 @@ void forward_packet(struct rte_mbuf *m, uint32_t from_local_ad, uint8_t ptype) {
   if (hof->type == LAST_OF && is_last_path_of(sch) && !new_segment)
     crossover_forward(m, from_local_ad);
   else
-    normal_forward(m, from_local_ad);
+    normal_forward(m, from_local_ad, ptype);
 }
 
 void process_ifid_request(struct rte_mbuf *m) {
@@ -652,7 +669,7 @@ void write_to_egress_iface(struct rte_mbuf *m) {
 }
 
 void process_packet(struct rte_mbuf *m, uint8_t from_local_socket,
-                    uint8_t ptype) {
+                    uint32_t ptype) {
   printf("process packet\n");
 
   if (from_local_socket)
