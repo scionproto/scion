@@ -199,14 +199,17 @@ class SCIONHeader(HeaderBase):
         assert isinstance(dst, SCIONAddr)
         assert path is None or isinstance(path, PathBase)
         hdr = SCIONHeader()
+        if ext_hdrs is None:
+            ext_hdrs = []
+            next_hdr = l4_proto
+        else:
+            next_hdr = ext_hdrs[0].EXT_TYPE
         hdr.common_hdr = SCIONCommonHdr.from_values(src.addr_len, dst.addr_len,
-                                                    l4_proto)
+                                                    next_hdr)
         hdr.src_addr = src
         hdr.dst_addr = dst
         hdr.l4_proto = l4_proto
         hdr.path = path
-        if ext_hdrs is None:
-            ext_hdrs = []
         hdr.add_extensions(ext_hdrs)
 
         return hdr

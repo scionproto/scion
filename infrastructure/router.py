@@ -361,7 +361,7 @@ class Router(SCIONElement):
         else:
             if iface:
                 next_hop.addr = self.ifid2addr[iface]
-            elif ptype in [PT.PATH_MGMT, PT.PATH_MGMT]:
+            elif ptype == PT.PATH_MGMT:
                 next_hop.addr = self.topology.path_servers[0].addr
             else:  # last opaque field on the path, send the packet to the dst
                 next_hop.addr = spkt.hdr.dst_addr.host_addr
