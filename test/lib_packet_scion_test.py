@@ -297,8 +297,9 @@ class TestSCIONHeaderExtensionHdrs(object):
     @patch("lib.packet.scion.SCIONHeader._set_next_hdrs", autospec=True)
     def test_add_extensions(self, _set_next_hdrs):
         hdr = SCIONHeader()
+        hdr.common_hdr = MagicMock(spec_set=['total_len'])
         hdr.add_extensions('ext_hdrs')
-        _set_next_hdrs.assert_called_once_with()
+        _set_next_hdrs.assert_called_once_with(hdr)
 
 
 class TestSCIONHeaderParse(object):
