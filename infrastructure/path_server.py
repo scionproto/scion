@@ -19,15 +19,20 @@
 import copy
 import datetime
 import logging
+import threading
+import time
+import os
 import sys
 from _collections import defaultdict
 
 # External packages
 from external.expiring_dict import ExpiringDict
+from kazoo.exceptions import NoNodeError
 
 # SCION
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.hash_chain import HashChain
+from lib.defines import SCION_UDP_PORT
 from lib.log import init_logging, log_exception
 from lib.packet.path_mgmt import (
     LeaseInfo,
@@ -43,14 +48,17 @@ from lib.packet.path_mgmt import (
 )
 from lib.packet.scion_addr import ISD_AD
 from lib.path_db import DBResult, PathSegmentDB
+from lib.thread import thread_safety_net
 from lib.util import handle_signals, update_dict, SCIONTime
-
+from lib.zookeeper import ZkConnectionLoss, ZkNoNodeError, Zookeeper
 
 class PathServer(SCIONElement):
     """
     The SCION Path Server.
     """
     MAX_SEG_NO = 5  # TODO: replace by config variable.
+    # ZK path for incoming PATHs
+    ZK_PATH_CACHE_PATH = "path_cache"
 
     def __init__(self, server_id, topo_file, config_file, is_sim=False):
         """
@@ -76,6 +84,14 @@ class PathServer(SCIONElement):
         # TODO replace by some cache data struct. (expiringdict ?)
         self.revocations = ExpiringDict(1000, 300)
         self.iftoken2seg = defaultdict(set)
+        if not is_sim:
+            # Add more IPs here if we support dual-stack
+            name_addrs = "\0".join([self.id, str(SCION_UDP_PORT),
+                                    str(self.addr.host_addr)])
+            self.zk = Zookeeper(
+                self.topology.isd_id, self.topology.ad_id, "ps", name_addrs,
+                self.topology.zookeepers,
+                ensure_paths=(self.ZK_PATH_CACHE_PATH,))
 
     def _add_if_mappings(self, pcb):
         """
@@ -355,9 +371,73 @@ class CorePathServer(PathServer):
         self.leases = self.LeasesDict()
         self.core_ads = set()
         # Init core ads set.
+        # TODO(PSz): probably to drop, as this is only set of neighbours,
+        # let's propagate paths using cached ones.
         for router in self.topology.routing_edge_routers:
             self.core_ads.add((router.interface.neighbor_isd,
                                router.interface.neighbor_ad))
+        self._master_id = None  # Master core Path Server.
+
+    def _master_election(self):
+        """
+        Election of master core Path Server.
+        """
+        master = False
+        while True:
+            if not self._is_master():
+                logging.debug("Trying to become master")
+            if not self.zk.get_lock():
+                if self._is_master():
+                    logging.debug("No longer master")
+                    self._update_master()
+                time.sleep(1)
+                logging.debug("mid-while %s", self._get_master_id())
+                continue
+            if not self._is_master():
+                logging.debug("Became master")
+                self._master_id = "MY IP"  # TODO
+            logging.debug("end-while %s", self._get_master_id())
+            time.sleep(1)
+
+    def _update_master(self):
+        """
+        """
+        self._master_id = self._get_master_id()
+        logging.debug("New master is: ", self._master_id)
+        if not self._master_id or self._is_master():
+            logging.debug("_update_master(): not _master_id or _is_master()")
+            return
+        # TODO(PSz): send all local down- and (?) core-paths to the new master,
+        # COnsider easy mechanisms for avoiding registration storm.
+
+    def _get_master_id(self):
+        # TODO(PSz): should it go to zk_lib?
+        """
+        Get the id of the current master.
+        Based on Anton's code from ad_management/monitoring_daemon.py.
+        """
+        lock_path = os.path.join(self.zk._prefix, "lock")
+        get_id = lambda name: name.split('__')[-1]
+        try:
+            contenders = self.zk._zk.get_children(lock_path)
+            if not contenders:
+                logging.warning('No lock contenders found')
+                return None
+
+            lock_holder_file = sorted(contenders, key=get_id)[0]
+            lock_holder_path = os.path.join(lock_path, lock_holder_file)
+            lock_contents = self.zk._zk.get(lock_holder_path)
+            _, _, server_addr = lock_contents[0].split(b"\x00")
+            return str(server_addr, 'utf-8')
+        except NoNodeError:
+            logging.warning("No lock data found")
+            return None
+
+    def _is_master(self):
+        """
+        Return True when instance is master Core Path Server, False otherwise.
+        """
+        return self._master_id == "MY IP"  # TODO
 
     def _handle_up_segment_record(self, pkt):
         """
@@ -720,6 +800,17 @@ class CorePathServer(PathServer):
         else:
             logging.warning("Type %d not supported.", pkt.type)
 
+    def run(self):
+        """
+        Run an instance of the Core Path Server.
+        """
+        threading.Thread(
+            target=thread_safety_net,
+            args=("_master_election", self._master_election),
+            name="Core PS master election",
+            daemon=True).start()
+        SCIONElement.run(self)
+
 
 class LocalPathServer(PathServer):
     """
@@ -746,6 +837,8 @@ class LocalPathServer(PathServer):
         # Database of up-segments to the core.
         self.up_segments = PathSegmentDB()
         self.pending_up = []  # List of pending UP requests.
+
+        self._latest_entry = 0  # Counter for ZK
 
     def _send_leases(self, orig_pkt, leases):
         """
