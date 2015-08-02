@@ -244,11 +244,7 @@ static inline void normal_forward(struct rte_mbuf *m, uint32_t from_local_ad,
                                                       // from
                                                       // common header
 
-  //printf("OF offset %d, IOF offset %d, InEggress %04x\n", sch->currentOF,
-  //       sch->currentIOF, ntohl(hof->ingress_egress_if));
 
-  uint16_t ingress_if = INGRESS_IF(hof);
-  uint16_t egress_if = EGRESS_IF(hof);
   //printf("Ingress %d, Egress %d\n", INGRESS_IF(hof), EGRESS_IF(hof));
   // unsigned char *dump;
   // int i;
@@ -259,9 +255,9 @@ static inline void normal_forward(struct rte_mbuf *m, uint32_t from_local_ad,
   // Get next scion egress interface
   uint16_t next_ifid = 0xff;
   if (is_on_up_path(iof)) {
-    next_ifid = ingress_if;
+    next_ifid = INGRESS_IF(hof);
   } else {
-    next_ifid = egress_if;
+    next_ifid = EGRESS_IF(hof);
   }
 
   if (from_local_ad) {
@@ -284,12 +280,8 @@ static inline void normal_forward(struct rte_mbuf *m, uint32_t from_local_ad,
     } else {
 
       // Send this SCION packet to the egress router in this AD
-      uint8_t egress_dpdk_port = 0xff;
-      int i;
       //printf("send packet to egress router\n");
-
       // Convert Egress ID to IP adress of the edge router
-
       //printf("next ifid %d", next_ifid);
 
       int ret = send_local(m, next_ifid);
@@ -305,7 +297,7 @@ static inline void normal_forward(struct rte_mbuf *m, uint32_t from_local_ad,
                                    struct ether_hdr) +
                                sizeof(struct ipv4_hdr));
 
-        //printf("send to host\n");
+        printf("send to host\n");
         // last opaque field on the path, send the packet to the dstestination
         // host
 
@@ -686,8 +678,6 @@ static inline void process_packet(struct rte_mbuf *m, uint8_t from_local_socket,
 void handle_request(struct rte_mbuf *m, uint8_t from_local_socket,
                     uint32_t ptype) {
   struct ether_hdr *eth_hdr;
-  struct ipv4_hdr *ipv4_hdr;
-  struct udp_hdr *udp_hdr;
   SCIONHeader *scion_hdr;
 
   //printf("handle_request\n");
@@ -698,11 +688,6 @@ void handle_request(struct rte_mbuf *m, uint8_t from_local_socket,
   // if (m->ol_flags & PKT_RX_IPV4_HDR )
   if (m->ol_flags & PKT_RX_IPV4_HDR || eth_hdr->ether_type == ntohs(0x0800)) {
     //printf("test %x\n", eth_hdr->ether_type);
-    ipv4_hdr = (struct ipv4_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
-        struct ether_hdr));
-    udp_hdr = (struct udp_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
-                                     struct ether_hdr) +
-                                 sizeof(struct ipv4_hdr));
 
     scion_hdr =
         (SCIONHeader *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
