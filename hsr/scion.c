@@ -58,6 +58,7 @@ typedef struct {
 #define MAX_NUM_ROUTER 16
 #define MAX_NUM_BEACON_SERVERS 1
 NextHop iflist[MAX_NUM_ROUTER];
+NextHop iflist2[1000];
 uint32_t beacon_servers[MAX_NUM_BEACON_SERVERS];
 uint32_t certificate_servers[10];
 uint32_t path_servers[10];
@@ -92,6 +93,21 @@ void scion_init() {
   // iflist[2].dpdk_port = 6;
   // iflist[2].scion_ifid = 287;
   // iflist[2].is_local_port = 1;
+
+
+  // egress port (neighbor AD's router)
+  iflist2[111].addr = IPv4(1, 1, 1, 1);
+  iflist2[111].udp_port = 33040;
+  iflist2[111].dpdk_port = DPDK_EGRESS_PORT;
+  iflist2[111].is_local_port = 0;
+
+  // local port (other egress router in this AD)
+  iflist2[286].addr = IPv4(2, 2, 2, 2);
+  iflist2[286].udp_port = 33040;
+  iflist2[286].dpdk_port = DPDK_LOCAL_PORT;
+  iflist2[286].is_local_port = 1;
+
+
 
   beacon_servers[0] = IPv4(7, 7, 7, 7);
   certificate_servers[0] = IPv4(8, 8, 8, 8);
@@ -132,23 +148,12 @@ static inline int send_local(struct rte_mbuf *m, uint32_t next_ifid) {
                                sizeof(struct ipv4_hdr));
 
   if (next_ifid != 0) {
-    uint8_t dpdk_port = 0xff;
-    int i;
-    // TODO remove this loop for improving performance
-    for (i = 1; i <= MAX_NUM_ROUTER; i++) {
-      if (i == MAX_NUM_ROUTER) {
-        // can not find the egress router that has next_ifid
-        return -1;
-      }
-      if (iflist[i].scion_ifid == next_ifid) {
-        break;
-      }
-    }
+    uint8_t dpdk_port;
     // Specify output dpdk port.
-    dpdk_port = iflist[i].dpdk_port;
+    dpdk_port = iflist[next_ifid].dpdk_port;
     // Update destination IP address and UDP port number
-    ipv4_hdr->dst_addr = iflist[i].addr;
-    udp_hdr->dst_port = iflist[i].udp_port;
+    ipv4_hdr->dst_addr = iflist[next_ifid].addr;
+    udp_hdr->dst_port = iflist[next_ifid].udp_port;
 
     l2fwd_send_packet(m, dpdk_port);
     return 1;
