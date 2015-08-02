@@ -103,7 +103,7 @@ void scion_init() {
 int l2fwd_send_packet(struct rte_mbuf *m, uint8_t port);
 
 // send a packet to neighbor AD router
-int send_egress(struct rte_mbuf *m) {
+static inline int send_egress(struct rte_mbuf *m) {
   struct ipv4_hdr *ipv4_hdr;
   struct udp_hdr *udp_hdr;
   ipv4_hdr = (struct ipv4_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
@@ -122,7 +122,7 @@ int send_egress(struct rte_mbuf *m) {
 }
 
 // send a packet to the edge router that has next_ifid in this AD
-int send_local(struct rte_mbuf *m, uint32_t next_ifid) {
+static inline int send_local(struct rte_mbuf *m, uint32_t next_ifid) {
   struct ipv4_hdr *ipv4_hdr;
   struct udp_hdr *udp_hdr;
   ipv4_hdr = (struct ipv4_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
@@ -156,7 +156,7 @@ int send_local(struct rte_mbuf *m, uint32_t next_ifid) {
   return -1;
 }
 
-uint8_t get_type(SCIONHeader *hdr) {
+static inline uint8_t get_type(SCIONHeader *hdr) {
   SCIONAddr *src = (SCIONAddr *)(&hdr->srcAddr);
   SCIONAddr *dst = (SCIONAddr *)(&hdr->dstAddr);
 
@@ -182,7 +182,7 @@ uint8_t get_type(SCIONHeader *hdr) {
   return &hdr->srcAddr;
 }
 
-uint8_t is_on_up_path(InfoOpaqueField *currOF) {
+static inline uint8_t is_on_up_path(InfoOpaqueField *currOF) {
   printf("type=%x\n", currOF->type);
   if ((currOF->type & 0x1) ==
       1) { // low bit of type field is used for uppath/downpath flag
@@ -190,26 +190,26 @@ uint8_t is_on_up_path(InfoOpaqueField *currOF) {
   }
   return 0;
 }
-uint8_t is_last_path_of(SCIONCommonHeader *sch) {
+static inline uint8_t is_last_path_of(SCIONCommonHeader *sch) {
   uint8_t offset = SCION_COMMON_HEADER_LEN + sizeof(HopOpaqueField);
   return sch->currentOF == offset + sch->headerLen;
 }
 
-uint8_t is_regular(HopOpaqueField *currOF) {
+static inline uint8_t is_regular(HopOpaqueField *currOF) {
   // printf("type=%x\n",currOF->type );
   if ((currOF->type & (1 << 6)) == 0) {
     return 0;
   }
   return 1;
 }
-uint8_t is_continue(HopOpaqueField *currOF) {
+static inline uint8_t is_continue(HopOpaqueField *currOF) {
   // printf("type=%x\n",currOF->type );
   if ((currOF->type & (1 << 5)) == 0) {
     return 0;
   }
   return 1;
 }
-uint8_t is_xovr(HopOpaqueField *currOF) {
+static inline uint8_t is_xovr(HopOpaqueField *currOF) {
   // printf("type=%x\n",currOF->type );
   if ((currOF->type & (1 << 4)) == 0) {
     return 0;
@@ -217,7 +217,7 @@ uint8_t is_xovr(HopOpaqueField *currOF) {
   return 1;
 }
 
-void normal_forward(struct rte_mbuf *m, uint32_t from_local_ad,
+static inline void normal_forward(struct rte_mbuf *m, uint32_t from_local_ad,
                     uint32_t ptype) {
   struct ether_hdr *eth_hdr;
   SCIONHeader *scion_hdr;
@@ -315,7 +315,7 @@ void normal_forward(struct rte_mbuf *m, uint32_t from_local_ad,
   }
 }
 
-void crossover_forward(struct rte_mbuf *m, uint32_t from_local_ad) {
+static inline void crossover_forward(struct rte_mbuf *m, uint32_t from_local_ad) {
   printf("not implemented\n");
 
   struct ether_hdr *eth_hdr;
@@ -451,7 +451,7 @@ void crossover_forward(struct rte_mbuf *m, uint32_t from_local_ad) {
   }
 }
 
-void forward_packet(struct rte_mbuf *m, uint32_t from_local_ad,
+static inline void forward_packet(struct rte_mbuf *m, uint32_t from_local_ad,
                     uint32_t ptype) {
 
   // C++ code
@@ -522,7 +522,7 @@ void forward_packet(struct rte_mbuf *m, uint32_t from_local_ad,
     normal_forward(m, from_local_ad, ptype);
 }
 
-void process_ifid_request(struct rte_mbuf *m) {
+static inline void process_ifid_request(struct rte_mbuf *m) {
   struct ether_hdr *eth_hdr;
   struct ipv4_hdr *ipv4_hdr;
   struct udp_hdr *udp_hdr;
@@ -550,7 +550,7 @@ void process_ifid_request(struct rte_mbuf *m) {
   }
 }
 
-void process_pcb(struct rte_mbuf *m, uint8_t from_bs) {
+static inline void process_pcb(struct rte_mbuf *m, uint8_t from_bs) {
   struct ether_hdr *eth_hdr;
   struct ipv4_hdr *ipv4_hdr;
   struct udp_hdr *udp_hdr;
@@ -589,7 +589,7 @@ void process_pcb(struct rte_mbuf *m, uint8_t from_bs) {
   }
 }
 
-void relay_cert_server_packet(struct rte_mbuf *m, uint8_t from_local_socket) {
+static inline void relay_cert_server_packet(struct rte_mbuf *m, uint8_t from_local_socket) {
   struct ipv4_hdr *ipv4_hdr = (struct ipv4_hdr *)(rte_pktmbuf_mtod(
       m, unsigned char *)+sizeof(struct ether_hdr));
 
@@ -602,7 +602,7 @@ void relay_cert_server_packet(struct rte_mbuf *m, uint8_t from_local_socket) {
   }
 }
 
-void write_to_egress_iface(struct rte_mbuf *m) {
+static inline void write_to_egress_iface(struct rte_mbuf *m) {
   struct ether_hdr *eth_hdr;
   struct ipv4_hdr *ipv4_hdr;
   struct udp_hdr *udp_hdr;
@@ -668,7 +668,7 @@ void write_to_egress_iface(struct rte_mbuf *m) {
   send_egress(m);
 }
 
-void process_packet(struct rte_mbuf *m, uint8_t from_local_socket,
+static inline void process_packet(struct rte_mbuf *m, uint8_t from_local_socket,
                     uint32_t ptype) {
   printf("process packet\n");
 
@@ -706,7 +706,9 @@ void handle_request(struct rte_mbuf *m, uint8_t from_local_socket,
 
     // Pratyaksh
     uint8_t ptype = get_type(scion_hdr);
-    if (ptype == IFID_PKT_PACKET && !from_local_socket) {
+    if (ptype == DATA_PACKET)
+      process_packet(m, from_local_socket, ptype);
+    else if (ptype == IFID_PKT_PACKET && !from_local_socket) {
       process_ifid_request(m);
     } else if (ptype == BEACON_PACKET)
       process_pcb(m, from_local_socket);
@@ -714,10 +716,8 @@ void handle_request(struct rte_mbuf *m, uint8_t from_local_socket,
              ptype == TRC_REQ_PACKET || ptype == TRC_REP_PACKET)
       relay_cert_server_packet(m, from_local_socket);
 
-    else if (ptype == DATA_PACKET)
-      process_packet(m, from_local_socket, ptype);
     else {
-      printf("%d %d ?????\n", ptype, DATA_PACKET);
+      printf("%d ?????\n", ptype);
     }
   }
 }
