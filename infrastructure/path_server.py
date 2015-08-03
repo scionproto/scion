@@ -408,7 +408,7 @@ class CorePathServer(PathServer):
             if curr_master and curr_master != self._master_id:
                 self._master_id = curr_master
                 logging.debug("New master is: %s", self._master_id)
-                if self._master_id != str(self.addr.host_addr):
+                if not self._is_master():
                     self._sync_master()
             time.sleep(0.5)
 
@@ -417,7 +417,7 @@ class CorePathServer(PathServer):
         sync paths with master
         """
         # TODO(PSz): send all local down- and (?) core-paths to the new master,
-        # COnsider easy mechanisms for avoiding registration storm.
+        # consider some easy mechanisms for avoiding registration storm.
         logging.debug("Syncing %s", self._master_id)
         pass
 
@@ -448,7 +448,7 @@ class CorePathServer(PathServer):
         """
         Return True when instance is master Core Path Server, False otherwise.
         """
-        return self._master_id == "MY IP"  # TODO
+        return self._master_id == str(self.addr.host_addr)
 
     def _handle_up_segment_record(self, pkt):
         """
@@ -461,6 +461,8 @@ class CorePathServer(PathServer):
         """
         Handle registration of a down path.
         """
+        from_local_ps = (pkt.hdr.src_addr.get_isd_ad() ==
+                         pkt.hdr.dst_addr.get_isd_ad() == self.addr.get_isd_ad())
         records = pkt.payload
         if not records.pcbs:
             return
@@ -484,12 +486,20 @@ class CorePathServer(PathServer):
                 logging.info("Down-Segment to (%d, %d) already known.",
                              dst_isd, dst_ad)
         # For now we let every CPS know about all the down-paths within an ISD.
+        # Also send paths to local master.
+        # FIXME: putting all paths into single packet may be not a good decision
         if paths_to_propagate:
             records = PathSegmentRecords.from_values(records.info,
                                                      paths_to_propagate)
             pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, None,
                                              self.addr, ISD_AD(0, 0))
-            self._propagate_to_core_ads(pkt)
+            # Send it to local master.
+            self._send_to_master(pkt)
+            # If the server is first receiver of the packet propagate it among
+            # core ADs.
+            if not from_local_ps:
+                logging.debug("Propagate among core ADs")
+                self._propagate_to_core_ads(pkt)
         # Serve pending requests.
         target = (dst_isd, dst_ad)
         if target in self.pending_down:
@@ -548,6 +558,16 @@ class CorePathServer(PathServer):
             for path_request in self.pending_core[target]:
                 self.send_path_segments(path_request, segments_to_send)
             del self.pending_core[target]
+
+    def _send_to_master(self, pkt):
+        """
+        It does not send 'pkt' if the instance is a master.
+        """
+        if self._master_id and not self._is_master():
+            pkt.hdr.dst_addr.isd_id = self.topology.isd_id
+            pkt.hdr.dst_addr.ad_id = self.topology.ad_id
+            self.send(pkt, self._master_id)
+            logging.debug("Path sent to master")
 
     def _propagate_to_core_ads(self, pkt, inter_isd=False):
         """
