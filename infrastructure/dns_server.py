@@ -510,7 +510,8 @@ def main():
     parser.add_argument('topology', help='Topology file')
     args = parser.parse_args()
 
-    scion_dns_server = SCIONDnsServer(args.server_id, args.domain, args.topology)
+    scion_dns_server = SCIONDnsServer(args.server_id, args.domain,
+                                      args.topology)
     scion_dns_server.setup()
     trace(scion_dns_server.id)
 
