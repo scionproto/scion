@@ -23,6 +23,7 @@ import threading
 
 # SCION
 from infrastructure.scion_elem import SCIONElement
+from lib.dnsclient import DNSLibMajorError, DNSLibMinorError
 from lib.packet.path import PathCombinator
 from lib.packet.path_mgmt import (
     PathMgmtPacket,
@@ -33,6 +34,7 @@ from lib.packet.path_mgmt import (
 from lib.packet.scion_addr import ISD_AD
 from lib.path_db import PathSegmentDB
 from lib.thread import thread_safety_net
+from lib.log import log_exception
 from lib.util import update_dict
 
 WAIT_CYCLES = 3
@@ -149,6 +151,12 @@ class SCIONDaemon(SCIONElement):
                                                   None, self.addr,
                                                   ISD_AD(src_isd, src_ad))
         dst = self.topology.path_servers[0].addr
+        try:
+            dst = self.dns.query("ps")[0]
+        except DNSLibMinorError as e:
+            logging.warning("Falling back to topology file: %s", e)
+        except DNSLibMajorError as e:
+            log_exception("Falling back to topology file:")
         self.send(path_request, dst)
         # Wait for path reply and clear us from the waiting list when we got it.
         cycle_cnt = 0
