@@ -151,10 +151,8 @@ class Router(SCIONElement):
         Run the router threads.
         """
         threading.Thread(
-            target=thread_safety_net,
-            args=("sync_interface", self.sync_interface),
-            name="Sync Interfaces",
-            daemon=True).start()
+            target=thread_safety_net, args=(self.sync_interface,),
+            name="ER.sync_interface", daemon=True).start()
         SCIONElement.run(self)
 
     def send(self, packet, next_hop, use_local_socket=True):

@@ -118,9 +118,8 @@ class TestLibZookeeperInit(BaseLibZookeeper):
         self.mocks.pysemaphore.assert_called_with(value=0)
         ntools.assert_false(inst._state_event.called)
         self.mocks.pythread.assert_called_with(
-            target=self.mocks.thread_safety_net,
-            args=('_state_handler', inst._state_handler,),
-            name="ZK state handler", daemon=True)
+            target=self.mocks.thread_safety_net, args=(inst._state_handler,),
+            name="libZK._state_handler", daemon=True)
         inst._zk.add_listener.assert_called_with(inst._state_listener)
         inst._zk.start.assert_called_with()
 

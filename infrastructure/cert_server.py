@@ -520,10 +520,8 @@ class CertServer(SCIONElement):
         Run an instance of the Certificate Server.
         """
         threading.Thread(
-            target=thread_safety_net,
-            args=("handle_shared_certs", self.handle_shared_certs),
-            name="CS shared certs",
-            daemon=True).start()
+            target=thread_safety_net, args=(self.handle_shared_certs,),
+            name="CS.handle_shared_certs", daemon=True).start()
         SCIONElement.run(self)
 
 
