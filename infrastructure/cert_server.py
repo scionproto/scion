@@ -108,8 +108,8 @@ class CertServer(SCIONElement):
         :param cert_chain: certificate chain.
         :type cert_chain: CertificateChain
         """
+        tmp = CertificateChain(cert_chain_file)
         try:
-            tmp = CertificateChain(cert_chain_file)
             self.zk.store_shared_item(self.ZK_CERT_CHAIN_CACHE_PATH,
                                       tmp.certs[0].subject +
                                       "-V:" + str(tmp.certs[0].version),
@@ -214,8 +214,8 @@ class CertServer(SCIONElement):
         :param trc: TRC.
         :type trc: TRC.
         """
+        tmp = TRC(trc_file)
         try:
-            tmp = TRC(trc_file)
             self.zk.store_shared_item(self.ZK_TRC_CACHE_PATH,
                                       "ISD:" + str(tmp.isd_id) +
                                       "-V:" + str(tmp.version),

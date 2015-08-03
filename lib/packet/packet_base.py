@@ -154,7 +154,7 @@ class PayloadBase(object):
         self.parsed = False
 
     def parse(self, raw):
-        self.raw = raw[:]
+        self.raw = raw
 
     def pack(self):
         return self.raw

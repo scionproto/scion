@@ -16,10 +16,14 @@
 =======================================================
 """
 # Stdlib
-import logging
 import struct
 from collections import namedtuple
-from ipaddress import IPV4LENGTH, IPV6LENGTH, IPv4Address, IPv6Address
+from ipaddress import ip_address
+
+# SCION
+from lib.defines import IPV4BYTES, IPV6BYTES
+from lib.errors import SCIONParseError
+from lib.util import Raw
 
 
 class ISD_AD(namedtuple('ISD_AD', 'isd ad')):
@@ -45,7 +49,8 @@ class ISD_AD(namedtuple('ISD_AD', 'isd ad')):
         :returns: ISD, AD tuple.
         :rtype: :class:`ISD_AD`
         """
-        isd_ad = struct.unpack("!I", raw)[0]
+        data = Raw(raw, "ISD_AD", cls.LEN)
+        isd_ad = struct.unpack("!I", data.pop(cls.LEN))[0]
         isd = isd_ad >> 20
         ad = isd_ad & 0x000fffff
         return ISD_AD(isd, ad)
@@ -76,6 +81,7 @@ class SCIONAddr(object):
     :ivar addr_len: address length.
     :type addr_len: int
     """
+    MIN_LEN = ISD_AD.LEN + min(IPV4BYTES, IPV6BYTES)
 
     def __init__(self, raw=None):
         """
@@ -110,11 +116,7 @@ class SCIONAddr(object):
         addr.isd_id = isd_id
         addr.ad_id = ad_id
         addr.host_addr = host_addr
-        if addr.host_addr.version == 4:
-            host_addr_len = IPV4LENGTH // 8
-        elif addr.host_addr.version == 6:
-            host_addr_len = IPV6LENGTH // 8
-        addr.addr_len = ISD_AD.LEN + host_addr_len
+        addr.addr_len = ISD_AD.LEN + len(addr.host_addr.packed)
         return addr
 
     def parse(self, raw):
@@ -124,23 +126,15 @@ class SCIONAddr(object):
         :param raw: raw bytes.
         :type raw: bytes
         """
-        assert isinstance(raw, bytes)
-        addr_len = len(raw)
-        if addr_len < ISD_AD.LEN:
-            logging.warning("SCIONAddr: Data too short for parsing, len: %u",
-                            addr_len)
-            return
-        (self.isd_id, self.ad_id) = ISD_AD.from_raw(raw[:ISD_AD.LEN])
-        host_addr_len = addr_len - ISD_AD.LEN
-        if host_addr_len == IPV4LENGTH // 8:
-            self.host_addr = IPv4Address(raw[ISD_AD.LEN:])
-        elif host_addr_len == IPV6LENGTH // 8:
-            self.host_addr = IPv6Address(raw[ISD_AD.LEN:])
+        data = Raw(raw, "SCIONAddr", self.MIN_LEN, min_=True)
+        self.addr_len = len(data)
+        self.isd_id, self.ad_id = ISD_AD.from_raw(data.pop(ISD_AD.LEN))
+        host_addr_len = len(data)
+        if host_addr_len in (IPV4BYTES, IPV6BYTES):
+            self.host_addr = ip_address(data.pop())
         else:
-            logging.warning("SCIONAddr: host address unsupported, len: %u",
-                            host_addr_len)
-            return
-        self.addr_len = ISD_AD.LEN + host_addr_len
+            raise SCIONParseError(
+                "SCIONAddr: host address unsupported, len: %u" % host_addr_len)
 
     def pack(self):
         """

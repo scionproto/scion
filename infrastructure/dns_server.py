@@ -125,7 +125,6 @@ class ZoneResolver(BaseResolver):
                     return
             logging.warning("Unknown service: %s", qname)
             reply.header.rcode = RCODE.NXDOMAIN
-            return
 
 
 class SCIONDnsTcpServer(TCPServer):

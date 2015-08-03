@@ -21,6 +21,7 @@ import struct
 from ipaddress import IPv4Address
 
 # SCION
+from lib.errors import SCIONParseError
 from lib.packet.ext_hdr import ExtensionHeader, ICNExtHdr
 from lib.packet.opaque_field import (
     InfoOpaqueField,
@@ -36,6 +37,7 @@ from lib.packet.path import (
     PeerPath,
 )
 from lib.packet.scion_addr import ISD_AD, SCIONAddr
+from lib.util import Raw
 
 
 class PacketType(object):
@@ -114,7 +116,7 @@ class SCIONCommonHdr(HeaderBase):
         """
         Returns a SCIONCommonHdr with the values specified.
         """
-        chdr = SCIONCommonHdr()
+        chdr = cls()
         chdr.src_addr_len = src_addr_len
         chdr.dst_addr_len = dst_addr_len
         chdr.next_hdr = next_hdr
@@ -129,19 +131,13 @@ class SCIONCommonHdr(HeaderBase):
         """
         Parses the raw data and populates the fields accordingly.
         """
-        assert isinstance(raw, bytes)
-        dlen = len(raw)
-        if dlen < self.LEN:
-            logging.warning("Data too short to parse SCION common header: "
-                            "data len %u", dlen)
-            return
+        data = Raw(raw, "SCIONCommonHdr", self.LEN)
         (types, self.total_len, self.curr_iof_p, self.curr_of_p,
-         self.next_hdr, self.hdr_len) = struct.unpack("!HHBBBB", raw)
+         self.next_hdr, self.hdr_len) = struct.unpack("!HHBBBB", data.pop())
         self.version = (types & 0xf000) >> 12
         self.src_addr_len = (types & 0x0fc0) >> 6
         self.dst_addr_len = types & 0x003f
         self.parsed = True
-        return
 
     def pack(self):
         """
@@ -281,84 +277,61 @@ class SCIONHeader(HeaderBase):
         """
         Parses the raw data and populates the fields accordingly.
         """
-        assert isinstance(raw, bytes)
-        dlen = len(raw)
-        if dlen < SCIONHeader.MIN_LEN:
-            logging.warning("Data too short to parse SCION header: "
-                            "data len %u", dlen)
-            return
-        offset = self._parse_common_hdr(raw, 0)
-        # Parse opaque fields.
-        offset = self._parse_opaque_fields(raw, offset)
-        # Parse extensions headers.
-        offset = self._parse_extension_hdrs(raw, offset)
+        data = Raw(raw, "SCIONHeader", self.MIN_LEN, min_=True)
+        self._parse_common_hdr(data)
+        self._parse_opaque_fields(data)
+        self._parse_extension_hdrs(data)
         self.parsed = True
-        return offset
+        return data.offset()
 
-    def _parse_common_hdr(self, raw, offset):
+    def _parse_common_hdr(self, data):
         """
         Parses the raw data and populates the common header fields accordingly.
-        :return: offset in the raw data till which it has been parsed
         """
-        self.common_hdr = \
-            SCIONCommonHdr(raw[offset:offset + SCIONCommonHdr.LEN])
-        assert self.common_hdr.parsed
-        offset += SCIONCommonHdr.LEN
-        # Create appropriate SCIONAddr objects.
-        src_addr_len = self.common_hdr.src_addr_len
-        self.src_addr = SCIONAddr(raw[offset:offset + src_addr_len])
-        offset += src_addr_len
-        dst_addr_len = self.common_hdr.dst_addr_len
-        self.dst_addr = SCIONAddr(raw[offset:offset + dst_addr_len])
-        offset += dst_addr_len
-        return offset
+        self.common_hdr = SCIONCommonHdr(data.pop(SCIONCommonHdr.LEN))
+        self.src_addr = SCIONAddr(data.pop(self.common_hdr.src_addr_len))
+        self.dst_addr = SCIONAddr(data.pop(self.common_hdr.dst_addr_len))
 
-    def _parse_opaque_fields(self, raw, offset):
+    def _parse_opaque_fields(self, data):
         """
         Parses the raw data to opaque fields and populates the path field
         accordingly.
-        :return: offset in the raw data till which it has been parsed
         """
         # PSz: UpPath-only case missing, quick fix:
-        if offset == self.common_hdr.hdr_len:
+        if data.offset() == self.common_hdr.hdr_len:
             self._path = EmptyPath()
+            return
+        info = InfoOpaqueField(data.get(InfoOpaqueField.LEN))
+        path_data = data.pop(self.common_hdr.hdr_len - data.offset())
+        if info.info == OFT.TDC_XOVR:
+            self._path = CorePath(path_data)
+        elif info.info == OFT.NON_TDC_XOVR:
+            self._path = CrossOverPath(path_data)
+        elif info.info in (OFT.INTRATD_PEER, OFT.INTERTD_PEER):
+            self._path = PeerPath(path_data)
         else:
-            info = InfoOpaqueField(raw[offset:offset + InfoOpaqueField.LEN])
-            if info.info == OFT.TDC_XOVR:
-                self._path = CorePath(raw[offset:self.common_hdr.hdr_len])
-            elif info.info == OFT.NON_TDC_XOVR:
-                self._path = CrossOverPath(raw[offset:self.common_hdr.hdr_len])
-            elif info.info == OFT.INTRATD_PEER or info.info == OFT.INTERTD_PEER:
-                self._path = PeerPath(raw[offset:self.common_hdr.hdr_len])
-            else:
-                logging.info("Can not parse path in packet: Unknown type %x",
-                             info.info)
-        return self.common_hdr.hdr_len
+            raise SCIONParseError("SCIONHeader: Can not parse path in "
+                                  "packet: Unknown type %x", info.info)
 
-    def _parse_extension_hdrs(self, raw, offset):
+    def _parse_extension_hdrs(self, data):
         """
         Parses the raw data and populates the extension header fields
         accordingly.
-        :return: offset in the raw data till which it has been parsed
         """
         # FIXME: The last extension header should be a layer 4 protocol header.
-        # At the moment this is not support and we just indicate the end of the
-        # extension headers by a 0 in the type field.
+        # At the moment this is not supported and we just indicate the end of
+        # the extension headers by a 0 in the type field.
         cur_hdr_type = self.common_hdr.next_hdr
         while cur_hdr_type != 0:
-            (next_hdr_type, hdr_len) = \
-                struct.unpack("!BB", raw[offset:offset + 2])
+            next_hdr_type, hdr_len = struct.unpack("!BB", data.get(2))
             logging.info("Found extension hdr of type %u with len %u",
                          cur_hdr_type, hdr_len)
+            hdr_data = data.pop(hdr_len)
             if cur_hdr_type == ICNExtHdr.TYPE:
-                self.extension_hdrs.append(
-                    ICNExtHdr(raw[offset:offset + hdr_len]))
+                self.extension_hdrs.append(ICNExtHdr(hdr_data))
             else:
-                self.extension_hdrs.append(
-                    ExtensionHeader(raw[offset:offset + hdr_len]))
+                self.extension_hdrs.append(ExtensionHeader(hdr_data))
             cur_hdr_type = next_hdr_type
-            offset += hdr_len
-        return offset
 
     def pack(self):
         """
@@ -535,17 +508,12 @@ class SCIONPacket(PacketBase):
         """
         Parses the raw data and populates the fields accordingly.
         """
-        assert isinstance(raw, bytes)
-        dlen = len(raw)
         self.raw = raw
-        if dlen < SCIONPacket.MIN_LEN:
-            logging.warning("Data too short to parse SCION packet: "
-                            "data len %u", dlen)
-            return
-        self.hdr = SCIONHeader(raw)
-        hdr_len = len(self.hdr)
-        self.payload_len = dlen - hdr_len
-        self.payload = raw[len(self.hdr):]
+        data = Raw(raw, "SCIONPacket", self.MIN_LEN, min_=True)
+        self.hdr = SCIONHeader(data.get())
+        data.pop(len(self.hdr))
+        self.payload_len = len(data)
+        self.payload = data.pop(self.payload_len)
         self.parsed = True
 
     def pack(self):
@@ -622,6 +590,7 @@ class CertChainRequest(SCIONPacket):
     :ivar version: Target certificate chain's version.
     :type version: int
     """
+    LEN = 2 + ISD_AD.LEN * 2 + 4
 
     def __init__(self, raw=None):
         """
@@ -648,14 +617,11 @@ class CertChainRequest(SCIONPacket):
         :type raw: bytes
         """
         SCIONPacket.parse(self, raw)
-        raw = self.payload
-        (self.ingress_if, ) = struct.unpack("!H", raw[:2])
-        raw = raw[2:]
-        (self.src_isd, self.src_ad) = ISD_AD.from_raw(raw[:ISD_AD.LEN])
-        raw = raw[ISD_AD.LEN:]
-        (self.isd_id, self.ad_id) = ISD_AD.from_raw(raw[:ISD_AD.LEN])
-        raw = raw[ISD_AD.LEN:]
-        (self.version, ) = struct.unpack("!I", raw)
+        data = Raw(self.payload, "CertChainRequest", self.LEN)
+        self.ingress_if = struct.unpack("!H", data.pop(2))[0]
+        self.src_isd, self.src_ad = ISD_AD.from_raw(data.pop(ISD_AD.LEN))
+        self.isd_id, self.ad_id = ISD_AD.from_raw(data.pop(ISD_AD.LEN))
+        self.version = struct.unpack("!I", data.pop(4))[0]
 
     @classmethod
     def from_values(cls, req_type, src, ingress_if, src_isd, src_ad, isd_id,
@@ -739,10 +705,10 @@ class CertChainReply(SCIONPacket):
         :type raw: bytes
         """
         SCIONPacket.parse(self, raw)
-        (self.isd_id, self.ad_id) = ISD_AD.from_raw(self.payload[:ISD_AD.LEN])
-        (self.version, ) = \
-            struct.unpack("!I", self.payload[ISD_AD.LEN:ISD_AD.LEN + 4])
-        self.cert_chain = self.payload[self.MIN_LEN:]
+        data = Raw(self.payload, "CertChainReply", self.MIN_LEN, min_=True)
+        self.isd_id, self.ad_id = ISD_AD.from_raw(data.pop(ISD_AD.LEN))
+        self.version = struct.unpack("!I", data.pop(4))[0]
+        self.cert_chain = data.pop()
 
     @classmethod
     def from_values(cls, dst, isd_id, ad_id, version, cert_chain):
@@ -789,6 +755,7 @@ class TRCRequest(SCIONPacket):
     :ivar version: Target TRC's version.
     :type version: int
     """
+    LEN = 2 + ISD_AD.LEN + 2 + 4
 
     def __init__(self, raw=None):
         """
@@ -814,14 +781,11 @@ class TRCRequest(SCIONPacket):
         :type raw: bytes
         """
         SCIONPacket.parse(self, raw)
-        raw = self.payload
-        (self.ingress_if, ) = struct.unpack("!H", raw[:2])
-        raw = raw[2:]
-        (self.src_isd, self.src_ad) = ISD_AD.from_raw(raw[:ISD_AD.LEN])
-        raw = raw[ISD_AD.LEN:]
-        (self.isd_id, ) = struct.unpack("!H", raw[:2])
-        raw = raw[2:]
-        (self.version, ) = struct.unpack("!I", raw[:4])
+        data = Raw(self.payload, "TRCRequest", self.LEN)
+        self.ingress_if = struct.unpack("!H", data.pop(2))[0]
+        self.src_isd, self.src_ad = ISD_AD.from_raw(data.pop(ISD_AD.LEN))
+        self.isd_id = struct.unpack("!H", data.pop(2))[0]
+        self.version = struct.unpack("!I", data.pop(4))[0]
 
     @classmethod
     def from_values(cls, req_type, src, ingress_if, src_isd, src_ad, isd_id,
@@ -898,9 +862,9 @@ class TRCReply(SCIONPacket):
         :type raw: bytes
         """
         SCIONPacket.parse(self, raw)
-        (self.isd_id, self.version) = \
-            struct.unpack("!HI", self.payload[:self.MIN_LEN])
-        self.trc = self.payload[self.MIN_LEN:]
+        data = Raw(self.payload, "TRCReply", self.MIN_LEN, min_=True)
+        self.isd_id, self.version = struct.unpack("!HI", data.pop(self.MIN_LEN))
+        self.trc = data.pop()
 
     @classmethod
     def from_values(cls, dst, isd_id, version, trc):

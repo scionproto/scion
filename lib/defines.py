@@ -17,6 +17,7 @@
 Contains constant definitions used throughout the codebase.
 """
 # Stdlib
+import ipaddress
 import os
 
 #: Max TTL of a PathSegment in realtime seconds.
@@ -37,3 +38,8 @@ SCION_UDP_PORT = 30040
 SCION_UDP_EH_DATA_PORT = 30041
 #: Default DNS UDP/TCP port
 SCION_DNS_PORT = 30053
+
+#: Length of IPV4 address, in bytes
+IPV4BYTES = ipaddress.IPV4LENGTH // 8
+#: Length of IPV6 address, in bytes
+IPV6BYTES = ipaddress.IPV6LENGTH // 8

@@ -25,7 +25,13 @@ import nose.tools as ntools
 
 # SCION
 from lib.defines import TOPOLOGY_PATH
-from lib.errors import SCIONIOError, SCIONJSONError
+from lib.errors import (
+    SCIONIOError,
+    SCIONIndexError,
+    SCIONJSONError,
+    SCIONParseError,
+    SCIONTypeError,
+)
 from lib.util import (
     _get_isd_prefix,
     _SIG_MAP,
@@ -38,6 +44,7 @@ from lib.util import (
     get_trc_file_path,
     handle_signals,
     load_json_file,
+    Raw,
     read_file,
     SCIONTime,
     SIG_KEYS_DIR,
@@ -343,6 +350,180 @@ class TestSCIONTimeSetTimeMethod(object):
         self.MockSCIONTime.set_time_method('time_method')
         ntools.eq_(self.MockSCIONTime._custom_time, 'time_method')
 
+
+class TestRawInit(object):
+    """
+    Unit tests for lib.util.Raw.__init__
+    """
+    @patch("lib.util.Raw.check_len", autospec=True)
+    @patch("lib.util.Raw.check_type", autospec=True)
+    def test_basic(self, check_type, check_len):
+        # Call
+        r = Raw(b"data")
+        # Tests
+        ntools.eq_(r._data, b"data")
+        ntools.eq_(r._desc, "")
+        ntools.eq_(r._len, None)
+        ntools.eq_(r._min, False)
+        ntools.eq_(r._offset, 0)
+        check_type.assert_called_once_with(r)
+        check_len.assert_called_once_with(r)
+
+    @patch("lib.util.Raw.check_len", autospec=True)
+    @patch("lib.util.Raw.check_type", autospec=True)
+    def test_full(self, check_type, check_len):
+        # Call
+        r = Raw(b"data", "Test data", len_=45, min_=True)
+        # Tests
+        ntools.eq_(r._data, b"data")
+        ntools.eq_(r._desc, "Test data")
+        ntools.eq_(r._len, 45)
+        ntools.eq_(r._min, True)
+
+
+class TestRawCheckType(object):
+    """
+    Unit tests for lib.util.Raw.check_type
+    """
+    def test_bytes(self):
+        inst = MagicMock(spec_set=["_data"])
+        inst._data = b"asdf"
+        Raw.check_type(inst)
+
+    def test_error(self):
+        inst = MagicMock(spec_set=["_data", "_desc"])
+        inst._data = "asdf"
+        ntools.assert_raises(SCIONTypeError, Raw.check_type, inst)
+
+
+class TestRawCheckLen(object):
+    """
+    Unit tests for lib.util.Raw.check_len
+    """
+    def test_no_len(self):
+        inst = MagicMock(spec_set=["_len"])
+        inst._len = None
+        Raw.check_len(inst)
+
+    def test_min(self):
+        inst = MagicMock(spec_set=["_data", "_len", "_min"])
+        inst._len = 4
+        inst._data = "abcde"
+        Raw.check_len(inst)
+
+    def test_basic(self):
+        inst = MagicMock(spec_set=["_data", "_len", "_min"])
+        inst._min = False
+        inst._len = 4
+        inst._data = "abcd"
+        Raw.check_len(inst)
+
+    def test_min_error(self):
+        inst = MagicMock(spec_set=["_data", "_desc", "_len", "_min"])
+        inst._len = 4
+        inst._data = "abc"
+        ntools.assert_raises(SCIONParseError, Raw.check_len, inst)
+
+    def test_basic_error(self):
+        inst = MagicMock(spec_set=["_data", "_desc", "_len", "_min"])
+        inst._min = False
+        inst._len = 4
+        inst._data = "abc"
+        ntools.assert_raises(SCIONParseError, Raw.check_len, inst)
+
+
+class TestRawGet(object):
+    """
+    Unit tests for lib.util.Raw.get
+    """
+    def _check(self, count, start_off, expected):
+        # Setup
+        r = Raw(b"data")
+        r._offset = start_off
+        # Call
+        data = r.get(count)
+        # Tests
+        ntools.eq_(data, expected)
+
+    def test(self):
+        for count, start_off, expected in (
+            (None, 0, b"data"),
+            (None, 2, b"ta"),
+            (1, 0, 0x64),  # "d"
+            (1, 2, 0x74),  # "t"
+            (2, 0, b"da"),
+            (2, 2, b"ta"),
+        ):
+            yield self._check, count, start_off, expected
+
+    def test_bounds_true(self):
+        # Setup
+        r = Raw(b"data")
+        # Call
+        ntools.assert_raises(SCIONIndexError, r.get, 100)
+
+    def test_bounds_false(self):
+        # Setup
+        r = Raw(b"data")
+        # Call
+        r.get(100, bounds=False)
+
+
+class TestRawPop(object):
+    """
+    Unit tests for lib.util.Raw.pop
+    """
+    @patch("lib.util.Raw.get", autospec=True)
+    def _check(self, pop, start_off, end_off, get):
+        # Setup
+        r = Raw(b"data")
+        r._offset = start_off
+        # Call
+        r.pop(pop)
+        # Tests
+        get.assert_called_once_with(r, pop, True)
+        ntools.eq_(r._offset, end_off)
+
+    def test(self):
+        for pop, start_off, end_off in (
+            (None, 0, 4),
+            (None, 2, 4),
+            (1, 0, 1),
+            (1, 2, 3),
+            (2, 0, 2),
+            (3, 2, 4),
+        ):
+            yield self._check, pop, start_off, end_off
+
+
+class TestRawOffset(object):
+    """
+    Unit tests for lib.util.Raw.offset
+    """
+    def test(self):
+        # Setup
+        r = Raw(b"data")
+        r._offset = 3
+        # Call
+        ntools.eq_(r.offset(), 3)
+
+
+class TestRawLen(object):
+    """
+    Unit tests for lib.util.Raw.__len__
+    """
+    def _check(self, start_off, expected):
+        # Setup
+        r = Raw(b"data")
+        r._offset = start_off
+        # Check
+        ntools.eq_(len(r), expected)
+
+    def test(self):
+        for start_off, expected in (
+            (0, 4), (1, 3), (3, 1), (4, 0), (10, 0),
+        ):
+            yield self._check, start_off, expected
 
 if __name__ == "__main__":
     nose.run(defaultTest=__name__)
