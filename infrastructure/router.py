@@ -16,13 +16,13 @@
 ===========================================
 """
 # Stdlib
+import argparse
 import datetime
 import logging
 import socket
 import sys
 import threading
 import time
-import argparse
 
 # SCION
 from infrastructure.scion_elem import SCIONElement
