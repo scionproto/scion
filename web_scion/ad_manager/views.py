@@ -4,6 +4,7 @@ import json
 import os
 import tempfile
 import time
+from collections import deque
 from shutil import rmtree
 
 # External packages
@@ -569,37 +570,97 @@ def list_sent_requests(request):
                   {'sent_requests': sent_requests})
 
 
+def _get_partial_graph(pov_ad, rank=1):
+    partial_graph = {}
+    bfs_queue = deque([[pov_ad, rank]])
+    while bfs_queue:
+        next_ad, ad_rank = bfs_queue.popleft()
+        if next_ad in partial_graph:
+            continue
+
+        ad_routers = next_ad.routerweb_set.all().select_related('neighbor_ad')
+        neighbors = []
+        for router in ad_routers:
+            neighbor_ad = router.neighbor_ad
+            if ad_rank > 0:
+                bfs_queue.append([neighbor_ad, ad_rank - 1])
+            neighbors.append(neighbor_ad)
+        partial_graph[next_ad] = neighbors
+    return partial_graph
+
+
+def _get_node_object(ad):
+    node_object = {
+        'name': 'AD {}-{}'.format(ad.isd_id, ad.id),
+        'group': ad.isd_id,
+        'url': ad.get_absolute_url(),
+        'networkUrl': reverse('network_view_ad', args=[ad.id]),
+        'core': int(ad.is_core_ad),
+    }
+    return node_object
+
+
+def network_view_neighbors(request, pk):
+    pov_ad = get_object_or_404(AD, id=pk)
+    rank = 2
+
+    partial_graph = _get_partial_graph(pov_ad, rank)
+    ad_with_neighbors = partial_graph.keys()
+
+    # Build reverse index
+    ad_index_rev = {}
+    for i, ad in enumerate(ad_with_neighbors):
+        ad_index_rev[ad] = i
+
+    graph = {'nodes': [], 'links': []}
+    for ad in ad_with_neighbors:
+        index = ad_index_rev[ad]
+        neighbors = partial_graph[ad]
+        node_object = _get_node_object(ad)
+        if ad == pov_ad:
+            node_object['pov'] = 1
+        graph['nodes'].append(node_object)
+        for n in neighbors:
+            if n not in ad_index_rev:
+                continue
+            neighbor_id = ad_index_rev[n]
+            if index < neighbor_id:
+                graph['links'].append({
+                    'source': index,
+                    'target': neighbor_id,
+                    'value': 1,
+                })
+    return render(request, 'ad_manager/network_view.html',
+                  {'data': graph,
+                   'pov_ad': pov_ad})
+
+
 def network_view(request):
     """
     Prepare network graph visualization.
     """
-    ads = AD.objects.all()
+    all_ads = AD.objects.all().prefetch_related('routerweb_set__neighbor_ad')
     ad_graph_tmp = []
     # Direct and reverse index <-> AD mappings
     ad_index = {}
     ad_index_rev = {}
-    # TODO(rev112) check optimizations
-    ads = ads.prefetch_related('routerweb_set__neighbor_ad')
-    for i, ad in enumerate(ads):
+    for i, ad in enumerate(all_ads):
         ad_index[i] = ad
         ad_index_rev[ad] = i
         ad_routers = ad.routerweb_set.all()
         ad_graph_tmp.append([r.neighbor_ad for r in ad_routers])
 
-    # Build a list with all neighbors
+    # Build a list of [list of neighbors for every AD]
     ad_graph = []
     for neighbors in ad_graph_tmp:
         ad_graph.append([ad_index_rev[n] for n in neighbors])
 
+    # Translate to D3.js format
     graph = {'nodes': [], 'links': []}
     for index, neighbors in enumerate(ad_graph):
         ad = ad_index[index]
-        graph['nodes'].append({
-            'name': 'AD {}-{}'.format(ad.isd_id, ad.id),
-            'group': ad.isd_id,
-            'url': ad.get_absolute_url(),
-            'core': int(ad.is_core_ad),
-        })
+        node_object = _get_node_object(ad)
+        graph['nodes'].append(node_object)
         for n in neighbors:
             if index < n:
                 graph['links'].append({
@@ -607,5 +668,4 @@ def network_view(request):
                     'target': n,
                     'value': 1,
                 })
-
     return render(request, 'ad_manager/network_view.html', {'data': graph})

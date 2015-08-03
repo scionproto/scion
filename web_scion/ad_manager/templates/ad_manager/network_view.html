@@ -8,9 +8,21 @@
 
 {% block content %}
 
-  <h2>Network graph</h2>
+  <h2>
+    {% if pov_ad %}
+      Network graph for <a href="{{ pov_ad.get_absolute_url }}">AD {{ pov_ad }}</a>
+    {% else %}
+      Full network graph
+    {% endif %}
+  </h2>
+
   <hr />
-  <i>Double click on a node to open the corresponding AD page.</i>
+  <i>
+    - Double click on a node opens the corresponding AD page.
+    <br />
+    - Ctrl+click on a node opens the node-specific graph.
+  </i>
+  <br />
   <svg></svg>
 
   <script>
@@ -44,16 +56,19 @@
       .on("mouseover", mouseover)
       .on("mouseout", mouseout)
       .on('dblclick', dblclick)
+      .on('click', ctrlClick)
       .call(force.drag);
 
     node.append("circle")
-      .attr("r", 5)
+      .attr("r", function(d) { return d.pov ? 8 : 5 })
       .style("fill", function(d) { return color(d.group); });
 
     node.append("text")
       .attr("x", 12)
       .attr("dy", ".35em")
       .style("font-weight", function(d) { return d.core ? "bold" : "500"; })
+      .style("text-decoration", function(d) { return d.pov ? "underline" : "none"; })
+      .style("font-size", function(d) { return d.pov ? "15px" : "10px"; })
       .text(function(d) { return d.name; });
 
     function tick() {
@@ -76,13 +91,21 @@
     function mouseover() {
       d3.select(this).select("circle").transition()
         .duration(750)
-        .attr("r", 10);
+        .attr("r", function(d) { return d.pov ? 12 : 10 });
     }
 
     function mouseout() {
       d3.select(this).select("circle").transition()
         .duration(750)
-        .attr("r", 5);
+        .attr("r", function(d) { return d.pov ? 8 : 5 });
+    }
+
+    function ctrlClick() {
+      if (!d3.event.ctrlKey) {
+        return;
+      }
+      var networkUrl = d3.select(this).data()[0].networkUrl;
+      window.location = networkUrl;
     }
 
   </script>

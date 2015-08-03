@@ -58,6 +58,8 @@ misc = patterns(
     '',
     url(r'^network/$',
         views.network_view, name='network_view'),
+    url(r'^network/(?P<pk>\d+)/$',
+        views.network_view_neighbors, name='network_view_ad'),
 )
 
 urlpatterns = isd_patterns + ad_patterns + connection_request_patterns + misc
