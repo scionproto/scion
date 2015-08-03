@@ -505,12 +505,12 @@ def main():
     init_logging()
     handle_signals()
     parser = argparse.ArgumentParser()
-    parser.add_argument('server', help='Server identifier')
-    parser.add_argument('domain', help='Domain')
+    parser.add_argument('server_id', help='Server identifier')
+    parser.add_argument('domain', help='DNS Domain')
     parser.add_argument('topology', help='Topology file')
     args = parser.parse_args()
 
-    scion_dns_server = SCIONDnsServer(args.server, args.domain, args.topology)
+    scion_dns_server = SCIONDnsServer(args.server_id, args.domain, args.topology)
     scion_dns_server.setup()
     trace(scion_dns_server.id)
 
