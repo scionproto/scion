@@ -1371,13 +1371,10 @@ def main():
     if args.type == "core":
         beacon_server = CoreBeaconServer(args.server_id, args.topo_file,
                                          args.conf_file, args.path_policy_file)
-    elif args.type == "local":
+    else:
         beacon_server = LocalBeaconServer(args.server_id, args.topo_file,
                                           args.conf_file,
                                           args.path_policy_file)
-    else:
-        logging.error("First parameter can only be 'local' or 'core'!")
-        sys.exit()
 
     trace(beacon_server.id)
     logging.info("Started: %s", datetime.datetime.now())
