@@ -16,11 +16,11 @@
 ========================================
 """
 # Stdlib
+import argparse
 import copy
 import datetime
 import logging
 import sys
-import argparse
 from _collections import defaultdict
 
 # External packages

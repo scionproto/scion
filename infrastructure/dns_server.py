@@ -21,13 +21,13 @@ It dynamically provides DNS records for the AD based on service instances
 registering in Zookeeper.
 """
 # Stdlib
+import argparse
 import binascii
 import datetime
 import logging
 import os
 import sys
 import threading
-import argparse
 from time import sleep
 
 # External packages

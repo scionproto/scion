@@ -16,6 +16,7 @@
 ============================================
 """
 # Stdlib
+import argparse
 import base64
 import copy
 import datetime
@@ -24,7 +25,6 @@ import os
 import sys
 import threading
 import time
-import argparse
 from _collections import defaultdict, deque
 
 # External packages

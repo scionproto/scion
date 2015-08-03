@@ -16,6 +16,7 @@
 ===============================================
 """
 # Stdlib
+import argparse
 import collections
 import datetime
 import logging
@@ -24,7 +25,6 @@ import re
 import sys
 import threading
 import time
-import argparse
 
 # SCION
 from infrastructure.scion_elem import SCIONElement
