@@ -382,36 +382,47 @@ class CorePathServer(PathServer):
         """
         Election of master core Path Server.
         """
+        # FIXME: Code from BS, move it a function?
         master = False
         while True:
-            if not self._is_master():
+            if not master:
                 logging.debug("Trying to become master")
             if not self.zk.get_lock():
-                if self._is_master():
+                if master:
                     logging.debug("No longer master")
-                    self._update_master()
-                time.sleep(1)
-                logging.debug("mid-while %s", self._get_master_id())
+                    master = False
+                time.sleep(0.5)
                 continue
-            if not self._is_master():
+            if not master:
                 logging.debug("Became master")
-                self._master_id = "MY IP"  # TODO
-            logging.debug("end-while %s", self._get_master_id())
+                master = True
             time.sleep(1)
 
     def _update_master(self):
         """
         """
-        self._master_id = self._get_master_id()
-        logging.debug("New master is: ", self._master_id)
-        if not self._master_id or self._is_master():
-            logging.debug("_update_master(): not _master_id or _is_master()")
-            return
+        # TODO replace by asynch API, currently while is due to some weirdness of watchers
+        while True:
+            curr_master = self._get_master_id()
+            # TODO: we could discuss this behaviour.
+            if curr_master and curr_master != self._master_id:
+                self._master_id = curr_master
+                logging.debug("New master is: %s", self._master_id)
+                if self._master_id != str(self.addr.host_addr):
+                    self._sync_master()
+            time.sleep(0.5)
+
+    def _sync_master(self):
+        """
+        sync paths with master
+        """
         # TODO(PSz): send all local down- and (?) core-paths to the new master,
         # COnsider easy mechanisms for avoiding registration storm.
+        logging.debug("Syncing %s", self._master_id)
+        pass
 
     def _get_master_id(self):
-        # TODO(PSz): should it go to zk_lib?
+        # TODO(PSz): should it go to zk_lib as get_lock_holder() ?
         """
         Get the id of the current master.
         Based on Anton's code from ad_management/monitoring_daemon.py.
@@ -809,6 +820,12 @@ class CorePathServer(PathServer):
             args=("_master_election", self._master_election),
             name="Core PS master election",
             daemon=True).start()
+        threading.Thread(
+            target=thread_safety_net,
+            args=("_update_master", self._update_master),
+            name="Core PS master update",
+            daemon=True).start()
+
         SCIONElement.run(self)
 
 
@@ -837,8 +854,6 @@ class LocalPathServer(PathServer):
         # Database of up-segments to the core.
         self.up_segments = PathSegmentDB()
         self.pending_up = []  # List of pending UP requests.
-
-        self._latest_entry = 0  # Counter for ZK
 
     def _send_leases(self, orig_pkt, leases):
         """
