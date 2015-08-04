@@ -181,7 +181,8 @@ class Zookeeper(object):
         Handles the Kazoo 'connected' event.
         """
         # Might be first connection, or reconnecting after a problem.
-        logging.debug("Connection to Zookeeper succeeded")
+        logging.debug("Connection to Zookeeper succeeded (Session: %s)",
+                      hex(self._zk.client_id[0]))
         try:
             self.ensure_path(self._prefix, abs=True)
             for path in self._ensure_paths:

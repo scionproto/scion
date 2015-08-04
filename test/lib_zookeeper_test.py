@@ -49,7 +49,8 @@ def mock_wrapper(f):
         self.mocks.add('lib.zookeeper.thread_safety_net', 'thread_safety_net')
         self.mocks.add('lib.zookeeper.kill_self', 'kill_self')
         self.mocks.start()
-        self.mocks.kclient.return_value.mock_add_spec(['Party', 'Lock'])
+        self.mocks.kclient.return_value.mock_add_spec(
+            ['Party', 'Lock', 'client_id'])
         self.mocks.kclient.return_value.Party = self.mocks.kparty
         self.mocks.kclient.return_value.Lock = self.mocks.klock
         try:
