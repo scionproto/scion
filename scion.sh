@@ -23,6 +23,9 @@ cmd_topology() {
 cmd_run() {
     echo "Running the network..."
     supervisor/supervisor.sh reload
+    for i in topology/ISD*/zookeeper/ISD*/datalog.*.sh; do
+        bash "$i"
+    done
     supervisor/supervisor.sh quickstart all
 }
 
