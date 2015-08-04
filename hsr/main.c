@@ -248,22 +248,22 @@ l2fwd_simple_forward(struct rte_mbuf *m, unsigned portid)
         if(portid != DPDK_EGRESS_PORT) from_local_socket=1;
         handle_request(m, 0/*sender*/, from_local_socket);
         return;
-		//
 
 
 
-
+/*
 	dst_port = l2fwd_dst_ports[portid];
 	eth = rte_pktmbuf_mtod(m, struct ether_hdr *);
 
-	/* 02:00:00:00:00:xx */
+	// 02:00:00:00:00:xx 
 	tmp = &eth->d_addr.addr_bytes[0];
 	*((uint64_t *)tmp) = 0x000000000002 + ((uint64_t)dst_port << 40);
 
-	/* src addr */
+	//* src addr 
 	ether_addr_copy(&l2fwd_ports_eth_addr[dst_port], &eth->s_addr);
 
 	l2fwd_send_packet(m, (uint8_t) dst_port);
+*/
 }
 
 /* main processing loop */
