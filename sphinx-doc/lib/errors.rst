@@ -1,0 +1,3 @@
+
+.. automodule:: lib.errors
+   :members:

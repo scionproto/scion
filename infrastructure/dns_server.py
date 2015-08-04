@@ -21,10 +21,10 @@ It dynamically provides DNS records for the AD based on service instances
 registering in Zookeeper.
 """
 # Stdlib
+import argparse
 import binascii
 import datetime
 import logging
-import os
 import sys
 import threading
 from time import sleep
@@ -124,7 +124,6 @@ class ZoneResolver(BaseResolver):
                     return
             logging.warning("Unknown service: %s", qname)
             reply.header.rcode = RCODE.NXDOMAIN
-            return
 
 
 class SCIONDnsTcpServer(TCPServer):
@@ -410,7 +409,7 @@ class SCIONDnsServer(SCIONElement):
                                      str(self.addr.host_addr)])
         self.zk = Zookeeper(
             self.topology.isd_id, self.topology.ad_id,
-            "ds", self.name_addrs, ["localhost:2181"])
+            "ds", self.name_addrs, self.topology.zookeepers)
         self._parties = {}
         self._join_parties()
 
@@ -446,10 +445,9 @@ class SCIONDnsServer(SCIONElement):
         :returns:
         :rtype:
         """
-        prefix = "/ISD%d-AD%d" % (self.topology.isd_id, self.topology.ad_id)
-        path = os.path.join(prefix, type_, 'party')
-        self.zk._zk.ensure_path(path)
-        return self.zk._zk.Party(path, self.name_addrs)
+        prefix = "/ISD%d-AD%d/%s" % (self.topology.isd_id, self.topology.ad_id,
+                                     type_)
+        return self.zk.join_party(prefix=prefix)
 
     def _sync_zk_state(self):
         """
@@ -503,11 +501,14 @@ def main():
     """
     init_logging()
     handle_signals()
-    if len(sys.argv) != 4:
-        logging.error("run: %s server_id domain topo_file", sys.argv[0])
-        sys.exit()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('server_id', help='Server identifier')
+    parser.add_argument('domain', help='DNS Domain')
+    parser.add_argument('topology', help='Topology file')
+    args = parser.parse_args()
 
-    scion_dns_server = SCIONDnsServer(*sys.argv[1:])
+    scion_dns_server = SCIONDnsServer(args.server_id, args.domain,
+                                      args.topology)
     scion_dns_server.setup()
     trace(scion_dns_server.id)
 

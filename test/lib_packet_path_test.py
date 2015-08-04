@@ -37,6 +37,7 @@ from lib.packet.opaque_field import (
     HopOpaqueField,
     InfoOpaqueField,
     OpaqueFieldType)
+from lib.util import Raw
 
 
 class BasePath(object):
@@ -239,109 +240,62 @@ class TestCorePathParse(BasePath):
     """
     Unit tests for lib.packet.path.CorePath.parse
     """
-    @patch("lib.packet.path.CorePath._parse_up_segment", autospec=True)
-    def test_with_up_segment(self, parse_up):
-        data = bytes.fromhex('0a 0b 0c')
-        parse_up.return_value = 3
-        self.core_path.parse(data)
-        parse_up.assert_called_once_with(self.core_path, data)
-        ntools.assert_true(self.core_path.parsed)
-
-    @patch("lib.packet.path.CorePath._parse_core_segment", autospec=True)
-    @patch("lib.packet.path.CorePath._parse_up_segment", autospec=True)
-    def test_with_core_segment(self, parse_up, parse_core):
-        data = bytes.fromhex('0a 0b 0c')
-        parse_up.return_value = 1
-        parse_core.return_value = 3
-        self.core_path.parse(data)
-        parse_core.assert_called_once_with(self.core_path, data, 1)
-        ntools.assert_true(self.core_path.parsed)
-
-    @patch("lib.packet.path.CorePath._parse_down_segment", autospec=True)
-    @patch("lib.packet.path.CorePath._parse_core_segment", autospec=True)
-    @patch("lib.packet.path.CorePath._parse_up_segment", autospec=True)
-    def test_with_down_segment(self, parse_up, parse_core, parse_down):
-        data = bytes.fromhex('0a 0b 0c')
-        parse_up.return_value = 1
-        parse_core.return_value = 2
-        self.core_path.parse(data)
-        parse_down.assert_called_once_with(self.core_path, data, 2)
-        ntools.assert_true(self.core_path.parsed)
-
-    def test_wrong_type(self):
-        ntools.assert_raises(AssertionError, self.core_path.parse, 123)
-
-
-class TestCorePathParseUpSegment(BasePath):
-    """
-    Unit tests for lib.packet.path.CorePath._parse_up_segment
-    """
-    @patch("lib.packet.path.HopOpaqueField", autospec=True)
+    @patch("lib.packet.path.CorePath._parse_segment", autospec=True)
     @patch("lib.packet.path.InfoOpaqueField", autospec=True)
-    def test(self, info_of, hop_of):
+    @patch("lib.packet.path.Raw", autospec=True)
+    def _check(self, raw_len, raw, info_of, parse_seg):
+        # Setup
+        raw.return_value = MagicMock(spec_set=["__len__", "pop"])
+        raw.return_value.__len__.side_effect = raw_len
+        raw.return_value.pop.return_value = "pop iof"
         mock_iof = MagicMock(spec_set=['hops'])
         info_of.return_value = mock_iof
-        info_of.return_value.hops = 1
-        info_of.LEN = InfoOpaqueField.LEN
-        hop_of.return_value = 'data1'
-        hop_of.LEN = HopOpaqueField.LEN
-        data = 'long_data'
-        offset = self.core_path._parse_up_segment(data)
-        info_of.assert_called_once_with(data[:InfoOpaqueField.LEN])
-        hop_of.assert_called_once_with(data[InfoOpaqueField.LEN:
-                                            InfoOpaqueField.LEN +
-                                            HopOpaqueField.LEN])
-        ntools.eq_(self.core_path.up_segment_info, mock_iof)
-        ntools.eq_(self.core_path.up_segment_hops, ['data1'])
-        ntools.eq_(offset, InfoOpaqueField.LEN + HopOpaqueField.LEN)
+        info_of.return_value.hops = 2
+        data = b"data"
+        # Call
+        self.core_path.parse(data)
+        # Tests
+        raw.assert_called_once_with(data, "CorePath")
+        info_of.assert_has_calls([call("pop iof")] * sum(raw_len))
+        parse_seg.assert_has_calls([
+            call(self.core_path, raw.return_value, 2, [])
+        ] * sum(raw_len))
+        if raw_len == [0, 0]:
+            ntools.eq_(self.core_path.up_segment_info, info_of.return_value)
+            ntools.assert_is_none(self.core_path.core_segment_info)
+            ntools.assert_is_none(self.core_path.down_segment_info)
+        elif raw_len == [1, 0]:
+            ntools.eq_(self.core_path.up_segment_info, info_of.return_value)
+            ntools.eq_(self.core_path.core_segment_info, info_of.return_value)
+            ntools.assert_is_none(self.core_path.down_segment_info)
+        else:
+            ntools.eq_(self.core_path.up_segment_info, info_of.return_value)
+            ntools.eq_(self.core_path.core_segment_info, info_of.return_value)
+            ntools.eq_(self.core_path.down_segment_info, info_of.return_value)
+        ntools.assert_true(self.core_path.parsed)
+
+    def test(self):
+        for raw_len in ([0, 0], [1, 0], [1, 1]):
+            yield self._check, raw_len
 
 
-class TestCorePathParseCoreSegment(BasePath):
+class TestCorePathParseSegment(BasePath):
     """
-    Unit tests for lib.packet.path.CorePath._parse_core_segment
-    """
-    @patch("lib.packet.path.HopOpaqueField", autospec=True)
-    @patch("lib.packet.path.InfoOpaqueField", autospec=True)
-    def test(self, info_of, hop_of):
-        mock_iof = MagicMock(spec_set=['hops'])
-        info_of.return_value = mock_iof
-        info_of.return_value.hops = 1
-        info_of.LEN = InfoOpaqueField.LEN
-        hop_of.return_value = 'data1'
-        hop_of.LEN = HopOpaqueField.LEN
-        data = 'long_data'
-        offset = self.core_path._parse_core_segment(data, 0)
-        info_of.assert_called_once_with(data[:InfoOpaqueField.LEN])
-        hop_of.assert_called_once_with(data[InfoOpaqueField.LEN:
-                                            InfoOpaqueField.LEN +
-                                            HopOpaqueField.LEN])
-        ntools.eq_(self.core_path.core_segment_info, mock_iof)
-        ntools.eq_(self.core_path.core_segment_hops, ['data1'])
-        ntools.eq_(offset, InfoOpaqueField.LEN + HopOpaqueField.LEN)
-
-
-class TestCorePathParseDownSegment(BasePath):
-    """
-    Unit tests for lib.packet.path.CorePath._parse_down_segment
+    Unit tests for lib.packet.path.CorePath._parse_segment
     """
     @patch("lib.packet.path.HopOpaqueField", autospec=True)
-    @patch("lib.packet.path.InfoOpaqueField", autospec=True)
-    def test(self, info_of, hop_of):
-        mock_iof = MagicMock(spec_set=['hops'])
-        info_of.return_value = mock_iof
-        info_of.return_value.hops = 1
-        info_of.LEN = InfoOpaqueField.LEN
-        hop_of.return_value = 'data1'
+    def test(self, hop_of):
+        # Setup
+        hop_of.side_effect = ('data0', 'data1')
         hop_of.LEN = HopOpaqueField.LEN
-        data = 'long_data'
-        offset = self.core_path._parse_down_segment(data, 0)
-        info_of.assert_called_once_with(data[:InfoOpaqueField.LEN])
-        hop_of.assert_called_once_with(data[InfoOpaqueField.LEN:
-                                            InfoOpaqueField.LEN +
-                                            HopOpaqueField.LEN])
-        ntools.eq_(self.core_path.down_segment_info, mock_iof)
-        ntools.eq_(self.core_path.down_segment_hops, ['data1'])
-        ntools.eq_(offset, InfoOpaqueField.LEN + HopOpaqueField.LEN)
+        data = MagicMock(Raw)
+        data.pop.side_effect = ("pop hof0", "pop hof1")
+        hops = []
+        # Call
+        self.core_path._parse_segment(data, 2, hops)
+        # Tests
+        hop_of.assert_has_calls([call("pop hof0"), call("pop hof1")])
+        ntools.eq_(hops, ['data0', 'data1'])
 
 
 class TestCorePathPack(BasePath):
@@ -505,18 +459,18 @@ class TestCrossOverPathParse(object):
     """
     @patch("lib.packet.path.CrossOverPath._parse_down_segment", autospec=True)
     @patch("lib.packet.path.CrossOverPath._parse_up_segment", autospec=True)
-    def test_basic(self, parse_up, parse_down):
-        data = bytes.fromhex('0a 0b 0c')
-        parse_up.return_value = 1
+    @patch("lib.packet.path.Raw", autospec=True)
+    def test_basic(self, raw, parse_up, parse_down):
+        # Setup
+        data = b"data"
         co_path = CrossOverPath()
+        # Call
         co_path.parse(data)
-        parse_up.assert_called_once_with(co_path, data)
-        parse_down.assert_called_once_with(co_path, data, 1)
+        # Tests
+        raw.assert_called_once_with(data, "CrossOverPath")
+        parse_up.assert_called_once_with(co_path, raw.return_value)
+        parse_down.assert_called_once_with(co_path, raw.return_value)
         ntools.assert_true(co_path.parsed)
-
-    def test_wrong_type(self):
-        co_path = CrossOverPath()
-        ntools.assert_raises(AssertionError, co_path.parse, 123)
 
 
 class TestCrossOverPathParseUpSegment(object):
@@ -526,25 +480,26 @@ class TestCrossOverPathParseUpSegment(object):
     @patch("lib.packet.path.HopOpaqueField", autospec=True)
     @patch("lib.packet.path.InfoOpaqueField", autospec=True)
     def test(self, info_of, hop_of):
+        # Setup
+        data = MagicMock(spec_set=["pop"])
+        data.pop.side_effect = (
+            "pop iof", "pop hof0", "pop hof1", "pop hof2")
         mock_iof = MagicMock(spec_set=['hops'])
         info_of.return_value = mock_iof
-        info_of.return_value.hops = 1
+        info_of.return_value.hops = 2
         info_of.LEN = InfoOpaqueField.LEN
-        hop_of.return_value = 'data1'
+        hop_of.side_effect = ("hof0", "hof1", "hof2")
         hop_of.LEN = HopOpaqueField.LEN
-        data = 'some_very_long_data_string'
         co_path = CrossOverPath()
-        offset = co_path._parse_up_segment(data)
-        info_of.assert_called_once_with(data[:InfoOpaqueField.LEN])
-        calls = [call(data[InfoOpaqueField.LEN:InfoOpaqueField.LEN +
-                           HopOpaqueField.LEN]),
-                 call(data[InfoOpaqueField.LEN + HopOpaqueField.LEN:
-                           InfoOpaqueField.LEN + 2 * HopOpaqueField.LEN])]
-        hop_of.assert_has_calls(calls)
+        # Call
+        co_path._parse_up_segment(data)
+        # Tests
+        info_of.assert_called_once_with("pop iof")
+        hop_of.assert_has_calls([
+            call("pop hof0"), call("pop hof1"), call("pop hof2")])
         ntools.eq_(co_path.up_segment_info, mock_iof)
-        ntools.eq_(co_path.up_segment_hops, ['data1'])
-        ntools.eq_(co_path.up_segment_upstream_ad, 'data1')
-        ntools.eq_(offset, InfoOpaqueField.LEN + 2 * HopOpaqueField.LEN)
+        ntools.eq_(co_path.up_segment_hops, ['hof0', 'hof1'])
+        ntools.eq_(co_path.up_segment_upstream_ad, 'hof2')
 
 
 class TestCrossOverPathParseDownSegment(object):
@@ -554,24 +509,26 @@ class TestCrossOverPathParseDownSegment(object):
     @patch("lib.packet.path.HopOpaqueField", autospec=True)
     @patch("lib.packet.path.InfoOpaqueField", autospec=True)
     def test(self, info_of, hop_of):
+        # Setup
+        data = MagicMock(spec_set=["pop"])
+        data.pop.side_effect = (
+            "pop iof", "pop hof0", "pop hof1", "pop hof2")
         mock_iof = MagicMock(spec_set=['hops'])
         info_of.return_value = mock_iof
-        info_of.return_value.hops = 1
+        info_of.return_value.hops = 2
         info_of.LEN = InfoOpaqueField.LEN
-        hop_of.return_value = 'data1'
+        hop_of.side_effect = ("hof0", "hof1", "hof2")
         hop_of.LEN = HopOpaqueField.LEN
-        data = 'some_very_long_data_string'
         co_path = CrossOverPath()
-        co_path._parse_down_segment(data, 0)
-        info_of.assert_called_once_with(data[:InfoOpaqueField.LEN])
-        calls = [call(data[InfoOpaqueField.LEN:InfoOpaqueField.LEN +
-                           HopOpaqueField.LEN]),
-                 call(data[InfoOpaqueField.LEN + HopOpaqueField.LEN:
-                           InfoOpaqueField.LEN + 2 * HopOpaqueField.LEN])]
-        hop_of.assert_has_calls(calls)
+        # Call
+        co_path._parse_down_segment(data)
+        # Tests
+        info_of.assert_called_once_with("pop iof")
+        hop_of.assert_has_calls([
+            call("pop hof0"), call("pop hof1"), call("pop hof2")])
         ntools.eq_(co_path.down_segment_info, mock_iof)
-        ntools.eq_(co_path.down_segment_upstream_ad, 'data1')
-        ntools.eq_(co_path.down_segment_hops, ['data1'])
+        ntools.eq_(co_path.down_segment_upstream_ad, 'hof0')
+        ntools.eq_(co_path.down_segment_hops, ['hof1', 'hof2'])
 
 
 class TestCrossOverPathPack(object):
@@ -725,18 +682,18 @@ class TestPeerPathParse(object):
     """
     @patch("lib.packet.path.PeerPath._parse_down_segment", autospec=True)
     @patch("lib.packet.path.PeerPath._parse_up_segment", autospec=True)
-    def test_basic(self, parse_up, parse_down):
-        data = bytes.fromhex('0a 0b 0c')
-        parse_up.return_value = 1
+    @patch("lib.packet.path.Raw", autospec=True)
+    def test_basic(self, raw, parse_up, parse_down):
+        # Setup
+        data = b"data"
         peer_path = PeerPath()
+        # Call
         peer_path.parse(data)
-        parse_up.assert_called_once_with(peer_path, data)
-        parse_down.assert_called_once_with(peer_path, data, 1)
+        # Tests
+        raw.assert_called_once_with(data, "PeerPath")
+        parse_up.assert_called_once_with(peer_path, raw.return_value)
+        parse_down.assert_called_once_with(peer_path, raw.return_value)
         ntools.assert_true(peer_path.parsed)
-
-    def test_wrong_type(self):
-        peer_path = PeerPath()
-        ntools.assert_raises(AssertionError, peer_path.parse, 123)
 
 
 class TestPeerPathParseUpSegment(object):
@@ -746,28 +703,28 @@ class TestPeerPathParseUpSegment(object):
     @patch("lib.packet.path.HopOpaqueField", autospec=True)
     @patch("lib.packet.path.InfoOpaqueField", autospec=True)
     def test(self, info_of, hop_of):
+        # Setup
+        data = MagicMock(spec_set=["pop"])
+        data.pop.side_effect = (
+            "pop iof", "pop hof0", "pop hof1", "pop hof2", "pop hof3")
         mock_iof = MagicMock(spec_set=['hops'])
         info_of.return_value = mock_iof
-        info_of.return_value.hops = 1
+        info_of.return_value.hops = 2
         info_of.LEN = InfoOpaqueField.LEN
-        hop_of.return_value = 'data1'
+        hop_of.side_effect = ("hof0", "hof1", "hof2", "hof3")
         hop_of.LEN = HopOpaqueField.LEN
-        data = 'some_oh_very_very_long_data_string'
         peer_path = PeerPath()
-        offset = peer_path._parse_up_segment(data)
-        info_of.assert_called_once_with(data[:InfoOpaqueField.LEN])
-        calls = [call(data[InfoOpaqueField.LEN:InfoOpaqueField.LEN +
-                           HopOpaqueField.LEN]),
-                 call(data[InfoOpaqueField.LEN + HopOpaqueField.LEN:
-                           InfoOpaqueField.LEN + 2 * HopOpaqueField.LEN]),
-                 call(data[InfoOpaqueField.LEN + 2 * HopOpaqueField.LEN:
-                           InfoOpaqueField.LEN + 3 * HopOpaqueField.LEN])]
-        hop_of.assert_has_calls(calls)
+        # Call
+        peer_path._parse_up_segment(data)
+        # Tests
+        info_of.assert_called_once_with("pop iof")
+        hop_of.assert_has_calls([
+            call("pop hof0"), call("pop hof1"),
+            call("pop hof2"), call("pop hof3")])
         ntools.eq_(peer_path.up_segment_info, mock_iof)
-        ntools.eq_(peer_path.up_segment_hops, ['data1'])
-        ntools.eq_(peer_path.up_segment_peering_link, 'data1')
-        ntools.eq_(peer_path.up_segment_upstream_ad, 'data1')
-        ntools.eq_(offset, InfoOpaqueField.LEN + 3 * HopOpaqueField.LEN)
+        ntools.eq_(peer_path.up_segment_hops, ['hof0', 'hof1'])
+        ntools.eq_(peer_path.up_segment_peering_link, 'hof2')
+        ntools.eq_(peer_path.up_segment_upstream_ad, 'hof3')
 
 
 class TestPeerPathParseDownSegment(object):
@@ -777,27 +734,28 @@ class TestPeerPathParseDownSegment(object):
     @patch("lib.packet.path.HopOpaqueField", autospec=True)
     @patch("lib.packet.path.InfoOpaqueField", autospec=True)
     def test(self, info_of, hop_of):
+        # Setup
+        data = MagicMock(spec_set=["pop"])
+        data.pop.side_effect = (
+            "pop iof", "pop hof0", "pop hof1", "pop hof2", "pop hof3")
         mock_iof = MagicMock(spec_set=['hops'])
         info_of.return_value = mock_iof
-        info_of.return_value.hops = 1
+        info_of.return_value.hops = 2
         info_of.LEN = InfoOpaqueField.LEN
-        hop_of.return_value = 'data1'
+        hop_of.side_effect = ("hof0", "hof1", "hof2", "hof3")
         hop_of.LEN = HopOpaqueField.LEN
-        data = 'some_oh_very_very_long_data_string'
         peer_path = PeerPath()
-        peer_path._parse_down_segment(data, 0)
-        info_of.assert_called_once_with(data[:InfoOpaqueField.LEN])
-        calls = [call(data[InfoOpaqueField.LEN:InfoOpaqueField.LEN +
-                           HopOpaqueField.LEN]),
-                 call(data[InfoOpaqueField.LEN + HopOpaqueField.LEN:
-                           InfoOpaqueField.LEN + 2 * HopOpaqueField.LEN]),
-                 call(data[InfoOpaqueField.LEN + 2 * HopOpaqueField.LEN:
-                           InfoOpaqueField.LEN + 3 * HopOpaqueField.LEN])]
-        hop_of.assert_has_calls(calls)
+        # Call
+        peer_path._parse_down_segment(data)
+        # Tests
+        info_of.assert_called_once_with("pop iof")
+        hop_of.assert_has_calls([
+            call("pop hof0"), call("pop hof1"),
+            call("pop hof2"), call("pop hof3")])
         ntools.eq_(peer_path.down_segment_info, mock_iof)
-        ntools.eq_(peer_path.down_segment_upstream_ad, 'data1')
-        ntools.eq_(peer_path.down_segment_peering_link, 'data1')
-        ntools.eq_(peer_path.down_segment_hops, ['data1'])
+        ntools.eq_(peer_path.down_segment_upstream_ad, 'hof0')
+        ntools.eq_(peer_path.down_segment_peering_link, 'hof1')
+        ntools.eq_(peer_path.down_segment_hops, ['hof2', 'hof3'])
 
 
 class TestPeerPathPack(object):

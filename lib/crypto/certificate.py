@@ -25,6 +25,7 @@ import time
 # SCION
 from lib.crypto.nacl import crypto_sign_ed25519_open
 from lib.crypto.asymcrypto import sign, verify
+from lib.util import load_json_file
 
 
 def verify_sig_chain_trc(msg, sig, subject, chain, trc, trc_version):
@@ -159,12 +160,7 @@ class Certificate(object):
         :param certificate_file: the name of the certificate file.
         :type certificate_file: str
         """
-        try:
-            with open(certificate_file) as cert_fh:
-                cert = json.load(cert_fh)
-        except (ValueError, KeyError, TypeError):
-            logging.error("Certificate: JSON format error.")
-            return
+        cert = load_json_file(certificate_file)
         self.subject = cert['subject']
         self.subject_sig_key = base64.b64decode(cert['subject_sig_key'])
         self.subject_enc_key = base64.b64decode(cert['subject_enc_key'])
@@ -320,12 +316,7 @@ class CertificateChain(object):
         :param chain_file: the name of the certificate chain file.
         :type chain_file: str
         """
-        try:
-            with open(chain_file) as chain_fh:
-                chain = json.load(chain_fh)
-        except (ValueError, KeyError, TypeError):
-            logging.error("Certificate Chain: JSON format error.")
-            return
+        chain = load_json_file(chain_file)
         for index in range(1, len(chain) + 1):
             cert_dict = chain[str(index)]
             cert_dict['subject_sig_key'] = \
@@ -513,12 +504,7 @@ class TRC(object):
         :param trc_file: the name of the TRC file.
         :type trc_file: str
         """
-        try:
-            with open(trc_file) as trc_fh:
-                trc = json.load(trc_fh)
-        except (ValueError, KeyError, TypeError):
-            logging.error("TRC: JSON format error.")
-            return
+        trc = load_json_file(trc_file)
         self.isd_id = trc['isd_id']
         self.version = trc['version']
         self.time = trc['time']

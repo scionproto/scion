@@ -67,7 +67,7 @@ class TraceDumper(threading.Thread):
         threading.Thread.__init__(self, name="TraceDumper")
     
     def run(self):
-        thread_safety_net("stacktracer", self._run)
+        thread_safety_net(self._run)
 
     def _run(self):
         while not self.stop_requested.isSet():

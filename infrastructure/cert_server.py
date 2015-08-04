@@ -16,6 +16,7 @@
 ===============================================
 """
 # Stdlib
+import argparse
 import collections
 import datetime
 import logging
@@ -93,9 +94,8 @@ class CertServer(SCIONElement):
             # Set when we have connected and read the existing recent and
             # incoming cert chains and TRCs
             self._state_synced = threading.Event()
-            # TODO(lorenzo): def zookeeper host/port in topology
             self.zk = Zookeeper(self.topology.isd_id, self.topology.ad_id,
-                                "cs", name_addrs, ["localhost:2181"],
+                                "cs", name_addrs, self.topology.zookeepers,
                                 ensure_paths=(self.ZK_CERT_CHAIN_CACHE_PATH,
                                               self.ZK_TRC_CACHE_PATH,))
 
@@ -108,8 +108,8 @@ class CertServer(SCIONElement):
         :param cert_chain: certificate chain.
         :type cert_chain: CertificateChain
         """
+        tmp = CertificateChain(cert_chain_file)
         try:
-            tmp = CertificateChain(cert_chain_file)
             self.zk.store_shared_item(self.ZK_CERT_CHAIN_CACHE_PATH,
                                       tmp.certs[0].subject +
                                       "-V:" + str(tmp.certs[0].version),
@@ -214,8 +214,8 @@ class CertServer(SCIONElement):
         :param trc: TRC.
         :type trc: TRC.
         """
+        tmp = TRC(trc_file)
         try:
-            tmp = TRC(trc_file)
             self.zk.store_shared_item(self.ZK_TRC_CACHE_PATH,
                                       "ISD:" + str(tmp.isd_id) +
                                       "-V:" + str(tmp.version),
@@ -520,10 +520,8 @@ class CertServer(SCIONElement):
         Run an instance of the Certificate Server.
         """
         threading.Thread(
-            target=thread_safety_net,
-            args=("handle_shared_certs", self.handle_shared_certs),
-            name="CS shared certs",
-            daemon=True).start()
+            target=thread_safety_net, args=(self.handle_shared_certs,),
+            name="CS.handle_shared_certs", daemon=True).start()
         SCIONElement.run(self)
 
 
@@ -533,12 +531,15 @@ def main():
     """
     init_logging()
     handle_signals()
-    if len(sys.argv) != 5:
-        logging.error("run: %s server_id topo_file conf_file trc_file",
-                      sys.argv[0])
-        sys.exit()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('server_id', help='Server identifier')
+    parser.add_argument('topo_file', help='Topology file')
+    parser.add_argument('conf_file', help='AD configuration file')
+    parser.add_argument('trc_file', help='TRC file')
+    args = parser.parse_args()
 
-    cert_server = CertServer(*sys.argv[1:])
+    cert_server = CertServer(args.server_id, args.topo_file, args.conf_file,
+                             args.trc_file)
 
     logging.info("Started: %s", datetime.datetime.now())
     cert_server.run()

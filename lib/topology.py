@@ -17,8 +17,10 @@
 """
 # Stdlib
 from ipaddress import ip_address
-import json
 import logging
+
+# SCION
+from lib.util import load_json_file
 
 
 class Element(object):
@@ -204,13 +206,7 @@ class Topology(object):
         :returns: the newly created Topology instance
         :rtype: :class: `Topology`
         """
-        try:
-            with open(topology_file) as topo_fh:
-                topology_dict = json.load(topo_fh)
-        except (ValueError, KeyError, TypeError):
-            logging.error("Topology: JSON format error.")
-            return
-        return cls.from_dict(topology_dict)
+        return cls.from_dict(load_json_file(topology_file))
 
     @classmethod
     def from_dict(cls, topology_dict):
@@ -268,7 +264,7 @@ class Topology(object):
             else:
                 logging.warning("Encountered unknown neighbor type")
         for zk in topology['Zookeepers'].values():
-            self.zookeepers.append((zk['Addr'], zk['ClientPort']))
+            self.zookeepers.append("%s:%s" % (zk['Addr'], zk['ClientPort']))
 
     def get_all_edge_routers(self):
         """

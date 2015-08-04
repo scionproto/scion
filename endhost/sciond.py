@@ -32,6 +32,7 @@ from lib.packet.path_mgmt import (
 )
 from lib.packet.scion_addr import ISD_AD
 from lib.path_db import PathSegmentDB
+from lib.thread import thread_safety_net
 from lib.util import update_dict
 
 WAIT_CYCLES = 3
@@ -109,9 +110,9 @@ class SCIONDaemon(SCIONElement):
         :type :
         """
         sd = cls(addr, topo_file, run_local_api)
-        t = threading.Thread(target=sd.run)
-        t.setDaemon(True)
-        t.start()
+        threading.Thread(
+            target=thread_safety_net, args=(sd.run,),
+            name="SCIONDaemon.run", daemon=True).start()
         return sd
 
     def _request_paths(self, ptype, dst_isd, dst_ad, src_isd=None, src_ad=None,
@@ -309,8 +310,10 @@ class SCIONDaemon(SCIONElement):
         """
         if packet[0] == 0:  # path request
             logging.info('API: path request from %s.', sender)
-            threading.Thread(target=self._api_handle_path_request,
-                             args=[packet, sender]).start()
+            threading.Thread(
+                target=thread_safety_net,
+                args=(self._api_handle_path_request, packet, sender),
+                name="SCIONDaemon", daemon=True).start()
         else:
             logging.warning("API: type %d not supported.", packet[0])
 

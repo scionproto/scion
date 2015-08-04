@@ -16,6 +16,7 @@
 ============================================
 """
 # Stdlib
+import argparse
 import base64
 import copy
 import datetime
@@ -222,10 +223,10 @@ class BeaconServer(SCIONElement):
             # Set when we have connected and read the existing recent and
             # incoming PCBs
             self._state_synced = threading.Event()
-            # TODO(kormat): def zookeeper host/port in topology
             self.zk = Zookeeper(
                 self.topology.isd_id, self.topology.ad_id, "bs", name_addrs,
-                ["localhost:2181"], ensure_paths=(self.ZK_PCB_CACHE_PATH,))
+                self.topology.zookeepers,
+                ensure_paths=(self.ZK_PCB_CACHE_PATH,))
 
     def _get_if_rev_token(self, if_id):
         """
@@ -435,25 +436,17 @@ class BeaconServer(SCIONElement):
         Run an instance of the Beacon Server.
         """
         threading.Thread(
-            target=thread_safety_net,
-            args=("handle_pcbs_propagation", self.handle_pcbs_propagation),
-            name="BS PCB propagation",
-            daemon=True).start()
+            target=thread_safety_net, args=(self.handle_pcbs_propagation,),
+            name="BS.handle_pcbs_propagation", daemon=True).start()
         threading.Thread(
-            target=thread_safety_net,
-            args=("register_segments", self.register_segments),
-            name="BS register segments",
-            daemon=True).start()
+            target=thread_safety_net, args=(self.register_segments,),
+            name="BS.register_segments", daemon=True).start()
         threading.Thread(
-            target=thread_safety_net,
-            args=("handle_shared_pcbs", self.handle_shared_pcbs),
-            name="BS shared pcbs",
-            daemon=True).start()
+            target=thread_safety_net, args=(self.handle_shared_pcbs,),
+            name="BS.handle_shared_pcbs", daemon=True).start()
         threading.Thread(
-            target=thread_safety_net,
-            args=("_handle_if_timeouts", self._handle_if_timeouts),
-            name="BS IF timeouts",
-            daemon=True).start()
+            target=thread_safety_net, args=(self._handle_if_timeouts,),
+            name="BS._handle_if_timeouts", daemon=True).start()
         SCIONElement.run(self)
 
     def _try_to_verify_beacon(self, pcb):
@@ -1358,19 +1351,22 @@ def main():
     """
     init_logging()
     handle_signals()
-    if len(sys.argv) != 6:
-        logging.error("run: %s <core|local> server_id topo_file "
-                      "conf_file path_policy_file",
-                      sys.argv[0])
-        sys.exit()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('type', choices=['core', 'local'],
+                        help='Core or local path server')
+    parser.add_argument('server_id', help='Server identifier')
+    parser.add_argument('topo_file', help='Topology file')
+    parser.add_argument('conf_file', help='AD configuration file')
+    parser.add_argument('path_policy_file', help='AD path policy file')
+    args = parser.parse_args()
 
-    if sys.argv[1] == "core":
-        beacon_server = CoreBeaconServer(*sys.argv[2:])
-    elif sys.argv[1] == "local":
-        beacon_server = LocalBeaconServer(*sys.argv[2:])
+    if args.type == "core":
+        beacon_server = CoreBeaconServer(args.server_id, args.topo_file,
+                                         args.conf_file, args.path_policy_file)
     else:
-        logging.error("First parameter can only be 'local' or 'core'!")
-        sys.exit()
+        beacon_server = LocalBeaconServer(args.server_id, args.topo_file,
+                                          args.conf_file,
+                                          args.path_policy_file)
 
     trace(beacon_server.id)
     logging.info("Started: %s", datetime.datetime.now())

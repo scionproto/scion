@@ -16,7 +16,7 @@
 ==========================================================================
 """
 # Stdlib
-from unittest.mock import patch
+from unittest.mock import MagicMock, call, patch
 
 # External packages
 import nose
@@ -134,29 +134,26 @@ class TestHopOpaqueFieldParse(object):
     """
     Unit tests for lib.packet.opaque_field.HopOpaqueField.parse
     """
-    def test_basic(self):
+    @patch("lib.packet.opaque_field.Raw", autospec=True)
+    def test_basic(self, raw):
+        # Setup
         hop_op_fld = HopOpaqueField()
         data = bytes.fromhex('0e 2a 0a 0b 0c') + b'\x01'*3
+        raw.return_value = MagicMock(spec_set=["pop"])
+        raw.return_value.pop.side_effect = (
+            data[:2], data[2:5], data[5:8])
+        # Call
         hop_op_fld.parse(data)
+        # Tests
+        raw.assert_called_once_with(data, "HopOpaqueField", hop_op_fld.LEN)
+        raw.return_value.pop.assert_has_calls([call(2), call(3), call(3)])
         ntools.eq_(hop_op_fld.raw, data)
         ntools.eq_(hop_op_fld.info, 0x0e)
         ntools.eq_(hop_op_fld.exp_time, 0x2a)
+        ntools.eq_(hop_op_fld.mac, b'\x01'*3)
         ntools.eq_(hop_op_fld.ingress_if, 0x0a0)
         ntools.eq_(hop_op_fld.egress_if, 0xb0c)
-        ntools.eq_(hop_op_fld.mac, b'\x01'*3)
         ntools.assert_true(hop_op_fld.parsed)
-
-    def test_len(self):
-        hop_op_fld = HopOpaqueField()
-        data = bytes.fromhex('0e 2a 0a 0b 0c 0d 0e')
-        hop_op_fld.parse(data)
-        ntools.eq_(hop_op_fld.raw, data)
-        ntools.assert_false(hop_op_fld.parsed)
-        ntools.eq_(hop_op_fld.info, 0)
-        ntools.eq_(hop_op_fld.exp_time, 0)
-        ntools.eq_(hop_op_fld.ingress_if, 0)
-        ntools.eq_(hop_op_fld.egress_if, 0)
-        ntools.eq_(hop_op_fld.mac, b'\x00'*3)
 
 
 class TestHopOpaqueFieldFromValues(object):
@@ -255,10 +252,17 @@ class TestInfoOpaqueFieldParse(object):
     """
     Unit tests for lib.packet.opaque_field.InfoOpaqueField.parse
     """
-    def test_basic(self):
+    @patch("lib.packet.opaque_field.Raw", autospec=True)
+    def test_basic(self, raw):
+        # Setup
         inf_op_fld = InfoOpaqueField()
         data = bytes.fromhex('0f 2a 0a 0b 0c 0d 0e 0f')
+        raw.return_value = MagicMock(spec_set=["pop"])
+        raw.return_value.pop.return_value = data
+        # Call
         inf_op_fld.parse(data)
+        # Tests
+        raw.assert_called_once_with(data, "InfoOpaqueField", inf_op_fld.LEN)
         ntools.eq_(inf_op_fld.raw, data)
         ntools.eq_(inf_op_fld.info, 0x0f >> 1)
         ntools.eq_(inf_op_fld.timestamp, 0x2a0a0b0c)
@@ -266,18 +270,6 @@ class TestInfoOpaqueFieldParse(object):
         ntools.eq_(inf_op_fld.hops, 0x0f)
         ntools.eq_(inf_op_fld.up_flag, 0x0f & 0x01)
         ntools.assert_true(inf_op_fld.parsed)
-
-    def test_len(self):
-        inf_op_fld = InfoOpaqueField()
-        data = bytes.fromhex('0f 2a 0a 0b 0c 0d 0e')
-        inf_op_fld.parse(data)
-        ntools.eq_(inf_op_fld.raw, data)
-        ntools.eq_(inf_op_fld.info, 0)
-        ntools.eq_(inf_op_fld.timestamp, 0)
-        ntools.eq_(inf_op_fld.isd_id, 0)
-        ntools.eq_(inf_op_fld.hops, 0)
-        ntools.assert_false(inf_op_fld.up_flag)
-        ntools.assert_false(inf_op_fld.parsed)
 
 
 class TestInfoOpaqueFieldFromValues(object):

@@ -28,7 +28,7 @@ from dnslib import DNSLabel, DNSRecord, QTYPE, RCODE
 from infrastructure.dns_server import SCIONDnsServer, ZoneResolver
 from lib.defines import SCION_DNS_PORT
 from lib.zookeeper import ZkConnectionLoss, ConnectionLoss, SessionExpiredError
-from test.testcommon import MockCollection, SCIONTestException
+from test.testcommon import MockCollection, SCIONTestError
 
 
 class BaseDNSServer(object):
@@ -78,7 +78,7 @@ class TestZoneResolverResolve(BaseDNSServer):
         # Setup
         inst = self._setup_zoneresolver()
         inst.resolve_forward = MagicMock(spec_set=[])
-        inst.resolve_forward.side_effect = SCIONTestException(
+        inst.resolve_forward.side_effect = SCIONTestError(
             "Shouldn't be called")
         request = MagicMock(spec_set=DNSRecord)
         reply = request.reply.return_value = MagicMock(spec_set=["header"])
@@ -100,7 +100,7 @@ class TestZoneResolverResolveForward(BaseDNSServer):
         inst = self._setup_zoneresolver()
         reply = MagicMock(spec_set=["header"])
         reply.header = MagicMock(spec_set=["rcode"])
-        self.lock.__enter__.side_effect = SCIONTestException(
+        self.lock.__enter__.side_effect = SCIONTestError(
             "This should not have been reached")
         # Call
         inst.resolve_forward(DNSLabel("anotherdomain"), "A", reply)
@@ -219,9 +219,10 @@ class TestSCIONDnsServerSetup(BaseDNSServer):
         server = SCIONDnsServer("srvid", self.DOMAIN, "topofile")
         server._join_parties = MagicMock(spec_set=[])
         server.id = "srvid"
-        server.topology = MagicMock(spec_set=["isd_id", "ad_id"])
+        server.topology = MagicMock(spec_set=["isd_id", "ad_id", "zookeepers"])
         server.topology.isd_id = 30
         server.topology.ad_id = 10
+        server.topology.zookeepers = ["zk0", "zk1"]
         # Call
         server.setup()
         # Tests
@@ -238,7 +239,7 @@ class TestSCIONDnsServerSetup(BaseDNSServer):
         ntools.eq_(self.mocks.dns_server.call_count, 2)
         self.mocks.zookeeper.assert_called_once_with(
             30, 10, "ds", "srvid\0%d\000127.0.0.1" % SCION_DNS_PORT,
-            ["localhost:2181"])
+            ["zk0", "zk1"])
         ntools.eq_(server._parties, {})
         server._join_parties.assert_called_once_with()
 
@@ -264,7 +265,7 @@ class TestSCIONDnsJoinParties(BaseDNSServer):
         # Setup
         server = self._setup_server()
         server.zk.wait_connected.side_effect = [False]
-        server._join_party.side_effect = SCIONTestException(
+        server._join_party.side_effect = SCIONTestError(
             "_join_party should not have been called")
         # Call
         ntools.assert_raises(StopIteration, server._join_parties)
@@ -308,19 +309,16 @@ class TestSCIONDnsJoinParty(BaseDNSServer):
     def test(self):
         # Setup
         server = SCIONDnsServer("srvid", self.DOMAIN, "topofile")
-        server.name_addrs = "nameaddrs"
         server.topology = MagicMock(spec_set=["isd_id", "ad_id"])
         server.topology.isd_id = 30
         server.topology.ad_id = 10
-        server.zk = MagicMock(spec_set=["_zk"])
-        server.zk._zk = MagicMock(spec_set=["Party", "ensure_path"])
-        path = "/ISD30-AD10/tst/party"
+        server.zk = MagicMock(spec_set=["join_party"])
+        prefix = "/ISD30-AD10/tst"
         # Call
         ret = server._join_party("tst")
         # Tests
-        server.zk._zk.ensure_path.assert_called_once_with(path)
-        server.zk._zk.Party.assert_called_once_with(path, "nameaddrs")
-        ntools.eq_(server.zk._zk.Party.return_value, ret)
+        server.zk.join_party.assert_called_once_with(prefix=prefix)
+        ntools.eq_(server.zk.join_party.return_value, ret)
 
 
 class TestSCIONDnsSyncZkState(BaseDNSServer):

@@ -24,6 +24,7 @@ import nose
 import nose.tools as ntools
 
 # SCION
+from lib.errors import SCIONParseError
 from lib.packet.path_mgmt import (
     LeaseInfo,
     PathMgmtPacket,
@@ -66,21 +67,26 @@ class TestPathSegmentInfoParse(object):
     """
     @patch("lib.packet.path_mgmt.ISD_AD.from_raw", spec_set=[],
            new_callable=MagicMock)
-    @patch("lib.packet.packet_base.PayloadBase.parse", autospec=True)
-    def test_basic(self, parse, isd_ad):
+    @patch("lib.packet.path_mgmt.PayloadBase.parse", autospec=True)
+    @patch("lib.packet.path_mgmt.Raw", autospec=True)
+    def test_basic(self, raw, parse, isd_ad):
+        # Setup
         pth_seg_info = PathSegmentInfo()
         data = bytes.fromhex('0e 0bc0021d 021004c6')
         isd_ad.side_effect = [(0x0bc, 0x0021d), (0x021, 0x004c6)]
+        raw.return_value = MagicMock(spec_set=["pop"])
+        raw.return_value.pop.side_effect = (0x0e, "src_pop", "dst_pop")
+        # Call
         pth_seg_info.parse(data)
+        # Tests
+        raw.assert_called_once_with(data, "PathSegmentInfo", pth_seg_info.LEN)
         parse.assert_called_once_with(pth_seg_info, data)
         ntools.eq_(pth_seg_info.type, 0x0e)
+        isd_ad.assert_has_calls((call("src_pop"), call("dst_pop")))
         ntools.eq_(pth_seg_info.src_isd, 0x0bc)
         ntools.eq_(pth_seg_info.src_ad,  0x0021d)
         ntools.eq_(pth_seg_info.dst_isd, 0x021)
         ntools.eq_(pth_seg_info.dst_ad, 0x004c6)
-        calls = [call(data[1:1 + ISD_AD.LEN]),
-                 call(data[1 + ISD_AD.LEN: 1 + 2 * ISD_AD.LEN])]
-        isd_ad.assert_has_calls(calls)
 
 
 class TestPathSegmentInfoPack(object):
@@ -142,22 +148,30 @@ class TestPathSegmentRecordsParse(object):
     """
     Unit tests for lib.packet.path_mgmt.PathSegmentRecords.parse
     """
-    @patch("lib.packet.packet_base.PayloadBase.parse", autospec=True)
     @patch("lib.packet.pcb.PathSegment.deserialize", spec_set=[],
            new_callable=MagicMock)
     @patch("lib.packet.path_mgmt.PathSegmentInfo", autospec=True)
-    def test_basic(self, pth_seg_info, deserialize, parse_payload):
-        deserialize.return_value = "data1"
-        pth_seg_info.return_value = "data2"
+    @patch("lib.packet.path_mgmt.PayloadBase.parse", autospec=True)
+    @patch("lib.packet.path_mgmt.Raw", autospec=True)
+    def test_basic(self, raw, parse_payload, pth_seg_info, deserialize):
+        # Setup
+        pth_seg_info.return_value = "data1"
+        deserialize.return_value = "data2"
         pth_seg_info.LEN = PathSegmentInfo.LEN
         pth_seg_rec = PathSegmentRecords()
         data = b"randomstring"
+        raw.return_value = MagicMock(spec_set=["pop"])
+        raw.return_value.pop.side_effect = ("info", "deserialize")
+        # Call
         pth_seg_rec.parse(data)
+        # Tests
         parse_payload.assert_called_once_with(pth_seg_rec, data)
-        pth_seg_info.assert_called_once_with(data[:PathSegmentInfo.LEN])
-        deserialize.assert_called_once_with(data[PathSegmentInfo.LEN:])
-        ntools.eq_(pth_seg_rec.pcbs, "data1")
-        ntools.eq_(pth_seg_rec.info, "data2")
+        raw.assert_called_once_with(data, "PathSegmentRecords",
+                                    pth_seg_rec.MIN_LEN, min_=True)
+        pth_seg_info.assert_called_once_with("info")
+        deserialize.assert_called_once_with("deserialize")
+        ntools.eq_(pth_seg_rec.info, "data1")
+        ntools.eq_(pth_seg_rec.pcbs, "data2")
 
 
 class TestPathSegmentRecordsPack(object):
@@ -214,33 +228,28 @@ class TestLeaseInfoParse(object):
     """
     @patch("lib.packet.path_mgmt.ISD_AD.from_raw", spec_set=[],
            new_callable=MagicMock)
-    @patch("lib.packet.packet_base.PayloadBase.parse", autospec=True)
-    def test_basic(self, parse, isd_ad):
+    @patch("lib.packet.path_mgmt.PayloadBase.parse", autospec=True)
+    @patch("lib.packet.path_mgmt.Raw", autospec=True)
+    def test_basic(self, raw, parse, isd_ad):
+        # Setup
         les_inf = LeaseInfo()
-        data = bytes.fromhex('0e 021004c6 01020304') + \
-            b"superlengthybigstringoflength32."
-        isd_ad.return_value = (0x021, 0x004c6)
+        data = b"data"
+        isd_ad.return_value = ("isd_id", "ad_id")
+        raw.return_value = MagicMock(spec_set=["pop"])
+        raw.return_value.pop.side_effect = (
+            "type", "isd_ad",
+            bytes.fromhex("01020304") + b"superlengthybigstringoflength32.")
+        # Call
         les_inf.parse(data)
+        # Tests
         parse.assert_called_once_with(les_inf, data)
-        ntools.eq_(les_inf.seg_type, 0x0e)
-        isd_ad.assert_called_once_with(data[1:1 + ISD_AD.LEN])
-        ntools.eq_(les_inf.isd_id, 0x021)
-        ntools.eq_(les_inf.ad_id, 0x004c6)
+        raw.assert_called_once_with(data, "LeaseInfo", les_inf.LEN)
+        ntools.eq_(les_inf.seg_type, "type")
+        isd_ad.assert_called_once_with("isd_ad")
+        ntools.eq_(les_inf.isd_id, "isd_id")
+        ntools.eq_(les_inf.ad_id, "ad_id")
         ntools.eq_(les_inf.exp_time, 0x01020304)
         ntools.eq_(les_inf.seg_id, b"superlengthybigstringoflength32.")
-
-    @patch("lib.packet.packet_base.PayloadBase.parse", autospec=True)
-    def test_len(self, parse):
-        les_inf = LeaseInfo()
-        data = bytes.fromhex('0e 2a0a 0b0c 01020304') + \
-            b"superlengthybigstringoflength3"
-        les_inf.parse(data)
-        parse.assert_called_once_with(les_inf, data)
-        ntools.eq_(les_inf.seg_type, PathSegmentType.DOWN)
-        ntools.eq_(les_inf.isd_id, 0)
-        ntools.eq_(les_inf.ad_id, 0)
-        ntools.eq_(les_inf.exp_time, 0)
-        ntools.eq_(les_inf.seg_id, b"")
 
 
 class TestLeaseInfoPack(object):
@@ -302,18 +311,25 @@ class TestPathSegmentLeasesParse(object):
     Unit tests for lib.packet.path_mgmt.PathSegmentLeases.parse
     """
     @patch("lib.packet.path_mgmt.LeaseInfo", autospec=True)
-    @patch("lib.packet.packet_base.PayloadBase.parse", autospec=True)
-    def test_basic(self, parse, les_inf):
+    @patch("lib.packet.path_mgmt.PayloadBase.parse", autospec=True)
+    @patch("lib.packet.path_mgmt.Raw", autospec=True)
+    def test_basic(self, raw, parse, les_inf):
+        # Setup
         pth_seg_les = PathSegmentLeases()
-        data = struct.pack("!B", 0x04) + b"abcd"
+        data = b"data"
         les_inf.LEN = 1
-        les_inf.side_effect = ["data0", "data1", "data2", "data3"]
+        les_inf.side_effect = ["data0", "data1"]
+        raw.return_value = MagicMock(spec_set=["pop"])
+        raw.return_value.pop.side_effect = (2, "lease0", "lease1")
+        # Call
         pth_seg_les.parse(data)
+        # Tests
         parse.assert_called_once_with(pth_seg_les, data)
-        ntools.eq_(pth_seg_les.nleases, 0x04)
-        les_inf.assert_has_calls([call(b"a"), call(b"b"), call(b"c"),
-                                  call(b"d")])
-        for i in range(0x04):
+        raw.assert_called_once_with(data, "PathSegmentLeases",
+                                    pth_seg_les.MIN_LEN, min_=True)
+        ntools.eq_(pth_seg_les.nleases, 2)
+        les_inf.assert_has_calls([call("lease0"), call("lease1")])
+        for i in range(2):
             ntools.eq_(pth_seg_les.leases[i], "data" + str(i))
 
 
@@ -372,12 +388,21 @@ class TestRevocationInfoParse(object):
     """
     Unit tests for lib.packet.path_mgmt.RevocationInfo.parse
     """
-    def test_basic(self):
+    @patch("lib.packet.path_mgmt.Raw", autospec=True)
+    def test_basic(self, raw):
+        # Setup
         rev_inf = RevocationInfo()
-        data = struct.pack("!B", 0b00000101) + \
+        data = bytes([0b00000101]) + \
             b"superlengthybigstringoflength321" \
             b"superlengthybigstringoflength322"
+        raw.return_value = MagicMock(spec_set=["offset", "pop"])
+        raw.return_value.pop.side_effect = (data[0], data[1:])
+        raw.return_value.offset.return_value = 4
+        # Call
         rev_inf.parse(data)
+        # Tests
+        raw.assert_called_once_with(data, "RevocationInfo",
+                                          rev_inf.MIN_LEN, min_=True)
         ntools.eq_(rev_inf.rev_type, 0b101)
         ntools.eq_(rev_inf.incl_seg_id, 0b0)
         ntools.eq_(rev_inf.incl_hop, 0b0)
@@ -386,41 +411,38 @@ class TestRevocationInfoParse(object):
         ntools.eq_(rev_inf.proof1, b"superlengthybigstringoflength322")
         ntools.eq_(rev_inf.rev_token2, b"")
         ntools.eq_(rev_inf.proof2, b"")
+        ntools.eq_(rev_inf.raw, data[:4])
         ntools.assert_true(rev_inf.parsed)
-        ntools.eq_(rev_inf.raw, data)
 
-    def test_var_size(self):
+    @patch("lib.packet.path_mgmt.Raw", autospec=True)
+    def test_var_size(self, raw):
+        # Setup
         rev_inf = RevocationInfo()
-        data = struct.pack("!B", 0b00011011) + \
-            b"superlengthybigstringoflength321" \
-            b"superlengthybigstringoflength322" \
-            b"superlengthybigstringoflength323" \
-            b"superlengthybigstringoflength324" \
-            b"superlengthybigstringoflength325"
+        data_parts = (
+            struct.pack("!B", 0b00011011),
+            b"superlengthybigstringoflength321",
+            b"superlengthybigstringoflength322",
+            b"superlengthybigstringoflength323",
+            b"superlengthybigstringoflength324",
+            b"superlengthybigstringoflength325",
+        )
+        data = b"".join(data_parts)
+        raw.return_value = MagicMock(spec_set=["offset", "pop"])
+        raw.return_value.pop.side_effect = (
+            data_parts[0][0], data_parts[1], b"".join(data_parts[2:4]),
+            b"".join(data_parts[4:6]))
+        # Call
         rev_inf.parse(data)
+        # Tests
         ntools.eq_(rev_inf.rev_type, 0b011)
         ntools.eq_(rev_inf.incl_seg_id, 0b1)
         ntools.eq_(rev_inf.incl_hop, 0b1)
-        ntools.eq_(rev_inf.seg_id, b"superlengthybigstringoflength321")
-        ntools.eq_(rev_inf.rev_token1, b"superlengthybigstringoflength322")
-        ntools.eq_(rev_inf.proof1, b"superlengthybigstringoflength323")
-        ntools.eq_(rev_inf.rev_token2, b"superlengthybigstringoflength324")
-        ntools.eq_(rev_inf.proof2, b"superlengthybigstringoflength325")
-        ntools.eq_(rev_inf.raw, data)
+        ntools.eq_(rev_inf.seg_id, data_parts[1])
+        ntools.eq_(rev_inf.rev_token1, data_parts[2])
+        ntools.eq_(rev_inf.proof1, data_parts[3])
+        ntools.eq_(rev_inf.rev_token2, data_parts[4])
+        ntools.eq_(rev_inf.proof2, data_parts[5])
         ntools.assert_true(rev_inf.parsed)
-
-    def test_len(self):
-        rev_inf = RevocationInfo()
-        data = b"randomshortstring"
-        rev_inf.parse(data)
-        ntools.eq_(rev_inf.rev_type, RevocationType.DOWN_SEGMENT)
-        ntools.eq_(rev_inf.incl_seg_id, False)
-        ntools.eq_(rev_inf.incl_hop, False)
-        ntools.eq_(rev_inf.seg_id, b"")
-        ntools.eq_(rev_inf.rev_token1, b"")
-        ntools.eq_(rev_inf.proof1, b"")
-        ntools.eq_(rev_inf.rev_token2, b"")
-        ntools.eq_(rev_inf.proof2, b"")
 
 
 class TestRevocationInfoPack(object):
@@ -508,28 +530,29 @@ class TestRevocationPayloadParse(object):
     Unit tests for lib.packet.path_mgmt.RevocationPayload.parse
     """
     @patch("lib.packet.path_mgmt.RevocationInfo", autospec=True)
-    @patch("lib.packet.packet_base.PayloadBase.parse", autospec=True)
-    def test_basic(self, parse, rev_inf):
+    @patch("lib.packet.path_mgmt.PayloadBase.parse", autospec=True)
+    @patch("lib.packet.path_mgmt.Raw", autospec=True)
+    def test_basic(self, raw, parse, rev_inf):
+        # Setup
         rev_pld = RevocationPayload()
         data = "abcde"
         side_effect = []
         for i in range(len(data)):
-            side_effect.append(MagicMock(spec_set=['__len__', 'parsed']))
+            side_effect.append(MagicMock(spec_set=['__len__']))
             side_effect[i].__len__.return_value = 1
-            side_effect[i].parsed = True
-        rev_inf.MAX_LEN = 1
         rev_inf.side_effect = side_effect
+        rev_inf.MAX_LEN = 1
+        raw.return_value = MagicMock(spec_set=["__len__", "get", "pop"])
+        raw.return_value.__len__.side_effect = [1] * len(data) + [0]
+        raw.return_value.get.side_effect = range(5)
+        # Call
         rev_pld.parse(data)
+        # Tests
         parse.assert_called_once_with(rev_pld, data)
-        rev_inf.assert_has_calls([call(i) for i in data])
-        ntools.eq_(rev_pld.rev_infos[i], side_effect[i])
-
-    @patch("lib.packet.packet_base.PayloadBase.parse", autospec=True)
-    def test_len(self, parse):
-        rev_pld = RevocationPayload()
-        rev_pld.parse("smalldata")
-        parse.assert_called_once_with(rev_pld, "smalldata")
-        ntools.eq_(rev_pld.rev_infos, [])
+        raw.assert_called_once_with(data, "RevocationPayload", rev_pld.MIN_LEN,
+                                    min_=True)
+        rev_inf.assert_has_calls([call(i) for i in range(5)])
+        ntools.eq_(rev_pld.rev_infos, side_effect)
 
 
 class TestRevocationPayloadPack(object):
@@ -590,70 +613,52 @@ class TestPathMgmtPacketParse(object):
     """
     Unit tests for lib.packet.path_mgmt.PathMgmtPacket.parse
     """
-    @patch("lib.packet.scion.SCIONPacket.set_payload", autospec=True)
-    @patch("lib.packet.path_mgmt.PathSegmentInfo", autospec=True)
-    @patch("lib.packet.scion.SCIONPacket.parse", autospec=True)
-    def test_request(self, parse, inf, set_pld):
-        pth_mgmt_pkt = PathMgmtPacket()
-        pth_mgmt_pkt._payload = struct.pack("!B", PathMgmtType.REQUEST) + \
-            b"data1"
-        inf.return_value = "data2"
-        pth_mgmt_pkt.parse("data3")
-        parse.assert_called_once_with(pth_mgmt_pkt, "data3")
-        ntools.eq_(pth_mgmt_pkt.type, PathMgmtType.REQUEST)
-        inf.assert_called_once_with(b"data1")
-        set_pld.assert_called_once_with(pth_mgmt_pkt, "data2")
 
-    @patch("lib.packet.scion.SCIONPacket.set_payload", autospec=True)
-    @patch("lib.packet.path_mgmt.PathSegmentRecords", autospec=True)
-    @patch("lib.packet.scion.SCIONPacket.parse", autospec=True)
-    def test_records(self, parse, rec, set_pld):
-        pth_mgmt_pkt = PathMgmtPacket()
-        pth_mgmt_pkt._payload = struct.pack("!B", PathMgmtType.RECORDS) + \
-            b"data1"
-        rec.return_value = "data2"
-        pth_mgmt_pkt.parse("data3")
-        parse.assert_called_once_with(pth_mgmt_pkt, "data3")
-        ntools.eq_(pth_mgmt_pkt.type, PathMgmtType.RECORDS)
-        rec.assert_called_once_with(b"data1")
-        set_pld.assert_called_once_with(pth_mgmt_pkt, "data2")
-
-    @patch("lib.packet.scion.SCIONPacket.set_payload", autospec=True)
-    @patch("lib.packet.path_mgmt.PathSegmentLeases", autospec=True)
-    @patch("lib.packet.scion.SCIONPacket.parse", autospec=True)
-    def test_leases(self, parse, les, set_pld):
-        pth_mgmt_pkt = PathMgmtPacket()
-        pth_mgmt_pkt._payload = struct.pack("!B", PathMgmtType.LEASES) + \
-            b"data1"
-        les.return_value = "data2"
-        pth_mgmt_pkt.parse("data3")
-        parse.assert_called_once_with(pth_mgmt_pkt, "data3")
-        ntools.eq_(pth_mgmt_pkt.type, PathMgmtType.LEASES)
-        les.assert_called_once_with(b"data1")
-        set_pld.assert_called_once_with(pth_mgmt_pkt, "data2")
-
-    @patch("lib.packet.scion.SCIONPacket.set_payload", autospec=True)
     @patch("lib.packet.path_mgmt.RevocationPayload", autospec=True)
-    @patch("lib.packet.scion.SCIONPacket.parse", autospec=True)
-    def test_revocation(self, parse, rev, set_pld):
+    @patch("lib.packet.path_mgmt.PathSegmentLeases", autospec=True)
+    @patch("lib.packet.path_mgmt.PathSegmentRecords", autospec=True)
+    @patch("lib.packet.path_mgmt.PathSegmentInfo", autospec=True)
+    @patch("lib.packet.path_mgmt.SCIONPacket.set_payload", autospec=True)
+    @patch("lib.packet.path_mgmt.Raw", autospec=True)
+    @patch("lib.packet.path_mgmt.SCIONPacket.parse", autospec=True)
+    def _check_success(self, type_, scion_parse, raw, set_payload,
+                       seg_info, seg_recs, seg_leases, rev_payload):
+        # Setup
+        type_map = {
+            PathMgmtType.REQUEST: seg_info,
+            PathMgmtType.RECORDS: seg_recs,
+            PathMgmtType.LEASES: seg_leases,
+            PathMgmtType.REVOCATIONS: rev_payload,
+        }
+        target = type_map[type_]
+        raw.return_value = MagicMock(spec_set=["pop"])
+        raw.return_value.pop.side_effect = (type_, "pop data")
+        data = b"data"
         pth_mgmt_pkt = PathMgmtPacket()
-        pth_mgmt_pkt._payload = struct.pack("!B", PathMgmtType.REVOCATIONS) + \
-            b"data1"
-        rev.return_value = "data2"
-        pth_mgmt_pkt.parse("data3")
-        parse.assert_called_once_with(pth_mgmt_pkt, "data3")
-        ntools.eq_(pth_mgmt_pkt.type, PathMgmtType.REVOCATIONS)
-        rev.assert_called_once_with(b"data1")
-        set_pld.assert_called_once_with(pth_mgmt_pkt, "data2")
+        pth_mgmt_pkt._payload = b"payload"
+        seg_info.LEN = PathSegmentInfo.LEN
+        # Call
+        pth_mgmt_pkt.parse(data)
+        # Tests
+        scion_parse.assert_called_once_with(pth_mgmt_pkt, data)
+        raw.assert_called_once_with(b"payload", "PathMgmtPacket",
+                                    pth_mgmt_pkt.MIN_LEN, min_=True)
+        ntools.eq_(pth_mgmt_pkt.type, type_)
+        target.assert_called_once_with("pop data")
+        set_payload.assert_called_once_with(pth_mgmt_pkt, target.return_value)
 
-    @patch("lib.packet.scion.SCIONPacket.parse", autospec=True)
-    def test_invalid_type(self, parse):
+    def test_success(self):
+        for type_ in (PathMgmtType.REQUEST, PathMgmtType.RECORDS,
+                      PathMgmtType.LEASES, PathMgmtType.REVOCATIONS):
+            yield self._check_success, type_
+
+    @patch("lib.packet.path_mgmt.SCIONPacket.parse", autospec=True)
+    def test_invalid_type(self, scion_parse):
+        # Setup
         pth_mgmt_pkt = PathMgmtPacket()
-        pth_mgmt_pkt._payload = struct.pack("!B", 5)
-        pth_mgmt_pkt.parse("data")
-        parse.assert_called_once_with(pth_mgmt_pkt, "data")
-        ntools.eq_(pth_mgmt_pkt.type, 5)
-        ntools.eq_(pth_mgmt_pkt.payload, struct.pack("!B", 5))
+        pth_mgmt_pkt._payload = struct.pack("!B", 255)
+        # Call
+        ntools.assert_raises(SCIONParseError, pth_mgmt_pkt.parse, b"data")
 
 
 class TestPathMgmtPacketPack(object):
