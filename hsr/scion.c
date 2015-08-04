@@ -174,35 +174,35 @@ static inline uint8_t get_type(SCIONHeader *hdr) {
   return &hdr->srcAddr;
 }
 
+//TODO Optimization
 static inline uint8_t is_on_up_path(InfoOpaqueField *currOF) {
-  // printf("type=%x\n", currOF->type);
   if ((currOF->type & 0x1) ==
       1) { // low bit of type field is used for uppath/downpath flag
     return 1;
   }
   return 0;
 }
+//TODO Optimization
 static inline uint8_t is_last_path_of(SCIONCommonHeader *sch) {
   uint8_t offset = SCION_COMMON_HEADER_LEN + sizeof(HopOpaqueField);
   return sch->currentOF == offset + sch->headerLen;
 }
-
+//TODO Optimization
 static inline uint8_t is_regular(HopOpaqueField *currOF) {
-  // printf("type=%x\n",currOF->type );
   if ((currOF->type & (1 << 6)) == 0) {
     return 0;
   }
   return 1;
 }
+
+//TODO Optimization
 static inline uint8_t is_continue(HopOpaqueField *currOF) {
-  // printf("type=%x\n",currOF->type );
   if ((currOF->type & (1 << 5)) == 0) {
     return 0;
   }
   return 1;
 }
 static inline uint8_t is_xovr(HopOpaqueField *currOF) {
-  // printf("type=%x\n",currOF->type );
   if ((currOF->type & (1 << 4)) == 0) {
     return 0;
   }
