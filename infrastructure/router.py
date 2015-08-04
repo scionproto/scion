@@ -547,13 +547,14 @@ def main():
     """
     Initializes and starts router.
     """
-    init_logging()
     handle_signals()
     parser = argparse.ArgumentParser()
     parser.add_argument('router_id', help='Router identifier')
     parser.add_argument('topo_file', help='Topology file')
     parser.add_argument('conf_file', help='AD configuration file')
+    parser.add_argument('log_file', help='Log file')
     args = parser.parse_args()
+    init_logging(args.log_file)
 
     router = Router(args.router_id, args.topo_file, args.conf_file)
 

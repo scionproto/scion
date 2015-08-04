@@ -529,14 +529,15 @@ def main():
     """
     Main function.
     """
-    init_logging()
     handle_signals()
     parser = argparse.ArgumentParser()
     parser.add_argument('server_id', help='Server identifier')
     parser.add_argument('topo_file', help='Topology file')
     parser.add_argument('conf_file', help='AD configuration file')
     parser.add_argument('trc_file', help='TRC file')
+    parser.add_argument('log_file', help='Log file')
     args = parser.parse_args()
+    init_logging(args.log_file)
 
     cert_server = CertServer(args.server_id, args.topo_file, args.conf_file,
                              args.trc_file)

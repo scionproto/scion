@@ -17,15 +17,19 @@
 """
 # Stdlib
 import logging
+import logging.handlers
 import traceback
 
 # This file should not include other SCION libraries, to prevent cirular import
 # errors.
 
+#: Bytes
+LOG_MAX_SIZE = 1*1024*1024
 
-class _StreamErrorHandler(logging.StreamHandler):
+
+class _LoggingErrorHandler(logging.handlers.RotatingFileHandler):
     """
-    A logging StreamHandler that will exit the application if there's a logging
+    A logging Handler that will exit the application if there's a logging
     exception.
 
     We don't try to use the normal logging system at this point because we
@@ -51,17 +55,18 @@ class _StreamErrorHandler(logging.StreamHandler):
         raise
 
 
-def init_logging(level=logging.DEBUG):
+def init_logging(log_file, level=logging.DEBUG):
     """
     Configure logging for components (servers, routers, gateways).
 
     :param level:
     :type level:
     """
-    logging.basicConfig(level=level,
-                        handlers=[_StreamErrorHandler()],
-                        format='%(asctime)s [%(levelname)s]\t'
-                               '(%(threadName)s) %(message)s')
+    handler = _LoggingErrorHandler(log_file, maxBytes=LOG_MAX_SIZE,
+                                   encoding="utf-8")
+    logging.basicConfig(
+        level=level, handlers=[handler],
+        format='%(asctime)s [%(levelname)s] (%(threadName)s) %(message)s')
 
 
 def log_exception(msg, *args, level=logging.CRITICAL, **kwargs):

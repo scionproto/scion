@@ -642,27 +642,31 @@ class ConfigGenerator(object):
                             num,
                             p['topo_file_rel'],
                             p['conf_file_rel'],
-                            p['path_pol_file_rel']]
+                            p['path_pol_file_rel'],
+                            '../logs/{}.log'.format(element_name)]
             elif element_type == 'CertificateServers':
                 element_name = 'cs{}-{}-{}'.format(isd_id, ad_id, num)
                 cmd_args = ['cert_server.py',
                             num,
                             p['topo_file_rel'],
                             p['conf_file_rel'],
-                            p['trc_file_rel']]
+                            p['trc_file_rel'],
+                            '../logs/{}.log'.format(element_name)]
             elif element_type == 'PathServers':
                 element_name = 'ps{}-{}-{}'.format(isd_id, ad_id, num)
                 cmd_args = ['path_server.py',
                             element_location,
                             num,
                             p['topo_file_rel'],
-                            p['conf_file_rel']]
+                            p['conf_file_rel'],
+                            '../logs/{}.log'.format(element_name)]
             elif element_type == 'DNSServers':
                 element_name = 'ds{}-{}-{}'.format(isd_id, ad_id, num)
                 cmd_args = ['dns_server.py',
                             num,
                             str(dns_domain),
-                            p['topo_file_rel']]
+                            p['topo_file_rel'],
+                            '../logs/{}.log'.format(element_name)]
             elif element_type == 'EdgeRouters':
                 interface_dict = element_dict['Interface']
                 nbr_isd_id = interface_dict['NeighborISD']
@@ -672,7 +676,8 @@ class ConfigGenerator(object):
                 cmd_args = ['router.py',
                             num,
                             p['topo_file_rel'],
-                            p['conf_file_rel']]
+                            p['conf_file_rel'],
+                            '../logs/{}.log'.format(element_name)]
             elif element_type == 'Zookeepers':
                 if not element_dict['Manage']:
                     continue
@@ -685,6 +690,7 @@ class ConfigGenerator(object):
                 server_config['command'] = ' '.join([
                     '/usr/bin/java',
                     '-cp', class_path,
+                    '-Dzookeeper.log.file=../logs/{}.log'.format(element_name),
                     self.zk_config["Environment"]["ZOOMAIN"],
                     zk_paths["cfg_rel"]
                 ])
@@ -696,7 +702,7 @@ class ConfigGenerator(object):
                     ['/usr/bin/python3'] +
                     ['"{}"'.format(arg) for arg in cmd_args])
             server_config['stdout_logfile'] = \
-                '../logs/{}.log'.format(element_name)
+                '../logs/{}.out'.format(element_name)
 
             supervisor_config['program:' + element_name] = server_config
             program_group.append(element_name)
