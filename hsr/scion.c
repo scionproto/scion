@@ -50,7 +50,7 @@
 typedef struct {
   uint32_t addr;     // IP address of an edge router
   //uint16_t udp_port; // UDP port  // assume UDP port is fixed value
-  uint8_t dpdk_port; // Phicical port (NIC)
+  //uint8_t dpdk_port; // Phicical port (NIC)
   uint16_t scion_ifid;
 } NextHop;
 
@@ -75,20 +75,20 @@ void scion_init() {
   neighbor_ad_ifid = 111;
   iflist[111].addr = IPv4(1, 1, 1, 1);
   //iflist[111].udp_port = 33040;
-  iflist[111].dpdk_port = DPDK_EGRESS_PORT;
+  //iflist[111].dpdk_port = DPDK_EGRESS_PORT;
 
   // local port (other egress router in this AD)
   iflist[280].addr = IPv4(2, 2, 2, 2);
   //iflist[280].udp_port = 33040;
-  iflist[280].dpdk_port = DPDK_LOCAL_PORT;
+  //iflist[280].dpdk_port = DPDK_LOCAL_PORT;
 
   iflist[281].addr = IPv4(3, 3, 3, 3);
   //iflist[281].udp_port = 33040;
-  iflist[281].dpdk_port = DPDK_LOCAL_PORT;
+  //iflist[281].dpdk_port = DPDK_LOCAL_PORT;
 
   beacon_servers[0] = IPv4(7, 7, 7, 7);
   certificate_servers[0] = IPv4(8, 8, 8, 8);
-  path_servers[0] = IPv4(8, 8, 8, 8);
+  path_servers[0] = IPv4(9, 9, 9, 9);
 
   my_ifid = 333;
 }
@@ -107,7 +107,7 @@ static inline int send_egress(struct rte_mbuf *m) {
                                sizeof(struct ipv4_hdr));
 
   // Specify output dpdk port.
-  uint8_t dpdk_port = iflist[neighbor_ad_ifid].dpdk_port;
+  //uint8_t dpdk_port = iflist[neighbor_ad_ifid].dpdk_port;
   // Update destination IP address and UDP port number
   ipv4_hdr->dst_addr = iflist[neighbor_ad_ifid].addr;
   
@@ -129,17 +129,18 @@ static inline int send_local(struct rte_mbuf *m, uint32_t next_ifid) {
                                sizeof(struct ipv4_hdr));
 
   if (next_ifid != 0) {
-    uint8_t dpdk_port;
     // Specify output dpdk port.
-    dpdk_port = iflist[next_ifid].dpdk_port;
+    //uint8_t dpdk_port;
+    //dpdk_port = iflist[next_ifid].dpdk_port;
     // Update destination IP address and UDP port number
     ipv4_hdr->dst_addr = iflist[next_ifid].addr;
 
     //assume port is the same, so the next line is not required
     //udp_hdr->dst_port = iflist[next_ifid].udp_port;
 
-    printf("dpdk_port=%d\n",dpdk_port);
-    l2fwd_send_packet(m, dpdk_port);
+    //printf("dpdk_port=%d\n",dpdk_port);
+    printf("dpdk_port=%d\n",DPDK_LOCAL_PORT);
+    l2fwd_send_packet(m, DPDK_LOCAL_PORT);
     return 1;
   }
   return -1;
