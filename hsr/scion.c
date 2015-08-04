@@ -681,8 +681,7 @@ static inline void process_packet(struct rte_mbuf *m, uint8_t from_local_socket,
     forward_packet(m, from_local_socket, ptype);
 }
 
-void handle_request(struct rte_mbuf *m, uint8_t from_local_socket,
-                    uint32_t ptype) {
+void handle_request(struct rte_mbuf *m, uint8_t from_local_socket) {
   struct ether_hdr *eth_hdr;
   SCIONHeader *scion_hdr;
 

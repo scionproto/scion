@@ -245,7 +245,7 @@ l2fwd_simple_forward(struct rte_mbuf *m, unsigned portid)
 	//sasaki
         uint8_t from_local_socket=0;
         if(portid != DPDK_EGRESS_PORT) from_local_socket=1;
-        handle_request(m, 0/*sender*/, from_local_socket);
+        handle_request(m, from_local_socket);
         return;
 
 
