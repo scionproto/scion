@@ -354,8 +354,8 @@ l2fwd_main_loop(void)
 				//rte_prefetch0(rte_pktmbuf_mtod(m, void *));
 				if(j < nb_rx -1){
 					m_next = pkts_burst[j+1];
-					rte_prefetch0(rte_pktmbuf_mtod(m, void *)); //prefetch next packet
-					rte_prefetch0(rte_pktmbuf_mtod(m, void *) +64); //prefetch next packet
+					rte_prefetch0(rte_pktmbuf_mtod(m_next, void *)); //prefetch next packet
+					rte_prefetch0(rte_pktmbuf_mtod(m_next, void *) +64); //prefetch next packet
 				}
 				l2fwd_simple_forward(m, portid);
 			}
