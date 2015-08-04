@@ -53,6 +53,7 @@ from lib.thread import thread_safety_net
 from lib.util import handle_signals, update_dict, SCIONTime, timed
 from lib.zookeeper import ZkConnectionLoss, ZkNoNodeError, Zookeeper
 
+
 class PathServer(SCIONElement):
     """
     The SCION Path Server.
@@ -96,7 +97,6 @@ class PathServer(SCIONElement):
         self._latest_entry = 0
         # Function that handles segments from ZK. Depends on server's type.
         self._cached_entries_handler = None
-
 
     def _add_if_mappings(self, pcb):
         """
@@ -520,7 +520,8 @@ class CorePathServer(PathServer):
     def _update_master(self):
         """
         """
-        # TODO replace by asynch API, currently while is due to some weirdness of watchers
+        # TODO replace by asynch API, currently while is due to some weirdness
+        # of watchers
         while True:
             curr_master = self._get_master_id()
             # TODO: we could discuss this behaviour.
@@ -583,8 +584,8 @@ class CorePathServer(PathServer):
         """
         Handle registration of a down path.
         """
-        from_local_ps = (pkt.hdr.src_addr.get_isd_ad() ==
-                         pkt.hdr.dst_addr.get_isd_ad() == self.addr.get_isd_ad())
+        # from_local_ps = (pkt.hdr.src_addr.get_isd_ad() ==
+        #  pkt.hdr.dst_addr.get_isd_ad() == self.addr.get_isd_ad())
         records = pkt.payload
         if not records.pcbs:
             return
@@ -1339,6 +1340,7 @@ class LocalPathServer(PathServer):
                                               src_isd, src_ad)
         if paths_to_send:
             self.send_path_segments(pkt, paths_to_send)
+
 
 def main():
     """
