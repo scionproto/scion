@@ -44,7 +44,8 @@ APP = hsr
 # all source are stored in SRCS-y
 SRCS-y := main.c scion.c
 
-CFLAGS += -O3 -w
+#CFLAGS += -O3 -w
+CFLAGS += -O9 -w
 #CFLAGS += $(WERROR_FLAGS)
 
 include $(RTE_SDK)/mk/rte.extapp.mk
