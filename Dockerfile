@@ -67,6 +67,8 @@ RUN ./scion.sh topology
 COPY docker/init.sh $HOME/bin/
 # Install basic screen config
 COPY docker/screenrc $HOME/.screenrc
+# Install ZK config
+COPY docker/zoo.cfg /etc/zookeeper/conf/
 
 # Fix ownership one last time:
 RUN sudo chown -R scion: $HOME
