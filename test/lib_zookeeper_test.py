@@ -112,7 +112,7 @@ class TestLibZookeeperInit(BaseLibZookeeper):
             connection_retry=self.default_retry,
             logger=logging.getLogger("KazooClient"))
         ntools.assert_false(inst._connected.called)
-        ntools.eq_(inst._party, None)
+        ntools.eq_(inst._parties, {})
         ntools.assert_false(inst._lock.called)
         ntools.eq_(inst._zk_lock, None)
         self.mocks.pysemaphore.assert_called_with(value=0)
@@ -256,11 +256,12 @@ class TestLibZookeeperStateConnected(BaseLibZookeeper):
         Test basic functionalities.
         """
         inst = self._init_basic_setup()
+        inst.ensure_path = MagicMock(spec_set=[])
         # Call
         inst._state_connected()
         # Tests
         inst._connected.set.assert_called_with()
-        inst._zk.ensure_path.assert_any_call(inst._prefix)
+        inst.ensure_path.assert_called_once_with(inst._prefix, abs=True)
 
     @mock_wrapper
     def test_ensure_paths(self):
@@ -268,12 +269,12 @@ class TestLibZookeeperStateConnected(BaseLibZookeeper):
         Test ...
         """
         inst = self._init_basic_setup(ensure_paths=("asfw", "weasg"))
+        inst.ensure_path = MagicMock(spec_set=[])
         # Call
         inst._state_connected()
         # Tests
-        inst._zk.ensure_path.assert_any_call(inst._prefix)
-        inst._zk.ensure_path.assert_any_call("%s/%s" % (inst._prefix, "asfw"))
-        inst._zk.ensure_path.assert_any_call("%s/%s" % (inst._prefix, "weasg"))
+        inst.ensure_path.assert_has_calls([
+            call(inst._prefix, abs=True), call("asfw"), call("weasg")])
 
     @mock_wrapper
     def test_connectionloss(self):
@@ -400,72 +401,99 @@ class TestLibZookeeperConnection(BaseLibZookeeper):
             yield self._wait_connected_check, timeout
 
 
-class TestLibZookeeperParty(BaseLibZookeeper):
+class TestLibZookeeperEnsurePath(BaseLibZookeeper):
     """
-    Unit tests for lib.zookeeper Party methods.
+    Unit tests for lib.zookeeper.Zookeeper.ensure_path
     """
+    @mock_wrapper
+    def test_basic(self):
+        # Setup
+        inst = self._init_basic_setup()
+        # Call
+        inst.ensure_path("pathness")
+        # Tests
+        inst._zk.ensure_path.assert_called_once_with(
+            "%s/%s" % (inst._prefix, "pathness"))
 
     @mock_wrapper
-    def test_not_connected(self):
-        """
-        Test ...
-        """
+    def test_abs(self):
+        # Setup
         inst = self._init_basic_setup()
-        inst._connected.is_set.return_value = False
+        # Call
+        inst.ensure_path("/path/to/stuff", abs=True)
+        # Tests
+        inst._zk.ensure_path.assert_called_once_with(
+            "/path/to/stuff")
+
+    @mock_wrapper
+    def _check_error(self, excp):
+        # Setup
+        inst = self._init_basic_setup()
+        inst._zk.ensure_path.side_effect = excp
+        # Call
+        ntools.assert_raises(libzk.ZkConnectionLoss, inst.ensure_path, "asdwaf")
+
+    def test_errors(self):
+        for excp in libzk.ConnectionLoss, libzk.SessionExpiredError:
+            yield self._check_error, excp
+
+
+class TestLibZookeeperParty(BaseLibZookeeper):
+    """
+    Unit tests for lib.zookeeper.Zookeeper.join_party
+    """
+    @mock_wrapper
+    def test_not_connected(self):
+        inst = self._init_basic_setup()
+        inst.is_connected = MagicMock(spec_set=[], return_value=False)
         # Call
         ntools.assert_raises(libzk.ZkConnectionLoss, inst.join_party)
         # Tests
-        inst._connected.is_set.assert_called_with()
+        inst.is_connected.assert_called_once_with()
 
     @mock_wrapper
     def test_no_party(self):
-        """
-        Test ...
-        """
         inst = self._init_basic_setup()
-        inst._connected.is_set.return_value = True
+        inst.is_connected = MagicMock(spec_set=[], return_value=True)
         # Call
-        inst.join_party()
+        party = inst.join_party()
         # Tests
-        self.mocks.kparty.assert_called_with("%s/%s" % (inst._prefix, "party"),
-                                             inst._srv_id)
-        inst._party.join.assert_called_once_with()
+        self.mocks.kparty.assert_called_once_with(
+            "%s/%s" % (inst._prefix, "party"), inst._srv_id)
+        party.join.assert_called_once_with()
+
+    @mock_wrapper
+    def test_custom_prefix(self):
+        inst = self._init_basic_setup()
+        inst.is_connected = MagicMock(spec_set=[], return_value=True)
+        # Call
+        inst.join_party(prefix="/pref")
+        # Tests
+        self.mocks.kparty.assert_called_once_with("/pref/party", inst._srv_id)
 
     @mock_wrapper
     def test_have_party(self):
-        """
-        Test ...
-        """
         inst = self._init_basic_setup()
-        inst._connected.is_set.return_value = True
-        inst._party = self.mocks.kparty
+        inst.is_connected = MagicMock(spec_set=[], return_value=True)
+        party = self.mocks.kparty
+        inst._parties["%s/party" % inst._prefix] = party
         # Call
         inst.join_party()
         # Tests
         ntools.assert_false(self.mocks.kparty.called)
-        inst._party.join.assert_called_once_with()
+        party.join.assert_called_once_with()
 
     @mock_wrapper
     def _join_exception_check(self, exception):
-        """
-        Test ...
-
-        :param exception:
-        :type exception:
-        """
         inst = self._init_basic_setup()
-        inst._connected.is_set.return_value = True
-        inst._party = MagicMock(spec_set=["join"])
-        inst._party.join.side_effect = exception
+        inst.is_connected = MagicMock(spec_set=[], return_value=True)
+        party = MagicMock(spec_set=["join"])
+        party.join.side_effect = exception
+        self.mocks.kparty.return_value = party
         # Call
         ntools.assert_raises(libzk.ZkConnectionLoss, inst.join_party)
-        # Tests
-        inst._party.join.assert_called_once_with()
 
     def test_join_exceptions(self):
-        """
-        Test ...
-        """
         for excp in libzk.ConnectionLoss, libzk.SessionExpiredError:
             yield self._join_exception_check, excp
 

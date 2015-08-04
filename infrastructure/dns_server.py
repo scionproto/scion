@@ -25,7 +25,6 @@ import argparse
 import binascii
 import datetime
 import logging
-import os
 import sys
 import threading
 from time import sleep
@@ -446,10 +445,9 @@ class SCIONDnsServer(SCIONElement):
         :returns:
         :rtype:
         """
-        prefix = "/ISD%d-AD%d" % (self.topology.isd_id, self.topology.ad_id)
-        path = os.path.join(prefix, type_, 'party')
-        self.zk._zk.ensure_path(path)
-        return self.zk._zk.Party(path, self.name_addrs)
+        prefix = "/ISD%d-AD%d/%s" % (self.topology.isd_id, self.topology.ad_id,
+                                     type_)
+        return self.zk.join_party(prefix=prefix)
 
     def _sync_zk_state(self):
         """
