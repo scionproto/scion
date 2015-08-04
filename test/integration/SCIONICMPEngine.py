@@ -22,24 +22,7 @@ Module docstring here.
 
 """
 
-# Stdlib
-import logging
-import random
-import socket
-import struct
-import sys
-import threading
-import time
-import unittest
-from ipaddress import IPv4Address
-
 # SCION
-from endhost.sciond import SCIOND_API_HOST, SCIOND_API_PORT, SCIONDaemon
-from lib.defines import SCION_BUFLEN, SCION_UDP_EH_DATA_PORT
-from lib.packet.opaque_field import InfoOpaqueField, OpaqueFieldType as OFT
-from lib.packet.path import CorePath, CrossOverPath, EmptyPath, PeerPath
-from lib.packet.scion import SCIONPacket, SCIONHeader
-from lib.packet.scion_addr import SCIONAddr, ISD_AD
 from lib.packet.scion_icmp import SCIONICMPPacket, SCIONICMPType
 
 
@@ -54,10 +37,9 @@ class SCIONICMPEngine(object):
         Create a new SCIONICMPEngine instance
 
         :param sciond: a SCION daemon instance the engine adheres to
-        
+
         """
         self.sciond = sciond
-        
 
     """
     Handle an incoming ICMP Echo packet
@@ -65,7 +47,7 @@ class SCIONICMPEngine(object):
     """
     def _handle_icmp_echo(self, icmp_pkt):
         assert(icmp_pkt.scion_icmp_hdr.icmp_type == SCIONICMPType.ICMP_ECHO)
-        
+
         # construct an eacho reply based on the echo msg
         icmp_pkt.scion_hdr.reverse()
         icmp_pkt.scion_icmp_hdr.type = SCIONICMPType.ICMP_ECHOREPLY
@@ -73,22 +55,23 @@ class SCIONICMPEngine(object):
         is_reply = True
         return (icmp_pkt, is_reply)
 
-    
-    
     """
     Handle an incoming scion icmp packet
     :param pkt: incoming scion icmp packet
     """
     def handle_icmp_pkt(self, pkt):
-        
-        # TODO: first, assert the packet is icmp packet; however, we need to define scion header's protocol field
-        
+
+        # TODO: first, assert the packet is icmp packet;
+        # however, we need to define scion header's protocol
+        # field
         icmp_pkt = SCIONICMPPacket(pkt)
-        funct_map = {SCIONICMPType.ICMP_ECHO: SCIONICMPEngine._handle_icmp_echo}
+        funct_map = {SCIONICMPType.ICMP_ECHO:
+                     SCIONICMPEngine._handle_icmp_echo}
         type = icmp_pkt.scion_icmp_hdr.icmp_type
-        
+
         if type in funct_map:
-            (resp_pkt, is_reply) = funct_map[type](self, icmp_pkt)
+            (resp_pkt, is_reply) = funct_map[type](self,
+                                                   icmp_pkt)
         else:
             # for unhandled the packet just drop
             is_reply = False
@@ -97,15 +80,11 @@ class SCIONICMPEngine(object):
         if is_reply:
             self.send_icmp_pkt(resp_pkt)
 
-    
     """
-    Send a scion icmp packet 
+    Send a scion icmp packet
     :param icmp_pkt: the icmp packet to send
     """
     def send_icmp_pkt(self, icmp_pkt):
-        (next_hop, port) = self.sciond.get_first_hop_from_scion_hdr(icmp_pkt.scion_hdr)
+        (next_hop, port) = self.sciond.\
+            get_first_hop_from_scion_hdr(icmp_pkt.scion_hdr)
         self.sciond.send(icmp_pkt, next_hop, port)
-
-
-
-        

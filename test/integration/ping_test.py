@@ -17,13 +17,10 @@
 """
 # Stdlib
 import logging
-import random
 import socket
 import struct
-import sys
 import threading
 import time
-import unittest
 from ipaddress import IPv4Address
 
 # SCION
@@ -31,7 +28,7 @@ from endhost.sciond import SCIOND_API_HOST, SCIOND_API_PORT, SCIONDaemon
 from lib.defines import SCION_BUFLEN, SCION_UDP_EH_DATA_PORT
 from lib.packet.opaque_field import InfoOpaqueField, OpaqueFieldType as OFT
 from lib.packet.path import CorePath, CrossOverPath, EmptyPath, PeerPath
-from lib.packet.scion import SCIONPacket, SCIONHeader
+from lib.packet.scion import SCIONHeader
 from lib.packet.scion_addr import SCIONAddr, ISD_AD
 from lib.packet.scion_icmp import SCIONICMPPacket, SCIONICMPType
 from SCIONICMPEngine import SCIONICMPEngine
@@ -102,8 +99,13 @@ def ping_app():
 
     dst = SCIONAddr.from_values(DST.isd, DST.ad, raddr)
     scion_hdr = SCIONHeader.from_values(sd.addr, dst, path)
-    icmp_pkt = SCIONICMPPacket.from_values(sd.addr, scion_hdr, SCIONICMPType.ICMP_ECHO, 0, 0, b"hello world!")
-    (next_hop, port) = sd.get_first_hop_from_scion_hdr(icmp_pkt.scion_hdr)
+    icmp_pkt = SCIONICMPPacket.\
+        from_values(sd.addr,
+                    scion_hdr,
+                    SCIONICMPType.ICMP_ECHO,
+                    0, 0, b"hello world!")
+    (next_hop, port) = sd.\
+        get_first_hop_from_scion_hdr(icmp_pkt.scion_hdr)
 
     print("Send packet. Payload: %s" % (icmp_pkt.data, ))
     sd.send(icmp_pkt, next_hop, port)
@@ -112,7 +114,7 @@ def ping_app():
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind((str(saddr), SCION_UDP_EH_DATA_PORT))
     packet, _ = sock.recvfrom(SCION_BUFLEN)
-    
+
     icmp_pkt = SCIONICMPPacket(packet)
     print("Receive Packet. Payload: %s" % (icmp_pkt.data,))
 
@@ -130,14 +132,14 @@ def pong_app():
                  (DST.isd, DST.isd, DST.ad))
     sd = SCIONDaemon.start(raddr, topo_file)
     icmp_engine = SCIONICMPEngine(sd)
-    
+
     # listen for icmp packets
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind((str(raddr), SCION_UDP_EH_DATA_PORT))
     packet, _ = sock.recvfrom(SCION_BUFLEN)
 
-    icmp_engine.handle_icmp_pkt(packet)        
+    icmp_engine.handle_icmp_pkt(packet)
 
     sock.close()
     sd.clean()
@@ -145,12 +147,8 @@ def pong_app():
 
 if __name__ == "__main__":
 
-
     SRC = ISD_AD(1, 17)
     DST = ISD_AD(1, 19)
     threading.Thread(target=ping_app).start()
     threading.Thread(target=pong_app).start()
     time.sleep(1)
-    
-
-    
