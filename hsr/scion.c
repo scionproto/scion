@@ -49,7 +49,7 @@
 
 typedef struct {
   uint32_t addr;     // IP address of an edge router
-  uint16_t udp_port; // UDP port
+  //uint16_t udp_port; // UDP port  // assume UDP port is fixed value
   uint8_t dpdk_port; // Phicical port (NIC)
   uint16_t scion_ifid;
 } NextHop;
@@ -74,16 +74,16 @@ void scion_init() {
   // egress port (neighbor AD's router)
   neighbor_ad_ifid = 111;
   iflist[111].addr = IPv4(1, 1, 1, 1);
-  iflist[111].udp_port = 33040;
+  //iflist[111].udp_port = 33040;
   iflist[111].dpdk_port = DPDK_EGRESS_PORT;
 
   // local port (other egress router in this AD)
   iflist[280].addr = IPv4(2, 2, 2, 2);
-  iflist[280].udp_port = 33040;
+  //iflist[280].udp_port = 33040;
   iflist[280].dpdk_port = DPDK_LOCAL_PORT;
 
   iflist[281].addr = IPv4(3, 3, 3, 3);
-  iflist[281].udp_port = 33040;
+  //iflist[281].udp_port = 33040;
   iflist[281].dpdk_port = DPDK_LOCAL_PORT;
 
   beacon_servers[0] = IPv4(7, 7, 7, 7);
@@ -147,12 +147,14 @@ static inline int send_local(struct rte_mbuf *m, uint32_t next_ifid) {
 
 static inline uint8_t get_type(SCIONHeader *hdr) {
   SCIONAddr *src = (SCIONAddr *)(&hdr->srcAddr);
+  if(src->host_addr[0] != 10) return DATA_PACKET;
+  if(src->host_addr[1] != 224) return DATA_PACKET;
+  if(src->host_addr[2] != 0) return DATA_PACKET;
+
   SCIONAddr *dst = (SCIONAddr *)(&hdr->dstAddr);
-
-
-  if(src->host_addr[0] == 10) return DATA_PACKET;
-  if(src->host_addr[1] == 224) return DATA_PACKET;
-  if(src->host_addr[2] == 0) return DATA_PACKET;
+  if(dst->host_addr[0] != 10) return DATA_PACKET;
+  if(dst->host_addr[1] != 224) return DATA_PACKET;
+  if(dst->host_addr[2] != 0) return DATA_PACKET;
 
   int b1 = src->host_addr[3] == BEACON_PACKET ||
            src->host_addr[3] == PATH_MGMT_PACKET ||
@@ -572,8 +574,8 @@ static inline void process_pcb(struct rte_mbuf *m, uint8_t from_bs) {
     }
 
     ipv4_hdr->dst_addr = iflist[neighbor_ad_ifid].addr; // neighbor router IP
-    udp_hdr->dst_port =
-        iflist[neighbor_ad_ifid].udp_port; // neighbor router port
+    //udp_hdr->dst_port = iflist[neighbor_ad_ifid].udp_port; // neighbor router port
+    udp_hdr->dst_port = SCION_UDP_PORT; // neighbor router port
     l2fwd_send_packet(m, DPDK_EGRESS_PORT);
 
   } else { // from neighbor router to local beacon server
