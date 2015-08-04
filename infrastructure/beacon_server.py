@@ -321,8 +321,8 @@ class BeaconServer(SCIONElement):
                 self.ZK_PCB_CACHE_PATH,
                 hops_hash, beacon.pcb.pack())
         except ZkConnectionLoss:
-            logging.debug("Unable to store PCB in shared path: "
-                          "no connection to ZK")
+            logging.warning("Unable to store PCB in shared path: "
+                            "no connection to ZK")
             return
 
     def process_pcbs(self, pcbs):

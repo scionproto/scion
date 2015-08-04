@@ -26,6 +26,7 @@ import sys
 from _collections import defaultdict
 
 # External packages
+from Crypto.Hash import SHA256
 from external.expiring_dict import ExpiringDict
 from kazoo.exceptions import NoNodeError
 
@@ -49,7 +50,7 @@ from lib.packet.path_mgmt import (
 from lib.packet.scion_addr import ISD_AD
 from lib.path_db import DBResult, PathSegmentDB
 from lib.thread import thread_safety_net
-from lib.util import handle_signals, update_dict, SCIONTime
+from lib.util import handle_signals, update_dict, SCIONTime, timed
 from lib.zookeeper import ZkConnectionLoss, ZkNoNodeError, Zookeeper
 
 class PathServer(SCIONElement):
@@ -418,7 +419,7 @@ class CorePathServer(PathServer):
         """
         # TODO(PSz): send all local down- and (?) core-paths to the new master,
         # consider some easy mechanisms for avoiding registration storm.
-        logging.debug("Syncing %s", self._master_id)
+        logging.debug("TODO: Syncing %s", self._master_id)
         pass
 
     def _get_master_id(self):
@@ -443,6 +444,9 @@ class CorePathServer(PathServer):
         except NoNodeError:
             logging.warning("No lock data found")
             return None
+
+    def _request_path_from_master(self, target):
+        pass
 
     def _is_master(self):
         """
@@ -493,11 +497,11 @@ class CorePathServer(PathServer):
                                                      paths_to_propagate)
             pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, None,
                                              self.addr, ISD_AD(0, 0))
-            # Send it to local master.
-            self._send_to_master(pkt)
-            # If the server is first receiver of the packet propagate it among
-            # core ADs.
-            if not from_local_ps:
+            # Send paths to local master.
+            if self._master_id and not self._is_master():
+                self._send_to_master(pkt)
+            # Master propagates paths to other core ADs (in the ISD).
+            if self._is_master(): # FIXME: or not self.zk.is_connected()
                 logging.debug("Propagate among core ADs")
                 self._propagate_to_core_ads(pkt)
         # Serve pending requests.
@@ -530,6 +534,9 @@ class CorePathServer(PathServer):
                 self._add_if_mappings(pcb)
                 logging.info("Core-Path registered: (%d, %d) -> (%d, %d)",
                              src_isd, src_ad, dst_isd, dst_ad)
+        # Send core segment to local master.
+        if self._master_id and not self._is_master():
+            self._send_to_master(pkt)
         # Send pending requests that couldn't be processed due to the lack of
         # a core path to the destination PS.
         if self.waiting_targets:
@@ -563,11 +570,14 @@ class CorePathServer(PathServer):
         """
         It does not send 'pkt' if the instance is a master.
         """
-        if self._master_id and not self._is_master():
+        if self._master_id:
+            # FIXME: set EmptyPath?
             pkt.hdr.dst_addr.isd_id = self.topology.isd_id
             pkt.hdr.dst_addr.ad_id = self.topology.ad_id
             self.send(pkt, self._master_id)
             logging.debug("Path sent to master")
+        else:
+            logging.warning("_send_to_master(): _master_id not set.")
 
     def _propagate_to_core_ads(self, pkt, inter_isd=False):
         """
@@ -632,9 +642,7 @@ class CorePathServer(PathServer):
                 paths = paths[:self.MAX_SEG_NO]
                 segments_to_send.extend(paths)
             elif dst_isd == self.topology.isd_id:
-                update_dict(self.pending_down,
-                            (dst_isd, dst_ad),
-                            [pkt])
+                update_dict(self.pending_down, (dst_isd, dst_ad), [pkt])
                 logging.info("No down-path segment for (%d, %d), "
                              "request is pending.", dst_isd, dst_ad)
                 # TODO Sam: Here we should ask other CPSes in the same ISD for
@@ -846,7 +854,7 @@ class CorePathServer(PathServer):
             name="Core PS master update",
             daemon=True).start()
 
-        SCIONElement.run(self)
+        PathServer.run(self)
 
 
 class LocalPathServer(PathServer):
@@ -874,6 +882,8 @@ class LocalPathServer(PathServer):
         # Database of up-segments to the core.
         self.up_segments = PathSegmentDB()
         self.pending_up = []  # List of pending UP requests.
+        self._state_synced = threading.Event()
+        self._latest_entry = 0
 
     def _send_leases(self, orig_pkt, leases):
         """
@@ -899,9 +909,111 @@ class LocalPathServer(PathServer):
         logging.debug("Sending leases to CPS.")
         self.send(leases_pkt, dst, dst_port)
 
-    def _handle_up_segment_record(self, pkt):
+    def _propagate_up_segments(self, pkt):
         """
-        Handle Up Path registration from local BS.
+        TODO: change to packet.pcb ?
+        """
+        # assert isinstance(beacon, PathConstructionBeacon)
+        pkt_hash = SHA256.new(pkt.pack()).hexdigest()
+        try:
+            self.zk.store_shared_item(self.ZK_PATH_CACHE_PATH, pkt_hash,
+                                      pkt.pack())
+            logging.debug("Up Segment stored in ZK: %s...", pkt_hash[:5])
+        except ZkConnectionLoss:
+            logging.warning("Unable to store Up Segment in shared path: "
+                            "no connection to ZK")
+
+##############
+    # FIXME: move to lib? That code highly replicates Stephen's code from BS.
+    def handle_shared_up_segments(self):
+        """
+        A thread to handle Zookeeper connects/disconnects and the shared cache
+        of Up Segments.
+
+        On connect, it registers us as in-service, and loads the shared cache
+        of Up Segments from ZK, so that we have enough context to handle endhost
+        requests.
+
+        While connected, it calls _read_cached_entries() to read updated Up
+        Segments from the cache.
+        """
+        while True:
+            if not self.zk.is_connected():
+                self._state_synced.clear()
+                self.zk.wait_connected()
+            else:
+                time.sleep(0.5)
+            try:
+                if not self._state_synced.is_set():
+                    # Register that we can now handle requests.
+                    self.zk.join_party()
+                    # Make sure we re-read the entire cache
+                    self._latest_entry = 0
+                count = self._read_cached_entries()
+                if count:
+                    logging.debug("Processed %d new/updated Up Segments", count)
+            except ZkConnectionLoss:
+                continue
+            self._state_synced.set()
+
+    def _read_cached_entries(self):
+        """
+        Read new/updated entries from the shared cache and send them for
+        processing.
+        """
+        desc = "Fetching list of Up Segments from shared cache"
+        entries_meta = self.zk.get_shared_metadata(self.ZK_PATH_CACHE_PATH,
+                                                   timed_desc=desc)
+        if not entries_meta:
+            return 0
+        new = []
+        newest = 0
+        for entry, meta in entries_meta:
+            if meta.last_modified > self._latest_entry:
+                new.append(entry)
+            if meta.last_modified > newest:
+                newest = meta.last_modified
+        self._latest_entry = newest
+        desc = "Processing %s new Up Segments from shared path" % len(new)
+        count = self._process_cached_up_segments(new, timed_desc=desc)
+        return count
+
+    @timed(1.0)
+    def _process_cached_up_segments(self, entries):
+        """
+        Retrieve new beacons from the shared cache and send them for local
+        processing.
+
+        :param entries: cached path segments.
+        :param entries: list
+        """
+        # TODO(kormat): move constant to proper place
+        chunk_size = 10
+        up_segments = []
+        for i in range(0, len(entries), chunk_size):
+            for entry in entries[i:i + chunk_size]:
+                try:
+                    raw = self.zk.get_shared_item(self.ZK_PATH_CACHE_PATH,
+                                                  entry)
+                except ZkConnectionLoss:
+                    logging.warning("Unable to retrieve Up Segments from "
+                                    "shared cache: no connection to ZK")
+                    break
+                except ZkNoNodeError:
+                    logging.debug("Unable to retrieve Up Segments from shared "
+                                  "cache: no such entry (%s/%s)" %
+                                  (self.ZK_PCB_CACHE_PATH, entry))
+                    continue
+                up_segments.append(PathMgmtPacket(raw=raw))
+        # Register handled segments
+        for seg in up_segments:
+            self._handle_up_segment_record(seg, True)
+        return len(up_segments)
+##############
+
+    def _handle_up_segment_record(self, pkt, from_zk=False):
+        """
+        Handle Up Path registration from local BS or ZK's cache.
 
         :param pkt:
         :type pkt:
@@ -921,6 +1033,9 @@ class LocalPathServer(PathServer):
                 logging.info("Up-Segment to (%d, %d) registered.",
                              pcb.get_first_pcbm().isd_id,
                              pcb.get_first_pcbm().ad_id)
+        # Propagate Up Segment via ZK.
+        if not from_zk:
+            self._propagate_up_segments(pkt)
         # Sending pending targets to the core using first registered up-path.
         if self.waiting_targets:
             pcb = records.pcbs[0]
@@ -1209,6 +1324,17 @@ class LocalPathServer(PathServer):
         if paths_to_send:
             self.send_path_segments(pkt, paths_to_send)
 
+    def run(self):
+        """
+        Run an instance of the local Path Server.
+        """
+        threading.Thread(
+            target=thread_safety_net,
+            args=("handle_shared_up_segments", self.handle_shared_up_segments),
+            name="Local PS, shared Up Segments",
+            daemon=True).start()
+
+        PathServer.run(self)
 
 def main():
     """
