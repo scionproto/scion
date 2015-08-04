@@ -493,7 +493,8 @@ class CorePathServer(PathServer):
         for router in self.topology.routing_edge_routers:
             self.core_ads.add((router.interface.neighbor_isd,
                                router.interface.neighbor_ad))
-        self._master_id = None  # Master core Path Server.
+        self._master_id = None  # Address of master core Path Server.
+        # Core Path server through ZK replicates core segments.
         self._cached_entries_handler = self._handle_core_segment_record
 
     def _master_election(self):
@@ -651,6 +652,7 @@ class CorePathServer(PathServer):
                 logging.info("Core-Path registered: (%d, %d) -> (%d, %d)",
                              src_isd, src_ad, dst_isd, dst_ad)
         # Share segments via ZK.
+        # TODO: only segments from current ISD, the rest send to master
         if not from_zk:
             self._share_segments(pkt)
         # Send pending requests that couldn't be processed due to the lack of
@@ -998,6 +1000,7 @@ class LocalPathServer(PathServer):
         # Database of up-segments to the core.
         self.up_segments = PathSegmentDB()
         self.pending_up = []  # List of pending UP requests.
+        # Core Path server through ZK replicates up segments.
         self._cached_entries_handler = self._handle_up_segment_record
 
     def _send_leases(self, orig_pkt, leases):
