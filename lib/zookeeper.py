@@ -122,7 +122,7 @@ class Zookeeper(object):
         # Keep track of our connection state
         self._connected = threading.Event()
         # Kazoo party (initialised later)
-        self._party = None
+        self._parties = {}
         # Keep track of the kazoo lock
         self._lock = threading.Event()
         # Kazoo lock (initialised later)
@@ -183,10 +183,10 @@ class Zookeeper(object):
         # Might be first connection, or reconnecting after a problem.
         logging.debug("Connection to Zookeeper succeeded")
         try:
-            self._zk.ensure_path(self._prefix)
+            self.ensure_path(self._prefix, abs=True)
             for path in self._ensure_paths:
-                self._zk.ensure_path(os.path.join(self._prefix, path))
-        except (ConnectionLoss, SessionExpiredError):
+                self.ensure_path(path)
+        except ZkConnectionLoss:
             return False
         self._connected.set()
         if self._on_connect:
@@ -229,7 +229,22 @@ class Zookeeper(object):
         """
         return self._connected.wait(timeout=timeout)
 
-    def join_party(self):
+    def ensure_path(self, path, abs=False):
+        """
+        Ensure that a path exists in Zookeeper.
+
+        :param str path: Path to ensure
+        :param bool abs: Is the path abolute or relative?
+        """
+        full_path = path
+        if not abs:
+            full_path = os.path.join(self._prefix, path)
+        try:
+            self._zk.ensure_path(full_path)
+        except (ConnectionLoss, SessionExpiredError):
+            raise ZkConnectionLoss
+
+    def join_party(self, prefix=None):
         """
         Join a `Kazoo Party
         <https://kazoo.readthedocs.org/en/latest/api/recipe/party.html>`_.
@@ -241,16 +256,22 @@ class Zookeeper(object):
         """
         if not self.is_connected():
             raise ZkConnectionLoss
-        if self._party is None:
+        if prefix is None:
+            prefix = self._prefix
+        party_path = os.path.join(prefix, "party")
+        party = self._parties.get(party_path)
+        if party is None:
             # Initialise the service party
-            party_path = os.path.join(self._prefix, "party")
-            self._party = self._zk.Party(party_path, self._srv_id)
+            self.ensure_path(party_path, abs=True)
+            party = self._zk.Party(party_path, self._srv_id)
+            self._parties[party_path] = party
         try:
-            self._party.join()
+            party.join()
         except (ConnectionLoss, SessionExpiredError):
             raise ZkConnectionLoss
-        members = set([entry.split("\0")[0] for entry in list(self._party)])
+        members = set([entry.split("\0")[0] for entry in list(party)])
         logging.debug("Joined party, members are: %s", sorted(members))
+        return party
 
     def get_lock(self, timeout=60.0):
         """
