@@ -271,6 +271,7 @@ l2fwd_main_loop(void)
 {
 	struct rte_mbuf *pkts_burst[MAX_PKT_BURST];
 	struct rte_mbuf *m;
+	struct rte_mbuf *m_next;
 	unsigned lcore_id;
 	uint64_t prev_tsc, diff_tsc, cur_tsc, timer_tsc;
 	unsigned i, j, portid, nb_rx;
@@ -350,7 +351,12 @@ l2fwd_main_loop(void)
 
 			for (j = 0; j < nb_rx; j++) {
 				m = pkts_burst[j];
-				rte_prefetch0(rte_pktmbuf_mtod(m, void *));
+				//rte_prefetch0(rte_pktmbuf_mtod(m, void *));
+				if(j < nb_rx -1){
+					m_next = pkts_burst[j+1];
+					rte_prefetch0(rte_pktmbuf_mtod(m, void *)); //prefetch next packet
+					rte_prefetch0(rte_pktmbuf_mtod(m, void *) +64); //prefetch next packet
+				}
 				l2fwd_simple_forward(m, portid);
 			}
 		}
