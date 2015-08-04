@@ -78,10 +78,12 @@ void scion_init() {
   //iflist[111].dpdk_port = DPDK_EGRESS_PORT;
 
   // local port (other egress router in this AD)
+  //TODO IP is calclated as NETWORK_ADDRESS + IFID 
   iflist[280].addr = IPv4(2, 2, 2, 2);
   //iflist[280].udp_port = 33040;
   //iflist[280].dpdk_port = DPDK_LOCAL_PORT;
 
+  //TODO IP is calclated as NETWORK_ADDRESS + IFID 
   iflist[281].addr = IPv4(3, 3, 3, 3);
   //iflist[281].udp_port = 33040;
   //iflist[281].dpdk_port = DPDK_LOCAL_PORT;
@@ -109,6 +111,8 @@ static inline int send_egress(struct rte_mbuf *m) {
   // Specify output dpdk port.
   //uint8_t dpdk_port = iflist[neighbor_ad_ifid].dpdk_port;
   // Update destination IP address and UDP port number
+
+  //TODO IP is calclated as NETWORK_ADDRESS + IFID 
   ipv4_hdr->dst_addr = iflist[neighbor_ad_ifid].addr;
   
 
