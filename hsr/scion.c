@@ -95,6 +95,7 @@ static inline int send_egress(struct rte_mbuf *m) {
   ipv4_hdr->dst_addr = neighbor_ad_router_ip;
   // udp_hdr->dst_port = SCION_UDP_PORT;
 
+  //TODO update IP checksum
   l2fwd_send_packet(m, DPDK_EGRESS_PORT);
 }
 
@@ -110,10 +111,11 @@ static inline int send_local(struct rte_mbuf *m, uint32_t next_ifid) {
 
   if (next_ifid != 0) {
     // Specify output dpdk port.
-    // uint8_t dpdk_port;
     // Update destination IP address and UDP port number
     ipv4_hdr->dst_addr = GET_EDGE_ROUTER_IPADDR(next_ifid);
     // udp_hdr->dst_port = SCION_UDP_PORT;
+   
+    //TODO update IP checksum
 
     // printf("dpdk_port=%d\n",dpdk_port);
     printf("dpdk_port=%d\n", DPDK_LOCAL_PORT);
@@ -261,6 +263,7 @@ static inline void normal_forward(struct rte_mbuf *m, uint32_t from_local_ad,
       ipv4_hdr = (struct ipv4_hdr *)(rte_pktmbuf_mtod(
           m, unsigned char *)+sizeof(struct ether_hdr));
       ipv4_hdr->dst_addr = path_servers[0];
+      //TODO update IP checksum
 
     } else {
 
@@ -291,6 +294,7 @@ static inline void normal_forward(struct rte_mbuf *m, uint32_t from_local_ad,
                    (void *)&scion_hdr->dstAddr + SCION_ISD_AD_LEN,
                    SCION_HOST_ADDR_LEN);
 
+        //TODO update IP checksum
         l2fwd_send_packet(m, DPDK_LOCAL_PORT);
       }
     }
@@ -525,6 +529,7 @@ static inline void process_ifid_request(struct rte_mbuf *m) {
     ipv4_hdr->dst_addr = beacon_servers[i];
     udp_hdr->dst_port = SCION_UDP_PORT;
     l2fwd_send_packet(m, DPDK_EGRESS_PORT);
+    //TODO update IP checksum
   }
 }
 
@@ -557,6 +562,8 @@ static inline void process_pcb(struct rte_mbuf *m, uint8_t from_bs) {
 
     ipv4_hdr->dst_addr = neighbor_ad_router_ip;
     udp_hdr->dst_port = SCION_UDP_PORT; // neighbor router port
+
+    //TODO update IP checksum
     l2fwd_send_packet(m, DPDK_EGRESS_PORT);
 
   } else { // from neighbor router to local beacon server
@@ -574,9 +581,11 @@ static inline void relay_cert_server_packet(struct rte_mbuf *m,
 
   if (from_local_socket) {
     ipv4_hdr->dst_addr = neighbor_ad_router_ip;
+    //TODO update IP checksum
     l2fwd_send_packet(m, DPDK_EGRESS_PORT);
   } else {
     ipv4_hdr->dst_addr = certificate_servers[0];
+    //TODO update IP checksum
     l2fwd_send_packet(m, DPDK_LOCAL_PORT);
   }
 }
