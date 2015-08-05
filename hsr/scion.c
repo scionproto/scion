@@ -217,7 +217,7 @@ static inline void normal_forward(struct rte_mbuf *m, uint32_t from_local_ad,
   HopOpaqueField *prev_hof;
   InfoOpaqueField *iof;
 
-  // printf("normal forward\n");
+  RTE_LOG(DEBUG,HSR,"normal forward\n");
   scion_hdr = (SCIONHeader *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
                                   struct ether_hdr) +
                               sizeof(struct ipv4_hdr) + sizeof(struct udp_hdr));
@@ -258,7 +258,7 @@ static inline void normal_forward(struct rte_mbuf *m, uint32_t from_local_ad,
     // Increment index of OF
     sch->currentOF += sizeof(HopOpaqueField);
 
-    // printf("send packet to neighbor AD\n");
+    RTE_LOG(DEBUG,HSR,"send packet to neighbor AD\n");
     //send packet to neighbor AD's router
     send_egress(m);
   } else {
@@ -274,7 +274,8 @@ static inline void normal_forward(struct rte_mbuf *m, uint32_t from_local_ad,
     } else {
 
       // Send this SCION packet to the egress router in this AD
-      // printf("send packet to egress router\n");
+      RTE_LOG(DEBUG,HSR,"send packet to egress router\n");
+
       // Convert Egress ID to IP adress of the edge router
       RTE_LOG(DEBUG,HSR, "next ifid %d\n", next_ifid);
 
@@ -517,7 +518,8 @@ static inline void process_ifid_request(struct rte_mbuf *m) {
   struct udp_hdr *udp_hdr;
   IFIDHeader *ifid_hdr;
 
-  // printf("process ifid request\n");
+  RTE_LOG(DEBUG,HSR,"process ifid request\n");
+
   ipv4_hdr = (struct ipv4_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
       struct ether_hdr));
   udp_hdr = (struct udp_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
@@ -545,7 +547,7 @@ static inline void process_pcb(struct rte_mbuf *m, uint8_t from_bs) {
   struct udp_hdr *udp_hdr;
   PathConstructionBeacon *pcb;
 
-  // printf("process pcb\n");
+  RTE_LOG(DEBUG,HSR,"process pcb\n");
 
   ipv4_hdr = (struct ipv4_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
       struct ether_hdr));
@@ -664,7 +666,7 @@ static inline void write_to_egress_iface(struct rte_mbuf *m) {
 
 static inline void process_packet(struct rte_mbuf *m, uint8_t from_local_socket,
                                   uint32_t ptype) {
-  // printf("process packet\n");
+  RTE_LOG(DEBUG,HSR,"process packet\n");
 
   if (from_local_socket)
     write_to_egress_iface(m);
@@ -676,7 +678,6 @@ void handle_request(struct rte_mbuf *m, uint8_t from_local_socket) {
   struct ether_hdr *eth_hdr;
   SCIONHeader *scion_hdr;
 
-  // printf("handle_request\n");
 
   eth_hdr = rte_pktmbuf_mtod(m, struct ether_hdr *);
 
@@ -702,7 +703,7 @@ void handle_request(struct rte_mbuf *m, uint8_t from_local_socket) {
       relay_cert_server_packet(m, from_local_socket);
 
     else {
-      // printf("%d ?????\n", ptype);
+       RTE_LOG(DEBUG,HSR,"%d ?????\n", ptype);
     }
   }
 }
