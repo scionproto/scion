@@ -536,6 +536,7 @@ class ConfigGenerator(object):
             text.write("dataLogDir=%s\n" % paths['datalog_dir_abs'])
             text.write("clientPort=%d\n" % zk_dict["ClientPort"])
             text.write("clientPortAddress=%s\n" % zk_dict["Addr"])
+            text.write("maxClientCnxns=%s\n" % zk_dict["MaxClientCnxns"])
             text.write("autopurge.purgeInterval=1\n")
             text.write("%s\n" % server_block)
             write_file(paths['cfg_abs'], text.getvalue())
@@ -893,6 +894,8 @@ class ZKTopo(object):
             "leader_port", int(def_config["leaderPort"]))
         self.electionPort = config.get(
             "election_port", int(def_config["electionPort"]))
+        self.maxClientCnxns = config.get(
+            "max_client_cnxns", int(def_config["maxClientCnxns"]))
 
     def dict_(self):
         return {
@@ -902,6 +905,7 @@ class ZKTopo(object):
             "ClientPort": self.clientPort,
             "LeaderPort": self.leaderPort,
             "ElectionPort": self.electionPort,
+            "MaxClientCnxns": self.maxClientCnxns,
         }
 
 
