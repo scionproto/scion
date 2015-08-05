@@ -39,6 +39,8 @@
 #include <rte_udp.h>
 #include <rte_string_fns.h>
 
+#define RTE_LOGTYPE_HSR RTE_LOGTYPE_USER2
+
 #include "scion.h"
 
 #define INGRESS_IF(HOF)                                                        \
@@ -119,8 +121,7 @@ static inline int send_local(struct rte_mbuf *m, uint32_t next_ifid) {
     // TODO update IP checksum
     // TODO should we updete destination MAC address?
 
-    // printf("dpdk_port=%d\n",dpdk_port);
-    printf("dpdk_port=%d\n", DPDK_LOCAL_PORT);
+    RTE_LOG(DEBUG,HSR,"dpdk_port=%d\n", DPDK_LOCAL_PORT);
     l2fwd_send_packet(m, DPDK_LOCAL_PORT);
     return 1;
   }
@@ -273,7 +274,7 @@ static inline void normal_forward(struct rte_mbuf *m, uint32_t from_local_ad,
       // Send this SCION packet to the egress router in this AD
       // printf("send packet to egress router\n");
       // Convert Egress ID to IP adress of the edge router
-      printf("next ifid %d\n", next_ifid);
+      RTE_LOG(DEBUG,HSR, "next ifid %d\n", next_ifid);
 
       int ret = send_local(m, next_ifid);
       // send_local returns -1 when the specified ifid is not found in iflist.
@@ -288,7 +289,7 @@ static inline void normal_forward(struct rte_mbuf *m, uint32_t from_local_ad,
                                    struct ether_hdr) +
                                sizeof(struct ipv4_hdr));
 
-        printf("send to host\n");
+	RTE_LOG(DEBUG,HSR, "send to host\n");
         // last opaque field on the path, send the packet to the dstestination
         // host
 
