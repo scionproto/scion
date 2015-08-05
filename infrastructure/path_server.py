@@ -1087,7 +1087,6 @@ def main():
     """
     Main function.
     """
-    init_logging()
     handle_signals()
     parser = argparse.ArgumentParser()
     parser.add_argument('type', choices=['core', 'local'],
@@ -1095,7 +1094,9 @@ def main():
     parser.add_argument('server_id', help='Server identifier')
     parser.add_argument('topo_file', help='Topology file')
     parser.add_argument('conf_file', help='AD configuration file')
+    parser.add_argument('log_file', help='Log file')
     args = parser.parse_args()
+    init_logging(args.log_file)
 
     if args.type == "core":
         path_server = CorePathServer(args.server_id, args.topo_file,

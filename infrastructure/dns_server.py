@@ -499,13 +499,14 @@ def main():
     """
     Main function.
     """
-    init_logging()
     handle_signals()
     parser = argparse.ArgumentParser()
     parser.add_argument('server_id', help='Server identifier')
     parser.add_argument('domain', help='DNS Domain')
     parser.add_argument('topology', help='Topology file')
+    parser.add_argument('log_file', help='Log file')
     args = parser.parse_args()
+    init_logging(args.log_file)
 
     scion_dns_server = SCIONDnsServer(args.server_id, args.domain,
                                       args.topology)
