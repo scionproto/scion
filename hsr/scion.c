@@ -40,6 +40,8 @@
 #include <rte_string_fns.h>
 
 #define RTE_LOGTYPE_HSR RTE_LOGTYPE_USER2
+//#define RTE_LOG_LEVEL RTE_LOG_INFO
+#define RTE_LOG_LEVEL RTE_LOG_DEBUG
 
 #include "scion.h"
 
