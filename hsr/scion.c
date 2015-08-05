@@ -47,23 +47,12 @@
     8)) // 12bit is  egress if and 8 bit gap between uint32 and 24bit field
 #define EGRESS_IF(HOF) ((ntohl(HOF->ingress_egress_if) >> 8) & 0x000fff)
 
-
-#define LOCAL_NETWORK_ADDRESS IPv4(10,56,0,0)
+#define LOCAL_NETWORK_ADDRESS IPv4(10, 56, 0, 0)
 #define GET_EDGE_ROUTER_IPADDR(IFID) (LOCAL_NETWORK_ADDRESS | IFID)
-
-/*
-typedef struct {
-  uint32_t addr;     // IP address of an edge router
-  //uint16_t udp_port; // UDP port  // assume UDP port is fixed value
-  //uint8_t dpdk_port; // Phicical port (NIC)
-  uint16_t scion_ifid;
-} NextHop;
-*/
 
 #define MAX_NUM_ROUTER 16
 #define MAX_NUM_BEACON_SERVERS 1
-#define MAX_IFID 2<<12
-//NextHop iflist[MAX_IFID];
+#define MAX_IFID 2 << 12
 uint32_t neighbor_ad_ifid;
 uint32_t neighbor_ad_router_ip;
 uint32_t beacon_servers[MAX_NUM_BEACON_SERVERS];
@@ -78,23 +67,8 @@ void scion_init() {
   // fill interface list
   // TODO read topology configuration
 
-  // egress port (neighbor AD's router)
   neighbor_ad_ifid = 111;
   neighbor_ad_router_ip = IPv4(1, 1, 1, 1);
-  //iflist[111].addr = IPv4(1, 1, 1, 1);
-  //iflist[111].udp_port = 33040;
-  //iflist[111].dpdk_port = DPDK_EGRESS_PORT;
-
-  // local port (other egress router in this AD)
-  //TODO IP is calclated as NETWORK_ADDRESS + IFID 
-  //iflist[280].addr = IPv4(2, 2, 2, 2);
-  //iflist[280].udp_port = 33040;
-  //iflist[280].dpdk_port = DPDK_LOCAL_PORT;
-
-  //TODO IP is calclated as NETWORK_ADDRESS + IFID 
-  //iflist[281].addr = IPv4(3, 3, 3, 3);
-  //iflist[281].udp_port = 33040;
-  //iflist[281].dpdk_port = DPDK_LOCAL_PORT;
 
   beacon_servers[0] = IPv4(7, 7, 7, 7);
   certificate_servers[0] = IPv4(8, 8, 8, 8);
@@ -104,7 +78,6 @@ void scion_init() {
 }
 
 int l2fwd_send_packet(struct rte_mbuf *m, uint8_t port);
-
 
 // send a packet to neighbor AD router
 static inline int send_egress(struct rte_mbuf *m) {
@@ -117,16 +90,10 @@ static inline int send_egress(struct rte_mbuf *m) {
                                sizeof(struct ipv4_hdr));
 
   // Specify output dpdk port.
-  //uint8_t dpdk_port = iflist[neighbor_ad_ifid].dpdk_port;
   // Update destination IP address and UDP port number
 
-  //TODO IP is calclated as NETWORK_ADDRESS + IFID 
-  //ipv4_hdr->dst_addr = iflist[neighbor_ad_ifid].addr;
   ipv4_hdr->dst_addr = neighbor_ad_router_ip;
-  
-
-  //assume port is the same, so the next line is not required
-  //udp_hdr->dst_port = iflist[neighbor_ad_ifid].udp_port;
+  // udp_hdr->dst_port = SCION_UDP_PORT;
 
   l2fwd_send_packet(m, DPDK_EGRESS_PORT);
 }
@@ -143,19 +110,13 @@ static inline int send_local(struct rte_mbuf *m, uint32_t next_ifid) {
 
   if (next_ifid != 0) {
     // Specify output dpdk port.
-    //uint8_t dpdk_port;
-    //dpdk_port = iflist[next_ifid].dpdk_port;
+    // uint8_t dpdk_port;
     // Update destination IP address and UDP port number
-    //ipv4_hdr->dst_addr = iflist[next_ifid].addr;
-
-    //printf("IP %x\n",GET_EDGE_ROUTER_IPADDR(next_ifid));
     ipv4_hdr->dst_addr = GET_EDGE_ROUTER_IPADDR(next_ifid);
+    // udp_hdr->dst_port = SCION_UDP_PORT;
 
-    //assume port is the same, so the next line is not required
-    //udp_hdr->dst_port = iflist[next_ifid].udp_port;
-
-    //printf("dpdk_port=%d\n",dpdk_port);
-    printf("dpdk_port=%d\n",DPDK_LOCAL_PORT);
+    // printf("dpdk_port=%d\n",dpdk_port);
+    printf("dpdk_port=%d\n", DPDK_LOCAL_PORT);
     l2fwd_send_packet(m, DPDK_LOCAL_PORT);
     return 1;
   }
@@ -164,14 +125,20 @@ static inline int send_local(struct rte_mbuf *m, uint32_t next_ifid) {
 
 static inline uint8_t get_type(SCIONHeader *hdr) {
   SCIONAddr *src = (SCIONAddr *)(&hdr->srcAddr);
-  if(src->host_addr[0] != 10) return DATA_PACKET;
-  if(src->host_addr[1] != 224) return DATA_PACKET;
-  if(src->host_addr[2] != 0) return DATA_PACKET;
+  if (src->host_addr[0] != 10)
+    return DATA_PACKET;
+  if (src->host_addr[1] != 224)
+    return DATA_PACKET;
+  if (src->host_addr[2] != 0)
+    return DATA_PACKET;
 
   SCIONAddr *dst = (SCIONAddr *)(&hdr->dstAddr);
-  if(dst->host_addr[0] != 10) return DATA_PACKET;
-  if(dst->host_addr[1] != 224) return DATA_PACKET;
-  if(dst->host_addr[2] != 0) return DATA_PACKET;
+  if (dst->host_addr[0] != 10)
+    return DATA_PACKET;
+  if (dst->host_addr[1] != 224)
+    return DATA_PACKET;
+  if (dst->host_addr[2] != 0)
+    return DATA_PACKET;
 
   int b1 = src->host_addr[3] == BEACON_PACKET ||
            src->host_addr[3] == PATH_MGMT_PACKET ||
@@ -193,7 +160,7 @@ static inline uint8_t get_type(SCIONHeader *hdr) {
   return &hdr->srcAddr;
 }
 
-//TODO Optimization
+// TODO Optimization
 static inline uint8_t is_on_up_path(InfoOpaqueField *currOF) {
   if ((currOF->type & 0x1) ==
       1) { // low bit of type field is used for uppath/downpath flag
@@ -201,12 +168,12 @@ static inline uint8_t is_on_up_path(InfoOpaqueField *currOF) {
   }
   return 0;
 }
-//TODO Optimization
+// TODO Optimization
 static inline uint8_t is_last_path_of(SCIONCommonHeader *sch) {
   uint8_t offset = SCION_COMMON_HEADER_LEN + sizeof(HopOpaqueField);
   return sch->currentOF == offset + sch->headerLen;
 }
-//TODO Optimization
+// TODO Optimization
 static inline uint8_t is_regular(HopOpaqueField *currOF) {
   if ((currOF->type & (1 << 6)) == 0) {
     return 0;
@@ -214,7 +181,7 @@ static inline uint8_t is_regular(HopOpaqueField *currOF) {
   return 1;
 }
 
-//TODO Optimization
+// TODO Optimization
 static inline uint8_t is_continue(HopOpaqueField *currOF) {
   if ((currOF->type & (1 << 5)) == 0) {
     return 0;
@@ -332,7 +299,6 @@ static inline void normal_forward(struct rte_mbuf *m, uint32_t from_local_ad,
 
 static inline void crossover_forward(struct rte_mbuf *m,
                                      uint32_t from_local_ad) {
-  // printf("not implemented\n");
 
   struct ether_hdr *eth_hdr;
   struct ipv4_hdr *ipv4_hdr;
@@ -396,7 +362,6 @@ static inline void crossover_forward(struct rte_mbuf *m,
     } else {
       send_local(m, EGRESS_IF(hof));
     }
-
 
   } else if (info == NON_TDC_XOVR) {
     ////C++ code
@@ -590,9 +555,7 @@ static inline void process_pcb(struct rte_mbuf *m, uint8_t from_bs) {
       return;
     }
 
-    //ipv4_hdr->dst_addr = iflist[neighbor_ad_ifid].addr; // neighbor router IP
     ipv4_hdr->dst_addr = neighbor_ad_router_ip;
-    //udp_hdr->dst_port = iflist[neighbor_ad_ifid].udp_port; // neighbor router port
     udp_hdr->dst_port = SCION_UDP_PORT; // neighbor router port
     l2fwd_send_packet(m, DPDK_EGRESS_PORT);
 
@@ -610,7 +573,6 @@ static inline void relay_cert_server_packet(struct rte_mbuf *m,
       m, unsigned char *)+sizeof(struct ether_hdr));
 
   if (from_local_socket) {
-    //ipv4_hdr->dst_addr = iflist[neighbor_ad_ifid].addr;
     ipv4_hdr->dst_addr = neighbor_ad_router_ip;
     l2fwd_send_packet(m, DPDK_EGRESS_PORT);
   } else {
