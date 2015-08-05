@@ -96,6 +96,7 @@ static inline int send_egress(struct rte_mbuf *m) {
   // udp_hdr->dst_port = SCION_UDP_PORT;
 
   //TODO update IP checksum
+  //TODO should we updete destination MAC address?
   l2fwd_send_packet(m, DPDK_EGRESS_PORT);
 }
 
@@ -116,6 +117,7 @@ static inline int send_local(struct rte_mbuf *m, uint32_t next_ifid) {
     // udp_hdr->dst_port = SCION_UDP_PORT;
    
     //TODO update IP checksum
+    //TODO should we updete destination MAC address?
 
     // printf("dpdk_port=%d\n",dpdk_port);
     printf("dpdk_port=%d\n", DPDK_LOCAL_PORT);
