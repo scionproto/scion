@@ -27,7 +27,7 @@ from dnslib import DNSLabel, DNSRecord, QTYPE, RCODE
 # SCION
 from infrastructure.dns_server import SCIONDnsServer, ZoneResolver
 from lib.defines import SCION_DNS_PORT
-from lib.zookeeper import ZkConnectionLoss, ConnectionLoss, SessionExpiredError
+from lib.zookeeper import ZkConnectionLoss
 from test.testcommon import MockCollection, SCIONTestError
 
 
@@ -217,7 +217,7 @@ class TestSCIONDnsServerSetup(BaseDNSServer):
         # Setup
         self.mocks.elem_addr.host_addr = "127.0.0.1"
         server = SCIONDnsServer("srvid", self.DOMAIN, "topofile")
-        server._join_parties = MagicMock(spec_set=[])
+        server._setup_parties = MagicMock(spec_set=[])
         server.id = "srvid"
         server.topology = MagicMock(spec_set=["isd_id", "ad_id", "zookeepers"])
         server.topology.isd_id = 30
@@ -241,12 +241,12 @@ class TestSCIONDnsServerSetup(BaseDNSServer):
             30, 10, "ds", "srvid\0%d\000127.0.0.1" % SCION_DNS_PORT,
             ["zk0", "zk1"])
         ntools.eq_(server._parties, {})
-        server._join_parties.assert_called_once_with()
+        server._setup_parties.assert_called_once_with()
 
 
-class TestSCIONDnsJoinParties(BaseDNSServer):
+class TestSCIONDnsSetupParties(BaseDNSServer):
     """
-    Unit tests for infrastructure.dns_server.SCIONDnsServer._join_parties
+    Unit tests for infrastructure.dns_server.SCIONDnsServer._setup_parties
     """
     def _setup_server(self):
         self.mocks.elem_addr.host_addr = "127.0.0.1"
@@ -257,7 +257,7 @@ class TestSCIONDnsJoinParties(BaseDNSServer):
         server.topology.ad_id = 10
         server.zk = MagicMock(spec_set=["wait_connected", "_zk"])
         server._parties = {}
-        server._join_party = MagicMock(spec_set=[])
+        server._setup_party = MagicMock(spec_set=[])
         return server
 
     @dns_init_wrapper
@@ -265,27 +265,26 @@ class TestSCIONDnsJoinParties(BaseDNSServer):
         # Setup
         server = self._setup_server()
         server.zk.wait_connected.side_effect = [False]
-        server._join_party.side_effect = SCIONTestError(
-            "_join_party should not have been called")
         # Call
-        ntools.assert_raises(StopIteration, server._join_parties)
+        ntools.assert_raises(StopIteration, server._setup_parties)
         # Tests
         ntools.eq_(server.zk.wait_connected.call_count, 2)
+        ntools.assert_false(server._setup_party.called)
 
     @dns_init_wrapper
-    def test_joining(self):
+    def test_setup(self):
         # Setup
         server = self._setup_server()
         server.zk.wait_connected.side_effect = [True]
         # Call
-        server._join_parties()
+        server._setup_parties()
         # Tests
-        ntools.eq_(server.zk.wait_connected.call_count, 1)
+        server.zk.wait_connected.assert_called_once_with(timeout=10.0)
         calls = []
         for i in server.SRV_TYPES:
             calls.append(call(i))
-        server._join_party.assert_has_calls(calls)
-        ntools.eq_(server._join_party.call_count, len(server.SRV_TYPES))
+        server._setup_party.assert_has_calls(calls)
+        ntools.eq_(server._setup_party.call_count, len(server.SRV_TYPES))
         server._parties['ds'].join.assert_called_once_with()
 
     @dns_init_wrapper
@@ -293,17 +292,17 @@ class TestSCIONDnsJoinParties(BaseDNSServer):
         # Setup
         server = self._setup_server()
         server.zk.wait_connected.side_effect = [True]
-        server._join_party.side_effect = [1, 2, 3, ZkConnectionLoss]
+        server._setup_party.side_effect = [1, 2, 3, ZkConnectionLoss]
         # Call
-        ntools.assert_raises(StopIteration, server._join_parties)
+        ntools.assert_raises(StopIteration, server._setup_parties)
         # Tests
         ntools.eq_(server.zk.wait_connected.call_count, 2)
         ntools.eq_(server._parties, {})
 
 
-class TestSCIONDnsJoinParty(BaseDNSServer):
+class TestSCIONDnsSetupParty(BaseDNSServer):
     """
-    Unit tests for infrastructure.dns_server.SCIONDnsServer._join_party
+    Unit tests for infrastructure.dns_server.SCIONDnsServer._setup_party
     """
     @dns_init_wrapper
     def test(self):
@@ -312,13 +311,13 @@ class TestSCIONDnsJoinParty(BaseDNSServer):
         server.topology = MagicMock(spec_set=["isd_id", "ad_id"])
         server.topology.isd_id = 30
         server.topology.ad_id = 10
-        server.zk = MagicMock(spec_set=["join_party"])
+        server.zk = MagicMock(spec_set=["party_setup"])
         prefix = "/ISD30-AD10/tst"
         # Call
-        ret = server._join_party("tst")
+        ret = server._setup_party("tst")
         # Tests
-        server.zk.join_party.assert_called_once_with(prefix=prefix)
-        ntools.eq_(server.zk.join_party.return_value, ret)
+        server.zk.party_setup.assert_called_once_with(prefix=prefix, join=False)
+        ntools.eq_(server.zk.party_setup.return_value, ret)
 
 
 class TestSCIONDnsSyncZkState(BaseDNSServer):
@@ -327,72 +326,55 @@ class TestSCIONDnsSyncZkState(BaseDNSServer):
     """
     _SRV_TYPES = ["bs", "cs"]
     _PARTIES = {
-        "bs": ["bs1", "bs2", "bs2"],
-        "cs": ["cs1"],
+        "bs": "bs party",
+        "cs": "cs party",
     }
+    _BSES = ["bs1", "bs2", "bs3"]
+    _CSES = ["cs1"]
 
     def _setup_server(self):
         server = SCIONDnsServer("srvid", self.DOMAIN, "topofile")
         server.SRV_TYPES = self._SRV_TYPES
+        server._parties = self._PARTIES
+        server.zk = MagicMock(spec_set=['party_list'])
         server._parse_srv_inst = MagicMock(spec_set=[])
-        server._update_zone = MagicMock(spec_set=[])
         server.resolver = MagicMock(spec_set=["services"])
         return server
 
-    @patch.object(SCIONDnsServer, "SRV_TYPES", new=[])
     @dns_init_wrapper
     def test_success(self):
         # Setup
         server = self._setup_server()
-        server._parties = self._PARTIES
+        server.zk.party_list.side_effect = (self._BSES, self._CSES)
         domain_set = set([self.DOMAIN.add(srv) for srv in self._SRV_TYPES])
         # Call
         server._sync_zk_state()
         # Tests
         ntools.eq_(domain_set, set(server.services))
-        calls = []
-        for srv, addrs in self._PARTIES.items():
-            srv_domain = self.DOMAIN.add(srv)
-            for addr in set(addrs):
-                calls.append(call(addr, srv_domain))
-        server._parse_srv_inst.assert_has_calls(calls, any_order=True)
+        list_calls = [call("bs party"), call("cs party")]
+        server.zk.party_list.assert_has_calls(list_calls, any_order=True)
+        bs_domain = self.DOMAIN.add("bs")
+        cs_domain = self.DOMAIN.add("cs")
+        parse_calls = [
+            call("bs1", bs_domain),
+            call("bs2", bs_domain),
+            call("bs3", bs_domain),
+            call("cs1", cs_domain),
+        ]
+        server._parse_srv_inst.assert_has_calls(parse_calls, any_order=True)
+        ntools.assert_true(self.mocks.lock.called)
+        ntools.eq_(server.resolver.services, server.services)
 
     @dns_init_wrapper
-    def _check_connloss(self, excp):
+    def test_connloss(self):
         # Setup
         server = self._setup_server()
-        domain_set = set([self.DOMAIN.add(srv) for srv in server.SRV_TYPES])
-        parties = MagicMock(spec_set=dict)
-        # Redirect all server._parties read through _get_party_item,
-        # simulating an exception during access.
-        parties.__getitem__.side_effect = \
-            lambda x: self._get_party_item(x, excp)
-        server._parties = parties
+        server.zk.party_list.side_effect = [ZkConnectionLoss, self._CSES]
         # Call
         server._sync_zk_state()
         # Tests
-        ntools.eq_(domain_set, set(server.services))
-        calls = []
-        for srv, addrs in self._PARTIES.items():
-            if srv == "bs":
-                continue
-            srv_domain = self.DOMAIN.add(srv)
-            for addr in set(addrs):
-                calls.append(call(addr, srv_domain))
-        server._parse_srv_inst.assert_has_calls(calls, any_order=True)
-
-    def test_connloss(self):
-        for excp in ConnectionLoss, SessionExpiredError:
-            yield self._check_connloss, excp
-
-    def _get_party_item(self, item, excp):
-        """
-        Raise the specificed exception if a specified item is accessed
-        """
-        if item == "bs":
-            raise excp
-        else:
-            return self._PARTIES[item]
+        server._parse_srv_inst.assert_called_once_with(
+            "cs1", self.DOMAIN.add("cs"))
 
 
 class TestSCIONDnsParseSrvInst(BaseDNSServer):

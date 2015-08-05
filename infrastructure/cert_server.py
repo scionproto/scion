@@ -345,7 +345,7 @@ class CertServer(SCIONElement):
             try:
                 if not self._state_synced.is_set():
                     # Register that we can now accept and store cert chains
-                    self.zk.join_party()
+                    self.zk.party_setup()
                     # Make sure we re-read the entire cache
                     self._latest_entry_cert_chains = 0
                     self._latest_entry_trcs = 0
