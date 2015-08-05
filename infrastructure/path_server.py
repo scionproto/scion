@@ -325,10 +325,8 @@ class PathServer(SCIONElement):
         Run an instance of the local Path Server.
         """
         threading.Thread(
-            target=thread_safety_net,
-            args=("handle_shared_segments", self.handle_shared_segments),
-            name="PS, shared segments",
-            daemon=True).start()
+            target=thread_safety_net, args=(self.handle_shared_segments,),
+            name="PS.handle_shared_segments", daemon=True).start()
 
         SCIONElement.run(self)
 
@@ -964,15 +962,11 @@ class CorePathServer(PathServer):
         Run an instance of the Core Path Server.
         """
         threading.Thread(
-            target=thread_safety_net,
-            args=("_master_election", self._master_election),
-            name="Core PS master election",
-            daemon=True).start()
+            target=thread_safety_net, args=(self._master_election,),
+            name="cPS._master_election", daemon=True).start()
         threading.Thread(
-            target=thread_safety_net,
-            args=("_update_master", self._update_master),
-            name="Core PS master update",
-            daemon=True).start()
+            target=thread_safety_net, args=(self._update_master,),
+            name="cPS._update_master", daemon=True).start()
 
         PathServer.run(self)
 
