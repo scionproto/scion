@@ -256,6 +256,7 @@ static inline void normal_forward(struct rte_mbuf *m, uint32_t from_local_ad,
     sch->currentOF += sizeof(HopOpaqueField);
 
     // printf("send packet to neighbor AD\n");
+    //send packet to neighbor AD's router
     send_egress(m);
   } else {
     // from neighbor AD
