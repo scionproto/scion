@@ -309,19 +309,16 @@ class TestSCIONDnsJoinParty(BaseDNSServer):
     def test(self):
         # Setup
         server = SCIONDnsServer("srvid", self.DOMAIN, "topofile")
-        server.name_addrs = "nameaddrs"
         server.topology = MagicMock(spec_set=["isd_id", "ad_id"])
         server.topology.isd_id = 30
         server.topology.ad_id = 10
-        server.zk = MagicMock(spec_set=["_zk"])
-        server.zk._zk = MagicMock(spec_set=["Party", "ensure_path"])
-        path = "/ISD30-AD10/tst/party"
+        server.zk = MagicMock(spec_set=["join_party"])
+        prefix = "/ISD30-AD10/tst"
         # Call
         ret = server._join_party("tst")
         # Tests
-        server.zk._zk.ensure_path.assert_called_once_with(path)
-        server.zk._zk.Party.assert_called_once_with(path, "nameaddrs")
-        ntools.eq_(server.zk._zk.Party.return_value, ret)
+        server.zk.join_party.assert_called_once_with(prefix=prefix)
+        ntools.eq_(server.zk.join_party.return_value, ret)
 
 
 class TestSCIONDnsSyncZkState(BaseDNSServer):

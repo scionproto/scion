@@ -3,6 +3,7 @@
 # Small script to fully setup environment
 
 sudo service zookeeper start
+sudo mount -t tmpfs -o size=25% none /run/shm
 
 # Can't be fixed during build due to
 # https://github.com/docker/docker/issues/6828

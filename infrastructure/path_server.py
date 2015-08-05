@@ -16,6 +16,7 @@
 ========================================
 """
 # Stdlib
+import argparse
 import copy
 import datetime
 import logging
@@ -1346,17 +1347,23 @@ def main():
     """
     Main function.
     """
-    init_logging()
     handle_signals()
-    if len(sys.argv) != 5:
-        logging.error("run: %s <core|local> server_id topo_file conf_file",
-                      sys.argv[0])
-        sys.exit()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('type', choices=['core', 'local'],
+                        help='Core or local path server')
+    parser.add_argument('server_id', help='Server identifier')
+    parser.add_argument('topo_file', help='Topology file')
+    parser.add_argument('conf_file', help='AD configuration file')
+    parser.add_argument('log_file', help='Log file')
+    args = parser.parse_args()
+    init_logging(args.log_file)
 
-    if sys.argv[1] == "core":
-        path_server = CorePathServer(*sys.argv[2:])
-    elif sys.argv[1] == "local":
-        path_server = LocalPathServer(*sys.argv[2:])
+    if args.type == "core":
+        path_server = CorePathServer(args.server_id, args.topo_file,
+                                     args.conf_file)
+    elif args.type == "local":
+        path_server = LocalPathServer(args.server_id, args.topo_file,
+                                      args.conf_file)
     else:
         logging.error("First parameter can only be 'local' or 'core'!")
         sys.exit()
