@@ -27,7 +27,8 @@ import nose.tools as ntools
 from lib.defines import SCION_DNS_PORT
 from lib.dnsclient import (
     DNSClient,
-    DNSLibError,
+    DNSLibMajorError,
+    DNSLibNoServersError,
     DNSLibNxDomain,
     DNSLibTimeout,
 )
@@ -108,9 +109,9 @@ class TestDNSClientQuery(object):
         for error, excp in (
             (dns.exception.Timeout, DNSLibTimeout),
             (dns.resolver.NXDOMAIN, DNSLibNxDomain),
-            (dns.resolver.YXDOMAIN, DNSLibError),
-            (dns.resolver.NoAnswer, DNSLibError),
-            (dns.resolver.NoNameservers, DNSLibError),
+            (dns.resolver.YXDOMAIN, DNSLibMajorError),
+            (dns.resolver.NoAnswer, DNSLibMajorError),
+            (dns.resolver.NoNameservers, DNSLibNoServersError),
         ):
             yield self._check_exceptions, error, excp
 

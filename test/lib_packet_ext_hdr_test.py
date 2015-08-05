@@ -60,13 +60,14 @@ class TestExtensionHeaderParse(object):
         ext_hdr.EXT_NO = 11
         data = bytes([14, 0, 11, 0, 0, 0, 0, 0])
         raw.return_value = MagicMock(spec_set=["pop"])
-        raw.return_value.pop.return_value = data
+        raw.return_value.pop.side_effect = [data[:3], data[3:]]
         # Call
         ext_hdr.parse(data)
         # Tests
-        raw.assert_called_once_with(data, "ExtensionHeader", ext_hdr.MIN_LEN)
-        ntools.eq_(ext_hdr.next_ext, 14)
-        ntools.eq_(ext_hdr.hdr_len, 0)
+        raw.assert_called_once_with(data, "ExtensionHeader", ext_hdr.MIN_LEN,
+                                    min_=True)
+        ntools.eq_(ext_hdr.next_hdr, 14)
+        ntools.eq_(ext_hdr._hdr_len, 0)
         ntools.assert_true(ext_hdr.parsed)
 
 

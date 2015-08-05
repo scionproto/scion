@@ -16,6 +16,7 @@
 ===========================================
 """
 # Stdlib
+import argparse
 import datetime
 import logging
 import socket
@@ -158,10 +159,8 @@ class Router(SCIONElement):
         Run the router threads.
         """
         threading.Thread(
-            target=thread_safety_net,
-            args=("sync_interface", self.sync_interface),
-            name="Sync Interfaces",
-            daemon=True).start()
+            target=thread_safety_net, args=(self.sync_interface,),
+            name="ER.sync_interface", daemon=True).start()
         SCIONElement.run(self)
 
     def send(self, packet, next_hop, use_local_socket=True):
@@ -562,17 +561,21 @@ def main():
     """
     Initializes and starts router.
     """
-    init_logging()
     handle_signals()
-    if len(sys.argv) != 4:
-        logging.error("run: %s router_id topo_file conf_file", sys.argv[0])
-        sys.exit()
-
+    parser = argparse.ArgumentParser()
+    parser.add_argument('router_id', help='Router identifier')
+    parser.add_argument('topo_file', help='Topology file')
+    parser.add_argument('conf_file', help='AD configuration file')
+    parser.add_argument('log_file', help='Log file')
+    args = parser.parse_args()
+    init_logging(args.log_file)
     # Run router without extensions handling:
     # router = Router(*sys.argv[1:])
     # Run router with an extension handler:
     pre_handlers = {TracerouteExt.EXT_NO: traceroute_ext_handler}
-    router = Router(*sys.argv[1:], pre_ext_handlers=pre_handlers)
+    router = Router(args.router_id, args.topo_file, args.conf_file,
+                    pre_ext_handlers=pre_handlers)
+
     logging.info("Started: %s", datetime.datetime.now())
     router.run()
 

@@ -23,6 +23,9 @@ cmd_topology() {
 cmd_run() {
     echo "Running the network..."
     supervisor/supervisor.sh reload
+    for i in topology/ISD*/zookeeper/ISD*/datalog.*.sh; do
+        bash "$i"
+    done
     supervisor/supervisor.sh quickstart all
 }
 
@@ -31,12 +34,11 @@ cmd_stop() {
     supervisor/supervisor.sh quickstop all
 }
 
-cmd_start(){
-    # placeholder function to run all init functions
-    # cmd_init
-    # cmd_topology
-    # cmd_run
-    echo "This method has not been fully implemented. Please run init, topology and run"
+cmd_status() {
+    supervisor/supervisor.sh status | grep -v RUNNING
+    # If all tasks are running, then return 0. Else return 1.
+    [ $? -eq 1 ]
+    return
 }
 
 cmd_test(){
@@ -69,8 +71,6 @@ cmd_help() {
 	echo
 	cat <<-_EOF
 	Usage:
-	    $PROGRAM start
-	        (not implemented) Performs all tasks (compile crypto lib, creates a topology, adds IP aliases, runs the network)
 	    $PROGRAM init
 	        Compile the SCION crypto library.
 	    $PROGRAM topology
@@ -79,6 +79,8 @@ cmd_help() {
 	        Run network.
 	    $PROGRAM stop
 	        Terminate this run of the SCION infrastructure.
+	    $PROGRAM status
+	        Show all non-running tasks.
 	    $PROGRAM test
 	        Run all unit tests.
 	    $PROGRAM coverage
@@ -96,7 +98,7 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    coverage|help|init|lint|run|start|stop|test|topology|version)
+    coverage|help|init|lint|run|stop|status|test|topology|version)
         "cmd_$COMMAND" "$@" ;;
     *)  cmd_help ;;
 esac

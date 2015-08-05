@@ -30,23 +30,44 @@ from lib.defines import SCION_DNS_PORT
 from lib.errors import SCIONBaseError
 
 
-class DNSLibError(SCIONBaseError):
+class DNSLibBaseError(SCIONBaseError):
     """
-    DNSLibError: Base lib.dns exception
-    """
-    pass
-
-
-class DNSLibTimeout(DNSLibError):
-    """
-    DNSLibTimeout
+    Base lib.dns exception
     """
     pass
 
 
-class DNSLibNxDomain(DNSLibError):
+class DNSLibMajorError(SCIONBaseError):
     """
-    DNSLibNxDomain: name doesn't exist.
+    Base lib.dns major exception
+    """
+    pass
+
+
+class DNSLibNoServersError(DNSLibMajorError):
+    """
+    No working servers
+    """
+    pass
+
+
+class DNSLibNxDomain(DNSLibMajorError):
+    """
+    Name doesn't exist.
+    """
+    pass
+
+
+class DNSLibMinorError(SCIONBaseError):
+    """
+    Base lib.dns minor exception
+    """
+    pass
+
+
+class DNSLibTimeout(DNSLibMinorError):
+    """
+    Timeout
     """
     pass
 
@@ -88,7 +109,10 @@ class DNSClient(object):
                                 self.resolver.lifetime) from None
         except dns.resolver.NXDOMAIN:
             raise DNSLibNxDomain("Name (%s) does not exist" % qname) from None
+        except dns.resolver.NoNameservers:
+            raise DNSLibNoServersError("Unable to reach any working nameservers") \
+                from None
         except Exception as e:
-            raise DNSLibError("Unhandled exception in resolver.") from e
+            raise DNSLibMajorError("Unhandled exception in resolver.") from e
         shuffle(results)
         return [ip_address(addr) for addr in results]
