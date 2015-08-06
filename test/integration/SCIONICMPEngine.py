@@ -18,8 +18,6 @@
 Module docstring here.
 
 SCION ICMP Engine to process ICMP packets
-    
-
 """
 
 # SCION
