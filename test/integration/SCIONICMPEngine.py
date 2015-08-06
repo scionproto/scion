@@ -17,8 +17,8 @@
 
 Module docstring here.
 
-.. note::
-    Fill in the docstring.
+SCION ICMP Engine to process ICMP packets
+    
 
 """
 
