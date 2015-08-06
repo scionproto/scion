@@ -245,13 +245,16 @@ class Zookeeper(object):
         except (ConnectionLoss, SessionExpiredError):
             raise ZkConnectionLoss
 
-    def join_party(self, prefix=None):
+    def party_setup(self, prefix=None, join=True):
         """
-        Join a `Kazoo Party
+        Setup a `Kazoo Party
         <https://kazoo.readthedocs.org/en/latest/api/recipe/party.html>`_.
 
         Used to signal that a group of processes are in a similar state.
 
+        :param str prefix: Path to create the party under. If not specified,
+                           uses the default prefix for this server instance.
+        :param bool join: Join the party if True
         :raises:
             ZkConnectionLoss: if the connection to ZK drops
         """
@@ -261,18 +264,39 @@ class Zookeeper(object):
             prefix = self._prefix
         party_path = os.path.join(prefix, "party")
         party = self._parties.get(party_path)
-        if party is None:
-            # Initialise the service party
-            self.ensure_path(party_path, abs=True)
-            party = self._zk.Party(party_path, self._srv_id)
-            self._parties[party_path] = party
         try:
-            party.join()
+            if party is None:
+                self.ensure_path(party_path, abs=True)
+                party = self._zk.Party(party_path, self._srv_id)
+                self._parties[party_path] = party
+            if join:
+                party.join()
+            entries = self.party_list(party)
         except (ConnectionLoss, SessionExpiredError):
             raise ZkConnectionLoss
-        members = set([entry.split("\0")[0] for entry in list(party)])
-        logging.debug("Joined party, members are: %s", sorted(members))
+        names = set([entry.split("\0")[0] for entry in entries])
+        logging.debug("Current party (%s) members are: %s", party_path,
+                      sorted(names))
         return party
+
+    def party_list(self, party=None):
+        """
+        List the members of a `Kazoo Party
+        <https://kazoo.readthedocs.org/en/latest/api/recipe/party.html>`_.
+
+        :param party: Party to check. If not specified, use default party.
+        :return: Set of members
+        :rtype: set
+        :raises:
+            ZkConnectionLoss: if the connection to ZK drops
+        """
+        if party is None:
+            party_path = os.path.join(self._prefix, "party")
+            party = self._parties.get(party_path)
+        try:
+            return set(party)
+        except (ConnectionLoss, SessionExpiredError):
+            raise ZkConnectionLoss
 
     def get_lock(self, timeout=60.0):
         """

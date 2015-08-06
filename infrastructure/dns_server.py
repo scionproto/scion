@@ -38,10 +38,6 @@ from dnslib.server import (
     TCPServer,
     UDPServer,
 )
-from kazoo.exceptions import (
-    ConnectionLoss,
-    SessionExpiredError,
-)
 
 # SCION
 from infrastructure.scion_elem import SCIONElement
@@ -411,9 +407,9 @@ class SCIONDnsServer(SCIONElement):
             self.topology.isd_id, self.topology.ad_id,
             "ds", self.name_addrs, self.topology.zookeepers)
         self._parties = {}
-        self._join_parties()
+        self._setup_parties()
 
-    def _join_parties(self):
+    def _setup_parties(self):
         """
 
         """
@@ -424,7 +420,7 @@ class SCIONDnsServer(SCIONElement):
             logging.debug("Connected to ZK")
             try:
                 for i in self.SRV_TYPES:
-                    self._parties[i] = self._join_party(i)
+                    self._parties[i] = self._setup_party(i)
                 # Join the DNS server party
                 self._parties['ds'].join()
             except ZkConnectionLoss:
@@ -436,7 +432,7 @@ class SCIONDnsServer(SCIONElement):
             else:
                 break
 
-    def _join_party(self, type_):
+    def _setup_party(self, type_):
         """
 
         :param type_:
@@ -447,7 +443,7 @@ class SCIONDnsServer(SCIONElement):
         """
         prefix = "/ISD%d-AD%d/%s" % (self.topology.isd_id, self.topology.ad_id,
                                      type_)
-        return self.zk.join_party(prefix=prefix)
+        return self.zk.party_setup(prefix=prefix, join=False)
 
     def _sync_zk_state(self):
         """
@@ -460,12 +456,13 @@ class SCIONDnsServer(SCIONElement):
         for srv_type in self.SRV_TYPES:
             srv_domain = self.domain.add(srv_type)
             self.services[srv_domain] = []
+            party = self._parties[srv_type]
             try:
-                srv_set = set(self._parties[srv_type])
-            except (ConnectionLoss, SessionExpiredError):
+                srvs = self.zk.party_list(party)
+            except ZkConnectionLoss:
                 # If the connection drops, leave the instance list blank
                 continue
-            for i in srv_set:
+            for i in srvs:
                 self._parse_srv_inst(i, srv_domain)
 
         # Update DNS zone data
