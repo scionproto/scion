@@ -24,7 +24,8 @@ import traceback
 # errors.
 
 #: Bytes
-LOG_MAX_SIZE = 1*1024*1024
+LOG_MAX_SIZE = 1 * 1024 * 1024
+LOG_BACKUP_COUNT = 1
 
 
 class _LoggingErrorHandler(logging.handlers.RotatingFileHandler):
@@ -63,7 +64,7 @@ def init_logging(log_file, level=logging.DEBUG):
     :type level:
     """
     handler = _LoggingErrorHandler(log_file, maxBytes=LOG_MAX_SIZE,
-                                   encoding="utf-8")
+                                   backupCount=1, encoding="utf-8")
     logging.basicConfig(
         level=level, handlers=[handler],
         format='%(asctime)s [%(levelname)s] (%(threadName)s) %(message)s')
