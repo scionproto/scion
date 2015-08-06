@@ -227,6 +227,7 @@ class BeaconServer(SCIONElement):
                 self.topology.isd_id, self.topology.ad_id, "bs", name_addrs,
                 self.topology.zookeepers,
                 ensure_paths=(self.ZK_PCB_CACHE_PATH,))
+            self.zk.retry("Joining party", self.zk.party_setup)
 
     def _get_if_rev_token(self, if_id):
         """
@@ -635,14 +636,13 @@ class BeaconServer(SCIONElement):
                 time.sleep(0.5)
             try:
                 if not self._state_synced.is_set():
-                    # Register that we can now accept and store PCBs in ZK
-                    self.zk.party_setup()
                     # Make sure we re-read the entire cache
                     self._latest_entry = 0
                 count = self._read_cached_entries()
                 if count:
                     logging.debug("Processed %d new/updated PCBs", count)
             except ZkConnectionLoss:
+                self._state_synced.clear()
                 continue
             self._state_synced.set()
 
