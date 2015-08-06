@@ -25,6 +25,7 @@ import nose.tools as ntools
 
 # SCION
 from lib.log import (
+    LOG_BACKUP_COUNT,
     LOG_MAX_SIZE,
     _LoggingErrorHandler,
     init_logging,
@@ -64,7 +65,8 @@ class TestInitLogging(object):
     def test(self, basic_config, handler):
         init_logging("logfile", 123)
         handler.assert_called_once_with(
-            "logfile", maxBytes=LOG_MAX_SIZE, encoding="utf-8")
+            "logfile", maxBytes=LOG_MAX_SIZE, backupCount=LOG_BACKUP_COUNT,
+            encoding="utf-8")
         basic_config.assert_called_once_with(
             level=123, handlers=[handler.return_value],
             format='%(asctime)s [%(levelname)s] '
