@@ -98,6 +98,7 @@ class CertServer(SCIONElement):
                                 "cs", name_addrs, self.topology.zookeepers,
                                 ensure_paths=(self.ZK_CERT_CHAIN_CACHE_PATH,
                                               self.ZK_TRC_CACHE_PATH,))
+            self.zk.retry("Joining party", self.zk.party_setup)
 
     def _store_cert_chain_in_zk(self, cert_chain_file, cert_chain):
         """
@@ -344,8 +345,6 @@ class CertServer(SCIONElement):
                 time.sleep(0.5)
             try:
                 if not self._state_synced.is_set():
-                    # Register that we can now accept and store cert chains
-                    self.zk.party_setup()
                     # Make sure we re-read the entire cache
                     self._latest_entry_cert_chains = 0
                     self._latest_entry_trcs = 0
@@ -356,6 +355,7 @@ class CertServer(SCIONElement):
                 if count:
                     logging.debug("Processed %d new/updated TRCs", count)
             except ZkConnectionLoss:
+                self._state_synced.clear()
                 continue
             self._state_synced.set()
 

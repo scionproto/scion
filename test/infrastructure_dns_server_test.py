@@ -17,7 +17,7 @@
 """
 # Stdlib
 from functools import wraps
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 # External packages
 import nose
@@ -210,7 +210,7 @@ def dns_setup_wrapper(f):
 
 class TestSCIONDnsServerSetup(BaseDNSServer):
     """
-    Unit tests for infrastructure.dns_server.SCIONDnsServer.__init__
+    Unit tests for infrastructure.dns_server.SCIONDnsServer.setup
     """
     @dns_setup_wrapper
     def test(self):
@@ -248,138 +248,99 @@ class TestSCIONDnsSetupParties(BaseDNSServer):
     """
     Unit tests for infrastructure.dns_server.SCIONDnsServer._setup_parties
     """
-    def _setup_server(self):
-        self.mocks.elem_addr.host_addr = "127.0.0.1"
-        server = SCIONDnsServer("srvid", self.DOMAIN, "topofile")
-        server.id = "srvid"
+    @patch("infrastructure.dns_server.SCIONDnsServer.__init__", autospec=True,
+           return_value=None)
+    def test(self, init):
+        server = SCIONDnsServer("server_id", "domain", "topo_file")
+        server.zk = MagicMock(spec_set=["retry", "party_setup"])
         server.topology = MagicMock(spec_set=["isd_id", "ad_id"])
         server.topology.isd_id = 30
         server.topology.ad_id = 10
-        server.zk = MagicMock(spec_set=["wait_connected", "_zk"])
         server._parties = {}
-        server._setup_party = MagicMock(spec_set=[])
-        return server
-
-    @dns_init_wrapper
-    def test_not_connected(self):
-        # Setup
-        server = self._setup_server()
-        server.zk.wait_connected.side_effect = [False]
-        # Call
-        ntools.assert_raises(StopIteration, server._setup_parties)
-        # Tests
-        ntools.eq_(server.zk.wait_connected.call_count, 2)
-        ntools.assert_false(server._setup_party.called)
-
-    @dns_init_wrapper
-    def test_setup(self):
-        # Setup
-        server = self._setup_server()
-        server.zk.wait_connected.side_effect = [True]
         # Call
         server._setup_parties()
         # Tests
-        server.zk.wait_connected.assert_called_once_with(timeout=10.0)
-        calls = []
-        for i in server.SRV_TYPES:
-            calls.append(call(i))
-        server._setup_party.assert_has_calls(calls)
-        ntools.eq_(server._setup_party.call_count, len(server.SRV_TYPES))
-        server._parties['ds'].join.assert_called_once_with()
-
-    @dns_init_wrapper
-    def test_connloss(self):
-        # Setup
-        server = self._setup_server()
-        server.zk.wait_connected.side_effect = [True]
-        server._setup_party.side_effect = [1, 2, 3, ZkConnectionLoss]
-        # Call
-        ntools.assert_raises(StopIteration, server._setup_parties)
-        # Tests
-        ntools.eq_(server.zk.wait_connected.call_count, 2)
-        ntools.eq_(server._parties, {})
-
-
-class TestSCIONDnsSetupParty(BaseDNSServer):
-    """
-    Unit tests for infrastructure.dns_server.SCIONDnsServer._setup_party
-    """
-    @dns_init_wrapper
-    def test(self):
-        # Setup
-        server = SCIONDnsServer("srvid", self.DOMAIN, "topofile")
-        server.topology = MagicMock(spec_set=["isd_id", "ad_id"])
-        server.topology.isd_id = 30
-        server.topology.ad_id = 10
-        server.zk = MagicMock(spec_set=["party_setup"])
-        prefix = "/ISD30-AD10/tst"
-        # Call
-        ret = server._setup_party("tst")
-        # Tests
-        server.zk.party_setup.assert_called_once_with(prefix=prefix, join=False)
-        ntools.eq_(server.zk.party_setup.return_value, ret)
+        for srv in server.SRV_TYPES:
+            autojoin = False
+            if srv == 'ds':
+                autojoin = True
+            server.zk.retry.assert_any_call(
+                "Joining %s party" % srv, server.zk.party_setup,
+                prefix="/ISD30-AD10/%s" % srv, autojoin=autojoin)
+        ntools.eq_(server.zk.retry.call_count, len(server.SRV_TYPES))
 
 
 class TestSCIONDnsSyncZkState(BaseDNSServer):
     """
     Unit tests for infrastructure.dns_server.SCIONDnsServer._sync_zk_state
     """
-    _SRV_TYPES = ["bs", "cs"]
-    _PARTIES = {
-        "bs": "bs party",
-        "cs": "cs party",
-    }
-    _BSES = ["bs1", "bs2", "bs3"]
-    _CSES = ["cs1"]
-
-    def _setup_server(self):
-        server = SCIONDnsServer("srvid", self.DOMAIN, "topofile")
-        server.SRV_TYPES = self._SRV_TYPES
-        server._parties = self._PARTIES
-        server.zk = MagicMock(spec_set=['party_list'])
-        server._parse_srv_inst = MagicMock(spec_set=[])
-        server.resolver = MagicMock(spec_set=["services"])
-        return server
-
-    @dns_init_wrapper
-    def test_success(self):
+    @patch("infrastructure.dns_server.SCIONDnsServer.__init__", autospec=True,
+           return_value=None)
+    def test_success(self, init):
         # Setup
-        server = self._setup_server()
-        server.zk.party_list.side_effect = (self._BSES, self._CSES)
-        domain_set = set([self.DOMAIN.add(srv) for srv in self._SRV_TYPES])
+        services = {
+            "bs": ["bs1", "bs2", "bs3"],
+            "cs": ["cs1"],
+            "ds": ["ds1", "ds2"],
+            "ps": [],
+        }
+        server = SCIONDnsServer("srvid", "domain", "topofile")
+        server.zk = MagicMock(spec_set=['wait_connected'])
+        server.domain = self.DOMAIN
+        server._parties = {}
+        for i in SCIONDnsServer.SRV_TYPES:
+            party = MagicMock(spec_set=["list"])
+            party.list.return_value = services[i]
+            server._parties[i] = party
+        server._parse_srv_inst = MagicMock(spec_set=[])
+        server.lock = MagicMock(spec_set=['__enter__', '__exit__'])
+        server.resolver = MagicMock(spec_set=["services"])
+        domain_set = set([self.DOMAIN.add(srv) for srv in
+                          SCIONDnsServer.SRV_TYPES])
         # Call
         server._sync_zk_state()
         # Tests
+        server.zk.wait_connected.assert_called_once_with(timeout=10.0)
         ntools.eq_(domain_set, set(server.services))
-        list_calls = [call("bs party"), call("cs party")]
-        server.zk.party_list.assert_has_calls(list_calls, any_order=True)
-        bs_domain = self.DOMAIN.add("bs")
-        cs_domain = self.DOMAIN.add("cs")
-        parse_calls = [
-            call("bs1", bs_domain),
-            call("bs2", bs_domain),
-            call("bs3", bs_domain),
-            call("cs1", cs_domain),
-        ]
-        server._parse_srv_inst.assert_has_calls(parse_calls, any_order=True)
-        ntools.assert_true(self.mocks.lock.called)
+        for type_, insts in services.items():
+            for inst in insts:
+                server._parse_srv_inst.assert_any_call(
+                    inst, self.DOMAIN.add(type_))
+        ntools.ok_(server.lock.mock_calls)
         ntools.eq_(server.resolver.services, server.services)
 
-    @dns_init_wrapper
-    def test_connloss(self):
+    @patch("infrastructure.dns_server.SCIONDnsServer.__init__", autospec=True,
+           return_value=None)
+    def test_no_conn(self, init):
         # Setup
-        server = self._setup_server()
-        server.zk.party_list.side_effect = [ZkConnectionLoss, self._CSES]
+        server = SCIONDnsServer("srvid", "domain", "topofile")
+        server.zk = MagicMock(spec_set=['wait_connected'])
+        server.zk.wait_connected.return_value = False
         # Call
         server._sync_zk_state()
         # Tests
-        server._parse_srv_inst.assert_called_once_with(
-            "cs1", self.DOMAIN.add("cs"))
+        server.zk.wait_connected.assert_called_once_with(timeout=10.0)
+        ntools.eq_(server.services, {})
+
+    @patch("infrastructure.dns_server.SCIONDnsServer.__init__", autospec=True,
+           return_value=None)
+    def test_connloss(self, init):
+        # Setup
+        server = SCIONDnsServer("srvid", "domain", "topofile")
+        server.zk = MagicMock(spec_set=['wait_connected'])
+        server.domain = self.DOMAIN
+        party = MagicMock(spec_set=["list"])
+        party.list.side_effect = ZkConnectionLoss
+        server._parties = {
+            SCIONDnsServer.SRV_TYPES[0]: party
+        }
+        # Call
+        server._sync_zk_state()
 
 
 class TestSCIONDnsParseSrvInst(BaseDNSServer):
     """
-    Unit tests for infrastructure.dns_server.SCIONDnsServer._mk_srv_inst
+    Unit tests for infrastructure.dns_server.SCIONDnsServer._parse_srv_inst
     """
     @dns_init_wrapper
     def test(self):
