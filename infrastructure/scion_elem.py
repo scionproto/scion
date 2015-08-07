@@ -29,9 +29,10 @@ import socket
 
 # SCION
 from lib.config import Config
-from lib.dnsclient import DNSCachingClient
+from lib.dnsclient import DNSCachingClient, DNSLibMajorError, DNSLibMinorError
 from lib.defines import SCION_BUFLEN, SCION_UDP_PORT
 from lib.packet.scion_addr import SCIONAddr
+from lib.log import log_exception
 from lib.topology import Topology
 
 
@@ -231,3 +232,16 @@ class SCIONElement(object):
         """
         for s in self._sockets:
             s.close()
+
+    def dns_query(self, qname, default):
+        """
+        Query dns for an answer. If an error occurs, return the default static
+        valid instead.
+        """
+        try:
+            return self.dns.query(qname)[0]
+        except DNSLibMinorError as e:
+            logging.warning("Falling back to static value: %s", e)
+        except DNSLibMajorError as e:
+            log_exception("Falling back to static value:")
+        return default

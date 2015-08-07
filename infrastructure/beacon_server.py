@@ -519,7 +519,8 @@ class BeaconServer(SCIONElement):
                     PT.TRC_REQ_LOCAL, self.addr, if_id,
                     self.topology.isd_id, self.topology.ad_id,
                     isd_id, trc_ver)
-                dst_addr = self.topology.certificate_servers[0].addr
+                dst_addr = self.dns_query(
+                    "cs", self.topology.certificate_servers[0].addr)
                 self.send(new_trc_req, dst_addr)
                 self.trc_requests[trc_tuple] = now
                 return None
@@ -730,8 +731,8 @@ class BeaconServer(SCIONElement):
             rev_payload = RevocationPayload.from_values([rev_info])
             pkt = PathMgmtPacket.from_values(PMT.REVOCATIONS, rev_payload, None,
                                              self.addr, self.addr.get_isd_ad())
-            dst = self.topology.path_servers[0].addr
             logging.info("Sending segment revocations to local PS.")
+            dst = self.dns_query("ps", self.topology.path_servers[0].addr)
             self.send(pkt, dst)
 
     def _process_segment_revocation(self, rev_info):
@@ -949,10 +950,9 @@ class CoreBeaconServer(BeaconServer):
         records = PathSegmentRecords.from_values(info, [pcb])
         # Register core path with local core path server.
         if self.topology.path_servers != []:
-            # TODO: pick other than the first path server
-            dst = SCIONAddr.from_values(self.topology.isd_id,
-                                        self.topology.ad_id,
-                                        self.topology.path_servers[0].addr)
+            ps_addr = self.dns_query("ps", self.topology.path_servers[0].addr)
+            dst = SCIONAddr.from_values(
+                self.topology.isd_id, self.topology.ad_id, ps_addr)
             pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, None,
                                              self.addr.get_isd_ad(), dst)
             self.send(pkt, dst.host_addr)
@@ -1135,7 +1135,8 @@ class LocalBeaconServer(BeaconServer):
                             PT.CERT_CHAIN_REQ_LOCAL,
                             self.addr, if_id, self.topology.isd_id,
                             self.topology.ad_id, isd_id, ad_id, cert_ver)
-                    dst_addr = self.topology.certificate_servers[0].addr
+                    dst_addr = self.dns_query(
+                        "cs", self.topology.certificate_servers[0].addr)
                     self.send(new_cert_chain_req, dst_addr)
                     self.cert_chain_requests[cert_chain_tuple] = now
                     return False
@@ -1149,10 +1150,9 @@ class LocalBeaconServer(BeaconServer):
         info = PathSegmentInfo.from_values(
             PST.UP, self.topology.isd_id, self.topology.isd_id,
             pcb.get_first_pcbm().ad_id, self.topology.ad_id)
-        # TODO: pick other than the first path server
-        dst = SCIONAddr.from_values(self.topology.isd_id,
-                                    self.topology.ad_id,
-                                    self.topology.path_servers[0].addr)
+        ps_addr = self.dns_query("ps", self.topology.path_servers[0].addr)
+        dst = SCIONAddr.from_values(
+            self.topology.isd_id, self.topology.ad_id, ps_addr)
         records = PathSegmentRecords.from_values(info, [pcb])
         pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, None,
                                          self.addr.get_isd_ad(), dst)
