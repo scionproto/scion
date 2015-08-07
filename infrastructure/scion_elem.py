@@ -29,6 +29,7 @@ import socket
 
 # SCION
 from lib.config import Config
+from lib.dnsclient import DNSClient
 from lib.defines import SCION_BUFLEN, SCION_UDP_PORT
 from lib.packet.scion_addr import SCIONAddr
 from lib.topology import Topology
@@ -89,6 +90,8 @@ class SCIONElement(object):
             self.id = server_type
         self.addr = SCIONAddr.from_values(self.topology.isd_id,
                                           self.topology.ad_id, host_addr)
+        self.dns = DNSClient([str(s.addr) for s in self.topology.dns_servers],
+                             self.topology.dns_domain)
         if config_file:
             self.parse_config(config_file)
         self.construct_ifid2addr_map()

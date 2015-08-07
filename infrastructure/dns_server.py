@@ -21,10 +21,10 @@ It dynamically provides DNS records for the AD based on service instances
 registering in Zookeeper.
 """
 # Stdlib
+import argparse
 import binascii
 import datetime
 import logging
-import os
 import sys
 import threading
 from time import sleep
@@ -37,10 +37,6 @@ from dnslib.server import (
     DNSServer,
     TCPServer,
     UDPServer,
-)
-from kazoo.exceptions import (
-    ConnectionLoss,
-    SessionExpiredError,
 )
 
 # SCION
@@ -411,44 +407,24 @@ class SCIONDnsServer(SCIONElement):
             self.topology.isd_id, self.topology.ad_id,
             "ds", self.name_addrs, self.topology.zookeepers)
         self._parties = {}
-        self._join_parties()
+        self._setup_parties()
 
-    def _join_parties(self):
+    def _setup_parties(self):
         """
 
         """
-        while True:
-            logging.debug("Waiting for ZK connection")
-            if not self.zk.wait_connected(timeout=10.0):
-                continue
-            logging.debug("Connected to ZK")
-            try:
-                for i in self.SRV_TYPES:
-                    self._parties[i] = self._join_party(i)
-                # Join the DNS server party
-                self._parties['ds'].join()
-            except ZkConnectionLoss:
-                logging.info("Connection dropped while "
-                             "registering for parties")
-                # Clear existing parties, start again.
-                self._parties = {}
-                continue
-            else:
-                break
-
-    def _join_party(self, type_):
-        """
-
-        :param type_:
-        :type type_:
-
-        :returns:
-        :rtype:
-        """
-        prefix = "/ISD%d-AD%d" % (self.topology.isd_id, self.topology.ad_id)
-        path = os.path.join(prefix, type_, 'party')
-        self.zk._zk.ensure_path(path)
-        return self.zk._zk.Party(path, self.name_addrs)
+        logging.debug("Joining parties")
+        for type_ in self.SRV_TYPES:
+            prefix = "/ISD%d-AD%d/%s" % (self.topology.isd_id,
+                                         self.topology.ad_id, type_)
+            autojoin = False
+            # Join only the DNS service party, for the rest we just want to
+            # setup the party so we can monitor the members.
+            if type_ == "ds":
+                autojoin = True
+            self._parties[type_] = self.zk.retry(
+                "Joining %s party" % type_, self.zk.party_setup, prefix=prefix,
+                autojoin=autojoin)
 
     def _sync_zk_state(self):
         """
@@ -457,16 +433,21 @@ class SCIONDnsServer(SCIONElement):
         # Clear existing state
         self.services = {}
 
+        if not self.zk.wait_connected(timeout=10.0):
+            logging.warning("No connection to Zookeeper, can't update services")
+            return
+
         # Retrieve alive instance details from ZK for each service.
         for srv_type in self.SRV_TYPES:
             srv_domain = self.domain.add(srv_type)
             self.services[srv_domain] = []
+            party = self._parties[srv_type]
             try:
-                srv_set = set(self._parties[srv_type])
-            except (ConnectionLoss, SessionExpiredError):
-                # If the connection drops, leave the instance list blank
-                continue
-            for i in srv_set:
+                srvs = party.list()
+            except ZkConnectionLoss:
+                # If the connection drops, don't update
+                return
+            for i in srvs:
                 self._parse_srv_inst(i, srv_domain)
 
         # Update DNS zone data
@@ -500,13 +481,17 @@ def main():
     """
     Main function.
     """
-    init_logging()
     handle_signals()
-    if len(sys.argv) != 4:
-        logging.error("run: %s server_id domain topo_file", sys.argv[0])
-        sys.exit()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('server_id', help='Server identifier')
+    parser.add_argument('domain', help='DNS Domain')
+    parser.add_argument('topology', help='Topology file')
+    parser.add_argument('log_file', help='Log file')
+    args = parser.parse_args()
+    init_logging(args.log_file)
 
-    scion_dns_server = SCIONDnsServer(*sys.argv[1:])
+    scion_dns_server = SCIONDnsServer(args.server_id, args.domain,
+                                      args.topology)
     scion_dns_server.setup()
     trace(scion_dns_server.id)
 

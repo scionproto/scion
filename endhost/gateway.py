@@ -33,6 +33,7 @@ from lib.defines import SCION_UDP_EH_DATA_PORT, SCION_BUFLEN
 from lib.log import init_logging
 from lib.packet.scion import SCIONPacket
 from lib.packet.scion_addr import SCIONAddr
+from lib.thread import thread_safety_net
 
 
 # Dictionary of destinations that should be reached via SCION.
@@ -79,7 +80,10 @@ class SCIONGateway(object):
         """
         Start the Gateway.
         """
-        threading.Thread(target=self.handle_ip_packets).start()
+        threading.Thread(
+            target=thread_safety_net, args=(self.handle_ip_packets,),
+            name="SCIONGateway.handle_ip_packets",
+            daemon=True).start()
         while True:
             packet, _ = self._data_socket.recvfrom(SCION_BUFLEN)
             self.handle_scion_packet(SCIONPacket(packet))

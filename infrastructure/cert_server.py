@@ -16,6 +16,7 @@
 ===============================================
 """
 # Stdlib
+import argparse
 import collections
 import datetime
 import logging
@@ -97,6 +98,7 @@ class CertServer(SCIONElement):
                                 "cs", name_addrs, self.topology.zookeepers,
                                 ensure_paths=(self.ZK_CERT_CHAIN_CACHE_PATH,
                                               self.ZK_TRC_CACHE_PATH,))
+            self.zk.retry("Joining party", self.zk.party_setup)
 
     def _store_cert_chain_in_zk(self, cert_chain_file, cert_chain):
         """
@@ -343,8 +345,6 @@ class CertServer(SCIONElement):
                 time.sleep(0.5)
             try:
                 if not self._state_synced.is_set():
-                    # Register that we can now accept and store cert chains
-                    self.zk.join_party()
                     # Make sure we re-read the entire cache
                     self._latest_entry_cert_chains = 0
                     self._latest_entry_trcs = 0
@@ -355,6 +355,7 @@ class CertServer(SCIONElement):
                 if count:
                     logging.debug("Processed %d new/updated TRCs", count)
             except ZkConnectionLoss:
+                self._state_synced.clear()
                 continue
             self._state_synced.set()
 
@@ -519,10 +520,8 @@ class CertServer(SCIONElement):
         Run an instance of the Certificate Server.
         """
         threading.Thread(
-            target=thread_safety_net,
-            args=("handle_shared_certs", self.handle_shared_certs),
-            name="CS shared certs",
-            daemon=True).start()
+            target=thread_safety_net, args=(self.handle_shared_certs,),
+            name="CS.handle_shared_certs", daemon=True).start()
         SCIONElement.run(self)
 
 
@@ -530,14 +529,18 @@ def main():
     """
     Main function.
     """
-    init_logging()
     handle_signals()
-    if len(sys.argv) != 5:
-        logging.error("run: %s server_id topo_file conf_file trc_file",
-                      sys.argv[0])
-        sys.exit()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('server_id', help='Server identifier')
+    parser.add_argument('topo_file', help='Topology file')
+    parser.add_argument('conf_file', help='AD configuration file')
+    parser.add_argument('trc_file', help='TRC file')
+    parser.add_argument('log_file', help='Log file')
+    args = parser.parse_args()
+    init_logging(args.log_file)
 
-    cert_server = CertServer(*sys.argv[1:])
+    cert_server = CertServer(args.server_id, args.topo_file, args.conf_file,
+                             args.trc_file)
 
     logging.info("Started: %s", datetime.datetime.now())
     cert_server.run()

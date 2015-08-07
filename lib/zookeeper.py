@@ -53,6 +53,11 @@ class ZkNoNodeError(ZkBaseError):
     pass
 
 
+class ZkRetryLimit(ZkBaseError):
+    """Operation retries hit limit"""
+    pass
+
+
 class Zookeeper(object):
     """
     A wrapper class for Zookeeper interfacing, using the `Kazoo python library
@@ -122,7 +127,7 @@ class Zookeeper(object):
         # Keep track of our connection state
         self._connected = threading.Event()
         # Kazoo party (initialised later)
-        self._party = None
+        self._parties = {}
         # Keep track of the kazoo lock
         self._lock = threading.Event()
         # Kazoo lock (initialised later)
@@ -132,9 +137,8 @@ class Zookeeper(object):
         # Use a thread to respond to state changes, as the listener callback
         # must not block.
         threading.Thread(
-            target=thread_safety_net,
-            args=("_state_handler", self._state_handler),
-            name="ZK state handler", daemon=True).start()
+            target=thread_safety_net, args=(self._state_handler,),
+            name="libZK._state_handler", daemon=True).start()
         # Listener called every time connection state changes
         self._zk.add_listener(self._state_listener)
 
@@ -182,12 +186,15 @@ class Zookeeper(object):
         Handles the Kazoo 'connected' event.
         """
         # Might be first connection, or reconnecting after a problem.
-        logging.debug("Connection to Zookeeper succeeded")
+        logging.debug("Connection to Zookeeper succeeded (Session: %s)",
+                      hex(self._zk.client_id[0]))
         try:
-            self._zk.ensure_path(self._prefix)
+            self.ensure_path(self._prefix, abs=True)
             for path in self._ensure_paths:
-                self._zk.ensure_path(os.path.join(self._prefix, path))
-        except (ConnectionLoss, SessionExpiredError):
+                self.ensure_path(path)
+            for party in self._parties.values():
+                party.autojoin()
+        except ZkConnectionLoss:
             return False
         self._connected.set()
         if self._on_connect:
@@ -230,28 +237,45 @@ class Zookeeper(object):
         """
         return self._connected.wait(timeout=timeout)
 
-    def join_party(self):
+    def ensure_path(self, path, abs=False):
         """
-        Join a `Kazoo Party
+        Ensure that a path exists in Zookeeper.
+
+        :param str path: Path to ensure
+        :param bool abs: Is the path abolute or relative?
+        """
+        full_path = path
+        if not abs:
+            full_path = os.path.join(self._prefix, path)
+        try:
+            self._zk.ensure_path(full_path)
+        except (ConnectionLoss, SessionExpiredError):
+            raise ZkConnectionLoss
+
+    def party_setup(self, prefix=None, autojoin=True):
+        """
+        Setup a `Kazoo Party
         <https://kazoo.readthedocs.org/en/latest/api/recipe/party.html>`_.
 
         Used to signal that a group of processes are in a similar state.
 
+        :param str prefix: Path to create the party under. If not specified,
+                           uses the default prefix for this server instance.
+        :param bool autojoin: Join the party if True, also on reconnect
+        :return: a ZkParty object
+        :rtype: ZkParty
         :raises:
             ZkConnectionLoss: if the connection to ZK drops
         """
         if not self.is_connected():
             raise ZkConnectionLoss
-        if self._party is None:
-            # Initialise the service party
-            party_path = os.path.join(self._prefix, "party")
-            self._party = self._zk.Party(party_path, self._srv_id)
-        try:
-            self._party.join()
-        except (ConnectionLoss, SessionExpiredError):
-            raise ZkConnectionLoss
-        members = set([entry.split("\0")[0] for entry in list(self._party)])
-        logging.debug("Joined party, members are: %s", sorted(members))
+        if prefix is None:
+            prefix = self._prefix
+        party_path = os.path.join(prefix, "party")
+        self.ensure_path(party_path, abs=True)
+        party = ZkParty(self._zk, party_path, self._srv_id, autojoin)
+        self._parties[party_path] = party
+        return party
 
     def get_lock(self, timeout=60.0):
         """
@@ -415,3 +439,77 @@ class Zookeeper(object):
                 except (ConnectionLoss, SessionExpiredError):
                     raise ZkConnectionLoss
         return count
+
+    def retry(self, desc, f, *args, _retries=4, _timeout=10.0, **kwargs):
+        """
+        Execute a given operation, retrying it if fails due to connection
+        problems.
+
+        :param str desc: Description of the operation
+        :param function f: Function to call, passing in \*args and \*\*kwargs
+        :param int _retries: Number of times to retry the operation, or `None`
+                             to retry indefinitely.
+        :param float _timeout: Number of seconds to wait for a connection, or
+                               `None` to wait indefinitely.
+        """
+        count = -1
+        while True:
+            count += 1
+            if _retries is not None and count > _retries:
+                break
+            if not self.wait_connected(timeout=_timeout):
+                logging.warning("%s: No connection to ZK", desc)
+                continue
+            try:
+                return f(*args, **kwargs)
+            except ZkConnectionLoss:
+                logging.warning("%s: Connection to ZK dropped", desc)
+        raise ZkRetryLimit("%s: Failed %s times, giving up" %
+                           (desc, 1+_retries))
+
+
+class ZkParty(object):
+    """
+    A wrapper for a `Kazoo Party
+    <https://kazoo.readthedocs.org/en/latest/api/recipe/party.html>`_.
+    """
+    def __init__(self, zk, path, id_, autojoin):
+        """
+        :param zk: A kazoo instance
+        :param str path: The absolute path of the party
+        :param str id_: The service id value to use in the party
+        :param bool autojoin: Join the party automatically
+        """
+        self._autojoin = autojoin
+        self._path = path
+        try:
+            self._party = zk.Party(path, id_)
+        except (ConnectionLoss, SessionExpiredError):
+            raise ZkConnectionLoss
+        self.autojoin()
+
+    def join(self):
+        try:
+            self._party.join()
+        except (ConnectionLoss, SessionExpiredError):
+            raise ZkConnectionLoss
+
+    def autojoin(self):
+        """
+        If the autojoin parameter was set to True, join the party.
+        """
+        if self._autojoin:
+            self.join()
+        entries = self.list()
+        names = set([entry.split("\0")[0] for entry in entries])
+        logging.debug("Current party (%s) members are: %s", self._path,
+                      sorted(names))
+
+    def list(self):
+        """
+        List the current party member IDs
+        """
+        try:
+            return set(self._party)
+        except (ConnectionLoss, SessionExpiredError):
+            raise ZkConnectionLoss

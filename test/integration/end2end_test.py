@@ -32,6 +32,7 @@ from lib.packet.opaque_field import InfoOpaqueField, OpaqueFieldType as OFT
 from lib.packet.path import CorePath, CrossOverPath, EmptyPath, PeerPath
 from lib.packet.scion import SCIONPacket
 from lib.packet.scion_addr import SCIONAddr, ISD_AD
+from lib.thread import thread_safety_net
 
 ping_received = False
 pong_received = False
@@ -156,12 +157,15 @@ class TestSCIONDaemon(unittest.TestCase):
         """
         global SRC, DST, ping_received, pong_received
         for src in sources:
-            for dst in [x for x in destinations if x != src]:
+            for dst in destinations:
                 if src != dst:
                     SRC = ISD_AD(src[0], src[1])
                     DST = ISD_AD(dst[0], dst[1])
-                    threading.Thread(target=ping_app).start()
-                    threading.Thread(target=pong_app).start()
+                    threading.Thread(target=thread_safety_net, args=(pong_app,),
+                                     name="E2E.pong_app", daemon=True).start()
+                    time.sleep(0.1)
+                    threading.Thread(target=thread_safety_net, args=(ping_app,),
+                                     name="E2E.ping_app", daemon=True).start()
                     print("\nTesting:", src, "->", dst)
                     for _ in range(TOUT * 10):
                         time.sleep(0.1)

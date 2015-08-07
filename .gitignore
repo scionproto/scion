@@ -26,30 +26,25 @@ Thumbs.db
 
 # SCION generated files #
 #########################
-infrastructure/__pycache__/
-lib/__pycache__/
-lib/packet/__pycache__/
+logs/*
 topology/ISD*
-topology/conf-gen
 topology/SIM
+topology/conf-gen
 traces/*
-*.crt
 
 
 # Python generated files #
 #########################
-*.pyc
+__pycache__
 
 
 # vim generated files #
 #########################
-*.swp
+.*.swp
 
 
 # Crypto library generated files #
 #########################
-*.so
-*.o
 lib/crypto/python-tweetnacl-20140309/build/
 
 

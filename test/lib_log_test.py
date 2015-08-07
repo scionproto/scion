@@ -25,21 +25,24 @@ import nose.tools as ntools
 
 # SCION
 from lib.log import (
-    _StreamErrorHandler,
+    LOG_BACKUP_COUNT,
+    LOG_MAX_SIZE,
+    _LoggingErrorHandler,
     init_logging,
     log_exception,
 )
 from test.testcommon import SCIONTestError
 
 
-class TestStreamErrorHandlerHandleError(object):
+class TestLoggingErrorHandlerHandleError(object):
     """
-    Unit tests for lib.log._StreamErrorHandler.handleError
+    Unit tests for lib.log._LoggingErrorHandler.handleError
     """
     @patch("lib.log.traceback.format_exc", autospec=True)
-    @patch("lib.log.logging.StreamHandler", autospec=True)
-    def test(self, log_sh, format_exc):
-        handler = _StreamErrorHandler()
+    @patch("lib.log._LoggingErrorHandler.__init__", autospec=True)
+    def test(self, init, format_exc):
+        init.return_value = None
+        handler = _LoggingErrorHandler("logfile")
         handler.stream = MagicMock(spec_set=['write'])
         handler.stream.write = MagicMock(spec_set=[])
         handler.flush = MagicMock(spec_set=[])
@@ -57,23 +60,28 @@ class TestInitLogging(object):
     """
     Unit tests for lib.log.init_logging
     """
-    @patch("lib.log._StreamErrorHandler", autospec=True)
+    @patch("lib.log._LoggingErrorHandler", autospec=True)
     @patch("lib.log.logging.basicConfig", autospec=True)
-    def test(self, basic_config, stream_error_handler):
-        stream_error_handler.return_value = 'stream_error_handler'
-        init_logging(123)
-        basic_config.assert_called_once_with(level=123, handlers=[
-            'stream_error_handler'], format='%(asctime)s [%(levelname)s]\t'
-                                            '(%(threadName)s) %(message)s')
+    def test(self, basic_config, handler):
+        init_logging("logfile", 123)
+        handler.assert_called_once_with(
+            "logfile", maxBytes=LOG_MAX_SIZE, backupCount=LOG_BACKUP_COUNT,
+            encoding="utf-8")
+        basic_config.assert_called_once_with(
+            level=123, handlers=[handler.return_value],
+            format='%(asctime)s [%(levelname)s] '
+                   '(%(threadName)s) %(message)s'
+        )
 
-    @patch("lib.log._StreamErrorHandler", autospec=True)
+    @patch("lib.log._LoggingErrorHandler", autospec=True)
     @patch("lib.log.logging.basicConfig", autospec=True)
-    def test_less_arg(self, basic_config, stream_error_handler):
-        stream_error_handler.return_value = 'stream_error_handler'
-        init_logging()
-        basic_config.assert_called_once_with(level=logging.DEBUG, handlers=[
-            'stream_error_handler'], format='%(asctime)s [%(levelname)s]\t'
-                                            '(%(threadName)s) %(message)s')
+    def test_less_arg(self, basic_config, handler):
+        init_logging("logfile")
+        basic_config.assert_called_once_with(
+            level=logging.DEBUG, handlers=[handler.return_value],
+            format='%(asctime)s [%(levelname)s] '
+                   '(%(threadName)s) %(message)s'
+        )
 
 
 class TestLogException(object):

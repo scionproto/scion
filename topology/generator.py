@@ -70,6 +70,7 @@ SIM_CONF_FILE = 'sim.conf'
 
 ZOOKEEPER_DIR = 'zookeeper'
 ZOOKEEPER_CFG = "zoo.cfg"
+ZOOKEEPER_TMPFS_DIR = "/run/shm/scion-zk"
 
 CORE_AD = 'CORE'
 INTERMEDIATE_AD = 'INTERMEDIATE'
@@ -180,13 +181,17 @@ class ConfigGenerator(object):
             return os.path.join(self.out_dir, *paths), \
                 os.path.join('..', SCRIPTS_DIR, *paths)
         gen_paths = self.path_dict(isd_id, ad_id)
+        isd_ad_str = "ISD{}-AD{}".format(isd_id, ad_id)
         p = {}
         p['base_dir_tail'] = os.path.join(
-            gen_paths['isd_name'], ZOOKEEPER_DIR,
-            "ISD{}-AD{}".format(isd_id, ad_id))
+            gen_paths['isd_name'], ZOOKEEPER_DIR, isd_ad_str)
         p['base_dir_abs'], p['base_dir_rel'] = abs_rel(p['base_dir_tail'])
         p['data_dir_abs'], p['data_dir_rel'] = abs_rel(p['base_dir_tail'],
                                                        'data.%s' % zk_id)
+        p['datalog_dir_abs'] = os.path.join(ZOOKEEPER_TMPFS_DIR, isd_ad_str,
+                                            str(zk_id))
+        p['datalog_script_abs'] = os.path.join(p['base_dir_abs'],
+                                               "datalog.%s.sh" % zk_id)
         p['cfg_abs'], p['cfg_rel'] = abs_rel(p['base_dir_tail'],
                                              'zoo.cfg.%s' % zk_id)
         p['myid_abs'] = os.path.join(p['data_dir_abs'], 'myid')
@@ -528,11 +533,17 @@ class ConfigGenerator(object):
             for s in ['tickTime', 'initLimit', 'syncLimit']:
                 text.write("%s=%s\n" % (s, self.zk_config["Default"][s]))
             text.write("dataDir=%s\n" % paths['data_dir_rel'])
+            text.write("dataLogDir=%s\n" % paths['datalog_dir_abs'])
             text.write("clientPort=%d\n" % zk_dict["ClientPort"])
             text.write("clientPortAddress=%s\n" % zk_dict["Addr"])
+            text.write("maxClientCnxns=%s\n" % zk_dict["MaxClientCnxns"])
+            text.write("autopurge.purgeInterval=1\n")
             text.write("%s\n" % server_block)
             write_file(paths['cfg_abs'], text.getvalue())
             write_file(paths['myid_abs'], "%s\n" % zk_id)
+            write_file(paths['datalog_script_abs'],
+                       "#!/bin/bash\n"
+                       "mkdir -p %s\n" % paths['datalog_dir_abs'])
 
     def write_sim_file(self, ad_configs):
         """
@@ -632,27 +643,31 @@ class ConfigGenerator(object):
                             num,
                             p['topo_file_rel'],
                             p['conf_file_rel'],
-                            p['path_pol_file_rel']]
+                            p['path_pol_file_rel'],
+                            '../logs/{}.log'.format(element_name)]
             elif element_type == 'CertificateServers':
                 element_name = 'cs{}-{}-{}'.format(isd_id, ad_id, num)
                 cmd_args = ['cert_server.py',
                             num,
                             p['topo_file_rel'],
                             p['conf_file_rel'],
-                            p['trc_file_rel']]
+                            p['trc_file_rel'],
+                            '../logs/{}.log'.format(element_name)]
             elif element_type == 'PathServers':
                 element_name = 'ps{}-{}-{}'.format(isd_id, ad_id, num)
                 cmd_args = ['path_server.py',
                             element_location,
                             num,
                             p['topo_file_rel'],
-                            p['conf_file_rel']]
+                            p['conf_file_rel'],
+                            '../logs/{}.log'.format(element_name)]
             elif element_type == 'DNSServers':
                 element_name = 'ds{}-{}-{}'.format(isd_id, ad_id, num)
                 cmd_args = ['dns_server.py',
                             num,
                             str(dns_domain),
-                            p['topo_file_rel']]
+                            p['topo_file_rel'],
+                            '../logs/{}.log'.format(element_name)]
             elif element_type == 'EdgeRouters':
                 interface_dict = element_dict['Interface']
                 nbr_isd_id = interface_dict['NeighborISD']
@@ -662,7 +677,8 @@ class ConfigGenerator(object):
                 cmd_args = ['router.py',
                             num,
                             p['topo_file_rel'],
-                            p['conf_file_rel']]
+                            p['conf_file_rel'],
+                            '../logs/{}.log'.format(element_name)]
             elif element_type == 'Zookeepers':
                 if not element_dict['Manage']:
                     continue
@@ -675,6 +691,7 @@ class ConfigGenerator(object):
                 server_config['command'] = ' '.join([
                     '/usr/bin/java',
                     '-cp', class_path,
+                    '-Dzookeeper.log.file=../logs/{}.log'.format(element_name),
                     self.zk_config["Environment"]["ZOOMAIN"],
                     zk_paths["cfg_rel"]
                 ])
@@ -686,7 +703,7 @@ class ConfigGenerator(object):
                     ['/usr/bin/python3'] +
                     ['"{}"'.format(arg) for arg in cmd_args])
             server_config['stdout_logfile'] = \
-                '../logs/{}.log'.format(element_name)
+                '../logs/{}.out'.format(element_name)
 
             supervisor_config['program:' + element_name] = server_config
             program_group.append(element_name)
@@ -877,6 +894,8 @@ class ZKTopo(object):
             "leader_port", int(def_config["leaderPort"]))
         self.electionPort = config.get(
             "election_port", int(def_config["electionPort"]))
+        self.maxClientCnxns = config.get(
+            "max_client_cnxns", int(def_config["maxClientCnxns"]))
 
     def dict_(self):
         return {
@@ -886,6 +905,7 @@ class ZKTopo(object):
             "ClientPort": self.clientPort,
             "LeaderPort": self.leaderPort,
             "ElectionPort": self.electionPort,
+            "MaxClientCnxns": self.maxClientCnxns,
         }
 
 
