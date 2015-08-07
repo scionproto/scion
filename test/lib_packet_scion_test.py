@@ -298,7 +298,10 @@ class TestSCIONHeaderExtensionHdrs(object):
     def test_add_extensions(self, _set_next_hdrs):
         hdr = SCIONHeader()
         hdr.common_hdr = MagicMock(spec_set=['total_len'])
-        hdr.add_extensions('ext_hdrs')
+        hdr.common_hdr.total_len = 0
+        hdr.add_extensions(['ext_hdr1', 'ext_hdr2'])
+        ntools.eq_(hdr.extension_hdrs, ['ext_hdr1', 'ext_hdr2'])
+        ntools.eq_(hdr.common_hdr.total_len, 16)
         _set_next_hdrs.assert_called_once_with(hdr)
 
 

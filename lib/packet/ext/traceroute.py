@@ -46,7 +46,7 @@ class TracerouteExt(HopByHopExtension):
         """
         self.hops = []
         self.hops_no = 0
-        HopByHopExtension.__init__(self)
+        super().__init__()
         if raw is not None:
             # Parse metadata and payload
             self.parse(raw)

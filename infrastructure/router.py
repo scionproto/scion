@@ -569,13 +569,13 @@ def main():
     parser.add_argument('log_file', help='Log file')
     args = parser.parse_args()
     init_logging(args.log_file)
-
     # Run router without extensions handling:
-    # router = Router(args.router_id, args.topo_file, args.conf_file)
+    # router = Router(*sys.argv[1:])
     # Run router with an extension handler:
     pre_handlers = {TracerouteExt.EXT_NO: traceroute_ext_handler}
     router = Router(args.router_id, args.topo_file, args.conf_file,
                     pre_ext_handlers=pre_handlers)
+
     logging.info("Started: %s", datetime.datetime.now())
     router.run()
 
