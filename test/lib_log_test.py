@@ -27,31 +27,32 @@ import nose.tools as ntools
 from lib.log import (
     LOG_BACKUP_COUNT,
     LOG_MAX_SIZE,
-    _LoggingErrorHandler,
+    _handleError,
     init_logging,
     log_exception,
 )
 from test.testcommon import SCIONTestError
 
 
-class TestLoggingErrorHandlerHandleError(object):
+class TestHandleError(object):
     """
-    Unit tests for lib.log._LoggingErrorHandler.handleError
+    Unit tests for lib.log._handleError
     """
     @patch("lib.log.traceback.format_exc", autospec=True)
-    @patch("lib.log._LoggingErrorHandler.__init__", autospec=True)
-    def test(self, init, format_exc):
-        init.return_value = None
-        handler = _LoggingErrorHandler("logfile")
+    def test(self, format_exc):
+        # Setup
+        handler = MagicMock(spec_set=["stream", "flush"])
         handler.stream = MagicMock(spec_set=['write'])
         handler.stream.write = MagicMock(spec_set=[])
         handler.flush = MagicMock(spec_set=[])
         format_exc.return_value = MagicMock(spec_set=['split'])
         format_exc.return_value.split.return_value = ['line0', 'line1']
+        # Call
         try:
             raise SCIONTestError
         except:
-            ntools.assert_raises(SCIONTestError, handler.handleError, "hi")
+            ntools.assert_raises(SCIONTestError, _handleError, handler, "hi")
+        # Tests
         ntools.eq_(handler.stream.write.call_count, 3)
         handler.flush.assert_called_once_with()
 
@@ -60,25 +61,43 @@ class TestInitLogging(object):
     """
     Unit tests for lib.log.init_logging
     """
-    @patch("lib.log._LoggingErrorHandler", autospec=True)
+    @patch("lib.log._ConsoleErrorHandler", autospec=True)
+    @patch("lib.log._RotatingErrorHandler", autospec=True)
     @patch("lib.log.logging.basicConfig", autospec=True)
-    def test(self, basic_config, handler):
-        init_logging("logfile", 123)
-        handler.assert_called_once_with(
+    def test_full(self, basic_config, rotate, console):
+        # Call
+        init_logging("logfile", 123, console=True)
+        # Tests
+        rotate.assert_called_once_with(
             "logfile", maxBytes=LOG_MAX_SIZE, backupCount=LOG_BACKUP_COUNT,
             encoding="utf-8")
+        console.assert_called_once_with()
         basic_config.assert_called_once_with(
-            level=123, handlers=[handler.return_value],
+            level=123, handlers=[rotate.return_value, console.return_value],
             format='%(asctime)s [%(levelname)s] '
                    '(%(threadName)s) %(message)s'
         )
 
-    @patch("lib.log._LoggingErrorHandler", autospec=True)
+    @patch("lib.log._RotatingErrorHandler", autospec=True)
     @patch("lib.log.logging.basicConfig", autospec=True)
-    def test_less_arg(self, basic_config, handler):
+    def test_file(self, basic_config, rotate):
+        # Call
         init_logging("logfile")
+        # Tests
         basic_config.assert_called_once_with(
-            level=logging.DEBUG, handlers=[handler.return_value],
+            level=logging.DEBUG, handlers=[rotate.return_value],
+            format='%(asctime)s [%(levelname)s] '
+                   '(%(threadName)s) %(message)s'
+        )
+
+    @patch("lib.log._ConsoleErrorHandler", autospec=True)
+    @patch("lib.log.logging.basicConfig", autospec=True)
+    def test_console(self, basic_config, console):
+        # Call
+        init_logging(console=True)
+        # Tests
+        basic_config.assert_called_once_with(
+            level=logging.DEBUG, handlers=[console.return_value],
             format='%(asctime)s [%(levelname)s] '
                    '(%(threadName)s) %(message)s'
         )
