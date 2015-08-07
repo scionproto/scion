@@ -73,6 +73,7 @@ cmd_clean_full() {
 cmd_run() {
     local args="-i -t --privileged -h scion"
     args+=" -v $PWD/htmlcov:/home/scion/scion.git/htmlcov"
+    args+=" -v $PWD/logs:/home/scion/scion.git/logs"
     args+=" -v $PWD/sphinx-doc/_build:/home/scion/scion.git/sphinx-doc/_build"
     # Can't use --rm in circleci, their environment doesn't allow it, so it
     # just throws an error
@@ -83,7 +84,7 @@ cmd_run() {
 
 setup_volumes() {
     set -e
-    for i in htmlcov sphinx-doc/_build; do
+    for i in htmlcov logs sphinx-doc/_build; do
         mkdir -p "$i"
         # Check dir exists, and is owned by the current (effective) user. If
         # it's owned by the wrong user, the docker environment won't be able to
