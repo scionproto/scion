@@ -26,11 +26,14 @@ import nose.tools as ntools
 # SCION
 from lib.defines import SCION_DNS_PORT
 from lib.dnsclient import (
+    DNSCachingClient,
     DNSClient,
     DNSLibMajorError,
     DNSLibNoServersError,
     DNSLibNxDomain,
     DNSLibTimeout,
+    DNS_CACHE_MAX_AGE,
+    DNS_CACHE_MAX_SIZE,
 )
 
 
@@ -115,6 +118,51 @@ class TestDNSClientQuery(object):
         ):
             yield self._check_exceptions, error, excp
 
+
+class TestDNSCachingClientInit(object):
+    """
+    Unit tests for lib.dnsclient.DNSCachingClient.__init__
+    """
+    @patch("lib.dnsclient.ExpiringDict", autospec=True)
+    @patch("lib.dnsclient.DNSClient.__init__", autospec=True, return_value=None)
+    def test(self, client_init, exp_dict):
+        # Call
+        client = DNSCachingClient("servers", "domain", "lifetime")
+        # Tests
+        client_init.assert_called_once_with(client, "servers", "domain",
+                                            "lifetime")
+        exp_dict.assert_called_once_with(max_len=DNS_CACHE_MAX_SIZE,
+                                         max_age_seconds=DNS_CACHE_MAX_AGE)
+        ntools.eq_(client.cache, exp_dict.return_value)
+
+
+class TestDNSCachingClientQuery(object):
+    """
+    Unit tests for lib.dnsclient.DNSCachingClient.query
+    """
+    @patch("lib.dnsclient.DNSClient.query", autospec=True)
+    @patch("lib.dnsclient.DNSCachingClient.__init__", autospec=True,
+           return_value=None)
+    def test_miss(self, init, client_query):
+        # Setup
+        client = DNSCachingClient("servers", "domain", "lifetime")
+        client.cache = MagicMock(spec_set=["get", "__setitem__"])
+        client.cache.get.return_value = None
+        # Call
+        ntools.eq_(client.query("blah"), client_query.return_value)
+        # Tests
+        client.cache.get.assert_called_once_with("blah")
+        client.cache.__setitem__.assert_called_once_with(
+            "blah", client_query.return_value)
+
+    @patch("lib.dnsclient.DNSCachingClient.__init__", autospec=True,
+           return_value=None)
+    def test_hit(self, init):
+        # Setup
+        client = DNSCachingClient("servers", "domain", "lifetime")
+        client.cache = MagicMock(spec_set=["get"])
+        # Call
+        ntools.eq_(client.query("blah"), client.cache.get.return_value)
 
 if __name__ == "__main__":
     nose.run(defaultTest=__name__)
