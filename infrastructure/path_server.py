@@ -487,8 +487,7 @@ class CorePathServer(PathServer):
         self.leases = self.LeasesDict()
         self.core_ads = set()
         # Init core ads set.
-        # TODO(PSz): probably to drop, as this is only set of neighbours,
-        # let's propagate paths using cached ones.
+        # let's propagate paths/revocations using cached paths.
         for router in self.topology.routing_edge_routers:
             self.core_ads.add((router.interface.neighbor_isd,
                                router.interface.neighbor_ad))
@@ -618,7 +617,7 @@ class CorePathServer(PathServer):
             # Send paths to local master.
             if self._master_id and not self._is_master():
                 self._send_to_master(pkt)
-            # Master propagates paths to other core ADs (in the ISD).
+            # Now propagate paths to other core ADs (in the ISD).
             logging.debug("Propagate among core ADs")
             self._propagate_to_core_ads(pkt)
         # Serve pending requests.
@@ -638,6 +637,7 @@ class CorePathServer(PathServer):
         records = pkt.payload
         if not records.pcbs:
             return
+        pcb_from_local_isd = True
         for pcb in records.pcbs:
             assert pcb.segment_id != 32 * b"\x00", \
                 "Trying to register a segment with ID 0:\n%s" % pcb
@@ -651,10 +651,17 @@ class CorePathServer(PathServer):
                 self._add_if_mappings(pcb)
                 logging.info("Core-Path registered: (%d, %d) -> (%d, %d)",
                              src_isd, src_ad, dst_isd, dst_ad)
+            if src_isd == self.topology.isd_id:
+                self.core_ads.add((src_isd, src_ad))
+            else:
+                pcb_from_local_isd = False
         # Share segments via ZK.
         # TODO: only segments from current ISD, the rest send to master
         if not from_zk:
-            self._share_segments(pkt)
+            if pcb_from_local_isd:
+                self._share_segments(pkt)
+            else:
+                self._send_to_master(pkt)
         # Send pending requests that couldn't be processed due to the lack of
         # a core path to the destination PS.
         if self.waiting_targets:
@@ -722,6 +729,8 @@ class CorePathServer(PathServer):
                     next_hop = self.ifid2addr[if_id]
                     logging.info("Sending packet to CPS in (%d, %d).", isd, ad)
                     self.send(pkt, next_hop)
+                else:
+                    logging.info("No path for core AD (%d, %d) found.", isd, ad)
 
     def _handle_leases(self, pkt):
         """
