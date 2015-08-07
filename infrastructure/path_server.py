@@ -29,6 +29,7 @@ from external.expiring_dict import ExpiringDict
 # SCION
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.hash_chain import HashChain
+from lib.defines import SCION_UDP_PORT
 from lib.log import init_logging, log_exception
 from lib.packet.path_mgmt import (
     LeaseInfo,
@@ -44,7 +45,8 @@ from lib.packet.path_mgmt import (
 )
 from lib.packet.scion_addr import ISD_AD
 from lib.path_db import DBResult, PathSegmentDB
-from lib.util import handle_signals, update_dict, SCIONTime
+from lib.util import SCIONTime, handle_signals, trace, update_dict
+from lib.zookeeper import Zookeeper
 
 
 class PathServer(SCIONElement):
@@ -77,6 +79,15 @@ class PathServer(SCIONElement):
         # TODO replace by some cache data struct. (expiringdict ?)
         self.revocations = ExpiringDict(1000, 300)
         self.iftoken2seg = defaultdict(set)
+
+        if not is_sim:
+            # Add more IPs here if we support dual-stack
+            name_addrs = "\0".join([self.id, str(SCION_UDP_PORT),
+                                    str(self.addr.host_addr)])
+            self.zk = Zookeeper(
+                self.topology.isd_id, self.topology.ad_id, "ps", name_addrs,
+                self.topology.zookeepers)
+            self.zk.retry("Joining party", self.zk.party_setup)
 
     def _add_if_mappings(self, pcb):
         """
@@ -1108,6 +1119,7 @@ def main():
         logging.error("First parameter can only be 'local' or 'core'!")
         sys.exit()
 
+    trace(path_server.id)
     logging.info("Started: %s", datetime.datetime.now())
     path_server.run()
 
