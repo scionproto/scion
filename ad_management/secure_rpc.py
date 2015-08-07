@@ -83,14 +83,19 @@ class XMLRPCServerTLS(socketserver.ThreadingMixIn, SimpleXMLRPCServer):
             lambda _, v, w: w("<value><i8>%d</i8></value>" % v)
 
         socketserver.BaseServer.__init__(self, addr, requestHandler)
-        # FIXME: provide the client (web app) certificate!
-        cert_reqs = ssl.CERT_NONE
+        # TODO: remove fixed certificates
+        # Certificates for the management daemon and the web app are fixed, so
+        # every AD uses the same certificate. We should generate SSL
+        # certificates along with SCION certificates instead, so every AD will
+        # have its own certificate.
+        cert_reqs = ssl.CERT_REQUIRED
         self.socket = ssl.wrap_socket(
             socket.socket(self.address_family, self.socket_type),
             server_side=True,
             cert_reqs=cert_reqs,
-            certfile=os.path.join(CERT_DIR_PATH, 'cert.pem'),
-            keyfile=os.path.join(CERT_DIR_PATH, 'key.pem'),
+            ca_certs=os.path.join(CERT_DIR_PATH, 'ca.pem'),
+            certfile=os.path.join(CERT_DIR_PATH, 'ad.crt'),
+            keyfile=os.path.join(CERT_DIR_PATH, 'ad.key'),
             ssl_version=ssl.PROTOCOL_TLSv1_2,
         )
         if cert_reqs != ssl.CERT_REQUIRED:
@@ -118,15 +123,21 @@ class VerifyCertSafeTransport(SafeTransport):
         self._ssl_context.verify_mode = ssl.CERT_REQUIRED
 
     def make_connection(self, host):
-        s = super().make_connection((host, {'context': self._ssl_context}))
+        s = super().make_connection((host, {'context': self._ssl_context,
+                                            'check_hostname': False}))
         return s
 
 
 class ServerProxyTLS(ServerProxy):
     def __init__(self, *args, **kwargs):
         assert 'transport' not in kwargs, 'Use ServerProxy for custom transport'
-        md_ca = os.path.join(CERT_DIR_PATH, 'cert.pem')
-        transport = VerifyCertSafeTransport(cafile=md_ca)
+        # TODO: remove fixed certificates: see above
+        md_ca = os.path.join(CERT_DIR_PATH, 'ca.pem')
+        client_certfile = os.path.join(CERT_DIR_PATH, 'webapp.crt')
+        client_keyfile = os.path.join(CERT_DIR_PATH, 'webapp.key')
+        transport = VerifyCertSafeTransport(cafile=md_ca,
+                                            certfile=client_certfile,
+                                            keyfile=client_keyfile)
         super().__init__(*args, transport=transport, **kwargs)
 
 
