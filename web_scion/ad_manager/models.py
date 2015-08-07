@@ -13,11 +13,8 @@ from django.core.urlresolvers import reverse
 from django.db import models, IntegrityError
 
 # SCION
-from ad_management.common import (
-    get_success_data,
-    is_success,
-    PACKAGE_DIR_PATH,
-)
+from ad_management.common import PACKAGE_DIR_PATH
+from ad_management.util import get_success_data, is_success
 from ad_manager.util import monitoring_client
 from ad_manager.util.common import empty_dict
 from lib.defines import (

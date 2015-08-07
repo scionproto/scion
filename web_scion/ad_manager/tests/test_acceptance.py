@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 # SCION
 from guardian.shortcuts import assign_perm
-from ad_management.common import response_success
+from ad_management.util import response_success
 from ad_manager.models import ISD, AD, PackageVersion, ConnectionRequest
 
 

@@ -12,10 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`secure_rpc_server` --- SimpleXMLRPCServer to run over TLS (SSL)
+:mod:`secure_rpc` --- RPC client/server with TLS/SSL
 =====================================================================
-
-Inspired by http://stackoverflow.com/q/5690733/1181370
 """
 # Stdlib
 import logging
@@ -23,7 +21,7 @@ import os
 import socket
 import socketserver
 import ssl
-import xmlrpc.client
+from xmlrpc.client import SafeTransport, ServerProxy, Marshaller
 from xmlrpc.server import (
     SimpleXMLRPCDispatcher,
     SimpleXMLRPCRequestHandler,
@@ -43,6 +41,8 @@ except ImportError:
 class XMLRPCServerTLS(socketserver.ThreadingMixIn, SimpleXMLRPCServer):
     """
     XML-RPC server with TLS enabled.
+
+    Inspired by http://stackoverflow.com/q/5690733/1181370
 
     :ivar logRequests:
     :type logRequests:
@@ -79,19 +79,22 @@ class XMLRPCServerTLS(socketserver.ThreadingMixIn, SimpleXMLRPCServer):
         SimpleXMLRPCDispatcher.__init__(self, allow_none, encoding)
 
         # Add support for long ints
-        xmlrpc.client.Marshaller.dispatch[int] = \
+        Marshaller.dispatch[int] = \
             lambda _, v, w: w("<value><i8>%d</i8></value>" % v)
 
         socketserver.BaseServer.__init__(self, addr, requestHandler)
+        # FIXME: provide the client (web app) certificate!
+        cert_reqs = ssl.CERT_NONE
         self.socket = ssl.wrap_socket(
             socket.socket(self.address_family, self.socket_type),
             server_side=True,
-            cert_reqs=ssl.CERT_NONE,  # TODO
+            cert_reqs=cert_reqs,
             certfile=os.path.join(CERT_DIR_PATH, 'cert.pem'),
             keyfile=os.path.join(CERT_DIR_PATH, 'key.pem'),
             ssl_version=ssl.PROTOCOL_TLSv1_2,
         )
-        logging.warning('Certificate validation is disabled!')
+        if cert_reqs != ssl.CERT_REQUIRED:
+            logging.warning('Client certificate verification is disabled!')
         if bind_and_activate:
             self.server_bind()
             self.server_activate()
@@ -103,6 +106,28 @@ class XMLRPCServerTLS(socketserver.ThreadingMixIn, SimpleXMLRPCServer):
             flags = fcntl.fcntl(self.fileno(), fcntl.F_GETFD)
             flags |= fcntl.FD_CLOEXEC
             fcntl.fcntl(self.fileno(), fcntl.F_SETFD, flags)
+
+
+class VerifyCertSafeTransport(SafeTransport):
+    def __init__(self, cafile, certfile=None, keyfile=None):
+        super().__init__()
+        self._ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+        self._ssl_context.load_verify_locations(cafile)
+        if certfile:
+            self._ssl_context.load_cert_chain(certfile, keyfile)
+        self._ssl_context.verify_mode = ssl.CERT_REQUIRED
+
+    def make_connection(self, host):
+        s = super().make_connection((host, {'context': self._ssl_context}))
+        return s
+
+
+class ServerProxyTLS(ServerProxy):
+    def __init__(self, *args, **kwargs):
+        assert 'transport' not in kwargs, 'Use ServerProxy for custom transport'
+        md_ca = os.path.join(CERT_DIR_PATH, 'cert.pem')
+        transport = VerifyCertSafeTransport(cafile=md_ca)
+        super().__init__(*args, transport=transport, **kwargs)
 
 
 if __name__ == "__main__":

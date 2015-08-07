@@ -5,7 +5,7 @@ import os
 import xmlrpc.client
 
 # SCION
-from ad_management.common import get_monitoring_server, response_failure
+from ad_management.util import get_monitoring_server, response_failure
 
 
 def run_remote(func):

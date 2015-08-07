@@ -29,9 +29,9 @@ import xmlrpc.client
 # SCION
 import ad_management.monitoring_daemon as md
 from ad_management.common import (
-    get_supervisor_server,
     SUPERVISORD_PATH,
 )
+from ad_management.util import get_supervisor_server
 from lib.defines import PROJECT_ROOT
 from lib.log import init_logging
 

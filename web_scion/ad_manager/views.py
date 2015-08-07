@@ -26,14 +26,14 @@ from django.views.generic import ListView, DetailView, FormView
 
 # SCION
 from guardian.shortcuts import assign_perm
-from ad_management.common import (
+from ad_management.common import PACKAGE_DIR_PATH
+from ad_management.packaging import prepare_package
+from ad_management.util import (
     get_failure_errors,
     get_success_data,
     is_success,
-    PACKAGE_DIR_PATH,
     response_failure,
 )
-from ad_management.packaging import prepare_package
 from ad_manager.forms import (
     ConnectionRequestForm,
     NewLinkForm,

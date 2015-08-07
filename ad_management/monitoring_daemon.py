@@ -25,6 +25,7 @@ import os
 import sys
 import time
 import xmlrpc.client
+from multiprocessing import Process
 from subprocess import Popen
 
 # External packages
@@ -32,18 +33,19 @@ from kazoo.client import KazooClient
 from kazoo.exceptions import NoNodeError
 
 # SCION
-from multiprocessing import Process
 from ad_management.common import (
-    get_supervisor_server,
     LOGS_DIR,
     MONITORING_DAEMON_PORT,
     MONITORING_DAEMON_PROC_NAME,
-    response_failure,
-    response_success,
     UPDATE_DIR_PATH,
     UPDATE_SCRIPT_PATH,
 )
-from ad_management.secure_rpc_server import XMLRPCServerTLS
+from ad_management.secure_rpc import XMLRPCServerTLS
+from ad_management.util import (
+    get_supervisor_server,
+    response_failure,
+    response_success,
+)
 from lib.defines import (
     BEACON_SERVICE,
     CERTIFICATE_SERVICE,
