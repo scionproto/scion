@@ -52,7 +52,6 @@ def get_monitoring_server(host='localhost'):
     :rtype:
     """
     url = 'https://{}:{}/'.format(host, MONITORING_DAEMON_PORT)
-    #return xmlrpc.client.ServerProxy(url)
     return ServerProxyTLS(url)
 
 

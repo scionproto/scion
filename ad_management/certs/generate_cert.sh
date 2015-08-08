@@ -4,11 +4,11 @@ set -e
 CA_CERT=ca.pem
 CA_CERT_KEY=ca.key
 
-AD_CERT=ad.crt
+AD_CERT=ad.pem
 AD_CSR=ad.csr
 AD_KEY=ad.key
 
-WEBAPP_CERT=webapp.crt
+WEBAPP_CERT=webapp.pem
 WEBAPP_CSR=webapp.csr
 WEBAPP_KEY=webapp.key
 

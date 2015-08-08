@@ -94,7 +94,7 @@ class XMLRPCServerTLS(socketserver.ThreadingMixIn, SimpleXMLRPCServer):
             server_side=True,
             cert_reqs=cert_reqs,
             ca_certs=os.path.join(CERT_DIR_PATH, 'ca.pem'),
-            certfile=os.path.join(CERT_DIR_PATH, 'ad.crt'),
+            certfile=os.path.join(CERT_DIR_PATH, 'ad.pem'),
             keyfile=os.path.join(CERT_DIR_PATH, 'ad.key'),
             ssl_version=ssl.PROTOCOL_TLSv1_2,
         )
@@ -133,7 +133,7 @@ class ServerProxyTLS(ServerProxy):
         assert 'transport' not in kwargs, 'Use ServerProxy for custom transport'
         # TODO: remove fixed certificates: see above
         md_ca = os.path.join(CERT_DIR_PATH, 'ca.pem')
-        client_certfile = os.path.join(CERT_DIR_PATH, 'webapp.crt')
+        client_certfile = os.path.join(CERT_DIR_PATH, 'webapp.pem')
         client_keyfile = os.path.join(CERT_DIR_PATH, 'webapp.key')
         transport = VerifyCertSafeTransport(cafile=md_ca,
                                             certfile=client_certfile,

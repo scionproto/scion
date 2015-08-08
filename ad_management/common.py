@@ -38,4 +38,3 @@ LOGS_DIR = os.path.join(PROJECT_ROOT, 'logs')
 
 # Process names
 MONITORING_DAEMON_PROC_NAME = 'monitoring_daemon'
-
