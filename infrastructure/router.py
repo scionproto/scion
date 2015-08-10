@@ -346,9 +346,11 @@ class Router(SCIONElement):
         else:
             if iface:
                 next_hop.addr = self.ifid2addr[iface]
-            elif spkt.hdr.dst_addr.host_addr == PT.PATH_MGMT:  # Path request.
-                logging.debug("PATH REQUEST")
-                next_hop.addr = self.topology.path_servers[0].addr
+            elif ptype == PT.PATH_MGMT:
+                if spkt.hdr.dst_addr.host_addr == PT.PATH_MGMT:
+                    next_hop.addr = self.topology.path_servers[0].addr
+                else: # Send response to correct path server.
+                    next_hop.addr = spkt.hdr.dst_addr.host_addr
             else:  # last opaque field on the path, send the packet to the dst
                 next_hop.addr = spkt.hdr.dst_addr.host_addr
                 next_hop.port = SCION_UDP_EH_DATA_PORT  # data packet to endhost
