@@ -19,6 +19,7 @@
 import argparse
 import datetime
 import logging
+import random
 import socket
 import sys
 import threading
@@ -348,7 +349,9 @@ class Router(SCIONElement):
                 next_hop.addr = self.ifid2addr[iface]
             elif ptype == PT.PATH_MGMT:
                 if spkt.hdr.dst_addr.host_addr == PT.PATH_MGMT:
-                    next_hop.addr = self.topology.path_servers[0].addr
+                    # Send request to any path server.
+                    path_server = random.choice(self.topology.path_servers)
+                    next_hop.addr = path_server.addr
                 else: # Send response to correct path server.
                     next_hop.addr = spkt.hdr.dst_addr.host_addr
             else:  # last opaque field on the path, send the packet to the dst
