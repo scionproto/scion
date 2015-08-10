@@ -20,11 +20,11 @@
 import xmlrpc.client
 
 # SCION
-from ad_management.common import SUPERVISORD_PORT, MONITORING_DAEMON_PORT
+from ad_management.common import SUPERVISORD_PORT, MANAGEMENT_DAEMON_PORT
 from ad_management.secure_rpc import ServerProxyTLS
 
 
-# Response wrappers for monitoring client/server.
+# Response wrappers for management client/server.
 # Response is represented as a list, the first element is a boolean value,
 # which shows the nature of the response (True -- success, False -- failure).
 # The rest of the elements are messages or errors, depending on the response
@@ -42,7 +42,7 @@ def get_supervisor_server(host='localhost'):
     return xmlrpc.client.ServerProxy(url)
 
 
-def get_monitoring_server(host='localhost'):
+def get_management_server(host='localhost'):
     """
 
 
@@ -51,7 +51,7 @@ def get_monitoring_server(host='localhost'):
     :returns:
     :rtype:
     """
-    url = 'https://{}:{}/'.format(host, MONITORING_DAEMON_PORT)
+    url = 'https://{}:{}/'.format(host, MANAGEMENT_DAEMON_PORT)
     return ServerProxyTLS(url)
 
 

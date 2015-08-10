@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`monitoring_daemon` --- AD management tool daemon
+:mod:`management_daemon` --- AD management daemon
 ======================================================
 """
 # Stdlib
@@ -35,8 +35,8 @@ from kazoo.exceptions import NoNodeError
 # SCION
 from ad_management.common import (
     LOGS_DIR,
-    MONITORING_DAEMON_PORT,
-    MONITORING_DAEMON_PROC_NAME,
+    MANAGEMENT_DAEMON_PORT,
+    MANAGEMENT_DAEMON_PROC_NAME,
     UPDATE_DIR_PATH,
     UPDATE_SCRIPT_PATH,
 )
@@ -61,19 +61,19 @@ MD_SLEEP_BEFORE_TRY = 1
 
 
 def start_md():
-    # Start the monigoring daemon
+    # Start the management daemon
     server = get_supervisor_server()
     started = False
 
-    logging.info('Trying to start the monitoring daemon')
+    logging.info('Trying to start the management daemon')
     for _ in range(MD_START_RETRIES):
         time.sleep(MD_SLEEP_BEFORE_TRY)
         try:
-            server.supervisor.startProcess(MONITORING_DAEMON_PROC_NAME,
+            server.supervisor.startProcess(MANAGEMENT_DAEMON_PROC_NAME,
                                            wait=True)
 
             process_info = server.supervisor.getProcessInfo(
-                MONITORING_DAEMON_PROC_NAME
+                MANAGEMENT_DAEMON_PROC_NAME
             )
             if process_info['statename'] == 'RUNNING':
                 started = True
@@ -82,13 +82,13 @@ def start_md():
             logging.warning('Error:' + str(ex))
 
     if started:
-        logging.info('The monitoring daemon is running')
+        logging.info('The management daemon is running')
     else:
-        logging.warning('Could not start the monitoring daemon')
+        logging.warning('Could not start the management daemon')
     return started
 
 
-class MonitoringDaemon(object):
+class ManagementDaemon(object):
     """
     Daemon which is launched on every AD node.
 
@@ -104,14 +104,14 @@ class MonitoringDaemon(object):
 
     def __init__(self, addr):
         """
-        Initialize an instance of the class MonitoringDaemon.
+        Initialize an instance of the class ManagementDaemon.
 
         :param addr:
         :type addr:
         """
         super().__init__()
         self.addr = addr
-        self.rpc_server = XMLRPCServerTLS((self.addr, MONITORING_DAEMON_PORT))
+        self.rpc_server = XMLRPCServerTLS((self.addr, MANAGEMENT_DAEMON_PORT))
         self.rpc_server.register_introspection_functions()
         # Register functions
         to_register = [self.get_topology,
@@ -120,7 +120,7 @@ class MonitoringDaemon(object):
                        self.get_master_id, self.tail_process_log]
         for func in to_register:
             self.rpc_server.register_function(func)
-        logging.info("Monitoring daemon started")
+        logging.info("Management daemon started")
         self.rpc_server.serve_forever()
 
     def get_full_ad_name(self, isd_id, ad_id):
@@ -423,4 +423,4 @@ class MonitoringDaemon(object):
 
 if __name__ == "__main__":
     init_logging(sys.argv[2])
-    MonitoringDaemon(sys.argv[1])
+    ManagementDaemon(sys.argv[1])

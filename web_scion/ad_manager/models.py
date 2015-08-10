@@ -15,7 +15,7 @@ from django.db import models, IntegrityError
 # SCION
 from ad_management.common import PACKAGE_DIR_PATH
 from ad_management.util import get_success_data, is_success
-from ad_manager.util import monitoring_client
+from ad_manager.util import management_client
 from ad_manager.util.common import empty_dict
 from lib.defines import (
     BEACON_SERVICE,
@@ -71,13 +71,13 @@ class AD(models.Model):
         """
         Return AD status information, which includes servers/routers statuses
         """
-        return monitoring_client.get_ad_info(self.md_host, self.isd_id, self.id)
+        return management_client.get_ad_info(self.md_host, self.isd_id, self.id)
 
     def get_remote_topology(self):
         """
         Get the corresponding remote topology as a Python dictionary.
         """
-        topology_response = monitoring_client.get_topology(self.md_host,
+        topology_response = management_client.get_topology(self.md_host,
                                                            self.isd.id, self.id)
         if not is_success(topology_response):
             return None

@@ -206,7 +206,7 @@ class TestUsersAndPermissions(BasicWebTestUsers):
         res = self.app.post(control_url, expect_errors=True)
         self.assertEqual(res.status_code, 403)
 
-    @patch("ad_manager.util.monitoring_client.control_process")
+    @patch("ad_manager.util.management_client.control_process")
     def test_priv_user_control(self, control_process):
         ad = self.ads[1]
         bs = ad.beaconserverweb_set.first()

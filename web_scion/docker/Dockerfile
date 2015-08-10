@@ -17,5 +17,5 @@ USER scion
 ENV PATH ~/.local/bin:$PATH
 
 CMD ../supervisor/supervisor.sh reload \
-    && ../supervisor/supervisor.sh start monitoring_daemon \ 
+    && ../supervisor/supervisor.sh start management_daemon \
     && python3 manage.py runserver 0.0.0.0:8000

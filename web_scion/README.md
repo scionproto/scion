@@ -54,6 +54,6 @@ By default an SQLite database is used. One can switch to using PostgreSQL for im
 
  Admin panel is located at `http://localhost:8000/admin` (login: admin, password: admin)
 
- Don't forget to run the monitoring daemon if you want to manage server elements:
+ Don't forget to run the management daemon if you want to manage server elements:
 
-    `./supervisor/supervisor.sh start monitoring_daemon`
+    `./supervisor/supervisor.sh start management_daemon`

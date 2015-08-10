@@ -40,7 +40,7 @@ from ad_manager.forms import (
     PackageVersionSelectForm,
 )
 from ad_manager.models import AD, ISD, PackageVersion, ConnectionRequest
-from ad_manager.util import monitoring_client
+from ad_manager.util import management_client
 from ad_manager.util.ad_connect import (
     create_new_ad_files,
     find_last_router,
@@ -118,7 +118,7 @@ class ADDetailView(DetailView):
 
 def get_ad_status(request, pk):
     """
-    Send a query to the corresponding monitoring daemon, asking for the status
+    Send a query to the corresponding management daemon, asking for the status
     of AD servers.
     """
     ad = get_object_or_404(AD, id=pk)
@@ -140,7 +140,7 @@ def get_group_master(request, pk):
     if server_type not in fetch_server_types:
         return HttpResponseNotFound('Invalid server type')
 
-    response = monitoring_client.get_master_id(ad.md_host, ad.isd.id, ad.id,
+    response = management_client.get_master_id(ad.md_host, ad.isd.id, ad.id,
                                                server_type)
     if is_success(response):
         master_id = get_success_data(response)
@@ -210,7 +210,7 @@ def update_topology(request, pk):
 def _push_local_topology(request, ad):
     local_topo = ad.generate_topology_dict()
     # TODO move to model?
-    response = monitoring_client.push_topology(ad.md_host, str(ad.isd.id),
+    response = management_client.push_topology(ad.md_host, str(ad.isd.id),
                                                str(ad.id), local_topo)
     topology_tag = 'topology'
     if is_success(response):
@@ -239,7 +239,7 @@ def _send_update(request, ad, package):
     """
     # TODO move to model?
     if package.exists():
-        result = monitoring_client.send_update(ad.md_host, ad.isd_id, ad.id,
+        result = management_client.send_update(ad.md_host, ad.isd_id, ad.id,
                                                package.filepath)
     else:
         result = response_failure('Package not found')
@@ -348,7 +348,7 @@ def control_process(request, pk, proc_id):
     else:
         return HttpResponseNotFound('Command not found')
 
-    response = monitoring_client.control_process(ad.md_host, ad.isd.id, ad.id,
+    response = management_client.control_process(ad.md_host, ad.isd.id, ad.id,
                                                  proc_id, command)
     if is_success(response):
         return JsonResponse({'status': True})
@@ -366,7 +366,7 @@ def read_log(request, pk, proc_id):
         return HttpResponseNotFound('Element not found')
     proc_id = ad.get_full_process_name(proc_id)
 
-    response = monitoring_client.read_log(ad.md_host, proc_id)
+    response = management_client.read_log(ad.md_host, proc_id)
     if is_success(response):
         log_data = get_success_data(response)[0]
         if '\n' in log_data:

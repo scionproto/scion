@@ -27,7 +27,7 @@ import time
 import xmlrpc.client
 
 # SCION
-import ad_management.monitoring_daemon as md
+import ad_management.management_daemon as md
 from ad_management.common import (
     SUPERVISORD_PATH,
 )
@@ -66,17 +66,17 @@ def start_everything():
         logging.warning('Could not start processes')
 
 
-def restart_monitoring_daemon():
+def restart_management_daemon():
     """
-    Start the monitoring daemon process after the update.
+    Start the management daemon process after the update.
     """
-    # 'reload' might not start the monitoring daemon automatically
-    logging.info('Restarting Supervisor and the monitoring daemon...')
+    # 'reload' might not start the management daemon automatically
+    logging.info('Restarting Supervisor and the management daemon...')
     subprocess.call([SUPERVISORD_PATH, 'reload'],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL)
 
-    # Restart the monitoring daemon
+    # Restart the management daemon
     importlib.reload(md)
     md.start_md()
 
@@ -117,7 +117,7 @@ def post_extract():
     Run the post-extract procedures using the new (updated) updater.
     """
     logging.info('New (updated) updater: started, post-extract procedures.')
-    restart_monitoring_daemon()
+    restart_management_daemon()
     logging.info('Update: done.')
 
 

@@ -23,18 +23,18 @@ from lib.defines import PROJECT_ROOT
 
 
 # Ports
-MONITORING_DAEMON_PORT = 9010
+MANAGEMENT_DAEMON_PORT = 9010
 SUPERVISORD_PORT = 9011
 
 # Paths
-MONITORING_DAEMON_DIR = os.path.join(PROJECT_ROOT, 'ad_management')
-UPDATE_DIR_PATH = os.path.join(MONITORING_DAEMON_DIR, '.update_files')
-PACKAGE_DIR_PATH = os.path.join(MONITORING_DAEMON_DIR, '.packages')
-UPDATE_SCRIPT_PATH = os.path.join(MONITORING_DAEMON_DIR, 'updater.py')
-CERT_DIR_PATH = os.path.join(MONITORING_DAEMON_DIR, 'certs')
+MANAGEMENT_DAEMON_DIR = os.path.join(PROJECT_ROOT, 'ad_management')
+UPDATE_DIR_PATH = os.path.join(MANAGEMENT_DAEMON_DIR, '.update_files')
+PACKAGE_DIR_PATH = os.path.join(MANAGEMENT_DAEMON_DIR, '.packages')
+UPDATE_SCRIPT_PATH = os.path.join(MANAGEMENT_DAEMON_DIR, 'updater.py')
+CERT_DIR_PATH = os.path.join(MANAGEMENT_DAEMON_DIR, 'certs')
 SUPERVISORD_PATH = os.path.join(PROJECT_ROOT, 'supervisor', 'supervisor.sh')
 WEB_SCION_DIR = os.path.join(PROJECT_ROOT, 'web_scion')
 LOGS_DIR = os.path.join(PROJECT_ROOT, 'logs')
 
 # Process names
-MONITORING_DAEMON_PROC_NAME = 'monitoring_daemon'
+MANAGEMENT_DAEMON_PROC_NAME = 'management_daemon'

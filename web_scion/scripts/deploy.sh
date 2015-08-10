@@ -21,5 +21,5 @@ pkill -f "$RE_SUPERVISOR" || true
 sleep 1
 pkill -9 -f "$RE_SUPERVISOR" || true
 
-# Start the monitoring daemon
-./supervisor/supervisor.sh start monitoring_daemon
+# Start the management daemon
+./supervisor/supervisor.sh start management_daemon
