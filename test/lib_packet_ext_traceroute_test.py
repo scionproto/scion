@@ -97,8 +97,8 @@ class TestTracerouteExtPack(object):
                    bytes.fromhex('0003 0004') + b'ad_2' +
                    bytes.fromhex('0007 0008'))
         ntools.eq_(ext.pack(), ext_hdr_pack.return_value)
-        isd_ad.assert_has_calls([call(1,2), call().pack(),
-                                 call(5,6), call().pack()])
+        isd_ad.assert_has_calls([call(1, 2), call().pack(),
+                                 call(5, 6), call().pack()])
         ntools.eq_(isd_ad_mock.pack.call_count, 2)
         ntools.eq_(ext.payload, payload)
         ext_hdr_pack.assert_called_once_with(ext)
