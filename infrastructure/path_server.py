@@ -660,7 +660,7 @@ class CorePathServer(PathServer):
         if not from_zk:
             if pcb_from_local_isd:
                 self._share_segments(pkt)
-            else:
+            elif self._master_id and not self._is_master():
                 self._send_to_master(pkt)
         # Send pending requests that couldn't be processed due to the lack of
         # a core path to the destination PS.
