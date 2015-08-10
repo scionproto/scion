@@ -27,17 +27,15 @@ from ipaddress import IPv4Address
 
 # SCION
 from endhost.sciond import SCIOND_API_HOST, SCIOND_API_PORT, SCIONDaemon
-from lib.defines import SCION_BUFLEN, SCION_UDP_EH_DATA_PORT
+from lib.defines import IPV4BYTES, SCION_BUFLEN, SCION_UDP_EH_DATA_PORT
 from lib.packet.opaque_field import InfoOpaqueField, OpaqueFieldType as OFT
 from lib.packet.path import CorePath, CrossOverPath, EmptyPath, PeerPath
 from lib.packet.scion import SCIONPacket
 from lib.packet.scion_addr import SCIONAddr, ISD_AD
-from lib.thread import thread_safety_net
+from lib.log import init_logging
+from lib.util import Raw
+from lib.thread import kill_self, thread_safety_net
 
-ping_received = False
-pong_received = False
-SRC = None
-DST = None
 saddr = IPv4Address("127.1.19.254")
 raddr = IPv4Address("127.2.26.254")
 TOUT = 10  # How long wait for response.
@@ -51,96 +49,107 @@ def get_paths_via_api(isd, ad):
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind(("127.0.0.1", 5005))
     msg = b'\x00' + ISD_AD(isd, ad).pack()
-    print("Sending path request to local API.")
+    logging.info("Sending path request to local API.")
     sock.sendto(msg, (SCIOND_API_HOST, SCIOND_API_PORT))
 
-    data, _ = sock.recvfrom(1024)
-    offset = 0
+    data = Raw(sock.recvfrom(SCION_BUFLEN)[0], "Path response")
+    if len(data) == 0:
+        logging.critical("Empty response from local api.")
+        kill_self()
     paths_hops = []
-    while offset < len(data):
-        path_len = int(data[offset]) * 8
-        offset += 1
-        raw_path = data[offset:offset+path_len]
-        path = None
-        info = InfoOpaqueField(raw_path[0:InfoOpaqueField.LEN])
+    while len(data) > 0:
+        path_len = data.pop(1) * 8
+        info = InfoOpaqueField(data.get(InfoOpaqueField.LEN))
         if not path_len:  # Shouldn't happen.
             path = EmptyPath()
         elif info.info == OFT.TDC_XOVR:
-            path = CorePath(raw_path)
+            path = CorePath(data.pop(path_len))
         elif info.info == OFT.NON_TDC_XOVR:
-            path = CrossOverPath(raw_path)
+            path = CrossOverPath(data.pop(path_len))
         elif info.info == OFT.INTRATD_PEER or info.info == OFT.INTERTD_PEER:
-            path = PeerPath(raw_path)
+            path = PeerPath(data.pop(path_len))
         else:
-            logging.info("Can not parse path: Unknown type %x", info.info)
-        assert path
-        offset += path_len
-        hop = IPv4Address(data[offset:offset+4])
-        offset += 4
+            logging.critical("Can not parse path: Unknown type %x", info.info)
+            kill_self()
+        hop = IPv4Address(data.pop(IPV4BYTES))
         paths_hops.append((path, hop))
     sock.close()
     return paths_hops
 
 
-def ping_app():
+class Ping(object):
     """
     Simple ping app.
     """
-    global pong_received
-    topo_file = ("../../topology/ISD%d/topologies/ISD:%d-AD:%d.json" %
-                 (SRC.isd, SRC.isd, SRC.ad))
-    sd = SCIONDaemon.start(saddr, topo_file, True)  # API on
-    print("Sending PATH request for (%d, %d)" % (DST.isd, DST.ad))
-    # Get paths through local API.
-    paths_hops = get_paths_via_api(DST.isd, DST.ad)
-    assert paths_hops
-    (path, hop) = paths_hops[0]
-    # paths = sd.get_paths(2, 26) # Get paths through function call.
-    # assert paths
+    def __init__(self, src, dst):
+        self.src = src
+        self.dst = dst
+        self.pong_received = False
+        topo_file = ("../../topology/ISD%d/topologies/ISD:%d-AD:%d.json" %
+                     (src.isd, src.isd, src.ad))
+        self.sd = SCIONDaemon.start(saddr, topo_file, True)  # API on
+        self.get_path()
 
-    dst = SCIONAddr.from_values(DST.isd, DST.ad, raddr)
-    spkt = SCIONPacket.from_values(sd.addr, dst, b"ping", path)
-    (next_hop, port) = sd.get_first_hop(spkt)
-    assert next_hop == hop
-    print("Sending packet: %s\nFirst hop: %s:%s\n" % (spkt, next_hop, port))
-    sd.send(spkt, next_hop, port)
+    def get_path(self):
+        logging.info("Sending PATH request for (%d, %d)",
+                     self.dst.isd, self.dst.ad)
+        # Get paths through local API.
+        paths_hops = get_paths_via_api(self.dst.isd, self.dst.ad)
+        (self.path, self.hop) = paths_hops[0]
 
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    sock.bind((str(saddr), SCION_UDP_EH_DATA_PORT))
-    packet, _ = sock.recvfrom(SCION_BUFLEN)
-    if SCIONPacket(packet).payload == b"pong":
-        print('%s: pong received.' % saddr)
-        pong_received = True
-    sock.close()
-    sd.clean()
-    print("Leaving ping_app.")
+    def run(self):
+        self.send()
+        self.recv()
+
+    def send(self):
+        dst = SCIONAddr.from_values(self.dst.isd, self.dst.ad, raddr)
+        spkt = SCIONPacket.from_values(self.sd.addr, dst, b"ping", self.path)
+        (next_hop, port) = self.sd.get_first_hop(spkt)
+        assert next_hop == self.hop
+
+        logging.info("Sending packet: \n%s\nFirst hop: %s:%s",
+                     spkt, next_hop, port)
+        self.sd.send(spkt, next_hop, port)
+
+    def recv(self):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind((str(saddr), SCION_UDP_EH_DATA_PORT))
+        packet, _ = sock.recvfrom(SCION_BUFLEN)
+        if SCIONPacket(packet).payload == b"pong":
+            logging.info('%s: pong received.', saddr)
+            self.pong_received = True
+        sock.close()
+        self.sd.stop()
 
 
-def pong_app():
+class Pong(object):
     """
     Simple pong app.
     """
-    global ping_received
-    topo_file = ("../../topology/ISD%d/topologies/ISD:%d-AD:%d.json" %
-                 (DST.isd, DST.isd, DST.ad))
-    sd = SCIONDaemon.start(raddr, topo_file)
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    sock.bind((str(raddr), SCION_UDP_EH_DATA_PORT))
-    packet, _ = sock.recvfrom(SCION_BUFLEN)
-    spkt = SCIONPacket(packet)
-    if spkt.payload == b"ping":
-        # Reverse the packet and send "pong".
-        print('%s: ping received, sending pong.' % raddr)
-        ping_received = True
-        spkt.hdr.reverse()
-        spkt.payload = b"pong"
-        (next_hop, port) = sd.get_first_hop(spkt)
-        sd.send(spkt, next_hop, port)
-    sock.close()
-    sd.clean()
-    print("Leaving pong_app.")
+    def __init__(self, dst):
+        self.dst = dst
+        self.ping_received = False
+        topo_file = ("../../topology/ISD%d/topologies/ISD:%d-AD:%d.json" %
+                     (self.dst.isd, self.dst.isd, self.dst.ad))
+        self.sd = SCIONDaemon.start(raddr, topo_file)
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.sock.bind((str(raddr), SCION_UDP_EH_DATA_PORT))
+
+    def run(self):
+        packet, _ = self.sock.recvfrom(SCION_BUFLEN)
+        spkt = SCIONPacket(packet)
+        if spkt.payload == b"ping":
+            # Reverse the packet and send "pong".
+            logging.info('%s: ping received, sending pong.', raddr)
+            self.ping_received = True
+            spkt.hdr.reverse()
+            spkt.payload = b"pong"
+            (next_hop, port) = self.sd.get_first_hop(spkt)
+            self.sd.send(spkt, next_hop, port)
+        self.sock.close()
+        self.sd.stop()
 
 
 class TestSCIONDaemon(unittest.TestCase):
@@ -155,37 +164,37 @@ class TestSCIONDaemon(unittest.TestCase):
         placed in every AD from `sources`, and receiver is 127.2.26.1 from
         every AD from `destinations`.
         """
-        global SRC, DST, ping_received, pong_received
         for src in sources:
             for dst in destinations:
                 if src != dst:
-                    SRC = ISD_AD(src[0], src[1])
-                    DST = ISD_AD(dst[0], dst[1])
-                    threading.Thread(target=thread_safety_net, args=(pong_app,),
-                                     name="E2E.pong_app", daemon=True).start()
-                    time.sleep(0.1)
-                    threading.Thread(target=thread_safety_net, args=(ping_app,),
-                                     name="E2E.ping_app", daemon=True).start()
-                    print("\nTesting:", src, "->", dst)
+                    logging.info("Testing: %s -> %s", src, dst)
+                    src = ISD_AD(src[0], src[1])
+                    dst = ISD_AD(dst[0], dst[1])
+                    pong_app = Pong(dst)
+                    threading.Thread(
+                        target=thread_safety_net, args=(pong_app.run,),
+                        name="E2E.pong_app", daemon=True).start()
+                    ping_app = Ping(src, dst)
+                    threading.Thread(
+                        target=thread_safety_net, args=(ping_app.run,),
+                        name="E2E.ping_app", daemon=True).start()
                     for _ in range(TOUT * 10):
                         time.sleep(0.1)
-                        if ping_received and pong_received:
+                        if pong_app.ping_received and ping_app.pong_received:
                             break
-                    self.assertTrue(ping_received)
-                    self.assertTrue(pong_received)
-                    ping_received = False
-                    pong_received = False
+                    self.assertTrue(pong_app.ping_received)
+                    self.assertTrue(ping_app.pong_received)
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
+    init_logging("../../logs/end2end.log", console=True)
     if len(sys.argv) == 3:
         isd, ad = sys.argv[1].split(',')
         sources = [(int(isd), int(ad))]
         isd, ad = sys.argv[2].split(',')
         destinations = [(int(isd), int(ad))]
     else:
-        print("You can specify src and dst by giving 'sISD,sAD dISD,dAD' as "
-              "the arguments. E.g.:\n# python3 end2end_test.py 1,19 2,26")
+        # You can specify src and dst by giving 'sISD,sAD dISD,dAD' as
+        # the arguments. E.g.: python3 end2end_test.py 1,19 2,26
         sources = [(1, 17), (1, 19), (1, 10), (2, 25)]
         sources += [(2, 26), (1, 14), (1, 18)]
         destinations = sources[:]
