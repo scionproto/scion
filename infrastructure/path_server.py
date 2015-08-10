@@ -670,7 +670,7 @@ class CorePathServer(PathServer):
             path = pcb.get_path(reverse_direction=True)
             targets = copy.deepcopy(self.waiting_targets)
             for (target_isd, target_ad, info) in targets:
-                if target_isd == dst_isd and target_ad == dst_ad:
+                if target_isd == dst_isd:
                     dst_isd_ad = ISD_AD(dst_isd, dst_ad)
                     path_request = PathMgmtPacket.from_values(PMT.REQUEST, info,
                                                               path, self.addr,
