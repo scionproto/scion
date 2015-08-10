@@ -655,11 +655,11 @@ class CorePathServer(PathServer):
                 self.core_ads.add((src_isd, src_ad))
             else:
                 pcb_from_local_isd = False
-        # Share segments via ZK.
-        # TODO: only segments from current ISD, the rest send to master
         if not from_zk:
+            # Share segments via ZK.
             if pcb_from_local_isd:
                 self._share_segments(pkt)
+            # Send sengments to master.
             elif self._master_id and not self._is_master():
                 self._send_to_master(pkt)
         # Send pending requests that couldn't be processed due to the lack of
@@ -703,6 +703,23 @@ class CorePathServer(PathServer):
             logging.debug("Path sent to master")
         else:
             logging.warning("_send_to_master(): _master_id not set.")
+
+    def _ask_master(self, ptype, dst_isd, dst_ad, src_isd=None, src_ad=None):
+        """
+        """
+        if src_isd is None:
+            src_isd = self.topology.isd_id
+        if src_ad is None:
+            src_ad = self.topology.ad_id
+
+        info = PathSegmentInfo.from_values(ptype, src_isd, dst_isd,
+                                           src_ad, dst_ad)
+        path_request = PathMgmtPacket.from_values(PMT.REQUEST, info,
+                                                  None, self.addr,
+                                                  ISD_AD(src_isd, src_ad))
+        logging.debug("Asking master for path: (%d, %d) -> (%d, %d)" %
+                      (src_isd, src_ad, src_isd, dst_ad))
+        self._send_to_master(path_request)
 
     def _propagate_to_core_ads(self, pkt, inter_isd=False):
         """
@@ -756,8 +773,8 @@ class CorePathServer(PathServer):
         dst_isd = segment_info.dst_isd
         dst_ad = segment_info.dst_ad
         ptype = segment_info.type
-        logging.info("PATH_REQ received: type: %d, addr: %d,%d", ptype, dst_isd,
-                     dst_ad)
+        logging.info("PATH_REQ received: type: %d, addr: (%d, %d)", ptype,
+                     dst_isd, dst_ad)
         segments_to_send = []
         if ptype == PST.UP:
             logging.warning("CPS received up-segment request! This should not "
@@ -772,9 +789,8 @@ class CorePathServer(PathServer):
                 update_dict(self.pending_down, (dst_isd, dst_ad), [pkt])
                 logging.info("No down-path segment for (%d, %d), "
                              "request is pending.", dst_isd, dst_ad)
-                # TODO Sam: Here we should ask other CPSes in the same ISD for
-                # the down-path. We first need to decide how to replicate
-                # CPS state.
+                if not self._is_master():
+                    self._ask_master(ptype, dst_isd, dst_ad)
             else:
                 # Destination is in a different ISD. Ask a CPS in a this ISD for
                 # a down-path using the first available core path.
@@ -798,6 +814,10 @@ class CorePathServer(PathServer):
                 # If no core_path was available, add request to waiting targets.
                 else:
                     self.waiting_targets.add((dst_isd, dst_ad, segment_info))
+                    if not self._is_master():
+                        # TODO: this request could be for any AD from dst_isd
+                        #self._ask_master(ptype, dst_isd, dst_ad)
+                        logging.warning("TODO: ask master for any ad of isd")
         elif ptype == PST.CORE:
             src_isd = segment_info.src_isd
             src_ad = segment_info.src_ad
@@ -812,6 +832,8 @@ class CorePathServer(PathServer):
                 logging.info("No core-segment for (%d, %d) -> (%d, %d), "
                              "request is pending.", src_isd, src_ad,
                              dst_isd, dst_ad)
+                if not self._is_master():
+                    self._ask_master(ptype, dst_isd, dst_ad, src_isd, src_ad)
         else:
             logging.error("CPS received unsupported path request!.")
         if segments_to_send:
