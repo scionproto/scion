@@ -949,13 +949,10 @@ class CoreBeaconServer(BeaconServer):
         records = PathSegmentRecords.from_values(info, [pcb])
         # Register core path with local core path server.
         if self.topology.path_servers != []:
-            # TODO: pick other than the first path server
-            dst = SCIONAddr.from_values(self.topology.isd_id,
-                                        self.topology.ad_id,
-                                        self.topology.path_servers[0].addr)
             pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, None,
-                                             self.addr.get_isd_ad(), dst)
-            self.send(pkt, dst.host_addr)
+                                             self.addr, self.addr.get_isd_ad())
+            # TODO: pick other than the first path server
+            self.send(pkt, self.topology.path_servers[0].addr)
 
     def process_pcbs(self, pcbs):
         """
@@ -1149,14 +1146,11 @@ class LocalBeaconServer(BeaconServer):
         info = PathSegmentInfo.from_values(
             PST.UP, self.topology.isd_id, self.topology.isd_id,
             pcb.get_first_pcbm().ad_id, self.topology.ad_id)
-        # TODO: pick other than the first path server
-        dst = SCIONAddr.from_values(self.topology.isd_id,
-                                    self.topology.ad_id,
-                                    self.topology.path_servers[0].addr)
         records = PathSegmentRecords.from_values(info, [pcb])
         pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, None,
-                                         self.addr.get_isd_ad(), dst)
-        self.send(pkt, dst.host_addr)
+                                         self.addr, self.addr.get_isd_ad())
+        # TODO: pick other than the first path server
+        self.send(pkt, self.topology.path_servers[0].addr)
 
     def register_down_segment(self, pcb):
         """
