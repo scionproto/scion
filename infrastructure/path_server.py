@@ -641,18 +641,18 @@ class CorePathServer(PathServer):
         for pcb in records.pcbs:
             assert pcb.segment_id != 32 * b"\x00", \
                 "Trying to register a segment with ID 0:\n%s" % pcb
-            src_ad = pcb.get_first_pcbm().ad_id
-            src_isd = pcb.get_first_pcbm().isd_id
-            dst_ad = pcb.get_last_pcbm().ad_id
-            dst_isd = pcb.get_last_pcbm().isd_id
-            res = self.core_segments.update(pcb, src_isd=dst_isd, src_ad=dst_ad,
-                                            dst_isd=src_isd, dst_ad=src_ad)
+            dst_ad = pcb.get_first_pcbm().ad_id
+            dst_isd = pcb.get_first_pcbm().isd_id
+            src_ad = pcb.get_last_pcbm().ad_id
+            src_isd = pcb.get_last_pcbm().isd_id
+            res = self.core_segments.update(pcb, src_isd=src_isd, src_ad=src_ad,
+                                            dst_isd=dst_isd, dst_ad=dst_ad)
             if res == DBResult.ENTRY_ADDED:
                 self._add_if_mappings(pcb)
                 logging.info("Core-Path registered: (%d, %d) -> (%d, %d)",
                              src_isd, src_ad, dst_isd, dst_ad)
-            if src_isd == self.topology.isd_id:
-                self.core_ads.add((src_isd, src_ad))
+            if dst_isd == self.topology.isd_id:
+                self.core_ads.add((dst_isd, dst_ad))
             else:
                 pcb_from_local_isd = False
         if not from_zk:
@@ -665,6 +665,7 @@ class CorePathServer(PathServer):
         # Send pending requests that couldn't be processed due to the lack of
         # a core path to the destination PS.
         if self.waiting_targets:
+            logging.debug("Waiting targets: %s", self.waiting_targets)
             pcb = records.pcbs[0]
             next_hop = self.ifid2addr[pcb.get_last_pcbm().hof.ingress_if]
             path = pcb.get_path(reverse_direction=True)
@@ -680,8 +681,10 @@ class CorePathServer(PathServer):
                     logging.debug("Sending path request %s on newly learned "
                                   "path to (%d, %d)", info, dst_isd, dst_ad)
         # Serve pending core path requests.
+        # FIXME(PSz): check this, and switch src, dst..
         target = ((src_isd, src_ad), (dst_isd, dst_ad))
         if target in self.pending_core:
+            logging.debug("CORE_HANDLING01")
             segments_to_send = self.core_segments(src_isd=src_isd,
                                                   src_ad=src_ad,
                                                   dst_isd=dst_isd,
