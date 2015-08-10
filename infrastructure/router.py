@@ -352,7 +352,7 @@ class Router(SCIONElement):
                     # Send request to any path server.
                     path_server = random.choice(self.topology.path_servers)
                     next_hop.addr = path_server.addr
-                else: # Send response to correct path server.
+                else:  # Send response to correct path server.
                     next_hop.addr = spkt.hdr.dst_addr.host_addr
             else:  # last opaque field on the path, send the packet to the dst
                 next_hop.addr = spkt.hdr.dst_addr.host_addr
