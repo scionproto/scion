@@ -52,7 +52,7 @@
 #define EGRESS_IF(HOF) ((ntohl(HOF->ingress_egress_if) >> 8) & 0x000fff)
 
 #define LOCAL_NETWORK_ADDRESS IPv4(10, 56, 0, 0)
-#define GET_EDGE_ROUTER_IPADDR(IFID) (LOCAL_NETWORK_ADDRESS | IFID)
+#define GET_EDGE_ROUTER_IPADDR(IFID) rte_cpu_to_be_32((LOCAL_NETWORK_ADDRESS | IFID))
 
 #define MAX_NUM_ROUTER 16
 #define MAX_NUM_BEACON_SERVERS 1
@@ -63,35 +63,56 @@ uint32_t beacon_servers[MAX_NUM_BEACON_SERVERS];
 uint32_t certificate_servers[10];
 uint32_t path_servers[10];
 
+
+struct port_map{
+  uint8_t egress;
+  uint8_t local;
+} port_map[16];
+
 // Todo: read from topology file.
 
-uint32_t my_ifid; // the current router's IFID
+uint32_t my_ifid[16]; // the current router's IFID
 
 void scion_init() {
   // fill interface list
   // TODO read topology configuration
 
   neighbor_ad_ifid = 111;
-  neighbor_ad_router_ip = IPv4(1, 1, 1, 1);
+  neighbor_ad_router_ip =  rte_cpu_to_be_32(IPv4(1, 1, 1, 1));
 
-  beacon_servers[0] = IPv4(7, 7, 7, 7);
-  certificate_servers[0] = IPv4(8, 8, 8, 8);
-  path_servers[0] = IPv4(9, 9, 9, 9);
+  beacon_servers[0] = rte_cpu_to_be_32(IPv4(7, 7, 7, 7));
+  certificate_servers[0] = rte_cpu_to_be_32(IPv4(8, 8, 8, 8));
+  path_servers[0] = rte_cpu_to_be_32(IPv4(9, 9, 9, 9));
 
-  my_ifid = 333;
+
+  //DPDK setting
+  //first router
+  port_map[0].egress=0;
+  port_map[0].local=1; 
+  port_map[1].egress=0;
+  port_map[1].local=1; 
+  my_ifid[0] = my_ifid[1]= 123;     // ifid of NIC 0 and NIC 1 is 123
+  
+ //second router
+  port_map[2].egress=2;
+  port_map[2].local=3; 
+  port_map[3].egress=2;
+  port_map[3].local=3; 
+  my_ifid[2] = my_ifid[3]= 345;     // ifid of NIC 2 and NIC 3 is 345
 }
 
 int l2fwd_send_packet(struct rte_mbuf *m, uint8_t port);
 
+
 // send a packet to neighbor AD router
-static inline int send_egress(struct rte_mbuf *m) {
+static inline int send_egress(struct rte_mbuf *m, uint8_t from_port) {
   struct ipv4_hdr *ipv4_hdr;
-  struct udp_hdr *udp_hdr;
+ // struct udp_hdr *udp_hdr;
   ipv4_hdr = (struct ipv4_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
       struct ether_hdr));
-  udp_hdr = (struct udp_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
-                                   struct ether_hdr) +
-                               sizeof(struct ipv4_hdr));
+  //udp_hdr = (struct udp_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
+  //                                 struct ether_hdr) +
+  //                             sizeof(struct ipv4_hdr));
 
   // Specify output dpdk port.
   // Update destination IP address and UDP port number
@@ -101,18 +122,22 @@ static inline int send_egress(struct rte_mbuf *m) {
 
   // TODO update IP checksum
   // TODO should we updete destination MAC address?
-  l2fwd_send_packet(m, DPDK_EGRESS_PORT);
+
+  
+  //l2fwd_send_packet(m, DPDK_EGRESS_PORT);
+  RTE_LOG(DEBUG,HSR,"send_egress port=%d\n",port_map[from_port].egress);
+  l2fwd_send_packet(m, port_map[from_port].egress);
 }
 
 // send a packet to the edge router that has next_ifid in this AD
-static inline int send_local(struct rte_mbuf *m, uint32_t next_ifid) {
+static inline int send_local(struct rte_mbuf *m, uint32_t next_ifid,uint8_t from_port) {
   struct ipv4_hdr *ipv4_hdr;
-  struct udp_hdr *udp_hdr;
+  //struct udp_hdr *udp_hdr;
   ipv4_hdr = (struct ipv4_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
       struct ether_hdr));
-  udp_hdr = (struct udp_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
-                                   struct ether_hdr) +
-                               sizeof(struct ipv4_hdr));
+  //udp_hdr = (struct udp_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
+  //                                 struct ether_hdr) +
+  //                             sizeof(struct ipv4_hdr));
 
   if (next_ifid != 0) {
     // Specify output dpdk port.
@@ -124,7 +149,8 @@ static inline int send_local(struct rte_mbuf *m, uint32_t next_ifid) {
     // TODO should we updete destination MAC address?
 
     RTE_LOG(DEBUG,HSR,"dpdk_port=%d\n", DPDK_LOCAL_PORT);
-    l2fwd_send_packet(m, DPDK_LOCAL_PORT);
+    //l2fwd_send_packet(m, DPDK_LOCAL_PORT);
+    l2fwd_send_packet(m, port_map[from_port].local);
     return 1;
   }
   return -1;
@@ -209,7 +235,7 @@ static inline uint8_t verify_of(HopOpaqueField *hof, HopOpaqueField *prev_hof,
 }
 
 static inline void normal_forward(struct rte_mbuf *m, uint32_t from_local_ad,
-                                  uint32_t ptype) {
+                                  uint32_t ptype, uint8_t from_port) {
   struct ether_hdr *eth_hdr;
   SCIONHeader *scion_hdr;
   SCIONCommonHeader *sch;
@@ -260,7 +286,7 @@ static inline void normal_forward(struct rte_mbuf *m, uint32_t from_local_ad,
 
     RTE_LOG(DEBUG,HSR,"send packet to neighbor AD\n");
     //send packet to neighbor AD's router
-    send_egress(m);
+    send_egress(m,from_port);
   } else {
     // from neighbor AD
     if (ptype == PATH_MGMT_PACKET) {
@@ -279,7 +305,7 @@ static inline void normal_forward(struct rte_mbuf *m, uint32_t from_local_ad,
       // Convert Egress ID to IP adress of the edge router
       RTE_LOG(DEBUG,HSR, "next ifid %d\n", next_ifid);
 
-      int ret = send_local(m, next_ifid);
+      int ret = send_local(m, next_ifid,from_port);
       // send_local returns -1 when the specified ifid is not found in iflist.
       if (ret < 0) {
         // send to host
@@ -302,14 +328,15 @@ static inline void normal_forward(struct rte_mbuf *m, uint32_t from_local_ad,
                    SCION_HOST_ADDR_LEN);
 
         // TODO update IP checksum
-        l2fwd_send_packet(m, DPDK_LOCAL_PORT);
+        //l2fwd_send_packet(m, DPDK_LOCAL_PORT);
+	l2fwd_send_packet(m, port_map[from_port].local);
       }
     }
   }
 }
 
 static inline void crossover_forward(struct rte_mbuf *m,
-                                     uint32_t from_local_ad) {
+                                     uint32_t from_local_ad, uint8_t from_port) {
 
   struct ether_hdr *eth_hdr;
   struct ipv4_hdr *ipv4_hdr;
@@ -369,9 +396,9 @@ static inline void crossover_forward(struct rte_mbuf *m,
                             SCION_COMMON_HEADER_LEN);
 
     if (is_on_up_path(iof)) {
-      send_local(m, INGRESS_IF(hof));
+      send_local(m, INGRESS_IF(hof),from_port);
     } else {
-      send_local(m, EGRESS_IF(hof));
+      send_local(m, EGRESS_IF(hof),from_port);
     }
 
   } else if (info == NON_TDC_XOVR) {
@@ -391,7 +418,7 @@ static inline void crossover_forward(struct rte_mbuf *m,
     }
 
     sch->currentOF += sizeof(HopOpaqueField) * 2;
-    send_local(m, EGRESS_IF(hof));
+    send_local(m, EGRESS_IF(hof),from_port);
 
   } else if (info == INPATH_XOVR) {
     ////C++ code
@@ -434,7 +461,7 @@ static inline void crossover_forward(struct rte_mbuf *m,
     }
 
     sch->currentOF += sizeof(HopOpaqueField);
-    send_local(m, INGRESS_IF(hof));
+    send_local(m, INGRESS_IF(hof),from_port);
 
   } else {
     // LOG(WARNING) << "Unknown case " << info;
@@ -442,7 +469,7 @@ static inline void crossover_forward(struct rte_mbuf *m,
 }
 
 static inline void forward_packet(struct rte_mbuf *m, uint32_t from_local_ad,
-                                  uint32_t ptype) {
+                                  uint32_t ptype, uint8_t from_port) {
 
   // C++ code
   /*
@@ -507,12 +534,12 @@ static inline void forward_packet(struct rte_mbuf *m, uint32_t from_local_ad,
   hof = (HopOpaqueField *)((unsigned char *)sch + sch->currentOF +
                            SCION_COMMON_HEADER_LEN);
   if (hof->type == LAST_OF && is_last_path_of(sch) && !new_segment)
-    crossover_forward(m, from_local_ad);
+    crossover_forward(m, from_local_ad,from_port);
   else
-    normal_forward(m, from_local_ad, ptype);
+    normal_forward(m, from_local_ad, ptype,from_port);
 }
 
-static inline void process_ifid_request(struct rte_mbuf *m) {
+static inline void process_ifid_request(struct rte_mbuf *m, uint8_t from_port) {
   struct ether_hdr *eth_hdr;
   struct ipv4_hdr *ipv4_hdr;
   struct udp_hdr *udp_hdr;
@@ -536,12 +563,13 @@ static inline void process_ifid_request(struct rte_mbuf *m) {
   for (i = 0; i < MAX_NUM_BEACON_SERVERS; i++) {
     ipv4_hdr->dst_addr = beacon_servers[i];
     udp_hdr->dst_port = SCION_UDP_PORT;
-    l2fwd_send_packet(m, DPDK_EGRESS_PORT);
+    //l2fwd_send_packet(m, DPDK_EGRESS_PORT);
+    l2fwd_send_packet(m, port_map[from_port].egress);
     // TODO update IP checksum
   }
 }
 
-static inline void process_pcb(struct rte_mbuf *m, uint8_t from_bs) {
+static inline void process_pcb(struct rte_mbuf *m, uint8_t from_bs, uint8_t from_port) {
   struct ether_hdr *eth_hdr;
   struct ipv4_hdr *ipv4_hdr;
   struct udp_hdr *udp_hdr;
@@ -569,36 +597,40 @@ static inline void process_pcb(struct rte_mbuf *m, uint8_t from_bs) {
     }
 
     ipv4_hdr->dst_addr = neighbor_ad_router_ip;
-    udp_hdr->dst_port = SCION_UDP_PORT; // neighbor router port
+    //udp_hdr->dst_port = SCION_UDP_PORT; // neighbor router port
 
     // TODO update IP checksum
-    l2fwd_send_packet(m, DPDK_EGRESS_PORT);
+    //l2fwd_send_packet(m, DPDK_EGRESS_PORT);
+    l2fwd_send_packet(m, port_map[from_port].egress);
 
   } else { // from neighbor router to local beacon server
     pcb->payload.if_id = my_ifid;
     ipv4_hdr->dst_addr = beacon_servers[0];
-    udp_hdr->dst_port = SCION_UDP_PORT;
-    l2fwd_send_packet(m, DPDK_LOCAL_PORT);
+    //udp_hdr->dst_port = SCION_UDP_PORT;
+    //l2fwd_send_packet(m, DPDK_LOCAL_PORT);
+    l2fwd_send_packet(m, port_map[from_port].local);
   }
 }
 
 static inline void relay_cert_server_packet(struct rte_mbuf *m,
-                                            uint8_t from_local_socket) {
+                                            uint8_t from_local_socket, uint8_t from_port) {
   struct ipv4_hdr *ipv4_hdr = (struct ipv4_hdr *)(rte_pktmbuf_mtod(
       m, unsigned char *)+sizeof(struct ether_hdr));
 
   if (from_local_socket) {
     ipv4_hdr->dst_addr = neighbor_ad_router_ip;
     // TODO update IP checksum
-    l2fwd_send_packet(m, DPDK_EGRESS_PORT);
+    //l2fwd_send_packet(m, DPDK_EGRESS_PORT, from_port);
+    l2fwd_send_packet(m, port_map[from_port].egress);
   } else {
     ipv4_hdr->dst_addr = certificate_servers[0];
     // TODO update IP checksum
-    l2fwd_send_packet(m, DPDK_LOCAL_PORT);
+    //l2fwd_send_packet(m, DPDK_LOCAL_PORT, from_port);
+    l2fwd_send_packet(m, port_map[from_port].local);
   }
 }
 
-static inline void write_to_egress_iface(struct rte_mbuf *m) {
+static inline void write_to_egress_iface(struct rte_mbuf *m, uint8_t from_port) {
   struct ether_hdr *eth_hdr;
   struct ipv4_hdr *ipv4_hdr;
   struct udp_hdr *udp_hdr;
@@ -661,23 +693,24 @@ static inline void write_to_egress_iface(struct rte_mbuf *m) {
     }
   }
 
-  send_egress(m);
+  send_egress(m,from_port);
 }
 
 static inline void process_packet(struct rte_mbuf *m, uint8_t from_local_socket,
-                                  uint32_t ptype) {
+                                  uint32_t ptype, uint8_t from_port) {
   RTE_LOG(DEBUG,HSR,"process packet\n");
 
   if (from_local_socket)
-    write_to_egress_iface(m);
+    write_to_egress_iface(m,from_port);
   else
-    forward_packet(m, from_local_socket, ptype);
+    forward_packet(m, from_local_socket, ptype,from_port);
 }
 
-void handle_request(struct rte_mbuf *m, uint8_t from_local_socket) {
+void handle_request(struct rte_mbuf *m, uint8_t from_local_socket, uint8_t from_port) {
   struct ether_hdr *eth_hdr;
   SCIONHeader *scion_hdr;
 
+  RTE_LOG(DEBUG,HSR,"packet recieved, port=%d\n", from_port);
 
   eth_hdr = rte_pktmbuf_mtod(m, struct ether_hdr *);
 
@@ -693,14 +726,14 @@ void handle_request(struct rte_mbuf *m, uint8_t from_local_socket) {
     // Pratyaksh
     uint8_t ptype = get_type(scion_hdr);
     if (ptype == DATA_PACKET)
-      process_packet(m, from_local_socket, ptype);
+      process_packet(m, from_local_socket, ptype, from_port);
     else if (ptype == IFID_PKT_PACKET && !from_local_socket) {
-      process_ifid_request(m);
+      process_ifid_request(m, from_port);
     } else if (ptype == BEACON_PACKET)
-      process_pcb(m, from_local_socket);
+      process_pcb(m, from_local_socket, from_port);
     else if (ptype == CERT_CHAIN_REQ_PACKET || ptype == CERT_CHAIN_REP_PACKET ||
              ptype == TRC_REQ_PACKET || ptype == TRC_REP_PACKET)
-      relay_cert_server_packet(m, from_local_socket);
+      relay_cert_server_packet(m, from_local_socket, from_port);
 
     else {
        RTE_LOG(DEBUG,HSR,"%d ?????\n", ptype);
