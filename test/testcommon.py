@@ -17,7 +17,7 @@
 """
 # Stdlib
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 # SCION
 from lib.errors import SCIONBaseError
@@ -89,3 +89,12 @@ class MockCollection(object):
         for name, patcher in self._patcher.items():
             patcher.stop()
             delattr(self, name)
+
+
+def create_mock(attrs=None):
+    if attrs is None:
+        attrs = []
+    m = MagicMock(spec_set=attrs)
+    for attr in attrs:
+        setattr(m, attr, MagicMock(spec_set=[]))
+    return m
