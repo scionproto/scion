@@ -704,9 +704,10 @@ class CorePathServer(PathServer):
         else:
             logging.warning("_send_to_master(): _master_id not set.")
 
-    def _ask_master(self, ptype, dst_isd, dst_ad, src_isd=None, src_ad=None):
+    def _query_master(self, ptype, dst_isd, dst_ad, src_isd=None, src_ad=None):
         """
         """
+        # TODO(PSz): don't send path back to master.
         if src_isd is None:
             src_isd = self.topology.isd_id
         if src_ad is None:
@@ -718,7 +719,7 @@ class CorePathServer(PathServer):
                                                   None, self.addr,
                                                   ISD_AD(src_isd, src_ad))
         logging.debug("Asking master for path: (%d, %d) -> (%d, %d)" %
-                      (src_isd, src_ad, src_isd, dst_ad))
+                      (src_isd, src_ad, dst_isd, dst_ad))
         self._send_to_master(path_request)
 
     def _propagate_to_core_ads(self, pkt, inter_isd=False):
@@ -790,7 +791,7 @@ class CorePathServer(PathServer):
                 logging.info("No down-path segment for (%d, %d), "
                              "request is pending.", dst_isd, dst_ad)
                 if not self._is_master():
-                    self._ask_master(ptype, dst_isd, dst_ad)
+                    self._query_master(ptype, dst_isd, dst_ad)
             else:
                 # Destination is in a different ISD. Ask a CPS in a this ISD for
                 # a down-path using the first available core path.
@@ -815,25 +816,33 @@ class CorePathServer(PathServer):
                 else:
                     self.waiting_targets.add((dst_isd, dst_ad, segment_info))
                     if not self._is_master():
-                        # TODO: this request could be for any AD from dst_isd
-                        #self._ask_master(ptype, dst_isd, dst_ad)
-                        logging.warning("TODO: ask master for any ad of isd")
+                        # Ask for any path to dst_isd
+                        self._query_master(PST.CORE, dst_isd, 0)
         elif ptype == PST.CORE:
             src_isd = segment_info.src_isd
             src_ad = segment_info.src_ad
+            # Check if requester wants any path to ISD.
+            any_ad = not dst_ad
+            if any_ad and not self._is_master():
+                logging.warning("Request for ISD path and self is not master")
             key = ((src_isd, src_ad), (dst_isd, dst_ad))
-            paths = self.core_segments(src_isd=src_isd, src_ad=src_ad,
-                                       dst_isd=dst_isd, dst_ad=dst_ad)
+            if any_ad:
+                paths = self.core_segments(src_isd=src_isd, src_ad=src_ad,
+                                           dst_isd=dst_isd)
+            else:
+                paths = self.core_segments(src_isd=src_isd, src_ad=src_ad,
+                                           dst_isd=dst_isd, dst_ad=dst_ad)
             if paths:
                 paths = paths[:self.MAX_SEG_NO]
                 segments_to_send.extend(paths)
             else:
-                update_dict(self.pending_core, key, [pkt])
-                logging.info("No core-segment for (%d, %d) -> (%d, %d), "
-                             "request is pending.", src_isd, src_ad,
-                             dst_isd, dst_ad)
+                if not any_ad:  # FIXME(PSz): this behaviour could be revised.
+                    update_dict(self.pending_core, key, [pkt])
+                    logging.info("No core-segment for (%d, %d) -> (%d, %d), "
+                                 "request is pending.", src_isd, src_ad,
+                                 dst_isd, dst_ad)
                 if not self._is_master():
-                    self._ask_master(ptype, dst_isd, dst_ad, src_isd, src_ad)
+                    self._query_master(ptype, dst_isd, dst_ad, src_isd, src_ad)
         else:
             logging.error("CPS received unsupported path request!.")
         if segments_to_send:
