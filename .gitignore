@@ -36,6 +36,7 @@ traces/*
 # Python generated files #
 #########################
 __pycache__
+*.pyc
 
 
 # vim generated files #
