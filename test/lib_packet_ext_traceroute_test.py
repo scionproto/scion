@@ -16,7 +16,7 @@
 ==============================================================================
 """
 # Stdlib
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, call
 
 # External packages
 import nose
@@ -59,12 +59,12 @@ class TestTracerouteExtParsePayload(object):
            new_callable=MagicMock)
     def test(self, isd_ad):
         ext = TracerouteExt()
-        ext.hops = [1]
+        ext.hops = []
         ext.payload = (b"\x02" + b'\x00' * 4 +
                        bytes.fromhex('0102 0304 0506 0708') * 2)
         isd_ad.side_effect = [(1, 2), (3, 4)]
         ext.parse_payload()
-        ntools.eq_(ext.hops, [1, (1, 2, 0x0506, 0x0708),
+        ntools.eq_(ext.hops, [(1, 2, 0x0506, 0x0708),
                               (3, 4, 0x0506, 0x0708)])
 
 
@@ -97,8 +97,8 @@ class TestTracerouteExtPack(object):
                    bytes.fromhex('0003 0004') + b'ad_2' +
                    bytes.fromhex('0007 0008'))
         ntools.eq_(ext.pack(), ext_hdr_pack.return_value)
-        isd_ad.assert_any_call(1, 2)
-        isd_ad.assert_any_call(5, 6)
+        isd_ad.assert_has_calls([call(1,2), call().pack(),
+                                 call(5,6), call().pack()])
         ntools.eq_(isd_ad_mock.pack.call_count, 2)
         ntools.eq_(ext.payload, payload)
         ext_hdr_pack.assert_called_once_with(ext)
