@@ -562,9 +562,6 @@ class CorePathServer(PathServer):
             logging.warning("No lock data found")
             return None
 
-    def _request_path_from_master(self, target):
-        pass
-
     def _is_master(self):
         """
         Return True when instance is master Core Path Server, False otherwise.
