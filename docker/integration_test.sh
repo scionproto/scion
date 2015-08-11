@@ -4,18 +4,23 @@ log() {
     echo "========> ($(date -u --rfc-3339=seconds)) $@"
 }
 
+set -o pipefail
+
 log "Starting scion"
-./scion.sh run || exit 1
-log "Scion started"
-log "Scion status: checking"
+./scion.sh run | grep -v "RUNNING"
+log "Scion status:"
 ./scion.sh status || exit 1
-log "Scion status: healthy"
-log "Test starting: end2end"
+log "End2end starting:"
 ( cd test/integration; PYTHONPATH=../../ python3 end2end_test.py; )
-log "Test success: end2end"
-log "Scion status: checking"
+result=$?
+if [ $result -eq 0 ]; then
+    log "End2end: success"
+else
+    log "End2end: failure"
+fi
+log "Scion status:"
 ./scion.sh status
-log "Scion status: healthy"
 log "Stopping scion"
-./scion.sh stop
+./scion.sh stop | grep -v "STOPPED"
 log "Scion stopped"
+exit $result

@@ -310,8 +310,13 @@ def _signal_handler(signum, _):
     :param signum:
     :type signum:
     """
-    logging.info("Received %s", _SIG_MAP[signum])
-    sys.exit(0)
+    text = "Received %s" % _SIG_MAP[signum]
+    if signum == signal.SIGTERM:
+        logging.info(text)
+        sys.exit(0)
+    else:
+        logging.error(text)
+        sys.exit(1)
 
 
 class SCIONTime(object):

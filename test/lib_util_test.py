@@ -17,6 +17,7 @@
 """
 # Stdlib
 import builtins
+from signal import SIGUSR1, SIGTERM
 from unittest.mock import patch, call, mock_open, MagicMock
 
 # External packages
@@ -324,9 +325,16 @@ class TestSignalHandler(object):
     @patch("lib.util.sys.exit", autospec=True)
     @patch("lib.util.logging.info", autospec=True)
     def test_basic(self, info, exit):
-        _signal_handler(1, 2)
-        info.assert_called_once_with("Received %s", _SIG_MAP[1])
+        _signal_handler(SIGTERM, "")
+        ntools.ok_(info.called)
         exit.assert_called_once_with(0)
+
+    @patch("lib.util.sys.exit", autospec=True)
+    @patch("lib.util.logging.error", autospec=True)
+    def test_error(self, error, exit):
+        _signal_handler(SIGUSR1, "")
+        ntools.ok_(error.called)
+        exit.assert_called_once_with(1)
 
 
 class TestSCIONTimeGetTime(object):
