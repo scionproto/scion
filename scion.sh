@@ -24,7 +24,7 @@ cmd_run() {
     echo "Running the network..."
     supervisor/supervisor.sh reload
     for i in topology/ISD*/zookeeper/ISD*/datalog.*.sh; do
-        bash "$i"
+        [ -e "$i" ] && bash "$i"
     done
     supervisor/supervisor.sh quickstart all
 }
@@ -100,5 +100,5 @@ shift
 case "$COMMAND" in
     coverage|help|init|lint|run|stop|status|test|topology|version)
         "cmd_$COMMAND" "$@" ;;
-    *)  cmd_help ;;
+    *)  cmd_help; exit 1 ;;
 esac

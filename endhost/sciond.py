@@ -23,7 +23,6 @@ import threading
 
 # SCION
 from infrastructure.scion_elem import SCIONElement
-from lib.dnsclient import DNSLibMajorError, DNSLibMinorError
 from lib.packet.path import PathCombinator
 from lib.packet.path_mgmt import (
     PathMgmtPacket,
@@ -34,7 +33,6 @@ from lib.packet.path_mgmt import (
 from lib.packet.scion_addr import ISD_AD
 from lib.path_db import PathSegmentDB
 from lib.thread import thread_safety_net
-from lib.log import log_exception
 from lib.util import update_dict
 
 WAIT_CYCLES = 3
@@ -87,6 +85,7 @@ class SCIONDaemon(SCIONElement):
                                  PST.CORE: {},
                                  PST.UP_DOWN: {}}
         self._api_socket = None
+        self.daemon_thread = None
         if run_local_api:
             self._api_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             self._api_socket.setsockopt(socket.SOL_SOCKET,
@@ -112,10 +111,19 @@ class SCIONDaemon(SCIONElement):
         :type :
         """
         sd = cls(addr, topo_file, run_local_api)
-        threading.Thread(
-            target=thread_safety_net, args=(sd.run,),
-            name="SCIONDaemon.run", daemon=True).start()
+        sd.daemon_thread = threading.Thread(
+            target=thread_safety_net, args=(sd.run,), name="SCIONDaemon.run",
+            daemon=True)
+        sd.daemon_thread.start()
         return sd
+
+    def stop(self):
+        """
+        Stop SCIONDaemon thread
+        """
+        logging.debug("Stopping SCIONDaemon")
+        super().stop()
+        self.daemon_thread.join()
 
     def _request_paths(self, ptype, dst_isd, dst_ad, src_isd=None, src_ad=None,
                        requester=None):
@@ -150,18 +158,12 @@ class SCIONDaemon(SCIONElement):
         path_request = PathMgmtPacket.from_values(PMT.REQUEST, info,
                                                   None, self.addr,
                                                   ISD_AD(src_isd, src_ad))
-        dst = self.topology.path_servers[0].addr
-        try:
-            dst = self.dns.query("ps")[0]
-        except DNSLibMinorError as e:
-            logging.warning("Falling back to topology file: %s", e)
-        except DNSLibMajorError as e:
-            log_exception("Falling back to topology file:")
+        dst = self.dns_query("ps", self.topology.path_servers[0].addr)
         self.send(path_request, dst)
         # Wait for path reply and clear us from the waiting list when we got it.
         cycle_cnt = 0
         while cycle_cnt < WAIT_CYCLES:
-            event.wait(SCIONDaemon.TIMEOUT)
+            event.wait(self.TIMEOUT)
             # Check that we got all the requested paths.
             if ((ptype == PST.UP and len(self.up_segments)) or
                 (ptype == PST.DOWN and
