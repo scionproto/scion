@@ -30,14 +30,14 @@ class OpaqueFieldType(object):
     """
     # Types for HopOpaqueFields (7 MSB bits).
     NORMAL_OF = 0b0000000
-    LAST_OF = 0b0010000  # indicates last hop OF on the half-path (TODO revise)
+    XOVR_POINT = 0b0010000  # indicates last hop OF on the half-path (TODO revise)
     PEER_XOVR = 0b0001000
     # Types for Info Opaque Fields (7 MSB bits).
-    TDC_XOVR = 0b1000000
-    NON_TDC_XOVR = 0b1100000
-    INPATH_XOVR = 0b1110000
-    INTRATD_PEER = 0b1111000
-    INTERTD_PEER = 0b1111100
+    CORE = 0b1000000
+    SHORTCUT = 0b1100000
+    ONPATH_SHORTCUT = 0b1110000
+    INTRA_ISD_PEER = 0b1111000
+    INTER_ISD_PEER = 0b1111100
 
 
 class OpaqueField(object):

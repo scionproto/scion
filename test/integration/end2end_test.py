@@ -65,11 +65,11 @@ def get_paths_via_api(isd, ad):
         info = InfoOpaqueField(raw_path[0:InfoOpaqueField.LEN])
         if not path_len:  # Shouldn't happen.
             path = EmptyPath()
-        elif info.info == OFT.TDC_XOVR:
+        elif info.info == OFT.CORE:
             path = CorePath(raw_path)
-        elif info.info == OFT.NON_TDC_XOVR:
+        elif info.info == OFT.SHORTCUT:
             path = CrossOverPath(raw_path)
-        elif info.info == OFT.INTRATD_PEER or info.info == OFT.INTERTD_PEER:
+        elif info.info in [OFT.INTRA_ISD_PEER, OFT.INTER_ISD_PEER]:
             path = PeerPath(raw_path)
         else:
             logging.info("Can not parse path: Unknown type %x", info.info)

@@ -454,8 +454,8 @@ class TestSCIONHeaderParseOpaqueFields(object):
         ntools.eq_(hdr._path, path)
 
     def test_other_paths(self):
-        ofts = [OFT.TDC_XOVR, OFT.NON_TDC_XOVR, OFT.INTRATD_PEER,
-                OFT.INTERTD_PEER]
+        ofts = [OFT.CORE, OFT.SHORTCUT, OFT.INTRA_ISD_PEER,
+                OFT.INTER_ISD_PEER]
         paths = ['core_path', 'cross_over_path', 'peer_path', 'peer_path']
         for oft, path in zip(ofts, paths):
             yield self._check, oft, path

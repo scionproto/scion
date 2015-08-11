@@ -303,11 +303,11 @@ class SCIONHeader(HeaderBase):
             return
         info = InfoOpaqueField(data.get(InfoOpaqueField.LEN))
         path_data = data.pop(self.common_hdr.hdr_len - data.offset())
-        if info.info == OFT.TDC_XOVR:
+        if info.info == OFT.CORE:
             self._path = CorePath(path_data)
-        elif info.info == OFT.NON_TDC_XOVR:
+        elif info.info == OFT.SHORTCUT:
             self._path = CrossOverPath(path_data)
-        elif info.info in (OFT.INTRATD_PEER, OFT.INTERTD_PEER):
+        elif info.info in (OFT.INTRA_ISD_PEER, OFT.INTER_ISD_PEER):
             self._path = PeerPath(path_data)
         else:
             raise SCIONParseError("SCIONHeader: Can not parse path in "

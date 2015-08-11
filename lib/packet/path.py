@@ -615,7 +615,7 @@ class PeerPath(PathBase):
         else:
             return 0
 
-        if first_segment_hops[0].info == OpaqueFieldType.LAST_OF:
+        if first_segment_hops[0].info == OpaqueFieldType.XOVR_POINT:
             return InfoOpaqueField.LEN + HopOpaqueField.LEN
         return InfoOpaqueField.LEN
 
@@ -780,12 +780,12 @@ class PathCombinator(object):
         if peer:
             path = PeerPath()
             if up_segment.get_isd() == down_segment.get_isd():
-                info = OpaqueFieldType.INTRATD_PEER
+                info = OpaqueFieldType.INTRA_ISD_PEER
             else:
-                info = OpaqueFieldType.INTERTD_PEER
+                info = OpaqueFieldType.INTER_ISD_PEER
         else:
             path = CrossOverPath()
-            info = OpaqueFieldType.NON_TDC_XOVR
+            info = OpaqueFieldType.SHORTCUT
 
         path = PathCombinator._join_up_segment_shortcuts(path, up_segment,
                                                          info, up_index)
@@ -824,7 +824,7 @@ class PathCombinator(object):
         path.up_segment_info.up_flag = True
         for block in reversed(up_segment.ads):
             path.up_segment_hops.append(copy.deepcopy(block.pcbm.hof))
-        path.up_segment_hops[-1].info = OpaqueFieldType.LAST_OF
+        path.up_segment_hops[-1].info = OpaqueFieldType.XOVR_POINT
         return path
 
     @staticmethod
@@ -840,8 +840,8 @@ class PathCombinator(object):
         for block in reversed(core_segment.ads):
             path.core_segment_hops.append(
                 copy.deepcopy(block.pcbm.hof))
-        path.core_segment_hops[-1].info = OpaqueFieldType.LAST_OF
-        path.core_segment_hops[0].info = OpaqueFieldType.LAST_OF
+        path.core_segment_hops[-1].info = OpaqueFieldType.XOVR_POINT
+        path.core_segment_hops[0].info = OpaqueFieldType.XOVR_POINT
         return path
 
     @staticmethod
@@ -854,7 +854,7 @@ class PathCombinator(object):
         path.down_segment_info.up_flag = False
         for block in down_segment.ads:
             path.down_segment_hops.append(copy.deepcopy(block.pcbm.hof))
-        path.down_segment_hops[0].info = OpaqueFieldType.LAST_OF
+        path.down_segment_hops[0].info = OpaqueFieldType.XOVR_POINT
         return path
 
     @staticmethod
@@ -868,7 +868,7 @@ class PathCombinator(object):
         path.up_segment_info.up_flag = True
         for i in reversed(range(up_index, len(up_segment.ads))):
             path.up_segment_hops.append(up_segment.ads[i].pcbm.hof)
-        path.up_segment_hops[-1].info = OpaqueFieldType.LAST_OF
+        path.up_segment_hops[-1].info = OpaqueFieldType.XOVR_POINT
         path.up_segment_upstream_ad = up_segment.ads[up_index - 1].pcbm.hof
         path.up_segment_upstream_ad.info = OpaqueFieldType.NORMAL_OF
         return path
@@ -886,7 +886,7 @@ class PathCombinator(object):
         path.down_segment_upstream_ad.info = OpaqueFieldType.NORMAL_OF
         for i in range(dw_index, len(down_segment.ads)):
             path.down_segment_hops.append(down_segment.ads[i].pcbm.hof)
-        path.down_segment_hops[0].info = OpaqueFieldType.LAST_OF
+        path.down_segment_hops[0].info = OpaqueFieldType.XOVR_POINT
         return path
 
     @staticmethod

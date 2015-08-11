@@ -1,4 +1,4 @@
-# Copyright 2014 ETH Zurich
+# Copyright 2015 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,11 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from lib.packet.path_mgmt import PathMgmtPacket
 """
 :mod:`router` --- SCION edge router
 ===========================================
 """
-# Stdlib
+
 import argparse
 import datetime
 import logging
@@ -24,12 +25,11 @@ import sys
 import threading
 import time
 
-# SCION
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.symcrypto import get_roundkey_cache, verify_of_mac
-from lib.defines import SCION_UDP_PORT, SCION_UDP_EH_DATA_PORT, EXP_TIME_UNIT
+from lib.defines import SCION_UDP_PORT, EXP_TIME_UNIT, SCION_UDP_EH_DATA_PORT
 from lib.log import init_logging, log_exception
-from lib.packet.opaque_field import OpaqueField, OpaqueFieldType as OFT
+from lib.packet.opaque_field import OpaqueFieldType as OFT
 from lib.packet.pcb import PathConstructionBeacon
 from lib.packet.scion import (
     IFIDPacket,
@@ -37,39 +37,11 @@ from lib.packet.scion import (
     SCIONPacket,
     get_type,
 )
-from lib.packet.scion_addr import ISD_AD, SCIONAddr
+from lib.packet.scion_addr import SCIONAddr, ISD_AD
 from lib.thread import thread_safety_net
 from lib.util import handle_signals, SCIONTime
 
 IFID_PKT_TOUT = 1  # How often IFID packet is sent to neighboring router.
-
-
-class NextHop(object):
-    """
-    Simple class for next hop representation. Object of this class corresponds
-    to SCION Packet and is processed within routing context.
-
-    :ivar addr: the next hop address.
-    :type addr: str
-    :ivar port: the next hop port number.
-    :type port: int
-    """
-
-    def __init__(self):
-        """
-        Initialize an instance of the class NextHop.
-        """
-        self.addr = None
-        self.port = SCION_UDP_PORT
-
-    def __str__(self):
-        """
-        Return the next hop address and port number.
-
-        :returns: string with next hop address and port number.
-        :rtype: string
-        """
-        return "%s:%d" % (self.addr, self.port)
 
 
 class Router(SCIONElement):
@@ -94,7 +66,6 @@ class Router(SCIONElement):
                              those extensions that execute after routing.
     :type post_ext_handlers: dict
     """
-
     def __init__(self, router_id, topo_file, config_file, pre_ext_handlers=None,
                  post_ext_handlers=None, is_sim=False):
         """
@@ -155,138 +126,116 @@ class Router(SCIONElement):
             name="ER.sync_interface", daemon=True).start()
         SCIONElement.run(self)
 
-    def send(self, packet, next_hop, use_local_socket=True):
+    def send(self, packet, addr, port=SCION_UDP_PORT, use_local_socket=True):
         """
-        Send a packet to next_hop.addr (class of that object must implement
-        __str__ which returns IPv4 addr) using next_hop.port and local or remote
+        Send a packet to addr (class of that object must implement
+        __str__ which returns IPv4 addr) using port and local or remote
         socket.
 
-        :param packet:
-        :type packet:
-        :param next_hop: the next hop of the packet.
-        :type next_hop: :class:`NextHop`
+        :param packet: The packet to send.
+        :type packet: :class:`lib.packet.SCIONPacket`
+        :param addr: The address of the next hop.
+        :type addr: :class:`IPv4Adress`
+        :param port: The port number of the next hop.
+        :type port: int
         :param use_local_socket: whether to use the local socket (as opposed to
                                  a remote socket).
         :type use_local_socket: bool
         """
-        logging.info("Sending packet to %s", next_hop)
-        self.handle_extensions(packet, next_hop, False)
         if use_local_socket:
-            SCIONElement.send(self, packet, next_hop.addr, next_hop.port)
+            SCIONElement.send(self, packet, addr, port)
         else:
             self._remote_socket.sendto(
-                packet.pack(), (str(next_hop.addr), next_hop.port))
-
-    def handle_extensions(self, spkt, next_hop, pre_routing_phase):
-        """
-        Handle SCION Packet extensions. Handlers can be defined for pre- and
-        post-routing. A handler takes two parameters: packet (SCIONPacket),
-        next_hop (NextHop).
-
-        :param spkt:
-        :type spkt:
-        :param next_hop:
-        :type next_hop:
-        :param pre_routing_phase:
-        :type pre_routing_phase:
-        """
-        if pre_routing_phase:
-            handlers = self.pre_ext_handlers
-        else:
-            handlers = self.post_ext_handlers
-
-        ext_nr = spkt.hdr.common_hdr.next_hdr
-        for ext_hdr in spkt.hdr.extension_hdrs:
-            if ext_nr in handlers:
-                handlers[ext_nr](spkt, next_hop, self.config)
-            else:
-                logging.warning("No handler for extension type %u", ext_nr)
-            ext_nr = ext_hdr.next_ext
-        if ext_nr:
-            logging.warning("Extensions terminated incorrectly: last " +
-                            "extension has a non-empty next extension field")
+                packet.pack(), (str(addr), port))
 
     def sync_interface(self):
         """
         Synchronize and initialize the router's interface with that of a
         neighboring router.
         """
-        next_hop = NextHop()
-        next_hop.addr = self.interface.to_addr
-        next_hop.port = self.interface.to_udp_port
         src = SCIONAddr.from_values(self.topology.isd_id, self.topology.ad_id,
                                     self.interface.addr)
         dst_isd_ad = ISD_AD(self.interface.neighbor_isd,
                             self.interface.neighbor_ad)
         ifid_req = IFIDPacket.from_values(src, dst_isd_ad, self.interface.if_id)
         while True:
-            self.send(ifid_req, next_hop, False)
+            self.send(ifid_req, self.interface.to_addr,
+                      self.interface.to_udp_port, False)
             logging.info('Sending IFID_PKT to router: req_id:%d, rep_id:%d',
                          ifid_req.request_id, ifid_req.reply_id)
             time.sleep(IFID_PKT_TOUT)
 
-    def process_ifid_request(self, packet, next_hop):
+    def process_ifid_request(self, packet):
         """
         After receiving IFID_PKT from neighboring router it is completed (by
         iface information) and passed to local BSes.
 
         :param packet: the IFID request packet to send.
         :type packet: bytes
-        :param next_hop: the next hop of the request packet.
-        :type next_hop: :class:`NextHop`
         """
-        logging.info('IFID_PKT received, len %u', len(packet))
         ifid_req = IFIDPacket(packet)
         # Forward 'alive' packet to all BSes (to inform that neighbor is alive).
         ifid_req.reply_id = self.interface.if_id  # BS must determine interface.
         for bs in self.topology.beacon_servers:
-            next_hop.addr = bs.addr
-            self.send(ifid_req, next_hop)
+            self.send(ifid_req, bs.addr)
 
-    def process_pcb(self, packet, next_hop, from_bs):
+    def process_pcb(self, packet, from_bs):
         """
         Depending on scenario: a) send PCB to all beacon servers, or b) to
         neighboring router.
 
-        :param packet:
-        :type packet:
-        :param next_hop:
-        :type next_hop:
-        :param from_bs:
-        :type from_bs:
+        :param packet: The PCB.
+        :type packet: :class:`lib.packet.SCIONPacket`
+        :param from_bs: True, if the beacon was received from local BS.
+        :type from_bs: bool
         """
         beacon = PathConstructionBeacon(packet)
         if from_bs:
             if self.interface.if_id != beacon.pcb.get_last_pcbm().hof.egress_if:
                 logging.error("Wrong interface set by BS.")
                 return
-            next_hop.addr = self.interface.to_addr
-            next_hop.port = self.interface.to_udp_port
-            self.send(beacon, next_hop, False)
+            self.send(beacon, self.interface.to_addr,
+                      self.interface.to_udp_port, False)
         else:
             # TODO Multiple BS scenario
             beacon.pcb.if_id = self.interface.if_id
-            next_hop.addr = self.topology.beacon_servers[0].addr
-            self.send(beacon, next_hop)
+            self.send(beacon, self.topology.beacon_servers[0].addr)
 
-    def relay_cert_server_packet(self, spkt, next_hop, from_local_ad):
+    def relay_cert_server_packet(self, spkt, from_local_ad):
         """
         Relay packets for certificate servers.
 
         :param spkt: the SCION packet to forward.
         :type spkt: :class:`lib.packet.scion.SCIONPacket`
-        :param next_hop: the next hop of the packet.
-        :type next_hop: :class:`NextHop`
         :param from_local_ad: whether or not the packet is from the local AD.
         :type from_local_ad: bool
         """
         if from_local_ad:
-            next_hop.addr = self.interface.to_addr
-            next_hop.port = self.interface.to_udp_port
+            addr = self.interface.to_addr
+            port = self.interface.to_udp_port
         else:
             # TODO Multiple CS scenario
-            next_hop.addr = self.topology.certificate_servers[0].addr
-        self.send(spkt, next_hop)
+            addr = self.topology.certificate_servers[0].addr
+            port = SCION_UDP_PORT
+        self.send(spkt, addr, port)
+
+    def process_path_mgmt_packet(self, spkt, from_local_ad):
+        """
+        Process path management packets.
+
+        :param spkt: The path mgmt packet.
+        :type spkt: :class:`lib.packet.scion.SCIONPacket`
+        :param from_local_ad: whether or not the packet is from the local AD.
+        :type from_local_ad: bool
+        """
+        # For now this function only forwards path management packets to the
+        # path servers in the destination AD. In the future, path management
+        # packets might be handled differently.
+        mgmt_pkt = PathMgmtPacket(spkt.raw)
+        if not from_local_ad and mgmt_pkt.hdr.is_last_path_of():
+            self.terminate(spkt, PT.PATH_MGMT)
+        else:
+            self.forward_packet(spkt, from_local_ad)
 
     def verify_of(self, hof, prev_hof, ts):
         """
@@ -309,216 +258,288 @@ class Router(SCIONElement):
             logging.warning("Dropping packet due to expired OF.")
         return False
 
-    def normal_forward(self, spkt, next_hop, from_local_ad, ptype):
+    def terminate(self, spkt, ptype):
         """
-        Process normal forwarding.
+        Forwards the packet to the end destination within the current AD.
 
-        :param spkt: the SCION packet to forward.
+        :param spkt: The SCION Packet to forward.
         :type spkt: :class:`lib.packet.scion.SCIONPacket`
-        :param next_hop: the next hop of the packet.
-        :type next_hop: :class:`NextHop`
-        :param from_local_ad: whether or not the packet is from the local AD.
-        :type from_local_ad: bool
-        :param ptype: the type of the packet.
-        :type ptype: :class:`lib.packet.scion.PacketType`
+        :param ptype: The packet type.
+        :type ptype: int
         """
-        curr_hof = spkt.hdr.get_current_of()
-        prev_hof = None
-        is_on_up_path = spkt.hdr.is_on_up_path()
-        timestamp = spkt.hdr.get_current_iof().timestamp
-        if is_on_up_path:
-            iface = curr_hof.ingress_if
-            prev_hof = spkt.hdr.get_relative_of(1)
+        curr_of = spkt.hdr.get_current_of()
+        if (not spkt.hdr.is_last_path_of() or
+                (curr_of.ingress_if and curr_of.egress_if)):
+            logging.warning("Trying to terminate packet that is not at the " +
+                            "end of a segment.")
+            return
+        # Forward packet to destination.
+        if ptype == PT.PATH_MGMT:
+            addr = self.topology.path_servers[0].addr
+            port = SCION_UDP_PORT
         else:
-            iface = curr_hof.egress_if
-            if spkt.hdr.get_relative_of(-1).is_regular():
-                prev_hof = spkt.hdr.get_relative_of(-1)
-        if from_local_ad:
-            if iface == self.interface.if_id:
-                next_hop.addr = self.interface.to_addr
-                next_hop.port = self.interface.to_udp_port
-                spkt.hdr.increase_of(1)
-                if self.verify_of(curr_hof, prev_hof, timestamp):
-                    self.send(spkt, next_hop, False)
-            else:
-                logging.error("1 interface mismatch %u != %u", iface,
-                              self.interface.if_id)
+            addr = spkt.hdr.dst_addr.host_addr
+            port = SCION_UDP_EH_DATA_PORT
+        self.send(spkt, addr, port)
+    
+    def handle_ingress_xovr(self, spkt):
+        """
+        Main entry for crossover points at the ingress router.
+        """
+        curr_of = spkt.hdr.get_current_of()
+        curr_iof = spkt.hdr.get_current_iof()
+        # Preconditions
+        assert curr_of.is_xovr()
+
+        if curr_iof.info == OFT.SHORTCUT:
+            self.ingress_shortcut_xovr(spkt)
+        elif curr_iof.info in [OFT.INTRA_ISD_PEER, OFT.INTER_ISD_PEER]:
+            self.ingress_peer_xovr(spkt)
+        elif curr_iof.info == OFT.CORE:
+            self.ingress_core_xovr(spkt)
         else:
-            if iface:
-                next_hop.addr = self.ifid2addr[iface]
-            elif ptype in [PT.PATH_MGMT, PT.PATH_MGMT]:
-                next_hop.addr = self.topology.path_servers[0].addr
-            else:  # last opaque field on the path, send the packet to the dst
-                next_hop.addr = spkt.hdr.dst_addr.host_addr
-                next_hop.port = SCION_UDP_EH_DATA_PORT  # data packet to endhost
-            if self.verify_of(curr_hof, prev_hof, timestamp):
-                self.send(spkt, next_hop)
-        logging.debug("normal_forward()")
-
-    def crossover_forward(self, spkt, next_hop, info):
+            logging.error("Current Info OF invalid.")
+    
+    def ingress_shortcut_xovr(self, spkt):
         """
-        Process crossover forwarding.
-
-        :param spkt: the SCION packet to forward.
-        :type spkt: :class:`lib.packet.scion.SCIONPacket`
-        :param next_hop: the next hop of the packet.
-        :type next_hop: :class:`NextHop`
-        :param info: the type of opaque field.
-        :type info: :class:`lib.packet.opaque_field.OpaqueFieldType`
+        Handles the crossover point for shortcut paths at the ingress router.
         """
-        logging.debug("crossover_forward()")
-        curr_hof = spkt.hdr.get_current_of()
-        prev_hof = None
-        is_on_up_path = spkt.hdr.is_on_up_path()
-        timestamp = spkt.hdr.get_current_iof().timestamp
-        if info == OFT.TDC_XOVR:
-            if not is_on_up_path:
-                prev_hof = spkt.hdr.get_relative_of(-1)
-            if self.verify_of(curr_hof, prev_hof, timestamp):
-                spkt.hdr.increase_of(1)
-                next_iof = spkt.hdr.get_current_of()
-                opaque_field = spkt.hdr.get_relative_of(1)
-                if next_iof.up_flag:  # TODO replace by get_first_hop
-                    next_hop.addr = self.ifid2addr[opaque_field.ingress_if]
-                else:
-                    next_hop.addr = self.ifid2addr[opaque_field.egress_if]
-                logging.debug("send() here, find next hop0.")
-                self.send(spkt, next_hop)
-        elif info == OFT.NON_TDC_XOVR:
-            prev_hof = spkt.hdr.get_relative_of(1)
-            if self.verify_of(curr_hof, prev_hof, timestamp):
-                spkt.hdr.increase_of(2)
-                opaque_field = spkt.hdr.get_relative_of(2)
-                if opaque_field.egress_if:
-                    next_hop.addr = self.ifid2addr[opaque_field.egress_if]
-                else:  # Send to endhost (on-path case), TODO: check length
-                    spkt.hdr.common_hdr.curr_iof_p = \
-                        spkt.hdr.common_hdr.curr_of_p
-                    timestamp = spkt.hdr.get_current_iof().timestamp
-                    prev_hof = spkt.hdr.get_relative_of(1)
-                    if not self.verify_of(opaque_field, prev_hof, timestamp):
-                        return
-                    next_hop.addr = spkt.hdr.dst_addr.host_addr
-                    next_hop.port = SCION_UDP_EH_DATA_PORT
-                logging.debug("send() here, find next hop1")
-                self.send(spkt, next_hop)
-        elif info == OFT.INPATH_XOVR:  # TODO: implement that case
-            if self.verify_of(curr_hof, prev_hof, timestamp):
-                is_regular = True
-                while is_regular:
-                    spkt.hdr.increase_of(2)
-                    is_regular = spkt.hdr.get_current_of().is_regular()
-                spkt.hdr.common_hdr.curr_iof_p = spkt.hdr.common_hdr.curr_of_p
-                logging.debug("TODO send() here, find next hop2")
-        elif info == OFT.INTRATD_PEER or info == OFT.INTERTD_PEER:
-            spkt.hdr.increase_of(1)
-            prev_hof = spkt.hdr.get_relative_of(1)
-            if self.verify_of(curr_hof, prev_hof, timestamp):
-                next_hop.addr = (
-                    self.ifid2addr[spkt.hdr.get_current_of().ingress_if])
-                logging.debug("send() here, next: %s", next_hop)
-                self.send(spkt, next_hop)
+        curr_of = spkt.hdr.get_current_of()
+        curr_iof = spkt.hdr.get_current_iof()
+        # Preconditions
+        assert curr_iof.info == OFT.SHORTCUT
+        assert spkt.hdr.is_on_up_path()
+
+        if not self.verify_of(curr_of, spkt.hdr.get_relative_of(1),
+                              curr_iof.timestamp):
+            logging.error("Verification of current OF failed. Dropping packet.")
+            return
+
+        # Switch to next path segment.
+        spkt.hdr.common_hdr.curr_iof_p = spkt.hdr.common_hdr.curr_of_p + 16
+        spkt.hdr.increase_of(4)
+        # Handle on-path shortcut case.
+        curr_of = spkt.hdr.get_current_of()
+        curr_iof = spkt.hdr.get_current_iof()
+        if not curr_of.egress_if and spkt.hdr.is_last_path_of():
+            if not self.verify_of(curr_of, spkt.hdr.get_relative_of(-1),
+                                  curr_iof.timestamp):
+                logging.error("Verification of current OF failed. " +
+                              "Dropping packet.")
+                return
+            self.terminate(spkt, PT.DATA)
         else:
-            logging.warning("Unknown case %u", info)
-
-    def forward_packet(self, spkt, next_hop, from_local_ad, ptype):
+            self.send(spkt, self.ifid2addr[curr_of.egress_if])
+            
+    def ingress_peer_xovr(self, spkt):
         """
-        Forward packet based on the current opaque field.
-
-        :param spkt: the SCION packet to forward.
-        :type spkt: :class:`lib.packet.scion.SCIONPacket`
-        :param next_hop: the next hop of the packet.
-        :type next_hop: :class:`NextHop`
-        :param from_local_ad: whether or not the packet is from the local AD.
-        :type from_local_ad: bool
-        :param ptype: the type of the packet.
-        :type ptype: :class:`lib.packet.scion.PacketType`
+        Handles the crossover point for peer paths at the ingress router.
         """
-        new_segment = False
-        while not spkt.hdr.get_current_of().is_regular():
-            spkt.hdr.common_hdr.curr_iof_p = spkt.hdr.common_hdr.curr_of_p
-            spkt.hdr.increase_of(1)
-            new_segment = True
-        while spkt.hdr.get_current_of().is_continue():
-            spkt.hdr.increase_of(1)
-        info = spkt.hdr.get_current_iof().info
-        curr_iof_p = spkt.hdr.common_hdr.curr_iof_p
-        # Case: peer path and first opaque field of a down path. We need to
-        # increase opaque field pointer as that first opaque field is used for
-        # MAC verification only.
-        if (not spkt.hdr.is_on_up_path() and
-                info in [OFT.INTRATD_PEER, OFT.INTERTD_PEER] and
-                spkt.hdr.common_hdr.curr_of_p == curr_iof_p + OpaqueField.LEN):
-            spkt.hdr.increase_of(1)
-        if (spkt.hdr.get_current_of().info == OFT.LAST_OF and
-                not spkt.hdr.is_last_path_of() and not new_segment):
-            self.crossover_forward(spkt, next_hop, info)
+        curr_of = spkt.hdr.get_current_of()
+        curr_iof = spkt.hdr.get_current_iof()
+        # Preconditions
+        assert curr_iof.info in [OFT.INTRA_ISD_PEER, OFT.INTER_ISD_PEER]
+        
+        on_up_path = spkt.hdr.is_on_up_path()
+        if on_up_path:
+            prev_of = spkt.hdr.get_relative_of(2)
+            fwd_if = spkt.hdr.get_relative_of(1).ingress_if
         else:
-            self.normal_forward(spkt, next_hop, from_local_ad, ptype)
+            prev_of = spkt.hdr.get_relative_of(1)
+            fwd_if = spkt.hdr.get_relative_of(1).egress_if
 
-    def write_to_egress_iface(self, spkt, next_hop):
-        """
-        Forward packet to neighboring router.
-
-        :param spkt: the SCION packet to forward.
-        :type spkt: :class:`lib.packet.scion.SCIONPacket`
-        :param next_hop: the next hop of the packet.
-        :type next_hop: :class:`NextHop`
-
-        .. warning::
-           Long time ago it was decided that router here does not verify MAC of
-           OF, as it is assumed that local router (which forwarded traffic here)
-           just verified it. Should we revise that?
-        """
-        of_info = spkt.hdr.get_current_of().info
-        if of_info == OFT.TDC_XOVR:
-            spkt.hdr.common_hdr.curr_iof_p = spkt.hdr.common_hdr.curr_of_p
-            spkt.hdr.increase_of(1)
-        elif of_info == OFT.NON_TDC_XOVR:
-            spkt.hdr.common_hdr.curr_iof_p = spkt.hdr.common_hdr.curr_of_p
-            spkt.hdr.increase_of(2)
+        if not self.verify_of(curr_of, prev_of, curr_iof.timestamp):
+            logging.error("Verification of current OF failed. Dropping packet.")
+            return
         spkt.hdr.increase_of(1)
-        iof_info = spkt.hdr.get_current_iof().info
-        if iof_info in [OFT.INTRATD_PEER, OFT.INTERTD_PEER]:
-            if spkt.hdr.is_on_up_path():
-                if spkt.hdr.get_relative_of(1).info in [OFT.INTRATD_PEER,
-                                                        OFT.INTERTD_PEER]:
-                    spkt.hdr.increase_of(1)
-            else:
-                if spkt.hdr.get_current_of().info == OFT.LAST_OF:
-                    spkt.hdr.increase_of(1)
-        next_hop.addr = self.interface.to_addr
-        next_hop.port = self.interface.to_udp_port
-        logging.debug("sending to dst6 %s", next_hop)
-        self.send(spkt, next_hop, False)
 
-    def process_packet(self, spkt, next_hop, from_local_ad, ptype):
-        """
-        Inspect current opaque fields and decides on forwarding type.
-
-        :param spkt: the SCION packet to process.
-        :type spkt: :class:`lib.packet.scion.SCIONPacket`
-        :param next_hop: the next hop of the packet.
-        :type next_hop: :class:`NextHop`
-        :param from_local_ad: whether or not the packet is from the local AD.
-        :type from_local_ad: bool
-        :param ptype: the type of the packet.
-        :type ptype: :class:`lib.packet.scion.PacketType`
-        """
-        if from_local_ad:
-            self.write_to_egress_iface(spkt, next_hop)
+        if spkt.hdr.is_last_path_of():
+            assert not on_up_path
+            self.terminate(spkt, PT.DATA)
         else:
-            self.forward_packet(spkt, next_hop, from_local_ad, ptype)
+            self.send(spkt, self.ifid2addr[fwd_if])
+
+    def ingress_core_xovr(self, spkt):
+        """
+        Handles the crossover point for core paths at the ingress router.
+        """
+        curr_of = spkt.hdr.get_current_of()
+        curr_iof = spkt.hdr.get_current_iof()
+        # Preconditions
+        assert curr_iof.info == OFT.CORE
+
+        if spkt.hdr.is_on_up_path():
+            prev_of = None
+        else:
+            prev_of = spkt.hdr.get_relative_of(-1)
+        if not self.verify_of(curr_of, prev_of, curr_iof.timestamp):
+            logging.error("Verification of current OF failed. Dropping packet.")
+            return
+
+        if spkt.hdr.is_last_path_of():
+            self.terminate(spkt, PT.DATA)
+        else:
+            # Switch to next path segment.
+            spkt.hdr.common_hdr.curr_iof_p = spkt.hdr.common_hdr.curr_of_p + 8
+            spkt.hdr.increase_of(2)
+            curr_of = spkt.hdr.get_current_of()
+            if spkt.hdr.is_on_up_path():
+                self.send(spkt, self.ifid2addr[curr_of.ingress_if])
+            else:
+                self.send(spkt, self.ifid2addr[curr_of.egress_if])
+    
+    def ingress_normal_forward(self, spkt):
+        """
+        Handles normal forwarding of packets at the ingress router.
+        """
+        curr_of = spkt.hdr.get_current_of()
+        curr_iof = spkt.hdr.get_current_iof()
+        if spkt.hdr.is_on_up_path():
+            fwd_if = curr_of.ingress_if
+            prev_of = spkt.hdr.get_relative_of(1)
+        else:
+            fwd_if = curr_of.egress_if
+            prev_of = spkt.hdr.get_relative_of(-1)
+
+        if not self.verify_of(curr_of, prev_of, curr_iof.timestamp):
+            logging.error("Verification of current OF failed. Dropping packet.")
+            return
+
+        if not fwd_if and spkt.hdr.is_last_path_of():
+            self.terminate(spkt, PT.DATA)
+        else:
+            self.send(spkt, self.ifid2addr[fwd_if])
+    
+    def handle_egress_xovr(self, spkt):
+        """
+        Main entry for crossover points at the egress router.
+        """
+        curr_of = spkt.hdr.get_current_of()
+        curr_iof = spkt.hdr.get_current_iof()
+        # Preconditions
+        assert curr_of.is_xovr()
+
+        if curr_iof.info == OFT.SHORTCUT:
+            self.egress_shortcut_xovr(spkt)
+        elif curr_iof.info in [OFT.INTRA_ISD_PEER, OFT.INTER_ISD_PEER]:
+            self.egress_peer_xovr(spkt)
+        elif curr_iof.info == OFT.CORE:
+            self.egress_core_xovr(spkt)
+        else:
+            logging.error("Current Info OF invalid.")
+    
+    def egress_shortcut_xovr(self, spkt):
+        """
+        Handles the crossover point for shortcut paths at the egress router.
+        """
+        curr_of = spkt.hdr.get_current_of()
+        curr_iof = spkt.hdr.get_current_iof()
+        # Preconditions
+        assert curr_of.is_xovr()
+        assert curr_iof.info == OFT.SHORTCUT
+        assert not spkt.hdr.is_on_up_path()
+
+        self.egress_normal_forward(spkt)
+
+    def egress_peer_xovr(self, spkt):
+        """
+        Handles the crossover point for peer paths at the egress router.
+        """
+        curr_of = spkt.hdr.get_current_of()
+        curr_iof = spkt.hdr.get_current_iof()
+        # Preconditions
+        assert curr_of.is_xovr()
+        assert curr_iof.info in [OFT.INTRA_ISD_PEER, OFT.INTER_ISD_PEER]
+
+        if spkt.hdr.is_on_up_path():
+            if not self.verify_of(curr_of, spkt.hdr.get_relative_of(-1),
+                                  curr_iof.timestamp):
+                logging.error("Verification of current OF failed. " +
+                              "Dropping packet.")
+                return
+            # Switch to next path-segment
+            spkt.hdr.common_hdr.curr_iof_p = spkt.hdr.common_hdr.curr_of_p + 16
+            spkt.hdr.increase_of(4)
+        else:
+            if not self.verify_of(curr_of, spkt.hdr.get_relative_of(-2),
+                                  curr_iof.timestamp):
+                logging.error("Verification of current OF failed. " +
+                              "Dropping packet.")
+                return
+            spkt.hdr.increase_of(1)
+
+        self.send(spkt, self.interface.to_addr, self.interface.to_udp_port)
+
+    def egress_core_xovr(self, spkt):
+        """
+        Handles the crossover point for core paths at the egress router.
+        """
+        curr_of = spkt.hdr.get_current_of()
+        curr_iof = spkt.hdr.get_current_iof()
+        # Preconditions
+        assert curr_of.is_xovr()
+        assert curr_iof.info == OFT.CORE
+
+        if not spkt.hdr.is_on_up_path():
+            prev_of = None
+        else:
+            prev_of = spkt.hdr.get_relative_of(1)
+        if not self.verify_of(curr_of, prev_of, curr_iof.timestamp):
+            logging.error("Verification of current OF failed. Dropping packet.")
+            return
+
+        spkt.hdr.increase_of(1)
+        self.send(spkt, self.interface.to_addr, self.interface.to_udp_port)
+
+    def egress_normal_forward(self, spkt):
+        """
+        Handles normal forwarding of packets at the egress router.
+        """
+        curr_of = spkt.hdr.get_current_of()
+        curr_iof = spkt.hdr.get_current_iof()
+        if spkt.hdr.is_on_up_path():
+            prev_of = spkt.hdr.get_relative_of(1)
+        else:
+            prev_of = spkt.hdr.get_relative_of(-1)
+
+        if not self.verify_of(curr_of, prev_of, curr_iof.timestamp):
+            logging.error("Verification of current OF failed. Dropping packet.")
+            return
+
+        spkt.hdr.increase_of(1)
+        self.send(spkt, self.interface.to_addr, self.interface.to_udp_port)
+
+    def forward_packet(self, spkt, from_local_ad):
+        """
+        Main entry point for data packet forwarding.
+
+        :param spkt: The SCION Packet to forward.
+        :type spkt: :class:`lib.packet.scion.SCIONPacket`
+        :param from_local_ad: Whether or not the packet is from the local AD.
+        :type from_local_ad: bool
+        """
+        curr_of = spkt.hdr.get_current_of()
+        # Ingress entry point.
+        if not from_local_ad:
+            if curr_of.info == OFT.XOVR_POINT:
+                self.handle_ingress_xovr(spkt)
+            else:
+                self.ingress_normal_forward(spkt)
+        else:
+            if curr_of.info == OFT.XOVR_POINT:
+                self.handle_egress_xovr(spkt)
+            else:
+                self.egress_normal_forward(spkt)
 
     def handle_request(self, packet, sender, from_local_socket=True):
         """
         Main routine to handle incoming SCION packets.
 
-        :param packet: the incoming packet to handle.
-        :type packet: SCIONPacket
-        :param sender:
-        :type sender:
-        :param from_local_socket: whether the request is coming from a local
+        :param packet: The incoming packet to handle.
+        :type packet: bytes
+        :param sender: Tuple of sender IP, port.
+        :type sender: Tuple
+        :param from_local_socket: True, if the packet was received on the local
                                   socket.
         :type from_local_socket: bool
 
@@ -528,20 +549,19 @@ class Router(SCIONElement):
         from_local_ad = from_local_socket
         spkt = SCIONPacket(packet)
         ptype = get_type(spkt)
-        next_hop = NextHop()
-        self.handle_extensions(spkt, next_hop, True)
-        if ptype == PT.IFID_PKT and not from_local_ad:
-            self.process_ifid_request(packet, next_hop)
+        if ptype == PT.DATA:
+            self.forward_packet(spkt, from_local_ad)
+        elif ptype == PT.IFID_PKT and not from_local_ad:
+            self.process_ifid_request(packet)
         elif ptype == PT.BEACON:
-            self.process_pcb(packet, next_hop, from_local_ad)
+            self.process_pcb(packet, from_local_ad)
         elif ptype in [PT.CERT_CHAIN_REQ, PT.CERT_CHAIN_REP, PT.TRC_REQ,
                        PT.TRC_REP]:
-            self.relay_cert_server_packet(spkt, next_hop, from_local_ad)
+            self.relay_cert_server_packet(spkt, from_local_ad)
+        elif ptype == PT.PATH_MGMT:
+            self.process_path_mgmt_packet(spkt, from_local_ad)
         else:
-            if ptype == PT.DATA:
-                logging.debug("DATA type %s, %s", ptype, spkt)
-            self.process_packet(spkt, next_hop, from_local_ad, ptype)
-
+            logging.error("Unknown packet type.")
 
 def main():
     """
