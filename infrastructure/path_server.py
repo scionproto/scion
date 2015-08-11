@@ -532,11 +532,11 @@ class CorePathServer(PathServer):
 
     def _sync_master(self):
         """
-        sync paths with master
+        Shares paths with newly-elected master.
         """
         # TODO(PSz): send all local down- and (?) core-paths to the new master,
         # consider some easy mechanisms for avoiding registration storm.
-        logging.debug("TODO: Syncing %s", self._master_id)
+        logging.debug("TODO: Syncing with %s", self._master_id)
         pass
 
     def _get_master_id(self):
@@ -662,7 +662,6 @@ class CorePathServer(PathServer):
         # Send pending requests that couldn't be processed due to the lack of
         # a core path to the destination PS.
         if self.waiting_targets:
-            logging.debug("Waiting targets: %s", self.waiting_targets)
             pcb = records.pcbs[0]
             next_hop = self.ifid2addr[pcb.get_last_pcbm().hof.ingress_if]
             path = pcb.get_path(reverse_direction=True)
@@ -681,7 +680,6 @@ class CorePathServer(PathServer):
         # FIXME(PSz): check this, and switch src, dst..
         target = ((src_isd, src_ad), (dst_isd, dst_ad))
         if target in self.pending_core:
-            logging.debug("CORE_HANDLING01")
             segments_to_send = self.core_segments(src_isd=src_isd,
                                                   src_ad=src_ad,
                                                   dst_isd=dst_isd,
@@ -693,7 +691,7 @@ class CorePathServer(PathServer):
 
     def _send_to_master(self, pkt):
         """
-        It does not send 'pkt' if the instance is a master.
+        Send 'pkt' to a master.
         """
         if self._master_id:
             # FIXME: set EmptyPath?
@@ -706,6 +704,7 @@ class CorePathServer(PathServer):
 
     def _query_master(self, ptype, dst_isd, dst_ad, src_isd=None, src_ad=None):
         """
+        Query master for a path.
         """
         # TODO(PSz): don't send path back to master.
         if src_isd is None:
