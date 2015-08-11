@@ -281,7 +281,7 @@ class Router(SCIONElement):
             addr = spkt.hdr.dst_addr.host_addr
             port = SCION_UDP_EH_DATA_PORT
         self.send(spkt, addr, port)
-    
+
     def handle_ingress_xovr(self, spkt):
         """
         Main entry for crossover points at the ingress router.
@@ -299,7 +299,7 @@ class Router(SCIONElement):
             self.ingress_core_xovr(spkt)
         else:
             logging.error("Current Info OF invalid.")
-    
+
     def ingress_shortcut_xovr(self, spkt):
         """
         Handles the crossover point for shortcut paths at the ingress router.
@@ -330,7 +330,7 @@ class Router(SCIONElement):
             self.terminate(spkt, PT.DATA)
         else:
             self.send(spkt, self.ifid2addr[curr_of.egress_if])
-            
+
     def ingress_peer_xovr(self, spkt):
         """
         Handles the crossover point for peer paths at the ingress router.
@@ -339,7 +339,7 @@ class Router(SCIONElement):
         curr_iof = spkt.hdr.get_current_iof()
         # Preconditions
         assert curr_iof.info in [OFT.INTRA_ISD_PEER, OFT.INTER_ISD_PEER]
-        
+
         on_up_path = spkt.hdr.is_on_up_path()
         if on_up_path:
             prev_of = spkt.hdr.get_relative_of(2)
@@ -387,7 +387,7 @@ class Router(SCIONElement):
                 self.send(spkt, self.ifid2addr[curr_of.ingress_if])
             else:
                 self.send(spkt, self.ifid2addr[curr_of.egress_if])
-    
+
     def ingress_normal_forward(self, spkt):
         """
         Handles normal forwarding of packets at the ingress router.
@@ -409,7 +409,7 @@ class Router(SCIONElement):
             self.terminate(spkt, PT.DATA)
         else:
             self.send(spkt, self.ifid2addr[fwd_if])
-    
+
     def handle_egress_xovr(self, spkt):
         """
         Main entry for crossover points at the egress router.
@@ -427,7 +427,7 @@ class Router(SCIONElement):
             self.egress_core_xovr(spkt)
         else:
             logging.error("Current Info OF invalid.")
-    
+
     def egress_shortcut_xovr(self, spkt):
         """
         Handles the crossover point for shortcut paths at the egress router.
@@ -562,6 +562,7 @@ class Router(SCIONElement):
             self.process_path_mgmt_packet(spkt, from_local_ad)
         else:
             logging.error("Unknown packet type.")
+
 
 def main():
     """
