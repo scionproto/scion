@@ -11,12 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from lib.packet.path_mgmt import PathMgmtPacket
 """
 :mod:`router` --- SCION edge router
 ===========================================
 """
-
+# Stdlib
 import argparse
 import datetime
 import logging
@@ -25,11 +24,13 @@ import sys
 import threading
 import time
 
+# SCION
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.symcrypto import get_roundkey_cache, verify_of_mac
 from lib.defines import SCION_UDP_PORT, EXP_TIME_UNIT, SCION_UDP_EH_DATA_PORT
 from lib.log import init_logging, log_exception
 from lib.packet.opaque_field import OpaqueFieldType as OFT
+from lib.packet.path_mgmt import PathMgmtPacket
 from lib.packet.pcb import PathConstructionBeacon
 from lib.packet.scion import (
     IFIDPacket,
@@ -59,15 +60,8 @@ class Router(SCIONElement):
     :type ifid2addr: dict
     :ivar interface: the router's inter-AD interface, if any.
     :type interface: :class:`lib.topology.InterfaceElement`
-    :ivar pre_ext_handlers: a map of extension header types to handlers for
-                            those extensions that execute before routing.
-    :type pre_ext_handlers: dict
-    :ivar post_ext_handlers: a map of extension header types to handlers for
-                             those extensions that execute after routing.
-    :type post_ext_handlers: dict
     """
-    def __init__(self, router_id, topo_file, config_file, pre_ext_handlers=None,
-                 post_ext_handlers=None, is_sim=False):
+    def __init__(self, router_id, topo_file, config_file, is_sim=False):
         """
         Initialize an instance of the class Router.
 
@@ -77,14 +71,6 @@ class Router(SCIONElement):
         :type topo_file: str
         :param config_file: the configuration file name.
         :type config_file: str
-        :param pre_ext_handlers: a map of extension header types to handlers
-                                 for those extensions that execute before
-                                 routing.
-        :type pre_ext_handlers: dict
-        :param post_ext_handlers: a map of extension header types to handlers
-                                  for those extensions that execute after
-                                  routing.
-        :type post_ext_handlers: dict
         :param is_sim: running in simulator
         :type is_sim: bool
         """
@@ -98,14 +84,6 @@ class Router(SCIONElement):
         assert self.interface is not None
         logging.info("Interface: %s", self.interface.__dict__)
         self.of_gen_key = get_roundkey_cache(self.config.master_ad_key)
-        if pre_ext_handlers:
-            self.pre_ext_handlers = pre_ext_handlers
-        else:
-            self.pre_ext_handlers = {}
-        if post_ext_handlers:
-            self.post_ext_handlers = post_ext_handlers
-        else:
-            self.post_ext_handlers = {}
         if not is_sim:
             self._remote_socket = socket.socket(socket.AF_INET,
                                                 socket.SOCK_DGRAM)
