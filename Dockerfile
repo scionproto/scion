@@ -57,14 +57,13 @@ COPY lib/crypto/python-tweetnacl-20140309/ $BASE/lib/crypto/python-tweetnacl-201
 RUN sudo chown -R scion: $HOME
 RUN ./scion.sh init
 
-RUN echo "PATH=$HOME/.local/bin:/usr/share/zookeeper/bin:$PATH" >> ~/.profile
 # Now copy over the current branch
 COPY . $BASE/
 RUN sudo chown -R scion: $HOME
 # Build topology files
 RUN ./scion.sh topology
-# Copy over init.sh:
-COPY docker/init.sh $HOME/bin/
+# Install bash config
+COPY docker/profile $HOME/.profile
 # Install basic screen config
 COPY docker/screenrc $HOME/.screenrc
 # Install ZK config
@@ -75,4 +74,5 @@ RUN sudo chown -R scion: $HOME
 # Fix some image problems:
 RUN sudo chmod g+s /usr/bin/screen
 
-CMD ["/home/scion/bin/init.sh"]
+CMD []
+ENTRYPOINT ["/bin/bash", "-l"]

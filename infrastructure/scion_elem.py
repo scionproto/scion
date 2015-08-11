@@ -26,12 +26,14 @@ Module docstring here.
 import logging
 import select
 import socket
+import threading
 
 # SCION
 from lib.config import Config
-from lib.dnsclient import DNSClient
+from lib.dnsclient import DNSCachingClient, DNSLibMajorError, DNSLibMinorError
 from lib.defines import SCION_BUFLEN, SCION_UDP_PORT
 from lib.packet.scion_addr import SCIONAddr
+from lib.log import log_exception
 from lib.topology import Topology
 
 
@@ -90,12 +92,16 @@ class SCIONElement(object):
             self.id = server_type
         self.addr = SCIONAddr.from_values(self.topology.isd_id,
                                           self.topology.ad_id, host_addr)
-        self.dns = DNSClient([str(s.addr) for s in self.topology.dns_servers],
-                             self.topology.dns_domain)
+        self.dns = DNSCachingClient(
+            [str(s.addr) for s in self.topology.dns_servers],
+            self.topology.dns_domain)
         if config_file:
             self.parse_config(config_file)
         self.construct_ifid2addr_map()
         if not is_sim:
+            self.run_flag = threading.Event()
+            self.stopped_flag = threading.Event()
+            self.stopped_flag.set()
             self._local_socket = socket.socket(socket.AF_INET,
                                                socket.SOCK_DGRAM)
             self._local_socket.setsockopt(socket.SOL_SOCKET,
@@ -218,11 +224,24 @@ class SCIONElement(object):
         Main routine to receive packets and pass them to
         :func:`handle_request()`.
         """
-        while True:
+        self.stopped_flag.clear()
+        self.run_flag.set()
+        while self.run_flag.is_set():
             recvlist, _, _ = select.select(self._sockets, [], [])
             for sock in recvlist:
                 packet, addr = sock.recvfrom(SCION_BUFLEN)
                 self.handle_request(packet, addr, sock == self._local_socket)
+        self.stopped_flag.set()
+
+    def stop(self):
+        """
+        Shut down the daemon thread
+        """
+        # Signal that the thread should stop
+        self.run_flag.clear()
+        # Wait for the thread to finish
+        self.stopped_flag.wait()
+        self.clean()
 
     def clean(self):
         """
@@ -230,3 +249,16 @@ class SCIONElement(object):
         """
         for s in self._sockets:
             s.close()
+
+    def dns_query(self, qname, default):
+        """
+        Query dns for an answer. If an error occurs, return the default static
+        valid instead.
+        """
+        try:
+            return self.dns.query(qname)[0]
+        except DNSLibMinorError as e:
+            logging.warning("Falling back to static value: %s", e)
+        except DNSLibMajorError as e:
+            log_exception("Falling back to static value:")
+        return default

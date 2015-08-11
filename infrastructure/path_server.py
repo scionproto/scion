@@ -51,7 +51,7 @@ from lib.packet.path_mgmt import (
 from lib.packet.scion_addr import ISD_AD
 from lib.path_db import DBResult, PathSegmentDB
 from lib.thread import thread_safety_net
-from lib.util import handle_signals, update_dict, SCIONTime, timed
+from lib.util import SCIONTime, handle_signals, trace, timed, update_dict
 from lib.zookeeper import ZkConnectionLoss, ZkNoNodeError, Zookeeper
 
 
@@ -87,17 +87,20 @@ class PathServer(SCIONElement):
         # TODO replace by some cache data struct. (expiringdict ?)
         self.revocations = ExpiringDict(1000, 300)
         self.iftoken2seg = defaultdict(set)
-        # Add more IPs here if we support dual-stack
-        name_addrs = "\0".join([self.id, str(SCION_UDP_PORT),
-                                str(self.addr.host_addr)])
-        self.zk = Zookeeper(
-            self.topology.isd_id, self.topology.ad_id, "ps", name_addrs,
-            self.topology.zookeepers,
-            ensure_paths=(self.ZK_PATH_CACHE_PATH,))
-        self._state_synced = threading.Event()
-        self._latest_entry = 0
-        # Function that handles segments from ZK. Depends on server's type.
-        self._cached_entries_handler = None
+
+        if not is_sim:
+            # Add more IPs here if we support dual-stack
+            name_addrs = "\0".join([self.id, str(SCION_UDP_PORT),
+                                    str(self.addr.host_addr)])
+            self.zk = Zookeeper(
+                self.topology.isd_id, self.topology.ad_id, "ps", name_addrs,
+                self.topology.zookeepers,
+                ensure_paths=(self.ZK_PATH_CACHE_PATH,))
+            self.zk.retry("Joining party", self.zk.party_setup)
+            self._state_synced = threading.Event()
+            self._latest_entry = 0
+            # Function that handles segments from ZK. Depends on server's type.
+            self._cached_entries_handler = None
 
     def _add_if_mappings(self, pcb):
         """
@@ -241,14 +244,13 @@ class PathServer(SCIONElement):
                 time.sleep(0.5)
             try:
                 if not self._state_synced.is_set():
-                    # Register that we can now handle requests.
-                    self.zk.join_party()
                     # Make sure we re-read the entire cache
                     self._latest_entry = 0
                 count = self._read_cached_entries()
                 if count:
                     logging.debug("Processed %d new/updated segments", count)
             except ZkConnectionLoss:
+                self._state_synced.clear()
                 continue
             self._state_synced.set()
 
@@ -1401,6 +1403,7 @@ def main():
         logging.error("First parameter can only be 'local' or 'core'!")
         sys.exit()
 
+    trace(path_server.id)
     logging.info("Started: %s", datetime.datetime.now())
     path_server.run()
 

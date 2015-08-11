@@ -227,6 +227,7 @@ class BeaconServer(SCIONElement):
                 self.topology.isd_id, self.topology.ad_id, "bs", name_addrs,
                 self.topology.zookeepers,
                 ensure_paths=(self.ZK_PCB_CACHE_PATH,))
+            self.zk.retry("Joining party", self.zk.party_setup)
 
     def _get_if_rev_token(self, if_id):
         """
@@ -444,9 +445,9 @@ class BeaconServer(SCIONElement):
         threading.Thread(
             target=thread_safety_net, args=(self.handle_shared_pcbs,),
             name="BS.handle_shared_pcbs", daemon=True).start()
-        threading.Thread(
-            target=thread_safety_net, args=(self._handle_if_timeouts,),
-            name="BS._handle_if_timeouts", daemon=True).start()
+        #  threading.Thread(
+        #    target=thread_safety_net, args=(self._handle_if_timeouts,),
+        #    name="BS._handle_if_timeouts", daemon=True).start()
         SCIONElement.run(self)
 
     def _try_to_verify_beacon(self, pcb):
@@ -518,7 +519,8 @@ class BeaconServer(SCIONElement):
                     PT.TRC_REQ_LOCAL, self.addr, if_id,
                     self.topology.isd_id, self.topology.ad_id,
                     isd_id, trc_ver)
-                dst_addr = self.topology.certificate_servers[0].addr
+                dst_addr = self.dns_query(
+                    "cs", self.topology.certificate_servers[0].addr)
                 self.send(new_trc_req, dst_addr)
                 self.trc_requests[trc_tuple] = now
                 return None
@@ -635,14 +637,13 @@ class BeaconServer(SCIONElement):
                 time.sleep(0.5)
             try:
                 if not self._state_synced.is_set():
-                    # Register that we can now accept and store PCBs in ZK
-                    self.zk.join_party()
                     # Make sure we re-read the entire cache
                     self._latest_entry = 0
                 count = self._read_cached_entries()
                 if count:
                     logging.debug("Processed %d new/updated PCBs", count)
             except ZkConnectionLoss:
+                self._state_synced.clear()
                 continue
             self._state_synced.set()
 
@@ -730,8 +731,8 @@ class BeaconServer(SCIONElement):
             rev_payload = RevocationPayload.from_values([rev_info])
             pkt = PathMgmtPacket.from_values(PMT.REVOCATIONS, rev_payload, None,
                                              self.addr, self.addr.get_isd_ad())
-            dst = self.topology.path_servers[0].addr
             logging.info("Sending segment revocations to local PS.")
+            dst = self.dns_query("ps", self.topology.path_servers[0].addr)
             self.send(pkt, dst)
 
     def _process_segment_revocation(self, rev_info):
@@ -949,10 +950,11 @@ class CoreBeaconServer(BeaconServer):
         records = PathSegmentRecords.from_values(info, [pcb])
         # Register core path with local core path server.
         if self.topology.path_servers != []:
+            ps_addr = self.dns_query("ps", self.topology.path_servers[0].addr)
             pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, None,
                                              self.addr, self.addr.get_isd_ad())
             # TODO: pick other than the first path server
-            self.send(pkt, self.topology.path_servers[0].addr)
+            self.send(pkt, ps_addr)
 
     def process_pcbs(self, pcbs):
         """
@@ -1132,7 +1134,8 @@ class LocalBeaconServer(BeaconServer):
                             PT.CERT_CHAIN_REQ_LOCAL,
                             self.addr, if_id, self.topology.isd_id,
                             self.topology.ad_id, isd_id, ad_id, cert_ver)
-                    dst_addr = self.topology.certificate_servers[0].addr
+                    dst_addr = self.dns_query(
+                        "cs", self.topology.certificate_servers[0].addr)
                     self.send(new_cert_chain_req, dst_addr)
                     self.cert_chain_requests[cert_chain_tuple] = now
                     return False
@@ -1146,11 +1149,11 @@ class LocalBeaconServer(BeaconServer):
         info = PathSegmentInfo.from_values(
             PST.UP, self.topology.isd_id, self.topology.isd_id,
             pcb.get_first_pcbm().ad_id, self.topology.ad_id)
+        ps_addr = self.dns_query("ps", self.topology.path_servers[0].addr)
         records = PathSegmentRecords.from_values(info, [pcb])
         pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, None,
                                          self.addr, self.addr.get_isd_ad())
-        # TODO: pick other than the first path server
-        self.send(pkt, self.topology.path_servers[0].addr)
+        self.send(pkt, ps_addr)
 
     def register_down_segment(self, pcb):
         """

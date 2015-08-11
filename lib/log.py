@@ -24,48 +24,50 @@ import traceback
 # errors.
 
 #: Bytes
-LOG_MAX_SIZE = 1*1024*1024
+LOG_MAX_SIZE = 1 * 1024 * 1024
+LOG_BACKUP_COUNT = 1
+
+# Logging handlers that will log logging exceptions, and then re-raise them. The
+# default behaviour of python's logging handlers is to catch logging exceptions,
+# which hides the problem.
+#
+# We don't try to use the normal logging system at this point because we don't
+# know if that's working at all. If it is (e.g. when the exception is a
+# formatting error), when we re-raise the exception, it'll get handled by the
+# normal process.
 
 
-class _LoggingErrorHandler(logging.handlers.RotatingFileHandler):
-    """
-    A logging Handler that will exit the application if there's a logging
-    exception.
-
-    We don't try to use the normal logging system at this point because we
-    don't know if that's working at all. If it is (e.g. when the exception is a
-    formatting error), when we re-raise the exception, it'll get handled by the
-    normal process.
-
-    :ivar stream:
-    :type stream:
-    """
-
-    def handleError(self, record):
-        """
+def _handleError(self, _):
+    self.stream.write("Exception in logging module:\n")
+    for line in traceback.format_exc().split("\n"):
+        self.stream.write(line+"\n")
+    self.flush()
+    raise
 
 
-        :param record:
-        :type record:
-        """
-        self.stream.write("Exception in logging module:\n")
-        for line in traceback.format_exc().split("\n"):
-            self.stream.write(line+"\n")
-        self.flush()
-        raise
+class _RotatingErrorHandler(logging.handlers.RotatingFileHandler):
+    handleError = _handleError
 
 
-def init_logging(log_file, level=logging.DEBUG):
+class _ConsoleErrorHandler(logging.StreamHandler):
+    handleError = _handleError
+
+
+def init_logging(log_file=None, level=logging.DEBUG, console=False):
     """
     Configure logging for components (servers, routers, gateways).
 
     :param level:
     :type level:
     """
-    handler = _LoggingErrorHandler(log_file, maxBytes=LOG_MAX_SIZE,
-                                   encoding="utf-8")
+    handlers = []
+    if log_file:
+        handlers.append(_RotatingErrorHandler(log_file, maxBytes=LOG_MAX_SIZE,
+                                              backupCount=1, encoding="utf-8"))
+    if console:
+        handlers.append(_ConsoleErrorHandler())
     logging.basicConfig(
-        level=level, handlers=[handler],
+        level=level, handlers=handlers,
         format='%(asctime)s [%(levelname)s] (%(threadName)s) %(message)s')
 
 

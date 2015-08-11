@@ -24,10 +24,16 @@ import dns.exception
 import dns.resolver
 import dns.name
 from dns.resolver import Resolver
+from external.expiring_dict import ExpiringDict
 
 # SCION
 from lib.defines import SCION_DNS_PORT
 from lib.errors import SCIONBaseError
+
+#: Number of records to cache
+DNS_CACHE_MAX_SIZE = 100
+#: Seconds
+DNS_CACHE_MAX_AGE = 60
 
 
 class DNSLibBaseError(SCIONBaseError):
@@ -116,3 +122,31 @@ class DNSClient(object):
             raise DNSLibMajorError("Unhandled exception in resolver.") from e
         shuffle(results)
         return [ip_address(addr) for addr in results]
+
+
+class DNSCachingClient(DNSClient):
+    """
+    Caching variant of the DNS client.
+    """
+    def __init__(self, dns_servers, domain, lifetime=5.0):
+        """
+        :param [string] dns_servers: List of DNS servers IP addresses
+        :param string domain: The DNS domain to query.
+        :param float lifetime: Number of seconds in total to try resolving
+                               before failing
+        """
+        super().__init__(dns_servers, domain, lifetime=lifetime)
+        self.cache = ExpiringDict(max_len=DNS_CACHE_MAX_SIZE,
+                                  max_age_seconds=DNS_CACHE_MAX_AGE)
+
+    def query(self, qname):
+        """
+        Check if the answer is already in the cache. If not, pass it along to
+        the DNS client to query and cache the result.
+        """
+        answer = self.cache.get(qname)
+        if answer is None:
+            answer = super().query(qname)
+            self.cache[qname] = answer
+        shuffle(answer)
+        return answer
