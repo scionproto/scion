@@ -445,9 +445,9 @@ class BeaconServer(SCIONElement):
         threading.Thread(
             target=thread_safety_net, args=(self.handle_shared_pcbs,),
             name="BS.handle_shared_pcbs", daemon=True).start()
-        threading.Thread(
-            target=thread_safety_net, args=(self._handle_if_timeouts,),
-            name="BS._handle_if_timeouts", daemon=True).start()
+        #  threading.Thread(
+        #    target=thread_safety_net, args=(self._handle_if_timeouts,),
+        #    name="BS._handle_if_timeouts", daemon=True).start()
         SCIONElement.run(self)
 
     def _try_to_verify_beacon(self, pcb):
