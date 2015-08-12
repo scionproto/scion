@@ -75,22 +75,22 @@ class TestExtensionHeaderSetPayload(object):
     """
     Unit tests for lib.packet.ext_hdr.ExtensionHeader.set_payload
     """
-    def test_short_payload(self):
+    def test_shortest_payload(self):
         payload = bytes.fromhex('01 02 03 04 05')
         ext_hdr = ExtensionHeader()
         ext_hdr.set_payload(payload)
         ntools.eq_(ext_hdr._hdr_len, 0)
         ntools.eq_(ext_hdr.payload, bytes.fromhex('01 02 03 04 05'))
 
-    def test_not_multiple(self):
-        payload = bytes(range(13))
+    def test_short_payload(self):
+        payload = bytes(range(5 + 8))
         ext_hdr = ExtensionHeader()
         ext_hdr._init_size(1)
         ext_hdr.set_payload(payload)
         ntools.eq_(ext_hdr._hdr_len, 1)
         ntools.eq_(ext_hdr.payload, payload)
 
-    def test_multiple(self):
+    def test_longer_payload(self):
         payload = bytes(range(5 + 2*8))
         ext_hdr = ExtensionHeader()
         ext_hdr._init_size(2)

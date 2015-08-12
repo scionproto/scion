@@ -20,6 +20,7 @@ import binascii
 import struct
 
 # SCION
+from lib.errors import SCIONParseError
 from lib.packet.packet_base import HeaderBase
 from lib.util import Raw
 
@@ -83,8 +84,10 @@ class ExtensionHeader(HeaderBase):
         data = Raw(raw, "ExtensionHeader", self.MIN_LEN, min_=True)
         self.next_hdr, self._hdr_len, ext_no = \
             struct.unpack("!BBB", data.pop(self.SUBHDR_LEN))
-        assert ext_no == self.EXT_NO
-        assert len(raw) == len(self)
+        if ext_no != self.EXT_NO:
+            raise SCIONParseError("Extension chain formed incorrectly")
+        if len(raw) != len(self):
+            raise SCIONParseError("Incorrect length of extensions")
         self.set_payload(data.pop())
         self.parsed = True
 

@@ -108,9 +108,9 @@ class TestTracerouteExtHandler(object):
     """
     Unit tests for lib.packet.ext.traceroute.traceroute_ext_handler
     """
-    @patch("lib.packet.ext.traceroute.time.time", autospec=True)
-    def test(self, time_):
-        time_.return_value = 123
+    @patch("lib.util.SCIONTime.get_time", spec_set=[], new_callable=MagicMock)
+    def test(self, get_time):
+        get_time.return_value = 123
         ext = MagicMock(spec_set=['append_hop'])
         topo = MagicMock(spec_set=['isd_id', 'ad_id'])
         iface = MagicMock(spec_set=['if_id'])
