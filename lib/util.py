@@ -170,14 +170,15 @@ def read_file(file_path):
 
 def write_file(file_path, text):
     """
-    Write some text into a file, creating its directory as needed.
+    Write some text into a temporary file, creating its directory as needed, and
+    then atomically move to target location.
 
     :param file_path: the path to the file.
     :type file_path: str
     :param text: the file content.
     :type text: str
     :raises:
-        lib.errors.SCIONIOError: error creating/writing to file
+        lib.errors.SCIONIOError: IO error occurred
     """
     dir_ = os.path.dirname(file_path)
     try:
@@ -185,12 +186,18 @@ def write_file(file_path, text):
     except OSError as e:
         raise SCIONIOError("Error creating '%s' dir: %s" %
                            (dir_, e.strerror)) from None
+    tmp_file = file_path + ".new"
     try:
-        with open(file_path, 'w') as file_handler:
-            file_handler.write(text)
+        with open(tmp_file, 'w') as f:
+            f.write(text)
     except OSError as e:
-        raise SCIONIOError("Error creating/writing to '%s': %s" %
+        raise SCIONIOError("Error creating/writing to temp file '%s': %s" %
                            (file_path, e.strerror)) from None
+    try:
+        os.rename(tmp_file, file_path)
+    except OSError as e:
+        raise SCIONIOError("Error moving '%s' to '%s': %s" %
+                           (tmp_file, file_path, e.strerror)) from None
 
 
 def load_json_file(file_path):
