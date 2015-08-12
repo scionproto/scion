@@ -95,7 +95,7 @@ class TestDNSClientQuery(object):
         client.resolver.query.return_value = ["result0", "result1"]
         ipaddr.side_effect = ["ip0", "ip1"]
         # Call
-        ntools.eq_(client.query("search string"), ["ip0", "ip1"])
+        ntools.eq_(set(client.query("search string")), {"ip0", "ip1"})
         # Tests
         client.resolver.query.assert_called_once_with("search string")
         ipaddr.assert_has_calls([call("result0"), call("result1")],
@@ -148,8 +148,9 @@ class TestDNSCachingClientQuery(object):
         client = DNSCachingClient("servers", "domain", "lifetime")
         client.cache = MagicMock(spec_set=["get", "__setitem__"])
         client.cache.get.return_value = None
+        client_query.return_value = ["ip0", "ip1"]
         # Call
-        ntools.eq_(client.query("blah"), client_query.return_value)
+        ntools.eq_(set(client.query("blah")), {"ip0", "ip1"})
         # Tests
         client.cache.get.assert_called_once_with("blah")
         client.cache.__setitem__.assert_called_once_with(
