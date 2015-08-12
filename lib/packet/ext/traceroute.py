@@ -17,12 +17,12 @@
 """
 # Stdlib
 import struct
-import time
 
 # SCION
 from lib.packet.ext_hdr import HopByHopExtension
 from lib.packet.scion_addr import ISD_AD
 from lib.util import Raw, SCIONTime
+
 
 class TracerouteExt(HopByHopExtension):
     """
@@ -75,8 +75,8 @@ class TracerouteExt(HopByHopExtension):
         data.pop(self.PADDING_LEN)
         for _ in range(self.hops_no):
             isd, ad = ISD_AD.from_raw(data.pop(ISD_AD.LEN))  # 4 bytes
-            if_id, timestamp = struct.unpack("!HH",
-                data.pop(self.HOP_LEN - ISD_AD.LEN))
+            if_id, timestamp = struct.unpack("!HH", data.pop(self.HOP_LEN -
+                                                             ISD_AD.LEN))
             self.hops.append((isd, ad, if_id, timestamp))
 
     def append_hop(self, isd, ad, if_id, timestamp):
@@ -132,6 +132,6 @@ def traceroute_ext_handler(**kwargs):
     ext = kwargs['ext']
     topo = kwargs['topo']
     iface = kwargs['iface']
-    ts = int(SCIONTime.get_time() * 1000) % 2**16  # Truncate milliseconds to 2 bytes
+    ts = int(SCIONTime.get_time() * 1000) % 2**16  # Truncate milliseconds to 2B
     # Append an information about hop
     ext.append_hop(topo.isd_id, topo.ad_id, iface.if_id, ts)
