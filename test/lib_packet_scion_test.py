@@ -177,9 +177,11 @@ class TestSCIONHeaderInit(object):
         ntools.eq_(hdr.extension_hdrs, [])
         ntools.eq_(hdr.l4_proto, 1)
 
+    @patch("lib.packet.scion.HeaderBase.__init__", autospec=True)
     @patch("lib.packet.scion.SCIONHeader.parse", autospec=True)
-    def test_with_args(self, parse):
+    def test_with_args(self, parse, hdr_init):
         hdr = SCIONHeader('data')
+        hdr_init.assert_called_once_with(hdr)
         parse.assert_called_once_with(hdr, 'data')
 
 

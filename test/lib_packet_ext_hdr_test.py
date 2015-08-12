@@ -32,18 +32,23 @@ class TestExtensionHeaderInit(object):
     """
     Unit tests for lib.packet.ext_hdr.ExtensionHeader.__init__
     """
-    def test_basic(self):
+    @patch("lib.packet.scion.HeaderBase.__init__", autospec=True)
+    def test_basic(self, hdr_init):
         ext_hdr = ExtensionHeader()
         ext_hdr.EXT_NO = 0
+        ext_hdr.parsed = False
         ntools.eq_(ext_hdr.next_hdr, 0)
         ntools.eq_(ext_hdr._hdr_len, 0)
         ntools.eq_(ext_hdr.payload, b"\x00" * 5)
         ntools.assert_false(ext_hdr.parsed)
+        hdr_init.assert_called_once_with(ext_hdr)
 
+    @patch("lib.packet.scion.HeaderBase.__init__", autospec=True)
     @patch("lib.packet.ext_hdr.ExtensionHeader.parse", autospec=True)
-    def test_raw(self, parse):
+    def test_raw(self, parse, hdr_init):
         ext_hdr = ExtensionHeader("data")
         parse.assert_called_once_with(ext_hdr, "data")
+        hdr_init.assert_called_once_with(ext_hdr)
 
 
 class TestExtensionHeaderParse(object):
@@ -85,7 +90,7 @@ class TestExtensionHeaderSetPayload(object):
     def test_short_payload(self):
         payload = bytes(range(5 + 8))
         ext_hdr = ExtensionHeader()
-        ext_hdr._init_size(1)
+        ext_hdr._hdr_len = 1
         ext_hdr.set_payload(payload)
         ntools.eq_(ext_hdr._hdr_len, 1)
         ntools.eq_(ext_hdr.payload, payload)

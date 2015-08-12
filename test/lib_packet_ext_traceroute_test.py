@@ -30,11 +30,13 @@ class TestTracerouteExtInit(object):
     """
     Unit tests for lib.packet.ext.traceroute.TracerouteExt.__init__
     """
+    @patch("lib.packet.ext_hdr.ExtensionHeader.__init__",
+           autospec=True)
     @patch("lib.packet.ext.traceroute.TracerouteExt.set_payload",
            autospec=True)
     @patch("lib.packet.ext.traceroute.HopByHopExtension.__init__",
            autospec=True)
-    def test_basic(self, hopbyhop_init, set_payload):
+    def test_basic(self, hopbyhop_init, set_payload, _):
         ext = TracerouteExt()
         ntools.eq_(ext.hops, [])
         ntools.eq_(ext.hops_no, 0)
@@ -74,11 +76,13 @@ class TestTracerouteExtAppendHop(object):
     """
     def test(self):
         ext = TracerouteExt()
+        ext.hops_no = 0
         ext.hops = [1]
         ext._hdr_len = 2
         ext.append_hop(3, 4, 5, 6)
         ntools.eq_(ext.hops, [1, (3, 4, 5, 6)])
         ntools.eq_(ext._hdr_len, 2)
+        ntools.eq_(ext.hops_no, 1)
 
 
 class TestTracerouteExtPack(object):
