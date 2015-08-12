@@ -35,7 +35,7 @@ class ExtensionType(object):
 
 class ExtensionHeader(HeaderBase):
     """
-    Abstract base class for extension headers.
+    Base base class for extension headers.
 
     :cvar MIN_LEN:
     :type MIN_LEN: int
@@ -130,9 +130,8 @@ class ExtensionHeader(HeaderBase):
 
         """
         payload_hex = binascii.hexlify(self.payload)
-        return "[EH next hdr: %u, len: %u, payload: %s]" % (self.next_hdr,
-                                                            len(self),
-                                                            payload_hex)
+        return "[EH next hdr: %u, len: %u, payload: %s]" % (
+            self.next_hdr, len(self), payload_hex)
 
 
 class HopByHopExtension(ExtensionHeader):

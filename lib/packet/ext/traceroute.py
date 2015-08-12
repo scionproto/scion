@@ -22,7 +22,7 @@ import time
 # SCION
 from lib.packet.ext_hdr import HopByHopExtension
 from lib.packet.scion_addr import ISD_AD
-
+from lib.util import Raw, SCIONTime
 
 class TracerouteExt(HopByHopExtension):
     """
@@ -68,16 +68,16 @@ class TracerouteExt(HopByHopExtension):
         """
         Parse payload to extract hop informations.
         """
+        data = Raw(self.payload, "TracerouteExt")
         # Read number of hops.
-        self.hops_no, = struct.unpack("!B", self.payload[:1])
+        self.hops_no = data.pop(1)
         # Drop padding from the first row.
-        payload = self.payload[1 + self.PADDING_LEN:]
+        data.pop(self.PADDING_LEN)
         for _ in range(self.hops_no):
-            isd, ad = ISD_AD.from_raw(payload[:ISD_AD.LEN])  # 4 bytes
+            isd, ad = ISD_AD.from_raw(data.pop(ISD_AD.LEN))  # 4 bytes
             if_id, timestamp = struct.unpack("!HH",
-                                             payload[ISD_AD.LEN:self.HOP_LEN])
+                data.pop(self.HOP_LEN - ISD_AD.LEN))
             self.hops.append((isd, ad, if_id, timestamp))
-            payload = payload[self.HOP_LEN:]
 
     def append_hop(self, isd, ad, if_id, timestamp):
         """
@@ -97,17 +97,17 @@ class TracerouteExt(HopByHopExtension):
         """
         hops_packed = [struct.pack("!B", self.hops_no)]
         hops_packed += [b"\x00" * self.PADDING_LEN]  # Padding.
-        for hop in self.hops:
+        for isd, ad, if_id, timestamp in self.hops:
             # Pack ISD and AD.
-            tmp = ISD_AD(hop[0], hop[1]).pack()
+            tmp = ISD_AD(isd, ad).pack()
             # Pack if_id and timestamp.
-            tmp += struct.pack("!HH", hop[2], hop[3])
+            tmp += struct.pack("!HH", if_id, timestamp)
             hops_packed.append(tmp)
         # Compute and set padding for the rest of the payload.
         pad_hops = self._hdr_len - self.hops_no
         hops_packed.append(b"\x00" * self.HOP_LEN * pad_hops)
         self.set_payload(b"".join(hops_packed))
-        return HopByHopExtension.pack(self)
+        return super().pack()
 
     def __str__(self):
         """
@@ -116,10 +116,8 @@ class TracerouteExt(HopByHopExtension):
         :rtype:
         """
         tmp = ["[Traceroute Ext - start]"]
-        tmp.append("  [next_hdr:%d ext_no:%d hop:%d len:%d]" % (self.next_hdr,
-                                                                self.EXT_NO,
-                                                                self.hops_no,
-                                                                len(self)))
+        tmp.append("  [next_hdr:%d ext_no:%d hop:%d len:%d]" %
+                   (self.next_hdr, self.EXT_NO, self.hops_no, len(self)))
         for hops in self.hops:
             tmp.append("    ISD:%d AD:%d IFID:%d TS:%d" % hops)
         tmp.append("[Traceroute Ext - end]")
@@ -134,6 +132,6 @@ def traceroute_ext_handler(**kwargs):
     ext = kwargs['ext']
     topo = kwargs['topo']
     iface = kwargs['iface']
-    ts = int(time.time() * 1000) % 2**16  # Truncate milliseconds to 2 bytes
+    ts = int(SCIONTime.get_time() * 1000) % 2**16  # Truncate milliseconds to 2 bytes
     # Append an information about hop
     ext.append_hop(topo.isd_id, topo.ad_id, iface.if_id, ts)

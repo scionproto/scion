@@ -34,17 +34,17 @@ class TestTracerouteExtInit(object):
            autospec=True)
     @patch("lib.packet.ext.traceroute.HopByHopExtension.__init__",
            autospec=True)
-    def test_basic(self, ext_hdr_init, set_payload):
+    def test_basic(self, hopbyhop_init, set_payload):
         ext = TracerouteExt()
         ntools.eq_(ext.hops, [])
         ntools.eq_(ext.hops_no, 0)
-        ext_hdr_init.assert_called_once_with(ext)
+        hopbyhop_init.assert_called_once_with(ext)
         set_payload.assert_called_once_with(ext,
                                             b"\x00" * (1 + ext.PADDING_LEN))
 
     @patch("lib.packet.ext.traceroute.TracerouteExt.parse_payload",
            autospec=True)
-    @patch("lib.packet.ext.traceroute.HopByHopExtension.parse", autospec=True)
+    @patch("lib.packet.ext.traceroute.TracerouteExt.parse", autospec=True)
     def test_raw(self, parse, parse_payload):
         ext = TracerouteExt('data')
         parse.assert_called_once_with(ext, 'data')
@@ -87,7 +87,7 @@ class TestTracerouteExtPack(object):
     """
     @patch("lib.packet.ext.traceroute.HopByHopExtension.pack", autospec=True)
     @patch("lib.packet.ext.traceroute.ISD_AD", autospec=True)
-    def test(self, isd_ad, ext_hdr_pack):
+    def test(self, isd_ad, hopbyhop_pack):
         isd_ad_mock = isd_ad.return_value = MagicMock(spec_set=['pack'])
         isd_ad_mock.pack.side_effect = [b'ad_1', b'ad_2']
         ext = TracerouteExt.from_values(2)
@@ -96,12 +96,12 @@ class TestTracerouteExtPack(object):
         payload = (b'\x02' + b'\x00' * 4 + b'ad_1' +
                    bytes.fromhex('0003 0004') + b'ad_2' +
                    bytes.fromhex('0007 0008'))
-        ntools.eq_(ext.pack(), ext_hdr_pack.return_value)
+        ntools.eq_(ext.pack(), hopbyhop_pack.return_value)
         isd_ad.assert_has_calls([call(1, 2), call().pack(),
                                  call(5, 6), call().pack()])
         ntools.eq_(isd_ad_mock.pack.call_count, 2)
         ntools.eq_(ext.payload, payload)
-        ext_hdr_pack.assert_called_once_with(ext)
+        hopbyhop_pack.assert_called_once_with(ext)
 
 
 class TestTracerouteExtHandler(object):
@@ -109,8 +109,8 @@ class TestTracerouteExtHandler(object):
     Unit tests for lib.packet.ext.traceroute.traceroute_ext_handler
     """
     @patch("lib.packet.ext.traceroute.time.time", autospec=True)
-    def test(self, time):
-        time.return_value = 123
+    def test(self, time_):
+        time_.return_value = 123
         ext = MagicMock(spec_set=['append_hop'])
         topo = MagicMock(spec_set=['isd_id', 'ad_id'])
         iface = MagicMock(spec_set=['if_id'])

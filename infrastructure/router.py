@@ -29,10 +29,9 @@ from infrastructure.scion_elem import SCIONElement
 from lib.crypto.symcrypto import get_roundkey_cache, verify_of_mac
 from lib.defines import (
     EXP_TIME_UNIT,
-    L4_PROTO,
-    SCION_UDP_PORT,
     SCION_UDP_EH_DATA_PORT,
-)
+    SCION_UDP_PORT,
+    )
 from lib.log import init_logging, log_exception
 from lib.packet.ext_hdr import ExtensionType
 from lib.packet.ext.traceroute import TracerouteExt, traceroute_ext_handler
@@ -217,8 +216,8 @@ class Router(SCIONElement):
                 logging.debug("No handler for extension type %u", ext_nr)
             ext_type = ext_hdr.next_hdr
             c += 1
-        if c < MAX_EXT and ext_type not in L4_PROTO:
-            logging.warning("Extensions terminated incorrectly.")
+        if c >= MAX_EXT and ext_type == ExtensionType.HOP_BY_HOP:
+            logging.warning("Too many hop-by-hop extensions.")
 
     def sync_interface(self):
         """

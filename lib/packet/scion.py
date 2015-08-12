@@ -198,7 +198,7 @@ class SCIONHeader(HeaderBase):
         assert isinstance(src, SCIONAddr)
         assert isinstance(dst, SCIONAddr)
         assert path is None or isinstance(path, PathBase)
-        hdr = SCIONHeader()
+        hdr = cls()
         if ext_hdrs is None:
             ext_hdrs = []
             next_hdr = l4_proto

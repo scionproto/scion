@@ -240,6 +240,22 @@ class TestSCIONHeaderFromValues(object):
         add_extensions.assert_called_once_with(hdr, [])
 
 
+class TestSCIONHeaderAddExtensions(object):
+    """
+    Unit tests for lib.packet.scion.SCIONHeader.add_extensions
+    """
+
+    @patch("lib.packet.scion.SCIONHeader._set_next_hdrs", autospec=True)
+    def test_add_extensions(self, _set_next_hdrs):
+        hdr = SCIONHeader()
+        hdr.common_hdr = MagicMock(spec_set=['total_len'])
+        hdr.common_hdr.total_len = 0
+        hdr.add_extensions(['ext_hdr1', 'ext_hdr2'])
+        ntools.eq_(hdr.extension_hdrs, ['ext_hdr1', 'ext_hdr2'])
+        ntools.eq_(hdr.common_hdr.total_len, 16)
+        _set_next_hdrs.assert_called_once_with(hdr)
+
+
 class TestSCIONHeaderPath(object):
     """
     Unit tests for lib.packet.scion.SCIONHeader.path
@@ -287,22 +303,6 @@ class TestSCIONHeaderSetPath(object):
         ntools.eq_(hdr._path, path)
         ntools.eq_(hdr.common_hdr.hdr_len, 100 + len(b'packed_path'))
         ntools.eq_(hdr.common_hdr.total_len, 200 + len(b'packed_path'))
-
-
-class TestSCIONHeaderExtensionHdrs(object):
-    """
-    Unit tests for lib.packet.scion.SCIONHeader.extension_hdrs
-    """
-
-    @patch("lib.packet.scion.SCIONHeader._set_next_hdrs", autospec=True)
-    def test_add_extensions(self, _set_next_hdrs):
-        hdr = SCIONHeader()
-        hdr.common_hdr = MagicMock(spec_set=['total_len'])
-        hdr.common_hdr.total_len = 0
-        hdr.add_extensions(['ext_hdr1', 'ext_hdr2'])
-        ntools.eq_(hdr.extension_hdrs, ['ext_hdr1', 'ext_hdr2'])
-        ntools.eq_(hdr.common_hdr.total_len, 16)
-        _set_next_hdrs.assert_called_once_with(hdr)
 
 
 class TestSCIONHeaderParse(object):
