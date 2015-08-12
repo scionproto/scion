@@ -33,7 +33,7 @@ from lib.packet.path import CorePath, CrossOverPath, EmptyPath, PeerPath
 from lib.packet.scion import SCIONPacket
 from lib.packet.scion_addr import SCIONAddr, ISD_AD
 from lib.log import init_logging, log_exception
-from lib.util import Raw
+from lib.util import Raw, handle_signals
 from lib.thread import kill_self, thread_safety_net
 
 saddr = IPv4Address("127.1.19.254")
@@ -210,6 +210,7 @@ class TestSCIONDaemon(unittest.TestCase):
 
 if __name__ == "__main__":
     init_logging("../../logs/end2end.log", console=True)
+    handle_signals()
     if len(sys.argv) == 3:
         isd, ad = sys.argv[1].split(',')
         sources = [(int(isd), int(ad))]

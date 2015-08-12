@@ -41,7 +41,7 @@ class TestKillSelf(object):
         pid_mock.return_value = "test_pid_val"
         kill_self()
         pid_mock.assert_called_once_with()
-        kill_mock.assert_called_once_with("test_pid_val", signal.SIGTERM)
+        kill_mock.assert_called_once_with("test_pid_val", signal.SIGINT)
 
 
 class TestThreadSafetyNet(object):

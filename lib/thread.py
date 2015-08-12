@@ -28,9 +28,10 @@ from lib.log import log_exception
 
 def kill_self():
     """
-    Send SIGTERM to self, to allow quitting the process from threads.
+    Send SIGINT to self, to allow quitting the process from threads when fatal
+    errors occur.
     """
-    os.kill(os.getpid(), signal.SIGTERM)
+    os.kill(os.getpid(), signal.SIGINT)
 
 
 def thread_safety_net(func, *args, **kwargs):
