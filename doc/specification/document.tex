@@ -1,0 +1,49 @@
+\documentclass[11pt, a4paper]{article}
+
+\usepackage{hyperref}
+\usepackage{usecases}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+
+\renewcommand{\abstractname}{Purpose of this Document}
+
+% autoref adjustments.
+\def\sectionautorefname{Section}
+\def\subsectionautorefname{Section}
+\def\subsubsectionautorefname{Section}
+\def\tableautorefname{Table}
+\def\algorithmautorefname{Algorithm}
+
+% Counter for usecases
+\newcounter{uccnt}
+\newcommand{\uccnt}{
+	\stepcounter{uccnt}
+	\theuccnt	
+}
+
+\newcommand{\tus}[1]{$_{\text{#1}}$}
+\newcommand{\currof}{\textit{CurrOF }}
+\newcommand{\curriof}{\textit{CurrIOF }}
+
+% New algorithm constructs
+\newcommand{\anot}{\textbf{not }}
+\newcommand{\aand}{\textbf{and }}
+\newcommand{\aor}{\textbf{or }}
+\newcommand{\ain}{\textbf{in }}
+\newcommand{\aold}[1]{\textbf{old}(#1)}
+
+\begin{document}
+\title{SCION Requirements Documentation}
+\author{Samuel Hitz \\ samuel.hitz@inf.ethz.ch}
+\maketitle
+
+\input{purpose}
+\newpage
+\label{sec:router}
+\section{Router Specification}
+\input{router}
+
+
+\end{document}
