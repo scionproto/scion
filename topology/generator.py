@@ -67,6 +67,7 @@ PATH_POL_DIR = 'path_policies'
 SUPERVISOR_DIR = 'supervisor'
 SIM_DIR = 'SIM'
 SIM_CONF_FILE = 'sim.conf'
+HOSTS_FILE = 'hosts'
 
 ZOOKEEPER_DIR = 'zookeeper'
 ZOOKEEPER_CFG = "zoo.cfg"
@@ -151,7 +152,6 @@ class ConfigGenerator(object):
         supervisor_file_abs = os.path.join(self.out_dir, isd_name,
                                            SUPERVISOR_DIR,
                                            file_no_ext + '.conf')
-
         topo_path_tail = os.path.join(isd_name, TOPO_DIR,
                                       file_no_ext + '.json')
         topo_file_abs = os.path.join(self.out_dir, topo_path_tail)
@@ -378,8 +378,10 @@ class ConfigGenerator(object):
         :param er_ip_addresses: the edge router IP addresses.
         :type er_ip_addresses: dict
         """
+        isd_hosts = {}
         for isd_ad_id in ad_configs:
             (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
+            paths = self.path_dict(isd_id, ad_id)
             is_core = (ad_configs[isd_ad_id]['level'] == CORE_AD)
             first_byte, mask = self.get_subnet_params(ad_configs[isd_ad_id])
             number_bs = ad_configs[isd_ad_id].get("beacon_servers",
@@ -395,6 +397,7 @@ class ConfigGenerator(object):
             dns_domain = DNSLabel(ad_configs[isd_ad_id].get("dns_domain",
                                                             DEFAULT_DNS_DOMAIN))
             dns_domain = dns_domain.add("isd%s" % isd_id).add("ad%s" % ad_id)
+            hosts = isd_hosts.setdefault(paths['isd_name'], StringIO())
             # Write beginning and general structure
             topo_dict = {
                 'Core': 1 if is_core else 0,
@@ -441,6 +444,8 @@ class ConfigGenerator(object):
                     'AddrType': 'IPv4',
                     'Addr': self.next_ip_address
                 }
+                hosts.write("%s\tds.%s\n" % (self.next_ip_address,
+                                             str(dns_domain).rstrip(".")))
                 self.next_ip_address = \
                     self.increment_address(self.next_ip_address, mask)
             # Write Edge Routers
@@ -481,13 +486,17 @@ class ConfigGenerator(object):
                         self.increment_address(self.next_ip_address, mask)
                 topo_dict['Zookeepers'][key] = zk.dict_()
 
-            topo_file_abs = self.path_dict(isd_id, ad_id)['topo_file_abs']
+            topo_file_abs = paths['topo_file_abs']
             write_file(topo_file_abs,
                        json.dumps(topo_dict, sort_keys=True, indent=4))
             # Test if parser works
             Topology.from_file(topo_file_abs)
 
             self.write_derivatives(topo_dict, mask=mask)
+
+        for isd_name, hosts in isd_hosts.items():
+            hosts_path = os.path.join(self.out_dir, isd_name, HOSTS_FILE)
+            write_file(hosts_path, hosts.getvalue())
 
     def write_derivatives(self, topo_dict, **kwargs):
         """
