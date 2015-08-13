@@ -110,12 +110,12 @@ class CoreBeaconServerSim(CoreBeaconServer):
         downstream_pcb = PathSegment()
         timestamp = int(SCIONTime.get_time())
         downstream_pcb.iof = InfoOpaqueField.from_values(
-            OFT.TDC_XOVR, False, timestamp, self.topology.isd_id)
+            OFT.CORE, False, timestamp, self.topology.isd_id)
         self.propagate_downstream_pcb(downstream_pcb)
         # Create beacon for core ADs.
         core_pcb = PathSegment()
         core_pcb.iof = InfoOpaqueField.from_values(
-            OFT.TDC_XOVR, False, timestamp, self.topology.isd_id)
+            OFT.CORE, False, timestamp, self.topology.isd_id)
         count = self.propagate_core_pcb(core_pcb)
 
         # Propagate received beacons. A core beacon server can only receive
@@ -213,7 +213,7 @@ class CoreBeaconServerSim(CoreBeaconServer):
         hof = HopOpaqueField.from_values(self.HOF_EXP_TIME,
                                          ingress_if, egress_if)
         if prev_hof is None:
-            hof.info = OFT.LAST_OF
+            hof.info = OFT.XOVR_POINT
         pcbm = PCBMarking.from_values(self.topology.isd_id, self.topology.ad_id,
                                       hof, self._get_if_rev_token(ingress_if))
         peer_markings = []
@@ -413,7 +413,7 @@ class LocalBeaconServerSim(LocalBeaconServer):
         hof = HopOpaqueField.from_values(self.HOF_EXP_TIME,
                                          ingress_if, egress_if)
         if prev_hof is None:
-            hof.info = OFT.LAST_OF
+            hof.info = OFT.XOVR_POINT
         pcbm = PCBMarking.from_values(self.topology.isd_id, self.topology.ad_id,
                                       hof, self._get_if_rev_token(ingress_if))
         peer_markings = []
