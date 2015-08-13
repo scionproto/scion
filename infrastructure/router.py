@@ -16,6 +16,8 @@
 ===========================================
 """
 # Stdlib
+# SCION
+
 import argparse
 import datetime
 import logging
@@ -24,10 +26,10 @@ import sys
 import threading
 import time
 
-# SCION
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.symcrypto import get_roundkey_cache, verify_of_mac
 from lib.defines import EXP_TIME_UNIT, SCION_UDP_EH_DATA_PORT, SCION_UDP_PORT
+from lib.errors import SCIONBaseError
 from lib.log import init_logging, log_exception
 from lib.packet.opaque_field import (
     HopOpaqueField as HOF,
@@ -45,7 +47,22 @@ from lib.packet.scion_addr import ISD_AD, SCIONAddr
 from lib.thread import thread_safety_net
 from lib.util import handle_signals, SCIONTime
 
+
 IFID_PKT_TOUT = 1  # How often IFID packet is sent to neighboring router.
+
+
+class SCIONOFVerificationError(SCIONBaseError):
+    """
+    Opaque field MAC verification error.
+    """
+    pass
+
+
+class SCIONOFExpiredError(SCIONBaseError):
+    """
+    Opaque field expired error.
+    """
+    pass
 
 
 class Router(SCIONElement):
@@ -212,9 +229,33 @@ class Router(SCIONElement):
         # path servers in the destination AD. In the future, path management
         # packets might be handled differently.
         if not from_local_ad and mgmt_pkt.hdr.is_last_path_of():
-            self.terminate(mgmt_pkt, PT.PATH_MGMT)
+            self.deliver(mgmt_pkt, PT.PATH_MGMT)
         else:
             self.forward_packet(mgmt_pkt, from_local_ad)
+
+    def deliver(self, spkt, ptype):
+        """
+        Forwards the packet to the end destination within the current AD.
+
+        :param spkt: The SCION Packet to forward.
+        :type spkt: :class:`lib.packet.scion.SCIONPacket`
+        :param ptype: The packet type.
+        :type ptype: int
+        """
+        curr_of = spkt.hdr.get_current_of()
+        if (not spkt.hdr.is_last_path_of() or
+                (curr_of.ingress_if and curr_of.egress_if)):
+            logging.warning("Trying to deliver packet that is not at the " +
+                            "end of a segment.")
+            return
+        # Forward packet to destination.
+        if ptype == PT.PATH_MGMT:
+            addr = self.topology.path_servers[0].addr
+            port = SCION_UDP_PORT
+        else:
+            addr = spkt.hdr.dst_addr.host_addr
+            port = SCION_UDP_EH_DATA_PORT
+        self.send(spkt, addr, port)
 
     def verify_of(self, hof, prev_hof, ts):
         """
@@ -232,34 +273,10 @@ class Router(SCIONElement):
             if verify_of_mac(self.of_gen_key, hof, prev_hof, ts):
                 return True
             else:
-                logging.warning("Dropping packet due to incorrect MAC.")
+                raise SCIONOFVerificationError
         else:
-            logging.warning("Dropping packet due to expired OF.")
+            raise SCIONOFExpiredError
         return False
-
-    def terminate(self, spkt, ptype):
-        """
-        Forwards the packet to the end destination within the current AD.
-
-        :param spkt: The SCION Packet to forward.
-        :type spkt: :class:`lib.packet.scion.SCIONPacket`
-        :param ptype: The packet type.
-        :type ptype: int
-        """
-        curr_of = spkt.hdr.get_current_of()
-        if (not spkt.hdr.is_last_path_of() or
-                (curr_of.ingress_if and curr_of.egress_if)):
-            logging.warning("Trying to terminate packet that is not at the " +
-                            "end of a segment.")
-            return
-        # Forward packet to destination.
-        if ptype == PT.PATH_MGMT:
-            addr = self.topology.path_servers[0].addr
-            port = SCION_UDP_PORT
-        else:
-            addr = spkt.hdr.dst_addr.host_addr
-            port = SCION_UDP_EH_DATA_PORT
-        self.send(spkt, addr, port)
 
     def handle_ingress_xovr(self, spkt):
         """
@@ -303,7 +320,7 @@ class Router(SCIONElement):
             if not self.verify_of(curr_of, spkt.hdr.get_relative_of(-1),
                                   curr_iof.timestamp):
                 return
-            self.terminate(spkt, PT.DATA)
+            self.deliver(spkt, PT.DATA)
         else:
             self.send(spkt, self.ifid2addr[curr_of.egress_if])
 
@@ -330,7 +347,7 @@ class Router(SCIONElement):
 
         if spkt.hdr.is_last_path_of():
             assert not on_up_path
-            self.terminate(spkt, PT.DATA)
+            self.deliver(spkt, PT.DATA)
         else:
             self.send(spkt, self.ifid2addr[fwd_if])
 
@@ -351,7 +368,7 @@ class Router(SCIONElement):
             return
 
         if spkt.hdr.is_last_path_of():
-            self.terminate(spkt, PT.DATA)
+            self.deliver(spkt, PT.DATA)
         else:
             # Switch to next path segment.
             spkt.hdr.set_curr_iof_p(spkt.hdr.get_curr_of_p() + HOF.LEN)
@@ -379,7 +396,7 @@ class Router(SCIONElement):
             return
 
         if not fwd_if and spkt.hdr.is_last_path_of():
-            self.terminate(spkt, PT.DATA)
+            self.deliver(spkt, PT.DATA)
         else:
             self.send(spkt, self.ifid2addr[fwd_if])
 
@@ -485,18 +502,24 @@ class Router(SCIONElement):
         :param from_local_ad: Whether or not the packet is from the local AD.
         :type from_local_ad: bool
         """
-        curr_of = spkt.hdr.get_current_of()
-        # Ingress entry point.
-        if not from_local_ad:
-            if curr_of.info == OFT.XOVR_POINT:
-                self.handle_ingress_xovr(spkt)
+        try:
+            curr_of = spkt.hdr.get_current_of()
+            # Ingress entry point.
+            if not from_local_ad:
+                if curr_of.info == OFT.XOVR_POINT:
+                    self.handle_ingress_xovr(spkt)
+                else:
+                    self.ingress_normal_forward(spkt)
+            # Egress entry point.
             else:
-                self.ingress_normal_forward(spkt)
-        else:
-            if curr_of.info == OFT.XOVR_POINT:
-                self.handle_egress_xovr(spkt)
-            else:
-                self.egress_normal_forward(spkt)
+                if curr_of.info == OFT.XOVR_POINT:
+                    self.handle_egress_xovr(spkt)
+                else:
+                    self.egress_normal_forward(spkt)
+        except SCIONOFVerificationError:
+            logging.error("Dropping packet due to incorrect MAC.")
+        except SCIONOFExpiredError:
+            logging.error("Dropping packet due to expired OF.")
 
     def handle_request(self, packet, sender, from_local_socket=True):
         """
