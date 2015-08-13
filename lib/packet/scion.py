@@ -23,7 +23,7 @@ from ipaddress import IPv4Address
 # SCION
 from lib.defines import L4_PROTO
 from lib.errors import SCIONParseError
-from lib.packet.ext_hdr import ExtensionType, ExtensionHeader
+from lib.packet.ext_hdr import ExtensionClass, ExtensionHeader
 from lib.packet.ext.traceroute import TracerouteExt
 from lib.packet.opaque_field import (
     InfoOpaqueField,
@@ -43,7 +43,7 @@ from lib.util import Raw
 
 # Dictionary of supported extensions (i.e., parsed by SCIONHeader)
 EXTENSIONS = {
-    (ExtensionType.HOP_BY_HOP, TracerouteExt.EXT_NO): TracerouteExt,
+    (ExtensionClass.HOP_BY_HOP, TracerouteExt.EXT_TYPE): TracerouteExt,
 }
 
 
@@ -203,7 +203,7 @@ class SCIONHeader(HeaderBase):
             ext_hdrs = []
             next_hdr = l4_proto
         else:
-            next_hdr = ext_hdrs[0].EXT_TYPE
+            next_hdr = ext_hdrs[0].EXT_CLASS
         hdr.common_hdr = SCIONCommonHdr.from_values(src.addr_len, dst.addr_len,
                                                     next_hdr)
         hdr.src_addr = src
@@ -229,14 +229,14 @@ class SCIONHeader(HeaderBase):
         """
         # Set the first and the last next_hdr.
         if self.extension_hdrs:
-            self.common_hdr.next_hdr = self.extension_hdrs[0].EXT_TYPE
+            self.common_hdr.next_hdr = self.extension_hdrs[0].EXT_CLASS
             self.extension_hdrs[-1].next_hdr = self.l4_proto
         else:
             self.common_hdr.next_hdr = self.l4_proto
         # Set next_hdr fields according to the extension chain
         l = 0
         while l < len(self.extension_hdrs) - 1:
-            self.extension_hdrs[l].next_hdr = self.extension_hdrs[l+1].EXT_TYPE
+            self.extension_hdrs[l].next_hdr = self.extension_hdrs[l+1].EXT_CLASS
             l += 1
 
     def remove_extensions(self):

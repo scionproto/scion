@@ -214,8 +214,8 @@ class TestSCIONHeaderFromValues(object):
         dst = MagicMock(spec_set=['addr_len', '__class__'])
         dst.__class__ = src.__class__ = SCIONAddr
         path = MagicMock(spec_set=PathBase)
-        ext_hdrs = [MagicMock(spec_set=['EXT_TYPE'])]
-        ext_hdrs[0].EXT_TYPE = 12
+        ext_hdrs = [MagicMock(spec_set=['EXT_CLASS'])]
+        ext_hdrs[0].EXT_CLASS = 12
         scion_common_hdr.return_value = 'scion_common_hdr'
         hdr = SCIONHeader.from_values(src, dst, path, ext_hdrs, 34)
         ntools.assert_is_instance(hdr, SCIONHeader)
@@ -430,12 +430,12 @@ class TestSCIONHeaderPack(object):
         hdr.dst_addr = MagicMock(spec_set=['pack'])
         hdr.dst_addr.pack.return_value = b'dst_addr'
         hdr._path = path
-        hdr.extension_hdrs = [MagicMock(spec_set=['pack', 'EXT_TYPE',
+        hdr.extension_hdrs = [MagicMock(spec_set=['pack', 'EXT_CLASS',
                                                   'next_hdr'])
                               for i in range(2)]
         for i, ext_hdr in enumerate(hdr.extension_hdrs):
             ext_hdr.pack.return_value = b'ext_hdr' + str.encode(str(i))
-            ext_hdr.EXT_TYPE = i + 10
+            ext_hdr.EXT_CLASS = i + 10
         packed = b'common_hdrsrc_addrdst_addr' + packed_path + \
                  b'ext_hdr0ext_hdr1'
         hdr._set_next_hdrs()
@@ -443,7 +443,7 @@ class TestSCIONHeaderPack(object):
         ntools.eq_(hdr.common_hdr.next_hdr, 10)
         ntools.eq_(hdr.extension_hdrs[-1].next_hdr, 123)
         ntools.eq_(hdr.extension_hdrs[0].next_hdr,
-                   hdr.extension_hdrs[1].EXT_TYPE)
+                   hdr.extension_hdrs[1].EXT_CLASS)
 
     def test_with_ext_hdr(self):
         paths = [None, MagicMock(spec_set=['pack'])]

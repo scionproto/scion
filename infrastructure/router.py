@@ -33,7 +33,7 @@ from lib.defines import (
     SCION_UDP_PORT,
     )
 from lib.log import init_logging, log_exception
-from lib.packet.ext_hdr import ExtensionType
+from lib.packet.ext_hdr import ExtensionClass
 from lib.packet.ext.traceroute import TracerouteExt, traceroute_ext_handler
 from lib.packet.opaque_field import OpaqueField, OpaqueFieldType as OFT
 from lib.packet.pcb import PathConstructionBeacon
@@ -205,9 +205,9 @@ class Router(SCIONElement):
         c = 0
         # Hop-by-hop extensions must be first (just after path), and process
         # only MAX_EXT number of them.
-        while ext_type == ExtensionType.HOP_BY_HOP and c < MAX_EXT:
+        while ext_type == ExtensionClass.HOP_BY_HOP and c < MAX_EXT:
             ext_hdr = spkt.hdr.extension_hdrs[c]
-            ext_nr = ext_hdr.EXT_NO
+            ext_nr = ext_hdr.EXT_TYPE
             if ext_nr in handlers:
                 handlers[ext_nr](spkt=spkt, next_hop=next_hop, ext=ext_hdr,
                                  conf=self.config, topo=self.topology,
@@ -216,7 +216,7 @@ class Router(SCIONElement):
                 logging.debug("No handler for extension type %u", ext_nr)
             ext_type = ext_hdr.next_hdr
             c += 1
-        if c >= MAX_EXT and ext_type == ExtensionType.HOP_BY_HOP:
+        if c >= MAX_EXT and ext_type == ExtensionClass.HOP_BY_HOP:
             logging.warning("Too many hop-by-hop extensions.")
 
     def sync_interface(self):
@@ -571,7 +571,7 @@ def main():
     # Run router without extensions handling:
     # router = Router(*sys.argv[1:])
     # Run router with an extension handler:
-    pre_handlers = {TracerouteExt.EXT_NO: traceroute_ext_handler}
+    pre_handlers = {TracerouteExt.EXT_TYPE: traceroute_ext_handler}
     router = Router(args.router_id, args.topo_file, args.conf_file,
                     pre_ext_handlers=pre_handlers)
 

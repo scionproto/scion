@@ -30,13 +30,10 @@ class TestTracerouteExtInit(object):
     """
     Unit tests for lib.packet.ext.traceroute.TracerouteExt.__init__
     """
-    @patch("lib.packet.ext_hdr.ExtensionHeader.__init__",
-           autospec=True)
-    @patch("lib.packet.ext.traceroute.TracerouteExt.set_payload",
-           autospec=True)
+    @patch("lib.packet.ext.traceroute.TracerouteExt.set_payload", autospec=True)
     @patch("lib.packet.ext.traceroute.HopByHopExtension.__init__",
            autospec=True)
-    def test_basic(self, hopbyhop_init, set_payload, _):
+    def test_basic(self, hopbyhop_init, set_payload):
         ext = TracerouteExt()
         ntools.eq_(ext.hops, [])
         ntools.eq_(ext.hops_no, 0)
@@ -47,8 +44,11 @@ class TestTracerouteExtInit(object):
     @patch("lib.packet.ext.traceroute.TracerouteExt.parse_payload",
            autospec=True)
     @patch("lib.packet.ext.traceroute.TracerouteExt.parse", autospec=True)
-    def test_raw(self, parse, parse_payload):
+    @patch("lib.packet.ext.traceroute.HopByHopExtension.__init__",
+           autospec=True)
+    def test_raw(self, hopbyhop_init, parse, parse_payload):
         ext = TracerouteExt('data')
+        hopbyhop_init.assert_called_once_with(ext)
         parse.assert_called_once_with(ext, 'data')
         parse_payload.assert_called_once_with(ext)
 

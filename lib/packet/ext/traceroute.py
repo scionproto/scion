@@ -33,7 +33,7 @@ class TracerouteExt(HopByHopExtension):
                                     ...
     |                     (padding)  or HOP info                           |
     """
-    EXT_NO = 0
+    EXT_TYPE = 0
     PADDING_LEN = 4
     HOP_LEN = HopByHopExtension.LINE_LEN  # Size of every hop information.
 
@@ -117,7 +117,7 @@ class TracerouteExt(HopByHopExtension):
         """
         tmp = ["[Traceroute Ext - start]"]
         tmp.append("  [next_hdr:%d ext_no:%d hop:%d len:%d]" %
-                   (self.next_hdr, self.EXT_NO, self.hops_no, len(self)))
+                   (self.next_hdr, self.EXT_TYPE, self.hops_no, len(self)))
         for hops in self.hops:
             tmp.append("    ISD:%d AD:%d IFID:%d TS:%d" % hops)
         tmp.append("[Traceroute Ext - end]")

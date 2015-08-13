@@ -35,13 +35,10 @@ class TestExtensionHeaderInit(object):
     @patch("lib.packet.scion.HeaderBase.__init__", autospec=True)
     def test_basic(self, hdr_init):
         ext_hdr = ExtensionHeader()
-        ext_hdr.EXT_NO = 0
-        ext_hdr.parsed = False
+        hdr_init.assert_called_once_with(ext_hdr)
         ntools.eq_(ext_hdr.next_hdr, 0)
         ntools.eq_(ext_hdr._hdr_len, 0)
         ntools.eq_(ext_hdr.payload, b"\x00" * 5)
-        ntools.assert_false(ext_hdr.parsed)
-        hdr_init.assert_called_once_with(ext_hdr)
 
     @patch("lib.packet.scion.HeaderBase.__init__", autospec=True)
     @patch("lib.packet.ext_hdr.ExtensionHeader.parse", autospec=True)
@@ -62,7 +59,7 @@ class TestExtensionHeaderParse(object):
         """
         # Setup
         ext_hdr = ExtensionHeader()
-        ext_hdr.EXT_NO = 11
+        ext_hdr.EXT_TYPE = 11
         data = bytes([14, 0, 11, 0, 0, 0, 0, 0])
         raw.return_value = MagicMock(spec_set=["pop"])
         raw.return_value.pop.side_effect = [data[:3], data[3:]]
@@ -84,7 +81,6 @@ class TestExtensionHeaderSetPayload(object):
         payload = bytes.fromhex('01 02 03 04 05')
         ext_hdr = ExtensionHeader()
         ext_hdr.set_payload(payload)
-        ntools.eq_(ext_hdr._hdr_len, 0)
         ntools.eq_(ext_hdr.payload, bytes.fromhex('01 02 03 04 05'))
 
     def test_short_payload(self):
@@ -92,7 +88,6 @@ class TestExtensionHeaderSetPayload(object):
         ext_hdr = ExtensionHeader()
         ext_hdr._hdr_len = 1
         ext_hdr.set_payload(payload)
-        ntools.eq_(ext_hdr._hdr_len, 1)
         ntools.eq_(ext_hdr.payload, payload)
 
     def test_longer_payload(self):
@@ -100,7 +95,6 @@ class TestExtensionHeaderSetPayload(object):
         ext_hdr = ExtensionHeader()
         ext_hdr._init_size(2)
         ext_hdr.set_payload(payload)
-        ntools.eq_(ext_hdr._hdr_len, 2)
         ntools.eq_(ext_hdr.payload, payload)
 
 
@@ -112,7 +106,7 @@ class TestExtensionHeaderPack(object):
         ext_hdr = ExtensionHeader()
         ext_hdr.next_hdr = 14
         ext_hdr._hdr_len = 42
-        ext_hdr.EXT_NO = 1
+        ext_hdr.EXT_TYPE = 1
         ext_hdr.payload = bytes.fromhex('02 03')
         ntools.eq_(ext_hdr.pack(), bytes([14, 42, 1, 2, 3]))
 

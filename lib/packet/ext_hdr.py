@@ -25,18 +25,18 @@ from lib.packet.packet_base import HeaderBase
 from lib.util import Raw
 
 
-class ExtensionType(object):
+class ExtensionClass(object):
     """
     Constants for two types of extensions. These values are shared with L4
     protocol values, and an appropriate value is placed in next_hdr type.
     """
     HOP_BY_HOP = 0
-    END_TO_END = 222
+    END_TO_END = 222  # (Expected:-) number for SCION end2end extensions.
 
 
 class ExtensionHeader(HeaderBase):
     """
-    Base base class for extension headers.
+    Base class for extension headers.
 
     :cvar MIN_LEN:
     :type MIN_LEN: int
@@ -49,8 +49,8 @@ class ExtensionHeader(HeaderBase):
     """
     LINE_LEN = 8  # Length of extension must be multiplication of LINE_LEN.
     MIN_LEN = LINE_LEN
-    EXT_TYPE = None  # Type of extension (hop-by-hop or end-to-end).
-    EXT_NO = None  # Number of extension.
+    EXT_CLASS = None  # Class of extension (hop-by-hop or end-to-end).
+    EXT_TYPE = None  # Type of extension.
     SUBHDR_LEN = 3
     MIN_PAYLOAD_LEN = MIN_LEN - SUBHDR_LEN
 
@@ -84,7 +84,7 @@ class ExtensionHeader(HeaderBase):
         data = Raw(raw, "ExtensionHeader", self.MIN_LEN, min_=True)
         self.next_hdr, self._hdr_len, ext_no = \
             struct.unpack("!BBB", data.pop(self.SUBHDR_LEN))
-        if ext_no != self.EXT_NO:
+        if ext_no != self.EXT_TYPE:
             raise SCIONParseError("Extension chain formed incorrectly")
         if len(raw) != len(self):
             raise SCIONParseError("Incorrect length of extensions")
@@ -119,8 +119,8 @@ class ExtensionHeader(HeaderBase):
         """
         Pack to byte array.
         """
-        return (struct.pack("!BBB", self.next_hdr, self._hdr_len, self.EXT_NO) +
-                self.payload)
+        return (struct.pack("!BBB", self.next_hdr, self._hdr_len, self.EXT_TYPE)
+                + self.payload)
 
     def __len__(self):
         """
@@ -141,11 +141,11 @@ class HopByHopExtension(ExtensionHeader):
     """
     Base class for hop-by-hop extensions.
     """
-    EXT_TYPE = ExtensionType.HOP_BY_HOP
+    EXT_CLASS = ExtensionClass.HOP_BY_HOP
 
 
 class EndToEndExtension(ExtensionHeader):
     """
     Base class for end-to-end extensions.
     """
-    EXT_TYPE = ExtensionType.END_TO_END
+    EXT_CLASS = ExtensionClass.END_TO_END
