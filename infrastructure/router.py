@@ -65,6 +65,13 @@ class SCIONOFExpiredError(SCIONBaseError):
     pass
 
 
+class SCIONPacketHeaderCorruptedError(SCIONBaseError):
+    """
+    Packet header is in an invalid state.
+    """
+    pass
+
+
 class Router(SCIONElement):
     """
     The SCION Router.
@@ -304,11 +311,11 @@ class Router(SCIONElement):
         curr_iof = spkt.hdr.get_current_iof()
         # Preconditions
         assert curr_iof.info == OFT.SHORTCUT
-        assert spkt.hdr.is_on_up_path()
 
-        if not self.verify_of(curr_of, spkt.hdr.get_relative_of(1),
-                              curr_iof.timestamp):
-            return
+        if not spkt.hdr.is_on_up_path():
+            raise SCIONPacketHeaderCorruptedError
+
+        self.verify_of(curr_of, spkt.hdr.get_relative_of(1), curr_iof.timestamp)
 
         # Switch to next path segment.
         spkt.hdr.set_curr_iof_p(spkt.hdr.get_curr_of_p() + 2 * HOF.LEN)
@@ -317,9 +324,8 @@ class Router(SCIONElement):
         curr_of = spkt.hdr.get_current_of()
         curr_iof = spkt.hdr.get_current_iof()
         if not curr_of.egress_if and spkt.hdr.is_last_path_of():
-            if not self.verify_of(curr_of, spkt.hdr.get_relative_of(-1),
-                                  curr_iof.timestamp):
-                return
+            self.verify_of(curr_of, spkt.hdr.get_relative_of(-1),
+                           curr_iof.timestamp)
             self.deliver(spkt, PT.DATA)
         else:
             self.send(spkt, self.ifid2addr[curr_of.egress_if])
@@ -341,8 +347,7 @@ class Router(SCIONElement):
             prev_of = spkt.hdr.get_relative_of(1)
             fwd_if = spkt.hdr.get_relative_of(1).egress_if
 
-        if not self.verify_of(curr_of, prev_of, curr_iof.timestamp):
-            return
+        self.verify_of(curr_of, prev_of, curr_iof.timestamp)
         spkt.hdr.increase_curr_of_p(1)
 
         if spkt.hdr.is_last_path_of():
@@ -364,8 +369,8 @@ class Router(SCIONElement):
             prev_of = None
         else:
             prev_of = spkt.hdr.get_relative_of(-1)
-        if not self.verify_of(curr_of, prev_of, curr_iof.timestamp):
-            return
+
+        self.verify_of(curr_of, prev_of, curr_iof.timestamp)
 
         if spkt.hdr.is_last_path_of():
             self.deliver(spkt, PT.DATA)
@@ -392,8 +397,7 @@ class Router(SCIONElement):
             fwd_if = curr_of.egress_if
             prev_of = spkt.hdr.get_relative_of(-1)
 
-        if not self.verify_of(curr_of, prev_of, curr_iof.timestamp):
-            return
+        self.verify_of(curr_of, prev_of, curr_iof.timestamp)
 
         if not fwd_if and spkt.hdr.is_last_path_of():
             self.deliver(spkt, PT.DATA)
@@ -427,7 +431,9 @@ class Router(SCIONElement):
         # Preconditions
         assert curr_of.is_xovr()
         assert curr_iof.info == OFT.SHORTCUT
-        assert not spkt.hdr.is_on_up_path()
+
+        if spkt.hdr.is_on_up_path():
+            raise SCIONPacketHeaderCorruptedError
 
         self.egress_normal_forward(spkt)
 
@@ -442,16 +448,14 @@ class Router(SCIONElement):
         assert curr_iof.info in [OFT.INTRA_ISD_PEER, OFT.INTER_ISD_PEER]
 
         if spkt.hdr.is_on_up_path():
-            if not self.verify_of(curr_of, spkt.hdr.get_relative_of(-1),
-                                  curr_iof.timestamp):
-                return
+            self.verify_of(curr_of, spkt.hdr.get_relative_of(-1),
+                           curr_iof.timestamp)
             # Switch to next path-segment
             spkt.hdr.set_curr_iof_p(spkt.hdr.get_curr_of_p() + 2 * HOF.LEN)
             spkt.hdr.increase_curr_of_p(4)
         else:
-            if not self.verify_of(curr_of, spkt.hdr.get_relative_of(-2),
-                                  curr_iof.timestamp):
-                return
+            self.verify_of(curr_of, spkt.hdr.get_relative_of(-2),
+                           curr_iof.timestamp)
             spkt.hdr.increase_curr_of_p(1)
 
         self.send(spkt, self.interface.to_addr, self.interface.to_udp_port)
@@ -470,8 +474,8 @@ class Router(SCIONElement):
             prev_of = None
         else:
             prev_of = spkt.hdr.get_relative_of(1)
-        if not self.verify_of(curr_of, prev_of, curr_iof.timestamp):
-            return
+
+        self.verify_of(curr_of, prev_of, curr_iof.timestamp)
 
         spkt.hdr.increase_curr_of_p(1)
         self.send(spkt, self.interface.to_addr, self.interface.to_udp_port)
@@ -487,8 +491,7 @@ class Router(SCIONElement):
         else:
             prev_of = spkt.hdr.get_relative_of(-1)
 
-        if not self.verify_of(curr_of, prev_of, curr_iof.timestamp):
-            return
+        self.verify_of(curr_of, prev_of, curr_iof.timestamp)
 
         spkt.hdr.increase_curr_of_p(1)
         self.send(spkt, self.interface.to_addr, self.interface.to_udp_port)
@@ -520,6 +523,8 @@ class Router(SCIONElement):
             logging.error("Dropping packet due to incorrect MAC.")
         except SCIONOFExpiredError:
             logging.error("Dropping packet due to expired OF.")
+        except SCIONPacketHeaderCorruptedError:
+            logging.error("Dropping packet due to invalid header state.")
 
     def handle_request(self, packet, sender, from_local_socket=True):
         """
