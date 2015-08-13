@@ -152,7 +152,7 @@ typedef struct {
     the opaque field.
 **/
 
-	uint8_t type;
+	uint8_t info;
 	uint8_t exp_type;
 	//uint16_t ingress_if:12;
 	//uint16_t egress_if:12;
@@ -170,7 +170,7 @@ typedef struct {
 */
 typedef struct {
 	/** Info field with timestamp information */
-	uint8_t type;
+	uint8_t info;
 	/** Timestamp value in 16 bit number */
 	uint32_t timestamp;
 	/** TD Id */
