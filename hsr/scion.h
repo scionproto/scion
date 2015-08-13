@@ -53,27 +53,17 @@
 
 #define MASTER_SECRET_KEY_SIZE 16 /*in bytes*/
 
-/*
-#define NORMAL_OF 0x00
-#define SPECIAL_OF 0x80
-#define TDC_XOVR 0x80
-#define NON_TDC_XOVR 0xc0
-#define INPATH_XOVR 0xe0
-#define INTRATD_PEER 0xf0
-#define INTERTD_PEER 0xf8
-#define PEER_XOVR 0x10
-*/
 
    // # Types for HopOpaqueFields (7 MSB bits).
-#define    NORMAL_OF  0b0000000
-#define    LAST_OF  0b0010000  // indicates last hop OF on the half-path (TODO revise)
-#define    PEER_XOVR  0b0001000
+#define    OFT_NORMAL_OF  0b0000000
+#define    OFT_XOVR_POINT  0b0010000  
+//#define    PEER_XOVR  0b0001000
    // # Types for Info Opaque Fields (7 MSB bits).
-#define    TDC_XOVR  0b1000000
-#define    NON_TDC_XOVR  0b1100000
-#define    INPATH_XOVR  0b1110000
-#define    INTRATD_PEER  0b1111000
-#define    INTERTD_PEER  0b1111100
+#define    OFT_CORE  0b1000000
+#define    OFT_SHORTCUT  0b1100000
+//#define    OFT_INPATH_XOVR  0b1110000
+#define    OFT_INTRA_ISD_PEER  0b1111000
+#define    OFT_INTER_ISD_PEER  0b1111100
 
 #define MAX_AD_HOPS 32
 #define PATH_TYPE_TDC 0
