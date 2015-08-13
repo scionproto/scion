@@ -16,8 +16,6 @@
 ===========================================
 """
 # Stdlib
-# SCION
-
 import argparse
 import datetime
 import logging
@@ -26,6 +24,7 @@ import sys
 import threading
 import time
 
+# SCION
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.symcrypto import get_roundkey_cache, verify_of_mac
 from lib.defines import EXP_TIME_UNIT, SCION_UDP_EH_DATA_PORT, SCION_UDP_PORT
@@ -277,13 +276,10 @@ class Router(SCIONElement):
         :type ts: int
         """
         if int(SCIONTime.get_time()) <= ts + hof.exp_time * EXP_TIME_UNIT:
-            if verify_of_mac(self.of_gen_key, hof, prev_hof, ts):
-                return True
-            else:
+            if not verify_of_mac(self.of_gen_key, hof, prev_hof, ts):
                 raise SCIONOFVerificationError
         else:
             raise SCIONOFExpiredError
-        return False
 
     def handle_ingress_xovr(self, spkt):
         """
@@ -351,7 +347,6 @@ class Router(SCIONElement):
         spkt.hdr.increase_curr_of_p(1)
 
         if spkt.hdr.is_last_path_of():
-            assert not on_up_path
             self.deliver(spkt, PT.DATA)
         else:
             self.send(spkt, self.ifid2addr[fwd_if])
