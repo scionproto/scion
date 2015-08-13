@@ -390,11 +390,39 @@ class SCIONHeader(HeaderBase):
                   self.common_hdr.dst_addr_len))
         return self.path.get_of(offset // OpaqueField.LEN + 1)
 
-    def increase_of(self, number):
+    def increase_curr_of_p(self, number):
         """
         Increases pointer of current opaque field by number of opaque fields.
         """
-        self.common_hdr.curr_of_p += number * OpaqueField.LEN
+        if number >= 0:
+            self.common_hdr.curr_of_p += number * OpaqueField.LEN
+
+    def get_curr_of_p(self):
+        """
+        Returns the current OF pointer value.
+        """
+        return self.common_hdr.curr_of_p
+
+    def set_curr_of_p(self, new_value):
+        """
+        Updates the current OF pointer in the common header.
+        """
+        if SCIONCommonHdr.LEN <= new_value <= self.common_hdr.hdr_len:
+            self.common_hdr.curr_of_p = new_value
+
+    def get_curr_iof_p(self):
+        """
+        Returns the current IOF pointer value.
+        """
+        return self.common_hdr.curr_iof_p
+
+    def set_curr_iof_p(self, new_value):
+        """
+        Updates the current IOF pointer in the common header.
+        """
+        # Perform some sanity checks.
+        if SCIONCommonHdr.LEN <= new_value <= self.common_hdr.hdr_len:
+            self.common_hdr.curr_iof_p = new_value
 
     def set_downpath(self):  # FIXME probably not needed
         """

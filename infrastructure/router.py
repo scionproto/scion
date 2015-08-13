@@ -27,9 +27,12 @@ import time
 # SCION
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.symcrypto import get_roundkey_cache, verify_of_mac
-from lib.defines import SCION_UDP_PORT, EXP_TIME_UNIT, SCION_UDP_EH_DATA_PORT
+from lib.defines import EXP_TIME_UNIT, SCION_UDP_EH_DATA_PORT, SCION_UDP_PORT
 from lib.log import init_logging, log_exception
-from lib.packet.opaque_field import OpaqueFieldType as OFT
+from lib.packet.opaque_field import (
+    HopOpaqueField as HOF,
+    OpaqueFieldType as OFT,
+)
 from lib.packet.path_mgmt import PathMgmtPacket
 from lib.packet.pcb import PathConstructionBeacon
 from lib.packet.scion import (
@@ -38,7 +41,7 @@ from lib.packet.scion import (
     SCIONPacket,
     get_type,
 )
-from lib.packet.scion_addr import SCIONAddr, ISD_AD
+from lib.packet.scion_addr import ISD_AD, SCIONAddr
 from lib.thread import thread_safety_net
 from lib.util import handle_signals, SCIONTime
 
@@ -143,31 +146,30 @@ class Router(SCIONElement):
                          ifid_req.request_id, ifid_req.reply_id)
             time.sleep(IFID_PKT_TOUT)
 
-    def process_ifid_request(self, packet):
+    def process_ifid_request(self, ifid_packet):
         """
         After receiving IFID_PKT from neighboring router it is completed (by
         iface information) and passed to local BSes.
 
-        :param packet: the IFID request packet to send.
-        :type packet: bytes
+        :param ifid_packet: the IFID request packet to send.
+        :type ifid_packet: :class:`lib.packet.scion.IFIDPacket`
         """
-        ifid_req = IFIDPacket(packet)
         # Forward 'alive' packet to all BSes (to inform that neighbor is alive).
-        ifid_req.reply_id = self.interface.if_id  # BS must determine interface.
+        # BS must determine interface.
+        ifid_packet.reply_id = self.interface.if_id
         for bs in self.topology.beacon_servers:
-            self.send(ifid_req, bs.addr)
+            self.send(ifid_packet, bs.addr)
 
-    def process_pcb(self, packet, from_bs):
+    def process_pcb(self, beacon, from_bs):
         """
         Depending on scenario: a) send PCB to all beacon servers, or b) to
         neighboring router.
 
-        :param packet: The PCB.
-        :type packet: :class:`lib.packet.SCIONPacket`
+        :param beacon: The PCB.
+        :type beacon: :class:`lib.packet.pcb.PathConstructionBeacon`
         :param from_bs: True, if the beacon was received from local BS.
         :type from_bs: bool
         """
-        beacon = PathConstructionBeacon(packet)
         if from_bs:
             if self.interface.if_id != beacon.pcb.get_last_pcbm().hof.egress_if:
                 logging.error("Wrong interface set by BS.")
@@ -197,23 +199,22 @@ class Router(SCIONElement):
             port = SCION_UDP_PORT
         self.send(spkt, addr, port)
 
-    def process_path_mgmt_packet(self, spkt, from_local_ad):
+    def process_path_mgmt_packet(self, mgmt_pkt, from_local_ad):
         """
         Process path management packets.
 
-        :param spkt: The path mgmt packet.
-        :type spkt: :class:`lib.packet.scion.SCIONPacket`
+        :param mgmt_pkt: The path mgmt packet.
+        :type mgmt_pkt: :class:`lib.packet.path_mgmt.PathMgmtPacket`
         :param from_local_ad: whether or not the packet is from the local AD.
         :type from_local_ad: bool
         """
         # For now this function only forwards path management packets to the
         # path servers in the destination AD. In the future, path management
         # packets might be handled differently.
-        mgmt_pkt = PathMgmtPacket(spkt.raw)
         if not from_local_ad and mgmt_pkt.hdr.is_last_path_of():
-            self.terminate(spkt, PT.PATH_MGMT)
+            self.terminate(mgmt_pkt, PT.PATH_MGMT)
         else:
-            self.forward_packet(spkt, from_local_ad)
+            self.forward_packet(mgmt_pkt, from_local_ad)
 
     def verify_of(self, hof, prev_hof, ts):
         """
@@ -290,20 +291,17 @@ class Router(SCIONElement):
 
         if not self.verify_of(curr_of, spkt.hdr.get_relative_of(1),
                               curr_iof.timestamp):
-            logging.error("Verification of current OF failed. Dropping packet.")
             return
 
         # Switch to next path segment.
-        spkt.hdr.common_hdr.curr_iof_p = spkt.hdr.common_hdr.curr_of_p + 16
-        spkt.hdr.increase_of(4)
+        spkt.hdr.set_curr_iof_p(spkt.hdr.get_curr_of_p() + 2 * HOF.LEN)
+        spkt.hdr.increase_curr_of_p(4)
         # Handle on-path shortcut case.
         curr_of = spkt.hdr.get_current_of()
         curr_iof = spkt.hdr.get_current_iof()
         if not curr_of.egress_if and spkt.hdr.is_last_path_of():
             if not self.verify_of(curr_of, spkt.hdr.get_relative_of(-1),
                                   curr_iof.timestamp):
-                logging.error("Verification of current OF failed. " +
-                              "Dropping packet.")
                 return
             self.terminate(spkt, PT.DATA)
         else:
@@ -327,9 +325,8 @@ class Router(SCIONElement):
             fwd_if = spkt.hdr.get_relative_of(1).egress_if
 
         if not self.verify_of(curr_of, prev_of, curr_iof.timestamp):
-            logging.error("Verification of current OF failed. Dropping packet.")
             return
-        spkt.hdr.increase_of(1)
+        spkt.hdr.increase_curr_of_p(1)
 
         if spkt.hdr.is_last_path_of():
             assert not on_up_path
@@ -351,15 +348,14 @@ class Router(SCIONElement):
         else:
             prev_of = spkt.hdr.get_relative_of(-1)
         if not self.verify_of(curr_of, prev_of, curr_iof.timestamp):
-            logging.error("Verification of current OF failed. Dropping packet.")
             return
 
         if spkt.hdr.is_last_path_of():
             self.terminate(spkt, PT.DATA)
         else:
             # Switch to next path segment.
-            spkt.hdr.common_hdr.curr_iof_p = spkt.hdr.common_hdr.curr_of_p + 8
-            spkt.hdr.increase_of(2)
+            spkt.hdr.set_curr_iof_p(spkt.hdr.get_curr_of_p() + HOF.LEN)
+            spkt.hdr.increase_curr_of_p(2)
             curr_of = spkt.hdr.get_current_of()
             if spkt.hdr.is_on_up_path():
                 self.send(spkt, self.ifid2addr[curr_of.ingress_if])
@@ -380,7 +376,6 @@ class Router(SCIONElement):
             prev_of = spkt.hdr.get_relative_of(-1)
 
         if not self.verify_of(curr_of, prev_of, curr_iof.timestamp):
-            logging.error("Verification of current OF failed. Dropping packet.")
             return
 
         if not fwd_if and spkt.hdr.is_last_path_of():
@@ -432,19 +427,15 @@ class Router(SCIONElement):
         if spkt.hdr.is_on_up_path():
             if not self.verify_of(curr_of, spkt.hdr.get_relative_of(-1),
                                   curr_iof.timestamp):
-                logging.error("Verification of current OF failed. " +
-                              "Dropping packet.")
                 return
             # Switch to next path-segment
-            spkt.hdr.common_hdr.curr_iof_p = spkt.hdr.common_hdr.curr_of_p + 16
-            spkt.hdr.increase_of(4)
+            spkt.hdr.set_curr_iof_p(spkt.hdr.get_curr_of_p() + 2 * HOF.LEN)
+            spkt.hdr.increase_curr_of_p(4)
         else:
             if not self.verify_of(curr_of, spkt.hdr.get_relative_of(-2),
                                   curr_iof.timestamp):
-                logging.error("Verification of current OF failed. " +
-                              "Dropping packet.")
                 return
-            spkt.hdr.increase_of(1)
+            spkt.hdr.increase_curr_of_p(1)
 
         self.send(spkt, self.interface.to_addr, self.interface.to_udp_port)
 
@@ -463,10 +454,9 @@ class Router(SCIONElement):
         else:
             prev_of = spkt.hdr.get_relative_of(1)
         if not self.verify_of(curr_of, prev_of, curr_iof.timestamp):
-            logging.error("Verification of current OF failed. Dropping packet.")
             return
 
-        spkt.hdr.increase_of(1)
+        spkt.hdr.increase_curr_of_p(1)
         self.send(spkt, self.interface.to_addr, self.interface.to_udp_port)
 
     def egress_normal_forward(self, spkt):
@@ -481,10 +471,9 @@ class Router(SCIONElement):
             prev_of = spkt.hdr.get_relative_of(-1)
 
         if not self.verify_of(curr_of, prev_of, curr_iof.timestamp):
-            logging.error("Verification of current OF failed. Dropping packet.")
             return
 
-        spkt.hdr.increase_of(1)
+        spkt.hdr.increase_curr_of_p(1)
         self.send(spkt, self.interface.to_addr, self.interface.to_udp_port)
 
     def forward_packet(self, spkt, from_local_ad):
@@ -530,14 +519,14 @@ class Router(SCIONElement):
         if ptype == PT.DATA:
             self.forward_packet(spkt, from_local_ad)
         elif ptype == PT.IFID_PKT and not from_local_ad:
-            self.process_ifid_request(packet)
+            self.process_ifid_request(IFIDPacket(packet))
         elif ptype == PT.BEACON:
-            self.process_pcb(packet, from_local_ad)
+            self.process_pcb(PathConstructionBeacon(packet), from_local_ad)
         elif ptype in [PT.CERT_CHAIN_REQ, PT.CERT_CHAIN_REP, PT.TRC_REQ,
                        PT.TRC_REP]:
             self.relay_cert_server_packet(spkt, from_local_ad)
         elif ptype == PT.PATH_MGMT:
-            self.process_path_mgmt_packet(spkt, from_local_ad)
+            self.process_path_mgmt_packet(PathMgmtPacket(packet), from_local_ad)
         else:
             logging.error("Unknown packet type.")
 
