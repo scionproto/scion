@@ -67,3 +67,10 @@ class SCIONTypeError(SCIONBaseError):
     Wrong type.
     """
     pass
+
+
+class SCIONServiceLookupError(SCIONBaseError):
+    """
+    Service lookup failed.
+    """
+    pass
