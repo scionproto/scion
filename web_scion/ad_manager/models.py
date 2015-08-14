@@ -16,6 +16,12 @@ from ad_management.common import (
     PACKAGE_DIR_PATH,
 )
 from ad_manager.util import monitoring_client
+from lib.defines import (
+    BEACON_SERVICE,
+    CERTIFICATE_SERVICE,
+    DNS_SERVICE,
+    PATH_SERVICE,
+)
 from lib.topology import Topology
 from topology.generator import PORT
 
@@ -225,7 +231,7 @@ class SCIONWebElement(models.Model):
 
 
 class BeaconServerWeb(SCIONWebElement):
-    prefix = 'bs'
+    prefix = BEACON_SERVICE
 
     class Meta:
         verbose_name = 'Beacon server'
@@ -233,7 +239,7 @@ class BeaconServerWeb(SCIONWebElement):
 
 
 class CertificateServerWeb(SCIONWebElement):
-    prefix = 'cs'
+    prefix = CERTIFICATE_SERVICE
 
     class Meta:
         verbose_name = 'Certificate server'
@@ -241,7 +247,7 @@ class CertificateServerWeb(SCIONWebElement):
 
 
 class PathServerWeb(SCIONWebElement):
-    prefix = 'ps'
+    prefix = PATH_SERVICE
 
     class Meta:
         verbose_name = 'Path server'
@@ -249,7 +255,7 @@ class PathServerWeb(SCIONWebElement):
 
 
 class DnsServerWeb(SCIONWebElement):
-    prefix = 'ds'
+    prefix = DNS_SERVICE
 
     class Meta:
         verbose_name = 'DNS server'

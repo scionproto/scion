@@ -20,6 +20,13 @@ from ipaddress import ip_address
 import logging
 
 # SCION
+from lib.defines import (
+    BEACON_SERVICE,
+    CERTIFICATE_SERVICE,
+    DNS_SERVICE,
+    PATH_SERVICE,
+    ROUTER_SERVICE,
+)
 from lib.util import load_json_file
 
 
@@ -290,15 +297,15 @@ class Topology(object):
         :type server_id:
         """
         target = None
-        if server_type == "bs":
+        if server_type == BEACON_SERVICE:
             target = self.beacon_servers
-        elif server_type == "cs":
+        elif server_type == CERTIFICATE_SERVICE:
             target = self.certificate_servers
-        elif server_type == "ds":
+        elif server_type == DNS_SERVICE:
             target = self.dns_servers
-        elif server_type == "ps":
+        elif server_type == PATH_SERVICE:
             target = self.path_servers
-        elif server_type == "er":
+        elif server_type == ROUTER_SERVICE:
             target = self.get_all_edge_routers()
         else:
             logging.error("Unknown server type: \"%s\"", server_type)

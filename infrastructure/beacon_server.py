@@ -37,7 +37,12 @@ from lib.crypto.asymcrypto import sign
 from lib.crypto.certificate import CertificateChain, TRC, verify_sig_chain_trc
 from lib.crypto.hash_chain import HashChain, HashChainExhausted
 from lib.crypto.symcrypto import gen_of_mac, get_roundkey_cache
-from lib.defines import SCION_UDP_PORT
+from lib.defines import (
+    BEACON_SERVICE,
+    CERTIFICATE_SERVICE,
+    PATH_SERVICE,
+    SCION_UDP_PORT,
+)
 from lib.log import init_logging, log_exception
 from lib.packet.opaque_field import (
     HopOpaqueField,
@@ -180,8 +185,9 @@ class BeaconServer(SCIONElement):
 
     def __init__(self, server_id, topo_file, config_file, path_policy_file,
                  is_sim=False):
-        SCIONElement.__init__(self, "bs", topo_file, server_id=server_id,
-                              config_file=config_file, is_sim=is_sim)
+        SCIONElement.__init__(self, BEACON_SERVICE, topo_file,
+                              server_id=server_id, config_file=config_file,
+                              is_sim=is_sim)
         """
         Initialize an instance of the class BeaconServer.
 
@@ -224,8 +230,8 @@ class BeaconServer(SCIONElement):
             # incoming PCBs
             self._state_synced = threading.Event()
             self.zk = Zookeeper(
-                self.topology.isd_id, self.topology.ad_id, "bs", name_addrs,
-                self.topology.zookeepers,
+                self.topology.isd_id, self.topology.ad_id, BEACON_SERVICE,
+                name_addrs, self.topology.zookeepers,
                 ensure_paths=(self.ZK_PCB_CACHE_PATH,))
             self.zk.retry("Joining party", self.zk.party_setup)
 
@@ -521,7 +527,8 @@ class BeaconServer(SCIONElement):
                     self.topology.isd_id, self.topology.ad_id,
                     isd_id, trc_ver)
                 dst_addr = self.dns_query(
-                    "cs", self.topology.certificate_servers[0].addr)
+                    CERTIFICATE_SERVICE,
+                    self.topology.certificate_servers[0].addr)
                 self.send(new_trc_req, dst_addr)
                 self.trc_requests[trc_tuple] = now
                 return None
@@ -733,7 +740,8 @@ class BeaconServer(SCIONElement):
             pkt = PathMgmtPacket.from_values(PMT.REVOCATIONS, rev_payload, None,
                                              self.addr, self.addr.get_isd_ad())
             logging.info("Sending segment revocations to local PS.")
-            dst = self.dns_query("ps", self.topology.path_servers[0].addr)
+            dst = self.dns_query(PATH_SERVICE,
+                                 self.topology.path_servers[0].addr)
             self.send(pkt, dst)
 
     def _process_segment_revocation(self, rev_info):
@@ -951,7 +959,8 @@ class CoreBeaconServer(BeaconServer):
         records = PathSegmentRecords.from_values(info, [pcb])
         # Register core path with local core path server.
         if self.topology.path_servers != []:
-            ps_addr = self.dns_query("ps", self.topology.path_servers[0].addr)
+            ps_addr = self.dns_query(PATH_SERVICE,
+                                     self.topology.path_servers[0].addr)
             dst = SCIONAddr.from_values(
                 self.topology.isd_id, self.topology.ad_id, ps_addr)
             pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, None,
@@ -1137,7 +1146,8 @@ class LocalBeaconServer(BeaconServer):
                             self.addr, if_id, self.topology.isd_id,
                             self.topology.ad_id, isd_id, ad_id, cert_ver)
                     dst_addr = self.dns_query(
-                        "cs", self.topology.certificate_servers[0].addr)
+                        CERTIFICATE_SERVICE,
+                        self.topology.certificate_servers[0].addr)
                     self.send(new_cert_chain_req, dst_addr)
                     self.cert_chain_requests[cert_chain_tuple] = now
                     return False
@@ -1151,7 +1161,8 @@ class LocalBeaconServer(BeaconServer):
         info = PathSegmentInfo.from_values(
             PST.UP, self.topology.isd_id, self.topology.isd_id,
             pcb.get_first_pcbm().ad_id, self.topology.ad_id)
-        ps_addr = self.dns_query("ps", self.topology.path_servers[0].addr)
+        ps_addr = self.dns_query(PATH_SERVICE,
+                                 self.topology.path_servers[0].addr)
         dst = SCIONAddr.from_values(
             self.topology.isd_id, self.topology.ad_id, ps_addr)
         records = PathSegmentRecords.from_values(info, [pcb])

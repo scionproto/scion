@@ -27,7 +27,12 @@ import time
 # SCION
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.symcrypto import get_roundkey_cache, verify_of_mac
-from lib.defines import EXP_TIME_UNIT, SCION_UDP_EH_DATA_PORT, SCION_UDP_PORT
+from lib.defines import (
+    EXP_TIME_UNIT,
+    ROUTER_SERVICE,
+    SCION_UDP_EH_DATA_PORT,
+    SCION_UDP_PORT,
+)
 from lib.errors import SCIONBaseError
 from lib.log import init_logging, log_exception
 from lib.packet.opaque_field import (
@@ -100,8 +105,9 @@ class Router(SCIONElement):
         :param is_sim: running in simulator
         :type is_sim: bool
         """
-        SCIONElement.__init__(self, "er", topo_file, server_id=router_id,
-                              config_file=config_file, is_sim=is_sim)
+        SCIONElement.__init__(self, ROUTER_SERVICE, topo_file,
+                              server_id=router_id, config_file=config_file,
+                              is_sim=is_sim)
         self.interface = None
         for edge_router in self.topology.get_all_edge_routers():
             if edge_router.addr == self.addr.host_addr:

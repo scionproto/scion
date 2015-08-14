@@ -26,7 +26,13 @@ from dnslib import DNSLabel, DNSRecord, QTYPE, RCODE
 
 # SCION
 from infrastructure.dns_server import SCIONDnsServer, ZoneResolver
-from lib.defines import SCION_DNS_PORT
+from lib.defines import (
+    BEACON_SERVICE,
+    CERTIFICATE_SERVICE,
+    DNS_SERVICE,
+    PATH_SERVICE,
+    SCION_DNS_PORT,
+)
 from lib.zookeeper import ZkConnectionLoss
 from test.testcommon import MockCollection, SCIONTestError
 
@@ -114,7 +120,7 @@ class TestZoneResolverResolveForward(BaseDNSServer):
         inst = self._setup_zoneresolver()
         reply = MagicMock(spec_set=['add_answer'])
         reply.add_answer = MagicMock(spec_set=[])
-        srvalias = self.DOMAIN.add("bs")
+        srvalias = self.DOMAIN.add(BEACON_SERVICE)
         inst.services[srvalias] = ["127.0.1.22"]
         # Call
         inst.resolve_forward(srvalias, "A", reply)
@@ -129,7 +135,7 @@ class TestZoneResolverResolveForward(BaseDNSServer):
         inst = self._setup_zoneresolver()
         reply = MagicMock(spec_set=["header"])
         reply.header = MagicMock(spec_set=["rcode"])
-        srvalias = self.DOMAIN.add("bs")
+        srvalias = self.DOMAIN.add(BEACON_SERVICE)
         inst.services[srvalias] = []
         # Call
         inst.resolve_forward(srvalias, "A", reply)
@@ -176,7 +182,7 @@ class TestSCIONDnsServerInit(BaseDNSServer):
         # Call
         server = SCIONDnsServer("srvid", self.DOMAIN, "topofile")
         # Tests
-        self.mocks.elem_init.assert_called_once_with("ds", "topofile",
+        self.mocks.elem_init.assert_called_once_with(DNS_SERVICE, "topofile",
                                                      server_id="srvid")
         ntools.eq_(server.domain, self.DOMAIN)
         ntools.eq_(server.lock, self.mocks.lock.return_value)
@@ -238,7 +244,7 @@ class TestSCIONDnsServerSetup(BaseDNSServer):
             logger=self.mocks.dns_logger.return_value)
         ntools.eq_(self.mocks.dns_server.call_count, 2)
         self.mocks.zookeeper.assert_called_once_with(
-            30, 10, "ds", "srvid\0%d\000127.0.0.1" % SCION_DNS_PORT,
+            30, 10, DNS_SERVICE, "srvid\0%d\000127.0.0.1" % SCION_DNS_PORT,
             ["zk0", "zk1"])
         ntools.eq_(server._parties, {})
         server._setup_parties.assert_called_once_with()
@@ -262,7 +268,7 @@ class TestSCIONDnsSetupParties(BaseDNSServer):
         # Tests
         for srv in server.SRV_TYPES:
             autojoin = False
-            if srv == 'ds':
+            if srv == DNS_SERVICE:
                 autojoin = True
             server.zk.retry.assert_any_call(
                 "Joining %s party" % srv, server.zk.party_setup,
@@ -279,10 +285,10 @@ class TestSCIONDnsSyncZkState(BaseDNSServer):
     def test_success(self, init):
         # Setup
         services = {
-            "bs": ["bs1", "bs2", "bs3"],
-            "cs": ["cs1"],
-            "ds": ["ds1", "ds2"],
-            "ps": [],
+            BEACON_SERVICE: ["bs1", "bs2", "bs3"],
+            CERTIFICATE_SERVICE: ["cs1"],
+            DNS_SERVICE: ["ds1", "ds2"],
+            PATH_SERVICE: [],
         }
         server = SCIONDnsServer("srvid", "domain", "topofile")
         server.zk = MagicMock(spec_set=['wait_connected'])
@@ -346,7 +352,7 @@ class TestSCIONDnsParseSrvInst(BaseDNSServer):
     def test(self):
         # Setup
         server = SCIONDnsServer("srvid", self.DOMAIN, "topofile")
-        srv_domain = self.DOMAIN.add("bs")
+        srv_domain = self.DOMAIN.add(BEACON_SERVICE)
         server.services[srv_domain] = ["addr0"]
         # Call
         server._parse_srv_inst("name\0port\0addr1\0addr2", srv_domain)

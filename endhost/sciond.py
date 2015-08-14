@@ -23,6 +23,7 @@ import threading
 
 # SCION
 from infrastructure.scion_elem import SCIONElement
+from lib.defines import PATH_SERVICE
 from lib.packet.path import PathCombinator
 from lib.packet.path_mgmt import (
     PathMgmtPacket,
@@ -158,7 +159,7 @@ class SCIONDaemon(SCIONElement):
         path_request = PathMgmtPacket.from_values(PMT.REQUEST, info,
                                                   None, self.addr,
                                                   ISD_AD(src_isd, src_ad))
-        dst = self.dns_query("ps", self.topology.path_servers[0].addr)
+        dst = self.dns_query(PATH_SERVICE, self.topology.path_servers[0].addr)
         self.send(path_request, dst)
         # Wait for path reply and clear us from the waiting list when we got it.
         cycle_cnt = 0

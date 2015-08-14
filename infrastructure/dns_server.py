@@ -41,7 +41,13 @@ from dnslib.server import (
 
 # SCION
 from infrastructure.scion_elem import SCIONElement
-from lib.defines import SCION_DNS_PORT
+from lib.defines import (
+    BEACON_SERVICE,
+    CERTIFICATE_SERVICE,
+    DNS_SERVICE,
+    PATH_SERVICE,
+    SCION_DNS_PORT,
+)
 from lib.log import init_logging, log_exception
 from lib.thread import kill_self
 from lib.util import handle_signals, trace
@@ -370,7 +376,7 @@ class SCIONDnsServer(SCIONElement):
     #: How frequently (in seconds) to update the shared instance data from ZK.
     SYNC_TIME = 1.0
     #: Service types to monitor/export
-    SRV_TYPES = ["bs", "cs", "ds", "ps"]
+    SRV_TYPES = (BEACON_SERVICE, CERTIFICATE_SERVICE, DNS_SERVICE, PATH_SERVICE)
 
     def __init__(self, server_id, domain, topo_file):
         """
@@ -383,7 +389,7 @@ class SCIONDnsServer(SCIONElement):
         :param topo_file:
         :type topo_file:
         """
-        super().__init__("ds", topo_file, server_id=server_id)
+        super().__init__(DNS_SERVICE, topo_file, server_id=server_id)
         self.domain = DNSLabel(domain)
         self.lock = threading.Lock()
         self.services = {}
@@ -405,7 +411,7 @@ class SCIONDnsServer(SCIONElement):
                                      str(self.addr.host_addr)])
         self.zk = Zookeeper(
             self.topology.isd_id, self.topology.ad_id,
-            "ds", self.name_addrs, self.topology.zookeepers)
+            DNS_SERVICE, self.name_addrs, self.topology.zookeepers)
         self._parties = {}
         self._setup_parties()
 
@@ -420,7 +426,7 @@ class SCIONDnsServer(SCIONElement):
             autojoin = False
             # Join only the DNS service party, for the rest we just want to
             # setup the party so we can monitor the members.
-            if type_ == "ds":
+            if type_ == DNS_SERVICE:
                 autojoin = True
             self._parties[type_] = self.zk.retry(
                 "Joining %s party" % type_, self.zk.party_setup, prefix=prefix,
