@@ -155,6 +155,7 @@ def main():
     if len(sys.argv) != 3:
         logging.error("run: %s addr topology_file", sys.argv[0])
         sys.exit()
+    # FIXME(kormat): make IP-version agnostic
     sgw = SCIONGateway(IPv4Address(sys.argv[1]), sys.argv[2], SCION_HOSTS)
     try:
         sgw.run()

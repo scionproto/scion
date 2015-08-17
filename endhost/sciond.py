@@ -315,6 +315,8 @@ class SCIONDaemon(SCIONElement):
           |path1_len(1B)|path1(path1_len*8B)|first_hop_IP(4B)|path2_len(1B)...
          or b"" when no path found. Only IPv4 supported currently.
 
+        FIXME(kormat): make IP-version independant
+
         :param packet:
         :type packet:
         :param sender:
@@ -331,11 +333,11 @@ class SCIONDaemon(SCIONElement):
             raw_path = path.pack()
             # assumed IPv4 addr
             if path.get_first_info_of().up_flag:
-                hop = self.ifid2addr[path.get_first_hop_of().ingress_if]
+                haddr = self.ifid2addr[path.get_first_hop_of().ingress_if]
             else:
-                hop = self.ifid2addr[path.get_first_hop_of().egress_if]
+                haddr = self.ifid2addr[path.get_first_hop_of().egress_if]
             path_len = len(raw_path) // 8  # Check whether 8 divides path_len?
-            reply.append(struct.pack("B", path_len) + raw_path + hop.packed)
+            reply.append(struct.pack("B", path_len) + raw_path + haddr.pack())
         self._api_socket.sendto(b"".join(reply), sender)
 
     def api_handle_request(self, packet, sender):

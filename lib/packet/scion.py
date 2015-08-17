@@ -18,13 +18,13 @@
 # Stdlib
 import logging
 import struct
-from ipaddress import IPv4Address
 
 # SCION
 from lib.defines import L4_PROTO, DEFAULT_L4_PROTO
 from lib.errors import SCIONParseError
 from lib.packet.ext_hdr import ExtensionClass, ExtensionHeader
 from lib.packet.ext.traceroute import TracerouteExt
+from lib.packet.host_addr import HostAddrSVC, haddr_get_type
 from lib.packet.opaque_field import (
     InfoOpaqueField,
     OpaqueField,
@@ -51,25 +51,26 @@ class PacketType(object):
     """
     Defines constants for the SCION packet types.
     """
-    DATA = -1  # Data packet
+    # Data packet
+    DATA = HostAddrSVC(0, raw=False)
     # Path Construction Beacon
-    BEACON = IPv4Address("10.224.0.1")
+    BEACON = HostAddrSVC(1, raw=False)
     # Path management packet from/to PS
-    PATH_MGMT = IPv4Address("10.224.0.2")
+    PATH_MGMT = HostAddrSVC(2, raw=False)
     # TRC file request to parent AD
-    TRC_REQ = IPv4Address("10.224.0.3")
+    TRC_REQ = HostAddrSVC(3, raw=False)
     # TRC file request to lCS
-    TRC_REQ_LOCAL = IPv4Address("10.224.0.4")
+    TRC_REQ_LOCAL = HostAddrSVC(4, raw=False)
     # TRC file reply from parent AD
-    TRC_REP = IPv4Address("10.224.0.5")
+    TRC_REP = HostAddrSVC(5, raw=False)
     # cert chain request to parent AD
-    CERT_CHAIN_REQ = IPv4Address("10.224.0.6")
+    CERT_CHAIN_REQ = HostAddrSVC(6, raw=False)
     # local cert chain request
-    CERT_CHAIN_REQ_LOCAL = IPv4Address("10.224.0.7")
+    CERT_CHAIN_REQ_LOCAL = HostAddrSVC(7, raw=False)
     # cert chain reply from lCS
-    CERT_CHAIN_REP = IPv4Address("10.224.0.8")
+    CERT_CHAIN_REP = HostAddrSVC(8, raw=False)
     # IF ID packet to the peer router
-    IFID_PKT = IPv4Address("10.224.0.9")
+    IFID_PKT = HostAddrSVC(9, raw=False)
     SRC = [BEACON, PATH_MGMT, CERT_CHAIN_REP, TRC_REP]
     DST = [PATH_MGMT, TRC_REQ, TRC_REQ_LOCAL, CERT_CHAIN_REQ,
            CERT_CHAIN_REQ_LOCAL, IFID_PKT]
@@ -95,7 +96,6 @@ class SCIONCommonHdr(HeaderBase):
     """
     Encapsulates the common header for SCION packets.
     """
-
     LEN = 8
 
     def __init__(self, raw=None):
@@ -105,9 +105,11 @@ class SCIONCommonHdr(HeaderBase):
         :param raw:
         :type raw:
         """
-        HeaderBase.__init__(self)
+        super().__init__()
         self.version = 0  # Version of SCION packet.
+        self.src_addr_type = None  # Type of the src address.
         self.src_addr_len = 0  # Length of the src address.
+        self.dst_addr_type = None  # Length of the dst address.
         self.dst_addr_len = 0  # Length of the dst address.
         self.total_len = 0  # Total length of the packet.
         self.curr_iof_p = 0  # Pointer inside the packet to the current IOF.
@@ -119,17 +121,26 @@ class SCIONCommonHdr(HeaderBase):
             self.parse(raw)
 
     @classmethod
-    def from_values(cls, src_addr_len, dst_addr_len, next_hdr):
+    def from_values(cls, src, dst, next_hdr):
         """
-        Returns a SCIONCommonHdr with the values specified.
+        Returns a SCIONCommonHdr object with the values specified.
+
+        :param SCIONAddr src: Source address.
+        :param SCIONAddr dst: Destination address.
+        :param int next_hdr: Next header type.
         """
+        assert isinstance(src, SCIONAddr)
+        assert isinstance(dst, SCIONAddr)
         chdr = cls()
-        chdr.src_addr_len = src_addr_len
-        chdr.dst_addr_len = dst_addr_len
+        chdr.src_addr_type = src.host_addr.TYPE
+        chdr.src_addr_len = len(src)
+        chdr.dst_addr_type = dst.host_addr.TYPE
+        chdr.dst_addr_len = len(dst)
         chdr.next_hdr = next_hdr
         chdr.curr_of_p = chdr.src_addr_len + chdr.dst_addr_len
         chdr.curr_iof_p = chdr.curr_of_p
-        chdr.hdr_len = SCIONCommonHdr.LEN + src_addr_len + dst_addr_len
+        chdr.hdr_len = (SCIONCommonHdr.LEN + chdr.src_addr_len +
+                        chdr.dst_addr_len)
         chdr.total_len = chdr.hdr_len
 
         return chdr
@@ -142,26 +153,33 @@ class SCIONCommonHdr(HeaderBase):
         (types, self.total_len, self.curr_iof_p, self.curr_of_p,
          self.next_hdr, self.hdr_len) = struct.unpack("!HHBBBB", data.pop())
         self.version = (types & 0xf000) >> 12
-        self.src_addr_len = (types & 0x0fc0) >> 6
-        self.dst_addr_len = types & 0x003f
+        self.src_addr_type = (types & 0x0fc0) >> 6
+        self.src_addr_len = ISD_AD.LEN + \
+            haddr_get_type(self.src_addr_type).LEN
+        self.dst_addr_type = types & 0x003f
+        self.dst_addr_len = ISD_AD.LEN + \
+            haddr_get_type(self.dst_addr_type).LEN
         self.parsed = True
 
     def pack(self):
         """
         Returns the common header as 8 byte binary string.
         """
-        types = ((self.version << 12) | (self.src_addr_len << 6) |
-                 self.dst_addr_len)
+        types = ((self.version << 12) | (self.src_addr_type << 6) |
+                 self.dst_addr_type)
         return struct.pack("!HHBBBB", types, self.total_len,
                            self.curr_iof_p, self.curr_of_p,
                            self.next_hdr, self.hdr_len)
 
     def __str__(self):
-        res = ("[CH ver: %u, src len: %u, dst len: %u, total len: %u bytes, "
-               "TS: %u, current OF: %u, next hdr: %u, hdr len: %u]") % (
-                   self.version, self.src_addr_len, self.dst_addr_len,
-                   self.total_len, self.curr_iof_p, self.curr_of_p,
-                   self.next_hdr, self.hdr_len)
+        src_type = haddr_get_type(self.src_addr_type).NAME
+        dst_type = haddr_get_type(self.dst_addr_type).NAME
+        res = ("[CH ver: %u, src type: %s(%ub), dst type: %s(%ub), "
+               "total len: %u bytes, TS: %u, current OF: %u, next hdr: %u, "
+               "hdr len: %u]") % (
+                   self.version, src_type, self.src_addr_len, dst_type,
+                   self.dst_addr_len, self.total_len, self.curr_iof_p,
+                   self.curr_of_p, self.next_hdr, self.hdr_len)
         return res
 
 
@@ -176,8 +194,7 @@ class SCIONHeader(HeaderBase):
         """
         Initialize an instance of the class SCIONHeader.
 
-        :param raw:
-        :type raw:
+        :param bytes raw:
         """
         HeaderBase.__init__(self)
         self.common_hdr = None
@@ -198,15 +215,14 @@ class SCIONHeader(HeaderBase):
         """
         assert isinstance(src, SCIONAddr)
         assert isinstance(dst, SCIONAddr)
-        assert path is None or isinstance(path, PathBase)
+        assert isinstance(path, (PathBase, type(None)))
         hdr = cls()
         if ext_hdrs is None:
             ext_hdrs = []
             next_hdr = l4_proto
         else:
             next_hdr = ext_hdrs[0].EXT_CLASS
-        hdr.common_hdr = SCIONCommonHdr.from_values(src.addr_len, dst.addr_len,
-                                                    next_hdr)
+        hdr.common_hdr = SCIONCommonHdr.from_values(src, dst, next_hdr)
         hdr.src_addr = src
         hdr.dst_addr = dst
         hdr.l4_proto = l4_proto
@@ -294,8 +310,10 @@ class SCIONHeader(HeaderBase):
         Parses the raw data and populates the common header fields accordingly.
         """
         self.common_hdr = SCIONCommonHdr(data.pop(SCIONCommonHdr.LEN))
-        self.src_addr = SCIONAddr(data.pop(self.common_hdr.src_addr_len))
-        self.dst_addr = SCIONAddr(data.pop(self.common_hdr.dst_addr_len))
+        self.src_addr = SCIONAddr((self.common_hdr.src_addr_type,
+                                   data.pop(self.common_hdr.src_addr_len)))
+        self.dst_addr = SCIONAddr((self.common_hdr.dst_addr_type,
+                                   data.pop(self.common_hdr.dst_addr_len)))
 
     def _parse_opaque_fields(self, data):
         """

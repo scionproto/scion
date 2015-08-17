@@ -42,7 +42,8 @@ from lib.packet.scion import (
     TRCReply,
     TRCRequest
 )
-from lib.packet.scion_addr import SCIONAddr
+from lib.packet.scion_addr import ISD_AD, SCIONAddr
+from test.testcommon import create_mock
 
 
 class TestGetType(object):
@@ -51,18 +52,19 @@ class TestGetType(object):
     """
     @patch("lib.packet.scion.PacketType", autospec=True)
     def test_in_src(self, packet_type):
-        pkt = MagicMock(spec_set=['hdr'])
-        pkt.hdr = MagicMock(spec_set=['src_addr'])
-        pkt.hdr.src_addr = MagicMock(spec_set=['host_addr'])
+        pkt = create_mock(['hdr'])
+        pkt.hdr = create_mock(['src_addr'])
+        pkt.hdr.src_addr = create_mock(['host_addr'])
         pkt.hdr.src_addr.host_addr = 'src_addr'
         packet_type.SRC = ['src_addr']
         ntools.eq_(get_type(pkt), 'src_addr')
 
     @patch("lib.packet.scion.PacketType", autospec=True)
     def test_in_dst(self, packet_type):
-        pkt = MagicMock(spec_set=['hdr'])
-        pkt.hdr = MagicMock(spec_set=['src_addr', 'dst_addr'])
-        pkt.hdr.dst_addr = MagicMock(spec_set=['host_addr'])
+        pkt = create_mock(['hdr'])
+        pkt.hdr = create_mock(['src_addr', 'dst_addr'])
+        pkt.hdr.src_addr = create_mock(['host_addr'])
+        pkt.hdr.dst_addr = create_mock(['host_addr'])
         pkt.hdr.dst_addr.host_addr = 'dst_addr'
         packet_type.SRC = []
         packet_type.DST = ['dst_addr']
@@ -70,8 +72,10 @@ class TestGetType(object):
 
     @patch("lib.packet.scion.PacketType", autospec=True)
     def test_in_none(self, packet_type):
-        pkt = MagicMock(spec_set=['hdr'])
-        pkt.hdr = MagicMock(spec_set=['src_addr', 'dst_addr'])
+        pkt = create_mock(['hdr'])
+        pkt.hdr = create_mock(['src_addr', 'dst_addr'])
+        pkt.hdr.src_addr = create_mock(['host_addr'])
+        pkt.hdr.dst_addr = create_mock(['host_addr'])
         packet_type.SRC = []
         packet_type.DST = []
         ntools.eq_(get_type(pkt), packet_type.DATA)
@@ -81,21 +85,28 @@ class TestSCIONCommonHdrInit(object):
     """
     Unit tests for lib.packet.scion.SCIONCommonHdr.__init__
     """
-    @patch("lib.packet.scion.HeaderBase.__init__", autospec=True)
-    def test_basic(self, init):
+    @patch("lib.packet.scion.SCIONCommonHdr.parse", autospec=True)
+    @patch("lib.packet.scion.HeaderBase.__init__", autospec=True,
+           return_value=None)
+    def test_basic(self, super_init, parse):
         hdr = SCIONCommonHdr()
-        init.assert_called_once_with(hdr)
+        super_init.assert_called_once_with(hdr)
         ntools.eq_(hdr.version, 0)
+        ntools.eq_(hdr.src_addr_type, None)
         ntools.eq_(hdr.src_addr_len, 0)
+        ntools.eq_(hdr.dst_addr_type, None)
         ntools.eq_(hdr.dst_addr_len, 0)
         ntools.eq_(hdr.total_len, 0)
         ntools.eq_(hdr.curr_iof_p, 0)
         ntools.eq_(hdr.curr_of_p, 0)
         ntools.eq_(hdr.next_hdr, 0)
         ntools.eq_(hdr.hdr_len, 0)
+        ntools.assert_false(parse.called)
 
     @patch("lib.packet.scion.SCIONCommonHdr.parse", autospec=True)
-    def test_with_args(self, parse):
+    @patch("lib.packet.scion.HeaderBase.__init__", autospec=True,
+           return_value=None)
+    def test_raw(self, super_init, parse):
         hdr = SCIONCommonHdr('data')
         parse.assert_called_once_with(hdr, 'data')
 
@@ -105,54 +116,78 @@ class TestSCIONCommonHdrFromValues(object):
     Unit tests for lib.packet.scion.SCIONCommonHdr.from_values
     """
     def test(self):
-        # called with args (src_addr_len, dst_addr_len, next_hdr)
-        hdr = SCIONCommonHdr.from_values(1, 2, 3)
+        # Setup
+        src = MagicMock(SCIONAddr)
+        src.host_addr = create_mock(["TYPE"])
+        src.__len__.return_value = 4
+        dst = MagicMock(SCIONAddr)
+        dst.host_addr = create_mock(["TYPE"])
+        dst.__len__.return_value = 8
+        # Call
+        hdr = SCIONCommonHdr.from_values(src, dst, 3)
+        # Tests
         ntools.assert_is_instance(hdr, SCIONCommonHdr)
-        ntools.eq_(hdr.src_addr_len, 1)
-        ntools.eq_(hdr.dst_addr_len, 2)
+        ntools.eq_(hdr.src_addr_type, src.host_addr.TYPE)
+        ntools.eq_(hdr.src_addr_len, 4)
+        ntools.eq_(hdr.dst_addr_type, dst.host_addr.TYPE)
+        ntools.eq_(hdr.dst_addr_len, 8)
         ntools.eq_(hdr.next_hdr, 3)
-        ntools.eq_(hdr.curr_of_p, 1 + 2)
-        ntools.eq_(hdr.curr_iof_p, 1 + 2)
-        ntools.eq_(hdr.hdr_len, SCIONCommonHdr.LEN + 1 + 2)
-        ntools.eq_(hdr.total_len, SCIONCommonHdr.LEN + 1 + 2)
+        ntools.eq_(hdr.curr_of_p, 4 + 8)
+        ntools.eq_(hdr.curr_iof_p, 4 + 8)
+        ntools.eq_(hdr.hdr_len, SCIONCommonHdr.LEN + 4 + 8)
+        ntools.eq_(hdr.total_len, SCIONCommonHdr.LEN + 4 + 8)
 
 
 class TestSCIONCommonHdrParse(object):
     """
     Unit tests for lib.packet.scion.SCIONCommonHdr.parse
     """
+    @patch("lib.packet.scion.haddr_get_type", autospec=True)
     @patch("lib.packet.scion.Raw", autospec=True)
-    def test(self, raw):
+    @patch("lib.packet.scion.SCIONCommonHdr.__init__", autospec=True,
+           return_value=None)
+    def test(self, init, raw, get_type):
         # Setup
-        raw.return_value = MagicMock(spec_set=["pop"])
-        raw.return_value.pop.return_value = bytes([0b11110000, 0b00111111]) + \
+        inst = SCIONCommonHdr()
+        data = create_mock(["pop"])
+        data.pop.return_value = bytes([0b11110000, 0b00111111]) + \
             bytes.fromhex('0304 05 06 07 08')
-        hdr = SCIONCommonHdr()
-        data = b"data"
+        raw.return_value = data
+        src = create_mock(["LEN"])
+        src.LEN = 11
+        dst = create_mock(["LEN"])
+        dst.LEN = 3
+        # Need special handling for setting side_effects on autospec'd mocks
+        # (https://bugs.python.org/issue17826)
+        get_type.side_effect = iter([src, dst])
         # Call
-        hdr.parse(data)
+        inst.parse("data")
         # Tests
-        raw.assert_called_once_with(data, "SCIONCommonHdr", hdr.LEN)
-        ntools.eq_(hdr.total_len, 0x0304)
-        ntools.eq_(hdr.curr_iof_p, 0x05)
-        ntools.eq_(hdr.curr_of_p, 0x06)
-        ntools.eq_(hdr.next_hdr, 0x07)
-        ntools.eq_(hdr.hdr_len, 0x08)
-        ntools.eq_(hdr.version, 0b1111)
-        ntools.eq_(hdr.src_addr_len, 0b000000)
-        ntools.eq_(hdr.dst_addr_len, 0b111111)
-        ntools.assert_true(hdr.parsed)
+        raw.assert_called_once_with("data", "SCIONCommonHdr", inst.LEN)
+        ntools.eq_(inst.total_len, 0x0304)
+        ntools.eq_(inst.curr_iof_p, 0x05)
+        ntools.eq_(inst.curr_of_p, 0x06)
+        ntools.eq_(inst.next_hdr, 0x07)
+        ntools.eq_(inst.hdr_len, 0x08)
+        ntools.eq_(inst.version, 0b1111)
+        ntools.eq_(inst.src_addr_type, 0b000000)
+        ntools.eq_(inst.src_addr_len, ISD_AD.LEN + 11)
+        ntools.eq_(inst.dst_addr_type, 0b111111)
+        ntools.eq_(inst.dst_addr_len, ISD_AD.LEN + 3)
+        ntools.assert_true(inst.parsed)
 
 
 class TestSCIONCommonHdrPack(object):
     """
     Unit tests for lib.packet.scion.SCIONCommonHdr.pack
     """
-    def test(self):
+    @patch("lib.packet.scion.SCIONCommonHdr.__init__", autospec=True,
+           return_value=None)
+    def test(self, init):
         hdr = SCIONCommonHdr()
         hdr.version = 0b1111
-        hdr.src_addr_len = 0b000000
-        hdr.dst_addr_len = 0b111111
+        hdr.src_addr_type = 0b000000
+        hdr.dst_addr_type = 0b111111
         hdr.total_len = 0x304
         hdr.curr_iof_p = 0x5
         hdr.curr_of_p = 0x6
@@ -190,16 +225,6 @@ class TestSCIONHeaderFromValues(object):
     """
     Unit tests for lib.packet.scion.SCIONHeader.from_values
     """
-    def test_bad_src(self):
-        dst = MagicMock(spec_set=SCIONAddr)
-        ntools.assert_raises(AssertionError, SCIONHeader.from_values, 'src',
-                             dst)
-
-    def test_bad_dst(self):
-        src = MagicMock(spec_set=SCIONAddr)
-        ntools.assert_raises(AssertionError, SCIONHeader.from_values, src,
-                             'dst')
-
     def test_bad_path(self):
         src = MagicMock(spec_set=SCIONAddr)
         dst = MagicMock(spec_set=SCIONAddr)
@@ -209,19 +234,21 @@ class TestSCIONHeaderFromValues(object):
     @patch("lib.packet.scion.SCIONHeader.add_extensions", autospec=True)
     @patch("lib.packet.scion.SCIONHeader.set_path", autospec=True)
     @patch("lib.packet.scion.SCIONCommonHdr.from_values",
-           spec_set=SCIONCommonHdr.from_values)
-    def test_full(self, scion_common_hdr, set_path, add_extensions):
-        src = MagicMock(spec_set=['addr_len', '__class__'])
-        dst = MagicMock(spec_set=['addr_len', '__class__'])
-        dst.__class__ = src.__class__ = SCIONAddr
+           new_callable=create_mock)
+    @patch("lib.packet.scion.SCIONHeader.__init__", autospec=True,
+           return_value=None)
+    def test_full(self, init, scion_common_hdr, set_path, add_extensions):
+        src = MagicMock(spec_set=SCIONAddr)
+        dst = MagicMock(spec_set=SCIONAddr)
         path = MagicMock(spec_set=PathBase)
-        ext_hdrs = [MagicMock(spec_set=['EXT_CLASS'])]
+        ext_hdrs = [create_mock(['EXT_CLASS'])]
         ext_hdrs[0].EXT_CLASS = 12
-        scion_common_hdr.return_value = 'scion_common_hdr'
+        # Call
         hdr = SCIONHeader.from_values(src, dst, path, ext_hdrs, 34)
+        # Tests
         ntools.assert_is_instance(hdr, SCIONHeader)
-        scion_common_hdr.assert_called_once_with(src.addr_len, dst.addr_len, 12)
-        ntools.eq_(hdr.common_hdr, 'scion_common_hdr')
+        scion_common_hdr.assert_called_once_with(src, dst, 12)
+        ntools.eq_(hdr.common_hdr, scion_common_hdr.return_value)
         ntools.eq_(hdr.src_addr, src)
         ntools.eq_(hdr.dst_addr, dst)
         ntools.eq_(hdr.l4_proto, 34)
@@ -232,13 +259,15 @@ class TestSCIONHeaderFromValues(object):
     @patch("lib.packet.scion.SCIONHeader.set_path", autospec=True)
     @patch("lib.packet.scion.SCIONCommonHdr.from_values",
            spec_set=SCIONCommonHdr.from_values)
-    def test_less_args(self, scion_common_hdr, set_path, add_extensions):
-        src = MagicMock(spec_set=['addr_len', '__class__'])
-        dst = MagicMock(spec_set=['addr_len', '__class__'])
-        dst.__class__ = src.__class__ = SCIONAddr
-        scion_common_hdr.return_value = 'scion_common_hdr'
-        hdr = SCIONHeader.from_values(src, dst, l4_proto=12)
-        scion_common_hdr.assert_called_once_with(src.addr_len, dst.addr_len, 12)
+    @patch("lib.packet.scion.SCIONHeader.__init__", autospec=True,
+           return_value=None)
+    def test_less_args(self, init, scion_common_hdr, set_path, add_extensions):
+        src = MagicMock(spec_set=SCIONAddr)
+        dst = MagicMock(spec_set=SCIONAddr)
+        # Call
+        hdr = SCIONHeader.from_values(src, dst)
+        # Tests
+        scion_common_hdr.assert_called_once_with(src, dst, DEFAULT_L4_PROTO)
         set_path.assert_called_once_with(hdr, None)
         add_extensions.assert_called_once_with(hdr, [])
 
@@ -337,12 +366,15 @@ class TestSCIONHeaderParseCommonHdr(object):
     """
     @patch("lib.packet.scion.SCIONAddr", autospec=True)
     @patch("lib.packet.scion.SCIONCommonHdr", autospec=True)
-    def test(self, scion_common_hdr, scion_addr):
+    @patch("lib.packet.scion.SCIONHeader.__init__", autospec=True,
+           return_value=None)
+    def test(self, init, scion_common_hdr, scion_addr):
         # Setup
         hdr = SCIONHeader()
-        data = MagicMock(spec_set=["pop"])
+        data = create_mock(["pop"])
         data.pop.side_effect = ("pop hdr", "pop src", "pop dst")
-        common_hdr = MagicMock(spec_set=['src_addr_len', 'dst_addr_len'])
+        common_hdr = create_mock(['src_addr_type', 'src_addr_len',
+                                  'dst_addr_type', 'dst_addr_len'])
         scion_common_hdr.return_value = common_hdr
         scion_common_hdr.LEN = 2
         scion_addr.side_effect = ['src_addr', 'dst_addr']
@@ -351,7 +383,10 @@ class TestSCIONHeaderParseCommonHdr(object):
         # Tests
         scion_common_hdr.assert_called_once_with("pop hdr")
         ntools.eq_(hdr.common_hdr, common_hdr)
-        scion_addr.assert_has_calls([call("pop src"), call("pop dst")])
+        scion_addr.assert_has_calls([
+            call((common_hdr.src_addr_type, "pop src")),
+            call((common_hdr.dst_addr_type, "pop dst")),
+        ])
         ntools.eq_(hdr.src_addr, 'src_addr')
         ntools.eq_(hdr.dst_addr, 'dst_addr')
 

@@ -16,7 +16,6 @@
 ===========================================
 """
 # Stdlib
-from ipaddress import ip_address
 import logging
 
 # SCION
@@ -27,6 +26,7 @@ from lib.defines import (
     PATH_SERVICE,
     ROUTER_SERVICE,
 )
+from lib.packet.host_addr import haddr_parse
 from lib.util import load_json_file
 
 
@@ -35,34 +35,20 @@ class Element(object):
     The Element class is the base class for elements specified in the topology
     file.
 
-    :ivar addr: IP or SCION address of a server or edge router.
-    :type addr: :class:`IPv4Address` or :class:`IPv6Address`
-    :ivar name: element name or id
-    :type name: str
+    :ivar HostAddrBase addr: Host address of a server or edge router.
+    :ivar str name: element name or id
     """
 
-    def __init__(self, addr=None, name=None):
+    def __init__(self, addr_info=(), name=None):
         """
-        Initialize an instance of the class Element.
-
-        :param addr: IP or SCION address of the element
-        :type addr: str
-        :param name: element name or id
-        :type name: str
+        :param tuple addr: (addr_type, address) of the element's Host address.
+        :param str name: element name or id
         """
-        if addr is None:
-            self.addr = None
-        else:
-            try:
-                self.addr = ip_address(addr)
-            except ValueError:
-                # TODO (@syclops): When new address types are added here (e.g.
-                # SCION addresses), add the appropriate code to set the address
-                # here.
-                raise
-        if name is None:
-            self.name = None
-        else:
+        self.addr = None
+        if addr_info:
+            self.addr = haddr_parse(*addr_info)
+        self.name = None
+        if name is not None:
             self.name = str(name)
 
 
@@ -80,7 +66,7 @@ class ServerElement(Element):
         :param name: server element name or id
         :type name: str
         """
-        super().__init__(server_dict['Addr'], name)
+        super().__init__((server_dict['AddrType'], server_dict['Addr']), name)
 
 
 class InterfaceElement(Element):
@@ -88,20 +74,15 @@ class InterfaceElement(Element):
     The InterfaceElement class represents one of the interfaces of an edge
     router.
 
-    :ivar if_id: the interface ID.
-    :type if_id: int
-    :ivar neighbor_ad: the AD identifier of the neighbor AD.
-    :type neighbor_ad: int
-    :ivar neighbor_isd: the ISD identifier of the neighbor AD.
-    :type neighbor_isd: int
-    :ivar neighbor_type: the type of the neighbor relative to the AD to which
-                         the interface belongs.
-    :type neighbor_type: str
-    :ivar to_udp_port: the port number receiving UDP traffic on the other end of
-                       the interface.
-    :type to_udp_port: int
-    :ivar udp_port: the port number used to send UDP traffic.
-    :type udp_port: int
+    :ivar int if_id: the interface ID.
+    :ivar int neighbor_ad: the AD identifier of the neighbor AD.
+    :ivar int neighbor_isd: the ISD identifier of the neighbor AD.
+    :ivar str neighbor_type:
+        the type of the neighbor relative to the AD to which the interface
+        belongs.
+    :ivar int to_udp_port:
+        the port number receiving UDP traffic on the other end of the interface.
+    :ivar int udp_port: the port number used to send UDP traffic.
     """
 
     def __init__(self, interface_dict, name=None):
@@ -111,7 +92,8 @@ class InterfaceElement(Element):
         :param interface_dict: contains information about the interface.
         :type interface_dict: dict
         """
-        super().__init__(interface_dict['Addr'], name)
+        super().__init__((interface_dict['AddrType'], interface_dict['Addr']),
+                         name)
         self.if_id = interface_dict['IFID']
         self.neighbor_ad = interface_dict['NeighborAD']
         self.neighbor_isd = interface_dict['NeighborISD']
@@ -122,13 +104,7 @@ class InterfaceElement(Element):
         if to_addr is None:
             self.to_addr = None
         else:
-            try:
-                self.to_addr = ip_address(to_addr)
-            except ValueError:
-                # TODO (@syclops): When new address types are added here (e.g.
-                # SCION addresses), add the appropriate code to set the address
-                # here.
-                raise
+            self.to_addr = haddr_parse(interface_dict['AddrType'], to_addr)
 
 
 class RouterElement(Element):
@@ -148,7 +124,7 @@ class RouterElement(Element):
         :param name: router element name or id
         :type name: str
         """
-        super().__init__(router_dict['Addr'], name)
+        super().__init__((router_dict['AddrType'], router_dict['Addr']), name)
         self.interface = InterfaceElement(router_dict['Interface'])
 
 
@@ -271,7 +247,11 @@ class Topology(object):
             else:
                 logging.warning("Encountered unknown neighbor type")
         for zk in topology['Zookeepers'].values():
-            self.zookeepers.append("%s:%s" % (zk['Addr'], zk['ClientPort']))
+            if zk['AddrType'] == "IPv4":
+                zk_host = "%s:%s" % (zk['Addr'], zk['ClientPort'])
+            elif zk['AddrType'] == "IPv6":
+                zk_host = "[%s]:%s" % (zk['Addr'], zk['ClientPort'])
+            self.zookeepers.append(zk_host)
 
     def get_all_edge_routers(self):
         """
