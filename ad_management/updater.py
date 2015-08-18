@@ -28,9 +28,7 @@ import xmlrpc.client
 
 # SCION
 import ad_management.management_daemon as md
-from ad_management.common import (
-    SUPERVISORD_PATH,
-)
+from ad_management.common import SUPERVISORD_PATH
 from ad_management.util import get_supervisor_server
 from lib.defines import PROJECT_ROOT
 from lib.log import init_logging
@@ -92,7 +90,11 @@ def extract_files(archive_path, target_dir):
     """
     target_dir = os.path.abspath(target_dir)
     if not os.path.exists(target_dir):
-        os.mkdir(target_dir)
+        logging.error('Target directory does not exist')
+        sys.exit(1)
+    if not target_dir.startswith(PROJECT_ROOT):
+        logging.error('Target directory is outside the project directory')
+        sys.exit(1)
     with tarfile.open(archive_path, 'r') as tar_fh:
         # Check that names in the archive don't contain '..' and don't
         # start with '/'.
@@ -134,6 +136,16 @@ def run_updated_updater():
     os.execvp(executable, args)
 
 
+def install_requirements(target_dir):
+    command_list = ['bash deps.sh pip', 'bash deps.sh misc']
+    for command in command_list:
+        command_chdir = '(cd "{}" && {})'.format(target_dir, command)
+        ret = os.system(command_chdir)
+        if ret != 0:
+            logging.error('Error while running command: {}. Exit code: {}',
+                          command_chdir, ret)
+
+
 def update_package(archive_path, target_dir):
     """
     Update the SCION package using the provided distribution archive.
@@ -148,6 +160,7 @@ def update_package(archive_path, target_dir):
     logging.info('Update: started.')
     stop_everything()
     extract_files(archive_path, target_dir)
+    install_requirements(target_dir)
     run_updated_updater()
 
 
