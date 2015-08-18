@@ -22,6 +22,7 @@ from lib.util import read_file, write_file, get_trc_file_path
 from topology.generator import (
     ConfigGenerator,
     DEFAULT_PATH_POLICY_FILE,
+    DEFAULT_ZK_CONFIG,
     IP_ADDRESS_BASE,
     PORT,
 )
@@ -201,16 +202,20 @@ def get_some_trc_path(isd_id):
 def create_new_ad_files(parent_ad_topo, isd_id, ad_id, out_dir):
     assert isinstance(parent_ad_topo, dict), 'Invalid topology dict'
     isd_ad_id = '{}-{}'.format(isd_id, ad_id)
-    ad_dict = {isd_ad_id: {'level': 'LEAF'}}
+    ad_dict = {
+        "default_zookeepers": {"1": {"manage": False, "addr": "localhost"}},
+        isd_ad_id: {'level': 'LEAF'},
+    }
     gen = ConfigGenerator(out_dir=out_dir)
 
     path_policy_file = DEFAULT_PATH_POLICY_FILE
+    zk_config = DEFAULT_ZK_CONFIG
 
     # Write basic config files for the new AD
     with tempfile.NamedTemporaryFile('w') as temp_fh:
         json.dump(ad_dict, temp_fh)
         temp_fh.flush()
-        gen.generate_all(temp_fh.name, path_policy_file)
+        gen.generate_all(temp_fh.name, path_policy_file, zk_config)
 
     # Copy TRC file
     trc_path = get_some_trc_path(isd_id)

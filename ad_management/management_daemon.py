@@ -116,7 +116,7 @@ class ManagementDaemon(object):
         # Register functions
         to_register = [self.get_topology,
                        self.control_process, self.get_ad_info,
-                       self.send_update, self.update_topology,
+                       self.update_topology,
                        self.get_master_id, self.tail_process_log]
         for func in to_register:
             self.rpc_server.register_function(func)

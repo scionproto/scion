@@ -10,7 +10,7 @@ if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
 fi
 
 mkdir -p logs traces
-./scion.sh deps
+./deps.sh all
 ./scion.sh init
 
 # Kill the previous instance of supervisor
