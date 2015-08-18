@@ -141,20 +141,19 @@ class ManagementDaemon(object):
         topo_path = gen.path_dict(isd_id, ad_id)['topo_file_abs']
         return topo_path
 
-    def stop_process_group_async(self, isd_id, ad_id):
+    def restart_supervisor_async(self):
         """
         Stop all the processes for the specified AD after some delay, so the
         initial RPC call has time to finish.
         """
         wait_before_restart = 0.1
 
-        def _stop_process_group_wait():
+        def _restart_supervisor_wait():
             time.sleep(wait_before_restart)
             server = get_supervisor_server()
-            server.supervisor.stopProcessGroup("ad{}-{}".format(isd_id, ad_id))
-            start_md()
+            server.supervisor.restart()
 
-        p = Process(target=_stop_process_group_wait)
+        p = Process(target=_restart_supervisor_wait)
         p.start()
 
     def update_topology(self, isd_id, ad_id, topology):
@@ -167,7 +166,7 @@ class ManagementDaemon(object):
             logging.info('Topology file written')
         generator = ConfigGenerator()
         generator.write_derivatives(topology)
-        self.stop_process_group_async(isd_id, ad_id)
+        self.restart_supervisor_async()
         return response_success('Topology file is successfully updated')
 
     def _read_topology(self, isd_id, ad_id):
