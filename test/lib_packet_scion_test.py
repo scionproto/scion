@@ -423,20 +423,18 @@ class TestSCIONHeaderPack(object):
     """
     def _setup(self):
         hdr = SCIONHeader()
-        hdr.common_hdr = MagicMock(["pack"])
+        hdr.common_hdr = MagicMock(["pack", "next_hdr"])
         hdr.common_hdr.pack.return_value = b"common_hdr"
-        ... # Repeat for src_addr and dst_addr
-        return hdr
-
-    def _check_with_ext_hdr(self, path, packed_path):
-        hdr = SCIONHeader()
-        hdr.common_hdr = MagicMock(spec_set=['pack', 'next_hdr'])
-        hdr.common_hdr.pack.return_value = b'common_hdr'
-        hdr.l4_proto = 123
         hdr.src_addr = MagicMock(spec_set=['pack'])
         hdr.src_addr.pack.return_value = b'src_addr'
         hdr.dst_addr = MagicMock(spec_set=['pack'])
         hdr.dst_addr.pack.return_value = b'dst_addr'
+        return hdr
+
+    def _check_with_ext_hdr(self, path, packed_path):
+        hdr = SCIONHeader()
+        self._setup()
+        hdr.l4_proto = 123
         hdr._path = path
         hdr.extension_hdrs = [MagicMock(spec_set=['pack', 'EXT_CLASS',
                                                   'next_hdr'])
@@ -462,14 +460,8 @@ class TestSCIONHeaderPack(object):
 
     def test_without_ext_hdr(self):
         hdr = SCIONHeader()
-        hdr.common_hdr = MagicMock(spec_set=['pack', 'next_hdr'])
-        hdr.common_hdr.pack.return_value = b'common_hdr'
+        self._setup()
         hdr.l4_proto = 123
-        hdr._set_next_hdrs()
-        hdr.src_addr = MagicMock(spec_set=['pack'])
-        hdr.src_addr.pack.return_value = b'src_addr'
-        hdr.dst_addr = MagicMock(spec_set=['pack'])
-        hdr.dst_addr.pack.return_value = b'dst_addr'
         packed = b'common_hdrsrc_addrdst_addr'
         ntools.eq_(hdr.pack(), packed)
         ntools.eq_(hdr.common_hdr.next_hdr, 123)
