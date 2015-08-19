@@ -28,12 +28,16 @@ import time
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.symcrypto import get_roundkey_cache, verify_of_mac
 from lib.defines import (
+    BEACON_SERVICE,
+    CERTIFICATE_SERVICE,
     EXP_TIME_UNIT,
+    IFID_PKT_TOUT,
+    PATH_SERVICE,
     ROUTER_SERVICE,
     SCION_UDP_EH_DATA_PORT,
     SCION_UDP_PORT,
 )
-from lib.errors import SCIONBaseError
+from lib.errors import SCIONBaseError, SCIONServiceLookupError
 from lib.log import init_logging, log_exception
 from lib.packet.ext_hdr import ExtensionClass
 from lib.packet.ext.traceroute import TracerouteExt, traceroute_ext_handler
@@ -54,10 +58,7 @@ from lib.thread import thread_safety_net
 from lib.util import handle_signals, SCIONTime
 
 
-IFID_PKT_TOUT = 1  # How often IFID packet is sent to neighboring router.
 MAX_EXT = 4  # Maximum number of hop-by-hop extensions processed by router.
-
-
 class SCIONOFVerificationError(SCIONBaseError):
     """
     Opaque field MAC verification error.
@@ -172,7 +173,7 @@ class Router(SCIONElement):
         """
         self.handle_extensions(spkt, False)
         if use_local_socket:
-            SCIONElement.send(self, spkt, addr, port)
+            super().send(spkt, addr, port)
         else:
             self._remote_socket.sendto(
                 spkt.pack(), (str(addr), port))
@@ -236,8 +237,13 @@ class Router(SCIONElement):
         # Forward 'alive' packet to all BSes (to inform that neighbor is alive).
         # BS must determine interface.
         ifid_packet.reply_id = self.interface.if_id
-        for bs in self.topology.beacon_servers:
-            self.send(ifid_packet, bs.addr)
+        try:
+            bs_addrs = self.dns_query_topo(BEACON_SERVICE)
+        except SCIONServiceLookupError as e:
+            logging.error("Unable to deliver ifid packet: %s", e)
+            return
+        for bs_addr in bs_addrs:
+            self.send(ifid_packet, bs_addr)
 
     def process_pcb(self, beacon, from_bs):
         """
@@ -256,9 +262,13 @@ class Router(SCIONElement):
             self.send(beacon, self.interface.to_addr,
                       self.interface.to_udp_port, False)
         else:
-            # TODO Multiple BS scenario
             beacon.pcb.if_id = self.interface.if_id
-            self.send(beacon, self.topology.beacon_servers[0].addr)
+            try:
+                bs_addr = self.dns_query_topo(BEACON_SERVICE)[0]
+            except SCIONServiceLookupError as e:
+                logging.error("Unable to deliver PCB: %s", e)
+                return
+            self.send(beacon, bs_addr)
 
     def relay_cert_server_packet(self, spkt, from_local_ad):
         """
@@ -273,8 +283,11 @@ class Router(SCIONElement):
             addr = self.interface.to_addr
             port = self.interface.to_udp_port
         else:
-            # TODO Multiple CS scenario
-            addr = self.topology.certificate_servers[0].addr
+            try:
+                addr = self.dns_query_topo(CERTIFICATE_SERVICE)[0]
+            except SCIONServiceLookupError as e:
+                logging.error("Unable to deliver cert packet: %s", e)
+                return
             port = SCION_UDP_PORT
         self.send(spkt, addr, port)
 
@@ -312,7 +325,11 @@ class Router(SCIONElement):
             return
         # Forward packet to destination.
         if ptype == PT.PATH_MGMT:
-            addr = self.topology.path_servers[0].addr
+            try:
+                addr = self.dns_query_topo(PATH_SERVICE)[0]
+            except SCIONServiceLookupError as e:
+                logging.error("Unable to deliver path mgmt packet: %s", e)
+                return
             port = SCION_UDP_PORT
         else:
             addr = spkt.hdr.dst_addr.host_addr

@@ -14,27 +14,30 @@
 """
 :mod:`scion_elem` --- Base class for SCION servers
 ==================================================
-
-Module docstring here.
-
-.. note::
-    Fill in the docstring.
-
 """
-
 # Stdlib
 import logging
 import select
 import socket
 import threading
+from random import shuffle
 
 # SCION
 from lib.config import Config
-from lib.dnsclient import DNSCachingClient, DNSLibMajorError, DNSLibMinorError
+from lib.defines import (
+    BEACON_SERVICE,
+    DNS_SERVICE,
+    CERTIFICATE_SERVICE,
+    PATH_SERVICE,
+    SERVICE_TYPES,
+)
 from lib.defines import SCION_BUFLEN, SCION_UDP_PORT
-from lib.packet.scion_addr import SCIONAddr
+from lib.dnsclient import DNSCachingClient, DNSLibMajorError, DNSLibMinorError
+from lib.errors import SCIONServiceLookupError
 from lib.log import log_exception
+from lib.packet.scion_addr import SCIONAddr
 from lib.topology import Topology
+from lib.thread import kill_self
 
 
 class SCIONElement(object):
@@ -92,7 +95,7 @@ class SCIONElement(object):
             self.id = server_type
         self.addr = SCIONAddr.from_values(self.topology.isd_id,
                                           self.topology.ad_id, host_addr)
-        self.dns = DNSCachingClient(
+        self._dns = DNSCachingClient(
             [str(s.addr) for s in self.topology.dns_servers],
             self.topology.dns_domain)
         if config_file:
@@ -217,7 +220,12 @@ class SCIONElement(object):
         :param dst_port: the destination port number.
         :type dst_port: int
         """
-        self._local_socket.sendto(packet.pack(), (str(dst), dst_port))
+        try:
+            self._local_socket.sendto(packet.pack(), (str(dst), dst_port))
+        except socket.gaierror:
+            log_exception("Addressing error when trying to send to %s:" %
+                          (dst, dst_port))
+            kill_self()
 
     def run(self):
         """
@@ -250,15 +258,38 @@ class SCIONElement(object):
         for s in self._sockets:
             s.close()
 
-    def dns_query(self, qname, default):
+    def dns_query_topo(self, qname):
         """
-        Query dns for an answer. If an error occurs, return the default static
-        valid instead.
+        Query dns for an answer. If the answer is empty, or an error occurs then
+        return the relevant topology entries instead.
+
+        :param str qname: Service to query for.
         """
+        assert qname in SERVICE_TYPES
+        service_map = {
+            BEACON_SERVICE: self.topology.beacon_servers,
+            CERTIFICATE_SERVICE: self.topology.certificate_servers,
+            DNS_SERVICE: self.topology.dns_servers,
+            PATH_SERVICE: self.topology.path_servers,
+        }
+
+        results = None
         try:
-            return self.dns.query(qname)[0]
+            results = self._dns.query(qname)
         except DNSLibMinorError as e:
-            logging.warning("Falling back to static value: %s", e)
+            logging.warning("Falling back to static values: %s", e)
         except DNSLibMajorError as e:
-            log_exception("Falling back to static value:")
-        return default
+            log_exception("Falling back to static values:", level=logging.ERROR)
+        # If we have results, return them now.
+        if results:
+            return results
+        if results == []:
+            logging.warning("No DNS results found, "
+                            "falling back to static values")
+        # Generate results from local topology
+        results = [srv.addr for srv in service_map[qname]]
+        if not results:
+            # No results from local toplogy either
+            raise SCIONServiceLookupError("No %s servers found" % qname)
+        shuffle(results)
+        return results

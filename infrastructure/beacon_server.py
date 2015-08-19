@@ -31,7 +31,6 @@ from _collections import defaultdict, deque
 from Crypto.Hash import SHA256
 
 # SCION
-from infrastructure.router import IFID_PKT_TOUT
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.asymcrypto import sign
 from lib.crypto.certificate import CertificateChain, TRC, verify_sig_chain_trc
@@ -40,9 +39,11 @@ from lib.crypto.symcrypto import gen_of_mac, get_roundkey_cache
 from lib.defines import (
     BEACON_SERVICE,
     CERTIFICATE_SERVICE,
+    IFID_PKT_TOUT,
     PATH_SERVICE,
     SCION_UDP_PORT,
 )
+from lib.errors import SCIONServiceLookupError
 from lib.log import init_logging, log_exception
 from lib.packet.opaque_field import (
     HopOpaqueField,
@@ -526,9 +527,11 @@ class BeaconServer(SCIONElement):
                     PT.TRC_REQ_LOCAL, self.addr, if_id,
                     self.topology.isd_id, self.topology.ad_id,
                     isd_id, trc_ver)
-                dst_addr = self.dns_query(
-                    CERTIFICATE_SERVICE,
-                    self.topology.certificate_servers[0].addr)
+                try:
+                    dst_addr = self.dns_query_topo(CERTIFICATE_SERVICE)[0]
+                except SCIONServiceLookupError as e:
+                    logging.warning("Sending TRC request failed: %s", e)
+                    return None
                 self.send(new_trc_req, dst_addr)
                 self.trc_requests[trc_tuple] = now
                 return None
@@ -734,15 +737,17 @@ class BeaconServer(SCIONElement):
                 return
             self._process_hop_revocation(rev_info, (if_id1, if_id2))
 
+        try:
+            ps_addr = self.dns_query_topo(PATH_SERVICE)[0]
+        except SCIONServiceLookupError:
+            # If there are no local path servers, stop here.
+            return
         # Send revocations to local PS.
-        if self.topology.path_servers:
-            rev_payload = RevocationPayload.from_values([rev_info])
-            pkt = PathMgmtPacket.from_values(PMT.REVOCATIONS, rev_payload, None,
-                                             self.addr, self.addr.get_isd_ad())
-            logging.info("Sending segment revocations to local PS.")
-            dst = self.dns_query(PATH_SERVICE,
-                                 self.topology.path_servers[0].addr)
-            self.send(pkt, dst)
+        rev_payload = RevocationPayload.from_values([rev_info])
+        pkt = PathMgmtPacket.from_values(PMT.REVOCATIONS, rev_payload, None,
+                                         self.addr, self.addr.get_isd_ad())
+        logging.info("Sending segment revocations to a local PS.")
+        self.send(pkt, ps_addr)
 
     def _process_segment_revocation(self, rev_info):
         """
@@ -958,14 +963,16 @@ class CoreBeaconServer(BeaconServer):
         pcb.remove_signatures()
         records = PathSegmentRecords.from_values(info, [pcb])
         # Register core path with local core path server.
-        if self.topology.path_servers != []:
-            ps_addr = self.dns_query(PATH_SERVICE,
-                                     self.topology.path_servers[0].addr)
-            dst = SCIONAddr.from_values(
-                self.topology.isd_id, self.topology.ad_id, ps_addr)
-            pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, None,
-                                             self.addr.get_isd_ad(), dst)
-            self.send(pkt, dst.host_addr)
+        try:
+            ps_addr = self.dns_query_topo(PATH_SERVICE)[0]
+        except SCIONServiceLookupError:
+            # If there are no local path servers, stop here.
+            return
+        dst = SCIONAddr.from_values(
+            self.topology.isd_id, self.topology.ad_id, ps_addr)
+        pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, None,
+                                         self.addr.get_isd_ad(), dst)
+        self.send(pkt, dst.host_addr)
 
     def process_pcbs(self, pcbs):
         """
@@ -1145,9 +1152,11 @@ class LocalBeaconServer(BeaconServer):
                             PT.CERT_CHAIN_REQ_LOCAL,
                             self.addr, if_id, self.topology.isd_id,
                             self.topology.ad_id, isd_id, ad_id, cert_ver)
-                    dst_addr = self.dns_query(
-                        CERTIFICATE_SERVICE,
-                        self.topology.certificate_servers[0].addr)
+                    try:
+                        dst_addr = self.dns_query_topo(CERTIFICATE_SERVICE)[0]
+                    except SCIONServiceLookupError as e:
+                        logging.warning("Unable to send cert query: %s", e)
+                        return False
                     self.send(new_cert_chain_req, dst_addr)
                     self.cert_chain_requests[cert_chain_tuple] = now
                     return False
@@ -1157,12 +1166,14 @@ class LocalBeaconServer(BeaconServer):
     def register_up_segment(self, pcb):
         """
         Send up-segment to Local Path Servers
+
+        :raises:
+            SCIONServiceLookupError: path server lookup failure
         """
         info = PathSegmentInfo.from_values(
             PST.UP, self.topology.isd_id, self.topology.isd_id,
             pcb.get_first_pcbm().ad_id, self.topology.ad_id)
-        ps_addr = self.dns_query(PATH_SERVICE,
-                                 self.topology.path_servers[0].addr)
+        ps_addr = self.dns_query_topo(PATH_SERVICE)[0]
         dst = SCIONAddr.from_values(
             self.topology.isd_id, self.topology.ad_id, ps_addr)
         records = PathSegmentRecords.from_values(info, [pcb])
@@ -1341,7 +1352,11 @@ class LocalBeaconServer(BeaconServer):
             pcb = self._terminate_pcb(pcb)
             pcb.remove_signatures()
             # TODO(psz): sign here? discuss
-            self.register_up_segment(pcb)
+            try:
+                self.register_up_segment(pcb)
+            except SCIONServiceLookupError as e:
+                logging.warning("Unable to send up path registration: %s", e)
+                continue
             logging.info("Up path registered: %s", pcb.segment_id)
 
     def register_down_segments(self):
