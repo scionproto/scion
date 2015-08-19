@@ -95,7 +95,8 @@ class Router(SCIONElement):
     :ivar interface: the router's inter-AD interface, if any.
     :type interface: :class:`lib.topology.InterfaceElement`
     """
-    def __init__(self, router_id, topo_file, config_file, is_sim=False):
+    def __init__(self, router_id, topo_file, config_file, pre_ext_handlers=None,
+                 post_ext_handlers=None, is_sim=False):
         """
         Initialize an instance of the class Router.
 
@@ -105,6 +106,12 @@ class Router(SCIONElement):
         :type topo_file: str
         :param config_file: the configuration file name.
         :type config_file: str
+        :ivar pre_ext_handlers: a map of extension header types to handlers for
+                            those extensions that execute before routing.
+        :type pre_ext_handlers: dict
+        :ivar post_ext_handlers: a map of extension header types to handlers for
+                             those extensions that execute after routing.
+        :type post_ext_handlers: dict
         :param is_sim: running in simulator
         :type is_sim: bool
         """
@@ -119,6 +126,14 @@ class Router(SCIONElement):
         assert self.interface is not None
         logging.info("Interface: %s", self.interface.__dict__)
         self.of_gen_key = get_roundkey_cache(self.config.master_ad_key)
+        if pre_ext_handlers:
+            self.pre_ext_handlers = pre_ext_handlers
+        else:
+            self.pre_ext_handlers = {}
+        if post_ext_handlers:
+            self.post_ext_handlers = post_ext_handlers
+        else:
+            self.post_ext_handlers = {}
         if not is_sim:
             self._remote_socket = socket.socket(socket.AF_INET,
                                                 socket.SOCK_DGRAM)
@@ -609,7 +624,7 @@ def main():
     args = parser.parse_args()
     init_logging(args.log_file)
     # Run router without extensions handling:
-    # router = Router(*sys.argv[1:])
+    # router = Router(args.router_id, args.topo_file, args.conf_file) 
     # Run router with an extension handler:
     pre_handlers = {TracerouteExt.EXT_TYPE: traceroute_ext_handler}
     router = Router(args.router_id, args.topo_file, args.conf_file,
