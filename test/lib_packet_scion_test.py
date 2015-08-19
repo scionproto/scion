@@ -489,13 +489,14 @@ class TestSCIONHeaderPack(object):
             ext_hdr = MagicMock(["pack"])
             ext_hdr.pack.return_value = str.encode("ext_hdr%d" % i, "utf8")
             ext_hdrs.append(ext_hdr)
-        result = b"common_hdrsrc_addrdst_addrpathext_hdr0exthdr1"
+        hdr.extension_hdrs = ext_hdrs
+        result = b"common_hdrsrc_addrdst_addrpathext_hdr0ext_hdr1"
         # Call
         ntools.eq_(hdr.pack(), result)
         # Tests
-        hdr.path.pack.assert_called_once_with()
+        hdr._path.pack.assert_called_once_with()
         for ext_hdr in ext_hdrs:
-            ext_hdr.assert_called_once_with()
+            ext_hdr.pack.assert_called_once_with()
 
 
 class TestSCIONHeaderGetCurrentOf(object):
