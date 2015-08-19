@@ -45,6 +45,8 @@ L4_PROTO = [
     6,  # TCP
     17,  # UDP
 ]
+#: Default layer-4 protocol.
+DEFAULT_L4_PROTO = 17
 
 #: Length of IPV4 address, in bytes
 IPV4BYTES = ipaddress.IPV4LENGTH // 8

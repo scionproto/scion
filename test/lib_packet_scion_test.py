@@ -24,6 +24,7 @@ import nose.tools as ntools
 
 # SCION
 from lib.errors import SCIONParseError
+from lib.defines import DEFAULT_L4_PROTO
 from lib.packet.opaque_field import (
     OpaqueField,
     OpaqueFieldType as OFT
@@ -175,7 +176,7 @@ class TestSCIONHeaderInit(object):
         ntools.assert_is_none(hdr.dst_addr)
         ntools.assert_is_none(hdr._path)
         ntools.eq_(hdr.extension_hdrs, [])
-        ntools.eq_(hdr.l4_proto, 1)
+        ntools.eq_(hdr.l4_proto, DEFAULT_L4_PROTO)
 
     @patch("lib.packet.scion.HeaderBase.__init__", autospec=True)
     @patch("lib.packet.scion.SCIONHeader.parse", autospec=True)

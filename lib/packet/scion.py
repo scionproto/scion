@@ -21,7 +21,7 @@ import struct
 from ipaddress import IPv4Address
 
 # SCION
-from lib.defines import L4_PROTO
+from lib.defines import L4_PROTO, DEFAULT_L4_PROTO
 from lib.errors import SCIONParseError
 from lib.packet.ext_hdr import ExtensionClass, ExtensionHeader
 from lib.packet.ext.traceroute import TracerouteExt
@@ -185,13 +185,14 @@ class SCIONHeader(HeaderBase):
         self.dst_addr = None
         self._path = None
         self.extension_hdrs = []
-        self.l4_proto = 1
+        self.l4_proto = DEFAULT_L4_PROTO
 
         if raw is not None:
             self.parse(raw)
 
     @classmethod
-    def from_values(cls, src, dst, path=None, ext_hdrs=None, l4_proto=1):
+    def from_values(cls, src, dst, path=None, ext_hdrs=None,
+                    l4_proto=DEFAULT_L4_PROTO):
         """
         Returns a SCIONHeader with the values specified.
         """
