@@ -858,7 +858,7 @@ class TestPeerPathGetFirstHopOffset(object):
     def test_with_up_seg_hops_last(self):
         peer_path = PeerPath()
         peer_path.up_segment_hops = [MagicMock(spec_set=['info'])]
-        peer_path.up_segment_hops[0].info = OpaqueFieldType.LAST_OF
+        peer_path.up_segment_hops[0].info = OpaqueFieldType.XOVR_POINT
         ntools.eq_(peer_path.get_first_hop_offset(),
                    InfoOpaqueField.LEN + HopOpaqueField.LEN)
 
@@ -871,7 +871,7 @@ class TestPeerPathGetFirstHopOffset(object):
     def test_with_down_seg_hops_last(self):
         peer_path = PeerPath()
         peer_path.down_segment_hops = [MagicMock(spec_set=['info'])]
-        peer_path.down_segment_hops[0].info = OpaqueFieldType.LAST_OF
+        peer_path.down_segment_hops[0].info = OpaqueFieldType.XOVR_POINT
         ntools.eq_(peer_path.get_first_hop_offset(),
                    InfoOpaqueField.LEN + HopOpaqueField.LEN)
 
@@ -1146,9 +1146,9 @@ class TestPathCombinatorJoinShortcuts(object):
         deepcopy.assert_has_calls([call('up_seg'), call('dw_seg')])
         cross_over_path.assert_called_once_with()
         join_up.assert_called_once_with('cross_over_path', 'up_seg_cpy',
-                                        OpaqueFieldType.NON_TDC_XOVR, 2)
+                                        OpaqueFieldType.SHORTCUT, 2)
         join_down.assert_called_once_with('up_joined', 'dw_seg_cpy',
-                                          OpaqueFieldType.NON_TDC_XOVR, 5)
+                                          OpaqueFieldType.SHORTCUT, 5)
 
     @patch("lib.packet.path.PathCombinator._join_down_segment_shortcuts",
            spec_set=[], new_callable=MagicMock)
@@ -1176,11 +1176,11 @@ class TestPathCombinatorJoinShortcuts(object):
                                                   True), 'down_joined')
         peer_path.assert_called_once_with()
         join_up.assert_called_once_with('peer_path', up_seg_cpy,
-                                        OpaqueFieldType.INTRATD_PEER, 2)
+                                        OpaqueFieldType.INTRA_ISD_PEER, 2)
         join_peer.assert_called_once_with('up_joined', up_seg_cpy.ads[2],
                                           dw_seg_cpy.ads[5])
         join_down.assert_called_once_with('peer_joined', dw_seg_cpy,
-                                          OpaqueFieldType.INTRATD_PEER, 5)
+                                          OpaqueFieldType.INTRA_ISD_PEER, 5)
 
     @patch("lib.packet.path.PathCombinator._join_down_segment_shortcuts",
            spec_set=[], new_callable=MagicMock)
@@ -1206,9 +1206,9 @@ class TestPathCombinatorJoinShortcuts(object):
         ntools.eq_(PathCombinator._join_shortcuts('up_seg', 'dw_seg', point,
                                                   True), 'down_joined')
         join_up.assert_called_once_with('peer_path', up_seg_cpy,
-                                        OpaqueFieldType.INTERTD_PEER, 2)
+                                        OpaqueFieldType.INTER_ISD_PEER, 2)
         join_down.assert_called_once_with('peer_joined', dw_seg_cpy,
-                                          OpaqueFieldType.INTERTD_PEER, 5)
+                                          OpaqueFieldType.INTER_ISD_PEER, 5)
 
 
 class TestPathCombinatorCheckConnected(object):
@@ -1291,7 +1291,7 @@ class TestPathCombinatorJoinUpSegment(object):
         ntools.assert_true(path_.up_segment_info.up_flag)
         ntools.eq_(path_.up_segment_hops, [5, 6, '1', '2', last_hop])
         deepcopy.assert_has_calls([call(2), call(1), call(0)])
-        ntools.eq_(path_.up_segment_hops[-1].info, OpaqueFieldType.LAST_OF)
+        ntools.eq_(path_.up_segment_hops[-1].info, OpaqueFieldType.XOVR_POINT)
 
 
 class TestPathCombinatorJoinCoreSegment(object):
@@ -1319,8 +1319,8 @@ class TestPathCombinatorJoinCoreSegment(object):
         ntools.assert_true(path_.core_segment_info.up_flag)
         ntools.eq_(path_.core_segment_hops, [first_hop, 6, '1', '2', last_hop])
         deepcopy.assert_has_calls([call(2), call(1), call(0)])
-        ntools.eq_(path_.core_segment_hops[-1].info, OpaqueFieldType.LAST_OF)
-        ntools.eq_(path_.core_segment_hops[0].info, OpaqueFieldType.LAST_OF)
+        ntools.eq_(path_.core_segment_hops[-1].info, OpaqueFieldType.XOVR_POINT)
+        ntools.eq_(path_.core_segment_hops[0].info, OpaqueFieldType.XOVR_POINT)
 
 
 class TestPathCombinatorJoinDownSegment(object):
@@ -1344,7 +1344,7 @@ class TestPathCombinatorJoinDownSegment(object):
         ntools.assert_false(path_.down_segment_info.up_flag)
         ntools.eq_(path_.down_segment_hops, [first_hop, 6, '1', '2', '3'])
         deepcopy.assert_has_calls([call(0), call(1), call(2)])
-        ntools.eq_(path_.down_segment_hops[0].info, OpaqueFieldType.LAST_OF)
+        ntools.eq_(path_.down_segment_hops[0].info, OpaqueFieldType.XOVR_POINT)
 
 
 class TestPathCombinatorJoinUpSegmentShortcuts(object):
@@ -1373,7 +1373,7 @@ class TestPathCombinatorJoinUpSegmentShortcuts(object):
         ntools.eq_(path_.up_segment_info.hops, 7)
         ntools.assert_true(path_.up_segment_info.up_flag)
         ntools.eq_(path_.up_segment_hops, [9, 10, 5, 4, last_hop])
-        ntools.eq_(path_.up_segment_hops[-1].info, OpaqueFieldType.LAST_OF)
+        ntools.eq_(path_.up_segment_hops[-1].info, OpaqueFieldType.XOVR_POINT)
         ntools.eq_(path_.up_segment_upstream_ad, upstream_ad)
         ntools.eq_(path_.up_segment_upstream_ad.info, OpaqueFieldType.NORMAL_OF)
 
@@ -1407,7 +1407,7 @@ class TestPathCombinatorJoinDownSegmentShortcuts(object):
         ntools.eq_(path_.down_segment_upstream_ad.info,
                    OpaqueFieldType.NORMAL_OF)
         ntools.eq_(path_.down_segment_hops, [first_hop, 10, 3, 4, 5])
-        ntools.eq_(path_.down_segment_hops[0].info, OpaqueFieldType.LAST_OF)
+        ntools.eq_(path_.down_segment_hops[0].info, OpaqueFieldType.XOVR_POINT)
 
 
 class TestPathCombinatorJoinShortcutsPeer(object):

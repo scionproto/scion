@@ -397,8 +397,8 @@ class TestSCIONHeaderParseOpaqueFields(object):
         ntools.eq_(hdr._path, path)
 
     def test_other_paths(self):
-        ofts = [OFT.TDC_XOVR, OFT.NON_TDC_XOVR, OFT.INTRATD_PEER,
-                OFT.INTERTD_PEER]
+        ofts = [OFT.CORE, OFT.SHORTCUT, OFT.INTRA_ISD_PEER,
+                OFT.INTER_ISD_PEER]
         paths = ['core_path', 'cross_over_path', 'peer_path', 'peer_path']
         for oft, path in zip(ofts, paths):
             yield self._check, oft, path
@@ -556,16 +556,96 @@ class TestSCIONHeaderGetNextOf(object):
         hdr._path.get_of.assert_called_once_with(offset // OpaqueField.LEN + 1)
 
 
-class TestSCIONHeaderIncreaseOf(object):
+class TestSCIONHeaderIncreaseCurrOfP(object):
     """
-    Unit tests for lib.packet.scion.SCIONHeader.increase_of
+    Unit tests for lib.packet.scion.SCIONHeader.increase_curr_of_p
     """
     def test(self):
         hdr = SCIONHeader()
         hdr.common_hdr = MagicMock(spec_set=['curr_of_p'])
         hdr.common_hdr.curr_of_p = 456
-        hdr.increase_of(123)
+        hdr.increase_curr_of_p(123)
         ntools.eq_(hdr.common_hdr.curr_of_p, 456 + 123 * OpaqueField.LEN)
+
+
+class TestSCIONHeaderGetCurrOfP(object):
+    """
+    Unit tests for lib.packet.scion.SCIONHeader.get_curr_of_p
+    """
+    def test(self):
+        hdr = SCIONHeader()
+        hdr.common_hdr = MagicMock(spec_set=['curr_of_p'])
+        hdr.common_hdr.curr_of_p = 456
+        curr_of_p = hdr.get_curr_of_p()
+        ntools.eq_(curr_of_p, 456)
+
+
+class TestSCIONHeaderSetCurrOfP(object):
+    """
+    Unit tests for lib.packet.scion.SCIONHeader.set_curr_of_p
+    """
+    def test_valid_value(self):
+        hdr = SCIONHeader()
+        hdr.common_hdr = MagicMock(spec_set=['curr_of_p', 'hdr_len'])
+        hdr.common_hdr.hdr_len = 42
+        hdr.set_curr_of_p(20)
+        ntools.eq_(hdr.common_hdr.curr_of_p, 20)
+
+    def test_too_small_value(self):
+        hdr = SCIONHeader()
+        hdr.common_hdr = MagicMock(spec_set=['curr_of_p', 'hdr_len'])
+        hdr.common_hdr.curr_of_p = 20
+        hdr.common_hdr.hdr_len = 42
+        hdr.set_curr_of_p(SCIONCommonHdr.LEN - 1)
+        ntools.eq_(hdr.common_hdr.curr_of_p, 20)
+
+    def test_too_large_value(self):
+        hdr = SCIONHeader()
+        hdr.common_hdr = MagicMock(spec_set=['curr_of_p', 'hdr_len'])
+        hdr.common_hdr.curr_of_p = 20
+        hdr.common_hdr.hdr_len = 42
+        hdr.set_curr_of_p(43)
+        ntools.eq_(hdr.common_hdr.curr_of_p, 20)
+
+
+class TestSCIONHeaderGetCurrIofP(object):
+    """
+    Unit tests for lib.packet.scion.SCIONHeader.get_curr_iof_p
+    """
+    def test(self):
+        hdr = SCIONHeader()
+        hdr.common_hdr = MagicMock(spec_set=['curr_iof_p'])
+        hdr.common_hdr.curr_iof_p = 456
+        curr_iof_p = hdr.get_curr_iof_p()
+        ntools.eq_(curr_iof_p, 456)
+
+
+class TestSCIONHeaderSetCurrIofP(object):
+    """
+    Unit tests for lib.packet.scion.SCIONHeader.set_curr_iof_p
+    """
+    def test_valid_value(self):
+        hdr = SCIONHeader()
+        hdr.common_hdr = MagicMock(spec_set=['curr_iof_p', 'hdr_len'])
+        hdr.common_hdr.hdr_len = 42
+        hdr.set_curr_iof_p(20)
+        ntools.eq_(hdr.common_hdr.curr_iof_p, 20)
+
+    def test_too_small_value(self):
+        hdr = SCIONHeader()
+        hdr.common_hdr = MagicMock(spec_set=['curr_iof_p', 'hdr_len'])
+        hdr.common_hdr.curr_iof_p = 20
+        hdr.common_hdr.hdr_len = 42
+        hdr.set_curr_of_p(SCIONCommonHdr.LEN - 1)
+        ntools.eq_(hdr.common_hdr.curr_iof_p, 20)
+
+    def test_too_large_value(self):
+        hdr = SCIONHeader()
+        hdr.common_hdr = MagicMock(spec_set=['curr_iof_p', 'hdr_len'])
+        hdr.common_hdr.curr_iof_p = 20
+        hdr.common_hdr.hdr_len = 42
+        hdr.set_curr_iof_p(43)
+        ntools.eq_(hdr.common_hdr.curr_iof_p, 20)
 
 
 class TestSCIONHeaderSetDownpath(object):

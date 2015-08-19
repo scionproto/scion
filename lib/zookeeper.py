@@ -86,8 +86,8 @@ class Zookeeper(object):
 
         :param int isd_id: The ID of the current ISD.
         :param int ad_id: The ID of the current AD.
-        :param str srv_type: Short description of the service. E.g. ``"bs"``
-                             for Beacon server.
+        :param str srv_type: a service type from
+                             :const:`lib.defines.SERVICE_TYPES`
         :param str srv_id: Service instance identifier.
         :param list zk_hosts: List of Zookeeper instances to connect to, in the
                               form of ``["host:port"..]``.
@@ -106,9 +106,32 @@ class Zookeeper(object):
         self._on_connect = on_connect
         self._on_disconnect = on_disconnect
         self._ensure_paths = ensure_paths
+        self._prefix = "/ISD%d-AD%d/%s" % (
+            self._isd_id, self._ad_id, srv_type)
+        # Keep track of our connection state
+        self._connected = threading.Event()
+        # Keep track of the kazoo lock
+        self._lock = threading.Event()
+        # Used to signal connection state changes
+        self._state_event = threading.Semaphore(value=0)
+        # Kazoo parties
+        self._parties = {}
+        # Kazoo lock (initialised later)
+        self._zk_lock = None
 
+        self._kazoo_setup(zk_hosts)
+        self._setup_state_listener()
+        self._kazoo_start()
+
+    def _kazoo_setup(self, zk_hosts):
+        """
+        Create and configure Kazoo client
+
+        :param list zk_hosts: List of Zookeeper instances to connect to, in the
+                              form of ``["host:port"..]``.
+        """
         # Disable exponential back-off
-        retry = KazooRetry(max_tries=-1, max_delay=1)
+        kretry = KazooRetry(max_tries=-1, max_delay=1)
         # Stop kazoo from drowning the log with debug spam:
         logger = logging.getLogger("KazooClient")
         logger.setLevel(logging.ERROR)
@@ -116,32 +139,15 @@ class Zookeeper(object):
         # import kazoo.loggingsupport
         # logger.setLevel(kazoo.loggingsupport.BLATHER)
 
-        self._prefix = "/ISD%d-AD%d/%s" % (self._isd_id,
-                                           self._ad_id,
-                                           srv_type)
         self._zk = KazooClient(hosts=",".join(zk_hosts),
                                timeout=self._timeout,
-                               connection_retry=retry,
+                               connection_retry=kretry,
                                logger=logger)
 
-        # Keep track of our connection state
-        self._connected = threading.Event()
-        # Kazoo party (initialised later)
-        self._parties = {}
-        # Keep track of the kazoo lock
-        self._lock = threading.Event()
-        # Kazoo lock (initialised later)
-        self._zk_lock = None
-        # Used to signal connection state changes
-        self._state_event = threading.Semaphore(value=0)
-        # Use a thread to respond to state changes, as the listener callback
-        # must not block.
-        threading.Thread(
-            target=thread_safety_net, args=(self._state_handler,),
-            name="libZK._state_handler", daemon=True).start()
-        # Listener called every time connection state changes
-        self._zk.add_listener(self._state_listener)
-
+    def _kazoo_start(self):
+        """
+        Connect the Kazoo client to Zookeeper
+        """
         logging.info("Connecting to Zookeeper")
         try:
             self._zk.start()
@@ -149,6 +155,17 @@ class Zookeeper(object):
             logging.critical(
                 "Timed out connecting to Zookeeper on startup, exiting")
             kill_self()
+
+    def _setup_state_listener(self):
+        """
+        Spawn state listener thread, to respond to state change notifications
+        from Kazoo. We use a thread, as the listener callback must not block.
+        """
+        threading.Thread(
+            target=thread_safety_net, args=(self._state_handler,),
+            name="libZK._state_handler", daemon=True).start()
+        # Listener called every time connection state changes
+        self._zk.add_listener(self._state_listener)
 
     def _state_listener(self, new_state):
         """
@@ -195,7 +212,7 @@ class Zookeeper(object):
             for party in self._parties.values():
                 party.autojoin()
         except ZkConnectionLoss:
-            return False
+            return
         self._connected.set()
         if self._on_connect:
             self._on_connect()
@@ -309,6 +326,9 @@ class Zookeeper(object):
         return ret
 
     def release_lock(self):
+        """
+        Release the lock
+        """
         self._lock.clear()
         if self.is_connected():
             try:
@@ -473,14 +493,14 @@ class ZkParty(object):
     A wrapper for a `Kazoo Party
     <https://kazoo.readthedocs.org/en/latest/api/recipe/party.html>`_.
     """
-    def __init__(self, zk, path, id_, autojoin):
+    def __init__(self, zk, path, id_, autojoin_):
         """
         :param zk: A kazoo instance
         :param str path: The absolute path of the party
         :param str id_: The service id value to use in the party
-        :param bool autojoin: Join the party automatically
+        :param bool autojoin_: Join the party automatically
         """
-        self._autojoin = autojoin
+        self._autojoin = autojoin_
         self._path = path
         try:
             self._party = zk.Party(path, id_)

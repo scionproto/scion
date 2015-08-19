@@ -109,7 +109,7 @@ class DNSClient(object):
             DNSLibError: Unexpected error.
         """
         try:
-            results = self.resolver.query(qname)
+            answer = self.resolver.query(qname)
         except dns.exception.Timeout:
             raise DNSLibTimeout("No responses within %ss" %
                                 self.resolver.lifetime) from None
@@ -120,8 +120,9 @@ class DNSClient(object):
                 from None
         except Exception as e:
             raise DNSLibMajorError("Unhandled exception in resolver.") from e
-        shuffle(results)
-        return [ip_address(addr) for addr in results]
+        addrs = [ip_address(addr) for addr in answer]
+        shuffle(addrs)
+        return addrs
 
 
 class DNSCachingClient(DNSClient):

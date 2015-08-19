@@ -17,6 +17,7 @@
 """
 # Stdlib
 import builtins
+from signal import SIGUSR1, SIGTERM
 from unittest.mock import patch, call, mock_open, MagicMock
 
 # External packages
@@ -162,26 +163,40 @@ class TestWriteFile(object):
     """
     Unit tests for lib.util.write_file
     """
+    @patch("lib.util.os.rename", autospec=True)
     @patch.object(builtins, 'open', mock_open())
     @patch("lib.util.os.makedirs", autospec=True)
     @patch("lib.util.os.path.dirname", autospec=True)
-    def test_basic(self, dirname, makedirs):
+    def test_basic(self, dirname, makedirs, rename):
         dirname.return_value = "Dir_Name"
+        # Call
         write_file("File_Path", "Text")
+        # Tests
         dirname.assert_called_once_with("File_Path")
         makedirs.assert_called_once_with("Dir_Name", exist_ok=True)
-        builtins.open.assert_called_once_with("File_Path", 'w')
+        builtins.open.assert_called_once_with("File_Path.new", 'w')
         builtins.open.return_value.write.assert_called_once_with("Text")
+        rename.assert_called_once_with("File_Path.new", "File_Path")
 
     @patch("lib.util.os.makedirs", autospec=True)
     def test_mkdir_error(self, mkdir):
         mkdir.side_effect = FileNotFoundError
+        # Call
         ntools.assert_raises(SCIONIOError, write_file, "File_Path", "Text")
 
     @patch.object(builtins, 'open', mock_open())
     @patch("lib.util.os.makedirs", autospec=True)
     def test_file_error(self, mkdir):
         builtins.open.side_effect = PermissionError
+        # Call
+        ntools.assert_raises(SCIONIOError, write_file, "File_Path", "Text")
+
+    @patch("lib.util.os.rename", autospec=True)
+    @patch.object(builtins, 'open', mock_open())
+    @patch("lib.util.os.makedirs", autospec=True)
+    def test_rename_error(self, mkdir, rename):
+        rename.side_effect = PermissionError
+        # Call
         ntools.assert_raises(SCIONIOError, write_file, "File_Path", "Text")
 
 
@@ -310,9 +325,16 @@ class TestSignalHandler(object):
     @patch("lib.util.sys.exit", autospec=True)
     @patch("lib.util.logging.info", autospec=True)
     def test_basic(self, info, exit):
-        _signal_handler(1, 2)
-        info.assert_called_once_with("Received %s", _SIG_MAP[1])
+        _signal_handler(SIGTERM, "")
+        ntools.ok_(info.called)
         exit.assert_called_once_with(0)
+
+    @patch("lib.util.sys.exit", autospec=True)
+    @patch("lib.util.logging.error", autospec=True)
+    def test_error(self, error, exit):
+        _signal_handler(SIGUSR1, "")
+        ntools.ok_(error.called)
+        exit.assert_called_once_with(1)
 
 
 class TestSCIONTimeGetTime(object):

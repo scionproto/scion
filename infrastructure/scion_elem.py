@@ -58,8 +58,8 @@ class SCIONElement(object):
         """
         Create a new ServerBase instance.
 
-        :param server_type: a shorthand of the server type, e.g. "bs" for a
-                            beacon server.
+        :param server_type: a service type from
+                            :const:`lib.defines.SERVICE_TYPES`
         :type server_type: str
         :param topo_file: the name of the topology file.
         :type topo_file: str

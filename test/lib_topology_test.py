@@ -23,6 +23,13 @@ import nose
 import nose.tools as ntools
 
 # SCION
+from lib.defines import (
+    BEACON_SERVICE,
+    CERTIFICATE_SERVICE,
+    DNS_SERVICE,
+    PATH_SERVICE,
+    ROUTER_SERVICE,
+)
 from lib.topology import (
     Element,
     InterfaceElement,
@@ -204,7 +211,7 @@ class TestTopologyParseDict(object):
         cs = {'e': 'f', 'g': 'h'}
         ds = {'i': 'j', 'k': 'l'}
         ps = {'m': 'n', 'o': 'p'}
-        er = {'er' + str(i): 'router' + str(i) for i in range(5)}
+        er = {ROUTER_SERVICE + str(i): 'router' + str(i) for i in range(5)}
         zk = {'zk0': {'Addr': 'zk0.scion', 'ClientPort': 2181},
               'zk1': {'Addr': 'zk1.scion', 'ClientPort': 2182}}
         topo_dict = {
@@ -286,7 +293,8 @@ class TestTopologyGetOwnConfig(object):
         topology.dns_servers[2].name = 'name'
         topology.path_servers = [MagicMock(spec_set=['name']) for i in range(4)]
         topology.path_servers[2].name = 'name'
-        server_types = ['bs', 'cs', 'ds', 'ps'] * 2
+        server_types = [BEACON_SERVICE, CERTIFICATE_SERVICE, DNS_SERVICE,
+                        PATH_SERVICE] * 2
         server_ids = ['name'] * 4 + ['bad_name'] * 4
         servers = [topology.beacon_servers[2],
                    topology.certificate_servers[2],
@@ -301,7 +309,8 @@ class TestTopologyGetOwnConfig(object):
         edge_routers = [MagicMock(spec_set=['name']) for i in range(4)]
         edge_routers[2].name = 'name'
         get_edge_routers.return_value = edge_routers
-        ntools.eq_(topology.get_own_config('er', 'name'), edge_routers[2])
+        ntools.eq_(topology.get_own_config(ROUTER_SERVICE, 'name'),
+                   edge_routers[2])
         get_edge_routers.assert_called_once_with(topology)
 
     @patch("lib.topology.logging.error", autospec=True)
@@ -310,7 +319,7 @@ class TestTopologyGetOwnConfig(object):
         topology = Topology()
         edge_routers = [MagicMock(spec_set=['name']) for i in range(4)]
         get_edge_routers.return_value = edge_routers
-        ntools.assert_is_none(topology.get_own_config('er', 'name'))
+        ntools.assert_is_none(topology.get_own_config(ROUTER_SERVICE, 'name'))
         ntools.eq_(log_error.call_count, 1)
 
     @patch("lib.topology.logging.error", autospec=True)
