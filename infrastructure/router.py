@@ -624,7 +624,7 @@ def main():
     args = parser.parse_args()
     init_logging(args.log_file)
     # Run router without extensions handling:
-    # router = Router(args.router_id, args.topo_file, args.conf_file) 
+    # router = Router(args.router_id, args.topo_file, args.conf_file)
     # Run router with an extension handler:
     pre_handlers = {TracerouteExt.EXT_TYPE: traceroute_ext_handler}
     router = Router(args.router_id, args.topo_file, args.conf_file,
