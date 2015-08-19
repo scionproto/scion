@@ -421,6 +421,13 @@ class TestSCIONHeaderPack(object):
     """
     Unit tests for lib.packet.scion.SCIONHeader.pack
     """
+    def _setup(self):
+        hdr = SCIONHeader()
+        hdr.common_hdr = MagicMock(["pack"])
+        hdr.common_hdr.pack.return_value = b"common_hdr"
+        ... # Repeat for src_addr and dst_addr
+        return hdr
+
     def _check_with_ext_hdr(self, path, packed_path):
         hdr = SCIONHeader()
         hdr.common_hdr = MagicMock(spec_set=['pack', 'next_hdr'])
@@ -466,6 +473,29 @@ class TestSCIONHeaderPack(object):
         packed = b'common_hdrsrc_addrdst_addr'
         ntools.eq_(hdr.pack(), packed)
         ntools.eq_(hdr.common_hdr.next_hdr, 123)
+
+    @patch("lib.packet.scion.SCIONHeader.__init__", autopatch=True,
+           return_value=None)
+    def test_full(self, init):
+        hdr = self._setup()
+        hdr._path = MagicMock(["pack"])
+        hdr._path.pack.return_value = b"path"
+        hdr.src_addr = MagicMock(spec_set=['pack'])
+        hdr.src_addr.pack.return_value = b'src_addr'
+        hdr.dst_addr = MagicMock(spec_set=['pack'])
+        hdr.dst_addr.pack.return_value = b'dst_addr'
+        ext_hdrs = []
+        for i in range(2):
+            ext_hdr = MagicMock(["pack"])
+            ext_hdr.pack.return_value = str.encode("ext_hdr%d" % i, "utf8")
+            ext_hdrs.append(ext_hdr)
+        result = b"common_hdrsrc_addrdst_addrpathext_hdr0exthdr1"
+        # Call
+        ntools.eq_(hdr.pack(), result)
+        # Tests
+        hdr.path.pack.assert_called_once_with()
+        for ext_hdr in ext_hdrs:
+            ext_hdr.assert_called_once_with()
 
 
 class TestSCIONHeaderGetCurrentOf(object):
