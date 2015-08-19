@@ -57,8 +57,9 @@ from lib.packet.scion_addr import ISD_AD, SCIONAddr
 from lib.thread import thread_safety_net
 from lib.util import handle_signals, SCIONTime
 
-
 MAX_EXT = 4  # Maximum number of hop-by-hop extensions processed by router.
+
+
 class SCIONOFVerificationError(SCIONBaseError):
     """
     Opaque field MAC verification error.
