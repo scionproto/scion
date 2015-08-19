@@ -19,6 +19,7 @@
 import logging
 import os.path
 import threading
+import time
 
 # External packages
 from kazoo.client import KazooClient, KazooRetry, KazooState
@@ -80,7 +81,8 @@ class Zookeeper(object):
 
     def __init__(self, isd_id, ad_id, srv_type, srv_id,
                  zk_hosts, timeout=1.0, on_connect=None,
-                 on_disconnect=None, ensure_paths=()):
+                 on_disconnect=None, handle_paths=None,
+                 state_synced=None):
         """
         Setup the Zookeeper connection.
 
@@ -96,8 +98,9 @@ class Zookeeper(object):
                            Zookeeper.
         :param on_disconnect: A function called everytime a connection is lost
                               to Zookeeper.
-        :param tuple ensure_paths: A tuple of ZK paths to ensure exist on
-                                   connect.
+        :param tuple handle_paths: A list of tuples of ZK paths, and their
+                                   corresponding handler functions. It is
+                                   ensured that paths exist on connect.
         """
         self._isd_id = isd_id
         self._ad_id = ad_id
@@ -105,7 +108,11 @@ class Zookeeper(object):
         self._timeout = timeout
         self._on_connect = on_connect
         self._on_disconnect = on_disconnect
-        self._ensure_paths = ensure_paths
+        self.shared_caches = []
+        if handle_paths:
+            for path, handler in handle_paths:
+                shared_cache = ZkSharedCache(self, path, handler, state_synced)
+                self.shared_caches.append(shared_cache)
         self._prefix = "/ISD%d-AD%d/%s" % (
             self._isd_id, self._ad_id, srv_type)
         # Keep track of our connection state
@@ -122,6 +129,8 @@ class Zookeeper(object):
         self._kazoo_setup(zk_hosts)
         self._setup_state_listener()
         self._kazoo_start()
+        # Start handling shared paths.
+        self._run_shared_cache_handling()
 
     def _kazoo_setup(self, zk_hosts):
         """
@@ -207,8 +216,8 @@ class Zookeeper(object):
                       hex(self._zk.client_id[0]))
         try:
             self.ensure_path(self._prefix, abs=True)
-            for path in self._ensure_paths:
-                self.ensure_path(path)
+            for shared_cache in self.shared_caches:
+                self.ensure_path(shared_cache.path)
             for party in self._parties.values():
                 party.autojoin()
         except ZkConnectionLoss:
@@ -487,6 +496,10 @@ class Zookeeper(object):
         raise ZkRetryLimit("%s: Failed %s times, giving up" %
                            (desc, 1+_retries))
 
+    def _run_shared_cache_handling(self):
+        for shared_cache in self.shared_caches:
+            shared_cache.run()
+
 
 class ZkParty(object):
     """
@@ -533,3 +546,102 @@ class ZkParty(object):
             return set(self._party)
         except (ConnectionLoss, SessionExpiredError):
             raise ZkConnectionLoss
+
+
+class ZkSharedCache(object):
+    """
+    """
+    def __init__(self, zk, path, handler, state_synced):
+        self.zk = zk
+        self.path = path
+        self.handler = handler
+        self._state_synced = state_synced
+        self._latest_entry = 0
+
+    def handle_shared_entries(self):
+        """
+        A thread to handle Zookeeper connects/disconnects and the shared cache
+        of entries.
+
+        On connect, it registers us as in-service, and loads the shared cache
+        of entries from ZK.
+
+        While connected, it calls _read_cached_entries() to read updated entries
+        from the cache.
+        """
+        while True:
+            if not self.zk.is_connected():
+                self._state_synced.clear()
+                self.zk.wait_connected()
+            else:
+                time.sleep(0.5)
+            try:
+                if not self._state_synced.is_set():
+                    # Make sure we re-read the entire cache
+                    self._latest_entry = 0
+                count = self._read_cached_entries()
+                if count:
+                    logging.debug("Processed %d new/updated entries", count)
+            except ZkConnectionLoss:
+                self._state_synced.clear()
+                continue
+            self._state_synced.set()
+
+    def _read_cached_entries(self):
+        """
+        Read new/updated entries from the shared cache and send them for
+        processing.
+        """
+        desc = "Fetching list of entries from shared cache"
+        entries_meta = self.zk.get_shared_metadata(
+            self.path,
+            timed_desc=desc)
+        if not entries_meta:
+            return 0
+        new = []
+        newest = 0
+        for entry, meta in entries_meta:
+            if meta.last_modified > self._latest_entry:
+                new.append(entry)
+            if meta.last_modified > newest:
+                newest = meta.last_modified
+        self._latest_entry = newest
+        desc = "Processing %s new entries from shared path" % len(new)
+        count = self._process_cached_entries(new, timed_desc=desc)
+        return count
+
+    @timed(1.0)
+    def _process_cached_entries(self, entries):
+        """
+        Retrieve new beacons from the shared cache and send them for local
+        processing (self.handler).
+
+        :param entries: cached path segments.
+        :param entries: list
+        """
+        # TODO(kormat): move constant to proper place
+        chunk_size = 10
+        entries = []
+        for i in range(0, len(entries), chunk_size):
+            for entry in entries[i:i + chunk_size]:
+                try:
+                    raw = self.zk.get_shared_item(self.path, entry)
+                except ZkConnectionLoss:
+                    logging.warning("Unable to retrieve entry from shared "
+                                    "cache: no connection to ZK")
+                    break
+                except ZkNoNodeError:
+                    logging.debug("Unable to retrieve entry from shared cache: "
+                                  "no such entry (%s/%s)" %
+                                  (self.path, entry))
+                    continue
+                entries.append(raw)
+        self.handler(entries)
+        return len(entries)
+
+    def run(self):
+        """
+        """
+        threading.Thread(
+            target=thread_safety_net, args=(self.handle_shared_entries,),
+            name="handle_shared_entries(%s)" % self.path, daemon=True).start()
