@@ -86,8 +86,8 @@ class Zookeeper(object):
 
         :param int isd_id: The ID of the current ISD.
         :param int ad_id: The ID of the current AD.
-        :param str srv_type: Short description of the service. E.g. ``"bs"``
-                             for Beacon server.
+        :param str srv_type: a service type from
+                             :const:`lib.defines.SERVICE_TYPES`
         :param str srv_id: Service instance identifier.
         :param list zk_hosts: List of Zookeeper instances to connect to, in the
                               form of ``["host:port"..]``.

@@ -43,3 +43,17 @@ SCION_DNS_PORT = 30053
 IPV4BYTES = ipaddress.IPV4LENGTH // 8
 #: Length of IPV6 address, in bytes
 IPV6BYTES = ipaddress.IPV6LENGTH // 8
+
+BEACON_SERVICE = "bs"
+CERTIFICATE_SERVICE = "cs"
+DNS_SERVICE = "ds"
+PATH_SERVICE = "ps"
+ROUTER_SERVICE = "er"
+#: All the service types
+SERVICE_TYPES = (
+    BEACON_SERVICE,
+    CERTIFICATE_SERVICE,
+    DNS_SERVICE,
+    PATH_SERVICE,
+    ROUTER_SERVICE,
+)

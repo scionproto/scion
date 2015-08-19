@@ -29,7 +29,7 @@ import time
 # SCION
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.certificate import CertificateChain, TRC
-from lib.defines import SCION_UDP_PORT
+from lib.defines import CERTIFICATE_SERVICE, SCION_UDP_PORT
 from lib.log import init_logging, log_exception
 from lib.packet.scion import (
     CertChainReply,
@@ -77,8 +77,9 @@ class CertServer(SCIONElement):
         :param is_sim: running in simulator
         :type is_sim: bool
         """
-        SCIONElement.__init__(self, "cs", topo_file, server_id=server_id,
-                              config_file=config_file, is_sim=is_sim)
+        SCIONElement.__init__(self, CERTIFICATE_SERVICE, topo_file,
+                              server_id=server_id, config_file=config_file,
+                              is_sim=is_sim)
         self.trc = TRC(trc_file)
         self.cert_chain_requests = collections.defaultdict(list)
         self.trc_requests = collections.defaultdict(list)
@@ -95,7 +96,8 @@ class CertServer(SCIONElement):
             # incoming cert chains and TRCs
             self._state_synced = threading.Event()
             self.zk = Zookeeper(self.topology.isd_id, self.topology.ad_id,
-                                "cs", name_addrs, self.topology.zookeepers,
+                                CERTIFICATE_SERVICE, name_addrs,
+                                self.topology.zookeepers,
                                 ensure_paths=(self.ZK_CERT_CHAIN_CACHE_PATH,
                                               self.ZK_TRC_CACHE_PATH,))
             self.zk.retry("Joining party", self.zk.party_setup)
