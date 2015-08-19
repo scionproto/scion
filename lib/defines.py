@@ -57,3 +57,6 @@ SERVICE_TYPES = (
     PATH_SERVICE,
     ROUTER_SERVICE,
 )
+
+#: How often IFID packet is sent to neighboring router.
+IFID_PKT_TOUT = 1

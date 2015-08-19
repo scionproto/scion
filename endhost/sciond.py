@@ -24,6 +24,7 @@ import threading
 # SCION
 from infrastructure.scion_elem import SCIONElement
 from lib.defines import PATH_SERVICE
+from lib.errors import SCIONBaseError, SCIONServiceLookupError
 from lib.packet.path import PathCombinator
 from lib.packet.path_mgmt import (
     PathMgmtPacket,
@@ -39,6 +40,20 @@ from lib.util import update_dict
 WAIT_CYCLES = 3
 SCIOND_API_HOST = "127.255.255.254"
 SCIOND_API_PORT = 3333
+
+
+class SCIONDaemonBaseError(SCIONBaseError):
+    """
+    Base sciond error
+    """
+    pass
+
+
+class SCIONDaemonPathLookupError(SCIONDaemonBaseError):
+    """
+    Path lookup failure
+    """
+    pass
 
 
 class SCIONDaemon(SCIONElement):
@@ -145,11 +160,19 @@ class SCIONDaemon(SCIONElement):
         :type src_ad: int
         :param requester: Path requester address(used in simulator).
         :type requester:
+        :raises:
+            SCIONDaemonPathLookupError: if paths request fails
         """
         if src_isd is None:
             src_isd = self.topology.isd_id
         if src_ad is None:
             src_ad = self.topology.ad_id
+        # Lookup the path server at the start, so if this fails, we don't do any
+        # more setup.
+        try:
+            dst = self.dns_query_topo(PATH_SERVICE)[0]
+        except SCIONServiceLookupError as e:
+            raise SCIONDaemonPathLookupError(e)
         # Create an event that we can wait on for the path reply.
         event = threading.Event()
         update_dict(self._waiting_targets[ptype], (dst_isd, dst_ad), [event])
@@ -159,7 +182,6 @@ class SCIONDaemon(SCIONElement):
         path_request = PathMgmtPacket.from_values(PMT.REQUEST, info,
                                                   None, self.addr,
                                                   ISD_AD(src_isd, src_ad))
-        dst = self.dns_query(PATH_SERVICE, self.topology.path_servers[0].addr)
         self.send(path_request, dst)
         # Wait for path reply and clear us from the waiting list when we got it.
         cycle_cnt = 0
@@ -192,6 +214,8 @@ class SCIONDaemon(SCIONElement):
         :type dst_ad: int
         :param requester: Path requester address(used in simulator).
         :type requester:
+        :raises:
+            SCIONDaemonPathLookupError: if paths lookup fail
         """
         full_paths = []
         down_segments = self.down_segments(dst_isd=dst_isd, dst_ad=dst_ad)
@@ -297,7 +321,11 @@ class SCIONDaemon(SCIONElement):
         :type sender:
         """
         (isd, ad) = ISD_AD.from_raw(packet[1:ISD_AD.LEN + 1])
-        paths = self.get_paths(isd, ad)
+        try:
+            paths = self.get_paths(isd, ad)
+        except SCIONDaemonPathLookupError as e:
+            logging.error("Path lookup failure: %s", e)
+            paths = []
         reply = []
         for path in paths:
             raw_path = path.pack()
