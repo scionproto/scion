@@ -39,6 +39,8 @@ from lib.defines import (
 )
 from lib.errors import SCIONBaseError, SCIONServiceLookupError
 from lib.log import init_logging, log_exception
+from lib.packet.ext_hdr import ExtensionClass
+from lib.packet.ext.traceroute import TracerouteExt, traceroute_ext_handler
 from lib.packet.opaque_field import (
     HopOpaqueField as HOF,
     OpaqueFieldType as OFT,
@@ -54,6 +56,8 @@ from lib.packet.scion import (
 from lib.packet.scion_addr import ISD_AD, SCIONAddr
 from lib.thread import thread_safety_net
 from lib.util import handle_signals, SCIONTime
+
+MAX_EXT = 4  # Maximum number of hop-by-hop extensions processed by router.
 
 
 class SCIONOFVerificationError(SCIONBaseError):
@@ -93,7 +97,8 @@ class Router(SCIONElement):
     :ivar interface: the router's inter-AD interface, if any.
     :type interface: :class:`lib.topology.InterfaceElement`
     """
-    def __init__(self, router_id, topo_file, config_file, is_sim=False):
+    def __init__(self, router_id, topo_file, config_file, pre_ext_handlers=None,
+                 post_ext_handlers=None, is_sim=False):
         """
         Initialize an instance of the class Router.
 
@@ -103,6 +108,12 @@ class Router(SCIONElement):
         :type topo_file: str
         :param config_file: the configuration file name.
         :type config_file: str
+        :ivar pre_ext_handlers: a map of extension header types to handlers for
+                            those extensions that execute before routing.
+        :type pre_ext_handlers: dict
+        :ivar post_ext_handlers: a map of extension header types to handlers for
+                             those extensions that execute after routing.
+        :type post_ext_handlers: dict
         :param is_sim: running in simulator
         :type is_sim: bool
         """
@@ -117,6 +128,8 @@ class Router(SCIONElement):
         assert self.interface is not None
         logging.info("Interface: %s", self.interface.__dict__)
         self.of_gen_key = get_roundkey_cache(self.config.master_ad_key)
+        self.pre_ext_handlers = pre_ext_handlers or {}
+        self.post_ext_handlers = post_ext_handlers or {}
         if not is_sim:
             self._remote_socket = socket.socket(socket.AF_INET,
                                                 socket.SOCK_DGRAM)
@@ -137,14 +150,14 @@ class Router(SCIONElement):
             name="ER.sync_interface", daemon=True).start()
         SCIONElement.run(self)
 
-    def send(self, packet, addr, port=SCION_UDP_PORT, use_local_socket=True):
+    def send(self, spkt, addr, port=SCION_UDP_PORT, use_local_socket=True):
         """
-        Send a packet to addr (class of that object must implement
+        Send a spkt to addr (class of that object must implement
         __str__ which returns IPv4 addr) using port and local or remote
         socket.
 
-        :param packet: The packet to send.
-        :type packet: :class:`lib.packet.SCIONPacket`
+        :param spkt: The packet to send.
+        :type spkt: :class:`lib.spkt.SCIONspkt`
         :param addr: The address of the next hop.
         :type addr: :class:`IPv4Adress`
         :param port: The port number of the next hop.
@@ -153,11 +166,43 @@ class Router(SCIONElement):
                                  a remote socket).
         :type use_local_socket: bool
         """
+        self.handle_extensions(spkt, False)
         if use_local_socket:
-            super().send(packet, addr, port)
+            super().send(spkt, addr, port)
         else:
             self._remote_socket.sendto(
-                packet.pack(), (str(addr), port))
+                spkt.pack(), (str(addr), port))
+
+    def handle_extensions(self, spkt, pre_routing_phase):
+        """
+        Handle SCION Packet extensions. Handlers can be defined for pre- and
+        post-routing.
+
+        :param spkt:
+        :type spkt:
+        :param pre_routing_phase:
+        :type pre_routing_phase:
+        """
+        if pre_routing_phase:
+            handlers = self.pre_ext_handlers
+        else:
+            handlers = self.post_ext_handlers
+        ext_type = spkt.hdr.common_hdr.next_hdr
+        c = 0
+        # Hop-by-hop extensions must be first (just after path), and process
+        # only MAX_EXT number of them.
+        while ext_type == ExtensionClass.HOP_BY_HOP and c < MAX_EXT:
+            ext_hdr = spkt.hdr.extension_hdrs[c]
+            ext_nr = ext_hdr.EXT_TYPE
+            if ext_nr in handlers:
+                handlers[ext_nr](spkt=spkt, ext=ext_hdr, conf=self.config,
+                                 topo=self.topology, iface=self.interface)
+            else:
+                logging.debug("No handler for extension type %u", ext_nr)
+            ext_type = ext_hdr.next_hdr
+            c += 1
+        if c >= MAX_EXT and ext_type == ExtensionClass.HOP_BY_HOP:
+            logging.warning("Too many hop-by-hop extensions.")
 
     def sync_interface(self):
         """
@@ -562,6 +607,7 @@ class Router(SCIONElement):
         from_local_ad = from_local_socket
         spkt = SCIONPacket(packet)
         ptype = get_type(spkt)
+        self.handle_extensions(spkt, True)
         if ptype == PT.DATA:
             self.forward_packet(spkt, from_local_ad)
         elif ptype == PT.IFID_PKT and not from_local_ad:
@@ -589,8 +635,12 @@ def main():
     parser.add_argument('log_file', help='Log file')
     args = parser.parse_args()
     init_logging(args.log_file)
-
-    router = Router(args.router_id, args.topo_file, args.conf_file)
+    # Run router without extensions handling:
+    # router = Router(args.router_id, args.topo_file, args.conf_file)
+    # Run router with an extension handler:
+    pre_handlers = {TracerouteExt.EXT_TYPE: traceroute_ext_handler}
+    router = Router(args.router_id, args.topo_file, args.conf_file,
+                    pre_ext_handlers=pre_handlers)
 
     logging.info("Started: %s", datetime.datetime.now())
     router.run()
