@@ -111,7 +111,7 @@ class Zookeeper(object):
         self._on_disconnect = on_disconnect
         self.shared_caches = []
         if handle_paths:
-            for path, handler, state_synced  in handle_paths:
+            for path, handler, state_synced in handle_paths:
                 shared_cache = ZkSharedCache(self, path, handler, state_synced)
                 self.shared_caches.append(shared_cache)
         self._prefix = "/ISD%d-AD%d/%s" % (
@@ -553,8 +553,16 @@ class ZkParty(object):
 
 class ZkSharedCache(object):
     """
+    Class for handling ZK's shared path.
     """
     def __init__(self, zk, path, handler, state_synced):
+        """
+        :param zk: A kazoo instance
+        :param str path: The absolute path of the party
+        :param str id_: The service id value to use in the party
+        :param function handler: Handler for a list of cached objects
+        :param threading.Event state_synced: state for synchronization
+        """
         self.zk = zk
         self.path = path
         self.handler = handler
@@ -644,6 +652,7 @@ class ZkSharedCache(object):
 
     def run(self):
         """
+        Run thread that handles shared path.
         """
         threading.Thread(
             target=thread_safety_net, args=(self.handle_shared_entries,),
