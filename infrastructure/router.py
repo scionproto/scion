@@ -321,15 +321,15 @@ class Router(SCIONElement):
             return
         # Forward packet to destination.
         if ptype == PT.PATH_MGMT:
-            if spkt.hdr.dst_addr.host_addr.TYPE == ADDR_SVC_TYPE: 
+            if spkt.hdr.dst_addr.host_addr.TYPE == ADDR_SVC_TYPE:
                 # Send request to any path server.
                 try:
                     addr = self.dns_query_topo(PATH_SERVICE)[0]
                 except SCIONServiceLookupError as e:
                     logging.error("Unable to deliver path mgmt packet: %s", e)
                     return
-            else  # A response to given path server:
-                next_hop.addr = spkt.hdr.dst_addr.host_addr
+            else:  # A response to given path server
+                addr = spkt.hdr.dst_addr.host_addr
             port = SCION_UDP_PORT
         else:
             addr = spkt.hdr.dst_addr.host_addr

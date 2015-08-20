@@ -1174,8 +1174,6 @@ class LocalBeaconServer(BeaconServer):
             PST.UP, self.topology.isd_id, self.topology.isd_id,
             pcb.get_first_pcbm().ad_id, self.topology.ad_id)
         ps_addr = self.dns_query_topo(PATH_SERVICE)[0]
-        dst = SCIONAddr.from_values(
-            self.topology.isd_id, self.topology.ad_id, ps_addr)
         records = PathSegmentRecords.from_values(info, [pcb])
         pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, None,
                                          self.addr, self.addr.get_isd_ad())
