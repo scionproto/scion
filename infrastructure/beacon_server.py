@@ -1220,7 +1220,6 @@ class LocalBeaconServer(BeaconServer):
         """
         Once a beacon has been verified, place it into the right containers.
         """
-        logging.debug("_handle_verified_beacon")
         self.beacons.add_segment(pcb)
         self.up_segments.add_segment(pcb)
         self.down_segments.add_segment(pcb)
