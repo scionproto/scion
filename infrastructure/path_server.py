@@ -396,8 +396,8 @@ class CorePathServer(PathServer):
             dst_isd = pcb.get_last_pcbm().isd_id
             res = self.down_segments.update(pcb, src_isd, src_ad,
                                             dst_isd, dst_ad)
+            paths_to_propagate.append(pcb)
             if res != DBResult.NONE:
-                paths_to_propagate.append(pcb)
                 logging.info("Down-Segment registered (%d, %d) -> (%d, %d)",
                              src_isd, src_ad, dst_isd, dst_ad)
                 if res == DBResult.ENTRY_ADDED:

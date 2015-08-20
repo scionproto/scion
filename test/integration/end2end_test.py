@@ -182,6 +182,7 @@ class TestSCIONDaemon(unittest.TestCase):
         """
         thread = threading.current_thread()
         thread.name = "E2E.MainThread"
+        failures = 0
         for src in sources:
             for dst in destinations:
                 if src != dst:
@@ -206,9 +207,10 @@ class TestSCIONDaemon(unittest.TestCase):
                             break
                     else:
                         logging.error("Test timed out")
-                        continue
+                        failures += 1
                     self.assertTrue(pong_app.ping_received)
                     self.assertTrue(ping_app.pong_received)
+        sys.exit(failures)
 
 if __name__ == "__main__":
     init_logging("../../logs/end2end.log", console=True)
