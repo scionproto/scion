@@ -2,6 +2,7 @@ dnsutils
 gcc
 make
 net-tools
+netcat-openbsd
 python-minimal
 python-pip
 python3-minimal
