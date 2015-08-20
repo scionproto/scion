@@ -24,7 +24,6 @@ import logging
 import os
 import sys
 import threading
-import time
 from _collections import defaultdict, deque
 
 # External packages
@@ -86,12 +85,11 @@ from lib.util import (
     handle_signals,
     read_file,
     sleep_interval,
-    timed,
     trace,
     write_file,
     SCIONTime,
 )
-from lib.zookeeper import ZkConnectionLoss, ZkNoNodeError, Zookeeper
+from lib.zookeeper import ZkConnectionLoss, Zookeeper
 
 
 class InterfaceState(object):
@@ -226,14 +224,14 @@ class BeaconServer(SCIONElement):
             # Add more IPs here if we support dual-stack
             name_addrs = "\0".join([self.id, str(SCION_UDP_PORT),
                                     str(self.addr.host_addr)])
-            self._latest_entry = 0
             # Set when we have connected and read the existing recent and
             # incoming PCBs
             self._state_synced = threading.Event()
             self.zk = Zookeeper(
                 self.topology.isd_id, self.topology.ad_id, BEACON_SERVICE,
                 name_addrs, self.topology.zookeepers,
-                ensure_paths=(self.ZK_PCB_CACHE_PATH,))
+                handle_paths=[(self.ZK_PCB_CACHE_PATH, self.process_pcbs,
+                               self._state_synced)])
             self.zk.retry("Joining party", self.zk.party_setup)
 
     def _get_if_rev_token(self, if_id):
@@ -450,12 +448,11 @@ class BeaconServer(SCIONElement):
         threading.Thread(
             target=thread_safety_net, args=(self.register_segments,),
             name="BS.register_segments", daemon=True).start()
-        threading.Thread(
-            target=thread_safety_net, args=(self.handle_shared_pcbs,),
-            name="BS.handle_shared_pcbs", daemon=True).start()
         #  threading.Thread(
         #    target=thread_safety_net, args=(self._handle_if_timeouts,),
         #    name="BS._handle_if_timeouts", daemon=True).start()
+        # Run shared paths handling.
+        self.zk.run_shared_cache_handling()
         SCIONElement.run(self)
 
     def _try_to_verify_beacon(self, pcb):
@@ -627,89 +624,6 @@ class BeaconServer(SCIONElement):
         for _ in range(len(self.unverified_beacons)):
             pcb = self.unverified_beacons.popleft()
             self._try_to_verify_beacon(pcb)
-
-    def handle_shared_pcbs(self):
-        """
-        A thread to handle Zookeeper connects/disconnects and the shared cache
-        of PCBs
-
-        On connect, it registers us as in-service, and loads the shared cache
-        of PCBs from ZK, so that we have enough context should we become
-        master.
-
-        While connected, it calls _read_cached_entries() to read updated PCBS
-        from the cache.
-        """
-        while True:
-            if not self.zk.is_connected():
-                self._state_synced.clear()
-                self.zk.wait_connected()
-            else:
-                time.sleep(0.5)
-            try:
-                if not self._state_synced.is_set():
-                    # Make sure we re-read the entire cache
-                    self._latest_entry = 0
-                count = self._read_cached_entries()
-                if count:
-                    logging.debug("Processed %d new/updated PCBs", count)
-            except ZkConnectionLoss:
-                self._state_synced.clear()
-                continue
-            self._state_synced.set()
-
-    def _read_cached_entries(self):
-        """
-        Read new/updated entries from the shared cache and send them for
-        processing.
-        """
-        desc = "Fetching list of PCBs from shared cache"
-        entries_meta = self.zk.get_shared_metadata(
-            self.ZK_PCB_CACHE_PATH,
-            timed_desc=desc)
-        if not entries_meta:
-            return 0
-        new = []
-        newest = 0
-        for entry, meta in entries_meta:
-            if meta.last_modified > self._latest_entry:
-                new.append(entry)
-            if meta.last_modified > newest:
-                newest = meta.last_modified
-        self._latest_entry = newest
-        desc = "Processing %s new PCBs from shared path" % len(new)
-        count = self._process_cached_pcbs(new, timed_desc=desc)
-        return count
-
-    @timed(1.0)
-    def _process_cached_pcbs(self, entries):
-        """
-        Retrieve new beacons from the shared cache and send them for local
-        processing.
-
-        :param entries: cached path segments.
-        :param entries: list
-        """
-        # TODO(kormat): move constant to proper place
-        chunk_size = 10
-        pcbs = []
-        for i in range(0, len(entries), chunk_size):
-            for entry in entries[i:i + chunk_size]:
-                try:
-                    raw = self.zk.get_shared_item(self.ZK_PCB_CACHE_PATH,
-                                                  entry)
-                except ZkConnectionLoss:
-                    logging.warning("Unable to retrieve PCB from shared "
-                                    "cache: no connection to ZK")
-                    break
-                except ZkNoNodeError:
-                    logging.debug("Unable to retrieve PCB from shared cache: "
-                                  "no such entry (%s/%s)" %
-                                  (self.ZK_PCB_CACHE_PATH, entry))
-                    continue
-                pcbs.append(PathSegment(raw=raw))
-        self.process_pcbs(pcbs)
-        return len(pcbs)
 
     def _process_revocation(self, rev_info, if_id1=0, if_id2=0):
         """
@@ -979,7 +893,8 @@ class CoreBeaconServer(BeaconServer):
         Process new beacons and appends them to beacon list.
         """
         count = 0
-        for pcb in pcbs:
+        for raw_pcb in pcbs:
+            pcb = PathSegment(raw_pcb)
             # Before we append the PCB for further processing we need to check
             # that it hasn't been received before.
             for ad in pcb.ads:
@@ -1221,7 +1136,8 @@ class LocalBeaconServer(BeaconServer):
         """
         Process new beacons and appends them to beacon list.
         """
-        for pcb in pcbs:
+        for raw_pcb in pcbs:
+            pcb = PathSegment(raw_pcb)
             if self.path_policy.check_filters(pcb):
                 self._try_to_verify_beacon(pcb)
 

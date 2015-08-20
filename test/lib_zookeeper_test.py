@@ -71,7 +71,7 @@ class TestZookeeperInit(BaseZookeeper):
         event.side_effect = ["event0", "event1"]
         inst = self._init_basic_setup(
             timeout=4.5, on_connect="on_conn", on_disconnect="on_dis",
-            ensure_paths="paths")
+            handle_paths=[("path0", "handler0", "state0")])
         # Tests
         ntools.eq_(inst._isd_id, 1)
         ntools.eq_(inst._ad_id, 2)
@@ -79,7 +79,6 @@ class TestZookeeperInit(BaseZookeeper):
         ntools.eq_(inst._timeout, 4.5)
         ntools.eq_(inst._on_connect, "on_conn")
         ntools.eq_(inst._on_disconnect, "on_dis")
-        ntools.eq_(inst._ensure_paths, "paths")
         ntools.eq_(inst._prefix, "/ISD1-AD2/srvtype")
         ntools.eq_(inst._connected, "event0")
         ntools.eq_(inst._lock, "event1")
@@ -103,7 +102,7 @@ class TestZookeeperInit(BaseZookeeper):
         ntools.eq_(inst._timeout, 1.0)
         ntools.eq_(inst._on_connect, None)
         ntools.eq_(inst._on_disconnect, None)
-        ntools.eq_(inst._ensure_paths, ())
+        ntools.eq_(inst.shared_caches, [])
 
 
 class TestZookeeperKazooSetup(BaseZookeeper):
@@ -262,7 +261,9 @@ class TestZookeeperStateConnected(BaseZookeeper):
         inst._zk.client_id = MagicMock(spec_set=["__getitem__"])
         inst.ensure_path = create_mock()
         inst._prefix = "/prefix"
-        inst._ensure_paths = ["ensure0", "ensure1"]
+        inst.shared_caches = [create_mock(["path"]), create_mock(["path"])]
+        inst.shared_caches[0].path = "ensure0"
+        inst.shared_caches[1].path = "ensure1"
         inst._parties = {
             "/patha": create_mock(["autojoin"]),
             "/pathb": create_mock(["autojoin"]),
