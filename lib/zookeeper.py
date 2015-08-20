@@ -27,6 +27,7 @@ from kazoo.exceptions import (
     ConnectionLoss,
     LockTimeout,
     NoNodeError,
+    NodeExistsError,
     SessionExpiredError,
 )
 from kazoo.handlers.threading import KazooTimeoutError
@@ -386,6 +387,10 @@ class Zookeeper(object):
             return
         except (ConnectionLoss, SessionExpiredError):
             raise ZkConnectionLoss
+        except NodeExistsError:
+            # Node was created between our check and our create, so assume that
+            # the contents are recent, and return without error.
+            return
 
     def get_shared_item(self, path, entry):
         """
