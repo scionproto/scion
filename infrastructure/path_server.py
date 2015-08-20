@@ -396,8 +396,12 @@ class CorePathServer(PathServer):
             dst_isd = pcb.get_last_pcbm().isd_id
             res = self.down_segments.update(pcb, src_isd, src_ad,
                                             dst_isd, dst_ad)
-            if res != DBResult.NONE:
+            if (dst_isd == pkt.hdr.src_addr.isd_id and
+                    dst_ad == pkt.hdr.src_addr.ad_id):
+                # Only propagate this path if it was registered with us by the
+                # down-stream AD.
                 paths_to_propagate.append(pcb)
+            if res != DBResult.NONE:
                 logging.info("Down-Segment registered (%d, %d) -> (%d, %d)",
                              src_isd, src_ad, dst_isd, dst_ad)
                 if res == DBResult.ENTRY_ADDED:
