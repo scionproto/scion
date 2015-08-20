@@ -23,6 +23,13 @@ import nose
 import nose.tools as ntools
 
 # SCION
+from lib.defines import (
+    BEACON_SERVICE,
+    CERTIFICATE_SERVICE,
+    DNS_SERVICE,
+    PATH_SERVICE,
+    ROUTER_SERVICE,
+)
 from lib.topology import (
     Element,
     InterfaceElement,
@@ -41,11 +48,11 @@ class TestElementInit(object):
         ntools.assert_is_none(elem.addr)
         ntools.assert_is_none(elem.name)
 
-    @patch("lib.topology.ip_address", autospec=True)
-    def test_ip_addr(self, ip_addr):
-        element = Element('192.168.0.1')
-        ip_addr.assert_called_with('192.168.0.1')
-        ntools.eq_(element.addr, ip_addr.return_value)
+    @patch("lib.topology.haddr_parse", autospec=True)
+    def test_ip_addr(self, parse):
+        element = Element(("addrtype", "addr"))
+        parse.assert_called_with("addrtype", "addr")
+        ntools.eq_(element.addr, parse.return_value)
 
     def test_name_basic(self):
         elem = Element(name='localhost')
@@ -55,9 +62,6 @@ class TestElementInit(object):
         elem = Element(name=42)
         ntools.assert_equal(elem.name, '42')
 
-    def test_invalid_addr_type(self):
-        ntools.assert_raises(ValueError, Element, '42.42.42.42.42')
-
 
 class TestServerElementInit(object):
     """
@@ -65,15 +69,15 @@ class TestServerElementInit(object):
     """
     @patch("lib.topology.Element.__init__", autospec=True)
     def test_basic(self, element_init):
-        server_dict = {'Addr': 123}
+        server_dict = {'AddrType': "addrtype", 'Addr': 123}
         server = ServerElement(server_dict, 'name')
-        element_init.assert_called_once_with(server, 123, 'name')
+        element_init.assert_called_once_with(server, ("addrtype", 123), 'name')
 
     @patch("lib.topology.Element.__init__", autospec=True)
     def test_no_name(self, element_init):
-        server_dict = {'Addr': 123}
+        server_dict = {'AddrType': "addrtype", 'Addr': 123}
         server = ServerElement(server_dict)
-        element_init.assert_called_once_with(server, 123, None)
+        element_init.assert_called_once_with(server, ("addrtype", 123), None)
 
 
 class TestInterfaceElementInit(object):
@@ -81,9 +85,11 @@ class TestInterfaceElementInit(object):
     Unit tests for lib.topology.InterfaceElement.__init__
     """
     def setUp(self):
-        self.interface_dict = {'Addr': 0, 'IFID': 1, 'NeighborAD': 2,
-                               'NeighborISD': 3, 'NeighborType': 4,
-                               'ToUdpPort': 5, 'UdpPort': 6, 'ToAddr': None}
+        self.interface_dict = {
+            'AddrType': 'atype', 'Addr': 'addr', 'IFID': 1, 'NeighborAD': 2,
+            'NeighborISD': 3, 'NeighborType': 4, 'ToUdpPort': 5, 'UdpPort': 6,
+            'ToAddr': None,
+        }
 
     def tearDown(self):
         del self.interface_dict
@@ -91,7 +97,8 @@ class TestInterfaceElementInit(object):
     @patch("lib.topology.Element.__init__", autospec=True)
     def test_to_addr_none(self, element_init):
         interface = InterfaceElement(self.interface_dict, 'name')
-        element_init.assert_called_once_with(interface, 0, 'name')
+        element_init.assert_called_once_with(
+            interface, ('atype', 'addr'), 'name')
         ntools.eq_(interface.if_id, 1)
         ntools.eq_(interface.neighbor_ad, 2)
         ntools.eq_(interface.neighbor_isd, 3)
@@ -103,21 +110,16 @@ class TestInterfaceElementInit(object):
     @patch("lib.topology.Element.__init__", autospec=True)
     def test_name_none(self, element_init):
         interface = InterfaceElement(self.interface_dict)
-        element_init.assert_called_once_with(interface, 0, None)
+        element_init.assert_called_once_with(
+            interface, ('atype', 'addr'), None)
 
-    @patch("lib.topology.ip_address", autospec=True)
+    @patch("lib.topology.haddr_parse", autospec=True)
     @patch("lib.topology.Element.__init__", autospec=True)
-    def test_to_addr_success(self, element_init, ip_address):
-        self.interface_dict['ToAddr'] = '12.34.56.78'
-        ip_address.return_value = 7
+    def test_to_addr(self, element_init, parse):
+        self.interface_dict['ToAddr'] = 'toaddr'
         interface = InterfaceElement(self.interface_dict)
-        ip_address.assert_called_once_with('12.34.56.78')
-        ntools.eq_(interface.to_addr, 7)
-
-    @patch("lib.topology.Element.__init__", autospec=True)
-    def test_to_addr_fail(self, element_init):
-        self.interface_dict['ToAddr'] = '2342.232.342.11'
-        ntools.assert_raises(ValueError, InterfaceElement, self.interface_dict)
+        parse.assert_called_once_with('atype', 'toaddr')
+        ntools.eq_(interface.to_addr, parse.return_value)
 
 
 class TestRouterElementInit(object):
@@ -125,7 +127,7 @@ class TestRouterElementInit(object):
     Unit tests for lib.topology.RouterElement.__init__
     """
     def setUp(self):
-        self.router_dict = {'Addr': 1, 'Interface': 2}
+        self.router_dict = {'AddrType': 'atype', 'Addr': 'addr', 'Interface': 2}
 
     def tearDown(self):
         del self.router_dict
@@ -135,7 +137,7 @@ class TestRouterElementInit(object):
     def test_basic(self, element_init, interface):
         interface.return_value = 'interface'
         router = RouterElement(self.router_dict, 'name')
-        element_init.assert_called_once_with(router, 1, 'name')
+        element_init.assert_called_once_with(router, ('atype', 'addr'), 'name')
         interface.assert_called_once_with(2)
         ntools.eq_(router.interface, 'interface')
 
@@ -143,7 +145,7 @@ class TestRouterElementInit(object):
     @patch("lib.topology.Element.__init__", autospec=True)
     def test_name_none(self, element_init, interface):
         router = RouterElement(self.router_dict)
-        element_init.assert_called_once_with(router, 1, None)
+        element_init.assert_called_once_with(router, ('atype', 'addr'), None)
 
 
 class TestTopologyInit(object):
@@ -204,9 +206,15 @@ class TestTopologyParseDict(object):
         cs = {'e': 'f', 'g': 'h'}
         ds = {'i': 'j', 'k': 'l'}
         ps = {'m': 'n', 'o': 'p'}
-        er = {'er' + str(i): 'router' + str(i) for i in range(5)}
-        zk = {'zk0': {'Addr': 'zk0.scion', 'ClientPort': 2181},
-              'zk1': {'Addr': 'zk1.scion', 'ClientPort': 2182}}
+        er = {ROUTER_SERVICE + str(i): 'router' + str(i) for i in range(5)}
+        zk = {
+            'zk0': {
+                'AddrType': "IPv4", 'Addr': 'zkv4', 'ClientPort': 2181,
+            },
+            'zk1': {
+                'AddrType': "IPv6", 'Addr': 'zkv6', 'ClientPort': 2182,
+            }
+        }
         topo_dict = {
             'Core': 0, 'ISDID': 1, 'ADID': 2,
             'DnsDomain': 3, 'BeaconServers': bs,
@@ -233,7 +241,9 @@ class TestTopologyParseDict(object):
         topology.child_edge_routers = [6]
         topology.peer_edge_routers = [7]
         topology.routing_edge_routers = [8]
+        # Call
         topology.parse_dict(topo_dict)
+        # Tests
         ntools.assert_false(topology.is_core_ad)
         ntools.eq_(topology.isd_id, 1)
         ntools.eq_(topology.ad_id, 2)
@@ -247,7 +257,7 @@ class TestTopologyParseDict(object):
         ntools.eq_(topology.peer_edge_routers, [7, routers[2]])
         ntools.eq_(topology.routing_edge_routers, [8, routers[3]])
         ntools.eq_(sorted(topology.zookeepers),
-                   [('zk0.scion:2181'), ('zk1.scion:2182')])
+                   sorted([('zkv4:2181'), ('[zkv6]:2182')]))
         ntools.eq_(log_warning.call_count, 1)
 
 
@@ -286,7 +296,8 @@ class TestTopologyGetOwnConfig(object):
         topology.dns_servers[2].name = 'name'
         topology.path_servers = [MagicMock(spec_set=['name']) for i in range(4)]
         topology.path_servers[2].name = 'name'
-        server_types = ['bs', 'cs', 'ds', 'ps'] * 2
+        server_types = [BEACON_SERVICE, CERTIFICATE_SERVICE, DNS_SERVICE,
+                        PATH_SERVICE] * 2
         server_ids = ['name'] * 4 + ['bad_name'] * 4
         servers = [topology.beacon_servers[2],
                    topology.certificate_servers[2],
@@ -301,7 +312,8 @@ class TestTopologyGetOwnConfig(object):
         edge_routers = [MagicMock(spec_set=['name']) for i in range(4)]
         edge_routers[2].name = 'name'
         get_edge_routers.return_value = edge_routers
-        ntools.eq_(topology.get_own_config('er', 'name'), edge_routers[2])
+        ntools.eq_(topology.get_own_config(ROUTER_SERVICE, 'name'),
+                   edge_routers[2])
         get_edge_routers.assert_called_once_with(topology)
 
     @patch("lib.topology.logging.error", autospec=True)
@@ -310,7 +322,7 @@ class TestTopologyGetOwnConfig(object):
         topology = Topology()
         edge_routers = [MagicMock(spec_set=['name']) for i in range(4)]
         get_edge_routers.return_value = edge_routers
-        ntools.assert_is_none(topology.get_own_config('er', 'name'))
+        ntools.assert_is_none(topology.get_own_config(ROUTER_SERVICE, 'name'))
         ntools.eq_(log_error.call_count, 1)
 
     @patch("lib.topology.logging.error", autospec=True)

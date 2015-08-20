@@ -12,47 +12,48 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`lib.dnsclient` --- SCION DNS client library
-=================================================
+:mod:`dnsclient` --- SCION DNS client library
+=============================================
 """
 # Stdlib
-from ipaddress import ip_address
+import logging
 from random import shuffle
 
 # External
 import dns.exception
-import dns.resolver
 import dns.name
+import dns.resolver
 from dns.resolver import Resolver
 from external.expiring_dict import ExpiringDict
 
 # SCION
 from lib.defines import SCION_DNS_PORT
 from lib.errors import SCIONBaseError
+from lib.packet.host_addr import haddr_parse
 
-#: Number of records to cache
+#: Number of records to cache.
 DNS_CACHE_MAX_SIZE = 100
-#: Seconds
+#: Cache validity in seconds. Probably should use DNS TTL in future.
 DNS_CACHE_MAX_AGE = 60
 
 
 class DNSLibBaseError(SCIONBaseError):
     """
-    Base lib.dns exception
+    Base lib.dnsclient exception.
     """
     pass
 
 
 class DNSLibMajorError(SCIONBaseError):
     """
-    Base lib.dns major exception
+    Base lib.dnsclient major exception.
     """
     pass
 
 
 class DNSLibNoServersError(DNSLibMajorError):
     """
-    No working servers
+    No working servers.
     """
     pass
 
@@ -66,33 +67,36 @@ class DNSLibNxDomain(DNSLibMajorError):
 
 class DNSLibMinorError(SCIONBaseError):
     """
-    Base lib.dns minor exception
+    Base lib.dnsclient minor exception.
     """
     pass
 
 
 class DNSLibTimeout(DNSLibMinorError):
     """
-    Timeout
+    DNS Timeout.
     """
     pass
 
 
 class DNSClient(object):
     """
-    DNS client class. Allows querying of dns_server for service instances.
+    DNS client class. Allows querying of `dns_server` for service discovery.
     """
-    def __init__(self, dns_servers, domain, lifetime=5.0):
+    def __init__(self, dns_servers, domain, lifetime=5.0, port=SCION_DNS_PORT):
         """
-        :param [string] dns_servers: List of DNS servers IP addresses
+        :param list dns_servers:
+            DNS server IP addresses as strings. E.g. ``["127.0.0.1",
+            "8.8.8.8"]``
         :param string domain: The DNS domain to query.
-        :param float lifetime: Number of seconds in total to try resolving
-                               before failing
+        :param float lifetime:
+            Number of seconds in total to try resolving before failing.
+        :param int port: DNS server port.
         """
         self.resolver = Resolver(configure=False)
         self.resolver.nameservers = dns_servers
-        self.resolver.port = SCION_DNS_PORT
         self.resolver.search = [dns.name.from_text(domain)]
+        self.resolver.port = port
         self.resolver.timeout = 1.0
         self.resolver.lifetime = lifetime
 
@@ -101,15 +105,17 @@ class DNSClient(object):
         Lookup a DNS record via the Resolver.
 
         :param string qname: A relative DNS record to query. E.g. ``"bs"``
-        :returns: A list of IP address objects
-        :rtype: :class:`ipaddress._BaseAddress`
+        :returns: A list of `Host address <HostAddrBase>`_ objects.
         :raises:
             DNSLibTimeout: No responses received.
             DNSLibNxDomain: Name doesn't exist.
             DNSLibError: Unexpected error.
         """
         try:
-            results = self.resolver.query(qname)
+            # TODO(kormat): This needs to be more general, ideally using `ANY`,
+            # but dnspython's resolver currently does not support it :/
+            # https://github.com/rthalley/dnspython/issues/117
+            answer = self.resolver.query(qname, "A")
         except dns.exception.Timeout:
             raise DNSLibTimeout("No responses within %ss" %
                                 self.resolver.lifetime) from None
@@ -120,8 +126,26 @@ class DNSClient(object):
                 from None
         except Exception as e:
             raise DNSLibMajorError("Unhandled exception in resolver.") from e
-        shuffle(results)
-        return [ip_address(addr) for addr in results]
+        return self._parse_answer(answer)
+
+    def _parse_answer(self, answer):
+        """
+        Parse DNS answer into host addresses.
+
+        :param `dnslib.resolver.Answer` answer:
+        :returns: List of `Host addresses <HostAddrBase>`_ objects.
+        """
+        addrs = []
+        for record in answer:
+            if record.rdtype == dns.rdatatype.A:
+                addrs.append(haddr_parse("IPv4", str(record)))
+            elif record.rdtype == dns.rdatatype.AAAA:
+                addrs.append(haddr_parse("IPv6", str(record)))
+            else:
+                logging.debug("Ignoring unsupported dns record type (%s): %r",
+                              dns.rdatatype._by_value[record.rdtype], record)
+        shuffle(addrs)
+        return addrs
 
 
 class DNSCachingClient(DNSClient):
@@ -130,10 +154,12 @@ class DNSCachingClient(DNSClient):
     """
     def __init__(self, dns_servers, domain, lifetime=5.0):
         """
-        :param [string] dns_servers: List of DNS servers IP addresses
+        :param list dns_servers:
+            DNS server IP addresses as strings. E.g. ``["127.0.0.1",
+            "8.8.8.8"]``
         :param string domain: The DNS domain to query.
-        :param float lifetime: Number of seconds in total to try resolving
-                               before failing
+        :param float lifetime:
+            Number of seconds in total to try resolving before failing.
         """
         super().__init__(dns_servers, domain, lifetime=lifetime)
         self.cache = ExpiringDict(max_len=DNS_CACHE_MAX_SIZE,
@@ -142,7 +168,14 @@ class DNSCachingClient(DNSClient):
     def query(self, qname):
         """
         Check if the answer is already in the cache. If not, pass it along to
-        the DNS client to query and cache the result.
+        the DNS client and cache the result.
+
+        :param string qname: A relative DNS record to query. E.g. ``"bs"``
+        :returns: A list of `Host address <HostAddrBase>`_ objects.
+        :raises:
+            DNSLibTimeout: No responses received.
+            DNSLibNxDomain: Name doesn't exist.
+            DNSLibError: Unexpected error.
         """
         answer = self.cache.get(qname)
         if answer is None:

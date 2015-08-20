@@ -14,26 +14,29 @@
 """
 :mod:`scion_elem` --- Base class for SCION servers
 ==================================================
-
-Module docstring here.
-
-.. note::
-    Fill in the docstring.
-
 """
-
 # Stdlib
 import logging
 import select
 import socket
 import threading
+from random import shuffle
 
 # SCION
 from lib.config import Config
-from lib.dnsclient import DNSCachingClient, DNSLibMajorError, DNSLibMinorError
+from lib.defines import (
+    BEACON_SERVICE,
+    DNS_SERVICE,
+    CERTIFICATE_SERVICE,
+    PATH_SERVICE,
+    SERVICE_TYPES,
+)
 from lib.defines import SCION_BUFLEN, SCION_UDP_PORT
-from lib.packet.scion_addr import SCIONAddr
+from lib.dnsclient import DNSCachingClient, DNSLibMajorError, DNSLibMinorError
+from lib.errors import SCIONServiceLookupError
 from lib.log import log_exception
+from lib.packet.scion_addr import SCIONAddr
+from lib.thread import kill_self
 from lib.topology import Topology
 
 
@@ -42,41 +45,29 @@ class SCIONElement(object):
     Base class for the different kind of servers the SCION infrastructure
     provides.
 
-    :ivar topology: the topology of the AD as seen by the server.
-    :type topology: :class:`Topology`
-    :ivar config: the configuration of the AD in which the server is located.
-    :type config: :class:`lib.config.Config`
-    :ivar ifid2addr: a dictionary mapping interface identifiers to the
-                     corresponding border router addresses in the server's AD.
-    :type ifid2addr: dict
-    :ivar addr: a `SCIONAddr` object representing the server address.
-    :type addr: :class:`lib.packet.scion_addr.SCIONAddr`
+    :ivar `Topology` topology: the topology of the AD as seen by the server.
+    :ivar `Config` config:
+        the configuration of the AD in which the server is located.
+    :ivar dict ifid2addr:
+        a dictionary mapping interface identifiers to the corresponding border
+        router addresses in the server's AD.
+    :ivar `SCIONAddr` addr: the server's address.
     """
 
     def __init__(self, server_type, topo_file, config_file=None, server_id=None,
                  host_addr=None, is_sim=False):
         """
-        Create a new ServerBase instance.
-
-        :param server_type: a shorthand of the server type, e.g. "bs" for a
-                            beacon server.
-        :type server_type: str
-        :param topo_file: the name of the topology file.
-        :type topo_file: str
-        :param config_file: the name of the configuration file.
-        :type config_file: str
-        :param server_id: the local id of the server, e.g. for bs1-10-3, the id
-                          would be '3'. Used to look up config from topology
-                          file.
-        :type server_id: str
-        :param host_addr: the interface to bind to. Only used if server_id isn't
-                          specified.
-        :type host_addr: :class:`ipaddress._BaseAddress`
-
-        :returns: the newly-created ServerBase instance
-        :rtype: ServerBase
-        :param is_sim: running in simulator
-        :type is_sim: bool
+        :param str server_type:
+            a service type from :const:`lib.defines.SERVICE_TYPES`. E.g.
+            ``"bs"``.
+        :param str topo_file: path name of the topology file.
+        :param str config_file: path name of the configuration file.
+        :param str server_id:
+            the local id of the server. E.g. for `bs1-10-3`, the id would be
+            ``"3"``. Used to look up config from topology file.
+        :param `HostAddrBase` host_addr:
+            the interface to bind to. Only used if `server_id` isn't specified.
+        :param bool is_sim: running in simulator
         """
         self._addr = None
         self.topology = None
@@ -92,7 +83,7 @@ class SCIONElement(object):
             self.id = server_type
         self.addr = SCIONAddr.from_values(self.topology.isd_id,
                                           self.topology.ad_id, host_addr)
-        self.dns = DNSCachingClient(
+        self._dns = DNSCachingClient(
             [str(s.addr) for s in self.topology.dns_servers],
             self.topology.dns_domain)
         if config_file:
@@ -217,7 +208,12 @@ class SCIONElement(object):
         :param dst_port: the destination port number.
         :type dst_port: int
         """
-        self._local_socket.sendto(packet.pack(), (str(dst), dst_port))
+        try:
+            self._local_socket.sendto(packet.pack(), (str(dst), dst_port))
+        except socket.gaierror:
+            log_exception("Addressing error when trying to send to %s:%s :" %
+                          (dst, dst_port))
+            kill_self()
 
     def run(self):
         """
@@ -250,15 +246,38 @@ class SCIONElement(object):
         for s in self._sockets:
             s.close()
 
-    def dns_query(self, qname, default):
+    def dns_query_topo(self, qname):
         """
-        Query dns for an answer. If an error occurs, return the default static
-        valid instead.
+        Query dns for an answer. If the answer is empty, or an error occurs then
+        return the relevant topology entries instead.
+
+        :param str qname: Service to query for.
         """
+        assert qname in SERVICE_TYPES
+        service_map = {
+            BEACON_SERVICE: self.topology.beacon_servers,
+            CERTIFICATE_SERVICE: self.topology.certificate_servers,
+            DNS_SERVICE: self.topology.dns_servers,
+            PATH_SERVICE: self.topology.path_servers,
+        }
+
+        results = None
         try:
-            return self.dns.query(qname)[0]
+            results = self._dns.query(qname)
         except DNSLibMinorError as e:
-            logging.warning("Falling back to static value: %s", e)
+            logging.warning("Falling back to static values: %s", e)
         except DNSLibMajorError as e:
-            log_exception("Falling back to static value:")
-        return default
+            log_exception("Falling back to static values:", level=logging.ERROR)
+        # If we have results, return them now.
+        if results:
+            return results
+        if results == []:
+            logging.warning("No DNS results found, "
+                            "falling back to static values")
+        # Generate results from local topology
+        results = [srv.addr for srv in service_map[qname]]
+        if not results:
+            # No results from local toplogy either
+            raise SCIONServiceLookupError("No %s servers found" % qname)
+        shuffle(results)
+        return results

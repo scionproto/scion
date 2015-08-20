@@ -26,6 +26,7 @@ from kazoo.exceptions import (
     ConnectionLoss,
     LockTimeout,
     NoNodeError,
+    NodeExistsError,
     SessionExpiredError,
 )
 from kazoo.handlers.threading import KazooTimeoutError
@@ -86,8 +87,8 @@ class Zookeeper(object):
 
         :param int isd_id: The ID of the current ISD.
         :param int ad_id: The ID of the current AD.
-        :param str srv_type: Short description of the service. E.g. ``"bs"``
-                             for Beacon server.
+        :param str srv_type: a service type from
+                             :const:`lib.defines.SERVICE_TYPES`
         :param str srv_id: Service instance identifier.
         :param list zk_hosts: List of Zookeeper instances to connect to, in the
                               form of ``["host:port"..]``.
@@ -377,6 +378,10 @@ class Zookeeper(object):
             return
         except (ConnectionLoss, SessionExpiredError):
             raise ZkConnectionLoss
+        except NodeExistsError:
+            # Node was created between our check and our create, so assume that
+            # the contents are recent, and return without error.
+            return
 
     def get_shared_item(self, path, entry):
         """

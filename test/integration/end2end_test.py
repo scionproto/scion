@@ -23,21 +23,21 @@ import sys
 import threading
 import time
 import unittest
-from ipaddress import IPv4Address
 
 # SCION
 from endhost.sciond import SCIOND_API_HOST, SCIOND_API_PORT, SCIONDaemon
-from lib.defines import IPV4BYTES, SCION_BUFLEN, SCION_UDP_EH_DATA_PORT
+from lib.defines import SCION_BUFLEN, SCION_UDP_EH_DATA_PORT
 from lib.packet.opaque_field import InfoOpaqueField, OpaqueFieldType as OFT
 from lib.packet.path import CorePath, CrossOverPath, EmptyPath, PeerPath
 from lib.packet.scion import SCIONPacket
+from lib.packet.host_addr import haddr_get_type, haddr_parse
 from lib.packet.scion_addr import SCIONAddr, ISD_AD
 from lib.log import init_logging, log_exception
-from lib.util import Raw
+from lib.util import Raw, handle_signals
 from lib.thread import kill_self, thread_safety_net
 
-saddr = IPv4Address("127.1.19.254")
-raddr = IPv4Address("127.2.26.254")
+saddr = haddr_parse("IPv4", "127.1.19.254")
+raddr = haddr_parse("IPv4", "127.2.26.254")
 TOUT = 10  # How long wait for response.
 
 
@@ -67,16 +67,18 @@ def get_paths_via_api(isd, ad):
         info = InfoOpaqueField(data.get(InfoOpaqueField.LEN))
         if not path_len:  # Shouldn't happen.
             path = EmptyPath()
-        elif info.info == OFT.TDC_XOVR:
+        elif info.info == OFT.CORE:
             path = CorePath(data.pop(path_len))
-        elif info.info == OFT.NON_TDC_XOVR:
+        elif info.info == OFT.SHORTCUT:
             path = CrossOverPath(data.pop(path_len))
-        elif info.info == OFT.INTRATD_PEER or info.info == OFT.INTERTD_PEER:
+        elif info.info in [OFT.INTRA_ISD_PEER, OFT.INTER_ISD_PEER]:
             path = PeerPath(data.pop(path_len))
         else:
             logging.critical("Can not parse path: Unknown type %x", info.info)
             kill_self()
-        hop = IPv4Address(data.pop(IPV4BYTES))
+        haddr_type = haddr_get_type("IPv4")
+        hop = haddr_type(data.get(haddr_type.LEN))
+        data.pop(len(hop))
         paths_hops.append((path, hop))
     sock.close()
     return paths_hops
@@ -210,6 +212,7 @@ class TestSCIONDaemon(unittest.TestCase):
 
 if __name__ == "__main__":
     init_logging("../../logs/end2end.log", console=True)
+    handle_signals()
     if len(sys.argv) == 3:
         isd, ad = sys.argv[1].split(',')
         sources = [(int(isd), int(ad))]

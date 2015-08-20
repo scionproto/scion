@@ -37,6 +37,7 @@ from ad_manager.forms import (
 from ad_manager.models import AD, ISD, PackageVersion, ConnectionRequest
 from ad_manager.util import monitoring_client
 from ad_manager.util.ad_connect import create_new_ad, link_ads
+from lib.defines import BEACON_SERVICE
 from lib.topology import Topology
 
 
@@ -103,7 +104,7 @@ def get_group_master(request, pk):
     """
     ad = get_object_or_404(AD, id=pk)
     server_type = request.GET.get('server_type', '')
-    if server_type != 'bs':
+    if server_type != BEACON_SERVICE:
         return HttpResponseNotFound('Invalid server type')
 
     md_host = ad.get_monitoring_daemon_host()

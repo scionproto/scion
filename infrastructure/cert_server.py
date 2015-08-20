@@ -29,7 +29,7 @@ import time
 # SCION
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.certificate import CertificateChain, TRC
-from lib.defines import SCION_UDP_PORT
+from lib.defines import CERTIFICATE_SERVICE, SCION_UDP_PORT
 from lib.log import init_logging, log_exception
 from lib.packet.scion import (
     CertChainReply,
@@ -77,8 +77,9 @@ class CertServer(SCIONElement):
         :param is_sim: running in simulator
         :type is_sim: bool
         """
-        SCIONElement.__init__(self, "cs", topo_file, server_id=server_id,
-                              config_file=config_file, is_sim=is_sim)
+        SCIONElement.__init__(self, CERTIFICATE_SERVICE, topo_file,
+                              server_id=server_id, config_file=config_file,
+                              is_sim=is_sim)
         self.trc = TRC(trc_file)
         self.cert_chain_requests = collections.defaultdict(list)
         self.trc_requests = collections.defaultdict(list)
@@ -95,7 +96,8 @@ class CertServer(SCIONElement):
             # incoming cert chains and TRCs
             self._state_synced = threading.Event()
             self.zk = Zookeeper(self.topology.isd_id, self.topology.ad_id,
-                                "cs", name_addrs, self.topology.zookeepers,
+                                CERTIFICATE_SERVICE, name_addrs,
+                                self.topology.zookeepers,
                                 ensure_paths=(self.ZK_CERT_CHAIN_CACHE_PATH,
                                               self.ZK_TRC_CACHE_PATH,))
             self.zk.retry("Joining party", self.zk.party_setup)
@@ -155,11 +157,16 @@ class CertServer(SCIONElement):
                 cert_chain_req.src_isd, cert_chain_req.src_ad,
                 cert_chain_req.isd_id, cert_chain_req.ad_id,
                 cert_chain_req.version)
-            dst_addr = self.ifid2addr[cert_chain_req.ingress_if]
-            self.send(new_cert_chain_req, dst_addr)
-            logging.info("New certificate chain request sent.")
+            dst_addr = self.ifid2addr.get(cert_chain_req.ingress_if)
+            if dst_addr:
+                self.send(new_cert_chain_req, dst_addr)
+                logging.info("New certificate chain request sent.")
+            else:
+                logging.warning("Certificate chain request not sent: "
+                                "no destination found")
         else:
             logging.debug('Certificate chain found.')
+            dst_addr = None
             cert_chain_rep = CertChainReply.from_values(
                 self.addr, cert_chain_req.isd_id, cert_chain_req.ad_id,
                 cert_chain_req.version, cert_chain)
@@ -172,8 +179,12 @@ class CertServer(SCIONElement):
                             cert_chain_req.src_ad ==
                             router.interface.neighbor_ad):
                         dst_addr = router.addr
-            self.send(cert_chain_rep, dst_addr)
-            logging.info("Certificate chain reply sent.")
+            if dst_addr:
+                self.send(cert_chain_rep, dst_addr)
+                logging.info("Certificate chain reply sent.")
+            else:
+                logging.warning("Certificate chain reply not sent: "
+                                "no destination found")
 
     def process_cert_chain_reply(self, cert_chain_rep):
         """
@@ -254,11 +265,15 @@ class CertServer(SCIONElement):
                 PT.TRC_REQ, self.addr, trc_req.ingress_if,
                 trc_req.src_isd, trc_req.src_ad, trc_req.isd_id,
                 trc_req.version)
-            dst_addr = self.ifid2addr[trc_req.ingress_if]
-            self.send(new_trc_req, dst_addr)
-            logging.info("New TRC request sent.")
+            dst_addr = self.ifid2addr.get(trc_req.ingress_if)
+            if dst_addr:
+                self.send(new_trc_req, dst_addr)
+                logging.info("New TRC request sent.")
+            else:
+                logging.warning("TRC request not sent: no destination found")
         else:
             logging.debug('TRC found.')
+            dst_addr = None
             trc_rep = TRCReply.from_values(self.addr, trc_req.isd_id,
                                            trc_req.version, trc)
             if get_type(trc_req) == PT.TRC_REQ_LOCAL:
@@ -270,8 +285,11 @@ class CertServer(SCIONElement):
                             trc_req.src_ad == router.interface.neighbor_ad):
                         dst_addr = router.addr
                         break
-            self.send(trc_rep, dst_addr)
-            logging.info("TRC reply sent.")
+            if dst_addr:
+                self.send(trc_rep, dst_addr)
+                logging.info("TRC reply sent.")
+            else:
+                logging.warning("TRC reply not sent: no destination found")
 
     def process_trc_reply(self, trc_rep):
         """

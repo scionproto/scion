@@ -34,7 +34,7 @@ from kazoo.exceptions import NoNodeError
 # SCION
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.hash_chain import HashChain
-from lib.defines import SCION_UDP_PORT
+from lib.defines import PATH_SERVICE, SCION_UDP_PORT
 from lib.log import init_logging, log_exception
 from lib.packet.path_mgmt import (
     LeaseInfo,
@@ -76,8 +76,9 @@ class PathServer(SCIONElement):
         :param is_sim: running in simulator
         :type is_sim: bool
         """
-        SCIONElement.__init__(self, "ps", topo_file, server_id=server_id,
-                              config_file=config_file, is_sim=is_sim)
+        SCIONElement.__init__(self, PATH_SERVICE, topo_file,
+                              server_id=server_id, config_file=config_file,
+                              is_sim=is_sim)
         # TODO replace by pathstore instance
         self.down_segments = PathSegmentDB()
         self.core_segments = PathSegmentDB()  # Direction of the propagation.
@@ -93,8 +94,8 @@ class PathServer(SCIONElement):
             name_addrs = "\0".join([self.id, str(SCION_UDP_PORT),
                                     str(self.addr.host_addr)])
             self.zk = Zookeeper(
-                self.topology.isd_id, self.topology.ad_id, "ps", name_addrs,
-                self.topology.zookeepers,
+                self.topology.isd_id, self.topology.ad_id, PATH_SERVICE,
+                name_addrs, self.topology.zookeepers,
                 ensure_paths=(self.ZK_PATH_CACHE_PATH,))
             self.zk.retry("Joining party", self.zk.party_setup)
             self._state_synced = threading.Event()
