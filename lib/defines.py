@@ -39,6 +39,15 @@ SCION_UDP_EH_DATA_PORT = 30041
 #: Default DNS UDP/TCP port
 SCION_DNS_PORT = 30053
 
+#: (Pseudo)supported layer-4 protocols, see /etc/protocols for details
+L4_PROTO = [
+    1,  # ICMP
+    6,  # TCP
+    17,  # UDP
+]
+#: Default layer-4 protocol.
+DEFAULT_L4_PROTO = 17
+
 #: Length of IPV4 address, in bytes
 IPV4BYTES = ipaddress.IPV4LENGTH // 8
 #: Length of IPV6 address, in bytes

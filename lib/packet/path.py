@@ -126,6 +126,12 @@ class PathBase(object):
         else:
             return tmp[index]
 
+    def get_ad_hops(self):
+        """
+        Return path length in AD hops.
+        """
+        return None
+
     def __str__(self):
         pass
 
@@ -251,6 +257,19 @@ class CorePath(PathBase):
             return None
         else:
             return tmp[index]
+
+    def get_ad_hops(self):
+        """
+        Return path length in AD hops.
+        """
+        active_segments = int(bool(len(self.up_segment_hops)))
+        active_segments += int(bool(len(self.core_segment_hops)))
+        active_segments += int(bool(len(self.down_segment_hops)))
+        shared_ads = 0
+        if active_segments:
+            shared_ads = active_segments - 1
+        return (len(self.up_segment_hops) + len(self.core_segment_hops) +
+                len(self.down_segment_hops) - shared_ads)
 
     @classmethod
     def from_values(cls, up_inf=None, up_hops=None,
@@ -450,6 +469,12 @@ class CrossOverPath(PathBase):
             return InfoOpaqueField.LEN + 2 * HopOpaqueField.LEN
         return 0
 
+    def get_ad_hops(self):
+        """
+        Return path length in AD hops.
+        """
+        return len(self.up_segment_hops) + len(self.down_segment_hops) - 1
+
     def __str__(self):
         s = []
         s.append("<CrossOver-Path>:\n<Up-Segment>:\n")
@@ -586,6 +611,12 @@ class PeerPath(PathBase):
         tmp.extend(self.down_segment_hops)
         return tmp[index]
 
+    def get_ad_hops(self):
+        """
+        Return path length in AD hops.
+        """
+        return len(self.up_segment_hops) + len(self.down_segment_hops) - 1
+
     def __str__(self):
         s = []
         s.append("<Peer-Path>:\n<Up-Segment>:\n")
@@ -641,6 +672,12 @@ class EmptyPath(PathBase):
 
     def get_of(self, index):
         return None
+
+    def get_ad_hops(self):
+        """
+        Return path length in AD hops.
+        """
+        return 0  # PSz: or 1?
 
     def __str__(self):
         return "<Empty-Path></Empty-Path>"
