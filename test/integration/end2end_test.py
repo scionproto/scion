@@ -182,12 +182,13 @@ class TestSCIONDaemon(unittest.TestCase):
         """
         thread = threading.current_thread()
         thread.name = "E2E.MainThread"
-        for src in sources:
-            for dst in destinations:
-                if src != dst:
-                    logging.info("Testing: %s -> %s", src, dst)
-                    src = ISD_AD(src[0], src[1])
-                    dst = ISD_AD(dst[0], dst[1])
+        failures = 0
+        for src_id in sources:
+            for dst_id in destinations:
+                if src_id != dst_id:
+                    logging.info("Testing: %s -> %s", src_id, dst_id)
+                    src = ISD_AD(*src_id)
+                    dst = ISD_AD(*dst_id)
                     token = (
                         "%s-%s<->%s-%s" % (src[0], src[1], dst[0],
                                            dst[1])
@@ -206,9 +207,10 @@ class TestSCIONDaemon(unittest.TestCase):
                             break
                     else:
                         logging.error("Test timed out")
-                        continue
+                        failures += 1
                     self.assertTrue(pong_app.ping_received)
                     self.assertTrue(ping_app.pong_received)
+        sys.exit(failures)
 
 if __name__ == "__main__":
     init_logging("../../logs/end2end.log", console=True)
