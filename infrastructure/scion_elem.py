@@ -36,8 +36,8 @@ from lib.dnsclient import DNSCachingClient, DNSLibMajorError, DNSLibMinorError
 from lib.errors import SCIONServiceLookupError
 from lib.log import log_exception
 from lib.packet.scion_addr import SCIONAddr
-from lib.topology import Topology
 from lib.thread import kill_self
+from lib.topology import Topology
 
 
 class SCIONElement(object):
@@ -45,41 +45,29 @@ class SCIONElement(object):
     Base class for the different kind of servers the SCION infrastructure
     provides.
 
-    :ivar topology: the topology of the AD as seen by the server.
-    :type topology: :class:`Topology`
-    :ivar config: the configuration of the AD in which the server is located.
-    :type config: :class:`lib.config.Config`
-    :ivar ifid2addr: a dictionary mapping interface identifiers to the
-                     corresponding border router addresses in the server's AD.
-    :type ifid2addr: dict
-    :ivar addr: a `SCIONAddr` object representing the server address.
-    :type addr: :class:`lib.packet.scion_addr.SCIONAddr`
+    :ivar `Topology` topology: the topology of the AD as seen by the server.
+    :ivar `Config` config:
+        the configuration of the AD in which the server is located.
+    :ivar dict ifid2addr:
+        a dictionary mapping interface identifiers to the corresponding border
+        router addresses in the server's AD.
+    :ivar `SCIONAddr` addr: the server's address.
     """
 
     def __init__(self, server_type, topo_file, config_file=None, server_id=None,
                  host_addr=None, is_sim=False):
         """
-        Create a new ServerBase instance.
-
-        :param server_type: a service type from
-                            :const:`lib.defines.SERVICE_TYPES`
-        :type server_type: str
-        :param topo_file: the name of the topology file.
-        :type topo_file: str
-        :param config_file: the name of the configuration file.
-        :type config_file: str
-        :param server_id: the local id of the server, e.g. for bs1-10-3, the id
-                          would be '3'. Used to look up config from topology
-                          file.
-        :type server_id: str
-        :param host_addr: the interface to bind to. Only used if server_id isn't
-                          specified.
-        :type host_addr: :class:`ipaddress._BaseAddress`
-
-        :returns: the newly-created ServerBase instance
-        :rtype: ServerBase
-        :param is_sim: running in simulator
-        :type is_sim: bool
+        :param str server_type:
+            a service type from :const:`lib.defines.SERVICE_TYPES`. E.g.
+            ``"bs"``.
+        :param str topo_file: path name of the topology file.
+        :param str config_file: path name of the configuration file.
+        :param str server_id:
+            the local id of the server. E.g. for `bs1-10-3`, the id would be
+            ``"3"``. Used to look up config from topology file.
+        :param `HostAddrBase` host_addr:
+            the interface to bind to. Only used if `server_id` isn't specified.
+        :param bool is_sim: running in simulator
         """
         self._addr = None
         self.topology = None
@@ -223,7 +211,7 @@ class SCIONElement(object):
         try:
             self._local_socket.sendto(packet.pack(), (str(dst), dst_port))
         except socket.gaierror:
-            log_exception("Addressing error when trying to send to %s:" %
+            log_exception("Addressing error when trying to send to %s:%s :" %
                           (dst, dst_port))
             kill_self()
 

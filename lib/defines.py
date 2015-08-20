@@ -17,7 +17,6 @@
 Contains constant definitions used throughout the codebase.
 """
 # Stdlib
-import ipaddress
 import os
 
 #: Max TTL of a PathSegment in realtime seconds.
@@ -47,11 +46,6 @@ L4_PROTO = [
 ]
 #: Default layer-4 protocol.
 DEFAULT_L4_PROTO = 17
-
-#: Length of IPV4 address, in bytes
-IPV4BYTES = ipaddress.IPV4LENGTH // 8
-#: Length of IPV6 address, in bytes
-IPV6BYTES = ipaddress.IPV6LENGTH // 8
 
 BEACON_SERVICE = "bs"
 CERTIFICATE_SERVICE = "cs"
