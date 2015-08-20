@@ -27,6 +27,7 @@ from kazoo.exceptions import (
     ConnectionLoss,
     LockTimeout,
     NoNodeError,
+    NodeExistsError,
     SessionExpiredError,
 )
 from kazoo.handlers.threading import KazooTimeoutError
@@ -703,6 +704,17 @@ class TestZookeeperStoreSharedItems(BaseZookeeper):
     def test_create_exception(self):
         for i in ConnectionLoss, SessionExpiredError:
             yield self._check_create_exception, i
+
+    @patch("lib.zookeeper.Zookeeper.__init__", autospec=True, return_value=None)
+    def test_create_exists(self, init):
+        inst = self._init_basic_setup()
+        inst.is_connected = create_mock()
+        inst._prefix = "/prefix"
+        inst._zk = create_mock(["create", "set"])
+        inst._zk.set.side_effect = NoNodeError
+        inst._zk.create.side_effect = NodeExistsError
+        # Call
+        inst.store_shared_item('p', 'n', 'v')
 
 
 class TestZookeeperGetSharedItem(BaseZookeeper):
