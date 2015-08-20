@@ -1348,6 +1348,7 @@ class LocalBeaconServer(BeaconServer):
         Register the paths to the core.
         """
         best_segments = self.up_segments.get_best_segments()
+        logging.debug("register_up_segments: best: %s", len(best_segments))
         for pcb in best_segments:
             pcb = self._terminate_pcb(pcb)
             pcb.remove_signatures()
@@ -1364,6 +1365,7 @@ class LocalBeaconServer(BeaconServer):
         Register the paths from the core.
         """
         best_segments = self.down_segments.get_best_segments()
+        logging.debug("register_down_segments: best: %s", len(best_segments))
         for pcb in best_segments:
             pcb = self._terminate_pcb(pcb)
             pcb.remove_signatures()

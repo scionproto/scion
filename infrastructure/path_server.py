@@ -793,7 +793,9 @@ class LocalPathServer(PathServer):
         """
         records = pkt.payload
         if not records.pcbs:
+            logging.info("_handle_up_segment_record: no pcbs")
             return
+        logging.info("_handle_up_segment_record: %s pcbs", len(records.pcbs))
         for pcb in records.pcbs:
             assert pcb.segment_id != 32 * b"\x00", \
                 "Trying to register a segment with ID 0:\n%s" % pcb
@@ -806,6 +808,10 @@ class LocalPathServer(PathServer):
                 logging.info("Up-Segment to (%d, %d) registered.",
                              pcb.get_first_pcbm().isd_id,
                              pcb.get_first_pcbm().ad_id)
+            else:
+                logging.debug("Duplicate up-segment to (%d, %d) ignored.",
+                              pcb.get_first_pcbm().isd_id,
+                              pcb.get_first_pcbm().ad_id)
         # Sending pending targets to the core using first registered up-path.
         if self.waiting_targets:
             pcb = records.pcbs[0]
@@ -836,7 +842,9 @@ class LocalPathServer(PathServer):
         """
         records = pkt.payload
         if not records.pcbs:
+            logging.info("_handle_up_segment_record: no pcbs")
             return
+        logging.info("_handle_up_segment_record: %s pcbs", len(records.pcbs))
         leases = []
         for pcb in records.pcbs:
             assert pcb.segment_id != 32 * b"\x00", \
@@ -858,6 +866,10 @@ class LocalPathServer(PathServer):
                                               pcb.segment_id)
                 leases.append(lease)
                 logging.info("Down-Segment registered (%d, %d) -> (%d, %d)",
+                             src_isd, src_ad, dst_isd, dst_ad)
+            else:
+                logging.info("Duplicate down-segment ignored "
+                             "(%d, %d) -> (%d, %d)",
                              src_isd, src_ad, dst_isd, dst_ad)
         # Send leases to CPS
         if leases:
