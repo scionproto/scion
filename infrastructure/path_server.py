@@ -51,8 +51,8 @@ from lib.packet.path_mgmt import (
 from lib.packet.scion_addr import ISD_AD
 from lib.path_db import DBResult, PathSegmentDB
 from lib.thread import thread_safety_net
-from lib.util import SCIONTime, handle_signals, trace, timed, update_dict
-from lib.zookeeper import ZkConnectionLoss, ZkNoNodeError, Zookeeper
+from lib.util import SCIONTime, handle_signals, trace, update_dict
+from lib.zookeeper import ZkConnectionLoss, Zookeeper
 
 
 class PathServer(SCIONElement):
@@ -93,15 +93,20 @@ class PathServer(SCIONElement):
             # Add more IPs here if we support dual-stack
             name_addrs = "\0".join([self.id, str(SCION_UDP_PORT),
                                     str(self.addr.host_addr)])
+            self._state_synced = threading.Event()
             self.zk = Zookeeper(
                 self.topology.isd_id, self.topology.ad_id, PATH_SERVICE,
                 name_addrs, self.topology.zookeepers,
-                ensure_paths=(self.ZK_PATH_CACHE_PATH,))
+                handle_paths=[(self.ZK_PATH_CACHE_PATH,
+                               self._cached_entries_handler,
+                               self._state_synced)])
             self.zk.retry("Joining party", self.zk.party_setup)
-            self._state_synced = threading.Event()
-            self._latest_entry = 0
-            # Function that handles segments from ZK. Depends on server's type.
-            self._cached_entries_handler = None
+
+    def _cached_entries_handler(self, raw_entries):
+        """
+        Handles cached through ZK entries, passed as a list.
+        """
+        pass
 
     def _add_if_mappings(self, pcb):
         """
@@ -224,91 +229,6 @@ class PathServer(SCIONElement):
         else:
             logging.warning("Type %d not supported.", pkt.type)
 
-    # FIXME: move to lib? That code highly replicates Stephen's code from BS.
-    def handle_shared_segments(self):
-        """
-        A thread to handle Zookeeper connects/disconnects and the shared cache
-        of segments.
-
-        On connect, it registers us as in-service, and loads the shared cache
-        of segments from ZK, so that we have enough context to handle endhost
-        requests.
-
-        While connected, it calls _read_cached_entries() to read updated
-        segments from the cache.
-        """
-        while True:
-            if not self.zk.is_connected():
-                self._state_synced.clear()
-                self.zk.wait_connected()
-            else:
-                time.sleep(0.5)
-            try:
-                if not self._state_synced.is_set():
-                    # Make sure we re-read the entire cache
-                    self._latest_entry = 0
-                count = self._read_cached_entries()
-                if count:
-                    logging.debug("Processed %d new/updated segments", count)
-            except ZkConnectionLoss:
-                self._state_synced.clear()
-                continue
-            self._state_synced.set()
-
-    def _read_cached_entries(self):
-        """
-        Read new/updated entries from the shared cache and send them for
-        processing.
-        """
-        desc = "Fetching list of segments from shared cache"
-        entries_meta = self.zk.get_shared_metadata(self.ZK_PATH_CACHE_PATH,
-                                                   timed_desc=desc)
-        if not entries_meta:
-            return 0
-        new = []
-        newest = 0
-        for entry, meta in entries_meta:
-            if meta.last_modified > self._latest_entry:
-                new.append(entry)
-            if meta.last_modified > newest:
-                newest = meta.last_modified
-        self._latest_entry = newest
-        desc = "Processing %s new segments from shared path" % len(new)
-        count = self._process_cached_segments(new, timed_desc=desc)
-        return count
-
-    @timed(1.0)
-    def _process_cached_segments(self, entries):
-        """
-        Retrieve new beacons from the shared cache and send them for local
-        processing.
-
-        :param entries: cached path segments.
-        :param entries: list
-        """
-        # TODO(kormat): move constant to proper place
-        chunk_size = 10
-        segments = []
-        for i in range(0, len(entries), chunk_size):
-            for entry in entries[i:i + chunk_size]:
-                try:
-                    raw = self.zk.get_shared_item(self.ZK_PATH_CACHE_PATH,
-                                                  entry)
-                except ZkConnectionLoss:
-                    logging.warning("Unable to retrieve segments from "
-                                    "shared cache: no connection to ZK")
-                    break
-                except ZkNoNodeError:
-                    logging.debug("Unable to retrieve segments from shared "
-                                  "cache: no such entry (%s/%s)" %
-                                  (self.ZK_PATH_CACHE_PATH, entry))
-                    continue
-                segments.append(PathMgmtPacket(raw=raw))
-        # Register handled segments
-        for seg in segments:
-            self._cached_entries_handler(seg, True)
-        return len(segments)
-
     def _share_segments(self, pkt):
         """
         TODO: change to packet.pcb ?
@@ -327,10 +247,8 @@ class PathServer(SCIONElement):
         """
         Run an instance of the local Path Server.
         """
-        threading.Thread(
-            target=thread_safety_net, args=(self.handle_shared_segments,),
-            name="PS.handle_shared_segments", daemon=True).start()
-
+        # Run shared paths handling.
+        self.zk.run_shared_cache_handling()
         SCIONElement.run(self)
 
 
@@ -495,8 +413,10 @@ class CorePathServer(PathServer):
             self.core_ads.add((router.interface.neighbor_isd,
                                router.interface.neighbor_ad))
         self._master_id = None  # Address of master core Path Server.
-        # Core Path server through ZK replicates core segments.
-        self._cached_entries_handler = self._handle_core_segment_record
+
+    def _cached_entries_handler(self, raw_entries):
+        for entry in raw_entries:
+            self._handle_core_segment_record(PathMgmtPacket(raw=entry))
 
     def _master_election(self):
         """
@@ -1038,8 +958,10 @@ class LocalPathServer(PathServer):
         # Database of up-segments to the core.
         self.up_segments = PathSegmentDB()
         self.pending_up = []  # List of pending UP requests.
-        # Core Path server through ZK replicates up segments.
-        self._cached_entries_handler = self._handle_up_segment_record
+
+    def _cached_entries_handler(self, raw_entries):
+        for entry in raw_entries:
+            self._handle_up_segment_record(PathMgmtPacket(raw=entry), True)
 
     def _send_leases(self, orig_pkt, leases):
         """
