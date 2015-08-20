@@ -183,12 +183,12 @@ class TestSCIONDaemon(unittest.TestCase):
         thread = threading.current_thread()
         thread.name = "E2E.MainThread"
         failures = 0
-        for src in sources:
-            for dst in destinations:
-                if src != dst:
-                    logging.info("Testing: %s -> %s", src, dst)
-                    src = ISD_AD(src[0], src[1])
-                    dst = ISD_AD(dst[0], dst[1])
+        for src_id in sources:
+            for dst_id in destinations:
+                if src_id != dst_id:
+                    logging.info("Testing: %s -> %s", src_id, dst_id)
+                    src = ISD_AD(*src_id)
+                    dst = ISD_AD(*dst_id)
                     token = (
                         "%s-%s<->%s-%s" % (src[0], src[1], dst[0],
                                            dst[1])
