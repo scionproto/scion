@@ -45,7 +45,6 @@ class TracerouteExt(HopByHopExtension):
         :type raw:
         """
         self.hops = []
-        self.hops_no = 0
         super().__init__()
         if raw is not None:
             # Parse metadata and payload
@@ -53,7 +52,7 @@ class TracerouteExt(HopByHopExtension):
             # Now parse payload
             self.parse_payload()
         else:
-            self.set_payload(b"\x00" * (1 + self.PADDING_LEN))
+            self.set_payload(bytes(1 + self.PADDING_LEN))
 
     @classmethod
     def from_values(cls, max_hops_no):
@@ -70,23 +69,22 @@ class TracerouteExt(HopByHopExtension):
         """
         data = Raw(self.payload, "TracerouteExt")
         # Read number of hops.
-        self.hops_no = data.pop(1)
+        hops_no = data.pop(1)
         # Drop padding from the first row.
         data.pop(self.PADDING_LEN)
-        for _ in range(self.hops_no):
+        for _ in range(hops_no):
             isd, ad = ISD_AD.from_raw(data.pop(ISD_AD.LEN))  # 4 bytes
             if_id, timestamp = struct.unpack("!HH", data.pop(self.HOP_LEN -
                                                              ISD_AD.LEN))
-            self.hops.append((isd, ad, if_id, timestamp))
+            self.append_hop(isd, ad, if_id, timestamp)
 
     def append_hop(self, isd, ad, if_id, timestamp):
         """
         Append hop's information as a new field in the extension.
         """
         # Check whether
-        assert self.hops_no < self._hdr_len
+        assert len(self.hops) < self._hdr_len
         self.hops.append((isd, ad, if_id, timestamp))
-        self.hops_no += 1
 
     def pack(self):
         """
@@ -95,16 +93,14 @@ class TracerouteExt(HopByHopExtension):
         :returns:
         :rtype:
         """
-        hops_packed = [struct.pack("!B", self.hops_no)]
+        hops_packed = [struct.pack("!B", len(self.hops))]
         hops_packed += [b"\x00" * self.PADDING_LEN]  # Padding.
         for isd, ad, if_id, timestamp in self.hops:
-            # Pack ISD and AD.
-            tmp = ISD_AD(isd, ad).pack()
-            # Pack if_id and timestamp.
-            tmp += struct.pack("!HH", if_id, timestamp)
-            hops_packed.append(tmp)
+            # Pack ISD, AD, if_id, and timestamp.
+            hops_packed.append(ISD_AD(isd, ad).pack() +
+                               struct.pack("!HH", if_id, timestamp))
         # Compute and set padding for the rest of the payload.
-        pad_hops = self._hdr_len - self.hops_no
+        pad_hops = self._hdr_len - len(self.hops)
         hops_packed.append(b"\x00" * self.HOP_LEN * pad_hops)
         self.set_payload(b"".join(hops_packed))
         return super().pack()
@@ -117,7 +113,7 @@ class TracerouteExt(HopByHopExtension):
         """
         tmp = ["[Traceroute Ext - start]"]
         tmp.append("  [next_hdr:%d ext_no:%d hop:%d len:%d]" %
-                   (self.next_hdr, self.EXT_TYPE, self.hops_no, len(self)))
+                   (self.next_hdr, self.EXT_TYPE, len(self.hops), len(self)))
         for hops in self.hops:
             tmp.append("    ISD:%d AD:%d IFID:%d TS:%d" % hops)
         tmp.append("[Traceroute Ext - end]")

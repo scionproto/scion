@@ -36,7 +36,6 @@ class TestTracerouteExtInit(object):
     def test_basic(self, hopbyhop_init, set_payload):
         ext = TracerouteExt()
         ntools.eq_(ext.hops, [])
-        ntools.eq_(ext.hops_no, 0)
         hopbyhop_init.assert_called_once_with(ext)
         set_payload.assert_called_once_with(ext,
                                             b"\x00" * (1 + ext.PADDING_LEN))
@@ -61,6 +60,7 @@ class TestTracerouteExtParsePayload(object):
            new_callable=MagicMock)
     def test(self, isd_ad):
         ext = TracerouteExt()
+        ext._hdr_len = 2
         ext.hops = []
         ext.payload = (b"\x02" + b'\x00' * 4 +
                        bytes.fromhex('0102 0304 0506 0708') * 2)
@@ -76,13 +76,11 @@ class TestTracerouteExtAppendHop(object):
     """
     def test(self):
         ext = TracerouteExt()
-        ext.hops_no = 0
         ext.hops = [1]
         ext._hdr_len = 2
         ext.append_hop(3, 4, 5, 6)
         ntools.eq_(ext.hops, [1, (3, 4, 5, 6)])
         ntools.eq_(ext._hdr_len, 2)
-        ntools.eq_(ext.hops_no, 1)
 
 
 class TestTracerouteExtPack(object):
@@ -95,7 +93,6 @@ class TestTracerouteExtPack(object):
         isd_ad_mock = isd_ad.return_value = MagicMock(spec_set=['pack'])
         isd_ad_mock.pack.side_effect = [b'ad_1', b'ad_2']
         ext = TracerouteExt.from_values(2)
-        ext.hops_no = 2
         ext.hops = [(1, 2, 3, 4), (5, 6, 7, 8)]
         payload = (b'\x02' + b'\x00' * 4 + b'ad_1' +
                    bytes.fromhex('0003 0004') + b'ad_2' +

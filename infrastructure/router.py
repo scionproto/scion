@@ -128,14 +128,8 @@ class Router(SCIONElement):
         assert self.interface is not None
         logging.info("Interface: %s", self.interface.__dict__)
         self.of_gen_key = get_roundkey_cache(self.config.master_ad_key)
-        if pre_ext_handlers:
-            self.pre_ext_handlers = pre_ext_handlers
-        else:
-            self.pre_ext_handlers = {}
-        if post_ext_handlers:
-            self.post_ext_handlers = post_ext_handlers
-        else:
-            self.post_ext_handlers = {}
+        self.pre_ext_handlers = pre_ext_handlers or {}
+        self.post_ext_handlers = post_ext_handlers or {}
         if not is_sim:
             self._remote_socket = socket.socket(socket.AF_INET,
                                                 socket.SOCK_DGRAM)
