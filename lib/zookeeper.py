@@ -82,8 +82,7 @@ class Zookeeper(object):
 
     def __init__(self, isd_id, ad_id, srv_type, srv_id,
                  zk_hosts, timeout=1.0, on_connect=None,
-                 on_disconnect=None, handle_paths=None,
-                 state_synced=None):
+                 on_disconnect=None, handle_paths=None):
         """
         Setup the Zookeeper connection.
 
@@ -99,9 +98,10 @@ class Zookeeper(object):
                            Zookeeper.
         :param on_disconnect: A function called everytime a connection is lost
                               to Zookeeper.
-        :param tuple handle_paths: A list of tuples of ZK paths, and their
-                                   corresponding handler functions. It is
-                                   ensured that paths exist on connect.
+        :param tuple handle_paths: A list of tuples of ZK paths, their
+                                   corresponding handler functions, and sync
+                                   states. It is ensured that paths exist on
+                                   connect.
         """
         self._isd_id = isd_id
         self._ad_id = ad_id
@@ -111,7 +111,7 @@ class Zookeeper(object):
         self._on_disconnect = on_disconnect
         self.shared_caches = []
         if handle_paths:
-            for path, handler in handle_paths:
+            for path, handler, state_synced  in handle_paths:
                 shared_cache = ZkSharedCache(self, path, handler, state_synced)
                 self.shared_caches.append(shared_cache)
         self._prefix = "/ISD%d-AD%d/%s" % (
@@ -130,8 +130,6 @@ class Zookeeper(object):
         self._kazoo_setup(zk_hosts)
         self._setup_state_listener()
         self._kazoo_start()
-        # Start handling shared paths.
-        self._run_shared_cache_handling()
 
     def _kazoo_setup(self, zk_hosts):
         """
@@ -501,7 +499,7 @@ class Zookeeper(object):
         raise ZkRetryLimit("%s: Failed %s times, giving up" %
                            (desc, 1+_retries))
 
-    def _run_shared_cache_handling(self):
+    def run_shared_cache_handling(self):
         for shared_cache in self.shared_caches:
             shared_cache.run()
 
@@ -575,7 +573,6 @@ class ZkSharedCache(object):
         from the cache.
         """
         while True:
-            logging.debug("handle_shared_entries")
             if not self.zk.is_connected():
                 self._state_synced.clear()
                 self.zk.wait_connected()
@@ -613,7 +610,6 @@ class ZkSharedCache(object):
                 newest = meta.last_modified
         self._latest_entry = newest
         desc = "Processing %s new entries from shared path" % len(new)
-        logging.debug(desc)
         count = self._process_cached_entries(new, timed_desc=desc)
         return count
 
@@ -628,7 +624,7 @@ class ZkSharedCache(object):
         """
         # TODO(kormat): move constant to proper place
         chunk_size = 10
-        entries = []
+        new_entries = []
         for i in range(0, len(entries), chunk_size):
             for entry in entries[i:i + chunk_size]:
                 try:
@@ -642,9 +638,9 @@ class ZkSharedCache(object):
                                   "no such entry (%s/%s)" %
                                   (self.path, entry))
                     continue
-                entries.append(raw)
-        self.handler(entries)
-        return len(entries)
+                new_entries.append(raw)
+        self.handler(new_entries)
+        return len(new_entries)
 
     def run(self):
         """

@@ -180,7 +180,6 @@ class PathServer(SCIONElement):
         """
         Dispatches path record packet.
         """
-        logging.debug("Path registered")
         assert isinstance(pkt.payload, PathSegmentRecords)
         if pkt.payload.info.type == PST.UP:
             self._handle_up_segment_record(pkt)

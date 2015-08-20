@@ -254,7 +254,6 @@ class Router(SCIONElement):
             if self.interface.if_id != beacon.pcb.get_last_pcbm().hof.egress_if:
                 logging.error("Wrong interface set by BS.")
                 return
-            logging.debug("PCB to ER")
             self.send(beacon, self.interface.to_addr,
                       self.interface.to_udp_port, False)
         else:
@@ -264,7 +263,6 @@ class Router(SCIONElement):
             except SCIONServiceLookupError as e:
                 logging.error("Unable to deliver PCB: %s", e)
                 return
-            logging.debug("PCB to beacon server")
             self.send(beacon, bs_addr)
 
     def relay_cert_server_packet(self, spkt, from_local_ad):

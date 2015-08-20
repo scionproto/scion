@@ -230,8 +230,8 @@ class BeaconServer(SCIONElement):
             self.zk = Zookeeper(
                 self.topology.isd_id, self.topology.ad_id, BEACON_SERVICE,
                 name_addrs, self.topology.zookeepers,
-                handle_paths=[(self.ZK_PCB_CACHE_PATH, self.process_pcbs)],
-                state_synced=self._state_synced)
+                handle_paths=[(self.ZK_PCB_CACHE_PATH, self.process_pcbs,
+                               self._state_synced)])
             self.zk.retry("Joining party", self.zk.party_setup)
 
     def _get_if_rev_token(self, if_id):
@@ -324,7 +324,6 @@ class BeaconServer(SCIONElement):
             return
         hops_hash = beacon.pcb.get_hops_hash(hex=True)
         try:
-            logging.debug("Storing in ZK")
             self.zk.store_shared_item(
                 self.ZK_PCB_CACHE_PATH,
                 hops_hash, beacon.pcb.pack())
@@ -452,6 +451,8 @@ class BeaconServer(SCIONElement):
         #  threading.Thread(
         #    target=thread_safety_net, args=(self._handle_if_timeouts,),
         #    name="BS._handle_if_timeouts", daemon=True).start()
+        # Run shared paths handling.
+        self.zk.run_shared_cache_handling()
         SCIONElement.run(self)
 
     def _try_to_verify_beacon(self, pcb):
