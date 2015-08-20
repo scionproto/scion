@@ -324,6 +324,7 @@ class BeaconServer(SCIONElement):
             return
         hops_hash = beacon.pcb.get_hops_hash(hex=True)
         try:
+            logging.debug("Storing in ZK")
             self.zk.store_shared_item(
                 self.ZK_PCB_CACHE_PATH,
                 hops_hash, beacon.pcb.pack())
@@ -1218,6 +1219,7 @@ class LocalBeaconServer(BeaconServer):
         """
         Once a beacon has been verified, place it into the right containers.
         """
+        logging.debug("_handle_verified_beacon")
         self.beacons.add_segment(pcb)
         self.up_segments.add_segment(pcb)
         self.down_segments.add_segment(pcb)

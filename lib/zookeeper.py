@@ -570,6 +570,7 @@ class ZkSharedCache(object):
         from the cache.
         """
         while True:
+            logging.debug("handle_shared_entries")
             if not self.zk.is_connected():
                 self._state_synced.clear()
                 self.zk.wait_connected()
@@ -607,6 +608,7 @@ class ZkSharedCache(object):
                 newest = meta.last_modified
         self._latest_entry = newest
         desc = "Processing %s new entries from shared path" % len(new)
+        logging.debug(desc)
         count = self._process_cached_entries(new, timed_desc=desc)
         return count
 
