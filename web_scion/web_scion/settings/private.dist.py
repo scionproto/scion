@@ -1,16 +1,19 @@
-import os
+from .base import *
 
-WEB_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# SECURITY WARNING: don't run with debug turned on in production!
+DEBUG = True
+TEMPLATE_DEBUG = True
+ALLOWED_HOSTS = []
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'j(ssxvxi!8t)-p80t3&(va2oa510%4q)j$njf(zius3fasdfasdfas'
+SECRET_KEY = 'CHANGE_THIS!xxxxxxxxxxxxxxxxxx'
 
 # Database
 # https://docs.djangoproject.com/en/1.7/ref/settings/#databases
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(WEB_DIR, 'db.sqlite3'),
+        'NAME': os.path.join(WEB_SCION_DIR, 'db.sqlite3'),
     }
 }
 
@@ -28,7 +31,7 @@ DATABASES = {
 }
 """
 
-INSTALLED_APPS_LOCAL = (
+INSTALLED_APPS += (
     # 'debug_toolbar',
 )
 

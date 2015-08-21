@@ -19,9 +19,11 @@ sudo docker rm scion-postgres &> /dev/null || true
 echo "Container id:"
 POSTGRES_PASS=postgres
 sudo docker run --name scion-postgres -e POSTGRES_PASSWORD=$POSTGRES_PASS -d -p $CONTAINER_PORT:5432 postgres
+echo 'Waiting while the database server is up...'
 sleep 5
 
 # Create db
+echo 'Creating the database...'
 sudo docker exec scion-postgres createdb -U postgres $DB_NAME
 
 # Add a user
@@ -33,6 +35,7 @@ CREATE_SQL="
 sudo docker exec scion-postgres psql -U postgres -h localhost -c "$CREATE_SQL"
 
 # Run migrations
+echo 'Running migrations...'
 python3 ../manage.py migrate
 
 # Seed the db

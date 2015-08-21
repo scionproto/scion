@@ -11,28 +11,16 @@ https://docs.djangoproject.com/en/1.7/ref/settings/
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 import os
 import sys
+from os.path import dirname as dir
 from django.contrib import messages
 from django.conf.global_settings import TEMPLATE_CONTEXT_PROCESSORS as TCP
 
-WEB_SCION_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SCION_ROOT = os.path.dirname(WEB_SCION_DIR)
+WEB_SCION_DIR = dir(dir(dir(os.path.abspath(__file__))))
+SCION_ROOT = dir(WEB_SCION_DIR)
 sys.path.insert(0, SCION_ROOT)
-
-try:
-    from .settings_private import *  # noqa
-except ImportError:
-    sys.exit("No private settings file found (settings_private.py). "
-             "Use settings_private.dist.py as a template.")
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.7/howto/deployment/checklist/
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-TEMPLATE_DEBUG = True
-
-ALLOWED_HOSTS = []
 
 
 # Application definition
@@ -52,7 +40,7 @@ INSTALLED_APPS = (
     'django_otp.plugins.otp_static',
     'django_otp.plugins.otp_totp',
     'two_factor',
-) + INSTALLED_APPS_LOCAL
+)
 
 MIDDLEWARE_CLASSES = (
     'django.contrib.sessions.middleware.SessionMiddleware',

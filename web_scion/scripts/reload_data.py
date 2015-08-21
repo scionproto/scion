@@ -23,7 +23,7 @@ from lib.topology import Topology
 from lib.util import load_json_file
 
 # Set up the Django environment
-os.environ['DJANGO_SETTINGS_MODULE'] = 'web_scion.settings'
+os.environ['DJANGO_SETTINGS_MODULE'] = 'web_scion.settings.private'
 sys.path.insert(0, WEB_SCION_DIR)
 django.setup()
 
@@ -108,7 +108,6 @@ def reload_data():
         isd = ISD(id=isd_id)
         isd.save()
         isds[isd_id] = isd
-    print(isds)
 
     # First, save all add ADs to avoid IntegrityError
     report_ranges = {int(ad_num / 10.0 * x): x * 10 for x in range(1, 11)}

@@ -8,7 +8,7 @@
 
 2. Copy the private settings file, update it if necessary
 
-    `cp web_scion/settings_private.py.dist web_scion/settings_private.py`
+    `cp web_scion/settings/private.dist.py web_scion/settings/private.py`
 
 2. Run migrations
 
