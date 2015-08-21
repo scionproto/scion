@@ -330,6 +330,7 @@ class BeaconServer(SCIONElement):
         except ZkConnectionLoss:
             logging.warning("Unable to store PCB in shared path: "
                             "no connection to ZK")
+            self.process_pcbs([beacon.pcb.pack()])  # FIXME(PSz): testing
             return
 
     def process_pcbs(self, pcbs):
@@ -722,6 +723,31 @@ class BeaconServer(SCIONElement):
             sleep_interval(start_time, self.IF_TIMEOUT_INTERVAL,
                            "Handle IF timeouts")
 
+    def should_propagate(self, master):
+        """
+        Decide whether should propagate.
+        """
+        # Propagate if there is only single BS.
+        if len(self.topology.beacon_servers) == 1:
+            return True
+        # Propagate if disconnected with ZK.
+        if not self.zk.is_connected():
+            return True
+        # Wait until we have enough context to be a useful master
+        # candidate.
+        self._state_synced.wait()
+        if not master:
+            logging.debug("Trying to become master")
+        if not self.zk.get_lock():
+            if master:
+                logging.debug("No longer master")
+                master = False
+            return False
+        if not master:
+            logging.debug("Became master")
+            master = True
+            return True
+
 
 class CoreBeaconServer(BeaconServer):
     """
@@ -799,19 +825,8 @@ class CoreBeaconServer(BeaconServer):
         """
         master = False
         while True:
-            # Wait until we have enough context to be a useful master
-            # candidate.
-            self._state_synced.wait()
-            if not master:
-                logging.debug("Trying to become master")
-            if not self.zk.get_lock():
-                if master:
-                    logging.debug("No longer master")
-                    master = False
+            if not self.should_propagate(master):
                 continue
-            if not master:
-                logging.debug("Became master")
-                master = True
             start_propagation = SCIONTime.get_time()
             # Create beacon for downstream ADs.
             downstream_pcb = PathSegment()
@@ -851,14 +866,17 @@ class CoreBeaconServer(BeaconServer):
             logging.info("Path registration unwanted, leaving"
                          "register_segments")
             return
+        master = False
         while True:
-            lock = self.zk.have_lock()
-            if not lock:
-                logging.debug("register_segments: waiting for lock")
-            self.zk.wait_lock()
-            if not lock:
-                logging.debug("register_segments: have lock")
-                lock = True
+            # lock = self.zk.have_lock()
+            # if not lock:
+            #     logging.debug("register_segments: waiting for lock")
+            # self.zk.wait_lock()
+            # if not lock:
+            #     logging.debug("register_segments: have lock")
+            #     lock = True
+            if not self.should_propagate(master):
+                continue
             start_registration = SCIONTime.get_time()
             self.register_core_segments()
             sleep_interval(start_registration, self.config.registration_time,
@@ -1118,14 +1136,17 @@ class LocalBeaconServer(BeaconServer):
             logging.info("Path registration unwanted, "
                          "leaving register_segments")
             return
+        master = False
         while True:
-            lock = self.zk.have_lock()
-            if not lock:
-                logging.debug("register_segements: waiting for lock")
-            self.zk.wait_lock()
-            if not lock:
-                logging.debug("register_segments: have lock")
-                lock = True
+            if not self.should_propagate(master):
+                continue
+            # lock = self.zk.have_lock()
+            # if not lock:
+            #     logging.debug("register_segements: waiting for lock")
+            # self.zk.wait_lock()
+            # if not lock:
+            #     logging.debug("register_segments: have lock")
+            #     lock = True
             start_registration = SCIONTime.get_time()
             self.register_up_segments()
             self.register_down_segments()
@@ -1229,19 +1250,8 @@ class LocalBeaconServer(BeaconServer):
         # TODO: define function that dispatches the pcbs among the interfaces
         master = False
         while True:
-            # Wait until we have enough context to be a useful master
-            # candidate.
-            self._state_synced.wait()
-            if not master:
-                logging.debug("Trying to become master")
-            if not self.zk.get_lock():
-                if master:
-                    logging.debug("No longer master")
-                    master = False
+            if not self.should_propagate(master):
                 continue
-            if not master:
-                logging.debug("Became master")
-                master = True
             start_propagation = SCIONTime.get_time()
             best_segments = self.beacons.get_best_segments()
             for pcb in best_segments:

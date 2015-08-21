@@ -446,7 +446,8 @@ class CorePathServer(PathServer):
         while True:
             curr_master = self._get_master_id()
             # TODO: we could discuss this behaviour.
-            if curr_master and curr_master != self._master_id:
+            # if curr_master and curr_master != self._master_id:
+            if curr_master != self._master_id:
                 self._master_id = curr_master
                 logging.debug("New master is: %s", self._master_id)
                 if not self._is_master():
@@ -459,6 +460,7 @@ class CorePathServer(PathServer):
         """
         # TODO(PSz): send all local down- and (?) core-paths to the new master,
         # consider some easy mechanisms for avoiding registration storm.
+        # check whether master exists
         logging.debug("TODO: Syncing with %s", self._master_id)
         pass
 
