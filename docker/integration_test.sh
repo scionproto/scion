@@ -6,6 +6,19 @@ log() {
 
 set -o pipefail
 
+count=0
+while true; do
+    log "Waiting for host ZK to be up (count:$count)"
+    { echo "ruok" | nc localhost 2181 | grep -q 'imok'; } && break
+    count=$((count+1))
+    if [ $count -gt 20 ]; then
+        log "Host ZK failed to come up within 1 minute"
+        exit 1
+    fi
+    sleep 3
+done
+log "Host ZK up"
+
 log "Starting scion"
 ./scion.sh run | grep -v "RUNNING"
 log "Scion status:"
