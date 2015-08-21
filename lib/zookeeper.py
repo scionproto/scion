@@ -109,11 +109,11 @@ class Zookeeper(object):
         self._timeout = timeout
         self._on_connect = on_connect
         self._on_disconnect = on_disconnect
-        self.shared_caches = []
+        self._shared_caches = []
         if handle_paths:
             for path, handler, state_synced in handle_paths:
                 shared_cache = ZkSharedCache(self, path, handler, state_synced)
-                self.shared_caches.append(shared_cache)
+                self._shared_caches.append(shared_cache)
         self._prefix = "/ISD%d-AD%d/%s" % (
             self._isd_id, self._ad_id, srv_type)
         # Keep track of our connection state
@@ -215,7 +215,7 @@ class Zookeeper(object):
                       hex(self._zk.client_id[0]))
         try:
             self.ensure_path(self._prefix, abs=True)
-            for shared_cache in self.shared_caches:
+            for shared_cache in self._shared_caches:
                 self.ensure_path(shared_cache.path)
             for party in self._parties.values():
                 party.autojoin()
@@ -500,7 +500,7 @@ class Zookeeper(object):
                            (desc, 1+_retries))
 
     def run_shared_cache_handling(self):
-        for shared_cache in self.shared_caches:
+        for shared_cache in self._shared_caches:
             shared_cache.run()
 
 
@@ -557,9 +557,8 @@ class ZkSharedCache(object):
     """
     def __init__(self, zk, path, handler, state_synced):
         """
-        :param zk: A kazoo instance
-        :param str path: The absolute path of the party
-        :param str id_: The service id value to use in the party
+        :param Zookeeper zk: A Zookeeper instance
+        :param str path: The absolute path of the cache
         :param function handler: Handler for a list of cached objects
         :param threading.Event state_synced: state for synchronization
         """
@@ -586,13 +585,14 @@ class ZkSharedCache(object):
                 self.zk.wait_connected()
             else:
                 time.sleep(0.5)
-            try:
                 if not self._state_synced.is_set():
                     # Make sure we re-read the entire cache
                     self._latest_entry = 0
+            try:
                 count = self._read_cached_entries()
                 if count:
-                    logging.debug("Processed %d new/updated entries", count)
+                    logging.debug("Processed %d new/updated entries from %s",
+                                  count, self.path)
             except ZkConnectionLoss:
                 self._state_synced.clear()
                 continue
@@ -603,7 +603,7 @@ class ZkSharedCache(object):
         Read new/updated entries from the shared cache and send them for
         processing.
         """
-        desc = "Fetching list of entries from shared cache"
+        desc = "Fetching list of entries from shared path: %s" % self.path
         entries_meta = self.zk.get_shared_metadata(
             self.path,
             timed_desc=desc)
@@ -617,7 +617,8 @@ class ZkSharedCache(object):
             if meta.last_modified > newest:
                 newest = meta.last_modified
         self._latest_entry = newest
-        desc = "Processing %s new entries from shared path" % len(new)
+        desc = "Processing %s new entries from shared path: %s" % (len(new),
+                                                                   self.path)
         count = self._process_cached_entries(new, timed_desc=desc)
         return count
 
@@ -631,22 +632,20 @@ class ZkSharedCache(object):
         :param entries: list
         """
         # TODO(kormat): move constant to proper place
-        chunk_size = 10
         new_entries = []
-        for i in range(0, len(entries), chunk_size):
-            for entry in entries[i:i + chunk_size]:
-                try:
-                    raw = self.zk.get_shared_item(self.path, entry)
-                except ZkConnectionLoss:
-                    logging.warning("Unable to retrieve entry from shared "
-                                    "cache: no connection to ZK")
-                    break
-                except ZkNoNodeError:
-                    logging.debug("Unable to retrieve entry from shared cache: "
-                                  "no such entry (%s/%s)" %
-                                  (self.path, entry))
-                    continue
-                new_entries.append(raw)
+        for entry in entries:
+            try:
+                raw = self.zk.get_shared_item(self.path, entry)
+            except ZkConnectionLoss:
+                logging.warning("Unable to retrieve entry from shared "
+                                "path %s: no connection to ZK" % self.path)
+                break
+            except ZkNoNodeError:
+                logging.debug("Unable to retrieve entry from shared cache: "
+                              "no such entry (%s/%s)" %
+                              (self.path, entry))
+                continue
+            new_entries.append(raw)
         self.handler(new_entries)
         return len(new_entries)
 

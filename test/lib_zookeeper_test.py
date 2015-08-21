@@ -61,12 +61,13 @@ class TestZookeeperInit(BaseZookeeper):
     """
     Unit tests for lib.zookeeper.Zookeeper.__init__
     """
+    @patch("lib.zookeeper.ZkSharedCache", autospec=True)
     @patch("lib.zookeeper.Zookeeper._kazoo_start", autospec=True)
     @patch("lib.zookeeper.Zookeeper._setup_state_listener", autospec=True)
     @patch("lib.zookeeper.Zookeeper._kazoo_setup", autospec=True)
     @patch("lib.zookeeper.threading.Semaphore", autospec=True)
     @patch("lib.zookeeper.threading.Event", autospec=True)
-    def test_full(self, event, semaphore, ksetup, listener, kstart):
+    def test_full(self, event, semaphore, ksetup, listener, kstart, cache):
         # Setup and call
         event.side_effect = ["event0", "event1"]
         inst = self._init_basic_setup(
@@ -79,6 +80,7 @@ class TestZookeeperInit(BaseZookeeper):
         ntools.eq_(inst._timeout, 4.5)
         ntools.eq_(inst._on_connect, "on_conn")
         ntools.eq_(inst._on_disconnect, "on_dis")
+        ntools.eq_(inst._shared_caches[0], cache.return_value)
         ntools.eq_(inst._prefix, "/ISD1-AD2/srvtype")
         ntools.eq_(inst._connected, "event0")
         ntools.eq_(inst._lock, "event1")
@@ -102,7 +104,7 @@ class TestZookeeperInit(BaseZookeeper):
         ntools.eq_(inst._timeout, 1.0)
         ntools.eq_(inst._on_connect, None)
         ntools.eq_(inst._on_disconnect, None)
-        ntools.eq_(inst.shared_caches, [])
+        ntools.eq_(inst._shared_caches, [])
 
 
 class TestZookeeperKazooSetup(BaseZookeeper):
@@ -261,9 +263,9 @@ class TestZookeeperStateConnected(BaseZookeeper):
         inst._zk.client_id = MagicMock(spec_set=["__getitem__"])
         inst.ensure_path = create_mock()
         inst._prefix = "/prefix"
-        inst.shared_caches = [create_mock(["path"]), create_mock(["path"])]
-        inst.shared_caches[0].path = "ensure0"
-        inst.shared_caches[1].path = "ensure1"
+        inst._shared_caches = [create_mock(["path"]), create_mock(["path"])]
+        inst._shared_caches[0].path = "ensure0"
+        inst._shared_caches[1].path = "ensure1"
         inst._parties = {
             "/patha": create_mock(["autojoin"]),
             "/pathb": create_mock(["autojoin"]),
