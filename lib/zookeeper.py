@@ -588,14 +588,15 @@ class ZkSharedCache(object):
                 if not self._state_synced.is_set():
                     # Make sure we re-read the entire cache
                     self._latest_entry = 0
+            count = None
             try:
                 count = self._read_cached_entries()
-                if count:
-                    logging.debug("Processed %d new/updated entries from %s",
-                                  count, self.path)
             except ZkConnectionLoss:
                 self._state_synced.clear()
                 continue
+            if count:
+                logging.debug("Processed %d new/updated entries from %s",
+                              count, self.path)
             self._state_synced.set()
 
     def _read_cached_entries(self):
@@ -631,7 +632,6 @@ class ZkSharedCache(object):
         :param entries: cached path segments.
         :param entries: list
         """
-        # TODO(kormat): move constant to proper place
         new_entries = []
         for entry in entries:
             try:
