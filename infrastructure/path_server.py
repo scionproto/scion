@@ -29,7 +29,7 @@ from _collections import defaultdict
 # External packages
 from Crypto.Hash import SHA256
 from external.expiring_dict import ExpiringDict
-from kazoo.exceptions import NoNodeError
+# from kazoo.exceptions import NoNodeError
 
 # SCION
 from infrastructure.scion_elem import SCIONElement
