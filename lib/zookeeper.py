@@ -610,7 +610,7 @@ class ZkSharedCache(object):
         if not entries_meta:
             return 0
         new = []
-        newest = 0
+        newest = self._latest_entry
         for entry, meta in entries_meta:
             if meta.last_modified > self._latest_entry:
                 new.append(entry)

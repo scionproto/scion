@@ -40,6 +40,7 @@ from lib.zookeeper import (
     ZkNoNodeError,
     ZkParty,
     ZkRetryLimit,
+    ZkSharedCache,
     Zookeeper,
 )
 from test.testcommon import SCIONTestError, create_mock
@@ -944,6 +945,19 @@ class TestZookeeperRetry(BaseZookeeper):
         ntools.eq_(inst.wait_connected.call_count, 2)
 
 
+class TestZookeeperRunSharedCacheHandling(BaseZookeeper):
+    """
+    Unit tests for lib.zookeeper.Zookeeper.run_shared_cache_handling
+    """
+    @patch("lib.zookeeper.Zookeeper.__init__", autospec=True, return_value=None)
+    def test(self, init):
+        inst = self._init_basic_setup()
+        inst._shared_caches = [create_mock(['run']), create_mock(['run'])]
+        inst.run_shared_cache_handling()
+        inst._shared_caches[0].run.assert_called_once_with()
+        inst._shared_caches[1].run.assert_called_once_with()
+
+
 class TestZkPartyInit(object):
     """
     Unit tests for lib.zookeeper.ZkParty.__init__
@@ -1052,6 +1066,51 @@ class TestZkPartyList(object):
     def test_error(self):
         for excp in ConnectionLoss, SessionExpiredError:
             yield self._check_error, excp
+
+
+class TestZkSharedCacheInit(object):
+    """
+    Unit tests for lib.zookeeper.ZkSharedCache.__init__
+    """
+    def test(self):
+        inst = ZkSharedCache("zk", "path", "handler", "state_synced")
+        ntools.eq_(inst.zk, "zk")
+        ntools.eq_(inst.path, "path")
+        ntools.eq_(inst.handler, "handler")
+        ntools.eq_(inst._state_synced, "state_synced")
+        ntools.eq_(inst._latest_entry, 0)
+
+
+class TestZkSharedCacheReadCachedEntries(object):
+    """
+    Unit test for lib.zookeeper.ZkSharedCache._read_cached_entries
+    """
+    def test_no_entries(self):
+        inst = ZkSharedCache("zk", "path", "handler", "state_synced")
+        inst.zk = create_mock(["get_shared_metadata"])
+        inst.zk.get_shared_metadata.return_value = 0
+        ntools.eq_(inst._read_cached_entries(), 0)
+        inst.zk.get_shared_metadata.assert_called_once_with(
+            inst.path, timed_desc="Fetching list of entries from shared path: "
+                                  "path")
+
+    def test_entries(self):
+        inst = ZkSharedCache("zk", "path", "handler", "state_synced")
+        inst.zk = create_mock(["get_shared_metadata"])
+        inst._process_cached_entries = create_mock()
+        inst._latest_entry = 1
+        entries_meta = []
+        for i in [1, 6, 4]:
+            entry = create_mock(["last_modified"])
+            entry.last_modified = i
+            entries_meta.append(("entry%d" % i, entry))
+        inst.zk.get_shared_metadata.return_value = entries_meta
+        ntools.eq_(inst._read_cached_entries(),
+                   inst._process_cached_entries.return_value)
+        ntools.eq_(inst._latest_entry, 6)
+        inst._process_cached_entries.assert_called_once_with(
+            ["entry6", "entry4"],
+            timed_desc="Processing 2 new entries from shared path: path")
 
 
 if __name__ == "__main__":
