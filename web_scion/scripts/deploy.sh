@@ -22,4 +22,4 @@ sleep 1
 pkill -9 -f "$RE_SUPERVISOR" || true
 
 # Start the management daemon
-./supervisor/supervisor.sh start management_daemon
+./supervisor/supervisor.sh restart management_daemon
