@@ -481,7 +481,7 @@ class CorePathServer(PathServer):
             lock_contents = self.zk._zk.get(lock_holder_path)
             _, _, server_addr = lock_contents[0].split(b"\x00")
             return str(server_addr, 'utf-8')
-        except NoNodeError:
+        except:
             logging.warning("No lock data found")
             return None
 
