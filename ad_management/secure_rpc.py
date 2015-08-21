@@ -129,6 +129,9 @@ class VerifyCertSafeTransport(SafeTransport):
 
 
 class ServerProxyTLS(ServerProxy):
+    """
+    Web application TLS endpoint, used by management_client.py
+    """
     def __init__(self, *args, **kwargs):
         assert 'transport' not in kwargs, 'Use ServerProxy for custom transport'
         # TODO: remove fixed certificates: see above
