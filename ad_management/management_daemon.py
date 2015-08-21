@@ -114,10 +114,11 @@ class ManagementDaemon(object):
         self.rpc_server = XMLRPCServerTLS((self.addr, MANAGEMENT_DAEMON_PORT))
         self.rpc_server.register_introspection_functions()
         # Register functions
-        to_register = [self.get_topology,
+        to_register = [self.get_topology,  self.update_topology,
                        self.control_process, self.get_ad_info,
-                       self.update_topology,
-                       self.get_master_id, self.tail_process_log]
+                       self.get_master_id, self.tail_process_log,
+                       # self.send_update,
+                       ]
         for func in to_register:
             self.rpc_server.register_function(func)
         logging.info("Management daemon started")

@@ -38,7 +38,7 @@
 
 #### Using PostgreSQL
 
-By default an SQLite database is used. One can switch to using PostgreSQL for improved performance and flexibility.
+By default an SQLite database is used, and it works fine if the number of ADs is relatively small (lower than 100). One can switch to using PostgreSQL for improved performance and flexibility.
 
 1. Install additional system dependencies
 
@@ -67,8 +67,10 @@ If something doesn't work (no element status displayed, topology cannot be retri
 1. Check that the management daemon is running at the AD host (`./supervisor/supervisor.sh status`).
 2. If the AD is deployed on a virtual or remote machine (not on localhost/127.0.0.1), ensure that the management daemon of that AD is listening on the 0.0.0.0 address, and not 127.0.0.1 (check section `[program:management_daemon]` in `supervisor/supervisord.conf`).
 3. Check that the web panel can open the TLS connection to the port 9010 of the AD host.
-4. If software updates don't work, check that 
+4. Software updates don't work? This is a highly experimental feature and should be used with care before additional security reviews are done. Check that the corresponding RPC function (`self.send_update`) is registered in the `ManagementDaemon.__init__()` function.
+
+
+Don't forget to restart the management daemon(s) after any modifications are done to the source code.
 
 #### Code structure
-
 
