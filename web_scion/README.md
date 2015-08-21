@@ -63,13 +63,13 @@ By default an SQLite database is used, and it works fine if the number of ADs is
 
 #### Feature overview
 
---- Topology push/pull
+* Topology push/pull
 
 Go to the 'Topology' tab of the AD overview page. You can now click the 'Check topology' button to compare the remote (stored at the AD host) and the local (stored in the web app database) topology. If two topologies are not consistent, you will be given a list of changes between them.  Now you can either push the local topology to the AD host, or pull the remote topology from the AD host and overwrite the local topology.
 
 After the topology is pushed to the AD, the corresponding monitoring daemon is restarted, which might take a few seconds.
 
---- Connecting new ADs and connection requests
+* Connecting new ADs and connection requests
 
 Adding new ADs to the network is implemented via the concept of connection requests. Assume you want to create a new AD and to connect it to AD 1. To do that, you open the 'Connection requests' tab of AD 1 and click the 'New request' button. Then you fill the form, providing some information about the prospective AD (purpose, location), including the router (or AD host) details: IP, port. There is an option to specify "external" IP and port if they differ from local values, for example, if the AD host is behind the NAT.
 
@@ -77,7 +77,7 @@ After the connection request is sent, it is listed in two places: on the 'Submit
 
 AD can also be marked as 'open' (see the `is_open` AD attribute), which means that every sent request is approved automatically.
 
---- Software updates
+* Software updates
 
 Software packages are prepared using the `packaging.py` module. Just run it as `python3 ad_management/packaging.py`, and it will create a package and save it in `ad_management/.packages`. The package will also contain some metadata (commit  id, creation date) in a file called META.
 
@@ -100,12 +100,11 @@ Don't forget to restart the management daemon(s) after any modifications are don
 
 There are two directories (relative to the SCION root directory) that contain all essential components of the testbed management system:
 
-`ad_management/` -- contains the code of the management daemon (`management_daemon.py`), the updater (`updater.py`) and the packaging (`packaging.py`) modules. Certificates for the web app and the management daemon are also there: check the `certs/` directory.
+* `ad_management/` -- contains the code of the management daemon (`management_daemon.py`), the updater (`updater.py`) and the packaging (`packaging.py`) modules. Certificates for the web app and the management daemon are also there: check the `certs/` directory.
 
-
-`web_scion/` -- contains the web management application (Django web app). All the settings are located in `web_scion/web_scion/settings/`, useful scripts -- under `web_scion/scripts`, the actual web module (views, models) -- under `web_scion/ad_manager`.
+* `web_scion/` -- contains the web management application (Django web app). All the settings are located in `web_scion/web_scion/settings/`, useful scripts -- under `web_scion/scripts`, the actual web module (views, models) -- under `web_scion/ad_manager`.
 
 #### Current limitations
 
--- ISD is a foreign key for the AD model, so currently an AD can only belong to a single ISD.
--- All ADs are using the same certificate for authentication (`ad_management/certs/ad.pem`).
+1. ISD is a foreign key for the AD model, so currently an AD can only belong to a single ISD.
+2. All ADs are using the same certificate for authentication (`ad_management/certs/ad.pem`).
