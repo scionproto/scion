@@ -626,7 +626,7 @@ class ZkSharedCache(object):
     @timed(1.0)
     def _process_cached_entries(self, entries):
         """
-        Retrieve new beacons from the shared cache and send them for local
+        Retrieve new entries from the shared cache and send them for local
         processing (self.handler).
 
         :param entries: cached path segments.
