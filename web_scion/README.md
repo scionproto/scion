@@ -44,7 +44,7 @@ By default an SQLite database is used, and it works fine if the number of ADs is
 
     `sudo apt-get install python3-psycopg2`
 
-2. Update the DATABASES hash in `web_scion/settings_private.py` ('ENGINE' must be `django.db.backends.postgresql_psycopg2`)
+2. Update the DATABASES hash in `web_scion/settings/private.py` ('ENGINE' must be `django.db.backends.postgresql_psycopg2`)
 
 3. Run the PostgreSQL docker image
 
@@ -83,6 +83,16 @@ Software packages are prepared using the `packaging.py` module. Just run it as `
 
 After the package is created, you can go to the 'Software updates' tab and click the 'Refresh' button. This will refresh the list of available package versions. Now, you can either install the selected package remotely ('Install the update') or simply download it ('Download the update').
 
+* Two-factor authentication
+
+Enable 2FA by adding this line to the `settings/private.py` file:
+
+```
+ENABLED_2FA = TWO_FACTOR_PATCH_ADMIN = True
+
+```
+
+Also update `TWILIO_*` and `TWO_FACTOR_SMS_GATEWAY` variables with proper values.
 
 #### Common problems
 
