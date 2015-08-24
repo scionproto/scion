@@ -17,7 +17,7 @@
 """
 # Stdlib
 import logging
-from unittest.mock import MagicMock, PropertyMock, call, patch
+from unittest.mock import MagicMock, call, patch
 
 # External packages
 import nose
@@ -66,9 +66,9 @@ class TestZookeeperInit(BaseZookeeper):
     @patch("lib.zookeeper.Zookeeper._kazoo_start", autospec=True)
     @patch("lib.zookeeper.Zookeeper._setup_state_listener", autospec=True)
     @patch("lib.zookeeper.Zookeeper._kazoo_setup", autospec=True)
-    @patch("lib.zookeeper.threading.Semaphore", autospec=True)
+    @patch("lib.zookeeper.queue.Queue", autospec=True)
     @patch("lib.zookeeper.threading.Event", autospec=True)
-    def test_full(self, event, semaphore, ksetup, listener, kstart, cache):
+    def test_full(self, event, queue, ksetup, listener, kstart, cache):
         # Setup and call
         event.side_effect = ["event0", "event1"]
         inst = self._init_basic_setup(
@@ -85,8 +85,8 @@ class TestZookeeperInit(BaseZookeeper):
         ntools.eq_(inst._prefix, "/ISD1-AD2/srvtype")
         ntools.eq_(inst._connected, "event0")
         ntools.eq_(inst._lock, "event1")
-        semaphore.assert_called_once_with(value=0)
-        ntools.eq_(inst._state_event, semaphore.return_value)
+        queue.assert_called_once_with()
+        ntools.eq_(inst._state_events, queue.return_value)
         ntools.eq_(inst._parties, {})
         ntools.eq_(inst._zk_lock, None)
         ksetup.assert_called_once_with(inst, self.default_hosts)
@@ -192,11 +192,11 @@ class TestZookeeperStateListener(BaseZookeeper):
     def test(self, init):
         # Setup
         inst = self._init_basic_setup()
-        inst._state_event = create_mock(["release"])
+        inst._state_events = create_mock(["put"])
         # Call
         ntools.eq_(inst._state_listener("statist"), False)
         # Tests
-        inst._state_event.release.assert_called_once_with()
+        inst._state_events.put.assert_called_once_with("statist")
 
 
 class TestZookeeperStateHandler(BaseZookeeper):
@@ -204,19 +204,27 @@ class TestZookeeperStateHandler(BaseZookeeper):
     Unit tests for lib.zookeeper.Zookeeper._state_handler
     """
     @patch("lib.zookeeper.Zookeeper.__init__", autospec=True, return_value=None)
+    def test_flapping(self, init):
+        # Setup
+        inst = self._init_basic_setup()
+        inst._state_events = create_mock(["get", "empty"])
+        # Setup inst._state_events.get to allow a single iteration of the loop
+        inst._state_events.get.side_effect = [KazooState.CONNECTED]
+        inst._state_events.empty.return_value = False
+        inst._state_connected = create_mock()
+        # Call
+        ntools.assert_raises(StopIteration, inst._state_handler)
+        # Tests
+        inst._state_events.get.assert_has_calls([call()] * 2)
+        ntools.assert_false(inst._state_connected.called)
+
+    @patch("lib.zookeeper.Zookeeper.__init__", autospec=True, return_value=None)
     def _check(self, old_state, new_state, init):
         # Setup
         inst = self._init_basic_setup()
-        inst._state_event = create_mock(["acquire"])
-        # Setup inst._state_event to allow a single iteration of the loop
-        inst._state_event.acquire.side_effect = [0]
-        inst._zk = create_mock(["state"])
-        # Make inst._zk.state a PropertyMock, so we can check that it is read
-        mock_state = PropertyMock(spec_set=[], return_value=new_state)
-        # Required to attach a property to a mock:
-        # http://www.voidspace.org.uk/python/mock/mock.html#mock.PropertyMock
-        type(inst._zk).state = mock_state
-        inst._zk.state = create_mock()
+        inst._state_events = create_mock(["get", "empty"])
+        # Setup inst._state_events.get to allow a single iteration of the loop
+        inst._state_events.get.side_effect = [new_state]
         inst._state_connected = create_mock()
         inst._state_suspended = create_mock()
         inst._state_lost = create_mock()
@@ -240,10 +248,10 @@ class TestZookeeperStateHandler(BaseZookeeper):
         ntools.eq_(inst._state_suspended.call_count, suspended)
         ntools.eq_(inst._state_lost.call_count, lost)
 
-    def test(self):
+    def test_basic(self):
         test_inputs = (
-            (KazooState.CONNECTED, KazooState.CONNECTED),
             ("startup", KazooState.CONNECTED),
+            (KazooState.CONNECTED, KazooState.CONNECTED),
             (KazooState.CONNECTED, KazooState.SUSPENDED),
             (KazooState.CONNECTED, KazooState.LOST),
             (KazooState.SUSPENDED, KazooState.CONNECTED),
