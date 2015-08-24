@@ -1080,7 +1080,7 @@ class LocalPathServer(PathServer):
             else:
                 if ptype == PST.UP_DOWN:
                     update_dict(self.pending_down, (dst_isd, dst_ad), [pkt])
-                    self.waiting_targets.add((dst_isd, dst_ad))
+                    self.waiting_targets.add((dst_isd, dst_ad, segment_info))
                 else:  # PST.UP
                     self.pending_up.append(pkt)
                 return
