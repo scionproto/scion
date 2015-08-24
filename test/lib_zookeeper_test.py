@@ -372,18 +372,58 @@ class TestZookeeperWaitConnected(BaseZookeeper):
     Unit tests for lib.zookeeper.Zookeeper.wait_connected
     """
     @patch("lib.zookeeper.Zookeeper.__init__", autospec=True, return_value=None)
-    def _check(self, timeout, init):
+    def test_connected(self, init):
         inst = self._init_basic_setup()
-        inst._connected = create_mock(["wait"])
-        inst._connected.wait.return_value = 33
+        inst.is_connected = create_mock()
         # Call
-        ntools.eq_(inst.wait_connected(timeout=timeout), 33)
+        ntools.ok_(inst.wait_connected())
         # Tests
-        inst._connected.wait.assert_called_once_with(timeout=timeout)
+        inst.is_connected.assert_called_once_with()
 
-    def test(self):
-        for timeout in None, 1, 15:
-            yield self._check, timeout
+    @patch("lib.zookeeper.SCIONTime.get_time", new_callable=create_mock)
+    @patch("lib.zookeeper.Zookeeper.__init__", autospec=True, return_value=None)
+    def test_no_timeout(self, init, get_time):
+        inst = self._init_basic_setup()
+        inst.is_connected = create_mock()
+        inst.is_connected.return_value = False
+        get_time.side_effect = [0, 10, 20]
+        inst._connected = create_mock(["wait"])
+        inst._connected.wait.side_effect = [False, True]
+        # Call
+        ntools.ok_(inst.wait_connected(timeout=None))
+        # Tests
+        inst._connected.wait.assert_has_calls([call(timeout=10.0)] * 2)
+        ntools.eq_(inst._connected.wait.call_count, 2)
+
+    @patch("lib.zookeeper.SCIONTime.get_time", new_callable=create_mock)
+    @patch("lib.zookeeper.Zookeeper.__init__", autospec=True, return_value=None)
+    def test_timeout_success(self, init, get_time):
+        inst = self._init_basic_setup()
+        inst.is_connected = create_mock()
+        inst.is_connected.return_value = False
+        get_time.side_effect = [0, 10, 20]
+        inst._connected = create_mock(["wait"])
+        inst._connected.wait.side_effect = [False, True]
+        # Call
+        ntools.ok_(inst.wait_connected(timeout=15))
+        # Tests
+        inst._connected.wait.assert_has_calls([call(timeout=10.0),
+                                               call(timeout=5.0)])
+        ntools.eq_(inst._connected.wait.call_count, 2)
+
+    @patch("lib.zookeeper.SCIONTime.get_time", new_callable=create_mock)
+    @patch("lib.zookeeper.Zookeeper.__init__", autospec=True, return_value=None)
+    def test_timeout_fail(self, init, get_time):
+        inst = self._init_basic_setup()
+        inst.is_connected = create_mock()
+        inst.is_connected.return_value = False
+        get_time.side_effect = [0, 10, 20]
+        inst._connected = create_mock(["wait"])
+        inst._connected.wait.side_effect = [False, False]
+        # Call
+        ntools.assert_false(inst.wait_connected(timeout=15))
+        # Tests
+        ntools.eq_(inst._connected.wait.call_count, 2)
 
 
 class TestZookeeperEnsurePath(BaseZookeeper):
