@@ -73,7 +73,7 @@ class TestZookeeperInit(BaseZookeeper):
         event.side_effect = ["event0", "event1"]
         inst = self._init_basic_setup(
             timeout=4.5, on_connect="on_conn", on_disconnect="on_dis",
-            handle_paths=[("path0", "handler0", "state0")])
+            handle_paths=[("path0", "handler0")])
         # Tests
         ntools.eq_(inst._isd_id, 1)
         ntools.eq_(inst._ad_id, 2)
@@ -1031,12 +1031,24 @@ class TestZookeeperRunSharedCacheHandling(BaseZookeeper):
     Unit tests for lib.zookeeper.Zookeeper.run_shared_cache_handling
     """
     @patch("lib.zookeeper.Zookeeper.__init__", autospec=True, return_value=None)
-    def test(self, init):
+    def test_basic(self, init):
         inst = self._init_basic_setup()
-        inst._shared_caches = [create_mock(['run']), create_mock(['run'])]
-        inst.run_shared_cache_handling()
-        inst._shared_caches[0].run.assert_called_once_with()
-        inst._shared_caches[1].run.assert_called_once_with()
+        inst._shared_caches = [
+            create_mock(['handle_shared_entries']),
+            create_mock(['handle_shared_entries'])
+        ]
+        ntools.ok_(inst.run_shared_cache_handling())
+        inst._shared_caches[0].handle_shared_entries.assert_called_once_with()
+        inst._shared_caches[1].handle_shared_entries.assert_called_once_with()
+
+    @patch("lib.zookeeper.Zookeeper.__init__", autospec=True, return_value=None)
+    def test_conn_loss(self, init):
+        inst = self._init_basic_setup()
+        cache = create_mock(['handle_shared_entries', 'path'])
+        cache.handle_shared_entries.side_effect = ZkConnectionLoss
+        inst._shared_caches = [cache]
+        # Call
+        ntools.assert_false(inst.run_shared_cache_handling())
 
 
 class TestZkPartyInit(object):
@@ -1154,12 +1166,12 @@ class TestZkSharedCacheInit(object):
     Unit tests for lib.zookeeper.ZkSharedCache.__init__
     """
     def test(self):
-        inst = ZkSharedCache("zk", "path", "handler", "state_synced")
+        inst = ZkSharedCache("zk", "path", "handler")
         ntools.eq_(inst.zk, "zk")
         ntools.eq_(inst.path, "path")
         ntools.eq_(inst.handler, "handler")
-        ntools.eq_(inst._state_synced, "state_synced")
         ntools.eq_(inst._latest_entry, 0)
+        ntools.eq_(inst._epoch, 0)
 
 
 class TestZkSharedCacheReadCachedEntries(object):
@@ -1167,7 +1179,7 @@ class TestZkSharedCacheReadCachedEntries(object):
     Unit test for lib.zookeeper.ZkSharedCache._read_cached_entries
     """
     def test_no_entries(self):
-        inst = ZkSharedCache("zk", "path", "handler", "state_synced")
+        inst = ZkSharedCache("zk", "path", "handler")
         inst.zk = create_mock(["get_shared_metadata"])
         inst.zk.get_shared_metadata.return_value = 0
         ntools.eq_(inst._read_cached_entries(), 0)
@@ -1176,7 +1188,7 @@ class TestZkSharedCacheReadCachedEntries(object):
                                   "path")
 
     def test_entries(self):
-        inst = ZkSharedCache("zk", "path", "handler", "state_synced")
+        inst = ZkSharedCache("zk", "path", "handler")
         inst.zk = create_mock(["get_shared_metadata"])
         inst._process_cached_entries = create_mock()
         inst._latest_entry = 1
