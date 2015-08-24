@@ -295,6 +295,16 @@ def sleep_interval(start, interval, desc):
     time.sleep(delay)
 
 
+def start_thread(thread_):
+    """
+    Callback used for starting a thread delayed.
+
+    :param thread_: The thread to start.
+    :type thread_: :class:`thread.Thread`
+    """
+    thread_.start()
+
+
 def handle_signals():
     """
     Setup basic signal handler for the most common signals

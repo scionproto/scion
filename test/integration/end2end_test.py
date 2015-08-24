@@ -38,7 +38,7 @@ from lib.thread import kill_self, thread_safety_net
 
 saddr = IPv4Address("127.1.19.254")
 raddr = IPv4Address("127.2.26.254")
-TOUT = 10  # How long wait for response.
+TOUT = 10000  # How long wait for response.
 
 
 def get_paths_via_api(isd, ad):

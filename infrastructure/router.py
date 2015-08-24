@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from external.expiring_dict import ExpiringDict
 """
 :mod:`router` --- SCION edge router
 ===========================================
@@ -19,22 +20,28 @@
 import argparse
 import datetime
 import logging
+import random
 import socket
 import sys
 import threading
 import time
+from collections import defaultdict
 
 # SCION
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.symcrypto import get_roundkey_cache, verify_of_mac
 from lib.defines import EXP_TIME_UNIT, SCION_UDP_EH_DATA_PORT, SCION_UDP_PORT
-from lib.errors import SCIONBaseError
+from lib.errors import SCIONBaseError, SCIONBaseException
 from lib.log import init_logging, log_exception
 from lib.packet.opaque_field import (
     HopOpaqueField as HOF,
     OpaqueFieldType as OFT,
 )
-from lib.packet.path_mgmt import PathMgmtPacket
+from lib.packet.path_mgmt import (
+    PathMgmtPacket,
+    PathMgmtType as PMT,
+    RevocationInfo,
+    IFStateRequest,)
 from lib.packet.pcb import PathConstructionBeacon
 from lib.packet.scion import (
     IFIDPacket,
@@ -44,7 +51,7 @@ from lib.packet.scion import (
 )
 from lib.packet.scion_addr import ISD_AD, SCIONAddr
 from lib.thread import thread_safety_net
-from lib.util import handle_signals, SCIONTime
+from lib.util import handle_signals, SCIONTime, sleep_interval, start_thread
 
 
 IFID_PKT_TOUT = 1  # How often IFID packet is sent to neighboring router.
@@ -71,6 +78,37 @@ class SCIONPacketHeaderCorruptedError(SCIONBaseError):
     pass
 
 
+class SCIONInterfaceDownException(SCIONBaseException):
+    """
+    The interface to forward the packet to is down.
+    """
+    def __init__(self, if_id):
+        super().__init__()
+        self.if_id = if_id
+
+
+class InterfaceState(object):
+    """
+    Class to store the interface state of the other edge routers, along with
+    the corresponding current revocation token and proof.
+    """
+    def __init__(self):
+        self.is_active = True
+        self.rev_token = None
+        self.proof = None
+
+    def update(self, ifstate):
+        """
+        Updates the interface state.
+
+        :param ifstate: IFStateInfo object sent by the BS.
+        :type ifstate: :class: `lib.packet.path_mgmt.IFStateInfo`
+        """
+        self.is_active = bool(ifstate.state)
+        self.rev_token = ifstate.rev_info.rev_token
+        self.proof = ifstate.rev_info.proof
+
+
 class Router(SCIONElement):
     """
     The SCION Router.
@@ -87,6 +125,10 @@ class Router(SCIONElement):
     :ivar interface: the router's inter-AD interface, if any.
     :type interface: :class:`lib.topology.InterfaceElement`
     """
+
+    FWD_REVOCATION_TIMEOUT = 5
+    IFSTATE_REQ_INTERVAL = 30
+
     def __init__(self, router_id, topo_file, config_file, is_sim=False):
         """
         Initialize an instance of the class Router.
@@ -110,6 +152,8 @@ class Router(SCIONElement):
         assert self.interface is not None
         logging.info("Interface: %s", self.interface.__dict__)
         self.of_gen_key = get_roundkey_cache(self.config.master_ad_key)
+        self.if_states = defaultdict(InterfaceState)
+        self.revocations = ExpiringDict(1000, self.FWD_REVOCATION_TIMEOUT)
         if not is_sim:
             self._remote_socket = socket.socket(socket.AF_INET,
                                                 socket.SOCK_DGRAM)
@@ -128,6 +172,10 @@ class Router(SCIONElement):
         threading.Thread(
             target=thread_safety_net, args=(self.sync_interface,),
             name="ER.sync_interface", daemon=True).start()
+        ifstate_req_thread = threading.Thread(
+            target=thread_safety_net, args=(self.request_ifstates,),
+            name="ER.request_ifstates", daemon=True)
+        threading.Timer(5, start_thread, (ifstate_req_thread,)).start()
         SCIONElement.run(self)
 
     def send(self, packet, addr, port=SCION_UDP_PORT, use_local_socket=True):
@@ -168,6 +216,25 @@ class Router(SCIONElement):
             logging.info('Sending IFID_PKT to router: req_id:%d, rep_id:%d',
                          ifid_req.request_id, ifid_req.reply_id)
             time.sleep(IFID_PKT_TOUT)
+
+    def request_ifstates(self):
+        """
+        Periodically request interface states from the BS.
+        """
+        src = SCIONAddr.from_values(self.topology.isd_id, self.topology.ad_id,
+                                    self.interface.addr)
+        dst_isd_ad = ISD_AD(self.topology.isd_id, self.topology.ad_id)
+        ifstates_req = IFStateRequest.from_values()
+        req_pkt = PathMgmtPacket.from_values(PMT.IFSTATE_REQ, ifstates_req,
+                                             None, src, dst_isd_ad)
+        while True:
+            start_time = SCIONTime.get_time()
+            logging.info("Sending IFStateRequest for IF %d")
+            for bs in self.topology.beacon_servers:
+                self.send(req_pkt, bs.addr)
+            sleep_interval(start_time, self.IFSTATE_REQ_INTERVAL,
+                           "request_ifstates")
+
 
     def process_ifid_request(self, ifid_packet):
         """
@@ -231,13 +298,56 @@ class Router(SCIONElement):
         :param from_local_ad: whether or not the packet is from the local AD.
         :type from_local_ad: bool
         """
-        # For now this function only forwards path management packets to the
-        # path servers in the destination AD. In the future, path management
-        # packets might be handled differently.
+        if mgmt_pkt.type == PMT.IFSTATE_INFO:
+            # handle state update
+            logging.debug("Received IFState update:\n%s", str(mgmt_pkt.payload))
+            ifstates = mgmt_pkt.payload.ifstate_infos
+            for ifstate in ifstates:
+                self.if_states[ifstate.if_id].update(ifstate)
+            return
+        elif mgmt_pkt.type == PMT.REVOCATION:
+            if not from_local_ad:
+                # Forward to local path server if we haven't recently.
+                rev_token = mgmt_pkt.payload.rev_token
+                if (self.topology.path_servers and
+                        rev_token not in self.revocations):
+                    logging.debug("Forwarding revocation to local PS.")
+                    self.revocations[rev_token] = True
+                    ps = random.choice(self.topology.path_servers)
+                    self.send(mgmt_pkt, ps.addr)
+
         if not from_local_ad and mgmt_pkt.hdr.is_last_path_of():
-            self.deliver(mgmt_pkt, PT.PATH_MGMT)
+            if mgmt_pkt.type == PMT.REVOCATION:
+                self.deliver(mgmt_pkt, PT.DATA)
+            else:
+                self.deliver(mgmt_pkt, PT.PATH_MGMT)
         else:
             self.forward_packet(mgmt_pkt, from_local_ad)
+
+    def send_revocation(self, spkt, if_id):
+        """
+        Sends an interface revocation for 'if_id' along the path in 'spkt'.
+        """
+        # Check that the interface is really down.
+        if_state = self.if_states[if_id]
+        if self.if_states[if_id].is_active:
+            logging.error("Interface %d appears to be up. Not sending " +
+                          "revocation." % if_id)
+            return
+
+        if not if_state.rev_token or not if_state.proof:
+            logging.error("Revocation token and/or proof missing.")
+            return
+
+        rev_info = RevocationInfo.from_values(if_state.rev_token,
+                                              if_state.proof)
+        rev_pkt = PathMgmtPacket.with_header(PMT.REVOCATION, rev_info,
+                                             spkt.hdr.reversed_copy())
+        # Make sure the type of the packet is PATH_MGMT.
+        rev_pkt.hdr.src_addr = SCIONAddr.from_values(self.topology.isd_id,
+                                                     self.topology.ad_id,
+                                                     PT.PATH_MGMT)
+        self.forward_packet(rev_pkt, True)
 
     def deliver(self, spkt, ptype):
         """
@@ -316,9 +426,12 @@ class Router(SCIONElement):
         # Switch to next path segment.
         spkt.hdr.set_curr_iof_p(spkt.hdr.get_curr_of_p() + 2 * HOF.LEN)
         spkt.hdr.increase_curr_of_p(4)
-        # Handle on-path shortcut case.
         curr_of = spkt.hdr.get_current_of()
         curr_iof = spkt.hdr.get_current_iof()
+        # Check interface availability.
+        if not self.if_states[curr_of.egress_if].is_active:
+            raise SCIONInterfaceDownException(curr_of.egress_if)
+        # Handle on-path shortcut case.
         if not curr_of.egress_if and spkt.hdr.is_last_path_of():
             self.verify_of(curr_of, spkt.hdr.get_relative_of(-1),
                            curr_iof.timestamp)
@@ -345,6 +458,10 @@ class Router(SCIONElement):
 
         self.verify_of(curr_of, prev_of, curr_iof.timestamp)
         spkt.hdr.increase_curr_of_p(1)
+
+        # Check interface availability.
+        if not self.if_states[curr_of.egress_if].is_active:
+            raise SCIONInterfaceDownException(curr_of.egress_if)
 
         if spkt.hdr.is_last_path_of():
             self.deliver(spkt, PT.DATA)
@@ -374,10 +491,13 @@ class Router(SCIONElement):
             spkt.hdr.set_curr_iof_p(spkt.hdr.get_curr_of_p() + HOF.LEN)
             spkt.hdr.increase_curr_of_p(2)
             curr_of = spkt.hdr.get_current_of()
-            if spkt.hdr.is_on_up_path():
-                self.send(spkt, self.ifid2addr[curr_of.ingress_if])
+            fwd_if = (curr_of.ingress_if if spkt.hdr.is_on_up_path() else
+                      curr_of.egress_if)
+            # Check interface availability.
+            if not self.if_states[fwd_if].is_active:
+                raise SCIONInterfaceDownException(curr_of.egress_if)
             else:
-                self.send(spkt, self.ifid2addr[curr_of.egress_if])
+                self.send(spkt, self.ifid2addr[fwd_if])
 
     def ingress_normal_forward(self, spkt):
         """
@@ -393,6 +513,10 @@ class Router(SCIONElement):
             prev_of = spkt.hdr.get_relative_of(-1)
 
         self.verify_of(curr_of, prev_of, curr_iof.timestamp)
+
+        # Check interface availability.
+        if not self.if_states[fwd_if].is_active:
+            raise SCIONInterfaceDownException(curr_of.egress_if)
 
         if not fwd_if and spkt.hdr.is_last_path_of():
             self.deliver(spkt, PT.DATA)
@@ -520,6 +644,9 @@ class Router(SCIONElement):
             logging.error("Dropping packet due to expired OF.")
         except SCIONPacketHeaderCorruptedError:
             logging.error("Dropping packet due to invalid header state.")
+        except SCIONInterfaceDownException as e:
+            logging.error("Interface %d is down. Issuing revocation.", e.if_id)
+            self.send_revocation(spkt, e.if_id)
 
     def handle_request(self, packet, sender, from_local_socket=True):
         """

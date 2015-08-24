@@ -23,6 +23,7 @@ import copy
 from lib.packet.opaque_field import (
     HopOpaqueField,
     InfoOpaqueField,
+    OpaqueField,
     OpaqueFieldType,
 )
 from lib.util import Raw
@@ -125,6 +126,40 @@ class PathBase(object):
             return None
         else:
             return tmp[index]
+
+    def get_up_segment_len(self):
+        """
+        Returns the length (in bytes) of the up-segment.
+        """
+        num_fields = 0
+        if self.up_segment_info:
+            num_fields += 1
+        if self.up_segment_hops:
+            num_fields += len(self.up_segment_hops)
+
+        return num_fields * OpaqueField.LEN
+
+    def get_core_segment_len(self):
+        """
+        Returns the length (in bytes) of the core-segment.
+        """
+        return 0
+
+    def get_down_segment_len(self):
+        """
+        Returns the length (in bytes) of the down-segment.
+        """
+        num_fields = 0
+        if self.down_segment_info:
+            num_fields += 1
+        if self.down_segment_hops:
+            num_fields += len(self.down_segment_hops)
+
+        return num_fields * OpaqueField.LEN
+
+    def __len__(self):
+        return (self.get_up_segment_len() + self.get_core_segment_len() +
+                self.get_down_segment_len())
 
     def __str__(self):
         pass
@@ -280,6 +315,15 @@ class CorePath(PathBase):
         cp.down_segment_info = dw_inf
         cp.down_segment_hops = dw_hops
         return cp
+
+    def get_core_segment_len(self):
+        num_fields = 0
+        if self.core_segment_info:
+            num_fields += 1
+        if self.core_segment_hops:
+            num_fields += len(self.core_segment_hops)
+
+        return num_fields * OpaqueField.LEN
 
     def __str__(self):
         s = []
@@ -450,6 +494,20 @@ class CrossOverPath(PathBase):
             return InfoOpaqueField.LEN + 2 * HopOpaqueField.LEN
         return 0
 
+    def get_up_segment_len(self):
+        len_ = super().get_up_segment_len()
+        if self.up_segment_upstream_ad:
+            len_ += OpaqueField.LEN
+
+        return len_
+
+    def get_down_segment_len(self):
+        len_ = super().get_down_segment_len()
+        if self.down_segment_upstream_ad:
+            len_ += OpaqueField.LEN
+
+        return len_
+
     def __str__(self):
         s = []
         s.append("<CrossOver-Path>:\n<Up-Segment>:\n")
@@ -586,6 +644,39 @@ class PeerPath(PathBase):
         tmp.extend(self.down_segment_hops)
         return tmp[index]
 
+    def get_first_hop_offset(self):
+        """
+        Depending on up_segment flag returns the first up- or down-segment hop.
+        """
+        if self.up_segment_hops:
+            first_segment_hops = self.up_segment_hops
+        elif self.down_segment_hops:
+            first_segment_hops = self.down_segment_hops
+        else:
+            return 0
+
+        if first_segment_hops[0].info == OpaqueFieldType.XOVR_POINT:
+            return InfoOpaqueField.LEN + HopOpaqueField.LEN
+        return InfoOpaqueField.LEN
+
+    def get_up_segment_len(self):
+        len_ = super().get_up_segment_len()
+        if self.up_segment_peering_link:
+            len_ += OpaqueField.LEN
+        if self.up_segment_upstream_ad:
+            len_ += OpaqueField.LEN
+
+        return len_
+
+    def get_down_segment_len(self):
+        len_ = super().get_down_segment_len()
+        if self.down_segment_upstream_ad:
+            len_ += OpaqueField.LEN
+        if self.down_segment_peering_link:
+            len_ += OpaqueField.LEN
+
+        return len_
+
     def __str__(self):
         s = []
         s.append("<Peer-Path>:\n<Up-Segment>:\n")
@@ -603,21 +694,6 @@ class PeerPath(PathBase):
         s.append("</Down-Segment>\n</Peer-Path>")
 
         return "".join(s)
-
-    def get_first_hop_offset(self):
-        """
-        Depending on up_segment flag returns the first up- or down-segment hop.
-        """
-        if self.up_segment_hops:
-            first_segment_hops = self.up_segment_hops
-        elif self.down_segment_hops:
-            first_segment_hops = self.down_segment_hops
-        else:
-            return 0
-
-        if first_segment_hops[0].info == OpaqueFieldType.XOVR_POINT:
-            return InfoOpaqueField.LEN + HopOpaqueField.LEN
-        return InfoOpaqueField.LEN
 
 
 class EmptyPath(PathBase):

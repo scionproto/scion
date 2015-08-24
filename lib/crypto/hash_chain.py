@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from binascii import b2a_hex
 """
 :mod:`hash_chain` --- Generic hash-chain implementation
 =======================================================
@@ -77,21 +78,25 @@ class HashChain(object):
         # Initialize to first element.
         self._next_ele_ptr = self._length - 2
 
-    def current_element(self):
+    def current_element(self, hex_=False):
         """
         Return the currently used element or 'None'.
         """
         if self._next_ele_ptr < 0 or self._next_ele_ptr >= self._length - 1:
             return None
+        if hex_:
+            return b2a_hex(self.entries[self._next_ele_ptr + 1]).decode()
         return self.entries[self._next_ele_ptr + 1]
 
-    def next_element(self):
+    def next_element(self, hex_=False):
         """
         Return the next element in the hash chain or 'None' if the chain is
         empty.
         """
         if self._next_ele_ptr < 0:
             return None
+        if hex_:
+            return b2a_hex(self.entries[self._next_ele_ptr + 1]).decode()
         return self.entries[self._next_ele_ptr]
 
     def move_to_next_element(self):
@@ -105,6 +110,14 @@ class HashChain(object):
         if self._next_ele_ptr == 0:
             raise HashChainExhausted
         self._next_ele_ptr -= 1
+
+    def current_index(self):
+        """
+        Returns the index of the current element in the chain.
+        """
+        if self._next_ele_ptr < 0 or self._next_ele_ptr >= self._length - 1:
+            return -1
+        return self._next_ele_ptr + 1
 
     @staticmethod
     def verify(start_ele, target_ele, max_tries=50, hash_func=SHA256):

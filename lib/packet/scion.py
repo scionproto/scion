@@ -16,6 +16,7 @@
 ==============================
 """
 # Stdlib
+import copy
 import logging
 import struct
 from ipaddress import IPv4Address
@@ -459,8 +460,44 @@ class SCIONHeader(HeaderBase):
         Reverses the header.
         """
         (self.src_addr, self.dst_addr) = (self.dst_addr, self.src_addr)
+        # Update pointers in common header.
+        addr_len = self.common_hdr.src_addr_len + self.common_hdr.dst_addr_len
+        offset = 0
+        curr_iof_p = self.get_curr_iof_p()
+        if curr_iof_p < self.path.get_up_segment_len():
+            offset += (self.path.get_down_segment_len() +
+                       self.path.get_core_segment_len())
+        elif curr_iof_p < self.path.get_core_segment_len():
+            offset += self.path.get_down_segment_len()
+        self.set_curr_iof_p(addr_len + offset)
+        self.set_curr_of_p(2 * addr_len + len(self.path) - self.get_curr_of_p())
+        # Reverse opaque fields.
         self.path.reverse()
-        self.set_first_of_pointers()
+        # Handle special cases.
+        curr_iof = self.get_current_iof()
+        curr_of = self.get_current_of()
+        # Case: Peering point.
+        if curr_iof.info in (OFT.INTRA_ISD_PEER, OFT.INTER_ISD_PEER):
+            if curr_of == self.path.up_segment_hops[-1]:
+                self.increase_curr_of_p(1)
+                assert (self.get_current_of() ==
+                        self.path.up_segment_peering_link)
+        # Case: On-path.
+        elif curr_iof.info == OFT.SHORTCUT:
+            if (len(self.path.up_segment_hops) == 1 and
+                    curr_of == self.path.up_segment_hops[0]):
+                self.set_curr_iof_p(addr_len + self.path.get_up_segment_len())
+                self.set_curr_of_p(self.get_curr_iof_p() + 2 * OpaqueField.LEN)
+                self.set_downpath()
+                assert (self.get_current_of() ==
+                        self.path.down_segment_hops[0])
+
+    def reversed_copy(self):
+        """
+        Returns a reversed copy of the header.
+        """
+        self.reverse()
+        return copy.deepcopy(self)
 
     def set_first_of_pointers(self):
         """

@@ -628,7 +628,7 @@ class TestPathMgmtPacketParse(object):
             PathMgmtType.REQUEST: seg_info,
             PathMgmtType.RECORDS: seg_recs,
             PathMgmtType.LEASES: seg_leases,
-            PathMgmtType.REVOCATIONS: rev_payload,
+            PathMgmtType.REVOCATION: rev_payload,
         }
         target = type_map[type_]
         raw.return_value = MagicMock(spec_set=["pop"])
@@ -649,7 +649,7 @@ class TestPathMgmtPacketParse(object):
 
     def test_success(self):
         for type_ in (PathMgmtType.REQUEST, PathMgmtType.RECORDS,
-                      PathMgmtType.LEASES, PathMgmtType.REVOCATIONS):
+                      PathMgmtType.LEASES, PathMgmtType.REVOCATION):
             yield self._check_success, type_
 
     @patch("lib.packet.path_mgmt.SCIONPacket.parse", autospec=True)
