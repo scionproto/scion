@@ -1027,7 +1027,8 @@ class LocalPathServer(PathServer):
                                            src_ad, dst_ad)
         if not len(self.up_segments):
             logging.info('Pending target added')
-            self.waiting_targets.add((dst_isd, dst_ad, info))
+            if ptype == PST.DOWN:
+                self.waiting_targets.add((dst_isd, dst_ad, info))
         else:
             logging.info('Requesting path from core: type: %d, addr: %d,%d',
                          ptype, dst_isd, dst_ad)
