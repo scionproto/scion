@@ -280,8 +280,12 @@ class BeaconServer(SCIONElement):
             self.zk = Zookeeper(
                 self.topology.isd_id, self.topology.ad_id, BEACON_SERVICE,
                 name_addrs, self.topology.zookeepers,
-                handle_paths=[(self.ZK_PCB_CACHE_PATH, self.ZK_REVOCATIONS_PATH,
-                               self.process_pcbs, self._state_synced)])
+                handle_paths=[(self.ZK_PCB_CACHE_PATH,
+                               self.process_pcbs,
+                               self._state_synced),
+                              (self.ZK_REVOCATIONS_PATH,
+                               self.process_revocation_objects,
+                               self._state_synced)])
             self.zk.retry("Joining party", self.zk.party_setup)
 
     def _init_hash_chain(self, if_id):
@@ -693,6 +697,12 @@ class BeaconServer(SCIONElement):
         for _ in range(len(self.unverified_beacons)):
             pcb = self.unverified_beacons.popleft()
             self._try_to_verify_beacon(pcb)
+
+    def process_revocation_objects(self, rev_objs):
+        """
+        Processes revocation objects stored in Zookeeper.
+        """
+        pass
 
     def _issue_revocation(self, if_id, chain):
         """
