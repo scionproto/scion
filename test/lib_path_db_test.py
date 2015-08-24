@@ -99,10 +99,11 @@ class TestPathSegmentDBInit(object):
         base.return_value = db
         pth_seg_db = PathSegmentDB()
         base.assert_called_once_with("", save_to_file=False)
-        db.create.assert_called_once_with('record', 'id', 'src_isd', 'src_ad',
-                                          'dst_isd', 'dst_ad', mode='override')
-        db.create_index.assert_has_calls([call('id'), call('dst_isd'),
-                                          call('dst_ad')])
+        db.create.assert_called_once_with('record', 'id', 'first_isd',
+                                          'first_ad', 'last_isd', 'last_ad',
+                                          mode='override')
+        db.create_index.assert_has_calls([call('id'), call('last_isd'),
+                                          call('last_ad')])
         ntools.eq_(pth_seg_db._db, db)
 
 
@@ -265,8 +266,8 @@ class TestPathSegmentDBCall(object):
         for i in range(5):
             cur_rec = MagicMock(spec_set=['pcb'])
             cur_rec.pcb.get_expiration_time.return_value = -1
-            recs.append({'record': cur_rec, 'src_isd': 0,
-                         'src_ad': 1, 'dst_isd': 2, 'dst_ad': 3})
+            recs.append({'record': cur_rec, 'first_isd': 0,
+                         'first_ad': 1, 'last_isd': 2, 'last_ad': 3})
         time.return_value = 0
         pth_seg_db = PathSegmentDB()
         pth_seg_db._db = MagicMock(spec_set=['delete'])
