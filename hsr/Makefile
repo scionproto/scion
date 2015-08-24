@@ -48,4 +48,8 @@ SRCS-y := main.c scion.c
 CFLAGS += -O9 -w
 #CFLAGS += $(WERROR_FLAGS)
 
+LDLIBS += -L/home/scion/dpdk-2.0.0/hsr/lib
+EXTRA_LDFLAGS += -laesni
+
+
 include $(RTE_SDK)/mk/rte.extapp.mk
