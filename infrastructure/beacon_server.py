@@ -797,21 +797,12 @@ class CoreBeaconServer(BeaconServer):
         """
         Generate a new beacon or gets ready to forward the one received.
         """
-        master = False
         while True:
             # Wait until we have enough context to be a useful master
             # candidate.
             self._state_synced.wait()
-            if not master:
-                logging.debug("Trying to become master")
             if not self.zk.get_lock():
-                if master:
-                    logging.debug("No longer master")
-                    master = False
                 continue
-            if not master:
-                logging.debug("Became master")
-                master = True
             start_propagation = SCIONTime.get_time()
             # Create beacon for downstream ADs.
             downstream_pcb = PathSegment()
@@ -1229,21 +1220,12 @@ class LocalBeaconServer(BeaconServer):
         Main loop to propagate received beacons.
         """
         # TODO: define function that dispatches the pcbs among the interfaces
-        master = False
         while True:
             # Wait until we have enough context to be a useful master
             # candidate.
             self._state_synced.wait()
-            if not master:
-                logging.debug("Trying to become master")
             if not self.zk.get_lock():
-                if master:
-                    logging.debug("No longer master")
-                    master = False
                 continue
-            if not master:
-                logging.debug("Became master")
-                master = True
             start_propagation = SCIONTime.get_time()
             best_segments = self.beacons.get_best_segments()
             for pcb in best_segments:
