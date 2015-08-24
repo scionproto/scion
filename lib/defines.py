@@ -17,7 +17,6 @@
 Contains constant definitions used throughout the codebase.
 """
 # Stdlib
-import ipaddress
 import os
 
 #: Max TTL of a PathSegment in realtime seconds.
@@ -39,7 +38,28 @@ SCION_UDP_EH_DATA_PORT = 30041
 #: Default DNS UDP/TCP port
 SCION_DNS_PORT = 30053
 
-#: Length of IPV4 address, in bytes
-IPV4BYTES = ipaddress.IPV4LENGTH // 8
-#: Length of IPV6 address, in bytes
-IPV6BYTES = ipaddress.IPV6LENGTH // 8
+#: (Pseudo)supported layer-4 protocols, see /etc/protocols for details
+L4_PROTO = [
+    1,  # ICMP
+    6,  # TCP
+    17,  # UDP
+]
+#: Default layer-4 protocol.
+DEFAULT_L4_PROTO = 17
+
+BEACON_SERVICE = "bs"
+CERTIFICATE_SERVICE = "cs"
+DNS_SERVICE = "ds"
+PATH_SERVICE = "ps"
+ROUTER_SERVICE = "er"
+#: All the service types
+SERVICE_TYPES = (
+    BEACON_SERVICE,
+    CERTIFICATE_SERVICE,
+    DNS_SERVICE,
+    PATH_SERVICE,
+    ROUTER_SERVICE,
+)
+
+#: How often IFID packet is sent to neighboring router.
+IFID_PKT_TOUT = 1

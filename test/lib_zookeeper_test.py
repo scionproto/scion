@@ -27,6 +27,7 @@ from kazoo.exceptions import (
     ConnectionLoss,
     LockTimeout,
     NoNodeError,
+    NodeExistsError,
     SessionExpiredError,
 )
 from kazoo.handlers.threading import KazooTimeoutError
@@ -39,6 +40,7 @@ from lib.zookeeper import (
     ZkNoNodeError,
     ZkParty,
     ZkRetryLimit,
+    ZkSharedCache,
     Zookeeper,
 )
 from test.testcommon import SCIONTestError, create_mock
@@ -60,17 +62,18 @@ class TestZookeeperInit(BaseZookeeper):
     """
     Unit tests for lib.zookeeper.Zookeeper.__init__
     """
+    @patch("lib.zookeeper.ZkSharedCache", autospec=True)
     @patch("lib.zookeeper.Zookeeper._kazoo_start", autospec=True)
     @patch("lib.zookeeper.Zookeeper._setup_state_listener", autospec=True)
     @patch("lib.zookeeper.Zookeeper._kazoo_setup", autospec=True)
     @patch("lib.zookeeper.threading.Semaphore", autospec=True)
     @patch("lib.zookeeper.threading.Event", autospec=True)
-    def test_full(self, event, semaphore, ksetup, listener, kstart):
+    def test_full(self, event, semaphore, ksetup, listener, kstart, cache):
         # Setup and call
         event.side_effect = ["event0", "event1"]
         inst = self._init_basic_setup(
             timeout=4.5, on_connect="on_conn", on_disconnect="on_dis",
-            ensure_paths="paths")
+            handle_paths=[("path0", "handler0", "state0")])
         # Tests
         ntools.eq_(inst._isd_id, 1)
         ntools.eq_(inst._ad_id, 2)
@@ -78,7 +81,7 @@ class TestZookeeperInit(BaseZookeeper):
         ntools.eq_(inst._timeout, 4.5)
         ntools.eq_(inst._on_connect, "on_conn")
         ntools.eq_(inst._on_disconnect, "on_dis")
-        ntools.eq_(inst._ensure_paths, "paths")
+        ntools.eq_(inst._shared_caches[0], cache.return_value)
         ntools.eq_(inst._prefix, "/ISD1-AD2/srvtype")
         ntools.eq_(inst._connected, "event0")
         ntools.eq_(inst._lock, "event1")
@@ -102,7 +105,7 @@ class TestZookeeperInit(BaseZookeeper):
         ntools.eq_(inst._timeout, 1.0)
         ntools.eq_(inst._on_connect, None)
         ntools.eq_(inst._on_disconnect, None)
-        ntools.eq_(inst._ensure_paths, ())
+        ntools.eq_(inst._shared_caches, [])
 
 
 class TestZookeeperKazooSetup(BaseZookeeper):
@@ -261,7 +264,9 @@ class TestZookeeperStateConnected(BaseZookeeper):
         inst._zk.client_id = MagicMock(spec_set=["__getitem__"])
         inst.ensure_path = create_mock()
         inst._prefix = "/prefix"
-        inst._ensure_paths = ["ensure0", "ensure1"]
+        inst._shared_caches = [create_mock(["path"]), create_mock(["path"])]
+        inst._shared_caches[0].path = "ensure0"
+        inst._shared_caches[1].path = "ensure1"
         inst._parties = {
             "/patha": create_mock(["autojoin"]),
             "/pathb": create_mock(["autojoin"]),
@@ -704,6 +709,17 @@ class TestZookeeperStoreSharedItems(BaseZookeeper):
         for i in ConnectionLoss, SessionExpiredError:
             yield self._check_create_exception, i
 
+    @patch("lib.zookeeper.Zookeeper.__init__", autospec=True, return_value=None)
+    def test_create_exists(self, init):
+        inst = self._init_basic_setup()
+        inst.is_connected = create_mock()
+        inst._prefix = "/prefix"
+        inst._zk = create_mock(["create", "set"])
+        inst._zk.set.side_effect = NoNodeError
+        inst._zk.create.side_effect = NodeExistsError
+        # Call
+        inst.store_shared_item('p', 'n', 'v')
+
 
 class TestZookeeperGetSharedItem(BaseZookeeper):
     """
@@ -929,6 +945,19 @@ class TestZookeeperRetry(BaseZookeeper):
         ntools.eq_(inst.wait_connected.call_count, 2)
 
 
+class TestZookeeperRunSharedCacheHandling(BaseZookeeper):
+    """
+    Unit tests for lib.zookeeper.Zookeeper.run_shared_cache_handling
+    """
+    @patch("lib.zookeeper.Zookeeper.__init__", autospec=True, return_value=None)
+    def test(self, init):
+        inst = self._init_basic_setup()
+        inst._shared_caches = [create_mock(['run']), create_mock(['run'])]
+        inst.run_shared_cache_handling()
+        inst._shared_caches[0].run.assert_called_once_with()
+        inst._shared_caches[1].run.assert_called_once_with()
+
+
 class TestZkPartyInit(object):
     """
     Unit tests for lib.zookeeper.ZkParty.__init__
@@ -1037,6 +1066,51 @@ class TestZkPartyList(object):
     def test_error(self):
         for excp in ConnectionLoss, SessionExpiredError:
             yield self._check_error, excp
+
+
+class TestZkSharedCacheInit(object):
+    """
+    Unit tests for lib.zookeeper.ZkSharedCache.__init__
+    """
+    def test(self):
+        inst = ZkSharedCache("zk", "path", "handler", "state_synced")
+        ntools.eq_(inst.zk, "zk")
+        ntools.eq_(inst.path, "path")
+        ntools.eq_(inst.handler, "handler")
+        ntools.eq_(inst._state_synced, "state_synced")
+        ntools.eq_(inst._latest_entry, 0)
+
+
+class TestZkSharedCacheReadCachedEntries(object):
+    """
+    Unit test for lib.zookeeper.ZkSharedCache._read_cached_entries
+    """
+    def test_no_entries(self):
+        inst = ZkSharedCache("zk", "path", "handler", "state_synced")
+        inst.zk = create_mock(["get_shared_metadata"])
+        inst.zk.get_shared_metadata.return_value = 0
+        ntools.eq_(inst._read_cached_entries(), 0)
+        inst.zk.get_shared_metadata.assert_called_once_with(
+            inst.path, timed_desc="Fetching list of entries from shared path: "
+                                  "path")
+
+    def test_entries(self):
+        inst = ZkSharedCache("zk", "path", "handler", "state_synced")
+        inst.zk = create_mock(["get_shared_metadata"])
+        inst._process_cached_entries = create_mock()
+        inst._latest_entry = 1
+        entries_meta = []
+        for i in [1, 6, 4]:
+            entry = create_mock(["last_modified"])
+            entry.last_modified = i
+            entries_meta.append(("entry%d" % i, entry))
+        inst.zk.get_shared_metadata.return_value = entries_meta
+        ntools.eq_(inst._read_cached_entries(),
+                   inst._process_cached_entries.return_value)
+        ntools.eq_(inst._latest_entry, 6)
+        inst._process_cached_entries.assert_called_once_with(
+            ["entry6", "entry4"],
+            timed_desc="Processing 2 new entries from shared path: path")
 
 
 if __name__ == "__main__":

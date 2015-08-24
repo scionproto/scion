@@ -11,8 +11,7 @@ sudo chown zookeeper: -R /run/shm/host-zk
 sudo service zookeeper start
 
 cat /etc/hosts topology/ISD*/hosts > /tmp/hosts
-sudo umount /etc/hosts
-sudo mv /tmp/hosts /etc/hosts
+sudo bash -c "umount /etc/hosts && mv /tmp/hosts /etc/hosts"
 
 # Can't be fixed during build due to
 # https://github.com/docker/docker/issues/6828

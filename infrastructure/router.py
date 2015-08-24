@@ -30,9 +30,24 @@ from collections import defaultdict
 # SCION
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.symcrypto import get_roundkey_cache, verify_of_mac
-from lib.defines import EXP_TIME_UNIT, SCION_UDP_EH_DATA_PORT, SCION_UDP_PORT
-from lib.errors import SCIONBaseError, SCIONBaseException
+from lib.defines import (
+    BEACON_SERVICE,
+    CERTIFICATE_SERVICE,
+    EXP_TIME_UNIT,
+    IFID_PKT_TOUT,
+    PATH_SERVICE,
+    ROUTER_SERVICE,
+    SCION_UDP_EH_DATA_PORT,
+    SCION_UDP_PORT,
+)
+from lib.errors import (
+    SCIONBaseError,
+    SCIONBaseException,
+    SCIONServiceLookupError,
+)
 from lib.log import init_logging, log_exception
+from lib.packet.ext_hdr import ExtensionClass
+from lib.packet.ext.traceroute import TracerouteExt, traceroute_ext_handler
 from lib.packet.opaque_field import (
     HopOpaqueField as HOF,
     OpaqueFieldType as OFT,
@@ -53,8 +68,7 @@ from lib.packet.scion_addr import ISD_AD, SCIONAddr
 from lib.thread import thread_safety_net
 from lib.util import handle_signals, SCIONTime, sleep_interval, start_thread
 
-
-IFID_PKT_TOUT = 1  # How often IFID packet is sent to neighboring router.
+MAX_EXT = 4  # Maximum number of hop-by-hop extensions processed by router.
 
 
 class SCIONOFVerificationError(SCIONBaseError):
@@ -125,11 +139,11 @@ class Router(SCIONElement):
     :ivar interface: the router's inter-AD interface, if any.
     :type interface: :class:`lib.topology.InterfaceElement`
     """
-
     FWD_REVOCATION_TIMEOUT = 5
     IFSTATE_REQ_INTERVAL = 30
 
-    def __init__(self, router_id, topo_file, config_file, is_sim=False):
+    def __init__(self, router_id, topo_file, config_file, pre_ext_handlers=None,
+                 post_ext_handlers=None, is_sim=False):
         """
         Initialize an instance of the class Router.
 
@@ -139,11 +153,18 @@ class Router(SCIONElement):
         :type topo_file: str
         :param config_file: the configuration file name.
         :type config_file: str
+        :ivar pre_ext_handlers: a map of extension header types to handlers for
+                            those extensions that execute before routing.
+        :type pre_ext_handlers: dict
+        :ivar post_ext_handlers: a map of extension header types to handlers for
+                             those extensions that execute after routing.
+        :type post_ext_handlers: dict
         :param is_sim: running in simulator
         :type is_sim: bool
         """
-        SCIONElement.__init__(self, "er", topo_file, server_id=router_id,
-                              config_file=config_file, is_sim=is_sim)
+        SCIONElement.__init__(self, ROUTER_SERVICE, topo_file,
+                              server_id=router_id, config_file=config_file,
+                              is_sim=is_sim)
         self.interface = None
         for edge_router in self.topology.get_all_edge_routers():
             if edge_router.addr == self.addr.host_addr:
@@ -154,6 +175,8 @@ class Router(SCIONElement):
         self.of_gen_key = get_roundkey_cache(self.config.master_ad_key)
         self.if_states = defaultdict(InterfaceState)
         self.revocations = ExpiringDict(1000, self.FWD_REVOCATION_TIMEOUT)
+        self.pre_ext_handlers = pre_ext_handlers or {}
+        self.post_ext_handlers = post_ext_handlers or {}
         if not is_sim:
             self._remote_socket = socket.socket(socket.AF_INET,
                                                 socket.SOCK_DGRAM)
@@ -178,14 +201,14 @@ class Router(SCIONElement):
         threading.Timer(5, start_thread, (ifstate_req_thread,)).start()
         SCIONElement.run(self)
 
-    def send(self, packet, addr, port=SCION_UDP_PORT, use_local_socket=True):
+    def send(self, spkt, addr, port=SCION_UDP_PORT, use_local_socket=True):
         """
-        Send a packet to addr (class of that object must implement
+        Send a spkt to addr (class of that object must implement
         __str__ which returns IPv4 addr) using port and local or remote
         socket.
 
-        :param packet: The packet to send.
-        :type packet: :class:`lib.packet.SCIONPacket`
+        :param spkt: The packet to send.
+        :type spkt: :class:`lib.spkt.SCIONspkt`
         :param addr: The address of the next hop.
         :type addr: :class:`IPv4Adress`
         :param port: The port number of the next hop.
@@ -194,11 +217,43 @@ class Router(SCIONElement):
                                  a remote socket).
         :type use_local_socket: bool
         """
+        self.handle_extensions(spkt, False)
         if use_local_socket:
-            SCIONElement.send(self, packet, addr, port)
+            super().send(spkt, addr, port)
         else:
             self._remote_socket.sendto(
-                packet.pack(), (str(addr), port))
+                spkt.pack(), (str(addr), port))
+
+    def handle_extensions(self, spkt, pre_routing_phase):
+        """
+        Handle SCION Packet extensions. Handlers can be defined for pre- and
+        post-routing.
+
+        :param spkt:
+        :type spkt:
+        :param pre_routing_phase:
+        :type pre_routing_phase:
+        """
+        if pre_routing_phase:
+            handlers = self.pre_ext_handlers
+        else:
+            handlers = self.post_ext_handlers
+        ext_type = spkt.hdr.common_hdr.next_hdr
+        c = 0
+        # Hop-by-hop extensions must be first (just after path), and process
+        # only MAX_EXT number of them.
+        while ext_type == ExtensionClass.HOP_BY_HOP and c < MAX_EXT:
+            ext_hdr = spkt.hdr.extension_hdrs[c]
+            ext_nr = ext_hdr.EXT_TYPE
+            if ext_nr in handlers:
+                handlers[ext_nr](spkt=spkt, ext=ext_hdr, conf=self.config,
+                                 topo=self.topology, iface=self.interface)
+            else:
+                logging.debug("No handler for extension type %u", ext_nr)
+            ext_type = ext_hdr.next_hdr
+            c += 1
+        if c >= MAX_EXT and ext_type == ExtensionClass.HOP_BY_HOP:
+            logging.warning("Too many hop-by-hop extensions.")
 
     def sync_interface(self):
         """
@@ -247,8 +302,13 @@ class Router(SCIONElement):
         # Forward 'alive' packet to all BSes (to inform that neighbor is alive).
         # BS must determine interface.
         ifid_packet.reply_id = self.interface.if_id
-        for bs in self.topology.beacon_servers:
-            self.send(ifid_packet, bs.addr)
+        try:
+            bs_addrs = self.dns_query_topo(BEACON_SERVICE)
+        except SCIONServiceLookupError as e:
+            logging.error("Unable to deliver ifid packet: %s", e)
+            return
+        for bs_addr in bs_addrs:
+            self.send(ifid_packet, bs_addr)
 
     def process_pcb(self, beacon, from_bs):
         """
@@ -267,9 +327,13 @@ class Router(SCIONElement):
             self.send(beacon, self.interface.to_addr,
                       self.interface.to_udp_port, False)
         else:
-            # TODO Multiple BS scenario
             beacon.pcb.if_id = self.interface.if_id
-            self.send(beacon, self.topology.beacon_servers[0].addr)
+            try:
+                bs_addr = self.dns_query_topo(BEACON_SERVICE)[0]
+            except SCIONServiceLookupError as e:
+                logging.error("Unable to deliver PCB: %s", e)
+                return
+            self.send(beacon, bs_addr)
 
     def relay_cert_server_packet(self, spkt, from_local_ad):
         """
@@ -284,8 +348,11 @@ class Router(SCIONElement):
             addr = self.interface.to_addr
             port = self.interface.to_udp_port
         else:
-            # TODO Multiple CS scenario
-            addr = self.topology.certificate_servers[0].addr
+            try:
+                addr = self.dns_query_topo(CERTIFICATE_SERVICE)[0]
+            except SCIONServiceLookupError as e:
+                logging.error("Unable to deliver cert packet: %s", e)
+                return
             port = SCION_UDP_PORT
         self.send(spkt, addr, port)
 
@@ -366,7 +433,11 @@ class Router(SCIONElement):
             return
         # Forward packet to destination.
         if ptype == PT.PATH_MGMT:
-            addr = self.topology.path_servers[0].addr
+            try:
+                addr = self.dns_query_topo(PATH_SERVICE)[0]
+            except SCIONServiceLookupError as e:
+                logging.error("Unable to deliver path mgmt packet: %s", e)
+                return
             port = SCION_UDP_PORT
         else:
             addr = spkt.hdr.dst_addr.host_addr
@@ -666,6 +737,7 @@ class Router(SCIONElement):
         from_local_ad = from_local_socket
         spkt = SCIONPacket(packet)
         ptype = get_type(spkt)
+        self.handle_extensions(spkt, True)
         if ptype == PT.DATA:
             self.forward_packet(spkt, from_local_ad)
         elif ptype == PT.IFID_PKT and not from_local_ad:
@@ -693,8 +765,12 @@ def main():
     parser.add_argument('log_file', help='Log file')
     args = parser.parse_args()
     init_logging(args.log_file)
-
-    router = Router(args.router_id, args.topo_file, args.conf_file)
+    # Run router without extensions handling:
+    # router = Router(args.router_id, args.topo_file, args.conf_file)
+    # Run router with an extension handler:
+    pre_handlers = {TracerouteExt.EXT_TYPE: traceroute_ext_handler}
+    router = Router(args.router_id, args.topo_file, args.conf_file,
+                    pre_ext_handlers=pre_handlers)
 
     logging.info("Started: %s", datetime.datetime.now())
     router.run()

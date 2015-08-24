@@ -43,7 +43,12 @@ from ad_management.common import (
     UPDATE_SCRIPT_PATH,
 )
 from ad_management.secure_rpc_server import XMLRPCServerTLS
-from lib.defines import PROJECT_ROOT
+from lib.defines import (
+    BEACON_SERVICE,
+    CERTIFICATE_SERVICE,
+    PATH_SERVICE,
+    PROJECT_ROOT,
+)
 from lib.log import init_logging
 from topology.generator import ConfigGenerator
 
@@ -306,7 +311,8 @@ class MonitoringDaemon(object):
 
         Get the id of the current master process for a given server type.
         """
-        if server_type not in ['bs', 'cs', 'ps']:
+        if server_type not in [BEACON_SERVICE, CERTIFICATE_SERVICE,
+                               PATH_SERVICE]:
             return response_failure('Invalid server type')
         kc = KazooClient(hosts="localhost:2181")
         lock_path = '/ISD{}-AD{}/{}/lock'.format(isd_id, ad_id, server_type)

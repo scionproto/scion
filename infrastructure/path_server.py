@@ -29,7 +29,7 @@ from external.expiring_dict import ExpiringDict
 # SCION
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.hash_chain import HashChain
-from lib.defines import SCION_UDP_PORT
+from lib.defines import PATH_SERVICE, SCION_UDP_PORT
 from lib.log import init_logging, log_exception
 from lib.packet.path_mgmt import (
     PathMgmtPacket,
@@ -64,8 +64,10 @@ class PathServer(SCIONElement):
         :param is_sim: running in simulator
         :type is_sim: bool
         """
-        SCIONElement.__init__(self, "ps", topo_file, server_id=server_id,
-                              config_file=config_file, is_sim=is_sim)
+        SCIONElement.__init__(self, PATH_SERVICE, topo_file,
+                              server_id=server_id, config_file=config_file,
+                              is_sim=is_sim)
+        # TODO replace by pathstore instance
         self.down_segments = PathSegmentDB()
         self.core_segments = PathSegmentDB()  # Direction of the propagation.
         self.pending_down = {}  # Dict of pending DOWN _and_ UP_DOWN requests.
@@ -79,8 +81,8 @@ class PathServer(SCIONElement):
             name_addrs = "\0".join([self.id, str(SCION_UDP_PORT),
                                     str(self.addr.host_addr)])
             self.zk = Zookeeper(
-                self.topology.isd_id, self.topology.ad_id, "ps", name_addrs,
-                self.topology.zookeepers)
+                self.topology.isd_id, self.topology.ad_id, PATH_SERVICE,
+                name_addrs, self.topology.zookeepers)
             self.zk.retry("Joining party", self.zk.party_setup)
 
     def _add_if_mappings(self, pcb):
@@ -259,8 +261,12 @@ class CorePathServer(PathServer):
             dst_isd = pcb.get_last_pcbm().isd_id
             res = self.down_segments.update(pcb, src_isd, src_ad,
                                             dst_isd, dst_ad)
-            if res != DBResult.NONE:
+            if (dst_isd == pkt.hdr.src_addr.isd_id and
+                    dst_ad == pkt.hdr.src_addr.ad_id):
+                # Only propagate this path if it was registered with us by the
+                # down-stream AD.
                 paths_to_propagate.append(pcb)
+            if res != DBResult.NONE:
                 logging.info("Down-Segment registered (%d, %d) -> (%d, %d)",
                              src_isd, src_ad, dst_isd, dst_ad)
                 if res == DBResult.ENTRY_ADDED:

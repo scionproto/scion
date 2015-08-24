@@ -19,6 +19,7 @@
 import logging
 import os.path
 import threading
+import time
 
 # External packages
 from kazoo.client import KazooClient, KazooRetry, KazooState
@@ -26,6 +27,7 @@ from kazoo.exceptions import (
     ConnectionLoss,
     LockTimeout,
     NoNodeError,
+    NodeExistsError,
     SessionExpiredError,
 )
 from kazoo.handlers.threading import KazooTimeoutError
@@ -80,14 +82,14 @@ class Zookeeper(object):
 
     def __init__(self, isd_id, ad_id, srv_type, srv_id,
                  zk_hosts, timeout=1.0, on_connect=None,
-                 on_disconnect=None, ensure_paths=()):
+                 on_disconnect=None, handle_paths=None):
         """
         Setup the Zookeeper connection.
 
         :param int isd_id: The ID of the current ISD.
         :param int ad_id: The ID of the current AD.
-        :param str srv_type: Short description of the service. E.g. ``"bs"``
-                             for Beacon server.
+        :param str srv_type: a service type from
+                             :const:`lib.defines.SERVICE_TYPES`
         :param str srv_id: Service instance identifier.
         :param list zk_hosts: List of Zookeeper instances to connect to, in the
                               form of ``["host:port"..]``.
@@ -96,7 +98,9 @@ class Zookeeper(object):
                            Zookeeper.
         :param on_disconnect: A function called everytime a connection is lost
                               to Zookeeper.
-        :param tuple ensure_paths: A tuple of ZK paths to ensure exist on
+        :param tuple handle_paths: A list of tuples of ZK paths, their
+                                   corresponding handler functions, and sync
+                                   states. It is ensured that paths exist on
                                    connect.
         """
         self._isd_id = isd_id
@@ -105,7 +109,11 @@ class Zookeeper(object):
         self._timeout = timeout
         self._on_connect = on_connect
         self._on_disconnect = on_disconnect
-        self._ensure_paths = ensure_paths
+        self._shared_caches = []
+        if handle_paths:
+            for path, handler, state_synced in handle_paths:
+                shared_cache = ZkSharedCache(self, path, handler, state_synced)
+                self._shared_caches.append(shared_cache)
         self._prefix = "/ISD%d-AD%d/%s" % (
             self._isd_id, self._ad_id, srv_type)
         # Keep track of our connection state
@@ -207,8 +215,8 @@ class Zookeeper(object):
                       hex(self._zk.client_id[0]))
         try:
             self.ensure_path(self._prefix, abs=True)
-            for path in self._ensure_paths:
-                self.ensure_path(path)
+            for shared_cache in self._shared_caches:
+                self.ensure_path(shared_cache.path)
             for party in self._parties.values():
                 party.autojoin()
         except ZkConnectionLoss:
@@ -377,6 +385,10 @@ class Zookeeper(object):
             return
         except (ConnectionLoss, SessionExpiredError):
             raise ZkConnectionLoss
+        except NodeExistsError:
+            # Node was created between our check and our create, so assume that
+            # the contents are recent, and return without error.
+            return
 
     def get_shared_item(self, path, entry):
         """
@@ -487,6 +499,10 @@ class Zookeeper(object):
         raise ZkRetryLimit("%s: Failed %s times, giving up" %
                            (desc, 1+_retries))
 
+    def run_shared_cache_handling(self):
+        for shared_cache in self._shared_caches:
+            shared_cache.run()
+
 
 class ZkParty(object):
     """
@@ -533,3 +549,110 @@ class ZkParty(object):
             return set(self._party)
         except (ConnectionLoss, SessionExpiredError):
             raise ZkConnectionLoss
+
+
+class ZkSharedCache(object):
+    """
+    Class for handling ZK's shared path.
+    """
+    def __init__(self, zk, path, handler, state_synced):
+        """
+        :param Zookeeper zk: A Zookeeper instance
+        :param str path: The absolute path of the cache
+        :param function handler: Handler for a list of cached objects
+        :param threading.Event state_synced: state for synchronization
+        """
+        self.zk = zk
+        self.path = path
+        self.handler = handler
+        self._state_synced = state_synced
+        self._latest_entry = 0
+
+    def handle_shared_entries(self):
+        """
+        A thread to handle Zookeeper connects/disconnects and the shared cache
+        of entries.
+
+        On connect, it registers us as in-service, and loads the shared cache
+        of entries from ZK.
+
+        While connected, it calls _read_cached_entries() to read updated entries
+        from the cache.
+        """
+        while True:
+            if not self.zk.is_connected():
+                self._state_synced.clear()
+                self.zk.wait_connected()
+            else:
+                time.sleep(0.5)
+                if not self._state_synced.is_set():
+                    # Make sure we re-read the entire cache
+                    self._latest_entry = 0
+            count = None
+            try:
+                count = self._read_cached_entries()
+            except ZkConnectionLoss:
+                self._state_synced.clear()
+                continue
+            if count:
+                logging.debug("Processed %d new/updated entries from %s",
+                              count, self.path)
+            self._state_synced.set()
+
+    def _read_cached_entries(self):
+        """
+        Read new/updated entries from the shared cache and send them for
+        processing.
+        """
+        desc = "Fetching list of entries from shared path: %s" % self.path
+        entries_meta = self.zk.get_shared_metadata(
+            self.path,
+            timed_desc=desc)
+        if not entries_meta:
+            return 0
+        new = []
+        newest = self._latest_entry
+        for entry, meta in entries_meta:
+            if meta.last_modified > self._latest_entry:
+                new.append(entry)
+            if meta.last_modified > newest:
+                newest = meta.last_modified
+        self._latest_entry = newest
+        desc = "Processing %s new entries from shared path: %s" % (len(new),
+                                                                   self.path)
+        count = self._process_cached_entries(new, timed_desc=desc)
+        return count
+
+    @timed(1.0)
+    def _process_cached_entries(self, entries):
+        """
+        Retrieve new entries from the shared cache and send them for local
+        processing (self.handler).
+
+        :param entries: cached path segments.
+        :param entries: list
+        """
+        new_entries = []
+        for entry in entries:
+            try:
+                raw = self.zk.get_shared_item(self.path, entry)
+            except ZkConnectionLoss:
+                logging.warning("Unable to retrieve entry from shared "
+                                "path %s: no connection to ZK" % self.path)
+                break
+            except ZkNoNodeError:
+                logging.debug("Unable to retrieve entry from shared cache: "
+                              "no such entry (%s/%s)" %
+                              (self.path, entry))
+                continue
+            new_entries.append(raw)
+        self.handler(new_entries)
+        return len(new_entries)
+
+    def run(self):
+        """
+        Run thread that handles shared path.
+        """
+        threading.Thread(
+            target=thread_safety_net, args=(self.handle_shared_entries,),
+            name="handle_shared_entries(%s)" % self.path, daemon=True).start()
