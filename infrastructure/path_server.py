@@ -1019,7 +1019,6 @@ class LocalPathServer(PathServer):
         :param src_ad:
         :type src_ad:
         """
-        assert ptype in [PST.DOWN, PST.CORE]
         if src_isd is None:
             src_isd = self.topology.isd_id
         if src_ad is None:
@@ -1032,7 +1031,23 @@ class LocalPathServer(PathServer):
         else:
             logging.info('Requesting path from core: type: %d, addr: %d,%d',
                          ptype, dst_isd, dst_ad)
-            pcb = self.up_segments()[0]
+            if ptype == PST.DOWN:
+                # Take any path towards core.
+                pcb = self.up_segments()[0]
+            elif ptype == PST.CORE:
+                # Request core AD that should have given core-path.
+                pcbs = self.up_segments(dst_isd=src_isd, dst_ad=src_ad)
+                if not pcbs:
+                    logging.warning("Core path (%d, %d)->(%d, %d) requested, "
+                                    "but up path to (%d, %d) not found." %
+                                    (src_isd, src_ad, dst_isd, dst_ad,
+                                     src_isd, src_ad))
+                    return
+                pcb = pcbs[0]
+            else:
+                logging.error("UP_PATH request to core.")
+                return
+
             path = pcb.get_path(reverse_direction=True)
             dst_isd_ad = ISD_AD(pcb.get_isd(), pcb.get_first_pcbm().ad_id)
             path.up_segment_info.up_flag = True  # FIXME: temporary hack. A very
@@ -1064,9 +1079,7 @@ class LocalPathServer(PathServer):
                 paths_to_send.extend(self.up_segments()[:self.MAX_SEG_NO])
             else:
                 if type == PST.UP_DOWN:
-                    update_dict(self.pending_down,
-                                (dst_isd, dst_ad),
-                                [pkt])
+                    update_dict(self.pending_down, (dst_isd, dst_ad), [pkt])
                     self.waiting_targets.add((dst_isd, dst_ad))
                 else:  # PST.UP
                     self.pending_up.append(pkt)
@@ -1077,9 +1090,7 @@ class LocalPathServer(PathServer):
             if paths:
                 paths_to_send.extend(paths[:self.MAX_SEG_NO])
             else:
-                update_dict(self.pending_down,
-                            (dst_isd, dst_ad),
-                            [pkt])
+                update_dict(self.pending_down, (dst_isd, dst_ad), [pkt])
                 self._request_paths_from_core(PST.DOWN, dst_isd, dst_ad)
                 logging.info("No downpath, request is pending.")
         # Requester wants core-path.
