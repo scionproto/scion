@@ -36,7 +36,7 @@ from kazoo.handlers.threading import KazooTimeoutError
 # SCION
 from lib.errors import SCIONBaseError
 from lib.thread import kill_self, thread_safety_net
-from lib.util import timed
+from lib.util import SCIONTime, timed
 
 
 class ZkBaseError(SCIONBaseError):
@@ -277,9 +277,37 @@ class Zookeeper(object):
 
     def wait_connected(self, timeout=None):
         """
-        Wait until there is a connection to Zookeeper.
+        Wait until there is a connection to Zookeeper. Log every 10s until a
+        connection is available.
+
+        :param float timeout:
+            Number of seconds to wait for a ZK connection. If ``None``, wait
+            forever.
+        :returns: ``True`` if connected, otherwise ``False``
+        :rtype: :class:`bool`
         """
-        return self._connected.wait(timeout=timeout)
+        if self.is_connected():
+            return True
+        logging.debug("Waiting for ZK connection")
+        start = SCIONTime.get_time()
+        total_time = 0.0
+        if timeout is None:
+            next_timeout = 10.0
+        while True:
+            if timeout is not None:
+                next_timeout = min(timeout - total_time, 10.0)
+            ret = self._connected.wait(timeout=next_timeout)
+            total_time = SCIONTime.get_time() - start
+            if ret:
+                logging.debug("ZK connection available after %.2fs", total_time)
+                return True
+            elif timeout is not None and total_time >= timeout:
+                logging.debug("ZK connection still unavailable after %.2fs",
+                              total_time)
+                return False
+            else:
+                logging.debug("Still waiting for ZK connection (%.2fs so far)",
+                              total_time)
 
     def ensure_path(self, path, abs=False):
         """
