@@ -183,7 +183,7 @@ class PathServer(SCIONElement):
         assert isinstance(pkt.payload, PathSegmentRecords)
         if pkt.payload.info.type == PST.UP:
             self._handle_up_segment_record(pkt)
-        elif pkt.payload.info.type == PST.DOWN:
+        elif pkt.payload.info.type in [PST.DOWN, PST.UP_DOWN]:
             self._handle_down_segment_record(pkt)
         elif pkt.payload.info.type == PST.CORE:
             self._handle_core_segment_record(pkt)
@@ -532,15 +532,13 @@ class CorePathServer(PathServer):
             logging.warning("CPS received up-segment request! This should not "
                             "happen")
             return
-        elif ptype == PST.DOWN:
+        elif ptype in [PST.DOWN, PST.UP_DOWN]:
             paths = self.down_segments(dst_isd=dst_isd, dst_ad=dst_ad)
             if paths:
                 paths = paths[:self.MAX_SEG_NO]
                 segments_to_send.extend(paths)
             elif dst_isd == self.topology.isd_id:
-                update_dict(self.pending_down,
-                            (dst_isd, dst_ad),
-                            [pkt])
+                update_dict(self.pending_down, (dst_isd, dst_ad), [pkt])
                 logging.info("No down-path segment for (%d, %d), "
                              "request is pending.", dst_isd, dst_ad)
                 # TODO Sam: Here we should ask other CPSes in the same ISD for
@@ -1081,8 +1079,7 @@ class LocalPathServer(PathServer):
                 if ptype == PST.UP_DOWN:
                     update_dict(self.pending_down, (dst_isd, dst_ad), [pkt])
                     self.waiting_targets.add((dst_isd, dst_ad, segment_info))
-                else:  # PST.UP
-                    self.pending_up.append(pkt)
+                self.pending_up.append(pkt)
                 return
         # Requester wants down-path.
         if (ptype in [PST.DOWN, PST.UP_DOWN]):
