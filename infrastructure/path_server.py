@@ -1078,7 +1078,7 @@ class LocalPathServer(PathServer):
             if len(self.up_segments):
                 paths_to_send.extend(self.up_segments()[:self.MAX_SEG_NO])
             else:
-                if type == PST.UP_DOWN:
+                if ptype == PST.UP_DOWN:
                     update_dict(self.pending_down, (dst_isd, dst_ad), [pkt])
                     self.waiting_targets.add((dst_isd, dst_ad))
                 else:  # PST.UP
