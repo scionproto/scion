@@ -1025,11 +1025,10 @@ class LocalPathServer(PathServer):
             src_ad = self.topology.ad_id
         info = PathSegmentInfo.from_values(ptype, src_isd, dst_isd,
                                            src_ad, dst_ad)
-        if not len(self.up_segments):
-            logging.info('Pending target added')
-            if ptype == PST.DOWN:
-                self.waiting_targets.add((dst_isd, dst_ad, info))
-        else:
+        if not len(self.up_segments) and ptype == PST.DOWN:
+            logging.info('Pending target added (%d, %d)', dst_isd, dst_ad)
+            self.waiting_targets.add((dst_isd, dst_ad, info))
+        elif len(self.up_segments):
             logging.info('Requesting path from core: type: %d, addr: %d,%d',
                          ptype, dst_isd, dst_ad)
             if ptype == PST.DOWN:
