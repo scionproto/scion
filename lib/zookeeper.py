@@ -129,10 +129,12 @@ class Zookeeper(object):
         self._lock = threading.Event()
         # Used to signal connection state changes
         self._state_events = queue.Queue()
+        self.conn_epoch = 0
         # Kazoo parties
         self._parties = {}
         # Kazoo lock (initialised later)
         self._zk_lock = None
+        self._lock_epoch = 0
 
         self._kazoo_setup(zk_hosts)
         self._setup_state_listener()
@@ -186,8 +188,10 @@ class Zookeeper(object):
         """
         Called everytime the Kazoo connection state changes.
         """
+        self.conn_epoch += 1
         # Signal a connection state change
-        logging.debug("Kazoo state changed to %s", new_state)
+        logging.debug("Kazoo state changed to %s (epoch %d)",
+                      new_state, self.conn_epoch)
         self._state_events.put(new_state)
         # Tell kazoo not to remove this listener:
         return False
@@ -251,7 +255,6 @@ class Zookeeper(object):
         This means that the connection to Zookeeper is down.
         """
         self._connected.clear()
-        self._lock.clear()
         logging.info("Connection to Zookeeper suspended")
         if self._on_disconnect:
             self._on_disconnect()
@@ -264,7 +267,6 @@ class Zookeeper(object):
         re-done on connect.
         """
         self._connected.clear()
-        self._lock.clear()
         logging.info("Connection to Zookeeper lost")
         if self._on_disconnect:
             self._on_disconnect()
@@ -321,15 +323,18 @@ class Zookeeper(object):
         self._parties[party_path] = party
         return party
 
-    def get_lock(self, timeout=60.0):
+    def get_lock(self, lock_timeout=None, conn_timeout=None):
         """
         Try to get the lock. Returns immediately if we already have the lock.
 
-        :param float timeout: Time (in seconds) to wait for lock acquisition,
-                              or ``None`` to wait forever.
-        :type timeout: float or None.
-        :return: ``True`` if we got the lock, or already had it, otherwise
-                 ``False``.
+        :param float lock_timeout:
+            Time (in seconds) to wait for lock acquisition, or ``None`` to wait
+            forever (Default).
+        :param float conn_timeout:
+            Time (in seconds) to wait for a connection to ZK, or ``None`` to
+            wait forever (Default).
+        :return:
+            ``True`` if we got the lock, or already had it, otherwise ``False``.
         :rtype: :class:`bool`
         """
         if self._zk_lock is None:
@@ -338,15 +343,24 @@ class Zookeeper(object):
             self._zk_lock = self._zk.Lock(lock_path, self._srv_id)
         if not self.is_connected():
             self.release_lock()
+        if not self.wait_connected(timeout=conn_timeout):
             return False
+        if self._lock_epoch != self.conn_epoch:
+            logging.debug("ZK lock state is stale, releasing (epoch %d != %d)",
+                          self._lock_epoch, self.conn_epoch)
+            self.release_lock()
         elif self._lock.is_set():
-            # We already have the lock
+            # We already have the lock.
             return True
+        self._lock_epoch = self.conn_epoch
+        logging.debug("Trying to acquire ZK lock (epoch %d)", self._lock_epoch)
         try:
-            if self._zk_lock.acquire(timeout=timeout):
+            if self._zk_lock.acquire(timeout=lock_timeout):
+                logging.info("Successfully acquired ZK lock (epoch %d)",
+                             self._lock_epoch)
                 self._lock.set()
             else:
-                pass
+                logging.debug("Failed to acquire ZK lock")
         except (LockTimeout, ConnectionLoss, SessionExpiredError):
             pass
         ret = self.have_lock()
@@ -357,6 +371,8 @@ class Zookeeper(object):
         Release the lock
         """
         self._lock.clear()
+        if self._zk_lock is None:
+            return
         if self.is_connected():
             try:
                 self._zk_lock.release()
@@ -369,7 +385,13 @@ class Zookeeper(object):
         """
         Check if we currently hold the lock
         """
-        return self.is_connected() and self._lock.is_set()
+        if (self.is_connected() and
+                self._lock_epoch == self.conn_epoch and
+                self._lock.is_set()):
+            return True
+        else:
+            self.release_lock()
+            return False
 
     def wait_lock(self):
         """
