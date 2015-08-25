@@ -93,13 +93,11 @@ class PathServer(SCIONElement):
             # Add more IPs here if we support dual-stack
             name_addrs = "\0".join([self.id, str(SCION_UDP_PORT),
                                     str(self.addr.host_addr)])
-            self._state_synced = threading.Event()
             self.zk = Zookeeper(
                 self.topology.isd_id, self.topology.ad_id, PATH_SERVICE,
                 name_addrs, self.topology.zookeepers,
                 handle_paths=[(self.ZK_PATH_CACHE_PATH,
-                               self._cached_entries_handler,
-                               self._state_synced)])
+                               self._cached_entries_handler)])
             self.zk.retry("Joining party", self.zk.party_setup)
 
     def _cached_entries_handler(self, raw_entries):
@@ -483,7 +481,7 @@ class CorePathServer(PathServer):
             lock_contents = self.zk._zk.get(lock_holder_path)
             _, _, server_addr = lock_contents[0].split(b"\x00")
             return str(server_addr, 'utf-8')
-        except: # PSz: TODO
+        except:  # PSz: TODO
             logging.warning("No lock data found")
             return None
 

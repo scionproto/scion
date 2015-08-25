@@ -759,6 +759,7 @@ class BeaconServer(SCIONElement):
             sleep_interval(start_time, self.IF_TIMEOUT_INTERVAL,
                            "Handle IF timeouts")
 
+    # PSz: unused for now
     def should_propagate(self, master):
         """
         Decide whether should propagate.
