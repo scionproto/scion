@@ -413,6 +413,7 @@ class CorePathServer(PathServer):
         self._master_id = None  # Address of master core Path Server.
 
     def _cached_entries_handler(self, raw_entries):
+        logging.debug("Processing %d entries from ZK" % len(raw_entries))
         for entry in raw_entries:
             self._handle_core_segment_record(PathMgmtPacket(raw=entry), True)
 
@@ -605,17 +606,26 @@ class CorePathServer(PathServer):
                     logging.debug("Sending path request %s on newly learned "
                                   "path to (%d, %d)", info, dst_isd, dst_ad)
         # Serve pending core path requests.
-        # Changing order as (src_isd, src _ad) is AS that initiated the PCB.
-        target = ((dst_isd, dst_ad), (src_isd, src_ad))
-        if target in self.pending_core:
-            segments_to_send = self.core_segments(first_isd=src_isd,
-                                                  first_ad=src_ad,
-                                                  last_isd=dst_isd,
-                                                  last_ad=dst_ad)
-            segments_to_send = segments_to_send[:self.MAX_SEG_NO]
-            for path_request in self.pending_core[target]:
-                self.send_path_segments(path_request, segments_to_send)
-            del self.pending_core[target]
+        for target in [((src_isd, src_ad), (dst_isd, dst_ad)),
+                       ((src_isd, src_ad), (dst_isd, 0))]:
+            if self.pending_core:
+                logging.debug("D01 Target: %s, pending_core: %s " % (target,
+                              self.pending_core))
+            if target in self.pending_core:
+                if not target[1][1]:  # Request for any path to dst_isd.
+                    segments_to_send = self.core_segments(first_isd=dst_isd,
+                                                          last_isd=src_isd,
+                                                          last_ad=src_ad)
+                else:
+                    segments_to_send = self.core_segments(first_isd=dst_isd,
+                                                          first_ad=dst_ad,
+                                                          last_isd=src_isd,
+                                                          last_ad=src_ad)
+                segments_to_send = segments_to_send[:self.MAX_SEG_NO]
+                for path_request in self.pending_core[target]:
+                    self.send_path_segments(path_request, segments_to_send)
+                del self.pending_core[target]
+                logging.debug("D02: %s removed from pending_core", target)
 
     def _send_to_master(self, pkt):
         """
@@ -628,7 +638,7 @@ class CorePathServer(PathServer):
             pkt.hdr.src_addr.isd_id = self.topology.isd_id
             pkt.hdr.src_addr.ad_id = self.topology.ad_id
             self.send(pkt, self._master_id)
-            logging.debug("Path sent to master")
+            logging.debug("Packet sent to master %s", self._master_id)
         else:
             logging.warning("_send_to_master(): _master_id not set.")
 
@@ -765,11 +775,10 @@ class CorePathServer(PathServer):
                 paths = paths[:self.MAX_SEG_NO]
                 segments_to_send.extend(paths)
             else:
-                if not any_ad:  # FIXME(PSz): this behaviour could be revised.
-                    update_dict(self.pending_core, key, [pkt])
-                    logging.info("No core-segment for (%d, %d) -> (%d, %d), "
-                                 "request is pending.", src_isd, src_ad,
-                                 dst_isd, dst_ad)
+                update_dict(self.pending_core, key, [pkt])
+                logging.info("No core-segment for (%d, %d) -> (%d, %d), "
+                             "request is pending.", src_isd, src_ad,
+                             dst_isd, dst_ad)
                 if not self._is_master():
                     self._query_master(ptype, dst_isd, dst_ad, src_isd, src_ad)
         else:
