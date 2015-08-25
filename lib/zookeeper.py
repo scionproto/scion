@@ -20,7 +20,6 @@ import logging
 import os.path
 import queue
 import threading
-import time
 
 # External packages
 from kazoo.client import KazooClient, KazooRetry, KazooState
@@ -36,7 +35,7 @@ from kazoo.handlers.threading import KazooTimeoutError
 # SCION
 from lib.errors import SCIONBaseError
 from lib.thread import kill_self, thread_safety_net
-from lib.util import timed
+from lib.util import SCIONTime, timed
 
 
 class ZkBaseError(SCIONBaseError):
@@ -95,20 +94,20 @@ class Zookeeper(object):
 
         :param int isd_id: The ID of the current ISD.
         :param int ad_id: The ID of the current AD.
-        :param str srv_type: a service type from
-                             :const:`lib.defines.SERVICE_TYPES`
+        :param str srv_type:
+            a service type from :const:`lib.defines.SERVICE_TYPES`
         :param str srv_id: Service instance identifier.
-        :param list zk_hosts: List of Zookeeper instances to connect to, in the
-                              form of ``["host:port"..]``.
+        :param list zk_hosts:
+            List of Zookeeper instances to connect to, in the form of
+            ``["host:port"..]``.
         :param float timeout: Zookeeper session timeout length (in seconds).
-        :param on_connect: A function called everytime a connection is made to
-                           Zookeeper.
-        :param on_disconnect: A function called everytime a connection is lost
-                              to Zookeeper.
-        :param tuple handle_paths: A list of tuples of ZK paths, their
-                                   corresponding handler functions, and sync
-                                   states. It is ensured that paths exist on
-                                   connect.
+        :param on_connect:
+            A function called everytime a connection is made to Zookeeper.
+        :param on_disconnect:
+            A function called everytime a connection is lost to Zookeeper.
+        :param tuple handle_paths:
+            A list of tuples of ZK paths and their corresponding handler
+            functions. It is ensured that paths exist on connect.
         """
         self._isd_id = isd_id
         self._ad_id = ad_id
@@ -118,8 +117,8 @@ class Zookeeper(object):
         self._on_disconnect = on_disconnect
         self._shared_caches = []
         if handle_paths:
-            for path, handler, state_synced in handle_paths:
-                shared_cache = ZkSharedCache(self, path, handler, state_synced)
+            for path, handler in handle_paths:
+                shared_cache = ZkSharedCache(self, path, handler)
                 self._shared_caches.append(shared_cache)
         self._prefix = "/ISD%d-AD%d/%s" % (
             self._isd_id, self._ad_id, srv_type)
@@ -129,10 +128,12 @@ class Zookeeper(object):
         self._lock = threading.Event()
         # Used to signal connection state changes
         self._state_events = queue.Queue()
+        self.conn_epoch = 0
         # Kazoo parties
         self._parties = {}
         # Kazoo lock (initialised later)
         self._zk_lock = None
+        self._lock_epoch = 0
 
         self._kazoo_setup(zk_hosts)
         self._setup_state_listener()
@@ -186,8 +187,10 @@ class Zookeeper(object):
         """
         Called everytime the Kazoo connection state changes.
         """
+        self.conn_epoch += 1
         # Signal a connection state change
-        logging.debug("Kazoo state changed to %s", new_state)
+        logging.debug("Kazoo state changed to %s (epoch %d)",
+                      new_state, self.conn_epoch)
         self._state_events.put(new_state)
         # Tell kazoo not to remove this listener:
         return False
@@ -251,7 +254,6 @@ class Zookeeper(object):
         This means that the connection to Zookeeper is down.
         """
         self._connected.clear()
-        self._lock.clear()
         logging.info("Connection to Zookeeper suspended")
         if self._on_disconnect:
             self._on_disconnect()
@@ -264,7 +266,6 @@ class Zookeeper(object):
         re-done on connect.
         """
         self._connected.clear()
-        self._lock.clear()
         logging.info("Connection to Zookeeper lost")
         if self._on_disconnect:
             self._on_disconnect()
@@ -277,9 +278,37 @@ class Zookeeper(object):
 
     def wait_connected(self, timeout=None):
         """
-        Wait until there is a connection to Zookeeper.
+        Wait until there is a connection to Zookeeper. Log every 10s until a
+        connection is available.
+
+        :param float timeout:
+            Number of seconds to wait for a ZK connection. If ``None``, wait
+            forever.
+        :returns: ``True`` if connected, otherwise ``False``
+        :rtype: :class:`bool`
         """
-        return self._connected.wait(timeout=timeout)
+        if self.is_connected():
+            return True
+        logging.debug("Waiting for ZK connection")
+        start = SCIONTime.get_time()
+        total_time = 0.0
+        if timeout is None:
+            next_timeout = 10.0
+        while True:
+            if timeout is not None:
+                next_timeout = min(timeout - total_time, 10.0)
+            ret = self._connected.wait(timeout=next_timeout)
+            total_time = SCIONTime.get_time() - start
+            if ret:
+                logging.debug("ZK connection available after %.2fs", total_time)
+                return True
+            elif timeout is not None and total_time >= timeout:
+                logging.debug("ZK connection still unavailable after %.2fs",
+                              total_time)
+                return False
+            else:
+                logging.debug("Still waiting for ZK connection (%.2fs so far)",
+                              total_time)
 
     def ensure_path(self, path, abs=False):
         """
@@ -321,15 +350,18 @@ class Zookeeper(object):
         self._parties[party_path] = party
         return party
 
-    def get_lock(self, timeout=60.0):
+    def get_lock(self, lock_timeout=None, conn_timeout=None):
         """
         Try to get the lock. Returns immediately if we already have the lock.
 
-        :param float timeout: Time (in seconds) to wait for lock acquisition,
-                              or ``None`` to wait forever.
-        :type timeout: float or None.
-        :return: ``True`` if we got the lock, or already had it, otherwise
-                 ``False``.
+        :param float lock_timeout:
+            Time (in seconds) to wait for lock acquisition, or ``None`` to wait
+            forever (Default).
+        :param float conn_timeout:
+            Time (in seconds) to wait for a connection to ZK, or ``None`` to
+            wait forever (Default).
+        :return:
+            ``True`` if we got the lock, or already had it, otherwise ``False``.
         :rtype: :class:`bool`
         """
         if self._zk_lock is None:
@@ -338,15 +370,24 @@ class Zookeeper(object):
             self._zk_lock = self._zk.Lock(lock_path, self._srv_id)
         if not self.is_connected():
             self.release_lock()
+        if not self.wait_connected(timeout=conn_timeout):
             return False
+        if self._lock_epoch != self.conn_epoch:
+            logging.debug("ZK lock state is stale, releasing (epoch %d != %d)",
+                          self._lock_epoch, self.conn_epoch)
+            self.release_lock()
         elif self._lock.is_set():
-            # We already have the lock
+            # We already have the lock.
             return True
+        self._lock_epoch = self.conn_epoch
+        logging.debug("Trying to acquire ZK lock (epoch %d)", self._lock_epoch)
         try:
-            if self._zk_lock.acquire(timeout=timeout):
+            if self._zk_lock.acquire(timeout=lock_timeout):
+                logging.info("Successfully acquired ZK lock (epoch %d)",
+                             self._lock_epoch)
                 self._lock.set()
             else:
-                pass
+                logging.debug("Failed to acquire ZK lock")
         except (LockTimeout, ConnectionLoss, SessionExpiredError):
             pass
         ret = self.have_lock()
@@ -357,6 +398,8 @@ class Zookeeper(object):
         Release the lock
         """
         self._lock.clear()
+        if self._zk_lock is None:
+            return
         if self.is_connected():
             try:
                 self._zk_lock.release()
@@ -369,7 +412,13 @@ class Zookeeper(object):
         """
         Check if we currently hold the lock
         """
-        return self.is_connected() and self._lock.is_set()
+        if (self.is_connected() and
+                self._lock_epoch == self.conn_epoch and
+                self._lock.is_set()):
+            return True
+        else:
+            self.release_lock()
+            return False
 
     def wait_lock(self):
         """
@@ -519,8 +568,14 @@ class Zookeeper(object):
                            (desc, 1+_retries))
 
     def run_shared_cache_handling(self):
-        for shared_cache in self._shared_caches:
-            shared_cache.run()
+        for cache in self._shared_caches:
+            try:
+                cache.handle_shared_entries()
+            except ZkConnectionLoss:
+                logging.warning("Reading from %s: Connection to ZK dropped",
+                                cache.path)
+                return False
+        return True
 
 
 class ZkParty(object):
@@ -574,18 +629,17 @@ class ZkSharedCache(object):
     """
     Class for handling ZK's shared path.
     """
-    def __init__(self, zk, path, handler, state_synced):
+    def __init__(self, zk, path, handler):
         """
         :param Zookeeper zk: A Zookeeper instance
         :param str path: The absolute path of the cache
         :param function handler: Handler for a list of cached objects
-        :param threading.Event state_synced: state for synchronization
         """
         self.zk = zk
         self.path = path
         self.handler = handler
-        self._state_synced = state_synced
         self._latest_entry = 0
+        self._epoch = 0
 
     def handle_shared_entries(self):
         """
@@ -598,25 +652,15 @@ class ZkSharedCache(object):
         While connected, it calls _read_cached_entries() to read updated entries
         from the cache.
         """
-        while True:
-            if not self.zk.is_connected():
-                self._state_synced.clear()
-                self.zk.wait_connected()
-            else:
-                time.sleep(0.5)
-                if not self._state_synced.is_set():
-                    # Make sure we re-read the entire cache
-                    self._latest_entry = 0
-            count = None
-            try:
-                count = self._read_cached_entries()
-            except ZkConnectionLoss:
-                self._state_synced.clear()
-                continue
-            if count:
-                logging.debug("Processed %d new/updated entries from %s",
-                              count, self.path)
-            self._state_synced.set()
+        if not self.zk.wait_connected():
+            return
+        if self._epoch != self.zk.conn_epoch:
+            # Make sure we re-read the entire cache
+            self._latest_entry = 0
+        count = self._read_cached_entries()
+        if count:
+            logging.debug("Processed %d new/updated entries from %s",
+                          count, self.path)
 
     def _read_cached_entries(self):
         """
@@ -667,11 +711,3 @@ class ZkSharedCache(object):
             new_entries.append(raw)
         self.handler(new_entries)
         return len(new_entries)
-
-    def run(self):
-        """
-        Run thread that handles shared path.
-        """
-        threading.Thread(
-            target=thread_safety_net, args=(self.handle_shared_entries,),
-            name="handle_shared_entries(%s)" % self.path, daemon=True).start()
