@@ -15,7 +15,7 @@ RUN bash -c 'DEBIAN_FRONTEND=noninteractive apt-get purge --auto-remove -y $(< d
 # deps.sh changes for any reason.
 RUN apt-get update
 COPY docker/pkgs_preinstall.txt $BASE/docker/
-RUN bash -c 'DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y $(< docker/pkgs_preinstall.txt)'
+RUN bash -c 'apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y $(< docker/pkgs_preinstall.txt)'
 
 ################################################################################
 # Handle installing all dependancies up-front. That way code changes don't cause
@@ -32,7 +32,7 @@ COPY deps.sh $BASE/
 # Copy over pkgs_debian.txt. If it has changed, then re-run the remaining steps.
 COPY pkgs_debian.txt $BASE/
 RUN sudo chown -R scion: $HOME
-RUN APTARGS=-y ./deps.sh pkgs
+RUN sudo apt-get update && APTARGS=-y ./deps.sh pkgs
 
 # Copy over requirements.txt. If it has changed, then re-run the remaining steps.
 COPY requirements.txt $BASE/

@@ -17,7 +17,7 @@
 """
 # Stdlib
 import logging
-from unittest.mock import MagicMock, PropertyMock, call, patch
+from unittest.mock import MagicMock, call, patch
 
 # External packages
 import nose
@@ -40,6 +40,7 @@ from lib.zookeeper import (
     ZkNoNodeError,
     ZkParty,
     ZkRetryLimit,
+    ZkSharedCache,
     Zookeeper,
 )
 from test.testcommon import SCIONTestError, create_mock
@@ -61,12 +62,13 @@ class TestZookeeperInit(BaseZookeeper):
     """
     Unit tests for lib.zookeeper.Zookeeper.__init__
     """
+    @patch("lib.zookeeper.ZkSharedCache", autospec=True)
     @patch("lib.zookeeper.Zookeeper._kazoo_start", autospec=True)
     @patch("lib.zookeeper.Zookeeper._setup_state_listener", autospec=True)
     @patch("lib.zookeeper.Zookeeper._kazoo_setup", autospec=True)
-    @patch("lib.zookeeper.threading.Semaphore", autospec=True)
+    @patch("lib.zookeeper.queue.Queue", autospec=True)
     @patch("lib.zookeeper.threading.Event", autospec=True)
-    def test_full(self, event, semaphore, ksetup, listener, kstart):
+    def test_full(self, event, queue, ksetup, listener, kstart, cache):
         # Setup and call
         event.side_effect = ["event0", "event1"]
         inst = self._init_basic_setup(
@@ -79,11 +81,12 @@ class TestZookeeperInit(BaseZookeeper):
         ntools.eq_(inst._timeout, 4.5)
         ntools.eq_(inst._on_connect, "on_conn")
         ntools.eq_(inst._on_disconnect, "on_dis")
+        ntools.eq_(inst._shared_caches[0], cache.return_value)
         ntools.eq_(inst._prefix, "/ISD1-AD2/srvtype")
         ntools.eq_(inst._connected, "event0")
         ntools.eq_(inst._lock, "event1")
-        semaphore.assert_called_once_with(value=0)
-        ntools.eq_(inst._state_event, semaphore.return_value)
+        queue.assert_called_once_with()
+        ntools.eq_(inst._state_events, queue.return_value)
         ntools.eq_(inst._parties, {})
         ntools.eq_(inst._zk_lock, None)
         ksetup.assert_called_once_with(inst, self.default_hosts)
@@ -102,7 +105,7 @@ class TestZookeeperInit(BaseZookeeper):
         ntools.eq_(inst._timeout, 1.0)
         ntools.eq_(inst._on_connect, None)
         ntools.eq_(inst._on_disconnect, None)
-        ntools.eq_(inst.shared_caches, [])
+        ntools.eq_(inst._shared_caches, [])
 
 
 class TestZookeeperKazooSetup(BaseZookeeper):
@@ -189,11 +192,13 @@ class TestZookeeperStateListener(BaseZookeeper):
     def test(self, init):
         # Setup
         inst = self._init_basic_setup()
-        inst._state_event = create_mock(["release"])
+        inst._state_events = create_mock(["put"])
+        inst.conn_epoch = 47
         # Call
         ntools.eq_(inst._state_listener("statist"), False)
         # Tests
-        inst._state_event.release.assert_called_once_with()
+        inst._state_events.put.assert_called_once_with("statist")
+        ntools.eq_(inst.conn_epoch, 48)
 
 
 class TestZookeeperStateHandler(BaseZookeeper):
@@ -201,19 +206,27 @@ class TestZookeeperStateHandler(BaseZookeeper):
     Unit tests for lib.zookeeper.Zookeeper._state_handler
     """
     @patch("lib.zookeeper.Zookeeper.__init__", autospec=True, return_value=None)
+    def test_flapping(self, init):
+        # Setup
+        inst = self._init_basic_setup()
+        inst._state_events = create_mock(["get", "empty"])
+        # Setup inst._state_events.get to allow a single iteration of the loop
+        inst._state_events.get.side_effect = [KazooState.CONNECTED]
+        inst._state_events.empty.return_value = False
+        inst._state_connected = create_mock()
+        # Call
+        ntools.assert_raises(StopIteration, inst._state_handler)
+        # Tests
+        inst._state_events.get.assert_has_calls([call()] * 2)
+        ntools.assert_false(inst._state_connected.called)
+
+    @patch("lib.zookeeper.Zookeeper.__init__", autospec=True, return_value=None)
     def _check(self, old_state, new_state, init):
         # Setup
         inst = self._init_basic_setup()
-        inst._state_event = create_mock(["acquire"])
-        # Setup inst._state_event to allow a single iteration of the loop
-        inst._state_event.acquire.side_effect = [0]
-        inst._zk = create_mock(["state"])
-        # Make inst._zk.state a PropertyMock, so we can check that it is read
-        mock_state = PropertyMock(spec_set=[], return_value=new_state)
-        # Required to attach a property to a mock:
-        # http://www.voidspace.org.uk/python/mock/mock.html#mock.PropertyMock
-        type(inst._zk).state = mock_state
-        inst._zk.state = create_mock()
+        inst._state_events = create_mock(["get", "empty"])
+        # Setup inst._state_events.get to allow a single iteration of the loop
+        inst._state_events.get.side_effect = [new_state]
         inst._state_connected = create_mock()
         inst._state_suspended = create_mock()
         inst._state_lost = create_mock()
@@ -237,10 +250,10 @@ class TestZookeeperStateHandler(BaseZookeeper):
         ntools.eq_(inst._state_suspended.call_count, suspended)
         ntools.eq_(inst._state_lost.call_count, lost)
 
-    def test(self):
+    def test_basic(self):
         test_inputs = (
-            (KazooState.CONNECTED, KazooState.CONNECTED),
             ("startup", KazooState.CONNECTED),
+            (KazooState.CONNECTED, KazooState.CONNECTED),
             (KazooState.CONNECTED, KazooState.SUSPENDED),
             (KazooState.CONNECTED, KazooState.LOST),
             (KazooState.SUSPENDED, KazooState.CONNECTED),
@@ -261,9 +274,9 @@ class TestZookeeperStateConnected(BaseZookeeper):
         inst._zk.client_id = MagicMock(spec_set=["__getitem__"])
         inst.ensure_path = create_mock()
         inst._prefix = "/prefix"
-        inst.shared_caches = [create_mock(["path"]), create_mock(["path"])]
-        inst.shared_caches[0].path = "ensure0"
-        inst.shared_caches[1].path = "ensure1"
+        inst._shared_caches = [create_mock(["path"]), create_mock(["path"])]
+        inst._shared_caches[0].path = "ensure0"
+        inst._shared_caches[1].path = "ensure1"
         inst._parties = {
             "/patha": create_mock(["autojoin"]),
             "/pathb": create_mock(["autojoin"]),
@@ -316,7 +329,6 @@ class TestZookeeperStateDisconnected(BaseZookeeper):
     def _check(self, f_name, init, test_callback=False):
         inst = self._init_basic_setup()
         inst._connected = create_mock(["clear"])
-        inst._lock = create_mock(["clear"])
         inst._on_disconnect = None
         if test_callback:
             inst._on_disconnect = create_mock()
@@ -324,7 +336,6 @@ class TestZookeeperStateDisconnected(BaseZookeeper):
         getattr(inst, f_name)()
         # Tests
         inst._connected.clear.assert_called_once_with()
-        inst._lock.clear.assert_called_once_with()
         if test_callback:
             inst._on_disconnect.assert_called_once_with()
 
@@ -361,18 +372,58 @@ class TestZookeeperWaitConnected(BaseZookeeper):
     Unit tests for lib.zookeeper.Zookeeper.wait_connected
     """
     @patch("lib.zookeeper.Zookeeper.__init__", autospec=True, return_value=None)
-    def _check(self, timeout, init):
+    def test_connected(self, init):
         inst = self._init_basic_setup()
-        inst._connected = create_mock(["wait"])
-        inst._connected.wait.return_value = 33
+        inst.is_connected = create_mock()
         # Call
-        ntools.eq_(inst.wait_connected(timeout=timeout), 33)
+        ntools.ok_(inst.wait_connected())
         # Tests
-        inst._connected.wait.assert_called_once_with(timeout=timeout)
+        inst.is_connected.assert_called_once_with()
 
-    def test(self):
-        for timeout in None, 1, 15:
-            yield self._check, timeout
+    @patch("lib.zookeeper.SCIONTime.get_time", new_callable=create_mock)
+    @patch("lib.zookeeper.Zookeeper.__init__", autospec=True, return_value=None)
+    def test_no_timeout(self, init, get_time):
+        inst = self._init_basic_setup()
+        inst.is_connected = create_mock()
+        inst.is_connected.return_value = False
+        get_time.side_effect = [0, 10, 20]
+        inst._connected = create_mock(["wait"])
+        inst._connected.wait.side_effect = [False, True]
+        # Call
+        ntools.ok_(inst.wait_connected(timeout=None))
+        # Tests
+        inst._connected.wait.assert_has_calls([call(timeout=10.0)] * 2)
+        ntools.eq_(inst._connected.wait.call_count, 2)
+
+    @patch("lib.zookeeper.SCIONTime.get_time", new_callable=create_mock)
+    @patch("lib.zookeeper.Zookeeper.__init__", autospec=True, return_value=None)
+    def test_timeout_success(self, init, get_time):
+        inst = self._init_basic_setup()
+        inst.is_connected = create_mock()
+        inst.is_connected.return_value = False
+        get_time.side_effect = [0, 10, 20]
+        inst._connected = create_mock(["wait"])
+        inst._connected.wait.side_effect = [False, True]
+        # Call
+        ntools.ok_(inst.wait_connected(timeout=15))
+        # Tests
+        inst._connected.wait.assert_has_calls([call(timeout=10.0),
+                                               call(timeout=5.0)])
+        ntools.eq_(inst._connected.wait.call_count, 2)
+
+    @patch("lib.zookeeper.SCIONTime.get_time", new_callable=create_mock)
+    @patch("lib.zookeeper.Zookeeper.__init__", autospec=True, return_value=None)
+    def test_timeout_fail(self, init, get_time):
+        inst = self._init_basic_setup()
+        inst.is_connected = create_mock()
+        inst.is_connected.return_value = False
+        get_time.side_effect = [0, 10, 20]
+        inst._connected = create_mock(["wait"])
+        inst._connected.wait.side_effect = [False, False]
+        # Call
+        ntools.assert_false(inst.wait_connected(timeout=15))
+        # Tests
+        ntools.eq_(inst._connected.wait.call_count, 2)
 
 
 class TestZookeeperEnsurePath(BaseZookeeper):
@@ -466,60 +517,66 @@ class TestZookeeperGetLock(BaseZookeeper):
     """
     Unit tests for lib.zookeeper.Zookeeper.get_lock
     """
-    @patch("lib.zookeeper.Zookeeper.__init__", autospec=True, return_value=None)
-    def test_no_lock(self, init):
+    def _setup(self, is_conn=True, wait_conn=True, l_epoch=1, c_epoch=1):
         inst = self._init_basic_setup()
-        inst._zk_lock = None
-        inst._prefix = "/prefix"
+        inst._zk_lock = create_mock(["acquire"])
         inst._zk = create_mock(["Lock"])
-        inst._srv_id = "srvid"
-        # Short-circuit the rest of get_lock() by making is_connected raise
-        # StopIteration.
         inst.is_connected = create_mock()
-        inst.is_connected.side_effect = []
-        # Call
-        ntools.assert_raises(StopIteration, inst.get_lock)
-        # Tests
-        inst._zk.Lock.assert_called_once_with("/prefix/lock", "srvid")
+        inst.is_connected.return_value = is_conn
+        inst.release_lock = create_mock()
+        inst.wait_connected = create_mock()
+        inst.wait_connected.return_value = wait_conn
+        inst._lock_epoch = l_epoch
+        inst.conn_epoch = c_epoch
+        inst._lock = create_mock(["is_set", "set"])
+        inst.have_lock = create_mock()
+        return inst
 
     @patch("lib.zookeeper.Zookeeper.__init__", autospec=True, return_value=None)
-    def test_not_connected(self, init):
-        inst = self._init_basic_setup()
-        inst._zk_lock = True
-        inst.is_connected = create_mock()
-        inst.is_connected.return_value = False
-        inst.release_lock = create_mock()
+    def test_no_lock_not_conn(self, init):
+        inst = self._setup(is_conn=False, wait_conn=False)
+        inst._zk_lock = None
+        inst._prefix = "/prefix"
+        inst._srv_id = "srvid"
         # Call
-        ntools.assert_false(inst.get_lock())
+        ntools.assert_false(inst.get_lock(conn_timeout="conn t/o"))
         # Tests
+        inst._zk.Lock.assert_called_once_with("/prefix/lock", "srvid")
         inst.is_connected.assert_called_once_with()
         inst.release_lock.assert_called_once_with()
+        inst.wait_connected.assert_called_once_with(timeout="conn t/o")
 
     @patch("lib.zookeeper.Zookeeper.__init__", autospec=True, return_value=None)
     def test_have_lock(self, init):
-        inst = self._init_basic_setup()
-        inst._zk_lock = True
-        inst.is_connected = create_mock()
-        inst._lock = create_mock(["is_set"])
+        inst = self._setup()
         # Call
         ntools.assert_true(inst.get_lock())
         # Tests
         inst._lock.is_set.assert_called_once_with()
 
     @patch("lib.zookeeper.Zookeeper.__init__", autospec=True, return_value=None)
-    def test_acquire(self, init):
-        inst = self._init_basic_setup()
-        inst._zk_lock = create_mock(["acquire"])
-        inst.is_connected = create_mock()
-        inst._lock = create_mock(["is_set", "set"])
-        inst._lock.is_set.return_value = False
-        inst.have_lock = create_mock()
+    def test_stale_epoch_acquire(self, init):
+        inst = self._setup(l_epoch=0)
         # Call
-        ntools.eq_(inst.get_lock(), inst.have_lock.return_value)
+        ntools.eq_(inst.get_lock(lock_timeout="lock t/o"),
+                   inst.have_lock.return_value)
         # Tests
-        inst._zk_lock.acquire.assert_called_once_with(timeout=60.0)
+        inst.release_lock.assert_called_once_with()
+        ntools.eq_(inst._lock_epoch, inst.conn_epoch)
+        inst._zk_lock.acquire.assert_called_once_with(timeout="lock t/o")
         inst._lock.set.assert_called_once_with()
         inst.have_lock.assert_called_once_with()
+
+    @patch("lib.zookeeper.Zookeeper.__init__", autospec=True, return_value=None)
+    def test_acquire_fail(self, init):
+        inst = self._setup(l_epoch=0)
+        inst._zk_lock.acquire.return_value = False
+        # Call
+        ntools.eq_(inst.get_lock(lock_timeout="lock t/o"),
+                   inst.have_lock.return_value)
+        # Tests
+        inst._zk_lock.acquire.assert_called_once_with(timeout="lock t/o")
+        ntools.assert_false(inst._lock.set.called)
 
     @patch("lib.zookeeper.Zookeeper.__init__", autospec=True, return_value=None)
     def _check_exception(self, exception, init):
@@ -527,13 +584,15 @@ class TestZookeeperGetLock(BaseZookeeper):
         inst._zk_lock = create_mock(["acquire"])
         inst._zk_lock.acquire.side_effect = exception
         inst.is_connected = create_mock()
+        inst.wait_connected = create_mock()
+        inst._lock_epoch = inst.conn_epoch = 22
         inst._lock = create_mock(["is_set"])
         inst._lock.is_set.return_value = False
         inst.have_lock = create_mock()
         # Call
         ntools.eq_(inst.get_lock(), inst.have_lock.return_value)
         # Tests
-        inst._zk_lock.acquire.assert_called_once_with(timeout=60.0)
+        inst._zk_lock.acquire.assert_called_once_with(timeout=None)
 
     def test_exceptions(self):
         for excp in (LockTimeout, ConnectionLoss,
@@ -545,6 +604,18 @@ class TestZookeeperReleaseLock(BaseZookeeper):
     """
     Unit tests for lib.zookeeper.Zookeeper.release_lock
     """
+    @patch("lib.zookeeper.Zookeeper.__init__", autospec=True, return_value=None)
+    def test_no_lock(self, init):
+        inst = self._init_basic_setup()
+        inst._lock = create_mock(["clear"])
+        inst._zk_lock = None
+        inst.is_connected = create_mock()
+        # Call
+        inst.release_lock()
+        # Tests
+        inst._lock.clear.assert_called_once_with()
+        ntools.assert_false(inst.is_connected.called)
+
     @patch("lib.zookeeper.Zookeeper.__init__", autospec=True, return_value=None)
     def test_not_connected(self, init):
         inst = self._init_basic_setup()
@@ -594,29 +665,42 @@ class TestZookeeperHaveLock(BaseZookeeper):
     """
     Unit tests for lib.zookeeper.Zookeeper.have_lock
     """
-    @patch("lib.zookeeper.Zookeeper.__init__", autospec=True, return_value=None)
-    def _check(self, connected, have_lock, init):
+    def _setup(self, connected, l_epoch, c_epoch, lock_is_set):
         inst = self._init_basic_setup()
         inst.is_connected = create_mock()
         inst.is_connected.return_value = connected
+        inst._lock_epoch = l_epoch
+        inst.conn_epoch = c_epoch
         inst._lock = create_mock(["is_set"])
-        inst._lock.is_set.return_value = have_lock
-        expected = connected and have_lock
+        inst._lock.is_set.return_value = lock_is_set
+        inst.release_lock = create_mock()
+        return inst
+
+    @patch("lib.zookeeper.Zookeeper.__init__", autospec=True, return_value=None)
+    def test_have(self, init):
+        inst = self._setup(True, 1, 1, True)
         # Call
-        ntools.eq_(inst.have_lock(), expected)
+        ntools.ok_(inst.have_lock())
         # Tests
         inst.is_connected.assert_called_once_with()
-        if connected:
-            inst._lock.is_set.assert_called_once_with()
+        inst._lock.is_set.assert_called_once_with()
+        ntools.assert_false(inst.release_lock.called)
 
-    def test(self):
-        for connected, have_lock in (
-                (False, False),
-                (False, True),
-                (True, False),
-                (True, True)
+    @patch("lib.zookeeper.Zookeeper.__init__", autospec=True, return_value=None)
+    def _check_not_have(self, connected, l_epoch, c_epoch, lock_is_set, init):
+        inst = self._setup(connected, l_epoch, c_epoch, lock_is_set)
+        # Call
+        ntools.assert_false(inst.have_lock())
+        # Tests
+        inst.release_lock.assert_called_once_with()
+
+    def test_not_have(self):
+        for connected, l_epoch, c_epoch, lock_is_set in (
+                (False, 1, 1, True),
+                (True, 0, 1, True),
+                (True, 1, 1, False),
         ):
-            yield self._check, connected, have_lock
+            yield self._check_not_have, connected, l_epoch, c_epoch, lock_is_set
 
 
 class TestZookeeperWaitLock(BaseZookeeper):
@@ -942,6 +1026,19 @@ class TestZookeeperRetry(BaseZookeeper):
         ntools.eq_(inst.wait_connected.call_count, 2)
 
 
+class TestZookeeperRunSharedCacheHandling(BaseZookeeper):
+    """
+    Unit tests for lib.zookeeper.Zookeeper.run_shared_cache_handling
+    """
+    @patch("lib.zookeeper.Zookeeper.__init__", autospec=True, return_value=None)
+    def test(self, init):
+        inst = self._init_basic_setup()
+        inst._shared_caches = [create_mock(['run']), create_mock(['run'])]
+        inst.run_shared_cache_handling()
+        inst._shared_caches[0].run.assert_called_once_with()
+        inst._shared_caches[1].run.assert_called_once_with()
+
+
 class TestZkPartyInit(object):
     """
     Unit tests for lib.zookeeper.ZkParty.__init__
@@ -1050,6 +1147,51 @@ class TestZkPartyList(object):
     def test_error(self):
         for excp in ConnectionLoss, SessionExpiredError:
             yield self._check_error, excp
+
+
+class TestZkSharedCacheInit(object):
+    """
+    Unit tests for lib.zookeeper.ZkSharedCache.__init__
+    """
+    def test(self):
+        inst = ZkSharedCache("zk", "path", "handler", "state_synced")
+        ntools.eq_(inst.zk, "zk")
+        ntools.eq_(inst.path, "path")
+        ntools.eq_(inst.handler, "handler")
+        ntools.eq_(inst._state_synced, "state_synced")
+        ntools.eq_(inst._latest_entry, 0)
+
+
+class TestZkSharedCacheReadCachedEntries(object):
+    """
+    Unit test for lib.zookeeper.ZkSharedCache._read_cached_entries
+    """
+    def test_no_entries(self):
+        inst = ZkSharedCache("zk", "path", "handler", "state_synced")
+        inst.zk = create_mock(["get_shared_metadata"])
+        inst.zk.get_shared_metadata.return_value = 0
+        ntools.eq_(inst._read_cached_entries(), 0)
+        inst.zk.get_shared_metadata.assert_called_once_with(
+            inst.path, timed_desc="Fetching list of entries from shared path: "
+                                  "path")
+
+    def test_entries(self):
+        inst = ZkSharedCache("zk", "path", "handler", "state_synced")
+        inst.zk = create_mock(["get_shared_metadata"])
+        inst._process_cached_entries = create_mock()
+        inst._latest_entry = 1
+        entries_meta = []
+        for i in [1, 6, 4]:
+            entry = create_mock(["last_modified"])
+            entry.last_modified = i
+            entries_meta.append(("entry%d" % i, entry))
+        inst.zk.get_shared_metadata.return_value = entries_meta
+        ntools.eq_(inst._read_cached_entries(),
+                   inst._process_cached_entries.return_value)
+        ntools.eq_(inst._latest_entry, 6)
+        inst._process_cached_entries.assert_called_once_with(
+            ["entry6", "entry4"],
+            timed_desc="Processing 2 new entries from shared path: path")
 
 
 if __name__ == "__main__":

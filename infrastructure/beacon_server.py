@@ -823,7 +823,6 @@ class CoreBeaconServer(BeaconServer):
         """
         Generate a new beacon or gets ready to forward the one received.
         """
-        master = False
         while True:
             if not self.should_propagate(master):
                 continue
@@ -1248,7 +1247,6 @@ class LocalBeaconServer(BeaconServer):
         Main loop to propagate received beacons.
         """
         # TODO: define function that dispatches the pcbs among the interfaces
-        master = False
         while True:
             if not self.should_propagate(master):
                 continue

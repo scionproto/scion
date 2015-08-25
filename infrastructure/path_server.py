@@ -441,7 +441,7 @@ class CorePathServer(PathServer):
     def _update_master(self):
         """
         """
-        # TODO replace by asynch API, currently while is due to some weirdness
+        # TODO replace by asynch API, currently `while` is due to some weirdness
         # of watchers
         while True:
             curr_master = self._get_master_id()
@@ -483,7 +483,7 @@ class CorePathServer(PathServer):
             lock_contents = self.zk._zk.get(lock_holder_path)
             _, _, server_addr = lock_contents[0].split(b"\x00")
             return str(server_addr, 'utf-8')
-        except:
+        except: # PSz: TODO
             logging.warning("No lock data found")
             return None
 
@@ -519,8 +519,12 @@ class CorePathServer(PathServer):
             dst_isd = pcb.get_last_pcbm().isd_id
             res = self.down_segments.update(pcb, src_isd, src_ad,
                                             dst_isd, dst_ad)
-            if res != DBResult.NONE:
+            if (dst_isd == pkt.hdr.src_addr.isd_id and
+                    dst_ad == pkt.hdr.src_addr.ad_id):
+                # Only propagate this path if it was registered with us by the
+                # down-stream AD.
                 paths_to_propagate.append(pcb)
+            if res != DBResult.NONE:
                 logging.info("Down-Segment registered (%d, %d) -> (%d, %d)",
                              src_isd, src_ad, dst_isd, dst_ad)
                 if res == DBResult.ENTRY_ADDED:
@@ -602,7 +606,6 @@ class CorePathServer(PathServer):
                     logging.debug("Sending path request %s on newly learned "
                                   "path to (%d, %d)", info, dst_isd, dst_ad)
         # Serve pending core path requests.
-        # FIXME(PSz): check this, and switch src, dst..
         target = ((src_isd, src_ad), (dst_isd, dst_ad))
         if target in self.pending_core:
             segments_to_send = self.core_segments(src_isd=src_isd,
@@ -672,7 +675,7 @@ class CorePathServer(PathServer):
                     logging.info("Sending packet to CPS in (%d, %d).", isd, ad)
                     self.send(pkt, next_hop)
                 else:
-                    logging.info("No path for core AD (%d, %d) found.", isd, ad)
+                    logging.warning("Path to AD (%d, %d) not found.", isd, ad)
 
     def _handle_leases(self, pkt):
         """

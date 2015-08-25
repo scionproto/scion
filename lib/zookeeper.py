@@ -18,6 +18,7 @@
 # Stdlib
 import logging
 import os.path
+import queue
 import threading
 import time
 
@@ -35,7 +36,7 @@ from kazoo.handlers.threading import KazooTimeoutError
 # SCION
 from lib.errors import SCIONBaseError
 from lib.thread import kill_self, thread_safety_net
-from lib.util import timed
+from lib.util import SCIONTime, timed
 
 
 class ZkBaseError(SCIONBaseError):
@@ -46,17 +47,23 @@ class ZkBaseError(SCIONBaseError):
 
 
 class ZkConnectionLoss(ZkBaseError):
-    """Connection to Zookeeper is lost"""
+    """
+    Connection to Zookeeper is lost
+    """
     pass
 
 
 class ZkNoNodeError(ZkBaseError):
-    """A node doesn't exist"""
+    """
+    A node doesn't exist
+    """
     pass
 
 
 class ZkRetryLimit(ZkBaseError):
-    """Operation retries hit limit"""
+    """
+    Operation retries hit limit
+    """
     pass
 
 
@@ -70,9 +77,9 @@ class Zookeeper(object):
 
     E.g. Kazoo's Lock will claim to be held, even if the Zookeeper connection
     has been lost in the meantime. This causes an immediate split-brain problem
-    for anything relying on that lock for synchronization. This is also,
-    unfortunately, no way to inform the local Lock object that the connection
-    is down and therefore the Lock should be released.
+    for anything relying on that lock for synchronization. There is also,
+    unfortunately, no documented way to inform the local Lock object that the
+    connection is down and therefore the Lock should be released.
 
     All of Kazoo's events are done via callbacks. These callbacks must not
     block. If they do, no more Kazoo events can happen.
@@ -109,11 +116,11 @@ class Zookeeper(object):
         self._timeout = timeout
         self._on_connect = on_connect
         self._on_disconnect = on_disconnect
-        self.shared_caches = []
+        self._shared_caches = []
         if handle_paths:
             for path, handler, state_synced in handle_paths:
                 shared_cache = ZkSharedCache(self, path, handler, state_synced)
-                self.shared_caches.append(shared_cache)
+                self._shared_caches.append(shared_cache)
         self._prefix = "/ISD%d-AD%d/%s" % (
             self._isd_id, self._ad_id, srv_type)
         # Keep track of our connection state
@@ -121,11 +128,13 @@ class Zookeeper(object):
         # Keep track of the kazoo lock
         self._lock = threading.Event()
         # Used to signal connection state changes
-        self._state_event = threading.Semaphore(value=0)
+        self._state_events = queue.Queue()
+        self.conn_epoch = 0
         # Kazoo parties
         self._parties = {}
         # Kazoo lock (initialised later)
         self._zk_lock = None
+        self._lock_epoch = 0
 
         self._kazoo_setup(zk_hosts)
         self._setup_state_listener()
@@ -179,8 +188,11 @@ class Zookeeper(object):
         """
         Called everytime the Kazoo connection state changes.
         """
+        self.conn_epoch += 1
         # Signal a connection state change
-        self._state_event.release()
+        logging.debug("Kazoo state changed to %s (epoch %d)",
+                      new_state, self.conn_epoch)
+        self._state_events.put(new_state)
         # Tell kazoo not to remove this listener:
         return False
 
@@ -192,16 +204,27 @@ class Zookeeper(object):
         old_state = initial_state
         while True:
             # Wait for connection state change
-            self._state_event.acquire()
-            # Short-circuit handler if the state hasn't actually changed
-            if old_state == self._zk.state:
+            new_state = self._state_events.get()
+
+            if (new_state == KazooState.CONNECTED and not
+                    self._state_events.empty()):
+                # Helps prevent some state flapping.
+                logging.debug("Kazoo CONNECTED ignored as the events "
+                              "queue is not empty.")
                 continue
+            # Short-circuit handler if the state hasn't actually changed. This
+            # prooobably shouldn't happen now, so making it an error.
+            if new_state == old_state:
+                logging.error("Kazoo state didn't change from %s, ignoring",
+                              old_state)
+                continue
+
             logging.debug("Kazoo old state: %s, new state: %s",
-                          old_state, self._zk.state)
-            old_state = self._zk.state
-            if self._zk.state == KazooState.CONNECTED:
+                          old_state, new_state)
+            old_state = new_state
+            if new_state == KazooState.CONNECTED:
                 self._state_connected()
-            elif self._zk.state == KazooState.SUSPENDED:
+            elif new_state == KazooState.SUSPENDED:
                 self._state_suspended()
             else:
                 self._state_lost()
@@ -215,7 +238,7 @@ class Zookeeper(object):
                       hex(self._zk.client_id[0]))
         try:
             self.ensure_path(self._prefix, abs=True)
-            for shared_cache in self.shared_caches:
+            for shared_cache in self._shared_caches:
                 self.ensure_path(shared_cache.path)
             for party in self._parties.values():
                 party.autojoin()
@@ -232,7 +255,6 @@ class Zookeeper(object):
         This means that the connection to Zookeeper is down.
         """
         self._connected.clear()
-        self._lock.clear()
         logging.info("Connection to Zookeeper suspended")
         if self._on_disconnect:
             self._on_disconnect()
@@ -245,7 +267,6 @@ class Zookeeper(object):
         re-done on connect.
         """
         self._connected.clear()
-        self._lock.clear()
         logging.info("Connection to Zookeeper lost")
         if self._on_disconnect:
             self._on_disconnect()
@@ -258,9 +279,37 @@ class Zookeeper(object):
 
     def wait_connected(self, timeout=None):
         """
-        Wait until there is a connection to Zookeeper.
+        Wait until there is a connection to Zookeeper. Log every 10s until a
+        connection is available.
+
+        :param float timeout:
+            Number of seconds to wait for a ZK connection. If ``None``, wait
+            forever.
+        :returns: ``True`` if connected, otherwise ``False``
+        :rtype: :class:`bool`
         """
-        return self._connected.wait(timeout=timeout)
+        if self.is_connected():
+            return True
+        logging.debug("Waiting for ZK connection")
+        start = SCIONTime.get_time()
+        total_time = 0.0
+        if timeout is None:
+            next_timeout = 10.0
+        while True:
+            if timeout is not None:
+                next_timeout = min(timeout - total_time, 10.0)
+            ret = self._connected.wait(timeout=next_timeout)
+            total_time = SCIONTime.get_time() - start
+            if ret:
+                logging.debug("ZK connection available after %.2fs", total_time)
+                return True
+            elif timeout is not None and total_time >= timeout:
+                logging.debug("ZK connection still unavailable after %.2fs",
+                              total_time)
+                return False
+            else:
+                logging.debug("Still waiting for ZK connection (%.2fs so far)",
+                              total_time)
 
     def ensure_path(self, path, abs=False):
         """
@@ -302,15 +351,18 @@ class Zookeeper(object):
         self._parties[party_path] = party
         return party
 
-    def get_lock(self, timeout=60.0):
+    def get_lock(self, lock_timeout=None, conn_timeout=None):
         """
         Try to get the lock. Returns immediately if we already have the lock.
 
-        :param float timeout: Time (in seconds) to wait for lock acquisition,
-                              or ``None`` to wait forever.
-        :type timeout: float or None.
-        :return: ``True`` if we got the lock, or already had it, otherwise
-                 ``False``.
+        :param float lock_timeout:
+            Time (in seconds) to wait for lock acquisition, or ``None`` to wait
+            forever (Default).
+        :param float conn_timeout:
+            Time (in seconds) to wait for a connection to ZK, or ``None`` to
+            wait forever (Default).
+        :return:
+            ``True`` if we got the lock, or already had it, otherwise ``False``.
         :rtype: :class:`bool`
         """
         if self._zk_lock is None:
@@ -319,15 +371,24 @@ class Zookeeper(object):
             self._zk_lock = self._zk.Lock(lock_path, self._srv_id)
         if not self.is_connected():
             self.release_lock()
+        if not self.wait_connected(timeout=conn_timeout):
             return False
+        if self._lock_epoch != self.conn_epoch:
+            logging.debug("ZK lock state is stale, releasing (epoch %d != %d)",
+                          self._lock_epoch, self.conn_epoch)
+            self.release_lock()
         elif self._lock.is_set():
-            # We already have the lock
+            # We already have the lock.
             return True
+        self._lock_epoch = self.conn_epoch
+        logging.debug("Trying to acquire ZK lock (epoch %d)", self._lock_epoch)
         try:
-            if self._zk_lock.acquire(timeout=timeout):
+            if self._zk_lock.acquire(timeout=lock_timeout):
+                logging.info("Successfully acquired ZK lock (epoch %d)",
+                             self._lock_epoch)
                 self._lock.set()
             else:
-                pass
+                logging.debug("Failed to acquire ZK lock")
         except (LockTimeout, ConnectionLoss, SessionExpiredError):
             pass
         ret = self.have_lock()
@@ -338,6 +399,8 @@ class Zookeeper(object):
         Release the lock
         """
         self._lock.clear()
+        if self._zk_lock is None:
+            return
         if self.is_connected():
             try:
                 self._zk_lock.release()
@@ -350,7 +413,13 @@ class Zookeeper(object):
         """
         Check if we currently hold the lock
         """
-        return self.is_connected() and self._lock.is_set()
+        if (self.is_connected() and
+                self._lock_epoch == self.conn_epoch and
+                self._lock.is_set()):
+            return True
+        else:
+            self.release_lock()
+            return False
 
     def wait_lock(self):
         """
@@ -500,7 +569,7 @@ class Zookeeper(object):
                            (desc, 1+_retries))
 
     def run_shared_cache_handling(self):
-        for shared_cache in self.shared_caches:
+        for shared_cache in self._shared_caches:
             shared_cache.run()
 
 
@@ -557,9 +626,8 @@ class ZkSharedCache(object):
     """
     def __init__(self, zk, path, handler, state_synced):
         """
-        :param zk: A kazoo instance
-        :param str path: The absolute path of the party
-        :param str id_: The service id value to use in the party
+        :param Zookeeper zk: A Zookeeper instance
+        :param str path: The absolute path of the cache
         :param function handler: Handler for a list of cached objects
         :param threading.Event state_synced: state for synchronization
         """
@@ -586,16 +654,18 @@ class ZkSharedCache(object):
                 self.zk.wait_connected()
             else:
                 time.sleep(0.5)
-            try:
                 if not self._state_synced.is_set():
                     # Make sure we re-read the entire cache
                     self._latest_entry = 0
+            count = None
+            try:
                 count = self._read_cached_entries()
-                if count:
-                    logging.debug("Processed %d new/updated entries", count)
             except ZkConnectionLoss:
                 self._state_synced.clear()
                 continue
+            if count:
+                logging.debug("Processed %d new/updated entries from %s",
+                              count, self.path)
             self._state_synced.set()
 
     def _read_cached_entries(self):
@@ -603,50 +673,48 @@ class ZkSharedCache(object):
         Read new/updated entries from the shared cache and send them for
         processing.
         """
-        desc = "Fetching list of entries from shared cache"
+        desc = "Fetching list of entries from shared path: %s" % self.path
         entries_meta = self.zk.get_shared_metadata(
             self.path,
             timed_desc=desc)
         if not entries_meta:
             return 0
         new = []
-        newest = 0
+        newest = self._latest_entry
         for entry, meta in entries_meta:
             if meta.last_modified > self._latest_entry:
                 new.append(entry)
             if meta.last_modified > newest:
                 newest = meta.last_modified
         self._latest_entry = newest
-        desc = "Processing %s new entries from shared path" % len(new)
+        desc = "Processing %s new entries from shared path: %s" % (len(new),
+                                                                   self.path)
         count = self._process_cached_entries(new, timed_desc=desc)
         return count
 
     @timed(1.0)
     def _process_cached_entries(self, entries):
         """
-        Retrieve new beacons from the shared cache and send them for local
+        Retrieve new entries from the shared cache and send them for local
         processing (self.handler).
 
         :param entries: cached path segments.
         :param entries: list
         """
-        # TODO(kormat): move constant to proper place
-        chunk_size = 10
         new_entries = []
-        for i in range(0, len(entries), chunk_size):
-            for entry in entries[i:i + chunk_size]:
-                try:
-                    raw = self.zk.get_shared_item(self.path, entry)
-                except ZkConnectionLoss:
-                    logging.warning("Unable to retrieve entry from shared "
-                                    "cache: no connection to ZK")
-                    break
-                except ZkNoNodeError:
-                    logging.debug("Unable to retrieve entry from shared cache: "
-                                  "no such entry (%s/%s)" %
-                                  (self.path, entry))
-                    continue
-                new_entries.append(raw)
+        for entry in entries:
+            try:
+                raw = self.zk.get_shared_item(self.path, entry)
+            except ZkConnectionLoss:
+                logging.warning("Unable to retrieve entry from shared "
+                                "path %s: no connection to ZK" % self.path)
+                break
+            except ZkNoNodeError:
+                logging.debug("Unable to retrieve entry from shared cache: "
+                              "no such entry (%s/%s)" %
+                              (self.path, entry))
+                continue
+            new_entries.append(raw)
         self.handler(new_entries)
         return len(new_entries)
 
