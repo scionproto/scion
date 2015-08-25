@@ -241,14 +241,6 @@ class PathServer(SCIONElement):
             logging.warning("Unable to store segment in shared path: "
                             "no connection to ZK")
 
-    def run(self):
-        """
-        Run an instance of the local Path Server.
-        """
-        # Run shared paths handling.
-        self.zk.run_shared_cache_handling()
-        SCIONElement.run(self)
-
 
 class CorePathServer(PathServer):
     """
@@ -413,7 +405,6 @@ class CorePathServer(PathServer):
         self._master_id = None  # Address of master core Path Server.
 
     def _cached_entries_handler(self, raw_entries):
-        logging.debug("Processing %d entries from ZK" % len(raw_entries))
         for entry in raw_entries:
             self._handle_core_segment_record(PathMgmtPacket(raw=entry), True)
 
@@ -437,21 +428,28 @@ class CorePathServer(PathServer):
                 master = True
             time.sleep(1)
 
+    def worker(self):
+        """
+        """
+        while True:
+            self._update_master()
+            # Read cached entries.
+            if not self.zk.run_shared_cache_handling():
+                logging.warning('run_shared_cache_handling() returned False')
+                continue
+            time.sleep(0.5)
+
     def _update_master(self):
         """
         """
-        # TODO replace by asynch API, currently `while` is due to some weirdness
-        # of watchers
-        while True:
-            curr_master = self._get_master_id()
-            # TODO: we could discuss this behaviour.
-            # if curr_master and curr_master != self._master_id:
-            if curr_master != self._master_id:
-                self._master_id = curr_master
-                logging.debug("New master is: %s", self._master_id)
-                if not self._is_master():
-                    self._sync_master()
-            time.sleep(0.5)
+        curr_master = self._get_master_id()
+        # TODO: we could discuss this behaviour.
+        # if curr_master and curr_master != self._master_id:
+        if curr_master != self._master_id:
+            self._master_id = curr_master
+            logging.debug("New master is: %s", self._master_id)
+            if not self._is_master():
+                self._sync_master()
 
     def _sync_master(self):
         """
@@ -943,8 +941,8 @@ class CorePathServer(PathServer):
             target=thread_safety_net, args=(self._master_election,),
             name="cPS._master_election", daemon=True).start()
         threading.Thread(
-            target=thread_safety_net, args=(self._update_master,),
-            name="cPS._update_master", daemon=True).start()
+            target=thread_safety_net, args=(self.worker,),
+            name="cPS.worker", daemon=True).start()
 
         PathServer.run(self)
 

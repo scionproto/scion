@@ -656,6 +656,7 @@ class ZkSharedCache(object):
             return
         if self._epoch != self.zk.conn_epoch:
             # Make sure we re-read the entire cache
+            self._epoch = self.zk.conn_epoch
             self._latest_entry = 0
         count = self._read_cached_entries()
         if count:
