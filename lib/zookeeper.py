@@ -20,7 +20,6 @@ import logging
 import os.path
 import queue
 import threading
-import time
 
 # External packages
 from kazoo.client import KazooClient, KazooRetry, KazooState
@@ -95,20 +94,20 @@ class Zookeeper(object):
 
         :param int isd_id: The ID of the current ISD.
         :param int ad_id: The ID of the current AD.
-        :param str srv_type: a service type from
-                             :const:`lib.defines.SERVICE_TYPES`
+        :param str srv_type:
+            a service type from :const:`lib.defines.SERVICE_TYPES`
         :param str srv_id: Service instance identifier.
-        :param list zk_hosts: List of Zookeeper instances to connect to, in the
-                              form of ``["host:port"..]``.
+        :param list zk_hosts:
+            List of Zookeeper instances to connect to, in the form of
+            ``["host:port"..]``.
         :param float timeout: Zookeeper session timeout length (in seconds).
-        :param on_connect: A function called everytime a connection is made to
-                           Zookeeper.
-        :param on_disconnect: A function called everytime a connection is lost
-                              to Zookeeper.
-        :param tuple handle_paths: A list of tuples of ZK paths, their
-                                   corresponding handler functions, and sync
-                                   states. It is ensured that paths exist on
-                                   connect.
+        :param on_connect:
+            A function called everytime a connection is made to Zookeeper.
+        :param on_disconnect:
+            A function called everytime a connection is lost to Zookeeper.
+        :param tuple handle_paths:
+            A list of tuples of ZK paths and their corresponding handler
+            functions. It is ensured that paths exist on connect.
         """
         self._isd_id = isd_id
         self._ad_id = ad_id
@@ -118,8 +117,8 @@ class Zookeeper(object):
         self._on_disconnect = on_disconnect
         self._shared_caches = []
         if handle_paths:
-            for path, handler, state_synced in handle_paths:
-                shared_cache = ZkSharedCache(self, path, handler, state_synced)
+            for path, handler in handle_paths:
+                shared_cache = ZkSharedCache(self, path, handler)
                 self._shared_caches.append(shared_cache)
         self._prefix = "/ISD%d-AD%d/%s" % (
             self._isd_id, self._ad_id, srv_type)
@@ -569,8 +568,14 @@ class Zookeeper(object):
                            (desc, 1+_retries))
 
     def run_shared_cache_handling(self):
-        for shared_cache in self._shared_caches:
-            shared_cache.run()
+        for cache in self._shared_caches:
+            try:
+                cache.handle_shared_entries()
+            except ZkConnectionLoss:
+                logging.warning("Reading from %s: Connection to ZK dropped",
+                                cache.path)
+                return False
+        return True
 
 
 class ZkParty(object):
@@ -624,18 +629,17 @@ class ZkSharedCache(object):
     """
     Class for handling ZK's shared path.
     """
-    def __init__(self, zk, path, handler, state_synced):
+    def __init__(self, zk, path, handler):
         """
         :param Zookeeper zk: A Zookeeper instance
         :param str path: The absolute path of the cache
         :param function handler: Handler for a list of cached objects
-        :param threading.Event state_synced: state for synchronization
         """
         self.zk = zk
         self.path = path
         self.handler = handler
-        self._state_synced = state_synced
         self._latest_entry = 0
+        self._epoch = 0
 
     def handle_shared_entries(self):
         """
@@ -648,25 +652,15 @@ class ZkSharedCache(object):
         While connected, it calls _read_cached_entries() to read updated entries
         from the cache.
         """
-        while True:
-            if not self.zk.is_connected():
-                self._state_synced.clear()
-                self.zk.wait_connected()
-            else:
-                time.sleep(0.5)
-                if not self._state_synced.is_set():
-                    # Make sure we re-read the entire cache
-                    self._latest_entry = 0
-            count = None
-            try:
-                count = self._read_cached_entries()
-            except ZkConnectionLoss:
-                self._state_synced.clear()
-                continue
-            if count:
-                logging.debug("Processed %d new/updated entries from %s",
-                              count, self.path)
-            self._state_synced.set()
+        if not self.zk.wait_connected():
+            return
+        if self._epoch != self.zk.conn_epoch:
+            # Make sure we re-read the entire cache
+            self._latest_entry = 0
+        count = self._read_cached_entries()
+        if count:
+            logging.debug("Processed %d new/updated entries from %s",
+                          count, self.path)
 
     def _read_cached_entries(self):
         """
@@ -717,11 +711,3 @@ class ZkSharedCache(object):
             new_entries.append(raw)
         self.handler(new_entries)
         return len(new_entries)
-
-    def run(self):
-        """
-        Run thread that handles shared path.
-        """
-        threading.Thread(
-            target=thread_safety_net, args=(self.handle_shared_entries,),
-            name="handle_shared_entries(%s)" % self.path, daemon=True).start()
