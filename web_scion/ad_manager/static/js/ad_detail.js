@@ -105,7 +105,7 @@ function showMasterServers() {
     // Remove all badges
     $('span.master-badge').remove();
 
-    var server_types = ['bs', 'ds'];
+    var server_types = ['bs'];
     for (var i = 0; i < server_types.length; i++) {
         var s_type = server_types[i];
         var getUrl = getMasterUrl + '?server_type=' + s_type;
