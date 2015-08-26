@@ -10,6 +10,8 @@ RUN ./manage.py migrate
 
 RUN python3 scripts/reload_data.py
 
+RUN ../ad_management/certs/certs.sh gen
+
 EXPOSE 8000
 
 WORKDIR /home/scion/scion.git

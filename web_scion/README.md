@@ -22,7 +22,11 @@
 
     `python3 ./scripts/reload_data.py`
 
-4. Run the server
+4. Generate TLS certificates (WARNING: if you overwrite the existing certificates, you won't be able to connect to ADs that still use them)
+
+    `bash ../ad_management/certs/certs.sh gen`
+
+5. Run the server
 
     `./manage.py runserver`
 
