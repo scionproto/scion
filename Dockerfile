@@ -69,6 +69,9 @@ COPY docker/screenrc $HOME/.screenrc
 # Install ZK config
 COPY docker/zoo.cfg /etc/zookeeper/conf/
 
+# Generate certificates for the management daemon
+RUN ./ad_management/certs/certs.sh gen
+
 # Fix ownership one last time:
 RUN sudo chown -R scion: $HOME
 # Fix some image problems:
