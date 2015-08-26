@@ -26,11 +26,10 @@ Thumbs.db
 
 # SCION generated files #
 #########################
-logs/*
-topology/ISD*
-topology/SIM
-topology/conf-gen
-traces/*
+/logs/
+/topology/ISD*/
+/topology/SIM/
+/traces/
 
 
 # Python generated files #
@@ -45,19 +44,19 @@ __pycache__
 
 # Crypto library generated files #
 #########################
-lib/crypto/python-tweetnacl-20140309/build/
+/lib/crypto/python-tweetnacl-20140309/build/
 
 
 # Documentation and Environment files
 #########################
-sphinx-doc/_build/
-venv/
+/sphinx-doc/_build/
+/venv/
 
 # Docker working directory
 ##########################
-docker/_build/
+/docker/_build/
 
 # Test coverage
 ##########################
-.coverage
-htmlcov/
+/.coverage
+/htmlcov/

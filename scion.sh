@@ -42,13 +42,13 @@ cmd_status() {
 }
 
 cmd_test(){
-    PYTHONPATH=. nosetests -w test "$@"
+    PYTHONPATH=. nosetests "$@"
 }
 
 cmd_coverage(){
     set -e
-    PYTHONPATH=. nosetests --with-cov -w test "$@"
-    coverage html --omit 'external/*'
+    PYTHONPATH=. nosetests --with-cov --cov-report html "$@"
+    coverage report
     echo "Coverage report here: file://$PWD/htmlcov/index.html"
 }
 
