@@ -19,7 +19,6 @@
 import argparse
 import datetime
 import logging
-import socket
 import sys
 import threading
 import time
@@ -28,6 +27,7 @@ import time
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.symcrypto import get_roundkey_cache, verify_of_mac
 from lib.defines import (
+    ADDR_IPV4_TYPE,
     BEACON_SERVICE,
     CERTIFICATE_SERVICE,
     EXP_TIME_UNIT,
@@ -54,6 +54,7 @@ from lib.packet.scion import (
     get_type,
 )
 from lib.packet.scion_addr import ISD_AD, SCIONAddr
+from lib.socket import UDPSocket
 from lib.thread import thread_safety_net
 from lib.util import handle_signals, SCIONTime
 
@@ -131,13 +132,11 @@ class Router(SCIONElement):
         self.pre_ext_handlers = pre_ext_handlers or {}
         self.post_ext_handlers = post_ext_handlers or {}
         if not is_sim:
-            self._remote_socket = socket.socket(socket.AF_INET,
-                                                socket.SOCK_DGRAM)
-            self._remote_socket.setsockopt(socket.SOL_SOCKET,
-                                           socket.SO_REUSEADDR, 1)
-            self._remote_socket.bind((str(self.interface.addr),
-                                      self.interface.udp_port))
-            self._sockets.append(self._remote_socket)
+            self._remote_sock = UDPSocket(
+                bind=(str(self.interface.addr), self.interface.udp_port),
+                addr_type=ADDR_IPV4_TYPE,
+            )
+            self._socks.add(self._remote_sock)
             logging.info("IP %s:%u", self.interface.addr,
                          self.interface.udp_port)
 
@@ -170,8 +169,7 @@ class Router(SCIONElement):
         if use_local_socket:
             super().send(spkt, addr, port)
         else:
-            self._remote_socket.sendto(
-                spkt.pack(), (str(addr), port))
+            self._remote_sock.send(spkt.pack(), (str(addr), port))
 
     def handle_extensions(self, spkt, pre_routing_phase):
         """

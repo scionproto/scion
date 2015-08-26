@@ -18,7 +18,6 @@
 # Stdlib
 import logging
 import random
-import socket
 import sys
 import threading
 import time
@@ -26,15 +25,16 @@ import unittest
 
 # SCION
 from endhost.sciond import SCIOND_API_HOST, SCIOND_API_PORT, SCIONDaemon
-from lib.defines import SCION_BUFLEN, SCION_UDP_EH_DATA_PORT
+from lib.defines import ADDR_IPV4_TYPE, SCION_UDP_EH_DATA_PORT
+from lib.log import init_logging, log_exception
+from lib.packet.host_addr import haddr_get_type, haddr_parse
 from lib.packet.opaque_field import InfoOpaqueField, OpaqueFieldType as OFT
 from lib.packet.path import CorePath, CrossOverPath, EmptyPath, PeerPath
 from lib.packet.scion import SCIONPacket
-from lib.packet.host_addr import haddr_get_type, haddr_parse
 from lib.packet.scion_addr import SCIONAddr, ISD_AD
-from lib.log import init_logging, log_exception
-from lib.util import Raw, handle_signals
+from lib.socket import UDPSocket
 from lib.thread import kill_self, thread_safety_net
+from lib.util import Raw, handle_signals
 
 saddr = haddr_parse("IPv4", "127.1.19.254")
 raddr = haddr_parse("IPv4", "127.2.26.254")
@@ -45,15 +45,13 @@ def get_paths_via_api(isd, ad):
     """
     Test local API.
     """
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    sock.bind(("127.0.0.1", 5005))
+    sock = UDPSocket(bind=("127.0.0.1", 5005), addr_type=ADDR_IPV4_TYPE)
     msg = b'\x00' + ISD_AD(isd, ad).pack()
 
     for _ in range(5):
         logging.info("Sending path request to local API.")
-        sock.sendto(msg, (SCIOND_API_HOST, SCIOND_API_PORT))
-        data = Raw(sock.recvfrom(SCION_BUFLEN)[0], "Path response")
+        sock.send(msg, (SCIOND_API_HOST, SCIOND_API_PORT))
+        data = Raw(sock.recv()[0], "Path response")
         if data:
             break
         logging.warning("Empty response from local api.")
@@ -97,9 +95,8 @@ class Ping(object):
                      (src.isd, src.isd, src.ad))
         self.sd = SCIONDaemon.start(saddr, topo_file, True)  # API on
         self.get_path()
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.sock.bind((str(saddr), SCION_UDP_EH_DATA_PORT))
+        self.sock = UDPSocket(bind=(str(saddr), SCION_UDP_EH_DATA_PORT),
+                              addr_type=ADDR_IPV4_TYPE)
 
     def get_path(self):
         logging.info("Sending PATH request for (%d, %d)",
@@ -124,7 +121,7 @@ class Ping(object):
         self.sd.send(spkt, next_hop, port)
 
     def recv(self):
-        packet, _ = self.sock.recvfrom(SCION_BUFLEN)
+        packet = self.sock.recv()[0]
         pong = b"pong " + self.token
         payload = SCIONPacket(packet).payload
         if payload == pong:
@@ -148,12 +145,11 @@ class Pong(object):
         topo_file = ("../../topology/ISD%d/topologies/ISD:%d-AD:%d.json" %
                      (self.dst.isd, self.dst.isd, self.dst.ad))
         self.sd = SCIONDaemon.start(raddr, topo_file)  # API off
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.sock.bind((str(raddr), SCION_UDP_EH_DATA_PORT))
+        self.sock = UDPSocket(bind=(str(raddr), SCION_UDP_EH_DATA_PORT),
+                              addr_type=ADDR_IPV4_TYPE)
 
     def run(self):
-        packet, _ = self.sock.recvfrom(SCION_BUFLEN)
+        packet = self.sock.recv()[0]
         spkt = SCIONPacket(packet)
         ping = b"ping " + self.token
         if spkt.payload == ping:

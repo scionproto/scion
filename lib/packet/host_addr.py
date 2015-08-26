@@ -28,12 +28,13 @@ from ipaddress import (
 
 # SCION
 from lib.errors import SCIONBaseError, SCIONParseError
+from lib.defines import (
+    ADDR_NONE_TYPE,
+    ADDR_IPV4_TYPE,
+    ADDR_IPV6_TYPE,
+    ADDR_SVC_TYPE,
+)
 from lib.util import Raw
-
-ADDR_NONE_TYPE = 0
-ADDR_IPV4_TYPE = 1
-ADDR_IPV6_TYPE = 2
-ADDR_SVC_TYPE = 3
 
 ADDR_NONE_BYTES = 0
 ADDR_IPV4_BYTES = IPV4LENGTH // 8

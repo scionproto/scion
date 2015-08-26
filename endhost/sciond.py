@@ -17,13 +17,12 @@
 """
 # Stdlib
 import logging
-import socket
 import struct
 import threading
 
 # SCION
 from infrastructure.scion_elem import SCIONElement
-from lib.defines import PATH_SERVICE
+from lib.defines import ADDR_IPV4_TYPE, PATH_SERVICE
 from lib.errors import SCIONBaseError, SCIONServiceLookupError
 from lib.packet.path import PathCombinator
 from lib.packet.path_mgmt import (
@@ -34,6 +33,7 @@ from lib.packet.path_mgmt import (
 )
 from lib.packet.scion_addr import ISD_AD
 from lib.path_db import PathSegmentDB
+from lib.socket import UDPSocket
 from lib.thread import thread_safety_net
 from lib.util import update_dict
 
@@ -72,8 +72,8 @@ class SCIONDaemon(SCIONElement):
     :type _waiting_targets:
     :ivar _api_socket:
     :type _api_socket:
-    :ivar _sockets:
-    :type _sockets:
+    :ivar _socks:
+    :type _socks:
     """
     TIMEOUT = 5
 
@@ -103,11 +103,9 @@ class SCIONDaemon(SCIONElement):
         self._api_socket = None
         self.daemon_thread = None
         if run_local_api:
-            self._api_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            self._api_socket.setsockopt(socket.SOL_SOCKET,
-                                        socket.SO_REUSEADDR, 1)
-            self._api_socket.bind((SCIOND_API_HOST, SCIOND_API_PORT))
-            self._sockets.append(self._api_socket)
+            self._api_sock = UDPSocket(bind=(SCIOND_API_HOST, SCIOND_API_PORT),
+                                       addr_type=ADDR_IPV4_TYPE)
+            self._socks.add(self._api_sock)
             logging.info("Local API %s:%u", SCIOND_API_HOST, SCIOND_API_PORT)
 
     @classmethod
@@ -338,7 +336,7 @@ class SCIONDaemon(SCIONElement):
                 haddr = self.ifid2addr[path.get_first_hop_of().egress_if]
             path_len = len(raw_path) // 8  # Check whether 8 divides path_len?
             reply.append(struct.pack("B", path_len) + raw_path + haddr.pack())
-        self._api_socket.sendto(b"".join(reply), sender)
+        self._api_sock.send(b"".join(reply), sender)
 
     def api_handle_request(self, packet, sender):
         """
