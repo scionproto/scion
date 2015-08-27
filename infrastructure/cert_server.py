@@ -88,7 +88,6 @@ class CertServer(SCIONElement):
             # Add more IPs here if we support dual-stack
             name_addrs = "\0".join([self.id, str(SCION_UDP_PORT),
                                     str(self.addr.host_addr)])
-            # Join ZK's party.
             self.zk = Zookeeper(self.topology.isd_id, self.topology.ad_id,
                                 CERTIFICATE_SERVICE, name_addrs,
                                 self.topology.zookeepers)

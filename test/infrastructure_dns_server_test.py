@@ -355,7 +355,7 @@ class TestSCIONDnsSyncZkState(BaseDNSServer):
         # Setup
         server = SCIONDnsServer("srvid", "domain", "topofile")
         server.zk = create_mock(['wait_connected'])
-        server.zk.wait_connected.return_value = False
+        server.zk.wait_connected.side_effect = ZkConnectionLoss
         # Call
         server._sync_zk_state()
         # Tests
