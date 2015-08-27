@@ -20,7 +20,6 @@ import logging
 import select
 import socket
 import threading
-from random import shuffle
 
 # SCION
 from lib.config import Config
@@ -32,7 +31,7 @@ from lib.defines import (
     SERVICE_TYPES,
 )
 from lib.defines import SCION_BUFLEN, SCION_UDP_PORT
-from lib.dnsclient import DNSCachingClient, DNSLibMajorError, DNSLibMinorError
+from lib.dnsclient import DNSCachingClient
 from lib.errors import SCIONServiceLookupError
 from lib.log import log_exception
 from lib.packet.scion_addr import SCIONAddr
@@ -260,24 +259,10 @@ class SCIONElement(object):
             DNS_SERVICE: self.topology.dns_servers,
             PATH_SERVICE: self.topology.path_servers,
         }
-
-        results = None
-        try:
-            results = self._dns.query(qname)
-        except DNSLibMinorError as e:
-            logging.warning("Falling back to static values: %s", e)
-        except DNSLibMajorError as e:
-            log_exception("Falling back to static values:", level=logging.ERROR)
-        # If we have results, return them now.
-        if results:
-            return results
-        if results == []:
-            logging.warning("No DNS results found, "
-                            "falling back to static values")
-        # Generate results from local topology
-        results = [srv.addr for srv in service_map[qname]]
+        # Generate fallback from local topology
+        fallback = [srv.addr for srv in service_map[qname]]
+        results = self._dns.query(qname, fallback)
         if not results:
             # No results from local toplogy either
             raise SCIONServiceLookupError("No %s servers found" % qname)
-        shuffle(results)
         return results
