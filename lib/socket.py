@@ -21,6 +21,7 @@ import selectors
 from socket import (
     AF_INET,
     AF_INET6,
+    MSG_DONTWAIT,
     SOCK_DGRAM,
     SOL_SOCKET,
     SO_REUSEADDR,
@@ -87,7 +88,7 @@ class UDPSocket(object):
         """
         self.sock.sendto(data, dst)
 
-    def recv(self):
+    def recv(self, block=True):
         """
         Read data from socket.
 
@@ -95,7 +96,10 @@ class UDPSocket(object):
             Tuple of (`bytes`, (`str`, `int`) containing the data, and remote
             host/port respectively.
         """
-        return self.sock.recvfrom(SCION_BUFLEN)
+        flags = 0
+        if not block:
+            flags = MSG_DONTWAIT
+        return self.sock.recvfrom(SCION_BUFLEN, flags)
 
     def close(self):
         """

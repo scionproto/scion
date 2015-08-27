@@ -116,13 +116,23 @@ class TestUDPSocketRecv(object):
     Unit tests for lib.socket.UDPSocket.recv
     """
     @patch("lib.socket.UDPSocket.__init__", autopatch=True, return_value=None)
-    def test(self, init):
+    def test_block(self, init):
         inst = UDPSocket()
         inst.sock = create_mock(["recvfrom"])
         # Call
         inst.recv()
         # Tests
-        inst.sock.recvfrom.assert_called_once_with(SCION_BUFLEN)
+        inst.sock.recvfrom.assert_called_once_with(SCION_BUFLEN, 0)
+
+    @patch("lib.socket.UDPSocket.__init__", autopatch=True, return_value=None)
+    def test_nonblock(self, init):
+        inst = UDPSocket()
+        inst.sock = create_mock(["recvfrom"])
+        # Call
+        inst.recv(block=False)
+        # Tests
+        inst.sock.recvfrom.assert_called_once_with(SCION_BUFLEN,
+                                                   socket.MSG_DONTWAIT)
 
 
 class TestUDPSocketClose(object):
