@@ -18,6 +18,7 @@
 # Stdlib
 import logging
 import socket
+import sys
 import threading
 import time
 import unittest
@@ -25,7 +26,7 @@ import unittest
 # SCION
 from endhost.sciond import SCIONDaemon
 from lib.defines import ADDR_IPV4_TYPE, SCION_UDP_EH_DATA_PORT
-from lib.log import init_logging
+from lib.log import init_logging, log_exception
 from lib.packet.host_addr import haddr_parse
 from lib.packet.scion import SCIONPacket
 from lib.packet.scion_addr import SCIONAddr
@@ -36,7 +37,7 @@ from lib.util import handle_signals
 PACKETS_NO = 1000
 PAYLOAD_SIZE = 1300
 # Time interval between transmission of two consecutive packets
-SLEEP = 0.000005
+SLEEP = 0.0001
 
 
 class TestBandwidth(unittest.TestCase):
@@ -56,7 +57,7 @@ class TestBandwidth(unittest.TestCase):
             try:
                 packet, _ = rcv_sock.recv()
             except socket.timeout:
-                logging.error("Timed out after only %d packets", i)
+                logging.error("Timed out after %d packets", i)
                 # Account for the timeout interval itself
                 start += timeout
                 break
@@ -69,10 +70,10 @@ class TestBandwidth(unittest.TestCase):
         duration = time.time() - start
 
         lost = PACKETS_NO - i
-        rate = 100*(lost/PACKETS_NO)
+        self.rate = 100*(lost/PACKETS_NO)
         logging.info("Goodput: %.2fKBps Pkts received: %d Pkts lost: %d "
-                     "Loss rate: %d%%" %
-                     ((i*PAYLOAD_SIZE)/duration/1000, i, lost, rate))
+                     "Loss rate: %.2f%%" %
+                     ((i*PAYLOAD_SIZE)/duration/1000, i, lost, self.rate))
 
     def test(self):
         """
@@ -92,9 +93,10 @@ class TestBandwidth(unittest.TestCase):
         )
 
         logging.info("Starting the receiver.")
-        threading.Thread(
+        recv_t = threading.Thread(
             target=thread_safety_net, args=(self.receiver, rcv_sock),
-            name="BwT.receiver").start()
+            name="BwT.receiver")
+        recv_t.start()
 
         payload = b"A" * PAYLOAD_SIZE
         dst = SCIONAddr.from_values(2, 26, haddr_parse("IPv4", "127.2.26.254"))
@@ -107,8 +109,22 @@ class TestBandwidth(unittest.TestCase):
             time.sleep(SLEEP)
         logging.info("Sending finished")
 
+        recv_t.join()
+        if self.rate < 10.0:
+            sys.exit(0)
+        else:
+            sys.exit(int(self.rate))
+
 
 if __name__ == "__main__":
     init_logging("../../logs/bw_test.log", console=True)
     handle_signals()
-    TestBandwidth().test()
+    try:
+        TestBandwidth().test()
+    except SystemExit:
+        logging.info("Exiting")
+        raise
+    except:
+        log_exception("Exception in main process:")
+        logging.critical("Exiting")
+        sys.exit(1)

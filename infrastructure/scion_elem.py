@@ -17,6 +17,7 @@
 """
 # Stdlib
 import logging
+import queue
 import threading
 
 # SCION
@@ -33,6 +34,7 @@ from lib.dnsclient import DNSCachingClient
 from lib.errors import SCIONServiceLookupError
 from lib.packet.scion_addr import SCIONAddr
 from lib.socket import UDPSocket, UDPSocketMgr
+from lib.thread import thread_safety_net
 from lib.topology import Topology
 
 
@@ -89,6 +91,7 @@ class SCIONElement(object):
             self.run_flag = threading.Event()
             self.stopped_flag = threading.Event()
             self.stopped_flag.set()
+            self._in_buf = queue.Queue()
             self._socks = UDPSocketMgr()
             self._local_sock = UDPSocket(
                 bind=(str(self.addr.host_addr), SCION_UDP_PORT),
@@ -213,11 +216,37 @@ class SCIONElement(object):
         """
         self.stopped_flag.clear()
         self.run_flag.set()
+        threading.Thread(
+            target=thread_safety_net, args=(self.packet_recv,),
+            name="Elem.packet_recv", daemon=True).start()
+
+        self._packet_process()
+
+    def packet_recv(self):
+        """
+        Read packets from sockets, and put them into a :class:`queue.Queue`.
+        """
         while self.run_flag.is_set():
             for sock in self._socks.select_(timeout=1.0):
-                packet, addr = sock.recv()
-                self.handle_request(packet, addr, sock == self._local_sock)
+                while True:
+                    try:
+                        # Read from socket until its buffer is empty.
+                        packet, addr = sock.recv(block=False)
+                        self._in_buf.put((packet, addr,
+                                          sock == self._local_sock))
+                    except BlockingIOError:
+                        break
         self.stopped_flag.set()
+
+    def _packet_process(self):
+        """
+        Read packets from a :class:`queue.Queue`, and process them.
+        """
+        while self.run_flag.is_set():
+            try:
+                self.handle_request(*self._in_buf.get(timeout=1.0))
+            except queue.Empty:
+                continue
 
     def stop(self):
         """
