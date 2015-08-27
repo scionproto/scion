@@ -17,8 +17,6 @@
 """
 # Stdlib
 import logging
-import select
-import socket
 import threading
 
 # SCION
@@ -30,12 +28,11 @@ from lib.defines import (
     PATH_SERVICE,
     SERVICE_TYPES,
 )
-from lib.defines import SCION_BUFLEN, SCION_UDP_PORT
+from lib.defines import SCION_UDP_PORT
 from lib.dnsclient import DNSCachingClient
 from lib.errors import SCIONServiceLookupError
-from lib.log import log_exception
 from lib.packet.scion_addr import SCIONAddr
-from lib.thread import kill_self
+from lib.socket import UDPSocket, UDPSocketMgr
 from lib.topology import Topology
 
 
@@ -92,12 +89,12 @@ class SCIONElement(object):
             self.run_flag = threading.Event()
             self.stopped_flag = threading.Event()
             self.stopped_flag.set()
-            self._local_socket = socket.socket(socket.AF_INET,
-                                               socket.SOCK_DGRAM)
-            self._local_socket.setsockopt(socket.SOL_SOCKET,
-                                          socket.SO_REUSEADDR, 1)
-            self._local_socket.bind((str(self.addr.host_addr), SCION_UDP_PORT))
-            self._sockets = [self._local_socket]
+            self._socks = UDPSocketMgr()
+            self._local_sock = UDPSocket(
+                bind=(str(self.addr.host_addr), SCION_UDP_PORT),
+                addr_type=self.addr.host_addr.TYPE,
+            )
+            self._socks.add(self._local_sock)
             logging.info("%s: bound %s:%u", self.id, self.addr.host_addr,
                          SCION_UDP_PORT)
 
@@ -207,12 +204,7 @@ class SCIONElement(object):
         :param dst_port: the destination port number.
         :type dst_port: int
         """
-        try:
-            self._local_socket.sendto(packet.pack(), (str(dst), dst_port))
-        except socket.gaierror:
-            log_exception("Addressing error when trying to send to %s:%s :" %
-                          (dst, dst_port))
-            kill_self()
+        self._local_sock.send(packet.pack(), (str(dst), dst_port))
 
     def run(self):
         """
@@ -222,10 +214,9 @@ class SCIONElement(object):
         self.stopped_flag.clear()
         self.run_flag.set()
         while self.run_flag.is_set():
-            recvlist, _, _ = select.select(self._sockets, [], [])
-            for sock in recvlist:
-                packet, addr = sock.recvfrom(SCION_BUFLEN)
-                self.handle_request(packet, addr, sock == self._local_socket)
+            for sock in self._socks.select_(timeout=1.0):
+                packet, addr = sock.recv()
+                self.handle_request(packet, addr, sock == self._local_sock)
         self.stopped_flag.set()
 
     def stop(self):
@@ -236,14 +227,7 @@ class SCIONElement(object):
         self.run_flag.clear()
         # Wait for the thread to finish
         self.stopped_flag.wait()
-        self.clean()
-
-    def clean(self):
-        """
-        Close open sockets.
-        """
-        for s in self._sockets:
-            s.close()
+        self._socks.close()
 
     def dns_query_topo(self, qname):
         """
