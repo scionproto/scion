@@ -32,6 +32,7 @@ from lib.defines import (
     CERTIFICATE_SERVICE,
     EXP_TIME_UNIT,
     IFID_PKT_TOUT,
+    L4_UDP,
     PATH_SERVICE,
     ROUTER_SERVICE,
     SCION_UDP_EH_DATA_PORT,
@@ -115,9 +116,8 @@ class Router(SCIONElement):
         :param is_sim: running in simulator
         :type is_sim: bool
         """
-        SCIONElement.__init__(self, ROUTER_SERVICE, topo_file,
-                              server_id=router_id, config_file=config_file,
-                              is_sim=is_sim)
+        super().__init__(ROUTER_SERVICE, topo_file, server_id=router_id,
+                         config_file=config_file, is_sim=is_sim)
         self.interface = None
         for edge_router in self.topology.get_all_edge_routers():
             if edge_router.addr == self.addr.host_addr:
@@ -134,7 +134,7 @@ class Router(SCIONElement):
                 addr_type=ADDR_IPV4_TYPE,
             )
             self._socks.add(self._remote_sock)
-            logging.info("IP %s:%u", self.interface.addr,
+            logging.info("IP %s:%d", self.interface.addr,
                          self.interface.udp_port)
 
     def run(self):
@@ -321,6 +321,10 @@ class Router(SCIONElement):
                 logging.error("Unable to deliver path mgmt packet: %s", e)
                 return
             port = SCION_UDP_PORT
+        elif spkt.hdr.l4_proto == L4_UDP:
+            upkt = spkt.get_payload()
+            addr = spkt.hdr.dst_addr.host_addr
+            port = upkt.dst_port
         else:
             addr = spkt.hdr.dst_addr.host_addr
             port = SCION_UDP_EH_DATA_PORT

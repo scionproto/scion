@@ -16,7 +16,6 @@
 ==================================================
 """
 # Stdlib
-import logging
 import queue
 import threading
 from abc import ABCMeta, abstractmethod
@@ -95,12 +94,10 @@ class SCIONElement(object, metaclass=ABCMeta):
             self._in_buf = queue.Queue()
             self._socks = UDPSocketMgr()
             self._local_sock = UDPSocket(
-                bind=(str(self.addr.host_addr), SCION_UDP_PORT),
+                bind=(str(self.addr.host_addr), SCION_UDP_PORT, self.id),
                 addr_type=self.addr.host_addr.TYPE,
             )
             self._socks.add(self._local_sock)
-            logging.info("%s: bound %s:%u", self.id, self.addr.host_addr,
-                         SCION_UDP_PORT)
 
     def parse_topology(self, topo_file):
         """

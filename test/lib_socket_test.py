@@ -50,6 +50,7 @@ class TestUDPSocketInit(object):
         # Tests
         ntools.eq_(inst._addr_type, ADDR_IPV4_TYPE)
         socket_.assert_called_once_with(socket.AF_INET, socket.SOCK_DGRAM)
+        ntools.assert_is_none(inst.port)
         inst.bind.assert_called_once_with("addr", "port")
 
     @patch("lib.socket.UDPSocket.bind", autopatch=True)
@@ -67,20 +68,25 @@ class TestUDPSocketBind(object):
     """
     Unit tests for lib.socket.UDPSocket.bind
     """
+    def _setup(self):
+        inst = UDPSocket()
+        inst.sock = create_mock(["bind", "getsockname"])
+        inst.sock.getsockname.return_value = ["addr", "port"]
+        return inst
+
     @patch("lib.socket.UDPSocket.__init__", autopatch=True, return_value=None)
     def test_addr(self, init):
-        inst = UDPSocket()
-        inst.sock = create_mock(["bind"])
+        inst = self._setup()
         # Call
         inst.bind("addr", 4242)
         # Tests
         inst.sock.bind.assert_called_once_with(("addr", 4242))
+        ntools.eq_(inst.port, "port")
 
     @patch("lib.socket.UDPSocket.__init__", autopatch=True, return_value=None)
     def test_any_v4(self, init):
-        inst = UDPSocket()
+        inst = self._setup()
         inst._domain = ADDR_IPV4_TYPE
-        inst.sock = create_mock(["bind"])
         # Call
         inst.bind(None, 4242)
         # Tests
@@ -88,9 +94,8 @@ class TestUDPSocketBind(object):
 
     @patch("lib.socket.UDPSocket.__init__", autopatch=True, return_value=None)
     def test_any_v6(self, init):
-        inst = UDPSocket()
+        inst = self._setup()
         inst._domain = ADDR_IPV6_TYPE
-        inst.sock = create_mock(["bind"])
         # Call
         inst.bind(None, 4242)
         # Tests
