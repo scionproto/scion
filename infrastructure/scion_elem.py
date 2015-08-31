@@ -154,7 +154,7 @@ class SCIONElement(object):
         :returns:
         :rtype:
         """
-        opaque_field = spkt.hdr.path.get_first_hop_of()
+        opaque_field = spkt.hdr.get_path().get_first_hop_of()
         if opaque_field is None:  # EmptyPath
             return (spkt.hdr.dst_addr.host_addr, SCION_UDP_PORT)
         else:

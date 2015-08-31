@@ -226,7 +226,7 @@ class SCIONHeader(HeaderBase):
         hdr.src_addr = src
         hdr.dst_addr = dst
         hdr.l4_proto = l4_proto
-        hdr.path = path
+        hdr.set_path(path)
         hdr.add_extensions(ext_hdrs)
 
         return hdr
@@ -265,19 +265,11 @@ class SCIONHeader(HeaderBase):
         self.extension_hdrs = []
         self.common_hdr.next_hdr = self.l4_proto
 
-    @property
-    def path(self):
+    def get_path(self):
         """
         Returns the path in the header.
         """
         return self._path
-
-    @path.setter
-    def path(self, path):
-        """
-        Sets path to 'path'.
-        """
-        self.set_path(path)
 
     def set_path(self, path):
         """
@@ -368,8 +360,8 @@ class SCIONHeader(HeaderBase):
         data.append(self.common_hdr.pack())
         data.append(self.src_addr.pack())
         data.append(self.dst_addr.pack())
-        if self.path is not None:
-            data.append(self.path.pack())
+        if self._path is not None:
+            data.append(self._path.pack())
         # Pack extensions
         for ext_hdr in self.extension_hdrs:
             data.append(ext_hdr.pack())
@@ -380,43 +372,43 @@ class SCIONHeader(HeaderBase):
         Returns the current opaque field as pointed by the current_of field in
         the common_hdr.
         """
-        if self.path is None:
+        if self._path is None:
             return None
         offset = (self.common_hdr.curr_of_p - (self.common_hdr.src_addr_len +
                   self.common_hdr.dst_addr_len))
-        return self.path.get_of(offset // OpaqueField.LEN)
+        return self._path.get_of(offset // OpaqueField.LEN)
 
     def get_current_iof(self):
         """
         Returns the Info Opaque Field as pointed by the current_iof_p field in
         the common_hdr.
         """
-        if self.path is None:
+        if self._path is None:
             return None
         offset = (self.common_hdr.curr_iof_p -
                   (self.common_hdr.src_addr_len + self.common_hdr.dst_addr_len))
-        return self.path.get_of(offset // OpaqueField.LEN)
+        return self._path.get_of(offset // OpaqueField.LEN)
 
     def get_relative_of(self, n):
         """
         Returns (number_of_current_of + n)th opaque field. n may be negative.
         """
-        if self.path is None:
+        if self._path is None:
             return None
         offset = (self.common_hdr.curr_of_p - (self.common_hdr.src_addr_len +
                   self.common_hdr.dst_addr_len))
-        return self.path.get_of(offset // OpaqueField.LEN + n)
+        return self._path.get_of(offset // OpaqueField.LEN + n)
 
     def get_next_of(self):
         """
         Returns the opaque field after the one pointed by the current_of field
         in the common hdr or 'None' if there exists no next opaque field.
         """
-        if self.path is None:
+        if self._path is None:
             return None
         offset = (self.common_hdr.curr_of_p - (self.common_hdr.src_addr_len +
                   self.common_hdr.dst_addr_len))
-        return self.path.get_of(offset // OpaqueField.LEN + 1)
+        return self._path.get_of(offset // OpaqueField.LEN + 1)
 
     def increase_curr_of_p(self, number):
         """
@@ -487,7 +479,7 @@ class SCIONHeader(HeaderBase):
         Reverses the header.
         """
         (self.src_addr, self.dst_addr) = (self.dst_addr, self.src_addr)
-        self.path.reverse()
+        self._path.reverse()
         self.set_first_of_pointers()
 
     def set_first_of_pointers(self):
@@ -495,9 +487,10 @@ class SCIONHeader(HeaderBase):
         Sets pointers of current info and hop opaque fields to initial values.
         """
         tmp = self.common_hdr.src_addr_len + self.common_hdr.dst_addr_len
-        if self.path:
-            self.common_hdr.curr_of_p = tmp + self.path.get_first_hop_offset()
-            self.common_hdr.curr_iof_p = tmp + self.path.get_first_info_offset()
+        if self._path:
+            self.common_hdr.curr_of_p = tmp + self._path.get_first_hop_offset()
+            self.common_hdr.curr_iof_p = tmp + \
+                self._path.get_first_info_offset()
 
     def __len__(self):
         length = self.common_hdr.hdr_len
@@ -509,7 +502,7 @@ class SCIONHeader(HeaderBase):
         sh_list = []
         sh_list.append(str(self.common_hdr) + "\n")
         sh_list.append(str(self.src_addr) + " >> " + str(self.dst_addr) + "\n")
-        sh_list.append(str(self.path) + "\n")
+        sh_list.append(str(self._path) + "\n")
         for ext_hdr in self.extension_hdrs:
             sh_list.append(str(ext_hdr) + "\n")
         return "".join(sh_list)

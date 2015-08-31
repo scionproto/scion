@@ -288,20 +288,14 @@ class TestSCIONHeaderAddExtensions(object):
         _set_next_hdrs.assert_called_once_with(hdr)
 
 
-class TestSCIONHeaderPath(object):
+class TestSCIONHeaderGetPath(object):
     """
-    Unit tests for lib.packet.scion.SCIONHeader.path
+    Unit tests for lib.packet.scion.SCIONHeader.get_path
     """
     def test_getter(self):
         hdr = SCIONHeader()
         hdr._path = 'path'
-        ntools.eq_(hdr.path, 'path')
-
-    @patch("lib.packet.scion.SCIONHeader.set_path", autospec=True)
-    def test_setter(self, set_path):
-        hdr = SCIONHeader()
-        hdr.path = 'path'
-        set_path.assert_called_once_with(hdr, 'path')
+        ntools.eq_(hdr.get_path(), 'path')
 
 
 class TestSCIONHeaderSetPath(object):

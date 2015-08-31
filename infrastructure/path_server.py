@@ -166,8 +166,8 @@ class PathServer(SCIONElement):
         Sends path-segments to requester (depending on Path Server's location)
         """
         dst = path_request.hdr.src_addr
-        path_request.hdr.path.reverse()
-        path = path_request.hdr.path
+        path = path_request.hdr.get_path()
+        path.reverse()
         records = PathSegmentRecords.from_values(path_request.get_payload(),
                                                  paths)
         path_reply = PathMgmtPacket.from_values(PMT.RECORDS, records, path,
@@ -496,7 +496,7 @@ class CorePathServer(PathServer):
                                             last_ad=self.topology.ad_id)
                 if cpaths:
                     cpath = cpaths[0].get_path(reverse_direction=True)
-                    pkt.hdr.path = cpath
+                    pkt.hdr.set_path(cpath)
                     pkt.hdr.dst_addr.isd_id = isd
                     pkt.hdr.dst_addr.ad_id = ad
                     if_id = cpath.get_first_hop_of().ingress_if
@@ -777,12 +777,12 @@ class LocalPathServer(PathServer):
         :type leases:
         """
         dst = orig_pkt.hdr.src_addr
-        orig_pkt.hdr.path.reverse()
+        path = orig_pkt.hdr.get_path()
+        path.reverse()
         orig_pkt = PathMgmtPacket(orig_pkt.pack())  # PSz: this is
         # a hack, as path_request with <up-path> only reverses to <down-path>
         # only, and then reversed packet fails with .get_current_iof()
         # FIXME: change .reverse() when only one path segment exists
-        path = orig_pkt.hdr.path
         payload = PathSegmentLeases.from_values(len(leases), leases)
         leases_pkt = PathMgmtPacket.from_values(PMT.LEASES, payload, path,
                                                 self.addr.get_isd_ad(), dst)
