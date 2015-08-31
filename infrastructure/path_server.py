@@ -29,6 +29,7 @@ from external.expiring_dict import ExpiringDict
 # SCION
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.hash_chain import HashChain
+from lib.defines import PATH_SERVICE, SCION_UDP_PORT
 from lib.log import init_logging, log_exception
 from lib.packet.path_mgmt import (
     LeaseInfo,
@@ -44,7 +45,8 @@ from lib.packet.path_mgmt import (
 )
 from lib.packet.scion_addr import ISD_AD
 from lib.path_db import DBResult, PathSegmentDB
-from lib.util import handle_signals, update_dict, SCIONTime
+from lib.util import SCIONTime, handle_signals, trace, update_dict
+from lib.zookeeper import Zookeeper
 
 
 class PathServer(SCIONElement):
@@ -66,8 +68,9 @@ class PathServer(SCIONElement):
         :param is_sim: running in simulator
         :type is_sim: bool
         """
-        SCIONElement.__init__(self, "ps", topo_file, server_id=server_id,
-                              config_file=config_file, is_sim=is_sim)
+        SCIONElement.__init__(self, PATH_SERVICE, topo_file,
+                              server_id=server_id, config_file=config_file,
+                              is_sim=is_sim)
         # TODO replace by pathstore instance
         self.down_segments = PathSegmentDB()
         self.core_segments = PathSegmentDB()  # Direction of the propagation.
@@ -77,6 +80,15 @@ class PathServer(SCIONElement):
         # TODO replace by some cache data struct. (expiringdict ?)
         self.revocations = ExpiringDict(1000, 300)
         self.iftoken2seg = defaultdict(set)
+
+        if not is_sim:
+            # Add more IPs here if we support dual-stack
+            name_addrs = "\0".join([self.id, str(SCION_UDP_PORT),
+                                    str(self.addr.host_addr)])
+            self.zk = Zookeeper(
+                self.topology.isd_id, self.topology.ad_id, PATH_SERVICE,
+                name_addrs, self.topology.zookeepers)
+            self.zk.retry("Joining party", self.zk.party_setup)
 
     def _add_if_mappings(self, pcb):
         """
@@ -171,7 +183,7 @@ class PathServer(SCIONElement):
         assert isinstance(pkt.payload, PathSegmentRecords)
         if pkt.payload.info.type == PST.UP:
             self._handle_up_segment_record(pkt)
-        elif pkt.payload.info.type == PST.DOWN:
+        elif pkt.payload.info.type in [PST.DOWN, PST.UP_DOWN]:
             self._handle_down_segment_record(pkt)
         elif pkt.payload.info.type == PST.CORE:
             self._handle_core_segment_record(pkt)
@@ -384,8 +396,12 @@ class CorePathServer(PathServer):
             dst_isd = pcb.get_last_pcbm().isd_id
             res = self.down_segments.update(pcb, src_isd, src_ad,
                                             dst_isd, dst_ad)
-            if res != DBResult.NONE:
+            if (dst_isd == pkt.hdr.src_addr.isd_id and
+                    dst_ad == pkt.hdr.src_addr.ad_id):
+                # Only propagate this path if it was registered with us by the
+                # down-stream AD.
                 paths_to_propagate.append(pcb)
+            if res != DBResult.NONE:
                 logging.info("Down-Segment registered (%d, %d) -> (%d, %d)",
                              src_isd, src_ad, dst_isd, dst_ad)
                 if res == DBResult.ENTRY_ADDED:
@@ -403,8 +419,8 @@ class CorePathServer(PathServer):
         # Serve pending requests.
         target = (dst_isd, dst_ad)
         if target in self.pending_down:
-            segments_to_send = self.down_segments(dst_isd=dst_isd,
-                                                  dst_ad=dst_ad)
+            segments_to_send = self.down_segments(last_isd=dst_isd,
+                                                  last_ad=dst_ad)
             segments_to_send = segments_to_send[:self.MAX_SEG_NO]
             for path_request in self.pending_down[target]:
                 self.send_path_segments(path_request, segments_to_send)
@@ -424,8 +440,9 @@ class CorePathServer(PathServer):
             src_isd = pcb.get_first_pcbm().isd_id
             dst_ad = pcb.get_last_pcbm().ad_id
             dst_isd = pcb.get_last_pcbm().isd_id
-            res = self.core_segments.update(pcb, src_isd=dst_isd, src_ad=dst_ad,
-                                            dst_isd=src_isd, dst_ad=src_ad)
+            res = self.core_segments.update(pcb, first_isd=src_isd,
+                                            first_ad=src_ad, last_isd=dst_isd,
+                                            last_ad=dst_ad)
             if res == DBResult.ENTRY_ADDED:
                 self._add_if_mappings(pcb)
                 logging.info("Core-Path registered: (%d, %d) -> (%d, %d)",
@@ -448,12 +465,13 @@ class CorePathServer(PathServer):
                     logging.debug("Sending path request %s on newly learned "
                                   "path to (%d, %d)", info, dst_isd, dst_ad)
         # Serve pending core path requests.
-        target = ((src_isd, src_ad), (dst_isd, dst_ad))
+        # Changing order as (src_isd, src _ad) is AS that initiated the PCB.
+        target = ((dst_isd, dst_ad), (src_isd, src_ad))
         if target in self.pending_core:
-            segments_to_send = self.core_segments(src_isd=src_isd,
-                                                  src_ad=src_ad,
-                                                  dst_isd=dst_isd,
-                                                  dst_ad=dst_ad)
+            segments_to_send = self.core_segments(first_isd=src_isd,
+                                                  first_ad=src_ad,
+                                                  last_isd=dst_isd,
+                                                  last_ad=dst_ad)
             segments_to_send = segments_to_send[:self.MAX_SEG_NO]
             for path_request in self.pending_core[target]:
                 self.send_path_segments(path_request, segments_to_send)
@@ -472,9 +490,9 @@ class CorePathServer(PathServer):
         # the one we just received it from. Can we avoid that?
         for (isd, ad) in self.core_ads:
             if inter_isd or isd == self.topology.isd_id:
-                cpaths = self.core_segments(src_isd=self.topology.isd_id,
-                                            src_ad=self.topology.ad_id,
-                                            dst_isd=isd, dst_ad=ad)
+                cpaths = self.core_segments(first_isd=isd, first_ad=ad,
+                                            last_isd=self.topology.isd_id,
+                                            last_ad=self.topology.ad_id)
                 if cpaths:
                     cpath = cpaths[0].get_path(reverse_direction=True)
                     pkt.hdr.path = cpath
@@ -516,15 +534,13 @@ class CorePathServer(PathServer):
             logging.warning("CPS received up-segment request! This should not "
                             "happen")
             return
-        elif ptype == PST.DOWN:
-            paths = self.down_segments(dst_isd=dst_isd, dst_ad=dst_ad)
+        elif ptype in [PST.DOWN, PST.UP_DOWN]:
+            paths = self.down_segments(last_isd=dst_isd, last_ad=dst_ad)
             if paths:
                 paths = paths[:self.MAX_SEG_NO]
                 segments_to_send.extend(paths)
             elif dst_isd == self.topology.isd_id:
-                update_dict(self.pending_down,
-                            (dst_isd, dst_ad),
-                            [pkt])
+                update_dict(self.pending_down, (dst_isd, dst_ad), [pkt])
                 logging.info("No down-path segment for (%d, %d), "
                              "request is pending.", dst_isd, dst_ad)
                 # TODO Sam: Here we should ask other CPSes in the same ISD for
@@ -534,9 +550,9 @@ class CorePathServer(PathServer):
                 # Destination is in a different ISD. Ask a CPS in a this ISD for
                 # a down-path using the first available core path.
                 update_dict(self.pending_down, (dst_isd, dst_ad), [pkt])
-                cpaths = self.core_segments(src_isd=self.topology.isd_id,
-                                            src_ad=self.topology.ad_id,
-                                            dst_isd=dst_isd)
+                cpaths = self.core_segments(first_isd=dst_isd,
+                                            last_isd=self.topology.isd_id,
+                                            last_ad=self.topology.ad_id)
                 if cpaths:
                     path = cpaths[0].get_path(reverse_direction=True)
                     dst_isd_ad = ISD_AD(cpaths[0].get_first_pcbm().isd_id,
@@ -557,8 +573,8 @@ class CorePathServer(PathServer):
             src_isd = segment_info.src_isd
             src_ad = segment_info.src_ad
             key = ((src_isd, src_ad), (dst_isd, dst_ad))
-            paths = self.core_segments(src_isd=src_isd, src_ad=src_ad,
-                                       dst_isd=dst_isd, dst_ad=dst_ad)
+            paths = self.core_segments(first_isd=dst_isd, first_ad=dst_ad,
+                                       last_isd=src_isd, last_ad=src_ad)
             if paths:
                 paths = paths[:self.MAX_SEG_NO]
                 segments_to_send.extend(paths)
@@ -610,9 +626,9 @@ class CorePathServer(PathServer):
 
         # Send out revocations to leasers.
         for ((dst_isd, dst_ad), payload) in leaser_revocations.items():
-            paths = self.down_segments(src_isd=self.topology.isd_id,
-                                       src_ad=self.topology.ad_id,
-                                       dst_isd=dst_isd, dst_ad=dst_ad)
+            paths = self.down_segments(first_isd=self.topology.isd_id,
+                                       first_ad=self.topology.ad_id,
+                                       last_isd=dst_isd, last_ad=dst_ad)
             if paths:
                 rev_pkt = PathMgmtPacket.from_values(PMT.REVOCATIONS, payload,
                                                      paths[0].get_path(),
@@ -785,10 +801,10 @@ class LocalPathServer(PathServer):
         for pcb in records.pcbs:
             assert pcb.segment_id != 32 * b"\x00", \
                 "Trying to register a segment with ID 0:\n%s" % pcb
-            res = self.up_segments.update(pcb, self.topology.isd_id,
-                                          self.topology.ad_id,
-                                          pcb.get_first_pcbm().isd_id,
-                                          pcb.get_first_pcbm().ad_id)
+            res = self.up_segments.update(pcb, pcb.get_first_pcbm().isd_id,
+                                          pcb.get_first_pcbm().ad_id,
+                                          self.topology.isd_id,
+                                          self.topology.ad_id)
             if res == DBResult.ENTRY_ADDED:
                 self._add_if_mappings(pcb)
                 logging.info("Up-Segment to (%d, %d) registered.",
@@ -853,8 +869,8 @@ class LocalPathServer(PathServer):
         # serve pending requests
         target = (dst_isd, dst_ad)
         if target in self.pending_down:
-            segments_to_send = self.down_segments(dst_isd=dst_isd,
-                                                  dst_ad=dst_ad)
+            segments_to_send = self.down_segments(last_isd=dst_isd,
+                                                  last_ad=dst_ad)
             segments_to_send = segments_to_send[:self.MAX_SEG_NO]
             for path_request in self.pending_down[target]:
                 self.send_path_segments(path_request, segments_to_send)
@@ -879,8 +895,9 @@ class LocalPathServer(PathServer):
             src_isd = pcb.get_last_pcbm().isd_id
             dst_ad = pcb.get_first_pcbm().ad_id
             dst_isd = pcb.get_first_pcbm().isd_id
-            res = self.core_segments.update(pcb, src_isd=src_isd, src_ad=src_ad,
-                                            dst_isd=dst_isd, dst_ad=dst_ad)
+            res = self.core_segments.update(pcb, first_isd=dst_isd,
+                                            first_ad=dst_ad, last_isd=src_isd,
+                                            last_ad=src_ad)
             if res == DBResult.ENTRY_ADDED:
                 self._add_if_mappings(pcb)
                 lease = LeaseInfo.from_values(PST.CORE, self.topology.isd_id,
@@ -897,10 +914,10 @@ class LocalPathServer(PathServer):
         # Serve pending core path requests.
         target = ((src_isd, src_ad), (dst_isd, dst_ad))
         if target in self.pending_core:
-            segments_to_send = self.core_segments(src_isd=src_isd,
-                                                  src_ad=src_ad,
-                                                  dst_isd=dst_isd,
-                                                  dst_ad=dst_ad)
+            segments_to_send = self.core_segments(first_isd=dst_isd,
+                                                  first_ad=dst_ad,
+                                                  last_isd=src_isd,
+                                                  last_ad=src_ad)
             segments_to_send = segments_to_send[:self.MAX_SEG_NO]
             for path_request in self.pending_core[target]:
                 self.send_path_segments(path_request, segments_to_send)
@@ -1003,20 +1020,35 @@ class LocalPathServer(PathServer):
         :param src_ad:
         :type src_ad:
         """
-        assert ptype in [PST.DOWN, PST.CORE]
         if src_isd is None:
             src_isd = self.topology.isd_id
         if src_ad is None:
             src_ad = self.topology.ad_id
         info = PathSegmentInfo.from_values(ptype, src_isd, dst_isd,
                                            src_ad, dst_ad)
-        if not len(self.up_segments):
-            logging.info('Pending target added')
+        if not len(self.up_segments) and ptype == PST.DOWN:
+            logging.info('Pending target added (%d, %d)', dst_isd, dst_ad)
             self.waiting_targets.add((dst_isd, dst_ad, info))
-        else:
+        elif len(self.up_segments):
             logging.info('Requesting path from core: type: %d, addr: %d,%d',
                          ptype, dst_isd, dst_ad)
-            pcb = self.up_segments()[0]
+            if ptype == PST.DOWN:
+                # Take any path towards core.
+                pcb = self.up_segments()[0]
+            elif ptype == PST.CORE:
+                # Request core AD that should have given core-path.
+                pcbs = self.up_segments(first_isd=src_isd, first_ad=src_ad)
+                if not pcbs:
+                    logging.warning("Core path (%d, %d)->(%d, %d) requested, "
+                                    "but up path to (%d, %d) not found." %
+                                    (src_isd, src_ad, dst_isd, dst_ad,
+                                     src_isd, src_ad))
+                    return
+                pcb = pcbs[0]
+            else:
+                logging.error("UP_PATH request to core.")
+                return
+
             path = pcb.get_path(reverse_direction=True)
             dst_isd_ad = ISD_AD(pcb.get_isd(), pcb.get_first_pcbm().ad_id)
             path.up_segment_info.up_flag = True  # FIXME: temporary hack. A very
@@ -1047,31 +1079,26 @@ class LocalPathServer(PathServer):
             if len(self.up_segments):
                 paths_to_send.extend(self.up_segments()[:self.MAX_SEG_NO])
             else:
-                if type == PST.UP_DOWN:
-                    update_dict(self.pending_down,
-                                (dst_isd, dst_ad),
-                                [pkt])
-                    self.waiting_targets.add((dst_isd, dst_ad))
-                else:  # PST.UP
-                    self.pending_up.append(pkt)
+                if ptype == PST.UP_DOWN:
+                    update_dict(self.pending_down, (dst_isd, dst_ad), [pkt])
+                    self.waiting_targets.add((dst_isd, dst_ad, segment_info))
+                self.pending_up.append(pkt)
                 return
         # Requester wants down-path.
         if (ptype in [PST.DOWN, PST.UP_DOWN]):
-            paths = self.down_segments(dst_isd=dst_isd, dst_ad=dst_ad)
+            paths = self.down_segments(last_isd=dst_isd, last_ad=dst_ad)
             if paths:
                 paths_to_send.extend(paths[:self.MAX_SEG_NO])
             else:
-                update_dict(self.pending_down,
-                            (dst_isd, dst_ad),
-                            [pkt])
+                update_dict(self.pending_down, (dst_isd, dst_ad), [pkt])
                 self._request_paths_from_core(PST.DOWN, dst_isd, dst_ad)
                 logging.info("No downpath, request is pending.")
         # Requester wants core-path.
         if ptype == PST.CORE:
             src_isd = segment_info.src_isd
             src_ad = segment_info.src_ad
-            paths = self.core_segments(src_isd=src_isd, src_ad=src_ad,
-                                       dst_isd=dst_isd, dst_ad=dst_ad)
+            paths = self.core_segments(last_isd=src_isd, last_ad=src_ad,
+                                       first_isd=dst_isd, first_ad=dst_ad)
             if paths:
                 paths_to_send.extend(paths[:self.MAX_SEG_NO])
             else:
@@ -1087,7 +1114,6 @@ def main():
     """
     Main function.
     """
-    init_logging()
     handle_signals()
     parser = argparse.ArgumentParser()
     parser.add_argument('type', choices=['core', 'local'],
@@ -1095,7 +1121,9 @@ def main():
     parser.add_argument('server_id', help='Server identifier')
     parser.add_argument('topo_file', help='Topology file')
     parser.add_argument('conf_file', help='AD configuration file')
+    parser.add_argument('log_file', help='Log file')
     args = parser.parse_args()
+    init_logging(args.log_file)
 
     if args.type == "core":
         path_server = CorePathServer(args.server_id, args.topo_file,
@@ -1107,6 +1135,7 @@ def main():
         logging.error("First parameter can only be 'local' or 'core'!")
         sys.exit()
 
+    trace(path_server.id)
     logging.info("Started: %s", datetime.datetime.now())
     path_server.run()
 

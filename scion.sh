@@ -23,6 +23,9 @@ cmd_topology() {
 cmd_run() {
     echo "Running the network..."
     supervisor/supervisor.sh reload
+    for i in topology/ISD*/zookeeper/ISD*/datalog.*.sh; do
+        [ -e "$i" ] && bash "$i"
+    done
     supervisor/supervisor.sh quickstart all
 }
 
@@ -39,13 +42,13 @@ cmd_status() {
 }
 
 cmd_test(){
-    PYTHONPATH=. nosetests -w test "$@"
+    PYTHONPATH=. nosetests "$@"
 }
 
 cmd_coverage(){
     set -e
-    PYTHONPATH=. nosetests --with-cov -w test "$@"
-    coverage html --omit 'external/*'
+    PYTHONPATH=. nosetests --with-cov --cov-report html "$@"
+    coverage report
     echo "Coverage report here: file://$PWD/htmlcov/index.html"
 }
 
@@ -97,5 +100,5 @@ shift
 case "$COMMAND" in
     coverage|help|init|lint|run|stop|status|test|topology|version)
         "cmd_$COMMAND" "$@" ;;
-    *)  cmd_help ;;
+    *)  cmd_help; exit 1 ;;
 esac

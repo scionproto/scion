@@ -20,6 +20,7 @@ Threading utilities for SCION.
 # Stdlib
 import os
 import signal
+import threading
 
 # SCION
 from lib.log import log_exception
@@ -27,21 +28,22 @@ from lib.log import log_exception
 
 def kill_self():
     """
-    Send SIGTERM to self, to allow quitting the process from threads.
+    Send SIGINT to self, to allow quitting the process from threads when fatal
+    errors occur.
     """
-    os.kill(os.getpid(), signal.SIGTERM)
+    os.kill(os.getpid(), signal.SIGINT)
 
 
-def thread_safety_net(name, func, *args, **kwargs):
+def thread_safety_net(func, *args, **kwargs):
     """
     Wrapper function to handle uncaught thread exceptions, log them, then kill
     the process.
 
-    :param name: thread name.
     :type name: string
     :param func: function to call
     :type func: function
     """
+    name = threading.current_thread().name
     try:
         return func(*args, **kwargs)
     except:

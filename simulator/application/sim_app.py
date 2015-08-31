@@ -102,12 +102,12 @@ class SCIONSimApplication(object):
             raw_path = data[offset:offset + path_len]
             path = None
             info = InfoOpaqueField(raw_path[0:InfoOpaqueField.LEN])
-            if info.info == OFT.TDC_XOVR:
+            if info.info == OFT.CORE:
                 path = CorePath(raw_path)
-            elif info.info == OFT.NON_TDC_XOVR:
+            elif info.info == OFT.SHORTCUT:
                 path = CrossOverPath(raw_path)
-            elif (info.info == OFT.INTRATD_PEER or
-                  info.info == OFT.INTERTD_PEER):
+            elif (info.info == OFT.INTRA_ISD_PEER or
+                  info.info == OFT.INTER_ISD_PEER):
                 path = PeerPath(raw_path)
             elif info.info == 0x00:
                 path = EmptyPath()

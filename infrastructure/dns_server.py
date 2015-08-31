@@ -25,7 +25,6 @@ import argparse
 import binascii
 import datetime
 import logging
-import os
 import sys
 import threading
 from time import sleep
@@ -39,14 +38,16 @@ from dnslib.server import (
     TCPServer,
     UDPServer,
 )
-from kazoo.exceptions import (
-    ConnectionLoss,
-    SessionExpiredError,
-)
 
 # SCION
 from infrastructure.scion_elem import SCIONElement
-from lib.defines import SCION_DNS_PORT
+from lib.defines import (
+    BEACON_SERVICE,
+    CERTIFICATE_SERVICE,
+    DNS_SERVICE,
+    PATH_SERVICE,
+    SCION_DNS_PORT,
+)
 from lib.log import init_logging, log_exception
 from lib.thread import kill_self
 from lib.util import handle_signals, trace
@@ -63,7 +64,7 @@ class ZoneResolver(BaseResolver):
         Initialize an instance of the class ZoneResolver.
 
         :param lock: Lock to coordinate access to instance data.
-        :type lock:
+        :type lock: threading.Lock
         :param domain: Parent DNS domain.
         :type domain:
         """
@@ -75,8 +76,7 @@ class ZoneResolver(BaseResolver):
         """
         Respond to DNS request.
 
-        :param request: DNS request.
-        :type request:
+        :param dnslib.DNSRecord request: DNS request.
 
         :returns: The DNS reply to send.
         :rtype: `dnslib.DNSRecord`
@@ -98,12 +98,9 @@ class ZoneResolver(BaseResolver):
         Build a response to a forward DNS query (i.e. one that contains a
         hostname)
 
-        :param qname: The query's target.
-        :type qname:
-        :param qtype: The type of query (e.g. ``"SRV"``)
-        :type qtype:
-        :param reply: The DNSRecord to populate with the reply.
-        :type reply:
+        :param dnslib.DNSRecord qname: The query's target.
+        :param str qtype: The type of query (e.g. ``"SRV"``)
+        :param dnslib.DNSRecord reply: The DNSRecord to populate with the reply.
         """
         # Request isn't even in our domain
         if not qname.matchSuffix(self.domain):
@@ -115,6 +112,8 @@ class ZoneResolver(BaseResolver):
             for srv_domain, addrs in self.services.items():
                 if qname.matchSuffix(srv_domain):
                     if not addrs:
+                        logging.warning("No instances found, returning "
+                                        "SERVFAIL for %s", qname)
                         # If there are no instances, we are unable to read from
                         # ZK (or else the relevant service is down), so return
                         # SERVFAIL
@@ -134,21 +133,11 @@ class SCIONDnsTcpServer(TCPServer):
     """
 
     def serve_forever(self):
-        """
-
-        """
         cur_thread = threading.current_thread()
         cur_thread.name = "DNS service - TCP"
         super().serve_forever()
 
     def handle_error(self, *args, **kwargs):
-        """
-
-        :param args:
-        :type args:
-        :param kwargs:
-        :type kwargs:
-        """
         log_exception("Error when serving DNS request:")
         kill_self()
 
@@ -160,26 +149,16 @@ class SCIONDnsUdpServer(UDPServer):
     """
 
     def serve_forever(self):
-        """
-
-        """
         cur_thread = threading.current_thread()
         cur_thread.name = "DNS service - UDP"
         super().serve_forever()
 
     def handle_error(self, *args, **kwargs):
-        """
-
-        :param args:
-        :type args:
-        :param kwargs:
-        :type kwargs:
-        """
         log_exception("Error when serving DNS request:")
         kill_self()
 
 
-class SCIONDnsLogger(DNSLogger):
+class SCIONDnsLogger(DNSLogger):  # pragma: no cover
     """
     Sub-class to log DNS events instead of just printing them to stdout.
 
@@ -191,128 +170,41 @@ class SCIONDnsLogger(DNSLogger):
     """
 
     def __init__(self, *args, level=logging.DEBUG, **kwargs):
-        """
-        Initialize an instance of the class SCIONDnsLogger.
-
-        :param args:
-        :type args:
-        :param level:
-        :type level:
-        :param kwargs:
-        :type kwargs:
-        """
         self.level = level
         super().__init__(*args, **kwargs)
 
     def log_prefix(self, handler):
-        """
-
-        :param handler:
-        :type handler:
-
-        :returns:
-        :rtype:
-        """
         return ""
 
     def _common_prefix(self, handler, data):
-        """
-
-        :param handler:
-        :type handler:
-        :param data:
-        :type data:
-
-        :returns:
-        :rtype:
-        """
-        return "[%s:%d] (%s)" % (
-            handler.client_address[0],
-            handler.client_address[1],
-            handler.protocol)
+        return "[%s:%d] (%s)" % (handler.client_address[0],
+                                 handler.client_address[1], handler.protocol)
 
     def _reply_prefix(self, handler, reply, desc):
-        """
-
-        :param handler:
-        :type handler:
-        :param reply:
-        :type reply:
-        :param desc:
-        :type desc:
-
-        :returns:
-        :rtype:
-        """
         return "%s: %s / '%s' (%s) /" % (
-            desc,
-            self._common_prefix(handler, reply),
-            reply.q.qname,
+            desc, self._common_prefix(handler, reply), reply.q.qname,
             QTYPE[reply.q.qtype])
 
     def _format_rrs(self, reply):
-        """
-
-        :param reply:
-        :type reply:
-
-        :returns:
-        :rtype:
-        """
         return "RRs: %s" % ",".join([QTYPE[a.rtype] for a in reply.rr])
 
     def log_recv(self, handler, data):
-        """
-
-
-        :param handler:
-        :type handler:
-        :param data:
-        :type data:
-        """
         logging.log(self.level, "Received: %s <%d> : %s",
-                    self._common_prefix(handler, data),
-                    len(data),
+                    self._common_prefix(handler, data), len(data),
                     binascii.hexlify(data))
 
     def log_send(self, handler, data):
-        """
-
-
-        :param handler:
-        :type handler:
-        :param data:
-        :type data:
-        """
         logging.log(self.level, "Sent: %s <%d> : %s",
-                    self._common_prefix(handler, data),
-                    len(data),
+                    self._common_prefix(handler, data), len(data),
                     binascii.hexlify(data))
 
     def log_request(self, handler, request):
-        """
-
-
-        :param handler:
-        :type handler:
-        :param request:
-        :type request:
-        """
         logging.log(self.level, "Request: %s / '%s' (%s)",
-                    self._common_prefix(handler, request),
-                    request.q.qname,
+                    self._common_prefix(handler, request), request.q.qname,
                     QTYPE[request.q.qtype])
         self.log_data(request)
 
     def log_reply(self, handler, reply):
-        """
-
-
-        :param handler:
-        :type handler:
-        :param reply:
-        :type reply:
-        """
         level = self.level
         output = [self._reply_prefix(handler, reply, "Reply")]
         if reply.header.rcode == RCODE.NOERROR:
@@ -324,14 +216,6 @@ class SCIONDnsLogger(DNSLogger):
         self.log_data(reply)
 
     def log_truncated(self, handler, reply):
-        """
-
-
-        :param handler:
-        :type handler:
-        :param reply:
-        :type reply:
-        """
         level = self.level
         logging.log(level, "%s %s",
                     self._reply_prefix(handler, reply, "Truncated Reply"),
@@ -339,25 +223,10 @@ class SCIONDnsLogger(DNSLogger):
         self.log_data(reply)
 
     def log_error(self, handler, e):
-        """
-
-
-        :param handler:
-        :type handler:
-        :param e:
-        :type e:
-        """
         logging.log(logging.ERROR, "Invalid Request: %s :: %s",
-                    self._common_prefix(handler, e),
-                    e)
+                    self._common_prefix(handler, e), e)
 
     def log_data(self, dnsobj):
-        """
-
-
-        :param dnsobj:
-        :type dnsobj:
-        """
         for line in dnsobj.toZone("    ").split("\n"):
             logging.log(self.level, line)
 
@@ -367,35 +236,27 @@ class SCIONDnsServer(SCIONElement):
     SCION DNS Server. Responsible for starting the DNS resolver threads, and
     frequently updating the shared instance data from ZK.
 
-    :cvar SYNC_TIME:
-    :type SYNC_TIME:
-    :cvar SRV_TYPES:
-    :type SRV_TYPES:
+    :cvar float SYNC_TIME: How frequently (in seconds) to update the shared
+                           instance data from ZK.
+    :cvar list SRV_TYPES: Service types to monitor/export
     """
-    #: How frequently (in seconds) to update the shared instance data from ZK.
     SYNC_TIME = 1.0
-    #: Service types to monitor/export
-    SRV_TYPES = ["bs", "cs", "ds", "ps"]
+    SRV_TYPES = (BEACON_SERVICE, CERTIFICATE_SERVICE, DNS_SERVICE, PATH_SERVICE)
 
     def __init__(self, server_id, domain, topo_file):
         """
-        Initialize an instance of the class SCIONDnsServer.
-
-        :param server_id:
-        :type server_id:
-        :param domain:
-        :type domain:
-        :param topo_file:
-        :type topo_file:
+        :param str server_id: Local id of the server, E.g. '3'.
+        :param str domain: DNS domain to serve.
+        :param str topo_file: Path to topology file.
         """
-        super().__init__("ds", topo_file, server_id=server_id)
+        super().__init__(DNS_SERVICE, topo_file, server_id=server_id)
         self.domain = DNSLabel(domain)
         self.lock = threading.Lock()
         self.services = {}
 
     def setup(self):
         """
-
+        Set up various servers and connections required.
         """
         self.resolver = ZoneResolver(self.lock, self.domain)
         self.udp_server = DNSServer(self.resolver, port=SCION_DNS_PORT,
@@ -410,46 +271,26 @@ class SCIONDnsServer(SCIONElement):
                                      str(self.addr.host_addr)])
         self.zk = Zookeeper(
             self.topology.isd_id, self.topology.ad_id,
-            "ds", self.name_addrs, self.topology.zookeepers)
+            DNS_SERVICE, self.name_addrs, self.topology.zookeepers)
         self._parties = {}
-        self._join_parties()
+        self._setup_parties()
 
-    def _join_parties(self):
+    def _setup_parties(self):
         """
-
+        Join all the necessary ZK parties.
         """
-        while True:
-            logging.debug("Waiting for ZK connection")
-            if not self.zk.wait_connected(timeout=10.0):
-                continue
-            logging.debug("Connected to ZK")
-            try:
-                for i in self.SRV_TYPES:
-                    self._parties[i] = self._join_party(i)
-                # Join the DNS server party
-                self._parties['ds'].join()
-            except ZkConnectionLoss:
-                logging.info("Connection dropped while "
-                             "registering for parties")
-                # Clear existing parties, start again.
-                self._parties = {}
-                continue
-            else:
-                break
-
-    def _join_party(self, type_):
-        """
-
-        :param type_:
-        :type type_:
-
-        :returns:
-        :rtype:
-        """
-        prefix = "/ISD%d-AD%d" % (self.topology.isd_id, self.topology.ad_id)
-        path = os.path.join(prefix, type_, 'party')
-        self.zk._zk.ensure_path(path)
-        return self.zk._zk.Party(path, self.name_addrs)
+        logging.debug("Joining parties")
+        for type_ in self.SRV_TYPES:
+            prefix = "/ISD%d-AD%d/%s" % (self.topology.isd_id,
+                                         self.topology.ad_id, type_)
+            autojoin = False
+            # Join only the DNS service party, for the rest we just want to
+            # setup the party so we can monitor the members.
+            if type_ == DNS_SERVICE:
+                autojoin = True
+            self._parties[type_] = self.zk.retry(
+                "Joining %s party" % type_, self.zk.party_setup, prefix=prefix,
+                autojoin=autojoin)
 
     def _sync_zk_state(self):
         """
@@ -458,16 +299,23 @@ class SCIONDnsServer(SCIONElement):
         # Clear existing state
         self.services = {}
 
+        try:
+            self.zk.wait_connected(timeout=10.0)
+        except ZkConnectionLoss:
+            logging.warning("No connection to Zookeeper, can't update services")
+            return
+
         # Retrieve alive instance details from ZK for each service.
         for srv_type in self.SRV_TYPES:
             srv_domain = self.domain.add(srv_type)
             self.services[srv_domain] = []
+            party = self._parties[srv_type]
             try:
-                srv_set = set(self._parties[srv_type])
-            except (ConnectionLoss, SessionExpiredError):
-                # If the connection drops, leave the instance list blank
-                continue
-            for i in srv_set:
+                srvs = party.list()
+            except ZkConnectionLoss:
+                # If the connection drops, don't update
+                return
+            for i in srvs:
                 self._parse_srv_inst(i, srv_domain)
 
         # Update DNS zone data
@@ -476,18 +324,18 @@ class SCIONDnsServer(SCIONElement):
 
     def _parse_srv_inst(self, inst, srv_domain):
         """
+        Parse a server instance block into name/port/addresses,
+        and add them to the services list.
 
-        :param inst:
-        :type inst:
-        :param srv_domain:
-        :type srv_domain:
+        :param str inst: Server instance block (null-seperated strings)
+        :param dnslib.DNSLabel srv_domain: service domain
         """
         name, port, *addresses = inst.split("\0")
         self.services[srv_domain].extend(addresses)
 
     def run(self):
         """
-
+        Run SCION Dns server.
         """
         self._sync_zk_state()
         self.udp_server.start_thread()
@@ -497,17 +345,18 @@ class SCIONDnsServer(SCIONElement):
             sleep(self.SYNC_TIME)
 
 
-def main():
+def main():  # pragma: no cover
     """
     Main function.
     """
-    init_logging()
     handle_signals()
     parser = argparse.ArgumentParser()
     parser.add_argument('server_id', help='Server identifier')
     parser.add_argument('domain', help='DNS Domain')
     parser.add_argument('topology', help='Topology file')
+    parser.add_argument('log_file', help='Log file')
     args = parser.parse_args()
+    init_logging(args.log_file)
 
     scion_dns_server = SCIONDnsServer(args.server_id, args.domain,
                                       args.topology)
@@ -518,7 +367,7 @@ def main():
     scion_dns_server.run()
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     try:
         main()
     except SystemExit:

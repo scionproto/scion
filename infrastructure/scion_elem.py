@@ -14,23 +14,27 @@
 """
 :mod:`scion_elem` --- Base class for SCION servers
 ==================================================
-
-Module docstring here.
-
-.. note::
-    Fill in the docstring.
-
 """
-
 # Stdlib
 import logging
-import select
-import socket
+import queue
+import threading
 
 # SCION
 from lib.config import Config
-from lib.defines import SCION_BUFLEN, SCION_UDP_PORT
+from lib.defines import (
+    BEACON_SERVICE,
+    DNS_SERVICE,
+    CERTIFICATE_SERVICE,
+    PATH_SERVICE,
+    SERVICE_TYPES,
+)
+from lib.defines import SCION_UDP_PORT
+from lib.dnsclient import DNSCachingClient
+from lib.errors import SCIONServiceLookupError
 from lib.packet.scion_addr import SCIONAddr
+from lib.socket import UDPSocket, UDPSocketMgr
+from lib.thread import thread_safety_net
 from lib.topology import Topology
 
 
@@ -39,41 +43,29 @@ class SCIONElement(object):
     Base class for the different kind of servers the SCION infrastructure
     provides.
 
-    :ivar topology: the topology of the AD as seen by the server.
-    :type topology: :class:`Topology`
-    :ivar config: the configuration of the AD in which the server is located.
-    :type config: :class:`lib.config.Config`
-    :ivar ifid2addr: a dictionary mapping interface identifiers to the
-                     corresponding border router addresses in the server's AD.
-    :type ifid2addr: dict
-    :ivar addr: a `SCIONAddr` object representing the server address.
-    :type addr: :class:`lib.packet.scion_addr.SCIONAddr`
+    :ivar `Topology` topology: the topology of the AD as seen by the server.
+    :ivar `Config` config:
+        the configuration of the AD in which the server is located.
+    :ivar dict ifid2addr:
+        a dictionary mapping interface identifiers to the corresponding border
+        router addresses in the server's AD.
+    :ivar `SCIONAddr` addr: the server's address.
     """
 
     def __init__(self, server_type, topo_file, config_file=None, server_id=None,
                  host_addr=None, is_sim=False):
         """
-        Create a new ServerBase instance.
-
-        :param server_type: a shorthand of the server type, e.g. "bs" for a
-                            beacon server.
-        :type server_type: str
-        :param topo_file: the name of the topology file.
-        :type topo_file: str
-        :param config_file: the name of the configuration file.
-        :type config_file: str
-        :param server_id: the local id of the server, e.g. for bs1-10-3, the id
-                          would be '3'. Used to look up config from topology
-                          file.
-        :type server_id: str
-        :param host_addr: the interface to bind to. Only used if server_id isn't
-                          specified.
-        :type host_addr: :class:`ipaddress._BaseAddress`
-
-        :returns: the newly-created ServerBase instance
-        :rtype: ServerBase
-        :param is_sim: running in simulator
-        :type is_sim: bool
+        :param str server_type:
+            a service type from :const:`lib.defines.SERVICE_TYPES`. E.g.
+            ``"bs"``.
+        :param str topo_file: path name of the topology file.
+        :param str config_file: path name of the configuration file.
+        :param str server_id:
+            the local id of the server. E.g. for `bs1-10-3`, the id would be
+            ``"3"``. Used to look up config from topology file.
+        :param `HostAddrBase` host_addr:
+            the interface to bind to. Only used if `server_id` isn't specified.
+        :param bool is_sim: running in simulator
         """
         self._addr = None
         self.topology = None
@@ -89,16 +81,23 @@ class SCIONElement(object):
             self.id = server_type
         self.addr = SCIONAddr.from_values(self.topology.isd_id,
                                           self.topology.ad_id, host_addr)
+        self._dns = DNSCachingClient(
+            [str(s.addr) for s in self.topology.dns_servers],
+            self.topology.dns_domain)
         if config_file:
             self.parse_config(config_file)
         self.construct_ifid2addr_map()
         if not is_sim:
-            self._local_socket = socket.socket(socket.AF_INET,
-                                               socket.SOCK_DGRAM)
-            self._local_socket.setsockopt(socket.SOL_SOCKET,
-                                          socket.SO_REUSEADDR, 1)
-            self._local_socket.bind((str(self.addr.host_addr), SCION_UDP_PORT))
-            self._sockets = [self._local_socket]
+            self.run_flag = threading.Event()
+            self.stopped_flag = threading.Event()
+            self.stopped_flag.set()
+            self._in_buf = queue.Queue()
+            self._socks = UDPSocketMgr()
+            self._local_sock = UDPSocket(
+                bind=(str(self.addr.host_addr), SCION_UDP_PORT),
+                addr_type=self.addr.host_addr.TYPE,
+            )
+            self._socks.add(self._local_sock)
             logging.info("%s: bound %s:%u", self.id, self.addr.host_addr,
                          SCION_UDP_PORT)
 
@@ -208,22 +207,75 @@ class SCIONElement(object):
         :param dst_port: the destination port number.
         :type dst_port: int
         """
-        self._local_socket.sendto(packet.pack(), (str(dst), dst_port))
+        self._local_sock.send(packet.pack(), (str(dst), dst_port))
 
     def run(self):
         """
         Main routine to receive packets and pass them to
         :func:`handle_request()`.
         """
-        while True:
-            recvlist, _, _ = select.select(self._sockets, [], [])
-            for sock in recvlist:
-                packet, addr = sock.recvfrom(SCION_BUFLEN)
-                self.handle_request(packet, addr, sock == self._local_socket)
+        self.stopped_flag.clear()
+        self.run_flag.set()
+        threading.Thread(
+            target=thread_safety_net, args=(self.packet_recv,),
+            name="Elem.packet_recv", daemon=True).start()
 
-    def clean(self):
+        self._packet_process()
+
+    def packet_recv(self):
         """
-        Close open sockets.
+        Read packets from sockets, and put them into a :class:`queue.Queue`.
         """
-        for s in self._sockets:
-            s.close()
+        while self.run_flag.is_set():
+            for sock in self._socks.select_(timeout=1.0):
+                while True:
+                    try:
+                        # Read from socket until its buffer is empty.
+                        packet, addr = sock.recv(block=False)
+                        self._in_buf.put((packet, addr,
+                                          sock == self._local_sock))
+                    except BlockingIOError:
+                        break
+        self.stopped_flag.set()
+
+    def _packet_process(self):
+        """
+        Read packets from a :class:`queue.Queue`, and process them.
+        """
+        while self.run_flag.is_set():
+            try:
+                self.handle_request(*self._in_buf.get(timeout=1.0))
+            except queue.Empty:
+                continue
+
+    def stop(self):
+        """
+        Shut down the daemon thread
+        """
+        # Signal that the thread should stop
+        self.run_flag.clear()
+        # Wait for the thread to finish
+        self.stopped_flag.wait()
+        self._socks.close()
+
+    def dns_query_topo(self, qname):
+        """
+        Query dns for an answer. If the answer is empty, or an error occurs then
+        return the relevant topology entries instead.
+
+        :param str qname: Service to query for.
+        """
+        assert qname in SERVICE_TYPES
+        service_map = {
+            BEACON_SERVICE: self.topology.beacon_servers,
+            CERTIFICATE_SERVICE: self.topology.certificate_servers,
+            DNS_SERVICE: self.topology.dns_servers,
+            PATH_SERVICE: self.topology.path_servers,
+        }
+        # Generate fallback from local topology
+        fallback = [srv.addr for srv in service_map[qname]]
+        results = self._dns.query(qname, fallback)
+        if not results:
+            # No results from local toplogy either
+            raise SCIONServiceLookupError("No %s servers found" % qname)
+        return results

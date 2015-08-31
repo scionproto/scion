@@ -3,6 +3,7 @@
         "tickTime": 100,
         "initLimit": 10,
         "syncLimit": 5,
+        "maxClientCnxns": 0,
         "clientPort": 2181,
         "leaderPort": 2888,
         "electionPort": 3888

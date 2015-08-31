@@ -17,7 +17,6 @@
 """
 # Stdlib
 import logging
-import socket
 import struct
 import sys
 import threading
@@ -29,10 +28,12 @@ from pytun import TunTapDevice, IFF_TUN, IFF_NO_PI
 
 # SCION
 from endhost.sciond import SCIONDaemon
-from lib.defines import SCION_UDP_EH_DATA_PORT, SCION_BUFLEN
+from lib.defines import ADDR_IPV4_TYPE, SCION_UDP_EH_DATA_PORT
 from lib.log import init_logging
 from lib.packet.scion import SCIONPacket
 from lib.packet.scion_addr import SCIONAddr
+from lib.socket import UDPSocket
+from lib.thread import thread_safety_net
 
 
 # Dictionary of destinations that should be reached via SCION.
@@ -68,8 +69,8 @@ class SCIONGateway(object):
         :rtype: :class:`SCIONGateway`
         """
         self.sd = SCIONDaemon.start(addr, topo_file)
-        self._data_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self._data_socket.bind((str(addr), SCION_UDP_EH_DATA_PORT))
+        self._data_sock = UDPSocket(
+            bind=(str(addr), SCION_UDP_EH_DATA_PORT), addr_type=ADDR_IPV4_TYPE)
         self.scion_hosts = scion_hosts
         self._tun_dev = TunTapDevice(flags=IFF_TUN | IFF_NO_PI)
         self._tun_dev.up()
@@ -79,9 +80,12 @@ class SCIONGateway(object):
         """
         Start the Gateway.
         """
-        threading.Thread(target=self.handle_ip_packets).start()
+        threading.Thread(
+            target=thread_safety_net, args=(self.handle_ip_packets,),
+            name="SCIONGateway.handle_ip_packets",
+            daemon=True).start()
         while True:
-            packet, _ = self._data_socket.recvfrom(SCION_BUFLEN)
+            packet, _ = self._data_sock.recv()
             self.handle_scion_packet(SCIONPacket(packet))
 
     def handle_ip_packets(self):
@@ -151,6 +155,7 @@ def main():
     if len(sys.argv) != 3:
         logging.error("run: %s addr topology_file", sys.argv[0])
         sys.exit()
+    # FIXME(kormat): make IP-version agnostic
     sgw = SCIONGateway(IPv4Address(sys.argv[1]), sys.argv[2], SCION_HOSTS)
     try:
         sgw.run()

@@ -16,29 +16,43 @@
 ===========================================
 """
 # Stdlib
+import binascii
 import struct
 
 # SCION
+from lib.errors import SCIONParseError
 from lib.packet.packet_base import HeaderBase
 from lib.util import Raw
+
+
+class ExtensionClass(object):
+    """
+    Constants for two types of extensions. These values are shared with L4
+    protocol values, and an appropriate value is placed in next_hdr type.
+    """
+    HOP_BY_HOP = 0
+    END_TO_END = 222  # (Expected:-) number for SCION end2end extensions.
 
 
 class ExtensionHeader(HeaderBase):
     """
     Base class for extension headers.
-    For each extension header there should be a subclass of this class (e.g
-    StrideExtensionHeader).
 
     :cvar MIN_LEN:
     :type MIN_LEN: int
-    :ivar next_ext:
-    :type next_ext:
-    :ivar hdr_len:
-    :type hdr_len:
+    :ivar next_hdr:
+    :type next_hdr:
+    :ivar _hdr_len:
+    :type _hdr_len:
     :ivar parsed:
     :type parsed:
     """
-    MIN_LEN = 2
+    LINE_LEN = 8  # Length of extension must be multiplication of LINE_LEN.
+    MIN_LEN = LINE_LEN
+    EXT_CLASS = None  # Class of extension (hop-by-hop or end-to-end).
+    EXT_TYPE = None  # Type of extension.
+    SUBHDR_LEN = 3
+    MIN_PAYLOAD_LEN = MIN_LEN - SUBHDR_LEN
 
     def __init__(self, raw=None):
         """
@@ -46,10 +60,17 @@ class ExtensionHeader(HeaderBase):
 
         :param raw:
         :type raw:
+        :param _hdr_len: encoded length of extension header. The length in
+                         bytes is calculated as (next_hdr + 1) * 8.
+        :type _hdr_len: int
+        :param next_hdr: indication of a next extension header. Must be set
+                         by SCIONHeader's pack().
+        :type next_hdr: int
         """
         super().__init__()
-        self.next_ext = 0
-        self.hdr_len = 0
+        self.next_hdr = 0
+        self._hdr_len = 0
+        self.payload = b"\x00" * self.MIN_PAYLOAD_LEN
         if raw is not None:
             self.parse(raw)
 
@@ -60,99 +81,71 @@ class ExtensionHeader(HeaderBase):
         :param raw:
         :type raw:
         """
-        data = Raw(raw, "ExtensionHeader", self.MIN_LEN)
-        self.next_ext, self.hdr_len = struct.unpack(
-            "!BB", data.pop(self.MIN_LEN))
+        data = Raw(raw, "ExtensionHeader", self.MIN_LEN, min_=True)
+        self.next_hdr, self._hdr_len, ext_no = \
+            struct.unpack("!BBB", data.pop(self.SUBHDR_LEN))
+        if ext_no != self.EXT_TYPE:
+            raise SCIONParseError("Extension chain formed incorrectly")
+        if len(raw) != len(self):
+            raise SCIONParseError("Incorrect length of extensions")
+        self.set_payload(data.pop())
         self.parsed = True
+
+    def _init_size(self, additional_lines):
+        """
+        Initialize `additional_lines` of payload.
+        All extensions have to have constant size.
+        """
+        self._hdr_len = additional_lines
+        first_row = b"\x00" * self.MIN_PAYLOAD_LEN
+        # Allocate additional lines.
+        self.set_payload(first_row + b"\x00" * self.LINE_LEN * additional_lines)
+
+    def set_payload(self, payload):
+        """
+        Set payload. Payload length must be equal to allocated space for the
+        extensions.
+        """
+        payload_len = len(payload)
+        # Length of extension must be padded to 8B.
+        assert not (payload_len + self.SUBHDR_LEN) % self.LINE_LEN
+        # Encode payload length.
+        pay_len_enc = (payload_len + self.SUBHDR_LEN) // self.LINE_LEN - 1
+        # Check whether payload length is correct.
+        assert self._hdr_len == pay_len_enc
+        self.payload = payload
 
     def pack(self):
         """
-
+        Pack to byte array.
         """
-        return struct.pack("!BB", self.next_ext, self.hdr_len)
+        return (struct.pack("!BBB", self.next_hdr, self._hdr_len, self.EXT_TYPE)
+                + self.payload)
 
     def __len__(self):
         """
-
+        Return length of extenion header in bytes.
         """
-        return 8
+        return (self._hdr_len + 1) * self.LINE_LEN
 
     def __str__(self):
         """
 
         """
-        return "[EH next hdr: %u, len: %u]" % (self.next_ext, self.hdr_len)
+        payload_hex = binascii.hexlify(self.payload)
+        return "[EH next hdr: %u, len: %u, payload: %s]" % (
+            self.next_hdr, len(self), payload_hex)
 
 
-class ICNExtHdr(ExtensionHeader):
+class HopByHopExtension(ExtensionHeader):
     """
-    The extension header for the SCION ICN extension.
-
-    0          8         16      24                                           64
-    | next hdr | hdr len |  type  |                reserved                    |
-
-    :cvar MIN_LEN:
-    :type MIN_LEN: int
-    :cvar TYPE:
-    :type TYPE: int
-    :ivar fwd_flag:
-    :type fwd_flag: int
+    Base class for hop-by-hop extensions.
     """
-    MIN_LEN = 8
-    TYPE = 220  # Extension header type
-
-    def __init__(self, raw=None):
-        """
-        Initialize an instance of the class ICNExtHdr.
-        Tells the edge router whether to forward this pkt to the local Content
-        Cache or to the next AD.
-
-        :param raw:
-        :type raw:
-        """
-        super().__init__()
-        self.fwd_flag = 0
-        if raw is not None:
-            self.parse(raw)
-
-    def parse(self, raw):
-        """
+    EXT_CLASS = ExtensionClass.HOP_BY_HOP
 
 
-        :param raw:
-        :type raw:
-        """
-        data = Raw(raw, "ICNExtHdr", self.MIN_LEN, min_=True)
-        self.next_ext, self.hdr_len, self.fwd_flag, _rsvd1, _rsvd2 = \
-            struct.unpack("!BBBIB", data.pop(self.MIN_LEN))
-        self.parsed = True
-
-    def pack(self):
-        """
-
-
-        :returns:
-        :rtype:
-        """
-        # reserved field is stored in 2 parts - 32 + 8 bits
-        return struct.pack("!BBBIB", self.next_ext, self.hdr_len,
-                           self.fwd_flag, 0, 0)
-
-    def __len__(self):
-        """
-
-
-        :returns:
-        :rtype:
-        """
-        return ICNExtHdr.MIN_LEN
-
-    def __str__(self):
-        """
-
-
-        :returns:
-        :rtype:
-        """
-        return ("[ICN EH next hdr: %u, len: %u, fwd_flag: %u]" %
-                (self.next_ext, self.hdr_len, self.fwd_flag))
+class EndToEndExtension(ExtensionHeader):
+    """
+    Base class for end-to-end extensions.
+    """
+    EXT_CLASS = ExtensionClass.END_TO_END

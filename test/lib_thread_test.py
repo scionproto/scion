@@ -41,7 +41,7 @@ class TestKillSelf(object):
         pid_mock.return_value = "test_pid_val"
         kill_self()
         pid_mock.assert_called_once_with()
-        kill_mock.assert_called_once_with("test_pid_val", signal.SIGTERM)
+        kill_mock.assert_called_once_with("test_pid_val", signal.SIGINT)
 
 
 class TestThreadSafetyNet(object):
@@ -58,12 +58,13 @@ class TestThreadSafetyNet(object):
     @patch("lib.thread.kill_self", autospec=True)
     @patch("lib.thread.log_exception", autospec=True)
     def test_exception(self, log_test, kill_test):
-        ntools.assert_is_none(thread_safety_net("exp", self.exception_f))
-        log_test.assert_called_once_with("Exception in %s thread:", "exp")
+        ntools.assert_is_none(thread_safety_net(self.exception_f))
+        log_test.assert_called_once_with("Exception in %s thread:",
+                                         "MainThread")
         kill_test.assert_called_once_with()
 
     def test_no_exception(self):
-        ntools.eq_(thread_safety_net("n_exp", self.no_exception_f), "test_data")
+        ntools.eq_(thread_safety_net(self.no_exception_f), "test_data")
 
 if __name__ == "__main__":
     nose.run(defaultTest=__name__)
