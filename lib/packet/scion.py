@@ -550,7 +550,7 @@ class SCIONPacket(PacketBase):
         """
         pkt = SCIONPacket()
         pkt.hdr = SCIONHeader.from_values(src, dst, path, ext_hdrs, next_hdr)
-        pkt.payload = payload
+        pkt.set_payload(payload)
         return pkt
 
     def set_payload(self, payload):
@@ -569,7 +569,7 @@ class SCIONPacket(PacketBase):
         self.hdr = SCIONHeader(data.get())
         data.pop(len(self.hdr))
         self.payload_len = len(data)
-        self.payload = data.pop(self.payload_len)
+        self.set_payload(data.pop(self.payload_len))
         self.parsed = True
 
     def pack(self):
@@ -578,10 +578,10 @@ class SCIONPacket(PacketBase):
         """
         data = []
         data.append(self.hdr.pack())
-        if isinstance(self.payload, PacketBase):
-            data.append(self.payload.pack())
+        if isinstance(self._payload, PacketBase):
+            data.append(self._payload.pack())
         else:
-            data.append(self.payload)
+            data.append(self._payload)
 
         return b"".join(data)
 
@@ -605,7 +605,7 @@ class IFIDPacket(SCIONPacket):
 
     def parse(self, raw):
         SCIONPacket.parse(self, raw)
-        self.reply_id, self.request_id = struct.unpack("!HH", self.payload)
+        self.reply_id, self.request_id = struct.unpack("!HH", self._payload)
 
     @classmethod
     def from_values(cls, src, dst_isd_ad, request_id):
@@ -621,11 +621,11 @@ class IFIDPacket(SCIONPacket):
         dst = SCIONAddr.from_values(dst_isd_ad.isd, dst_isd_ad.ad,
                                     PacketType.IFID_PKT)
         req.hdr = SCIONHeader.from_values(src, dst)
-        req.payload = struct.pack("!HH", req.reply_id, request_id)
+        req.set_payload(struct.pack("!HH", req.reply_id, request_id))
         return req
 
     def pack(self):
-        self.payload = struct.pack("!HH", self.reply_id, self.request_id)
+        self.set_payload(struct.pack("!HH", self.reply_id, self.request_id))
         return SCIONPacket.pack(self)
 
 
@@ -673,7 +673,7 @@ class CertChainRequest(SCIONPacket):
         :type raw: bytes
         """
         SCIONPacket.parse(self, raw)
-        data = Raw(self.payload, "CertChainRequest", self.LEN)
+        data = Raw(self._payload, "CertChainRequest", self.LEN)
         self.ingress_if = struct.unpack("!H", data.pop(2))[0]
         self.src_isd, self.src_ad = ISD_AD.from_raw(data.pop(ISD_AD.LEN))
         self.isd_id, self.ad_id = ISD_AD.from_raw(data.pop(ISD_AD.LEN))
@@ -714,10 +714,9 @@ class CertChainRequest(SCIONPacket):
         req.isd_id = isd_id
         req.ad_id = ad_id
         req.version = version
-        req.payload = (struct.pack("!H", ingress_if) +
-                       ISD_AD(src_isd, src_ad).pack() +
-                       ISD_AD(isd_id, ad_id).pack() +
-                       struct.pack("!I", version))
+        req.set_payload(
+            struct.pack("!H", ingress_if) + ISD_AD(src_isd, src_ad).pack() +
+            ISD_AD(isd_id, ad_id).pack() + struct.pack("!I", version))
         return req
 
 
@@ -761,7 +760,7 @@ class CertChainReply(SCIONPacket):
         :type raw: bytes
         """
         SCIONPacket.parse(self, raw)
-        data = Raw(self.payload, "CertChainReply", self.MIN_LEN, min_=True)
+        data = Raw(self._payload, "CertChainReply", self.MIN_LEN, min_=True)
         self.isd_id, self.ad_id = ISD_AD.from_raw(data.pop(ISD_AD.LEN))
         self.version = struct.unpack("!I", data.pop(4))[0]
         self.cert_chain = data.pop()
@@ -791,8 +790,8 @@ class CertChainReply(SCIONPacket):
         rep.ad_id = ad_id
         rep.version = version
         rep.cert_chain = cert_chain
-        rep.payload = (ISD_AD(isd_id, ad_id).pack() +
-                       struct.pack("!I", version) + cert_chain)
+        rep.set_payload(ISD_AD(isd_id, ad_id).pack() +
+                        struct.pack("!I", version) + cert_chain)
         return rep
 
 
@@ -837,7 +836,7 @@ class TRCRequest(SCIONPacket):
         :type raw: bytes
         """
         SCIONPacket.parse(self, raw)
-        data = Raw(self.payload, "TRCRequest", self.LEN)
+        data = Raw(self._payload, "TRCRequest", self.LEN)
         self.ingress_if = struct.unpack("!H", data.pop(2))[0]
         self.src_isd, self.src_ad = ISD_AD.from_raw(data.pop(ISD_AD.LEN))
         self.isd_id = struct.unpack("!H", data.pop(2))[0]
@@ -875,9 +874,9 @@ class TRCRequest(SCIONPacket):
         req.src_ad = src_ad
         req.isd_id = isd_id
         req.version = version
-        req.payload = (struct.pack("!H", ingress_if) +
-                       ISD_AD(src_isd, src_ad).pack() +
-                       struct.pack("!HI", isd_id, version))
+        req.set_payload(struct.pack("!H", ingress_if) +
+                        ISD_AD(src_isd, src_ad).pack() +
+                        struct.pack("!HI", isd_id, version))
         return req
 
 
@@ -918,7 +917,7 @@ class TRCReply(SCIONPacket):
         :type raw: bytes
         """
         SCIONPacket.parse(self, raw)
-        data = Raw(self.payload, "TRCReply", self.MIN_LEN, min_=True)
+        data = Raw(self._payload, "TRCReply", self.MIN_LEN, min_=True)
         self.isd_id, self.version = struct.unpack("!HI", data.pop(self.MIN_LEN))
         self.trc = data.pop()
 
@@ -945,5 +944,5 @@ class TRCReply(SCIONPacket):
         rep.isd_id = isd_id
         rep.version = version
         rep.trc = trc
-        rep.payload = struct.pack("!HI", isd_id, version) + trc
+        rep.set_payload(struct.pack("!HI", isd_id, version) + trc)
         return rep

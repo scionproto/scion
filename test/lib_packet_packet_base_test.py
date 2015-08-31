@@ -57,26 +57,17 @@ class TestPacketBaseInit(object):
         ntools.assert_is_none(packet_base.raw)
 
 
-class TestPacketBasePayload(object):
+class TestPacketBaseGetPayload(object):
     """
-    Unit tests for lib.packet.packet_base.PacketBase.payload
+    Unit tests for lib.packet.packet_base.PacketBase.get_payload
     """
-    def test_getter(self):
+    def test(self):
         """
         Test for getting payload as bytes.
         """
         packet_base = PacketBase()
         packet_base._payload = b'data'
-        ntools.eq_(packet_base.payload, b'data')
-
-    @patch("lib.packet.packet_base.PacketBase.set_payload", autospec=True)
-    def test_setter(self, set_payload):
-        """
-        Test for setting payload as bytes.
-        """
-        packet_base = PacketBase()
-        packet_base.payload = b'data'
-        set_payload.assert_called_once_with(packet_base, b'data')
+        ntools.eq_(packet_base.get_payload(), b'data')
 
 
 class TestPacketBaseSetPayload(object):

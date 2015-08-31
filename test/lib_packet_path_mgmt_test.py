@@ -39,6 +39,7 @@ from lib.packet.path_mgmt import (
 )
 from lib.packet.scion import PacketType
 from lib.packet.scion_addr import ISD_AD, SCIONAddr
+from test.testcommon import create_mock
 
 
 class TestPathSegmentInfoInit(object):
@@ -665,18 +666,20 @@ class TestPathMgmtPacketPack(object):
     """
     Unit tests for lib.packet.path_mgmt.PathMgmtPacket.pack
     """
-    @patch("lib.packet.scion.SCIONPacket.set_payload", autospec=True)
     @patch("lib.packet.scion.SCIONPacket.pack", autospec=True)
-    def test_basic(self, pack_scion, set_pld):
+    def test_basic(self, pack_scion):
         pth_mgmt_pkt = PathMgmtPacket()
+        payload = create_mock(["pack"])
+        payload.pack.return_value = b"data"
+        pth_mgmt_pkt._payload = payload
+        pth_mgmt_pkt.set_payload = create_mock()
         pth_mgmt_pkt.type = 3
-        pack_scion.return_value = "data1"
-        pth_mgmt_pkt._payload = MagicMock(spec_set=['pack'])
-        pth_mgmt_pkt.payload.pack.return_value = b"data2"
-        ntools.eq_(pth_mgmt_pkt.pack(), "data1")
-        pth_mgmt_pkt.payload.pack.assert_called_once_with()
-        set_pld.assert_called_once_with(pth_mgmt_pkt,
-                                        struct.pack("!B", 3) + b"data2")
+        # Call
+        ntools.eq_(pth_mgmt_pkt.pack(), pack_scion.return_value)
+        # Tests
+        payload.pack.assert_called_once_with()
+        pth_mgmt_pkt.set_payload.assert_called_once_with(
+            struct.pack("!B", 3) + b"data")
         pack_scion.assert_called_once_with(pth_mgmt_pkt)
 
     @patch("lib.packet.scion.SCIONPacket.pack", autospec=True)

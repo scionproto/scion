@@ -72,16 +72,11 @@ class PacketBase(object):
         self.parsed = False
         self.raw = None
 
-    @property
-    def payload(self):
+    def get_payload(self):
         """
         Returns the packet payload.
         """
         return self._payload
-
-    @payload.setter
-    def payload(self, new_payload):
-        self.set_payload(new_payload)
 
     def set_payload(self, new_payload):
         """
@@ -121,12 +116,12 @@ class PacketBase(object):
         pass
 
     def __len__(self):
-        return len(self.hdr) + len(self.payload)
+        return len(self.hdr) + len(self._payload)
 
     def __str__(self):
         s = []
         s.append(str(self.hdr) + "\n")
-        s.append("Payload:\n" + str(self.payload))
+        s.append("Payload:\n" + str(self._payload))
         return "".join(s)
 
     def __repr__(self):
