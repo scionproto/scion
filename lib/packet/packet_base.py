@@ -67,7 +67,7 @@ class PacketBase(object):
         """
         Initialize an instance of the class PacketBase.
         """
-        self._hdr = None
+        self.hdr = None
         self._payload = None
         self.parsed = False
         self.raw = None
@@ -88,26 +88,6 @@ class PacketBase(object):
             raise TypeError("payload must be bytes or packet/payload subclass.")
         else:
             self._payload = new_payload
-
-    @property
-    def hdr(self):
-        """
-        Returns the packet header.
-        """
-        return self._hdr
-
-    @hdr.setter
-    def hdr(self, new_hdr):
-        self.set_hdr(new_hdr)
-
-    def set_hdr(self, new_hdr):
-        """
-        Sets the packet header. Expects a Header subclass.
-        """
-        if not isinstance(new_hdr, HeaderBase):
-            raise TypeError("hdr must be a header subclass.")
-        else:
-            self._hdr = new_hdr
 
     def parse(self, raw):
         pass

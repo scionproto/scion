@@ -528,7 +528,7 @@ class SCIONPacket(PacketBase):
         :param raw:
         :type raw:
         """
-        PacketBase.__init__(self)
+        super().__init__()
         self.payload_len = 0
         if raw is not None:
             self.parse(raw)

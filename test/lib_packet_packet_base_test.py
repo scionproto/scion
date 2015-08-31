@@ -51,7 +51,7 @@ class TestPacketBaseInit(object):
         Tests proper member initialization.
         """
         packet_base = PacketBase()
-        ntools.assert_is_none(packet_base._hdr)
+        ntools.assert_is_none(packet_base.hdr)
         ntools.assert_is_none(packet_base._payload)
         ntools.assert_false(packet_base.parsed)
         ntools.assert_is_none(packet_base.raw)
@@ -91,43 +91,6 @@ class TestPacketBaseSetPayload(object):
         ntools.assert_raises(TypeError, packet_base.set_payload, 123)
 
 
-class TestPacketBaseHdr(object):
-    """
-    Unit tests for lib.packet.packet_base.PacketBase.hdr
-    """
-    def test_getter(self):
-        packet_base = PacketBase()
-        packet_base._hdr = 'data'
-        ntools.eq_(packet_base.hdr, 'data')
-
-    @patch("lib.packet.packet_base.PacketBase.set_hdr", autospec=True)
-    def test_setter(self, set_hdr):
-        packet_base = PacketBase()
-        packet_base.hdr = 'data'
-        set_hdr.assert_called_once_with(packet_base, 'data')
-
-
-class TestPacketBaseSetHdr(object):
-    """
-    Unit tests for lib.packet.packet_base.PacketBase.set_hdr
-    """
-    def test_success(self):
-        """
-        Tests set_hdr when called with correct argument type
-        """
-        packet_base = PacketBase()
-        header = HeaderBase()
-        packet_base.set_hdr(header)
-        ntools.eq_(packet_base._hdr, header)
-
-    def test_failure(self):
-        """
-        Tests set_hdr with incorrect argument type
-        """
-        packet_base = PacketBase()
-        ntools.assert_raises(TypeError, packet_base.set_hdr, '123')
-
-
 class TestPacketBaseLen(object):
     """
     Unit tests for lib.packet.packet_base.PacketBase.__len__
@@ -136,7 +99,7 @@ class TestPacketBaseLen(object):
         packet_base = PacketBase()
         header = b'data1'
         payload = b'data2'
-        packet_base._hdr = header
+        packet_base.hdr = header
         packet_base._payload = payload
         ntools.eq_(len(packet_base), len(header) + len(payload))
 

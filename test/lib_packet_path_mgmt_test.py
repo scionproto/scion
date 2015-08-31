@@ -696,12 +696,11 @@ class TestPathMgmtPacketFromValues(object):
     Unit tests for lib.packet.path_mgmt.PathMgmtPacket.from_values
     """
     @patch("lib.packet.scion.SCIONPacket.set_payload", autospec=True)
-    @patch("lib.packet.packet_base.PacketBase.set_hdr", autospec=True)
     @patch("lib.packet.scion.SCIONHeader.from_values", spec_set=[],
            new_callable=MagicMock)
     @patch("lib.packet.scion_addr.SCIONAddr.from_values", spec_set=[],
            new_callable=MagicMock)
-    def test_to_scionaddr(self, from_values, from_values_hdr, set_hdr, set_pld):
+    def test_to_scionaddr(self, from_values, from_values_hdr, set_pld):
         src_addr = ISD_AD("isd", "ad")
         dst_addr = SCIONAddr()
         from_values.return_value = "data1"
@@ -710,18 +709,17 @@ class TestPathMgmtPacketFromValues(object):
                                                   src_addr, dst_addr)
         from_values.assert_called_once_with("isd", "ad", PacketType.PATH_MGMT)
         from_values_hdr.assert_called_once_with("data1", dst_addr, "path")
-        set_hdr.assert_called_once_with(pth_mgmt_pkt, "data2")
+        ntools.eq_(pth_mgmt_pkt.hdr, "data2")
         ntools.eq_(pth_mgmt_pkt.type, "type")
         set_pld.assert_called_once_with(pth_mgmt_pkt, "payload")
         ntools.assert_is_instance(pth_mgmt_pkt, PathMgmtPacket)
 
     @patch("lib.packet.scion.SCIONPacket.set_payload", autospec=True)
-    @patch("lib.packet.packet_base.PacketBase.set_hdr", autospec=True)
     @patch("lib.packet.scion.SCIONHeader.from_values", spec_set=[],
            new_callable=MagicMock)
     @patch("lib.packet.scion_addr.SCIONAddr.from_values", spec_set=[],
            new_callable=MagicMock)
-    def test_frm_scionaddr(self, frm_values, from_values_hdr, set_hdr, set_pld):
+    def test_frm_scionaddr(self, frm_values, from_values_hdr, set_pld):
         src_addr = SCIONAddr()
         dst_addr = ISD_AD("isd", "ad")
         frm_values.return_value = "data1"
@@ -730,21 +728,16 @@ class TestPathMgmtPacketFromValues(object):
                                                   src_addr, dst_addr)
         frm_values.assert_called_once_with("isd", "ad", PacketType.PATH_MGMT)
         from_values_hdr.assert_called_once_with(src_addr, "data1", "path")
-        set_hdr.assert_called_once_with(pth_mgmt_pkt, "data2")
-        ntools.eq_(pth_mgmt_pkt.type, "type")
         set_pld.assert_called_once_with(pth_mgmt_pkt, "payload")
 
     @patch("lib.packet.scion.SCIONPacket.set_payload", autospec=True)
-    @patch("lib.packet.packet_base.PacketBase.set_hdr", autospec=True)
     @patch("lib.packet.scion.SCIONHeader.from_values", spec_set=[],
            new_callable=MagicMock)
-    def test_invalid(self, from_values, set_hdr, set_pld):
+    def test_invalid(self, from_values, set_pld):
         from_values.return_value = "data"
         pth_mgmt_pkt = PathMgmtPacket.from_values("type", "payload", "path",
                                                   "src_addr", "dst_addr")
         from_values.assert_called_once_with("src_addr", "dst_addr", "path")
-        set_hdr.assert_called_once_with(pth_mgmt_pkt, "data")
-        ntools.eq_(pth_mgmt_pkt.type, "type")
         set_pld.assert_called_once_with(pth_mgmt_pkt, "payload")
 
 if __name__ == "__main__":
