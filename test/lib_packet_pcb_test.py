@@ -39,12 +39,21 @@ from lib.packet.scion_addr import ISD_AD, SCIONAddr
 from lib.defines import EXP_TIME_UNIT
 
 
+# To allow testing of Marking, despite it having abstract methods.
+class MarkingTesting(Marking):
+    def parse(self):
+        pass
+
+    def pack(self):
+        pass
+
+
 class TestMarkingInit(object):
     """
     Unit test for lib.packet.pcb.Marking.__init__
     """
     def test(self):
-        marking = Marking()
+        marking = MarkingTesting()
         ntools.assert_false(marking.parsed)
         ntools.assert_is_none(marking.raw)
 
@@ -54,21 +63,21 @@ class TestMarkingEq(object):
     Unit test for lib.packet.pcb.Marking.__eq__
     """
     def test_same_type_equal(self):
-        marking1 = Marking()
-        marking2 = Marking()
+        marking1 = MarkingTesting()
+        marking2 = MarkingTesting()
         marking1.raw = 'rawstring'
         marking2.raw = 'rawstring'
         ntools.eq_(marking1, marking2)
 
     def test_same_type_unequal(self):
-        marking1 = Marking()
-        marking2 = Marking()
+        marking1 = MarkingTesting()
+        marking2 = MarkingTesting()
         marking1.raw = 'rawstring1'
         marking2.raw = 'rawstring2'
         ntools.assert_not_equal(marking1, marking2)
 
     def test_diff_type(self):
-        marking1 = Marking()
+        marking1 = MarkingTesting()
         marking2 = 123
         ntools.assert_not_equals(marking1, marking2)
 
@@ -79,14 +88,14 @@ class TestMarkingNe(object):
     """
     @patch("lib.packet.pcb.Marking.__eq__", autospec=True)
     def test_false(self, eq):
-        marking = Marking()
+        marking = MarkingTesting()
         eq.return_value = True
         ntools.assert_false(marking != 123)
         eq.assert_called_once_with(marking, 123)
 
     @patch("lib.packet.pcb.Marking.__eq__", autospec=True)
     def test_true(self, eq):
-        marking = Marking()
+        marking = MarkingTesting()
         eq.return_value = False
         ntools.assert_true(marking != 123)
 
@@ -96,7 +105,7 @@ class TestMarkingHash(object):
     Unit test for lib.packet.pcb.Marking.__hash__
     """
     def test(self):
-        marking = Marking()
+        marking = MarkingTesting()
         marking.raw = MagicMock(spec_set=['__hash__'])
         marking.raw.__hash__.return_value = 123
         ntools.eq_(hash(marking), 123)

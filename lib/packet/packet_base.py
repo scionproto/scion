@@ -15,9 +15,11 @@
 :mod:`packet_base` --- Packet base class
 ========================================
 """
+# Stdlib
+from abc import ABCMeta, abstractmethod
 
 
-class HeaderBase(object):
+class HeaderBase(object, metaclass=ABCMeta):
     """
     Base class for headers.
 
@@ -33,23 +35,27 @@ class HeaderBase(object):
         """
         self.parsed = False
 
+    @abstractmethod
     def parse(self, raw):
-        pass
+        raise NotImplementedError
 
+    @abstractmethod
     def pack(self):
-        pass
+        raise NotImplementedError
 
+    @abstractmethod
     def __len__(self):
-        pass
+        raise NotImplementedError
 
+    @abstractmethod
     def __str__(self):
-        pass
+        raise NotImplementedError
 
     def __repr__(self):
         return self.__str__()
 
 
-class PacketBase(object):
+class PacketBase(object, metaclass=ABCMeta):
     """
     Base class for packets.
 
@@ -89,11 +95,13 @@ class PacketBase(object):
         else:
             self._payload = new_payload
 
+    @abstractmethod
     def parse(self, raw):
-        pass
+        raise NotImplementedError
 
+    @abstractmethod
     def pack(self):
-        pass
+        raise NotImplementedError
 
     def __len__(self):
         return len(self.hdr) + len(self._payload)
@@ -117,7 +125,7 @@ class PacketBase(object):
             return False
 
 
-class PayloadBase(object):
+class PayloadBase(object, metaclass=ABCMeta):
     """
     Interface that payloads of packets must implement.
     """

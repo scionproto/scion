@@ -22,6 +22,7 @@ import datetime
 import logging
 import sys
 from _collections import defaultdict
+from abc import ABCMeta, abstractmethod
 
 # External packages
 from external.expiring_dict import ExpiringDict
@@ -49,7 +50,7 @@ from lib.util import SCIONTime, handle_signals, trace, update_dict
 from lib.zookeeper import Zookeeper
 
 
-class PathServer(SCIONElement):
+class PathServer(SCIONElement, metaclass=ABCMeta):
     """
     The SCION Path Server.
     """
@@ -100,23 +101,26 @@ class PathServer(SCIONElement):
             for pm in ad.pms:
                 self.iftoken2seg[pm.ig_rev_token].add(pcb.segment_id)
 
+    @abstractmethod
     def _handle_up_segment_record(self, records):
         """
         Handles Up Path registration from local BS.
         """
-        pass
+        raise NotImplementedError
 
+    @abstractmethod
     def _handle_down_segment_record(self, records):
         """
         Handles registration of a down path.
         """
-        pass
+        raise NotImplementedError
 
+    @abstractmethod
     def _handle_core_segment_record(self, records):
         """
         Handles a core_path record.
         """
-        pass
+        raise NotImplementedError
 
     def _verify_revocation(self, rev_info):
         """
@@ -155,11 +159,12 @@ class PathServer(SCIONElement):
 
         return False
 
+    @abstractmethod
     def _handle_revocation(self, pkt):
         """
         Handles a revocation of a segment, interface or hop.
         """
-        pass
+        raise NotImplementedError
 
     def send_path_segments(self, path_request, paths):
         """
@@ -191,11 +196,12 @@ class PathServer(SCIONElement):
         else:
             logging.error("Wrong path record.")
 
+    @abstractmethod
     def handle_path_request(self, path_request):
         """
         Handles all types of path request.
         """
-        pass
+        raise NotImplementedError
 
     def handle_request(self, packet, sender, from_local_socket=True):
         """

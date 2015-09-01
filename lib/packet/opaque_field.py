@@ -17,6 +17,7 @@
 """
 # Stdlib
 import struct
+from abc import ABCMeta, abstractmethod
 
 # SCION
 from lib.util import Raw
@@ -38,7 +39,7 @@ class OpaqueFieldType(object):
     INTER_ISD_PEER = 0b1111100
 
 
-class OpaqueField(object):
+class OpaqueField(object, metaclass=ABCMeta):
     """
     Base class for the different kinds of opaque fields in SCION.
     """
@@ -53,17 +54,19 @@ class OpaqueField(object):
         self.parsed = False
         self.raw = None
 
+    @abstractmethod
     def parse(self, raw):
         """
         Populates fields from a raw byte block.
         """
-        pass
+        raise NotImplementedError
 
+    @abstractmethod
     def pack(self):
         """
         Returns opaque field as 8 byte binary string.
         """
-        pass
+        raise NotImplementedError
 
     def is_regular(self):
         """
@@ -83,8 +86,9 @@ class OpaqueField(object):
         """
         return not (self.info & (1 << 4) == 0)
 
+    @abstractmethod
     def __str__(self):
-        pass
+        raise NotImplementedError
 
     def __repr__(self):
         return self.__str__()

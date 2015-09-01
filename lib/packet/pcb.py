@@ -19,6 +19,7 @@
 import base64
 import copy
 import struct
+from abc import ABCMeta, abstractmethod
 
 # External packages
 from Crypto.Hash import SHA256
@@ -35,7 +36,7 @@ from lib.util import Raw
 REV_TOKEN_LEN = 32
 
 
-class Marking(object):
+class Marking(object, metaclass=ABCMeta):
     """
     Base class for all marking objects.
     """
@@ -46,17 +47,19 @@ class Marking(object):
         self.parsed = False
         self.raw = None
 
+    @abstractmethod
     def parse(self, raw):
         """
         Populates fields from a raw bytes block.
         """
-        pass
+        raise NotImplementedError
 
+    @abstractmethod
     def pack(self):
         """
         Returns object as a binary string.
         """
-        pass
+        raise NotImplementedError
 
     def __eq__(self, other):
         if type(other) is type(self):
