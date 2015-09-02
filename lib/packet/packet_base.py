@@ -51,9 +51,6 @@ class HeaderBase(object, metaclass=ABCMeta):
     def __str__(self):
         raise NotImplementedError
 
-    def __repr__(self):
-        return self.__str__()
-
 
 class PacketBase(object, metaclass=ABCMeta):
     """
@@ -111,9 +108,6 @@ class PacketBase(object, metaclass=ABCMeta):
         s.append(str(self.hdr) + "\n")
         s.append("Payload:\n" + str(self._payload))
         return "".join(s)
-
-    def __repr__(self):
-        return self.__str__()
 
     def __hash__(self):
         return hash(self.pack())

@@ -23,9 +23,21 @@ from abc import ABCMeta, abstractmethod
 from lib.packet.opaque_field import (
     HopOpaqueField,
     InfoOpaqueField,
+    OpaqueFieldList,
     OpaqueFieldType,
 )
 from lib.util import Raw
+
+UP_IOF = "up_segment_iof"
+UP_HOFS = "up_segment_hofs"
+DOWN_IOF = "down_segment_iof"
+DOWN_HOFS = "down_segment_hofs"
+CORE_IOF = "core_segment_iof"
+CORE_HOFS = "core_segment_hofs"
+UP_UPSTREAM_HOF = "up_segment_upstream_ad"
+DOWN_UPSTREAM_HOF = "down_segment_upstream_ad"
+UP_PEERING_HOF = "up_segment_peering_link"
+DOWN_PEERING_HOF = "down_segment_peering_link"
 
 
 class PathBase(object, metaclass=ABCMeta):
@@ -33,303 +45,244 @@ class PathBase(object, metaclass=ABCMeta):
     Base class for paths in SCION.
 
     A path is a sequence of path segments dependent on the type of path. Path
-    segments themselves are a sequence of opaque fields containing routing
-    information for each AD-level hop.
+    segments themselves are a sequence of :any:`OpaqueField`\s
+    containing routing information for each AD-level hop.
     """
-    def __init__(self):
-        """
-        Initialize an instance of the class PathBase.
-        """
-        self.up_segment_info = None
-        self.up_segment_hops = []
-        self.down_segment_info = None
-        self.down_segment_hops = []
+    OF_ORDER = None
 
-        self.parsed = False
+    def __init__(self, raw=None):
+        self._ofs = OpaqueFieldList(self.OF_ORDER)
+        if raw is not None:
+            self.parse(raw)
+
+    @abstractmethod
+    def from_values(self, *args, **kwargs):
+        raise NotImplementedError
 
     @abstractmethod
     def parse(self, raw):
         raise NotImplementedError
 
-    @abstractmethod
+    def _parse_iof(self, data, label):
+        """
+        Parse a raw :any:`InfoOpaqueField`.
+
+        :param Raw data: Raw instance.
+        :param str label: OF label.
+        :returns: Number of hops in the path segment.
+        :rtype: int
+        """
+        iof = InfoOpaqueField(data.pop(InfoOpaqueField.LEN))
+        self._ofs.set(label, [iof])
+        return iof.hops
+
+    def _parse_hofs(self, data, label, count=1):
+        """
+        Parse raw :any:`HopOpaqueFields`\s.
+
+        :param Raw data: Raw instance.
+        :param str label: OF label.
+        :param int count: Number of HOFs to parse.
+        """
+        hofs = []
+        for _ in range(count):
+            hofs.append(HopOpaqueField(data.pop(HopOpaqueField.LEN)))
+        self._ofs.set(label, hofs)
+
     def pack(self):
-        raise NotImplementedError
+        """
+        Packs the :any:`OpaqueField`\s.
+
+        :returns: Packed OFs.
+        :rtype: bytes
+        """
+        return self._ofs.pack()
 
     def reverse(self):
         """
-        Reverses the segment.
+        Reverse the direction of the path.
         """
         # Swap down segment and up segment.
-        self.up_segment_hops, self.down_segment_hops = \
-            self.down_segment_hops, self.up_segment_hops
-        self.up_segment_info, self.down_segment_info = \
-            self.down_segment_info, self.up_segment_info
-        # Reverse flags.
-        if self.up_segment_info is not None:
-            self.up_segment_info.up_flag ^= True
-        if self.down_segment_info is not None:
-            self.down_segment_info.up_flag ^= True
-        # Reverse hops.
-        self.up_segment_hops.reverse()
-        self.down_segment_hops.reverse()
+        self._ofs.swap(UP_HOFS, DOWN_HOFS)
+        self._ofs.swap(UP_IOF, DOWN_IOF)
+        # Reverse IOF flags.
+        self._ofs.reverse_up_flag(UP_IOF)
+        self._ofs.reverse_up_flag(DOWN_IOF)
+        # Reverse HOF lists.
+        self._ofs.reverse_label(UP_HOFS)
+        self._ofs.reverse_label(DOWN_HOFS)
 
-    def get_first_hop_offset(self):
+    def get_first_hof_idx(self):
         """
-        Returns offset to the first HopOpaqueField of the path.
+        Returns index of the first :any:`HopOpaqueField` in the path.
         """
-        if self.up_segment_hops or self.down_segment_hops:
-            return InfoOpaqueField.LEN
-        else:
-            return 0
+        if self._ofs.get_by_label(UP_HOFS) or self._ofs.get_by_label(DOWN_HOFS):
+            return 1
+        return 0
 
-    def get_first_hop_of(self):
+    def get_first_hof(self):
         """
-        Returns the first HopOpaqueField of the path.
+        Returns the first :any:`HopOpaqueField` in the path.
         """
-        offset = self.get_first_hop_offset()
-        if offset:
-            offset -= InfoOpaqueField.LEN
-            n = offset // HopOpaqueField.LEN
-            return self.get_of(n + 1)
-        else:
-            return None
+        idx = self.get_first_hof_idx()
+        if idx:
+            return self.get_of(idx)
+        return None
 
-    def get_first_info_offset(self):
+    def get_first_iof_idx(self):
         """
-        Returns offset to the first InfoOpaqueField of the path.
+        Returns index of the first :any:`InfoOpaqueField` in the path.
         """
         return 0
 
-    def get_first_info_of(self):
+    def get_first_iof(self):
         """
-        Returns the first InfoOpaqueField of the path.
+        Returns the first :any:`InfoOpaqueField` in the path.
         """
-        offset = self.get_first_info_offset()
-        if offset:
-            offset -= InfoOpaqueField.LEN
-            n = offset // HopOpaqueField.LEN
-            return self.get_of(n + 1)
-        return self.get_of(0)
+        return self.get_of(self.get_first_iof_idx())
 
-    def get_of(self, index):
+    def get_of(self, idx):
         """
-        Returns the opaque field for the given index.
+        Returns the :any:`OpaqueField` at the given index.
         """
-        # Build temporary flat list of opaque fields.
-        tmp = []
-        if self.up_segment_info:
-            tmp.append(self.up_segment_info)
-            tmp.extend(self.up_segment_hops)
-        if self.down_segment_info:
-            tmp.append(self.down_segment_info)
-            tmp.extend(self.down_segment_hops)
-        if index >= len(tmp):
-            return None
+        return self._ofs.get_by_idx(idx)
+
+    def get_ofs_by_label(self, label):
+        """
+        Return all :any:`OpaqueField`\s for a given label.
+
+        :param str label: OF label.
+        """
+        return self._ofs.get_by_label(label)
+
+    def of_count(self):
+        """
+        Return the total number of :any:`OpaqueField`\s in the path.
+        """
+        return len(self._ofs)
+
+    def _set_ofs(self, label, value):
+        """
+        Set an OF label to the given value.
+
+        :param str label: The OF label.
+        :param value:
+            Can be ``None``, a single :any:`OpaqueField`, or a list of
+            :any:`OpaqueField`\s.
+        """
+        if value is None:
+            data = []
+        elif isinstance(value, list):
+            data = value
         else:
-            return tmp[index]
+            data = [value]
+        self._ofs.set(label, data)
 
+    @abstractmethod
     def get_ad_hops(self):
         """
         Return path length in AD hops.
         """
-        return None
+        raise NotImplementedError
 
     @abstractmethod
     def __str__(self):
         raise NotImplementedError
-
-    def __repr__(self):
-        return self.__str__()
 
 
 class CorePath(PathBase):
     """
     A (non-shortcut) path through the ISD core.
 
-    The sequence of opaque fields for such a path is:
-    | info OF up-segment | hop OF 1 | ... | hop OF N | info OF core-segment |
-    | hop OF 1 \ ... | hop OF N | info OF down-segment |
-    | hop OF 1 | ... | hop OF N |
+    The sequence of :any:`OpaqueField`\s for such a path is:
+
+    | info OF up-segment | hop OF 1 | ... | hop OF N
+    | info OF core-segment | hop OF 1 | ... | hop OF N
+    | info OF down-segment | hop OF 1 | ... | hop OF N
     """
-    def __init__(self, raw=None):
-        """
-        Initialize an instance of the class CorePath.
-
-        :param raw:
-        :type raw:
-        """
-        PathBase.__init__(self)
-        self.core_segment_info = None
-        self.core_segment_hops = []
-
-        if raw is not None:
-            self.parse(raw)
+    OF_ORDER = UP_IOF, UP_HOFS, CORE_IOF, CORE_HOFS, DOWN_IOF, DOWN_HOFS
 
     def parse(self, raw):
         """
-        Parses the raw data and populates the fields accordingly.
+        Parse a raw :any:`CorePath`.
         """
         data = Raw(raw, "CorePath")
         # Parse up-segment
-        self.up_segment_info = InfoOpaqueField(data.pop(InfoOpaqueField.LEN))
-        self._parse_segment(data, self.up_segment_info.hops,
-                            self.up_segment_hops)
+        count = self._parse_iof(data, UP_IOF)
+        self._parse_hofs(data, UP_HOFS, count)
         # Parse core-segment
         if len(data) > 0:
-            self.core_segment_info = InfoOpaqueField(
-                data.pop(InfoOpaqueField.LEN))
-            self._parse_segment(data, self.core_segment_info.hops,
-                                self.core_segment_hops)
+            count = self._parse_iof(data, CORE_IOF)
+            self._parse_hofs(data, CORE_HOFS, count)
         # Parse down-segment
         if len(data) > 0:
-            self.down_segment_info = InfoOpaqueField(
-                data.pop(InfoOpaqueField.LEN))
-            self._parse_segment(data, self.down_segment_info.hops,
-                                self.down_segment_hops)
-        self.parsed = True
-
-    def _parse_segment(self, data, count, hops):
-        """
-        Parse raw data and populate segment fields
-        """
-        for _ in range(count):
-            hops.append(HopOpaqueField(data.pop(HopOpaqueField.LEN)))
-
-    def pack(self):
-        """
-        Packs the opaque fields and returns a byte array.
-        """
-        return self._pack_up_segment() + self._pack_core_segment() + \
-            self._pack_down_segment()
-
-    def _pack_up_segment(self):
-        """
-        Packs the up segment opaque fields and returns a byte array.
-        """
-        data = []
-        if self.up_segment_info:
-            data.append(self.up_segment_info.pack())
-            for of in self.up_segment_hops:
-                data.append(of.pack())
-        return b"".join(data)
-
-    def _pack_core_segment(self):
-        """
-        Packs the core segment opaque fields and returns a byte array.
-        """
-        data = []
-        if self.core_segment_info:
-            data.append(self.core_segment_info.pack())
-            for of in self.core_segment_hops:
-                data.append(of.pack())
-        return b"".join(data)
-
-    def _pack_down_segment(self):
-        """
-        Packs the down segment opaque fields and returns a byte array.
-        """
-        data = []
-        if self.down_segment_info:
-            data.append(self.down_segment_info.pack())
-            for of in self.down_segment_hops:
-                data.append(of.pack())
-        return b"".join(data)
+            count = self._parse_iof(data, DOWN_IOF)
+            self._parse_hofs(data, DOWN_HOFS, count)
 
     def reverse(self):
-        PathBase.reverse(self)
-        self.core_segment_hops.reverse()
-        if self.core_segment_info is not None:
-            self.core_segment_info.up_flag ^= True
-
-    def get_of(self, index):
         """
-        Returns the opaque field for the given index.
+        Reverse the direction of the path.
         """
-        # Build temporary flat list of opaque fields.
-        tmp = []
-        if self.up_segment_info:
-            tmp.append(self.up_segment_info)
-            tmp.extend(self.up_segment_hops)
-        if self.core_segment_info:
-            tmp.append(self.core_segment_info)
-            tmp.extend(self.core_segment_hops)
-        if self.down_segment_info:
-            tmp.append(self.down_segment_info)
-            tmp.extend(self.down_segment_hops)
-        if index >= len(tmp):
-            return None
-        else:
-            return tmp[index]
+        super().reverse()
+        self._ofs.reverse_up_flag(CORE_IOF)
+        self._ofs.reverse_label(CORE_HOFS)
 
     def get_ad_hops(self):
         """
-        Return path length in AD hops.
+        Get the path length in AD hops.
         """
-        active_segments = int(bool(len(self.up_segment_hops)))
-        active_segments += int(bool(len(self.core_segment_hops)))
-        active_segments += int(bool(len(self.down_segment_hops)))
-        shared_ads = 0
+        total = 0
+        active_segments = 0
+        for i in UP_HOFS, CORE_HOFS, DOWN_HOFS:
+            count = self._ofs.count(i)
+            total += count
+            if count:
+                active_segments += 1
         if active_segments:
-            shared_ads = active_segments - 1
-        return (len(self.up_segment_hops) + len(self.core_segment_hops) +
-                len(self.down_segment_hops) - shared_ads)
+            total -= active_segments - 1
+        return total
 
     @classmethod
-    def from_values(cls, up_inf=None, up_hops=None,
-                    core_inf=None, core_hops=None,
-                    dw_inf=None, dw_hops=None):
+    def from_values(cls, up_iof=None, up_hofs=None, core_iof=None,
+                    core_hofs=None, down_iof=None, down_hofs=None):
         """
-        Returns CorePath with the values specified.
-        @param up_inf: InfoOpaqueField of up_segment
-        @param up_hops: list of HopOpaqueField of up_segment
-        @param core_inf: InfoOpaqueField for core_segment
-        @param core_hops: list of HopOpaqueFields of core_segment
-        @param dw_inf: InfoOpaqueField of down_segment
-        @param dw_hops: list of HopOpaqueField of down_segment
-        """
-        if up_hops is None:
-            up_hops = []
-        if core_hops is None:
-            core_hops = []
-        if dw_hops is None:
-            dw_hops = []
+        Constructs a :any:`CorePath` with the values specified.
 
-        cp = CorePath()
-        cp.up_segment_info = up_inf
-        cp.up_segment_hops = up_hops
-        cp.core_segment_info = core_inf
-        cp.core_segment_hops = core_hops
-        cp.down_segment_info = dw_inf
-        cp.down_segment_hops = dw_hops
+        :param up_iof: :any:`InfoOpaqueField` of up_segment
+        :param up_hofs: list of :any:`HopOpaqueField`\s of up_segment
+        :param core_iof: :any:`InfoOpaqueField` for core_segment
+        :param core_hofs: list of :any:`HopOpaqueField`\s of core_segment
+        :param down_iof: :any:`InfoOpaqueField` of down_segment
+        :param down_hofs: list of :any:`HopOpaqueField`\s of down_segment
+        """
+        cp = cls()
+        cp._set_ofs(UP_IOF, up_iof)
+        cp._set_ofs(UP_HOFS, up_hofs)
+        cp._set_ofs(CORE_IOF, core_iof)
+        cp._set_ofs(CORE_HOFS, core_hofs)
+        cp._set_ofs(DOWN_IOF, down_iof)
+        cp._set_ofs(DOWN_HOFS, down_hofs)
         return cp
 
     def __str__(self):
         s = []
-        s.append("<Core-Path>:\n")
+        s.append("<Core-Path>:")
 
-        if self.up_segment_info:
-            s.append("<Up-Segment>:\n")
-            s.append(str(self.up_segment_info) + "\n")
-            for of in self.up_segment_hops:
-                s.append(str(of) + "\n")
-            s.append("</Up-Segment>\n")
-
-        if self.core_segment_info:
-            s.append("<Core-Segment>\n")
-            s.append(str(self.core_segment_info) + "\n")
-            for of in self.core_segment_hops:
-                s.append(str(of) + "\n")
-            s.append("</Core-Segment>\n")
-
-        if self.down_segment_info:
-            s.append("<Down-Segment>\n")
-            s.append(str(self.down_segment_info) + "\n")
-            for of in self.down_segment_hops:
-                s.append(str(of) + "\n")
-            s.append("</Down-Segment>\n")
-
+        for name, iof_label, hofs_label in (
+            ("Up", UP_IOF, UP_HOFS),
+            ("Core", CORE_IOF, CORE_HOFS),
+            ("Down", DOWN_IOF, DOWN_HOFS),
+        ):
+            iof = self._ofs.get_by_label(iof_label)
+            if not iof:
+                continue
+            s.append("<%s-Segment>:" % name)
+            s.append(str(iof[0]))
+            for of in self._ofs.get_by_label(hofs_label):
+                s.append(str(of))
+            s.append("</%s-Segment>" % name)
         s.append("</Core-Path>")
-        return "".join(s)
+        return "\n".join(s)
 
 
 class CrossOverPath(PathBase):
@@ -337,8 +290,10 @@ class CrossOverPath(PathBase):
     A shortcut path using a cross-over link.
 
     The sequence of opaque fields for such a path is:
-    | info OF up-segment |  hop OF 1 | ... | hop OF N | upstream AD OF |
-    | info OF down-segment | upstream AD OF | hop OF 1 | ... | hop OF N |
+
+    | info OF up-segment |  hop OF 1 | ... | hop OF N | upstream AD OF
+    | info OF down-segment | upstream AD OF | hop OF 1 | ... | hop OF N
+
     The upstream AD OF is needed to verify the last hop of the up-segment /
     first hop of the down-segment respectively.
 
@@ -348,341 +303,238 @@ class CrossOverPath(PathBase):
     verification and for determination whether path can terminate at destination
     AD (i.e., its last egress interface has to equal 0).
     """
+    OF_ORDER = (UP_IOF, UP_HOFS, UP_UPSTREAM_HOF,
+                DOWN_IOF, DOWN_UPSTREAM_HOF, DOWN_HOFS)
 
-    def __init__(self, raw=None):
+    @classmethod
+    def from_values(cls, up_iof=None, up_hofs=None, up_upstream_hof=None,
+                    down_iof=None, down_upstream_hof=None, down_hofs=None):
         """
-        Initialize an instance of the class CrossOverPath.
+        Constructs a :any:`CrossOverPath` with the values specified.
 
-        :param raw:
-        :type raw:
+        :param up_iof: :any:`InfoOpaqueField` of up_segment
+        :param up_hofs: list of :any:`HopOpaqueField`\s of up_segment
+        :param up_upstream_hof: Upstream :any:`HopOpaqueField` of up_segment
+        :param down_iof: :any:`InfoOpaqueField` of down_segment
+        :param down_upstream_hof: Upstream :any:`HopOpaqueField` of down_segment
+        :param down_hofs: list of :any:`HopOpaqueField` of down_segment
         """
-        PathBase.__init__(self)
-        self.up_segment_upstream_ad = None
-        self.down_segment_upstream_ad = None
-
-        if raw is not None:
-            self.parse(raw)
+        cp = cls()
+        cp._set_ofs(UP_IOF, up_iof)
+        cp._set_ofs(UP_HOFS, up_hofs)
+        cp._set_ofs(UP_UPSTREAM_HOF, up_upstream_hof)
+        cp._set_ofs(DOWN_IOF, down_iof)
+        cp._set_ofs(DOWN_UPSTREAM_HOF, down_upstream_hof)
+        cp._set_ofs(DOWN_HOFS, down_hofs)
+        return cp
 
     def parse(self, raw):
         """
-        Parses the raw data and populates the fields accordingly.
+        Parses a raw :any:`CrossOverPath`.
         """
         data = Raw(raw, "CrossOverPath")
         # Parse up-segment
-        self._parse_up_segment(data)
+        count = self._parse_iof(data, UP_IOF)
+        self._parse_hofs(data, UP_HOFS, count)
+        self._parse_hofs(data, UP_UPSTREAM_HOF)
         # Parse down-segment
-        self._parse_down_segment(data)
-        self.parsed = True
-
-    def _parse_up_segment(self, data):
-        """
-        Parses the raw data and populates the up_segment fields.
-
-        :param data:
-        :type data: :class:`lib.util.Raw`
-        """
-        self.up_segment_info = InfoOpaqueField(data.pop(InfoOpaqueField.LEN))
-        for _ in range(self.up_segment_info.hops):
-            self.up_segment_hops.append(
-                HopOpaqueField(data.pop(HopOpaqueField.LEN)))
-        self.up_segment_upstream_ad = HopOpaqueField(
-            data.pop(HopOpaqueField.LEN))
-
-    def _parse_down_segment(self, data):
-        """
-        Parses the raw data and populates the down_segment fields.
-
-        :param data:
-        :type data: :class:`lib.util.Raw`
-        """
-        self.down_segment_info = InfoOpaqueField(data.pop(InfoOpaqueField.LEN))
-        self.down_segment_upstream_ad = HopOpaqueField(
-            data.pop(HopOpaqueField.LEN))
-        for _ in range(self.down_segment_info.hops):
-            self.down_segment_hops.append(
-                HopOpaqueField(data.pop(HopOpaqueField.LEN)))
-
-    def pack(self):
-        """
-        Packs the opaque fields and returns a byte array.
-        """
-        return self._pack_up_segment() + self._pack_down_segment()
-
-    def _pack_up_segment(self):
-        """
-        Packs the up segment opaque fields and returns a byte array.
-        """
-        data = [self.up_segment_info.pack()]
-        for of in self.up_segment_hops:
-            data.append(of.pack())
-        data.append(self.up_segment_upstream_ad.pack())
-        return b"".join(data)
-
-    def _pack_down_segment(self):
-        """
-        Packs the down segment opaque fields and returns a byte array.
-        """
-        data = [self.down_segment_info.pack(),
-                self.down_segment_upstream_ad.pack()]
-        for of in self.down_segment_hops:
-            data.append(of.pack())
-        return b"".join(data)
+        count = self._parse_iof(data, DOWN_IOF)
+        self._parse_hofs(data, DOWN_UPSTREAM_HOF)
+        self._parse_hofs(data, DOWN_HOFS, count)
 
     def reverse(self):
+        """
+        Reverse the direction of the path.
+        """
         # Reverse hops and info fields.
-        PathBase.reverse(self)
+        super().reverse()
         # Reverse upstream AD fields.
-        self.up_segment_upstream_ad, self.down_segment_upstream_ad = \
-            self.down_segment_upstream_ad, self.up_segment_upstream_ad
+        self._ofs.swap(UP_UPSTREAM_HOF, DOWN_UPSTREAM_HOF)
 
-    def get_of(self, index):
-        # Build temporary flat list of opaque fields.
-        tmp = [self.up_segment_info]
-        tmp.extend(self.up_segment_hops)
-        tmp.append(self.up_segment_upstream_ad)
-        tmp.append(self.down_segment_info)
-        tmp.append(self.down_segment_upstream_ad)
-        tmp.extend(self.down_segment_hops)
-        return tmp[index]
-
-    def get_first_hop_offset(self):
+    def get_first_hof_idx(self):
         """
-        Returns offset to the first HopOpaqueField of the path.
+        Returns index of the first :any:`HopOpaqueField` in the path that's used
+        for routing.
         """
-        if self.up_segment_hops:
+        up_hofs_len = self._ofs.count(UP_HOFS)
+        if up_hofs_len:
             # Check whether this is on-path case.
-            if len(self.up_segment_hops) == 1:
-                # Return offset to first HopOpaqueField used for routing (not
-                # for only MAC verification) of down_segment.
-                return 2 * InfoOpaqueField.LEN + 3 * HopOpaqueField.LEN
-            return InfoOpaqueField.LEN
-        elif self.down_segment_hops:
-            return InfoOpaqueField.LEN
-        else:
-            return 0
+            if up_hofs_len == 1:
+                # Return index of the first HopOpaqueField in the down segment
+                # that's used for routing (not for only MAC verification)
+                # UP_IOF + 1 UP_HOFS + UP_UPSTREAM_HOF + DOWN_IOF +
+                # DOWN_UPSTREAM_HOF = 5
+                return 5
+            return 1
+        elif self._ofs.count(DOWN_HOFS):
+            return 1
+        return 0
 
-    def get_first_info_offset(self):
+    def get_first_iof_idx(self):
         """
-        Returns offset to the first InfoOpaqueField of the path.
-        Handles on-path case.
+        Returns index of the first :any:`InfoOpaqueField` in the path, handling
+        the on-path case.
         """
-        if self.up_segment_hops and len(self.up_segment_hops) == 1:
+        if self._ofs.count(UP_HOFS) == 1:
             # If up_segment is used only for MAC verification (on-path case),
-            # then return offset to first InfoOpaqueField of down_segment.
-            return InfoOpaqueField.LEN + 2 * HopOpaqueField.LEN
+            # then return index of first InfoOpaqueField of down_segment.
+            # UP_IOF + 1 UP_HOFS + UP_UPSTREAM_HOF = 3
+            return 3
         return 0
 
     def get_ad_hops(self):
         """
         Return path length in AD hops.
         """
-        return len(self.up_segment_hops) + len(self.down_segment_hops) - 1
+        return self._ofs.count(UP_HOFS) + self._ofs.count(DOWN_HOFS) - 1
 
     def __str__(self):
-        s = []
-        s.append("<CrossOver-Path>:\n<Up-Segment>:\n")
-        s.append(str(self.up_segment_info) + "\n")
-        for of in self.up_segment_hops:
-            s.append(str(of) + "\n")
-        s.append("Upstream AD: " + str(self.up_segment_upstream_ad) + "\n")
-        s.append("</Up-Segment>\n<Down-Segment>\n")
-        s.append(str(self.down_segment_info) + "\n")
-        s.append("Upstream AD: " + str(self.down_segment_upstream_ad) + "\n")
-        for of in self.down_segment_hops:
-            s.append(str(of) + "\n")
-        s.append("</Down-Segment>\n</CrossOver-Path>")
-
-        return "".join(s)
+        s = ["<CrossOver-Path>:", "<Up-Segment>:"]
+        s.append(str(self._ofs.get_by_label(UP_IOF, 0)))
+        for of in self._ofs.get_by_label(UP_HOFS):
+            s.append(str(of))
+        s.append("Upstream AD: %s" % self._ofs.get_by_label(UP_UPSTREAM_HOF, 0))
+        s.extend(["</Up-Segment>", "<Down-Segment>"])
+        s.append(str(self._ofs.get_by_label(DOWN_IOF, 0)))
+        s.append("Upstream AD: %s" %
+                 self._ofs.get_by_label(DOWN_UPSTREAM_HOF, 0))
+        for of in self._ofs.get_by_label(DOWN_HOFS):
+            s.append(str(of))
+        s.extend(["</Down-Segment>", "</CrossOver-Path>"])
+        return "\n".join(s)
 
 
 class PeerPath(PathBase):
     """
-    A shortcut path using a crossover link.
+    A shortcut path using a peering link.
 
-    The sequence of opaque fields for such a path is:
-    | info OF up-segment |  hop OF 1 | ... | hop OF N | peering link OF |
-    | upstream AD OF | info OF down-segment | upstream AD OF | peering link OF |
-    | hop OF 1 | ... | hop OF N |
+    The sequence of :any:`OpaqueField`\s for such a path is:
+
+    | info OF up-segment |  hop OF 1 | ... | hop OF N | peering link OF
+    | upstream AD OF | info OF down-segment | upstream AD OF
+    | peering link OF | hop OF 1 | ... | hop OF N
+
     The upstream AD OF is needed to verify the last hop of the up-segment /
     first hop of the down-segment respectively.
     """
+    OF_ORDER = (UP_IOF, UP_HOFS, UP_PEERING_HOF, UP_UPSTREAM_HOF,
+                DOWN_IOF, DOWN_UPSTREAM_HOF, DOWN_PEERING_HOF, DOWN_HOFS)
 
-    def __init__(self, raw=None):
+    @classmethod
+    def from_values(cls, up_iof=None, up_hofs=None, up_peering_hof=None,
+                    up_upstream_hof=None, down_iof=None, down_upstream_hof=None,
+                    down_peering_hof=None, down_hofs=None):
         """
-        Initialize an instance of the class PeerPath.
+        Constructs a :any:`PeerPath` with the values specified.
 
-        :param raw:
-        :type raw:
+        :param up_iof: :any:`InfoOpaqueField` of up_segment
+        :param up_hofs: list of :any:`HopOpaqueField`\s of up_segment
+        :param up_peering_hof: Peering :any:`HopOpaqueField` of up_segment
+        :param up_upstream_hof: Upstream :any:`HopOpaqueField` of up_segment
+        :param down_iof: :any:`InfoOpaqueField` of down_segment
+        :param down_upstream_hof: Upstream :any:`HopOpaqueField` of down_segment
+        :param down_peering_hof: Peering :any:`HopOpaqueField` of down_segment
+        :param down_hofs: list of :any:`HopOpaqueField` of down_segment
         """
-        PathBase.__init__(self)
-        self.up_segment_peering_link = None
-        self.up_segment_upstream_ad = None
-        self.down_segment_peering_link = None
-        self.down_segment_upstream_ad = None
-        if raw is not None:
-            self.parse(raw)
+        cp = cls()
+        cp._set_ofs(UP_IOF, up_iof)
+        cp._set_ofs(UP_HOFS, up_hofs)
+        cp._set_ofs(UP_PEERING_HOF, up_peering_hof)
+        cp._set_ofs(UP_UPSTREAM_HOF, up_upstream_hof)
+        cp._set_ofs(DOWN_IOF, down_iof)
+        cp._set_ofs(DOWN_UPSTREAM_HOF, down_upstream_hof)
+        cp._set_ofs(DOWN_PEERING_HOF, down_peering_hof)
+        cp._set_ofs(DOWN_HOFS, down_hofs)
+        return cp
 
     def parse(self, raw):
         """
-        Parses the raw data and populates the fields accordingly.
+        Parse a raw :any:`PeerPath`.
         """
         data = Raw(raw, "PeerPath")
         # Parse up-segment
-        self._parse_up_segment(data)
+        count = self._parse_iof(data, UP_IOF)
+        self._parse_hofs(data, UP_HOFS, count)
+        self._parse_hofs(data, UP_PEERING_HOF)
+        self._parse_hofs(data, UP_UPSTREAM_HOF)
         # Parse down-segment
-        self._parse_down_segment(data)
-        self.parsed = True
-
-    def _parse_up_segment(self, data):
-        """
-        Parses the raw data and populates the down_segment fields.
-
-        :param data:
-        :type data: :class:`lib.util.Raw`
-        """
-        self.up_segment_info = InfoOpaqueField(data.pop(InfoOpaqueField.LEN))
-        for _ in range(self.up_segment_info.hops):
-            self.up_segment_hops.append(
-                HopOpaqueField(data.pop(HopOpaqueField.LEN)))
-        self.up_segment_peering_link = HopOpaqueField(
-            data.pop(HopOpaqueField.LEN))
-        self.up_segment_upstream_ad = HopOpaqueField(
-            data.pop(HopOpaqueField.LEN))
-
-    def _parse_down_segment(self, data):
-        """
-        Parses the raw data and populates the down_segment fields.
-
-        :param data:
-        :type data: :class:`lib.util.Raw`
-        """
-        self.down_segment_info = InfoOpaqueField(data.pop(InfoOpaqueField.LEN))
-        self.down_segment_upstream_ad = \
-            HopOpaqueField(data.pop(HopOpaqueField.LEN))
-        self.down_segment_peering_link = \
-            HopOpaqueField(data.pop(HopOpaqueField.LEN))
-        for _ in range(self.down_segment_info.hops):
-            self.down_segment_hops.append(
-                HopOpaqueField(data.pop(HopOpaqueField.LEN)))
-
-    def pack(self):
-        """
-        Packs the opaque fields and returns a byte array.
-        """
-        return self._pack_up_segment() + self._pack_down_segment()
-
-    def _pack_up_segment(self):
-        """
-        Packs the up segment opaque fields and returns a byte array.
-        """
-        data = [self.up_segment_info.pack()]
-        for of in self.up_segment_hops:
-            data.append(of.pack())
-        data.append(self.up_segment_peering_link.pack())
-        data.append(self.up_segment_upstream_ad.pack())
-        return b"".join(data)
-
-    def _pack_down_segment(self):
-        """
-        Packs the down segment opaque fields and returns a byte array.
-        """
-        data = [self.down_segment_info.pack(),
-                self.down_segment_upstream_ad.pack(),
-                self.down_segment_peering_link.pack()]
-        for of in self.down_segment_hops:
-            data.append(of.pack())
-        return b"".join(data)
+        count = self._parse_iof(data, DOWN_IOF)
+        self._parse_hofs(data, DOWN_UPSTREAM_HOF)
+        self._parse_hofs(data, DOWN_PEERING_HOF)
+        self._parse_hofs(data, DOWN_HOFS, count)
 
     def reverse(self):
+        """
+        Reverse the direction of the path.
+        """
         # Reverse hop and info fields.
-        PathBase.reverse(self)
+        super().reverse()
         # Reverse upstream AD and peering link fields.
-        self.up_segment_upstream_ad, self.down_segment_upstream_ad = \
-            self.down_segment_upstream_ad, self.up_segment_upstream_ad
-        self.up_segment_peering_link, self.down_segment_peering_link = \
-            self.down_segment_peering_link, self.up_segment_peering_link
-
-    def get_of(self, index):
-        # Build temporary flat list of opaque fields.
-        tmp = [self.up_segment_info]
-        tmp.extend(self.up_segment_hops)
-        tmp.append(self.up_segment_peering_link)
-        tmp.append(self.up_segment_upstream_ad)
-        tmp.append(self.down_segment_info)
-        tmp.append(self.down_segment_upstream_ad)
-        tmp.append(self.down_segment_peering_link)
-        tmp.extend(self.down_segment_hops)
-        return tmp[index]
+        self._ofs.swap(UP_UPSTREAM_HOF, DOWN_UPSTREAM_HOF)
+        self._ofs.swap(UP_PEERING_HOF, DOWN_PEERING_HOF)
 
     def get_ad_hops(self):
         """
         Return path length in AD hops.
         """
-        return len(self.up_segment_hops) + len(self.down_segment_hops) - 1
+        return self._ofs.count(UP_HOFS) + self._ofs.count(DOWN_HOFS) - 1
 
     def __str__(self):
-        s = []
-        s.append("<Peer-Path>:\n<Up-Segment>:\n")
-        s.append(str(self.up_segment_info) + "\n")
-        for of in self.up_segment_hops:
-            s.append(str(of) + "\n")
-        s.append("Peering link: " + str(self.up_segment_peering_link) + "\n")
-        s.append("Upstream AD: " + str(self.up_segment_upstream_ad) + "\n")
-        s.append("</Up-Segment>\n<Down-Segment>\n")
-        s.append(str(self.down_segment_info) + "\n")
-        s.append("Upstream AD: " + str(self.down_segment_upstream_ad) + "\n")
-        s.append("Peering link: " + str(self.down_segment_peering_link) + "\n")
-        for of in self.down_segment_hops:
-            s.append(str(of) + "\n")
-        s.append("</Down-Segment>\n</Peer-Path>")
+        s = ["<Peer-Path>:", "<Up-Segment>:"]
+        s.append(str(self._ofs.get_by_label(UP_IOF, 0)))
+        for of in self._ofs.get_by_label(UP_HOFS):
+            s.append(str(of))
+        s.append("Peering link: %s" % self._ofs.get_by_label(UP_PEERING_HOF, 0))
+        s.append("Upstream AD: %s" % self._ofs.get_by_label(UP_UPSTREAM_HOF, 0))
+        s.extend(["</Up-Segment>", "<Down-Segment>"])
+        s.append(str(self._ofs.get_by_label(DOWN_IOF, 0)))
+        s.append("Upstream AD: %s" %
+                 self._ofs.get_by_label(DOWN_UPSTREAM_HOF, 0))
+        s.append("Peering link: %s" %
+                 self._ofs.get_by_label(DOWN_PEERING_HOF, 0))
+        for of in self._ofs.get_by_label(DOWN_HOFS):
+            s.append(str(of))
+        s.extend(["</Down-Segment>", "</Peer-Path>"])
+        return "\n".join(s)
 
-        return "".join(s)
-
-    def get_first_hop_offset(self):
+    def get_first_hof_idx(self):
         """
-        Depending on up_segment flag returns the first up- or down-segment hop.
+        Returns index of the first :any:`HopOpaqueField` in the path that's used
+        for routing.
         """
-        if self.up_segment_hops:
-            first_segment_hops = self.up_segment_hops
-        elif self.down_segment_hops:
-            first_segment_hops = self.down_segment_hops
-        else:
+        hofs = self._ofs.get_by_label(UP_HOFS)
+        if not hofs:
+            hofs = self._ofs.get_by_label(DOWN_HOFS)
+        if not hofs:
             return 0
+        if hofs[0].info == OpaqueFieldType.XOVR_POINT:
+            # Skip to peering link hof
+            return 2
+        return 1
 
-        if first_segment_hops[0].info == OpaqueFieldType.XOVR_POINT:
-            return InfoOpaqueField.LEN + HopOpaqueField.LEN
-        return InfoOpaqueField.LEN
 
-
-class EmptyPath(PathBase):
+class EmptyPath(PathBase):  # pragma: no cover
     """
     Represents an empty path.
 
     This is currently needed for intra AD communication, which doesn't need a
     SCION path but still uses SCION packets for communication.
     """
-    def __init__(self):
-        """
-        Initialize an instance of the class EmptyPath.
+    OF_ORDER = []
 
-        :param raw:
-        :type raw:
-        """
-        PathBase.__init__(self)
+    def from_values(self, *args, **kwargs):
+        raise NotImplementedError
 
     def parse(self, raw):
         raise NotImplementedError
 
-    def pack(self):
-        return b''
+    def reverse(self):
+        pass
 
-    def get_of(self, index):
-        return None
+    def get_first_hof_idx(self):
+        return 0
 
     def get_ad_hops(self):
-        """
-        Return path length in AD hops.
-        """
         return 0  # PSz: or 1?
 
     def __str__(self):
@@ -693,46 +545,58 @@ class PathCombinator(object):
     """
     Class that contains functions required to build end-to-end SCION paths.
     """
-    @staticmethod
-    def build_shortcut_paths(up_segments, down_segments):
+    @classmethod
+    def build_shortcut_paths(cls, up_segments, down_segments):
         """
         Returns a list of all shortcut paths (peering and crossover paths) that
         can be built using the provided up- and down-segments.
+
+        :param list up_segments: List of `up` :any:`PathSegment`\s.
+        :param list down_segments: List of `down` :any:`PathSegment`\s.
+        :returns: List of :any:`PathBase`\s.
         """
         paths = []
         for up in up_segments:
             for down in down_segments:
-                path = PathCombinator._build_shortcut_path(up, down)
+                path = cls._build_shortcut_path(up, down)
                 if path and path not in paths:
                     paths.append(path)
-
         return paths
 
-    @staticmethod
-    def build_core_paths(up_segment, down_segment, core_segments):
+    @classmethod
+    def build_core_paths(cls, up_segment, down_segment, core_segments):
         """
-        Returns list of all paths that can be built as combination of segments
-        from up_segments, core_segments and down_segments.
+        Returns list of all paths that can be built as combination of the
+        supplied segments.
+
+        :param list up_segments: List of `up` :any:`PathSegment`\s
+        :param list core_segments: List of `core` :any:`PathSegment`\s
+        :param list down_segments: List of `down` :any:`PathSegment`\s
+        :returns: List of :any:`PathBase`\s.
         """
         paths = []
         if not core_segments:
-            path = PathCombinator._build_core_path(up_segment, [],
-                                                   down_segment)
+            path = cls._build_core_path(up_segment, [], down_segment)
             if path:
                 paths.append(path)
         else:
             for core_segment in core_segments:
-                path = PathCombinator._build_core_path(
-                    up_segment, core_segment, down_segment)
+                path = cls._build_core_path(up_segment, core_segment,
+                                            down_segment)
                 if path and path not in paths:
                     paths.append(path)
         return paths
 
-    @staticmethod
-    def _build_shortcut_path(up_segment, down_segment):
+    @classmethod
+    def _build_shortcut_path(cls, up_segment, down_segment):
         """
-        Takes PCB objects (up/down_segment) and tries to combine
-        them as short path
+        Takes :any:`PathSegment`\s and tries to combine them into short path via
+        any cross-over or peer links found.
+
+        :param list up_segment: `up` :any:`PathSegment`.
+        :param list down_segment: `down` :any:`PathSegment`.
+        :returns:
+            :any:`PathBase` if a shortcut path is found, otherwise ``None``.
         """
         # TODO check if stub ADs are the same...
         if (not up_segment or not down_segment or
@@ -740,207 +604,224 @@ class PathCombinator(object):
             return None
 
         # looking for xovr and peer points
-        (xovrs, peers) = PathCombinator._get_xovrs_peers(up_segment,
-                                                         down_segment)
+        xovr, peer = cls._get_xovr_peer(up_segment, down_segment)
 
-        if not xovrs and not peers:
+        if not xovr and not peer:
             return None
-        elif xovrs and peers:
-            if sum(peers[-1]) > sum(xovrs[-1]):
-                return PathCombinator._join_shortcuts(
-                    up_segment, down_segment, peers[-1], True)
-            else:
-                return PathCombinator._join_shortcuts(
-                    up_segment, down_segment, xovrs[-1], False)
-        elif xovrs:
-            return PathCombinator._join_shortcuts(
-                up_segment, down_segment, xovrs[-1], False)
-        else:  # peers only
-            return PathCombinator._join_shortcuts(
-                up_segment, down_segment, peers[-1], True)
 
-    @staticmethod
-    def _build_core_path(up_segment, core_segment, down_segment):
+        def _sum_pt(pt):
+            if pt is None:
+                return 0
+            return sum(pt)
+
+        if _sum_pt(peer) > _sum_pt(xovr):
+            # Peer is best.
+            return cls._join_shortcuts(up_segment, down_segment, peer, True)
+        else:
+            # Xovr is best
+            return cls._join_shortcuts(up_segment, down_segment, xovr, False)
+
+    @classmethod
+    def _build_core_path(cls, up_segment, core_segment, down_segment):
         """
-        Joins up_, core_ and down_segment into core fullpath. core_segment can
-        be 'None' in case of a intra-ISD core_segment of length 0.
-        Returns object of CorePath class. core_segment (if exists) has to have
-        down-segment orientation.
+        Joins the supplied segments into a core fullpath.
+
+        :param list up_segment: `up` :any:`PathSegment`.
+        :param list core_segment:
+            `core` :any:`PathSegment` (must have down-segment orientation), or
+            ``None``.
+        :param list down_segment: `down` :any:`PathSegment`.
+        :returns:
+            :any:`CorePath` if a core path is found, otherwise ``None``.
         """
         if (not up_segment or not down_segment or
                 not up_segment.ads or not down_segment.ads):
             return None
 
-        if not PathCombinator._check_connected(up_segment, core_segment,
-                                               down_segment):
+        if not cls._check_connected(up_segment, core_segment, down_segment):
             return None
 
-        full_path = CorePath()
-        full_path = PathCombinator._join_up_segment(full_path, up_segment)
-        full_path = PathCombinator._join_core_segment(full_path, core_segment)
-        full_path = PathCombinator._join_down_segment(full_path, down_segment)
-        return full_path
+        up_iof, up_hofs = cls._copy_segment(up_segment, [-1])
+        core_iof, core_hofs = cls._copy_segment(core_segment, [-1, 0])
+        down_iof, down_hofs = cls._copy_segment(down_segment, [0], up=False)
+        return CorePath.from_values(up_iof, up_hofs, core_iof, core_hofs,
+                                    down_iof, down_hofs)
 
-    @staticmethod
-    def _get_xovrs_peers(up_segment, down_segment):
+    @classmethod
+    def _copy_segment(cls, segment, xovrs, up=True):
         """
-        Collects the xovr and peer points from up_segment, down_segment.
+        Copy a :any:`PathSegment`, setting the up flag, the crossover point
+        flag, and optionally reversing the hops.
+
+        :param segment: :any:`PathSegment` to copy.
+        :param list xovrs: List of OF indexes to set as cross-over points.
+        :param bool up: Should the path direction be set to up?
+        :returns:
+            Tuple of the new :any:`InfoOpaqueField`, and a list of
+            :any:`HopOpaqueField'\s.
+        :rtype: tuple
+        """
+        if not segment:
+            return None, None
+        iof = copy.deepcopy(segment.iof)
+        iof.up_flag = up
+        hofs = cls._copy_hofs(segment.ads, reverse=up)
+        for xovr in xovrs:
+            hofs[xovr].info = OpaqueFieldType.XOVR_POINT
+        return iof, hofs
+
+    @classmethod
+    def _get_xovr_peer(cls, up_segment, down_segment):
+        """
+        Find the shortest xovr (preferred) and peer points between the supplied
+        segments.
+
+        *Note*: 'shortest' is calculated by looking for the point that's
+        furthest from the core.
+
+        :param list up_segment: `up` :any:`PathSegment`.
+        :param list down_segment: `down` :any:`PathSegment`.
+        :returns:
+            Tuple of the shortest xovr and peer points.
         """
         xovrs = []
         peers = []
-        for up_i in range(1, len(up_segment.ads)):
-            for down_i in range(1, len(down_segment.ads)):
-                up_ad = up_segment.ads[up_i]
-                down_ad = down_segment.ads[down_i]
+        for up_i, up_ad in enumerate(up_segment.ads[1:], 1):
+            for down_i, down_ad in enumerate(down_segment.ads[1:], 1):
                 if up_ad.pcbm.ad_id == down_ad.pcbm.ad_id:
                     xovrs.append((up_i, down_i))
-                else:
-                    for up_peer in up_ad.pms:
-                        for down_peer in down_ad.pms:
-                            if (up_peer.ad_id == down_ad.pcbm.ad_id and
-                                    down_peer.ad_id == up_ad.pcbm.ad_id):
-                                peers.append((up_i, down_i))
-        # select shortest path xovrs (preferred) or peers
-        xovrs.sort(key=lambda tup: sum(tup))
-        peers.sort(key=lambda tup: sum(tup))
-        return xovrs, peers
+                    continue
+                for up_peer in up_ad.pms:
+                    for down_peer in down_ad.pms:
+                        if (up_peer.ad_id == down_ad.pcbm.ad_id and
+                                down_peer.ad_id == up_ad.pcbm.ad_id):
+                            peers.append((up_i, down_i))
+        xovr = peer = None
+        if xovrs:
+            xovr = max(xovrs, key=lambda tup: sum(tup))
+        if peers:
+            peer = max(peers, key=lambda tup: sum(tup))
+        return xovr, peer
 
-    @staticmethod
-    def _join_shortcuts(up_segment, down_segment, point, peer=True):
+    @classmethod
+    def _join_shortcuts(cls, up_segment, down_segment, point, peer=True):
         """
-        Joins up_ and down_segment (objects of PCB class) into a shortcut
-        fullpath.
-        Depending on the scenario returns an object of type PeerPath or
-        CrossOverPath class.
-        point: tuple (up_segment_index, down_segment_index) position of
-               peer/xovr link
-        peer:  true for peer, false for xovr path
-        """
-        up_segment = copy.deepcopy(up_segment)
-        down_segment = copy.deepcopy(down_segment)
-        (up_index, dw_index) = point
+        Joins the supplied segments into a shortcut fullpath.
 
-        if peer:
-            path = PeerPath()
-            if up_segment.get_isd() == down_segment.get_isd():
-                info = OpaqueFieldType.INTRA_ISD_PEER
-            else:
-                info = OpaqueFieldType.INTER_ISD_PEER
+        :param list up_segment: `up` :any:`PathSegment`.
+        :param list down_segment: `down` :any:`PathSegment`.
+        :param tuple point: Indexes of peer/xovr point.
+        :param bool peer:
+            ``True`` if the shortcut uses a peering link, ``False`` if it uses a
+            cross-over link
+        :returns:
+            :any:`PeerPath` if using a peering link, otherwise
+            :any:`CrossOverPath`.
+        """
+        (up_index, down_index) = point
+
+        up_iof, up_hofs, up_upstream_hof = \
+            cls._copy_segment_shortcut(up_segment, up_index)
+        down_iof, down_hofs, down_upstream_hof = \
+            cls._copy_segment_shortcut(down_segment, down_index, up=False)
+
+        if not peer:
+            # It's a cross-over path.
+            up_iof.info = down_iof.info = OpaqueFieldType.SHORTCUT
+            return CrossOverPath.from_values(
+                up_iof, up_hofs, up_upstream_hof, down_iof, down_upstream_hof,
+                down_hofs)
+
+        # It's a peer path.
+        if up_segment.get_isd() == down_segment.get_isd():
+            up_iof.info = down_iof.info = OpaqueFieldType.INTRA_ISD_PEER
         else:
-            path = CrossOverPath()
-            info = OpaqueFieldType.SHORTCUT
+            up_iof.info = down_iof.info = OpaqueFieldType.INTER_ISD_PEER
 
-        path = PathCombinator._join_up_segment_shortcuts(path, up_segment,
-                                                         info, up_index)
-        if peer:
-            path = PathCombinator._join_shortcuts_peer(
-                path, up_segment.ads[up_index], down_segment.ads[dw_index])
+        up_peering_hof, down_peering_hof = cls._join_shortcuts_peer(
+            up_segment.ads[up_index], down_segment.ads[down_index])
+        return PeerPath.from_values(
+            up_iof, up_hofs, up_peering_hof, up_upstream_hof, down_iof,
+            down_upstream_hof, down_peering_hof, down_hofs)
 
-        path = PathCombinator._join_down_segment_shortcuts(
-            path, down_segment, info, dw_index)
-        return path
+    @classmethod
+    def _check_connected(cls, up_segment, core_segment, down_segment):
+        """
+        Check if the supplied segments are connected in sequence. If the `core`
+        segment is not specified, it is ignored.
 
-    @staticmethod
-    def _check_connected(up_segment, core_segment, down_segment):
-        # If we have a core segment, check that the core_segment connects the
-        # up_ and down_segment. Otherwise, check that up- and down-segment meet
-        # at a single core AD.
+        :param list up_segment: `up` :any:`PathSegment`.
+        :param list core_segment: `core` :any:`PathSegment` or ``None``.
+        :param list down_segment: `down` :any:`PathSegment`.
+        :returns: ``True`` if the path is connected, otherwise ``False``.
+        """
         if core_segment:
             if ((core_segment.get_last_pcbm().ad_id !=
                     up_segment.get_first_pcbm().ad_id) or
                     (core_segment.get_first_pcbm().ad_id !=
                      down_segment.get_first_pcbm().ad_id)):
                 return False
-        else:
-            if (up_segment.get_first_pcbm().ad_id !=
-                    down_segment.get_first_pcbm().ad_id):
-                return False
+        elif (up_segment.get_first_pcbm().ad_id !=
+              down_segment.get_first_pcbm().ad_id):
+            return False
         return True
 
-    @staticmethod
-    def _join_up_segment(path, up_segment):
+    @classmethod
+    def _copy_hofs(cls, ads, reverse=True):
         """
-        Takes a path and up_segment and populates the up_segment fields of
-        the path.
-        """
-        path.up_segment_info = up_segment.iof
-        path.up_segment_info.up_flag = True
-        for block in reversed(up_segment.ads):
-            path.up_segment_hops.append(copy.deepcopy(block.pcbm.hof))
-        path.up_segment_hops[-1].info = OpaqueFieldType.XOVR_POINT
-        return path
+        Copy :any:`HopOpaqueField`\s, and optionally reverse the result.
 
-    @staticmethod
-    def _join_core_segment(path, core_segment):
+        :param list ads: List of :any:`ADMarking` objects.
+        :param bool reverse: If ``True``, reverse the list before returning it.
+        :returns:
+            List of copied :any:`HopOpaqueField`\s.
         """
-        Takes a path and core_segment and populates the core_segment fields of
-        the path.
-        """
-        if not core_segment:
-            return path
-        path.core_segment_info = core_segment.iof
-        path.core_segment_info.up_flag = True
-        for block in reversed(core_segment.ads):
-            path.core_segment_hops.append(
-                copy.deepcopy(block.pcbm.hof))
-        path.core_segment_hops[-1].info = OpaqueFieldType.XOVR_POINT
-        path.core_segment_hops[0].info = OpaqueFieldType.XOVR_POINT
-        return path
+        hofs = []
+        for block in ads:
+            hofs.append(copy.deepcopy(block.pcbm.hof))
+        if reverse:
+            hofs.reverse()
+        return hofs
 
-    @staticmethod
-    def _join_down_segment(path, down_segment):
+    @classmethod
+    def _copy_segment_shortcut(cls, segment, index, up=True):
         """
-        Takes a path and down_segment and populates the down_segment fields of
-        the path.
-        """
-        path.down_segment_info = down_segment.iof
-        path.down_segment_info.up_flag = False
-        for block in down_segment.ads:
-            path.down_segment_hops.append(copy.deepcopy(block.pcbm.hof))
-        path.down_segment_hops[0].info = OpaqueFieldType.XOVR_POINT
-        return path
+        Copy a segment for a path shortcut, extracting the upstream
+        :any:`HopOpaqueField`, and setting the `up` flag and HOF types
+        appropriately.
 
-    @staticmethod
-    def _join_up_segment_shortcuts(path, up_segment, info, up_index):
+        :param PathSegment segment: Segment to copy.
+        :param int index: Index at which to start the copy.
+        :param bool up:
+            ``True`` if the path direction is `up` (which will reverse the
+            segment direction), ``False`` otherwise (which will leave the
+            segment direction unchanged).
+        :returns:
+            The copied :any:`InfoOpaqueField`, path :any:`HopOpaqueField`\s and
+            Upstream :any:`HopOpaqueField`.
         """
-        Populates the up_segment fields of a shortcut path.
-        """
-        path.up_segment_info = up_segment.iof
-        path.up_segment_info.info = info
-        path.up_segment_info.hops -= up_index
-        path.up_segment_info.up_flag = True
-        for i in reversed(range(up_index, len(up_segment.ads))):
-            path.up_segment_hops.append(up_segment.ads[i].pcbm.hof)
-        path.up_segment_hops[-1].info = OpaqueFieldType.XOVR_POINT
-        path.up_segment_upstream_ad = up_segment.ads[up_index - 1].pcbm.hof
-        path.up_segment_upstream_ad.info = OpaqueFieldType.NORMAL_OF
-        return path
+        iof = copy.deepcopy(segment.iof)
+        iof.hops -= index
+        iof.up_flag = up
+        # Copy segment HOFs
+        ads = segment.ads[index:]
+        hofs = cls._copy_hofs(ads, reverse=up)
+        xovr_idx = -1 if up else 0
+        hofs[xovr_idx].info = OpaqueFieldType.XOVR_POINT
+        # Extract upstream HOF
+        upstream_hof = copy.deepcopy(segment.ads[index - 1].pcbm.hof)
+        upstream_hof.info = OpaqueFieldType.NORMAL_OF
+        return iof, hofs, upstream_hof
 
-    @staticmethod
-    def _join_down_segment_shortcuts(path, down_segment, info, dw_index):
+    @classmethod
+    def _join_shortcuts_peer(cls, up_ad, down_ad):
         """
-        Populates the down_segment fields of a shortcut path.
+        Finds the peering :any:`HopOpaqueField` of the shortcut path.
         """
-        path.down_segment_info = down_segment.iof
-        path.down_segment_info.info = info
-        path.down_segment_info.hops -= dw_index
-        path.down_segment_info.up_flag = False
-        path.down_segment_upstream_ad = down_segment.ads[dw_index - 1].pcbm.hof
-        path.down_segment_upstream_ad.info = OpaqueFieldType.NORMAL_OF
-        for i in range(dw_index, len(down_segment.ads)):
-            path.down_segment_hops.append(down_segment.ads[i].pcbm.hof)
-        path.down_segment_hops[0].info = OpaqueFieldType.XOVR_POINT
-        return path
-
-    @staticmethod
-    def _join_shortcuts_peer(path, up_ad, down_ad):
-        """
-        Populates the peering link fields of a shortcut path.
-        """
+        # FIXME(kormat): Is it possible for there to be multiple matches? Could
+        # 2 ADs have >1 peering link to the other?
         for up_peer in up_ad.pms:
             for down_peer in down_ad.pms:
                 if (up_peer.ad_id == down_ad.pcbm.ad_id and
                         down_peer.ad_id == up_ad.pcbm.ad_id):
-                    path.up_segment_peering_link = up_peer.hof
-                    path.down_segment_peering_link = down_peer.hof
-        return path
+                    return up_peer.hof, down_peer.hof

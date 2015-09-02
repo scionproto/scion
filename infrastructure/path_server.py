@@ -32,6 +32,7 @@ from infrastructure.scion_elem import SCIONElement
 from lib.crypto.hash_chain import HashChain
 from lib.defines import PATH_SERVICE, SCION_UDP_PORT
 from lib.log import init_logging, log_exception
+from lib.packet.path import UP_IOF
 from lib.packet.path_mgmt import (
     LeaseInfo,
     PathMgmtPacket,
@@ -505,7 +506,7 @@ class CorePathServer(PathServer):
                     pkt.hdr.set_path(cpath)
                     pkt.hdr.dst_addr.isd_id = isd
                     pkt.hdr.dst_addr.ad_id = ad
-                    if_id = cpath.get_first_hop_of().ingress_if
+                    if_id = cpath.get_first_hof().ingress_if
                     next_hop = self.ifid2addr[if_id]
                     logging.info("Sending packet to CPS in (%d, %d).", isd, ad)
                     self.send(pkt, next_hop)
@@ -565,7 +566,7 @@ class CorePathServer(PathServer):
                     path = cpaths[0].get_path(reverse_direction=True)
                     dst_isd_ad = ISD_AD(cpaths[0].get_first_pcbm().isd_id,
                                         cpaths[0].get_first_pcbm().ad_id)
-                    if_id = path.get_first_hop_of().ingress_if
+                    if_id = path.get_first_hof().ingress_if
                     next_hop = self.ifid2addr[if_id]
                     request = PathMgmtPacket.from_values(PMT.REQUEST,
                                                          segment_info, path,
@@ -824,7 +825,7 @@ class LocalPathServer(PathServer):
             pcb = records.pcbs[0]
             path = pcb.get_path(reverse_direction=True)
             dst_isd_ad = ISD_AD(pcb.get_isd(), pcb.get_first_pcbm().ad_id)
-            if_id = path.get_first_hop_of().ingress_if
+            if_id = path.get_first_hof().ingress_if
             next_hop = self.ifid2addr[if_id]
             targets = copy.copy(self.waiting_targets)
             for (isd, ad, info) in targets:
@@ -1061,9 +1062,12 @@ class LocalPathServer(PathServer):
 
             path = pcb.get_path(reverse_direction=True)
             dst_isd_ad = ISD_AD(pcb.get_isd(), pcb.get_first_pcbm().ad_id)
-            path.up_segment_info.up_flag = True  # FIXME: temporary hack. A very
-            # first path is _always_ down-path, any subsequent is up-path.
-            if_id = path.get_first_hop_of().ingress_if
+            # FIXME(PSz): temporary hack. A very first path is _always_
+            # down-path, any subsequent is up-path.
+            # Above comment is from 2015-01-28, f288fb53
+            up_seg_info = path.get_ofs_by_label(UP_IOF)[0]
+            up_seg_info.up_flag = True
+            if_id = path.get_first_hof().ingress_if
             next_hop = self.ifid2addr[if_id]
             path_request = PathMgmtPacket.from_values(PMT.REQUEST, info,
                                                       path, self.addr,
