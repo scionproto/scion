@@ -41,7 +41,7 @@ from lib.packet.path import (
     UP_PEERING_HOF,
     UP_UPSTREAM_HOF,
 )
-from lib.packet.opaque_field import OpaqueFieldType
+from lib.packet.opaque_field import OpaqueFieldType as OFT
 from test.testcommon import assert_these_calls, create_mock
 
 
@@ -64,10 +64,11 @@ class _FromValuesTest(object):
     """
     Unit tests for lib.packet.path.*.from_values
     """
+    @patch("lib.packet.path.PathBase.set_of_idxs", autospec=True)
     @patch("lib.packet.path.PathBase._set_ofs", autospec=True)
     @patch("lib.packet.path.PathBase.__init__", autospec=True,
            return_value=None)
-    def _check(self, ofs, init, set_ofs):
+    def _check(self, ofs, init, set_ofs, set_of_idxs):
         # Call
         inst = self.TYPE.from_values(**ofs)
         # Tests
@@ -76,6 +77,7 @@ class _FromValuesTest(object):
         for label, arg in zip(inst.OF_ORDER, self.ARGS):
             calls.append(call(inst, label, ofs.get(arg)))
         assert_these_calls(set_ofs, calls)
+        set_of_idxs.assert_called_once_with(inst)
 
     def test_no_args(self):
         yield self._check, {}
@@ -87,6 +89,44 @@ class _FromValuesTest(object):
         yield self._check, args
 
 
+class _GetHofVerTest(object):
+    """
+    Unit tests for lib.packet.path.*.get_hof_ver
+    """
+    @patch("lib.packet.path.PathBase.get_hof_ver", autospec=True)
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test_normal(self, init, super_method):
+        inst = self.TYPE()
+        hof = create_mock(["info"])
+        hof.info = OFT.NORMAL_OF
+        inst.get_hof = create_mock()
+        inst.get_hof.return_value = hof
+        # Call
+        ntools.eq_(inst.get_hof_ver(), super_method.return_value)
+        # Tests
+        super_method.assert_called_once_with(inst)
+
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def _check_special(self, ingress, up, exp_hof, exp_idx, init):
+        inst = self.TYPE()
+        inst.get_hof = create_mock()
+        inst.get_hof.return_value = create_mock(["info"])
+        iof = create_mock(["up_flag"])
+        iof.up_flag = up
+        inst.get_iof = create_mock()
+        inst.get_iof.return_value = iof
+        inst._hof_idx = 10
+        inst._get_of = create_mock()
+        inst._get_of.return_value = "get_of"
+        # Call
+        ntools.eq_(inst.get_hof_ver(ingress=ingress), exp_hof)
+        # Tests
+        if exp_idx:
+            inst._get_of.assert_called_once_with(exp_idx)
+
+
 class TestPathBaseInit(object):
     """
     Unit tests for lib.packet.path.PathBase.__init__
@@ -96,6 +136,8 @@ class TestPathBaseInit(object):
         # Call
         inst = PathBaseTesting()
         # Tests
+        ntools.assert_is_none(inst._iof_idx)
+        ntools.assert_is_none(inst._hof_idx)
         ofl.assert_called_once_with(inst.OF_ORDER)
         ntools.eq_(inst._ofs, ofl.return_value)
 
@@ -106,6 +148,41 @@ class TestPathBaseInit(object):
         inst = PathBaseTesting("raw")
         # Tests
         parse.assert_called_once_with(inst, "raw")
+
+
+class TestPathBaseSetOfs(object):
+    """
+    Unit tests for lib.packet.path.PathBase._set_ofs
+    """
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test_none(self, init):
+        inst = PathBaseTesting()
+        inst._ofs = create_mock(["set"])
+        # Call
+        inst._set_ofs("label", None)
+        # Tests
+        inst._ofs.set.assert_called_once_with("label", [])
+
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test_list(self, init):
+        inst = PathBaseTesting()
+        inst._ofs = create_mock(["set"])
+        # Call
+        inst._set_ofs("label", [1, 2, 3])
+        # Tests
+        inst._ofs.set.assert_called_once_with("label", [1, 2, 3])
+
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test_non_list(self, init):
+        inst = PathBaseTesting()
+        inst._ofs = create_mock(["set"])
+        # Call
+        inst._set_ofs("label", "value")
+        # Tests
+        inst._ofs.set.assert_called_once_with("label", ["value"])
 
 
 class TestPathBaseParseIof(object):
@@ -166,9 +243,10 @@ class TestPathBaseReverse(object):
     """
     @patch("lib.packet.path.PathBase.__init__", autospec=True,
            return_value=None)
-    def test_basic(self, init):
+    def test(self, init):
         inst = PathBaseTesting()
         inst._ofs = create_mock(["reverse_label", "reverse_up_flag", "swap"])
+        inst.set_of_idxs = create_mock()
         # Call
         inst.reverse()
         # Tests
@@ -178,11 +256,171 @@ class TestPathBaseReverse(object):
                            [call(UP_IOF), call(DOWN_IOF)])
         assert_these_calls(inst._ofs.reverse_label,
                            [call(UP_HOFS), call(DOWN_HOFS)])
+        inst.set_of_idxs.assert_called_once_with()
+
+
+class TestPathBaseGetOfIdxs(object):
+    """
+    Unit tests for lib.packet.path.PathBase.get_of_idxs
+    """
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test(self, init):
+        inst = PathBaseTesting()
+        inst._iof_idx = "iof"
+        inst._hof_idx = "hof"
+        # Call
+        ntools.eq_(inst.get_of_idxs(), ("iof", "hof"))
+
+
+class TestPathBaseSetOfIdxs(object):
+    """
+    Unit tests for lib.packet.path.PathBase.get_of_idxs
+    """
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test_full(self, init):
+        inst = PathBaseTesting()
+        # Call
+        inst.set_of_idxs("iof", "hof")
+        # Tests
+        ntools.eq_(inst._iof_idx, "iof")
+        ntools.eq_(inst._hof_idx, "hof")
+
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test_min(self, init):
+        inst = PathBaseTesting()
+        inst._get_first_iof_idx = create_mock()
+        inst._get_first_hof_idx = create_mock()
+        # Call
+        inst.set_of_idxs()
+        # Tests
+        ntools.eq_(inst._iof_idx, inst._get_first_iof_idx.return_value)
+        ntools.eq_(inst._hof_idx, inst._get_first_hof_idx.return_value)
+
+
+class TestPathBaseGetIof(object):
+    """
+    Unit tests for lib.packet.path.PathBase.get_iof
+    """
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test_none(self, init):
+        inst = PathBaseTesting()
+        inst._iof_idx = None
+        # Call
+        ntools.assert_is_none(inst.get_iof())
+
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test_idx(self, init):
+        inst = PathBaseTesting()
+        inst._iof_idx = 32
+        inst._get_of = create_mock()
+        # Call
+        ntools.eq_(inst.get_iof(), inst._get_of.return_value)
+        # Tests
+        inst._get_of.assert_called_once_with(32)
+
+
+class TestPathBaseGetHof(object):
+    """
+    Unit tests for lib.packet.path.PathBase.get_hof
+    """
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test_none(self, init):
+        inst = PathBaseTesting()
+        inst._hof_idx = None
+        # Call
+        ntools.assert_is_none(inst.get_hof())
+
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test_idx(self, init):
+        inst = PathBaseTesting()
+        inst._hof_idx = 32
+        inst._get_of = create_mock()
+        # Call
+        ntools.eq_(inst.get_hof(), inst._get_of.return_value)
+        # Tests
+        inst._get_of.assert_called_once_with(32)
+
+
+class TestPathBaseIncHofIdx(object):
+    """
+    Unit tests for lib.packet.path.PathBase.inc_hof_idx
+    """
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test(self, init):
+        inst = PathBaseTesting()
+        inst._hof_idx = 41
+        # Call
+        inst.inc_hof_idx()
+        # Tests
+        ntools.eq_(inst._hof_idx, 42)
+
+
+class TestPathBaseNextSegment(object):
+    """
+    Unit tests for lib.packet.path.PathBase.next_segment
+    """
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test(self, init):
+        inst = PathBaseTesting()
+        inst.SEGMENT_OFFSETS = 8, 9
+        inst._iof_idx = 30
+        inst._hof_idx = 42
+        # Call
+        inst.next_segment()
+        # Tests
+        ntools.eq_(inst._iof_idx, 50)
+        ntools.eq_(inst._hof_idx, 51)
+
+
+class TestPathBaseGetOf(object):
+    """
+    Unit tests for lib.packet.path.PathBase._get_of
+    """
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test(self, init):
+        inst = PathBaseTesting()
+        inst._ofs = create_mock(["get_by_idx"])
+        # Call
+        ntools.eq_(inst._get_of(42), inst._ofs.get_by_idx.return_value)
+        # Tests
+        inst._ofs.get_by_idx.assert_called_once_with(42)
+
+
+class TestPathBaseGetFirstIofIdx(object):
+    """
+    Unit tests for lib.packet.path.PathBase.get_first_iof_idx
+    """
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test_with_ofs(self, init):
+        inst = PathBaseTesting()
+        inst._ofs = create_mock(["__len__"])
+        # Call
+        ntools.eq_(inst._get_first_iof_idx(), 0)
+
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test_without_ofs(self, init):
+        inst = PathBaseTesting()
+        inst._ofs = create_mock(["__len__"])
+        inst._ofs.__len__.return_value = 0
+        # Call
+        ntools.eq_(inst._get_first_iof_idx(), None)
 
 
 class TestPathBaseGetFirstHofIdx(object):
     """
-    Unit tests for lib.packet.path.PathBase.get_first_hof_idx
+    Unit tests for lib.packet.path.PathBase._get_first_hof_idx
     """
     @patch("lib.packet.path.PathBase.__init__", autospec=True,
            return_value=None)
@@ -190,7 +428,7 @@ class TestPathBaseGetFirstHofIdx(object):
         inst = PathBaseTesting()
         inst._ofs = create_mock(["get_by_label"])
         # Call
-        ntools.eq_(inst.get_first_hof_idx(), 1)
+        ntools.eq_(inst._get_first_hof_idx(), 1)
         # Tests
         inst._ofs.get_by_label.assert_called_once_with(UP_HOFS)
 
@@ -201,7 +439,7 @@ class TestPathBaseGetFirstHofIdx(object):
         inst._ofs = create_mock(["get_by_label"])
         inst._ofs.get_by_label.side_effect = [False, True]
         # Call
-        ntools.eq_(inst.get_first_hof_idx(), 1)
+        ntools.eq_(inst._get_first_hof_idx(), 1)
         # Tests
         assert_these_calls(inst._ofs.get_by_label,
                            [call(UP_HOFS), call(DOWN_HOFS)])
@@ -213,77 +451,7 @@ class TestPathBaseGetFirstHofIdx(object):
         inst._ofs = create_mock(["get_by_label"])
         inst._ofs.get_by_label.return_value = False
         # Call
-        ntools.eq_(inst.get_first_hof_idx(), 0)
-
-
-class TestPathBaseGetFirstHof(object):
-    """
-    Unit tests for lib.packet.path.PathBase.get_first_hof
-    """
-    @patch("lib.packet.path.PathBase.__init__", autospec=True,
-           return_value=None)
-    def test_with_hops(self, init):
-        inst = PathBaseTesting()
-        inst.get_first_hof_idx = create_mock()
-        inst.get_of = create_mock()
-        # Call
-        ntools.eq_(inst.get_first_hof(), inst.get_of.return_value)
-        # Tests
-        inst.get_first_hof_idx.assert_called_once_with()
-        inst.get_of.assert_called_once_with(inst.get_first_hof_idx.return_value)
-
-    @patch("lib.packet.path.PathBase.__init__", autospec=True,
-           return_value=None)
-    def test_without_hops(self, offset):
-        inst = PathBaseTesting()
-        inst.get_first_hof_idx = create_mock()
-        inst.get_first_hof_idx.return_value = False
-        # Call
-        ntools.assert_is_none(inst.get_first_hof())
-
-
-class TestPathBaseGetFirstIofIdx(object):
-    """
-    Unit tests for lib.packet.path.PathBase.get_first_iof_idx
-    """
-    @patch("lib.packet.path.PathBase.__init__", autospec=True,
-           return_value=None)
-    def test(self, init):
-        inst = PathBaseTesting()
-        # Call
-        ntools.eq_(inst.get_first_iof_idx(), 0)
-
-
-class TestPathBaseGetFirstIof(object):
-    """
-    Unit tests for lib.packet.path.PathBase.get_first_iof
-    """
-    @patch("lib.packet.path.PathBase.__init__", autospec=True,
-           return_value=None)
-    def test(self, init):
-        inst = PathBaseTesting()
-        inst.get_first_iof_idx = create_mock()
-        inst.get_of = create_mock()
-        # Call
-        ntools.eq_(inst.get_first_iof(), inst.get_of.return_value)
-        # Tests
-        inst.get_first_iof_idx.assert_called_once_with()
-        inst.get_of.assert_called_once_with(inst.get_first_iof_idx.return_value)
-
-
-class TestPathBaseGetOf(object):
-    """
-    Unit tests for lib.packet.path.PathBase.get_of
-    """
-    @patch("lib.packet.path.PathBase.__init__", autospec=True,
-           return_value=None)
-    def test(self, init):
-        inst = PathBaseTesting()
-        inst._ofs = create_mock(["get_by_idx"])
-        # Call
-        ntools.eq_(inst.get_of(42), inst._ofs.get_by_idx.return_value)
-        # Tests
-        inst._ofs.get_by_idx.assert_called_once_with(42)
+        ntools.assert_is_none(inst._get_first_hof_idx())
 
 
 class TestPathBaseGetOfsByLabel(object):
@@ -302,9 +470,135 @@ class TestPathBaseGetOfsByLabel(object):
         inst._ofs.get_by_label.assert_called_once_with("label")
 
 
-class TestPathBaseOfCount(object):
+class TestPathBaseGetHofVer(object):
     """
-    Unit tests for lib.packet.path.PathBase.of_count
+    Unit tests for lib.packet.path.PathBase.get_hof_ver
+    """
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def _check(self, up, expected, init):
+        inst = PathBaseTesting()
+        iof = create_mock(["up_flag"])
+        iof.up_flag = up
+        inst.get_iof = create_mock()
+        inst.get_iof.return_value = iof
+        inst._hof_idx = 10
+        inst._get_of = create_mock()
+        # Call
+        ntools.eq_(inst.get_hof_ver(), inst._get_of.return_value)
+        # Tests
+        inst._get_of.assert_called_once_with(expected)
+
+    def test(self):
+        for up, expected in (
+            (True, 11),
+            (False, 9)
+        ):
+            yield self._check, up, expected
+
+
+class TestPathBaseGetFwdIf(object):
+    """
+    Unit tests for lib.packet.path.PathBase.get_fwd_if
+    """
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def _check(self, up, hof, expected, init):
+        inst = PathBaseTesting()
+        iof = create_mock(["up_flag"])
+        iof.up_flag = up
+        inst.get_iof = create_mock()
+        inst.get_iof.return_value = iof
+        inst.get_hof = create_mock()
+        inst.get_hof.return_value = hof
+        # Call
+        ntools.eq_(inst.get_fwd_if(), expected)
+
+    def test(self):
+        hof = create_mock(["egress_if", "ingress_if"])
+        for up, expected in (
+            (True, hof.ingress_if),
+            (False, hof.egress_if)
+        ):
+            yield self._check, up, hof, expected
+
+
+class TestPathBaseSetDownpath(object):
+    """
+    Unit tests for lib.packet.path.PathBase.set_downpath
+    """
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test(self, init):
+        inst = PathBaseTesting()
+        iof = create_mock(["up_flag"])
+        inst.get_iof = create_mock()
+        inst.get_iof.return_value = iof
+        # Call
+        inst.set_downpath()
+        # Tests
+        ntools.assert_false(iof.up_flag)
+
+
+class TestPathBaseIsOnUpPath(object):
+    """
+    Unit tests for lib.packet.path.PathBase.is_on_up_path
+    """
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test_iof(self, init):
+        inst = PathBaseTesting()
+        iof = create_mock(["up_flag"])
+        inst.get_iof = create_mock()
+        inst.get_iof.return_value = iof
+        # Call
+        ntools.eq_(inst.is_on_up_path(), iof.up_flag)
+
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test_no_iof(self, init):
+        inst = PathBaseTesting()
+        inst.get_iof = create_mock()
+        inst.get_iof.return_value = None
+        # Call
+        ntools.ok_(inst.is_on_up_path())
+
+
+class TestPathBaseIsLastPathHof(object):
+    """
+    Unit tests for lib.packet.path.PathBase.is_last_path_hof
+    """
+    @patch("lib.packet.path.PathBase.__len__", autospec=True)
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def _check(self, idx, len_, expected, init, path_len):
+        inst = PathBaseTesting()
+        inst._hof_idx = idx
+        path_len.return_value = len_
+        # Call
+        ntools.eq_(inst.is_last_path_hof(), expected)
+
+    def test(self):
+        for idx, len_, expected in (
+            (41, 42, True),
+            (0, 42, False),
+        ):
+            yield self._check, idx, len_, expected
+
+    @patch("lib.packet.path.PathBase.__len__", autospec=True)
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test_false(self, init, len_):
+        inst = PathBaseTesting()
+        inst._hof_idx = 41
+        len_.return_value = 43
+        # Call
+        ntools.assert_false(inst.is_last_path_hof())
+
+
+class TestPathBaseLen(object):
+    """
+    Unit tests for lib.packet.path.PathBase.__len__
     """
     @patch("lib.packet.path.PathBase.__init__", autospec=True,
            return_value=None)
@@ -313,42 +607,16 @@ class TestPathBaseOfCount(object):
         inst._ofs = create_mock(["__len__"])
         inst._ofs.__len__.return_value = 42
         # Call
-        ntools.eq_(inst.of_count(), 42)
+        ntools.eq_(len(inst), 42)
 
 
-class TestPathBaseSetOfs(object):
+class TestCorePathFromValues(_FromValuesTest):
     """
-    Unit tests for lib.packet.path.PathBase._set_ofs
+    Unit tests for lib.packet.path.CorePath.from_values
     """
-    @patch("lib.packet.path.PathBase.__init__", autospec=True,
-           return_value=None)
-    def test_none(self, init):
-        inst = PathBaseTesting()
-        inst._ofs = create_mock(["set"])
-        # Call
-        inst._set_ofs("label", None)
-        # Tests
-        inst._ofs.set.assert_called_once_with("label", [])
-
-    @patch("lib.packet.path.PathBase.__init__", autospec=True,
-           return_value=None)
-    def test_list(self, init):
-        inst = PathBaseTesting()
-        inst._ofs = create_mock(["set"])
-        # Call
-        inst._set_ofs("label", [1, 2, 3])
-        # Tests
-        inst._ofs.set.assert_called_once_with("label", [1, 2, 3])
-
-    @patch("lib.packet.path.PathBase.__init__", autospec=True,
-           return_value=None)
-    def test_non_list(self, init):
-        inst = PathBaseTesting()
-        inst._ofs = create_mock(["set"])
-        # Call
-        inst._set_ofs("label", "value")
-        # Tests
-        inst._ofs.set.assert_called_once_with("label", ["value"])
+    TYPE = CorePath
+    ARGS = ["up_iof", "up_hofs", "core_iof", "core_hofs", "down_iof",
+            "down_hofs"]
 
 
 class TestCorePathParse(object):
@@ -363,6 +631,7 @@ class TestCorePathParse(object):
         inst = CorePath()
         inst._parse_iof = create_mock()
         inst._parse_hofs = create_mock()
+        inst.set_of_idxs = create_mock()
         data = create_mock(["__len__"])
         data.__len__.side_effect = raw_len
         raw.return_value = data
@@ -377,6 +646,7 @@ class TestCorePathParse(object):
         raw.assert_called_once_with("data", "CorePath")
         assert_these_calls(inst._parse_iof, parse_iof_calls[:num_calls])
         assert_these_calls(inst._parse_hofs, parse_hofs_calls[:num_calls])
+        inst.set_of_idxs.assert_called_once_with()
 
     def test(self):
         for raw_len in ([0, 0], [1, 0], [1, 1]):
@@ -399,6 +669,22 @@ class TestCorePathReverse(object):
         super_reverse.assert_called_once_with(inst)
         inst._ofs.reverse_up_flag(CORE_IOF)
         inst._ofs.reverse_label(CORE_HOFS)
+
+
+class TestCorePathGetHofVer(_GetHofVerTest):
+    """
+    Unit tests for lib.packet.path.CorePath.get_hof_ver
+    """
+    TYPE = CorePath
+
+    def test_core(self):
+        for ingress, up, exp_hof, exp_idx in (
+            (True, True, None, None),
+            (True, False, "get_of", 9),
+            (False, True, "get_of", 11),
+            (False, False, None, None),
+        ):
+            yield self._check_special, ingress, up, exp_hof, exp_idx
 
 
 class TestCorePathGetAdHops(object):
@@ -427,15 +713,6 @@ class TestCorePathGetAdHops(object):
             yield self._check, counts, expected
 
 
-class TestCorePathFromValues(_FromValuesTest):
-    """
-    Unit tests for lib.packet.path.CorePath.from_values
-    """
-    TYPE = CorePath
-    ARGS = ["up_iof", "up_hofs", "core_iof", "core_hofs", "down_iof",
-            "down_hofs"]
-
-
 class TestCrossOverPathFromValues(_FromValuesTest):
     """
     Unit tests for lib.packet.path.CrossOverPath.from_values
@@ -456,6 +733,7 @@ class TestCrossOverPathParse(object):
         inst = CrossOverPath()
         inst._parse_iof = create_mock()
         inst._parse_hofs = create_mock()
+        inst.set_of_idxs = create_mock()
         data = raw.return_value
         # Call
         inst.parse("data")
@@ -491,42 +769,61 @@ class TestCrossOverPathReverse(object):
 
 class TestCrossOverPathGetFirstHofIdx(object):
     """
-    Unit tests for lib.packet.path.CrossOverPath.get_first_hof_idx
+    Unit tests for lib.packet.path.CrossOverPath._get_first_hof_idx
     """
+    @patch("lib.packet.path.PathBase._get_first_hof_idx", autospec=True)
     @patch("lib.packet.path.PathBase.__init__", autospec=True,
            return_value=None)
-    def _check(self, counts, expected, init):
+    def _check(self, counts, expected, init, super_method):
         inst = CrossOverPath()
         inst._ofs = create_mock(["count"])
         inst._ofs.count.side_effect = counts
+        super_method.return_value = 99
         # Call
-        ntools.eq_(inst.get_first_hof_idx(), expected)
+        ntools.eq_(inst._get_first_hof_idx(), expected)
 
     def test(self):
         for counts, expected in (
-            ([1], 5), ([2], 1), ([0, 1], 1), ([0, 0], 0)
+            ([1], 5), ([2], 1), ([0, 1], 1), ([0, 0], 99)
         ):
             yield self._check, counts, expected
 
 
 class TestCrossOverPathGetFirstIofIdx(object):
     """
-    Unit tests for lib.packet.path.CrossOverPath.get_first_iof_idx
+    Unit tests for lib.packet.path.CrossOverPath._get_first_iof_idx
     """
+    @patch("lib.packet.path.PathBase._get_first_iof_idx", autospec=True)
     @patch("lib.packet.path.PathBase.__init__", autospec=True,
            return_value=None)
-    def _check(self, count, expected, init):
+    def _check(self, count, expected, init, super_method):
         inst = CrossOverPath()
         inst._ofs = create_mock(["count"])
         inst._ofs.count.return_value = count
+        super_method.return_value = 99
         # Call
-        ntools.eq_(inst.get_first_iof_idx(), expected)
+        ntools.eq_(inst._get_first_iof_idx(), expected)
 
     def test(self):
         for count, expected in (
-            (1, 3), (2, 0), (0, 0)
+            (1, 3), (2, 99), (0, 99)
         ):
             yield self._check, count, expected
+
+
+class TestCrossOverPathGetHofVer(_GetHofVerTest):
+    """
+    Unit tests for lib.packet.path.CrossOverPath.get_hof_ver
+    """
+    TYPE = CrossOverPath
+
+    def test_xovr(self):
+        for ingress, up, exp_hof, exp_idx in (
+            (True, True, "get_of", 11),
+            (True, False, "get_of", 9),
+            (False, False, "get_of", 9),
+        ):
+            yield self._check_special, ingress, up, exp_hof, exp_idx
 
 
 class TestCrossOverPathGetAdHops(object):
@@ -563,6 +860,7 @@ class TestPeerPathParse(object):
         inst = PeerPath()
         inst._parse_iof = create_mock()
         inst._parse_hofs = create_mock()
+        inst.set_of_idxs = create_mock()
         data = raw.return_value
         # Call
         inst.parse("data")
@@ -578,6 +876,7 @@ class TestPeerPathParse(object):
             call(data, DOWN_PEERING_HOF),
             call(data, DOWN_HOFS, inst._parse_iof.return_value),
         ])
+        inst.set_of_idxs.assert_called_once_with()
 
 
 class TestPeerPathReverse(object):
@@ -600,6 +899,59 @@ class TestPeerPathReverse(object):
         ])
 
 
+class TestPeerPathGetHofVer(_GetHofVerTest):
+    """
+    Unit tests for lib.packet.path.PeerPath.get_hof_ver
+    """
+    TYPE = PeerPath
+
+    def test_peer(self):
+        for ingress, up, exp_hof, exp_idx in (
+            (True, True, "get_of", 12),
+            (True, False, "get_of", 11),
+            (False, True, "get_of", 9),
+            (False, False, "get_of", 8),
+        ):
+            yield self._check_special, ingress, up, exp_hof, exp_idx
+
+
+class TestPeerPathGetFirstHofIdx(object):
+    """
+    Unit tests for lib.packet.path.PeerPath._get_first_hof_idx
+    """
+    @patch("lib.packet.path.PathBase._get_first_hof_idx", autospec=True)
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def _check(self, hofs, expected, init, super_method):
+        inst = PeerPath()
+        inst._ofs = create_mock(["get_by_label"])
+        inst._ofs.get_by_label.side_effect = hofs
+        super_method.return_value = 99
+        # Call
+        ntools.eq_(inst._get_first_hof_idx(), expected)
+
+    def test_no_hofs(self):
+        self._check([None, None], 99)
+
+    def test_up_hofs_normal(self):
+        hof = create_mock(["info"])
+        self._check([[hof], None], 1)
+
+    def test_up_hofs_xovr(self):
+        hof = create_mock(["info"])
+        hof.info = OFT.XOVR_POINT
+        self._check([[hof], None], 2)
+
+    def test_down_hofs_normal(self):
+        hof = create_mock(["info"])
+        self._check([None, [hof]], 1)
+
+    def test_down_hofs_xovr(self):
+        hof = create_mock(["info"])
+        hof.info = OFT.XOVR_POINT
+        self._check([None, [hof]], 2)
+
+
 class TestPeerPathGetAdHops(object):
     """
     Unit tests for lib.packet.path.PeerPath.get_ad_hops
@@ -612,41 +964,6 @@ class TestPeerPathGetAdHops(object):
         inst._ofs.count.side_effect = [3, 5]
         # Call
         ntools.eq_(inst.get_ad_hops(), 7)
-
-
-class TestPeerPathGetFirstHofIdx(object):
-    """
-    Unit tests for lib.packet.path.PeerPath.get_first_hof_idx
-    """
-    @patch("lib.packet.path.PathBase.__init__", autospec=True,
-           return_value=None)
-    def _check(self, hofs, expected, init):
-        inst = PeerPath()
-        inst._ofs = create_mock(["get_by_label"])
-        inst._ofs.get_by_label.side_effect = hofs
-        # Call
-        ntools.eq_(inst.get_first_hof_idx(), expected)
-
-    def test_no_hofs(self):
-        self._check([None, None], 0)
-
-    def test_up_hofs_normal(self):
-        hof = create_mock(["info"])
-        self._check([[hof], None], 1)
-
-    def test_up_hofs_xovr(self):
-        hof = create_mock(["info"])
-        hof.info = OpaqueFieldType.XOVR_POINT
-        self._check([[hof], None], 2)
-
-    def test_down_hofs_normal(self):
-        hof = create_mock(["info"])
-        self._check([None, [hof]], 1)
-
-    def test_down_hofs_xovr(self):
-        hof = create_mock(["info"])
-        hof.info = OpaqueFieldType.XOVR_POINT
-        self._check([None, [hof]], 2)
 
 
 class PathCombinatorBase(object):
@@ -831,7 +1148,7 @@ class TestPathCombinatorCopySegment(object):
         hofs = []
         for _ in range(3):
             hof = create_mock(["info"])
-            hof.info = OpaqueFieldType.NORMAL_OF
+            hof.info = OFT.NORMAL_OF
             hofs.append(hof)
         copy_hofs.return_value = hofs
         # Call
@@ -840,9 +1157,9 @@ class TestPathCombinatorCopySegment(object):
         deepcopy.assert_called_once_with(seg.iof)
         ntools.eq_(iof.up_flag, True)
         copy_hofs.assert_called_once_with(seg.ads, reverse=True)
-        ntools.eq_(hofs[0].info, OpaqueFieldType.XOVR_POINT)
-        ntools.eq_(hofs[1].info, OpaqueFieldType.NORMAL_OF)
-        ntools.eq_(hofs[2].info, OpaqueFieldType.XOVR_POINT)
+        ntools.eq_(hofs[0].info, OFT.XOVR_POINT)
+        ntools.eq_(hofs[1].info, OFT.NORMAL_OF)
+        ntools.eq_(hofs[2].info, OFT.XOVR_POINT)
 
     @patch("lib.packet.path.PathCombinator._copy_hofs",
            new_callable=create_mock)
@@ -938,8 +1255,8 @@ class TestPathCombinatorJoinShortcuts(object):
             PathCombinator._join_shortcuts('up_seg', 'down_seg', (2, 5), False),
             xovr_from_values.return_value)
         # Tests
-        ntools.eq_(up_iof.info, OpaqueFieldType.SHORTCUT)
-        ntools.eq_(down_iof.info, OpaqueFieldType.SHORTCUT)
+        ntools.eq_(up_iof.info, OFT.SHORTCUT)
+        ntools.eq_(down_iof.info, OFT.SHORTCUT)
         assert_these_calls(join_shortcuts, [
             call("up_seg", 2), call("down_seg", 5, up=False)])
         xovr_from_values.assert_called_once_with(
@@ -955,7 +1272,7 @@ class TestPathCombinatorJoinShortcuts(object):
                     peer_path):
         up_seg = create_mock(['get_isd', 'ads'])
         down_seg = create_mock(['get_isd', 'ads'])
-        if of_type == OpaqueFieldType.INTRA_ISD_PEER:
+        if of_type == OFT.INTRA_ISD_PEER:
             up_seg.get_isd.return_value = down_seg.get_isd.return_value
         up_seg.ads = ['up_ad %i' % i for i in range(6)]
         down_seg.ads = ['down_ad %i' % i for i in range(6)]
@@ -979,8 +1296,8 @@ class TestPathCombinatorJoinShortcuts(object):
             down_iof, "down_upstream_hof", "down_peering_hof", "down_hofs")
 
     def test_peer(self):
-        for of_type in (OpaqueFieldType.INTRA_ISD_PEER,
-                        OpaqueFieldType.INTER_ISD_PEER):
+        for of_type in (OFT.INTRA_ISD_PEER,
+                        OFT.INTER_ISD_PEER):
             yield self._check_peer, of_type
 
 
@@ -1087,8 +1404,8 @@ class TestPathCombinatorCopySegmentShortcut(object):
         ntools.eq_(iof.hops, 6)
         ntools.ok_(iof.up_flag)
         copy_hofs.assert_called_once_with(seg.ads[4:], reverse=True)
-        ntools.eq_(hofs[-1].info, OpaqueFieldType.XOVR_POINT)
-        ntools.eq_(upstream_hof.info, OpaqueFieldType.NORMAL_OF)
+        ntools.eq_(hofs[-1].info, OFT.XOVR_POINT)
+        ntools.eq_(upstream_hof.info, OFT.NORMAL_OF)
 
     @patch("lib.packet.path.PathCombinator._copy_hofs",
            new_callable=create_mock)
@@ -1103,8 +1420,8 @@ class TestPathCombinatorCopySegmentShortcut(object):
         ntools.eq_(iof.hops, 6)
         ntools.ok_(iof.up_flag)
         copy_hofs.assert_called_once_with(seg.ads[4:], reverse=True)
-        ntools.eq_(hofs[-1].info, OpaqueFieldType.XOVR_POINT)
-        ntools.eq_(upstream_hof.info, OpaqueFieldType.NORMAL_OF)
+        ntools.eq_(hofs[-1].info, OFT.XOVR_POINT)
+        ntools.eq_(upstream_hof.info, OFT.NORMAL_OF)
 
     @patch("lib.packet.path.PathCombinator._copy_hofs",
            new_callable=create_mock)
@@ -1117,7 +1434,7 @@ class TestPathCombinatorCopySegmentShortcut(object):
         # Tests
         ntools.assert_false(iof.up_flag)
         copy_hofs.assert_called_once_with(seg.ads[7:], reverse=False)
-        ntools.eq_(hofs[0].info, OpaqueFieldType.XOVR_POINT)
+        ntools.eq_(hofs[0].info, OFT.XOVR_POINT)
 
 
 class TestPathCombinatorJoinShortcutsPeer(object):

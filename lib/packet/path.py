@@ -24,7 +24,7 @@ from lib.packet.opaque_field import (
     HopOpaqueField,
     InfoOpaqueField,
     OpaqueFieldList,
-    OpaqueFieldType,
+    OpaqueFieldType as OFT,
 )
 from lib.util import Raw
 
@@ -51,6 +51,11 @@ class PathBase(object, metaclass=ABCMeta):
     OF_ORDER = None
 
     def __init__(self, raw=None):
+        """
+        :param bytes raw: Raw path to parse.
+        """
+        self._iof_idx = None
+        self._hof_idx = None
         self._ofs = OpaqueFieldList(self.OF_ORDER)
         if raw is not None:
             self.parse(raw)
@@ -58,6 +63,23 @@ class PathBase(object, metaclass=ABCMeta):
     @abstractmethod
     def from_values(self, *args, **kwargs):
         raise NotImplementedError
+
+    def _set_ofs(self, label, value):
+        """
+        Set an OF label to the given value.
+
+        :param str label: The OF label.
+        :param value:
+            Can be ``None``, a single :any:`OpaqueField`, or a list of
+            :any:`OpaqueField`\s.
+        """
+        if value is None:
+            data = []
+        elif isinstance(value, list):
+            data = value
+        else:
+            data = [value]
+        self._ofs.set(label, data)
 
     @abstractmethod
     def parse(self, raw):
@@ -111,41 +133,81 @@ class PathBase(object, metaclass=ABCMeta):
         # Reverse HOF lists.
         self._ofs.reverse_label(UP_HOFS)
         self._ofs.reverse_label(DOWN_HOFS)
+        self.set_of_idxs()
 
-    def get_first_hof_idx(self):
+    def get_of_idxs(self):
+        """
+        Get current :any:`InfoOpaqueField` and :any:`HopOpaqueField` indexes.
+
+        :return: Tuple (int, int) of IOF index and HOF index, respectively.
+        """
+        return self._iof_idx, self._hof_idx
+
+    def set_of_idxs(self, iof_idx=None, hof_idx=None):
+        """
+        Set current :any:`InfoOpaqueField` and :any:`HopOpaqueField` indexes.
+
+        :param int iof_idx:
+            IOF index to set, or ``None`` to use the first IOF index in the
+            path.
+        :param int hof_idx:
+            HOF index to set, or ``None`` to use the first HOF index in the
+            path.
+        """
+        self._iof_idx = iof_idx or self._get_first_iof_idx()
+        self._hof_idx = hof_idx or self._get_first_hof_idx()
+
+    def get_iof(self):
+        """
+        Get current :any:`InfoOpaqueField`.
+        """
+        if self._iof_idx is None:
+            return None
+        return self._get_of(self._iof_idx)
+
+    def get_hof(self):
+        """
+        Get current :any:`HopOpaqueField`.
+        """
+        if self._hof_idx is None:
+            return None
+        return self._get_of(self._hof_idx)
+
+    def inc_hof_idx(self):
+        """
+        Increment the current HOF index by 1.
+        """
+        self._hof_idx += 1
+
+    def next_segment(self):
+        """
+        Advance the IOF and HOF indexes to the next path segment.
+        """
+        iof_offset, hof_offset = self.SEGMENT_OFFSETS
+        self._iof_idx = self._hof_idx + iof_offset
+        self._hof_idx += hof_offset
+
+    def _get_of(self, idx):
+        """
+        Returns the :any:`OpaqueField` at the given index.
+        """
+        return self._ofs.get_by_idx(idx)
+
+    def _get_first_iof_idx(self):
+        """
+        Returns index of the first :any:`InfoOpaqueField` in the path.
+        """
+        if len(self._ofs):
+            return 0
+        return None
+
+    def _get_first_hof_idx(self):
         """
         Returns index of the first :any:`HopOpaqueField` in the path.
         """
         if self._ofs.get_by_label(UP_HOFS) or self._ofs.get_by_label(DOWN_HOFS):
             return 1
-        return 0
-
-    def get_first_hof(self):
-        """
-        Returns the first :any:`HopOpaqueField` in the path.
-        """
-        idx = self.get_first_hof_idx()
-        if idx:
-            return self.get_of(idx)
         return None
-
-    def get_first_iof_idx(self):
-        """
-        Returns index of the first :any:`InfoOpaqueField` in the path.
-        """
-        return 0
-
-    def get_first_iof(self):
-        """
-        Returns the first :any:`InfoOpaqueField` in the path.
-        """
-        return self.get_of(self.get_first_iof_idx())
-
-    def get_of(self, idx):
-        """
-        Returns the :any:`OpaqueField` at the given index.
-        """
-        return self._ofs.get_by_idx(idx)
 
     def get_ofs_by_label(self, label):
         """
@@ -155,28 +217,53 @@ class PathBase(object, metaclass=ABCMeta):
         """
         return self._ofs.get_by_label(label)
 
-    def of_count(self):
+    def get_hof_ver(self):
         """
-        Return the total number of :any:`OpaqueField`\s in the path.
+        Return the :any:`HopOpaqueField` needed to verify the current HOF.
         """
-        return len(self._ofs)
+        iof = self.get_iof()
+        if iof.up_flag:
+            return self._get_of(self._hof_idx + 1)
+        return self._get_of(self._hof_idx - 1)
 
-    def _set_ofs(self, label, value):
+    def get_fwd_if(self):
         """
-        Set an OF label to the given value.
+        Return the interface to forward the current packet to.
+        """
+        iof = self.get_iof()
+        hof = self.get_hof()
+        if iof.up_flag:
+            return hof.ingress_if
+        return hof.egress_if
 
-        :param str label: The OF label.
-        :param value:
-            Can be ``None``, a single :any:`OpaqueField`, or a list of
-            :any:`OpaqueField`\s.
+    def set_downpath(self):  # FIXME probably not needed
         """
-        if value is None:
-            data = []
-        elif isinstance(value, list):
-            data = value
+        Sets down path flag.
+        """
+        iof = self.get_iof()
+        if iof is not None:
+            iof.up_flag = False
+
+    def is_on_up_path(self):
+        """
+        Returns 'True' if the current opaque field should be interpreted as an
+        up-path opaque field and 'False' otherwise.
+
+        Currently this is indicated by a bit in the LSB of the 'type' field in
+        the common header.
+        """
+        iof = self.get_iof()
+        if iof is not None:
+            return iof.up_flag
         else:
-            data = [value]
-        self._ofs.set(label, data)
+            return True  # FIXME for now True for EmptyPath.
+
+    def is_last_path_hof(self):
+        """
+        Return ``True`` if the current opaque field is the last opaque field,
+        ``False`` otherwise.
+        """
+        return self._hof_idx == len(self) - 1
 
     @abstractmethod
     def get_ad_hops(self):
@@ -184,6 +271,12 @@ class PathBase(object, metaclass=ABCMeta):
         Return path length in AD hops.
         """
         raise NotImplementedError
+
+    def __len__(self):
+        """
+        Return the total number of :any:`OpaqueField`\s in the path.
+        """
+        return len(self._ofs)
 
     @abstractmethod
     def __str__(self):
@@ -201,46 +294,7 @@ class CorePath(PathBase):
     | info OF down-segment | hop OF 1 | ... | hop OF N
     """
     OF_ORDER = UP_IOF, UP_HOFS, CORE_IOF, CORE_HOFS, DOWN_IOF, DOWN_HOFS
-
-    def parse(self, raw):
-        """
-        Parse a raw :any:`CorePath`.
-        """
-        data = Raw(raw, "CorePath")
-        # Parse up-segment
-        count = self._parse_iof(data, UP_IOF)
-        self._parse_hofs(data, UP_HOFS, count)
-        # Parse core-segment
-        if len(data) > 0:
-            count = self._parse_iof(data, CORE_IOF)
-            self._parse_hofs(data, CORE_HOFS, count)
-        # Parse down-segment
-        if len(data) > 0:
-            count = self._parse_iof(data, DOWN_IOF)
-            self._parse_hofs(data, DOWN_HOFS, count)
-
-    def reverse(self):
-        """
-        Reverse the direction of the path.
-        """
-        super().reverse()
-        self._ofs.reverse_up_flag(CORE_IOF)
-        self._ofs.reverse_label(CORE_HOFS)
-
-    def get_ad_hops(self):
-        """
-        Get the path length in AD hops.
-        """
-        total = 0
-        active_segments = 0
-        for i in UP_HOFS, CORE_HOFS, DOWN_HOFS:
-            count = self._ofs.count(i)
-            total += count
-            if count:
-                active_segments += 1
-        if active_segments:
-            total -= active_segments - 1
-        return total
+    SEGMENT_OFFSETS = 1, 2
 
     @classmethod
     def from_values(cls, up_iof=None, up_hofs=None, core_iof=None,
@@ -262,11 +316,71 @@ class CorePath(PathBase):
         cp._set_ofs(CORE_HOFS, core_hofs)
         cp._set_ofs(DOWN_IOF, down_iof)
         cp._set_ofs(DOWN_HOFS, down_hofs)
+        cp.set_of_idxs()
         return cp
+
+    def parse(self, raw):
+        """
+        Parse a raw :any:`CorePath`.
+        """
+        data = Raw(raw, "CorePath")
+        # Parse up-segment
+        count = self._parse_iof(data, UP_IOF)
+        self._parse_hofs(data, UP_HOFS, count)
+        # Parse core-segment
+        if len(data) > 0:
+            count = self._parse_iof(data, CORE_IOF)
+            self._parse_hofs(data, CORE_HOFS, count)
+        # Parse down-segment
+        if len(data) > 0:
+            count = self._parse_iof(data, DOWN_IOF)
+            self._parse_hofs(data, DOWN_HOFS, count)
+        self.set_of_idxs()
+
+    def reverse(self):
+        """
+        Reverse the direction of the path.
+        """
+        super().reverse()
+        self._ofs.reverse_up_flag(CORE_IOF)
+        self._ofs.reverse_label(CORE_HOFS)
+
+    def get_hof_ver(self, ingress=True):
+        """
+        Return the :any:`HopOpaqueField` needed to verify the current HOF.
+        """
+        hof = self.get_hof()
+        if hof.info == OFT.NORMAL_OF:
+            return super().get_hof_ver()
+        iof = self.get_iof()
+        if not (ingress ^ iof.up_flag):
+            # Ingress and up, or egress and down
+            return None
+        elif ingress:
+            # Ingress and down
+            return self._get_of(self._hof_idx - 1)
+        else:
+            # Egress and up
+            return self._get_of(self._hof_idx + 1)
+
+    def get_ad_hops(self):
+        """
+        Get the path length in AD hops.
+        """
+        total = 0
+        active_segments = 0
+        for i in UP_HOFS, CORE_HOFS, DOWN_HOFS:
+            count = self._ofs.count(i)
+            total += count
+            if count:
+                active_segments += 1
+        if active_segments:
+            total -= active_segments - 1
+        return total
 
     def __str__(self):
         s = []
-        s.append("<Core-Path>:")
+        s.append("<Core-Path>")
 
         for name, iof_label, hofs_label in (
             ("Up", UP_IOF, UP_HOFS),
@@ -276,11 +390,11 @@ class CorePath(PathBase):
             iof = self._ofs.get_by_label(iof_label)
             if not iof:
                 continue
-            s.append("<%s-Segment>:" % name)
-            s.append(str(iof[0]))
+            s.append("  <%s-Segment>" % name)
+            s.append("    %s" % iof[0])
             for of in self._ofs.get_by_label(hofs_label):
-                s.append(str(of))
-            s.append("</%s-Segment>" % name)
+                s.append("    %s" % of)
+            s.append("  </%s-Segment>" % name)
         s.append("</Core-Path>")
         return "\n".join(s)
 
@@ -305,6 +419,7 @@ class CrossOverPath(PathBase):
     """
     OF_ORDER = (UP_IOF, UP_HOFS, UP_UPSTREAM_HOF,
                 DOWN_IOF, DOWN_UPSTREAM_HOF, DOWN_HOFS)
+    SEGMENT_OFFSETS = 2, 4
 
     @classmethod
     def from_values(cls, up_iof=None, up_hofs=None, up_upstream_hof=None,
@@ -326,6 +441,7 @@ class CrossOverPath(PathBase):
         cp._set_ofs(DOWN_IOF, down_iof)
         cp._set_ofs(DOWN_UPSTREAM_HOF, down_upstream_hof)
         cp._set_ofs(DOWN_HOFS, down_hofs)
+        cp.set_of_idxs()
         return cp
 
     def parse(self, raw):
@@ -341,6 +457,7 @@ class CrossOverPath(PathBase):
         count = self._parse_iof(data, DOWN_IOF)
         self._parse_hofs(data, DOWN_UPSTREAM_HOF)
         self._parse_hofs(data, DOWN_HOFS, count)
+        self.set_of_idxs()
 
     def reverse(self):
         """
@@ -351,7 +468,7 @@ class CrossOverPath(PathBase):
         # Reverse upstream AD fields.
         self._ofs.swap(UP_UPSTREAM_HOF, DOWN_UPSTREAM_HOF)
 
-    def get_first_hof_idx(self):
+    def _get_first_hof_idx(self):
         """
         Returns index of the first :any:`HopOpaqueField` in the path that's used
         for routing.
@@ -368,9 +485,9 @@ class CrossOverPath(PathBase):
             return 1
         elif self._ofs.count(DOWN_HOFS):
             return 1
-        return 0
+        return super()._get_first_hof_idx()
 
-    def get_first_iof_idx(self):
+    def _get_first_iof_idx(self):
         """
         Returns index of the first :any:`InfoOpaqueField` in the path, handling
         the on-path case.
@@ -380,7 +497,18 @@ class CrossOverPath(PathBase):
             # then return index of first InfoOpaqueField of down_segment.
             # UP_IOF + 1 UP_HOFS + UP_UPSTREAM_HOF = 3
             return 3
-        return 0
+        return super()._get_first_iof_idx()
+
+    def get_hof_ver(self, ingress=True):
+        hof = self.get_hof()
+        if hof.info == OFT.NORMAL_OF:
+            return super().get_hof_ver()
+        iof = self.get_iof()
+        ingress_up = {
+            (True, True): 1, (True, False): -1,
+            (False, False): -1,
+        }
+        return self._get_of(self._hof_idx + ingress_up[ingress, iof.up_flag])
 
     def get_ad_hops(self):
         """
@@ -389,18 +517,19 @@ class CrossOverPath(PathBase):
         return self._ofs.count(UP_HOFS) + self._ofs.count(DOWN_HOFS) - 1
 
     def __str__(self):
-        s = ["<CrossOver-Path>:", "<Up-Segment>:"]
-        s.append(str(self._ofs.get_by_label(UP_IOF, 0)))
-        for of in self._ofs.get_by_label(UP_HOFS):
-            s.append(str(of))
-        s.append("Upstream AD: %s" % self._ofs.get_by_label(UP_UPSTREAM_HOF, 0))
-        s.extend(["</Up-Segment>", "<Down-Segment>"])
-        s.append(str(self._ofs.get_by_label(DOWN_IOF, 0)))
-        s.append("Upstream AD: %s" %
+        s = ["<CrossOver-Path>", "  <Up-Segment>"]
+        s.append("    %s" % self._ofs.get_by_label(UP_IOF, 0))
+        for hof in self._ofs.get_by_label(UP_HOFS):
+            s.append("    %s" % str(hof))
+        s.append("    Upstream AD: %s" %
+                 self._ofs.get_by_label(UP_UPSTREAM_HOF, 0))
+        s.extend(["  </Up-Segment>", "  <Down-Segment>"])
+        s.append("    %s" % (self._ofs.get_by_label(DOWN_IOF, 0)))
+        s.append("    Upstream AD: %s" %
                  self._ofs.get_by_label(DOWN_UPSTREAM_HOF, 0))
-        for of in self._ofs.get_by_label(DOWN_HOFS):
-            s.append(str(of))
-        s.extend(["</Down-Segment>", "</CrossOver-Path>"])
+        for hof in self._ofs.get_by_label(DOWN_HOFS):
+            s.append("    %s" % str(hof))
+        s.extend(["  </Down-Segment>", "</CrossOver-Path>"])
         return "\n".join(s)
 
 
@@ -419,6 +548,7 @@ class PeerPath(PathBase):
     """
     OF_ORDER = (UP_IOF, UP_HOFS, UP_PEERING_HOF, UP_UPSTREAM_HOF,
                 DOWN_IOF, DOWN_UPSTREAM_HOF, DOWN_PEERING_HOF, DOWN_HOFS)
+    SEGMENT_OFFSETS = 2, 4
 
     @classmethod
     def from_values(cls, up_iof=None, up_hofs=None, up_peering_hof=None,
@@ -445,6 +575,7 @@ class PeerPath(PathBase):
         cp._set_ofs(DOWN_UPSTREAM_HOF, down_upstream_hof)
         cp._set_ofs(DOWN_PEERING_HOF, down_peering_hof)
         cp._set_ofs(DOWN_HOFS, down_hofs)
+        cp.set_of_idxs()
         return cp
 
     def parse(self, raw):
@@ -462,6 +593,7 @@ class PeerPath(PathBase):
         self._parse_hofs(data, DOWN_UPSTREAM_HOF)
         self._parse_hofs(data, DOWN_PEERING_HOF)
         self._parse_hofs(data, DOWN_HOFS, count)
+        self.set_of_idxs()
 
     def reverse(self):
         """
@@ -473,31 +605,18 @@ class PeerPath(PathBase):
         self._ofs.swap(UP_UPSTREAM_HOF, DOWN_UPSTREAM_HOF)
         self._ofs.swap(UP_PEERING_HOF, DOWN_PEERING_HOF)
 
-    def get_ad_hops(self):
-        """
-        Return path length in AD hops.
-        """
-        return self._ofs.count(UP_HOFS) + self._ofs.count(DOWN_HOFS) - 1
+    def get_hof_ver(self, ingress=True):
+        hof = self.get_hof()
+        if hof.info == OFT.NORMAL_OF:
+            return super().get_hof_ver()
+        iof = self.get_iof()
+        ingress_up = {
+            (True, True): 2, (True, False): 1,
+            (False, True): -1, (False, False): -2,
+        }
+        return self._get_of(self._hof_idx + ingress_up[ingress, iof.up_flag])
 
-    def __str__(self):
-        s = ["<Peer-Path>:", "<Up-Segment>:"]
-        s.append(str(self._ofs.get_by_label(UP_IOF, 0)))
-        for of in self._ofs.get_by_label(UP_HOFS):
-            s.append(str(of))
-        s.append("Peering link: %s" % self._ofs.get_by_label(UP_PEERING_HOF, 0))
-        s.append("Upstream AD: %s" % self._ofs.get_by_label(UP_UPSTREAM_HOF, 0))
-        s.extend(["</Up-Segment>", "<Down-Segment>"])
-        s.append(str(self._ofs.get_by_label(DOWN_IOF, 0)))
-        s.append("Upstream AD: %s" %
-                 self._ofs.get_by_label(DOWN_UPSTREAM_HOF, 0))
-        s.append("Peering link: %s" %
-                 self._ofs.get_by_label(DOWN_PEERING_HOF, 0))
-        for of in self._ofs.get_by_label(DOWN_HOFS):
-            s.append(str(of))
-        s.extend(["</Down-Segment>", "</Peer-Path>"])
-        return "\n".join(s)
-
-    def get_first_hof_idx(self):
+    def _get_first_hof_idx(self):
         """
         Returns index of the first :any:`HopOpaqueField` in the path that's used
         for routing.
@@ -506,11 +625,37 @@ class PeerPath(PathBase):
         if not hofs:
             hofs = self._ofs.get_by_label(DOWN_HOFS)
         if not hofs:
-            return 0
-        if hofs[0].info == OpaqueFieldType.XOVR_POINT:
+            return super()._get_first_hof_idx()
+        if hofs[0].info == OFT.XOVR_POINT:
             # Skip to peering link hof
             return 2
         return 1
+
+    def get_ad_hops(self):
+        """
+        Return path length in AD hops.
+        """
+        return self._ofs.count(UP_HOFS) + self._ofs.count(DOWN_HOFS) - 1
+
+    def __str__(self):
+        s = ["<Peer-Path>", "  <Up-Segment>"]
+        s.append("    %s" % self._ofs.get_by_label(UP_IOF, 0))
+        for hof in self._ofs.get_by_label(UP_HOFS):
+            s.append("    %s" % str(hof))
+        s.append("    Peering link: %s" %
+                 self._ofs.get_by_label(UP_PEERING_HOF, 0))
+        s.append("    Upstream AD: %s" %
+                 self._ofs.get_by_label(UP_UPSTREAM_HOF, 0))
+        s.extend(["  </Up-Segment>", "  <Down-Segment>"])
+        s.append("    %s" % self._ofs.get_by_label(DOWN_IOF, 0))
+        s.append("    Upstream AD: %s" %
+                 self._ofs.get_by_label(DOWN_UPSTREAM_HOF, 0))
+        s.append("    Peering link: %s" %
+                 self._ofs.get_by_label(DOWN_PEERING_HOF, 0))
+        for hof in self._ofs.get_by_label(DOWN_HOFS):
+            s.append("    %s" % str(hof))
+        s.extend(["  </Down-Segment>", "</Peer-Path>"])
+        return "\n".join(s)
 
 
 class EmptyPath(PathBase):  # pragma: no cover
@@ -521,6 +666,7 @@ class EmptyPath(PathBase):  # pragma: no cover
     SCION path but still uses SCION packets for communication.
     """
     OF_ORDER = []
+    SEGMENT_OFFSETS = 0, 0
 
     def from_values(self, *args, **kwargs):
         raise NotImplementedError
@@ -531,8 +677,11 @@ class EmptyPath(PathBase):  # pragma: no cover
     def reverse(self):
         pass
 
-    def get_first_hof_idx(self):
-        return 0
+    def _get_first_iof_idx(self):
+        return None
+
+    def _get_first_hof_idx(self):
+        return None
 
     def get_ad_hops(self):
         return 0  # PSz: or 1?
@@ -667,7 +816,7 @@ class PathCombinator(object):
         iof.up_flag = up
         hofs = cls._copy_hofs(segment.ads, reverse=up)
         for xovr in xovrs:
-            hofs[xovr].info = OpaqueFieldType.XOVR_POINT
+            hofs[xovr].info = OFT.XOVR_POINT
         return iof, hofs
 
     @classmethod
@@ -727,16 +876,16 @@ class PathCombinator(object):
 
         if not peer:
             # It's a cross-over path.
-            up_iof.info = down_iof.info = OpaqueFieldType.SHORTCUT
+            up_iof.info = down_iof.info = OFT.SHORTCUT
             return CrossOverPath.from_values(
                 up_iof, up_hofs, up_upstream_hof, down_iof, down_upstream_hof,
                 down_hofs)
 
         # It's a peer path.
         if up_segment.get_isd() == down_segment.get_isd():
-            up_iof.info = down_iof.info = OpaqueFieldType.INTRA_ISD_PEER
+            up_iof.info = down_iof.info = OFT.INTRA_ISD_PEER
         else:
-            up_iof.info = down_iof.info = OpaqueFieldType.INTER_ISD_PEER
+            up_iof.info = down_iof.info = OFT.INTER_ISD_PEER
 
         up_peering_hof, down_peering_hof = cls._join_shortcuts_peer(
             up_segment.ads[up_index], down_segment.ads[down_index])
@@ -807,10 +956,10 @@ class PathCombinator(object):
         ads = segment.ads[index:]
         hofs = cls._copy_hofs(ads, reverse=up)
         xovr_idx = -1 if up else 0
-        hofs[xovr_idx].info = OpaqueFieldType.XOVR_POINT
+        hofs[xovr_idx].info = OFT.XOVR_POINT
         # Extract upstream HOF
         upstream_hof = copy.deepcopy(segment.ads[index - 1].pcbm.hof)
-        upstream_hof.info = OpaqueFieldType.NORMAL_OF
+        upstream_hof.info = OFT.NORMAL_OF
         return iof, hofs, upstream_hof
 
     @classmethod
