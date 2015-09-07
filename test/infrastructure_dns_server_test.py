@@ -256,8 +256,8 @@ class TestSCIONDnsServerSetup(BaseDNSServer):
         server = SCIONDnsServer("srvid", "domain", "topofile")
         server.lock = "lock"
         server.domain = "domain"
-        server._addr = create_mock(["host_addr"])
-        server._addr.host_addr = "127.0.0.1"
+        server.addr = create_mock(["host_addr"])
+        server.addr.host_addr = "127.0.0.1"
         server.id = "srvid"
         server.topology = create_mock(["isd_id", "ad_id", "zookeepers"])
         server.topology.isd_id = 30

@@ -548,7 +548,7 @@ class PathConstructionBeacon(SCIONPacket):
 
     def parse(self, raw):
         SCIONPacket.parse(self, raw)
-        self.pcb = PathSegment(self.payload)
+        self.pcb = PathSegment(self._payload)
 
     @classmethod
     def from_values(cls, src_isd_ad, dst, pcb):
@@ -567,5 +567,5 @@ class PathConstructionBeacon(SCIONPacket):
         return beacon
 
     def pack(self):
-        self.payload = self.pcb.pack()
+        self.set_payload(self.pcb.pack())
         return SCIONPacket.pack(self)

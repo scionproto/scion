@@ -894,7 +894,7 @@ class TestPathConstructionBeaconParse(object):
         path_segment.return_value = 'path_seg'
         pcb.parse('data')
         parse.assert_called_once_with(pcb, 'data')
-        path_segment.assert_called_once_with(pcb.payload)
+        path_segment.assert_called_once_with(pcb._payload)
         ntools.eq_(pcb.pcb, 'path_seg')
 
 

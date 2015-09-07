@@ -123,7 +123,7 @@ class Ping(object):
     def recv(self):
         packet = self.sock.recv()[0]
         pong = b"pong " + self.token
-        payload = SCIONPacket(packet).payload
+        payload = SCIONPacket(packet).get_payload()
         if payload == pong:
             logging.info('%s: pong received.', saddr)
             self.pong_received = True
@@ -152,12 +152,12 @@ class Pong(object):
         packet = self.sock.recv()[0]
         spkt = SCIONPacket(packet)
         ping = b"ping " + self.token
-        if spkt.payload == ping:
+        if spkt.get_payload() == ping:
             # Reverse the packet and send "pong".
             logging.info('%s: ping received, sending pong.', raddr)
             self.ping_received = True
             spkt.hdr.reverse()
-            spkt.payload = b"pong " + self.token
+            spkt.set_payload(b"pong " + self.token)
             (next_hop, port) = self.sd.get_first_hop(spkt)
             self.sd.send(spkt, next_hop, port)
         self.sock.close()

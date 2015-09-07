@@ -101,37 +101,6 @@ class SCIONElement(object):
             logging.info("%s: bound %s:%u", self.id, self.addr.host_addr,
                          SCION_UDP_PORT)
 
-    @property
-    def addr(self):
-        """
-        The address of the server as a :class:`lib.packet.scion_addr.SCIONAddr`
-        object.
-
-        :returns:
-        :type:
-        """
-        return self._addr
-
-    @addr.setter
-    def addr(self, addr):
-        """
-        Set the address of the server. Must be a
-        :class:`lib.packet.scion_addr.SCIONAddr` object.
-
-        :param addr: the new server address.
-        :type addr: :class:`lib.packet.scion_addr.SCIONAddr`
-        """
-        self.set_addr(addr)
-
-    def set_addr(self, addr):
-        """
-        Set the address of the server. Must be a lib.SCIONAddr object
-        """
-        if not (isinstance(addr, SCIONAddr) or addr is None):
-            raise TypeError("Addr must be of type 'SCIONAddr'")
-        else:
-            self._addr = addr
-
     def parse_topology(self, topo_file):
         """
         Instantiate a Topology object given 'topo_file'.
@@ -185,7 +154,7 @@ class SCIONElement(object):
         :returns:
         :rtype:
         """
-        opaque_field = spkt.hdr.path.get_first_hop_of()
+        opaque_field = spkt.hdr.get_path().get_first_hop_of()
         if opaque_field is None:  # EmptyPath
             return (spkt.hdr.dst_addr.host_addr, SCION_UDP_PORT)
         else:
