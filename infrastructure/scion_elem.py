@@ -17,10 +17,8 @@
 """
 # Stdlib
 import logging
-import select
-import socket
+import queue
 import threading
-from random import shuffle
 
 # SCION
 from lib.config import Config
@@ -31,12 +29,12 @@ from lib.defines import (
     PATH_SERVICE,
     SERVICE_TYPES,
 )
-from lib.defines import SCION_BUFLEN, SCION_UDP_PORT
-from lib.dnsclient import DNSCachingClient, DNSLibMajorError, DNSLibMinorError
+from lib.defines import SCION_UDP_PORT
+from lib.dnsclient import DNSCachingClient
 from lib.errors import SCIONServiceLookupError
-from lib.log import log_exception
 from lib.packet.scion_addr import SCIONAddr
-from lib.thread import kill_self
+from lib.socket import UDPSocket, UDPSocketMgr
+from lib.thread import thread_safety_net
 from lib.topology import Topology
 
 
@@ -93,12 +91,13 @@ class SCIONElement(object):
             self.run_flag = threading.Event()
             self.stopped_flag = threading.Event()
             self.stopped_flag.set()
-            self._local_socket = socket.socket(socket.AF_INET,
-                                               socket.SOCK_DGRAM)
-            self._local_socket.setsockopt(socket.SOL_SOCKET,
-                                          socket.SO_REUSEADDR, 1)
-            self._local_socket.bind((str(self.addr.host_addr), SCION_UDP_PORT))
-            self._sockets = [self._local_socket]
+            self._in_buf = queue.Queue()
+            self._socks = UDPSocketMgr()
+            self._local_sock = UDPSocket(
+                bind=(str(self.addr.host_addr), SCION_UDP_PORT),
+                addr_type=self.addr.host_addr.TYPE,
+            )
+            self._socks.add(self._local_sock)
             logging.info("%s: bound %s:%u", self.id, self.addr.host_addr,
                          SCION_UDP_PORT)
 
@@ -208,12 +207,7 @@ class SCIONElement(object):
         :param dst_port: the destination port number.
         :type dst_port: int
         """
-        try:
-            self._local_socket.sendto(packet.pack(), (str(dst), dst_port))
-        except socket.gaierror:
-            log_exception("Addressing error when trying to send to %s:%s :" %
-                          (dst, dst_port))
-            kill_self()
+        self._local_sock.send(packet.pack(), (str(dst), dst_port))
 
     def run(self):
         """
@@ -222,12 +216,37 @@ class SCIONElement(object):
         """
         self.stopped_flag.clear()
         self.run_flag.set()
+        threading.Thread(
+            target=thread_safety_net, args=(self.packet_recv,),
+            name="Elem.packet_recv", daemon=True).start()
+
+        self._packet_process()
+
+    def packet_recv(self):
+        """
+        Read packets from sockets, and put them into a :class:`queue.Queue`.
+        """
         while self.run_flag.is_set():
-            recvlist, _, _ = select.select(self._sockets, [], [])
-            for sock in recvlist:
-                packet, addr = sock.recvfrom(SCION_BUFLEN)
-                self.handle_request(packet, addr, sock == self._local_socket)
+            for sock in self._socks.select_(timeout=1.0):
+                while True:
+                    try:
+                        # Read from socket until its buffer is empty.
+                        packet, addr = sock.recv(block=False)
+                        self._in_buf.put((packet, addr,
+                                          sock == self._local_sock))
+                    except BlockingIOError:
+                        break
         self.stopped_flag.set()
+
+    def _packet_process(self):
+        """
+        Read packets from a :class:`queue.Queue`, and process them.
+        """
+        while self.run_flag.is_set():
+            try:
+                self.handle_request(*self._in_buf.get(timeout=1.0))
+            except queue.Empty:
+                continue
 
     def stop(self):
         """
@@ -237,14 +256,7 @@ class SCIONElement(object):
         self.run_flag.clear()
         # Wait for the thread to finish
         self.stopped_flag.wait()
-        self.clean()
-
-    def clean(self):
-        """
-        Close open sockets.
-        """
-        for s in self._sockets:
-            s.close()
+        self._socks.close()
 
     def dns_query_topo(self, qname):
         """
@@ -260,24 +272,10 @@ class SCIONElement(object):
             DNS_SERVICE: self.topology.dns_servers,
             PATH_SERVICE: self.topology.path_servers,
         }
-
-        results = None
-        try:
-            results = self._dns.query(qname)
-        except DNSLibMinorError as e:
-            logging.warning("Falling back to static values: %s", e)
-        except DNSLibMajorError as e:
-            log_exception("Falling back to static values:", level=logging.ERROR)
-        # If we have results, return them now.
-        if results:
-            return results
-        if results == []:
-            logging.warning("No DNS results found, "
-                            "falling back to static values")
-        # Generate results from local topology
-        results = [srv.addr for srv in service_map[qname]]
+        # Generate fallback from local topology
+        fallback = [srv.addr for srv in service_map[qname]]
+        results = self._dns.query(qname, fallback)
         if not results:
             # No results from local toplogy either
             raise SCIONServiceLookupError("No %s servers found" % qname)
-        shuffle(results)
         return results

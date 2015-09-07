@@ -299,7 +299,9 @@ class SCIONDnsServer(SCIONElement):
         # Clear existing state
         self.services = {}
 
-        if not self.zk.wait_connected(timeout=10.0):
+        try:
+            self.zk.wait_connected(timeout=10.0)
+        except ZkConnectionLoss:
             logging.warning("No connection to Zookeeper, can't update services")
             return
 

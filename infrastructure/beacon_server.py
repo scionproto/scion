@@ -89,7 +89,7 @@ from lib.util import (
     write_file,
     SCIONTime,
 )
-from lib.zookeeper import ZkConnectionLoss, Zookeeper
+from lib.zookeeper import ZkConnectionLoss, ZkSharedCache, Zookeeper
 
 
 class InterfaceState(object):
@@ -226,10 +226,11 @@ class BeaconServer(SCIONElement):
                                     str(self.addr.host_addr)])
             self.zk = Zookeeper(
                 self.topology.isd_id, self.topology.ad_id, BEACON_SERVICE,
-                name_addrs, self.topology.zookeepers,
-                handle_paths=[(self.ZK_PCB_CACHE_PATH, self.process_pcbs)]
-            )
+                name_addrs, self.topology.zookeepers)
             self.zk.retry("Joining party", self.zk.party_setup)
+            self.pcb_cache = ZkSharedCache(
+                self.zk, self.ZK_PCB_CACHE_PATH, self.process_pcbs,
+                self.config.propagation_time)
 
     def _get_if_rev_token(self, if_id):
         """
@@ -321,14 +322,11 @@ class BeaconServer(SCIONElement):
             return
         hops_hash = beacon.pcb.get_hops_hash(hex=True)
         try:
-            self.zk.store_shared_item(
-                self.ZK_PCB_CACHE_PATH,
-                hops_hash, beacon.pcb.pack())
+            self.pcb_cache.store(hops_hash, beacon.pcb.pack())
         except ZkConnectionLoss:
-            logging.warning("Unable to store PCB in shared path: "
-                            "no connection to ZK")
+            logging.debug("Unable to store PCB in shared cache: "
+                          "no connection to ZK")
             self.process_pcbs([beacon.pcb.pack()])  # FIXME(PSz): testing
-            return
 
     def process_pcbs(self, pcbs):
         """
@@ -455,42 +453,27 @@ class BeaconServer(SCIONElement):
         propagating PCBS/registering paths when master.
         """
         last_propagation = last_registration = 0
-        worker_cycle = 0.5
+        worker_cycle = 1.0
+        start = SCIONTime.get_time()
         while True:
-            if not self.zk.wait_connected():
-                continue
+            sleep_interval(start, worker_cycle, "BS.worker cycle")
             start = SCIONTime.get_time()
-            # Read shared PCBs from ZK
-            if not self.zk.run_shared_cache_handling():
-                continue
-            if not self.zk.get_lock(lock_timeout=0, conn_timeout=0):
+            try:
+                self.zk.wait_connected()
+                self.pcb_cache.process()
+                if not self.zk.get_lock(lock_timeout=0, conn_timeout=0):
+                    continue
+                self.pcb_cache.expire(self.config.propagation_time * 10)
+            except ZkConnectionLoss:
                 continue
             now = SCIONTime.get_time()
             if now - last_propagation >= self.config.propagation_time:
                 self.handle_pcbs_propagation()
                 last_propagation = now
-            if not self._expire_shared_pcbs():
-                continue
             if (self.config.registers_paths and
                     now - last_registration >= self.config.registration_time):
                 self.register_segments()
                 last_registration = now
-            sleep_interval(start, worker_cycle, "BS.worker cycle")
-
-    def _expire_shared_pcbs(self):
-        """
-        Remove old PCBs from shared cache
-        """
-        exp_count = None
-        try:
-            exp_count = self.zk.expire_shared_items(
-                self.ZK_PCB_CACHE_PATH,
-                SCIONTime.get_time() - self.config.propagation_time * 10)
-        except ZkConnectionLoss:
-            return False
-        if exp_count:
-            logging.debug("Expired %d old PCBs from shared cache", exp_count)
-        return True
 
     def _try_to_verify_beacon(self, pcb):
         """

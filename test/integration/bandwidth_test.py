@@ -18,21 +18,26 @@
 # Stdlib
 import logging
 import socket
+import sys
 import threading
 import time
 import unittest
-from ipaddress import IPv4Address
 
 # SCION
 from endhost.sciond import SCIONDaemon
-from lib.defines import SCION_BUFLEN, SCION_UDP_EH_DATA_PORT
+from lib.defines import ADDR_IPV4_TYPE, SCION_UDP_EH_DATA_PORT
+from lib.log import init_logging, log_exception
+from lib.packet.host_addr import haddr_parse
 from lib.packet.scion import SCIONPacket
 from lib.packet.scion_addr import SCIONAddr
+from lib.socket import UDPSocket
+from lib.thread import thread_safety_net
+from lib.util import handle_signals
 
 PACKETS_NO = 1000
 PAYLOAD_SIZE = 1300
 # Time interval between transmission of two consecutive packets
-SLEEP = 0.000005
+SLEEP = 0.0001
 
 
 class TestBandwidth(unittest.TestCase):
@@ -40,61 +45,86 @@ class TestBandwidth(unittest.TestCase):
     Bandwidth testing. For this test a infrastructure must be running.
     """
 
-    def receiver(self):
+    def receiver(self, rcv_sock):
         """
         Receives the packet sent by test() method.
         Measures goodput and packets loss ratio.
         """
-        rcv_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        rcv_sock.bind((str("127.2.26.254"), SCION_UDP_EH_DATA_PORT))
-        rcv_sock.settimeout(1)
-
         i = 0
-        try:
-            packet, _ = rcv_sock.recvfrom(SCION_BUFLEN)
+        start = None
+        timeout = 1
+        while i < PACKETS_NO:
+            try:
+                packet, _ = rcv_sock.recv()
+            except socket.timeout:
+                logging.error("Timed out after %d packets", i)
+                # Account for the timeout interval itself
+                start += timeout
+                break
+            if i == 0:
+                # Allows us to wait as long as necessary for the first packet,
+                # and then have timeouts for later packets.
+                rcv_sock.sock.settimeout(timeout)
+                start = time.time()
             i += 1
-            start = time.time()
-            while i < PACKETS_NO:
-                packet, _ = rcv_sock.recvfrom(SCION_BUFLEN)
-                i += 1
-            duration = time.time() - start
-        except socket.timeout:
-            duration = time.time() - start - 1  # minus timeout
-            print("Timeouted - there are lost packets")
+        duration = time.time() - start
 
-        print("Goodput %.2fKBps, loss %.2f\n" %
-              ((i*PAYLOAD_SIZE)/duration/1000,
-               100*float(PACKETS_NO-i)/PACKETS_NO))
+        lost = PACKETS_NO - i
+        self.rate = 100*(lost/PACKETS_NO)
+        logging.info("Goodput: %.2fKBps Pkts received: %d Pkts lost: %d "
+                     "Loss rate: %.2f%%" %
+                     ((i*PAYLOAD_SIZE)/duration/1000, i, lost, self.rate))
 
     def test(self):
         """
         Bandwidth test method. Obtains a path to (2, 26) and sends PACKETS_NO
         packets (each with PAYLOAD_SIZE long payload) to a host in (2, 26).
         """
-        addr = IPv4Address("127.1.19.254")
+        addr = haddr_parse("IPv4", "127.1.19.254")
         topo_file = "../../topology/ISD1/topologies/ISD:1-AD:19.json"
         sender = SCIONDaemon.start(addr, topo_file)
 
-        print("Sending PATH request for (2, 26) in 3 seconds.")
-        time.sleep(3)
         paths = sender.get_paths(2, 26)
         self.assertTrue(paths)
 
-        print("Starting the receiver.")
-        threading.Thread(target=self.receiver).start()
+        rcv_sock = UDPSocket(
+            bind=(str("127.2.26.254"), SCION_UDP_EH_DATA_PORT),
+            addr_type=ADDR_IPV4_TYPE,
+        )
+
+        logging.info("Starting the receiver.")
+        recv_t = threading.Thread(
+            target=thread_safety_net, args=(self.receiver, rcv_sock),
+            name="BwT.receiver")
+        recv_t.start()
 
         payload = b"A" * PAYLOAD_SIZE
-        dst = SCIONAddr.from_values(2, 26, IPv4Address("127.2.26.254"))
+        dst = SCIONAddr.from_values(2, 26, haddr_parse("IPv4", "127.2.26.254"))
         spkt = SCIONPacket.from_values(sender.addr, dst, payload, paths[0])
         (next_hop, port) = sender.get_first_hop(spkt)
-        print("Sending %d payload bytes (%d packets x %d bytes )\n" %
-              (PACKETS_NO * PAYLOAD_SIZE, PACKETS_NO, PAYLOAD_SIZE))
+        logging.info("Sending %d payload bytes (%d packets x %d bytes )" %
+                     (PACKETS_NO * PAYLOAD_SIZE, PACKETS_NO, PAYLOAD_SIZE))
         for _ in range(PACKETS_NO):
             sender.send(spkt, next_hop, port)
             time.sleep(SLEEP)
-        print("Sending finished")
+        logging.info("Sending finished")
+
+        recv_t.join()
+        if self.rate < 10.0:
+            sys.exit(0)
+        else:
+            sys.exit(int(self.rate))
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
-    unittest.main()
+    init_logging("../../logs/bw_test.log", console=True)
+    handle_signals()
+    try:
+        TestBandwidth().test()
+    except SystemExit:
+        logging.info("Exiting")
+        raise
+    except:
+        log_exception("Exception in main process:")
+        logging.critical("Exiting")
+        sys.exit(1)
