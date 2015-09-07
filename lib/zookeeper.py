@@ -552,7 +552,6 @@ class ZkSharedCache(object):
         curr_epoch = self._zk.conn_epoch
         if self._epoch != curr_epoch:
             # Make sure we re-read the entire cache
-            self._epoch = self.zk.conn_epoch
             self._latest_entry = 0
             self._epoch = curr_epoch
         updated = self._find_updated()
