@@ -10,6 +10,7 @@
         "level": "CORE",
         "beacon_servers": 1,
         "certificate_servers": 1,
+        "path_servers": 5,
         "links": {
             "1-12": "ROUTING",
             "1-13": "ROUTING",
@@ -19,6 +20,7 @@
     },
     "1-12": {
         "level": "CORE",
+        "path_servers": 5,
         "links": {
             "1-11": "ROUTING",
             "1-13": "ROUTING",
@@ -28,6 +30,7 @@
     },
     "1-13": {
         "level": "CORE",
+        "path_servers": 5,
         "beacon_servers": 2,
         "dns_servers": 2,
         "links": {
@@ -77,6 +80,7 @@
     "1-18": {
         "level": "LEAF",
         "cert_issuer": "1-15",
+        "path_servers": 3,
         "links": {
             "1-15": "PARENT"
         }
@@ -99,6 +103,7 @@
     },
     "2-21": {
         "level": "CORE",
+        "path_servers": 5,
         "links": {
             "1-11": "ROUTING",
             "2-22": "ROUTING",
@@ -107,6 +112,7 @@
     },
     "2-22": {
         "level": "CORE",
+        "path_servers": 5,
         "links": {
             "1-12": "ROUTING",
             "2-21": "ROUTING",
