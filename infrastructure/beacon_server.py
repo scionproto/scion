@@ -90,7 +90,7 @@ from lib.util import (
     write_file,
     SCIONTime,
 )
-from lib.zookeeper import ZkConnectionLoss, ZkSharedCache, Zookeeper
+from lib.zookeeper import ZkNoConnection, ZkSharedCache, Zookeeper
 
 
 class InterfaceState(object):
@@ -325,7 +325,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         hops_hash = beacon.pcb.get_hops_hash(hex=True)
         try:
             self.pcb_cache.store(hops_hash, beacon.pcb.pack())
-        except ZkConnectionLoss:
+        except ZkNoConnection:
             logging.debug("Unable to store PCB in shared cache: "
                           "no connection to ZK")
 
@@ -467,7 +467,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 if not self.zk.get_lock(lock_timeout=0, conn_timeout=0):
                     continue
                 self.pcb_cache.expire(self.config.propagation_time * 10)
-            except ZkConnectionLoss:
+            except ZkNoConnection:
                 continue
             now = SCIONTime.get_time()
             if now - last_propagation >= self.config.propagation_time:

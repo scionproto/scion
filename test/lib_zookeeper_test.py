@@ -35,7 +35,7 @@ from kazoo.handlers.threading import KazooTimeoutError
 # SCION
 from lib.thread import thread_safety_net
 from lib.zookeeper import (
-    ZkConnectionLoss,
+    ZkNoConnection,
     ZkNoNodeError,
     ZkParty,
     ZkRetryLimit,
@@ -292,7 +292,7 @@ class TestZookeeperStateConnected(BaseZookeeper):
     @patch("lib.zookeeper.Zookeeper.__init__", autospec=True, return_value=None)
     def test_connloss(self, init):
         inst = self._setup()
-        inst.ensure_path.side_effect = ZkConnectionLoss
+        inst.ensure_path.side_effect = ZkNoConnection
         # Call
         inst._state_connected()
         # Tests
@@ -412,7 +412,7 @@ class TestZookeeperWaitConnected(BaseZookeeper):
         inst._connected = create_mock(["wait"])
         inst._connected.wait.side_effect = [False, False]
         # Call
-        ntools.assert_raises(ZkConnectionLoss, inst.wait_connected, timeout=15)
+        ntools.assert_raises(ZkNoConnection, inst.wait_connected, timeout=15)
         # Tests
         ntools.eq_(inst._connected.wait.call_count, 2)
 
@@ -451,7 +451,7 @@ class TestZookeeperEnsurePath(BaseZookeeper):
         inst = self._setup()
         inst.kazoo.ensure_path.side_effect = excp
         # Call
-        ntools.assert_raises(ZkConnectionLoss, inst.ensure_path, "asdwaf")
+        ntools.assert_raises(ZkNoConnection, inst.ensure_path, "asdwaf")
 
     def test_errors(self):
         for excp in ConnectionLoss, SessionExpiredError:
@@ -477,7 +477,7 @@ class TestZookeeperPartySetup(BaseZookeeper):
     def test_not_connected(self, init):
         inst = self._setup(connected=False)
         # Call
-        ntools.assert_raises(ZkConnectionLoss, inst.party_setup)
+        ntools.assert_raises(ZkNoConnection, inst.party_setup)
         # Tests
         inst.is_connected.assert_called_once_with()
 
@@ -564,7 +564,7 @@ class TestZookeeperGetLock(BaseZookeeper):
         inst = self._setup()
         inst._zk_lock.acquire.side_effect = excp
         # Call
-        ntools.assert_raises(ZkConnectionLoss, inst.get_lock)
+        ntools.assert_raises(ZkNoConnection, inst.get_lock)
         # Tests
         inst._zk_lock.acquire.assert_called_once_with(timeout=None)
 
@@ -711,7 +711,7 @@ class TestZookeeperRetry(BaseZookeeper):
     def test_no_conn(self, init):
         inst = self._init_basic_setup()
         inst.wait_connected = create_mock()
-        inst.wait_connected.side_effect = ZkConnectionLoss
+        inst.wait_connected.side_effect = ZkNoConnection
         f = create_mock()
         # Call
         ntools.assert_raises(ZkRetryLimit, inst.retry, "desc", f)
@@ -724,7 +724,7 @@ class TestZookeeperRetry(BaseZookeeper):
     def test_no_retries(self, init):
         inst = self._init_basic_setup()
         inst.wait_connected = create_mock()
-        inst.wait_connected.side_effect = ZkConnectionLoss
+        inst.wait_connected.side_effect = ZkNoConnection
         # Call
         ntools.assert_raises(ZkRetryLimit, inst.retry, "desc", "f",
                              _retries=0)
@@ -735,7 +735,7 @@ class TestZookeeperRetry(BaseZookeeper):
     def test_inf_retries(self, init):
         inst = self._init_basic_setup()
         inst.wait_connected = create_mock()
-        inst.wait_connected.side_effect = [ZkConnectionLoss] * 20
+        inst.wait_connected.side_effect = [ZkNoConnection] * 20
         f = create_mock()
         # Call
         ntools.assert_raises(StopIteration, inst.retry, "desc", f,
@@ -750,7 +750,7 @@ class TestZookeeperRetry(BaseZookeeper):
         inst.wait_connected = create_mock()
         inst.wait_connected.return_value = True
         f = create_mock()
-        f.side_effect = [ZkConnectionLoss, "success"]
+        f.side_effect = [ZkNoConnection, "success"]
         # Call
         ntools.eq_(inst.retry("desc", f), "success")
         # Tests
@@ -779,7 +779,7 @@ class TestZkPartyInit(object):
         zk = create_mock(["Party"])
         zk.Party.side_effect = excp
         # Call
-        ntools.assert_raises(ZkConnectionLoss, ZkParty, zk, "path",
+        ntools.assert_raises(ZkNoConnection, ZkParty, zk, "path",
                              "id", True)
 
     def test_error(self):
@@ -807,7 +807,7 @@ class TestZkPartyJoin(object):
         p._party = create_mock(["join"])
         p._party.join.side_effect = excp
         # Call
-        ntools.assert_raises(ZkConnectionLoss, p.join)
+        ntools.assert_raises(ZkNoConnection, p.join)
 
     def test_error(self):
         for excp in ConnectionLoss, SessionExpiredError:
@@ -861,7 +861,7 @@ class TestZkPartyList(object):
         p._party = create_mock(["__iter__"])
         p._party.__iter__.side_effect = excp
         # Call
-        ntools.assert_raises(ZkConnectionLoss, p.list)
+        ntools.assert_raises(ZkNoConnection, p.list)
 
     def test_error(self):
         for excp in ConnectionLoss, SessionExpiredError:
@@ -909,7 +909,7 @@ class TestZkSharedCacheStore(object):
         inst = self._setup()
         inst._zk.is_connected.return_value = False
         # Call
-        ntools.assert_raises(ZkConnectionLoss, inst.store, 'n', 'v')
+        ntools.assert_raises(ZkNoConnection, inst.store, 'n', 'v')
         # Tests
         inst._zk.is_connected.assert_called_once_with()
 
@@ -955,7 +955,7 @@ class TestZkSharedCacheProcess(object):
         inst._zk = create_mock(["is_connected"])
         inst._zk.is_connected.return_value = False
         # Call
-        ntools.assert_raises(ZkConnectionLoss, inst.process)
+        ntools.assert_raises(ZkNoConnection, inst.process)
         # Tests
         inst._zk.is_connected.assert_called_once_with()
 
@@ -1038,8 +1038,8 @@ class TestZkSharedCacheGet(object):
 
     def test_exceptions(self):
         for excp, expected in (
-            (ConnectionLoss, ZkConnectionLoss),
-            (SessionExpiredError, ZkConnectionLoss),
+            (ConnectionLoss, ZkNoConnection),
+            (SessionExpiredError, ZkNoConnection),
         ):
             yield self._check_exception, excp, expected
 
@@ -1086,8 +1086,8 @@ class TestZkSharedCacheStat(object):
 
     def test_exceptions(self):
         for excp, expected in (
-            (ConnectionLoss, ZkConnectionLoss),
-            (SessionExpiredError, ZkConnectionLoss),
+            (ConnectionLoss, ZkNoConnection),
+            (SessionExpiredError, ZkNoConnection),
         ):
             yield self._check_exception, excp, expected
 
@@ -1138,8 +1138,8 @@ class TestZkSharedCacheListMetadata(object):
 
     def test_children_exceptions(self):
         for excp, expected in (
-            (ConnectionLoss, ZkConnectionLoss),
-            (SessionExpiredError, ZkConnectionLoss),
+            (ConnectionLoss, ZkNoConnection),
+            (SessionExpiredError, ZkNoConnection),
         ):
             yield self._check_children_exception, excp, expected
 
@@ -1177,7 +1177,7 @@ class TestZkSharedCacheHandleEntries(object):
         entry_names = ["entry0", "entry1", "entry2", "entry3"]
         inst._get = create_mock()
         inst._get.side_effect = [
-            "data0", ZkNoNodeError, "data2", ZkConnectionLoss
+            "data0", ZkNoNodeError, "data2", ZkNoConnection
         ]
         inst._path = "/path"
         inst._handler = create_mock()
@@ -1200,7 +1200,7 @@ class TestZkSharedCacheExpire(object):
         inst._zk = create_mock(["is_connected"])
         inst._zk.is_connected.return_value = False
         # Call
-        ntools.assert_raises(ZkConnectionLoss, inst.expire, 42)
+        ntools.assert_raises(ZkNoConnection, inst.expire, 42)
         # Tests
         inst._zk.is_connected.assert_called_once_with()
 
@@ -1253,8 +1253,8 @@ class TestZkSharedCacheExpire(object):
     def test_exceptions(self):
         for excp, expected in (
             (NoNodeError, ZkNoNodeError),
-            (ConnectionLoss, ZkConnectionLoss),
-            (SessionExpiredError, ZkConnectionLoss),
+            (ConnectionLoss, ZkNoConnection),
+            (SessionExpiredError, ZkNoConnection),
         ):
             yield self._check_exception, excp, expected
 

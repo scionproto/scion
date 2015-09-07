@@ -82,16 +82,16 @@ class HostAddrBase(object, metaclass=ABCMeta):
             self.addr = addr
 
     @abstractmethod
-    def _parse(self, raw):  # pragma: no cover
-        raise NotImplemented
+    def _parse(self, raw):
+        raise NotImplementedError
 
     @abstractmethod
-    def pack(self):  # pragma: no cover
+    def pack(self):
         """
         :return: a packed representation of the host address
         :rtype: bytes
         """
-        raise NotImplemented
+        raise NotImplementedError
 
     def __str__(self):
         return str(self.addr)
@@ -214,7 +214,8 @@ def haddr_get_type(type_):
     try:
         return _map[type_]
     except KeyError:
-        raise HostAddrInvalidType("Unknown host addr type '%s'" % type_)
+        raise HostAddrInvalidType("Unknown host addr type '%s'" % type_) \
+            from None
 
 
 def haddr_parse(type_, *args, **kwargs):

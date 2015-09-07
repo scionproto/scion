@@ -37,7 +37,7 @@ from lib.defines import (
     PATH_SERVICE,
     SCION_DNS_PORT,
 )
-from lib.zookeeper import ZkConnectionLoss
+from lib.zookeeper import ZkNoConnection
 from test.testcommon import create_mock
 
 
@@ -355,7 +355,7 @@ class TestSCIONDnsSyncZkState(BaseDNSServer):
         # Setup
         server = SCIONDnsServer("srvid", "domain", "topofile")
         server.zk = create_mock(['wait_connected'])
-        server.zk.wait_connected.side_effect = ZkConnectionLoss
+        server.zk.wait_connected.side_effect = ZkNoConnection
         # Call
         server._sync_zk_state()
         # Tests
@@ -370,7 +370,7 @@ class TestSCIONDnsSyncZkState(BaseDNSServer):
         server.zk = create_mock(['wait_connected'])
         server.domain = self.DOMAIN
         party = create_mock(["list"])
-        party.list.side_effect = ZkConnectionLoss
+        party.list.side_effect = ZkNoConnection
         server._parties = {
             SCIONDnsServer.SRV_TYPES[0]: party
         }
