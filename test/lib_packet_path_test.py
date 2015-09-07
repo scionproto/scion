@@ -40,9 +40,21 @@ from lib.packet.opaque_field import (
 from lib.util import Raw
 
 
+# To allow testing of PathBase, despite it having abstract methods.
+class PathBaseTesting(PathBase):
+    def parse(self, raw):
+        pass
+
+    def pack(self):
+        pass
+
+    def __str__(self):
+        pass
+
+
 class BasePath(object):
-    def __init__(self):
-        self.path = PathBase()
+    def setUp(self):
+        self.path = PathBaseTesting()
         self.core_path = CorePath()
 
         # Initialize InfoOpaqueFields as:
@@ -59,7 +71,7 @@ class BasePath(object):
                     HopOpaqueField.from_values(12, 98, 3, b'\x0A\x0B\x0C'),
                     HopOpaqueField.from_values(90, 235, 55, b'\x0D\x0E\x0F')]
 
-    def __del__(self):
+    def tearDown(self):
         del self.path
         del self.core_path
         del self.iof
@@ -158,7 +170,7 @@ class TestPathBaseGetFirstInfoOffset(object):
     Unit tests for lib.packet.path.PathBase.get_first_info_offset
     """
     def test(self):
-        path = PathBase()
+        path = PathBaseTesting()
         ntools.eq_(path.get_first_info_offset(), 0)
 
 
@@ -169,7 +181,7 @@ class TestPathBaseGetFirstInfoOf(object):
     @patch("lib.packet.path.PathBase.get_of", autospec=True)
     @patch("lib.packet.path.PathBase.get_first_info_offset", autospec=True)
     def test_offset_non_zero(self, offset, get_of):
-        path = PathBase()
+        path = PathBaseTesting()
         offset.return_value = 123
         n = (123 - InfoOpaqueField.LEN) // HopOpaqueField.LEN
         ntools.eq_(path.get_first_info_of(), get_of.return_value)
@@ -179,7 +191,7 @@ class TestPathBaseGetFirstInfoOf(object):
     @patch("lib.packet.path.PathBase.get_of", autospec=True)
     @patch("lib.packet.path.PathBase.get_first_info_offset", autospec=True)
     def test_offset_zero(self, offset, get_of):
-        path = PathBase()
+        path = PathBaseTesting()
         offset.return_value = 0
         ntools.eq_(path.get_first_info_of(), get_of.return_value)
         get_of.assert_called_once_with(path, 0)
@@ -189,7 +201,11 @@ class TestPathBaseGetOf(BasePath):
     """
     Unit tests for lib.packet.path.PathBase.get_of
     """
-    def _check_full(self, idx, val):
+    def _check_full(self, idx):
+        ofs = ([self.iof[0]] + self.hof[:3] +
+               [self.iof[1]] + self.hof[2:5] +
+               [None])
+        val = ofs[idx]
         self.path.up_segment_info = self.iof[0]
         self.path.down_segment_info = self.iof[1]
         self.path.down_segment_hops = self.hof[2:5]
@@ -197,29 +213,32 @@ class TestPathBaseGetOf(BasePath):
         ntools.eq_(self.path.get_of(idx), val)
 
     def test_full(self):
-        for i, v in enumerate([self.iof[0]] + self.hof[:3] + [self.iof[1]] +
-                              self.hof[2:5] + [None]):
-            yield self._check_full, i, v
+        for idx in range(9):
+            yield self._check_full, idx
 
-    def _check_without_up_segment(self, idx, val):
+    def _check_without_up_segment(self, idx):
+        ofs = [self.iof[1]] + self.hof[2:5]
+        val = ofs[idx]
         self.path.up_segment_info = None
         self.path.down_segment_info = self.iof[1]
         self.path.down_segment_hops = self.hof[2:5]
         ntools.eq_(self.path.get_of(idx), val)
 
     def test_without_up_segment(self):
-        for i, v in enumerate([self.iof[1]] + self.hof[2:5]):
-            yield self._check_without_up_segment, i, v
+        for idx in range(4):
+            yield self._check_without_up_segment, idx
 
-    def _check_without_down_segment(self, idx, val):
+    def _check_without_down_segment(self, idx):
+        ofs = [self.iof[0]] + self.hof[:3]
+        val = ofs[idx]
         self.path.up_segment_info = self.iof[0]
         self.path.up_segment_hops = self.hof[:3]
         self.path.down_segment_info = None
         ntools.eq_(self.path.get_of(idx), val)
 
     def test_without_down_segment(self):
-        for i, v in enumerate([self.iof[0]] + self.hof[:3]):
-            yield self._check_without_down_segment, i, v
+        for idx in range(4):
+            yield self._check_without_down_segment, idx
 
 
 class TestCorePathInit(BasePath):
@@ -393,7 +412,12 @@ class TestCorePathGetOf(BasePath):
     """
     Unit tests for lib.packet.path.CorePath.get_of
     """
-    def _check(self, idx, val):
+    def _check(self, idx):
+        ofs = ([self.iof[0]] + self.hof[:2] +
+               [self.iof[2]] + self.hof[1:4] +
+               [self.iof[1], self.hof[2],
+                self.hof[4], None])
+        val = ofs[idx]
         self.core_path.up_segment_info = self.iof[0]
         self.core_path.down_segment_info = self.iof[1]
         self.core_path.core_segment_info = self.iof[2]
@@ -403,10 +427,8 @@ class TestCorePathGetOf(BasePath):
         ntools.eq_(self.core_path.get_of(idx), val)
 
     def test(self):
-        for i, v in enumerate([self.iof[0]] + self.hof[:2] + [self.iof[2]] +
-                              self.hof[1:4] + [self.iof[1], self.hof[2],
-                                               self.hof[4], None]):
-            yield self._check, i, v
+        for idx in range(11):
+            yield self._check, idx
 
 
 class TestCorePathFromValues(BasePath):

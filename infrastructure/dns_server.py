@@ -333,6 +333,9 @@ class SCIONDnsServer(SCIONElement):
         name, port, *addresses = inst.split("\0")
         self.services[srv_domain].extend(addresses)
 
+    def handle_request(self, packet, sender, from_local_socket=True):
+        raise NotImplementedError
+
     def run(self):
         """
         Run SCION Dns server.

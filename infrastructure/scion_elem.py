@@ -19,6 +19,7 @@
 import logging
 import queue
 import threading
+from abc import ABCMeta, abstractmethod
 
 # SCION
 from lib.config import Config
@@ -38,7 +39,7 @@ from lib.thread import thread_safety_net
 from lib.topology import Topology
 
 
-class SCIONElement(object):
+class SCIONElement(object, metaclass=ABCMeta):
     """
     Base class for the different kind of servers the SCION infrastructure
     provides.
@@ -130,6 +131,7 @@ class SCIONElement(object):
         for edge_router in self.topology.get_all_edge_routers():
             self.ifid2addr[edge_router.interface.if_id] = edge_router.addr
 
+    @abstractmethod
     def handle_request(self, packet, sender, from_local_socket=True):
         """
         Main routine to handle incoming SCION packets. Subclasses have to
@@ -142,7 +144,7 @@ class SCIONElement(object):
         :param from_local_socket:
         :type from_local_socket:
         """
-        pass
+        raise NotImplementedError
 
     def get_first_hop(self, spkt):
         """

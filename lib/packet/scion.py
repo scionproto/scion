@@ -171,6 +171,9 @@ class SCIONCommonHdr(HeaderBase):
                            self.curr_iof_p, self.curr_of_p,
                            self.next_hdr, self.hdr_len)
 
+    def __len__(self):
+        return self.hdr_len
+
     def __str__(self):
         src_type = haddr_get_type(self.src_addr_type).NAME
         dst_type = haddr_get_type(self.dst_addr_type).NAME

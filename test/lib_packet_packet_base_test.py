@@ -15,9 +15,6 @@
 :mod:`lib_packet_base_test` --- Packet base class tests
 =======================================================
 """
-# Stdlib
-from unittest.mock import patch, MagicMock
-
 # External packages
 import nose
 import nose.tools as ntools
@@ -28,6 +25,31 @@ from lib.packet.packet_base import (
     PacketBase,
     PayloadBase
 )
+from test.testcommon import create_mock
+
+
+# To allow testing of HeaderBase, despite it having abstract methods.
+class HeaderBaseTesting(HeaderBase):
+    def parse(self):
+        pass
+
+    def pack(self):
+        pass
+
+    def __len__(self):
+        pass
+
+    def __str__(self):
+        pass
+
+
+# To allow testing of PacketBase, despite it having abstract methods.
+class PacketBaseTesting(PacketBase):
+    def parse(self):
+        pass
+
+    def pack(self):
+        pass
 
 
 class TestHeaderBaseInit(object):
@@ -38,7 +60,7 @@ class TestHeaderBaseInit(object):
         """
         Tests proper member initialization.
         """
-        header_base = HeaderBase()
+        header_base = HeaderBaseTesting()
         ntools.assert_false(header_base.parsed)
 
 
@@ -50,7 +72,7 @@ class TestPacketBaseInit(object):
         """
         Tests proper member initialization.
         """
-        packet_base = PacketBase()
+        packet_base = PacketBaseTesting()
         ntools.assert_is_none(packet_base.hdr)
         ntools.assert_is_none(packet_base._payload)
         ntools.assert_false(packet_base.parsed)
@@ -65,7 +87,7 @@ class TestPacketBaseGetPayload(object):
         """
         Test for getting payload as bytes.
         """
-        packet_base = PacketBase()
+        packet_base = PacketBaseTesting()
         packet_base._payload = b'data'
         ntools.eq_(packet_base.get_payload(), b'data')
 
@@ -76,18 +98,18 @@ class TestPacketBaseSetPayload(object):
     """
     def check_success(self, payload):
         # Setup
-        packet_base = PacketBase()
+        packet_base = PacketBaseTesting()
         # Call
         packet_base.set_payload(payload)
         # Tests
         ntools.eq_(packet_base._payload, payload)
 
     def test_success(self):
-        for i in PacketBase(), PayloadBase(), b'test':
+        for i in PacketBaseTesting(), PayloadBase(), b'test':
             yield self.check_success, i
 
     def test_failure(self):
-        packet_base = PacketBase()
+        packet_base = PacketBaseTesting()
         ntools.assert_raises(TypeError, packet_base.set_payload, 123)
 
 
@@ -96,7 +118,7 @@ class TestPacketBaseLen(object):
     Unit tests for lib.packet.packet_base.PacketBase.__len__
     """
     def test_basic(self):
-        packet_base = PacketBase()
+        packet_base = PacketBaseTesting()
         header = b'data1'
         payload = b'data2'
         packet_base.hdr = header
@@ -108,11 +130,12 @@ class TestPacketBaseHash(object):
     """
     Unit tests for lib.packet.packet_base.PacketBase.__hash__
     """
-    @patch("lib.packet.packet_base.PacketBase.pack", autospec=True)
-    def test(self, pack):
-        packet_base = PacketBase()
-        pack.return_value = MagicMock(spec_set=['__hash__'])
+    def test(self):
+        packet_base = PacketBaseTesting()
+        pack = create_mock()
+        pack.return_value = create_mock(['__hash__'])
         pack.return_value.__hash__.return_value = 123
+        packet_base.pack = pack
         ntools.eq_(hash(packet_base), 123)
         pack.return_value.__hash__.assert_called_once_with()
 
@@ -125,8 +148,8 @@ class TestPacketBaseEq(object):
         """
         Tests comparison with object of same type, same raw values
         """
-        packet_base1 = PacketBase()
-        packet_base2 = PacketBase()
+        packet_base1 = PacketBaseTesting()
+        packet_base2 = PacketBaseTesting()
         raw = "rawstring"
         packet_base1.raw = raw
         packet_base2.raw = raw
@@ -136,8 +159,8 @@ class TestPacketBaseEq(object):
         """
         Tests comparison with object of same type, but different raw values
         """
-        packet_base1 = PacketBase()
-        packet_base2 = PacketBase()
+        packet_base1 = PacketBaseTesting()
+        packet_base2 = PacketBaseTesting()
         packet_base1.raw = 'raw1'
         packet_base2.raw = 'raw2'
         ntools.assert_not_equals(packet_base1, packet_base2)
@@ -146,7 +169,7 @@ class TestPacketBaseEq(object):
         """
         Tests comparison with an object not of the same type
         """
-        packet_base1 = PacketBase()
+        packet_base1 = PacketBaseTesting()
         packet_base2 = b'test'
         ntools.assert_not_equals(packet_base1, packet_base2)
 
@@ -211,7 +234,7 @@ class TestPayloadBaseHash(object):
     """
     def test(self):
         payload = PayloadBase()
-        payload.raw = MagicMock(spec_set=['__hash__'])
+        payload.raw = create_mock(['__hash__'])
         payload.raw.__hash__.return_value = 123
         ntools.eq_(hash(payload), 123)
         payload.raw.__hash__.assert_called_once_with()

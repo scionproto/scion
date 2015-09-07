@@ -15,9 +15,9 @@
 :mod:`path` --- SCION Path packets
 ==================================
 """
-
 # Stdlib
 import copy
+from abc import ABCMeta, abstractmethod
 
 # SCION
 from lib.packet.opaque_field import (
@@ -28,7 +28,7 @@ from lib.packet.opaque_field import (
 from lib.util import Raw
 
 
-class PathBase(object):
+class PathBase(object, metaclass=ABCMeta):
     """
     Base class for paths in SCION.
 
@@ -47,11 +47,13 @@ class PathBase(object):
 
         self.parsed = False
 
+    @abstractmethod
     def parse(self, raw):
-        pass
+        raise NotImplementedError
 
+    @abstractmethod
     def pack(self):
-        pass
+        raise NotImplementedError
 
     def reverse(self):
         """
@@ -132,8 +134,9 @@ class PathBase(object):
         """
         return None
 
+    @abstractmethod
     def __str__(self):
-        pass
+        raise NotImplementedError
 
     def __repr__(self):
         return self.__str__()
@@ -666,6 +669,9 @@ class EmptyPath(PathBase):
         :type raw:
         """
         PathBase.__init__(self)
+
+    def parse(self, raw):
+        raise NotImplementedError
 
     def pack(self):
         return b''

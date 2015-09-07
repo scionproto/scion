@@ -30,12 +30,24 @@ from lib.packet.opaque_field import (
 )
 
 
+# To allow testing of OpaqueField, despite it having abstract methods.
+class OpaqueFieldTesting(OpaqueField):
+    def parse(self, raw):
+        pass
+
+    def pack(self):
+        pass
+
+    def __str__(self):
+        pass
+
+
 class TestOpaqueFieldInit(object):
     """
     Unit tests for lib.packet.opaque_field.OpaqueField.__init__
     """
     def test_basic(self):
-        op_fld = OpaqueField()
+        op_fld = OpaqueFieldTesting()
         ntools.eq_(op_fld.info, 0)
         ntools.eq_(op_fld.type, 0)
         ntools.assert_false(op_fld.parsed)
@@ -47,12 +59,12 @@ class TestOpaqueFieldIsRegular(object):
     Unit tests for lib.packet.opaque_field.OpaqueField.is_regular
     """
     def test_basic(self):
-        op_fld = OpaqueField()
+        op_fld = OpaqueFieldTesting()
         op_fld.info = 0b10111111
         ntools.assert_true(op_fld.is_regular())
 
     def test_set(self):
-        op_fld = OpaqueField()
+        op_fld = OpaqueFieldTesting()
         op_fld.info = 0b01000000
         ntools.assert_false(op_fld.is_regular())
 
@@ -62,12 +74,12 @@ class TestOpaqueFieldIsContinue(object):
     Unit tests for lib.packet.opaque_field.OpaqueField.is_continue
     """
     def test_basic(self):
-        op_fld = OpaqueField()
+        op_fld = OpaqueFieldTesting()
         op_fld.info = 0b11011111
         ntools.assert_false(op_fld.is_continue())
 
     def test_set(self):
-        op_fld = OpaqueField()
+        op_fld = OpaqueFieldTesting()
         op_fld.info = 0b00100000
         ntools.assert_true(op_fld.is_continue())
 
@@ -77,12 +89,12 @@ class TestOpaqueFieldIsXovr(object):
     Unit tests for lib.packet.opaque_field.OpaqueField.is_xovr
     """
     def test_basic(self):
-        op_fld = OpaqueField()
+        op_fld = OpaqueFieldTesting()
         op_fld.info = 0b11101111
         ntools.assert_false(op_fld.is_xovr())
 
     def test_set(self):
-        op_fld = OpaqueField()
+        op_fld = OpaqueFieldTesting()
         op_fld.info = 0b00010000
         ntools.assert_true(op_fld.is_xovr())
 
@@ -92,22 +104,22 @@ class TestOpaqueFieldEq(object):
     Unit tests for lib.packet.opaque_field.OpaqueField.__eq__
     """
     def test_eq(self):
-        op_fld1 = OpaqueField()
-        op_fld2 = OpaqueField()
+        op_fld1 = OpaqueFieldTesting()
+        op_fld2 = OpaqueFieldTesting()
         raw = "randomstring"
         op_fld1.raw = raw
         op_fld2.raw = raw
         ntools.eq_(op_fld1, op_fld2)
 
     def test_neq(self):
-        op_fld1 = OpaqueField()
-        op_fld2 = OpaqueField()
+        op_fld1 = OpaqueFieldTesting()
+        op_fld2 = OpaqueFieldTesting()
         op_fld1.raw = 'raw1'
         op_fld2.raw = 'raw2'
         ntools.assert_not_equals(op_fld1, op_fld2)
 
     def test_type_neq(self):
-        op_fld1 = OpaqueField()
+        op_fld1 = OpaqueFieldTesting()
         op_fld2 = b'test'
         ntools.assert_not_equals(op_fld1, op_fld2)
 

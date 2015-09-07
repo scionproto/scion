@@ -18,6 +18,7 @@
 
 # Stdlib
 import struct
+from abc import ABCMeta, abstractmethod
 from ipaddress import (
     AddressValueError,
     IPV4LENGTH,
@@ -61,7 +62,7 @@ class HostAddrInvalidType(SCIONBaseError):
     pass
 
 
-class HostAddrBase(object):
+class HostAddrBase(object, metaclass=ABCMeta):
     """
     Base HostAddr class. Should not be used directly.
     """
@@ -80,9 +81,11 @@ class HostAddrBase(object):
         else:
             self.addr = addr
 
+    @abstractmethod
     def _parse(self, raw):  # pragma: no cover
         raise NotImplemented
 
+    @abstractmethod
     def pack(self):  # pragma: no cover
         """
         :return: a packed representation of the host address
@@ -110,6 +113,9 @@ class HostAddrNone(object):
 
     def __init__(self):
         self.addr = None
+
+    def _parse(self, raw):
+        raise NotImplementedError
 
     def pack(self):
         return b""
