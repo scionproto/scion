@@ -103,10 +103,10 @@ class SCIONDaemon(SCIONElement):
         self._api_socket = None
         self.daemon_thread = None
         if run_local_api:
-            self._api_sock = UDPSocket(bind=(SCIOND_API_HOST, SCIOND_API_PORT),
-                                       addr_type=ADDR_IPV4_TYPE)
+            self._api_sock = UDPSocket(
+                bind=(SCIOND_API_HOST, SCIOND_API_PORT, "sciond local API"),
+                addr_type=ADDR_IPV4_TYPE)
             self._socks.add(self._api_sock)
-            logging.info("Local API %s:%u", SCIOND_API_HOST, SCIOND_API_PORT)
 
     @classmethod
     def start(cls, addr, topo_file, run_local_api=False):

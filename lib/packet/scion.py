@@ -20,7 +20,7 @@ import logging
 import struct
 
 # SCION
-from lib.defines import L4_PROTO, DEFAULT_L4_PROTO
+from lib.defines import L4_PROTOS, L4_UDP, L4_DEFAULT
 from lib.errors import SCIONIndexError, SCIONParseError
 from lib.packet.ext_hdr import ExtensionClass, ExtensionHeader
 from lib.packet.ext.traceroute import TracerouteExt
@@ -39,6 +39,7 @@ from lib.packet.path import (
     PeerPath,
 )
 from lib.packet.scion_addr import ISD_AD, SCIONAddr
+from lib.packet.scion_udp import SCIONUDPPacket
 from lib.util import Raw
 
 # Dictionary of supported extensions (i.e., parsed by SCIONHeader)
@@ -214,14 +215,14 @@ class SCIONHeader(HeaderBase):
         self.dst_addr = None
         self._path = None
         self.extension_hdrs = []
-        self.l4_proto = DEFAULT_L4_PROTO
+        self.l4_proto = L4_DEFAULT
 
         if raw is not None:
             self.parse(raw)
 
     @classmethod
     def from_values(cls, src, dst, path=None, ext_hdrs=None,
-                    l4_proto=DEFAULT_L4_PROTO):
+                    l4_proto=L4_DEFAULT):
         """
         Returns a SCIONHeader with the values specified.
         """
@@ -346,7 +347,7 @@ class SCIONHeader(HeaderBase):
         accordingly.
         """
         cur_hdr_type = self.common_hdr.next_hdr
-        while cur_hdr_type not in L4_PROTO:
+        while cur_hdr_type not in L4_PROTOS:
             (next_hdr_type, hdr_len, ext_no) = \
                 struct.unpack("!BBB", data.get(3))
             # Calculate correct hdr_len in bytes
@@ -510,7 +511,8 @@ class SCIONPacket(PacketBase):
 
     @classmethod
     def from_values(cls, src, dst, payload, path=None,
-                    ext_hdrs=None, next_hdr=1, pkt_type=PacketType.DATA):
+                    ext_hdrs=None, next_hdr=L4_DEFAULT,
+                    pkt_type=PacketType.DATA):
         """
         Returns a SCIONPacket with the values specified.
 
@@ -523,13 +525,13 @@ class SCIONPacket(PacketBase):
                          of the first extension header in the list.
         :param pkt_type: The type of the packet.
         """
-        pkt = SCIONPacket()
+        pkt = cls()
         pkt.hdr = SCIONHeader.from_values(src, dst, path, ext_hdrs, next_hdr)
         pkt.set_payload(payload)
         return pkt
 
     def set_payload(self, payload):
-        PacketBase.set_payload(self, payload)
+        super().set_payload(payload)
         # Update payload_len and total len of the packet.
         self.hdr.common_hdr.total_len -= self.payload_len
         self.payload_len = len(payload)
@@ -544,7 +546,12 @@ class SCIONPacket(PacketBase):
         self.hdr = SCIONHeader(data.get())
         data.pop(len(self.hdr))
         self.payload_len = len(data)
-        self.set_payload(data.pop(self.payload_len))
+        payload = data.pop()
+        if self.hdr.l4_proto == L4_UDP:
+            self.set_payload(
+                SCIONUDPPacket((self.hdr.src_addr, self.hdr.dst_addr, payload)))
+        else:
+            self.set_payload(payload)
         self.parsed = True
 
     def pack(self):

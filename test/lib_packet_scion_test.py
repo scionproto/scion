@@ -24,7 +24,7 @@ import nose.tools as ntools
 
 # SCION
 from lib.errors import SCIONIndexError, SCIONParseError
-from lib.defines import DEFAULT_L4_PROTO
+from lib.defines import L4_DEFAULT
 from lib.packet.opaque_field import (
     OpaqueFieldType as OFT
 )
@@ -88,6 +88,7 @@ class TestSCIONCommonHdrInit(object):
     @patch("lib.packet.scion.HeaderBase.__init__", autospec=True,
            return_value=None)
     def test_basic(self, super_init, parse):
+        print(dir(super_init))
         hdr = SCIONCommonHdr()
         super_init.assert_called_once_with(hdr)
         ntools.eq_(hdr.version, 0)
@@ -209,7 +210,7 @@ class TestSCIONHeaderInit(object):
         ntools.assert_is_none(hdr.dst_addr)
         ntools.assert_is_none(hdr._path)
         ntools.eq_(hdr.extension_hdrs, [])
-        ntools.eq_(hdr.l4_proto, DEFAULT_L4_PROTO)
+        ntools.eq_(hdr.l4_proto, L4_DEFAULT)
 
     @patch("lib.packet.scion.HeaderBase.__init__", autospec=True)
     @patch("lib.packet.scion.SCIONHeader.parse", autospec=True)
@@ -265,7 +266,7 @@ class TestSCIONHeaderFromValues(object):
         # Call
         hdr = SCIONHeader.from_values(src, dst)
         # Tests
-        scion_common_hdr.assert_called_once_with(src, dst, DEFAULT_L4_PROTO)
+        scion_common_hdr.assert_called_once_with(src, dst, L4_DEFAULT)
         set_path.assert_called_once_with(hdr, None)
         add_extensions.assert_called_once_with(hdr, [])
 
@@ -804,21 +805,24 @@ class TestSCIONPacketFromValues(object):
     @patch("lib.packet.scion.SCIONHeader.from_values",
            spec_set=SCIONHeader.from_values)
     def test_basic(self, scion_hdr, set_payload):
-        scion_hdr.return_value = 'hdr'
+        hdr = create_mock(["l4_proto"])
+        scion_hdr.return_value = hdr
         packet = SCIONPacket.from_values('src', 'dst', 'payload', 'path',
                                          'ext_hdrs', 'next_hdr')
         ntools.assert_is_instance(packet, SCIONPacket)
         scion_hdr.assert_called_once_with('src', 'dst', 'path', 'ext_hdrs',
                                           'next_hdr')
-        ntools.eq_(packet.hdr, 'hdr')
+        ntools.eq_(packet.hdr, hdr)
         set_payload.assert_called_once_with(packet, 'payload')
 
     @patch("lib.packet.scion.SCIONPacket.set_payload", autospec=True)
     @patch("lib.packet.scion.SCIONHeader.from_values",
            spec_set=SCIONHeader.from_values)
     def test_less_args(self, scion_hdr, set_payload):
+        hdr = create_mock(["l4_proto"])
+        scion_hdr.return_value = hdr
         SCIONPacket.from_values('src', 'dst', 'payload')
-        scion_hdr.assert_called_once_with('src', 'dst', None, None, 1)
+        scion_hdr.assert_called_once_with('src', 'dst', None, None, L4_DEFAULT)
 
 
 class TestSCIONPacketSetPayload(object):
@@ -847,21 +851,21 @@ class TestSCIONPacketParse(object):
     @patch("lib.packet.scion.Raw", autospec=True)
     def test_full(self, raw, scion_hdr, set_payload):
         # Setup
-        raw.return_value = MagicMock(spec_set=["__len__", "get", "pop"])
-        raw.return_value.__len__.return_value = 42
-        raw.return_value.get.return_value = "get hdr"
-        raw.return_value.pop.return_value = "get payload"
         packet = SCIONPacket()
-        data = b"data"
-        scion_hdr.return_value = 'scion_header'
+        data = MagicMock(spec_set=["__len__", "get", "pop"])
+        data.__len__.return_value = 42
+        data.get.return_value = "get hdr"
+        data.pop.return_value = "get payload"
+        raw.return_value = data
+        scion_hdr.return_value = create_mock(["__len__", "l4_proto"])
         # Call
-        packet.parse(data)
+        packet.parse(b"data")
         # Tests
-        ntools.eq_(packet.raw, data)
-        raw.assert_called_once_with(data, "SCIONPacket", packet.MIN_LEN,
+        ntools.eq_(packet.raw, b"data")
+        raw.assert_called_once_with(b"data", "SCIONPacket", packet.MIN_LEN,
                                     min_=True)
         scion_hdr.assert_called_once_with("get hdr")
-        ntools.eq_(packet.hdr, 'scion_header')
+        ntools.eq_(packet.hdr, scion_hdr.return_value)
         ntools.eq_(packet.payload_len, 42)
         set_payload.assert_called_once_with(packet, "get payload")
         ntools.assert_true(packet.parsed)
