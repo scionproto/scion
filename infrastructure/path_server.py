@@ -52,7 +52,7 @@ from lib.packet.scion_addr import ISD_AD
 from lib.path_db import DBResult, PathSegmentDB
 from lib.thread import thread_safety_net
 from lib.util import SCIONTime, handle_signals, trace, update_dict
-from lib.zookeeper import ZkConnectionLoss, Zookeeper
+from lib.zookeeper import ZkConnectionLoss, ZkSharedCache, Zookeeper
 
 
 class PathServer(SCIONElement):
@@ -95,10 +95,11 @@ class PathServer(SCIONElement):
                                     str(self.addr.host_addr)])
             self.zk = Zookeeper(
                 self.topology.isd_id, self.topology.ad_id, PATH_SERVICE,
-                name_addrs, self.topology.zookeepers,
-                handle_paths=[(self.ZK_PATH_CACHE_PATH,
-                               self._cached_entries_handler)])
+                name_addrs, self.topology.zookeepers)
             self.zk.retry("Joining party", self.zk.party_setup)
+            self.path_cache = ZkSharedCache(
+                self.zk, self.ZK_PATH_CACHE_PATH, self._cached_entries_handler,
+                self.config.propagation_time)
 
     def _cached_entries_handler(self, raw_entries):
         """
@@ -234,8 +235,7 @@ class PathServer(SCIONElement):
         # assert isinstance(beacon, PathConstructionBeacon)
         pkt_hash = SHA256.new(pkt.pack()).hexdigest()
         try:
-            self.zk.store_shared_item(self.ZK_PATH_CACHE_PATH, pkt_hash,
-                                      pkt.pack())
+            self.path_cache.store(pkt_hash, pkt.pack())
             logging.debug("Segment stored in ZK: %s...", pkt_hash[:5])
         except ZkConnectionLoss:
             logging.warning("Unable to store segment in shared path: "
@@ -434,9 +434,10 @@ class CorePathServer(PathServer):
         while True:
             self._update_master()
             # Read cached entries.
-            if not self.zk.run_shared_cache_handling():
-                logging.warning('run_shared_cache_handling() returned False')
-                continue
+            try:
+                self.path_cache.process()
+            except ZkConnectionLoss:
+                logging.warning('path_cache.process() raised ZkConnectionLoss')
             time.sleep(0.5)
 
     def _update_master(self):
@@ -467,7 +468,7 @@ class CorePathServer(PathServer):
         Get the id of the current master.
         Based on Anton's code from ad_management/monitoring_daemon.py.
         """
-        lock_path = os.path.join(self.zk._prefix, "lock")
+        lock_path = os.path.join(self.zk.prefix, "lock")
         get_id = lambda name: name.split('__')[-1]
         try:
             contenders = self.zk._zk.get_children(lock_path)
@@ -1023,7 +1024,7 @@ class LocalPathServer(PathServer):
                 logging.info("Up-Segment to (%d, %d) registered.",
                              pcb.get_first_pcbm().isd_id,
                              pcb.get_first_pcbm().ad_id)
-        # Propagate Up Segment via ZK.
+        # Share Up Segment via ZK.
         if not from_zk:
             self._share_segments(pkt)
         # Sending pending targets to the core using first registered up-path.
