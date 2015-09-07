@@ -1116,7 +1116,7 @@ class LocalBeaconServer(BeaconServer):
         dst_isd_ad = ISD_AD(pcb.get_isd(), pcb.get_first_pcbm().ad_id)
         pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, core_path,
                                          self.addr, dst_isd_ad)
-        if_id = core_path.get_first_hop_of().ingress_if
+        if_id = core_path.get_first_hof().ingress_if
         next_hop = self.ifid2addr[if_id]
         self.send(pkt, next_hop)
 

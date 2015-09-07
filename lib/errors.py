@@ -48,6 +48,13 @@ class SCIONIndexError(SCIONBaseError):
     pass
 
 
+class SCIONKeyError(SCIONBaseError):
+    """
+    Key error (trying to access invalid entry in dictionary)
+    """
+    pass
+
+
 class SCIONJSONError(SCIONBaseError):
     """
     JSON parsing error.

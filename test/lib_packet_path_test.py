@@ -16,9 +16,8 @@
 ==========================================================
 """
 # Stdlib
-import copy
 from itertools import product
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch, call
 
 # External packages
 import nose
@@ -26,578 +25,450 @@ import nose.tools as ntools
 
 # SCION
 from lib.packet.path import (
+    CORE_HOFS,
+    CORE_IOF,
     CorePath,
     CrossOverPath,
-    EmptyPath,
+    DOWN_HOFS,
+    DOWN_IOF,
+    DOWN_PEERING_HOF,
+    DOWN_UPSTREAM_HOF,
     PathBase,
     PathCombinator,
-    PeerPath
+    PeerPath,
+    UP_HOFS,
+    UP_IOF,
+    UP_PEERING_HOF,
+    UP_UPSTREAM_HOF,
 )
-from lib.packet.opaque_field import (
-    HopOpaqueField,
-    InfoOpaqueField,
-    OpaqueFieldType)
-from lib.util import Raw
+from lib.packet.opaque_field import OpaqueFieldType
+from test.testcommon import assert_these_calls, create_mock
 
 
 # To allow testing of PathBase, despite it having abstract methods.
 class PathBaseTesting(PathBase):
-    def parse(self, raw):
-        pass
+    def from_values(self, *args, **kwargs):
+        raise NotImplementedError
 
-    def pack(self):
-        pass
+    def parse(self, raw):
+        raise NotImplementedError
+
+    def get_ad_hops(self):
+        raise NotImplementedError
 
     def __str__(self):
-        pass
+        raise NotImplementedError
 
 
-class BasePath(object):
-    def setUp(self):
-        self.path = PathBaseTesting()
-        self.core_path = CorePath()
+class _FromValuesTest(object):
+    """
+    Unit tests for lib.packet.path.*.from_values
+    """
+    @patch("lib.packet.path.PathBase._set_ofs", autospec=True)
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def _check(self, ofs, init, set_ofs):
+        # Call
+        inst = self.TYPE.from_values(**ofs)
+        # Tests
+        ntools.assert_is_instance(inst, self.TYPE)
+        calls = []
+        for label, arg in zip(inst.OF_ORDER, self.ARGS):
+            calls.append(call(inst, label, ofs.get(arg)))
+        assert_these_calls(set_ofs, calls)
 
-        # Initialize InfoOpaqueFields as:
-        # InfoOpaqueField.from_values(info, up_flag, timestamp, isd_id, hops)
-        self.iof = [InfoOpaqueField.from_values(24, True, 45, 18, 3),
-                    InfoOpaqueField.from_values(3, False, 9, 65, 5),
-                    InfoOpaqueField.from_values(6, False, 29, 51, 3)]
+    def test_no_args(self):
+        yield self._check, {}
 
-        # Initialize HopOpaqueFields as:
-        # HopOpaqueField.from_values(exp_time, ingress_if, egress_if, mac)
-        self.hof = [HopOpaqueField.from_values(120, 8, 5, b'\x01\x02\x03'),
-                    HopOpaqueField.from_values(140, 5, 56, b'\x04\x05\x06'),
-                    HopOpaqueField.from_values(80, 12, 22, b'\x07\x08\x09'),
-                    HopOpaqueField.from_values(12, 98, 3, b'\x0A\x0B\x0C'),
-                    HopOpaqueField.from_values(90, 235, 55, b'\x0D\x0E\x0F')]
-
-    def tearDown(self):
-        del self.path
-        del self.core_path
-        del self.iof
-        del self.hof
+    def test_full_args(self):
+        args = {}
+        for i, arg in enumerate(self.ARGS):
+            args[arg] = i
+        yield self._check, args
 
 
-class TestPathBaseInit(BasePath):
+class TestPathBaseInit(object):
     """
     Unit tests for lib.packet.path.PathBase.__init__
     """
-    def test(self):
-        """
-        Tests proper member initialization.
-        """
-        ntools.eq_(self.path.up_segment_info, None)
-        ntools.eq_(self.path.up_segment_hops, [])
-        ntools.eq_(self.path.down_segment_info, None)
-        ntools.eq_(self.path.down_segment_hops, [])
-        ntools.assert_false(self.path.parsed)
+    @patch("lib.packet.path.OpaqueFieldList", autospec=True)
+    def test_basic(self, ofl):
+        # Call
+        inst = PathBaseTesting()
+        # Tests
+        ofl.assert_called_once_with(inst.OF_ORDER)
+        ntools.eq_(inst._ofs, ofl.return_value)
+
+    @patch.object(PathBaseTesting, "parse", autospec=True)
+    @patch("lib.packet.path.OpaqueFieldList", autospec=True)
+    def test_parse(self, ofl, parse):
+        # Call
+        inst = PathBaseTesting("raw")
+        # Tests
+        parse.assert_called_once_with(inst, "raw")
 
 
-class TestPathBaseReverse(BasePath):
+class TestPathBaseParseIof(object):
+    """
+    Unit tests for lib.packet.path.PathBase._parse_iof
+    """
+    @patch("lib.packet.path.InfoOpaqueField", autospec=True)
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test(self, init, iof):
+        inst = PathBaseTesting()
+        data = create_mock(["pop"])
+        inst._ofs = create_mock(["set"])
+        iof.return_value = create_mock(["hops"])
+        # Call
+        ntools.eq_(inst._parse_iof(data, "label"), iof.return_value.hops)
+        # Tests
+        data.pop.assert_called_once_with(iof.LEN)
+        iof.assert_called_once_with(data.pop.return_value)
+        inst._ofs.set.assert_called_once_with("label", [iof.return_value])
+
+
+class TestPathBaseParseHofs(object):
+    """
+    Unit tests for lib.packet.path.PathBase._parse_hofs
+    """
+    @patch("lib.packet.path.HopOpaqueField", autospec=True)
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test(self, init, hof):
+        inst = PathBaseTesting()
+        data = create_mock(["pop"])
+        inst._ofs = create_mock(["set"])
+        hof.side_effect = ["hof0", "hof1", "hof2"]
+        # Call
+        inst._parse_hofs(data, "label", 3)
+        # Tests
+        assert_these_calls(data.pop, [call(hof.LEN)] * 3)
+        inst._ofs.set.assert_called_once_with("label", ["hof0", "hof1", "hof2"])
+
+
+class TestPathBasePack(object):
+    """
+    Unit tests for lib.packet.path.PathBase.pack
+    """
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test(self, init):
+        inst = PathBaseTesting()
+        inst._ofs = create_mock(["pack"])
+        # Call
+        ntools.eq_(inst.pack(), inst._ofs.pack.return_value)
+
+
+class TestPathBaseReverse(object):
     """
     Unit tests for lib.packet.path.PathBase.reverse
     """
-    def test_with_info(self):
-        """
-        Tests PathBase.reverse, with up_segment_info and down_segment_info set
-        """
-        self.path.up_segment_info = self.iof[0]
-        self.path.down_segment_info = self.iof[1]
-        self.path.up_segment_hops = self.hof[:3]
-        self.path.down_segment_hops = self.hof[:]
-        iof1_ = copy.copy(self.iof[0])
-        iof2_ = copy.copy(self.iof[1])
-        self.path.reverse()
-        iof1_.up_flag ^= True
-        iof2_.up_flag ^= True
-        ntools.eq_(self.path.up_segment_info, iof2_)
-        ntools.eq_(self.path.down_segment_info, iof1_)
-        ntools.eq_(self.path.up_segment_hops, self.hof[::-1])
-        ntools.eq_(self.path.down_segment_hops, self.hof[2::-1])
-
-    def test_without_info(self):
-        """
-        Tests PathBase.reverse, with up_segment_info and down_segment_info unset
-        """
-        self.path.up_segment_hops = self.hof[:3]
-        self.path.down_segment_hops = self.hof[:]
-        self.path.reverse()
-        ntools.eq_(self.path.up_segment_hops, self.hof[::-1])
-        ntools.eq_(self.path.down_segment_hops, self.hof[2::-1])
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test_basic(self, init):
+        inst = PathBaseTesting()
+        inst._ofs = create_mock(["reverse_label", "reverse_up_flag", "swap"])
+        # Call
+        inst.reverse()
+        # Tests
+        assert_these_calls(inst._ofs.swap,
+                           [call(UP_HOFS, DOWN_HOFS), call(UP_IOF, DOWN_IOF)])
+        assert_these_calls(inst._ofs.reverse_up_flag,
+                           [call(UP_IOF), call(DOWN_IOF)])
+        assert_these_calls(inst._ofs.reverse_label,
+                           [call(UP_HOFS), call(DOWN_HOFS)])
 
 
-class TestPathBaseGetFirstHopOffset(BasePath):
+class TestPathBaseGetFirstHofIdx(object):
     """
-    Unit tests for lib.packet.path.PathBase.get_first_hop_offset
+    Unit tests for lib.packet.path.PathBase.get_first_hof_idx
     """
-    def test_with_up_seg_hops(self):
-        self.path.up_segment_hops = ['up_hop0']
-        ntools.eq_(self.path.get_first_hop_offset(), InfoOpaqueField.LEN)
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test_with_up_hofs(self, init):
+        inst = PathBaseTesting()
+        inst._ofs = create_mock(["get_by_label"])
+        # Call
+        ntools.eq_(inst.get_first_hof_idx(), 1)
+        # Tests
+        inst._ofs.get_by_label.assert_called_once_with(UP_HOFS)
 
-    def test_with_down_seg_hops(self):
-        self.path.up_segment_hops = []
-        self.path.down_segment_hops = ['down_hop0']
-        ntools.eq_(self.path.get_first_hop_offset(), InfoOpaqueField.LEN)
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test_with_down_hofs(self, init):
+        inst = PathBaseTesting()
+        inst._ofs = create_mock(["get_by_label"])
+        inst._ofs.get_by_label.side_effect = [False, True]
+        # Call
+        ntools.eq_(inst.get_first_hof_idx(), 1)
+        # Tests
+        assert_these_calls(inst._ofs.get_by_label,
+                           [call(UP_HOFS), call(DOWN_HOFS)])
 
-    def test_without_hops(self):
-        self.path.up_segment_hops = []
-        self.path.down_segment_hops = []
-        ntools.eq_(self.path.get_first_hop_offset(), 0)
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test_without_hofs(self, init):
+        inst = PathBaseTesting()
+        inst._ofs = create_mock(["get_by_label"])
+        inst._ofs.get_by_label.return_value = False
+        # Call
+        ntools.eq_(inst.get_first_hof_idx(), 0)
 
 
-class TestPathBaseGetFirstHopOf(BasePath):
+class TestPathBaseGetFirstHof(object):
     """
-    Unit tests for lib.packet.path.PathBase.get_first_hop_of
+    Unit tests for lib.packet.path.PathBase.get_first_hof
     """
-    @patch("lib.packet.path.PathBase.get_of", autospec=True)
-    @patch("lib.packet.path.PathBase.get_first_hop_offset", autospec=True)
-    def test_with_hops(self, offset, get_of):
-        offset.return_value = 123
-        n = (123 - InfoOpaqueField.LEN) // HopOpaqueField.LEN
-        get_of.return_value = 'first_hof'
-        ntools.eq_(self.path.get_first_hop_of(), 'first_hof')
-        offset.assert_called_once_with(self.path)
-        get_of.assert_called_once_with(self.path, n + 1)
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test_with_hops(self, init):
+        inst = PathBaseTesting()
+        inst.get_first_hof_idx = create_mock()
+        inst.get_of = create_mock()
+        # Call
+        ntools.eq_(inst.get_first_hof(), inst.get_of.return_value)
+        # Tests
+        inst.get_first_hof_idx.assert_called_once_with()
+        inst.get_of.assert_called_once_with(inst.get_first_hof_idx.return_value)
 
-    @patch("lib.packet.path.PathBase.get_first_hop_offset", autospec=True)
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
     def test_without_hops(self, offset):
-        offset.return_value = 0
-        ntools.assert_is_none(self.path.get_first_hop_of())
+        inst = PathBaseTesting()
+        inst.get_first_hof_idx = create_mock()
+        inst.get_first_hof_idx.return_value = False
+        # Call
+        ntools.assert_is_none(inst.get_first_hof())
 
 
-class TestPathBaseGetFirstInfoOffset(object):
+class TestPathBaseGetFirstIofIdx(object):
     """
-    Unit tests for lib.packet.path.PathBase.get_first_info_offset
+    Unit tests for lib.packet.path.PathBase.get_first_iof_idx
     """
-    def test(self):
-        path = PathBaseTesting()
-        ntools.eq_(path.get_first_info_offset(), 0)
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test(self, init):
+        inst = PathBaseTesting()
+        # Call
+        ntools.eq_(inst.get_first_iof_idx(), 0)
 
 
-class TestPathBaseGetFirstInfoOf(object):
+class TestPathBaseGetFirstIof(object):
     """
-    Unit tests for lib.packet.path.PathBase.get_first_info_of
+    Unit tests for lib.packet.path.PathBase.get_first_iof
     """
-    @patch("lib.packet.path.PathBase.get_of", autospec=True)
-    @patch("lib.packet.path.PathBase.get_first_info_offset", autospec=True)
-    def test_offset_non_zero(self, offset, get_of):
-        path = PathBaseTesting()
-        offset.return_value = 123
-        n = (123 - InfoOpaqueField.LEN) // HopOpaqueField.LEN
-        ntools.eq_(path.get_first_info_of(), get_of.return_value)
-        offset.assert_called_once_with(path)
-        get_of.assert_called_once_with(path, n + 1)
-
-    @patch("lib.packet.path.PathBase.get_of", autospec=True)
-    @patch("lib.packet.path.PathBase.get_first_info_offset", autospec=True)
-    def test_offset_zero(self, offset, get_of):
-        path = PathBaseTesting()
-        offset.return_value = 0
-        ntools.eq_(path.get_first_info_of(), get_of.return_value)
-        get_of.assert_called_once_with(path, 0)
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test(self, init):
+        inst = PathBaseTesting()
+        inst.get_first_iof_idx = create_mock()
+        inst.get_of = create_mock()
+        # Call
+        ntools.eq_(inst.get_first_iof(), inst.get_of.return_value)
+        # Tests
+        inst.get_first_iof_idx.assert_called_once_with()
+        inst.get_of.assert_called_once_with(inst.get_first_iof_idx.return_value)
 
 
-class TestPathBaseGetOf(BasePath):
+class TestPathBaseGetOf(object):
     """
     Unit tests for lib.packet.path.PathBase.get_of
     """
-    def _check_full(self, idx):
-        ofs = ([self.iof[0]] + self.hof[:3] +
-               [self.iof[1]] + self.hof[2:5] +
-               [None])
-        val = ofs[idx]
-        self.path.up_segment_info = self.iof[0]
-        self.path.down_segment_info = self.iof[1]
-        self.path.down_segment_hops = self.hof[2:5]
-        self.path.up_segment_hops = self.hof[:3]
-        ntools.eq_(self.path.get_of(idx), val)
-
-    def test_full(self):
-        for idx in range(9):
-            yield self._check_full, idx
-
-    def _check_without_up_segment(self, idx):
-        ofs = [self.iof[1]] + self.hof[2:5]
-        val = ofs[idx]
-        self.path.up_segment_info = None
-        self.path.down_segment_info = self.iof[1]
-        self.path.down_segment_hops = self.hof[2:5]
-        ntools.eq_(self.path.get_of(idx), val)
-
-    def test_without_up_segment(self):
-        for idx in range(4):
-            yield self._check_without_up_segment, idx
-
-    def _check_without_down_segment(self, idx):
-        ofs = [self.iof[0]] + self.hof[:3]
-        val = ofs[idx]
-        self.path.up_segment_info = self.iof[0]
-        self.path.up_segment_hops = self.hof[:3]
-        self.path.down_segment_info = None
-        ntools.eq_(self.path.get_of(idx), val)
-
-    def test_without_down_segment(self):
-        for idx in range(4):
-            yield self._check_without_down_segment, idx
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test(self, init):
+        inst = PathBaseTesting()
+        inst._ofs = create_mock(["get_by_idx"])
+        # Call
+        ntools.eq_(inst.get_of(42), inst._ofs.get_by_idx.return_value)
+        # Tests
+        inst._ofs.get_by_idx.assert_called_once_with(42)
 
 
-class TestCorePathInit(BasePath):
+class TestPathBaseGetOfsByLabel(object):
     """
-    Unit tests for lib.packet.path.CorePath.__init__
+    Unit tests for lib.packet.path.PathBase.get_ofs_by_label
     """
-    def test_basic(self):
-        ntools.eq_(self.core_path.core_segment_info, None)
-        ntools.eq_(self.core_path.core_segment_hops, [])
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test(self, init):
+        inst = PathBaseTesting()
+        inst._ofs = create_mock(["get_by_label"])
+        # Call
+        ntools.eq_(inst.get_ofs_by_label("label"),
+                   inst._ofs.get_by_label.return_value)
+        # Tests
+        inst._ofs.get_by_label.assert_called_once_with("label")
 
-    @patch("lib.packet.path.CorePath.parse", autospec=True)
-    def test_raw(self, parse):
-        self.core_path = CorePath("data")
-        parse.assert_called_once_with(self.core_path, "data")
+
+class TestPathBaseOfCount(object):
+    """
+    Unit tests for lib.packet.path.PathBase.of_count
+    """
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test(self, init):
+        inst = PathBaseTesting()
+        inst._ofs = create_mock(["__len__"])
+        inst._ofs.__len__.return_value = 42
+        # Call
+        ntools.eq_(inst.of_count(), 42)
 
 
-class TestCorePathParse(BasePath):
+class TestPathBaseSetOfs(object):
+    """
+    Unit tests for lib.packet.path.PathBase._set_ofs
+    """
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test_none(self, init):
+        inst = PathBaseTesting()
+        inst._ofs = create_mock(["set"])
+        # Call
+        inst._set_ofs("label", None)
+        # Tests
+        inst._ofs.set.assert_called_once_with("label", [])
+
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test_list(self, init):
+        inst = PathBaseTesting()
+        inst._ofs = create_mock(["set"])
+        # Call
+        inst._set_ofs("label", [1, 2, 3])
+        # Tests
+        inst._ofs.set.assert_called_once_with("label", [1, 2, 3])
+
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test_non_list(self, init):
+        inst = PathBaseTesting()
+        inst._ofs = create_mock(["set"])
+        # Call
+        inst._set_ofs("label", "value")
+        # Tests
+        inst._ofs.set.assert_called_once_with("label", ["value"])
+
+
+class TestCorePathParse(object):
     """
     Unit tests for lib.packet.path.CorePath.parse
     """
-    @patch("lib.packet.path.CorePath._parse_segment", autospec=True)
-    @patch("lib.packet.path.InfoOpaqueField", autospec=True)
     @patch("lib.packet.path.Raw", autospec=True)
-    def _check(self, raw_len, raw, info_of, parse_seg):
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def _check(self, raw_len, init, raw):
         # Setup
-        raw.return_value = MagicMock(spec_set=["__len__", "pop"])
-        raw.return_value.__len__.side_effect = raw_len
-        raw.return_value.pop.return_value = "pop iof"
-        mock_iof = MagicMock(spec_set=['hops'])
-        info_of.return_value = mock_iof
-        info_of.return_value.hops = 2
-        data = b"data"
+        inst = CorePath()
+        inst._parse_iof = create_mock()
+        inst._parse_hofs = create_mock()
+        data = create_mock(["__len__"])
+        data.__len__.side_effect = raw_len
+        raw.return_value = data
+
+        parse_iof_calls = [call(data, i) for i in (UP_IOF, CORE_IOF, DOWN_IOF)]
+        parse_hofs_calls = [call(data, i, inst._parse_iof.return_value) for i in
+                            (UP_HOFS, CORE_HOFS, DOWN_HOFS)]
+        num_calls = sum(raw_len) + 1
         # Call
-        self.core_path.parse(data)
+        inst.parse("data")
         # Tests
-        raw.assert_called_once_with(data, "CorePath")
-        info_of.assert_has_calls([call("pop iof")] * sum(raw_len))
-        parse_seg.assert_has_calls([
-            call(self.core_path, raw.return_value, 2, [])
-        ] * sum(raw_len))
-        if raw_len == [0, 0]:
-            ntools.eq_(self.core_path.up_segment_info, info_of.return_value)
-            ntools.assert_is_none(self.core_path.core_segment_info)
-            ntools.assert_is_none(self.core_path.down_segment_info)
-        elif raw_len == [1, 0]:
-            ntools.eq_(self.core_path.up_segment_info, info_of.return_value)
-            ntools.eq_(self.core_path.core_segment_info, info_of.return_value)
-            ntools.assert_is_none(self.core_path.down_segment_info)
-        else:
-            ntools.eq_(self.core_path.up_segment_info, info_of.return_value)
-            ntools.eq_(self.core_path.core_segment_info, info_of.return_value)
-            ntools.eq_(self.core_path.down_segment_info, info_of.return_value)
-        ntools.assert_true(self.core_path.parsed)
+        raw.assert_called_once_with("data", "CorePath")
+        assert_these_calls(inst._parse_iof, parse_iof_calls[:num_calls])
+        assert_these_calls(inst._parse_hofs, parse_hofs_calls[:num_calls])
 
     def test(self):
         for raw_len in ([0, 0], [1, 0], [1, 1]):
             yield self._check, raw_len
 
 
-class TestCorePathParseSegment(BasePath):
-    """
-    Unit tests for lib.packet.path.CorePath._parse_segment
-    """
-    @patch("lib.packet.path.HopOpaqueField", autospec=True)
-    def test(self, hop_of):
-        # Setup
-        hop_of.side_effect = ('data0', 'data1')
-        hop_of.LEN = HopOpaqueField.LEN
-        data = MagicMock(Raw)
-        data.pop.side_effect = ("pop hof0", "pop hof1")
-        hops = []
-        # Call
-        self.core_path._parse_segment(data, 2, hops)
-        # Tests
-        hop_of.assert_has_calls([call("pop hof0"), call("pop hof1")])
-        ntools.eq_(hops, ['data0', 'data1'])
-
-
-class TestCorePathPack(BasePath):
-    """
-    Unit tests for lib.packet.path.CorePath.pack
-    """
-    @patch("lib.packet.path.CorePath._pack_down_segment", autospec=True)
-    @patch("lib.packet.path.CorePath._pack_core_segment", autospec=True)
-    @patch("lib.packet.path.CorePath._pack_up_segment", autospec=True)
-    def test(self, pack_up, pack_core, pack_down):
-        pack_up.return_value = b'str1'
-        pack_core.return_value = b'str2'
-        pack_down.return_value = b'str3'
-        ntools.eq_(self.core_path.pack(), b'str1' + b'str2' + b'str3')
-
-
-class TestCorePathPackUpSegment(BasePath):
-    """
-    Unit tests for lib.packet.path.CorePath._pack_up_segment
-    """
-    def test_with_info(self):
-        self.core_path.up_segment_info = MagicMock(spec_set=['pack'])
-        self.core_path.up_segment_info.pack.return_value = b'packed_iof'
-        hof_mock = MagicMock(spec_set=['pack'])
-        hof_mock.pack.return_value = b'packed_hof'
-        self.core_path.up_segment_hops = [hof_mock, hof_mock]
-        packed = b'packed_iof' + b'packed_hof' + b'packed_hof'
-        ntools.eq_(self.core_path._pack_up_segment(), packed)
-
-    def test_without_info(self):
-        self.core_path.up_segment_info = None
-        ntools.eq_(self.core_path._pack_up_segment(), b'')
-
-
-class TestCorePathPackCoreSegment(BasePath):
-    """
-    Unit tests for lib.packet.path.CorePath._pack_core_segment
-    """
-    def test_with_info(self):
-        self.core_path.core_segment_info = MagicMock(spec_set=['pack'])
-        self.core_path.core_segment_info.pack.return_value = b'packed_iof'
-        hof_mock = MagicMock(spec_set=['pack'])
-        hof_mock.pack.return_value = b'packed_hof'
-        self.core_path.core_segment_hops = [hof_mock, hof_mock]
-        packed = b'packed_iof' + b'packed_hof' + b'packed_hof'
-        ntools.eq_(self.core_path._pack_core_segment(), packed)
-
-    def test_without_info(self):
-        self.core_path.core_segment_info = None
-        ntools.eq_(self.core_path._pack_core_segment(), b'')
-
-
-class TestCorePathPackDownSegment(BasePath):
-    """
-    Unit tests for lib.packet.path.CorePath._pack_down_segment
-    """
-    def test_with_info(self):
-        self.core_path.down_segment_info = MagicMock(spec_set=['pack'])
-        self.core_path.down_segment_info.pack.return_value = b'packed_iof'
-        hof_mock = MagicMock(spec_set=['pack'])
-        hof_mock.pack.return_value = b'packed_hof'
-        self.core_path.down_segment_hops = [hof_mock, hof_mock]
-        packed = b'packed_iof' + b'packed_hof' + b'packed_hof'
-        ntools.eq_(self.core_path._pack_down_segment(), packed)
-
-    def test_without_info(self):
-        self.core_path.down_segment_info = None
-        ntools.eq_(self.core_path._pack_down_segment(), b'')
-
-
-class TestCorePathReverse(BasePath):
+class TestCorePathReverse(object):
     """
     Unit tests for lib.packet.path.CorePath.reverse
     """
     @patch("lib.packet.path.PathBase.reverse", autospec=True)
-    def test_with_info(self, reverse):
-        iof1_ = copy.copy(self.iof[0])
-        self.core_path.core_segment_info = self.iof[0]
-        self.core_path.core_segment_hops = MagicMock(spec_set=['reverse'])
-        self.core_path.reverse()
-        reverse.assert_called_once_with(self.core_path)
-        self.core_path.core_segment_hops.reverse.assert_called_once_with()
-        iof1_.up_flag ^= True
-        ntools.eq_(self.core_path.core_segment_info, iof1_)
-
-    @patch("lib.packet.path.PathBase.reverse", autospec=True)
-    def test_without_info(self, reverse):
-        self.core_path.core_segment_hops = MagicMock(spec_set=['reverse'])
-        self.core_path.reverse()
-        reverse.assert_called_once_with(self.core_path)
-        self.core_path.core_segment_hops.reverse.assert_called_once_with()
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test(self, init, super_reverse):
+        inst = CorePath()
+        inst._ofs = create_mock(["reverse_label", "reverse_up_flag"])
+        # Call
+        inst.reverse()
+        # Tests
+        super_reverse.assert_called_once_with(inst)
+        inst._ofs.reverse_up_flag(CORE_IOF)
+        inst._ofs.reverse_label(CORE_HOFS)
 
 
-class TestCorePathGetOf(BasePath):
+class TestCorePathGetAdHops(object):
     """
-    Unit tests for lib.packet.path.CorePath.get_of
+    Unit tests for lib.packet.path.CorePath.get_ad_hops
     """
-    def _check(self, idx):
-        ofs = ([self.iof[0]] + self.hof[:2] +
-               [self.iof[2]] + self.hof[1:4] +
-               [self.iof[1], self.hof[2],
-                self.hof[4], None])
-        val = ofs[idx]
-        self.core_path.up_segment_info = self.iof[0]
-        self.core_path.down_segment_info = self.iof[1]
-        self.core_path.core_segment_info = self.iof[2]
-        self.core_path.up_segment_hops = self.hof[:2]
-        self.core_path.down_segment_hops = [self.hof[2], self.hof[4]]
-        self.core_path.core_segment_hops = self.hof[1:4]
-        ntools.eq_(self.core_path.get_of(idx), val)
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def _check(self, counts, expected, init):
+        inst = CorePath()
+        inst._ofs = create_mock(["count"])
+        inst._ofs.count.side_effect = counts
+        # Call
+        ntools.eq_(inst.get_ad_hops(), expected)
 
     def test(self):
-        for idx in range(11):
-            yield self._check, idx
+        for counts, expected in (
+            # [UP_HOFS, CORE_HOFS, DOWN_HOFS]
+            ([0, 0, 0], 0),
+            ([0, 0, 5], 5),
+            ([0, 3, 5], 7),
+            ([8, 3, 5], 14),
+            ([1, 1, 1], 1),
+            ([1, 0, 1], 1),
+        ):
+            yield self._check, counts, expected
 
 
-class TestCorePathFromValues(BasePath):
+class TestCorePathFromValues(_FromValuesTest):
     """
     Unit tests for lib.packet.path.CorePath.from_values
     """
-    def test_basic(self):
-        up_hops = self.hof[:2]
-        core_hops = self.hof[1:4]
-        down_hops = [self.hof[2], self.hof[4]]
-        self.core_path = CorePath.from_values(self.iof[0], up_hops, self.iof[1],
-                                              core_hops, self.iof[2], down_hops)
-        ntools.eq_(self.core_path.up_segment_info, self.iof[0])
-        ntools.eq_(self.core_path.core_segment_info, self.iof[1])
-        ntools.eq_(self.core_path.down_segment_info, self.iof[2])
-        ntools.eq_(self.core_path.up_segment_hops, self.hof[:2])
-        ntools.eq_(self.core_path.core_segment_hops, self.hof[1:4])
-        ntools.eq_(self.core_path.down_segment_hops, [self.hof[2], self.hof[4]])
-
-    def test_less_arg(self):
-        self.core_path = CorePath.from_values()
-        ntools.assert_is_none(self.core_path.up_segment_info)
-        ntools.assert_is_none(self.core_path.core_segment_info)
-        ntools.assert_is_none(self.core_path.down_segment_info)
-        ntools.eq_(self.core_path.up_segment_hops, [])
-        ntools.eq_(self.core_path.core_segment_hops, [])
-        ntools.eq_(self.core_path.down_segment_hops, [])
+    TYPE = CorePath
+    ARGS = ["up_iof", "up_hofs", "core_iof", "core_hofs", "down_iof",
+            "down_hofs"]
 
 
-class TestCrossOverPathInit(object):
+class TestCrossOverPathFromValues(_FromValuesTest):
     """
-    Unit tests for lib.packet.path.CrossOverPath.__init__
+    Unit tests for lib.packet.path.CrossOverPath.from_values
     """
-    @patch("lib.packet.path.PathBase.__init__", autospec=True)
-    def test_basic(self, init):
-        co_path = CrossOverPath()
-        init.assert_called_once_with(co_path)
-        ntools.eq_(co_path.up_segment_upstream_ad, None)
-        ntools.eq_(co_path.down_segment_upstream_ad, None)
-
-    @patch("lib.packet.path.CrossOverPath.parse", autospec=True)
-    def test_raw(self, parse):
-        co_path = CrossOverPath("data")
-        parse.assert_called_once_with(co_path, "data")
+    TYPE = CrossOverPath
+    ARGS = ["up_iof", "up_hofs", "up_upstream_hof",
+            "down_iof", "down_upstream_hof", "down_hofs"]
 
 
 class TestCrossOverPathParse(object):
     """
     Unit tests for lib.packet.path.CrossOverPath.parse
     """
-    @patch("lib.packet.path.CrossOverPath._parse_down_segment", autospec=True)
-    @patch("lib.packet.path.CrossOverPath._parse_up_segment", autospec=True)
     @patch("lib.packet.path.Raw", autospec=True)
-    def test_basic(self, raw, parse_up, parse_down):
-        # Setup
-        data = b"data"
-        co_path = CrossOverPath()
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test(self, init, raw):
+        inst = CrossOverPath()
+        inst._parse_iof = create_mock()
+        inst._parse_hofs = create_mock()
+        data = raw.return_value
         # Call
-        co_path.parse(data)
+        inst.parse("data")
         # Tests
-        raw.assert_called_once_with(data, "CrossOverPath")
-        parse_up.assert_called_once_with(co_path, raw.return_value)
-        parse_down.assert_called_once_with(co_path, raw.return_value)
-        ntools.assert_true(co_path.parsed)
-
-
-class TestCrossOverPathParseUpSegment(object):
-    """
-    Unit tests for lib.packet.path.CrossOverPath._parse_up_segment
-    """
-    @patch("lib.packet.path.HopOpaqueField", autospec=True)
-    @patch("lib.packet.path.InfoOpaqueField", autospec=True)
-    def test(self, info_of, hop_of):
-        # Setup
-        data = MagicMock(spec_set=["pop"])
-        data.pop.side_effect = (
-            "pop iof", "pop hof0", "pop hof1", "pop hof2")
-        mock_iof = MagicMock(spec_set=['hops'])
-        info_of.return_value = mock_iof
-        info_of.return_value.hops = 2
-        info_of.LEN = InfoOpaqueField.LEN
-        hop_of.side_effect = ("hof0", "hof1", "hof2")
-        hop_of.LEN = HopOpaqueField.LEN
-        co_path = CrossOverPath()
-        # Call
-        co_path._parse_up_segment(data)
-        # Tests
-        info_of.assert_called_once_with("pop iof")
-        hop_of.assert_has_calls([
-            call("pop hof0"), call("pop hof1"), call("pop hof2")])
-        ntools.eq_(co_path.up_segment_info, mock_iof)
-        ntools.eq_(co_path.up_segment_hops, ['hof0', 'hof1'])
-        ntools.eq_(co_path.up_segment_upstream_ad, 'hof2')
-
-
-class TestCrossOverPathParseDownSegment(object):
-    """
-    Unit tests for lib.packet.path.CrossOverPath._parse_down_segment
-    """
-    @patch("lib.packet.path.HopOpaqueField", autospec=True)
-    @patch("lib.packet.path.InfoOpaqueField", autospec=True)
-    def test(self, info_of, hop_of):
-        # Setup
-        data = MagicMock(spec_set=["pop"])
-        data.pop.side_effect = (
-            "pop iof", "pop hof0", "pop hof1", "pop hof2")
-        mock_iof = MagicMock(spec_set=['hops'])
-        info_of.return_value = mock_iof
-        info_of.return_value.hops = 2
-        info_of.LEN = InfoOpaqueField.LEN
-        hop_of.side_effect = ("hof0", "hof1", "hof2")
-        hop_of.LEN = HopOpaqueField.LEN
-        co_path = CrossOverPath()
-        # Call
-        co_path._parse_down_segment(data)
-        # Tests
-        info_of.assert_called_once_with("pop iof")
-        hop_of.assert_has_calls([
-            call("pop hof0"), call("pop hof1"), call("pop hof2")])
-        ntools.eq_(co_path.down_segment_info, mock_iof)
-        ntools.eq_(co_path.down_segment_upstream_ad, 'hof0')
-        ntools.eq_(co_path.down_segment_hops, ['hof1', 'hof2'])
-
-
-class TestCrossOverPathPack(object):
-    """
-    Unit tests for lib.packet.path.CrossOverPath.pack
-    """
-    @patch("lib.packet.path.CrossOverPath._pack_down_segment", autospec=True)
-    @patch("lib.packet.path.CrossOverPath._pack_up_segment", autospec=True)
-    def test(self, pack_up, pack_down):
-        co_path = CrossOverPath()
-        pack_up.return_value = b'str1'
-        pack_down.return_value = b'str2'
-        ntools.eq_(co_path.pack(), b'str1' + b'str2')
-
-
-class TestCrossOverPathPackUpSegment(object):
-    """
-    Unit tests for lib.packet.path.CrossOverPath._pack_up_segment
-    """
-    def test(self):
-        co_path = CrossOverPath()
-        co_path.up_segment_info = MagicMock(spec_set=['pack'])
-        co_path.up_segment_info.pack.return_value = b'packed_iof'
-        hof_mock = MagicMock(spec_set=['pack'])
-        hof_mock.pack.return_value = b'packed_hof'
-        co_path.up_segment_hops = [hof_mock, hof_mock]
-        co_path.up_segment_upstream_ad = MagicMock(spec_set=['pack'])
-        co_path.up_segment_upstream_ad.pack.return_value = b'packed_ad'
-        packed = b'packed_iof' + b'packed_hof' + b'packed_hof' + b'packed_ad'
-        ntools.eq_(co_path._pack_up_segment(), packed)
-
-
-class TestCrossOverPathPackDownSegment(object):
-    """
-    Unit tests for lib.packet.path.CrossOverPath._pack_down_segment
-    """
-    def test(self):
-        co_path = CrossOverPath()
-        co_path.down_segment_info = MagicMock(spec_set=['pack'])
-        co_path.down_segment_info.pack.return_value = b'packed_iof'
-        hof_mock = MagicMock(spec_set=['pack'])
-        hof_mock.pack.return_value = b'packed_hof'
-        co_path.down_segment_hops = [hof_mock, hof_mock]
-        co_path.down_segment_upstream_ad = MagicMock(spec_set=['pack'])
-        co_path.down_segment_upstream_ad.pack.return_value = b'packed_ad'
-        packed = b'packed_iof' + b'packed_ad' + b'packed_hof' + b'packed_hof'
-        ntools.eq_(co_path._pack_down_segment(), packed)
+        raw.assert_called_once_with("data", "CrossOverPath")
+        assert_these_calls(inst._parse_iof, [
+            call(data, UP_IOF), call(data, DOWN_IOF)])
+        assert_these_calls(inst._parse_hofs, [
+            call(data, UP_HOFS, inst._parse_iof.return_value),
+            call(data, UP_UPSTREAM_HOF),
+            call(data, DOWN_UPSTREAM_HOF),
+            call(data, DOWN_HOFS, inst._parse_iof.return_value),
+        ])
 
 
 class TestCrossOverPathReverse(object):
@@ -605,232 +476,108 @@ class TestCrossOverPathReverse(object):
     Unit tests for lib.packet.path.CrossOverPath.reverse
     """
     @patch("lib.packet.path.PathBase.reverse", autospec=True)
-    def test(self, reverse):
-        co_path = CrossOverPath()
-        co_path.up_segment_upstream_ad = 1
-        co_path.down_segment_upstream_ad = 2
-        co_path.reverse()
-        reverse.assert_called_once_with(co_path)
-        ntools.eq_(co_path.up_segment_upstream_ad, 2)
-        ntools.eq_(co_path.down_segment_upstream_ad, 1)
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test(self, init, super_reverse):
+        inst = CrossOverPath()
+        inst._ofs = create_mock(["swap"])
+        # Call
+        inst.reverse()
+        # Tests
+        super_reverse.assert_called_once_with(inst)
+        inst._ofs.swap.assert_called_once_with(UP_UPSTREAM_HOF,
+                                               DOWN_UPSTREAM_HOF)
 
 
-class TestCrossOverPathGetOf(BasePath):
+class TestCrossOverPathGetFirstHofIdx(object):
     """
-    Unit tests for lib.packet.path.CrossOverPath.get_of
+    Unit tests for lib.packet.path.CrossOverPath.get_first_hof_idx
     """
-    def _check(self, idx):
-        co_path = CrossOverPath()
-        co_path.up_segment_info = 0
-        co_path.up_segment_hops = [1, 2, 3]
-        co_path.up_segment_upstream_ad = 4
-        co_path.down_segment_info = 5
-        co_path.down_segment_upstream_ad = 6
-        co_path.down_segment_hops = [7, 8, 9]
-        ntools.eq_(co_path.get_of(idx), idx)
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def _check(self, counts, expected, init):
+        inst = CrossOverPath()
+        inst._ofs = create_mock(["count"])
+        inst._ofs.count.side_effect = counts
+        # Call
+        ntools.eq_(inst.get_first_hof_idx(), expected)
 
     def test(self):
-        for i in range(10):
-            yield self._check, i
+        for counts, expected in (
+            ([1], 5), ([2], 1), ([0, 1], 1), ([0, 0], 0)
+        ):
+            yield self._check, counts, expected
 
 
-class TestCrossOverGetFirstHopOffset(object):
+class TestCrossOverPathGetFirstIofIdx(object):
     """
-    Unit tests for lib.packet.path.CrossOverPath.get_first_hop_offset
+    Unit tests for lib.packet.path.CrossOverPath.get_first_iof_idx
     """
-    def test_with_up_hops_on_path(self):
-        co_path = CrossOverPath()
-        co_path.up_segment_hops = ['up_hop0']
-        ntools.eq_(co_path.get_first_hop_offset(),
-                   2 * InfoOpaqueField.LEN + 3 * HopOpaqueField.LEN)
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def _check(self, count, expected, init):
+        inst = CrossOverPath()
+        inst._ofs = create_mock(["count"])
+        inst._ofs.count.return_value = count
+        # Call
+        ntools.eq_(inst.get_first_iof_idx(), expected)
 
-    def test_with_up_hops(self):
-        co_path = CrossOverPath()
-        co_path.up_segment_hops = ['up_hop0', 'up_hop1']
-        ntools.eq_(co_path.get_first_hop_offset(), InfoOpaqueField.LEN)
-
-    def test_with_down_hops(self):
-        co_path = CrossOverPath()
-        co_path.down_segment_hops = ['dw_hop0', 'dw_hop1']
-        ntools.eq_(co_path.get_first_hop_offset(), InfoOpaqueField.LEN)
-
-    def test_no_hops(self):
-        co_path = CrossOverPath()
-        ntools.eq_(co_path.get_first_hop_offset(), 0)
+    def test(self):
+        for count, expected in (
+            (1, 3), (2, 0), (0, 0)
+        ):
+            yield self._check, count, expected
 
 
-class TestCrossOverGetFirstInfoOffset(object):
+class TestCrossOverPathGetAdHops(object):
     """
-    Unit tests for lib.packet.path.CrossOverPath.get_first_info_offset
+    Unit tests for lib.packet.path.CrossOverPath.get_ad_hops
     """
-    def test_on_path(self):
-        co_path = CrossOverPath()
-        co_path.up_segment_hops = ['up_hop0']
-        ntools.eq_(co_path.get_first_info_offset(),
-                   InfoOpaqueField.LEN + 2 * HopOpaqueField.LEN)
-
-    def test_not_on_path(self):
-        co_path = CrossOverPath()
-        co_path.up_segment_hops = ['up_hop0', 'up_hop0']
-        ntools.eq_(co_path.get_first_info_offset(), 0)
-
-    def test_no_up_hops(self):
-        co_path = CrossOverPath()
-        ntools.eq_(co_path.get_first_info_offset(), 0)
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test(self, init):
+        inst = CrossOverPath()
+        inst._ofs = create_mock(["count"])
+        inst._ofs.count.side_effect = [3, 5]
+        # Call
+        ntools.eq_(inst.get_ad_hops(), 7)
 
 
-class TestPeerPathInit(object):
+class TestPeerPathFromValues(_FromValuesTest):
     """
-    Unit tests for lib.packet.path.PeerPath.__init__
+    Unit tests for lib.packet.path.PeerPath.from_values
     """
-    @patch("lib.packet.path.PathBase.__init__", autospec=True)
-    def test_basic(self, init):
-        peer_path = PeerPath()
-        init.assert_called_once_with(peer_path)
-        ntools.assert_is_none(peer_path.up_segment_peering_link)
-        ntools.assert_is_none(peer_path.up_segment_upstream_ad)
-        ntools.assert_is_none(peer_path.down_segment_peering_link)
-        ntools.assert_is_none(peer_path.down_segment_upstream_ad)
-
-    @patch("lib.packet.path.PeerPath.parse", autospec=True)
-    def test_raw(self, parse):
-        peer_path = PeerPath('rawstring')
-        parse.assert_called_once_with(peer_path, 'rawstring')
+    TYPE = PeerPath
+    ARGS = ["up_iof", "up_hofs", "up_peering_hof", "up_upstream_hof",
+            "down_iof", "down_upstream_hof", "down_peering_hof", "down_hofs"]
 
 
 class TestPeerPathParse(object):
     """
     Unit tests for lib.packet.path.PeerPath.parse
     """
-    @patch("lib.packet.path.PeerPath._parse_down_segment", autospec=True)
-    @patch("lib.packet.path.PeerPath._parse_up_segment", autospec=True)
     @patch("lib.packet.path.Raw", autospec=True)
-    def test_basic(self, raw, parse_up, parse_down):
-        # Setup
-        data = b"data"
-        peer_path = PeerPath()
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test_basic(self, init, raw):
+        inst = PeerPath()
+        inst._parse_iof = create_mock()
+        inst._parse_hofs = create_mock()
+        data = raw.return_value
         # Call
-        peer_path.parse(data)
+        inst.parse("data")
         # Tests
-        raw.assert_called_once_with(data, "PeerPath")
-        parse_up.assert_called_once_with(peer_path, raw.return_value)
-        parse_down.assert_called_once_with(peer_path, raw.return_value)
-        ntools.assert_true(peer_path.parsed)
-
-
-class TestPeerPathParseUpSegment(object):
-    """
-    Unit tests for lib.packet.path.PeerPath._parse_up_segment
-    """
-    @patch("lib.packet.path.HopOpaqueField", autospec=True)
-    @patch("lib.packet.path.InfoOpaqueField", autospec=True)
-    def test(self, info_of, hop_of):
-        # Setup
-        data = MagicMock(spec_set=["pop"])
-        data.pop.side_effect = (
-            "pop iof", "pop hof0", "pop hof1", "pop hof2", "pop hof3")
-        mock_iof = MagicMock(spec_set=['hops'])
-        info_of.return_value = mock_iof
-        info_of.return_value.hops = 2
-        info_of.LEN = InfoOpaqueField.LEN
-        hop_of.side_effect = ("hof0", "hof1", "hof2", "hof3")
-        hop_of.LEN = HopOpaqueField.LEN
-        peer_path = PeerPath()
-        # Call
-        peer_path._parse_up_segment(data)
-        # Tests
-        info_of.assert_called_once_with("pop iof")
-        hop_of.assert_has_calls([
-            call("pop hof0"), call("pop hof1"),
-            call("pop hof2"), call("pop hof3")])
-        ntools.eq_(peer_path.up_segment_info, mock_iof)
-        ntools.eq_(peer_path.up_segment_hops, ['hof0', 'hof1'])
-        ntools.eq_(peer_path.up_segment_peering_link, 'hof2')
-        ntools.eq_(peer_path.up_segment_upstream_ad, 'hof3')
-
-
-class TestPeerPathParseDownSegment(object):
-    """
-    Unit tests for lib.packet.path.PeerPath._parse_down_segment
-    """
-    @patch("lib.packet.path.HopOpaqueField", autospec=True)
-    @patch("lib.packet.path.InfoOpaqueField", autospec=True)
-    def test(self, info_of, hop_of):
-        # Setup
-        data = MagicMock(spec_set=["pop"])
-        data.pop.side_effect = (
-            "pop iof", "pop hof0", "pop hof1", "pop hof2", "pop hof3")
-        mock_iof = MagicMock(spec_set=['hops'])
-        info_of.return_value = mock_iof
-        info_of.return_value.hops = 2
-        info_of.LEN = InfoOpaqueField.LEN
-        hop_of.side_effect = ("hof0", "hof1", "hof2", "hof3")
-        hop_of.LEN = HopOpaqueField.LEN
-        peer_path = PeerPath()
-        # Call
-        peer_path._parse_down_segment(data)
-        # Tests
-        info_of.assert_called_once_with("pop iof")
-        hop_of.assert_has_calls([
-            call("pop hof0"), call("pop hof1"),
-            call("pop hof2"), call("pop hof3")])
-        ntools.eq_(peer_path.down_segment_info, mock_iof)
-        ntools.eq_(peer_path.down_segment_upstream_ad, 'hof0')
-        ntools.eq_(peer_path.down_segment_peering_link, 'hof1')
-        ntools.eq_(peer_path.down_segment_hops, ['hof2', 'hof3'])
-
-
-class TestPeerPathPack(object):
-    """
-    Unit tests for lib.packet.path.PeerPath.pack
-    """
-    @patch("lib.packet.path.PeerPath._pack_down_segment", autospec=True)
-    @patch("lib.packet.path.PeerPath._pack_up_segment", autospec=True)
-    def test(self, pack_up, pack_down):
-        peer_path = PeerPath()
-        pack_up.return_value = b'str1'
-        pack_down.return_value = b'str2'
-        ntools.eq_(peer_path.pack(), b'str1' + b'str2')
-
-
-class TestPeerPathPackUpSegment(object):
-    """
-    Unit tests for lib.packet.path.PeerPath._pack_up_segment
-    """
-    def test(self):
-        peer_path = PeerPath()
-        peer_path.up_segment_info = MagicMock(spec_set=['pack'])
-        peer_path.up_segment_info.pack.return_value = b'packed_iof'
-        hof_mock = MagicMock(spec_set=['pack'])
-        hof_mock.pack.return_value = b'packed_hof'
-        peer_path.up_segment_hops = [hof_mock, hof_mock]
-        peer_path.up_segment_upstream_ad = MagicMock(spec_set=['pack'])
-        peer_path.up_segment_upstream_ad.pack.return_value = b'packed_ad'
-        peer_path.up_segment_peering_link = MagicMock(spec_set=['pack'])
-        peer_path.up_segment_peering_link.pack.return_value = b'packed_link'
-        packed = b'packed_iof' + b'packed_hof' + b'packed_hof' + \
-                 b'packed_link' + b'packed_ad'
-        ntools.eq_(peer_path._pack_up_segment(), packed)
-
-
-class TestPeerPathPackDownSegment(object):
-    """
-    Unit tests for lib.packet.path.PeerPath._pack_down_segment
-    """
-    def test(self):
-        peer_path = PeerPath()
-        peer_path.down_segment_info = MagicMock(spec_set=['pack'])
-        peer_path.down_segment_info.pack.return_value = b'packed_iof'
-        hof_mock = MagicMock(spec_set=['pack'])
-        hof_mock.pack.return_value = b'packed_hof'
-        peer_path.down_segment_hops = [hof_mock, hof_mock]
-        peer_path.down_segment_upstream_ad = MagicMock(spec_set=['pack'])
-        peer_path.down_segment_upstream_ad.pack.return_value = b'packed_ad'
-        peer_path.down_segment_peering_link = MagicMock(spec_set=['pack'])
-        peer_path.down_segment_peering_link.pack.return_value = b'packed_link'
-        packed = b'packed_iof' + b'packed_ad' + b'packed_link' + \
-                 b'packed_hof' + b'packed_hof'
-        ntools.eq_(peer_path._pack_down_segment(), packed)
+        raw.assert_called_once_with("data", "PeerPath")
+        assert_these_calls(inst._parse_iof, [
+            call(data, UP_IOF), call(data, DOWN_IOF)])
+        assert_these_calls(inst._parse_hofs, [
+            call(data, UP_HOFS, inst._parse_iof.return_value),
+            call(data, UP_PEERING_HOF),
+            call(data, UP_UPSTREAM_HOF),
+            call(data, DOWN_UPSTREAM_HOF),
+            call(data, DOWN_PEERING_HOF),
+            call(data, DOWN_HOFS, inst._parse_iof.return_value),
+        ])
 
 
 class TestPeerPathReverse(object):
@@ -838,112 +585,84 @@ class TestPeerPathReverse(object):
     Unit tests for lib.packet.path.PeerPath.reverse
     """
     @patch("lib.packet.path.PathBase.reverse", autospec=True)
-    def test(self, reverse):
-        peer_path = PeerPath()
-        peer_path.up_segment_upstream_ad = 1
-        peer_path.down_segment_upstream_ad = 2
-        peer_path.up_segment_peering_link = 3
-        peer_path.down_segment_peering_link = 4
-        peer_path.reverse()
-        reverse.assert_called_once_with(peer_path)
-        ntools.eq_(peer_path.up_segment_upstream_ad, 2)
-        ntools.eq_(peer_path.down_segment_upstream_ad, 1)
-        ntools.eq_(peer_path.up_segment_peering_link, 4)
-        ntools.eq_(peer_path.down_segment_peering_link, 3)
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test(self, init, super_reverse):
+        inst = PeerPath()
+        inst._ofs = create_mock(["swap"])
+        # Call
+        inst.reverse()
+        # Tests
+        super_reverse.assert_called_once_with(inst)
+        assert_these_calls(inst._ofs.swap, [
+            call(UP_UPSTREAM_HOF, DOWN_UPSTREAM_HOF),
+            call(UP_PEERING_HOF, DOWN_PEERING_HOF),
+        ])
 
 
-class TestPeerPathGetOf(BasePath):
+class TestPeerPathGetAdHops(object):
     """
-    Unit tests for lib.packet.path.PeerPath.get_of
+    Unit tests for lib.packet.path.PeerPath.get_ad_hops
     """
-    def _check(self, idx):
-        peer_path = PeerPath()
-        peer_path.up_segment_info = 0
-        peer_path.up_segment_hops = [1, 2, 3]
-        peer_path.up_segment_peering_link = 4
-        peer_path.up_segment_upstream_ad = 5
-        peer_path.down_segment_info = 6
-        peer_path.down_segment_upstream_ad = 7
-        peer_path.down_segment_peering_link = 8
-        peer_path.down_segment_hops = [9, 10, 11]
-        ntools.eq_(peer_path.get_of(idx), idx)
-
-    def test(self):
-        for i in range(12):
-            yield self._check, i
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test(self, init):
+        inst = PeerPath()
+        inst._ofs = create_mock(["count"])
+        inst._ofs.count.side_effect = [3, 5]
+        # Call
+        ntools.eq_(inst.get_ad_hops(), 7)
 
 
-class TestPeerPathGetFirstHopOffset(object):
+class TestPeerPathGetFirstHofIdx(object):
     """
-    Unit tests for lib.packet.path.PeerPath.get_first_hop_offset
+    Unit tests for lib.packet.path.PeerPath.get_first_hof_idx
     """
-    def test_with_up_seg_hops_last(self):
-        peer_path = PeerPath()
-        peer_path.up_segment_hops = [MagicMock(spec_set=['info'])]
-        peer_path.up_segment_hops[0].info = OpaqueFieldType.XOVR_POINT
-        ntools.eq_(peer_path.get_first_hop_offset(),
-                   InfoOpaqueField.LEN + HopOpaqueField.LEN)
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def _check(self, hofs, expected, init):
+        inst = PeerPath()
+        inst._ofs = create_mock(["get_by_label"])
+        inst._ofs.get_by_label.side_effect = hofs
+        # Call
+        ntools.eq_(inst.get_first_hof_idx(), expected)
 
-    def test_with_up_seg_hops(self):
-        peer_path = PeerPath()
-        peer_path.up_segment_hops = [MagicMock(spec_set=['info'])]
-        peer_path.up_segment_hops[0].info = 123
-        ntools.eq_(peer_path.get_first_hop_offset(), InfoOpaqueField.LEN)
+    def test_no_hofs(self):
+        self._check([None, None], 0)
 
-    def test_with_down_seg_hops_last(self):
-        peer_path = PeerPath()
-        peer_path.down_segment_hops = [MagicMock(spec_set=['info'])]
-        peer_path.down_segment_hops[0].info = OpaqueFieldType.XOVR_POINT
-        ntools.eq_(peer_path.get_first_hop_offset(),
-                   InfoOpaqueField.LEN + HopOpaqueField.LEN)
+    def test_up_hofs_normal(self):
+        hof = create_mock(["info"])
+        self._check([[hof], None], 1)
 
-    def test_with_down_seg_hops(self):
-        peer_path = PeerPath()
-        peer_path.down_segment_hops = [MagicMock(spec_set=['info'])]
-        peer_path.down_segment_hops[0].info = 123
-        ntools.eq_(peer_path.get_first_hop_offset(), InfoOpaqueField.LEN)
+    def test_up_hofs_xovr(self):
+        hof = create_mock(["info"])
+        hof.info = OpaqueFieldType.XOVR_POINT
+        self._check([[hof], None], 2)
 
-    def test_without_hops(self):
-        peer_path = PeerPath()
-        ntools.eq_(peer_path.get_first_hop_offset(), 0)
+    def test_down_hofs_normal(self):
+        hof = create_mock(["info"])
+        self._check([None, [hof]], 1)
 
-
-class TestEmptyPathInit(object):
-    """
-    Unit tests for lib.packet.path.EmptyPath.__init__
-    """
-    @patch("lib.packet.path.PathBase.__init__", autospec=True)
-    def test_basic(self, init):
-        empty_path = EmptyPath()
-        init.assert_called_once_with(empty_path)
+    def test_down_hofs_xovr(self):
+        hof = create_mock(["info"])
+        hof.info = OpaqueFieldType.XOVR_POINT
+        self._check([None, [hof]], 2)
 
 
-class TestEmptyPathPack(object):
-    """
-    Unit tests for lib.packet.path.EmptyPath.pack
-    """
-    def test(self):
-        empty_path = EmptyPath()
-        ntools.eq_(empty_path.pack(), b'')
+class PathCombinatorBase(object):
+    def _generate_none(self):
+        def _mk_seg(ads):
+            seg = create_mock(["ads"])
+            seg.ads = ads
+            return seg
 
-
-class TestEmptyPathGetFirstHopOf(object):
-    """
-    Unit tests for lib.packet.path.EmptyPath.get_first_hop_of
-    """
-    def test(self):
-        empty_path = EmptyPath()
-        ntools.assert_is_none(empty_path.get_first_hop_of())
-
-
-class TestEmptyPathGetOf(object):
-    """
-    Unit tests for lib.packet.path.EmptyPath.get_of
-    """
-    def test(self):
-        empty_path = EmptyPath()
-        empty_path.up_segment_info = 1
-        ntools.assert_is_none(empty_path.get_of(123))
+        for up, down in (
+            (False, True),
+            (True, False),
+            (_mk_seg(False), True),
+            (_mk_seg(True), _mk_seg(False)),
+        ):
+            yield up, down
 
 
 class TestPathCombinatorBuildShortcutPaths(object):
@@ -951,16 +670,16 @@ class TestPathCombinatorBuildShortcutPaths(object):
     Unit tests for lib.packet.path.PathCombinator.build_shortcut_paths
     """
     @patch("lib.packet.path.PathCombinator._build_shortcut_path",
-           spec_set=[], new_callable=MagicMock)
+           new_callable=create_mock)
     def test(self, build_path):
         up_segments = ['up0', 'up1']
         down_segments = ['down0', 'down1']
-        build_path.side_effect = ['path0', 'path1', 'path1', None]
-        paths = ['path0', 'path1']
-        ntools.eq_(PathCombinator.build_shortcut_paths(up_segments,
-                                                       down_segments), paths)
+        build_path.side_effect = ['path0', 'path1', None, 'path1']
+        ntools.eq_(
+            PathCombinator.build_shortcut_paths(up_segments, down_segments),
+            ["path0", "path1"])
         calls = [call(*x) for x in product(up_segments, down_segments)]
-        build_path.assert_has_calls(calls)
+        assert_these_calls(build_path, calls)
 
 
 class TestPathCombinatorBuildCorePaths(object):
@@ -968,7 +687,7 @@ class TestPathCombinatorBuildCorePaths(object):
     Unit tests for lib.packet.path.PathCombinator.build_core_paths
     """
     @patch("lib.packet.path.PathCombinator._build_core_path",
-           spec_set=[], new_callable=MagicMock)
+           new_callable=create_mock)
     def test_without_core(self, build_path):
         build_path.return_value = 'path0'
         ntools.eq_(PathCombinator.build_core_paths('up', 'down', None),
@@ -976,460 +695,429 @@ class TestPathCombinatorBuildCorePaths(object):
         build_path.assert_called_once_with('up', [], 'down')
 
     @patch("lib.packet.path.PathCombinator._build_core_path",
-           spec_set=[], new_callable=MagicMock)
-    def test_empty_without_core(self, build_path):
+           new_callable=create_mock)
+    def test_without_core_empty(self, build_path):
         build_path.return_value = None
         ntools.eq_(PathCombinator.build_core_paths('up', 'down', None), [])
 
     @patch("lib.packet.path.PathCombinator._build_core_path",
-           spec_set=[], new_callable=MagicMock)
+           new_callable=create_mock)
     def test_with_core(self, build_path):
         core_segments = ['core0', 'core1', 'core2', 'core3']
-        build_path.side_effect = ['path0', 'path1', 'path1', None]
+        build_path.side_effect = ['path0', 'path1', None, 'path1']
         ntools.eq_(PathCombinator.build_core_paths('up', 'down', core_segments),
                    ['path0', 'path1'])
         calls = [call('up', cs, 'down') for cs in core_segments]
-        build_path.assert_has_calls(calls)
+        assert_these_calls(build_path, calls)
 
 
-class TestPathCombinatorBuildShortcutPath(object):
+class TestPathCombinatorBuildShortcutPath(PathCombinatorBase):
     """
     Unit tests for lib.packet.path.PathCombinator._build_shortcut_path
     """
-    def setUp(self):
-        self.up_seg = MagicMock(spec_set=['ads'])
-        self.up_seg.ads = [123]
-        self.down_seg = MagicMock(spec_set=['ads'])
-        self.down_seg.ads = [456]
-
-    def tearDown(self):
-        del self.up_seg
-        del self.down_seg
-
     def _check_none(self, up_seg, down_seg):
-        ntools.assert_is_none(PathCombinator._build_shortcut_path(up_seg,
-                                                                  down_seg))
+        ntools.assert_is_none(
+            PathCombinator._build_shortcut_path(up_seg, down_seg))
 
     def test_none(self):
-        up_segs = [[], [1], MagicMock(spec_set=['ads']),
-                   MagicMock(spec_set=['ads'])]
-        up_segs[2].ads = []
-        up_segs[3].ads = [456]
-        down_segs = [123, [], [2], MagicMock(spec_set=['ads'])]
-        down_segs[3].ads = []
-        for up_seg, down_seg in zip(up_segs, down_segs):
-            yield self._check_none, up_seg, down_seg
+        for up, down in self._generate_none():
+            yield self._check_none, up, down
 
-    @patch("lib.packet.path.PathCombinator._get_xovrs_peers", spec_set=[],
-           new_callable=MagicMock)
-    def test_no_xovrs_peers(self, get_xovrs_peers):
-        get_xovrs_peers.return_value = [], []
-        ntools.assert_is_none(PathCombinator._build_shortcut_path(
-            self.up_seg, self.down_seg))
-        get_xovrs_peers.assert_called_once_with(self.up_seg, self.down_seg)
+    @patch("lib.packet.path.PathCombinator._get_xovr_peer",
+           new_callable=create_mock)
+    def test_no_xovr_peer(self, get_xovr_peer):
+        up, down = create_mock(['ads']), create_mock(['ads'])
+        get_xovr_peer.return_value = None, None
+        # Call
+        ntools.assert_is_none(PathCombinator._build_shortcut_path(up, down))
+        # Tests
+        get_xovr_peer.assert_called_once_with(up, down)
 
-    @patch("lib.packet.path.PathCombinator._join_shortcuts", spec_set=[],
-           new_callable=MagicMock)
-    @patch("lib.packet.path.PathCombinator._get_xovrs_peers", spec_set=[],
-           new_callable=MagicMock)
-    def _check_xovrs_peers(self, xovrs, peers, point, peer, get_xovrs_peers,
+    @patch("lib.packet.path.PathCombinator._join_shortcuts",
+           new_callable=create_mock)
+    @patch("lib.packet.path.PathCombinator._get_xovr_peer",
+           new_callable=create_mock)
+    def _check_xovrs_peers(self, xovr, peer, is_peer, get_xovr_peer,
                            join_shortcuts):
-        get_xovrs_peers.return_value = xovrs, peers
-        join_shortcuts.return_value = 'path'
-        ntools.eq_(PathCombinator._build_shortcut_path(self.up_seg,
-                                                       self.down_seg), 'path')
-        join_shortcuts.assert_called_once_with(self.up_seg, self.down_seg,
-                                               point, peer)
+        up, down = create_mock(['ads']), create_mock(['ads'])
+        get_xovr_peer.return_value = xovr, peer
+        # Call
+        ntools.eq_(PathCombinator._build_shortcut_path(up, down),
+                   join_shortcuts.return_value)
+        # Tests
+        expected = xovr
+        if is_peer:
+            expected = peer
+        join_shortcuts.assert_called_once_with(up, down, expected, is_peer)
 
-    def test_with_peers(self):
-        xovrs_list = [[1, [2, 3, 4]], []]
-        peers_list = [[5, [6, 7, 8]]] * 2
-        for xovrs, peers in zip(xovrs_list, peers_list):
-            yield self._check_xovrs_peers, xovrs, peers, [6, 7, 8], True
+    def test_with_both(self):
+        for xovr, peer, is_peer in (
+            [(1, 2), (3, 1), True],
+            [(1, 3), (3, 1), False],
+            [(1, 5), (3, 1), False],
+        ):
+            yield self._check_xovrs_peers, xovr, peer, is_peer
 
-    def test_with_xovrs(self):
-        xovrs_list = [[3, [5, 7, 9]]] * 2
-        peers_list = [[1, [2, 4, 6]], []]
-        for xovrs, peers in zip(xovrs_list, peers_list):
-            yield self._check_xovrs_peers, xovrs, peers, [5, 7, 9], False
+    def test_with_only_xovr(self):
+        yield self._check_xovrs_peers, (1, 2), None, False
+
+    def test_with_only_peer(self):
+        yield self._check_xovrs_peers, None, (1, 2), True
 
 
-class TestPathCombinatorBuildCorePath(object):
+class TestPathCombinatorBuildCorePath(PathCombinatorBase):
     """
     Unit tests for lib.packet.path.PathCombinator._build_core_path
     """
-    def setUp(self):
-        self.up_seg = MagicMock(spec_set=['ads'])
-        self.up_seg.ads = [123]
-        self.down_seg = MagicMock(spec_set=['ads'])
-        self.down_seg.ads = [456]
-
-    def tearDown(self):
-        del self.up_seg
-        del self.down_seg
-
     def _check_none(self, up_seg, down_seg):
-        ntools.assert_is_none(PathCombinator._build_core_path(
-            up_seg, 'core_seg', down_seg))
+        ntools.assert_is_none(
+            PathCombinator._build_core_path(up_seg, "core", down_seg))
 
     def test_none(self):
-        up_segs = [[], [1], MagicMock(spec_set=['ads']),
-                   MagicMock(spec_set=['ads'])]
-        up_segs[2].ads = []
-        up_segs[3].ads = [456]
-        down_segs = [123, [], [2], MagicMock(spec_set=['ads'])]
-        down_segs[3].ads = []
-        for up_seg, down_seg in zip(up_segs, down_segs):
-            yield self._check_none, up_seg, down_seg
+        for up, down in self._generate_none():
+            yield self._check_none, up, down
 
-    @patch("lib.packet.path.PathCombinator._check_connected", spec_set=[],
-           new_callable=MagicMock)
+    @patch("lib.packet.path.PathCombinator._check_connected",
+           new_callable=create_mock)
     def test_not_connected(self, check_connected):
+        up, core, down = (create_mock(['ads']), create_mock(['ads']),
+                          create_mock(['ads']))
         check_connected.return_value = False
-        ntools.assert_is_none(PathCombinator._build_core_path(
-            self.up_seg, 'core_seg', self.down_seg))
-        check_connected.assert_called_once_with(self.up_seg, 'core_seg',
-                                                self.down_seg)
+        # Call
+        ntools.assert_is_none(PathCombinator._build_core_path(up, core, down))
+        # Tests
+        check_connected.assert_called_once_with(up, core, down)
 
-    @patch("lib.packet.path.PathCombinator._join_down_segment", spec_set=[],
-           new_callable=MagicMock)
-    @patch("lib.packet.path.PathCombinator._join_core_segment", spec_set=[],
-           new_callable=MagicMock)
-    @patch("lib.packet.path.PathCombinator._join_up_segment", spec_set=[],
-           new_callable=MagicMock)
-    @patch("lib.packet.path.CorePath", autospec=True)
-    @patch("lib.packet.path.PathCombinator._check_connected", spec_set=[],
-           new_callable=MagicMock)
-    def test_full(self, check_connected, core_path, join_up, join_core,
-                  join_down):
+    @patch("lib.packet.path.CorePath.from_values", new_callable=create_mock)
+    @patch("lib.packet.path.PathCombinator._copy_segment",
+           new_callable=create_mock)
+    @patch("lib.packet.path.PathCombinator._check_connected",
+           new_callable=create_mock)
+    def test_full(self, check_connected, copy_seg, core_from_values):
+        up, core, down = (create_mock(['ads']), create_mock(['ads']),
+                          create_mock(['ads']))
         check_connected.return_value = True
-        core_path.return_value = 'core_path'
-        join_up.return_value = 'up_join'
-        join_core.return_value = 'core_join'
-        join_down.return_value = 'down_join'
-        ntools.eq_(PathCombinator._build_core_path(self.up_seg, 'core_seg',
-                                                   self.down_seg), 'down_join')
-        core_path.assert_called_once_with()
-        join_up.assert_called_once_with('core_path', self.up_seg)
-        join_core.assert_called_once_with('up_join', 'core_seg')
-        join_down.assert_called_once_with('core_join', self.down_seg)
+        copy_seg.side_effect = [
+            ("up_iof", "up_hofs"),
+            ("core_iof", "core_hofs"),
+            ("down_iof", "down_hofs"),
+        ]
+        # Call
+        ntools.eq_(PathCombinator._build_core_path(up, core, down),
+                   core_from_values.return_value)
+        # Tests
+        assert_these_calls(copy_seg, [
+            call(up, [-1]), call(core, [-1, 0]), call(down, [0], up=False)
+        ])
+        core_from_values.assert_called_once_with(
+            "up_iof", "up_hofs", "core_iof", "core_hofs", "down_iof",
+            "down_hofs")
 
 
-class TestPathCombinatorGetXovrsPeers(object):
+class TestPathCombinatorCopySegment(object):
     """
-    Unit tests for lib.packet.path.PathCombinator._get_xovrs_peers
+    Unit tests for lib.packet.path.PathCombinator._copy_segment
     """
-    def test(self):
-        up_seg = MagicMock(spec_set=['ads'])
-        down_seg = MagicMock(spec_set=['ads'])
-        up_seg.ads = [MagicMock(spec_set=['pcbm', 'pms']) for i in range(5)]
-        down_seg.ads = [MagicMock(spec_set=['pcbm', 'pms']) for i in range(7)]
-        for up_ad in up_seg.ads:
-            up_ad.pcbm = MagicMock(spec_set=['ad_id'])
-        for down_ad in down_seg.ads:
-            down_ad.pcbm = MagicMock(spec_set=['ad_id'])
-        # for xovrs
-        up_seg.ads[1].pcbm.ad_id = down_seg.ads[6].pcbm.ad_id = 1
-        up_seg.ads[3].pcbm.ad_id = down_seg.ads[2].pcbm.ad_id = 3
+    def test_no_segment(self):
+        ntools.eq_(PathCombinator._copy_segment(None, "xovrs"), (None, None))
 
-        # for peers
-        up_seg.ads[2].pms = [MagicMock(spec_set=['ad_id']) for i in range(3)]
-        up_seg.ads[4].pms = [MagicMock(spec_set=['ad_id']) for i in range(2)]
-        down_seg.ads[5].pms = [MagicMock(spec_set=['ad_id']) for i in range(3)]
-        down_seg.ads[1].pms = [MagicMock(spec_set=['ad_id']) for i in range(4)]
-        up_seg.ads[2].pms[1].ad_id = down_seg.ads[5].pcbm.ad_id = 4
-        down_seg.ads[5].pms[2].ad_id = up_seg.ads[2].pcbm.ad_id = 5
-        up_seg.ads[4].pms[0].ad_id = down_seg.ads[1].pcbm.ad_id = 6
-        down_seg.ads[1].pms[1].ad_id = up_seg.ads[4].pcbm.ad_id = 7
+    @patch("lib.packet.path.PathCombinator._copy_hofs",
+           new_callable=create_mock)
+    @patch("lib.packet.path.copy.deepcopy", autospec=True)
+    def test_copy_up(self, deepcopy, copy_hofs):
+        seg = create_mock(["ads", "iof"])
+        iof = create_mock(["up_flag"])
+        deepcopy.return_value = iof
+        hofs = []
+        for _ in range(3):
+            hof = create_mock(["info"])
+            hof.info = OpaqueFieldType.NORMAL_OF
+            hofs.append(hof)
+        copy_hofs.return_value = hofs
+        # Call
+        ntools.eq_(PathCombinator._copy_segment(seg, [0, 2]), (iof, hofs))
+        # Tests
+        deepcopy.assert_called_once_with(seg.iof)
+        ntools.eq_(iof.up_flag, True)
+        copy_hofs.assert_called_once_with(seg.ads, reverse=True)
+        ntools.eq_(hofs[0].info, OpaqueFieldType.XOVR_POINT)
+        ntools.eq_(hofs[1].info, OpaqueFieldType.NORMAL_OF)
+        ntools.eq_(hofs[2].info, OpaqueFieldType.XOVR_POINT)
 
-        xovrs, peers = PathCombinator._get_xovrs_peers(up_seg, down_seg)
-        ntools.eq_(xovrs, [(3, 2), (1, 6)])
-        ntools.eq_(peers, [(4, 1), (2, 5)])
+    @patch("lib.packet.path.PathCombinator._copy_hofs",
+           new_callable=create_mock)
+    @patch("lib.packet.path.copy.deepcopy", autospec=True)
+    def test_copy_down(self, deepcopy, copy_hofs):
+        seg = create_mock(["ads", "iof"])
+        iof = create_mock(["up_flag"])
+        deepcopy.return_value = iof
+        copy_hofs.return_value = "hofs"
+        # Call
+        ntools.eq_(PathCombinator._copy_segment(seg, [], up=False),
+                   (iof, "hofs"))
+        # Tests
+        copy_hofs.assert_called_once_with(seg.ads, reverse=False)
+
+
+class TestPathCombinatorGetXovrPeer(object):
+    """
+    Unit tests for lib.packet.path.PathCombinator._get_xovr_peer
+    """
+    def _gen_segment(self, n, pms=4):
+        seg = create_mock(['ads'])
+        ads = []
+        for i in range(n):
+            ad = create_mock(['pcbm', 'pms'])
+            ad.pcbm = create_mock(['ad_id'])
+            ad.pms = []
+            for j in range(pms):
+                ad.pms.append(create_mock(['ad_id']))
+            ads.append(ad)
+        seg.ads = ads
+        return seg
+
+    def _setup_xovr_points(self, up, down):
+        up.ads[1].pcbm.ad_id = down.ads[6].pcbm.ad_id
+        up.ads[3].pcbm.ad_id = down.ads[2].pcbm.ad_id
+        return (1, 6)
+
+    def _setup_peer_points(self, up, down):
+        up.ads[2].pms[1].ad_id = down.ads[5].pcbm.ad_id
+        down.ads[5].pms[2].ad_id = up.ads[2].pcbm.ad_id
+        up.ads[4].pms[0].ad_id = down.ads[1].pcbm.ad_id
+        down.ads[1].pms[1].ad_id = up.ads[4].pcbm.ad_id
+        return (2, 5)
+
+    def test_xovr(self):
+        up = self._gen_segment(5)
+        down = self._gen_segment(7)
+        # Setup xovr points
+        expected_xovr = self._setup_xovr_points(up, down)
+        # Call
+        ntools.eq_(PathCombinator._get_xovr_peer(up, down),
+                   (expected_xovr, None))
+
+    def test_peer(self):
+        up = self._gen_segment(5)
+        down = self._gen_segment(7)
+        # Setup peer points
+        expected_peer = self._setup_peer_points(up, down)
+        # Call
+        ntools.eq_(PathCombinator._get_xovr_peer(up, down),
+                   (None, expected_peer))
+
+    def test_full(self):
+        up = self._gen_segment(5)
+        down = self._gen_segment(7)
+        # Setup xovr points
+        expected_xovr = self._setup_xovr_points(up, down)
+        # Setup peer points
+        expected_peer = self._setup_peer_points(up, down)
+        # Call
+        ntools.eq_(PathCombinator._get_xovr_peer(up, down),
+                   (expected_xovr, expected_peer))
 
 
 class TestPathCombinatorJoinShortcuts(object):
     """
     Unit tests for lib.packet.path.PathCombinator._join_shortcuts
     """
-    @patch("lib.packet.path.PathCombinator._join_down_segment_shortcuts",
-           spec_set=[], new_callable=MagicMock)
-    @patch("lib.packet.path.PathCombinator._join_up_segment_shortcuts",
-           spec_set=[], new_callable=MagicMock)
-    @patch("lib.packet.path.CrossOverPath", autospec=True)
-    @patch("lib.packet.path.copy.deepcopy", spec_set=[], new_callable=MagicMock)
-    def test_not_peer(self, deepcopy, cross_over_path, join_up, join_down):
-        deepcopy.side_effect = ['up_seg_cpy', 'dw_seg_cpy']
-        point = (2, 5)
-        cross_over_path.return_value = 'cross_over_path'
-        join_up.return_value = 'up_joined'
-        join_down.return_value = 'down_joined'
-        ntools.eq_(PathCombinator._join_shortcuts('up_seg', 'dw_seg', point,
-                                                  False), 'down_joined')
-        deepcopy.assert_has_calls([call('up_seg'), call('dw_seg')])
-        cross_over_path.assert_called_once_with()
-        join_up.assert_called_once_with('cross_over_path', 'up_seg_cpy',
-                                        OpaqueFieldType.SHORTCUT, 2)
-        join_down.assert_called_once_with('up_joined', 'dw_seg_cpy',
-                                          OpaqueFieldType.SHORTCUT, 5)
+    @patch("lib.packet.path.CrossOverPath.from_values",
+           new_callable=create_mock)
+    @patch("lib.packet.path.PathCombinator._copy_segment_shortcut",
+           new_callable=create_mock)
+    def test_xovr(self, join_shortcuts, xovr_from_values):
+        up_iof = create_mock(["info"])
+        down_iof = create_mock(["info"])
+        join_shortcuts.side_effect = [
+            (up_iof, "up_hofs", "up_upstream_hof"),
+            (down_iof, "down_hofs", "down_upstream_hof"),
+        ]
+        # Call
+        ntools.eq_(
+            PathCombinator._join_shortcuts('up_seg', 'down_seg', (2, 5), False),
+            xovr_from_values.return_value)
+        # Tests
+        ntools.eq_(up_iof.info, OpaqueFieldType.SHORTCUT)
+        ntools.eq_(down_iof.info, OpaqueFieldType.SHORTCUT)
+        assert_these_calls(join_shortcuts, [
+            call("up_seg", 2), call("down_seg", 5, up=False)])
+        xovr_from_values.assert_called_once_with(
+            up_iof, "up_hofs", "up_upstream_hof",
+            down_iof, "down_upstream_hof", "down_hofs")
 
-    @patch("lib.packet.path.PathCombinator._join_down_segment_shortcuts",
-           spec_set=[], new_callable=MagicMock)
+    @patch("lib.packet.path.PeerPath.from_values", new_callable=create_mock)
     @patch("lib.packet.path.PathCombinator._join_shortcuts_peer",
-           spec_set=[], new_callable=MagicMock)
-    @patch("lib.packet.path.PathCombinator._join_up_segment_shortcuts",
-           spec_set=[], new_callable=MagicMock)
-    @patch("lib.packet.path.PeerPath", autospec=True)
-    @patch("lib.packet.path.copy.deepcopy", spec_set=[], new_callable=MagicMock)
-    def test_peer_intra(self, deepcopy, peer_path, join_up, join_peer,
-                        join_down):
-        up_seg_cpy = MagicMock(spec_set=['get_isd', 'ads'])
-        up_seg_cpy.get_isd.return_value = 123
-        up_seg_cpy.ads = ['up_ad' + str(i) for i in range(6)]
-        dw_seg_cpy = MagicMock(spec_set=['get_isd', 'ads'])
-        dw_seg_cpy.get_isd.return_value = 123
-        dw_seg_cpy.ads = ['dw_ad' + str(i) for i in range(6)]
-        deepcopy.side_effect = [up_seg_cpy, dw_seg_cpy]
-        point = (2, 5)
-        peer_path.return_value = 'peer_path'
-        join_up.return_value = 'up_joined'
-        join_peer.return_value = 'peer_joined'
-        join_down.return_value = 'down_joined'
-        ntools.eq_(PathCombinator._join_shortcuts('up_seg', 'dw_seg', point,
-                                                  True), 'down_joined')
-        peer_path.assert_called_once_with()
-        join_up.assert_called_once_with('peer_path', up_seg_cpy,
-                                        OpaqueFieldType.INTRA_ISD_PEER, 2)
-        join_peer.assert_called_once_with('up_joined', up_seg_cpy.ads[2],
-                                          dw_seg_cpy.ads[5])
-        join_down.assert_called_once_with('peer_joined', dw_seg_cpy,
-                                          OpaqueFieldType.INTRA_ISD_PEER, 5)
+           new_callable=create_mock)
+    @patch("lib.packet.path.PathCombinator._copy_segment_shortcut",
+           new_callable=create_mock)
+    def _check_peer(self, of_type, join_shortcuts, join_peer,
+                    peer_path):
+        up_seg = create_mock(['get_isd', 'ads'])
+        down_seg = create_mock(['get_isd', 'ads'])
+        if of_type == OpaqueFieldType.INTRA_ISD_PEER:
+            up_seg.get_isd.return_value = down_seg.get_isd.return_value
+        up_seg.ads = ['up_ad %i' % i for i in range(6)]
+        down_seg.ads = ['down_ad %i' % i for i in range(6)]
+        up_iof = create_mock(["info"])
+        down_iof = create_mock(["info"])
+        join_shortcuts.side_effect = [
+            (up_iof, "up_hofs", "up_upstream_hof"),
+            (down_iof, "down_hofs", "down_upstream_hof"),
+        ]
+        join_peer.return_value = ["up_peering_hof", "down_peering_hof"]
+        # Call
+        ntools.eq_(
+            PathCombinator._join_shortcuts(up_seg, down_seg, (2, 5), True),
+            peer_path.return_value)
+        # Tests
+        ntools.eq_(up_iof.info, of_type)
+        ntools.eq_(down_iof.info, of_type)
+        join_peer.assert_called_once_with(up_seg.ads[2], down_seg.ads[5])
+        peer_path.assert_called_once_with(
+            up_iof, "up_hofs", "up_peering_hof", "up_upstream_hof",
+            down_iof, "down_upstream_hof", "down_peering_hof", "down_hofs")
 
-    @patch("lib.packet.path.PathCombinator._join_down_segment_shortcuts",
-           spec_set=[], new_callable=MagicMock)
-    @patch("lib.packet.path.PathCombinator._join_shortcuts_peer",
-           spec_set=[], new_callable=MagicMock)
-    @patch("lib.packet.path.PathCombinator._join_up_segment_shortcuts",
-           spec_set=[], new_callable=MagicMock)
-    @patch("lib.packet.path.PeerPath", autospec=True)
-    @patch("lib.packet.path.copy.deepcopy", spec_set=[], new_callable=MagicMock)
-    def test_peer_inter(self, deepcopy, peer_path, join_up, join_peer,
-                        join_down):
-        up_seg_cpy = MagicMock(spec_set=['get_isd', 'ads'])
-        up_seg_cpy.get_isd.return_value = 123
-        up_seg_cpy.ads = ['up_ad' + str(i) for i in range(6)]
-        dw_seg_cpy = MagicMock(spec_set=['get_isd', 'ads'])
-        dw_seg_cpy.get_isd.return_value = 456
-        dw_seg_cpy.ads = ['dw_ad' + str(i) for i in range(6)]
-        deepcopy.side_effect = [up_seg_cpy, dw_seg_cpy]
-        point = (2, 5)
-        peer_path.return_value = 'peer_path'
-        join_peer.return_value = 'peer_joined'
-        join_down.return_value = 'down_joined'
-        ntools.eq_(PathCombinator._join_shortcuts('up_seg', 'dw_seg', point,
-                                                  True), 'down_joined')
-        join_up.assert_called_once_with('peer_path', up_seg_cpy,
-                                        OpaqueFieldType.INTER_ISD_PEER, 2)
-        join_down.assert_called_once_with('peer_joined', dw_seg_cpy,
-                                          OpaqueFieldType.INTER_ISD_PEER, 5)
+    def test_peer(self):
+        for of_type in (OpaqueFieldType.INTRA_ISD_PEER,
+                        OpaqueFieldType.INTER_ISD_PEER):
+            yield self._check_peer, of_type
 
 
 class TestPathCombinatorCheckConnected(object):
     """
     Unit tests for lib.packet.path.PathCombinator._check_connected
     """
-    def setUp(self):
-        self.core_seg = MagicMock(spec_set=['get_last_pcbm', 'get_first_pcbm'])
-        self.core_seg.get_last_pcbm.return_value = MagicMock(spec_set=['ad_id'])
-        self.core_seg.get_first_pcbm.return_value = \
-            MagicMock(spec_set=['ad_id'])
-        self.up_seg = MagicMock(spec_set=['get_first_pcbm'])
-        self.up_seg.get_first_pcbm.return_value = MagicMock(spec_set=['ad_id'])
-        self.down_seg = MagicMock(spec_set=['get_first_pcbm'])
-        self.down_seg.get_first_pcbm.return_value = \
-            MagicMock(spec_set=['ad_id'])
+    def _setup(self, up_first=None, core_last=None, core_first=None,
+               down_first=None):
+        segs = []
+        for part in ["up", "core", "down"]:
+            seg = create_mock(['get_first_pcbm', 'get_last_pcbm'])
+            pcbm = create_mock(['ad_id'])
+            seg.get_first_pcbm.return_value = pcbm
+            first = "%s_first" % part
+            if locals().get(first):
+                pcbm.ad_id = locals()[first]
+            pcbm = create_mock(['ad_id'])
+            seg.get_last_pcbm.return_value = pcbm
+            last = "%s_last" % part
+            if locals().get(last):
+                pcbm.ad_id = locals()[last]
+            segs.append(seg)
+        return segs
 
-    def tearDown(self):
-        del self.core_seg
-        del self.up_seg
-        del self.down_seg
+    def test_with_core_up_discon(self):
+        up, core, down = self._setup(up_first=1, core_last=2,
+                                     core_first=3, down_first=3)
+        ntools.assert_false(PathCombinator._check_connected(up, core, down))
 
-    def test_up_seg_disconnected(self):
-        self.core_seg.get_last_pcbm.return_value.ad_id = 123
-        self.up_seg.get_first_pcbm.return_value.ad_id = 456
-        ntools.assert_false(PathCombinator._check_connected(self.up_seg,
-                                                            self.core_seg,
-                                                            'down_seg'))
+    def test_with_core_down_discon(self):
+        up, core, down = self._setup(up_first=1, core_last=1,
+                                     core_first=2, down_first=3)
+        ntools.assert_false(PathCombinator._check_connected(up, core, down))
 
-    def test_down_seg_disconnected(self):
-        self.core_seg.get_last_pcbm.return_value.ad_id = 123
-        self.up_seg.get_first_pcbm.return_value.ad_id = 123
-        self.core_seg.get_first_pcbm.return_value.ad_id = 456
-        self.down_seg.get_first_pcbm.return_value.ad_id = 789
-        ntools.assert_false(PathCombinator._check_connected(self.up_seg,
-                                                            self.core_seg,
-                                                            self.down_seg))
+    def test_with_core_conn(self):
+        up, core, down = self._setup(up_first=1, core_last=1,
+                                     core_first=2, down_first=2)
+        ntools.assert_true(PathCombinator._check_connected(up, core, down))
 
-    def test_connected_with_core(self):
-        self.core_seg.get_last_pcbm.return_value.ad_id = 123
-        self.up_seg.get_first_pcbm.return_value.ad_id = 123
-        self.core_seg.get_first_pcbm.return_value.ad_id = 456
-        self.down_seg.get_first_pcbm.return_value.ad_id = 456
-        ntools.assert_true(PathCombinator._check_connected(self.up_seg,
-                                                           self.core_seg,
-                                                           self.down_seg))
+    def test_without_core_discon(self):
+        up, core, down = self._setup(up_first=1, down_first=2)
+        ntools.assert_false(PathCombinator._check_connected(up, None, down))
 
-    def test_disconnected_without_core(self):
-        self.up_seg.get_first_pcbm.return_value.ad_id = 123
-        self.down_seg.get_first_pcbm.return_value.ad_id = 456
-        ntools.assert_false(PathCombinator._check_connected(self.up_seg,
-                                                            None,
-                                                            self.down_seg))
-
-    def test_connected_without_core(self):
-        self.up_seg.get_first_pcbm.return_value.ad_id = 123
-        self.down_seg.get_first_pcbm.return_value.ad_id = 123
-        ntools.assert_true(PathCombinator._check_connected(self.up_seg,
-                                                           None, self.down_seg))
+    def test_without_core_conn(self):
+        up, core, down = self._setup(up_first=1, down_first=1)
+        ntools.assert_true(PathCombinator._check_connected(up, None, down))
 
 
-class TestPathCombinatorJoinUpSegment(object):
+class TestPathCombinatorCopyHofs(object):
     """
-    Unit tests for lib.packet.path.PathCombinator._join_up_segment
+    Unit tests for lib.packet.path.PathCombinator._copy_hofs
     """
-    @patch("lib.packet.path.copy.deepcopy", spec_set=[], new_callable=MagicMock)
-    def test(self, deepcopy):
-        path = MagicMock(spec_set=['up_segment_info', 'up_segment_hops'])
-        path.up_segment_hops = [5, 6]
-        up_segment = MagicMock(spec_set=['iof', 'ads'])
-        up_segment.iof = MagicMock(spec_set=['up_flag'])
-        up_segment.ads = [MagicMock(spec_set=['pcbm']) for i in range(3)]
-        for i, block in enumerate(up_segment.ads):
-            block.pcbm = MagicMock(spec_set=['hof'])
-            block.pcbm.hof = i
-        last_hop = MagicMock(spec_set=['info'])
-        deepcopy.side_effect = ['1', '2', last_hop]
-        path_ = PathCombinator._join_up_segment(path, up_segment)
-        ntools.eq_(path_.up_segment_info, up_segment.iof)
-        ntools.assert_true(path_.up_segment_info.up_flag)
-        ntools.eq_(path_.up_segment_hops, [5, 6, '1', '2', last_hop])
-        deepcopy.assert_has_calls([call(2), call(1), call(0)])
-        ntools.eq_(path_.up_segment_hops[-1].info, OpaqueFieldType.XOVR_POINT)
+    @patch("lib.packet.path.copy.deepcopy", new_callable=create_mock)
+    def test_basic(self, deepcopy):
+        deepcopy.side_effect = list(range(4))
+        blocks = []
+        for _ in range(4):
+            block = create_mock(["pcbm"])
+            block.pcbm = create_mock(["hof"])
+            blocks.append(block)
+        # Call
+        ntools.eq_(PathCombinator._copy_hofs(blocks), [3, 2, 1, 0])
+
+    @patch("lib.packet.path.copy.deepcopy", new_callable=create_mock)
+    def test_no_reverse(self, deepcopy):
+        deepcopy.side_effect = list(range(4))
+        blocks = []
+        for _ in range(4):
+            block = create_mock(["pcbm"])
+            block.pcbm = create_mock(["hof"])
+            blocks.append(block)
+        # Call
+        ntools.eq_(PathCombinator._copy_hofs(blocks, reverse=False),
+                   [0, 1, 2, 3])
 
 
-class TestPathCombinatorJoinCoreSegment(object):
+class TestPathCombinatorCopySegmentShortcut(object):
     """
-    Unit tests for lib.packet.path.PathCombinator._join_core_segment
+    Unit tests for lib.packet.path.PathCombinator._copy_segment_shortcut
     """
-    def test_none(self):
-        ntools.eq_(PathCombinator._join_core_segment('path', None), 'path')
+    def _setup(self, deepcopy, copy_hofs):
+        seg = create_mock(["iof", "ads"])
+        seg.ads = []
+        for _ in range(10):
+            ad = create_mock(["pcbm"])
+            ad.pcbm = create_mock(["hof"])
+            seg.ads.append(ad)
+        iof = create_mock(["hops", "up_flag"])
+        iof.hops = 10
+        hofs = []
+        for _ in range(6):
+            hofs.append(create_mock(["info"]))
+        copy_hofs.return_value = hofs
+        upstream_hof = create_mock(["info"])
+        deepcopy.side_effect = [iof, upstream_hof]
+        return seg, iof, hofs, upstream_hof
 
-    @patch("lib.packet.path.copy.deepcopy", spec_set=[], new_callable=MagicMock)
-    def test(self, deepcopy):
-        path = MagicMock(spec_set=['core_segment_info', 'core_segment_hops'])
-        first_hop = MagicMock(spec_set=['info'])
-        path.core_segment_hops = [first_hop, 6]
-        core_segment = MagicMock(spec_set=['iof', 'ads'])
-        core_segment.iof = MagicMock(spec_set=['up_flag'])
-        core_segment.ads = [MagicMock(spec_set=['pcbm']) for i in range(3)]
-        for i, block in enumerate(core_segment.ads):
-            block.pcbm = MagicMock(spec_set=['hof'])
-            block.pcbm.hof = i
-        last_hop = MagicMock(spec_set=['info'])
-        deepcopy.side_effect = ['1', '2', last_hop]
-        path_ = PathCombinator._join_core_segment(path, core_segment)
-        ntools.eq_(path_.core_segment_info, core_segment.iof)
-        ntools.assert_true(path_.core_segment_info.up_flag)
-        ntools.eq_(path_.core_segment_hops, [first_hop, 6, '1', '2', last_hop])
-        deepcopy.assert_has_calls([call(2), call(1), call(0)])
-        ntools.eq_(path_.core_segment_hops[-1].info, OpaqueFieldType.XOVR_POINT)
-        ntools.eq_(path_.core_segment_hops[0].info, OpaqueFieldType.XOVR_POINT)
+        # Call
+        ntools.eq_(PathCombinator._copy_segment_shortcut(seg, 4),
+                   (iof, hofs, upstream_hof))
+        # Tests
+        assert_these_calls(deepcopy, [call(seg.iof), call(seg.ads[3].pcbm.hof)])
+        ntools.eq_(iof.hops, 6)
+        ntools.ok_(iof.up_flag)
+        copy_hofs.assert_called_once_with(seg.ads[4:], reverse=True)
+        ntools.eq_(hofs[-1].info, OpaqueFieldType.XOVR_POINT)
+        ntools.eq_(upstream_hof.info, OpaqueFieldType.NORMAL_OF)
 
+    @patch("lib.packet.path.PathCombinator._copy_hofs",
+           new_callable=create_mock)
+    @patch("lib.packet.path.copy.deepcopy", new_callable=create_mock)
+    def test_up(self, deepcopy, copy_hofs):
+        seg, iof, hofs, upstream_hof = self._setup(deepcopy, copy_hofs)
+        # Call
+        ntools.eq_(PathCombinator._copy_segment_shortcut(seg, 4),
+                   (iof, hofs, upstream_hof))
+        # Tests
+        assert_these_calls(deepcopy, [call(seg.iof), call(seg.ads[3].pcbm.hof)])
+        ntools.eq_(iof.hops, 6)
+        ntools.ok_(iof.up_flag)
+        copy_hofs.assert_called_once_with(seg.ads[4:], reverse=True)
+        ntools.eq_(hofs[-1].info, OpaqueFieldType.XOVR_POINT)
+        ntools.eq_(upstream_hof.info, OpaqueFieldType.NORMAL_OF)
 
-class TestPathCombinatorJoinDownSegment(object):
-    """
-    Unit tests for lib.packet.path.PathCombinator._join_down_segment
-    """
-    @patch("lib.packet.path.copy.deepcopy", spec_set=[], new_callable=MagicMock)
-    def test(self, deepcopy):
-        path = MagicMock(spec_set=['down_segment_info', 'down_segment_hops'])
-        first_hop = MagicMock(spec_set=['info'])
-        path.down_segment_hops = [first_hop, 6]
-        down_segment = MagicMock(spec_set=['iof', 'ads'])
-        down_segment.iof = MagicMock(spec_set=['up_flag'])
-        down_segment.ads = [MagicMock(spec_set=['pcbm']) for i in range(3)]
-        for i, block in enumerate(down_segment.ads):
-            block.pcbm = MagicMock(spec_set=['hof'])
-            block.pcbm.hof = i
-        deepcopy.side_effect = ['1', '2', '3']
-        path_ = PathCombinator._join_down_segment(path, down_segment)
-        ntools.eq_(path_.down_segment_info, down_segment.iof)
-        ntools.assert_false(path_.down_segment_info.up_flag)
-        ntools.eq_(path_.down_segment_hops, [first_hop, 6, '1', '2', '3'])
-        deepcopy.assert_has_calls([call(0), call(1), call(2)])
-        ntools.eq_(path_.down_segment_hops[0].info, OpaqueFieldType.XOVR_POINT)
-
-
-class TestPathCombinatorJoinUpSegmentShortcuts(object):
-    """
-    Unit tests for lib.packet.path.PathCombinator._join_up_segment_shortcuts
-    """
-    def test(self):
-        path = MagicMock(spec_set=['up_segment_info', 'up_segment_hops',
-                                   'up_segment_upstream_ad'])
-        path.up_segment_hops = [9, 10]
-        up_segment = MagicMock(spec_set=['iof', 'ads'])
-        up_segment.iof = MagicMock(spec_set=['info', 'hops', 'up_flag'])
-        up_segment.iof.hops = 10
-        up_segment.ads = [MagicMock(spec_set=['pcbm']) for i in range(6)]
-        for i, block in enumerate(up_segment.ads):
-            block.pcbm = MagicMock(spec_set=['hof'])
-            block.pcbm.hof = i
-        last_hop = up_segment.ads[3].pcbm.hof = MagicMock(spec_set=['info'])
-        up_index = 3
-        upstream_ad = up_segment.ads[up_index - 1].pcbm.hof = \
-            MagicMock(spec_set=['info'])
-        path_ = PathCombinator._join_up_segment_shortcuts(path, up_segment,
-                                                          'info', up_index)
-        ntools.eq_(path_.up_segment_info, up_segment.iof)
-        ntools.eq_(path_.up_segment_info.info, 'info')
-        ntools.eq_(path_.up_segment_info.hops, 7)
-        ntools.assert_true(path_.up_segment_info.up_flag)
-        ntools.eq_(path_.up_segment_hops, [9, 10, 5, 4, last_hop])
-        ntools.eq_(path_.up_segment_hops[-1].info, OpaqueFieldType.XOVR_POINT)
-        ntools.eq_(path_.up_segment_upstream_ad, upstream_ad)
-        ntools.eq_(path_.up_segment_upstream_ad.info, OpaqueFieldType.NORMAL_OF)
-
-
-class TestPathCombinatorJoinDownSegmentShortcuts(object):
-    """
-    Unit tests for lib.packet.path.PathCombinator._join_down_segment_shortcuts
-    """
-    def test(self):
-        path = MagicMock(spec_set=['down_segment_info', 'down_segment_hops',
-                                   'down_segment_upstream_ad'])
-        first_hop = MagicMock(spec_set=['info'])
-        path.down_segment_hops = [first_hop, 10]
-        down_segment = MagicMock(spec_set=['iof', 'ads'])
-        down_segment.iof = MagicMock(spec_set=['info', 'hops', 'up_flag'])
-        down_segment.iof.hops = 10
-        down_segment.ads = [MagicMock(spec_set=['pcbm']) for i in range(6)]
-        for i, block in enumerate(down_segment.ads):
-            block.pcbm = MagicMock(spec_set=['hof'])
-            block.pcbm.hof = i
-        dw_index = 3
-        upstream_ad = down_segment.ads[dw_index - 1].pcbm.hof = \
-            MagicMock(spec_set=['info'])
-        path_ = PathCombinator._join_down_segment_shortcuts(path, down_segment,
-                                                            'info', dw_index)
-        ntools.eq_(path_.down_segment_info, down_segment.iof)
-        ntools.eq_(path_.down_segment_info.info, 'info')
-        ntools.eq_(path_.down_segment_info.hops, 7)
-        ntools.assert_false(path_.down_segment_info.up_flag)
-        ntools.eq_(path_.down_segment_upstream_ad, upstream_ad)
-        ntools.eq_(path_.down_segment_upstream_ad.info,
-                   OpaqueFieldType.NORMAL_OF)
-        ntools.eq_(path_.down_segment_hops, [first_hop, 10, 3, 4, 5])
-        ntools.eq_(path_.down_segment_hops[0].info, OpaqueFieldType.XOVR_POINT)
+    @patch("lib.packet.path.PathCombinator._copy_hofs",
+           new_callable=create_mock)
+    @patch("lib.packet.path.copy.deepcopy", new_callable=create_mock)
+    def test_down(self, deepcopy, copy_hofs):
+        seg, iof, hofs, upstream_hof = self._setup(deepcopy, copy_hofs)
+        # Call
+        ntools.eq_(PathCombinator._copy_segment_shortcut(seg, 7, up=False),
+                   (iof, hofs, upstream_hof))
+        # Tests
+        ntools.assert_false(iof.up_flag)
+        copy_hofs.assert_called_once_with(seg.ads[7:], reverse=False)
+        ntools.eq_(hofs[0].info, OpaqueFieldType.XOVR_POINT)
 
 
 class TestPathCombinatorJoinShortcutsPeer(object):
@@ -1437,23 +1125,20 @@ class TestPathCombinatorJoinShortcutsPeer(object):
     Unit tests for lib.packet.path.PathCombinator._join_shortcuts_peer
     """
     def test(self):
-        path = MagicMock(spec_set=['up_segment_peering_link',
-                                   'down_segment_peering_link'])
-        up_ad = MagicMock(spec_set=['pms', 'pcbm'])
-        up_ad.pcbm = MagicMock(spec_set=['ad_id'])
-        up_ad.pcbm.ad_id = 123
-        down_ad = MagicMock(spec_set=['pms', 'pcbm'])
-        down_ad.pcbm = MagicMock(spec_set=['ad_id'])
-        down_ad.pcbm.ad_id = 456
-        up_ad.pms = [MagicMock(spec_set=['ad_id', 'hof']) for i in range(2)]
-        down_ad.pms = [MagicMock(spec_set=['ad_id', 'hof']) for i in range(3)]
-        up_ad.pms[1].ad_id = 456
+        up_ad = create_mock(['pms', 'pcbm'])
+        up_ad.pcbm = create_mock(['ad_id'])
+        up_ad.pcbm.ad_id = 1
+        down_ad = create_mock(['pms', 'pcbm'])
+        down_ad.pcbm = create_mock(['ad_id'])
+        down_ad.pcbm.ad_id = 2
+        up_ad.pms = [create_mock(['ad_id', 'hof']) for i in range(2)]
+        down_ad.pms = [create_mock(['ad_id', 'hof']) for i in range(3)]
+        up_ad.pms[1].ad_id = 2
         up_ad.pms[1].hof = 'up_hof1'
-        down_ad.pms[0].ad_id = 123
+        down_ad.pms[0].ad_id = 1
         down_ad.pms[0].hof = 'down_hof0'
-        path_ = PathCombinator._join_shortcuts_peer(path, up_ad, down_ad)
-        ntools.eq_(path_.up_segment_peering_link, 'up_hof1')
-        ntools.eq_(path_.down_segment_peering_link, 'down_hof0')
+        ntools.eq_(PathCombinator._join_shortcuts_peer(up_ad, down_ad),
+                   ("up_hof1", "down_hof0"))
 
 
 if __name__ == "__main__":

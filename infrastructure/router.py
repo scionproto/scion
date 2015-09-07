@@ -41,10 +41,7 @@ from lib.errors import SCIONBaseError, SCIONServiceLookupError
 from lib.log import init_logging, log_exception
 from lib.packet.ext_hdr import ExtensionClass
 from lib.packet.ext.traceroute import TracerouteExt, traceroute_ext_handler
-from lib.packet.opaque_field import (
-    HopOpaqueField as HOF,
-    OpaqueFieldType as OFT,
-)
+from lib.packet.opaque_field import OpaqueFieldType as OFT
 from lib.packet.path_mgmt import PathMgmtPacket
 from lib.packet.pcb import PathConstructionBeacon
 from lib.packet.scion import (
@@ -310,7 +307,7 @@ class Router(SCIONElement):
         :param ptype: The packet type.
         :type ptype: int
         """
-        curr_of = spkt.hdr.get_current_of()
+        curr_of = spkt.hdr.get_of_rel()
         if (not spkt.hdr.is_last_path_of() or
                 (curr_of.ingress_if and curr_of.egress_if)):
             logging.warning("Trying to deliver packet that is not at the " +
@@ -343,16 +340,16 @@ class Router(SCIONElement):
         """
         if int(SCIONTime.get_time()) <= ts + hof.exp_time * EXP_TIME_UNIT:
             if not verify_of_mac(self.of_gen_key, hof, prev_hof, ts):
-                raise SCIONOFVerificationError
+                raise SCIONOFVerificationError(hof)
         else:
-            raise SCIONOFExpiredError
+            raise SCIONOFExpiredError(hof)
 
     def handle_ingress_xovr(self, spkt):
         """
         Main entry for crossover points at the ingress router.
         """
-        curr_of = spkt.hdr.get_current_of()
-        curr_iof = spkt.hdr.get_current_iof()
+        curr_of = spkt.hdr.get_of_rel()
+        curr_iof = spkt.hdr.get_iof()
         # Preconditions
         assert curr_of.is_xovr()
 
@@ -369,25 +366,24 @@ class Router(SCIONElement):
         """
         Handles the crossover point for shortcut paths at the ingress router.
         """
-        curr_of = spkt.hdr.get_current_of()
-        curr_iof = spkt.hdr.get_current_iof()
+        curr_of = spkt.hdr.get_of_rel()
+        curr_iof = spkt.hdr.get_iof()
         # Preconditions
         assert curr_iof.info == OFT.SHORTCUT
 
         if not spkt.hdr.is_on_up_path():
             raise SCIONPacketHeaderCorruptedError
 
-        self.verify_of(curr_of, spkt.hdr.get_relative_of(1), curr_iof.timestamp)
+        self.verify_of(curr_of, spkt.hdr.get_of_rel(1), curr_iof.timestamp)
 
         # Switch to next path segment.
-        spkt.hdr.set_curr_iof_p(spkt.hdr.get_curr_of_p() + 2 * HOF.LEN)
-        spkt.hdr.increase_curr_of_p(4)
+        spkt.hdr.set_iof_idx_rel(2)
+        spkt.hdr.inc_of_idx(4)
         # Handle on-path shortcut case.
-        curr_of = spkt.hdr.get_current_of()
-        curr_iof = spkt.hdr.get_current_iof()
+        curr_of = spkt.hdr.get_of_rel()
+        curr_iof = spkt.hdr.get_iof()
         if not curr_of.egress_if and spkt.hdr.is_last_path_of():
-            self.verify_of(curr_of, spkt.hdr.get_relative_of(-1),
-                           curr_iof.timestamp)
+            self.verify_of(curr_of, spkt.hdr.get_of_rel(-1), curr_iof.timestamp)
             self.deliver(spkt, PT.DATA)
         else:
             self.send(spkt, self.ifid2addr[curr_of.egress_if])
@@ -396,21 +392,21 @@ class Router(SCIONElement):
         """
         Handles the crossover point for peer paths at the ingress router.
         """
-        curr_of = spkt.hdr.get_current_of()
-        curr_iof = spkt.hdr.get_current_iof()
+        curr_of = spkt.hdr.get_of_rel()
+        curr_iof = spkt.hdr.get_iof()
         # Preconditions
         assert curr_iof.info in [OFT.INTRA_ISD_PEER, OFT.INTER_ISD_PEER]
 
         on_up_path = spkt.hdr.is_on_up_path()
         if on_up_path:
-            prev_of = spkt.hdr.get_relative_of(2)
-            fwd_if = spkt.hdr.get_relative_of(1).ingress_if
+            prev_of = spkt.hdr.get_of_rel(2)
+            fwd_if = spkt.hdr.get_of_rel(1).ingress_if
         else:
-            prev_of = spkt.hdr.get_relative_of(1)
-            fwd_if = spkt.hdr.get_relative_of(1).egress_if
+            prev_of = spkt.hdr.get_of_rel(1)
+            fwd_if = prev_of.egress_if
 
         self.verify_of(curr_of, prev_of, curr_iof.timestamp)
-        spkt.hdr.increase_curr_of_p(1)
+        spkt.hdr.inc_of_idx(1)
 
         if spkt.hdr.is_last_path_of():
             self.deliver(spkt, PT.DATA)
@@ -421,15 +417,15 @@ class Router(SCIONElement):
         """
         Handles the crossover point for core paths at the ingress router.
         """
-        curr_of = spkt.hdr.get_current_of()
-        curr_iof = spkt.hdr.get_current_iof()
+        curr_of = spkt.hdr.get_of_rel()
+        curr_iof = spkt.hdr.get_iof()
         # Preconditions
         assert curr_iof.info == OFT.CORE
 
         if spkt.hdr.is_on_up_path():
             prev_of = None
         else:
-            prev_of = spkt.hdr.get_relative_of(-1)
+            prev_of = spkt.hdr.get_of_rel(-1)
 
         self.verify_of(curr_of, prev_of, curr_iof.timestamp)
 
@@ -437,9 +433,9 @@ class Router(SCIONElement):
             self.deliver(spkt, PT.DATA)
         else:
             # Switch to next path segment.
-            spkt.hdr.set_curr_iof_p(spkt.hdr.get_curr_of_p() + HOF.LEN)
-            spkt.hdr.increase_curr_of_p(2)
-            curr_of = spkt.hdr.get_current_of()
+            spkt.hdr.set_iof_idx_rel(1)
+            spkt.hdr.inc_of_idx(2)
+            curr_of = spkt.hdr.get_of_rel()
             if spkt.hdr.is_on_up_path():
                 self.send(spkt, self.ifid2addr[curr_of.ingress_if])
             else:
@@ -449,14 +445,14 @@ class Router(SCIONElement):
         """
         Handles normal forwarding of packets at the ingress router.
         """
-        curr_of = spkt.hdr.get_current_of()
-        curr_iof = spkt.hdr.get_current_iof()
+        curr_of = spkt.hdr.get_of_rel()
+        curr_iof = spkt.hdr.get_iof()
         if spkt.hdr.is_on_up_path():
             fwd_if = curr_of.ingress_if
-            prev_of = spkt.hdr.get_relative_of(1)
+            prev_of = spkt.hdr.get_of_rel(1)
         else:
             fwd_if = curr_of.egress_if
-            prev_of = spkt.hdr.get_relative_of(-1)
+            prev_of = spkt.hdr.get_of_rel(-1)
 
         self.verify_of(curr_of, prev_of, curr_iof.timestamp)
 
@@ -469,8 +465,8 @@ class Router(SCIONElement):
         """
         Main entry for crossover points at the egress router.
         """
-        curr_of = spkt.hdr.get_current_of()
-        curr_iof = spkt.hdr.get_current_iof()
+        curr_of = spkt.hdr.get_of_rel()
+        curr_iof = spkt.hdr.get_iof()
         # Preconditions
         assert curr_of.is_xovr()
 
@@ -487,8 +483,8 @@ class Router(SCIONElement):
         """
         Handles the crossover point for shortcut paths at the egress router.
         """
-        curr_of = spkt.hdr.get_current_of()
-        curr_iof = spkt.hdr.get_current_iof()
+        curr_of = spkt.hdr.get_of_rel()
+        curr_iof = spkt.hdr.get_iof()
         # Preconditions
         assert curr_of.is_xovr()
         assert curr_iof.info == OFT.SHORTCUT
@@ -502,22 +498,20 @@ class Router(SCIONElement):
         """
         Handles the crossover point for peer paths at the egress router.
         """
-        curr_of = spkt.hdr.get_current_of()
-        curr_iof = spkt.hdr.get_current_iof()
+        curr_of = spkt.hdr.get_of_rel()
+        curr_iof = spkt.hdr.get_iof()
         # Preconditions
         assert curr_of.is_xovr()
         assert curr_iof.info in [OFT.INTRA_ISD_PEER, OFT.INTER_ISD_PEER]
 
         if spkt.hdr.is_on_up_path():
-            self.verify_of(curr_of, spkt.hdr.get_relative_of(-1),
-                           curr_iof.timestamp)
+            self.verify_of(curr_of, spkt.hdr.get_of_rel(-1), curr_iof.timestamp)
             # Switch to next path-segment
-            spkt.hdr.set_curr_iof_p(spkt.hdr.get_curr_of_p() + 2 * HOF.LEN)
-            spkt.hdr.increase_curr_of_p(4)
+            spkt.hdr.set_iof_idx_rel(2)
+            spkt.hdr.inc_of_idx(4)
         else:
-            self.verify_of(curr_of, spkt.hdr.get_relative_of(-2),
-                           curr_iof.timestamp)
-            spkt.hdr.increase_curr_of_p(1)
+            self.verify_of(curr_of, spkt.hdr.get_of_rel(-2), curr_iof.timestamp)
+            spkt.hdr.inc_of_idx(1)
 
         self.send(spkt, self.interface.to_addr, self.interface.to_udp_port)
 
@@ -525,8 +519,8 @@ class Router(SCIONElement):
         """
         Handles the crossover point for core paths at the egress router.
         """
-        curr_of = spkt.hdr.get_current_of()
-        curr_iof = spkt.hdr.get_current_iof()
+        curr_of = spkt.hdr.get_of_rel()
+        curr_iof = spkt.hdr.get_iof()
         # Preconditions
         assert curr_of.is_xovr()
         assert curr_iof.info == OFT.CORE
@@ -534,27 +528,27 @@ class Router(SCIONElement):
         if not spkt.hdr.is_on_up_path():
             prev_of = None
         else:
-            prev_of = spkt.hdr.get_relative_of(1)
+            prev_of = spkt.hdr.get_of_rel(1)
 
         self.verify_of(curr_of, prev_of, curr_iof.timestamp)
 
-        spkt.hdr.increase_curr_of_p(1)
+        spkt.hdr.inc_of_idx(1)
         self.send(spkt, self.interface.to_addr, self.interface.to_udp_port)
 
     def egress_normal_forward(self, spkt):
         """
         Handles normal forwarding of packets at the egress router.
         """
-        curr_of = spkt.hdr.get_current_of()
-        curr_iof = spkt.hdr.get_current_iof()
+        curr_of = spkt.hdr.get_of_rel()
+        curr_iof = spkt.hdr.get_iof()
         if spkt.hdr.is_on_up_path():
-            prev_of = spkt.hdr.get_relative_of(1)
+            prev_of = spkt.hdr.get_of_rel(1)
         else:
-            prev_of = spkt.hdr.get_relative_of(-1)
+            prev_of = spkt.hdr.get_of_rel(-1)
 
         self.verify_of(curr_of, prev_of, curr_iof.timestamp)
 
-        spkt.hdr.increase_curr_of_p(1)
+        spkt.hdr.inc_of_idx(1)
         self.send(spkt, self.interface.to_addr, self.interface.to_udp_port)
 
     def forward_packet(self, spkt, from_local_ad):
@@ -567,7 +561,7 @@ class Router(SCIONElement):
         :type from_local_ad: bool
         """
         try:
-            curr_of = spkt.hdr.get_current_of()
+            curr_of = spkt.hdr.get_of_rel()
             # Ingress entry point.
             if not from_local_ad:
                 if curr_of.info == OFT.XOVR_POINT:
@@ -580,12 +574,17 @@ class Router(SCIONElement):
                     self.handle_egress_xovr(spkt)
                 else:
                     self.egress_normal_forward(spkt)
-        except SCIONOFVerificationError:
-            logging.error("Dropping packet due to incorrect MAC.")
+        except SCIONOFVerificationError as e:
+            logging.error("Dropping packet due to incorrect MAC:")
+            logging.error("Header:\n%s", spkt.hdr)
+            logging.error("Invalid OF: %s", e)
         except SCIONOFExpiredError:
-            logging.error("Dropping packet due to expired OF.")
+            logging.error("Dropping packet due to expired OF:")
+            logging.error("Header:\n%s", spkt.hdr)
+            logging.error("Expired OF: %s", e)
         except SCIONPacketHeaderCorruptedError:
-            logging.error("Dropping packet due to invalid header state.")
+            logging.error("Dropping packet due to invalid header state:")
+            logging.error("Header:\n%s", spkt.hdr)
 
     def handle_request(self, packet, sender, from_local_socket=True):
         """

@@ -19,6 +19,9 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
+# External
+import nose.tools as ntools
+
 # SCION
 from lib.errors import SCIONBaseError
 
@@ -98,3 +101,8 @@ def create_mock(attrs=None):
     for attr in attrs:
         setattr(m, attr, MagicMock(spec_set=[]))
     return m
+
+
+def assert_these_calls(mock, calls, any_order=False):
+    mock.assert_has_calls(calls)
+    ntools.eq_(mock.call_count, len(calls))
