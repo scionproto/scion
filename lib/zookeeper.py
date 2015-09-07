@@ -535,6 +535,8 @@ class ZkSharedCache(object):
             return self._kazoo.set(full_path, value)
         except NoNodeError:
             pass
+        except ConnectionLoss:
+            raise ZkConnectionLoss
         # Entry doesn't exist, so create it instead.
         try:
             return self._kazoo.create(full_path, value, makepath=True)
@@ -542,6 +544,8 @@ class ZkSharedCache(object):
             # Entry was created between our check and our create, so assume that
             # the contents are recent, and return without error.
             pass
+        except ConnectionLoss:
+            raise ZkConnectionLoss
 
     def process(self):
         """
