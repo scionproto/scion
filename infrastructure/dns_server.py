@@ -51,7 +51,7 @@ from lib.defines import (
 from lib.log import init_logging, log_exception
 from lib.thread import kill_self
 from lib.util import handle_signals, trace
-from lib.zookeeper import ZkConnectionLoss, Zookeeper
+from lib.zookeeper import ZkNoConnection, Zookeeper
 
 
 class ZoneResolver(BaseResolver):
@@ -301,7 +301,7 @@ class SCIONDnsServer(SCIONElement):
 
         try:
             self.zk.wait_connected(timeout=10.0)
-        except ZkConnectionLoss:
+        except ZkNoConnection:
             logging.warning("No connection to Zookeeper, can't update services")
             return
 
@@ -312,7 +312,7 @@ class SCIONDnsServer(SCIONElement):
             party = self._parties[srv_type]
             try:
                 srvs = party.list()
-            except ZkConnectionLoss:
+            except ZkNoConnection:
                 # If the connection drops, don't update
                 return
             for i in srvs:

@@ -170,7 +170,7 @@ class SCIONDaemon(SCIONElement):
         try:
             dst = self.dns_query_topo(PATH_SERVICE)[0]
         except SCIONServiceLookupError as e:
-            raise SCIONDaemonPathLookupError(e)
+            raise SCIONDaemonPathLookupError(e) from None
         # Create an event that we can wait on for the path reply.
         event = threading.Event()
         update_dict(self._waiting_targets[ptype], (dst_isd, dst_ad), [event])
