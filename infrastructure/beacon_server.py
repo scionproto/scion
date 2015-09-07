@@ -791,6 +791,16 @@ class CoreBeaconServer(BeaconServer):
         ingress_if = pcb.if_id
         count = 0
         for core_router in self.topology.routing_edge_routers:
+            skip = False
+            for ad in pcb.ads:
+                if (ad.pcbm.isd_id == core_router.interface.neighbor_isd and
+                        ad.pcbm.ad_id == core_router.interface.neighbor_ad):
+                    # Don't propagate a Core PCB back to an AD we know has
+                    # already seen it.
+                    skip = True
+                    break
+            if skip:
+                continue
             new_pcb = copy.deepcopy(pcb)
             egress_if = core_router.interface.if_id
             last_pcbm = new_pcb.get_last_pcbm()
