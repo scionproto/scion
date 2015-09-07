@@ -46,8 +46,8 @@ class UDPSocket(object):
         address/port.
 
         :param tuple bind:
-            Optional tuple of (`str`, `int`) describing the address and port to
-            bind to, respectively.
+            Optional tuple of (`str`, `int`, `str`) describing respectively the
+            address and port to bind to, and an optional description.
         :param addr_type:
             Socket domain. Must be one of :const:`~lib.defines.ADDR_IPV4_TYPE`,
             :const:`~lib.defines.ADDR_IPV6_TYPE` (default).
@@ -59,23 +59,27 @@ class UDPSocket(object):
             af_domain = AF_INET
         self.sock = socket(af_domain, SOCK_DGRAM)
         self.sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+        self.port = None
         if bind:
             self.bind(*bind)
 
-    def bind(self, addr, port):
+    def bind(self, addr, port, desc=None):
         """
         Bind socket to the specified address & port. If `addr` is ``None``, the
         socket will bind to all interfaces.
 
         :param str addr: Address to bind to (can be ``None``, see above).
         :param int port: Port to bind to.
+        :param str desc: Optional purpose of the port.
         """
         if addr is None:
             addr = "::"
             if self._domain == ADDR_IPV4_TYPE:
                 addr = ""
         self.sock.bind((addr, port))
-        logging.info("Bound to %s:%d", addr, port)
+        self.port = self.sock.getsockname()[1]
+        if desc:
+            logging.info("%s bound to %s:%d", desc, addr, self.port)
 
     def send(self, data, dst):
         """

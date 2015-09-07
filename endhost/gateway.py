@@ -125,7 +125,7 @@ class SCIONGateway(object):
         :type spkt: :class:`lib.packet.scion.SCIONPacket`
         """
         logging.info("Writing to device")
-        self._tun_dev.write(spkt.payload)
+        self._tun_dev.write(spkt.get_payload())
 
     def init_routing(self):
         """

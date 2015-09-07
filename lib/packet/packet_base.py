@@ -15,9 +15,11 @@
 :mod:`packet_base` --- Packet base class
 ========================================
 """
+# Stdlib
+from abc import ABCMeta, abstractmethod
 
 
-class HeaderBase(object):
+class HeaderBase(object, metaclass=ABCMeta):
     """
     Base class for headers.
 
@@ -33,23 +35,24 @@ class HeaderBase(object):
         """
         self.parsed = False
 
+    @abstractmethod
     def parse(self, raw):
-        pass
+        raise NotImplementedError
 
+    @abstractmethod
     def pack(self):
-        pass
+        raise NotImplementedError
 
+    @abstractmethod
     def __len__(self):
-        pass
+        raise NotImplementedError
 
+    @abstractmethod
     def __str__(self):
-        pass
-
-    def __repr__(self):
-        return self.__str__()
+        raise NotImplementedError
 
 
-class PacketBase(object):
+class PacketBase(object, metaclass=ABCMeta):
     """
     Base class for packets.
 
@@ -67,21 +70,16 @@ class PacketBase(object):
         """
         Initialize an instance of the class PacketBase.
         """
-        self._hdr = None
+        self.hdr = None
         self._payload = None
         self.parsed = False
         self.raw = None
 
-    @property
-    def payload(self):
+    def get_payload(self):
         """
         Returns the packet payload.
         """
         return self._payload
-
-    @payload.setter
-    def payload(self, new_payload):
-        self.set_payload(new_payload)
 
     def set_payload(self, new_payload):
         """
@@ -94,43 +92,22 @@ class PacketBase(object):
         else:
             self._payload = new_payload
 
-    @property
-    def hdr(self):
-        """
-        Returns the packet header.
-        """
-        return self._hdr
-
-    @hdr.setter
-    def hdr(self, new_hdr):
-        self.set_hdr(new_hdr)
-
-    def set_hdr(self, new_hdr):
-        """
-        Sets the packet header. Expects a Header subclass.
-        """
-        if not isinstance(new_hdr, HeaderBase):
-            raise TypeError("hdr must be a header subclass.")
-        else:
-            self._hdr = new_hdr
-
+    @abstractmethod
     def parse(self, raw):
-        pass
+        raise NotImplementedError
 
+    @abstractmethod
     def pack(self):
-        pass
+        raise NotImplementedError
 
     def __len__(self):
-        return len(self.hdr) + len(self.payload)
+        return len(self.hdr) + len(self._payload)
 
     def __str__(self):
         s = []
         s.append(str(self.hdr) + "\n")
-        s.append("Payload:\n" + str(self.payload))
+        s.append("Payload:\n" + str(self._payload))
         return "".join(s)
-
-    def __repr__(self):
-        return self.__str__()
 
     def __hash__(self):
         return hash(self.pack())
@@ -142,7 +119,7 @@ class PacketBase(object):
             return False
 
 
-class PayloadBase(object):
+class PayloadBase(object, metaclass=ABCMeta):
     """
     Interface that payloads of packets must implement.
     """

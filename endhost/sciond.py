@@ -103,10 +103,10 @@ class SCIONDaemon(SCIONElement):
         self._api_socket = None
         self.daemon_thread = None
         if run_local_api:
-            self._api_sock = UDPSocket(bind=(SCIOND_API_HOST, SCIOND_API_PORT),
-                                       addr_type=ADDR_IPV4_TYPE)
+            self._api_sock = UDPSocket(
+                bind=(SCIOND_API_HOST, SCIOND_API_PORT, "sciond local API"),
+                addr_type=ADDR_IPV4_TYPE)
             self._socks.add(self._api_sock)
-            logging.info("Local API %s:%u", SCIOND_API_HOST, SCIOND_API_PORT)
 
     @classmethod
     def start(cls, addr, topo_file, run_local_api=False):
@@ -170,7 +170,7 @@ class SCIONDaemon(SCIONElement):
         try:
             dst = self.dns_query_topo(PATH_SERVICE)[0]
         except SCIONServiceLookupError as e:
-            raise SCIONDaemonPathLookupError(e)
+            raise SCIONDaemonPathLookupError(e) from None
         # Create an event that we can wait on for the path reply.
         event = threading.Event()
         update_dict(self._waiting_targets[ptype], (dst_isd, dst_ad), [event])
@@ -330,10 +330,10 @@ class SCIONDaemon(SCIONElement):
         for path in paths:
             raw_path = path.pack()
             # assumed IPv4 addr
-            if path.get_first_info_of().up_flag:
-                haddr = self.ifid2addr[path.get_first_hop_of().ingress_if]
+            if path.get_first_iof().up_flag:
+                haddr = self.ifid2addr[path.get_first_hof().ingress_if]
             else:
-                haddr = self.ifid2addr[path.get_first_hop_of().egress_if]
+                haddr = self.ifid2addr[path.get_first_hof().egress_if]
             path_len = len(raw_path) // 8  # Check whether 8 divides path_len?
             reply.append(struct.pack("B", path_len) + raw_path + haddr.pack())
         self._api_sock.send(b"".join(reply), sender)
@@ -373,7 +373,7 @@ class SCIONDaemon(SCIONElement):
         if from_local_socket:  # From PS or CS.
             pkt = PathMgmtPacket(packet)
             if pkt.type == PMT.RECORDS:
-                self.handle_path_reply(pkt.payload)
+                self.handle_path_reply(pkt.get_payload())
             else:
                 logging.warning("Type %d not supported.", pkt.type)
         else:  # From localhost (SCIONDaemon API)

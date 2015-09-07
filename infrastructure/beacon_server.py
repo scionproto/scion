@@ -25,6 +25,7 @@ import os
 import sys
 import threading
 from _collections import defaultdict, deque
+from abc import ABCMeta, abstractmethod
 
 # External packages
 from Crypto.Hash import SHA256
@@ -89,7 +90,7 @@ from lib.util import (
     write_file,
     SCIONTime,
 )
-from lib.zookeeper import ZkConnectionLoss, ZkSharedCache, Zookeeper
+from lib.zookeeper import ZkNoConnection, ZkSharedCache, Zookeeper
 
 
 class InterfaceState(object):
@@ -161,7 +162,7 @@ class InterfaceState(object):
         return self._state == self.REVOKED
 
 
-class BeaconServer(SCIONElement):
+class BeaconServer(SCIONElement, metaclass=ABCMeta):
     """
     The SCION PathConstructionBeacon Server.
 
@@ -304,11 +305,12 @@ class BeaconServer(SCIONElement):
             self.send(beacon, router_child.addr)
             logging.info("Downstream PCB propagated!")
 
+    @abstractmethod
     def handle_pcbs_propagation(self):
         """
         Main loop to propagate received beacons.
         """
-        pass
+        raise NotImplementedError
 
     def store_pcb(self, beacon):
         """
@@ -323,22 +325,24 @@ class BeaconServer(SCIONElement):
         hops_hash = beacon.pcb.get_hops_hash(hex=True)
         try:
             self.pcb_cache.store(hops_hash, beacon.pcb.pack())
-        except ZkConnectionLoss:
+        except ZkNoConnection:
             logging.debug("Unable to store PCB in shared cache: "
                           "no connection to ZK")
             self.process_pcbs([beacon.pcb.pack()])  # FIXME(PSz): testing
 
+    @abstractmethod
     def process_pcbs(self, pcbs):
         """
         Processes new beacons and appends them to beacon list.
         """
-        pass
+        raise NotImplementedError
 
+    @abstractmethod
     def register_segments(self):
         """
         Registers paths according to the received beacons.
         """
-        pass
+        raise NotImplementedError
 
     def _create_ad_marking(self, ingress_if, egress_if, ts, prev_hof=None):
         """
@@ -464,7 +468,7 @@ class BeaconServer(SCIONElement):
                 if not self.zk.get_lock(lock_timeout=0, conn_timeout=0):
                     continue
                 self.pcb_cache.expire(self.config.propagation_time * 10)
-            except ZkConnectionLoss:
+            except ZkNoConnection:
                 continue
             now = SCIONTime.get_time()
             if now - last_propagation >= self.config.propagation_time:
@@ -495,6 +499,7 @@ class BeaconServer(SCIONElement):
             logging.warning("Certificate(s) or TRC missing.")
             self.unverified_beacons.append(pcb)
 
+    @abstractmethod
     def _check_certs_trc(self, isd_id, ad_id, cert_ver, trc_ver, if_id):
         """
         Return True or False whether the necessary Certificate and TRC files are
@@ -511,7 +516,7 @@ class BeaconServer(SCIONElement):
         :param if_id: interface identifier.
         :type if_id: int
         """
-        pass
+        raise NotImplementedError
 
     def _get_trc(self, isd_id, trc_ver, if_id):
         """
@@ -604,6 +609,7 @@ class BeaconServer(SCIONElement):
         pcb.ads[-1].sig_len = len(signature)
         pcb.if_id = tmp_if_id
 
+    @abstractmethod
     def _handle_verified_beacon(self, pcb):
         """
         Once a beacon has been verified, place it into the right containers.
@@ -611,13 +617,14 @@ class BeaconServer(SCIONElement):
         :param pcb: verified path segment.
         :type pcb: PathSegment
         """
-        pass
+        raise NotImplementedError
 
+    @abstractmethod
     def process_cert_chain_rep(self, cert_chain_rep):
         """
         Process the Certificate chain reply.
         """
-        pass
+        raise NotImplementedError
 
     def process_trc_rep(self, trc_rep):
         """
@@ -683,6 +690,7 @@ class BeaconServer(SCIONElement):
         logging.info("Sending segment revocations to a local PS.")
         self.send(pkt, ps_addr)
 
+    @abstractmethod
     def _process_segment_revocation(self, rev_info):
         """
         Processes a segment revocation.
@@ -690,8 +698,9 @@ class BeaconServer(SCIONElement):
         :param rev_info: The RevocationInfo object.
         :type rev_info: RevocationInfo
         """
-        pass
+        raise NotImplementedError
 
+    @abstractmethod
     def _process_interface_revocation(self, rev_info, if_id):
         """
         Processes an interface revocation.
@@ -701,8 +710,9 @@ class BeaconServer(SCIONElement):
         :param if_id: The if_id to be revoked
         :type if_id: int
         """
-        pass
+        raise NotImplementedError
 
+    @abstractmethod
     def _process_hop_revocation(self, rev_info, if_ids):
         """
         Processes a hop revocation.
@@ -712,7 +722,7 @@ class BeaconServer(SCIONElement):
         :param if_ids: The tuple (if1, if2) to be revoked
         :type if_id: tuple
         """
-        pass
+        raise NotImplementedError
 
     def _handle_if_timeouts(self):
         """
@@ -818,6 +828,16 @@ class CoreBeaconServer(BeaconServer):
         ingress_if = pcb.if_id
         count = 0
         for core_router in self.topology.routing_edge_routers:
+            skip = False
+            for ad in pcb.ads:
+                if (ad.pcbm.isd_id == core_router.interface.neighbor_isd and
+                        ad.pcbm.ad_id == core_router.interface.neighbor_ad):
+                    # Don't propagate a Core PCB back to an AD we know has
+                    # already seen it.
+                    skip = True
+                    break
+            if skip:
+                continue
             new_pcb = copy.deepcopy(pcb)
             egress_if = core_router.interface.if_id
             last_pcbm = new_pcb.get_last_pcbm()
@@ -936,6 +956,9 @@ class CoreBeaconServer(BeaconServer):
         else:
             return False
 
+    def process_cert_chain_rep(self, cert_chain_rep):
+        raise NotImplementedError
+
     def _handle_verified_beacon(self, pcb):
         """
         Once a beacon has been verified, place it into the right containers.
@@ -989,6 +1012,12 @@ class CoreBeaconServer(BeaconServer):
         # Remove the affected segments from the path stores.
         for ps in self.core_segments.values():
             ps.remove_segments(to_remove)
+
+    def _process_segment_revocation(self, rev_info):
+        raise NotImplementedError
+
+    def _process_hop_revocation(self, rev_info, if_ids):
+        raise NotImplementedError
 
 
 class LocalBeaconServer(BeaconServer):
@@ -1112,7 +1141,7 @@ class LocalBeaconServer(BeaconServer):
         dst_isd_ad = ISD_AD(pcb.get_isd(), pcb.get_first_pcbm().ad_id)
         pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, core_path,
                                          self.addr, dst_isd_ad)
-        if_id = core_path.get_first_hop_of().ingress_if
+        if_id = core_path.get_first_hof().ingress_if
         next_hop = self.ifid2addr[if_id]
         self.send(pkt, next_hop)
 
@@ -1204,6 +1233,12 @@ class LocalBeaconServer(BeaconServer):
         # Remove the affected segments from the path stores.
         self.up_segments.remove_segments(to_remove)
         self.down_segments.remove_segments(to_remove)
+
+    def _process_segment_revocation(self, rev_info):
+        raise NotImplementedError
+
+    def _process_hop_revocation(self, rev_info, if_ids):
+        raise NotImplementedError
 
     def _handle_verified_beacon(self, pcb):
         """

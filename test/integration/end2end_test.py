@@ -25,13 +25,14 @@ import unittest
 
 # SCION
 from endhost.sciond import SCIOND_API_HOST, SCIOND_API_PORT, SCIONDaemon
-from lib.defines import ADDR_IPV4_TYPE, SCION_UDP_EH_DATA_PORT
+from lib.defines import ADDR_IPV4_TYPE, L4_UDP
 from lib.log import init_logging, log_exception
 from lib.packet.host_addr import haddr_get_type, haddr_parse
 from lib.packet.opaque_field import InfoOpaqueField, OpaqueFieldType as OFT
 from lib.packet.path import CorePath, CrossOverPath, EmptyPath, PeerPath
 from lib.packet.scion import SCIONPacket
 from lib.packet.scion_addr import SCIONAddr, ISD_AD
+from lib.packet.scion_udp import SCIONUDPPacket
 from lib.socket import UDPSocket
 from lib.thread import kill_self, thread_safety_net
 from lib.util import Raw, handle_signals
@@ -45,7 +46,7 @@ def get_paths_via_api(isd, ad):
     """
     Test local API.
     """
-    sock = UDPSocket(bind=("127.0.0.1", 5005), addr_type=ADDR_IPV4_TYPE)
+    sock = UDPSocket(bind=("127.0.0.1", 0), addr_type=ADDR_IPV4_TYPE)
     msg = b'\x00' + ISD_AD(isd, ad).pack()
 
     for _ in range(5):
@@ -86,16 +87,17 @@ class Ping(object):
     """
     Simple ping app.
     """
-    def __init__(self, src, dst, token):
+    def __init__(self, src, dst, dport, token):
         self.src = src
         self.dst = dst
+        self.dport = dport
         self.token = token
         self.pong_received = False
         topo_file = ("../../topology/ISD%d/topologies/ISD:%d-AD:%d.json" %
                      (src.isd, src.isd, src.ad))
         self.sd = SCIONDaemon.start(saddr, topo_file, True)  # API on
         self.get_path()
-        self.sock = UDPSocket(bind=(str(saddr), SCION_UDP_EH_DATA_PORT),
+        self.sock = UDPSocket(bind=(str(saddr), 0, "Ping App"),
                               addr_type=ADDR_IPV4_TYPE)
 
     def get_path(self):
@@ -112,7 +114,10 @@ class Ping(object):
     def send(self):
         dst = SCIONAddr.from_values(self.dst.isd, self.dst.ad, raddr)
         ping = b"ping " + self.token
-        spkt = SCIONPacket.from_values(self.sd.addr, dst, ping, self.path)
+        upkt = SCIONUDPPacket.from_values(self.sd.addr, self.sock.port, dst,
+                                          self.dport, ping)
+        spkt = SCIONPacket.from_values(self.sd.addr, dst, upkt,
+                                       self.path, next_hdr=L4_UDP)
         (next_hop, port) = self.sd.get_first_hop(spkt)
         assert next_hop == self.hop
 
@@ -122,13 +127,16 @@ class Ping(object):
 
     def recv(self):
         packet = self.sock.recv()[0]
+        spkt = SCIONPacket(packet)
+        upkt = spkt.get_payload()
         pong = b"pong " + self.token
-        payload = SCIONPacket(packet).payload
+        payload = upkt.get_payload()
         if payload == pong:
-            logging.info('%s: pong received.', saddr)
+            logging.info('%s:%d: pong received.', saddr, self.sock.port)
             self.pong_received = True
         else:
-            logging.error("Unexpected payload received: %s", payload)
+            logging.error("Unexpected payload received: %s (expected: %s)",
+                          payload, pong)
             kill_self()
         self.sock.close()
         self.sd.stop()
@@ -145,19 +153,28 @@ class Pong(object):
         topo_file = ("../../topology/ISD%d/topologies/ISD:%d-AD:%d.json" %
                      (self.dst.isd, self.dst.isd, self.dst.ad))
         self.sd = SCIONDaemon.start(raddr, topo_file)  # API off
-        self.sock = UDPSocket(bind=(str(raddr), SCION_UDP_EH_DATA_PORT),
+        self.sock = UDPSocket(bind=(str(raddr), 0, "Pong App"),
                               addr_type=ADDR_IPV4_TYPE)
+
+    def get_local_port(self):
+        return self.sock.get_port()
 
     def run(self):
         packet = self.sock.recv()[0]
         spkt = SCIONPacket(packet)
+        upkt = spkt.get_payload()
         ping = b"ping " + self.token
-        if spkt.payload == ping:
+        pong = b"pong " + self.token
+        rpkt = SCIONUDPPacket.from_values(
+            spkt.hdr.dst_addr, upkt.dst_port, spkt.hdr.src_addr, upkt.src_port,
+            pong)
+        if upkt.get_payload() == ping:
             # Reverse the packet and send "pong".
-            logging.info('%s: ping received, sending pong.', raddr)
+            logging.info('%s:%d: ping received, sending pong.', raddr,
+                         self.sock.port)
             self.ping_received = True
             spkt.hdr.reverse()
-            spkt.payload = b"pong " + self.token
+            spkt.set_payload(rpkt)
             (next_hop, port) = self.sd.get_first_hop(spkt)
             self.sd.send(spkt, next_hop, port)
         self.sock.close()
@@ -193,7 +210,7 @@ class TestSCIONDaemon(unittest.TestCase):
                     threading.Thread(
                         target=thread_safety_net, args=(pong_app.run,),
                         name="E2E.pong_app", daemon=True).start()
-                    ping_app = Ping(src, dst, token)
+                    ping_app = Ping(src, dst, pong_app.sock.port, token)
                     threading.Thread(
                         target=thread_safety_net, args=(ping_app.run,),
                         name="E2E.ping_app", daemon=True).start()
