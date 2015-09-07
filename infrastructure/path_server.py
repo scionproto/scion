@@ -30,7 +30,7 @@ from abc import ABCMeta, abstractmethod
 # External packages
 from Crypto.Hash import SHA256
 from external.expiring_dict import ExpiringDict
-from kazoo.exceptions import ConnectionLoss, NoNodeError
+from kazoo.exceptions import ConnectionLoss, NoNodeError, SessionExpiredError
 
 # SCION
 from infrastructure.scion_elem import SCIONElement
@@ -489,7 +489,7 @@ class CorePathServer(PathServer):
             lock_contents = self.zk.kazoo.get(lock_holder_path)
             _, _, server_addr = lock_contents[0].split(b"\x00")
             return str(server_addr, 'utf-8')
-        except (ConnectionLoss, NoNodeError):
+        except (ConnectionLoss, NoNodeError, SessionExpiredError):
             logging.warning("Disconnected ZK or no lock data found")
             return None
 
