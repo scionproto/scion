@@ -13,7 +13,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='AD',
             fields=[
-                ('id', models.CharField(max_length=50, serialize=False, primary_key=True)),
+                ('id', models.IntegerField(serialize=False, primary_key=True)),
             ],
             options={
             },
@@ -22,7 +22,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='ISD',
             fields=[
-                ('id', models.CharField(max_length=50, serialize=False, primary_key=True)),
+                ('id', models.IntegerField(serialize=False, primary_key=True)),
                 ('name', models.CharField(max_length=50)),
             ],
             options={

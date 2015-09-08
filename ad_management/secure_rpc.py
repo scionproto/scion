@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # Copyright 2014 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,10 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`secure_rpc_server` --- SimpleXMLRPCServer to run over TLS (SSL)
+:mod:`secure_rpc` --- RPC client/server with TLS/SSL
 =====================================================================
-
-Inspired by http://stackoverflow.com/q/5690733/1181370
 """
 # Stdlib
 import logging
@@ -24,7 +21,7 @@ import os
 import socket
 import socketserver
 import ssl
-import xmlrpc.client
+from xmlrpc.client import SafeTransport, ServerProxy, Marshaller
 from xmlrpc.server import (
     SimpleXMLRPCDispatcher,
     SimpleXMLRPCRequestHandler,
@@ -41,9 +38,11 @@ except ImportError:
     fcntl = None
 
 
-class XMLRPCServerTLS(SimpleXMLRPCServer):
+class XMLRPCServerTLS(socketserver.ThreadingMixIn, SimpleXMLRPCServer):
     """
+    XML-RPC server with TLS enabled.
 
+    Inspired by http://stackoverflow.com/q/5690733/1181370
 
     :ivar logRequests:
     :type logRequests:
@@ -56,7 +55,6 @@ class XMLRPCServerTLS(SimpleXMLRPCServer):
     :ivar :
     :type :
     """
-
     def __init__(self, addr, requestHandler=SimpleXMLRPCRequestHandler,
                  logRequests=False, allow_none=False, encoding=None,
                  bind_and_activate=True):
@@ -81,19 +79,27 @@ class XMLRPCServerTLS(SimpleXMLRPCServer):
         SimpleXMLRPCDispatcher.__init__(self, allow_none, encoding)
 
         # Add support for long ints
-        xmlrpc.client.Marshaller.dispatch[int] = \
+        Marshaller.dispatch[int] = \
             lambda _, v, w: w("<value><i8>%d</i8></value>" % v)
 
         socketserver.BaseServer.__init__(self, addr, requestHandler)
+        # TODO: remove fixed certificates
+        # Certificates for the management daemon and the web app are fixed, so
+        # every AD uses the same certificate. We should generate SSL
+        # certificates along with SCION certificates instead, so every AD will
+        # have its own certificate.
+        cert_reqs = ssl.CERT_REQUIRED
         self.socket = ssl.wrap_socket(
             socket.socket(self.address_family, self.socket_type),
             server_side=True,
-            cert_reqs=ssl.CERT_NONE,  # TODO
-            certfile=os.path.join(CERT_DIR_PATH, 'cert.pem'),
-            keyfile=os.path.join(CERT_DIR_PATH, 'key.pem'),
+            cert_reqs=cert_reqs,
+            ca_certs=os.path.join(CERT_DIR_PATH, 'ca.pem'),
+            certfile=os.path.join(CERT_DIR_PATH, 'ad.pem'),
+            keyfile=os.path.join(CERT_DIR_PATH, 'ad.key'),
             ssl_version=ssl.PROTOCOL_TLSv1_2,
         )
-        logging.warning('Certificate validation is disabled!')
+        if cert_reqs != ssl.CERT_REQUIRED:
+            logging.warning('Client certificate verification is disabled!')
         if bind_and_activate:
             self.server_bind()
             self.server_activate()
@@ -105,6 +111,37 @@ class XMLRPCServerTLS(SimpleXMLRPCServer):
             flags = fcntl.fcntl(self.fileno(), fcntl.F_GETFD)
             flags |= fcntl.FD_CLOEXEC
             fcntl.fcntl(self.fileno(), fcntl.F_SETFD, flags)
+
+
+class VerifyCertSafeTransport(SafeTransport):
+    def __init__(self, cafile, certfile=None, keyfile=None):
+        super().__init__()
+        self._ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+        self._ssl_context.load_verify_locations(cafile)
+        if certfile:
+            self._ssl_context.load_cert_chain(certfile, keyfile)
+        self._ssl_context.verify_mode = ssl.CERT_REQUIRED
+
+    def make_connection(self, host):
+        s = super().make_connection((host, {'context': self._ssl_context,
+                                            'check_hostname': False}))
+        return s
+
+
+class ServerProxyTLS(ServerProxy):
+    """
+    Web application TLS endpoint, used by management_client.py
+    """
+    def __init__(self, *args, **kwargs):
+        assert 'transport' not in kwargs, 'Use ServerProxy for custom transport'
+        # TODO: remove fixed certificates: see above
+        md_ca = os.path.join(CERT_DIR_PATH, 'ca.pem')
+        client_certfile = os.path.join(CERT_DIR_PATH, 'webapp.pem')
+        client_keyfile = os.path.join(CERT_DIR_PATH, 'webapp.key')
+        transport = VerifyCertSafeTransport(cafile=md_ca,
+                                            certfile=client_certfile,
+                                            keyfile=client_keyfile)
+        super().__init__(*args, transport=transport, **kwargs)
 
 
 if __name__ == "__main__":
