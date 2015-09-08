@@ -30,7 +30,6 @@ from abc import ABCMeta, abstractmethod
 # External packages
 from Crypto.Hash import SHA256
 from external.expiring_dict import ExpiringDict
-from kazoo.exceptions import ConnectionLoss, NoNodeError, SessionExpiredError
 
 # SCION
 from infrastructure.scion_elem import SCIONElement
@@ -418,9 +417,8 @@ class CorePathServer(PathServer):
 
     def _master_election(self):
         """
-        Election of master core Path Server.
+        Election of a master core Path Server.
         """
-        # FIXME: Code from BS, move it a function?
         master = False
         while True:
             if not master:
@@ -451,14 +449,14 @@ class CorePathServer(PathServer):
     def _update_master(self):
         """
         """
-        curr_master = self._get_master_id()
-        # TODO: we could discuss this behaviour.
-        # if curr_master and curr_master != self._master_id:
+        curr_master = self.zk.get_lock_holder()
+        if not curr_master:
+            logging.warning("Cannot get master's address.")
+            return
         if curr_master != self._master_id:
             self._master_id = curr_master
             logging.debug("New master is: %s", self._master_id)
-            if not self._is_master():
-                self._sync_master()
+            self._sync_master()
 
     def _sync_master(self):
         """
@@ -467,31 +465,11 @@ class CorePathServer(PathServer):
         # TODO(PSz): send all local down- and (?) core-paths to the new master,
         # consider some easy mechanisms for avoiding registration storm.
         # check whether master exists
+        if not self._master_id or self._is_master():
+            logging.warning('Sync failed: master not set or I am a master')
+            return
         logging.debug("TODO: Syncing with %s", self._master_id)
         pass
-
-    def _get_master_id(self):
-        # TODO(PSz): should it go to zk_lib as get_lock_holder() ?
-        """
-        Get the id of the current master.
-        Based on Anton's code from ad_management/monitoring_daemon.py.
-        """
-        lock_path = os.path.join(self.zk.prefix, "lock")
-        get_id = lambda name: name.split('__')[-1]
-        try:
-            contenders = self.zk.kazoo.get_children(lock_path)
-            if not contenders:
-                logging.warning('No lock contenders found')
-                return None
-
-            lock_holder_file = sorted(contenders, key=get_id)[0]
-            lock_holder_path = os.path.join(lock_path, lock_holder_file)
-            lock_contents = self.zk.kazoo.get(lock_holder_path)
-            _, _, server_addr = lock_contents[0].split(b"\x00")
-            return str(server_addr, 'utf-8')
-        except (ConnectionLoss, NoNodeError, SessionExpiredError):
-            logging.warning("Disconnected ZK or no lock data found")
-            return None
 
     def _is_master(self):
         """
@@ -636,16 +614,15 @@ class CorePathServer(PathServer):
         """
         Send 'pkt' to a master.
         """
-        if self._master_id:
-            # source address as well?
-            pkt.hdr.dst_addr.isd_id = self.topology.isd_id
-            pkt.hdr.dst_addr.ad_id = self.topology.ad_id
-            pkt.hdr.src_addr.isd_id = self.topology.isd_id
-            pkt.hdr.src_addr.ad_id = self.topology.ad_id
-            self.send(pkt, self._master_id)
-            logging.debug("Packet sent to master %s", self._master_id)
-        else:
+        if not self._master_id:
             logging.warning("_send_to_master(): _master_id not set.")
+            return
+        pkt.hdr.dst_addr.isd_id = self.topology.isd_id
+        pkt.hdr.dst_addr.ad_id = self.topology.ad_id
+        pkt.hdr.src_addr.isd_id = self.topology.isd_id
+        pkt.hdr.src_addr.ad_id = self.topology.ad_id
+        self.send(pkt, self._master_id)
+        logging.debug("Packet sent to master %s", self._master_id)
 
     def _query_master(self, ptype, dst_isd, dst_ad, src_isd=None, src_ad=None):
         """

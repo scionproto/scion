@@ -413,6 +413,28 @@ class Zookeeper(object):
         """
         self._lock.wait()
 
+    def get_lock_holder(self):
+        """
+        Return address of the current lock holder, or None if disconnected or
+        master not elected.
+        """
+        lock_path = os.path.join(self.prefix, "lock")
+        get_id = lambda name: name.split('__')[-1]
+        try:
+            contenders = self.kazoo.get_children(lock_path)
+            if not contenders:
+                logging.warning('No lock contenders found')
+                return None
+
+            lock_holder_file = sorted(contenders, key=get_id)[0]
+            lock_holder_path = os.path.join(lock_path, lock_holder_file)
+            lock_contents = self.kazoo.get(lock_holder_path)
+            _, _, server_addr = lock_contents[0].split(b"\x00")
+            return str(server_addr, 'utf-8')
+        except (ConnectionLoss, NoNodeError, SessionExpiredError):
+            logging.warning("Disconnected from ZK or no lock data found")
+            return None
+
     def retry(self, desc, f, *args, _retries=4, _timeout=10.0, **kwargs):
         """
         Execute a given operation, retrying it if fails due to connection

@@ -328,7 +328,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         except ZkNoConnection:
             logging.debug("Unable to store PCB in shared cache: "
                           "no connection to ZK")
-            self.process_pcbs([beacon.pcb.pack()])  # FIXME(PSz): testing
 
     @abstractmethod
     def process_pcbs(self, pcbs):
@@ -751,32 +750,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                     if_state.revoke_if_expired()
             sleep_interval(start_time, self.IF_TIMEOUT_INTERVAL,
                            "Handle IF timeouts")
-
-    # PSz: unused for now
-    def should_propagate(self, master):
-        """
-        Decide whether should propagate.
-        """
-        # Propagate if there is only single BS.
-        if len(self.topology.beacon_servers) == 1:
-            return True
-        # Propagate if disconnected with ZK.
-        if not self.zk.is_connected():
-            return True
-        # Wait until we have enough context to be a useful master
-        # candidate.
-        self._state_synced.wait()
-        if not master:
-            logging.debug("Trying to become master")
-        if not self.zk.get_lock():
-            if master:
-                logging.debug("No longer master")
-                master = False
-            return False
-        if not master:
-            logging.debug("Became master")
-            master = True
-            return True
 
 
 class CoreBeaconServer(BeaconServer):
