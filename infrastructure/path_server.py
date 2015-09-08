@@ -22,7 +22,6 @@ import datetime
 import logging
 import threading
 import time
-import os
 import sys
 from _collections import defaultdict
 from abc import ABCMeta, abstractmethod
