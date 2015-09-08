@@ -185,9 +185,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
     def __init__(self, server_id, topo_file, config_file, path_policy_file,
                  is_sim=False):
-        SCIONElement.__init__(self, BEACON_SERVICE, topo_file,
-                              server_id=server_id, config_file=config_file,
-                              is_sim=is_sim)
+        super().__init__(BEACON_SERVICE, topo_file, server_id=server_id,
+                         config_file=config_file, is_sim=is_sim)
         """
         Initialize an instance of the class BeaconServer.
 
@@ -448,7 +447,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         #  threading.Thread(
         #    target=thread_safety_net, args=(self._handle_if_timeouts,),
         #    name="BS._handle_if_timeouts", daemon=True).start()
-        SCIONElement.run(self)
+        super().run()
 
     def worker(self):
         """

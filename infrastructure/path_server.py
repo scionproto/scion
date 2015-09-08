@@ -82,9 +82,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         :param is_sim: running in simulator
         :type is_sim: bool
         """
-        SCIONElement.__init__(self, PATH_SERVICE, topo_file,
-                              server_id=server_id, config_file=config_file,
-                              is_sim=is_sim)
+        super().__init__(PATH_SERVICE, topo_file, server_id=server_id,
+                         config_file=config_file, is_sim=is_sim)
         # TODO replace by pathstore instance
         self.down_segments = PathSegmentDB()
         self.core_segments = PathSegmentDB()  # Direction of the propagation.
@@ -422,8 +421,7 @@ class CorePathServer(PathServer):
         :param is_sim: running in simulator
         :type is_sim: bool
         """
-        PathServer.__init__(self, server_id, topo_file, config_file,
-                            is_sim=is_sim)
+        super().__init__(server_id, topo_file, config_file, is_sim=is_sim)
         # Sanity check that we should indeed be a core path server.
         assert self.topology.is_core_ad, "This shouldn't be a core PS!"
         self.leases = self.LeasesDict()
@@ -519,7 +517,6 @@ class CorePathServer(PathServer):
         """
 
         """
-        PathServer._handle_up_segment_record(self, pkt)
         logging.error("Core Path Server received up-path record!")
 
     def _handle_down_segment_record(self, pkt):
@@ -977,8 +974,7 @@ class LocalPathServer(PathServer):
         :param is_sim: running in simulator
         :type is_sim: bool
         """
-        PathServer.__init__(self, server_id, topo_file, config_file,
-                            is_sim=is_sim)
+        super().__init__(server_id, topo_file, config_file, is_sim=is_sim)
         # Sanity check that we should indeed be a local path server.
         assert not self.topology.is_core_ad, "This shouldn't be a local PS!"
         # Database of up-segments to the core.
