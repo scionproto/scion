@@ -566,7 +566,7 @@ class ZkSharedCache(object):
             return self._kazoo.set(full_path, value)
         except NoNodeError:
             pass
-        except ConnectionLoss:
+        except (ConnectionLoss, SessionExpiredError):
             raise ZkNoConnection
         # Entry doesn't exist, so create it instead.
         try:

@@ -41,7 +41,7 @@
     },
     "1-14": {
         "level": "INTERMEDIATE",
-        "path_servers": 1,
+        "path_servers": 2,
         "cert_issuer": "1-11",
         "links": {
             "1-11": "PARENT",
@@ -82,14 +82,13 @@
         "level": "LEAF",
         "path_servers": 2,
         "cert_issuer": "1-15",
-        "path_servers": 3,
         "links": {
             "1-15": "PARENT"
         }
     },
     "1-19": {
         "level": "INTERMEDIATE",
-        "path_servers": 1,
+        "path_servers": 2,
         "cert_issuer": "1-16",
         "links": {
             "1-16": "PARENT",
