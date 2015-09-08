@@ -474,8 +474,10 @@ class CorePathServer(PathServer):
                 logging.debug("Am I master ? %s" % is_master)
                 # TODO(PSz): if is_master: clean_old_zk_entries()
             except ZkNoConnection:
-                pass  # FIXME(PSz): get_lock() raises ZkNoConnection for tout,
-                      # but tout is a correct behavior in that case (not master)
+                # FIXME(PSz): get_lock() raises ZkNoConnection for timeout, but
+                # timeouting seems to be a correct behavior in that case (i.e.,
+                # when a non-master calls get_lock(...))
+                pass
             self._update_master()
 
     def _update_master(self):
