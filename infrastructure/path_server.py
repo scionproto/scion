@@ -21,7 +21,6 @@ import copy
 import datetime
 import logging
 import threading
-import time
 import sys
 from _collections import defaultdict
 from abc import ABCMeta, abstractmethod
@@ -110,7 +109,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
     def worker(self):
         """
         Worker thread that takes care of reading shared paths from ZK, and
-        handling master election.
+        handling master election for core servers.
         """
         raise NotImplementedError
 
@@ -250,9 +249,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
 
     def _share_segments(self, pkt):
         """
-        TODO: change to packet.pcb ?
+        Share path segments (via ZK) with other path servers.
         """
-        # assert isinstance(beacon, PathConstructionBeacon)
         pkt_hash = SHA256.new(pkt.pack()).hexdigest()
         try:
             self.path_cache.store(pkt_hash, pkt.pack())
@@ -437,27 +435,10 @@ class CorePathServer(PathServer):
         for entry in raw_entries:
             self._handle_core_segment_record(PathMgmtPacket(raw=entry), True)
 
-    def _master_election(self):
-        """
-        Election of a master core Path Server.
-        """
-        master = False
-        while True:
-            if not master:
-                logging.debug("Trying to become master")
-            if not self.zk.get_lock():
-                if master:
-                    logging.debug("No longer master")
-                    master = False
-                time.sleep(0.5)
-                continue
-            if not master:
-                logging.debug("Became master")
-                master = True
-            time.sleep(1)
-
     def worker(self):
         """
+        Worker thread that takes care of reading shared paths from ZK, and
+        handling master election.
         """
         worker_cycle = 1.0
         start = SCIONTime.get_time()
@@ -496,13 +477,13 @@ class CorePathServer(PathServer):
 
     def _sync_master(self):
         """
-        Shares paths with newly-elected master.
+        Feed newly-elected master with paths.
         """
         # TODO(PSz): send all local down- and (?) core-paths to the new master,
         # consider some easy mechanisms for avoiding registration storm.
         # check whether master exists
         if not self._master_id or self._is_master():
-            logging.warning('Sync failed: master not set or I am a master')
+            logging.warning('Sync abandoned: master not set or I am a master')
             return
         logging.debug("TODO: Syncing with %s", self._master_id)
         pass
@@ -987,7 +968,10 @@ class LocalPathServer(PathServer):
 
     def worker(self):
         """
+        Worker thread that takes care of reading shared paths from ZK.
         """
+        # PSz: in local PS we may also need master election, as someone needs to
+        # clean ZK's cache periodically.
         worker_cycle = 1.0
         start = SCIONTime.get_time()
         while True:

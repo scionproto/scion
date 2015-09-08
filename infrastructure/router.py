@@ -316,6 +316,8 @@ class Router(SCIONElement):
             return
         # Forward packet to destination.
         if ptype == PT.PATH_MGMT:
+            # FIXME(PSz): that should be changed when replies are send as
+            # standard data packets.
             if spkt.hdr.dst_addr.host_addr.TYPE == ADDR_SVC_TYPE:
                 # Send request to any path server.
                 try:

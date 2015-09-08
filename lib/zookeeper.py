@@ -420,7 +420,7 @@ class Zookeeper(object):
     def get_lock_holder(self):
         """
         Return address of the current lock holder, or None if disconnected or
-        master not elected.
+        master is not elected.
         """
         lock_path = os.path.join(self.prefix, "lock")
         get_id = lambda name: name.split('__')[-1]
