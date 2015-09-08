@@ -51,7 +51,13 @@ from lib.packet.path_mgmt import (
 from lib.packet.scion_addr import ISD_AD
 from lib.path_db import DBResult, PathSegmentDB
 from lib.thread import thread_safety_net
-from lib.util import SCIONTime, handle_signals, trace, update_dict
+from lib.util import (
+    SCIONTime,
+    handle_signals,
+    sleep_interval,
+    trace,
+    update_dict,
+)
 from lib.zookeeper import ZkNoConnection, ZkSharedCache, Zookeeper
 
 
@@ -101,11 +107,20 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                 self.zk, self.ZK_PATH_CACHE_PATH, self._cached_entries_handler,
                 self.config.propagation_time)
 
+    @abstractmethod
+    def worker(self):
+        """
+        Worker thread that takes care of reading shared paths from ZK, and
+        handling master election.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     def _cached_entries_handler(self, raw_entries):
         """
         Handles cached through ZK entries, passed as a list.
         """
-        pass
+        raise NotImplementedError
 
     def _add_if_mappings(self, pcb):
         """
@@ -246,6 +261,16 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         except ZkNoConnection:
             logging.warning("Unable to store segment in shared path: "
                             "no connection to ZK")
+
+    def run(self):
+        """
+        Run an instance of the Core Path Server.
+        """
+        threading.Thread(
+            target=thread_safety_net, args=(self.worker,),
+            name="PS.worker", daemon=True).start()
+
+        super().run()
 
 
 class CorePathServer(PathServer):
@@ -436,21 +461,33 @@ class CorePathServer(PathServer):
     def worker(self):
         """
         """
+        worker_cycle = 1.0
+        start = SCIONTime.get_time()
         while True:
-            self._update_master()
-            # Read cached entries.
+            sleep_interval(start, worker_cycle, "cPS.worker cycle")
+            start = SCIONTime.get_time()
             try:
+                self.zk.wait_connected()
                 self.path_cache.process()
+                # Try to become a master.
+                is_master = self.zk.get_lock(lock_timeout=0, conn_timeout=0)
+                logging.debug("Am I master ? %s" % is_master)
+                # TODO(PSz): if is_master: clean_old_zk_entries()
             except ZkNoConnection:
-                logging.warning('path_cache.process() raised ZkNoConnection')
-            time.sleep(0.5)
+                pass  # FIXME(PSz): get_lock() raises ZkNoConnection for tout,
+                      # but tout is a correct behavior in that case (not master)
+            self._update_master()
 
     def _update_master(self):
         """
         """
-        curr_master = self.zk.get_lock_holder()
+        try:
+            curr_master = self.zk.get_lock_holder()
+        except ZkNoConnection:
+            logging.warning("_update_master(): ZkNoConnection.")
+            return
         if not curr_master:
-            logging.warning("Cannot get master's address.")
+            logging.warning("_update_master(): current master is None.")
             return
         if curr_master != self._master_id:
             self._master_id = curr_master
@@ -557,8 +594,9 @@ class CorePathServer(PathServer):
                                             last_ad=src_ad)
             if res == DBResult.ENTRY_ADDED:
                 self._add_if_mappings(pcb)
-                logging.info("Core-Path registered: (%d, %d) -> (%d, %d)",
-                             src_isd, src_ad, dst_isd, dst_ad)
+                logging.info("Core-Path registered: (%d, %d) -> (%d, %d), "
+                             "from_zk: %s", src_isd, src_ad, dst_isd, dst_ad,
+                             from_zk)
             if dst_isd == self.topology.isd_id:
                 self.core_ads.add((dst_isd, dst_ad))
             else:
@@ -918,19 +956,6 @@ class CorePathServer(PathServer):
         else:
             logging.warning("Type %d not supported.", pkt.type)
 
-    def run(self):
-        """
-        Run an instance of the Core Path Server.
-        """
-        threading.Thread(
-            target=thread_safety_net, args=(self._master_election,),
-            name="cPS._master_election", daemon=True).start()
-        threading.Thread(
-            target=thread_safety_net, args=(self.worker,),
-            name="cPS.worker", daemon=True).start()
-
-        PathServer.run(self)
-
 
 class LocalPathServer(PathServer):
     """
@@ -961,6 +986,20 @@ class LocalPathServer(PathServer):
     def _cached_entries_handler(self, raw_entries):
         for entry in raw_entries:
             self._handle_up_segment_record(PathMgmtPacket(raw=entry), True)
+
+    def worker(self):
+        """
+        """
+        worker_cycle = 1.0
+        start = SCIONTime.get_time()
+        while True:
+            sleep_interval(start, worker_cycle, "PS.worker cycle")
+            start = SCIONTime.get_time()
+            # Read cached entries.
+            try:
+                self.path_cache.process()
+            except ZkNoConnection:
+                logging.warning('path_cache.process() raised ZkNoConnection')
 
     def _send_leases(self, orig_pkt, leases):
         """
@@ -1005,9 +1044,9 @@ class LocalPathServer(PathServer):
                                           self.topology.ad_id)
             if res == DBResult.ENTRY_ADDED:
                 self._add_if_mappings(pcb)
-                logging.info("Up-Segment to (%d, %d) registered.",
+                logging.info("Up-Segment to (%d, %d) registered, from_zk: %s.",
                              pcb.get_first_pcbm().isd_id,
-                             pcb.get_first_pcbm().ad_id)
+                             pcb.get_first_pcbm().ad_id, from_zk)
         # Share Up Segment via ZK.
         if not from_zk:
             self._share_segments(pkt)

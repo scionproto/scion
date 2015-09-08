@@ -431,9 +431,12 @@ class Zookeeper(object):
             lock_contents = self.kazoo.get(lock_holder_path)
             _, _, server_addr = lock_contents[0].split(b"\x00")
             return str(server_addr, 'utf-8')
-        except (ConnectionLoss, NoNodeError, SessionExpiredError):
-            logging.warning("Disconnected from ZK or no lock data found")
+        except NoNodeError:
+            logging.warning("No lock data found.")
             return None
+        except (ConnectionLoss, SessionExpiredError):
+            logging.warning("Disconnected from ZK.")
+            raise ZkNoConnection from None
 
     def retry(self, desc, f, *args, _retries=4, _timeout=10.0, **kwargs):
         """
