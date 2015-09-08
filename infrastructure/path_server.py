@@ -423,12 +423,8 @@ class CorePathServer(PathServer):
         # Sanity check that we should indeed be a core path server.
         assert self.topology.is_core_ad, "This shouldn't be a core PS!"
         self.leases = self.LeasesDict()
+        # Set of core ADs only from local ISD.
         self.core_ads = set()
-        # Init core ads set.
-        # let's propagate paths/revocations using cached paths.
-        for router in self.topology.routing_edge_routers:
-            self.core_ads.add((router.interface.neighbor_isd,
-                               router.interface.neighbor_ad))
         self._master_id = None  # Address of master core Path Server.
 
     def _cached_entries_handler(self, raw_entries):
