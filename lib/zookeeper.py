@@ -419,25 +419,18 @@ class Zookeeper(object):
 
     def get_lock_holder(self):
         """
-        Return address of the current lock holder, or None if disconnected or
-        master is not elected.
+        Return address of the lock holder, or None if master is not elected.
+
+        :raises:
+            ZkNoConnection: if there's no connection to ZK.
         """
-        lock_path = os.path.join(self.prefix, "lock")
-        get_id = lambda name: name.split('__')[-1]
         try:
-            contenders = self.kazoo.get_children(lock_path)
+            contenders = self._zk_lock.contenders()
             if not contenders:
                 logging.warning('No lock contenders found')
                 return None
-
-            lock_holder_file = sorted(contenders, key=get_id)[0]
-            lock_holder_path = os.path.join(lock_path, lock_holder_file)
-            lock_contents = self.kazoo.get(lock_holder_path)
-            _, _, server_addr = lock_contents[0].split(b"\x00")
-            return str(server_addr, 'utf-8')
-        except NoNodeError:
-            logging.warning("No lock data found.")
-            return None
+            _, _, server_addr = contenders[0].split("\x00")
+            return server_addr
         except (ConnectionLoss, SessionExpiredError):
             logging.warning("Disconnected from ZK.")
             raise ZkNoConnection from None

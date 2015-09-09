@@ -251,9 +251,10 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         """
         Share path segments (via ZK) with other path servers.
         """
-        pkt_hash = SHA256.new(pkt.pack()).hexdigest()
+        pkt_packed = pkt.pack()
+        pkt_hash = SHA256.new(pkt_packed).hexdigest()
         try:
-            self.path_cache.store(pkt_hash, pkt.pack())
+            self.path_cache.store(pkt_hash, pkt_packed)
             logging.debug("Segment stored in ZK: %s...", pkt_hash[:5])
         except ZkNoConnection:
             logging.warning("Unable to store segment in shared path: "
@@ -426,10 +427,6 @@ class CorePathServer(PathServer):
         self.core_ads = set()  # Set of core ADs only from local ISD.
         self._master_id = None  # Address of master core Path Server.
 
-    def _cached_entries_handler(self, raw_entries):
-        for entry in raw_entries:
-            self._handle_core_segment_record(PathMgmtPacket(raw=entry), True)
-
     def worker(self):
         """
         Worker thread that takes care of reading shared paths from ZK, and
@@ -454,6 +451,10 @@ class CorePathServer(PathServer):
                 # when a non-master calls get_lock(...))
                 pass
             self._update_master()
+
+    def _cached_entries_handler(self, raw_entries):
+        for entry in raw_entries:
+            self._handle_core_segment_record(PathMgmtPacket(raw=entry), True)
 
     def _update_master(self):
         """
