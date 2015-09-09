@@ -21,7 +21,7 @@ import struct
 
 # SCION
 from lib.defines import L4_PROTOS, L4_UDP, L4_DEFAULT
-from lib.errors import SCIONIndexError, SCIONParseError
+from lib.errors import SCIONParseError
 from lib.packet.ext_hdr import ExtensionClass, ExtensionHeader
 from lib.packet.ext.traceroute import TracerouteExt
 from lib.packet.host_addr import HostAddrSVC, haddr_get_type
@@ -113,8 +113,8 @@ class SCIONCommonHdr(HeaderBase):
         self.dst_addr_type = None  # Length of the dst address.
         self.dst_addr_len = 0  # Length of the dst address.
         self.total_len = 0  # Total length of the packet.
-        self.curr_iof_idx = 0  # Index of the current Info Opaque Field
-        self.curr_of_idx = 0  # Index of the current Opaque Field
+        self._iof_idx = 0  # Index of the current Info Opaque Field
+        self._hof_idx = 0  # Index of the current Hop Opaque Field
         self.next_hdr = 0  # Type of the next hdr field (IP protocol numbers).
         self.hdr_len = 0  # Header length including the path.
 
@@ -149,7 +149,7 @@ class SCIONCommonHdr(HeaderBase):
         Parses the raw data and populates the fields accordingly.
         """
         data = Raw(raw, "SCIONCommonHdr", self.LEN)
-        (types, self.total_len, curr_iof_p, curr_of_p,
+        (types, self.total_len, curr_iof_p, curr_hof_p,
          self.next_hdr, self.hdr_len) = struct.unpack("!HHBBBB", data.pop())
         self.version = (types & 0xf000) >> 12
         self.src_addr_type = (types & 0x0fc0) >> 6
@@ -160,8 +160,8 @@ class SCIONCommonHdr(HeaderBase):
             haddr_get_type(self.dst_addr_type).LEN
         first_of_offset = self.LEN + self.src_addr_len + self.dst_addr_len
         # FIXME(kormat): NB this assumes that all OFs have the same length.
-        self.curr_iof_idx = (curr_iof_p - first_of_offset) // OpaqueField.LEN
-        self.curr_of_idx = (curr_of_p - first_of_offset) // OpaqueField.LEN
+        self._iof_idx = (curr_iof_p - first_of_offset) // OpaqueField.LEN
+        self._hof_idx = (curr_hof_p - first_of_offset) // OpaqueField.LEN
 
     def pack(self):
         """
@@ -170,11 +170,18 @@ class SCIONCommonHdr(HeaderBase):
         types = ((self.version << 12) | (self.src_addr_type << 6) |
                  self.dst_addr_type)
         first_of_offset = self.LEN + self.src_addr_len + self.dst_addr_len
-        curr_iof_p = first_of_offset + (self.curr_iof_idx * OpaqueField.LEN)
-        curr_of_p = first_of_offset + (self.curr_of_idx * OpaqueField.LEN)
+        curr_iof_p = first_of_offset + (self._iof_idx * OpaqueField.LEN)
+        curr_hof_p = first_of_offset + (self._hof_idx * OpaqueField.LEN)
         return struct.pack("!HHBBBB", types, self.total_len,
-                           curr_iof_p, curr_of_p,
+                           curr_iof_p, curr_hof_p,
                            self.next_hdr, self.hdr_len)
+
+    def get_of_idxs(self):
+        return self._iof_idx, self._hof_idx
+
+    def set_of_idxs(self, iof_idx, hof_idx):
+        self._iof_idx = iof_idx
+        self._hof_idx = hof_idx
 
     def __len__(self):  # pragma: no cover
         return self.hdr_len
@@ -185,13 +192,13 @@ class SCIONCommonHdr(HeaderBase):
             "dst_type": haddr_get_type(self.dst_addr_type).NAME,
         }
         for i in ("version", "src_addr_len", "dst_addr_len", "total_len",
-                  "curr_iof_idx", "curr_of_idx", "next_hdr", "hdr_len"):
+                  "_iof_idx", "_hof_idx", "next_hdr", "hdr_len"):
             values[i] = getattr(self, i)
         return (
             "[CH ver: {version:d}, src type: {src_type:s}({src_addr_len:d}b), "
             "dst type: {dst_type:s}({dst_addr_len:d}b), "
-            "total len: {total_len:d}b, current IOF idx: {curr_iof_idx:d}, "
-            "current OF idx: {curr_of_idx:d}, next hdr: {next_hdr:d}, "
+            "total len: {total_len:d}b, IOF idx: {_iof_idx:d}, "
+            "HOF idx: {_hof_idx:d}, next hdr: {next_hdr:d}, "
             "hdr len: {hdr_len:d}]"
         ).format(**values)
 
@@ -264,10 +271,8 @@ class SCIONHeader(HeaderBase):
         else:
             self.common_hdr.next_hdr = self.l4_proto
         # Set next_hdr fields according to the extension chain
-        l = 0
-        while l < len(self.extension_hdrs) - 1:
-            self.extension_hdrs[l].next_hdr = self.extension_hdrs[l+1].EXT_CLASS
-            l += 1
+        for i in range(len(self.extension_hdrs)):
+            self.extension_hdrs[i].next_hdr = self.extension_hdrs[i+1].EXT_CLASS
 
     def remove_extensions(self):
         """
@@ -297,7 +302,6 @@ class SCIONHeader(HeaderBase):
             path_len = len(path.pack())
             self.common_hdr.hdr_len += path_len
             self.common_hdr.total_len += path_len
-        self.set_first_of_pointers()
 
     def parse(self, raw):
         """
@@ -307,7 +311,6 @@ class SCIONHeader(HeaderBase):
         self._parse_common_hdr(data)
         self._parse_opaque_fields(data)
         self._parse_extension_hdrs(data)
-        self.parsed = True
         return data.offset()
 
     def _parse_common_hdr(self, data):
@@ -340,6 +343,7 @@ class SCIONHeader(HeaderBase):
         else:
             raise SCIONParseError("SCIONHeader: Can not parse path in "
                                   "packet: Unknown type %x", info.info)
+        self._path.set_of_idxs(*self.common_hdr.get_of_idxs())
 
     def _parse_extension_hdrs(self, data):
         """
@@ -370,6 +374,8 @@ class SCIONHeader(HeaderBase):
         Packs the header and returns a byte array.
         """
         data = []
+        if self._path:
+            self.common_hdr.set_of_idxs(*self._path.get_of_idxs())
         data.append(self.common_hdr.pack())
         data.append(self.src_addr.pack())
         data.append(self.dst_addr.pack())
@@ -380,100 +386,12 @@ class SCIONHeader(HeaderBase):
             data.append(ext_hdr.pack())
         return b"".join(data)
 
-    def get_iof(self):
-        """
-        Get the current :any:`InfoOpaqueField`.
-        """
-        return self._path.get_of(self.common_hdr.curr_iof_idx)
-
-    def set_iof_idx_rel(self, n):
-        """
-        Set the current :any:`InfoOpaqueField` relative to the current
-        OF pointer.
-
-        :param int n: Offset from the current OF.
-        """
-        self.common_hdr.curr_iof_idx = self.common_hdr.curr_of_idx + n
-        if self.common_hdr.curr_iof_idx < 0:
-            raise SCIONIndexError("IOF index set to negative value (%d)" %
-                                  self.common_hdr.curr_iof_idx)
-        max_ = self._path.of_count()
-        if self.common_hdr.curr_iof_idx >= max_:
-            logging.warning("Current IOF index (%d) is beyond "
-                            "the max index (%d)",
-                            self.common_hdr.curr_iof_idx, max_)
-
-    def get_of_rel(self, relative=0):
-        """
-        Get an :any:`OpaqueField` relative to the current OF pointer.
-
-        :param int relative: Offset from the current OF.
-        """
-        return self._path.get_of(self.common_hdr.curr_of_idx + relative)
-
-    def inc_of_idx(self, n):
-        """
-        Increment the current OF pointer by `n`.
-
-        :param int n: The amount to increment by.
-        """
-        self.common_hdr.curr_of_idx += n
-        if self.common_hdr.curr_of_idx < 0:
-            raise SCIONIndexError("OF index set to negative value (%d)" %
-                                  self.common_hdr.curr_of_idx)
-        max_ = self._path.of_count()
-        if self.common_hdr.curr_of_idx >= max_:
-            logging.warning("Current OF index (%d) is beyond "
-                            "the max index (%d)",
-                            self.common_hdr.curr_of_idx, max_)
-
-    def set_downpath(self):  # FIXME probably not needed
-        """
-        Sets down path flag.
-        """
-        iof = self.get_iof()
-        if iof is not None:
-            iof.up_flag = False
-
-    def is_on_up_path(self):
-        """
-        Returns 'True' if the current opaque field should be interpreted as an
-        up-path opaque field and 'False' otherwise.
-
-        Currently this is indicated by a bit in the LSB of the 'type' field in
-        the common header.
-        """
-        iof = self.get_iof()
-        if iof is not None:
-            return iof.up_flag
-        else:
-            return True  # FIXME for now True for EmptyPath.
-
-    def is_last_path_of(self):
-        """
-        Return ``True`` if the current opaque field is the last opaque field,
-        ``False`` otherwise.
-        """
-        return self.common_hdr.curr_of_idx == self._path.of_count() - 1
-
     def reverse(self):
         """
         Reverses the header.
         """
         (self.src_addr, self.dst_addr) = (self.dst_addr, self.src_addr)
         self._path.reverse()
-        self.set_first_of_pointers()
-
-    def set_first_of_pointers(self):
-        """
-        Sets pointers of current info and hop opaque fields to initial values.
-        """
-        if self._path:
-            self.common_hdr.curr_iof_idx = self._path.get_first_iof_idx()
-            self.common_hdr.curr_of_idx = self._path.get_first_hof_idx()
-            logging.debug(
-                "curr_iof_idx: %d curr_of_idx: %d",
-                self.common_hdr.curr_iof_idx, self.common_hdr.curr_of_idx)
 
     def __len__(self):
         length = self.common_hdr.hdr_len
@@ -552,7 +470,6 @@ class SCIONPacket(PacketBase):
                 SCIONUDPPacket((self.hdr.src_addr, self.hdr.dst_addr, payload)))
         else:
             self.set_payload(payload)
-        self.parsed = True
 
     def pack(self):
         """

@@ -153,14 +153,10 @@ class SCIONElement(object, metaclass=ABCMeta):
         :returns:
         :rtype:
         """
-        opaque_field = spkt.hdr.get_path().get_first_hof()
-        if opaque_field is None:  # EmptyPath
-            return (spkt.hdr.dst_addr.host_addr, SCION_UDP_PORT)
-        else:
-            if spkt.hdr.is_on_up_path():
-                return (self.ifid2addr[opaque_field.ingress_if], SCION_UDP_PORT)
-            else:
-                return (self.ifid2addr[opaque_field.egress_if], SCION_UDP_PORT)
+        path = spkt.hdr.get_path()
+        if len(path) == 0:  # EmptyPath
+            return spkt.hdr.dst_addr.host_addr, SCION_UDP_PORT
+        return self.ifid2addr[path.get_fwd_if()], SCION_UDP_PORT
 
     def send(self, packet, dst, dst_port=SCION_UDP_PORT):
         """
