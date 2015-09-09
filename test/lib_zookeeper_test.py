@@ -714,8 +714,6 @@ class TestZookeeperGetLockHolder(BaseZookeeper):
         inst = self._setup(["12\x0034\x0056", "78\x0090\x00ab"])
         # Call
         ntools.eq_(inst.get_lock_holder(), "56")
-        # Tests
-        inst._zk_lock.contenders.assert_called_once_with()
 
     @patch("lib.zookeeper.Zookeeper.__init__", autospec=True, return_value=None)
     def _check_error(self, excp, init):
