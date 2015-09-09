@@ -374,11 +374,14 @@ class Zookeeper(object):
                 logging.info("Successfully acquired ZK lock (epoch %d)",
                              self._lock_epoch)
                 self._lock.set()
-            else:
-                logging.debug("Failed to acquire ZK lock")
-        except (LockTimeout, ConnectionLoss, SessionExpiredError):
+        except (ConnectionLoss, SessionExpiredError):
             raise ZkNoConnection from None
-        return self.have_lock()
+        except LockTimeout:
+            pass
+        if self.have_lock():
+            return True
+        logging.debug("Failed to acquire ZK lock")
+        return False
 
     def release_lock(self):
         """
