@@ -102,7 +102,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                 name_addrs, self.topology.zookeepers)
             self.zk.retry("Joining party", self.zk.party_setup)
             self.path_cache = ZkSharedCache(self.zk, self.ZK_PATH_CACHE_PATH,
-                self._cached_entries_handler, self.config.propagation_time)
+                                            self._cached_entries_handler,
+                                            self.config.propagation_time)
 
     @abstractmethod
     def worker(self):
@@ -444,7 +445,9 @@ class CorePathServer(PathServer):
                 self.path_cache.process()
                 # Try to become a master.
                 is_master = self.zk.get_lock(lock_timeout=0, conn_timeout=0)
-                # TODO(PSz): if is_master: clean_old_zk_entries()
+                if is_master:
+                    # TODO(PSz): clean old zk entries
+                    pass
             except ZkNoConnection:
                 # FIXME(PSz): get_lock() raises ZkNoConnection for timeout, but
                 # timeouting seems to be a correct behavior in that case (i.e.,
