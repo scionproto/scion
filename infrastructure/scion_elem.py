@@ -16,9 +16,9 @@
 ==================================================
 """
 # Stdlib
-import logging
 import queue
 import threading
+from abc import ABCMeta, abstractmethod
 
 # SCION
 from lib.config import Config
@@ -38,7 +38,7 @@ from lib.thread import thread_safety_net
 from lib.topology import Topology
 
 
-class SCIONElement(object):
+class SCIONElement(object, metaclass=ABCMeta):
     """
     Base class for the different kind of servers the SCION infrastructure
     provides.
@@ -94,43 +94,10 @@ class SCIONElement(object):
             self._in_buf = queue.Queue()
             self._socks = UDPSocketMgr()
             self._local_sock = UDPSocket(
-                bind=(str(self.addr.host_addr), SCION_UDP_PORT),
+                bind=(str(self.addr.host_addr), SCION_UDP_PORT, self.id),
                 addr_type=self.addr.host_addr.TYPE,
             )
             self._socks.add(self._local_sock)
-            logging.info("%s: bound %s:%u", self.id, self.addr.host_addr,
-                         SCION_UDP_PORT)
-
-    @property
-    def addr(self):
-        """
-        The address of the server as a :class:`lib.packet.scion_addr.SCIONAddr`
-        object.
-
-        :returns:
-        :type:
-        """
-        return self._addr
-
-    @addr.setter
-    def addr(self, addr):
-        """
-        Set the address of the server. Must be a
-        :class:`lib.packet.scion_addr.SCIONAddr` object.
-
-        :param addr: the new server address.
-        :type addr: :class:`lib.packet.scion_addr.SCIONAddr`
-        """
-        self.set_addr(addr)
-
-    def set_addr(self, addr):
-        """
-        Set the address of the server. Must be a lib.SCIONAddr object
-        """
-        if not (isinstance(addr, SCIONAddr) or addr is None):
-            raise TypeError("Addr must be of type 'SCIONAddr'")
-        else:
-            self._addr = addr
 
     def parse_topology(self, topo_file):
         """
@@ -161,6 +128,7 @@ class SCIONElement(object):
         for edge_router in self.topology.get_all_edge_routers():
             self.ifid2addr[edge_router.interface.if_id] = edge_router.addr
 
+    @abstractmethod
     def handle_request(self, packet, sender, from_local_socket=True):
         """
         Main routine to handle incoming SCION packets. Subclasses have to
@@ -173,7 +141,7 @@ class SCIONElement(object):
         :param from_local_socket:
         :type from_local_socket:
         """
-        pass
+        raise NotImplementedError
 
     def get_first_hop(self, spkt):
         """
@@ -185,7 +153,7 @@ class SCIONElement(object):
         :returns:
         :rtype:
         """
-        opaque_field = spkt.hdr.path.get_first_hop_of()
+        opaque_field = spkt.hdr.get_path().get_first_hof()
         if opaque_field is None:  # EmptyPath
             return (spkt.hdr.dst_addr.host_addr, SCION_UDP_PORT)
         else:

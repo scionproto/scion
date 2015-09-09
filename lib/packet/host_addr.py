@@ -18,6 +18,7 @@
 
 # Stdlib
 import struct
+from abc import ABCMeta, abstractmethod
 from ipaddress import (
     AddressValueError,
     IPV4LENGTH,
@@ -61,7 +62,7 @@ class HostAddrInvalidType(SCIONBaseError):
     pass
 
 
-class HostAddrBase(object):
+class HostAddrBase(object, metaclass=ABCMeta):
     """
     Base HostAddr class. Should not be used directly.
     """
@@ -80,15 +81,17 @@ class HostAddrBase(object):
         else:
             self.addr = addr
 
-    def _parse(self, raw):  # pragma: no cover
-        raise NotImplemented
+    @abstractmethod
+    def _parse(self, raw):
+        raise NotImplementedError
 
-    def pack(self):  # pragma: no cover
+    @abstractmethod
+    def pack(self):
         """
         :return: a packed representation of the host address
         :rtype: bytes
         """
-        raise NotImplemented
+        raise NotImplementedError
 
     def __str__(self):
         return str(self.addr)
@@ -110,6 +113,9 @@ class HostAddrNone(object):
 
     def __init__(self):
         self.addr = None
+
+    def _parse(self, raw):
+        raise NotImplementedError
 
     def pack(self):
         return b""
@@ -208,7 +214,8 @@ def haddr_get_type(type_):
     try:
         return _map[type_]
     except KeyError:
-        raise HostAddrInvalidType("Unknown host addr type '%s'" % type_)
+        raise HostAddrInvalidType("Unknown host addr type '%s'" % type_) \
+            from None
 
 
 def haddr_parse(type_, *args, **kwargs):

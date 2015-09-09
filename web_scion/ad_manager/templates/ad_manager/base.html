@@ -6,11 +6,15 @@
     <title>AD manager</title>
 
     <!-- Stylesheets -->
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css">
-    <link rel="stylesheet" href="{% static "css/base-styles.css" %}">
+    {% block css %}
+      <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css">
+      <link rel="stylesheet" href="{% static "css/base-styles.css" %}">
+    {% endblock css %}
 
     <!-- Scripts -->
     {%  block js %}
+      <script src="https://code.jquery.com/jquery-2.1.3.min.js"></script>
+      <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js"></script>
     {%  endblock %}
   </head>
 
@@ -31,7 +35,24 @@
           <ul class="nav navbar-nav">
             <li><a href="{% url 'list_isds' %}">Home</a></li>
             <li><a href="{% url 'sent_requests' %}">Submitted requests</a></li>
+            <li><a href="{% url 'network_view' %}">Network graph</a></li>
           </ul>
+
+            <ul class="nav navbar-nav navbar-right">
+              <li>
+                <p class="navbar-text">
+                  {% if user.is_authenticated %}
+                    Logged in as: <i>{{ user }}</i> (<a href="{{ logout_url }}?next={{ request.path }}">logout</a>)
+                    {% if user.is_staff %}
+                      || <a href="{% url 'admin:index' %}">Admin panel</a>
+                    {% endif %}
+                  {% else %}
+                    <a href="{{ login_url }}?next={{ request.path }}">Login </a>
+                  {% endif %}
+                </p>
+              </li>
+            </ul>
+
         </div>
       </div>
     </nav>
@@ -42,6 +63,6 @@
         {% block content %}{% endblock %}
       </div>
     </div>
-
+    <br />
   </body>
 </html>

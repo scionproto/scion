@@ -1,0 +1,66 @@
+<br />
+
+<p>Send a connection request</p>
+<a href="{% url 'new_connection_request' object.id %}" class="btn btn-default">New request</a>
+
+{% if user_has_perm %}
+  <hr />
+  <h2>Received requests</h2>
+
+  <table class="table" id="received-requests-tbl">
+    <thead>
+    <tr>
+      <th class="col-md-2">Created by</th>
+      <th>Info</th>
+      <th class="col-md-1">Router IP</th>
+      <th class="col-md-1">Status</th>
+      <th class="col-md-2">Actions</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    {% for request in received_requests %}
+      <tr>
+        <td>{{ request.created_by }}</td>
+        <td>
+          <pre>{{ request.info }}</pre>
+          <div class="collapse" id="info-{{ request.id }}">
+            <div class="well">
+              <b>Bound socket</b> {{ request.router_bound_ip }} : {{ request.router_bound_port }} <br />
+              <b>Public socket</b> {{ request.router_public_ip }} : {{ request.router_public_port }} <br />
+              {% if request.new_ad %}
+                New AD: <a href="{% url 'ad_detail' request.new_ad.id %}">{{ request.new_ad }}</a>
+              {% endif %}
+            </div>
+          </div>
+        </td>
+        <td>{{ request.router_bound_ip }}</td>
+        <td>
+          <a role="button" data-toggle="collapse" href="#info-{{ request.id }}" aria-expanded="false" aria-controls="collapseExample">
+            {{ request.status}}
+          </a>
+        </td>
+        <td>
+          <form method="POST" action="{% url 'connection_request_action' request.id %}" class="request-approve-form">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-success btn-sm click-confirm" name="_approve_request">
+              Approve
+            </button>
+            <button type="submit" class="btn btn-danger btn-sm click-confirm" name="_decline_request">
+              Decline
+            </button>
+
+            {% if request.is_approved %}
+              <a href="{% url 'download_request_package' request.id %}" class="download-package glyphicon glyphicon-download-alt" title="Download package"></a>
+            {% endif %}
+          </form>
+        </td>
+      </tr>
+    {% empty %}
+      <tr>
+        <td colspan="4"><i>No requests</i></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+{% endif %}

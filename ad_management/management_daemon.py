@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`monitoring_daemon` --- Ad management tool daemon
+:mod:`management_daemon` --- AD management daemon
 ======================================================
 """
 # Stdlib
@@ -23,8 +23,9 @@ import json
 import logging
 import os
 import sys
-import threading
 import time
+import xmlrpc.client
+from multiprocessing import Process
 from subprocess import Popen
 
 # External packages
@@ -33,27 +34,61 @@ from kazoo.exceptions import NoNodeError
 
 # SCION
 from ad_management.common import (
-    get_supervisor_server,
-    is_success,
     LOGS_DIR,
-    MONITORING_DAEMON_PORT,
-    response_failure,
-    response_success,
+    MANAGEMENT_DAEMON_PORT,
+    MANAGEMENT_DAEMON_PROC_NAME,
     UPDATE_DIR_PATH,
     UPDATE_SCRIPT_PATH,
 )
-from ad_management.secure_rpc_server import XMLRPCServerTLS
+from ad_management.secure_rpc import XMLRPCServerTLS
+from ad_management.util import (
+    get_supervisor_server,
+    response_failure,
+    response_success,
+)
 from lib.defines import (
     BEACON_SERVICE,
     CERTIFICATE_SERVICE,
+    DNS_SERVICE,
     PATH_SERVICE,
     PROJECT_ROOT,
 )
 from lib.log import init_logging
 from topology.generator import ConfigGenerator
 
+MD_START_RETRIES = 3
+MD_SLEEP_BEFORE_TRY = 1
 
-class MonitoringDaemon(object):
+
+def start_md():
+    # Start the management daemon
+    server = get_supervisor_server()
+    started = False
+
+    logging.info('Trying to start the management daemon')
+    for _ in range(MD_START_RETRIES):
+        time.sleep(MD_SLEEP_BEFORE_TRY)
+        try:
+            server.supervisor.startProcess(MANAGEMENT_DAEMON_PROC_NAME,
+                                           wait=True)
+
+            process_info = server.supervisor.getProcessInfo(
+                MANAGEMENT_DAEMON_PROC_NAME
+            )
+            if process_info['statename'] == 'RUNNING':
+                started = True
+                break
+        except (ConnectionRefusedError, xmlrpc.client.Fault) as ex:
+            logging.warning('Error:' + str(ex))
+
+    if started:
+        logging.info('The management daemon is running')
+    else:
+        logging.warning('Could not start the management daemon')
+    return started
+
+
+class ManagementDaemon(object):
     """
     Daemon which is launched on every AD node.
 
@@ -69,23 +104,24 @@ class MonitoringDaemon(object):
 
     def __init__(self, addr):
         """
-        Initialize an instance of the class MonitoringDaemon.
+        Initialize an instance of the class ManagementDaemon.
 
         :param addr:
         :type addr:
         """
         super().__init__()
         self.addr = addr
-        self.rpc_server = XMLRPCServerTLS((self.addr, MONITORING_DAEMON_PORT))
+        self.rpc_server = XMLRPCServerTLS((self.addr, MANAGEMENT_DAEMON_PORT))
         self.rpc_server.register_introspection_functions()
         # Register functions
-        to_register = [self.get_topology, self.get_process_info,
+        to_register = [self.get_topology,  self.update_topology,
                        self.control_process, self.get_ad_info,
-                       self.send_update, self.update_topology,
-                       self.get_master_id]
+                       self.get_master_id, self.tail_process_log,
+                       # self.send_update,
+                       ]
         for func in to_register:
             self.rpc_server.register_function(func)
-        logging.info("Monitoring daemon started")
+        logging.info("Management daemon started")
         self.rpc_server.serve_forever()
 
     def get_full_ad_name(self, isd_id, ad_id):
@@ -108,20 +144,21 @@ class MonitoringDaemon(object):
 
     def restart_supervisor_async(self):
         """
-        Restart Supervisor after some delay, so the initial RPC call has time
-        to finish.
+        Stop all the processes for the specified AD after some delay, so the
+        initial RPC call has time to finish.
         """
+        wait_before_restart = 0.1
+
         def _restart_supervisor_wait():
-            time.sleep(0.1)
+            time.sleep(wait_before_restart)
             server = get_supervisor_server()
             server.supervisor.restart()
 
-        threading.Thread(target=_restart_supervisor_wait,
-                         name="Restart supervisor daemon",
-                         daemon=True).start()
+        p = Process(target=_restart_supervisor_wait)
+        p.start()
 
     def update_topology(self, isd_id, ad_id, topology):
-        # TODO check security!
+        # TODO(rev112) check security!
         topo_path = self.get_topo_path(isd_id, ad_id)
         if not os.path.isfile(topo_path):
             return response_failure('No AD topology found')
@@ -132,6 +169,15 @@ class MonitoringDaemon(object):
         generator.write_derivatives(topology)
         self.restart_supervisor_async()
         return response_success('Topology file is successfully updated')
+
+    def _read_topology(self, isd_id, ad_id):
+        topo_path = self.get_topo_path(isd_id, ad_id)
+        try:
+            return open(topo_path, 'r').read()
+        except OSError as e:
+            logging.error("Error opening {}: {}".format(topo_path,
+                                                        str(e)))
+            return None
 
     def get_topology(self, isd_id, ad_id):
         """
@@ -147,11 +193,11 @@ class MonitoringDaemon(object):
         """
         isd_id, ad_id = str(isd_id), str(ad_id)
         logging.info('get_topology call')
-        topo_path = self.get_topo_path(isd_id, ad_id)
-        if os.path.isfile(topo_path):
-            return response_success(open(topo_path, 'r').read())
+        topology = self._read_topology(isd_id, ad_id)
+        if topology:
+            return response_success(topology)
         else:
-            return response_failure('No topology file found')
+            return response_failure('Cannot read topology file')
 
     def get_ad_info(self, isd_id, ad_id):
         """
@@ -171,7 +217,10 @@ class MonitoringDaemon(object):
         all_process_info = server.supervisor.getAllProcessInfo()
         ad_process_info = list(filter(lambda x: x['group'] == ad_name,
                                       all_process_info))
-        return response_success(list(ad_process_info))
+        if ad_process_info:
+            return response_success(list(ad_process_info))
+        else:
+            return response_failure('AD not found')
 
     def get_process_info(self, full_process_name):
         """
@@ -186,7 +235,7 @@ class MonitoringDaemon(object):
         logging.info('get_process_info call')
         server = get_supervisor_server()
         info = server.supervisor.getProcessInfo(full_process_name)
-        return response_success(info)
+        return info
 
     def get_process_state(self, full_process_name):
         """
@@ -198,9 +247,8 @@ class MonitoringDaemon(object):
         :rtype:
         """
         info_response = self.get_process_info(full_process_name)
-        if is_success(info_response):
-            info = info_response[1]
-            return info['statename']
+        if info_response:
+            return info_response['statename']
         else:
             return None
 
@@ -261,6 +309,23 @@ class MonitoringDaemon(object):
             return response_failure('Invalid command')
         return response_success(res)
 
+    def tail_process_log(self, process_name, offset, length):
+        """
+        Read the last part of a log file.
+
+        :param process_name:
+        :type process_name: str
+        :param offset:
+        :type offset: int
+        :param length:
+        :type length: int
+        :return:
+        """
+        server = get_supervisor_server()
+        data = server.supervisor.tailProcessStdoutLog(process_name,
+                                                      offset, length)
+        return response_success(data)
+
     def run_updater(self, archive, path):
         """
         Launch the updater in a new process.
@@ -285,7 +350,7 @@ class MonitoringDaemon(object):
         :type ad_id: int
         :param data_dict:
         :type data_dict:
-        :returns:
+        :returns: confirmation or error
         :rtype:
         """
         # Verify the hash value
@@ -306,15 +371,36 @@ class MonitoringDaemon(object):
         return response_success()
 
     def get_master_id(self, isd_id, ad_id, server_type):
+
         """
+        Get the id of the current master process for a given server type.
         Registered function.
 
-        Get the id of the current master process for a given server type.
+        :param isd_id: ISD identifier.
+        :type isd_id: int
+        :param ad_id: AD identifier.
+        :type ad_id: int
+        :param server_type: one of 'bs', 'cs', 'ps' or 'ds'
+        :type server_type: str
+        :returns: master server id or error
+        :rtype:
         """
         if server_type not in [BEACON_SERVICE, CERTIFICATE_SERVICE,
-                               PATH_SERVICE]:
+                               PATH_SERVICE, DNS_SERVICE]:
             return response_failure('Invalid server type')
-        kc = KazooClient(hosts="localhost:2181")
+
+        topology_str = self._read_topology(isd_id, ad_id)
+        try:
+            topology = json.loads(topology_str)
+        except (ValueError, KeyError, TypeError):
+            return response_failure('Cannot parse topology file')
+
+        # Read zookeeper config
+        zookeeper_dict = topology["Zookeepers"]
+        zookeper_hosts = ["{}:{}".format(zk_host["Addr"], zk_host["ClientPort"])
+                          for zk_host in zookeeper_dict.values()]
+
+        kc = KazooClient(hosts=','.join(zookeper_hosts))
         lock_path = '/ISD{}-AD{}/{}/lock'.format(isd_id, ad_id, server_type)
         get_id = lambda name: name.split('__')[-1]
         try:
@@ -337,4 +423,4 @@ class MonitoringDaemon(object):
 
 if __name__ == "__main__":
     init_logging(sys.argv[2])
-    MonitoringDaemon(sys.argv[1])
+    ManagementDaemon(sys.argv[1])

@@ -20,12 +20,12 @@ import logging
 import socket
 import threading
 import time
-from ipaddress import IPv4Address
 
 # SCION
 from endhost.sciond import SCIONDaemon
 from lib.defines import SCION_BUFLEN, SCION_UDP_EH_DATA_PORT
 from lib.packet.ext.traceroute import TracerouteExt
+from lib.packet.host_addr import haddr_parse
 from lib.packet.scion import SCIONPacket
 from lib.packet.scion_addr import SCIONAddr
 
@@ -45,7 +45,7 @@ def client():
     topo_file = ("../../topology/ISD%d/topologies/ISD:%d-AD:%d.json" %
                  (CLI_ISD, CLI_ISD, CLI_AD))
     # Start SCIONDaemon
-    sd = SCIONDaemon.start(IPv4Address(CLI_IP), topo_file)
+    sd = SCIONDaemon.start(haddr_parse("IPv4", CLI_IP), topo_file)
     print("CLI: Sending PATH request for (%d, %d)" % (SRV_ISD, SRV_AD))
     # Get paths to server through function call
     paths = sd.get_paths(SRV_ISD, SRV_AD)
@@ -59,7 +59,7 @@ def client():
     # Create empty Traceroute extensions with allocated space
     ext = TracerouteExt.from_values(routers_no)
     # Create a SCION address to the destination
-    dst = SCIONAddr.from_values(SRV_ISD, SRV_AD, IPv4Address(SRV_IP))
+    dst = SCIONAddr.from_values(SRV_ISD, SRV_AD, haddr_parse("IPv4", SRV_IP))
     # Set payload
     payload = b"request to server"
     # Create a SCION packet with the extensions
@@ -78,7 +78,6 @@ def client():
     print('\n\nCLI: Received response:\n%s' % SCIONPacket(raw))
     print("CLI: leaving.")
     sock.close()
-    sd.clean()
 
 
 def server():
@@ -88,7 +87,7 @@ def server():
     topo_file = ("../../topology/ISD%d/topologies/ISD:%d-AD:%d.json" %
                  (SRV_ISD, SRV_ISD, SRV_AD))
     # Start SCIONDaemon
-    sd = SCIONDaemon.start(IPv4Address(SRV_IP), topo_file)
+    sd = SCIONDaemon.start(haddr_parse("IPv4", SRV_IP), topo_file)
     # Open a socket for incomming DATA traffic
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -98,7 +97,7 @@ def server():
     # Request received, instantiating SCION packet
     spkt = SCIONPacket(raw)
     print('SRV: received: %s', spkt)
-    if spkt.payload == b"request to server":
+    if spkt.get_payload() == b"request to server":
         print('SRV: request received, sending response.')
         # Reverse the packet
         spkt.hdr.reverse()
@@ -110,7 +109,6 @@ def server():
         sd.send(spkt, next_hop, port)
     print("SRV: Leaving server.")
     sock.close()
-    sd.clean()
 
 
 if __name__ == "__main__":

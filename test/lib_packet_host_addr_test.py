@@ -38,21 +38,30 @@ from lib.packet.host_addr import (
 from test.testcommon import create_mock
 
 
+# To allow testing of HostAddrBase, despite it having abstract methods.
+class HostAddrBaseTesting(HostAddrBase):
+    def _parse(self, raw):
+        pass
+
+    def pack(self):
+        pass
+
+
 class TestHostAddrBaseInit(object):
     """
     Unit tests for lib.packet.host_addr.HostAddrBase.__init__
     """
-    @patch("lib.packet.host_addr.HostAddrBase._parse", autospec=True)
+    @patch.object(HostAddrBaseTesting, "_parse", autospec=True)
     def test_raw(self, parse):
         # Call
-        inst = HostAddrBase("raw")
+        inst = HostAddrBaseTesting("raw")
         # Tests
         ntools.assert_is_none(inst.addr)
         parse.assert_called_once_with(inst, "raw")
 
     def test_not_raw(self):
         # Call
-        inst = HostAddrBase("addr", raw=False)
+        inst = HostAddrBaseTesting("addr", raw=False)
         # Tests
         ntools.eq_(inst.addr, "addr")
 
@@ -64,7 +73,7 @@ class TestHostAddrBaseStr(object):
     @patch("lib.packet.host_addr.HostAddrBase.__init__", autospec=True,
            return_value=None)
     def test(self, init):
-        inst = HostAddrBase("")
+        inst = HostAddrBaseTesting("")
         inst.addr = create_mock(["__str__"])
         inst.addr.__str__.return_value = "str(addr)"
         # Call
@@ -80,7 +89,7 @@ class TestHostAddrBaseLen(object):
     @patch("lib.packet.host_addr.HostAddrBase.__init__", autospec=True,
            return_value=None)
     def test(self, init):
-        inst = HostAddrBase("")
+        inst = HostAddrBaseTesting("")
         inst.LEN = 42
         # Call
         ntools.eq_(len(inst), 42)
@@ -93,7 +102,7 @@ class TestHostAddrBaseEq(object):
     @patch("lib.packet.host_addr.HostAddrBase.__init__", autospec=True,
            return_value=None)
     def test_eq(self, init):
-        inst = HostAddrBase("")
+        inst = HostAddrBaseTesting("")
         other = create_mock(["TYPE", "addr"])
         inst.TYPE = other.TYPE = 42
         inst.addr = other.addr = "addr"
@@ -103,7 +112,7 @@ class TestHostAddrBaseEq(object):
     @patch("lib.packet.host_addr.HostAddrBase.__init__", autospec=True,
            return_value=None)
     def test_neq_type(self, init):
-        inst = HostAddrBase("")
+        inst = HostAddrBaseTesting("")
         other = create_mock(["TYPE", "addr"])
         inst.TYPE = 41
         other.TYPE = 42
@@ -114,7 +123,7 @@ class TestHostAddrBaseEq(object):
     @patch("lib.packet.host_addr.HostAddrBase.__init__", autospec=True,
            return_value=None)
     def test_neq_addr(self, init):
-        inst = HostAddrBase("")
+        inst = HostAddrBaseTesting("")
         other = create_mock(["TYPE", "addr"])
         inst.TYPE = other.TYPE = 42
         inst.addr = "addr0"

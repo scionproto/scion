@@ -17,8 +17,11 @@
 """
 # Stdlib
 import struct
+from abc import ABCMeta, abstractmethod
+from binascii import hexlify
 
 # SCION
+from lib.errors import SCIONIndexError, SCIONKeyError
 from lib.util import Raw
 
 
@@ -37,8 +40,21 @@ class OpaqueFieldType(object):
     INTRA_ISD_PEER = 0b1111000
     INTER_ISD_PEER = 0b1111100
 
+    _to_str_map = {
+        NORMAL_OF: "NORMAL",
+        XOVR_POINT: "XOVR_POINT",
+        CORE: "CORE",
+        SHORTCUT: "SHORTCUT",
+        INTRA_ISD_PEER: "INTRA_ISD_PEER",
+        INTER_ISD_PEER: "INTER_ISD_PEER",
+    }
 
-class OpaqueField(object):
+    @classmethod
+    def to_str(cls, type_):  # pragma: no cover
+        return cls._to_str_map.get(type_, "UNKNOWN")
+
+
+class OpaqueField(object, metaclass=ABCMeta):
     """
     Base class for the different kinds of opaque fields in SCION.
     """
@@ -53,17 +69,19 @@ class OpaqueField(object):
         self.parsed = False
         self.raw = None
 
+    @abstractmethod
     def parse(self, raw):
         """
         Populates fields from a raw byte block.
         """
-        pass
+        raise NotImplementedError
 
+    @abstractmethod
     def pack(self):
         """
         Returns opaque field as 8 byte binary string.
         """
-        pass
+        raise NotImplementedError
 
     def is_regular(self):
         """
@@ -83,11 +101,12 @@ class OpaqueField(object):
         """
         return not (self.info & (1 << 4) == 0)
 
-    def __str__(self):
-        pass
+    def __len__(self):  # pragma: no cover
+        return self.LEN
 
-    def __repr__(self):
-        return self.__str__()
+    @abstractmethod
+    def __str__(self):
+        raise NotImplementedError
 
     # TODO test: one __eq__ breaks router when two SOFs in a path are identical
     def __eq__(self, other):
@@ -121,7 +140,7 @@ class HopOpaqueField(OpaqueField):
         self.exp_time = 0
         self.ingress_if = 0
         self.egress_if = 0
-        self.mac = b"\x00" * self.MAC_LEN
+        self.mac = bytes(self.MAC_LEN)
         if raw is not None:
             self.parse(raw)
 
@@ -179,11 +198,10 @@ class HopOpaqueField(OpaqueField):
             return False
 
     def __str__(self):
-        hof_str = ("[Hop OF info: %u, exp_time: %d, ingress if: %u, "
-                   "egress if: %u, mac: %s]" % (
-                       self.info, self.exp_time, self.ingress_if,
-                       self.egress_if, self.mac))
-        return hof_str
+        return ("[Hop OF info: %s, exp_time: %d, ingress if: %d, "
+                "egress if: %d, mac: %s]" %
+                (OpaqueFieldType.to_str(self.info), self.exp_time,
+                 self.ingress_if, self.egress_if, hexlify(self.mac)))
 
 
 class InfoOpaqueField(OpaqueField):
@@ -252,10 +270,9 @@ class InfoOpaqueField(OpaqueField):
         return data
 
     def __str__(self):
-        iof_str = ("[Info OF info: %x, up: %r, TS: %u, ISD ID: %u, hops: %u]" %
-                   (self.info, self.up_flag, self.timestamp, self.isd_id,
-                    self.hops))
-        return iof_str
+        return "[Info OF info: %s, up: %r, TS: %d, ISD ID: %d, hops: %d]" % (
+            OpaqueFieldType.to_str(self.info), self.up_flag,
+            self.timestamp, self.isd_id, self.hops)
 
     def __eq__(self, other):
         if type(other) is type(self):
@@ -266,3 +283,171 @@ class InfoOpaqueField(OpaqueField):
                     self.hops == other.hops)
         else:
             return False
+
+
+class OpaqueFieldList(object):
+    """
+    Encapsulates lists of Opaque Fields (OFs).
+
+    The lists are stored under labels, where each label describes the contents
+    of the list. Some label will only ever have 1 entry, such as an up segment
+    IOF. Others can have many, such as a down segment HOF list.
+    """
+    def __init__(self, order):
+        """
+        :param list order:
+            A list of tokens that define the order of the opaque field labels.
+            E.g. ``[UP_IOF, UP_HOFS]`` defines that the up-segment info opaque
+            field comes before the up-segment hop opaque fields.
+        """
+        self._order = order
+        self._labels = {}
+        for label in order:
+            self._labels[label] = []
+
+    def set(self, label, ofs):
+        """
+        Sets an OF label to the supplied value.
+
+        :param str label: OF label to change. E.g. ``UP_IOF``.
+        :param list ofs: List of opaque fields to store in the label.
+        :raises:
+            :any:`SCIONKeyError`: if the label is unknown.
+        """
+        assert isinstance(ofs, list)
+        if label not in self._labels:
+            raise SCIONKeyError("Opaque field label (%s) unknown" % label)
+        self._labels[label] = ofs
+
+    def get_by_idx(self, idx):
+        """
+        Get an OF by index. The index follows the order supplied when the
+        :class:`OpaqueFieldList` object was created.
+
+        :param int idx: The index to fetch.
+        :returns:
+            The OF at that index, or ``None`` if the index was past the end of
+            the labels.
+        :rtype: :class:`OpaqueField`
+        """
+        if idx < 0:
+            raise SCIONIndexError("Requested OF index (%d) is negative" % idx)
+        offset = idx
+        for label in self._order:
+            group = self._labels[label]
+            if offset < len(group):
+                return group[offset]
+            offset -= len(group)
+        # FIXME(kormat): is this correct?
+        return None
+
+    def get_by_label(self, label, label_idx=None):
+        """
+        Get an OF list by label. If a label index is supplied, use that to index
+        into the label and return a single OF instead.
+
+        :param str label: The label to fetch. E.g. ``UP_HOFS``.
+        :param int label_idx:
+            (Optional) an index of an OF in the specified label.
+        :returns:
+            A list of OFs (or if `label_idx` was specified, a single OF).
+        :raises:
+            :any:`SCIONKeyError`: if the label is unknown.
+            :any:`SCIONIndexError`: if the specified label index is out of range
+        """
+        try:
+            group = self._labels[label]
+        except KeyError:
+            raise SCIONKeyError("Opaque field label (%s) unknown"
+                                % label) from None
+        if label_idx is None:
+            return group
+        try:
+            return group[label_idx]
+        except IndexError:
+            raise SCIONIndexError(
+                "Opaque field label index (%d) for label %s out of range" %
+                (label_idx, label)) from None
+
+    def swap(self, label_a, label_b):
+        """
+        Swap the contents of two labels. The order of the parameters doesn't
+        matter.
+
+        :param str label_a: The first label.
+        :param str label_b: The second label.
+        :raises:
+            :any:`SCIONKeyError`: if either label is unknown.
+        """
+        try:
+            self._labels[label_a], self._labels[label_b] = \
+                self._labels[label_b], self._labels[label_a]
+        except KeyError as e:
+            raise SCIONKeyError("Opaque field label (%s) unknown"
+                                % e.args[0]) from None
+
+    def reverse_label(self, label):
+        """
+        Reverse the contents of a label.
+
+        :param str label: The label to reverse.
+        :raises:
+            :any:`SCIONKeyError`: if the label is unknown.
+        """
+        try:
+            self._labels[label].reverse()
+        except KeyError:
+            raise SCIONKeyError("Opaque field label (%s) unknown"
+                                % label) from None
+
+    def reverse_up_flag(self, label):
+        """
+        Reverse the Up flag of the first OF in a label, assuming the label isn't
+        empty. Used to change direction of IOFs.
+
+        :param str label: The label to modify.
+        :raises:
+            :any:`SCIONKeyError`: if the label is unknown.
+        """
+        try:
+            group = self._labels[label]
+        except KeyError:
+            raise SCIONKeyError("Opaque field label (%s) unknown"
+                                % label) from None
+        if len(group) > 0:
+            group[0].up_flag ^= True
+
+    def pack(self):
+        """
+        Pack all of the OFs into a single bytestring.
+
+        :returns: A bytestring containing all the OFs, in order.
+        :rtype: bytes
+        """
+        ret = []
+        for label in self._order:
+            for of in self._labels[label]:
+                ret.append(of.pack())
+        return b"".join(ret)
+
+    def count(self, label):
+        """
+        Return the number of OFs in a label.
+
+        :param str label: The label to count.
+        :returns: The number of OFs in the label.
+        :rtype: int
+        :raises:
+            :any:`SCIONKeyError`: if the label is unknown.
+        """
+        try:
+            return len(self._labels[label])
+        except KeyError:
+            raise SCIONKeyError("Opaque field label (%s) unknown"
+                                % label) from None
+
+    def __len__(self):
+        count = 0
+        for values in self._labels.values():
+            count += len(values)
+        return count

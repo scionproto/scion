@@ -13,4 +13,5 @@ pycrypto
 pydblite
 pygments
 python-pytun
+scapy-python3
 sphinxcontrib-napoleon

@@ -41,35 +41,28 @@ from lib.util import SCIONTime
 
 class ZkBaseError(SCIONBaseError):
     """
-    Base exception class for all lib.zookeeper exceptions
+    Base exception class for all lib.zookeeper exceptions.
     """
     pass
 
 
-class ZkConnectionLoss(ZkBaseError):
+class ZkNoConnection(ZkBaseError):
     """
-    Connection to Zookeeper is lost
+    No connection to Zookeeper.
     """
     pass
 
 
 class ZkNoNodeError(ZkBaseError):
     """
-    A node doesn't exist
-    """
-    pass
-
-
-class ZkNodeExists(ZkBaseError):
-    """
-    A node exist but shouldn't
+    A node doesn't exist.
     """
     pass
 
 
 class ZkRetryLimit(ZkBaseError):
     """
-    Operation retries hit limit
+    Operation hit retry limit.
     """
     pass
 
@@ -238,7 +231,7 @@ class Zookeeper(object):
             self.ensure_path(self.prefix, abs=True)
             for party in self._parties.values():
                 party.autojoin()
-        except ZkConnectionLoss:
+        except ZkNoConnection:
             return
         self._connected.set()
         if self._on_connect:
@@ -282,7 +275,7 @@ class Zookeeper(object):
             Number of seconds to wait for a ZK connection. If ``None``, wait
             forever.
         :raises:
-            ZkConnectionLoss:
+            ZkNoConnection:
                 if there's no connection to ZK after timeout has expired.
         """
         if self.is_connected():
@@ -303,7 +296,7 @@ class Zookeeper(object):
             elif timeout is not None and total_time >= timeout:
                 logging.debug("ZK connection still unavailable after %.2fs",
                               total_time)
-                raise ZkConnectionLoss
+                raise ZkNoConnection
             else:
                 logging.debug("Still waiting for ZK connection (%.2fs so far)",
                               total_time)
@@ -314,6 +307,8 @@ class Zookeeper(object):
 
         :param str path: Path to ensure
         :param bool abs: Is the path abolute or relative?
+        :raises:
+            ZkNoConnection: if there's no connection to ZK.
         """
         full_path = path
         if not abs:
@@ -321,7 +316,7 @@ class Zookeeper(object):
         try:
             self.kazoo.ensure_path(full_path)
         except (ConnectionLoss, SessionExpiredError):
-            raise ZkConnectionLoss
+            raise ZkNoConnection from None
 
     def party_setup(self, prefix=None, autojoin=True):
         """
@@ -336,10 +331,10 @@ class Zookeeper(object):
         :return: a ZkParty object
         :rtype: ZkParty
         :raises:
-            ZkConnectionLoss: if the connection to ZK drops
+            ZkNoConnection: if there's no connection to ZK.
         """
         if not self.is_connected():
-            raise ZkConnectionLoss
+            raise ZkNoConnection
         if prefix is None:
             prefix = self.prefix
         party_path = os.path.join(prefix, "party")
@@ -382,7 +377,7 @@ class Zookeeper(object):
             else:
                 logging.debug("Failed to acquire ZK lock")
         except (LockTimeout, ConnectionLoss, SessionExpiredError):
-            raise ZkConnectionLoss from None
+            raise ZkNoConnection from None
         return self.have_lock()
 
     def release_lock(self):
@@ -437,12 +432,12 @@ class Zookeeper(object):
                 break
             try:
                 self.wait_connected(timeout=_timeout)
-            except ZkConnectionLoss:
+            except ZkNoConnection:
                 logging.warning("%s: No connection to ZK", desc)
                 continue
             try:
                 return f(*args, **kwargs)
-            except ZkConnectionLoss:
+            except ZkNoConnection:
                 logging.warning("%s: Connection to ZK dropped", desc)
         raise ZkRetryLimit("%s: Failed %s times, giving up" %
                            (desc, 1+_retries))
@@ -459,20 +454,28 @@ class ZkParty(object):
         :param str path: The absolute path of the party
         :param str id_: The service id value to use in the party
         :param bool autojoin_: Join the party automatically
+        :raises:
+            ZkNoConnection: if there's no connection to ZK.
         """
         self._autojoin = autojoin_
         self._path = path
         try:
             self._party = zk.Party(path, id_)
         except (ConnectionLoss, SessionExpiredError):
-            raise ZkConnectionLoss
+            raise ZkNoConnection from None
         self.autojoin()
 
     def join(self):
+        """
+        Join Kazoo Party.
+
+        :raises:
+            ZkNoConnection: if there's no connection to ZK.
+        """
         try:
             self._party.join()
         except (ConnectionLoss, SessionExpiredError):
-            raise ZkConnectionLoss
+            raise ZkNoConnection from None
 
     def autojoin(self):
         """
@@ -488,11 +491,14 @@ class ZkParty(object):
     def list(self):
         """
         List the current party member IDs
+
+        :raises:
+            ZkNoConnection: if there's no connection to ZK.
         """
         try:
             return set(self._party)
         except (ConnectionLoss, SessionExpiredError):
-            raise ZkConnectionLoss
+            raise ZkNoConnection from None
 
 
 class ZkSharedCache(object):
@@ -525,16 +531,18 @@ class ZkSharedCache(object):
         :param str name: Name of the entry. E.g. ``"item01"``.
         :param bytes value: The value of the entry.
         :raises:
-            ZkConnectionLoss: if the connection to ZK drops
+            ZkNoConnection: if there's no connection to ZK.
         """
         if not self._zk.is_connected():
-            raise ZkConnectionLoss
+            raise ZkNoConnection
         full_path = os.path.join(self._path, name)
         # First, assume the entry already exists (the normal case)
         try:
             return self._kazoo.set(full_path, value)
         except NoNodeError:
             pass
+        except (ConnectionLoss, SessionExpiredError):
+            raise ZkNoConnection from None
         # Entry doesn't exist, so create it instead.
         try:
             return self._kazoo.create(full_path, value, makepath=True)
@@ -542,13 +550,18 @@ class ZkSharedCache(object):
             # Entry was created between our check and our create, so assume that
             # the contents are recent, and return without error.
             pass
+        except (ConnectionLoss, SessionExpiredError):
+            raise ZkNoConnection from None
 
     def process(self):
         """
         Look for new/updated entries, and pass them to the registered handler.
+
+        :raises:
+            ZkNoConnection: if there's no connection to ZK.
         """
         if not self._zk.is_connected():
-            raise ZkConnectionLoss
+            raise ZkNoConnection
         curr_epoch = self._zk.conn_epoch
         if self._epoch != curr_epoch:
             # Make sure we re-read the entire cache
@@ -568,17 +581,17 @@ class ZkSharedCache(object):
         :return: The value of the entry.
         :rtype: :class:`bytes`
         :raises:
-            ZkConnectionLoss: if the connection to ZK drops
-            ZkNoNodeError: if the entry does not exist
+            ZkNoConnection: if there's no connection to ZK.
+            ZkNoNodeError: if the entry does not exist.
         """
         full_path = os.path.join(self._path, name)
         try:
             data, meta = self._kazoo.get(full_path)
         except (ConnectionLoss, SessionExpiredError):
-            raise ZkConnectionLoss
+            raise ZkNoConnection from None
         except NoNodeError:
             self._meta.pop(name, None)
-            raise ZkNoNodeError
+            raise ZkNoNodeError from None
         self._meta[name] = meta
         return data
 
@@ -590,14 +603,14 @@ class ZkSharedCache(object):
         :returns: The node metdata.
         :rtype: :class:`ZnodeStat`
         :raises:
-            ZkConnectionLoss: if the connection to ZK drops.
+            ZkNoConnection: if there's no connection to ZK.
             ZkNoNodeError: if node doesn't exist.
         """
         full_path = os.path.join(self._path, name)
         try:
             meta = self._kazoo.exists(full_path)
         except (ConnectionLoss, SessionExpiredError):
-            raise ZkConnectionLoss
+            raise ZkNoConnection from None
         if meta is None:
             self._meta.pop(name, None)
             raise ZkNoNodeError
@@ -611,12 +624,12 @@ class ZkSharedCache(object):
         :return: A list of (name, metadata) for each entry.
         :rtype: [(:class:`bytes`, :class:`ZnodeStat`),...]
         :raises:
-            ZkConnectionLoss: if the connection to ZK drops
+            ZkNoConnection: if there's no connection to ZK.
         """
         try:
             entries = self._kazoo.get_children(self._path)
         except (ConnectionLoss, SessionExpiredError):
-            raise ZkConnectionLoss from None
+            raise ZkNoConnection from None
         except NoNodeError:
             # This means the cache dir hasn't been created yet by store(),
             # so just return an empty list.
@@ -661,7 +674,7 @@ class ZkSharedCache(object):
         for name in entry_names:
             try:
                 data.append(self._get(name))
-            except ZkConnectionLoss:
+            except ZkNoConnection:
                 logging.warning("Unable to retrieve entry from shared "
                                 "path %s: no connection to ZK" % self._path)
                 break
@@ -681,11 +694,11 @@ class ZkSharedCache(object):
         :param float ttl:
             Age (in seconds) after which cache entries should be removed.
         :raises:
-            ZkConnectionLoss: if the connection to ZK drops.
+            ZkNoConnection: if there's no connection to ZK.
             ZkNoNodeError: if a node disappears unexpectedly.
         """
         if not self._zk.is_connected():
-            raise ZkConnectionLoss
+            raise ZkNoConnection
         assert ttl > self._max_age
         now = SCIONTime.get_time()
         entries_meta = self._list_metadata()
@@ -701,6 +714,6 @@ class ZkSharedCache(object):
                     # This shouldn't happen, so raise an exception if it does.
                     raise ZkNoNodeError
                 except (ConnectionLoss, SessionExpiredError):
-                    raise ZkConnectionLoss
+                    raise ZkNoConnection from None
         if count:
             logging.debug("Expired %d old entries from %s", count, self._path)

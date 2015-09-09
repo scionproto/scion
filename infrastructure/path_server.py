@@ -22,6 +22,7 @@ import datetime
 import logging
 import sys
 from _collections import defaultdict
+from abc import ABCMeta, abstractmethod
 
 # External packages
 from external.expiring_dict import ExpiringDict
@@ -31,6 +32,7 @@ from infrastructure.scion_elem import SCIONElement
 from lib.crypto.hash_chain import HashChain
 from lib.defines import PATH_SERVICE, SCION_UDP_PORT
 from lib.log import init_logging, log_exception
+from lib.packet.path import UP_IOF
 from lib.packet.path_mgmt import (
     LeaseInfo,
     PathMgmtPacket,
@@ -49,7 +51,7 @@ from lib.util import SCIONTime, handle_signals, trace, update_dict
 from lib.zookeeper import Zookeeper
 
 
-class PathServer(SCIONElement):
+class PathServer(SCIONElement, metaclass=ABCMeta):
     """
     The SCION Path Server.
     """
@@ -100,23 +102,26 @@ class PathServer(SCIONElement):
             for pm in ad.pms:
                 self.iftoken2seg[pm.ig_rev_token].add(pcb.segment_id)
 
+    @abstractmethod
     def _handle_up_segment_record(self, records):
         """
         Handles Up Path registration from local BS.
         """
-        pass
+        raise NotImplementedError
 
+    @abstractmethod
     def _handle_down_segment_record(self, records):
         """
         Handles registration of a down path.
         """
-        pass
+        raise NotImplementedError
 
+    @abstractmethod
     def _handle_core_segment_record(self, records):
         """
         Handles a core_path record.
         """
-        pass
+        raise NotImplementedError
 
     def _verify_revocation(self, rev_info):
         """
@@ -155,20 +160,21 @@ class PathServer(SCIONElement):
 
         return False
 
+    @abstractmethod
     def _handle_revocation(self, pkt):
         """
         Handles a revocation of a segment, interface or hop.
         """
-        pass
+        raise NotImplementedError
 
     def send_path_segments(self, path_request, paths):
         """
         Sends path-segments to requester (depending on Path Server's location)
         """
         dst = path_request.hdr.src_addr
-        path_request.hdr.path.reverse()
-        path = path_request.hdr.path
-        records = PathSegmentRecords.from_values(path_request.payload,
+        path = path_request.hdr.get_path()
+        path.reverse()
+        records = PathSegmentRecords.from_values(path_request.get_payload(),
                                                  paths)
         path_reply = PathMgmtPacket.from_values(PMT.RECORDS, records, path,
                                                 self.addr.get_isd_ad(), dst)
@@ -180,21 +186,23 @@ class PathServer(SCIONElement):
         """
         Dispatches path record packet.
         """
-        assert isinstance(pkt.payload, PathSegmentRecords)
-        if pkt.payload.info.type == PST.UP:
+        payload = pkt.get_payload()
+        assert isinstance(payload, PathSegmentRecords)
+        if payload.info.type == PST.UP:
             self._handle_up_segment_record(pkt)
-        elif pkt.payload.info.type in [PST.DOWN, PST.UP_DOWN]:
+        elif payload.info.type in [PST.DOWN, PST.UP_DOWN]:
             self._handle_down_segment_record(pkt)
-        elif pkt.payload.info.type == PST.CORE:
+        elif payload.info.type == PST.CORE:
             self._handle_core_segment_record(pkt)
         else:
             logging.error("Wrong path record.")
 
+    @abstractmethod
     def handle_path_request(self, path_request):
         """
         Handles all types of path request.
         """
-        pass
+        raise NotImplementedError
 
     def handle_request(self, packet, sender, from_local_socket=True):
         """
@@ -383,7 +391,7 @@ class CorePathServer(PathServer):
         """
         Handle registration of a down path.
         """
-        records = pkt.payload
+        records = pkt.get_payload()
         if not records.pcbs:
             return
         paths_to_propagate = []
@@ -430,7 +438,7 @@ class CorePathServer(PathServer):
         """
         Handle registration of a core path.
         """
-        records = pkt.payload
+        records = pkt.get_payload()
         if not records.pcbs:
             return
         for pcb in records.pcbs:
@@ -495,10 +503,10 @@ class CorePathServer(PathServer):
                                             last_ad=self.topology.ad_id)
                 if cpaths:
                     cpath = cpaths[0].get_path(reverse_direction=True)
-                    pkt.hdr.path = cpath
+                    pkt.hdr.set_path(cpath)
                     pkt.hdr.dst_addr.isd_id = isd
                     pkt.hdr.dst_addr.ad_id = ad
-                    if_id = cpath.get_first_hop_of().ingress_if
+                    if_id = cpath.get_first_hof().ingress_if
                     next_hop = self.ifid2addr[if_id]
                     logging.info("Sending packet to CPS in (%d, %d).", isd, ad)
                     self.send(pkt, next_hop)
@@ -510,8 +518,9 @@ class CorePathServer(PathServer):
         :param pkt:
         :type pkt:
         """
-        assert isinstance(pkt.payload, PathSegmentLeases)
-        for linfo in pkt.payload.leases:
+        payload = pkt.get_payload()
+        assert isinstance(payload, PathSegmentLeases)
+        for linfo in payload.leases:
             self.leases.add_lease(linfo.seg_id, linfo.isd_id, linfo.ad_id,
                                   linfo.exp_time, linfo.seg_type)
             logging.debug("Added lease from (%d, %d) for %s", linfo.isd_id,
@@ -523,7 +532,7 @@ class CorePathServer(PathServer):
         :param pkt:
         :type pkt:
         """
-        segment_info = pkt.payload
+        segment_info = pkt.get_payload()
         dst_isd = segment_info.dst_isd
         dst_ad = segment_info.dst_ad
         ptype = segment_info.type
@@ -557,7 +566,7 @@ class CorePathServer(PathServer):
                     path = cpaths[0].get_path(reverse_direction=True)
                     dst_isd_ad = ISD_AD(cpaths[0].get_first_pcbm().isd_id,
                                         cpaths[0].get_first_pcbm().ad_id)
-                    if_id = path.get_first_hop_of().ingress_if
+                    if_id = path.get_first_hof().ingress_if
                     next_hop = self.ifid2addr[if_id]
                     request = PathMgmtPacket.from_values(PMT.REQUEST,
                                                          segment_info, path,
@@ -595,16 +604,17 @@ class CorePathServer(PathServer):
         :param pkt: The packet containing the revocation info.
         :type pkt: PathMgmtPacket
         """
-        assert isinstance(pkt.payload, RevocationPayload)
-        if hash(pkt.payload) in self.revocations:
+        payload = pkt.get_payload()
+        assert isinstance(payload, RevocationPayload)
+        if hash(payload) in self.revocations:
             logging.debug("Already received revocation. Dropping...")
             return
         else:
-            self.revocations[hash(pkt.payload)] = pkt.payload
+            self.revocations[hash(payload)] = payload
             logging.debug("Received revocation from %s:\n%s", pkt.hdr.src_addr,
-                          pkt.payload)
+                          payload)
 
-        rev_infos = pkt.payload.rev_infos
+        rev_infos = payload.rev_infos
         leaser_revocations = defaultdict(RevocationPayload)
         for rev_info in rev_infos:
             # Verify revocation.
@@ -620,7 +630,7 @@ class CorePathServer(PathServer):
                 continue
 
         # Propagate revocation to other CPSes.
-        prop_pkt = PathMgmtPacket.from_values(PMT.REVOCATIONS, pkt.payload,
+        prop_pkt = PathMgmtPacket.from_values(PMT.REVOCATIONS, payload,
                                               None, self.addr, ISD_AD(0, 0))
         self._propagate_to_core_ads(prop_pkt, True)
 
@@ -774,12 +784,12 @@ class LocalPathServer(PathServer):
         :type leases:
         """
         dst = orig_pkt.hdr.src_addr
-        orig_pkt.hdr.path.reverse()
+        path = orig_pkt.hdr.get_path()
+        path.reverse()
         orig_pkt = PathMgmtPacket(orig_pkt.pack())  # PSz: this is
         # a hack, as path_request with <up-path> only reverses to <down-path>
         # only, and then reversed packet fails with .get_current_iof()
         # FIXME: change .reverse() when only one path segment exists
-        path = orig_pkt.hdr.path
         payload = PathSegmentLeases.from_values(len(leases), leases)
         leases_pkt = PathMgmtPacket.from_values(PMT.LEASES, payload, path,
                                                 self.addr.get_isd_ad(), dst)
@@ -795,7 +805,7 @@ class LocalPathServer(PathServer):
         :param pkt:
         :type pkt:
         """
-        records = pkt.payload
+        records = pkt.get_payload()
         if not records.pcbs:
             return
         for pcb in records.pcbs:
@@ -815,7 +825,7 @@ class LocalPathServer(PathServer):
             pcb = records.pcbs[0]
             path = pcb.get_path(reverse_direction=True)
             dst_isd_ad = ISD_AD(pcb.get_isd(), pcb.get_first_pcbm().ad_id)
-            if_id = path.get_first_hop_of().ingress_if
+            if_id = path.get_first_hof().ingress_if
             next_hop = self.ifid2addr[if_id]
             targets = copy.copy(self.waiting_targets)
             for (isd, ad, info) in targets:
@@ -838,7 +848,7 @@ class LocalPathServer(PathServer):
         :param pkt:
         :type pkt:
         """
-        records = pkt.payload
+        records = pkt.get_payload()
         if not records.pcbs:
             return
         leases = []
@@ -883,7 +893,7 @@ class LocalPathServer(PathServer):
         :param pkt:
         :type pkt:
         """
-        records = pkt.payload
+        records = pkt.get_payload()
         if not records.pcbs:
             return
         leases = []
@@ -930,16 +940,17 @@ class LocalPathServer(PathServer):
         :param pkt:
         :type pkt:
         """
-        assert isinstance(pkt.payload, RevocationPayload)
-        if hash(pkt.payload) in self.revocations:
+        payload = pkt.get_payload()
+        assert isinstance(payload, RevocationPayload)
+        if hash(payload) in self.revocations:
             logging.debug("Already received revocation. Dropping...")
             return
         else:
-            self.revocations[hash(pkt.payload)] = pkt.payload
+            self.revocations[hash(payload)] = payload
             logging.debug("Received revocation from %s:\n%s", pkt.hdr.src_addr,
-                          pkt.payload)
+                          payload)
 
-        rev_infos = pkt.payload.rev_infos
+        rev_infos = payload.rev_infos
 
         for rev_info in rev_infos:
             # Verify revocation.
@@ -1051,9 +1062,12 @@ class LocalPathServer(PathServer):
 
             path = pcb.get_path(reverse_direction=True)
             dst_isd_ad = ISD_AD(pcb.get_isd(), pcb.get_first_pcbm().ad_id)
-            path.up_segment_info.up_flag = True  # FIXME: temporary hack. A very
-            # first path is _always_ down-path, any subsequent is up-path.
-            if_id = path.get_first_hop_of().ingress_if
+            # FIXME(PSz): temporary hack. A very first path is _always_
+            # down-path, any subsequent is up-path.
+            # Above comment is from 2015-01-28, f288fb53
+            up_seg_info = path.get_ofs_by_label(UP_IOF)[0]
+            up_seg_info.up_flag = True
+            if_id = path.get_first_hof().ingress_if
             next_hop = self.ifid2addr[if_id]
             path_request = PathMgmtPacket.from_values(PMT.REQUEST, info,
                                                       path, self.addr,
@@ -1067,7 +1081,7 @@ class LocalPathServer(PathServer):
         :param pkt:
         :type pkt:
         """
-        segment_info = pkt.payload
+        segment_info = pkt.get_payload()
         dst_isd = segment_info.dst_isd
         dst_ad = segment_info.dst_ad
         ptype = segment_info.type
