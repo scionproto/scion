@@ -952,10 +952,6 @@ class LocalPathServer(PathServer):
         self.up_segments = PathSegmentDB()
         self.pending_up = []  # List of pending UP requests.
 
-    def _cached_entries_handler(self, raw_entries):
-        for entry in raw_entries:
-            self._handle_up_segment_record(PathMgmtPacket(raw=entry), True)
-
     def worker(self):
         """
         Worker thread that takes care of reading shared paths from ZK.
@@ -972,6 +968,10 @@ class LocalPathServer(PathServer):
                 self.path_cache.process()
             except ZkNoConnection:
                 logging.warning('worker(): ZkNoConnection')
+
+    def _cached_entries_handler(self, raw_entries):
+        for entry in raw_entries:
+            self._handle_up_segment_record(PathMgmtPacket(raw=entry), True)
 
     def _send_leases(self, orig_pkt, leases):
         """
