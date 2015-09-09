@@ -101,9 +101,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                 self.topology.isd_id, self.topology.ad_id, PATH_SERVICE,
                 name_addrs, self.topology.zookeepers)
             self.zk.retry("Joining party", self.zk.party_setup)
-            self.path_cache = ZkSharedCache(
-                self.zk, self.ZK_PATH_CACHE_PATH, self._cached_entries_handler,
-                self.config.propagation_time)
+            self.path_cache = ZkSharedCache(self.zk, self.ZK_PATH_CACHE_PATH,
+                self._cached_entries_handler, self.config.propagation_time)
 
     @abstractmethod
     def worker(self):
@@ -261,7 +260,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
 
     def run(self):
         """
-        Run an instance of the Core Path Server.
+        Run an instance of the Path Server.
         """
         threading.Thread(
             target=thread_safety_net, args=(self.worker,),
@@ -423,8 +422,7 @@ class CorePathServer(PathServer):
         # Sanity check that we should indeed be a core path server.
         assert self.topology.is_core_ad, "This shouldn't be a core PS!"
         self.leases = self.LeasesDict()
-        # Set of core ADs only from local ISD.
-        self.core_ads = set()
+        self.core_ads = set()  # Set of core ADs only from local ISD.
         self._master_id = None  # Address of master core Path Server.
 
     def _cached_entries_handler(self, raw_entries):
@@ -446,7 +444,6 @@ class CorePathServer(PathServer):
                 self.path_cache.process()
                 # Try to become a master.
                 is_master = self.zk.get_lock(lock_timeout=0, conn_timeout=0)
-                logging.debug("Am I master ? %s" % is_master)
                 # TODO(PSz): if is_master: clean_old_zk_entries()
             except ZkNoConnection:
                 # FIXME(PSz): get_lock() raises ZkNoConnection for timeout, but
@@ -457,6 +454,8 @@ class CorePathServer(PathServer):
 
     def _update_master(self):
         """
+        Read master's address from shared lock, and if new master is elected
+        sync it with paths.
         """
         try:
             curr_master = self.zk.get_lock_holder()
@@ -581,7 +580,7 @@ class CorePathServer(PathServer):
             # Share segments via ZK.
             if pcb_from_local_isd:
                 self._share_segments(pkt)
-            # Send sengments to master.
+            # Send segments to master.
             elif self._master_id and not self._is_master():
                 self._send_to_master(pkt)
         # Send pending requests that couldn't be processed due to the lack of
@@ -627,15 +626,16 @@ class CorePathServer(PathServer):
         """
         Send 'pkt' to a master.
         """
-        if not self._master_id:
+        master = self._master_id
+        if not master:
             logging.warning("_send_to_master(): _master_id not set.")
             return
         pkt.hdr.dst_addr.isd_id = self.topology.isd_id
         pkt.hdr.dst_addr.ad_id = self.topology.ad_id
         pkt.hdr.src_addr.isd_id = self.topology.isd_id
         pkt.hdr.src_addr.ad_id = self.topology.ad_id
-        self.send(pkt, self._master_id)
-        logging.debug("Packet sent to master %s", self._master_id)
+        self.send(pkt, master)
+        logging.debug("Packet sent to master %s", master)
 
     def _query_master(self, ptype, dst_isd, dst_ad, src_isd=None, src_ad=None):
         """
