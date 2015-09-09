@@ -416,6 +416,24 @@ class Zookeeper(object):
         """
         self._lock.wait()
 
+    def get_lock_holder(self):
+        """
+        Return address of the lock holder, or None if master is not elected.
+
+        :raises:
+            ZkNoConnection: if there's no connection to ZK.
+        """
+        try:
+            contenders = self._zk_lock.contenders()
+            if not contenders:
+                logging.warning('No lock contenders found')
+                return None
+            _, _, server_addr = contenders[0].split("\x00")
+            return server_addr
+        except (ConnectionLoss, SessionExpiredError):
+            logging.warning("Disconnected from ZK.")
+            raise ZkNoConnection from None
+
     def retry(self, desc, f, *args, _retries=4, _timeout=10.0, **kwargs):
         """
         Execute a given operation, retrying it if fails due to connection

@@ -42,6 +42,7 @@ from lib.errors import SCIONBaseError, SCIONServiceLookupError
 from lib.log import init_logging, log_exception
 from lib.packet.ext_hdr import ExtensionClass
 from lib.packet.ext.traceroute import TracerouteExt, traceroute_ext_handler
+from lib.packet.host_addr import ADDR_SVC_TYPE
 from lib.packet.opaque_field import OpaqueFieldType as OFT
 from lib.packet.path_mgmt import PathMgmtPacket
 from lib.packet.pcb import PathConstructionBeacon
@@ -315,11 +316,17 @@ class Router(SCIONElement):
             return
         # Forward packet to destination.
         if ptype == PT.PATH_MGMT:
-            try:
-                addr = self.dns_query_topo(PATH_SERVICE)[0]
-            except SCIONServiceLookupError as e:
-                logging.error("Unable to deliver path mgmt packet: %s", e)
-                return
+            # FIXME(PSz): that should be changed when replies are send as
+            # standard data packets.
+            if spkt.hdr.dst_addr.host_addr.TYPE == ADDR_SVC_TYPE:
+                # Send request to any path server.
+                try:
+                    addr = self.dns_query_topo(PATH_SERVICE)[0]
+                except SCIONServiceLookupError as e:
+                    logging.error("Unable to deliver path mgmt packet: %s", e)
+                    return
+            else:  # A response to given path server
+                addr = spkt.hdr.dst_addr.host_addr
             port = SCION_UDP_PORT
         elif spkt.hdr.l4_proto == L4_UDP:
             upkt = spkt.get_payload()
