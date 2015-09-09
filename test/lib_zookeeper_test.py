@@ -691,6 +691,45 @@ class TestZookeeperWaitLock(BaseZookeeper):
         inst._lock.wait.assert_called_once_with()
 
 
+class TestZookeeperGetLockHolder(BaseZookeeper):
+    """
+    Unit tests for lib.zookeeper.Zookeeper.get_lock_holder
+    """
+    def _setup(self, contenders):
+        inst = self._init_basic_setup()
+        inst._zk_lock = create_mock(['contenders'])
+        inst._zk_lock.contenders.return_value = contenders
+        return inst
+
+    @patch("lib.zookeeper.Zookeeper.__init__", autospec=True, return_value=None)
+    def test_without_contenders(self, init):
+        inst = self._setup([])
+        # Call
+        ntools.eq_(inst.get_lock_holder(), None)
+        # Tests
+        inst._zk_lock.contenders.assert_called_once_with()
+
+    @patch("lib.zookeeper.Zookeeper.__init__", autospec=True, return_value=None)
+    def test_with_contenders(self, init):
+        inst = self._setup(["12\x0034\x0056", "78\x0090\x00ab"])
+        # Call
+        ntools.eq_(inst.get_lock_holder(), "56")
+        # Tests
+        inst._zk_lock.contenders.assert_called_once_with()
+
+    @patch("lib.zookeeper.Zookeeper.__init__", autospec=True, return_value=None)
+    def _check_error(self, excp, init):
+        # Setup
+        inst = self._setup([])
+        inst._zk_lock.contenders.side_effect = excp
+        # Call
+        ntools.assert_raises(ZkNoConnection, inst.get_lock_holder)
+
+    def test_errors(self):
+        for excp in ConnectionLoss, SessionExpiredError:
+            yield self._check_error, excp
+
+
 class TestZookeeperRetry(BaseZookeeper):
     """
     Unit tests for lib.zookeeper.Zookeeper.retry
