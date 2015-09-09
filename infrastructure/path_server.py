@@ -446,9 +446,7 @@ class CorePathServer(PathServer):
                     # TODO(PSz): clean old zk entries
                     pass
             except ZkNoConnection:
-                # FIXME(PSz): get_lock() raises ZkNoConnection for timeout, but
-                # timeouting seems to be a correct behavior in that case (i.e.,
-                # when a non-master calls get_lock(...))
+                logging.warning('worker(): ZkNoConnection')
                 pass
             self._update_master()
 
@@ -611,15 +609,10 @@ class CorePathServer(PathServer):
                 logging.debug("D01 Target: %s, pending_core: %s " % (target,
                               self.pending_core))
             if target in self.pending_core:
-                if not target[1][1]:  # Request for any path to dst_isd.
-                    segments_to_send = self.core_segments(first_isd=dst_isd,
-                                                          last_isd=src_isd,
-                                                          last_ad=src_ad)
-                else:
-                    segments_to_send = self.core_segments(first_isd=dst_isd,
-                                                          first_ad=dst_ad,
-                                                          last_isd=src_isd,
-                                                          last_ad=src_ad)
+                segments_to_send = self.core_segments(first_isd=dst_isd,
+                                                      first_ad=dst_ad or None,
+                                                      last_isd=src_isd,
+                                                      last_ad=src_ad)
                 segments_to_send = segments_to_send[:self.MAX_SEG_NO]
                 for path_request in self.pending_core[target]:
                     self.send_path_segments(path_request, segments_to_send)
@@ -761,16 +754,13 @@ class CorePathServer(PathServer):
             src_isd = segment_info.src_isd
             src_ad = segment_info.src_ad
             # Check if requester wants any path to ISD.
-            any_ad = not dst_ad
-            if any_ad and not self._is_master():
+            if not dst_ad and not self._is_master():
                 logging.warning("Request for ISD path and self is not master")
             key = ((src_isd, src_ad), (dst_isd, dst_ad))
-            if any_ad:
-                paths = self.core_segments(first_isd=dst_isd, first_ad=dst_ad,
-                                           last_isd=src_isd)
-            else:
-                paths = self.core_segments(first_isd=dst_isd, first_ad=dst_ad,
-                                           last_isd=src_isd, last_ad=src_ad)
+            paths = self.core_segments(first_isd=dst_isd,
+                                       first_ad=dst_ad or None,
+                                       last_isd=src_isd,
+                                       last_ad=src_ad)
             if paths:
                 paths = paths[:self.MAX_SEG_NO]
                 segments_to_send.extend(paths)
@@ -981,7 +971,7 @@ class LocalPathServer(PathServer):
             try:
                 self.path_cache.process()
             except ZkNoConnection:
-                logging.warning('path_cache.process() raised ZkNoConnection')
+                logging.warning('worker(): ZkNoConnection')
 
     def _send_leases(self, orig_pkt, leases):
         """
