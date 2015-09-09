@@ -325,10 +325,10 @@ class OpaqueFieldList(object):
         :class:`OpaqueFieldList` object was created.
 
         :param int idx: The index to fetch.
-        :returns:
-            The OF at that index, or ``None`` if the index was past the end of
-            the labels.
+        :returns: The OF at that index.
         :rtype: :class:`OpaqueField`
+        :raises:
+            SCIONIndexError: if the index is negative, or too large.
         """
         if idx < 0:
             raise SCIONIndexError("Requested OF index (%d) is negative" % idx)
@@ -338,8 +338,8 @@ class OpaqueFieldList(object):
             if offset < len(group):
                 return group[offset]
             offset -= len(group)
-        # FIXME(kormat): is this correct?
-        return None
+        raise SCIONIndexError("Requested OF index (%d) is out of range (max %d)"
+                              % (idx, len(self) - 1))
 
     def get_by_label(self, label, label_idx=None):
         """

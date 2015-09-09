@@ -674,8 +674,7 @@ class CorePathServer(PathServer):
                     pkt.hdr.set_path(cpath)
                     pkt.hdr.dst_addr.isd_id = isd
                     pkt.hdr.dst_addr.ad_id = ad
-                    if_id = cpath.get_first_hof().ingress_if
-                    next_hop = self.ifid2addr[if_id]
+                    next_hop = self.ifid2addr[cpath.get_fwd_if()]
                     logging.info("Sending packet to CPS in (%d, %d).", isd, ad)
                     self.send(pkt, next_hop)
                 else:
@@ -735,8 +734,7 @@ class CorePathServer(PathServer):
                     path = cpaths[0].get_path(reverse_direction=True)
                     dst_isd_ad = ISD_AD(cpaths[0].get_first_pcbm().isd_id,
                                         cpaths[0].get_first_pcbm().ad_id)
-                    if_id = path.get_first_hof().ingress_if
-                    next_hop = self.ifid2addr[if_id]
+                    next_hop = self.ifid2addr[path.get_fwd_if()]
                     request = PathMgmtPacket.from_values(PMT.REQUEST,
                                                          segment_info, path,
                                                          self.addr, dst_isd_ad)
@@ -1027,8 +1025,7 @@ class LocalPathServer(PathServer):
             pcb = records.pcbs[0]
             path = pcb.get_path(reverse_direction=True)
             dst_isd_ad = ISD_AD(pcb.get_isd(), pcb.get_first_pcbm().ad_id)
-            if_id = path.get_first_hof().ingress_if
-            next_hop = self.ifid2addr[if_id]
+            next_hop = self.ifid2addr[path.get_fwd_if()]
             targets = copy.copy(self.waiting_targets)
             for (isd, ad, info) in targets:
                 path_request = PathMgmtPacket.from_values(PMT.REQUEST, info,
@@ -1269,11 +1266,9 @@ class LocalPathServer(PathServer):
             # Above comment is from 2015-01-28, f288fb53
             up_seg_info = path.get_ofs_by_label(UP_IOF)[0]
             up_seg_info.up_flag = True
-            if_id = path.get_first_hof().ingress_if
-            next_hop = self.ifid2addr[if_id]
-            path_request = PathMgmtPacket.from_values(PMT.REQUEST, info,
-                                                      path, self.addr,
-                                                      dst_isd_ad)
+            next_hop = self.ifid2addr[path.get_fwd_if()]
+            path_request = PathMgmtPacket.from_values(
+                PMT.REQUEST, info, path, self.addr, dst_isd_ad)
             self.send(path_request, next_hop)
 
     def handle_path_request(self, pkt):
