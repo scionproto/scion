@@ -571,7 +571,7 @@ class ZkSharedCache(object):
         except NoNodeError:
             pass
         except (ConnectionLoss, SessionExpiredError):
-            raise ZkNoConnection
+            raise ZkNoConnection from None
         # Entry doesn't exist, so create it instead.
         try:
             return self._kazoo.create(full_path, value, makepath=True)
@@ -579,8 +579,8 @@ class ZkSharedCache(object):
             # Entry was created between our check and our create, so assume that
             # the contents are recent, and return without error.
             pass
-        except ConnectionLoss:
-            raise ZkNoConnection
+        except (ConnectionLoss, SessionExpiredError):
+            raise ZkNoConnection from None
 
     def process(self):
         """

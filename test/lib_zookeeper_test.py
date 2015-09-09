@@ -925,6 +925,18 @@ class TestZkSharedCacheStore(object):
 
     @patch("lib.zookeeper.ZkSharedCache.__init__", autospec=True,
            return_value=None)
+    def _check_set_conn_loss(self, excp, init):
+        inst = self._setup()
+        inst._kazoo.set.side_effect = excp
+        # Call
+        ntools.assert_raises(ZkNoConnection, inst.store, 'n', 'v')
+
+    def test_set_conn_loss(self):
+        for excp in ConnectionLoss, SessionExpiredError:
+            yield self._check_set_conn_loss, excp
+
+    @patch("lib.zookeeper.ZkSharedCache.__init__", autospec=True,
+           return_value=None)
     def test_create(self, init):
         inst = self._setup()
         inst._kazoo.set.side_effect = NoNodeError
@@ -942,6 +954,19 @@ class TestZkSharedCacheStore(object):
         inst._kazoo.create.side_effect = NodeExistsError
         # Call
         inst.store('n', 'v')
+
+    @patch("lib.zookeeper.ZkSharedCache.__init__", autospec=True,
+           return_value=None)
+    def _check_create_conn_loss(self, excp, init):
+        inst = self._setup()
+        inst._kazoo.set.side_effect = NoNodeError
+        inst._kazoo.create.side_effect = excp
+        # Call
+        ntools.assert_raises(ZkNoConnection, inst.store, 'n', 'v')
+
+    def test_create_conn_loss(self):
+        for excp in ConnectionLoss, SessionExpiredError:
+            yield self._check_create_conn_loss, excp
 
 
 class TestZkSharedCacheProcess(object):
