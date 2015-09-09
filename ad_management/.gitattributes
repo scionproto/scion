@@ -1,0 +1,3 @@
+# Exclude keys
+certs/webapp.*  export-ignore
+certs/ca.key    export-ignore

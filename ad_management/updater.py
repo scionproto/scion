@@ -13,10 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`updater` --- Ad management updating tool
+:mod:`updater` --- updater module
 ==============================================
 """
 # Stdlib
+import importlib
 import logging
 import os
 import subprocess
@@ -26,11 +27,9 @@ import time
 import xmlrpc.client
 
 # SCION
-from ad_management.common import (
-    get_supervisor_server,
-    MONITORING_DAEMON_PROC_NAME,
-    SUPERVISORD_PATH,
-)
+import ad_management.management_daemon as md
+from ad_management.common import SUPERVISORD_PATH
+from ad_management.util import get_supervisor_server
 from lib.defines import PROJECT_ROOT
 from lib.log import init_logging
 
@@ -65,35 +64,19 @@ def start_everything():
         logging.warning('Could not start processes')
 
 
-def start_monitoring_daemon():
+def restart_management_daemon():
     """
-    Start the monitoring daemon process after the update.
+    Start the management daemon process after the update.
     """
-    # 'reload' must start the monitoring daemon automatically
-    logging.info('Restarting Supervisor and the monitoring daemon...')
+    # 'reload' might not start the management daemon automatically
+    logging.info('Restarting Supervisor and the management daemon...')
     subprocess.call([SUPERVISORD_PATH, 'reload'],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL)
 
-    logging.info('Checking that the monitoring daemon is running...')
-    server = get_supervisor_server()
-    started = False
-    for _ in range(3):
-        time.sleep(1)
-        try:
-            process_info = server.supervisor.getProcessInfo(
-                MONITORING_DAEMON_PROC_NAME
-            )
-            if process_info['statename'] == 'RUNNING':
-                started = True
-                break
-        except (ConnectionRefusedError, xmlrpc.client.Fault) as ex:
-            logging.warning('Error:' + str(ex))
-
-    if started:
-        logging.info('The monitoring daemon is running')
-    else:
-        logging.warning('Could not start the monitoring daemon')
+    # Restart the management daemon
+    importlib.reload(md)
+    md.start_md()
 
 
 def extract_files(archive_path, target_dir):
@@ -107,7 +90,11 @@ def extract_files(archive_path, target_dir):
     """
     target_dir = os.path.abspath(target_dir)
     if not os.path.exists(target_dir):
-        os.mkdir(target_dir)
+        logging.error('Target directory does not exist')
+        sys.exit(1)
+    if not target_dir.startswith(PROJECT_ROOT):
+        logging.error('Target directory is outside the project directory')
+        sys.exit(1)
     with tarfile.open(archive_path, 'r') as tar_fh:
         # Check that names in the archive don't contain '..' and don't
         # start with '/'.
@@ -132,7 +119,7 @@ def post_extract():
     Run the post-extract procedures using the new (updated) updater.
     """
     logging.info('New (updated) updater: started, post-extract procedures.')
-    start_monitoring_daemon()
+    restart_management_daemon()
     logging.info('Update: done.')
 
 
@@ -149,6 +136,16 @@ def run_updated_updater():
     os.execvp(executable, args)
 
 
+def install_requirements(target_dir):
+    command_list = ['bash deps.sh pip', 'bash deps.sh misc']
+    for command in command_list:
+        command_chdir = '(cd "{}" && {})'.format(target_dir, command)
+        ret = os.system(command_chdir)
+        if ret != 0:
+            logging.error('Error while running command: {}. Exit code: {}',
+                          command_chdir, ret)
+
+
 def update_package(archive_path, target_dir):
     """
     Update the SCION package using the provided distribution archive.
@@ -163,6 +160,7 @@ def update_package(archive_path, target_dir):
     logging.info('Update: started.')
     stop_everything()
     extract_files(archive_path, target_dir)
+    install_requirements(target_dir)
     run_updated_updater()
 
 
