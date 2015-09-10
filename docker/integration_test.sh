@@ -43,5 +43,6 @@ if [ $result -eq 0 ]; then
     log "End2end: success"
 else
     log "End2end: failure"
-    shutdown
 fi
+
+shutdown
