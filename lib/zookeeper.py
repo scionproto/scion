@@ -229,7 +229,9 @@ class Zookeeper(object):
                       hex(self.kazoo.client_id[0]))
         try:
             self.ensure_path(self.prefix, abs=True)
-            for party in self._parties.values():
+            # Use a copy of the dictionary values, as the dictioary is changed
+            # by another thread.
+            for party in list(self._parties.values()):
                 party.autojoin()
         except ZkNoConnection:
             return
@@ -378,6 +380,9 @@ class Zookeeper(object):
             raise ZkNoConnection from None
         except LockTimeout:
             pass
+        except (AttributeError, TypeError):
+            # Work-around for https://github.com/python-zk/kazoo/issues/288
+            pass
         if self.have_lock():
             return True
         logging.debug("Failed to acquire ZK lock")
@@ -423,6 +428,8 @@ class Zookeeper(object):
         :raises:
             ZkNoConnection: if there's no connection to ZK.
         """
+        if self._zk_lock is None:
+            return None
         try:
             contenders = self._zk_lock.contenders()
             if not contenders:
