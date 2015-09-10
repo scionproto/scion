@@ -43,18 +43,6 @@ if [ $result -eq 0 ]; then
     log "End2end: success"
 else
     log "End2end: failure"
-    shutdown
-fi
-
-log "Bandwidth starting:"
-( cd test/integration; PYTHONPATH=../../ python3 bandwidth_test.py; )
-result=$?
-if [ $result -eq 0 ]; then
-    log "Bandwidth: success"
-else
-    # As this test is very flaky on circleci, don't treat failure as an error.
-    result=0
-    log "Bandwidth: failure"
 fi
 
 shutdown
