@@ -45,5 +45,3 @@ else
     log "End2end: failure"
     shutdown
 fi
-
-shutdown
