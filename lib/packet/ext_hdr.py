@@ -17,10 +17,8 @@
 """
 # Stdlib
 import binascii
-import struct
 
 # SCION
-from lib.errors import SCIONParseError
 from lib.packet.packet_base import HeaderBase
 from lib.util import Raw
 
@@ -51,6 +49,7 @@ class ExtensionHeader(HeaderBase):
     MIN_LEN = LINE_LEN
     EXT_CLASS = None  # Class of extension (hop-by-hop or end-to-end).
     EXT_TYPE = None  # Type of extension.
+    EXT_TYPE_STR = None  # Name of extension.
     SUBHDR_LEN = 3
     MIN_PAYLOAD_LEN = MIN_LEN - SUBHDR_LEN
 
@@ -68,13 +67,11 @@ class ExtensionHeader(HeaderBase):
         :type next_hdr: int
         """
         super().__init__()
-        self.next_hdr = 0
         self._hdr_len = 0
-        self.payload = b"\x00" * self.MIN_PAYLOAD_LEN
         if raw is not None:
-            self.parse(raw)
+            self._parse(raw)
 
-    def parse(self, raw):
+    def _parse(self, raw):
         """
         Initialize an instance of the class ExtensionHeader.
 
@@ -82,14 +79,8 @@ class ExtensionHeader(HeaderBase):
         :type raw:
         """
         data = Raw(raw, "ExtensionHeader", self.MIN_LEN, min_=True)
-        self.next_hdr, self._hdr_len, ext_no = \
-            struct.unpack("!BBB", data.pop(self.SUBHDR_LEN))
-        if ext_no != self.EXT_TYPE:
-            raise SCIONParseError("Extension chain formed incorrectly")
-        if len(raw) != len(self):
-            raise SCIONParseError("Incorrect length of extensions")
-        self.set_payload(data.pop())
-        self.parsed = True
+        self._hdr_len = self.bytes_to_hdr_len(len(data))
+        self._set_payload(data.pop())
 
     def _init_size(self, additional_lines):
         """
@@ -97,44 +88,45 @@ class ExtensionHeader(HeaderBase):
         All extensions have to have constant size.
         """
         self._hdr_len = additional_lines
-        first_row = b"\x00" * self.MIN_PAYLOAD_LEN
         # Allocate additional lines.
-        self.set_payload(first_row + b"\x00" * self.LINE_LEN * additional_lines)
+        self._set_payload(bytes(self.MIN_PAYLOAD_LEN + self.LINE_LEN *
+                                additional_lines))
 
-    def set_payload(self, payload):
+    def _set_payload(self, payload):
         """
         Set payload. Payload length must be equal to allocated space for the
         extensions.
         """
-        payload_len = len(payload)
-        # Length of extension must be padded to 8B.
-        assert not (payload_len + self.SUBHDR_LEN) % self.LINE_LEN
-        # Encode payload length.
-        pay_len_enc = (payload_len + self.SUBHDR_LEN) // self.LINE_LEN - 1
         # Check whether payload length is correct.
-        assert self._hdr_len == pay_len_enc
-        self.payload = payload
-
-    def pack(self):
-        """
-        Pack to byte array.
-        """
-        return (struct.pack("!BBB", self.next_hdr, self._hdr_len, self.EXT_TYPE)
-                + self.payload)
+        assert self._hdr_len == self.bytes_to_hdr_len(len(payload))
+        self._raw = payload
 
     def __len__(self):
         """
         Return length of extenion header in bytes.
         """
-        return (self._hdr_len + 1) * self.LINE_LEN
+        return self.hdr_len_to_bytes(self._hdr_len)
+
+    def hdr_len(self):
+        return self._hdr_len
+
+    @classmethod
+    def bytes_to_hdr_len(cls, bytes_):
+        total_len = (bytes_ + cls.SUBHDR_LEN)
+        assert total_len % cls.LINE_LEN == 0
+        return (total_len // cls.LINE_LEN) - 1
+
+    @classmethod
+    def hdr_len_to_bytes(cls, hdr_len):
+        return (hdr_len + 1) * cls.LINE_LEN
 
     def __str__(self):
         """
 
         """
-        payload_hex = binascii.hexlify(self.payload)
-        return "[EH next hdr: %u, len: %u, payload: %s]" % (
-            self.next_hdr, len(self), payload_hex)
+        payload_hex = binascii.hexlify(self._raw)
+        return "[EH hdr. class: %s type: %s len: %d payload: %s]" % (
+            self.EXT_CLASS_STR, self.EXT_TYPE_STR, len(self), payload_hex)
 
 
 class HopByHopExtension(ExtensionHeader):
@@ -142,6 +134,7 @@ class HopByHopExtension(ExtensionHeader):
     Base class for hop-by-hop extensions.
     """
     EXT_CLASS = ExtensionClass.HOP_BY_HOP
+    EXT_CLASS_STR = "Hop-by-hop"
 
 
 class EndToEndExtension(ExtensionHeader):
@@ -149,3 +142,4 @@ class EndToEndExtension(ExtensionHeader):
     Base class for end-to-end extensions.
     """
     EXT_CLASS = ExtensionClass.END_TO_END
+    EXT_CLASS_STR = "End-to-end"

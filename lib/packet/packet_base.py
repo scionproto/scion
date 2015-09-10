@@ -16,10 +16,22 @@
 ========================================
 """
 # Stdlib
+import struct
 from abc import ABCMeta, abstractmethod
+from binascii import hexlify
+
+# FIXME(kormat): needs unit tests
 
 
-class HeaderBase(object, metaclass=ABCMeta):
+class PayloadClass(object):
+    DATA = 0
+    PCB = 1
+    IFID = 2
+    CERT = 3
+    PATH = 4
+
+
+class HeaderBase(object, metaclass=ABCMeta):  # pragma: no cover
     """
     Base class for headers.
 
@@ -29,14 +41,19 @@ class HeaderBase(object, metaclass=ABCMeta):
     :vartype parsed: bool
     """
 
-    def __init__(self):
+    def __init__(self, raw=None):
         """
         Initialize an instance of the class HeaderBase.
         """
-        self.parsed = False
+        if raw is not None:
+            self._parse(raw)
 
     @abstractmethod
-    def parse(self, raw):
+    def _parse(self, raw):
+        raise NotImplementedError
+
+    @abstractmethod
+    def from_values(self, *args, **kwargs):
         raise NotImplementedError
 
     @abstractmethod
@@ -52,7 +69,14 @@ class HeaderBase(object, metaclass=ABCMeta):
         raise NotImplementedError
 
 
-class PacketBase(object, metaclass=ABCMeta):
+class L4HeaderBase(HeaderBase):
+    """
+    Base class for L4 headers.
+    """
+    TYPE = None
+
+
+class PacketBase(object, metaclass=ABCMeta):  # pragma: no cover
     """
     Base class for packets.
 
@@ -66,14 +90,25 @@ class PacketBase(object, metaclass=ABCMeta):
     :vartype payload: :class:`PacketBase` or bytes
     """
 
-    def __init__(self):
+    def __init__(self, raw=None):
         """
         Initialize an instance of the class PacketBase.
         """
-        self.hdr = None
-        self._payload = None
-        self.parsed = False
-        self.raw = None
+        self._payload = b""
+        if raw is not None:
+            self._parse(raw)
+
+    @abstractmethod
+    def _parse(self, raw):
+        raise NotImplementedError
+
+    @abstractmethod
+    def from_values(self, raw):
+        raise NotImplementedError
+
+    @abstractmethod
+    def pack(self):
+        raise NotImplementedError
 
     def get_payload(self):
         """
@@ -85,68 +120,93 @@ class PacketBase(object, metaclass=ABCMeta):
         """
         Set the packet payload.  Expects bytes or a Packet subclass.
         """
-        if (not isinstance(new_payload, PacketBase) and
-                not isinstance(new_payload, PayloadBase) and
-                not isinstance(new_payload, bytes)):
-            raise TypeError("payload must be bytes or packet/payload subclass.")
-        else:
-            self._payload = new_payload
+        assert isinstance(new_payload, PayloadBase)
+        self._payload = new_payload
 
     @abstractmethod
-    def parse(self, raw):
-        raise NotImplementedError
-
-    @abstractmethod
-    def pack(self):
-        raise NotImplementedError
-
     def __len__(self):
-        return len(self.hdr) + len(self._payload)
+        raise NotImplementedError
 
+    @abstractmethod
     def __str__(self):
-        s = []
-        s.append(str(self.hdr) + "\n")
-        s.append("Payload:\n" + str(self._payload))
-        return "".join(s)
-
-    def __hash__(self):
-        return hash(self.pack())
-
-    def __eq__(self, other):
-        if type(other) is type(self):
-            return self.raw == other.raw
-        else:
-            return False
+        raise NotImplementedError
 
 
-class PayloadBase(object, metaclass=ABCMeta):
+class PayloadBase(object, metaclass=ABCMeta):  # pragma: no cover
     """
     Interface that payloads of packets must implement.
     """
-    def __init__(self):
+    METADATA_LEN = 0
+
+    def __init__(self, raw=None):
         """
         Initialize an instance of the class PayloadBase.
         """
-        self.raw = None
-        self.parsed = False
+        if raw is not None:
+            self._parse(raw)
 
-    def parse(self, raw):
-        self.raw = raw
+    @abstractmethod
+    def _parse(self, raw):
+        raise NotImplementedError
+
+    @abstractmethod
+    def from_values(self, raw):
+        raise NotImplementedError
+
+    @abstractmethod
+    def pack(self):
+        raise NotImplementedError
+
+    def pack_meta(self):
+        return b""
+
+    def pack_full(self):
+        return self.pack_meta() + self.pack()
+
+    def total_len(self):
+        return self.METADATA_LEN + len(self)
+
+    @abstractmethod
+    def __len__(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    def __str__(self):
+        raise NotImplementedError
+
+
+class PayloadRaw(PayloadBase):
+    def _parse(self, raw):
+        self._raw = raw or b""
+
+    def from_values(cls, raw):
+        assert isinstance(raw, bytes)
+        inst = cls()
+        inst._raw = raw
+        return inst
 
     def pack(self):
-        return self.raw
-
-    def __len__(self):
-        if self.raw is not None:
-            return len(self.raw)
-        else:
-            return 0
-
-    def __hash__(self):
-        return hash(self.raw)
+        return self._raw
 
     def __eq__(self, other):
-        if type(other) is type(self):
-            return self.raw == other.raw
-        else:
-            return False
+        return self._raw == other._raw
+
+    def __len__(self):
+        return len(self._raw)
+
+    def __str__(self):
+        return hexlify(self._raw).decode()
+
+
+class SCIONPayloadBase(PayloadBase):
+    """
+    All child classes must define two attributes:
+        PAYLOAD_CLASS: Global payload class, defined by PayloadClass.
+        PAYLOAD_TYPE: Payload type specific to that class. Defined by the
+        various payload classes
+    """
+    # 1B each for payload class and type.
+    METADATA_LEN = 2
+
+    def pack_meta(self):
+        return struct.pack("!BB", self.PAYLOAD_CLASS, self.PAYLOAD_TYPE)

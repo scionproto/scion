@@ -25,14 +25,15 @@ import unittest
 
 # SCION
 from endhost.sciond import SCIOND_API_HOST, SCIOND_API_PORT, SCIONDaemon
-from lib.defines import ADDR_IPV4_TYPE, L4_UDP
+from lib.defines import ADDR_IPV4_TYPE
 from lib.log import init_logging, log_exception
 from lib.packet.host_addr import haddr_get_type, haddr_parse
 from lib.packet.opaque_field import InfoOpaqueField, OpaqueFieldType as OFT
+from lib.packet.packet_base import PayloadRaw
 from lib.packet.path import CorePath, CrossOverPath, EmptyPath, PeerPath
-from lib.packet.scion import SCIONPacket
+from lib.packet.scion import SCIONL4Packet, build_base_hdrs
 from lib.packet.scion_addr import SCIONAddr, ISD_AD
-from lib.packet.scion_udp import SCIONUDPPacket
+from lib.packet.scion_udp import SCIONUDPHeader
 from lib.socket import UDPSocket
 from lib.thread import kill_self, thread_safety_net
 from lib.util import Raw, handle_signals
@@ -115,12 +116,14 @@ class Ping(object):
         self.recv()
 
     def send(self):
-        dst = SCIONAddr.from_values(self.dst.isd, self.dst.ad, raddr)
-        ping = b"ping " + self.token
-        upkt = SCIONUDPPacket.from_values(self.sd.addr, self.sock.port, dst,
-                                          self.dport, ping)
-        spkt = SCIONPacket.from_values(self.sd.addr, dst, upkt,
-                                       self.path, next_hdr=L4_UDP)
+        dst_addr = SCIONAddr.from_values(self.dst.isd, self.dst.ad, raddr)
+        src_addr = SCIONAddr.from_values(self.src.isd, self.src.ad, saddr)
+        cmn_hdr, addr_hdr = build_base_hdrs(src_addr, dst_addr)
+        payload = PayloadRaw(b"ping " + self.token)
+        udp_hdr = SCIONUDPHeader.from_values(
+            src_addr, self.sock.port, dst_addr, self.dport, payload)
+        spkt = SCIONL4Packet.from_values(
+            cmn_hdr, addr_hdr, self.path, [], udp_hdr, payload)
         (next_hop, port) = self.sd.get_first_hop(spkt)
         assert next_hop == self.hop
 
@@ -130,10 +133,9 @@ class Ping(object):
 
     def recv(self):
         packet = self.sock.recv()[0]
-        spkt = SCIONPacket(packet)
-        upkt = spkt.get_payload()
-        pong = b"pong " + self.token
-        payload = upkt.get_payload()
+        spkt = SCIONL4Packet(packet)
+        payload = spkt.get_payload()
+        pong = PayloadRaw(b"pong " + self.token)
         if payload == pong:
             logging.info('%s:%d: pong received.', saddr, self.sock.port)
             self.pong_received = True
@@ -164,20 +166,16 @@ class Pong(object):
 
     def run(self):
         packet = self.sock.recv()[0]
-        spkt = SCIONPacket(packet)
-        upkt = spkt.get_payload()
-        ping = b"ping " + self.token
-        pong = b"pong " + self.token
-        rpkt = SCIONUDPPacket.from_values(
-            spkt.hdr.dst_addr, upkt.dst_port, spkt.hdr.src_addr, upkt.src_port,
-            pong)
-        if upkt.get_payload() == ping:
+        spkt = SCIONL4Packet(packet)
+        payload = spkt.get_payload()
+        ping = PayloadRaw(b"ping " + self.token)
+        if payload == ping:
             # Reverse the packet and send "pong".
             logging.info('%s:%d: ping received, sending pong.', raddr,
                          self.sock.port)
             self.ping_received = True
-            spkt.hdr.reverse()
-            spkt.set_payload(rpkt)
+            spkt.reverse()
+            spkt.set_payload(PayloadRaw(b"pong " + self.token))
             (next_hop, port) = self.sd.get_first_hop(spkt)
             self.sd.send(spkt, next_hop, port)
         self.sock.close()

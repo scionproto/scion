@@ -236,6 +236,20 @@ def update_dict(dictionary, key, values, elem_num=0):
     dictionary[key] = dictionary[key][-elem_num:]
 
 
+def calc_padding(length, block_size):
+    """
+    Calculate how much padding is needed to bring `length` to a multiple of
+    `block_size`.
+
+    :param int length: The length of the data that needs padding.
+    :param int block_size: The block size.
+    """
+    if length % block_size:
+        return block_size - (length % block_size)
+    else:
+        return 0
+
+
 def trace(id_):
     """
 

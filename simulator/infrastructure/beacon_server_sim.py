@@ -36,7 +36,6 @@ from lib.packet.opaque_field import (
 from lib.packet.pcb import (
     ADMarking,
     PCBMarking,
-    PathConstructionBeacon,
     PathSegment,
 )
 from lib.util import SCIONTime
@@ -148,7 +147,7 @@ class CoreBeaconServerSim(CoreBeaconServer):
         """
         Receives beacon and stores it for processing.
         """
-        assert isinstance(beacon, PathConstructionBeacon)
+        assert isinstance(beacon, PathSegment)
         if not self.path_policy.check_filters(beacon.pcb):
             return
         # segment_id = beacon.pcb.get_hops_hash(hex=True)
@@ -350,7 +349,7 @@ class LocalBeaconServerSim(LocalBeaconServer):
         """
         Receives beacon and stores it for processing.
         """
-        assert isinstance(beacon, PathConstructionBeacon)
+        assert isinstance(beacon, PathSegment)
         if not self.path_policy.check_filters(beacon.pcb):
             return
         pcb = beacon.pcb

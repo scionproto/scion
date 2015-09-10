@@ -24,22 +24,22 @@ import nose.tools as ntools
 
 # SCION
 from lib.errors import SCIONParseError
+from lib.packet.scion_addr import SCIONAddr
 from lib.packet.scion_udp import (
-    SCIONUDPPacket,
+    SCIONUDPHeader,
 )
 from test.testcommon import create_mock
 
 
-class TestSCIONUDPPacketInit(object):
+class TestSCIONUDPHeaderInit(object):
     """
-    Unit tests for lib.packet.scion_udp.SCIONUDPPacket.__init__
+    Unit tests for lib.packet.scion_udp.SCIONUDPHeader.__init__
     """
-    @patch("lib.packet.scion_udp.SCIONUDPPacket.parse", autospec=True)
-    @patch("lib.packet.scion_udp.PacketBase.__init__", autospec=True,
+    @patch("lib.packet.scion_udp.SCIONUDPHeader._parse", autospec=True)
+    @patch("lib.packet.scion_udp.L4HeaderBase.__init__", autospec=True,
            return_value=None)
     def test_basic(self, super_init, parse):
-        # Call
-        inst = SCIONUDPPacket()
+        inst = SCIONUDPHeader()
         # Tests
         super_init.assert_called_once_with(inst)
         ntools.assert_is_none(inst._src_addr)
@@ -48,160 +48,123 @@ class TestSCIONUDPPacketInit(object):
         ntools.assert_is_none(inst.dst_port)
         ntools.assert_false(parse.called)
 
-    @patch("lib.packet.scion_udp.SCIONUDPPacket.parse", autospec=True)
-    @patch("lib.packet.scion_udp.PacketBase.__init__", autospec=True,
+    @patch("lib.packet.scion_udp.SCIONUDPHeader._parse", autospec=True)
+    @patch("lib.packet.scion_udp.L4HeaderBase.__init__", autospec=True,
            return_value=None)
     def test_raw(self, super_init, parse):
-        # Call
-        inst = SCIONUDPPacket(raw=("src", "dst", "raw"))
+        inst = SCIONUDPHeader(raw=("src", "dst", "raw", "payload"))
         # Tests
-        parse.assert_called_once_with(inst, "src", "dst", "raw")
+        parse.assert_called_once_with(inst, "src", "dst", "raw", "payload")
 
 
-class TestSCIONUDPPacketFromValues(object):
+class TestSCIONUDPHeaderFromValues(object):
     """
-    Unit tests for lib.packet.scion_udp.SCIONUDPPacket.from_values
+    Unit tests for lib.packet.scion_udp.SCIONUDPHeader.from_values
     """
-    @patch("lib.packet.scion_udp.SCIONUDPPacket.set_payload", autospec=True)
-    @patch("lib.packet.scion_udp.SCIONUDPPacket.__init__", autospec=True,
-           return_value=None)
-    def test_full(self, init, set_payload):
+    @patch("lib.packet.scion_udp.SCIONUDPHeader.update", autospec=True)
+    def test_full(self, update):
         # Call
-        inst = SCIONUDPPacket.from_values("src_addr", "src_port", "dst_addr",
+        inst = SCIONUDPHeader.from_values("src_addr", "src_port", "dst_addr",
                                           "dst_port", "payload")
         # Tests
-        init.assert_called_once_with(inst)
-        ntools.eq_(inst._src_addr, "src_addr")
-        ntools.eq_(inst.src_port, "src_port")
-        ntools.eq_(inst._dst_addr, "dst_addr")
-        ntools.eq_(inst.dst_port, "dst_port")
-        set_payload.assert_called_once_with(inst, "payload")
+        ntools.assert_is_instance(inst, SCIONUDPHeader)
+        update.assert_called_once_with(inst, "src_addr", "src_port", "dst_addr",
+                                       "dst_port", "payload")
 
 
-class TestSCIONUDPPacketParse(object):
+class TestSCIONUDPHeaderParse(object):
     """
-    Unit tests for lib.packet.scion_udp.SCIONUDPPacket.parse
+    Unit tests for lib.packet.scion_udp.SCIONUDPHeader.parse
     """
     @patch("lib.packet.scion_udp.Raw", autospec=True)
-    @patch("lib.packet.scion_udp.SCIONUDPPacket.__init__", autospec=True,
-           return_value=None)
-    def test_basic(self, init, raw):
-        inst = SCIONUDPPacket()
-        data = raw.return_value
-        data.pop.side_effect = [bytes.fromhex("0102030405060708"), "payload"]
-        data.__len__.return_value = 0x0506 - inst.HDR_LEN
-        inst.set_payload = create_mock()
+    def test_basic(self, raw):
+        inst = SCIONUDPHeader()
+        inst._calc_checksum = create_mock()
+        inst._calc_checksum.return_value = 0x9999
+        data = create_mock(["__len__", "pop"])
+        data.pop.return_value = bytes.fromhex("11112222000f9999")
+        raw.return_value = data
         # Call
-        inst.parse("src", "dst", "raw")
+        inst._parse("src", "dst", "raw", "payload")
         # Tests
-        raw.assert_called_once_with("raw", "SCIONUDPPacket", inst.MIN_LEN,
-                                    min_=True)
+        raw.assert_called_once_with("raw", "SCIONUDPHeader", inst.LEN)
         ntools.eq_(inst._src_addr, "src")
         ntools.eq_(inst._dst_addr, "dst")
-        ntools.eq_(inst.src_port, 0x0102)
-        ntools.eq_(inst.dst_port, 0x0304)
-        inst.set_payload.assert_called_once_with("payload", expected=0x0708)
+        ntools.eq_(inst.src_port, 0x1111)
+        ntools.eq_(inst.dst_port, 0x2222)
+        ntools.eq_(inst._length, 0x000F)
+        ntools.eq_(inst._checksum, 0x9999)
 
     @patch("lib.packet.scion_udp.Raw", autospec=True)
-    @patch("lib.packet.scion_udp.SCIONUDPPacket.__init__", autospec=True,
-           return_value=None)
-    def test_bad_length(self, init, raw):
-        inst = SCIONUDPPacket()
-        data = raw.return_value
-        data.pop.side_effect = [bytes.fromhex("0102030405060708"), "payload"]
-        data.__len__.return_value = 0x0507
+    def test_bad_length(self, raw):
+        inst = SCIONUDPHeader()
+        data = create_mock(["__len__", "pop"])
+        data.pop.return_value = bytes.fromhex("11112222000e9999")
+        raw.return_value = data
         # Call
-        ntools.assert_raises(SCIONParseError, inst.parse, "src", "dst", "raw")
+        ntools.assert_raises(SCIONParseError, inst._parse, "src", "dst", "raw",
+                             "payload")
 
-
-class TestSCIONUDPPacketPack(object):
-    """
-    Unit tests for lib.packet.scion_udp.SCIONUDPPacket.pack
-    """
-    @patch("lib.packet.scion_udp.SCIONUDPPacket.__len__", autospec=True,
-           return_value=None)
-    @patch("lib.packet.scion_udp.SCIONUDPPacket.__init__", autospec=True,
-           return_value=None)
-    def test(self, init, len_):
-        inst = SCIONUDPPacket()
+    @patch("lib.packet.scion_udp.Raw", autospec=True)
+    def test_bad_checksum(self, raw):
+        inst = SCIONUDPHeader()
         inst._calc_checksum = create_mock()
-        inst._calc_checksum.return_value = 0x0708
-        inst._payload = b"payload"
-        inst.src_port = 0x0102
-        inst.dst_port = 0x0304
-        len_.return_value = 0x0506
-        expected = bytes.fromhex("0102030405060708") + inst._payload
+        inst._calc_checksum.return_value = 0x8888
+        data = create_mock(["__len__", "pop"])
+        data.pop.return_value = bytes.fromhex("11112222000f9999")
+        raw.return_value = data
         # Call
-        ntools.eq_(inst.pack(), expected)
+        ntools.assert_raises(SCIONParseError, inst._parse, "src", "dst", "raw",
+                             "payload")
 
 
-class TestSCIONUDPPacketSetPayload(object):
+class TestSCIONUDPHeaderUpdate(object):
     """
-    Unit tests for lib.packet.scion_udp.SCIONUDPPacket.set_payload
+    Unit tests for lib.packet.scion_udp.SCIONUDPHeader.update
     """
-    @patch("lib.packet.scion_udp.PacketBase.set_payload", autospec=True)
-    @patch("lib.packet.scion_udp.SCIONUDPPacket.__init__", autospec=True,
-           return_value=None)
-    def test_basic(self, init, pb_set_pld):
-        inst = SCIONUDPPacket()
-        inst._calc_checksum = create_mock()
+    @patch("lib.packet.scion_udp.SCIONUDPHeader._calc_checksum", autospec=True)
+    def test_full(self, calc_chksm):
+        inst = SCIONUDPHeader()
+        calc_chksm.return_value = 0x9999
+        payload = create_mock(["total_len"])
+        payload.total_len.return_value = 9
         # Call
-        inst.set_payload("payload")
+        inst.update(src_addr="src addr", src_port=0x1111, dst_addr="dst addr",
+                    dst_port=0x2222, payload=payload)
         # Tests
-        pb_set_pld.assert_called_once_with(inst, "payload")
-        ntools.assert_false(inst._calc_checksum.called)
-
-    @patch("lib.packet.scion_udp.PacketBase.set_payload", autospec=True)
-    @patch("lib.packet.scion_udp.SCIONUDPPacket.__init__", autospec=True,
-           return_value=None)
-    def test_expected_match(self, init, pb_set_pld):
-        inst = SCIONUDPPacket()
-        inst._calc_checksum = create_mock()
-        # Call
-        inst.set_payload("payload", expected=inst._calc_checksum.return_value)
-        # Tests
-        inst._calc_checksum.assert_called_once_with()
-
-    @patch("lib.packet.scion_udp.PacketBase.set_payload", autospec=True)
-    @patch("lib.packet.scion_udp.SCIONUDPPacket.__init__", autospec=True,
-           return_value=None)
-    def test_expected_fail(self, init, pb_set_pld):
-        inst = SCIONUDPPacket()
-        inst._calc_checksum = create_mock()
-        # Call
-        ntools.assert_raises(SCIONParseError, inst.set_payload, "payload",
-                             expected="expected")
+        ntools.eq_(inst._src_addr, "src addr")
+        ntools.eq_(inst.src_port, 0x1111)
+        ntools.eq_(inst._dst_addr, "dst addr")
+        ntools.eq_(inst.dst_port, 0x2222)
+        ntools.eq_(inst._length, inst.LEN + 9)
+        ntools.eq_(inst._checksum, 0x9999)
 
 
-class TestSCIONUDPPacketCalcChecksum(object):
+class TestSCIONUDPHeaderCalcChecksum(object):
     """
-    Unit tests for lib.packet.scion_udp.SCIONUDPPacket._calc_checksum
+    Unit tests for lib.packet.scion_udp.SCIONUDPHeader._calc_checksum
     """
     @patch("lib.packet.scion_udp.scapy.utils.checksum", autospec=True)
-    @patch("lib.packet.scion_udp.SCIONUDPPacket.__len__", autospec=True)
-    @patch("lib.packet.scion_udp.SCIONUDPPacket.__init__", autospec=True,
-           return_value=None)
-    def test(self, init, len_, scapy_checksum):
-        inst = SCIONUDPPacket()
-        inst._src_addr = create_mock(["pack"])
+    def test(self, scapy_checksum):
+        inst = SCIONUDPHeader()
+        inst._src_addr = create_mock(["pack"], class_=SCIONAddr)
         inst._src_addr.pack.return_value = b"source address"
-        inst._dst_addr = create_mock(["pack"])
+        inst._dst_addr = create_mock(["pack"], class_=SCIONAddr)
         inst._dst_addr.pack.return_value = b"destination address"
-        inst.src_port = 0x0042
-        inst.dst_port = 0x0302
-        inst._payload = b"payload"
-        len_.return_value = 0x7
+        inst.src_port = 0x1111
+        inst.dst_port = 0x2222
+        inst._length = 2 + 7
+        payload = create_mock(["pack_full"])
+        payload.pack_full.return_value = b"payload"
         expected_call = b"".join([
             b"source address",
             b"destination address",
-            bytes.fromhex("11 0042 0302 0007"),
+            bytes.fromhex("11 1111 2222 0009"),
             b"payload",
         ])
         # Call
-        ntools.eq_(inst._calc_checksum(), scapy_checksum.return_value)
+        ntools.eq_(inst._calc_checksum(payload), scapy_checksum.return_value)
         # Tests
-        inst._src_addr.pack.assert_called_once_with()
-        inst._dst_addr.pack.assert_called_once_with()
         scapy_checksum.assert_called_once_with(expected_call)
 
 

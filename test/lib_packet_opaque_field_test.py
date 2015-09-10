@@ -53,7 +53,6 @@ class TestOpaqueFieldInit(object):
         op_fld = OpaqueFieldTesting()
         ntools.eq_(op_fld.info, 0)
         ntools.eq_(op_fld.type, 0)
-        ntools.assert_false(op_fld.parsed)
         ntools.assert_true(op_fld.raw is None)
 
 
@@ -137,7 +136,6 @@ class TestHopOpaqueFieldInit(object):
         ntools.eq_(hop_op_fld.ingress_if, 0)
         ntools.eq_(hop_op_fld.egress_if, 0)
         ntools.eq_(hop_op_fld.mac, b'\x00' * 3)
-        ntools.assert_false(hop_op_fld.parsed)
 
     @patch("lib.packet.opaque_field.HopOpaqueField.parse", autospec=True)
     def test_raw(self, parse):
@@ -168,7 +166,6 @@ class TestHopOpaqueFieldParse(object):
         ntools.eq_(hop_op_fld.mac, b'\x01' * 3)
         ntools.eq_(hop_op_fld.ingress_if, 0x0a0)
         ntools.eq_(hop_op_fld.egress_if, 0xb0c)
-        ntools.assert_true(hop_op_fld.parsed)
 
 
 class TestHopOpaqueFieldFromValues(object):
@@ -255,7 +252,6 @@ class TestInfoOpaqueFieldInit(object):
         ntools.eq_(inf_op_fld.isd_id, 0)
         ntools.eq_(inf_op_fld.hops, 0)
         ntools.assert_false(inf_op_fld.up_flag)
-        ntools.assert_false(inf_op_fld.parsed)
 
     @patch("lib.packet.opaque_field.InfoOpaqueField.parse", autospec=True)
     def test_raw(self, parse):
@@ -284,7 +280,6 @@ class TestInfoOpaqueFieldParse(object):
         ntools.eq_(inf_op_fld.isd_id, 0x0d0e)
         ntools.eq_(inf_op_fld.hops, 0x0f)
         ntools.eq_(inf_op_fld.up_flag, 0x0f & 0x01)
-        ntools.assert_true(inf_op_fld.parsed)
 
 
 class TestInfoOpaqueFieldFromValues(object):

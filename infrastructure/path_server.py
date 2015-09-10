@@ -32,18 +32,21 @@ from external.expiring_dict import ExpiringDict
 # SCION
 from infrastructure.scion_elem import SCIONElement
 from lib.defines import PATH_SERVICE, SCION_UDP_PORT
+from lib.errors import SCIONBaseError, SCIONParseError
 from lib.log import init_logging, log_exception
-from lib.packet.host_addr import HostAddrIPv4
+from lib.packet.host_addr import haddr_parse
+from lib.packet.packet_base import PayloadClass
 from lib.packet.path import UP_IOF
 from lib.packet.path_mgmt import (
-    PathMgmtPacket,
     PathMgmtType as PMT,
+    PathRecordsReply,
+    PathRecordsSync,
     PathSegmentInfo,
-    PathSegmentRecords,
     PathSegmentType as PST,
+    PathSegmentType,
     RevocationInfo,
 )
-from lib.packet.scion_addr import ISD_AD, SCIONAddr
+from lib.packet.scion import PacketType as PT, SCIONL4Packet
 from lib.path_db import DBResult, PathSegmentDB
 from lib.thread import thread_safety_net
 from lib.util import (
@@ -180,8 +183,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             return
         else:
             self.revocations[hash(rev_info)] = rev_info
-            logging.debug("Received revocation from %s:\n%s", pkt.hdr.src_addr,
-                          rev_info)
+            logging.debug("Received revocation from %s:\n%s",
+                          pkt.addrs.get_src_addr(), rev_info)
         # Remove segments that contain the revoked interface.
         self._remove_revoked_segments(rev_info)
 
@@ -205,35 +208,34 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                 del self.iftoken2seg[rev_token]
             rev_token = SHA256.new(rev_token).digest()
 
-    def send_path_segments(self, path_request, paths):
+    def send_path_segments(self, pkt, paths):
         """
         Sends path-segments to requester (depending on Path Server's location)
         """
-        dst = path_request.hdr.src_addr
-        path = path_request.hdr.get_path()
-        path.reverse()
-        records = PathSegmentRecords.from_values(path_request.get_payload(),
-                                                 paths)
-        path_reply = PathMgmtPacket.from_values(PMT.REPLY, records, path,
-                                                self.addr.get_isd_ad(), dst)
-        (next_hop, port) = self.get_first_hop(path_reply)
-        logging.info("Sending PATH_REC, using path: %s", path)
-        self.send(path_reply, next_hop, port)
+        rep_pkt = pkt.reversed_copy()
+        seg_info = rep_pkt.get_payload()
+        rep_pkt.set_payload(PathRecordsReply.from_values(seg_info, paths))
+        (next_hop, port) = self.get_first_hop(rep_pkt)
+        logging.info("Sending PATH_REPLY, using path: %s, to:%s", rep_pkt.path,
+                     rep_pkt.addrs.get_dst_addr())
+        self.send(rep_pkt, next_hop, port)
 
     def dispatch_path_segment_record(self, pkt):
         """
         Dispatches path record packet.
         """
+        type_map = {
+            PST.UP: self._handle_up_segment_record,
+            PST.DOWN: self._handle_down_segment_record,
+            PST.UP_DOWN: self._handle_down_segment_record,
+            PST.CORE: self._handle_core_segment_record,
+        }
         payload = pkt.get_payload()
-        assert isinstance(payload, PathSegmentRecords)
-        if payload.info.type == PST.UP:
-            self._handle_up_segment_record(pkt)
-        elif payload.info.type in [PST.DOWN, PST.UP_DOWN]:
-            self._handle_down_segment_record(pkt)
-        elif payload.info.type == PST.CORE:
-            self._handle_core_segment_record(pkt)
-        else:
-            logging.error("Wrong path record.")
+        handler = type_map.get(payload.info.seg_type)
+        if handler is None:
+            logging.error("Unsupported path record type: %s", payload)
+            return
+        handler(pkt)
 
     @abstractmethod
     def handle_path_request(self, path_request):
@@ -246,16 +248,32 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         """
         Main routine to handle incoming SCION packets.
         """
-        pkt = PathMgmtPacket(packet)
-
-        if pkt.type == PMT.REQUEST:
-            self.handle_path_request(pkt)
-        elif pkt.type in [PMT.REPLY, PMT.REG]:
-            self.dispatch_path_segment_record(pkt)
-        elif pkt.type == PMT.REVOCATION:
-            self._handle_revocation(pkt)
-        else:
-            logging.warning("Type %d not supported.", pkt.type)
+        type_map = {
+            PMT.REQUEST: self.handle_path_request,
+            PMT.REPLY: self.dispatch_path_segment_record,
+            PMT.REG: self.dispatch_path_segment_record,
+            PMT.REVOCATION: self._handle_revocation,
+            PMT.SYNC: self.dispatch_path_segment_record,
+        }
+        pkt = SCIONL4Packet(packet)
+        try:
+            payload = pkt.parse_payload()
+        except SCIONParseError as e:
+            logging.error("Unable to parse packet payload: %s\n%s", e, pkt)
+            return
+        if payload.PAYLOAD_CLASS != PayloadClass.PATH:
+            logging.error("Payload class %d not supported.",
+                          payload.PAYLOAD_CLASS)
+            return
+        handler = type_map.get(payload.PAYLOAD_TYPE)
+        if handler is None:
+            logging.warning("Path management packet type %d not supported.",
+                            payload.PAYLOAD_TYPE)
+            return
+        try:
+            handler(pkt)
+        except SCIONBaseError:
+            log_exception("Error handling packet: %s" % pkt)
 
     def _share_segments(self, pkt):
         """
@@ -307,7 +325,13 @@ class CorePathServer(PathServer):
 
     def _cached_entries_handler(self, raw_entries):
         for entry in raw_entries:
-            self._handle_core_segment_record(PathMgmtPacket(raw=entry), True)
+            try:
+                pkt = SCIONL4Packet(raw=entry)
+                pkt.parse_payload()
+            except SCIONParseError as e:
+                logging.error("Unable to parse cached entry: %s", e)
+                continue
+            self._handle_core_segment_record(pkt, from_zk=True)
 
     def _update_master(self):
         """
@@ -344,7 +368,7 @@ class CorePathServer(PathServer):
         # Get down-segments from local ISD.
         down_paths = self.down_segments(last_isd=self.topology.isd_id)
         logging.debug("Syncing with %s" % master)
-        for ptype, paths in [(PST.CORE, core_paths), (PST.DOWN, down_paths)]:
+        for seg_type, paths in [(PST.CORE, core_paths), (PST.DOWN, down_paths)]:
             for pcb in paths:
                 tmp = (pcb.get_first_pcbm().isd_id, pcb.get_first_pcbm().ad_id,
                        pcb.get_last_pcbm().isd_id, pcb.get_last_pcbm().ad_id)
@@ -352,15 +376,12 @@ class CorePathServer(PathServer):
                 if tmp in seen_ads:
                     continue
                 seen_ads.add(tmp)
-                info = PathSegmentInfo.from_values(ptype, *tmp)
-                records = PathSegmentRecords.from_values(info, [pcb])
-                dst = SCIONAddr.from_values(self.topology.isd_id,
-                                            self.topology.ad_id,
-                                            HostAddrIPv4(master))
-                pkt = PathMgmtPacket.from_values(PMT.SYNC, records, None,
-                                                 self.addr.get_isd_ad(), dst)
-                self.send(pkt, dst.host_addr)
-                logging.debug('Master updated with path (%d) %s' % (ptype, tmp))
+                info = PathSegmentInfo.from_values(seg_type, *tmp)
+                records = PathRecordsSync.from_values(info, [pcb])
+                pkt = self._build_packet(payload=records)
+                self._send_to_master(pkt)
+                logging.debug('Master updated with path (%d) %s' %
+                              (seg_type, tmp))
 
     def _is_master(self):
         """
@@ -378,9 +399,11 @@ class CorePathServer(PathServer):
         """
         Handle registration of a down path.
         """
-        from_master = (pkt.hdr.src_addr.get_isd_ad() == self.addr.get_isd_ad()
-                       and pkt.type == PMT.REPLY)
         records = pkt.get_payload()
+        from_master = (
+            pkt.addrs.src_isd == self.addr.isd_id and
+            pkt.addrs.src_ad == self.addr.ad_id and
+            records.PAYLOAD_TYPE == PMT.REPLY)
         if not records.pcbs:
             return
         paths_to_propagate = []
@@ -393,7 +416,8 @@ class CorePathServer(PathServer):
             dst_isd = pcb.get_last_pcbm().isd_id
             res = self.down_segments.update(pcb, src_isd, src_ad,
                                             dst_isd, dst_ad)
-            if pkt.hdr.src_addr.get_isd_ad() == (dst_isd, dst_ad):
+            if (dst_isd == pkt.addrs.src_isd and
+                    dst_ad == pkt.addrs.src_ad):
                 # Only propagate this path if it was registered with us by the
                 # down-stream AD.
                 paths_to_propagate.append(pcb)
@@ -409,10 +433,9 @@ class CorePathServer(PathServer):
         # Also send paths to local master.
         # FIXME: putting all paths into single packet may be not a good decision
         if paths_to_propagate:
-            records = PathSegmentRecords.from_values(records.info,
-                                                     paths_to_propagate)
-            pkt = PathMgmtPacket.from_values(PMT.REPLY, records, None,
-                                             self.addr, ISD_AD(0, 0))
+            records = PathRecordsReply.from_values(
+                records.info, paths_to_propagate)
+            pkt = self._build_packet(payload=records)
             # Send paths to local master.
             if not from_master and self._master_id and not self._is_master():
                 self._send_to_master(pkt)
@@ -425,17 +448,19 @@ class CorePathServer(PathServer):
             segments_to_send = self.down_segments(last_isd=dst_isd,
                                                   last_ad=dst_ad)
             segments_to_send = segments_to_send[:self.MAX_SEG_NO]
-            for path_request in self.pending_down[target]:
-                self.send_path_segments(path_request, segments_to_send)
+            for pkt in self.pending_down[target]:
+                self.send_path_segments(pkt, segments_to_send)
             del self.pending_down[target]
 
     def _handle_core_segment_record(self, pkt, from_zk=False):
         """
         Handle registration of a core path.
         """
-        from_master = (pkt.hdr.src_addr.get_isd_ad() == self.addr.get_isd_ad()
-                       and pkt.type == PMT.REPLY)
         records = pkt.get_payload()
+        from_master = (
+            pkt.addrs.src_isd == self.addr.isd_id and
+            pkt.addrs.src_ad == self.addr.ad_id and
+            records.PAYLOAD_TYPE == PMT.REPLY)
         if not records.pcbs:
             return
         pcb_from_local_isd = True
@@ -460,7 +485,7 @@ class CorePathServer(PathServer):
                 self.core_ads.add((dst_isd, dst_ad))
             else:
                 pcb_from_local_isd = False
-        if not from_zk and not from_master and pkt.type != PMT.SYNC:
+        if not from_zk and not from_master and records.PAYLOAD_TYPE != PMT.SYNC:
             # Share segments via ZK.
             if pcb_from_local_isd:
                 self._share_segments(pkt)
@@ -473,17 +498,17 @@ class CorePathServer(PathServer):
             pcb = records.pcbs[0]
             next_hop = self.ifid2addr[pcb.get_last_pcbm().hof.ingress_if]
             path = pcb.get_path(reverse_direction=True)
-            targets = copy.deepcopy(self.waiting_targets)
-            for (target_isd, target_ad, info) in targets:
+            targets = copy.copy(self.waiting_targets)
+            for (target_isd, target_ad, seg_info) in targets:
                 if target_isd == dst_isd:
-                    dst_isd_ad = ISD_AD(dst_isd, dst_ad)
-                    path_request = PathMgmtPacket.from_values(PMT.REQUEST, info,
-                                                              path, self.addr,
-                                                              dst_isd_ad)
-                    self.send(path_request, next_hop)
-                    self.waiting_targets.remove((target_isd, target_ad, info))
+                    req_pkt = self._build_packet(
+                        PT.PATH_MGMT, payload=seg_info, path=path,
+                        dst_isd=dst_isd, dst_ad=dst_ad)
+                    self.send(req_pkt, next_hop)
+                    self.waiting_targets.remove((target_isd, target_ad,
+                                                 seg_info))
                     logging.debug("Sending path request %s on newly learned "
-                                  "path to (%d, %d)", info, dst_isd, dst_ad)
+                                  "path to (%d, %d)", seg_info, dst_isd, dst_ad)
         # Serve pending core path requests.
         for target in [((src_isd, src_ad), (dst_isd, dst_ad)),
                        ((src_isd, src_ad), (dst_isd, 0))]:
@@ -496,8 +521,8 @@ class CorePathServer(PathServer):
                                                       last_isd=src_isd,
                                                       last_ad=src_ad)
                 segments_to_send = segments_to_send[:self.MAX_SEG_NO]
-                for path_request in self.pending_core[target]:
-                    self.send_path_segments(path_request, segments_to_send)
+                for pkt in self.pending_core[target]:
+                    self.send_path_segments(pkt, segments_to_send)
                 del self.pending_core[target]
                 logging.debug("D02: %s removed from pending_core", target)
 
@@ -509,14 +534,15 @@ class CorePathServer(PathServer):
         if not master:
             logging.warning("_send_to_master(): _master_id not set.")
             return
-        pkt.hdr.dst_addr.isd_id = self.topology.isd_id
-        pkt.hdr.dst_addr.ad_id = self.topology.ad_id
-        pkt.hdr.src_addr.isd_id = self.topology.isd_id
-        pkt.hdr.src_addr.ad_id = self.topology.ad_id
+        pkt.addrs.src_isd = pkt.addrs.dst_isd = self.addr.isd_id
+        pkt.addrs.src_ad = pkt.addrs.dst_ad = self.addr.ad_id
+        pkt.addrs.src_addr = self.addr.host_addr
+        pkt.addrs.dst_addr = haddr_parse("IPv4", master)
         self.send(pkt, master)
         logging.debug("Packet sent to master %s", master)
 
-    def _query_master(self, ptype, dst_isd, dst_ad, src_isd=None, src_ad=None):
+    def _query_master(self, seg_type, dst_isd, dst_ad, src_isd=None,
+                      src_ad=None):
         """
         Query master for a path.
         """
@@ -525,14 +551,12 @@ class CorePathServer(PathServer):
         if src_ad is None:
             src_ad = self.topology.ad_id
 
-        info = PathSegmentInfo.from_values(ptype, src_isd, dst_isd,
-                                           src_ad, dst_ad)
-        path_request = PathMgmtPacket.from_values(PMT.REQUEST, info,
-                                                  None, self.addr,
-                                                  ISD_AD(src_isd, src_ad))
+        info = PathSegmentInfo.from_values(seg_type, src_isd, src_ad, dst_isd,
+                                           dst_ad)
+        pkt = self._build_packet(payload=info)
         logging.debug("Asking master for path (%d): (%d, %d) -> (%d, %d)" %
-                      (ptype, src_isd, src_ad, dst_isd, dst_ad))
-        self._send_to_master(path_request)
+                      (seg_type, src_isd, src_ad, dst_isd, dst_ad))
+        self._send_to_master(pkt)
 
     def _propagate_to_core_ads(self, pkt, inter_isd=False):
         """
@@ -550,9 +574,10 @@ class CorePathServer(PathServer):
                                             last_ad=self.topology.ad_id)
                 if cpaths:
                     cpath = cpaths[0].get_path(reverse_direction=True)
-                    pkt.hdr.set_path(cpath)
-                    pkt.hdr.dst_addr.isd_id = isd
-                    pkt.hdr.dst_addr.ad_id = ad
+                    pkt.path = cpath
+                    pkt.addrs.dst_isd = isd
+                    pkt.addrs.dst_ad = ad
+                    pkt.addrs.dst_addr = PT.PATH_MGMT
                     next_hop = self.ifid2addr[cpath.get_fwd_if()]
                     logging.info("Sending packet to CPS in (%d, %d).", isd, ad)
                     self.send(pkt, next_hop)
@@ -560,25 +585,21 @@ class CorePathServer(PathServer):
                     logging.warning("Path to AD (%d, %d) not found.", isd, ad)
 
     def handle_path_request(self, pkt):
-        """
-
-        :param pkt:
-        :type pkt:
-        """
-        segment_info = pkt.get_payload()
-        dst_isd = segment_info.dst_isd
-        dst_ad = segment_info.dst_ad
-        ptype = segment_info.type
-        logging.info("PATH_REQ received: type: %d, addr: (%d, %d)", ptype,
-                     dst_isd, dst_ad)
+        seg_info = pkt.get_payload()
+        seg_type = seg_info.seg_type
+        dst_isd = seg_info.dst_isd
+        dst_ad = seg_info.dst_ad
+        logging.info("PATH_REQ received: type: %s, addr: (%d, %d)",
+                     PathSegmentType.to_str(seg_type), dst_isd, dst_ad)
         segments_to_send = []
-        if ptype == PST.UP:
-            logging.warning("CPS received up-segment request! This should not "
-                            "happen")
+        if seg_type == PST.UP:
+            logging.error("CPS received up-segment request! This should not "
+                          "happen")
             return
-        elif ptype in [PST.DOWN, PST.UP_DOWN]:
+        if seg_type in [PST.DOWN, PST.UP_DOWN]:
             paths = self.down_segments(last_isd=dst_isd, last_ad=dst_ad)
             if paths:
+                # We already have paths matching the request
                 paths = paths[:self.MAX_SEG_NO]
                 segments_to_send.extend(paths)
             elif dst_isd == self.topology.isd_id:
@@ -586,7 +607,7 @@ class CorePathServer(PathServer):
                 logging.info("No down-path segment for (%d, %d), "
                              "request is pending.", dst_isd, dst_ad)
                 if not self._is_master():
-                    self._query_master(ptype, dst_isd, dst_ad)
+                    self._query_master(seg_type, dst_isd, dst_ad)
             else:
                 # Destination is in a different ISD. Ask a CPS in a this ISD for
                 # a down-path using the first available core path.
@@ -596,25 +617,27 @@ class CorePathServer(PathServer):
                                             last_ad=self.topology.ad_id)
                 if cpaths:
                     path = cpaths[0].get_path(reverse_direction=True)
-                    dst_isd_ad = ISD_AD(cpaths[0].get_first_pcbm().isd_id,
-                                        cpaths[0].get_first_pcbm().ad_id)
+                    dst_isd = cpaths[0].get_first_pcbm().isd_id
+                    dst_ad = cpaths[0].get_first_pcbm().ad_id
+                    req_pkt = self._build_packet(
+                        PT.PATH_MGMT, dst_isd=dst_isd, dst_ad=dst_ad,
+                        path=path, payload=seg_info)
                     next_hop = self.ifid2addr[path.get_fwd_if()]
-                    request = PathMgmtPacket.from_values(PMT.REQUEST,
-                                                         segment_info, path,
-                                                         self.addr, dst_isd_ad)
-                    self.send(request, next_hop)
+                    self.send(req_pkt, next_hop)
                     logging.info("Down-Segment request for different ISD. "
                                  "Forwarding request to CPS in (%d, %d).",
-                                 dst_isd_ad.isd, dst_isd_ad.ad)
+                                 dst_isd, dst_ad)
                 # If no core_path was available, add request to waiting targets.
                 else:
-                    self.waiting_targets.add((dst_isd, dst_ad, segment_info))
+                    logging.info("Waiting for core path to target ISD (%d, %d)",
+                                 dst_isd, dst_ad)
+                    self.waiting_targets.add((dst_isd, dst_ad, seg_info))
                     if not self._is_master():
                         # Ask for any path to dst_isd
                         self._query_master(PST.CORE, dst_isd, 0)
-        elif ptype == PST.CORE:
-            src_isd = segment_info.src_isd
-            src_ad = segment_info.src_ad
+        elif seg_type == PST.CORE:
+            src_isd = seg_info.src_isd
+            src_ad = seg_info.src_ad
             # Check if requester wants any path to ISD.
             if not dst_ad and not self._is_master():
                 logging.warning("Request for ISD path and self is not master")
@@ -632,33 +655,12 @@ class CorePathServer(PathServer):
                              "request is pending.", src_isd, src_ad,
                              dst_isd, dst_ad)
                 if not self._is_master():
-                    self._query_master(ptype, dst_isd, dst_ad, src_isd, src_ad)
+                    self._query_master(seg_type, dst_isd, dst_ad, src_isd,
+                                       src_ad)
         else:
             logging.error("CPS received unsupported path request!.")
         if segments_to_send:
             self.send_path_segments(pkt, segments_to_send)
-
-    def handle_request(self, packet, sender, from_local_socket=True):
-        """
-        Main routine to handle incoming SCION packets.
-
-        :param packet:
-        :type packet:
-        :param sender:
-        :type sender:
-        :param from_local_socket:
-        :type from_local_socket:
-        """
-        pkt = PathMgmtPacket(packet)
-
-        if pkt.type == PMT.REQUEST:
-            self.handle_path_request(pkt)
-        elif pkt.type in [PMT.REPLY, PMT.REG, PMT.SYNC]:
-            self.dispatch_path_segment_record(pkt)
-        elif pkt.type == PMT.REVOCATION:
-            self._handle_revocation(pkt)
-        else:
-            logging.warning("Type %d not supported.", pkt.type)
 
 
 class LocalPathServer(PathServer):
@@ -688,7 +690,13 @@ class LocalPathServer(PathServer):
 
     def _cached_entries_handler(self, raw_entries):
         for entry in raw_entries:
-            self._handle_up_segment_record(PathMgmtPacket(raw=entry), True)
+            try:
+                pkt = SCIONL4Packet(raw=entry)
+                pkt.parse_payload()
+            except SCIONParseError as e:
+                logging.error("Unable to parse cached entry: %s", e)
+                continue
+            self._handle_up_segment_record(pkt, from_zk=True)
 
     def _update_master(self):
         pass
@@ -720,16 +728,17 @@ class LocalPathServer(PathServer):
         if self.waiting_targets:
             pcb = records.pcbs[0]
             path = pcb.get_path(reverse_direction=True)
-            dst_isd_ad = ISD_AD(pcb.get_isd(), pcb.get_first_pcbm().ad_id)
+            dst_isd = pcb.get_isd()
+            dst_ad = pcb.get_first_pcbm().ad_id
             next_hop = self.ifid2addr[path.get_fwd_if()]
             targets = copy.copy(self.waiting_targets)
-            for (isd, ad, info) in targets:
-                path_request = PathMgmtPacket.from_values(PMT.REQUEST, info,
-                                                          path, self.addr,
-                                                          dst_isd_ad)
-                self.send(path_request, next_hop)
+            for (isd, ad, seg_info) in targets:
+                req_pkt = self._build_packet(
+                    PT.PATH_MGMT, dst_isd=dst_isd, dst_ad=dst_ad,
+                    path=path, payload=seg_info)
+                self.send(req_pkt, next_hop)
                 logging.info("PATH_REQ sent using (first) registered up-path")
-                self.waiting_targets.remove((isd, ad, info))
+                self.waiting_targets.remove((isd, ad, seg_info))
         # Handling pending UP_PATH requests.
         for path_request in self.pending_up:
             self.send_path_segments(path_request,
@@ -840,42 +849,43 @@ class LocalPathServer(PathServer):
             src_isd = self.topology.isd_id
         if src_ad is None:
             src_ad = self.topology.ad_id
-        info = PathSegmentInfo.from_values(ptype, src_isd, dst_isd,
-                                           src_ad, dst_ad)
-        if not len(self.up_segments) and ptype == PST.DOWN:
-            logging.info('Pending target added (%d, %d)', dst_isd, dst_ad)
-            self.waiting_targets.add((dst_isd, dst_ad, info))
-        elif len(self.up_segments):
-            logging.info('Requesting path from core: type: %d, addr: %d,%d',
-                         ptype, dst_isd, dst_ad)
+        seg_info = PathSegmentInfo.from_values(ptype, src_isd, src_ad, dst_isd,
+                                               dst_ad)
+        if not len(self.up_segments):
             if ptype == PST.DOWN:
-                # Take any path towards core.
-                pcb = self.up_segments()[0]
-            elif ptype == PST.CORE:
-                # Request core AD that should have given core-path.
-                pcbs = self.up_segments(first_isd=src_isd, first_ad=src_ad)
-                if not pcbs:
-                    logging.warning("Core path (%d, %d)->(%d, %d) requested, "
-                                    "but up path to (%d, %d) not found." %
-                                    (src_isd, src_ad, dst_isd, dst_ad,
-                                     src_isd, src_ad))
-                    return
-                pcb = pcbs[0]
-            else:
-                logging.error("UP_PATH request to core.")
+                logging.info('Pending target added (%d, %d)', dst_isd, dst_ad)
+                self.waiting_targets.add((dst_isd, dst_ad, seg_info))
+            return
+        logging.info('Requesting path from core: type: %s, addr: %d,%d',
+                     PathSegmentType.to_str(ptype), dst_isd, dst_ad)
+        if ptype == PST.DOWN:
+            # Take any path towards core.
+            pcb = self.up_segments()[0]
+        elif ptype == PST.CORE:
+            # Request core AD that should have given core-path.
+            pcbs = self.up_segments(first_isd=src_isd, first_ad=src_ad)
+            if not pcbs:
+                logging.warning("Core path (%d, %d)->(%d, %d) requested, "
+                                "but up path to (%d, %d) not found." %
+                                (src_isd, src_ad, dst_isd, dst_ad,
+                                    src_isd, src_ad))
                 return
+            pcb = pcbs[0]
+        else:
+            logging.error("UP_PATH request to core.")
+            return
 
-            path = pcb.get_path(reverse_direction=True)
-            dst_isd_ad = ISD_AD(pcb.get_isd(), pcb.get_first_pcbm().ad_id)
-            # FIXME(PSz): temporary hack. A very first path is _always_
-            # down-path, any subsequent is up-path.
-            # Above comment is from 2015-01-28, f288fb53
-            up_seg_info = path.get_ofs_by_label(UP_IOF)[0]
-            up_seg_info.up_flag = True
-            next_hop = self.ifid2addr[path.get_fwd_if()]
-            path_request = PathMgmtPacket.from_values(
-                PMT.REQUEST, info, path, self.addr, dst_isd_ad)
-            self.send(path_request, next_hop)
+        path = pcb.get_path(reverse_direction=True)
+        # FIXME(PSz): temporary hack. A very first path is _always_
+        # down-path, any subsequent is up-path.
+        # Above comment is from 2015-01-28, f288fb53
+        up_seg_info = path.get_ofs_by_label(UP_IOF)[0]
+        up_seg_info.up_flag = True
+        req_pkt = self._build_packet(
+            PT.PATH_MGMT, payload=seg_info, path=path, dst_isd=pcb.get_isd(),
+            dst_ad=pcb.get_first_pcbm().ad_id)
+        next_hop = self.ifid2addr[path.get_fwd_if()]
+        self.send(req_pkt, next_hop)
 
     def handle_path_request(self, pkt):
         """
@@ -884,25 +894,25 @@ class LocalPathServer(PathServer):
         :param pkt:
         :type pkt:
         """
-        segment_info = pkt.get_payload()
-        dst_isd = segment_info.dst_isd
-        dst_ad = segment_info.dst_ad
-        ptype = segment_info.type
-        logging.info("PATH_REQ received: type: %d, addr: %d,%d", ptype, dst_isd,
-                     dst_ad)
+        seg_info = pkt.get_payload()
+        seg_type = seg_info.seg_type
+        dst_isd = seg_info.dst_isd
+        dst_ad = seg_info.dst_ad
+        logging.info("PATH_REQ received: type: %s, addr: %d,%d",
+                     PathSegmentType.to_str(seg_type), dst_isd, dst_ad,)
         paths_to_send = []
         # Requester wants up-path.
-        if ptype in [PST.UP, PST.UP_DOWN]:
+        if seg_type in (PST.UP, PST.UP_DOWN):
             if len(self.up_segments):
                 paths_to_send.extend(self.up_segments()[:self.MAX_SEG_NO])
             else:
-                if ptype == PST.UP_DOWN:
+                if seg_type == PST.UP_DOWN:
                     update_dict(self.pending_down, (dst_isd, dst_ad), [pkt])
-                    self.waiting_targets.add((dst_isd, dst_ad, segment_info))
+                    self.waiting_targets.add((dst_isd, dst_ad, seg_info))
                 self.pending_up.append(pkt)
                 return
         # Requester wants down-path.
-        if (ptype in [PST.DOWN, PST.UP_DOWN]):
+        if seg_type in (PST.DOWN, PST.UP_DOWN):
             paths = self.down_segments(last_isd=dst_isd, last_ad=dst_ad)
             if paths:
                 paths_to_send.extend(paths[:self.MAX_SEG_NO])
@@ -911,9 +921,9 @@ class LocalPathServer(PathServer):
                 self._request_paths_from_core(PST.DOWN, dst_isd, dst_ad)
                 logging.info("No downpath, request is pending.")
         # Requester wants core-path.
-        if ptype == PST.CORE:
-            src_isd = segment_info.src_isd
-            src_ad = segment_info.src_ad
+        if seg_type == PST.CORE:
+            src_isd = seg_info.src_isd
+            src_ad = seg_info.src_ad
             paths = self.core_segments(last_isd=src_isd, last_ad=src_ad,
                                        first_isd=dst_isd, first_ad=dst_ad)
             if paths:

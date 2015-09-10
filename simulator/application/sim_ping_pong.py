@@ -19,7 +19,9 @@
 import logging
 
 # SCION
-from lib.packet.scion import SCIONPacket
+from lib.packet.packet_base import PayloadRaw
+from lib.packet.scion import SCIONL4Packet, build_base_hdrs
+from lib.packet.scion_udp import SCIONUDPHeader
 from lib.packet.scion_addr import SCIONAddr
 
 # SCION Simulator
@@ -45,7 +47,7 @@ class SimPingApp(SCIONSimApplication):
         :param dst_isd: The destination isd to which ping is sent
         :type dst_isd: int
         """
-        SCIONSimApplication.__init__(self, host, SimPingApp._APP_PORT)
+        super().__init__(host, SimPingApp._APP_PORT)
         self._addr = host.addr
         self.dst_addr = dst_addr
         self.dst_ad = dst_ad
@@ -66,7 +68,9 @@ class SimPingApp(SCIONSimApplication):
         :type packet: bytes
         :param sender: The sender of the packet
         """
-        if SCIONPacket(packet).payload == b"pong":
+        pkt = SCIONL4Packet(packet)
+        payload = pkt.get_payload()
+        if payload == PayloadRaw(b"pong"):
             logging.info('%s: pong received', self.addr)
             self.pong_received = True
             self.simulator.terminate()
@@ -89,8 +93,13 @@ class SimPingApp(SCIONSimApplication):
         (path, hop) = paths_hops[0]
 
         dst = SCIONAddr.from_values(self.dst_isd, self.dst_ad, self.dst_addr)
-        spkt = SCIONPacket.from_values(src=self._addr, dst=dst,
-                                       payload=b"ping", path=path)
+        cmn_hdr, addr_hdr = build_base_hdrs(self._addr, dst)
+        payload = PayloadRaw(b"ping")
+        udp_hdr = SCIONUDPHeader.from_values(
+            self._addr, SimPingApp._APP_PORT, dst, SimPingApp._APP_PORT,
+            payload)
+        spkt = SCIONL4Packet.from_values(cmn_hdr, addr_hdr, path, [], udp_hdr,
+                                         payload)
         (next_hop, port) = self.host.get_first_hop(spkt)
         assert next_hop == hop
 
@@ -129,12 +138,13 @@ class SimPongApp(SCIONSimApplication):
         :type packet: bytes
         :param sender: The sender of the packet
         """
-        spkt = SCIONPacket(packet)
-        if spkt.payload == b"ping":
+        spkt = SCIONL4Packet(packet)
+        payload = spkt.get_payload()
+        if payload == PayloadRaw(b"ping"):
             # Reverse the packet and send "pong"
             logging.info('%s: ping received, sending pong.', self.addr)
             self.ping_received = True
-            spkt.hdr.reverse()
-            spkt.payload = b"pong"
+            spkt.reverse()
+            spkt.set_payload(PayloadRaw(b"pong"))
             (next_hop, port) = self.host.get_first_hop(spkt)
             self.host.send(spkt, next_hop, port)
