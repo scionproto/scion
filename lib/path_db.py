@@ -108,7 +108,7 @@ class PathSegmentDB(object):
         """
         db = Base("", save_to_file=False)
         db.create('record', 'id', 'first_isd', 'first_ad', 'last_isd',
-                  'last_ad', mode='override')
+                  'last_ad', 'from_master', mode='override')
         db.create_index('id')
         db.create_index('last_isd')
         db.create_index('last_ad')
@@ -142,7 +142,8 @@ class PathSegmentDB(object):
         recs = self._db(id=seg_id)
         return len(recs) > 0
 
-    def update(self, pcb, first_isd, first_ad, last_isd, last_ad):
+    def update(self, pcb, first_isd, first_ad, last_isd, last_ad,
+               from_master=False):
         """
         Insert path into database.
         Return the result of the operation.
@@ -157,6 +158,8 @@ class PathSegmentDB(object):
         :type last_isd:
         :param last_ad:
         :type last_ad:
+        :param from_master:
+        :type from_master:
 
         :returns:
         :rtype:
@@ -167,7 +170,7 @@ class PathSegmentDB(object):
         assert len(recs) <= 1, "PathDB contains > 1 path with the same ID"
         if not recs:
             self._db.insert(record, record.id, first_isd,
-                            first_ad, last_isd, last_ad)
+                            first_ad, last_isd, last_ad, from_master)
             return DBResult.ENTRY_ADDED
         else:
             cur_rec = recs[0]['record']
@@ -177,7 +180,8 @@ class PathSegmentDB(object):
                 cur_rec.pcb = pcb
                 return DBResult.ENTRY_UPDATED
 
-    def update_all(self, pcbs, first_isd, first_ad, last_isd, last_ad):
+    def update_all(self, pcbs, first_isd, first_ad, last_isd, last_ad,
+                   from_master=False):
         """
         Updates a list of paths.
 
@@ -191,9 +195,12 @@ class PathSegmentDB(object):
         :type last_isd:
         :param last_ad:
         :type last_ad:
+        :param from_master:
+        :type from_master:
         """
         for pcb in pcbs:
-            self.update(pcb, first_isd, first_ad, last_isd, last_ad)
+            self.update(pcb, first_isd, first_ad, last_isd,
+                        last_ad, from_master)
 
     def delete(self, segment_id):
         """
@@ -232,6 +239,8 @@ class PathSegmentDB(object):
         expired_recs = []
         valid_recs = []
         # Remove expired path from the cache.
+        # FIXME(PSz): decide how to handle expiration of paths received from
+        # master. (This is only relevant for core PS.)
         for r in recs:
             if r['record'].pcb.get_expiration_time() < now:
                 expired_recs.append(r)

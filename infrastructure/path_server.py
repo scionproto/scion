@@ -34,6 +34,7 @@ from infrastructure.scion_elem import SCIONElement
 from lib.crypto.hash_chain import HashChain
 from lib.defines import PATH_SERVICE, SCION_UDP_PORT
 from lib.log import init_logging, log_exception
+from lib.packet.host_addr import HostAddrIPv4
 from lib.packet.path import UP_IOF
 from lib.packet.path_mgmt import (
     LeaseInfo,
@@ -47,7 +48,7 @@ from lib.packet.path_mgmt import (
     RevocationPayload,
     RevocationType as RT,
 )
-from lib.packet.scion_addr import ISD_AD
+from lib.packet.scion_addr import ISD_AD, SCIONAddr
 from lib.path_db import DBResult, PathSegmentDB
 from lib.thread import thread_safety_net
 from lib.util import (
@@ -476,14 +477,34 @@ class CorePathServer(PathServer):
         """
         Feed newly-elected master with paths.
         """
-        # TODO(PSz): send all local down- and (?) core-paths to the new master,
-        # consider some easy mechanisms for avoiding registration storm.
-        # check whether master exists
-        if not self._master_id or self._is_master():
+        # TODO(PSz): consider a mechanism for avoiding a registration storm.
+        master = self._master_id
+        if not master or self._is_master():
             logging.warning('Sync abandoned: master not set or I am a master')
             return
-        logging.debug("TODO: Syncing with %s", self._master_id)
-        pass
+        down_paths = self.down_segments(from_master=True)
+        # FIXME(PSz): For now send all core paths from remote ISDs.
+        # Depends on FIXME from _handle_core_segments_record()
+        db = self.core_segments._db
+        my_isd = self.topology.isd_id
+        core_paths = [r['record'].pcb for r in db if r['first_isd'] != my_isd]
+        logging.debug("Syncing with %s, core paths: %d/%d, down paths: %d/%d",
+                      master, len(core_paths), len(self.core_segments()),
+                      len(down_paths), len(self.down_segments()))
+        for ptype, paths in [(PST.CORE, core_paths), (PST.DOWN, down_paths)]:
+            for pcb in paths:
+                info = PathSegmentInfo.from_values(ptype,
+                                                   pcb.get_first_pcbm().isd_id,
+                                                   self.topology.isd_id,
+                                                   pcb.get_first_pcbm().ad_id,
+                                                   self.topology.ad_id)
+                records = PathSegmentRecords.from_values(info, [pcb])
+                master_addr = HostAddrIPv4(master)
+                dst = SCIONAddr.from_values(self.topology.isd_id,
+                                            self.topology.ad_id, master_addr)
+                pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, None,
+                                                 self.addr.get_isd_ad(), dst)
+                self.send(pkt, dst.host_addr)
 
     def _is_master(self):
         """
@@ -501,6 +522,13 @@ class CorePathServer(PathServer):
         """
         Handle registration of a down path.
         """
+        # Check whether path was sent by master.
+        from_master = False
+        if self._master_id and not self._is_master():
+            from_master = (pkt.hdr.src_addr.get_isd_ad() ==
+                           self.addr.get_isd_ad())
+        logging.debug("from master : %s" % from_master)
+        # Start processing packet.
         records = pkt.get_payload()
         if not records.pcbs:
             return
@@ -512,8 +540,8 @@ class CorePathServer(PathServer):
             src_ad = pcb.get_first_pcbm().ad_id
             dst_ad = pcb.get_last_pcbm().ad_id
             dst_isd = pcb.get_last_pcbm().isd_id
-            res = self.down_segments.update(pcb, src_isd, src_ad,
-                                            dst_isd, dst_ad)
+            res = self.down_segments.update(pcb, src_isd, src_ad, dst_isd,
+                                            dst_ad, from_master)
             if (dst_isd == pkt.hdr.src_addr.isd_id and
                     dst_ad == pkt.hdr.src_addr.ad_id):
                 # Only propagate this path if it was registered with us by the
@@ -536,7 +564,7 @@ class CorePathServer(PathServer):
             pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, None,
                                              self.addr, ISD_AD(0, 0))
             # Send paths to local master.
-            if self._master_id and not self._is_master():
+            if self._master_id and not self._is_master() and not from_master:
                 self._send_to_master(pkt)
             # Now propagate paths to other core ADs (in the ISD).
             logging.debug("Propagate among core ADs")
@@ -555,6 +583,16 @@ class CorePathServer(PathServer):
         """
         Handle registration of a core path.
         """
+        # Check whether path was sent by master.
+        # FIXME(PSz): now it is impossible to say is core segment sent by core
+        # Path Server or core Beacon Server. This should be fixed when responses
+        # are sent as regular data packets.
+        from_master = False
+        if self._master_id and not self._is_master():
+            from_master = (pkt.hdr.src_addr.get_isd_ad() ==
+                           self.addr.get_isd_ad())
+        logging.debug("from master : %s" % from_master)
+        # Start processing packet.
         records = pkt.get_payload()
         if not records.pcbs:
             return
@@ -568,7 +606,8 @@ class CorePathServer(PathServer):
             src_isd = pcb.get_last_pcbm().isd_id
             res = self.core_segments.update(pcb, first_isd=dst_isd,
                                             first_ad=dst_ad, last_isd=src_isd,
-                                            last_ad=src_ad)
+                                            last_ad=src_ad,
+                                            from_master=from_master)
             if res == DBResult.ENTRY_ADDED:
                 self._add_if_mappings(pcb)
                 logging.info("Core-Path registered: (%d, %d) -> (%d, %d), "
@@ -583,7 +622,7 @@ class CorePathServer(PathServer):
             if pcb_from_local_isd:
                 self._share_segments(pkt)
             # Send segments to master.
-            elif self._master_id and not self._is_master():
+            elif self._master_id and not self._is_master() and not from_master:
                 self._send_to_master(pkt)
         # Send pending requests that couldn't be processed due to the lack of
         # a core path to the destination PS.
@@ -638,7 +677,6 @@ class CorePathServer(PathServer):
         """
         Query master for a path.
         """
-        # TODO(PSz): don't send path back to master.
         if src_isd is None:
             src_isd = self.topology.isd_id
         if src_ad is None:
@@ -649,8 +687,8 @@ class CorePathServer(PathServer):
         path_request = PathMgmtPacket.from_values(PMT.REQUEST, info,
                                                   None, self.addr,
                                                   ISD_AD(src_isd, src_ad))
-        logging.debug("Asking master for path: (%d, %d) -> (%d, %d)" %
-                      (src_isd, src_ad, dst_isd, dst_ad))
+        logging.debug("Asking master for path (%d): (%d, %d) -> (%d, %d)" %
+                      (ptype, src_isd, src_ad, dst_isd, dst_ad))
         self._send_to_master(path_request)
 
     def _propagate_to_core_ads(self, pkt, inter_isd=False):
