@@ -101,7 +101,7 @@ class TestPathSegmentDBInit(object):
         base.assert_called_once_with("", save_to_file=False)
         db.create.assert_called_once_with('record', 'id', 'first_isd',
                                           'first_ad', 'last_isd', 'last_ad',
-                                          'from_master', mode='override')
+                                          mode='override')
         db.create_index.assert_has_calls([call('id'), call('last_isd'),
                                           call('last_ad')])
         ntools.eq_(pth_seg_db._db, db)
@@ -166,8 +166,7 @@ class TestPathSegmentDBUpdate(object):
         ntools.eq_(pth_seg_db.update(pcb, 1, 2, 3, 4), DBResult.ENTRY_ADDED)
         db_rec.assert_called_once_with(pcb)
         pth_seg_db._db.assert_called_once_with(id="str")
-        pth_seg_db._db.insert.assert_called_once_with(record, "str", 1, 2, 3, 4,
-                                                      False)
+        pth_seg_db._db.insert.assert_called_once_with(record, "str", 1, 2, 3, 4)
 
     @patch("lib.path_db.PathSegmentDBRecord", autospec=True)
     def test_none(self, db_rec):
@@ -213,9 +212,8 @@ class TestPathSegmentDBUpdateAll(object):
             pcbs.append("data" + str(i))
         pth_seg_db = PathSegmentDB()
         pth_seg_db.update = MagicMock(spec_set=[])
-        pth_seg_db.update_all(pcbs, 1, 2, 3, 4, True)
-        pth_seg_db.update.assert_has_calls([call(i, 1, 2, 3, 4, True)
-                                           for i in pcbs])
+        pth_seg_db.update_all(pcbs, 1, 2, 3, 4)
+        pth_seg_db.update.assert_has_calls([call(i, 1, 2, 3, 4) for i in pcbs])
 
 
 class TestPathSegmentDBDelete(object):
@@ -269,8 +267,7 @@ class TestPathSegmentDBCall(object):
             cur_rec = MagicMock(spec_set=['pcb'])
             cur_rec.pcb.get_expiration_time.return_value = -1
             recs.append({'record': cur_rec, 'first_isd': 0,
-                         'first_ad': 1, 'last_isd': 2, 'last_ad': 3,
-                         'from_master': True})
+                         'first_ad': 1, 'last_isd': 2, 'last_ad': 3})
         time.return_value = 0
         pth_seg_db = PathSegmentDB()
         pth_seg_db._db = MagicMock(spec_set=['delete'])
