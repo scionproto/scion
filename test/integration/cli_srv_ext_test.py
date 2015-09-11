@@ -20,14 +20,18 @@ import logging
 import socket
 import threading
 import time
+import sys
 
 # SCION
 from endhost.sciond import SCIONDaemon
 from lib.defines import SCION_BUFLEN, SCION_UDP_EH_DATA_PORT
+from lib.log import init_logging, log_exception
 from lib.packet.ext.traceroute import TracerouteExt
 from lib.packet.host_addr import haddr_parse
 from lib.packet.scion import SCIONPacket
 from lib.packet.scion_addr import SCIONAddr
+from lib.thread import thread_safety_net
+from lib.util import handle_signals
 
 TOUT = 10  # How long wait for response.
 CLI_ISD = 1
@@ -46,7 +50,7 @@ def client():
                  (CLI_ISD, CLI_ISD, CLI_AD))
     # Start SCIONDaemon
     sd = SCIONDaemon.start(haddr_parse("IPv4", CLI_IP), topo_file)
-    print("CLI: Sending PATH request for (%d, %d)" % (SRV_ISD, SRV_AD))
+    logging.info("CLI: Sending PATH request for (%d, %d)", SRV_ISD, SRV_AD)
     # Get paths to server through function call
     paths = sd.get_paths(SRV_ISD, SRV_AD)
     assert paths
@@ -66,7 +70,8 @@ def client():
     spkt = SCIONPacket.from_values(sd.addr, dst, payload, path, ext_hdrs=[ext])
     # Determine first hop (i.e., local address of border router)
     (next_hop, port) = sd.get_first_hop(spkt)
-    print("CLI: Sending packet: %s\nFirst hop: %s:%s" % (spkt, next_hop, port))
+    logging.info("CLI: Sending packet:\n%s\nFirst hop: %s:%s",
+                 spkt, next_hop, port)
     # Send packet to first hop (it is sent through SCIONDaemon)
     sd.send(spkt, next_hop, port)
     # Open a socket for incomming DATA traffic
@@ -75,8 +80,8 @@ def client():
     sock.bind((CLI_IP, SCION_UDP_EH_DATA_PORT))
     # Waiting for a response
     raw, _ = sock.recvfrom(SCION_BUFLEN)
-    print('\n\nCLI: Received response:\n%s' % SCIONPacket(raw))
-    print("CLI: leaving.")
+    logging.info('CLI: Received response:\n%s', SCIONPacket(raw))
+    logging.info("CLI: leaving.")
     sock.close()
 
 
@@ -96,9 +101,9 @@ def server():
     raw, _ = sock.recvfrom(SCION_BUFLEN)
     # Request received, instantiating SCION packet
     spkt = SCIONPacket(raw)
-    print('SRV: received: %s', spkt)
+    logging.info('SRV: received: %s', spkt)
     if spkt.get_payload() == b"request to server":
-        print('SRV: request received, sending response.')
+        logging.info('SRV: request received, sending response.')
         # Reverse the packet
         spkt.hdr.reverse()
         # Setting payload
@@ -107,18 +112,33 @@ def server():
         (next_hop, port) = sd.get_first_hop(spkt)
         # Send packet to first hop (it is sent through SCIONDaemon)
         sd.send(spkt, next_hop, port)
-    print("SRV: Leaving server.")
+    logging.info("SRV: Leaving server.")
     sock.close()
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
+    init_logging("../../logs/c2s_extn.log", console=True)
+    handle_signals()
     # if len(sys.argv) == 3:
     #     isd, ad = sys.argv[1].split(',')
     #     sources = [(int(isd), int(ad))]
     #     isd, ad = sys.argv[2].split(',')
     #     destinations = [(int(isd), int(ad))]
     # TestSCIONDaemon().test(sources, destinations)
-    threading.Thread(target=server).start()
-    time.sleep(0.5)
-    threading.Thread(target=client).start()
+    try:
+        threading.Thread(
+            target=thread_safety_net, args=(server,),
+            name="C2S_extn.server", daemon=True).start()
+        time.sleep(0.5)
+        t_client = threading.Thread(
+            target=thread_safety_net, args=(client,),
+            name="C2S_extn.client", daemon=True)
+        t_client.start()
+        t_client.join()
+    except SystemExit:
+        logging.info("Exiting")
+        raise
+    except:
+        log_exception("Exception in main process:")
+        logging.critical("Exiting")
+        sys.exit(1)
