@@ -46,6 +46,7 @@ from lib.errors import (
     SCIONServiceLookupError,
 )
 from lib.log import init_logging, log_exception
+from lib.packet.host_addr import ADDR_SVC_TYPE
 from lib.packet.ext_hdr import ExtensionClass
 from lib.packet.ext.traceroute import TracerouteExt, traceroute_ext_handler
 from lib.packet.opaque_field import (
@@ -384,7 +385,8 @@ class Router(SCIONElement):
                     self.send(mgmt_pkt, ps.addr)
 
         if not from_local_ad and mgmt_pkt.hdr.is_last_path_of():
-            if mgmt_pkt.type == PMT.REVOCATION:
+            if (mgmt_pkt.type == PMT.REVOCATION and
+                    mgmt_pkt.hdr.dst_addr.host_addr.TYPE != ADDR_SVC_TYPE):
                 self.deliver(mgmt_pkt, PT.DATA)
             else:
                 self.deliver(mgmt_pkt, PT.PATH_MGMT)
@@ -408,12 +410,17 @@ class Router(SCIONElement):
 
         rev_info = RevocationInfo.from_values(if_state.rev_token,
                                               if_state.proof)
-        rev_pkt = PathMgmtPacket.with_header(PMT.REVOCATION, rev_info,
-                                             spkt.hdr.reversed_copy())
-        # Make sure the type of the packet is PATH_MGMT.
-        rev_pkt.hdr.src_addr = SCIONAddr.from_values(self.topology.isd_id,
-                                                     self.topology.ad_id,
-                                                     PT.PATH_MGMT)
+        reversed_hdr = spkt.hdr.reversed_copy()
+        src_addr = SCIONAddr.from_values(self.topology.isd_id,
+                                         self.topology.ad_id,
+                                         PT.PATH_MGMT)
+        rev_pkt = PathMgmtPacket.from_values(PMT.REVOCATION, rev_info,
+                                             reversed_hdr.path, src_addr,
+                                             reversed_hdr.dst_addr)
+        # Update pointers to correct values.
+        rev_pkt.hdr.set_curr_iof_p(reversed_hdr.get_curr_iof_p())
+        rev_pkt.hdr.set_curr_of_p(reversed_hdr.get_curr_of_p())
+        logging.debug("Revocation Packet:\n%s", rev_pkt)
         self.forward_packet(rev_pkt, True)
 
     def deliver(self, spkt, ptype):
@@ -716,8 +723,10 @@ class Router(SCIONElement):
         except SCIONPacketHeaderCorruptedError:
             logging.error("Dropping packet due to invalid header state.")
         except SCIONInterfaceDownException as e:
-            logging.error("Interface %d is down. Issuing revocation.", e.if_id)
-            self.send_revocation(spkt, e.if_id)
+            if get_type(spkt) == PT.DATA:
+                logging.error("Interface %d is down. Issuing revocation.",
+                              e.if_id)
+                self.send_revocation(spkt, int(e.if_id))
 
     def handle_request(self, packet, sender, from_local_socket=True):
         """
@@ -739,6 +748,7 @@ class Router(SCIONElement):
         ptype = get_type(spkt)
         self.handle_extensions(spkt, True)
         if ptype == PT.DATA:
+            logging.debug("Data packet entering:\n%s", spkt)
             self.forward_packet(spkt, from_local_ad)
         elif ptype == PT.IFID_PKT and not from_local_ad:
             self.process_ifid_request(IFIDPacket(packet))

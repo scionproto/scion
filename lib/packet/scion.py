@@ -176,8 +176,8 @@ class SCIONCommonHdr(HeaderBase):
         src_type = haddr_get_type(self.src_addr_type).NAME
         dst_type = haddr_get_type(self.dst_addr_type).NAME
         res = ("[CH ver: %u, src type: %s(%ub), dst type: %s(%ub), "
-               "total len: %u bytes, TS: %u, current OF: %u, next hdr: %u, "
-               "hdr len: %u]") % (
+               "total len: %u bytes, current IOF: %u, current OF: %u, "
+               "next hdr: %u, hdr len: %u]") % (
                    self.version, src_type, self.src_addr_len, dst_type,
                    self.dst_addr_len, self.total_len, self.curr_iof_p,
                    self.curr_of_p, self.next_hdr, self.hdr_len)
@@ -254,7 +254,7 @@ class SCIONHeader(HeaderBase):
         # Set next_hdr fields according to the extension chain
         l = 0
         while l < len(self.extension_hdrs) - 1:
-            self.extension_hdrs[l].next_hdr = self.extension_hdrs[l+1].EXT_CLASS
+            self.extension_hdrs[l].next_hdr = self.extension_hdrs[l + 1].EXT_CLASS
             l += 1
 
     def remove_extensions(self):

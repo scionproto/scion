@@ -110,6 +110,9 @@ class PathSegmentInfo(PayloadBase):
         info.dst_ad = dst_ad
         return info
 
+    def __len__(self):
+        return PathSegmentInfo.LEN
+
 
 class PathSegmentRecords(PayloadBase):
     """
@@ -210,6 +213,9 @@ class RevocationInfo(PayloadBase):
         s += "Token: %s\nProof: %s" % (self.rev_token, self.proof)
         return s
 
+    def __len__(self):
+        return RevocationInfo.LEN
+
 
 class IFStateInfo(PayloadBase):
     """
@@ -264,6 +270,9 @@ class IFStateInfo(PayloadBase):
         s += str(self.rev_info)
         return s
 
+    def __len__(self):
+        return IFStateInfo.LEN
+
 
 class IFStatePayload(PayloadBase):
     """
@@ -311,6 +320,9 @@ class IFStatePayload(PayloadBase):
     def __str__(self):
         return "".join([str(info) + "\n" for info in self.ifstate_infos])
 
+    def __len__(self):
+        return len(self.ifstate_infos) * IFStateInfo.LEN
+
 
 class IFStateRequest(PayloadBase):
     """
@@ -330,7 +342,7 @@ class IFStateRequest(PayloadBase):
     def parse(self, raw):
         super().parse(raw)
         data = Raw(raw, "IFStateRequest", self.LEN)
-        self.if_id = struct.unpack("!H", data.pop())
+        self.if_id = struct.unpack("!H", data.pop())[0]
         self.parsed = True
 
     def pack(self):
@@ -350,6 +362,9 @@ class IFStateRequest(PayloadBase):
 
     def __str__(self):
         return "[IFStateRequest if_id: %d]" % self.if_id
+
+    def __len__(self):
+        return IFStateRequest.LEN
 
 
 class PathMgmtPacket(SCIONPacket):
@@ -376,7 +391,7 @@ class PathMgmtPacket(SCIONPacket):
             self.parse(raw)
 
     def parse(self, raw):
-        SCIONPacket.parse(self, raw)
+        super().parse(raw)
         data = Raw(self.payload, "PathMgmtPacket", self.MIN_LEN, min_=True)
         # Get the type of the first byte of the payload and instantiate the
         # corresponding payload class.

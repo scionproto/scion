@@ -521,9 +521,9 @@ class BeaconServer(SCIONElement):
         threading.Thread(
             target=thread_safety_net, args=(self.register_segments,),
             name="BS.register_segments", daemon=True).start()
-        #  threading.Thread(
-        #    target=thread_safety_net, args=(self._handle_if_timeouts,),
-        #    name="BS._handle_if_timeouts", daemon=True).start()
+        threading.Thread(
+          target=thread_safety_net, args=(self._handle_if_timeouts,),
+          name="BS._handle_if_timeouts", daemon=True).start()
         # Run shared paths handling.
         self.zk.run_shared_cache_handling()
         SCIONElement.run(self)
@@ -723,7 +723,7 @@ class BeaconServer(SCIONElement):
             chain.next_element())
         self.zk.store_shared_item(
             self.ZK_REVOCATIONS_PATH,
-            chain.current_element(hex=True),
+            chain.current_element(hex_=True),
             rev_obj.pack())
         logging.info("Issuing revocation for IF %d.", if_id)
         # Issue revocation to all ERs.
@@ -755,15 +755,16 @@ class BeaconServer(SCIONElement):
 
         self._remove_revoked_pcbs(rev_info, if_id)
         # Send revocations to local PS.
-        try:
-            ps_addr = self.dns_query_topo(PATH_SERVICE)[0]
-        except SCIONServiceLookupError:
-            # If there are no local path servers, stop here.
-            return
-        pkt = PathMgmtPacket.from_values(PMT.REVOCATION, rev_info, None,
-                                         self.addr, self.addr.get_isd_ad())
-        logging.info("Sending  revocations to local PS.")
-        self.send(pkt, ps_addr)
+        if self.topology.path_servers:
+            try:
+                ps_addr = self.dns_query_topo(PATH_SERVICE)[0]
+            except SCIONServiceLookupError:
+                # If there are no local path servers, stop here.
+                return
+            pkt = PathMgmtPacket.from_values(PMT.REVOCATION, rev_info, None,
+                                             self.addr, self.addr.get_isd_ad())
+            logging.info("Sending  revocations to local PS.")
+            self.send(pkt, ps_addr)
 
     def _remove_revoked_pcbs(self, rev_info, if_id):
         """
@@ -848,7 +849,7 @@ class BeaconServer(SCIONElement):
             state_pkt = PathMgmtPacket.from_values(PMT.IFSTATE_INFO, payload,
                                                    None, self.addr, isd_ad)
             for er in self.topology.get_all_edge_routers():
-                if er.interface.addr == mgmt_pkt.src_addr.host_addr:
+                if er.interface.addr == mgmt_pkt.hdr.src_addr.host_addr:
                     self.send(state_pkt, er.interface.addr,
                               er.interface.udp_port)
                     break

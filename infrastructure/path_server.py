@@ -150,13 +150,13 @@ class PathServer(SCIONElement):
         :param rev_info: The revocation info
         :type rev_info: RevocationInfo
         """
-        segments = self.iftoken2seg[rev_info.rev_token1]
+        segments = self.iftoken2seg[rev_info.rev_token]
         while segments:
             sid = segments.pop()
             # Delete segment from DB.
             self.down_segments.delete(sid)
             self.core_segments.delete(sid)
-        del self.iftoken2seg[rev_info.rev_token1]
+        del self.iftoken2seg[rev_info.rev_token]
 
     def send_path_segments(self, path_request, paths):
         """
@@ -596,14 +596,14 @@ class LocalPathServer(PathServer):
         :param rev_info: The revocation info
         :type rev_info: RevocationInfo
         """
-        segments = self.iftoken2seg[rev_info.rev_token1]
+        segments = self.iftoken2seg[rev_info.rev_token]
         while segments:
             sid = segments.pop()
             # Delete segment from DB.
             self.up_segments.delete(sid)
             self.down_segments.delete(sid)
             self.core_segments.delete(sid)
-        del self.iftoken2seg[rev_info.rev_token1]
+        del self.iftoken2seg[rev_info.rev_token]
 
     def _request_paths_from_core(self, ptype, dst_isd, dst_ad,
                                  src_isd=None, src_ad=None):
