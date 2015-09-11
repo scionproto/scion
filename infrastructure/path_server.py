@@ -106,19 +106,37 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                                             self._cached_entries_handler,
                                             self.config.propagation_time)
 
-    @abstractmethod
     def worker(self):
         """
         Worker thread that takes care of reading shared paths from ZK, and
         handling master election for core servers.
         """
-        raise NotImplementedError
+        worker_cycle = 1.0
+        start = SCIONTime.get_time()
+        while True:
+            sleep_interval(start, worker_cycle, "cPS.worker cycle")
+            start = SCIONTime.get_time()
+            try:
+                self.zk.wait_connected()
+                self.path_cache.process()
+                # Try to become a master.
+                is_master = self.zk.get_lock(lock_timeout=0, conn_timeout=0)
+                if is_master:
+                    self.path_cache.expire(self.config.propagation_time * 10)
+            except ZkNoConnection:
+                logging.warning('worker(): ZkNoConnection')
+                pass
+            self._update_master()
 
     @abstractmethod
     def _cached_entries_handler(self, raw_entries):
         """
         Handles cached through ZK entries, passed as a list.
         """
+        raise NotImplementedError
+
+    @abstractmethod
+    def _update_master(self):
         raise NotImplementedError
 
     def _add_if_mappings(self, pcb):
@@ -427,29 +445,6 @@ class CorePathServer(PathServer):
         self.leases = self.LeasesDict()
         self.core_ads = set()  # Set of core ADs only from local ISD.
         self._master_id = None  # Address of master core Path Server.
-
-    def worker(self):
-        """
-        Worker thread that takes care of reading shared paths from ZK, and
-        handling master election.
-        """
-        worker_cycle = 1.0
-        start = SCIONTime.get_time()
-        while True:
-            sleep_interval(start, worker_cycle, "cPS.worker cycle")
-            start = SCIONTime.get_time()
-            try:
-                self.zk.wait_connected()
-                self.path_cache.process()
-                # Try to become a master.
-                is_master = self.zk.get_lock(lock_timeout=0, conn_timeout=0)
-                if is_master:
-                    # TODO(PSz): clean old zk entries
-                    pass
-            except ZkNoConnection:
-                logging.warning('worker(): ZkNoConnection')
-                pass
-            self._update_master()
 
     def _cached_entries_handler(self, raw_entries):
         for entry in raw_entries:
@@ -978,26 +973,12 @@ class LocalPathServer(PathServer):
         self.up_segments = PathSegmentDB()
         self.pending_up = []  # List of pending UP requests.
 
-    def worker(self):
-        """
-        Worker thread that takes care of reading shared paths from ZK.
-        """
-        # PSz: in local PS we may also need master election, as someone needs to
-        # clean ZK's cache periodically.
-        worker_cycle = 1.0
-        start = SCIONTime.get_time()
-        while True:
-            sleep_interval(start, worker_cycle, "PS.worker cycle")
-            start = SCIONTime.get_time()
-            # Read cached entries.
-            try:
-                self.path_cache.process()
-            except ZkNoConnection:
-                logging.warning('worker(): ZkNoConnection')
-
     def _cached_entries_handler(self, raw_entries):
         for entry in raw_entries:
             self._handle_up_segment_record(PathMgmtPacket(raw=entry), True)
+
+    def _update_master(self):
+        pass
 
     def _send_leases(self, orig_pkt, leases):
         """
