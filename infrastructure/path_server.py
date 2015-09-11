@@ -34,6 +34,7 @@ from infrastructure.scion_elem import SCIONElement
 from lib.crypto.hash_chain import HashChain
 from lib.defines import PATH_SERVICE, SCION_UDP_PORT
 from lib.log import init_logging, log_exception
+from lib.packet.host_addr import HostAddrIPv4
 from lib.packet.path import UP_IOF
 from lib.packet.path_mgmt import (
     LeaseInfo,
@@ -47,7 +48,7 @@ from lib.packet.path_mgmt import (
     RevocationPayload,
     RevocationType as RT,
 )
-from lib.packet.scion_addr import ISD_AD
+from lib.packet.scion_addr import ISD_AD, SCIONAddr
 from lib.path_db import DBResult, PathSegmentDB
 from lib.thread import thread_safety_net
 from lib.util import (
@@ -476,14 +477,36 @@ class CorePathServer(PathServer):
         """
         Feed newly-elected master with paths.
         """
-        # TODO(PSz): send all local down- and (?) core-paths to the new master,
-        # consider some easy mechanisms for avoiding registration storm.
-        # check whether master exists
-        if not self._master_id or self._is_master():
+        # TODO(PSz): consider mechanism for avoiding a registration storm.
+        master = self._master_id
+        if not master or self._is_master():
             logging.warning('Sync abandoned: master not set or I am a master')
             return
-        logging.debug("TODO: Syncing with %s", self._master_id)
-        pass
+        seen_ads = set()
+        # Get core-segments from remote ISDs.
+        # FIXME(PSz): quite ugly for now.
+        core_paths = [r['record'].pcb for r in self.core_segments._db
+                      if r['first_isd'] != self.topology.isd_id]
+        # Get down-segments from local ISD.
+        down_paths = self.down_segments(last_isd=self.topology.isd_id)
+        logging.debug("Syncing with %s" % master)
+        for ptype, paths in [(PST.CORE, core_paths), (PST.DOWN, down_paths)]:
+            for pcb in paths:
+                tmp = (pcb.get_first_pcbm().isd_id, pcb.get_first_pcbm().ad_id,
+                       pcb.get_last_pcbm().isd_id, pcb.get_last_pcbm().ad_id)
+                # Send only one path for given (src, dst) pair.
+                if tmp in seen_ads:
+                    continue
+                seen_ads.add(tmp)
+                info = PathSegmentInfo.from_values(ptype, *tmp)
+                records = PathSegmentRecords.from_values(info, [pcb])
+                dst = SCIONAddr.from_values(self.topology.isd_id,
+                                            self.topology.ad_id,
+                                            HostAddrIPv4(master))
+                pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, None,
+                                                 self.addr.get_isd_ad(), dst)
+                self.send(pkt, dst.host_addr)
+                logging.debug('Master updated with path (%d) %s' % (ptype, tmp))
 
     def _is_master(self):
         """
@@ -536,6 +559,7 @@ class CorePathServer(PathServer):
             pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, None,
                                              self.addr, ISD_AD(0, 0))
             # Send paths to local master.
+            # TODO(PSz): don't send path received from master
             if self._master_id and not self._is_master():
                 self._send_to_master(pkt)
             # Now propagate paths to other core ADs (in the ISD).
@@ -574,6 +598,10 @@ class CorePathServer(PathServer):
                 logging.info("Core-Path registered: (%d, %d) -> (%d, %d), "
                              "from_zk: %s", src_isd, src_ad, dst_isd, dst_ad,
                              from_zk)
+            else:
+                logging.info("Core-Path already known: (%d, %d) -> (%d, %d), "
+                             "from_zk: %s", src_isd, src_ad, dst_isd, dst_ad,
+                             from_zk)
             if dst_isd == self.topology.isd_id:
                 self.core_ads.add((dst_isd, dst_ad))
             else:
@@ -583,6 +611,7 @@ class CorePathServer(PathServer):
             if pcb_from_local_isd:
                 self._share_segments(pkt)
             # Send segments to master.
+            # TODO(PSz): don't send path received from master
             elif self._master_id and not self._is_master():
                 self._send_to_master(pkt)
         # Send pending requests that couldn't be processed due to the lack of
@@ -638,7 +667,6 @@ class CorePathServer(PathServer):
         """
         Query master for a path.
         """
-        # TODO(PSz): don't send path back to master.
         if src_isd is None:
             src_isd = self.topology.isd_id
         if src_ad is None:
@@ -649,8 +677,8 @@ class CorePathServer(PathServer):
         path_request = PathMgmtPacket.from_values(PMT.REQUEST, info,
                                                   None, self.addr,
                                                   ISD_AD(src_isd, src_ad))
-        logging.debug("Asking master for path: (%d, %d) -> (%d, %d)" %
-                      (src_isd, src_ad, dst_isd, dst_ad))
+        logging.debug("Asking master for path (%d): (%d, %d) -> (%d, %d)" %
+                      (ptype, src_isd, src_ad, dst_isd, dst_ad))
         self._send_to_master(path_request)
 
     def _propagate_to_core_ads(self, pkt, inter_isd=False):
