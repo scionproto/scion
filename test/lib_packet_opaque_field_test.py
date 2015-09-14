@@ -426,14 +426,17 @@ class TestOpaqueFieldListGetByIdx(object):
             (0, "up0"),
             (2, "up2"),
             (3, "core0"),
-            (4, None),
         ):
             yield self._check, idx, expected
 
-    def test_negative(self):
+    def _check_bounds(self, index):
         inst = _of_list_setup()
         # Call
-        ntools.assert_raises(SCIONIndexError, inst.get_by_idx, -1)
+        ntools.assert_raises(SCIONIndexError, inst.get_by_idx, index)
+
+    def test_bounds(self):
+        for i in (-1, 4):
+            yield self._check_bounds, i
 
 
 class TestOpaqueFieldListGetByLabel(object):

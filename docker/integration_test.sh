@@ -46,15 +46,13 @@ else
     shutdown
 fi
 
-log "Bandwidth starting:"
-( cd test/integration; PYTHONPATH=../../ python3 bandwidth_test.py; )
+log "C2S_extn starting:"
+( cd test/integration; PYTHONPATH=../../ python3 cli_srv_ext_test.py; )
 result=$?
 if [ $result -eq 0 ]; then
-    log "Bandwidth: success"
+    log "C2S_extn: success"
 else
-    # As this test is very flaky on circleci, don't treat failure as an error.
-    result=0
-    log "Bandwidth: failure"
+    log "C2S_extn: failure"
 fi
 
 shutdown

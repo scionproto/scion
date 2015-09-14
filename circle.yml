@@ -22,4 +22,5 @@ test:
     post:
         - cp -a htmlcov "$CIRCLE_ARTIFACTS"/coverage
         - cp -a sphinx-doc/_build/html "$CIRCLE_ARTIFACTS"/docs
+        - cp -a logs "$CIRCLE_ARTIFACTS"/logs
         - LOGS="logs.pr${CIRCLE_PR_NUMBER}.build${CIRCLE_BUILD_NUM}"; mv logs/ "$LOGS"; tar czf "${CIRCLE_ARTIFACTS}/$LOGS.tar.gz" "$LOGS"

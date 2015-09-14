@@ -185,9 +185,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
     def __init__(self, server_id, topo_file, config_file, path_policy_file,
                  is_sim=False):
-        SCIONElement.__init__(self, BEACON_SERVICE, topo_file,
-                              server_id=server_id, config_file=config_file,
-                              is_sim=is_sim)
+        super().__init__(BEACON_SERVICE, topo_file, server_id=server_id,
+                         config_file=config_file, is_sim=is_sim)
         """
         Initialize an instance of the class BeaconServer.
 
@@ -448,7 +447,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         #  threading.Thread(
         #    target=thread_safety_net, args=(self._handle_if_timeouts,),
         #    name="BS._handle_if_timeouts", daemon=True).start()
-        SCIONElement.run(self)
+        super().run()
 
     def worker(self):
         """
@@ -1097,12 +1096,10 @@ class LocalBeaconServer(BeaconServer):
             PST.UP, self.topology.isd_id, self.topology.isd_id,
             pcb.get_first_pcbm().ad_id, self.topology.ad_id)
         ps_addr = self.dns_query_topo(PATH_SERVICE)[0]
-        dst = SCIONAddr.from_values(
-            self.topology.isd_id, self.topology.ad_id, ps_addr)
         records = PathSegmentRecords.from_values(info, [pcb])
         pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, None,
-                                         self.addr.get_isd_ad(), dst)
-        self.send(pkt, dst.host_addr)
+                                         self.addr, self.addr.get_isd_ad())
+        self.send(pkt, ps_addr)
 
     def register_down_segment(self, pcb):
         """
@@ -1116,8 +1113,7 @@ class LocalBeaconServer(BeaconServer):
         dst_isd_ad = ISD_AD(pcb.get_isd(), pcb.get_first_pcbm().ad_id)
         pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, core_path,
                                          self.addr, dst_isd_ad)
-        if_id = core_path.get_first_hof().ingress_if
-        next_hop = self.ifid2addr[if_id]
+        next_hop = self.ifid2addr[core_path.get_fwd_if()]
         self.send(pkt, next_hop)
 
     def register_segments(self):

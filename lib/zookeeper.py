@@ -229,7 +229,9 @@ class Zookeeper(object):
                       hex(self.kazoo.client_id[0]))
         try:
             self.ensure_path(self.prefix, abs=True)
-            for party in self._parties.values():
+            # Use a copy of the dictionary values, as the dictioary is changed
+            # by another thread.
+            for party in list(self._parties.values()):
                 party.autojoin()
         except ZkNoConnection:
             return
@@ -374,11 +376,16 @@ class Zookeeper(object):
                 logging.info("Successfully acquired ZK lock (epoch %d)",
                              self._lock_epoch)
                 self._lock.set()
-            else:
-                logging.debug("Failed to acquire ZK lock")
-        except (LockTimeout, ConnectionLoss, SessionExpiredError):
+        except (ConnectionLoss, SessionExpiredError):
             raise ZkNoConnection from None
-        return self.have_lock()
+        except LockTimeout:
+            pass
+        except (AttributeError, TypeError):
+            # Work-around for https://github.com/python-zk/kazoo/issues/288
+            pass
+        if self.have_lock():
+            return True
+        return False
 
     def release_lock(self):
         """
@@ -412,6 +419,26 @@ class Zookeeper(object):
         Wait until we hold the lock
         """
         self._lock.wait()
+
+    def get_lock_holder(self):
+        """
+        Return address of the lock holder, or None if master is not elected.
+
+        :raises:
+            ZkNoConnection: if there's no connection to ZK.
+        """
+        if self._zk_lock is None:
+            return None
+        try:
+            contenders = self._zk_lock.contenders()
+            if not contenders:
+                logging.warning('No lock contenders found')
+                return None
+            _, _, server_addr = contenders[0].split("\x00")
+            return server_addr
+        except (ConnectionLoss, SessionExpiredError):
+            logging.warning("Disconnected from ZK.")
+            raise ZkNoConnection from None
 
     def retry(self, desc, f, *args, _retries=4, _timeout=10.0, **kwargs):
         """
