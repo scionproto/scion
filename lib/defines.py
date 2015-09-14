@@ -39,13 +39,13 @@ SCION_UDP_EH_DATA_PORT = 30041
 SCION_DNS_PORT = 30053
 
 #: (Pseudo)supported layer-4 protocols, see /etc/protocols for details
-L4_PROTO = [
-    1,  # ICMP
-    6,  # TCP
-    17,  # UDP
-]
+L4_ICMP = 1
+L4_TCP = 6
+L4_UDP = 17
+L4_RESERVED = 255
+L4_PROTOS = [L4_ICMP, L4_TCP, L4_UDP, L4_RESERVED]
 #: Default layer-4 protocol.
-DEFAULT_L4_PROTO = 17
+L4_DEFAULT = L4_RESERVED
 
 BEACON_SERVICE = "bs"
 CERTIFICATE_SERVICE = "cs"
@@ -63,3 +63,12 @@ SERVICE_TYPES = (
 
 #: How often IFID packet is sent to neighboring router.
 IFID_PKT_TOUT = 1
+
+#: Null address type
+ADDR_NONE_TYPE = 0
+#: IPv4 address type
+ADDR_IPV4_TYPE = 1
+#: IPv6 address type
+ADDR_IPV6_TYPE = 2
+#: SCION Service address type
+ADDR_SVC_TYPE = 3

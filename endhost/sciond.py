@@ -18,13 +18,12 @@ from lib.crypto.hash_chain import HashChain
 """
 # Stdlib
 import logging
-import socket
 import struct
 import threading
 
 # SCION
 from infrastructure.scion_elem import SCIONElement
-from lib.defines import PATH_SERVICE
+from lib.defines import ADDR_IPV4_TYPE, PATH_SERVICE
 from lib.errors import SCIONBaseError, SCIONServiceLookupError
 from lib.packet.path import PathCombinator
 from lib.packet.path_mgmt import (
@@ -35,6 +34,7 @@ from lib.packet.path_mgmt import (
     RevocationInfo,)
 from lib.packet.scion_addr import ISD_AD
 from lib.path_db import PathSegmentDB
+from lib.socket import UDPSocket
 from lib.thread import thread_safety_net
 from lib.util import update_dict
 
@@ -73,8 +73,8 @@ class SCIONDaemon(SCIONElement):
     :type _waiting_targets:
     :ivar _api_socket:
     :type _api_socket:
-    :ivar _sockets:
-    :type _sockets:
+    :ivar _socks:
+    :type _socks:
     """
     TIMEOUT = 5
 
@@ -104,12 +104,10 @@ class SCIONDaemon(SCIONElement):
         self._api_socket = None
         self.daemon_thread = None
         if run_local_api:
-            self._api_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            self._api_socket.setsockopt(socket.SOL_SOCKET,
-                                        socket.SO_REUSEADDR, 1)
-            self._api_socket.bind((SCIOND_API_HOST, SCIOND_API_PORT))
-            self._sockets.append(self._api_socket)
-            logging.info("Local API %s:%u", SCIOND_API_HOST, SCIOND_API_PORT)
+            self._api_sock = UDPSocket(
+                bind=(SCIOND_API_HOST, SCIOND_API_PORT, "sciond local API"),
+                addr_type=ADDR_IPV4_TYPE)
+            self._socks.add(self._api_sock)
 
     @classmethod
     def start(cls, addr, topo_file, run_local_api=False):
@@ -173,7 +171,7 @@ class SCIONDaemon(SCIONElement):
         try:
             dst = self.dns_query_topo(PATH_SERVICE)[0]
         except SCIONServiceLookupError as e:
-            raise SCIONDaemonPathLookupError(e)
+            raise SCIONDaemonPathLookupError(e) from None
         # Create an event that we can wait on for the path reply.
         event = threading.Event()
         update_dict(self._waiting_targets[ptype], (dst_isd, dst_ad), [event])
@@ -191,12 +189,12 @@ class SCIONDaemon(SCIONElement):
             # Check that we got all the requested paths.
             if ((ptype == PST.UP and len(self.up_segments)) or
                 (ptype == PST.DOWN and
-                 self.down_segments(dst_isd=dst_isd, dst_ad=dst_ad)) or
+                 self.down_segments(last_isd=dst_isd, last_ad=dst_ad)) or
                 (ptype == PST.CORE and
-                 self.core_segments(src_isd=src_isd, src_ad=src_ad,
-                                    dst_isd=dst_isd, dst_ad=dst_ad)) or
+                 self.core_segments(last_isd=src_isd, last_ad=src_ad,
+                                    first_isd=dst_isd, first_ad=dst_ad)) or
                 (ptype == PST.UP_DOWN and (len(self.up_segments) and
-                 self.down_segments(dst_isd=dst_isd, dst_ad=dst_ad)))):
+                 self.down_segments(last_isd=dst_isd, last_ad=dst_ad)))):
                 self._waiting_targets[ptype][(dst_isd, dst_ad)].remove(event)
                 del self._waiting_targets[ptype][(dst_isd, dst_ad)]
                 break
@@ -219,12 +217,12 @@ class SCIONDaemon(SCIONElement):
             SCIONDaemonPathLookupError: if paths lookup fail
         """
         full_paths = []
-        down_segments = self.down_segments(dst_isd=dst_isd, dst_ad=dst_ad)
+        down_segments = self.down_segments(last_isd=dst_isd, last_ad=dst_ad)
         # Fetch down-paths if necessary.
         if not down_segments:
             self._request_paths(PST.UP_DOWN, dst_isd, dst_ad,
                                 requester=requester)
-            down_segments = self.down_segments(dst_isd=dst_isd, dst_ad=dst_ad)
+            down_segments = self.down_segments(last_isd=dst_isd, last_ad=dst_ad)
         if len(self.up_segments) and down_segments:
             full_paths = PathCombinator.build_shortcut_paths(self.up_segments(),
                                                              down_segments)
@@ -239,19 +237,19 @@ class SCIONDaemon(SCIONElement):
                 src_isd = self.topology.isd_id
                 src_core_ad = self.up_segments()[0].get_first_pcbm().ad_id
                 dst_core_ad = down_segments[0].get_first_pcbm().ad_id
-                core_segments = self.core_segments(src_isd=src_isd,
-                                                   src_ad=src_core_ad,
-                                                   dst_isd=dst_isd,
-                                                   dst_ad=dst_core_ad)
+                core_segments = self.core_segments(last_isd=src_isd,
+                                                   last_ad=src_core_ad,
+                                                   first_isd=dst_isd,
+                                                   first_ad=dst_core_ad)
                 if ((src_isd, src_core_ad) != (dst_isd, dst_core_ad) and
                         not core_segments):
                     self._request_paths(PST.CORE, dst_isd, dst_core_ad,
                                         src_ad=src_core_ad,
                                         requester=requester)
-                    core_segments = self.core_segments(src_isd=src_isd,
-                                                       src_ad=src_core_ad,
-                                                       dst_isd=dst_isd,
-                                                       dst_ad=dst_core_ad)
+                    core_segments = self.core_segments(last_isd=src_isd,
+                                                       last_ad=src_core_ad,
+                                                       first_isd=dst_isd,
+                                                       first_ad=dst_core_ad)
                 full_paths = PathCombinator.build_core_paths(
                     self.up_segments()[0],
                     down_segments[0],
@@ -279,14 +277,14 @@ class SCIONDaemon(SCIONElement):
                              info.dst_ad)
             elif ((self.topology.isd_id == isd and self.topology.ad_id == ad)
                     and info.type in [PST.UP, PST.UP_DOWN]):
-                self.up_segments.update(pcb, isd, ad, pcb.get_isd(),
-                                        pcb.get_first_pcbm().ad_id)
+                self.up_segments.update(pcb, pcb.get_isd(),
+                                        pcb.get_first_pcbm().ad_id, isd, ad)
                 logging.info("Up path (%d, %d)->(%d, %d) added.",
                              info.src_isd, info.src_ad, info.dst_isd,
                              info.dst_ad)
             elif info.type == PST.CORE:
-                self.core_segments.update(pcb, info.src_isd, info.src_ad,
-                                          info.dst_isd, info.dst_ad)
+                self.core_segments.update(pcb, info.dst_isd, info.dst_ad,
+                                          info.src_isd, info.src_ad)
                 logging.info("Core path (%d, %d)->(%d, %d) added.",
                              info.src_isd, info.src_ad, info.dst_isd,
                              info.dst_ad)
@@ -333,13 +331,10 @@ class SCIONDaemon(SCIONElement):
         for path in paths:
             raw_path = path.pack()
             # assumed IPv4 addr
-            if path.get_first_info_of().up_flag:
-                haddr = self.ifid2addr[path.get_first_hop_of().ingress_if]
-            else:
-                haddr = self.ifid2addr[path.get_first_hop_of().egress_if]
+            haddr = self.ifid2addr[path.get_fwd_if()]
             path_len = len(raw_path) // 8  # Check whether 8 divides path_len?
             reply.append(struct.pack("B", path_len) + raw_path + haddr.pack())
-        self._api_socket.sendto(b"".join(reply), sender)
+        self._api_sock.send(b"".join(reply), sender)
 
     def api_handle_request(self, packet, sender):
         """
@@ -419,9 +414,9 @@ class SCIONDaemon(SCIONElement):
         if from_local_socket:  # From PS or CS.
             pkt = PathMgmtPacket(packet)
             if pkt.type == PMT.RECORDS:
-                self.handle_path_reply(pkt.payload)
+                self.handle_path_reply(pkt.get_payload())
             elif pkt.type == PMT.REVOCATION:
-                self.handle_revocation(pkt.payload)
+                self.handle_revocation(pkt.get_payload())
             else:
                 logging.warning("Type %d not supported.", pkt.type)
         else:  # From localhost (SCIONDaemon API)

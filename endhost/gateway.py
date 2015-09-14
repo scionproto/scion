@@ -17,7 +17,6 @@
 """
 # Stdlib
 import logging
-import socket
 import struct
 import sys
 import threading
@@ -29,10 +28,11 @@ from pytun import TunTapDevice, IFF_TUN, IFF_NO_PI
 
 # SCION
 from endhost.sciond import SCIONDaemon
-from lib.defines import SCION_UDP_EH_DATA_PORT, SCION_BUFLEN
+from lib.defines import ADDR_IPV4_TYPE, SCION_UDP_EH_DATA_PORT
 from lib.log import init_logging
 from lib.packet.scion import SCIONPacket
 from lib.packet.scion_addr import SCIONAddr
+from lib.socket import UDPSocket
 from lib.thread import thread_safety_net
 
 
@@ -69,8 +69,8 @@ class SCIONGateway(object):
         :rtype: :class:`SCIONGateway`
         """
         self.sd = SCIONDaemon.start(addr, topo_file)
-        self._data_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self._data_socket.bind((str(addr), SCION_UDP_EH_DATA_PORT))
+        self._data_sock = UDPSocket(
+            bind=(str(addr), SCION_UDP_EH_DATA_PORT), addr_type=ADDR_IPV4_TYPE)
         self.scion_hosts = scion_hosts
         self._tun_dev = TunTapDevice(flags=IFF_TUN | IFF_NO_PI)
         self._tun_dev.up()
@@ -85,7 +85,7 @@ class SCIONGateway(object):
             name="SCIONGateway.handle_ip_packets",
             daemon=True).start()
         while True:
-            packet, _ = self._data_socket.recvfrom(SCION_BUFLEN)
+            packet, _ = self._data_sock.recv()
             self.handle_scion_packet(SCIONPacket(packet))
 
     def handle_ip_packets(self):
@@ -125,7 +125,7 @@ class SCIONGateway(object):
         :type spkt: :class:`lib.packet.scion.SCIONPacket`
         """
         logging.info("Writing to device")
-        self._tun_dev.write(spkt.payload)
+        self._tun_dev.write(spkt.get_payload())
 
     def init_routing(self):
         """

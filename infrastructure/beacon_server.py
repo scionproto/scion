@@ -26,6 +26,7 @@ import struct
 import sys
 import threading
 from _collections import defaultdict, deque
+from abc import ABCMeta, abstractmethod
 
 # External packages
 from Crypto.Hash import SHA256
@@ -91,7 +92,7 @@ from lib.util import (
     write_file,
     SCIONTime,
 )
-from lib.zookeeper import ZkConnectionLoss, Zookeeper
+from lib.zookeeper import ZkNoConnection, ZkSharedCache, Zookeeper
 
 
 class InterfaceState(object):
@@ -212,7 +213,7 @@ class RevocationObject(object):
         return rev_obj
 
 
-class BeaconServer(SCIONElement):
+class BeaconServer(SCIONElement, metaclass=ABCMeta):
     """
     The SCION PathConstructionBeacon Server.
 
@@ -230,14 +231,15 @@ class BeaconServer(SCIONElement):
     ZK_PCB_CACHE_PATH = "pcb_cache"
     # ZK path for revocations.
     ZK_REVOCATIONS_PATH = "rev_cache"
+    # Time revocation objects are cached in memory (in seconds).
+    ZK_REV_OBJ_MAX_AGE = 60 * 60
     # Interval to checked for timed out interfaces.
     IF_TIMEOUT_INTERVAL = 1
 
     def __init__(self, server_id, topo_file, config_file, path_policy_file,
                  is_sim=False):
-        SCIONElement.__init__(self, BEACON_SERVICE, topo_file,
-                              server_id=server_id, config_file=config_file,
-                              is_sim=is_sim)
+        super().__init__(BEACON_SERVICE, topo_file, server_id=server_id,
+                         config_file=config_file, is_sim=is_sim)
         """
         Initialize an instance of the class BeaconServer.
 
@@ -274,19 +276,16 @@ class BeaconServer(SCIONElement):
             # Add more IPs here if we support dual-stack
             name_addrs = "\0".join([self.id, str(SCION_UDP_PORT),
                                     str(self.addr.host_addr)])
-            # Set when we have connected and read the existing recent and
-            # incoming PCBs
-            self._state_synced = threading.Event()
             self.zk = Zookeeper(
                 self.topology.isd_id, self.topology.ad_id, BEACON_SERVICE,
-                name_addrs, self.topology.zookeepers,
-                handle_paths=[(self.ZK_PCB_CACHE_PATH,
-                               self.process_pcbs,
-                               self._state_synced),
-                              (self.ZK_REVOCATIONS_PATH,
-                               self.process_revocation_objects,
-                               self._state_synced)])
+                name_addrs, self.topology.zookeepers)
             self.zk.retry("Joining party", self.zk.party_setup)
+            self.pcb_cache = ZkSharedCache(
+                self.zk, self.ZK_PCB_CACHE_PATH, self.process_pcbs,
+                self.config.propagation_time)
+            self.revobjs_cache = ZkSharedCache(
+                self.zk, self.ZK_REVOCATIONS_PATH, self.process_rev_objects,
+                self.ZK_REV_OBJ_MAX_AGE)
 
     def _init_hash_chain(self, if_id):
         """
@@ -358,11 +357,12 @@ class BeaconServer(SCIONElement):
             self.send(beacon, router_child.addr)
             logging.info("Downstream PCB propagated!")
 
+    @abstractmethod
     def handle_pcbs_propagation(self):
         """
         Main loop to propagate received beacons.
         """
-        pass
+        raise NotImplementedError
 
     def store_pcb(self, beacon):
         """
@@ -376,25 +376,24 @@ class BeaconServer(SCIONElement):
             return
         hops_hash = beacon.pcb.get_hops_hash(hex=True)
         try:
-            self.zk.store_shared_item(
-                self.ZK_PCB_CACHE_PATH,
-                hops_hash, beacon.pcb.pack())
-        except ZkConnectionLoss:
-            logging.debug("Unable to store PCB in shared path: "
+            self.pcb_cache.store(hops_hash, beacon.pcb.pack())
+        except ZkNoConnection:
+            logging.debug("Unable to store PCB in shared cache: "
                           "no connection to ZK")
-            return
 
+    @abstractmethod
     def process_pcbs(self, pcbs):
         """
         Processes new beacons and appends them to beacon list.
         """
-        pass
+        raise NotImplementedError
 
+    @abstractmethod
     def register_segments(self):
         """
         Registers paths according to the received beacons.
         """
-        pass
+        raise NotImplementedError
 
     def _create_ad_marking(self, ingress_if, egress_if, ts, prev_hof=None):
         """
@@ -516,17 +515,41 @@ class BeaconServer(SCIONElement):
         Run an instance of the Beacon Server.
         """
         threading.Thread(
-            target=thread_safety_net, args=(self.handle_pcbs_propagation,),
-            name="BS.handle_pcbs_propagation", daemon=True).start()
-        threading.Thread(
-            target=thread_safety_net, args=(self.register_segments,),
-            name="BS.register_segments", daemon=True).start()
-        threading.Thread(
-          target=thread_safety_net, args=(self._handle_if_timeouts,),
-          name="BS._handle_if_timeouts", daemon=True).start()
-        # Run shared paths handling.
-        self.zk.run_shared_cache_handling()
-        SCIONElement.run(self)
+            target=thread_safety_net, args=(self.worker,),
+            name="BS.worker", daemon=True).start()
+        # https://github.com/netsec-ethz/scion/issues/308:
+        #  threading.Thread(
+        #    target=thread_safety_net, args=(self._handle_if_timeouts,),
+        #    name="BS._handle_if_timeouts", daemon=True).start()
+        super().run()
+
+    def worker(self):
+        """
+        Worker thread that takes care of reading shared PCBs from ZK, and
+        propagating PCBS/registering paths when master.
+        """
+        last_propagation = last_registration = 0
+        worker_cycle = 1.0
+        start = SCIONTime.get_time()
+        while True:
+            sleep_interval(start, worker_cycle, "BS.worker cycle")
+            start = SCIONTime.get_time()
+            try:
+                self.zk.wait_connected()
+                self.pcb_cache.process()
+                if not self.zk.get_lock(lock_timeout=0, conn_timeout=0):
+                    continue
+                self.pcb_cache.expire(self.config.propagation_time * 10)
+            except ZkNoConnection:
+                continue
+            now = SCIONTime.get_time()
+            if now - last_propagation >= self.config.propagation_time:
+                self.handle_pcbs_propagation()
+                last_propagation = now
+            if (self.config.registers_paths and
+                    now - last_registration >= self.config.registration_time):
+                self.register_segments()
+                last_registration = now
 
     def _try_to_verify_beacon(self, pcb):
         """
@@ -548,6 +571,7 @@ class BeaconServer(SCIONElement):
             logging.warning("Certificate(s) or TRC missing.")
             self.unverified_beacons.append(pcb)
 
+    @abstractmethod
     def _check_certs_trc(self, isd_id, ad_id, cert_ver, trc_ver, if_id):
         """
         Return True or False whether the necessary Certificate and TRC files are
@@ -564,7 +588,7 @@ class BeaconServer(SCIONElement):
         :param if_id: interface identifier.
         :type if_id: int
         """
-        pass
+        raise NotImplementedError
 
     def _get_trc(self, isd_id, trc_ver, if_id):
         """
@@ -657,6 +681,7 @@ class BeaconServer(SCIONElement):
         pcb.ads[-1].sig_len = len(signature)
         pcb.if_id = tmp_if_id
 
+    @abstractmethod
     def _handle_verified_beacon(self, pcb):
         """
         Once a beacon has been verified, place it into the right containers.
@@ -664,13 +689,14 @@ class BeaconServer(SCIONElement):
         :param pcb: verified path segment.
         :type pcb: PathSegment
         """
-        pass
+        raise NotImplementedError
 
+    @abstractmethod
     def process_cert_chain_rep(self, cert_chain_rep):
         """
         Process the Certificate chain reply.
         """
-        pass
+        raise NotImplementedError
 
     def process_trc_rep(self, trc_rep):
         """
@@ -698,7 +724,7 @@ class BeaconServer(SCIONElement):
             pcb = self.unverified_beacons.popleft()
             self._try_to_verify_beacon(pcb)
 
-    def process_revocation_objects(self, rev_objs):
+    def process_rev_objects(self, rev_objs):
         """
         Processes revocation objects stored in Zookeeper.
         """
@@ -721,10 +747,8 @@ class BeaconServer(SCIONElement):
             chain.current_index(),
             chain.current_element(),
             chain.next_element())
-        self.zk.store_shared_item(
-            self.ZK_REVOCATIONS_PATH,
-            chain.current_element(hex_=True),
-            rev_obj.pack())
+        self.revobjs_cache.store(chain.current_element(hex_=True),
+                                 rev_obj.pack())
         logging.info("Issuing revocation for IF %d.", if_id)
         # Issue revocation to all ERs.
         info = IFStateInfo.from_values(if_id, False,
@@ -775,7 +799,7 @@ class BeaconServer(SCIONElement):
         :param if_id: The if_id to be revoked
         :type if_id: int
         """
-        pass
+        raise NotImplementedError
 
     def _handle_if_timeouts(self):
         """
@@ -822,7 +846,7 @@ class BeaconServer(SCIONElement):
         :param mgmt_pkt: The packet containing the IFStateRequest.
         :type request: :class:`lib.packet.path_mgmt.PathMgmtPacket`
         """
-        request = mgmt_pkt.payload
+        request = mgmt_pkt.get_payload()
         assert isinstance(request, IFStateRequest)
         logging.debug("Received ifstate req:\n%s", str(mgmt_pkt))
         infos = []
@@ -903,6 +927,16 @@ class CoreBeaconServer(BeaconServer):
         ingress_if = pcb.if_id
         count = 0
         for core_router in self.topology.routing_edge_routers:
+            skip = False
+            for ad in pcb.ads:
+                if (ad.pcbm.isd_id == core_router.interface.neighbor_isd and
+                        ad.pcbm.ad_id == core_router.interface.neighbor_ad):
+                    # Don't propagate a Core PCB back to an AD we know has
+                    # already seen it.
+                    skip = True
+                    break
+            if skip:
+                continue
             new_pcb = copy.deepcopy(pcb)
             egress_if = core_router.interface.if_id
             last_pcbm = new_pcb.get_last_pcbm()
@@ -928,72 +962,32 @@ class CoreBeaconServer(BeaconServer):
         """
         Generate a new beacon or gets ready to forward the one received.
         """
-        master = False
-        while True:
-            # Wait until we have enough context to be a useful master
-            # candidate.
-            self._state_synced.wait()
-            if not master:
-                logging.debug("Trying to become master")
-            if not self.zk.get_lock():
-                if master:
-                    logging.debug("No longer master")
-                    master = False
-                continue
-            if not master:
-                logging.debug("Became master")
-                master = True
-            start_propagation = SCIONTime.get_time()
-            # Create beacon for downstream ADs.
-            downstream_pcb = PathSegment()
-            timestamp = int(SCIONTime.get_time())
-            downstream_pcb.iof = InfoOpaqueField.from_values(
-                OFT.CORE, False, timestamp, self.topology.isd_id)
-            self.propagate_downstream_pcb(downstream_pcb)
-            # Create beacon for core ADs.
-            core_pcb = PathSegment()
-            core_pcb.iof = InfoOpaqueField.from_values(
-                OFT.CORE, False, timestamp, self.topology.isd_id)
-            count = self.propagate_core_pcb(core_pcb)
-            # Propagate received beacons. A core beacon server can only receive
-            # beacons from other core beacon servers.
-            beacons = []
-            for ps in self.beacons.values():
-                beacons.extend(ps.get_best_segments())
-            for pcb in beacons:
-                count += self.propagate_core_pcb(pcb)
-            logging.info("Propagated %d Core PCBs", count)
-            try:
-                count = self.zk.expire_shared_items(
-                    self.ZK_PCB_CACHE_PATH,
-                    start_propagation - self.config.propagation_time * 10)
-            except ZkConnectionLoss:
-                continue
-            if count:
-                logging.debug("Expired %d old PCBs from shared cache", count)
-            sleep_interval(start_propagation, self.config.propagation_time,
-                           "PCB propagation")
+        # Create beacon for downstream ADs.
+        downstream_pcb = PathSegment()
+        timestamp = int(SCIONTime.get_time())
+        downstream_pcb.iof = InfoOpaqueField.from_values(
+            OFT.CORE, False, timestamp, self.topology.isd_id)
+        self.propagate_downstream_pcb(downstream_pcb)
+        # Create beacon for core ADs.
+        core_pcb = PathSegment()
+        core_pcb.iof = InfoOpaqueField.from_values(
+            OFT.CORE, False, timestamp, self.topology.isd_id)
+        core_count = self.propagate_core_pcb(core_pcb)
+        # Propagate received beacons. A core beacon server can only receive
+        # beacons from other core beacon servers.
+        beacons = []
+        for ps in self.beacons.values():
+            beacons.extend(ps.get_best_segments())
+        for pcb in beacons:
+            core_count += self.propagate_core_pcb(pcb)
+        if core_count:
+            logging.info("Propagated %d Core PCBs", core_count)
 
     def register_segments(self):
         """
 
         """
-        if not self.config.registers_paths:
-            logging.info("Path registration unwanted, leaving"
-                         "register_segments")
-            return
-        while True:
-            lock = self.zk.have_lock()
-            if not lock:
-                logging.debug("register_segments: waiting for lock")
-            self.zk.wait_lock()
-            if not lock:
-                logging.debug("register_segments: have lock")
-                lock = True
-            start_registration = SCIONTime.get_time()
-            self.register_core_segments()
-            sleep_interval(start_registration, self.config.registration_time,
-                           "Path registration")
+        self.register_core_segments()
 
     def register_core_segment(self, pcb):
         """
@@ -1061,6 +1055,9 @@ class CoreBeaconServer(BeaconServer):
         else:
             return False
 
+    def process_cert_chain_rep(self, cert_chain_rep):
+        raise NotImplementedError
+
     def _handle_verified_beacon(self, pcb):
         """
         Once a beacon has been verified, place it into the right containers.
@@ -1114,6 +1111,12 @@ class CoreBeaconServer(BeaconServer):
         # Remove the affected segments from the path stores.
         for ps in self.core_segments.values():
             ps.remove_segments(to_remove)
+
+    def _process_segment_revocation(self, rev_info):
+        raise NotImplementedError
+
+    def _process_hop_revocation(self, rev_info, if_ids):
+        raise NotImplementedError
 
 
 class LocalBeaconServer(BeaconServer):
@@ -1220,12 +1223,10 @@ class LocalBeaconServer(BeaconServer):
             PST.UP, self.topology.isd_id, self.topology.isd_id,
             pcb.get_first_pcbm().ad_id, self.topology.ad_id)
         ps_addr = self.dns_query_topo(PATH_SERVICE)[0]
-        dst = SCIONAddr.from_values(
-            self.topology.isd_id, self.topology.ad_id, ps_addr)
         records = PathSegmentRecords.from_values(info, [pcb])
         pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, None,
-                                         self.addr.get_isd_ad(), dst)
-        self.send(pkt, dst.host_addr)
+                                         self.addr, self.addr.get_isd_ad())
+        self.send(pkt, ps_addr)
 
     def register_down_segment(self, pcb):
         """
@@ -1239,31 +1240,15 @@ class LocalBeaconServer(BeaconServer):
         dst_isd_ad = ISD_AD(pcb.get_isd(), pcb.get_first_pcbm().ad_id)
         pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, core_path,
                                          self.addr, dst_isd_ad)
-        if_id = core_path.get_first_hop_of().ingress_if
-        next_hop = self.ifid2addr[if_id]
+        next_hop = self.ifid2addr[core_path.get_fwd_if()]
         self.send(pkt, next_hop)
 
     def register_segments(self):
         """
         Register paths according to the received beacons.
         """
-        if not self.config.registers_paths:
-            logging.info("Path registration unwanted, "
-                         "leaving register_segments")
-            return
-        while True:
-            lock = self.zk.have_lock()
-            if not lock:
-                logging.debug("register_segements: waiting for lock")
-            self.zk.wait_lock()
-            if not lock:
-                logging.debug("register_segments: have lock")
-                lock = True
-            start_registration = SCIONTime.get_time()
-            self.register_up_segments()
-            self.register_down_segments()
-            sleep_interval(start_registration, self.config.registration_time,
-                           "Path registration")
+        self.register_up_segments()
+        self.register_down_segments()
 
     def process_pcbs(self, pcbs):
         """
@@ -1345,6 +1330,12 @@ class LocalBeaconServer(BeaconServer):
         self.up_segments.remove_segments(to_remove)
         self.down_segments.remove_segments(to_remove)
 
+    def _process_segment_revocation(self, rev_info):
+        raise NotImplementedError
+
+    def _process_hop_revocation(self, rev_info, if_ids):
+        raise NotImplementedError
+
     def _handle_verified_beacon(self, pcb):
         """
         Once a beacon has been verified, place it into the right containers.
@@ -1358,35 +1349,9 @@ class LocalBeaconServer(BeaconServer):
         Main loop to propagate received beacons.
         """
         # TODO: define function that dispatches the pcbs among the interfaces
-        master = False
-        while True:
-            # Wait until we have enough context to be a useful master
-            # candidate.
-            self._state_synced.wait()
-            if not master:
-                logging.debug("Trying to become master")
-            if not self.zk.get_lock():
-                if master:
-                    logging.debug("No longer master")
-                    master = False
-                continue
-            if not master:
-                logging.debug("Became master")
-                master = True
-            start_propagation = SCIONTime.get_time()
-            best_segments = self.beacons.get_best_segments()
-            for pcb in best_segments:
-                self.propagate_downstream_pcb(pcb)
-            try:
-                count = self.zk.expire_shared_items(
-                    self.ZK_PCB_CACHE_PATH,
-                    start_propagation - self.config.propagation_time * 10)
-            except ZkConnectionLoss:
-                continue
-            if count:
-                logging.debug("Expired %d old PCBs from shared cache", count)
-            sleep_interval(start_propagation, self.config.propagation_time,
-                           "PCB propagation")
+        best_segments = self.beacons.get_best_segments()
+        for pcb in best_segments:
+            self.propagate_downstream_pcb(pcb)
 
     def register_up_segments(self):
         """

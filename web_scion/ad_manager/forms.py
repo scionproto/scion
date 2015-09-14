@@ -29,13 +29,22 @@ class ConnectionRequestForm(forms.ModelForm):
 
     class Meta:
         model = ConnectionRequest
-        fields = ['info', 'router_ip']
+        fields = ('info', 'router_bound_ip', 'router_bound_port',
+                  'router_public_ip', 'router_public_port')
+        labels = {'router_bound_ip': 'Router bound IP',
+                  'router_public_ip': 'Router external IP (leave blank if '
+                                      'it is the same as the bound IP)',
+                  'router_public_port': 'Router external port (leave blank if '
+                                        'default or if not used)'}
 
 
 class NewLinkForm(forms.Form):
     link_types = ['PARENT', 'CHILD', 'PEER', 'ROUTING']
 
-    end_point = forms.ModelChoiceField(queryset=AD.objects.none())
+    end_point = forms.ModelChoiceField(
+        queryset=AD.objects.none(),
+        widget=forms.TextInput(attrs={'placeholder': 'AD id, for example, 20'})
+    )
     link_type = forms.ChoiceField(choices=zip(link_types, link_types))
 
     def __init__(self, *args, **kwargs):

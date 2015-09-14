@@ -1,12 +1,17 @@
 # Stdlib
+import copy
+import json
 import os
 import tempfile
 import time
+from collections import deque
 from shutil import rmtree
 
 # External packages
+import dictdiffer
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
 from django.core.urlresolvers import reverse
 from django.db import transaction
 from django.http import (
@@ -21,32 +26,57 @@ from django.views.decorators.http import require_POST
 from django.views.generic import ListView, DetailView, FormView
 
 # SCION
-from ad_management.common import (
+from guardian.shortcuts import assign_perm
+from ad_management.common import PACKAGE_DIR_PATH
+from ad_management.packaging import prepare_package
+from ad_management.util import (
     get_failure_errors,
     get_success_data,
     is_success,
-    PACKAGE_DIR_PATH,
     response_failure,
 )
-from ad_management.packaging import prepare_package
 from ad_manager.forms import (
     ConnectionRequestForm,
     NewLinkForm,
     PackageVersionSelectForm,
 )
 from ad_manager.models import AD, ISD, PackageVersion, ConnectionRequest
-from ad_manager.util import monitoring_client
-from ad_manager.util.ad_connect import create_new_ad, link_ads
-from lib.defines import BEACON_SERVICE
-from lib.topology import Topology
+from ad_manager.util import management_client
+from ad_manager.util.ad_connect import (
+    create_new_ad_files,
+    find_last_router,
+    link_ads,
+)
+from ad_manager.util.errors import HttpResponseUnavailable
+from lib.defines import BEACON_SERVICE, DNS_SERVICE
+from lib.util import write_file
+from topology.generator import ConfigGenerator
 
 
 class ISDListView(ListView):
     model = ISD
+    paginate_by = 8
 
 
-class ISDDetailView(DetailView):
-    model = ISD
+class ISDDetailView(ListView):
+    model = AD
+    template_name = 'ad_manager/isd_detail.html'
+    paginate_by = 20
+
+    def __init__(self, **kwargs):
+        self.isd = None
+        super().__init__(**kwargs)
+
+    def get_queryset(self):
+        isd = get_object_or_404(ISD, id=int(self.kwargs['pk']))
+        self.isd = isd
+        queryset = isd.ad_set.all().order_by('id')
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['object'] = self.isd
+        return context
 
 
 class ADDetailView(DetailView):
@@ -82,12 +112,14 @@ class ADDetailView(DetailView):
         # Connection requests tab
         context['received_requests'] = ad.received_requests.all()
 
+        # Permissions
+        context['user_has_perm'] = self.request.user.has_perm('change_ad', ad)
         return context
 
 
 def get_ad_status(request, pk):
     """
-    Send a query to the corresponding monitoring daemon, asking for the status
+    Send a query to the corresponding management daemon, asking for the status
     of AD servers.
     """
     ad = get_object_or_404(AD, id=pk)
@@ -95,7 +127,8 @@ def get_ad_status(request, pk):
     if is_success(ad_info_list_response):
         return JsonResponse({'data': get_success_data(ad_info_list_response)})
     else:
-        return JsonResponse({})
+        error = get_failure_errors(ad_info_list_response)
+        return HttpResponseUnavailable(error)
 
 
 def get_group_master(request, pk):
@@ -104,75 +137,38 @@ def get_group_master(request, pk):
     """
     ad = get_object_or_404(AD, id=pk)
     server_type = request.GET.get('server_type', '')
-    if server_type != BEACON_SERVICE:
+    fetch_server_types = [BEACON_SERVICE, DNS_SERVICE]
+    if server_type not in fetch_server_types:
         return HttpResponseNotFound('Invalid server type')
 
-    md_host = ad.get_monitoring_daemon_host()
-    response = monitoring_client.get_master_id(md_host, ad.isd.id, ad.id,
+    response = management_client.get_master_id(ad.md_host, ad.isd.id, ad.id,
                                                server_type)
-
     if is_success(response):
         master_id = get_success_data(response)
-        return JsonResponse({'status': True,
-                             'server_type': server_type,
+        return JsonResponse({'server_type': server_type,
                              'server_id': master_id})
     else:
-        return JsonResponse({'status': False,
-                             'error': get_failure_errors(response)})
+        return HttpResponseUnavailable(get_failure_errors(response))
 
 
 def _get_changes(current_topology, remote_topology):
-    changes = []
+    current_topology = copy.deepcopy(current_topology)
+    remote_topology = copy.deepcopy(remote_topology)
 
-    keys = ['ADID', 'ISDID', 'Core']
-    for key in keys:
-        if remote_topology[key] != current_topology[key]:
-            changes.append('"{}" values differ'.format(key))
+    exclude_key_list = ['Zookeepers']
+    for exclude_key in exclude_key_list:
+        current_topology.pop(exclude_key, None)
+        remote_topology.pop(exclude_key, None)
 
-    # Values must match for the keys provided here
-    element_fields = {'PathServers': ['Addr'],
-                      'CertificateServers': ['Addr'],
-                      'BeaconServers': ['Addr'],
-                      'EdgeRouters': ['Addr', ('Interface', ['NeighborAD',
-                                                             'NeighborISD',
-                                                             'NeighborType'])]
-                      }
-    key_sort = lambda item: int(item[0])
-    for server_type in element_fields.keys():
-        remote_sorted_with_name = sorted(remote_topology[server_type].items(),
-                                         key=key_sort)
-        current_sorted_with_name = sorted(current_topology[server_type].items(),
-                                          key=key_sort)
-
-        remote_servers = [t[1] for t in remote_sorted_with_name]
-        current_servers = [t[1] for t in current_sorted_with_name]
-        if len(remote_servers) != len(current_servers):
-            changes.append(
-                'Different number of "{}" servers'.format(server_type)
-            )
-            continue
-        for rs, cs in zip(remote_servers, current_servers):
-            current_fields = element_fields[server_type]
-            for key in current_fields:
-                if isinstance(key, str) and rs[key] != cs[key]:
-                    changes.append('"{}" values differ for one of {}. '
-                                   'Local: {}, remote: {}'
-                                   .format(key, server_type, cs[key], rs[key]))
-                    continue
-                if isinstance(key, tuple):
-                    # Compare nested dictionaries (for 'EdgeRouters')
-                    field_name, nested_fields = key
-                    for field in nested_fields:
-                        remote_value = rs[field_name][field]
-                        current_value = cs[field_name][field]
-                        if remote_value != current_value:
-                            changes.append('"{}:{}" differ for one of {}. '
-                                           'Local: {}, remote: {}'
-                                           .format(field_name, field,
-                                                   server_type,
-                                                   remote_value,
-                                                   current_value))
-    return changes
+    diff_changes = list(dictdiffer.diff(current_topology, remote_topology))
+    processed_changes = []
+    for change in diff_changes:
+        change_type, element, changes = list(change)
+        change = 'Local -> remote: {}, element: {}, changes: {}'.format(
+            change_type, str(element), str(changes)
+        )
+        processed_changes.append(change)
+    return processed_changes
 
 
 def compare_remote_topology(request, pk):
@@ -183,17 +179,16 @@ def compare_remote_topology(request, pk):
     ad = get_object_or_404(AD, id=pk)
     remote_topology = ad.get_remote_topology()
     if not remote_topology:
-        return JsonResponse({'status': 'FAIL',
-                             'errors': ['Cannot get the remote topology']})
+        return HttpResponseUnavailable('Cannot get the topology')
 
     current_topology = ad.generate_topology_dict()
 
     changes = _get_changes(current_topology, remote_topology)
     if changes:
-        status = 'CHANGED'
+        state = 'CHANGED'
     else:
-        status = 'OK'
-    return JsonResponse({'status': status, 'changes': changes})
+        state = 'OK'
+    return JsonResponse({'state': state, 'changes': changes})
 
 
 @require_POST
@@ -203,6 +198,8 @@ def update_topology(request, pk):
     Update topology action: either push or pull the topology.
     """
     ad = get_object_or_404(AD, id=pk)
+    _check_user_permissions(request, ad)
+
     ad_page = reverse('ad_detail', args=[ad.id])
     if '_pull_topology' in request.POST:
         return _update_from_remote_topology(request, ad)
@@ -214,8 +211,7 @@ def update_topology(request, pk):
 def _push_local_topology(request, ad):
     local_topo = ad.generate_topology_dict()
     # TODO move to model?
-    md_host = ad.get_monitoring_daemon_host()
-    response = monitoring_client.push_topology(md_host, str(ad.isd.id),
+    response = management_client.push_topology(ad.md_host, str(ad.isd.id),
                                                str(ad.id), local_topo)
     topology_tag = 'topology'
     if is_success(response):
@@ -234,8 +230,7 @@ def _update_from_remote_topology(request, ad):
     for the given AD.
     """
     remote_topology_dict = ad.get_remote_topology()
-    remote_topology = Topology.from_dict(remote_topology_dict)
-    ad.fill_from_topology(remote_topology, clear=True)
+    ad.fill_from_topology(remote_topology_dict, clear=True)
     return redirect(reverse('ad_detail_topology', args=[ad.id]))
 
 
@@ -245,8 +240,7 @@ def _send_update(request, ad, package):
     """
     # TODO move to model?
     if package.exists():
-        result = monitoring_client.send_update(ad.get_monitoring_daemon_host(),
-                                               ad.isd_id, ad.id,
+        result = management_client.send_update(ad.md_host, ad.isd_id, ad.id,
                                                package.filepath)
     else:
         result = response_failure('Package not found')
@@ -272,6 +266,8 @@ def _download_update(request, package):
 @require_POST
 def software_update_action(request, pk):
     ad = get_object_or_404(AD, id=pk)
+    _check_user_permissions(request, ad)
+
     ad_page = reverse('ad_detail', args=[ad.id])
     form = PackageVersionSelectForm(request.POST)
     if form.is_valid():
@@ -307,14 +303,9 @@ def _download_file_response(file_path, file_name=None, content_type=None):
     return response
 
 
-@transaction.atomic
-@require_POST
-def connect_new_ad(request, pk):
-    """
-    Create and connect new AD automatically.
-    """
-    ad = get_object_or_404(AD, id=pk)
-    topology_page = reverse('ad_detail_topology', args=[pk])
+def _connect_new_ad(request, ad):
+    # TODO(rev112): Remove or move to approve_request()
+    topology_page = reverse('ad_detail_topology', args=[ad.id])
 
     # Chech that remote topology exists
     remote_topology = ad.get_remote_topology()
@@ -332,37 +323,11 @@ def connect_new_ad(request, pk):
                        extra_tags=topology_tag)
         return redirect(topology_page)
 
-    # Create the new AD
-    new_ad = AD.objects.create(isd=ad.isd)
 
-    with tempfile.TemporaryDirectory() as temp_dir:
-
-        # Create/Update configs
-        new_topo, updated_local_topo = create_new_ad(local_topology, new_ad.isd,
-                                                     new_ad.id,
-                                                     out_dir=temp_dir)
-        # Update models instances
-        new_topo = Topology.from_dict(new_topo)
-        updated_local_topo = Topology.from_dict(updated_local_topo)
-
-        new_ad.fill_from_topology(new_topo, clear=True)
-        ad.fill_from_topology(updated_local_topo, clear=True)
-
-        # Resulting package will be stored here
-        package_dir = os.path.join(PACKAGE_DIR_PATH, 'AD' + str(new_ad))
-        if os.path.exists(package_dir):
-            rmtree(package_dir)
-        os.makedirs(package_dir)
-
-        config_dirs = [os.path.join(temp_dir, x) for x in os.listdir(temp_dir)]
-
-        # Prepare package
-        package_name = 'scion_package_AD{}-{}'.format(new_ad.isd, new_ad.id)
-        package_path = prepare_package(out_dir=package_dir,
-                                       config_paths=config_dirs,
-                                       package_name=package_name)
-    # Return file
-    return _download_file_response(package_path)
+def _check_user_permissions(request, ad):
+    # TODO(rev112) decorator?
+    if not request.user.has_perm('change_ad', ad):
+        raise PermissionDenied()
 
 
 @require_POST
@@ -371,9 +336,11 @@ def control_process(request, pk, proc_id):
     Send a control command to an AD element instance.
     """
     ad = get_object_or_404(AD, id=pk)
+    _check_user_permissions(request, ad)
 
     ad_elements = ad.get_all_element_ids()
-    assert proc_id in ad_elements
+    if proc_id not in ad_elements:
+        return HttpResponseNotFound('Element not found')
 
     if '_start_process' in request.POST:
         command = 'START'
@@ -382,10 +349,32 @@ def control_process(request, pk, proc_id):
     else:
         return HttpResponseNotFound('Command not found')
 
-    md_host = ad.get_monitoring_daemon_host()
-    response = monitoring_client.control_process(md_host, ad.isd.id, ad.id,
+    response = management_client.control_process(ad.md_host, ad.isd.id, ad.id,
                                                  proc_id, command)
-    return JsonResponse({'status': is_success(response)})
+    if is_success(response):
+        return JsonResponse({'status': True})
+    else:
+        return HttpResponseUnavailable(get_failure_errors(response))
+
+
+def read_log(request, pk, proc_id):
+    # FIXME(rev112): minor duplication, see control_process()
+    ad = get_object_or_404(AD, id=pk)
+    _check_user_permissions(request, ad)
+
+    ad_elements = ad.get_all_element_ids()
+    if proc_id not in ad_elements:
+        return HttpResponseNotFound('Element not found')
+    proc_id = ad.get_full_process_name(proc_id)
+
+    response = management_client.read_log(ad.md_host, proc_id)
+    if is_success(response):
+        log_data = get_success_data(response)[0]
+        if '\n' in log_data:
+            log_data = log_data[log_data.index('\n') + 1:]
+        return JsonResponse({'data': log_data})
+    else:
+        return HttpResponseUnavailable(get_failure_errors(response))
 
 
 class ConnectionRequestView(FormView):
@@ -404,11 +393,25 @@ class ConnectionRequestView(FormView):
         if not self.request.user.is_authenticated():
             return HttpResponseForbidden('Authentication required')
 
-        form.instance.connect_to = self._get_ad()
+        connect_to = self._get_ad()
+        form.instance.connect_to = connect_to
         form.instance.created_by = self.request.user
-        form.instance.status = 'SENT'
         form.save()
+
+        con_request = form.instance
+        con_request.status = 'SENT'
+
+        if not con_request.router_public_ip:
+            # Public = Bound
+            con_request.router_public_ip = con_request.router_bound_ip
+            con_request.router_public_port = con_request.router_bound_port
+        con_request.save()
+
         self.success_url = reverse('sent_requests')
+        if connect_to.is_open:
+            # Create new AD
+            approve_request(connect_to, con_request)
+
         return super().form_valid(form)
 
     def get_context_data(self, **kwargs):
@@ -423,7 +426,14 @@ class NewLinkView(FormView):
     success_url = ''
 
     def _get_ad(self):
-        return get_object_or_404(AD, id=self.kwargs['pk'])
+        if not hasattr(self, 'ad'):
+            self.ad = get_object_or_404(AD, id=self.kwargs['pk'])
+        return self.ad
+
+    def dispatch(self, request, *args, **kwargs):
+        ad = self._get_ad()
+        _check_user_permissions(request, ad)
+        return super().dispatch(request, *args, **kwargs)
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -454,24 +464,99 @@ class NewLinkView(FormView):
         return super().form_valid(form)
 
 
+def download_approved_package(request, req_id):
+    ad_request = get_object_or_404(ConnectionRequest, id=req_id)
+    _check_user_permissions(request, ad_request.new_ad)
+    if not ad_request.is_approved():
+        raise PermissionDenied('Request is not approved')
+    return _download_file_response(ad_request.package_path)
+
+
+def approve_request(ad, ad_request):
+
+    # Create the new AD
+    new_id = AD.objects.latest('id').id + 1
+    new_ad = AD.objects.create(id=new_id, isd=ad.isd,
+                               md_host=ad_request.router_public_ip)
+    parent_topo_dict = ad.generate_topology_dict()
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        new_topo_dict, parent_topo_dict = create_new_ad_files(parent_topo_dict,
+                                                              new_ad.isd.id,
+                                                              new_ad.id,
+                                                              out_dir=temp_dir)
+
+        # Adjust router ips/ports
+        if ad_request.router_public_ip is None:
+            ad_request.router_public_ip = ad_request.router_bound_ip
+
+        if ad_request.router_public_port is None:
+            ad_request.router_public_port = ad_request.router_bound_port
+
+        _, new_topo_router = find_last_router(new_topo_dict)
+        new_topo_router['Interface']['Addr'] = ad_request.router_bound_ip
+        new_topo_router['Interface']['UdpPort'] = ad_request.router_bound_port
+
+        _, parent_topo_router = find_last_router(parent_topo_dict)
+        parent_router_if = parent_topo_router['Interface']
+        parent_router_if['ToAddr'] = ad_request.router_public_ip
+        parent_router_if['UdpPort'] = ad_request.router_public_port
+
+        new_ad.fill_from_topology(new_topo_dict, clear=True)
+        ad.fill_from_topology(parent_topo_dict, clear=True)
+
+        # Update the new topology on disk:
+        # Write new config files to disk, regenerate everything else
+        # FIXME(rev112): minor duplication, see ad_connect.create_new_ad_files()
+        gen = ConfigGenerator(out_dir=temp_dir)
+        new_topo_path = gen.path_dict(new_ad.isd.id, new_ad.id)['topo_file_abs']
+        write_file(new_topo_path, json.dumps(new_topo_dict,
+                                             sort_keys=4, indent=4))
+        gen.write_derivatives(new_topo_dict)
+
+        # Resulting package will be stored here
+        package_dir = os.path.join(PACKAGE_DIR_PATH, 'AD' + str(new_ad))
+        if os.path.exists(package_dir):
+            rmtree(package_dir)
+        os.makedirs(package_dir)
+
+        # Prepare package
+        package_name = 'scion_package_AD{}-{}'.format(new_ad.isd, new_ad.id)
+        config_dirs = [os.path.join(temp_dir, x) for x in os.listdir(temp_dir)]
+        ad_request.package_path = prepare_package(out_dir=package_dir,
+                                                  config_paths=config_dirs,
+                                                  package_name=package_name)
+        ad_request.new_ad = new_ad
+        ad_request.status = 'APPROVED'
+        ad_request.save()
+
+        # Give permissions to the user
+        request_creator = ad_request.created_by
+        assign_perm('change_ad', request_creator, new_ad)
+
+        new_ad.save()
+        ad.save()
+
+
+@transaction.atomic
 @require_POST
-def request_action(request, pk, req_id):
+def request_action(request, req_id):
     """
     Approve or decline the sent connection request.
     """
     ad_request = get_object_or_404(ConnectionRequest, id=req_id)
+    ad = ad_request.connect_to
+    _check_user_permissions(request, ad)
 
     if '_approve_request' in request.POST:
-        new_status = 'APPROVED'
+        if not ad_request.is_approved():
+            approve_request(ad, ad_request)
     elif '_decline_request' in request.POST:
-        new_status = 'DECLINED'
+        ad_request.status = 'DECLINED'
     else:
         return HttpResponseNotFound('Action not found')
-
-    ad_request.status = new_status
     ad_request.save()
-
-    return redirect(reverse('ad_connection_requests', args=[pk]))
+    return redirect(reverse('ad_connection_requests', args=[ad.id]))
 
 
 @login_required
@@ -483,3 +568,104 @@ def list_sent_requests(request):
     sent_requests = user.connectionrequest_set.all()
     return render(request, 'ad_manager/sent_requests.html',
                   {'sent_requests': sent_requests})
+
+
+def _get_partial_graph(pov_ad, rank=1):
+    partial_graph = {}
+    bfs_queue = deque([[pov_ad, rank]])
+    while bfs_queue:
+        next_ad, ad_rank = bfs_queue.popleft()
+        if next_ad in partial_graph:
+            continue
+
+        ad_routers = next_ad.routerweb_set.all().select_related('neighbor_ad')
+        neighbors = []
+        for router in ad_routers:
+            neighbor_ad = router.neighbor_ad
+            if ad_rank > 0:
+                bfs_queue.append([neighbor_ad, ad_rank - 1])
+            neighbors.append(neighbor_ad)
+        partial_graph[next_ad] = neighbors
+    return partial_graph
+
+
+def _get_node_object(ad):
+    node_object = {
+        'name': 'AD {}-{}'.format(ad.isd_id, ad.id),
+        'group': ad.isd_id,
+        'url': ad.get_absolute_url(),
+        'networkUrl': reverse('network_view_ad', args=[ad.id]),
+        'core': int(ad.is_core_ad),
+    }
+    return node_object
+
+
+def network_view_neighbors(request, pk):
+    pov_ad = get_object_or_404(AD, id=pk)
+    rank = 2
+
+    partial_graph = _get_partial_graph(pov_ad, rank)
+    ad_with_neighbors = partial_graph.keys()
+
+    # Build reverse index
+    ad_index_rev = {}
+    for i, ad in enumerate(ad_with_neighbors):
+        ad_index_rev[ad] = i
+
+    graph = {'nodes': [], 'links': []}
+    for ad in ad_with_neighbors:
+        index = ad_index_rev[ad]
+        neighbors = partial_graph[ad]
+        node_object = _get_node_object(ad)
+        if ad == pov_ad:
+            node_object['pov'] = 1
+        graph['nodes'].append(node_object)
+        for n in neighbors:
+            if n not in ad_index_rev:
+                continue
+            neighbor_id = ad_index_rev[n]
+            if index < neighbor_id:
+                graph['links'].append({
+                    'source': index,
+                    'target': neighbor_id,
+                    'value': 1,
+                })
+    return render(request, 'ad_manager/network_view.html',
+                  {'data': graph,
+                   'pov_ad': pov_ad})
+
+
+def network_view(request):
+    """
+    Prepare network graph visualization.
+    """
+    all_ads = AD.objects.all().prefetch_related('routerweb_set__neighbor_ad')
+    ad_graph_tmp = []
+    # Direct and reverse index <-> AD mappings
+    ad_index = {}
+    ad_index_rev = {}
+    for i, ad in enumerate(all_ads):
+        ad_index[i] = ad
+        ad_index_rev[ad] = i
+        ad_routers = ad.routerweb_set.all()
+        ad_graph_tmp.append([r.neighbor_ad for r in ad_routers])
+
+    # Build a list of [list of neighbors for every AD]
+    ad_graph = []
+    for neighbors in ad_graph_tmp:
+        ad_graph.append([ad_index_rev[n] for n in neighbors])
+
+    # Translate to D3.js format
+    graph = {'nodes': [], 'links': []}
+    for index, neighbors in enumerate(ad_graph):
+        ad = ad_index[index]
+        node_object = _get_node_object(ad)
+        graph['nodes'].append(node_object)
+        for n in neighbors:
+            if index < n:
+                graph['links'].append({
+                    'source': index,
+                    'target': n,
+                    'value': 1,
+                })
+    return render(request, 'ad_manager/network_view.html', {'data': graph})

@@ -392,28 +392,30 @@ class PathMgmtPacket(SCIONPacket):
 
     def parse(self, raw):
         super().parse(raw)
-        data = Raw(self.payload, "PathMgmtPacket", self.MIN_LEN, min_=True)
+        data = Raw(self.get_payload(), "PathMgmtPacket", self.MIN_LEN,
+                   min_=True)
         # Get the type of the first byte of the payload and instantiate the
         # corresponding payload class.
         self.type = data.pop(1)
         if self.type == PathMgmtType.REQUEST:
-            self.payload = PathSegmentInfo(data.pop(PathSegmentInfo.LEN))
+            self.set_payload(PathSegmentInfo(data.pop(PathSegmentInfo.LEN)))
         elif self.type == PathMgmtType.RECORDS:
-            self.payload = PathSegmentRecords(data.pop())
+            self.set_payload(PathSegmentRecords(data.pop()))
         elif self.type == PathMgmtType.REVOCATION:
-            self.payload = RevocationInfo(data.pop())
+            self.set_payload(RevocationInfo(data.pop()))
         elif self.type == PathMgmtType.IFSTATE_INFO:
-            self.payload = IFStatePayload(data.pop())
+            self.set_payload(IFStatePayload(data.pop()))
         elif self.type == PathMgmtType.IFSTATE_REQ:
-            self.payload = IFStateRequest(data.pop())
+            self.set_payload(IFStateRequest(data.pop()))
         else:
             raise SCIONParseError("Unsupported path management type: %d",
                                   self.type)
 
     def pack(self):
-        if not isinstance(self.payload, bytes):
-            self.payload = struct.pack("!B", self.type) + self.payload.pack()
-        return SCIONPacket.pack(self)
+        if not isinstance(self._payload, bytes):
+            self.set_payload(struct.pack("!B", self.type) +
+                             self._payload.pack())
+        return super().pack()
 
     @classmethod
     def from_values(cls, type_, payload, path, src_addr, dst_addr):
@@ -442,7 +444,7 @@ class PathMgmtPacket(SCIONPacket):
             logging.error("Unsupported src_addr, dst_addr pair.")
         pkt.hdr = SCIONHeader.from_values(src_addr, dst_addr, path)
         pkt.type = type_
-        pkt.payload = payload
+        pkt.set_payload(payload)
         return pkt
 
     @classmethod
@@ -459,9 +461,9 @@ class PathMgmtPacket(SCIONPacket):
         pkt = PathMgmtPacket()
         pkt.hdr = header
         pkt.type = type_
-        pkt.payload = payload
+        pkt.set_payload(payload)
         return pkt
 
     def __str__(self):
         return (("[PathMgmtPacket type: %d]\n" % self.type) + str(self.hdr) +
-                "\n" + str(self.payload))
+                "\n" + str(self._payload))

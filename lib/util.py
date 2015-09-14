@@ -165,7 +165,8 @@ def read_file(file_path):
         with open(file_path) as file_handler:
             return file_handler.read()
     except OSError as e:
-        raise SCIONIOError("Unable to open '%s': %s" % (file_path, e.strerror))
+        raise SCIONIOError("Unable to open '%s': %s" % (
+            file_path, e.strerror)) from None
 
 
 def write_file(file_path, text):

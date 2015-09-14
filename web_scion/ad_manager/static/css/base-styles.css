@@ -42,12 +42,40 @@ h1 span.glyphicon-home {
     font-size: 30px;
 }
 
-/* Core AD label */
-h4.core-ad-label span.glyphicon {
+/* AD labels */
+h4.ad-label span.glyphicon {
     font-size: 16px;
     margin-left: 2px;
 }
 
 div.status-block > div {
     padding-right: 0;
+}
+
+div.status-text:hover {
+    color: dodgerblue;
+}
+
+/* Connection request form */
+a.download-package {
+    font-size: 24px;
+    margin-left: 4px;
+}
+
+/* Network graph */
+.link {
+  fill: none;
+  stroke: #666;
+  stroke-width: 2px;
+}
+
+.node circle {
+  fill: #ccc;
+  stroke: #fff;
+  stroke-width: 2px;
+}
+
+text {
+  font: 10px sans-serif;
+  pointer-events: none;
 }

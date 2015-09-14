@@ -84,9 +84,9 @@ function compareAdTopology() {
         url: adCompareUrl,
         dataType: "json"
     }).done(function(data) {
-        if (data['status'] == 'OK') {
+        if (data['state'] == 'OK') {
             alertOk();
-        } else if (data['status'] == 'CHANGED') {
+        } else if (data['state'] == 'CHANGED') {
             alertChanged(data['changes']);
         } else {
             alertNoTopology();
@@ -113,12 +113,10 @@ function showMasterServers() {
             url: getUrl,
             dataType: "json"
         }).done(function(data) {
-            if (data['status']) {
-                var $serverRow = $('#' + data['server_id']);
-                var $serverName = $serverRow.children().first();
-                var badge = ' <span class="master-badge badge alert-success">master</span>';
-                $serverName.append(badge);
-            }
+            var $serverRow = $('#' + data['server_id']);
+            var $serverName = $serverRow.children().first();
+            var badge = ' <span class="master-badge badge alert-success">master</span>';
+            $serverName.append(badge);
         }).fail(function(a1, a2, a3) {
             // Smth happened
         });
@@ -136,6 +134,58 @@ function makeTabsPersistent() {
         if (hash.substr(0,1) == "#") {
             location.replace("#!" + hash.substr(1));
         }
+    });
+}
+
+function statusControl() {
+    // Process START/STOP button clicks
+    $('.process-control-form > button').click(function(e) {
+        var $form = $(this).parent();
+        var btnName = $(this).attr('name');
+        $.ajax({
+            data: $form.serialize() + "&" + btnName, // form data + button
+            type: $form.attr('method'),
+            url: $form.attr('action'),
+            dataType: 'json'
+        }).always(function(response){
+            updateServerStatus();
+        });
+        var $statusCell = $form.parent().siblings('.status-text');
+        appendLoadingIndicator($statusCell);
+        return false;
+    });
+}
+
+function displayLogs() {
+    // Callbacks for showing log dialogs
+
+    function refreshLog(logUrl) {
+        var $logOutput = $('#log-output');
+        showLoadingIndicator($logOutput);
+        $.ajax({
+            url: logUrl,
+            dataType: "json"
+        }).done(function(result) {
+            $logOutput.text(result['data']);
+        }).fail(function(a1, a2, a3) {
+            $logOutput.text('Something went wrong.')
+        });
+    }
+
+    var $logWindow = $('#logModal');
+
+    // Open log modal window
+    $('.status-text').click(function() {
+        var logUrl = $(this).data('log-url');
+        refreshLog(logUrl);
+        $logWindow.modal();
+        $logWindow.data('url', logUrl);
+    });
+
+    // Refresh log button
+    $('#refresh-log').click(function() {
+        var logUrl = $logWindow.data('url');
+        refreshLog(logUrl);
     });
 }
 
@@ -178,21 +228,8 @@ $(document).ready(function() {
     });
 
     // Status control forms
-    $('.process-control-form > button').click(function(e) {
-        var $form = $(this).parent();
-        var btnName = $(this).attr('name');
-        $.ajax({
-            data: $form.serialize() + "&" + btnName, // form data + button
-            type: $form.attr('method'),
-            url: $form.attr('action'),
-            dataType: 'json'
-        }).always(function(response){
-            updateServerStatus();
-        });
-        var $statusCell = $form.parent().siblings('.status-text');
-        appendLoadingIndicator($statusCell);
+    statusControl();
 
-        return false;
-    });
-
+    // Display log files
+    displayLogs();
 });

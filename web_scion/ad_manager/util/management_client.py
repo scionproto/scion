@@ -5,13 +5,16 @@ import os
 import xmlrpc.client
 
 # SCION
-from ad_management.common import get_monitoring_server, response_failure
+from ad_management.util import get_management_server, response_failure
 
 
 def run_remote(func):
+    """
+    Decorator which prepares everything and wraps errors.
+    """
 
     def wrapper(md_host, *args, **kwargs):
-        s = get_monitoring_server(md_host)
+        s = get_management_server(md_host)
         try:
             return func(s, *args, **kwargs)
         except ConnectionRefusedError as ex:
@@ -72,3 +75,9 @@ def control_process(s, isd_id, ad_id, process_id, command):
 @run_remote
 def get_master_id(s, isd_id, ad_id, server_type):
     return s.get_master_id(str(isd_id), str(ad_id), server_type)
+
+
+@run_remote
+def read_log(s, process_name):
+    to_read = 4000
+    return s.tail_process_log(process_name, 0, to_read)

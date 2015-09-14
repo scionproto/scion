@@ -10,7 +10,7 @@
         "level": "CORE",
         "beacon_servers": 1,
         "certificate_servers": 1,
-        "path_servers": 1,
+        "path_servers": 3,
         "links": {
             "1-12": "ROUTING",
             "1-13": "ROUTING",
@@ -104,7 +104,7 @@
     },
     "1-19": {
         "level": "INTERMEDIATE",
-        "path_servers": 1,
+        "path_servers": 2,
         "cert_issuer": "1-16",
         "links": {
             "1-16": "PARENT",
