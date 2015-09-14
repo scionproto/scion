@@ -42,7 +42,7 @@ include $(RTE_SDK)/mk/rte.vars.mk
 APP = hsr
 
 # all source are stored in SRCS-y
-SRCS-y := main.c scion.c
+SRCS-y := main.c scion.c libscion.c
 
 #CFLAGS += -O3 -w
 CFLAGS += -O9 -w
