@@ -211,7 +211,7 @@ typedef struct {
 	PathSegment payload;
 } PathConstructionBeacon;
 
-#define DATA_PACKET 255
+#define DATA_PACKET 0
 // Path Construction Beacon
 #define BEACON_PACKET 1
 // Path management packet from/to PS
