@@ -44,7 +44,7 @@ from lib.defines import (
     PATH_SERVICE,
     SCION_UDP_PORT,
 )
-from lib.errors import SCIONServiceLookupError
+from lib.errors import SCIONServiceLookupError, SCIONIndexError
 from lib.log import init_logging, log_exception
 from lib.packet.opaque_field import (
     HopOpaqueField,
@@ -169,9 +169,10 @@ class RevocationObject(object):
     Revocation object that gets stored to Zookeeper.
     """
 
-    LEN = 4 + RevocationInfo.LEN
+    LEN = 8 + RevocationInfo.LEN
 
     def __init__(self, raw=None):
+        self.if_id = 0
         self.hash_chain_idx = -1
         self.rev_info = None
 
@@ -183,20 +184,23 @@ class RevocationObject(object):
         Parses raw bytes and populates the fields.
         """
         data = Raw(raw, "RevocationObject", self.LEN)
-        self.hash_chain_idx = struct.unpack("!I", data.pop(4))[0]
+        (self.if_id, self.hash_chain_idx) = struct.unpack("!II", data.pop(8))
         self.rev_info = RevocationInfo(data.pop())
 
     def pack(self):
         """
         Returns a bytes object from the fields.
         """
-        return struct.pack("!I", self.hash_chain_idx) + self.rev_info.pack()
+        return (struct.pack("!II", self.if_id, self.hash_chain_idx) +
+                self.rev_info.pack())
 
     @classmethod
-    def from_values(cls, index, rev_token, proof):
+    def from_values(cls, if_id, index, rev_token, proof):
         """
         Returns a RevocationInfo object with the specified values.
 
+        :param if_id: The interface id of the corresponding interface.
+        :type if_id: int
         :param index: The index of the rev_token in the hash chain.
         :type index: int
         :param rev_type: type of the revocation info
@@ -207,6 +211,7 @@ class RevocationObject(object):
         :type: bytes
         """
         rev_obj = cls()
+        rev_obj.if_id = if_id
         rev_obj.hash_chain_idx = index
         rev_obj.rev_info = RevocationInfo.from_values(rev_token, proof)
 
@@ -518,9 +523,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             target=thread_safety_net, args=(self.worker,),
             name="BS.worker", daemon=True).start()
         # https://github.com/netsec-ethz/scion/issues/308:
-        #  threading.Thread(
-        #    target=thread_safety_net, args=(self._handle_if_timeouts,),
-        #    name="BS._handle_if_timeouts", daemon=True).start()
+        threading.Thread(
+            target=thread_safety_net, args=(self._handle_if_timeouts,),
+            name="BS._handle_if_timeouts", daemon=True).start()
         super().run()
 
     def worker(self):
@@ -537,9 +542,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             try:
                 self.zk.wait_connected()
                 self.pcb_cache.process()
+                self.revobjs_cache.process()
                 if not self.zk.get_lock(lock_timeout=0, conn_timeout=0):
                     continue
                 self.pcb_cache.expire(self.config.propagation_time * 10)
+                self.revobjs_cache.expire(self.ZK_REV_OBJ_MAX_AGE * 24)
             except ZkNoConnection:
                 continue
             now = SCIONTime.get_time()
@@ -728,7 +735,17 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         Processes revocation objects stored in Zookeeper.
         """
-        pass
+        for raw_obj in rev_objs:
+            rev_obj = RevocationObject(raw_obj)
+            chain = self._get_if_hash_chain(rev_obj.if_id)
+            if chain and chain.current_index() > rev_obj.hash_chain_idx:
+                try:
+                    chain.set_current_index(rev_obj.hash_chain_idx)
+                    logging.info("Updated hash chain index for IF %d to %d.",
+                                 rev_obj.if_id, rev_obj.hash_chain_idx)
+                except SCIONIndexError:
+                    logging.warning("Rev object for IF %d contains invalid "
+                                    "index.", rev_obj.if_id)
 
     def _issue_revocation(self, if_id, chain):
         """
@@ -744,10 +761,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             chain.next_element())
         logging.info("Storing revocation in ZK.")
         rev_obj = RevocationObject.from_values(
+            if_id,
             chain.current_index(),
             chain.current_element(),
             chain.next_element())
-        self.revobjs_cache.store(chain.current_element(hex_=True),
+        self.revobjs_cache.store(chain.start_element(hex_=True),
                                  rev_obj.pack())
         logging.info("Issuing revocation for IF %d.", if_id)
         # Issue revocation to all ERs.
@@ -779,7 +797,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
         self._remove_revoked_pcbs(rev_info, if_id)
         # Send revocations to local PS.
-        if self.topology.path_servers:
+        if self.zk.have_lock() and self.topology.path_servers:
             try:
                 ps_addr = self.dns_query_topo(PATH_SERVICE)[0]
             except SCIONServiceLookupError:

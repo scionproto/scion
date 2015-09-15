@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from binascii import b2a_hex
+from lib.errors import SCIONIndexError
 """
 :mod:`hash_chain` --- Generic hash-chain implementation
 =======================================================
@@ -45,7 +46,7 @@ class HashChain(object):
     :type entries:
     """
 
-    def __init__(self, start_ele, length=50, hash_func=SHA256):
+    def __init__(self, start_ele, length=1000, hash_func=SHA256):
         """
         Initialize an instance of the class HashChain.
 
@@ -77,6 +78,14 @@ class HashChain(object):
 
         # Initialize to first element.
         self._next_ele_ptr = self._length - 2
+
+    def start_element(self, hex_=False):
+        """
+        Returns the start element of the chain.
+        """
+        if hex_:
+            return b2a_hex(self._start_ele).decode()
+        return self._start_ele
 
     def current_element(self, hex_=False):
         """
@@ -119,8 +128,16 @@ class HashChain(object):
             return -1
         return self._next_ele_ptr + 1
 
+    def set_current_index(self, index):
+        """
+        Sets the current index in the chain.
+        """
+        if index <= 1 or index >= self._length - 1:
+            raise SCIONIndexError
+        self._next_ele_ptr = index - 1
+
     @staticmethod
-    def verify(start_ele, target_ele, max_tries=50, hash_func=SHA256):
+    def verify(start_ele, target_ele, max_tries=1000, hash_func=SHA256):
         """
         Verify that a given element belongs to a hash chain.
 

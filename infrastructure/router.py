@@ -383,11 +383,7 @@ class Router(SCIONElement):
                     self.send(mgmt_pkt, ps.addr)
 
         if not from_local_ad and mgmt_pkt.hdr.get_path().is_last_path_hof():
-            if (mgmt_pkt.type == PMT.REVOCATION and
-                    mgmt_pkt.hdr.dst_addr.host_addr.TYPE != ADDR_SVC_TYPE):
-                self.deliver(mgmt_pkt, PT.DATA)
-            else:
-                self.deliver(mgmt_pkt, PT.PATH_MGMT)
+            self.deliver(mgmt_pkt, PT.PATH_MGMT)
         else:
             self.forward_packet(mgmt_pkt, from_local_ad)
 
