@@ -284,6 +284,40 @@ class SCIONHeader(HeaderBase):
         self.extension_hdrs = []
         self.common_hdr.next_hdr = self.l4_proto
 
+    def set_src_addr(self, src_addr):
+        """
+        Sets the source address and updates the corresponding fields.
+
+        :param src_addr: The source address.
+        :type src_addr: :class:`lib.packet.scion_addr.SCIONAddr`
+        """
+        assert isinstance(src_addr, SCIONAddr)
+        if self.src_addr is not None:
+            self.common_hdr.hdr_len -= self.common_hdr.src_addr_len
+            self.common_hdr.total_len -= self.common_hdr.src_addr_len
+        self.src_addr = src_addr
+        self.common_hdr.src_addr_type = src_addr.host_addr.TYPE
+        self.common_hdr.src_addr_len = len(src_addr)
+        self.common_hdr.hdr_len += self.common_hdr.src_addr_len
+        self.common_hdr.total_len += self.common_hdr.src_addr_len
+
+    def set_dst_addr(self, dst_addr):
+        """
+        Sets the source address and updates the corresponding fields.
+
+        :param dst_addr: The destination address.
+        :type dst_addr: :class:`lib.packet.scion_addr.SCIONAddr`
+        """
+        assert isinstance(dst_addr, SCIONAddr)
+        if self.dst_addr is not None:
+            self.common_hdr.hdr_len -= self.common_hdr.dst_addr_len
+            self.common_hdr.total_len -= self.common_hdr.dst_addr_len
+        self.dst_addr = dst_addr
+        self.common_hdr.dst_addr_type = dst_addr.host_addr.TYPE
+        self.common_hdr.dst_addr_len = len(dst_addr)
+        self.common_hdr.hdr_len += self.common_hdr.dst_addr_len
+        self.common_hdr.total_len += self.common_hdr.dst_addr_len
+
     def get_path(self):
         """
         Returns the path in the header.
@@ -459,9 +493,9 @@ class SCIONPacket(PacketBase):
     def set_payload(self, payload):
         super().set_payload(payload)
         # Update payload_len and total len of the packet.
-        self.hdr.common_hdr.total_len -= self.payload_len
+        # self.hdr.common_hdr.total_len -= self.payload_len
         self.payload_len = len(payload)
-        self.hdr.common_hdr.total_len += self.payload_len
+        self.hdr.common_hdr.total_len = len(self.hdr) + self.payload_len
 
     def parse(self, raw):
         """

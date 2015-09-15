@@ -11,13 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from external.expiring_dict import ExpiringDict
 """
 :mod:`router` --- SCION edge router
 ===========================================
 """
 # Stdlib
 import argparse
+from collections import defaultdict
 import datetime
 import logging
 import random
@@ -25,9 +25,9 @@ import socket
 import sys
 import threading
 import time
-from collections import defaultdict
 
 # SCION
+from external.expiring_dict import ExpiringDict
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.symcrypto import get_roundkey_cache, verify_of_mac
 from lib.defines import (
@@ -36,26 +36,28 @@ from lib.defines import (
     CERTIFICATE_SERVICE,
     EXP_TIME_UNIT,
     IFID_PKT_TOUT,
+    L4_DEFAULT,
     L4_UDP,
     PATH_SERVICE,
     ROUTER_SERVICE,
     SCION_UDP_EH_DATA_PORT,
-    SCION_UDP_PORT,
-)
+    SCION_UDP_PORT,)
 from lib.errors import (
     SCIONBaseError,
     SCIONBaseException,
-    SCIONServiceLookupError,)
+    SCIONServiceLookupError,
+)
 from lib.log import init_logging, log_exception
-from lib.packet.ext_hdr import ExtensionClass
 from lib.packet.ext.traceroute import TracerouteExt, traceroute_ext_handler
+from lib.packet.ext_hdr import ExtensionClass
 from lib.packet.host_addr import ADDR_SVC_TYPE
 from lib.packet.opaque_field import OpaqueFieldType as OFT
 from lib.packet.path_mgmt import (
     PathMgmtPacket,
     PathMgmtType as PMT,
     RevocationInfo,
-    IFStateRequest,)
+    IFStateRequest,
+)
 from lib.packet.pcb import PathConstructionBeacon
 from lib.packet.scion import (
     IFIDPacket,
@@ -67,6 +69,7 @@ from lib.packet.scion_addr import ISD_AD, SCIONAddr
 from lib.socket import UDPSocket
 from lib.thread import thread_safety_net
 from lib.util import handle_signals, SCIONTime, sleep_interval, start_thread
+
 
 MAX_EXT = 4  # Maximum number of hop-by-hop extensions processed by router.
 
@@ -278,7 +281,7 @@ class Router(SCIONElement):
                                              None, src, dst_isd_ad)
         while True:
             start_time = SCIONTime.get_time()
-            logging.info("Sending IFStateRequest for IF %d")
+            logging.info("Sending IFStateRequest for all interfaces.")
             for bs in self.topology.beacon_servers:
                 self.send(req_pkt, bs.addr)
             sleep_interval(start_time, self.IFSTATE_REQ_INTERVAL,
@@ -374,6 +377,7 @@ class Router(SCIONElement):
                 if (self.topology.path_servers and
                         rev_token not in self.revocations):
                     logging.debug("Forwarding revocation to local PS.")
+                    logging.debug("Revocation Packet:\n%s", mgmt_pkt)
                     self.revocations[rev_token] = True
                     ps = random.choice(self.topology.path_servers)
                     self.send(mgmt_pkt, ps.addr)
@@ -404,9 +408,15 @@ class Router(SCIONElement):
 
         rev_info = RevocationInfo.from_values(if_state.rev_token,
                                               if_state.proof)
-        rev_pkt = PathMgmtPacket.with_header(PT.PATH_MGMT, rev_info,
-                                             spkt.hdr.reversed_copy())
-        logging.debug("Revocation Packet:\n%s", rev_pkt)
+        rev_hdr = spkt.hdr.reversed_copy()
+        rev_hdr.l4_proto = L4_DEFAULT
+        rev_hdr.common_hdr.next_hdr = L4_DEFAULT
+        src_addr = SCIONAddr.from_values(self.topology.isd_id,
+                                         self.topology.ad_id,
+                                         PT.PATH_MGMT)
+        rev_hdr.set_src_addr(src_addr)
+        rev_pkt = PathMgmtPacket.with_header(PMT.REVOCATION, rev_info, rev_hdr)
+        logging.debug("Revocation Packet:\n%s", PathMgmtPacket(rev_pkt.pack()))
         self.forward_packet(rev_pkt, True)
 
     def deliver(self, spkt, ptype):

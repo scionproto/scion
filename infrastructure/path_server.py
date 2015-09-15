@@ -159,16 +159,15 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         :param pkt: The packet containing the revocation info.
         :type pkt: PathMgmtPacket
         """
-        assert isinstance(pkt.payload, RevocationInfo)
-        if hash(pkt.payload) in self.revocations:
+        rev_info = pkt.get_payload()
+        assert isinstance(rev_info, RevocationInfo)
+        if hash(rev_info) in self.revocations:
             logging.debug("Already received revocation. Dropping...")
             return
         else:
-            self.revocations[hash(pkt.payload)] = pkt.payload
+            self.revocations[hash(rev_info)] = rev_info
             logging.debug("Received revocation from %s:\n%s", pkt.hdr.src_addr,
-                          pkt.payload)
-
-        rev_info = pkt.payload
+                          rev_info)
         # Verify revocation.
         if not self._verify_revocation(rev_info):
             logging.info("Revocation verification failed.")
