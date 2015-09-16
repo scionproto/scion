@@ -1,7 +1,7 @@
 SCION
 =====
 
-Python implementation of [SCION](http://www.netsec.ethz.ch/research/SCION), a future Internet architecture.
+Python implementation of [SCION](http://www.scion-architecture.net), a future Internet architecture.
 
 * [doc](/doc) contains documentation and specification of the SCION implementation
 * [infrastructure](/infrastructure) contains the code of the SCION infrastructure elements (servers, routers)
