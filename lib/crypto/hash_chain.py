@@ -21,6 +21,7 @@ from Crypto.Hash import SHA256
 # SCION
 from lib.errors import SCIONIndexError
 
+
 class HashChainExhausted(Exception):
     """The hash chain is exhausted"""
     pass

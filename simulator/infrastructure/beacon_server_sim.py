@@ -26,15 +26,12 @@ from infrastructure.beacon_server import (
     CoreBeaconServer,
     LocalBeaconServer
 )
-from lib.crypto.hash_chain import HashChain, HashChainExhausted
+from lib.crypto.hash_chain import HashChain
 from lib.defines import SCION_UDP_PORT
 from lib.packet.opaque_field import (
     HopOpaqueField,
     InfoOpaqueField,
     OpaqueFieldType as OFT,
-)
-from lib.packet.path_mgmt import (
-    RevocationInfo,
 )
 from lib.packet.pcb import (
     ADMarking,
