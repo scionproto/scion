@@ -3,7 +3,7 @@ SCION
 
 Python implementation of [SCION](http://www.netsec.ethz.ch/research/SCION), a future Internet architecture.
 
-* [doc](/doc) contains documentation and material to present SCION
+* [doc](/doc) contains documentation and specification of the implementation
 * [infrastructure](/infrastructure) contains the code of the SCION infrastructure elements (servers, routers)
 * [lib](/lib) contains the most relevant SCION libraries
 * [topology](/topology) contains the scripts to generate the SCION configuration and topology files, as well as the certificates and ROT files
