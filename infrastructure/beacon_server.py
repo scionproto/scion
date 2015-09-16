@@ -896,6 +896,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                               er.interface.udp_port)
                     break
 
+
 class CoreBeaconServer(BeaconServer):
     """
     PathConstructionBeacon Server in a core AD.

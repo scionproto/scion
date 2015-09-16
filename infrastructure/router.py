@@ -21,7 +21,6 @@ from collections import defaultdict
 import datetime
 import logging
 import random
-import socket
 import sys
 import threading
 import time
@@ -286,7 +285,6 @@ class Router(SCIONElement):
                 self.send(req_pkt, bs.addr)
             sleep_interval(start_time, self.IFSTATE_REQ_INTERVAL,
                            "request_ifstates")
-
 
     def process_ifid_request(self, ifid_packet):
         """

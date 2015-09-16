@@ -41,6 +41,7 @@ saddr = haddr_parse("IPv4", "127.1.19.254")
 raddr = haddr_parse("IPv4", "127.2.26.254")
 TOUT = 10  # How long wait for response.
 
+
 def get_paths_via_api(isd, ad):
     """
     Test local API.

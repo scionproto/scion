@@ -26,14 +26,10 @@ import nose.tools as ntools
 # SCION
 from lib.errors import SCIONParseError
 from lib.packet.path_mgmt import (
-    IFStateInfo,
-    IFStatePayload,
-    IFStateRequest,
     PathMgmtPacket,
     PathMgmtType,
     PathSegmentInfo,
     PathSegmentRecords,
-    PathSegmentType,
     RevocationInfo,
 )
 from lib.packet.scion import PacketType

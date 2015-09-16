@@ -267,7 +267,7 @@ class TestPathBaseReverse(object):
                            [call(UP_IOF), call(DOWN_IOF)])
         assert_these_calls(inst._ofs.reverse_label,
                            [call(UP_HOFS), call(DOWN_HOFS)])
-        
+
     @patch("lib.packet.path.PathBase.__init__", autospec=True,
            return_value=None)
     def test_hof_core_segment(self, init):
@@ -294,7 +294,7 @@ class TestPathBaseReverse(object):
                            [call(UP_IOF), call(DOWN_IOF)])
         assert_these_calls(inst._ofs.reverse_label,
                            [call(UP_HOFS), call(DOWN_HOFS)])
-    
+
     @patch("lib.packet.path.PathBase.__init__", autospec=True,
            return_value=None)
     def test_hof_down_segment(self, init):
@@ -831,7 +831,7 @@ class TestCrossOverPathReverse(object):
         super_reverse.assert_called_once_with(inst)
         inst._ofs.swap.assert_called_once_with(UP_UPSTREAM_HOF,
                                                DOWN_UPSTREAM_HOF)
-    
+
     @patch("lib.packet.path.PathBase.reverse", autospec=True)
     @patch("lib.packet.path.PathBase.__init__", autospec=True,
            return_value=None)
@@ -987,7 +987,7 @@ class TestPeerPathReverse(object):
             call(UP_UPSTREAM_HOF, DOWN_UPSTREAM_HOF),
             call(UP_PEERING_HOF, DOWN_PEERING_HOF),
         ])
-        
+
     @patch("lib.packet.path.PathBase.reverse", autospec=True)
     @patch("lib.packet.path.PathBase.__init__", autospec=True,
            return_value=None)
