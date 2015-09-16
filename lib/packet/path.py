@@ -134,7 +134,8 @@ class PathBase(object, metaclass=ABCMeta):
         if self._iof_idx < self.get_up_segment_len():
             iof_idx += (self.get_down_segment_len() +
                         self.get_core_segment_len())
-        elif self._iof_idx < self.get_core_segment_len():
+        elif self._iof_idx < (self.get_up_segment_len() +
+                              self.get_core_segment_len()):
             iof_idx += self.get_down_segment_len()
         self.set_of_idxs(iof_idx, hof_idx)
         # Swap down segment and up segment.
