@@ -391,6 +391,10 @@ class Router(SCIONElement):
         """
         Sends an interface revocation for 'if_id' along the path in 'spkt'.
         """
+        # Only issue revocations in response to data packets.
+        if get_type(spkt) != PT.DATA:
+            return
+        logging.info("Interface %d is down. Issuing revocation.", if_id)
         # Check that the interface is really down.
         if_state = self.if_states[if_id]
         if self.if_states[if_id].is_active:
@@ -511,6 +515,7 @@ class Router(SCIONElement):
         curr_iof = path.get_iof()
         curr_hof = path.get_hof()
         if not self.if_states[curr_hof.egress_if].is_active:
+            self.send_revocation(spkt, curr_hof.egress_if)
             raise SCIONInterfaceDownException(curr_hof.egress_if)
         if not curr_hof.egress_if and path.is_last_path_hof():
             self.verify_hof(path)
@@ -532,6 +537,7 @@ class Router(SCIONElement):
         fwd_if = path.get_fwd_if()
         # Check interface availability.
         if not self.if_states[fwd_if].is_active:
+            self.send_revocation(spkt, fwd_if)
             raise SCIONInterfaceDownException(fwd_if)
         if path.is_last_path_hof():
             self.deliver(spkt, PT.DATA)
@@ -555,6 +561,7 @@ class Router(SCIONElement):
             fwd_if = path.get_fwd_if()
             # Check interface availability.
             if not self.if_states[fwd_if].is_active:
+                self.send_revocation(spkt, fwd_if)
                 raise SCIONInterfaceDownException(fwd_if)
             self.send(spkt, self.ifid2addr[fwd_if])
 
@@ -567,6 +574,7 @@ class Router(SCIONElement):
         fwd_if = path.get_fwd_if()
         # Check interface availability.
         if not self.if_states[fwd_if].is_active:
+            self.send_revocation(spkt, fwd_if)
             raise SCIONInterfaceDownException(path.get_hof().egress_if)
         if not fwd_if and path.is_last_path_hof():
             self.deliver(spkt, PT.DATA)
@@ -684,11 +692,8 @@ class Router(SCIONElement):
         except SCIONPacketHeaderCorruptedError:
             logging.error("Dropping packet due to invalid header state.\n")
             logging.error("Header:\n%s", spkt.hdr)
-        except SCIONInterfaceDownException as e:
-            if get_type(spkt) == PT.DATA:
-                logging.error("Interface %d is down. Issuing revocation.",
-                              e.if_id)
-                self.send_revocation(spkt, int(e.if_id))
+        except SCIONInterfaceDownException:
+            pass
 
     def handle_request(self, packet, sender, from_local_socket=True):
         """
