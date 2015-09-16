@@ -36,10 +36,10 @@ class PathMgmtType:
     """
     REQUEST = 0
     REPLY = 1
-    REG = 1  # Path registration (sent by Beacon Server).
-    SYNC = 2  # For records synchronization purposes (used by Path Servers).
-    LEASES = 3
-    REVOCATIONS = 4
+    REG = 2  # Path registration (sent by Beacon Server).
+    SYNC = 3  # For records synchronization purposes (used by Path Servers).
+    LEASES = 4
+    REVOCATIONS = 5
 
 
 class PathSegmentType(object):
@@ -479,7 +479,7 @@ class PathMgmtPacket(SCIONPacket):
         self.type = data.pop(1)
         if self.type == PathMgmtType.REQUEST:
             self.set_payload(PathSegmentInfo(data.pop(PathSegmentInfo.LEN)))
-        elif self.type in [PathMgmtType.REPLY, PathMgmtPacket.REG,
+        elif self.type in [PathMgmtType.REPLY, PathMgmtType.REG,
                            PathMgmtType.SYNC]:
             self.set_payload(PathSegmentRecords(data.pop()))
         elif self.type == PathMgmtType.LEASES:

@@ -369,7 +369,7 @@ class SCIONDaemon(SCIONElement):
         """
         if from_local_socket:  # From PS or CS.
             pkt = PathMgmtPacket(packet)
-            if pkt.type == PMT.RECORDS:
+            if pkt.type == PMT.REPLY:
                 self.handle_path_reply(pkt.get_payload())
             else:
                 logging.warning("Type %d not supported.", pkt.type)
