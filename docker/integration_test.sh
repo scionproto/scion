@@ -43,6 +43,16 @@ if [ $result -eq 0 ]; then
     log "End2end: success"
 else
     log "End2end: failure"
+    shutdown
+fi
+
+log "C2S_extn starting:"
+( cd test/integration; PYTHONPATH=../../ python3 cli_srv_ext_test.py; )
+result=$?
+if [ $result -eq 0 ]; then
+    log "C2S_extn: success"
+else
+    log "C2S_extn: failure"
 fi
 
 shutdown

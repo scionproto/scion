@@ -385,7 +385,6 @@ class Zookeeper(object):
             pass
         if self.have_lock():
             return True
-        logging.debug("Failed to acquire ZK lock")
         return False
 
     def release_lock(self):

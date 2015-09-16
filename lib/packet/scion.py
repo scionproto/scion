@@ -272,8 +272,9 @@ class SCIONHeader(HeaderBase):
         else:
             self.common_hdr.next_hdr = self.l4_proto
         # Set next_hdr fields according to the extension chain
-        for i in range(len(self.extension_hdrs)):
-            self.extension_hdrs[i].next_hdr = self.extension_hdrs[i + 1].EXT_CLASS
+        for i in range(len(self.extension_hdrs) - 1):
+            self.extension_hdrs[i].next_hdr = \
+                self.extension_hdrs[i + 1].EXT_CLASS
 
     def remove_extensions(self):
         """

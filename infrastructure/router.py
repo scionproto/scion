@@ -677,14 +677,13 @@ class Router(SCIONElement):
             logging.error("Dropping packet due to incorrect MAC.\n"
                           "Header:\n%s\nInvalid OF: %s\nPrev OF: %s",
                           spkt.hdr, e.args[0], e.args[1])
-        except SCIONOFExpiredError:
-            logging.error("Dropping packet due to expired OF:")
-            logging.error("Header:\n%s", spkt.hdr)
-            logging.error("Expired OF: %s", e)
+        except SCIONOFExpiredError as e:
+            logging.error("Dropping packet due to expired OF.\n"
+                          "Header:\n%s\nExpired OF: %s",
+                          spkt.hdr, e)
         except SCIONPacketHeaderCorruptedError:
-            logging.error("Dropping packet due to invalid header state:")
+            logging.error("Dropping packet due to invalid header state.\n")
             logging.error("Header:\n%s", spkt.hdr)
-            raise e
         except SCIONInterfaceDownException as e:
             if get_type(spkt) == PT.DATA:
                 logging.error("Interface %d is down. Issuing revocation.",
