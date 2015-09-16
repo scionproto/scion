@@ -96,11 +96,11 @@ class PathSegmentInfo(PayloadBase):
         """
         Returns PathSegmentInfo with fields populated from values.
         :param pckt_type: type of request/reply
-        :type: int (PathSegmentType)
+        :type pckt_type: int (PathSegmentType)
         :param src_isd, src_ad: address of the source AD
-        :type: int
+        :type src_isd, src_ad: int
         :param dst_isd, dst_ad: address of the destination AD
-        :type: int
+        :type dst_isd, dst_ad: int
         """
         info = PathSegmentInfo()
         info.type = pckt_type
@@ -150,9 +150,9 @@ class PathSegmentRecords(PayloadBase):
         Returns a Path Record with the values specified.
 
         :param info: type of the path segment records
-        :type: PathSegmentInfo
+        :type info: PathSegmentInfo
         :param pcbs: list of path segments
-        :type: list
+        :type pcbs: list
         """
         rec = PathSegmentRecords()
         rec.info = info
@@ -195,12 +195,10 @@ class RevocationInfo(PayloadBase):
         """
         Returns a RevocationInfo object with the specified values.
 
-        :param rev_type: type of the revocation info
-        :type: int (RevocationType)
         :param rev_token: revocation token of interface
-        :type: bytes
+        :type rev_token: bytes
         :param proof: proof for rev_token
-        :type: bytes
+        :type proof: bytes
         """
         info = RevocationInfo()
         info.rev_token = rev_token
@@ -303,7 +301,7 @@ class IFStatePayload(PayloadBase):
         """
         Returns a IFStateInfo object with the specified values.
         :param ifstate_infos: list of IFStateInfo objects
-        :type: list
+        :type ifstate_infos: list
         """
         payload = cls()
         payload.ifstate_infos = ifstate_infos
@@ -353,7 +351,7 @@ class IFStateRequest(PayloadBase):
         """
         Returns a IFStateRequest object with the specified values.
         :param if_id: The if_id of interest.
-        :type: int
+        :type if_id: int
         """
         payload = cls()
         payload.if_id = if_id
@@ -422,16 +420,18 @@ class PathMgmtPacket(SCIONPacket):
         """
         Returns a PathMgmtPacket with the values specified.
 
-        :param type_: the type_ of the packet
-        :type_: class PathMgmtType
+        :param type_: the type of the packet
+        :type type_:  PathMgmtType
         :param payload: the payload of the packet
-        :type_: lib.packet.packet_base.PayloadBase
+        :type payload: lib.packet.packet_base.PayloadBase
         :param path: the path of the packet
-        :type_: lib.packet.path.PathBase
+        :type path: lib.packet.path.PathBase
         :param src_addr: source address (ISD_AD namedtuple for response)
-        :type_: lib.packet.scion_addr.SCIONAddr or lib.packet.scion_addr.ISD_AD
+        :type src_addr: lib.packet.scion_addr.SCIONAddr or
+                        lib.packet.scion_addr.ISD_AD
         :param dst_addr: destination address (ISD_AD namedtuple for request)
-        :type_: lib.packet.scion_addr.SCIONAddr or lib.packet.scion_addr.ISD_AD
+        :type dst_addr: lib.packet.scion_addr.SCIONAddr or
+                        lib.packet.scion_addr.ISD_AD
         """
         pkt = PathMgmtPacket()
         if isinstance(src_addr, ISD_AD) and isinstance(dst_addr, SCIONAddr):
@@ -453,10 +453,11 @@ class PathMgmtPacket(SCIONPacket):
         Returns a PathMgmtPacket with the values specified.
 
         :param type_: the type_ of the packet
-        :type_: class PathMgmtType
+        :type type_: class PathMgmtType
         :param payload: The payload of the packet
-        :type_: lib.packet.packet_base.PayloadBase
+        :type payload: lib.packet.packet_base.PayloadBase
         :param header: The header of the packet.
+        :type header: lib.packet.scion.SCIONHeader
         """
         pkt = PathMgmtPacket()
         pkt.hdr = header
