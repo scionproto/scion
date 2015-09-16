@@ -882,7 +882,7 @@ class CoreBeaconServer(BeaconServer):
             return
         dst = SCIONAddr.from_values(
             self.topology.isd_id, self.topology.ad_id, ps_addr)
-        pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, None,
+        pkt = PathMgmtPacket.from_values(PMT.REG, records, None,
                                          self.addr.get_isd_ad(), dst)
         self.send(pkt, dst.host_addr)
 
@@ -1097,7 +1097,7 @@ class LocalBeaconServer(BeaconServer):
             pcb.get_first_pcbm().ad_id, self.topology.ad_id)
         ps_addr = self.dns_query_topo(PATH_SERVICE)[0]
         records = PathSegmentRecords.from_values(info, [pcb])
-        pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, None,
+        pkt = PathMgmtPacket.from_values(PMT.REG, records, None,
                                          self.addr, self.addr.get_isd_ad())
         self.send(pkt, ps_addr)
 
@@ -1111,7 +1111,7 @@ class LocalBeaconServer(BeaconServer):
         core_path = pcb.get_path(reverse_direction=True)
         records = PathSegmentRecords.from_values(info, [pcb])
         dst_isd_ad = ISD_AD(pcb.get_isd(), pcb.get_first_pcbm().ad_id)
-        pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, core_path,
+        pkt = PathMgmtPacket.from_values(PMT.REG, records, core_path,
                                          self.addr, dst_isd_ad)
         next_hop = self.ifid2addr[core_path.get_fwd_if()]
         self.send(pkt, next_hop)

@@ -627,7 +627,7 @@ class TestPathMgmtPacketParse(object):
         # Setup
         type_map = {
             PathMgmtType.REQUEST: seg_info,
-            PathMgmtType.RECORDS: seg_recs,
+            PathMgmtType.REPLY: seg_recs,
             PathMgmtType.LEASES: seg_leases,
             PathMgmtType.REVOCATIONS: rev_payload,
         }
@@ -649,7 +649,7 @@ class TestPathMgmtPacketParse(object):
         set_payload.assert_called_once_with(pth_mgmt_pkt, target.return_value)
 
     def test_success(self):
-        for type_ in (PathMgmtType.REQUEST, PathMgmtType.RECORDS,
+        for type_ in (PathMgmtType.REQUEST, PathMgmtType.REPLY,
                       PathMgmtType.LEASES, PathMgmtType.REVOCATIONS):
             yield self._check_success, type_
 

@@ -223,7 +223,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         path.reverse()
         records = PathSegmentRecords.from_values(path_request.get_payload(),
                                                  paths)
-        path_reply = PathMgmtPacket.from_values(PMT.RECORDS, records, path,
+        path_reply = PathMgmtPacket.from_values(PMT.REPLY, records, path,
                                                 self.addr.get_isd_ad(), dst)
         (next_hop, port) = self.get_first_hop(path_reply)
         logging.info("Sending PATH_REC, using path: %s", path)
@@ -259,7 +259,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
 
         if pkt.type == PMT.REQUEST:
             self.handle_path_request(pkt)
-        elif pkt.type == PMT.RECORDS:
+        elif pkt.type in [PMT.REPLY, PMT.REG]:
             self.dispatch_path_segment_record(pkt)
         elif pkt.type == PMT.REVOCATIONS:
             self._handle_revocation(pkt)
@@ -515,23 +515,12 @@ class CorePathServer(PathServer):
         """
         logging.error("Core Path Server received up-path record!")
 
-    def _pkt_from_master(self, pkt):
-        """
-        Return True if `pkt` was sent by master, False otherwise.
-        """
-        master = self._master_id
-        if not master:
-            return False
-        master_addr = SCIONAddr.from_values(*self.addr.get_isd_ad(),
-                                            host_addr=HostAddrIPv4(master))
-        logging.debug("%s %s" % (pkt.hdr.src_addr, master_addr))
-        return pkt.hdr.src_addr == master_addr
-
     def _handle_down_segment_record(self, pkt):
         """
         Handle registration of a down path.
         """
-        from_master = self._pkt_from_master(pkt)
+        from_master = (pkt.hdr.src_addr.get_isd_ad() == self.addr.get_isd_ad()
+                       and pkt.type == PMT.REPLY)
         logging.debug("from_master: %s" % from_master)
         records = pkt.get_payload()
         if not records.pcbs:
@@ -564,7 +553,7 @@ class CorePathServer(PathServer):
         if paths_to_propagate:
             records = PathSegmentRecords.from_values(records.info,
                                                      paths_to_propagate)
-            pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, None,
+            pkt = PathMgmtPacket.from_values(PMT.REPLY, records, None,
                                              self.addr, ISD_AD(0, 0))
             # Send paths to local master.
             if not from_master and self._master_id and not self._is_master():
@@ -586,7 +575,8 @@ class CorePathServer(PathServer):
         """
         Handle registration of a core path.
         """
-        from_master = self._pkt_from_master(pkt)
+        from_master = (pkt.hdr.src_addr.get_isd_ad() == self.addr.get_isd_ad()
+                       and pkt.type == PMT.REPLY)
         logging.debug("from_master: %s" % from_master)
         records = pkt.get_payload()
         if not records.pcbs:
@@ -951,7 +941,7 @@ class CorePathServer(PathServer):
 
         if pkt.type == PMT.REQUEST:
             self.handle_path_request(pkt)
-        elif pkt.type in [PMT.RECORDS, PMT.SYNC]:
+        elif pkt.type in [PMT.REPLY, PMT.REG, PMT.SYNC]:
             self.dispatch_path_segment_record(pkt)
         elif pkt.type == PMT.LEASES:
             self._handle_leases(pkt)

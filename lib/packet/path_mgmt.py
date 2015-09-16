@@ -35,8 +35,9 @@ class PathMgmtType:
     Enum of path management packet types.
     """
     REQUEST = 0
-    RECORDS = 1
-    SYNC = 2  # For records synchronization purposes.
+    REPLY = 1
+    REG = 1  # Path registration (sent by Beacon Server).
+    SYNC = 2  # For records synchronization purposes (used by Path Servers).
     LEASES = 3
     REVOCATIONS = 4
 
@@ -478,7 +479,8 @@ class PathMgmtPacket(SCIONPacket):
         self.type = data.pop(1)
         if self.type == PathMgmtType.REQUEST:
             self.set_payload(PathSegmentInfo(data.pop(PathSegmentInfo.LEN)))
-        elif self.type in [PathMgmtType.RECORDS, PathMgmtType.SYNC]:
+        elif self.type in [PathMgmtType.REPLY, PathMgmtPacket.REG,
+                           PathMgmtType.SYNC]:
             self.set_payload(PathSegmentRecords(data.pop()))
         elif self.type == PathMgmtType.LEASES:
             self.set_payload(PathSegmentLeases(data.pop()))
