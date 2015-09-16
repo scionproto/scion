@@ -52,15 +52,16 @@ from lib.packet.opaque_field import (
     OpaqueFieldType as OFT,
 )
 from lib.packet.path_mgmt import (
+    IFStateInfo,
+    IFStatePayload,
+    IFStateRequest,
     PathMgmtPacket,
     PathMgmtType as PMT,
     PathSegmentInfo,
     PathSegmentRecords,
     PathSegmentType as PST,
-    IFStateInfo,
     RevocationInfo,
-    IFStatePayload,
-    IFStateRequest,)
+)
 from lib.packet.pcb import (
     ADMarking,
     PCBMarking,

@@ -40,7 +40,8 @@ from lib.defines import (
     PATH_SERVICE,
     ROUTER_SERVICE,
     SCION_UDP_EH_DATA_PORT,
-    SCION_UDP_PORT,)
+    SCION_UDP_PORT,
+)
 from lib.errors import (
     SCIONBaseError,
     SCIONBaseException,

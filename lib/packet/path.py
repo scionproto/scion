@@ -29,13 +29,10 @@ from lib.packet.opaque_field import (
 )
 from lib.util import Raw
 
-UP_SEGMENT = "up_segment"
 UP_IOF = "up_segment_iof"
 UP_HOFS = "up_segment_hofs"
-DOWN_SEGMENT = "down_segment"
 DOWN_IOF = "down_segment_iof"
 DOWN_HOFS = "down_segment_hofs"
-CORE_SEGMENT = "core_segment"
 CORE_IOF = "core_segment_iof"
 CORE_HOFS = "core_segment_hofs"
 UP_UPSTREAM_HOF = "up_segment_upstream_ad"

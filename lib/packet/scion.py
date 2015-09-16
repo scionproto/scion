@@ -494,7 +494,6 @@ class SCIONPacket(PacketBase):
     def set_payload(self, payload):
         super().set_payload(payload)
         # Update payload_len and total len of the packet.
-        # self.hdr.common_hdr.total_len -= self.payload_len
         self.payload_len = len(payload)
         self.hdr.common_hdr.total_len = len(self.hdr) + self.payload_len
 
