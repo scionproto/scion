@@ -498,7 +498,7 @@ class CorePathServer(PathServer):
                 dst = SCIONAddr.from_values(self.topology.isd_id,
                                             self.topology.ad_id,
                                             HostAddrIPv4(master))
-                pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, None,
+                pkt = PathMgmtPacket.from_values(PMT.SYNC, records, None,
                                                  self.addr.get_isd_ad(), dst)
                 self.send(pkt, dst.host_addr)
                 logging.debug('Master updated with path (%d) %s' % (ptype, tmp))
@@ -515,10 +515,24 @@ class CorePathServer(PathServer):
         """
         logging.error("Core Path Server received up-path record!")
 
+    def _pkt_from_master(self, pkt):
+        """
+        Return True if `pkt` was sent by master, False otherwise.
+        """
+        master = self._master_id
+        if not master:
+            return False
+        master_addr = SCIONAddr.from_values(*self.addr.get_isd_ad(),
+                                            host_addr=HostAddrIPv4(master))
+        logging.debug("%s %s" % (pkt.hdr.src_addr, master_addr))
+        return pkt.hdr.src_addr == master_addr
+
     def _handle_down_segment_record(self, pkt):
         """
         Handle registration of a down path.
         """
+        from_master = self._pkt_from_master(pkt)
+        logging.debug("from_master: %s" % from_master)
         records = pkt.get_payload()
         if not records.pcbs:
             return
@@ -532,8 +546,7 @@ class CorePathServer(PathServer):
             dst_isd = pcb.get_last_pcbm().isd_id
             res = self.down_segments.update(pcb, src_isd, src_ad,
                                             dst_isd, dst_ad)
-            if (dst_isd == pkt.hdr.src_addr.isd_id and
-                    dst_ad == pkt.hdr.src_addr.ad_id):
+            if pkt.hdr.src_addr.get_isd_ad() == (dst_isd, dst_ad):
                 # Only propagate this path if it was registered with us by the
                 # down-stream AD.
                 paths_to_propagate.append(pcb)
@@ -554,8 +567,7 @@ class CorePathServer(PathServer):
             pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, None,
                                              self.addr, ISD_AD(0, 0))
             # Send paths to local master.
-            # TODO(PSz): don't send path received from master
-            if self._master_id and not self._is_master():
+            if not from_master and self._master_id and not self._is_master():
                 self._send_to_master(pkt)
             # Now propagate paths to other core ADs (in the ISD).
             logging.debug("Propagate among core ADs")
@@ -574,6 +586,8 @@ class CorePathServer(PathServer):
         """
         Handle registration of a core path.
         """
+        from_master = self._pkt_from_master(pkt)
+        logging.debug("from_master: %s" % from_master)
         records = pkt.get_payload()
         if not records.pcbs:
             return
@@ -601,14 +615,15 @@ class CorePathServer(PathServer):
                 self.core_ads.add((dst_isd, dst_ad))
             else:
                 pcb_from_local_isd = False
-        if not from_zk:
+        if not from_zk and not from_master and pkt.type != PMT.SYNC:
             # Share segments via ZK.
             if pcb_from_local_isd:
                 self._share_segments(pkt)
             # Send segments to master.
-            # TODO(PSz): don't send path received from master
             elif self._master_id and not self._is_master():
                 self._send_to_master(pkt)
+        else:
+            logging.debug('path neither shared via ZK nor sent to master')
         # Send pending requests that couldn't be processed due to the lack of
         # a core path to the destination PS.
         if self.waiting_targets:
@@ -685,8 +700,6 @@ class CorePathServer(PathServer):
         :param inter_isd: whether the packet should be propagated across ISDs
         :type inter_isd: bool
         """
-        # FIXME: For new we broadcast the path to every CPS in the core, even
-        # the one we just received it from. Can we avoid that?
         for (isd, ad) in self.core_ads:
             if inter_isd or isd == self.topology.isd_id:
                 cpaths = self.core_segments(first_isd=isd, first_ad=ad,
@@ -938,7 +951,7 @@ class CorePathServer(PathServer):
 
         if pkt.type == PMT.REQUEST:
             self.handle_path_request(pkt)
-        elif pkt.type == PMT.RECORDS:
+        elif pkt.type in [PMT.RECORDS, PMT.SYNC]:
             self.dispatch_path_segment_record(pkt)
         elif pkt.type == PMT.LEASES:
             self._handle_leases(pkt)

@@ -36,8 +36,9 @@ class PathMgmtType:
     """
     REQUEST = 0
     RECORDS = 1
-    LEASES = 2
-    REVOCATIONS = 3
+    SYNC = 2  # For records synchronization purposes.
+    LEASES = 3
+    REVOCATIONS = 4
 
 
 class PathSegmentType(object):
@@ -477,7 +478,7 @@ class PathMgmtPacket(SCIONPacket):
         self.type = data.pop(1)
         if self.type == PathMgmtType.REQUEST:
             self.set_payload(PathSegmentInfo(data.pop(PathSegmentInfo.LEN)))
-        elif self.type == PathMgmtType.RECORDS:
+        elif self.type in [PathMgmtType.RECORDS, PathMgmtType.SYNC]:
             self.set_payload(PathSegmentRecords(data.pop()))
         elif self.type == PathMgmtType.LEASES:
             self.set_payload(PathSegmentLeases(data.pop()))

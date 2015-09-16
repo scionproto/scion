@@ -140,6 +140,13 @@ class SCIONAddr(object):
         """
         return "(%u, %u, %s)" % (self.isd_id, self.ad_id, self.host_addr)
 
+    def __eq__(self, other):
+        if type(other) is type(self):
+            return (self.get_isd_ad() == other.get_isd_ad() and
+                    self.host_addr == other.host_addr)
+        else:
+            return False
+
     def get_isd_ad(self):
         """
         Return a tuple containing ISD ID and AD ID.
