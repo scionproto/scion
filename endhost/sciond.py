@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from lib.crypto.hash_chain import HashChain
 """
 :mod:`sciond` --- Reference endhost SCION Daemon
 ================================================
@@ -23,6 +22,7 @@ import threading
 
 # SCION
 from infrastructure.scion_elem import SCIONElement
+from lib.crypto.hash_chain import HashChain
 from lib.defines import ADDR_IPV4_TYPE, PATH_SERVICE
 from lib.errors import SCIONBaseError, SCIONServiceLookupError
 from lib.packet.path import PathCombinator

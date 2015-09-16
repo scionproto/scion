@@ -11,15 +11,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from binascii import b2a_hex
-from lib.errors import SCIONIndexError
 """
 :mod:`hash_chain` --- Generic hash-chain implementation
 =======================================================
 """
-
+from binascii import b2a_hex
 from Crypto.Hash import SHA256
 
+# SCION
+from lib.errors import SCIONIndexError
 
 class HashChainExhausted(Exception):
     """The hash chain is exhausted"""

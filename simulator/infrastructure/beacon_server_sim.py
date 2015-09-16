@@ -35,7 +35,6 @@ from lib.packet.opaque_field import (
 )
 from lib.packet.path_mgmt import (
     RevocationInfo,
-    RevocationType as RT,
 )
 from lib.packet.pcb import (
     ADMarking,
@@ -238,28 +237,29 @@ class CoreBeaconServerSim(CoreBeaconServer):
         Periodically checks each interface state and issues an if revocation, if
         no keep-alive message was received for IFID_TOUT.
         """
-        start_time = SCIONTime.get_time()
-        for (if_id, if_state) in self.ifid_state.items():
-            # Check if interface has timed-out.
-            if if_state.is_expired():
-                logging.info("Issuing revocation for IF %d.", if_id)
-                # Issue revocation
-                assert if_id in self.if2rev_tokens
-                chain = self.if2rev_tokens[if_id]
-                rev_info = RevocationInfo.from_values(
-                    RT.INTERFACE, chain.current_element(),
-                    chain.next_element())
-                self._process_revocation(rev_info)
-                # Advance the hash chain for the corresponding IF.
-                try:
-                    chain.move_to_next_element()
-                except HashChainExhausted:
-                    # TODO(shitz): Add code to handle hash chain exhaustion.
-                    logging.warning("Hash chain for IF %s is exhausted.")
-                if_state.revoke_if_expired()
-        now = SCIONTime.get_time()
-        self.simulator.add_event(start_time + self.IF_TIMEOUT_INTERVAL - now,
-                                 cb=self._handle_if_timeouts)
+#         start_time = SCIONTime.get_time()
+#         for (if_id, if_state) in self.ifid_state.items():
+#             # Check if interface has timed-out.
+#             if if_state.is_expired():
+#                 logging.info("Issuing revocation for IF %d.", if_id)
+#                 # Issue revocation
+#                 assert if_id in self.if2rev_tokens
+#                 chain = self.if2rev_tokens[if_id]
+#                 rev_info = RevocationInfo.from_values(
+#                     RT.INTERFACE, chain.current_element(),
+#                     chain.next_element())
+#                 self._process_revocation(rev_info)
+#                 # Advance the hash chain for the corresponding IF.
+#                 try:
+#                     chain.move_to_next_element()
+#                 except HashChainExhausted:
+#                     # TODO(shitz): Add code to handle hash chain exhaustion.
+#                     logging.warning("Hash chain for IF %s is exhausted.")
+#                 if_state.revoke_if_expired()
+#         now = SCIONTime.get_time()
+#         self.simulator.add_event(start_time + self.IF_TIMEOUT_INTERVAL - now,
+#                                  cb=self._handle_if_timeouts)
+        pass
 
 
 class LocalBeaconServerSim(LocalBeaconServer):
@@ -438,25 +438,26 @@ class LocalBeaconServerSim(LocalBeaconServer):
         Periodically checks each interface state and issues an if revocation, if
         no keep-alive message was received for IFID_TOUT.
         """
-        start_time = SCIONTime.get_time()
-        for (if_id, if_state) in self.ifid_state.items():
-            # Check if interface has timed-out.
-            if if_state.is_expired():
-                logging.info("Issuing revocation for IF %d.", if_id)
-                # Issue revocation
-                assert if_id in self.if2rev_tokens
-                chain = self.if2rev_tokens[if_id]
-                rev_info = RevocationInfo.from_values(
-                    RT.INTERFACE, chain.current_element(),
-                    chain.next_element())
-                self._process_revocation(rev_info)
-                # Advance the hash chain for the corresponding IF.
-                try:
-                    chain.move_to_next_element()
-                except HashChainExhausted:
-                    # TODO(shitz): Add code to handle hash chain exhaustion.
-                    logging.warning("Hash chain for IF %s is exhausted.")
-                if_state.revoke_if_expired()
-        now = SCIONTime.get_time()
-        self.simulator.add_event(start_time + self.IF_TIMEOUT_INTERVAL - now,
-                                 cb=self._handle_if_timeouts)
+#         start_time = SCIONTime.get_time()
+#         for (if_id, if_state) in self.ifid_state.items():
+#             # Check if interface has timed-out.
+#             if if_state.is_expired():
+#                 logging.info("Issuing revocation for IF %d.", if_id)
+#                 # Issue revocation
+#                 assert if_id in self.if2rev_tokens
+#                 chain = self.if2rev_tokens[if_id]
+#                 rev_info = RevocationInfo.from_values(
+#                     RT.INTERFACE, chain.current_element(),
+#                     chain.next_element())
+#                 self._process_revocation(rev_info)
+#                 # Advance the hash chain for the corresponding IF.
+#                 try:
+#                     chain.move_to_next_element()
+#                 except HashChainExhausted:
+#                     # TODO(shitz): Add code to handle hash chain exhaustion.
+#                     logging.warning("Hash chain for IF %s is exhausted.")
+#                 if_state.revoke_if_expired()
+#         now = SCIONTime.get_time()
+#         self.simulator.add_event(start_time + self.IF_TIMEOUT_INTERVAL - now,
+#                                  cb=self._handle_if_timeouts)
+        pass

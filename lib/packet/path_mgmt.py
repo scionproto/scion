@@ -452,7 +452,7 @@ class PathMgmtPacket(SCIONPacket):
         """
         Returns a PathMgmtPacket with the values specified.
 
-        :param type_: the type_ of the packet
+        :param type_: the type of the packet
         :type type_: class PathMgmtType
         :param payload: The payload of the packet
         :type payload: lib.packet.packet_base.PayloadBase
