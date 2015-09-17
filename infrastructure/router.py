@@ -197,7 +197,7 @@ class Router(SCIONElement):
         ifstate_req_thread = threading.Thread(
             target=thread_safety_net, args=(self.request_ifstates,),
             name="ER.request_ifstates", daemon=True)
-        threading.Timer(5, lambda t: t.start(), (ifstate_req_thread,)).start()
+        threading.Timer(60, lambda t: t.start(), (ifstate_req_thread,)).start()
         SCIONElement.run(self)
 
     def send(self, spkt, addr, port=SCION_UDP_PORT, use_local_socket=True):
