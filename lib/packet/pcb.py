@@ -284,6 +284,20 @@ class ADMarking(Marking):
 class PathSegment(Marking):
     """
     Packs all PathSegment fields for a specific beacon.
+
+    :cvar MIN_LEN: the minimum length of a PathSegment in bytes.
+    :type MIN_LEN: int
+
+    :ivar iof: the info opaque field of the segment.
+    :type iof: :class:`InfoOpaqueField`
+    :ivar trc_ver: the TRC version number at the creating AS.
+    :type trc_ver: int
+    :ivar if_id: the interface identifier.
+    :type if_id: int
+    :ivar segment_id: the identifier of the path segment.
+    :type segment_id: bytes
+    :ivar ads: the ADs on the path.
+    :type ads: list
     """
     MIN_LEN = 14 + REV_TOKEN_LEN
 
@@ -300,7 +314,7 @@ class PathSegment(Marking):
         self.if_id = 0
         self.segment_id = REV_TOKEN_LEN * b"\x00"
         self.ads = []
-        self.min_exp_time = 2 ** 8 - 1
+        self.min_exp_time = 2 ** 8 - 1 # TODO: eliminate 8 as magic number
         if raw is not None:
             self.parse(raw)
 

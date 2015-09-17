@@ -16,6 +16,7 @@
 ==========================================================================
 """
 # Stdlib
+import math
 from unittest.mock import patch, MagicMock
 
 # External packages
@@ -23,12 +24,13 @@ import nose
 import nose.tools as ntools
 
 # SCION
-from lib.packet.pcb import PathSegment
+from lib.packet.pcb import PathSegment, REV_TOKEN_LEN
 from lib.path_store import (
     PathPolicy,
     PathStore,
     PathStoreRecord
 )
+from test.testcommon import create_mock
 
 
 class TestPathPolicyInit(object):
@@ -271,26 +273,31 @@ class TestPathStoreRecordInit(object):
            new_callable=MagicMock)
     def test_basic(self, time_):
         pcb = MagicMock(spec_set=['__class__', 'segment_id',
-                                  'get_expiration_time', 'get_hops_hash'])
+                                  'get_expiration_time', 'get_hops_hash',
+                                  'get_n_hops', 'get_n_peer_links',
+                                  'get_timestamp'])
         pcb.__class__ = PathSegment
         pcb.segment_id = "id"
         pcb.get_expiration_time.return_value = "get_expiration_time"
         time_.return_value = 23
+        pcb.get_timestamp.return_value = 17
         pth_str_rec = PathStoreRecord(pcb)
         ntools.eq_(pth_str_rec.pcb, pcb)
         ntools.eq_(pth_str_rec.id, pcb.get_hops_hash())
         ntools.eq_(pth_str_rec.fidelity, 0)
-        ntools.eq_(pth_str_rec.peer_links, 0)
-        ntools.eq_(pth_str_rec.hops_length, 0)
         ntools.eq_(pth_str_rec.disjointness, 0)
-        ntools.eq_(pth_str_rec.last_sent_time, 1420070400)
-        ntools.eq_(pth_str_rec.last_seen_time, 23)
-        ntools.eq_(pth_str_rec.delay_time, 0)
+        ntools.eq_(pth_str_rec.last_sent_time,
+                   PathStoreRecord.DEFAULT_SENT_TIME)
+        ntools.eq_(pth_str_rec.last_seen_time, time_.return_value)
+        ntools.eq_(pth_str_rec.delay_time,
+                   time_.return_value - pcb.get_timestamp.return_value)
         ntools.eq_(pth_str_rec.expiration_time, "get_expiration_time")
         ntools.eq_(pth_str_rec.guaranteed_bandwidth, 0)
         ntools.eq_(pth_str_rec.available_bandwidth, 0)
         ntools.eq_(pth_str_rec.total_bandwidth, 0)
         time_.assert_called_once_with()
+        pcb.get_n_peer_links.assert_called_once_with()
+        pcb.get_n_hops.assert_called_once_with()
         pcb.get_expiration_time.assert_called_once_with()
 
 
@@ -313,7 +320,9 @@ class TestPathStoreRecordUpdateFidelity(object):
         path_policy.property_weights['AvailableBandwidth'] = 8
         path_policy.property_weights['TotalBandwidth'] = 9
         pcb = MagicMock(spec_set=['__class__', 'segment_id',
-                                  'get_expiration_time', 'get_hops_hash'])
+                                  'get_expiration_time', 'get_hops_hash',
+                                  'get_n_hops', 'get_n_peer_links',
+                                  'get_timestamp'])
         pcb.__class__ = PathSegment
         pth_str_rec = PathStoreRecord(pcb)
         pth_str_rec.peer_links = 10 ** 5
@@ -337,7 +346,9 @@ class TestPathStoreRecordEQ(object):
     """
     def setUp(self):
         self.pcb = MagicMock(spec_set=['__class__', 'segment_id',
-                                       'get_expiration_time', 'get_hops_hash'])
+                                       'get_expiration_time', 'get_hops_hash',
+                                       'get_n_hops', 'get_n_peer_links',
+                                       'get_timestamp'])
         self.pcb.__class__ = PathSegment
 
     def tearDown(self):
@@ -385,112 +396,130 @@ class TestPathStoreAddSegment(object):
     Unit tests for lib.path_store.PathStore.add_segment
     """
     def setUp(self):
-        self.pcb = MagicMock(spec_set=PathSegment)
+        self.pcb = MagicMock(spec=PathSegment)
+        self.pcb.segment_id = REV_TOKEN_LEN * b'\x00'
 
     def tearDown(self):
         del self.pcb
 
+    def test_basic(self):
+        """
+        Add a single path segment to the set of candidate paths.
+        """
+        path_policy = MagicMock(spec_set=['history_limit', 'check_filters',
+                                          'candidates_set_size'])
+        path_policy.history_limit = 3
+        path_policy.candidates_set_size = 2
+        pth_str = PathStore(path_policy)
+        pth_str.add_segment(self.pcb)
+        path_policy.check_filters.assert_called_once_with(self.pcb)
+        ntools.ok_(pth_str.candidates)
+        ntools.eq_(pth_str.candidates[0].pcb, self.pcb)
+
     def test_filters(self):
+        """
+        Try to add a path that does not meet the filter requirements.
+        """
         path_policy = MagicMock(spec_set=['history_limit', 'check_filters'])
         path_policy.history_limit = 3
         path_policy.check_filters.return_value = False
         pth_str = PathStore(path_policy)
         pth_str.add_segment(self.pcb)
         path_policy.check_filters.assert_called_once_with(self.pcb)
+        ntools.assert_false(pth_str.candidates)
 
-    @patch("lib.path_store.PathStoreRecord", autospec=True)
-    def test_basic(self, pth_str_rec):
+    @patch("lib.path_store.SCIONTime.get_time", spec_set=[],
+           new_callable=MagicMock)
+    def test_already_in_store(self, time_):
+        """
+        Try to add a path that is already in the path store.
+        """
         path_policy = MagicMock(spec_set=['history_limit', 'check_filters',
                                           'candidates_set_size'])
         path_policy.history_limit = 3
-        path_policy.candidates_set_size = 7
-        record = MagicMock(spec_set=['last_sent_time', 'fidelity'])
-        record.last_sent_time = 7
-        record.fidelity = 7
-        pth_str_rec.return_value = record
+        path_policy.candidates_set_size = 2
         pth_str = PathStore(path_policy)
-        pth_str.candidates = [MagicMock(spec_set=['last_sent_time', '__eq__',
-                                                  'fidelity'])
-                              for i in range(5)]
-        for i in range(5):
-            pth_str.candidates[i].last_sent_time = i
-            pth_str.candidates[i].fidelity = i
-        pth_str.candidates[4].__eq__.return_value = True
-        pth_str._update_all_fidelity = MagicMock(spec_set=[])
+        time_.return_value = 23
+        candidate = MagicMock(spec_set=['id', 'delay', 'last_seen_time'])
+        candidate.id = self.pcb.segment_id
+        pth_str.candidates = [candidate]
+        self.pcb.get_timestamp.return_value = 22
         pth_str.add_segment(self.pcb)
-        pth_str._update_all_fidelity.assert_called_once_with()
-        ntools.eq_(len(pth_str.candidates), 5)
-        ntools.eq_(pth_str.candidates[0], record)
-        for i in range(1, 5):
-            ntools.eq_(pth_str.candidates[i].last_sent_time, 4 - i)
+        ntools.eq_(pth_str.candidates[0].delay, 1)
+        ntools.eq_(pth_str.candidates[0].last_seen_time, time_.return_value)
 
-    @patch("lib.path_store.PathStoreRecord", autospec=True)
-    def test_removal(self, pth_str_rec):
+    def clear_candidates(self, pth_str):
+        """
+        Clear the list of candidates from a path store.
+        """
+        pth_str.candidates = []
+
+    def test_expire_paths(self):
+        """
+        Add a path, find that the candidate set size is too large, and remove
+        an expired segment.
+        """
         path_policy = MagicMock(spec_set=['history_limit', 'check_filters',
-                                          'candidates_set_size',
-                                          'best_set_size'])
+                                          'candidates_set_size'])
         path_policy.history_limit = 3
-        path_policy.candidates_set_size = 3
-        path_policy.best_set_size = 3
-        record = MagicMock(spec_set=['fidelity'])
-        record.fidelity = 7
-        pth_str_rec.return_value = record
+        path_policy.candidates_set_size = 0
         pth_str = PathStore(path_policy)
-        pth_str.candidates = [MagicMock(spec_set=['fidelity'])
-                              for i in range(5)]
-        for i in range(5):
-            pth_str.candidates[i].fidelity = i
-        pth_str._update_all_fidelity = MagicMock(spec_set=[])
-        pth_str._remove_expired_segments = MagicMock(spec_set=[])
-        pth_str.best_paths_history = MagicMock(spec_set=['appendleft'])
+        pth_str._remove_expired_segments = MagicMock(
+                side_effect=lambda: self.clear_candidates(pth_str))
+        pth_str._update_all_fidelity = MagicMock()
         pth_str.add_segment(self.pcb)
         pth_str._remove_expired_segments.assert_called_once_with()
-        ntools.eq_(len(pth_str.candidates), 3)
-        pth_str.best_paths_history.appendleft.assert_called_once_with(
-            pth_str.candidates)
+        pth_str._update_all_fidelity.assert_not_called()
+        ntools.assert_false(pth_str.candidates)
 
+    def dummy_fidelity(self, candidates):
+        for candidate in candidates:
+            if candidate.id == REV_TOKEN_LEN * b'\x00':
+                candidate.fidelity = 0
+            else:
+                candidate.fidelity = 1
 
-class TestPathStoreUpdateAllPeerLinks(object):
+    def test_remove_low_fidelity_path(self):
+        """
+        Add a path, find that the candidate set size is too large, and remove
+        the lowest-fidelity path.
+        """
+        path_policy = MagicMock(spec_set=['history_limit', 'check_filters',
+                                          'candidates_set_size'])
+        path_policy.history_limit = 3
+        path_policy.candidates_set_size = 1
+        pth_str = PathStore(path_policy)
+        pth_str._remove_expired_segments = MagicMock()
+        pth_str._update_all_fidelity = MagicMock(
+            side_effect=lambda: self.dummy_fidelity(pth_str.candidates))
+        pcb1 = MagicMock(spec=PathSegment)
+        pcb1.segment_id = REV_TOKEN_LEN * b'\x00'
+        pcb2 = MagicMock(spec=PathSegment)
+        pcb2.segment_id = REV_TOKEN_LEN * b'\x01'
+        pth_str.add_segment(pcb1)
+        pth_str.add_segment(pcb2)
+        pth_str._remove_expired_segments.assert_called_once_with()
+        pth_str._update_all_fidelity.assert_called_once_with()
+        ntools.eq_(len(pth_str.candidates), 1)
+        ntools.eq_(pth_str.candidates[0].pcb.segment_id, pcb2.segment_id)
+
+class TestPathStoreUpdateDisjointnessDB(object):
     """
-    Unit tests for lib.path_store._update_all_peer_links
+    Unit tests for lib.path_store._update_disjointness_db
     """
-    def test_basic(self):
+    @patch("lib.path_store.SCIONTime.get_time", spec_set=[],
+           new_callable=MagicMock)
+    def test_basic(self, time_):
         path_policy = MagicMock(spec_set=['history_limit'])
         path_policy.history_limit = 3
         pth_str = PathStore(path_policy)
-        pth_str.candidates = [MagicMock(spec_set=['pcb', 'peer_links'])
-                              for i in range(5)]
-        for i in range(5):
-            pcb = MagicMock(spec_set=['get_n_peer_links'])
-            pcb.get_n_peer_links.return_value = 2*i + 1
-            pth_str.candidates[i].pcb = pcb
-        pth_str._update_all_peer_links()
-        for i in range(5):
-            pth_str.candidates[i].pcb.get_n_peer_links.assert_called_once_with()
-            ntools.assert_almost_equal(pth_str.candidates[i].peer_links,
-                                       ((2 * i + 1) / 10))
-
-
-class TestPathStoreUpdateAllHopsLength(object):
-    """
-    Unit tests for lib.path_store._update_all_hops_length
-    """
-    def test_basic(self):
-        path_policy = MagicMock(spec_set=['history_limit'])
-        path_policy.history_limit = 3
-        pth_str = PathStore(path_policy)
-        pth_str.candidates = [MagicMock(spec_set=['pcb', 'hops_length'])
-                              for i in range(5)]
-        for i in range(5):
-            pcb = MagicMock(spec_set=['get_n_hops'])
-            pcb.get_n_hops.return_value = 2*i + 2
-            pth_str.candidates[i].pcb = pcb
-        pth_str._update_all_hops_length()
-        for i in range(5):
-            pth_str.candidates[i].pcb.get_n_hops.assert_called_once_with()
-            ntools.assert_almost_equal(pth_str.candidates[i].hops_length,
-                                       ((2 * i + 2) / 10))
-
+        pth_str.disjointness = {0: math.e, 1: math.e**2}
+        pth_str.last_dj_update = 22
+        time_.return_value = 23
+        pth_str._update_disjointness_db()
+        ntools.eq_(pth_str.last_dj_update, time_.return_value)
+        ntools.assert_almost_equal(pth_str.disjointness[0], 1.0)
+        ntools.assert_almost_equal(pth_str.disjointness[1], math.e)
 
 class TestPathStoreUpdateAllDisjointness(object):
     """
@@ -500,21 +529,29 @@ class TestPathStoreUpdateAllDisjointness(object):
         path_policy = MagicMock(spec_set=['history_limit'])
         path_policy.history_limit = 3
         pth_str = PathStore(path_policy)
-        pth_str.candidates = [MagicMock(spec_set=['pcb', 'disjointness'])
-                              for i in range(5)]
-        for i in range(5):
+        numCandidates = 5
+        pathLength = 5
+        pth_str.candidates = [MagicMock(spec_set=['pcb', 'disjointness', 'id'])
+                              for i in range(numCandidates)]
+        pth_str.disjointness = {}
+        for i in range(numCandidates * (2 * pathLength + 1)):
+            pth_str.disjointness[i] = 1.0
+        for i in range(numCandidates):
+            pth_str.candidates[i].id = i * (2 * pathLength + 1)
             pcb = MagicMock(spec_set=['ads'])
-            pcb.ads = [MagicMock(spec_set=['pcbm']) for j in range(5)]
-            for j in range(5):
-                pcbm = MagicMock(spec_set=['ad_id'])
-                pcbm.ad_id = i * 5 + j
+            pcb.ads = [MagicMock(spec_set=['pcbm']) for j in range(pathLength)]
+            for j in range(pathLength):
+                pcbm = MagicMock(spec_set=['ad_id', 'hof'])
+                pcbm.ad_id = pth_str.candidates[i].id + j + 1
+                pcbm.hof = MagicMock(spec_set=['egress_if'])
+                pcbm.hof.egress_if = pcbm.ad_id + pathLength
                 pcb.ads[j].pcbm = pcbm
             pth_str.candidates[i].pcb = pcb
+        pth_str._update_disjointness_db = create_mock()
         pth_str._update_all_disjointness()
-        for i in range(5):
+        for i in range(numCandidates):
             ntools.assert_almost_equal(pth_str.candidates[i].disjointness,
-                                       (20 / 25))
-
+                                       1.0)
 
 class TestPathStoreUpdateAllDelayTime(object):
     """
@@ -547,15 +584,11 @@ class TestPathStoreUpdateAllFidelity(object):
         path_policy = MagicMock(spec_set=['history_limit'])
         path_policy.history_limit = 3
         pth_str = PathStore(path_policy)
-        pth_str._update_all_peer_links = MagicMock(spec_set=[])
-        pth_str._update_all_hops_length = MagicMock(spec_set=[])
         pth_str._update_all_disjointness = MagicMock(spec_set=[])
         pth_str._update_all_delay_time = MagicMock(spec_set=[])
         pth_str.candidates = [MagicMock(spec_set=['update_fidelity'])
                               for i in range(5)]
         pth_str._update_all_fidelity()
-        pth_str._update_all_peer_links.assert_called_once_with()
-        pth_str._update_all_hops_length.assert_called_once_with()
         pth_str._update_all_disjointness.assert_called_once_with()
         pth_str._update_all_delay_time.assert_called_once_with()
         for i in range(5):
@@ -572,22 +605,35 @@ class TestPathStoreGetBestSegments(object):
         path_policy.history_limit = 3
         pth_str = PathStore(path_policy)
         pth_str._remove_expired_segments = MagicMock(spec_set=[])
-        pth_str.candidates = [MagicMock(spec_set=['pcb']) for i in range(5)]
-        for i in range(5):
+        numCandidates = 5
+        pth_str.candidates = [MagicMock(spec_set=['pcb', 'fidelity'])
+                              for i in range(numCandidates)]
+        pth_str._remove_expired_segments = create_mock()
+        pth_str._update_all_fidelity = create_mock()
+        for i in range(numCandidates):
             pth_str.candidates[i].pcb = i
-        ntools.eq_(pth_str.get_best_segments(3), [0, 1, 2])
+            pth_str.candidates[i].fidelity = i
+        ntools.eq_(pth_str.get_best_segments(3),
+                list(reversed(range(numCandidates-3, numCandidates))))
         pth_str._remove_expired_segments.assert_called_once_with()
 
-    def test_less_arg(basic):
+    def test_less_arg(self):
         path_policy = MagicMock(spec_set=['history_limit', 'best_set_size'])
         path_policy.history_limit = 3
         path_policy.best_set_size = 4
         pth_str = PathStore(path_policy)
         pth_str._remove_expired_segments = MagicMock(spec_set=[])
-        pth_str.candidates = [MagicMock(spec_set=['pcb']) for i in range(5)]
-        for i in range(5):
+        numCandidates = 5
+        pth_str.candidates = [MagicMock(spec_set=['pcb', 'fidelity'])
+                              for i in range(numCandidates)]
+        pth_str._remove_expired_segments = create_mock()
+        pth_str._update_all_fidelity = create_mock()
+        for i in range(numCandidates):
             pth_str.candidates[i].pcb = i
-        ntools.eq_(pth_str.get_best_segments(), [0, 1, 2, 3])
+            pth_str.candidates[i].fidelity = i
+        ntools.eq_(pth_str.get_best_segments(),
+                   list(reversed(range(numCandidates-path_policy.best_set_size,
+                                       numCandidates))))
 
 
 class TestPathStoreGetLatestHistorySnapshot(object):
