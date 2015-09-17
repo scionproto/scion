@@ -325,12 +325,12 @@ class PathStore(object):
         """
         Possibly add a new path to the candidates list.
 
-        Add a path (which is an instance of :class:`PathSegment`) to the set of
-        candidate paths. The candidate path is stored at the :class:`PathStore`
-        as a :class:`PathStoreRecord`.
+        Add a path (which is an instance of PathSegment) to the set of
+        candidate paths. The candidate path is stored at the PathStore
+        as a PathStoreRecord.
 
         If upon adding the path, the candidate path set is too large (i.e.,
-        larger than `candidates_set_size`), the lowest-fidelity path is
+        larger than candidates_set_size), the lowest-fidelity path is
         removed.
 
         If the path's properties do not meet the filter criteria, the path is
