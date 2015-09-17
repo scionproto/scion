@@ -746,6 +746,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                     chain.set_current_index(rev_obj.hash_chain_idx)
                     logging.info("Updated hash chain index for IF %d to %d.",
                                  rev_obj.if_id, rev_obj.hash_chain_idx)
+                    self._remove_revoked_pcbs(rev_obj.rev_info, rev_obj.if_id)
                 except SCIONIndexError:
                     logging.warning("Rev object for IF %d contains invalid "
                                     "index: %d (1 < index < %d).",
