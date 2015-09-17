@@ -22,6 +22,7 @@ import copy
 import datetime
 import logging
 import os
+import struct
 import sys
 import threading
 from _collections import defaultdict, deque
@@ -43,7 +44,7 @@ from lib.defines import (
     PATH_SERVICE,
     SCION_UDP_PORT,
 )
-from lib.errors import SCIONServiceLookupError
+from lib.errors import SCIONServiceLookupError, SCIONIndexError
 from lib.log import init_logging, log_exception
 from lib.packet.opaque_field import (
     HopOpaqueField,
@@ -51,14 +52,15 @@ from lib.packet.opaque_field import (
     OpaqueFieldType as OFT,
 )
 from lib.packet.path_mgmt import (
+    IFStateInfo,
+    IFStatePayload,
+    IFStateRequest,
     PathMgmtPacket,
     PathMgmtType as PMT,
     PathSegmentInfo,
     PathSegmentRecords,
     PathSegmentType as PST,
     RevocationInfo,
-    RevocationPayload,
-    RevocationType as RT,
 )
 from lib.packet.pcb import (
     ADMarking,
@@ -85,6 +87,7 @@ from lib.util import (
     get_trc_file_path,
     handle_signals,
     read_file,
+    Raw,
     sleep_interval,
     trace,
     write_file,
@@ -98,7 +101,7 @@ class InterfaceState(object):
     Simple class that represents current state of an interface.
     """
     # Timeout for interface (link) status.
-    IFID_TOUT = 5 * IFID_PKT_TOUT
+    IFID_TOUT = 10 * IFID_PKT_TOUT
 
     INACTIVE = 0
     ACTIVE = 1
@@ -162,6 +165,60 @@ class InterfaceState(object):
         return self._state == self.REVOKED
 
 
+class RevocationObject(object):
+    """
+    Revocation object that gets stored to Zookeeper.
+    """
+
+    LEN = 8 + RevocationInfo.LEN
+
+    def __init__(self, raw=None):
+        self.if_id = 0
+        self.hash_chain_idx = -1
+        self.rev_info = None
+
+        if raw is not None:
+            self.parse(raw)
+
+    def parse(self, raw):
+        """
+        Parses raw bytes and populates the fields.
+        """
+        data = Raw(raw, "RevocationObject", self.LEN)
+        (self.if_id, self.hash_chain_idx) = struct.unpack("!II", data.pop(8))
+        self.rev_info = RevocationInfo(data.pop(RevocationInfo.LEN))
+
+    def pack(self):
+        """
+        Returns a bytes object from the fields.
+        """
+        return (struct.pack("!II", self.if_id, self.hash_chain_idx) +
+                self.rev_info.pack())
+
+    @classmethod
+    def from_values(cls, if_id, index, rev_token, proof):
+        """
+        Returns a RevocationInfo object with the specified values.
+
+        :param if_id: The interface id of the corresponding interface.
+        :type if_id: int
+        :param index: The index of the rev_token in the hash chain.
+        :type index: int
+        :param rev_type: type of the revocation info
+        :type: int (RevocationType)
+        :param rev_token: revocation token of interface
+        :type: bytes
+        :param proof: proof for rev_token
+        :type: bytes
+        """
+        rev_obj = cls()
+        rev_obj.if_id = if_id
+        rev_obj.hash_chain_idx = index
+        rev_obj.rev_info = RevocationInfo.from_values(rev_token, proof)
+
+        return rev_obj
+
+
 class BeaconServer(SCIONElement, metaclass=ABCMeta):
     """
     The SCION PathConstructionBeacon Server.
@@ -171,8 +228,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             propagation.
         if2rev_tokens: Contains the currently used revocation token
             hash-chain for each interface.
-        seg2rev_tokens: Contains the currently used revocation token
-            hash-chain for a path-segment.
     """
     # Amount of time units a HOF is valid (time unit is EXP_TIME_UNIT).
     HOF_EXP_TIME = 63
@@ -180,6 +235,10 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
     REQUESTS_TIMEOUT = 10
     # ZK path for incoming PCBs
     ZK_PCB_CACHE_PATH = "pcb_cache"
+    # ZK path for revocations.
+    ZK_REVOCATIONS_PATH = "rev_cache"
+    # Time revocation objects are cached in memory (in seconds).
+    ZK_REV_OBJ_MAX_AGE = 60 * 60
     # Interval to checked for timed out interfaces.
     IF_TIMEOUT_INTERVAL = 1
 
@@ -213,7 +272,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         self.of_gen_key = get_roundkey_cache(self.config.master_ad_key)
         logging.info(self.config.__dict__)
         self.if2rev_tokens = {}
-        self.seg2rev_tokens = {}
         self._if_rev_token_lock = threading.Lock()
 
         self.ifid_state = {}
@@ -231,6 +289,32 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             self.pcb_cache = ZkSharedCache(
                 self.zk, self.ZK_PCB_CACHE_PATH, self.process_pcbs,
                 self.config.propagation_time)
+            self.revobjs_cache = ZkSharedCache(
+                self.zk, self.ZK_REVOCATIONS_PATH, self.process_rev_objects,
+                self.ZK_REV_OBJ_MAX_AGE)
+
+    def _init_hash_chain(self, if_id):
+        """
+        Setups a hash chain for interface 'if_id'.
+        """
+        if if_id in self.if2rev_tokens:
+            return
+        seed = self.config.master_ad_key + bytes("%d" % if_id, 'utf-8')
+        start_ele = SHA256.new(seed).digest()
+        chain = HashChain(start_ele)
+        self.if2rev_tokens[if_id] = chain
+        return chain
+
+    def _get_if_hash_chain(self, if_id):
+        """
+        Returns the hash chain corresponding to interface if_id.
+        """
+        if not if_id:
+            return None
+        elif if_id not in self.if2rev_tokens:
+            return self._init_hash_chain(if_id)
+
+        return self.if2rev_tokens[if_id]
 
     def _get_if_rev_token(self, if_id):
         """
@@ -243,35 +327,12 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         ret = None
         if if_id == 0:
             ret = 32 * b"\x00"
-        elif if_id not in self.if2rev_tokens:
-            seed = self.config.master_ad_key + bytes("%d" % if_id, 'utf-8')
-            start_ele = SHA256.new(seed).digest()
-            chain = HashChain(start_ele)
-            self.if2rev_tokens[if_id] = chain
-            ret = chain.current_element()
         else:
-            ret = self.if2rev_tokens[if_id].current_element()
+            chain = self._get_if_hash_chain(if_id)
+            if chain:
+                ret = chain.current_element()
         self._if_rev_token_lock.release()
         return ret
-
-    def _get_segment_rev_token(self, pcb):
-        """
-        Returns the revocation token for a given path-segment.
-
-        Segments with identical hops will always use the same revocation token
-        hash chain.
-
-        :param pcb: path segment.
-        :type pcb: PathSegment
-        """
-        id_ = pcb.get_hops_hash()
-        if id_ not in self.seg2rev_tokens:
-            seed = self.config.master_ad_key + id_
-            start_ele = SHA256.new(seed).digest()
-            chain = HashChain(start_ele)
-            self.seg2rev_tokens[id_] = chain
-
-        return self.seg2rev_tokens[id_].current_element()
 
     def propagate_downstream_pcb(self, pcb):
         """
@@ -401,7 +462,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                                            pcb.get_timestamp(),
                                            pcb.get_last_pcbm().hof)
         pcb.add_ad(last_hop)
-        pcb.segment_id = self._get_segment_rev_token(pcb)
+        pcb.segment_id = pcb.get_hops_hash()
 
         return pcb
 
@@ -419,6 +480,25 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         elif prev_state in [InterfaceState.TIMED_OUT, InterfaceState.REVOKED]:
             logging.info("IF %d came back up.", ifid)
 
+        if not prev_state == InterfaceState.ACTIVE:
+            if self.zk.have_lock():
+                # Inform ERs about the interface coming up.
+                chain = self._get_if_hash_chain(ifid)
+                if chain is None:
+                    return
+                state_info = IFStateInfo.from_values(ifid, True,
+                                                     chain.current_element(),
+                                                     chain.next_element())
+                payload = IFStatePayload.from_values([state_info])
+                isd_ad = ISD_AD(self.topology.isd_id,
+                                self.topology.ad_id)
+                mgmt_packet = PathMgmtPacket.from_values(
+                    PMT.IFSTATE_INFO, payload, None, self.addr, isd_ad)
+                for er in self.topology.get_all_edge_routers():
+                    if er.interface.if_id != ifid:
+                        self.send(mgmt_packet, er.interface.addr,
+                                  er.interface.udp_port)
+
     def handle_request(self, packet, sender, from_local_socket=True):
         """
         Main routine to handle incoming SCION packets.
@@ -427,6 +507,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         ptype = get_type(spkt)
         if ptype == PT.IFID_PKT:
             self.handle_ifid_packet(IFIDPacket(packet))
+        elif ptype == PT.PATH_MGMT:
+            self.handle_path_mgmt_packet(PathMgmtPacket(packet))
         elif ptype == PT.BEACON:
             self.store_pcb(PathConstructionBeacon(packet))
         elif ptype == PT.CERT_CHAIN_REP:
@@ -444,9 +526,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             target=thread_safety_net, args=(self.worker,),
             name="BS.worker", daemon=True).start()
         # https://github.com/netsec-ethz/scion/issues/308:
-        #  threading.Thread(
-        #    target=thread_safety_net, args=(self._handle_if_timeouts,),
-        #    name="BS._handle_if_timeouts", daemon=True).start()
+        threading.Thread(
+            target=thread_safety_net, args=(self._handle_if_timeouts,),
+            name="BS._handle_if_timeouts", daemon=True).start()
         super().run()
 
     def worker(self):
@@ -463,9 +545,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             try:
                 self.zk.wait_connected()
                 self.pcb_cache.process()
+                self.revobjs_cache.process()
                 if not self.zk.get_lock(lock_timeout=0, conn_timeout=0):
                     continue
                 self.pcb_cache.expire(self.config.propagation_time * 10)
+                self.revobjs_cache.expire(self.ZK_REV_OBJ_MAX_AGE * 24)
             except ZkNoConnection:
                 continue
             now = SCIONTime.get_time()
@@ -650,75 +734,98 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             pcb = self.unverified_beacons.popleft()
             self._try_to_verify_beacon(pcb)
 
-    def _process_revocation(self, rev_info, if_id1=0, if_id2=0):
+    def process_rev_objects(self, rev_objs):
         """
-        Sends out revocation to the local PS, to down_stream BSes and a CPS.
+        Processes revocation objects stored in Zookeeper.
+        """
+        for raw_obj in rev_objs:
+            rev_obj = RevocationObject(raw_obj)
+            chain = self._get_if_hash_chain(rev_obj.if_id)
+            if chain and chain.current_index() > rev_obj.hash_chain_idx:
+                try:
+                    chain.set_current_index(rev_obj.hash_chain_idx)
+                    logging.info("Updated hash chain index for IF %d to %d.",
+                                 rev_obj.if_id, rev_obj.hash_chain_idx)
+                except SCIONIndexError:
+                    logging.warning("Rev object for IF %d contains invalid "
+                                    "index: %d (1 < index < %d).",
+                                    rev_obj.if_id, rev_obj.hash_chain_idx,
+                                    len(chain) - 1)
+
+    def _issue_revocation(self, if_id, chain):
+        """
+        Store a RevocationObject in ZK and send a revocation to all ERs.
+
+        :param if_id: The interface that needs to be revoked.
+        :type if_id: int
+        :param chain: The hash chain corresponding to if_id.
+        :type chain: :class:`lib.crypto.hash_chain.HashChain`
+        """
+        # Only the master BS issues revocations.
+        if not self.zk.have_lock():
+            return
+        rev_info = RevocationInfo.from_values(
+            chain.current_element(),
+            chain.next_element())
+        logging.info("Storing revocation in ZK.")
+        rev_obj = RevocationObject.from_values(
+            if_id,
+            chain.current_index(),
+            chain.current_element(),
+            chain.next_element())
+        self.revobjs_cache.store(chain.start_element(hex_=True),
+                                 rev_obj.pack())
+        logging.info("Issuing revocation for IF %d.", if_id)
+        # Issue revocation to all ERs.
+        info = IFStateInfo.from_values(if_id, False,
+                                       chain.current_element(),
+                                       chain.next_element())
+        payload = IFStatePayload.from_values([info])
+        isd_ad = ISD_AD(self.topology.isd_id, self.topology.ad_id)
+        state_pkt = PathMgmtPacket.from_values(PMT.IFSTATE_INFO, payload,
+                                               None, self.addr, isd_ad)
+        for er in self.topology.get_all_edge_routers():
+            self.send(state_pkt, er.interface.addr, er.interface.udp_port)
+        self._process_revocation(rev_info, if_id)
+
+    def _process_revocation(self, rev_info, if_id):
+        """
+        Removes PCBs containing a revoked interface and sends the revocation
+        to the local PS.
 
         :param rev_info: The RevocationInfo object
         :type rev_info: RevocationInfo
-        :param if_id1: The if_id to be revoked (set only for if and hop rev)
-        :type if_id1: int
-        :param if_id2: The second if_id to be revoked (set only for hop rev)
-        :type if_id2: int
+        :param if_id: The if_id to be revoked (set only for if and hop rev)
+        :type if_id: int
         """
         assert isinstance(rev_info, RevocationInfo)
         logging.info("Processing revocation:\n%s", str(rev_info))
-        if rev_info.rev_type in [RT.DOWN_SEGMENT, RT.CORE_SEGMENT]:
-            self._process_segment_revocation(rev_info)
-        elif rev_info.rev_type == RT.INTERFACE:
-            if not if_id1:
-                logging.error("Trying to revoke IF with ID 0.")
-                return
-            self._process_interface_revocation(rev_info, if_id1)
-        elif rev_info.rev_type == RT.HOP:
-            if not if_id1 or not if_id2:
-                logging.error("Trying to revoke IF with ID 0.")
-                return
-            self._process_hop_revocation(rev_info, (if_id1, if_id2))
-
-        try:
-            ps_addr = self.dns_query_topo(PATH_SERVICE)[0]
-        except SCIONServiceLookupError:
-            # If there are no local path servers, stop here.
+        if not if_id:
+            logging.error("Trying to revoke IF with ID 0.")
             return
+
+        self._remove_revoked_pcbs(rev_info, if_id)
         # Send revocations to local PS.
-        rev_payload = RevocationPayload.from_values([rev_info])
-        pkt = PathMgmtPacket.from_values(PMT.REVOCATIONS, rev_payload, None,
-                                         self.addr, self.addr.get_isd_ad())
-        logging.info("Sending segment revocations to a local PS.")
-        self.send(pkt, ps_addr)
+        if self.zk.have_lock() and self.topology.path_servers:
+            try:
+                ps_addr = self.dns_query_topo(PATH_SERVICE)[0]
+            except SCIONServiceLookupError:
+                # If there are no local path servers, stop here.
+                return
+            pkt = PathMgmtPacket.from_values(PMT.REVOCATION, rev_info, None,
+                                             self.addr, self.addr.get_isd_ad())
+            logging.info("Sending  revocation to local PS.")
+            self.send(pkt, ps_addr)
 
     @abstractmethod
-    def _process_segment_revocation(self, rev_info):
+    def _remove_revoked_pcbs(self, rev_info, if_id):
         """
-        Processes a segment revocation.
-
-        :param rev_info: The RevocationInfo object.
-        :type rev_info: RevocationInfo
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def _process_interface_revocation(self, rev_info, if_id):
-        """
-        Processes an interface revocation.
+        Removes the PCBs containing the revoked interface.
 
         :param rev_info: The RevocationInfo object.
         :type rev_info: RevocationInfo
         :param if_id: The if_id to be revoked
         :type if_id: int
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def _process_hop_revocation(self, rev_info, if_ids):
-        """
-        Processes a hop revocation.
-
-        :param rev_info: The RevocationInfo object.
-        :type rev_info: RevocationInfo
-        :param if_ids: The tuple (if1, if2) to be revoked
-        :type if_id: tuple
         """
         raise NotImplementedError
 
@@ -732,23 +839,76 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             for (if_id, if_state) in self.ifid_state.items():
                 # Check if interface has timed-out.
                 if if_state.is_expired():
-                    logging.info("Issuing revocation for IF %d.", if_id)
-                    # Issue revocation
-                    assert if_id in self.if2rev_tokens
+                    logging.info("IF %d appears to be down.", if_id)
+                    if if_id not in self.if2rev_tokens:
+                        logging.error("Trying to issue revocation for " +
+                                      "non-existent if ID %d.", if_id)
+                        continue
                     chain = self.if2rev_tokens[if_id]
-                    rev_info = RevocationInfo.from_values(
-                        RT.INTERFACE, chain.current_element(),
-                        chain.next_element())
-                    self._process_revocation(rev_info, if_id)
+                    self._issue_revocation(if_id, chain)
                     # Advance the hash chain for the corresponding IF.
                     try:
                         chain.move_to_next_element()
                     except HashChainExhausted:
-                        # TODO(shitz): Add code to handle hash chain exhaustion.
-                        logging.warning("Hash chain for IF %s is exhausted.")
+                        # TODO(shitz): Add code to handle hash chain
+                        # exhaustion.
+                        logging.warning("HashChain for IF %s is exhausted.")
                     if_state.revoke_if_expired()
             sleep_interval(start_time, self.IF_TIMEOUT_INTERVAL,
                            "Handle IF timeouts")
+
+    def handle_path_mgmt_packet(self, mgmt_pkt):
+        """
+        Handles PathMgmt packets.
+        """
+        if mgmt_pkt.type == PMT.IFSTATE_REQ:
+            self._handle_ifstate_request(mgmt_pkt)
+        else:
+            logging.error("Received unsupported PathMgmt packet (type %d).",
+                          mgmt_pkt.type)
+
+    def _handle_ifstate_request(self, mgmt_pkt):
+        """
+        Handles IFStateRequests.
+
+        :param mgmt_pkt: The packet containing the IFStateRequest.
+        :type request: :class:`lib.packet.path_mgmt.PathMgmtPacket`
+        """
+        # Only the master responds to ifstate requests.
+        if not self.zk.have_lock():
+            return
+        request = mgmt_pkt.get_payload()
+        assert isinstance(request, IFStateRequest)
+        logging.debug("Received ifstate req:\n%s", mgmt_pkt)
+        infos = []
+        if request.if_id == IFStateRequest.ALL_INTERFACES:
+            for (ifid, state) in self.ifid_state.items():
+                chain = self._get_if_hash_chain(ifid)
+                info = IFStateInfo.from_values(ifid, state.is_active(),
+                                               chain.current_element(),
+                                               chain.next_element())
+                infos.append(info)
+        elif request.if_id in self.ifid_state:
+            chain = self._get_if_hash_chain(request.if_id)
+            state = self.ifid_state[request.if_id]
+            info = IFStateInfo.from_values(ifid, state.is_active(),
+                                           chain.current_element(),
+                                           chain.next_element())
+            infos.append(info)
+        else:
+            logging.error("Received ifstate request from %s for unknown "
+                          "interface %d.", mgmt_pkt.hdr.src_addr, request.if_id)
+
+        if infos:
+            payload = IFStatePayload.from_values(infos)
+            isd_ad = ISD_AD(self.topology.isd_id, self.topology.ad_id)
+            state_pkt = PathMgmtPacket.from_values(PMT.IFSTATE_INFO, payload,
+                                                   None, self.addr, isd_ad)
+            for er in self.topology.get_all_edge_routers():
+                if er.interface.addr == mgmt_pkt.hdr.src_addr.host_addr:
+                    self.send(state_pkt, er.interface.addr,
+                              er.interface.udp_port)
+                    break
 
 
 class CoreBeaconServer(BeaconServer):
@@ -960,7 +1120,7 @@ class CoreBeaconServer(BeaconServer):
             count += 1
         logging.info("Registered %d Core paths", count)
 
-    def _process_interface_revocation(self, rev_info, if_id):
+    def _remove_revoked_pcbs(self, rev_info, if_id):
         candidates = []
         to_remove = []
         processed = set()
@@ -1157,11 +1317,11 @@ class LocalBeaconServer(BeaconServer):
                                           cert_chain_rep.version)]
         self.handle_unverified_beacons()
 
-    def _process_revocation(self, rev_info, if_id1=0, if_id2=0):
+    def _process_revocation(self, rev_info, if_id):
         """
         Send out revocation to the local PS and a CPS and down_stream BS.
         """
-        super()._process_revocation(rev_info, if_id1, if_id2)
+        super()._process_revocation(rev_info, if_id)
         # Send revocation to CPS.
         if not self.up_segments.get_best_segments():
             logging.error("No up path available to send out revocation.")
@@ -1170,18 +1330,16 @@ class LocalBeaconServer(BeaconServer):
 
         # Add first hop opaque field.
         up_segment = self._terminate_pcb(up_segment)
-        assert up_segment.segment_id != rev_info.seg_id
         path = up_segment.get_path(True)
-        rev_payload = RevocationPayload.from_values([rev_info])
         dst_isd_ad = ISD_AD(up_segment.get_isd(),
                             up_segment.get_first_pcbm().ad_id)
-        pkt = PathMgmtPacket.from_values(PMT.REVOCATIONS, rev_payload, path,
+        pkt = PathMgmtPacket.from_values(PMT.REVOCATION, rev_info, path,
                                          self.addr, dst_isd_ad)
         (next_hop, port) = self.get_first_hop(pkt)
         logging.info("Sending revocation to CPS.")
         self.send(pkt, next_hop, port)
 
-    def _process_interface_revocation(self, rev_info, if_id):
+    def _remove_revoked_pcbs(self, rev_info, if_id):
         candidates = (self.down_segments.candidates +
                       self.up_segments.candidates)
         to_remove = []

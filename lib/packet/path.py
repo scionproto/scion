@@ -23,6 +23,7 @@ from abc import ABCMeta, abstractmethod
 from lib.packet.opaque_field import (
     HopOpaqueField,
     InfoOpaqueField,
+    OpaqueField,
     OpaqueFieldList,
     OpaqueFieldType as OFT,
 )
@@ -124,6 +125,22 @@ class PathBase(object, metaclass=ABCMeta):
         """
         Reverse the direction of the path.
         """
+        # Update indices.
+        hof_idx = len(self._ofs) - self._hof_idx
+        iof_idx = 0
+        # iof_idx needs to be updated depending on the current path-segment.
+        # If in up-segment -> the reversed IOF must be in down-segment.
+        # If in core-segment -> the reversed IOF must be in core-segment.
+        # If in down-segment -> the reversed IOF must be in up-segment.
+        # Since up and down segments switch, we have to add the current
+        # down-segment length (that will become the up-segment after the swap.)
+        if self._iof_idx < self.get_up_segment_len():
+            iof_idx += (self.get_down_segment_len() +
+                        self.get_core_segment_len())
+        elif self._iof_idx < (self.get_up_segment_len() +
+                              self.get_core_segment_len()):
+            iof_idx += self.get_down_segment_len()
+        self.set_of_idxs(iof_idx, hof_idx)
         # Swap down segment and up segment.
         self._ofs.swap(UP_HOFS, DOWN_HOFS)
         self._ofs.swap(UP_IOF, DOWN_IOF)
@@ -133,7 +150,6 @@ class PathBase(object, metaclass=ABCMeta):
         # Reverse HOF lists.
         self._ofs.reverse_label(UP_HOFS)
         self._ofs.reverse_label(DOWN_HOFS)
-        self.set_of_idxs()
 
     def get_of_idxs(self):
         """
@@ -154,8 +170,10 @@ class PathBase(object, metaclass=ABCMeta):
             HOF index to set, or ``None`` to use the first HOF index in the
             path.
         """
-        self._iof_idx = iof_idx or self._get_first_iof_idx()
-        self._hof_idx = hof_idx or self._get_first_hof_idx()
+        self._iof_idx = (iof_idx if iof_idx is not None
+                         else self._get_first_iof_idx())
+        self._hof_idx = (hof_idx if hof_idx is not None
+                         else self._get_first_hof_idx())
 
     def get_iof(self):
         """
@@ -172,6 +190,24 @@ class PathBase(object, metaclass=ABCMeta):
         if self._hof_idx is None:
             return None
         return self._get_of(self._hof_idx)
+
+    def get_up_segment_len(self):  # pragma: no cover
+        """
+        Returns the length (in hops) of the up_segment.
+        """
+        return self._ofs.count(UP_IOF) + self._ofs.count(UP_HOFS)
+
+    def get_core_segment_len(self):  # pragma: no cover
+        """
+        Returns the length (in hops) of the core-segment.
+        """
+        return 0
+
+    def get_down_segment_len(self):  # pragma: no cover
+        """
+        Returns the length (in hops) of the down-segment.
+        """
+        return self._ofs.count(DOWN_IOF) + self._ofs.count(DOWN_HOFS)
 
     def inc_hof_idx(self):
         """
@@ -263,7 +299,7 @@ class PathBase(object, metaclass=ABCMeta):
         Return ``True`` if the current opaque field is the last opaque field,
         ``False`` otherwise.
         """
-        return self._hof_idx == len(self) - 1
+        return self._hof_idx == len(self._ofs) - 1
 
     @abstractmethod
     def get_ad_hops(self):
@@ -276,7 +312,7 @@ class PathBase(object, metaclass=ABCMeta):
         """
         Return the total number of :any:`OpaqueField`\s in the path.
         """
-        return len(self._ofs)
+        return len(self._ofs) * OpaqueField.LEN
 
     @abstractmethod
     def __str__(self):
@@ -378,6 +414,9 @@ class CorePath(PathBase):
             total -= active_segments - 1
         return total
 
+    def get_core_segment_len(self):
+        return self._ofs.count(CORE_IOF) + self._ofs.count(CORE_HOFS)
+
     def __str__(self):
         s = []
         s.append("<Core-Path>")
@@ -467,6 +506,13 @@ class CrossOverPath(PathBase):
         super().reverse()
         # Reverse upstream AD fields.
         self._ofs.swap(UP_UPSTREAM_HOF, DOWN_UPSTREAM_HOF)
+        # Handle on-path case.
+        if (self._ofs.count(UP_HOFS) == 1 and
+                self.get_hof() == self._ofs.get_by_label(UP_HOFS, 0)):
+            self._iof_idx = self.get_up_segment_len()
+            self._hof_idx = self._iof_idx + 2
+            self.set_downpath()
+            assert self.get_hof() == self._ofs.get_by_label(DOWN_HOFS, 0)
 
     def _get_first_hof_idx(self):
         """
@@ -509,6 +555,16 @@ class CrossOverPath(PathBase):
             (False, False): -1,
         }
         return self._get_of(self._hof_idx + ingress_up[ingress, iof.up_flag])
+
+    def get_up_segment_len(self):
+        len_ = super().get_up_segment_len()
+        len_ += self._ofs.count(UP_UPSTREAM_HOF)
+        return len_
+
+    def get_down_segment_len(self):
+        len_ = super().get_down_segment_len()
+        len_ += self._ofs.count(DOWN_UPSTREAM_HOF)
+        return len_
 
     def get_ad_hops(self):
         """
@@ -604,6 +660,10 @@ class PeerPath(PathBase):
         # Reverse upstream AD and peering link fields.
         self._ofs.swap(UP_UPSTREAM_HOF, DOWN_UPSTREAM_HOF)
         self._ofs.swap(UP_PEERING_HOF, DOWN_PEERING_HOF)
+        # Handle case when reverse happens at peering point.
+        if self.get_hof() == self._ofs.get_by_label(UP_HOFS, -1):
+            self.inc_hof_idx()
+            assert self.get_hof() == self._ofs.get_by_label(UP_PEERING_HOF, 0)
 
     def get_hof_ver(self, ingress=True):
         hof = self.get_hof()
@@ -630,6 +690,18 @@ class PeerPath(PathBase):
             # Skip to peering link hof
             return 2
         return 1
+
+    def get_up_segment_len(self):
+        len_ = super().get_up_segment_len()
+        len_ += self._ofs.count(UP_PEERING_HOF)
+        len_ += self._ofs.count(UP_UPSTREAM_HOF)
+        return len_
+
+    def get_down_segment_len(self):
+        len_ = super().get_down_segment_len()
+        len_ += self._ofs.count(DOWN_PEERING_HOF)
+        len_ += self._ofs.count(DOWN_UPSTREAM_HOF)
+        return len_
 
     def get_ad_hops(self):
         """

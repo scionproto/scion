@@ -615,14 +615,13 @@ class TestSCIONPacketSetPayload(object):
     @patch("lib.packet.scion.PacketBase.set_payload", autospec=True)
     def test(self, set_payload):
         packet = SCIONPacket()
-        packet.payload_len = 123
-        packet.hdr = MagicMock(spec_set=['common_hdr'])
+        packet.hdr = MagicMock(spec_set=['common_hdr', '__len__'])
+        packet.hdr.__len__.return_value = 123
         packet.hdr.common_hdr = MagicMock(spec_set=['total_len'])
-        packet.hdr.common_hdr.total_len = 456
         packet.set_payload('payload')
         set_payload.assert_called_once_with(packet, 'payload')
-        ntools.eq_(packet.payload_len, len('payload'))
-        ntools.eq_(packet.hdr.common_hdr.total_len, 456 - 123 + len('payload'))
+        ntools.eq_(packet.payload_len, 7)
+        ntools.eq_(packet.hdr.common_hdr.total_len, 130)
 
 
 class TestSCIONPacketParse(object):

@@ -15,8 +15,11 @@
 :mod:`hash_chain` --- Generic hash-chain implementation
 =======================================================
 """
-
+from binascii import hexlify
 from Crypto.Hash import SHA256
+
+# SCION
+from lib.errors import SCIONIndexError
 
 
 class HashChainExhausted(Exception):
@@ -44,7 +47,7 @@ class HashChain(object):
     :type entries:
     """
 
-    def __init__(self, start_ele, length=50, hash_func=SHA256):
+    def __init__(self, start_ele, length=1000, hash_func=SHA256):
         """
         Initialize an instance of the class HashChain.
 
@@ -77,22 +80,36 @@ class HashChain(object):
         # Initialize to first element.
         self._next_ele_ptr = self._length - 2
 
-    def current_element(self):
+    def start_element(self, hex_=False):
+        """
+        Returns the start element of the chain.
+        """
+        if hex_:
+            return hexlify(self._start_ele).decode()
+        return self._start_ele
+
+    def current_element(self, hex_=False):
         """
         Return the currently used element or 'None'.
         """
         if self._next_ele_ptr < 0 or self._next_ele_ptr >= self._length - 1:
             return None
-        return self.entries[self._next_ele_ptr + 1]
+        ele = self.entries[self._next_ele_ptr + 1]
+        if hex_:
+            return hexlify(ele).decode()
+        return ele
 
-    def next_element(self):
+    def next_element(self, hex_=False):
         """
         Return the next element in the hash chain or 'None' if the chain is
         empty.
         """
         if self._next_ele_ptr < 0:
             return None
-        return self.entries[self._next_ele_ptr]
+        ele = self.entries[self._next_ele_ptr]
+        if hex_:
+            return hexlify(ele).decode()
+        return ele
 
     def move_to_next_element(self):
         """
@@ -106,8 +123,31 @@ class HashChain(object):
             raise HashChainExhausted
         self._next_ele_ptr -= 1
 
+    def current_index(self):
+        """
+        Returns the index of the current element in the chain.
+        """
+        if self._next_ele_ptr < 0 or self._next_ele_ptr >= self._length - 1:
+            return -1
+        return self._next_ele_ptr + 1
+
+    def set_current_index(self, index):
+        """
+        Sets the current index in the chain.
+        """
+        if index <= 1 or index > self._length - 1:
+            raise SCIONIndexError("Index must be in [2, %d] but was %d.",
+                                  self._length - 1, index)
+        self._next_ele_ptr = index - 1
+
+    def __len__(self):
+        """
+        Returns the length of the hash chain.
+        """
+        return self._length
+
     @staticmethod
-    def verify(start_ele, target_ele, max_tries=50, hash_func=SHA256):
+    def verify(start_ele, target_ele, max_tries=1000, hash_func=SHA256):
         """
         Verify that a given element belongs to a hash chain.
 
