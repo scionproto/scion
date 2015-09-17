@@ -465,7 +465,7 @@ class TestPathStoreAddSegment(object):
         path_policy.candidates_set_size = 0
         pth_str = PathStore(path_policy)
         pth_str._remove_expired_segments = MagicMock(
-                side_effect=lambda: self.clear_candidates(pth_str))
+            side_effect=lambda: self.clear_candidates(pth_str))
         pth_str._update_all_fidelity = MagicMock()
         pth_str.add_segment(self.pcb)
         pth_str._remove_expired_segments.assert_called_once_with()
@@ -503,6 +503,7 @@ class TestPathStoreAddSegment(object):
         ntools.eq_(len(pth_str.candidates), 1)
         ntools.eq_(pth_str.candidates[0].pcb.segment_id, pcb2.segment_id)
 
+
 class TestPathStoreUpdateDisjointnessDB(object):
     """
     Unit tests for lib.path_store._update_disjointness_db
@@ -520,6 +521,7 @@ class TestPathStoreUpdateDisjointnessDB(object):
         ntools.eq_(pth_str.last_dj_update, time_.return_value)
         ntools.assert_almost_equal(pth_str.disjointness[0], 1.0)
         ntools.assert_almost_equal(pth_str.disjointness[1], math.e)
+
 
 class TestPathStoreUpdateAllDisjointness(object):
     """
@@ -552,6 +554,7 @@ class TestPathStoreUpdateAllDisjointness(object):
         for i in range(numCandidates):
             ntools.assert_almost_equal(pth_str.candidates[i].disjointness,
                                        1.0)
+
 
 class TestPathStoreUpdateAllDelayTime(object):
     """
@@ -614,7 +617,7 @@ class TestPathStoreGetBestSegments(object):
             pth_str.candidates[i].pcb = i
             pth_str.candidates[i].fidelity = i
         ntools.eq_(pth_str.get_best_segments(3),
-                list(reversed(range(numCandidates-3, numCandidates))))
+                   list(reversed(range(numCandidates-3, numCandidates))))
         pth_str._remove_expired_segments.assert_called_once_with()
 
     def test_less_arg(self):

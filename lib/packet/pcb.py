@@ -314,7 +314,7 @@ class PathSegment(Marking):
         self.if_id = 0
         self.segment_id = REV_TOKEN_LEN * b"\x00"
         self.ads = []
-        self.min_exp_time = 2 ** 8 - 1 # TODO: eliminate 8 as magic number
+        self.min_exp_time = 2 ** 8 - 1  # TODO: eliminate 8 as magic number
         if raw is not None:
             self.parse(raw)
 
