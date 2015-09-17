@@ -306,11 +306,6 @@ class PathStoreRecord(object):
 class PathStore(object):
     """
     Path Store class.
-
-    :ivar candidates: a list of the PathStoreRecords representing the candidate
-       path segments.
-    :type candidates: list
-    :ivar best_paths_history: previously selected and sent path segments.
     """
 
     def __init__(self, path_policy):
