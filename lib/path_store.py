@@ -307,8 +307,8 @@ class PathStore(object):
     """
     Path Store class.
 
-    :ivar candidates: a list of the :class:`PathStoreRecord`s representing the
-       candidate path segments.
+    :ivar candidates: a list of the PathStoreRecords representing the candidate
+       path segments.
     :type candidates: list
     :ivar best_paths_history: previously selected and sent path segments.
     """
