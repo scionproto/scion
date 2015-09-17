@@ -186,7 +186,7 @@ class RevocationObject(object):
         """
         data = Raw(raw, "RevocationObject", self.LEN)
         (self.if_id, self.hash_chain_idx) = struct.unpack("!II", data.pop(8))
-        self.rev_info = RevocationInfo(data.pop())
+        self.rev_info = RevocationInfo(data.pop(RevocationInfo.LEN))
 
     def pack(self):
         """
@@ -328,7 +328,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         if if_id == 0:
             ret = 32 * b"\x00"
         else:
-            ret = self._get_if_hash_chain(if_id).current_element()
+            chain = self._get_if_hash_chain(if_id)
+            if chain:
+                ret = chain.current_element()
         self._if_rev_token_lock.release()
         return ret
 
@@ -746,7 +748,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                                  rev_obj.if_id, rev_obj.hash_chain_idx)
                 except SCIONIndexError:
                     logging.warning("Rev object for IF %d contains invalid "
-                                    "index.", rev_obj.if_id)
+                                    "index: %d (1 < index < %d).",
+                                    rev_obj.if_id, rev_obj.hash_chain_idx,
+                                    len(chain) - 1)
 
     def _issue_revocation(self, if_id, chain):
         """
@@ -757,6 +761,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         :param chain: The hash chain corresponding to if_id.
         :type chain: :class:`lib.crypto.hash_chain.HashChain`
         """
+        # Only the master BS issues revocations.
+        if not self.zk.have_lock():
+            return
         rev_info = RevocationInfo.from_values(
             chain.current_element(),
             chain.next_element())
@@ -783,7 +790,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
     def _process_revocation(self, rev_info, if_id):
         """
-        Sends out revocation to the local PS, to down_stream BSes and a CPS.
+        Removes PCBs containing a revoked interface and sends the revocation
+        to the local PS.
 
         :param rev_info: The RevocationInfo object
         :type rev_info: RevocationInfo
@@ -806,9 +814,10 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 return
             pkt = PathMgmtPacket.from_values(PMT.REVOCATION, rev_info, None,
                                              self.addr, self.addr.get_isd_ad())
-            logging.info("Sending  revocations to local PS.")
+            logging.info("Sending  revocation to local PS.")
             self.send(pkt, ps_addr)
 
+    @abstractmethod
     def _remove_revoked_pcbs(self, rev_info, if_id):
         """
         Removes the PCBs containing the revoked interface.
@@ -836,8 +845,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                                       "non-existent if ID %d.", if_id)
                         continue
                     chain = self.if2rev_tokens[if_id]
-                    if self.zk.have_lock():
-                        self._issue_revocation(if_id, chain)
+                    self._issue_revocation(if_id, chain)
                     # Advance the hash chain for the corresponding IF.
                     try:
                         chain.move_to_next_element()
@@ -856,7 +864,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         if mgmt_pkt.type == PMT.IFSTATE_REQ:
             self._handle_ifstate_request(mgmt_pkt)
         else:
-            logging.error("Received unsupported PathMgmt packet.")
+            logging.error("Received unsupported PathMgmt packet (type %d).",
+                          mgmt_pkt.type)
 
     def _handle_ifstate_request(self, mgmt_pkt):
         """
@@ -867,7 +876,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         request = mgmt_pkt.get_payload()
         assert isinstance(request, IFStateRequest)
-        logging.debug("Received ifstate req:\n%s", str(mgmt_pkt))
+        logging.debug("Received ifstate req:\n%s", mgmt_pkt)
         infos = []
         if request.if_id == IFStateRequest.ALL_INTERFACES:
             for (ifid, state) in self.ifid_state.items():
@@ -884,7 +893,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                                            chain.next_element())
             infos.append(info)
         else:
-            logging.error("Received ifstate request for unknown interface.")
+            logging.error("Received ifstate request from %s for unknown "
+                          "interface %d.", mgmt_pkt.hdr.src_addr, request.if_id)
 
         if infos:
             payload = IFStatePayload.from_values(infos)

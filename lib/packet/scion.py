@@ -433,8 +433,9 @@ class SCIONHeader(HeaderBase):
         """
         Returns a reversed copy of the header.
         """
-        self.reverse()
-        return copy.deepcopy(self)
+        hdr_cpy = copy.deepcopy(self)
+        hdr_cpy.reverse()
+        return hdr_cpy
 
     def __len__(self):
         length = self.common_hdr.hdr_len

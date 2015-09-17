@@ -219,22 +219,22 @@ class TestRevocationInfoParse(object):
     """
     Unit tests for lib.packet.path_mgmt.RevocationInfo.parse
     """
+    @patch("lib.packet.packet_base.PayloadBase.parse", autospec=True)
     @patch("lib.packet.path_mgmt.Raw", autospec=True)
-    def test_basic(self, raw):
+    def test_basic(self, raw, parse):
         # Setup
         rev_inf = RevocationInfo()
-        data = (b"superlengthybigstringoflength321" +
+        data = (b"superlengthybigstringoflength321"
                 b"superlengthybigstringoflength322")
         raw.return_value = MagicMock(spec_set=["pop"])
-        raw.return_value.pop.side_effect = (data[:],)
+        raw.return_value.pop.return_value = data
         # Call
         rev_inf.parse(data)
         # Tests
         raw.assert_called_once_with(data, "RevocationInfo", rev_inf.LEN)
+        parse.assert_called_once_with(rev_inf, data)
         ntools.eq_(rev_inf.rev_token, b"superlengthybigstringoflength321")
         ntools.eq_(rev_inf.proof, b"superlengthybigstringoflength322")
-        ntools.eq_(rev_inf.raw, data)
-        ntools.assert_true(rev_inf.parsed)
 
 
 class TestRevocationInfoPack(object):
@@ -245,7 +245,7 @@ class TestRevocationInfoPack(object):
         rev_inf = RevocationInfo()
         rev_inf.rev_token = b"superlengthybigstringoflength321"
         rev_inf.proof = b"superlengthybigstringoflength322"
-        data = (b"superlengthybigstringoflength321" +
+        data = (b"superlengthybigstringoflength321"
                 b"superlengthybigstringoflength322")
         ntools.eq_(rev_inf.pack(), data)
 

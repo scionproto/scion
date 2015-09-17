@@ -637,9 +637,7 @@ class TestPathBaseIsLastPathHof(object):
     def _check(self, idx, len_, expected, init):
         inst = PathBaseTesting()
         inst._hof_idx = idx
-        inst._ofs = create_mock(["__len__"])
-        inst._ofs.__len__.return_value = len_
-        # path_len.return_value = len_
+        inst._ofs = range(len_)
         # Call
         ntools.eq_(inst.is_last_path_hof(), expected)
 
@@ -647,19 +645,10 @@ class TestPathBaseIsLastPathHof(object):
         for idx, len_, expected in (
             (41, 42, True),
             (0, 42, False),
+            (40, 43, False),
+            (8, 9, True),
         ):
             yield self._check, idx, len_, expected
-
-    @patch("lib.packet.path.PathBase.__init__", autospec=True,
-           return_value=None)
-    def test_false(self, init):
-        inst = PathBaseTesting()
-        inst._hof_idx = 41
-        inst._ofs = create_mock(["__len__"])
-        inst._ofs.__len__.return_value = 43
-        # len_.return_value = 43
-        # Call
-        ntools.assert_false(inst.is_last_path_hof())
 
 
 class TestPathBaseLen(object):

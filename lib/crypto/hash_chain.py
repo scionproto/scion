@@ -15,7 +15,7 @@
 :mod:`hash_chain` --- Generic hash-chain implementation
 =======================================================
 """
-from binascii import b2a_hex
+from binascii import hexlify
 from Crypto.Hash import SHA256
 
 # SCION
@@ -85,7 +85,7 @@ class HashChain(object):
         Returns the start element of the chain.
         """
         if hex_:
-            return b2a_hex(self._start_ele).decode()
+            return hexlify(self._start_ele).decode()
         return self._start_ele
 
     def current_element(self, hex_=False):
@@ -94,9 +94,10 @@ class HashChain(object):
         """
         if self._next_ele_ptr < 0 or self._next_ele_ptr >= self._length - 1:
             return None
+        ele = self.entries[self._next_ele_ptr + 1]
         if hex_:
-            return b2a_hex(self.entries[self._next_ele_ptr + 1]).decode()
-        return self.entries[self._next_ele_ptr + 1]
+            return hexlify(ele).decode()
+        return ele
 
     def next_element(self, hex_=False):
         """
@@ -105,9 +106,10 @@ class HashChain(object):
         """
         if self._next_ele_ptr < 0:
             return None
+        ele = self.entries[self._next_ele_ptr]
         if hex_:
-            return b2a_hex(self.entries[self._next_ele_ptr + 1]).decode()
-        return self.entries[self._next_ele_ptr]
+            return hexlify(ele).decode()
+        return ele
 
     def move_to_next_element(self):
         """
@@ -133,9 +135,16 @@ class HashChain(object):
         """
         Sets the current index in the chain.
         """
-        if index <= 1 or index >= self._length - 1:
-            raise SCIONIndexError
+        if index <= 1 or index > self._length - 1:
+            raise SCIONIndexError("Index must be in [2, %d] but was %d.",
+                                  self._length - 1, index)
         self._next_ele_ptr = index - 1
+
+    def __len__(self):
+        """
+        Returns the length of the hash chain.
+        """
+        return self._length
 
     @staticmethod
     def verify(start_ele, target_ele, max_tries=1000, hash_func=SHA256):

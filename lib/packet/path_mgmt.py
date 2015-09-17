@@ -111,7 +111,7 @@ class PathSegmentInfo(PayloadBase):
         return info
 
     def __len__(self):
-        return PathSegmentInfo.LEN
+        return self.LEN
 
 
 class PathSegmentRecords(PayloadBase):
@@ -185,7 +185,6 @@ class RevocationInfo(PayloadBase):
         super().parse(raw)
         data = Raw(raw, "RevocationInfo", self.LEN)
         self.rev_token, self.proof = struct.unpack("!32s32s", data.pop())
-        self.parsed = True
 
     def pack(self):
         return struct.pack("!32s32s", self.rev_token, self.proof)
@@ -200,7 +199,7 @@ class RevocationInfo(PayloadBase):
         :param proof: proof for rev_token
         :type proof: bytes
         """
-        info = RevocationInfo()
+        info = cls()
         info.rev_token = rev_token
         info.proof = proof
 
@@ -211,8 +210,8 @@ class RevocationInfo(PayloadBase):
         s += "Token: %s\nProof: %s" % (self.rev_token, self.proof)
         return s
 
-    def __len__(self):
-        return RevocationInfo.LEN
+    def __len__(self):  # pragma: no cover
+        return self.LEN
 
 
 class IFStateInfo(PayloadBase):
@@ -237,7 +236,6 @@ class IFStateInfo(PayloadBase):
         data = Raw(raw, "IFStateInfo", self.LEN)
         self.if_id, self.state = struct.unpack("!HH", data.pop(4))
         self.rev_info = RevocationInfo(data.pop())
-        self.parsed = True
 
     def pack(self):
         return struct.pack("!HH", self.if_id, self.state) + self.rev_info.pack()
@@ -268,8 +266,8 @@ class IFStateInfo(PayloadBase):
         s += str(self.rev_info)
         return s
 
-    def __len__(self):
-        return IFStateInfo.LEN
+    def __len__(self):  # pragma: no cover
+        return self.LEN
 
 
 class IFStatePayload(PayloadBase):
@@ -341,13 +339,12 @@ class IFStateRequest(PayloadBase):
         super().parse(raw)
         data = Raw(raw, "IFStateRequest", self.LEN)
         self.if_id = struct.unpack("!H", data.pop())[0]
-        self.parsed = True
 
     def pack(self):
         return struct.pack("!H", self.if_id)
 
     @classmethod
-    def from_values(cls, if_id=0):
+    def from_values(cls, if_id=ALL_INTERFACES):
         """
         Returns a IFStateRequest object with the specified values.
         :param if_id: The if_id of interest.
@@ -361,8 +358,8 @@ class IFStateRequest(PayloadBase):
     def __str__(self):
         return "[IFStateRequest if_id: %d]" % self.if_id
 
-    def __len__(self):
-        return IFStateRequest.LEN
+    def __len__(self):  # pragma: no cover
+        return self.LEN
 
 
 class PathMgmtPacket(SCIONPacket):

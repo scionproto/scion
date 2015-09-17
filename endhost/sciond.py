@@ -31,7 +31,8 @@ from lib.packet.path_mgmt import (
     PathMgmtType as PMT,
     PathSegmentInfo,
     PathSegmentType as PST,
-    RevocationInfo,)
+    RevocationInfo,
+)
 from lib.packet.scion_addr import ISD_AD
 from lib.path_db import PathSegmentDB
 from lib.socket import UDPSocket

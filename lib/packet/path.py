@@ -128,6 +128,12 @@ class PathBase(object, metaclass=ABCMeta):
         # Update indices.
         hof_idx = len(self._ofs) - self._hof_idx
         iof_idx = 0
+        # iof_idx needs to be updated depending on the current path-segment.
+        # If in up-segment -> the reversed IOF must be in down-segment.
+        # If in core-segment -> the reversed IOF must be in core-segment.
+        # If in down-segment -> the reversed IOF must be in up-segment.
+        # Since up and down segments switch, we have to add the current
+        # down-segment length (that will become the up-segment after the swap.)
         if self._iof_idx < self.get_up_segment_len():
             iof_idx += (self.get_down_segment_len() +
                         self.get_core_segment_len())
@@ -185,19 +191,19 @@ class PathBase(object, metaclass=ABCMeta):
             return None
         return self._get_of(self._hof_idx)
 
-    def get_up_segment_len(self):
+    def get_up_segment_len(self):  # pragma: no cover
         """
         Returns the length (in hops) of the up_segment.
         """
         return self._ofs.count(UP_IOF) + self._ofs.count(UP_HOFS)
 
-    def get_core_segment_len(self):
+    def get_core_segment_len(self):  # pragma: no cover
         """
         Returns the length (in hops) of the core-segment.
         """
         return 0
 
-    def get_down_segment_len(self):
+    def get_down_segment_len(self):  # pragma: no cover
         """
         Returns the length (in hops) of the down-segment.
         """
@@ -293,13 +299,7 @@ class PathBase(object, metaclass=ABCMeta):
         Return ``True`` if the current opaque field is the last opaque field,
         ``False`` otherwise.
         """
-        return self._hof_idx == self.get_all_hops() - 1
-
-    def get_all_hops(self):
-        """
-        Return the total number of :any:`OpaqueField`\s in the path.
-        """
-        return len(self._ofs)
+        return self._hof_idx == len(self._ofs) - 1
 
     @abstractmethod
     def get_ad_hops(self):
@@ -551,8 +551,8 @@ class CrossOverPath(PathBase):
             return super().get_hof_ver()
         iof = self.get_iof()
         ingress_up = {
-            (True, True): 1, (True, False): -1,
-            (False, False): -1,
+            (True, True): 1, (True, False):-1,
+            (False, False):-1,
         }
         return self._get_of(self._hof_idx + ingress_up[ingress, iof.up_flag])
 
@@ -672,7 +672,7 @@ class PeerPath(PathBase):
         iof = self.get_iof()
         ingress_up = {
             (True, True): 2, (True, False): 1,
-            (False, True): -1, (False, False): -2,
+            (False, True):-1, (False, False):-2,
         }
         return self._get_of(self._hof_idx + ingress_up[ingress, iof.up_flag])
 
