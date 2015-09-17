@@ -311,7 +311,6 @@ class PathStore(object):
        candidate path segments.
     :type candidates: list
     :ivar best_paths_history: previously selected and sent path segments.
-    :type best_paths_history:
     """
 
     def __init__(self, path_policy):
