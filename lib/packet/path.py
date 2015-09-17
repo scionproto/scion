@@ -551,8 +551,8 @@ class CrossOverPath(PathBase):
             return super().get_hof_ver()
         iof = self.get_iof()
         ingress_up = {
-            (True, True): 1, (True, False):-1,
-            (False, False):-1,
+            (True, True): 1, (True, False): -1,
+            (False, False): -1,
         }
         return self._get_of(self._hof_idx + ingress_up[ingress, iof.up_flag])
 
@@ -672,7 +672,7 @@ class PeerPath(PathBase):
         iof = self.get_iof()
         ingress_up = {
             (True, True): 2, (True, False): 1,
-            (False, True):-1, (False, False):-2,
+            (False, True): -1, (False, False): -2,
         }
         return self._get_of(self._hof_idx + ingress_up[ingress, iof.up_flag])
 

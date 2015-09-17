@@ -101,7 +101,7 @@ class InterfaceState(object):
     Simple class that represents current state of an interface.
     """
     # Timeout for interface (link) status.
-    IFID_TOUT = 60 * IFID_PKT_TOUT
+    IFID_TOUT = 10 * IFID_PKT_TOUT
 
     INACTIVE = 0
     ACTIVE = 1
@@ -874,6 +874,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         :param mgmt_pkt: The packet containing the IFStateRequest.
         :type request: :class:`lib.packet.path_mgmt.PathMgmtPacket`
         """
+        # Only the master responds to ifstate requests.
+        if not self.zk.have_lock():
+            return
         request = mgmt_pkt.get_payload()
         assert isinstance(request, IFStateRequest)
         logging.debug("Received ifstate req:\n%s", mgmt_pkt)
