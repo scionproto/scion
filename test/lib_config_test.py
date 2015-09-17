@@ -39,6 +39,7 @@ class BaseLibConfig(object):
         'propagation_time': 'PropagateTime',
         'registration_time': 'RegisterTime',
         'reset_time': 'ResetTime',
+        'expired_time': 'ExpiredTime',
         'registers_paths': 'RegisterPath',
         'pcb_queue_size': 'PCBQueueSize',
         'path_server_queue_size': 'PSQueueSize',
@@ -93,6 +94,7 @@ class TestConfigParseDict(BaseLibConfig):
         "PropagateTime": 5,
         "RegisterPath": 1,
         "RegisterTime": 5,
+        "ExpiredTime": 5,
         "ResetTime": 600
     }
 
