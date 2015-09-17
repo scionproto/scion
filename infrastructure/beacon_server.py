@@ -101,7 +101,7 @@ class InterfaceState(object):
     Simple class that represents current state of an interface.
     """
     # Timeout for interface (link) status.
-    IFID_TOUT = 10 * IFID_PKT_TOUT
+    IFID_TOUT = 60 * IFID_PKT_TOUT
 
     INACTIVE = 0
     ACTIVE = 1
