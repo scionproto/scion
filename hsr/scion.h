@@ -143,7 +143,7 @@ typedef struct {
 typedef struct {
     SCIONCommonHeader commonHeader;
     SCIONAddr srcAddr;
-    //SCIONAddr dstAddr;  // length of srcAddr depends on its type
+    //SCIONAddr dstAddr;  // length of srcAddr depends on its type, so we cannot get dstAddr by a pointer cast...
     //uint8_t *path;
     //size_t pathLen;
 } SCIONHeader;

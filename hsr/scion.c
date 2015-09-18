@@ -99,23 +99,6 @@ uint32_t interface_ip[16]; // current router IP address
 struct keystruct rk; // AES-NI key structure
 
 
-unsigned char *get_dstaddr(SCIONHeader *hdr){
- 
-  uint8_t src_len;
-
-  SCIONCommonHeader *sch;
-  sch = &(hdr->commonHeader);
-  if(hdr->commonHeader.srcType == ADDR_IPV4_TYPE)
-	src_len=4;
-  else if(hdr->commonHeader.srcType == ADDR_IPV6_TYPE)
-	src_len=16;
-  else if(hdr->commonHeader.srcType == ADDR_SVC_TYPE)
-	src_len=SCION_SVC_ADDR_LEN;
-
-
-  return (unsigned char *)hdr + sizeof(SCIONCommonHeader) + SCION_ISD_AD_LEN + src_len + SCION_ISD_AD_LEN;
-}
-
 
 void scion_init() {
   // fill interface list
@@ -387,8 +370,11 @@ static inline void deliver(struct rte_mbuf *m, uint32_t ptype,
     udp_hdr->dst_port = SCION_UDP_PORT;
   } else {
     // update destination IP address to the end host adress
+    //rte_memcpy((void *)&ipv4_hdr->dst_addr,
+    //           (void *)&scion_hdr->dst_Addr + SCION_ISD_AD_LEN,
+    //           SCION_HOST_ADDR_LEN);
     rte_memcpy((void *)&ipv4_hdr->dst_addr,
-               (void *)&scion_hdr->dst_Addr + SCION_ISD_AD_LEN,
+               get_dstaddr(scion_hdr),
                SCION_HOST_ADDR_LEN);
 
     udp_hdr->dst_port = SCION_UDP_EH_DATA_PORT;
