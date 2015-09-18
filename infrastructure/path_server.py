@@ -31,7 +31,6 @@ from external.expiring_dict import ExpiringDict
 
 # SCION
 from infrastructure.scion_elem import SCIONElement
-from lib.crypto.hash_chain import HashChain
 from lib.defines import PATH_SERVICE, SCION_UDP_PORT
 from lib.log import init_logging, log_exception
 from lib.packet.host_addr import HostAddrIPv4
@@ -166,12 +165,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         Handles a core_path record.
         """
         raise NotImplementedError
-
-    def _verify_revocation(self, rev_info):
-        """
-        Verifies the revocation token.
-        """
-        return HashChain.verify(rev_info.proof, rev_info.rev_token)
 
     def _handle_revocation(self, pkt):
         """
