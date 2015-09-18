@@ -367,9 +367,9 @@ class SCIONDaemon(SCIONElement):
             return
         logging.info("Received revocation:\n%s", str(rev_info))
         # Verify revocation.
-        if not HashChain.verify(rev_info.proof, rev_info.rev_token):
-            logging.info("Revocation verification failed.")
-            return
+#         if not HashChain.verify(rev_info.proof, rev_info.rev_token):
+#             logging.info("Revocation verification failed.")
+#             return
         # Go through all segment databases and remove affected segments.
         deletions = self._remove_revoked_pcbs(self.up_segments,
                                               rev_info.rev_token)
@@ -381,7 +381,8 @@ class SCIONDaemon(SCIONElement):
 
     def _remove_revoked_pcbs(self, db, rev_token):
         """
-        Removes all segments from 'db' that contain 'rev_token'.
+        Removes all segments from 'db' that contain an IF token for which
+        rev_token is a preimage (within 20 calls).
 
         :param db: The PathSegmentDB.
         :type db: :class:`lib.path_db.PathSegmentDB`
@@ -393,8 +394,9 @@ class SCIONDaemon(SCIONElement):
         """
         to_remove = []
         for segment in db():
-            if rev_token in segment.get_all_iftokens():
-                to_remove.append(segment.segment_id)
+            for iftoken in segment.get_all_iftokens():
+                if HashChain.verify(rev_token, iftoken, 20):
+                    to_remove.append(segment.segment_id)
 
         return db.delete_all(to_remove)
 

@@ -206,7 +206,6 @@ class TestRevocationInfoInit(object):
     def test_basic(self, init):
         rev_inf = RevocationInfo()
         ntools.eq_(rev_inf.rev_token, b"")
-        ntools.eq_(rev_inf.proof, b"")
         init.assert_called_once_with(rev_inf)
 
     @patch("lib.packet.path_mgmt.RevocationInfo.parse", autospec=True)
@@ -224,8 +223,7 @@ class TestRevocationInfoParse(object):
     def test_basic(self, raw, parse):
         # Setup
         rev_inf = RevocationInfo()
-        data = (b"superlengthybigstringoflength321"
-                b"superlengthybigstringoflength322")
+        data = b"superlengthybigstringoflength321"
         raw.return_value = MagicMock(spec_set=["pop"])
         raw.return_value.pop.return_value = data
         # Call
@@ -234,7 +232,6 @@ class TestRevocationInfoParse(object):
         raw.assert_called_once_with(data, "RevocationInfo", rev_inf.LEN)
         parse.assert_called_once_with(rev_inf, data)
         ntools.eq_(rev_inf.rev_token, b"superlengthybigstringoflength321")
-        ntools.eq_(rev_inf.proof, b"superlengthybigstringoflength322")
 
 
 class TestRevocationInfoPack(object):
@@ -244,9 +241,7 @@ class TestRevocationInfoPack(object):
     def test_basic(self):
         rev_inf = RevocationInfo()
         rev_inf.rev_token = b"superlengthybigstringoflength321"
-        rev_inf.proof = b"superlengthybigstringoflength322"
-        data = (b"superlengthybigstringoflength321"
-                b"superlengthybigstringoflength322")
+        data = b"superlengthybigstringoflength321"
         ntools.eq_(rev_inf.pack(), data)
 
 
@@ -255,9 +250,8 @@ class TestRevocationInfoFromValues(object):
     Unit tests for lib.packet.path_mgmt.RevocationInfo.from_values
     """
     def test_basic(self):
-        rev_inf = RevocationInfo.from_values("data1", "data2")
+        rev_inf = RevocationInfo.from_values("data1")
         ntools.eq_(rev_inf.rev_token, "data1")
-        ntools.eq_(rev_inf.proof, "data2")
         ntools.assert_is_instance(rev_inf, RevocationInfo)
 
 

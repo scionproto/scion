@@ -187,27 +187,27 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             self.revocations[hash(rev_info)] = rev_info
             logging.debug("Received revocation from %s:\n%s", pkt.hdr.src_addr,
                           rev_info)
-        # Verify revocation.
-        if not self._verify_revocation(rev_info):
-            logging.info("Revocation verification failed.")
-            return
         # Remove segments that contain the revoked interface.
         self._remove_revoked_segments(rev_info)
 
     def _remove_revoked_segments(self, rev_info):
         """
-        Remove segments that contain a revoked interface.
+        Remove segments that contain a revoked interface. Checks 20 tokens in
+        case previous revocations were missed by the PS.
 
         :param rev_info: The revocation info
         :type rev_info: RevocationInfo
         """
-        segments = self.iftoken2seg[rev_info.rev_token]
-        while segments:
-            sid = segments.pop()
-            # Delete segment from DB.
-            self.down_segments.delete(sid)
-            self.core_segments.delete(sid)
-        del self.iftoken2seg[rev_info.rev_token]
+        rev_token = rev_info.rev_token
+        for _ in range(20):
+            segments = self.iftoken2seg[rev_token]
+            while segments:
+                sid = segments.pop()
+                # Delete segment from DB.
+                self.down_segments.delete(sid)
+                self.core_segments.delete(sid)
+            del self.iftoken2seg[rev_info.rev_token]
+            rev_token = SHA256.new(rev_token).digest()
 
     def send_path_segments(self, path_request, paths):
         """

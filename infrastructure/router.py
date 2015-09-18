@@ -111,7 +111,6 @@ class InterfaceState(object):
     def __init__(self):
         self.is_active = True
         self.rev_token = None
-        self.proof = None
 
     def update(self, ifstate):
         """
@@ -120,9 +119,9 @@ class InterfaceState(object):
         :param ifstate: IFStateInfo object sent by the BS.
         :type ifstate: :class: `lib.packet.path_mgmt.IFStateInfo`
         """
+        assert isinstance(ifstate.rev_info.rev_token, bytes)
         self.is_active = bool(ifstate.state)
         self.rev_token = ifstate.rev_info.rev_token
-        self.proof = ifstate.rev_info.proof
 
 
 class Router(SCIONElement):
@@ -403,11 +402,9 @@ class Router(SCIONElement):
                           "revocation." % if_id)
             return
 
-        assert if_state.rev_token and if_state.proof, \
-            "Revocation token and/or proof missing."
+        assert if_state.rev_token, "Revocation token missing."
 
-        rev_info = RevocationInfo.from_values(if_state.rev_token,
-                                              if_state.proof)
+        rev_info = RevocationInfo.from_values(if_state.rev_token)
         rev_hdr = spkt.hdr.reversed_copy()
         rev_hdr.l4_proto = L4_DEFAULT
         rev_hdr.common_hdr.next_hdr = L4_DEFAULT
@@ -715,7 +712,6 @@ class Router(SCIONElement):
         ptype = get_type(spkt)
         self.handle_extensions(spkt, True)
         if ptype == PT.DATA:
-            logging.debug("Data packet entering:\n%s", spkt)
             self.forward_packet(spkt, from_local_ad)
         elif ptype == PT.IFID_PKT and not from_local_ad:
             self.process_ifid_request(IFIDPacket(packet))

@@ -162,10 +162,9 @@ class PathSegmentRecords(PayloadBase):
 
 class RevocationInfo(PayloadBase):
     """
-    Class containing revocation information, i.e., the revocation token and
-    the proof (the next element in the revocation hash chain).
+    Class containing revocation information, i.e., the revocation token.
     """
-    LEN = 2 * 32
+    LEN = 32
 
     def __init__(self, raw=None):
         """
@@ -176,7 +175,6 @@ class RevocationInfo(PayloadBase):
         """
         super().__init__()
         self.rev_token = b""
-        self.proof = b""
 
         if raw is not None:
             self.parse(raw)
@@ -184,31 +182,26 @@ class RevocationInfo(PayloadBase):
     def parse(self, raw):
         super().parse(raw)
         data = Raw(raw, "RevocationInfo", self.LEN)
-        self.rev_token, self.proof = struct.unpack("!32s32s", data.pop())
+        self.rev_token = struct.unpack("!32s", data.pop(self.LEN))[0]
 
     def pack(self):
-        return struct.pack("!32s32s", self.rev_token, self.proof)
+        return struct.pack("!32s", self.rev_token)
 
     @classmethod
-    def from_values(cls, rev_token, proof):
+    def from_values(cls, rev_token):
         """
         Returns a RevocationInfo object with the specified values.
 
         :param rev_token: revocation token of interface
         :type rev_token: bytes
-        :param proof: proof for rev_token
-        :type proof: bytes
         """
         info = cls()
         info.rev_token = rev_token
-        info.proof = proof
 
         return info
 
     def __str__(self):
-        s = "[Revocation Info]\n"
-        s += "Token: %s\nProof: %s" % (self.rev_token, self.proof)
-        return s
+        return "[Revocation Info: %s]" % (self.rev_token)
 
     def __len__(self):  # pragma: no cover
         return self.LEN
@@ -241,7 +234,7 @@ class IFStateInfo(PayloadBase):
         return struct.pack("!HH", self.if_id, self.state) + self.rev_info.pack()
 
     @classmethod
-    def from_values(cls, if_id, state, rev_token, proof):
+    def from_values(cls, if_id, state, rev_token):
         """
         Returns a IFStateInfo object with the values specified.
 
@@ -251,13 +244,12 @@ class IFStateInfo(PayloadBase):
         :type state: bool
         :param rev_token: The current revocation token for the interface.
         :type rev_token: bytes
-        :param proof: The corresponding proof.
-        :type proof: bytes
         """
+        assert isinstance(rev_token, bytes)
         info = cls()
         info.if_id = if_id
         info.state = state
-        info.rev_info = RevocationInfo.from_values(rev_token, proof)
+        info.rev_info = RevocationInfo.from_values(rev_token)
 
         return info
 

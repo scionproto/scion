@@ -196,7 +196,7 @@ class RevocationObject(object):
                 self.rev_info.pack())
 
     @classmethod
-    def from_values(cls, if_id, index, rev_token, proof):
+    def from_values(cls, if_id, index, rev_token):
         """
         Returns a RevocationInfo object with the specified values.
 
@@ -204,17 +204,13 @@ class RevocationObject(object):
         :type if_id: int
         :param index: The index of the rev_token in the hash chain.
         :type index: int
-        :param rev_type: type of the revocation info
-        :type: int (RevocationType)
         :param rev_token: revocation token of interface
-        :type: bytes
-        :param proof: proof for rev_token
         :type: bytes
         """
         rev_obj = cls()
         rev_obj.if_id = if_id
         rev_obj.hash_chain_idx = index
-        rev_obj.rev_info = RevocationInfo.from_values(rev_token, proof)
+        rev_obj.rev_info = RevocationInfo.from_values(rev_token)
 
         return rev_obj
 
@@ -487,7 +483,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 if chain is None:
                     return
                 state_info = IFStateInfo.from_values(ifid, True,
-                                                     chain.current_element(),
                                                      chain.next_element())
                 payload = IFStatePayload.from_values([state_info])
                 isd_ad = ISD_AD(self.topology.isd_id,
@@ -765,22 +760,15 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         # Only the master BS issues revocations.
         if not self.zk.have_lock():
             return
-        rev_info = RevocationInfo.from_values(
-            chain.current_element(),
-            chain.next_element())
+        rev_info = RevocationInfo.from_values(chain.next_element())
         logging.info("Storing revocation in ZK.")
-        rev_obj = RevocationObject.from_values(
-            if_id,
-            chain.current_index(),
-            chain.current_element(),
-            chain.next_element())
+        rev_obj = RevocationObject.from_values(if_id, chain.current_index(),
+                                               chain.next_element())
         self.revobjs_cache.store(chain.start_element(hex_=True),
                                  rev_obj.pack())
         logging.info("Issuing revocation for IF %d.", if_id)
         # Issue revocation to all ERs.
-        info = IFStateInfo.from_values(if_id, False,
-                                       chain.current_element(),
-                                       chain.next_element())
+        info = IFStateInfo.from_values(if_id, False, chain.next_element())
         payload = IFStatePayload.from_values([info])
         isd_ad = ISD_AD(self.topology.isd_id, self.topology.ad_id)
         state_pkt = PathMgmtPacket.from_values(PMT.IFSTATE_INFO, payload,
@@ -886,14 +874,12 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             for (ifid, state) in self.ifid_state.items():
                 chain = self._get_if_hash_chain(ifid)
                 info = IFStateInfo.from_values(ifid, state.is_active(),
-                                               chain.current_element(),
                                                chain.next_element())
                 infos.append(info)
         elif request.if_id in self.ifid_state:
             chain = self._get_if_hash_chain(request.if_id)
             state = self.ifid_state[request.if_id]
             info = IFStateInfo.from_values(ifid, state.is_active(),
-                                           chain.current_element(),
                                            chain.next_element())
             infos.append(info)
         else:
@@ -1146,12 +1132,6 @@ class CoreBeaconServer(BeaconServer):
         for ps in self.core_segments.values():
             ps.remove_segments(to_remove)
 
-    def _process_segment_revocation(self, rev_info):
-        raise NotImplementedError
-
-    def _process_hop_revocation(self, rev_info, if_ids):
-        raise NotImplementedError
-
 
 class LocalBeaconServer(BeaconServer):
     """
@@ -1318,28 +1298,6 @@ class LocalBeaconServer(BeaconServer):
                                           cert_chain_rep.version)]
         self.handle_unverified_beacons()
 
-    def _process_revocation(self, rev_info, if_id):
-        """
-        Send out revocation to the local PS and a CPS and down_stream BS.
-        """
-        super()._process_revocation(rev_info, if_id)
-        # Send revocation to CPS.
-        if not self.up_segments.get_best_segments():
-            logging.error("No up path available to send out revocation.")
-            return
-        up_segment = self.up_segments.get_best_segments()[0]
-
-        # Add first hop opaque field.
-        up_segment = self._terminate_pcb(up_segment)
-        path = up_segment.get_path(True)
-        dst_isd_ad = ISD_AD(up_segment.get_isd(),
-                            up_segment.get_first_pcbm().ad_id)
-        pkt = PathMgmtPacket.from_values(PMT.REVOCATION, rev_info, path,
-                                         self.addr, dst_isd_ad)
-        (next_hop, port) = self.get_first_hop(pkt)
-        logging.info("Sending revocation to CPS.")
-        self.send(pkt, next_hop, port)
-
     def _remove_revoked_pcbs(self, rev_info, if_id):
         candidates = (self.down_segments.candidates +
                       self.up_segments.candidates)
@@ -1363,12 +1321,6 @@ class LocalBeaconServer(BeaconServer):
         # Remove the affected segments from the path stores.
         self.up_segments.remove_segments(to_remove)
         self.down_segments.remove_segments(to_remove)
-
-    def _process_segment_revocation(self, rev_info):
-        raise NotImplementedError
-
-    def _process_hop_revocation(self, rev_info, if_ids):
-        raise NotImplementedError
 
     def _handle_verified_beacon(self, pcb):
         """
