@@ -412,12 +412,12 @@ class PathStore(object):
         """
         Update the delay time property of all path candidates.
         """
-        dt_count = []
+        max_delay_time = 0
         for candidate in self.candidates:
             candidate.delay_time = (candidate.last_seen_time -
                                     candidate.pcb.get_timestamp() + 1)
-            dt_count.append(candidate.delay_time)
-        max_delay_time = max(dt_count)
+            if candidate.delay_time > max_delay_time:
+                max_delay_time = candidate.delay_time
         for candidate in self.candidates:
             candidate.delay_time /= max_delay_time
 
