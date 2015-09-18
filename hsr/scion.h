@@ -34,6 +34,7 @@
 
 #define SCION_ISD_AD_LEN 4
 #define SCION_HOST_ADDR_LEN 4
+#define SCION_SVC_ADDR_LEN 2
 #define SCION_HOST_OFFSET (SCION_ISD_LEN + SCION_AD_LEN)
 
 #define SCION_COMMON_HEADER_LEN 8
@@ -104,16 +105,29 @@
 typedef struct {
 	uint16_t isd_id:12;
 	uint32_t ad_id:20;
-	uint8_t host_addr[4];
+	uint8_t host_addr[4]; //IPv4
 } SCIONAddr;
+
+typedef struct {
+	uint16_t isd_id:12;
+	uint32_t ad_id:20;
+	uint8_t host_addr[2];  // SVC address
+} SCIONAddr2;
+typedef struct {
+	uint16_t isd_id:12;
+	uint32_t ad_id:20;
+	uint8_t host_addr[16]; // IPv6
+} SCIONAddr16;
+
+
 
 typedef struct {
 	/** Packet Type of the packet*/
 	uint8_t version:4; //last bit is up/down-path flag temporally
-	/** Length of the source address */
-	uint8_t srcLen:6;
-	/** Length of the destination address*/
-	uint8_t dstLen:6;
+	/** Type of the source address */
+	uint8_t srcType:6;
+	/** Type of the destination address*/
+	uint8_t dstType:6;
 	/** Total Length of the packet */
 	uint16_t totalLen;
 	/** Index of current Info opaque field*/
@@ -129,17 +143,15 @@ typedef struct {
 typedef struct {
     SCIONCommonHeader commonHeader;
     SCIONAddr srcAddr;
-    SCIONAddr dstAddr;
-    uint8_t *path;
-    size_t pathLen;
+    //SCIONAddr dstAddr;  // length of srcAddr depends on its type
+    //uint8_t *path;
+    //size_t pathLen;
 } SCIONHeader;
 
 typedef struct {
 	SCIONCommonHeader commonHeader;
 	SCIONAddr srcAddr;
-	SCIONAddr dstAddr;
-	uint8_t *path;
-	size_t pathLen;
+	SCIONAddr2 dstAddr;
 	uint16_t reply_id; // how many bits?
 	uint16_t request_id; // how many bits?
 } IFIDHeader;
@@ -233,6 +245,16 @@ typedef struct {
 
 #pragma pack(pop)
 
+
+//Address type
+// Null address type
+#define ADDR_NONE_TYPE  0
+// IPv4 address type
+#define ADDR_IPV4_TYPE  1
+// IPv6 address type
+#define ADDR_IPV6_TYPE  2
+// SCION Service address type
+#define ADDR_SVC_TYPE  3
 
 //DPDK port
 #define DPDK_EGRESS_PORT 0

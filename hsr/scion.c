@@ -93,8 +93,29 @@ struct port_map {
 uint32_t neighbor_ad_router_ip[16];
 
 uint32_t my_ifid[16]; // the current router's IFID
+uint32_t interface_ip[16]; // current router IP address
+
 
 struct keystruct rk; // AES-NI key structure
+
+
+unsigned char *get_dstaddr(SCIONHeader *hdr){
+ 
+  uint8_t src_len;
+
+  SCIONCommonHeader *sch;
+  sch = &(hdr->commonHeader);
+  if(hdr->commonHeader.srcType == ADDR_IPV4_TYPE)
+	src_len=4;
+  else if(hdr->commonHeader.srcType == ADDR_IPV6_TYPE)
+	src_len=16;
+  else if(hdr->commonHeader.srcType == ADDR_SVC_TYPE)
+	src_len=SCION_SVC_ADDR_LEN;
+
+
+  return (unsigned char *)hdr + sizeof(SCIONCommonHeader) + SCION_ISD_AD_LEN + src_len + SCION_ISD_AD_LEN;
+}
+
 
 void scion_init() {
   // fill interface list
@@ -107,6 +128,8 @@ void scion_init() {
   // first router
   neighbor_ad_router_ip[0] = neighbor_ad_router_ip[1] =
       rte_cpu_to_be_32(IPv4(1, 1, 1, 1));
+  interface_ip[0] = interface_ip[1] =
+      rte_cpu_to_be_32(IPv4(2, 2, 2, 2));
   // DPDK setting
 
   port_map[0].egress = 0;
@@ -116,7 +139,7 @@ void scion_init() {
   my_ifid[0] = my_ifid[1] = 123; // ifid of NIC 0 and NIC 1 is 123
 
   // second router
-  
+ /* 
   neighbor_ad_router_ip[2] = neighbor_ad_router_ip[3] =
       rte_cpu_to_be_32(IPv4(1, 1, 1, 1));
   port_map[2].egress = 2;
@@ -124,6 +147,7 @@ void scion_init() {
   port_map[3].egress = 2;
   port_map[3].local = 3;
   my_ifid[2] = my_ifid[3] = 345; // ifid of NIC 2 and NIC 3 is 345
+*/
 
   // AES-NI key setup
   unsigned char key[] = "0123456789abcdef";
@@ -133,6 +157,37 @@ void scion_init() {
 
 static inline void sync_interface() {
   // not implemented
+
+/*
+  m_ifid_pkt = rte_pktmbuf_alloc(l2fwd_pktbuf_pool);
+  m_ifid_pkt->pkt.data_len = sizeof(struct IFIDHeader);
+  m_ifid_pkt->pkt.pkt_len = sizeof(struct IFIDHeader);
+
+
+  struct ether_hdr * eth = (struct ether_hdr *)(rte_pktmbuf_mtod(m_ifid_pkt, unsigned char *));
+  struct ipv4_hdr  *ip = (void *)eth + sizeof(struct ether_hdr);
+  struct udp_hdr  *udp = (void *)eth + sizeof(struct ether_hdr) + sizeof(struct ipv4_hdr);
+  struct IFIDHeader  *ifid = (void *)eth + sizeof(struct ether_hdr) + sizeof(struct ipv4_hdr) +  sizeof(struct udp_hdr);
+
+  ipv4_hdr->dst_addr = neighbor_ad_router_ip[0];
+  udp_hdr->dst_port = SCION_UDP_PORT;
+  ifid->commonHeader-> srcType == ADDR_SVC_TYPE;
+  ifid->srcAddr->isd_id = my_isd_id[0];
+  ifid->srcAddr->ad_id = my_ad_id[0];
+  ifid->srcAddr->host = interface_ip[0];
+
+  //SCIONAddr *dstAddr= (SCIONAddr*) ((char *)ifid->srcAddr+SCION_SVC_ADDR_LEN); 
+  ifid->dstAddr->isd_id = neighboer_isd_id;
+  ifid->dstAddr->ad_id = neighboer_ad_id;
+  *(uint16_t*)dstAddr->host = ADDR_SVC_TYPE;
+
+
+  while(1){
+	l2fwd_send_packet(m_ifid_pkt, port_map[0].egress);
+	  sleep(2);
+  }
+*/
+
 }
 
 // send a packet to neighbor AD router
@@ -331,9 +386,9 @@ static inline void deliver(struct rte_mbuf *m, uint32_t ptype,
     ipv4_hdr->dst_addr = path_servers[0];
     udp_hdr->dst_port = SCION_UDP_PORT;
   } else {
-    // update destination IP address to the end hostadress
+    // update destination IP address to the end host adress
     rte_memcpy((void *)&ipv4_hdr->dst_addr,
-               (void *)&scion_hdr->dstAddr + SCION_ISD_AD_LEN,
+               (void *)&scion_hdr->dst_Addr + SCION_ISD_AD_LEN,
                SCION_HOST_ADDR_LEN);
 
     udp_hdr->dst_port = SCION_UDP_EH_DATA_PORT;
