@@ -5,11 +5,27 @@
 #include <sys/types.h>
 #include "scion.h"
 
+unsigned char *get_dstaddr(SCIONHeader *hdr){
+  uint8_t src_len;
+
+  SCIONCommonHeader *sch;
+  sch = &(hdr->commonHeader);
+  if(hdr->commonHeader.srcType == ADDR_IPV4_TYPE)
+       src_len=4;
+  else if(hdr->commonHeader.srcType == ADDR_IPV6_TYPE)
+       src_len=16;
+  else if(hdr->commonHeader.srcType == ADDR_SVC_TYPE)
+       src_len=SCION_SVC_ADDR_LEN;
+
+  return (unsigned char *)hdr + sizeof(SCIONCommonHeader) + SCION_ISD_AD_LEN + src_len + SCION_ISD_AD_LEN;
+}
+
 uint8_t get_type(SCIONHeader *hdr) {
   // TODO check address type
 
   SCIONAddr *src = (SCIONAddr *)(&hdr->srcAddr);
-  SCIONAddr *dst = (SCIONAddr *)(&hdr->dstAddr);
+  //SCIONAddr *dst = (SCIONAddr *)(&hdr->dstAddr);
+  SCIONAddr *dst = (SCIONAddr *)(get_dstaddr(hdr));
   /*
     int i;
     for(i=0; i<8; i++)
