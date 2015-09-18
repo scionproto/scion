@@ -78,6 +78,8 @@ class SCIONDaemon(SCIONElement):
     :type _socks:
     """
     TIMEOUT = 5
+    # Number of tokens the PS checks when receiving a revocation.
+    N_TOKENS_CHECK = 20
 
     def __init__(self, addr, topo_file, run_local_api=False, is_sim=False):
         """
@@ -395,7 +397,7 @@ class SCIONDaemon(SCIONElement):
         to_remove = []
         for segment in db():
             for iftoken in segment.get_all_iftokens():
-                if HashChain.verify(rev_token, iftoken, 20):
+                if HashChain.verify(rev_token, iftoken, self.N_TOKENS_CHECK):
                     to_remove.append(segment.segment_id)
 
         return db.delete_all(to_remove)

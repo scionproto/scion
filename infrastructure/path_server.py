@@ -64,6 +64,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
     MAX_SEG_NO = 5  # TODO: replace by config variable.
     # ZK path for incoming PATHs
     ZK_PATH_CACHE_PATH = "path_cache"
+    # Number of tokens the PS checks when receiving a revocation.
+    N_TOKENS_CHECK = 20
 
     def __init__(self, server_id, topo_file, config_file, is_sim=False):
         """
@@ -199,7 +201,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         :type rev_info: RevocationInfo
         """
         rev_token = rev_info.rev_token
-        for _ in range(20):
+        for _ in range(self.N_TOKENS_CHECK):
             segments = self.iftoken2seg[rev_token]
             while segments:
                 sid = segments.pop()
