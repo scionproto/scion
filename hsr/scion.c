@@ -64,20 +64,25 @@
 
 /// definition of functions
 int l2fwd_send_packet(struct rte_mbuf *m, uint8_t port);
+static inline int send_packet(struct rte_mbuf *m, uint8_t port);
 
 static inline void deliver(struct rte_mbuf *m, uint32_t ptype,
                            uint8_t dpdk_rx_port);
 static inline void forward_packet(struct rte_mbuf *m, uint32_t from_local_ad,
                                   uint8_t dpdk_rx_port);
-static inline void egress_normal_forward(struct rte_mbuf *m, uint8_t dpdk_rx_port);
+static inline void egress_normal_forward(struct rte_mbuf *m,
+                                         uint8_t dpdk_rx_port);
 
-static inline void handle_ingress_xovr(struct rte_mbuf *m, uint8_t dpdk_rx_port);
-static inline void ingress_shortcut_xovr(struct rte_mbuf *m, uint8_t dpdk_rx_port);
+static inline void handle_ingress_xovr(struct rte_mbuf *m,
+                                       uint8_t dpdk_rx_port);
+static inline void ingress_shortcut_xovr(struct rte_mbuf *m,
+                                         uint8_t dpdk_rx_port);
 static inline void ingress_peer_xovr(struct rte_mbuf *m, uint8_t dpdk_rx_port);
 static inline void ingress_core_xovr(struct rte_mbuf *m, uint8_t dpdk_rx_port);
 
 static inline void handle_egress_xovr(struct rte_mbuf *m, uint8_t dpdk_rx_port);
-static inline void egress_shortcut_xovr(struct rte_mbuf *m, uint8_t dpdk_rx_port);
+static inline void egress_shortcut_xovr(struct rte_mbuf *m,
+                                        uint8_t dpdk_rx_port);
 static inline void egress_peer_xovr(struct rte_mbuf *m, uint8_t dpdk_rx_port);
 static inline void egress_core_xovr(struct rte_mbuf *m, uint8_t dpdk_rx_port);
 
@@ -92,13 +97,10 @@ struct port_map {
 
 uint32_t neighbor_ad_router_ip[16];
 
-uint32_t my_ifid[16]; // the current router's IFID
+uint32_t my_ifid[16];      // the current router's IFID
 uint32_t interface_ip[16]; // current router IP address
 
-
 struct keystruct rk; // AES-NI key structure
-
-
 
 void scion_init() {
   // fill interface list
@@ -111,8 +113,7 @@ void scion_init() {
   // first router
   neighbor_ad_router_ip[0] = neighbor_ad_router_ip[1] =
       rte_cpu_to_be_32(IPv4(1, 1, 1, 1));
-  interface_ip[0] = interface_ip[1] =
-      rte_cpu_to_be_32(IPv4(2, 2, 2, 2));
+  interface_ip[0] = interface_ip[1] = rte_cpu_to_be_32(IPv4(2, 2, 2, 2));
   // DPDK setting
 
   port_map[0].egress = 0;
@@ -122,15 +123,15 @@ void scion_init() {
   my_ifid[0] = my_ifid[1] = 123; // ifid of NIC 0 and NIC 1 is 123
 
   // second router
- /* 
-  neighbor_ad_router_ip[2] = neighbor_ad_router_ip[3] =
-      rte_cpu_to_be_32(IPv4(1, 1, 1, 1));
-  port_map[2].egress = 2;
-  port_map[2].local = 3;
-  port_map[3].egress = 2;
-  port_map[3].local = 3;
-  my_ifid[2] = my_ifid[3] = 345; // ifid of NIC 2 and NIC 3 is 345
-*/
+  /*
+   neighbor_ad_router_ip[2] = neighbor_ad_router_ip[3] =
+       rte_cpu_to_be_32(IPv4(1, 1, 1, 1));
+   port_map[2].egress = 2;
+   port_map[2].local = 3;
+   port_map[3].egress = 2;
+   port_map[3].local = 3;
+   my_ifid[2] = my_ifid[3] = 345; // ifid of NIC 2 and NIC 3 is 345
+ */
 
   // AES-NI key setup
   unsigned char key[] = "0123456789abcdef";
@@ -138,39 +139,61 @@ void scion_init() {
   rk.iv = malloc(16 * sizeof(char));
 }
 
+static inline int send_packet(struct rte_mbuf *m, uint8_t port) {
+  struct ipv4_hdr *ipv4_hdr;
+  struct udp_hdr *udp_hdr;
+  ipv4_hdr = (struct ipv4_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
+      struct ether_hdr));
+  udp_hdr = (struct udp_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
+                                   struct ether_hdr) +
+                               sizeof(struct ipv4_hdr));
+
+  // update checksum
+  // TODO hardware offloading
+  ipv4_hdr->hdr_checksum = 0;
+  ipv4_hdr->hdr_checksum = rte_ipv4_cksum(ipv4_hdr);
+  udp_hdr->dgram_cksum = 0;
+  udp_hdr->dgram_cksum = rte_ipv4_udptcp_cksum(ipv4_hdr, udp_hdr);
+
+  l2fwd_send_packet(m, port);
+}
+
 static inline void sync_interface() {
   // not implemented
 
-/*
-  m_ifid_pkt = rte_pktmbuf_alloc(l2fwd_pktbuf_pool);
-  m_ifid_pkt->pkt.data_len = sizeof(struct IFIDHeader);
-  m_ifid_pkt->pkt.pkt_len = sizeof(struct IFIDHeader);
+  /*
+    m_ifid_pkt = rte_pktmbuf_alloc(l2fwd_pktbuf_pool);
+    m_ifid_pkt->pkt.data_len = sizeof(struct IFIDHeader);
+    m_ifid_pkt->pkt.pkt_len = sizeof(struct IFIDHeader);
 
 
-  struct ether_hdr * eth = (struct ether_hdr *)(rte_pktmbuf_mtod(m_ifid_pkt, unsigned char *));
-  struct ipv4_hdr  *ip = (void *)eth + sizeof(struct ether_hdr);
-  struct udp_hdr  *udp = (void *)eth + sizeof(struct ether_hdr) + sizeof(struct ipv4_hdr);
-  struct IFIDHeader  *ifid = (void *)eth + sizeof(struct ether_hdr) + sizeof(struct ipv4_hdr) +  sizeof(struct udp_hdr);
+    struct ether_hdr * eth = (struct ether_hdr *)(rte_pktmbuf_mtod(m_ifid_pkt,
+    unsigned char *));
+    struct ipv4_hdr  *ip = (void *)eth + sizeof(struct ether_hdr);
+    struct udp_hdr  *udp = (void *)eth + sizeof(struct ether_hdr) +
+    sizeof(struct ipv4_hdr);
+    struct IFIDHeader  *ifid = (void *)eth + sizeof(struct ether_hdr) +
+    sizeof(struct ipv4_hdr) +  sizeof(struct udp_hdr);
 
-  ipv4_hdr->dst_addr = neighbor_ad_router_ip[0];
-  udp_hdr->dst_port = SCION_UDP_PORT;
-  ifid->commonHeader-> srcType == ADDR_SVC_TYPE;
-  ifid->srcAddr->isd_id = my_isd_id[0];
-  ifid->srcAddr->ad_id = my_ad_id[0];
-  ifid->srcAddr->host = interface_ip[0];
+    ipv4_hdr->dst_addr = neighbor_ad_router_ip[0];
+    udp_hdr->dst_port = SCION_UDP_PORT;
+    ifid->commonHeader-> srcType == ADDR_SVC_TYPE;
+    ifid->srcAddr->isd_id = my_isd_id[0];
+    ifid->srcAddr->ad_id = my_ad_id[0];
+    ifid->srcAddr->host = interface_ip[0];
 
-  //SCIONAddr *dstAddr= (SCIONAddr*) ((char *)ifid->srcAddr+SCION_SVC_ADDR_LEN); 
-  ifid->dstAddr->isd_id = neighboer_isd_id;
-  ifid->dstAddr->ad_id = neighboer_ad_id;
-  *(uint16_t*)dstAddr->host = ADDR_SVC_TYPE;
+    //SCIONAddr *dstAddr= (SCIONAddr*) ((char
+    *)ifid->srcAddr+SCION_SVC_ADDR_LEN);
+    ifid->dstAddr->isd_id = neighboer_isd_id;
+    ifid->dstAddr->ad_id = neighboer_ad_id;
+    *(uint16_t*)dstAddr->host = ADDR_SVC_TYPE;
 
 
-  while(1){
-	l2fwd_send_packet(m_ifid_pkt, port_map[0].egress);
-	  sleep(2);
-  }
-*/
-
+    while(1){
+          l2fwd_send_packet(m_ifid_pkt, port_map[0].egress);
+            sleep(2);
+    }
+  */
 }
 
 // send a packet to neighbor AD router
@@ -179,9 +202,8 @@ static inline int send_egress(struct rte_mbuf *m, uint8_t dpdk_rx_port) {
   // struct udp_hdr *udp_hdr;
   ipv4_hdr = (struct ipv4_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
       struct ether_hdr));
-  // udp_hdr = (struct udp_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
-  //                                 struct ether_hdr) +
-  //                             sizeof(struct ipv4_hdr));
+  //   udp_hdr = (struct udp_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
+  //   struct ether_hdr) + sizeof(struct ipv4_hdr));
 
   // Specify output dpdk port.
   // Update destination IP address and UDP port number
@@ -189,12 +211,11 @@ static inline int send_egress(struct rte_mbuf *m, uint8_t dpdk_rx_port) {
   ipv4_hdr->dst_addr = neighbor_ad_router_ip[dpdk_rx_port];
   // udp_hdr->dst_port = SCION_UDP_PORT;
 
-  // TODO update IP checksum
   // TODO should we updete destination MAC address?
 
   RTE_LOG(DEBUG, HSR, "send_egress port=%d\n", port_map[dpdk_rx_port].egress);
   // TODO update destination MAC address
-  l2fwd_send_packet(m, port_map[dpdk_rx_port].egress);
+  send_packet(m, port_map[dpdk_rx_port].egress);
 }
 
 // send a packet to the edge router that has next_ifid in this AD
@@ -214,18 +235,18 @@ static inline int send_ingress(struct rte_mbuf *m, uint32_t next_ifid,
     ipv4_hdr->dst_addr = GET_EDGE_ROUTER_IPADDR(next_ifid);
     // udp_hdr->dst_port = SCION_UDP_PORT;
 
-    // TODO update IP checksum
     // TODO should we updete destination MAC address?
 
     RTE_LOG(DEBUG, HSR, "egress dpdk_port=%d\n", DPDK_LOCAL_PORT);
     // TODO update destination MAC address
-    l2fwd_send_packet(m, port_map[dpdk_rx_port].local);
+    send_packet(m, port_map[dpdk_rx_port].local);
     return 1;
   }
   return -1;
 }
 
-static inline void process_ifid_request(struct rte_mbuf *m, uint8_t dpdk_rx_port) {
+static inline void process_ifid_request(struct rte_mbuf *m,
+                                        uint8_t dpdk_rx_port) {
   // struct ether_hdr *eth_hdr;
   struct ipv4_hdr *ipv4_hdr;
   // struct udp_hdr *udp_hdr;
@@ -243,15 +264,15 @@ static inline void process_ifid_request(struct rte_mbuf *m, uint8_t dpdk_rx_port
                             sizeof(struct ipv4_hdr) + sizeof(struct udp_hdr));
 
   ifid_hdr->reply_id = my_ifid[dpdk_rx_port]; // complete with current interface
-                                           // (self.interface.if_id)
+                                              // (self.interface.if_id)
 
   int i;
   for (i = 0; i < MAX_NUM_BEACON_SERVERS; i++) {
     ipv4_hdr->dst_addr = beacon_servers[i];
-    // TODO update IP checksum
+
     // udp_hdr->dst_port = SCION_UDP_PORT;
     // TODO update destination MAC address
-    l2fwd_send_packet(m, port_map[dpdk_rx_port].local);
+    send_packet(m, port_map[dpdk_rx_port].local);
   }
 }
 
@@ -286,9 +307,8 @@ static inline void process_pcb(struct rte_mbuf *m, uint8_t from_bs,
     ipv4_hdr->dst_addr = neighbor_ad_router_ip[dpdk_rx_port];
     // udp_hdr->dst_port = SCION_UDP_PORT; // neighbor router port
 
-    // TODO update IP checksum
     // l2fwd_send_packet(m, DPDK_EGRESS_PORT);
-    l2fwd_send_packet(m, port_map[dpdk_rx_port].egress);
+    send_packet(m, port_map[dpdk_rx_port].egress);
 
   } else { // from neighbor router to local beacon server
     pcb->payload.if_id = my_ifid[dpdk_rx_port];
@@ -296,7 +316,7 @@ static inline void process_pcb(struct rte_mbuf *m, uint8_t from_bs,
     // udp_hdr->dst_port = SCION_UDP_PORT;
 
     // TODO update destination MAC address
-    l2fwd_send_packet(m, port_map[dpdk_rx_port].local);
+    send_packet(m, port_map[dpdk_rx_port].local);
   }
 }
 
@@ -308,14 +328,14 @@ static inline void relay_cert_server_packet(struct rte_mbuf *m,
 
   if (from_local_socket) {
     ipv4_hdr->dst_addr = neighbor_ad_router_ip[dpdk_rx_port];
-    // TODO update IP checksum
+
     // l2fwd_send_packet(m, DPDK_EGRESS_PORT, dpdk_rx_port);
-    l2fwd_send_packet(m, port_map[dpdk_rx_port].egress);
+    send_packet(m, port_map[dpdk_rx_port].egress);
   } else {
     ipv4_hdr->dst_addr = certificate_servers[0];
-    // TODO update IP checksum
+
     // TODO update destination MAC address
-    l2fwd_send_packet(m, port_map[dpdk_rx_port].local);
+    send_packet(m, port_map[dpdk_rx_port].local);
   }
 }
 
@@ -370,18 +390,17 @@ static inline void deliver(struct rte_mbuf *m, uint32_t ptype,
     udp_hdr->dst_port = SCION_UDP_PORT;
   } else {
     // update destination IP address to the end host adress
-    //rte_memcpy((void *)&ipv4_hdr->dst_addr,
+    // rte_memcpy((void *)&ipv4_hdr->dst_addr,
     //           (void *)&scion_hdr->dst_Addr + SCION_ISD_AD_LEN,
     //           SCION_HOST_ADDR_LEN);
-    rte_memcpy((void *)&ipv4_hdr->dst_addr,
-               get_dstaddr(scion_hdr),
+    rte_memcpy((void *)&ipv4_hdr->dst_addr, get_dstaddr(scion_hdr),
                SCION_HOST_ADDR_LEN);
 
     udp_hdr->dst_port = SCION_UDP_EH_DATA_PORT;
   }
 
   // TODO update destination MAC address
-  l2fwd_send_packet(m, port_map[dpdk_rx_port].local);
+  send_packet(m, port_map[dpdk_rx_port].local);
 }
 
 static inline uint8_t verify_of(HopOpaqueField *hof, HopOpaqueField *prev_hof,
@@ -435,7 +454,8 @@ static inline uint8_t verify_of(HopOpaqueField *hof, HopOpaqueField *prev_hof,
   }
 }
 
-static inline void handle_ingress_xovr(struct rte_mbuf *m, uint8_t dpdk_rx_port) {
+static inline void handle_ingress_xovr(struct rte_mbuf *m,
+                                       uint8_t dpdk_rx_port) {
   SCIONHeader *scion_hdr;
   SCIONCommonHeader *sch;
   HopOpaqueField *hof;
@@ -629,7 +649,8 @@ static inline void ingress_normal_forward(struct rte_mbuf *m,
   }
 }
 
-static inline void handle_egress_xovr(struct rte_mbuf *m, uint8_t dpdk_rx_port) {
+static inline void handle_egress_xovr(struct rte_mbuf *m,
+                                      uint8_t dpdk_rx_port) {
   SCIONHeader *scion_hdr;
   SCIONCommonHeader *sch;
   HopOpaqueField *hof;
@@ -655,7 +676,8 @@ static inline void handle_egress_xovr(struct rte_mbuf *m, uint8_t dpdk_rx_port) 
   }
 }
 
-static inline void egress_shortcut_xovr(struct rte_mbuf *m, uint8_t dpdk_rx_port) {
+static inline void egress_shortcut_xovr(struct rte_mbuf *m,
+                                        uint8_t dpdk_rx_port) {
   egress_normal_forward(m, dpdk_rx_port);
 }
 static inline void egress_peer_xovr(struct rte_mbuf *m, uint8_t dpdk_rx_port) {
