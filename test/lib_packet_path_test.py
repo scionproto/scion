@@ -926,11 +926,12 @@ class TestPeerPathReverse(object):
            return_value=None)
     def test_peering_point(self, init, super_reverse):
         inst = PeerPath()
-        inst._ofs = create_mock(["swap", "get_by_label"])
+        inst._ofs = create_mock(["swap", "get_by_label", "get_idx_by_label"])
         inst.get_by_idx = create_mock()
         inst.get_hof = create_mock()
         inst.get_hof.return_value = inst._ofs.get_by_label.return_value
         inst.inc_hof_idx = create_mock()
+        inst._hof_idx = inst._ofs.get_idx_by_label.return_value
         # Call
         inst.reverse()
         # Tests
@@ -940,6 +941,7 @@ class TestPeerPathReverse(object):
             call(UP_PEERING_HOF, DOWN_PEERING_HOF),
         ])
         inst.inc_hof_idx.assert_called_once_with()
+        inst._ofs.get_idx_by_label.assert_called_once_with(UP_PEERING_HOF)
 
 
 class TestPeerPathGetHofVer(_GetHofVerTest):

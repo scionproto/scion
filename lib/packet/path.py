@@ -625,7 +625,7 @@ class PeerPath(PathBase):
         # Handle case when reverse happens at peering point.
         if self.get_hof() == self._ofs.get_by_label(UP_HOFS, -1):
             self.inc_hof_idx()
-            assert self.get_hof() == self._ofs.get_by_label(UP_PEERING_HOF, 0)
+            assert self._hof_idx == self._ofs.get_idx_by_label(UP_PEERING_HOF)
 
     def get_hof_ver(self, ingress=True):
         hof = self.get_hof()
