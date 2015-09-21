@@ -428,7 +428,9 @@ class TestPathStoreAddSegment(object):
         ntools.eq_(pth_str.candidates[0].delay, 1)
         ntools.eq_(pth_str.candidates[0].last_seen_time, time_.return_value)
 
-    def test_adding(self):
+    @patch("lib.path_store.PathStoreRecord", autospec=True,
+            return_value=None)
+    def test_adding(self, psr):
         """
         Add a single path segment to the set of candidate paths.
         """
@@ -440,7 +442,7 @@ class TestPathStoreAddSegment(object):
         pth_str.add_segment(self.pcb)
         path_policy.check_filters.assert_called_once_with(self.pcb)
         ntools.ok_(pth_str.candidates)
-        ntools.eq_(pth_str.candidates[0].pcb, self.pcb)
+        ntools.assert_false(pth_str.candidates[0])
 
     def clear_candidates(self, pth_str):
         """
