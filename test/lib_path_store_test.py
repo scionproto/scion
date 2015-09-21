@@ -279,7 +279,7 @@ class TestPathStoreRecordInit(object):
         pcb.__class__ = PathSegment
         pcb.segment_id = "id"
         pcb.get_expiration_time.return_value = "get_expiration_time"
-        time_.return_value = 23
+        time_.return_value = PathStoreRecord.DEFAULT_OFFSET + 1
         pcb.get_timestamp.return_value = 17
         pth_str_rec = PathStoreRecord(pcb)
         ntools.eq_(pth_str_rec.pcb, pcb)
@@ -287,7 +287,7 @@ class TestPathStoreRecordInit(object):
         ntools.eq_(pth_str_rec.fidelity, 0)
         ntools.eq_(pth_str_rec.disjointness, 0)
         ntools.eq_(pth_str_rec.last_sent_time,
-                   PathStoreRecord.DEFAULT_SENT_TIME)
+                   time_.return_value - PathStoreRecord.DEFAULT_OFFSET)
         ntools.eq_(pth_str_rec.last_seen_time, time_.return_value)
         ntools.eq_(pth_str_rec.delay_time,
                    time_.return_value - pcb.get_timestamp.return_value)

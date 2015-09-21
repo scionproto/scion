@@ -191,9 +191,9 @@ class PathStoreRecord(object):
     """
     Path record that gets stored in the the PathStore.
 
-    :cvar DEFAULT_SENT_TIME: the initial time to which the last sent time of
-       the record is set upon creation.
-    :type DEFAULT_SENT_TIME: int
+    :cvar DEFAULT_OFFSET: the amount of time subtracted from the current time
+      when the path's initial last sent time is set.
+    :type DEFAULT_OFFSET: int
     :ivar pcb: the PCB representing the record.
     :vartype pcb: :class:`lib.packet.pcb.PathSegment`
     :ivar id: the path segment identifier stored in the record's PCB.
@@ -224,7 +224,7 @@ class PathStoreRecord(object):
     :vartype total_bandwidth: int
     """
 
-    DEFAULT_SENT_TIME = 1420070400  # year 2015
+    DEFAULT_OFFSET = 60480  # 1 week
 
     def __init__(self, pcb):
         """
@@ -242,7 +242,7 @@ class PathStoreRecord(object):
         self.delay_time = now - pcb.get_timestamp()
         self.fidelity = 0
         self.disjointness = 0
-        self.last_sent_time = self.DEFAULT_SENT_TIME
+        self.last_sent_time = now - self.DEFAULT_OFFSET
         self.last_seen_time = now
         self.expiration_time = pcb.get_expiration_time()
         self.guaranteed_bandwidth = 0
