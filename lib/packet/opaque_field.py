@@ -369,6 +369,43 @@ class OpaqueFieldList(object):
                 "Opaque field label index (%d) for label %s out of range" %
                 (label_idx, label)) from None
 
+    def get_label_by_idx(self, idx):
+        """
+        Returns the label to which idx points to.
+
+        :param int idx: The index for which we want to know the label.
+        :returns: The label 'idx' points to.
+        :raises:
+            :any:`SCIONIndexError`: if the index is out of range.
+        """
+        if idx < 0:
+            raise SCIONIndexError("Index for requested label is negative (%d)"
+                                  % idx)
+        offset = idx
+        for label in self._order:
+            group = self._labels[label]
+            if offset < len(group):
+                return label
+            offset -= len(group)
+        raise SCIONIndexError("Index (%d) for requested label is out of range "
+                              "(max %d)" % (idx, len(self) - 1)) from None
+
+    def get_idx_by_label(self, label):
+        """
+        Returns the index of the first element in the given label.
+
+        :param str label: The label for which we want the start index.
+        :raises:
+            :any:`SCIONKeyError`: if the label is unknown.
+        """
+        idx = 0
+        for l in self._order:
+            if label == l:
+                return idx
+            idx += len(self._labels[l])
+        raise SCIONKeyError("Opaque field label (%s) unknown." %
+                            label) from None
+
     def swap(self, label_a, label_b):
         """
         Swap the contents of two labels. The order of the parameters doesn't

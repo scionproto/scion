@@ -392,7 +392,8 @@ class Router(SCIONElement):
         Sends an interface revocation for 'if_id' along the path in 'spkt'.
         """
         # Only issue revocations in response to data packets.
-        # TODO: Extend this to all packets containing a path (i.e., path_req).
+        # TODO(shitz): Extend this to all packets containing a path
+        # (i.e., path_req).
         if get_type(spkt) != PT.DATA:
             return
         logging.info("Interface %d is down. Issuing revocation.", if_id)

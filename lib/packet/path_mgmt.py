@@ -308,7 +308,7 @@ class IFStatePayload(PayloadBase):
     def __str__(self):
         return "".join([str(info) + "\n" for info in self.ifstate_infos])
 
-    def __len__(self):
+    def __len__(self):  # pragma: no cover
         return len(self.ifstate_infos) * IFStateInfo.LEN
 
 

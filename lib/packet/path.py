@@ -50,6 +50,7 @@ class PathBase(object, metaclass=ABCMeta):
     containing routing information for each AD-level hop.
     """
     OF_ORDER = None
+    REVERSE_IOF_MAP = {UP_IOF: DOWN_IOF, DOWN_IOF: UP_IOF}
 
     def __init__(self, raw=None):
         """
@@ -125,22 +126,7 @@ class PathBase(object, metaclass=ABCMeta):
         """
         Reverse the direction of the path.
         """
-        # Update indices.
-        hof_idx = len(self._ofs) - self._hof_idx
-        iof_idx = 0
-        # iof_idx needs to be updated depending on the current path-segment.
-        # If in up-segment -> the reversed IOF must be in down-segment.
-        # If in core-segment -> the reversed IOF must be in core-segment.
-        # If in down-segment -> the reversed IOF must be in up-segment.
-        # Since up and down segments switch, we have to add the current
-        # down-segment length (that will become the up-segment after the swap.)
-        if self._iof_idx < self.get_up_segment_len():
-            iof_idx += (self.get_down_segment_len() +
-                        self.get_core_segment_len())
-        elif self._iof_idx < (self.get_up_segment_len() +
-                              self.get_core_segment_len()):
-            iof_idx += self.get_down_segment_len()
-        self.set_of_idxs(iof_idx, hof_idx)
+        iof_label = self._ofs.get_label_by_idx(self._iof_idx)
         # Swap down segment and up segment.
         self._ofs.swap(UP_HOFS, DOWN_HOFS)
         self._ofs.swap(UP_IOF, DOWN_IOF)
@@ -150,6 +136,14 @@ class PathBase(object, metaclass=ABCMeta):
         # Reverse HOF lists.
         self._ofs.reverse_label(UP_HOFS)
         self._ofs.reverse_label(DOWN_HOFS)
+        # Update indices.
+        # iof_idx needs to be updated depending on the current path-segment.
+        # If in up-segment -> the reversed IOF must be in down-segment.
+        # If in core-segment -> the reversed IOF must be in core-segment.
+        # If in down-segment -> the reversed IOF must be in up-segment.
+        self.set_of_idxs(
+            self._ofs.get_idx_by_label(self.REVERSE_IOF_MAP[iof_label]),
+            len(self._ofs) - self._hof_idx)
 
     def get_of_idxs(self):
         """
@@ -190,24 +184,6 @@ class PathBase(object, metaclass=ABCMeta):
         if self._hof_idx is None:
             return None
         return self._get_of(self._hof_idx)
-
-    def get_up_segment_len(self):  # pragma: no cover
-        """
-        Returns the length (in hops) of the up_segment.
-        """
-        return self._ofs.count(UP_IOF) + self._ofs.count(UP_HOFS)
-
-    def get_core_segment_len(self):  # pragma: no cover
-        """
-        Returns the length (in hops) of the core-segment.
-        """
-        return 0
-
-    def get_down_segment_len(self):  # pragma: no cover
-        """
-        Returns the length (in hops) of the down-segment.
-        """
-        return self._ofs.count(DOWN_IOF) + self._ofs.count(DOWN_HOFS)
 
     def inc_hof_idx(self):
         """
@@ -330,6 +306,7 @@ class CorePath(PathBase):
     | info OF down-segment | hop OF 1 | ... | hop OF N
     """
     OF_ORDER = UP_IOF, UP_HOFS, CORE_IOF, CORE_HOFS, DOWN_IOF, DOWN_HOFS
+    REVERSE_IOF_MAP = {UP_IOF: DOWN_IOF, DOWN_IOF: UP_IOF, CORE_IOF: CORE_IOF}
     SEGMENT_OFFSETS = 1, 2
 
     @classmethod
@@ -413,9 +390,6 @@ class CorePath(PathBase):
         if active_segments:
             total -= active_segments - 1
         return total
-
-    def get_core_segment_len(self):
-        return self._ofs.count(CORE_IOF) + self._ofs.count(CORE_HOFS)
 
     def __str__(self):
         s = []
@@ -556,16 +530,6 @@ class CrossOverPath(PathBase):
         }
         return self._get_of(self._hof_idx + ingress_up[ingress, iof.up_flag])
 
-    def get_up_segment_len(self):
-        len_ = super().get_up_segment_len()
-        len_ += self._ofs.count(UP_UPSTREAM_HOF)
-        return len_
-
-    def get_down_segment_len(self):
-        len_ = super().get_down_segment_len()
-        len_ += self._ofs.count(DOWN_UPSTREAM_HOF)
-        return len_
-
     def get_ad_hops(self):
         """
         Return path length in AD hops.
@@ -690,18 +654,6 @@ class PeerPath(PathBase):
             # Skip to peering link hof
             return 2
         return 1
-
-    def get_up_segment_len(self):
-        len_ = super().get_up_segment_len()
-        len_ += self._ofs.count(UP_PEERING_HOF)
-        len_ += self._ofs.count(UP_UPSTREAM_HOF)
-        return len_
-
-    def get_down_segment_len(self):
-        len_ = super().get_down_segment_len()
-        len_ += self._ofs.count(DOWN_PEERING_HOF)
-        len_ += self._ofs.count(DOWN_UPSTREAM_HOF)
-        return len_
 
     def get_ad_hops(self):
         """

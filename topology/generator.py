@@ -39,7 +39,7 @@ from lib.crypto.asymcrypto import (
     sign,
 )
 from lib.crypto.certificate import Certificate, CertificateChain, TRC
-from lib.defines import TOPOLOGY_PATH
+from lib.defines import TOPOLOGY_PATH, SCION_ROUTER_PORT
 from lib.path_store import PathPolicy
 from lib.topology import Topology
 from lib.util import (
@@ -83,7 +83,6 @@ DEFAULT_PATH_SERVERS = 1
 DEFAULT_DNS_SERVERS = 1
 INITIAL_CERT_VERSION = 0
 INITIAL_TRC_VERSION = 0
-PORT = '50000'
 ISD_AD_ID_DIVISOR = '-'
 DEFAULT_DNS_DOMAIN = DNSLabel("scion")
 
@@ -468,8 +467,8 @@ class ConfigGenerator(object):
                                   'AddrType': 'IPv4',
                                   'Addr': ip_address_pub,
                                   'ToAddr': nbr_ip_address_pub,
-                                  'UdpPort': int(PORT),
-                                  'ToUdpPort': int(PORT)}
+                                  'UdpPort': SCION_ROUTER_PORT,
+                                  'ToUdpPort': SCION_ROUTER_PORT}
                 }
                 edge_router += 1
             # Write Zookeepers

@@ -42,6 +42,7 @@ from lib.defines import (
     CERTIFICATE_SERVICE,
     IFID_PKT_TOUT,
     PATH_SERVICE,
+    SCION_ROUTER_PORT,
     SCION_UDP_PORT,
 )
 from lib.errors import SCIONServiceLookupError, SCIONIndexError
@@ -319,16 +320,15 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         :param if_id: interface identifier.
         :type if_id: int
         """
-        self._if_rev_token_lock.acquire()
-        ret = None
-        if if_id == 0:
-            ret = 32 * b"\x00"
-        else:
-            chain = self._get_if_hash_chain(if_id)
-            if chain:
-                ret = chain.current_element()
-        self._if_rev_token_lock.release()
-        return ret
+        with self._if_rev_token_lock:
+            ret = None
+            if if_id == 0:
+                ret = bytes(32)
+            else:
+                chain = self._get_if_hash_chain(if_id)
+                if chain:
+                    ret = chain.current_element()
+            return ret
 
     def propagate_downstream_pcb(self, pcb):
         """
@@ -736,7 +736,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         for raw_obj in rev_objs:
             rev_obj = RevocationObject(raw_obj)
             chain = self._get_if_hash_chain(rev_obj.if_id)
-            if chain and chain.current_index() > rev_obj.hash_chain_idx:
+            if not chain:
+                logging.warning("Hash-Chain for IF %d doesn't exist.",
+                                rev_obj.if_id)
+                return
+            if chain.current_index() > rev_obj.hash_chain_idx:
                 try:
                     chain.set_current_index(rev_obj.hash_chain_idx)
                     logging.info("Updated hash chain index for IF %d to %d.",
@@ -853,7 +857,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         if mgmt_pkt.type == PMT.IFSTATE_REQ:
             self._handle_ifstate_request(mgmt_pkt)
         else:
-            logging.error("Received unsupported PathMgmt packet (type %d).",
+            logging.error("Received unsupported PathMgmt packet (type %s).",
                           mgmt_pkt.type)
 
     def _handle_ifstate_request(self, mgmt_pkt):
@@ -884,18 +888,17 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             infos.append(info)
         else:
             logging.error("Received ifstate request from %s for unknown "
-                          "interface %d.", mgmt_pkt.hdr.src_addr, request.if_id)
+                          "interface %s.", mgmt_pkt.hdr.src_addr, request.if_id)
 
-        if infos:
-            payload = IFStatePayload.from_values(infos)
-            isd_ad = ISD_AD(self.topology.isd_id, self.topology.ad_id)
-            state_pkt = PathMgmtPacket.from_values(PMT.IFSTATE_INFO, payload,
-                                                   None, self.addr, isd_ad)
-            for er in self.topology.get_all_edge_routers():
-                if er.interface.addr == mgmt_pkt.hdr.src_addr.host_addr:
-                    self.send(state_pkt, er.interface.addr,
-                              er.interface.udp_port)
-                    break
+        if not infos:
+            logging.error("No IF state info to put in response.")
+            return
+
+        payload = IFStatePayload.from_values(infos)
+        isd_ad = ISD_AD(self.topology.isd_id, self.topology.ad_id)
+        state_pkt = PathMgmtPacket.from_values(PMT.IFSTATE_INFO, payload,
+                                               None, self.addr, isd_ad)
+        self.send(state_pkt, mgmt_pkt.hdr.src_addr.host_addr, SCION_ROUTER_PORT)
 
 
 class CoreBeaconServer(BeaconServer):
