@@ -23,6 +23,7 @@ from abc import ABCMeta, abstractmethod
 from lib.packet.opaque_field import (
     HopOpaqueField,
     InfoOpaqueField,
+    OpaqueField,
     OpaqueFieldList,
     OpaqueFieldType as OFT,
 )
@@ -49,6 +50,7 @@ class PathBase(object, metaclass=ABCMeta):
     containing routing information for each AD-level hop.
     """
     OF_ORDER = None
+    REVERSE_IOF_MAP = {UP_IOF: DOWN_IOF, DOWN_IOF: UP_IOF}
 
     def __init__(self, raw=None):
         """
@@ -124,6 +126,7 @@ class PathBase(object, metaclass=ABCMeta):
         """
         Reverse the direction of the path.
         """
+        iof_label = self._ofs.get_label_by_idx(self._iof_idx)
         # Swap down segment and up segment.
         self._ofs.swap(UP_HOFS, DOWN_HOFS)
         self._ofs.swap(UP_IOF, DOWN_IOF)
@@ -133,7 +136,14 @@ class PathBase(object, metaclass=ABCMeta):
         # Reverse HOF lists.
         self._ofs.reverse_label(UP_HOFS)
         self._ofs.reverse_label(DOWN_HOFS)
-        self.set_of_idxs()
+        # Update indices.
+        # iof_idx needs to be updated depending on the current path-segment.
+        # If in up-segment -> the reversed IOF must be in down-segment.
+        # If in core-segment -> the reversed IOF must be in core-segment.
+        # If in down-segment -> the reversed IOF must be in up-segment.
+        self.set_of_idxs(
+            self._ofs.get_idx_by_label(self.REVERSE_IOF_MAP[iof_label]),
+            len(self._ofs) - self._hof_idx)
 
     def get_of_idxs(self):
         """
@@ -263,7 +273,7 @@ class PathBase(object, metaclass=ABCMeta):
         Return ``True`` if the current opaque field is the last opaque field,
         ``False`` otherwise.
         """
-        return self._hof_idx == len(self) - 1
+        return self._hof_idx == len(self._ofs) - 1
 
     @abstractmethod
     def get_ad_hops(self):
@@ -276,7 +286,7 @@ class PathBase(object, metaclass=ABCMeta):
         """
         Return the total number of :any:`OpaqueField`\s in the path.
         """
-        return len(self._ofs)
+        return len(self._ofs) * OpaqueField.LEN
 
     @abstractmethod
     def __str__(self):
@@ -294,6 +304,7 @@ class CorePath(PathBase):
     | info OF down-segment | hop OF 1 | ... | hop OF N
     """
     OF_ORDER = UP_IOF, UP_HOFS, CORE_IOF, CORE_HOFS, DOWN_IOF, DOWN_HOFS
+    REVERSE_IOF_MAP = {UP_IOF: DOWN_IOF, DOWN_IOF: UP_IOF, CORE_IOF: CORE_IOF}
     SEGMENT_OFFSETS = 1, 2
 
     @classmethod
@@ -467,6 +478,13 @@ class CrossOverPath(PathBase):
         super().reverse()
         # Reverse upstream AD fields.
         self._ofs.swap(UP_UPSTREAM_HOF, DOWN_UPSTREAM_HOF)
+        # Handle on-path case.
+        if (self._ofs.count(UP_HOFS) == 1 and
+                self._hof_idx == self._ofs.get_idx_by_label(UP_HOFS)):
+            self._iof_idx = self._ofs.get_idx_by_label(DOWN_IOF)
+            self._hof_idx = self._iof_idx + 2
+            self.set_downpath()
+            assert self._hof_idx == self._ofs.get_idx_by_label(DOWN_HOFS)
 
     def _get_first_hof_idx(self):
         """
@@ -604,6 +622,10 @@ class PeerPath(PathBase):
         # Reverse upstream AD and peering link fields.
         self._ofs.swap(UP_UPSTREAM_HOF, DOWN_UPSTREAM_HOF)
         self._ofs.swap(UP_PEERING_HOF, DOWN_PEERING_HOF)
+        # Handle case when reverse happens at peering point.
+        if self.get_hof() == self._ofs.get_by_label(UP_HOFS, -1):
+            self.inc_hof_idx()
+            assert self._hof_idx == self._ofs.get_idx_by_label(UP_PEERING_HOF)
 
     def get_hof_ver(self, ingress=True):
         hof = self.get_hof()

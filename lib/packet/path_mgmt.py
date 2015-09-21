@@ -30,14 +30,15 @@ from lib.packet.scion_addr import ISD_AD, SCIONAddr
 from lib.util import Raw
 
 
-class PathMgmtType:
+class PathMgmtType(object):
     """
     Enum of path management packet types.
     """
     REQUEST = 0
     RECORDS = 1
-    LEASES = 2
-    REVOCATIONS = 3
+    REVOCATION = 2
+    IFSTATE_INFO = 3
+    IFSTATE_REQ = 4
 
 
 class PathSegmentType(object):
@@ -48,17 +49,6 @@ class PathSegmentType(object):
     DOWN = 1  # Request/Reply for down-paths
     CORE = 2  # Request/Reply for core-paths
     UP_DOWN = 3  # Request/Reply for up- and down-paths
-
-
-class RevocationType(object):
-    """
-    Enum of revocation types.
-    """
-    UP_SEGMENT = 0
-    DOWN_SEGMENT = 1
-    CORE_SEGMENT = 2
-    INTERFACE = 3
-    HOP = 4
 
 
 class PathSegmentInfo(PayloadBase):
@@ -87,7 +77,7 @@ class PathSegmentInfo(PayloadBase):
         """
         Populates fields from a raw bytes block.
         """
-        PayloadBase.parse(self, raw)
+        super().parse(raw)
         data = Raw(raw, "PathSegmentInfo", self.LEN)
         self.type = data.pop(1)
         self.src_isd, self.src_ad = ISD_AD.from_raw(data.pop(ISD_AD.LEN))
@@ -106,11 +96,11 @@ class PathSegmentInfo(PayloadBase):
         """
         Returns PathSegmentInfo with fields populated from values.
         :param pckt_type: type of request/reply
-        :type: int (PathSegmentType)
+        :type pckt_type: int (PathSegmentType)
         :param src_isd, src_ad: address of the source AD
-        :type: int
+        :type src_isd, src_ad: int
         :param dst_isd, dst_ad: address of the destination AD
-        :type: int
+        :type dst_isd, dst_ad: int
         """
         info = PathSegmentInfo()
         info.type = pckt_type
@@ -119,6 +109,9 @@ class PathSegmentInfo(PayloadBase):
         info.dst_isd = dst_isd
         info.dst_ad = dst_ad
         return info
+
+    def __len__(self):  # pragma: no cover
+        return self.LEN
 
 
 class PathSegmentRecords(PayloadBase):
@@ -143,7 +136,7 @@ class PathSegmentRecords(PayloadBase):
             self.parse(raw)
 
     def parse(self, raw):
-        PayloadBase.parse(self, raw)
+        super().parse(raw)
         data = Raw(raw, "PathSegmentRecords", self.MIN_LEN, min_=True)
         self.info = PathSegmentInfo(data.pop(PathSegmentInfo.LEN))
         self.pcbs = PathSegment.deserialize(data.pop())
@@ -157,9 +150,9 @@ class PathSegmentRecords(PayloadBase):
         Returns a Path Record with the values specified.
 
         :param info: type of the path segment records
-        :type: PathSegmentInfo
+        :type info: PathSegmentInfo
         :param pcbs: list of path segments
-        :type: list
+        :type pcbs: list
         """
         rec = PathSegmentRecords()
         rec.info = info
@@ -167,139 +160,11 @@ class PathSegmentRecords(PayloadBase):
         return rec
 
 
-class LeaseInfo(PayloadBase):
-    """
-    Class containing necessary information for a path-segment lease.
-    """
-    EXP_SEG_LEN = 4 + 32
-    LEN = 1 + ISD_AD.LEN + EXP_SEG_LEN
-
-    def __init__(self, raw=None):
-        """
-        Initialize an instance of the class LeaseInfo.
-
-        :param raw:
-        :type raw:
-        """
-        super().__init__()
-        self.seg_type = PathSegmentType.DOWN
-        self.isd_id = 0
-        self.ad_id = 0
-        self.exp_time = 0
-        self.seg_id = b""
-
-        if raw is not None:
-            self.parse(raw)
-
-    def parse(self, raw):
-        PayloadBase.parse(self, raw)
-        data = Raw(raw, "LeaseInfo", self.LEN)
-        self.seg_type = data.pop(1)
-        self.isd_id, self.ad_id = ISD_AD.from_raw(data.pop(ISD_AD.LEN))
-        self.exp_time, self.seg_id = struct.unpack(
-            "!L32s", data.pop(self.EXP_SEG_LEN))
-
-    def pack(self):
-        return (struct.pack("!B", self.seg_type) +
-                ISD_AD(self.isd_id, self.ad_id).pack() +
-                struct.pack("!L32s", self.exp_time, self.seg_id))
-
-    @classmethod
-    def from_values(cls, seg_type, isd_id, ad_id, exp_time, seg_id):
-        """
-        Returns a LeaseInfo object with the specified values.
-
-        :param seg_type: type of the segment (down or core)
-        :type: int
-        :param isd_id, ad_id: leasers isd and ad IDs
-        :type: int
-        :param exp_time: expiration for the lease
-        :type: int
-        :param seg_id: segment ID
-        :type: bytes
-        """
-        info = LeaseInfo()
-        info.seg_type = seg_type
-        info.isd_id = isd_id
-        info.ad_id = ad_id
-        info.exp_time = exp_time
-        info.seg_id = seg_id
-
-        return info
-
-    def __str__(self):
-        return ("leaser: (%d, %d) seg_type: %d expires: %d ID:%s" %
-                self.isd_id, self.ad_id, self.seg_type, self.exp_time,
-                self.seg_id)
-
-
-class PathSegmentLeases(PayloadBase):
-    """
-    PathSegment leases used to notify an authoritative path server about the
-    caching of path-segments. A lease contains a timestamp and the segment id
-    of the path segment being cached.
-    """
-    MIN_LEN = 1 + LeaseInfo.LEN
-
-    def __init__(self, raw=None):
-        """
-        Initialize an instance of the class PathSegmentLeases.
-
-        :param raw:
-        :type raw:
-        """
-        super().__init__()
-        self.nleases = 0  # The number of leases contained in this packet.
-        self.leases = []  # List of leases. Tuples (TS, ID)
-
-        if raw is not None:
-            self.parse(raw)
-
-    def parse(self, raw):
-        PayloadBase.parse(self, raw)
-        data = Raw(raw, "PathSegmentLeases", self.MIN_LEN, min_=True)
-        self.nleases = data.pop(1)
-        for _ in range(self.nleases):
-            self.leases.append(LeaseInfo(data.pop(LeaseInfo.LEN)))
-
-    def pack(self):
-        data = struct.pack("!B", self.nleases)
-        data += b"".join([linfo.pack() for linfo in self.leases])
-
-        return data
-
-    @classmethod
-    def from_values(cls, nleases, leases):
-        """
-        Returns a PathSegmentLease with the given values.
-
-        :param nleases: number of leases this packet contains
-        :type: int
-        :param leases: list of leases as tuples (isd, ad, timestamp, segment id)
-        :type: list
-        """
-        assert nleases == len(leases)
-        pkt = PathSegmentLeases()
-        pkt.nleases = nleases
-        pkt.leases = leases
-
-        return pkt
-
-    def __str__(self):
-        s = "[PathSegmentLeases: N = %d]\n" % self.nleases
-        for (isd, ad, ts, seg_id) in self.leases:
-            s += "leaser: (%d, %d) expires: %d ID:%s\n" % (isd, ad, ts, seg_id)
-        return s
-
-
 class RevocationInfo(PayloadBase):
     """
-    Class containing revocation information, such as type, revocation token and
-    the proof (the next element in the revocation hash chain).
-    Hop revocation needs a pair of revocation tokens and proofs.
+    Class containing revocation information, i.e., the revocation token.
     """
-    MIN_LEN = 1 + 2 * 32
-    MAX_LEN = 1 + 5 * 32
+    LEN = 32
 
     def __init__(self, raw=None):
         """
@@ -309,142 +174,184 @@ class RevocationInfo(PayloadBase):
         :type raw:
         """
         super().__init__()
-        self.rev_type = RevocationType.DOWN_SEGMENT
-        self.incl_seg_id = False
-        self.incl_hop = False
-        self.seg_id = b""
-        self.rev_token1 = b""
-        self.proof1 = b""
-        self.rev_token2 = b""
-        self.proof2 = b""
+        self.rev_token = b""
 
         if raw is not None:
             self.parse(raw)
 
     def parse(self, raw):
-        data = Raw(raw, "RevocationInfo", self.MIN_LEN, min_=True)
-        flags = data.pop(1)
-        self.rev_type = flags & 0x7
-        self.incl_seg_id = (flags >> 3) & 0x1
-        self.incl_hop = (flags >> 4) & 0x1
-        if self.incl_seg_id:
-            self.seg_id = struct.unpack("!32s", data.pop(32))[0]
-        self.rev_token1, self.proof1 = struct.unpack("!32s32s", data.pop(64))
-        if self.incl_hop:
-            self.rev_token2, self.proof2 = struct.unpack("!32s32s",
-                                                         data.pop(64))
-        self.raw = raw[:data.offset()]
-        self.parsed = True
+        super().parse(raw)
+        data = Raw(raw, "RevocationInfo", self.LEN)
+        self.rev_token = struct.unpack("!32s", data.pop(self.LEN))[0]
 
     def pack(self):
-        flags = (self.incl_hop << 4) | (self.incl_seg_id << 3) | self.rev_type
-        data = struct.pack("!B", flags)
-        if self.incl_seg_id:
-            data += struct.pack("!32s", self.seg_id)
-        data += struct.pack("!32s32s", self.rev_token1, self.proof1)
-        if self.incl_hop:
-            data += struct.pack("!32s32s", self.rev_token2, self.proof2)
-
-        return data
+        return struct.pack("!32s", self.rev_token)
 
     @classmethod
-    def from_values(cls, rev_type, rev_token1, proof1, incl_seg_id=False,
-                    seg_id=b"", incl_hop=False, rev_token2=b"", proof2=b""):
+    def from_values(cls, rev_token):
         """
         Returns a RevocationInfo object with the specified values.
 
-        :param rev_type: type of the revocation info
-        :type: int (RevocationType)
-        :param rev_token1: revocation token of interface or path segment
-        :type: bytes
-        :param proof1: proof for rev_token1
-        :type: bytes
-        :param incl_seg_id: True if packet includes a segment id
-        :type: Bool
-        :param seg_id: segment ID of the revoked segment
-        :type: bytes
-        :param incl_hop: True if packet includes a hop revocation token
-        :param rev_token2: revocation token for egress if (only for hop rev)
-        :type: bytes
-        :param proof2: proof for rev_token2
-        :type: bytes
+        :param rev_token: revocation token of interface
+        :type rev_token: bytes
         """
-        info = RevocationInfo()
-        info.rev_type = rev_type
-        info.rev_token1 = rev_token1
-        info.proof1 = proof1
-        info.incl_seg_id = incl_seg_id
-        info.seg_id = seg_id
-        info.incl_hop = incl_hop
-        info.rev_token2 = rev_token2
-        info.proof2 = proof2
+        info = cls()
+        info.rev_token = rev_token
 
         return info
 
     def __str__(self):
-        s = ("[Revocation type: %d, incl_seg_id: %d, incl_hop: %d]\n" %
-             (self.rev_type, self.incl_seg_id, self.incl_hop))
-        if self.incl_seg_id:
-            s += "SegmentID: %s\n" % (self.seg_id)
-        s += "Token1: %s\nProof1: %s\n" % (self.rev_token1, self.proof1)
-        if self.incl_hop:
-            s += "Token2: %s\nProof2: %s" % (self.rev_token2, self.proof2)
-        return s
+        return "[Revocation Info: %s]" % (self.rev_token)
+
+    def __len__(self):  # pragma: no cover
+        return self.LEN
 
 
-class RevocationPayload(PayloadBase):
+class IFStateInfo(PayloadBase):
     """
-    Payload for revocation messages. List of RevocationInfo objects.
+    StateInfo is used by the beacon server to inform edge routers about any
+    state changes of other edge routers. It contains the ID of the router, the
+    state (up or down), and the current revocation token and proof.
     """
-    MIN_LEN = RevocationInfo.MIN_LEN
+    LEN = 2 + 2 + RevocationInfo.LEN
 
     def __init__(self, raw=None):
-        """
-        Initialize an instance of the class RevocationPayload.
-
-        :param raw:
-        :type raw:
-        """
         super().__init__()
-        self.rev_infos = []
+        self.if_id = 0
+        self.state = 0
+        self.rev_info = None
 
         if raw is not None:
             self.parse(raw)
 
     def parse(self, raw):
-        PayloadBase.parse(self, raw)
-        data = Raw(raw, "RevocationPayload", self.MIN_LEN, min_=True)
-        while len(data) > 0:
-            info = RevocationInfo(data.get(RevocationInfo.MAX_LEN,
-                                           bounds=False))
-            self.rev_infos.append(info)
-            data.pop(len(info))
+        super().parse(raw)
+        data = Raw(raw, "IFStateInfo", self.LEN)
+        self.if_id, self.state = struct.unpack("!HH", data.pop(4))
+        self.rev_info = RevocationInfo(data.pop())
 
     def pack(self):
-        return b"".join([info.pack() for info in self.rev_infos])
+        return struct.pack("!HH", self.if_id, self.state) + self.rev_info.pack()
 
     @classmethod
-    def from_values(cls, rev_infos):
+    def from_values(cls, if_id, state, rev_token):
         """
-        Returns a RevocationPayload object with the specified values.
+        Returns a IFStateInfo object with the values specified.
 
-        :param rev_infos: list of RevocationInfo objects
-        :type: list
+        :param if_id: The IF ID of the corresponding router.
+        :type if_id: int
+        :param state: The state of the interface.
+        :type state: bool
+        :param rev_token: The current revocation token for the interface.
+        :type rev_token: bytes
         """
-        payload = RevocationPayload()
-        payload.rev_infos = rev_infos
+        assert isinstance(rev_token, bytes)
+        info = cls()
+        info.if_id = if_id
+        info.state = state
+        info.rev_info = RevocationInfo.from_values(rev_token)
+
+        return info
+
+    def __str__(self):
+        s = "[IFStateInfo if_id: %d, state: %d]\n" % (self.if_id, self.state)
+        s += str(self.rev_info)
+        return s
+
+    def __len__(self):  # pragma: no cover
+        return self.LEN
+
+
+class IFStatePayload(PayloadBase):
+    """
+    Payload for state info messages. List of IFStateInfo objects.
+    """
+    MIN_LEN = IFStateInfo.LEN
+
+    def __init__(self, raw=None):
+        super().__init__()
+        self.ifstate_infos = []
+
+        if raw is not None:
+            self.parse(raw)
+
+    def parse(self, raw):
+        super().parse(raw)
+        data = Raw(raw, "IFStatePayload", self.MIN_LEN, min_=True)
+        while len(data) > 0:
+            info = IFStateInfo(data.get(IFStateInfo.LEN))
+            self.ifstate_infos.append(info)
+            data.pop(IFStateInfo.LEN)
+
+    def pack(self):
+        return b"".join([info.pack() for info in self.ifstate_infos])
+
+    @classmethod
+    def from_values(cls, ifstate_infos):
+        """
+        Returns a IFStateInfo object with the specified values.
+        :param ifstate_infos: list of IFStateInfo objects
+        :type ifstate_infos: list
+        """
+        payload = cls()
+        payload.ifstate_infos = ifstate_infos
 
         return payload
 
-    def add_rev_info(self, info):
+    def add_ifstate_info(self, info):
         """
-        Adds a revocation info to the list.
+        Adds a ifstate info to the list.
         """
-        assert isinstance(info, RevocationInfo)
-        self.rev_infos.append(info)
+        assert isinstance(info, IFStateInfo)
+        self.ifstate_infos.append(info)
 
     def __str__(self):
-        return "".join([str(info) + "\n" for info in self.rev_infos])
+        return "".join([str(info) + "\n" for info in self.ifstate_infos])
+
+    def __len__(self):  # pragma: no cover
+        return len(self.ifstate_infos) * IFStateInfo.LEN
+
+
+class IFStateRequest(PayloadBase):
+    """
+    IFStateRequest encapsulates a request for interface states from an ER to
+    the BS.
+    """
+    LEN = 2
+    ALL_INTERFACES = 0
+
+    def __init__(self, raw=None):
+        super().__init__()
+        self.if_id = self.ALL_INTERFACES
+
+        if raw is not None:
+            self.parse(raw)
+
+    def parse(self, raw):
+        super().parse(raw)
+        data = Raw(raw, "IFStateRequest", self.LEN)
+        self.if_id = struct.unpack("!H", data.pop())[0]
+
+    def pack(self):
+        return struct.pack("!H", self.if_id)
+
+    @classmethod
+    def from_values(cls, if_id=ALL_INTERFACES):
+        """
+        Returns a IFStateRequest object with the specified values.
+        :param if_id: The if_id of interest.
+        :type if_id: int
+        """
+        payload = cls()
+        payload.if_id = if_id
+
+        return payload
+
+    def __str__(self):
+        return "[IFStateRequest if_id: %d]" % self.if_id
+
+    def __len__(self):  # pragma: no cover
+        return self.LEN
 
 
 class PathMgmtPacket(SCIONPacket):
@@ -453,8 +360,9 @@ class PathMgmtPacket(SCIONPacket):
     """
     MIN_LEN = 1 + min(PathSegmentInfo.LEN,
                       PathSegmentRecords.MIN_LEN,
-                      PathSegmentLeases.MIN_LEN,
-                      RevocationPayload.MIN_LEN)
+                      RevocationInfo.LEN,
+                      IFStatePayload.MIN_LEN,
+                      IFStateRequest.LEN,)
 
     def __init__(self, raw=None):
         """
@@ -470,8 +378,9 @@ class PathMgmtPacket(SCIONPacket):
             self.parse(raw)
 
     def parse(self, raw):
-        SCIONPacket.parse(self, raw)
-        data = Raw(self._payload, "PathMgmtPacket", self.MIN_LEN, min_=True)
+        super().parse(raw)
+        data = Raw(self.get_payload(), "PathMgmtPacket", self.MIN_LEN,
+                   min_=True)
         # Get the type of the first byte of the payload and instantiate the
         # corresponding payload class.
         self.type = data.pop(1)
@@ -479,10 +388,12 @@ class PathMgmtPacket(SCIONPacket):
             self.set_payload(PathSegmentInfo(data.pop(PathSegmentInfo.LEN)))
         elif self.type == PathMgmtType.RECORDS:
             self.set_payload(PathSegmentRecords(data.pop()))
-        elif self.type == PathMgmtType.LEASES:
-            self.set_payload(PathSegmentLeases(data.pop()))
-        elif self.type == PathMgmtType.REVOCATIONS:
-            self.set_payload(RevocationPayload(data.pop()))
+        elif self.type == PathMgmtType.REVOCATION:
+            self.set_payload(RevocationInfo(data.pop()))
+        elif self.type == PathMgmtType.IFSTATE_INFO:
+            self.set_payload(IFStatePayload(data.pop()))
+        elif self.type == PathMgmtType.IFSTATE_REQ:
+            self.set_payload(IFStateRequest(data.pop()))
         else:
             raise SCIONParseError("Unsupported path management type: %d",
                                   self.type)
@@ -494,20 +405,22 @@ class PathMgmtPacket(SCIONPacket):
         return super().pack()
 
     @classmethod
-    def from_values(cls, type, payload, path, src_addr, dst_addr):
+    def from_values(cls, type_, payload, path, src_addr, dst_addr):
         """
         Returns a PathMgmtPacket with the values specified.
 
-        :param type: the type of the packet
-        :type: class PathMgmtType
+        :param type_: the type of the packet
+        :type type_:  PathMgmtType
         :param payload: the payload of the packet
-        :type: lib.packet.packet_base.PayloadBase
+        :type payload: lib.packet.packet_base.PayloadBase
         :param path: the path of the packet
-        :type: lib.packet.path.PathBase
+        :type path: lib.packet.path.PathBase
         :param src_addr: source address (ISD_AD namedtuple for response)
-        :type: lib.packet.scion_addr.SCIONAddr or lib.packet.scion_addr.ISD_AD
+        :type src_addr: lib.packet.scion_addr.SCIONAddr or
+                        lib.packet.scion_addr.ISD_AD
         :param dst_addr: destination address (ISD_AD namedtuple for request)
-        :type: lib.packet.scion_addr.SCIONAddr or lib.packet.scion_addr.ISD_AD
+        :type dst_addr: lib.packet.scion_addr.SCIONAddr or
+                        lib.packet.scion_addr.ISD_AD
         """
         pkt = PathMgmtPacket()
         if isinstance(src_addr, ISD_AD) and isinstance(dst_addr, SCIONAddr):
@@ -519,7 +432,25 @@ class PathMgmtPacket(SCIONPacket):
         else:
             logging.error("Unsupported src_addr, dst_addr pair.")
         pkt.hdr = SCIONHeader.from_values(src_addr, dst_addr, path)
-        pkt.type = type
+        pkt.type = type_
+        pkt.set_payload(payload)
+        return pkt
+
+    @classmethod
+    def with_header(cls, type_, payload, header):
+        """
+        Returns a PathMgmtPacket with the values specified.
+
+        :param type_: the type of the packet
+        :type type_: class PathMgmtType
+        :param payload: The payload of the packet
+        :type payload: lib.packet.packet_base.PayloadBase
+        :param header: The header of the packet.
+        :type header: lib.packet.scion.SCIONHeader
+        """
+        pkt = PathMgmtPacket()
+        pkt.hdr = header
+        pkt.type = type_
         pkt.set_payload(payload)
         return pkt
 

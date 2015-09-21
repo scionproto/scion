@@ -31,22 +31,17 @@ from external.expiring_dict import ExpiringDict
 
 # SCION
 from infrastructure.scion_elem import SCIONElement
-from lib.crypto.hash_chain import HashChain
 from lib.defines import PATH_SERVICE, SCION_UDP_PORT
 from lib.log import init_logging, log_exception
 from lib.packet.host_addr import HostAddrIPv4
 from lib.packet.path import UP_IOF
 from lib.packet.path_mgmt import (
-    LeaseInfo,
     PathMgmtPacket,
     PathMgmtType as PMT,
     PathSegmentInfo,
-    PathSegmentLeases,
     PathSegmentRecords,
     PathSegmentType as PST,
     RevocationInfo,
-    RevocationPayload,
-    RevocationType as RT,
 )
 from lib.packet.scion_addr import ISD_AD, SCIONAddr
 from lib.path_db import DBResult, PathSegmentDB
@@ -68,6 +63,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
     MAX_SEG_NO = 5  # TODO: replace by config variable.
     # ZK path for incoming PATHs
     ZK_PATH_CACHE_PATH = "path_cache"
+    # Number of tokens the PS checks when receiving a revocation.
+    N_TOKENS_CHECK = 20
 
     def __init__(self, server_id, topo_file, config_file, is_sim=False):
         """
@@ -90,7 +87,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         self.pending_down = {}  # Dict of pending DOWN _and_ UP_DOWN requests.
         self.pending_core = {}
         self.waiting_targets = set()  # Used when local PS doesn't have up-path.
-        # TODO replace by some cache data struct. (expiringdict ?)
         self.revocations = ExpiringDict(1000, 300)
         self.iftoken2seg = defaultdict(set)
 
@@ -170,49 +166,43 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         """
         raise NotImplementedError
 
-    def _verify_revocation(self, rev_info):
-        """
-        Verifies the different types of revocations.
-
-        :returns:
-        :rtype:
-        """
-        # Verify revocation token.
-        if not HashChain.verify(rev_info.proof1, rev_info.rev_token1):
-            return False
-        if (rev_info.incl_hop and not HashChain.verify(rev_info.proof2,
-                                                       rev_info.rev_token2)):
-            return False
-
-        return True
-
-    def _check_correspondence(self, rev_info, segment):
-        """
-        Checks that a revocation corresponds to a path segment.
-
-        :returns:
-        :rtype:
-        """
-        assert rev_info.incl_seg_id
-
-        if rev_info.seg_id != segment.segment_id:
-            return False
-
-        tokens = segment.get_all_iftokens()
-        if ((rev_info.rev_token1 == segment.segment_id) or
-            (not rev_info.incl_hop and rev_info.rev_token1 in tokens) or
-                (rev_info.rev_token1 in tokens and
-                 rev_info.rev_token2 in tokens)):
-            return True
-
-        return False
-
-    @abstractmethod
     def _handle_revocation(self, pkt):
         """
         Handles a revocation of a segment, interface or hop.
+
+        :param pkt: The packet containing the revocation info.
+        :type pkt: PathMgmtPacket
         """
-        raise NotImplementedError
+        rev_info = pkt.get_payload()
+        assert isinstance(rev_info, RevocationInfo)
+        if hash(rev_info) in self.revocations:
+            logging.debug("Already received revocation. Dropping...")
+            return
+        else:
+            self.revocations[hash(rev_info)] = rev_info
+            logging.debug("Received revocation from %s:\n%s", pkt.hdr.src_addr,
+                          rev_info)
+        # Remove segments that contain the revoked interface.
+        self._remove_revoked_segments(rev_info)
+
+    def _remove_revoked_segments(self, rev_info):
+        """
+        Remove segments that contain a revoked interface. Checks 20 tokens in
+        case previous revocations were missed by the PS.
+
+        :param rev_info: The revocation info
+        :type rev_info: RevocationInfo
+        """
+        rev_token = rev_info.rev_token
+        for _ in range(self.N_TOKENS_CHECK):
+            segments = self.iftoken2seg[rev_token]
+            while segments:
+                sid = segments.pop()
+                # Delete segment from DB.
+                self.down_segments.delete(sid)
+                self.core_segments.delete(sid)
+            del self.iftoken2seg[rev_info.rev_token]
+            rev_token = SHA256.new(rev_token).digest()
 
     def send_path_segments(self, path_request, paths):
         """
@@ -261,7 +251,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             self.handle_path_request(pkt)
         elif pkt.type == PMT.RECORDS:
             self.dispatch_path_segment_record(pkt)
-        elif pkt.type == PMT.REVOCATIONS:
+        elif pkt.type == PMT.REVOCATION:
             self._handle_revocation(pkt)
         else:
             logging.warning("Type %d not supported.", pkt.type)
@@ -295,137 +285,6 @@ class CorePathServer(PathServer):
     SCION Path Server in a core AD. Stores intra ISD down-paths as well as core
     paths and forwards inter-ISD path requests to the corresponding path server.
     """
-
-    class LeasesDict(object):
-        """
-        Data structure to store leases from other path servers. Keys are segment
-        IDs from path-segments.
-        """
-
-        class Entry(object):
-            """
-            Entry for a LeasesDict.
-            """
-
-            def __init__(self, isd_id, ad_id, exp_time, seg_type):
-                """
-                Initialize an instance of the class Entry.
-
-                :param isd_id:
-                :type isd_id:
-                :param ad_id:
-                :type ad_id:
-                :param exp_time:
-                :type exp_time:
-                :param seg_type:
-                :type seg_type:
-                """
-                self.isd_id = isd_id
-                self.ad_id = ad_id
-                self.exp_time = exp_time
-                self.seg_type = seg_type
-
-            def __hash__(self):
-                """
-
-
-                :returns:
-                :rtype:
-                """
-                return (self.isd_id << 16) | self.ad_id
-
-            def __eq__(self, other):
-                """
-
-
-                :returns:
-                :rtype:
-                """
-                if type(other) is type(self):
-                    return (self.isd_id == other.isd_id and
-                            self.ad_id == other.ad_id)
-                else:
-                    return False
-
-        def __init__(self, max_capacity=10000):
-            """
-            Initialize an instance of the class LeasesDict.
-
-            :param max_capacity:
-            :type max_capacity:
-            """
-            self._leases = defaultdict(set)
-            self._max_capacity = max_capacity
-            self._nentries = 0
-
-        def add_lease(self, segment_id, leaser_isd, leaser_ad, expiration,
-                      seg_type=PST.DOWN):
-            """
-            Adds a lease to the cache.
-
-            :param segment_id: the segment's ID
-            :type segment_id: bytes
-            :param leaser_isd, leaser_ad: isd/ad of the leaser
-            :type leaser_isd: int
-            :param leaser_ad:
-            :type leaser_ad: int
-            :param expiration: expiration time of the lease
-            :type expiration: int
-            :param seg_type: type of the segment (down or core)
-            :type seg_type: int
-            """
-            if self._nentries >= self._max_capacity:
-                self._purge_entries()
-
-            if self._nentries >= self._max_capacity:
-                logging.warning("Leases dictionary reached full capacity.")
-                return
-
-            entry = self.Entry(leaser_isd, leaser_ad, expiration, seg_type)
-            if entry not in self._leases[segment_id]:
-                self._nentries += 1
-            else:
-                self._leases[segment_id].remove(entry)
-
-            self._leases[segment_id].add(entry)
-
-        def __contains__(self, segment_id):
-            """
-
-
-            :returns:
-            :rtype:
-            """
-            return len(self[segment_id]) > 0
-
-        def __getitem__(self, segment_id):
-            """
-
-
-            :returns:
-            :rtype:
-            """
-            now = SCIONTime.get_time()
-            if segment_id not in self._leases:
-                return []
-            else:
-                return [(e.isd_id, e.ad_id, e.seg_type) for e in
-                        self._leases[segment_id] if e.exp_time > now]
-
-        def __delitem__(self, segment_id):
-            if segment_id in self._leases:
-                del self._leases[segment_id]
-
-        def _purge_entries(self):
-            """
-            Remove expired leases.
-            """
-            now = int(SCIONTime.get_time())
-            for entries in self._leases.items():
-                self._nentries -= len(entries)
-                entries[:] = [e for e in entries if e.exp_time > now]
-                self._nentries += len(entries)
-
     def __init__(self, server_id, topo_file, config_file, is_sim=False):
         """
         Initialize an instance of the class CorePathServer.
@@ -442,7 +301,6 @@ class CorePathServer(PathServer):
         super().__init__(server_id, topo_file, config_file, is_sim=is_sim)
         # Sanity check that we should indeed be a core path server.
         assert self.topology.is_core_ad, "This shouldn't be a core PS!"
-        self.leases = self.LeasesDict()
         self.core_ads = set()  # Set of core ADs only from local ISD.
         self._master_id = None  # Address of master core Path Server.
 
@@ -579,8 +437,6 @@ class CorePathServer(PathServer):
             return
         pcb_from_local_isd = True
         for pcb in records.pcbs:
-            assert pcb.segment_id != 32 * b"\x00", \
-                "Trying to register a segment with ID 0:\n%s" % pcb
             dst_ad = pcb.get_first_pcbm().ad_id
             dst_isd = pcb.get_first_pcbm().isd_id
             src_ad = pcb.get_last_pcbm().ad_id
@@ -703,21 +559,6 @@ class CorePathServer(PathServer):
                 else:
                     logging.warning("Path to AD (%d, %d) not found.", isd, ad)
 
-    def _handle_leases(self, pkt):
-        """
-        Register an incoming lease for a path segment.
-
-        :param pkt:
-        :type pkt:
-        """
-        payload = pkt.get_payload()
-        assert isinstance(payload, PathSegmentLeases)
-        for linfo in payload.leases:
-            self.leases.add_lease(linfo.seg_id, linfo.isd_id, linfo.ad_id,
-                                  linfo.exp_time, linfo.seg_type)
-            logging.debug("Added lease from (%d, %d) for %s", linfo.isd_id,
-                          linfo.ad_id, linfo.seg_id)
-
     def handle_path_request(self, pkt):
         """
 
@@ -797,132 +638,6 @@ class CorePathServer(PathServer):
         if segments_to_send:
             self.send_path_segments(pkt, segments_to_send)
 
-    def _handle_revocation(self, pkt):
-        """
-        Handles a revocation of a segment, interface or hop.
-
-        :param pkt: The packet containing the revocation info.
-        :type pkt: PathMgmtPacket
-        """
-        payload = pkt.get_payload()
-        assert isinstance(payload, RevocationPayload)
-        if hash(payload) in self.revocations:
-            logging.debug("Already received revocation. Dropping...")
-            return
-        else:
-            self.revocations[hash(payload)] = payload
-            logging.debug("Received revocation from %s:\n%s", pkt.hdr.src_addr,
-                          payload)
-
-        rev_infos = payload.rev_infos
-        leaser_revocations = defaultdict(RevocationPayload)
-        for rev_info in rev_infos:
-            # Verify revocation.
-            if not self._verify_revocation(rev_info):
-                logging.info("Revocation verification failed.")
-                continue
-            if rev_info.rev_type in [RT.DOWN_SEGMENT, RT.CORE_SEGMENT]:
-                self._handle_segment_revocation(rev_info, leaser_revocations)
-            elif rev_info.rev_type in [RT.INTERFACE, RT.HOP]:
-                self._handle_if_or_hop_revocation(rev_info, leaser_revocations)
-            else:
-                logging.warning("Received unknown type of revocation.")
-                continue
-
-        # Propagate revocation to other CPSes.
-        prop_pkt = PathMgmtPacket.from_values(PMT.REVOCATIONS, payload,
-                                              None, self.addr, ISD_AD(0, 0))
-        self._propagate_to_core_ads(prop_pkt, True)
-
-        # Send out revocations to leasers.
-        for ((dst_isd, dst_ad), payload) in leaser_revocations.items():
-            paths = self.down_segments(first_isd=self.topology.isd_id,
-                                       first_ad=self.topology.ad_id,
-                                       last_isd=dst_isd, last_ad=dst_ad)
-            if paths:
-                rev_pkt = PathMgmtPacket.from_values(PMT.REVOCATIONS, payload,
-                                                     paths[0].get_path(),
-                                                     self.addr,
-                                                     ISD_AD(dst_isd, dst_ad))
-                rev_pkt.hdr.set_downpath()
-                (dst, dst_port) = self.get_first_hop(rev_pkt)
-                logging.debug("Sending segment revocations to leaser (%d, %d)",
-                              dst_isd, dst_ad)
-                self.send(rev_pkt, dst, dst_port)
-
-    def _handle_segment_revocation(self, rev_info, leaser_revocations):
-        """
-        Handles a segment revocation.
-
-        :param rev_info: The revocation info
-        :type rev_info: RevocationInfo
-        :param leaser_revocations: Dict for filling in the revocations that
-                                   should be sent to the leasers.
-        :param leaser_revocations: defaultdict
-        """
-        if not rev_info.incl_seg_id or not rev_info.seg_id:
-            logging.info("Segment revocation misses segment ID.")
-            return
-        seg_db = (self.down_segments if
-                  rev_info.rev_type == RT.DOWN_SEGMENT else
-                  self.core_segments)
-        # Check correspondence of revocation token and path segment
-        # (if possible) and delete path segment.
-        if rev_info.seg_id in seg_db:
-            if self._check_correspondence(rev_info,
-                                          seg_db[rev_info.seg_id]):
-                seg_db.delete(rev_info.seg_id)
-            else:
-                logging.info("Revocation token does not correspond to "
-                             "revoked path segment. Ignoring...")
-                return
-        # Build revocations
-        for (isd, ad, _) in self.leases[rev_info.rev_token1]:
-            # Add only non-core ads, since the revocation gets
-            # broadcasted to all core ads anyway.
-            if (isd, ad) not in self.core_ads:
-                leaser_revocations[(isd, ad)].add_rev_info(rev_info)
-        del self.leases[rev_info.rev_token1]
-
-    def _handle_if_or_hop_revocation(self, rev_info, leaser_revocations):
-        """
-        Handles an interface or hop revocation.
-
-        :param rev_info: The revocation info
-        :type rev_info: RevocationInfo
-        :param leaser_revocations: Dict for filling in the revocations that
-                                   should be sent to the leasers.
-        :param leaser_revocations: defaultdict
-        """  # Build revocations.
-        if rev_info.rev_type == RT.INTERFACE:
-            segments = self.iftoken2seg[rev_info.rev_token1]
-        else:
-            segments = (self.iftoken2seg[rev_info.rev_token1] &
-                        self.iftoken2seg[rev_info.rev_token2])
-        while segments:
-            sid = segments.pop()
-            # Delete segment from DB.
-            self.down_segments.delete(sid)
-            self.core_segments.delete(sid)
-            # Prepare revocations for leasers.
-            if sid not in self.leases:
-                continue
-            for (isd, ad, seg_type) in self.leases[sid]:
-                rev_type = (RT.DOWN_SEGMENT if seg_type == PST.DOWN else
-                            RT.CORE_SEGMENT)
-                info = RevocationInfo.from_values(rev_type,
-                                                  rev_info.rev_token1,
-                                                  rev_info.proof1,
-                                                  True, sid)
-                if rev_info.rev_type == RT.HOP:
-                    info.incl_hop = True
-                    info.rev_token2 = rev_info.rev_token2
-                    info.proof2 = rev_info.proof2
-                if (isd, ad) not in self.core_ads:
-                    leaser_revocations[(isd, ad)].add_rev_info(info)
-            del self.leases[sid]
-        del self.iftoken2seg[rev_info.rev_token1]
-
     def handle_request(self, packet, sender, from_local_socket=True):
         """
         Main routine to handle incoming SCION packets.
@@ -940,9 +655,7 @@ class CorePathServer(PathServer):
             self.handle_path_request(pkt)
         elif pkt.type == PMT.RECORDS:
             self.dispatch_path_segment_record(pkt)
-        elif pkt.type == PMT.LEASES:
-            self._handle_leases(pkt)
-        elif pkt.type == PMT.REVOCATIONS:
+        elif pkt.type == PMT.REVOCATION:
             self._handle_revocation(pkt)
         else:
             logging.warning("Type %d not supported.", pkt.type)
@@ -980,30 +693,6 @@ class LocalPathServer(PathServer):
     def _update_master(self):
         pass
 
-    def _send_leases(self, orig_pkt, leases):
-        """
-        Send leases to a CPS.
-
-        :param orig_pkt:
-        :type orig_pkt:
-        :param leases:
-        :type leases:
-        """
-        dst = orig_pkt.hdr.src_addr
-        path = orig_pkt.hdr.get_path()
-        path.reverse()
-        orig_pkt = PathMgmtPacket(orig_pkt.pack())  # PSz: this is
-        # a hack, as path_request with <up-path> only reverses to <down-path>
-        # only, and then reversed packet fails with .get_current_iof()
-        # FIXME: change .reverse() when only one path segment exists
-        payload = PathSegmentLeases.from_values(len(leases), leases)
-        leases_pkt = PathMgmtPacket.from_values(PMT.LEASES, payload, path,
-                                                self.addr.get_isd_ad(), dst)
-
-        (dst, dst_port) = self.get_first_hop(leases_pkt)
-        logging.debug("Sending leases to CPS.")
-        self.send(leases_pkt, dst, dst_port)
-
     def _handle_up_segment_record(self, pkt, from_zk=False):
         """
         Handle Up Path registration from local BS or ZK's cache.
@@ -1015,8 +704,6 @@ class LocalPathServer(PathServer):
         if not records.pcbs:
             return
         for pcb in records.pcbs:
-            assert pcb.segment_id != 32 * b"\x00", \
-                "Trying to register a segment with ID 0:\n%s" % pcb
             res = self.up_segments.update(pcb, pcb.get_first_pcbm().isd_id,
                                           pcb.get_first_pcbm().ad_id,
                                           self.topology.isd_id,
@@ -1051,18 +738,13 @@ class LocalPathServer(PathServer):
 
     def _handle_down_segment_record(self, pkt):
         """
-
-
         :param pkt:
         :type pkt:
         """
         records = pkt.get_payload()
         if not records.pcbs:
             return
-        leases = []
         for pcb in records.pcbs:
-            assert pcb.segment_id != 32 * b"\x00", \
-                "Trying to register a segment with ID 0:\n%s" % pcb
             src_isd = pcb.get_first_pcbm().isd_id
             src_ad = pcb.get_first_pcbm().ad_id
             dst_ad = pcb.get_last_pcbm().ad_id
@@ -1071,19 +753,7 @@ class LocalPathServer(PathServer):
                                             dst_isd, dst_ad)
             if res == DBResult.ENTRY_ADDED:
                 self._add_if_mappings(pcb)
-                # TODO: For now we immediately notify the CPS about the caching
-                # of the path-segment. In the future we should only do that when
-                # we add the segment to the longer-term cache.
-                lease = LeaseInfo.from_values(PST.DOWN, self.topology.isd_id,
-                                              self.topology.ad_id,
-                                              pcb.get_expiration_time(),
-                                              pcb.segment_id)
-                leases.append(lease)
-                logging.info("Down-Segment registered (%d, %d) -> (%d, %d)",
-                             src_isd, src_ad, dst_isd, dst_ad)
-        # Send leases to CPS
-        if leases:
-            self._send_leases(pkt, leases)
+
         # serve pending requests
         target = (dst_isd, dst_ad)
         if target in self.pending_down:
@@ -1104,10 +774,7 @@ class LocalPathServer(PathServer):
         records = pkt.get_payload()
         if not records.pcbs:
             return
-        leases = []
         for pcb in records.pcbs:
-            assert pcb.segment_id != 32 * b"\x00", \
-                "Trying to register a segment with ID 0:\n%s" % pcb
             # Core segments have down-path direction.
             src_ad = pcb.get_last_pcbm().ad_id
             src_isd = pcb.get_last_pcbm().isd_id
@@ -1118,17 +785,8 @@ class LocalPathServer(PathServer):
                                             last_ad=src_ad)
             if res == DBResult.ENTRY_ADDED:
                 self._add_if_mappings(pcb)
-                lease = LeaseInfo.from_values(PST.CORE, self.topology.isd_id,
-                                              self.topology.ad_id,
-                                              pcb.get_expiration_time(),
-                                              pcb.segment_id)
-                leases.append(lease)
                 logging.info("Core-Segment registered: (%d, %d) -> (%d, %d)",
                              src_isd, src_ad, dst_isd, dst_ad)
-
-        # Send leases to CPS
-        if leases:
-            self._send_leases(pkt, leases)
         # Serve pending core path requests.
         target = ((src_isd, src_ad), (dst_isd, dst_ad))
         if target in self.pending_core:
@@ -1141,87 +799,21 @@ class LocalPathServer(PathServer):
                 self.send_path_segments(path_request, segments_to_send)
             del self.pending_core[target]
 
-    def _handle_revocation(self, pkt):
+    def _remove_revoked_segments(self, rev_info):
         """
-        Handles a revocation of a segment.
-
-        :param pkt:
-        :type pkt:
-        """
-        payload = pkt.get_payload()
-        assert isinstance(payload, RevocationPayload)
-        if hash(payload) in self.revocations:
-            logging.debug("Already received revocation. Dropping...")
-            return
-        else:
-            self.revocations[hash(payload)] = payload
-            logging.debug("Received revocation from %s:\n%s", pkt.hdr.src_addr,
-                          payload)
-
-        rev_infos = payload.rev_infos
-
-        for rev_info in rev_infos:
-            # Verify revocation.
-            if not self._verify_revocation(rev_info):
-                logging.info("Revocation verification failed.")
-                continue
-            if rev_info.rev_type in [RT.UP_SEGMENT,
-                                     RT.DOWN_SEGMENT,
-                                     RT.CORE_SEGMENT]:
-                self._handle_segment_revocation(rev_info)
-            elif rev_info.rev_type in [RT.INTERFACE, RT.HOP]:
-                self._handle_if_or_hop_revocation(rev_info)
-            else:
-                logging.info("Local PS received unknown revocation type.")
-
-    def _handle_segment_revocation(self, rev_info):
-        """
-        Handles a segment revocation.
+        Remove segments that contain a revoked interface.
 
         :param rev_info: The revocation info
         :type rev_info: RevocationInfo
         """
-        if not rev_info.incl_seg_id or not rev_info.seg_id:
-            logging.warning("Segment revocation misses segment ID.")
-            return
-        if rev_info.rev_type == RT.UP_SEGMENT:
-            seg_db = self.up_segments
-        elif rev_info.rev_type == RT.DOWN_SEGMENT:
-            seg_db = self.down_segments
-        else:
-            seg_db = self.core_segments
-        # Check correspondence of revocation token and path segment
-        # (if possible) and delete path segment.
-        if rev_info.seg_id in seg_db:
-            if self._check_correspondence(rev_info,
-                                          seg_db[rev_info.seg_id]):
-                seg_db.delete(rev_info.seg_id)
-                logging.info("Revocation verified. Deleting path-"
-                             "segment %s", rev_info.seg_id)
-            else:
-                logging.info("Revocation token does not correspond to "
-                             "revoked path segment. Ignoring...")
-
-    def _handle_if_or_hop_revocation(self, rev_info):
-        """
-        Handles an interface or hop revocation.
-
-        :param rev_info: The revocation info
-        :type rev_info: RevocationInfo
-        """
-        if rev_info.rev_type == RT.INTERFACE:
-            segments = self.iftoken2seg[rev_info.rev_token1]
-        else:
-            segments = (self.iftoken2seg[rev_info.rev_token1] &
-                        self.iftoken2seg[rev_info.rev_token2])
+        segments = self.iftoken2seg[rev_info.rev_token]
         while segments:
             sid = segments.pop()
             # Delete segment from DB.
             self.up_segments.delete(sid)
             self.down_segments.delete(sid)
             self.core_segments.delete(sid)
-
-        del self.iftoken2seg[rev_info.rev_token1]
+        del self.iftoken2seg[rev_info.rev_token]
 
     def _request_paths_from_core(self, ptype, dst_isd, dst_ad,
                                  src_isd=None, src_ad=None):

@@ -16,6 +16,7 @@
 ==============================
 """
 # Stdlib
+import copy
 import logging
 import struct
 
@@ -272,7 +273,8 @@ class SCIONHeader(HeaderBase):
             self.common_hdr.next_hdr = self.l4_proto
         # Set next_hdr fields according to the extension chain
         for i in range(len(self.extension_hdrs) - 1):
-            self.extension_hdrs[i].next_hdr = self.extension_hdrs[i+1].EXT_CLASS
+            self.extension_hdrs[i].next_hdr = \
+                self.extension_hdrs[i + 1].EXT_CLASS
 
     def remove_extensions(self):
         """
@@ -282,6 +284,40 @@ class SCIONHeader(HeaderBase):
             self.common_hdr.total_len -= len(ext)
         self.extension_hdrs = []
         self.common_hdr.next_hdr = self.l4_proto
+
+    def set_src_addr(self, src_addr):
+        """
+        Sets the source address and updates the corresponding fields.
+
+        :param src_addr: The source address.
+        :type src_addr: :class:`lib.packet.scion_addr.SCIONAddr`
+        """
+        assert isinstance(src_addr, SCIONAddr)
+        if self.src_addr is not None:
+            self.common_hdr.hdr_len -= self.common_hdr.src_addr_len
+            self.common_hdr.total_len -= self.common_hdr.src_addr_len
+        self.src_addr = src_addr
+        self.common_hdr.src_addr_type = src_addr.host_addr.TYPE
+        self.common_hdr.src_addr_len = len(src_addr)
+        self.common_hdr.hdr_len += self.common_hdr.src_addr_len
+        self.common_hdr.total_len += self.common_hdr.src_addr_len
+
+    def set_dst_addr(self, dst_addr):
+        """
+        Sets the source address and updates the corresponding fields.
+
+        :param dst_addr: The destination address.
+        :type dst_addr: :class:`lib.packet.scion_addr.SCIONAddr`
+        """
+        assert isinstance(dst_addr, SCIONAddr)
+        if self.dst_addr is not None:
+            self.common_hdr.hdr_len -= self.common_hdr.dst_addr_len
+            self.common_hdr.total_len -= self.common_hdr.dst_addr_len
+        self.dst_addr = dst_addr
+        self.common_hdr.dst_addr_type = dst_addr.host_addr.TYPE
+        self.common_hdr.dst_addr_len = len(dst_addr)
+        self.common_hdr.hdr_len += self.common_hdr.dst_addr_len
+        self.common_hdr.total_len += self.common_hdr.dst_addr_len
 
     def get_path(self):
         """
@@ -393,6 +429,14 @@ class SCIONHeader(HeaderBase):
         (self.src_addr, self.dst_addr) = (self.dst_addr, self.src_addr)
         self._path.reverse()
 
+    def reversed_copy(self):
+        """
+        Returns a reversed copy of the header.
+        """
+        hdr_cpy = copy.deepcopy(self)
+        hdr_cpy.reverse()
+        return hdr_cpy
+
     def __len__(self):
         length = self.common_hdr.hdr_len
         for ext_hdr in self.extension_hdrs:
@@ -451,9 +495,8 @@ class SCIONPacket(PacketBase):
     def set_payload(self, payload):
         super().set_payload(payload)
         # Update payload_len and total len of the packet.
-        self.hdr.common_hdr.total_len -= self.payload_len
         self.payload_len = len(payload)
-        self.hdr.common_hdr.total_len += self.payload_len
+        self.hdr.common_hdr.total_len = len(self.hdr) + self.payload_len
 
     def parse(self, raw):
         """
