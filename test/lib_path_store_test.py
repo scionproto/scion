@@ -305,7 +305,7 @@ class TestPathStoreRecordUpdateFidelity(object):
     """
     @patch("lib.path_store.SCIONTime.get_time", new_callable=create_mock)
     @patch("lib.path_store.PathStoreRecord.__init__", autospec=True,
-            return_value=None)
+           return_value=None)
     def test_basic(self, init, time_):
         path_policy = PathPolicy()
         path_policy.property_weights['PeerLinks'] = 10
@@ -428,19 +428,20 @@ class TestPathStoreAddSegment(object):
         ntools.eq_(pth_str.candidates[0].delay, 1)
         ntools.eq_(pth_str.candidates[0].last_seen_time, time_.return_value)
 
+    @patch("lib.path_store.PathStore.__init__", autospec=True,
+           return_value=None)
     @patch("lib.path_store.PathStoreRecord", autospec=True,
-            return_value=None)
-    def test_adding(self, psr):
+           return_value=None)
+    def test_adding(self, psr, psi):
         """
         Add a single path segment to the set of candidate paths.
         """
-        path_policy = MagicMock(spec_set=['history_limit', 'check_filters',
-                                          'candidates_set_size'])
-        path_policy.history_limit = 3
-        path_policy.candidates_set_size = 2
-        pth_str = PathStore(path_policy)
+        pth_str = PathStore("path_policy")
+        pth_str.path_policy = MagicMock(spec_sec=PathPolicy)
+        pth_str.path_policy.candidates_set_size = 2
+        pth_str.path_policy.check_filters = create_mock()
+        pth_str.candidates = []
         pth_str.add_segment(self.pcb)
-        path_policy.check_filters.assert_called_once_with(self.pcb)
         ntools.ok_(pth_str.candidates)
         ntools.assert_false(pth_str.candidates[0])
 
