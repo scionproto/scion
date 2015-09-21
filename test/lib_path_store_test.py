@@ -396,20 +396,6 @@ class TestPathStoreAddSegment(object):
     def tearDown(self):
         del self.pcb
 
-    def test_basic(self):
-        """
-        Add a single path segment to the set of candidate paths.
-        """
-        path_policy = MagicMock(spec_set=['history_limit', 'check_filters',
-                                          'candidates_set_size'])
-        path_policy.history_limit = 3
-        path_policy.candidates_set_size = 2
-        pth_str = PathStore(path_policy)
-        pth_str.add_segment(self.pcb)
-        path_policy.check_filters.assert_called_once_with(self.pcb)
-        ntools.ok_(pth_str.candidates)
-        ntools.eq_(pth_str.candidates[0].pcb, self.pcb)
-
     def test_filters(self):
         """
         Try to add a path that does not meet the filter requirements.
@@ -441,6 +427,20 @@ class TestPathStoreAddSegment(object):
         pth_str.add_segment(self.pcb)
         ntools.eq_(pth_str.candidates[0].delay, 1)
         ntools.eq_(pth_str.candidates[0].last_seen_time, time_.return_value)
+
+    def test_adding(self):
+        """
+        Add a single path segment to the set of candidate paths.
+        """
+        path_policy = MagicMock(spec_set=['history_limit', 'check_filters',
+                                          'candidates_set_size'])
+        path_policy.history_limit = 3
+        path_policy.candidates_set_size = 2
+        pth_str = PathStore(path_policy)
+        pth_str.add_segment(self.pcb)
+        path_policy.check_filters.assert_called_once_with(self.pcb)
+        ntools.ok_(pth_str.candidates)
+        ntools.eq_(pth_str.candidates[0].pcb, self.pcb)
 
     def clear_candidates(self, pth_str):
         """
