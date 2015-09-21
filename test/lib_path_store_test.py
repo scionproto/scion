@@ -303,9 +303,10 @@ class TestPathStoreRecordUpdateFidelity(object):
     """
     Unit tests for lib.path_store.PathStoreRecord.update_fidelity
     """
-    @patch("lib.path_store.SCIONTime.get_time", spec_set=[],
-           new_callable=MagicMock)
-    def test_basic(self, time_):
+    @patch("lib.path_store.SCIONTime.get_time", new_callable=create_mock)
+    @patch("lib.path_store.PathStoreRecord.__init__", autospec=True,
+            return_value=None)
+    def test_basic(self, init, time_):
         path_policy = PathPolicy()
         path_policy.property_weights['PeerLinks'] = 10
         path_policy.property_weights['HopsLength'] = 1
@@ -317,12 +318,7 @@ class TestPathStoreRecordUpdateFidelity(object):
         path_policy.property_weights['GuaranteedBandwidth'] = 7
         path_policy.property_weights['AvailableBandwidth'] = 8
         path_policy.property_weights['TotalBandwidth'] = 9
-        pcb = MagicMock(spec_set=['__class__', 'segment_id',
-                                  'get_expiration_time', 'get_hops_hash',
-                                  'get_n_hops', 'get_n_peer_links',
-                                  'get_timestamp'])
-        pcb.__class__ = PathSegment
-        pth_str_rec = PathStoreRecord(pcb)
+        pth_str_rec = PathStoreRecord("pcb")
         pth_str_rec.peer_links = 10 ** 5
         pth_str_rec.hops_length = (1 / (10 ** 4))
         pth_str_rec.disjointness = 10 ** 3
