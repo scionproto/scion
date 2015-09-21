@@ -224,7 +224,7 @@ class PathStoreRecord(object):
     :vartype total_bandwidth: int
     """
 
-    DEFAULT_OFFSET = 60480  # 1 week
+    DEFAULT_OFFSET = 3600 * 24 * 7  # 1 week
 
     def __init__(self, pcb):
         """
