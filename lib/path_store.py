@@ -325,20 +325,24 @@ class PathStore(object):
         """
         Possibly add a new path to the candidates list.
 
-        Add a path (which is an instance of PathSegment) to the set of
-        candidate paths. The candidate path is stored at the PathStore
-        as a PathStoreRecord.
+        Attempt to add a path (which is an instance of PathSegment) to the set
+        of candidate paths. If successfully added, the candidate path is stored
+        in the PathStore as a PathStoreRecord.
 
-        If upon adding the path, the candidate path set is too large (i.e.,
-        larger than candidates_set_size), the lowest-fidelity path is
-        removed.
+        Before adding the path, the candidate PathSegment is first checked
+        against the PathStore's filter criteria, listed in PathPolicy.  If the
+        path's properties do not meet the filter criteria, the path is not
+        added and the set of candidate paths remains unchanged.
 
-        If the path's properties do not meet the filter criteria, the path is
-        not added and the set of candidate paths remains unchanged.
+        If the path passes the filter chekcs but is already in the candidate
+        set (as determined by its identifier), then the path is not added to
+        the candidate set. Instead, the delay and arrival times are updated in
+        the existing record.
 
-        If the path is already in the candidate set (as determined by its
-        identifier), then the path is not added to the candidate set. Instead,
-        the delay and arrival times are updated in the existing record.
+        If the path passes the filter checks and is not already in the
+        candidate set, it is added to the list of candidate paths.  If upon
+        adding the path, the candidate path set is too large (i.e., larger than
+        candidates_set_size), the lowest-fidelity path is removed.
 
         :param pcb: The PCB representing the potential path.
         :type pcb: PathSegment
