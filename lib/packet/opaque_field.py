@@ -401,7 +401,7 @@ class OpaqueFieldList(object):
         idx = 0
         for l in self._order:
             if label == l:
-                if len(self._labels[l]):
+                if self._labels[l]:
                     return idx
                 else:
                     raise SCIONKeyError("Opaque field label (%s) is empty." %
