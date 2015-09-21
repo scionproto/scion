@@ -280,25 +280,23 @@ class TestPathStoreRecordInit(object):
         pcb.segment_id = "id"
         pcb.get_expiration_time.return_value = "get_expiration_time"
         time_.return_value = PathStoreRecord.DEFAULT_OFFSET + 1
-        pcb.get_timestamp.return_value = 17
+        pcb.get_timestamp.return_value = PathStoreRecord.DEFAULT_OFFSET - 1
         pth_str_rec = PathStoreRecord(pcb)
         ntools.eq_(pth_str_rec.pcb, pcb)
         ntools.eq_(pth_str_rec.id, pcb.get_hops_hash())
+        pcb.get_n_peer_links.assert_called_once_with()
+        pcb.get_n_hops.assert_called_once_with()
+        ntools.eq_(pth_str_rec.delay_time, 2)
         ntools.eq_(pth_str_rec.fidelity, 0)
         ntools.eq_(pth_str_rec.disjointness, 0)
-        ntools.eq_(pth_str_rec.last_sent_time,
-                   time_.return_value - PathStoreRecord.DEFAULT_OFFSET)
+        ntools.eq_(pth_str_rec.last_sent_time, 1)
         ntools.eq_(pth_str_rec.last_seen_time, time_.return_value)
-        ntools.eq_(pth_str_rec.delay_time,
-                   time_.return_value - pcb.get_timestamp.return_value)
         ntools.eq_(pth_str_rec.expiration_time, "get_expiration_time")
+        pcb.get_expiration_time.assert_called_once_with()
         ntools.eq_(pth_str_rec.guaranteed_bandwidth, 0)
         ntools.eq_(pth_str_rec.available_bandwidth, 0)
         ntools.eq_(pth_str_rec.total_bandwidth, 0)
         time_.assert_called_once_with()
-        pcb.get_n_peer_links.assert_called_once_with()
-        pcb.get_n_hops.assert_called_once_with()
-        pcb.get_expiration_time.assert_called_once_with()
 
 
 class TestPathStoreRecordUpdateFidelity(object):
