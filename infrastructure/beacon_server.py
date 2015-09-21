@@ -135,6 +135,15 @@ class InterfaceState(object):
 
             return prev_state
 
+    def reset(self):
+        """
+        Resets the state of an InterfaceState object.
+        """
+        with self._lock:
+            self.active_since = 0
+            self.last_updated = 0
+            self._state = self.INACTIVE
+
     def revoke_if_expired(self):
         """
         Sets the state of the interface to revoked.
@@ -142,6 +151,9 @@ class InterfaceState(object):
         with self._lock:
             if self._state == self.TIMED_OUT:
                 self._state = self.REVOKED
+
+    def is_inactive(self):
+        return self._state == self.INACTIVE
 
     def is_active(self):
         with self._lock:
@@ -533,6 +545,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         last_propagation = last_registration = 0
         worker_cycle = 1.0
+        was_master = False
         start = SCIONTime.get_time()
         while True:
             sleep_interval(start, worker_cycle, "BS.worker cycle")
@@ -542,7 +555,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 self.pcb_cache.process()
                 self.revobjs_cache.process()
                 if not self.zk.get_lock(lock_timeout=0, conn_timeout=0):
+                    was_master = False
                     continue
+                if not was_master:
+                    self._became_master()
+                    was_master = True
                 self.pcb_cache.expire(self.config.propagation_time * 10)
                 self.revobjs_cache.expire(self.ZK_REV_OBJ_MAX_AGE * 24)
             except ZkNoConnection:
@@ -555,6 +572,15 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                     now - last_registration >= self.config.registration_time):
                 self.register_segments()
                 last_registration = now
+
+    def _became_master(self):
+        """
+        Called when a BS becomes the new master. Resets some state that will be
+        rebuilt over time.
+        """
+        # Reset all interfaces to inactive.
+        for (_, ifstate) in self.ifid_state.items():
+            ifstate.reset()
 
     def _try_to_verify_beacon(self, pcb):
         """
@@ -876,16 +902,21 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         infos = []
         if request.if_id == IFStateRequest.ALL_INTERFACES:
             for (ifid, state) in self.ifid_state.items():
+                # Don't include inactive interfaces in response.
+                if state.is_inactive():
+                    continue
                 chain = self._get_if_hash_chain(ifid)
                 info = IFStateInfo.from_values(ifid, state.is_active(),
                                                chain.next_element())
                 infos.append(info)
         elif request.if_id in self.ifid_state:
-            chain = self._get_if_hash_chain(request.if_id)
             state = self.ifid_state[request.if_id]
-            info = IFStateInfo.from_values(ifid, state.is_active(),
-                                           chain.next_element())
-            infos.append(info)
+            # Don't include inactive interfaces in response.
+            if not state.is_inactive():
+                chain = self._get_if_hash_chain(request.if_id)
+                info = IFStateInfo.from_values(ifid, state.is_active(),
+                                               chain.next_element())
+                infos.append(info)
         else:
             logging.error("Received ifstate request from %s for unknown "
                           "interface %s.", mgmt_pkt.hdr.src_addr, request.if_id)

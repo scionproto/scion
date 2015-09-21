@@ -164,10 +164,8 @@ class PathBase(object, metaclass=ABCMeta):
             HOF index to set, or ``None`` to use the first HOF index in the
             path.
         """
-        self._iof_idx = (iof_idx if iof_idx is not None
-                         else self._get_first_iof_idx())
-        self._hof_idx = (hof_idx if hof_idx is not None
-                         else self._get_first_hof_idx())
+        self._iof_idx = iof_idx or self._get_first_iof_idx()
+        self._hof_idx = hof_idx or self._get_first_hof_idx()
 
     def get_iof(self):
         """
@@ -483,7 +481,7 @@ class CrossOverPath(PathBase):
         # Handle on-path case.
         if (self._ofs.count(UP_HOFS) == 1 and
                 self.get_hof() == self._ofs.get_by_label(UP_HOFS, 0)):
-            self._iof_idx = self.get_up_segment_len()
+            self._iof_idx = self._ofs.get_idx_by_label(DOWN_IOF)
             self._hof_idx = self._iof_idx + 2
             self.set_downpath()
             assert self.get_hof() == self._ofs.get_by_label(DOWN_HOFS, 0)
