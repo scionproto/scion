@@ -355,6 +355,7 @@ class PathStore(object):
                 now = int(SCIONTime.get_time())
                 candidate.delay = now - pcb.get_timestamp()
                 candidate.last_seen_time = now
+                return
         record = PathStoreRecord(pcb)
         self.candidates.append(record)
         if len(self.candidates) > self.path_policy.candidates_set_size:
