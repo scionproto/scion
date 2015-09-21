@@ -334,7 +334,7 @@ class PathStore(object):
         path's properties do not meet the filter criteria, the path is not
         added and the set of candidate paths remains unchanged.
 
-        If the path passes the filter chekcs but is already in the candidate
+        If the path passes the filter checks but is already in the candidate
         set (as determined by its identifier), then the path is not added to
         the candidate set. Instead, the delay and arrival times are updated in
         the existing record.
