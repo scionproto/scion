@@ -243,90 +243,28 @@ class TestPathBaseReverse(object):
     """
     @patch("lib.packet.path.PathBase.__init__", autospec=True,
            return_value=None)
-    def test_hof_up_segment(self, init):
+    def test(self, init):
         inst = PathBaseTesting()
-        inst._ofs = create_mock(["reverse_label", "reverse_up_flag", "swap",
-                                 "__len__", "count", "get_label_by_idx",
-                                 "get_idx_by_label"])
-        inst._ofs.__len__.return_value = 9
+        inst._ofs = create_mock(["__len__", "get_label_by_idx",
+                                 "get_idx_by_label", "reverse_label",
+                                 "reverse_up_flag", "swap"])
         inst._ofs.get_label_by_idx.return_value = UP_IOF
-        inst._ofs.get_idx_by_label.return_value = 6
-        inst._hof_idx = 1
+        inst._ofs.__len__.return_value = 42
+        inst._hof_idx = 12
         inst._iof_idx = 0
-        inst.REVERSE_IOF_MAP = create_mock(["__getitem__"])
-        inst.REVERSE_IOF_MAP.__getitem__.return_value = DOWN_IOF
         inst.set_of_idxs = create_mock()
         # Call
         inst.reverse()
         # Tests
-        inst.set_of_idxs.assert_called_once_with(6, 8)
-        inst.REVERSE_IOF_MAP.__getitem__.assert_called_once_with(UP_IOF)
-        inst._ofs.get_label_by_idx.assert_called_once_with(0)
+        assert_these_calls(inst._ofs.swap,
+                           [call(UP_HOFS, DOWN_HOFS), call(UP_IOF, DOWN_IOF)])
+        assert_these_calls(inst._ofs.reverse_up_flag,
+                           [call(UP_IOF), call(DOWN_IOF)])
+        assert_these_calls(inst._ofs.reverse_label,
+                           [call(UP_HOFS), call(DOWN_HOFS)])
         inst._ofs.get_idx_by_label.assert_called_once_with(DOWN_IOF)
-        assert_these_calls(inst._ofs.swap,
-                           [call(UP_HOFS, DOWN_HOFS), call(UP_IOF, DOWN_IOF)])
-        assert_these_calls(inst._ofs.reverse_up_flag,
-                           [call(UP_IOF), call(DOWN_IOF)])
-        assert_these_calls(inst._ofs.reverse_label,
-                           [call(UP_HOFS), call(DOWN_HOFS)])
-
-    @patch("lib.packet.path.PathBase.__init__", autospec=True,
-           return_value=None)
-    def test_hof_core_segment(self, init):
-        inst = PathBaseTesting()
-        inst._ofs = create_mock(["reverse_label", "reverse_up_flag", "swap",
-                                 "__len__", "count", "get_label_by_idx",
-                                 "get_idx_by_label"])
-        inst._ofs.__len__.return_value = 9
-        inst._ofs.get_label_by_idx.return_value = CORE_IOF
-        inst._ofs.get_idx_by_label.return_value = 3
-        inst._hof_idx = 4
-        inst._iof_idx = 3
-        inst.REVERSE_IOF_MAP = create_mock(["__getitem__"])
-        inst.REVERSE_IOF_MAP.__getitem__.return_value = CORE_IOF
-        inst.set_of_idxs = create_mock()
-        # Call
-        inst.reverse()
-        # Tests
-        inst.set_of_idxs.assert_called_once_with(3, 5)
-        inst.REVERSE_IOF_MAP.__getitem__.assert_called_once_with(CORE_IOF)
-        inst._ofs.get_label_by_idx.assert_called_once_with(3)
-        inst._ofs.get_idx_by_label.assert_called_once_with(CORE_IOF)
-        assert_these_calls(inst._ofs.swap,
-                           [call(UP_HOFS, DOWN_HOFS), call(UP_IOF, DOWN_IOF)])
-        assert_these_calls(inst._ofs.reverse_up_flag,
-                           [call(UP_IOF), call(DOWN_IOF)])
-        assert_these_calls(inst._ofs.reverse_label,
-                           [call(UP_HOFS), call(DOWN_HOFS)])
-
-    @patch("lib.packet.path.PathBase.__init__", autospec=True,
-           return_value=None)
-    def test_hof_down_segment(self, init):
-        inst = PathBaseTesting()
-        inst._ofs = create_mock(["reverse_label", "reverse_up_flag", "swap",
-                                 "__len__", "count", "get_label_by_idx",
-                                 "get_idx_by_label"])
-        inst._ofs.__len__.return_value = 9
-        inst._ofs.get_label_by_idx.return_value = DOWN_IOF
-        inst._ofs.get_idx_by_label.return_value = 0
-        inst._hof_idx = 7
-        inst._iof_idx = 6
-        inst.REVERSE_IOF_MAP = create_mock(["__getitem__"])
-        inst.REVERSE_IOF_MAP.__getitem__.return_value = UP_IOF
-        inst.set_of_idxs = create_mock()
-        # Call
-        inst.reverse()
-        # Tests
-        inst.set_of_idxs.assert_called_once_with(0, 2)
-        inst.REVERSE_IOF_MAP.__getitem__.assert_called_once_with(DOWN_IOF)
-        inst._ofs.get_label_by_idx.assert_called_once_with(6)
-        inst._ofs.get_idx_by_label.assert_called_once_with(UP_IOF)
-        assert_these_calls(inst._ofs.swap,
-                           [call(UP_HOFS, DOWN_HOFS), call(UP_IOF, DOWN_IOF)])
-        assert_these_calls(inst._ofs.reverse_up_flag,
-                           [call(UP_IOF), call(DOWN_IOF)])
-        assert_these_calls(inst._ofs.reverse_label,
-                           [call(UP_HOFS), call(DOWN_HOFS)])
+        inst.set_of_idxs.assert_called_once_with(
+            inst._ofs.get_idx_by_label.return_value, 30)
 
 
 class TestPathBaseGetOfIdxs(object):
@@ -832,12 +770,10 @@ class TestCrossOverPathReverse(object):
            return_value=None)
     def test_on_path_reverse(self, init, super_reverse):
         inst = CrossOverPath()
-        inst._ofs = create_mock(["swap", "count", "get_by_label",
-                                 "get_idx_by_label"])
+        inst._ofs = create_mock(["swap", "count", "get_idx_by_label"])
         inst._ofs.count.return_value = 1
-        inst._ofs.get_idx_by_label.return_value = 2
-        inst.get_hof = create_mock()
-        inst.get_hof.return_value = inst._ofs.get_by_label.return_value
+        inst._ofs.get_idx_by_label.side_effect = [1, 2, 4]
+        inst._hof_idx = 1
         inst.set_downpath = create_mock()
         # Call
         inst.reverse()
@@ -845,7 +781,8 @@ class TestCrossOverPathReverse(object):
         super_reverse.assert_called_once_with(inst)
         inst._ofs.swap.assert_called_once_with(UP_UPSTREAM_HOF,
                                                DOWN_UPSTREAM_HOF)
-        inst._ofs.get_idx_by_label.assert_called_once_with(DOWN_IOF)
+        assert_these_calls(inst._ofs.get_idx_by_label,
+                           [call(UP_HOFS), call(DOWN_IOF), call(DOWN_HOFS)])
         ntools.eq_(inst._iof_idx, 2)
         ntools.eq_(inst._hof_idx, inst._iof_idx + 2)
         inst.set_downpath.assert_called_once_with()

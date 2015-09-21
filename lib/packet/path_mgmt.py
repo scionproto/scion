@@ -110,7 +110,7 @@ class PathSegmentInfo(PayloadBase):
         info.dst_ad = dst_ad
         return info
 
-    def __len__(self):
+    def __len__(self):  # pragma: no cover
         return self.LEN
 
 

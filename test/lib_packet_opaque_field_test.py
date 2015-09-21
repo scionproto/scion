@@ -468,15 +468,27 @@ class TestOpaqueFieldListGetLabelByIdx(object):
     """
     Unit tests for lib.packet.opaque_field.OpaqueFieldList.get_label_by_idx
     """
-    def test_with_idx(self):
+    def _check(self, idx, expected):
         inst = _of_list_setup()
         # Call
-        ntools.eq_(inst.get_label_by_idx(2), "up")
+        ntools.eq_(inst.get_label_by_idx(idx), expected)
 
-    def test_idx_error(self):
+    def test(self):
+        for idx, expected in (
+            (0, "up"),
+            (2, "up"),
+            (3, "core"),
+        ):
+            yield self._check, idx, expected
+
+    def _check_bounds(self, index):
         inst = _of_list_setup()
         # Call
-        ntools.assert_raises(SCIONIndexError, inst.get_label_by_idx, 4)
+        ntools.assert_raises(SCIONIndexError, inst.get_label_by_idx, index)
+
+    def test_bounds(self):
+        for i in (-1, 4):
+            yield self._check_bounds, i
 
 
 class TestOpaqueFieldListGetIdxByLabel(object):

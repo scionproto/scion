@@ -480,11 +480,11 @@ class CrossOverPath(PathBase):
         self._ofs.swap(UP_UPSTREAM_HOF, DOWN_UPSTREAM_HOF)
         # Handle on-path case.
         if (self._ofs.count(UP_HOFS) == 1 and
-                self.get_hof() == self._ofs.get_by_label(UP_HOFS, 0)):
+                self._hof_idx == self._ofs.get_idx_by_label(UP_HOFS)):
             self._iof_idx = self._ofs.get_idx_by_label(DOWN_IOF)
             self._hof_idx = self._iof_idx + 2
             self.set_downpath()
-            assert self.get_hof() == self._ofs.get_by_label(DOWN_HOFS, 0)
+            assert self._hof_idx == self._ofs.get_idx_by_label(DOWN_HOFS)
 
     def _get_first_hof_idx(self):
         """

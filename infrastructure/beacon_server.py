@@ -578,9 +578,10 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         Called when a BS becomes the new master. Resets some state that will be
         rebuilt over time.
         """
-        # Reset all interfaces to inactive.
+        # Reset all timed-out and revoked interfaces to inactive.
         for (_, ifstate) in self.ifid_state.items():
-            ifstate.reset()
+            if not ifstate.is_active():
+                ifstate.reset()
 
     def _try_to_verify_beacon(self, pcb):
         """
@@ -901,26 +902,22 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         logging.debug("Received ifstate req:\n%s", mgmt_pkt)
         infos = []
         if request.if_id == IFStateRequest.ALL_INTERFACES:
-            for (ifid, state) in self.ifid_state.items():
-                # Don't include inactive interfaces in response.
-                if state.is_inactive():
-                    continue
-                chain = self._get_if_hash_chain(ifid)
-                info = IFStateInfo.from_values(ifid, state.is_active(),
-                                               chain.next_element())
-                infos.append(info)
+            ifid_states = self.ifid_state.items()
         elif request.if_id in self.ifid_state:
-            state = self.ifid_state[request.if_id]
-            # Don't include inactive interfaces in response.
-            if not state.is_inactive():
-                chain = self._get_if_hash_chain(request.if_id)
-                info = IFStateInfo.from_values(ifid, state.is_active(),
-                                               chain.next_element())
-                infos.append(info)
+            ifid_states = [(request.if_id, self.ifid_state[request.if_id])]
         else:
             logging.error("Received ifstate request from %s for unknown "
                           "interface %s.", mgmt_pkt.hdr.src_addr, request.if_id)
+            return
 
+        for (ifid, state) in ifid_states:
+            # Don't include inactive interfaces in response.
+            if state.is_inactive():
+                continue
+            chain = self._get_if_hash_chain(ifid)
+            info = IFStateInfo.from_values(ifid, state.is_active(),
+                                           chain.next_element())
+            infos.append(info)
         if not infos:
             logging.error("No IF state info to put in response.")
             return
