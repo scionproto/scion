@@ -16,6 +16,7 @@
 ==========================================================================
 """
 # Stdlib
+from collections import defaultdict
 import math
 from unittest.mock import patch, MagicMock
 
@@ -384,6 +385,8 @@ class TestPathStoreInit(object):
         ntools.eq_(pth_str.candidates, [])
         deque_.assert_called_once_with(maxlen=3)
         ntools.eq_(pth_str.best_paths_history, "best_paths_history")
+        ntools.eq_(pth_str.disjointness, defaultdict(float))
+        ntools.eq_(pth_str.last_dj_update, 0)
 
 
 class TestPathStoreAddSegment(object):
