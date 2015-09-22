@@ -517,22 +517,25 @@ class TestPathStoreUpdateAllDisjointness(object):
         pth_str = PathStore(path_policy)
         numCandidates = 5
         pathLength = 5
-        pth_str.candidates = [MagicMock(spec_set=['pcb', 'disjointness', 'id'])
-                              for i in range(numCandidates)]
+        pth_str.candidates = []
         pth_str.disjointness = {}
-        for i in range(numCandidates * (2 * pathLength + 1)):
-            pth_str.disjointness[i] = 1.0
         for i in range(numCandidates):
-            pth_str.candidates[i].id = i * (2 * pathLength + 1)
-            pcb = MagicMock(spec_set=['ads'])
-            pcb.ads = [MagicMock(spec_set=['pcbm']) for j in range(pathLength)]
+            record = create_mock(['pcb', 'disjointness', 'id'])
+            record.id = i * (2 * pathLength + 1)
+            pth_str.disjointness[record.id] = 1.0
+            record.pcb = create_mock(['ads'])
+            record.pcb.ads = []
             for j in range(pathLength):
-                pcbm = MagicMock(spec_set=['ad_id', 'hof'])
-                pcbm.ad_id = pth_str.candidates[i].id + j + 1
+                pcbm = create_mock(['ad_id', 'hof'])
+                pcbm.ad_id = record.id + j + 1
+                pth_str.disjointness[pcbm.ad_id] = 1.0
                 pcbm.hof = MagicMock(spec_set=['egress_if'])
                 pcbm.hof.egress_if = pcbm.ad_id + pathLength
-                pcb.ads[j].pcbm = pcbm
-            pth_str.candidates[i].pcb = pcb
+                pth_str.disjointness[pcbm.hof.egress_if] = 1.0
+                as_marking = create_mock(['pcbm'])
+                as_marking.pcbm = pcbm
+                record.pcb.ads.append(as_marking)
+            pth_str.candidates.append(record)
         pth_str._update_disjointness_db = create_mock()
         pth_str._update_all_disjointness()
         for i in range(numCandidates):
