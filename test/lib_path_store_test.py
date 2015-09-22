@@ -284,8 +284,8 @@ class TestPathStoreRecordInit(object):
         pth_str_rec = PathStoreRecord(pcb)
         ntools.eq_(pth_str_rec.pcb, pcb)
         ntools.eq_(pth_str_rec.id, pcb.get_hops_hash())
-        pcb.get_n_peer_links.assert_called_once_with()
-        pcb.get_n_hops.assert_called_once_with()
+        ntools.eq_(pth_str_rec.peer_links, pcb.get_n_peer_links.return_value)
+        ntools.eq_(pth_str_rec.hops_length, pcb.get_n_hops.return_value)
         ntools.eq_(pth_str_rec.delay_time, 2)
         ntools.eq_(pth_str_rec.fidelity, 0)
         ntools.eq_(pth_str_rec.disjointness, 0)
@@ -461,8 +461,8 @@ class TestPathStoreAddSegment(object):
         path_policy.history_limit = 3
         path_policy.candidates_set_size = 0
         pth_str = PathStore(path_policy)
-        pth_str._remove_expired_segments = MagicMock(
-            side_effect=lambda: self.clear_candidates(pth_str))
+        pth_str._remove_expired_segments = (lambda:
+            self.clear_candidates(pth_str))
         pth_str._update_all_fidelity = MagicMock()
         pth_str.add_segment(self.pcb)
         pth_str._remove_expired_segments.assert_called_once_with()
