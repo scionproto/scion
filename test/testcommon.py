@@ -94,12 +94,19 @@ class MockCollection(object):
             delattr(self, name)
 
 
-def create_mock(attrs=None):
+def create_mock(attrs=None, class_=None):
     if attrs is None:
         attrs = []
+    if class_:
+        attrs.append("__class__")
     m = MagicMock(spec_set=attrs)
+    if class_:
+        m.__class__ = class_
     for attr in attrs:
-        setattr(m, attr, MagicMock(spec_set=[]))
+        value = MagicMock(spec_set=[])
+        if attr == "__class__" and class_:
+            value = class_
+        setattr(m, attr, value)
     return m
 
 

@@ -16,7 +16,7 @@
 ======================================================================
 """
 # Stdlib
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import call, patch
 
 # External packages
 import nose
@@ -59,7 +59,7 @@ class TestSCIONAddrFromValues(object):
         # Setup
         isd_id = 1
         ad_id = 10
-        host_addr = MagicMock(HostAddrBase)
+        host_addr = create_mock(["__len__"], class_=HostAddrBase)
         host_addr.__len__.return_value = 12
         # Call
         addr = SCIONAddr.from_values(isd_id, ad_id, host_addr)
