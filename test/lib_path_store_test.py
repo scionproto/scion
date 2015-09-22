@@ -418,9 +418,7 @@ class TestPathStoreAddSegment(object):
         Try to add a path that is already in the path store.
         """
         pth_str = PathStore("path_policy")
-        pth_str.path_policy = MagicMock(spec_set=['check_filters',
-                                                  'candidates_set_size'])
-        pth_str.path_policy.candidates_set_size = 2
+        pth_str.path_policy = create_mock(['check_filters'])
         time_.return_value = 23
         candidate = MagicMock(spec_set=['id', 'delay', 'last_seen_time'])
         candidate.id = self.pcb.segment_id
