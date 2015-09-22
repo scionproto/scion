@@ -428,8 +428,7 @@ class TestPathStoreAddSegment(object):
         ntools.eq_(pth_str.candidates[0].delay, 1)
         ntools.eq_(pth_str.candidates[0].last_seen_time, time_.return_value)
 
-    @patch("lib.path_store.PathStoreRecord", autospec=True,
-           return_value=None)
+    @patch("lib.path_store.PathStoreRecord", autospec=True)
     @patch("lib.path_store.PathStore.__init__", autospec=True,
            return_value=None)
     def test_adding(self, psi, psr):
