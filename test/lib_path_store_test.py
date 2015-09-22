@@ -282,6 +282,7 @@ class TestPathStoreRecordInit(object):
         time_.return_value = PathStoreRecord.DEFAULT_OFFSET + 1
         pcb.get_timestamp.return_value = PathStoreRecord.DEFAULT_OFFSET - 1
         pth_str_rec = PathStoreRecord(pcb)
+        pcb.get_expiration_time.assert_called_once_with()
         ntools.eq_(pth_str_rec.pcb, pcb)
         ntools.eq_(pth_str_rec.id, pcb.get_hops_hash())
         ntools.eq_(pth_str_rec.peer_links, pcb.get_n_peer_links.return_value)
@@ -291,8 +292,8 @@ class TestPathStoreRecordInit(object):
         ntools.eq_(pth_str_rec.disjointness, 0)
         ntools.eq_(pth_str_rec.last_sent_time, 1)
         ntools.eq_(pth_str_rec.last_seen_time, time_.return_value)
-        ntools.eq_(pth_str_rec.expiration_time, "get_expiration_time")
-        pcb.get_expiration_time.assert_called_once_with()
+        ntools.eq_(pth_str_rec.expiration_time,
+                   pcb.get_expiration_time.return_value)
         ntools.eq_(pth_str_rec.guaranteed_bandwidth, 0)
         ntools.eq_(pth_str_rec.available_bandwidth, 0)
         ntools.eq_(pth_str_rec.total_bandwidth, 0)
