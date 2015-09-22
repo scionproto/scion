@@ -449,12 +449,6 @@ class TestPathStoreTrimCandidates(object):
     Unit tests for lib.path_store.PathStore._trim_candidates
     """
 
-    def clear_candidates(self, pth_str):
-        """
-        Clear the list of candidates from a path store.
-        """
-        pth_str.candidates = []
-
     @patch("lib.path_store.PathStore.__init__", autospec=True,
            return_value=None)
     def test_expire_paths(self, psi):
@@ -467,7 +461,7 @@ class TestPathStoreTrimCandidates(object):
         pth_str.path_policy.candidates_set_size = 0
         pth_str.candidates = [0]
         pth_str._remove_expired_segments = (
-            lambda: self.clear_candidates(pth_str))
+            lambda: pth_str.candidates.pop())
         pth_str._update_all_fidelity = MagicMock()
         pth_str._trim_candidates()
         ntools.eq_(len(pth_str.candidates), 0)
@@ -493,7 +487,7 @@ class TestPathStoreTrimCandidates(object):
         pth_str.candidates = [0]
         pth_str._remove_expired_segments = MagicMock()
         pth_str._update_all_fidelity = (
-            lambda: self.clear_candidates(pth_str))
+            lambda: pth_str.candidates.pop())
         pth_str._trim_candidates()
         pth_str._remove_expired_segments.assert_called_once_with()
         ntools.eq_(len(pth_str.candidates), 0)
