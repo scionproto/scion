@@ -397,29 +397,32 @@ class TestPathStoreAddSegment(object):
     def tearDown(self):
         del self.pcb
 
-    def test_filters(self):
+    @patch("lib.path_store.PathStore.__init__", autospec=True,
+           return_value=None)
+    def test_filters(self, psi):
         """
         Try to add a path that does not meet the filter requirements.
         """
-        path_policy = MagicMock(spec_set=['history_limit', 'check_filters'])
-        path_policy.history_limit = 3
-        path_policy.check_filters.return_value = False
-        pth_str = PathStore(path_policy)
+        pth_str = PathStore("path_policy")
+        pth_str.path_policy = MagicMock(spec_set=['check_filters'])
+        pth_str.path_policy.check_filters.return_value = False
+        pth_str.candidates = []
         pth_str.add_segment(self.pcb)
-        path_policy.check_filters.assert_called_once_with(self.pcb)
-        ntools.assert_false(pth_str.candidates)
+        pth_str.path_policy.check_filters.assert_called_once_with(self.pcb)
+        ntools.eq_(len(pth_str.candidates), 0)
 
     @patch("lib.path_store.SCIONTime.get_time", spec_set=[],
            new_callable=MagicMock)
-    def test_already_in_store(self, time_):
+    @patch("lib.path_store.PathStore.__init__", autospec=True,
+           return_value=None)
+    def test_already_in_store(self, psi, time_):
         """
         Try to add a path that is already in the path store.
         """
-        path_policy = MagicMock(spec_set=['history_limit', 'check_filters',
-                                          'candidates_set_size'])
-        path_policy.history_limit = 3
-        path_policy.candidates_set_size = 2
-        pth_str = PathStore(path_policy)
+        pth_str = PathStore("path_policy")
+        pth_str.path_policy = MagicMock(spec_set=['check_filters',
+                                                  'candidates_set_size'])
+        pth_str.path_policy.candidates_set_size = 2
         time_.return_value = 23
         candidate = MagicMock(spec_set=['id', 'delay', 'last_seen_time'])
         candidate.id = self.pcb.segment_id
