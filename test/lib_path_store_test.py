@@ -437,13 +437,11 @@ class TestPathStoreAddSegment(object):
         Add a single path segment to the set of candidate paths.
         """
         pth_str = PathStore("path_policy")
-        pth_str.path_policy = MagicMock(spec_sec=PathPolicy)
-        pth_str.path_policy.candidates_set_size = 2
-        pth_str.path_policy.check_filters = create_mock()
+        pth_str.path_policy = create_mock(['check_filters'])
         pth_str.candidates = []
+        pth_str._trim_candidates = create_mock()
         pth_str.add_segment(self.pcb)
-        ntools.ok_(pth_str.candidates)
-        ntools.assert_false(pth_str.candidates[0])
+        ntools.eq_(pth_str.candidates, [psr.return_value])
 
 
 class TestTrimCandidates(object):
