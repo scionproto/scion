@@ -474,14 +474,18 @@ class TestPathStoreTrimCandidates(object):
         """
         pth_str = PathStore("path_policy")
         pth_str.path_policy = MagicMock(spec_set=['candidates_set_size'])
-        pth_str.path_policy.candidates_set_size = 0
-        pth_str.candidates = [0]
-        pth_str._remove_expired_segments = MagicMock()
-        pth_str._update_all_fidelity = (
-            lambda: pth_str.candidates.pop())
+        pth_str.path_policy.candidates_set_size = 2
+        pth_str.candidates = [create_mock(['fidelity']) for i in range(3)]
+        pth_str.candidates[0].fidelity = 2
+        pth_str.candidates[1].fidelity = 0
+        pth_str.candidates[2].fidelity = 1
+        remainder = [pth_str.candidates[0], pth_str.candidates[2]]
+        pth_str._remove_expired_segments = create_mock()
+        pth_str._update_all_fidelity = create_mock()
         pth_str._trim_candidates()
         pth_str._remove_expired_segments.assert_called_once_with()
-        ntools.eq_(len(pth_str.candidates), 0)
+        pth_str._update_all_fidelity.assert_called_once_with()
+        ntools.eq_(pth_str.candidates, remainder)
 
 
 class TestPathStoreUpdateDisjointnessDB(object):
