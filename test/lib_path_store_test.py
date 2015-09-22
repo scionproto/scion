@@ -16,7 +16,6 @@
 ==========================================================================
 """
 # Stdlib
-from collections import defaultdict
 import math
 from unittest.mock import patch, MagicMock
 
@@ -373,8 +372,9 @@ class TestPathStoreInit(object):
     """
     Unit tests for lib.path_store.PathStore.__init__
     """
+    @patch("lib.path_store.defaultdict", autospec=True)
     @patch("lib.path_store.deque", autospec=True)
-    def test_basic(self, deque_):
+    def test_basic(self, deque_, defaultdict_):
         path_policy = MagicMock(spec_set=['history_limit'])
         path_policy.history_limit = 3
         deque_.return_value = "best_paths_history"
@@ -383,7 +383,7 @@ class TestPathStoreInit(object):
         ntools.eq_(pth_str.candidates, [])
         deque_.assert_called_once_with(maxlen=3)
         ntools.eq_(pth_str.best_paths_history, "best_paths_history")
-        ntools.eq_(pth_str.disjointness, defaultdict(float))
+        defaultdict_.assert_called_once_with(float)
         ntools.eq_(pth_str.last_dj_update, 0)
 
 
