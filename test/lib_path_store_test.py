@@ -410,8 +410,7 @@ class TestPathStoreAddSegment(object):
         pth_str.add_segment(self.pcb)
         pth_str.path_policy.check_filters.assert_called_once_with(self.pcb)
 
-    @patch("lib.path_store.SCIONTime.get_time", spec_set=[],
-           new_callable=MagicMock)
+    @patch("lib.path_store.SCIONTime.get_time", new_callable=create_mock)
     @patch("lib.path_store.PathStore.__init__", autospec=True,
            return_value=None)
     def test_already_in_store(self, psi, time_):
