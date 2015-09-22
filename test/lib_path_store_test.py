@@ -465,13 +465,6 @@ class TestPathStoreTrimCandidates(object):
         pth_str._trim_candidates()
         ntools.eq_(pth_str.candidates, [])
 
-    def dummy_fidelity(self, candidates):
-        for candidate in candidates:
-            if candidate.id == REV_TOKEN_LEN * b'\x00':
-                candidate.fidelity = 0
-            else:
-                candidate.fidelity = 1
-
     @patch("lib.path_store.PathStore.__init__", autospec=True,
            return_value=None)
     def test_remove_low_fidelity_path(self, psi):
