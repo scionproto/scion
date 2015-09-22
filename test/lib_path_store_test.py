@@ -444,9 +444,9 @@ class TestPathStoreAddSegment(object):
         ntools.eq_(pth_str.candidates, [psr.return_value])
 
 
-class TestTrimCandidates(object):
+class TestPathStoreTrimCandidates(object):
     """
-    Test the PathStore._trim_candidates() method.
+    Unit tests for lib.path_store.PathStore._trim_candidates
     """
 
     def clear_candidates(self, pth_str):
