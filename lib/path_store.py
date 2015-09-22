@@ -358,6 +358,12 @@ class PathStore(object):
                 return
         record = PathStoreRecord(pcb)
         self.candidates.append(record)
+        self._trim_candidates()
+
+    def _trim_candidates(self):
+        """
+        Trims the set of candidate set if necessary.
+        """
         if len(self.candidates) > self.path_policy.candidates_set_size:
             self._remove_expired_segments()
         if len(self.candidates) > self.path_policy.candidates_set_size:

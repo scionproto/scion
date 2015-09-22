@@ -429,11 +429,11 @@ class TestPathStoreAddSegment(object):
         ntools.eq_(pth_str.candidates[0].delay, 1)
         ntools.eq_(pth_str.candidates[0].last_seen_time, time_.return_value)
 
-    @patch("lib.path_store.PathStore.__init__", autospec=True,
-           return_value=None)
     @patch("lib.path_store.PathStoreRecord", autospec=True,
            return_value=None)
-    def test_adding(self, psr, psi):
+    @patch("lib.path_store.PathStore.__init__", autospec=True,
+           return_value=None)
+    def test_adding(self, psi, psr):
         """
         Add a single path segment to the set of candidate paths.
         """
@@ -446,29 +446,35 @@ class TestPathStoreAddSegment(object):
         ntools.ok_(pth_str.candidates)
         ntools.assert_false(pth_str.candidates[0])
 
+
+class TestTrimCandidates(object):
+    """
+    Test the PathStore._trim_candidates() method.
+    """
+
     def clear_candidates(self, pth_str):
         """
         Clear the list of candidates from a path store.
         """
         pth_str.candidates = []
 
-    def test_expire_paths(self):
+    @patch("lib.path_store.PathStore.__init__", autospec=True,
+           return_value=None)
+    def test_expire_paths(self, psi):
         """
-        Add a path, find that the candidate set size is too large, and remove
-        an expired segment.
+        Test trimming the size of the candidate set by removing an expired
+        segment.
         """
-        path_policy = MagicMock(spec_set=['history_limit', 'check_filters',
-                                          'candidates_set_size'])
-        path_policy.history_limit = 3
-        path_policy.candidates_set_size = 0
-        pth_str = PathStore(path_policy)
-        pth_str._remove_expired_segments = (lambda:
-            self.clear_candidates(pth_str))
+        pth_str = PathStore("path_policy")
+        pth_str.path_policy = MagicMock(spec_set=['candidates_set_size'])
+        pth_str.path_policy.candidates_set_size = 0
+        pth_str.candidates = [0]
+        pth_str._remove_expired_segments = (
+            lambda: self.clear_candidates(pth_str))
         pth_str._update_all_fidelity = MagicMock()
-        pth_str.add_segment(self.pcb)
-        pth_str._remove_expired_segments.assert_called_once_with()
+        pth_str._trim_candidates()
+        ntools.eq_(len(pth_str.candidates), 0)
         pth_str._update_all_fidelity.assert_not_called()
-        ntools.assert_false(pth_str.candidates)
 
     def dummy_fidelity(self, candidates):
         for candidate in candidates:
@@ -477,29 +483,23 @@ class TestPathStoreAddSegment(object):
             else:
                 candidate.fidelity = 1
 
-    def test_remove_low_fidelity_path(self):
+    @patch("lib.path_store.PathStore.__init__", autospec=True,
+           return_value=None)
+    def test_remove_low_fidelity_path(self, psi):
         """
         Add a path, find that the candidate set size is too large, and remove
         the lowest-fidelity path.
         """
-        path_policy = MagicMock(spec_set=['history_limit', 'check_filters',
-                                          'candidates_set_size'])
-        path_policy.history_limit = 3
-        path_policy.candidates_set_size = 1
-        pth_str = PathStore(path_policy)
+        pth_str = PathStore("path_policy")
+        pth_str.path_policy = MagicMock(spec_set=['candidates_set_size'])
+        pth_str.path_policy.candidates_set_size = 0
+        pth_str.candidates = [0]
         pth_str._remove_expired_segments = MagicMock()
-        pth_str._update_all_fidelity = MagicMock(
-            side_effect=lambda: self.dummy_fidelity(pth_str.candidates))
-        pcb1 = MagicMock(spec=PathSegment)
-        pcb1.segment_id = REV_TOKEN_LEN * b'\x00'
-        pcb2 = MagicMock(spec=PathSegment)
-        pcb2.segment_id = REV_TOKEN_LEN * b'\x01'
-        pth_str.add_segment(pcb1)
-        pth_str.add_segment(pcb2)
+        pth_str._update_all_fidelity = (
+            lambda: self.clear_candidates(pth_str))
+        pth_str._trim_candidates()
         pth_str._remove_expired_segments.assert_called_once_with()
-        pth_str._update_all_fidelity.assert_called_once_with()
-        ntools.eq_(len(pth_str.candidates), 1)
-        ntools.eq_(pth_str.candidates[0].pcb.segment_id, pcb2.segment_id)
+        ntools.eq_(len(pth_str.candidates), 0)
 
 
 class TestPathStoreUpdateDisjointnessDB(object):
