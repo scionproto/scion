@@ -407,10 +407,8 @@ class TestPathStoreAddSegment(object):
         pth_str = PathStore("path_policy")
         pth_str.path_policy = MagicMock(spec_set=['check_filters'])
         pth_str.path_policy.check_filters.return_value = False
-        pth_str.candidates = []
         pth_str.add_segment(self.pcb)
         pth_str.path_policy.check_filters.assert_called_once_with(self.pcb)
-        ntools.eq_(len(pth_str.candidates), 0)
 
     @patch("lib.path_store.SCIONTime.get_time", spec_set=[],
            new_callable=MagicMock)
