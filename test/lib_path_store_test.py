@@ -297,7 +297,6 @@ class TestPathStoreRecordInit(object):
         ntools.eq_(pth_str_rec.guaranteed_bandwidth, 0)
         ntools.eq_(pth_str_rec.available_bandwidth, 0)
         ntools.eq_(pth_str_rec.total_bandwidth, 0)
-        time_.assert_called_once_with()
 
 
 class TestPathStoreRecordUpdateFidelity(object):
