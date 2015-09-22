@@ -462,10 +462,8 @@ class TestPathStoreTrimCandidates(object):
         pth_str.candidates = [0]
         pth_str._remove_expired_segments = (
             lambda: pth_str.candidates.pop())
-        pth_str._update_all_fidelity = MagicMock()
         pth_str._trim_candidates()
-        ntools.eq_(len(pth_str.candidates), 0)
-        pth_str._update_all_fidelity.assert_not_called()
+        ntools.eq_(pth_str.candidates, [])
 
     def dummy_fidelity(self, candidates):
         for candidate in candidates:
