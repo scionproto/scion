@@ -16,11 +16,11 @@
 ========================================================================
 """
 # Stdlib
+from collections import defaultdict, deque
 import heapq
 import json
 import logging
 import math
-from collections import defaultdict, deque
 
 # SCION
 from lib.packet.pcb import PathSegment
