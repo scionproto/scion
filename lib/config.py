@@ -35,10 +35,12 @@ class Config(object):
     :type n_registered_paths: int
     :ivar n_shortest_up_paths: the number of shortest up-paths.
     :type n_shortest_up_paths: int
-    :ivar propagation_time: the propagation time.
+    :ivar propagation_time: the interval at which PCBs are propagated.
     :type propagation_time: int
-    :ivar registration_time: the registration time.
+    :ivar registration_time: the interval at which paths are registered.
     :type registration_time: int
+    :ivar expired_time: the interval at which expired paths are cleared.
+    :type expired_time: int
     :ivar reset_time: the reset time.
     :type reset_time: int
     :ivar registers_paths: whether or not the AD registers paths.
@@ -61,6 +63,7 @@ class Config(object):
         self.n_shortest_up_paths = 0
         self.propagation_time = 0
         self.registration_time = 0
+        self.expired_time = 0
         self.reset_time = 0
         self.registers_paths = 0
         self.pcb_queue_size = 0
@@ -108,6 +111,7 @@ class Config(object):
         self.n_shortest_up_paths = config['NumShortestUPs']
         self.propagation_time = config['PropagateTime']
         self.registration_time = config['RegisterTime']
+        self.expired_time = config['ExpiredTime']
         self.reset_time = config['ResetTime']
         self.registers_paths = config['RegisterPath']
         self.pcb_queue_size = config['PCBQueueSize']
