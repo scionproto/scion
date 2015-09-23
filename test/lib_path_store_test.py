@@ -278,7 +278,6 @@ class TestPathStoreRecordInit(object):
                                   'get_timestamp'])
         pcb.__class__ = PathSegment
         pcb.segment_id = "id"
-        pcb.get_expiration_time.return_value = "get_expiration_time"
         time_.return_value = PathStoreRecord.DEFAULT_OFFSET + 1
         pcb.get_timestamp.return_value = PathStoreRecord.DEFAULT_OFFSET - 1
         pth_str_rec = PathStoreRecord(pcb)
