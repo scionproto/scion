@@ -282,7 +282,7 @@ class TestPathStoreRecordInit(object):
         pcb.get_timestamp.return_value = PathStoreRecord.DEFAULT_OFFSET - 1
         pth_str_rec = PathStoreRecord(pcb)
         ntools.eq_(pth_str_rec.pcb, pcb)
-        ntools.eq_(pth_str_rec.id, pcb.get_hops_hash())
+        ntools.eq_(pth_str_rec.id, pcb.get_hops_hash.return_value)
         ntools.eq_(pth_str_rec.peer_links, pcb.get_n_peer_links.return_value)
         ntools.eq_(pth_str_rec.hops_length, pcb.get_n_hops.return_value)
         ntools.eq_(pth_str_rec.delay_time, 2)
