@@ -379,7 +379,6 @@ class CorePathServer(PathServer):
         """
         from_master = (pkt.hdr.src_addr.get_isd_ad() == self.addr.get_isd_ad()
                        and pkt.type == PMT.REPLY)
-        logging.debug("from_master: %s" % from_master)
         records = pkt.get_payload()
         if not records.pcbs:
             return
@@ -435,7 +434,6 @@ class CorePathServer(PathServer):
         """
         from_master = (pkt.hdr.src_addr.get_isd_ad() == self.addr.get_isd_ad()
                        and pkt.type == PMT.REPLY)
-        logging.debug("from_master: %s" % from_master)
         records = pkt.get_payload()
         if not records.pcbs:
             return
@@ -468,8 +466,6 @@ class CorePathServer(PathServer):
             # Send segments to master.
             elif self._master_id and not self._is_master():
                 self._send_to_master(pkt)
-        else:
-            logging.debug('path neither shared via ZK nor sent to master')
         # Send pending requests that couldn't be processed due to the lack of
         # a core path to the destination PS.
         if self.waiting_targets:

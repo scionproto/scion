@@ -290,6 +290,8 @@ class TestPathMgmtPacketParse(object):
         type_map = {
             PathMgmtType.REQUEST: seg_info,
             PathMgmtType.REPLY: seg_recs,
+            PathMgmtType.REG: seg_recs,
+            PathMgmtType.SYNC: seg_recs,
             PathMgmtType.REVOCATION: rev_info,
             PathMgmtType.IFSTATE_INFO: ifstate_payload,
             PathMgmtType.IFSTATE_REQ: ifstate_request,
@@ -313,6 +315,7 @@ class TestPathMgmtPacketParse(object):
 
     def test_success(self):
         for type_ in (PathMgmtType.REQUEST, PathMgmtType.REPLY,
+                      PathMgmtType.REG, PathMgmtType.SYNC,
                       PathMgmtType.REVOCATION, PathMgmtType.IFSTATE_INFO,
                       PathMgmtType.IFSTATE_REQ):
             yield self._check_success, type_
