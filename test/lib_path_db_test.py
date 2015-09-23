@@ -16,7 +16,7 @@
 =====================================================
 """
 # Stdlib
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch, call
 
 # External packages
 import nose
@@ -29,6 +29,7 @@ from lib.path_db import (
     PathSegmentDB,
     PathSegmentDBRecord
 )
+from test.testcommon import create_mock
 
 
 class TestPathSegmentDBRecordInit(object):
@@ -36,10 +37,10 @@ class TestPathSegmentDBRecordInit(object):
     Unit tests for lib.path_db.PathSegmentDBRecord.__init__
     """
     def test_basic(self):
-        pcb = MagicMock(spec_set=['segment_id', 'iof', '__class__'])
+        pcb = create_mock(['segment_id', 'iof'], class_=PathSegment)
         pcb.segment_id = "data1"
+        pcb.iof = create_mock(["hops"])
         pcb.iof.hops = "data2"
-        pcb.__class__ = PathSegment
         pth_seg_db_rec = PathSegmentDBRecord(pcb)
         ntools.eq_(pth_seg_db_rec.pcb, pcb)
         ntools.eq_(pth_seg_db_rec.id, "data1")
@@ -51,8 +52,8 @@ class TestPathSegmentDBRecordEq(object):
     Unit tests for lib.path_db.PathSegmentDBRecord.__eq__
     """
     def test_eq(self):
-        pcb = MagicMock(spec_set=['segment_id', 'iof', '__class__'])
-        pcb.__class__ = PathSegment
+        pcb = create_mock(['segment_id', 'iof'], class_=PathSegment)
+        pcb.iof = create_mock(["hops"])
         pth_seg_db_rec1 = PathSegmentDBRecord(pcb)
         pth_seg_db_rec2 = PathSegmentDBRecord(pcb)
         id_ = "data"
@@ -61,8 +62,8 @@ class TestPathSegmentDBRecordEq(object):
         ntools.eq_(pth_seg_db_rec1, pth_seg_db_rec2)
 
     def test_neq(self):
-        pcb = MagicMock(spec_set=['segment_id', 'iof', '__class__'])
-        pcb.__class__ = PathSegment
+        pcb = create_mock(['segment_id', 'iof'], class_=PathSegment)
+        pcb.iof = create_mock(["hops"])
         pth_seg_db_rec1 = PathSegmentDBRecord(pcb)
         pth_seg_db_rec2 = PathSegmentDBRecord(pcb)
         pth_seg_db_rec1.id = "data1"
@@ -70,8 +71,8 @@ class TestPathSegmentDBRecordEq(object):
         ntools.assert_not_equals(pth_seg_db_rec1, pth_seg_db_rec2)
 
     def test_type_neq(self):
-        pcb = MagicMock(spec_set=['segment_id', 'iof', '__class__'])
-        pcb.__class__ = PathSegment
+        pcb = create_mock(['segment_id', 'iof'], class_=PathSegment)
+        pcb.iof = create_mock(["hops"])
         pth_seg_db_rec1 = PathSegmentDBRecord(pcb)
         pth_seg_db_rec2 = b"test"
         ntools.assert_not_equals(pth_seg_db_rec1, pth_seg_db_rec2)
@@ -82,8 +83,8 @@ class TestPathSegmentDBRecordHash(object):
     Unit tests for lib.path_db.PathSegmentDBRecord.__hash__
     """
     def test_basic(self):
-        pcb = MagicMock(spec_set=['segment_id', 'iof', '__class__'])
-        pcb.__class__ = PathSegment
+        pcb = create_mock(['segment_id', 'iof'], class_=PathSegment)
+        pcb.iof = create_mock(["hops"])
         pth_seg_db_rec = PathSegmentDBRecord(pcb)
         pth_seg_db_rec.id = 4
         ntools.eq_(hash(pth_seg_db_rec), 4)
@@ -95,7 +96,7 @@ class TestPathSegmentDBInit(object):
     """
     @patch("lib.path_db.Base", autospec=True)
     def test_basic(self, base):
-        db = MagicMock(spec_set=['create', 'create_index'])
+        db = create_mock(['create', 'create_index'])
         base.return_value = db
         pth_seg_db = PathSegmentDB()
         base.assert_called_once_with("", save_to_file=False)
@@ -112,17 +113,17 @@ class TestPathSegmentDBGetItem(object):
     Unit tests for lib.path_db.PathSegmentDB.__getitem__
     """
     def test_basic(self):
-        cur_rec = MagicMock(spec_set=['pcb'])
+        cur_rec = create_mock(['pcb'])
         cur_rec.pcb = "data1"
         pth_seg_db = PathSegmentDB()
-        pth_seg_db._db = MagicMock(spec_set=[])
+        pth_seg_db._db = create_mock()
         pth_seg_db._db.return_value = {0: {'record': cur_rec}}
         ntools.eq_(pth_seg_db["data2"], "data1")
         pth_seg_db._db.assert_called_once_with(id="data2")
 
     def test_not_present(self):
         pth_seg_db = PathSegmentDB()
-        pth_seg_db._db = MagicMock(spec_set=[])
+        pth_seg_db._db = create_mock()
         pth_seg_db._db.return_value = False
         ntools.assert_is_none(pth_seg_db["data"])
 
@@ -132,19 +133,19 @@ class TestPathSegmentDBContains(object):
     Unit tests for lib.path_db.PathSegmentDB.__contains__
     """
     def test_basic(self):
-        recs = MagicMock(spec_set=['__len__'])
+        recs = create_mock(['__len__'])
         recs.__len__.return_value = 1
         pth_seg_db = PathSegmentDB()
-        pth_seg_db._db = MagicMock(spec_set=[])
+        pth_seg_db._db = create_mock()
         pth_seg_db._db.return_value = recs
         ntools.assert_true("data" in pth_seg_db)
         pth_seg_db._db.assert_called_once_with(id="data")
 
     def test_not_present(self):
-        recs = MagicMock(spec_set=['__len__'])
+        recs = create_mock(['__len__'])
         recs.__len__.return_value = 0
         pth_seg_db = PathSegmentDB()
-        pth_seg_db._db = MagicMock(spec_set=[])
+        pth_seg_db._db = create_mock()
         pth_seg_db._db.return_value = recs
         ntools.assert_false("data" in pth_seg_db)
 
@@ -155,13 +156,12 @@ class TestPathSegmentDBUpdate(object):
     """
     @patch("lib.path_db.PathSegmentDBRecord", autospec=True)
     def test_basic(self, db_rec):
-        pcb = MagicMock(spec_set=['__class__'])
-        pcb.__class__ = PathSegment
-        record = MagicMock(spec_set=['id'])
+        pcb = create_mock(class_=PathSegment)
+        record = create_mock(['id'])
         record.id = "str"
         db_rec.return_value = record
         pth_seg_db = PathSegmentDB()
-        pth_seg_db._db = MagicMock(spec_set=['insert'])
+        pth_seg_db._db = create_mock(['insert'])
         pth_seg_db._db.return_value = []
         ntools.eq_(pth_seg_db.update(pcb, 1, 2, 3, 4), DBResult.ENTRY_ADDED)
         db_rec.assert_called_once_with(pcb)
@@ -170,16 +170,16 @@ class TestPathSegmentDBUpdate(object):
 
     @patch("lib.path_db.PathSegmentDBRecord", autospec=True)
     def test_none(self, db_rec):
-        pcb = MagicMock(spec_set=['__class__', 'get_expiration_time'])
-        pcb.__class__ = PathSegment
+        pcb = create_mock(["get_expiration_time"], class_=PathSegment)
         pcb.get_expiration_time.return_value = -1
-        record = MagicMock(spec_set=['id'])
+        record = create_mock(['id'])
         record.id = "str"
-        cur_rec = MagicMock(spec_set=['pcb'])
+        cur_rec = create_mock(['pcb'])
+        cur_rec.pcb = create_mock(["get_expiration_time"])
         cur_rec.pcb.get_expiration_time.return_value = 0
         db_rec.return_value = record
         pth_seg_db = PathSegmentDB()
-        pth_seg_db._db = MagicMock(spec_set=[])
+        pth_seg_db._db = create_mock()
         pth_seg_db._db.return_value = {0: {'record': cur_rec}}
         ntools.eq_(pth_seg_db.update(pcb, 1, 2, 3, 4), DBResult.NONE)
         pcb.get_expiration_time.assert_called_once_with()
@@ -187,16 +187,16 @@ class TestPathSegmentDBUpdate(object):
 
     @patch("lib.path_db.PathSegmentDBRecord", autospec=True)
     def test_entry_update(self, db_rec):
-        pcb = MagicMock(spec_set=['__class__', 'get_expiration_time'])
-        pcb.__class__ = PathSegment
+        pcb = create_mock(["get_expiration_time"], class_=PathSegment)
         pcb.get_expiration_time.return_value = 1
-        record = MagicMock(spec_set=['id'])
+        record = create_mock(['id'])
         record.id = "str"
-        cur_rec = MagicMock(spec_set=['pcb', 'id'])
+        cur_rec = create_mock(['pcb', 'id'])
+        cur_rec.pcb = create_mock(["get_expiration_time"])
         cur_rec.pcb.get_expiration_time.return_value = 0
         db_rec.return_value = record
         pth_seg_db = PathSegmentDB()
-        pth_seg_db._db = MagicMock(spec_set=[])
+        pth_seg_db._db = create_mock()
         pth_seg_db._db.return_value = {0: {'record': cur_rec}}
         ntools.eq_(pth_seg_db.update(pcb, 1, 2, 3, 4), DBResult.ENTRY_UPDATED)
         ntools.eq_(cur_rec.pcb, pcb)
@@ -211,7 +211,7 @@ class TestPathSegmentDBUpdateAll(object):
         for i in range(5):
             pcbs.append("data" + str(i))
         pth_seg_db = PathSegmentDB()
-        pth_seg_db.update = MagicMock(spec_set=[])
+        pth_seg_db.update = create_mock()
         pth_seg_db.update_all(pcbs, 1, 2, 3, 4)
         pth_seg_db.update.assert_has_calls([call(i, 1, 2, 3, 4) for i in pcbs])
 
@@ -222,7 +222,7 @@ class TestPathSegmentDBDelete(object):
     """
     def test_basic(self):
         pth_seg_db = PathSegmentDB()
-        pth_seg_db._db = MagicMock(spec_set=['delete'])
+        pth_seg_db._db = create_mock(['delete'])
         pth_seg_db._db.return_value = "data1"
         ntools.eq_(pth_seg_db.delete("data2"), DBResult.ENTRY_DELETED)
         pth_seg_db._db.assert_called_once_with(id="data2")
@@ -230,7 +230,7 @@ class TestPathSegmentDBDelete(object):
 
     def test_not_present(self):
         pth_seg_db = PathSegmentDB()
-        pth_seg_db._db = MagicMock(spec_set=[])
+        pth_seg_db._db = create_mock()
         pth_seg_db._db.return_value = False
         ntools.eq_(pth_seg_db.delete("data"), DBResult.NONE)
 
@@ -239,18 +239,18 @@ class TestPathSegmentDBCall(object):
     """
     Unit tests for lib.path_db.PathSegmentDB.__call__
     """
-    @patch("lib.path_store.SCIONTime.get_time", spec_set=[],
-           new_callable=MagicMock)
+    @patch("lib.path_store.SCIONTime.get_time", new_callable=create_mock)
     def test_basic(self, time):
         recs = []
         for i in range(5):
-            cur_rec = MagicMock(spec_set=['pcb', 'fidelity'])
+            cur_rec = create_mock(['pcb', 'fidelity'])
+            cur_rec.pcb = create_mock(["get_expiration_time"])
             cur_rec.pcb.get_expiration_time.return_value = 1
             cur_rec.fidelity = i
             recs.append({'record': cur_rec})
         time.return_value = 0
         pth_seg_db = PathSegmentDB()
-        pth_seg_db._db = MagicMock(spec_set=['delete'])
+        pth_seg_db._db = create_mock(['delete'])
         pth_seg_db._db.return_value = recs
         ntools.eq_(pth_seg_db("data"), [r['record'].pcb for r in recs])
         pth_seg_db._db.assert_called_once_with("data")
@@ -259,18 +259,18 @@ class TestPathSegmentDBCall(object):
         for i in range(5):
             recs[i]['record'].pcb.get_expiration_time.assert_called_once_with()
 
-    @patch("lib.path_store.SCIONTime.get_time", spec_set=[],
-           new_callable=MagicMock)
+    @patch("lib.path_store.SCIONTime.get_time", new_callable=create_mock)
     def test_expiration(self, time):
         recs = []
         for i in range(5):
-            cur_rec = MagicMock(spec_set=['pcb'])
+            cur_rec = create_mock(['pcb'])
+            cur_rec.pcb = create_mock(["get_expiration_time"])
             cur_rec.pcb.get_expiration_time.return_value = -1
             recs.append({'record': cur_rec, 'first_isd': 0,
                          'first_ad': 1, 'last_isd': 2, 'last_ad': 3})
         time.return_value = 0
         pth_seg_db = PathSegmentDB()
-        pth_seg_db._db = MagicMock(spec_set=['delete'])
+        pth_seg_db._db = create_mock(['delete'])
         pth_seg_db._db.return_value = recs
         ntools.eq_(pth_seg_db("data"), [])
         pth_seg_db._db.delete.assert_called_once_with(recs)
@@ -282,7 +282,7 @@ class TestPathSegmentDBLen(object):
     """
     def test_basic(self):
         pth_seg_db = PathSegmentDB()
-        pth_seg_db._db = MagicMock(spec_set=['__len__'])
+        pth_seg_db._db = create_mock(['__len__'])
         pth_seg_db._db.__len__.return_value = 5
         ntools.eq_(len(pth_seg_db), 5)
 

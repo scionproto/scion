@@ -22,6 +22,7 @@ import threading
 
 # SCION
 from infrastructure.scion_elem import SCIONElement
+from lib.crypto.hash_chain import HashChain
 from lib.defines import ADDR_IPV4_TYPE, PATH_SERVICE
 from lib.errors import SCIONBaseError, SCIONServiceLookupError
 from lib.packet.path import PathCombinator
@@ -30,6 +31,7 @@ from lib.packet.path_mgmt import (
     PathMgmtType as PMT,
     PathSegmentInfo,
     PathSegmentType as PST,
+    RevocationInfo,
 )
 from lib.packet.scion_addr import ISD_AD
 from lib.path_db import PathSegmentDB
@@ -76,6 +78,8 @@ class SCIONDaemon(SCIONElement):
     :type _socks:
     """
     TIMEOUT = 5
+    # Number of tokens the PS checks when receiving a revocation.
+    N_TOKENS_CHECK = 20
 
     def __init__(self, addr, topo_file, run_local_api=False, is_sim=False):
         """
@@ -353,6 +357,51 @@ class SCIONDaemon(SCIONElement):
         else:
             logging.warning("API: type %d not supported.", packet[0])
 
+    def handle_revocation(self, rev_info):
+        """
+        Handle revocation.
+
+        :param rev_info: The RevocationInfo object.
+        :type rev_info: :class:`lib.packet.path_mgmt.RevocationInfo`
+        """
+        if not isinstance(rev_info, RevocationInfo):
+            logging.error("Revocation packet has wrong format.")
+            return
+        logging.info("Received revocation:\n%s", str(rev_info))
+        # Verify revocation.
+#         if not HashChain.verify(rev_info.proof, rev_info.rev_token):
+#             logging.info("Revocation verification failed.")
+#             return
+        # Go through all segment databases and remove affected segments.
+        deletions = self._remove_revoked_pcbs(self.up_segments,
+                                              rev_info.rev_token)
+        deletions += self._remove_revoked_pcbs(self.core_segments,
+                                               rev_info.rev_token)
+        deletions += self._remove_revoked_pcbs(self.down_segments,
+                                               rev_info.rev_token)
+        logging.info("Removed %d segments due to revocation.", deletions)
+
+    def _remove_revoked_pcbs(self, db, rev_token):
+        """
+        Removes all segments from 'db' that contain an IF token for which
+        rev_token is a preimage (within 20 calls).
+
+        :param db: The PathSegmentDB.
+        :type db: :class:`lib.path_db.PathSegmentDB`
+        :param rev_token: The revocation token.
+        :type rev_token: bytes
+
+        :returns: The number of deletions.
+        :rtype: int
+        """
+        to_remove = []
+        for segment in db():
+            for iftoken in segment.get_all_iftokens():
+                if HashChain.verify(rev_token, iftoken, self.N_TOKENS_CHECK):
+                    to_remove.append(segment.segment_id)
+
+        return db.delete_all(to_remove)
+
     def handle_request(self, packet, sender, from_local_socket=True):
         # PSz: local_socket may be misleading, especially that we have
         # api_socket which is local (in the localhost sense). What do you think
@@ -371,6 +420,8 @@ class SCIONDaemon(SCIONElement):
             pkt = PathMgmtPacket(packet)
             if pkt.type == PMT.REPLY:
                 self.handle_path_reply(pkt.get_payload())
+            elif pkt.type == PMT.REVOCATION:
+                self.handle_revocation(pkt.get_payload())
             else:
                 logging.warning("Type %d not supported.", pkt.type)
         else:  # From localhost (SCIONDaemon API)

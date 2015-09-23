@@ -212,6 +212,23 @@ class PathSegmentDB(object):
         else:
             return DBResult.NONE
 
+    def delete_all(self, segment_ids):
+        """
+        Deletes paths with the given IDs and returns the number of deletions.
+
+        :param segment_ids: The segment IDs to remove.
+        :type segment_ids: list
+
+        :returns: The number of deletions.
+        :rtype: int
+        """
+        deletions = 0
+        for seg_id in segment_ids:
+            if self.delete(seg_id) == DBResult.ENTRY_DELETED:
+                deletions += 1
+
+        return deletions
+
     def __call__(self, *args, **kwargs):
         """
         Selection by field values.

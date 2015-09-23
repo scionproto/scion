@@ -136,7 +136,7 @@ class TestHopOpaqueFieldInit(object):
         ntools.eq_(hop_op_fld.exp_time, 0)
         ntools.eq_(hop_op_fld.ingress_if, 0)
         ntools.eq_(hop_op_fld.egress_if, 0)
-        ntools.eq_(hop_op_fld.mac, b'\x00'*3)
+        ntools.eq_(hop_op_fld.mac, b'\x00' * 3)
         ntools.assert_false(hop_op_fld.parsed)
 
     @patch("lib.packet.opaque_field.HopOpaqueField.parse", autospec=True)
@@ -153,7 +153,7 @@ class TestHopOpaqueFieldParse(object):
     def test_basic(self, raw):
         # Setup
         hop_op_fld = HopOpaqueField()
-        data = bytes.fromhex('0e 2a 0a 0b 0c') + b'\x01'*3
+        data = bytes.fromhex('0e 2a 0a 0b 0c') + b'\x01' * 3
         raw.return_value = MagicMock(spec_set=["pop"])
         raw.return_value.pop.side_effect = (
             data[:2], data[2:5], data[5:8])
@@ -165,7 +165,7 @@ class TestHopOpaqueFieldParse(object):
         ntools.eq_(hop_op_fld.raw, data)
         ntools.eq_(hop_op_fld.info, 0x0e)
         ntools.eq_(hop_op_fld.exp_time, 0x2a)
-        ntools.eq_(hop_op_fld.mac, b'\x01'*3)
+        ntools.eq_(hop_op_fld.mac, b'\x01' * 3)
         ntools.eq_(hop_op_fld.ingress_if, 0x0a0)
         ntools.eq_(hop_op_fld.egress_if, 0xb0c)
         ntools.assert_true(hop_op_fld.parsed)
@@ -176,18 +176,18 @@ class TestHopOpaqueFieldFromValues(object):
     Unit tests for lib.packet.opaque_field.HopOpaqueField.from_values
     """
     def test_basic(self):
-        hop_op_fld = HopOpaqueField.from_values(42, 160, 2828, b'\x01'*3)
+        hop_op_fld = HopOpaqueField.from_values(42, 160, 2828, b'\x01' * 3)
         ntools.eq_(hop_op_fld.exp_time, 42)
         ntools.eq_(hop_op_fld.ingress_if, 160)
         ntools.eq_(hop_op_fld.egress_if, 2828)
-        ntools.eq_(hop_op_fld.mac, b'\x01'*3)
+        ntools.eq_(hop_op_fld.mac, b'\x01' * 3)
 
     def test_less_arg(self):
         hop_op_fld = HopOpaqueField.from_values(42)
         ntools.eq_(hop_op_fld.exp_time, 42)
         ntools.eq_(hop_op_fld.ingress_if, 0)
         ntools.eq_(hop_op_fld.egress_if, 0)
-        ntools.eq_(hop_op_fld.mac, b'\x00'*3)
+        ntools.eq_(hop_op_fld.mac, b'\x00' * 3)
 
 
 class TestHopOpaqueFieldPack(object):
@@ -200,8 +200,8 @@ class TestHopOpaqueFieldPack(object):
         hop_op_fld.exp_time = 0x2a
         hop_op_fld.ingress_if = 0x0a0
         hop_op_fld.egress_if = 0xb0c
-        hop_op_fld.mac = b'\x01'*3
-        data = bytes.fromhex('0e 2a 0a 0b 0c') + b'\x01'*3
+        hop_op_fld.mac = b'\x01' * 3
+        data = bytes.fromhex('0e 2a 0a 0b 0c') + b'\x01' * 3
         ntools.eq_(hop_op_fld.pack(), data)
 
 
@@ -462,6 +462,59 @@ class TestOpaqueFieldListGetByLabel(object):
         inst = _of_list_setup()
         # Call
         ntools.assert_raises(SCIONIndexError, inst.get_by_label, "core", 4)
+
+
+class TestOpaqueFieldListGetLabelByIdx(object):
+    """
+    Unit tests for lib.packet.opaque_field.OpaqueFieldList.get_label_by_idx
+    """
+    def _check(self, idx, expected):
+        inst = _of_list_setup()
+        # Call
+        ntools.eq_(inst.get_label_by_idx(idx), expected)
+
+    def test(self):
+        for idx, expected in (
+            (0, "up"),
+            (2, "up"),
+            (3, "core"),
+        ):
+            yield self._check, idx, expected
+
+    def _check_bounds(self, index):
+        inst = _of_list_setup()
+        # Call
+        ntools.assert_raises(SCIONIndexError, inst.get_label_by_idx, index)
+
+    def test_bounds(self):
+        for i in (-1, 4):
+            yield self._check_bounds, i
+
+
+class TestOpaqueFieldListGetIdxByLabel(object):
+    """
+    Unit tests for lib.packet.opaque_field.OpaqueFieldList.get_idx_by_label
+    """
+    def _check(self, label, expected):
+        inst = _of_list_setup()
+        # Call
+        ntools.eq_(inst.get_idx_by_label(label), expected)
+
+    def test_with_label(self):
+        for (label, expected) in (
+            ("up", 0),
+            ("core", 3)
+        ):
+            yield self._check, label, expected
+
+    def _check_error(self, label):
+        inst = _of_list_setup()
+        # Call
+        ntools.assert_raises(SCIONKeyError, inst.get_idx_by_label, label)
+
+    def test_label_error(self):
+        for label in ("nope", "down"):
+            yield self._check_error, label
 
 
 class TestOpaqueFieldListSwap(object):

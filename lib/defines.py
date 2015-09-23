@@ -37,6 +37,8 @@ SCION_UDP_PORT = 30040
 SCION_UDP_EH_DATA_PORT = 30041
 #: Default DNS UDP/TCP port
 SCION_DNS_PORT = 30053
+#: Default SCION router UDP port.
+SCION_ROUTER_PORT = 50000
 
 #: (Pseudo)supported layer-4 protocols, see /etc/protocols for details
 L4_ICMP = 1

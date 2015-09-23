@@ -41,7 +41,7 @@ from lib.packet.path import (
     UP_PEERING_HOF,
     UP_UPSTREAM_HOF,
 )
-from lib.packet.opaque_field import OpaqueFieldType as OFT
+from lib.packet.opaque_field import OpaqueFieldType as OFT, OpaqueField
 from test.testcommon import assert_these_calls, create_mock
 
 
@@ -245,7 +245,13 @@ class TestPathBaseReverse(object):
            return_value=None)
     def test(self, init):
         inst = PathBaseTesting()
-        inst._ofs = create_mock(["reverse_label", "reverse_up_flag", "swap"])
+        inst._ofs = create_mock(["__len__", "get_label_by_idx",
+                                 "get_idx_by_label", "reverse_label",
+                                 "reverse_up_flag", "swap"])
+        inst._ofs.get_label_by_idx.return_value = UP_IOF
+        inst._ofs.__len__.return_value = 42
+        inst._hof_idx = 12
+        inst._iof_idx = 0
         inst.set_of_idxs = create_mock()
         # Call
         inst.reverse()
@@ -256,7 +262,9 @@ class TestPathBaseReverse(object):
                            [call(UP_IOF), call(DOWN_IOF)])
         assert_these_calls(inst._ofs.reverse_label,
                            [call(UP_HOFS), call(DOWN_HOFS)])
-        inst.set_of_idxs.assert_called_once_with()
+        inst._ofs.get_idx_by_label.assert_called_once_with(DOWN_IOF)
+        inst.set_of_idxs.assert_called_once_with(
+            inst._ofs.get_idx_by_label.return_value, 30)
 
 
 class TestPathBaseGetOfIdxs(object):
@@ -568,13 +576,12 @@ class TestPathBaseIsLastPathHof(object):
     """
     Unit tests for lib.packet.path.PathBase.is_last_path_hof
     """
-    @patch("lib.packet.path.PathBase.__len__", autospec=True)
     @patch("lib.packet.path.PathBase.__init__", autospec=True,
            return_value=None)
-    def _check(self, idx, len_, expected, init, path_len):
+    def _check(self, idx, len_, expected, init):
         inst = PathBaseTesting()
         inst._hof_idx = idx
-        path_len.return_value = len_
+        inst._ofs = range(len_)
         # Call
         ntools.eq_(inst.is_last_path_hof(), expected)
 
@@ -582,18 +589,10 @@ class TestPathBaseIsLastPathHof(object):
         for idx, len_, expected in (
             (41, 42, True),
             (0, 42, False),
+            (40, 43, False),
+            (8, 9, True),
         ):
             yield self._check, idx, len_, expected
-
-    @patch("lib.packet.path.PathBase.__len__", autospec=True)
-    @patch("lib.packet.path.PathBase.__init__", autospec=True,
-           return_value=None)
-    def test_false(self, init, len_):
-        inst = PathBaseTesting()
-        inst._hof_idx = 41
-        len_.return_value = 43
-        # Call
-        ntools.assert_false(inst.is_last_path_hof())
 
 
 class TestPathBaseLen(object):
@@ -607,7 +606,7 @@ class TestPathBaseLen(object):
         inst._ofs = create_mock(["__len__"])
         inst._ofs.__len__.return_value = 42
         # Call
-        ntools.eq_(len(inst), 42)
+        ntools.eq_(len(inst), 42 * OpaqueField.LEN)
 
 
 class TestCorePathFromValues(_FromValuesTest):
@@ -758,13 +757,35 @@ class TestCrossOverPathReverse(object):
            return_value=None)
     def test(self, init, super_reverse):
         inst = CrossOverPath()
-        inst._ofs = create_mock(["swap"])
+        inst._ofs = create_mock(["swap", "count"])
         # Call
         inst.reverse()
         # Tests
         super_reverse.assert_called_once_with(inst)
         inst._ofs.swap.assert_called_once_with(UP_UPSTREAM_HOF,
                                                DOWN_UPSTREAM_HOF)
+
+    @patch("lib.packet.path.PathBase.reverse", autospec=True)
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test_on_path_reverse(self, init, super_reverse):
+        inst = CrossOverPath()
+        inst._ofs = create_mock(["swap", "count", "get_idx_by_label"])
+        inst._ofs.count.return_value = 1
+        inst._ofs.get_idx_by_label.side_effect = [1, 2, 4]
+        inst._hof_idx = 1
+        inst.set_downpath = create_mock()
+        # Call
+        inst.reverse()
+        # Tests
+        super_reverse.assert_called_once_with(inst)
+        inst._ofs.swap.assert_called_once_with(UP_UPSTREAM_HOF,
+                                               DOWN_UPSTREAM_HOF)
+        assert_these_calls(inst._ofs.get_idx_by_label,
+                           [call(UP_HOFS), call(DOWN_IOF), call(DOWN_HOFS)])
+        ntools.eq_(inst._iof_idx, 2)
+        ntools.eq_(inst._hof_idx, inst._iof_idx + 2)
+        inst.set_downpath.assert_called_once_with()
 
 
 class TestCrossOverPathGetFirstHofIdx(object):
@@ -888,7 +909,9 @@ class TestPeerPathReverse(object):
            return_value=None)
     def test(self, init, super_reverse):
         inst = PeerPath()
-        inst._ofs = create_mock(["swap"])
+        inst._ofs = create_mock(["swap", "get_by_label"])
+        inst.get_by_idx = create_mock()
+        inst.get_hof = create_mock()
         # Call
         inst.reverse()
         # Tests
@@ -897,6 +920,28 @@ class TestPeerPathReverse(object):
             call(UP_UPSTREAM_HOF, DOWN_UPSTREAM_HOF),
             call(UP_PEERING_HOF, DOWN_PEERING_HOF),
         ])
+
+    @patch("lib.packet.path.PathBase.reverse", autospec=True)
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test_peering_point(self, init, super_reverse):
+        inst = PeerPath()
+        inst._ofs = create_mock(["swap", "get_by_label", "get_idx_by_label"])
+        inst.get_by_idx = create_mock()
+        inst.get_hof = create_mock()
+        inst.get_hof.return_value = inst._ofs.get_by_label.return_value
+        inst.inc_hof_idx = create_mock()
+        inst._hof_idx = inst._ofs.get_idx_by_label.return_value
+        # Call
+        inst.reverse()
+        # Tests
+        super_reverse.assert_called_once_with(inst)
+        assert_these_calls(inst._ofs.swap, [
+            call(UP_UPSTREAM_HOF, DOWN_UPSTREAM_HOF),
+            call(UP_PEERING_HOF, DOWN_PEERING_HOF),
+        ])
+        inst.inc_hof_idx.assert_called_once_with()
+        inst._ofs.get_idx_by_label.assert_called_once_with(UP_PEERING_HOF)
 
 
 class TestPeerPathGetHofVer(_GetHofVerTest):
