@@ -560,7 +560,7 @@ class ConfigGenerator(object):
         :param ad_configs: the configurations of all SCION ADs.
         :type ad_configs: dict
         """
-        sim_file = os.path.join(self.out_dir, SIM_DIR, SIM_CONF_FILE)
+        text = StringIO()
         for isd_ad_id in ad_configs:
             (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
             is_core = (ad_configs[isd_ad_id]['level'] == CORE_AD)
@@ -577,7 +577,6 @@ class ConfigGenerator(object):
             number_ps = ad_configs[isd_ad_id].get("path_servers",
                                                   DEFAULT_PATH_SERVERS)
 
-            text = StringIO()
             # Beacon Servers
             for b_server in range(1, number_bs + 1):
                 text.write(' '.join([
@@ -600,7 +599,8 @@ class ConfigGenerator(object):
                 text.write(' '.join(['router', str(edge_router), topo_file,
                                      conf_file]) + '\n')
                 edge_router += 1
-            write_file(sim_file, text.getvalue())
+        sim_file = os.path.join(self.out_dir, SIM_DIR, SIM_CONF_FILE)
+        write_file(sim_file, text.getvalue())
 
     def _get_typed_elements(self, topo_dict):
         """
