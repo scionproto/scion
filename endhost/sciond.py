@@ -353,7 +353,7 @@ class SCIONDaemon(SCIONElement):
                 target=thread_safety_net,
                 args=(self._api_handle_path_request, packet, sender),
                 name="SCIONDaemon", daemon=True).start()
-        elif packet[0] == 1: # address request
+        elif packet[0] == 1:  # address request
             self._api_sock.send(self.addr.pack(), sender)
         else:
             logging.warning("API: type %d not supported.", packet[0])

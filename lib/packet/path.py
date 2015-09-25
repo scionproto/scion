@@ -959,13 +959,12 @@ class PathCombinator(object):
             pcbm = down_segment.ads[i].pcbm
             isd_ad = ISD_AD(pcbm.isd_id, pcbm.ad_id)
             egress = pcbm.hof.egress_if
-            intress = pcbm.hof.ingress_if
+            ingress = pcbm.hof.ingress_if
             if i != down_index:
                 path.interfaces.append((isd_ad, ingress))
             if egress != 0:
                 path.interfaces.append((isd_ad, egress))
         return path
-
 
     @classmethod
     def _check_connected(cls, up_segment, core_segment, down_segment):
