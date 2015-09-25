@@ -826,17 +826,17 @@ class PathCombinator(object):
             isd_ad = ISD_AD(block.pcbm.isd_id, block.pcbm.ad_id)
             egress = block.pcbm.hof.egress_if
             ingress = block.pcbm.hof.ingress_if
-            if egress != 0:
+            if egress:
                 path.interfaces.append((isd_ad, egress))
-            if ingress != 0:
+            if ingress:
                 path.interfaces.append((isd_ad, ingress))
         for block in down_segment.ads:
             isd_ad = ISD_AD(block.pcbm.isd_id, block.pcbm.ad_id)
             egress = block.pcbm.hof.egress_if
             ingress = block.pcbm.hof.ingress_if
-            if ingress != 0:
+            if ingress:
                 path.interfaces.append((isd_ad, egress))
-            if egress != 0:
+            if egress:
                 path.interfaces.append((isd_ad, ingress))
         return path
 
@@ -944,7 +944,7 @@ class PathCombinator(object):
             isd_ad = ISD_AD(pcbm.isd_id, pcbm.ad_id)
             egress = pcbm.hof.egress_if
             ingress = pcbm.hof.ingress_if
-            if egress != 0:
+            if egress:
                 path.interfaces.append((isd_ad, egress))
             if i != up_index:
                 path.interfaces.append((isd_ad, ingress))
@@ -962,7 +962,7 @@ class PathCombinator(object):
             ingress = pcbm.hof.ingress_if
             if i != down_index:
                 path.interfaces.append((isd_ad, ingress))
-            if egress != 0:
+            if egress:
                 path.interfaces.append((isd_ad, egress))
         return path
 

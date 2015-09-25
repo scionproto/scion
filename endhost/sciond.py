@@ -306,7 +306,9 @@ class SCIONDaemon(SCIONElement):
         Path request:
           | \x00 (1B) | ISD (12bits) |  AD (20bits)  |
         Reply:
-          |p1_len(1B)|p1((p1_len*8)B)|fh_IP(4B)|fh_port(2B)|p1_mtu(4B)|p1_RTT(4B)|p2_len(1B)...
+          |p1_len(1B)|p1((p1_len*8)B)|fh_IP(4B)|fh_port(2B)|
+           p1_if_count(1B)|p1_if_1(5B)|...|p1_if_n(5B)|
+           p2_len(1B)|...
          or b"" when no path found. Only IPv4 supported currently.
 
         FIXME(kormat): make IP-version independant
