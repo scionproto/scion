@@ -108,7 +108,6 @@ class OpaqueField(object, metaclass=ABCMeta):
     def __str__(self):
         raise NotImplementedError
 
-    # TODO test: one __eq__ breaks router when two SOFs in a path are identical
     def __eq__(self, other):
         if type(other) is type(self):
             return self.raw == other.raw
