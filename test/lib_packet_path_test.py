@@ -1156,8 +1156,22 @@ class TestPathCombinatorBuildCorePath(PathCombinatorBase):
     @patch("lib.packet.path.PathCombinator._check_connected",
            new_callable=create_mock)
     def test_full(self, check_connected, copy_seg, core_from_values):
-        up, core, down = (create_mock(['ads']), create_mock(['ads']),
-                          create_mock(['ads']))
+        up = create_mock(['ads'])
+        core = create_mock(['ads'])
+        down = create_mock(['ads'])
+        up.ads = [create_mock(['pcbm']) for i in range(6)]
+        for m in up.ads:
+            m.pcbm = create_mock(['isd_id', 'ad_id', 'hof'])
+            m.pcbm.hof = create_mock(['egress_if', 'ingress_if'])
+        core.ads = [create_mock(['pcbm']) for i in range(6)]
+        for m in core.ads:
+            m.pcbm = create_mock(['isd_id', 'ad_id', 'hof'])
+            m.pcbm.hof = create_mock(['egress_if', 'ingress_if'])
+        down.ads = [create_mock(['pcbm']) for i in range(6)]
+        for m in down.ads:
+            m.pcbm = create_mock(['isd_id', 'ad_id', 'hof'])
+            m.pcbm.hof = create_mock(['egress_if', 'ingress_if'])
+
         check_connected.return_value = True
         copy_seg.side_effect = [
             ("up_iof", "up_hofs"),
@@ -1291,19 +1305,30 @@ class TestPathCombinatorJoinShortcuts(object):
     def test_xovr(self, join_shortcuts, xovr_from_values):
         up_iof = create_mock(["info"])
         down_iof = create_mock(["info"])
+        up_seg = create_mock(['ads'])
+        down_seg = create_mock(['ads'])
+        up_seg.ads = [create_mock(['pcbm']) for i in range(6)]
+        for m in up_seg.ads:
+            m.pcbm = create_mock(['isd_id', 'ad_id', 'hof'])
+            m.pcbm.hof = create_mock(['egress_if', 'ingress_if'])
+        down_seg.ads = [create_mock(['pcbm']) for i in range(6)]
+        for m in down_seg.ads:
+            m.pcbm = create_mock(['isd_id', 'ad_id', 'hof'])
+            m.pcbm.hof = create_mock(['egress_if', 'ingress_if'])
+
         join_shortcuts.side_effect = [
             (up_iof, "up_hofs", "up_upstream_hof"),
             (down_iof, "down_hofs", "down_upstream_hof"),
         ]
         # Call
         ntools.eq_(
-            PathCombinator._join_shortcuts('up_seg', 'down_seg', (2, 5), False),
+            PathCombinator._join_shortcuts(up_seg, down_seg, (2, 5), False),
             xovr_from_values.return_value)
         # Tests
         ntools.eq_(up_iof.info, OFT.SHORTCUT)
         ntools.eq_(down_iof.info, OFT.SHORTCUT)
         assert_these_calls(join_shortcuts, [
-            call("up_seg", 2), call("down_seg", 5, up=False)])
+            call(up_seg, 2), call(down_seg, 5, up=False)])
         xovr_from_values.assert_called_once_with(
             up_iof, "up_hofs", "up_upstream_hof",
             down_iof, "down_upstream_hof", "down_hofs")
@@ -1319,15 +1344,23 @@ class TestPathCombinatorJoinShortcuts(object):
         down_seg = create_mock(['get_isd', 'ads'])
         if of_type == OFT.INTRA_ISD_PEER:
             up_seg.get_isd.return_value = down_seg.get_isd.return_value
-        up_seg.ads = ['up_ad %i' % i for i in range(6)]
-        down_seg.ads = ['down_ad %i' % i for i in range(6)]
+        up_seg.ads = [create_mock(['pcbm']) for i in range(6)]
+        for m in up_seg.ads:
+            m.pcbm = create_mock(['isd_id', 'ad_id', 'hof'])
+            m.pcbm.hof = create_mock(['egress_if', 'ingress_if'])
+        down_seg.ads = [create_mock(['pcbm']) for i in range(6)]
+        for m in down_seg.ads:
+            m.pcbm = create_mock(['isd_id', 'ad_id', 'hof'])
+            m.pcbm.hof = create_mock(['egress_if', 'ingress_if'])
         up_iof = create_mock(["info"])
         down_iof = create_mock(["info"])
         join_shortcuts.side_effect = [
             (up_iof, "up_hofs", "up_upstream_hof"),
             (down_iof, "down_hofs", "down_upstream_hof"),
         ]
-        join_peer.return_value = ["up_peering_hof", "down_peering_hof"]
+        up_peering_hof = create_mock(['ingress_if'])
+        down_peering_hof = create_mock(['ingress_if'])
+        join_peer.return_value = [up_peering_hof, down_peering_hof]
         # Call
         ntools.eq_(
             PathCombinator._join_shortcuts(up_seg, down_seg, (2, 5), True),
@@ -1337,8 +1370,8 @@ class TestPathCombinatorJoinShortcuts(object):
         ntools.eq_(down_iof.info, of_type)
         join_peer.assert_called_once_with(up_seg.ads[2], down_seg.ads[5])
         peer_path.assert_called_once_with(
-            up_iof, "up_hofs", "up_peering_hof", "up_upstream_hof",
-            down_iof, "down_upstream_hof", "down_peering_hof", "down_hofs")
+            up_iof, "up_hofs", up_peering_hof, "up_upstream_hof",
+            down_iof, "down_upstream_hof", down_peering_hof, "down_hofs")
 
     def test_peer(self):
         for of_type in (OFT.INTRA_ISD_PEER,

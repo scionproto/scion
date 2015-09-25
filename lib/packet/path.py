@@ -27,6 +27,7 @@ from lib.packet.opaque_field import (
     OpaqueFieldList,
     OpaqueFieldType as OFT,
 )
+from lib.packet.scion_addr import ISD_AD
 from lib.util import Raw
 
 UP_IOF = "up_segment_iof"
@@ -59,6 +60,7 @@ class PathBase(object, metaclass=ABCMeta):
         self._iof_idx = None
         self._hof_idx = None
         self._ofs = OpaqueFieldList(self.OF_ORDER)
+        self.interfaces = []
         if raw is not None:
             self.parse(raw)
 
@@ -815,8 +817,28 @@ class PathCombinator(object):
         up_iof, up_hofs = cls._copy_segment(up_segment, [-1])
         core_iof, core_hofs = cls._copy_segment(core_segment, [-1, 0])
         down_iof, down_hofs = cls._copy_segment(down_segment, [0], up=False)
-        return CorePath.from_values(up_iof, up_hofs, core_iof, core_hofs,
+        path = CorePath.from_values(up_iof, up_hofs, core_iof, core_hofs,
                                     down_iof, down_hofs)
+        up_core = up_segment.ads
+        if core_segment:
+            up_core = up_core + core_segment.ads
+        for block in up_core:
+            isd_ad = ISD_AD(block.pcbm.isd_id, block.pcbm.ad_id)
+            egress = block.pcbm.hof.egress_if
+            ingress = block.pcbm.hof.ingress_if
+            if egress != 0:
+                path.interfaces.append((isd_ad, egress))
+            if ingress != 0:
+                path.interfaces.append((isd_ad, ingress))
+        for block in down_segment.ads:
+            isd_ad = ISD_AD(block.pcbm.isd_id, block.pcbm.ad_id)
+            egress = block.pcbm.hof.egress_if
+            ingress = block.pcbm.hof.ingress_if
+            if ingress != 0:
+                path.interfaces.append((isd_ad, egress))
+            if egress != 0:
+                path.interfaces.append((isd_ad, ingress))
+        return path
 
     @classmethod
     def _copy_segment(cls, segment, xovrs, up=True):
@@ -896,24 +918,54 @@ class PathCombinator(object):
         down_iof, down_hofs, down_upstream_hof = \
             cls._copy_segment_shortcut(down_segment, down_index, up=False)
 
+        up_peering_hof = None
+        down_peering_hof = None
+        path = None
         if not peer:
             # It's a cross-over path.
             up_iof.info = down_iof.info = OFT.SHORTCUT
-            return CrossOverPath.from_values(
+            path = CrossOverPath.from_values(
                 up_iof, up_hofs, up_upstream_hof, down_iof, down_upstream_hof,
                 down_hofs)
-
-        # It's a peer path.
-        if up_segment.get_isd() == down_segment.get_isd():
-            up_iof.info = down_iof.info = OFT.INTRA_ISD_PEER
         else:
-            up_iof.info = down_iof.info = OFT.INTER_ISD_PEER
+            # It's a peer path.
+            if up_segment.get_isd() == down_segment.get_isd():
+                up_iof.info = down_iof.info = OFT.INTRA_ISD_PEER
+            else:
+                up_iof.info = down_iof.info = OFT.INTER_ISD_PEER
 
-        up_peering_hof, down_peering_hof = cls._join_shortcuts_peer(
-            up_segment.ads[up_index], down_segment.ads[down_index])
-        return PeerPath.from_values(
-            up_iof, up_hofs, up_peering_hof, up_upstream_hof, down_iof,
-            down_upstream_hof, down_peering_hof, down_hofs)
+            up_peering_hof, down_peering_hof = cls._join_shortcuts_peer(
+                up_segment.ads[up_index], down_segment.ads[down_index])
+            path = PeerPath.from_values(
+                up_iof, up_hofs, up_peering_hof, up_upstream_hof, down_iof,
+                down_upstream_hof, down_peering_hof, down_hofs)
+        for i in reversed(range(up_index, len(up_segment.ads))):
+            pcbm = up_segment.ads[i].pcbm
+            isd_ad = ISD_AD(pcbm.isd_id, pcbm.ad_id)
+            egress = pcbm.hof.egress_if
+            ingress = pcbm.hof.ingress_if
+            if egress != 0:
+                path.interfaces.append((isd_ad, egress))
+            if i != up_index:
+                path.interfaces.append((isd_ad, ingress))
+        if peer:
+            up_pcbm = up_segment.ads[up_index].pcbm
+            up_isd_ad = ISD_AD(up_pcbm.isd_id, up_pcbm.ad_id)
+            down_pcbm = down_segment.ads[down_index].pcbm
+            down_isd_ad = ISD_AD(down_pcbm.isd_id, down_pcbm.ad_id)
+            path.interfaces.append((up_isd_ad, up_peering_hof.ingress_if))
+            path.interfaces.append((down_isd_ad, down_peering_hof.ingress_if))
+        for i in range(down_index, len(down_segment.ads)):
+            pcbm = down_segment.ads[i].pcbm
+            isd_ad = ISD_AD(pcbm.isd_id, pcbm.ad_id)
+            egress = pcbm.hof.egress_if
+            intress = pcbm.hof.ingress_if
+            if i != down_index:
+                path.interfaces.append((isd_ad, ingress))
+            if egress != 0:
+                path.interfaces.append((isd_ad, egress))
+        return path
+
 
     @classmethod
     def _check_connected(cls, up_segment, core_segment, down_segment):
