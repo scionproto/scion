@@ -23,7 +23,7 @@ import threading
 # SCION
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.hash_chain import HashChain
-from lib.defines import ADDR_IPV4_TYPE, PATH_SERVICE
+from lib.defines import ADDR_IPV4_TYPE, PATH_SERVICE, SCION_UDP_PORT
 from lib.errors import SCIONBaseError, SCIONServiceLookupError
 from lib.packet.path import PathCombinator
 from lib.packet.path_mgmt import (
@@ -220,43 +220,35 @@ class SCIONDaemon(SCIONElement):
             SCIONDaemonPathLookupError: if paths lookup fail
         """
         full_paths = []
+        self._request_paths(PST.UP_DOWN, dst_isd, dst_ad, requester=requester)
         down_segments = self.down_segments(last_isd=dst_isd, last_ad=dst_ad)
-        # Fetch down-paths if necessary.
-        if not down_segments:
-            self._request_paths(PST.UP_DOWN, dst_isd, dst_ad,
-                                requester=requester)
-            down_segments = self.down_segments(last_isd=dst_isd, last_ad=dst_ad)
         if len(self.up_segments) and down_segments:
             full_paths = PathCombinator.build_shortcut_paths(self.up_segments(),
                                                              down_segments)
-            if full_paths:
-                return full_paths
-            else:
-                # No shortcut path could be built. Select an up and down path
-                # and request a set of core-paths connecting them.
-                # For now we just choose the first up-/down-path.
-                # TODO: Atm an application can't choose the up-/down-path to be
-                #       be used. Discuss with Pawel.
-                src_isd = self.topology.isd_id
-                src_core_ad = self.up_segments()[0].get_first_pcbm().ad_id
-                dst_core_ad = down_segments[0].get_first_pcbm().ad_id
-                core_segments = self.core_segments(last_isd=src_isd,
-                                                   last_ad=src_core_ad,
-                                                   first_isd=dst_isd,
-                                                   first_ad=dst_core_ad)
-                if ((src_isd, src_core_ad) != (dst_isd, dst_core_ad) and
-                        not core_segments):
+            src_isd = self.topology.isd_id
+            core_segments = []
+            src_dst_sets = set()
+            for us in self.up_segments():
+                src_core_ad = us.get_first_pcbm().ad_id
+                for ds in down_segments:
+                    dst_core_ad = ds.get_first_pcbm().ad_id
+                    key = (src_isd, src_core_ad, dst_isd, dst_core_ad)
+                    if key in src_dst_sets:
+                        continue
                     self._request_paths(PST.CORE, dst_isd, dst_core_ad,
-                                        src_ad=src_core_ad,
-                                        requester=requester)
-                    core_segments = self.core_segments(last_isd=src_isd,
-                                                       last_ad=src_core_ad,
-                                                       first_isd=dst_isd,
-                                                       first_ad=dst_core_ad)
-                full_paths = PathCombinator.build_core_paths(
-                    self.up_segments()[0],
-                    down_segments[0],
-                    core_segments)
+                                        src_ad=src_core_ad, requester=requester)
+                    cs = self.core_segments(last_isd=src_isd,
+                                            last_ad=src_core_ad,
+                                            first_isd=dst_isd,
+                                            first_ad=dst_core_ad)
+                    src_dst_sets.add(key)
+                    core_segments.extend(cs)
+
+            for us in self.up_segments():
+                for ds in down_segments:
+                    full_paths.extend(PathCombinator.build_core_paths(
+                        us, ds, core_segments))
+
         return full_paths
 
     def handle_path_reply(self, path_reply):
@@ -314,7 +306,7 @@ class SCIONDaemon(SCIONElement):
         Path request:
           | \x00 (1B) | ISD (12bits) |  AD (20bits)  |
         Reply:
-          |path1_len(1B)|path1(path1_len*8B)|first_hop_IP(4B)|path2_len(1B)...
+          |p1_len(1B)|p1((p1_len*8)B)|fh_IP(4B)|fh_port(2B)|p1_mtu(4B)|p1_RTT(4B)|p2_len(1B)...
          or b"" when no path found. Only IPv4 supported currently.
 
         FIXME(kormat): make IP-version independant
@@ -335,8 +327,15 @@ class SCIONDaemon(SCIONElement):
             raw_path = path.pack()
             # assumed IPv4 addr
             haddr = self.ifid2addr[path.get_fwd_if()]
-            path_len = len(raw_path) // 8  # Check whether 8 divides path_len?
-            reply.append(struct.pack("B", path_len) + raw_path + haddr.pack())
+            path_len = len(raw_path) // 8
+            reply.append(struct.pack("B", path_len) + raw_path +
+                         haddr.pack() + struct.pack("H", SCION_UDP_PORT) +
+                         struct.pack("B", len(path.interfaces)))
+            for interface in path.interfaces:
+                (isd_ad, link) = interface
+                isd_ad_bits = (isd_ad.isd << 20) + (isd_ad.ad & 0xFFFFF)
+                reply.append(struct.pack("I", isd_ad_bits))
+                reply.append(struct.pack("B", link))
         self._api_sock.send(b"".join(reply), sender)
 
     def api_handle_request(self, packet, sender):
@@ -354,6 +353,8 @@ class SCIONDaemon(SCIONElement):
                 target=thread_safety_net,
                 args=(self._api_handle_path_request, packet, sender),
                 name="SCIONDaemon", daemon=True).start()
+        elif packet[0] == 1: # address request
+            self._api_sock.send(self.addr.pack(), sender)
         else:
             logging.warning("API: type %d not supported.", packet[0])
 
