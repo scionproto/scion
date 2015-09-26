@@ -79,6 +79,9 @@ def get_paths_via_api(isd, ad):
         hop = haddr_type(data.get(haddr_type.LEN))
         data.pop(len(hop))
         paths_hops.append((path, hop))
+        data.pop(2)
+        interface_count = data.pop(1)
+        data.pop(interface_count * 5)  # interface list unused here
     sock.close()
     return paths_hops
 
