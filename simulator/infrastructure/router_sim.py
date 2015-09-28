@@ -21,7 +21,14 @@ import logging
 # SCION
 from infrastructure.router import Router, IFID_PKT_TOUT
 from lib.defines import SCION_UDP_PORT, EXP_TIME_UNIT
-from lib.packet.scion import IFIDPacket
+from lib.errors import SCIONServiceLookupError
+from lib.packet.path_mgmt import (
+    PathMgmtType as PMT,
+)
+from lib.packet.scion import (
+    IFIDPacket,
+    PacketType as PT,
+)
 from lib.packet.scion_addr import SCIONAddr, ISD_AD
 from lib.util import SCIONTime
 
@@ -118,3 +125,109 @@ class RouterSim(Router):
         else:
             logging.warning("Dropping packet due to expired OF.")
         return False
+
+    def process_ifid_request(self, ifid_packet):
+        """
+        After receiving IFID_PKT from neighboring router it is completed (by
+        iface information) and passed to local BSes.
+        Removing DNS usage.
+
+        :param ifid_packet: the IFID request packet to send.
+        :type ifid_packet: :class:`lib.packet.scion.IFIDPacket`
+        """
+        # Forward 'alive' packet to all BSes (to inform that neighbor is alive).
+        # BS must determine interface.
+        ifid_packet.reply_id = self.interface.if_id
+        try:
+            # Only one BS
+            bs_addr = self.topology.beacon_servers[0].addr
+        except SCIONServiceLookupError as e:
+            logging.error("Unable to deliver ifid packet: %s", e)
+            return
+        self.send(ifid_packet, bs_addr)
+
+    def process_pcb(self, beacon, from_bs):
+        """
+        Depending on scenario: a) send PCB to all beacon servers, or b) to
+        neighboring router.
+        Removing DNS usage.
+
+        :param beacon: The PCB.
+        :type beacon: :class:`lib.packet.pcb.PathConstructionBeacon`
+        :param from_bs: True, if the beacon was received from local BS.
+        :type from_bs: bool
+        """
+        if from_bs:
+            if self.interface.if_id != beacon.pcb.get_last_pcbm().hof.egress_if:
+                logging.error("Wrong interface set by BS.")
+                return
+            self.send(beacon, self.interface.to_addr,
+                      self.interface.to_udp_port, False)
+        else:
+            beacon.pcb.if_id = self.interface.if_id
+            try:
+                bs_addr = self.topology.beacon_servers[0].addr
+            except SCIONServiceLookupError as e:
+                logging.error("Unable to deliver PCB: %s", e)
+                return
+            self.send(beacon, bs_addr)
+
+    def relay_cert_server_packet(self, spkt, from_local_ad):
+        """
+        Relay packets for certificate servers.
+        Removing DNS usage.
+
+        :param spkt: the SCION packet to forward.
+        :type spkt: :class:`lib.packet.scion.SCIONPacket`
+        :param from_local_ad: whether or not the packet is from the local AD.
+        :type from_local_ad: bool
+        """
+        if from_local_ad:
+            addr = self.interface.to_addr
+            port = self.interface.to_udp_port
+        else:
+            try:
+                addr = self.topology.certificate_servers[0].addr
+            except SCIONServiceLookupError as e:
+                logging.error("Unable to deliver cert packet: %s", e)
+                return
+            port = SCION_UDP_PORT
+        self.send(spkt, addr, port)
+
+    def process_path_mgmt_packet(self, mgmt_pkt, from_local_ad):
+        """
+        Process path management packets.
+        Removing DNS usage.
+
+        :param mgmt_pkt: The path mgmt packet.
+        :type mgmt_pkt: :class:`lib.packet.path_mgmt.PathMgmtPacket`
+        :param from_local_ad: whether or not the packet is from the local AD.
+        :type from_local_ad: bool
+        """
+        if mgmt_pkt.type == PMT.IFSTATE_INFO:
+            # handle state update
+            logging.debug("Received IFState update:\n%s",
+                          str(mgmt_pkt.get_payload()))
+            ifstates = mgmt_pkt.get_payload().ifstate_infos
+            for ifstate in ifstates:
+                self.if_states[ifstate.if_id].update(ifstate)
+            return
+        elif mgmt_pkt.type == PMT.REVOCATION:
+            if not from_local_ad:
+                # Forward to local path server if we haven't recently.
+                rev_token = mgmt_pkt.get_payload().rev_token
+                if (self.topology.path_servers and
+                        rev_token not in self.revocations):
+                    logging.debug("Forwarding revocation to local PS.")
+                    logging.debug("Revocation Packet:\n%s", mgmt_pkt)
+                    self.revocations[rev_token] = True
+                    try:
+                        ps = self.topology.path_servers[0].addr
+                        self.send(mgmt_pkt, ps.addr)
+                    except SCIONServiceLookupError:
+                        logging.info("No local PS to forward revocation to.")
+
+        if not from_local_ad and mgmt_pkt.hdr.get_path().is_last_path_hof():
+            self.deliver(mgmt_pkt, PT.PATH_MGMT)
+        else:
+            self.forward_packet(mgmt_pkt, from_local_ad)
