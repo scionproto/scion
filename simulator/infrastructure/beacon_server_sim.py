@@ -24,14 +24,26 @@ from Crypto.Hash import SHA256
 # SCION
 from infrastructure.beacon_server import (
     CoreBeaconServer,
+    InterfaceState,
     LocalBeaconServer
 )
 from lib.crypto.hash_chain import HashChain
 from lib.defines import SCION_UDP_PORT
+from lib.errors import SCIONServiceLookupError
 from lib.packet.opaque_field import (
     HopOpaqueField,
     InfoOpaqueField,
     OpaqueFieldType as OFT,
+)
+from lib.packet.path_mgmt import (
+    IFStateInfo,
+    IFStatePayload,
+    PathMgmtPacket,
+    PathMgmtType as PMT,
+    PathSegmentInfo,
+    PathSegmentRecords,
+    PathSegmentType as PST,
+    RevocationInfo,
 )
 from lib.packet.pcb import (
     ADMarking,
@@ -39,6 +51,7 @@ from lib.packet.pcb import (
     PathConstructionBeacon,
     PathSegment,
 )
+from lib.packet.scion_addr import SCIONAddr, ISD_AD
 from lib.util import SCIONTime
 
 
@@ -151,31 +164,8 @@ class CoreBeaconServerSim(CoreBeaconServer):
         assert isinstance(beacon, PathConstructionBeacon)
         if not self.path_policy.check_filters(beacon.pcb):
             return
-        # segment_id = beacon.pcb.get_hops_hash(hex=True)
-        pcb = beacon.pcb
-        pcbs = []
-        pcbs.append(pcb)
+        pcbs = [beacon.pcb.pack()]
         self.process_pcbs(pcbs)
-
-    def _get_if_rev_token(self, if_id):
-        """
-        Returns the revocation token for a given interface.
-
-        :param if_id: interface identifier.
-        :type if_id: int
-        """
-        ret = None
-        if if_id == 0:
-            ret = 32 * b"\x00"
-        elif if_id not in self.if2rev_tokens:
-            seed = self.config.master_ad_key + bytes("%d" % if_id, 'utf-8')
-            start_ele = SHA256.new(seed).digest()
-            chain = HashChain(start_ele)
-            self.if2rev_tokens[if_id] = chain
-            ret = chain.next_element()
-        else:
-            ret = self.if2rev_tokens[if_id].current_element()
-        return ret
 
     def _check_certs_trc(self, isd_id, ad_id, cert_chain_version, trc_version,
                          if_id):
@@ -257,6 +247,90 @@ class CoreBeaconServerSim(CoreBeaconServer):
 #         self.simulator.add_event(start_time + self.IF_TIMEOUT_INTERVAL - now,
 #                                  cb=self._handle_if_timeouts)
         pass
+
+    def handle_ifid_packet(self, ipkt):
+        """
+        Update the interface state for the corresponding interface.
+
+        :param ipkt: The IFIDPacket.
+        :type ipkt: IFIDPacket
+        """
+        ifid = ipkt.reply_id
+        prev_state = self.ifid_state[ifid].update()
+        if prev_state == InterfaceState.INACTIVE:
+            logging.info("IF %d activated", ifid)
+        elif prev_state in [InterfaceState.TIMED_OUT, InterfaceState.REVOKED]:
+            logging.info("IF %d came back up.", ifid)
+
+        if not prev_state == InterfaceState.ACTIVE:
+            # Inform ERs about the interface coming up.
+            chain = self._get_if_hash_chain(ifid)
+            if chain is None:
+                return
+            state_info = IFStateInfo.from_values(ifid, True,
+                                                 chain.next_element())
+            payload = IFStatePayload.from_values([state_info])
+            isd_ad = ISD_AD(self.topology.isd_id,
+                            self.topology.ad_id)
+            mgmt_packet = PathMgmtPacket.from_values(
+                PMT.IFSTATE_INFO, payload, None, self.addr, isd_ad)
+            for er in self.topology.get_all_edge_routers():
+                if er.interface.if_id != ifid:
+                    self.send(mgmt_packet, er.interface.addr,
+                              er.interface.udp_port)
+
+    def register_core_segment(self, pcb):
+        """
+        Register the core segment contained in 'pcb' with the local core path
+        server.
+        """
+        info = PathSegmentInfo.from_values(PST.CORE,
+                                           pcb.get_first_pcbm().isd_id,
+                                           self.topology.isd_id,
+                                           pcb.get_first_pcbm().ad_id,
+                                           self.topology.ad_id)
+        pcb.remove_signatures()
+        records = PathSegmentRecords.from_values(info, [pcb])
+        # Register core path with local core path server.
+        try:
+            ps_addr = self.topology.path_servers[0].addr
+        except SCIONServiceLookupError:
+            # If there are no local path servers, stop here.
+            return
+        dst = SCIONAddr.from_values(
+            self.topology.isd_id, self.topology.ad_id, ps_addr)
+        pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, None,
+                                         self.addr.get_isd_ad(), dst)
+        self.send(pkt, dst.host_addr)
+
+    def _process_revocation(self, rev_info, if_id):
+        """
+        Removes PCBs containing a revoked interface and sends the revocation
+        to the local PS.
+
+        :param rev_info: The RevocationInfo object
+        :type rev_info: RevocationInfo
+        :param if_id: The if_id to be revoked (set only for if and hop rev)
+        :type if_id: int
+        """
+        assert isinstance(rev_info, RevocationInfo)
+        logging.info("Processing revocation:\n%s", str(rev_info))
+        if not if_id:
+            logging.error("Trying to revoke IF with ID 0.")
+            return
+
+        self._remove_revoked_pcbs(rev_info, if_id)
+        # Send revocations to local PS.
+        if self.topology.path_servers:
+            try:
+                ps_addr = self.topology.path_servers[0].addr
+            except SCIONServiceLookupError:
+                # If there are no local path servers, stop here.
+                return
+            pkt = PathMgmtPacket.from_values(PMT.REVOCATION, rev_info, None,
+                                             self.addr, self.addr.get_isd_ad())
+            logging.info("Sending  revocation to local PS.")
+            self.send(pkt, ps_addr)
 
 
 class LocalBeaconServerSim(LocalBeaconServer):
@@ -353,30 +427,8 @@ class LocalBeaconServerSim(LocalBeaconServer):
         assert isinstance(beacon, PathConstructionBeacon)
         if not self.path_policy.check_filters(beacon.pcb):
             return
-        pcb = beacon.pcb
-        pcbs = []
-        pcbs.append(pcb)
+        pcbs = [beacon.pcb.pack()]
         self.process_pcbs(pcbs)
-
-    def _get_if_rev_token(self, if_id):
-        """
-        Returns the revocation token for a given interface.
-
-        :param if_id: interface identifier.
-        :type if_id: int
-        """
-        ret = None
-        if if_id == 0:
-            ret = 32 * b"\x00"
-        elif if_id not in self.if2rev_tokens:
-            seed = self.config.master_ad_key + bytes("%d" % if_id, 'utf-8')
-            start_ele = SHA256.new(seed).digest()
-            chain = HashChain(start_ele)
-            self.if2rev_tokens[if_id] = chain
-            ret = chain.next_element()
-        else:
-            ret = self.if2rev_tokens[if_id].current_element()
-        return ret
 
     def _check_certs_trc(self, isd_id, ad_id, cert_chain_version, trc_version,
                          if_id):
@@ -458,3 +510,79 @@ class LocalBeaconServerSim(LocalBeaconServer):
 #         self.simulator.add_event(start_time + self.IF_TIMEOUT_INTERVAL - now,
 #                                  cb=self._handle_if_timeouts)
         pass
+
+    def handle_ifid_packet(self, ipkt):
+        """
+        Update the interface state for the corresponding interface.
+
+        :param ipkt: The IFIDPacket.
+        :type ipkt: IFIDPacket
+        """
+        ifid = ipkt.reply_id
+        prev_state = self.ifid_state[ifid].update()
+        if prev_state == InterfaceState.INACTIVE:
+            logging.info("IF %d activated", ifid)
+        elif prev_state in [InterfaceState.TIMED_OUT, InterfaceState.REVOKED]:
+            logging.info("IF %d came back up.", ifid)
+
+        if not prev_state == InterfaceState.ACTIVE:
+            # Inform ERs about the interface coming up.
+            chain = self._get_if_hash_chain(ifid)
+            if chain is None:
+                return
+            state_info = IFStateInfo.from_values(ifid, True,
+                                                 chain.next_element())
+            payload = IFStatePayload.from_values([state_info])
+            isd_ad = ISD_AD(self.topology.isd_id,
+                            self.topology.ad_id)
+            mgmt_packet = PathMgmtPacket.from_values(
+                PMT.IFSTATE_INFO, payload, None, self.addr, isd_ad)
+            for er in self.topology.get_all_edge_routers():
+                if er.interface.if_id != ifid:
+                    self.send(mgmt_packet, er.interface.addr,
+                              er.interface.udp_port)
+
+    def register_up_segment(self, pcb):
+        """
+        Send up-segment to Local Path Servers
+
+        :raises:
+            SCIONServiceLookupError: path server lookup failure
+        """
+        info = PathSegmentInfo.from_values(
+            PST.UP, self.topology.isd_id, self.topology.isd_id,
+            pcb.get_first_pcbm().ad_id, self.topology.ad_id)
+        ps_addr = self.topology.path_servers[0].addr
+        records = PathSegmentRecords.from_values(info, [pcb])
+        pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, None,
+                                         self.addr, self.addr.get_isd_ad())
+        self.send(pkt, ps_addr)
+
+    def _process_revocation(self, rev_info, if_id):
+        """
+        Removes PCBs containing a revoked interface and sends the revocation
+        to the local PS.
+
+        :param rev_info: The RevocationInfo object
+        :type rev_info: RevocationInfo
+        :param if_id: The if_id to be revoked (set only for if and hop rev)
+        :type if_id: int
+        """
+        assert isinstance(rev_info, RevocationInfo)
+        logging.info("Processing revocation:\n%s", str(rev_info))
+        if not if_id:
+            logging.error("Trying to revoke IF with ID 0.")
+            return
+
+        self._remove_revoked_pcbs(rev_info, if_id)
+        # Send revocations to local PS.
+        if self.topology.path_servers:
+            try:
+                ps_addr = self.topology.path_servers[0].addr
+            except SCIONServiceLookupError:
+                # If there are no local path servers, stop here.
+                return
+            pkt = PathMgmtPacket.from_values(PMT.REVOCATION, rev_info, None,
+                                             self.addr, self.addr.get_isd_ad())
+            logging.info("Sending  revocation to local PS.")
+            self.send(pkt, ps_addr)

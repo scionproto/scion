@@ -21,6 +21,7 @@ import struct
 from ipaddress import IPv4Address
 
 # SCION
+from lib.errors import SCIONParseError
 from lib.packet.opaque_field import (
     InfoOpaqueField,
     OpaqueFieldType as OFT,
@@ -112,8 +113,8 @@ class SCIONSimApplication(object):
             elif info.info == 0x00:
                 path = EmptyPath()
             else:
-                logging.info("Can not parse path in packet: Unknown type %x",
-                             info.info)
+                raise SCIONParseError("SCIONHeader: Can not parse path in "
+                                      "packet: Unknown type %x", info.info)
             assert path
             offset += path_len
             hop = IPv4Address(data[offset:offset+4])

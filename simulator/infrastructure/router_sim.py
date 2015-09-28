@@ -20,8 +20,14 @@ import logging
 
 # SCION
 from infrastructure.router import Router, IFID_PKT_TOUT
-from lib.defines import SCION_UDP_PORT, EXP_TIME_UNIT
+from lib.defines import (
+    EXP_TIME_UNIT,
+    L4_UDP,
+    SCION_UDP_PORT,
+    SCION_UDP_EH_DATA_PORT,
+)
 from lib.errors import SCIONServiceLookupError
+from lib.packet.host_addr import ADDR_SVC_TYPE
 from lib.packet.path_mgmt import (
     PathMgmtType as PMT,
 )
@@ -107,7 +113,7 @@ class RouterSim(Router):
     def clean(self):
         pass
 
-    def verify_of(self, hof, prev_hof, ts):
+    def verify_hof(self, path, ingress=True):
         """
         Verify freshness of an opaque field.
         We do not check authentication of the MAC(simulator)
@@ -120,6 +126,8 @@ class RouterSim(Router):
         :param ts: timestamp against which the opaque field is verified.
         :type ts: int
         """
+        ts = path.get_iof().timestamp
+        hof = path.get_hof()
         if int(SCIONTime.get_time()) <= ts + hof.exp_time * EXP_TIME_UNIT:
             return True
         else:
@@ -231,3 +239,42 @@ class RouterSim(Router):
             self.deliver(mgmt_pkt, PT.PATH_MGMT)
         else:
             self.forward_packet(mgmt_pkt, from_local_ad)
+
+    def deliver(self, spkt, ptype):
+        """
+        Forwards the packet to the end destination within the current AD.
+
+        :param spkt: The SCION Packet to forward.
+        :type spkt: :class:`lib.packet.scion.SCIONPacket`
+        :param ptype: The packet type.
+        :type ptype: int
+        """
+        path = spkt.hdr.get_path()
+        curr_hof = path.get_hof()
+        if (not path.is_last_path_hof() or
+                (curr_hof.ingress_if and curr_hof.egress_if)):
+            logging.error("Trying to deliver packet that is not at the " +
+                          "end of a segment:\n%s", spkt.hdr)
+            return
+        # Forward packet to destination.
+        if ptype == PT.PATH_MGMT:
+            # FIXME(PSz): that should be changed when replies are send as
+            # standard data packets.
+            if spkt.hdr.dst_addr.host_addr.TYPE == ADDR_SVC_TYPE:
+                # Send request to any path server.
+                try:
+                    addr = self.topology.path_servers[0].addr
+                except SCIONServiceLookupError as e:
+                    logging.error("Unable to deliver path mgmt packet: %s", e)
+                    return
+            else:  # A response to given path server
+                addr = spkt.hdr.dst_addr.host_addr
+            port = SCION_UDP_PORT
+        elif spkt.hdr.l4_proto == L4_UDP:
+            upkt = spkt.get_payload()
+            addr = spkt.hdr.dst_addr.host_addr
+            port = upkt.dst_port
+        else:
+            addr = spkt.hdr.dst_addr.host_addr
+            port = SCION_UDP_EH_DATA_PORT
+        self.send(spkt, addr, port)

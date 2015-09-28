@@ -134,7 +134,7 @@ class SCIONSimHost(SCIONDaemon):
         """
         full_paths = []
         if src_core_ad is None and dst_core_ad is None:
-            down_segments = self.down_segments(dst_isd=dst_isd, dst_ad=dst_ad)
+            down_segments = self.down_segments(last_isd=dst_isd, last_ad=dst_ad)
             if len(self.up_segments) and down_segments:
                 full_paths = PathCombinator.build_shortcut_paths(
                     self.up_segments(), down_segments)
@@ -142,10 +142,10 @@ class SCIONSimHost(SCIONDaemon):
                 return full_paths
         if src_core_ad is None or dst_core_ad is None:
             return None
-        core_segments = self.core_segments(src_isd=src_isd,
-                                           src_ad=src_core_ad,
-                                           dst_isd=dst_isd,
-                                           dst_ad=dst_core_ad)
+        core_segments = self.core_segments(last_isd=src_isd,
+                                           last_ad=src_core_ad,
+                                           first_isd=dst_isd,
+                                           first_ad=dst_core_ad)
         logging.debug("(%d, %d)->(%d, %d)", src_isd, src_ad, dst_isd, dst_ad)
         if core_segments:
             up_segment = []
@@ -186,8 +186,8 @@ class SCIONSimHost(SCIONDaemon):
                 if info.type == PST.UP_DOWN:
                     full_paths = self._get_full_paths(src_isd, src_ad,
                                                       dst_isd, dst_ad)
-                    down_segments = self.down_segments(dst_isd=dst_isd,
-                                                       dst_ad=dst_ad)
+                    down_segments = self.down_segments(last_isd=dst_isd,
+                                                       last_ad=dst_ad)
                     if self.up_segments and down_segments:
                         self.simulator.remove_event(eid)
                         self._waiting_targets[info.type][dst_isd_ad]\
@@ -210,10 +210,10 @@ class SCIONSimHost(SCIONDaemon):
                     full_paths = self._get_full_paths(src_isd, src_ad,
                                                       dst_isd, dst_ad,
                                                       src_core_ad, dst_core_ad)
-                    if self.core_segments(src_isd=src_isd,
-                                          src_ad=src_core_ad,
-                                          dst_isd=dst_isd,
-                                          dst_ad=dst_core_ad):
+                    if self.core_segments(last_isd=src_isd,
+                                          last_ad=src_core_ad,
+                                          first_isd=dst_isd,
+                                          first_ad=dst_core_ad):
                         self.simulator.remove_event(eid)
                         self._waiting_targets[info.type][dst_isd_ad]\
                             .remove(event)
@@ -225,7 +225,7 @@ class SCIONSimHost(SCIONDaemon):
                         continue
                 elif ((info.type == PST.UP and self.up_segments) or
                       (info.type == PST.DOWN and
-                       self.down_segments(dst_isd=dst_isd, dst_ad=dst_ad))):
+                       self.down_segments(last_isd=dst_isd, last_ad=dst_ad))):
                     full_paths = self._get_full_paths(src_isd, src_ad,
                                                       dst_isd, dst_ad)
                     self.simulator.remove_event(eid)
@@ -245,11 +245,10 @@ class SCIONSimHost(SCIONDaemon):
         reply = []
         for path in paths:
             raw_path = path.pack()
-            # assumed: up-path nad IPv4 addr
-            hop = self.ifid2addr[path.get_first_hop_of().ingress_if]
+            # assumed IPv4 addr
+            haddr = self.ifid2addr[path.get_fwd_if()]
             path_len = len(raw_path) // 8  # Check whether 8 divides path_len?
-            reply.append(struct.pack("B", path_len) + raw_path + hop.packed)
-
+            reply.append(struct.pack("B", path_len) + raw_path + haddr.pack())
         _, _, _, path_cb = self.apps[requester[1]]
         path_cb(b"".join(reply))
 

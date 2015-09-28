@@ -66,7 +66,7 @@ class SimPingApp(SCIONSimApplication):
         :type packet: bytes
         :param sender: The sender of the packet
         """
-        if SCIONPacket(packet).payload == b"pong":
+        if SCIONPacket(packet).get_payload() == b"pong":
             logging.info('%s: pong received', self.addr)
             self.pong_received = True
             self.simulator.terminate()
@@ -92,7 +92,7 @@ class SimPingApp(SCIONSimApplication):
         spkt = SCIONPacket.from_values(src=self._addr, dst=dst,
                                        payload=b"ping", path=path)
         (next_hop, port) = self.host.get_first_hop(spkt)
-        assert next_hop == hop
+        # assert next_hop == hop
 
         logging.info("Sending packet: %s\nFirst hop: %s:%s",
                      spkt, next_hop, port)
@@ -130,11 +130,11 @@ class SimPongApp(SCIONSimApplication):
         :param sender: The sender of the packet
         """
         spkt = SCIONPacket(packet)
-        if spkt.payload == b"ping":
+        if spkt.get_payload() == b"ping":
             # Reverse the packet and send "pong"
             logging.info('%s: ping received, sending pong.', self.addr)
             self.ping_received = True
             spkt.hdr.reverse()
-            spkt.payload = b"pong"
+            spkt.set_payload(b"pong")
             (next_hop, port) = self.host.get_first_hop(spkt)
             self.host.send(spkt, next_hop, port)
