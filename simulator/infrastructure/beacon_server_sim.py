@@ -299,7 +299,7 @@ class CoreBeaconServerSim(CoreBeaconServer):
             return
         dst = SCIONAddr.from_values(
             self.topology.isd_id, self.topology.ad_id, ps_addr)
-        pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, None,
+        pkt = PathMgmtPacket.from_values(PMT.REG, records, None,
                                          self.addr.get_isd_ad(), dst)
         self.send(pkt, dst.host_addr)
 
@@ -554,7 +554,7 @@ class LocalBeaconServerSim(LocalBeaconServer):
             pcb.get_first_pcbm().ad_id, self.topology.ad_id)
         ps_addr = self.topology.path_servers[0].addr
         records = PathSegmentRecords.from_values(info, [pcb])
-        pkt = PathMgmtPacket.from_values(PMT.RECORDS, records, None,
+        pkt = PathMgmtPacket.from_values(PMT.REG, records, None,
                                          self.addr, self.addr.get_isd_ad())
         self.send(pkt, ps_addr)
 
