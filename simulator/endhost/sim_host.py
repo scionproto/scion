@@ -203,7 +203,7 @@ class SCIONSimHost(SCIONDaemon):
                         self._request_paths(PST.CORE, dst_isd, dst_core_ad,
                                             src_ad=src_core_ad,
                                             requester=requester)
-                    continue
+                        continue
                 elif info.type == PST.CORE:
                     src_core_ad = info.src_ad
                     dst_core_ad = info.dst_ad
