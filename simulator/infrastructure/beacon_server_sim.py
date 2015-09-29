@@ -332,6 +332,24 @@ class CoreBeaconServerSim(CoreBeaconServer):
             logging.info("Sending  revocation to local PS.")
             self.send(pkt, ps_addr)
 
+    def _sign_beacon(self, pcb):
+        """
+        Sign a beacon. Signature is appended to the last ADMarking.
+        Removing signatures since it is simulation
+
+        :param pcb: beacon to sign.
+        :type pcb: PathSegment
+        """
+        # if_id field is excluded from signature as it is changed by ingress ERs
+        if pcb.ads[-1].sig:
+            logging.warning("PCB already signed.")
+            return
+        (pcb.if_id, tmp_if_id) = (0, pcb.if_id)
+        signature = b""
+        pcb.ads[-1].sig = signature
+        pcb.ads[-1].sig_len = len(signature)
+        pcb.if_id = tmp_if_id
+
 
 class LocalBeaconServerSim(LocalBeaconServer):
     """
@@ -586,3 +604,21 @@ class LocalBeaconServerSim(LocalBeaconServer):
                                              self.addr, self.addr.get_isd_ad())
             logging.info("Sending  revocation to local PS.")
             self.send(pkt, ps_addr)
+
+    def _sign_beacon(self, pcb):
+        """
+        Sign a beacon. Signature is appended to the last ADMarking.
+        Removing signatures since it is simulation
+
+        :param pcb: beacon to sign.
+        :type pcb: PathSegment
+        """
+        # if_id field is excluded from signature as it is changed by ingress ERs
+        if pcb.ads[-1].sig:
+            logging.warning("PCB already signed.")
+            return
+        (pcb.if_id, tmp_if_id) = (0, pcb.if_id)
+        signature = b""
+        pcb.ads[-1].sig = signature
+        pcb.ads[-1].sig_len = len(signature)
+        pcb.if_id = tmp_if_id
