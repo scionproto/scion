@@ -17,6 +17,7 @@
 """
 # Stdlib
 import struct
+import time
 from abc import ABCMeta, abstractmethod
 from binascii import hexlify
 
@@ -269,9 +270,9 @@ class InfoOpaqueField(OpaqueField):
         return data
 
     def __str__(self):
-        return "[Info OF info: %s, up: %r, TS: %d, ISD ID: %d, hops: %d]" % (
+        return "[Info OF info: %s, up: %r, TS: %s, ISD ID: %d, hops: %d]" % (
             OpaqueFieldType.to_str(self.info), self.up_flag,
-            self.timestamp, self.isd_id, self.hops)
+            time.ctime(self.timestamp), self.isd_id, self.hops)
 
     def __eq__(self, other):
         if type(other) is type(self):

@@ -16,11 +16,12 @@
 ========================================================================
 """
 # Stdlib
-from collections import defaultdict, deque
+import copy
 import heapq
 import json
 import logging
 import math
+from collections import defaultdict, deque
 
 # SCION
 from lib.packet.pcb import PathSegment
@@ -77,8 +78,10 @@ class PathPolicy(object):
         if not self._check_unwanted_ads(pcb):
             logging.warning("PathStore: pcb discarded (unwanted AD).")
             return False
-        if not self._check_property_ranges(pcb):
-            logging.warning("PathStore: pcb discarded (property range).")
+        reasons = self._check_property_ranges(pcb)
+        if reasons:
+            logging.warning("PathStore: pcb discarded: %s. %s",
+                            ", ".join(reasons), pcb.get_hops_hash(hex=True))
             return False
         return True
 
@@ -102,32 +105,22 @@ class PathPolicy(object):
         :param pcb: beacon to analyze.
         :type pcb: :class:`PathSegment`
         """
-        check = True
-        if self.property_ranges['PeerLinks']:
-            check = (check and (self.property_ranges['PeerLinks'][0]
-                                <= pcb.get_n_peer_links() <=
-                                self.property_ranges['PeerLinks'][1]))
-        if self.property_ranges['HopsLength']:
-            check = (check and (self.property_ranges['HopsLength'][0]
-                                <= pcb.get_n_hops() <=
-                                self.property_ranges['HopsLength'][1]))
-        if self.property_ranges['DelayTime']:
-            check = (check and (self.property_ranges['DelayTime'][0] <=
-                                int(SCIONTime.get_time()) - pcb.get_timestamp()
-                                <= self.property_ranges['DelayTime'][1]))
-        if self.property_ranges['GuaranteedBandwidth']:
-            check = (check and (self.property_ranges['GuaranteedBandwidth'][0]
-                                <= 10 <=
-                                self.property_ranges['GuaranteedBandwidth'][1]))
-        if self.property_ranges['AvailableBandwidth']:
-            check = (check and (self.property_ranges['AvailableBandwidth'][0]
-                                <= 10 <=
-                                self.property_ranges['AvailableBandwidth'][1]))
-        if self.property_ranges['TotalBandwidth']:
-            check = (check and (self.property_ranges['TotalBandwidth'][0]
-                                <= 10 <=
-                                self.property_ranges['TotalBandwidth'][1]))
-        return check
+        def _check_range(name, actual):
+            range_ = self.property_ranges[name]
+            if not range_:
+                return
+            if (actual < range_[0] or actual > range_[1]):
+                reasons.append("%s: %d <= %d <= %d" % (
+                    name, range_[0], actual, range_[1]))
+        reasons = []
+        _check_range("PeerLinks", pcb.get_n_peer_links())
+        _check_range("HopsLength", pcb.get_n_hops())
+        _check_range("DelayTime",
+                     int(SCIONTime.get_time()) - pcb.get_timestamp())
+        _check_range("GuaranteedBandwidth", 10)
+        _check_range("AvailableBandwidth", 10)
+        _check_range("TotalBandwidth", 10)
+        return reasons
 
     @classmethod
     def from_file(cls, policy_file):
@@ -348,14 +341,19 @@ class PathStore(object):
         :type pcb: PathSegment
         """
         assert isinstance(pcb, PathSegment)
+        pcb_hash = pcb.get_hops_hash(hex=True)
         if not self.path_policy.check_filters(pcb):
+            logging.debug("add_segment rejecting %s", pcb_hash)
             return
         for candidate in self.candidates:
-            if candidate.id == pcb.segment_id:
+            if candidate.id == pcb_hash:
+                logging.debug("add_segment updating %s", pcb_hash)
                 now = int(SCIONTime.get_time())
-                candidate.delay = now - pcb.get_timestamp()
+                candidate.pcb = copy.deepcopy(pcb)
+                candidate.delay_time = now - pcb.get_timestamp()
                 candidate.last_seen_time = now
                 return
+        logging.debug("add_segment adding %s", pcb_hash)
         record = PathStoreRecord(pcb)
         self.candidates.append(record)
         self._trim_candidates()
