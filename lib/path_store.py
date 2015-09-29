@@ -81,7 +81,7 @@ class PathPolicy(object):
         reasons = self._check_property_ranges(pcb)
         if reasons:
             logging.warning("PathStore: pcb discarded: %s. %s",
-                            ", ".join(reasons), pcb.get_hops_hash(hex=True))
+                            ", ".join(reasons), pcb.short_desc())
             return False
         return True
 
@@ -227,20 +227,33 @@ class PathStoreRecord(object):
         :type pcb: :class:`PathSegment`
         """
         assert isinstance(pcb, PathSegment)
-        now = int(SCIONTime.get_time())
-        self.pcb = pcb
         self.id = pcb.get_hops_hash(hex=True)
         self.peer_links = pcb.get_n_peer_links()
         self.hops_length = pcb.get_n_hops()
-        self.delay_time = now - pcb.get_timestamp()
         self.fidelity = 0
         self.disjointness = 0
-        self.last_sent_time = now - self.DEFAULT_OFFSET
-        self.last_seen_time = now
-        self.expiration_time = pcb.get_expiration_time()
+        self.last_sent_time = int(SCIONTime.get_time()) - self.DEFAULT_OFFSET
         self.guaranteed_bandwidth = 0
         self.available_bandwidth = 0
         self.total_bandwidth = 0
+        self.update(pcb)
+
+    def update(self, pcb):
+        """
+        Update a candidate entry from a recent PCB.
+        """
+        assert self.id == pcb.get_hops_hash(hex=True)
+        now = int(SCIONTime.get_time())
+        self.pcb = copy.deepcopy(pcb)
+        self.delay_time = now - pcb.get_timestamp()
+        self.last_seen_time = now
+        self.expiration_time = pcb.get_expiration_time()
+
+    def sending(self):  # pragma: no cover
+        """
+        Update last_sent_time to now.
+        """
+        self.last_sent_time = int(SCIONTime.get_time())
 
     def update_fidelity(self, path_policy):
         """
@@ -343,17 +356,11 @@ class PathStore(object):
         assert isinstance(pcb, PathSegment)
         pcb_hash = pcb.get_hops_hash(hex=True)
         if not self.path_policy.check_filters(pcb):
-            logging.debug("add_segment rejecting %s", pcb_hash)
             return
         for candidate in self.candidates:
             if candidate.id == pcb_hash:
-                logging.debug("add_segment updating %s", pcb_hash)
-                now = int(SCIONTime.get_time())
-                candidate.pcb = copy.deepcopy(pcb)
-                candidate.delay_time = now - pcb.get_timestamp()
-                candidate.last_seen_time = now
+                candidate.update(pcb)
                 return
-        logging.debug("add_segment adding %s", pcb_hash)
         record = PathStoreRecord(pcb)
         self.candidates.append(record)
         self._trim_candidates()
@@ -440,7 +447,7 @@ class PathStore(object):
         for candidate in self.candidates:
             candidate.update_fidelity(self.path_policy)
 
-    def get_best_segments(self, k=None):
+    def get_best_segments(self, k=None, sending=True):
         """
         Return the k best paths from the temporary buffer.
 
@@ -459,8 +466,12 @@ class PathStore(object):
             k = self.path_policy.best_set_size
         self._remove_expired_segments()
         self._update_all_fidelity()
-        return [x.pcb for x in heapq.nlargest(k, self.candidates,
-                                              key=lambda y: y.fidelity)]
+        best_candidates = heapq.nlargest(k, self.candidates,
+                                         key=lambda y: y.fidelity)
+        if sending:
+            for candidate in best_candidates:
+                candidate.sending()
+        return [x.pcb for x in best_candidates]
 
     def get_latest_history_snapshot(self, k=None):
         """
