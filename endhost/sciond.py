@@ -235,6 +235,8 @@ class SCIONDaemon(SCIONElement):
                     key = (src_isd, src_core_ad, dst_isd, dst_core_ad)
                     if key in src_dst_sets:
                         continue
+                    if (src_isd, src_core_ad) == (dst_isd, dst_core_ad):
+                        continue
                     self._request_paths(PST.CORE, dst_isd, dst_core_ad,
                                         src_ad=src_core_ad, requester=requester)
                     cs = self.core_segments(last_isd=src_isd,
