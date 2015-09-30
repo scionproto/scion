@@ -185,7 +185,7 @@ class Simulator(object):
         no event is scheduled or if stop time is reached.
         """
         for k in self.element_list:
-            self.element_list[k].run()
+            self.start_element(k)
 
         while not self.event_pq.empty():
             event = self.event_pq.get()
@@ -196,6 +196,24 @@ class Simulator(object):
                 self.curr_time = event_time
                 event.run()
         self.clean()
+
+    def stop_element(self, addr):
+        """
+        Stop the element with address addr
+
+        :param addr: The address corresponding to element
+        :type addr: str
+        """
+        self.element_list[addr].stop()
+
+    def start_element(self, addr):
+        """
+        Start the element with address addr
+
+        :param addr: The address corresponding to element
+        :type addr: str
+        """
+        self.element_list[addr].run()
 
     def terminate(self):
         """

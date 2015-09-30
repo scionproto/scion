@@ -47,7 +47,6 @@ def init_simulator():
     :rtype: Simulator
     """
     simulator = Simulator()
-    read_sim_file()
     data = read_sim_file()
     init_elements(data, simulator)
     return simulator

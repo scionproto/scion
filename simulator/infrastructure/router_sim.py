@@ -62,6 +62,8 @@ class RouterSim(Router):
         self.simulator = simulator
         simulator.add_element(str(self.addr.host_addr), self)
         simulator.add_element(str(self.interface.addr), self)
+        self.eid_1 = None
+        self.eid_2 = None
 
     def send(self, packet, addr, port=SCION_UDP_PORT, use_local_socket=True):
         """
@@ -91,8 +93,18 @@ class RouterSim(Router):
         self.handle_request(packet, src, to_local)
 
     def run(self):
-        self.simulator.add_event(0., cb=self.sync_interface)
-        self.simulator.add_event(0., cb=self.request_ifstates)
+        """
+        Run the router.
+        """
+        self.eid_1 = self.simulator.add_event(0., cb=self.sync_interface)
+        self.eid_2 = self.simulator.add_event(0., cb=self.request_ifstates)
+
+    def stop(self):
+        """
+        Remove all events of this router from simulator queue.
+        """
+        self.simulator.remove_event(self.eid_1)
+        self.simulator.remove_event(self.eid_2)
 
     def sync_interface(self):
         """
