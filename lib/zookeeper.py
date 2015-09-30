@@ -20,9 +20,9 @@ import logging
 import os.path
 import queue
 import threading
+from collections import deque
 
 # External packages
-from external.expiring_dict import ExpiringDict
 from kazoo.client import KazooClient, KazooRetry, KazooState
 from kazoo.exceptions import (
     ConnectionLoss,
@@ -532,24 +532,23 @@ class ZkSharedCache(object):
     """
     Class for handling ZK shared caches.
     """
-    METADATA_CACHE_SIZE = 100
 
-    def __init__(self, zk, path, handler, max_age):
+    def __init__(self, zk, path, handler):
         """
         :param Zookeeper zk: A Zookeeper instance.
         :param str path: The path of the shared cache.
         :param function handler: Handler for a list of cache entries.
-        :param float max_age: How long (in seconds) to cache entry metadata for.
         """
         self._zk = zk
         self._kazoo = zk.kazoo
         self._path = os.path.join(self._zk.prefix, path)
         self._handler = handler
-        self._latest_entry = 0
-        self._epoch = 0
-        self._max_age = max_age
-        self._meta = ExpiringDict(max_len=self.METADATA_CACHE_SIZE,
-                                  max_age_seconds=self._max_age)
+        # A mapping from entry name to the timestamp it was first encountered
+        # at.
+        self._entries = {}
+        # A queue for the store() thread to inform the process()/expire() thread
+        # about newly created entries.
+        self._incoming_entries = deque()
 
     def store(self, name, value):
         """
@@ -565,14 +564,18 @@ class ZkSharedCache(object):
         full_path = os.path.join(self._path, name)
         # First, assume the entry already exists (the normal case)
         try:
-            return self._kazoo.set(full_path, value)
+            self._kazoo.set(full_path, value)
+            self._incoming_entries.append((name, SCIONTime.get_time()))
+            return
         except NoNodeError:
             pass
         except (ConnectionLoss, SessionExpiredError):
             raise ZkNoConnection from None
         # Entry doesn't exist, so create it instead.
         try:
-            return self._kazoo.create(full_path, value, makepath=True)
+            self._kazoo.create(full_path, value, makepath=True)
+            self._incoming_entries.append((name, SCIONTime.get_time()))
+            return
         except NodeExistsError:
             # Entry was created between our check and our create, so assume that
             # the contents are recent, and return without error.
@@ -589,15 +592,19 @@ class ZkSharedCache(object):
         """
         if not self._zk.is_connected():
             raise ZkNoConnection
-        curr_epoch = self._zk.conn_epoch
-        if self._epoch != curr_epoch:
-            # Make sure we re-read the entire cache
-            self._latest_entry = 0
-            self._epoch = curr_epoch
-        updated = self._find_updated()
-        count = self._handle_entries(updated)
+        # Update self._entries with any new entries we have created via store()
+        while self._incoming_entries:
+            name, ts = self._incoming_entries.popleft()
+            # If the entry already exists, don't change it.
+            self._entries.setdefault(name, ts)
+        previous = set(self._entries)
+        current = set(self._list_entries())
+        for entry in previous - current:
+            # Remove stale entry names
+            del self._entries[entry]
+        count = self._handle_entries(current - previous)
         if count:
-            logging.debug("Processed %d new/updated entries from %s", count,
+            logging.debug("Processed %d new entries from %s", count,
                           self._path)
 
     def _get(self, name):
@@ -613,88 +620,39 @@ class ZkSharedCache(object):
         """
         full_path = os.path.join(self._path, name)
         try:
-            data, meta = self._kazoo.get(full_path)
+            data, _ = self._kazoo.get(full_path)
         except (ConnectionLoss, SessionExpiredError):
             raise ZkNoConnection from None
         except NoNodeError:
-            self._meta.pop(name, None)
+            self._entries.pop(name, None)
             raise ZkNoNodeError from None
-        self._meta[name] = meta
+        self._entries.setdefault(name, SCIONTime.get_time())
         return data
 
-    def _stat(self, name):
+    def _list_entries(self):
         """
-        Read the metadata of an entry.
+        List all entries.
 
-        :param str name: The name of the entry. E.g. ``"node01"``
-        :returns: The node metdata.
-        :rtype: :class:`ZnodeStat`
-        :raises:
-            ZkNoConnection: if there's no connection to ZK.
-            ZkNoNodeError: if node doesn't exist.
-        """
-        full_path = os.path.join(self._path, name)
-        try:
-            meta = self._kazoo.exists(full_path)
-        except (ConnectionLoss, SessionExpiredError):
-            raise ZkNoConnection from None
-        if meta is None:
-            self._meta.pop(name, None)
-            raise ZkNoNodeError
-        self._meta[name] = meta
-        return meta
-
-    def _list_metadata(self):
-        """
-        List all entries, with their relevant metadata.
-
-        :return: A list of (name, metadata) for each entry.
-        :rtype: [(:class:`bytes`, :class:`ZnodeStat`),...]
+        :return: A set of entry names.
+        :rtype: set(:class:`str`, ..)
         :raises:
             ZkNoConnection: if there's no connection to ZK.
         """
         try:
-            entries = self._kazoo.get_children(self._path)
+            return set(self._kazoo.get_children(self._path))
         except (ConnectionLoss, SessionExpiredError):
             raise ZkNoConnection from None
         except NoNodeError:
             # This means the cache dir hasn't been created yet by store(),
-            # so just return an empty list.
-            return []
-        entries_meta = []
-        for name in entries:
-            meta = self._meta.get(name)
-            if meta is None:
-                try:
-                    meta = self._stat(name)
-                except ZkNoNodeError:
-                    continue
-            entries_meta.append((name, meta))
-        return entries_meta
-
-    def _find_updated(self):
-        """
-        Find new/updated entries.
-
-        :returns: List of entry names.
-        """
-        entries_meta = self._list_metadata()
-        updated = []
-        newest = self._latest_entry
-        for name, meta in entries_meta:
-            if meta.last_modified > self._latest_entry:
-                updated.append(name)
-            if meta.last_modified > newest:
-                newest = meta.last_modified
-        self._latest_entry = newest
-        return updated
+            # so just return an empty set.
+            return set()
 
     def _handle_entries(self, entry_names):
         """
-        Retrieve the data for a list of entries, and pass it to the registered
+        Retrieve the data for a set of entries, and pass it to the registered
         handler.
 
-        :param list entry_names: Entry names.
+        :param set entry_names: Entry names.
         :returns: Number of entries passed to handler.
         """
         data = []
@@ -714,9 +672,7 @@ class ZkSharedCache(object):
 
     def expire(self, ttl):
         """
-        Delete entries that haven't been modified in the last `ttl` seconds.
-        `ttl` must be chosen to be greater than the `max_age` passed to the
-        constructor.
+        Delete entries first seen more than `ttl` seconds ago.
 
         :param float ttl:
             Age (in seconds) after which cache entries should be removed.
@@ -726,15 +682,12 @@ class ZkSharedCache(object):
         """
         if not self._zk.is_connected():
             raise ZkNoConnection
-        assert ttl > self._max_age
         now = SCIONTime.get_time()
-        entries_meta = self._list_metadata()
         count = 0
-        for entry, meta in entries_meta:
-            if (now - meta.last_modified) > ttl:
+        for entry, ts in self._entries.items():
+            if now - ts > ttl:
                 full_path = os.path.join(self._path, entry)
                 count += 1
-                self._meta.pop(entry, None)
                 try:
                     self._kazoo.delete(full_path)
                 except NoNodeError:
