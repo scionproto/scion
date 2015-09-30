@@ -297,12 +297,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 self.topology.isd_id, self.topology.ad_id, BEACON_SERVICE,
                 name_addrs, self.topology.zookeepers)
             self.zk.retry("Joining party", self.zk.party_setup)
+            self.incoming_pcbs = deque()
             self.pcb_cache = ZkSharedCache(
-                self.zk, self.ZK_PCB_CACHE_PATH, self.process_pcbs,
-                self.config.propagation_time)
+                self.zk, self.ZK_PCB_CACHE_PATH, self.process_pcbs)
             self.revobjs_cache = ZkSharedCache(
-                self.zk, self.ZK_REVOCATIONS_PATH, self.process_rev_objects,
-                self.ZK_REV_OBJ_MAX_AGE)
+                self.zk, self.ZK_REVOCATIONS_PATH, self.process_rev_objects)
 
     def _init_hash_chain(self, if_id):
         """
@@ -381,7 +380,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         raise NotImplementedError
 
-    def store_pcb(self, pkt):
+    def handle_pcb(self, pkt):
         """
         Receives beacon and stores it for processing.
 
@@ -391,19 +390,28 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         pcb = pkt.get_payload()
         if not self.path_policy.check_filters(pcb):
             return
-        hops_hash = pcb.get_hops_hash(hex=True)
+        self.incoming_pcbs.append(pcb)
+        entry_name = "%s-%s" % (pcb.get_hops_hash(hex=True),
+                                SCIONTime.get_time())
         try:
-            self.pcb_cache.store(hops_hash, pcb.pack())
+            self.pcb_cache.store(entry_name, pcb.pack())
         except ZkNoConnection:
             logging.error("Unable to store PCB in shared cache: "
                           "no connection to ZK")
 
     @abstractmethod
-    def process_pcbs(self, pcbs):
+    def process_pcbs(self, pcbs, raw=True):
         """
         Processes new beacons and appends them to beacon list.
         """
         raise NotImplementedError
+
+    def process_pcb_queue(self):
+        pcbs = []
+        while self.incoming_pcbs:
+            pcbs.append(self.incoming_pcbs.popleft())
+        self.process_pcbs(pcbs, raw=False)
+        logging.debug("Processed %d pcbs from incoming queue", len(pcbs))
 
     @abstractmethod
     def register_segments(self):
@@ -524,7 +532,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         Main routine to handle incoming SCION packets.
         """
         class_map = {
-            PayloadClass.PCB: self.store_pcb,
+            PayloadClass.PCB: self.handle_pcb,
             PayloadClass.IFID: self.handle_ifid_packet,
             PayloadClass.CERT: self.handle_certmgmt_packet,
             PayloadClass.PATH: self.handle_path_mgmt_packet,
@@ -571,6 +579,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             sleep_interval(start, worker_cycle, "BS.worker cycle")
             start = SCIONTime.get_time()
             try:
+                self.process_pcb_queue()
                 self.zk.wait_connected()
                 self.pcb_cache.process()
                 self.revobjs_cache.process()
@@ -824,8 +833,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         logging.info("Storing revocation in ZK.")
         rev_obj = RevocationObject.from_values(if_id, chain.current_index(),
                                                chain.next_element())
-        self.revobjs_cache.store(chain.start_element(hex_=True),
-                                 rev_obj.pack())
+        entry_name = "%s:%s" % (chain.start_element(hex_=True),
+                                chain.next_element(hex_=True))
+        self.revobjs_cache.store(entry_name, rev_obj.pack())
         logging.info("Issuing revocation for IF %d.", if_id)
         # Issue revocation to all ERs.
         info = IFStateInfo.from_values(if_id, False, chain.next_element())
@@ -1089,13 +1099,14 @@ class CoreBeaconServer(BeaconServer):
         pkt = self._build_packet(ps_addr, payload=records)
         self.send(pkt, ps_addr)
 
-    def process_pcbs(self, pcbs):
+    def process_pcbs(self, pcbs, raw=True):
         """
         Process new beacons and appends them to beacon list.
         """
         count = 0
-        for raw_pcb in pcbs:
-            pcb = PathSegment(raw_pcb)
+        for pcb in pcbs:
+            if raw:
+                pcb = PathSegment(pcb)
             # Before we append the PCB for further processing we need to check
             # that it hasn't been received before.
             for ad in pcb.ads:
@@ -1319,12 +1330,13 @@ class LocalBeaconServer(BeaconServer):
         self.register_up_segments()
         self.register_down_segments()
 
-    def process_pcbs(self, pcbs):
+    def process_pcbs(self, pcbs, raw=True):
         """
         Process new beacons and appends them to beacon list.
         """
-        for raw_pcb in pcbs:
-            pcb = PathSegment(raw_pcb)
+        for pcb in pcbs:
+            if raw:
+                pcb = PathSegment(pcb)
             if self.path_policy.check_filters(pcb):
                 self._try_to_verify_beacon(pcb)
 
