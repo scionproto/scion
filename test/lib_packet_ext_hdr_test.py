@@ -16,7 +16,7 @@
 ================================================================
 """
 # Stdlib
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 # External packages
 import nose
@@ -26,89 +26,101 @@ import nose.tools as ntools
 from lib.packet.ext_hdr import (
     ExtensionHeader,
 )
+from test.testcommon import create_mock
+
+
+# To allow testing of ExtensionHeader, despite it having abstract methods.
+class ExtensionHeaderTesting(ExtensionHeader):
+    def from_values(cls):
+        raise NotImplementedError
+
+    def pack(self):
+        raise NotImplementedError
 
 
 class TestExtensionHeaderInit(object):
     """
     Unit tests for lib.packet.ext_hdr.ExtensionHeader.__init__
     """
+    @patch("lib.packet.scion.ExtensionHeader._parse", autospec=True)
     @patch("lib.packet.scion.HeaderBase.__init__", autospec=True)
-    def test_basic(self, hdr_init):
-        ext_hdr = ExtensionHeader()
-        hdr_init.assert_called_once_with(ext_hdr)
-        ntools.eq_(ext_hdr.next_hdr, 0)
-        ntools.eq_(ext_hdr._hdr_len, 0)
-        ntools.eq_(ext_hdr.payload, b"\x00" * 5)
+    def test_basic(self, super_init, parse):
+        inst = ExtensionHeaderTesting()
+        # Tests
+        super_init.assert_called_once_with(inst)
+        ntools.eq_(inst._hdr_len, 0)
+        ntools.assert_false(parse.called)
 
+    @patch("lib.packet.scion.ExtensionHeader._parse", autospec=True)
     @patch("lib.packet.scion.HeaderBase.__init__", autospec=True)
-    @patch("lib.packet.ext_hdr.ExtensionHeader.parse", autospec=True)
-    def test_raw(self, parse, hdr_init):
-        ext_hdr = ExtensionHeader("data")
-        parse.assert_called_once_with(ext_hdr, "data")
-        hdr_init.assert_called_once_with(ext_hdr)
+    def test_raw(self, super_init, parse):
+        inst = ExtensionHeaderTesting("data")
+        # Tests
+        parse.assert_called_once_with(inst, "data")
 
 
 class TestExtensionHeaderParse(object):
     """
-    Unit tests for lib.packet.ext_hdr.ExtensionHeader.parse
+    Unit tests for lib.packet.ext_hdr.ExtensionHeader._parse
     """
     @patch("lib.packet.ext_hdr.Raw", autospec=True)
     def test_basic(self, raw):
-        """
-
-        """
-        # Setup
-        ext_hdr = ExtensionHeader()
-        ext_hdr.EXT_TYPE = 11
-        data = bytes([14, 0, 11, 0, 0, 0, 0, 0])
-        raw.return_value = MagicMock(spec_set=["pop"])
-        raw.return_value.pop.side_effect = [data[:3], data[3:]]
+        inst = ExtensionHeaderTesting()
+        inst._set_payload = create_mock()
+        data = create_mock(["__len__", "pop"])
+        data.__len__.return_value = 5
+        raw.return_value = data
         # Call
-        ext_hdr.parse(data)
+        inst._parse("data")
         # Tests
-        raw.assert_called_once_with(data, "ExtensionHeader", ext_hdr.MIN_LEN,
+        raw.assert_called_once_with("data", "ExtensionHeader", inst.MIN_LEN,
                                     min_=True)
-        ntools.eq_(ext_hdr.next_hdr, 14)
-        ntools.eq_(ext_hdr._hdr_len, 0)
-        ntools.assert_true(ext_hdr.parsed)
+        inst._set_payload.assert_called_once_with(data.pop.return_value)
+
+
+class TestExtensionHeaderInitSize(object):
+    """
+    Unit tests for lib.packet.ext_hdr.ExtensionHeader._init_size
+    """
+    def test(self):
+        inst = ExtensionHeaderTesting()
+        inst._set_payload = create_mock()
+        # Call
+        inst._init_size(10)
+        # Tests
+        ntools.eq_(inst._hdr_len, 10)
+        inst._set_payload.assert_called_once_with(bytes(85))
 
 
 class TestExtensionHeaderSetPayload(object):
     """
-    Unit tests for lib.packet.ext_hdr.ExtensionHeader.set_payload
+    Unit tests for lib.packet.ext_hdr.ExtensionHeader._set_payload
     """
     def test_shortest_payload(self):
-        payload = bytes.fromhex('01 02 03 04 05')
-        ext_hdr = ExtensionHeader()
-        ext_hdr.set_payload(payload)
-        ntools.eq_(ext_hdr.payload, bytes.fromhex('01 02 03 04 05'))
+        payload = bytes(5)
+        inst = ExtensionHeaderTesting()
+        # Call
+        inst._set_payload(payload)
+        # Tests
+        ntools.eq_(inst._raw, payload)
 
     def test_short_payload(self):
-        payload = bytes(range(5 + 8))
-        ext_hdr = ExtensionHeader()
-        ext_hdr._hdr_len = 1
-        ext_hdr.set_payload(payload)
-        ntools.eq_(ext_hdr.payload, payload)
+        payload = bytes(5 + 8)
+        inst = ExtensionHeaderTesting()
+        inst._hdr_len = 1
+        # Call
+        inst._set_payload(payload)
+        # Tests
+        ntools.eq_(inst._raw, payload)
 
     def test_longer_payload(self):
-        payload = bytes(range(5 + 2*8))
-        ext_hdr = ExtensionHeader()
-        ext_hdr._init_size(2)
-        ext_hdr.set_payload(payload)
-        ntools.eq_(ext_hdr.payload, payload)
-
-
-class TestExtensionHeaderPack(object):
-    """
-    Unit tests for lib.packet.ext_hdr.ExtensionHeader.pack
-    """
-    def test_basic(self):
-        ext_hdr = ExtensionHeader()
-        ext_hdr.next_hdr = 14
-        ext_hdr._hdr_len = 42
-        ext_hdr.EXT_TYPE = 1
-        ext_hdr.payload = bytes.fromhex('02 03')
-        ntools.eq_(ext_hdr.pack(), bytes([14, 42, 1, 2, 3]))
+        payload = bytes(5 + 2*8)
+        inst = ExtensionHeaderTesting()
+        inst._hdr_len = 2
+        # Call
+        inst._set_payload(payload)
+        # Tests
+        ntools.eq_(inst._raw, payload)
 
 
 class TestExtensionHeaderLen(object):
@@ -116,9 +128,10 @@ class TestExtensionHeaderLen(object):
     Unit tests for lib.packet.ext_hdr.ExtensionHeader.__len__
     """
     def test(self):
-        ext_hdr = ExtensionHeader()
-        ext_hdr._hdr_len = 123
-        ntools.eq_(len(ext_hdr), 124 * ExtensionHeader.MIN_LEN)
+        inst = ExtensionHeaderTesting()
+        inst.hdr_len_to_bytes = create_mock()
+        inst.hdr_len_to_bytes.return_value = 3
+        ntools.eq_(len(inst), 3)
 
 
 if __name__ == "__main__":

@@ -67,7 +67,6 @@ class OpaqueField(object, metaclass=ABCMeta):
         """
         self.info = 0  # TODO verify path.PathType in that context
         self.type = 0
-        self.parsed = False
         self.raw = None
 
     @abstractmethod
@@ -156,7 +155,6 @@ class HopOpaqueField(OpaqueField):
         self.mac = data.pop(3)
         self.ingress_if = (ifs & 0xFFF000) >> 12
         self.egress_if = ifs & 0x000FFF
-        self.parsed = True
 
     @classmethod
     def from_values(cls, exp_time, ingress_if=0, egress_if=0, mac=None):
@@ -239,7 +237,6 @@ class InfoOpaqueField(OpaqueField):
             struct.unpack("!BIHB", data.pop(self.LEN))
         self.up_flag = bool(self.info & 0b00000001)
         self.info >>= 1
-        self.parsed = True
 
     @classmethod
     def from_values(cls, info=0, up_flag=False, timestamp=0, isd_id=0, hops=0):

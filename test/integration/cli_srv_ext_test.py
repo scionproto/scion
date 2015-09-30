@@ -28,8 +28,10 @@ from lib.defines import SCION_BUFLEN, SCION_UDP_EH_DATA_PORT
 from lib.log import init_logging, log_exception
 from lib.packet.ext.traceroute import TracerouteExt
 from lib.packet.host_addr import haddr_parse
-from lib.packet.scion import SCIONPacket
+from lib.packet.packet_base import PayloadRaw
+from lib.packet.scion import SCIONL4Packet, build_base_hdrs
 from lib.packet.scion_addr import SCIONAddr
+from lib.packet.scion_udp import SCIONUDPHeader
 from lib.thread import thread_safety_net
 from lib.util import handle_signals
 
@@ -65,9 +67,13 @@ def client():
     # Create a SCION address to the destination
     dst = SCIONAddr.from_values(SRV_ISD, SRV_AD, haddr_parse("IPv4", SRV_IP))
     # Set payload
-    payload = b"request to server"
+    payload = PayloadRaw(b"request to server")
     # Create a SCION packet with the extensions
-    spkt = SCIONPacket.from_values(sd.addr, dst, payload, path, ext_hdrs=[ext])
+    cmn_hdr, addr_hdr = build_base_hdrs(sd.addr, dst)
+    udp_hdr = SCIONUDPHeader.from_values(
+        sd.addr, SCION_UDP_EH_DATA_PORT, dst, SCION_UDP_EH_DATA_PORT, payload)
+    spkt = SCIONL4Packet.from_values(cmn_hdr, addr_hdr, path, [ext], udp_hdr,
+                                     payload)
     # Determine first hop (i.e., local address of border router)
     (next_hop, port) = sd.get_first_hop(spkt)
     logging.info("CLI: Sending packet:\n%s\nFirst hop: %s:%s",
@@ -80,7 +86,7 @@ def client():
     sock.bind((CLI_IP, SCION_UDP_EH_DATA_PORT))
     # Waiting for a response
     raw, _ = sock.recvfrom(SCION_BUFLEN)
-    logging.info('CLI: Received response:\n%s', SCIONPacket(raw))
+    logging.info('CLI: Received response:\n%s', SCIONL4Packet(raw))
     logging.info("CLI: leaving.")
     sock.close()
 
@@ -100,14 +106,14 @@ def server():
     # Waiting for a request
     raw, _ = sock.recvfrom(SCION_BUFLEN)
     # Request received, instantiating SCION packet
-    spkt = SCIONPacket(raw)
+    spkt = SCIONL4Packet(raw)
     logging.info('SRV: received: %s', spkt)
-    if spkt.get_payload() == b"request to server":
+    if spkt.get_payload() == PayloadRaw(b"request to server"):
         logging.info('SRV: request received, sending response.')
         # Reverse the packet
-        spkt.hdr.reverse()
+        spkt.reverse()
         # Setting payload
-        spkt.payload = b"response"
+        spkt.set_payload(PayloadRaw(b"response"))
         # Determine first hop (i.e., local address of border router)
         (next_hop, port) = sd.get_first_hop(spkt)
         # Send packet to first hop (it is sent through SCIONDaemon)

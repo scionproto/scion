@@ -24,12 +24,9 @@ from endhost.sciond import SCIONDaemon
 from lib.defines import SCION_UDP_PORT, SCION_UDP_EH_DATA_PORT
 from lib.packet.path import PathCombinator
 from lib.packet.path_mgmt import (
-    PathMgmtPacket,
-    PathMgmtType as PMT,
     PathSegmentInfo,
     PathSegmentType as PST,
 )
-from lib.packet.scion_addr import ISD_AD
 from lib.util import update_dict
 
 SCIOND_API_PORT = 3333
@@ -119,12 +116,10 @@ class SCIONSimHost(SCIONDaemon):
         update_dict(self._waiting_targets[ptype], (dst_isd, dst_ad),
                     [(eid, requester)])
         # Create and send out path request.
-        info = PathSegmentInfo.from_values(ptype, src_isd, dst_isd,
-                                           src_ad, dst_ad)
-        path_request = PathMgmtPacket.from_values(PMT.REQUEST, info,
-                                                  None, self.addr,
-                                                  ISD_AD(src_isd, src_ad))
+        info = PathSegmentInfo.from_values(ptype, src_isd, src_ad, dst_isd,
+                                           dst_ad)
         dst = self.topology.path_servers[0].addr
+        path_request = self._build_packet(dst, payload=info)
         self.send(path_request, dst)
 
     def _get_full_paths(self, src_isd, src_ad, dst_isd, dst_ad,

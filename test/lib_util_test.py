@@ -34,25 +34,26 @@ from lib.errors import (
     SCIONTypeError,
 )
 from lib.util import (
-    _get_isd_prefix,
-    _SIG_MAP,
-    _signal_handler,
     CERT_DIR,
     ENC_KEYS_DIR,
+    Raw,
+    SCIONTime,
+    SIG_KEYS_DIR,
+    TRACE_DIR,
+    _SIG_MAP,
+    _get_isd_prefix,
+    _signal_handler,
+    calc_padding,
     get_cert_chain_file_path,
     get_enc_key_file_path,
     get_sig_key_file_path,
     get_trc_file_path,
     handle_signals,
     load_json_file,
-    Raw,
     read_file,
-    SCIONTime,
-    SIG_KEYS_DIR,
     sleep_interval,
     timed,
     trace,
-    TRACE_DIR,
     update_dict,
     write_file,
 )
@@ -248,6 +249,22 @@ class TestUpdateDict(object):
         dictionary = {}
         update_dict(dictionary, 'key', [1, 2, 3, 4], 2)
         ntools.eq_(dictionary['key'], [3, 4])
+
+
+class TestCalcPadding(object):
+    """
+    Unit tests for lib.util.calc_padding
+    """
+    def _check(self, length, expected):
+        ntools.eq_(calc_padding(length, 8), expected)
+
+    def test(self):
+        for length, expected in (
+            (0, 0), (1, 7), (7, 1),
+            (8, 0), (9, 7), (15, 1),
+            (16, 0),
+        ):
+            yield self._check, length, expected
 
 
 class TestTrace(object):

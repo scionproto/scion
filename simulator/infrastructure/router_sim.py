@@ -21,8 +21,7 @@ import logging
 # SCION
 from infrastructure.router import Router, IFID_PKT_TOUT
 from lib.defines import SCION_UDP_PORT, EXP_TIME_UNIT
-from lib.packet.scion import IFIDPacket
-from lib.packet.scion_addr import SCIONAddr, ISD_AD
+from lib.packet.scion import IFIDPayload, PacketType as PT
 from lib.util import SCIONTime
 
 
@@ -83,17 +82,15 @@ class RouterSim(Router):
         Synchronize and initialize the router's interface with that of a
         neighboring router.
         """
-        src = SCIONAddr.from_values(self.topology.isd_id, self.topology.ad_id,
-                                    self.interface.addr)
-        dst_isd_ad = ISD_AD(self.interface.neighbor_isd,
-                            self.interface.neighbor_ad)
-        ifid_req = IFIDPacket.from_values(src, dst_isd_ad,
-                                          self.interface.if_id)
+        ifid_pld = IFIDPayload.from_values(self.interface.if_id)
+        pkt = self._build_packet(PT.BEACON, dst_isd=self.interface.neighbor_isd,
+                                 dst_ad=self.interface.neighbor_ad,
+                                 payload=ifid_pld)
 
-        self.send(ifid_req, self.interface.to_addr,
-                  self.interface.to_udp_port, False)
+        self.send(pkt, self.interface.to_addr, self.interface.to_udp_port,
+                  False)
         logging.info('Sending IFID_PKT to router: req_id:%d, rep_id:%d',
-                     ifid_req.request_id, ifid_req.reply_id)
+                     ifid_pld.request_id, ifid_pld.reply_id)
 
         self.simulator.add_event(IFID_PKT_TOUT, cb=self.sync_interface)
 

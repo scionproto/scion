@@ -45,54 +45,56 @@ from lib.defines import (
     SCION_ROUTER_PORT,
     SCION_UDP_PORT,
 )
-from lib.errors import SCIONServiceLookupError, SCIONIndexError
+from lib.errors import (
+    SCIONBaseError,
+    SCIONIndexError,
+    SCIONParseError,
+    SCIONServiceLookupError,
+)
 from lib.log import init_logging, log_exception
+from lib.packet.cert_mgmt import (
+    CertMgmtType,
+    CertChainRequest,
+    TRCRequest,
+)
 from lib.packet.opaque_field import (
     HopOpaqueField,
     InfoOpaqueField,
     OpaqueFieldType as OFT,
 )
+from lib.packet.packet_base import PayloadClass
 from lib.packet.path_mgmt import (
     IFStateInfo,
     IFStatePayload,
     IFStateRequest,
-    PathMgmtPacket,
     PathMgmtType as PMT,
     PathSegmentInfo,
-    PathSegmentRecords,
+    PathRecordsReg,
     PathSegmentType as PST,
     RevocationInfo,
 )
 from lib.packet.pcb import (
     ADMarking,
     PCBMarking,
-    PathConstructionBeacon,
     PathSegment,
 )
 from lib.packet.scion import (
-    CertChainReply,
-    CertChainRequest,
-    IFIDPacket,
     PacketType as PT,
-    SCIONPacket,
-    TRCReply,
-    TRCRequest,
-    get_type,
+    SCIONL4Packet,
 )
-from lib.packet.scion_addr import SCIONAddr, ISD_AD
 from lib.path_store import PathPolicy, PathStore
 from lib.thread import thread_safety_net
 from lib.util import (
+    Raw,
+    SCIONTime,
     get_cert_chain_file_path,
     get_sig_key_file_path,
     get_trc_file_path,
     handle_signals,
     read_file,
-    Raw,
     sleep_interval,
     trace,
     write_file,
-    SCIONTime,
 )
 from lib.zookeeper import ZkNoConnection, ZkSharedCache, Zookeeper
 
@@ -366,10 +368,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
             new_pcb.add_ad(ad_marking)
             self._sign_beacon(new_pcb)
-            dst = SCIONAddr.from_values(self.topology.isd_id,
-                                        self.topology.ad_id, router_child.addr)
-            beacon = PathConstructionBeacon.from_values(self.addr.get_isd_ad(),
-                                                        dst, new_pcb)
+            beacon = self._build_packet(
+                PT.BEACON, dst_isd=router_child.interface.neighbor_isd,
+                dst_ad=router_child.interface.neighbor_ad, payload=new_pcb)
             self.send(beacon, router_child.addr)
             logging.info("Downstream PCB propagated!")
 
@@ -380,21 +381,21 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         raise NotImplementedError
 
-    def store_pcb(self, beacon):
+    def store_pcb(self, pkt):
         """
         Receives beacon and stores it for processing.
 
         :param pcb: path construction beacon.
         :type pcb: PathConstructionBeacon
         """
-        assert isinstance(beacon, PathConstructionBeacon)
-        if not self.path_policy.check_filters(beacon.pcb):
+        pcb = pkt.get_payload()
+        if not self.path_policy.check_filters(pcb):
             return
-        hops_hash = beacon.pcb.get_hops_hash(hex=True)
+        hops_hash = pcb.get_hops_hash(hex=True)
         try:
-            self.pcb_cache.store(hops_hash, beacon.pcb.pack())
+            self.pcb_cache.store(hops_hash, pcb.pack())
         except ZkNoConnection:
-            logging.debug("Unable to store PCB in shared cache: "
+            logging.error("Unable to store PCB in shared cache: "
                           "no connection to ZK")
 
     @abstractmethod
@@ -474,20 +475,20 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
         return pcb
 
-    def handle_ifid_packet(self, ipkt):
+    def handle_ifid_packet(self, pkt):
         """
         Update the interface state for the corresponding interface.
 
-        :param ipkt: The IFIDPacket.
-        :type ipkt: IFIDPacket
+        :param ipkt: The IFIDPayload.
+        :type ipkt: IFIDPayload
         """
-        ifid = ipkt.reply_id
+        payload = pkt.get_payload()
+        ifid = payload.reply_id
         prev_state = self.ifid_state[ifid].update()
         if prev_state == InterfaceState.INACTIVE:
             logging.info("IF %d activated", ifid)
         elif prev_state in [InterfaceState.TIMED_OUT, InterfaceState.REVOKED]:
             logging.info("IF %d came back up.", ifid)
-
         if not prev_state == InterfaceState.ACTIVE:
             if self.zk.have_lock():
                 # Inform ERs about the interface coming up.
@@ -497,33 +498,52 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 state_info = IFStateInfo.from_values(ifid, True,
                                                      chain.next_element())
                 payload = IFStatePayload.from_values([state_info])
-                isd_ad = ISD_AD(self.topology.isd_id,
-                                self.topology.ad_id)
-                mgmt_packet = PathMgmtPacket.from_values(
-                    PMT.IFSTATE_INFO, payload, None, self.addr, isd_ad)
+                payload.pack()
+                mgmt_packet = self._build_packet(payload=payload)
                 for er in self.topology.get_all_edge_routers():
                     if er.interface.if_id != ifid:
+                        mgmt_packet.addrs.dst_addr = er.interface.addr
                         self.send(mgmt_packet, er.interface.addr,
                                   er.interface.udp_port)
+
+    def handle_certmgmt_packet(self, pkt):
+        type_map = {
+            CertMgmtType.CERT_CHAIN_REPLY: self.process_cert_chain_rep,
+            CertMgmtType.TRC_REPLY: self.process_trc_rep,
+        }
+        payload = pkt.get_payload()
+        handler = type_map.get(payload.PAYLOAD_TYPE)
+        if not handler:
+            logging.error("Cert mgmt payload type not supported: %s",
+                          payload.PAYLOAD_TYPE)
+            return
+        handler(pkt)
 
     def handle_request(self, packet, sender, from_local_socket=True):
         """
         Main routine to handle incoming SCION packets.
         """
-        spkt = SCIONPacket(packet)
-        ptype = get_type(spkt)
-        if ptype == PT.IFID_PKT:
-            self.handle_ifid_packet(IFIDPacket(packet))
-        elif ptype == PT.PATH_MGMT:
-            self.handle_path_mgmt_packet(PathMgmtPacket(packet))
-        elif ptype == PT.BEACON:
-            self.store_pcb(PathConstructionBeacon(packet))
-        elif ptype == PT.CERT_CHAIN_REP:
-            self.process_cert_chain_rep(CertChainReply(packet))
-        elif ptype == PT.TRC_REP:
-            self.process_trc_rep(TRCReply(packet))
-        else:
-            logging.warning("Type not supported: %s", ptype)
+        class_map = {
+            PayloadClass.PCB: self.store_pcb,
+            PayloadClass.IFID: self.handle_ifid_packet,
+            PayloadClass.CERT: self.handle_certmgmt_packet,
+            PayloadClass.PATH: self.handle_path_mgmt_packet,
+        }
+        try:
+            pkt = SCIONL4Packet(packet)
+        except SCIONParseError as e:
+            logging.error("Unable to parse packet: %s\n%s" % (e, packet))
+            return
+
+        pld_class = pkt.parse_payload().PAYLOAD_CLASS
+        handler = class_map.get(pld_class)
+        if not handler:
+            logging.error("Payload class not supported: %s", pld_class)
+            return
+        try:
+            handler(pkt)
+        except SCIONBaseError:
+            log_exception("Error handling packet: %s" % pkt)
 
     def run(self):
         """
@@ -600,7 +620,10 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             else:
                 logging.warning("Invalid beacon. %s", pcb)
         else:
-            logging.warning("Certificate(s) or TRC missing.")
+            first = pcb.get_first_pcbm()
+            logging.warning(
+                "Certificate(s) or TRC missing for pcb from (%d, %d)",
+                first.isd_id, first.ad_id)
             self.unverified_beacons.append(pcb)
 
     @abstractmethod
@@ -649,16 +672,16 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             if (trc_tuple not in self.trc_requests or
                 (now - self.trc_requests[trc_tuple] >
                     BeaconServer.REQUESTS_TIMEOUT)):
-                new_trc_req = TRCRequest.from_values(
-                    PT.TRC_REQ_LOCAL, self.addr, if_id,
-                    self.topology.isd_id, self.topology.ad_id,
-                    isd_id, trc_ver)
+                trc_req = TRCRequest.from_values(
+                    if_id, self.topology.isd_id, self.topology.ad_id, isd_id,
+                    trc_ver)
                 try:
                     dst_addr = self.dns_query_topo(CERTIFICATE_SERVICE)[0]
                 except SCIONServiceLookupError as e:
                     logging.warning("Sending TRC request failed: %s", e)
                     return None
-                self.send(new_trc_req, dst_addr)
+                req_pkt = self._build_packet(dst_addr, payload=trc_req)
+                self.send(req_pkt, dst_addr)
                 self.trc_requests[trc_tuple] = now
                 return None
         return trc
@@ -730,22 +753,23 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         raise NotImplementedError
 
-    def process_trc_rep(self, trc_rep):
+    def process_trc_rep(self, pkt):
         """
         Process the TRC reply.
 
         :param trc_rep: TRC reply.
         :type trc_rep: TRCReply
         """
-        assert isinstance(trc_rep, TRCReply)
+        rep = pkt.get_payload()
         logging.info("TRC reply received.")
+        rep_key = rep.isd_id, rep.version
         trc_file = get_trc_file_path(
             self.topology.isd_id, self.topology.ad_id,
-            trc_rep.isd_id, trc_rep.version)
-        write_file(trc_file, trc_rep.trc.decode('utf-8'))
-        self.trcs[(trc_rep.isd_id, trc_rep.version)] = TRC(trc_file)
-        if (trc_rep.isd_id, trc_rep.version) in self.trc_requests:
-            del self.trc_requests[(trc_rep.isd_id, trc_rep.version)]
+            *rep_key)
+        write_file(trc_file, rep.trc.decode('utf-8'))
+        self.trcs[rep_key] = TRC(trc_file)
+        if rep_key in self.trc_requests:
+            del self.trc_requests[rep_key]
         self.handle_unverified_beacons()
 
     def handle_unverified_beacons(self):
@@ -761,7 +785,12 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         Processes revocation objects stored in Zookeeper.
         """
         for raw_obj in rev_objs:
-            rev_obj = RevocationObject(raw_obj)
+            try:
+                rev_obj = RevocationObject(raw_obj)
+            except SCIONParseError as e:
+                logging.error("Error processing revocation object from ZK: %s",
+                              e)
+                continue
             chain = self._get_if_hash_chain(rev_obj.if_id)
             if not chain:
                 logging.warning("Hash-Chain for IF %d doesn't exist.",
@@ -801,10 +830,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         # Issue revocation to all ERs.
         info = IFStateInfo.from_values(if_id, False, chain.next_element())
         payload = IFStatePayload.from_values([info])
-        isd_ad = ISD_AD(self.topology.isd_id, self.topology.ad_id)
-        state_pkt = PathMgmtPacket.from_values(PMT.IFSTATE_INFO, payload,
-                                               None, self.addr, isd_ad)
+        state_pkt = self._build_packet(payload=payload)
         for er in self.topology.get_all_edge_routers():
+            state_pkt.addrs.dst_addr = er.interface.addr
             self.send(state_pkt, er.interface.addr, er.interface.udp_port)
         self._process_revocation(rev_info, if_id)
 
@@ -832,8 +860,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             except SCIONServiceLookupError:
                 # If there are no local path servers, stop here.
                 return
-            pkt = PathMgmtPacket.from_values(PMT.REVOCATION, rev_info, None,
-                                             self.addr, self.addr.get_isd_ad())
+            pkt = self._build_packet(ps_addr, payload=rev_info)
             logging.info("Sending  revocation to local PS.")
             self.send(pkt, ps_addr)
 
@@ -877,15 +904,20 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             sleep_interval(start_time, self.IF_TIMEOUT_INTERVAL,
                            "Handle IF timeouts")
 
-    def handle_path_mgmt_packet(self, mgmt_pkt):
+    def handle_path_mgmt_packet(self, pkt):
         """
         Handles PathMgmt packets.
         """
-        if mgmt_pkt.type == PMT.IFSTATE_REQ:
-            self._handle_ifstate_request(mgmt_pkt)
-        else:
+        payload = pkt.get_payload()
+        type_map = {
+            PMT.IFSTATE_REQ: self._handle_ifstate_request,
+        }
+        handler = type_map.get(payload.PAYLOAD_TYPE)
+        if not handler:
             logging.error("Received unsupported PathMgmt packet (type %s).",
-                          mgmt_pkt.type)
+                          payload.PAYLOAD_TYPE)
+            return
+        handler(pkt)
 
     def _handle_ifstate_request(self, mgmt_pkt):
         """
@@ -907,7 +939,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             ifid_states = [(request.if_id, self.ifid_state[request.if_id])]
         else:
             logging.error("Received ifstate request from %s for unknown "
-                          "interface %s.", mgmt_pkt.hdr.src_addr, request.if_id)
+                          "interface %s.", mgmt_pkt.addrs.get_src_addr(),
+                          request.if_id)
             return
 
         for (ifid, state) in ifid_states:
@@ -919,14 +952,12 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                                            chain.next_element())
             infos.append(info)
         if not infos:
-            logging.error("No IF state info to put in response.")
+            logging.warning("No IF state info to put in response.")
             return
 
         payload = IFStatePayload.from_values(infos)
-        isd_ad = ISD_AD(self.topology.isd_id, self.topology.ad_id)
-        state_pkt = PathMgmtPacket.from_values(PMT.IFSTATE_INFO, payload,
-                                               None, self.addr, isd_ad)
-        self.send(state_pkt, mgmt_pkt.hdr.src_addr.host_addr, SCION_ROUTER_PORT)
+        state_pkt = self._build_packet(mgmt_pkt.addrs.src_addr, payload=payload)
+        self.send(state_pkt, mgmt_pkt.addrs.src_addr, SCION_ROUTER_PORT)
 
 
 class CoreBeaconServer(BeaconServer):
@@ -1001,10 +1032,7 @@ class CoreBeaconServer(BeaconServer):
 
             new_pcb.add_ad(ad_marking)
             self._sign_beacon(new_pcb)
-            dst = SCIONAddr.from_values(self.topology.isd_id,
-                                        self.topology.ad_id, core_router.addr)
-            beacon = PathConstructionBeacon.from_values(self.addr.get_isd_ad(),
-                                                        dst, new_pcb)
+            beacon = self._build_packet(PT.BEACON, payload=new_pcb)
             self.send(beacon, core_router.addr)
             count += 1
         return count
@@ -1013,16 +1041,16 @@ class CoreBeaconServer(BeaconServer):
         """
         Generate a new beacon or gets ready to forward the one received.
         """
-        # Create beacon for downstream ADs.
-        downstream_pcb = PathSegment()
         timestamp = int(SCIONTime.get_time())
-        downstream_pcb.iof = InfoOpaqueField.from_values(
+        # Create beacon for downstream ADs.
+        down_iof = InfoOpaqueField.from_values(
             OFT.CORE, False, timestamp, self.topology.isd_id)
+        downstream_pcb = PathSegment.from_values(down_iof)
         self.propagate_downstream_pcb(downstream_pcb)
         # Create beacon for core ADs.
-        core_pcb = PathSegment()
-        core_pcb.iof = InfoOpaqueField.from_values(
+        core_iof = InfoOpaqueField.from_values(
             OFT.CORE, False, timestamp, self.topology.isd_id)
+        core_pcb = PathSegment.from_values(core_iof)
         core_count = self.propagate_core_pcb(core_pcb)
         # Propagate received beacons. A core beacon server can only receive
         # beacons from other core beacon servers.
@@ -1047,22 +1075,19 @@ class CoreBeaconServer(BeaconServer):
         """
         info = PathSegmentInfo.from_values(PST.CORE,
                                            pcb.get_first_pcbm().isd_id,
-                                           self.topology.isd_id,
                                            pcb.get_first_pcbm().ad_id,
+                                           self.topology.isd_id,
                                            self.topology.ad_id)
         pcb.remove_signatures()
-        records = PathSegmentRecords.from_values(info, [pcb])
         # Register core path with local core path server.
         try:
             ps_addr = self.dns_query_topo(PATH_SERVICE)[0]
         except SCIONServiceLookupError:
             # If there are no local path servers, stop here.
             return
-        dst = SCIONAddr.from_values(
-            self.topology.isd_id, self.topology.ad_id, ps_addr)
-        pkt = PathMgmtPacket.from_values(PMT.REG, records, None,
-                                         self.addr.get_isd_ad(), dst)
-        self.send(pkt, dst.host_addr)
+        records = PathRecordsReg.from_values(info, [pcb])
+        pkt = self._build_packet(ps_addr, payload=records)
+        self.send(pkt, ps_addr)
 
     def process_pcbs(self, pcbs):
         """
@@ -1241,17 +1266,17 @@ class LocalBeaconServer(BeaconServer):
                 if (cert_chain_tuple not in self.cert_chain_requests or
                     (now - self.cert_chain_requests[cert_chain_tuple] >
                         BeaconServer.REQUESTS_TIMEOUT)):
-                    new_cert_chain_req = \
-                        CertChainRequest.from_values(
-                            PT.CERT_CHAIN_REQ_LOCAL,
-                            self.addr, if_id, self.topology.isd_id,
-                            self.topology.ad_id, isd_id, ad_id, cert_ver)
+                    new_cert_chain_req = CertChainRequest.from_values(
+                        if_id, self.topology.isd_id, self.topology.ad_id,
+                        isd_id, ad_id, cert_ver)
                     try:
                         dst_addr = self.dns_query_topo(CERTIFICATE_SERVICE)[0]
                     except SCIONServiceLookupError as e:
                         logging.warning("Unable to send cert query: %s", e)
                         return False
-                    self.send(new_cert_chain_req, dst_addr)
+                    req_pkt = self._build_packet(dst_addr,
+                                                 payload=new_cert_chain_req)
+                    self.send(req_pkt, dst_addr)
                     self.cert_chain_requests[cert_chain_tuple] = now
                     return False
         else:
@@ -1265,26 +1290,25 @@ class LocalBeaconServer(BeaconServer):
             SCIONServiceLookupError: path server lookup failure
         """
         info = PathSegmentInfo.from_values(
-            PST.UP, self.topology.isd_id, self.topology.isd_id,
-            pcb.get_first_pcbm().ad_id, self.topology.ad_id)
-        ps_addr = self.dns_query_topo(PATH_SERVICE)[0]
-        records = PathSegmentRecords.from_values(info, [pcb])
-        pkt = PathMgmtPacket.from_values(PMT.REG, records, None,
-                                         self.addr, self.addr.get_isd_ad())
-        self.send(pkt, ps_addr)
+            PST.UP, self.topology.isd_id, pcb.get_first_pcbm().ad_id,
+            self.topology.isd_id, self.topology.ad_id)
+        ps_host = self.dns_query_topo(PATH_SERVICE)[0]
+        records = PathRecordsReg.from_values(info, [pcb])
+        pkt = self._build_packet(ps_host, payload=records)
+        self.send(pkt, ps_host)
 
     def register_down_segment(self, pcb):
         """
         Send down-segment to Core Path Server
         """
         info = PathSegmentInfo.from_values(
-            PST.DOWN, self.topology.isd_id, self.topology.isd_id,
-            pcb.get_first_pcbm().ad_id, self.topology.ad_id)
+            PST.DOWN, self.topology.isd_id, pcb.get_first_pcbm().ad_id,
+            self.topology.isd_id, self.topology.ad_id)
         core_path = pcb.get_path(reverse_direction=True)
-        records = PathSegmentRecords.from_values(info, [pcb])
-        dst_isd_ad = ISD_AD(pcb.get_isd(), pcb.get_first_pcbm().ad_id)
-        pkt = PathMgmtPacket.from_values(PMT.REG, records, core_path,
-                                         self.addr, dst_isd_ad)
+        records = PathRecordsReg.from_values(info, [pcb])
+        pkt = self._build_packet(
+            PT.PATH_MGMT, dst_isd=pcb.get_isd(),
+            dst_ad=pcb.get_first_pcbm().ad_id, path=core_path, payload=records)
         next_hop = self.ifid2addr[core_path.get_fwd_if()]
         self.send(pkt, next_hop)
 
@@ -1304,29 +1328,22 @@ class LocalBeaconServer(BeaconServer):
             if self.path_policy.check_filters(pcb):
                 self._try_to_verify_beacon(pcb)
 
-    def process_cert_chain_rep(self, cert_chain_rep):
+    def process_cert_chain_rep(self, pkt):
         """
         Process the Certificate chain reply.
 
         :param cert_chain_rep: certificate chain reply.
         :type cert_chain_rep: CertChainReply
         """
-        assert isinstance(cert_chain_rep, CertChainReply)
+        rep = pkt.get_payload()
         logging.info("Certificate chain reply received.")
+        rep_key = rep.isd_id, rep.ad_id, rep.version
         cert_chain_file = get_cert_chain_file_path(
-            self.topology.isd_id, self.topology.ad_id,
-            cert_chain_rep.isd_id, cert_chain_rep.ad_id,
-            cert_chain_rep.version)
-        write_file(cert_chain_file, cert_chain_rep.cert_chain.decode('utf-8'))
-        self.cert_chains[
-            (cert_chain_rep.isd_id,
-             cert_chain_rep.ad_id,
-             cert_chain_rep.version)] = CertificateChain(cert_chain_file)
-        if (cert_chain_rep.isd_id, cert_chain_rep.ad_id,
-                cert_chain_rep.version) in self.cert_chain_requests:
-            del self.cert_chain_requests[(cert_chain_rep.isd_id,
-                                          cert_chain_rep.ad_id,
-                                          cert_chain_rep.version)]
+            self.topology.isd_id, self.topology.ad_id, *rep_key)
+        write_file(cert_chain_file, rep.cert_chain.decode('utf-8'))
+        self.cert_chains[rep_key] = CertificateChain(cert_chain_file)
+        if rep_key in self.cert_chain_requests:
+            del self.cert_chain_requests[rep_key]
         self.handle_unverified_beacons()
 
     def _remove_revoked_pcbs(self, rev_info, if_id):

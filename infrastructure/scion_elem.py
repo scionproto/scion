@@ -24,15 +24,19 @@ from abc import ABCMeta, abstractmethod
 from lib.config import Config
 from lib.defines import (
     BEACON_SERVICE,
-    DNS_SERVICE,
     CERTIFICATE_SERVICE,
+    DNS_SERVICE,
     PATH_SERVICE,
+    SCION_UDP_PORT,
     SERVICE_TYPES,
 )
-from lib.defines import SCION_UDP_PORT
 from lib.dnsclient import DNSCachingClient
 from lib.errors import SCIONServiceLookupError
+from lib.packet.host_addr import HostAddrNone
+from lib.packet.path import EmptyPath
+from lib.packet.scion import SCIONBasePacket, SCIONL4Packet, build_base_hdrs
 from lib.packet.scion_addr import SCIONAddr
+from lib.packet.scion_udp import SCIONUDPHeader
 from lib.socket import UDPSocket, UDPSocketMgr
 from lib.thread import thread_safety_net
 from lib.topology import Topology
@@ -153,10 +157,26 @@ class SCIONElement(object, metaclass=ABCMeta):
         :returns:
         :rtype:
         """
-        path = spkt.hdr.get_path()
-        if len(path) == 0:  # EmptyPath
-            return spkt.hdr.dst_addr.host_addr, SCION_UDP_PORT
-        return self.ifid2addr[path.get_fwd_if()], SCION_UDP_PORT
+        if len(spkt.path) == 0:  # EmptyPath
+            return spkt.addrs.dst_addr, SCION_UDP_PORT
+        return self.ifid2addr[spkt.path.get_fwd_if()], SCION_UDP_PORT
+
+    def _build_packet(self, dst_host=None, path=None, ext_hdrs=(), dst_isd=None,
+                      dst_ad=None, payload=b""):
+        if dst_host is None:
+            dst_host = HostAddrNone()
+        if dst_isd is None:
+            dst_isd = self.addr.isd_id
+        if dst_ad is None:
+            dst_ad = self.addr.ad_id
+        if path is None:
+            path = EmptyPath()
+        dst_addr = SCIONAddr.from_values(dst_isd, dst_ad, dst_host)
+        cmn_hdr, addr_hdr = build_base_hdrs(self.addr, dst_addr)
+        udp_hdr = SCIONUDPHeader.from_values(
+            self.addr, SCION_UDP_PORT, dst_addr, SCION_UDP_PORT, payload)
+        return SCIONL4Packet.from_values(
+            cmn_hdr, addr_hdr, path, ext_hdrs, udp_hdr, payload)
 
     def send(self, packet, dst, dst_port=SCION_UDP_PORT):
         """
@@ -171,6 +191,9 @@ class SCIONElement(object, metaclass=ABCMeta):
         :param dst_port: the destination port number.
         :type dst_port: int
         """
+        assert not isinstance(packet.addrs.src_addr, HostAddrNone)
+        assert not isinstance(packet.addrs.dst_addr, HostAddrNone)
+        assert isinstance(packet, SCIONBasePacket)
         self._local_sock.send(packet.pack(), (str(dst), dst_port))
 
     def run(self):
