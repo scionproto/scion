@@ -64,6 +64,7 @@ class RouterSim(Router):
         simulator.add_element(str(self.interface.addr), self)
         self.eid_1 = None
         self.eid_2 = None
+        self.stopped = False
 
     def send(self, packet, addr, port=SCION_UDP_PORT, use_local_socket=True):
         """
@@ -87,6 +88,8 @@ class RouterSim(Router):
         """
         The receive function called when simulator receives a packet
         """
+        if self.stopped:
+            return
         to_local = False
         if dst[0] == str(self.addr.host_addr) and dst[1] == SCION_UDP_PORT:
             to_local = True
@@ -98,6 +101,9 @@ class RouterSim(Router):
         """
         self.eid_1 = self.simulator.add_event(0., cb=self.sync_interface)
         self.eid_2 = self.simulator.add_event(0., cb=self.request_ifstates)
+        if self.stopped:
+            logging.info("Router %s restarted", str(self.addr.host_addr))
+        self.stopped = False
 
     def stop(self):
         """
@@ -105,6 +111,8 @@ class RouterSim(Router):
         """
         self.simulator.remove_event(self.eid_1)
         self.simulator.remove_event(self.eid_2)
+        self.stopped = True
+        logging.info("Router %s stopped", str(self.addr.host_addr))
 
     def sync_interface(self):
         """

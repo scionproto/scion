@@ -316,6 +316,7 @@ class CoreBeaconServerSim(CoreBeaconServer):
         :param chain: The hash chain corresponding to if_id.
         :type chain: :class:`lib.crypto.hash_chain.HashChain`
         """
+        rev_info = RevocationInfo.from_values(chain.next_element())
         logging.info("Issuing revocation for IF %d.", if_id)
         # Issue revocation to all ERs.
         info = IFStateInfo.from_values(if_id, False, chain.next_element())
@@ -352,7 +353,7 @@ class CoreBeaconServerSim(CoreBeaconServer):
             return
         pkt = PathMgmtPacket.from_values(PMT.REVOCATION, rev_info, None,
                                          self.addr, self.addr.get_isd_ad())
-        logging.info("Sending  revocation to local PS.")
+        logging.info("Sending revocation to local PS.")
         self.send(pkt, ps_addr)
 
     def _sign_beacon(self, pcb):
@@ -646,6 +647,7 @@ class LocalBeaconServerSim(LocalBeaconServer):
         :param chain: The hash chain corresponding to if_id.
         :type chain: :class:`lib.crypto.hash_chain.HashChain`
         """
+        rev_info = RevocationInfo.from_values(chain.next_element())
         logging.info("Issuing revocation for IF %d.", if_id)
         # Issue revocation to all ERs.
         info = IFStateInfo.from_values(if_id, False, chain.next_element())
@@ -654,6 +656,7 @@ class LocalBeaconServerSim(LocalBeaconServer):
         state_pkt = PathMgmtPacket.from_values(PMT.IFSTATE_INFO, payload,
                                                None, self.addr, isd_ad)
         for er in self.topology.get_all_edge_routers():
+            logging.info("Sending revocation to %s", er.interface.addr)
             self.send(state_pkt, er.interface.addr, er.interface.udp_port)
         self._process_revocation(rev_info, if_id)
 
@@ -682,7 +685,7 @@ class LocalBeaconServerSim(LocalBeaconServer):
             return
         pkt = PathMgmtPacket.from_values(PMT.REVOCATION, rev_info, None,
                                          self.addr, self.addr.get_isd_ad())
-        logging.info("Sending  revocation to local PS.")
+        logging.info("Sending revocation to local PS.")
         self.send(pkt, ps_addr)
 
     def _sign_beacon(self, pcb):
