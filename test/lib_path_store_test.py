@@ -24,7 +24,7 @@ import nose
 import nose.tools as ntools
 
 # SCION
-from lib.packet.pcb import PathSegment, REV_TOKEN_LEN
+from lib.packet.pcb import PathSegment
 from lib.path_store import (
     PathPolicy,
     PathStore,
@@ -77,7 +77,7 @@ class TestPathPolicyCheckFilters(object):
         pth_pol._check_unwanted_ads = MagicMock(spec_set=[])
         pth_pol._check_unwanted_ads.return_value = True
         pth_pol._check_property_ranges = MagicMock(spec_set=[])
-        pth_pol._check_property_ranges.return_value = True
+        pth_pol._check_property_ranges.return_value = []
         ntools.assert_true(pth_pol.check_filters(pcb))
         ntools.eq_(wrng.call_count, 0)
 
@@ -95,7 +95,7 @@ class TestPathPolicyCheckFilters(object):
         pth_pol._check_unwanted_ads = MagicMock(spec_set=[])
         pth_pol._check_unwanted_ads.return_value = True
         pth_pol._check_property_ranges = MagicMock(spec_set=[])
-        pth_pol._check_property_ranges.return_value = False
+        pth_pol._check_property_ranges.return_value = ["reason1"]
         ntools.assert_false(pth_pol.check_filters(pcb))
         ntools.eq_(wrng.call_count, 1)
 
@@ -130,88 +130,44 @@ class TestPathPolicyCheckPropertyRanges(object):
     """
     Unit tests for lib.path_store.PathPolicy._check_property_ranges
     """
-    def setUp(self):
-        self.d = {'PeerLinks': [], 'HopsLength': [], 'DelayTime': [],
-                  'GuaranteedBandwidth': [], 'AvailableBandwidth': [],
-                  'TotalBandwidth': []}
+    def _setup(self, max_bw=20):
+        inst = PathPolicy()
+        inst.property_ranges = {
+            'PeerLinks': [0, 1], 'HopsLength': [0, 1], 'DelayTime': [0, 1],
+            'GuaranteedBandwidth': [0, max_bw],
+            'AvailableBandwidth': [0, max_bw], 'TotalBandwidth': [0, max_bw]
+        }
+        pcb = create_mock(["get_n_peer_links", "get_n_hops", "get_timestamp"])
+        return inst, pcb
 
-    def tearDown(self):
-        del self.d
+    @patch("lib.path_store.SCIONTime.get_time", new_callable=create_mock)
+    def test_success(self, get_time):
+        inst, pcb = self._setup()
+        pcb.get_n_peer_links.return_value = 0.5
+        pcb.get_n_hops.return_value = 0.5
+        pcb.get_timestamp.return_value = 0.5
+        # Call
+        ntools.eq_(inst._check_property_ranges(pcb), [])
 
-    def test_basic(self):
-        pth_pol = PathPolicy()
-        pth_pol.property_ranges = self.d
-        ntools.assert_true(pth_pol._check_property_ranges("pcb"))
+    @patch("lib.path_store.SCIONTime.get_time", new_callable=create_mock)
+    def test_failure(self, get_time):
+        inst, pcb = self._setup(max_bw=9)
+        pcb.get_n_peer_links.return_value = 2
+        pcb.get_n_hops.return_value = -1
+        pcb.get_timestamp.return_value = -0.1
+        # Call
+        ntools.eq_(len(inst._check_property_ranges(pcb)), 6)
 
-    def test_peer_link_true(self):
-        pth_pol = PathPolicy()
-        pth_pol.property_ranges = self.d
-        pth_pol.property_ranges['PeerLinks'].extend([0, 2])
-        pcb = MagicMock(spec_set=['get_n_peer_links'])
-        pcb.get_n_peer_links.return_value = 1
-        ntools.assert_true(pth_pol._check_property_ranges(pcb))
-        pcb.get_n_peer_links.assert_called_once_with()
-
-    def test_peer_link_false(self):
-        pth_pol = PathPolicy()
-        pth_pol.property_ranges = self.d
-        pth_pol.property_ranges['PeerLinks'].extend([0, 2])
-        pcb = MagicMock(spec_set=['get_n_peer_links'])
-        pcb.get_n_peer_links.return_value = 3
-        ntools.assert_false(pth_pol._check_property_ranges(pcb))
-
-    def test_hop_length_true(self):
-        pth_pol = PathPolicy()
-        pth_pol.property_ranges = self.d
-        pth_pol.property_ranges['HopsLength'].extend([0, 2])
-        pcb = MagicMock(spec_set=['get_n_hops'])
-        pcb.get_n_hops.return_value = 1
-        ntools.assert_true(pth_pol._check_property_ranges(pcb))
-        pcb.get_n_hops.assert_called_once_with()
-
-    def test_hop_length_false(self):
-        pth_pol = PathPolicy()
-        pth_pol.property_ranges = self.d
-        pth_pol.property_ranges['HopsLength'].extend([0, 2])
-        pcb = MagicMock(spec_set=['get_n_hops'])
-        pcb.get_n_hops.return_value = 3
-        ntools.assert_false(pth_pol._check_property_ranges(pcb))
-
-    @patch("lib.path_store.SCIONTime.get_time", spec_set=[],
-           new_callable=MagicMock)
-    def test_delay_time_true(self, time_):
-        pth_pol = PathPolicy()
-        pth_pol.property_ranges = self.d
-        pth_pol.property_ranges['DelayTime'].extend([0, 2])
-        time_.return_value = 2
-        pcb = MagicMock(spec_set=['get_timestamp'])
-        pcb.get_timestamp.return_value = 1
-        ntools.assert_true(pth_pol._check_property_ranges(pcb))
-        time_.assert_called_once_with()
-        pcb.get_timestamp.assert_called_once_with()
-
-    @patch("lib.path_store.SCIONTime.get_time", spec_set=[],
-           new_callable=MagicMock)
-    def test_delay_time_false(self, time_):
-        pth_pol = PathPolicy()
-        pth_pol.property_ranges = self.d
-        pth_pol.property_ranges['DelayTime'].extend([0, 2])
-        time_.return_value = 2
-        pcb = MagicMock(spec_set=['get_timestamp'])
-        pcb.get_timestamp.return_value = 3
-        ntools.assert_false(pth_pol._check_property_ranges(pcb))
-
-    def _check_bandwidth(self, key, range_, result):
-        pth_pol = PathPolicy()
-        pth_pol.property_ranges = self.d
-        pth_pol.property_ranges[key].extend(range_)
-        ntools.eq_(pth_pol._check_property_ranges("pcb"), result)
-
-    def test_bandwidth(self):
-        for key in ('GuaranteedBandwidth', 'AvailableBandwidth',
-                    'TotalBandwidth'):
-            yield self._check_bandwidth, key, [0, 20], True
-            yield self._check_bandwidth, key, [0, 9], False
+    @patch("lib.path_store.SCIONTime.get_time", new_callable=create_mock)
+    def test_no_checks(self, get_time):
+        inst, pcb = self._setup(max_bw=9)
+        for key in inst.property_ranges:
+            inst.property_ranges[key] = []
+        pcb.get_n_peer_links.return_value = 2
+        pcb.get_n_hops.return_value = -1
+        pcb.get_timestamp.return_value = -0.1
+        # Call
+        ntools.eq_(inst._check_property_ranges(pcb), [])
 
 
 class TestPathPolicyFromFile(object):
@@ -390,12 +346,13 @@ class TestPathStoreAddSegment(object):
     """
     Unit tests for lib.path_store.PathStore.add_segment
     """
-    def setUp(self):
-        self.pcb = MagicMock(spec=PathSegment)
-        self.pcb.segment_id = REV_TOKEN_LEN * b'\x00'
-
-    def tearDown(self):
-        del self.pcb
+    def _setup(self, filter_=True):
+        inst = PathStore("path_policy")
+        inst.path_policy = create_mock(["check_filters"])
+        inst.path_policy.check_filters.return_value = filter_
+        pcb = create_mock(["get_hops_hash", "get_timestamp"],
+                          class_=PathSegment)
+        return inst, pcb
 
     @patch("lib.path_store.PathStore.__init__", autospec=True,
            return_value=None)
@@ -403,11 +360,11 @@ class TestPathStoreAddSegment(object):
         """
         Try to add a path that does not meet the filter requirements.
         """
-        pth_str = PathStore("path_policy")
-        pth_str.path_policy = MagicMock(spec_set=['check_filters'])
-        pth_str.path_policy.check_filters.return_value = False
-        pth_str.add_segment(self.pcb)
-        pth_str.path_policy.check_filters.assert_called_once_with(self.pcb)
+        inst, pcb = self._setup(filter_=False)
+        # Call
+        inst.add_segment(pcb)
+        # Tests
+        inst.path_policy.check_filters.assert_called_once_with(pcb)
 
     @patch("lib.path_store.SCIONTime.get_time", new_callable=create_mock)
     @patch("lib.path_store.PathStore.__init__", autospec=True,
@@ -416,16 +373,17 @@ class TestPathStoreAddSegment(object):
         """
         Try to add a path that is already in the path store.
         """
-        pth_str = PathStore("path_policy")
-        pth_str.path_policy = create_mock(['check_filters'])
+        inst, pcb = self._setup()
+        candidate = create_mock(['id', 'pcb', 'delay_time', 'last_seen_time'])
+        candidate.id = pcb.get_hops_hash.return_value
+        inst.candidates = [candidate]
         time_.return_value = 23
-        candidate = MagicMock(spec_set=['id', 'delay', 'last_seen_time'])
-        candidate.id = self.pcb.segment_id
-        pth_str.candidates = [candidate]
-        self.pcb.get_timestamp.return_value = 22
-        pth_str.add_segment(self.pcb)
-        ntools.eq_(pth_str.candidates[0].delay, 1)
-        ntools.eq_(pth_str.candidates[0].last_seen_time, time_.return_value)
+        pcb.get_timestamp.return_value = 22
+        # Call
+        inst.add_segment(pcb)
+        # Tests
+        ntools.eq_(candidate.delay_time, 1)
+        ntools.eq_(candidate.last_seen_time, time_.return_value)
 
     @patch("lib.path_store.PathStoreRecord", autospec=True)
     @patch("lib.path_store.PathStore.__init__", autospec=True,
@@ -434,12 +392,14 @@ class TestPathStoreAddSegment(object):
         """
         Add a single path segment to the set of candidate paths.
         """
-        pth_str = PathStore("path_policy")
-        pth_str.path_policy = create_mock(['check_filters'])
-        pth_str.candidates = []
-        pth_str._trim_candidates = create_mock()
-        pth_str.add_segment(self.pcb)
-        ntools.eq_(pth_str.candidates, [psr.return_value])
+        inst, pcb = self._setup()
+        inst.candidates = []
+        inst._trim_candidates = create_mock()
+        # Call
+        inst.add_segment(pcb)
+        # Tests
+        ntools.eq_(inst.candidates, [psr.return_value])
+        inst._trim_candidates.assert_called_once_with()
 
 
 class TestPathStoreTrimCandidates(object):

@@ -25,15 +25,16 @@ from infrastructure.scion_elem import SCIONElement
 from lib.crypto.hash_chain import HashChain
 from lib.defines import ADDR_IPV4_TYPE, PATH_SERVICE, SCION_UDP_PORT
 from lib.errors import SCIONBaseError, SCIONServiceLookupError
+from lib.log import log_exception
+from lib.packet.packet_base import PayloadClass
 from lib.packet.path import PathCombinator
 from lib.packet.path_mgmt import (
-    PathMgmtPacket,
     PathMgmtType as PMT,
     PathSegmentInfo,
     PathSegmentType as PST,
-    RevocationInfo,
 )
 from lib.packet.scion_addr import ISD_AD
+from lib.packet.scion import SCIONL4Packet
 from lib.path_db import PathSegmentDB
 from lib.socket import UDPSocket
 from lib.thread import thread_safety_net
@@ -179,11 +180,9 @@ class SCIONDaemon(SCIONElement):
         event = threading.Event()
         update_dict(self._waiting_targets[ptype], (dst_isd, dst_ad), [event])
         # Create and send out path request.
-        info = PathSegmentInfo.from_values(ptype, src_isd, dst_isd,
-                                           src_ad, dst_ad)
-        path_request = PathMgmtPacket.from_values(PMT.REQUEST, info,
-                                                  None, self.addr,
-                                                  ISD_AD(src_isd, src_ad))
+        info = PathSegmentInfo.from_values(ptype, src_isd, src_ad, dst_isd,
+                                           dst_ad)
+        path_request = self._build_packet(dst, payload=info)
         self.send(path_request, dst)
         # Wait for path reply and clear us from the waiting list when we got it.
         cycle_cnt = 0
@@ -235,6 +234,8 @@ class SCIONDaemon(SCIONElement):
                     key = (src_isd, src_core_ad, dst_isd, dst_core_ad)
                     if key in src_dst_sets:
                         continue
+                    if (src_isd, src_core_ad) == (dst_isd, dst_core_ad):
+                        continue
                     self._request_paths(PST.CORE, dst_isd, dst_core_ad,
                                         src_ad=src_core_ad, requester=requester)
                     cs = self.core_segments(last_isd=src_isd,
@@ -251,19 +252,20 @@ class SCIONDaemon(SCIONElement):
 
         return full_paths
 
-    def handle_path_reply(self, path_reply):
+    def handle_path_reply(self, pkt):
         """
         Handle path reply from local path server.
 
         :param path_reply:
         :type path_reply:
         """
+        path_reply = pkt.get_payload()
         info = path_reply.info
         for pcb in path_reply.pcbs:
             isd = pcb.get_isd()
             ad = pcb.get_last_pcbm().ad_id
             if ((self.topology.isd_id != isd or self.topology.ad_id != ad)
-                    and info.type in [PST.DOWN, PST.UP_DOWN]
+                    and info.seg_type in [PST.DOWN, PST.UP_DOWN]
                     and info.dst_isd == isd and info.dst_ad == ad):
                 self.down_segments.update(pcb, info.src_isd, info.src_ad,
                                           info.dst_isd, info.dst_ad)
@@ -271,13 +273,13 @@ class SCIONDaemon(SCIONElement):
                              info.src_isd, info.src_ad, info.dst_isd,
                              info.dst_ad)
             elif ((self.topology.isd_id == isd and self.topology.ad_id == ad)
-                    and info.type in [PST.UP, PST.UP_DOWN]):
+                    and info.seg_type in [PST.UP, PST.UP_DOWN]):
                 self.up_segments.update(pcb, pcb.get_isd(),
                                         pcb.get_first_pcbm().ad_id, isd, ad)
                 logging.info("Up path (%d, %d)->(%d, %d) added.",
                              info.src_isd, info.src_ad, info.dst_isd,
                              info.dst_ad)
-            elif info.type == PST.CORE:
+            elif info.seg_type == PST.CORE:
                 self.core_segments.update(pcb, info.dst_isd, info.dst_ad,
                                           info.src_isd, info.src_ad)
                 logging.info("Core path (%d, %d)->(%d, %d) added.",
@@ -296,9 +298,9 @@ class SCIONDaemon(SCIONElement):
         """
         info = path_reply.info
         # Wake up sleeping get_paths().
-        if (info.dst_isd, info.dst_ad) in self._waiting_targets[info.type]:
-            for event in self._waiting_targets[info.type][(info.dst_isd,
-                                                           info.dst_ad)]:
+        if (info.dst_isd, info.dst_ad) in self._waiting_targets[info.seg_type]:
+            for event in self._waiting_targets[info.seg_type][(info.dst_isd,
+                                                               info.dst_ad)]:
                 event.set()
 
     def _api_handle_path_request(self, packet, sender):
@@ -360,16 +362,14 @@ class SCIONDaemon(SCIONElement):
         else:
             logging.warning("API: type %d not supported.", packet[0])
 
-    def handle_revocation(self, rev_info):
+    def handle_revocation(self, pkt):
         """
         Handle revocation.
 
         :param rev_info: The RevocationInfo object.
         :type rev_info: :class:`lib.packet.path_mgmt.RevocationInfo`
         """
-        if not isinstance(rev_info, RevocationInfo):
-            logging.error("Revocation packet has wrong format.")
-            return
+        rev_info = pkt.get_payload()
         logging.info("Received revocation:\n%s", str(rev_info))
         # Verify revocation.
 #         if not HashChain.verify(rev_info.proof, rev_info.rev_token):
@@ -419,13 +419,25 @@ class SCIONDaemon(SCIONElement):
         :param from_local_socket:
         :type from_local_socket:
         """
-        if from_local_socket:  # From PS or CS.
-            pkt = PathMgmtPacket(packet)
-            if pkt.type == PMT.REPLY:
-                self.handle_path_reply(pkt.get_payload())
-            elif pkt.type == PMT.REVOCATION:
-                self.handle_revocation(pkt.get_payload())
-            else:
-                logging.warning("Type %d not supported.", pkt.type)
-        else:  # From localhost (SCIONDaemon API)
+        if not from_local_socket:  # From localhost (SCIONDaemon API)
             self.api_handle_request(packet, sender)
+            return
+        type_map = {
+            PMT.REPLY: self.handle_path_reply,
+            PMT.REVOCATION: self.handle_revocation,
+        }
+        pkt = SCIONL4Packet(packet)
+        payload = pkt.parse_payload()
+        if payload.PAYLOAD_CLASS != PayloadClass.PATH:
+            logging.error("Payload class %d not supported.",
+                          payload.PAYLOAD_CLASS)
+            return
+        handler = type_map.get(payload.PAYLOAD_TYPE)
+        if handler is None:
+            logging.warning("Path management packet type %d not supported.",
+                            payload.PAYLOAD_TYPE)
+            return
+        try:
+            handler(pkt)
+        except SCIONBaseError:
+            log_exception("Error handling packet: %s" % pkt)

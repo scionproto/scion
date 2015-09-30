@@ -66,6 +66,9 @@ class ISD_AD(namedtuple('ISD_AD', 'isd ad')):
         ad = self.ad & 0x000fffff
         return struct.pack("!I", isd + ad)
 
+    def __len__(self):
+        return self.LEN
+
 
 class SCIONAddr(object):
     """
@@ -134,18 +137,18 @@ class SCIONAddr(object):
     def __len__(self):
         return self.addr_len
 
+    def __eq__(self, other):
+        return (
+            self.isd_id == other.isd_id and
+            self.ad_id == other.ad_id and
+            self.host_addr == other.host_addr
+        )
+
     def __str__(self):
         """
         Return a string containing ISD ID, AD ID, and host address.
         """
         return "(%u, %u, %s)" % (self.isd_id, self.ad_id, self.host_addr)
-
-    def __eq__(self, other):
-        if type(other) is type(self):
-            return (self.get_isd_ad() == other.get_isd_ad() and
-                    self.host_addr == other.host_addr)
-        else:
-            return False
 
     def get_isd_ad(self):
         """

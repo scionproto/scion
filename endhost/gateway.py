@@ -30,7 +30,8 @@ from pytun import TunTapDevice, IFF_TUN, IFF_NO_PI
 from endhost.sciond import SCIONDaemon
 from lib.defines import ADDR_IPV4_TYPE, SCION_UDP_EH_DATA_PORT
 from lib.log import init_logging
-from lib.packet.scion import SCIONPacket
+from lib.packet.packet_base import PayloadRaw
+from lib.packet.scion import SCIONBasePacket, build_base_hdrs
 from lib.packet.scion_addr import SCIONAddr
 from lib.socket import UDPSocket
 from lib.thread import thread_safety_net
@@ -86,7 +87,7 @@ class SCIONGateway(object):
             daemon=True).start()
         while True:
             packet, _ = self._data_sock.recv()
-            self.handle_scion_packet(SCIONPacket(packet))
+            self.handle_scion_packet(SCIONBasePacket(packet))
 
     def handle_ip_packets(self):
         """
@@ -106,8 +107,10 @@ class SCIONGateway(object):
                 if paths:
                     dst = SCIONAddr.from_values(scion_addr[0], scion_addr[1],
                                                 IPv4Address(ip_dst))
-                    spkt = SCIONPacket.from_values(self.sd.addr, dst,
-                                                   raw_packet, paths[0])
+                    cmn_hdr, addr_hdr = build_base_hdrs(self.sd.addr, dst)
+                    spkt = SCIONBasePacket.from_values(
+                        cmn_hdr, addr_hdr, paths[0],
+                        payload=PayloadRaw(raw_packet))
                     (next_hop, port) = self.sd.get_first_hop(spkt)
                     self.sd.send(spkt, next_hop, port)
                     logging.info("Sending packet: %s\nFirst hop: %s:%s", spkt,

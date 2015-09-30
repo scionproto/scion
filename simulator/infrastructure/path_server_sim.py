@@ -22,11 +22,7 @@ import logging
 # SCION
 from infrastructure.path_server import CorePathServer, LocalPathServer
 from lib.defines import SCION_UDP_PORT
-from lib.packet.path_mgmt import (
-    PathMgmtPacket,
-    PathMgmtType as PMT,
-)
-from lib.packet.scion_addr import ISD_AD
+from lib.packet.scion import PacketType as PT
 from lib.path_db import DBResult
 
 
@@ -78,7 +74,7 @@ class CorePathServerSim(CorePathServer):
 
     def _handle_core_segment_record(self, pkt, from_zk=False):
         """
-        Handle registration of a core path.
+        Handle registration of a core path. Removing zookeeper related calls.
         """
         records = pkt.get_payload()
         if not records.pcbs:
@@ -113,17 +109,17 @@ class CorePathServerSim(CorePathServer):
             pcb = records.pcbs[0]
             next_hop = self.ifid2addr[pcb.get_last_pcbm().hof.ingress_if]
             path = pcb.get_path(reverse_direction=True)
-            targets = copy.deepcopy(self.waiting_targets)
-            for (target_isd, target_ad, info) in targets:
+            targets = copy.copy(self.waiting_targets)
+            for (target_isd, target_ad, seg_info) in targets:
                 if target_isd == dst_isd:
-                    dst_isd_ad = ISD_AD(dst_isd, dst_ad)
-                    path_request = PathMgmtPacket.from_values(PMT.REQUEST, info,
-                                                              path, self.addr,
-                                                              dst_isd_ad)
-                    self.send(path_request, next_hop)
-                    self.waiting_targets.remove((target_isd, target_ad, info))
+                    req_pkt = self._build_packet(
+                        PT.PATH_MGMT, payload=seg_info, path=path,
+                        dst_isd=dst_isd, dst_ad=dst_ad)
+                    self.send(req_pkt, next_hop)
+                    self.waiting_targets.remove((target_isd, target_ad,
+                                                 seg_info))
                     logging.debug("Sending path request %s on newly learned "
-                                  "path to (%d, %d)", info, dst_isd, dst_ad)
+                                  "path to (%d, %d)", seg_info, dst_isd, dst_ad)
         # Serve pending core path requests.
         for target in [((src_isd, src_ad), (dst_isd, dst_ad)),
                        ((src_isd, src_ad), (dst_isd, 0))]:
@@ -136,8 +132,8 @@ class CorePathServerSim(CorePathServer):
                                                       last_isd=src_isd,
                                                       last_ad=src_ad)
                 segments_to_send = segments_to_send[:self.MAX_SEG_NO]
-                for path_request in self.pending_core[target]:
-                    self.send_path_segments(path_request, segments_to_send)
+                for pkt in self.pending_core[target]:
+                    self.send_path_segments(pkt, segments_to_send)
                 del self.pending_core[target]
                 logging.debug("D02: %s removed from pending_core", target)
 
@@ -191,7 +187,7 @@ class LocalPathServerSim(LocalPathServer):
     def _handle_up_segment_record(self, pkt, from_zk=False):
         """
         Handle Up Path registration from local BS or ZK's cache.
-        Removing Zookeeper calls.
+        Removing zookeeper related calls.
 
         :param pkt:
         :type pkt:
@@ -209,23 +205,23 @@ class LocalPathServerSim(LocalPathServer):
                 logging.info("Up-Segment to (%d, %d) registered, from_zk: %s.",
                              pcb.get_first_pcbm().isd_id,
                              pcb.get_first_pcbm().ad_id, from_zk)
-        # Share Up Segment via ZK.
         if not from_zk:
             pass
         # Sending pending targets to the core using first registered up-path.
         if self.waiting_targets:
             pcb = records.pcbs[0]
             path = pcb.get_path(reverse_direction=True)
-            dst_isd_ad = ISD_AD(pcb.get_isd(), pcb.get_first_pcbm().ad_id)
+            dst_isd = pcb.get_isd()
+            dst_ad = pcb.get_first_pcbm().ad_id
             next_hop = self.ifid2addr[path.get_fwd_if()]
             targets = copy.copy(self.waiting_targets)
-            for (isd, ad, info) in targets:
-                path_request = PathMgmtPacket.from_values(PMT.REQUEST, info,
-                                                          path, self.addr,
-                                                          dst_isd_ad)
-                self.send(path_request, next_hop)
+            for (isd, ad, seg_info) in targets:
+                req_pkt = self._build_packet(
+                    PT.PATH_MGMT, dst_isd=dst_isd, dst_ad=dst_ad,
+                    path=path, payload=seg_info)
+                self.send(req_pkt, next_hop)
                 logging.info("PATH_REQ sent using (first) registered up-path")
-                self.waiting_targets.remove((isd, ad, info))
+                self.waiting_targets.remove((isd, ad, seg_info))
         # Handling pending UP_PATH requests.
         for path_request in self.pending_up:
             self.send_path_segments(path_request,

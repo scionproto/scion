@@ -28,15 +28,19 @@ import sys
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.certificate import TRC
 from lib.defines import CERTIFICATE_SERVICE, SCION_UDP_PORT
+from lib.errors import SCIONBaseError
 from lib.log import init_logging, log_exception
-from lib.packet.scion import (
+from lib.packet.cert_mgmt import (
+    CertMgmtType,
     CertChainReply,
     CertChainRequest,
-    PacketType as PT,
-    SCIONPacket,
     TRCReply,
     TRCRequest,
-    get_type,
+)
+from lib.packet.packet_base import PayloadClass
+from lib.packet.scion import (
+    PacketType as PT,
+    SCIONL4Packet,
 )
 from lib.util import (
     get_cert_chain_file_path,
@@ -73,9 +77,8 @@ class CertServer(SCIONElement):
         :param is_sim: running in simulator
         :type is_sim: bool
         """
-        SCIONElement.__init__(self, CERTIFICATE_SERVICE, topo_file,
-                              server_id=server_id, config_file=config_file,
-                              is_sim=is_sim)
+        super().__init__(CERTIFICATE_SERVICE, topo_file, server_id=server_id,
+                         config_file=config_file, is_sim=is_sim)
         self.trc = TRC(trc_file)
         self.cert_chain_requests = collections.defaultdict(list)
         self.trc_requests = collections.defaultdict(list)
@@ -93,13 +96,14 @@ class CertServer(SCIONElement):
                                 self.topology.zookeepers)
             self.zk.retry("Joining party", self.zk.party_setup)
 
-    def process_cert_chain_request(self, cert_chain_req):
+    def process_cert_chain_request(self, pkt):
         """
         Process a certificate chain request.
 
         :param cert_chain_req: certificate chain request.
         :type cert_chain_req: CertChainRequest
         """
+        cert_chain_req = pkt.get_payload()
         assert isinstance(cert_chain_req, CertChainRequest)
         logging.info("Certificate chain request received.")
         cert_chain = self.cert_chains.get((cert_chain_req.isd_id,
@@ -121,15 +125,16 @@ class CertServer(SCIONElement):
             cert_chain_tuple = (cert_chain_req.isd_id, cert_chain_req.ad_id,
                                 cert_chain_req.version)
             self.cert_chain_requests[cert_chain_tuple].append(
-                cert_chain_req.hdr.src_addr.host_addr)
+                pkt.addrs.src_addr)
             new_cert_chain_req = CertChainRequest.from_values(
-                PT.CERT_CHAIN_REQ, self.addr, cert_chain_req.ingress_if,
-                cert_chain_req.src_isd, cert_chain_req.src_ad,
-                cert_chain_req.isd_id, cert_chain_req.ad_id,
-                cert_chain_req.version)
+                cert_chain_req.ingress_if, cert_chain_req.src_isd,
+                cert_chain_req.src_ad, cert_chain_req.isd_id,
+                cert_chain_req.ad_id, cert_chain_req.version)
+            req_pkt = self._build_packet(PT.CERT_MGMT,
+                                         payload=new_cert_chain_req)
             dst_addr = self.ifid2addr.get(cert_chain_req.ingress_if)
             if dst_addr:
-                self.send(new_cert_chain_req, dst_addr)
+                self.send(req_pkt, dst_addr)
                 logging.info("New certificate chain request sent.")
             else:
                 logging.warning("Certificate chain request not sent: "
@@ -138,10 +143,10 @@ class CertServer(SCIONElement):
             logging.debug('Certificate chain found.')
             dst_addr = None
             cert_chain_rep = CertChainReply.from_values(
-                self.addr, cert_chain_req.isd_id, cert_chain_req.ad_id,
+                cert_chain_req.isd_id, cert_chain_req.ad_id,
                 cert_chain_req.version, cert_chain)
-            if get_type(cert_chain_req) == PT.CERT_CHAIN_REQ_LOCAL:
-                dst_addr = cert_chain_req.hdr.src_addr.host_addr
+            if cert_chain_req.local:
+                dst_addr = pkt.addrs.src_addr
             else:
                 for router in self.topology.child_edge_routers:
                     if (cert_chain_req.src_isd ==
@@ -150,19 +155,21 @@ class CertServer(SCIONElement):
                             router.interface.neighbor_ad):
                         dst_addr = router.addr
             if dst_addr:
-                self.send(cert_chain_rep, dst_addr)
+                rep_pkt = self._build_packet(dst_addr, payload=cert_chain_rep)
+                self.send(rep_pkt, dst_addr)
                 logging.info("Certificate chain reply sent.")
             else:
                 logging.warning("Certificate chain reply not sent: "
                                 "no destination found")
 
-    def process_cert_chain_reply(self, cert_chain_rep):
+    def process_cert_chain_reply(self, pkt):
         """
         Process a certificate chain reply.
 
         :param cert_chain_rep: certificate chain reply.
         :type cert_chain_rep: CertChainReply
         """
+        cert_chain_rep = pkt.get_payload()
         assert isinstance(cert_chain_rep, CertChainReply)
         logging.info("Certificate chain reply received")
         cert_chain = cert_chain_rep.cert_chain
@@ -177,24 +184,26 @@ class CertServer(SCIONElement):
                 (cert_chain_rep.isd_id, cert_chain_rep.ad_id,
                  cert_chain_rep.version)]:
             new_cert_chain_rep = CertChainReply.from_values(
-                self.addr, cert_chain_rep.isd_id, cert_chain_rep.ad_id,
+                cert_chain_rep.isd_id, cert_chain_rep.ad_id,
                 cert_chain_rep.version, cert_chain_rep.cert_chain)
-            self.send(new_cert_chain_rep, dst_addr)
+            rep_pkt = self._build_packet(dst_addr, payload=new_cert_chain_rep)
+            self.send(rep_pkt, dst_addr)
         del self.cert_chain_requests[
             (cert_chain_rep.isd_id,
              cert_chain_rep.ad_id,
              cert_chain_rep.version)]
         logging.info("Certificate chain reply sent.")
 
-    def process_trc_request(self, trc_req):
+    def process_trc_request(self, pkt):
         """
         Process a TRC request.
 
         :param trc_req: TRC request.
         :type trc_req: TRCRequest.
         """
+        trc_req = pkt.get_payload()
         assert isinstance(trc_req, TRCRequest)
-        logging.info("TRC request received")
+        logging.info("TRC request received for ISD %d", trc_req.isd_id)
         trc = self.trcs.get((trc_req.isd_id, trc_req.version))
         if not trc:
             # Try loading file from disk
@@ -206,62 +215,72 @@ class CertServer(SCIONElement):
                 self.trcs[(trc_req.isd_id, trc_req.version)] = trc
         if not trc:
             # Requesting TRC file from parent's cert server
-            logging.debug('TRC not found.')
+            logging.debug('TRC not found for ISD %d.', trc_req.isd_id)
             trc_tuple = (trc_req.isd_id, trc_req.version)
-            self.trc_requests[trc_tuple].append(trc_req.hdr.src_addr.host_addr)
+            self.trc_requests[trc_tuple].append(pkt.addrs.src_addr)
             new_trc_req = TRCRequest.from_values(
-                PT.TRC_REQ, self.addr, trc_req.ingress_if,
-                trc_req.src_isd, trc_req.src_ad, trc_req.isd_id,
-                trc_req.version)
+                trc_req.ingress_if, trc_req.src_isd, trc_req.src_ad,
+                trc_req.isd_id, trc_req.version, local=False)
+            req_pkt = self._build_packet(PT.CERT_MGMT, payload=new_trc_req)
             dst_addr = self.ifid2addr.get(trc_req.ingress_if)
             if dst_addr:
-                self.send(new_trc_req, dst_addr)
-                logging.info("New TRC request sent.")
+                self.send(req_pkt, dst_addr)
+                logging.info("New TRC request sent for ISD %d.", trc_req.isd_id)
             else:
-                logging.warning("TRC request not sent: no destination found")
+                logging.warning("TRC request not sent for ISD %d: "
+                                "no destination found.", trc_req.isd_id)
         else:
-            logging.debug('TRC found.')
-            dst_addr = None
-            trc_rep = TRCReply.from_values(self.addr, trc_req.isd_id,
-                                           trc_req.version, trc)
-            if get_type(trc_req) == PT.TRC_REQ_LOCAL:
-                dst_addr = trc_req.hdr.src_addr.host_addr
+            logging.debug('TRC found for ISD %d.', trc_req.isd_id)
+            trc_rep = TRCReply.from_values(trc_req.isd_id, trc_req.version, trc)
+            next_hop = None
+            if trc_req.local:
+                next_hop = pkt.addrs.src_addr
             else:
                 for router in (self.topology.child_edge_routers +
                                self.topology.routing_edge_routers):
                     if (trc_req.src_isd == router.interface.neighbor_isd and
                             trc_req.src_ad == router.interface.neighbor_ad):
-                        dst_addr = router.addr
+                        next_hop = router.addr
                         break
-            if dst_addr:
-                self.send(trc_rep, dst_addr)
-                logging.info("TRC reply sent.")
+            if next_hop:
+                # FIXME(kormat): this only works when there's one CS in an ad.
+                # https://github.com/netsec-ethz/scion/issues/389 is needed for
+                # when there's more.
+                rep_pkt = self._build_packet(
+                    PT.CERT_MGMT, dst_isd=trc_req.src_isd,
+                    dst_ad=trc_req.src_ad, payload=trc_rep)
+                self.send(rep_pkt, next_hop)
+                logging.info("TRC reply sent to (%d, %d)", trc_req.src_isd,
+                             trc_req.src_ad)
             else:
                 logging.warning("TRC reply not sent: no destination found")
 
-    def process_trc_reply(self, trc_rep):
+    def process_trc_reply(self, pkt):
         """
         Process a TRC reply.
 
         :param trc_rep: TRC reply.
         :type trc_rep: TRCReply
         """
+        trc_rep = pkt.get_payload()
         assert isinstance(trc_rep, TRCReply)
-        logging.info("TRC reply received")
+        logging.info("TRC reply received for ISD %d", trc_rep.isd_id)
         trc = trc_rep.trc
         self.trcs[(trc_rep.isd_id, trc_rep.version)] = trc
         trc_file = get_trc_file_path(
             self.topology.isd_id, self.topology.ad_id,
             trc_rep.isd_id, trc_rep.version)
         write_file(trc_file, trc.decode('utf-8'))
+        count = 0
         # Reply to all requests for this TRC
         for dst_addr in self.trc_requests[(trc_rep.isd_id, trc_rep.version)]:
-            new_trc_rep = TRCReply.from_values(
-                self.addr, trc_rep.isd_id,
-                trc_rep.version, trc_rep.trc)
-            self.send(new_trc_rep, dst_addr)
+            new_trc_rep = TRCReply.from_values(trc_rep.isd_id, trc_rep.version,
+                                               trc_rep.trc)
+            rep_pkt = self._build_packet(dst_addr, payload=new_trc_rep)
+            self.send(rep_pkt, dst_addr)
+            count += 1
         del self.trc_requests[(trc_rep.isd_id, trc_rep.version)]
-        logging.info("TRC reply sent.")
+        logging.info("TRC replies (%d) sent for ISD %d.", count, trc_rep.isd_id)
 
     def _get_cert_chain_identifiers(self, entry):
         """
@@ -300,18 +319,25 @@ class CertServer(SCIONElement):
         :param from_local_socket:
         :type from_local_socket:
         """
-        spkt = SCIONPacket(packet)
-        ptype = get_type(spkt)
-        if ptype == PT.CERT_CHAIN_REQ_LOCAL or ptype == PT.CERT_CHAIN_REQ:
-            self.process_cert_chain_request(CertChainRequest(packet))
-        elif ptype == PT.CERT_CHAIN_REP:
-            self.process_cert_chain_reply(CertChainReply(packet))
-        elif ptype == PT.TRC_REQ_LOCAL or ptype == PT.TRC_REQ:
-            self.process_trc_request(TRCRequest(packet))
-        elif ptype == PT.TRC_REP:
-            self.process_trc_reply(TRCReply(packet))
-        else:
-            logging.info("Type not supported")
+        type_map = {
+            CertMgmtType.CERT_CHAIN_REQ: self.process_cert_chain_request,
+            CertMgmtType.CERT_CHAIN_REPLY: self.process_cert_chain_reply,
+            CertMgmtType.TRC_REQ: self.process_trc_request,
+            CertMgmtType.TRC_REPLY: self.process_trc_reply,
+        }
+        pkt = SCIONL4Packet(packet)
+        pld = pkt.parse_payload()
+        if pld.PAYLOAD_CLASS != PayloadClass.CERT:
+            logging.error("Payload class not supported: %s", pld.PAYLOAD_CLASS)
+            return
+        handler = type_map.get(pld.PAYLOAD_TYPE)
+        if handler is None:
+            logging.error("CertMgmt type not supported: %s", pld.PAYLOAD_TYPE)
+            return
+        try:
+            handler(pkt)
+        except SCIONBaseError:
+            log_exception("Error handling packet: %s" % pkt)
 
 
 def main():

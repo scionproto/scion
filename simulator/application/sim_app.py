@@ -17,7 +17,6 @@
 """
 # Stdlib
 import logging
-import struct
 from ipaddress import IPv4Address
 
 # SCION
@@ -32,6 +31,7 @@ from lib.packet.path import (
     CrossOverPath,
     EmptyPath,
 )
+from lib.packet.scion_addr import ISD_AD
 
 # SCION Simulator
 from simulator.endhost.sim_host import SCIOND_API_PORT
@@ -80,7 +80,7 @@ class SCIONSimApplication(object):
         :param ad: The ad number corresponding to path request
         :type ad: int
         """
-        msg = b'\x00' + struct.pack("H", isd) + struct.pack("Q", ad)
+        msg = b'\x00' + ISD_AD(isd, ad).pack()
         logging.info("Sending path request to local API.")
         eid = self.simulator.add_event(0., dst=self.addr,
                                        args=(msg,

@@ -42,17 +42,15 @@ from lib.packet.path_mgmt import (
     IFStateInfo,
     IFStatePayload,
     IFStateRequest,
-    PathMgmtPacket,
     PathMgmtType as PMT,
     PathSegmentInfo,
-    PathSegmentRecords,
+    PathRecordsReg,
     PathSegmentType as PST,
     RevocationInfo,
 )
 from lib.packet.pcb import (
     ADMarking,
     PCBMarking,
-    PathConstructionBeacon,
     PathSegment,
 )
 from lib.packet.scion_addr import SCIONAddr, ISD_AD
@@ -161,14 +159,17 @@ class CoreBeaconServerSim(CoreBeaconServer):
             cb=self.register_segments
         )
 
-    def store_pcb(self, beacon):
+    def store_pcb(self, pkt):
         """
         Receives beacon and stores it for processing.
+
+        :param pcb: path construction beacon.
+        :type pcb: PathConstructionBeacon
         """
-        assert isinstance(beacon, PathConstructionBeacon)
-        if not self.path_policy.check_filters(beacon.pcb):
+        pcb = pkt.get_payload()
+        if not self.path_policy.check_filters(pcb):
             return
-        pcbs = [beacon.pcb.pack()]
+        pcbs = [pcb.pack()]
         self.process_pcbs(pcbs)
 
     def _check_certs_trc(self, isd_id, ad_id, cert_chain_version, trc_version,
@@ -251,21 +252,20 @@ class CoreBeaconServerSim(CoreBeaconServer):
         self.simulator.add_event(start_time + self.IF_TIMEOUT_INTERVAL - now,
                                  cb=self._handle_if_timeouts)
 
-    def handle_ifid_packet(self, ipkt):
+    def handle_ifid_packet(self, pkt):
         """
         Update the interface state for the corresponding interface.
-        No zookeeper.
 
-        :param ipkt: The IFIDPacket.
-        :type ipkt: IFIDPacket
+        :param ipkt: The IFIDPayload.
+        :type ipkt: IFIDPayload
         """
-        ifid = ipkt.reply_id
+        payload = pkt.get_payload()
+        ifid = payload.reply_id
         prev_state = self.ifid_state[ifid].update()
         if prev_state == InterfaceState.INACTIVE:
             logging.info("IF %d activated", ifid)
         elif prev_state in [InterfaceState.TIMED_OUT, InterfaceState.REVOKED]:
             logging.info("IF %d came back up.", ifid)
-
         if not prev_state == InterfaceState.ACTIVE:
             # Inform ERs about the interface coming up.
             chain = self._get_if_hash_chain(ifid)
@@ -274,12 +274,11 @@ class CoreBeaconServerSim(CoreBeaconServer):
             state_info = IFStateInfo.from_values(ifid, True,
                                                  chain.next_element())
             payload = IFStatePayload.from_values([state_info])
-            isd_ad = ISD_AD(self.topology.isd_id,
-                            self.topology.ad_id)
-            mgmt_packet = PathMgmtPacket.from_values(
-                PMT.IFSTATE_INFO, payload, None, self.addr, isd_ad)
+            payload.pack()
+            mgmt_packet = self._build_packet(payload=payload)
             for er in self.topology.get_all_edge_routers():
                 if er.interface.if_id != ifid:
+                    mgmt_packet.addrs.dst_addr = er.interface.addr
                     self.send(mgmt_packet, er.interface.addr,
                               er.interface.udp_port)
 
@@ -290,22 +289,19 @@ class CoreBeaconServerSim(CoreBeaconServer):
         """
         info = PathSegmentInfo.from_values(PST.CORE,
                                            pcb.get_first_pcbm().isd_id,
-                                           self.topology.isd_id,
                                            pcb.get_first_pcbm().ad_id,
+                                           self.topology.isd_id,
                                            self.topology.ad_id)
         pcb.remove_signatures()
-        records = PathSegmentRecords.from_values(info, [pcb])
         # Register core path with local core path server.
         try:
             ps_addr = self.topology.path_servers[0].addr
         except SCIONServiceLookupError:
             # If there are no local path servers, stop here.
             return
-        dst = SCIONAddr.from_values(
-            self.topology.isd_id, self.topology.ad_id, ps_addr)
-        pkt = PathMgmtPacket.from_values(PMT.REG, records, None,
-                                         self.addr.get_isd_ad(), dst)
-        self.send(pkt, dst.host_addr)
+        records = PathRecordsReg.from_values(info, [pcb])
+        pkt = self._build_packet(ps_addr, payload=records)
+        self.send(pkt, ps_addr)
 
     def _issue_revocation(self, if_id, chain):
         """
@@ -321,10 +317,9 @@ class CoreBeaconServerSim(CoreBeaconServer):
         # Issue revocation to all ERs.
         info = IFStateInfo.from_values(if_id, False, chain.next_element())
         payload = IFStatePayload.from_values([info])
-        isd_ad = ISD_AD(self.topology.isd_id, self.topology.ad_id)
-        state_pkt = PathMgmtPacket.from_values(PMT.IFSTATE_INFO, payload,
-                                               None, self.addr, isd_ad)
+        state_pkt = self._build_packet(payload=payload)
         for er in self.topology.get_all_edge_routers():
+            state_pkt.addrs.dst_addr = er.interface.addr
             self.send(state_pkt, er.interface.addr, er.interface.udp_port)
         self._process_revocation(rev_info, if_id)
 
@@ -391,7 +386,8 @@ class CoreBeaconServerSim(CoreBeaconServer):
             ifid_states = [(request.if_id, self.ifid_state[request.if_id])]
         else:
             logging.error("Received ifstate request from %s for unknown "
-                          "interface %s.", mgmt_pkt.hdr.src_addr, request.if_id)
+                          "interface %s.", mgmt_pkt.addrs.get_src_addr(),
+                          request.if_id)
             return
 
         for (ifid, state) in ifid_states:
@@ -403,14 +399,12 @@ class CoreBeaconServerSim(CoreBeaconServer):
                                            chain.next_element())
             infos.append(info)
         if not infos:
-            logging.error("No IF state info to put in response.")
+            logging.warning("No IF state info to put in response.")
             return
 
         payload = IFStatePayload.from_values(infos)
-        isd_ad = ISD_AD(self.topology.isd_id, self.topology.ad_id)
-        state_pkt = PathMgmtPacket.from_values(PMT.IFSTATE_INFO, payload,
-                                               None, self.addr, isd_ad)
-        self.send(state_pkt, mgmt_pkt.hdr.src_addr.host_addr, SCION_ROUTER_PORT)
+        state_pkt = self._build_packet(mgmt_pkt.addrs.src_addr, payload=payload)
+        self.send(state_pkt, mgmt_pkt.addrs.src_addr, SCION_ROUTER_PORT)
 
 
 class LocalBeaconServerSim(LocalBeaconServer):
@@ -500,14 +494,17 @@ class LocalBeaconServerSim(LocalBeaconServer):
     def clean(self):
         pass
 
-    def store_pcb(self, beacon):
+    def store_pcb(self, pkt):
         """
         Receives beacon and stores it for processing.
+
+        :param pcb: path construction beacon.
+        :type pcb: PathConstructionBeacon
         """
-        assert isinstance(beacon, PathConstructionBeacon)
-        if not self.path_policy.check_filters(beacon.pcb):
+        pcb = pkt.get_payload()
+        if not self.path_policy.check_filters(pcb):
             return
-        pcbs = [beacon.pcb.pack()]
+        pcbs = [pcb.pack()]
         self.process_pcbs(pcbs)
 
     def _check_certs_trc(self, isd_id, ad_id, cert_chain_version, trc_version,
@@ -590,21 +587,20 @@ class LocalBeaconServerSim(LocalBeaconServer):
         self.simulator.add_event(start_time + self.IF_TIMEOUT_INTERVAL - now,
                                  cb=self._handle_if_timeouts)
 
-    def handle_ifid_packet(self, ipkt):
+    def handle_ifid_packet(self, pkt):
         """
         Update the interface state for the corresponding interface.
-        No zookeeper.
 
-        :param ipkt: The IFIDPacket.
-        :type ipkt: IFIDPacket
+        :param ipkt: The IFIDPayload.
+        :type ipkt: IFIDPayload
         """
-        ifid = ipkt.reply_id
+        payload = pkt.get_payload()
+        ifid = payload.reply_id
         prev_state = self.ifid_state[ifid].update()
         if prev_state == InterfaceState.INACTIVE:
             logging.info("IF %d activated", ifid)
         elif prev_state in [InterfaceState.TIMED_OUT, InterfaceState.REVOKED]:
             logging.info("IF %d came back up.", ifid)
-
         if not prev_state == InterfaceState.ACTIVE:
             # Inform ERs about the interface coming up.
             chain = self._get_if_hash_chain(ifid)
@@ -613,30 +609,28 @@ class LocalBeaconServerSim(LocalBeaconServer):
             state_info = IFStateInfo.from_values(ifid, True,
                                                  chain.next_element())
             payload = IFStatePayload.from_values([state_info])
-            isd_ad = ISD_AD(self.topology.isd_id,
-                            self.topology.ad_id)
-            mgmt_packet = PathMgmtPacket.from_values(
-                PMT.IFSTATE_INFO, payload, None, self.addr, isd_ad)
+            payload.pack()
+            mgmt_packet = self._build_packet(payload=payload)
             for er in self.topology.get_all_edge_routers():
                 if er.interface.if_id != ifid:
+                    mgmt_packet.addrs.dst_addr = er.interface.addr
                     self.send(mgmt_packet, er.interface.addr,
                               er.interface.udp_port)
 
     def register_up_segment(self, pcb):
         """
-        Send up-segment to Local Path Servers
+        Send up-segment to Local Path Servers.
 
         :raises:
             SCIONServiceLookupError: path server lookup failure
         """
         info = PathSegmentInfo.from_values(
-            PST.UP, self.topology.isd_id, self.topology.isd_id,
-            pcb.get_first_pcbm().ad_id, self.topology.ad_id)
-        ps_addr = self.topology.path_servers[0].addr
-        records = PathSegmentRecords.from_values(info, [pcb])
-        pkt = PathMgmtPacket.from_values(PMT.REG, records, None,
-                                         self.addr, self.addr.get_isd_ad())
-        self.send(pkt, ps_addr)
+            PST.UP, self.topology.isd_id, pcb.get_first_pcbm().ad_id,
+            self.topology.isd_id, self.topology.ad_id)
+        ps_host = self.topology.path_servers[0].addr
+        records = PathRecordsReg.from_values(info, [pcb])
+        pkt = self._build_packet(ps_host, payload=records)
+        self.send(pkt, ps_host)
 
     def _issue_revocation(self, if_id, chain):
         """
@@ -652,11 +646,9 @@ class LocalBeaconServerSim(LocalBeaconServer):
         # Issue revocation to all ERs.
         info = IFStateInfo.from_values(if_id, False, chain.next_element())
         payload = IFStatePayload.from_values([info])
-        isd_ad = ISD_AD(self.topology.isd_id, self.topology.ad_id)
-        state_pkt = PathMgmtPacket.from_values(PMT.IFSTATE_INFO, payload,
-                                               None, self.addr, isd_ad)
+        state_pkt = self._build_packet(payload=payload)
         for er in self.topology.get_all_edge_routers():
-            logging.info("Sending revocation to %s", er.interface.addr)
+            state_pkt.addrs.dst_addr = er.interface.addr
             self.send(state_pkt, er.interface.addr, er.interface.udp_port)
         self._process_revocation(rev_info, if_id)
 
@@ -723,7 +715,8 @@ class LocalBeaconServerSim(LocalBeaconServer):
             ifid_states = [(request.if_id, self.ifid_state[request.if_id])]
         else:
             logging.error("Received ifstate request from %s for unknown "
-                          "interface %s.", mgmt_pkt.hdr.src_addr, request.if_id)
+                          "interface %s.", mgmt_pkt.addrs.get_src_addr(),
+                          request.if_id)
             return
 
         for (ifid, state) in ifid_states:
@@ -735,11 +728,9 @@ class LocalBeaconServerSim(LocalBeaconServer):
                                            chain.next_element())
             infos.append(info)
         if not infos:
-            logging.error("No IF state info to put in response.")
+            logging.warning("No IF state info to put in response.")
             return
 
         payload = IFStatePayload.from_values(infos)
-        isd_ad = ISD_AD(self.topology.isd_id, self.topology.ad_id)
-        state_pkt = PathMgmtPacket.from_values(PMT.IFSTATE_INFO, payload,
-                                               None, self.addr, isd_ad)
-        self.send(state_pkt, mgmt_pkt.hdr.src_addr.host_addr, SCION_ROUTER_PORT)
+        state_pkt = self._build_packet(mgmt_pkt.addrs.src_addr, payload=payload)
+        self.send(state_pkt, mgmt_pkt.addrs.src_addr, SCION_ROUTER_PORT)

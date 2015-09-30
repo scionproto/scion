@@ -103,7 +103,7 @@ class HostAddrBase(object, metaclass=ABCMeta):
         return (self.TYPE == other.TYPE) and (self.addr == other.addr)
 
 
-class HostAddrNone(object):
+class HostAddrNone(HostAddrBase):
     """
     Host "None" address. Used to indicate there's no address.
     """

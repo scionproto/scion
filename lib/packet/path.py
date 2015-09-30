@@ -20,6 +20,7 @@ import copy
 from abc import ABCMeta, abstractmethod
 
 # SCION
+from lib.errors import SCIONParseError
 from lib.packet.opaque_field import (
     HopOpaqueField,
     InfoOpaqueField,
@@ -27,6 +28,7 @@ from lib.packet.opaque_field import (
     OpaqueFieldList,
     OpaqueFieldType as OFT,
 )
+from lib.packet.packet_base import HeaderBase
 from lib.packet.scion_addr import ISD_AD
 from lib.util import Raw
 
@@ -42,7 +44,7 @@ UP_PEERING_HOF = "up_segment_peering_link"
 DOWN_PEERING_HOF = "down_segment_peering_link"
 
 
-class PathBase(object, metaclass=ABCMeta):
+class PathBase(HeaderBase, metaclass=ABCMeta):
     """
     Base class for paths in SCION.
 
@@ -62,7 +64,7 @@ class PathBase(object, metaclass=ABCMeta):
         self._ofs = OpaqueFieldList(self.OF_ORDER)
         self.interfaces = []
         if raw is not None:
-            self.parse(raw)
+            self._parse(raw)
 
     @abstractmethod
     def from_values(self, *args, **kwargs):
@@ -84,10 +86,6 @@ class PathBase(object, metaclass=ABCMeta):
         else:
             data = [value]
         self._ofs.set(label, data)
-
-    @abstractmethod
-    def parse(self, raw):
-        raise NotImplementedError
 
     def _parse_iof(self, data, label):
         """
@@ -116,13 +114,9 @@ class PathBase(object, metaclass=ABCMeta):
         self._ofs.set(label, hofs)
 
     def pack(self):
-        """
-        Packs the :any:`OpaqueField`\s.
-
-        :returns: Packed OFs.
-        :rtype: bytes
-        """
-        return self._ofs.pack()
+        raw = self._ofs.pack()
+        assert len(raw) == len(self)
+        return raw
 
     def reverse(self):
         """
@@ -332,7 +326,7 @@ class CorePath(PathBase):
         cp.set_of_idxs()
         return cp
 
-    def parse(self, raw):
+    def _parse(self, raw):
         """
         Parse a raw :any:`CorePath`.
         """
@@ -457,7 +451,7 @@ class CrossOverPath(PathBase):
         cp.set_of_idxs()
         return cp
 
-    def parse(self, raw):
+    def _parse(self, raw):
         """
         Parses a raw :any:`CrossOverPath`.
         """
@@ -598,7 +592,7 @@ class PeerPath(PathBase):
         cp.set_of_idxs()
         return cp
 
-    def parse(self, raw):
+    def _parse(self, raw):
         """
         Parse a raw :any:`PeerPath`.
         """
@@ -692,20 +686,25 @@ class EmptyPath(PathBase):  # pragma: no cover
     OF_ORDER = []
     SEGMENT_OFFSETS = 0, 0
 
+    def __init__(self):
+        super().__init__()
+        self._iof_idx = 0
+        self._hof_idx = 0
+
     def from_values(self, *args, **kwargs):
         raise NotImplementedError
 
-    def parse(self, raw):
+    def _parse(self, raw):
         raise NotImplementedError
 
     def reverse(self):
         pass
 
     def _get_first_iof_idx(self):
-        return None
+        return 0
 
     def _get_first_hof_idx(self):
-        return None
+        return 0
 
     def get_ad_hops(self):
         return 0  # PSz: or 1?
@@ -1047,3 +1046,19 @@ class PathCombinator(object):
                 if (up_peer.ad_id == down_ad.pcbm.ad_id and
                         down_peer.ad_id == up_ad.pcbm.ad_id):
                     return up_peer.hof, down_peer.hof
+
+
+def parse_path(raw):
+    if len(raw) == 0:
+        return EmptyPath()
+    info = InfoOpaqueField(raw[:InfoOpaqueField.LEN])
+    if info.info == OFT.CORE:
+        path = CorePath(raw)
+    elif info.info == OFT.SHORTCUT:
+        path = CrossOverPath(raw)
+    elif info.info in (OFT.INTRA_ISD_PEER, OFT.INTER_ISD_PEER):
+        path = PeerPath(raw)
+    else:
+        raise SCIONParseError("Can not parse path in "
+                              "packet: Unknown type %x", info.info)
+    return path

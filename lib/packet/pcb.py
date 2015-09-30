@@ -26,55 +26,39 @@ from Crypto.Hash import SHA256
 
 # SCION
 from lib.defines import EXP_TIME_UNIT
+from lib.errors import SCIONParseError
 from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
+from lib.packet.packet_base import PayloadClass, SCIONPayloadBase
 from lib.packet.path import CorePath
-from lib.packet.scion import PacketType, SCIONHeader, SCIONPacket
-from lib.packet.scion_addr import SCIONAddr, ISD_AD
+from lib.packet.scion_addr import ISD_AD
 from lib.util import Raw
 
 #: Default value for length (in bytes) of a revocation token.
 REV_TOKEN_LEN = 32
 
 
-class Marking(object, metaclass=ABCMeta):
+class PCBType(object):
+    SEGMENT = 0
+
+
+class MarkingBase(object, metaclass=ABCMeta):
     """
     Base class for all marking objects.
     """
-    def __init__(self):
-        """
-        Initialize an instance of the class Marking.
-        """
-        self.parsed = False
-        self.raw = None
+    @abstractmethod
+    def _parse(self):
+        raise NotImplementedError
 
     @abstractmethod
-    def parse(self, raw):
-        """
-        Populates fields from a raw bytes block.
-        """
+    def from_values(self):
         raise NotImplementedError
 
     @abstractmethod
     def pack(self):
-        """
-        Returns object as a binary string.
-        """
         raise NotImplementedError
 
-    def __eq__(self, other):
-        if type(other) is type(self):
-            return self.raw == other.raw
-        else:
-            return False
 
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
-    def __hash__(self):
-        return hash(self.raw)
-
-
-class PCBMarking(Marking):
+class PCBMarking(MarkingBase):
     """
     Pack all fields for a specific PCB marking, which include: ISD and AD
     numbers, the HopOpaqueField, and the revocation token for the ingress
@@ -90,28 +74,25 @@ class PCBMarking(Marking):
         :param raw:
         :type raw:
         """
-        Marking.__init__(self)
+        super().__init__()
         self.isd_id = 0
         self.ad_id = 0
         self.hof = None
-        self.ig_rev_token = REV_TOKEN_LEN * b"\x00"
+        self.ig_rev_token = bytes(REV_TOKEN_LEN)
         if raw is not None:
-            self.parse(raw)
+            self._parse(raw)
 
-    def parse(self, raw):
+    def _parse(self, raw):
         """
         Populates fields from a raw bytes block.
         """
-        self.raw = raw
         data = Raw(raw, "PCBMarking", self.LEN)
         self.isd_id, self.ad_id = ISD_AD.from_raw(data.pop(ISD_AD.LEN))
         self.hof = HopOpaqueField(data.pop(HopOpaqueField.LEN))
         self.ig_rev_token = data.pop(REV_TOKEN_LEN)
-        self.parsed = True
 
     @classmethod
-    def from_values(cls, isd_id, ad_id, hof,
-                    ig_rev_token=REV_TOKEN_LEN * b"\x00"):
+    def from_values(cls, isd_id, ad_id, hof, ig_rev_token=None):
         """
         Returns PCBMarking with fields populated from values.
 
@@ -120,19 +101,24 @@ class PCBMarking(Marking):
         :param ig_rev_token: Revocation token for the ingress if
                              in the HopOpaqueField.
         """
-        pcbm = PCBMarking()
-        pcbm.isd_id = isd_id
-        pcbm.ad_id = ad_id
-        pcbm.hof = hof
-        pcbm.ig_rev_token = ig_rev_token
-        return pcbm
+        inst = PCBMarking()
+        inst.isd_id = isd_id
+        inst.ad_id = ad_id
+        inst.hof = hof
+        inst.ig_rev_token = ig_rev_token or bytes(REV_TOKEN_LEN)
+        return inst
 
     def pack(self):
-        """
-        Returns PCBMarking as a binary string.
-        """
-        return (ISD_AD(self.isd_id, self.ad_id).pack() + self.hof.pack() +
-                self.ig_rev_token)
+        packed = []
+        packed.append(ISD_AD(self.isd_id, self.ad_id).pack())
+        packed.append(self.hof.pack())
+        packed.append(self.ig_rev_token)
+        raw = b"".join(packed)
+        assert len(raw) == len(self)
+        return raw
+
+    def __len__(self):
+        return self.LEN
 
     def __str__(self):
         pcbm_str = "[PCB Marking isd,ad (%d, %d)]\n" % (self.isd_id, self.ad_id)
@@ -150,7 +136,7 @@ class PCBMarking(Marking):
             return False
 
 
-class ADMarking(Marking):
+class ADMarking(MarkingBase):
     """
     Packs all fields for a specific Autonomous Domain.
     """
@@ -166,24 +152,23 @@ class ADMarking(Marking):
         :param raw:
         :type raw:
         """
-        Marking.__init__(self)
+        super().__init__()
         self.pcbm = None
         self.pms = []
         self.sig = b''
         self.asd = b''
-        self.eg_rev_token = REV_TOKEN_LEN * b"\x00"
+        self.eg_rev_token = bytes(REV_TOKEN_LEN)
         self.cert_ver = 0
         self.sig_len = 0
         self.asd_len = 0
         self.block_len = 0
         if raw is not None:
-            self.parse(raw)
+            self._parse(raw)
 
-    def parse(self, raw):
+    def _parse(self, raw):
         """
         Populates fields from a raw bytes block.
         """
-        self.raw = raw
         data = Raw(raw, "ADMarking", self.MIN_LEN, min_=True)
         self.cert_ver, self.sig_len, self.asd_len, self.block_len = \
             struct.unpack("!HHHH", data.pop(self.METADATA_LEN))
@@ -192,7 +177,6 @@ class ADMarking(Marking):
         self.asd = data.pop(self.asd_len)
         self.eg_rev_token = data.pop(REV_TOKEN_LEN)
         self.sig = data.pop()
-        self.parsed = True
 
     def _parse_peers(self, data):
         """
@@ -206,7 +190,7 @@ class ADMarking(Marking):
 
     @classmethod
     def from_values(cls, pcbm=None, pms=None,
-                    eg_rev_token=REV_TOKEN_LEN * b"\x00", sig=b'', asd=b''):
+                    eg_rev_token=None, sig=b'', asd=b''):
         """
         Returns ADMarking with fields populated from values.
 
@@ -217,30 +201,30 @@ class ADMarking(Marking):
         :param sig: Beacon's signature.
         :param asd: Additional Signed Data appended to the beacon.
         """
-        ad_marking = ADMarking()
-        ad_marking.pcbm = pcbm
-        ad_marking.pms = (pms if pms is not None else [])
-        ad_marking.block_len = (1 + len(ad_marking.pms)) * PCBMarking.LEN
-        ad_marking.sig = sig
-        ad_marking.sig_len = len(sig)
-        ad_marking.asd = asd
-        ad_marking.asd_len = len(asd)
-        ad_marking.eg_rev_token = eg_rev_token
-        return ad_marking
+        inst = ADMarking()
+        inst.pcbm = pcbm
+        inst.pms = pms or []
+        inst.block_len = (1 + len(inst.pms)) * PCBMarking.LEN
+        inst.sig = sig
+        inst.sig_len = len(sig)
+        inst.asd = asd
+        inst.asd_len = len(asd)
+        inst.eg_rev_token = eg_rev_token or bytes(REV_TOKEN_LEN)
+        return inst
 
     def pack(self):
-        """
-        Returns ADMarking as a binary string.
-        """
-        ad_bytes = struct.pack("!HHHH", self.cert_ver, self.sig_len,
-                               self.asd_len, self.block_len)
-        ad_bytes += self.pcbm.pack()
+        packed = []
+        packed.append(struct.pack("!HHHH", self.cert_ver, self.sig_len,
+                                  self.asd_len, self.block_len))
+        packed.append(self.pcbm.pack())
         for peer_marking in self.pms:
-            ad_bytes += peer_marking.pack()
-        ad_bytes += self.asd
-        ad_bytes += self.eg_rev_token
-        ad_bytes += self.sig
-        return ad_bytes
+            packed.append(peer_marking.pack())
+        packed.append(self.asd)
+        packed.append(self.eg_rev_token)
+        packed.append(self.sig)
+        raw = b"".join(packed)
+        assert len(raw) == len(self)
+        return raw
 
     def remove_signature(self):
         """
@@ -256,6 +240,12 @@ class ADMarking(Marking):
         """
         self.asd = b''
         self.asd_len = 0
+
+    def __len__(self):
+        return (
+            self.MIN_LEN + len(self.pms) * PCBMarking.LEN + len(self.sig) +
+            len(self.asd)
+        )
 
     def __str__(self):
         ad_str = "[Autonomous Domain]\n"
@@ -281,7 +271,7 @@ class ADMarking(Marking):
             return False
 
 
-class PathSegment(Marking):
+class PathSegment(SCIONPayloadBase):
     """
     Packs all PathSegment fields for a specific beacon.
 
@@ -299,7 +289,10 @@ class PathSegment(Marking):
     :ivar ads: the ADs on the path.
     :type ads: list
     """
-    MIN_LEN = 14 + REV_TOKEN_LEN
+    PAYLOAD_CLASS = PayloadClass.PCB
+    PAYLOAD_TYPE = PCBType.SEGMENT
+    MIN_LEN = InfoOpaqueField.LEN + 4 + 2 + REV_TOKEN_LEN
+    NAME = "PathSegment"
 
     def __init__(self, raw=None):
         """
@@ -308,30 +301,26 @@ class PathSegment(Marking):
         :param raw:
         :type raw:
         """
-        Marking.__init__(self)
+        super().__init__()
         self.iof = None
         self.trc_ver = 0
         self.if_id = 0
-        self.segment_id = REV_TOKEN_LEN * b"\x00"
+        self.segment_id = bytes(REV_TOKEN_LEN)
         self.ads = []
         self.min_exp_time = 2 ** 8 - 1  # TODO: eliminate 8 as magic number
         if raw is not None:
-            self.parse(raw)
+            self._parse(raw)
 
-    def parse(self, raw):
+    def _parse(self, raw):
         """
         Populates fields from a raw bytes block.
         """
-        self.raw = raw
-        data = Raw(raw, "PathSegment", self.MIN_LEN, min_=True)
-        # Populate the info and ROT OFs from the first and second 8-byte blocks
-        # of the segment, respectively.
+        data = Raw(raw, self.NAME, self.MIN_LEN, min_=True)
         self.iof = InfoOpaqueField(data.pop(InfoOpaqueField.LEN))
         # 4B for trc_ver and 2B for if_id.
         self.trc_ver, self.if_id = struct.unpack("!IH", data.pop(6))
         self.segment_id = data.pop(REV_TOKEN_LEN)
         self._parse_hops(data)
-        self.parsed = True
         return data.offset()
 
     def _parse_hops(self, data):
@@ -348,16 +337,20 @@ class PathSegment(Marking):
                       ADMarking.METADATA_LEN + REV_TOKEN_LEN)
             self.add_ad(ADMarking(data.pop(ad_len)))
 
+    @classmethod
+    def from_values(cls, iof):
+        inst = cls()
+        inst.iof = iof
+        return inst
+
     def pack(self):
-        """
-        Returns PathSegment as a binary string.
-        """
-        pcb_bytes = self.iof.pack()
-        pcb_bytes += struct.pack("!IH", self.trc_ver, self.if_id)
-        pcb_bytes += self.segment_id
+        packed = []
+        packed.append(self.iof.pack())
+        packed.append(struct.pack("!IH", self.trc_ver, self.if_id))
+        packed.append(self.segment_id)
         for ad_marking in self.ads:
-            pcb_bytes += ad_marking.pack()
-        return pcb_bytes
+            packed.append(ad_marking.pack())
+        return b"".join(packed)
 
     def add_ad(self, ad_marking):
         """
@@ -509,12 +502,11 @@ class PathSegment(Marking):
         """
         Deserializes a bytes string into a list of PathSegments.
         """
-        data = Raw(raw, "PathSegment", PathSegment.MIN_LEN, min_=True)
+        data = Raw(raw, "PathSegment")
         pcbs = []
         while len(data):
-            pcb = PathSegment()
-            offset = pcb.parse(data.get())
-            data.pop(offset)
+            pcb = PathSegment(data.get())
+            data.pop(len(pcb))
             pcbs.append(pcb)
         return pcbs
 
@@ -527,6 +519,12 @@ class PathSegment(Marking):
         for pcb in pcbs:
             pcbs_list.append(pcb.pack())
         return b"".join(pcbs_list)
+
+    def __len__(self):
+        l = self.MIN_LEN
+        for ad in self.ads:
+            l += len(ad)
+        return l
 
     def __str__(self):
         pcb_str = "[PathSegment]\n"
@@ -547,42 +545,11 @@ class PathSegment(Marking):
             return False
 
 
-class PathConstructionBeacon(SCIONPacket):
-    """
-    PathConstructionBeacon packet, used for path propagation.
-    """
-    def __init__(self, raw=None):
-        """
-        Initialize an instance of the class PathConstructionBeacon.
-
-        :param raw:
-        :type raw:
-        """
-        SCIONPacket.__init__(self)
-        self.pcb = None
-        if raw:
-            self.parse(raw)
-
-    def parse(self, raw):
-        SCIONPacket.parse(self, raw)
-        self.pcb = PathSegment(self._payload)
-
-    @classmethod
-    def from_values(cls, src_isd_ad, dst, pcb):
-        """
-        Returns a PathConstructionBeacon packet with the values specified.
-
-        :param src_isd_ad: Source's 'ISD_AD' namedtuple.
-        :param dst: Destination address (must be a 'SCIONAddr' object)
-        :param pcb: Path Construction Beacon ('PathSegment' class)
-        """
-        beacon = PathConstructionBeacon()
-        beacon.pcb = pcb
-        src = SCIONAddr.from_values(src_isd_ad.isd, src_isd_ad.ad,
-                                    PacketType.BEACON)
-        beacon.hdr = SCIONHeader.from_values(src, dst)
-        return beacon
-
-    def pack(self):
-        self.set_payload(self.pcb.pack())
-        return SCIONPacket.pack(self)
+def parse_pcb_payload(type_, data):
+    type_map = {
+        PCBType.SEGMENT: PathSegment,
+    }
+    if type_ not in type_map:
+        raise SCIONParseError("Unsupported pcb type: %s", type_)
+    handler = type_map[type_]
+    return handler(data.pop())

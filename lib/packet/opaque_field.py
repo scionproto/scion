@@ -17,6 +17,7 @@
 """
 # Stdlib
 import struct
+import time
 from abc import ABCMeta, abstractmethod
 from binascii import hexlify
 
@@ -66,7 +67,6 @@ class OpaqueField(object, metaclass=ABCMeta):
         """
         self.info = 0  # TODO verify path.PathType in that context
         self.type = 0
-        self.parsed = False
         self.raw = None
 
     @abstractmethod
@@ -155,7 +155,6 @@ class HopOpaqueField(OpaqueField):
         self.mac = data.pop(3)
         self.ingress_if = (ifs & 0xFFF000) >> 12
         self.egress_if = ifs & 0x000FFF
-        self.parsed = True
 
     @classmethod
     def from_values(cls, exp_time, ingress_if=0, egress_if=0, mac=None):
@@ -238,7 +237,6 @@ class InfoOpaqueField(OpaqueField):
             struct.unpack("!BIHB", data.pop(self.LEN))
         self.up_flag = bool(self.info & 0b00000001)
         self.info >>= 1
-        self.parsed = True
 
     @classmethod
     def from_values(cls, info=0, up_flag=False, timestamp=0, isd_id=0, hops=0):
@@ -269,9 +267,9 @@ class InfoOpaqueField(OpaqueField):
         return data
 
     def __str__(self):
-        return "[Info OF info: %s, up: %r, TS: %d, ISD ID: %d, hops: %d]" % (
+        return "[Info OF info: %s, up: %r, TS: %s, ISD ID: %d, hops: %d]" % (
             OpaqueFieldType.to_str(self.info), self.up_flag,
-            self.timestamp, self.isd_id, self.hops)
+            time.ctime(self.timestamp), self.isd_id, self.hops)
 
     def __eq__(self, other):
         if type(other) is type(self):

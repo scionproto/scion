@@ -50,7 +50,7 @@ class PathBaseTesting(PathBase):
     def from_values(self, *args, **kwargs):
         raise NotImplementedError
 
-    def parse(self, raw):
+    def _parse(self, raw):
         raise NotImplementedError
 
     def get_ad_hops(self):
@@ -141,7 +141,7 @@ class TestPathBaseInit(object):
         ofl.assert_called_once_with(inst.OF_ORDER)
         ntools.eq_(inst._ofs, ofl.return_value)
 
-    @patch.object(PathBaseTesting, "parse", autospec=True)
+    @patch.object(PathBaseTesting, "_parse", autospec=True)
     @patch("lib.packet.path.OpaqueFieldList", autospec=True)
     def test_parse(self, ofl, parse):
         # Call
@@ -228,13 +228,16 @@ class TestPathBasePack(object):
     """
     Unit tests for lib.packet.path.PathBase.pack
     """
+    @patch("lib.packet.path.PathBase.__len__", autospec=True)
     @patch("lib.packet.path.PathBase.__init__", autospec=True,
            return_value=None)
-    def test(self, init):
+    def test(self, init, len_):
         inst = PathBaseTesting()
+        len_.return_value = 4
         inst._ofs = create_mock(["pack"])
+        inst._ofs.pack.return_value = "data"
         # Call
-        ntools.eq_(inst.pack(), inst._ofs.pack.return_value)
+        ntools.eq_(inst.pack(), "data")
 
 
 class TestPathBaseReverse(object):
@@ -620,7 +623,7 @@ class TestCorePathFromValues(_FromValuesTest):
 
 class TestCorePathParse(object):
     """
-    Unit tests for lib.packet.path.CorePath.parse
+    Unit tests for lib.packet.path.CorePath._parse
     """
     @patch("lib.packet.path.Raw", autospec=True)
     @patch("lib.packet.path.PathBase.__init__", autospec=True,
@@ -640,7 +643,7 @@ class TestCorePathParse(object):
                             (UP_HOFS, CORE_HOFS, DOWN_HOFS)]
         num_calls = sum(raw_len) + 1
         # Call
-        inst.parse("data")
+        inst._parse("data")
         # Tests
         raw.assert_called_once_with("data", "CorePath")
         assert_these_calls(inst._parse_iof, parse_iof_calls[:num_calls])
@@ -723,7 +726,7 @@ class TestCrossOverPathFromValues(_FromValuesTest):
 
 class TestCrossOverPathParse(object):
     """
-    Unit tests for lib.packet.path.CrossOverPath.parse
+    Unit tests for lib.packet.path.CrossOverPath._parse
     """
     @patch("lib.packet.path.Raw", autospec=True)
     @patch("lib.packet.path.PathBase.__init__", autospec=True,
@@ -735,7 +738,7 @@ class TestCrossOverPathParse(object):
         inst.set_of_idxs = create_mock()
         data = raw.return_value
         # Call
-        inst.parse("data")
+        inst._parse("data")
         # Tests
         raw.assert_called_once_with("data", "CrossOverPath")
         assert_these_calls(inst._parse_iof, [
@@ -872,7 +875,7 @@ class TestPeerPathFromValues(_FromValuesTest):
 
 class TestPeerPathParse(object):
     """
-    Unit tests for lib.packet.path.PeerPath.parse
+    Unit tests for lib.packet.path.PeerPath._parse
     """
     @patch("lib.packet.path.Raw", autospec=True)
     @patch("lib.packet.path.PathBase.__init__", autospec=True,
@@ -884,7 +887,7 @@ class TestPeerPathParse(object):
         inst.set_of_idxs = create_mock()
         data = raw.return_value
         # Call
-        inst.parse("data")
+        inst._parse("data")
         # Tests
         raw.assert_called_once_with("data", "PeerPath")
         assert_these_calls(inst._parse_iof, [

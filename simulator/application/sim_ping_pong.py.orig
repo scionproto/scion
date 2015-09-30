@@ -68,9 +68,13 @@ class SimPingApp(SCIONSimApplication):
         :type packet: bytes
         :param sender: The sender of the packet
         """
+<<<<<<< HEAD
+        if SCIONPacket(packet).get_payload() == b"pong":
+=======
         pkt = SCIONL4Packet(packet)
         payload = pkt.get_payload()
         if payload == PayloadRaw(b"pong"):
+>>>>>>> upstream/master
             logging.info('%s: pong received', self.addr)
             self.pong_received = True
             self.simulator.terminate()
@@ -100,7 +104,7 @@ class SimPingApp(SCIONSimApplication):
         cmn_hdr, addr_hdr = build_base_hdrs(self._addr, dst)
         payload = PayloadRaw(b"ping")
         udp_hdr = SCIONUDPHeader.from_values(
-            self._addr, SimPingApp._APP_PORT, dst, SimPongApp._APP_PORT,
+            self._addr, SimPingApp._APP_PORT, dst, SimPingApp._APP_PORT,
             payload)
         spkt = SCIONL4Packet.from_values(cmn_hdr, addr_hdr, path, [], udp_hdr,
                                          payload)
@@ -125,7 +129,7 @@ class SimPongApp(SCIONSimApplication):
         :param host: The host on which pong application is to be run
         :type host: SCIONSimHost
         """
-        super().__init__(host, SimPongApp._APP_PORT)
+        SCIONSimApplication.__init__(self, host, SimPongApp._APP_PORT)
         self.ping_received = False
 
     def run(self):
@@ -142,6 +146,15 @@ class SimPongApp(SCIONSimApplication):
         :type packet: bytes
         :param sender: The sender of the packet
         """
+<<<<<<< HEAD
+        spkt = SCIONPacket(packet)
+        if spkt.get_payload() == b"ping":
+            # Reverse the packet and send "pong"
+            logging.info('%s: ping received, sending pong.', self.addr)
+            self.ping_received = True
+            spkt.hdr.reverse()
+            spkt.set_payload(b"pong")
+=======
         spkt = SCIONL4Packet(packet)
         payload = spkt.get_payload()
         if payload == PayloadRaw(b"ping"):
@@ -150,5 +163,6 @@ class SimPongApp(SCIONSimApplication):
             self.ping_received = True
             spkt.reverse()
             spkt.set_payload(PayloadRaw(b"pong"))
+>>>>>>> upstream/master
             (next_hop, port) = self.host.get_first_hop(spkt)
             self.host.send(spkt, next_hop, port)
