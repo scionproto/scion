@@ -29,7 +29,9 @@ from lib.defines import (
 from lib.errors import SCIONServiceLookupError
 from lib.packet.host_addr import ADDR_SVC_TYPE
 from lib.packet.path_mgmt import (
+    PathMgmtPacket,
     PathMgmtType as PMT,
+    IFStateRequest,
 )
 from lib.packet.scion import (
     IFIDPacket,
@@ -90,6 +92,7 @@ class RouterSim(Router):
 
     def run(self):
         self.simulator.add_event(0., cb=self.sync_interface)
+        self.simulator.add_event(0., cb=self.request_ifstates)
 
     def sync_interface(self):
         """
@@ -109,6 +112,24 @@ class RouterSim(Router):
                      ifid_req.request_id, ifid_req.reply_id)
 
         self.simulator.add_event(IFID_PKT_TOUT, cb=self.sync_interface)
+
+    def request_ifstates(self):
+        """
+        Periodically request interface states from the BS.
+        """
+        src = SCIONAddr.from_values(self.topology.isd_id, self.topology.ad_id,
+                                    self.interface.addr)
+        dst_isd_ad = ISD_AD(self.topology.isd_id, self.topology.ad_id)
+        ifstates_req = IFStateRequest.from_values()
+        req_pkt = PathMgmtPacket.from_values(PMT.IFSTATE_REQ, ifstates_req,
+                                             None, src, dst_isd_ad)
+        start_time = SCIONTime.get_time()
+        logging.info("Sending IFStateRequest for all interfaces.")
+        for bs in self.topology.beacon_servers:
+            self.send(req_pkt, bs.addr)
+        now = SCIONTime.get_time()
+        self.simulator.add_event(start_time + self.IFSTATE_REQ_INTERVAL - now,
+                                 cb=self.request_ifstates)
 
     def clean(self):
         pass
