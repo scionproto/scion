@@ -86,6 +86,10 @@ class SimPingApp(SCIONSimApplication):
         :param paths_hops: Path information
         :type paths_hops: list
         """
+        if len(paths_hops) == 0:
+            logging.warning("No path found")
+            self.simulator.terminate()
+            return
         (path, hop) = paths_hops[0]
 
         dst = SCIONAddr.from_values(self.dst_isd, self.dst_ad, self.dst_addr)

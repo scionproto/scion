@@ -39,9 +39,6 @@ class SCIONSimHost(SCIONDaemon):
     """
     The SCION Simulator endhost. Applications can be simulated on this host
     """
-
-    TIMEOUT = 5
-
     def __init__(self, addr, topo_file, simulator):
         """
         Initializes SimHost by calling constructor of SCIONDaemon with
@@ -76,8 +73,12 @@ class SCIONSimHost(SCIONDaemon):
             run_cb()
 
     def _expire_request_timeout(self, ptype, requester):
-        # TODO Failure Notification
-        pass
+        """
+        Path request timed out. Send back an empty reply.
+        """
+        logging.warning("Request timed out")
+        _, _, _, path_cb = self.apps[requester[1]]
+        path_cb(b"")
 
     def send(self, packet, dst, dst_port=SCION_UDP_PORT):
         """
@@ -113,7 +114,7 @@ class SCIONSimHost(SCIONDaemon):
             src_isd = self.topology.isd_id
         if src_ad is None:
             src_ad = self.topology.ad_id
-        eid = self.simulator.add_event(SCIONSimHost.TIMEOUT,
+        eid = self.simulator.add_event(self.TIMEOUT,
                                        cb=self._expire_request_timeout,
                                        args=(ptype, requester))
         update_dict(self._waiting_targets[ptype], (dst_isd, dst_ad),
