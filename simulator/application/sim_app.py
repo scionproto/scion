@@ -20,6 +20,7 @@ import logging
 from ipaddress import IPv4Address
 
 # SCION
+from endhost.sciond import SCIOND_API_PORT
 from lib.errors import SCIONParseError
 from lib.packet.opaque_field import (
     InfoOpaqueField,
@@ -32,9 +33,6 @@ from lib.packet.path import (
     EmptyPath,
 )
 from lib.packet.scion_addr import ISD_AD
-
-# SCION Simulator
-from simulator.endhost.sim_host import SCIOND_API_PORT
 
 
 class SCIONSimApplication(object):

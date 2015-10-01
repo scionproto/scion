@@ -20,17 +20,23 @@ import logging
 import struct
 
 # SCION
-from endhost.sciond import SCIONDaemon
+from endhost.sciond import SCIONDaemon, SCIOND_API_PORT
 from lib.defines import SCION_UDP_PORT
+from lib.errors import SCIONBaseError, SCIONParseError
+from lib.log import log_exception
+from lib.packet.packet_base import PayloadClass
 from lib.packet.path import PathCombinator
 from lib.packet.path_mgmt import (
+    PathMgmtType as PMT,
     PathSegmentInfo,
     PathSegmentType as PST,
 )
+from lib.packet.scion import SCIONL4Packet
 from lib.packet.scion_addr import ISD_AD
 from lib.util import update_dict
 
-SCIOND_API_PORT = 3333
+# External
+from itertools import count
 
 
 class SCIONSimHost(SCIONDaemon):
@@ -55,6 +61,8 @@ class SCIONSimHost(SCIONDaemon):
         self.simulator = simulator
         simulator.add_element(str(self.addr.host_addr), self)
         self.apps = {}
+        self._waiting_requests = []
+        self.request_id = count()
 
     def add_application(self, app, port, run_cb, recv_cb, path_cb):
         """
@@ -74,7 +82,11 @@ class SCIONSimHost(SCIONDaemon):
         """
         Path request timed out. Send back an empty reply.
         """
-        logging.warning("Request timed out")
+        logging.warning("Request timed out %s, %s", ptype, requester)
+        req_id = requester[2]
+        # Path reply is already sent
+        if self._waiting_requests.count(req_id) == 0:
+            return
         _, _, _, path_cb = self.apps[requester[1]]
         path_cb(b"")
 
@@ -105,14 +117,14 @@ class SCIONSimHost(SCIONDaemon):
         :type src_isd: int
         :param src_ad: source AD identifier.
         :type src_ad: int
-        :param requester: (Host address, Application port)
-        :type requester: (IPv4Address, int)
+        :param requester: (Host address, Application port, request id)
+        :type requester: (IPv4Address, int, int)
         """
         if src_isd is None:
             src_isd = self.topology.isd_id
         if src_ad is None:
             src_ad = self.topology.ad_id
-        eid = self.simulator.add_event(self.TIMEOUT,
+        eid = self.simulator.add_event(3 * self.TIMEOUT,
                                        cb=self._expire_request_timeout,
                                        args=(ptype, requester))
         update_dict(self._waiting_targets[ptype], (dst_isd, dst_ad),
@@ -226,7 +238,8 @@ class SCIONSimHost(SCIONDaemon):
                     full_paths = self._get_full_paths(src_isd, src_ad,
                                                       dst_isd, dst_ad)
                     self.simulator.remove_event(eid)
-                    self._waiting_targets[info.seg_type][dst_isd_ad].remove(event)
+                    self._waiting_targets[info.seg_type][dst_isd_ad]\
+                        .remove(event)
                     if not full_paths:
                         # TODO What action to be taken?
                         continue
@@ -239,6 +252,13 @@ class SCIONSimHost(SCIONDaemon):
         """
         Send path reply to the requester
         """
+        req_id = requester[2]
+        # Case where reply is already sent
+        if self._waiting_requests.count(req_id) == 0:
+            logging.info("Request already handled")
+            return
+        # Remove from waiting requests
+        self._waiting_requests.remove(req_id)
         reply = []
         for path in paths:
             raw_path = path.pack()
@@ -266,9 +286,14 @@ class SCIONSimHost(SCIONDaemon):
         logging.info("%s", packet)
         (isd, ad) = ISD_AD.from_raw(packet[1:ISD_AD.LEN + 1])
         logging.info("Request for %d, %d", isd, ad)
-        full_paths = self.get_paths(isd, ad, requester=sender)
+        # Generate a request id
+        req_id = next(self.request_id)
+        self._waiting_requests.append(req_id)
+        requester = list(sender)
+        requester.append(req_id)
+        full_paths = self.get_paths(isd, ad, requester=requester)
         if full_paths:
-            self._api_send_path_reply(self, full_paths, sender)
+            self._api_send_path_reply(full_paths, requester)
             return
 
     def api_handle_request(self, packet, sender):
@@ -286,16 +311,62 @@ class SCIONSimHost(SCIONDaemon):
         else:
             logging.warning("API: type %d not supported.", packet[0])
 
+    def handle_revocation(self, pkt):
+        """
+        Handle revocation.
+
+        :param rev_info: The RevocationInfo object.
+        :type rev_info: :class:`lib.packet.path_mgmt.RevocationInfo`
+        """
+        rev_info = pkt.get_payload()
+        logging.info("Received revocation:\n%s", str(rev_info))
+        # Verify revocation.
+#         if not HashChain.verify(rev_info.proof, rev_info.rev_token):
+#             logging.info("Revocation verification failed.")
+#             return
+        # Go through all segment databases and remove affected segments.
+        deletions = self._remove_revoked_pcbs(self.up_segments,
+                                              rev_info.rev_token)
+        deletions += self._remove_revoked_pcbs(self.core_segments,
+                                               rev_info.rev_token)
+        deletions += self._remove_revoked_pcbs(self.down_segments,
+                                               rev_info.rev_token)
+        logging.info("Removed %d segments due to revocation.", deletions)
+        logging.warning("Unable to send packet due to revocation")
+        app_port = pkt.l4_hdr.dst_port
+        _, _, recv_cb, _ = self.apps[app_port]
+        # TODO: src and dst not properly set
+        # For now using recv_cb to send the revocation message
+        recv_cb(pkt.pack(), None, None)
+
     def sim_recv(self, packet, src, dst):
         """
         The receive function called when simulator receives a packet
         """
-        if dst[1] in self.apps:
-            assert dst[0] == str(self.addr.host_addr)
-            _, _, recv_cb, _ = self.apps[dst[1]]
-            recv_cb(packet, src, dst)
-        else:
-            to_local = False
-            if dst[0] == str(self.addr.host_addr) and dst[1] == SCION_UDP_PORT:
-                to_local = True
-            self.handle_request(packet, src, to_local)
+        if dst[1] == SCIOND_API_PORT:  # From localhost (SCIONDaemon API)
+            self.api_handle_request(packet, src)
+            return
+        type_map = {
+            PMT.REPLY: self.handle_path_reply,
+            PMT.REVOCATION: self.handle_revocation,
+        }
+        pkt = SCIONL4Packet(packet)
+        try:
+            payload = pkt.parse_payload()
+        except SCIONParseError:
+            if dst[1] not in self.apps:
+                logging.error("Application %d not supported.", dst[1])
+            else:
+                assert dst[0] == str(self.addr.host_addr)
+                _, _, recv_cb, _ = self.apps[dst[1]]
+                recv_cb(packet, src, dst)
+            return
+        handler = type_map.get(payload.PAYLOAD_TYPE)
+        if handler is None:
+            logging.warning("Path management packet type %d not supported.",
+                            payload.PAYLOAD_TYPE)
+            return
+        try:
+            handler(pkt)
+        except SCIONBaseError:
+            log_exception("Error handling packet: %s" % pkt)

@@ -75,9 +75,9 @@ class RevocationSimTest(unittest.TestCase):
         host1 = SCIONSimHost(src_host_addr, src_topo_path, simulator)
         host2 = SCIONSimHost(dst_host_addr, dst_topo_path, simulator)
         ping_application = SimPingApp(host1, dst_host_addr,
-                                      dst_isd_ad.ad, dst_isd_ad.isd)
+                                      dst_isd_ad.ad, dst_isd_ad.isd, 3)
         pong_application = SimPongApp(host2)
-        app_start_time = 70.
+        app_start_time = 30.
         ping_application.start(app_start_time)
         # Add the events into simulator queue
         for event in events:
@@ -94,8 +94,15 @@ class RevocationSimTest(unittest.TestCase):
                                     args=(router_addr,))
         simulator.run()
         logging.info("Simulation terminated")
-        self.assertTrue(ping_application.pong_received)
-        self.assertTrue(pong_application.ping_received)
+        logging.info("PingPong status:")
+        output = []
+        start_times = []
+        for status in ping_application.pong_recv_status:
+            output.append(status)
+        for time in ping_application.ping_send_time:
+            start_times.append(time)
+        logging.info("Ping pong status:%s", output)
+        logging.info("Time of ping pongs:%s", start_times)
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)

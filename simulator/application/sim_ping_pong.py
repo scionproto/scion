@@ -20,9 +20,11 @@ import logging
 
 # SCION
 from lib.packet.packet_base import PayloadRaw
+from lib.packet.path_mgmt import PathMgmtType as PMT
 from lib.packet.scion import SCIONL4Packet, build_base_hdrs
-from lib.packet.scion_udp import SCIONUDPHeader
 from lib.packet.scion_addr import SCIONAddr
+from lib.packet.scion_udp import SCIONUDPHeader
+from lib.util import SCIONTime
 
 # SCION Simulator
 from simulator.application.sim_app import SCIONSimApplication
@@ -33,8 +35,9 @@ class SimPingApp(SCIONSimApplication):
     Simulator Ping application
     """
     _APP_PORT = 5600
+    PING_INTERVAL = 40
 
-    def __init__(self, host, dst_addr, dst_ad, dst_isd):
+    def __init__(self, host, dst_addr, dst_ad, dst_isd, max_ping_pongs):
         """
         Initialize the ping application
 
@@ -52,7 +55,10 @@ class SimPingApp(SCIONSimApplication):
         self.dst_addr = dst_addr
         self.dst_ad = dst_ad
         self.dst_isd = dst_isd
-        self.pong_received = False
+        self.max_ping_pongs = max_ping_pongs
+        self.num_ping_pongs = 0
+        self.pong_recv_status = []
+        self.ping_send_time = []
 
     def run(self):
         """
@@ -71,9 +77,13 @@ class SimPingApp(SCIONSimApplication):
         pkt = SCIONL4Packet(packet)
         payload = pkt.get_payload()
         if payload == PayloadRaw(b"pong"):
-            logging.info('%s: pong received', self.addr)
-            self.pong_received = True
-            self.simulator.terminate()
+            self.receive_pong(True)
+        else:
+            pld_type = pkt.parse_payload().PAYLOAD_TYPE
+            if pld_type != PMT.REVOCATION:
+                logging.error("Ping applicaiton received some other packet")
+                return
+            self.receive_pong(False)
 
     def send_ping(self):
         """
@@ -90,11 +100,14 @@ class SimPingApp(SCIONSimApplication):
         :param paths_hops: Path information
         :type paths_hops: list
         """
+        logging.info("In _do_send_ping")
+        curr_time = SCIONTime.get_time()
+        self.ping_send_time.append(curr_time)
+
         if len(paths_hops) == 0:
-            logging.warning("No path found")
-            self.simulator.terminate()
+            self.receive_pong(False)
             return
-        (path, hop) = paths_hops[0]
+        (path, _) = paths_hops[0]
 
         dst = SCIONAddr.from_values(self.dst_isd, self.dst_ad, self.dst_addr)
         cmn_hdr, addr_hdr = build_base_hdrs(self._addr, dst)
@@ -110,6 +123,27 @@ class SimPingApp(SCIONSimApplication):
         logging.info("Sending packet: %s\nFirst hop: %s:%s",
                      spkt, next_hop, port)
         self.host.send(spkt, next_hop, port)
+
+    def receive_pong(self, status):
+        """
+        Received a response to the ping packet
+
+        :param status:
+        :type status:
+        """
+        self.num_ping_pongs = self.num_ping_pongs + 1
+        if status:
+            self.pong_recv_status.append(1)
+            logging.info('%s: pong received', self.addr)
+        else:
+            self.pong_recv_status.append(0)
+            logging.info("No path found")
+
+        logging.info('ping-pong count:%d', self.num_ping_pongs)
+        if self.num_ping_pongs >= self.max_ping_pongs:
+            self.simulator.terminate()
+        else:
+            self.simulator.add_event(self.PING_INTERVAL, cb=self.send_ping)
 
 
 class SimPongApp(SCIONSimApplication):
