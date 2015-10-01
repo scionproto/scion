@@ -87,6 +87,8 @@ class RouterSim(Router):
         The receive function called when simulator receives a packet
         """
         if self.stopped:
+            logging.warning("packet received at stopped router: %s",
+                            str(self.addr.host_addr))
             return
         to_local = False
         if dst[0] == str(self.addr.host_addr) and dst[1] == SCION_UDP_PORT:

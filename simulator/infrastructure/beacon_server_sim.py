@@ -32,7 +32,6 @@ from lib.defines import (
     SCION_UDP_PORT,
     SCION_ROUTER_PORT,
 )
-from lib.errors import SCIONServiceLookupError
 from lib.packet.opaque_field import (
     HopOpaqueField,
     InfoOpaqueField,
@@ -296,7 +295,7 @@ class CoreBeaconServerSim(CoreBeaconServer):
         # Register core path with local core path server.
         try:
             ps_addr = self.topology.path_servers[0].addr
-        except SCIONServiceLookupError:
+        except IndexError:
             # If there are no local path servers, stop here.
             return
         records = PathRecordsReg.from_values(info, [pcb])
@@ -343,11 +342,10 @@ class CoreBeaconServerSim(CoreBeaconServer):
         # Send revocations to local PS.
         try:
             ps_addr = self.topology.path_servers[0].addr
-        except SCIONServiceLookupError:
+        except IndexError:
             # If there are no local path servers, stop here.
             return
-        pkt = PathMgmtPacket.from_values(PMT.REVOCATION, rev_info, None,
-                                         self.addr, self.addr.get_isd_ad())
+        pkt = self._build_packet(ps_addr, payload=rev_info)
         logging.info("Sending revocation to local PS.")
         self.send(pkt, ps_addr)
 
@@ -620,9 +618,6 @@ class LocalBeaconServerSim(LocalBeaconServer):
     def register_up_segment(self, pcb):
         """
         Send up-segment to Local Path Servers.
-
-        :raises:
-            SCIONServiceLookupError: path server lookup failure
         """
         info = PathSegmentInfo.from_values(
             PST.UP, self.topology.isd_id, pcb.get_first_pcbm().ad_id,
@@ -672,11 +667,10 @@ class LocalBeaconServerSim(LocalBeaconServer):
         # Send revocations to local PS.
         try:
             ps_addr = self.topology.path_servers[0].addr
-        except SCIONServiceLookupError:
+        except IndexError:
             # If there are no local path servers, stop here.
             return
-        pkt = PathMgmtPacket.from_values(PMT.REVOCATION, rev_info, None,
-                                         self.addr, self.addr.get_isd_ad())
+        pkt = self._build_packet(ps_addr, payload=rev_info)
         logging.info("Sending revocation to local PS.")
         self.send(pkt, ps_addr)
 

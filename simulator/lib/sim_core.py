@@ -204,6 +204,9 @@ class Simulator(object):
         :param addr: The address corresponding to element
         :type addr: str
         """
+        if addr not in self.element_list:
+            logging.error("No such element %s exists", addr)
+            return
         self.element_list[addr].stop()
 
     def start_element(self, addr):
@@ -213,6 +216,9 @@ class Simulator(object):
         :param addr: The address corresponding to element
         :type addr: str
         """
+        if addr not in self.element_list:
+            logging.error("No such element %s exists", addr)
+            return
         self.element_list[addr].run()
 
     def terminate(self):
