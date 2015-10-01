@@ -102,6 +102,9 @@ class HostAddrBase(object, metaclass=ABCMeta):
     def __eq__(self, other):
         return (self.TYPE == other.TYPE) and (self.addr == other.addr)
 
+    def __lt__(self, other):
+        return str(self) < str(other)
+
 
 class HostAddrNone(HostAddrBase):
     """
