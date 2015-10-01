@@ -997,8 +997,7 @@ class CoreBeaconServer(BeaconServer):
         """
         # Sanity check that we should indeed be a core beacon server.
         assert self.topology.is_core_ad, "This shouldn't be a core BS!"
-        self.beacons = defaultdict(self._ps_factory)
-        self.core_segments = defaultdict(self._ps_factory)
+        self.core_beacons = defaultdict(self._ps_factory)
 
     def _ps_factory(self):
         """
@@ -1065,7 +1064,7 @@ class CoreBeaconServer(BeaconServer):
         # Propagate received beacons. A core beacon server can only receive
         # beacons from other core beacon servers.
         beacons = []
-        for ps in self.beacons.values():
+        for ps in self.core_beacons.values():
             beacons.extend(ps.get_best_segments())
         for pcb in beacons:
             core_count += self.propagate_core_pcb(pcb)
@@ -1154,16 +1153,15 @@ class CoreBeaconServer(BeaconServer):
         """
         isd_id = pcb.get_first_pcbm().isd_id
         ad_id = pcb.get_first_pcbm().ad_id
-        self.beacons[(isd_id, ad_id)].add_segment(pcb)
-        self.core_segments[(isd_id, ad_id)].add_segment(pcb)
+        self.core_beacons[(isd_id, ad_id)].add_segment(pcb)
 
     def register_core_segments(self):
         """
         Register the core segment between core ADs.
         """
         core_segments = []
-        for ps in self.core_segments.values():
-            core_segments.extend(ps.get_best_segments())
+        for ps in self.core_beacons.values():
+            core_segments.extend(ps.get_best_segments(sending=False))
         count = 0
         for pcb in core_segments:
             pcb = self._terminate_pcb(pcb)
@@ -1178,7 +1176,7 @@ class CoreBeaconServer(BeaconServer):
         candidates = []
         to_remove = []
         processed = set()
-        for ps in self.core_segments.values():
+        for ps in self.core_beacons.values():
             candidates += ps.candidates
         for cand in candidates:
             if cand.id in processed:
@@ -1196,7 +1194,7 @@ class CoreBeaconServer(BeaconServer):
                 to_remove.append(cand.id)
 
         # Remove the affected segments from the path stores.
-        for ps in self.core_segments.values():
+        for ps in self.core_beacons.values():
             ps.remove_segments(to_remove)
 
 
@@ -1403,7 +1401,7 @@ class LocalBeaconServer(BeaconServer):
         """
         Register the paths to the core.
         """
-        best_segments = self.up_segments.get_best_segments()
+        best_segments = self.up_segments.get_best_segments(sending=False)
         for pcb in best_segments:
             pcb = self._terminate_pcb(pcb)
             pcb.remove_signatures()
@@ -1419,7 +1417,7 @@ class LocalBeaconServer(BeaconServer):
         """
         Register the paths from the core.
         """
-        best_segments = self.down_segments.get_best_segments()
+        best_segments = self.down_segments.get_best_segments(sending=False)
         for pcb in best_segments:
             pcb = self._terminate_pcb(pcb)
             pcb.remove_signatures()
