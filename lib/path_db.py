@@ -226,7 +226,6 @@ class PathSegmentDB(object):
         for seg_id in segment_ids:
             if self.delete(seg_id) == DBResult.ENTRY_DELETED:
                 deletions += 1
-
         return deletions
 
     def __call__(self, *args, **kwargs):

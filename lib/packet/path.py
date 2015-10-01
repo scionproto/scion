@@ -1063,12 +1063,11 @@ def parse_path(raw):
         return EmptyPath()
     info = InfoOpaqueField(raw[:InfoOpaqueField.LEN])
     if info.info == OFT.CORE:
-        path = CorePath(raw)
+        return CorePath(raw)
     elif info.info == OFT.SHORTCUT:
-        path = CrossOverPath(raw)
+        return CrossOverPath(raw)
     elif info.info in (OFT.INTRA_ISD_PEER, OFT.INTER_ISD_PEER):
-        path = PeerPath(raw)
+        return PeerPath(raw)
     else:
         raise SCIONParseError("Can not parse path in "
                               "packet: Unknown type %x", info.info)
-    return path

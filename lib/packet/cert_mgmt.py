@@ -37,7 +37,7 @@ class CertChainRequest(CertMgmtBase):
     PAYLOAD_TYPE = CertMgmtType.CERT_CHAIN_REQ
     LEN = 2 + ISD_AD.LEN * 2 + 4 + 1
 
-    def __init__(self, raw=None):
+    def __init__(self, raw=None):  # pragma: no cover
         """
         :param raw: packed packet.
         :type raw: bytes
@@ -83,7 +83,7 @@ class CertChainRequest(CertMgmtBase):
         packed.append(struct.pack("!B", self.local))
         return b"".join(packed)
 
-    def __len__(self):
+    def __len__(self):  # pragma: no cover
         return self.LEN
 
     def __str__(self):
@@ -113,7 +113,7 @@ class CertChainReply(CertMgmtBase):
     PAYLOAD_TYPE = CertMgmtType.CERT_CHAIN_REPLY
     MIN_LEN = ISD_AD.LEN + 4
 
-    def __init__(self, raw=None):
+    def __init__(self, raw=None):  # pragma: no cover
         """
         Initialize an instance of the class CertChainReply.
 
@@ -172,7 +172,7 @@ class CertChainReply(CertMgmtBase):
         packed.append(self.cert_chain)
         return b"".join(packed)
 
-    def __len__(self):
+    def __len__(self):  # pragma: no cover
         return self.MIN_LEN + len(self.cert_chain)
 
     def __str__(self):
@@ -188,7 +188,7 @@ class TRCRequest(CertMgmtBase):
     ISD_LEN = 2
     LEN = 2 + ISD_AD.LEN + ISD_LEN + 4 + 1
 
-    def __init__(self, raw=None):
+    def __init__(self, raw=None):  # pragma: no cover
         """
         :param raw: packed packet.
         :type raw: bytes
@@ -232,7 +232,7 @@ class TRCRequest(CertMgmtBase):
         packed.append(struct.pack("!B", self.local))
         return b"".join(packed)
 
-    def __len__(self):
+    def __len__(self):  # pragma: no cover
         return self.LEN
 
     def __str__(self):
@@ -260,7 +260,7 @@ class TRCReply(CertMgmtBase):
     PAYLOAD_TYPE = CertMgmtType.TRC_REPLY
     MIN_LEN = ISD_AD.LEN + 2
 
-    def __init__(self, raw=None):
+    def __init__(self, raw=None):  # pragma: no cover
         """
         Initialize an instance of the class TRCReply.
 
@@ -314,7 +314,7 @@ class TRCReply(CertMgmtBase):
         packed.append(self.trc)
         return b"".join(packed)
 
-    def __len__(self):
+    def __len__(self):  # pragma: no cover
         return self.MIN_LEN + len(self.trc)
 
     def __str__(self):
@@ -323,14 +323,16 @@ class TRCReply(CertMgmtBase):
             hexlify(self.trc).decode())
 
 
+_TYPE_MAP = {
+    CertMgmtType.CERT_CHAIN_REQ: (CertChainRequest, CertChainRequest.LEN),
+    CertMgmtType.CERT_CHAIN_REPLY: (CertChainReply, None),
+    CertMgmtType.TRC_REQ: (TRCRequest, TRCRequest.LEN),
+    CertMgmtType.TRC_REPLY: (TRCReply, None),
+}
+
+
 def parse_certmgmt_payload(type_, data):
-    type_map = {
-        CertMgmtType.CERT_CHAIN_REQ: (CertChainRequest, CertChainRequest.LEN),
-        CertMgmtType.CERT_CHAIN_REPLY: (CertChainReply, None),
-        CertMgmtType.TRC_REQ: (TRCRequest, TRCRequest.LEN),
-        CertMgmtType.TRC_REPLY: (TRCReply, None),
-    }
-    if type_ not in type_map:
-        raise SCIONParseError("Unsupported cert management type: %s", type_)
-    handler, len_ = type_map[type_]
+    if type_ not in _TYPE_MAP:
+        raise SCIONParseError("Unsupported cert management type: %s" % type_)
+    handler, len_ = _TYPE_MAP[type_]
     return handler(data.pop(len_))

@@ -22,7 +22,7 @@ from lib.packet.packet_base import L4HeaderBase, PayloadRaw
 from lib.packet.scion_udp import SCIONUDPHeader
 
 
-class SCIONL4Unknown(L4HeaderBase):
+class SCIONL4Unknown(L4HeaderBase):  # pragma: no cover
     NAME = "Unknown"
 
     def __init__(self, proto):

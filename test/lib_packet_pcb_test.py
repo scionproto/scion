@@ -23,15 +23,22 @@ import nose
 import nose.tools as ntools
 
 # SCION
+from lib.errors import SCIONParseError
 from lib.packet.path import CorePath
 from lib.packet.pcb import (
     ADMarking,
-    PathSegment,
     PCBMarking,
-    REV_TOKEN_LEN
+    PCBType,
+    PathSegment,
+    REV_TOKEN_LEN,
+    parse_pcb_payload,
 )
 from lib.defines import EXP_TIME_UNIT
-from test.testcommon import assert_these_calls, create_mock
+from test.testcommon import (
+    assert_these_call_lists,
+    assert_these_calls,
+    create_mock,
+)
 
 
 class TestPCBMarkingInit(object):
@@ -118,7 +125,7 @@ class TestPCBMarkingPack(object):
         # Call
         ntools.eq_(inst.pack(), expected)
         # Tests
-        isd_ad.assert_called_once_with("isd", "ad")
+        assert_these_call_lists(isd_ad, [call("isd", "ad").pack()])
 
 
 class TestPCBMarkingEq(object):
@@ -784,7 +791,7 @@ class TestPathSegmentDeserialize(object):
 
 class TestPathSegmentSerialize(object):
     """
-    Unit test for lib.packet.pcb.PathSegment.serialize
+    Unit tests for lib.packet.pcb.PathSegment.serialize
     """
     def test(self):
         pcbs = []
@@ -798,7 +805,7 @@ class TestPathSegmentSerialize(object):
 
 class TestPathSegmentEq(object):
     """
-    Unit test for lib.packet.pcb.PathSegment.__eq__
+    Unit tests for lib.packet.pcb.PathSegment.__eq__
     """
     def test_equal(self):
         path_seg1 = PathSegment()
@@ -818,6 +825,22 @@ class TestPathSegmentEq(object):
         path_seg1 = PathSegment()
         path_seg2 = 123
         ntools.assert_not_equals(path_seg1, path_seg2)
+
+
+class TestParsePcbPayload(object):
+    """
+    Unit tests for lib.packet.pcb.parse_pcb_payload
+    """
+    @patch("lib.packet.pcb.PathSegment", autospec=True)
+    def test_success(self, path_seg):
+        data = create_mock(["pop"])
+        # Call
+        inst = parse_pcb_payload(PCBType.SEGMENT, data)
+        # Tests
+        ntools.eq_(inst, path_seg.return_value)
+
+    def test_unknown(self):
+        ntools.assert_raises(SCIONParseError, parse_pcb_payload, 99, "data")
 
 
 if __name__ == "__main__":

@@ -123,7 +123,7 @@ class PCBMarking(MarkingBase):
         assert len(raw) == len(self)
         return raw
 
-    def __len__(self):
+    def __len__(self):  # pragma: no cover
         return self.LEN
 
     def __eq__(self, other):
@@ -258,13 +258,13 @@ class ADMarking(MarkingBase):
         """
         self.sig = b''
 
-    def add_ext(self, ext):
+    def add_ext(self, ext):  # pragma: no cover
         """
         Add beacon extension.
         """
         self.ext.append(ext)
 
-    def __len__(self):
+    def __len__(self):  # pragma: no cover
         return (
             self.MIN_LEN + len(self.pms) * PCBMarking.LEN + len(self.sig) +
             len(self._pack_ext())
@@ -359,7 +359,7 @@ class PathSegment(SCIONPayloadBase):
             self.add_ad(ADMarking(data.pop(ad_len)))
 
     @classmethod
-    def from_values(cls, iof):
+    def from_values(cls, iof):  # pragma: no cover
         inst = cls()
         inst.iof = iof
         return inst
@@ -532,13 +532,13 @@ class PathSegment(SCIONPayloadBase):
             pcbs_list.append(pcb.pack())
         return b"".join(pcbs_list)
 
-    def __len__(self):
+    def __len__(self):  # pragma: no cover
         l = self.MIN_LEN
         for ad in self.ads:
             l += len(ad)
         return l
 
-    def short_desc(self):
+    def short_desc(self):  # pragma: no cover
         """
         Return a short description string of the PathSegment, consisting of a
         truncated hash, the IOF timestamp, and the list of hops.
