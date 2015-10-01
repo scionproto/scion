@@ -66,7 +66,7 @@ class PathSegmentDBRecord(object):
         """
         assert isinstance(pcb, PathSegment)
         self.pcb = pcb
-        self.id = pcb.segment_id
+        self.id = pcb.get_hops_hash()
         # Fidelity can be used to configure the desirability of a path. For
         # now we just use path length.
         self.fidelity = pcb.iof.hops

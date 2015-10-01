@@ -142,11 +142,12 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         """
         Add if revocation token to segment ID mappings.
         """
+        segment_id = pcb.get_hops_hash()
         for ad in pcb.ads:
-            self.iftoken2seg[ad.pcbm.ig_rev_token].add(pcb.segment_id)
-            self.iftoken2seg[ad.eg_rev_token].add(pcb.segment_id)
+            self.iftoken2seg[ad.pcbm.ig_rev_token].add(segment_id)
+            self.iftoken2seg[ad.eg_rev_token].add(segment_id)
             for pm in ad.pms:
-                self.iftoken2seg[pm.ig_rev_token].add(pcb.segment_id)
+                self.iftoken2seg[pm.ig_rev_token].add(segment_id)
 
     @abstractmethod
     def _handle_up_segment_record(self, records):
@@ -408,8 +409,6 @@ class CorePathServer(PathServer):
             return
         paths_to_propagate = []
         for pcb in records.pcbs:
-            assert pcb.segment_id != 32 * b"\x00", \
-                "Trying to register a segment with ID 0:\n%s" % pcb
             src_isd = pcb.get_first_pcbm().isd_id
             src_ad = pcb.get_first_pcbm().ad_id
             dst_ad = pcb.get_last_pcbm().ad_id

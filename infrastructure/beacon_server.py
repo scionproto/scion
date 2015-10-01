@@ -471,7 +471,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                                            pcb.get_timestamp(),
                                            pcb.get_last_pcbm().hof)
         pcb.add_ad(last_hop)
-        pcb.segment_id = pcb.get_hops_hash()
 
         return pcb
 
@@ -1156,8 +1155,6 @@ class CoreBeaconServer(BeaconServer):
         count = 0
         for pcb in core_segments:
             pcb = self._terminate_pcb(pcb)
-            assert pcb.segment_id != 32 * b"\x00", \
-                "Trying to register a segment with ID 0:\n%s" % pcb
             # TODO(psz): sign here? discuss
             self.register_core_segment(pcb)
             count += 1
@@ -1401,7 +1398,7 @@ class LocalBeaconServer(BeaconServer):
             except SCIONServiceLookupError as e:
                 logging.warning("Unable to send up path registration: %s", e)
                 continue
-            logging.info("Up path registered: %s", pcb.segment_id)
+            logging.info("Up path registered: %s", pcb.get_hops_hash())
 
     def register_down_segments(self):
         """
@@ -1413,7 +1410,7 @@ class LocalBeaconServer(BeaconServer):
             pcb.remove_signatures()
             # TODO(psz): sign here? discuss
             self.register_down_segment(pcb)
-            logging.info("Down path registered: %s", pcb.segment_id)
+            logging.info("Down path registered: %s", pcb.get_hops_hash())
 
 
 def main():

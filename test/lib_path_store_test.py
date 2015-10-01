@@ -228,12 +228,10 @@ class TestPathStoreRecordInit(object):
     @patch("lib.path_store.SCIONTime.get_time", spec_set=[],
            new_callable=MagicMock)
     def test_basic(self, time_):
-        pcb = MagicMock(spec_set=['__class__', 'segment_id',
-                                  'get_expiration_time', 'get_hops_hash',
-                                  'get_n_hops', 'get_n_peer_links',
-                                  'get_timestamp'])
+        pcb = MagicMock(spec_set=['__class__', 'get_expiration_time',
+                                  'get_hops_hash', 'get_n_hops',
+                                  'get_n_peer_links', 'get_timestamp'])
         pcb.__class__ = PathSegment
-        pcb.segment_id = "id"
         time_.return_value = PathStoreRecord.DEFAULT_OFFSET + 1
         pcb.get_timestamp.return_value = PathStoreRecord.DEFAULT_OFFSET - 1
         pth_str_rec = PathStoreRecord(pcb)
@@ -293,10 +291,9 @@ class TestPathStoreRecordEQ(object):
     Unit tests for lib.path_store.PathStoreRecord.__eq__
     """
     def setUp(self):
-        self.pcb = MagicMock(spec_set=['__class__', 'segment_id',
-                                       'get_expiration_time', 'get_hops_hash',
-                                       'get_n_hops', 'get_n_peer_links',
-                                       'get_timestamp'])
+        self.pcb = MagicMock(spec_set=['__class__', 'get_expiration_time',
+                                       'get_hops_hash', 'get_n_hops',
+                                       'get_n_peer_links', 'get_timestamp'])
         self.pcb.__class__ = PathSegment
 
     def tearDown(self):

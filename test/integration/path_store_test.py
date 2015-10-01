@@ -72,7 +72,6 @@ class TestPathStore(unittest.TestCase):
         for _ in range(1, 6):
             for _ in range(1, 6):
                 pcb = PathSegment()
-                pcb.segment_id = HashChain(Random.new().read(32)).next_element()
                 pcb.iof = InfoOpaqueField.from_values(OFT.TDC_XOVR, False,
                                                       int(time.time()), path)
                 ad_marking = self._create_ad_marking()

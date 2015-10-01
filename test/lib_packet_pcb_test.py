@@ -347,7 +347,6 @@ class TestPathSegmentInit(object):
         ntools.assert_is_none(inst.iof)
         ntools.eq_(inst.trc_ver, 0)
         ntools.eq_(inst.if_id, 0)
-        ntools.eq_(inst.segment_id, bytes(REV_TOKEN_LEN))
         ntools.eq_(inst.ads, [])
         ntools.eq_(inst.min_exp_time, 2 ** 8 - 1)
         ntools.assert_false(parse.called)
@@ -381,7 +380,6 @@ class TestPathSegmentParse(object):
         ntools.eq_(inst.iof, iof.return_value)
         ntools.eq_(inst.trc_ver, 0x00010203)
         ntools.eq_(inst.if_id, 0x0405)
-        ntools.eq_(inst.segment_id, "pop seg id")
         inst._parse_hops.assert_called_once_with(data)
 
 
@@ -417,14 +415,13 @@ class TestPathSegmentPack(object):
         inst.iof = create_mock(['pack'])
         inst.iof.pack.return_value = b'packed_iof'
         (inst.trc_ver, inst.if_id) = (1, 2)
-        inst.segment_id = b'segment_id'
         for i in range(2):
             marking = create_mock(["pack"])
             marking.pack.return_value = bytes("ad_marking%d" % i, "ascii")
             inst.ads.append(marking)
         expected = b"".join([
             b'packed_iof', bytes.fromhex("00 00 00 01 00 02"),
-            b'segment_id', b'ad_marking0', b'ad_marking1',
+            b'ad_marking0', b'ad_marking1',
         ])
         # Call
         ntools.eq_(inst.pack(), expected)
