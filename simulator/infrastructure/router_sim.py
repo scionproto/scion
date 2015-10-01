@@ -133,7 +133,6 @@ class RouterSim(Router):
                      ifid_pld.request_id, ifid_pld.reply_id)
 
         self.eid_1 = self.simulator.add_event(IFID_PKT_TOUT, cb=self.sync_interface)
-        logging.info("Adding event %d", self.eid_1)
 
     def request_ifstates(self):
         """
