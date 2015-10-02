@@ -40,7 +40,8 @@ class RouterSim(Router):
     """
     Simulator version of the SCION Router
     """
-    def __init__(self, router_id, topo_file, config_file, simulator):
+    def __init__(self, router_id, topo_file, config_file, server_name,
+                 simulator):
         """
         Initialises Router with is_sim set to True.
 
@@ -50,6 +51,8 @@ class RouterSim(Router):
         :type topo_file: str
         :param config_file: the configuration file name.
         :type config_file: str
+        :param server_name:
+        :type server_name:
         :param simulator: Instance of simulator class.
         :type simulator: Simulator
         """
@@ -57,6 +60,7 @@ class RouterSim(Router):
         self.simulator = simulator
         simulator.add_element(str(self.addr.host_addr), self)
         simulator.add_element(str(self.interface.addr), self)
+        simulator.add_name(server_name, str(self.addr.host_addr))
         self.eid_1 = None
         self.eid_2 = None
         self.stopped = False

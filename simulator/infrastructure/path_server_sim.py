@@ -24,7 +24,8 @@ class CorePathServerSim(CorePathServer):
     """
     Simulator version of the SCION Path Server in a core AD
     """
-    def __init__(self, server_id, topo_file, config_file, simulator):
+    def __init__(self, server_id, topo_file, config_file, server_name,
+                 simulator):
         """
         Initialises CorePathServer with is_sim set to True.
 
@@ -34,6 +35,8 @@ class CorePathServerSim(CorePathServer):
         :type topo_file:
         :param config_file:
         :type config_file:
+        :param server_name:
+        :type server_name:
         :param simulator: Instance of simulator class
         :type simulator: Simulator
         """
@@ -41,6 +44,7 @@ class CorePathServerSim(CorePathServer):
                                 is_sim=True)
         self.simulator = simulator
         simulator.add_element(str(self.addr.host_addr), self)
+        simulator.add_name(server_name, str(self.addr.host_addr))
 
     def send(self, packet, dst, dst_port=SCION_UDP_PORT):
         """
@@ -84,7 +88,8 @@ class LocalPathServerSim(LocalPathServer):
     """
     Simulator version of the SCION Path Server in a local AD
     """
-    def __init__(self, server_id, topo_file, config_file, simulator):
+    def __init__(self, server_id, topo_file, config_file, server_name,
+                 simulator):
         """
         Initialises LocalPathServer with is_sim set to True.
 
@@ -94,6 +99,8 @@ class LocalPathServerSim(LocalPathServer):
         :type topo_file:
         :param config_file:
         :type config_file:
+        :param server_name:
+        :type server_name:
         :param simulator: Instance of simulator class
         :type simulator: Simulator
         """
@@ -101,6 +108,7 @@ class LocalPathServerSim(LocalPathServer):
                                  is_sim=True)
         self.simulator = simulator
         simulator.add_element(str(self.addr.host_addr), self)
+        simulator.add_name(server_name, str(self.addr.host_addr))
 
     def send(self, packet, dst, dst_port=SCION_UDP_PORT):
         """

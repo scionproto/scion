@@ -38,7 +38,7 @@ SIMULATOR_DIR_NAME = 'simulator'
 def read_events_file():
     """
     Format of events file:
-    ip-address  start/stop  time
+    server-name  start/stop  time
     """
     events_file = os.path.join(PROJECT_ROOT, SIMULATOR_DIR_NAME, 'events.conf')
     if not os.path.isfile(events_file):
@@ -82,16 +82,16 @@ class RevocationSimTest(unittest.TestCase):
         # Add the events into simulator queue
         for event in events:
             items = event.split()
-            router_addr = items[0]
+            router_name = items[0]
             event_time = int(items[2])
             if items[1] == "start":
                 simulator.add_event(event_time,
                                     cb=simulator.start_element,
-                                    args=(router_addr,))
+                                    args=(router_name,))
             elif items[1] == "stop":
                 simulator.add_event(event_time,
                                     cb=simulator.stop_element,
-                                    args=(router_addr,))
+                                    args=(router_name,))
         simulator.run()
         logging.info("Simulation terminated")
         type_map = {

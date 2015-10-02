@@ -57,7 +57,7 @@ class CoreBeaconServerSim(CoreBeaconServer):
     Simulator version of PathConstructionBeacon Server in a core AD
     """
     def __init__(self, server_id, topo_file, config_file, path_policy_file,
-                 simulator):
+                 server_name, simulator):
         """
         Initialises CoreBeaconServer with is_sim set to True.
 
@@ -69,12 +69,15 @@ class CoreBeaconServerSim(CoreBeaconServer):
         :type config_file: string
         :param path_policy_file: path policy file.
         :type path_policy_file: string
+        :param server_name:
+        :type server_name:
         :param simulator: Instance of simulator class.
         :type simulator: Simulator
         """
         CoreBeaconServer.__init__(self, server_id, topo_file, config_file,
                                   path_policy_file, is_sim=True)
         simulator.add_element(str(self.addr.host_addr), self)
+        simulator.add_name(server_name, str(self.addr.host_addr))
         self.simulator = simulator
 
     def send(self, packet, dst, dst_port=SCION_UDP_PORT):
@@ -399,7 +402,7 @@ class LocalBeaconServerSim(LocalBeaconServer):
     Simulator version of PathConstructionBeacon Server in a local AD
     """
     def __init__(self, server_id, topo_file, config_file, path_policy_file,
-                 simulator):
+                 server_name, simulator):
         """
         Initialises LocalBeaconServer with is_sim set to True.
 
@@ -416,8 +419,9 @@ class LocalBeaconServerSim(LocalBeaconServer):
         """
         LocalBeaconServer.__init__(self, server_id, topo_file, config_file,
                                    path_policy_file, is_sim=True)
-        self.simulator = simulator
         simulator.add_element(str(self.addr.host_addr), self)
+        simulator.add_name(server_name, str(self.addr.host_addr))
+        self.simulator = simulator
 
     def send(self, packet, dst, dst_port=SCION_UDP_PORT):
         """
