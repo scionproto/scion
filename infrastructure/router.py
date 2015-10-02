@@ -712,7 +712,8 @@ class Router(SCIONElement):
             (pkt.addrs.dst_isd == self.addr.isd_id and
              pkt.addrs.dst_ad == self.addr.ad_id and
              (pkt.addrs.dst_addr in (self.addr.host_addr, self.interface.addr)))
-                or (pkt.addrs.dst_addr.TYPE == ADDR_SVC_TYPE)):
+                or (pkt.addrs.dst_addr.TYPE == ADDR_SVC_TYPE)
+                or (pkt.addrs.src_addr.TYPE == ADDR_SVC_TYPE)):
             pld_class = pkt.parse_payload().PAYLOAD_CLASS
             handler = class_map.get(pld_class)
         else:

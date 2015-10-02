@@ -111,5 +111,5 @@ def create_mock(attrs=None, class_=None):
 
 
 def assert_these_calls(mock, calls, any_order=False):
-    mock.assert_has_calls(calls)
+    mock.assert_has_calls(calls, any_order=any_order)
     ntools.eq_(mock.call_count, len(calls))

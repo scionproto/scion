@@ -20,6 +20,7 @@ import base64
 import copy
 import struct
 from abc import ABCMeta, abstractmethod
+from datetime import datetime
 
 # External packages
 from Crypto.Hash import SHA256
@@ -525,6 +526,23 @@ class PathSegment(SCIONPayloadBase):
         for ad in self.ads:
             l += len(ad)
         return l
+
+    def short_desc(self):
+        """
+        Return a short description string of the PathSegment, consisting of a
+        truncated hash, the IOF timestamp, and the list of hops.
+        """
+        desc = []
+        dt = datetime.fromtimestamp(self.get_timestamp())
+        desc.append("%s, %s, " % (
+            self.get_hops_hash(hex=True)[:12],
+            dt.isoformat(),
+        ))
+        hops = []
+        for adm in self.ads:
+            hops.append("(%d, %d)" % (adm.pcbm.isd_id, adm.pcbm.ad_id))
+        desc.append("->".join(hops))
+        return "".join(desc)
 
     def __str__(self):
         pcb_str = "[PathSegment]\n"
