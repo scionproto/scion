@@ -127,11 +127,10 @@ class CoreBeaconServerSim(CoreBeaconServer):
         core_pcb.iof = InfoOpaqueField.from_values(
             OFT.CORE, False, timestamp, self.topology.isd_id)
         count = self.propagate_core_pcb(core_pcb)
-
         # Propagate received beacons. A core beacon server can only receive
         # beacons from other core beacon servers.
         beacons = []
-        for ps in self.beacons.values():
+        for ps in self.core_beacons.values():
             beacons.extend(ps.get_best_segments())
         for pcb in beacons:
             count += self.propagate_core_pcb(pcb)
@@ -158,7 +157,7 @@ class CoreBeaconServerSim(CoreBeaconServer):
             cb=self.register_segments
         )
 
-    def store_pcb(self, pkt):
+    def handle_pcb(self, pkt):
         """
         Receives beacon and stores it for processing.
 
@@ -492,7 +491,7 @@ class LocalBeaconServerSim(LocalBeaconServer):
     def clean(self):
         pass
 
-    def store_pcb(self, pkt):
+    def handle_pcb(self, pkt):
         """
         Receives beacon and stores it for processing.
 

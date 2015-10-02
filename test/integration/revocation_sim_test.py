@@ -75,7 +75,7 @@ class RevocationSimTest(unittest.TestCase):
         host1 = SCIONSimHost(src_host_addr, src_topo_path, simulator)
         host2 = SCIONSimHost(dst_host_addr, dst_topo_path, simulator)
         ping_application = SimPingApp(host1, dst_host_addr,
-                                      dst_isd_ad.ad, dst_isd_ad.isd, 3)
+                                      dst_isd_ad.ad, dst_isd_ad.isd, 4)
         pong_application = SimPongApp(host2)
         app_start_time = 30.
         ping_application.start(app_start_time)
@@ -94,7 +94,6 @@ class RevocationSimTest(unittest.TestCase):
                                     args=(router_addr,))
         simulator.run()
         logging.info("Simulation terminated")
-        logging.info("PingPong status:")
         type_map = {
             0: 'Success',
             1: 'Revocation',
