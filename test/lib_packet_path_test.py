@@ -664,13 +664,34 @@ class TestCorePathReverse(object):
            return_value=None)
     def test(self, init, super_reverse):
         inst = CorePath()
-        inst._ofs = create_mock(["reverse_label", "reverse_up_flag"])
+        inst._ofs = create_mock(["reverse_label", "reverse_up_flag", "count"])
+        inst._ofs.count.return_value = False
         # Call
         inst.reverse()
         # Tests
         super_reverse.assert_called_once_with(inst)
         inst._ofs.reverse_up_flag(CORE_IOF)
         inst._ofs.reverse_label(CORE_HOFS)
+
+    @patch("lib.packet.path.PathBase.reverse", autospec=True)
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test_at_xovr(self, init, super_reverse):
+        inst = CorePath()
+        inst._ofs = create_mock(["reverse_label", "reverse_up_flag",
+                                 "get_by_label", "count"])
+        inst._ofs.count = create_mock()
+        inst._ofs.count.return_value = True
+        inst.get_hof = create_mock()
+        inst.get_hof.return_value = inst._ofs.get_by_label.return_value
+        inst.next_segment = create_mock()
+        # Call
+        inst.reverse()
+        # Tests
+        super_reverse.assert_called_once_with(inst)
+        inst._ofs.reverse_up_flag(CORE_IOF)
+        inst._ofs.reverse_label(CORE_HOFS)
+        inst.next_segment.assert_called_with()
 
 
 class TestCorePathGetHofVer(_GetHofVerTest):
