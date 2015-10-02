@@ -117,8 +117,8 @@ class SCIONSimHost(SCIONDaemon):
         :type src_isd: int
         :param src_ad: source AD identifier.
         :type src_ad: int
-        :param requester: (Host address, Application port, request id)
-        :type requester: (IPv4Address, int, int)
+        :param requester: [Host address, Application port, request id]
+        :type requester: [IPv4Address, int, int]
         """
         if src_isd is None:
             src_isd = self.topology.isd_id
@@ -283,7 +283,6 @@ class SCIONSimHost(SCIONDaemon):
         :type sender:
         """
         # TODO sanity checks
-        logging.info("%s", packet)
         (isd, ad) = ISD_AD.from_raw(packet[1:ISD_AD.LEN + 1])
         logging.info("Request for %d, %d", isd, ad)
         # Generate a request id

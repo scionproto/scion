@@ -49,6 +49,8 @@ class SimPingApp(SCIONSimApplication):
         :type dst_ad: int
         :param dst_isd: The destination isd to which ping is sent
         :type dst_isd: int
+        :param max_ping_pongs: Number of ping pongs to send
+        :type max_ping_pongs: int
         """
         super().__init__(host, SimPingApp._APP_PORT)
         self._addr = host.addr
@@ -100,10 +102,8 @@ class SimPingApp(SCIONSimApplication):
         :param paths_hops: Path information
         :type paths_hops: list
         """
-        logging.info("In _do_send_ping")
         curr_time = SCIONTime.get_time()
         self.ping_send_time.append(curr_time)
-
         if len(paths_hops) == 0:
             self.receive_pong(2)
             return
@@ -118,8 +118,6 @@ class SimPingApp(SCIONSimApplication):
         spkt = SCIONL4Packet.from_values(cmn_hdr, addr_hdr, path, [], udp_hdr,
                                          payload)
         (next_hop, port) = self.host.get_first_hop(spkt)
-        # assert next_hop == hop
-
         logging.info("Sending packet: %s\nFirst hop: %s:%s",
                      spkt, next_hop, port)
         self.host.send(spkt, next_hop, port)
@@ -137,7 +135,6 @@ class SimPingApp(SCIONSimApplication):
             logging.info('%s: pong received', self.addr)
         else:
             logging.info("No path found")
-
         logging.info('ping-pong count:%d', self.num_ping_pongs)
         if self.num_ping_pongs >= self.max_ping_pongs:
             self.simulator.terminate()
@@ -159,7 +156,6 @@ class SimPongApp(SCIONSimApplication):
         :type host: SCIONSimHost
         """
         super().__init__(host, SimPongApp._APP_PORT)
-        self.ping_received = False
 
     def run(self):
         """
@@ -180,7 +176,6 @@ class SimPongApp(SCIONSimApplication):
         if payload == PayloadRaw(b"ping"):
             # Reverse the packet and send "pong"
             logging.info('%s: ping received, sending pong.', self.addr)
-            self.ping_received = True
             spkt.reverse()
             spkt.set_payload(PayloadRaw(b"pong"))
             (next_hop, port) = self.host.get_first_hop(spkt)
