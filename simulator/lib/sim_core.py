@@ -217,7 +217,7 @@ class Simulator(object):
         :type name: str
         """
         if name not in self.name_addr_map:
-            logging.error("No such element %s exists", addr)
+            logging.error("No such element %s exists", name)
             return
         addr = self.name_addr_map[name]
         self.element_list[addr].stop()
@@ -230,7 +230,7 @@ class Simulator(object):
         :type name: str
         """
         if name not in self.name_addr_map:
-            logging.error("No such element %s exists", addr)
+            logging.error("No such element %s exists", name)
             return
         addr = self.name_addr_map[name]
         self.element_list[addr].run()
