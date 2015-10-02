@@ -21,7 +21,6 @@ import logging
 # SCION
 from infrastructure.beacon_server import (
     CoreBeaconServer,
-    InterfaceState,
     LocalBeaconServer,
 )
 from lib.crypto.hash_chain import HashChainExhausted
@@ -29,7 +28,6 @@ from lib.defines import (
     BEACON_SERVICE,
     CERTIFICATE_SERVICE,
     PATH_SERVICE,
-    SCION_ROUTER_PORT,
     SCION_UDP_PORT,
     SERVICE_TYPES,
 )
@@ -38,18 +36,15 @@ from lib.packet.opaque_field import (
     InfoOpaqueField,
     OpaqueFieldType as OFT,
 )
-from lib.packet.path_mgmt import (
-    IFStateInfo,
-    IFStatePayload,
-    IFStateRequest,
-    RevocationInfo,
-)
 from lib.packet.pcb import (
     ADMarking,
     PCBMarking,
     PathSegment,
 )
 from lib.util import SCIONTime
+
+# SCION Simulator
+from simulator.lib.zookeeper_sim import ZookeeperSim, ZkSharedCacheSim
 
 
 class CoreBeaconServerSim(CoreBeaconServer):
@@ -78,6 +73,10 @@ class CoreBeaconServerSim(CoreBeaconServer):
                                   path_policy_file, is_sim=True)
         simulator.add_element(str(self.addr.host_addr), self)
         simulator.add_name(server_name, str(self.addr.host_addr))
+        # Creating duplicate zookeeper objects
+        self.zk = ZookeeperSim()
+        self.revobjs_cache = ZkSharedCacheSim()
+        self.pcb_cache = ZkSharedCacheSim()
         self.simulator = simulator
 
     def send(self, packet, dst, dst_port=SCION_UDP_PORT):
@@ -249,83 +248,6 @@ class CoreBeaconServerSim(CoreBeaconServer):
         self.simulator.add_event(start_time + self.IF_TIMEOUT_INTERVAL - now,
                                  cb=self._handle_if_timeouts)
 
-    def handle_ifid_packet(self, pkt):
-        """
-        Update the interface state for the corresponding interface.
-
-        :param ipkt: The IFIDPayload.
-        :type ipkt: IFIDPayload
-        """
-        payload = pkt.get_payload()
-        ifid = payload.reply_id
-        prev_state = self.ifid_state[ifid].update()
-        if prev_state == InterfaceState.INACTIVE:
-            logging.info("IF %d activated", ifid)
-        elif prev_state in [InterfaceState.TIMED_OUT, InterfaceState.REVOKED]:
-            logging.info("IF %d came back up.", ifid)
-        if not prev_state == InterfaceState.ACTIVE:
-            # Inform ERs about the interface coming up.
-            chain = self._get_if_hash_chain(ifid)
-            if chain is None:
-                return
-            state_info = IFStateInfo.from_values(ifid, True,
-                                                 chain.next_element())
-            payload = IFStatePayload.from_values([state_info])
-            payload.pack()
-            mgmt_packet = self._build_packet(payload=payload)
-            for er in self.topology.get_all_edge_routers():
-                if er.interface.if_id != ifid:
-                    mgmt_packet.addrs.dst_addr = er.interface.addr
-                    self.send(mgmt_packet, er.interface.addr,
-                              er.interface.udp_port)
-
-    def _issue_revocation(self, if_id, chain):
-        """
-        Send a revocation to all ERs. No zookeeper.
-
-        :param if_id: The interface that needs to be revoked.
-        :type if_id: int
-        :param chain: The hash chain corresponding to if_id.
-        :type chain: :class:`lib.crypto.hash_chain.HashChain`
-        """
-        rev_info = RevocationInfo.from_values(chain.next_element())
-        logging.info("Issuing revocation for IF %d.", if_id)
-        # Issue revocation to all ERs.
-        info = IFStateInfo.from_values(if_id, False, chain.next_element())
-        payload = IFStatePayload.from_values([info])
-        state_pkt = self._build_packet(payload=payload)
-        for er in self.topology.get_all_edge_routers():
-            state_pkt.addrs.dst_addr = er.interface.addr
-            self.send(state_pkt, er.interface.addr, er.interface.udp_port)
-        self._process_revocation(rev_info, if_id)
-
-    def _process_revocation(self, rev_info, if_id):
-        """
-        Removes PCBs containing a revoked interface and sends the revocation
-        to the local PS.
-
-        :param rev_info: The RevocationInfo object
-        :type rev_info: RevocationInfo
-        :param if_id: The if_id to be revoked (set only for if and hop rev)
-        :type if_id: int
-        """
-        assert isinstance(rev_info, RevocationInfo)
-        logging.info("Processing revocation:\n%s", str(rev_info))
-        if not if_id:
-            logging.error("Trying to revoke IF with ID 0.")
-            return
-
-        self._remove_revoked_pcbs(rev_info, if_id)
-        # Send revocations to local PS.
-        try:
-            ps_addr = self.dns_query_topo(PATH_SERVICE)[0]
-        except IndexError:
-            # If there are no local path servers, stop here.
-            return
-        pkt = self._build_packet(ps_addr, payload=rev_info)
-        logging.info("Sending revocation to local PS.")
-        self.send(pkt, ps_addr)
-
     def _sign_beacon(self, pcb):
         """
         Sign a beacon. Signature is appended to the last ADMarking.
@@ -343,43 +265,6 @@ class CoreBeaconServerSim(CoreBeaconServer):
         pcb.ads[-1].sig = signature
         pcb.ads[-1].sig_len = len(signature)
         pcb.if_id = tmp_if_id
-
-    def _handle_ifstate_request(self, mgmt_pkt):
-        """
-        Handles IFStateRequests. No zookeeper.
-
-        :param mgmt_pkt: The packet containing the IFStateRequest.
-        :type request: :class:`lib.packet.path_mgmt.PathMgmtPacket`
-        """
-        request = mgmt_pkt.get_payload()
-        assert isinstance(request, IFStateRequest)
-        logging.debug("Received ifstate req:\n%s", mgmt_pkt)
-        infos = []
-        if request.if_id == IFStateRequest.ALL_INTERFACES:
-            ifid_states = self.ifid_state.items()
-        elif request.if_id in self.ifid_state:
-            ifid_states = [(request.if_id, self.ifid_state[request.if_id])]
-        else:
-            logging.error("Received ifstate request from %s for unknown "
-                          "interface %s.", mgmt_pkt.addrs.get_src_addr(),
-                          request.if_id)
-            return
-
-        for (ifid, state) in ifid_states:
-            # Don't include inactive interfaces in response.
-            if state.is_inactive():
-                continue
-            chain = self._get_if_hash_chain(ifid)
-            info = IFStateInfo.from_values(ifid, state.is_active(),
-                                           chain.next_element())
-            infos.append(info)
-        if not infos:
-            logging.warning("No IF state info to put in response.")
-            return
-
-        payload = IFStatePayload.from_values(infos)
-        state_pkt = self._build_packet(mgmt_pkt.addrs.src_addr, payload=payload)
-        self.send(state_pkt, mgmt_pkt.addrs.src_addr, SCION_ROUTER_PORT)
 
     def dns_query_topo(self, qname):
         """
@@ -421,6 +306,10 @@ class LocalBeaconServerSim(LocalBeaconServer):
                                    path_policy_file, is_sim=True)
         simulator.add_element(str(self.addr.host_addr), self)
         simulator.add_name(server_name, str(self.addr.host_addr))
+        # Creating duplicate zookeeper objects
+        self.zk = ZookeeperSim()
+        self.revobjs_cache = ZkSharedCacheSim()
+        self.pcb_cache = ZkSharedCacheSim()
         self.simulator = simulator
 
     def send(self, packet, dst, dst_port=SCION_UDP_PORT):
@@ -578,83 +467,6 @@ class LocalBeaconServerSim(LocalBeaconServer):
         self.simulator.add_event(start_time + self.IF_TIMEOUT_INTERVAL - now,
                                  cb=self._handle_if_timeouts)
 
-    def handle_ifid_packet(self, pkt):
-        """
-        Update the interface state for the corresponding interface.
-
-        :param ipkt: The IFIDPayload.
-        :type ipkt: IFIDPayload
-        """
-        payload = pkt.get_payload()
-        ifid = payload.reply_id
-        prev_state = self.ifid_state[ifid].update()
-        if prev_state == InterfaceState.INACTIVE:
-            logging.info("IF %d activated", ifid)
-        elif prev_state in [InterfaceState.TIMED_OUT, InterfaceState.REVOKED]:
-            logging.info("IF %d came back up.", ifid)
-        if not prev_state == InterfaceState.ACTIVE:
-            # Inform ERs about the interface coming up.
-            chain = self._get_if_hash_chain(ifid)
-            if chain is None:
-                return
-            state_info = IFStateInfo.from_values(ifid, True,
-                                                 chain.next_element())
-            payload = IFStatePayload.from_values([state_info])
-            payload.pack()
-            mgmt_packet = self._build_packet(payload=payload)
-            for er in self.topology.get_all_edge_routers():
-                if er.interface.if_id != ifid:
-                    mgmt_packet.addrs.dst_addr = er.interface.addr
-                    self.send(mgmt_packet, er.interface.addr,
-                              er.interface.udp_port)
-
-    def _issue_revocation(self, if_id, chain):
-        """
-        Send a revocation to all ERs. No zookeeper.
-
-        :param if_id: The interface that needs to be revoked.
-        :type if_id: int
-        :param chain: The hash chain corresponding to if_id.
-        :type chain: :class:`lib.crypto.hash_chain.HashChain`
-        """
-        rev_info = RevocationInfo.from_values(chain.next_element())
-        logging.info("Issuing revocation for IF %d.", if_id)
-        # Issue revocation to all ERs.
-        info = IFStateInfo.from_values(if_id, False, chain.next_element())
-        payload = IFStatePayload.from_values([info])
-        state_pkt = self._build_packet(payload=payload)
-        for er in self.topology.get_all_edge_routers():
-            state_pkt.addrs.dst_addr = er.interface.addr
-            self.send(state_pkt, er.interface.addr, er.interface.udp_port)
-        self._process_revocation(rev_info, if_id)
-
-    def _process_revocation(self, rev_info, if_id):
-        """
-        Removes PCBs containing a revoked interface and sends the revocation
-        to the local PS.
-
-        :param rev_info: The RevocationInfo object
-        :type rev_info: RevocationInfo
-        :param if_id: The if_id to be revoked (set only for if and hop rev)
-        :type if_id: int
-        """
-        assert isinstance(rev_info, RevocationInfo)
-        logging.info("Processing revocation:\n%s", str(rev_info))
-        if not if_id:
-            logging.error("Trying to revoke IF with ID 0.")
-            return
-
-        self._remove_revoked_pcbs(rev_info, if_id)
-        # Send revocations to local PS.
-        try:
-            ps_addr = self.dns_query_topo(PATH_SERVICE)[0]
-        except IndexError:
-            # If there are no local path servers, stop here.
-            return
-        pkt = self._build_packet(ps_addr, payload=rev_info)
-        logging.info("Sending revocation to local PS.")
-        self.send(pkt, ps_addr)
-
     def _sign_beacon(self, pcb):
         """
         Sign a beacon. Signature is appended to the last ADMarking.
@@ -672,43 +484,6 @@ class LocalBeaconServerSim(LocalBeaconServer):
         pcb.ads[-1].sig = signature
         pcb.ads[-1].sig_len = len(signature)
         pcb.if_id = tmp_if_id
-
-    def _handle_ifstate_request(self, mgmt_pkt):
-        """
-        Handles IFStateRequests. No zookeeper.
-
-        :param mgmt_pkt: The packet containing the IFStateRequest.
-        :type request: :class:`lib.packet.path_mgmt.PathMgmtPacket`
-        """
-        request = mgmt_pkt.get_payload()
-        assert isinstance(request, IFStateRequest)
-        logging.debug("Received ifstate req:\n%s", mgmt_pkt)
-        infos = []
-        if request.if_id == IFStateRequest.ALL_INTERFACES:
-            ifid_states = self.ifid_state.items()
-        elif request.if_id in self.ifid_state:
-            ifid_states = [(request.if_id, self.ifid_state[request.if_id])]
-        else:
-            logging.error("Received ifstate request from %s for unknown "
-                          "interface %s.", mgmt_pkt.addrs.get_src_addr(),
-                          request.if_id)
-            return
-
-        for (ifid, state) in ifid_states:
-            # Don't include inactive interfaces in response.
-            if state.is_inactive():
-                continue
-            chain = self._get_if_hash_chain(ifid)
-            info = IFStateInfo.from_values(ifid, state.is_active(),
-                                           chain.next_element())
-            infos.append(info)
-        if not infos:
-            logging.warning("No IF state info to put in response.")
-            return
-
-        payload = IFStatePayload.from_values(infos)
-        state_pkt = self._build_packet(mgmt_pkt.addrs.src_addr, payload=payload)
-        self.send(state_pkt, mgmt_pkt.addrs.src_addr, SCION_ROUTER_PORT)
 
     def dns_query_topo(self, qname):
         """
