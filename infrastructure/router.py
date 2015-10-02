@@ -310,8 +310,6 @@ class Router(SCIONElement):
         :type pkt: :class:`lib.packet.scion.SCIONBasePacket`
 
         """
-        return self.dns_query_topo(service)[0]
-        # TODO(PSz): why the following does not work?
         addrs = self.dns_query_topo(service)
         addrs.sort()  # To not rely on order of DNS replies.
         return addrs[zlib.crc32(pkt.addrs.pack()) % len(addrs)]
