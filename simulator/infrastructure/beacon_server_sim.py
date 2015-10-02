@@ -26,8 +26,12 @@ from infrastructure.beacon_server import (
 )
 from lib.crypto.hash_chain import HashChainExhausted
 from lib.defines import (
-    SCION_UDP_PORT,
+    BEACON_SERVICE,
+    CERTIFICATE_SERVICE,
+    PATH_SERVICE,
     SCION_ROUTER_PORT,
+    SCION_UDP_PORT,
+    SERVICE_TYPES,
 )
 from lib.packet.opaque_field import (
     HopOpaqueField,
@@ -38,9 +42,6 @@ from lib.packet.path_mgmt import (
     IFStateInfo,
     IFStatePayload,
     IFStateRequest,
-    PathSegmentInfo,
-    PathRecordsReg,
-    PathSegmentType as PST,
     RevocationInfo,
 )
 from lib.packet.pcb import (
@@ -183,7 +184,7 @@ class CoreBeaconServerSim(CoreBeaconServer):
     def _create_ad_marking(self, ingress_if, egress_if, ts, prev_hof=None):
         """
         Creates an AD Marking for given ingress and egress interfaces,
-        timestamp, and previous HOF.
+        timestamp, and previous HOF. Remove MAC usage since it is simulation.
 
         :param ingress_if: ingress interface.
         :type ingress_if: int
@@ -275,27 +276,6 @@ class CoreBeaconServerSim(CoreBeaconServer):
                     self.send(mgmt_packet, er.interface.addr,
                               er.interface.udp_port)
 
-    def register_core_segment(self, pcb):
-        """
-        Register the core segment contained in 'pcb' with the local core path
-        server.
-        """
-        info = PathSegmentInfo.from_values(PST.CORE,
-                                           pcb.get_first_pcbm().isd_id,
-                                           pcb.get_first_pcbm().ad_id,
-                                           self.topology.isd_id,
-                                           self.topology.ad_id)
-        pcb.remove_signatures()
-        # Register core path with local core path server.
-        try:
-            ps_addr = self.topology.path_servers[0].addr
-        except IndexError:
-            # If there are no local path servers, stop here.
-            return
-        records = PathRecordsReg.from_values(info, [pcb])
-        pkt = self._build_packet(ps_addr, payload=records)
-        self.send(pkt, ps_addr)
-
     def _issue_revocation(self, if_id, chain):
         """
         Send a revocation to all ERs. No zookeeper.
@@ -335,7 +315,7 @@ class CoreBeaconServerSim(CoreBeaconServer):
         self._remove_revoked_pcbs(rev_info, if_id)
         # Send revocations to local PS.
         try:
-            ps_addr = self.topology.path_servers[0].addr
+            ps_addr = self.dns_query_topo(PATH_SERVICE)[0]
         except IndexError:
             # If there are no local path servers, stop here.
             return
@@ -346,7 +326,7 @@ class CoreBeaconServerSim(CoreBeaconServer):
     def _sign_beacon(self, pcb):
         """
         Sign a beacon. Signature is appended to the last ADMarking.
-        Removing signatures since it is simulation
+        Removing signatures since it is simulation.
 
         :param pcb: beacon to sign.
         :type pcb: PathSegment
@@ -397,6 +377,21 @@ class CoreBeaconServerSim(CoreBeaconServer):
         payload = IFStatePayload.from_values(infos)
         state_pkt = self._build_packet(mgmt_pkt.addrs.src_addr, payload=payload)
         self.send(state_pkt, mgmt_pkt.addrs.src_addr, SCION_ROUTER_PORT)
+
+    def dns_query_topo(self, qname):
+        """
+        Get the server address. No DNS used.
+
+        :param str qname: Service to query for.
+        """
+        assert qname in SERVICE_TYPES
+        service_map = {
+            BEACON_SERVICE: self.topology.beacon_servers,
+            CERTIFICATE_SERVICE: self.topology.certificate_servers,
+            PATH_SERVICE: self.topology.path_servers,
+        }
+        results = [srv.addr for srv in service_map[qname]]
+        return results
 
 
 class LocalBeaconServerSim(LocalBeaconServer):
@@ -517,7 +512,7 @@ class LocalBeaconServerSim(LocalBeaconServer):
     def _create_ad_marking(self, ingress_if, egress_if, ts, prev_hof=None):
         """
         Creates an AD Marking for given ingress and egress interfaces,
-        timestamp, and previous HOF.
+        timestamp, and previous HOF. Remove MAC usage since it is simulation.
 
         :param ingress_if: ingress interface.
         :type ingress_if: int
@@ -609,18 +604,6 @@ class LocalBeaconServerSim(LocalBeaconServer):
                     self.send(mgmt_packet, er.interface.addr,
                               er.interface.udp_port)
 
-    def register_up_segment(self, pcb):
-        """
-        Send up-segment to Local Path Servers.
-        """
-        info = PathSegmentInfo.from_values(
-            PST.UP, self.topology.isd_id, pcb.get_first_pcbm().ad_id,
-            self.topology.isd_id, self.topology.ad_id)
-        ps_host = self.topology.path_servers[0].addr
-        records = PathRecordsReg.from_values(info, [pcb])
-        pkt = self._build_packet(ps_host, payload=records)
-        self.send(pkt, ps_host)
-
     def _issue_revocation(self, if_id, chain):
         """
         Send a revocation to all ERs. No zookeeper.
@@ -660,7 +643,7 @@ class LocalBeaconServerSim(LocalBeaconServer):
         self._remove_revoked_pcbs(rev_info, if_id)
         # Send revocations to local PS.
         try:
-            ps_addr = self.topology.path_servers[0].addr
+            ps_addr = self.dns_query_topo(PATH_SERVICE)[0]
         except IndexError:
             # If there are no local path servers, stop here.
             return
@@ -722,3 +705,18 @@ class LocalBeaconServerSim(LocalBeaconServer):
         payload = IFStatePayload.from_values(infos)
         state_pkt = self._build_packet(mgmt_pkt.addrs.src_addr, payload=payload)
         self.send(state_pkt, mgmt_pkt.addrs.src_addr, SCION_ROUTER_PORT)
+
+    def dns_query_topo(self, qname):
+        """
+        Get the server address. No DNS used.
+
+        :param str qname: Service to query for.
+        """
+        assert qname in SERVICE_TYPES
+        service_map = {
+            BEACON_SERVICE: self.topology.beacon_servers,
+            CERTIFICATE_SERVICE: self.topology.certificate_servers,
+            PATH_SERVICE: self.topology.path_servers,
+        }
+        results = [srv.addr for srv in service_map[qname]]
+        return results

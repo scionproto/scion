@@ -183,7 +183,7 @@ class SCIONSimHost(SCIONDaemon):
         if (info.dst_isd, info.dst_ad) in self._waiting_targets[info.seg_type]:
             for (eid, requester) in \
                     self._waiting_targets[info.seg_type][(info.dst_isd,
-                                                         info.dst_ad)]:
+                                                          info.dst_ad)]:
                 src_isd = self.topology.isd_id
                 src_ad = self.topology.ad_id
                 dst_isd = info.dst_isd
@@ -318,11 +318,6 @@ class SCIONSimHost(SCIONDaemon):
         """
         rev_info = pkt.get_payload()
         logging.info("Received revocation:\n%s", str(rev_info))
-        # Verify revocation.
-#         if not HashChain.verify(rev_info.proof, rev_info.rev_token):
-#             logging.info("Revocation verification failed.")
-#             return
-        # Go through all segment databases and remove affected segments.
         deletions = self._remove_revoked_pcbs(self.up_segments,
                                               rev_info.rev_token)
         deletions += self._remove_revoked_pcbs(self.core_segments,

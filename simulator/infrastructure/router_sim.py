@@ -21,17 +21,14 @@ import logging
 # SCION
 from infrastructure.router import Router, IFID_PKT_TOUT
 from lib.defines import (
-    ADDR_SVC_TYPE,
+    BEACON_SERVICE,
+    CERTIFICATE_SERVICE,
     EXP_TIME_UNIT,
-    L4_UDP,
+    PATH_SERVICE,
     SCION_UDP_PORT,
-    SCION_UDP_EH_DATA_PORT,
+    SERVICE_TYPES,
 )
-from lib.errors import SCIONServiceLookupError
-from lib.packet.path_mgmt import (
-    PathMgmtType as PMT,
-    IFStateRequest,
-)
+from lib.packet.path_mgmt import IFStateRequest
 from lib.packet.scion import (
     IFIDPayload,
     PacketType as PT,
@@ -176,144 +173,17 @@ class RouterSim(Router):
             logging.warning("Dropping packet due to expired OF.")
         return False
 
-    def process_ifid_request(self, pkt, from_local):
+    def dns_query_topo(self, qname):
         """
-        After receiving IFID_PKT from neighboring router it is completed (by
-        iface information) and passed to local BSes.
+        Get the server address. No DNS used.
 
-        :param ifid_packet: the IFID request packet to send.
-        :type ifid_packet: :class:`lib.packet.scion.IFIDPacket`
+        :param str qname: Service to query for.
         """
-        if from_local:
-            logging.error("Received IFID packet from local AS, dropping")
-            return
-        ifid_pld = pkt.get_payload()
-        # Forward 'alive' packet to all BSes (to inform that neighbor is alive).
-        # BS must determine interface.
-        ifid_pld.reply_id = self.interface.if_id
-        try:
-            # Only 1 BS
-            bs_addr = self.topology.beacon_servers[0].addr
-        except SCIONServiceLookupError as e:
-            logging.error("Unable to deliver ifid packet: %s", e)
-            return
-        self.send(pkt, bs_addr)
-
-    def process_pcb(self, pkt, from_bs):
-        """
-        Depending on scenario: a) send PCB to a local beacon server, or b) to
-        neighboring router.
-
-        :param beacon: The PCB.
-        :type beacon: :class:`lib.packet.pcb.PathConstructionBeacon`
-        :param from_bs: True, if the beacon was received from local BS.
-        :type from_bs: bool
-        """
-        pcb = pkt.get_payload()
-        if from_bs:
-            if self.interface.if_id != pcb.get_last_pcbm().hof.egress_if:
-                logging.error("Wrong interface set by BS.")
-                return
-            self.send(pkt, self.interface.to_addr, self.interface.to_udp_port,
-                      False)
-        else:
-            pcb.if_id = self.interface.if_id
-            try:
-                bs_addr = self.topology.beacon_servers[0].addr
-            except SCIONServiceLookupError as e:
-                logging.error("Unable to deliver PCB: %s", e)
-                return
-            self.send(pkt, bs_addr)
-
-    def relay_cert_server_packet(self, spkt, from_local_ad):
-        """
-        Relay packets for certificate servers.
-        Removing DNS usage.
-
-        :param spkt: the SCION packet to forward.
-        :type spkt: :class:`lib.packet.scion.SCIONPacket`
-        :param from_local_ad: whether or not the packet is from the local AD.
-        :type from_local_ad: bool
-        """
-        if from_local_ad:
-            addr = self.interface.to_addr
-            port = self.interface.to_udp_port
-        else:
-            try:
-                addr = self.topology.certificate_servers[0].addr
-            except SCIONServiceLookupError as e:
-                logging.error("Unable to deliver cert packet: %s", e)
-                return
-            port = SCION_UDP_PORT
-        self.send(spkt, addr, port)
-
-    def process_path_mgmt_packet(self, mgmt_pkt, from_local_ad):
-        """
-        Process path management packets.
-
-        :param mgmt_pkt: The path mgmt packet.
-        :type mgmt_pkt: :class:`lib.packet.path_mgmt.PathMgmtPacket`
-        :param from_local_ad: whether or not the packet is from the local AD.
-        :type from_local_ad: bool
-        """
-        payload = mgmt_pkt.get_payload()
-        if payload.PAYLOAD_TYPE == PMT.IFSTATE_INFO:
-            # handle state update
-            logging.debug("Received IFState update:\n%s",
-                          str(mgmt_pkt.get_payload()))
-            for ifstate in payload.ifstate_infos:
-                self.if_states[ifstate.if_id].update(ifstate)
-            return
-        elif payload.PAYLOAD_TYPE == PMT.REVOCATION:
-            if not from_local_ad:
-                # Forward to local path server if we haven't recently.
-                rev_token = payload.rev_token
-                if (self.topology.path_servers and
-                        rev_token not in self.revocations):
-                    logging.debug("Forwarding revocation to local PS.")
-                    self.revocations[rev_token] = True
-                    try:
-                        ps = self.topology.path_servers[0].addr
-                    except SCIONServiceLookupError:
-                        logging.error("No local PS to forward revocation to.")
-                        return
-                    self.send(mgmt_pkt, ps.addr)
-        if not from_local_ad and mgmt_pkt.path.is_last_path_hof():
-            self.deliver(mgmt_pkt, PT.PATH_MGMT)
-        else:
-            self.forward_packet(mgmt_pkt, from_local_ad)
-
-    def deliver(self, spkt, ptype):
-        """
-        Forwards the packet to the end destination within the current AD.
-
-        :param spkt: The SCION Packet to forward.
-        :type spkt: :class:`lib.packet.scion.SCIONPacket`
-        :param ptype: The packet type.
-        :type ptype: int
-        """
-        path = spkt.path
-        curr_hof = path.get_hof()
-        if (not path.is_last_path_hof() or
-                (curr_hof.ingress_if and curr_hof.egress_if)):
-            logging.error("Trying to deliver packet that is not at the " +
-                          "end of a segment:\n%s", spkt)
-            return
-        # Forward packet to destination.
-        addr = spkt.addrs.dst_addr
-        if ptype == PT.PATH_MGMT:
-            # FIXME(PSz): that should be changed when replies are send as
-            # standard data packets.
-            if spkt.addrs.dst_addr.TYPE == ADDR_SVC_TYPE:
-                # Send request to any path server.
-                try:
-                    addr = self.topology.path_servers[0].addr
-                except SCIONServiceLookupError as e:
-                    logging.error("Unable to deliver path mgmt packet: %s", e)
-                    return
-            port = SCION_UDP_PORT
-        elif spkt._l4_proto == L4_UDP:
-            port = spkt.l4_hdr.dst_port
-        else:
-            port = SCION_UDP_EH_DATA_PORT
-        self.send(spkt, addr, port)
+        assert qname in SERVICE_TYPES
+        service_map = {
+            BEACON_SERVICE: self.topology.beacon_servers,
+            CERTIFICATE_SERVICE: self.topology.certificate_servers,
+            PATH_SERVICE: self.topology.path_servers,
+        }
+        results = [srv.addr for srv in service_map[qname]]
+        return results

@@ -129,7 +129,7 @@ class SimPingApp(SCIONSimApplication):
         :param status: Status of the reply for ping
         :type status: int
         """
-        self.num_ping_pongs = self.num_ping_pongs + 1
+        self.num_ping_pongs += 1
         self.pong_recv_status.append(status)
         if status == 0:
             logging.info('%s: pong received', self.addr)
