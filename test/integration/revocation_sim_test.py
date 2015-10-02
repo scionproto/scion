@@ -95,10 +95,15 @@ class RevocationSimTest(unittest.TestCase):
         simulator.run()
         logging.info("Simulation terminated")
         logging.info("PingPong status:")
+        type_map = {
+            0: 'Success',
+            1: 'Revocation',
+            2: 'Time out',
+        }
         output = []
         start_times = []
         for status in ping_application.pong_recv_status:
-            output.append(status)
+            output.append(type_map.get(status))
         for time in ping_application.ping_send_time:
             start_times.append(time)
         logging.info("Ping pong status:%s", output)

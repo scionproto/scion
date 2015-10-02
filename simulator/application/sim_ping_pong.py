@@ -77,13 +77,13 @@ class SimPingApp(SCIONSimApplication):
         pkt = SCIONL4Packet(packet)
         payload = pkt.get_payload()
         if payload == PayloadRaw(b"pong"):
-            self.receive_pong(True)
+            self.receive_pong(0)
         else:
             pld_type = pkt.parse_payload().PAYLOAD_TYPE
             if pld_type != PMT.REVOCATION:
                 logging.error("Ping applicaiton received some other packet")
                 return
-            self.receive_pong(False)
+            self.receive_pong(1)
 
     def send_ping(self):
         """
@@ -105,7 +105,7 @@ class SimPingApp(SCIONSimApplication):
         self.ping_send_time.append(curr_time)
 
         if len(paths_hops) == 0:
-            self.receive_pong(False)
+            self.receive_pong(2)
             return
         (path, _) = paths_hops[0]
 
@@ -128,15 +128,14 @@ class SimPingApp(SCIONSimApplication):
         """
         Received a response to the ping packet
 
-        :param status:
-        :type status:
+        :param status: Status of the reply for ping
+        :type status: int
         """
         self.num_ping_pongs = self.num_ping_pongs + 1
-        if status:
-            self.pong_recv_status.append(1)
+        self.pong_recv_status.append(status)
+        if status == 0:
             logging.info('%s: pong received', self.addr)
         else:
-            self.pong_recv_status.append(0)
             logging.info("No path found")
 
         logging.info('ping-pong count:%d', self.num_ping_pongs)
