@@ -99,7 +99,7 @@ class RouterSim(Router):
         """
         Run the router.
         """
-        if self.eid_1 == None and self.eid_2 == None:
+        if self.eid_1 is None and self.eid_2 is None:
             self.eid_1 = self.simulator.add_event(0., cb=self.sync_interface)
             self.eid_2 = self.simulator.add_event(0., cb=self.request_ifstates)
         if self.stopped:
@@ -132,7 +132,8 @@ class RouterSim(Router):
         logging.info('Sending IFID_PKT to router: req_id:%d, rep_id:%d',
                      ifid_pld.request_id, ifid_pld.reply_id)
 
-        self.eid_1 = self.simulator.add_event(IFID_PKT_TOUT, cb=self.sync_interface)
+        self.eid_1 = self.simulator.add_event(IFID_PKT_TOUT,
+                                              cb=self.sync_interface)
 
     def request_ifstates(self):
         """
@@ -147,8 +148,9 @@ class RouterSim(Router):
             self.send(req_pkt, bs.addr)
         now = SCIONTime.get_time()
         self.eid_2 = self.simulator.add_event(
-                        start_time + self.IFSTATE_REQ_INTERVAL - now,
-                        cb=self.request_ifstates)
+            start_time + self.IFSTATE_REQ_INTERVAL - now,
+            cb=self.request_ifstates
+        )
 
     def clean(self):
         pass

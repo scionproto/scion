@@ -76,7 +76,7 @@ class RevocationSimTest(unittest.TestCase):
         host2 = SCIONSimHost(dst_host_addr, dst_topo_path, simulator)
         ping_application = SimPingApp(host1, dst_host_addr,
                                       dst_isd_ad.ad, dst_isd_ad.isd, 4)
-        pong_application = SimPongApp(host2)
+        SimPongApp(host2)
         app_start_time = 30.
         ping_application.start(app_start_time)
         # Add the events into simulator queue

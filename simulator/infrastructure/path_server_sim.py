@@ -79,7 +79,6 @@ class CorePathServerSim(CorePathServer):
         records = pkt.get_payload()
         if not records.pcbs:
             return
-        pcb_from_local_isd = True
         for pcb in records.pcbs:
             dst_ad = pcb.get_first_pcbm().ad_id
             dst_isd = pcb.get_first_pcbm().isd_id
@@ -99,8 +98,6 @@ class CorePathServerSim(CorePathServer):
                              from_zk)
             if dst_isd == self.topology.isd_id:
                 self.core_ads.add((dst_isd, dst_ad))
-            else:
-                pcb_from_local_isd = False
         if not from_zk:
             pass
         # Send pending requests that couldn't be processed due to the lack of

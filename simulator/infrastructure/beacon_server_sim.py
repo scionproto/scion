@@ -18,16 +18,13 @@
 # Stdlib
 import logging
 
-# External packages
-from Crypto.Hash import SHA256
-
 # SCION
 from infrastructure.beacon_server import (
     CoreBeaconServer,
     InterfaceState,
     LocalBeaconServer,
 )
-from lib.crypto.hash_chain import HashChain, HashChainExhausted
+from lib.crypto.hash_chain import HashChainExhausted
 from lib.defines import (
     SCION_UDP_PORT,
     SCION_ROUTER_PORT,
@@ -41,7 +38,6 @@ from lib.packet.path_mgmt import (
     IFStateInfo,
     IFStatePayload,
     IFStateRequest,
-    PathMgmtType as PMT,
     PathSegmentInfo,
     PathRecordsReg,
     PathSegmentType as PST,
@@ -52,7 +48,6 @@ from lib.packet.pcb import (
     PCBMarking,
     PathSegment,
 )
-from lib.packet.scion_addr import SCIONAddr, ISD_AD
 from lib.util import SCIONTime
 
 
