@@ -875,9 +875,6 @@ class LocalPathServer(PathServer):
             return
 
         path = pcb.get_path(reverse_direction=True)
-        # FIXME(PSz): temporary hack. A very first path is _always_
-        # down-path, any subsequent is up-path.
-        # Above comment is from 2015-01-28, f288fb53
         up_seg_info = path.get_ofs_by_label(UP_IOF)[0]
         up_seg_info.up_flag = True
         req_pkt = self._build_packet(
