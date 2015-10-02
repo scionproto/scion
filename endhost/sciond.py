@@ -401,7 +401,7 @@ class SCIONDaemon(SCIONElement):
         for segment in db():
             for iftoken in segment.get_all_iftokens():
                 if HashChain.verify(rev_token, iftoken, self.N_TOKENS_CHECK):
-                    to_remove.append(segment.segment_id)
+                    to_remove.append(segment.id)
 
         return db.delete_all(to_remove)
 

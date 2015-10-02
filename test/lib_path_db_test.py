@@ -37,8 +37,8 @@ class TestPathSegmentDBRecordInit(object):
     Unit tests for lib.path_db.PathSegmentDBRecord.__init__
     """
     def test_basic(self):
-        pcb = create_mock(['segment_id', 'iof'], class_=PathSegment)
-        pcb.segment_id = "data1"
+        pcb = create_mock(['get_hops_hash', 'iof'], class_=PathSegment)
+        pcb.get_hops_hash.return_value = "data1"
         pcb.iof = create_mock(["hops"])
         pcb.iof.hops = "data2"
         pth_seg_db_rec = PathSegmentDBRecord(pcb)
@@ -52,7 +52,7 @@ class TestPathSegmentDBRecordEq(object):
     Unit tests for lib.path_db.PathSegmentDBRecord.__eq__
     """
     def test_eq(self):
-        pcb = create_mock(['segment_id', 'iof'], class_=PathSegment)
+        pcb = create_mock(['get_hops_hash', 'iof'], class_=PathSegment)
         pcb.iof = create_mock(["hops"])
         pth_seg_db_rec1 = PathSegmentDBRecord(pcb)
         pth_seg_db_rec2 = PathSegmentDBRecord(pcb)
@@ -62,7 +62,7 @@ class TestPathSegmentDBRecordEq(object):
         ntools.eq_(pth_seg_db_rec1, pth_seg_db_rec2)
 
     def test_neq(self):
-        pcb = create_mock(['segment_id', 'iof'], class_=PathSegment)
+        pcb = create_mock(['get_hops_hash', 'iof'], class_=PathSegment)
         pcb.iof = create_mock(["hops"])
         pth_seg_db_rec1 = PathSegmentDBRecord(pcb)
         pth_seg_db_rec2 = PathSegmentDBRecord(pcb)
@@ -71,7 +71,7 @@ class TestPathSegmentDBRecordEq(object):
         ntools.assert_not_equals(pth_seg_db_rec1, pth_seg_db_rec2)
 
     def test_type_neq(self):
-        pcb = create_mock(['segment_id', 'iof'], class_=PathSegment)
+        pcb = create_mock(['get_hops_hash', 'iof'], class_=PathSegment)
         pcb.iof = create_mock(["hops"])
         pth_seg_db_rec1 = PathSegmentDBRecord(pcb)
         pth_seg_db_rec2 = b"test"
@@ -83,7 +83,7 @@ class TestPathSegmentDBRecordHash(object):
     Unit tests for lib.path_db.PathSegmentDBRecord.__hash__
     """
     def test_basic(self):
-        pcb = create_mock(['segment_id', 'iof'], class_=PathSegment)
+        pcb = create_mock(['get_hops_hash', 'iof'], class_=PathSegment)
         pcb.iof = create_mock(["hops"])
         pth_seg_db_rec = PathSegmentDBRecord(pcb)
         pth_seg_db_rec.id = 4

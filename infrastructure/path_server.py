@@ -141,11 +141,12 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         """
         Add if revocation token to segment ID mappings.
         """
+        segment_id = pcb.get_hops_hash()
         for ad in pcb.ads:
-            self.iftoken2seg[ad.pcbm.ig_rev_token].add(pcb.segment_id)
-            self.iftoken2seg[ad.eg_rev_token].add(pcb.segment_id)
+            self.iftoken2seg[ad.pcbm.ig_rev_token].add(segment_id)
+            self.iftoken2seg[ad.eg_rev_token].add(segment_id)
             for pm in ad.pms:
-                self.iftoken2seg[pm.ig_rev_token].add(pcb.segment_id)
+                self.iftoken2seg[pm.ig_rev_token].add(segment_id)
 
     @abstractmethod
     def _handle_up_segment_record(self, records):
@@ -407,20 +408,21 @@ class CorePathServer(PathServer):
         if not records.pcbs:
             return
         paths_to_propagate = []
+        paths_to_master = []
         for pcb in records.pcbs:
-            assert pcb.segment_id != 32 * b"\x00", \
-                "Trying to register a segment with ID 0:\n%s" % pcb
             src_isd = pcb.get_first_pcbm().isd_id
             src_ad = pcb.get_first_pcbm().ad_id
             dst_ad = pcb.get_last_pcbm().ad_id
             dst_isd = pcb.get_last_pcbm().isd_id
             res = self.down_segments.update(pcb, src_isd, src_ad,
                                             dst_isd, dst_ad)
-            if (dst_isd == pkt.addrs.src_isd and
-                    dst_ad == pkt.addrs.src_ad):
+            if (dst_isd == pkt.addrs.src_isd and dst_ad == pkt.addrs.src_ad):
                 # Only propagate this path if it was registered with us by the
                 # down-stream AD.
                 paths_to_propagate.append(pcb)
+            if (src_isd == dst_isd == self.addr.isd_id):
+                # Master replicates all seen down-paths from ISD.
+                paths_to_master.append(pcb)
             if res != DBResult.NONE:
                 logging.info("Down-Segment registered (%d, %d) -> (%d, %d)",
                              src_isd, src_ad, dst_isd, dst_ad)
@@ -436,12 +438,16 @@ class CorePathServer(PathServer):
             records = PathRecordsReply.from_values(
                 records.info, paths_to_propagate)
             pkt = self._build_packet(payload=records)
-            # Send paths to local master.
-            if not from_master and self._master_id and not self._is_master():
-                self._send_to_master(pkt)
             # Now propagate paths to other core ADs (in the ISD).
             logging.debug("Propagate among core ADs")
             self._propagate_to_core_ads(pkt)
+        # Send paths to local master.
+        if (paths_to_master and not from_master and self._master_id and not
+                self._is_master()):
+            records = PathRecordsReply.from_values(records.info,
+                                                   paths_to_master)
+            pkt = self._build_packet(payload=records)
+            self._send_to_master(pkt)
         # Serve pending requests.
         target = (dst_isd, dst_ad)
         if target in self.pending_down:
@@ -876,9 +882,6 @@ class LocalPathServer(PathServer):
             return
 
         path = pcb.get_path(reverse_direction=True)
-        # FIXME(PSz): temporary hack. A very first path is _always_
-        # down-path, any subsequent is up-path.
-        # Above comment is from 2015-01-28, f288fb53
         up_seg_info = path.get_ofs_by_label(UP_IOF)[0]
         up_seg_info.up_flag = True
         req_pkt = self._build_packet(

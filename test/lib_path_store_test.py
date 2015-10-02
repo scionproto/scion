@@ -311,10 +311,9 @@ class TestPathStoreRecordEQ(object):
     Unit tests for lib.path_store.PathStoreRecord.__eq__
     """
     def setUp(self):
-        self.pcb = MagicMock(spec_set=['__class__', 'segment_id',
-                                       'get_expiration_time', 'get_hops_hash',
-                                       'get_n_hops', 'get_n_peer_links',
-                                       'get_timestamp'])
+        self.pcb = MagicMock(spec_set=['__class__', 'get_expiration_time',
+                                       'get_hops_hash', 'get_n_hops',
+                                       'get_n_peer_links', 'get_timestamp'])
         self.pcb.__class__ = PathSegment
 
     def tearDown(self):

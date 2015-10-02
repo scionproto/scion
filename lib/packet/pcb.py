@@ -285,14 +285,12 @@ class PathSegment(SCIONPayloadBase):
     :type trc_ver: int
     :ivar if_id: the interface identifier.
     :type if_id: int
-    :ivar segment_id: the identifier of the path segment.
-    :type segment_id: bytes
     :ivar ads: the ADs on the path.
     :type ads: list
     """
     PAYLOAD_CLASS = PayloadClass.PCB
     PAYLOAD_TYPE = PCBType.SEGMENT
-    MIN_LEN = InfoOpaqueField.LEN + 4 + 2 + REV_TOKEN_LEN
+    MIN_LEN = InfoOpaqueField.LEN + 4 + 2
     NAME = "PathSegment"
 
     def __init__(self, raw=None):
@@ -306,7 +304,6 @@ class PathSegment(SCIONPayloadBase):
         self.iof = None
         self.trc_ver = 0
         self.if_id = 0
-        self.segment_id = bytes(REV_TOKEN_LEN)
         self.ads = []
         self.min_exp_time = 2 ** 8 - 1  # TODO: eliminate 8 as magic number
         if raw is not None:
@@ -320,7 +317,6 @@ class PathSegment(SCIONPayloadBase):
         self.iof = InfoOpaqueField(data.pop(InfoOpaqueField.LEN))
         # 4B for trc_ver and 2B for if_id.
         self.trc_ver, self.if_id = struct.unpack("!IH", data.pop(6))
-        self.segment_id = data.pop(REV_TOKEN_LEN)
         self._parse_hops(data)
         return data.offset()
 
@@ -348,7 +344,6 @@ class PathSegment(SCIONPayloadBase):
         packed = []
         packed.append(self.iof.pack())
         packed.append(struct.pack("!IH", self.trc_ver, self.if_id))
-        packed.append(self.segment_id)
         for ad_marking in self.ads:
             packed.append(ad_marking.pack())
         return b"".join(packed)
@@ -546,7 +541,6 @@ class PathSegment(SCIONPayloadBase):
 
     def __str__(self):
         pcb_str = "[PathSegment]\n"
-        pcb_str += "Segment ID: %s\n" % str(self.segment_id)
         pcb_str += str(self.iof) + "\n"
         pcb_str += "trc_ver: %d, if_id: %d\n" % (self.trc_ver, self.if_id)
         for ad_marking in self.ads:
@@ -557,7 +551,6 @@ class PathSegment(SCIONPayloadBase):
         if type(other) is type(self):
             return (self.iof == other.iof and
                     self.trc_ver == other.trc_ver and
-                    self.segment_id == other.segment_id and
                     self.ads == other.ads)
         else:
             return False

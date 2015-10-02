@@ -23,6 +23,7 @@ import logging
 import sys
 import threading
 import time
+import zlib
 from collections import defaultdict
 
 # SCION
@@ -300,6 +301,19 @@ class Router(SCIONElement):
         for bs_addr in bs_addrs:
             self.send(pkt, bs_addr)
 
+    def get_srv_addr(self, service, pkt):
+        """
+        For a given service return a server address. Guarantee, that all packets
+        from the same source to a given service are sent to the same server.
+
+        :param str service: Service to query for.
+        :type pkt: :class:`lib.packet.scion.SCIONBasePacket`
+
+        """
+        addrs = self.dns_query_topo(service)
+        addrs.sort()  # To not rely on order of DNS replies.
+        return addrs[zlib.crc32(pkt.addrs.pack()) % len(addrs)]
+
     def process_pcb(self, pkt, from_bs):
         """
         Depending on scenario: a) send PCB to a local beacon server, or b) to
@@ -320,7 +334,7 @@ class Router(SCIONElement):
         else:
             pcb.if_id = self.interface.if_id
             try:
-                bs_addr = self.dns_query_topo(BEACON_SERVICE)[0]
+                bs_addr = self.get_srv_addr(BEACON_SERVICE, pkt)
             except SCIONServiceLookupError as e:
                 logging.error("Unable to deliver PCB: %s", e)
                 return
@@ -340,7 +354,7 @@ class Router(SCIONElement):
             port = self.interface.to_udp_port
         else:
             try:
-                addr = self.dns_query_topo(CERTIFICATE_SERVICE)[0]
+                addr = self.get_srv_addr(CERTIFICATE_SERVICE, spkt)
             except SCIONServiceLookupError as e:
                 logging.error("Unable to deliver cert packet: %s", e)
                 return
@@ -373,7 +387,7 @@ class Router(SCIONElement):
                     logging.debug("Forwarding revocation to local PS.")
                     self.revocations[rev_token] = True
                     try:
-                        ps = self.dns_query_topo(PATH_SERVICE)[0]
+                        ps = self.get_srv_addr(PATH_SERVICE, mgmt_pkt)
                     except SCIONServiceLookupError:
                         logging.error("No local PS to forward revocation to.")
                         return
@@ -442,7 +456,7 @@ class Router(SCIONElement):
             if spkt.addrs.dst_addr.TYPE == ADDR_SVC_TYPE:
                 # Send request to any path server.
                 try:
-                    addr = self.dns_query_topo(PATH_SERVICE)[0]
+                    addr = self.get_srv_addr(PATH_SERVICE, spkt)
                 except SCIONServiceLookupError as e:
                     logging.error("Unable to deliver path mgmt packet: %s", e)
                     return
