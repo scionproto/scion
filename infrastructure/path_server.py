@@ -102,8 +102,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                 name_addrs, self.topology.zookeepers)
             self.zk.retry("Joining party", self.zk.party_setup)
             self.path_cache = ZkSharedCache(self.zk, self.ZK_PATH_CACHE_PATH,
-                                            self._cached_entries_handler,
-                                            self.config.propagation_time)
+                                            self._cached_entries_handler)
 
     def worker(self):
         """
@@ -283,7 +282,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         pkt_packed = pkt.pack()
         pkt_hash = SHA256.new(pkt_packed).hexdigest()
         try:
-            self.path_cache.store(pkt_hash, pkt_packed)
+            self.path_cache.store("%s-%s" % (pkt_hash, SCIONTime.get_time()),
+                                  pkt_packed)
             logging.debug("Segment stored in ZK: %s...", pkt_hash[:5])
         except ZkNoConnection:
             logging.warning("Unable to store segment in shared path: "

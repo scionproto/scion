@@ -225,30 +225,50 @@ class TestPathStoreRecordInit(object):
     """
     Unit tests for lib.path_store.PathStoreRecord.__init__
     """
-    @patch("lib.path_store.SCIONTime.get_time", spec_set=[],
-           new_callable=MagicMock)
-    def test_basic(self, time_):
-        pcb = MagicMock(spec_set=['__class__', 'get_expiration_time',
-                                  'get_hops_hash', 'get_n_hops',
-                                  'get_n_peer_links', 'get_timestamp'])
-        pcb.__class__ = PathSegment
-        time_.return_value = PathStoreRecord.DEFAULT_OFFSET + 1
-        pcb.get_timestamp.return_value = PathStoreRecord.DEFAULT_OFFSET - 1
-        pth_str_rec = PathStoreRecord(pcb)
-        ntools.eq_(pth_str_rec.pcb, pcb)
-        ntools.eq_(pth_str_rec.id, pcb.get_hops_hash.return_value)
-        ntools.eq_(pth_str_rec.peer_links, pcb.get_n_peer_links.return_value)
-        ntools.eq_(pth_str_rec.hops_length, pcb.get_n_hops.return_value)
-        ntools.eq_(pth_str_rec.delay_time, 2)
-        ntools.eq_(pth_str_rec.fidelity, 0)
-        ntools.eq_(pth_str_rec.disjointness, 0)
-        ntools.eq_(pth_str_rec.last_sent_time, 1)
-        ntools.eq_(pth_str_rec.last_seen_time, time_.return_value)
-        ntools.eq_(pth_str_rec.expiration_time,
-                   pcb.get_expiration_time.return_value)
-        ntools.eq_(pth_str_rec.guaranteed_bandwidth, 0)
-        ntools.eq_(pth_str_rec.available_bandwidth, 0)
-        ntools.eq_(pth_str_rec.total_bandwidth, 0)
+    @patch("lib.path_store.PathStoreRecord.update", autospec=True)
+    @patch("lib.path_store.SCIONTime.get_time", new_callable=create_mock)
+    def test(self, get_time, update):
+        pcb = create_mock(['get_hops_hash', 'get_n_hops', 'get_n_peer_links'],
+                          class_=PathSegment)
+        get_time.return_value = PathStoreRecord.DEFAULT_OFFSET + 1
+        # Call
+        inst = PathStoreRecord(pcb)
+        # Tests
+        ntools.eq_(inst.id, pcb.get_hops_hash.return_value)
+        ntools.eq_(inst.peer_links, pcb.get_n_peer_links.return_value)
+        ntools.eq_(inst.hops_length, pcb.get_n_hops.return_value)
+        ntools.eq_(inst.fidelity, 0)
+        ntools.eq_(inst.disjointness, 0)
+        ntools.eq_(inst.last_sent_time, 1)
+        ntools.eq_(inst.guaranteed_bandwidth, 0)
+        ntools.eq_(inst.available_bandwidth, 0)
+        ntools.eq_(inst.total_bandwidth, 0)
+        update.assert_called_once_with(inst, pcb)
+
+
+class TestPathStoreRecordUpdate(object):
+    """
+    Unit tests for lib.path_store.PathStoreRecord.update
+    """
+    @patch("lib.path_store.copy.deepcopy", autospec=True)
+    @patch("lib.path_store.SCIONTime.get_time", new_callable=create_mock)
+    @patch("lib.path_store.PathStoreRecord.__init__", autospec=True,
+           return_value=None)
+    def test(self, init, get_time, deepcopy):
+        inst = PathStoreRecord("pcb")
+        get_time.return_value = 100
+        pcb = create_mock(["get_hops_hash", "get_timestamp",
+                           "get_expiration_time"])
+        inst.id = pcb.get_hops_hash.return_value
+        pcb.get_timestamp.return_value = 95
+        # Call
+        inst.update(pcb)
+        # Tests
+        deepcopy.assert_called_once_with(pcb)
+        ntools.eq_(inst.pcb, deepcopy.return_value)
+        ntools.eq_(inst.delay_time, 5)
+        ntools.eq_(inst.last_seen_time, 100)
+        ntools.eq_(inst.expiration_time, pcb.get_expiration_time.return_value)
 
 
 class TestPathStoreRecordUpdateFidelity(object):
@@ -363,24 +383,20 @@ class TestPathStoreAddSegment(object):
         # Tests
         inst.path_policy.check_filters.assert_called_once_with(pcb)
 
-    @patch("lib.path_store.SCIONTime.get_time", new_callable=create_mock)
     @patch("lib.path_store.PathStore.__init__", autospec=True,
            return_value=None)
-    def test_already_in_store(self, psi, time_):
+    def test_already_in_store(self, init):
         """
         Try to add a path that is already in the path store.
         """
         inst, pcb = self._setup()
-        candidate = create_mock(['id', 'pcb', 'delay_time', 'last_seen_time'])
+        candidate = create_mock(['id', 'update'])
         candidate.id = pcb.get_hops_hash.return_value
         inst.candidates = [candidate]
-        time_.return_value = 23
-        pcb.get_timestamp.return_value = 22
         # Call
         inst.add_segment(pcb)
         # Tests
-        ntools.eq_(candidate.delay_time, 1)
-        ntools.eq_(candidate.last_seen_time, time_.return_value)
+        candidate.update.assert_called_once_with(pcb)
 
     @patch("lib.path_store.PathStoreRecord", autospec=True)
     @patch("lib.path_store.PathStore.__init__", autospec=True,
@@ -543,42 +559,47 @@ class TestPathStoreUpdateAllFidelity(object):
 
 class TestPathStoreGetBestSegments(object):
     """
-    Unit tests for lib.path_store.get_best_segments
+    Unit tests for lib.path_store.PathStore.get_best_segments
     """
-    def test_basic(self):
-        path_policy = MagicMock(spec_set=['history_limit'])
-        path_policy.history_limit = 3
-        pth_str = PathStore(path_policy)
-        pth_str._remove_expired_segments = MagicMock(spec_set=[])
-        numCandidates = 5
-        pth_str.candidates = [MagicMock(spec_set=['pcb', 'fidelity'])
-                              for i in range(numCandidates)]
-        pth_str._remove_expired_segments = create_mock()
-        pth_str._update_all_fidelity = create_mock()
-        for i in range(numCandidates):
-            pth_str.candidates[i].pcb = i
-            pth_str.candidates[i].fidelity = i
-        ntools.eq_(pth_str.get_best_segments(3),
-                   list(reversed(range(numCandidates-3, numCandidates))))
-        pth_str._remove_expired_segments.assert_called_once_with()
+    def _setup(self):
+        inst = PathStore("path_policy")
+        inst._remove_expired_segments = create_mock()
+        inst._update_all_fidelity = create_mock()
+        inst.candidates = []
+        for i, fidelity in enumerate([0, 5, 2, 6, 3]):
+            candidate = create_mock(["pcb", "fidelity", "sending"])
+            candidate.pcb = "pcb%d" % i
+            candidate.fidelity = fidelity
+            inst.candidates.append(candidate)
+        return inst
 
-    def test_less_arg(self):
-        path_policy = MagicMock(spec_set=['history_limit', 'best_set_size'])
-        path_policy.history_limit = 3
-        path_policy.best_set_size = 4
-        pth_str = PathStore(path_policy)
-        pth_str._remove_expired_segments = MagicMock(spec_set=[])
-        numCandidates = 5
-        pth_str.candidates = [MagicMock(spec_set=['pcb', 'fidelity'])
-                              for i in range(numCandidates)]
-        pth_str._remove_expired_segments = create_mock()
-        pth_str._update_all_fidelity = create_mock()
-        for i in range(numCandidates):
-            pth_str.candidates[i].pcb = i
-            pth_str.candidates[i].fidelity = i
-        ntools.eq_(pth_str.get_best_segments(),
-                   list(reversed(range(numCandidates-path_policy.best_set_size,
-                                       numCandidates))))
+    @patch("lib.path_store.PathStore.__init__", autospec=True,
+           return_value=None)
+    def test_full(self, init):
+        inst = self._setup()
+        # Call
+        ntools.eq_(inst.get_best_segments(k=3, sending=False),
+                   ["pcb3", "pcb1", "pcb4"])
+        # Tests
+        inst._remove_expired_segments.assert_called_once_with()
+        inst._update_all_fidelity.assert_called_once_with()
+        for i in inst.candidates:
+            ntools.assert_false(i.sending.called)
+
+    @patch("lib.path_store.PathStore.__init__", autospec=True,
+           return_value=None)
+    def test_less_arg(self, init):
+        inst = self._setup()
+        inst.path_policy = create_mock(["best_set_size"])
+        inst.path_policy.best_set_size = 1
+        # Call
+        ntools.eq_(inst.get_best_segments(), ["pcb3"])
+        # Tests
+        for i in inst.candidates:
+            if i.fidelity == 6:
+                i.sending.assert_called_once_with()
+            else:
+                ntools.assert_false(i.sending.called)
 
 
 class TestPathStoreGetLatestHistorySnapshot(object):
