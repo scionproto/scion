@@ -36,6 +36,9 @@ class SimPingApp(SCIONSimApplication):
     """
     _APP_PORT = 5600
     PING_INTERVAL = 40
+    SUCCESS = 0
+    REVOCATION = 1
+    TIMEOUT = 2
 
     def __init__(self, host, dst_addr, dst_ad, dst_isd, max_ping_pongs):
         """
@@ -79,13 +82,13 @@ class SimPingApp(SCIONSimApplication):
         pkt = SCIONL4Packet(packet)
         payload = pkt.get_payload()
         if payload == PayloadRaw(b"pong"):
-            self.receive_pong(0)
+            self.receive_pong(self.SUCCESS)
         else:
             pld_type = pkt.parse_payload().PAYLOAD_TYPE
             if pld_type != PMT.REVOCATION:
                 logging.error("Ping applicaiton received some other packet")
                 return
-            self.receive_pong(1)
+            self.receive_pong(self.REVOCATION)
 
     def send_ping(self):
         """
@@ -105,7 +108,7 @@ class SimPingApp(SCIONSimApplication):
         curr_time = SCIONTime.get_time()
         self.ping_send_time.append(curr_time)
         if len(paths_hops) == 0:
-            self.receive_pong(2)
+            self.receive_pong(self.TIMEOUT)
             return
         (path, _) = paths_hops[0]
 
