@@ -86,7 +86,7 @@ class SimPingApp(SCIONSimApplication):
         else:
             pld_type = pkt.parse_payload().PAYLOAD_TYPE
             if pld_type != PMT.REVOCATION:
-                logging.error("Ping applicaiton received some other packet")
+                logging.error("Unsupported packet Received")
                 return
             self.receive_pong(self.REVOCATION)
 

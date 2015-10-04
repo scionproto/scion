@@ -22,8 +22,7 @@ import struct
 # SCION
 from endhost.sciond import SCIONDaemon, SCIOND_API_PORT
 from lib.defines import SCION_UDP_PORT
-from lib.errors import SCIONBaseError, SCIONParseError
-from lib.log import log_exception
+from lib.errors import SCIONParseError
 from lib.packet.path import PathCombinator
 from lib.packet.path_mgmt import (
     PathMgmtType as PMT,
@@ -359,7 +358,4 @@ class SCIONSimHost(SCIONDaemon):
             logging.warning("Path management packet type %d not supported.",
                             payload.PAYLOAD_TYPE)
             return
-        try:
-            handler(pkt)
-        except SCIONBaseError:
-            log_exception("Error handling packet: %s" % pkt)
+        handler(pkt)

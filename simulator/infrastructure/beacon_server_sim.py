@@ -73,7 +73,7 @@ class CoreBeaconServerSim(CoreBeaconServer):
                                   path_policy_file, is_sim=True)
         simulator.add_element(str(self.addr.host_addr), self)
         simulator.add_name(server_name, str(self.addr.host_addr))
-        # Creating duplicate zookeeper objects
+        # Creating bogus zookeeper objects
         self.zk = ZookeeperSim()
         self.revobjs_cache = ZkSharedCacheSim()
         self.pcb_cache = ZkSharedCacheSim()
@@ -306,7 +306,7 @@ class LocalBeaconServerSim(LocalBeaconServer):
                                    path_policy_file, is_sim=True)
         simulator.add_element(str(self.addr.host_addr), self)
         simulator.add_name(server_name, str(self.addr.host_addr))
-        # Creating duplicate zookeeper objects
+        # Creating bogus zookeeper objects
         self.zk = ZookeeperSim()
         self.revobjs_cache = ZkSharedCacheSim()
         self.pcb_cache = ZkSharedCacheSim()
