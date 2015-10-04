@@ -30,7 +30,7 @@ from lib.packet.scion_addr import ISD_AD
 # SCION Simulator
 from simulator.application.sim_ping_pong import SimPingApp, SimPongApp
 from simulator.endhost.sim_host import SCIONSimHost
-from simulator.simulator import init_simulator
+from simulator.simulator import init_simulator, EventParser
 
 SIMULATOR_DIR_NAME = 'simulator'
 
@@ -79,22 +79,15 @@ class RevocationSimTest(unittest.TestCase):
         SimPongApp(host2)
         app_start_time = 30.
         ping_application.start(app_start_time)
+
+        event_parser = EventParser(simulator)
         # Add the events into simulator queue
         for event in events:
-            items = event.split()
-            router_name = items[0]
-            event_time = int(items[2])
-            if items[1] == "start":
-                simulator.add_event(event_time,
-                                    cb=simulator.start_element,
-                                    args=(router_name,))
-            elif items[1] == "stop":
-                simulator.add_event(event_time,
-                                    cb=simulator.stop_element,
-                                    args=(router_name,))
+            event_parser.parse(event)
         simulator.run()
+
         logging.info("Simulation terminated")
-        type_map = {
+        status_map = {
             0: 'Success',
             1: 'Revocation',
             2: 'Time out',
@@ -102,7 +95,7 @@ class RevocationSimTest(unittest.TestCase):
         output = []
         start_times = []
         for status in ping_application.pong_recv_status:
-            output.append(type_map.get(status))
+            output.append(status_map.get(status))
         for time in ping_application.ping_send_time:
             start_times.append(time)
         logging.info("Ping pong status:%s", output)
