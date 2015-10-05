@@ -335,11 +335,9 @@ class SCIONDaemon(SCIONElement):
             raw_path = path.pack()
             # assumed IPv4 addr
             fwd_if = path.get_fwd_if()
-            if fwd_if:
-                haddr = self.ifid2addr[path.get_fwd_if()]
-            else:
-                # Set dummy host addr (path is EmptyPath)
-                haddr = haddr_parse("IPv4", "0.0.0.0")
+            # Set dummy host addr if path is EmptyPath.
+            # TODO(PSz): remove dummy "0.0.0.0" address when API is saner
+            haddr = self.ifid2addr.get(fwd_if, haddr_parse("IPv4", "0.0.0.0"))
             path_len = len(raw_path) // 8
             reply.append(struct.pack("B", path_len) + raw_path +
                          haddr.pack() + struct.pack("H", SCION_UDP_PORT) +
