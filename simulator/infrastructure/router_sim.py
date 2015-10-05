@@ -175,9 +175,7 @@ class RouterSim(Router):
         """
         ts = path.get_iof().timestamp
         hof = path.get_hof()
-        if int(SCIONTime.get_time()) <= ts + hof.exp_time * EXP_TIME_UNIT:
-            pass
-        else:
+        if int(SCIONTime.get_time()) > ts + hof.exp_time * EXP_TIME_UNIT:
             raise SCIONOFExpiredError(hof)
 
     def dns_query_topo(self, qname):

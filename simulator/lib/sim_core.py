@@ -94,7 +94,7 @@ class Simulator(object):
 
     def add_element(self, addr, element):
         """
-        Add an element along with its IP address to simulator,
+        Add an element along with its IP address to simulator.
         The element's sim_recv will be called to send a packet to this address.
 
         :param addr: The address corresponding to element

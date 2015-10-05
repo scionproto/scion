@@ -19,7 +19,8 @@
 
 class ZookeeperSim(object):
     """
-    Zookeeper does not run in simulator.
+    Bogus Zookeeper wrapper for use in the simulator.
+    The simulator does not use Zookeeper.
     """
     def __init__(self):
         pass
@@ -33,7 +34,8 @@ class ZookeeperSim(object):
 
 class ZkSharedCacheSim(object):
     """
-    Zookeeper does not run in simulator.
+    Bogus Zookeeper Shared Cache wrapper for use in the simulator.
+    The simulator does not use Zookeeper.
     """
     def __init__(self):
         pass

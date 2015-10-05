@@ -29,8 +29,9 @@ from lib.packet.scion_addr import ISD_AD
 
 # SCION Simulator
 from simulator.application.sim_ping_pong import SimPingApp, SimPongApp
+from simulator.lib.event_parser import EventParser
 from simulator.endhost.sim_host import SCIONSimHost
-from simulator.simulator import init_simulator, EventParser
+from simulator.simulator import init_simulator
 
 SIMULATOR_DIR_NAME = 'simulator'
 
