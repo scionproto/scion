@@ -26,8 +26,9 @@ from lib.crypto.hash_chain import HashChain
 from lib.defines import ADDR_IPV4_TYPE, PATH_SERVICE, SCION_UDP_PORT
 from lib.errors import SCIONBaseError, SCIONServiceLookupError
 from lib.log import log_exception
+from lib.packet.host_addr import haddr_parse
 from lib.packet.packet_base import PayloadClass
-from lib.packet.path import PathCombinator
+from lib.packet.path import EmptyPath, PathCombinator
 from lib.packet.path_mgmt import (
     PathMgmtType as PMT,
     PathSegmentInfo,
@@ -218,6 +219,9 @@ class SCIONDaemon(SCIONElement):
         :raises:
             SCIONDaemonPathLookupError: if paths lookup fail
         """
+        # Handle request to local AS.
+        if self.addr.get_isd_ad() == (dst_isd, dst_ad):
+            return [EmptyPath()]
         full_paths = []
         self._request_paths(PST.UP_DOWN, dst_isd, dst_ad, requester=requester)
         down_segments = self.down_segments(last_isd=dst_isd, last_ad=dst_ad)
@@ -330,7 +334,12 @@ class SCIONDaemon(SCIONElement):
         for path in paths:
             raw_path = path.pack()
             # assumed IPv4 addr
-            haddr = self.ifid2addr[path.get_fwd_if()]
+            fwd_if = path.get_fwd_if()
+            if fwd_if:
+                haddr = self.ifid2addr[path.get_fwd_if()]
+            else:
+                # Set dummy host addr (path is EmptyPath)
+                haddr = haddr_parse("IPv4", "0.0.0.0")
             path_len = len(raw_path) // 8
             reply.append(struct.pack("B", path_len) + raw_path +
                          haddr.pack() + struct.pack("H", SCION_UDP_PORT) +
@@ -401,7 +410,7 @@ class SCIONDaemon(SCIONElement):
         for segment in db():
             for iftoken in segment.get_all_iftokens():
                 if HashChain.verify(rev_token, iftoken, self.N_TOKENS_CHECK):
-                    to_remove.append(segment.id)
+                    to_remove.append(segment.get_hops_hash())
 
         return db.delete_all(to_remove)
 

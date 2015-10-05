@@ -64,10 +64,10 @@ def get_paths_via_api(isd, ad):
     paths_hops = []
     while len(data) > 0:
         path_len = data.pop(1) * 8
+        if not path_len:
+            return [(EmptyPath(), haddr_parse("IPv4", "0.0.0.0"))]
         info = InfoOpaqueField(data.get(InfoOpaqueField.LEN))
-        if not path_len:  # Shouldn't happen.
-            path = EmptyPath()
-        elif info.info == OFT.CORE:
+        if info.info == OFT.CORE:
             path = CorePath(data.pop(path_len))
         elif info.info == OFT.SHORTCUT:
             path = CrossOverPath(data.pop(path_len))
@@ -110,6 +110,8 @@ class Ping(object):
         # Get paths through local API.
         paths_hops = get_paths_via_api(self.dst.isd, self.dst.ad)
         (self.path, self.hop) = paths_hops[0]
+        if isinstance(self.path, EmptyPath):
+            self.hop = raddr
 
     def run(self):
         self.send()
@@ -199,31 +201,30 @@ class TestSCIONDaemon(unittest.TestCase):
         failures = 0
         for src_id in sources:
             for dst_id in destinations:
-                if src_id != dst_id:
-                    logging.info("Testing: %s -> %s", src_id, dst_id)
-                    src = ISD_AD(*src_id)
-                    dst = ISD_AD(*dst_id)
-                    token = (
-                        "%s-%s<->%s-%s" % (src[0], src[1], dst[0],
-                                           dst[1])
-                    ).encode("UTF-8")
-                    pong_app = Pong(dst, token)
-                    threading.Thread(
-                        target=thread_safety_net, args=(pong_app.run,),
-                        name="E2E.pong_app", daemon=True).start()
-                    ping_app = Ping(src, dst, pong_app.sock.port, token)
-                    threading.Thread(
-                        target=thread_safety_net, args=(ping_app.run,),
-                        name="E2E.ping_app", daemon=True).start()
-                    for _ in range(TOUT * 10):
-                        time.sleep(0.1)
-                        if pong_app.ping_received and ping_app.pong_received:
-                            break
-                    else:
-                        logging.error("Test timed out")
-                        failures += 1
-                    self.assertTrue(pong_app.ping_received)
-                    self.assertTrue(ping_app.pong_received)
+                logging.info("Testing: %s -> %s", src_id, dst_id)
+                src = ISD_AD(*src_id)
+                dst = ISD_AD(*dst_id)
+                token = (
+                    "%s-%s<->%s-%s" % (src[0], src[1], dst[0],
+                                       dst[1])
+                ).encode("UTF-8")
+                pong_app = Pong(dst, token)
+                threading.Thread(
+                    target=thread_safety_net, args=(pong_app.run,),
+                    name="E2E.pong_app", daemon=True).start()
+                ping_app = Ping(src, dst, pong_app.sock.port, token)
+                threading.Thread(
+                    target=thread_safety_net, args=(ping_app.run,),
+                    name="E2E.ping_app", daemon=True).start()
+                for _ in range(TOUT * 10):
+                    time.sleep(0.1)
+                    if pong_app.ping_received and ping_app.pong_received:
+                        break
+                else:
+                    logging.error("Test timed out")
+                    failures += 1
+                self.assertTrue(pong_app.ping_received)
+                self.assertTrue(ping_app.pong_received)
         sys.exit(failures)
 
 if __name__ == "__main__":
