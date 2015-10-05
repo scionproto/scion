@@ -17,10 +17,11 @@
 """
 # Stdlib
 import logging
-import struct
 from ipaddress import IPv4Address
 
 # SCION
+from endhost.sciond import SCIOND_API_PORT
+from lib.errors import SCIONParseError
 from lib.packet.opaque_field import (
     InfoOpaqueField,
     OpaqueFieldType as OFT,
@@ -31,9 +32,7 @@ from lib.packet.path import (
     CrossOverPath,
     EmptyPath,
 )
-
-# SCION Simulator
-from simulator.endhost.sim_host import SCIOND_API_PORT
+from lib.packet.scion_addr import ISD_AD
 
 
 class SCIONSimApplication(object):
@@ -79,7 +78,7 @@ class SCIONSimApplication(object):
         :param ad: The ad number corresponding to path request
         :type ad: int
         """
-        msg = b'\x00' + struct.pack("H", isd) + struct.pack("Q", ad)
+        msg = b'\x00' + ISD_AD(isd, ad).pack()
         logging.info("Sending path request to local API.")
         eid = self.simulator.add_event(0., dst=self.addr,
                                        args=(msg,
@@ -112,8 +111,8 @@ class SCIONSimApplication(object):
             elif info.info == 0x00:
                 path = EmptyPath()
             else:
-                logging.info("Can not parse path in packet: Unknown type %x",
-                             info.info)
+                raise SCIONParseError("SCIONHeader: Can not parse path in "
+                                      "packet: Unknown type %x", info.info)
             assert path
             offset += path_len
             hop = IPv4Address(data[offset:offset+4])

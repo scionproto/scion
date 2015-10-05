@@ -82,6 +82,7 @@ class Simulator(object):
         Create a Simulator instance.
         """
         self.element_list = {}
+        self.name_addr_map = {}
         self.event_pq = PriorityQueue()
         self.curr_time = 0
         self.stop_time = 0
@@ -93,8 +94,8 @@ class Simulator(object):
 
     def add_element(self, addr, element):
         """
-        Add an element along with its IP address to simulator
-        The element's sim_recv will be called to send a packet to this address
+        Add an element along with its IP address to simulator.
+        The element's sim_recv will be called to send a packet to this address.
 
         :param addr: The address corresponding to element
         :type addr: str
@@ -102,6 +103,17 @@ class Simulator(object):
         :type element:
         """
         self.element_list[addr] = element
+
+    def add_name(self, name, addr):
+        """
+        Maintaining a map from name of server to its ip address.
+
+        :param name: Name of the server
+        :type name: str
+        :param addr: The address corresponding to element
+        :type addr: str
+        """
+        self.name_addr_map[name] = addr
 
     def add_event(self, time, **kwargs):
         """
@@ -196,6 +208,32 @@ class Simulator(object):
                 self.curr_time = event_time
                 event.run()
         self.clean()
+
+    def stop_element(self, name):
+        """
+        Stop the element.
+
+        :param name: The name corresponding to element
+        :type name: str
+        """
+        if name not in self.name_addr_map:
+            logging.error("No such element %s exists", name)
+            return
+        addr = self.name_addr_map[name]
+        self.element_list[addr].stop()
+
+    def start_element(self, name):
+        """
+        Start the element.
+
+        :param name: The name corresponding to element
+        :type name: str
+        """
+        if name not in self.name_addr_map:
+            logging.error("No such element %s exists", name)
+            return
+        addr = self.name_addr_map[name]
+        self.element_list[addr].run()
 
     def terminate(self):
         """

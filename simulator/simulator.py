@@ -47,7 +47,6 @@ def init_simulator():
     :rtype: Simulator
     """
     simulator = Simulator()
-    read_sim_file()
     data = read_sim_file()
     init_elements(data, simulator)
     return simulator
@@ -82,24 +81,26 @@ def init_elements(data, simulator):
     for line in data:
         items = line.split()
         if items[0] == "router":
-            RouterSim(items[1], items[2], items[3], simulator)
+            RouterSim(items[2], items[3], items[4], items[1], simulator)
         elif items[0] == "cert_server":
             pass
         elif items[0] == "path_server":
-            if items[1] == "core":
-                CorePathServerSim(items[2], items[3], items[4], simulator)
-            elif items[1] == "local":
-                LocalPathServerSim(items[2], items[3], items[4], simulator)
+            if items[2] == "core":
+                CorePathServerSim(items[3], items[4], items[5], items[1],
+                                  simulator)
+            elif items[2] == "local":
+                LocalPathServerSim(items[3], items[4], items[5], items[1],
+                                   simulator)
             else:
                 logging.error("First parameter can only be 'local' or 'core'!")
                 sys.exit()
         elif items[0] == 'beacon_server':
-            if items[1] == "core":
-                CoreBeaconServerSim(items[2], items[3], items[4], items[5],
-                                    simulator)
-            elif items[1] == "local":
-                LocalBeaconServerSim(items[2], items[3], items[4], items[5],
-                                     simulator)
+            if items[2] == "core":
+                CoreBeaconServerSim(items[3], items[4], items[5], items[6],
+                                    items[1], simulator)
+            elif items[2] == "local":
+                LocalBeaconServerSim(items[3], items[4], items[5], items[6],
+                                     items[1], simulator)
             else:
                 logging.error("First parameter can only be 'local' or 'core'!")
                 sys.exit()

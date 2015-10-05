@@ -18,16 +18,19 @@
 # Stdlib
 import logging
 
-# External packages
-from Crypto.Hash import SHA256
-
 # SCION
 from infrastructure.beacon_server import (
     CoreBeaconServer,
-    LocalBeaconServer
+    LocalBeaconServer,
 )
-from lib.crypto.hash_chain import HashChain
-from lib.defines import SCION_UDP_PORT
+from lib.crypto.hash_chain import HashChainExhausted
+from lib.defines import (
+    BEACON_SERVICE,
+    CERTIFICATE_SERVICE,
+    PATH_SERVICE,
+    SCION_UDP_PORT,
+    SERVICE_TYPES,
+)
 from lib.packet.opaque_field import (
     HopOpaqueField,
     InfoOpaqueField,
@@ -40,13 +43,16 @@ from lib.packet.pcb import (
 )
 from lib.util import SCIONTime
 
+# SCION Simulator
+from simulator.lib.zookeeper_sim import ZookeeperSim, ZkSharedCacheSim
+
 
 class CoreBeaconServerSim(CoreBeaconServer):
     """
     Simulator version of PathConstructionBeacon Server in a core AD
     """
     def __init__(self, server_id, topo_file, config_file, path_policy_file,
-                 simulator):
+                 server_name, simulator):
         """
         Initialises CoreBeaconServer with is_sim set to True.
 
@@ -58,12 +64,19 @@ class CoreBeaconServerSim(CoreBeaconServer):
         :type config_file: string
         :param path_policy_file: path policy file.
         :type path_policy_file: string
+        :param server_name:
+        :type server_name:
         :param simulator: Instance of simulator class.
         :type simulator: Simulator
         """
         CoreBeaconServer.__init__(self, server_id, topo_file, config_file,
                                   path_policy_file, is_sim=True)
         simulator.add_element(str(self.addr.host_addr), self)
+        simulator.add_name(server_name, str(self.addr.host_addr))
+        # Creating bogus zookeeper objects
+        self.zk = ZookeeperSim()
+        self.revobjs_cache = ZkSharedCacheSim()
+        self.pcb_cache = ZkSharedCacheSim()
         self.simulator = simulator
 
     def send(self, packet, dst, dst_port=SCION_UDP_PORT):
@@ -112,11 +125,10 @@ class CoreBeaconServerSim(CoreBeaconServer):
         core_pcb.iof = InfoOpaqueField.from_values(
             OFT.CORE, False, timestamp, self.topology.isd_id)
         count = self.propagate_core_pcb(core_pcb)
-
         # Propagate received beacons. A core beacon server can only receive
         # beacons from other core beacon servers.
         beacons = []
-        for ps in self.beacons.values():
+        for ps in self.core_beacons.values():
             beacons.extend(ps.get_best_segments())
         for pcb in beacons:
             count += self.propagate_core_pcb(pcb)
@@ -143,38 +155,18 @@ class CoreBeaconServerSim(CoreBeaconServer):
             cb=self.register_segments
         )
 
-    def store_pcb(self, beacon):
+    def handle_pcb(self, pkt):
         """
         Receives beacon and stores it for processing.
+
+        :param pcb: path construction beacon.
+        :type pcb: PathConstructionBeacon
         """
-        assert isinstance(beacon, PathSegment)
-        if not self.path_policy.check_filters(beacon.pcb):
+        pcb = pkt.get_payload()
+        if not self.path_policy.check_filters(pcb):
             return
-        # segment_id = beacon.pcb.get_hops_hash(hex=True)
-        pcb = beacon.pcb
-        pcbs = []
-        pcbs.append(pcb)
+        pcbs = [pcb.pack()]
         self.process_pcbs(pcbs)
-
-    def _get_if_rev_token(self, if_id):
-        """
-        Returns the revocation token for a given interface.
-
-        :param if_id: interface identifier.
-        :type if_id: int
-        """
-        ret = None
-        if if_id == 0:
-            ret = 32 * b"\x00"
-        elif if_id not in self.if2rev_tokens:
-            seed = self.config.master_ad_key + bytes("%d" % if_id, 'utf-8')
-            start_ele = SHA256.new(seed).digest()
-            chain = HashChain(start_ele)
-            self.if2rev_tokens[if_id] = chain
-            ret = chain.next_element()
-        else:
-            ret = self.if2rev_tokens[if_id].current_element()
-        return ret
 
     def _check_certs_trc(self, isd_id, ad_id, cert_chain_version, trc_version,
                          if_id):
@@ -194,7 +186,7 @@ class CoreBeaconServerSim(CoreBeaconServer):
     def _create_ad_marking(self, ingress_if, egress_if, ts, prev_hof=None):
         """
         Creates an AD Marking for given ingress and egress interfaces,
-        timestamp, and previous HOF.
+        timestamp, and previous HOF. Remove MAC usage since it is simulation.
 
         :param ingress_if: ingress interface.
         :type ingress_if: int
@@ -233,29 +225,61 @@ class CoreBeaconServerSim(CoreBeaconServer):
         Periodically checks each interface state and issues an if revocation, if
         no keep-alive message was received for IFID_TOUT.
         """
-#         start_time = SCIONTime.get_time()
-#         for (if_id, if_state) in self.ifid_state.items():
-#             # Check if interface has timed-out.
-#             if if_state.is_expired():
-#                 logging.info("Issuing revocation for IF %d.", if_id)
-#                 # Issue revocation
-#                 assert if_id in self.if2rev_tokens
-#                 chain = self.if2rev_tokens[if_id]
-#                 rev_info = RevocationInfo.from_values(
-#                     RT.INTERFACE, chain.current_element(),
-#                     chain.next_element())
-#                 self._process_revocation(rev_info)
-#                 # Advance the hash chain for the corresponding IF.
-#                 try:
-#                     chain.move_to_next_element()
-#                 except HashChainExhausted:
-#                     # TODO(shitz): Add code to handle hash chain exhaustion.
-#                     logging.warning("Hash chain for IF %s is exhausted.")
-#                 if_state.revoke_if_expired()
-#         now = SCIONTime.get_time()
-#         self.simulator.add_event(start_time + self.IF_TIMEOUT_INTERVAL - now,
-#                                  cb=self._handle_if_timeouts)
-        pass
+        start_time = SCIONTime.get_time()
+        for (if_id, if_state) in self.ifid_state.items():
+            # Check if interface has timed-out.
+            if if_state.is_expired():
+                logging.info("IF %d appears to be down.", if_id)
+                if if_id not in self.if2rev_tokens:
+                    logging.error("Trying to issue revocation for " +
+                                  "non-existent if ID %d.", if_id)
+                    continue
+                chain = self.if2rev_tokens[if_id]
+                self._issue_revocation(if_id, chain)
+                # Advance the hash chain for the corresponding IF.
+                try:
+                    chain.move_to_next_element()
+                except HashChainExhausted:
+                    # TODO(shitz): Add code to handle hash chain
+                    # exhaustion.
+                    logging.warning("HashChain for IF %s is exhausted.")
+                if_state.revoke_if_expired()
+        now = SCIONTime.get_time()
+        self.simulator.add_event(start_time + self.IF_TIMEOUT_INTERVAL - now,
+                                 cb=self._handle_if_timeouts)
+
+    def _sign_beacon(self, pcb):
+        """
+        Sign a beacon. Signature is appended to the last ADMarking.
+        Removing signatures since it is simulation.
+
+        :param pcb: beacon to sign.
+        :type pcb: PathSegment
+        """
+        # if_id field is excluded from signature as it is changed by ingress ERs
+        if pcb.ads[-1].sig:
+            logging.warning("PCB already signed.")
+            return
+        (pcb.if_id, tmp_if_id) = (0, pcb.if_id)
+        signature = b""
+        pcb.ads[-1].sig = signature
+        pcb.ads[-1].sig_len = len(signature)
+        pcb.if_id = tmp_if_id
+
+    def dns_query_topo(self, qname):
+        """
+        Get the server address. No DNS used.
+
+        :param str qname: Service to query for.
+        """
+        assert qname in SERVICE_TYPES
+        service_map = {
+            BEACON_SERVICE: self.topology.beacon_servers,
+            CERTIFICATE_SERVICE: self.topology.certificate_servers,
+            PATH_SERVICE: self.topology.path_servers,
+        }
+        results = [srv.addr for srv in service_map[qname]]
+        return results
 
 
 class LocalBeaconServerSim(LocalBeaconServer):
@@ -263,7 +287,7 @@ class LocalBeaconServerSim(LocalBeaconServer):
     Simulator version of PathConstructionBeacon Server in a local AD
     """
     def __init__(self, server_id, topo_file, config_file, path_policy_file,
-                 simulator):
+                 server_name, simulator):
         """
         Initialises LocalBeaconServer with is_sim set to True.
 
@@ -280,8 +304,13 @@ class LocalBeaconServerSim(LocalBeaconServer):
         """
         LocalBeaconServer.__init__(self, server_id, topo_file, config_file,
                                    path_policy_file, is_sim=True)
-        self.simulator = simulator
         simulator.add_element(str(self.addr.host_addr), self)
+        simulator.add_name(server_name, str(self.addr.host_addr))
+        # Creating bogus zookeeper objects
+        self.zk = ZookeeperSim()
+        self.revobjs_cache = ZkSharedCacheSim()
+        self.pcb_cache = ZkSharedCacheSim()
+        self.simulator = simulator
 
     def send(self, packet, dst, dst_port=SCION_UDP_PORT):
         """
@@ -345,37 +374,18 @@ class LocalBeaconServerSim(LocalBeaconServer):
     def clean(self):
         pass
 
-    def store_pcb(self, beacon):
+    def handle_pcb(self, pkt):
         """
         Receives beacon and stores it for processing.
+
+        :param pcb: path construction beacon.
+        :type pcb: PathConstructionBeacon
         """
-        assert isinstance(beacon, PathSegment)
-        if not self.path_policy.check_filters(beacon.pcb):
+        pcb = pkt.get_payload()
+        if not self.path_policy.check_filters(pcb):
             return
-        pcb = beacon.pcb
-        pcbs = []
-        pcbs.append(pcb)
+        pcbs = [pcb.pack()]
         self.process_pcbs(pcbs)
-
-    def _get_if_rev_token(self, if_id):
-        """
-        Returns the revocation token for a given interface.
-
-        :param if_id: interface identifier.
-        :type if_id: int
-        """
-        ret = None
-        if if_id == 0:
-            ret = 32 * b"\x00"
-        elif if_id not in self.if2rev_tokens:
-            seed = self.config.master_ad_key + bytes("%d" % if_id, 'utf-8')
-            start_ele = SHA256.new(seed).digest()
-            chain = HashChain(start_ele)
-            self.if2rev_tokens[if_id] = chain
-            ret = chain.next_element()
-        else:
-            ret = self.if2rev_tokens[if_id].current_element()
-        return ret
 
     def _check_certs_trc(self, isd_id, ad_id, cert_chain_version, trc_version,
                          if_id):
@@ -395,7 +405,7 @@ class LocalBeaconServerSim(LocalBeaconServer):
     def _create_ad_marking(self, ingress_if, egress_if, ts, prev_hof=None):
         """
         Creates an AD Marking for given ingress and egress interfaces,
-        timestamp, and previous HOF.
+        timestamp, and previous HOF. Remove MAC usage since it is simulation.
 
         :param ingress_if: ingress interface.
         :type ingress_if: int
@@ -434,26 +444,58 @@ class LocalBeaconServerSim(LocalBeaconServer):
         Periodically checks each interface state and issues an if revocation, if
         no keep-alive message was received for IFID_TOUT.
         """
-#         start_time = SCIONTime.get_time()
-#         for (if_id, if_state) in self.ifid_state.items():
-#             # Check if interface has timed-out.
-#             if if_state.is_expired():
-#                 logging.info("Issuing revocation for IF %d.", if_id)
-#                 # Issue revocation
-#                 assert if_id in self.if2rev_tokens
-#                 chain = self.if2rev_tokens[if_id]
-#                 rev_info = RevocationInfo.from_values(
-#                     RT.INTERFACE, chain.current_element(),
-#                     chain.next_element())
-#                 self._process_revocation(rev_info)
-#                 # Advance the hash chain for the corresponding IF.
-#                 try:
-#                     chain.move_to_next_element()
-#                 except HashChainExhausted:
-#                     # TODO(shitz): Add code to handle hash chain exhaustion.
-#                     logging.warning("Hash chain for IF %s is exhausted.")
-#                 if_state.revoke_if_expired()
-#         now = SCIONTime.get_time()
-#         self.simulator.add_event(start_time + self.IF_TIMEOUT_INTERVAL - now,
-#                                  cb=self._handle_if_timeouts)
-        pass
+        start_time = SCIONTime.get_time()
+        for (if_id, if_state) in self.ifid_state.items():
+            # Check if interface has timed-out.
+            if if_state.is_expired():
+                logging.info("IF %d appears to be down.", if_id)
+                if if_id not in self.if2rev_tokens:
+                    logging.error("Trying to issue revocation for " +
+                                  "non-existent if ID %d.", if_id)
+                    continue
+                chain = self.if2rev_tokens[if_id]
+                self._issue_revocation(if_id, chain)
+                # Advance the hash chain for the corresponding IF.
+                try:
+                    chain.move_to_next_element()
+                except HashChainExhausted:
+                    # TODO(shitz): Add code to handle hash chain
+                    # exhaustion.
+                    logging.warning("HashChain for IF %s is exhausted.")
+                if_state.revoke_if_expired()
+        now = SCIONTime.get_time()
+        self.simulator.add_event(start_time + self.IF_TIMEOUT_INTERVAL - now,
+                                 cb=self._handle_if_timeouts)
+
+    def _sign_beacon(self, pcb):
+        """
+        Sign a beacon. Signature is appended to the last ADMarking.
+        Removing signatures since it is simulation
+
+        :param pcb: beacon to sign.
+        :type pcb: PathSegment
+        """
+        # if_id field is excluded from signature as it is changed by ingress ERs
+        if pcb.ads[-1].sig:
+            logging.warning("PCB already signed.")
+            return
+        (pcb.if_id, tmp_if_id) = (0, pcb.if_id)
+        signature = b""
+        pcb.ads[-1].sig = signature
+        pcb.ads[-1].sig_len = len(signature)
+        pcb.if_id = tmp_if_id
+
+    def dns_query_topo(self, qname):
+        """
+        Get the server address. No DNS used.
+
+        :param str qname: Service to query for.
+        """
+        assert qname in SERVICE_TYPES
+        service_map = {
+            BEACON_SERVICE: self.topology.beacon_servers,
+            CERTIFICATE_SERVICE: self.topology.certificate_servers,
+            PATH_SERVICE: self.topology.path_servers,
+        }
+        results = [srv.addr for srv in service_map[qname]]
+        return results
