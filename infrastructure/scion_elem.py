@@ -158,7 +158,11 @@ class SCIONElement(object, metaclass=ABCMeta):
         :rtype:
         """
         if len(spkt.path) == 0:  # EmptyPath
-            return spkt.addrs.dst_addr, SCION_UDP_PORT
+            if isinstance(spkt, SCIONL4Packet):
+                # FIXME(PSz): this should be removed when we have a dispatcher
+                return spkt.addrs.dst_addr, spkt.l4_hdr.dst_port
+            else:
+                return spkt.addrs.dst_addr, SCION_UDP_PORT
         return self.ifid2addr[spkt.path.get_fwd_if()], SCION_UDP_PORT
 
     def _build_packet(self, dst_host=None, path=None, ext_hdrs=(), dst_isd=None,

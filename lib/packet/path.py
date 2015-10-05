@@ -280,7 +280,7 @@ class PathBase(HeaderBase, metaclass=ABCMeta):
 
     def __len__(self):
         """
-        Return the total number of :any:`OpaqueField`\s in the path.
+        Return the path length in bytes.
         """
         return len(self._ofs) * OpaqueField.LEN
 
@@ -711,7 +711,10 @@ class EmptyPath(PathBase):  # pragma: no cover
         return 0
 
     def get_ad_hops(self):
-        return 0  # PSz: or 1?
+        return 0
+
+    def get_fwd_if(self):
+        return 0
 
     def __str__(self):
         return "<Empty-Path></Empty-Path>"
