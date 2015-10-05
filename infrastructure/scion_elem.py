@@ -159,6 +159,7 @@ class SCIONElement(object, metaclass=ABCMeta):
         """
         if len(spkt.path) == 0:  # EmptyPath
             if isinstance(spkt, SCIONL4Packet):
+                # FIXME(PSz): this should be removed when we have a dispatcher
                 return spkt.addrs.dst_addr, spkt.l4_hdr.dst_port
             else:
                 return spkt.addrs.dst_addr, SCION_UDP_PORT
