@@ -21,11 +21,6 @@ import struct
 # SCION
 from lib.packet.ext_hdr import BeaconExtension
 
-# Dictionary of supported extensions
-PCB_EXTENSION_MAP = {
-    (TracerouteExt.EXT_TYPE): MTUExtension,
-}
-
 
 class MTUExtension(BeaconExtension):
     """

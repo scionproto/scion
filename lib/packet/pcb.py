@@ -28,7 +28,7 @@ from Crypto.Hash import SHA256
 # SCION
 from lib.defines import EXP_TIME_UNIT
 from lib.errors import SCIONParseError
-from lib.packet.ext.pcb_ext import PCB_EXTENSION_MAP
+from lib.packet.ext.pcb_ext import MTUExtension
 from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
 from lib.packet.packet_base import PayloadClass, SCIONPayloadBase
 from lib.packet.path import CorePath
@@ -37,6 +37,11 @@ from lib.util import Raw
 
 #: Default value for length (in bytes) of a revocation token.
 REV_TOKEN_LEN = 32
+
+# Dictionary of supported extensions
+PCB_EXTENSION_MAP = {
+    (MTUExtension.EXT_TYPE): MTUExtension,
+}
 
 
 class PCBType(object):
@@ -229,7 +234,7 @@ class ADMarking(MarkingBase):
         inst.sig_len = len(sig)
         if ext:
             inst.ext = ext
-        inst.ext_len = len(inst._parse_ext())
+        inst.ext_len = len(inst._pack_ext())
         inst.eg_rev_token = eg_rev_token or bytes(REV_TOKEN_LEN)
         return inst
 
@@ -257,7 +262,7 @@ class ADMarking(MarkingBase):
     def remove_ext(self):
         """
         """
-        self.ext = [] 
+        self.ext = []
         self.ext_len = 0
 
     def add_ext(self, ext):
@@ -267,7 +272,7 @@ class ADMarking(MarkingBase):
         self.ext_len += len(ext) + 2  # Add extensions header.
 
     def __len__(self):
-        ext_len = len(self._parse_ext())
+        ext_len = len(self._pack_ext())
         return (
             self.MIN_LEN + len(self.pms) * PCBMarking.LEN + len(self.sig) +
             ext_len
