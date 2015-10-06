@@ -40,6 +40,7 @@ from lib.crypto.symcrypto import gen_of_mac, get_roundkey_cache
 from lib.defines import (
     BEACON_SERVICE,
     CERTIFICATE_SERVICE,
+    DEFAULT_MTU,
     IFID_PKT_TOUT,
     PATH_SERVICE,
     SCION_ROUTER_PORT,
@@ -52,6 +53,7 @@ from lib.errors import (
     SCIONServiceLookupError,
 )
 from lib.log import init_logging, log_exception
+from lib.packet.ext.pcb_ext import MTUExtension
 from lib.packet.cert_mgmt import (
     CertMgmtType,
     CertChainRequest,
@@ -457,8 +459,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                                        peer_hof, self._get_if_rev_token(if_id))
             peer_markings.append(peer_marking)
 
+        # Add extensions.
+        mtu_ext = MTUExtension.from_values(DEFAULT_MTU)
         return ADMarking.from_values(pcbm, peer_markings,
-                                     self._get_if_rev_token(egress_if))
+                                     self._get_if_rev_token(egress_if),
+                                     ext=[mtu_ext])
 
     def _terminate_pcb(self, pcb):
         """

@@ -181,7 +181,7 @@ class ADMarking(MarkingBase):
             struct.unpack("!HHHH", data.pop(self.METADATA_LEN))
         self.pcbm = PCBMarking(data.pop(PCBMarking.LEN))
         self._parse_peers(data)
-        self._parse_ext(data.pop(self.ext_len))
+        self._parse_ext(data)
         self.eg_rev_token = data.pop(REV_TOKEN_LEN)
         self.sig = data.pop()
 
