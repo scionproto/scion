@@ -103,10 +103,12 @@ class RouterSim(Router):
         """
         Run the router.
         """
-        self.event_id_map["sync_interface"] = self.simulator.add_event(
-            0., cb=self.sync_interface)
-        self.event_id_map["request_ifstates"] = self.simulator.add_event(
-            0., cb=self.request_ifstates)
+        if self.event_id_map.get("sync_interface") is None and \
+           self.event_id_map.get("request_ifstates") is None:
+            self.event_id_map["sync_interface"] = self.simulator.add_event(
+                0., cb=self.sync_interface)
+            self.event_id_map["request_ifstates"] = self.simulator.add_event(
+                0., cb=self.request_ifstates)
         if self.stopped:
             logging.info("Router %s restarted", str(self.addr.host_addr))
         self.stopped = False
