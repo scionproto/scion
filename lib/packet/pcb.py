@@ -28,6 +28,7 @@ from Crypto.Hash import SHA256
 # SCION
 from lib.defines import EXP_TIME_UNIT
 from lib.errors import SCIONParseError
+from lib.packet.ext.pcb_ext import PCB_EXTENSION_MAP
 from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
 from lib.packet.packet_base import PayloadClass, SCIONPayloadBase
 from lib.packet.path import CorePath
@@ -142,7 +143,7 @@ class ADMarking(MarkingBase):
     Packs all fields for a specific Autonomous Domain.
     """
     # Length of a first row (containg cert version, and lengths of signature,
-    # ASD, and block) of ADMarking
+    # extensions, and block) of ADMarking
     METADATA_LEN = 8
     MIN_LEN = METADATA_LEN + PCBMarking.LEN + REV_TOKEN_LEN
 
@@ -157,11 +158,11 @@ class ADMarking(MarkingBase):
         self.pcbm = None
         self.pms = []
         self.sig = b''
-        self.asd = b''
+        self.ext = []
         self.eg_rev_token = bytes(REV_TOKEN_LEN)
         self.cert_ver = 0
         self.sig_len = 0
-        self.asd_len = 0
+        self.ext_len = 0
         self.block_len = 0
         if raw is not None:
             self._parse(raw)
@@ -171,11 +172,11 @@ class ADMarking(MarkingBase):
         Populates fields from a raw bytes block.
         """
         data = Raw(raw, "ADMarking", self.MIN_LEN, min_=True)
-        self.cert_ver, self.sig_len, self.asd_len, self.block_len = \
+        self.cert_ver, self.sig_len, self.ext_len, self.block_len = \
             struct.unpack("!HHHH", data.pop(self.METADATA_LEN))
         self.pcbm = PCBMarking(data.pop(PCBMarking.LEN))
         self._parse_peers(data)
-        self.asd = data.pop(self.asd_len)
+        self._parse_ext(data.pop(self.ext_len))
         self.eg_rev_token = data.pop(REV_TOKEN_LEN)
         self.sig = data.pop()
 
@@ -186,12 +187,31 @@ class ADMarking(MarkingBase):
         :param data:
         :type data: :class:`lib.util.Raw`
         """
-        while len(data) > self.sig_len + self.asd_len + REV_TOKEN_LEN:
+        while len(data) > self.sig_len + self.ext_len + REV_TOKEN_LEN:
             self.pms.append(PCBMarking(data.pop(PCBMarking.LEN)))
+
+    def _parse_ext(self, data):
+        """
+        """
+        while len(data) > self.sig_len + REV_TOKEN_LEN:
+            ext_type = data.pop(1)
+            ext_len = data.pop(1)
+            constr = PCB_EXTENSION_MAP[ext_type]
+            self.ext.append(constr(data.pop(ext_len)))
+
+    def _pack_ext(self):
+        packed = []
+        for ext in self.ext:
+            ext_type = struct.pack("!B", ext.EXT_TYPE)
+            packed.append(ext_type)
+            ext_len = struct.pack("!B", len(ext))
+            packed.append(ext_len)
+            packed.append(ext.pack())
+        return b"".join(packed)
 
     @classmethod
     def from_values(cls, pcbm=None, pms=None,
-                    eg_rev_token=None, sig=b'', asd=b''):
+                    eg_rev_token=None, sig=b'', ext=None):
         """
         Returns ADMarking with fields populated from values.
 
@@ -200,7 +220,6 @@ class ADMarking(MarkingBase):
         :param eg_rev_token: Revocation token for the egress if
                              in the HopOpaqueField.
         :param sig: Beacon's signature.
-        :param asd: Additional Signed Data appended to the beacon.
         """
         inst = ADMarking()
         inst.pcbm = pcbm
@@ -208,19 +227,20 @@ class ADMarking(MarkingBase):
         inst.block_len = (1 + len(inst.pms)) * PCBMarking.LEN
         inst.sig = sig
         inst.sig_len = len(sig)
-        inst.asd = asd
-        inst.asd_len = len(asd)
+        if ext:
+            inst.ext = ext
+        inst.ext_len = len(inst._parse_ext())
         inst.eg_rev_token = eg_rev_token or bytes(REV_TOKEN_LEN)
         return inst
 
     def pack(self):
         packed = []
         packed.append(struct.pack("!HHHH", self.cert_ver, self.sig_len,
-                                  self.asd_len, self.block_len))
+                                  self.ext_len, self.block_len))
         packed.append(self.pcbm.pack())
         for peer_marking in self.pms:
             packed.append(peer_marking.pack())
-        packed.append(self.asd)
+        packed.append(self._pack_ext())
         packed.append(self.eg_rev_token)
         packed.append(self.sig)
         raw = b"".join(packed)
@@ -234,28 +254,34 @@ class ADMarking(MarkingBase):
         self.sig = b''
         self.sig_len = 0
 
-    def remove_asd(self):
+    def remove_ext(self):
         """
-        Removes the Additional Signed Data (ASD) from the AD block.
-        Note that after ASD is removed, a corresponding signature is invalid.
         """
-        self.asd = b''
-        self.asd_len = 0
+        self.ext = [] 
+        self.ext_len = 0
+
+    def add_ext(self, ext):
+        """
+        """
+        self.ext.append(ext)
+        self.ext_len += len(ext) + 2  # Add extensions header.
 
     def __len__(self):
+        ext_len = len(self._parse_ext())
         return (
             self.MIN_LEN + len(self.pms) * PCBMarking.LEN + len(self.sig) +
-            len(self.asd)
+            ext_len
         )
 
     def __str__(self):
         ad_str = "[Autonomous Domain]\n"
-        ad_str += ("cert_ver: %d, asd_len %d, sig_len: %d, block_len: %d\n" %
-                   (self.cert_ver, self.asd_len, self.sig_len, self.block_len))
+        ad_str += ("cert_ver: %d, ext_len %d, sig_len: %d, block_len: %d\n" %
+                   (self.cert_ver, self.ext_len, self.sig_len, self.block_len))
         ad_str += str(self.pcbm)
         for peer_marking in self.pms:
             ad_str += str(peer_marking)
-        ad_str += ("[ASD: %s]\n" % self.asd)
+        for ext in self.ext:
+            ad_str += "%s\n" % str(ext)
         ad_str += ("[eg_rev_token: %s]\n" % self.eg_rev_token)
         ad_str += ("[Signature: %s]\n" %
                    base64.b64encode(self.sig).decode('utf-8'))
@@ -265,7 +291,7 @@ class ADMarking(MarkingBase):
         if type(other) is type(self):
             return (self.pcbm == other.pcbm and
                     self.pms == other.pms and
-                    self.asd == other.asd and
+                    self.ext == other.ext and
                     self.eg_rev_token == other.eg_rev_token and
                     self.sig == other.sig)
         else:
@@ -328,9 +354,9 @@ class PathSegment(SCIONPayloadBase):
         :type data: :class:`lib.util.Raw`
         """
         for _ in range(self.iof.hops):
-            (_, asd_len, sig_len, block_len) = \
+            (_, ext_len, sig_len, block_len) = \
                 struct.unpack("!HHHH", data.get(ADMarking.METADATA_LEN))
-            ad_len = (asd_len + sig_len + block_len +
+            ad_len = (ext_len + sig_len + block_len +
                       ADMarking.METADATA_LEN + REV_TOKEN_LEN)
             self.add_ad(ADMarking(data.pop(ad_len)))
 
@@ -364,13 +390,13 @@ class PathSegment(SCIONPayloadBase):
         for ad_marking in self.ads:
             ad_marking.remove_signature()
 
-    def remove_asds(self):
+    def remove_all_ext(self):
         """
-        Removes the Additional Signed Data (ASD) from each AD block.
-        Note that after ASD is removed, a corresponding signature is invalid.
+        Removes extensions from each AD block.  Note that after an extensions is
+        removed, a corresponding signature is invalid.
         """
         for ad_marking in self.ads:
-            ad_marking.remove_asd()
+            ad_marking.remove_ext()
 
     def get_path(self, reverse_direction=False):
         """
