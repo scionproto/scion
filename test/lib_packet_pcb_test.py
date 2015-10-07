@@ -256,6 +256,27 @@ class TestADMarkingParsePeers(object):
         ntools.eq_(inst.pms, ['data0', 'data1'])
 
 
+class TestADMarkingParseExt(object):
+    """
+    Unit test for lib.packet.pcb.ADMarking._parse_ext
+    """
+    @patch("lib.packet.pcb.PCB_EXTENSION_MAP", autospec=True)
+    def test(self, ext_map):
+        inst = ADMarking()
+        data = create_mock(["__len__", "pop"])
+        data.__len__.side_effect = [REV_TOKEN_LEN+2, REV_TOKEN_LEN+1, 0]
+        data.pop.side_effect = ("0", "1", "2", "3", "4", "5")
+        constr0 = create_mock()
+        constr0.return_value = 'ext0'
+        constr1 = create_mock()
+        constr1.return_value = 'ext1'
+        ext_map = {"0":constr0, "3":constr1}
+        # Call
+        inst._parse_ext(data)
+        # Tests
+        ntools.eq_(inst.ext, ['ext0', 'ext1'])
+
+
 class TestADMarkingPack(object):
     """
     Unit test for lib.packet.pcb.ADMarking.pack
