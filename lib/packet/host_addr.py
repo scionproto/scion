@@ -29,23 +29,8 @@ from ipaddress import (
 
 # SCION
 from lib.errors import SCIONBaseError, SCIONParseError
-from lib.defines import (
-    ADDR_NONE_TYPE,
-    ADDR_IPV4_TYPE,
-    ADDR_IPV6_TYPE,
-    ADDR_SVC_TYPE,
-)
+from lib.types import AddrType
 from lib.util import Raw
-
-ADDR_NONE_BYTES = 0
-ADDR_IPV4_BYTES = IPV4LENGTH // 8
-ADDR_IPV6_BYTES = IPV6LENGTH // 8
-ADDR_SVC_BYTES = 2
-
-ADDR_NONE_NAME = "NONE"
-ADDR_IPV4_NAME = "IPv4"
-ADDR_IPV6_NAME = "IPv6"
-ADDR_SVC_NAME = "SVC"
 
 
 class HostAddrBaseError(SCIONBaseError):
@@ -110,9 +95,8 @@ class HostAddrNone(HostAddrBase):
     """
     Host "None" address. Used to indicate there's no address.
     """
-    TYPE = ADDR_NONE_TYPE
-    LEN = ADDR_NONE_BYTES
-    NAME = ADDR_NONE_NAME
+    TYPE = AddrType.NONE
+    LEN = 0
 
     def __init__(self):
         self.addr = None
@@ -128,9 +112,8 @@ class HostAddrIPv4(HostAddrBase):
     """
     Host IPv4 address.
     """
-    TYPE = ADDR_IPV4_TYPE
-    LEN = ADDR_IPV4_BYTES
-    NAME = ADDR_IPV4_NAME
+    TYPE = AddrType.IPV4
+    LEN = IPV4LENGTH // 8
 
     def _parse(self, raw):
         """
@@ -152,9 +135,8 @@ class HostAddrIPv6(HostAddrBase):
     """
     Host IPv6 address.
     """
-    TYPE = ADDR_IPV6_TYPE
-    LEN = ADDR_IPV6_BYTES
-    NAME = ADDR_IPV6_NAME
+    TYPE = AddrType.IPV6
+    LEN = IPV6LENGTH // 8
 
     def _parse(self, raw):
         """
@@ -176,9 +158,9 @@ class HostAddrSVC(HostAddrBase):
     """
     Host "SVC" address. This is a pseudo- address type used for SCION services.
     """
-    TYPE = ADDR_SVC_TYPE
-    LEN = ADDR_SVC_BYTES
-    NAME = ADDR_SVC_NAME
+    TYPE = AddrType.SVC
+    LEN = 2
+    NAME = "HostAddrSVC"
 
     def _parse(self, raw):
         """
@@ -186,7 +168,7 @@ class HostAddrSVC(HostAddrBase):
 
         :param bytes raw: Raw SVC address
         """
-        data = Raw(raw, "HostAddrSVC", self.LEN)
+        data = Raw(raw, self.NAME, self.LEN)
         self.addr = struct.unpack("!H", data.pop(self.LEN))[0]
 
     def pack(self):
@@ -195,15 +177,15 @@ class HostAddrSVC(HostAddrBase):
 
 _map = {
     # By type
-    ADDR_NONE_TYPE: HostAddrNone,
-    ADDR_IPV4_TYPE: HostAddrIPv4,
-    ADDR_IPV6_TYPE: HostAddrIPv6,
-    ADDR_SVC_TYPE: HostAddrSVC,
+    AddrType.NONE: HostAddrNone,
+    AddrType.IPV4: HostAddrIPv4,
+    AddrType.IPV6: HostAddrIPv6,
+    AddrType.SVC: HostAddrSVC,
     # By name
-    ADDR_NONE_NAME: HostAddrNone,
-    ADDR_IPV4_NAME: HostAddrIPv4,
-    ADDR_IPV6_NAME: HostAddrIPv6,
-    ADDR_SVC_NAME: HostAddrSVC,
+    "NONE": HostAddrNone,
+    "IPV4": HostAddrIPv4,
+    "IPV6": HostAddrIPv6,
+    "SVC": HostAddrSVC,
 }
 
 
@@ -211,7 +193,7 @@ def haddr_get_type(type_):
     """
     Look up host address class by type.
 
-    :param type\_: host address type. E.g. ``1`` or ``"IPv4"``.
+    :param type\_: host address type. E.g. ``1`` or ``"IPV4"``.
     :type type\_: int or string
     """
     try:
@@ -225,7 +207,7 @@ def haddr_parse(type_, *args, **kwargs):
     """
     Parse host address and return object.
 
-    :param type\_: host address type. E.g. ``1`` or ``"IPv4"``.
+    :param type\_: host address type. E.g. ``1`` or ``"IPV4"``.
     :type type\_: int or string
     :param \*args:
         Arguments to pass to the host address object constructor. E.g.

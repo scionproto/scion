@@ -20,10 +20,10 @@ import logging
 
 # SCION
 from lib.packet.packet_base import PayloadRaw
-from lib.packet.path_mgmt import PathMgmtType as PMT
 from lib.packet.scion import SCIONL4Packet, build_base_hdrs
 from lib.packet.scion_addr import SCIONAddr
 from lib.packet.scion_udp import SCIONUDPHeader
+from lib.types import PathMgmtType as PMT
 from lib.util import SCIONTime
 
 # SCION Simulator

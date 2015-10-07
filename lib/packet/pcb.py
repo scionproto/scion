@@ -16,10 +16,10 @@
 ===========================
 """
 # Stdlib
-import base64
 import copy
 import struct
 from abc import ABCMeta, abstractmethod
+from binascii import hexlify
 from datetime import datetime
 
 # External packages
@@ -27,18 +27,20 @@ from Crypto.Hash import SHA256
 
 # SCION
 from lib.defines import EXP_TIME_UNIT
+from lib.types import TypeBase
 from lib.errors import SCIONParseError
 from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
-from lib.packet.packet_base import PayloadClass, SCIONPayloadBase
+from lib.packet.packet_base import SCIONPayloadBase
 from lib.packet.path import CorePath
 from lib.packet.scion_addr import ISD_AD
+from lib.types import PayloadClass
 from lib.util import Raw
 
 #: Default value for length (in bytes) of a revocation token.
 REV_TOKEN_LEN = 32
 
 
-class PCBType(object):
+class PCBType(TypeBase):
     SEGMENT = 0
 
 
@@ -66,6 +68,7 @@ class PCBMarking(MarkingBase):
     interfaces included in the HOF. (Revocation token for egress interface is
     included within ADMarking.)
     """
+    NAME = "PCBMarking"
     LEN = 12 + REV_TOKEN_LEN
 
     def __init__(self, raw=None):
@@ -87,7 +90,7 @@ class PCBMarking(MarkingBase):
         """
         Populates fields from a raw bytes block.
         """
-        data = Raw(raw, "PCBMarking", self.LEN)
+        data = Raw(raw, self.NAME, self.LEN)
         self.isd_id, self.ad_id = ISD_AD.from_raw(data.pop(ISD_AD.LEN))
         self.hof = HopOpaqueField(data.pop(HopOpaqueField.LEN))
         self.ig_rev_token = data.pop(REV_TOKEN_LEN)
@@ -121,12 +124,6 @@ class PCBMarking(MarkingBase):
     def __len__(self):
         return self.LEN
 
-    def __str__(self):
-        pcbm_str = "[PCB Marking isd,ad (%d, %d)]\n" % (self.isd_id, self.ad_id)
-        pcbm_str += "ig_rev_token: %s\n" % self.ig_rev_token
-        pcbm_str += str(self.hof) + '\n'
-        return pcbm_str
-
     def __eq__(self, other):
         if type(other) is type(self):
             return (self.isd_id == other.isd_id and
@@ -136,6 +133,14 @@ class PCBMarking(MarkingBase):
         else:
             return False
 
+    def __str__(self):
+        s = []
+        s.append("%s(%dB): isd,ad (%d, %d):" %
+                 (self.NAME, len(self), self.isd_id, self.ad_id))
+        s.append("  ig_rev_token: %s" % self.ig_rev_token)
+        s.append("  %s" % self.hof)
+        return "\n".join(s)
+
 
 class ADMarking(MarkingBase):
     """
@@ -143,6 +148,7 @@ class ADMarking(MarkingBase):
     """
     # Length of a first row (containg cert version, and lengths of signature,
     # ASD, and block) of ADMarking
+    NAME = "ADMarking"
     METADATA_LEN = 8
     MIN_LEN = METADATA_LEN + PCBMarking.LEN + REV_TOKEN_LEN
 
@@ -170,7 +176,7 @@ class ADMarking(MarkingBase):
         """
         Populates fields from a raw bytes block.
         """
-        data = Raw(raw, "ADMarking", self.MIN_LEN, min_=True)
+        data = Raw(raw, self.NAME, self.MIN_LEN, min_=True)
         self.cert_ver, self.sig_len, self.asd_len, self.block_len = \
             struct.unpack("!HHHH", data.pop(self.METADATA_LEN))
         self.pcbm = PCBMarking(data.pop(PCBMarking.LEN))
@@ -248,19 +254,6 @@ class ADMarking(MarkingBase):
             len(self.asd)
         )
 
-    def __str__(self):
-        ad_str = "[Autonomous Domain]\n"
-        ad_str += ("cert_ver: %d, asd_len %d, sig_len: %d, block_len: %d\n" %
-                   (self.cert_ver, self.asd_len, self.sig_len, self.block_len))
-        ad_str += str(self.pcbm)
-        for peer_marking in self.pms:
-            ad_str += str(peer_marking)
-        ad_str += ("[ASD: %s]\n" % self.asd)
-        ad_str += ("[eg_rev_token: %s]\n" % self.eg_rev_token)
-        ad_str += ("[Signature: %s]\n" %
-                   base64.b64encode(self.sig).decode('utf-8'))
-        return ad_str
-
     def __eq__(self, other):
         if type(other) is type(self):
             return (self.pcbm == other.pcbm and
@@ -270,6 +263,19 @@ class ADMarking(MarkingBase):
                     self.sig == other.sig)
         else:
             return False
+
+    def __str__(self):
+        s = []
+        s.append("%s(%dB):" % (self.NAME, len(self)))
+        s.append("  cert_ver: %d, asd_len %d, sig_len: %d, block_len: %d" %
+                 (self.cert_ver, self.asd_len, self.sig_len, self.block_len))
+        s.append("  %s" % self.pcbm)
+        for peer_marking in self.pms:
+            s.append("  %s" % peer_marking)
+        s.append("  ASD: %s" % self.asd)
+        s.append("  eg_rev_token: %s" % self.eg_rev_token)
+        s.append("  Signature: %s" % hexlify(self.sig).decode())
+        return "\n".join(s)
 
 
 class PathSegment(SCIONPayloadBase):
@@ -288,10 +294,10 @@ class PathSegment(SCIONPayloadBase):
     :ivar ads: the ADs on the path.
     :type ads: list
     """
+    NAME = "PathSegment"
     PAYLOAD_CLASS = PayloadClass.PCB
     PAYLOAD_TYPE = PCBType.SEGMENT
     MIN_LEN = InfoOpaqueField.LEN + 4 + 2
-    NAME = "PathSegment"
 
     def __init__(self, raw=None):
         """
@@ -539,14 +545,6 @@ class PathSegment(SCIONPayloadBase):
         desc.append("->".join(hops))
         return "".join(desc)
 
-    def __str__(self):
-        pcb_str = "[PathSegment]\n"
-        pcb_str += str(self.iof) + "\n"
-        pcb_str += "trc_ver: %d, if_id: %d\n" % (self.trc_ver, self.if_id)
-        for ad_marking in self.ads:
-            pcb_str += str(ad_marking)
-        return pcb_str
-
     def __eq__(self, other):
         if type(other) is type(self):
             return (self.iof == other.iof and
@@ -554,6 +552,15 @@ class PathSegment(SCIONPayloadBase):
                     self.ads == other.ads)
         else:
             return False
+
+    def __str__(self):
+        s = []
+        s.append("%s(%dB):" % (self.NAME, len(self)))
+        s.append("  %s" % self.iof)
+        s.append("  trc_ver: %d, if_id: %d" % (self.trc_ver, self.if_id))
+        for ad_marking in self.ads:
+            s.append("  %s" % ad_marking)
+        return "\n".join(s)
 
 
 def parse_pcb_payload(type_, data):

@@ -414,7 +414,7 @@ class ConfigGenerator(object):
             # Write Beacon Servers
             for b_server in range(1, number_bs + 1):
                 topo_dict['BeaconServers'][b_server] = {
-                    'AddrType': 'IPv4',
+                    'AddrType': 'IPV4',
                     'Addr': self.next_ip_address
                 }
                 self.next_ip_address = \
@@ -422,7 +422,7 @@ class ConfigGenerator(object):
             # Write Certificate Servers
             for c_server in range(1, number_cs + 1):
                 topo_dict['CertificateServers'][c_server] = {
-                    'AddrType': 'IPv4',
+                    'AddrType': 'IPV4',
                     'Addr': self.next_ip_address
                 }
                 self.next_ip_address = \
@@ -432,7 +432,7 @@ class ConfigGenerator(object):
                     "path_servers" in ad_configs[isd_ad_id]):
                 for p_server in range(1, number_ps + 1):
                     topo_dict['PathServers'][p_server] = {
-                        'AddrType': 'IPv4',
+                        'AddrType': 'IPV4',
                         'Addr': self.next_ip_address
                     }
                     self.next_ip_address = \
@@ -440,7 +440,7 @@ class ConfigGenerator(object):
             # Write DNS Servrs
             for d_server in range(1, number_ds + 1):
                 topo_dict['DNSServers'][d_server] = {
-                    'AddrType': 'IPv4',
+                    'AddrType': 'IPV4',
                     'Addr': self.next_ip_address
                 }
                 hosts.write("%s\tds.%s\n" % (self.next_ip_address,
@@ -458,13 +458,13 @@ class ConfigGenerator(object):
                 nbr_type = ad_configs[isd_ad_id]["links"][nbr_isd_ad_id]
                 if_id = edge_router
                 topo_dict['EdgeRouters'][edge_router] = {
-                    'AddrType': 'IPv4',
+                    'AddrType': 'IPV4',
                     'Addr': ip_address_loc,
                     'Interface': {'IFID': if_id,
                                   'NeighborISD': int(nbr_isd_id),
                                   'NeighborAD': int(nbr_ad_id),
                                   'NeighborType': nbr_type,
-                                  'AddrType': 'IPv4',
+                                  'AddrType': 'IPV4',
                                   'Addr': ip_address_pub,
                                   'ToAddr': nbr_ip_address_pub,
                                   'UdpPort': SCION_ROUTER_PORT,
@@ -922,7 +922,7 @@ class ZKTopo(object):
         return {
             "Manage": self.manage,
             "Addr": self.addr,
-            'AddrType': 'IPv4',
+            'AddrType': 'IPV4',
             "ClientPort": self.clientPort,
             "LeaderPort": self.leaderPort,
             "ElectionPort": self.electionPort,

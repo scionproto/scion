@@ -19,7 +19,7 @@
 import struct
 
 # SCION
-from lib.packet.ext_hdr import HopByHopExtension
+from lib.packet.ext_hdr import HopByHopExtension, HopByHopType
 from lib.packet.scion_addr import ISD_AD
 from lib.util import Raw, SCIONTime
 
@@ -33,8 +33,8 @@ class TracerouteExt(HopByHopExtension):
                                     ...
     |                     (padding)  or HOP info                           |
     """
-    EXT_TYPE = 0
-    EXT_TYPE_STR = "Traceroute"
+    NAME = "TracerouteExt"
+    EXT_TYPE = HopByHopType.TRACEROUTE
     PADDING_LEN = 4
     HOP_LEN = HopByHopExtension.LINE_LEN  # Size of every hop information.
 
@@ -66,7 +66,7 @@ class TracerouteExt(HopByHopExtension):
         """
         super()._parse(raw)
         hops_no = self._raw[0]
-        data = Raw(self._raw, "TracerouteExt",
+        data = Raw(self._raw, self.NAME,
                    self.PADDING_LEN + hops_no * self.HOP_LEN, min_=True)
         # Drop hops count and padding from the first row.
         data.pop(1 + self.PADDING_LEN)
@@ -107,10 +107,10 @@ class TracerouteExt(HopByHopExtension):
         :returns:
         :rtype:
         """
-        tmp = ["Traceroute Ext (%dB):" % len(self)]
+        tmp = ["%s(%dB):" % (self.NAME, len(self))]
         tmp.append("  hops:%d" % len(self.hops))
-        for hops in self.hops:
-            tmp.append("    ISD:%d AD:%d IFID:%d TS:%d" % hops)
+        for hop in self.hops:
+            tmp.append("    ISD:%d AD:%d IFID:%d TS:%d" % hop)
         return "\n".join(tmp)
 
 

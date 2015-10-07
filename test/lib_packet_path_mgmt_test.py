@@ -25,12 +25,12 @@ import nose.tools as ntools
 # SCION
 from lib.errors import SCIONParseError
 from lib.packet.path_mgmt import (
-    PathMgmtType,
     PathSegmentInfo,
     PathSegmentRecords,
     RevocationInfo,
     parse_pathmgmt_payload,
 )
+from lib.types import PathMgmtType
 from test.testcommon import assert_these_calls, create_mock
 
 
