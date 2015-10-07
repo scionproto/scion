@@ -154,11 +154,11 @@ class TestADMarkingInit(object):
         ntools.assert_is_none(inst.pcbm)
         ntools.eq_(inst.pms, [])
         ntools.eq_(inst.sig, b'')
-        ntools.eq_(inst.asd, b'')
+        ntools.eq_(inst.ext, [])
         ntools.eq_(inst.eg_rev_token, bytes(REV_TOKEN_LEN))
         ntools.eq_(inst.cert_ver, 0)
         ntools.eq_(inst.sig_len, 0)
-        ntools.eq_(inst.asd_len, 0)
+        ntools.eq_(inst.ext_len, 0)
         ntools.eq_(inst.block_len, 0)
         ntools.assert_false(parse.called)
 
@@ -178,9 +178,10 @@ class TestADMarkingFromValues(object):
         pms = ['pms0', 'pms1']
         eg_rev_token = bytes(range(REV_TOKEN_LEN))
         sig = b'sig_bytes'
-        asd = b'asd_bytes'
+        ext = ['ext1', 'ext22']
+        ext_len = 2 + len(ext[0]) + 2 + len(ext[1])
         # Call
-        inst = ADMarking.from_values(pcbm, pms, eg_rev_token, sig, asd)
+        inst = ADMarking.from_values(pcbm, pms, eg_rev_token, sig, ext)
         # Tests
         ntools.assert_is_instance(inst, ADMarking)
         ntools.eq_(inst.pcbm, pcbm)
@@ -188,8 +189,8 @@ class TestADMarkingFromValues(object):
         ntools.eq_(inst.block_len, 3 * PCBMarking.LEN)
         ntools.eq_(inst.sig, sig)
         ntools.eq_(inst.sig_len, len(sig))
-        ntools.eq_(inst.asd, asd)
-        ntools.eq_(inst.asd_len, len(asd))
+        ntools.eq_(inst.ext, ext)
+        ntools.eq_(inst.ext_len, len(ext_len))
         ntools.eq_(inst.eg_rev_token, eg_rev_token)
 
     def test_min(self):
@@ -199,8 +200,8 @@ class TestADMarkingFromValues(object):
         ntools.eq_(inst.block_len, PCBMarking.LEN)
         ntools.eq_(inst.sig, b'')
         ntools.eq_(inst.sig_len, 0)
-        ntools.eq_(inst.asd, b'')
-        ntools.eq_(inst.asd_len, 0)
+        ntools.eq_(inst.ext, [])
+        ntools.eq_(inst.ext_len, 0)
         ntools.eq_(inst.eg_rev_token, bytes(REV_TOKEN_LEN))
 
 
@@ -216,7 +217,7 @@ class TestADMarkingParse(object):
         data = create_mock(["pop"])
         data.pop.side_effect = (
             bytes(range(ADMarking.METADATA_LEN)),
-            "pop pcbm", "pop asd", "pop rev tkn", "pop sig")
+            "pop pcbm", "pop ext", "pop rev tkn", "pop sig")
         raw.return_value = data
         # Call
         inst._parse("data")
@@ -225,12 +226,12 @@ class TestADMarkingParse(object):
                                     min_=True)
         ntools.eq_(inst.cert_ver, 0x0001)
         ntools.eq_(inst.sig_len, 0x0203)
-        ntools.eq_(inst.asd_len, 0x0405)
+        ntools.eq_(inst.ext_len, 0x0405)
         ntools.eq_(inst.block_len, 0x0607)
         pcb_marking.assert_called_once_with("pop pcbm")
         ntools.eq_(inst.pcbm, pcb_marking.return_value)
         parse_peers.assert_called_once_with(inst, data)
-        ntools.eq_(inst.asd, "pop asd")
+        ntools.eq_(inst.ext, "pop ext")
         ntools.eq_(inst.eg_rev_token, "pop rev tkn")
         ntools.eq_(inst.sig, "pop sig")
 
@@ -260,7 +261,7 @@ class TestADMarkingPack(object):
     @patch("lib.packet.pcb.ADMarking.__len__", autospec=True)
     def test(self, len_):
         inst = ADMarking()
-        (inst.cert_ver, inst.sig_len, inst.asd_len,
+        (inst.cert_ver, inst.sig_len, inst.ext_len,
          inst.block_len) = range(4)
         inst.pcbm = create_mock(['pack'])
         inst.pcbm.pack.return_value = b'packed_pcbm'
@@ -268,12 +269,13 @@ class TestADMarkingPack(object):
             pm = create_mock(['pack'])
             pm.pack.return_value = bytes('packed_pm%d' % i, "ascii")
             inst.pms.append(pm)
-        inst.asd = b'asd'
+        inst._pack_ext = create_mock()
+        inst._pack_ext.return_value = b'packed_exts'
         inst.eg_rev_token = b'eg_rev_token'
         inst.sig = b'sig'
         expected = b"".join([
             bytes.fromhex("0000 0001 0002 0003"), b'packed_pcbm', b'packed_pm0',
-            b'packed_pm1', b'asd', b'eg_rev_token', b'sig'
+            b'packed_pm1', b'packed_exts', b'eg_rev_token', b'sig'
         ])
         len_.return_value = len(expected)
         # Call
@@ -295,19 +297,19 @@ class TestADMarkingRemoveSignature(object):
         ntools.eq_(inst.sig_len, 0)
 
 
-class TestADMarkingRemoveAsd(object):
+class TestADMarkingRemoveExt(object):
     """
-    Unit test for lib.packet.pcb.ADMarking.remove_asd
+    Unit test for lib.packet.pcb.ADMarking.remove_ext
     """
     def test(self):
         inst = ADMarking()
-        inst.asd = b'asd'
-        inst.asd_len = 3
+        inst.ext = [b'ext']
+        inst.ext_len = 5
         # Call
-        inst.remove_asd()
+        inst.remove_ext()
         # Tests
-        ntools.eq_(inst.asd, b'')
-        ntools.eq_(inst.asd_len, 0)
+        ntools.eq_(inst.ext, [])
+        ntools.eq_(inst.ext_len, 0)
 
 
 class TestADMarkingEq(object):
@@ -316,16 +318,16 @@ class TestADMarkingEq(object):
     """
     def test_equal(self):
         ad_marking1 = ADMarking.from_values('pcbm', ['pms'], b'eg_rev_token',
-                                            b'sig', b'asd')
+                                            b'sig', b'ext')
         ad_marking2 = ADMarking.from_values('pcbm', ['pms'], b'eg_rev_token',
-                                            b'sig', b'asd')
+                                            b'sig', b'ext')
         ntools.eq_(ad_marking1, ad_marking2)
 
     def test_unequal(self):
         ad_marking1 = ADMarking.from_values('pcbm', ['pms'], b'eg_rev_token',
-                                            b'sig1', b'asd')
+                                            b'sig1', b'ext')
         ad_marking2 = ADMarking.from_values('pcbm', ['pms'], b'eg_rev_token',
-                                            b'sig2', b'asd')
+                                            b'sig2', b'ext')
         ntools.assert_not_equals(ad_marking1, ad_marking2)
 
     def test_unequal_type(self):
@@ -475,19 +477,19 @@ class TestPathSegmentRemoveSignatures(object):
             ad.remove_signature.assert_called_once_with()
 
 
-class TestPathSegmentRemoveAsds(object):
+class TestPathSegmentRemoveExts(object):
     """
-    Unit test for lib.packet.pcb.PathSegment.remove_asds
+    Unit test for lib.packet.pcb.PathSegment.remove_all_ext
     """
     def test(self):
         inst = PathSegment()
         for _ in range(3):
-            inst.ads.append(create_mock(['remove_asd']))
+            inst.ads.append(create_mock(['remove_ext']))
         # Call
-        inst.remove_asds()
+        inst.remove_all_ext()
         # Tests
         for ad in inst.ads:
-            ad.remove_asd.assert_called_once_with()
+            ad.remove_ext.assert_called_once_with()
 
 
 class TestPathSegmentGetPath(object):
