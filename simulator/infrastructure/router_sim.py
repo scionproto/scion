@@ -66,7 +66,7 @@ class RouterSim(Router):
         simulator.add_element(str(self.interface.addr), self)
         simulator.add_name(server_name, str(self.addr.host_addr))
         self.event_id_map = {}
-        self.stopped = False
+        self.stopped = True
 
     def send(self, packet, addr, port=SCION_UDP_PORT, use_local_socket=True):
         """
@@ -103,12 +103,12 @@ class RouterSim(Router):
         """
         Run the router.
         """
-        self.event_id_map["sync_interface"] = self.simulator.add_event(
-            0., cb=self.sync_interface)
-        self.event_id_map["request_ifstates"] = self.simulator.add_event(
-            0., cb=self.request_ifstates)
         if self.stopped:
-            logging.info("Router %s restarted", str(self.addr.host_addr))
+            self.event_id_map["sync_interface"] = self.simulator.add_event(
+                0., cb=self.sync_interface)
+            self.event_id_map["request_ifstates"] = self.simulator.add_event(
+                0., cb=self.request_ifstates)
+            logging.info("Router %s started", str(self.addr.host_addr))
         self.stopped = False
 
     def stop(self):
@@ -119,8 +119,6 @@ class RouterSim(Router):
         self.simulator.remove_event(self.event_id_map["request_ifstates"])
         self.stopped = True
         logging.info("Router %s stopped", str(self.addr.host_addr))
-        self.event_id_map["sync_interface"] = None
-        self.event_id_map["request_ifstates"] = None
 
     def sync_interface(self):
         """
