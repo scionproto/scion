@@ -31,7 +31,7 @@ class BeaconExtension(HeaderBase):
     LEN = None
 
 
-class MTUExtension(BeaconExtension):
+class MTUExtension(BeaconExtension):  # pragma: no cover
     """
     0        8        16
     |       MTU        |
@@ -55,7 +55,7 @@ class MTUExtension(BeaconExtension):
         """
         Construct extension with `mtu` value.
         """
-        inst = MTUExtension()
+        inst = cls()
         inst.mtu = mtu
         return inst
 

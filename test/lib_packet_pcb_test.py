@@ -260,7 +260,7 @@ class TestADMarkingParseExt(object):
     """
     Unit test for lib.packet.pcb.ADMarking._parse_ext
     """
-    @patch("lib.packet.pcb.PCB_EXTENSION_MAP", autospec=True)
+    @patch("lib.packet.pcb.PCB_EXTENSION_MAP", new_callable=dict)
     def test(self, ext_map):
         inst = ADMarking()
         data = create_mock(["__len__", "pop"])
@@ -270,7 +270,8 @@ class TestADMarkingParseExt(object):
         constr0.return_value = 'ext0'
         constr1 = create_mock()
         constr1.return_value = 'ext1'
-        ext_map = {"0":constr0, "3":constr1}
+        ext_map["0"] = constr0
+        ext_map["3"] = constr1
         # Call
         inst._parse_ext(data)
         # Tests
