@@ -173,13 +173,13 @@ class TestADMarkingFromValues(object):
     """
     Unit test for lib.packet.pcb.ADMarking.from_values
     """
-    def test_full(self):
+    @patch("lib.packet.pcb.ADMarking._pack_ext", autospec=True)
+    def test_full(self, pack_ext):
         pcbm = create_mock()
         pms = ['pms0', 'pms1']
         eg_rev_token = bytes(range(REV_TOKEN_LEN))
         sig = b'sig_bytes'
         ext = ['ext1', 'ext22']
-        ext_len = 2 + len(ext[0]) + 2 + len(ext[1])
         # Call
         inst = ADMarking.from_values(pcbm, pms, eg_rev_token, sig, ext)
         # Tests
@@ -190,7 +190,8 @@ class TestADMarkingFromValues(object):
         ntools.eq_(inst.sig, sig)
         ntools.eq_(inst.sig_len, len(sig))
         ntools.eq_(inst.ext, ext)
-        ntools.eq_(inst.ext_len, len(ext_len))
+        pack_ext.assert_called_once_with(inst)
+        ntools.eq_(inst.ext_len, 0)
         ntools.eq_(inst.eg_rev_token, eg_rev_token)
 
     def test_min(self):
@@ -209,15 +210,16 @@ class TestADMarkingParse(object):
     """
     Unit test for lib.packet.pcb.ADMarking._parse
     """
+    @patch("lib.packet.pcb.ADMarking._parse_ext", autospec=True)
     @patch("lib.packet.pcb.ADMarking._parse_peers", autospec=True)
     @patch("lib.packet.pcb.PCBMarking", autospec=True)
     @patch("lib.packet.pcb.Raw", autospec=True)
-    def test(self, raw, pcb_marking, parse_peers):
+    def test(self, raw, pcb_marking, parse_peers, parse_ext):
         inst = ADMarking()
         data = create_mock(["pop"])
         data.pop.side_effect = (
             bytes(range(ADMarking.METADATA_LEN)),
-            "pop pcbm", "pop ext", "pop rev tkn", "pop sig")
+            "pop pcbm", "pop rev tkn", "pop sig")
         raw.return_value = data
         # Call
         inst._parse("data")
@@ -231,7 +233,7 @@ class TestADMarkingParse(object):
         pcb_marking.assert_called_once_with("pop pcbm")
         ntools.eq_(inst.pcbm, pcb_marking.return_value)
         parse_peers.assert_called_once_with(inst, data)
-        ntools.eq_(inst.ext, "pop ext")
+        parse_ext.assert_called_once_with(inst, data)
         ntools.eq_(inst.eg_rev_token, "pop rev tkn")
         ntools.eq_(inst.sig, "pop sig")
 
@@ -318,16 +320,16 @@ class TestADMarkingEq(object):
     """
     def test_equal(self):
         ad_marking1 = ADMarking.from_values('pcbm', ['pms'], b'eg_rev_token',
-                                            b'sig', b'ext')
+                                            b'sig')
         ad_marking2 = ADMarking.from_values('pcbm', ['pms'], b'eg_rev_token',
-                                            b'sig', b'ext')
+                                            b'sig')
         ntools.eq_(ad_marking1, ad_marking2)
 
     def test_unequal(self):
         ad_marking1 = ADMarking.from_values('pcbm', ['pms'], b'eg_rev_token',
-                                            b'sig1', b'ext')
+                                            b'sig1')
         ad_marking2 = ADMarking.from_values('pcbm', ['pms'], b'eg_rev_token',
-                                            b'sig2', b'ext')
+                                            b'sig2')
         ntools.assert_not_equals(ad_marking1, ad_marking2)
 
     def test_unequal_type(self):
