@@ -708,6 +708,23 @@ class Router(SCIONElement):
         except SCIONInterfaceDownException:
             pass
 
+    def _needs_local_processing(self, pkt):
+        return (
+            (
+                # Destination is this router.
+                pkt.addrs.dst_isd == self.addr.isd_id and
+                pkt.addrs.dst_ad == self.addr.ad_id and
+                pkt.addrs.dst_addr in (self.addr.host_addr, self.interface.addr)
+            ) or (
+                # Destination is an SVC address.
+                pkt.addrs.dst_addr.TYPE == AddrType.SVC
+            ) or (
+                # FIXME(kormat): temporary hack until revocations are handled
+                # in extension header
+                pkt.addrs.src_addr.TYPE == AddrType.SVC
+            )
+        )
+
     def handle_request(self, packet, sender, from_local_socket=True):
         """
         Main routine to handle incoming SCION packets.
@@ -734,12 +751,7 @@ class Router(SCIONElement):
             # An extention handler has taken care of the packet, so we stop
             # processing it.
             return
-        if (
-            (pkt.addrs.dst_isd == self.addr.isd_id and
-             pkt.addrs.dst_ad == self.addr.ad_id and
-             (pkt.addrs.dst_addr in (self.addr.host_addr, self.interface.addr)))
-                or (pkt.addrs.dst_addr.TYPE == AddrType.SVC)
-                or (pkt.addrs.src_addr.TYPE == AddrType.SVC)):
+        if self._needs_local_processing(pkt):
             try:
                 pkt.parse_payload()
             except SCIONBaseError:
