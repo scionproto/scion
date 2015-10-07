@@ -143,11 +143,3 @@ class EndToEndExtension(ExtensionHeader):
     """
     EXT_CLASS = ExtensionClass.END_TO_END
     EXT_CLASS_STR = "End-to-end"
-
-
-class BeaconExtension(ExtensionHeader):
-    """
-    Base class for beacon extensions.
-    """
-    LINE_LEN = 1
-    SUBHDR_LEN = 0

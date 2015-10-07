@@ -392,6 +392,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         pcb = pkt.get_payload()
         if not self.path_policy.check_filters(pcb):
             return
+        self.handle_ext(pcb)
         self.incoming_pcbs.append(pcb)
         entry_name = "%s-%s" % (pcb.get_hops_hash(hex=True),
                                 SCIONTime.get_time())
@@ -400,6 +401,23 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         except ZkNoConnection:
             logging.error("Unable to store PCB in shared cache: "
                           "no connection to ZK")
+
+    def handle_ext(self, pcb):
+        """
+        Handle beacon extensions.
+        """
+        for ad in pcb.ads:
+            for ext in ad.ext:
+                if ext.EXT_TYPE == MTUExtension.EXT_TYPE:
+                    self.mtu_ext_handler(ext, ad)
+                else:
+                    logging.warning("PCB extension %d not supported" % ext.TYPE)
+
+    def mtu_ext_handler(self, ext, ad):
+        """
+        Dummy handler for MTUExtension.
+        """
+        logging.info("MTU (%d, %d): %s" % (ad.pcbm.ad_id, ad.pcbm.isd_id, ext))
 
     @abstractmethod
     def process_pcbs(self, pcbs, raw=True):

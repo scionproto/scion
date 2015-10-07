@@ -19,19 +19,26 @@
 import struct
 
 # SCION
-from lib.packet.ext_hdr import BeaconExtension
+from lib.packet.packet_base import HeaderBase
+
+
+class BeaconExtension(HeaderBase):
+    """
+    Base class for beacon extensions.
+    """
+    EXT_TYPE = None
+    EXT_TYPE_STR = None
+    LEN = None
 
 
 class MTUExtension(BeaconExtension):
     """
-    0          8         16       24        32
-    |0x00(type)|0x02 (len)|       MTU        |
+    0        8        16
+    |       MTU        |
     """
     EXT_TYPE = 0
     EXT_TYPE_STR = "MTU"
-    MIN_LEN = 4
-    SUBHDR_LEN = 2
-    MIN_PAYLOAD_LEN = MIN_LEN - SUBHDR_LEN
+    LEN = 2
 
     def __init__(self, raw=None):
         """
@@ -40,10 +47,8 @@ class MTUExtension(BeaconExtension):
         :param raw:
         :type raw:
         """
-        super().__init__()
         self.mtu = None
-        if raw is not None:
-            self._parse(raw)
+        super().__init__(raw)
 
     @classmethod
     def from_values(cls, mtu):
@@ -55,21 +60,13 @@ class MTUExtension(BeaconExtension):
         return inst
 
     def _parse(self, raw):
-        """
-        Parse payload to extract hop informations.
-        """
         self.mtu = struct.unpack("!H", raw)[0]
 
     def pack(self):
         return struct.pack("!H", self.mtu)
 
     def __len__(self):
-        return self.MIN_PAYLOAD_LEN
+        return self.LEN
 
     def __str__(self):
-        """
-
-        :returns:
-        :rtype:
-        """
         return "MTU Ext (%dB): MTU is %dB" % (len(self), self.mtu)
