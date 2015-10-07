@@ -40,7 +40,7 @@ from lib.packet.path_mgmt import parse_pathmgmt_payload
 from lib.packet.pcb import parse_pcb_payload
 from lib.packet.scion_addr import ISD_AD, SCIONAddr
 from lib.packet.scion_l4 import parse_l4_hdr
-from lib.types import PayloadClass
+from lib.types import PayloadClass, IFIDType
 from lib.util import Raw, calc_padding
 
 
@@ -288,7 +288,7 @@ class SCIONBasePacket(PacketBase):
             self._parse(raw)
 
     def _parse(self, raw):
-        data = Raw(raw, "SCIONBasePacket", self.MIN_LEN, min_=True)
+        data = Raw(raw, self.NAME, self.MIN_LEN, min_=True)
         self._inner_parse(data)
         payload = PayloadRaw(data.get())
         self.set_payload(payload)
@@ -550,10 +550,6 @@ class SCIONL4Packet(SCIONExtPacket):
         s = super()._inner_str()
         s.append("  %s" % self.l4_hdr)
         return s
-
-
-class IFIDType(object):
-    PAYLOAD = 0
 
 
 class IFIDPayload(SCIONPayloadBase):

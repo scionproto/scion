@@ -32,7 +32,7 @@ from external.expiring_dict import ExpiringDict
 # SCION
 from infrastructure.scion_elem import SCIONElement
 from lib.defines import PATH_SERVICE, SCION_UDP_PORT
-from lib.errors import SCIONBaseError, SCIONParseError
+from lib.errors import SCIONParseError
 from lib.log import init_logging, log_exception
 from lib.packet.host_addr import haddr_parse
 from lib.packet.path import UP_IOF
@@ -89,6 +89,18 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         self.waiting_targets = set()  # Used when local PS doesn't have up-path.
         self.revocations = ExpiringDict(1000, 300)
         self.iftoken2seg = defaultdict(set)
+        # Must be set in child classes:
+        self._cached_seg_handler = None
+
+        self.PLD_CLASS_MAP = {
+            PayloadClass.PATH: {
+                PMT.REQUEST: self.handle_path_request,
+                PMT.REPLY: self.dispatch_path_segment_record,
+                PMT.REG: self.dispatch_path_segment_record,
+                PMT.REVOCATION: self._handle_revocation,
+                PMT.SYNC: self.dispatch_path_segment_record,
+            },
+        }
 
         if not is_sim:
             # Add more IPs here if we support dual-stack
@@ -123,12 +135,23 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                 pass
             self._update_master()
 
-    @abstractmethod
     def _cached_entries_handler(self, raw_entries):
         """
         Handles cached through ZK entries, passed as a list.
         """
-        raise NotImplementedError
+        for entry in raw_entries:
+            try:
+                pkt = SCIONL4Packet(raw=entry)
+            except SCIONParseError:
+                log_exception("Error parsing cached packet: %s" % entry,
+                              level=logging.ERROR)
+                continue
+            try:
+                pkt.parse_payload()
+            except SCIONParseError:
+                log_exception("Error parsing cached payload:\n%s" % pkt)
+                continue
+            self._cached_seg_handler(pkt, from_zk=True)
 
     @abstractmethod
     def _update_master(self):
@@ -241,37 +264,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         """
         raise NotImplementedError
 
-    def handle_request(self, packet, sender, from_local_socket=True):
-        """
-        Main routine to handle incoming SCION packets.
-        """
-        type_map = {
-            PMT.REQUEST: self.handle_path_request,
-            PMT.REPLY: self.dispatch_path_segment_record,
-            PMT.REG: self.dispatch_path_segment_record,
-            PMT.REVOCATION: self._handle_revocation,
-            PMT.SYNC: self.dispatch_path_segment_record,
-        }
-        pkt = SCIONL4Packet(packet)
-        try:
-            payload = pkt.parse_payload()
-        except SCIONParseError as e:
-            logging.error("Unable to parse packet payload: %s\n%s", e, pkt)
-            return
-        if payload.PAYLOAD_CLASS != PayloadClass.PATH:
-            logging.error("Payload class %d not supported.",
-                          payload.PAYLOAD_CLASS)
-            return
-        handler = type_map.get(payload.PAYLOAD_TYPE)
-        if handler is None:
-            logging.warning("Path management packet type %d not supported.",
-                            payload.PAYLOAD_TYPE)
-            return
-        try:
-            handler(pkt)
-        except SCIONBaseError:
-            log_exception("Error handling packet: %s" % pkt)
-
     def _share_segments(self, pkt):
         """
         Share path segments (via ZK) with other path servers.
@@ -320,16 +312,7 @@ class CorePathServer(PathServer):
         assert self.topology.is_core_ad, "This shouldn't be a core PS!"
         self.core_ads = set()  # Set of core ADs only from local ISD.
         self._master_id = None  # Address of master core Path Server.
-
-    def _cached_entries_handler(self, raw_entries):
-        for entry in raw_entries:
-            try:
-                pkt = SCIONL4Packet(raw=entry)
-                pkt.parse_payload()
-            except SCIONParseError as e:
-                logging.error("Unable to parse cached entry: %s", e)
-                continue
-            self._handle_core_segment_record(pkt, from_zk=True)
+        self._cached_seg_handler = self._handle_core_segment_record
 
     def _update_master(self):
         """
@@ -690,16 +673,7 @@ class LocalPathServer(PathServer):
         # Database of up-segments to the core.
         self.up_segments = PathSegmentDB()
         self.pending_up = []  # List of pending UP requests.
-
-    def _cached_entries_handler(self, raw_entries):
-        for entry in raw_entries:
-            try:
-                pkt = SCIONL4Packet(raw=entry)
-                pkt.parse_payload()
-            except SCIONParseError as e:
-                logging.error("Unable to parse cached entry: %s", e)
-                continue
-            self._handle_up_segment_record(pkt, from_zk=True)
+        self._cached_seg_handler = self._handle_up_segment_record
 
     def _update_master(self):
         pass

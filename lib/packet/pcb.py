@@ -28,14 +28,13 @@ from Crypto.Hash import SHA256
 
 # SCION
 from lib.defines import EXP_TIME_UNIT
-from lib.types import TypeBase
 from lib.errors import SCIONParseError
 from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
 from lib.packet.packet_base import SCIONPayloadBase
 from lib.packet.path import CorePath
 from lib.packet.pcb_ext import MTUExtension
 from lib.packet.scion_addr import ISD_AD
-from lib.types import PayloadClass
+from lib.types import PayloadClass, PCBType
 from lib.util import Raw
 
 #: Default value for length (in bytes) of a revocation token.
@@ -45,10 +44,6 @@ REV_TOKEN_LEN = 32
 PCB_EXTENSION_MAP = {
     (MTUExtension.EXT_TYPE): MTUExtension,
 }
-
-
-class PCBType(TypeBase):
-    SEGMENT = 0
 
 
 class MarkingBase(object, metaclass=ABCMeta):
