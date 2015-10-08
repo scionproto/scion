@@ -235,12 +235,13 @@ class ADMarking(MarkingBase):
 
     def pack(self):
         packed = []
+        packed_ext = self._pack_ext()
         packed.append(struct.pack("!HHHH", self.cert_ver, len(self.sig),
-                                  len(self._pack_ext()), self.block_len))
+                                  len(packed_ext), self.block_len))
         packed.append(self.pcbm.pack())
         for peer_marking in self.pms:
             packed.append(peer_marking.pack())
-        packed.append(self._pack_ext())
+        packed.append(packed_ext)
         packed.append(self.eg_rev_token)
         packed.append(self.sig)
         raw = b"".join(packed)
