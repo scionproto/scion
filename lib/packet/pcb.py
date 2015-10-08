@@ -199,18 +199,11 @@ class ADMarking(MarkingBase):
         while len(data) > sig_len + REV_TOKEN_LEN:
             ext_type = data.pop(1)
             ext_len = data.pop(1)
-            constr = PCB_EXTENSION_MAP[ext_type]
+            constr = PCB_EXTENSION_MAP.get(ext_type)
+            if not constr:
+                logging.warning("Unknown extension type: %d", ext_type)
+                continue
             self.ext.append(constr(data.pop(ext_len)))
-
-    def _pack_ext(self):
-        packed = []
-        for ext in self.ext:
-            ext_type = struct.pack("!B", ext.EXT_TYPE)
-            packed.append(ext_type)
-            ext_len = struct.pack("!B", len(ext))
-            packed.append(ext_len)
-            packed.append(ext.pack())
-        return b"".join(packed)
 
     @classmethod
     def from_values(cls, pcbm=None, pms=None,
@@ -246,6 +239,14 @@ class ADMarking(MarkingBase):
         raw = b"".join(packed)
         assert len(raw) == len(self)
         return raw
+
+    def _pack_ext(self):
+        packed = []
+        for ext in self.ext:
+            packed.append(struct.pack("!B", ext.EXT_TYPE))
+            packed.append(struct.pack("!B", len(ext)))
+            packed.append(ext.pack())
+        return b"".join(packed)
 
     def remove_signature(self):
         """
