@@ -83,7 +83,7 @@ class TestConfigParseDict(BaseLibConfig):
         "PropagateTime": 5,
         "RegisterPath": 1,
         "RegisterTime": 5,
-        "MTU" : 1500,
+        "MTU": 1500,
     }
 
     def test_basic(self):

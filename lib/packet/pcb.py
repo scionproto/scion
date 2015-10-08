@@ -180,10 +180,8 @@ class ADMarking(MarkingBase):
         self.cert_ver, sig_len, exts_len, self.block_len = \
             struct.unpack("!HHHH", data.pop(self.METADATA_LEN))
         self.pcbm = PCBMarking(data.pop(PCBMarking.LEN))
-        self._parse_peers(data, 
-          sig_len, exts_len)
-        self._parse_ext(data,
-          sig_len)
+        self._parse_peers(data, sig_len, exts_len)
+        self._parse_ext(data, sig_len)
         self.eg_rev_token = data.pop(REV_TOKEN_LEN)
         self.sig = data.pop()
 
