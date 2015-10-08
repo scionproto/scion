@@ -21,11 +21,13 @@ import struct
 # SCION
 from lib.packet.packet_base import HeaderBase
 
+
 class BeaconExtType(object):
     """
     Constants for two types of beacon extensions.
     """
     MTU = 0
+
 
 class BeaconExtension(HeaderBase):
     """

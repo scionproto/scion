@@ -746,7 +746,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         new_pcb = copy.deepcopy(pcb)
         new_pcb.if_id = 0
         new_pcb.ads[-1].sig = b''
-        new_pcb.ads[-1].sig_len = 0
         return verify_sig_chain_trc(new_pcb.pack(), pcb.ads[-1].sig, subject,
                                     chain, trc, trc_ver)
 
@@ -764,7 +763,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         (pcb.if_id, tmp_if_id) = (0, pcb.if_id)
         signature = sign(pcb.pack(), self.signing_key)
         pcb.ads[-1].sig = signature
-        pcb.ads[-1].sig_len = len(signature)
         pcb.if_id = tmp_if_id
 
     @abstractmethod
@@ -1431,7 +1429,7 @@ class LocalBeaconServer(BeaconServer):
             except SCIONServiceLookupError as e:
                 logging.warning("Unable to send up path registration: %s", e)
                 continue
-            logging.info("Up path registered: %s", pcb.get_hops_hash())
+            logging.info("Up path registered: %s", pcb.short_desc())
 
     def register_down_segments(self):
         """
