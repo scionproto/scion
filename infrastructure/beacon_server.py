@@ -40,7 +40,6 @@ from lib.crypto.symcrypto import gen_of_mac, get_roundkey_cache
 from lib.defines import (
     BEACON_SERVICE,
     CERTIFICATE_SERVICE,
-    DEFAULT_MTU,
     IFID_PKT_TOUT,
     PATH_SERVICE,
     SCION_ROUTER_PORT,
@@ -487,7 +486,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             peer_markings.append(peer_marking)
 
         # Add extensions.
-        mtu_ext = MTUExtension.from_values(DEFAULT_MTU)
+        mtu_ext = MTUExtension.from_values(self.config.mtu)
         return ADMarking.from_values(pcbm, peer_markings,
                                      self._get_if_rev_token(egress_if),
                                      ext=[mtu_ext])

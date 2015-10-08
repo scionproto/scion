@@ -32,17 +32,11 @@ class BaseLibConfig(object):
     Base class for lib.config unit tests
     """
     ATTRS_TO_KEYS = {
-        'master_of_gen_key': 'MasterOFGKey',
         'master_ad_key': 'MasterADKey',
-        'n_registered_paths': 'NumRegisteredPaths',
-        'n_shortest_up_paths': 'NumShortestUPs',
         'propagation_time': 'PropagateTime',
         'registration_time': 'RegisterTime',
-        'reset_time': 'ResetTime',
-        'expired_time': 'ExpiredTime',
         'registers_paths': 'RegisterPath',
-        'pcb_queue_size': 'PCBQueueSize',
-        'path_server_queue_size': 'PSQueueSize',
+        'mtu': 'MTU',
         'cert_ver': 'CertChainVersion',
     }
 
@@ -86,16 +80,10 @@ class TestConfigParseDict(BaseLibConfig):
     config_json = {
         "CertChainVersion": 0,
         "MasterADKey": "Xf93o3Wz/4Gb0m6CXEaxag==",
-        "MasterOFGKey": "8clgjqBlI6f3FwAZ419i4A==",
-        "NumRegisteredPaths": 10,
-        "NumShortestUPs": 3,
-        "PCBQueueSize": 10,
-        "PSQueueSize": 10,
         "PropagateTime": 5,
         "RegisterPath": 1,
         "RegisterTime": 5,
-        "ExpiredTime": 5,
-        "ResetTime": 600
+        "MTU" : 1500,
     }
 
     def test_basic(self):
