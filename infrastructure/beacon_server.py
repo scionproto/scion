@@ -53,7 +53,6 @@ from lib.errors import (
     SCIONServiceLookupError,
 )
 from lib.log import init_logging, log_exception
-from lib.packet.ext.pcb_ext import MTUExtension
 from lib.packet.cert_mgmt import (
     CertMgmtType,
     CertChainRequest,
@@ -80,6 +79,7 @@ from lib.packet.pcb import (
     PCBMarking,
     PathSegment,
 )
+from lib.packet.pcb_ext import MTUExtension
 from lib.packet.scion import (
     PacketType as PT,
     SCIONL4Packet,

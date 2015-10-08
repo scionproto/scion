@@ -28,10 +28,10 @@ from Crypto.Hash import SHA256
 # SCION
 from lib.defines import EXP_TIME_UNIT
 from lib.errors import SCIONParseError
-from lib.packet.ext.pcb_ext import MTUExtension
 from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
 from lib.packet.packet_base import PayloadClass, SCIONPayloadBase
 from lib.packet.path import CorePath
+from lib.packet.pcb_ext import MTUExtension
 from lib.packet.scion_addr import ISD_AD
 from lib.util import Raw
 

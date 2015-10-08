@@ -21,6 +21,11 @@ import struct
 # SCION
 from lib.packet.packet_base import HeaderBase
 
+class BeaconExtType(object):
+    """
+    Constants for two types of beacon extensions.
+    """
+    MTU = 0
 
 class BeaconExtension(HeaderBase):
     """
@@ -36,8 +41,7 @@ class MTUExtension(BeaconExtension):  # pragma: no cover
     0        8        16
     |       MTU        |
     """
-    EXT_TYPE = 0
-    EXT_TYPE_STR = "MTU"
+    EXT_TYPE = BeaconExtType.MTU
     LEN = 2
 
     def __init__(self, raw=None):
@@ -69,4 +73,4 @@ class MTUExtension(BeaconExtension):  # pragma: no cover
         return self.LEN
 
     def __str__(self):
-        return "MTU Ext (%dB): MTU is %dB" % (len(self), self.mtu)
+        return "MTU Ext(%dB): MTU is %dB" % (len(self), self.mtu)

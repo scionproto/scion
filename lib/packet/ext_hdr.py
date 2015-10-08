@@ -25,7 +25,7 @@ from lib.util import Raw
 
 class ExtensionClass(object):
     """
-    Constants for two types of extensions. These values are shared with L4
+    Constants for two classes of extensions. These values are shared with L4
     protocol values, and an appropriate value is placed in next_hdr type.
     """
     HOP_BY_HOP = 0
