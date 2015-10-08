@@ -202,10 +202,11 @@ class ADMarking(MarkingBase):
             ext_type = data.pop(1)
             ext_len = data.pop(1)
             constr = PCB_EXTENSION_MAP.get(ext_type)
+            ext_data = data.pop(ext_len)
             if not constr:
                 logging.warning("Unknown extension type: %d", ext_type)
                 continue
-            self.ext.append(constr(data.pop(ext_len)))
+            self.ext.append(constr(ext_data))
 
     @classmethod
     def from_values(cls, pcbm=None, pms=None,

@@ -254,18 +254,19 @@ class TestADMarkingParseExt(object):
     def test(self, ext_map):
         inst = ADMarking()
         data = create_mock(["__len__", "pop"])
-        data.__len__.side_effect = [REV_TOKEN_LEN+2, REV_TOKEN_LEN+1, 0]
-        data.pop.side_effect = ("0", "1", "2", "3", "4", "5")
+        data.__len__.side_effect = [
+            REV_TOKEN_LEN+3, REV_TOKEN_LEN+2, REV_TOKEN_LEN+1, 0]
+        data.pop.side_effect = range(9)
         constr0 = create_mock()
-        constr0.return_value = 'ext0'
         constr1 = create_mock()
-        constr1.return_value = 'ext1'
-        ext_map["0"] = constr0
-        ext_map["3"] = constr1
+        ext_map[0] = constr0
+        ext_map[6] = constr1
         # Call
         inst._parse_ext(data, 0)
         # Tests
-        ntools.eq_(inst.ext, ['ext0', 'ext1'])
+        constr0.assert_called_once_with(2)
+        constr1.assert_called_once_with(8)
+        ntools.eq_(inst.ext, [constr0.return_value, constr1.return_value])
 
 
 class TestADMarkingPack(object):
