@@ -62,7 +62,9 @@ from lib.thread import thread_safety_net
 from lib.types import (
     AddrType,
     ExtensionClass,
+    IFIDType,
     OpaqueFieldType as OFT,
+    PCBType,
     PathMgmtType as PMT,
     PayloadClass,
 )
@@ -176,6 +178,16 @@ class Router(SCIONElement):
         self.revocations = ExpiringDict(1000, self.FWD_REVOCATION_TIMEOUT)
         self.pre_ext_handlers = pre_ext_handlers or {}
         self.post_ext_handlers = post_ext_handlers or {}
+
+        self.PLD_CLASS_MAP = {
+            PayloadClass.PCB: {PCBType.SEGMENT: self.process_pcb},
+            PayloadClass.IFID: {IFIDType.PAYLOAD: self.process_ifid_request},
+            PayloadClass.CERT: defaultdict(
+                lambda: self.relay_cert_server_packet),
+            PayloadClass.PATH: defaultdict(
+                lambda: self.process_path_mgmt_packet),
+        }
+
         if not is_sim:
             self._remote_sock = UDPSocket(
                 bind=(str(self.interface.addr), self.interface.udp_port),
@@ -712,13 +724,12 @@ class Router(SCIONElement):
            `sender` is not used in this function at the moment.
         """
         from_local_ad = from_local_socket
-        class_map = {
-            PayloadClass.PCB: self.process_pcb,
-            PayloadClass.IFID: self.process_ifid_request,
-            PayloadClass.CERT: self.relay_cert_server_packet,
-            PayloadClass.PATH: self.process_path_mgmt_packet,
-        }
-        pkt = SCIONL4Packet(packet)
+        try:
+            pkt = SCIONL4Packet(packet)
+        except SCIONBaseError:
+            log_exception("Error parsing packet: %s" % packet,
+                          level=logging.ERROR)
+            return
         if self.handle_extensions(pkt, True):
             # An extention handler has taken care of the packet, so we stop
             # processing it.
@@ -729,15 +740,18 @@ class Router(SCIONElement):
              (pkt.addrs.dst_addr in (self.addr.host_addr, self.interface.addr)))
                 or (pkt.addrs.dst_addr.TYPE == AddrType.SVC)
                 or (pkt.addrs.src_addr.TYPE == AddrType.SVC)):
-            pld_class = pkt.parse_payload().PAYLOAD_CLASS
-            handler = class_map.get(pld_class)
+            try:
+                pkt.parse_payload()
+            except SCIONBaseError:
+                log_exception("Error parsing payload:\n%s" % pkt)
+                return
+            handler = self._get_handler(pkt)
         else:
             # It's a normal packet, just forward it.
             handler = self.forward_packet
         logging.debug("handle_request: pkt addrs: %s handler: %s",
                       pkt.addrs, handler)
         if not handler:
-            logging.error("Payload class not supported: %s", pld_class)
             return
         try:
             handler(pkt, from_local_ad)

@@ -25,12 +25,10 @@ from infrastructure.scion_elem import SCIONElement
 from lib.crypto.hash_chain import HashChain
 from lib.defines import PATH_SERVICE, SCION_UDP_PORT
 from lib.errors import SCIONBaseError, SCIONServiceLookupError
-from lib.log import log_exception
 from lib.packet.host_addr import haddr_parse
 from lib.packet.path import EmptyPath, PathCombinator
 from lib.packet.path_mgmt import PathSegmentInfo
 from lib.packet.scion_addr import ISD_AD
-from lib.packet.scion import SCIONL4Packet
 from lib.path_db import PathSegmentDB
 from lib.socket import UDPSocket
 from lib.thread import thread_safety_net
@@ -109,6 +107,13 @@ class SCIONDaemon(SCIONElement):
                                  PST.UP_DOWN: {}}
         self._api_socket = None
         self.daemon_thread = None
+
+        self.PLD_CLASS_MAP = {
+            PayloadClass.PATH: {
+                PMT.REPLY: self.handle_path_reply,
+                PMT.REVOCATION: self.handle_revocation,
+            }
+        }
         if run_local_api:
             self._api_sock = UDPSocket(
                 bind=(SCIOND_API_HOST, SCIOND_API_PORT, "sciond local API"),
@@ -430,22 +435,4 @@ class SCIONDaemon(SCIONElement):
         if not from_local_socket:  # From localhost (SCIONDaemon API)
             self.api_handle_request(packet, sender)
             return
-        type_map = {
-            PMT.REPLY: self.handle_path_reply,
-            PMT.REVOCATION: self.handle_revocation,
-        }
-        pkt = SCIONL4Packet(packet)
-        payload = pkt.parse_payload()
-        if payload.PAYLOAD_CLASS != PayloadClass.PATH:
-            logging.error("Payload class %d not supported.",
-                          payload.PAYLOAD_CLASS)
-            return
-        handler = type_map.get(payload.PAYLOAD_TYPE)
-        if handler is None:
-            logging.warning("Path management packet type %d not supported.",
-                            payload.PAYLOAD_TYPE)
-            return
-        try:
-            handler(pkt)
-        except SCIONBaseError:
-            log_exception("Error handling packet: %s" % pkt)
+        super().handle_request(packet, sender, from_local_socket)

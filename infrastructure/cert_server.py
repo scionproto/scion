@@ -28,7 +28,6 @@ import sys
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.certificate import TRC
 from lib.defines import CERTIFICATE_SERVICE, SCION_UDP_PORT
-from lib.errors import SCIONBaseError
 from lib.log import init_logging, log_exception
 from lib.packet.cert_mgmt import (
     CertChainReply,
@@ -36,10 +35,7 @@ from lib.packet.cert_mgmt import (
     TRCReply,
     TRCRequest,
 )
-from lib.packet.scion import (
-    PacketType as PT,
-    SCIONL4Packet,
-)
+from lib.packet.scion import PacketType as PT
 from lib.types import CertMgmtType, PayloadClass
 from lib.util import (
     get_cert_chain_file_path,
@@ -85,6 +81,15 @@ class CertServer(SCIONElement):
         self.trcs = {}
         self._latest_entry_cert_chains = 0
         self._latest_entry_trcs = 0
+
+        self.PLD_CLASS_MAP = {
+            PayloadClass.CERT: {
+                CertMgmtType.CERT_CHAIN_REQ: self.process_cert_chain_request,
+                CertMgmtType.CERT_CHAIN_REPLY: self.process_cert_chain_reply,
+                CertMgmtType.TRC_REQ: self.process_trc_request,
+                CertMgmtType.TRC_REPLY: self.process_trc_reply,
+            },
+        }
 
         if not is_sim:
             # Add more IPs here if we support dual-stack
@@ -306,37 +311,6 @@ class CertServer(SCIONElement):
         """
         identifiers = re.split(':|-', entry)
         return (int(identifiers[1]), int(identifiers[3]))
-
-    def handle_request(self, packet, sender, from_local_socket=True):
-        """
-        Main routine to handle incoming SCION packets.
-
-        :param packet: incoming packet.
-        :type packet: bytes
-        :param sender:
-        :type sender:
-        :param from_local_socket:
-        :type from_local_socket:
-        """
-        type_map = {
-            CertMgmtType.CERT_CHAIN_REQ: self.process_cert_chain_request,
-            CertMgmtType.CERT_CHAIN_REPLY: self.process_cert_chain_reply,
-            CertMgmtType.TRC_REQ: self.process_trc_request,
-            CertMgmtType.TRC_REPLY: self.process_trc_reply,
-        }
-        pkt = SCIONL4Packet(packet)
-        pld = pkt.parse_payload()
-        if pld.PAYLOAD_CLASS != PayloadClass.CERT:
-            logging.error("Payload class not supported: %s", pld.PAYLOAD_CLASS)
-            return
-        handler = type_map.get(pld.PAYLOAD_TYPE)
-        if handler is None:
-            logging.error("CertMgmt type not supported: %s", pld.PAYLOAD_TYPE)
-            return
-        try:
-            handler(pkt)
-        except SCIONBaseError:
-            log_exception("Error handling packet: %s" % pkt)
 
 
 def main():
