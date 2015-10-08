@@ -180,8 +180,10 @@ class ADMarking(MarkingBase):
         self.cert_ver, sig_len, exts_len, self.block_len = \
             struct.unpack("!HHHH", data.pop(self.METADATA_LEN))
         self.pcbm = PCBMarking(data.pop(PCBMarking.LEN))
-        self._parse_peers(data, sig_len, exts_len)
-        self._parse_ext(data, sig_len)
+        self._parse_peers(data, 
+          sig_len, exts_len)
+        self._parse_ext(data,
+          sig_len)
         self.eg_rev_token = data.pop(REV_TOKEN_LEN)
         self.sig = data.pop()
 
@@ -284,7 +286,7 @@ class ADMarking(MarkingBase):
         s.append("%s(%dB):" % (self.NAME, len(self)))
         s.append("  cert_ver: %d, ext_len %d, sig_len: %d, block_len: %d" %
                  (self.cert_ver, len(self._pack_ext()),
-                  self.sig_len, self.block_len))
+                  len(self.sig), self.block_len))
         s.append("  %s" % self.pcbm)
         for peer_marking in self.pms:
             s.append("  %s" % peer_marking)
