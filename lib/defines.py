@@ -39,6 +39,8 @@ SCION_UDP_EH_DATA_PORT = 30041
 SCION_DNS_PORT = 30053
 #: Default SCION router UDP port.
 SCION_ROUTER_PORT = 50000
+#: Default MTU announced by beacon servers.
+DEFAULT_MTU = 1500
 
 #: (Pseudo)supported layer-4 protocols, see /etc/protocols for details
 L4_ICMP = 1

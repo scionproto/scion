@@ -40,6 +40,7 @@ from lib.crypto.symcrypto import gen_of_mac, get_roundkey_cache
 from lib.defines import (
     BEACON_SERVICE,
     CERTIFICATE_SERVICE,
+    DEFAULT_MTU,
     IFID_PKT_TOUT,
     PATH_SERVICE,
     SCION_ROUTER_PORT,
@@ -73,6 +74,7 @@ from lib.packet.pcb import (
     PCBMarking,
     PathSegment,
 )
+from lib.packet.pcb_ext import MTUExtension
 from lib.packet.scion import (
     PacketType as PT,
     SCIONL4Packet,
@@ -401,6 +403,23 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             logging.error("Unable to store PCB in shared cache: "
                           "no connection to ZK")
 
+    def handle_ext(self, pcb):
+        """
+        Handle beacon extensions.
+        """
+        for ad in pcb.ads:
+            for ext in ad.ext:
+                if ext.EXT_TYPE == MTUExtension.EXT_TYPE:
+                    self.mtu_ext_handler(ext, ad)
+                else:
+                    logging.warning("PCB extension %d not supported" % ext.TYPE)
+
+    def mtu_ext_handler(self, ext, ad):
+        """
+        Dummy handler for MTUExtension.
+        """
+        logging.info("MTU (%d, %d): %s" % (ad.pcbm.ad_id, ad.pcbm.isd_id, ext))
+
     @abstractmethod
     def process_pcbs(self, pcbs, raw=True):
         """
@@ -459,8 +478,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                                        peer_hof, self._get_if_rev_token(if_id))
             peer_markings.append(peer_marking)
 
+        # Add extensions.
+        mtu_ext = MTUExtension.from_values(DEFAULT_MTU)
         return ADMarking.from_values(pcbm, peer_markings,
-                                     self._get_if_rev_token(egress_if))
+                                     self._get_if_rev_token(egress_if),
+                                     ext=[mtu_ext])
 
     def _terminate_pcb(self, pcb):
         """
@@ -725,7 +747,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         new_pcb = copy.deepcopy(pcb)
         new_pcb.if_id = 0
         new_pcb.ads[-1].sig = b''
-        new_pcb.ads[-1].sig_len = 0
         return verify_sig_chain_trc(new_pcb.pack(), pcb.ads[-1].sig, subject,
                                     chain, trc, trc_ver)
 
@@ -743,7 +764,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         (pcb.if_id, tmp_if_id) = (0, pcb.if_id)
         signature = sign(pcb.pack(), self.signing_key)
         pcb.ads[-1].sig = signature
-        pcb.ads[-1].sig_len = len(signature)
         pcb.if_id = tmp_if_id
 
     @abstractmethod
@@ -1116,6 +1136,7 @@ class CoreBeaconServer(BeaconServer):
                     break
             else:
                 self._try_to_verify_beacon(pcb)
+                self.handle_ext(pcb)
         if count:
             logging.debug("Dropped %d previously seen Core Segment PCBs", count)
 
@@ -1336,6 +1357,7 @@ class LocalBeaconServer(BeaconServer):
                 pcb = PathSegment(pcb)
             if self.path_policy.check_filters(pcb):
                 self._try_to_verify_beacon(pcb)
+                self.handle_ext(pcb)
 
     def process_cert_chain_rep(self, pkt):
         """
@@ -1410,7 +1432,7 @@ class LocalBeaconServer(BeaconServer):
             except SCIONServiceLookupError as e:
                 logging.warning("Unable to send up path registration: %s", e)
                 continue
-            logging.info("Up path registered: %s", pcb.get_hops_hash())
+            logging.info("Up path registered: %s", pcb.short_desc())
 
     def register_down_segments(self):
         """
