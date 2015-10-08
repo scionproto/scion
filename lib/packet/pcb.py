@@ -18,6 +18,7 @@
 # Stdlib
 import base64
 import copy
+import logging
 import struct
 from abc import ABCMeta, abstractmethod
 from datetime import datetime
