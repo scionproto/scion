@@ -273,9 +273,9 @@ class TestHaddrGetType(object):
             (0, HostAddrNone),
             ("NONE", HostAddrNone),
             (1, HostAddrIPv4),
-            ("IPv4", HostAddrIPv4),
+            ("IPV4", HostAddrIPv4),
             (2, HostAddrIPv6),
-            ("IPv6", HostAddrIPv6),
+            ("IPV6", HostAddrIPv6),
             (3, HostAddrSVC),
             ("SVC", HostAddrSVC),
         ):

@@ -22,12 +22,13 @@ import struct
 # SCION
 from lib.defines import L4_PROTOS
 from lib.errors import SCIONParseError
-from lib.packet.ext_hdr import ExtensionClass, ExtensionHeader
+from lib.packet.ext_hdr import ExtensionHeader, HopByHopType
 from lib.packet.ext.traceroute import TracerouteExt
+from lib.types import ExtensionClass
 
 # Dictionary of supported extensions
 EXTENSION_MAP = {
-    (ExtensionClass.HOP_BY_HOP, TracerouteExt.EXT_TYPE): TracerouteExt,
+    (ExtensionClass.HOP_BY_HOP, HopByHopType.TRACEROUTE): TracerouteExt,
 }
 
 

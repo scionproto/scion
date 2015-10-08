@@ -19,17 +19,13 @@
 import binascii
 
 # SCION
+from lib.types import ExtensionClass, TypeBase
 from lib.packet.packet_base import HeaderBase
 from lib.util import Raw
 
 
-class ExtensionClass(object):
-    """
-    Constants for two types of extensions. These values are shared with L4
-    protocol values, and an appropriate value is placed in next_hdr type.
-    """
-    HOP_BY_HOP = 0
-    END_TO_END = 222  # (Expected:-) number for SCION end2end extensions.
+class HopByHopType(TypeBase):
+    TRACEROUTE = 0
 
 
 class ExtensionHeader(HeaderBase):
@@ -45,6 +41,7 @@ class ExtensionHeader(HeaderBase):
     :ivar parsed:
     :type parsed:
     """
+    NAME = "ExtensionHeader"
     LINE_LEN = 8  # Length of extension must be multiplication of LINE_LEN.
     MIN_LEN = LINE_LEN
     EXT_CLASS = None  # Class of extension (hop-by-hop or end-to-end).
@@ -78,7 +75,7 @@ class ExtensionHeader(HeaderBase):
         :param raw:
         :type raw:
         """
-        data = Raw(raw, "ExtensionHeader", self.MIN_LEN, min_=True)
+        data = Raw(raw, self.NAME, self.MIN_LEN, min_=True)
         self._hdr_len = self.bytes_to_hdr_len(len(data))
         self._set_payload(data.pop())
 
@@ -121,12 +118,10 @@ class ExtensionHeader(HeaderBase):
         return (hdr_len + 1) * cls.LINE_LEN
 
     def __str__(self):
-        """
-
-        """
         payload_hex = binascii.hexlify(self._raw)
-        return "[EH hdr. class: %s type: %s len: %d payload: %s]" % (
-            self.EXT_CLASS_STR, self.EXT_TYPE_STR, len(self), payload_hex)
+        return "[%s(%dB): class: %s payload: %s]" % (
+            self.NAME, len(self), ExtensionClass.to_str(self.EXT_CLASS),
+            payload_hex)
 
 
 class HopByHopExtension(ExtensionHeader):
@@ -134,7 +129,6 @@ class HopByHopExtension(ExtensionHeader):
     Base class for hop-by-hop extensions.
     """
     EXT_CLASS = ExtensionClass.HOP_BY_HOP
-    EXT_CLASS_STR = "Hop-by-hop"
 
 
 class EndToEndExtension(ExtensionHeader):
@@ -142,4 +136,3 @@ class EndToEndExtension(ExtensionHeader):
     Base class for end-to-end extensions.
     """
     EXT_CLASS = ExtensionClass.END_TO_END
-    EXT_CLASS_STR = "End-to-end"

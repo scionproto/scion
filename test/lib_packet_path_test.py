@@ -41,7 +41,8 @@ from lib.packet.path import (
     UP_PEERING_HOF,
     UP_UPSTREAM_HOF,
 )
-from lib.packet.opaque_field import OpaqueFieldType as OFT, OpaqueField
+from lib.packet.opaque_field import OpaqueField
+from lib.types import OpaqueFieldType as OFT
 from test.testcommon import assert_these_calls, create_mock
 
 

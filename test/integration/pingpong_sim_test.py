@@ -46,8 +46,8 @@ class PingPongSimTest(unittest.TestCase):
         simulator = init_simulator()
         src_isd_ad = ISD_AD(1, 10)
         dst_isd_ad = ISD_AD(2, 26)
-        src_host_addr = haddr_parse("IPv4", "127.1.10.254")
-        dst_host_addr = haddr_parse("IPv4", "127.2.26.254")
+        src_host_addr = haddr_parse("IPV4", "127.1.10.254")
+        dst_host_addr = haddr_parse("IPV4", "127.2.26.254")
         src_topo_path = (
             "../../topology/ISD{}/topologies/ISD:{}-AD:{}.json"
             .format(src_isd_ad.isd, src_isd_ad.isd, src_isd_ad.ad)

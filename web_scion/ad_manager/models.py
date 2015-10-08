@@ -221,7 +221,7 @@ class SCIONWebElement(models.Model):
                                    self.ad_id, self.name)
 
     def get_dict(self):
-        return {'AddrType': 'IPv4', 'Addr': self.addr}
+        return {'AddrType': 'IPV4', 'Addr': self.addr}
 
     def __str__(self):
         return '{} -- {}'.format(self.ad, self.addr)
@@ -290,7 +290,7 @@ class RouterWeb(SCIONWebElement):
                                  'NeighborISD': int(self.neighbor_ad.isd_id),
                                  'NeighborAD': int(self.neighbor_ad.id),
                                  'Addr': str(self.interface_addr),
-                                 'AddrType': 'IPv4',
+                                 'AddrType': 'IPV4',
                                  'ToAddr': str(self.interface_toaddr),
                                  'UdpPort': self.interface_port,
                                  'ToUdpPort': self.interface_toport,

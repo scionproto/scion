@@ -28,13 +28,14 @@ from pytun import TunTapDevice, IFF_TUN, IFF_NO_PI
 
 # SCION
 from endhost.sciond import SCIONDaemon
-from lib.defines import ADDR_IPV4_TYPE, SCION_UDP_EH_DATA_PORT
+from lib.defines import SCION_UDP_EH_DATA_PORT
 from lib.log import init_logging
 from lib.packet.packet_base import PayloadRaw
 from lib.packet.scion import SCIONBasePacket, build_base_hdrs
 from lib.packet.scion_addr import SCIONAddr
 from lib.socket import UDPSocket
 from lib.thread import thread_safety_net
+from lib.types import AddrType
 
 
 # Dictionary of destinations that should be reached via SCION.
@@ -71,7 +72,7 @@ class SCIONGateway(object):
         """
         self.sd = SCIONDaemon.start(addr, topo_file)
         self._data_sock = UDPSocket(
-            bind=(str(addr), SCION_UDP_EH_DATA_PORT), addr_type=ADDR_IPV4_TYPE)
+            bind=(str(addr), SCION_UDP_EH_DATA_PORT), addr_type=AddrType.IPV4)
         self.scion_hosts = scion_hosts
         self._tun_dev = TunTapDevice(flags=IFF_TUN | IFF_NO_PI)
         self._tun_dev.up()

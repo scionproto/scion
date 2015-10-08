@@ -23,22 +23,23 @@ import threading
 # SCION
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.hash_chain import HashChain
-from lib.defines import ADDR_IPV4_TYPE, PATH_SERVICE, SCION_UDP_PORT
+from lib.defines import PATH_SERVICE, SCION_UDP_PORT
 from lib.errors import SCIONBaseError, SCIONServiceLookupError
 from lib.log import log_exception
 from lib.packet.host_addr import haddr_parse
-from lib.packet.packet_base import PayloadClass
 from lib.packet.path import EmptyPath, PathCombinator
-from lib.packet.path_mgmt import (
-    PathMgmtType as PMT,
-    PathSegmentInfo,
-    PathSegmentType as PST,
-)
+from lib.packet.path_mgmt import PathSegmentInfo
 from lib.packet.scion_addr import ISD_AD
 from lib.packet.scion import SCIONL4Packet
 from lib.path_db import PathSegmentDB
 from lib.socket import UDPSocket
 from lib.thread import thread_safety_net
+from lib.types import (
+    AddrType,
+    PathMgmtType as PMT,
+    PathSegmentType as PST,
+    PayloadClass,
+)
 from lib.util import update_dict
 
 WAIT_CYCLES = 3
@@ -111,7 +112,7 @@ class SCIONDaemon(SCIONElement):
         if run_local_api:
             self._api_sock = UDPSocket(
                 bind=(SCIOND_API_HOST, SCIOND_API_PORT, "sciond local API"),
-                addr_type=ADDR_IPV4_TYPE)
+                addr_type=AddrType.IPV4)
             self._socks.add(self._api_sock)
 
     @classmethod
@@ -337,7 +338,7 @@ class SCIONDaemon(SCIONElement):
             fwd_if = path.get_fwd_if()
             # Set dummy host addr if path is EmptyPath.
             # TODO(PSz): remove dummy "0.0.0.0" address when API is saner
-            haddr = self.ifid2addr.get(fwd_if, haddr_parse("IPv4", "0.0.0.0"))
+            haddr = self.ifid2addr.get(fwd_if, haddr_parse("IPV4", "0.0.0.0"))
             path_len = len(raw_path) // 8
             reply.append(struct.pack("B", path_len) + raw_path +
                          haddr.pack() + struct.pack("H", SCION_UDP_PORT) +

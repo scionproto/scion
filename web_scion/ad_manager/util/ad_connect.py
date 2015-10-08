@@ -111,10 +111,10 @@ def create_next_router(topo_dict, ip_gen):
         ip_address_pub = next(ip_gen)
         router_index = 1
         new_router = {
-            'AddrType': 'IPv4',
+            'AddrType': 'IPV4',
             'Addr': str(ip_address_loc),
             'Interface': {
-                'AddrType': 'IPv4',
+                'AddrType': 'IPV4',
                 'Addr': str(ip_address_pub),
                 'UdpPort': int(PORT),
                 'ToUdpPort': int(PORT),

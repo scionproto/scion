@@ -31,8 +31,6 @@ from external.expiring_dict import ExpiringDict
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.symcrypto import get_roundkey_cache, verify_of_mac
 from lib.defines import (
-    ADDR_IPV4_TYPE,
-    ADDR_SVC_TYPE,
     BEACON_SERVICE,
     CERTIFICATE_SERVICE,
     EXP_TIME_UNIT,
@@ -49,15 +47,11 @@ from lib.errors import (
     SCIONServiceLookupError,
 )
 from lib.log import init_logging, log_exception
-from lib.packet.ext_hdr import ExtensionClass
 from lib.packet.ext.traceroute import TracerouteExt, traceroute_ext_handler
-from lib.packet.opaque_field import OpaqueFieldType as OFT
 from lib.packet.path_mgmt import (
-    PathMgmtType as PMT,
     RevocationInfo,
     IFStateRequest,
 )
-from lib.packet.packet_base import PayloadClass
 from lib.packet.scion import (
     IFIDPayload,
     PacketType as PT,
@@ -65,6 +59,13 @@ from lib.packet.scion import (
 )
 from lib.socket import UDPSocket
 from lib.thread import thread_safety_net
+from lib.types import (
+    AddrType,
+    ExtensionClass,
+    OpaqueFieldType as OFT,
+    PathMgmtType as PMT,
+    PayloadClass,
+)
 from lib.util import handle_signals, SCIONTime, sleep_interval
 
 
@@ -178,7 +179,7 @@ class Router(SCIONElement):
         if not is_sim:
             self._remote_sock = UDPSocket(
                 bind=(str(self.interface.addr), self.interface.udp_port),
-                addr_type=ADDR_IPV4_TYPE,
+                addr_type=AddrType.IPV4,
             )
             self._socks.add(self._remote_sock)
             logging.info("IP %s:%d", self.interface.addr,
@@ -453,7 +454,7 @@ class Router(SCIONElement):
         if ptype == PT.PATH_MGMT:
             # FIXME(PSz): that should be changed when replies are send as
             # standard data packets.
-            if spkt.addrs.dst_addr.TYPE == ADDR_SVC_TYPE:
+            if spkt.addrs.dst_addr.TYPE == AddrType.SVC:
                 # Send request to any path server.
                 try:
                     addr = self.get_srv_addr(PATH_SERVICE, spkt)
@@ -726,8 +727,8 @@ class Router(SCIONElement):
             (pkt.addrs.dst_isd == self.addr.isd_id and
              pkt.addrs.dst_ad == self.addr.ad_id and
              (pkt.addrs.dst_addr in (self.addr.host_addr, self.interface.addr)))
-                or (pkt.addrs.dst_addr.TYPE == ADDR_SVC_TYPE)
-                or (pkt.addrs.src_addr.TYPE == ADDR_SVC_TYPE)):
+                or (pkt.addrs.dst_addr.TYPE == AddrType.SVC)
+                or (pkt.addrs.src_addr.TYPE == AddrType.SVC)):
             pld_class = pkt.parse_payload().PAYLOAD_CLASS
             handler = class_map.get(pld_class)
         else:

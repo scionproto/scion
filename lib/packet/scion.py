@@ -33,7 +33,6 @@ from lib.packet.packet_base import (
     L4HeaderBase,
     PacketBase,
     PayloadRaw,
-    PayloadClass,
     SCIONPayloadBase,
 )
 from lib.packet.path import PathBase, parse_path
@@ -41,6 +40,7 @@ from lib.packet.path_mgmt import parse_pathmgmt_payload
 from lib.packet.pcb import parse_pcb_payload
 from lib.packet.scion_addr import ISD_AD, SCIONAddr
 from lib.packet.scion_l4 import parse_l4_hdr
+from lib.types import PayloadClass
 from lib.util import Raw, calc_padding
 
 
