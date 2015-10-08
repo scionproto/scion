@@ -392,7 +392,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         pcb = pkt.get_payload()
         if not self.path_policy.check_filters(pcb):
             return
-        self.handle_ext(pcb)
         self.incoming_pcbs.append(pcb)
         entry_name = "%s-%s" % (pcb.get_hops_hash(hex=True),
                                 SCIONTime.get_time())
@@ -1135,6 +1134,7 @@ class CoreBeaconServer(BeaconServer):
                     break
             else:
                 self._try_to_verify_beacon(pcb)
+                self.handle_ext(pcb)
         if count:
             logging.debug("Dropped %d previously seen Core Segment PCBs", count)
 
@@ -1355,6 +1355,7 @@ class LocalBeaconServer(BeaconServer):
                 pcb = PathSegment(pcb)
             if self.path_policy.check_filters(pcb):
                 self._try_to_verify_beacon(pcb)
+                self.handle_ext(pcb)
 
     def process_cert_chain_rep(self, pkt):
         """
