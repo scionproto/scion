@@ -20,9 +20,10 @@ import struct
 
 # SCION
 from lib.packet.packet_base import HeaderBase
+from lib.types import TypeBase
 
 
-class BeaconExtType(object):
+class BeaconExtType(TypeBase):
     """
     Constants for two types of beacon extensions.
     """
