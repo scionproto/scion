@@ -23,14 +23,6 @@ from binascii import hexlify
 # FIXME(kormat): needs unit tests
 
 
-class PayloadClass(object):
-    DATA = 0
-    PCB = 1
-    IFID = 2
-    CERT = 3
-    PATH = 4
-
-
 class HeaderBase(object, metaclass=ABCMeta):  # pragma: no cover
     """
     Base class for headers.

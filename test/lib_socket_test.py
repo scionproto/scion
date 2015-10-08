@@ -25,15 +25,12 @@ import nose
 from nose import tools as ntools
 
 # SCION
-from lib.defines import (
-    ADDR_IPV4_TYPE,
-    ADDR_IPV6_TYPE,
-    SCION_BUFLEN,
-)
+from lib.defines import SCION_BUFLEN
 from lib.socket import (
     UDPSocket,
     UDPSocketMgr,
 )
+from lib.types import AddrType
 from test.testcommon import create_mock
 
 
@@ -46,9 +43,9 @@ class TestUDPSocketInit(object):
     def test_full(self, socket_, bind):
         socket_.return_value = create_mock(["setsockopt"])
         # Call
-        inst = UDPSocket(bind=("addr", "port"), addr_type=ADDR_IPV4_TYPE)
+        inst = UDPSocket(bind=("addr", "port"), addr_type=AddrType.IPV4)
         # Tests
-        ntools.eq_(inst._addr_type, ADDR_IPV4_TYPE)
+        ntools.eq_(inst._addr_type, AddrType.IPV4)
         socket_.assert_called_once_with(socket.AF_INET, socket.SOCK_DGRAM)
         ntools.assert_is_none(inst.port)
         inst.bind.assert_called_once_with("addr", "port")
@@ -86,7 +83,7 @@ class TestUDPSocketBind(object):
     @patch("lib.socket.UDPSocket.__init__", autopatch=True, return_value=None)
     def test_any_v4(self, init):
         inst = self._setup()
-        inst._domain = ADDR_IPV4_TYPE
+        inst._domain = AddrType.IPV4
         # Call
         inst.bind(None, 4242)
         # Tests
@@ -95,7 +92,7 @@ class TestUDPSocketBind(object):
     @patch("lib.socket.UDPSocket.__init__", autopatch=True, return_value=None)
     def test_any_v6(self, init):
         inst = self._setup()
-        inst._domain = ADDR_IPV6_TYPE
+        inst._domain = AddrType.IPV6
         # Call
         inst.bind(None, 4242)
         # Tests

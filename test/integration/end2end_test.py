@@ -25,10 +25,9 @@ import unittest
 
 # SCION
 from endhost.sciond import SCIOND_API_HOST, SCIOND_API_PORT, SCIONDaemon
-from lib.defines import ADDR_IPV4_TYPE
 from lib.log import init_logging, log_exception
 from lib.packet.host_addr import haddr_get_type, haddr_parse
-from lib.packet.opaque_field import InfoOpaqueField, OpaqueFieldType as OFT
+from lib.packet.opaque_field import InfoOpaqueField
 from lib.packet.packet_base import PayloadRaw
 from lib.packet.path import CorePath, CrossOverPath, EmptyPath, PeerPath
 from lib.packet.scion import SCIONL4Packet, build_base_hdrs
@@ -36,10 +35,11 @@ from lib.packet.scion_addr import SCIONAddr, ISD_AD
 from lib.packet.scion_udp import SCIONUDPHeader
 from lib.socket import UDPSocket
 from lib.thread import kill_self, thread_safety_net
+from lib.types import AddrType, OpaqueFieldType as OFT
 from lib.util import Raw, handle_signals
 
-saddr = haddr_parse("IPv4", "127.1.19.254")
-raddr = haddr_parse("IPv4", "127.2.26.254")
+saddr = haddr_parse("IPV4", "127.1.19.254")
+raddr = haddr_parse("IPV4", "127.2.26.254")
 TOUT = 10  # How long wait for response.
 
 
@@ -47,7 +47,7 @@ def get_paths_via_api(isd, ad):
     """
     Test local API.
     """
-    sock = UDPSocket(bind=("127.0.0.1", 0), addr_type=ADDR_IPV4_TYPE)
+    sock = UDPSocket(bind=("127.0.0.1", 0), addr_type=AddrType.IPV4)
     msg = b'\x00' + ISD_AD(isd, ad).pack()
 
     for _ in range(5):
@@ -65,7 +65,7 @@ def get_paths_via_api(isd, ad):
     while len(data) > 0:
         path_len = data.pop(1) * 8
         if not path_len:
-            return [(EmptyPath(), haddr_parse("IPv4", "0.0.0.0"))]
+            return [(EmptyPath(), haddr_parse("IPV4", "0.0.0.0"))]
         info = InfoOpaqueField(data.get(InfoOpaqueField.LEN))
         if info.info == OFT.CORE:
             path = CorePath(data.pop(path_len))
@@ -76,7 +76,7 @@ def get_paths_via_api(isd, ad):
         else:
             logging.critical("Can not parse path: Unknown type %x", info.info)
             kill_self()
-        haddr_type = haddr_get_type("IPv4")
+        haddr_type = haddr_get_type("IPV4")
         hop = haddr_type(data.get(haddr_type.LEN))
         data.pop(len(hop))
         paths_hops.append((path, hop))
@@ -102,7 +102,7 @@ class Ping(object):
         self.sd = SCIONDaemon.start(saddr, topo_file, True)  # API on
         self.get_path()
         self.sock = UDPSocket(bind=(str(saddr), 0, "Ping App"),
-                              addr_type=ADDR_IPV4_TYPE)
+                              addr_type=AddrType.IPV4)
 
     def get_path(self):
         logging.info("Sending PATH request for (%d, %d)",
@@ -161,7 +161,7 @@ class Pong(object):
                      (self.dst.isd, self.dst.isd, self.dst.ad))
         self.sd = SCIONDaemon.start(raddr, topo_file)  # API off
         self.sock = UDPSocket(bind=(str(raddr), 0, "Pong App"),
-                              addr_type=ADDR_IPV4_TYPE)
+                              addr_type=AddrType.IPV4)
 
     def get_local_port(self):
         return self.sock.get_port()

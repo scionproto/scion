@@ -70,12 +70,3 @@ SERVICE_TYPES = (
 
 #: How often IFID packet is sent to neighboring router.
 IFID_PKT_TOUT = 1
-
-#: Null address type
-ADDR_NONE_TYPE = 0
-#: IPv4 address type
-ADDR_IPV4_TYPE = 1
-#: IPv6 address type
-ADDR_IPV6_TYPE = 2
-#: SCION Service address type
-ADDR_SVC_TYPE = 3

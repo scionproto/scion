@@ -34,13 +34,13 @@ from lib.defines import (
 from lib.packet.opaque_field import (
     HopOpaqueField,
     InfoOpaqueField,
-    OpaqueFieldType as OFT,
 )
 from lib.packet.pcb import (
     ADMarking,
     PCBMarking,
     PathSegment,
 )
+from lib.types import OpaqueFieldType as OFT
 from lib.util import SCIONTime
 
 # SCION Simulator

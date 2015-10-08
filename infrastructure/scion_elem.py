@@ -33,6 +33,7 @@ from lib.defines import (
 from lib.dnsclient import DNSCachingClient
 from lib.errors import SCIONServiceLookupError
 from lib.packet.host_addr import HostAddrNone
+from lib.packet.packet_base import PayloadRaw
 from lib.packet.path import EmptyPath
 from lib.packet.scion import SCIONBasePacket, SCIONL4Packet, build_base_hdrs
 from lib.packet.scion_addr import SCIONAddr
@@ -71,7 +72,6 @@ class SCIONElement(object, metaclass=ABCMeta):
             the interface to bind to. Only used if `server_id` isn't specified.
         :param bool is_sim: running in simulator
         """
-        self._addr = None
         self.topology = None
         self.config = None
         self.ifid2addr = {}
@@ -166,7 +166,7 @@ class SCIONElement(object, metaclass=ABCMeta):
         return self.ifid2addr[spkt.path.get_fwd_if()], SCION_UDP_PORT
 
     def _build_packet(self, dst_host=None, path=None, ext_hdrs=(), dst_isd=None,
-                      dst_ad=None, payload=b""):
+                      dst_ad=None, payload=None, dst_port=SCION_UDP_PORT):
         if dst_host is None:
             dst_host = HostAddrNone()
         if dst_isd is None:
@@ -175,10 +175,12 @@ class SCIONElement(object, metaclass=ABCMeta):
             dst_ad = self.addr.ad_id
         if path is None:
             path = EmptyPath()
+        if payload is None:
+            payload = PayloadRaw()
         dst_addr = SCIONAddr.from_values(dst_isd, dst_ad, dst_host)
         cmn_hdr, addr_hdr = build_base_hdrs(self.addr, dst_addr)
         udp_hdr = SCIONUDPHeader.from_values(
-            self.addr, SCION_UDP_PORT, dst_addr, SCION_UDP_PORT, payload)
+            self.addr, SCION_UDP_PORT, dst_addr, dst_port, payload)
         return SCIONL4Packet.from_values(
             cmn_hdr, addr_hdr, path, ext_hdrs, udp_hdr, payload)
 

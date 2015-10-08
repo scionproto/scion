@@ -35,20 +35,17 @@ from lib.defines import PATH_SERVICE, SCION_UDP_PORT
 from lib.errors import SCIONBaseError, SCIONParseError
 from lib.log import init_logging, log_exception
 from lib.packet.host_addr import haddr_parse
-from lib.packet.packet_base import PayloadClass
 from lib.packet.path import UP_IOF
 from lib.packet.path_mgmt import (
-    PathMgmtType as PMT,
     PathRecordsReply,
     PathRecordsSync,
     PathSegmentInfo,
-    PathSegmentType as PST,
-    PathSegmentType,
     RevocationInfo,
 )
 from lib.packet.scion import PacketType as PT, SCIONL4Packet
 from lib.path_db import DBResult, PathSegmentDB
 from lib.thread import thread_safety_net
+from lib.types import PathMgmtType as PMT, PathSegmentType as PST, PayloadClass
 from lib.util import (
     SCIONTime,
     handle_signals,
@@ -543,7 +540,7 @@ class CorePathServer(PathServer):
         pkt.addrs.src_isd = pkt.addrs.dst_isd = self.addr.isd_id
         pkt.addrs.src_ad = pkt.addrs.dst_ad = self.addr.ad_id
         pkt.addrs.src_addr = self.addr.host_addr
-        pkt.addrs.dst_addr = haddr_parse("IPv4", master)
+        pkt.addrs.dst_addr = haddr_parse("IPV4", master)
         self.send(pkt, master)
         logging.debug("Packet sent to master %s", master)
 
@@ -596,7 +593,7 @@ class CorePathServer(PathServer):
         dst_isd = seg_info.dst_isd
         dst_ad = seg_info.dst_ad
         logging.info("PATH_REQ received: type: %s, addr: (%d, %d)",
-                     PathSegmentType.to_str(seg_type), dst_isd, dst_ad)
+                     PST.to_str(seg_type), dst_isd, dst_ad)
         segments_to_send = []
         if seg_type == PST.UP:
             logging.error("CPS received up-segment request! This should not "
@@ -863,7 +860,7 @@ class LocalPathServer(PathServer):
                 self.waiting_targets.add((dst_isd, dst_ad, seg_info))
             return
         logging.info('Requesting path from core: type: %s, addr: %d,%d',
-                     PathSegmentType.to_str(ptype), dst_isd, dst_ad)
+                     PST.to_str(ptype), dst_isd, dst_ad)
         if ptype == PST.DOWN:
             # Take any path towards core.
             pcb = self.up_segments()[0]
@@ -902,7 +899,7 @@ class LocalPathServer(PathServer):
         dst_isd = seg_info.dst_isd
         dst_ad = seg_info.dst_ad
         logging.info("PATH_REQ received: type: %s, addr: %d,%d",
-                     PathSegmentType.to_str(seg_type), dst_isd, dst_ad,)
+                     PST.to_str(seg_type), dst_isd, dst_ad,)
         paths_to_send = []
         # Requester wants up-path.
         if seg_type in (PST.UP, PST.UP_DOWN):

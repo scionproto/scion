@@ -31,17 +31,16 @@ from lib.defines import CERTIFICATE_SERVICE, SCION_UDP_PORT
 from lib.errors import SCIONBaseError
 from lib.log import init_logging, log_exception
 from lib.packet.cert_mgmt import (
-    CertMgmtType,
     CertChainReply,
     CertChainRequest,
     TRCReply,
     TRCRequest,
 )
-from lib.packet.packet_base import PayloadClass
 from lib.packet.scion import (
     PacketType as PT,
     SCIONL4Packet,
 )
+from lib.types import CertMgmtType, PayloadClass
 from lib.util import (
     get_cert_chain_file_path,
     get_trc_file_path,

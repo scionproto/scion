@@ -54,24 +54,19 @@ from lib.errors import (
 )
 from lib.log import init_logging, log_exception
 from lib.packet.cert_mgmt import (
-    CertMgmtType,
     CertChainRequest,
     TRCRequest,
 )
 from lib.packet.opaque_field import (
     HopOpaqueField,
     InfoOpaqueField,
-    OpaqueFieldType as OFT,
 )
-from lib.packet.packet_base import PayloadClass
 from lib.packet.path_mgmt import (
     IFStateInfo,
     IFStatePayload,
     IFStateRequest,
-    PathMgmtType as PMT,
     PathSegmentInfo,
     PathRecordsReg,
-    PathSegmentType as PST,
     RevocationInfo,
 )
 from lib.packet.pcb import (
@@ -86,6 +81,13 @@ from lib.packet.scion import (
 )
 from lib.path_store import PathPolicy, PathStore
 from lib.thread import thread_safety_net
+from lib.types import (
+    CertMgmtType,
+    OpaqueFieldType as OFT,
+    PathMgmtType as PMT,
+    PathSegmentType as PST,
+    PayloadClass,
+)
 from lib.util import (
     Raw,
     SCIONTime,

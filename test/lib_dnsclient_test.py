@@ -135,7 +135,7 @@ class TestDNSClientParseAnswer(object):
             ans_mock.__str__.return_value = "r%s" % i
             answer.append(ans_mock)
         hparse.side_effect = lambda type_, addr: "%s:%s" % (type_, addr)
-        results = ["IPv4:r0", "IPv6:r1", "IPv4:r2", "IPv4:r3", "IPv6:r5"]
+        results = ["IPV4:r0", "IPV6:r1", "IPV4:r2", "IPV4:r3", "IPV6:r5"]
         # Call
         ntools.eq_(inst._parse_answer(answer), results)
         # Tests

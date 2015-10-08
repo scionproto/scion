@@ -25,13 +25,12 @@ import unittest
 
 # SCION
 from endhost.sciond import SCIONDaemon
-from lib.defines import ADDR_IPV4_TYPE, SCION_UDP_EH_DATA_PORT
 from lib.log import init_logging, log_exception
 from lib.packet.host_addr import haddr_parse
-from lib.packet.scion import SCIONPacket
-from lib.packet.scion_addr import SCIONAddr
+from lib.packet.packet_base import PayloadRaw
 from lib.socket import UDPSocket
 from lib.thread import thread_safety_net
+from lib.types import AddrType
 from lib.util import handle_signals
 
 PACKETS_NO = 1000
@@ -80,17 +79,15 @@ class TestBandwidth(unittest.TestCase):
         Bandwidth test method. Obtains a path to (2, 26) and sends PACKETS_NO
         packets (each with PAYLOAD_SIZE long payload) to a host in (2, 26).
         """
-        addr = haddr_parse("IPv4", "127.1.19.254")
+        addr = haddr_parse("IPV4", "127.1.19.254")
         topo_file = "../../topology/ISD1/topologies/ISD:1-AD:19.json"
         sender = SCIONDaemon.start(addr, topo_file)
 
         paths = sender.get_paths(2, 26)
         self.assertTrue(paths)
 
-        rcv_sock = UDPSocket(
-            bind=(str("127.2.26.254"), SCION_UDP_EH_DATA_PORT),
-            addr_type=ADDR_IPV4_TYPE,
-        )
+        rcv_sock = UDPSocket(bind=("127.2.26.254", 0, "Bw test receiver"),
+                             addr_type=AddrType.IPV4)
 
         logging.info("Starting the receiver.")
         recv_t = threading.Thread(
@@ -98,9 +95,10 @@ class TestBandwidth(unittest.TestCase):
             name="BwT.receiver")
         recv_t.start()
 
-        payload = b"A" * PAYLOAD_SIZE
-        dst = SCIONAddr.from_values(2, 26, haddr_parse("IPv4", "127.2.26.254"))
-        spkt = SCIONPacket.from_values(sender.addr, dst, payload, paths[0])
+        payload = PayloadRaw(b"A" * PAYLOAD_SIZE)
+        spkt = sender._build_packet(
+            haddr_parse("IPV4", "127.2.26.254"), dst_isd=2, dst_ad=26,
+            dst_port=rcv_sock.port, payload=payload, path=paths[0])
         (next_hop, port) = sender.get_first_hop(spkt)
         logging.info("Sending %d payload bytes (%d packets x %d bytes )" %
                      (PACKETS_NO * PAYLOAD_SIZE, PACKETS_NO, PAYLOAD_SIZE))

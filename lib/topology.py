@@ -247,9 +247,9 @@ class Topology(object):
             else:
                 logging.warning("Encountered unknown neighbor type")
         for zk in topology['Zookeepers'].values():
-            if zk['AddrType'] == "IPv4":
+            if zk['AddrType'] == "IPV4":
                 zk_host = "%s:%s" % (zk['Addr'], zk['ClientPort'])
-            elif zk['AddrType'] == "IPv6":
+            elif zk['AddrType'] == "IPV6":
                 zk_host = "[%s]:%s" % (zk['Addr'], zk['ClientPort'])
             self.zookeepers.append(zk_host)
 
