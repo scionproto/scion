@@ -747,23 +747,15 @@ class ConfigGenerator(object):
             file_name = 'ISD:{}-AD:{}.conf'.format(isd_id, ad_id)
             conf_file = os.path.join(self.out_dir, 'ISD' + isd_id,
                                      CONF_DIR, file_name)
-            master_of_gen_key = base64.b64encode(Random.new().read(16))
             master_ad_key = base64.b64encode(Random.new().read(16))
-            conf_dict = {'MasterOFGKey': master_of_gen_key.decode("utf-8"),
-                         'MasterADKey': master_ad_key.decode("utf-8"),
-                         'PCBQueueSize': 10,
-                         'PSQueueSize': 10,
-                         'NumRegisteredPaths': 10,
-                         'NumShortestUPs': 3,
+            conf_dict = {'MasterADKey': master_ad_key.decode("utf-8"),
                          'RegisterTime': 5,
                          'PropagateTime': 5,
-                         'ExpiredTime': 5,
-                         'ResetTime': 600,
+                         'MTU': 1500,
                          'CertChainVersion': 0}
             if self.is_sim:
                 conf_dict['PropagateTime'] = 10
                 conf_dict['RegisterTime'] = 10
-                conf_dict['ExpiredTime'] = 10
             if (ad_configs[isd_ad_id]['level'] != INTERMEDIATE_AD or
                     "path_servers" in ad_configs[isd_ad_id]):
                 conf_dict['RegisterPath'] = 1

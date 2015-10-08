@@ -283,8 +283,9 @@ class ADMarking(MarkingBase):
     def __str__(self):
         s = []
         s.append("%s(%dB):" % (self.NAME, len(self)))
-        s.append("  cert_ver: %d, asd_len %d, sig_len: %d, block_len: %d" %
-                 (self.cert_ver, self.asd_len, self.sig_len, self.block_len))
+        s.append("  cert_ver: %d, ext_len %d, sig_len: %d, block_len: %d" %
+                 (self.cert_ver, len(self._pack_ext()),
+                  len(self.sig), self.block_len))
         s.append("  %s" % self.pcbm)
         for peer_marking in self.pms:
             s.append("  %s" % peer_marking)
