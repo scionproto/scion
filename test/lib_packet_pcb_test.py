@@ -296,6 +296,30 @@ class TestADMarkingPack(object):
         ntools.eq_(inst.pack(), expected)
 
 
+class TestADMarkingPackExt(object):
+    """
+    Unit test for lib.packet.pcb.ADMarking._pack_ext
+    """
+    def test_basic(self):
+        inst = ADMarking()
+        ext0 = create_mock(["EXT_TYPE", "__len__", "pack"])
+        ext0.EXT_TYPE = 1
+        ext0.__len__.return_value = 2
+        ext0.pack.return_value = b"\x03\x04"
+        ext1 = create_mock(["EXT_TYPE", "__len__", "pack"])
+        ext1.EXT_TYPE = 5
+        ext1.__len__.return_value = 6
+        ext1.pack.return_value = b"\x07\x08"
+        inst.ext = [ext0, ext1]
+        # Call
+        ntools.eq_(inst._pack_ext(), b"\x01\x02\x03\x04\x05\x06\x07\x08")
+
+    def test_empty(self):
+        inst = ADMarking()
+        # Call
+        ntools.eq_(inst._pack_ext(), b"")
+
+
 class TestADMarkingRemoveSignature(object):
     """
     Unit test for lib.packet.pcb.ADMarking.remove_signature
