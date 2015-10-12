@@ -24,7 +24,11 @@ import nose.tools as ntools
 
 # SCION
 from lib.packet.ext.traceroute import TracerouteExt, traceroute_ext_handler
-from test.testcommon import assert_these_calls, create_mock
+from test.testcommon import (
+    assert_these_call_lists,
+    assert_these_calls,
+    create_mock,
+)
 
 
 class TestTracerouteExtInit(object):
@@ -131,8 +135,8 @@ class TestTracerouteExtUpdate(object):
         # Call
         inst.update()
         # Tests
-        isd_ad.assert_any_call(1, 2)
-        isd_ad.assert_any_call(5, 6)
+        assert_these_call_lists(isd_ad, [
+            call(1, 2).pack(), call(5, 6).pack()])
         inst._set_payload.assert_called_once_with(expected)
 
 

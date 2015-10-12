@@ -29,7 +29,7 @@ from lib.path_db import (
     PathSegmentDB,
     PathSegmentDBRecord
 )
-from test.testcommon import create_mock
+from test.testcommon import assert_these_calls, create_mock
 
 
 class TestPathSegmentDBRecordInit(object):
@@ -233,6 +233,22 @@ class TestPathSegmentDBDelete(object):
         pth_seg_db._db = create_mock()
         pth_seg_db._db.return_value = False
         ntools.eq_(pth_seg_db.delete("data"), DBResult.NONE)
+
+
+class TestPathSegmentDBDeleteAll(object):
+    """
+    Unit tests for lib.path_db.PathSegmentDB.delete_all
+    """
+    def test(self):
+        inst = PathSegmentDB()
+        inst.delete = create_mock()
+        inst.delete.side_effect = (
+            DBResult.ENTRY_DELETED, DBResult.NONE, DBResult.ENTRY_DELETED
+        )
+        # Call
+        ntools.eq_(inst.delete_all((0, 1, 2)), 2)
+        # Tests
+        assert_these_calls(inst.delete, [call(i) for i in (0, 1, 2)])
 
 
 class TestPathSegmentDBCall(object):

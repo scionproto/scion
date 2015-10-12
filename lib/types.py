@@ -19,7 +19,7 @@ For all type classes that are used in multiple parts of the infrastructure.
 """
 
 
-class TypeBase(object):
+class TypeBase(object):  # pragma: no cover
     @classmethod
     def to_str(cls, type_):
         for attr in dir(cls):

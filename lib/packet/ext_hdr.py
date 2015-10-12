@@ -104,7 +104,7 @@ class ExtensionHeader(HeaderBase):
         """
         return self.hdr_len_to_bytes(self._hdr_len)
 
-    def hdr_len(self):
+    def hdr_len(self):  # pragma: no cover
         return self._hdr_len
 
     @classmethod
@@ -114,7 +114,7 @@ class ExtensionHeader(HeaderBase):
         return (total_len // cls.LINE_LEN) - 1
 
     @classmethod
-    def hdr_len_to_bytes(cls, hdr_len):
+    def hdr_len_to_bytes(cls, hdr_len):  # pragma: no cover
         return (hdr_len + 1) * cls.LINE_LEN
 
     def __str__(self):

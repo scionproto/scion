@@ -87,7 +87,7 @@ class HostAddrBase(object, metaclass=ABCMeta):
     def __eq__(self, other):
         return (self.TYPE == other.TYPE) and (self.addr == other.addr)
 
-    def __lt__(self, other):
+    def __lt__(self, other):  # pragma: no cover
         return str(self) < str(other)
 
 

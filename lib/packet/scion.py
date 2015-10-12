@@ -17,7 +17,6 @@
 """
 # Stdlib
 import copy
-import logging
 import struct
 
 # SCION
@@ -249,10 +248,10 @@ class SCIONAddrHdr(HeaderBase):
         self.src_addr, self.dst_addr = self.dst_addr, self.src_addr
         self.update()
 
-    def get_src_addr(self):
+    def get_src_addr(self):  # pragma: no cover
         return SCIONAddr.from_values(self.src_isd, self.src_ad, self.src_addr)
 
-    def get_dst_addr(self):
+    def get_dst_addr(self):  # pragma: no cover
         return SCIONAddr.from_values(self.dst_isd, self.dst_ad, self.dst_addr)
 
     def __len__(self):
@@ -377,7 +376,7 @@ class SCIONBasePacket(PacketBase):
         self.addrs.reverse()
         self.path.reverse()
 
-    def reversed_copy(self):
+    def reversed_copy(self):  # pragma: no cover
         inst = copy.deepcopy(self)
         inst.reverse()
         return inst
@@ -397,7 +396,7 @@ class SCIONBasePacket(PacketBase):
             len(self._payload), self._payload))
         return "\n".join(s)
 
-    def _inner_str(self):
+    def _inner_str(self):  # pragma: no cover
         return []
 
 
@@ -456,7 +455,7 @@ class SCIONExtPacket(SCIONBasePacket):
         else:
             return self._l4_proto
 
-    def _inner_str(self):
+    def _inner_str(self):  # pragma: no cover
         s = super()._inner_str()
         for hdr in self.ext_hdrs:
             for line in str(hdr).splitlines():
@@ -505,7 +504,7 @@ class SCIONL4Packet(SCIONExtPacket):
         packed.append(self.l4_hdr.pack())
         return b"".join(packed)
 
-    def _pack_payload(self):
+    def _pack_payload(self):  # pragma: no cover
         return self._payload.pack_full()
 
     def update(self):
@@ -516,7 +515,7 @@ class SCIONL4Packet(SCIONExtPacket):
             self._l4_proto = self.l4_hdr.TYPE
         super().update()
 
-    def reverse(self):
+    def reverse(self):  # pragma: no cover
         if self.l4_hdr:
             self.l4_hdr.reverse()
         super().reverse()
@@ -533,10 +532,7 @@ class SCIONL4Packet(SCIONExtPacket):
         handler = class_map.get(pld_class)
         if not handler:
             raise SCIONParseError("Unsupported payload class: %s", pld_class)
-        try:
-            pld = handler(data.pop(1), data)
-        except SCIONParseError as e:
-            logging.error("Unable to parse payload of packet: %s\n%s", e, self)
+        pld = handler(data.pop(1), data)
         self.set_payload(pld)
         return pld
 
@@ -546,7 +542,7 @@ class SCIONL4Packet(SCIONExtPacket):
         l += self._payload.METADATA_LEN
         return l
 
-    def _inner_str(self):
+    def _inner_str(self):  # pragma: no cover
         s = super()._inner_str()
         s.append("  %s" % self.l4_hdr)
         return s
@@ -588,7 +584,7 @@ class IFIDPayload(SCIONPayloadBase):
     def pack(self):
         return struct.pack("!HH", self.reply_id, self.request_id)
 
-    def __len__(self):
+    def __len__(self):  # pragma: no cover
         return self.LEN
 
     def __str__(self):

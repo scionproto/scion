@@ -30,15 +30,22 @@ from lib.packet.path import PathBase
 from lib.packet.packet_base import L4HeaderBase
 from lib.packet.scion import (
     IFIDPayload,
+    IFIDType,
     SCIONAddrHdr,
     SCIONBasePacket,
     SCIONCommonHdr,
     SCIONExtPacket,
     SCIONL4Packet,
     build_base_hdrs,
+    parse_ifid_payload,
 )
 from lib.packet.scion_addr import ISD_AD
-from test.testcommon import assert_these_calls, create_mock
+from lib.types import PayloadClass
+from test.testcommon import (
+    assert_these_call_lists,
+    assert_these_calls,
+    create_mock,
+)
 
 
 class TestSCIONCommonHdrInit(object):
@@ -331,6 +338,8 @@ class TestSCIONAddrHdrPack(object):
         ntools.eq_(inst.pack(), expected)
         # Tests
         update.assert_called_once_with(inst)
+        assert_these_call_lists(isd_ad, [
+            call(1, 11).pack(), call(2, 22).pack()])
 
 
 class TestSCIONAddrHdrUpdate(object):
@@ -630,6 +639,21 @@ class TestSCIONBasePacketPack(object):
                    b"cmn hdr" b"addrs" b"path" b"inner pack" b"payload")
         # Tests
         inst.update.assert_called_once_with()
+
+
+class TestSCIONBasePacketUpdate(object):
+    """
+    Unit tests for lib.packet.scion.SCIONBasePacket.update
+    """
+    def test(self):
+        inst = SCIONBasePacket()
+        inst.addrs = create_mock(["update"])
+        inst._update_cmn_hdr = create_mock()
+        # Call
+        inst.update()
+        # Tests
+        inst.addrs.update.assert_called_once_with()
+        inst._update_cmn_hdr.assert_called_once_with()
 
 
 class TestSCIONBasePacketUpdateCmnHdr(object):
@@ -984,6 +1008,52 @@ class TestSCIONL4PacketUpdate(object):
         ntools.eq_(inst._l4_proto, inst.l4_hdr.TYPE)
 
 
+class TestSCIONL4PacketParsePayload(object):
+    """
+    Unit tests for lib.packet.scion.SCIONL4Packet.parse_payload
+    """
+    @patch("lib.packet.scion.parse_pathmgmt_payload", autospec=True)
+    @patch("lib.packet.scion.parse_certmgmt_payload", autospec=True)
+    @patch("lib.packet.scion.parse_ifid_payload", autospec=True)
+    @patch("lib.packet.scion.parse_pcb_payload", autospec=True)
+    @patch("lib.packet.scion.Raw", autospec=True)
+    def _check_known(self, class_, raw, parse_pcb, parse_ifid, parse_cert,
+                     parse_path):
+        class_map = {
+            PayloadClass.PCB: parse_pcb, PayloadClass.IFID: parse_ifid,
+            PayloadClass.CERT: parse_cert, PayloadClass.PATH: parse_path,
+        }
+        handler = class_map[class_]
+        inst = SCIONL4Packet()
+        inst._payload = create_mock(["pack"])
+        inst.set_payload = create_mock()
+        data = create_mock(["pop"])
+        data.pop.side_effect = class_, 42
+        raw.return_value = data
+        # Call
+        ntools.eq_(inst.parse_payload(), handler.return_value)
+        # Tests
+        handler.assert_called_once_with(42, data)
+        inst.set_payload.assert_called_once_with(handler.return_value)
+
+    def test_known(self):
+        for class_ in (
+            PayloadClass.PCB, PayloadClass.IFID,
+            PayloadClass.CERT, PayloadClass.PATH,
+        ):
+            yield self._check_known, class_
+
+    @patch("lib.packet.scion.Raw", autospec=True)
+    def test_unknown(self, raw):
+        inst = SCIONL4Packet()
+        inst._payload = create_mock(["pack"])
+        data = create_mock(["pop"])
+        data.pop.return_value = 42
+        raw.return_value = data
+        # Call
+        ntools.assert_raises(SCIONParseError, inst.parse_payload)
+
+
 class TestSCIONL4PacketGetOffsetLen(object):
     """
     Unit tests for lib.packet.scion.SCIONL4Packet._get_offset_len
@@ -1076,6 +1146,21 @@ class TestBuildBaseHdrs(object):
         # Tests
         cmn_hdr.assert_called_once_with(src.host_addr.TYPE, dst.host_addr.TYPE)
         addr_hdr.assert_called_once_with(src, dst)
+
+
+class TestParseIfidPayload(object):
+    """
+    Unit tests for lib.packet.scion.parse_ifid_payload
+    """
+    @patch("lib.packet.scion.IFIDPayload", autospec=True)
+    def test_success(self, ifid_pld):
+        data = create_mock(["pop"])
+        # Call
+        ntools.eq_(parse_ifid_payload(IFIDType.PAYLOAD, data),
+                   ifid_pld.return_value)
+
+    def test_unknown(self):
+        ntools.assert_raises(SCIONParseError, parse_ifid_payload, 99, "data")
 
 if __name__ == "__main__":
     nose.run(defaultTest=__name__)

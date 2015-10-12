@@ -44,7 +44,7 @@ class PathSegmentInfo(PathMgmtPayloadBase):
     PAYLOAD_TYPE = PMT.REQUEST
     LEN = 1 + 2 * ISD_AD.LEN
 
-    def __init__(self, raw=None):
+    def __init__(self, raw=None):  # pragma: no cover
         """
         Initialize an instance of the class PathSegmentInfo.
 
@@ -113,7 +113,7 @@ class PathSegmentRecords(PathMgmtPayloadBase):
     """
     MIN_LEN = PathSegmentInfo.LEN + PathSegment.MIN_LEN
 
-    def __init__(self, raw=None):
+    def __init__(self, raw=None):  # pragma: no cover
         """
         Initialize an instance of the class PathSegmentRecords.
 
@@ -191,7 +191,7 @@ class RevocationInfo(PathMgmtPayloadBase):
     PAYLOAD_TYPE = PMT.REVOCATION
     LEN = 32
 
-    def __init__(self, raw=None):
+    def __init__(self, raw=None):  # pragma: no cover
         """
         Initialize an instance of the class RevocationInfo.
 
@@ -239,7 +239,7 @@ class IFStateInfo(object):
     NAME = "IFStateInfo"
     LEN = 2 + 2 + RevocationInfo.LEN
 
-    def __init__(self, raw=None):
+    def __init__(self, raw=None):  # pragma: no cover
         self.if_id = 0
         self.state = 0
         self.rev_info = None
@@ -277,7 +277,7 @@ class IFStateInfo(object):
         packed.append(self.rev_info.pack())
         return b"".join(packed)
 
-    def __len__(self):
+    def __len__(self):  # pragma: no cover
         return self.LEN
 
     def __str__(self):
@@ -296,7 +296,7 @@ class IFStatePayload(PathMgmtPayloadBase):
     PAYLOAD_TYPE = PMT.IFSTATE_INFO
     MIN_LEN = IFStateInfo.LEN
 
-    def __init__(self, raw=None):
+    def __init__(self, raw=None):  # pragma: no cover
         super().__init__()
         self.ifstate_infos = []
 
@@ -309,14 +309,8 @@ class IFStatePayload(PathMgmtPayloadBase):
             info = IFStateInfo(data.pop(IFStateInfo.LEN))
             self.ifstate_infos.append(info)
 
-    def pack(self):
-        packed = []
-        for info in self.ifstate_infos:
-            packed.append(info.pack())
-        return b"".join(packed)
-
     @classmethod
-    def from_values(cls, ifstate_infos):
+    def from_values(cls, ifstate_infos):  # pragma: no cover
         """
         Returns a IFStateInfo object with the specified values.
         :param ifstate_infos: list of IFStateInfo objects
@@ -326,7 +320,13 @@ class IFStatePayload(PathMgmtPayloadBase):
         inst.ifstate_infos = ifstate_infos
         return inst
 
-    def add_ifstate_info(self, info):
+    def pack(self):
+        packed = []
+        for info in self.ifstate_infos:
+            packed.append(info.pack())
+        return b"".join(packed)
+
+    def add_ifstate_info(self, info):  # pragma: no cover
         """
         Adds a ifstate info to the list.
         """
@@ -354,7 +354,7 @@ class IFStateRequest(PathMgmtPayloadBase):
     LEN = 2
     ALL_INTERFACES = 0
 
-    def __init__(self, raw=None):
+    def __init__(self, raw=None):  # pragma: no cover
         super().__init__()
         self.if_id = self.ALL_INTERFACES
 
@@ -366,7 +366,7 @@ class IFStateRequest(PathMgmtPayloadBase):
         self.if_id = struct.unpack("!H", data.pop())[0]
 
     @classmethod
-    def from_values(cls, if_id=ALL_INTERFACES):
+    def from_values(cls, if_id=ALL_INTERFACES):  # pragma: no cover
         """
         Returns a IFStateRequest object with the specified values.
         :param if_id: The if_id of interest.
@@ -379,24 +379,26 @@ class IFStateRequest(PathMgmtPayloadBase):
     def pack(self):
         return struct.pack("!H", self.if_id)
 
-    def __len__(self):
+    def __len__(self):  # pragma: no cover
         return self.LEN
 
     def __str__(self):
         return "[%s(%dB): if_id: %d]" % (self.NAME, len(self), self.if_id)
 
 
+_TYPE_MAP = {
+    PMT.REQUEST: (PathSegmentInfo, PathSegmentInfo.LEN),
+    PMT.REPLY: (PathRecordsReply, None),
+    PMT.REG: (PathRecordsReg, None),
+    PMT.SYNC: (PathRecordsSync, None),
+    PMT.REVOCATION: (RevocationInfo, RevocationInfo.LEN),
+    PMT.IFSTATE_INFO: (IFStatePayload, None),
+    PMT.IFSTATE_REQ: (IFStateRequest, IFStateRequest.LEN),
+}
+
+
 def parse_pathmgmt_payload(type_, data):
-    type_map = {
-        PMT.REQUEST: (PathSegmentInfo, PathSegmentInfo.LEN),
-        PMT.REPLY: (PathRecordsReply, None),
-        PMT.REG: (PathRecordsReg, None),
-        PMT.SYNC: (PathRecordsSync, None),
-        PMT.REVOCATION: (RevocationInfo, RevocationInfo.LEN),
-        PMT.IFSTATE_INFO: (IFStatePayload, None),
-        PMT.IFSTATE_REQ: (IFStateRequest, IFStateRequest.LEN),
-    }
-    if type_ not in type_map:
+    if type_ not in _TYPE_MAP:
         raise SCIONParseError("Unsupported path management type: %s", type_)
-    handler, len_ = type_map[type_]
+    handler, len_ = _TYPE_MAP[type_]
     return handler(data.pop(len_))
