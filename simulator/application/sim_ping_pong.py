@@ -35,12 +35,11 @@ class SimPingApp(SCIONSimApplication):
     Simulator Ping application
     """
     _APP_PORT = 5600
-    PING_INTERVAL = 0.1
     SUCCESS = 0
     REVOCATION = 1
     TIMEOUT = 2
 
-    def __init__(self, host, dst_addr, dst_ad, dst_isd, max_ping_pongs):
+    def __init__(self, host, dst_addr, dst_ad, dst_isd, ping_interval):
         """
         Initialize the ping application
 
@@ -60,7 +59,7 @@ class SimPingApp(SCIONSimApplication):
         self.dst_addr = dst_addr
         self.dst_ad = dst_ad
         self.dst_isd = dst_isd
-        self.max_ping_pongs = max_ping_pongs
+        self.ping_interval = ping_interval
         self.num_ping_pongs = 0
         self.num_pings_sent = 0
         self.revoked_packets = 0
@@ -142,14 +141,14 @@ class SimPingApp(SCIONSimApplication):
         if self.num_ping_pongs >= self.max_ping_pongs:
             self.simulator.terminate()
         else:
-            self.simulator.add_event(self.PING_INTERVAL, cb=self.send_ping)
+            self.simulator.add_event(self.ping_interval, cb=self.send_ping)
 
     def next_event(self):
         """
         """
         curr_time = SCIONTime.get_time()
         self.ping_send_time.append(curr_time)
-        self.simulator.add_event(self.PING_INTERVAL, cb=self.send_ping)
+        self.simulator.add_event(self.ping_interval, cb=self.send_ping)
 
 
 class SimPongApp(SCIONSimApplication):

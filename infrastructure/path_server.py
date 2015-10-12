@@ -176,14 +176,15 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         :param pkt: The packet containing the revocation info.
         :type pkt: PathMgmtPacket
         """
+        logging.info("At %s", self.addr)
         rev_info = pkt.get_payload()
         assert isinstance(rev_info, RevocationInfo)
         if hash(rev_info) in self.revocations:
-            logging.debug("Already received revocation. Dropping...")
+            logging.info("Already received revocation. Dropping...")
             return
         else:
             self.revocations[hash(rev_info)] = rev_info
-            logging.debug("Received revocation from %s:\n%s",
+            logging.info("Received revocation from %s:\n%s",
                           pkt.addrs.get_src_addr(), rev_info)
         # Remove segments that contain the revoked interface.
         self._remove_revoked_segments(rev_info)
