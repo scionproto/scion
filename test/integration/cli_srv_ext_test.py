@@ -48,7 +48,7 @@ def client():
     """
     Simple client
     """
-    topo_file = ("../../topology/ISD%d/topologies/ISD:%d-AD:%d.json" %
+    topo_file = ("../../topology/ISD%d/topologies/ISD%d-AD%d.json" %
                  (CLI_ISD, CLI_ISD, CLI_AD))
     # Start SCIONDaemon
     sd = SCIONDaemon.start(haddr_parse("IPV4", CLI_IP), topo_file)
@@ -95,7 +95,7 @@ def server():
     """
     Simple server.
     """
-    topo_file = ("../../topology/ISD%d/topologies/ISD:%d-AD:%d.json" %
+    topo_file = ("../../topology/ISD%d/topologies/ISD%d-AD%d.json" %
                  (SRV_ISD, SRV_ISD, SRV_AD))
     # Start SCIONDaemon
     sd = SCIONDaemon.start(haddr_parse("IPV4", SRV_IP), topo_file)
