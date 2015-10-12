@@ -61,7 +61,7 @@ class RevocationSimTest(unittest.TestCase):
         """
         simulator = init_simulator()
         # Setup for ping-pong application
-        src_isd_ad = ISD_AD(1, 10)
+        src_isd_ad = ISD_AD(2, 25)
         dst_isd_ad = ISD_AD(2, 26)
         src_host_addr = haddr_parse("IPv4", "127.1.10.254")
         dst_host_addr = haddr_parse("IPv4", "127.2.26.254")
@@ -76,9 +76,11 @@ class RevocationSimTest(unittest.TestCase):
         host1 = SCIONSimHost(src_host_addr, src_topo_path, simulator)
         host2 = SCIONSimHost(dst_host_addr, dst_topo_path, simulator)
         ping_application = SimPingApp(host1, dst_host_addr,
-                                      dst_isd_ad.ad, dst_isd_ad.isd, 4)
-        SimPongApp(host2)
+                                      dst_isd_ad.ad, dst_isd_ad.isd, 10)
+        pong_application = SimPongApp(host2)
         app_start_time = 30.
+        app_end_time = 60.
+        simulator.add_event(app_end_time, cb=simulator.terminate)
         ping_application.start(app_start_time)
 
         event_parser = EventParser(simulator)
@@ -88,19 +90,23 @@ class RevocationSimTest(unittest.TestCase):
         simulator.run()
 
         logging.info("Simulation terminated")
-        status_map = {
-            0: 'Success',
-            1: 'Revocation',
-            2: 'Time out',
-        }
-        output = []
+        # status_map = {
+        #     0: 'Success',
+        #     1: 'Revocation',
+        #     2: 'Time out',
+        # }
+        # output = []
+        # for status in ping_application.pong_recv_status:
+        #     output.append(status_map.get(status))
         start_times = []
-        for status in ping_application.pong_recv_status:
-            output.append(status_map.get(status))
         for time in ping_application.ping_send_time:
             start_times.append(time)
-        logging.info("Ping pong status:%s", output)
-        logging.info("Time of ping pongs:%s", start_times)
+        # logging.info("Ping pong status:%s", output)
+        print("Number of pings sent ", ping_application.num_pings_sent)
+        print("Number of pings received ", pong_application.num_pings_received)
+        print("Number of revocations received ", ping_application.revoked_packets)
+        # print("Time of ping pongs ", start_times, len(start_times))
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)

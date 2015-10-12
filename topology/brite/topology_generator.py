@@ -140,7 +140,7 @@ def graph_to_dot(graph, dot_output_file):
     :type dot_output_file: str
     """
     try:
-        from networkx import pygraphviz   # noqa
+        import pygraphviz   # noqa
     except ImportError:
         raise ImportError('Pygraphviz is not available for python3.' +
                           'Install it for python2 instead')

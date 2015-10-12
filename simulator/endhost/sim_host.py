@@ -22,7 +22,7 @@ import struct
 # SCION
 from endhost.sciond import SCIONDaemon, SCIOND_API_PORT
 from lib.defines import SCION_UDP_PORT
-from lib.errors import SCIONParseError
+from lib.errors import SCIONParseError, SCIONKeyError
 from lib.packet.path import PathCombinator
 from lib.packet.path_mgmt import (
     PathMgmtType as PMT,
@@ -259,6 +259,16 @@ class SCIONSimHost(SCIONDaemon):
         self._waiting_requests.remove(req_id)
         reply = []
         for path in paths:
+            try:
+                tmp = path._ofs.get_by_label("up_segment_peering_link", 0)
+                if tmp is not None:
+                    tmp.info = 1 << 4
+                tmp = path._ofs.get_by_label("down_segment_peering_link", 0)
+                if tmp is not None:
+                    tmp.info = 1 << 4
+            except SCIONKeyError:
+                pass
+            # sys.ex()
             raw_path = path.pack()
             # assumed IPv4 addr
             haddr = self.ifid2addr[path.get_fwd_if()]
