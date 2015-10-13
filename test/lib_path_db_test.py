@@ -53,14 +53,11 @@ class TestPathSegmentDBRecordInit(object):
         pcb = create_mock(['get_hops_hash', 'iof', 'get_expiration_time'],
                           class_=PathSegment)
         pcb.get_hops_hash.return_value = "data1"
-        pcb.get_expiration_time.return_value = 1
+        pcb.get_expiration_time.return_value = 500
         pcb.iof = create_mock(["hops"])
         pcb.iof.hops = "data2"
         exp_time = 300
         pth_seg_db_rec = PathSegmentDBRecord(pcb, exp_time)
-        ntools.eq_(pth_seg_db_rec.pcb, pcb)
-        ntools.eq_(pth_seg_db_rec.id, "data1")
-        ntools.eq_(pth_seg_db_rec.fidelity, "data2")
         ntools.eq_(pth_seg_db_rec.exp_time, exp_time)
 
 

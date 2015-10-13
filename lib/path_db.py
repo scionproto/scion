@@ -71,9 +71,10 @@ class PathSegmentDBRecord(object):
         # Fidelity can be used to configure the desirability of a path. For
         # now we just use path length.
         self.fidelity = pcb.iof.hops
-        self.exp_time = pcb.get_expiration_time()
         if exp_time:
-            self.exp_time = exp_time
+            self.exp_time = min(pcb.get_expiration_time(), exp_time)
+        else:
+            self.exp_time = pcb.get_expiration_time()
 
     def __eq__(self, other):
         """
@@ -106,7 +107,7 @@ class PathSegmentDB(object):
     :type _db:
     """
 
-    def __init__(self, segment_ttl=0):
+    def __init__(self, segment_ttl=None):
         """
         Initialize an instance of the class PathSegmentDB.
 
@@ -169,7 +170,7 @@ class PathSegmentDB(object):
         :rtype:
         """
         assert isinstance(pcb, PathSegment)
-        if self.segment_ttl > 0:
+        if self.segment_ttl:
             now = int(SCIONTime.get_time())
             record = PathSegmentDBRecord(pcb, now + self.segment_ttl)
         else:
