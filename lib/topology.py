@@ -213,7 +213,7 @@ class Topology(object):
         :param topology: dictionary representation of a topology
         :type topology: dict
         """
-        self.is_core_ad = (topology['Core'] == 1)
+        self.is_core_ad = topology['Core']
         self.isd_id = topology['ISDID']
         self.ad_id = topology['ADID']
         self.dns_domain = topology['DnsDomain']
