@@ -49,7 +49,7 @@ class TestPathSegmentDBRecordInit(object):
         ntools.eq_(pth_seg_db_rec.fidelity, "data2")
         ntools.eq_(pth_seg_db_rec.exp_time, 1)
 
-    def text_non_default(self):
+    def test_non_default(self):
         pcb = create_mock(['get_hops_hash', 'iof', 'get_expiration_time'],
                           class_=PathSegment)
         pcb.get_hops_hash.return_value = "data1"
@@ -219,6 +219,23 @@ class TestPathSegmentDBUpdate(object):
         pth_seg_db._db.return_value = {0: {'record': cur_rec}}
         ntools.eq_(pth_seg_db.update(pcb, 1, 2, 3, 4), DBResult.ENTRY_UPDATED)
         ntools.eq_(cur_rec.pcb, pcb)
+
+    @patch("lib.path_store.SCIONTime.get_time", new_callable=create_mock)
+    @patch("lib.path_db.PathSegmentDBRecord", autospec=True)
+    def test_with_segment_ttl(self, db_rec, time):
+        pcb = create_mock(class_=PathSegment)
+        record = create_mock(['id'])
+        db_rec.return_value = record
+        pth_seg_db = PathSegmentDB()
+        pth_seg_db._db = create_mock(['insert'])
+        pth_seg_db._db.return_value = []
+        time.return_value = 1
+        segment_ttl = 300
+        pth_seg_db = PathSegmentDB(300)
+        # Call
+        pth_seg_db.update(pcb, 1, 2, 3, 4)
+        # Test
+        db_rec.assert_called_once_with(pcb, segment_ttl + time.return_value)
 
 
 class TestPathSegmentDBUpdateAll(object):
