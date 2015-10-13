@@ -45,6 +45,7 @@ class CorePathServerSim(CorePathServer):
         self.simulator = simulator
         simulator.add_element(str(self.addr.host_addr), self)
         simulator.add_name(server_name, str(self.addr.host_addr))
+        self.num_revocation_msgs = 0
 
     def send(self, packet, dst, dst_port=SCION_UDP_PORT):
         """
@@ -109,6 +110,7 @@ class LocalPathServerSim(LocalPathServer):
         self.simulator = simulator
         simulator.add_element(str(self.addr.host_addr), self)
         simulator.add_name(server_name, str(self.addr.host_addr))
+        self.num_revocation_msgs = 0
 
     def send(self, packet, dst, dst_port=SCION_UDP_PORT):
         """

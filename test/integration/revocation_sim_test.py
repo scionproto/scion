@@ -96,7 +96,7 @@ class RevocationSimTest(unittest.TestCase):
             .format(dst_isd_ad.isd, dst_isd_ad.isd, dst_isd_ad.ad)
             )
         app_start_time = 31.
-        app_end_time = 48.
+        app_end_time = 70.
         num_hosts = 10
         ping_interval = 1
         src_host_addr_next = "127.100.100.1"
@@ -147,7 +147,7 @@ class RevocationSimTest(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.ERROR)
     to_profile = False
 
     def run_test():

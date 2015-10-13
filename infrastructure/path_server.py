@@ -186,6 +186,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             self.revocations[hash(rev_info)] = rev_info
             logging.info("Received revocation from %s:\n%s",
                           pkt.addrs.get_src_addr(), rev_info)
+            self.num_revocation_msgs += 1
         # Remove segments that contain the revoked interface.
         self._remove_revoked_segments(rev_info)
 
