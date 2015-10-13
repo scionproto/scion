@@ -27,7 +27,6 @@ import sys
 from collections import defaultdict
 from io import StringIO
 from ipaddress import ip_network
-from tempfile import mkdtemp
 
 # External packages
 from Crypto import Random
@@ -216,149 +215,8 @@ class ConfigGenerator(object):
                 shutil.rmtree(os.path.join(self.out_dir, name))
 
     def _generate_certs(self):
-        keys = self._write_keys_certs()
-        self._write_trc_files(keys)
-
-    def _write_keys_certs(self):
-        """
-        Generate the AD certificates and keys and store them into separate
-        files.
-
-        :returns: the signature and encryption keys.
-        :rtype: dict
-        """
-        sig_priv_keys = {}
-        sig_pub_keys = {}
-        enc_pub_keys = {}
-        for isd_ad_id in self.ad_configs["ADs"]:
-            (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-            sig_key_file = get_sig_key_file_path(isd_id, ad_id,
-                                                 isd_dir=self.out_dir)
-            enc_key_file = get_enc_key_file_path(isd_id, ad_id,
-                                                 isd_dir=self.out_dir)
-            (sig_pub, sig_priv) = generate_signature_keypair()
-            (enc_pub, enc_priv) = generate_cryptobox_keypair()
-            sig_priv_keys[isd_ad_id] = sig_priv
-            sig_pub_keys[isd_ad_id] = sig_pub
-            enc_pub_keys[isd_ad_id] = enc_pub
-            sig_priv = base64.b64encode(sig_priv).decode('utf-8')
-            enc_priv = base64.b64encode(enc_priv).decode('utf-8')
-            write_file(sig_key_file, sig_priv)
-            write_file(enc_key_file, enc_priv)
-
-        # Generate keys for self-signing
-        self_sign_id = ISD_AD_ID_DIVISOR.join(['0', '0'])
-        (sig_pub, sig_priv) = generate_signature_keypair()
-        (enc_pub, enc_priv) = generate_cryptobox_keypair()
-        sig_priv_keys[self_sign_id] = sig_priv
-        sig_pub_keys[self_sign_id] = sig_pub
-        enc_pub_keys[self_sign_id] = enc_pub
-
-        certs = {}
-        for isd_ad_id, ad_config in self.ad_configs["ADs"].items():
-            if ad_config['level'] == CORE_AD:
-                continue
-            (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-            if 'cert_issuer' not in ad_config:
-                logging.warning("No 'cert_issuer' attribute for "
-                                "a non-core AD: {}".format(isd_ad_id))
-                ad_config['cert_issuer'] = self_sign_id
-            iss_isd_ad_id = ad_config['cert_issuer']
-            (iss_isd_id, iss_ad_id) = iss_isd_ad_id.split(ISD_AD_ID_DIVISOR)
-            cert = Certificate.from_values(
-                'ISD:' + isd_id + '-AD:' + ad_id,
-                sig_pub_keys[isd_ad_id], enc_pub_keys[isd_ad_id],
-                'ISD:' + iss_isd_id + '-AD:' + iss_ad_id,
-                sig_priv_keys[iss_isd_ad_id], INITIAL_CERT_VERSION)
-            certs['ISD:' + isd_id + '-AD:' + ad_id] = [cert]
-        for subject in certs:
-            index = 0
-            while certs[subject][index].issuer in certs:
-                certs[subject].append(certs[certs[subject][index].issuer][0])
-                index += 1
-        for subject in certs:
-            chain = CertificateChain.from_values(certs[subject])
-            cert_isd = int(subject[4:].split('-AD:')[0])
-            cert_ad = int(subject[4:].split('-AD:')[1])
-            cert_file = get_cert_chain_file_path(cert_isd, cert_ad, cert_isd,
-                                                 cert_ad, INITIAL_CERT_VERSION,
-                                                 isd_dir=self.out_dir)
-            write_file(cert_file, str(chain))
-            # Test if parser works
-            CertificateChain(cert_file)
-        return {'sig_priv_keys': sig_priv_keys,
-                'sig_pub_keys': sig_pub_keys,
-                'enc_pub_keys': enc_pub_keys}
-
-    def _write_trc_files(self, keys):
-        """
-        Generate the ISD TRCs and store them into files.
-
-        :param keys: the signature and encryption keys.
-        :type: dict
-        """
-        tmp_dir = mkdtemp(prefix="scion-generator.")
-        for isd_ad_id, ad_conf in self.ad_configs["ADs"].items():
-            if ad_conf['level'] != CORE_AD:
-                continue
-            isd_id, ad_id = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-            trc_file = os.path.join(tmp_dir, 'ISD{}-V0.crt'.format(isd_id))
-            # Create core certificate
-            subject = 'ISD:' + isd_id + '-AD:' + ad_id
-            cert = Certificate.from_values(
-                subject,
-                keys['sig_pub_keys'][isd_ad_id],
-                keys['enc_pub_keys'][isd_ad_id],
-                subject,
-                keys['sig_priv_keys'][isd_ad_id],
-                0)
-            if os.path.exists(trc_file):
-                trc = TRC(trc_file)
-                trc.core_ads[subject] = cert
-            else:
-                core_isps = {'isp.com': 'isp.com_cert_base64'}
-                root_cas = {'ca.com': 'ca.com_cert_base64'}
-                core_ads = {subject: cert}
-                registry_server_addr = 'isd_id-ad_id-ip_address'
-                registry_server_cert = 'reg_server_cert_base64'
-                root_dns_server_addr = 'isd_id-ad_id-ip_address'
-                root_dns_server_cert = 'dns_server_cert_base64'
-                trc_server_addr = 'isd_id-ad_id-ip_address'
-                signatures = {}
-                trc = TRC.from_values(
-                    int(isd_id), 0, 1, 1, core_isps, root_cas,
-                    core_ads, {}, registry_server_addr,
-                    registry_server_cert, root_dns_server_addr,
-                    root_dns_server_cert, trc_server_addr, signatures)
-            write_file(trc_file, str(trc))
-            # Test if parser works
-            TRC(trc_file)
-
-        for isd_ad_id, ad_conf in self.ad_configs["ADs"].items():
-            if ad_conf['level'] != CORE_AD:
-                continue
-            isd_id, ad_id = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-            trc_file = os.path.join(tmp_dir, 'ISD{}-V0.crt'.format(isd_id))
-            subject = 'ISD:' + isd_id + '-AD:' + ad_id
-            if os.path.exists(trc_file):
-                trc = TRC(trc_file)
-                data_to_sign = trc.__str__(with_signatures=False)
-                data_to_sign = data_to_sign.encode('utf-8')
-                sig = sign(data_to_sign, keys['sig_priv_keys'][isd_ad_id])
-                trc.signatures[subject] = sig
-                write_file(trc_file, str(trc))
-                # Test if parser works
-                TRC(trc_file)
-
-        # Copy the created TRC files to every AD directory, then remove them
-        for isd_ad_id in self.ad_configs["ADs"]:
-            isd_id, ad_id = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-            trc_file = os.path.join(tmp_dir, 'ISD{}-V0.crt'.format(isd_id))
-            if os.path.exists(trc_file):
-                dst_path = get_trc_file_path(isd_id, ad_id, isd_id, 0,
-                                             isd_dir=self.out_dir)
-                copy_file(trc_file, dst_path)
-        shutil.rmtree(tmp_dir)
+        certgen = CertGenerator(self.ad_configs, self.out_dir)
+        certgen.generate()
 
     def _write_conf_files(self):
         """
@@ -753,6 +611,113 @@ class ConfigGenerator(object):
                 edge_router += 1
         sim_file = os.path.join(self.out_dir, SIM_DIR, SIM_CONF_FILE)
         write_file(sim_file, text.getvalue())
+
+
+class CertGenerator(object):
+    def __init__(self, ad_configs, out_dir):
+        self.ad_configs = ad_configs
+        self.out_dir = out_dir
+        self.sig_priv_keys = {}
+        self.sig_pub_keys = {}
+        self.enc_pub_keys = {}
+        self.certs = {}
+        self.chains = {}
+        self.trcs = {}
+
+    def generate(self):
+        self._self_sign_keys()
+        self._iterate(self._write_ad_keys)
+        self._iterate(self._generate_ad_certs)
+        self._build_chains()
+        self._write_ad_certs()
+        self._iterate(self._generate_trc_entry)
+        self._iterate(self._sign_trc)
+        self._iterate(self._write_trc)
+
+    def _self_sign_keys(self):
+        id_ = "0-0"
+        self.sig_pub_keys[id_], self.sig_priv_keys[id_] = \
+            generate_signature_keypair()
+        self.enc_pub_keys[id_], _ = generate_cryptobox_keypair()
+
+    def _iterate(self, f):
+        for id_, ad_conf in self.ad_configs["ADs"].items():
+            f(id_, ad_conf)
+
+    def _write_ad_keys(self, id_, ad_conf):
+        isd_id, ad_id = id_.split('-')
+        sig_pub, sig_priv = generate_signature_keypair()
+        enc_pub, enc_priv = generate_cryptobox_keypair()
+        self.sig_priv_keys[id_] = sig_priv
+        self.sig_pub_keys[id_] = sig_pub
+        self.enc_pub_keys[id_] = enc_pub
+        sig_key_file = get_sig_key_file_path(isd_id, ad_id, self.out_dir)
+        enc_key_file = get_enc_key_file_path(isd_id, ad_id, self.out_dir)
+        write_file(sig_key_file, base64.b64encode(sig_priv).decode())
+        write_file(enc_key_file, base64.b64encode(enc_priv).decode())
+
+    def _generate_ad_certs(self, id_, ad_conf):
+        if ad_conf['level'] == CORE_AD:
+            return
+        if 'cert_issuer' not in ad_conf:
+            logging.warning("No 'cert_issuer' attribute for "
+                            "a non-core AD: %s", id_)
+        issuer = ad_conf.get('cert_issuer', '0-0')
+        self.certs[id_] = Certificate.from_values(
+            id_, self.sig_pub_keys[id_], self.enc_pub_keys[id_], issuer,
+            self.sig_priv_keys[issuer], INITIAL_CERT_VERSION)
+
+    def _build_chains(self):
+        for id_, cert in self.certs.items():
+            chain = [cert]
+            while cert.issuer in self.certs:
+                cert = self.certs[cert.issuer]
+                chain.append(cert)
+            self.chains[id_] = CertificateChain.from_values(chain)
+
+    def _write_ad_certs(self):
+        for id_, chain in self.chains.items():
+            isd_id, ad_id = id_.split('-')
+            cert_file = get_cert_chain_file_path(
+                isd_id, ad_id, isd_id, ad_id, INITIAL_CERT_VERSION,
+                isd_dir=self.out_dir)
+            write_file(cert_file, str(chain))
+            # Test if parser works
+            CertificateChain(cert_file)
+
+    def _generate_trc_entry(self, id_, ad_conf):
+        if ad_conf['level'] != CORE_AD:
+            return
+        isd_id, _ = id_.split('-')
+        cert = Certificate.from_values(
+            id_, self.sig_pub_keys[id_], self.enc_pub_keys[id_],
+            id_, self.sig_priv_keys[id_], 0)
+        if isd_id not in self.trcs:
+            self._create_trc(isd_id)
+        trc = self.trcs[isd_id]
+        trc.core_ads[id_] = cert
+
+    def _create_trc(self, isd_id):
+        self.trcs[isd_id] = TRC.from_values(
+            int(isd_id), 0, 1, 1, {'isp.com': 'isp.com_cert_base64'},
+            {'ca.com': 'ca.com_cert_base64'}, {}, {}, 'reg_srv_addr',
+            'reg_srv_cert', 'dns_srv_addr', 'dns_srv_cert', 'trc_srv_addr', {})
+
+    def _sign_trc(self, id_, ad_conf):
+        if ad_conf['level'] != CORE_AD:
+            return
+        isd_id, _ = id_.split('-')
+        trc = self.trcs[isd_id]
+        trc_str = trc.__str__(with_signatures=False).encode('utf-8')
+        trc.signatures[id_] = sign(trc_str, self.sig_priv_keys[id_])
+
+    def _write_trc(self, id_, _):
+        isd_id, ad_id = id_.split('-')
+        trc = self.trcs[isd_id]
+        dst_path = get_trc_file_path(isd_id, ad_id, isd_id, 0, self.out_dir)
+        write_file(dst_path, str(trc))
+        # Test if parser works
+        TRC(dst_path).verify()
 
 
 class ZKTopo(object):
