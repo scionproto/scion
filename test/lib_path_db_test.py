@@ -37,14 +37,31 @@ class TestPathSegmentDBRecordInit(object):
     Unit tests for lib.path_db.PathSegmentDBRecord.__init__
     """
     def test_basic(self):
-        pcb = create_mock(['get_hops_hash', 'iof'], class_=PathSegment)
+        pcb = create_mock(['get_hops_hash', 'iof', 'get_expiration_time'],
+                          class_=PathSegment)
         pcb.get_hops_hash.return_value = "data1"
+        pcb.get_expiration_time.return_value = 1
         pcb.iof = create_mock(["hops"])
         pcb.iof.hops = "data2"
         pth_seg_db_rec = PathSegmentDBRecord(pcb)
         ntools.eq_(pth_seg_db_rec.pcb, pcb)
         ntools.eq_(pth_seg_db_rec.id, "data1")
         ntools.eq_(pth_seg_db_rec.fidelity, "data2")
+        ntools.eq_(pth_seg_db_rec.exp_time, 1)
+
+    def text_non_default(self):
+        pcb = create_mock(['get_hops_hash', 'iof', 'get_expiration_time'],
+                          class_=PathSegment)
+        pcb.get_hops_hash.return_value = "data1"
+        pcb.get_expiration_time.return_value = 1
+        pcb.iof = create_mock(["hops"])
+        pcb.iof.hops = "data2"
+        exp_time = 300
+        pth_seg_db_rec = PathSegmentDBRecord(pcb, exp_time)
+        ntools.eq_(pth_seg_db_rec.pcb, pcb)
+        ntools.eq_(pth_seg_db_rec.id, "data1")
+        ntools.eq_(pth_seg_db_rec.fidelity, "data2")
+        ntools.eq_(pth_seg_db_rec.exp_time, exp_time)
 
 
 class TestPathSegmentDBRecordEq(object):
@@ -52,7 +69,8 @@ class TestPathSegmentDBRecordEq(object):
     Unit tests for lib.path_db.PathSegmentDBRecord.__eq__
     """
     def test_eq(self):
-        pcb = create_mock(['get_hops_hash', 'iof'], class_=PathSegment)
+        pcb = create_mock(['get_hops_hash', 'iof', 'get_expiration_time'],
+                          class_=PathSegment)
         pcb.iof = create_mock(["hops"])
         pth_seg_db_rec1 = PathSegmentDBRecord(pcb)
         pth_seg_db_rec2 = PathSegmentDBRecord(pcb)
@@ -62,7 +80,8 @@ class TestPathSegmentDBRecordEq(object):
         ntools.eq_(pth_seg_db_rec1, pth_seg_db_rec2)
 
     def test_neq(self):
-        pcb = create_mock(['get_hops_hash', 'iof'], class_=PathSegment)
+        pcb = create_mock(['get_hops_hash', 'iof', 'get_expiration_time'],
+                          class_=PathSegment)
         pcb.iof = create_mock(["hops"])
         pth_seg_db_rec1 = PathSegmentDBRecord(pcb)
         pth_seg_db_rec2 = PathSegmentDBRecord(pcb)
@@ -71,7 +90,8 @@ class TestPathSegmentDBRecordEq(object):
         ntools.assert_not_equals(pth_seg_db_rec1, pth_seg_db_rec2)
 
     def test_type_neq(self):
-        pcb = create_mock(['get_hops_hash', 'iof'], class_=PathSegment)
+        pcb = create_mock(['get_hops_hash', 'iof', 'get_expiration_time'],
+                          class_=PathSegment)
         pcb.iof = create_mock(["hops"])
         pth_seg_db_rec1 = PathSegmentDBRecord(pcb)
         pth_seg_db_rec2 = b"test"
@@ -83,7 +103,8 @@ class TestPathSegmentDBRecordHash(object):
     Unit tests for lib.path_db.PathSegmentDBRecord.__hash__
     """
     def test_basic(self):
-        pcb = create_mock(['get_hops_hash', 'iof'], class_=PathSegment)
+        pcb = create_mock(['get_hops_hash', 'iof', 'get_expiration_time'],
+                          class_=PathSegment)
         pcb.iof = create_mock(["hops"])
         pth_seg_db_rec = PathSegmentDBRecord(pcb)
         pth_seg_db_rec.id = 4
@@ -98,7 +119,7 @@ class TestPathSegmentDBInit(object):
     def test_basic(self, base):
         db = create_mock(['create', 'create_index'])
         base.return_value = db
-        pth_seg_db = PathSegmentDB()
+        pth_seg_db = PathSegmentDB(300)
         base.assert_called_once_with("", save_to_file=False)
         db.create.assert_called_once_with('record', 'id', 'first_isd',
                                           'first_ad', 'last_isd', 'last_ad',
@@ -106,6 +127,7 @@ class TestPathSegmentDBInit(object):
         db.create_index.assert_has_calls([call('id'), call('last_isd'),
                                           call('last_ad')])
         ntools.eq_(pth_seg_db._db, db)
+        ntools.eq_(pth_seg_db.segment_ttl, 300)
 
 
 class TestPathSegmentDBGetItem(object):
@@ -259,9 +281,8 @@ class TestPathSegmentDBCall(object):
     def test_basic(self, time):
         recs = []
         for i in range(5):
-            cur_rec = create_mock(['pcb', 'fidelity'])
-            cur_rec.pcb = create_mock(["get_expiration_time"])
-            cur_rec.pcb.get_expiration_time.return_value = 1
+            cur_rec = create_mock(['pcb', 'fidelity', 'exp_time'])
+            cur_rec.exp_time = 1
             cur_rec.fidelity = i
             recs.append({'record': cur_rec})
         time.return_value = 0
@@ -272,16 +293,13 @@ class TestPathSegmentDBCall(object):
         pth_seg_db._db.assert_called_once_with("data")
         time.assert_called_once_with()
         pth_seg_db._db.delete.assert_called_once_with([])
-        for i in range(5):
-            recs[i]['record'].pcb.get_expiration_time.assert_called_once_with()
 
     @patch("lib.path_store.SCIONTime.get_time", new_callable=create_mock)
     def test_expiration(self, time):
         recs = []
         for i in range(5):
-            cur_rec = create_mock(['pcb'])
-            cur_rec.pcb = create_mock(["get_expiration_time"])
-            cur_rec.pcb.get_expiration_time.return_value = -1
+            cur_rec = create_mock(['pcb', 'exp_time'])
+            cur_rec.exp_time = -1
             recs.append({'record': cur_rec, 'first_isd': 0,
                          'first_ad': 1, 'last_isd': 2, 'last_ad': 3})
         time.return_value = 0

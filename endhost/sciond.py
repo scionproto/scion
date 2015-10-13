@@ -81,6 +81,8 @@ class SCIONDaemon(SCIONElement):
     TIMEOUT = 5
     # Number of tokens the PS checks when receiving a revocation.
     N_TOKENS_CHECK = 20
+    # Time a path segment is cached at a host (in seconds).
+    SEGMENT_TTL = 300
 
     def __init__(self, addr, topo_file, run_local_api=False, is_sim=False):
         """
@@ -98,9 +100,9 @@ class SCIONDaemon(SCIONElement):
         SCIONElement.__init__(self, "sciond", topo_file, host_addr=addr,
                               is_sim=is_sim)
         # TODO replace by pathstore instance
-        self.up_segments = PathSegmentDB()
-        self.down_segments = PathSegmentDB()
-        self.core_segments = PathSegmentDB()
+        self.up_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL)
+        self.down_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL)
+        self.core_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL)
         self._waiting_targets = {PST.UP: {},
                                  PST.DOWN: {},
                                  PST.CORE: {},
