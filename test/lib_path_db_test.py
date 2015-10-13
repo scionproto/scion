@@ -231,7 +231,7 @@ class TestPathSegmentDBUpdate(object):
         pth_seg_db._db.return_value = []
         time.return_value = 1
         segment_ttl = 300
-        pth_seg_db = PathSegmentDB(300)
+        pth_seg_db = PathSegmentDB(segment_ttl)
         # Call
         pth_seg_db.update(pcb, 1, 2, 3, 4)
         # Test
