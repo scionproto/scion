@@ -700,7 +700,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         cert_chain_ad = last_pcbm.ad_id
         cert_ver = pcb.get_last_adm().cert_ver
         trc_ver = pcb.trc_ver
-        subject = 'ISD:' + str(cert_chain_isd) + '-AD:' + str(cert_chain_ad)
+        subject = "%s-%s" % (cert_chain_isd, cert_chain_ad)
         cert_chain_file = get_cert_chain_file_path(
             self.topology.isd_id, self.topology.ad_id,
             cert_chain_isd, cert_chain_ad, cert_ver)
