@@ -248,9 +248,9 @@ class Topology(object):
                 logging.warning("Encountered unknown neighbor type")
         for zk in topology['Zookeepers'].values():
             if zk['AddrType'] == "IPV4":
-                zk_host = "%s:%s" % (zk['Addr'], zk['ClientPort'])
+                zk_host = "%s:%s" % (zk['Addr'], zk['Port'])
             elif zk['AddrType'] == "IPV6":
-                zk_host = "[%s]:%s" % (zk['Addr'], zk['ClientPort'])
+                zk_host = "[%s]:%s" % (zk['Addr'], zk['Port'])
             self.zookeepers.append(zk_host)
 
     def get_all_edge_routers(self):

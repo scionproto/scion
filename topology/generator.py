@@ -26,7 +26,7 @@ import shutil
 import sys
 from collections import defaultdict
 from io import StringIO
-from ipaddress import ip_network
+from ipaddress import ip_address, ip_network
 
 # External packages
 from Crypto import Random
@@ -85,7 +85,6 @@ DEFAULT_PATH_SERVERS = 1
 DEFAULT_DNS_SERVERS = 1
 INITIAL_CERT_VERSION = 0
 INITIAL_TRC_VERSION = 0
-ISD_AD_ID_DIVISOR = '-'
 DEFAULT_DNS_DOMAIN = DNSLabel("scion")
 
 DEFAULT_NETWORK = "127.0.0.0/8"
@@ -128,9 +127,8 @@ class ConfigGenerator(object):
         Configure default network and ZooKeeper setup.
         """
         defaults = self.ad_configs.get("defaults", {})
-        if network:
-            def_network = network
-        else:
+        def_network = network
+        if not def_network:
             def_network = defaults.get("subnet", DEFAULT_NETWORK)
         self.subnet_gen = SubnetGenerator(def_network)
         for key, val in defaults.get("zookeepers", {}).items():
@@ -143,64 +141,14 @@ class ConfigGenerator(object):
         """
         self._delete_directories()
         self._generate_certs()
+        topo_dicts, zookeepers, isd_hosts = self._generate_topology()
+        self._generate_supervisor(topo_dicts, zookeepers)
+        if self.is_sim:
+            self._generate_sim_conf(topo_dicts)
+        self._generate_zk_conf(zookeepers)
         self._write_conf_files()
         self._write_path_policy_files()
-        self._write_topo_files()
-        if self.is_sim:
-            self._write_sim_run_preamble()
-            self._write_sim_file()
-
-    def _path_gen(self, isd_id, ad_id, subdir, suffix, abs_=True):
-        """
-        Generate a path to an output file.
-        """
-        if abs_:
-            parts = [self.out_dir]
-        else:
-            parts = ["..", SCRIPTS_DIR]
-        parts.append("ISD%s" % isd_id)
-        parts.append(subdir)
-        parts.append("ISD%s-AD%s%s" % (isd_id, ad_id, suffix))
-        return os.path.join(*parts)
-
-    def _trc_path_gen(self, isd_id, ad_id):
-        """
-        Generate a path to a TRC file.
-        """
-        trc_file_abs = get_trc_file_path(
-            isd_id, ad_id, isd_id, INITIAL_TRC_VERSION, isd_dir=self.out_dir)
-        return os.path.join('..', SCRIPTS_DIR,
-                            os.path.relpath(trc_file_abs, self.out_dir))
-
-    def _get_addr(self, isd_id, ad_id, elem_type, elem_id):
-        """
-        Get an address for an element, assigning a new address if necessary.
-        """
-        addr_gen = self.subnet_gen.get((isd_id, ad_id))
-        return addr_gen.get((isd_id, ad_id, elem_type, elem_id))
-
-    def _zk_path_dict(self, isd_id, ad_id, zk_id):
-        """
-        Generate paths needed for ZooKeeper configs.
-        """
-        def abs_rel(*paths):
-            return os.path.join(self.out_dir, *paths), \
-                os.path.join('..', SCRIPTS_DIR, *paths)
-        isd_str = "ISD{}".format(isd_id)
-        isd_ad_str = "ISD{}-AD{}".format(isd_id, ad_id)
-        p = {}
-        base_dir_tail = os.path.join(isd_str, ZOOKEEPER_DIR, isd_ad_str)
-        base_dir_abs, _ = abs_rel(base_dir_tail)
-        data_dir_abs, p['data_dir_rel'] = abs_rel(
-            base_dir_tail, 'data.%s' % zk_id)
-        p['datalog_dir_abs'] = os.path.join(ZOOKEEPER_TMPFS_DIR, isd_ad_str,
-                                            str(zk_id))
-        p['datalog_script_abs'] = os.path.join(
-            base_dir_abs, "datalog.%s.sh" % zk_id)
-        p['cfg_abs'], _ = abs_rel(base_dir_tail, 'zoo.cfg.%s' % zk_id)
-        p['myid_abs'] = os.path.join(data_dir_abs, 'myid')
-        p['log4j_abs'] = os.path.join(base_dir_abs, 'log4j.properties')
-        return p
+        self._write_isd_hosts(isd_hosts)
 
     def _delete_directories(self):
         """
@@ -217,13 +165,32 @@ class ConfigGenerator(object):
         certgen = CertGenerator(self.ad_configs, self.out_dir)
         certgen.generate()
 
+    def _generate_topology(self):
+        topo_gen = TopoGenerator(self.ad_configs, self.out_dir, self.subnet_gen,
+                                 self.zk_config, self.is_sim)
+        return topo_gen.generate()
+
+    def _generate_supervisor(self, topo_dicts, zookeepers):
+        super_gen = SupervisorGenerator(self.out_dir, topo_dicts, zookeepers,
+                                        self.zk_config)
+        super_gen.generate()
+
+    def _generate_sim_conf(self, topo_dicts):
+        sim_gen = SimulatorGenerator(self.out_dir, topo_dicts)
+        sim_gen.generate()
+
+    def _generate_zk_conf(self, zookeepers):
+        zk_gen = ZKConfGenerator(self.out_dir, zookeepers)
+        zk_gen.generate()
+
     def _write_conf_files(self):
         """
         Generate the AD configurations and store them into files.
         """
         for isd_ad_id, ad_conf in self.ad_configs["ADs"].items():
-            isd_id, ad_id = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-            conf_file = self._path_gen(isd_id, ad_id, CONF_DIR, ".conf")
+            topo_id = TopoID(isd_ad_id)
+            conf_file = os.path.join(self.out_dir, topo_id.ISD(), CONF_DIR,
+                                     "%s.conf" % topo_id.ISD_AD())
             master_ad_key = base64.b64encode(Random.new().read(16))
             conf_dict = {'MasterADKey': master_ad_key.decode("utf-8"),
                          'RegisterTime': 5,
@@ -248,362 +215,18 @@ class ConfigGenerator(object):
         Generate the AD path policies and store them into files.
         """
         for isd_ad_id in self.ad_configs["ADs"]:
-            (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-            new_path_pol_file = self._path_gen(
-                isd_id, ad_id, PATH_POL_DIR, ".json")
-            copy_file(self.path_policy_file, new_path_pol_file)
+            topo_id = TopoID(isd_ad_id)
+            dst = os.path.join(self.out_dir, topo_id.ISD(), PATH_POL_DIR,
+                               "%s.json" % topo_id.ISD_AD())
+            copy_file(self.path_policy_file, dst)
             # Test if parser works
-            PathPolicy.from_file(new_path_pol_file)
+            PathPolicy.from_file(dst)
 
-    def _write_topo_files(self):
-        """
-        Generate the AD topologies and store them into files. Update the AD
-        setup and supervisor files.
-
-        :param ad_configs: the configurations of all SCION ADs.
-        :type ad_configs: dict
-        :param er_ip_addresses: the edge router IP addresses.
-        :type er_ip_addresses: dict
-        """
-        isd_hosts = {}
-        for isd_ad_id, ad_conf in self.ad_configs["ADs"].items():
-            (isd_id, ad_id) = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-            if self.is_sim:
-                number_bs = 1
-            else:
-                number_bs = ad_conf.get("beacon_servers",
-                                        DEFAULT_BEACON_SERVERS)
-            number_cs = ad_conf.get("certificate_servers",
-                                    DEFAULT_CERTIFICATE_SERVERS)
-            number_ps = ad_conf.get("path_servers", DEFAULT_PATH_SERVERS)
-            number_ds = ad_conf.get("dns_servers", DEFAULT_DNS_SERVERS)
-            dns_domain = DNSLabel(ad_conf.get("dns_domain", DEFAULT_DNS_DOMAIN))
-            dns_domain = dns_domain.add("isd%s" % isd_id).add("ad%s" % ad_id)
-            hosts = isd_hosts.setdefault(isd_id, StringIO())
-            # Write beginning and general structure
-            topo_dict = {
-                'Core': ad_conf['level'] == CORE_AD,
-                'ISDID': int(isd_id),
-                'ADID': int(ad_id),
-                'DnsDomain': str(dns_domain),
-                'BeaconServers': {},
-                'CertificateServers': {},
-                'PathServers': {},
-                'DNSServers': {},
-                'EdgeRouters': {},
-                'Zookeepers': {},
-            }
-
-            # Write Beacon Servers
-            for b_server in range(1, number_bs + 1):
-                addr = self._get_addr(isd_id, ad_id, "bs", b_server)
-                topo_dict['BeaconServers'][b_server] = {
-                    'AddrType': 'IPV4',
-                    'Addr': str(addr),
-                }
-            # Write Certificate Servers
-            for c_server in range(1, number_cs + 1):
-                addr = self._get_addr(isd_id, ad_id, "cs", c_server)
-                topo_dict['CertificateServers'][c_server] = {
-                    'AddrType': 'IPV4',
-                    'Addr': str(addr),
-                }
-            # Write Path Servers
-            if (ad_conf['level'] != INTERMEDIATE_AD or
-                    "path_servers" in ad_conf):
-                for p_server in range(1, number_ps + 1):
-                    addr = self._get_addr(isd_id, ad_id, "ps", p_server)
-                    topo_dict['PathServers'][p_server] = {
-                        'AddrType': 'IPV4',
-                        'Addr': str(addr),
-                    }
-            # Write DNS Servrs
-            for d_server in range(1, number_ds + 1):
-                addr = self._get_addr(isd_id, ad_id, "ds", d_server)
-                topo_dict['DNSServers'][d_server] = {
-                    'AddrType': 'IPV4',
-                    'Addr': str(addr),
-                }
-                hosts.write("%s\tds.%s\n" % (addr, str(dns_domain).rstrip(".")))
-            # Write Edge Routers
-            edge_router = 1
-            for nbr_isd_ad_id, nbr_type in ad_conf.get("links", {}).items():
-                nbr_isd_id, nbr_ad_id = nbr_isd_ad_id.split(ISD_AD_ID_DIVISOR)
-                local_ip = self._get_addr(isd_id, ad_id, "er", edge_router)
-                public_ip = self._get_addr(
-                    isd_id, ad_id, "er", (isd_id, ad_id, nbr_isd_id, nbr_ad_id))
-                remote_ip = self._get_addr(
-                    nbr_isd_id, nbr_ad_id, "er",
-                    (nbr_isd_id, nbr_ad_id, isd_id, ad_id))
-                if_id = edge_router
-                topo_dict['EdgeRouters'][edge_router] = {
-                    'AddrType': 'IPV4',
-                    'Addr': str(local_ip),
-                    'Interface': {
-                        'IFID': if_id,
-                        'NeighborISD': int(nbr_isd_id),
-                        'NeighborAD': int(nbr_ad_id),
-                        'NeighborType': nbr_type,
-                        'AddrType': 'IPV4',
-                        'Addr': str(public_ip),
-                        'ToAddr': str(remote_ip),
-                        'UdpPort': SCION_ROUTER_PORT,
-                        'ToUdpPort': SCION_ROUTER_PORT,
-                    }
-                }
-                edge_router += 1
-            # Write Zookeepers
-            zks = {}
-            for key, val in ad_conf.get("zookeepers", {}).items():
-                zks[key] = ZKTopo(val, self.zk_config["Default"])
-            if not zks:
-                zks = self.default_zookeepers
-            for key, zk in zks.items():
-                if not zk.addr:
-                    # If there's no predefined addr, assign one.
-                    zk.addr = str(self._get_addr(isd_id, ad_id, "zk", key))
-                topo_dict['Zookeepers'][key] = zk.dict_()
-
-            topo_file_abs = self._path_gen(isd_id, ad_id, TOPO_DIR, ".json")
-            write_file(topo_file_abs,
-                       json.dumps(topo_dict, sort_keys=True, indent=4))
-            # Test if parser works
-            Topology.from_file(topo_file_abs)
-
-            self._write_derivatives(topo_dict)
-
+    def _write_isd_hosts(self, isd_hosts):
         for isd_id, hosts in isd_hosts.items():
-            hosts_path = os.path.join(self.out_dir, "ISD%s" % isd_id,
-                                      HOSTS_FILE)
+            hosts_path = os.path.join(
+                self.out_dir, "ISD%s" % isd_id, HOSTS_FILE)
             write_file(hosts_path, hosts.getvalue())
-
-    def _write_derivatives(self, topo_dict):
-        """
-        Write files, derived from the topology: supervisor configuration,
-        setup files.
-
-        :param topo_dict: topology dictionary of a SCION AD
-        :type topo_dict: dict
-        :param kwargs: misc arguments
-        :type kwargs: dict
-        :return:
-        """
-        self._write_supervisor_config(topo_dict)
-        self._write_zookeeper_config(topo_dict)
-
-    def _get_typed_elements(self, topo_dict):
-        """
-        Generator which iterates over all the elements in the topology
-        supplemented with the corresponding type label.
-
-        :param topo_dict: topology dictionary of a SCION AD.
-        :type topo_dict: dict
-        """
-        element_types = ['BeaconServers', 'CertificateServers',
-                         'PathServers', 'DNSServers', 'EdgeRouters',
-                         'Zookeepers']
-        for element_type in element_types:
-            for element_num, element_dict in topo_dict[element_type].items():
-                yield (element_num, element_dict, element_type)
-
-    def _write_supervisor_config(self, topo_dict):
-        """
-        Generate the AD supervisor configuration and store it into a file.
-
-        :param topo_dict: topology dictionary of a SCION AD.
-        :type topo_dict: dict
-        """
-        supervisor_common = {
-            'autostart': 'false',
-            'autorestart': 'false',
-            'redirect_stderr': 'true',
-            'environment': 'PYTHONPATH=..',
-            'stdout_logfile_maxbytes': '0',
-            'startretries': '0',
-        }
-
-        program_group = []
-        supervisor_config = configparser.ConfigParser(interpolation=None)
-
-        isd_id, ad_id = topo_dict['ISDID'], topo_dict['ADID']
-        dns_domain = topo_dict['DnsDomain']
-        topo_file = self._path_gen(isd_id, ad_id, TOPO_DIR, ".json", False)
-        conf_file = self._path_gen(isd_id, ad_id, CONF_DIR, ".conf", False)
-        path_pol_file = self._path_gen(isd_id, ad_id, PATH_POL_DIR, ".json",
-                                       False)
-        trc_file = self._trc_path_gen(isd_id, ad_id)
-
-        for (num, element_dict, element_type) \
-                in self._get_typed_elements(topo_dict):
-            server_config = supervisor_common.copy()
-            if element_type == 'BeaconServers':
-                element_name = 'bs{}-{}-{}'.format(isd_id, ad_id, num)
-                cmd_args = ['beacon_server.py', num,
-                            topo_file, conf_file, path_pol_file,
-                            '../logs/{}.log'.format(element_name)]
-            elif element_type == 'CertificateServers':
-                element_name = 'cs{}-{}-{}'.format(isd_id, ad_id, num)
-                cmd_args = ['cert_server.py', num,
-                            topo_file, conf_file, trc_file,
-                            '../logs/{}.log'.format(element_name)]
-            elif element_type == 'PathServers':
-                element_name = 'ps{}-{}-{}'.format(isd_id, ad_id, num)
-                cmd_args = ['path_server.py', num, topo_file, conf_file,
-                            '../logs/{}.log'.format(element_name)]
-            elif element_type == 'DNSServers':
-                element_name = 'ds{}-{}-{}'.format(isd_id, ad_id, num)
-                cmd_args = ['dns_server.py', num, str(dns_domain), topo_file,
-                            '../logs/{}.log'.format(element_name)]
-            elif element_type == 'EdgeRouters':
-                interface_dict = element_dict['Interface']
-                nbr_isd_id = interface_dict['NeighborISD']
-                nbr_ad_id = interface_dict['NeighborAD']
-                element_name = 'er{}-{}er{}-{}'.format(isd_id, ad_id,
-                                                       nbr_isd_id, nbr_ad_id)
-                cmd_args = ['router.py', num, topo_file, conf_file,
-                            '../logs/{}.log'.format(element_name)]
-            elif element_type == 'Zookeepers':
-                if not element_dict['Manage']:
-                    continue
-                element_name = 'zk{}-{}-{}'.format(isd_id, ad_id, num)
-                base_dir = self._path_gen(isd_id, ad_id, ZOOKEEPER_DIR, "",
-                                          False)
-                cfg_path = self._path_gen(isd_id, ad_id, ZOOKEEPER_DIR,
-                                          "/zoo.cfg.%s" % num, False)
-                class_path = ":".join([
-                    base_dir, self.zk_config["Environment"]["CLASSPATH"],
-                ])
-                server_config['command'] = ' '.join([
-                    '/usr/bin/java', '-cp', class_path,
-                    '-Dzookeeper.log.file=../logs/{}.log'.format(element_name),
-                    self.zk_config["Environment"]["ZOOMAIN"], cfg_path,
-                ])
-            else:
-                assert False, 'Invalid element type'
-
-            if 'command' not in server_config:
-                server_config['command'] = ' '.join(
-                    ['/usr/bin/python3'] +
-                    ['"{}"'.format(arg) for arg in cmd_args])
-            server_config['stdout_logfile'] = \
-                '../logs/{}.out'.format(element_name)
-
-            supervisor_config['program:' + element_name] = server_config
-            program_group.append(element_name)
-
-        group_header = "group:ad{}-{}".format(isd_id, ad_id)
-        supervisor_config[group_header] = {'programs': ','.join(program_group)}
-
-        # Write config
-        text = StringIO()
-        supervisor_config.write(text)
-        super_config_path = self._path_gen(isd_id, ad_id, SUPERVISOR_DIR,
-                                           ".conf")
-        write_file(super_config_path, text.getvalue())
-
-    def _write_zookeeper_config(self, topo_dict):
-        """
-        Generate the AD Zookeeper configurations.
-
-        :param topo_dict: topology dictionary of a SCION AD.
-        :type topo_dict: dict
-        """
-        isd_id, ad_id = topo_dict['ISDID'], topo_dict['ADID']
-
-        # Build up server block
-        servers = []
-        for zk_id, zk_dict in topo_dict['Zookeepers'].items():
-            servers.append("server.%s=%s:%d:%d" %
-                           (zk_id, zk_dict['Addr'], zk_dict['LeaderPort'],
-                            zk_dict['ElectionPort']))
-        server_block = "\n".join(sorted(servers))
-
-        for zk_id, zk_dict in topo_dict['Zookeepers'].items():
-            if not zk_dict.get("Manage", False):
-                # We don't manage this zookeeper instance, so no need to
-                # write configs for it.
-                continue
-            paths = self._zk_path_dict(isd_id, ad_id, zk_id)
-            copy_file(DEFAULT_ZK_LOG4J, paths['log4j_abs'])
-            text = StringIO()
-            for s in ['tickTime', 'initLimit', 'syncLimit']:
-                text.write("%s=%s\n" % (s, self.zk_config["Default"][s]))
-            text.write("dataDir=%s\n" % paths['data_dir_rel'])
-            text.write("dataLogDir=%s\n" % paths['datalog_dir_abs'])
-            text.write("clientPort=%d\n" % zk_dict["ClientPort"])
-            text.write("clientPortAddress=%s\n" % zk_dict["Addr"])
-            text.write("maxClientCnxns=%s\n" % zk_dict["MaxClientCnxns"])
-            text.write("autopurge.purgeInterval=1\n")
-            text.write("%s\n" % server_block)
-            write_file(paths['cfg_abs'], text.getvalue())
-            write_file(paths['myid_abs'], "%s\n" % zk_id)
-            write_file(paths['datalog_script_abs'],
-                       "#!/bin/bash\n"
-                       "mkdir -p %s\n" % paths['datalog_dir_abs'])
-
-    def _write_sim_run_preamble(self):
-        file_path = os.path.join(self.out_dir, SIM_DIR, 'run.sh')
-        text = StringIO()
-        text.write('#!/bin/bash\n\n')
-        text.write('sh -c "PYTHONPATH=../ python3 sim_test.py'
-                   '../SIM/sim.conf 100."\n')
-        write_file(file_path, text.getvalue())
-
-    def _write_sim_file(self):
-        """
-        Writing into sim.conf file
-
-        :param ad_configs: the configurations of all SCION ADs.
-        :type ad_configs: dict
-        """
-        text = StringIO()
-        for isd_ad_id, ad_conf in self.ad_configs["ADs"].items():
-            isd_id, ad_id = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-
-            topo_file = self._path_gen(isd_id, ad_id, TOPO_DIR, ".json", False)
-            conf_file = self._path_gen(isd_id, ad_id, CONF_DIR, ".conf", False)
-            path_pol_file = self._path_gen(isd_id, ad_id, PATH_POL_DIR, ".json",
-                                           False)
-            trc_file = self._trc_path_gen(isd_id, ad_id)
-
-            # Since we are running a simulator
-            number_bs = 1
-            number_cs = ad_conf.get("certificate_servers",
-                                    DEFAULT_CERTIFICATE_SERVERS)
-            number_ps = ad_conf.get("path_servers", DEFAULT_PATH_SERVERS)
-
-            # Beacon Servers
-            for b_server in range(1, number_bs + 1):
-                element_name = 'bs{}-{}-{}'.format(isd_id, ad_id, b_server)
-                text.write(' '.join([
-                    'beacon_server', element_name, str(b_server), topo_file,
-                    conf_file, path_pol_file]) + '\n')
-            # Certificate Servers
-            for c_server in range(1, number_cs + 1):
-                element_name = 'cs{}-{}-{}'.format(isd_id, ad_id, c_server)
-                text.write(' '.join([
-                    'cert_server', element_name, str(c_server), topo_file,
-                    conf_file, trc_file]) + '\n')
-            # Path Servers
-            if (ad_conf['level'] != INTERMEDIATE_AD or
-                    "path_servers" in ad_conf):
-                for p_server in range(1, number_ps + 1):
-                    element_name = 'ps{}-{}-{}'.format(isd_id, ad_id, p_server)
-                    text.write(' '.join([
-                        'path_server', element_name, str(p_server), topo_file,
-                        conf_file]) + '\n')
-            # Edge Routers
-            edge_router = 1
-            for nbr_isd_ad_id in ad_conf.get("links", []):
-                nbr_isd_id, nbr_ad_id = nbr_isd_ad_id.split(ISD_AD_ID_DIVISOR)
-                element_name = 'er{}-{}er{}-{}'.format(isd_id, ad_id,
-                                                       nbr_isd_id, nbr_ad_id)
-                text.write(' '.join([
-                    'router', element_name,
-                    str(edge_router), topo_file, conf_file]) + '\n')
-                edge_router += 1
-        sim_file = os.path.join(self.out_dir, SIM_DIR, SIM_CONF_FILE)
-        write_file(sim_file, text.getvalue())
 
 
 class CertGenerator(object):
@@ -628,67 +251,72 @@ class CertGenerator(object):
         self._iterate(self._write_trc)
 
     def _self_sign_keys(self):
-        id_ = "0-0"
-        self.sig_pub_keys[id_], self.sig_priv_keys[id_] = \
+        topo_id = TopoID.from_values(0, 0)
+        self.sig_pub_keys[topo_id], self.sig_priv_keys[topo_id] = \
             generate_signature_keypair()
-        self.enc_pub_keys[id_], _ = generate_cryptobox_keypair()
+        self.enc_pub_keys[topo_id], _ = generate_cryptobox_keypair()
 
     def _iterate(self, f):
-        for id_, ad_conf in self.ad_configs["ADs"].items():
-            f(id_, ad_conf)
+        for isd_ad_id, ad_conf in self.ad_configs["ADs"].items():
+            f(TopoID(isd_ad_id), ad_conf)
 
-    def _write_ad_keys(self, id_, ad_conf):
-        isd_id, ad_id = id_.split('-')
+    def _write_ad_keys(self, topo_id, ad_conf):
         sig_pub, sig_priv = generate_signature_keypair()
         enc_pub, enc_priv = generate_cryptobox_keypair()
-        self.sig_priv_keys[id_] = sig_priv
-        self.sig_pub_keys[id_] = sig_pub
-        self.enc_pub_keys[id_] = enc_pub
-        sig_key_file = get_sig_key_file_path(isd_id, ad_id, self.out_dir)
-        enc_key_file = get_enc_key_file_path(isd_id, ad_id, self.out_dir)
+        self.sig_priv_keys[topo_id] = sig_priv
+        self.sig_pub_keys[topo_id] = sig_pub
+        self.enc_pub_keys[topo_id] = enc_pub
+        sig_key_file = get_sig_key_file_path(
+            topo_id.isd, topo_id.ad, self.out_dir)
+        enc_key_file = get_enc_key_file_path(
+            topo_id.isd, topo_id.ad, self.out_dir)
         write_file(sig_key_file, base64.b64encode(sig_priv).decode())
         write_file(enc_key_file, base64.b64encode(enc_priv).decode())
 
-    def _generate_ad_certs(self, id_, ad_conf):
+    def _generate_ad_certs(self, topo_id, ad_conf):
         if ad_conf['level'] == CORE_AD:
             return
         if 'cert_issuer' not in ad_conf:
             logging.warning("No 'cert_issuer' attribute for "
-                            "a non-core AD: %s", id_)
-        issuer = ad_conf.get('cert_issuer', '0-0')
-        self.certs[id_] = Certificate.from_values(
-            id_, self.sig_pub_keys[id_], self.enc_pub_keys[id_], issuer,
-            self.sig_priv_keys[issuer], INITIAL_CERT_VERSION)
+                            "a non-core AD: %s", topo_id)
+        issuer = TopoID(ad_conf.get('cert_issuer', '0-0'))
+        self.certs[topo_id] = Certificate.from_values(
+            str(topo_id), self.sig_pub_keys[topo_id],
+            self.enc_pub_keys[topo_id], str(issuer), self.sig_priv_keys[issuer],
+            INITIAL_CERT_VERSION,
+        )
 
     def _build_chains(self):
-        for id_, cert in self.certs.items():
+        for topo_id, cert in self.certs.items():
             chain = [cert]
-            while cert.issuer in self.certs:
-                cert = self.certs[cert.issuer]
+            issuer = TopoID(cert.issuer)
+            while issuer in self.certs:
+                cert = self.certs[issuer]
                 chain.append(cert)
-            self.chains[id_] = CertificateChain.from_values(chain)
+                issuer = TopoID(cert.issuer)
+            self.chains[topo_id] = CertificateChain.from_values(chain)
 
     def _write_ad_certs(self):
-        for id_, chain in self.chains.items():
-            isd_id, ad_id = id_.split('-')
+        for topo_id, chain in self.chains.items():
             cert_file = get_cert_chain_file_path(
-                isd_id, ad_id, isd_id, ad_id, INITIAL_CERT_VERSION,
-                isd_dir=self.out_dir)
+                topo_id.isd, topo_id.ad, topo_id.isd, topo_id.ad,
+                INITIAL_CERT_VERSION, isd_dir=self.out_dir
+            )
             write_file(cert_file, str(chain))
             # Test if parser works
             CertificateChain(cert_file)
 
-    def _generate_trc_entry(self, id_, ad_conf):
+    def _generate_trc_entry(self, topo_id, ad_conf):
         if ad_conf['level'] != CORE_AD:
             return
-        isd_id, _ = id_.split('-')
         cert = Certificate.from_values(
-            id_, self.sig_pub_keys[id_], self.enc_pub_keys[id_],
-            id_, self.sig_priv_keys[id_], 0)
-        if isd_id not in self.trcs:
-            self._create_trc(isd_id)
-        trc = self.trcs[isd_id]
-        trc.core_ads[id_] = cert
+            str(topo_id), self.sig_pub_keys[topo_id],
+            self.enc_pub_keys[topo_id],
+            str(topo_id), self.sig_priv_keys[topo_id], 0)
+        if topo_id.isd not in self.trcs:
+            self._create_trc(topo_id.isd)
+        trc = self.trcs[topo_id.isd]
+        trc.core_ads[str(topo_id)] = cert
 
     def _create_trc(self, isd_id):
         self.trcs[isd_id] = TRC.from_values(
@@ -696,49 +324,398 @@ class CertGenerator(object):
             {'ca.com': 'ca.com_cert_base64'}, {}, {}, 'reg_srv_addr',
             'reg_srv_cert', 'dns_srv_addr', 'dns_srv_cert', 'trc_srv_addr', {})
 
-    def _sign_trc(self, id_, ad_conf):
+    def _sign_trc(self, topo_id, ad_conf):
         if ad_conf['level'] != CORE_AD:
             return
-        isd_id, _ = id_.split('-')
-        trc = self.trcs[isd_id]
+        trc = self.trcs[topo_id.isd]
         trc_str = trc.__str__(with_signatures=False).encode('utf-8')
-        trc.signatures[id_] = sign(trc_str, self.sig_priv_keys[id_])
+        trc.signatures[str(topo_id)] = sign(
+            trc_str, self.sig_priv_keys[topo_id])
 
-    def _write_trc(self, id_, _):
-        isd_id, ad_id = id_.split('-')
-        trc = self.trcs[isd_id]
-        dst_path = get_trc_file_path(isd_id, ad_id, isd_id, 0, self.out_dir)
+    def _write_trc(self, topo_id, _):
+        trc = self.trcs[topo_id.isd]
+        dst_path = get_trc_file_path(
+            topo_id.isd, topo_id.ad, topo_id.isd, 0, self.out_dir)
         write_file(dst_path, str(trc))
         # Test if parser works
         TRC(dst_path).verify()
 
 
+class TopoGenerator(object):
+    def __init__(self, ad_configs, out_dir, subnet_gen, zk_config, is_sim):
+        self.ad_configs = ad_configs
+        self.out_dir = out_dir
+        self.subnet_gen = subnet_gen
+        self.zk_config = zk_config
+        self.is_sim = is_sim
+        self.topo_dicts = {}
+        self.isd_hosts = defaultdict(StringIO)
+        self.zookeepers = defaultdict(dict)
+
+    def _get_addr(self, topo_id, elem_type, elem_id):
+        """
+        Get an address and address type for an element, assigning a new address
+        if necessary.
+        """
+        addr_gen = self.subnet_gen.get(topo_id)
+        addr = addr_gen.get((topo_id, elem_type, elem_id))
+        return addr, _addr_type(addr)
+
+    def _iterate(self, f):
+        for isd_ad_id, ad_conf in self.ad_configs["ADs"].items():
+            f(TopoID(isd_ad_id), ad_conf)
+
+    def generate(self):
+        self._iterate(self._generate_ad_topo)
+        self._iterate(self._write_ad_topo)
+        return self.topo_dicts, self.zookeepers, self.isd_hosts
+
+    def _generate_ad_topo(self, topo_id, ad_conf):
+        dns_domain = DNSLabel(ad_conf.get("dns_domain", DEFAULT_DNS_DOMAIN))
+        dns_domain = dns_domain.add(
+            "isd%s" % topo_id.isd).add("ad%s" % topo_id.ad)
+        self.topo_dicts[topo_id] = {
+            'Core': ad_conf['level'] == CORE_AD,
+            'ISDID': int(topo_id.isd), 'ADID': int(topo_id.ad),
+            'DnsDomain': str(dns_domain),
+            'BeaconServers': {}, 'CertificateServers': {},
+            'PathServers': {}, 'DNSServers': {},
+            'EdgeRouters': {}, 'Zookeepers': {},
+        }
+        self._gen_srv_entries(topo_id, ad_conf, dns_domain)
+        self._gen_er_entries(topo_id, ad_conf)
+        self._gen_zk_entries(topo_id, ad_conf)
+
+    def _gen_srv_entries(self, topo_id, ad_conf, dns_domain):
+        for conf_key, def_num, nick, topo_key in (
+            ("beacon_servers", DEFAULT_BEACON_SERVERS, "bs", "BeaconServers"),
+            ("certificate_servers", DEFAULT_CERTIFICATE_SERVERS, "cs",
+             "CertificateServers"),
+            ("path_servers", DEFAULT_PATH_SERVERS, "ps", "PathServers"),
+            ("dns_servers", DEFAULT_DNS_SERVERS, "ds", "DNSServers"),
+        ):
+            self._gen_srv_entry(
+                topo_id, ad_conf, conf_key, def_num, nick, topo_key)
+        self._gen_hosts_entries(topo_id, dns_domain)
+
+    def _gen_srv_entry(self, topo_id, ad_conf, conf_key, def_num, nick,
+                       topo_key):
+        count = ad_conf.get(conf_key, def_num)
+        for i in range(1, count + 1):
+            addr, addr_type = self._get_addr(topo_id, nick, i)
+            self.topo_dicts[topo_id][topo_key][i] = {
+                'AddrType': addr_type, 'Addr': str(addr),
+            }
+
+    def _gen_hosts_entries(self, topo_id, dns_domain):
+        for dns_srv in self.topo_dicts[topo_id]["DNSServers"].values():
+            self.isd_hosts[topo_id.isd].write(
+                "%s\tds.%s\n" % (dns_srv["Addr"], str(dns_domain).rstrip(".")))
+
+    def _gen_er_entries(self, topo_id, ad_conf):
+        er_id = 1
+        for remote, link_type in ad_conf["links"].items():
+            self._gen_er_entry(topo_id, er_id, TopoID(remote), link_type)
+            er_id += 1
+
+    def _gen_er_entry(self, local, er_id, remote, remote_type):
+        local_addr, local_type = self._get_addr(local, "er", er_id)
+        public_addr, public_addr_type = self._get_addr(local, "er",
+                                                       (local, remote))
+        remote_addr, remote_addr_type = self._get_addr(remote, "er",
+                                                       (remote, local))
+        assert public_addr_type == remote_addr_type
+        self.topo_dicts[local]["EdgeRouters"][er_id] = {
+            'AddrType': local_type, 'Addr': str(local_addr),
+            'Interface': {
+                'IFID': er_id,
+                'NeighborISD': int(remote.isd),
+                'NeighborAD': int(remote.ad),
+                'NeighborType': remote_type,
+                'AddrType': public_addr_type,
+                'Addr': str(public_addr),
+                'ToAddr': str(remote_addr),
+                'UdpPort': SCION_ROUTER_PORT,
+                'ToUdpPort': SCION_ROUTER_PORT,
+            }
+        }
+
+    def _gen_zk_entries(self, topo_id, ad_conf):
+        zk_conf = {}
+        if "zookeepers" in ad_conf:
+            zk_conf = ad_conf["zookeepers"]
+        elif "zookeepers" in self.ad_configs.get("defaults", {}):
+            zk_conf = self.ad_configs["defaults"]["zookeepers"]
+        for key, val in zk_conf.items():
+            self._gen_zk_entry(topo_id, key, val)
+
+    def _gen_zk_entry(self, topo_id, zk_id, zk_conf):
+        zk = ZKTopo(zk_conf, self.zk_config["Default"])
+        if zk.manage:
+            zk.addr, _ = self._get_addr(topo_id, "zk", zk_id)
+            self.zookeepers[topo_id][zk_id] = zk
+        self.topo_dicts[topo_id]["Zookeepers"][zk_id] = {
+            'AddrType': _addr_type(zk.addr),
+            'Addr': str(zk.addr),
+            'Port': zk.clientPort,
+        }
+
+    def _write_ad_topo(self, topo_id, _):
+        path = os.path.join(self.out_dir, topo_id.ISD(), TOPO_DIR, "%s.json" %
+                            topo_id.ISD_AD())
+        write_file(path, json.dumps(
+            self.topo_dicts[topo_id], sort_keys=True, indent=4))
+        Topology.from_file(path)
+
+
+class SupervisorGenerator(object):
+    def __init__(self, out_dir, topo_dicts, zookeepers, zk_config):
+        self.out_dir = out_dir
+        self.topo_dicts = topo_dicts
+        self.zookeepers = zookeepers
+        self.zk_config = zk_config
+        self._base_dir = os.path.join("..", SCRIPTS_DIR)
+
+    def generate(self):
+        for topo_id, topo in self.topo_dicts.items():
+            self._ad_conf(topo_id, topo)
+
+    def _ad_conf(self, topo_id, topo):
+        entries = []
+        topo_path = self._topo_path(topo_id)
+        conf_path = self._conf_path(topo_id)
+        path_pol_path = self._path_policy_path(topo_id)
+        trc_path = self._trc_path(topo_id)
+        entries.extend(self._std_entries(
+            topo_id, topo, "BeaconServers", "bs", "beacon_server.py",
+            [topo_path, conf_path, path_pol_path]))
+        entries.extend(self._std_entries(
+            topo_id, topo, "CertificateServers", "cs", "cert_server.py",
+            [topo_path, conf_path, trc_path]))
+        entries.extend(self._std_entries(
+            topo_id, topo, "PathServers", "ps", "path_server.py",
+            [topo_path, conf_path]))
+        entries.extend(self._std_entries(
+            topo_id, topo, "DNSServers", "ds", "dns_server.py",
+            [topo["DnsDomain"], topo_path]))
+        entries.extend(self._er_entries(topo_id, topo, [topo_path, conf_path]))
+        entries.extend(self._zk_entries(topo_id))
+        self._write_ad_conf(topo_id, entries)
+
+    def _std_entries(self, topo_id, topo, topo_key, short, cmd, args):
+        entries = []
+        for id_ in topo.get(topo_key, {}):
+            name = "%s%s-%s-%s" % (short, topo_id.isd, topo_id.ad, id_)
+            cmd_args = ["python3", cmd, id_] + args + ["../logs/%s.log" % name]
+            entries.append((name, cmd_args))
+        return entries
+
+    def _er_entries(self, topo_id, topo, args):
+        entries = []
+        for id_, val in topo.get("EdgeRouters", {}).items():
+            neigh_isd = val["Interface"]["NeighborISD"]
+            neigh_ad = val["Interface"]["NeighborAD"]
+            name = "er%s-%ser%s-%s" % (topo_id.isd, topo_id.ad,
+                                       neigh_isd, neigh_ad)
+            cmd_args = ["python3", "router.py", id_] + \
+                args + ["../logs/%s.log" % name]
+
+            entries.append((name, cmd_args))
+        return entries
+
+    def _zk_entries(self, topo_id):
+        if topo_id not in self.zookeepers:
+            return []
+        entries = []
+        base_dir = os.path.join(self._base_dir, topo_id.ISD(), ZOOKEEPER_DIR,
+                                topo_id.ISD_AD())
+        for id_, zk in self.zookeepers[topo_id].items():
+            name = "zk%s-%s-%s" % (topo_id.isd, topo_id.ad, id_)
+            cfg_path = os.path.join(base_dir, "zoo.cfg.%s" % id_)
+            class_path = ":".join([
+                base_dir, self.zk_config["Environment"]["CLASSPATH"],
+            ])
+            cmd_args = [
+                "java", "-cp", class_path,
+                '-Dzookeeper.log.file=../logs/%s.log' % name,
+                self.zk_config["Environment"]["ZOOMAIN"], cfg_path,
+            ]
+            entries.append((name, cmd_args))
+        return entries
+
+    def _write_ad_conf(self, topo_id, entries):
+        config = configparser.ConfigParser(interpolation=None)
+        names = []
+        for name, entry in sorted(entries, key=lambda x: x[0]):
+            names.append(name)
+            config["program:%s" % name] = self._common_entry(name, entry)
+        config["group:ad%s" % topo_id] = {"programs": ",".join(names)}
+        text = StringIO()
+        config.write(text)
+        conf_path = os.path.join(self.out_dir, topo_id.ISD(), SUPERVISOR_DIR,
+                                 "%s.conf" % topo_id.ISD_AD())
+        write_file(conf_path, text.getvalue())
+
+    def _get_path(self, topo_id, subdir, suffix):
+        return os.path.join(self._base_dir, topo_id.ISD(),
+                            subdir, "%s.%s" % (topo_id.ISD_AD(), suffix))
+
+    def _topo_path(self, topo_id):
+        return self._get_path(topo_id, TOPO_DIR, "json")
+
+    def _conf_path(self, topo_id):
+        return self._get_path(topo_id, CONF_DIR, "conf")
+
+    def _path_policy_path(self, topo_id):
+        return self._get_path(topo_id, PATH_POL_DIR, "json")
+
+    def _trc_path(self, topo_id):
+        return get_trc_file_path(topo_id.isd, topo_id.ad, topo_id.isd,
+                                 INITIAL_TRC_VERSION, isd_dir=self._base_dir)
+
+    def _common_entry(self, name, cmd_args):
+        return {
+            'autostart': 'false',
+            'autorestart': 'false',
+            'redirect_stderr': 'true',
+            'environment': 'PYTHONPATH=..',
+            'stdout_logfile_maxbytes': '0',
+            'stdout_logfile': "../logs/%s.out" % name,
+            'startretries': '0',
+            'command': " ".join(['"%s"' % arg for arg in cmd_args]),
+        }
+
+
+class SimulatorGenerator(SupervisorGenerator):
+    def __init__(self, out_dir, topo_dicts):
+        self.out_dir = out_dir
+        self.topo_dicts = topo_dicts
+        self._base_dir = os.path.join("..", SCRIPTS_DIR)
+        self.sim_conf = StringIO()
+
+    def generate(self):
+        super().generate()
+        self._write_run_script()
+        self._write_sim_conf()
+
+    def _zk_entries(self, topo_id):
+        # No zookeeper service
+        return []
+
+    def _write_run_script(self):
+        file_path = os.path.join(self.out_dir, SIM_DIR, 'run.sh')
+        text = StringIO()
+        text.write(
+            '#!/bin/bash\n\n'
+            'PYTHONPATH=../ python3 sim_test.py ../SIM/sim.conf 100.\n')
+        write_file(file_path, text.getvalue())
+
+    def _write_ad_conf(self, topo_id, entries):
+        for name, entry in sorted(entries, key=lambda x: x[0]):
+            if not name.endswith("-1"):
+                # Only one server per service
+                continue
+            self.sim_conf.write("%s\n" % " ".join([str(i) for i in entry[1:]]))
+
+    def _write_sim_conf(self):
+        conf = os.path.join(self.out_dir, SIM_DIR, SIM_CONF_FILE)
+        write_file(conf, self.sim_conf.getvalue())
+
+
+class ZKConfGenerator(object):
+    def __init__(self, out_dir, zookeepers):
+        self.out_dir = out_dir
+        self.zookeepers = zookeepers
+
+    def generate(self):
+        for topo_id, zks in self.zookeepers.items():
+            self._write_ad_zk_configs(topo_id, zks)
+
+    def _write_ad_zk_configs(self, topo_id, zks):
+        # Build up server block
+        servers = []
+        for id_, zk in zks.items():
+            servers.append("server.%s=%s:%d:%d" %
+                           (id_, zk.addr, zk.leaderPort,
+                            zk.electionPort))
+        server_block = "\n".join(sorted(servers))
+        base_dir_tail = os.path.join(topo_id.ISD(), ZOOKEEPER_DIR,
+                                     topo_id.ISD_AD())
+        base_dir_rel = os.path.join("..", SCRIPTS_DIR, base_dir_tail)
+        base_dir_abs = os.path.join(self.out_dir, base_dir_tail)
+        copy_file(DEFAULT_ZK_LOG4J,
+                  os.path.join(base_dir_abs, "log4j.properties"))
+        for id_, zk in zks.items():
+            text = StringIO()
+            datalog_dir = os.path.join(ZOOKEEPER_TMPFS_DIR, topo_id.ISD_AD(),
+                                       id_)
+            text.write("%s\n\n" % zk.config(
+                os.path.join(base_dir_rel, "data.%s" % id_),
+                datalog_dir,
+            ))
+            text.write("%s\n" % server_block)
+            write_file(os.path.join(base_dir_abs, 'zoo.cfg.%s' % id_),
+                       text.getvalue())
+            write_file(os.path.join(base_dir_abs, "data.%s" % id_, "myid"),
+                       "%s\n" % id_)
+            write_file(os.path.join(base_dir_abs, "datalog.%s.sh" % id_),
+                       "#!/bin/bash\nmkdir -p %s\n" % (datalog_dir))
+
+
+class TopoID(object):
+    def __init__(self, id_str):
+        self.isd, self.ad = id_str.split("-")
+
+    @classmethod
+    def from_values(cls, isd_id, ad_id):
+        return cls("%s-%s" % (isd_id, ad_id))
+
+    def ISD(self):
+        return "ISD%s" % self.isd
+
+    def ISD_AD(self):
+        return "ISD%s-AD%s" % (self.isd, self.ad)
+
+    def __str__(self):
+        return "%s-%s" % (self.isd, self.ad)
+
+    def __eq__(self, other):
+        return self.isd == other.isd and self.ad == other.ad
+
+    def __hash__(self):
+        return hash(str(self))
+
+    def __repr__(self):
+        return "<TopoID: %s>" % self
+
+
 class ZKTopo(object):
     def __init__(self, config, def_config):
         self.addr = None
+        self.def_config = def_config
         self.manage = config.get("manage", False)
         if not self.manage:
             # A ZK we don't manage must have an assigned IP in the topology
-            self.addr = config["addr"]
+            self.addr = ip_address(config["addr"])
         self.clientPort = config.get(
-            "client_port", int(def_config["clientPort"]))
+            "clientPort", def_config["clientPort"])
         self.leaderPort = config.get(
-            "leader_port", int(def_config["leaderPort"]))
+            "leaderPort", def_config["leaderPort"])
         self.electionPort = config.get(
-            "election_port", int(def_config["electionPort"]))
+            "electionPort", def_config["electionPort"])
         self.maxClientCnxns = config.get(
-            "max_client_cnxns", int(def_config["maxClientCnxns"]))
+            "maxClientCnxns", def_config["maxClientCnxns"])
 
-    def dict_(self):
-        return {
-            "Manage": self.manage,
-            "Addr": self.addr,
-            'AddrType': 'IPV4',
-            "ClientPort": self.clientPort,
-            "LeaderPort": self.leaderPort,
-            "ElectionPort": self.electionPort,
-            "MaxClientCnxns": self.maxClientCnxns,
-        }
+    def config(self, data_dir, data_log_dir):
+        c = []
+        for s in ('tickTime', 'initLimit', 'syncLimit', 'maxClientCnxns'):
+            c.append("%s=%s" % (s, self.def_config[s]))
+        c.append("dataDir=%s" % data_dir)
+        c.append("dataLogDir=%s" % data_log_dir)
+        c.append("clientPort=%s" % self.clientPort)
+        c.append("clientPortAddress=%s" % self.addr)
+        c.append("autopurge.purgeInterval=1")
+        return "\n".join(c)
 
 
 class SubnetGenerator(object):
@@ -774,6 +751,12 @@ class AddressGenerator(object):
             logging.critical("Unable to allocate any more addresses from %s",
                              self._subnet)
             sys.exit(1)
+
+
+def _addr_type(addr):
+    if addr.version == 4:
+        return "IPV4"
+    return "IPV6"
 
 
 def main():

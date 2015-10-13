@@ -4,7 +4,7 @@
         "zookeepers": {
             "1": {
                 "manage": false,
-                "addr": "localhost"
+                "addr": "127.0.0.1"
             }
         }
     },
@@ -32,21 +32,21 @@
             "zookeepers": {
                 "1": {
                     "manage": true,
-                    "client_port": 4000,
-                    "leader_port": 4001,
-                    "election_port": 4002
+                    "clientPort": 4000,
+                    "leaderPort": 4001,
+                    "electionPort": 4002
                 },
                 "2": {
                     "manage": true,
-                    "client_port": 4003,
-                    "leader_port": 4004,
-                    "election_port": 4005
+                    "clientPort": 4003,
+                    "leaderPort": 4004,
+                    "electionPort": 4005
                 },
                 "3": {
                     "manage": true,
-                    "client_port": 4006,
-                    "leader_port": 4007,
-                    "election_port": 4008
+                    "clientPort": 4006,
+                    "leaderPort": 4007,
+                    "electionPort": 4008
                 }
             }
         },
