@@ -16,10 +16,11 @@
 ===========================================================
 """
 # Stdlib
+import logging
 import os
 import profile
+import random
 import sys
-import logging
 import unittest
 from ipaddress import ip_address, ip_network
 
@@ -85,33 +86,35 @@ class RevocationSimTest(unittest.TestCase):
         """
         simulator = init_simulator()
         # Setup for ping-pong application
-        src_isd_ad = ISD_AD(1, 10)
         dst_isd_ad = ISD_AD(2, 26)
-        src_topo_path = (
-            "../../topology/ISD{}/topologies/ISD:{}-AD:{}.json"
-            .format(src_isd_ad.isd, src_isd_ad.isd, src_isd_ad.ad)
-            )
-        dst_topo_path = (
-            "../../topology/ISD{}/topologies/ISD:{}-AD:{}.json"
-            .format(dst_isd_ad.isd, dst_isd_ad.isd, dst_isd_ad.ad)
-            )
         app_start_time = 31.
-        app_end_time = 70.
-        num_hosts = 10
-        ping_interval = 1
+        app_end_time = 200.
+        num_hosts = 100
         src_host_addr_next = "127.100.100.1"
         dst_host_addr_next = "127.101.100.1"
         ping_apps = list()
         pong_apps = list()
+        local_isd_ads = simulator.local_isd_ads
+        local_isd_ads.remove(dst_isd_ad)
         for host in range(0, num_hosts):
+            # Choose a source ISD_AD
+            src_isd_ad = ISD_AD(1,10)
+            # src_isd_ad = random.choice(local_isd_ads)
+            src_topo_path = (
+                "../../topology/ISD{}/topologies/ISD:{}-AD:{}.json"
+                .format(src_isd_ad.isd, src_isd_ad.isd, src_isd_ad.ad)
+                )
+            dst_topo_path = (
+                "../../topology/ISD{}/topologies/ISD:{}-AD:{}.json"
+                .format(dst_isd_ad.isd, dst_isd_ad.isd, dst_isd_ad.ad)
+                )
             src_host_addr = haddr_parse("IPv4", src_host_addr_next)
             dst_host_addr = haddr_parse("IPv4", dst_host_addr_next)
             src_host_addr_next = increment_address(src_host_addr_next, 8)
             dst_host_addr_next = increment_address(dst_host_addr_next, 8)
             host1 = SCIONSimHost(src_host_addr, src_topo_path, simulator)
             host2 = SCIONSimHost(dst_host_addr, dst_topo_path, simulator)
-            if host == num_hosts - 1:
-                ping_interval = 8
+            ping_interval = random.randint(1,100)
             ping_application = SimPingApp(host1, dst_host_addr,
                                           dst_isd_ad.ad, dst_isd_ad.isd,
                                           ping_interval)
@@ -119,6 +122,8 @@ class RevocationSimTest(unittest.TestCase):
             ping_apps.append(ping_application)
             pong_apps.append(pong_application)
             ping_application.start(app_start_time)
+            logging.info("Source host: %s", src_isd_ad)
+            logging.info("Ping frequency: %d", ping_interval)
         simulator.add_event(app_end_time + 0.0001, cb=simulator.terminate)
 
         event_parser = EventParser(simulator)

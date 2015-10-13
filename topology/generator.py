@@ -583,14 +583,15 @@ class ConfigGenerator(object):
                 text.write(' '.join([
                     'beacon_server', element_name,
                     ('core' if is_core else 'local'), str(b_server),
-                    topo_file, conf_file, path_pol_file]) + '\n')
+                    topo_file, conf_file, path_pol_file,
+                    isd_id, ad_id]) + '\n')
             # Certificate Servers
             for c_server in range(1, number_cs + 1):
                 element_name = 'cs{}-{}-{}'.format(isd_id, ad_id, c_server)
                 text.write(' '.join([
                     'cert_server', element_name,
                     str(c_server), topo_file,
-                    conf_file, trc_file]) + '\n')
+                    conf_file, trc_file, isd_id, ad_id]) + '\n')
             # Path Servers
             if (ad_configs[isd_ad_id]['level'] != INTERMEDIATE_AD or
                     "path_servers" in ad_configs[isd_ad_id]):
@@ -599,7 +600,8 @@ class ConfigGenerator(object):
                     text.write(' '.join([
                         'path_server', element_name,
                         ('core' if is_core else 'local'),
-                        str(p_server), topo_file, conf_file]) + '\n')
+                        str(p_server), topo_file, conf_file,
+                        isd_id, ad_id]) + '\n')
             # Edge Routers
             edge_router = 1
             for nbr_isd_ad_id in ad_configs[isd_ad_id].get("links", []):
@@ -608,7 +610,8 @@ class ConfigGenerator(object):
                                                        nbr_isd_id, nbr_ad_id)
                 text.write(' '.join([
                     'router', element_name,
-                    str(edge_router), topo_file, conf_file]) + '\n')
+                    str(edge_router), topo_file, conf_file,
+                    isd_id, ad_id]) + '\n')
                 edge_router += 1
         sim_file = os.path.join(self.out_dir, SIM_DIR, SIM_CONF_FILE)
         write_file(sim_file, text.getvalue())

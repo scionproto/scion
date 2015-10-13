@@ -22,6 +22,7 @@ import sys
 
 # SCION
 from lib.defines import TOPOLOGY_PATH
+from lib.packet.scion_addr import ISD_AD
 
 # SCION Simulator
 from simulator.lib.sim_core import Simulator
@@ -88,9 +89,13 @@ def init_elements(data, simulator):
             if items[2] == "core":
                 CorePathServerSim(items[3], items[4], items[5], items[1],
                                   simulator)
+                simulator.core_isd_ads.append(ISD_AD(int(items[6]),
+                                                     int(items[7])))
             elif items[2] == "local":
                 LocalPathServerSim(items[3], items[4], items[5], items[1],
                                    simulator)
+                simulator.local_isd_ads.append(ISD_AD(int(items[6]),
+                                                      int(items[7])))
             else:
                 logging.error("First parameter can only be 'local' or 'core'!")
                 sys.exit()

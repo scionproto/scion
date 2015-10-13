@@ -91,6 +91,8 @@ class Simulator(object):
         # list of removed (not expired or executed) events
         self.removed = []
         SCIONTime.set_time_method(lambda: self.get_curr_time())
+        self.core_isd_ads = list()
+        self.local_isd_ads = list()
 
     def add_element(self, addr, element):
         """
