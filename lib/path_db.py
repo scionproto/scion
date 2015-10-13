@@ -63,7 +63,8 @@ class PathSegmentDBRecord(object):
 
         :param pcb: The PCB stored in the record.
         :type pcb: :class:`lib.packet.pcb.PathSegment`
-        :param int exp_time: The expiration time for the record (in seconds).
+        :param int exp_time: The expiration time for the record (in seconds),
+            or None to just use the segment's expiration time.
         """
         assert isinstance(pcb, PathSegment)
         self.pcb = pcb
@@ -111,7 +112,8 @@ class PathSegmentDB(object):
         """
         Initialize an instance of the class PathSegmentDB.
 
-        :param int segment_ttl: The TTL for each record in the database (in s).
+        :param int segment_ttl: The TTL for each record in the database (in s)
+            or None to just use the segment's expiration time.
         """
         db = Base("", save_to_file=False)
         db.create('record', 'id', 'first_isd', 'first_ad', 'last_isd',
