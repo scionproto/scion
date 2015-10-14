@@ -30,10 +30,10 @@ from lib.crypto.hash_chain import HashChain
 from lib.packet.opaque_field import (
     HopOpaqueField,
     InfoOpaqueField,
-    OpaqueFieldType as OFT,
 )
 from lib.packet.pcb import ADMarking, PCBMarking, PathSegment
 from lib.path_store import PathPolicy, PathStore
+from lib.types import OpaqueFieldType as OFT
 from lib.util import get_sig_key_file_path, read_file
 
 

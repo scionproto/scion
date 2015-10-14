@@ -26,10 +26,10 @@ from lib.packet.opaque_field import (
     InfoOpaqueField,
     OpaqueField,
     OpaqueFieldList,
-    OpaqueFieldType as OFT,
 )
 from lib.packet.packet_base import HeaderBase
 from lib.packet.scion_addr import ISD_AD
+from lib.types import OpaqueFieldType as OFT
 from lib.util import Raw
 
 UP_IOF = "up_segment_iof"
@@ -299,6 +299,7 @@ class CorePath(PathBase):
     | info OF core-segment | hop OF 1 | ... | hop OF N
     | info OF down-segment | hop OF 1 | ... | hop OF N
     """
+    NAME = "CorePath"
     OF_ORDER = UP_IOF, UP_HOFS, CORE_IOF, CORE_HOFS, DOWN_IOF, DOWN_HOFS
     REVERSE_IOF_MAP = {UP_IOF: DOWN_IOF, DOWN_IOF: UP_IOF, CORE_IOF: CORE_IOF}
     SEGMENT_OFFSETS = 1, 2
@@ -330,7 +331,7 @@ class CorePath(PathBase):
         """
         Parse a raw :any:`CorePath`.
         """
-        data = Raw(raw, "CorePath")
+        data = Raw(raw, self.NAME)
         # Parse up-segment
         count = self._parse_iof(data, UP_IOF)
         self._parse_hofs(data, UP_HOFS, count)
@@ -428,6 +429,7 @@ class CrossOverPath(PathBase):
     verification and for determination whether path can terminate at destination
     AD (i.e., its last egress interface has to equal 0).
     """
+    NAME = "CrossOverPath"
     OF_ORDER = (UP_IOF, UP_HOFS, UP_UPSTREAM_HOF,
                 DOWN_IOF, DOWN_UPSTREAM_HOF, DOWN_HOFS)
     SEGMENT_OFFSETS = 2, 4
@@ -459,7 +461,7 @@ class CrossOverPath(PathBase):
         """
         Parses a raw :any:`CrossOverPath`.
         """
-        data = Raw(raw, "CrossOverPath")
+        data = Raw(raw, self.NAME)
         # Parse up-segment
         count = self._parse_iof(data, UP_IOF)
         self._parse_hofs(data, UP_HOFS, count)
@@ -564,6 +566,7 @@ class PeerPath(PathBase):
     The upstream AD OF is needed to verify the last hop of the up-segment /
     first hop of the down-segment respectively.
     """
+    NAME = "PeerPath"
     OF_ORDER = (UP_IOF, UP_HOFS, UP_PEERING_HOF, UP_UPSTREAM_HOF,
                 DOWN_IOF, DOWN_UPSTREAM_HOF, DOWN_PEERING_HOF, DOWN_HOFS)
     SEGMENT_OFFSETS = 2, 4
@@ -600,7 +603,7 @@ class PeerPath(PathBase):
         """
         Parse a raw :any:`PeerPath`.
         """
-        data = Raw(raw, "PeerPath")
+        data = Raw(raw, self.NAME)
         # Parse up-segment
         count = self._parse_iof(data, UP_IOF)
         self._parse_hofs(data, UP_HOFS, count)
@@ -1060,12 +1063,11 @@ def parse_path(raw):
         return EmptyPath()
     info = InfoOpaqueField(raw[:InfoOpaqueField.LEN])
     if info.info == OFT.CORE:
-        path = CorePath(raw)
+        return CorePath(raw)
     elif info.info == OFT.SHORTCUT:
-        path = CrossOverPath(raw)
+        return CrossOverPath(raw)
     elif info.info in (OFT.INTRA_ISD_PEER, OFT.INTER_ISD_PEER):
-        path = PeerPath(raw)
+        return PeerPath(raw)
     else:
         raise SCIONParseError("Can not parse path in "
                               "packet: Unknown type %x", info.info)
-    return path

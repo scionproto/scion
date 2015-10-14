@@ -23,22 +23,21 @@ import threading
 # SCION
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.hash_chain import HashChain
-from lib.defines import ADDR_IPV4_TYPE, PATH_SERVICE, SCION_UDP_PORT
+from lib.defines import PATH_SERVICE, SCION_UDP_PORT
 from lib.errors import SCIONBaseError, SCIONServiceLookupError
-from lib.log import log_exception
 from lib.packet.host_addr import haddr_parse
-from lib.packet.packet_base import PayloadClass
 from lib.packet.path import EmptyPath, PathCombinator
-from lib.packet.path_mgmt import (
-    PathMgmtType as PMT,
-    PathSegmentInfo,
-    PathSegmentType as PST,
-)
+from lib.packet.path_mgmt import PathSegmentInfo
 from lib.packet.scion_addr import ISD_AD
-from lib.packet.scion import SCIONL4Packet
 from lib.path_db import PathSegmentDB
 from lib.socket import UDPSocket
 from lib.thread import thread_safety_net
+from lib.types import (
+    AddrType,
+    PathMgmtType as PMT,
+    PathSegmentType as PST,
+    PayloadClass,
+)
 from lib.util import update_dict
 
 WAIT_CYCLES = 3
@@ -82,6 +81,8 @@ class SCIONDaemon(SCIONElement):
     TIMEOUT = 5
     # Number of tokens the PS checks when receiving a revocation.
     N_TOKENS_CHECK = 20
+    # Time a path segment is cached at a host (in seconds).
+    SEGMENT_TTL = 300
 
     def __init__(self, addr, topo_file, run_local_api=False, is_sim=False):
         """
@@ -99,19 +100,26 @@ class SCIONDaemon(SCIONElement):
         SCIONElement.__init__(self, "sciond", topo_file, host_addr=addr,
                               is_sim=is_sim)
         # TODO replace by pathstore instance
-        self.up_segments = PathSegmentDB()
-        self.down_segments = PathSegmentDB()
-        self.core_segments = PathSegmentDB()
+        self.up_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL)
+        self.down_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL)
+        self.core_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL)
         self._waiting_targets = {PST.UP: {},
                                  PST.DOWN: {},
                                  PST.CORE: {},
                                  PST.UP_DOWN: {}}
         self._api_socket = None
         self.daemon_thread = None
+
+        self.PLD_CLASS_MAP = {
+            PayloadClass.PATH: {
+                PMT.REPLY: self.handle_path_reply,
+                PMT.REVOCATION: self.handle_revocation,
+            }
+        }
         if run_local_api:
             self._api_sock = UDPSocket(
                 bind=(SCIOND_API_HOST, SCIOND_API_PORT, "sciond local API"),
-                addr_type=ADDR_IPV4_TYPE)
+                addr_type=AddrType.IPV4)
             self._socks.add(self._api_sock)
 
     @classmethod
@@ -337,7 +345,7 @@ class SCIONDaemon(SCIONElement):
             fwd_if = path.get_fwd_if()
             # Set dummy host addr if path is EmptyPath.
             # TODO(PSz): remove dummy "0.0.0.0" address when API is saner
-            haddr = self.ifid2addr.get(fwd_if, haddr_parse("IPv4", "0.0.0.0"))
+            haddr = self.ifid2addr.get(fwd_if, haddr_parse("IPV4", "0.0.0.0"))
             path_len = len(raw_path) // 8
             reply.append(struct.pack("B", path_len) + raw_path +
                          haddr.pack() + struct.pack("H", SCION_UDP_PORT) +
@@ -429,22 +437,4 @@ class SCIONDaemon(SCIONElement):
         if not from_local_socket:  # From localhost (SCIONDaemon API)
             self.api_handle_request(packet, sender)
             return
-        type_map = {
-            PMT.REPLY: self.handle_path_reply,
-            PMT.REVOCATION: self.handle_revocation,
-        }
-        pkt = SCIONL4Packet(packet)
-        payload = pkt.parse_payload()
-        if payload.PAYLOAD_CLASS != PayloadClass.PATH:
-            logging.error("Payload class %d not supported.",
-                          payload.PAYLOAD_CLASS)
-            return
-        handler = type_map.get(payload.PAYLOAD_TYPE)
-        if handler is None:
-            logging.warning("Path management packet type %d not supported.",
-                            payload.PAYLOAD_TYPE)
-            return
-        try:
-            handler(pkt)
-        except SCIONBaseError:
-            log_exception("Error handling packet: %s" % pkt)
+        super().handle_request(packet, sender, from_local_socket)

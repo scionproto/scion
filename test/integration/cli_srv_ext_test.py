@@ -48,10 +48,10 @@ def client():
     """
     Simple client
     """
-    topo_file = ("../../topology/ISD%d/topologies/ISD:%d-AD:%d.json" %
+    topo_file = ("../../topology/ISD%d/topologies/ISD%d-AD%d.json" %
                  (CLI_ISD, CLI_ISD, CLI_AD))
     # Start SCIONDaemon
-    sd = SCIONDaemon.start(haddr_parse("IPv4", CLI_IP), topo_file)
+    sd = SCIONDaemon.start(haddr_parse("IPV4", CLI_IP), topo_file)
     logging.info("CLI: Sending PATH request for (%d, %d)", SRV_ISD, SRV_AD)
     # Get paths to server through function call
     paths = sd.get_paths(SRV_ISD, SRV_AD)
@@ -65,7 +65,7 @@ def client():
     # Create empty Traceroute extensions with allocated space
     ext = TracerouteExt.from_values(routers_no)
     # Create a SCION address to the destination
-    dst = SCIONAddr.from_values(SRV_ISD, SRV_AD, haddr_parse("IPv4", SRV_IP))
+    dst = SCIONAddr.from_values(SRV_ISD, SRV_AD, haddr_parse("IPV4", SRV_IP))
     # Set payload
     payload = PayloadRaw(b"request to server")
     # Create a SCION packet with the extensions
@@ -95,10 +95,10 @@ def server():
     """
     Simple server.
     """
-    topo_file = ("../../topology/ISD%d/topologies/ISD:%d-AD:%d.json" %
+    topo_file = ("../../topology/ISD%d/topologies/ISD%d-AD%d.json" %
                  (SRV_ISD, SRV_ISD, SRV_AD))
     # Start SCIONDaemon
-    sd = SCIONDaemon.start(haddr_parse("IPv4", SRV_IP), topo_file)
+    sd = SCIONDaemon.start(haddr_parse("IPV4", SRV_IP), topo_file)
     # Open a socket for incomming DATA traffic
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)

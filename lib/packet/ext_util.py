@@ -22,12 +22,13 @@ import struct
 # SCION
 from lib.defines import L4_PROTOS
 from lib.errors import SCIONParseError
-from lib.packet.ext_hdr import ExtensionClass, ExtensionHeader
+from lib.packet.ext_hdr import ExtensionHeader, HopByHopType
 from lib.packet.ext.traceroute import TracerouteExt
+from lib.types import ExtensionClass
 
 # Dictionary of supported extensions
 EXTENSION_MAP = {
-    (ExtensionClass.HOP_BY_HOP, TracerouteExt.EXT_TYPE): TracerouteExt,
+    (ExtensionClass.HOP_BY_HOP, HopByHopType.TRACEROUTE): TracerouteExt,
 }
 
 
@@ -48,8 +49,8 @@ def parse_extensions(data, next_hdr):
         try:
             ext_class = EXTENSION_MAP[(cur_hdr_type, ext_no)]
         except KeyError:
-            SCIONParseError("Extension (%d, %d) unknown." %
-                            (cur_hdr_type, ext_no))
+            raise SCIONParseError("Extension (%d, %d) unknown." %
+                                  (cur_hdr_type, ext_no)) from None
         ext_hdrs.append(
             ext_class(data.pop(hdr_len - ExtensionHeader.SUBHDR_LEN)))
         cur_hdr_type = next_hdr_type

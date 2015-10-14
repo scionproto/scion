@@ -21,6 +21,7 @@ Various utilities for SCION functionality.
 import json
 import logging
 import os
+import shutil
 import signal
 import sys
 import time
@@ -89,7 +90,7 @@ def get_cert_chain_file_path(loc_isd, loc_ad, isd_id, ad_id, version,
     isd_dir_prefix = _get_isd_prefix(isd_dir)
     return os.path.join(isd_dir_prefix + str(loc_isd), CERT_DIR,
                         'AD{}'.format(loc_ad),
-                        'ISD:{}-AD:{}-V:{}.crt'.format(isd_id, ad_id, version))
+                        'ISD{}-AD{}-V{}.crt'.format(isd_id, ad_id, version))
 
 
 def get_trc_file_path(loc_isd, loc_ad, isd_id, version,
@@ -112,7 +113,7 @@ def get_trc_file_path(loc_isd, loc_ad, isd_id, version,
     isd_dir_prefix = _get_isd_prefix(isd_dir)
     return os.path.join(isd_dir_prefix + str(loc_isd), CERT_DIR,
                         'AD{}'.format(loc_ad),
-                        'ISD:{}-V:{}.crt'.format(isd_id, version))
+                        'ISD{}-V{}.crt'.format(isd_id, version))
 
 
 def get_sig_key_file_path(isd_id, ad_id, isd_dir=TOPOLOGY_PATH):
@@ -129,7 +130,7 @@ def get_sig_key_file_path(isd_id, ad_id, isd_dir=TOPOLOGY_PATH):
     """
     isd_dir_prefix = _get_isd_prefix(isd_dir)
     return os.path.join(isd_dir_prefix + str(isd_id), SIG_KEYS_DIR,
-                        'ISD:{}-AD:{}.key'.format(isd_id, ad_id))
+                        'ISD{}-AD{}.key'.format(isd_id, ad_id))
 
 
 def get_enc_key_file_path(isd_id, ad_id, isd_dir=TOPOLOGY_PATH):
@@ -146,7 +147,7 @@ def get_enc_key_file_path(isd_id, ad_id, isd_dir=TOPOLOGY_PATH):
     """
     isd_dir_prefix = _get_isd_prefix(isd_dir)
     return os.path.join(isd_dir_prefix + str(isd_id), ENC_KEYS_DIR,
-                        'ISD:{}-AD:{}.key'.format(isd_id, ad_id))
+                        'ISD{}-AD{}.key'.format(isd_id, ad_id))
 
 
 def read_file(file_path):
@@ -199,6 +200,20 @@ def write_file(file_path, text):
     except OSError as e:
         raise SCIONIOError("Error moving '%s' to '%s': %s" %
                            (tmp_file, file_path, e.strerror)) from None
+
+
+def copy_file(src, dst):
+    dst_dir = os.path.dirname(dst)
+    try:
+        os.makedirs(dst_dir, exist_ok=True)
+    except OSError as e:
+        raise SCIONIOError("Error creating dir '%s': %s" %
+                           (dst_dir, e.strerror)) from None
+    try:
+        shutil.copyfile(src, dst)
+    except OSError as e:
+        raise SCIONIOError("Error copying '%s' to '%s': %s" %
+                           (src, dst, e.strerror)) from None
 
 
 def load_json_file(file_path):

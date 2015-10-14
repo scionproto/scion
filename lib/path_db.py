@@ -57,12 +57,14 @@ class PathSegmentDBRecord(object):
     :type fidelity:
     """
 
-    def __init__(self, pcb):
+    def __init__(self, pcb, exp_time=None):
         """
         Initialize an instance of the class PathSegmentDBRecord.
 
-        :param pcb:
-        :type pcb:
+        :param pcb: The PCB stored in the record.
+        :type pcb: :class:`lib.packet.pcb.PathSegment`
+        :param int exp_time: The expiration time for the record (in seconds),
+            or None to just use the segment's expiration time.
         """
         assert isinstance(pcb, PathSegment)
         self.pcb = pcb
@@ -70,6 +72,10 @@ class PathSegmentDBRecord(object):
         # Fidelity can be used to configure the desirability of a path. For
         # now we just use path length.
         self.fidelity = pcb.iof.hops
+        if exp_time:
+            self.exp_time = min(pcb.get_expiration_time(), exp_time)
+        else:
+            self.exp_time = pcb.get_expiration_time()
 
     def __eq__(self, other):
         """
@@ -102,9 +108,12 @@ class PathSegmentDB(object):
     :type _db:
     """
 
-    def __init__(self):
+    def __init__(self, segment_ttl=None):
         """
         Initialize an instance of the class PathSegmentDB.
+
+        :param int segment_ttl: The TTL for each record in the database (in s)
+            or None to just use the segment's expiration time.
         """
         db = Base("", save_to_file=False)
         db.create('record', 'id', 'first_isd', 'first_ad', 'last_isd',
@@ -113,6 +122,7 @@ class PathSegmentDB(object):
         db.create_index('last_isd')
         db.create_index('last_ad')
         self._db = db
+        self.segment_ttl = segment_ttl
 
     def __getitem__(self, seg_id):
         """
@@ -162,7 +172,11 @@ class PathSegmentDB(object):
         :rtype:
         """
         assert isinstance(pcb, PathSegment)
-        record = PathSegmentDBRecord(pcb)
+        if self.segment_ttl:
+            now = int(SCIONTime.get_time())
+            record = PathSegmentDBRecord(pcb, now + self.segment_ttl)
+        else:
+            record = PathSegmentDBRecord(pcb)
         recs = self._db(id=record.id)
         assert len(recs) <= 1, "PathDB contains > 1 path with the same ID"
         if not recs:
@@ -226,7 +240,6 @@ class PathSegmentDB(object):
         for seg_id in segment_ids:
             if self.delete(seg_id) == DBResult.ENTRY_DELETED:
                 deletions += 1
-
         return deletions
 
     def __call__(self, *args, **kwargs):
@@ -250,7 +263,7 @@ class PathSegmentDB(object):
         valid_recs = []
         # Remove expired path from the cache.
         for r in recs:
-            if r['record'].pcb.get_expiration_time() < now:
+            if r['record'].exp_time < now:
                 expired_recs.append(r)
                 logging.debug("Path-Segment (%d, %d) -> (%d, %d) expired.",
                               r['first_isd'], r['first_ad'],

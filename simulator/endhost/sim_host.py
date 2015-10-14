@@ -24,13 +24,10 @@ from endhost.sciond import SCIONDaemon, SCIOND_API_PORT
 from lib.defines import SCION_UDP_PORT
 from lib.errors import SCIONParseError, SCIONKeyError
 from lib.packet.path import PathCombinator
-from lib.packet.path_mgmt import (
-    PathMgmtType as PMT,
-    PathSegmentInfo,
-    PathSegmentType as PST,
-)
+from lib.packet.path_mgmt import PathSegmentInfo
 from lib.packet.scion import SCIONL4Packet
 from lib.packet.scion_addr import ISD_AD
+from lib.types import PathMgmtType as PMT, PathSegmentType as PST
 from lib.util import update_dict
 
 # External

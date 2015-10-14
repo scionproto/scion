@@ -24,6 +24,7 @@ import nose
 import nose.tools as ntools
 
 # SCION
+from lib.errors import SCIONParseError
 from lib.packet.path import (
     CORE_HOFS,
     CORE_IOF,
@@ -40,8 +41,10 @@ from lib.packet.path import (
     UP_IOF,
     UP_PEERING_HOF,
     UP_UPSTREAM_HOF,
+    parse_path,
 )
-from lib.packet.opaque_field import OpaqueFieldType as OFT, OpaqueField
+from lib.packet.opaque_field import OpaqueField
+from lib.types import OpaqueFieldType as OFT
 from test.testcommon import assert_these_calls, create_mock
 
 
@@ -1558,6 +1561,46 @@ class TestPathCombinatorJoinShortcutsPeer(object):
         down_ad.pms[0].hof = 'down_hof0'
         ntools.eq_(PathCombinator._join_shortcuts_peer(up_ad, down_ad),
                    ("up_hof1", "down_hof0"))
+
+
+class TestParsePath(object):
+    """
+    Unit tests for lib.packet.path.parse_path
+    """
+    @patch("lib.packet.path.EmptyPath", autospec=True)
+    def test_empty(self, empty):
+        ntools.eq_(parse_path(""), empty.return_value)
+
+    @patch("lib.packet.path.PeerPath", autospec=True)
+    @patch("lib.packet.path.CrossOverPath", autospec=True)
+    @patch("lib.packet.path.CorePath", autospec=True)
+    @patch("lib.packet.path.InfoOpaqueField", autospec=True)
+    def _check_paths(self, info_type, class_name, iof, core, xover, peer):
+        class_map = {"core": core, "xover": xover, "peer": peer}
+        class_ = class_map[class_name]
+        info = create_mock(["info"])
+        info.info = info_type
+        iof.return_value = info
+        iof.LEN = 10
+        # Call
+        ntools.eq_(parse_path(range(20)), class_.return_value)
+        # Tests
+        iof.assert_called_once_with(range(10))
+        class_.assert_called_once_with(range(20))
+
+    def test_paths(self):
+        for info_type, class_name in (
+            (OFT.CORE, "core"),
+            (OFT.SHORTCUT, "xover"),
+            (OFT.INTRA_ISD_PEER, "peer"),
+            (OFT.INTER_ISD_PEER, "peer"),
+        ):
+            yield self._check_paths, info_type, class_name
+
+    @patch("lib.packet.path.InfoOpaqueField", autospec=True)
+    def test_unknown(self, iof):
+        iof.return_value = create_mock(["info"])
+        ntools.assert_raises(SCIONParseError, parse_path, range(1))
 
 
 if __name__ == "__main__":

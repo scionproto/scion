@@ -34,6 +34,7 @@ class ISD_AD(namedtuple('ISD_AD', 'isd ad')):
     :ivar int isd: ISD identifier.
     :ivar int ad: AD identifier.
     """
+    NAME = "ISD_AD"
     LEN = 4
 
     @classmethod
@@ -47,11 +48,11 @@ class ISD_AD(namedtuple('ISD_AD', 'isd ad')):
         :returns: ISD, AD tuple.
         :rtype: ISD_AD
         """
-        data = Raw(raw, "ISD_AD", cls.LEN)
+        data = Raw(raw, cls.NAME, cls.LEN)
         isd_ad = struct.unpack("!I", data.pop(cls.LEN))[0]
         isd = isd_ad >> 20
         ad = isd_ad & 0x000fffff
-        return ISD_AD(isd, ad)
+        return cls(isd, ad)
 
     def pack(self):
         """
@@ -66,7 +67,7 @@ class ISD_AD(namedtuple('ISD_AD', 'isd ad')):
         ad = self.ad & 0x000fffff
         return struct.pack("!I", isd + ad)
 
-    def __len__(self):
+    def __len__(self):  # pragma: no cover
         return self.LEN
 
 
@@ -137,7 +138,7 @@ class SCIONAddr(object):
     def __len__(self):
         return self.addr_len
 
-    def __eq__(self, other):
+    def __eq__(self, other):  # pragma: no cover
         return (
             self.isd_id == other.isd_id and
             self.ad_id == other.ad_id and

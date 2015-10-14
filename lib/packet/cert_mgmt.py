@@ -21,26 +21,10 @@ from binascii import hexlify
 
 # SCION
 from lib.errors import SCIONParseError
-from lib.packet.packet_base import PayloadClass, SCIONPayloadBase
+from lib.packet.packet_base import SCIONPayloadBase
 from lib.packet.scion_addr import ISD_AD
+from lib.types import CertMgmtType, PayloadClass
 from lib.util import Raw
-
-
-class CertMgmtType(object):
-    CERT_CHAIN_REQ = 0
-    CERT_CHAIN_REPLY = 1
-    TRC_REQ = 2
-    TRC_REPLY = 3
-
-    @classmethod
-    def to_str(cls, type_):
-        type_map = {
-            cls.CERT_CHAIN_REQ: "CERT_CHAIN_REQ",
-            cls.CERT_CHAIN_REPLY: "CERT_CHAIN_REPLY",
-            cls.TRC_REQ: "TRC_REQ",
-            cls.TRC_REPLY: "TRC_REPLY",
-        }
-        return type_map[type_]
 
 
 class CertMgmtBase(SCIONPayloadBase):
@@ -49,11 +33,11 @@ class CertMgmtBase(SCIONPayloadBase):
 
 
 class CertChainRequest(CertMgmtBase):
-    PAYLOAD_TYPE = CertMgmtType.CERT_CHAIN_REQ
     NAME = "CertChainRequest"
+    PAYLOAD_TYPE = CertMgmtType.CERT_CHAIN_REQ
     LEN = 2 + ISD_AD.LEN * 2 + 4 + 1
 
-    def __init__(self, raw=None):
+    def __init__(self, raw=None):  # pragma: no cover
         """
         :param raw: packed packet.
         :type raw: bytes
@@ -99,12 +83,12 @@ class CertChainRequest(CertMgmtBase):
         packed.append(struct.pack("!B", self.local))
         return b"".join(packed)
 
-    def __len__(self):
+    def __len__(self):  # pragma: no cover
         return self.LEN
 
     def __str__(self):
         return (
-            "[%s (%dB): Ingress IF:%s Src ISD/AD: %d-%d "
+            "[%s(%dB): Ingress IF:%s Src ISD/AD: %d-%d "
             "Dest ISD/AD: %d-%d Version:%d Local:%s]" % (
                 self.NAME, len(self), self.ingress_if, self.src_isd,
                 self.src_ad, self.isd_id, self.ad_id, self.version, self.local))
@@ -129,7 +113,7 @@ class CertChainReply(CertMgmtBase):
     PAYLOAD_TYPE = CertMgmtType.CERT_CHAIN_REPLY
     MIN_LEN = ISD_AD.LEN + 4
 
-    def __init__(self, raw=None):
+    def __init__(self, raw=None):  # pragma: no cover
         """
         Initialize an instance of the class CertChainReply.
 
@@ -188,23 +172,23 @@ class CertChainReply(CertMgmtBase):
         packed.append(self.cert_chain)
         return b"".join(packed)
 
-    def __len__(self):
+    def __len__(self):  # pragma: no cover
         return self.MIN_LEN + len(self.cert_chain)
 
     def __str__(self):
-        return ("[CertChainReply (%dB): Isd:%d Ad:%d Version:%d, "
+        return ("[%s(%dB): Isd:%d Ad:%d Version:%d, "
                 "Cert_chain len:%d]" %
-                (len(self), self.isd_id, self.ad_id, self.version,
+                (self.NAME, len(self), self.isd_id, self.ad_id, self.version,
                  len(self.cert_chain)))
 
 
 class TRCRequest(CertMgmtBase):
-    PAYLOAD_TYPE = CertMgmtType.TRC_REQ
     NAME = "TRCRequest"
+    PAYLOAD_TYPE = CertMgmtType.TRC_REQ
     ISD_LEN = 2
     LEN = 2 + ISD_AD.LEN + ISD_LEN + 4 + 1
 
-    def __init__(self, raw=None):
+    def __init__(self, raw=None):  # pragma: no cover
         """
         :param raw: packed packet.
         :type raw: bytes
@@ -248,12 +232,12 @@ class TRCRequest(CertMgmtBase):
         packed.append(struct.pack("!B", self.local))
         return b"".join(packed)
 
-    def __len__(self):
+    def __len__(self):  # pragma: no cover
         return self.LEN
 
     def __str__(self):
         return (
-            "[%s (%dB): Ingress IF:%s Src ISD/AD: %d-%d "
+            "[%s(%dB): Ingress IF:%s Src ISD/AD: %d-%d "
             "Dest ISD: %d Version:%d Local:%s]" % (
                 self.NAME, len(self), self.ingress_if, self.src_isd,
                 self.src_ad, self.isd_id, self.version, self.local))
@@ -276,7 +260,7 @@ class TRCReply(CertMgmtBase):
     PAYLOAD_TYPE = CertMgmtType.TRC_REPLY
     MIN_LEN = ISD_AD.LEN + 2
 
-    def __init__(self, raw=None):
+    def __init__(self, raw=None):  # pragma: no cover
         """
         Initialize an instance of the class TRCReply.
 
@@ -330,7 +314,7 @@ class TRCReply(CertMgmtBase):
         packed.append(self.trc)
         return b"".join(packed)
 
-    def __len__(self):
+    def __len__(self):  # pragma: no cover
         return self.MIN_LEN + len(self.trc)
 
     def __str__(self):
@@ -339,14 +323,16 @@ class TRCReply(CertMgmtBase):
             hexlify(self.trc).decode())
 
 
+_TYPE_MAP = {
+    CertMgmtType.CERT_CHAIN_REQ: (CertChainRequest, CertChainRequest.LEN),
+    CertMgmtType.CERT_CHAIN_REPLY: (CertChainReply, None),
+    CertMgmtType.TRC_REQ: (TRCRequest, TRCRequest.LEN),
+    CertMgmtType.TRC_REPLY: (TRCReply, None),
+}
+
+
 def parse_certmgmt_payload(type_, data):
-    type_map = {
-        CertMgmtType.CERT_CHAIN_REQ: (CertChainRequest, CertChainRequest.LEN),
-        CertMgmtType.CERT_CHAIN_REPLY: (CertChainReply, None),
-        CertMgmtType.TRC_REQ: (TRCRequest, TRCRequest.LEN),
-        CertMgmtType.TRC_REPLY: (TRCReply, None),
-    }
-    if type_ not in type_map:
-        raise SCIONParseError("Unsupported cert management type: %s", type_)
-    handler, len_ = type_map[type_]
+    if type_ not in _TYPE_MAP:
+        raise SCIONParseError("Unsupported cert management type: %s" % type_)
+    handler, len_ = _TYPE_MAP[type_]
     return handler(data.pop(len_))

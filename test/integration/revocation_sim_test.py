@@ -98,18 +98,18 @@ class RevocationSimTest(unittest.TestCase):
         local_isd_ads.remove(dst_isd_ad)
         for host in range(0, num_hosts):
             # Choose a source ISD_AD
-            src_isd_ad = ISD_AD(1,10)
+            src_isd_ad = ISD_AD(1, 10)
             # src_isd_ad = random.choice(local_isd_ads)
             src_topo_path = (
-                "../../topology/ISD{}/topologies/ISD:{}-AD:{}.json"
+                "../../topology/ISD{}/topologies/ISD{}-AD{}.json"
                 .format(src_isd_ad.isd, src_isd_ad.isd, src_isd_ad.ad)
                 )
             dst_topo_path = (
-                "../../topology/ISD{}/topologies/ISD:{}-AD:{}.json"
+                "../../topology/ISD{}/topologies/ISD{}-AD{}.json"
                 .format(dst_isd_ad.isd, dst_isd_ad.isd, dst_isd_ad.ad)
                 )
-            src_host_addr = haddr_parse("IPv4", src_host_addr_next)
-            dst_host_addr = haddr_parse("IPv4", dst_host_addr_next)
+            src_host_addr = haddr_parse("IPV4", src_host_addr_next)
+            dst_host_addr = haddr_parse("IPV4", dst_host_addr_next)
             src_host_addr_next = increment_address(src_host_addr_next, 8)
             dst_host_addr_next = increment_address(dst_host_addr_next, 8)
             host1 = SCIONSimHost(src_host_addr, src_topo_path, simulator)

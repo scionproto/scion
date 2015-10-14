@@ -31,8 +31,6 @@ from external.expiring_dict import ExpiringDict
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.symcrypto import get_roundkey_cache, verify_of_mac
 from lib.defines import (
-    ADDR_IPV4_TYPE,
-    ADDR_SVC_TYPE,
     BEACON_SERVICE,
     CERTIFICATE_SERVICE,
     EXP_TIME_UNIT,
@@ -49,15 +47,11 @@ from lib.errors import (
     SCIONServiceLookupError,
 )
 from lib.log import init_logging, log_exception
-from lib.packet.ext_hdr import ExtensionClass
 from lib.packet.ext.traceroute import TracerouteExt, traceroute_ext_handler
-from lib.packet.opaque_field import OpaqueFieldType as OFT
 from lib.packet.path_mgmt import (
-    PathMgmtType as PMT,
     RevocationInfo,
     IFStateRequest,
 )
-from lib.packet.packet_base import PayloadClass
 from lib.packet.scion import (
     IFIDPayload,
     PacketType as PT,
@@ -65,6 +59,15 @@ from lib.packet.scion import (
 )
 from lib.socket import UDPSocket
 from lib.thread import thread_safety_net
+from lib.types import (
+    AddrType,
+    ExtensionClass,
+    IFIDType,
+    OpaqueFieldType as OFT,
+    PCBType,
+    PathMgmtType as PMT,
+    PayloadClass,
+)
 from lib.util import handle_signals, SCIONTime, sleep_interval
 
 
@@ -175,10 +178,20 @@ class Router(SCIONElement):
         self.revocations = ExpiringDict(1000, self.FWD_REVOCATION_TIMEOUT)
         self.pre_ext_handlers = pre_ext_handlers or {}
         self.post_ext_handlers = post_ext_handlers or {}
+
+        self.PLD_CLASS_MAP = {
+            PayloadClass.PCB: {PCBType.SEGMENT: self.process_pcb},
+            PayloadClass.IFID: {IFIDType.PAYLOAD: self.process_ifid_request},
+            PayloadClass.CERT: defaultdict(
+                lambda: self.relay_cert_server_packet),
+            PayloadClass.PATH: defaultdict(
+                lambda: self.process_path_mgmt_packet),
+        }
+
         if not is_sim:
             self._remote_sock = UDPSocket(
                 bind=(str(self.interface.addr), self.interface.udp_port),
-                addr_type=ADDR_IPV4_TYPE,
+                addr_type=AddrType.IPV4,
             )
             self._socks.add(self._remote_sock)
             logging.info("IP %s:%d", self.interface.addr,
@@ -453,7 +466,7 @@ class Router(SCIONElement):
         if ptype == PT.PATH_MGMT:
             # FIXME(PSz): that should be changed when replies are send as
             # standard data packets.
-            if spkt.addrs.dst_addr.TYPE == ADDR_SVC_TYPE:
+            if spkt.addrs.dst_addr.TYPE == AddrType.SVC:
                 # Send request to any path server.
                 try:
                     addr = self.get_srv_addr(PATH_SERVICE, spkt)
@@ -695,6 +708,23 @@ class Router(SCIONElement):
         except SCIONInterfaceDownException:
             pass
 
+    def _needs_local_processing(self, pkt):
+        return (
+            (
+                # Destination is this router.
+                pkt.addrs.dst_isd == self.addr.isd_id and
+                pkt.addrs.dst_ad == self.addr.ad_id and
+                pkt.addrs.dst_addr in (self.addr.host_addr, self.interface.addr)
+            ) or (
+                # Destination is an SVC address.
+                pkt.addrs.dst_addr.TYPE == AddrType.SVC
+            ) or (
+                # FIXME(kormat): temporary hack until revocations are handled
+                # in extension header
+                pkt.addrs.src_addr.TYPE == AddrType.SVC
+            )
+        )
+
     def handle_request(self, packet, sender, from_local_socket=True):
         """
         Main routine to handle incoming SCION packets.
@@ -711,32 +741,29 @@ class Router(SCIONElement):
            `sender` is not used in this function at the moment.
         """
         from_local_ad = from_local_socket
-        class_map = {
-            PayloadClass.PCB: self.process_pcb,
-            PayloadClass.IFID: self.process_ifid_request,
-            PayloadClass.CERT: self.relay_cert_server_packet,
-            PayloadClass.PATH: self.process_path_mgmt_packet,
-        }
-        pkt = SCIONL4Packet(packet)
+        try:
+            pkt = SCIONL4Packet(packet)
+        except SCIONBaseError:
+            log_exception("Error parsing packet: %s" % packet,
+                          level=logging.ERROR)
+            return
         if self.handle_extensions(pkt, True):
             # An extention handler has taken care of the packet, so we stop
             # processing it.
             return
-        if (
-            (pkt.addrs.dst_isd == self.addr.isd_id and
-             pkt.addrs.dst_ad == self.addr.ad_id and
-             (pkt.addrs.dst_addr in (self.addr.host_addr, self.interface.addr)))
-                or (pkt.addrs.dst_addr.TYPE == ADDR_SVC_TYPE)
-                or (pkt.addrs.src_addr.TYPE == ADDR_SVC_TYPE)):
-            pld_class = pkt.parse_payload().PAYLOAD_CLASS
-            handler = class_map.get(pld_class)
+        if self._needs_local_processing(pkt):
+            try:
+                pkt.parse_payload()
+            except SCIONBaseError:
+                log_exception("Error parsing payload:\n%s" % pkt)
+                return
+            handler = self._get_handler(pkt)
         else:
             # It's a normal packet, just forward it.
             handler = self.forward_packet
         logging.debug("handle_request: pkt addrs: %s handler: %s",
                       pkt.addrs, handler)
         if not handler:
-            logging.error("Payload class not supported: %s", pld_class)
             return
         try:
             handler(pkt, from_local_ad)

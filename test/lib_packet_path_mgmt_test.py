@@ -25,13 +25,19 @@ import nose.tools as ntools
 # SCION
 from lib.errors import SCIONParseError
 from lib.packet.path_mgmt import (
-    PathMgmtType,
+    IFStateInfo,
+    IFStatePayload,
+    IFStateRequest,
     PathSegmentInfo,
     PathSegmentRecords,
     RevocationInfo,
     parse_pathmgmt_payload,
 )
-from test.testcommon import assert_these_calls, create_mock
+from test.testcommon import (
+    assert_these_call_lists,
+    assert_these_calls,
+    create_mock,
+)
 
 
 class TestPathSegmentInfoInit(object):
@@ -104,32 +110,15 @@ class TestPathSegmentInfoPack(object):
         inst.src_ad = "src ad"
         inst.dst_isd = "dst isd"
         inst.dst_ad = "dst ad"
-        src_isd_ad = create_mock(['pack'])
-        src_isd_ad.pack.return_value = b"src packed"
-        dst_isd_ad = create_mock(['pack'])
-        dst_isd_ad.pack.return_value = b"dst packed"
-        isd_ad.side_effect = (src_isd_ad, dst_isd_ad)
+        isd_ad_obj = create_mock(['pack'])
+        isd_ad_obj.pack.side_effect = b"src packed", b"dst packed"
+        isd_ad.return_value = isd_ad_obj
         expected = b"".join([bytes([0x0e]), b"src packed", b"dst packed"])
         # Call
         ntools.eq_(inst.pack(), expected)
         # Tests
-        assert_these_calls(isd_ad, (
-            call("src isd", "src ad"), call("dst isd", "dst ad")))
-
-
-class TestPathSegmentRecordsInit(object):
-    """
-    Unit tests for lib.packet.path_mgmt.PathSegmentRecords.__init__
-    """
-    @patch("lib.packet.path_mgmt.PathSegmentRecords._parse", autospec=True)
-    @patch("lib.packet.path_mgmt.PathMgmtPayloadBase.__init__", autospec=True)
-    def test_full(self, super_init, parse):
-        inst = PathSegmentRecords("data")
-        # Tests
-        super_init.assert_called_once_with(inst)
-        ntools.assert_is_none(inst.info)
-        ntools.assert_is_none(inst.pcbs)
-        parse.assert_called_once_with(inst, "data")
+        assert_these_call_lists(isd_ad, [
+            call("src isd", "src ad").pack(), call("dst isd", "dst ad").pack()])
 
 
 class TestPathSegmentRecordsParse(object):
@@ -188,18 +177,16 @@ class TestPathSegmentRecordsPack(object):
         serialize.assert_called_once_with("pcbs")
 
 
-class TestRevocationInfoInit(object):
+class TestPathSegmentRecordsLen(object):
     """
-    Unit tests for lib.packet.path_mgmt.RevocationInfo.__init__
+    Unit tests for lib.packet.path_mgmt.PathSegmentRecords.__len__
     """
-    @patch("lib.packet.path_mgmt.RevocationInfo._parse", autospec=True)
-    @patch("lib.packet.path_mgmt.PathMgmtPayloadBase.__init__", autospec=True)
-    def test_full(self, super_init, parse):
-        inst = RevocationInfo("data")
-        # Tests
-        super_init.assert_called_once_with(inst)
-        ntools.eq_(inst.rev_token, b"")
-        parse.assert_called_once_with(inst, "data")
+    def test(self):
+        inst = PathSegmentRecords()
+        inst.info = range(5)
+        inst.pcbs = [range(5) for x in range(5)]
+        # Call
+        ntools.eq_(len(inst), 30)
 
 
 class TestRevocationInfoParse(object):
@@ -241,42 +228,144 @@ class TestRevocationInfoPack(object):
         ntools.eq_(inst.pack(), bytes(range(32)))
 
 
+class TestIFStateInfoParse(object):
+    """
+    Unit tests for lib.packet.path_mgmt.IFStateInfo._parse
+    """
+    @patch("lib.packet.path_mgmt.RevocationInfo", autospec=True)
+    @patch("lib.packet.path_mgmt.Raw", autospec=True)
+    def test(self, raw, rev_info_cls):
+        inst = IFStateInfo()
+        data = create_mock(["pop"])
+        data.pop.side_effect = bytes.fromhex("00001111"), "rev info"
+        raw.return_value = data
+        # Call
+        inst._parse("data")
+        # Tests
+        raw.assert_called_once_with("data", inst.NAME, inst.LEN)
+        ntools.eq_(inst.if_id, 0x0000)
+        ntools.eq_(inst.state, 0x1111)
+        rev_info_cls.assert_called_once_with("rev info")
+        ntools.eq_(inst.rev_info, rev_info_cls.return_value)
+
+
+class TestIFStateInfoFromValues(object):
+    """
+    Unit tests for lib.packet.path_mgmt.IFStateInfo.from_values
+    """
+    @patch("lib.packet.path_mgmt.RevocationInfo.from_values",
+           new_callable=create_mock)
+    def test(self, rev_from_values):
+        inst = IFStateInfo.from_values("if id", "state", b"rev token")
+        # Tests
+        ntools.assert_is_instance(inst, IFStateInfo)
+        ntools.eq_(inst.if_id, "if id")
+        ntools.eq_(inst.state, "state")
+        rev_from_values.assert_called_once_with(b"rev token")
+        ntools.eq_(inst.rev_info, rev_from_values.return_value)
+
+
+class TestIFStateInfoPack(object):
+    """
+    Unit tests for lib.packet.path_mgmt.IFStateInfo.pack
+    """
+    def test(self):
+        inst = IFStateInfo()
+        inst.if_id = 0x0000
+        inst.state = 0x1111
+        inst.rev_info = create_mock(["pack"])
+        inst.rev_info.pack.return_value = b"rev token"
+        expected = bytes.fromhex("00001111") + b"rev token"
+        # Call
+        ntools.eq_(inst.pack(), expected)
+
+
+class TestIFStatePayloadParse(object):
+    """
+    Unit tests for lib.packet.path_mgmt.IFStatePayload._parse
+    """
+    @patch("lib.packet.path_mgmt.IFStateInfo", autospec=True)
+    @patch("lib.packet.path_mgmt.Raw", autospec=True)
+    def test(self, raw, if_state_info):
+        inst = IFStatePayload()
+        data = create_mock(["__len__", "pop"])
+        data.__len__.side_effect = 3, 2, 1, 0
+        raw_state_infos = ["if_state%d" % i for i in range(3)]
+        data.pop.side_effect = raw_state_infos
+        raw.return_value = data
+        state_infos = ["if state info %d" % i for i in range(3)]
+        if_state_info.side_effect = state_infos
+        # Call
+        inst._parse("data")
+        # Tests
+        raw.assert_called_once_with("data", inst.NAME, inst.MIN_LEN, min_=True)
+        assert_these_calls(if_state_info, [call(i) for i in raw_state_infos])
+        ntools.eq_(inst.ifstate_infos, state_infos)
+
+
+class TestIFStatePayloadPack(object):
+    """
+    Unit tests for lib.packet.path_mgmt.IFStatePayload.pack
+    """
+    def test(self):
+        inst = IFStatePayload()
+        for i in range(3):
+            info = create_mock(["pack"])
+            info.pack.return_value = bytes("info%d" % i, "ascii")
+            inst.ifstate_infos.append(info)
+        expected = b"info0" b"info1" b"info2"
+        # Call
+        ntools.eq_(inst.pack(), expected)
+
+
+class TestIFStateRequestParse(object):
+    """
+    Unit tests for lib.packet.path_mgmt.IFStateRequest._parse
+    """
+    @patch("lib.packet.path_mgmt.IFStateInfo", autospec=True)
+    @patch("lib.packet.path_mgmt.Raw", autospec=True)
+    def test(self, raw, if_state_info):
+        inst = IFStateRequest()
+        data = create_mock(["__len__", "pop"])
+        data.pop.return_value = bytes.fromhex("1234")
+        raw.return_value = data
+        # Call
+        inst._parse("data")
+        # Tests
+        raw.assert_called_once_with("data", inst.NAME, inst.LEN)
+        ntools.eq_(inst.if_id, 0x1234)
+
+
+class TestIFStateRequestPack(object):
+    """
+    Unit tests for lib.packet.path_mgmt.IFStateRequest.pack
+    """
+    def test(self):
+        inst = IFStateRequest()
+        inst.if_id = 0x1234
+        # Call
+        ntools.eq_(inst.pack(), bytes.fromhex("1234"))
+
+
 class TestParsePathMgmtPayload(object):
     """
     Unit tests for lib.packet.path_mgmt.parse_pathmgmt_payload
     """
-    @patch("lib.packet.path_mgmt.IFStateRequest", autospec=True)
-    @patch("lib.packet.path_mgmt.IFStatePayload", autospec=True)
-    @patch("lib.packet.path_mgmt.RevocationInfo", autospec=True)
-    @patch("lib.packet.path_mgmt.PathRecordsSync", autospec=True)
-    @patch("lib.packet.path_mgmt.PathRecordsReg", autospec=True)
-    @patch("lib.packet.path_mgmt.PathRecordsReply", autospec=True)
-    @patch("lib.packet.path_mgmt.PathSegmentInfo", autospec=True)
-    def _check(self, type_, seg_info, rec_rep, rec_reg, rec_sync, rev_info,
-               if_pld, if_req):
-        class_map = {
-            PathMgmtType.REQUEST: seg_info,
-            PathMgmtType.REPLY: rec_rep,
-            PathMgmtType.REG: rec_reg,
-            PathMgmtType.SYNC: rec_sync,
-            PathMgmtType.REVOCATION: rev_info,
-            PathMgmtType.IFSTATE_INFO: if_pld,
-            PathMgmtType.IFSTATE_REQ: if_req,
-        }
+    @patch("lib.packet.path_mgmt._TYPE_MAP", new_callable=dict)
+    def _check_supported(self, type_, type_map):
+        type_map[0] = create_mock(), 20
+        type_map[1] = create_mock(), None
+        handler, len_ = type_map[type_]
         data = create_mock(["pop"])
-        data.pop.return_value = b"payload"
         # Call
-        inst = parse_pathmgmt_payload(type_, data)
+        ntools.eq_(parse_pathmgmt_payload(type_, data), handler.return_value)
         # Tests
-        ntools.eq_(inst, class_map[type_].return_value)
+        data.pop.assert_called_once_with(len_)
+        handler.assert_called_once_with(data.pop.return_value)
 
-    def test(self):
-        for type_ in (
-            PathMgmtType.REQUEST, PathMgmtType.REPLY, PathMgmtType.REG,
-            PathMgmtType.SYNC, PathMgmtType.REVOCATION,
-            PathMgmtType.IFSTATE_INFO, PathMgmtType.IFSTATE_REQ,
-        ):
-            yield self._check, type_
+    def test_supported(self):
+        for type_ in (0, 1):
+            yield self._check_supported, type_
 
     def test_unsupported(self):
         # Call

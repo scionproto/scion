@@ -25,7 +25,35 @@ import nose.tools as ntools
 # SCION
 from lib.packet.host_addr import HostAddrBase
 from lib.packet.scion_addr import SCIONAddr, ISD_AD
-from test.testcommon import create_mock
+from test.testcommon import assert_these_call_lists, create_mock
+
+
+class TestISDADFromRaw(object):
+    """
+    Unit tests for lib.packet.scion_addr.ISD_AD.from_raw
+    """
+    @patch("lib.packet.scion_addr.Raw", autospec=True)
+    def test(self, raw):
+        data = create_mock(["pop"])
+        data.pop.return_value = bytes.fromhex("11122222")
+        raw.return_value = data
+        # Call
+        inst = ISD_AD.from_raw("data")
+        # Tests
+        raw.assert_called_once_with("data", ISD_AD.NAME, ISD_AD.LEN)
+        ntools.assert_is_instance(inst, ISD_AD)
+        ntools.eq_(inst.isd, 0x111)
+        ntools.eq_(inst.ad, 0x22222)
+
+
+class TestISDADPack(object):
+    """
+    Unit tests for lib.packet.scion_addr.ISD_AD.pack
+    """
+    def test(self):
+        inst = ISD_AD(0x111, 0x22222)
+        # Call
+        ntools.eq_(inst.pack(), bytes.fromhex("11122222"))
 
 
 class TestSCIONAddrInit(object):
@@ -124,7 +152,7 @@ class TestSCIONAddrPack(object):
         # Call
         ntools.eq_(inst.pack(), "isd_ad.packedhost_addr.packed")
         # Tests
-        isd_ad.assert_called_once_with(1, 10)
+        assert_these_call_lists(isd_ad, [call(1, 10).pack()])
 
 
 class TestSCIONAddrLen(object):

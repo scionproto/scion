@@ -16,9 +16,9 @@
 ==================================================
 """
 # Stdlib
+import logging
 import queue
 import threading
-from abc import ABCMeta, abstractmethod
 
 # SCION
 from lib.config import Config
@@ -31,18 +31,21 @@ from lib.defines import (
     SERVICE_TYPES,
 )
 from lib.dnsclient import DNSCachingClient
-from lib.errors import SCIONServiceLookupError
+from lib.errors import SCIONBaseError, SCIONServiceLookupError
+from lib.log import log_exception
 from lib.packet.host_addr import HostAddrNone
+from lib.packet.packet_base import PayloadRaw
 from lib.packet.path import EmptyPath
 from lib.packet.scion import SCIONBasePacket, SCIONL4Packet, build_base_hdrs
 from lib.packet.scion_addr import SCIONAddr
 from lib.packet.scion_udp import SCIONUDPHeader
 from lib.socket import UDPSocket, UDPSocketMgr
 from lib.thread import thread_safety_net
+from lib.types import PayloadClass
 from lib.topology import Topology
 
 
-class SCIONElement(object, metaclass=ABCMeta):
+class SCIONElement(object):
     """
     Base class for the different kind of servers the SCION infrastructure
     provides.
@@ -71,11 +74,12 @@ class SCIONElement(object, metaclass=ABCMeta):
             the interface to bind to. Only used if `server_id` isn't specified.
         :param bool is_sim: running in simulator
         """
-        self._addr = None
         self.topology = None
         self.config = None
         self.ifid2addr = {}
         self.parse_topology(topo_file)
+        # Must be over-ridden by child classes:
+        self.PLD_CLASS_MAP = {}
         if server_id is not None:
             own_config = self.topology.get_own_config(server_type, server_id)
             self.id = "%s%s-%s-%s" % (server_type, self.topology.isd_id,
@@ -132,20 +136,46 @@ class SCIONElement(object, metaclass=ABCMeta):
         for edge_router in self.topology.get_all_edge_routers():
             self.ifid2addr[edge_router.interface.if_id] = edge_router.addr
 
-    @abstractmethod
     def handle_request(self, packet, sender, from_local_socket=True):
         """
-        Main routine to handle incoming SCION packets. Subclasses have to
-        override this to provide their functionality.
-
-        :param packet:
-        :type packet:
-        :param sender:
-        :type sender:
-        :param from_local_socket:
-        :type from_local_socket:
+        Main routine to handle incoming SCION packets. Subclasses may
+        override this to provide their own functionality.
         """
-        raise NotImplementedError
+        try:
+            pkt = SCIONL4Packet(packet)
+        except SCIONBaseError:
+            log_exception("Error parsing packet: %s" % packet,
+                          level=logging.ERROR)
+            return
+        try:
+            pkt.parse_payload()
+        except SCIONBaseError:
+            log_exception("Error parsing payload:\n%s" % pkt)
+            return
+        handler = self._get_handler(pkt)
+        if not handler:
+            return
+        try:
+            handler(pkt)
+        except SCIONBaseError:
+            log_exception("Error handling packet:\n%s" % packet)
+
+    def _get_handler(self, pkt):
+        pld = pkt.get_payload()
+        try:
+            type_map = self.PLD_CLASS_MAP[pld.PAYLOAD_CLASS]
+        except KeyError:
+            logging.error("Payload class not supported: %s\n%s",
+                          PayloadClass.to_str(pld.PAYLOAD_CLASS), pkt.addrs)
+            return None
+        try:
+            handler = type_map[pld.PAYLOAD_TYPE]
+        except KeyError:
+            logging.error("%s payload type not supported: %s\n%s",
+                          PayloadClass.to_str(pld.PAYLOAD_CLASS),
+                          pld.PAYLOAD_TYPE, pkt.addrs)
+            return None
+        return handler
 
     def get_first_hop(self, spkt):
         """
@@ -166,7 +196,7 @@ class SCIONElement(object, metaclass=ABCMeta):
         return self.ifid2addr[spkt.path.get_fwd_if()], SCION_UDP_PORT
 
     def _build_packet(self, dst_host=None, path=None, ext_hdrs=(), dst_isd=None,
-                      dst_ad=None, payload=b""):
+                      dst_ad=None, payload=None, dst_port=SCION_UDP_PORT):
         if dst_host is None:
             dst_host = HostAddrNone()
         if dst_isd is None:
@@ -175,10 +205,12 @@ class SCIONElement(object, metaclass=ABCMeta):
             dst_ad = self.addr.ad_id
         if path is None:
             path = EmptyPath()
+        if payload is None:
+            payload = PayloadRaw()
         dst_addr = SCIONAddr.from_values(dst_isd, dst_ad, dst_host)
         cmn_hdr, addr_hdr = build_base_hdrs(self.addr, dst_addr)
         udp_hdr = SCIONUDPHeader.from_values(
-            self.addr, SCION_UDP_PORT, dst_addr, SCION_UDP_PORT, payload)
+            self.addr, SCION_UDP_PORT, dst_addr, dst_port, payload)
         return SCIONL4Packet.from_values(
             cmn_hdr, addr_hdr, path, ext_hdrs, udp_hdr, payload)
 

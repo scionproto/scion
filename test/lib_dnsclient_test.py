@@ -135,7 +135,7 @@ class TestDNSClientParseAnswer(object):
             ans_mock.__str__.return_value = "r%s" % i
             answer.append(ans_mock)
         hparse.side_effect = lambda type_, addr: "%s:%s" % (type_, addr)
-        results = ["IPv4:r0", "IPv6:r1", "IPv4:r2", "IPv4:r3", "IPv6:r5"]
+        results = ["IPV4:r0", "IPV6:r1", "IPV4:r2", "IPV4:r3", "IPV6:r5"]
         # Call
         ntools.eq_(inst._parse_answer(answer), results)
         # Tests
@@ -205,20 +205,27 @@ class TestDNSCachingClientQuery(object):
         ntools.assert_raises(DNSLibMajorError, client.query, "blah")
 
     @patch("lib.dnsclient.shuffle", autospec=True)
+    @patch("lib.dnsclient.logging.log", autospec=True)
     @patch("lib.dnsclient.DNSClient.query", autospec=True)
     @patch("lib.dnsclient.DNSCachingClient.__init__", autospec=True,
            return_value=None)
-    def test_fail_with_fallback(self, init, client_query, shuffle):
+    def _check_fail_with_fallback(self, excp, init, client_query, log,
+                                  shuffle):
         # Setup
         client = DNSCachingClient("servers", "domain", "lifetime")
         client.cache = create_mock(["get", "__setitem__"])
         client.cache.get.return_value = None
-        client_query.side_effect = DNSLibMinorError
+        client_query.side_effect = excp
+        log.side_effect = lambda level, format_, *args: format_ % args
         fallback = "fallback"
         # Call
         ntools.eq_(client.query("blah", fallback), fallback)
         # Tests
         client.cache.__setitem__.assert_called_once_with("blah", fallback)
+
+    def test_fail_with_fallback(self):
+        for excp in (DNSLibMinorError, DNSLibMajorError):
+            yield self._check_fail_with_fallback, excp
 
 if __name__ == "__main__":
     nose.run(defaultTest=__name__)

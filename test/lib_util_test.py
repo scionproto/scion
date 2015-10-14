@@ -44,6 +44,7 @@ from lib.util import (
     _get_isd_prefix,
     _signal_handler,
     calc_padding,
+    copy_file,
     get_cert_chain_file_path,
     get_enc_key_file_path,
     get_sig_key_file_path,
@@ -82,7 +83,7 @@ class TestGetCertChainFilePath(object):
         ntools.eq_(get_cert_chain_file_path(1, 2, 3, 4, 5, 6), "data2")
         isd_prefix.assert_called_once_with(6)
         join.assert_any_call("isd_prefix1", CERT_DIR, 'AD2',
-                             'ISD:3-AD:4-V:5.crt')
+                             'ISD3-AD4-V5.crt')
 
     def test_len(self, isd_prefix, join):
         get_cert_chain_file_path(1, 2, 3, 4, 5)
@@ -100,7 +101,7 @@ class TestGetTRCFilePath(object):
         join.return_value = "data2"
         ntools.eq_(get_trc_file_path(1, 2, 3, 4, 5), "data2")
         isd_prefix.assert_called_once_with(5)
-        join.assert_any_call("isd_prefix1", CERT_DIR, 'AD2', 'ISD:3-V:4.crt')
+        join.assert_any_call("isd_prefix1", CERT_DIR, 'AD2', 'ISD3-V4.crt')
 
     def test_len(self, isd_prefix, join):
         get_trc_file_path(1, 2, 3, 4)
@@ -118,7 +119,7 @@ class TestGetSigKeyFilePath(object):
         join.return_value = "data2"
         ntools.eq_(get_sig_key_file_path(1, 2, 3), "data2")
         isd_prefix.assert_called_once_with(3)
-        join.assert_any_call("isd_prefix1", SIG_KEYS_DIR, 'ISD:1-AD:2.key')
+        join.assert_any_call("isd_prefix1", SIG_KEYS_DIR, 'ISD1-AD2.key')
 
     def test_len(self, isd_prefix, join):
         get_sig_key_file_path(1, 2)
@@ -136,7 +137,7 @@ class TestGetEncKeyFilePath(object):
         join.return_value = "data2"
         ntools.eq_(get_enc_key_file_path(1, 2, 3), "data2")
         isd_prefix.assert_called_once_with(3)
-        join.assert_any_call("isd_prefix1", ENC_KEYS_DIR, 'ISD:1-AD:2.key')
+        join.assert_any_call("isd_prefix1", ENC_KEYS_DIR, 'ISD1-AD2.key')
 
     def test_len(self, isd_prefix, join):
         get_enc_key_file_path(1, 2)
@@ -199,6 +200,36 @@ class TestWriteFile(object):
         rename.side_effect = PermissionError
         # Call
         ntools.assert_raises(SCIONIOError, write_file, "File_Path", "Text")
+
+
+class TestCopyFile(object):
+    """
+    Unit tests for lib.util.copy_file
+    """
+    @patch("lib.util.shutil.copyfile", autospec=True)
+    @patch("lib.util.os.makedirs", autospec=True)
+    @patch("lib.util.os.path.dirname", autospec=True)
+    def test_basic(self, dirname, mkdirs, cpfile):
+        # Call
+        copy_file("a", "b")
+        # Tests
+        mkdirs.assert_called_once_with(dirname.return_value, exist_ok=True)
+        cpfile.assert_called_once_with("a", "b")
+
+    @patch("lib.util.os.makedirs", autospec=True)
+    @patch("lib.util.os.path.dirname", autospec=True)
+    def test_mkdir_error(self, dirname, mkdirs):
+        mkdirs.side_effect = PermissionError
+        # Call
+        ntools.assert_raises(SCIONIOError, copy_file, "a", "b")
+
+    @patch("lib.util.shutil.copyfile", autospec=True)
+    @patch("lib.util.os.makedirs", autospec=True)
+    @patch("lib.util.os.path.dirname", autospec=True)
+    def test_copy_error(self, dirname, mkdirs, cpfile):
+        cpfile.side_effect = PermissionError
+        # Call
+        ntools.assert_raises(SCIONIOError, copy_file, "a", "b")
 
 
 class TestLoadJSONFile(object):
