@@ -86,7 +86,7 @@ class SimPingApp(SCIONSimApplication):
         if pld_type != PMT.REVOCATION:
             logging.error("Unsupported packet Received")
             return
-        print("Revocation received at host:", self.addr)
+        logging.info("Revocation received at host: %s", self.addr)
         self.revoked_packets += 1
 
     def send_ping(self):
