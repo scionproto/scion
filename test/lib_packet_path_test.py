@@ -673,27 +673,50 @@ class TestCorePathReverse(object):
         inst.reverse()
         # Tests
         super_reverse.assert_called_once_with(inst)
-        inst._ofs.reverse_up_flag(CORE_IOF)
-        inst._ofs.reverse_label(CORE_HOFS)
+        inst._ofs.reverse_up_flag.assert_called_once_with(CORE_IOF)
+        inst._ofs.reverse_label.assert_called_once_with(CORE_HOFS)
 
     @patch("lib.packet.path.PathBase.reverse", autospec=True)
     @patch("lib.packet.path.PathBase.__init__", autospec=True,
            return_value=None)
-    def test_at_xovr(self, init, super_reverse):
+    def test_at_core_down_xovr(self, init, super_reverse):
         inst = CorePath()
         inst._ofs = create_mock(["reverse_label", "reverse_up_flag",
                                  "get_by_label", "count"])
         inst._ofs.count = create_mock()
         inst._ofs.count.return_value = True
+        inst._ofs.get_by_label.side_effect = ["foo", "bar"]
         inst.get_hof = create_mock()
-        inst.get_hof.return_value = inst._ofs.get_by_label.return_value
+        inst.get_hof.return_value = "foo"
         inst.next_segment = create_mock()
         # Call
         inst.reverse()
         # Tests
-        super_reverse.assert_called_once_with(inst)
-        inst._ofs.reverse_up_flag(CORE_IOF)
-        inst._ofs.reverse_label(CORE_HOFS)
+        inst._ofs.count.assert_called_once_with(UP_HOFS)
+        inst.get_hof.assert_called_once_with()
+        inst._ofs.get_by_label.assert_called_once_with(UP_HOFS, -1)
+        inst.next_segment.assert_called_with()
+
+    @patch("lib.packet.path.PathBase.reverse", autospec=True)
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test_at_up_core_xovr(self, init, super_reverse):
+        inst = CorePath()
+        inst._ofs = create_mock(["reverse_label", "reverse_up_flag",
+                                 "get_by_label", "count"])
+        inst._ofs.count = create_mock()
+        inst._ofs.count.return_value = True
+        inst._ofs.get_by_label.side_effect = ["foo", "bar"]
+        inst.get_hof = create_mock()
+        inst.get_hof.return_value = "bar"
+        inst.next_segment = create_mock()
+        # Call
+        inst.reverse()
+        # Tests
+        assert_these_calls(inst._ofs.count, [call(UP_HOFS), call(CORE_HOFS)])
+        assert_these_calls(inst.get_hof, [call(), call()])
+        assert_these_calls(inst._ofs.get_by_label, [call(UP_HOFS, -1),
+                                                    call(CORE_HOFS, -1)])
         inst.next_segment.assert_called_with()
 
 
