@@ -353,8 +353,10 @@ class CorePath(PathBase):
         self._ofs.reverse_up_flag(CORE_IOF)
         self._ofs.reverse_label(CORE_HOFS)
         # Handle the case when reverse happens at cross-over point.
-        if (self._ofs.count(UP_HOFS) and
-                self.get_hof() == self._ofs.get_by_label(UP_HOFS, -1)):
+        if ((self._ofs.count(UP_HOFS) and
+                self.get_hof() == self._ofs.get_by_label(UP_HOFS, -1)) or
+            (self._ofs.count(CORE_HOFS) and
+                self.get_hof() == self._ofs.get_by_label(CORE_HOFS, -1))):
             self.next_segment()
 
     def get_hof_ver(self, ingress=True):

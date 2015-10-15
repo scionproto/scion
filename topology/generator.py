@@ -189,18 +189,17 @@ class ConfigGenerator(object):
         isd_str = "ISD{}".format(isd_id)
         isd_ad_str = "ISD{}-AD{}".format(isd_id, ad_id)
         p = {}
-        p['base_dir_tail'] = os.path.join(isd_str, ZOOKEEPER_DIR, isd_ad_str)
-        p['base_dir_abs'], p['base_dir_rel'] = abs_rel(p['base_dir_tail'])
-        p['data_dir_abs'], p['data_dir_rel'] = abs_rel(p['base_dir_tail'],
-                                                       'data.%s' % zk_id)
+        base_dir_tail = os.path.join(isd_str, ZOOKEEPER_DIR, isd_ad_str)
+        base_dir_abs, _ = abs_rel(base_dir_tail)
+        data_dir_abs, p['data_dir_rel'] = abs_rel(
+            base_dir_tail, 'data.%s' % zk_id)
         p['datalog_dir_abs'] = os.path.join(ZOOKEEPER_TMPFS_DIR, isd_ad_str,
                                             str(zk_id))
-        p['datalog_script_abs'] = os.path.join(p['base_dir_abs'],
-                                               "datalog.%s.sh" % zk_id)
-        p['cfg_abs'], p['cfg_rel'] = abs_rel(p['base_dir_tail'],
-                                             'zoo.cfg.%s' % zk_id)
-        p['myid_abs'] = os.path.join(p['data_dir_abs'], 'myid')
-        p['log4j_abs'] = os.path.join(p['base_dir_abs'], 'log4j.properties')
+        p['datalog_script_abs'] = os.path.join(
+            base_dir_abs, "datalog.%s.sh" % zk_id)
+        p['cfg_abs'], _ = abs_rel(base_dir_tail, 'zoo.cfg.%s' % zk_id)
+        p['myid_abs'] = os.path.join(data_dir_abs, 'myid')
+        p['log4j_abs'] = os.path.join(base_dir_abs, 'log4j.properties')
         return p
 
     def _delete_directories(self):
@@ -239,7 +238,7 @@ class ConfigGenerator(object):
                 conf_dict['RegisterPath'] = 1
             else:
                 conf_dict['RegisterPath'] = 0
-            write_file(conf_file,
+            write_file(conf_file, "%s\n" %
                        json.dumps(conf_dict, sort_keys=True, indent=4))
             # Test if parser works
             Config.from_file(conf_file)
@@ -436,11 +435,10 @@ class ConfigGenerator(object):
 
         for (num, element_dict, element_type) \
                 in self._get_typed_elements(topo_dict):
-            element_location = 'core' if topo_dict['Core'] else 'local'
             server_config = supervisor_common.copy()
             if element_type == 'BeaconServers':
                 element_name = 'bs{}-{}-{}'.format(isd_id, ad_id, num)
-                cmd_args = ['beacon_server.py', element_location, num,
+                cmd_args = ['beacon_server.py', num,
                             topo_file, conf_file, path_pol_file,
                             '../logs/{}.log'.format(element_name)]
             elif element_type == 'CertificateServers':
@@ -450,8 +448,7 @@ class ConfigGenerator(object):
                             '../logs/{}.log'.format(element_name)]
             elif element_type == 'PathServers':
                 element_name = 'ps{}-{}-{}'.format(isd_id, ad_id, num)
-                cmd_args = ['path_server.py', element_location, num,
-                            topo_file, conf_file,
+                cmd_args = ['path_server.py', num, topo_file, conf_file,
                             '../logs/{}.log'.format(element_name)]
             elif element_type == 'DNSServers':
                 element_name = 'ds{}-{}-{}'.format(isd_id, ad_id, num)
@@ -562,10 +559,6 @@ class ConfigGenerator(object):
         text = StringIO()
         for isd_ad_id, ad_conf in self.ad_configs["ADs"].items():
             isd_id, ad_id = isd_ad_id.split(ISD_AD_ID_DIVISOR)
-            if ad_conf['level'] == CORE_AD:
-                element_location = "core"
-            else:
-                element_location = "local"
 
             topo_file = self._path_gen(isd_id, ad_id, TOPO_DIR, ".json")
             conf_file = self._path_gen(isd_id, ad_id, CONF_DIR, ".conf")
@@ -582,9 +575,8 @@ class ConfigGenerator(object):
             for b_server in range(1, number_bs + 1):
                 element_name = 'bs{}-{}-{}'.format(isd_id, ad_id, b_server)
                 text.write(' '.join([
-                    'beacon_server', element_name, element_location,
-                    str(b_server), topo_file, conf_file, path_pol_file,
-                    isd_id, ad_id]) + '\n')
+                    'beacon_server', element_name, str(b_server), topo_file,
+                    conf_file, path_pol_file, isd_id, ad_id]) + '\n')
             # Certificate Servers
             for c_server in range(1, number_cs + 1):
                 element_name = 'cs{}-{}-{}'.format(isd_id, ad_id, c_server)
@@ -597,9 +589,8 @@ class ConfigGenerator(object):
                 for p_server in range(1, number_ps + 1):
                     element_name = 'ps{}-{}-{}'.format(isd_id, ad_id, p_server)
                     text.write(' '.join([
-                        'path_server', element_name, element_location,
-                        str(p_server), topo_file, conf_file,
-                        isd_id, ad_id]) + '\n')
+                        'path_server', element_name, str(p_server), topo_file,
+                        conf_file, isd_id, ad_id]) + '\n')
             # Edge Routers
             edge_router = 1
             for nbr_isd_ad_id in ad_conf.get("links", []):

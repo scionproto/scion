@@ -76,6 +76,7 @@ from lib.packet.pcb_ext import MTUExtension
 from lib.packet.scion import PacketType as PT
 from lib.path_store import PathPolicy, PathStore
 from lib.thread import thread_safety_net
+from lib.topology import Topology
 from lib.types import (
     CertMgmtType,
     IFIDType,
@@ -1414,8 +1415,6 @@ def main():
     """
     handle_signals()
     parser = argparse.ArgumentParser()
-    parser.add_argument('type', choices=['core', 'local'],
-                        help='Core or local path server')
     parser.add_argument('server_id', help='Server identifier')
     parser.add_argument('topo_file', help='Topology file')
     parser.add_argument('conf_file', help='AD configuration file')
@@ -1424,7 +1423,8 @@ def main():
     args = parser.parse_args()
     init_logging(args.log_file)
 
-    if args.type == "core":
+    topo = Topology.from_file(args.topo_file)
+    if topo.is_core_ad:
         beacon_server = CoreBeaconServer(args.server_id, args.topo_file,
                                          args.conf_file, args.path_policy_file)
     else:
