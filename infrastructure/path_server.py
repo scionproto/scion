@@ -45,6 +45,7 @@ from lib.packet.path_mgmt import (
 from lib.packet.scion import PacketType as PT, SCIONL4Packet
 from lib.path_db import DBResult, PathSegmentDB
 from lib.thread import thread_safety_net
+from lib.topology import Topology
 from lib.types import PathMgmtType as PMT, PathSegmentType as PST, PayloadClass
 from lib.util import (
     SCIONTime,
@@ -917,8 +918,6 @@ def main():
     """
     handle_signals()
     parser = argparse.ArgumentParser()
-    parser.add_argument('type', choices=['core', 'local'],
-                        help='Core or local path server')
     parser.add_argument('server_id', help='Server identifier')
     parser.add_argument('topo_file', help='Topology file')
     parser.add_argument('conf_file', help='AD configuration file')
@@ -926,15 +925,13 @@ def main():
     args = parser.parse_args()
     init_logging(args.log_file)
 
-    if args.type == "core":
+    topo = Topology.from_file(args.topo_file)
+    if topo.is_core_ad:
         path_server = CorePathServer(args.server_id, args.topo_file,
                                      args.conf_file)
-    elif args.type == "local":
+    else:
         path_server = LocalPathServer(args.server_id, args.topo_file,
                                       args.conf_file)
-    else:
-        logging.error("First parameter can only be 'local' or 'core'!")
-        sys.exit()
 
     trace(path_server.id)
     logging.info("Started: %s", datetime.datetime.now())
