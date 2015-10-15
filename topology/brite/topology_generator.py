@@ -359,20 +359,23 @@ def json_convert(graph):
     :type graph: :class: `networkx.DiGraph`
     """
     topo_dict = dict()
-    topo_dict["default_subnet"] = "127.0.0.0/8"
+    topo_dict["defaults"] = dict()
+    topo_dict["ADs"] = dict()
+    topo_dict["defaults"]["subnet"] = "127.0.0.0/8"
     for isd_ad_id in graph.nodes():
         func_labels = lambda x: graph.edge[isd_ad_id][x]['label']
         list_labels = [func_labels(x) for x in list(graph.edge[isd_ad_id])]
-        topo_dict[isd_ad_id] = {"beacon_servers": 1,
-                                "certificate_servers": 1,
-                                "path_servers": 1
-                                }
+        topo_dict["ADs"][isd_ad_id] = {
+            "beacon_servers": 1,
+            "certificate_servers": 1,
+            "path_servers": 1
+        }
         if graph.node[isd_ad_id]['is_core']:
-            topo_dict[isd_ad_id]["level"] = "CORE"
+            topo_dict["ADs"][isd_ad_id]["level"] = "CORE"
         elif "CHILD" not in list_labels:
-            topo_dict[isd_ad_id]["level"] = "LEAF"
+            topo_dict["ADs"][isd_ad_id]["level"] = "LEAF"
         else:
-            topo_dict[isd_ad_id]["level"] = "INTERMEDIATE"
+            topo_dict["ADs"][isd_ad_id]["level"] = "INTERMEDIATE"
         links = dict()
         cert_issuer = None
         for isd_ad_id_neighbor in graph.neighbors(isd_ad_id):
@@ -380,9 +383,9 @@ def json_convert(graph):
                 graph.edge[isd_ad_id][isd_ad_id_neighbor]['label']
             if links[isd_ad_id_neighbor] == "PARENT":
                 cert_issuer = isd_ad_id_neighbor
-        topo_dict[isd_ad_id]["links"] = links
+        topo_dict["ADs"][isd_ad_id]["links"] = links
         if cert_issuer is not None:
-            topo_dict[isd_ad_id]["cert_issuer"] = cert_issuer
+            topo_dict["ADs"][isd_ad_id]["cert_issuer"] = cert_issuer
 
     with open(DEFAULT_ADCONFIGURATIONS_FILE, 'w') as topo_fh:
         json.dump(topo_dict, topo_fh, sort_keys=True, indent=4)
