@@ -685,8 +685,8 @@ class TestCorePathReverse(object):
                                  "get_by_label", "count"])
         inst._ofs.count = create_mock()
         inst._ofs.count.return_value = True
-        inst.get_hof = create_mock()
         inst._ofs.get_by_label.side_effect = ["foo", "bar"]
+        inst.get_hof = create_mock()
         inst.get_hof.return_value = "foo"
         inst.next_segment = create_mock()
         # Call
@@ -706,8 +706,8 @@ class TestCorePathReverse(object):
                                  "get_by_label", "count"])
         inst._ofs.count = create_mock()
         inst._ofs.count.return_value = True
-        inst.get_hof = create_mock()
         inst._ofs.get_by_label.side_effect = ["foo", "bar"]
+        inst.get_hof = create_mock()
         inst.get_hof.return_value = "bar"
         inst.next_segment = create_mock()
         # Call
