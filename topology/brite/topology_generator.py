@@ -232,17 +232,19 @@ def read_topo_file(topo_file, isd_num):
         if nodes_count > 0:
             nodes_count -= 1
             values = line.split("\t")
-            ad_id = values[0]
-            isd_ad_id = ISD_AD_ID_DIVISOR.join([str(isd_num), ad_id])
+            ad_id = int(values[0]) + 1
+            isd_ad_id = ISD_AD_ID_DIVISOR.join([str(isd_num), str(ad_id)])
             original_graph.add_node(isd_ad_id, is_core=False)
             num_outedges.append((isd_ad_id, int(values[3])))
         if edges_count > 0:
             edges_count -= 1
             values = line.split("\t")
+            source_ad_id = int(values[1]) + 1
+            dest_ad_id = int(values[2]) + 1
             source_isd_ad_id = ISD_AD_ID_DIVISOR.join([str(isd_num),
-                                                      values[1]])
+                                                      str(source_ad_id)])
             dest_isd_ad_id = ISD_AD_ID_DIVISOR.join([str(isd_num),
-                                                     values[2]])
+                                                     str(dest_ad_id)])
             original_graph.add_edge(source_isd_ad_id, dest_isd_ad_id)
         if values[0] == "Nodes:":
             nodes_count = int(values[2])
