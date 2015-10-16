@@ -150,8 +150,8 @@ class SCIONCommonHdr(HeaderBase):
 
     def __str__(self):
         values = {
-            "src_addr_type": haddr_get_type(self.src_addr_type).NAME,
-            "dst_addr_type": haddr_get_type(self.dst_addr_type).NAME,
+            "src_addr_type": haddr_get_type(self.src_addr_type).name(),
+            "dst_addr_type": haddr_get_type(self.dst_addr_type).name(),
         }
         for i in ("version", "total_len",
                   "_iof_idx", "_hof_idx", "next_hdr", "hdr_len"):
@@ -261,11 +261,11 @@ class SCIONAddrHdr(HeaderBase):
     def __str__(self):
         s = []
         s.append("SCIONAddrHdr(%dB):" % len(self))
-        s.append("  Src isd:%d ad:%d host(%s):%s" % (
-            self.src_isd, self.src_ad, self.src_addr.NAME, self.src_addr))
-        s.append("  Dst isd:%d ad:%d host(%s):%s" % (
-            self.dst_isd, self.dst_ad, self.dst_addr.NAME, self.dst_addr))
-        return "\n".join(s)
+        s.append("Src<isd:%d ad:%d host(%s):%s>" % (
+            self.src_isd, self.src_ad, self.src_addr.name(), self.src_addr))
+        s.append("Dst<isd:%d ad:%d host(%s):%s>" % (
+            self.dst_isd, self.dst_ad, self.dst_addr.name(), self.dst_addr))
+        return " ".join(s)
 
 
 class SCIONBasePacket(PacketBase):

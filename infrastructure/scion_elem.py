@@ -158,7 +158,7 @@ class SCIONElement(object):
         try:
             handler(pkt)
         except SCIONBaseError:
-            log_exception("Error handling packet:\n%s" % packet)
+            log_exception("Error handling packet:\n%s" % pkt)
 
     def _get_handler(self, pkt):
         pld = pkt.get_payload()
