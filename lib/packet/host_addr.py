@@ -53,7 +53,6 @@ class HostAddrBase(object, metaclass=ABCMeta):
     """
     TYPE = None
     LEN = None
-    NAME = None
 
     def __init__(self, addr, raw=True):
         """
@@ -77,6 +76,10 @@ class HostAddrBase(object, metaclass=ABCMeta):
         :rtype: bytes
         """
         raise NotImplementedError
+
+    @classmethod
+    def name(cls):
+        return AddrType.to_str(cls.TYPE)
 
     def __str__(self):
         return str(self.addr)
@@ -124,8 +127,8 @@ class HostAddrIPv4(HostAddrBase):
         try:
             self.addr = IPv4Address(raw)
         except AddressValueError as e:
-            raise SCIONParseError("Unable to parse %s address: %s" % (self.NAME, e)) \
-                from None
+            raise SCIONParseError("Unable to parse %s address: %s" %
+                                  (self.name(), e)) from None
 
     def pack(self):
         return self.addr.packed
@@ -147,8 +150,8 @@ class HostAddrIPv6(HostAddrBase):
         try:
             self.addr = IPv6Address(raw)
         except AddressValueError as e:
-            raise SCIONParseError("Unable to parse %s address: %s" % (self.NAME, e)) \
-                from None
+            raise SCIONParseError("Unable to parse %s address: %s" %
+                                  (self.name(), e)) from None
 
     def pack(self):
         return self.addr.packed
@@ -199,8 +202,8 @@ def haddr_get_type(type_):
     try:
         return _map[type_]
     except KeyError:
-        raise HostAddrInvalidType("Unknown host addr type '%s'" % type_) \
-            from None
+        raise HostAddrInvalidType("Unknown host addr type '%s'" %
+                                  type_) from None
 
 
 def haddr_parse(type_, *args, **kwargs):

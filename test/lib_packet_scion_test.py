@@ -205,8 +205,8 @@ class TestSCIONCommonHdrStr(object):
         inst._hof_idx = 4
         inst.next_hdr = 0x7
         inst.hdr_len = 0x8
-        addr_type = create_mock(['NAME'])
-        addr_type.NAME = "name"
+        addr_type = create_mock(['name'])
+        addr_type.name.return_value = "name"
         get_type.return_value = addr_type
         # Call
         str(inst)

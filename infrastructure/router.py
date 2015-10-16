@@ -761,8 +761,8 @@ class Router(SCIONElement):
         else:
             # It's a normal packet, just forward it.
             handler = self.forward_packet
-        logging.debug("handle_request: pkt addrs: %s handler: %s",
-                      pkt.addrs, handler)
+        logging.debug("handle_request:\n  %s\n  %s\n  handler: %s",
+                      pkt.cmn_hdr, pkt.addrs, handler)
         if not handler:
             return
         try:
