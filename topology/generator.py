@@ -89,7 +89,7 @@ ISD_AD_ID_DIVISOR = '-'
 DEFAULT_DNS_DOMAIN = DNSLabel("scion")
 
 DEFAULT_NETWORK = "127.0.0.0/8"
-DEFAULT_SUBNET_PREFIX = 27
+DEFAULT_SUBNET_PREFIX = 20
 
 
 class ConfigGenerator(object):
@@ -559,6 +559,10 @@ class ConfigGenerator(object):
         text = StringIO()
         for isd_ad_id, ad_conf in self.ad_configs["ADs"].items():
             isd_id, ad_id = isd_ad_id.split(ISD_AD_ID_DIVISOR)
+            if ad_conf['level'] == CORE_AD:
+                element_location = "core"
+            else:
+                element_location = "local"
 
             topo_file = self._path_gen(isd_id, ad_id, TOPO_DIR, ".json")
             conf_file = self._path_gen(isd_id, ad_id, CONF_DIR, ".conf")
@@ -575,8 +579,8 @@ class ConfigGenerator(object):
             for b_server in range(1, number_bs + 1):
                 element_name = 'bs{}-{}-{}'.format(isd_id, ad_id, b_server)
                 text.write(' '.join([
-                    'beacon_server', element_name, str(b_server), topo_file,
-                    conf_file, path_pol_file, isd_id, ad_id]) + '\n')
+                    'beacon_server', element_name, element_location, str(b_server),
+                    topo_file, conf_file, path_pol_file, isd_id, ad_id]) + '\n')
             # Certificate Servers
             for c_server in range(1, number_cs + 1):
                 element_name = 'cs{}-{}-{}'.format(isd_id, ad_id, c_server)
@@ -589,7 +593,8 @@ class ConfigGenerator(object):
                 for p_server in range(1, number_ps + 1):
                     element_name = 'ps{}-{}-{}'.format(isd_id, ad_id, p_server)
                     text.write(' '.join([
-                        'path_server', element_name, str(p_server), topo_file,
+                        'path_server', element_name, element_location,
+                        str(p_server), topo_file,
                         conf_file, isd_id, ad_id]) + '\n')
             # Edge Routers
             edge_router = 1
