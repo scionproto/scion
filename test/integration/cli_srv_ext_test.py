@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 # Copyright 2015 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -48,7 +49,7 @@ def client():
     """
     Simple client
     """
-    topo_file = ("../../topology/ISD%d/topologies/ISD%d-AD%d.json" %
+    topo_file = ("topology/ISD%d/topologies/ISD%d-AD%d.json" %
                  (CLI_ISD, CLI_ISD, CLI_AD))
     # Start SCIONDaemon
     sd = SCIONDaemon.start(haddr_parse("IPV4", CLI_IP), topo_file)
@@ -95,7 +96,7 @@ def server():
     """
     Simple server.
     """
-    topo_file = ("../../topology/ISD%d/topologies/ISD%d-AD%d.json" %
+    topo_file = ("topology/ISD%d/topologies/ISD%d-AD%d.json" %
                  (SRV_ISD, SRV_ISD, SRV_AD))
     # Start SCIONDaemon
     sd = SCIONDaemon.start(haddr_parse("IPV4", SRV_IP), topo_file)
@@ -123,7 +124,7 @@ def server():
 
 
 if __name__ == "__main__":
-    init_logging("../../logs/c2s_extn.log", console=True)
+    init_logging("logs/c2s_extn.log", console=True)
     handle_signals()
     # if len(sys.argv) == 3:
     #     isd, ad = sys.argv[1].split(',')

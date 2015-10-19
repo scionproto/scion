@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 # Copyright 2014 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -97,7 +98,7 @@ class Ping(object):
         self.dport = dport
         self.token = token
         self.pong_received = False
-        topo_file = ("../../topology/ISD%d/topologies/ISD%d-AD%d.json" %
+        topo_file = ("topology/ISD%d/topologies/ISD%d-AD%d.json" %
                      (src.isd, src.isd, src.ad))
         self.sd = SCIONDaemon.start(saddr, topo_file, True)  # API on
         self.get_path()
@@ -157,7 +158,7 @@ class Pong(object):
         self.dst = dst
         self.token = token
         self.ping_received = False
-        topo_file = ("../../topology/ISD%d/topologies/ISD%d-AD%d.json" %
+        topo_file = ("topology/ISD%d/topologies/ISD%d-AD%d.json" %
                      (self.dst.isd, self.dst.isd, self.dst.ad))
         self.sd = SCIONDaemon.start(raddr, topo_file)  # API off
         self.sock = UDPSocket(bind=(str(raddr), 0, "Pong App"),
@@ -228,7 +229,7 @@ class TestSCIONDaemon(unittest.TestCase):
         sys.exit(failures)
 
 if __name__ == "__main__":
-    init_logging("../../logs/end2end.log", console=True)
+    init_logging("logs/end2end.log", console=True)
     handle_signals()
     if len(sys.argv) == 3:
         isd, ad = sys.argv[1].split(',')
