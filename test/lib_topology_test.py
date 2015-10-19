@@ -209,10 +209,10 @@ class TestTopologyParseDict(object):
         er = {ROUTER_SERVICE + str(i): 'router' + str(i) for i in range(5)}
         zk = {
             'zk0': {
-                'AddrType': "IPV4", 'Addr': 'zkv4', 'ClientPort': 2181,
+                'AddrType': "IPV4", 'Addr': 'zkv4', 'Port': 2181,
             },
             'zk1': {
-                'AddrType': "IPV6", 'Addr': 'zkv6', 'ClientPort': 2182,
+                'AddrType': "IPV6", 'Addr': 'zkv6', 'Port': 2182,
             }
         }
         topo_dict = {
