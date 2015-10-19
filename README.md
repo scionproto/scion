@@ -1,64 +1,78 @@
 SCION
 =====
 
-Python implementation of [SCION](http://www.scion-architecture.net), a future Internet architecture.
+Python implementation of [SCION](http://www.scion-architecture.net), a future
+Internet architecture.
 
-* [doc](/doc) contains documentation and specification of the SCION implementation
-* [infrastructure](/infrastructure) contains the code of the SCION infrastructure elements (servers, routers)
-* [lib](/lib) contains the most relevant SCION libraries
-* [topology](/topology) contains the scripts to generate the SCION configuration and topology files, as well as the certificates and ROT files
+* [doc/](/doc) contains documentation and specification of the SCION
+  implementation
+* [infrastructure/](/infrastructure) contains the code of the SCION
+  infrastructure elements (servers, routers)
+* [lib/](/lib) contains the most relevant SCION libraries
+* [topology/](/topology) contains the scripts to generate the SCION
+  configuration and topology files, as well as the certificates and ROT files
 
 Necessary steps in order to run SCION:
 
-1. Make sure that `~/.local/bin` can be found in your $PATH variable.
+1. Make sure that `~/.local/bin` can be found in your `$PATH` variable. For
+   example, do the following to update `$PATH` in your `~/.profile` and apply
+   the changes to your session:
 
-	For example, do the following to update $PATH in your `~/.profile` and apply the changes to your session:
+    `echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.profile && source
+    ~/.profile`
 
-	`echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.profile && source ~/.profile`
+1. Install required packages with dependencies:
 
-2. Install required packages with dependencies:
+    `./deps.sh all`
 
-	`./deps.sh all`
+1. Configure the host Zookeeper instance. At a minimum, add `maxClientCnxns=0`
+   to `/etc/zookeeper/conf/zoo.cfg`, but replacing it with `docker/zoo.cfg` is
+   recommended. This has the standard parameters set, as well as using a ram
+   disk for the data log, which greatly improves ZK performance (at the cost of
+   reliability, so it should only be done in a testing environment).
 
-3. Compile the crypto library:
+1. Compile the crypto library:
 
-	`./scion.sh init`
+    `./scion.sh init`
 
-4. Create the topology and configuration files (according to `topology/ADConfigurations.json`):
+1. Create the topology and configuration files (according to
+   `topology/ADConfigurations.json`):
 
-	`./scion.sh topology`
+    `./scion.sh topology`
 
-	The resulting directory structure will be created:
+    The resulting directory structure will be created:
 
-		./topology/ISDX/
-			certificates/ADY/ISD:X-AD:Y-V:Z.crt
-			configurations/ISD:X-AD:Y.conf
-			encryption_keys/ISD:X-AD:Y.key
-			path_policies/ISD:X-AD:Y.json
-			signature_keys/ISD:X-AD:Y.key
-			supervisor/ISD:X-AD:Y.conf
-			topologies/ISD:X-AD:Y.json
-			zookeeper/ISDX-ADY/
+        ./gen/ISDX/
+            certificates/ADY/ISDX-ADY-VZ.crt
+            configurations/ISDX-ADY.conf
+            encryption_keys/ISDX-ADY.key
+            path_policies/ISDX-ADY.json
+            signature_keys/ISDX-ADY.key
+            supervisor/ISDX-ADY.conf
+            topologies/ISDX-ADY.json
+            zookeeper/ISDX-ADY/
 
-5. Run the infrastructure:
+1. Run the infrastructure:
 
-	`./scion.sh run`
+    `./scion.sh run`
 
-6. Stop the infrastructure:
+1. Stop the infrastructure:
 
-	`./scion.sh stop`
+    `./scion.sh stop`
 
 Notes about `topology/ADConfigurations.json`:
 
-* default_subnet (optional): subnet used if one is not defined at the AD level.
+* `defaults.subnet` (optional): override the default subnet of `127.0.0.0/8`.
 
-* subnet (optional): subnet used for a specific AD (overrides default_subnet).
+* `level`: can either be `CORE`, `INTERMEDIATE`, or `LEAF`.
 
-* level: can either be CORE, INTERMEDIATE, or LEAF.
+* `beacon_servers`, `certificate_servers`, `path_servers`, `dns_servers` (all
+  optional): number of such servers in a specific AD (override the default
+  value 1).
 
-* beacon_servers, certificate_servers, path_servers, dns_servers (all optional): number of such servers in a specific AD (override the default value 1).
-
-* links: keys are ISD_ID-AD_ID (format also used for the keys of the JSON file itself) and values can either be PARENT, CHILD, PEER, or ROUTING.
+* `links`: keys are `ISD_ID-AD_ID` (format also used for the keys of the JSON
+  file itself) and values can either be `PARENT`, `CHILD`, `PEER`, or
+  `ROUTING`.
 
 ## Tests
 
