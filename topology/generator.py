@@ -69,6 +69,7 @@ SUPERVISOR_DIR = 'supervisor'
 SIM_DIR = 'SIM'
 SIM_CONF_FILE = 'sim.conf'
 HOSTS_FILE = 'hosts'
+MININET_CONF = 'mininet.conf'
 
 ZOOKEEPER_DIR = 'zookeeper'
 ZOOKEEPER_CFG = "zoo.cfg"
@@ -88,6 +89,7 @@ INITIAL_TRC_VERSION = 0
 DEFAULT_DNS_DOMAIN = DNSLabel("scion")
 
 DEFAULT_NETWORK = "127.0.0.0/8"
+DEFAULT_MININET_NETWORK = "100.64.0.0/10"
 DEFAULT_SUBNET_PREFIX = 27
 
 
@@ -99,7 +101,7 @@ class ConfigGenerator(object):
                  adconfigurations_file=DEFAULT_ADCONFIGURATIONS_FILE,
                  path_policy_file=DEFAULT_PATH_POLICY_FILE,
                  zk_config_file=DEFAULT_ZK_CONFIG, network=None,
-                 is_sim=False):
+                 is_sim=False, use_mininet=False):
         """
         Initialize an instance of the class ConfigGenerator.
 
@@ -110,12 +112,14 @@ class ConfigGenerator(object):
         :param string network:
             Network to create subnets in, of the form x.x.x.x/y
         :param bool is_sim: Generate conf files for the Simulator
+        :param bool use_mininet: Use Mininet
         """
         self.out_dir = out_dir
         self.ad_configs = load_json_file(adconfigurations_file)
         self.zk_config = load_json_file(zk_config_file)
         self.path_policy_file = path_policy_file
         self.is_sim = is_sim
+        self.mininet = use_mininet
         self.default_zookeepers = {}
         self._read_defaults(network)
 
@@ -126,7 +130,12 @@ class ConfigGenerator(object):
         defaults = self.ad_configs.get("defaults", {})
         def_network = network
         if not def_network:
-            def_network = defaults.get("subnet", DEFAULT_NETWORK)
+            def_network = defaults.get("subnet")
+        if not def_network:
+            if self.mininet:
+                def_network = DEFAULT_MININET_NETWORK
+            else:
+                def_network = DEFAULT_NETWORK
         self.subnet_gen = SubnetGenerator(def_network)
         for key, val in defaults.get("zookeepers", {}).items():
             self.default_zookeepers[key] = ZKTopo(
@@ -137,13 +146,15 @@ class ConfigGenerator(object):
         Generate all needed files.
         """
         self._generate_certs()
-        topo_dicts, zookeepers = self._generate_topology()
+        topo_dicts, zookeepers, networks = self._generate_topology()
         self._generate_supervisor(topo_dicts, zookeepers)
         if self.is_sim:
             self._generate_sim_conf(topo_dicts)
         self._generate_zk_conf(zookeepers)
         self._write_conf_files()
         self._write_path_policy_files()
+        if self.mininet:
+            self._write_mininet_conf(networks)
 
     def _generate_certs(self):
         certgen = CertGenerator(self.ad_configs, self.out_dir)
@@ -205,6 +216,17 @@ class ConfigGenerator(object):
             copy_file(self.path_policy_file, dst)
             # Test if parser works
             PathPolicy.from_file(dst)
+
+    def _write_mininet_conf(self, networks):
+        config = configparser.ConfigParser(interpolation=None)
+        for i, net in enumerate(networks):
+            sub_conf = {}
+            for prog, ip in networks[net].items():
+                sub_conf[prog] = ip
+            config[net] = sub_conf
+        text = StringIO()
+        config.write(text)
+        write_file(os.path.join(self.out_dir, MININET_CONF), text.getvalue())
 
 
 class CertGenerator(object):
@@ -329,14 +351,16 @@ class TopoGenerator(object):
         self.topo_dicts = {}
         self.hosts = StringIO()
         self.zookeepers = defaultdict(dict)
+        self.networks = defaultdict(dict)
 
-    def _get_addr(self, topo_id, elem_type, elem_id):
+    def _get_addr(self, topo_id, elem_id):
         """
         Get an address and address type for an element, assigning a new address
         if necessary.
         """
         addr_gen = self.subnet_gen.get(topo_id)
-        addr = addr_gen.get((topo_id, elem_type, elem_id))
+        addr, subnet = addr_gen.get(elem_id)
+        self.networks[subnet][elem_id] = addr
         return addr, _addr_type(addr)
 
     def _iterate(self, f):
@@ -347,7 +371,7 @@ class TopoGenerator(object):
         self._iterate(self._generate_ad_topo)
         self._iterate(self._write_ad_topo)
         self._write_hosts()
-        return self.topo_dicts, self.zookeepers
+        return self.topo_dicts, self.zookeepers, self.networks
 
     def _generate_ad_topo(self, topo_id, ad_conf):
         dns_domain = DNSLabel(ad_conf.get("dns_domain", DEFAULT_DNS_DOMAIN))
@@ -381,7 +405,8 @@ class TopoGenerator(object):
                        topo_key):
         count = ad_conf.get(conf_key, def_num)
         for i in range(1, count + 1):
-            addr, addr_type = self._get_addr(topo_id, nick, i)
+            elem_id = "%s%s-%s" % (nick, topo_id, i)
+            addr, addr_type = self._get_addr(topo_id, elem_id)
             self.topo_dicts[topo_id][topo_key][i] = {
                 'AddrType': addr_type, 'Addr': str(addr),
             }
@@ -398,11 +423,12 @@ class TopoGenerator(object):
             er_id += 1
 
     def _gen_er_entry(self, local, er_id, remote, remote_type):
-        local_addr, local_type = self._get_addr(local, "er", er_id)
-        public_addr, public_addr_type = self._get_addr(local, "er",
-                                                       (local, remote))
-        remote_addr, remote_addr_type = self._get_addr(remote, "er",
-                                                       (remote, local))
+        local_if = "er%s-%s" % (local, er_id)
+        local_addr, local_type = self._get_addr(local, local_if)
+        public_if = "er%ser%s" % (local, remote)
+        public_addr, public_addr_type = self._get_addr(local, public_if)
+        remote_if = "er%ser%s" % (remote, local)
+        remote_addr, remote_addr_type = self._get_addr(remote, remote_if)
         assert public_addr_type == remote_addr_type
         self.topo_dicts[local]["EdgeRouters"][er_id] = {
             'AddrType': local_type, 'Addr': str(local_addr),
@@ -431,7 +457,8 @@ class TopoGenerator(object):
     def _gen_zk_entry(self, topo_id, zk_id, zk_conf):
         zk = ZKTopo(zk_conf, self.zk_config["Default"])
         if zk.manage:
-            zk.addr, _ = self._get_addr(topo_id, "zk", zk_id)
+            elem_id = "zk%s-%s" % (topo_id, zk_id)
+            zk.addr, _ = self._get_addr(topo_id, elem_id)
             self.zookeepers[topo_id][zk_id] = zk
         self.topo_dicts[topo_id]["Zookeepers"][zk_id] = {
             'AddrType': _addr_type(zk.addr),
@@ -561,9 +588,10 @@ class SupervisorGenerator(object):
             'autorestart': 'false',
             'redirect_stderr': 'true',
             'environment': 'PYTHONPATH=.',
-            'stdout_logfile_maxbytes': '0',
+            'stdout_logfile_maxbytes': 0,
             'stdout_logfile': "logs/%s.out" % name,
-            'startretries': '0',
+            'startretries': 0,
+            'startsecs': 5,
             'command': " ".join(['"%s"' % arg for arg in cmd_args]),
         }
 
@@ -741,7 +769,7 @@ class AddressGenerator(object):
 
     def get(self, id_):
         try:
-            return self._map[id_]
+            return self._map[id_], self._subnet
         except StopIteration:
             logging.critical("Unable to allocate any more addresses from %s",
                              self._subnet)
@@ -762,23 +790,21 @@ def main():
     parser.add_argument('-c', '--ad-config',
                         default=DEFAULT_ADCONFIGURATIONS_FILE,
                         help='AD configurations file')
-    parser.add_argument('-s', '--sim',
-                        action='store_true',
-                        help='Simulator')
-    parser.add_argument('-p', '--path-policy',
-                        default=DEFAULT_PATH_POLICY_FILE,
+    parser.add_argument('-s', '--sim', action='store_true', help='Simulator')
+    parser.add_argument('-p', '--path-policy', default=DEFAULT_PATH_POLICY_FILE,
                         help='Path policy file')
+    parser.add_argument('-m', '--mininet', action='store_true',
+                        help='Use Mininet to create a virtual network topology')
     parser.add_argument('-n', '--network',
                         help='Network to create subnets in (E.g. "127.0.0.0/8"')
-    parser.add_argument('-o', '--output-dir',
-                        default=GEN_PATH,
+    parser.add_argument('-o', '--output-dir', default=GEN_PATH,
                         help='Output directory')
-    parser.add_argument('-z', '--zk-config',
-                        default=DEFAULT_ZK_CONFIG,
+    parser.add_argument('-z', '--zk-config', default=DEFAULT_ZK_CONFIG,
                         help='Zookeeper configuration file')
     args = parser.parse_args()
-    confgen = ConfigGenerator(args.output_dir, args.ad_config, args.path_policy,
-                              args.zk_config, args.network, args.sim)
+    confgen = ConfigGenerator(
+        args.output_dir, args.ad_config, args.path_policy, args.zk_config,
+        args.network, args.sim, args.mininet)
     confgen.generate_all()
 
 
