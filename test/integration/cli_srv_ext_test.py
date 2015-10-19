@@ -25,7 +25,7 @@ import sys
 
 # SCION
 from endhost.sciond import SCIONDaemon
-from lib.defines import SCION_BUFLEN, SCION_UDP_EH_DATA_PORT
+from lib.defines import GEN_PATH, SCION_BUFLEN, SCION_UDP_EH_DATA_PORT
 from lib.log import init_logging, log_exception
 from lib.packet.ext.traceroute import TracerouteExt
 from lib.packet.host_addr import haddr_parse
@@ -49,8 +49,8 @@ def client():
     """
     Simple client
     """
-    topo_file = ("topology/ISD%d/topologies/ISD%d-AD%d.json" %
-                 (CLI_ISD, CLI_ISD, CLI_AD))
+    topo_file = ("%s/ISD%d/topologies/ISD%d-AD%d.json" %
+                 (GEN_PATH, CLI_ISD, CLI_ISD, CLI_AD))
     # Start SCIONDaemon
     sd = SCIONDaemon.start(haddr_parse("IPV4", CLI_IP), topo_file)
     logging.info("CLI: Sending PATH request for (%d, %d)", SRV_ISD, SRV_AD)
@@ -96,8 +96,8 @@ def server():
     """
     Simple server.
     """
-    topo_file = ("topology/ISD%d/topologies/ISD%d-AD%d.json" %
-                 (SRV_ISD, SRV_ISD, SRV_AD))
+    topo_file = ("%s/ISD%d/topologies/ISD%d-AD%d.json" %
+                 (GEN_PATH, SRV_ISD, SRV_ISD, SRV_AD))
     # Start SCIONDaemon
     sd = SCIONDaemon.start(haddr_parse("IPV4", SRV_IP), topo_file)
     # Open a socket for incomming DATA traffic

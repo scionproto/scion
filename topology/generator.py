@@ -23,7 +23,6 @@ import configparser
 import json
 import logging
 import os
-import shutil
 import sys
 from collections import defaultdict
 from io import StringIO
@@ -41,7 +40,7 @@ from lib.crypto.asymcrypto import (
     sign,
 )
 from lib.crypto.certificate import Certificate, CertificateChain, TRC
-from lib.defines import TOPOLOGY_PATH, SCION_ROUTER_PORT
+from lib.defines import GEN_PATH, SCION_ROUTER_PORT
 from lib.path_store import PathPolicy
 from lib.topology import Topology
 from lib.util import (
@@ -54,13 +53,12 @@ from lib.util import (
     write_file,
 )
 
-DEFAULT_ADCONFIGURATIONS_FILE = os.path.join(TOPOLOGY_PATH,
-                                             'ADConfigurations.json')
-DEFAULT_PATH_POLICY_FILE = os.path.join(TOPOLOGY_PATH, 'PathPolicy.json')
-DEFAULT_ZK_CONFIG = os.path.join(TOPOLOGY_PATH, "Zookeeper.json")
-DEFAULT_ZK_LOG4J = os.path.join(TOPOLOGY_PATH, "Zookeeper.log4j")
+DEFAULT_ADCONFIGURATIONS_FILE = "topology/ADConfigurations.json"
+DEFAULT_PATH_POLICY_FILE = "topology/PathPolicy.json"
+DEFAULT_ZK_CONFIG = "topology/Zookeeper.json"
+DEFAULT_ZK_LOG4J = "topology/Zookeeper.log4j"
 
-SCRIPTS_DIR = 'topology'
+GEN_DIR = 'gen'
 CERT_DIR = 'certificates'
 CONF_DIR = 'configurations'
 TOPO_DIR = 'topologies'
@@ -74,6 +72,7 @@ HOSTS_FILE = 'hosts'
 
 ZOOKEEPER_DIR = 'zookeeper'
 ZOOKEEPER_CFG = "zoo.cfg"
+ZOOKEEPER_HOST_TMPFS_DIR = "/run/shm/host-zk"
 ZOOKEEPER_TMPFS_DIR = "/run/shm/scion-zk"
 
 CORE_AD = 'CORE'
@@ -96,7 +95,7 @@ class ConfigGenerator(object):
     """
     Configuration and/or topology generator.
     """
-    def __init__(self, out_dir=TOPOLOGY_PATH,
+    def __init__(self, out_dir=GEN_PATH,
                  adconfigurations_file=DEFAULT_ADCONFIGURATIONS_FILE,
                  path_policy_file=DEFAULT_PATH_POLICY_FILE,
                  zk_config_file=DEFAULT_ZK_CONFIG, network=None,
@@ -112,9 +111,6 @@ class ConfigGenerator(object):
             Network to create subnets in, of the form x.x.x.x/y
         :param bool is_sim: Generate conf files for the Simulator
         """
-        if not os.path.isdir(out_dir):
-            logging.error(out_dir + " output directory missing")
-            sys.exit()
         self.out_dir = out_dir
         self.ad_configs = load_json_file(adconfigurations_file)
         self.zk_config = load_json_file(zk_config_file)
@@ -140,27 +136,14 @@ class ConfigGenerator(object):
         """
         Generate all needed files.
         """
-        self._delete_directories()
         self._generate_certs()
-        topo_dicts, zookeepers, isd_hosts = self._generate_topology()
+        topo_dicts, zookeepers = self._generate_topology()
         self._generate_supervisor(topo_dicts, zookeepers)
         if self.is_sim:
             self._generate_sim_conf(topo_dicts)
         self._generate_zk_conf(zookeepers)
         self._write_conf_files()
         self._write_path_policy_files()
-        self._write_isd_hosts(isd_hosts)
-
-    def _delete_directories(self):
-        """
-        Delete any ISD* directories if present.
-        """
-        _, dirs, _ = next(os.walk(self.out_dir))
-        for name in dirs:
-            if name.startswith('ISD'):
-                shutil.rmtree(os.path.join(self.out_dir, name))
-            if name.startswith('SIM'):
-                shutil.rmtree(os.path.join(self.out_dir, name))
 
     def _generate_certs(self):
         certgen = CertGenerator(self.ad_configs, self.out_dir)
@@ -222,12 +205,6 @@ class ConfigGenerator(object):
             copy_file(self.path_policy_file, dst)
             # Test if parser works
             PathPolicy.from_file(dst)
-
-    def _write_isd_hosts(self, isd_hosts):
-        for isd_id, hosts in isd_hosts.items():
-            hosts_path = os.path.join(
-                self.out_dir, "ISD%s" % isd_id, HOSTS_FILE)
-            write_file(hosts_path, hosts.getvalue())
 
 
 class CertGenerator(object):
@@ -350,7 +327,7 @@ class TopoGenerator(object):
         self.zk_config = zk_config
         self.is_sim = is_sim
         self.topo_dicts = {}
-        self.isd_hosts = defaultdict(StringIO)
+        self.hosts = StringIO()
         self.zookeepers = defaultdict(dict)
 
     def _get_addr(self, topo_id, elem_type, elem_id):
@@ -369,7 +346,8 @@ class TopoGenerator(object):
     def generate(self):
         self._iterate(self._generate_ad_topo)
         self._iterate(self._write_ad_topo)
-        return self.topo_dicts, self.zookeepers, self.isd_hosts
+        self._write_hosts()
+        return self.topo_dicts, self.zookeepers
 
     def _generate_ad_topo(self, topo_id, ad_conf):
         dns_domain = DNSLabel(ad_conf.get("dns_domain", DEFAULT_DNS_DOMAIN))
@@ -410,7 +388,7 @@ class TopoGenerator(object):
 
     def _gen_hosts_entries(self, topo_id, dns_domain):
         for dns_srv in self.topo_dicts[topo_id]["DNSServers"].values():
-            self.isd_hosts[topo_id.isd].write(
+            self.hosts.write(
                 "%s\tds.%s\n" % (dns_srv["Addr"], str(dns_domain).rstrip(".")))
 
     def _gen_er_entries(self, topo_id, ad_conf):
@@ -468,6 +446,10 @@ class TopoGenerator(object):
             self.topo_dicts[topo_id], sort_keys=True, indent=4))
         Topology.from_file(path)
 
+    def _write_hosts(self):
+        hosts_path = os.path.join(self.out_dir, HOSTS_FILE)
+        write_file(hosts_path, self.hosts.getvalue())
+
 
 class SupervisorGenerator(object):
     def __init__(self, out_dir, topo_dicts, zookeepers, zk_config):
@@ -475,7 +457,6 @@ class SupervisorGenerator(object):
         self.topo_dicts = topo_dicts
         self.zookeepers = zookeepers
         self.zk_config = zk_config
-        self._base_dir = SCRIPTS_DIR
 
     def generate(self):
         for topo_id, topo in self.topo_dicts.items():
@@ -528,7 +509,7 @@ class SupervisorGenerator(object):
         if topo_id not in self.zookeepers:
             return []
         entries = []
-        base_dir = os.path.join(self._base_dir, topo_id.ISD(), ZOOKEEPER_DIR,
+        base_dir = os.path.join(self.out_dir, topo_id.ISD(), ZOOKEEPER_DIR,
                                 topo_id.ISD_AD())
         for id_, zk in self.zookeepers[topo_id].items():
             name = "zk%s-%s-%s" % (topo_id.isd, topo_id.ad, id_)
@@ -558,7 +539,7 @@ class SupervisorGenerator(object):
         write_file(conf_path, text.getvalue())
 
     def _get_path(self, topo_id, subdir, suffix):
-        return os.path.join(self._base_dir, topo_id.ISD(),
+        return os.path.join(self.out_dir, topo_id.ISD(),
                             subdir, "%s.%s" % (topo_id.ISD_AD(), suffix))
 
     def _topo_path(self, topo_id):
@@ -572,7 +553,7 @@ class SupervisorGenerator(object):
 
     def _trc_path(self, topo_id):
         return get_trc_file_path(topo_id.isd, topo_id.ad, topo_id.isd,
-                                 INITIAL_TRC_VERSION, isd_dir=self._base_dir)
+                                 INITIAL_TRC_VERSION, isd_dir=self.out_dir)
 
     def _common_entry(self, name, cmd_args):
         return {
@@ -591,7 +572,6 @@ class SimulatorGenerator(SupervisorGenerator):
     def __init__(self, out_dir, topo_dicts):
         self.out_dir = out_dir
         self.topo_dicts = topo_dicts
-        self._base_dir = SCRIPTS_DIR
         self.sim_conf = StringIO()
 
     def generate(self):
@@ -608,7 +588,7 @@ class SimulatorGenerator(SupervisorGenerator):
         text = StringIO()
         text.write(
             '#!/bin/bash\n\n'
-            'exec sim_test.py topology/SIM/sim.conf 100.\n')
+            'exec sim_test.py gen/SIM/sim.conf 100.\n')
         write_file(file_path, text.getvalue())
 
     def _write_ad_conf(self, topo_id, entries):
@@ -627,10 +607,12 @@ class ZKConfGenerator(object):
     def __init__(self, out_dir, zookeepers):
         self.out_dir = out_dir
         self.zookeepers = zookeepers
+        self.datalog_dirs = []
 
     def generate(self):
         for topo_id, zks in self.zookeepers.items():
             self._write_ad_zk_configs(topo_id, zks)
+        self._write_datalog_dirs()
 
     def _write_ad_zk_configs(self, topo_id, zks):
         # Build up server block
@@ -640,27 +622,39 @@ class ZKConfGenerator(object):
                            (id_, zk.addr, zk.leaderPort,
                             zk.electionPort))
         server_block = "\n".join(sorted(servers))
-        base_dir_tail = os.path.join(topo_id.ISD(), ZOOKEEPER_DIR,
-                                     topo_id.ISD_AD())
-        base_dir_rel = os.path.join(SCRIPTS_DIR, base_dir_tail)
-        base_dir_abs = os.path.join(self.out_dir, base_dir_tail)
-        copy_file(DEFAULT_ZK_LOG4J,
-                  os.path.join(base_dir_abs, "log4j.properties"))
+        base_dir = os.path.join(self.out_dir, topo_id.ISD(), ZOOKEEPER_DIR,
+                                topo_id.ISD_AD())
+        copy_file(DEFAULT_ZK_LOG4J, os.path.join(base_dir, "log4j.properties"))
         for id_, zk in zks.items():
             text = StringIO()
             datalog_dir = os.path.join(ZOOKEEPER_TMPFS_DIR, topo_id.ISD_AD(),
                                        id_)
             text.write("%s\n\n" % zk.config(
-                os.path.join(base_dir_rel, "data.%s" % id_),
+                os.path.join(base_dir, "data.%s" % id_),
                 datalog_dir,
             ))
             text.write("%s\n" % server_block)
-            write_file(os.path.join(base_dir_abs, 'zoo.cfg.%s' % id_),
+            write_file(os.path.join(base_dir, 'zoo.cfg.%s' % id_),
                        text.getvalue())
-            write_file(os.path.join(base_dir_abs, "data.%s" % id_, "myid"),
+            write_file(os.path.join(base_dir, "data.%s" % id_, "myid"),
                        "%s\n" % id_)
-            write_file(os.path.join(base_dir_abs, "datalog.%s.sh" % id_),
-                       "#!/bin/bash\nmkdir -p %s\n" % (datalog_dir))
+            self.datalog_dirs.append(datalog_dir)
+
+    def _write_datalog_dirs(self):
+        text = StringIO()
+        text.write("#!/bin/bash\n\n")
+        text.write(
+            "if [ ! -e %(dir)s ]; then\n"
+            "  echo 'Creating %(dir)s & restarting zookeeper'\n"
+            "  sudo mkdir -p %(dir)s\n"
+            "  sudo chown -R zookeeper: %(dir)s\n"
+            "  sudo service zookeeper restart\n"
+            "fi\n" % {"dir": ZOOKEEPER_HOST_TMPFS_DIR}
+        )
+        for d in self.datalog_dirs:
+            text.write("mkdir -p %s\n" % d)
+        write_file(os.path.join(self.out_dir, "zk_datalog_dirs.sh"),
+                   text.getvalue())
 
 
 class TopoID(object):
@@ -777,7 +771,7 @@ def main():
     parser.add_argument('-n', '--network',
                         help='Network to create subnets in (E.g. "127.0.0.0/8"')
     parser.add_argument('-o', '--output-dir',
-                        default=TOPOLOGY_PATH,
+                        default=GEN_PATH,
                         help='Output directory')
     parser.add_argument('-z', '--zk-config',
                         default=DEFAULT_ZK_CONFIG,

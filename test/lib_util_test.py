@@ -25,7 +25,7 @@ import nose
 import nose.tools as ntools
 
 # SCION
-from lib.defines import TOPOLOGY_PATH
+from lib.defines import GEN_PATH
 from lib.errors import (
     SCIONIOError,
     SCIONIndexError,
@@ -87,7 +87,7 @@ class TestGetCertChainFilePath(object):
 
     def test_len(self, isd_prefix, join):
         get_cert_chain_file_path(1, 2, 3, 4, 5)
-        isd_prefix.assert_called_once_with(TOPOLOGY_PATH)
+        isd_prefix.assert_called_once_with(GEN_PATH)
 
 
 @patch("lib.util.os.path.join", autospec=True)
@@ -105,7 +105,7 @@ class TestGetTRCFilePath(object):
 
     def test_len(self, isd_prefix, join):
         get_trc_file_path(1, 2, 3, 4)
-        isd_prefix.assert_called_once_with(TOPOLOGY_PATH)
+        isd_prefix.assert_called_once_with(GEN_PATH)
 
 
 @patch("lib.util.os.path.join", autospec=True)
@@ -123,7 +123,7 @@ class TestGetSigKeyFilePath(object):
 
     def test_len(self, isd_prefix, join):
         get_sig_key_file_path(1, 2)
-        isd_prefix.assert_called_once_with(TOPOLOGY_PATH)
+        isd_prefix.assert_called_once_with(GEN_PATH)
 
 
 @patch("lib.util.os.path.join", autospec=True)
@@ -141,7 +141,7 @@ class TestGetEncKeyFilePath(object):
 
     def test_len(self, isd_prefix, join):
         get_enc_key_file_path(1, 2)
-        isd_prefix.assert_called_once_with(TOPOLOGY_PATH)
+        isd_prefix.assert_called_once_with(GEN_PATH)
 
 
 class TestReadFile(object):

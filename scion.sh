@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+export PYTHONPATH=.
+
 # BEGIN subcommand functions
 
 cmd_init() {
@@ -17,15 +19,17 @@ cmd_init() {
 cmd_topology() {
     echo "Create topology, configuration, and execution files."
     mkdir -p logs traces
-    PYTHONPATH=. topology/generator.py "$@"
+    [ -e gen ] && rm -r gen
+    topology/generator.py "$@"
 }
 
 cmd_run() {
     echo "Running the network..."
     supervisor/supervisor.sh reload
-    for i in topology/ISD*/zookeeper/ISD*/datalog.*.sh; do
-        [ -e "$i" ] && bash "$i"
-    done
+    # Supervisor reload causes the domain socket to briefly disappear, which
+    # breaks the detection logic in supervisor.sh
+    sleep 1
+    bash gen/zk_datalog_dirs.sh || exit 1
     supervisor/supervisor.sh quickstart all
 }
 
@@ -42,12 +46,12 @@ cmd_status() {
 }
 
 cmd_test(){
-    PYTHONPATH=. nosetests "$@"
+    nosetests "$@"
 }
 
 cmd_coverage(){
     set -e
-    PYTHONPATH=. nosetests --with-cov --cov-report html "$@"
+    nosetests --with-cov --cov-report html "$@"
     coverage report
     echo "Coverage report here: file://$PWD/htmlcov/index.html"
 }

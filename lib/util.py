@@ -31,7 +31,7 @@ from functools import wraps
 from external.stacktracer import trace_start
 
 # SCION
-from lib.defines import TOPOLOGY_PATH
+from lib.defines import GEN_PATH
 from lib.errors import (
     SCIONIOError,
     SCIONIndexError,
@@ -69,7 +69,7 @@ def _get_isd_prefix(isd_dir):
 
 
 def get_cert_chain_file_path(loc_isd, loc_ad, isd_id, ad_id, version,
-                             isd_dir=TOPOLOGY_PATH):
+                             isd_dir=GEN_PATH):
     """
     Return the certificate chain file path.
 
@@ -94,7 +94,7 @@ def get_cert_chain_file_path(loc_isd, loc_ad, isd_id, ad_id, version,
 
 
 def get_trc_file_path(loc_isd, loc_ad, isd_id, version,
-                      isd_dir=TOPOLOGY_PATH):
+                      isd_dir=GEN_PATH):
     """
     Return the TRC file path.
 
@@ -116,7 +116,7 @@ def get_trc_file_path(loc_isd, loc_ad, isd_id, version,
                         'ISD{}-V{}.crt'.format(isd_id, version))
 
 
-def get_sig_key_file_path(isd_id, ad_id, isd_dir=TOPOLOGY_PATH):
+def get_sig_key_file_path(isd_id, ad_id, isd_dir=GEN_PATH):
     """
     Return the signing key file path.
 
@@ -133,7 +133,7 @@ def get_sig_key_file_path(isd_id, ad_id, isd_dir=TOPOLOGY_PATH):
                         'ISD{}-AD{}.key'.format(isd_id, ad_id))
 
 
-def get_enc_key_file_path(isd_id, ad_id, isd_dir=TOPOLOGY_PATH):
+def get_enc_key_file_path(isd_id, ad_id, isd_dir=GEN_PATH):
     """
     Return the encryption key file path.
 
