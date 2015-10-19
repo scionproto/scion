@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 # Copyright 2014 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -474,7 +475,7 @@ class SupervisorGenerator(object):
         self.topo_dicts = topo_dicts
         self.zookeepers = zookeepers
         self.zk_config = zk_config
-        self._base_dir = os.path.join("..", SCRIPTS_DIR)
+        self._base_dir = SCRIPTS_DIR
 
     def generate(self):
         for topo_id, topo in self.topo_dicts.items():
@@ -506,7 +507,8 @@ class SupervisorGenerator(object):
         entries = []
         for id_ in topo.get(topo_key, {}):
             name = "%s%s-%s-%s" % (short, topo_id.isd, topo_id.ad, id_)
-            cmd_args = ["python3", cmd, id_] + args + ["../logs/%s.log" % name]
+            cmd_args = ["infrastructure/%s" % cmd, id_] + args + \
+                ["logs/%s.log" % name]
             entries.append((name, cmd_args))
         return entries
 
@@ -517,9 +519,8 @@ class SupervisorGenerator(object):
             neigh_ad = val["Interface"]["NeighborAD"]
             name = "er%s-%ser%s-%s" % (topo_id.isd, topo_id.ad,
                                        neigh_isd, neigh_ad)
-            cmd_args = ["python3", "router.py", id_] + \
-                args + ["../logs/%s.log" % name]
-
+            cmd_args = ["infrastructure/router.py", id_] + args + \
+                ["logs/%s.log" % name]
             entries.append((name, cmd_args))
         return entries
 
@@ -537,7 +538,7 @@ class SupervisorGenerator(object):
             ])
             cmd_args = [
                 "java", "-cp", class_path,
-                '-Dzookeeper.log.file=../logs/%s.log' % name,
+                '-Dzookeeper.log.file=logs/%s.log' % name,
                 self.zk_config["Environment"]["ZOOMAIN"], cfg_path,
             ]
             entries.append((name, cmd_args))
@@ -578,9 +579,9 @@ class SupervisorGenerator(object):
             'autostart': 'false',
             'autorestart': 'false',
             'redirect_stderr': 'true',
-            'environment': 'PYTHONPATH=..',
+            'environment': 'PYTHONPATH=.',
             'stdout_logfile_maxbytes': '0',
-            'stdout_logfile': "../logs/%s.out" % name,
+            'stdout_logfile': "logs/%s.out" % name,
             'startretries': '0',
             'command': " ".join(['"%s"' % arg for arg in cmd_args]),
         }
@@ -590,7 +591,7 @@ class SimulatorGenerator(SupervisorGenerator):
     def __init__(self, out_dir, topo_dicts):
         self.out_dir = out_dir
         self.topo_dicts = topo_dicts
-        self._base_dir = os.path.join("..", SCRIPTS_DIR)
+        self._base_dir = SCRIPTS_DIR
         self.sim_conf = StringIO()
 
     def generate(self):
@@ -607,7 +608,7 @@ class SimulatorGenerator(SupervisorGenerator):
         text = StringIO()
         text.write(
             '#!/bin/bash\n\n'
-            'PYTHONPATH=../ python3 sim_test.py ../SIM/sim.conf 100.\n')
+            'exec sim_test.py topology/SIM/sim.conf 100.\n')
         write_file(file_path, text.getvalue())
 
     def _write_ad_conf(self, topo_id, entries):
@@ -641,7 +642,7 @@ class ZKConfGenerator(object):
         server_block = "\n".join(sorted(servers))
         base_dir_tail = os.path.join(topo_id.ISD(), ZOOKEEPER_DIR,
                                      topo_id.ISD_AD())
-        base_dir_rel = os.path.join("..", SCRIPTS_DIR, base_dir_tail)
+        base_dir_rel = os.path.join(SCRIPTS_DIR, base_dir_tail)
         base_dir_abs = os.path.join(self.out_dir, base_dir_tail)
         copy_file(DEFAULT_ZK_LOG4J,
                   os.path.join(base_dir_abs, "log4j.properties"))

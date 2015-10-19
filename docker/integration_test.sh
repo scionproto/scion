@@ -30,6 +30,7 @@ shutdown() {
     exit $result
 }
 
+export PYTHONPATH=.
 
 log "Starting scion"
 ./scion.sh run | grep -v "RUNNING"
@@ -37,7 +38,7 @@ log "Scion status:"
 ./scion.sh status || exit 1
 
 log "End2end starting:"
-( cd test/integration; PYTHONPATH=../../ python3 end2end_test.py; )
+test/integration/end2end_test.py
 result=$?
 if [ $result -eq 0 ]; then
     log "End2end: success"
@@ -47,7 +48,7 @@ else
 fi
 
 log "C2S_extn starting:"
-( cd test/integration; PYTHONPATH=../../ python3 cli_srv_ext_test.py; )
+test/integration/cli_srv_ext_test.py
 result=$?
 if [ $result -eq 0 ]; then
     log "C2S_extn: success"

@@ -10,14 +10,14 @@ cmd_init() {
     else
         echo "tweetnacl.so does not exist. Compiling..."
         cd lib/crypto/python-tweetnacl-20140309/
-        sh do
+        ./do
     fi
 }
 
 cmd_topology() {
     echo "Create topology, configuration, and execution files."
     mkdir -p logs traces
-    PYTHONPATH=./ python3 topology/generator.py "$@"
+    PYTHONPATH=. topology/generator.py "$@"
 }
 
 cmd_run() {

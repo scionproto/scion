@@ -43,7 +43,7 @@ from lib.errors import (
 CERT_DIR = 'certificates'
 SIG_KEYS_DIR = 'signature_keys'
 ENC_KEYS_DIR = 'encryption_keys'
-TRACE_DIR = '../traces'
+TRACE_DIR = 'traces'
 
 _SIG_MAP = {
     signal.SIGHUP: "SIGHUP",
