@@ -472,7 +472,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         pcbm = PCBMarking.from_values(self.topology.isd_id, self.topology.ad_id,
                                       hof, self._get_if_rev_token(ingress_if))
         peer_markings = []
-        for router_peer in self.topology.peer_edge_routers:
+        for router_peer in sorted(self.topology.peer_edge_routers):
             if_id = router_peer.interface.if_id
             if not self.ifid_state[if_id].is_active():
                 logging.warning('Peer ifid:%d inactive (not added).', if_id)

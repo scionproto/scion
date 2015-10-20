@@ -127,6 +127,9 @@ class RouterElement(Element):
         super().__init__((router_dict['AddrType'], router_dict['Addr']), name)
         self.interface = InterfaceElement(router_dict['Interface'])
 
+    def __lt__(self, other):
+        return self.interface.if_id < other.interface.if_id
+
 
 class Topology(object):
     """
