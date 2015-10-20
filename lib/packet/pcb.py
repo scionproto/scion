@@ -547,7 +547,7 @@ class PathSegment(SCIONPayloadBase):
         dt = datetime.fromtimestamp(self.get_timestamp())
         desc.append("%s, %s, " % (
             self.get_hops_hash(hex=True)[:12],
-            dt.isoformat(),
+            dt.isoformat(' '),
         ))
         hops = []
         for adm in self.ads:
