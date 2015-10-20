@@ -30,7 +30,7 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GEN_PATH = 'gen'
 
 #: Buffer size for receiving packets
-SCION_BUFLEN = 8092
+SCION_BUFLEN = 65535
 #: Default SCION server data port
 SCION_UDP_PORT = 30040
 #: Default SCION endhost data port

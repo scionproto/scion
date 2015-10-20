@@ -83,7 +83,7 @@ class TestUDPSocketBind(object):
     @patch("lib.socket.UDPSocket.__init__", autopatch=True, return_value=None)
     def test_any_v4(self, init):
         inst = self._setup()
-        inst._domain = AddrType.IPV4
+        inst._addr_type = AddrType.IPV4
         # Call
         inst.bind(None, 4242)
         # Tests
@@ -92,7 +92,7 @@ class TestUDPSocketBind(object):
     @patch("lib.socket.UDPSocket.__init__", autopatch=True, return_value=None)
     def test_any_v6(self, init):
         inst = self._setup()
-        inst._domain = AddrType.IPV6
+        inst._addr_type = AddrType.IPV6
         # Call
         inst.bind(None, 4242)
         # Tests
@@ -104,13 +104,24 @@ class TestUDPSocketSend(object):
     Unit tests for lib.socket.UDPSocket.send
     """
     @patch("lib.socket.UDPSocket.__init__", autopatch=True, return_value=None)
-    def test(self, init):
+    def test_basic(self, init):
         inst = UDPSocket()
         inst.sock = create_mock(["sendto"])
         # Call
         inst.send("data", "dst")
         # Tests
         inst.sock.sendto.assert_called_once_with("data", "dst")
+
+    @patch("lib.socket.logging.error", autopatch=True)
+    @patch("lib.socket.UDPSocket.__init__", autopatch=True, return_value=None)
+    def test_error(self, init, logging):
+        inst = UDPSocket()
+        inst.sock = create_mock(["sendto"])
+        inst.sock.sendto.side_effect = OSError
+        # Call
+        inst.send("data", "dst")
+        # Tests
+        ntools.ok_(logging.called)
 
 
 class TestUDPSocketRecv(object):
