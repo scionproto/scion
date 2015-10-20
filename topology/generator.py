@@ -90,7 +90,7 @@ DEFAULT_DNS_DOMAIN = DNSLabel("scion")
 
 DEFAULT_NETWORK = "127.0.0.0/8"
 DEFAULT_MININET_NETWORK = "100.64.0.0/10"
-DEFAULT_SUBNET_PREFIX = 27
+DEFAULT_SUBNET_PREFIX = 26
 
 
 class ConfigGenerator(object):
@@ -352,6 +352,7 @@ class TopoGenerator(object):
         self.hosts = StringIO()
         self.zookeepers = defaultdict(dict)
         self.networks = defaultdict(dict)
+        self.link_net = SubnetGenerator(self.subnet_gen.link_network, 31)
 
     def _get_addr(self, topo_id, elem_id):
         """
@@ -362,6 +363,17 @@ class TopoGenerator(object):
         addr, subnet = addr_gen.get(elem_id)
         self.networks[subnet][elem_id] = addr
         return addr, _addr_type(addr)
+
+    def _get_link_addrs(self, ad1, ad2):
+        link_name = "%s<->%s" % tuple(sorted((ad1, ad2)))
+        addr_gen = self.link_net.get(link_name)
+        ad1_name = "er%ser%s" % (ad1, ad2)
+        ad2_name = "er%ser%s" % (ad2, ad1)
+        ad1_addr, subnet = addr_gen.get(ad1_name)
+        ad2_addr, _ = addr_gen.get(ad2_name)
+        self.networks[subnet][ad1_name] = ad1_addr
+        self.networks[subnet][ad2_name] = ad2_addr
+        return ad1_addr, ad2_addr, _addr_type(ad1_addr)
 
     def _iterate(self, f):
         for isd_ad_id, ad_conf in self.ad_configs["ADs"].items():
@@ -423,13 +435,10 @@ class TopoGenerator(object):
             er_id += 1
 
     def _gen_er_entry(self, local, er_id, remote, remote_type):
-        local_if = "er%s-%s" % (local, er_id)
+        local_if = "er%ser%s" % (local, remote)
         local_addr, local_type = self._get_addr(local, local_if)
-        public_if = "er%ser%s" % (local, remote)
-        public_addr, public_addr_type = self._get_addr(local, public_if)
-        remote_if = "er%ser%s" % (remote, local)
-        remote_addr, remote_addr_type = self._get_addr(remote, remote_if)
-        assert public_addr_type == remote_addr_type
+        public_addr, remote_addr, public_addr_type = self._get_link_addrs(
+            local, remote)
         self.topo_dicts[local]["EdgeRouters"][er_id] = {
             'AddrType': local_type, 'Addr': str(local_addr),
             'Interface': {
@@ -699,6 +708,9 @@ class TopoID(object):
     def ISD_AD(self):
         return "ISD%s-AD%s" % (self.isd, self.ad)
 
+    def __lt__(self, other):
+        return str(self) < str(other)
+
     def __str__(self):
         return "%s-%s" % (self.isd, self.ad)
 
@@ -742,14 +754,15 @@ class ZKTopo(object):
 
 
 class SubnetGenerator(object):
-    def __init__(self, network):
+    def __init__(self, network, def_prefix=DEFAULT_SUBNET_PREFIX):
         self._net = ip_network(network)
-        if self._net.prefixlen >= DEFAULT_SUBNET_PREFIX:
+        if self._net.prefixlen >= def_prefix:
             logging.critical(
                 "Network %s is too small to accomadate /%d subnets", self._net,
-                DEFAULT_SUBNET_PREFIX)
+                def_prefix)
             sys.exit(1)
-        self._subnets = self._net.subnets(new_prefix=DEFAULT_SUBNET_PREFIX)
+        self._subnets = self._net.subnets(new_prefix=def_prefix)
+        self.link_network = next(self._subnets)
         self._map = defaultdict(lambda: AddressGenerator(next(self._subnets)))
 
     def get(self, location):
