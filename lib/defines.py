@@ -26,8 +26,8 @@ EXP_TIME_UNIT = MAX_SEGMENT_TTL / 2 ** 8
 
 #: Base path of project
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-#: Topology subdir path
-TOPOLOGY_PATH = os.path.join(PROJECT_ROOT, 'topology')
+#: Generated files directory
+GEN_PATH = 'gen'
 
 #: Buffer size for receiving packets
 SCION_BUFLEN = 8092

@@ -21,7 +21,7 @@ import os
 import sys
 
 # SCION
-from lib.defines import TOPOLOGY_PATH
+from lib.defines import GEN_PATH
 
 # SCION Simulator
 from simulator.lib.sim_core import Simulator
@@ -59,7 +59,7 @@ def read_sim_file():
     :returns: data from Simulator conf file
     :rtype: str
     """
-    sim_conf_file = os.path.join(TOPOLOGY_PATH, SIM_DIR, SIM_CONF)
+    sim_conf_file = os.path.join(GEN_PATH, SIM_DIR, SIM_CONF)
     if not os.path.isfile(sim_conf_file):
         logging.error(sim_conf_file + " file missing.")
         sys.exit()

@@ -6,7 +6,7 @@ mkdir -p logs
 OPTIONS="$@"
 CONF_FILE="supervisor/supervisord.conf"
 if [ ! -e /tmp/supervisor.sock ]; then
-    supervisord -c $CONF_FILE &> /dev/null
+    supervisord -c $CONF_FILE
 fi
 supervisorctl -c $CONF_FILE $OPTIONS
 
