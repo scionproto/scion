@@ -19,8 +19,9 @@
 import logging
 import logging.handlers
 import traceback
+import time
 
-# This file should not include other SCION libraries, to prevent cirular import
+# This file should not include other SCION libraries, to prevent circular import
 # errors.
 
 #: Bytes
@@ -66,6 +67,8 @@ def init_logging(log_file=None, level=logging.DEBUG, console=False):
                                               backupCount=1, encoding="utf-8"))
     if console:
         handlers.append(_ConsoleErrorHandler())
+
+    logging.Formatter.converter = time.gmtime
     logging.basicConfig(
         level=level, handlers=handlers,
         format='%(asctime)s [%(levelname)s] (%(threadName)s) %(message)s')
