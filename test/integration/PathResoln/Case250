@@ -1,0 +1,33 @@
+
+
+Results
+=======
+
+app_end_time = 250.
+num_hosts = 1000
+FWD_REVOCATION_TIMEOUT = 5
+
+Total messages received at path servers 1358
+At core PS: 120
+At local PS: 1238
+Number of pings sent  22395
+Number of pings received  20304
+Number of revocations received  1223
+
+Total messages received at path servers 1173
+At core PS: 112
+At local PS: 1061
+Number of pings sent  23012
+Number of pings received  20882
+Number of revocations received  1117
+
+Avg: 1266
+
+FWD_REVOCATION_TIMEOUT = 2
+
+Total messages received at path servers 1849
+At core PS: 257
+At local PS: 1592
+Number of pings sent  26468
+Number of pings received  23342
+Number of revocations received  1338
