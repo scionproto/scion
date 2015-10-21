@@ -22,11 +22,12 @@ import base64
 import configparser
 import json
 import logging
+import math
 import os
 import sys
 from collections import defaultdict
 from io import StringIO
-from ipaddress import ip_address, ip_network
+from ipaddress import ip_interface, ip_network
 
 # External packages
 from Crypto import Random
@@ -69,7 +70,7 @@ SUPERVISOR_DIR = 'supervisor'
 SIM_DIR = 'SIM'
 SIM_CONF_FILE = 'sim.conf'
 HOSTS_FILE = 'hosts'
-MININET_CONF = 'mininet.conf'
+NETWORKS_CONF = 'networks.conf'
 
 ZOOKEEPER_DIR = 'zookeeper'
 ZOOKEEPER_CFG = "zoo.cfg"
@@ -153,8 +154,7 @@ class ConfigGenerator(object):
         self._generate_zk_conf(zookeepers)
         self._write_conf_files()
         self._write_path_policy_files()
-        if self.mininet:
-            self._write_mininet_conf(networks)
+        self._write_networks_conf(networks)
 
     def _generate_certs(self):
         certgen = CertGenerator(self.ad_configs, self.out_dir)
@@ -217,7 +217,7 @@ class ConfigGenerator(object):
             # Test if parser works
             PathPolicy.from_file(dst)
 
-    def _write_mininet_conf(self, networks):
+    def _write_networks_conf(self, networks):
         config = configparser.ConfigParser(interpolation=None)
         for i, net in enumerate(networks):
             sub_conf = {}
@@ -226,7 +226,7 @@ class ConfigGenerator(object):
             config[net] = sub_conf
         text = StringIO()
         config.write(text)
-        write_file(os.path.join(self.out_dir, MININET_CONF), text.getvalue())
+        write_file(os.path.join(self.out_dir, NETWORKS_CONF), text.getvalue())
 
 
 class CertGenerator(object):
@@ -349,31 +349,21 @@ class TopoGenerator(object):
         self.zk_config = zk_config
         self.is_sim = is_sim
         self.topo_dicts = {}
-        self.hosts = StringIO()
+        self.hosts = []
         self.zookeepers = defaultdict(dict)
         self.networks = defaultdict(dict)
-        self.link_net = SubnetGenerator(self.subnet_gen.link_network, 31)
+        self.virt_addrs = set()
 
-    def _get_addr(self, topo_id, elem_id):
-        """
-        Get an address and address type for an element, assigning a new address
-        if necessary.
-        """
-        addr_gen = self.subnet_gen.get(topo_id)
-        addr, subnet = addr_gen.get(elem_id)
-        self.networks[subnet][elem_id] = addr
-        return addr, _addr_type(addr)
+    def _reg_addr(self, topo_id, elem_id):
+        subnet = self.subnet_gen.register(topo_id)
+        return subnet.register(elem_id)
 
-    def _get_link_addrs(self, ad1, ad2):
+    def _reg_link_addrs(self, ad1, ad2):
         link_name = "%s<->%s" % tuple(sorted((ad1, ad2)))
-        addr_gen = self.link_net.get(link_name)
+        subnet = self.subnet_gen.register(link_name)
         ad1_name = "er%ser%s" % (ad1, ad2)
         ad2_name = "er%ser%s" % (ad2, ad1)
-        ad1_addr, subnet = addr_gen.get(ad1_name)
-        ad2_addr, _ = addr_gen.get(ad2_name)
-        self.networks[subnet][ad1_name] = ad1_addr
-        self.networks[subnet][ad2_name] = ad2_addr
-        return ad1_addr, ad2_addr, _addr_type(ad1_addr)
+        return subnet.register(ad1_name), subnet.register(ad2_name)
 
     def _iterate(self, f):
         for isd_ad_id, ad_conf in self.ad_configs["ADs"].items():
@@ -381,9 +371,10 @@ class TopoGenerator(object):
 
     def generate(self):
         self._iterate(self._generate_ad_topo)
+        networks = self.subnet_gen.alloc_subnets()
         self._iterate(self._write_ad_topo)
         self._write_hosts()
-        return self.topo_dicts, self.zookeepers, self.networks
+        return self.topo_dicts, self.zookeepers, networks
 
     def _generate_ad_topo(self, topo_id, ad_conf):
         dns_domain = DNSLabel(ad_conf.get("dns_domain", DEFAULT_DNS_DOMAIN))
@@ -418,15 +409,13 @@ class TopoGenerator(object):
         count = ad_conf.get(conf_key, def_num)
         for i in range(1, count + 1):
             elem_id = "%s%s-%s" % (nick, topo_id, i)
-            addr, addr_type = self._get_addr(topo_id, elem_id)
             self.topo_dicts[topo_id][topo_key][i] = {
-                'AddrType': addr_type, 'Addr': str(addr),
+                "Addr": self._reg_addr(topo_id, elem_id),
             }
 
     def _gen_hosts_entries(self, topo_id, dns_domain):
         for dns_srv in self.topo_dicts[topo_id]["DNSServers"].values():
-            self.hosts.write(
-                "%s\tds.%s\n" % (dns_srv["Addr"], str(dns_domain).rstrip(".")))
+            self.hosts.append((dns_srv["Addr"], dns_domain))
 
     def _gen_er_entries(self, topo_id, ad_conf):
         er_id = 1
@@ -436,19 +425,17 @@ class TopoGenerator(object):
 
     def _gen_er_entry(self, local, er_id, remote, remote_type):
         local_if = "er%ser%s" % (local, remote)
-        local_addr, local_type = self._get_addr(local, local_if)
-        public_addr, remote_addr, public_addr_type = self._get_link_addrs(
+        public_addr, remote_addr = self._reg_link_addrs(
             local, remote)
         self.topo_dicts[local]["EdgeRouters"][er_id] = {
-            'AddrType': local_type, 'Addr': str(local_addr),
+            'Addr': self._reg_addr(local, local_if),
             'Interface': {
                 'IFID': er_id,
                 'NeighborISD': int(remote.isd),
                 'NeighborAD': int(remote.ad),
                 'NeighborType': remote_type,
-                'AddrType': public_addr_type,
-                'Addr': str(public_addr),
-                'ToAddr': str(remote_addr),
+                'Addr': public_addr,
+                'ToAddr': remote_addr,
                 'UdpPort': SCION_ROUTER_PORT,
                 'ToUdpPort': SCION_ROUTER_PORT,
             }
@@ -467,24 +454,28 @@ class TopoGenerator(object):
         zk = ZKTopo(zk_conf, self.zk_config["Default"])
         if zk.manage:
             elem_id = "zk%s-%s" % (topo_id, zk_id)
-            zk.addr, _ = self._get_addr(topo_id, elem_id)
+            addr = zk.addr = self._reg_addr(topo_id, elem_id)
             self.zookeepers[topo_id][zk_id] = zk
+        else:
+            addr = str(zk.addr)
         self.topo_dicts[topo_id]["Zookeepers"][zk_id] = {
-            'AddrType': _addr_type(zk.addr),
-            'Addr': str(zk.addr),
+            'Addr': addr,
             'Port': zk.clientPort,
         }
 
     def _write_ad_topo(self, topo_id, _):
         path = os.path.join(self.out_dir, topo_id.ISD(), TOPO_DIR, "%s.json" %
                             topo_id.ISD_AD())
-        write_file(path, json.dumps(
-            self.topo_dicts[topo_id], sort_keys=True, indent=4))
+        write_file(path, JSONAddrEncoder(sort_keys=True, indent=4).encode(
+            self.topo_dicts[topo_id]))
         Topology.from_file(path)
 
     def _write_hosts(self):
+        text = StringIO()
+        for addr, domain in self.hosts:
+            text.write("%s\tds.%s\n" % (addr, str(domain).rstrip(".")))
         hosts_path = os.path.join(self.out_dir, HOSTS_FILE)
-        write_file(hosts_path, self.hosts.getvalue())
+        write_file(hosts_path, text.getvalue())
 
 
 class SupervisorGenerator(object):
@@ -656,7 +647,7 @@ class ZKConfGenerator(object):
         servers = []
         for id_, zk in zks.items():
             servers.append("server.%s=%s:%d:%d" %
-                           (id_, zk.addr, zk.leaderPort,
+                           (id_, zk.addr.ip, zk.leaderPort,
                             zk.electionPort))
         server_block = "\n".join(sorted(servers))
         base_dir = os.path.join(self.out_dir, topo_id.ISD(), ZOOKEEPER_DIR,
@@ -731,7 +722,7 @@ class ZKTopo(object):
         self.manage = config.get("manage", False)
         if not self.manage:
             # A ZK we don't manage must have an assigned IP in the topology
-            self.addr = ip_address(config["addr"])
+            self.addr = ip_interface(config["addr"])
         self.clientPort = config.get(
             "clientPort", def_config["clientPort"])
         self.leaderPort = config.get(
@@ -748,45 +739,93 @@ class ZKTopo(object):
         c.append("dataDir=%s" % data_dir)
         c.append("dataLogDir=%s" % data_log_dir)
         c.append("clientPort=%s" % self.clientPort)
-        c.append("clientPortAddress=%s" % self.addr)
+        c.append("clientPortAddress=%s" % self.addr.ip)
         c.append("autopurge.purgeInterval=1")
         return "\n".join(c)
 
 
-class SubnetGenerator(object):
-    def __init__(self, network, def_prefix=DEFAULT_SUBNET_PREFIX):
-        self._net = ip_network(network)
-        if self._net.prefixlen >= def_prefix:
-            logging.critical(
-                "Network %s is too small to accomadate /%d subnets", self._net,
-                def_prefix)
-            sys.exit(1)
-        self._subnets = self._net.subnets(new_prefix=def_prefix)
-        self.link_network = next(self._subnets)
-        self._map = defaultdict(lambda: AddressGenerator(next(self._subnets)))
+class JSONAddrEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, AddressProxy):
+            return str(o)
+        else:
+            return super().default(o)
 
-    def get(self, location):
-        try:
-            return self._map[location]
-        except StopIteration:
-            logging.critical("Unable to allocate any more subnets from %s",
-                             self._net)
+
+class SubnetGenerator(object):
+    def __init__(self, network):
+        self._net = ip_network(network)
+        if "/" not in network:
+            logging.critical("No prefix length specified for network '%s'",
+                             network)
             sys.exit(1)
+        self._subnets = defaultdict(lambda: AddressGenerator())
+
+    def register(self, location):
+        return self._subnets[location]
+
+    def alloc_subnets(self):
+        allocations = defaultdict(list)
+        # Initialise the allocations with the supplied network
+        allocations[self._net.prefixlen].append(self._net)
+        max_prefix = self._net.max_prefixlen
+        networks = {}
+        for subnet in self._subnets.values():
+            # Figure out what size subnet we need. Add 2 to the subnet size to
+            # cover the network and broadcast addresses.
+            req_prefix = max_prefix - math.ceil(math.log2(len(subnet) + 2))
+            # Search all subnets from that size upwards
+            for prefix in range(req_prefix, -1, -1):
+                if not allocations[prefix]:
+                    # No subnets available at this size
+                    continue
+                alloc = allocations[prefix].pop()
+                # Carve out subnet of the required size
+                new_net = next(alloc.subnets(new_prefix=req_prefix))
+                logging.debug("Allocating %s from %s for subnet size %d" %
+                              (new_net, alloc, len(subnet)))
+                networks[new_net] = subnet.alloc_addrs(new_net)
+                # Repopulate the allocations list with the left-over space
+                for net in alloc.address_exclude(new_net):
+                    allocations[net.prefixlen].append(net)
+                break
+            else:
+                logging.critical("Unable to allocate /%d subnet" % req_prefix)
+                sys.exit(1)
+        return networks
 
 
 class AddressGenerator(object):
-    def __init__(self, subnet):
-        self._subnet = subnet
-        self._hosts = self._subnet.hosts()
-        self._map = defaultdict(lambda: next(self._hosts))
+    def __init__(self):
+        self._addrs = defaultdict(lambda: AddressProxy())
 
-    def get(self, id_):
-        try:
-            return self._map[id_], self._subnet
-        except StopIteration:
-            logging.critical("Unable to allocate any more addresses from %s",
-                             self._subnet)
-            sys.exit(1)
+    def register(self, id_):
+        return self._addrs[id_]
+
+    def alloc_addrs(self, subnet):
+        hosts = subnet.hosts()
+        interfaces = {}
+        for elem, proxy in self._addrs.items():
+            intf = ip_interface("%s/%s" % (next(hosts), subnet.prefixlen))
+            interfaces[elem] = intf
+            proxy.set_intf(intf)
+        return interfaces
+
+    def __len__(self):
+        return len(self._addrs)
+
+
+class AddressProxy(object):
+    def __init__(self):
+        self._intf = None
+        self.ip = None
+
+    def set_intf(self, intf):
+        self._intf = intf
+        self.ip = self._intf.ip
+
+    def __str__(self):
+        return str(self._intf)
 
 
 def _addr_type(addr):

@@ -26,7 +26,7 @@ from lib.defines import (
     PATH_SERVICE,
     ROUTER_SERVICE,
 )
-from lib.packet.host_addr import haddr_parse
+from lib.packet.host_addr import haddr_parse_interface
 from lib.util import load_json_file
 
 
@@ -39,14 +39,14 @@ class Element(object):
     :ivar str name: element name or id
     """
 
-    def __init__(self, addr_info=(), name=None):
+    def __init__(self, addr=None, name=None):
         """
-        :param tuple addr: (addr_type, address) of the element's Host address.
+        :param str addr: (addr_type, address) of the element's Host address.
         :param str name: element name or id
         """
         self.addr = None
-        if addr_info:
-            self.addr = haddr_parse(*addr_info)
+        if addr:
+            self.addr = haddr_parse_interface(addr)
         self.name = None
         if name is not None:
             self.name = str(name)
@@ -66,7 +66,7 @@ class ServerElement(Element):
         :param name: server element name or id
         :type name: str
         """
-        super().__init__((server_dict['AddrType'], server_dict['Addr']), name)
+        super().__init__(server_dict['Addr'], name)
 
 
 class InterfaceElement(Element):
@@ -92,8 +92,7 @@ class InterfaceElement(Element):
         :param interface_dict: contains information about the interface.
         :type interface_dict: dict
         """
-        super().__init__((interface_dict['AddrType'], interface_dict['Addr']),
-                         name)
+        super().__init__(interface_dict['Addr'], name)
         self.if_id = interface_dict['IFID']
         self.neighbor_ad = interface_dict['NeighborAD']
         self.neighbor_isd = interface_dict['NeighborISD']
@@ -101,10 +100,9 @@ class InterfaceElement(Element):
         self.to_udp_port = interface_dict['ToUdpPort']
         self.udp_port = interface_dict['UdpPort']
         to_addr = interface_dict['ToAddr']
-        if to_addr is None:
-            self.to_addr = None
-        else:
-            self.to_addr = haddr_parse(interface_dict['AddrType'], to_addr)
+        self.to_addr = None
+        if to_addr:
+            self.to_addr = haddr_parse_interface(to_addr)
 
 
 class RouterElement(Element):
@@ -124,10 +122,10 @@ class RouterElement(Element):
         :param name: router element name or id
         :type name: str
         """
-        super().__init__((router_dict['AddrType'], router_dict['Addr']), name)
+        super().__init__(router_dict['Addr'], name)
         self.interface = InterfaceElement(router_dict['Interface'])
 
-    def __lt__(self, other):
+    def __lt__(self, other):  # pragma: no cover
         return self.interface.if_id < other.interface.if_id
 
 
@@ -220,40 +218,35 @@ class Topology(object):
         self.isd_id = topology['ISDID']
         self.ad_id = topology['ADID']
         self.dns_domain = topology['DnsDomain']
-        for bs_key in topology['BeaconServers']:
-            b_server = ServerElement(topology['BeaconServers'][bs_key],
-                                     bs_key)
-            self.beacon_servers.append(b_server)
-        for cs_key in topology['CertificateServers']:
-            c_server = ServerElement(topology['CertificateServers'][cs_key],
-                                     cs_key)
-            self.certificate_servers.append(c_server)
-        for ds_key in topology['DNSServers']:
-            d_server = ServerElement(topology['DNSServers'][ds_key],
-                                     ds_key)
-            self.dns_servers.append(d_server)
-        for ps_key in topology['PathServers']:
-            p_server = ServerElement(topology['PathServers'][ps_key],
-                                     ps_key)
-            self.path_servers.append(p_server)
-        for er_key in topology['EdgeRouters']:
-            edge_router = RouterElement(topology['EdgeRouters'][er_key],
-                                        er_key)
-            if edge_router.interface.neighbor_type == 'PARENT':
-                self.parent_edge_routers.append(edge_router)
-            elif edge_router.interface.neighbor_type == 'CHILD':
-                self.child_edge_routers.append(edge_router)
-            elif edge_router.interface.neighbor_type == 'PEER':
-                self.peer_edge_routers.append(edge_router)
-            elif edge_router.interface.neighbor_type == 'ROUTING':
-                self.routing_edge_routers.append(edge_router)
-            else:
-                logging.warning("Encountered unknown neighbor type")
+        self._parse_srv_dicts(topology)
+        self._parse_router_dicts(topology)
+        self._parse_zk_dicts(topology)
+
+    def _parse_srv_dicts(self, topology):
+        for type_, list_ in (
+            ("BeaconServers", self.beacon_servers),
+            ("CertificateServers", self.certificate_servers),
+            ("DNSServers", self.dns_servers),
+            ("PathServers", self.path_servers),
+        ):
+            for k, v in topology[type_].items():
+                list_.append(ServerElement(v, k))
+
+    def _parse_router_dicts(self, topology):
+        for k, v in topology['EdgeRouters'].items():
+            router = RouterElement(v, k)
+            ntype_map = {
+                'PARENT': self.parent_edge_routers,
+                'CHILD': self.child_edge_routers,
+                'PEER': self.peer_edge_routers,
+                'ROUTING': self.routing_edge_routers,
+            }
+            ntype_map[router.interface.neighbor_type].append(router)
+
+    def _parse_zk_dicts(self, topology):
         for zk in topology['Zookeepers'].values():
-            if zk['AddrType'] == "IPV4":
-                zk_host = "%s:%s" % (zk['Addr'], zk['Port'])
-            elif zk['AddrType'] == "IPV6":
-                zk_host = "[%s]:%s" % (zk['Addr'], zk['Port'])
+            haddr = haddr_parse_interface(zk['Addr'])
+            zk_host = "[%s]:%s" % (haddr, zk['Port'])
             self.zookeepers.append(zk_host)
 
     def get_all_edge_routers(self):
