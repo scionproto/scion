@@ -237,6 +237,7 @@ static inline int send_ingress(struct rte_mbuf *m, uint32_t next_ifid,
 
     // TODO should we updete destination MAC address?
 
+    RTE_LOG(DEBUG, HSR, "next_ifid=%d\n", next_ifid);
     RTE_LOG(DEBUG, HSR, "egress dpdk_port=%d\n", DPDK_LOCAL_PORT);
     // TODO update destination MAC address
     send_packet(m, port_map[dpdk_rx_port].local);
@@ -259,9 +260,18 @@ static inline void process_ifid_request(struct rte_mbuf *m,
   // udp_hdr = (struct udp_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
   //                                 struct ether_hdr) +
   //                             sizeof(struct ipv4_hdr));
-  ifid_hdr = (IFIDHeader *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
-                                struct ether_hdr) +
-                            sizeof(struct ipv4_hdr) + sizeof(struct udp_hdr));
+  // ifid_hdr = (IFIDHeader *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
+  //                              struct ether_hdr) +
+  //                          sizeof(struct ipv4_hdr) + sizeof(struct udp_hdr));
+
+  SCIONHeader *scion_hdr =
+      (SCIONHeader *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
+                          struct ether_hdr) +
+                      sizeof(struct ipv4_hdr) + sizeof(struct udp_hdr));
+  SCIONCommonHeader *sch = &(scion_hdr->commonHeader);
+
+  ifid_hdr = (IFIDHeader *)((void *)sch + sch->headerLen +
+                            sizeof(struct udp_hdr) + 2); //+2 for class type
 
   ifid_hdr->reply_id = my_ifid[dpdk_rx_port]; // complete with current interface
                                               // (self.interface.if_id)
@@ -290,10 +300,21 @@ static inline void process_pcb(struct rte_mbuf *m, uint8_t from_bs,
   udp_hdr = (struct udp_hdr *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
                                    struct ether_hdr) +
                                sizeof(struct ipv4_hdr));
-  pcb = (PathConstructionBeacon *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
-                                       struct ether_hdr) +
-                                   sizeof(struct ipv4_hdr) +
-                                   sizeof(struct udp_hdr));
+  //  pcb = (PathConstructionBeacon *)(rte_pktmbuf_mtod(m, unsigned char
+  //  *)+sizeof(
+  //                                       struct ether_hdr) +
+  //                                   sizeof(struct ipv4_hdr) +
+  //                                   sizeof(struct udp_hdr));
+
+  // now PCB is on the SCION UDP
+  SCIONHeader *scion_hdr =
+      (SCIONHeader *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
+                          struct ether_hdr) +
+                      sizeof(struct ipv4_hdr) + sizeof(struct udp_hdr));
+  SCIONCommonHeader *sch = &(scion_hdr->commonHeader);
+  pcb = (PathConstructionBeacon *)((void *)sch + sch->headerLen +
+                                   sizeof(struct udp_hdr) +
+                                   2); //+2 for class type
 
   if (from_bs) { // from local beacon server to neighbor router
     uint8_t last_pcbm_index = sizeof(pcb->payload.ads) / sizeof(ADMarking) - 1;

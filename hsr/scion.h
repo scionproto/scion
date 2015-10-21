@@ -149,7 +149,7 @@ typedef struct {
 } SCIONHeader;
 
 typedef struct {
-	SCIONCommonHeader commonHeader;
+//	SCIONCommonHeader commonHeader;  //now IFID in on the SCION UDP
 	SCIONAddr srcAddr;
 	SCIONAddr2 dstAddr;
 	uint16_t reply_id; // how many bits?
@@ -219,7 +219,7 @@ typedef struct {
 } PathSegment;
 
 typedef struct {
-	SCIONHeader hdr;
+//	SCIONHeader hdr;  //now PCB is on the SCION UDP
 	PathSegment payload;
 } PathConstructionBeacon;
 
