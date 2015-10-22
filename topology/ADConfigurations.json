@@ -1,6 +1,5 @@
 {
     "defaults": {
-        "subnet": "127.0.0.0/8",
         "zookeepers": {
             "1": {
                 "manage": false,
