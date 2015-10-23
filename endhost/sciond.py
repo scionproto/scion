@@ -84,7 +84,8 @@ class SCIONDaemon(SCIONElement):
     # Time a path segment is cached at a host (in seconds).
     SEGMENT_TTL = 300
 
-    def __init__(self, addr, topo_file, run_local_api=False, is_sim=False):
+    def __init__(self, addr, topo_file, run_local_api=False,
+                 port=SCION_UDP_PORT, is_sim=False):
         """
         Initialize an instance of the class SCIONDaemon.
 
@@ -97,8 +98,8 @@ class SCIONDaemon(SCIONElement):
         :param is_sim: running on simulator
         :type is_sim: bool
         """
-        SCIONElement.__init__(self, "sciond", topo_file, host_addr=addr,
-                              is_sim=is_sim)
+        super().__init__("sciond", topo_file, host_addr=addr, port=port,
+                         is_sim=is_sim)
         # TODO replace by pathstore instance
         self.up_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL)
         self.down_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL)
@@ -123,7 +124,7 @@ class SCIONDaemon(SCIONElement):
             self._socks.add(self._api_sock)
 
     @classmethod
-    def start(cls, addr, topo_file, run_local_api=False):
+    def start(cls, addr, topo_file, run_local_api=False, port=SCION_UDP_PORT):
         """
         Initializes, starts, and returns a SCIONDaemon object.
 
@@ -138,7 +139,7 @@ class SCIONDaemon(SCIONElement):
         :param :
         :type :
         """
-        sd = cls(addr, topo_file, run_local_api)
+        sd = cls(addr, topo_file, run_local_api, port=port)
         sd.daemon_thread = threading.Thread(
             target=thread_safety_net, args=(sd.run,), name="SCIONDaemon.run",
             daemon=True)
