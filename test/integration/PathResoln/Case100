@@ -121,5 +121,5 @@ Avg: 740
 
 BGP
 =====
-AS 5 Crashed. 5759 forwarding table updates
+AS 5 Crashed. 8008 updates received. (5759 forwarding table updates)
 AS 96(situated at the end) Crashed. 2101 forwarding table updates
