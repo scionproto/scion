@@ -49,10 +49,9 @@ def client():
     """
     Simple client
     """
-    topo_file = ("%s/ISD%d/topologies/ISD%d-AD%d.json" %
-                 (GEN_PATH, CLI_ISD, CLI_ISD, CLI_AD))
+    conf_dir = "%s/ISD%d/AD%d/common" % (GEN_PATH, CLI_ISD, CLI_AD)
     # Start SCIONDaemon
-    sd = SCIONDaemon.start(haddr_parse("IPV4", CLI_IP), topo_file)
+    sd = SCIONDaemon.start(conf_dir, haddr_parse("IPV4", CLI_IP))
     logging.info("CLI: Sending PATH request for (%d, %d)", SRV_ISD, SRV_AD)
     # Get paths to server through function call
     paths = sd.get_paths(SRV_ISD, SRV_AD)
@@ -96,10 +95,9 @@ def server():
     """
     Simple server.
     """
-    topo_file = ("%s/ISD%d/topologies/ISD%d-AD%d.json" %
-                 (GEN_PATH, SRV_ISD, SRV_ISD, SRV_AD))
+    conf_dir = "%s/ISD%d/AD%d/common" % (GEN_PATH, SRV_ISD, SRV_AD)
     # Start SCIONDaemon
-    sd = SCIONDaemon.start(haddr_parse("IPV4", SRV_IP), topo_file)
+    sd = SCIONDaemon.start(conf_dir, haddr_parse("IPV4", SRV_IP))
     # Open a socket for incomming DATA traffic
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)

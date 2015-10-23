@@ -99,11 +99,10 @@ class Ping(object):
         self.dport = dport
         self.token = token
         self.pong_received = False
-        topo_file = ("%s/ISD%d/topologies/ISD%d-AD%d.json" %
-                     (GEN_PATH, src.isd, src.isd, src.ad))
+        conf_dir = "%s/ISD%d/AD%d/common" % (GEN_PATH, src.isd, src.ad)
         # Local api on, random port:
         self.sd = SCIONDaemon.start(
-            saddr, topo_file, run_local_api=True, port=0)
+            conf_dir, saddr, run_local_api=True, port=0)
         self.get_path()
         self.sock = UDPSocket(bind=(str(saddr), 0, "Ping App"),
                               addr_type=AddrType.IPV4)
@@ -161,9 +160,9 @@ class Pong(object):
         self.dst = dst
         self.token = token
         self.ping_received = False
-        topo_file = ("%s/ISD%d/topologies/ISD%d-AD%d.json" %
-                     (GEN_PATH, self.dst.isd, self.dst.isd, self.dst.ad))
-        self.sd = SCIONDaemon.start(raddr, topo_file)  # API off, standard port.
+        conf_dir = "%s/ISD%d/AD%d/common" % (
+            GEN_PATH, self.dst.isd, self.dst.ad)
+        self.sd = SCIONDaemon.start(conf_dir, raddr)  # API off, standard port.
         self.sock = UDPSocket(bind=(str(raddr), 0, "Pong App"),
                               addr_type=AddrType.IPV4)
 

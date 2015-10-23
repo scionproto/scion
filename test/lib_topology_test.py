@@ -24,13 +24,7 @@ import nose
 import nose.tools as ntools
 
 # SCION
-from lib.defines import (
-    BEACON_SERVICE,
-    CERTIFICATE_SERVICE,
-    DNS_SERVICE,
-    PATH_SERVICE,
-    ROUTER_SERVICE,
-)
+from lib.errors import SCIONKeyError
 from lib.topology import (
     Element,
     InterfaceElement,
@@ -281,58 +275,28 @@ class TestTopologyGetOwnConfig(object):
     """
     Unit tests for lib.topology.Topology.get_own_config
     """
-    @patch("lib.topology.logging.error", autospec=True)
-    def _check(self, topology, server_type, server_id, server, log_error):
-        ntools.eq_(topology.get_own_config(server_type, server_id), server)
-        if server is None:
-            ntools.eq_(log_error.call_count, 1)
-
-    def test(self):
-        topology = Topology()
-        topology.beacon_servers = [MagicMock(spec_set=['name']) for i in
-                                   range(4)]
-        topology.beacon_servers[2].name = 'name'
-        topology.certificate_servers = [MagicMock(spec_set=['name']) for i in
-                                        range(4)]
-        topology.certificate_servers[2].name = 'name'
-        topology.dns_servers = [MagicMock(spec_set=['name']) for i in range(4)]
-        topology.dns_servers[2].name = 'name'
-        topology.path_servers = [MagicMock(spec_set=['name']) for i in range(4)]
-        topology.path_servers[2].name = 'name'
-        server_types = [BEACON_SERVICE, CERTIFICATE_SERVICE, DNS_SERVICE,
-                        PATH_SERVICE] * 2
-        server_ids = ['name'] * 4 + ['bad_name'] * 4
-        servers = [topology.beacon_servers[2],
-                   topology.certificate_servers[2],
-                   topology.dns_servers[2],
-                   topology.path_servers[2]] + [None] * 4
-        for type, id, server in zip(server_types, server_ids, servers):
-            yield self._check, topology, type, id, server
+    @patch("lib.topology.Topology.get_all_edge_routers", autospec=True)
+    def test_basic(self, _):
+        inst = Topology()
+        for i in range(4):
+            bs = create_mock(["name"])
+            bs.name = "bs%d" % i
+            inst.beacon_servers.append(bs)
+        # Call
+        ntools.eq_(inst.get_own_config("bs", "bs3"),
+                   inst.beacon_servers[3])
 
     @patch("lib.topology.Topology.get_all_edge_routers", autospec=True)
-    def test_er(self, get_edge_routers):
-        topology = Topology()
-        edge_routers = [MagicMock(spec_set=['name']) for i in range(4)]
-        edge_routers[2].name = 'name'
-        get_edge_routers.return_value = edge_routers
-        ntools.eq_(topology.get_own_config(ROUTER_SERVICE, 'name'),
-                   edge_routers[2])
-        get_edge_routers.assert_called_once_with(topology)
+    def test_unknown_type(self, _):
+        inst = Topology()
+        # Call
+        ntools.assert_raises(SCIONKeyError, inst.get_own_config, "asdf", 1)
 
-    @patch("lib.topology.logging.error", autospec=True)
     @patch("lib.topology.Topology.get_all_edge_routers", autospec=True)
-    def test_er_fail(self, get_edge_routers, log_error):
-        topology = Topology()
-        edge_routers = [MagicMock(spec_set=['name']) for i in range(4)]
-        get_edge_routers.return_value = edge_routers
-        ntools.assert_is_none(topology.get_own_config(ROUTER_SERVICE, 'name'))
-        ntools.eq_(log_error.call_count, 1)
-
-    @patch("lib.topology.logging.error", autospec=True)
-    def test_bad_server_type(self, log_error):
-        topology = Topology()
-        ntools.assert_is_none(topology.get_own_config('blah', 'blah'))
-        ntools.eq_(log_error.call_count, 1)
+    def test_unknown_server(self, _):
+        inst = Topology()
+        # Call
+        ntools.assert_raises(SCIONKeyError, inst.get_own_config, "bs", "name")
 
 
 if __name__ == "__main__":
