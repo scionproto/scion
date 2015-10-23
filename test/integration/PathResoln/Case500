@@ -1,0 +1,72 @@
+events.conf
+===========
+er1-3er1-254 stop 80.0
+er1-3er1-30 stop 80.0
+er1-3er1-143 stop 80.0
+er1-3er1-47 stop 80.0
+er1-3er1-7 stop 80.0
+er1-3er1-1 stop 80.0
+er1-3er1-218 stop 80.0
+er1-3er1-2 stop 80.0
+er1-3er1-26 stop 80.0
+er1-3er1-73 stop 80.0
+er1-3er1-290 stop 80.0
+
+Results
+=======
+crash_isd_ad = ISD_AD(1, 3)
+dst_isd_ad = ISD_AD(1, 254)
+app_start_time = 29.
+app_end_time = 250.
+num_hosts = 1000
+
+FWD_REVOCATION_TIMEOUT = 5
+
+Total messages received at path servers 1532
+At core PS: 136
+At local PS: 1396
+Number of pings sent  19339
+Number of pings received  17529
+Number of revocations received  1121
+
+Total messages received at path servers 1055
+At core PS: 131
+At local PS: 924
+Number of pings sent  21329
+Number of pings received  19540
+Number of revocations received  801
+
+Total messages received at path servers 1310
+At core PS: 83
+At local PS: 1227
+Number of pings sent  20696
+Number of pings received  18946
+Number of revocations received  1078
+
+Avg: 1299
+
+
+FWD_REVOCATION_TIMEOUT = 2
+
+(X)Total messages received at path servers 653
+At core PS: 43
+At local PS: 610
+Number of pings sent  22027
+Number of pings received  20893
+Number of revocations received  481
+
+Total messages received at path servers 2355
+At core PS: 280
+At local PS: 2075
+Number of pings sent  21268
+Number of pings received  18867
+Number of revocations received  1500
+
+Total messages received at path servers 1974
+At core PS: 224
+At local PS: 1750
+Number of pings sent  18644
+Number of pings received  16794
+Number of revocations received  1313
+
+Avg: 2164

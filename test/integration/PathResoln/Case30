@@ -1,0 +1,96 @@
+# Setup for ping-pong application
+crash_isd_ad = ISD_AD(1, 4)
+dst_isd_ad = ISD_AD(1, 30)
+app_start_time = 29.
+app_end_time = 250.
+num_hosts = 1000
+
+
+er1-4er1-2 stop 80.0
+er1-4er1-15 stop 80.0
+er1-4er1-30 stop 80.0
+er1-4er1-26 stop 80.0
+er1-4er1-3 stop 80.0
+
+
+Results
+=======
+FWD_REVOCATION_TIMEOUT = 5
+
+Total messages received at path servers 240
+At core PS: 29
+At local PS: 211
+Number of pings sent  23758
+Number of pings received  21344
+Number of revocations received  585
+
+Total messages received at path servers 542
+At core PS: 64
+At local PS: 478
+Number of pings sent  22288
+Number of pings received  18659
+Number of revocations received  1597
+
+Total messages received at path servers 439
+At core PS: 57
+At local PS: 382
+Number of pings sent  24411
+Number of pings received  20991
+Number of revocations received  1468
+
+Avg: 407
+
+FWD_REVOCATION_TIMEOUT = 2
+
+Total messages received at path servers 623
+At core PS: 108
+At local PS: 515
+Number of pings sent  22075
+Number of pings received  18844
+Number of revocations received  1111
+
+Total messages received at path servers 699
+At core PS: 108
+At local PS: 591
+Number of pings sent  19664
+Number of pings received  16716
+Number of revocations received  1089
+
+Total messages received at path servers 468
+At core PS: 84
+At local PS: 384
+Number of pings sent  20434
+Number of pings received  17813
+Number of revocations received  762
+
+Avg: 596
+
+FWD_REVOCATION_TIMEOUT = 1
+
+Total messages received at path servers 786
+At core PS: 144
+At local PS: 642
+Number of pings sent  20187
+Number of pings received  17544
+Number of revocations received  1137
+
+Total messages received at path servers 744
+At core PS: 119
+At local PS: 625
+Number of pings sent  22419
+Number of pings received  19308
+Number of revocations received  1057
+
+Total messages received at path servers 1136
+At core PS: 202
+At local PS: 934
+Number of pings sent  22034
+Number of pings received  18496
+Number of revocations received  1563
+
+Avg: 889
+
+BGP
+===
+1037 updates received
+685 fwd table ... 
