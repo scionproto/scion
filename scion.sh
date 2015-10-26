@@ -20,6 +20,7 @@ cmd_topology() {
     echo "Create topology, configuration, and execution files."
     mkdir -p logs traces
     [ -e gen ] && rm -r gen
+    [ -e /run/shm/scion-zk ] && rm -r /run/shm/scion-zk
     topology/generator.py "$@"
 }
 
