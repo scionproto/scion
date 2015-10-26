@@ -23,7 +23,7 @@ from lib.packet.opaque_field import HopOpaqueField
 import struct
 
 
-def get_cbcmac(key, msg):
+def cbcmac(key, msg):
     """
     CBC-MAC using AES-128.
 
@@ -65,7 +65,7 @@ def gen_of_mac(key, hof, prev_hof, ts):
         prev_hof_raw = b"\x00" * (HopOpaqueField.LEN - 1)
     ts_raw = struct.pack("I", ts)
     to_mac = hof_raw + prev_hof_raw + ts_raw + b"\x00"  # With \x00 as padding.
-    return get_cbcmac(key, to_mac)[:HopOpaqueField.MAC_LEN]
+    return cbcmac(key, to_mac)[:HopOpaqueField.MAC_LEN]
 
 
 def verify_of_mac(key, hof, prev_hof, ts):
