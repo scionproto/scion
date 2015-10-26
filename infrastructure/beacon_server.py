@@ -31,13 +31,14 @@ from abc import ABCMeta, abstractmethod
 
 # External packages
 from Crypto.Hash import SHA256
+from Crypto.Protocol.KDF import PBKDF2
 
 # SCION
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.asymcrypto import sign
 from lib.crypto.certificate import CertificateChain, TRC, verify_sig_chain_trc
 from lib.crypto.hash_chain import HashChain, HashChainExhausted
-from lib.crypto.symcrypto import gen_of_mac, get_roundkey_cache
+from lib.crypto.symcrypto import gen_of_mac
 from lib.defines import (
     BEACON_SERVICE,
     CERTIFICATE_SERVICE,
@@ -283,7 +284,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                                              self.topology.ad_id)
         self.signing_key = read_file(sig_key_file)
         self.signing_key = base64.b64decode(self.signing_key)
-        self.of_gen_key = get_roundkey_cache(self.config.master_ad_key)
+        self.of_gen_key = PBKDF2(self.config.master_ad_key, b"Derive OF Key")
         logging.info(self.config.__dict__)
         self.if2rev_tokens = {}
         self._if_rev_token_lock = threading.Lock()
