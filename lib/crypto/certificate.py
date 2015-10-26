@@ -23,7 +23,6 @@ import logging
 import time
 
 # SCION
-from lib.crypto.nacl import crypto_sign_ed25519_open
 from lib.crypto.asymcrypto import sign, verify
 from lib.util import load_json_file
 
@@ -255,14 +254,8 @@ class Certificate(object):
             logging.warning("The given subject doesn't match the " +
                             "certificate's subject")
             return False
-        data_to_verify = self.__str__(with_signature=False).encode('utf-8')
-        msg_with_sig = self.signature + data_to_verify
-        try:
-            crypto_sign_ed25519_open(msg_with_sig, issuer_cert.subject_sig_key)
-            return True
-        except:
-            logging.warning("The certificate is not valid.")
-            return False
+        msg = self.__str__(with_signature=False).encode('utf-8')
+        return verify(msg, self.signature, issuer_cert.subject_sig_key)
 
     def __str__(self, with_signature=True):
         """
@@ -599,16 +592,13 @@ class TRC(object):
         :returns: True or False whether the verification succeeds or fails.
         :rtype: bool
         """
-        data_to_verify = self.__str__(with_signatures=False).encode('utf-8')
+        msg = self.__str__(with_signatures=False).encode('utf-8')
         for signer in self.signatures:
             if signer not in self.core_ads:
                 logging.warning("A signature could not be verified.")
                 return False
             public_key = self.core_ads[signer].subject_sig_key
-            msg_with_sig = self.signatures[signer] + data_to_verify
-            try:
-                crypto_sign_ed25519_open(msg_with_sig, public_key)
-            except:
+            if not verify(msg, self.signatures[signer], public_key):
                 logging.warning("A signature is not valid.")
                 return False
         return True
