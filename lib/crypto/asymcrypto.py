@@ -18,6 +18,7 @@
 # External
 from nacl.signing import SigningKey, VerifyKey
 
+
 def generate_signing_keypair():
     """
     Generate Ed25519 keypair.
@@ -27,6 +28,7 @@ def generate_signing_keypair():
     """
     sk = SigningKey.generate()
     return (sk.verify_key.encode(), sk.encode())
+
 
 def sign(msg, signing_key):
     """
@@ -41,6 +43,7 @@ def sign(msg, signing_key):
     :rtype: bytes
     """
     return SigningKey(signing_key).sign(msg)[:64]
+
 
 def verify(msg, sig, verifying_key):
     """

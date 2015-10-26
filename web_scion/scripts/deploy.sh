@@ -11,7 +11,6 @@ fi
 
 mkdir -p logs traces
 ./deps.sh all
-./scion.sh init
 
 # Kill the previous instance of supervisor
 echo 'Stopping all processes...'
