@@ -238,8 +238,14 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         seg_info = rep_pkt.get_payload()
         rep_pkt.set_payload(PathRecordsReply.from_values(seg_info, paths))
         (next_hop, port) = self.get_first_hop(rep_pkt)
-        logging.info("Sending PATH_REPLY, using path: %s, to:%s", rep_pkt.path,
-                     rep_pkt.addrs.get_dst_addr())
+        logging.info(
+            "Sending PATH_REPLY with %d path(s) for %s:%s-%s "
+            "to:(%s-%s, %s:%s):\n  %s", len(paths),
+            PST.to_str(seg_info.seg_type), seg_info.dst_isd,
+            seg_info.dst_ad, rep_pkt.addrs.dst_isd, rep_pkt.addrs.dst_ad,
+            rep_pkt.addrs.dst_addr, rep_pkt.l4_hdr.dst_port,
+            "\n  ".join([pcb.short_desc() for pcb in paths]),
+        )
         self.send(rep_pkt, next_hop, port)
 
     def dispatch_path_segment_record(self, pkt):
@@ -275,10 +281,13 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         try:
             self.path_cache.store("%s-%s" % (pkt_hash, SCIONTime.get_time()),
                                   pkt_packed)
-            logging.debug("Segment stored in ZK: %s...", pkt_hash[:5])
         except ZkNoConnection:
             logging.warning("Unable to store segment in shared path: "
                             "no connection to ZK")
+            return
+        payload = pkt.get_payload()
+        logging.debug("Segment(s) stored in ZK: %s",
+                      "\n".join([pcb.short_desc() for pcb in payload.pcbs]))
 
     def run(self):
         """
@@ -406,13 +415,11 @@ class CorePathServer(PathServer):
                 # Master replicates all seen down-paths from ISD.
                 paths_to_master.append(pcb)
             if res != DBResult.NONE:
-                logging.info("Down-Segment registered (%d, %d) -> (%d, %d)",
-                             src_isd, src_ad, dst_isd, dst_ad)
+                logging.info("Down-Segment registered: %s", pcb.short_desc())
                 if res == DBResult.ENTRY_ADDED:
                     self._add_if_mappings(pcb)
             else:
-                logging.info("Down-Segment to (%d, %d) already known.",
-                             dst_isd, dst_ad)
+                logging.info("Down-Segment already known: %s", pcb.short_desc())
         # For now we let every CPS know about all the down-paths within an ISD.
         # Also send paths to local master.
         # FIXME: putting all paths into single packet may be not a good decision
@@ -462,13 +469,11 @@ class CorePathServer(PathServer):
                                             last_ad=src_ad)
             if res == DBResult.ENTRY_ADDED:
                 self._add_if_mappings(pcb)
-                logging.info("Core-Path registered: (%d, %d) -> (%d, %d), "
-                             "from_zk: %s", src_isd, src_ad, dst_isd, dst_ad,
-                             from_zk)
+                logging.info("Core-Path registered (from zk: %s): %s",
+                             from_zk, pcb.short_desc())
             else:
-                logging.info("Core-Path already known: (%d, %d) -> (%d, %d), "
-                             "from_zk: %s", src_isd, src_ad, dst_isd, dst_ad,
-                             from_zk)
+                logging.info("Core-Path already known (from zk: %s): %s",
+                             from_zk, pcb.short_desc())
             if dst_isd == self.topology.isd_id:
                 self.core_ads.add((dst_isd, dst_ad))
             else:
@@ -697,9 +702,8 @@ class LocalPathServer(PathServer):
                                           self.topology.ad_id)
             if res == DBResult.ENTRY_ADDED:
                 self._add_if_mappings(pcb)
-                logging.info("Up-Segment to (%d, %d) registered, from_zk: %s.",
-                             pcb.get_first_pcbm().isd_id,
-                             pcb.get_first_pcbm().ad_id, from_zk)
+                logging.info("Up-Segment registered (from zk: %s): %s",
+                             from_zk, pcb.short_desc())
         # Share Up Segment via ZK.
         if not from_zk:
             self._share_segments(pkt)
@@ -773,8 +777,7 @@ class LocalPathServer(PathServer):
                                             last_ad=src_ad)
             if res == DBResult.ENTRY_ADDED:
                 self._add_if_mappings(pcb)
-                logging.info("Core-Segment registered: (%d, %d) -> (%d, %d)",
-                             src_isd, src_ad, dst_isd, dst_ad)
+                logging.info("Core-Segment registered: %s", pcb.short_desc())
         # Serve pending core path requests.
         target = ((src_isd, src_ad), (dst_isd, dst_ad))
         if target in self.pending_core:

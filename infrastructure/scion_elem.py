@@ -60,7 +60,7 @@ class SCIONElement(object):
     """
 
     def __init__(self, server_type, topo_file, config_file=None, server_id=None,
-                 host_addr=None, is_sim=False):
+                 host_addr=None, port=SCION_UDP_PORT, is_sim=False):
         """
         :param str server_type:
             a service type from :const:`lib.defines.SERVICE_TYPES`. E.g.
@@ -77,6 +77,7 @@ class SCIONElement(object):
         self.topology = None
         self.config = None
         self.ifid2addr = {}
+        self._port = port
         self.parse_topology(topo_file)
         # Must be over-ridden by child classes:
         self.PLD_CLASS_MAP = {}
@@ -102,9 +103,10 @@ class SCIONElement(object):
             self._in_buf = queue.Queue()
             self._socks = UDPSocketMgr()
             self._local_sock = UDPSocket(
-                bind=(str(self.addr.host_addr), SCION_UDP_PORT, self.id),
+                bind=(str(self.addr.host_addr), port, self.id),
                 addr_type=self.addr.host_addr.TYPE,
             )
+            self._port = self._local_sock.port
             self._socks.add(self._local_sock)
 
     def parse_topology(self, topo_file):
@@ -210,7 +212,7 @@ class SCIONElement(object):
         dst_addr = SCIONAddr.from_values(dst_isd, dst_ad, dst_host)
         cmn_hdr, addr_hdr = build_base_hdrs(self.addr, dst_addr)
         udp_hdr = SCIONUDPHeader.from_values(
-            self.addr, SCION_UDP_PORT, dst_addr, dst_port, payload)
+            self.addr, self._port, dst_addr, dst_port, payload)
         return SCIONL4Packet.from_values(
             cmn_hdr, addr_hdr, path, ext_hdrs, udp_hdr, payload)
 
