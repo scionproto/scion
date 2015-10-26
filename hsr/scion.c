@@ -8,6 +8,10 @@
 #include <stdarg.h>
 #include <errno.h>
 #include <getopt.h>
+#include <unistd.h>
+#include <sys/mman.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 
 #include <rte_common.h>
 #include <rte_vect.h>
@@ -39,6 +43,7 @@
 #include <rte_udp.h>
 #include <rte_string_fns.h>
 
+#include "cJSON/cJSON.h"
 #include "scion.h"
 #include "libscion.h"
 #include "lib/aesni.h"
@@ -59,7 +64,10 @@
   rte_cpu_to_be_32((LOCAL_NETWORK_ADDRESS | IFID))
 
 #define MAX_NUM_ROUTER 16
-#define MAX_NUM_BEACON_SERVERS 1
+#define MAX_NUM_BEACON_SERVERS 10
+#define MAX_NUM_PATH_SERVERS 10
+#define MAX_NUM_CERT_SERVERS 10
+#define MAX_NUM_DNS_SERVERS 10
 #define MAX_IFID 2 << 12
 
 /// definition of functions
@@ -87,44 +95,201 @@ static inline void egress_peer_xovr(struct rte_mbuf *m, uint8_t dpdk_rx_port);
 static inline void egress_core_xovr(struct rte_mbuf *m, uint8_t dpdk_rx_port);
 
 uint32_t beacon_servers[MAX_NUM_BEACON_SERVERS];
-uint32_t certificate_servers[10];
-uint32_t path_servers[10];
+uint32_t certificate_servers[MAX_NUM_CERT_SERVERS];
+uint32_t path_servers[MAX_NUM_PATH_SERVERS];
+uint32_t dns_servers[MAX_NUM_DNS_SERVERS];
 
 struct port_map {
   uint8_t egress;
   uint8_t local;
 } port_map[16];
 
-uint32_t neighbor_ad_router_ip[16];
+uint32_t neighbor_ip[16];
 
 uint32_t my_ifid[16];      // the current router's IFID
 uint32_t interface_ip[16]; // current router IP address
 
+int my_isd;
+int my_ad;
+
 struct keystruct rk; // AES-NI key structure
 
-void scion_init() {
-  // fill interface list
-  // TODO read topology configuration
+uint32_t parse_ip(cJSON *addr_obj)
+{
+  char *addr, *token;
+  int i;
+  long addr_ints[4];
 
-  beacon_servers[0] = rte_cpu_to_be_32(IPv4(7, 7, 7, 7));
-  certificate_servers[0] = rte_cpu_to_be_32(IPv4(8, 8, 8, 8));
-  path_servers[0] = rte_cpu_to_be_32(IPv4(9, 9, 9, 9));
+  addr = addr_obj->valuestring;
+  token = strtok(addr, "./");
+  for (i = 0; i < 4; i++) {
+    errno = 0;
+    addr_ints[i] = strtol(token, NULL, 0);
+    if (errno != 0) {
+      fprintf(stderr, "invalid ip address\n");
+      return 0;
+    }
+    token = strtok(NULL, "./");
+  }
+  return rte_cpu_to_be_32(IPv4(addr_ints[0], addr_ints[1],
+                               addr_ints[2], addr_ints[3]));
+}
 
-  // first router
-  neighbor_ad_router_ip[0] = neighbor_ad_router_ip[1] =
-      rte_cpu_to_be_32(IPv4(1, 1, 1, 1));
-  interface_ip[0] = interface_ip[1] = rte_cpu_to_be_32(IPv4(2, 2, 2, 2));
-  // DPDK setting
+int get_servers(cJSON *root, char *name, uint32_t *arr)
+{
+  cJSON *server_root, *server;
+  cJSON *addr_obj;
+  int i = 0;
 
-  port_map[0].egress = 0;
-  port_map[0].local = 1;
-  port_map[1].egress = 0;
-  port_map[1].local = 1;
-  my_ifid[0] = my_ifid[1] = 123; // ifid of NIC 0 and NIC 1 is 123
+  server_root = cJSON_GetObjectItem(root, name);
+  if (server_root) {
+    for (server = server_root->child; server != NULL; server = server->next) {
+      addr_obj = cJSON_GetObjectItem(server, "Addr");
+      if (addr_obj == NULL)
+        continue;
+      arr[i] = parse_ip(addr_obj);
+      if (arr[i] == 0)
+        continue;
+      i++;
+    }
+  }
+  return i;
+}
+
+int scion_init(int argc, char **argv) {
+  int router_id;
+  char *map;
+  int fd;
+  int pagesize;
+  cJSON *root;
+  cJSON *router_root, *router;
+  cJSON *server_rott, *server;
+  cJSON *addr_obj;
+  cJSON *key_obj;
+  int i;
+  int ret = -1;
+
+  pagesize = getpagesize();
+
+  /* Parse topology file */
+
+  fd = open(argv[1], O_RDONLY);
+  if (fd < 0) {
+    fprintf(stderr, "failed to open topology file\n");
+    goto FAIL;
+  }
+  map = (char *)mmap(NULL, pagesize, PROT_READ, MAP_SHARED, fd, 0);
+  if (map == MAP_FAILED) {
+    fprintf(stderr, "failed to map topology file\n");
+    goto CLOSE_FD;
+  }
+  root = cJSON_Parse(map);
+  if (root == NULL) {
+    fprintf(stderr, "failed to parse topology file\n");
+    goto UNMAP;
+  }
+  /* Get own interface info */
+  router_root = cJSON_GetObjectItem(root, "EdgeRouters");
+  if (router_root == NULL) {
+    fprintf(stderr, "no edge routers specified in topology file\n");
+    goto JSON;
+  }
+  for (router = router_root->child; router != NULL; router = router->next) {
+    if (!strcmp(router->string, argv[0])) {
+      cJSON *interface, *ifid_obj;
+      char *ifid;
+      /* Get internal address */
+      addr_obj = cJSON_GetObjectItem(router, "Addr");
+      if (!addr_obj) {
+        fprintf(stderr, "no address for router\n");
+        goto JSON;
+      }
+      interface_ip[0] = parse_ip(addr_obj);
+      if (interface_ip[0] == 0)
+        goto JSON;
+
+      /* Get outgoing interface address */
+      interface = cJSON_GetObjectItem(router, "Interface");
+      if (interface == NULL) {
+        fprintf(stderr, "no interface for router\n");
+        goto JSON;
+      }
+      addr_obj = cJSON_GetObjectItem(interface, "Addr");
+      if (addr_obj == NULL) {
+        fprintf(stderr, "no address for interface\n");
+        goto JSON;
+      }
+      interface_ip[1] = parse_ip(addr_obj);
+      if (interface_ip[1] == 0)
+        goto JSON;
+
+      /* Get neighbor interface */
+      addr_obj = cJSON_GetObjectItem(interface, "ToAddr");
+      if (addr_obj == NULL) {
+        fprintf(stderr, "no neighbor address\n");
+        goto JSON;
+      }
+      neighbor_ip[0] = parse_ip(addr_obj);
+      if (neighbor_ip[0] == 0) {
+        fprintf(stderr, "invalid neighbor address\n");
+        goto JSON;
+      }
+      neighbor_ip[1] = neighbor_ip[0];
+
+      /* Get IFID */
+      ifid_obj = cJSON_GetObjectItem(interface, "IFID");
+      if (ifid_obj == NULL) {
+        fprintf(stderr, "no IFID specified\n");
+        goto JSON;
+      }
+      my_ifid[0] = ifid_obj->valueint;
+      my_ifid[1] = my_ifid[0];
+      break;
+    }
+  }
+  if (router == NULL) {
+    fprintf(stderr, "router not found in topology file\n");
+    goto JSON;
+  }
+
+  /* Get DNS servers */
+  i = get_servers(root, "DNSServers", dns_servers);
+  if (i == 0) {
+    fprintf(stderr, "no valid DNS servers");
+    goto JSON;
+  }
+
+  /* Get Beacon servers */
+  get_servers(root, "BeaconServers", beacon_servers);
+
+  /* Get Certificate servers */
+  get_servers(root, "CertificateServers", certificate_servers);
+
+  /* Get Path servers */
+  get_servers(root, "PathServers", path_servers);
+
+  /* Get ISD/AD */
+  addr_obj = cJSON_GetObjectItem(root, "ISDID");
+  if (addr_obj == NULL) {
+    fprintf(stderr, "no ISD info\n");
+    goto JSON;
+  }
+  my_isd = addr_obj->valueint;
+  addr_obj = cJSON_GetObjectItem(root, "ADID");
+  if (addr_obj == NULL) {
+    fprintf(stderr, "no AD info\n");
+    goto JSON;
+  }
+  my_ad = addr_obj->valueint;
+
+  /* Done with topology file */
+  cJSON_Delete(root);
+  munmap(map, pagesize);
+  close(fd);
 
   // second router
   /*
-   neighbor_ad_router_ip[2] = neighbor_ad_router_ip[3] =
+   neighbor_ip[2] = neighbor_ip[3] =
        rte_cpu_to_be_32(IPv4(1, 1, 1, 1));
    port_map[2].egress = 2;
    port_map[2].local = 3;
@@ -133,10 +298,54 @@ void scion_init() {
    my_ifid[2] = my_ifid[3] = 345; // ifid of NIC 2 and NIC 3 is 345
  */
 
+  /* Parse config file */
+  fd = open(argv[2], O_RDONLY);
+  if (fd < 0) {
+    fprintf(stderr, "failed to open config file\n");
+    goto FAIL;
+  }
+  map = (char *)mmap(NULL, pagesize, PROT_READ, MAP_SHARED, fd, 0);
+  if (map == MAP_FAILED) {
+    fprintf(stderr, "failed to map config file\n");
+    goto CLOSE_FD;
+  }
+  root = cJSON_Parse(map);
+  if (root == NULL) {
+    fprintf(stderr, "failed to parse config file\n");
+    goto UNMAP;
+  }
+  key_obj = cJSON_GetObjectItem(root, "MasterADKey");
+  if (key_obj == NULL) {
+    fprintf(stderr, "no master key in config file\n");
+    goto JSON;
+  }
+  unsigned char *key = key_obj->valuestring;
+  if (key == NULL) {
+    fprintf(stderr, "invalid master key\n");
+    goto JSON;
+  }
+
   // AES-NI key setup
-  unsigned char key[] = "0123456789abcdef";
   rk.roundkey = aes_assembly_init(key);
   rk.iv = malloc(16 * sizeof(char));
+
+  // DPDK setting
+
+  port_map[0].egress = 0;
+  port_map[0].local = 1;
+  port_map[1].egress = 0;
+  port_map[1].local = 1;
+
+  ret = 0;
+
+JSON:
+  cJSON_Delete(root);
+UNMAP:
+  munmap(map, pagesize);
+CLOSE_FD:
+  close(fd);
+FAIL:
+  return ret;
 }
 
 static inline int send_packet(struct rte_mbuf *m, uint8_t port) {
@@ -175,7 +384,7 @@ static inline void sync_interface() {
     struct IFIDHeader  *ifid = (void *)eth + sizeof(struct ether_hdr) +
     sizeof(struct ipv4_hdr) +  sizeof(struct udp_hdr);
 
-    ipv4_hdr->dst_addr = neighbor_ad_router_ip[0];
+    ipv4_hdr->dst_addr = neighbor_ip[0];
     udp_hdr->dst_port = SCION_UDP_PORT;
     ifid->commonHeader-> srcType == ADDR_SVC_TYPE;
     ifid->srcAddr->isd_id = my_isd_id[0];
@@ -208,7 +417,7 @@ static inline int send_egress(struct rte_mbuf *m, uint8_t dpdk_rx_port) {
   // Specify output dpdk port.
   // Update destination IP address and UDP port number
 
-  ipv4_hdr->dst_addr = neighbor_ad_router_ip[dpdk_rx_port];
+  ipv4_hdr->dst_addr = neighbor_ip[dpdk_rx_port];
   // udp_hdr->dst_port = SCION_UDP_PORT;
 
   // TODO should we updete destination MAC address?
@@ -325,7 +534,7 @@ static inline void process_pcb(struct rte_mbuf *m, uint8_t from_bs,
       return;
     }
 
-    ipv4_hdr->dst_addr = neighbor_ad_router_ip[dpdk_rx_port];
+    ipv4_hdr->dst_addr = neighbor_ip[dpdk_rx_port];
     // udp_hdr->dst_port = SCION_UDP_PORT; // neighbor router port
 
     // l2fwd_send_packet(m, DPDK_EGRESS_PORT);
@@ -348,7 +557,7 @@ static inline void relay_cert_server_packet(struct rte_mbuf *m,
       m, unsigned char *)+sizeof(struct ether_hdr));
 
   if (from_local_socket) {
-    ipv4_hdr->dst_addr = neighbor_ad_router_ip[dpdk_rx_port];
+    ipv4_hdr->dst_addr = neighbor_ip[dpdk_rx_port];
 
     // l2fwd_send_packet(m, DPDK_EGRESS_PORT, dpdk_rx_port);
     send_packet(m, port_map[dpdk_rx_port].egress);

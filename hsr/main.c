@@ -271,13 +271,17 @@ l2fwd_main_loop(void)
 	struct rte_mbuf *m;
 	struct rte_mbuf *m_next;
 	unsigned lcore_id;
-	uint64_t prev_tsc, diff_tsc, cur_tsc, timer_tsc;
+	uint64_t prev_tsc, diff_tsc, cur_tsc, timer_tsc, prev_sync, prev_req;
 	unsigned i, j, portid, nb_rx;
 	struct lcore_queue_conf *qconf;
 	const uint64_t drain_tsc = (rte_get_tsc_hz() + US_PER_S - 1) / US_PER_S * BURST_TX_DRAIN_US;
+	const uint64_t if_sync_tsc = (rte_get_tsc_hz() + US_PER_S - 1) / US_PER_S * IFID_PKT_US;
+	const uint64_t if_req_tsc = (rte_get_tsc_hz() + US_PER_S - 1) / US_PER_S * IFSTATE_REQ_US;
 
 	prev_tsc = 0;
 	timer_tsc = 0;
+    prev_sync = 0;
+    prev_req = 0;
 
 	lcore_id = rte_lcore_id();
 	qconf = &lcore_queue_conf[lcore_id];
@@ -358,6 +362,18 @@ l2fwd_main_loop(void)
 				l2fwd_simple_forward(m, portid);
 			}
 		}
+
+        diff_tsc = cur_tsc - prev_sync;
+		if (unlikely(diff_tsc > if_sync_tsc)) {
+            //sync_interface();
+            prev_sync = cur_tsc;
+        }
+
+        diff_tsc = cur_tsc - prev_req;
+        if (unlikely(diff_tsc > if_req_tsc)) {
+            //request_ifstates();
+            prev_req = cur_tsc;
+        }
 	}
 }
 
@@ -441,6 +457,7 @@ l2fwd_parse_args(int argc, char **argv)
 	static struct option lgopts[] = {
 		{NULL, 0, 0, 0}
 	};
+    int i;
 
 	argvopt = argv;
 
@@ -552,7 +569,7 @@ check_all_ports_link_status(uint8_t port_num, uint32_t port_mask)
 	}
 }
 
-void scion_init();
+int scion_init(int argc, char **argv);
 
 int
 main(int argc, char **argv)
@@ -566,8 +583,6 @@ main(int argc, char **argv)
 	unsigned lcore_id, rx_lcore_id;
 	unsigned nb_ports_in_mask = 0;
 
-	scion_init();
-
 	/* init EAL */
 	ret = rte_eal_init(argc, argv);
 	if (ret < 0)
@@ -578,7 +593,17 @@ main(int argc, char **argv)
 	/* parse application arguments (after the EAL ones) */
 	ret = l2fwd_parse_args(argc, argv);
 	if (ret < 0)
-		rte_exit(EXIT_FAILURE, "Invalid L2FWD arguments\n");
+    rte_exit(EXIT_FAILURE, "Invalid L2FWD arguments\n");
+  argc -= ret + 1;
+  argv += ret + 1;
+  if (argc > 0) {
+    /* non-option args - i.e. SCION args */
+    if (argc != 3)
+      rte_exit(EXIT_FAILURE, "Incorrect number of SCION arguments\n");
+    ret = scion_init(argc, argv);
+    if (ret < 0)
+      rte_exit(EXIT_FAILURE, "Failed to initialize SCION\n");
+  }
 
 	/* create the mbuf pool */
 	l2fwd_pktmbuf_pool =
