@@ -25,7 +25,6 @@ import nose
 import nose.tools as ntools
 
 # SCION
-from lib.defines import GEN_PATH
 from lib.errors import (
     SCIONIOError,
     SCIONIndexError,
@@ -34,21 +33,13 @@ from lib.errors import (
     SCIONTypeError,
 )
 from lib.util import (
-    CERT_DIR,
-    ENC_KEYS_DIR,
     Raw,
     SCIONTime,
-    SIG_KEYS_DIR,
     TRACE_DIR,
     _SIG_MAP,
-    _get_isd_prefix,
     _signal_handler,
     calc_padding,
     copy_file,
-    get_cert_chain_file_path,
-    get_enc_key_file_path,
-    get_sig_key_file_path,
-    get_trc_file_path,
     handle_signals,
     load_json_file,
     read_file,
@@ -58,90 +49,6 @@ from lib.util import (
     update_dict,
     write_file,
 )
-
-
-class TestGetIsdPrefix(object):
-    """
-    Unit tests for lib.util._get_isd_prefix
-    """
-    @patch("lib.util.os.path.join", autospec=True)
-    def test_basic(self, join):
-        join.return_value = "data1"
-        ntools.eq_(_get_isd_prefix("data2"), "data1")
-        join.assert_any_call("data2", 'ISD')
-
-
-@patch("lib.util.os.path.join", autospec=True)
-@patch("lib.util._get_isd_prefix", autospec=True)
-class TestGetCertChainFilePath(object):
-    """
-    Unit tests for lib.util.get_cert_chain_file_path
-    """
-    def test_basic(self, isd_prefix, join):
-        isd_prefix.return_value = "isd_prefix"
-        join.return_value = "data2"
-        ntools.eq_(get_cert_chain_file_path(1, 2, 3, 4, 5, 6), "data2")
-        isd_prefix.assert_called_once_with(6)
-        join.assert_any_call("isd_prefix1", CERT_DIR, 'AD2',
-                             'ISD3-AD4-V5.crt')
-
-    def test_len(self, isd_prefix, join):
-        get_cert_chain_file_path(1, 2, 3, 4, 5)
-        isd_prefix.assert_called_once_with(GEN_PATH)
-
-
-@patch("lib.util.os.path.join", autospec=True)
-@patch("lib.util._get_isd_prefix", autospec=True)
-class TestGetTRCFilePath(object):
-    """
-    Unit tests for lib.util.get_trc_file_path
-    """
-    def test_basic(self, isd_prefix, join):
-        isd_prefix.return_value = "isd_prefix"
-        join.return_value = "data2"
-        ntools.eq_(get_trc_file_path(1, 2, 3, 4, 5), "data2")
-        isd_prefix.assert_called_once_with(5)
-        join.assert_any_call("isd_prefix1", CERT_DIR, 'AD2', 'ISD3-V4.crt')
-
-    def test_len(self, isd_prefix, join):
-        get_trc_file_path(1, 2, 3, 4)
-        isd_prefix.assert_called_once_with(GEN_PATH)
-
-
-@patch("lib.util.os.path.join", autospec=True)
-@patch("lib.util._get_isd_prefix", autospec=True)
-class TestGetSigKeyFilePath(object):
-    """
-    Unit tests for lib.util.et_sig_key_file_path
-    """
-    def test_basic(self, isd_prefix, join):
-        isd_prefix.return_value = "isd_prefix"
-        join.return_value = "data2"
-        ntools.eq_(get_sig_key_file_path(1, 2, 3), "data2")
-        isd_prefix.assert_called_once_with(3)
-        join.assert_any_call("isd_prefix1", SIG_KEYS_DIR, 'ISD1-AD2.key')
-
-    def test_len(self, isd_prefix, join):
-        get_sig_key_file_path(1, 2)
-        isd_prefix.assert_called_once_with(GEN_PATH)
-
-
-@patch("lib.util.os.path.join", autospec=True)
-@patch("lib.util._get_isd_prefix", autospec=True)
-class TestGetEncKeyFilePath(object):
-    """
-    Unit tests for lib.util.get_enc_key_file_path
-    """
-    def test_basic(self, isd_prefix, join):
-        isd_prefix.return_value = "isd_prefix"
-        join.return_value = "data2"
-        ntools.eq_(get_enc_key_file_path(1, 2, 3), "data2")
-        isd_prefix.assert_called_once_with(3)
-        join.assert_any_call("isd_prefix1", ENC_KEYS_DIR, 'ISD1-AD2.key')
-
-    def test_len(self, isd_prefix, join):
-        get_enc_key_file_path(1, 2)
-        isd_prefix.assert_called_once_with(GEN_PATH)
 
 
 class TestReadFile(object):

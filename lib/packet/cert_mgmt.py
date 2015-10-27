@@ -83,6 +83,9 @@ class CertChainRequest(CertMgmtBase):
         packed.append(struct.pack("!B", self.local))
         return b"".join(packed)
 
+    def short_desc(self):  # pragma: no cover
+        return "%s-%sv%s" % (self.isd_id, self.ad_id, self.version)
+
     def __len__(self):  # pragma: no cover
         return self.LEN
 
@@ -171,6 +174,9 @@ class CertChainReply(CertMgmtBase):
         packed.append(struct.pack("!I", self.version))
         packed.append(self.cert_chain)
         return b"".join(packed)
+
+    def short_desc(self):  # pragma: no cover
+        return "%s-%sv%s" % (self.isd_id, self.ad_id, self.version)
 
     def __len__(self):  # pragma: no cover
         return self.MIN_LEN + len(self.cert_chain)

@@ -17,6 +17,7 @@
 """
 # Stdlib
 import logging
+import os
 import queue
 import threading
 
@@ -58,43 +59,37 @@ class SCIONElement(object):
         router addresses in the server's AD.
     :ivar `SCIONAddr` addr: the server's address.
     """
+    SERVICE_TYPE = None
 
-    def __init__(self, server_type, topo_file, config_file=None, server_id=None,
-                 host_addr=None, port=SCION_UDP_PORT, is_sim=False):
+    def __init__(self, server_id, conf_dir, host_addr=None, port=SCION_UDP_PORT,
+                 is_sim=False):
         """
-        :param str server_type:
-            a service type from :const:`lib.defines.SERVICE_TYPES`. E.g.
-            ``"bs"``.
-        :param str topo_file: path name of the topology file.
-        :param str config_file: path name of the configuration file.
-        :param str server_id:
-            the local id of the server. E.g. for `bs1-10-3`, the id would be
-            ``"3"``. Used to look up config from topology file.
+        :param str server_id: server identifier.
+        :param str conf_dir: configuration directory.
         :param `HostAddrBase` host_addr:
-            the interface to bind to. Only used if `server_id` isn't specified.
-        :param bool is_sim: running in simulator
+            the interface to bind to. Overrides the address in the topology
+            config.
+        :param int port: the port to bind to.
+        :param bool is_sim: running on simulator
         """
-        self.topology = None
-        self.config = None
+        self.id = server_id
+        self.conf_dir = conf_dir
         self.ifid2addr = {}
         self._port = port
-        self.parse_topology(topo_file)
+        self.topology = Topology.from_file(
+            os.path.join(self.conf_dir, "topology.conf"))
+        self.config = Config.from_file(os.path.join(self.conf_dir, "ad.conf"))
         # Must be over-ridden by child classes:
         self.PLD_CLASS_MAP = {}
-        if server_id is not None:
-            own_config = self.topology.get_own_config(server_type, server_id)
-            self.id = "%s%s-%s-%s" % (server_type, self.topology.isd_id,
-                                      self.topology.ad_id, own_config.name)
+        if host_addr is None:
+            own_config = self.topology.get_own_config(
+                self.SERVICE_TYPE, server_id)
             host_addr = own_config.addr
-        else:
-            self.id = server_type
         self.addr = SCIONAddr.from_values(self.topology.isd_id,
                                           self.topology.ad_id, host_addr)
         self._dns = DNSCachingClient(
             [str(s.addr) for s in self.topology.dns_servers],
             self.topology.dns_domain)
-        if config_file:
-            self.parse_config(config_file)
         self.construct_ifid2addr_map()
         if not is_sim:
             self.run_flag = threading.Event()
@@ -108,26 +103,6 @@ class SCIONElement(object):
             )
             self._port = self._local_sock.port
             self._socks.add(self._local_sock)
-
-    def parse_topology(self, topo_file):
-        """
-        Instantiate a Topology object given 'topo_file'.
-
-        :param topo_file: the topology file name.
-        :type topo_file: str
-        """
-        assert isinstance(topo_file, str)
-        self.topology = Topology.from_file(topo_file)
-
-    def parse_config(self, config_file):
-        """
-        Instantiate a Config object given 'config_file'.
-
-        :param config_file: the configuration file name.
-        :type config_file: str
-        """
-        assert isinstance(config_file, str)
-        self.config = Config.from_file(config_file)
 
     def construct_ifid2addr_map(self):
         """

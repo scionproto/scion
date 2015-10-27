@@ -22,11 +22,8 @@ It dynamically provides DNS records for the AD based on service instances
 registering in Zookeeper.
 """
 # Stdlib
-import argparse
 import binascii
-import datetime
 import logging
-import sys
 import threading
 from time import sleep
 
@@ -49,9 +46,9 @@ from lib.defines import (
     PATH_SERVICE,
     SCION_DNS_PORT,
 )
-from lib.log import init_logging, log_exception
+from lib.log import log_exception
+from lib.main import main_default, main_wrapper
 from lib.thread import kill_self
-from lib.util import handle_signals, trace
 from lib.zookeeper import ZkNoConnection, Zookeeper
 
 
@@ -241,19 +238,22 @@ class SCIONDnsServer(SCIONElement):
                            instance data from ZK.
     :cvar list SRV_TYPES: Service types to monitor/export
     """
+    SERVICE_TYPE = DNS_SERVICE
     SYNC_TIME = 1.0
     SRV_TYPES = (BEACON_SERVICE, CERTIFICATE_SERVICE, DNS_SERVICE, PATH_SERVICE)
 
-    def __init__(self, server_id, domain, topo_file):
+    def __init__(self, server_id, conf_dir, setup=False):
         """
-        :param str server_id: Local id of the server, E.g. '3'.
-        :param str domain: DNS domain to serve.
-        :param str topo_file: Path to topology file.
+        :param str server_id: server identifier.
+        :param str conf_dir: configuration directory.
+        :param bool setup: should setup() be called?
         """
-        super().__init__(DNS_SERVICE, topo_file, server_id=server_id)
-        self.domain = DNSLabel(domain)
+        super().__init__(server_id, conf_dir)
+        self.domain = DNSLabel(self.topology.dns_domain)
         self.lock = threading.Lock()
         self.services = {}
+        if setup:
+            self.setup()
 
     def setup(self):
         """
@@ -349,35 +349,5 @@ class SCIONDnsServer(SCIONElement):
             sleep(self.SYNC_TIME)
 
 
-def main():  # pragma: no cover
-    """
-    Main function.
-    """
-    handle_signals()
-    parser = argparse.ArgumentParser()
-    parser.add_argument('server_id', help='Server identifier')
-    parser.add_argument('domain', help='DNS Domain')
-    parser.add_argument('topology', help='Topology file')
-    parser.add_argument('log_file', help='Log file')
-    args = parser.parse_args()
-    init_logging(args.log_file)
-
-    scion_dns_server = SCIONDnsServer(args.server_id, args.domain,
-                                      args.topology)
-    scion_dns_server.setup()
-    trace(scion_dns_server.id)
-
-    logging.info("Started: %s", datetime.datetime.now())
-    scion_dns_server.run()
-
-
-if __name__ == "__main__":  # pragma: no cover
-    try:
-        main()
-    except SystemExit:
-        logging.info("Exiting")
-        raise
-    except:
-        log_exception("Exception in main process:")
-        logging.critical("Exiting")
-        sys.exit(1)
+if __name__ == "__main__":
+    main_wrapper(main_default, SCIONDnsServer, setup=True)

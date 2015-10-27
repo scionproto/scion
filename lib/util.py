@@ -31,7 +31,6 @@ from functools import wraps
 from external.stacktracer import trace_start
 
 # SCION
-from lib.defines import GEN_PATH
 from lib.errors import (
     SCIONIOError,
     SCIONIndexError,
@@ -40,9 +39,8 @@ from lib.errors import (
     SCIONTypeError,
 )
 
-CERT_DIR = 'certificates'
-SIG_KEYS_DIR = 'signature_keys'
-ENC_KEYS_DIR = 'encryption_keys'
+CERT_DIR = 'certs'
+KEYS_DIR = 'keys'
 TRACE_DIR = 'traces'
 
 _SIG_MAP = {
@@ -55,99 +53,27 @@ _SIG_MAP = {
 }
 
 
-def _get_isd_prefix(isd_dir):
+def get_cert_chain_file_path(conf_dir, isd_id, ad_id,
+                             version):  # pragma: no cover
     """
-
-
-    :param isd_dir:
-    :type isd_dir:
-
-    :returns:
-    :rtype:
+    Return the certificate chain file path for a given ISD.
     """
-    return os.path.join(isd_dir, 'ISD')
+    return os.path.join(conf_dir, CERT_DIR,
+                        'ISD%s-AD%s-V%s.crt' % (isd_id, ad_id, version))
 
 
-def get_cert_chain_file_path(loc_isd, loc_ad, isd_id, ad_id, version,
-                             isd_dir=GEN_PATH):
+def get_trc_file_path(conf_dir, isd_id, version):  # pragma: no cover
     """
-    Return the certificate chain file path.
-
-    :param loc_isd: the caller's ISD identifier.
-    :type loc_isd: int
-    :param loc_ad: the caller's AD identifier.
-    :type loc_ad: int
-    :param isd_id: the certificate chain's ISD identifier.
-    :type isd_id: int
-    :param ad_id: the certificate chain's AD identifier.
-    :type ad_id: int
-    :param version: the certificate chain's version.
-    :type version: int
-
-    :returns: the certificate chain file path.
-    :rtype: str
+    Return the TRC file path for a given ISD.
     """
-    isd_dir_prefix = _get_isd_prefix(isd_dir)
-    return os.path.join(isd_dir_prefix + str(loc_isd), CERT_DIR,
-                        'AD{}'.format(loc_ad),
-                        'ISD{}-AD{}-V{}.crt'.format(isd_id, ad_id, version))
+    return os.path.join(conf_dir, CERT_DIR, 'ISD%s-V%s.crt' % (isd_id, version))
 
 
-def get_trc_file_path(loc_isd, loc_ad, isd_id, version,
-                      isd_dir=GEN_PATH):
-    """
-    Return the TRC file path.
-
-    :param loc_isd: the caller's ISD identifier.
-    :type loc_isd: int
-    :param loc_ad: the caller's AD identifier.
-    :type loc_ad: int
-    :param isd_id: the TRC's ISD identifier.
-    :type isd_id: int
-    :param version: the TRC's version.
-    :type version: int
-
-    :returns: the TRC file path.
-    :rtype: str
-    """
-    isd_dir_prefix = _get_isd_prefix(isd_dir)
-    return os.path.join(isd_dir_prefix + str(loc_isd), CERT_DIR,
-                        'AD{}'.format(loc_ad),
-                        'ISD{}-V{}.crt'.format(isd_id, version))
-
-
-def get_sig_key_file_path(isd_id, ad_id, isd_dir=GEN_PATH):
+def get_sig_key_file_path(conf_dir):  # pragma: no cover
     """
     Return the signing key file path.
-
-    :param isd_id: the signing key ISD identifier.
-    :type isd_id: int
-    :param ad_id: the signing key AD identifier.
-    :type ad_id: int
-
-    :returns: the signing key file path.
-    :rtype: str
     """
-    isd_dir_prefix = _get_isd_prefix(isd_dir)
-    return os.path.join(isd_dir_prefix + str(isd_id), SIG_KEYS_DIR,
-                        'ISD{}-AD{}.key'.format(isd_id, ad_id))
-
-
-def get_enc_key_file_path(isd_id, ad_id, isd_dir=GEN_PATH):
-    """
-    Return the encryption key file path.
-
-    :param isd_id: the encryption key ISD identifier.
-    :type isd_id: int
-    :param ad_id: the encryption key AD identifier.
-    :type ad_id: int
-
-    :returns: the encryption key file path.
-    :rtype: str
-    """
-    isd_dir_prefix = _get_isd_prefix(isd_dir)
-    return os.path.join(isd_dir_prefix + str(isd_id), ENC_KEYS_DIR,
-                        'ISD{}-AD{}.key'.format(isd_id, ad_id))
+    return os.path.join(conf_dir, KEYS_DIR, "ad-sig.key")
 
 
 def read_file(file_path):

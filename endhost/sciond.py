@@ -84,21 +84,12 @@ class SCIONDaemon(SCIONElement):
     # Time a path segment is cached at a host (in seconds).
     SEGMENT_TTL = 300
 
-    def __init__(self, addr, topo_file, run_local_api=False,
+    def __init__(self, conf_dir, addr, run_local_api=False,
                  port=SCION_UDP_PORT, is_sim=False):
         """
         Initialize an instance of the class SCIONDaemon.
-
-        :param addr:
-        :type addr:
-        :param topo_file:
-        :type topo_file:
-        :param run_local_api:
-        :type run_local_api:
-        :param is_sim: running on simulator
-        :type is_sim: bool
         """
-        super().__init__("sciond", topo_file, host_addr=addr, port=port,
+        super().__init__("sciond", conf_dir, host_addr=addr, port=port,
                          is_sim=is_sim)
         # TODO replace by pathstore instance
         self.up_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL)
