@@ -70,24 +70,24 @@ class ScionTopo(Topo):
                     self.addLink(name, switchname, intfName1=ifName1,
                                  intfName2=ifName2, params1={'ip': str(hostip)})
                     hostcounter = hostcounter + 1
+
+
 def runMininet():
     lg.setLogLevel('info')
     topology = configparser.ConfigParser(interpolation=None)
     if os.path.isfile('../gen/networks.conf'):
         topology.read('../gen/networks.conf')
         # should also check if this is a 127.0.x.x file, or a 100.64.x.x
-        if ( ipaddress.IPv4Interface(topology.sections()[0]).is_loopback ):
-            print "gen/networks appears to be using loopback addresses. Try running scion.sh topology -m"
+        if (ipaddress.IPv4Interface(topology.sections()[0]).is_loopback):
             sys.exit(-1)
     else:
-        print "gen/networks.conf does not exist. Have you run scion.sh topology -m?"
         sys.exit(-1)
 
     topo = ScionTopo(topology)
     net = Mininet(topo=topo, switch=OVSKernelSwitch, controller=OVSController)
     net.start()
-    #net.pingAll()
-    #CLI = CLI(net)
+    # net.pingAll()
+    CLI(net)
     # flush()
     net.stop()
 
