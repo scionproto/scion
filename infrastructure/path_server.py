@@ -17,12 +17,9 @@
 ========================================
 """
 # Stdlib
-import argparse
 import copy
-import datetime
 import logging
 import threading
-import sys
 from _collections import defaultdict
 from abc import ABCMeta, abstractmethod
 
@@ -34,7 +31,8 @@ from external.expiring_dict import ExpiringDict
 from infrastructure.scion_elem import SCIONElement
 from lib.defines import PATH_SERVICE, SCION_UDP_PORT
 from lib.errors import SCIONParseError
-from lib.log import init_logging, log_exception
+from lib.log import log_exception
+from lib.main import main_default, main_wrapper
 from lib.packet.host_addr import haddr_parse
 from lib.packet.path import UP_IOF
 from lib.packet.path_mgmt import (
@@ -46,13 +44,10 @@ from lib.packet.path_mgmt import (
 from lib.packet.scion import PacketType as PT, SCIONL4Packet
 from lib.path_db import DBResult, PathSegmentDB
 from lib.thread import thread_safety_net
-from lib.topology import Topology
 from lib.types import PathMgmtType as PMT, PathSegmentType as PST, PayloadClass
 from lib.util import (
     SCIONTime,
-    handle_signals,
     sleep_interval,
-    trace,
     update_dict,
 )
 from lib.zookeeper import ZkNoConnection, ZkSharedCache, Zookeeper
@@ -62,27 +57,20 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
     """
     The SCION Path Server.
     """
+    SERVICE_TYPE = PATH_SERVICE
     MAX_SEG_NO = 5  # TODO: replace by config variable.
     # ZK path for incoming PATHs
     ZK_PATH_CACHE_PATH = "path_cache"
     # Number of tokens the PS checks when receiving a revocation.
     N_TOKENS_CHECK = 20
 
-    def __init__(self, server_id, topo_file, config_file, is_sim=False):
+    def __init__(self, server_id, conf_dir, is_sim=False):
         """
-        Initialize an instance of the class PathServer.
-
-        :param server_id:
-        :type server_id:
-        :param topo_file:
-        :type topo_file:
-        :param config_file:
-        :type config_file:
-        :param is_sim: running in simulator
-        :type is_sim: bool
+        :param str server_id: server identifier.
+        :param str conf_dir: configuration directory.
+        :param bool is_sim: running on simulator
         """
-        super().__init__(PATH_SERVICE, topo_file, server_id=server_id,
-                         config_file=config_file, is_sim=is_sim)
+        super().__init__(server_id, conf_dir, is_sim=is_sim)
         # TODO replace by pathstore instance
         self.down_segments = PathSegmentDB()
         self.core_segments = PathSegmentDB()  # Direction of the propagation.
@@ -305,20 +293,13 @@ class CorePathServer(PathServer):
     SCION Path Server in a core AD. Stores intra ISD down-paths as well as core
     paths and forwards inter-ISD path requests to the corresponding path server.
     """
-    def __init__(self, server_id, topo_file, config_file, is_sim=False):
+    def __init__(self, server_id, conf_dir, is_sim=False):
         """
-        Initialize an instance of the class CorePathServer.
-
-        :param server_id:
-        :type server_id:
-        :param topo_file:
-        :type topo_file:
-        :param config_file:
-        :type config_file:
-        :param is_sim: running in simulator
-        :type is_sim: bool
+        :param str server_id: server identifier.
+        :param str conf_dir: configuration directory.
+        :param bool is_sim: running on simulator
         """
-        super().__init__(server_id, topo_file, config_file, is_sim=is_sim)
+        super().__init__(server_id, conf_dir, is_sim=is_sim)
         # Sanity check that we should indeed be a core path server.
         assert self.topology.is_core_ad, "This shouldn't be a core PS!"
         self.core_ads = set()  # Set of core ADs only from local ISD.
@@ -661,20 +642,13 @@ class LocalPathServer(PathServer):
     SCION Path Server in a non-core AD. Stores up-paths to the core and
     registers down-paths with the CPS. Can cache paths learned from a CPS.
     """
-    def __init__(self, server_id, topo_file, config_file, is_sim=False):
+    def __init__(self, server_id, conf_dir, is_sim=False):
         """
-        Initialize an instance of the class LocalPathServer.
-
-        :param server_id:
-        :type server_id:
-        :param topo_file:
-        :type topo_file:
-        :param config_file:
-        :type config_file:
-        :param is_sim: running in simulator
-        :type is_sim: bool
+        :param str server_id: server identifier.
+        :param str conf_dir: configuration directory.
+        :param bool is_sim: running on simulator
         """
-        super().__init__(server_id, topo_file, config_file, is_sim=is_sim)
+        super().__init__(server_id, conf_dir, is_sim=is_sim)
         # Sanity check that we should indeed be a local path server.
         assert not self.topology.is_core_ad, "This shouldn't be a local PS!"
         # Database of up-segments to the core.
@@ -916,38 +890,5 @@ class LocalPathServer(PathServer):
             self.send_path_segments(pkt, paths_to_send)
 
 
-def main():
-    """
-    Main function.
-    """
-    handle_signals()
-    parser = argparse.ArgumentParser()
-    parser.add_argument('server_id', help='Server identifier')
-    parser.add_argument('topo_file', help='Topology file')
-    parser.add_argument('conf_file', help='AD configuration file')
-    parser.add_argument('log_file', help='Log file')
-    args = parser.parse_args()
-    init_logging(args.log_file)
-
-    topo = Topology.from_file(args.topo_file)
-    if topo.is_core_ad:
-        path_server = CorePathServer(args.server_id, args.topo_file,
-                                     args.conf_file)
-    else:
-        path_server = LocalPathServer(args.server_id, args.topo_file,
-                                      args.conf_file)
-
-    trace(path_server.id)
-    logging.info("Started: %s", datetime.datetime.now())
-    path_server.run()
-
 if __name__ == "__main__":
-    try:
-        main()
-    except SystemExit:
-        logging.info("Exiting")
-        raise
-    except:
-        log_exception("Exception in main process:")
-        logging.critical("Exiting")
-        sys.exit(1)
+    main_wrapper(main_default, CorePathServer, LocalPathServer)

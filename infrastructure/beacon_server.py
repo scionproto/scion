@@ -17,14 +17,11 @@
 ============================================
 """
 # Stdlib
-import argparse
 import base64
 import copy
-import datetime
 import logging
 import os
 import struct
-import sys
 import threading
 from _collections import defaultdict, deque
 from abc import ABCMeta, abstractmethod
@@ -52,7 +49,7 @@ from lib.errors import (
     SCIONParseError,
     SCIONServiceLookupError,
 )
-from lib.log import init_logging, log_exception
+from lib.main import main_default, main_wrapper
 from lib.packet.cert_mgmt import (
     CertChainRequest,
     TRCRequest,
@@ -78,7 +75,6 @@ from lib.packet.pcb_ext import MTUExtension
 from lib.packet.scion import PacketType as PT
 from lib.path_store import PathPolicy, PathStore
 from lib.thread import thread_safety_net
-from lib.topology import Topology
 from lib.types import (
     CertMgmtType,
     IFIDType,
@@ -94,10 +90,8 @@ from lib.util import (
     get_cert_chain_file_path,
     get_sig_key_file_path,
     get_trc_file_path,
-    handle_signals,
     read_file,
     sleep_interval,
-    trace,
     write_file,
 )
 from lib.zookeeper import ZkNoConnection, ZkSharedCache, Zookeeper
@@ -239,11 +233,10 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
     The SCION PathConstructionBeacon Server.
 
     Attributes:
-        beacons: A FIFO queue containing the beacons for processing and
-            propagation.
         if2rev_tokens: Contains the currently used revocation token
             hash-chain for each interface.
     """
+    SERVICE_TYPE = BEACON_SERVICE
     # Amount of time units a HOF is valid (time unit is EXP_TIME_UNIT).
     HOF_EXP_TIME = 63
     # Timeout for TRC or Certificate requests.
@@ -257,31 +250,20 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
     # Interval to checked for timed out interfaces.
     IF_TIMEOUT_INTERVAL = 1
 
-    def __init__(self, server_id, topo_file, config_file, path_policy_file,
-                 is_sim=False):
-        super().__init__(BEACON_SERVICE, topo_file, server_id=server_id,
-                         config_file=config_file, is_sim=is_sim)
+    def __init__(self, server_id, conf_dir, is_sim=False):
         """
-        Initialize an instance of the class BeaconServer.
-
-        :param server_id: server identifier.
-        :type server_id: int
-        :param topo_file: topology file.
-        :type topo_file: string
-        :param config_file: configuration file.
-        :type config_file: string
-        :param path_policy_file: path policy file.
-        :type path_policy_file: string
-        :param is_sim: running on simulator
-        :type is_sim: bool
+        :param str server_id: server identifier.
+        :param str conf_dir: configuration directory.
+        :param bool is_sim: running on simulator
         """
+        super().__init__(server_id, conf_dir, is_sim=is_sim)
         # TODO: add 2 policies
-        self.path_policy = PathPolicy.from_file(path_policy_file)
+        self.path_policy = PathPolicy.from_file(
+            os.path.join(conf_dir, "path_policy.conf"))
         self.unverified_beacons = deque()
         self.trc_requests = {}
         self.trcs = {}
-        sig_key_file = get_sig_key_file_path(self.topology.isd_id,
-                                             self.topology.ad_id)
+        sig_key_file = get_sig_key_file_path(self.conf_dir)
         self.signing_key = read_file(sig_key_file)
         self.signing_key = base64.b64decode(self.signing_key)
         self.of_gen_key = PBKDF2(self.config.master_ad_key, b"Derive OF Key")
@@ -465,7 +447,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         :param prev_hof:
         :type prev_hof:
         """
-        hof = HopOpaqueField.from_values(BeaconServer.HOF_EXP_TIME,
+        hof = HopOpaqueField.from_values(self.HOF_EXP_TIME,
                                          ingress_if, egress_if)
         if prev_hof is None:
             hof.info = OFT.XOVR_POINT
@@ -478,7 +460,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             if not self.ifid_state[if_id].is_active():
                 logging.warning('Peer ifid:%d inactive (not added).', if_id)
                 continue
-            peer_hof = HopOpaqueField.from_values(BeaconServer.HOF_EXP_TIME,
+            peer_hof = HopOpaqueField.from_values(self.HOF_EXP_TIME,
                                                   if_id, egress_if)
             peer_hof.info = OFT.XOVR_POINT
             peer_hof.mac = gen_of_mac(self.of_gen_key, peer_hof, hof, ts)
@@ -623,10 +605,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             else:
                 logging.warning("Invalid beacon. %s", pcb)
         else:
-            first = pcb.get_first_pcbm()
             logging.warning(
-                "Certificate(s) or TRC missing for pcb from (%d, %d)",
-                first.isd_id, first.ad_id)
+                "Certificate(s) or TRC missing for pcb: %s", pcb.short_desc())
             self.unverified_beacons.append(pcb)
 
     @abstractmethod
@@ -662,9 +642,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         trc = self.trcs.get((isd_id, trc_ver))
         if not trc:
             # Try loading file from disk
-            trc_file = get_trc_file_path(self.topology.isd_id,
-                                         self.topology.ad_id,
-                                         isd_id, trc_ver)
+            trc_file = get_trc_file_path(self.conf_dir, isd_id, trc_ver)
             if os.path.exists(trc_file):
                 trc = TRC(trc_file)
                 self.trcs[(isd_id, trc_ver)] = trc
@@ -674,7 +652,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             now = int(SCIONTime.get_time())
             if (trc_tuple not in self.trc_requests or
                 (now - self.trc_requests[trc_tuple] >
-                    BeaconServer.REQUESTS_TIMEOUT)):
+                    self.REQUESTS_TIMEOUT)):
                 trc_req = TRCRequest.from_values(
                     if_id, self.topology.isd_id, self.topology.ad_id, isd_id,
                     trc_ver)
@@ -705,14 +683,12 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         trc_ver = pcb.trc_ver
         subject = "%s-%s" % (cert_chain_isd, cert_chain_ad)
         cert_chain_file = get_cert_chain_file_path(
-            self.topology.isd_id, self.topology.ad_id,
-            cert_chain_isd, cert_chain_ad, cert_ver)
+            self.conf_dir, cert_chain_isd, cert_chain_ad, cert_ver)
         if os.path.exists(cert_chain_file):
             chain = CertificateChain(cert_chain_file)
         else:
             chain = CertificateChain.from_values([])
-        trc_file = get_trc_file_path(self.topology.isd_id, self.topology.ad_id,
-                                     cert_chain_isd, trc_ver)
+        trc_file = get_trc_file_path(self.conf_dir, cert_chain_isd, trc_ver)
         trc = TRC(trc_file)
 
         new_pcb = copy.deepcopy(pcb)
@@ -762,11 +738,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         :type trc_rep: TRCReply
         """
         rep = pkt.get_payload()
-        logging.info("TRC reply received.")
+        logging.info("TRC reply received for %s", rep.isd_id)
         rep_key = rep.isd_id, rep.version
-        trc_file = get_trc_file_path(
-            self.topology.isd_id, self.topology.ad_id,
-            *rep_key)
+        trc_file = get_trc_file_path(self.conf_dir, *rep_key)
         write_file(trc_file, rep.trc.decode('utf-8'))
         self.trcs[rep_key] = TRC(trc_file)
         if rep_key in self.trc_requests:
@@ -954,24 +928,13 @@ class CoreBeaconServer(BeaconServer):
     Starts broadcasting beacons down-stream within an ISD and across ISDs
     towards other core beacon servers.
     """
-    def __init__(self, server_id, topo_file, config_file, path_policy_file,
-                 is_sim=False):
-        BeaconServer.__init__(self, server_id, topo_file, config_file,
-                              path_policy_file, is_sim=is_sim)
+    def __init__(self, server_id, conf_dir, is_sim=False):
         """
-        Initialize an instance of the class CoreBeaconServer.
-
-        :param server_id: server identifier.
-        :type server_id: int
-        :param topo_file: topology file.
-        :type topo_file: string
-        :param config_file: configuration file.
-        :type config_file: string
-        :param path_policy_file: path policy file.
-        :type path_policy_file: string
-        :param is_sim: running on simulator
-        :type is_sim: bool
+        :param str server_id: server identifier.
+        :param str conf_dir: configuration directory.
+        :param bool is_sim: running on simulator
         """
+        super().__init__(server_id, conf_dir, is_sim=is_sim)
         # Sanity check that we should indeed be a core beacon server.
         assert self.topology.is_core_ad, "This shouldn't be a core BS!"
         self.core_beacons = defaultdict(self._ps_factory)
@@ -1186,24 +1149,13 @@ class LocalBeaconServer(BeaconServer):
     servers.
     """
 
-    def __init__(self, server_id, topo_file, config_file, path_policy_file,
-                 is_sim=False):
+    def __init__(self, server_id, conf_dir, is_sim=False):
         """
-        Initialize an instance of the class LocalBeaconServer.
-
-        :param server_id: server identifier.
-        :type server_id: int
-        :param topo_file: topology file.
-        :type topo_file: string
-        :param config_file: configuration file.
-        :type config_file: string
-        :param path_policy_file: path policy file.
-        :type path_policy_file: string
-        :param is_sim: running on simulator
-        :type is_sim: bool
+        :param str server_id: server identifier.
+        :param str conf_dir: configuration directory.
+        :param bool is_sim: running on simulator
         """
-        BeaconServer.__init__(self, server_id, topo_file, config_file,
-                              path_policy_file, is_sim=is_sim)
+        super().__init__(server_id, conf_dir, is_sim=is_sim)
         # Sanity check that we should indeed be a local beacon server.
         assert not self.topology.is_core_ad, "This shouldn't be a local BS!"
         self.beacons = PathStore(self.path_policy)
@@ -1212,8 +1164,8 @@ class LocalBeaconServer(BeaconServer):
         self.cert_chain_requests = {}
         self.cert_chains = {}
         cert_chain_file = get_cert_chain_file_path(
-            self.topology.isd_id, self.topology.ad_id, self.topology.isd_id,
-            self.topology.ad_id, self.config.cert_ver)
+            self.conf_dir, self.topology.isd_id, self.topology.ad_id,
+            self.config.cert_ver)
         self.cert_chain = CertificateChain(cert_chain_file)
 
     def _check_certs_trc(self, isd_id, ad_id, cert_ver, trc_ver, if_id):
@@ -1241,8 +1193,7 @@ class LocalBeaconServer(BeaconServer):
             if not cert_chain:
                 # Try loading file from disk
                 cert_chain_file = get_cert_chain_file_path(
-                    self.topology.isd_id, self.topology.ad_id,
-                    isd_id, ad_id, cert_ver)
+                    self.conf_dir, isd_id, ad_id, cert_ver)
                 if os.path.exists(cert_chain_file):
                     cert_chain = CertificateChain(cert_chain_file)
                     self.cert_chains[(isd_id, ad_id, cert_ver)] = cert_chain
@@ -1331,10 +1282,11 @@ class LocalBeaconServer(BeaconServer):
         :type cert_chain_rep: CertChainReply
         """
         rep = pkt.get_payload()
-        logging.info("Certificate chain reply received.")
+        logging.info("Certificate chain reply received for %s",
+                     rep.short_desc())
         rep_key = rep.isd_id, rep.ad_id, rep.version
         cert_chain_file = get_cert_chain_file_path(
-            self.topology.isd_id, self.topology.ad_id, *rep_key)
+            self.conf_dir, *rep_key)
         write_file(cert_chain_file, rep.cert_chain.decode('utf-8'))
         self.cert_chains[rep_key] = CertificateChain(cert_chain_file)
         if rep_key in self.cert_chain_requests:
@@ -1411,40 +1363,5 @@ class LocalBeaconServer(BeaconServer):
             logging.info("Down path registered: %s", pcb.get_hops_hash())
 
 
-def main():
-    """
-    Main function.
-    """
-    handle_signals()
-    parser = argparse.ArgumentParser()
-    parser.add_argument('server_id', help='Server identifier')
-    parser.add_argument('topo_file', help='Topology file')
-    parser.add_argument('conf_file', help='AD configuration file')
-    parser.add_argument('path_policy_file', help='AD path policy file')
-    parser.add_argument('log_file', help='Log file')
-    args = parser.parse_args()
-    init_logging(args.log_file)
-
-    topo = Topology.from_file(args.topo_file)
-    if topo.is_core_ad:
-        beacon_server = CoreBeaconServer(args.server_id, args.topo_file,
-                                         args.conf_file, args.path_policy_file)
-    else:
-        beacon_server = LocalBeaconServer(args.server_id, args.topo_file,
-                                          args.conf_file,
-                                          args.path_policy_file)
-
-    trace(beacon_server.id)
-    logging.info("Started: %s", datetime.datetime.now())
-    beacon_server.run()
-
 if __name__ == "__main__":
-    try:
-        main()
-    except SystemExit:
-        logging.info("Exiting")
-        raise
-    except:
-        log_exception("Exception in main process:")
-        logging.critical("Exiting")
-        sys.exit(1)
+    main_wrapper(main_default, CoreBeaconServer, LocalBeaconServer)

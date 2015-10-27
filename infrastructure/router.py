@@ -17,11 +17,8 @@
 ===========================================
 """
 # Stdlib
-import argparse
 import copy
-import datetime
 import logging
-import sys
 import threading
 import time
 import zlib
@@ -50,7 +47,8 @@ from lib.errors import (
     SCIONBaseException,
     SCIONServiceLookupError,
 )
-from lib.log import init_logging, log_exception
+from lib.log import log_exception
+from lib.main import main_default, main_wrapper
 from lib.packet.ext.traceroute import TracerouteExt, traceroute_ext_handler
 from lib.packet.path_mgmt import (
     RevocationInfo,
@@ -72,7 +70,7 @@ from lib.types import (
     PathMgmtType as PMT,
     PayloadClass,
 )
-from lib.util import handle_signals, SCIONTime, sleep_interval
+from lib.util import SCIONTime, sleep_interval
 
 
 MAX_EXT = 4  # Maximum number of hop-by-hop extensions processed by router.
@@ -145,31 +143,24 @@ class Router(SCIONElement):
     :ivar interface: the router's inter-AD interface, if any.
     :type interface: :class:`lib.topology.InterfaceElement`
     """
+    SERVICE_TYPE = ROUTER_SERVICE
     FWD_REVOCATION_TIMEOUT = 5
     IFSTATE_REQ_INTERVAL = 30
 
-    def __init__(self, router_id, topo_file, config_file, pre_ext_handlers=None,
+    def __init__(self, server_id, conf_dir, pre_ext_handlers=None,
                  post_ext_handlers=None, is_sim=False):
         """
-        Initialize an instance of the class Router.
-
-        :param router_id:
-        :type router_id:
-        :param topo_file: the topology file name.
-        :type topo_file: str
-        :param config_file: the configuration file name.
-        :type config_file: str
-        :ivar pre_ext_handlers: a map of extension header types to handlers for
-                            those extensions that execute before routing.
-        :type pre_ext_handlers: dict
-        :ivar post_ext_handlers: a map of extension header types to handlers for
-                             those extensions that execute after routing.
-        :type post_ext_handlers: dict
-        :param is_sim: running in simulator
-        :type is_sim: bool
+        :param str server_id: server identifier.
+        :param str conf_dir: configuration directory.
+        :param dict pre_ext_handlers:
+            a map of extension header types to handlers for those extensions
+            that execute before routing.
+        :param dict post_ext_handlers:
+            a map of extension header types to handlers for those extensions
+            that execute after routing.
+        :param bool is_sim: running on simulator
         """
-        super().__init__(ROUTER_SERVICE, topo_file, server_id=router_id,
-                         config_file=config_file, is_sim=is_sim)
+        super().__init__(server_id, conf_dir, is_sim=is_sim)
         self.interface = None
         for edge_router in self.topology.get_all_edge_routers():
             if edge_router.addr == self.addr.host_addr:
@@ -776,34 +767,8 @@ class Router(SCIONElement):
 
 
 def main():
-    """
-    Initializes and starts router.
-    """
-    handle_signals()
-    parser = argparse.ArgumentParser()
-    parser.add_argument('router_id', help='Router identifier')
-    parser.add_argument('topo_file', help='Topology file')
-    parser.add_argument('conf_file', help='AD configuration file')
-    parser.add_argument('log_file', help='Log file')
-    args = parser.parse_args()
-    init_logging(args.log_file)
-    # Run router without extensions handling:
-    # router = Router(args.router_id, args.topo_file, args.conf_file)
-    # Run router with an extension handler:
     pre_handlers = {TracerouteExt.EXT_TYPE: traceroute_ext_handler}
-    router = Router(args.router_id, args.topo_file, args.conf_file,
-                    pre_ext_handlers=pre_handlers)
-
-    logging.info("Started: %s", datetime.datetime.now())
-    router.run()
+    main_default(Router, pre_ext_handlers=pre_handlers)
 
 if __name__ == "__main__":
-    try:
-        main()
-    except SystemExit:
-        logging.info("Exiting")
-        raise
-    except:
-        log_exception("Exception in main process:")
-        logging.critical("Exiting")
-        sys.exit(1)
+    main_wrapper(main)

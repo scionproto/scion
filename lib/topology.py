@@ -26,6 +26,7 @@ from lib.defines import (
     PATH_SERVICE,
     ROUTER_SERVICE,
 )
+from lib.errors import SCIONKeyError
 from lib.packet.host_addr import haddr_parse_interface
 from lib.util import load_json_file
 
@@ -272,24 +273,22 @@ class Topology(object):
         :param server_id:
         :type server_id:
         """
-        target = None
-        if server_type == BEACON_SERVICE:
-            target = self.beacon_servers
-        elif server_type == CERTIFICATE_SERVICE:
-            target = self.certificate_servers
-        elif server_type == DNS_SERVICE:
-            target = self.dns_servers
-        elif server_type == PATH_SERVICE:
-            target = self.path_servers
-        elif server_type == ROUTER_SERVICE:
-            target = self.get_all_edge_routers()
-        else:
-            logging.error("Unknown server type: \"%s\"", server_type)
-            return
+        type_map = {
+            BEACON_SERVICE: self.beacon_servers,
+            CERTIFICATE_SERVICE: self.certificate_servers,
+            DNS_SERVICE: self.dns_servers,
+            PATH_SERVICE: self.path_servers,
+            ROUTER_SERVICE: self.get_all_edge_routers(),
+        }
+        try:
+            target = type_map[server_type]
+        except KeyError:
+            logging.critical("Unknown server type: \"%s\"", server_type)
+            raise SCIONKeyError from None
 
         for i in target:
             if i.name == server_id:
                 return i
         else:
-            logging.error("Could not find server %s%s-%s-%s", server_type,
-                          self.isd_id, self.ad_id, server_id)
+            logging.critical("Could not find server %s", server_id)
+            raise SCIONKeyError from None

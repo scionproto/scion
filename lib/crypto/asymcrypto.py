@@ -19,7 +19,7 @@
 from nacl.signing import SigningKey, VerifyKey
 
 
-def generate_signing_keypair():
+def generate_sign_keypair():
     """
     Generate Ed25519 keypair.
 
