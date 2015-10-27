@@ -1,0 +1,39 @@
+#ifndef SCION_PROTO_CONFIGS_H
+#define SCION_PROTO_CONFIGS_H
+
+// SDAMP Protocol
+
+#define SDAMP_INIT     0x01
+#define SDAMP_ACK      0x02
+#define SDAMP_PROBE    0x04
+#define SDAMP_NEW_PATH 0x08
+
+#define SDAMP_PRIME_INTERVAL 500000 // us
+#define SDAMP_PROBE_INTERVAL 500000 // us
+#define SDAMP_PROBE_ATTEMPTS (2 * 20)
+#define SDAMP_SEND_INTERVAL 100000 // us
+#define SDAMP_MAX_SEND_INTERVAL 3000000 // us
+#define SDAMP_DEFAULT_WINDOW_SIZE (1 << 20)
+#define SDAMP_MAX_RTO 3000000 // us
+#define SDAMP_MAX_RETRIES 1
+#define SDAMP_CONNECT_ATTEMPTS 3
+#define SDAMP_FR_THRESHOLD 3
+#define SDAMP_MAX_LOSS_BURST 100
+#define SDAMP_FRAME_SIZE 512
+
+// SSP Protocol
+
+#define SSP_ACK 0x1
+#define SSP_NEW_PATH 0x2
+#define SSP_PROBE 0x4
+#define SSP_WINDOW 0x8
+
+// SUDP protocol
+
+#define SUDP_PROBE_INTERVAL 1000000
+#define SUDP_RECV_BUFFER (1 << 16)
+
+#define SUDP_PROBE 0x1
+#define SUDP_PROBE_ACK 0x2
+
+#endif
