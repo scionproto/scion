@@ -23,7 +23,6 @@ import threading
 # SCION
 from infrastructure.scion_elem import SCIONElement
 from ipaddress import IPv4Address
-from lib.defines import SCION_UDP_PORT
 from lib.defines import ADDR_IPV4_TYPE, PATH_SERVICE
 from lib.errors import SCIONBaseError, SCIONServiceLookupError
 from lib.packet.path import PathCombinator
@@ -325,7 +324,8 @@ class SCIONDaemon(SCIONElement):
                 hop = IPv4Address("192.33.93.194")
             for i in range(0, 3):
                 path = bytes([0, 0, 0, 0, 0, 0, 0, i])
-                reply.append(struct.pack("B", 8) + path + hop.packed + struct.pack("H", 30041 + i) + struct.pack("B", 0))
+                reply.append(struct.pack("B", 8) + path + hop.packed +
+                             struct.pack("H", 30041 + i) + struct.pack("B", 0))
             self._api_sock.send(b"".join(reply), sender)
 
     def api_handle_request(self, packet, sender):

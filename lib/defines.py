@@ -49,7 +49,8 @@ L4_SUDP = 151  # FIXME(kormat): might not be necessary
 L4_SSP = 152  # TODO(aznair): possibly share with SDAMP?
 L4_NONE = 254
 L4_RESERVED = 255
-L4_PROTOS = [L4_ICMP, L4_TCP, L4_UDP, L4_NONE, L4_RESERVED, L4_SDAMP, L4_SUDP, L4_SSP]
+L4_PROTOS = [L4_ICMP, L4_TCP, L4_UDP, L4_NONE, L4_RESERVED,
+             L4_SDAMP, L4_SUDP, L4_SSP]
 #: Default layer-4 protocol.
 L4_DEFAULT = L4_RESERVED
 
