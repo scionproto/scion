@@ -4,18 +4,6 @@ export PYTHONPATH=.
 
 # BEGIN subcommand functions
 
-cmd_init() {
-    echo "Checking if tweetnacl has been built..."
-    if [ -f lib/crypto/python-tweetnacl-20140309/build/python3.4/tweetnacl.so ]
-    then
-        echo "tweetnacl exists."
-    else
-        echo "tweetnacl.so does not exist. Compiling..."
-        cd lib/crypto/python-tweetnacl-20140309/
-        ./do
-    fi
-}
-
 cmd_topology() {
     echo "Create topology, configuration, and execution files."
     mkdir -p logs traces
@@ -76,8 +64,6 @@ cmd_help() {
 	echo
 	cat <<-_EOF
 	Usage:
-	    $PROGRAM init
-	        Compile the SCION crypto library.
 	    $PROGRAM topology
 	        Create topology, configuration, and execution files.
 	    $PROGRAM run
@@ -103,7 +89,7 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    coverage|help|init|lint|run|stop|status|test|topology|version)
+    coverage|help|lint|run|stop|status|test|topology|version)
         "cmd_$COMMAND" "$@" ;;
     *)  cmd_help; exit 1 ;;
 esac

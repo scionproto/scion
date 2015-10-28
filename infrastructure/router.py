@@ -24,10 +24,13 @@ import time
 import zlib
 from collections import defaultdict
 
+# External packages
+from Crypto.Protocol.KDF import PBKDF2
+
 # SCION
 from external.expiring_dict import ExpiringDict
 from infrastructure.scion_elem import SCIONElement
-from lib.crypto.symcrypto import get_roundkey_cache, verify_of_mac
+from lib.crypto.symcrypto import verify_of_mac
 from lib.defines import (
     BEACON_SERVICE,
     CERTIFICATE_SERVICE,
@@ -165,7 +168,7 @@ class Router(SCIONElement):
                 break
         assert self.interface is not None
         logging.info("Interface: %s", self.interface.__dict__)
-        self.of_gen_key = get_roundkey_cache(self.config.master_ad_key)
+        self.of_gen_key = PBKDF2(self.config.master_ad_key, b"Derive OF Key")
         self.if_states = defaultdict(InterfaceState)
         self.revocations = ExpiringDict(1000, self.FWD_REVOCATION_TIMEOUT)
         self.pre_ext_handlers = pre_ext_handlers or {}

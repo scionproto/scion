@@ -12,6 +12,7 @@ parse
 pycrypto
 pydblite
 pygments
+pynacl
 python-pytun
 scapy-python3
 sphinxcontrib-napoleon

@@ -50,13 +50,6 @@ RUN sudo du -hsx /
 ## All dependancies are now installed, carry on with the rest.
 #################################################################################
 
-COPY scion.sh $BASE/
-
-# Pre-build crypto library, so that unrelated code changes don't force a rebuild every time.
-COPY lib/crypto/python-tweetnacl-20140309/ $BASE/lib/crypto/python-tweetnacl-20140309/
-RUN sudo chown -R scion: $HOME
-RUN ./scion.sh init
-
 # Now copy over the current branch
 COPY . $BASE/
 RUN sudo chown -R scion: $HOME
