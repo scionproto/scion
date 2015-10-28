@@ -15,12 +15,14 @@
 :mod:`symcrypto` --- SCION symmetric crypto functions
 =====================================================
 """
+# Stdlib
+import struct
+
 # External packages
 from Crypto.Cipher import AES
 
 # SCION
 from lib.packet.opaque_field import HopOpaqueField
-import struct
 
 
 def cbcmac(key, msg):
@@ -47,7 +49,7 @@ def cbcmac(key, msg):
     else:
         iv = b"\x00" * 16
         cipher = AES.new(key, AES.MODE_CBC, iv)
-        return cipher.encrypt(msg)[-16:]
+        return cipher.encrypt(msg)[-16:]  # Return the last block of ciphertext.
 
 
 def gen_of_mac(key, hof, prev_hof, ts):

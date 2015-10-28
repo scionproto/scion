@@ -50,8 +50,6 @@ RUN sudo du -hsx /
 ## All dependancies are now installed, carry on with the rest.
 #################################################################################
 
-COPY scion.sh $BASE/
-
 # Now copy over the current branch
 COPY . $BASE/
 RUN sudo chown -R scion: $HOME

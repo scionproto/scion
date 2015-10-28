@@ -64,8 +64,6 @@ cmd_help() {
 	echo
 	cat <<-_EOF
 	Usage:
-	    $PROGRAM init
-	        Compile the SCION crypto library.
 	    $PROGRAM topology
 	        Create topology, configuration, and execution files.
 	    $PROGRAM run
@@ -91,7 +89,7 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    coverage|help|init|lint|run|stop|status|test|topology|version)
+    coverage|help|lint|run|stop|status|test|topology|version)
         "cmd_$COMMAND" "$@" ;;
     *)  cmd_help; exit 1 ;;
 esac

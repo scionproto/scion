@@ -16,6 +16,7 @@
 =======================================================
 """
 # External
+from nacl.exceptions import BadSignatureError
 from nacl.signing import SigningKey, VerifyKey
 
 
@@ -27,7 +28,7 @@ def generate_sign_keypair():
     :rtype: bytes
     """
     sk = SigningKey.generate()
-    return (sk.verify_key.encode(), sk.encode())
+    return sk.verify_key.encode(), sk.encode()
 
 
 def sign(msg, signing_key):
@@ -61,5 +62,5 @@ def verify(msg, sig, verifying_key):
     """
     try:
         return msg == VerifyKey(verifying_key).verify(msg, sig)
-    except:
+    except BadSignatureError:
         return False
