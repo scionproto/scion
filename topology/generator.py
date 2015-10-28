@@ -20,6 +20,7 @@
 import argparse
 import base64
 import configparser
+import getpass
 import json
 import logging
 import math
@@ -28,6 +29,7 @@ import sys
 from collections import defaultdict
 from io import StringIO
 from ipaddress import ip_interface, ip_network
+from string import Template
 
 # External packages
 from Crypto import Random
@@ -49,6 +51,7 @@ from lib.util import (
     get_sig_key_file_path,
     get_trc_file_path,
     load_json_file,
+    read_file,
     write_file,
 )
 
@@ -134,6 +137,8 @@ class ConfigGenerator(object):
                 def_network = DEFAULT_NETWORK
         self.subnet_gen = SubnetGenerator(def_network)
         for key, val in defaults.get("zookeepers", {}).items():
+            if self.mininet and val['addr'] == "127.0.0.1":
+                val['addr'] = "169.254.0.1"
             self.default_zookeepers[key] = ZKTopo(
                 val, self.zk_config)
 
@@ -162,7 +167,7 @@ class ConfigGenerator(object):
 
     def _generate_supervisor(self, topo_dicts, zookeepers):
         super_gen = SupervisorGenerator(self.out_dir, topo_dicts, zookeepers,
-                                        self.zk_config)
+                                        self.zk_config, self.mininet)
         super_gen.generate()
 
     def _generate_sim_conf(self, topo_dicts):
@@ -327,7 +332,6 @@ class TopoGenerator(object):
         self.topo_dicts = {}
         self.hosts = []
         self.zookeepers = defaultdict(dict)
-        self.networks = defaultdict(dict)
         self.virt_addrs = set()
 
     def _reg_addr(self, topo_id, elem_id):
@@ -457,11 +461,12 @@ class TopoGenerator(object):
 
 
 class SupervisorGenerator(object):
-    def __init__(self, out_dir, topo_dicts, zookeepers, zk_config):
+    def __init__(self, out_dir, topo_dicts, zookeepers, zk_config, mininet):
         self.out_dir = out_dir
         self.topo_dicts = topo_dicts
         self.zookeepers = zookeepers
         self.zk_config = zk_config
+        self.mininet = mininet
 
     def generate(self):
         for topo_id, topo in self.topo_dicts.items():
@@ -506,6 +511,8 @@ class SupervisorGenerator(object):
             conf_path = os.path.join(base, elem, SUPERVISOR_CONF)
             includes.append(os.path.join(elem, SUPERVISOR_CONF))
             self._write_elem_conf(elem, entry, conf_path)
+            if self.mininet:
+                self._write_elem_mininet_conf(elem, conf_path)
         config["group:ad%s" % topo_id] = {"programs": ",".join(names)}
         text = StringIO()
         config.write(text)
@@ -520,12 +527,21 @@ class SupervisorGenerator(object):
         config.write(text)
         write_file(conf_path, text.getvalue())
 
+    def _write_elem_mininet_conf(self, elem, conf_path):
+        tmpl = Template(read_file("topology/mininet/supervisord.conf"))
+        mn_conf_path = os.path.join(self.out_dir, "mininet", "%s.conf" % elem)
+        rel_conf_path = os.path.relpath(
+            conf_path, os.path.join(self.out_dir, "mininet"))
+        write_file(mn_conf_path,
+                   tmpl.substitute(elem=elem, conf_path=rel_conf_path,
+                                   user=getpass.getuser()))
+
     def _get_base_path(self, topo_id):
         return os.path.join(self.out_dir, topo_id.ISD(), topo_id.AD())
 
     def _common_entry(self, name, cmd_args):
-        return {
-            'autostart': 'false',
+        entry = {
+            'autostart': 'false' if self.mininet else 'false',
             'autorestart': 'false',
             'redirect_stderr': 'true',
             'environment': 'PYTHONPATH=.',
@@ -535,6 +551,9 @@ class SupervisorGenerator(object):
             'startsecs': 5,
             'command': " ".join(['"%s"' % arg for arg in cmd_args]),
         }
+        if self.mininet:
+            entry['autostart'] = 'true'
+        return entry
 
 
 class SimulatorGenerator(SupervisorGenerator):
@@ -709,39 +728,54 @@ class SubnetGenerator(object):
                              network)
             sys.exit(1)
         self._subnets = defaultdict(lambda: AddressGenerator())
+        self._allocations = defaultdict(list)
+        # Initialise the allocations with the supplied network, making sure to
+        # exclude 127.0.0.0/30 if it's contained in the network.
+        # - 127.0.0.0 is treated as a broadcast address by the kernel
+        # - 127.0.0.1 is the normal loopback address
+        # - 127.0.0.[23] are used for clients to bind to for testing purposes.
+        v4_lo = ip_network("127.0.0.0/30")
+        if self._net.overlaps(v4_lo):
+            self._exclude_net(self._net, v4_lo)
+        else:
+            self._allocations[self._net.prefixlen].append(self._net)
 
     def register(self, location):
         return self._subnets[location]
 
     def alloc_subnets(self):
-        allocations = defaultdict(list)
-        # Initialise the allocations with the supplied network
-        allocations[self._net.prefixlen].append(self._net)
         max_prefix = self._net.max_prefixlen
         networks = {}
         for subnet in self._subnets.values():
-            # Figure out what size subnet we need. Add 2 to the subnet size to
-            # cover the network and broadcast addresses.
-            req_prefix = max_prefix - math.ceil(math.log2(len(subnet) + 2))
+            # Figure out what size subnet we need. If it's a link, then we just
+            # need a /31 (or /127), otherwise add 2 to the subnet size to cover
+            # the network and broadcast addresses.
+            if len(subnet) == 2:
+                req_prefix = max_prefix - 1
+            else:
+                req_prefix = max_prefix - math.ceil(math.log2(len(subnet) + 2))
             # Search all subnets from that size upwards
             for prefix in range(req_prefix, -1, -1):
-                if not allocations[prefix]:
+                if not self._allocations[prefix]:
                     # No subnets available at this size
                     continue
-                alloc = allocations[prefix].pop()
+                alloc = self._allocations[prefix].pop()
                 # Carve out subnet of the required size
                 new_net = next(alloc.subnets(new_prefix=req_prefix))
                 logging.debug("Allocating %s from %s for subnet size %d" %
                               (new_net, alloc, len(subnet)))
                 networks[new_net] = subnet.alloc_addrs(new_net)
                 # Repopulate the allocations list with the left-over space
-                for net in alloc.address_exclude(new_net):
-                    allocations[net.prefixlen].append(net)
+                self._exclude_net(alloc, new_net)
                 break
             else:
                 logging.critical("Unable to allocate /%d subnet" % req_prefix)
                 sys.exit(1)
         return networks
+
+    def _exclude_net(self, alloc, net):
+        for net in alloc.address_exclude(net):
+            self._allocations[net.prefixlen].append(net)
 
 
 class AddressGenerator(object):
