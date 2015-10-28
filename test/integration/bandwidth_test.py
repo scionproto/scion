@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 # Copyright 2014 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,6 +26,7 @@ import unittest
 
 # SCION
 from endhost.sciond import SCIONDaemon
+from lib.defines import GEN_PATH
 from lib.log import init_logging, log_exception
 from lib.packet.host_addr import haddr_parse
 from lib.packet.packet_base import PayloadRaw
@@ -80,7 +82,7 @@ class TestBandwidth(unittest.TestCase):
         packets (each with PAYLOAD_SIZE long payload) to a host in (2, 26).
         """
         addr = haddr_parse("IPV4", "127.1.19.254")
-        topo_file = "../../topology/ISD1/topologies/ISD:1-AD:19.json"
+        topo_file = "%s/ISD1/topologies/ISD1-AD19.json" % GEN_PATH
         sender = SCIONDaemon.start(addr, topo_file)
 
         paths = sender.get_paths(2, 26)
@@ -115,7 +117,7 @@ class TestBandwidth(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    init_logging("../../logs/bw_test.log", console=True)
+    init_logging("logs/bw_test.log", console=True)
     handle_signals()
     try:
         TestBandwidth().test()

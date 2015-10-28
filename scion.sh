@@ -1,31 +1,24 @@
 #!/usr/bin/env bash
 
-# BEGIN subcommand functions
+export PYTHONPATH=.
 
-cmd_init() {
-    echo "Checking if tweetnacl has been built..."
-    if [ -f lib/crypto/python-tweetnacl-20140309/build/python3.4/tweetnacl.so ]
-    then
-        echo "tweetnacl exists."
-    else
-        echo "tweetnacl.so does not exist. Compiling..."
-        cd lib/crypto/python-tweetnacl-20140309/
-        sh do
-    fi
-}
+# BEGIN subcommand functions
 
 cmd_topology() {
     echo "Create topology, configuration, and execution files."
     mkdir -p logs traces
-    PYTHONPATH=./ python3 topology/generator.py "$@"
+    [ -e gen ] && rm -r gen
+    [ -e /run/shm/scion-zk ] && rm -r /run/shm/scion-zk
+    topology/generator.py "$@"
 }
 
 cmd_run() {
     echo "Running the network..."
     supervisor/supervisor.sh reload
-    for i in topology/ISD*/zookeeper/ISD*/datalog.*.sh; do
-        [ -e "$i" ] && bash "$i"
-    done
+    # Supervisor reload causes the domain socket to briefly disappear, which
+    # breaks the detection logic in supervisor.sh
+    sleep 1
+    bash gen/zk_datalog_dirs.sh || exit 1
     supervisor/supervisor.sh quickstart all
 }
 
@@ -42,12 +35,12 @@ cmd_status() {
 }
 
 cmd_test(){
-    PYTHONPATH=. nosetests "$@"
+    nosetests "$@"
 }
 
 cmd_coverage(){
     set -e
-    PYTHONPATH=. nosetests --with-cov --cov-report html "$@"
+    nosetests --with-cov --cov-report html "$@"
     coverage report
     echo "Coverage report here: file://$PWD/htmlcov/index.html"
 }
@@ -71,8 +64,6 @@ cmd_help() {
 	echo
 	cat <<-_EOF
 	Usage:
-	    $PROGRAM init
-	        Compile the SCION crypto library.
 	    $PROGRAM topology
 	        Create topology, configuration, and execution files.
 	    $PROGRAM run
@@ -98,7 +89,7 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    coverage|help|init|lint|run|stop|status|test|topology|version)
+    coverage|help|lint|run|stop|status|test|topology|version)
         "cmd_$COMMAND" "$@" ;;
     *)  cmd_help; exit 1 ;;
 esac

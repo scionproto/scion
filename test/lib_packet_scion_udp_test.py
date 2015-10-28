@@ -140,6 +140,20 @@ class TestSCIONUDPHeaderUpdate(object):
         ntools.eq_(inst._checksum, 0x9999)
 
 
+class TestSCIONUDPHeaderPack(object):
+    """
+    Unit tests for lib.packet.scion_udp.SCIONUDPHeader.pack
+    """
+    def test(self):
+        inst = SCIONUDPHeader()
+        inst.src_port = 0x0000
+        inst.dst_port = 0x1111
+        inst._length = 0x2222
+        inst._checksum = 0x3333
+        # Call
+        ntools.eq_(inst.pack(), bytes.fromhex("0000111122223333"))
+
+
 class TestSCIONUDPHeaderCalcChecksum(object):
     """
     Unit tests for lib.packet.scion_udp.SCIONUDPHeader._calc_checksum
@@ -167,6 +181,24 @@ class TestSCIONUDPHeaderCalcChecksum(object):
         # Tests
         scapy_checksum.assert_called_once_with(expected_call)
 
+
+class TestSCIONUDPHeaderReverse(object):
+    """
+    Unit tests for lib.packet.scion_udp.SCIONUDPHeader.reverse
+    """
+    def test(self):
+        inst = SCIONUDPHeader()
+        inst._src_addr = "src addr"
+        inst._dst_addr = "dst addr"
+        inst.src_port = "src port"
+        inst.dst_port = "dst port"
+        # Call
+        inst.reverse()
+        # Tests
+        ntools.eq_(inst._src_addr, "dst addr")
+        ntools.eq_(inst._dst_addr, "src addr")
+        ntools.eq_(inst.src_port, "dst port")
+        ntools.eq_(inst.dst_port, "src port")
 
 if __name__ == "__main__":
     nose.run(defaultTest=__name__)

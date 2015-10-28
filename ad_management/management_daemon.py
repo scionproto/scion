@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 # Copyright 2014 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");

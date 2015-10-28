@@ -18,7 +18,7 @@ from django.db import transaction
 
 # SCION
 from ad_management.common import WEB_SCION_DIR
-from lib.defines import TOPOLOGY_PATH
+from lib.defines import GEN_PATH
 from lib.topology import Topology
 from lib.util import load_json_file
 
@@ -62,8 +62,8 @@ def reload_data():
     add_users()
 
     # Add model instances
-    topology_files = glob.glob(os.path.join(TOPOLOGY_PATH,
-                                            'ISD*', 'topologies', 'ISD:*.json'))
+    topology_files = glob.glob(os.path.join(
+        GEN_PATH, 'ISD*', 'topologies', 'ISD:*.json'))
     ad_num = len(topology_files)
     print("> {} topology files found".format(ad_num))
     isds = {}

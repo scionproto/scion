@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 # Copyright 2015 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -49,11 +50,11 @@ class PingPongSimTest(unittest.TestCase):
         src_host_addr = haddr_parse("IPV4", "127.1.10.254")
         dst_host_addr = haddr_parse("IPV4", "127.2.26.254")
         src_topo_path = (
-            "../../topology/ISD{}/topologies/ISD:{}-AD:{}.json"
+            "topology/ISD{}/topologies/ISD:{}-AD:{}.json"
             .format(src_isd_ad.isd, src_isd_ad.isd, src_isd_ad.ad)
             )
         dst_topo_path = (
-            "../../topology/ISD{}/topologies/ISD:{}-AD:{}.json"
+            "topology/ISD{}/topologies/ISD:{}-AD:{}.json"
             .format(dst_isd_ad.isd, dst_isd_ad.isd, dst_isd_ad.ad)
             )
         host1 = SCIONSimHost(src_host_addr, src_topo_path, simulator)

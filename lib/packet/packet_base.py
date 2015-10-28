@@ -167,7 +167,7 @@ class PayloadBase(object, metaclass=ABCMeta):  # pragma: no cover
         raise NotImplementedError
 
 
-class PayloadRaw(PayloadBase):
+class PayloadRaw(PayloadBase):  # pragma: no cover
     def _parse(self, raw):
         self._raw = raw or b""
 
@@ -190,7 +190,7 @@ class PayloadRaw(PayloadBase):
         return hexlify(self._raw).decode()
 
 
-class SCIONPayloadBase(PayloadBase):
+class SCIONPayloadBase(PayloadBase):  # pragma: no cover
     """
     All child classes must define two attributes:
         PAYLOAD_CLASS: Global payload class, defined by PayloadClass.

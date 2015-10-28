@@ -1,14 +1,12 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
-# Get the full path to the script directory
-SCRIPT_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-INFR_PATH="${SCRIPT_DIR}/../infrastructure"
-cd $INFR_PATH
-mkdir -p ../logs
+mkdir -p logs
 
 # Wrap the 'supervisorctl' command
 OPTIONS="$@"
-CONF_FILE="${SCRIPT_DIR}/supervisord.conf"
-supervisord -c $CONF_FILE &> /dev/null
+CONF_FILE="supervisor/supervisord.conf"
+if [ ! -e /tmp/supervisor.sock ]; then
+    supervisord -c $CONF_FILE
+fi
 supervisorctl -c $CONF_FILE $OPTIONS
 

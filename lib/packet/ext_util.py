@@ -49,8 +49,8 @@ def parse_extensions(data, next_hdr):
         try:
             ext_class = EXTENSION_MAP[(cur_hdr_type, ext_no)]
         except KeyError:
-            SCIONParseError("Extension (%d, %d) unknown." %
-                            (cur_hdr_type, ext_no))
+            raise SCIONParseError("Extension (%d, %d) unknown." %
+                                  (cur_hdr_type, ext_no)) from None
         ext_hdrs.append(
             ext_class(data.pop(hdr_len - ExtensionHeader.SUBHDR_LEN)))
         cur_hdr_type = next_hdr_type

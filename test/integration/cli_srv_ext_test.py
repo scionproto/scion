@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 # Copyright 2015 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,7 +25,7 @@ import sys
 
 # SCION
 from endhost.sciond import SCIONDaemon
-from lib.defines import SCION_BUFLEN, SCION_UDP_EH_DATA_PORT
+from lib.defines import GEN_PATH, SCION_BUFLEN, SCION_UDP_EH_DATA_PORT
 from lib.log import init_logging, log_exception
 from lib.packet.ext.traceroute import TracerouteExt
 from lib.packet.host_addr import haddr_parse
@@ -48,10 +49,9 @@ def client():
     """
     Simple client
     """
-    topo_file = ("../../topology/ISD%d/topologies/ISD:%d-AD:%d.json" %
-                 (CLI_ISD, CLI_ISD, CLI_AD))
+    conf_dir = "%s/ISD%d/AD%d/common" % (GEN_PATH, CLI_ISD, CLI_AD)
     # Start SCIONDaemon
-    sd = SCIONDaemon.start(haddr_parse("IPV4", CLI_IP), topo_file)
+    sd = SCIONDaemon.start(conf_dir, haddr_parse("IPV4", CLI_IP))
     logging.info("CLI: Sending PATH request for (%d, %d)", SRV_ISD, SRV_AD)
     # Get paths to server through function call
     paths = sd.get_paths(SRV_ISD, SRV_AD)
@@ -95,10 +95,9 @@ def server():
     """
     Simple server.
     """
-    topo_file = ("../../topology/ISD%d/topologies/ISD:%d-AD:%d.json" %
-                 (SRV_ISD, SRV_ISD, SRV_AD))
+    conf_dir = "%s/ISD%d/AD%d/common" % (GEN_PATH, SRV_ISD, SRV_AD)
     # Start SCIONDaemon
-    sd = SCIONDaemon.start(haddr_parse("IPV4", SRV_IP), topo_file)
+    sd = SCIONDaemon.start(conf_dir, haddr_parse("IPV4", SRV_IP))
     # Open a socket for incomming DATA traffic
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -123,7 +122,7 @@ def server():
 
 
 if __name__ == "__main__":
-    init_logging("../../logs/c2s_extn.log", console=True)
+    init_logging("logs/c2s_extn.log", console=True)
     handle_signals()
     # if len(sys.argv) == 3:
     #     isd, ad = sys.argv[1].split(',')
