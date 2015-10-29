@@ -62,7 +62,7 @@ SIM_CONF_FILE = 'sim.conf'
 HOSTS_FILE = 'hosts'
 NETWORKS_CONF = 'networks.conf'
 SUPERVISOR_CONF = 'supervisord.conf'
-COMMON_DIR = 'common'
+COMMON_DIR = 'endhost'
 
 ZOOKEEPER_HOST_TMPFS_DIR = "/run/shm/host-zk"
 ZOOKEEPER_TMPFS_DIR = "/run/shm/scion-zk"
@@ -175,7 +175,7 @@ class ConfigGenerator(object):
 
     def _write_cert_files(self, topo_dicts, cert_files):
         for topo_id, ad_topo, base in _srv_iter(
-                topo_dicts, self.out_dir):
+                topo_dicts, self.out_dir, common=True):
             for path, value in cert_files[topo_id].items():
                 write_file(os.path.join(base, path), value)
 
