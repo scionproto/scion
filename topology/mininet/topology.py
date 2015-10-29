@@ -1,7 +1,7 @@
 #!/usr/bin/python2
 
 from mininet.net import Mininet
-from mininet.node import RemoteController, OVSKernelSwitch, Controller
+from mininet.node import OVSKernelSwitch, Controller
 from mininet.topo import Topo
 from mininet.log import lg
 from mininet.link import Link
