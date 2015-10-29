@@ -10,13 +10,14 @@ import configparser
 import ipaddress
 import os
 
-if os.environ.has_key('SUDO_USER'):
+if 'SUDO_USER' in os.environ:
         USER = os.environ['SUDO_USER']
 else:
         USER = os.environ['USER']
 
 MAX_INTF_LEN = 15
 NETWORKS_CONF = "gen/networks.conf"
+
 
 class ScionLink(Link):
     @classmethod
@@ -28,13 +29,14 @@ class ScionLink(Link):
         return name
 
 
-class POXController( Controller ):
+class POXController(Controller):
     "A locally installed POX controller"
-    poxBin='/home/'+USER+'/.local/bin/pox'
-    poxArgs='openflow.of_01 --port=%d forwarding.l2_learning'
-    def __init__( self, name, command=poxBin, cargs=poxArgs, **kwargs ):
-        Controller.__init__( self, name, command=command, cargs=cargs,
-                            **kwargs )
+    poxBin = '/home/'+USER+'/.local/bin/pox'
+    poxArgs = 'openflow.of_01 --port=%d forwarding.l2_learning'
+
+    def __init__(self, name, command=poxBin, cargs=poxArgs, **kwargs):
+        Controller.__init__(self, name, command=command, cargs=cargs,
+                            **kwargs)
 
 
 class ScionTopo(Topo):
