@@ -1,17 +1,22 @@
 #!/usr/bin/python2
 
 from mininet.net import Mininet
-from mininet.node import RemoteController, OVSKernelSwitch
+from mininet.node import RemoteController, OVSKernelSwitch, Controller
 from mininet.topo import Topo
 from mininet.log import lg
 from mininet.link import Link
 from mininet.cli import CLI
 import configparser
 import ipaddress
+import os
+
+if os.environ.has_key('SUDO_USER'):
+        USER = os.environ['SUDO_USER']
+else:
+        USER = os.environ['USER']
 
 MAX_INTF_LEN = 15
 NETWORKS_CONF = "gen/networks.conf"
-
 
 class ScionLink(Link):
     @classmethod
@@ -21,6 +26,15 @@ class ScionLink(Link):
         name = "%s-%s" % (node.name, n)
         assert len(name) <= MAX_INTF_LEN
         return name
+
+
+class POXController( Controller ):
+    "A locally installed POX controller"
+    poxBin='/home/'+USER+'/.local/bin/pox'
+    poxArgs='openflow.of_01 --port=%d forwarding.l2_learning'
+    def __init__( self, name, command=poxBin, cargs=poxArgs, **kwargs ):
+        Controller.__init__( self, name, command=command, cargs=cargs,
+                            **kwargs )
 
 
 class ScionTopo(Topo):
@@ -68,7 +82,7 @@ def main():
     topology = configparser.ConfigParser(interpolation=None)
     topology.read_file(open(NETWORKS_CONF), source=NETWORKS_CONF)
     topo = ScionTopo(topology)
-    net = Mininet(topo=topo, controller=RemoteController, link=ScionLink,
+    net = Mininet(topo=topo, controller=POXController, link=ScionLink,
                   switch=OVSKernelSwitch)
     net.start()
     CLI(net)
