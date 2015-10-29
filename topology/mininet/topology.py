@@ -1,13 +1,17 @@
 #!/usr/bin/python2
 
+# Stdlib
+import os
+
+# External
+import configparser
+import ipaddress
+from mininet.cli import CLI
+from mininet.link import Link
+from mininet.log import lg, info
 from mininet.net import Mininet
 from mininet.node import RemoteController, OVSKernelSwitch
 from mininet.topo import Topo
-from mininet.log import lg
-from mininet.link import Link
-from mininet.cli import CLI
-import configparser
-import ipaddress
 
 MAX_INTF_LEN = 15
 NETWORKS_CONF = "gen/networks.conf"
@@ -65,12 +69,17 @@ class ScionTopo(Topo):
 
 def main():
     lg.setLogLevel('info')
+    supervisord = os.getenv("SUPERVISORD")
+    assert supervisord
     topology = configparser.ConfigParser(interpolation=None)
     topology.read_file(open(NETWORKS_CONF), source=NETWORKS_CONF)
     topo = ScionTopo(topology)
     net = Mininet(topo=topo, controller=RemoteController, link=ScionLink,
                   switch=OVSKernelSwitch)
     net.start()
+    host = net.hosts[0]
+    info(host.cmd("%s -c gen/mininet/%s.conf" %
+                  (supervisord, host.name.replace("_", "-"))))
     CLI(net)
     net.stop()
 

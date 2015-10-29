@@ -20,6 +20,7 @@
 import argparse
 import base64
 import configparser
+import getpass
 import json
 import logging
 import math
@@ -28,6 +29,7 @@ import sys
 from collections import defaultdict
 from io import StringIO
 from ipaddress import ip_interface, ip_network
+from string import Template
 
 # External packages
 from Crypto import Random
@@ -49,6 +51,7 @@ from lib.util import (
     get_sig_key_file_path,
     get_trc_file_path,
     load_json_file,
+    read_file,
     write_file,
 )
 
@@ -162,7 +165,7 @@ class ConfigGenerator(object):
 
     def _generate_supervisor(self, topo_dicts, zookeepers):
         super_gen = SupervisorGenerator(self.out_dir, topo_dicts, zookeepers,
-                                        self.zk_config)
+                                        self.zk_config, self.mininet)
         super_gen.generate()
 
     def _generate_sim_conf(self, topo_dicts):
@@ -327,7 +330,6 @@ class TopoGenerator(object):
         self.topo_dicts = {}
         self.hosts = []
         self.zookeepers = defaultdict(dict)
-        self.networks = defaultdict(dict)
         self.virt_addrs = set()
 
     def _reg_addr(self, topo_id, elem_id):
@@ -457,11 +459,12 @@ class TopoGenerator(object):
 
 
 class SupervisorGenerator(object):
-    def __init__(self, out_dir, topo_dicts, zookeepers, zk_config):
+    def __init__(self, out_dir, topo_dicts, zookeepers, zk_config, mininet):
         self.out_dir = out_dir
         self.topo_dicts = topo_dicts
         self.zookeepers = zookeepers
         self.zk_config = zk_config
+        self.mininet = mininet
 
     def generate(self):
         for topo_id, topo in self.topo_dicts.items():
@@ -506,6 +509,8 @@ class SupervisorGenerator(object):
             conf_path = os.path.join(base, elem, SUPERVISOR_CONF)
             includes.append(os.path.join(elem, SUPERVISOR_CONF))
             self._write_elem_conf(elem, entry, conf_path)
+            if self.mininet:
+                self._write_elem_mininet_conf(elem, conf_path)
         config["group:ad%s" % topo_id] = {"programs": ",".join(names)}
         text = StringIO()
         config.write(text)
@@ -520,12 +525,21 @@ class SupervisorGenerator(object):
         config.write(text)
         write_file(conf_path, text.getvalue())
 
+    def _write_elem_mininet_conf(self, elem, conf_path):
+        tmpl = Template(read_file("topology/mininet/supervisord.conf"))
+        mn_conf_path = os.path.join(self.out_dir, "mininet", "%s.conf" % elem)
+        rel_conf_path = os.path.relpath(
+            conf_path, os.path.join(self.out_dir, "mininet"))
+        write_file(mn_conf_path,
+                   tmpl.substitute(elem=elem, conf_path=rel_conf_path,
+                                   user=getpass.getuser()))
+
     def _get_base_path(self, topo_id):
         return os.path.join(self.out_dir, topo_id.ISD(), topo_id.AD())
 
     def _common_entry(self, name, cmd_args):
-        return {
-            'autostart': 'false',
+        entry = {
+            'autostart': 'false' if self.mininet else 'false',
             'autorestart': 'false',
             'redirect_stderr': 'true',
             'environment': 'PYTHONPATH=.',
@@ -535,6 +549,9 @@ class SupervisorGenerator(object):
             'startsecs': 5,
             'command': " ".join(['"%s"' % arg for arg in cmd_args]),
         }
+        if self.mininet:
+            entry['autostart'] = 'true'
+        return entry
 
 
 class SimulatorGenerator(SupervisorGenerator):
