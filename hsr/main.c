@@ -300,81 +300,81 @@ l2fwd_main_loop(void)
 			portid);
 	}
 
-	while (1) {
+  while (1) {
 
-		cur_tsc = rte_rdtsc();
+    cur_tsc = rte_rdtsc();
 
-		/*
-		 * TX burst queue drain
-		 */
-		diff_tsc = cur_tsc - prev_tsc;
-		if (unlikely(diff_tsc > drain_tsc)) {
+    /*
+     * TX burst queue drain
+     */
+    diff_tsc = cur_tsc - prev_tsc;
+    if (unlikely(diff_tsc > drain_tsc)) {
 
-			for (portid = 0; portid < RTE_MAX_ETHPORTS; portid++) {
-				if (qconf->tx_mbufs[portid].len == 0)
-					continue;
-				l2fwd_send_burst(&lcore_queue_conf[lcore_id],
-						 qconf->tx_mbufs[portid].len,
-						 (uint8_t) portid);
-				qconf->tx_mbufs[portid].len = 0;
-			}
+      for (portid = 0; portid < RTE_MAX_ETHPORTS; portid++) {
+        if (qconf->tx_mbufs[portid].len == 0)
+          continue;
+        l2fwd_send_burst(&lcore_queue_conf[lcore_id],
+            qconf->tx_mbufs[portid].len,
+            (uint8_t) portid);
+        qconf->tx_mbufs[portid].len = 0;
+      }
 
-			/* if timer is enabled */
-			if (timer_period > 0) {
+      /* if timer is enabled */
+      if (timer_period > 0) {
 
-				/* advance the timer */
-				timer_tsc += diff_tsc;
+        /* advance the timer */
+        timer_tsc += diff_tsc;
 
-				/* if timer has reached its timeout */
-				if (unlikely(timer_tsc >= (uint64_t) timer_period)) {
+        /* if timer has reached its timeout */
+        if (unlikely(timer_tsc >= (uint64_t) timer_period)) {
 
-					/* do this only on master core */
-					if (lcore_id == rte_get_master_lcore()) {
-						print_stats();
-						/* reset the timer */
-						timer_tsc = 0;
-					}
-				}
-			}
-
-			prev_tsc = cur_tsc;
-		}
-
-		/*
-		 * Read packet from RX queues
-		 */
-		for (i = 0; i < qconf->n_rx_port; i++) {
-
-			portid = qconf->rx_port_list[i];
-			nb_rx = rte_eth_rx_burst((uint8_t) portid, 0,
-						 pkts_burst, MAX_PKT_BURST);
-
-			port_statistics[portid].rx += nb_rx;
-
-			for (j = 0; j < nb_rx; j++) {
-				m = pkts_burst[j];
-				//rte_prefetch0(rte_pktmbuf_mtod(m, void *));
-				if(j < nb_rx -1){
-					m_next = pkts_burst[j+1];
-					rte_prefetch0(rte_pktmbuf_mtod(m_next, void *)); //prefetch next packet
-					rte_prefetch0(rte_pktmbuf_mtod(m_next, void *) +64); //prefetch next packet
-				}
-				l2fwd_simple_forward(m, portid);
-			}
-		}
-
-        diff_tsc = cur_tsc - prev_sync;
-		if (unlikely(diff_tsc > if_sync_tsc)) {
-            //sync_interface();
-            prev_sync = cur_tsc;
+          /* do this only on master core */
+          if (lcore_id == rte_get_master_lcore()) {
+            print_stats();
+            /* reset the timer */
+            timer_tsc = 0;
+          }
         }
+      }
 
-        diff_tsc = cur_tsc - prev_req;
-        if (unlikely(diff_tsc > if_req_tsc)) {
-            //request_ifstates();
-            prev_req = cur_tsc;
+      prev_tsc = cur_tsc;
+    }
+
+    /*
+     * Read packet from RX queues
+     */
+    for (i = 0; i < qconf->n_rx_port; i++) {
+
+      portid = qconf->rx_port_list[i];
+      nb_rx = rte_eth_rx_burst((uint8_t) portid, 0,
+          pkts_burst, MAX_PKT_BURST);
+
+      port_statistics[portid].rx += nb_rx;
+
+      for (j = 0; j < nb_rx; j++) {
+        m = pkts_burst[j];
+        //rte_prefetch0(rte_pktmbuf_mtod(m, void *));
+        if(j < nb_rx -1){
+          m_next = pkts_burst[j+1];
+          rte_prefetch0(rte_pktmbuf_mtod(m_next, void *)); //prefetch next packet
+          rte_prefetch0(rte_pktmbuf_mtod(m_next, void *) +64); //prefetch next packet
         }
-	}
+        l2fwd_simple_forward(m, portid);
+      }
+    }
+
+    diff_tsc = cur_tsc - prev_sync;
+    if (unlikely(diff_tsc > if_sync_tsc)) {
+      //sync_interface();
+      prev_sync = cur_tsc;
+    }
+
+    diff_tsc = cur_tsc - prev_req;
+    if (unlikely(diff_tsc > if_req_tsc)) {
+      //request_ifstates();
+      prev_req = cur_tsc;
+    }
+  }
 }
 
 static int

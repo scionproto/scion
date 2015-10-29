@@ -111,6 +111,8 @@ uint32_t interface_ip[16]; // current router IP address
 
 int my_isd;
 int my_ad;
+int neighbor_isd;
+int neighbor_ad;
 
 struct keystruct rk; // AES-NI key structure
 
@@ -235,6 +237,18 @@ int scion_init(int argc, char **argv) {
         goto JSON;
       }
       neighbor_ip[1] = neighbor_ip[0];
+      addr_obj = cJSON_GetObjectItem(interface, "NeighborISD");
+      if (addr_obj == NULL) {
+        fprintf(stderr, "no ISD specified for neighbor\n");
+        goto JSON;
+      }
+      neighbor_isd = addr_obj->valueint;
+      addr_obj = cJSON_GetObjectItem(interface, "NeighborAD");
+      if (addr_obj == NULL) {
+        fprintf(stderr, "no AD specified for neighbor\n");
+        goto JSON;
+      }
+      neighbor_ad = addr_obj->valueint;
 
       /* Get IFID */
       ifid_obj = cJSON_GetObjectItem(interface, "IFID");
