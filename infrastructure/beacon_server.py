@@ -264,8 +264,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         self.trc_requests = {}
         self.trcs = {}
         sig_key_file = get_sig_key_file_path(self.conf_dir)
-        self.signing_key = read_file(sig_key_file)
-        self.signing_key = base64.b64decode(self.signing_key)
+        self.signing_key = base64.b64decode(read_file(sig_key_file))
         self.of_gen_key = PBKDF2(self.config.master_ad_key, b"Derive OF Key")
         logging.info(self.config.__dict__)
         self.if2rev_tokens = {}
@@ -1028,6 +1027,7 @@ class CoreBeaconServer(BeaconServer):
                                            self.topology.isd_id,
                                            self.topology.ad_id)
         pcb.remove_signatures()
+        self._sign_beacon(pcb)
         # Register core path with local core path server.
         try:
             ps_addr = self.dns_query_topo(PATH_SERVICE)[0]
@@ -1110,7 +1110,7 @@ class CoreBeaconServer(BeaconServer):
         count = 0
         for pcb in core_segments:
             pcb = self._terminate_pcb(pcb)
-            # TODO(psz): sign here? discuss
+            self._sign_beacon(pcb)
             self.register_core_segment(pcb)
             count += 1
         logging.info("Registered %d Core paths", count)
@@ -1342,7 +1342,7 @@ class LocalBeaconServer(BeaconServer):
         for pcb in best_segments:
             pcb = self._terminate_pcb(pcb)
             pcb.remove_signatures()
-            # TODO(psz): sign here? discuss
+            self._sign_beacon(pcb)
             try:
                 self.register_up_segment(pcb)
             except SCIONServiceLookupError as e:
@@ -1358,7 +1358,7 @@ class LocalBeaconServer(BeaconServer):
         for pcb in best_segments:
             pcb = self._terminate_pcb(pcb)
             pcb.remove_signatures()
-            # TODO(psz): sign here? discuss
+            self._sign_beacon(pcb)
             self.register_down_segment(pcb)
             logging.info("Down path registered: %s", pcb.get_hops_hash())
 
