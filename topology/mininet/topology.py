@@ -8,7 +8,7 @@ import configparser
 import ipaddress
 from mininet.cli import CLI
 from mininet.link import Link
-from mininet.log import lg, info
+from mininet.log import lg
 from mininet.net import Mininet
 from mininet.node import RemoteController, OVSKernelSwitch
 from mininet.topo import Topo
@@ -77,16 +77,17 @@ def main():
     net = Mininet(topo=topo, controller=RemoteController, link=ScionLink,
                   switch=OVSKernelSwitch)
     for host in net.hosts:
-        host.cmd('ip route add 169.254.0.1 dev '+host.intf().name)
+        host.cmd('ip route add 169.254.0.0/16 dev '+host.intf().name)
     net.start()
+    os.system('ip addr add 169.254.0.1/16 dev eth0')
     for switch in net.switches:
-        os.system('ip addr add 169.254.0.1 dev %s' % switch.name)
         for k, v in topo.switch_map.items():
             if v == switch.name:
                 os.system('ip route add %s dev %s' % (k, switch.name))
-    host = net.hosts[0]
-    info(host.cmd("%s -c gen/mininet/%s.conf" %
-                  (supervisord, host.name.replace("_", "-"))))
+    for host in net.hosts:
+        elem_name = host.name.replace("_", "-")
+        print("Starting supervisord on %s" % elem_name)
+        host.cmd("%s -c gen/mininet/%s.conf" % (supervisord, elem_name))
     CLI(net)
     net.stop()
 
