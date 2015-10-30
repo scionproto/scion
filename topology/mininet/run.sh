@@ -11,11 +11,13 @@ POX_PORT=6633
 log() {
     echo "=====> $@"
 }
+bash gen/zk_datalog_dirs.sh || exit 1
 
 if [ -e "$POX_PID" ]; then
     log "ERROR: Pox already running, or $POX_PID is stale"
     exit 1
 fi
+
 
 PYTHONPATH=topology/mininet pox \
     pox_signal \
