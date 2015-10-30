@@ -4,7 +4,6 @@ POX_PID=/tmp/pox.pid
 POX_LOG=/tmp/pox.log
 POX_PORT=6633
 
-echo $PATH
 if [ -e "$POX_PID" ]; then
     echo "ERROR: Pox already running, or $POX_PID is stale"
     exit 1
