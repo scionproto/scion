@@ -4,6 +4,9 @@ set -e
 
 MN_DIR=$(dirname $0)
 APTARGS="$1"
+SITE_PKGS=~/.local/lib/python2.7/site-packages
+POX_DIR="$SITE_PKGS/pox-carp"
+POX_LINK="$SITE_PKGS/pox"
 
 log() {
     echo "=====> $@"
@@ -27,14 +30,19 @@ log "Installing any necessary python packages via pip"
 pip2 install --user -r "$MN_DIR/requirements.txt"
 
 if ! which pox > /dev/null; then
-    if [ ! -d ~/.local/pox-carp ]; then
-        log "Installing POX (https://github.com/noxrepo/pox) to ~/.local/pox-carp"
-        wget -nv -O - https://github.com/noxrepo/pox/archive/carp.tar.gz | tar xzf - -C ~/.local
+    if [ ! -d "$POX_DIR" ]; then
+        log "Installing POX (https://github.com/noxrepo/pox) to $POX_DIR"
+        wget -nv -O - https://github.com/noxrepo/pox/archive/carp.tar.gz | tar xzf - -C "$SITE_PKGS"
+        ln -sf pox-carp/pox "$POX_LINK"
     fi
     log "Installing POX symlink into ~/.local/bin"
-    ln -sf ../pox-carp/pox.py ~/.local/bin/pox
+    ln -sf "$POX_DIR/pox.py" ~/.local/bin/pox
 fi
 if ! which pox > /dev/null; then
     log "Error: no 'pox' in \$PATH, POX not installed correctly"
+    exit 1
+fi
+if ! python2 -c "import pox" &> /dev/null; then
+    log "Error: unable to import 'pox' module in python2"
     exit 1
 fi
