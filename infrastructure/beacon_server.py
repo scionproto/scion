@@ -525,9 +525,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 mgmt_packet = self._build_packet(payload=payload)
                 for er in self.topology.get_all_edge_routers():
                     if er.interface.if_id != ifid:
-                        mgmt_packet.addrs.dst_addr = er.interface.addr
-                        self.send(mgmt_packet, er.interface.addr,
-                                  er.interface.udp_port)
+                        mgmt_packet.addrs.dst_addr = er.addr
+                        self.send(mgmt_packet, er.addr)
 
     def run(self):
         """
@@ -808,8 +807,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         payload = IFStatePayload.from_values([info])
         state_pkt = self._build_packet(payload=payload)
         for er in self.topology.get_all_edge_routers():
-            state_pkt.addrs.dst_addr = er.interface.addr
-            self.send(state_pkt, er.interface.addr, er.interface.udp_port)
+            state_pkt.addrs.dst_addr = er.addr
+            self.send(state_pkt, er.addr)
         self._process_revocation(rev_info, if_id)
 
     def _process_revocation(self, rev_info, if_id):
