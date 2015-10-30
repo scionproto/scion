@@ -2,6 +2,7 @@
 
 # Stdlib
 import os
+import sys
 
 # External
 import configparser
@@ -44,6 +45,11 @@ class ScionTopo(Topo):
         host_map = {}
         for name, section in mnconfig.items():
             for elem, intf_str in section.items():
+                if ipaddress.ip_interface(intf_str).is_loopback:
+                    print("The IP address for %s (%s) is a loopback address"
+                          % (elem, intf_str))
+                    print("Try running scion.sh topology -m")
+                    sys.exit(1)
                 # The config is utf8, need to convert to a plain string to avoid
                 # tickling bugs in mininet.
                 elem = str(elem)
