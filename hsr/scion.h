@@ -49,8 +49,10 @@
 #define MASTER_KEY_LEN 16
 #define IFID_SIZE 2
 #define AID_SIZE 8
-#define TS_SIZE 2 
+#define TS_SIZE 2
 
+#define IFID_PKT_US 1000000
+#define IFSTATE_REQ_US 30000000
 
 #define MASTER_SECRET_KEY_SIZE 16 /*in bytes*/
 

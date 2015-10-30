@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 # Copyright 2014 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,12 +17,9 @@
 ========================================
 """
 # Stdlib
-import argparse
 import copy
-import datetime
 import logging
 import threading
-import sys
 from _collections import defaultdict
 from abc import ABCMeta, abstractmethod
 
@@ -32,8 +30,9 @@ from external.expiring_dict import ExpiringDict
 # SCION
 from infrastructure.scion_elem import SCIONElement
 from lib.defines import PATH_SERVICE, SCION_UDP_PORT
-from lib.errors import SCIONBaseError, SCIONParseError
-from lib.log import init_logging, log_exception
+from lib.errors import SCIONParseError
+from lib.log import log_exception
+from lib.main import main_default, main_wrapper
 from lib.packet.host_addr import haddr_parse
 from lib.packet.path import UP_IOF
 from lib.packet.path_mgmt import (
@@ -48,9 +47,7 @@ from lib.thread import thread_safety_net
 from lib.types import PathMgmtType as PMT, PathSegmentType as PST, PayloadClass
 from lib.util import (
     SCIONTime,
-    handle_signals,
     sleep_interval,
-    trace,
     update_dict,
 )
 from lib.zookeeper import ZkNoConnection, ZkSharedCache, Zookeeper
@@ -60,27 +57,20 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
     """
     The SCION Path Server.
     """
+    SERVICE_TYPE = PATH_SERVICE
     MAX_SEG_NO = 5  # TODO: replace by config variable.
     # ZK path for incoming PATHs
     ZK_PATH_CACHE_PATH = "path_cache"
     # Number of tokens the PS checks when receiving a revocation.
     N_TOKENS_CHECK = 20
 
-    def __init__(self, server_id, topo_file, config_file, is_sim=False):
+    def __init__(self, server_id, conf_dir, is_sim=False):
         """
-        Initialize an instance of the class PathServer.
-
-        :param server_id:
-        :type server_id:
-        :param topo_file:
-        :type topo_file:
-        :param config_file:
-        :type config_file:
-        :param is_sim: running in simulator
-        :type is_sim: bool
+        :param str server_id: server identifier.
+        :param str conf_dir: configuration directory.
+        :param bool is_sim: running on simulator
         """
-        super().__init__(PATH_SERVICE, topo_file, server_id=server_id,
-                         config_file=config_file, is_sim=is_sim)
+        super().__init__(server_id, conf_dir, is_sim=is_sim)
         # TODO replace by pathstore instance
         self.down_segments = PathSegmentDB()
         self.core_segments = PathSegmentDB()  # Direction of the propagation.
@@ -89,6 +79,18 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         self.waiting_targets = set()  # Used when local PS doesn't have up-path.
         self.revocations = ExpiringDict(1000, 300)
         self.iftoken2seg = defaultdict(set)
+        # Must be set in child classes:
+        self._cached_seg_handler = None
+
+        self.PLD_CLASS_MAP = {
+            PayloadClass.PATH: {
+                PMT.REQUEST: self.handle_path_request,
+                PMT.REPLY: self.dispatch_path_segment_record,
+                PMT.REG: self.dispatch_path_segment_record,
+                PMT.REVOCATION: self._handle_revocation,
+                PMT.SYNC: self.dispatch_path_segment_record,
+            },
+        }
 
         if not is_sim:
             # Add more IPs here if we support dual-stack
@@ -123,12 +125,23 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                 pass
             self._update_master()
 
-    @abstractmethod
     def _cached_entries_handler(self, raw_entries):
         """
         Handles cached through ZK entries, passed as a list.
         """
-        raise NotImplementedError
+        for entry in raw_entries:
+            try:
+                pkt = SCIONL4Packet(raw=entry)
+            except SCIONParseError:
+                log_exception("Error parsing cached packet: %s" % entry,
+                              level=logging.ERROR)
+                continue
+            try:
+                pkt.parse_payload()
+            except SCIONParseError:
+                log_exception("Error parsing cached payload:\n%s" % pkt)
+                continue
+            self._cached_seg_handler(pkt, from_zk=True)
 
     @abstractmethod
     def _update_master(self):
@@ -213,8 +226,14 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         seg_info = rep_pkt.get_payload()
         rep_pkt.set_payload(PathRecordsReply.from_values(seg_info, paths))
         (next_hop, port) = self.get_first_hop(rep_pkt)
-        logging.info("Sending PATH_REPLY, using path: %s, to:%s", rep_pkt.path,
-                     rep_pkt.addrs.get_dst_addr())
+        logging.info(
+            "Sending PATH_REPLY with %d path(s) for %s:%s-%s "
+            "to:(%s-%s, %s:%s):\n  %s", len(paths),
+            PST.to_str(seg_info.seg_type), seg_info.dst_isd,
+            seg_info.dst_ad, rep_pkt.addrs.dst_isd, rep_pkt.addrs.dst_ad,
+            rep_pkt.addrs.dst_addr, rep_pkt.l4_hdr.dst_port,
+            "\n  ".join([pcb.short_desc() for pcb in paths]),
+        )
         self.send(rep_pkt, next_hop, port)
 
     def dispatch_path_segment_record(self, pkt):
@@ -241,37 +260,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         """
         raise NotImplementedError
 
-    def handle_request(self, packet, sender, from_local_socket=True):
-        """
-        Main routine to handle incoming SCION packets.
-        """
-        type_map = {
-            PMT.REQUEST: self.handle_path_request,
-            PMT.REPLY: self.dispatch_path_segment_record,
-            PMT.REG: self.dispatch_path_segment_record,
-            PMT.REVOCATION: self._handle_revocation,
-            PMT.SYNC: self.dispatch_path_segment_record,
-        }
-        pkt = SCIONL4Packet(packet)
-        try:
-            payload = pkt.parse_payload()
-        except SCIONParseError as e:
-            logging.error("Unable to parse packet payload: %s\n%s", e, pkt)
-            return
-        if payload.PAYLOAD_CLASS != PayloadClass.PATH:
-            logging.error("Payload class %d not supported.",
-                          payload.PAYLOAD_CLASS)
-            return
-        handler = type_map.get(payload.PAYLOAD_TYPE)
-        if handler is None:
-            logging.warning("Path management packet type %d not supported.",
-                            payload.PAYLOAD_TYPE)
-            return
-        try:
-            handler(pkt)
-        except SCIONBaseError:
-            log_exception("Error handling packet: %s" % pkt)
-
     def _share_segments(self, pkt):
         """
         Share path segments (via ZK) with other path servers.
@@ -281,10 +269,13 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         try:
             self.path_cache.store("%s-%s" % (pkt_hash, SCIONTime.get_time()),
                                   pkt_packed)
-            logging.debug("Segment stored in ZK: %s...", pkt_hash[:5])
         except ZkNoConnection:
             logging.warning("Unable to store segment in shared path: "
                             "no connection to ZK")
+            return
+        payload = pkt.get_payload()
+        logging.debug("Segment(s) stored in ZK: %s",
+                      "\n".join([pcb.short_desc() for pcb in payload.pcbs]))
 
     def run(self):
         """
@@ -302,34 +293,18 @@ class CorePathServer(PathServer):
     SCION Path Server in a core AD. Stores intra ISD down-paths as well as core
     paths and forwards inter-ISD path requests to the corresponding path server.
     """
-    def __init__(self, server_id, topo_file, config_file, is_sim=False):
+    def __init__(self, server_id, conf_dir, is_sim=False):
         """
-        Initialize an instance of the class CorePathServer.
-
-        :param server_id:
-        :type server_id:
-        :param topo_file:
-        :type topo_file:
-        :param config_file:
-        :type config_file:
-        :param is_sim: running in simulator
-        :type is_sim: bool
+        :param str server_id: server identifier.
+        :param str conf_dir: configuration directory.
+        :param bool is_sim: running on simulator
         """
-        super().__init__(server_id, topo_file, config_file, is_sim=is_sim)
+        super().__init__(server_id, conf_dir, is_sim=is_sim)
         # Sanity check that we should indeed be a core path server.
         assert self.topology.is_core_ad, "This shouldn't be a core PS!"
         self.core_ads = set()  # Set of core ADs only from local ISD.
         self._master_id = None  # Address of master core Path Server.
-
-    def _cached_entries_handler(self, raw_entries):
-        for entry in raw_entries:
-            try:
-                pkt = SCIONL4Packet(raw=entry)
-                pkt.parse_payload()
-            except SCIONParseError as e:
-                logging.error("Unable to parse cached entry: %s", e)
-                continue
-            self._handle_core_segment_record(pkt, from_zk=True)
+        self._cached_seg_handler = self._handle_core_segment_record
 
     def _update_master(self):
         """
@@ -421,13 +396,11 @@ class CorePathServer(PathServer):
                 # Master replicates all seen down-paths from ISD.
                 paths_to_master.append(pcb)
             if res != DBResult.NONE:
-                logging.info("Down-Segment registered (%d, %d) -> (%d, %d)",
-                             src_isd, src_ad, dst_isd, dst_ad)
+                logging.info("Down-Segment registered: %s", pcb.short_desc())
                 if res == DBResult.ENTRY_ADDED:
                     self._add_if_mappings(pcb)
             else:
-                logging.info("Down-Segment to (%d, %d) already known.",
-                             dst_isd, dst_ad)
+                logging.info("Down-Segment already known: %s", pcb.short_desc())
         # For now we let every CPS know about all the down-paths within an ISD.
         # Also send paths to local master.
         # FIXME: putting all paths into single packet may be not a good decision
@@ -477,13 +450,11 @@ class CorePathServer(PathServer):
                                             last_ad=src_ad)
             if res == DBResult.ENTRY_ADDED:
                 self._add_if_mappings(pcb)
-                logging.info("Core-Path registered: (%d, %d) -> (%d, %d), "
-                             "from_zk: %s", src_isd, src_ad, dst_isd, dst_ad,
-                             from_zk)
+                logging.info("Core-Path registered (from zk: %s): %s",
+                             from_zk, pcb.short_desc())
             else:
-                logging.info("Core-Path already known: (%d, %d) -> (%d, %d), "
-                             "from_zk: %s", src_isd, src_ad, dst_isd, dst_ad,
-                             from_zk)
+                logging.info("Core-Path already known (from zk: %s): %s",
+                             from_zk, pcb.short_desc())
             if dst_isd == self.topology.isd_id:
                 self.core_ads.add((dst_isd, dst_ad))
             else:
@@ -671,35 +642,19 @@ class LocalPathServer(PathServer):
     SCION Path Server in a non-core AD. Stores up-paths to the core and
     registers down-paths with the CPS. Can cache paths learned from a CPS.
     """
-    def __init__(self, server_id, topo_file, config_file, is_sim=False):
+    def __init__(self, server_id, conf_dir, is_sim=False):
         """
-        Initialize an instance of the class LocalPathServer.
-
-        :param server_id:
-        :type server_id:
-        :param topo_file:
-        :type topo_file:
-        :param config_file:
-        :type config_file:
-        :param is_sim: running in simulator
-        :type is_sim: bool
+        :param str server_id: server identifier.
+        :param str conf_dir: configuration directory.
+        :param bool is_sim: running on simulator
         """
-        super().__init__(server_id, topo_file, config_file, is_sim=is_sim)
+        super().__init__(server_id, conf_dir, is_sim=is_sim)
         # Sanity check that we should indeed be a local path server.
         assert not self.topology.is_core_ad, "This shouldn't be a local PS!"
         # Database of up-segments to the core.
         self.up_segments = PathSegmentDB()
         self.pending_up = []  # List of pending UP requests.
-
-    def _cached_entries_handler(self, raw_entries):
-        for entry in raw_entries:
-            try:
-                pkt = SCIONL4Packet(raw=entry)
-                pkt.parse_payload()
-            except SCIONParseError as e:
-                logging.error("Unable to parse cached entry: %s", e)
-                continue
-            self._handle_up_segment_record(pkt, from_zk=True)
+        self._cached_seg_handler = self._handle_up_segment_record
 
     def _update_master(self):
         pass
@@ -721,9 +676,8 @@ class LocalPathServer(PathServer):
                                           self.topology.ad_id)
             if res == DBResult.ENTRY_ADDED:
                 self._add_if_mappings(pcb)
-                logging.info("Up-Segment to (%d, %d) registered, from_zk: %s.",
-                             pcb.get_first_pcbm().isd_id,
-                             pcb.get_first_pcbm().ad_id, from_zk)
+                logging.info("Up-Segment registered (from zk: %s): %s",
+                             from_zk, pcb.short_desc())
         # Share Up Segment via ZK.
         if not from_zk:
             self._share_segments(pkt)
@@ -797,8 +751,7 @@ class LocalPathServer(PathServer):
                                             last_ad=src_ad)
             if res == DBResult.ENTRY_ADDED:
                 self._add_if_mappings(pcb)
-                logging.info("Core-Segment registered: (%d, %d) -> (%d, %d)",
-                             src_isd, src_ad, dst_isd, dst_ad)
+                logging.info("Core-Segment registered: %s", pcb.short_desc())
         # Serve pending core path requests.
         target = ((src_isd, src_ad), (dst_isd, dst_ad))
         if target in self.pending_core:
@@ -937,42 +890,5 @@ class LocalPathServer(PathServer):
             self.send_path_segments(pkt, paths_to_send)
 
 
-def main():
-    """
-    Main function.
-    """
-    handle_signals()
-    parser = argparse.ArgumentParser()
-    parser.add_argument('type', choices=['core', 'local'],
-                        help='Core or local path server')
-    parser.add_argument('server_id', help='Server identifier')
-    parser.add_argument('topo_file', help='Topology file')
-    parser.add_argument('conf_file', help='AD configuration file')
-    parser.add_argument('log_file', help='Log file')
-    args = parser.parse_args()
-    init_logging(args.log_file)
-
-    if args.type == "core":
-        path_server = CorePathServer(args.server_id, args.topo_file,
-                                     args.conf_file)
-    elif args.type == "local":
-        path_server = LocalPathServer(args.server_id, args.topo_file,
-                                      args.conf_file)
-    else:
-        logging.error("First parameter can only be 'local' or 'core'!")
-        sys.exit()
-
-    trace(path_server.id)
-    logging.info("Started: %s", datetime.datetime.now())
-    path_server.run()
-
 if __name__ == "__main__":
-    try:
-        main()
-    except SystemExit:
-        logging.info("Exiting")
-        raise
-    except:
-        log_exception("Exception in main process:")
-        logging.critical("Exiting")
-        sys.exit(1)
+    main_wrapper(main_default, CorePathServer, LocalPathServer)

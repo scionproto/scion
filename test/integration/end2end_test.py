@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 # Copyright 2014 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,6 +26,7 @@ import unittest
 
 # SCION
 from endhost.sciond import SCIOND_API_HOST, SCIOND_API_PORT, SCIONDaemon
+from lib.defines import GEN_PATH
 from lib.log import init_logging, log_exception
 from lib.packet.host_addr import haddr_get_type, haddr_parse
 from lib.packet.opaque_field import InfoOpaqueField
@@ -97,9 +99,10 @@ class Ping(object):
         self.dport = dport
         self.token = token
         self.pong_received = False
-        topo_file = ("../../topology/ISD%d/topologies/ISD:%d-AD:%d.json" %
-                     (src.isd, src.isd, src.ad))
-        self.sd = SCIONDaemon.start(saddr, topo_file, True)  # API on
+        conf_dir = "%s/ISD%d/AD%d/common" % (GEN_PATH, src.isd, src.ad)
+        # Local api on, random port:
+        self.sd = SCIONDaemon.start(
+            conf_dir, saddr, run_local_api=True, port=0)
         self.get_path()
         self.sock = UDPSocket(bind=(str(saddr), 0, "Ping App"),
                               addr_type=AddrType.IPV4)
@@ -157,9 +160,9 @@ class Pong(object):
         self.dst = dst
         self.token = token
         self.ping_received = False
-        topo_file = ("../../topology/ISD%d/topologies/ISD:%d-AD:%d.json" %
-                     (self.dst.isd, self.dst.isd, self.dst.ad))
-        self.sd = SCIONDaemon.start(raddr, topo_file)  # API off
+        conf_dir = "%s/ISD%d/AD%d/common" % (
+            GEN_PATH, self.dst.isd, self.dst.ad)
+        self.sd = SCIONDaemon.start(conf_dir, raddr)  # API off, standard port.
         self.sock = UDPSocket(bind=(str(raddr), 0, "Pong App"),
                               addr_type=AddrType.IPV4)
 
@@ -228,7 +231,7 @@ class TestSCIONDaemon(unittest.TestCase):
         sys.exit(failures)
 
 if __name__ == "__main__":
-    init_logging("../../logs/end2end.log", console=True)
+    init_logging("logs/end2end.log", console=True)
     handle_signals()
     if len(sys.argv) == 3:
         isd, ad = sys.argv[1].split(',')

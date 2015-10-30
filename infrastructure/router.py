@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 # Copyright 2015 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,20 +17,20 @@
 ===========================================
 """
 # Stdlib
-import argparse
 import copy
-import datetime
 import logging
-import sys
 import threading
 import time
 import zlib
 from collections import defaultdict
 
+# External packages
+from Crypto.Protocol.KDF import PBKDF2
+
 # SCION
 from external.expiring_dict import ExpiringDict
 from infrastructure.scion_elem import SCIONElement
-from lib.crypto.symcrypto import get_roundkey_cache, verify_of_mac
+from lib.crypto.symcrypto import verify_of_mac
 from lib.defines import (
     BEACON_SERVICE,
     CERTIFICATE_SERVICE,
@@ -46,7 +47,8 @@ from lib.errors import (
     SCIONBaseException,
     SCIONServiceLookupError,
 )
-from lib.log import init_logging, log_exception
+from lib.log import log_exception
+from lib.main import main_default, main_wrapper
 from lib.packet.ext.traceroute import TracerouteExt, traceroute_ext_handler
 from lib.packet.path_mgmt import (
     RevocationInfo,
@@ -62,11 +64,13 @@ from lib.thread import thread_safety_net
 from lib.types import (
     AddrType,
     ExtensionClass,
+    IFIDType,
     OpaqueFieldType as OFT,
+    PCBType,
     PathMgmtType as PMT,
     PayloadClass,
 )
-from lib.util import handle_signals, SCIONTime, sleep_interval
+from lib.util import SCIONTime, sleep_interval
 
 
 MAX_EXT = 4  # Maximum number of hop-by-hop extensions processed by router.
@@ -139,31 +143,24 @@ class Router(SCIONElement):
     :ivar interface: the router's inter-AD interface, if any.
     :type interface: :class:`lib.topology.InterfaceElement`
     """
+    SERVICE_TYPE = ROUTER_SERVICE
     FWD_REVOCATION_TIMEOUT = 5
     IFSTATE_REQ_INTERVAL = 30
 
-    def __init__(self, router_id, topo_file, config_file, pre_ext_handlers=None,
+    def __init__(self, server_id, conf_dir, pre_ext_handlers=None,
                  post_ext_handlers=None, is_sim=False):
         """
-        Initialize an instance of the class Router.
-
-        :param router_id:
-        :type router_id:
-        :param topo_file: the topology file name.
-        :type topo_file: str
-        :param config_file: the configuration file name.
-        :type config_file: str
-        :ivar pre_ext_handlers: a map of extension header types to handlers for
-                            those extensions that execute before routing.
-        :type pre_ext_handlers: dict
-        :ivar post_ext_handlers: a map of extension header types to handlers for
-                             those extensions that execute after routing.
-        :type post_ext_handlers: dict
-        :param is_sim: running in simulator
-        :type is_sim: bool
+        :param str server_id: server identifier.
+        :param str conf_dir: configuration directory.
+        :param dict pre_ext_handlers:
+            a map of extension header types to handlers for those extensions
+            that execute before routing.
+        :param dict post_ext_handlers:
+            a map of extension header types to handlers for those extensions
+            that execute after routing.
+        :param bool is_sim: running on simulator
         """
-        super().__init__(ROUTER_SERVICE, topo_file, server_id=router_id,
-                         config_file=config_file, is_sim=is_sim)
+        super().__init__(server_id, conf_dir, is_sim=is_sim)
         self.interface = None
         for edge_router in self.topology.get_all_edge_routers():
             if edge_router.addr == self.addr.host_addr:
@@ -171,11 +168,21 @@ class Router(SCIONElement):
                 break
         assert self.interface is not None
         logging.info("Interface: %s", self.interface.__dict__)
-        self.of_gen_key = get_roundkey_cache(self.config.master_ad_key)
+        self.of_gen_key = PBKDF2(self.config.master_ad_key, b"Derive OF Key")
         self.if_states = defaultdict(InterfaceState)
         self.revocations = ExpiringDict(1000, self.FWD_REVOCATION_TIMEOUT)
         self.pre_ext_handlers = pre_ext_handlers or {}
         self.post_ext_handlers = post_ext_handlers or {}
+
+        self.PLD_CLASS_MAP = {
+            PayloadClass.PCB: {PCBType.SEGMENT: self.process_pcb},
+            PayloadClass.IFID: {IFIDType.PAYLOAD: self.process_ifid_request},
+            PayloadClass.CERT: defaultdict(
+                lambda: self.relay_cert_server_packet),
+            PayloadClass.PATH: defaultdict(
+                lambda: self.process_path_mgmt_packet),
+        }
+
         if not is_sim:
             self._remote_sock = UDPSocket(
                 bind=(str(self.interface.addr), self.interface.udp_port),
@@ -696,6 +703,23 @@ class Router(SCIONElement):
         except SCIONInterfaceDownException:
             pass
 
+    def _needs_local_processing(self, pkt):
+        return (
+            (
+                # Destination is this router.
+                pkt.addrs.dst_isd == self.addr.isd_id and
+                pkt.addrs.dst_ad == self.addr.ad_id and
+                pkt.addrs.dst_addr in (self.addr.host_addr, self.interface.addr)
+            ) or (
+                # Destination is an SVC address.
+                pkt.addrs.dst_addr.TYPE == AddrType.SVC
+            ) or (
+                # FIXME(kormat): temporary hack until revocations are handled
+                # in extension header
+                pkt.addrs.src_addr.TYPE == AddrType.SVC
+            )
+        )
+
     def handle_request(self, packet, sender, from_local_socket=True):
         """
         Main routine to handle incoming SCION packets.
@@ -712,32 +736,29 @@ class Router(SCIONElement):
            `sender` is not used in this function at the moment.
         """
         from_local_ad = from_local_socket
-        class_map = {
-            PayloadClass.PCB: self.process_pcb,
-            PayloadClass.IFID: self.process_ifid_request,
-            PayloadClass.CERT: self.relay_cert_server_packet,
-            PayloadClass.PATH: self.process_path_mgmt_packet,
-        }
-        pkt = SCIONL4Packet(packet)
+        try:
+            pkt = SCIONL4Packet(packet)
+        except SCIONBaseError:
+            log_exception("Error parsing packet: %s" % packet,
+                          level=logging.ERROR)
+            return
         if self.handle_extensions(pkt, True):
             # An extention handler has taken care of the packet, so we stop
             # processing it.
             return
-        if (
-            (pkt.addrs.dst_isd == self.addr.isd_id and
-             pkt.addrs.dst_ad == self.addr.ad_id and
-             (pkt.addrs.dst_addr in (self.addr.host_addr, self.interface.addr)))
-                or (pkt.addrs.dst_addr.TYPE == AddrType.SVC)
-                or (pkt.addrs.src_addr.TYPE == AddrType.SVC)):
-            pld_class = pkt.parse_payload().PAYLOAD_CLASS
-            handler = class_map.get(pld_class)
+        if self._needs_local_processing(pkt):
+            try:
+                pkt.parse_payload()
+            except SCIONBaseError:
+                log_exception("Error parsing payload:\n%s" % pkt)
+                return
+            handler = self._get_handler(pkt)
         else:
             # It's a normal packet, just forward it.
             handler = self.forward_packet
-        logging.debug("handle_request: pkt addrs: %s handler: %s",
-                      pkt.addrs, handler)
+        logging.debug("handle_request:\n  %s\n  %s\n  handler: %s",
+                      pkt.cmn_hdr, pkt.addrs, handler)
         if not handler:
-            logging.error("Payload class not supported: %s", pld_class)
             return
         try:
             handler(pkt, from_local_ad)
@@ -746,34 +767,8 @@ class Router(SCIONElement):
 
 
 def main():
-    """
-    Initializes and starts router.
-    """
-    handle_signals()
-    parser = argparse.ArgumentParser()
-    parser.add_argument('router_id', help='Router identifier')
-    parser.add_argument('topo_file', help='Topology file')
-    parser.add_argument('conf_file', help='AD configuration file')
-    parser.add_argument('log_file', help='Log file')
-    args = parser.parse_args()
-    init_logging(args.log_file)
-    # Run router without extensions handling:
-    # router = Router(args.router_id, args.topo_file, args.conf_file)
-    # Run router with an extension handler:
     pre_handlers = {TracerouteExt.EXT_TYPE: traceroute_ext_handler}
-    router = Router(args.router_id, args.topo_file, args.conf_file,
-                    pre_ext_handlers=pre_handlers)
-
-    logging.info("Started: %s", datetime.datetime.now())
-    router.run()
+    main_default(Router, pre_ext_handlers=pre_handlers)
 
 if __name__ == "__main__":
-    try:
-        main()
-    except SystemExit:
-        logging.info("Exiting")
-        raise
-    except:
-        log_exception("Exception in main process:")
-        logging.critical("Exiting")
-        sys.exit(1)
+    main_wrapper(main)

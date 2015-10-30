@@ -76,7 +76,7 @@ class TracerouteExt(HopByHopExtension):
                                                              ISD_AD.LEN))
             self.append_hop(isd, ad, if_id, timestamp)
 
-    def pack(self):
+    def pack(self):  # pragma: no cover
         self.update()
         return self._raw
 

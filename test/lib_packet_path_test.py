@@ -24,6 +24,7 @@ import nose
 import nose.tools as ntools
 
 # SCION
+from lib.errors import SCIONParseError
 from lib.packet.path import (
     CORE_HOFS,
     CORE_IOF,
@@ -40,6 +41,7 @@ from lib.packet.path import (
     UP_IOF,
     UP_PEERING_HOF,
     UP_UPSTREAM_HOF,
+    parse_path,
 )
 from lib.packet.opaque_field import OpaqueField
 from lib.types import OpaqueFieldType as OFT
@@ -671,27 +673,50 @@ class TestCorePathReverse(object):
         inst.reverse()
         # Tests
         super_reverse.assert_called_once_with(inst)
-        inst._ofs.reverse_up_flag(CORE_IOF)
-        inst._ofs.reverse_label(CORE_HOFS)
+        inst._ofs.reverse_up_flag.assert_called_once_with(CORE_IOF)
+        inst._ofs.reverse_label.assert_called_once_with(CORE_HOFS)
 
     @patch("lib.packet.path.PathBase.reverse", autospec=True)
     @patch("lib.packet.path.PathBase.__init__", autospec=True,
            return_value=None)
-    def test_at_xovr(self, init, super_reverse):
+    def test_at_core_down_xovr(self, init, super_reverse):
         inst = CorePath()
         inst._ofs = create_mock(["reverse_label", "reverse_up_flag",
                                  "get_by_label", "count"])
         inst._ofs.count = create_mock()
         inst._ofs.count.return_value = True
+        inst._ofs.get_by_label.side_effect = ["foo", "bar"]
         inst.get_hof = create_mock()
-        inst.get_hof.return_value = inst._ofs.get_by_label.return_value
+        inst.get_hof.return_value = "foo"
         inst.next_segment = create_mock()
         # Call
         inst.reverse()
         # Tests
-        super_reverse.assert_called_once_with(inst)
-        inst._ofs.reverse_up_flag(CORE_IOF)
-        inst._ofs.reverse_label(CORE_HOFS)
+        inst._ofs.count.assert_called_once_with(UP_HOFS)
+        inst.get_hof.assert_called_once_with()
+        inst._ofs.get_by_label.assert_called_once_with(UP_HOFS, -1)
+        inst.next_segment.assert_called_with()
+
+    @patch("lib.packet.path.PathBase.reverse", autospec=True)
+    @patch("lib.packet.path.PathBase.__init__", autospec=True,
+           return_value=None)
+    def test_at_up_core_xovr(self, init, super_reverse):
+        inst = CorePath()
+        inst._ofs = create_mock(["reverse_label", "reverse_up_flag",
+                                 "get_by_label", "count"])
+        inst._ofs.count = create_mock()
+        inst._ofs.count.return_value = True
+        inst._ofs.get_by_label.side_effect = ["foo", "bar"]
+        inst.get_hof = create_mock()
+        inst.get_hof.return_value = "bar"
+        inst.next_segment = create_mock()
+        # Call
+        inst.reverse()
+        # Tests
+        assert_these_calls(inst._ofs.count, [call(UP_HOFS), call(CORE_HOFS)])
+        assert_these_calls(inst.get_hof, [call(), call()])
+        assert_these_calls(inst._ofs.get_by_label, [call(UP_HOFS, -1),
+                                                    call(CORE_HOFS, -1)])
         inst.next_segment.assert_called_with()
 
 
@@ -1559,6 +1584,46 @@ class TestPathCombinatorJoinShortcutsPeer(object):
         down_ad.pms[0].hof = 'down_hof0'
         ntools.eq_(PathCombinator._join_shortcuts_peer(up_ad, down_ad),
                    ("up_hof1", "down_hof0"))
+
+
+class TestParsePath(object):
+    """
+    Unit tests for lib.packet.path.parse_path
+    """
+    @patch("lib.packet.path.EmptyPath", autospec=True)
+    def test_empty(self, empty):
+        ntools.eq_(parse_path(""), empty.return_value)
+
+    @patch("lib.packet.path.PeerPath", autospec=True)
+    @patch("lib.packet.path.CrossOverPath", autospec=True)
+    @patch("lib.packet.path.CorePath", autospec=True)
+    @patch("lib.packet.path.InfoOpaqueField", autospec=True)
+    def _check_paths(self, info_type, class_name, iof, core, xover, peer):
+        class_map = {"core": core, "xover": xover, "peer": peer}
+        class_ = class_map[class_name]
+        info = create_mock(["info"])
+        info.info = info_type
+        iof.return_value = info
+        iof.LEN = 10
+        # Call
+        ntools.eq_(parse_path(range(20)), class_.return_value)
+        # Tests
+        iof.assert_called_once_with(range(10))
+        class_.assert_called_once_with(range(20))
+
+    def test_paths(self):
+        for info_type, class_name in (
+            (OFT.CORE, "core"),
+            (OFT.SHORTCUT, "xover"),
+            (OFT.INTRA_ISD_PEER, "peer"),
+            (OFT.INTER_ISD_PEER, "peer"),
+        ):
+            yield self._check_paths, info_type, class_name
+
+    @patch("lib.packet.path.InfoOpaqueField", autospec=True)
+    def test_unknown(self, iof):
+        iof.return_value = create_mock(["info"])
+        ntools.assert_raises(SCIONParseError, parse_path, range(1))
 
 
 if __name__ == "__main__":

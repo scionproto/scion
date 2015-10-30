@@ -1,5 +1,6 @@
 dnsutils
 gcc
+libffi-dev
 make
 net-tools
 netcat-openbsd

@@ -17,7 +17,7 @@ from ad_manager.models import (
     DnsServerWeb,
     AD)
 from ad_manager.util.common import is_private_address
-from lib.defines import TOPOLOGY_PATH
+from lib.defines import GEN_PATH
 from lib.util import read_file, write_file, get_trc_file_path
 from topology.generator import (
     ConfigGenerator,
@@ -44,8 +44,8 @@ def find_last_router(topo_dict):
 
 def find_next_ip_local():
     max_ip = ip_address(IP_ADDRESS_BASE)
-    topo_files = glob.glob(os.path.join(TOPOLOGY_PATH,
-                                        'ISD*', 'topologies', 'ISD*.json'))
+    topo_files = glob.glob(os.path.join(
+        GEN_PATH, 'ISD*', 'topologies', 'ISD*.json'))
 
     ip_addr_re = re.compile(r'"((\d{1,3}\.){3}\d{1,3})"')
     # Scan all config files for IP addresses, select the largest
@@ -188,7 +188,7 @@ def link_ads(first_ad, second_ad, link_type):
 
 def get_some_trc_path(isd_id):
     dst_path = get_trc_file_path(isd_id, 0, isd_id, 0,
-                                 isd_dir=TOPOLOGY_PATH)
+                                 isd_dir=GEN_PATH)
     components = os.path.normpath(dst_path).split(os.sep)
 
     components[-2] = 'AD*'

@@ -6,7 +6,7 @@ provide a hermetic build and test environment for SCION.
 
 The docker image is a basic ubuntu environment, with your working tree, and all
 scion dependancies installed, and all SCION setup steps done (i.e. `./scion.sh
-init topology`). A full build from scratch will take 5-10mins on a fast machine
+topology`). A full build from scratch will take 5-10mins on a fast machine
 with a decent net connection. Subsequent rebuilds are Much faster; if you
 haven't changed deps.sh or the dependancy list, a rebuild takes <= 15s.
 

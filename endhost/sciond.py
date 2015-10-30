@@ -25,12 +25,10 @@ from infrastructure.scion_elem import SCIONElement
 from lib.crypto.hash_chain import HashChain
 from lib.defines import PATH_SERVICE, SCION_UDP_PORT
 from lib.errors import SCIONBaseError, SCIONServiceLookupError
-from lib.log import log_exception
 from lib.packet.host_addr import haddr_parse
 from lib.packet.path import EmptyPath, PathCombinator
 from lib.packet.path_mgmt import PathSegmentInfo
 from lib.packet.scion_addr import ISD_AD
-from lib.packet.scion import SCIONL4Packet
 from lib.path_db import PathSegmentDB
 from lib.socket import UDPSocket
 from lib.thread import thread_safety_net
@@ -83,32 +81,33 @@ class SCIONDaemon(SCIONElement):
     TIMEOUT = 5
     # Number of tokens the PS checks when receiving a revocation.
     N_TOKENS_CHECK = 20
+    # Time a path segment is cached at a host (in seconds).
+    SEGMENT_TTL = 300
 
-    def __init__(self, addr, topo_file, run_local_api=False, is_sim=False):
+    def __init__(self, conf_dir, addr, run_local_api=False,
+                 port=SCION_UDP_PORT, is_sim=False):
         """
         Initialize an instance of the class SCIONDaemon.
-
-        :param addr:
-        :type addr:
-        :param topo_file:
-        :type topo_file:
-        :param run_local_api:
-        :type run_local_api:
-        :param is_sim: running on simulator
-        :type is_sim: bool
         """
-        SCIONElement.__init__(self, "sciond", topo_file, host_addr=addr,
-                              is_sim=is_sim)
+        super().__init__("sciond", conf_dir, host_addr=addr, port=port,
+                         is_sim=is_sim)
         # TODO replace by pathstore instance
-        self.up_segments = PathSegmentDB()
-        self.down_segments = PathSegmentDB()
-        self.core_segments = PathSegmentDB()
+        self.up_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL)
+        self.down_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL)
+        self.core_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL)
         self._waiting_targets = {PST.UP: {},
                                  PST.DOWN: {},
                                  PST.CORE: {},
                                  PST.UP_DOWN: {}}
         self._api_socket = None
         self.daemon_thread = None
+
+        self.PLD_CLASS_MAP = {
+            PayloadClass.PATH: {
+                PMT.REPLY: self.handle_path_reply,
+                PMT.REVOCATION: self.handle_revocation,
+            }
+        }
         if run_local_api:
             self._api_sock = UDPSocket(
                 bind=(SCIOND_API_HOST, SCIOND_API_PORT, "sciond local API"),
@@ -116,7 +115,7 @@ class SCIONDaemon(SCIONElement):
             self._socks.add(self._api_sock)
 
     @classmethod
-    def start(cls, addr, topo_file, run_local_api=False):
+    def start(cls, addr, topo_file, run_local_api=False, port=SCION_UDP_PORT):
         """
         Initializes, starts, and returns a SCIONDaemon object.
 
@@ -131,7 +130,7 @@ class SCIONDaemon(SCIONElement):
         :param :
         :type :
         """
-        sd = cls(addr, topo_file, run_local_api)
+        sd = cls(addr, topo_file, run_local_api, port=port)
         sd.daemon_thread = threading.Thread(
             target=thread_safety_net, args=(sd.run,), name="SCIONDaemon.run",
             daemon=True)
@@ -274,22 +273,16 @@ class SCIONDaemon(SCIONElement):
                     and info.dst_isd == isd and info.dst_ad == ad):
                 self.down_segments.update(pcb, info.src_isd, info.src_ad,
                                           info.dst_isd, info.dst_ad)
-                logging.info("Down path (%d, %d)->(%d, %d) added.",
-                             info.src_isd, info.src_ad, info.dst_isd,
-                             info.dst_ad)
+                logging.debug("Down path added: %s", pcb.short_desc())
             elif ((self.topology.isd_id == isd and self.topology.ad_id == ad)
                     and info.seg_type in [PST.UP, PST.UP_DOWN]):
                 self.up_segments.update(pcb, pcb.get_isd(),
                                         pcb.get_first_pcbm().ad_id, isd, ad)
-                logging.info("Up path (%d, %d)->(%d, %d) added.",
-                             info.src_isd, info.src_ad, info.dst_isd,
-                             info.dst_ad)
+                logging.debug("Up path added: %s", pcb.short_desc())
             elif info.seg_type == PST.CORE:
                 self.core_segments.update(pcb, info.dst_isd, info.dst_ad,
                                           info.src_isd, info.src_ad)
-                logging.info("Core path (%d, %d)->(%d, %d) added.",
-                             info.src_isd, info.src_ad, info.dst_isd,
-                             info.dst_ad)
+                logging.debug("Core path added: %s", pcb.short_desc())
             else:
                 logging.warning("Incorrect path in Path Record")
         self.handle_waiting_targets(path_reply)
@@ -430,22 +423,4 @@ class SCIONDaemon(SCIONElement):
         if not from_local_socket:  # From localhost (SCIONDaemon API)
             self.api_handle_request(packet, sender)
             return
-        type_map = {
-            PMT.REPLY: self.handle_path_reply,
-            PMT.REVOCATION: self.handle_revocation,
-        }
-        pkt = SCIONL4Packet(packet)
-        payload = pkt.parse_payload()
-        if payload.PAYLOAD_CLASS != PayloadClass.PATH:
-            logging.error("Payload class %d not supported.",
-                          payload.PAYLOAD_CLASS)
-            return
-        handler = type_map.get(payload.PAYLOAD_TYPE)
-        if handler is None:
-            logging.warning("Path management packet type %d not supported.",
-                            payload.PAYLOAD_TYPE)
-            return
-        try:
-            handler(pkt)
-        except SCIONBaseError:
-            log_exception("Error handling packet: %s" % pkt)
+        super().handle_request(packet, sender, from_local_socket)

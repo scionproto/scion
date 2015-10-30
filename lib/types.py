@@ -19,7 +19,7 @@ For all type classes that are used in multiple parts of the infrastructure.
 """
 
 
-class TypeBase(object):
+class TypeBase(object):  # pragma: no cover
     @classmethod
     def to_str(cls, type_):
         for attr in dir(cls):
@@ -100,3 +100,11 @@ class PathSegmentType(TypeBase):
     DOWN = 1  # Request/Reply for down-paths
     CORE = 2  # Request/Reply for core-paths
     UP_DOWN = 3  # Request/Reply for up- and down-paths
+
+
+class PCBType(TypeBase):
+    SEGMENT = 0
+
+
+class IFIDType(object):
+    PAYLOAD = 0

@@ -27,8 +27,7 @@ Thumbs.db
 # SCION generated files #
 #########################
 /logs/
-/topology/ISD*/
-/topology/SIM/
+/gen/
 /traces/
 
 

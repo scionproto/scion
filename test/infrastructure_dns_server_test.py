@@ -222,24 +222,6 @@ class TestSCIONDnsProtocolServerHandleError(object):
         self._check(SCIONDnsUdpServer("srvaddr", "reqhndlcls"))
 
 
-class TestSCIONDnsServerInit(BaseDNSServer):
-    """
-    Unit tests for infrastructure.dns_server.SCIONDnsServer.__init__
-    """
-    @patch('infrastructure.dns_server.threading.Lock', autospec=True)
-    @patch('infrastructure.dns_server.SCIONElement.__init__', autospec=True,
-           return_value=None)
-    def test(self, elem_init, lock):
-        # Call
-        server = SCIONDnsServer("srvid", self.DOMAIN, "topofile")
-        # Tests
-        elem_init.assert_called_once_with(server, DNS_SERVICE, "topofile",
-                                          server_id="srvid")
-        ntools.eq_(server.domain, self.DOMAIN)
-        ntools.eq_(server.lock, lock.return_value)
-        ntools.eq_(server.services, {})
-
-
 class TestSCIONDnsServerSetup(BaseDNSServer):
     """
     Unit tests for infrastructure.dns_server.SCIONDnsServer.setup
@@ -253,7 +235,7 @@ class TestSCIONDnsServerSetup(BaseDNSServer):
     def test(self, init, zone_resolver, dns_server, dns_logger,
              zookeeper):
         # Setup
-        server = SCIONDnsServer("srvid", "domain", "topofile")
+        server = SCIONDnsServer("srvid", "conf_dir")
         server.lock = "lock"
         server.domain = "domain"
         server.addr = create_mock(["host_addr"])
@@ -291,7 +273,7 @@ class TestSCIONDnsSetupParties(BaseDNSServer):
     @patch("infrastructure.dns_server.SCIONDnsServer.__init__", autospec=True,
            return_value=None)
     def test(self, _):
-        server = SCIONDnsServer("server_id", "domain", "topo_file")
+        server = SCIONDnsServer("srvid", "conf_dir")
         server.zk = create_mock(["retry", "party_setup"])
         server.topology = create_mock(["isd_id", "ad_id"])
         server.topology.isd_id = 30
@@ -324,7 +306,7 @@ class TestSCIONDnsSyncZkState(BaseDNSServer):
             DNS_SERVICE: ["ds1", "ds2"],
             PATH_SERVICE: [],
         }
-        server = SCIONDnsServer("srvid", "domain", "topofile")
+        server = SCIONDnsServer("srvid", "conf_dir")
         server.zk = create_mock(['wait_connected'])
         server.domain = self.DOMAIN
         server._parties = {}
@@ -353,7 +335,7 @@ class TestSCIONDnsSyncZkState(BaseDNSServer):
            return_value=None)
     def test_no_conn(self, init):
         # Setup
-        server = SCIONDnsServer("srvid", "domain", "topofile")
+        server = SCIONDnsServer("srvid", "conf_dir")
         server.zk = create_mock(['wait_connected'])
         server.zk.wait_connected.side_effect = ZkNoConnection
         # Call
@@ -366,7 +348,7 @@ class TestSCIONDnsSyncZkState(BaseDNSServer):
            return_value=None)
     def test_connloss(self, init):
         # Setup
-        server = SCIONDnsServer("srvid", "domain", "topofile")
+        server = SCIONDnsServer("srvid", "conf_dir")
         server.zk = create_mock(['wait_connected'])
         server.domain = self.DOMAIN
         party = create_mock(["list"])
@@ -386,7 +368,7 @@ class TestSCIONDnsParseSrvInst(BaseDNSServer):
            return_value=None)
     def test(self, init):
         # Setup
-        server = SCIONDnsServer("srvid", "domain", "topofile")
+        server = SCIONDnsServer("srvid", "conf_dir")
         srv_domain = self.DOMAIN.add(BEACON_SERVICE)
         server.services = {srv_domain: ["addr0"]}
         # Call
@@ -404,7 +386,7 @@ class TestSCIONDnsRun(BaseDNSServer):
            return_value=None)
     def test(self, init, sleep):
         # Setup
-        server = SCIONDnsServer("srvid", "domain", "topofile")
+        server = SCIONDnsServer("srvid", "conf_dir")
         server._sync_zk_state = create_mock()
         server.udp_server = create_mock(["start_thread", "isAlive"])
         server.tcp_server = create_mock(["start_thread", "isAlive"])

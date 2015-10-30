@@ -16,20 +16,15 @@
 =================================================
 """
 # Stdlib
-from unittest.mock import patch, MagicMock
+from collections import defaultdict
+from unittest.mock import call, patch, MagicMock
 
 # External packages
 import nose
 import nose.tools as ntools
 
 # SCION
-from lib.defines import (
-    BEACON_SERVICE,
-    CERTIFICATE_SERVICE,
-    DNS_SERVICE,
-    PATH_SERVICE,
-    ROUTER_SERVICE,
-)
+from lib.errors import SCIONKeyError
 from lib.topology import (
     Element,
     InterfaceElement,
@@ -37,6 +32,7 @@ from lib.topology import (
     ServerElement,
     Topology
 )
+from test.testcommon import assert_these_calls, create_mock
 
 
 class TestElementInit(object):
@@ -44,23 +40,23 @@ class TestElementInit(object):
     Unit tests for lib.topology.Element.__init__
     """
     def test_basic(self):
-        elem = Element()
-        ntools.assert_is_none(elem.addr)
-        ntools.assert_is_none(elem.name)
+        inst = Element()
+        ntools.assert_is_none(inst.addr)
+        ntools.assert_is_none(inst.name)
 
-    @patch("lib.topology.haddr_parse", autospec=True)
-    def test_ip_addr(self, parse):
-        element = Element(("addrtype", "addr"))
-        parse.assert_called_with("addrtype", "addr")
-        ntools.eq_(element.addr, parse.return_value)
+    @patch("lib.topology.haddr_parse_interface", autospec=True)
+    def test_addr(self, parse):
+        inst = Element("addr")
+        parse.assert_called_with("addr")
+        ntools.eq_(inst.addr, parse.return_value)
 
-    def test_name_basic(self):
-        elem = Element(name='localhost')
-        ntools.assert_equal(elem.name, 'localhost')
-
-    def test_name_numeric(self):
-        elem = Element(name=42)
-        ntools.assert_equal(elem.name, '42')
+    def test_name(self):
+        name = create_mock(["__str__"])
+        name.__str__.return_value = "hostname"
+        # Call
+        inst = Element(name=name)
+        # Tests
+        ntools.assert_equal(inst.name, "hostname")
 
 
 class TestServerElementInit(object):
@@ -68,84 +64,53 @@ class TestServerElementInit(object):
     Unit tests for lib.topology.ServerElement.__init__
     """
     @patch("lib.topology.Element.__init__", autospec=True)
-    def test_basic(self, element_init):
-        server_dict = {'AddrType': "addrtype", 'Addr': 123}
-        server = ServerElement(server_dict, 'name')
-        element_init.assert_called_once_with(server, ("addrtype", 123), 'name')
-
-    @patch("lib.topology.Element.__init__", autospec=True)
-    def test_no_name(self, element_init):
-        server_dict = {'AddrType': "addrtype", 'Addr': 123}
-        server = ServerElement(server_dict)
-        element_init.assert_called_once_with(server, ("addrtype", 123), None)
+    def test_full(self, element_init):
+        inst = ServerElement({'Addr': 123}, 'name')
+        # Tests
+        element_init.assert_called_once_with(inst, 123, 'name')
 
 
 class TestInterfaceElementInit(object):
     """
     Unit tests for lib.topology.InterfaceElement.__init__
     """
-    def setUp(self):
-        self.interface_dict = {
-            'AddrType': 'atype', 'Addr': 'addr', 'IFID': 1, 'NeighborAD': 2,
+
+    @patch("lib.topology.haddr_parse_interface", autospec=True)
+    @patch("lib.topology.Element.__init__", autospec=True)
+    def test_full(self, super_init, parse):
+        intf_dict = {
+            'Addr': 'addr', 'IFID': 1, 'NeighborAD': 2,
             'NeighborISD': 3, 'NeighborType': 4, 'ToUdpPort': 5, 'UdpPort': 6,
-            'ToAddr': None,
+            'ToAddr': 'toaddr',
         }
-
-    def tearDown(self):
-        del self.interface_dict
-
-    @patch("lib.topology.Element.__init__", autospec=True)
-    def test_to_addr_none(self, element_init):
-        interface = InterfaceElement(self.interface_dict, 'name')
-        element_init.assert_called_once_with(
-            interface, ('atype', 'addr'), 'name')
-        ntools.eq_(interface.if_id, 1)
-        ntools.eq_(interface.neighbor_ad, 2)
-        ntools.eq_(interface.neighbor_isd, 3)
-        ntools.eq_(interface.neighbor_type, 4)
-        ntools.eq_(interface.to_udp_port, 5)
-        ntools.eq_(interface.udp_port, 6)
-        ntools.assert_is_none(interface.to_addr)
-
-    @patch("lib.topology.Element.__init__", autospec=True)
-    def test_name_none(self, element_init):
-        interface = InterfaceElement(self.interface_dict)
-        element_init.assert_called_once_with(
-            interface, ('atype', 'addr'), None)
-
-    @patch("lib.topology.haddr_parse", autospec=True)
-    @patch("lib.topology.Element.__init__", autospec=True)
-    def test_to_addr(self, element_init, parse):
-        self.interface_dict['ToAddr'] = 'toaddr'
-        interface = InterfaceElement(self.interface_dict)
-        parse.assert_called_once_with('atype', 'toaddr')
-        ntools.eq_(interface.to_addr, parse.return_value)
+        # Call
+        inst = InterfaceElement(intf_dict, 'name')
+        # Tests
+        super_init.assert_called_once_with(inst, 'addr', 'name')
+        ntools.eq_(inst.if_id, 1)
+        ntools.eq_(inst.neighbor_ad, 2)
+        ntools.eq_(inst.neighbor_isd, 3)
+        ntools.eq_(inst.neighbor_type, 4)
+        ntools.eq_(inst.to_udp_port, 5)
+        ntools.eq_(inst.udp_port, 6)
+        parse.assert_called_once_with("toaddr")
+        ntools.eq_(inst.to_addr, parse.return_value)
 
 
 class TestRouterElementInit(object):
     """
     Unit tests for lib.topology.RouterElement.__init__
     """
-    def setUp(self):
-        self.router_dict = {'AddrType': 'atype', 'Addr': 'addr', 'Interface': 2}
-
-    def tearDown(self):
-        del self.router_dict
-
     @patch("lib.topology.InterfaceElement", autospec=True)
     @patch("lib.topology.Element.__init__", autospec=True)
-    def test_basic(self, element_init, interface):
-        interface.return_value = 'interface'
-        router = RouterElement(self.router_dict, 'name')
-        element_init.assert_called_once_with(router, ('atype', 'addr'), 'name')
+    def test_full(self, super_init, interface):
+        router_dict = {'Addr': 'addr', 'Interface': 2}
+        # Call
+        inst = RouterElement(router_dict, 'name')
+        # Tests
+        super_init.assert_called_once_with(inst, 'addr', 'name')
         interface.assert_called_once_with(2)
-        ntools.eq_(router.interface, 'interface')
-
-    @patch("lib.topology.InterfaceElement", autospec=True)
-    @patch("lib.topology.Element.__init__", autospec=True)
-    def test_name_none(self, element_init, interface):
-        router = RouterElement(self.router_dict)
-        element_init.assert_called_once_with(router, ('atype', 'addr'), None)
+        ntools.eq_(inst.interface, interface.return_value)
 
 
 class TestTopologyInit(object):
@@ -198,67 +163,99 @@ class TestTopologyParseDict(object):
     """
     Unit tests for lib.topology.Topology.parse_dict
     """
-    @patch("lib.topology.logging.warning", autospec=True)
-    @patch("lib.topology.RouterElement", autospec=True)
-    @patch("lib.topology.ServerElement", autospec=True)
-    def test(self, server_elem, router_elem, log_warning):
-        bs = {'a': 'b', 'c': 'd'}
-        cs = {'e': 'f', 'g': 'h'}
-        ds = {'i': 'j', 'k': 'l'}
-        ps = {'m': 'n', 'o': 'p'}
-        er = {ROUTER_SERVICE + str(i): 'router' + str(i) for i in range(5)}
-        zk = {
-            'zk0': {
-                'AddrType': "IPV4", 'Addr': 'zkv4', 'ClientPort': 2181,
-            },
-            'zk1': {
-                'AddrType': "IPV6", 'Addr': 'zkv6', 'ClientPort': 2182,
-            }
-        }
-        topo_dict = {
-            'Core': 0, 'ISDID': 1, 'ADID': 2,
-            'DnsDomain': 3, 'BeaconServers': bs,
-            'CertificateServers': cs, 'DNSServers': ds,
-            'PathServers': ps, 'EdgeRouters': er,
-            'Zookeepers': zk,
-        }
-        server_elem.side_effect = ['bs0', 'bs1', 'cs0', 'cs1', 'ds0', 'ds1',
-                                   'ps0', 'ps1']
-        routers = [MagicMock(spec_set=['interface']) for i in range(5)]
-        for router in routers:
-            router.interface = MagicMock(spec_set=['neighbor_type'])
-        routers[0].interface.neighbor_type = 'PARENT'
-        routers[1].interface.neighbor_type = 'CHILD'
-        routers[2].interface.neighbor_type = 'PEER'
-        routers[3].interface.neighbor_type = 'ROUTING'
-        router_elem.side_effect = routers
-        topology = Topology()
-        topology.beacon_servers = [1]
-        topology.certificate_servers = [2]
-        topology.dns_servers = [3]
-        topology.path_servers = [4]
-        topology.parent_edge_routers = [5]
-        topology.child_edge_routers = [6]
-        topology.peer_edge_routers = [7]
-        topology.routing_edge_routers = [8]
+    def test(self):
+        topo_dict = {'Core': True, 'ISDID': 1, 'ADID': 2, 'DnsDomain': 3}
+        inst = Topology()
+        inst._parse_srv_dicts = create_mock()
+        inst._parse_router_dicts = create_mock()
+        inst._parse_zk_dicts = create_mock()
         # Call
-        topology.parse_dict(topo_dict)
+        inst.parse_dict(topo_dict)
         # Tests
-        ntools.assert_false(topology.is_core_ad)
-        ntools.eq_(topology.isd_id, 1)
-        ntools.eq_(topology.ad_id, 2)
-        ntools.eq_(topology.dns_domain, 3)
-        ntools.eq_(topology.beacon_servers, [1, 'bs0', 'bs1'])
-        ntools.eq_(topology.certificate_servers, [2, 'cs0', 'cs1'])
-        ntools.eq_(topology.dns_servers, [3, 'ds0', 'ds1'])
-        ntools.eq_(topology.path_servers, [4, 'ps0', 'ps1'])
-        ntools.eq_(topology.parent_edge_routers, [5, routers[0]])
-        ntools.eq_(topology.child_edge_routers, [6, routers[1]])
-        ntools.eq_(topology.peer_edge_routers, [7, routers[2]])
-        ntools.eq_(topology.routing_edge_routers, [8, routers[3]])
-        ntools.eq_(sorted(topology.zookeepers),
-                   sorted([('zkv4:2181'), ('[zkv6]:2182')]))
-        ntools.eq_(log_warning.call_count, 1)
+        ntools.eq_(inst.is_core_ad, True)
+        ntools.eq_(inst.isd_id, 1)
+        ntools.eq_(inst.ad_id, 2)
+        ntools.eq_(inst.dns_domain, 3)
+        inst._parse_srv_dicts.assert_called_once_with(topo_dict)
+        inst._parse_router_dicts.assert_called_once_with(topo_dict)
+        inst._parse_zk_dicts.assert_called_once_with(topo_dict)
+
+
+class TestTopologyParseSrvDicts(object):
+    """
+    Unit tests for lib.topology.Topology.parse_srv_dicts
+    """
+    @patch("lib.topology.ServerElement", autospec=True)
+    def test(self, server):
+        topo_dict = {
+            'BeaconServers': {"bs1": "bs1 val"},
+            'CertificateServers': {"cs1": "cs1 val"},
+            'DNSServers': {"ds1": "ds1 val"},
+            'PathServers': {"ps1": "ps1 val", "ps2": "ps2 val"},
+        }
+        inst = Topology()
+        server.side_effect = lambda v, k: "%s-%s" % (k, v)
+        # Call
+        inst._parse_srv_dicts(topo_dict)
+        # Tests
+        assert_these_calls(server, [
+            call("bs1 val", "bs1"), call("cs1 val", "cs1"),
+            call("ds1 val", "ds1"), call("ps1 val", "ps1"),
+            call("ps2 val", "ps2"),
+        ], any_order=True)
+        ntools.eq_(inst.beacon_servers, ["bs1-bs1 val"])
+        ntools.eq_(inst.certificate_servers, ["cs1-cs1 val"])
+        ntools.eq_(inst.dns_servers, ["ds1-ds1 val"])
+        ntools.eq_(sorted(inst.path_servers),
+                   sorted(["ps1-ps1 val", "ps2-ps2 val"]))
+
+
+class TestTopologyParseRouterDicts(object):
+    """
+    Unit tests for lib.topology.Topology.parse_router_dicts
+    """
+    @patch("lib.topology.RouterElement", autospec=True)
+    def test(self, router):
+        def _mk_router(type_):
+            m = create_mock(["interface"])
+            m.interface = create_mock(["neighbor_type"])
+            m.interface.neighbor_type = type_
+            routers[type_].append(m)
+            return m
+        routers = defaultdict(list)
+        router_dict = {
+            "er-parent": "PARENT", "er-child": "CHILD",
+            "er-peer": "PEER", "er-routing0": "ROUTING",
+            "er-routing1": "ROUTING",
+        }
+        inst = Topology()
+        router.side_effect = lambda v, k: _mk_router(v)
+        # Call
+        inst._parse_router_dicts({"EdgeRouters": router_dict})
+        # Tests
+        ntools.assert_count_equal(inst.parent_edge_routers, routers["PARENT"])
+        ntools.assert_count_equal(inst.child_edge_routers, routers["CHILD"])
+        ntools.assert_count_equal(inst.peer_edge_routers, routers["PEER"])
+        ntools.assert_count_equal(inst.routing_edge_routers, routers["ROUTING"])
+
+
+class TestTopologyParseZkDicts(object):
+    """
+    Unit tests for lib.topology.Topology.parse_zk_dicts
+    """
+    @patch("lib.topology.haddr_parse_interface", autospec=True)
+    def test(self, parse):
+        zk_dict = {
+            'zk0': {'Addr': 'zkv4', 'Port': 2181},
+            'zk1': {'Addr': 'zkv6', 'Port': 2182},
+        }
+        inst = Topology()
+        parse.side_effect = lambda x: x
+        # Call
+        inst._parse_zk_dicts({"Zookeepers": zk_dict})
+        # Tests
+        ntools.assert_count_equal(inst.zookeepers,
+                                  ["[zkv4]:2181", "[zkv6]:2182"])
 
 
 class TestTopologyGetAllEdgeRouters(object):
@@ -278,58 +275,28 @@ class TestTopologyGetOwnConfig(object):
     """
     Unit tests for lib.topology.Topology.get_own_config
     """
-    @patch("lib.topology.logging.error", autospec=True)
-    def _check(self, topology, server_type, server_id, server, log_error):
-        ntools.eq_(topology.get_own_config(server_type, server_id), server)
-        if server is None:
-            ntools.eq_(log_error.call_count, 1)
-
-    def test(self):
-        topology = Topology()
-        topology.beacon_servers = [MagicMock(spec_set=['name']) for i in
-                                   range(4)]
-        topology.beacon_servers[2].name = 'name'
-        topology.certificate_servers = [MagicMock(spec_set=['name']) for i in
-                                        range(4)]
-        topology.certificate_servers[2].name = 'name'
-        topology.dns_servers = [MagicMock(spec_set=['name']) for i in range(4)]
-        topology.dns_servers[2].name = 'name'
-        topology.path_servers = [MagicMock(spec_set=['name']) for i in range(4)]
-        topology.path_servers[2].name = 'name'
-        server_types = [BEACON_SERVICE, CERTIFICATE_SERVICE, DNS_SERVICE,
-                        PATH_SERVICE] * 2
-        server_ids = ['name'] * 4 + ['bad_name'] * 4
-        servers = [topology.beacon_servers[2],
-                   topology.certificate_servers[2],
-                   topology.dns_servers[2],
-                   topology.path_servers[2]] + [None] * 4
-        for type, id, server in zip(server_types, server_ids, servers):
-            yield self._check, topology, type, id, server
+    @patch("lib.topology.Topology.get_all_edge_routers", autospec=True)
+    def test_basic(self, _):
+        inst = Topology()
+        for i in range(4):
+            bs = create_mock(["name"])
+            bs.name = "bs%d" % i
+            inst.beacon_servers.append(bs)
+        # Call
+        ntools.eq_(inst.get_own_config("bs", "bs3"),
+                   inst.beacon_servers[3])
 
     @patch("lib.topology.Topology.get_all_edge_routers", autospec=True)
-    def test_er(self, get_edge_routers):
-        topology = Topology()
-        edge_routers = [MagicMock(spec_set=['name']) for i in range(4)]
-        edge_routers[2].name = 'name'
-        get_edge_routers.return_value = edge_routers
-        ntools.eq_(topology.get_own_config(ROUTER_SERVICE, 'name'),
-                   edge_routers[2])
-        get_edge_routers.assert_called_once_with(topology)
+    def test_unknown_type(self, _):
+        inst = Topology()
+        # Call
+        ntools.assert_raises(SCIONKeyError, inst.get_own_config, "asdf", 1)
 
-    @patch("lib.topology.logging.error", autospec=True)
     @patch("lib.topology.Topology.get_all_edge_routers", autospec=True)
-    def test_er_fail(self, get_edge_routers, log_error):
-        topology = Topology()
-        edge_routers = [MagicMock(spec_set=['name']) for i in range(4)]
-        get_edge_routers.return_value = edge_routers
-        ntools.assert_is_none(topology.get_own_config(ROUTER_SERVICE, 'name'))
-        ntools.eq_(log_error.call_count, 1)
-
-    @patch("lib.topology.logging.error", autospec=True)
-    def test_bad_server_type(self, log_error):
-        topology = Topology()
-        ntools.assert_is_none(topology.get_own_config('blah', 'blah'))
-        ntools.eq_(log_error.call_count, 1)
+    def test_unknown_server(self, _):
+        inst = Topology()
+        # Call
+        ntools.assert_raises(SCIONKeyError, inst.get_own_config, "bs", "name")
 
 
 if __name__ == "__main__":
