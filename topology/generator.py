@@ -137,6 +137,8 @@ class ConfigGenerator(object):
                 def_network = DEFAULT_NETWORK
         self.subnet_gen = SubnetGenerator(def_network)
         for key, val in defaults.get("zookeepers", {}).items():
+            if self.mininet and val['addr'] == "127.0.0.1":
+                val['addr'] = "169.254.0.1"
             self.default_zookeepers[key] = ZKTopo(
                 val, self.zk_config)
 
