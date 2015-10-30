@@ -35,12 +35,12 @@ class ScionTopo(Topo):
 
         # Initialize topology
         Topo.__init__(self, **params)
+        self.switch_map = {}
         self._genTopo(mnconfig)
 
     def _genTopo(self, mnconfig):
-        switch_map = {}
         for i, name in enumerate(mnconfig.sections()):
-            switch_map[name] = self.addSwitch("s%s" % i)
+            self.switch_map[name] = self.addSwitch("s%s" % i)
         host_map = {}
         for name, section in mnconfig.items():
             for elem, intf_str in section.items():
@@ -51,7 +51,7 @@ class ScionTopo(Topo):
                     host_map[elem] = self.addHost(
                         elem.replace("-", "_"), ip=None)
                 intf = ipaddress.ip_interface(intf_str)
-                self.addLink(host_map[elem], switch_map[name],
+                self.addLink(host_map[elem], self.switch_map[name],
                              params={'ip': str(intf)})
 
     def addLink(self, node1, node2, params=None):
@@ -76,7 +76,14 @@ def main():
     topo = ScionTopo(topology)
     net = Mininet(topo=topo, controller=RemoteController, link=ScionLink,
                   switch=OVSKernelSwitch)
+    for host in net.hosts:
+        host.cmd('ip route add 169.254.0.1 dev '+host.intf().name)
     net.start()
+    for switch in net.switches:
+        os.system('ip addr add 169.254.0.1 dev %s' % switch.name)
+        for k, v in topo.switch_map.items():
+            if v == switch.name:
+                os.system('ip route add %s dev %s' % (k, switch.name))
     host = net.hosts[0]
     info(host.cmd("%s -c gen/mininet/%s.conf" %
                   (supervisord, host.name.replace("_", "-"))))
