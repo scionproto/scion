@@ -17,7 +17,7 @@
 """
 # Stdlib
 import struct
-import time
+from datetime import datetime, timezone
 from abc import ABCMeta, abstractmethod
 from binascii import hexlify
 
