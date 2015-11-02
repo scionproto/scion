@@ -17,7 +17,7 @@
 """
 # Stdlib
 import struct
-import time
+from datetime import datetime, timezone
 from abc import ABCMeta, abstractmethod
 from binascii import hexlify
 
@@ -251,9 +251,10 @@ class InfoOpaqueField(OpaqueField):
             return False
 
     def __str__(self):
+        dt = datetime.fromtimestamp(self.timestamp, tz=timezone.utc)
         return ("[Info OF info(%dB): %s, up: %r, TS: %s, ISD ID: %d, hops: %d]"
                 % (len(self), OFT.to_str(self.info), self.up_flag,
-                   time.ctime(self.timestamp), self.isd_id, self.hops))
+                   dt.isoformat(' '), self.isd_id, self.hops))
 
 
 class OpaqueFieldList(object):

@@ -21,7 +21,7 @@ import logging
 import struct
 from abc import ABCMeta, abstractmethod
 from binascii import hexlify
-from datetime import datetime
+from datetime import datetime, timezone
 
 # External packages
 from Crypto.Hash import SHA256
@@ -544,7 +544,7 @@ class PathSegment(SCIONPayloadBase):
         truncated hash, the IOF timestamp, and the list of hops.
         """
         desc = []
-        dt = datetime.fromtimestamp(self.get_timestamp())
+        dt = datetime.fromtimestamp(self.get_timestamp(), tz=timezone.utc)
         desc.append("%s, %s, " % (
             self.get_hops_hash(hex=True)[:12],
             dt.isoformat(' '),

@@ -64,7 +64,8 @@ class TestInitLogging(object):
     @patch("lib.log._ConsoleErrorHandler", autospec=True)
     @patch("lib.log._RotatingErrorHandler", autospec=True)
     @patch("lib.log.logging.basicConfig", autospec=True)
-    def test_full(self, basic_config, rotate, console):
+    @patch("lib.log._Rfc3339Formatter", autospec=True)
+    def test_full(self, formatter, basic_config, rotate, console):
         # Call
         init_logging("logfile", 123, console=True)
         # Tests
@@ -72,10 +73,12 @@ class TestInitLogging(object):
             "logfile", maxBytes=LOG_MAX_SIZE, backupCount=LOG_BACKUP_COUNT,
             encoding="utf-8")
         console.assert_called_once_with()
+        rotate.return_value.setFormatter.assert_called_once_with(
+            formatter.return_value)
+        console.return_value.setFormatter.assert_called_once_with(
+            formatter.return_value)
         basic_config.assert_called_once_with(
             level=123, handlers=[rotate.return_value, console.return_value],
-            format='%(asctime)s [%(levelname)s] '
-                   '(%(threadName)s) %(message)s'
         )
 
     @patch("lib.log._RotatingErrorHandler", autospec=True)
@@ -86,8 +89,6 @@ class TestInitLogging(object):
         # Tests
         basic_config.assert_called_once_with(
             level=logging.DEBUG, handlers=[rotate.return_value],
-            format='%(asctime)s [%(levelname)s] '
-                   '(%(threadName)s) %(message)s'
         )
 
     @patch("lib.log._ConsoleErrorHandler", autospec=True)
@@ -98,8 +99,6 @@ class TestInitLogging(object):
         # Tests
         basic_config.assert_called_once_with(
             level=logging.DEBUG, handlers=[console.return_value],
-            format='%(asctime)s [%(levelname)s] '
-                   '(%(threadName)s) %(message)s'
         )
 
 

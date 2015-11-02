@@ -49,7 +49,7 @@ def client():
     """
     Simple client
     """
-    conf_dir = "%s/ISD%d/AD%d/common" % (GEN_PATH, CLI_ISD, CLI_AD)
+    conf_dir = "%s/ISD%d/AD%d/endhost" % (GEN_PATH, CLI_ISD, CLI_AD)
     # Start SCIONDaemon
     sd = SCIONDaemon.start(conf_dir, haddr_parse("IPV4", CLI_IP))
     logging.info("CLI: Sending PATH request for (%d, %d)", SRV_ISD, SRV_AD)
@@ -95,7 +95,7 @@ def server():
     """
     Simple server.
     """
-    conf_dir = "%s/ISD%d/AD%d/common" % (GEN_PATH, SRV_ISD, SRV_AD)
+    conf_dir = "%s/ISD%d/AD%d/endhost" % (GEN_PATH, SRV_ISD, SRV_AD)
     # Start SCIONDaemon
     sd = SCIONDaemon.start(conf_dir, haddr_parse("IPV4", SRV_IP))
     # Open a socket for incomming DATA traffic
