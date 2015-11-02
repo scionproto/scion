@@ -31,10 +31,6 @@ Necessary steps in order to run SCION:
    disk for the data log, which greatly improves ZK performance (at the cost of
    reliability, so it should only be done in a testing environment).
 
-1. Compile the crypto library:
-
-    `./scion.sh init`
-
 1. Create the topology and configuration files (according to
    `topology/ADConfigurations.json`):
 

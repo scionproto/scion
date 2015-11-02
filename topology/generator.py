@@ -36,8 +36,7 @@ from dnslib.label import DNSLabel
 # SCION
 from lib.config import Config
 from lib.crypto.asymcrypto import (
-    generate_cryptobox_keypair,
-    generate_signature_keypair,
+    generate_sign_keypair,
     sign,
 )
 from lib.crypto.certificate import Certificate, CertificateChain, TRC
@@ -63,7 +62,7 @@ SIM_CONF_FILE = 'sim.conf'
 HOSTS_FILE = 'hosts'
 NETWORKS_CONF = 'networks.conf'
 SUPERVISOR_CONF = 'supervisord.conf'
-COMMON_DIR = 'common'
+COMMON_DIR = 'endhost'
 
 ZOOKEEPER_HOST_TMPFS_DIR = "/run/shm/host-zk"
 ZOOKEEPER_TMPFS_DIR = "/run/shm/scion-zk"
@@ -176,7 +175,7 @@ class ConfigGenerator(object):
 
     def _write_cert_files(self, topo_dicts, cert_files):
         for topo_id, ad_topo, base in _srv_iter(
-                topo_dicts, self.out_dir):
+                topo_dicts, self.out_dir, common=True):
             for path, value in cert_files[topo_id].items():
                 write_file(os.path.join(base, path), value)
 
@@ -245,16 +244,16 @@ class CertGenerator(object):
     def _self_sign_keys(self):
         topo_id = TopoID.from_values(0, 0)
         self.sig_pub_keys[topo_id], self.sig_priv_keys[topo_id] = \
-            generate_signature_keypair()
-        self.enc_pub_keys[topo_id], _ = generate_cryptobox_keypair()
+            generate_sign_keypair()
+        self.enc_pub_keys[topo_id], _ = generate_sign_keypair()
 
     def _iterate(self, f):
         for isd_ad_id, ad_conf in self.ad_configs["ADs"].items():
             f(TopoID(isd_ad_id), ad_conf)
 
     def _gen_ad_keys(self, topo_id, ad_conf):
-        sig_pub, sig_priv = generate_signature_keypair()
-        enc_pub, enc_priv = generate_cryptobox_keypair()
+        sig_pub, sig_priv = generate_sign_keypair()
+        enc_pub, enc_priv = generate_sign_keypair()
         self.sig_priv_keys[topo_id] = sig_priv
         self.sig_pub_keys[topo_id] = sig_pub
         self.enc_pub_keys[topo_id] = enc_pub
