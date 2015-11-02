@@ -102,36 +102,26 @@
 	Struct for SCION Addresses:
 	12 bits ISD ID
 	20 bits AD ID
-	4 bytes IP Addr
+	(4 bytes IPv4 Addr OR
+   16 bytes IPv6 Addr OR
+   2 bytes SVC addr)
 */
 typedef struct {
-	uint16_t isd_id:12;
-	uint32_t ad_id:20;
-	uint8_t host_addr[4]; //IPv4
+	uint32_t isd_ad;
+	uint8_t host_addr[16];
 } SCIONAddr;
 
-typedef struct {
-	uint16_t isd_id:12;
-	uint32_t ad_id:20;
-	uint8_t host_addr[2];  // SVC address
-} SCIONAddr2;
-typedef struct {
-	uint16_t isd_id:12;
-	uint32_t ad_id:20;
-	uint8_t host_addr[16]; // IPv6
-} SCIONAddr16;
+#define ISD(isd_ad) (isd_ad >> 20)
+#define AD(isd_ad) (isd_ad & 0xfffff)
+#define ISD_AD(isd, ad) ((isd) << 20 | (ad))
 
-
+#define SCION_ADDR_PAD 8
 
 typedef struct {
-	/** Packet Type of the packet*/
-	uint8_t version:4; //last bit is up/down-path flag temporally
-	/** Type of the source address */
-	uint8_t srcType:6;
-	/** Type of the destination address*/
-	uint8_t dstType:6;
-	/** Total Length of the packet */
-	uint16_t totalLen;
+  /** Packet Type of the packet (version, srcType, dstType) */
+  uint16_t versionSrcDst;
+  /** Total Length of the packet */
+  uint16_t totalLen;
 	/** Index of current Info opaque field*/
 	uint8_t currentIOF;
 	/** Index of current opaque field*/
@@ -141,6 +131,9 @@ typedef struct {
 	/** Header length that includes the path */
 	uint8_t headerLen;
 } SCIONCommonHeader;
+
+#define SRC_TYPE(sch) ((ntohs(sch->versionSrcDst) & 0xfc0) >> 6)
+#define DST_TYPE(sch) (ntohs(sch->versionSrcDst) & 0x3f)
 
 typedef struct {
     SCIONCommonHeader commonHeader;
@@ -153,7 +146,7 @@ typedef struct {
 typedef struct {
 //	SCIONCommonHeader commonHeader;  //now IFID in on the SCION UDP
 	SCIONAddr srcAddr;
-	SCIONAddr2 dstAddr;
+	SCIONAddr dstAddr;
 	uint16_t reply_id; // how many bits?
 	uint16_t request_id; // how many bits?
 } IFIDHeader;
@@ -244,6 +237,26 @@ typedef struct {
 #define CERT_CHAIN_REP_PACKET 8
 // IF ID packet to the peer router
 #define IFID_PKT_PACKET 9
+// error condition
+#define PACKET_TYPE_ERROR 99
+
+// SCION UDP packet classes
+#define PCB_CLASS 0
+#define IFID_CLASS 1
+#define CERT_CLASS 2
+#define PATH_CLASS 3
+
+// IFID Packet types
+#define IFID_PAYLOAD_TYPE 0
+
+// PATH Packet types
+#define PMT_REQUEST_TYPE 0
+#define PMT_REPLY_TYPE 1
+#define PMT_REG_TYPE 2
+#define PMT_SYNC_TYPE 3
+#define PMT_REVOCATION_TYPE 4
+#define PMT_IFSTATE_INFO_TYPE 5
+#define PMT_IFSTATE_REQ_TYPE 6
 
 #pragma pack(pop)
 
@@ -257,6 +270,15 @@ typedef struct {
 #define ADDR_IPV6_TYPE  2
 // SCION Service address type
 #define ADDR_SVC_TYPE  3
+
+// SVC addresses
+#define SVC_BEACON 1
+#define SVC_PATH_MGMT 2
+#define SVC_CERT_MGMT 3
+#define SVC_IFID 4
+
+// L4 Protocols
+#define L4_UDP 17
 
 //DPDK port
 #define DPDK_EGRESS_PORT 0

@@ -88,7 +88,7 @@ static uint16_t nb_rxd = RTE_TEST_RX_DESC_DEFAULT;
 static uint16_t nb_txd = RTE_TEST_TX_DESC_DEFAULT;
 
 /* ethernet addresses of ports */
-static struct ether_addr l2fwd_ports_eth_addr[RTE_MAX_ETHPORTS];
+struct ether_addr l2fwd_ports_eth_addr[RTE_MAX_ETHPORTS];
 
 /* mask of enabled ports */
 static uint32_t l2fwd_enabled_port_mask = 0;
@@ -278,27 +278,27 @@ l2fwd_main_loop(void)
 	const uint64_t if_sync_tsc = (rte_get_tsc_hz() + US_PER_S - 1) / US_PER_S * IFID_PKT_US;
 	const uint64_t if_req_tsc = (rte_get_tsc_hz() + US_PER_S - 1) / US_PER_S * IFSTATE_REQ_US;
 
-	prev_tsc = 0;
-	timer_tsc = 0;
-    prev_sync = 0;
-    prev_req = 0;
+  prev_tsc = 0;
+  timer_tsc = 0;
+  prev_sync = 0;
+  prev_req = 0;
 
-	lcore_id = rte_lcore_id();
-	qconf = &lcore_queue_conf[lcore_id];
+  lcore_id = rte_lcore_id();
+  qconf = &lcore_queue_conf[lcore_id];
 
-	if (qconf->n_rx_port == 0) {
-		RTE_LOG(INFO, L2FWD, "lcore %u has nothing to do\n", lcore_id);
-		return;
-	}
+  if (qconf->n_rx_port == 0) {
+    RTE_LOG(INFO, L2FWD, "lcore %u has nothing to do\n", lcore_id);
+    return;
+  }
 
-	RTE_LOG(INFO, L2FWD, "entering main loop on lcore %u\n", lcore_id);
+  RTE_LOG(INFO, L2FWD, "entering main loop on lcore %u\n", lcore_id);
 
-	for (i = 0; i < qconf->n_rx_port; i++) {
+  for (i = 0; i < qconf->n_rx_port; i++) {
 
-		portid = qconf->rx_port_list[i];
-		RTE_LOG(INFO, L2FWD, " -- lcoreid=%u portid=%u\n", lcore_id,
-			portid);
-	}
+    portid = qconf->rx_port_list[i];
+    RTE_LOG(INFO, L2FWD, " -- lcoreid=%u portid=%u\n", lcore_id,
+        portid);
+  }
 
   while (1) {
 
@@ -364,15 +364,17 @@ l2fwd_main_loop(void)
     }
 
     diff_tsc = cur_tsc - prev_sync;
-    if (unlikely(diff_tsc > if_sync_tsc)) {
-      //sync_interface();
-      prev_sync = cur_tsc;
-    }
+    if (lcore_id == rte_get_master_lcore()) {
+      if (unlikely(diff_tsc > if_sync_tsc)) {
+        sync_interface();
+        prev_sync = cur_tsc;
+      }
 
-    diff_tsc = cur_tsc - prev_req;
-    if (unlikely(diff_tsc > if_req_tsc)) {
-      //request_ifstates();
-      prev_req = cur_tsc;
+      diff_tsc = cur_tsc - prev_req;
+      if (unlikely(diff_tsc > if_req_tsc)) {
+        request_ifstates();
+        prev_req = cur_tsc;
+      }
     }
   }
 }
@@ -740,6 +742,9 @@ main(int argc, char **argv)
 		/* initialize port stats */
 		memset(&port_statistics, 0, sizeof(port_statistics));
 	}
+
+  create_ifid_packet(l2fwd_ports_eth_addr);
+  create_ifreq_packet(l2fwd_ports_eth_addr);
 
 	if (!nb_ports_available) {
 		rte_exit(EXIT_FAILURE,
