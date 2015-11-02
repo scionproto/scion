@@ -99,7 +99,8 @@ def main():
     for switch in net.switches:
         for k, v in topo.switch_map.items():
             if v == switch.name:
-                os.system('ip route add %s dev %s src 169.254.0.1' % (k, switch.name))
+                os.system('ip route add %s dev %s src 169.254.0.1'
+                          % (k, switch.name))
     for host in net.hosts:
         elem_name = host.name.replace("_", "-")
         print("Starting supervisord on %s" % elem_name)
