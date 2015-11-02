@@ -728,39 +728,53 @@ class SubnetGenerator(object):
                              network)
             sys.exit(1)
         self._subnets = defaultdict(lambda: AddressGenerator())
+        self._allocations = defaultdict(list)
+        # Initialise the allocations with the supplied network, making sure to
+        # exclude 127.0.0.0/31 if it's contained in the network. 127.0.0.0 is
+        # treated as a broadcast address by the kernel, and 127.0.0.1 is the
+        # normal loopback address, so it's best to avoid it too.
+        v4_lo = ip_network("127.0.0.0/31")
+        if self._net.overlaps(v4_lo):
+            self._exclude_net(self._net, v4_lo)
+        else:
+            self._allocations[self._net.prefixlen].append(self._net)
 
     def register(self, location):
         return self._subnets[location]
 
     def alloc_subnets(self):
-        allocations = defaultdict(list)
-        # Initialise the allocations with the supplied network
-        allocations[self._net.prefixlen].append(self._net)
         max_prefix = self._net.max_prefixlen
         networks = {}
         for subnet in self._subnets.values():
-            # Figure out what size subnet we need. Add 2 to the subnet size to
-            # cover the network and broadcast addresses.
-            req_prefix = max_prefix - math.ceil(math.log2(len(subnet) + 2))
+            # Figure out what size subnet we need. If it's a link, then we just
+            # need a /31 (or /127), otherwise add 2 to the subnet size to cover
+            # the network and broadcast addresses.
+            if len(subnet) == 2:
+                req_prefix = max_prefix - 1
+            else:
+                req_prefix = max_prefix - math.ceil(math.log2(len(subnet) + 2))
             # Search all subnets from that size upwards
             for prefix in range(req_prefix, -1, -1):
-                if not allocations[prefix]:
+                if not self._allocations[prefix]:
                     # No subnets available at this size
                     continue
-                alloc = allocations[prefix].pop()
+                alloc = self._allocations[prefix].pop()
                 # Carve out subnet of the required size
                 new_net = next(alloc.subnets(new_prefix=req_prefix))
                 logging.debug("Allocating %s from %s for subnet size %d" %
                               (new_net, alloc, len(subnet)))
                 networks[new_net] = subnet.alloc_addrs(new_net)
                 # Repopulate the allocations list with the left-over space
-                for net in alloc.address_exclude(new_net):
-                    allocations[net.prefixlen].append(net)
+                self._exclude_net(alloc, new_net)
                 break
             else:
                 logging.critical("Unable to allocate /%d subnet" % req_prefix)
                 sys.exit(1)
         return networks
+
+    def _exclude_net(self, alloc, net):
+        for net in alloc.address_exclude(net):
+            self._allocations[net.prefixlen].append(net)
 
 
 class AddressGenerator(object):
