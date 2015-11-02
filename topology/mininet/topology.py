@@ -91,18 +91,23 @@ def main():
     for host in net.hosts:
         host.cmd('ip route add 169.254.0.0/16 dev '+host.intf().name)
     net.start()
-    os.system('ip addr add 169.254.0.1/16 dev eth0')
+    os.system('ip link add type veth')
+    os.system('ip link set name mininet dev veth0')
+    os.system('ip addr add 169.254.0.1/16 dev mininet')
+    os.system('ip addr add 169.254.0.2/16 dev mininet')
+    os.system('ip addr add 169.254.0.3/16 dev mininet')
+
     for switch in net.switches:
         for k, v in topo.switch_map.items():
             if v == switch.name:
-                os.system('ip route add %s dev %s' % (k, switch.name))
+                os.system('ip route add %s dev %s src 169.254.0.1' % (k, switch.name))
     for host in net.hosts:
         elem_name = host.name.replace("_", "-")
         print("Starting supervisord on %s" % elem_name)
         host.cmd("%s -c gen/mininet/%s.conf" % (supervisord, elem_name))
     CLI(net)
     net.stop()
-
+    os.system('ip link delete mininet')
 
 if __name__ == '__main__':
     main()
