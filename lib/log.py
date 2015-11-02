@@ -19,8 +19,9 @@
 import logging
 import logging.handlers
 import traceback
+from datetime import datetime, timezone
 
-# This file should not include other SCION libraries, to prevent cirular import
+# This file should not include other SCION libraries, to prevent circular import
 # errors.
 
 #: Bytes
@@ -53,6 +54,12 @@ class _ConsoleErrorHandler(logging.StreamHandler):
     handleError = _handleError
 
 
+class _Rfc3339Formatter(logging.Formatter):
+    def formatTime(self, record, _):
+        dt = datetime.fromtimestamp(record.created, tz=timezone.utc)
+        return dt.isoformat(' ')
+
+
 def init_logging(log_file=None, level=logging.DEBUG, console=False):
     """
     Configure logging for components (servers, routers, gateways).
@@ -60,15 +67,18 @@ def init_logging(log_file=None, level=logging.DEBUG, console=False):
     :param level:
     :type level:
     """
+    formatter = _Rfc3339Formatter(
+        "%(asctime)s [%(levelname)s] (%(threadName)s) %(message)s")
     handlers = []
     if log_file:
         handlers.append(_RotatingErrorHandler(log_file, maxBytes=LOG_MAX_SIZE,
                                               backupCount=1, encoding="utf-8"))
     if console:
         handlers.append(_ConsoleErrorHandler())
-    logging.basicConfig(
-        level=level, handlers=handlers,
-        format='%(asctime)s [%(levelname)s] (%(threadName)s) %(message)s')
+
+    for h in handlers:
+        h.setFormatter(formatter)
+    logging.basicConfig(level=level, handlers=handlers)
 
 
 def log_exception(msg, *args, level=logging.CRITICAL, **kwargs):
