@@ -91,8 +91,7 @@ def main():
     for host in net.hosts:
         host.cmd('ip route add 169.254.0.0/16 dev '+host.intf().name)
     net.start()
-    os.system('ip link add type veth')
-    os.system('ip link set name mininet dev veth0')
+    os.system('ip link add name mininet type dummy')
     os.system('ip addr add 169.254.0.1/16 dev mininet')
     os.system('ip addr add 169.254.0.2/16 dev mininet')
     os.system('ip addr add 169.254.0.3/16 dev mininet')
