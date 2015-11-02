@@ -40,8 +40,8 @@ from lib.thread import kill_self, thread_safety_net
 from lib.types import AddrType, OpaqueFieldType as OFT
 from lib.util import Raw, handle_signals
 
-saddr = haddr_parse("IPV4", "127.1.19.254")
-raddr = haddr_parse("IPV4", "127.2.26.254")
+saddr = haddr_parse("IPV4", "169.254.0.2")
+raddr = haddr_parse("IPV4", "169.254.0.3")
 TOUT = 10  # How long wait for response.
 
 
