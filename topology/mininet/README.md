@@ -3,7 +3,7 @@
 SCION can be run inside [Mininet](http://mininet.org), which is a virtual network emulation environment. Running SCION in Mininet enables the use of custom topologies and link characteristics (e.g., specifying link bandwidth between two ASes). 
 
 ## Getting started
-You'll need a few base packages to get started. We currently support only Mininet 2.1.0 installed from the Ubuntu 14.04 repositories. Due to the limited number of switches (16) supported by ```openvswitch-controller```, we also require the use of a custom OpenFlow controller, [POX](http://www.noxrepo.org/pox/about-pox). The list of required packages can be found [here](https://github.com/netsec-ethz/scion/blob/mininet/topology/mininet/pkgs_debian.txt) for manual installation or installed automatically using the [setup.sh](https://github.com/netsec-ethz/scion/blob/mininet/topology/mininet/setup.sh) script we provide. Once you have all packages installed, you're ready to run SCION.
+You'll need a few base packages to get started. We currently support only Mininet 2.1.0 installed from the Ubuntu 14.04 repositories. Due to the limited number of switches (16) supported by `openvswitch-controller`, we also require the use of a custom OpenFlow controller, [POX](http://www.noxrepo.org/pox/about-pox). The list of required packages can be found [here](https://github.com/netsec-ethz/scion/blob/mininet/topology/mininet/pkgs_debian.txt) for manual installation or installed automatically using the [setup.sh](https://github.com/netsec-ethz/scion/blob/mininet/topology/mininet/setup.sh) script we provide. Once you have all packages installed, you're ready to run SCION.
 
 ### Creating a Mininet-compatible topology
 You need to generate a topology with Mininet support enabled. To do this, run the following command:
@@ -15,7 +15,7 @@ Now run the network:
 ```
 user@ubuntu:~/scion$ topology/mininet/run.sh
 ```
-You'll be dropped into a Mininet shell where you can list the nodes (```nodes```), show the topology (```net```), or launch xterms on one of the hosts (```xterm bs1_11_1```). You can also run commands directly on the hosts (```bs1_11_1 tcpdump -ni any```). 
+You'll be dropped into a Mininet shell where you can list the nodes (`nodes`), show the topology (`net`), or launch xterms on one of the hosts (`xterm bs1_11_1`). You can also run commands directly on the hosts (`bs1_11_1 tcpdump -ni any`). 
 
 Once you're done looking around, you can type Ctrl+D to shutdown the Mininet environment. If something goes wrong and you have leftover network interfaces, you can clean them up by running
 ```
