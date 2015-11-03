@@ -6,6 +6,7 @@ RingBuffer::RingBuffer(int size)
     mHead = 0;
     mTail = 0;
     mLen = size;
+    mDirty = false;
 }
 
 RingBuffer::~RingBuffer()
@@ -35,6 +36,8 @@ int RingBuffer::write(uint8_t *buf, int len)
         memcpy(mBuffer + mTail, buf, len);
     }
     mTail = (mTail + len) % mLen;
+    if (!mDirty)
+        mDirty = true;
     return len;
 }
 
@@ -44,11 +47,17 @@ int RingBuffer::read(uint8_t *buf, int len)
         return -1;
     if (len < 0)
         return -1;
+    if (!mDirty)
+        return 0;
     int available;
-    if (mTail >= mHead)
+    if (mTail == mHead)
+        available = mDirty ? mLen : 0;
+    else if (mTail > mHead)
         available = mTail - mHead;
     else
         available = mLen - (mHead - mTail);
+    if (available == 0)
+        return 0;
     int toRead = len < available ? len : available;
     if (mHead + toRead > mLen) {
         int first = mLen - mHead;
@@ -59,6 +68,8 @@ int RingBuffer::read(uint8_t *buf, int len)
         memcpy(buf, mBuffer + mHead, toRead);
     }
     mHead = (mHead + toRead) % mLen;
+    if (mHead == mTail)
+        mDirty = false;
     return toRead;
 }
 
@@ -76,7 +87,9 @@ void RingBuffer::get(int offset, int len, uint8_t *buf)
 
 int RingBuffer::size()
 {
-    if (mTail >= mHead)
+    if (mTail == mHead)
+        return mDirty ? mLen : 0;
+    else if (mTail > mHead)
         return mTail - mHead;
     else
         return mLen - (mHead - mTail);

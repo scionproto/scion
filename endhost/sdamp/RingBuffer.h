@@ -23,6 +23,7 @@ private:
     int mHead;
     int mTail;
     int mLen;
+    bool mDirty;
 };
 
 #endif

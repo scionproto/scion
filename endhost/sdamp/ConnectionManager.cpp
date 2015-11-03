@@ -285,7 +285,6 @@ SDAMPConnectionManager::SDAMPConnectionManager(std::vector<SCIONAddr> &addrs, in
     mFreshFrames = new PriorityQueue<SDAMPFrame *>(compareDeadline);
     mRetryFrames = new PriorityQueue<SDAMPFrame *>(compareDeadline);
     pthread_mutex_init(&mMutex, NULL);
-    pthread_cond_init(&mCond, NULL);
     pthread_mutex_init(&mSentMutex, NULL);
     pthread_cond_init(&mSentCond, NULL);
     pthread_mutex_init(&mFreshMutex, NULL);
@@ -319,7 +318,6 @@ SDAMPConnectionManager::~SDAMPConnectionManager()
         delete p;
     }
     pthread_mutex_destroy(&mMutex);
-    pthread_cond_destroy(&mCond);
     pthread_mutex_destroy(&mSentMutex);
     pthread_cond_destroy(&mSentCond);
     pthread_mutex_destroy(&mFreshMutex);
@@ -638,7 +636,7 @@ int SDAMPConnectionManager::handleAckOnPath(SCIONPacket *packet, bool rttSample)
             mPaths[packet->pathIndex]->setUsed(false);
         else
             mPaths[packet->pathIndex]->setUsed(true);
-        pthread_cond_broadcast(&mCond);
+        pthread_cond_broadcast(&mPacketCond);
     }
     return ((SDAMPPath *)(mPaths[packet->pathIndex]))->handleAck(packet, rttSample);
 }
@@ -664,7 +662,7 @@ void SDAMPConnectionManager::handleProbeAck(SCIONPacket *packet)
             if (used < MAX_USED_PATHS) {
                 DEBUG("set active\n");
                 mPaths[i]->setUsed(true);
-                pthread_cond_broadcast(&mCond);
+                pthread_cond_broadcast(&mPacketCond);
             }
         }
     }
@@ -1125,7 +1123,7 @@ int SSPConnectionManager::handleAckOnPath(SCIONPacket *packet, bool rttSample)
             mPaths[packet->pathIndex]->setUsed(false);
         else
             mPaths[packet->pathIndex]->setUsed(true);
-        pthread_cond_broadcast(&mCond);
+        pthread_cond_broadcast(&mPacketCond);
     }
     return ((SSPPath *)(mPaths[packet->pathIndex]))->handleAck(packet, rttSample);
 }
