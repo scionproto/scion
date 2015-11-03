@@ -213,7 +213,7 @@ int main(int argc, char **argv)
         return 1;
     }
 	res = setsockopt(dataSocket, SOL_SOCKET, SO_REUSEADDR,
-					 (SOCKET_OPTION_VALUE)&optval, sizeof(optval));
+					 &optval, sizeof(optval));
     if (res < 0) {
         fprintf(stderr, "failed to set reuse option\n");
         return 1;
@@ -237,7 +237,7 @@ int main(int argc, char **argv)
         return 1;
     }
 	res = setsockopt(appSocket, SOL_SOCKET, SO_REUSEADDR,
-					 (SOCKET_OPTION_VALUE)&optval, sizeof(optval));
+					 &optval, sizeof(optval));
     if (res < 0) {
         fprintf(stderr, "failed to set reuse option\n");
         return 1;
