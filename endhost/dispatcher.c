@@ -205,10 +205,17 @@ int main(int argc, char **argv)
     }
 
     int res;
+    int optval = 1;
 
     dataSocket = socket(PF_INET, SOCK_DGRAM, 0);
     if (dataSocket < 0) {
         fprintf(stderr, "failed to open data socket\n");
+        return 1;
+    }
+	res = setsockopt(dataSocket, SOL_SOCKET, SO_REUSEADDR,
+					 (SOCKET_OPTION_VALUE)&optval, sizeof(optval));
+    if (res < 0) {
+        fprintf(stderr, "failed to set reuse option\n");
         return 1;
     }
     struct sockaddr_in dataAddr;
@@ -227,6 +234,12 @@ int main(int argc, char **argv)
     if (appSocket < 0) {
         fprintf(stderr,
                 "failed to open application socket: %s\n", strerror(errno));
+        return 1;
+    }
+	res = setsockopt(appSocket, SOL_SOCKET, SO_REUSEADDR,
+					 (SOCKET_OPTION_VALUE)&optval, sizeof(optval));
+    if (res < 0) {
+        fprintf(stderr, "failed to set reuse option\n");
         return 1;
     }
     struct sockaddr_in appAddr;
