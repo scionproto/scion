@@ -54,7 +54,7 @@ int RingBuffer::read(uint8_t *buf, int len)
         int first = mLen - mHead;
         int second = toRead - first;
         memcpy(buf, mBuffer + mHead, first);
-        memcpy(buf, mBuffer, second);
+        memcpy(buf + first, mBuffer, second);
     } else {
         memcpy(buf, mBuffer + mHead, toRead);
     }

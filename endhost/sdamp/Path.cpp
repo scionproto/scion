@@ -250,6 +250,7 @@ void SDAMPPath::copyFrames(uint8_t *bufptr, SDAMPPacket *sp)
         *(uint32_t *)bufptr = htonl(frame->size);
         bufptr += 4;
         memcpy(bufptr, frame->data, frame->size);
+        bufptr += frame->size;
     }
 }
 

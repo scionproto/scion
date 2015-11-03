@@ -239,7 +239,7 @@ int SDAMPProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr)
             missing = true;
             break;
         }
-        if ((size_t)(ptr + frame->size - buf) >= len) {
+        if ((size_t)(ptr + frame->size - buf) > len) {
             DEBUG("not enough buffer space\n");
             break;
         }
@@ -253,8 +253,10 @@ int SDAMPProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr)
         mReadyFrames->pop();
         destroySDAMPFrame(frame);
     }
-    if (mReadyFrames->empty() || missing)
+    if (mReadyFrames->empty() || missing) {
+        DEBUG("no more data ready\n");
         mReadyToRead = false;
+    }
     pthread_mutex_unlock(&mReadMutex);
     return total;
 }
@@ -335,6 +337,7 @@ int SDAMPProtocol::handlePacket(SCIONPacket *packet, uint8_t *buf)
         DEBUG("frame size = %d\n", frame->size);
         frame->data = (uint8_t *)malloc(frame->size);
         memcpy(frame->data, ptr, frame->size);
+        ptr += frame->size;
         vec.push_back(frame);
         payloadLen -= 12 + frame->size;
     }
