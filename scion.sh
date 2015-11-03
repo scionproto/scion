@@ -60,7 +60,6 @@ cmd_version() {
 }
 
 cmd_sock_bld() {
-    export LD_LIBRARY_PATH=`pwd`/endhost/sdamp
     make -C endhost
     make -C endhost/sdamp
     make -C endhost/sdamp/test
@@ -78,6 +77,7 @@ cmd_sock_cli() {
 }
 
 cmd_run_cli() {
+    export LD_LIBRARY_PATH=`pwd`/endhost/sdamp
     $SOCKDIR/test/client
 }
 
@@ -91,6 +91,7 @@ cmd_sock_ser() {
 }
 
 cmd_run_ser() {
+    export LD_LIBRARY_PATH=`pwd`/endhost/sdamp
     $SOCKDIR/test/server
 }
 
