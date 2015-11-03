@@ -28,7 +28,7 @@ int main()
         count++;
         sprintf(buf, "This is message %d\n", count);
         s.send((uint8_t *)buf, BUFSIZE);
-        usleep(50000);
+        //usleep(50000);
     }
     exit(0);
 }

@@ -4,7 +4,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <ncurses.h>
 #include <signal.h>
 #include <Python.h>
 #include "SCIONSocket.h"
@@ -14,7 +13,7 @@
 
 int main()
 {
-    SCIONSocket s(SCION_PROTO_SDAMP, NULL, 0, 8080, 0);
+    SCIONSocket s(SCION_PROTO_SSP, NULL, 0, 8080, 0);
     SCIONSocket &newSocket = s.accept();
     char buf[BUFSIZE];
     int size = 0;
@@ -26,7 +25,7 @@ int main()
         gettimeofday(&end, NULL);
         size += recvlen;
         long us = end.tv_usec - start.tv_usec + (end.tv_sec - start.tv_sec) * 1000000;
-        printf("%d bytes: %f bps\n", size, (double)size / us * 1000000);
+        fprintf(stderr, "%d bytes: %f bps\n", size, (double)size / us * 1000000);
     }
     exit(0);
 }

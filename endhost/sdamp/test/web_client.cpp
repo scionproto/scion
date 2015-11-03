@@ -12,7 +12,7 @@
 #include "SHA1.h"
 #include <curl/curl.h>
 
-#define BUFSIZE 512
+#define BUFSIZE 1024
 #define PATHS 3
 
 size_t dummy(void *buffer, size_t size, size_t nmemb, void *userp)
@@ -24,12 +24,12 @@ int main()
 {
     SCIONAddr *addrs[1];
     SCIONAddr saddr;
-    saddr.ISD_AD(1, 5);
+    saddr = ISD_AD(2, 26);
     saddr.host.addrLen = 4;
-    in_addr_t in = inet_addr("192.33.93.195");
+    in_addr_t in = inet_addr("127.2.26.254");
     memcpy(saddr.host.addr, &in, 4);
     addrs[0] = &saddr;
-    SCIONSocket s(SCION_PROTO_SDAMP, addrs, 1, 0, 8080);
+    SCIONSocket s(SCION_PROTO_SSP, addrs, 1, 0, 8080);
     int count = 0;
     char curldata[1024];
     char buf[BUFSIZE];

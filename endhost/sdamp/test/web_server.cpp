@@ -21,7 +21,7 @@ size_t dummy(void *buffer, size_t size, size_t nmemb, void *userp)
 
 int main()
 {
-    SCIONSocket s(SCION_PROTO_SDAMP, NULL, 0, 8080, 0);
+    SCIONSocket s(SCION_PROTO_SSP, NULL, 0, 8080, 0);
     SCIONSocket &newSocket = s.accept();
     char buf[BUFSIZE];
     char curldata[1024];
