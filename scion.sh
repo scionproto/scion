@@ -61,7 +61,9 @@ cmd_version() {
 
 cmd_sock_bld() {
     export LD_LIBRARY_PATH=`pwd`/endhost/sdamp
-    cd endhost/sdamp
+    cd endhost
+    make
+    cd sdamp
     make
     cd test
     make
