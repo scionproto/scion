@@ -189,7 +189,8 @@ class PathSegmentDB(object):
                 return DBResult.NONE
             else:
                 cur_rec.pcb = pcb
-                cur_rec.exp_time = int(SCIONTime.get_time()) + self.segment_ttl
+                if self.segment_ttl:
+                    cur_rec.exp_time = now + self.segment_ttl
                 return DBResult.ENTRY_UPDATED
 
     def update_all(self, pcbs, first_isd, first_ad, last_isd, last_ad):
