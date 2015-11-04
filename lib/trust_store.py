@@ -41,26 +41,29 @@ class TrustStore(object):
         self._trcs = defaultdict(list) 
         self._init_trcs()
         self._init_certs()
+        logging.info(self._trcs)
+        logging.info(self._certs)
 
     def _init_trcs(self):
         for path in glob.glob("%s/*.trc" % self._dir):
-            isd, ver = re.findall("\d+", path)[-2:]
+            # isd, ver = re.findall("\d+", path)[-2:]
             f = open(path)
             trc_raw = f.read()
             f.close()
-            self._trcs[isd].append((ver, TRC(trc_raw)))
+            # trc = TRC(trc_raw)
+            self.add_trc(TRC(trc_raw))
             logging.info("Loaded: %s" % path)
 
     def _init_certs(self):
         for path in glob.glob("%s/*.crt" % self._dir):
-            isd, ad, ver = re.findall("\d+", path)[-3:]
+            isd, ad, ver = map(int, re.findall("\d+", path)[-3:])
             f = open(path)
             cert_raw = f.read()
             f.close()
-            self._certs[(isd, ad)].append((ver, CertificateChain(cert_raw)))
+            self.add_cert(isd, ad, ver, CertificateChain(cert_raw))
             logging.info("Loaded: %s" % path)
 
-    def get_trc(isd, version=None):
+    def get_trc(self, isd, version=None):
         if not self._trcs[isd]:
             return None
         if version is None:  # Return the most recent TRC.
@@ -72,7 +75,7 @@ class TrustStore(object):
                     return trc
         return None
 
-    def get_cert(isd, ad, version=None):
+    def get_cert(self, isd, ad, version=None):
         if not self._certs[(isd, ad)]:
             return None
         if version is None:  # Return the most recent cert.
@@ -83,14 +86,18 @@ class TrustStore(object):
                 if version == ver:
                     return cert
 
-    def add_trc(trc):
+    def add_trc(self, trc):
         isd = trc.isd_id
         version = trc.version
         for ver, _ in self._trcs[isd]:
             if version == ver:
                 return
-        self._trcs.append((version, trc))
+        self._trcs[isd].append((version, trc))
 
 
-    def add_cert(isd, ad, trc):
-        pass
+    # FIXME(psz): Inconsistent API for now
+    def add_cert(self, isd, ad, version, cert):
+        for ver, _ in self._certs[(isd, ad)]:
+            if version == ver:
+                return
+        self._certs[(isd, ad)].append((version, cert))

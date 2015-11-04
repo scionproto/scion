@@ -24,7 +24,6 @@ import re
 
 # SCION
 from infrastructure.scion_elem import SCIONElement
-from lib.crypto.certificate import TRC
 from lib.defines import CERTIFICATE_SERVICE, SCION_UDP_PORT
 from lib.main import main_default, main_wrapper
 from lib.packet.cert_mgmt import (
@@ -61,9 +60,7 @@ class CertServer(SCIONElement):
         :param bool is_sim: running on simulator
         """
         super().__init__(server_id, conf_dir, is_sim=is_sim)
-        # FIXME(kormat): this doesn't cope with trc versioning
-        self.trc = TRC(get_trc_file_path(self.conf_dir,
-                                         self.topology.isd_id, 0))
+        self.trc = self.trust_store.get_trc(self.topology.isd_id)
         self.cert_chain_requests = collections.defaultdict(list)
         self.trc_requests = collections.defaultdict(list)
         self.cert_chains = {}
