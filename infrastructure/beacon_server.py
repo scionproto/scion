@@ -41,7 +41,6 @@ from lib.defines import (
     CERTIFICATE_SERVICE,
     IFID_PKT_TOUT,
     PATH_SERVICE,
-    SCION_ROUTER_PORT,
     SCION_UDP_PORT,
 )
 from lib.errors import (
@@ -918,7 +917,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
         payload = IFStatePayload.from_values(infos)
         state_pkt = self._build_packet(mgmt_pkt.addrs.src_addr, payload=payload)
-        self.send(state_pkt, mgmt_pkt.addrs.src_addr, SCION_ROUTER_PORT)
+        self.send(state_pkt, mgmt_pkt.addrs.src_addr)
 
 
 class CoreBeaconServer(BeaconServer):
@@ -1359,7 +1358,7 @@ class LocalBeaconServer(BeaconServer):
             pcb.remove_signatures()
             # TODO(psz): sign here? discuss
             self.register_down_segment(pcb)
-            logging.info("Down path registered: %s", pcb.get_hops_hash())
+            logging.info("Down path registered: %s", pcb.short_desc())
 
 
 if __name__ == "__main__":

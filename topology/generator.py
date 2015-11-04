@@ -730,10 +730,11 @@ class SubnetGenerator(object):
         self._subnets = defaultdict(lambda: AddressGenerator())
         self._allocations = defaultdict(list)
         # Initialise the allocations with the supplied network, making sure to
-        # exclude 127.0.0.0/31 if it's contained in the network. 127.0.0.0 is
-        # treated as a broadcast address by the kernel, and 127.0.0.1 is the
-        # normal loopback address, so it's best to avoid it too.
-        v4_lo = ip_network("127.0.0.0/31")
+        # exclude 127.0.0.0/30 if it's contained in the network.
+        # - 127.0.0.0 is treated as a broadcast address by the kernel
+        # - 127.0.0.1 is the normal loopback address
+        # - 127.0.0.[23] are used for clients to bind to for testing purposes.
+        v4_lo = ip_network("127.0.0.0/30")
         if self._net.overlaps(v4_lo):
             self._exclude_net(self._net, v4_lo)
         else:
