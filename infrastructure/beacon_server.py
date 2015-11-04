@@ -87,9 +87,7 @@ from lib.types import (
 from lib.util import (
     Raw,
     SCIONTime,
-    get_cert_chain_file_path,
     get_sig_key_file_path,
-    get_trc_file_path,
     read_file,
     sleep_interval,
     write_file,
