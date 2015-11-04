@@ -638,13 +638,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         :param if_id: interface identifier.
         :type if_id: int
         """
-        trc = self.trcs.get((isd_id, trc_ver))
-        if not trc:
-            # Try loading file from disk
-            trc_file = get_trc_file_path(self.conf_dir, isd_id, trc_ver)
-            if os.path.exists(trc_file):
-                trc = TRC(trc_file)
-                self.trcs[(isd_id, trc_ver)] = trc
+        trc = self.trust_store.get_trc(isd_id, trc_ver)
         if not trc:
             # Requesting TRC file from cert server
             trc_tuple = (isd_id, trc_ver)
@@ -676,19 +670,13 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         assert isinstance(pcb, PathSegment)
         last_pcbm = pcb.get_last_pcbm()
-        cert_chain_isd = last_pcbm.isd_id
-        cert_chain_ad = last_pcbm.ad_id
+        cert_isd = last_pcbm.isd_id
+        cert_ad = last_pcbm.ad_id
         cert_ver = pcb.get_last_adm().cert_ver
         trc_ver = pcb.trc_ver
-        subject = "%s-%s" % (cert_chain_isd, cert_chain_ad)
-        cert_chain_file = get_cert_chain_file_path(
-            self.conf_dir, cert_chain_isd, cert_chain_ad, cert_ver)
-        if os.path.exists(cert_chain_file):
-            chain = CertificateChain(cert_chain_file)
-        else:
-            chain = CertificateChain.from_values([])
-        trc_file = get_trc_file_path(self.conf_dir, cert_chain_isd, trc_ver)
-        trc = TRC(trc_file)
+        subject = "%s-%s" % (cert_isd, cert_ad)
+        chain = self.trust_store.get_cert(cert_isd, cert_ad, cert_ver)
+        trc = self.trust_store.get_trc(cert_isd, trc_ver)
 
         new_pcb = copy.deepcopy(pcb)
         new_pcb.if_id = 0
@@ -738,10 +726,10 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         rep = pkt.get_payload()
         logging.info("TRC reply received for %s", rep.isd_id)
-        rep_key = rep.isd_id, rep.version
-        trc_file = get_trc_file_path(self.conf_dir, *rep_key)
-        write_file(trc_file, rep.trc.decode('utf-8'))
-        self.trcs[rep_key] = TRC(trc_file)
+        trc = TRC(rep.trc)
+        self.trust_store.add_trc(trc)
+
+        rep_key = trc.isd_id, trc.version
         if rep_key in self.trc_requests:
             del self.trc_requests[rep_key]
         self.handle_unverified_beacons()

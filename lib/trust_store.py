@@ -1,3 +1,4 @@
+#!/usr/bin/ipython3
 # Copyright 2015 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,12 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`trust_store` --- Storage and management of trust objects (certs, TRCs).
-=============================================================================
+:mod:`trust_store` --- Storage and management of trust objects (TRCs and certs).
+================================================================================
 """
 # Stdlib
 from collections import defaultdict
 import glob
+import logging
 import os
 import re
 
@@ -25,8 +27,8 @@ import re
 
 # SCION
 from lib.crypto.certificate import CertificateChain, TRC, verify_sig_chain_trc
+from lib.util import CERT_DIR
 
-CERT_DIR = 'certs'
 
 class TrustStore(object):
     """
@@ -35,36 +37,33 @@ class TrustStore(object):
 
     def __init__(self, conf_dir):
         self._dir = "%s/%s" % (conf_dir, CERT_DIR)
-        # cert_chain_file = self.get_cert_chain_file_path(
-        #     self.conf_dir, self.topology.isd_id, self.topology.ad_id,
-        #     self.config.cert_ver)
-        # self.cert_chain = CertificateChain(cert_chain_file)
         self._certs = defaultdict(list)
         self._trcs = defaultdict(list) 
         self._init_trcs()
         self._init_certs()
 
     def _init_trcs(self):
-        # trc_ver_path = {}  # Temporarily keep ISD: (TRC_VER, PATH) 
         for path in glob.glob("%s/*.trc" % self._dir):
             isd, ver = re.findall("\d+", path)[-2:]
-            self._trcs[isd].append((ver, TRC(path)))
-            # Determine the latest TRC per ISD.
-        #     if isd not in trc_ver_path or trc_ver[isd][0] < ver:
-        #         trc_ver_path[isd] = (ver, path)
-        # # Load the latest TRCs. 
-        # for isd in trc_ver_path:
-        #     self._trcs[isd] = Trc(ReadFile(trc_ver_path[isd][1]))  # TODO 
+            f = open(path)
+            trc_raw = f.read()
+            f.close()
+            self._trcs[isd].append((ver, TRC(trc_raw)))
+            logging.info("Loaded: %s" % path)
 
     def _init_certs(self):
         for path in glob.glob("%s/*.crt" % self._dir):
             isd, ad, ver = re.findall("\d+", path)[-3:]
-            self._certs[(isd, ad)].append((ver, CertificateChain(path)))
+            f = open(path)
+            cert_raw = f.read()
+            f.close()
+            self._certs[(isd, ad)].append((ver, CertificateChain(cert_raw)))
+            logging.info("Loaded: %s" % path)
 
     def get_trc(isd, version=None):
         if not self._trcs[isd]:
             return None
-        if version is None:  # Return latest TRC.
+        if version is None:  # Return the most recent TRC.
             _, trc = sorted(self._trcs[isd])[-1]
             return trc
         else:  # Try to find a TRC with given version.
@@ -76,7 +75,7 @@ class TrustStore(object):
     def get_cert(isd, ad, version=None):
         if not self._certs[(isd, ad)]:
             return None
-        if version is None:  # Return latest cert.
+        if version is None:  # Return the most recent cert.
             _, cert = sorted(self._certs[(isd, ad)])[-1]
             return cert
         else:  # Try to find a cert with given version.
@@ -84,25 +83,14 @@ class TrustStore(object):
                 if version == ver:
                     return cert
 
-    def get_cert_chain_file_path(conf_dir, isd_id, ad_id,
-                                 version):  # pragma: no cover
-        """
-        Return the certificate chain file path for a given ISD.
-        """
-        return os.path.join(conf_dir, CERT_DIR,
-                            'ISD%s-AD%s-V%s.crt' % (isd_id, ad_id, version))
-
-    def get_trc_file_path(conf_dir, isd_id, version):  # pragma: no cover
-        """
-        Return the TRC file path for a given ISD.
-        """
-        return os.path.join(conf_dir, CERT_DIR,
-                            'ISD%s-V%s.crt' % (isd_id, version))
-
-    def get_sig_key_file_path(conf_dir):  # pragma: no cover
-        """
-        Return the signing key file path.
-        """
-        return os.path.join(conf_dir, KEYS_DIR, "ad-sig.key")
+    def add_trc(trc):
+        isd = trc.isd_id
+        version = trc.version
+        for ver, _ in self._trcs[isd]:
+            if version == ver:
+                return
+        self._trcs.append((version, trc))
 
 
+    def add_cert(isd, ad, trc):
+        pass
