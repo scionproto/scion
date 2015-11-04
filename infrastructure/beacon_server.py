@@ -90,7 +90,6 @@ from lib.util import (
     get_sig_key_file_path,
     read_file,
     sleep_interval,
-    write_file,
 )
 from lib.zookeeper import ZkNoConnection, ZkSharedCache, Zookeeper
 

@@ -20,13 +20,10 @@
 from collections import defaultdict
 import glob
 import logging
-import os
 import re
 
-# External packages
-
 # SCION
-from lib.crypto.certificate import CertificateChain, TRC, verify_sig_chain_trc
+from lib.crypto.certificate import CertificateChain, TRC
 from lib.util import CERT_DIR
 
 
@@ -38,7 +35,7 @@ class TrustStore(object):
     def __init__(self, conf_dir):
         self._dir = "%s/%s" % (conf_dir, CERT_DIR)
         self._certs = defaultdict(list)
-        self._trcs = defaultdict(list) 
+        self._trcs = defaultdict(list)
         self._init_trcs()
         self._init_certs()
         logging.info(self._trcs)
@@ -93,7 +90,6 @@ class TrustStore(object):
             if version == ver:
                 return
         self._trcs[isd].append((version, trc))
-
 
     # FIXME(psz): Inconsistent API for now
     def add_cert(self, isd, ad, version, cert):
