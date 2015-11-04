@@ -556,6 +556,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             start = SCIONTime.get_time()
             try:
                 self.process_pcb_queue()
+                self.handle_unverified_beacons()
                 self.zk.wait_connected()
                 self.pcb_cache.process()
                 self.revobjs_cache.process()
@@ -588,7 +589,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             if not ifstate.is_active():
                 ifstate.reset()
 
-    def _try_to_verify_beacon(self, pcb):
+    def _try_to_verify_beacon(self, pcb, quiet=False):
         """
         Try to verify a beacon.
 
@@ -605,8 +606,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             else:
                 logging.warning("Invalid beacon. %s", pcb)
         else:
-            logging.warning(
-                "Certificate(s) or TRC missing for pcb: %s", pcb.short_desc())
+            if not quiet:
+                logging.warning("Certificate(s) or TRC missing for pcb: %s",
+                                pcb.short_desc())
             self.unverified_beacons.append(pcb)
 
     @abstractmethod
@@ -745,7 +747,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         self.trcs[rep_key] = TRC(trc_file)
         if rep_key in self.trc_requests:
             del self.trc_requests[rep_key]
-        self.handle_unverified_beacons()
 
     def handle_unverified_beacons(self):
         """
@@ -753,7 +754,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         for _ in range(len(self.unverified_beacons)):
             pcb = self.unverified_beacons.popleft()
-            self._try_to_verify_beacon(pcb)
+            self._try_to_verify_beacon(pcb, quiet=True)
 
     def process_rev_objects(self, rev_objs):
         """
@@ -1291,7 +1292,6 @@ class LocalBeaconServer(BeaconServer):
         self.cert_chains[rep_key] = CertificateChain(cert_chain_file)
         if rep_key in self.cert_chain_requests:
             del self.cert_chain_requests[rep_key]
-        self.handle_unverified_beacons()
 
     def _remove_revoked_pcbs(self, rev_info, if_id):
         candidates = (self.down_segments.candidates +
