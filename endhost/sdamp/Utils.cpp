@@ -11,11 +11,13 @@
 
 bool compareDeadline(void *p1, void *p2)
 {
-    SDAMPFrame *f1 = (SDAMPFrame *)p1;
-    SDAMPFrame *f2 = (SDAMPFrame *)p2;
-    if (f1->deadline == f2->deadline)
-        return f1->offset > f2->offset;
-    return f1->deadline > f2->deadline;
+    SCIONPacket *s1 = (SCIONPacket *)p1;
+    SCIONPacket *s2 = (SCIONPacket *)p2;
+    SDAMPPacket *sp1 = (SDAMPPacket *)(s1->payload);
+    SDAMPPacket *sp2 = (SDAMPPacket *)(s2->payload);
+    if (sp1->deadline == sp2->deadline)
+        return be64toh(sp1->header.packetNum) > be64toh(sp2->header.packetNum);
+    return sp1->deadline > sp2->deadline;
 }
 
 bool comparePacketNum(void *p1, void *p2)
@@ -24,18 +26,23 @@ bool comparePacketNum(void *p1, void *p2)
     SCIONPacket *s2 = (SCIONPacket *)p2;
     SDAMPPacket *sp1 = (SDAMPPacket *)(s1->payload);
     SDAMPPacket *sp2 = (SDAMPPacket *)(s2->payload);
-    return sp1->header.packetNum > sp2->header.packetNum;
+    return be64toh(sp1->header.packetNum) > be64toh(sp2->header.packetNum);
 }
 
 bool compareOffset(void *p1, void *p2)
 {
-    SSPInPacket *s1 = (SSPInPacket *)p1;
-    SSPInPacket *s2 = (SSPInPacket *)p2;
-    return s1->offset > s2->offset;
+    SCIONPacket *s1 = (SCIONPacket *)p1;
+    SCIONPacket *s2 = (SCIONPacket *)p2;
+    SSPOutPacket *sp1 = (SSPOutPacket *)(s1->payload);
+    SSPOutPacket *sp2 = (SSPOutPacket *)(s2->payload);
+    return ntohl(sp1->offset) > ntohl(sp2->offset);
 }
 
 int reversePath(uint8_t *original, uint8_t *reverse, int len)
 {
+    if (len == 0)
+        return 0;
+
     if (IS_HOP_OF(*original)) {
         DEBUG("No leading Info OF in path\n");
         return -1;

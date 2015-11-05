@@ -26,6 +26,7 @@ public:
     void setReceiver(bool receiver);
 
     virtual bool claimPacket(SCIONPacket *packet, uint8_t *buf);
+    virtual void createManager(std::vector<SCIONAddr> &dstAddrs);
     virtual void start(SCIONPacket *packet, uint8_t *buf, int sock);
 
     bool isRunning();
@@ -61,10 +62,11 @@ public:
     virtual int recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr);
 
     bool claimPacket(SCIONPacket *packet, uint8_t *buf);
+    virtual void createManager(std::vector<SCIONAddr> &dstAddrs);
     void start(SCIONPacket *packet, uint8_t *buf, int sock);
     virtual int handlePacket(SCIONPacket *packet, uint8_t *buf);
 
-    SCIONPacket * createPacket(std::vector<SDAMPFrame *> &frames);
+    virtual SCIONPacket * createPacket(uint8_t *buf, size_t len);
 
     virtual void handleTimerEvent();
 
@@ -78,7 +80,6 @@ protected:
     void handleProbeAck(SCIONPacket *packet);
     void handleAck(SCIONPacket *packet);
     void handleData(SCIONPacket *packet);
-    int shouldPushFrame(SDAMPFrame *frame);
     void sendAck(SCIONPacket *packet);
 
     // path manager
@@ -94,7 +95,7 @@ protected:
 
     // ack bookkeeping
     uint64_t               mLowestPending;
-    int                    mHighestReceived;
+    uint64_t               mHighestReceived;
     int                    mAckVectorOffset;
 
     // sending packets
@@ -105,16 +106,18 @@ protected:
 
     // recv'ing packets
     uint32_t               mTotalReceived;
-    int64_t                mLastReadByte;
+    uint64_t                mNextPacket;
 private:
-    std::list<uint64_t>    mReceivedPackets;
-    PriorityQueue<SDAMPFrame *> *mReadyFrames;
+    std::list<SDAMPPacket *> mReadyPackets;
+    std::list<SDAMPPacket *> mOOPackets;
 };
 
 class SSPProtocol : public SDAMPProtocol {
 public:
     SSPProtocol(std::vector<SCIONAddr> &dstAddrs, short srcPort, short dstPort);
     ~SSPProtocol();
+
+    void createManager(std::vector<SCIONAddr> &dstAddrs);
 
     int send(uint8_t *buf, size_t len, DataProfile profile);
     int recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr);
@@ -133,13 +136,15 @@ protected:
 
     uint64_t mNextOffset;
     RingBuffer *mReceiveBuffer;
-    PriorityQueue<SSPInPacket *> *mOOPackets;
+    std::list<SSPInPacket *> mOOPackets;
 };
 
 class SUDPProtocol : public SCIONProtocol {
 public:
     SUDPProtocol(std::vector<SCIONAddr> &dstAddrs, short srcPort, short dstPort);
     ~SUDPProtocol();
+
+    void createManager(std::vector<SCIONAddr> &dstAddrs);
 
     int send(uint8_t *buf, size_t len, DataProfile profile);
     int recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr);

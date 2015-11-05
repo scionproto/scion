@@ -62,10 +62,12 @@ public:
     SDAMPConnectionManager(std::vector<SCIONAddr> &addrs, int sock, SDAMPProtocol *protocol);
     virtual ~SDAMPConnectionManager();
 
+    void setRemoteWindow(uint32_t window);
     virtual void waitForSendBuffer(int len, int windowSize);
 
     void startPaths();
-    void queueFrame(SDAMPFrame *frame);
+    void queuePacket(SCIONPacket *packet);
+    int sendAllPaths(SCIONPacket *packet);
     virtual void didSend(SCIONPacket *packet);
     virtual void abortSend(SCIONPacket *packet);
 
@@ -74,15 +76,12 @@ public:
 
     void sendAck(SCIONPacket *packet);
     virtual void sendProbes(uint32_t probeNum, uint64_t flowID);
-    int sendAllPaths(SDAMPFrame *frame);
 
     virtual int handlePacket(SCIONPacket *packet);
     virtual void handleAck(SCIONPacket *packet, size_t initCount, bool receiver);
     void handleDupAck(int index);
     void handleProbeAck(SCIONPacket *packet);
     virtual void handleTimeout();
-
-    int maxFrameSize();
 
     void getStats(SCIONStats *stats);
 
@@ -102,8 +101,8 @@ protected:
     SDAMPMetric                  mMetric;
 
     PacketList                   mSentPackets;
-    PriorityQueue<SDAMPFrame *>  *mFreshFrames;
-    PriorityQueue<SDAMPFrame *>  *mRetryFrames;
+    PriorityQueue<SCIONPacket *> *mRetryPackets;
+    PriorityQueue<SCIONPacket *> *mFreshPackets;
 
     pthread_mutex_t              mMutex;
     pthread_cond_t               mCond;
@@ -144,8 +143,8 @@ protected:
     virtual int totalQueuedSize();
     int handleAckOnPath(SCIONPacket *packet, bool rttSample);
 
+    pthread_cond_t mFreshCond;
     RingBuffer *mFreshBuffer;
-    PriorityQueue<SCIONPacket *> *mRetryPackets;
     SSPProtocol *mProtocol;
 };
 

@@ -33,6 +33,9 @@
 #define INTRATD_PEER 0x78
 #define INTERTD_PEER 0x7C
 
+#define NORMAL_OF 0x0
+#define XOVR_POINT 0x10
+
 #define IS_HOP_OF(x) !((x) & 0x80)
 
 typedef struct {

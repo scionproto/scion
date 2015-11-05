@@ -1,12 +1,5 @@
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 #include <string.h>
 #include <stdio.h>
-#include <unistd.h>
-#include <ncurses.h>
-#include <signal.h>
-#include <Python.h>
 #include "SCIONSocket.h"
 #include "SHA1.h"
 #include <curl/curl.h>
@@ -71,7 +64,6 @@ int main()
         size += recvlen;
         long us = end.tv_usec - period.tv_usec + (end.tv_sec - period.tv_sec) * 1000000;
         if (us > 1000000) {
-            long totalus = end.tv_usec - start.tv_usec + (end.tv_sec - start.tv_sec) * 1000000;
             count++;
             SCIONStats stats;
             memset(&stats, 0, sizeof(stats));

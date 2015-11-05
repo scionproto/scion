@@ -65,11 +65,10 @@ public:
     SDAMPPath(SDAMPConnectionManager *manager, SCIONAddr &localAddr, SCIONAddr &dstAddr, uint8_t *rawPath, size_t pathLen);
     ~SDAMPPath();
 
-    void copyFrames(uint8_t *bufptr, SDAMPPacket *sp);
     virtual int send(SCIONPacket *packet, int sock);
 
     int handleData(SCIONPacket *packet);
-    int handleAck(SCIONPacket *packet, bool rttSample);
+    virtual int handleAck(SCIONPacket *packet, bool rttSample);
     void handleDupAck();
     void handleTimeout(struct timeval *current);
 
@@ -83,6 +82,7 @@ public:
     int getRTT();
     int getRTO();
     void setIndex(int index);
+    void setRemoteWindow(uint32_t window);
 
     virtual void start();
     static void * workerHelper(void *arg);
@@ -114,6 +114,7 @@ public:
 
     int send(SCIONPacket *packet, int sock);
     void start();
+    int handleAck(SCIONPacket *packet, bool rttSample);
     static void * workerHelper(void *arg);
     void workerFunction();
 };

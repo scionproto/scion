@@ -96,7 +96,7 @@ void PathState::setIndex(int index)
     mPathIndex = index;
 }
 
-void PathState::setSendWindow(int sendWindow)
+void PathState::setRemoteWindow(uint32_t sendWindow)
 {
     mSendWindow = sendWindow;
     DEBUG("send window set to %d\n", mSendWindow);
@@ -658,7 +658,8 @@ void CUBICPathState::addRTTSample(int rtt, uint64_t packetNum)
         mMinDelay = rtt;
     mAckCount++;
 
-    if (mThreshold < 0 || mCongestionWindow <= mThreshold) {
+    int thresh = mThreshold > 0 ? mThreshold : CUBIC_SSTHRESH;
+    if (mCongestionWindow < thresh) {
         DEBUG("path %d: slow start\n", mPathIndex);
         mCongestionWindow++;
     } else {

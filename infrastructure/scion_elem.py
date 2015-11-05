@@ -93,11 +93,12 @@ class SCIONElement(object):
             self.topology.dns_domain)
         self.construct_ifid2addr_map()
         self.trust_store = TrustStore(self.conf_dir)
+        self.total_dropped = 0
         if not is_sim:
             self.run_flag = threading.Event()
             self.stopped_flag = threading.Event()
             self.stopped_flag.set()
-            self._in_buf = queue.Queue()
+            self._in_buf = queue.Queue(30)
             self._socks = UDPSocketMgr()
             self._local_sock = UDPSocket(
                 bind=(str(self.addr.host_addr), port, self.id),
@@ -228,6 +229,25 @@ class SCIONElement(object):
 
         self._packet_process()
 
+    def packet_put(self, packet, addr, from_local_ad):
+        """
+        Try to put incoming packet in queue
+        If queue is full, drop oldest packet in queue
+        """
+        dropped = 0
+        while True:
+            try:
+                self._in_buf.put((packet, addr, from_local_ad), block=False)
+            except queue.Full:
+                self._in_buf.get_nowait()
+                dropped += 1
+            else:
+                break
+        if dropped > 0:
+            self.total_dropped += dropped
+            logging.debug("%d packet(s) dropped (%d total dropped so far)",
+                          dropped, self.total_dropped)
+
     def packet_recv(self):
         """
         Read packets from sockets, and put them into a :class:`queue.Queue`.
@@ -238,10 +258,10 @@ class SCIONElement(object):
                     try:
                         # Read from socket until its buffer is empty.
                         packet, addr = sock.recv(block=False)
-                        self._in_buf.put((packet, addr,
-                                          sock == self._local_sock))
                     except BlockingIOError:
                         break
+                self.packet_put(packet, addr, sock == self._local_sock)
+
         self.stopped_flag.set()
 
     def _packet_process(self):
