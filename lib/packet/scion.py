@@ -532,7 +532,7 @@ class SCIONL4Packet(SCIONExtPacket):
         }
         handler = class_map.get(pld_class)
         if not handler:
-            raise SCIONParseError("Unsupported payload class: %s", pld_class)
+            raise SCIONParseError("Unsupported payload class: %s" % pld_class)
         pld = handler(data.pop(1), data)
         self.set_payload(pld)
         return pld
