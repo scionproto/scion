@@ -142,18 +142,26 @@ class CertServer(SCIONElement):
             cert_chain_rep = CertChainReply.from_values(
                 cert_chain_req.isd_id, cert_chain_req.ad_id,
                 cert_chain_req.version, cert_chain)
-            if cert_chain_req.local:
-                dst_addr = pkt.addrs.src_addr
+            rep_pkt = pkt.reversed_copy()
+            rep_pkt.set_payload(cert_chain_rep)
+            rep_pkt.addrs.src_addr = self.addr.host_addr
+            if (cert_chain_req.src_isd == self.topology.isd_id and
+                    cert_chain_req.src_ad == self.topology.ad_id):
+                # Local request, local response
+                first_hop = pkt.addrs.src_addr
+                port = pkt.addrs.src_port
             else:
                 for router in self.topology.child_edge_routers:
                     if (cert_chain_req.src_isd ==
                             router.interface.neighbor_isd) and (
                             cert_chain_req.src_ad ==
                             router.interface.neighbor_ad):
-                        dst_addr = router.addr
-            if dst_addr:
-                rep_pkt = self._build_packet(dst_addr, payload=cert_chain_rep)
-                self.send(rep_pkt, dst_addr)
+                        first_hop = router.addr
+                        port = SCION_UDP_PORT
+                        rep_pkt.addrs.dst_addr = PT.CERT_MGMT
+                        break
+            if first_hop:
+                self.send(rep_pkt, first_hop, port)
                 logging.info("Certificate chain reply sent for %s",
                              cert_chain_req.short_desc())
             else:
