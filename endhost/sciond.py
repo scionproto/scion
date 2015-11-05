@@ -84,7 +84,7 @@ class SCIONDaemon(SCIONElement):
     # Time a path segment is cached at a host (in seconds).
     SEGMENT_TTL = 300
 
-    def __init__(self, conf_dir, addr, run_local_api=False,
+    def __init__(self, conf_dir, addr, api_addr, run_local_api=False,
                  port=SCION_UDP_PORT, is_sim=False):
         """
         Initialize an instance of the class SCIONDaemon.
@@ -109,13 +109,16 @@ class SCIONDaemon(SCIONElement):
             }
         }
         if run_local_api:
+            if not api_addr:
+                api_addr = SCIOND_API_HOST
             self._api_sock = UDPSocket(
-                bind=(SCIOND_API_HOST, SCIOND_API_PORT, "sciond local API"),
+                bind=(api_addr, SCIOND_API_PORT, "sciond local API"),
                 addr_type=AddrType.IPV4)
             self._socks.add(self._api_sock)
 
     @classmethod
-    def start(cls, addr, topo_file, run_local_api=False, port=SCION_UDP_PORT):
+    def start(cls, conf_dir, addr, api_addr=None, run_local_api=False,
+              port=SCION_UDP_PORT, is_sim=False):
         """
         Initializes, starts, and returns a SCIONDaemon object.
 
@@ -130,7 +133,7 @@ class SCIONDaemon(SCIONElement):
         :param :
         :type :
         """
-        sd = cls(addr, topo_file, run_local_api, port=port)
+        sd = cls(conf_dir, addr, api_addr, run_local_api, port, is_sim)
         sd.daemon_thread = threading.Thread(
             target=thread_safety_net, args=(sd.run,), name="SCIONDaemon.run",
             daemon=True)

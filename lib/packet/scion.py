@@ -501,7 +501,8 @@ class SCIONL4Packet(SCIONExtPacket):
     def _inner_pack(self):
         self.update()
         packed = [super()._inner_pack()]
-        packed.append(self.l4_hdr.pack())
+        if self.l4_hdr:
+            packed.append(self.l4_hdr.pack())
         return b"".join(packed)
 
     def _pack_payload(self):  # pragma: no cover
@@ -538,8 +539,9 @@ class SCIONL4Packet(SCIONExtPacket):
 
     def _get_offset_len(self):
         l = super()._get_offset_len()
-        l += len(self.l4_hdr)
-        l += self._payload.METADATA_LEN
+        if self.l4_hdr:
+            l += len(self.l4_hdr)
+            l += self._payload.METADATA_LEN
         return l
 
     def _inner_str(self):  # pragma: no cover

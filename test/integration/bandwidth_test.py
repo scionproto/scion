@@ -82,8 +82,8 @@ class TestBandwidth(unittest.TestCase):
         packets (each with PAYLOAD_SIZE long payload) to a host in (2, 26).
         """
         addr = haddr_parse("IPV4", "127.1.19.254")
-        topo_file = "%s/ISD1/topologies/ISD1-AD19.json" % GEN_PATH
-        sender = SCIONDaemon.start(addr, topo_file)
+        conf_dir = "%s/ISD1/AD19/endhost" % GEN_PATH
+        sender = SCIONDaemon.start(conf_dir, addr)
 
         paths = sender.get_paths(2, 26)
         self.assertTrue(paths)

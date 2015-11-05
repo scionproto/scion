@@ -830,9 +830,9 @@ class PathCombinator(object):
         down_iof, down_hofs = cls._copy_segment(down_segment, [0], up=False)
         path = CorePath.from_values(up_iof, up_hofs, core_iof, core_hofs,
                                     down_iof, down_hofs)
-        up_core = up_segment.ads
+        up_core = list(reversed(up_segment.ads))
         if core_segment:
-            up_core = up_core + core_segment.ads
+            up_core = up_core + list(reversed(core_segment.ads))
         for block in up_core:
             isd_ad = ISD_AD(block.pcbm.isd_id, block.pcbm.ad_id)
             egress = block.pcbm.hof.egress_if
@@ -846,9 +846,9 @@ class PathCombinator(object):
             egress = block.pcbm.hof.egress_if
             ingress = block.pcbm.hof.ingress_if
             if ingress:
-                path.interfaces.append((isd_ad, egress))
-            if egress:
                 path.interfaces.append((isd_ad, ingress))
+            if egress:
+                path.interfaces.append((isd_ad, egress))
         return path
 
     @classmethod
