@@ -180,9 +180,9 @@ class SCIONDaemon(SCIONElement):
             dst = self.dns_query_topo(PATH_SERVICE)[0]
         except SCIONServiceLookupError as e:
             raise SCIONDaemonPathLookupError(e) from None
-        # Create an event that we can wait on for the path reply.
-        event = threading.Event()
-        update_dict(self._waiting_targets[ptype], (dst_isd, dst_ad), [event])
+        # Create a semaphore that we can wait on for the path reply.
+        sema = threading.Semaphore(value=0)
+        update_dict(self._waiting_targets[ptype], (dst_isd, dst_ad), [sema])
         # Create and send out path request.
         info = PathSegmentInfo.from_values(ptype, src_isd, src_ad, dst_isd,
                                            dst_ad)
@@ -191,7 +191,7 @@ class SCIONDaemon(SCIONElement):
         # Wait for path reply and clear us from the waiting list when we got it.
         cycle_cnt = 0
         while cycle_cnt < WAIT_CYCLES:
-            event.wait(self.TIMEOUT)
+            sema.acquire(timeout=self.TIMEOUT)
             # Check that we got all the requested paths.
             if ((ptype == PST.UP and len(self.up_segments)) or
                 (ptype == PST.DOWN and
@@ -201,10 +201,9 @@ class SCIONDaemon(SCIONElement):
                                     first_isd=dst_isd, first_ad=dst_ad)) or
                 (ptype == PST.UP_DOWN and (len(self.up_segments) and
                  self.down_segments(last_isd=dst_isd, last_ad=dst_ad)))):
-                self._waiting_targets[ptype][(dst_isd, dst_ad)].remove(event)
+                self._waiting_targets[ptype][(dst_isd, dst_ad)].remove(sema)
                 del self._waiting_targets[ptype][(dst_isd, dst_ad)]
                 break
-            event.clear()
             cycle_cnt += 1
 
     def get_paths(self, dst_isd, dst_ad, requester=None):
@@ -300,9 +299,9 @@ class SCIONDaemon(SCIONElement):
         info = path_reply.info
         # Wake up sleeping get_paths().
         if (info.dst_isd, info.dst_ad) in self._waiting_targets[info.seg_type]:
-            for event in self._waiting_targets[info.seg_type][(info.dst_isd,
-                                                               info.dst_ad)]:
-                event.set()
+            for sema in self._waiting_targets[info.seg_type][(info.dst_isd,
+                                                              info.dst_ad)]:
+                sema.release()
 
     def _api_handle_path_request(self, packet, sender):
         """
