@@ -32,7 +32,7 @@ if nc -z localhost $POX_PORT; then
     log "POX running on localhost:$POX_PORT"
 else
     log "ERROR: Pox not running:"
-    cat "$POX_LOG"
+    tail -n 20 "$POX_LOG"
     exit 1
 fi
 

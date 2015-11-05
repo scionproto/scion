@@ -30,8 +30,11 @@ from endhost.sciond import SCIOND_API_HOST, SCIOND_API_PORT, SCIONDaemon
 from lib.defines import GEN_PATH
 from lib.log import init_logging
 from lib.main import main_wrapper
-from lib.packet.host_addr import haddr_get_type, haddr_parse, \
-    haddr_parse_interface
+from lib.packet.host_addr import (
+    haddr_get_type,
+    haddr_parse,
+    haddr_parse_interface,
+)
 from lib.packet.opaque_field import InfoOpaqueField
 from lib.packet.packet_base import PayloadRaw
 from lib.packet.path import CorePath, CrossOverPath, EmptyPath, PeerPath
