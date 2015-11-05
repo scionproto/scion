@@ -18,7 +18,6 @@ if [ -e "$POX_PID" ]; then
     exit 1
 fi
 
-
 PYTHONPATH=topology/mininet pox \
     pox_signal \
     forwarding.l2_learning \
@@ -26,17 +25,21 @@ PYTHONPATH=topology/mininet pox \
     log --no_default --file="$POX_LOG" --format="%(asctime)s: %(message)s" \
     &> "$POX_OUT" &
 
-#wait for pox to start to avoid "can't connect to controller errors"
-sleep 1
-if nc -z localhost $POX_PORT; then
-    log "POX running on localhost:$POX_PORT"
-else
-    log "ERROR: Pox not running:"
-    tail -n 20 "$POX_LOG"
-    exit 1
-fi
+count=0
+while ! nc -4 -z localhost "$POX_PORT"; do
+    log "Waiting for POX to load on localhost:$POX_PORT"
+    sleep 1
+    ((count++))
+    if [ $count -ge 5 ]; then
+        log "ERROR: POX not running after 5 seconds:"
+        tail -n 20 "$POX_LOG"
+        exit 1
+    fi
+done
 
+log "POX running on localhost:$POX_PORT"
 log "Starting mininet"
+
 sudo SUPERVISORD=$(which supervisord) python topology/mininet/topology.py
 
 for i in "$TMP_DIR"/*.pid; do
