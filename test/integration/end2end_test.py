@@ -17,6 +17,7 @@
 ===========================================
 """
 # Stdlib
+import argparse
 import logging
 import random
 import sys
@@ -27,8 +28,10 @@ import unittest
 # SCION
 from endhost.sciond import SCIOND_API_HOST, SCIOND_API_PORT, SCIONDaemon
 from lib.defines import GEN_PATH
-from lib.log import init_logging, log_exception
-from lib.packet.host_addr import haddr_get_type, haddr_parse
+from lib.log import init_logging
+from lib.main import main_wrapper
+from lib.packet.host_addr import haddr_get_type, haddr_parse, \
+    haddr_parse_interface
 from lib.packet.opaque_field import InfoOpaqueField
 from lib.packet.packet_base import PayloadRaw
 from lib.packet.path import CorePath, CrossOverPath, EmptyPath, PeerPath
@@ -40,8 +43,6 @@ from lib.thread import kill_self, thread_safety_net
 from lib.types import AddrType, OpaqueFieldType as OFT
 from lib.util import Raw, handle_signals
 
-saddr = haddr_parse("IPV4", "127.1.19.254")
-raddr = haddr_parse("IPV4", "127.2.26.254")
 TOUT = 10  # How long wait for response.
 
 
@@ -99,34 +100,32 @@ class Ping(object):
         self.dport = dport
         self.token = token
         self.pong_received = False
-        conf_dir = "%s/ISD%d/AD%d/endhost" % (GEN_PATH, src.isd, src.ad)
+        conf_dir = "%s/ISD%d/AD%d/endhost" % (GEN_PATH, src.isd_id, src.ad_id)
         # Local api on, random port:
         self.sd = SCIONDaemon.start(
-            conf_dir, saddr, run_local_api=True, port=0)
+            conf_dir, self.src.host_addr, run_local_api=True, port=0)
         self.get_path()
-        self.sock = UDPSocket(bind=(str(saddr), 0, "Ping App"),
+        self.sock = UDPSocket(bind=(str(self.src.host_addr), 0, "Ping App"),
                               addr_type=AddrType.IPV4)
 
     def get_path(self):
         logging.info("Sending PATH request for (%d, %d)",
-                     self.dst.isd, self.dst.ad)
+                     self.dst.isd_id, self.dst.ad_id)
         # Get paths through local API.
-        paths_hops = get_paths_via_api(self.dst.isd, self.dst.ad)
+        paths_hops = get_paths_via_api(self.dst.isd_id, self.dst.ad_id)
         (self.path, self.hop) = paths_hops[0]
         if isinstance(self.path, EmptyPath):
-            self.hop = raddr
+            self.hop = self.dst.host_addr
 
     def run(self):
         self.send()
         self.recv()
 
     def send(self):
-        dst_addr = SCIONAddr.from_values(self.dst.isd, self.dst.ad, raddr)
-        src_addr = SCIONAddr.from_values(self.src.isd, self.src.ad, saddr)
-        cmn_hdr, addr_hdr = build_base_hdrs(src_addr, dst_addr)
+        cmn_hdr, addr_hdr = build_base_hdrs(self.src, self.dst)
         payload = PayloadRaw(b"ping " + self.token)
         udp_hdr = SCIONUDPHeader.from_values(
-            src_addr, self.sock.port, dst_addr, self.dport, payload)
+            self.src, self.sock.port, self.dst, self.dport, payload)
         spkt = SCIONL4Packet.from_values(
             cmn_hdr, addr_hdr, self.path, [], udp_hdr, payload)
         (next_hop, port) = self.sd.get_first_hop(spkt)
@@ -142,7 +141,8 @@ class Ping(object):
         payload = spkt.get_payload()
         pong = PayloadRaw(b"pong " + self.token)
         if payload == pong:
-            logging.info('%s:%d: pong received.', saddr, self.sock.port)
+            logging.info('%s:%d: pong received.', self.src.host_addr,
+                         self.sock.port)
             self.pong_received = True
         else:
             logging.error("Unexpected payload received: %s (expected: %s)",
@@ -161,9 +161,10 @@ class Pong(object):
         self.token = token
         self.ping_received = False
         conf_dir = "%s/ISD%d/AD%d/endhost" % (
-            GEN_PATH, self.dst.isd, self.dst.ad)
-        self.sd = SCIONDaemon.start(conf_dir, raddr)  # API off, standard port.
-        self.sock = UDPSocket(bind=(str(raddr), 0, "Pong App"),
+            GEN_PATH, self.dst.isd_id, self.dst.ad_id)
+        # API off, standard port.
+        self.sd = SCIONDaemon.start(conf_dir, self.dst.host_addr)
+        self.sock = UDPSocket(bind=(str(self.dst.host_addr), 0, "Pong App"),
                               addr_type=AddrType.IPV4)
 
     def get_local_port(self):
@@ -176,8 +177,8 @@ class Pong(object):
         ping = PayloadRaw(b"ping " + self.token)
         if payload == ping:
             # Reverse the packet and send "pong".
-            logging.info('%s:%d: ping received, sending pong.', raddr,
-                         self.sock.port)
+            logging.info('%s:%d: ping received, sending pong.',
+                         self.dst.host_addr, self.sock.port)
             self.ping_received = True
             spkt.reverse()
             spkt.set_payload(PayloadRaw(b"pong " + self.token))
@@ -192,24 +193,26 @@ class TestSCIONDaemon(unittest.TestCase):
     Unit tests for sciond.py. For this test a infrastructure must be running.
     """
 
-    def test(self, sources, destinations):
+    def test(self, client, server, sources, destinations):
         """
         Testing function. Creates an instance of SCIONDaemon, then verifies path
-        requesting, and finally sends packet through SCION. Sender is 127.1.19.1
-        placed in every AD from `sources`, and receiver is 127.2.26.1 from
-        every AD from `destinations`.
+        requesting, and finally sends packet through SCION. Sender is placed in
+        every AD from `sources`, and receiver is from every AD from
+        `destinations`.
         """
         thread = threading.current_thread()
         thread.name = "E2E.MainThread"
+        client_ip = haddr_parse_interface(client)
+        server_ip = haddr_parse_interface(server)
         failures = 0
         for src_id in sources:
             for dst_id in destinations:
                 logging.info("Testing: %s -> %s", src_id, dst_id)
-                src = ISD_AD(*src_id)
-                dst = ISD_AD(*dst_id)
+                src = SCIONAddr.from_values(src_id[0], src_id[1], client_ip)
+                dst = SCIONAddr.from_values(dst_id[0], dst_id[1], server_ip)
                 token = (
-                    "%s-%s<->%s-%s" % (src[0], src[1], dst[0],
-                                       dst[1])
+                    "%s-%s<->%s-%s" % (src.isd_id, src.ad_id, dst.isd_id,
+                                       dst.ad_id)
                 ).encode("UTF-8")
                 pong_app = Pong(dst, token)
                 threading.Thread(
@@ -230,30 +233,38 @@ class TestSCIONDaemon(unittest.TestCase):
                 self.assertTrue(ping_app.pong_received)
         sys.exit(failures)
 
-if __name__ == "__main__":
-    init_logging("logs/end2end.log", console=True)
-    handle_signals()
-    if len(sys.argv) == 3:
-        isd, ad = sys.argv[1].split(',')
-        sources = [(int(isd), int(ad))]
-        isd, ad = sys.argv[2].split(',')
-        destinations = [(int(isd), int(ad))]
-    else:
-        # You can specify src and dst by giving 'sISD,sAD dISD,dAD' as
-        # the arguments. E.g.: python3 end2end_test.py 1,19 2,26
-        sources = [(1, 17), (1, 19), (1, 10), (2, 25)]
-        sources += [(2, 26), (1, 14), (1, 18)]
-        destinations = sources[:]
-        # Randomize order of the connections.
-        random.shuffle(sources)
-        random.shuffle(destinations)
 
-    try:
-        TestSCIONDaemon().test(sources, destinations)
-    except SystemExit:
-        logging.info("Exiting")
-        raise
-    except:
-        log_exception("Exception in main process:")
-        logging.critical("Exiting")
-        sys.exit(1)
+def _parse_tuple(ad_str):
+    def_ads = [(1, 17), (1, 19), (1, 10), (2, 25), (2, 26), (1, 14), (1, 18)]
+    if not ad_str:
+        random.shuffle(def_ads)
+        return def_ads
+    isd, ad = ad_str.split(",")
+    return [(int(isd), int(ad))]
+
+
+def main():
+    handle_signals()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-c', '--client', help='Client address')
+    parser.add_argument('-s', '--server', help='Server address')
+    parser.add_argument('-m', '--mininet', action='store_true',
+                        help="Running under mininet")
+    parser.add_argument('src_ad', nargs='?', help='Src isd,ad')
+    parser.add_argument('dst_ad', nargs='?', help='Dst isd,ad')
+    args = parser.parse_args()
+    init_logging("logs/end2end.log", console=True)
+
+    if not args.client:
+        args.client = "169.254.0.2" if args.mininet else "127.0.0.2"
+    if not args.server:
+        args.server = "169.254.0.3" if args.mininet else "127.0.0.3"
+
+    srcs = _parse_tuple(args.src_ad)
+    dsts = _parse_tuple(args.dst_ad)
+
+    TestSCIONDaemon().test(args.client, args.server, srcs, dsts)
+
+
+if __name__ == "__main__":
+    main_wrapper(main)

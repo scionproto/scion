@@ -89,7 +89,7 @@ def main():
     net = Mininet(topo=topo, controller=RemoteController, link=ScionLink,
                   switch=OVSKernelSwitch)
     for host in net.hosts:
-        host.cmd('ip route add 169.254.0.0/16 dev '+host.intf().name)
+        host.cmd('ip route add 169.254.0.0/16 dev %s-0' % host.name)
     net.start()
     os.system('ip link add name mininet type dummy')
     os.system('ip addr add 169.254.0.1/16 dev mininet')
