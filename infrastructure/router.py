@@ -204,7 +204,7 @@ class Router(SCIONElement):
             name="ER.request_ifstates", daemon=True).start()
         SCIONElement.run(self)
 
-    def send(self, spkt, addr, port=SCION_UDP_PORT, use_local_socket=True):
+    def send(self, spkt, addr, port=SCION_UDP_PORT):
         """
         Send a spkt to addr (class of that object must implement
         __str__ which returns IPv4 addr) using port and local or remote
@@ -216,15 +216,12 @@ class Router(SCIONElement):
         :type addr: :class:`IPv4Adress`
         :param port: The port number of the next hop.
         :type port: int
-        :param use_local_socket: whether to use the local socket (as opposed to
-                                 a remote socket).
-        :type use_local_socket: bool
         """
         self.handle_extensions(spkt, False)
-        if use_local_socket:
-            super().send(spkt, addr, port)
-        else:
+        if addr == self.interface.to_addr:
             self._remote_sock.send(spkt.pack(), (str(addr), port))
+        else:
+            super().send(spkt, addr, port)
 
     def handle_extensions(self, spkt, pre_routing_phase):
         """
@@ -268,7 +265,7 @@ class Router(SCIONElement):
             dst_ad=self.interface.neighbor_ad, payload=ifid_pld)
         while True:
             self.send(pkt, self.interface.to_addr,
-                      self.interface.to_udp_port, False)
+                      self.interface.to_udp_port)
             time.sleep(IFID_PKT_TOUT)
 
     def request_ifstates(self):
@@ -337,8 +334,7 @@ class Router(SCIONElement):
             if self.interface.if_id != pcb.get_last_pcbm().hof.egress_if:
                 logging.error("Wrong interface set by BS.")
                 return
-            self.send(pkt, self.interface.to_addr, self.interface.to_udp_port,
-                      False)
+            self.send(pkt, self.interface.to_addr, self.interface.to_udp_port)
         else:
             pcb.if_id = self.interface.if_id
             try:
