@@ -30,6 +30,7 @@ from socket import (
 
 # SCION
 from lib.defines import SCION_BUFLEN
+from lib.thread import kill_self
 from lib.types import AddrType
 
 
@@ -73,7 +74,11 @@ class UDPSocket(object):
             addr = "::"
             if self._addr_type == AddrType.IPV4:
                 addr = ""
-        self.sock.bind((addr, port))
+        try:
+            self.sock.bind((addr, port))
+        except OSError as e:
+            logging.critical("Error binding to [%s]:%s: %s", addr, port, e)
+            kill_self()
         self.port = self.sock.getsockname()[1]
         if desc:
             logging.info("%s bound to %s:%d", desc, addr, self.port)
