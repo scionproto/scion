@@ -34,6 +34,7 @@ Thumbs.db
 # Python generated files #
 #########################
 __pycache__
+topology/mininet/*.pyc
 
 
 # vim generated files #
@@ -59,3 +60,13 @@ __pycache__
 ##########################
 /.coverage
 /htmlcov/
+
+# Socket library files
+##########################
+endhost/sdamp/*.so
+
+# Socket binaries
+##########################
+endhost/*dispatcher
+endhost/sdamp/test/client
+endhost/sdamp/test/server

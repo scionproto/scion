@@ -501,7 +501,8 @@ class SCIONL4Packet(SCIONExtPacket):
     def _inner_pack(self):
         self.update()
         packed = [super()._inner_pack()]
-        packed.append(self.l4_hdr.pack())
+        if self.l4_hdr:
+            packed.append(self.l4_hdr.pack())
         return b"".join(packed)
 
     def _pack_payload(self):  # pragma: no cover
@@ -531,15 +532,16 @@ class SCIONL4Packet(SCIONExtPacket):
         }
         handler = class_map.get(pld_class)
         if not handler:
-            raise SCIONParseError("Unsupported payload class: %s", pld_class)
+            raise SCIONParseError("Unsupported payload class: %s" % pld_class)
         pld = handler(data.pop(1), data)
         self.set_payload(pld)
         return pld
 
     def _get_offset_len(self):
         l = super()._get_offset_len()
-        l += len(self.l4_hdr)
-        l += self._payload.METADATA_LEN
+        if self.l4_hdr:
+            l += len(self.l4_hdr)
+            l += self._payload.METADATA_LEN
         return l
 
     def _inner_str(self):  # pragma: no cover

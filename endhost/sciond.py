@@ -84,7 +84,7 @@ class SCIONDaemon(SCIONElement):
     # Time a path segment is cached at a host (in seconds).
     SEGMENT_TTL = 300
 
-    def __init__(self, conf_dir, addr, run_local_api=False,
+    def __init__(self, conf_dir, addr, api_addr, run_local_api=False,
                  port=SCION_UDP_PORT, is_sim=False):
         """
         Initialize an instance of the class SCIONDaemon.
@@ -109,13 +109,16 @@ class SCIONDaemon(SCIONElement):
             }
         }
         if run_local_api:
+            if not api_addr:
+                api_addr = SCIOND_API_HOST
             self._api_sock = UDPSocket(
-                bind=(SCIOND_API_HOST, SCIOND_API_PORT, "sciond local API"),
+                bind=(api_addr, SCIOND_API_PORT, "sciond local API"),
                 addr_type=AddrType.IPV4)
             self._socks.add(self._api_sock)
 
     @classmethod
-    def start(cls, addr, topo_file, run_local_api=False, port=SCION_UDP_PORT):
+    def start(cls, conf_dir, addr, api_addr=None, run_local_api=False,
+              port=SCION_UDP_PORT, is_sim=False):
         """
         Initializes, starts, and returns a SCIONDaemon object.
 
@@ -130,7 +133,7 @@ class SCIONDaemon(SCIONElement):
         :param :
         :type :
         """
-        sd = cls(addr, topo_file, run_local_api, port=port)
+        sd = cls(conf_dir, addr, api_addr, run_local_api, port, is_sim)
         sd.daemon_thread = threading.Thread(
             target=thread_safety_net, args=(sd.run,), name="SCIONDaemon.run",
             daemon=True)
@@ -177,9 +180,9 @@ class SCIONDaemon(SCIONElement):
             dst = self.dns_query_topo(PATH_SERVICE)[0]
         except SCIONServiceLookupError as e:
             raise SCIONDaemonPathLookupError(e) from None
-        # Create an event that we can wait on for the path reply.
-        event = threading.Event()
-        update_dict(self._waiting_targets[ptype], (dst_isd, dst_ad), [event])
+        # Create a semaphore that we can wait on for the path reply.
+        sema = threading.Semaphore(value=0)
+        update_dict(self._waiting_targets[ptype], (dst_isd, dst_ad), [sema])
         # Create and send out path request.
         info = PathSegmentInfo.from_values(ptype, src_isd, src_ad, dst_isd,
                                            dst_ad)
@@ -188,7 +191,7 @@ class SCIONDaemon(SCIONElement):
         # Wait for path reply and clear us from the waiting list when we got it.
         cycle_cnt = 0
         while cycle_cnt < WAIT_CYCLES:
-            event.wait(self.TIMEOUT)
+            sema.acquire(timeout=self.TIMEOUT)
             # Check that we got all the requested paths.
             if ((ptype == PST.UP and len(self.up_segments)) or
                 (ptype == PST.DOWN and
@@ -198,10 +201,9 @@ class SCIONDaemon(SCIONElement):
                                     first_isd=dst_isd, first_ad=dst_ad)) or
                 (ptype == PST.UP_DOWN and (len(self.up_segments) and
                  self.down_segments(last_isd=dst_isd, last_ad=dst_ad)))):
-                self._waiting_targets[ptype][(dst_isd, dst_ad)].remove(event)
+                self._waiting_targets[ptype][(dst_isd, dst_ad)].remove(sema)
                 del self._waiting_targets[ptype][(dst_isd, dst_ad)]
                 break
-            event.clear()
             cycle_cnt += 1
 
     def get_paths(self, dst_isd, dst_ad, requester=None):
@@ -297,9 +299,9 @@ class SCIONDaemon(SCIONElement):
         info = path_reply.info
         # Wake up sleeping get_paths().
         if (info.dst_isd, info.dst_ad) in self._waiting_targets[info.seg_type]:
-            for event in self._waiting_targets[info.seg_type][(info.dst_isd,
-                                                               info.dst_ad)]:
-                event.set()
+            for sema in self._waiting_targets[info.seg_type][(info.dst_isd,
+                                                              info.dst_ad)]:
+                sema.release()
 
     def _api_handle_path_request(self, packet, sender):
         """

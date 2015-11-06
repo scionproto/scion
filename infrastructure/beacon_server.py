@@ -41,7 +41,6 @@ from lib.defines import (
     CERTIFICATE_SERVICE,
     IFID_PKT_TOUT,
     PATH_SERVICE,
-    SCION_ROUTER_PORT,
     SCION_UDP_PORT,
 )
 from lib.errors import (
@@ -521,9 +520,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 mgmt_packet = self._build_packet(payload=payload)
                 for er in self.topology.get_all_edge_routers():
                     if er.interface.if_id != ifid:
-                        mgmt_packet.addrs.dst_addr = er.interface.addr
-                        self.send(mgmt_packet, er.interface.addr,
-                                  er.interface.udp_port)
+                        mgmt_packet.addrs.dst_addr = er.addr
+                        self.send(mgmt_packet, er.addr)
 
     def run(self):
         """
@@ -552,6 +550,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             start = SCIONTime.get_time()
             try:
                 self.process_pcb_queue()
+                self.handle_unverified_beacons()
                 self.zk.wait_connected()
                 self.pcb_cache.process()
                 self.revobjs_cache.process()
@@ -584,7 +583,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             if not ifstate.is_active():
                 ifstate.reset()
 
-    def _try_to_verify_beacon(self, pcb):
+    def _try_to_verify_beacon(self, pcb, quiet=False):
         """
         Try to verify a beacon.
 
@@ -601,8 +600,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             else:
                 logging.warning("Invalid beacon. %s", pcb)
         else:
-            logging.warning(
-                "Certificate(s) or TRC missing for pcb: %s", pcb.short_desc())
+            if not quiet:
+                logging.warning("Certificate(s) or TRC missing for pcb: %s",
+                                pcb.short_desc())
             self.unverified_beacons.append(pcb)
 
     @abstractmethod
@@ -731,7 +731,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         rep_key = trc.isd_id, trc.version
         if rep_key in self.trc_requests:
             del self.trc_requests[rep_key]
-        self.handle_unverified_beacons()
 
     def handle_unverified_beacons(self):
         """
@@ -739,7 +738,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         for _ in range(len(self.unverified_beacons)):
             pcb = self.unverified_beacons.popleft()
-            self._try_to_verify_beacon(pcb)
+            self._try_to_verify_beacon(pcb, quiet=True)
 
     def process_rev_objects(self, rev_objs):
         """
@@ -794,8 +793,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         payload = IFStatePayload.from_values([info])
         state_pkt = self._build_packet(payload=payload)
         for er in self.topology.get_all_edge_routers():
-            state_pkt.addrs.dst_addr = er.interface.addr
-            self.send(state_pkt, er.interface.addr, er.interface.udp_port)
+            state_pkt.addrs.dst_addr = er.addr
+            self.send(state_pkt, er.addr)
         self._process_revocation(rev_info, if_id)
 
     def _process_revocation(self, rev_info, if_id):
@@ -904,7 +903,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
         payload = IFStatePayload.from_values(infos)
         state_pkt = self._build_packet(mgmt_pkt.addrs.src_addr, payload=payload)
-        self.send(state_pkt, mgmt_pkt.addrs.src_addr, SCION_ROUTER_PORT)
+        self.send(state_pkt, mgmt_pkt.addrs.src_addr)
 
 
 class CoreBeaconServer(BeaconServer):
@@ -1268,7 +1267,6 @@ class LocalBeaconServer(BeaconServer):
                                   CertificateChain(raw_cert_chain))
         if rep_key in self.cert_chain_requests:
             del self.cert_chain_requests[rep_key]
-        self.handle_unverified_beacons()
 
     def _remove_revoked_pcbs(self, rev_info, if_id):
         candidates = (self.down_segments.candidates +
@@ -1337,7 +1335,7 @@ class LocalBeaconServer(BeaconServer):
             pcb.remove_signatures()
             self._sign_beacon(pcb)
             self.register_down_segment(pcb)
-            logging.info("Down path registered: %s", pcb.get_hops_hash())
+            logging.info("Down path registered: %s", pcb.short_desc())
 
 
 if __name__ == "__main__":
