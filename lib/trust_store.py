@@ -23,7 +23,7 @@ import re
 
 # SCION
 from lib.crypto.certificate import CertificateChain, TRC
-from lib.util import CERT_DIR
+from lib.util import CERT_DIR, read_file
 
 
 class TrustStore(object):
@@ -42,20 +42,14 @@ class TrustStore(object):
 
     def _init_trcs(self):
         for path in glob.glob("%s/*.trc" % self._dir):
-            # isd, ver = re.findall("\d+", path)[-2:]
-            f = open(path)
-            trc_raw = f.read()
-            f.close()
-            # trc = TRC(trc_raw)
+            trc_raw = read_file(path)
             self.add_trc(TRC(trc_raw))
             logging.info("Loaded: %s" % path)
 
     def _init_certs(self):
         for path in glob.glob("%s/*.crt" % self._dir):
             isd, ad, ver = map(int, re.findall("\d+", path)[-3:])
-            f = open(path)
-            cert_raw = f.read()
-            f.close()
+            cert_raw = read_file(path)
             self.add_cert(isd, ad, ver, CertificateChain(cert_raw))
             logging.info("Loaded: %s" % path)
 
