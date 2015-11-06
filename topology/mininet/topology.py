@@ -51,7 +51,7 @@ class ScionTopo(Topo):
                 if intf.network.prefixlen == intf.max_prefixlen - 1:
                     is_link = True
                 intfName = "%s-%d" % (elem_name, is_link)
-                assert intfName <= MAX_INTF_LEN
+                assert len(intfName) <= MAX_INTF_LEN
                 self.addLink(
                     host_map[elem], self.switch_map[name],
                     params={'ip': str(intf)},

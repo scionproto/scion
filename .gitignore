@@ -34,7 +34,7 @@ Thumbs.db
 # Python generated files #
 #########################
 __pycache__
-topology/mininet/pox_signal.pyc
+topology/mininet/*.pyc
 
 
 # vim generated files #
