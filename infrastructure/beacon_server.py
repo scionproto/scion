@@ -45,6 +45,7 @@ from lib.defines import (
 )
 from lib.errors import (
     SCIONIndexError,
+    SCIONKeyError,
     SCIONParseError,
     SCIONServiceLookupError,
 )
@@ -506,6 +507,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         payload = pkt.get_payload()
         ifid = payload.reply_id
+        if ifid not in self.ifid_state:
+            raise SCIONKeyError("Invalid IF %d in IFIDPayload" % ifid)
         prev_state = self.ifid_state[ifid].update()
         if prev_state == InterfaceState.INACTIVE:
             logging.info("IF %d activated", ifid)
