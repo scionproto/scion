@@ -11,7 +11,7 @@
         "1-11": {
             "level": "CORE",
             "beacon_servers": 1,
-            "certificate_servers": 1,
+            "certificate_servers": 3,
             "path_servers": 3,
             "links": {
                 "1-12": "ROUTING",
@@ -52,6 +52,7 @@
         "1-13": {
             "level": "CORE",
             "beacon_servers": 2,
+            "certificate_servers": 3,
             "dns_servers": 2,
             "links": {
                 "1-11": "ROUTING",
@@ -63,6 +64,7 @@
             "level": "INTERMEDIATE",
             "path_servers": 1,
             "cert_issuer": "1-11",
+            "certificate_servers": 3,
             "links": {
                 "1-11": "PARENT",
                 "1-15": "PEER",
@@ -83,6 +85,7 @@
         "1-16": {
             "level": "INTERMEDIATE",
             "beacon_servers": 3,
+            "certificate_servers": 3,
             "cert_issuer": "1-13",
             "links": {
                 "1-13": "PARENT",
@@ -107,6 +110,7 @@
         "1-19": {
             "level": "INTERMEDIATE",
             "path_servers": 2,
+            "certificate_servers": 3,
             "cert_issuer": "1-16",
             "links": {
                 "1-16": "PARENT",
@@ -150,6 +154,7 @@
         "2-24": {
             "level": "INTERMEDIATE",
             "cert_issuer": "2-22",
+            "certificate_servers": 3,
             "links": {
                 "2-22": "PARENT",
                 "2-23": "PEER",

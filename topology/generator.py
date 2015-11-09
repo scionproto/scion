@@ -313,7 +313,7 @@ class CertGenerator(object):
         if ad_conf['level'] != CORE_AD:
             return
         trc = self.trcs[topo_id.isd]
-        trc_str = trc.__str__(with_signatures=False).encode('utf-8')
+        trc_str = trc.to_json(with_signatures=False).encode('utf-8')
         trc.signatures[str(topo_id)] = sign(
             trc_str, self.sig_priv_keys[topo_id])
 
