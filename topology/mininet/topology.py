@@ -9,6 +9,7 @@ import configparser
 import ipaddress
 from mininet.cli import CLI
 from mininet.log import lg
+from mininet.link import Link, TCIntf
 from mininet.net import Mininet
 from mininet.node import RemoteController
 from mininet.topo import Topo
@@ -71,6 +72,14 @@ class ScionTopo(Topo):
         return key
 
 
+class ScionTCLink(Link):
+    # mininet.link.TCLink mangles parameters, so reimplement it more cleanly and
+    # correctly.
+    def __init__(self, *args, **kwargs):
+        kwargs["intf"] = TCIntf
+        Link.__init__(self, *args, **kwargs)
+
+
 def main():
     lg.setLogLevel('info')
     supervisord = os.getenv("SUPERVISORD")
@@ -78,7 +87,7 @@ def main():
     topology = configparser.ConfigParser(interpolation=None)
     topology.read_file(open(NETWORKS_CONF), source=NETWORKS_CONF)
     topo = ScionTopo(topology)
-    net = Mininet(topo=topo, controller=RemoteController)
+    net = Mininet(topo=topo, controller=RemoteController, link=ScionTCLink)
     for host in net.hosts:
         host.cmd('ip route add 169.254.0.0/16 dev %s-0' % host.name)
     net.start()
