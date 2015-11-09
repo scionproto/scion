@@ -16,6 +16,7 @@ from mininet.topo import Topo
 
 MAX_INTF_LEN = 15
 NETWORKS_CONF = "gen/networks.conf"
+LINKS_CONF = "topology/mininet/links.conf"
 
 
 class ScionTopo(Topo):
@@ -30,6 +31,9 @@ class ScionTopo(Topo):
         self._genTopo(mnconfig)
 
     def _genTopo(self, mnconfig):
+        links = configparser.ConfigParser(interpolation=None)
+        links.read(LINKS_CONF)
+
         for i, name in enumerate(mnconfig.sections()):
             self.switch_map[name] = self.addSwitch("s%s" % i)
 
@@ -53,11 +57,37 @@ class ScionTopo(Topo):
                     is_link = True
                 intfName = "%s-%d" % (elem_name, is_link)
                 assert len(intfName) <= MAX_INTF_LEN
+                params = {'ip': str(intf)}
+                if intfName in links.sections():
+                    params.update(self._tcParamParser(links[intfName]))
                 self.addLink(
                     host_map[elem], self.switch_map[name],
-                    params={'ip': str(intf)},
+                    params,
                     intfName=intfName,
                 )
+
+    def _tcParamParser(self, section):
+        """
+        Returns properly formatted TCIntf config parameters
+        """
+        tcItems = {}
+        if "jitter" in section:
+            tcItems["jitter"] = section.get("jitter")
+        if "delay" in section:
+            tcItems["delay"] = section.get("delay")
+        if "enable_ecn" in section:
+            tcItems["enable_ecn"] = section.getboolean("enable_ecn")
+        if "enable_red" in section:
+            tcItems["enable_red"] = section.getboolean("enable_red")
+        if "use_hfsc" in section:
+            tcItems["use_hfsc"] = section.getboolean("use_hfsc")
+        if "use_tbf" in section:
+            tcItems["use_tbf"] = section.getboolean("use_tbf")
+        if "bw" in section:
+            tcItems["bw"] = section.getfloat("bw")
+        if "loss" in section:
+            tcItems["loss"] = section.getint("loss")
+        return tcItems
 
     def addLink(self, node1, node2, params=None, intfName=None):
         self.addPort(node1, node2, None, None)
