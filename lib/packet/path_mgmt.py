@@ -23,16 +23,11 @@ import struct
 # SCION
 from lib.types import PathMgmtType as PMT, PathSegmentType
 from lib.errors import SCIONParseError
-from lib.packet.packet_base import SCIONPayloadBase
+from lib.packet.packet_base import PathMgmtPayloadBase
 from lib.packet.pcb import PathSegment
 from lib.packet.scion_addr import ISD_AD
-from lib.types import PayloadClass
+from lib.packet.rev_info import RevocationInfo
 from lib.util import Raw
-
-
-class PathMgmtPayloadBase(SCIONPayloadBase):
-    PAYLOAD_CLASS = PayloadClass.PATH
-    PAYLOAD_TYPE = None
 
 
 class PathSegmentInfo(PathMgmtPayloadBase):
@@ -181,53 +176,6 @@ class PathRecordsReg(PathSegmentRecords):
 class PathRecordsSync(PathSegmentRecords):
     NAME = "PathRecordsSync"
     PAYLOAD_TYPE = PMT.SYNC
-
-
-class RevocationInfo(PathMgmtPayloadBase):
-    """
-    Class containing revocation information, i.e., the revocation token.
-    """
-    NAME = "RevocationInfo"
-    PAYLOAD_TYPE = PMT.REVOCATION
-    LEN = 32
-
-    def __init__(self, raw=None):  # pragma: no cover
-        """
-        Initialize an instance of the class RevocationInfo.
-
-        :param raw:
-        :type raw:
-        """
-        super().__init__()
-        self.rev_token = b""
-
-        if raw is not None:
-            self._parse(raw)
-
-    def _parse(self, raw):
-        data = Raw(raw, self.NAME, self.LEN)
-        self.rev_token = struct.unpack("!32s", data.pop(self.LEN))[0]
-
-    @classmethod
-    def from_values(cls, rev_token):
-        """
-        Returns a RevocationInfo object with the specified values.
-
-        :param rev_token: revocation token of interface
-        :type rev_token: bytes
-        """
-        inst = cls()
-        inst.rev_token = rev_token
-        return inst
-
-    def pack(self):
-        return struct.pack("!32s", self.rev_token)
-
-    def __len__(self):  # pragma: no cover
-        return self.LEN
-
-    def __str__(self):
-        return "[%s(%dB): %s]" % (self.NAME, len(self), self.rev_token)
 
 
 class IFStateInfo(object):
