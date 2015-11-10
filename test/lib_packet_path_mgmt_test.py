@@ -30,7 +30,6 @@ from lib.packet.path_mgmt import (
     IFStateRequest,
     PathSegmentInfo,
     PathSegmentRecords,
-    RevocationInfo,
     parse_pathmgmt_payload,
 )
 from test.testcommon import (
@@ -187,45 +186,6 @@ class TestPathSegmentRecordsLen(object):
         inst.pcbs = [range(5) for x in range(5)]
         # Call
         ntools.eq_(len(inst), 30)
-
-
-class TestRevocationInfoParse(object):
-    """
-    Unit tests for lib.packet.path_mgmt.RevocationInfo._parse
-    """
-    @patch("lib.packet.path_mgmt.Raw", autospec=True)
-    def test(self, raw):
-        inst = RevocationInfo()
-        data = create_mock(["pop"])
-        data.pop.return_value = bytes(range(32))
-        raw.return_value = data
-        # Call
-        inst._parse("data")
-        # Tests
-        raw.assert_called_once_with("data", "RevocationInfo", inst.LEN)
-        ntools.eq_(inst.rev_token, bytes(range(32)))
-
-
-class TestRevocationInfoFromValues(object):
-    """
-    Unit tests for lib.packet.path_mgmt.RevocationInfo.from_values
-    """
-    def test(self):
-        inst = RevocationInfo.from_values("rev token")
-        # Tests
-        ntools.assert_is_instance(inst, RevocationInfo)
-        ntools.eq_(inst.rev_token, "rev token")
-
-
-class TestRevocationInfoPack(object):
-    """
-    Unit tests for lib.packet.path_mgmt.RevocationInfo.pack
-    """
-    def test(self):
-        inst = RevocationInfo()
-        inst.rev_token = bytes(range(32))
-        # Call
-        ntools.eq_(inst.pack(), bytes(range(32)))
 
 
 class TestIFStateInfoParse(object):
