@@ -577,7 +577,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 last_propagation = now
             if (self.config.registers_paths and
                     now - last_registration >= self.config.registration_time):
-                self.register_segments()
+                try:
+                    self.register_segments()
+                except SCIONKeyError as e:
+                    logging.error("Register_segments: %s",e)
+                    pass
                 last_registration = now
 
     def _became_master(self):
@@ -1251,6 +1255,8 @@ class LocalBeaconServer(BeaconServer):
         pkt = self._build_packet(
             PT.PATH_MGMT, dst_isd=pcb.get_isd(),
             dst_ad=pcb.get_first_pcbm().ad_id, path=core_path, payload=records)
+        if core_path.get_fwd_if() not in self.ifid2addr:
+            raise SCIONKeyError("Invalid IF %d in CorePath" % core_path.get_fwd_if())
         next_hop = self.ifid2addr[core_path.get_fwd_if()]
         self.send(pkt, next_hop)
 
