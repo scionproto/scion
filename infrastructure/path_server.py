@@ -208,6 +208,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         """
         rev_token = rev_info.rev_token
         for _ in range(self.N_TOKENS_CHECK):
+            rev_token = SHA256.new(rev_token).digest()
             segments = self.iftoken2seg[rev_token]
             while segments:
                 sid = segments.pop()
@@ -216,7 +217,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                 self.core_segments.delete(sid)
             if rev_token in self.iftoken2seg:
                 del self.iftoken2seg[rev_token]
-            rev_token = SHA256.new(rev_token).digest()
 
     def send_path_segments(self, pkt, paths):
         """
