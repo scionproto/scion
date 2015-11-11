@@ -395,7 +395,7 @@ class Router(SCIONElement):
                     except SCIONServiceLookupError:
                         logging.error("No local PS to forward revocation to.")
                         return
-                    self.send(mgmt_pkt, ps.addr)
+                    self.send(mgmt_pkt, ps)
         if not from_local_ad and mgmt_pkt.path.is_last_path_hof():
             self.deliver(mgmt_pkt, PT.PATH_MGMT)
         else:
