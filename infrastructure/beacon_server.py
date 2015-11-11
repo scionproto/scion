@@ -87,12 +87,9 @@ from lib.types import (
 from lib.util import (
     Raw,
     SCIONTime,
-    get_cert_chain_file_path,
     get_sig_key_file_path,
-    get_trc_file_path,
     read_file,
     sleep_interval,
-    write_file,
 )
 from lib.zookeeper import ZkNoConnection, ZkSharedCache, Zookeeper
 from external.expiring_dict import ExpiringDict
@@ -267,8 +264,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         self.trc_requests = {}
         self.trcs = {}
         sig_key_file = get_sig_key_file_path(self.conf_dir)
-        self.signing_key = read_file(sig_key_file)
-        self.signing_key = base64.b64decode(self.signing_key)
+        self.signing_key = base64.b64decode(read_file(sig_key_file))
         self.of_gen_key = PBKDF2(self.config.master_ad_key, b"Derive OF Key")
         logging.info(self.config.__dict__)
         self.if2rev_tokens = {}
@@ -663,13 +659,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         :param if_id: interface identifier.
         :type if_id: int
         """
-        trc = self.trcs.get((isd_id, trc_ver))
-        if not trc:
-            # Try loading file from disk
-            trc_file = get_trc_file_path(self.conf_dir, isd_id, trc_ver)
-            if os.path.exists(trc_file):
-                trc = TRC(trc_file)
-                self.trcs[(isd_id, trc_ver)] = trc
+        trc = self.trust_store.get_trc(isd_id, trc_ver)
         if not trc:
             # Requesting TRC file from cert server
             trc_tuple = (isd_id, trc_ver)
@@ -701,19 +691,15 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         assert isinstance(pcb, PathSegment)
         last_pcbm = pcb.get_last_pcbm()
-        cert_chain_isd = last_pcbm.isd_id
-        cert_chain_ad = last_pcbm.ad_id
+        cert_isd = last_pcbm.isd_id
+        cert_ad = last_pcbm.ad_id
         cert_ver = pcb.get_last_adm().cert_ver
         trc_ver = pcb.trc_ver
-        subject = "%s-%s" % (cert_chain_isd, cert_chain_ad)
-        cert_chain_file = get_cert_chain_file_path(
-            self.conf_dir, cert_chain_isd, cert_chain_ad, cert_ver)
-        if os.path.exists(cert_chain_file):
-            chain = CertificateChain(cert_chain_file)
-        else:
+        subject = "%s-%s" % (cert_isd, cert_ad)
+        chain = self.trust_store.get_cert(cert_isd, cert_ad, cert_ver)
+        if not chain:  # Signed by root. TODO(PSz): has to be revised
             chain = CertificateChain.from_values([])
-        trc_file = get_trc_file_path(self.conf_dir, cert_chain_isd, trc_ver)
-        trc = TRC(trc_file)
+        trc = self.trust_store.get_trc(cert_isd, trc_ver)
 
         new_pcb = copy.deepcopy(pcb)
         new_pcb.if_id = 0
@@ -763,10 +749,10 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         rep = pkt.get_payload()
         logging.info("TRC reply received for %s", rep.isd_id)
-        rep_key = rep.isd_id, rep.version
-        trc_file = get_trc_file_path(self.conf_dir, *rep_key)
-        write_file(trc_file, rep.trc.decode('utf-8'))
-        self.trcs[rep_key] = TRC(trc_file)
+        trc = TRC(rep.trc.decode('utf-8'))
+        self.trust_store.add_trc(trc)
+
+        rep_key = trc.isd_id, trc.version
         if rep_key in self.trc_requests:
             del self.trc_requests[rep_key]
 
@@ -1100,6 +1086,7 @@ class CoreBeaconServer(BeaconServer):
                                            self.topology.isd_id,
                                            self.topology.ad_id)
         pcb.remove_signatures()
+        self._sign_beacon(pcb)
         # Register core path with local core path server.
         try:
             ps_addr = self.dns_query_topo(PATH_SERVICE)[0]
@@ -1182,7 +1169,7 @@ class CoreBeaconServer(BeaconServer):
         count = 0
         for pcb in core_segments:
             pcb = self._terminate_pcb(pcb)
-            # TODO(psz): sign here? discuss
+            self._sign_beacon(pcb)
             self.register_core_segment(pcb)
             count += 1
         logging.info("Registered %d Core paths", count)
@@ -1219,10 +1206,8 @@ class LocalBeaconServer(BeaconServer):
         self.down_segments = PathStore(self.path_policy)
         self.cert_chain_requests = {}
         self.cert_chains = {}
-        cert_chain_file = get_cert_chain_file_path(
-            self.conf_dir, self.topology.isd_id, self.topology.ad_id,
-            self.config.cert_ver)
-        self.cert_chain = CertificateChain(cert_chain_file)
+        self.cert_chain = self.trust_store.get_cert(self.topology.isd_id,
+                                                    self.topology.ad_id)
 
     def _check_certs_trc(self, isd_id, ad_id, cert_ver, trc_ver, if_id):
         """
@@ -1245,14 +1230,7 @@ class LocalBeaconServer(BeaconServer):
         """
         trc = self._get_trc(isd_id, trc_ver, if_id)
         if trc:
-            cert_chain = self.cert_chains.get((isd_id, ad_id, cert_ver))
-            if not cert_chain:
-                # Try loading file from disk
-                cert_chain_file = get_cert_chain_file_path(
-                    self.conf_dir, isd_id, ad_id, cert_ver)
-                if os.path.exists(cert_chain_file):
-                    cert_chain = CertificateChain(cert_chain_file)
-                    self.cert_chains[(isd_id, ad_id, cert_ver)] = cert_chain
+            cert_chain = self.trust_store.get_cert(isd_id, ad_id, cert_ver)
             if cert_chain or self.cert_chain.certs[0].issuer in trc.core_ads:
                 return True
             else:
@@ -1341,10 +1319,9 @@ class LocalBeaconServer(BeaconServer):
         logging.info("Certificate chain reply received for %s",
                      rep.short_desc())
         rep_key = rep.isd_id, rep.ad_id, rep.version
-        cert_chain_file = get_cert_chain_file_path(
-            self.conf_dir, *rep_key)
-        write_file(cert_chain_file, rep.cert_chain.decode('utf-8'))
-        self.cert_chains[rep_key] = CertificateChain(cert_chain_file)
+        raw_cert_chain = rep.cert_chain.decode('utf-8')
+        self.trust_store.add_cert(rep.isd_id, rep.ad_id, rep.version,
+                                  CertificateChain(raw_cert_chain))
         if rep_key in self.cert_chain_requests:
             del self.cert_chain_requests[rep_key]
 
@@ -1381,7 +1358,7 @@ class LocalBeaconServer(BeaconServer):
         for pcb in best_segments:
             pcb = self._terminate_pcb(pcb)
             pcb.remove_signatures()
-            # TODO(psz): sign here? discuss
+            self._sign_beacon(pcb)
             try:
                 self.register_up_segment(pcb)
             except SCIONServiceLookupError as e:
@@ -1397,7 +1374,7 @@ class LocalBeaconServer(BeaconServer):
         for pcb in best_segments:
             pcb = self._terminate_pcb(pcb)
             pcb.remove_signatures()
-            # TODO(psz): sign here? discuss
+            self._sign_beacon(pcb)
             self.register_down_segment(pcb)
             logging.info("Down path registered: %s", pcb.short_desc())
 

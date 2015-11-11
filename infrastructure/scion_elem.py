@@ -42,6 +42,7 @@ from lib.packet.scion_addr import SCIONAddr
 from lib.packet.scion_udp import SCIONUDPHeader
 from lib.socket import UDPSocket, UDPSocketMgr
 from lib.thread import thread_safety_net
+from lib.trust_store import TrustStore
 from lib.types import PayloadClass
 from lib.topology import Topology
 
@@ -91,6 +92,7 @@ class SCIONElement(object):
             [str(s.addr) for s in self.topology.dns_servers],
             self.topology.dns_domain)
         self.construct_ifid2addr_map()
+        self.trust_store = TrustStore(self.conf_dir)
         if not is_sim:
             self.run_flag = threading.Event()
             self.stopped_flag = threading.Event()

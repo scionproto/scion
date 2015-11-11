@@ -66,7 +66,7 @@ def get_trc_file_path(conf_dir, isd_id, version):  # pragma: no cover
     """
     Return the TRC file path for a given ISD.
     """
-    return os.path.join(conf_dir, CERT_DIR, 'ISD%s-V%s.crt' % (isd_id, version))
+    return os.path.join(conf_dir, CERT_DIR, 'ISD%s-V%s.trc' % (isd_id, version))
 
 
 def get_sig_key_file_path(conf_dir):  # pragma: no cover

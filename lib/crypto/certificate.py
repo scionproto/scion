@@ -291,25 +291,25 @@ class CertificateChain(object):
     :type certs: list
     """
 
-    def __init__(self, chain_file=None):
+    def __init__(self, chain_raw=None):
         """
         Initialize an instance of the class CertificateChain.
 
-        :param chain_file: the name of the certificate chain file.
-        :type chain_file: str
+        :param chain_raw: certificate chain as json string.
+        :type chain_raw: str
         """
         self.certs = []
-        if chain_file:
-            self.parse(chain_file)
+        if chain_raw:
+            self.parse(chain_raw)
 
-    def parse(self, chain_file):
+    def parse(self, chain_raw):
         """
         Parse a certificate chain file and populate the instance's attributes.
 
-        :param chain_file: the name of the certificate chain file.
-        :type chain_file: str
+        :param chain_raw: certificate chain as json string.
+        :type chain_raw: str
         """
-        chain = load_json_file(chain_file)
+        chain = json.loads(chain_raw)
         for index in range(1, len(chain) + 1):
             cert_dict = chain[str(index)]
             cert_dict['subject_sig_key'] = \
@@ -435,12 +435,12 @@ class TRC(object):
     :type signatures: dict
     """
 
-    def __init__(self, trc_file=None):
+    def __init__(self, trc_raw=None):
         """
         Initialize an instance of the class TRC.
 
-        :param trc_file: the name of the TRC file.
-        :type trc_file: str
+        :param trc_raw: TRC as json string.
+        :type trc_raw: str
         """
         self.isd_id = 0
         self.version = 0
@@ -457,8 +457,8 @@ class TRC(object):
         self.root_dns_server_cert = ''
         self.trc_server_addr = ''
         self.signatures = {}
-        if trc_file:
-            self.parse(trc_file)
+        if trc_raw:
+            self.parse(trc_raw)
 
     def get_trc_dict(self, with_signatures):
         """
@@ -490,14 +490,14 @@ class TRC(object):
             trc_dict['signatures'] = self.signatures
         return trc_dict
 
-    def parse(self, trc_file):
+    def parse(self, trc_raw):
         """
         Parse a TRC file and populate the instance's attributes.
 
-        :param trc_file: the name of the TRC file.
-        :type trc_file: str
+        :param trc_raw: TRC as json string.
+        :type trc_raw: str
         """
-        trc = load_json_file(trc_file)
+        trc = json.loads(trc_raw)
         self.isd_id = trc['isd_id']
         self.version = trc['version']
         self.time = trc['time']
