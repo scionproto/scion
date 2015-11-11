@@ -71,7 +71,7 @@ from lib.packet.pcb import (
     PCBMarking,
     PathSegment,
 )
-from lib.packet.pcb_ext import MTUExtension
+from lib.packet.pcb_ext import MTUExtension, REVExtension
 from lib.packet.scion import PacketType as PT
 from lib.path_store import PathPolicy, PathStore
 from lib.thread import thread_safety_net
@@ -95,6 +95,7 @@ from lib.util import (
     write_file,
 )
 from lib.zookeeper import ZkNoConnection, ZkSharedCache, Zookeeper
+from external.expiring_dict import ExpiringDict
 
 
 class InterfaceState(object):
@@ -249,6 +250,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
     ZK_REV_OBJ_MAX_AGE = 60 * 60
     # Interval to checked for timed out interfaces.
     IF_TIMEOUT_INTERVAL = 1
+    # Number of tokens the BS checks when receiving a revocation.
+    N_TOKENS_CHECK = 20
 
     def __init__(self, server_id, conf_dir, is_sim=False):
         """
@@ -270,6 +273,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         logging.info(self.config.__dict__)
         self.if2rev_tokens = {}
         self._if_rev_token_lock = threading.Lock()
+        self.revs_to_downstream = ExpiringDict(max_len=1000, max_age_seconds=60)
 
         self.ifid_state = {}
         for ifid in self.ifid2addr:
@@ -403,6 +407,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             for ext in ad.ext:
                 if ext.EXT_TYPE == MTUExtension.EXT_TYPE:
                     self.mtu_ext_handler(ext, ad)
+                elif ext.EXT_TYPE == REVExtension.EXT_TYPE:
+                    self.rev_ext_handler(ext, ad)
                 else:
                     logging.warning("PCB extension %d not supported" % ext.TYPE)
 
@@ -411,6 +417,17 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         Dummy handler for MTUExtension.
         """
         logging.info("MTU (%d, %d): %s" % (ad.pcbm.ad_id, ad.pcbm.isd_id, ext))
+
+    def rev_ext_handler(self, ext, ad):
+        """
+        Handler for REVExtension.
+        """
+        logging.info("REV (%d, %d): %s" % (ad.pcbm.ad_id, ad.pcbm.isd_id, ext))
+        rev_info = ext.rev_info
+        # Trigger the removal of PCBs which contain the revoked interface
+        self._remove_revoked_pcbs(rev_info=rev_info, if_id=None)
+        # Inform the local PS
+        self._send_rev_to_local_ps(rev_info=rev_info)
 
     @abstractmethod
     def process_pcbs(self, pcbs, raw=True):
@@ -471,10 +488,14 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             peer_markings.append(peer_marking)
 
         # Add extensions.
-        mtu_ext = MTUExtension.from_values(self.config.mtu)
+        extensions = []
+        extensions.append(MTUExtension.from_values(self.config.mtu))
+        for _, rev_info in self.revs_to_downstream.items():
+            rev_ext = REVExtension.from_values(rev_info)
+            extensions.append(rev_ext)
         return ADMarking.from_values(pcbm, peer_markings,
                                      self._get_if_rev_token(egress_if),
-                                     ext=[mtu_ext])
+                                     ext=extensions)
 
     def _terminate_pcb(self, pcb):
         """
@@ -814,6 +835,22 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             self.send(state_pkt, er.addr)
         self._process_revocation(rev_info, if_id)
 
+    def _send_rev_to_local_ps(self, rev_info):
+        """
+        Sends the given revocation to its local path server.
+        :param rev_info: The RevocationInfo object
+        :type rev_info: RevocationInfo
+        """
+        if self.zk.have_lock() and self.topology.path_servers:
+            try:
+                ps_addr = self.dns_query_topo(PATH_SERVICE)[0]
+            except SCIONServiceLookupError:
+                # If there are no local path servers, stop here.
+                return
+            pkt = self._build_packet(ps_addr, payload=rev_info)
+            logging.info("Sending revocation to local PS.")
+            self.send(pkt, ps_addr)
+
     def _process_revocation(self, rev_info, if_id):
         """
         Removes PCBs containing a revoked interface and sends the revocation
@@ -832,15 +869,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
         self._remove_revoked_pcbs(rev_info, if_id)
         # Send revocations to local PS.
-        if self.zk.have_lock() and self.topology.path_servers:
-            try:
-                ps_addr = self.dns_query_topo(PATH_SERVICE)[0]
-            except SCIONServiceLookupError:
-                # If there are no local path servers, stop here.
-                return
-            pkt = self._build_packet(ps_addr, payload=rev_info)
-            logging.info("Sending  revocation to local PS.")
-            self.send(pkt, ps_addr)
+        self._send_rev_to_local_ps(rev_info)
+        # Add the revocation to the downstream queue
+        self.revs_to_downstream[rev_info.rev_token] = rev_info
+        # Propagate the Revocation instantly
+        self.handle_pcbs_propagation()
 
     @abstractmethod
     def _remove_revoked_pcbs(self, rev_info, if_id):
@@ -853,6 +886,43 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         :type if_id: int
         """
         raise NotImplementedError
+
+    def _pcb_list_to_remove(self, candidates, rev_info, if_id):
+        """
+        Calculates the list of PCBs to remove.
+        Called by _remove_revoked_pcbs.
+
+        :param candidates: Candidate PCBs.
+        :type candidates: List
+        :param rev_info: The RevocationInfo object.
+        :type rev_info: RevocationInfo
+        :param if_id: The if_id to be revoked
+        :type if_id: int
+        """
+        to_remove = []
+        processed = set()
+        for cand in candidates:
+            if cand.id in processed:
+                continue
+            processed.add(cand.id)
+            if if_id is not None:
+                # If the beacon was received on this interface, remove it from
+                # the store. We also check, if the interface didn't come up in
+                # the mean time. Caveat: There is a small chance that a valid
+                # beacon gets removed, in case a new beacon reaches the BS
+                # through the interface, which is getting revoked, before the
+                # keep-alive message updates the interface state to 'ACTIVE'.
+                # However, worst, the valid beacon would get added within the
+                # next propagation period.
+                if (self.ifid_state[if_id].is_expired() and
+                        cand.pcb.if_id == if_id):
+                    to_remove.append(cand.id)
+            else:  # if_id = None means that this is an AD in downstream
+                rtoken = rev_info.rev_token
+                for iftoken in cand.pcb.get_all_iftokens():
+                    if HashChain.verify(rtoken, iftoken, self.N_TOKENS_CHECK):
+                        to_remove.append(cand.id)
+        return to_remove
 
     def _handle_if_timeouts(self):
         """
@@ -1119,25 +1189,9 @@ class CoreBeaconServer(BeaconServer):
 
     def _remove_revoked_pcbs(self, rev_info, if_id):
         candidates = []
-        to_remove = []
-        processed = set()
         for ps in self.core_beacons.values():
             candidates += ps.candidates
-        for cand in candidates:
-            if cand.id in processed:
-                continue
-            processed.add(cand.id)
-            # If the beacon was received on this interface, remove it from
-            # the store. We also check, if the interface didn't come up in
-            # the mean time. Caveat: There is a small chance that a valid
-            # beacon gets removed, in case a new beacon reaches the BS through
-            # the interface, which is getting revoked, before the keep-alive
-            # message updates the interface state to 'ACTIVE'. However,
-            # worst, the valid beacon would get added within the next
-            # propagation period.
-            if self.ifid_state[if_id].is_expired() and cand.pcb.if_id == if_id:
-                to_remove.append(cand.id)
-
+        to_remove = self._pcb_list_to_remove(candidates, rev_info, if_id)
         # Remove the affected segments from the path stores.
         for ps in self.core_beacons.values():
             ps.remove_segments(to_remove)
@@ -1297,23 +1351,7 @@ class LocalBeaconServer(BeaconServer):
     def _remove_revoked_pcbs(self, rev_info, if_id):
         candidates = (self.down_segments.candidates +
                       self.up_segments.candidates)
-        to_remove = []
-        processed = set()
-        for cand in candidates:
-            if cand.id in processed:
-                continue
-            processed.add(cand.id)
-            # If the beacon was received on this interface, remove it from
-            # the store. We also check, if the interface didn't come up in
-            # the mean time. Caveat: There is a small chance that a valid
-            # beacon gets removed, in case a new beacon reaches the BS through
-            # the interface, which is getting revoked, before the keep-alive
-            # message updates the interface state to 'ACTIVE'. However,
-            # worst, the valid beacon would get added within the next
-            # propagation period.
-            if self.ifid_state[if_id].is_expired() and cand.pcb.if_id == if_id:
-                to_remove.append(cand.id)
-
+        to_remove = self._pcb_list_to_remove(candidates, rev_info, if_id)
         # Remove the affected segments from the path stores.
         self.up_segments.remove_segments(to_remove)
         self.down_segments.remove_segments(to_remove)
