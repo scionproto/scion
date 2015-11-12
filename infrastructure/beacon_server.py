@@ -1255,11 +1255,12 @@ class LocalBeaconServer(BeaconServer):
         pkt = self._build_packet(
             PT.PATH_MGMT, dst_isd=pcb.get_isd(),
             dst_ad=pcb.get_first_pcbm().ad_id, path=core_path, payload=records)
-        if core_path.get_fwd_if() not in self.ifid2addr:
+        fwd_if = core_path.get_fwd_if()
+        if fwd_if not in self.ifid2addr:
             raise SCIONKeyError(
-                "Invalid IF %d in CorePath" % core_path.get_fwd_if())
+                "Invalid IF %d in CorePath" % fwd_if)
 
-        next_hop = self.ifid2addr[core_path.get_fwd_if()]
+        next_hop = self.ifid2addr[fwd_if]
         self.send(pkt, next_hop)
 
     def register_segments(self):
