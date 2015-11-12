@@ -90,6 +90,12 @@ class PathSegmentInfo(PathMgmtPayloadBase):
         packed.append(ISD_AD(self.dst_isd, self.dst_ad).pack())
         return b"".join(packed)
 
+    def short_desc(self):
+        return "%s %s-%s -> %s-%s" % (
+            PathSegmentType.to_str(self.seg_type), self.src_isd, self.src_ad,
+            self.dst_isd, self.dst_ad,
+        )
+
     def __len__(self):  # pragma: no cover
         return self.LEN
 
