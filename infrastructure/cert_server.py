@@ -146,7 +146,7 @@ class CertServer(SCIONElement):
                     cert_chain_req.src_ad == self.topology.ad_id):
                 # Local request, local response
                 first_hop = pkt.addrs.src_addr
-                port = pkt.addrs.src_port
+                port = pkt.l4_hdr.src_port
             else:
                 for router in self.topology.child_edge_routers:
                     if (cert_chain_req.src_isd ==
