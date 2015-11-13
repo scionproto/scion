@@ -746,7 +746,7 @@ class SubnetGenerator(object):
     def alloc_subnets(self):
         max_prefix = self._net.max_prefixlen
         networks = {}
-        for subnet in self._subnets.values():
+        for topo, subnet in sorted(self._subnets.items(), key=lambda x: str(x)):
             # Figure out what size subnet we need. If it's a link, then we just
             # need a /31 (or /127), otherwise add 2 to the subnet size to cover
             # the network and broadcast addresses.
@@ -788,7 +788,7 @@ class AddressGenerator(object):
     def alloc_addrs(self, subnet):
         hosts = subnet.hosts()
         interfaces = {}
-        for elem, proxy in self._addrs.items():
+        for elem, proxy in sorted(self._addrs.items()):
             intf = ip_interface("%s/%s" % (next(hosts), subnet.prefixlen))
             interfaces[elem] = intf
             proxy.set_intf(intf)
