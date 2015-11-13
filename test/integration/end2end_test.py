@@ -132,6 +132,7 @@ class Ping(object):
         spkt = SCIONL4Packet.from_values(
             cmn_hdr, addr_hdr, self.path, [], udp_hdr, payload)
         (next_hop, port) = self.sd.get_first_hop(spkt)
+        assert next_hop is not None
         assert next_hop == self.hop
 
         logging.info("Sending packet: \n%s\nFirst hop: %s:%s",
@@ -186,6 +187,7 @@ class Pong(object):
             spkt.reverse()
             spkt.set_payload(PayloadRaw(b"pong " + self.token))
             (next_hop, port) = self.sd.get_first_hop(spkt)
+            assert next_hop is not None
             self.sd.send(spkt, next_hop, port)
         self.sock.close()
         self.sd.stop()

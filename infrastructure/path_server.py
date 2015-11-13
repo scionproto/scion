@@ -218,6 +218,18 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             if rev_token in self.iftoken2seg:
                 del self.iftoken2seg[rev_token]
 
+    def _send_to_next_hop(self, pkt, if_id):
+        """
+        Sends the packet to the next hop of the given if_id.
+        :param if_id: The interface ID of the corresponding interface.
+        :type if_id: int.
+        """
+        if if_id not in self.ifid2addr:
+            logging.error("Interface ID %d not found in ifid2addr.", if_id)
+            return
+        next_hop = self.ifid2addr[if_id]
+        self.send(pkt, next_hop)
+
     def send_path_segments(self, pkt, paths):
         """
         Sends path-segments to requester (depending on Path Server's location)
@@ -226,6 +238,10 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         seg_info = rep_pkt.get_payload()
         rep_pkt.set_payload(PathRecordsReply.from_values(seg_info, paths))
         (next_hop, port) = self.get_first_hop(rep_pkt)
+        if next_hop is None:
+            logging.error("Next hop is None for Interface %d",
+                          rep_pkt.path.get_fwd_if())
+            return
         logging.info(
             "Sending PATH_REPLY with %d path(s) for %s:%s-%s "
             "to:(%s-%s, %s:%s):\n  %s", len(paths),
@@ -470,25 +486,26 @@ class CorePathServer(PathServer):
         # a core path to the destination PS.
         if self.waiting_targets:
             pcb = records.pcbs[0]
-            next_hop = self.ifid2addr[pcb.get_last_pcbm().hof.ingress_if]
             path = pcb.get_path(reverse_direction=True)
             targets = copy.copy(self.waiting_targets)
+            if_id = pcb.get_last_pcbm().hof.ingress_if
             for (target_isd, target_ad, seg_info) in targets:
                 if target_isd == dst_isd:
                     req_pkt = self._build_packet(
                         PT.PATH_MGMT, payload=seg_info, path=path,
                         dst_isd=dst_isd, dst_ad=dst_ad)
-                    self.send(req_pkt, next_hop)
-                    self.waiting_targets.remove((target_isd, target_ad,
-                                                 seg_info))
                     logging.debug("Sending path request %s on newly learned "
                                   "path to (%d, %d)", seg_info, dst_isd, dst_ad)
+                    self._send_to_next_hop(req_pkt, if_id)
+                    self.waiting_targets.remove((target_isd, target_ad,
+                                                 seg_info))
+
         # Serve pending core path requests.
         for target in [((src_isd, src_ad), (dst_isd, dst_ad)),
                        ((src_isd, src_ad), (dst_isd, 0))]:
             if self.pending_core:
-                logging.debug("D01 Target: %s, pending_core: %s " % (target,
-                              self.pending_core))
+                logging.debug("D01 Target: %s, pending_core: %s " %
+                              (target, self.pending_core))
             if target in self.pending_core:
                 segments_to_send = self.core_segments(first_isd=dst_isd,
                                                       first_ad=dst_ad or None,
@@ -552,9 +569,9 @@ class CorePathServer(PathServer):
                     pkt.addrs.dst_isd = isd
                     pkt.addrs.dst_ad = ad
                     pkt.addrs.dst_addr = PT.PATH_MGMT
-                    next_hop = self.ifid2addr[cpath.get_fwd_if()]
+
                     logging.info("Sending packet to CPS in (%d, %d).", isd, ad)
-                    self.send(pkt, next_hop)
+                    self._send_to_next_hop(pkt, cpath.get_fwd_if())
                 else:
                     logging.warning("Path to AD (%d, %d) not found.", isd, ad)
 
@@ -596,11 +613,10 @@ class CorePathServer(PathServer):
                     req_pkt = self._build_packet(
                         PT.PATH_MGMT, dst_isd=dst_isd, dst_ad=dst_ad,
                         path=path, payload=seg_info)
-                    next_hop = self.ifid2addr[path.get_fwd_if()]
-                    self.send(req_pkt, next_hop)
                     logging.info("Down-Segment request for different ISD. "
                                  "Forwarding request to CPS in (%d, %d).",
                                  dst_isd, dst_ad)
+                    self._send_to_next_hop(req_pkt, path.get_fwd_if())
                 # If no core_path was available, add request to waiting targets.
                 else:
                     logging.info("Waiting for core path to target ISD (%d, %d)",
@@ -687,13 +703,12 @@ class LocalPathServer(PathServer):
             path = pcb.get_path(reverse_direction=True)
             dst_isd = pcb.get_isd()
             dst_ad = pcb.get_first_pcbm().ad_id
-            next_hop = self.ifid2addr[path.get_fwd_if()]
             targets = copy.copy(self.waiting_targets)
             for (isd, ad, seg_info) in targets:
                 req_pkt = self._build_packet(
                     PT.PATH_MGMT, dst_isd=dst_isd, dst_ad=dst_ad,
                     path=path, payload=seg_info)
-                self.send(req_pkt, next_hop)
+                self._send_to_next_hop(req_pkt, path.get_fwd_if())
                 logging.info("PATH_REQ sent using (first) registered up-path")
                 self.waiting_targets.remove((isd, ad, seg_info))
         # Handling pending UP_PATH requests.
@@ -837,8 +852,7 @@ class LocalPathServer(PathServer):
         req_pkt = self._build_packet(
             PT.PATH_MGMT, payload=seg_info, path=path, dst_isd=pcb.get_isd(),
             dst_ad=pcb.get_first_pcbm().ad_id)
-        next_hop = self.ifid2addr[path.get_fwd_if()]
-        self.send(req_pkt, next_hop)
+        self._send_to_next_hop(req_pkt, path.get_fwd_if())
 
     def handle_path_request(self, pkt):
         """
