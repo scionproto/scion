@@ -113,9 +113,13 @@ class SCIONGateway(object):
                         cmn_hdr, addr_hdr, paths[0],
                         payload=PayloadRaw(raw_packet))
                     (next_hop, port) = self.sd.get_first_hop(spkt)
-                    self.sd.send(spkt, next_hop, port)
-                    logging.info("Sending packet: %s\nFirst hop: %s:%s", spkt,
-                                 next_hop, port)
+                    if next_hop is None:
+                        logging.error("Next hop is None for Interface %d",
+                                      spkt.path.get_fwd_if())
+                    else:
+                        logging.info("Sending packet: %s\nFirst hop: %s:%s",
+                                     spkt, next_hop, port)
+                        self.sd.send(spkt, next_hop, port)
                 else:
                     logging.warning("No path to: %s", scion_addr)
             else:

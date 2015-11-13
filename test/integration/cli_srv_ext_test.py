@@ -74,6 +74,7 @@ def client(c_addr, s_addr):
                                      payload)
     # Determine first hop (i.e., local address of border router)
     (next_hop, port) = sd.get_first_hop(spkt)
+    assert next_hop is not None
     logging.info("CLI: Sending packet:\n%s\nFirst hop: %s:%s",
                  spkt, next_hop, port)
     # Send packet to first hop (it is sent through SCIONDaemon)
@@ -110,6 +111,7 @@ def server(addr):
         spkt.set_payload(PayloadRaw(b"response"))
         # Determine first hop (i.e., local address of border router)
         (next_hop, port) = sd.get_first_hop(spkt)
+        assert next_hop is not None
         # Send packet to first hop (it is sent through SCIONDaemon)
         sd.send(spkt, next_hop, port)
     logging.info("SRV: Leaving server.")

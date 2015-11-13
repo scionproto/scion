@@ -172,7 +172,11 @@ class SCIONElement(object):
                 return spkt.addrs.dst_addr, spkt.l4_hdr.dst_port
             else:
                 return spkt.addrs.dst_addr, SCION_UDP_PORT
-        return self.ifid2addr[spkt.path.get_fwd_if()], SCION_UDP_PORT
+        if_id = spkt.path.get_fwd_if()
+        if if_id in self.ifid2addr:
+            return self.ifid2addr[if_id], SCION_UDP_PORT
+        else:
+            return None, None
 
     def _build_packet(self, dst_host=None, path=None, ext_hdrs=(), dst_isd=None,
                       dst_ad=None, payload=None, dst_port=SCION_UDP_PORT):
