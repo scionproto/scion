@@ -33,7 +33,7 @@ from Crypto.Protocol.KDF import PBKDF2
 # SCION
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.asymcrypto import sign
-from lib.crypto.certificate import CertificateChain, TRC, verify_sig_chain_trc
+from lib.crypto.certificate import CertificateChain, verify_sig_chain_trc
 from lib.crypto.hash_chain import HashChain, HashChainExhausted
 from lib.crypto.symcrypto import gen_of_mac
 from lib.defines import (
@@ -621,8 +621,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         assert isinstance(pcb, PathSegment)
         last_pcbm = pcb.get_last_pcbm()
         if self._check_certs_trc(last_pcbm.isd_id, last_pcbm.ad_id,
-                                 pcb.get_last_adm().cert_ver,
-                                 pcb.trc_ver, pcb.if_id):
+                                 pcb.get_last_adm().cert_ver, pcb.trc_ver):
             if self._verify_beacon(pcb):
                 self._handle_verified_beacon(pcb)
             else:
@@ -634,7 +633,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             self.unverified_beacons.append(pcb)
 
     @abstractmethod
-    def _check_certs_trc(self, isd_id, ad_id, cert_ver, trc_ver, if_id):
+    def _check_certs_trc(self, isd_id, ad_id, cert_ver, trc_ver):
         """
         Return True or False whether the necessary Certificate and TRC files are
         found.
@@ -647,21 +646,19 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         :type cert_ver: int
         :param trc_ver: TRC file version.
         :type trc_ver: int
-        :param if_id: interface identifier.
-        :type if_id: int
         """
         raise NotImplementedError
 
-    def _get_trc(self, isd_id, trc_ver, if_id):
+    def _get_trc(self, isd_id, ad_id, trc_ver):
         """
         Get TRC from local storage or memory.
 
         :param isd_id: ISD identifier.
         :type isd_id: int
+        :param ad_id: AD identifier.
+        :type ad_id: int
         :param trc_ver: TRC file version.
         :type trc_ver: int
-        :param if_id: interface identifier.
-        :type if_id: int
         """
         trc = self.trust_store.get_trc(isd_id, trc_ver)
         if not trc:
@@ -671,9 +668,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             if (trc_tuple not in self.trc_requests or
                 (now - self.trc_requests[trc_tuple] >
                     self.REQUESTS_TIMEOUT)):
-                trc_req = TRCRequest.from_values(
-                    if_id, self.topology.isd_id, self.topology.ad_id, isd_id,
-                    trc_ver)
+                trc_req = TRCRequest.from_values(isd_id, ad_id, trc_ver)
                 try:
                     dst_addr = self.dns_query_topo(CERTIFICATE_SERVICE)[0]
                 except SCIONServiceLookupError as e:
@@ -752,11 +747,10 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         :type trc_rep: TRCReply
         """
         rep = pkt.get_payload()
-        logging.info("TRC reply received for %s", rep.isd_id)
-        trc = TRC(rep.trc.decode('utf-8'))
-        self.trust_store.add_trc(trc)
+        logging.info("TRC reply received for %s", rep.trc.get_isd_ver())
+        self.trust_store.add_trc(rep.trc)
 
-        rep_key = trc.isd_id, trc.version
+        rep_key = rep.trc.get_isd_ver()
         if rep_key in self.trc_requests:
             del self.trc_requests[rep_key]
 
@@ -1126,7 +1120,7 @@ class CoreBeaconServer(BeaconServer):
         if count:
             logging.debug("Dropped %d previously seen Core Segment PCBs", count)
 
-    def _check_certs_trc(self, isd_id, ad_id, cert_ver, trc_ver, if_id):
+    def _check_certs_trc(self, isd_id, ad_id, cert_ver, trc_ver):
         """
         Return True or False whether the necessary TRC file is found.
 
@@ -1138,13 +1132,11 @@ class CoreBeaconServer(BeaconServer):
         :type cert_ver: int
         :param trc_ver: TRC file version.
         :type trc_ver: int
-        :param if_id: interface identifier.
-        :type if_id: int
 
         :returns: True if the files exist, False otherwise.
         :rtype: bool
         """
-        if self._get_trc(isd_id, trc_ver, if_id):
+        if self._get_trc(isd_id, ad_id, trc_ver):
             return True
         else:
             return False
@@ -1213,7 +1205,7 @@ class LocalBeaconServer(BeaconServer):
         self.cert_chain = self.trust_store.get_cert(self.topology.isd_id,
                                                     self.topology.ad_id)
 
-    def _check_certs_trc(self, isd_id, ad_id, cert_ver, trc_ver, if_id):
+    def _check_certs_trc(self, isd_id, ad_id, cert_ver, trc_ver):
         """
         Return True or False whether the necessary Certificate and TRC files are
         found.
@@ -1226,13 +1218,11 @@ class LocalBeaconServer(BeaconServer):
         :type cert_ver: int
         :param trc_ver: TRC file version.
         :type trc_ver: int
-        :param if_id: interface identifier.
-        :type if_id: int
 
         :returns: True if the files exist, False otherwise.
         :rtype: bool
         """
-        trc = self._get_trc(isd_id, trc_ver, if_id)
+        trc = self._get_trc(isd_id, ad_id, trc_ver)
         if trc:
             cert_chain = self.trust_store.get_cert(isd_id, ad_id, cert_ver)
             if cert_chain or self.cert_chain.certs[0].issuer in trc.core_ads:
@@ -1245,7 +1235,6 @@ class LocalBeaconServer(BeaconServer):
                     (now - self.cert_chain_requests[cert_chain_tuple] >
                         BeaconServer.REQUESTS_TIMEOUT)):
                     new_cert_chain_req = CertChainRequest.from_values(
-                        if_id, self.topology.isd_id, self.topology.ad_id,
                         isd_id, ad_id, cert_ver)
                     try:
                         dst_addr = self.dns_query_topo(CERTIFICATE_SERVICE)[0]
@@ -1327,10 +1316,8 @@ class LocalBeaconServer(BeaconServer):
         rep = pkt.get_payload()
         logging.info("Certificate chain reply received for %s",
                      rep.short_desc())
-        rep_key = rep.isd_id, rep.ad_id, rep.version
-        raw_cert_chain = rep.cert_chain.decode('utf-8')
-        self.trust_store.add_cert(rep.isd_id, rep.ad_id, rep.version,
-                                  CertificateChain(raw_cert_chain))
+        rep_key = rep.cert_chain.get_leaf_isd_ad_ver()
+        self.trust_store.add_cert(rep.cert_chain)
         if rep_key in self.cert_chain_requests:
             del self.cert_chain_requests[rep_key]
 

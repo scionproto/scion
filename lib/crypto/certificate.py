@@ -374,9 +374,16 @@ class CertificateChain(object):
             return False
         return True
 
-    def __str__(self):
+    def get_leaf_isd_ad_ver(self):
+        if not self.certs:
+            return None
+        leaf_cert = self.certs[0]
+        isd, ad = map(int, leaf_cert.subject.split('-'))
+        return isd, ad, leaf_cert.version
+
+    def to_json(self):
         """
-        Convert the instance in a readable format.
+        Convert the instance to json format.
 
         :returns: the CertificateChain information.
         :rtype: str
@@ -395,6 +402,12 @@ class CertificateChain(object):
             index += 1
         chain_str = json.dumps(chain_dict, sort_keys=True, indent=4)
         return chain_str
+
+    def pack(self):
+        return self.to_json().encode('utf-8')
+
+    def __str__(self):
+        return self.to_json()
 
 
 class TRC(object):
@@ -459,6 +472,9 @@ class TRC(object):
         self.signatures = {}
         if trc_raw:
             self.parse(trc_raw)
+
+    def get_isd_ver(self):
+        return self.isd_id, self.version
 
     def get_trc_dict(self, with_signatures):
         """
@@ -592,7 +608,7 @@ class TRC(object):
         :returns: True or False whether the verification succeeds or fails.
         :rtype: bool
         """
-        msg = self.__str__(with_signatures=False).encode('utf-8')
+        msg = self.to_json(with_signatures=False).encode('utf-8')
         for signer in self.signatures:
             if signer not in self.core_ads:
                 logging.warning("A signature could not be verified.")
@@ -603,9 +619,9 @@ class TRC(object):
                 return False
         return True
 
-    def __str__(self, with_signatures=True):
+    def to_json(self, with_signatures=True):
         """
-        Convert the instance in a readable format.
+        Convert the instance to json format.
 
         :param with_signatures:
         :type with_signatures:
@@ -625,3 +641,9 @@ class TRC(object):
                     base64.b64encode(signature).decode('utf-8')
         trc_str = json.dumps(trc_dict, sort_keys=True, indent=4)
         return trc_str
+
+    def pack(self):
+        return self.to_json().encode('utf-8')
+
+    def __str__(self):
+        return self.to_json()
