@@ -759,11 +759,10 @@ class PathCombinator(object):
         :returns: List of :any:`PathBase`\s.
         """
         paths = []
-        if not core_segments:
-            path = cls._build_core_path(up_segment, [], down_segment)
-            if path:
-                paths.append(path)
-        else:
+        path = cls._build_core_path(up_segment, [], down_segment)
+        if path:
+            paths.append(path)
+        if core_segments:
             for core_segment in core_segments:
                 path = cls._build_core_path(up_segment, core_segment,
                                             down_segment)
