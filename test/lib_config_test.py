@@ -56,7 +56,7 @@ class TestConfigFromFile(BaseLibConfig):
     Unit tests for lib.config.Config.from_file
     """
     @patch("lib.config.Config.from_dict")
-    @patch("lib.config.load_json_file")
+    @patch("lib.config.load_yaml_file")
     def test_success(self, load, from_dict):
         from_dict.return_value = "All ok"
         ntools.eq_(Config.from_file("path"), "All ok")
@@ -77,7 +77,7 @@ class TestConfigParseDict(BaseLibConfig):
     """
     Unit tests for lib.config.Config.parse_dict
     """
-    config_json = {
+    config_dict = {
         "CertChainVersion": 0,
         "MasterADKey": "Xf93o3Wz/4Gb0m6CXEaxag==",
         "PropagateTime": 5,
@@ -88,8 +88,8 @@ class TestConfigParseDict(BaseLibConfig):
 
     def test_basic(self):
         cfg = Config()
-        cfg.parse_dict(self.config_json)
-        self._compare_attributes(cfg, self.config_json)
+        cfg.parse_dict(self.config_dict)
+        self._compare_attributes(cfg, self.config_dict)
 
     def _compare_attributes(self, config, config_dict):
         ntools.eq_(len(config.__dict__),

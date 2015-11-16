@@ -28,7 +28,7 @@ from lib.defines import (
 )
 from lib.errors import SCIONKeyError
 from lib.packet.host_addr import haddr_parse_interface
-from lib.util import load_json_file
+from lib.util import load_yaml_file
 
 
 class Element(object):
@@ -191,7 +191,7 @@ class Topology(object):
         :returns: the newly created Topology instance
         :rtype: :class: `Topology`
         """
-        return cls.from_dict(load_json_file(topology_file))
+        return cls.from_dict(load_yaml_file(topology_file))
 
     @classmethod
     def from_dict(cls, topology_dict):

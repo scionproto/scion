@@ -24,12 +24,14 @@ import threading
 # SCION
 from lib.config import Config
 from lib.defines import (
+    AD_CONF_FILE,
     BEACON_SERVICE,
     CERTIFICATE_SERVICE,
     DNS_SERVICE,
     PATH_SERVICE,
     SCION_UDP_PORT,
     SERVICE_TYPES,
+    TOPO_FILE,
 )
 from lib.dnsclient import DNSCachingClient
 from lib.errors import SCIONBaseError, SCIONServiceLookupError
@@ -78,8 +80,9 @@ class SCIONElement(object):
         self.ifid2addr = {}
         self._port = port
         self.topology = Topology.from_file(
-            os.path.join(self.conf_dir, "topology.conf"))
-        self.config = Config.from_file(os.path.join(self.conf_dir, "ad.conf"))
+            os.path.join(self.conf_dir, TOPO_FILE))
+        self.config = Config.from_file(
+            os.path.join(self.conf_dir, AD_CONF_FILE))
         # Must be over-ridden by child classes:
         self.PLD_CLASS_MAP = {}
         if host_addr is None:

@@ -62,6 +62,13 @@ class SCIONJSONError(SCIONBaseError):
     pass
 
 
+class SCIONYAMLError(SCIONBaseError):
+    """
+    YAML parsing error.
+    """
+    pass
+
+
 class SCIONParseError(SCIONBaseError):
     """
     Parsing error.

@@ -18,14 +18,16 @@
 # Stdlib
 import copy
 import heapq
-import json
 import logging
 import math
 from collections import defaultdict, deque
 
+# External
+import yaml
+
 # SCION
 from lib.packet.pcb import PathSegment
-from lib.util import SCIONTime, load_json_file
+from lib.util import SCIONTime, load_yaml_file
 
 
 class PathPolicy(object):
@@ -133,7 +135,7 @@ class PathPolicy(object):
         :returns: the newly created PathPolicy instance
         :rtype: :class: `PathPolicy`
         """
-        return cls.from_dict(load_json_file(policy_file))
+        return cls.from_dict(load_yaml_file(policy_file))
 
     @classmethod
     def from_dict(cls, policy_dict):
@@ -176,7 +178,7 @@ class PathPolicy(object):
 
     def __str__(self):
         path_policy_dict = self.get_path_policy_dict()
-        path_policy_str = json.dumps(path_policy_dict, sort_keys=True, indent=4)
+        path_policy_str = yaml.dump(path_policy_dict)
         return path_policy_str
 
 
