@@ -669,6 +669,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 (now - self.trc_requests[trc_tuple] >
                     self.REQUESTS_TIMEOUT)):
                 trc_req = TRCRequest.from_values(isd_id, ad_id, trc_ver)
+                logging.info("Requesting %sv%s TRC", isd_id, trc_ver)
                 try:
                     dst_addr = self.dns_query_topo(CERTIFICATE_SERVICE)[0]
                 except SCIONServiceLookupError as e:
@@ -1236,6 +1237,8 @@ class LocalBeaconServer(BeaconServer):
                         BeaconServer.REQUESTS_TIMEOUT)):
                     new_cert_chain_req = CertChainRequest.from_values(
                         isd_id, ad_id, cert_ver)
+                    logging.info("Requesting %s certificate chain",
+                                 new_cert_chain_req.short_desc())
                     try:
                         dst_addr = self.dns_query_topo(CERTIFICATE_SERVICE)[0]
                     except SCIONServiceLookupError as e:
