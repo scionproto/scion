@@ -6,7 +6,7 @@ using namespace std;
 template <class T>
 PriorityQueue<T>::PriorityQueue(Compare c)
 {
-    comparator = c;
+    mComparator = c;
     mVector.clear();
     make_heap(mVector.begin(), mVector.end());
 }
@@ -33,13 +33,13 @@ template <class T>
 void PriorityQueue<T>::push(T frame)
 {
     mVector.push_back(frame);
-    push_heap(mVector.begin(), mVector.end(), comparator);
+    push_heap(mVector.begin(), mVector.end(), mComparator);
 }
 
 template <class T>
 void PriorityQueue<T>::pop()
 {
-    pop_heap(mVector.begin(), mVector.end(), comparator);
+    pop_heap(mVector.begin(), mVector.end(), mComparator);
     mVector.pop_back();
 }
 

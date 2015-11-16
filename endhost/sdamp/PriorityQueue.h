@@ -22,7 +22,7 @@ public:
     typename std::vector<T>::iterator end();
 
 private:
-    Compare comparator;
+    Compare mComparator;
     std::vector<T> mVector;
 };
 

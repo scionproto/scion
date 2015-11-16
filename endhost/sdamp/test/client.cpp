@@ -1,14 +1,8 @@
 #include <stdlib.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <netinet/in.h>
 #include <arpa/inet.h>
 #include <string.h>
 #include <stdio.h>
-#include <signal.h>
-#include <Python.h>
 #include "SCIONSocket.h"
-#include "SHA1.h"
 
 #define BUFSIZE 1024
 

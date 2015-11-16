@@ -74,8 +74,8 @@ typedef struct {
 typedef struct {
     SDAMPHeader header;
     SDAMPAck ack;
-    SDAMPFrame **frames;
-    uint32_t frameCount;
+    uint8_t *payload;
+    int size;
     uint32_t deadline;
     uint32_t windowSize;
     uint32_t skipCount;

@@ -28,7 +28,7 @@ public:
     virtual ~PathState();
 
     virtual void setIndex(int index);
-    virtual void setSendWindow(int sendWindow);
+    virtual void setRemoteWindow(uint32_t sendWindow);
 
     virtual int timeUntilReady();
     virtual int bandwidth();
@@ -163,6 +163,7 @@ private:
 
 #define BETA 0.2
 #define C    0.4
+#define CUBIC_SSTHRESH 100
 
 class CUBICPathState: public PathState {
 public:

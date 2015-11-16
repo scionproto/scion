@@ -55,8 +55,8 @@ inline void destroySDAMPPacket(SDAMPPacket *packet)
 {
     if (packet->interfaces)
         free(packet->interfaces);
-    if (packet->frames)
-        free(packet->frames);
+    if (packet->payload)
+        free(packet->payload);
     free(packet);
 }
 

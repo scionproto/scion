@@ -15,6 +15,7 @@ public:
     int read(uint8_t *buf, int len);
     void get(int offset, int len, uint8_t *buf);
     int size();
+    int available();
     int head();
     int tail();
 

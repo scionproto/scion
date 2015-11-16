@@ -76,6 +76,12 @@ void PathManager::getPaths()
         mLocalAddr.isd_ad = ntohl(*(uint32_t *)buf);
         mLocalAddr.host.addrLen = SCION_HOST_ADDR_LEN;
         memcpy(mLocalAddr.host.addr, buf + SCION_HOST_OFFSET, SCION_HOST_ADDR_LEN);
+
+        struct sockaddr_in sa;
+        memset(&sa, 0, sizeof(sa));
+        sa.sin_family = AF_INET;
+        memcpy(&sa.sin_addr, mLocalAddr.host.addr, mLocalAddr.host.addrLen);
+        bind(mSendSocket, (struct sockaddr *)&sa, sizeof(sa));
     }
 
     int invalid = 0;
@@ -102,7 +108,7 @@ void PathManager::getPaths()
                 int interfaceOffset = offset + 1 + pathLen + SCION_HOST_ADDR_LEN + 2;
                 int interfaceCount = *(buf + interfaceOffset);
                 for (size_t j = 0; j < mPaths.size(); j++) {
-                    if (mPaths[j]->usesSameInterfaces(buf + interfaceOffset + 1, interfaceCount)) {
+                    if (mPaths[j]->isSamePath(buf + offset + 1, pathLen)) {
                         found = true;
                         break;
                     }
@@ -282,8 +288,8 @@ SDAMPConnectionManager::SDAMPConnectionManager(std::vector<SCIONAddr> &addrs, in
 {
     for (int i = 0; i < MAX_TOTAL_PATHS; i++)
         mRunning[i] = true;
-    mFreshFrames = new PriorityQueue<SDAMPFrame *>(compareDeadline);
-    mRetryFrames = new PriorityQueue<SDAMPFrame *>(compareDeadline);
+    mFreshPackets = new PriorityQueue<SCIONPacket *>(compareDeadline);
+    mRetryPackets = new PriorityQueue<SCIONPacket *>(compareDeadline);
     pthread_mutex_init(&mMutex, NULL);
     pthread_mutex_init(&mSentMutex, NULL);
     pthread_cond_init(&mSentCond, NULL);
@@ -294,7 +300,6 @@ SDAMPConnectionManager::SDAMPConnectionManager(std::vector<SCIONAddr> &addrs, in
     pthread_condattr_init(&ca);
     pthread_condattr_setclock(&ca, CLOCK_REALTIME);
     pthread_cond_init(&mPacketCond, &ca);
-    getPaths();
 }
 
 SDAMPConnectionManager::~SDAMPConnectionManager()
@@ -303,13 +308,28 @@ SDAMPConnectionManager::~SDAMPConnectionManager()
         mRunning[i] = false;
     pthread_cond_broadcast(&mPacketCond);
     DEBUG("broadcast to path threads\n");
-    std::vector<SDAMPFrame *>::iterator it;
-    for (it = mFreshFrames->begin(); it != mFreshFrames->end(); it++)
-        destroySDAMPFrame(*it);
-    delete mFreshFrames;
-    for (it = mRetryFrames->begin(); it != mRetryFrames->end(); it++)
-        destroySDAMPFrame(*it);
-    delete mRetryFrames;
+    PacketList::iterator i;
+    for (i = mSentPackets.begin(); i != mSentPackets.end(); i++) {
+        SCIONPacket *p = *i;
+        SDAMPPacket *sp = (SDAMPPacket *)(p->payload);
+        destroySDAMPPacket(sp);
+        destroySCIONPacket(p);
+    }
+    std::vector<SCIONPacket *>::iterator j;
+    for (j = mFreshPackets->begin(); j != mFreshPackets->end(); j++) {
+        SCIONPacket *p = *j;
+        SDAMPPacket *sp = (SDAMPPacket *)(p->payload);
+        destroySDAMPPacket(sp);
+        destroySCIONPacket(p);
+    }
+    for (j = mRetryPackets->begin(); j != mRetryPackets->end(); j++) {
+        SCIONPacket *p = *j;
+        SDAMPPacket *sp = (SDAMPPacket *)(p->payload);
+        destroySDAMPPacket(sp);
+        destroySCIONPacket(p);
+    }
+    delete mFreshPackets;
+    delete mRetryPackets;
     while (!mPaths.empty()) {
         SDAMPPath *p = (SDAMPPath *)(mPaths.back());
         mPaths.pop_back();
@@ -326,12 +346,18 @@ SDAMPConnectionManager::~SDAMPConnectionManager()
     pthread_cond_destroy(&mPacketCond);
 }
 
+void SDAMPConnectionManager::setRemoteWindow(uint32_t window)
+{
+    for (size_t i = 0; i < mPaths.size(); i++)
+        ((SDAMPPath*)mPaths[i])->setRemoteWindow(window);
+}
+
 void SDAMPConnectionManager::waitForSendBuffer(int len, int windowSize)
 {
     while (totalQueuedSize() + len > windowSize) {
         pthread_mutex_lock(&mSentMutex);
         DEBUG("%lu packets in sent list, %lu in retry list, %lu in fresh list\n",
-                mSentPackets.size(), mRetryFrames->size(), mFreshFrames->size());
+                mSentPackets.size(), mRetryPackets->size(), mFreshPackets->size());
         pthread_cond_wait(&mSentCond, &mSentMutex);
         pthread_mutex_unlock(&mSentMutex);
     }
@@ -339,49 +365,46 @@ void SDAMPConnectionManager::waitForSendBuffer(int len, int windowSize)
 
 int SDAMPConnectionManager::totalQueuedSize()
 {
-    std::vector<SDAMPFrame *>::iterator i;
     int total = 0;
-    pthread_mutex_lock(&mPacketMutex);
 
+    std::vector<SCIONPacket *>::iterator i;
     pthread_mutex_lock(&mFreshMutex);
-    for (i = mFreshFrames->begin(); i != mFreshFrames->end(); i++)
-        total += (*i)->size;
+    for (i = mFreshPackets->begin(); i != mFreshPackets->end(); i++) {
+        SDAMPPacket *sp = (SDAMPPacket *)((*i)->payload);
+        total += sizeof(SCIONPacket) + sizeof(SDAMPPacket) + sp->size;
+    }
     pthread_mutex_unlock(&mFreshMutex);
+
     pthread_mutex_lock(&mRetryMutex);
-    for (i = mRetryFrames->begin(); i != mRetryFrames->end(); i++)
-        total += (*i)->size;
+    for (i = mRetryPackets->begin(); i != mRetryPackets->end(); i++) {
+        SDAMPPacket *sp = (SDAMPPacket *)((*i)->payload);
+        total += sizeof(SCIONPacket) + sizeof(SDAMPPacket) + sp->size;
+    }
     pthread_mutex_unlock(&mRetryMutex);
+
     PacketList::iterator j;
     pthread_mutex_lock(&mSentMutex);
-    for (j = mSentPackets.begin(); j != mSentPackets.end(); j++)
-        total += ntohs((*j)->header.commonHeader.totalLen);
+    for (j = mSentPackets.begin(); j != mSentPackets.end(); j++) {
+        SDAMPPacket *sp = (SDAMPPacket *)((*j)->payload);
+        total += sizeof(SCIONPacket) + sizeof(SDAMPPacket) + sp->size;
+    }
     pthread_mutex_unlock(&mSentMutex);
 
-    pthread_mutex_unlock(&mPacketMutex);
     return total;
 }
 
 void SDAMPConnectionManager::startPaths()
 {
+    getPaths();
     for (size_t i = 0; i < mPaths.size(); i++)
         ((SDAMPPath *)(mPaths[i]))->start();
 }
 
-void SDAMPConnectionManager::queueFrame(SDAMPFrame *frame)
+void SDAMPConnectionManager::queuePacket(SCIONPacket *packet)
 {
-    pthread_mutex_lock(&mPacketMutex);
-    if (frame->retryAttempts == 0) {
-        DEBUG("queue new frame\n");
-        pthread_mutex_lock(&mFreshMutex);
-        mFreshFrames->push(frame);
-        pthread_mutex_unlock(&mFreshMutex);
-    } else {
-        DEBUG("queue retry frame\n");
-        pthread_mutex_lock(&mRetryMutex);
-        mRetryFrames->push(frame);
-        pthread_mutex_unlock(&mRetryMutex);
-    }
-    pthread_mutex_unlock(&mPacketMutex);
+    pthread_mutex_lock(&mFreshMutex);
+    mFreshPackets->push(packet);
+    pthread_mutex_unlock(&mFreshMutex);
     pthread_cond_broadcast(&mPacketCond);
 }
 
@@ -422,11 +445,7 @@ void SDAMPConnectionManager::didSend(SCIONPacket *packet)
 void SDAMPConnectionManager::abortSend(SCIONPacket *packet)
 {
     pthread_mutex_lock(&mRetryMutex);
-    SDAMPPacket *sp = (SDAMPPacket *)(packet->payload);
-    for (size_t i = 0; i < sp->frameCount; i++)
-        mRetryFrames->push(sp->frames[i]);
-    destroySDAMPPacket(sp);
-    destroySCIONPacket(packet);
+    mRetryPackets->push(packet);
     pthread_mutex_unlock(&mRetryMutex);
 }
 
@@ -479,11 +498,8 @@ void SDAMPConnectionManager::sendProbes(uint32_t probeNum, uint64_t flowID)
     }
 }
 
-int SDAMPConnectionManager::sendAllPaths(SDAMPFrame *frame)
+int SDAMPConnectionManager::sendAllPaths(SCIONPacket *packet)
 {
-    std::vector<SDAMPFrame *> vec;
-    vec.push_back(frame);
-    SCIONPacket *packet = mProtocol->createPacket(vec);
     int res = 0;
     for (size_t i = 0; i < mPaths.size(); i++)
         res |= mPaths[i]->send(packet, mSendSocket);
@@ -527,7 +543,7 @@ int SDAMPConnectionManager::handlePacket(SCIONPacket *packet)
         index = mPaths.size() - 1;
     }
     packet->pathIndex = index;
-    if (sp->frameCount > 0)
+    if (sp->size > 0)
         return ((SDAMPPath *)(mPaths[index]))->handleData(packet);
     return 0;
 }
@@ -542,19 +558,15 @@ void SDAMPConnectionManager::handleAck(SCIONPacket *packet, size_t initCount, bo
             sdampAck.L, sdampAck.I, sdampAck.O, sdampAck.V);
     std::set<uint64_t> ackNums;
     ackNums.insert(packetNum);
-    uint64_t minAck = packetNum;
     for (int j = 0; j < 32; j++) {
         if ((sdampAck.V >> j) & 1) {
             uint64_t pn = sdampAck.L + sdampAck.O + j;
             DEBUG("includes ack for %lu\n", pn);
             ackNums.insert(pn);
-            if (pn < minAck)
-                minAck = pn;
         }
     }
 
-    DEBUG("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n");
-    pthread_mutex_lock(&mPacketMutex);
+    DEBUG("received ack for packet %lu (path %d)\n", packetNum, packet->pathIndex);
     pthread_mutex_lock(&mSentMutex);
     PacketList::iterator i = mSentPackets.begin();
     while (i != mSentPackets.end()) {
@@ -562,6 +574,7 @@ void SDAMPConnectionManager::handleAck(SCIONPacket *packet, size_t initCount, bo
         SDAMPPacket *sp = (SDAMPPacket *)(p->payload);
         SDAMPHeader &sh = sp->header;
         uint64_t pn = be64toh(sh.packetNum);
+        DEBUG("in sent list: packet %lu (path %d)\n", pn, p->pathIndex);
         bool found = ackNums.find(pn) != ackNums.end();
         if (found || pn < sdampAck.L) {
             if (pn != 0 && found && p->pathIndex != packet->pathIndex) {
@@ -592,32 +605,15 @@ void SDAMPConnectionManager::handleAck(SCIONPacket *packet, size_t initCount, bo
                 continue;
             }
         } else {
-            if (p->pathIndex == packet->pathIndex && pn < minAck) {
+            if (p->pathIndex == packet->pathIndex && pn < packetNum) {
                 DEBUG("out of order ack: packet %lu possibly dropped\n", pn);
                 handleDupAck(p->pathIndex);
                 sp->skipCount++;
-                if (sp->skipCount >= SDAMP_FR_THRESHOLD) {
-                    i = mSentPackets.erase(i);
-                    pthread_mutex_lock(&mRetryMutex);
-                    for (size_t j = 0; j < sp->frameCount; j++) {
-                        sp->frames[j]->retryAttempts++;
-                        mRetryFrames->push(sp->frames[j]);
-                        DEBUG("frame offset %lu pushed into retry list\n", sp->frames[j]->offset);
-                    }
-                    ((SDAMPPath *)(mPaths[p->pathIndex]))->addLoss(be64toh(sp->header.packetNum));
-                    ((SDAMPPath *)(mPaths[p->pathIndex]))->addRetransmit();
-                    destroySDAMPPacket(sp);
-                    destroySCIONPacket(p);
-                    pthread_mutex_unlock(&mRetryMutex);
-                    pthread_cond_broadcast(&mPacketCond);
-                    continue;
-                }
             }
         }
         i++;
     }
     pthread_mutex_unlock(&mSentMutex);
-    pthread_mutex_unlock(&mPacketMutex);
     pthread_cond_broadcast(&mSentCond);
 }
 
@@ -651,18 +647,20 @@ void SDAMPConnectionManager::handleProbeAck(SCIONPacket *packet)
     pthread_mutex_lock(&mMutex);
     for (size_t i = 0; i < mPaths.size(); i++) {
         if (mPaths[i]->isSamePath(packet->header.path, packet->header.pathLen)) {
-            DEBUG("path %lu back up from probe\n", i);
-            mPaths[i]->setUp();
-            pthread_cond_broadcast(&mPacketCond);
-            int used = 0;
-            for (size_t j = 0; j < mPaths.size(); j++) {
-                if (mPaths[j]->isUsed())
-                    used++;
-            }
-            if (used < MAX_USED_PATHS) {
-                DEBUG("set active\n");
-                mPaths[i]->setUsed(true);
+            if (!mPaths[i]->isUp()) {
+                DEBUG("path %lu back up from probe\n", i);
+                mPaths[i]->setUp();
                 pthread_cond_broadcast(&mPacketCond);
+                int used = 0;
+                for (size_t j = 0; j < mPaths.size(); j++) {
+                    if (mPaths[j]->isUsed())
+                        used++;
+                }
+                if (used < MAX_USED_PATHS) {
+                    DEBUG("set active\n");
+                    mPaths[i]->setUsed(true);
+                    pthread_cond_broadcast(&mPacketCond);
+                }
             }
         }
     }
@@ -680,7 +678,7 @@ void SDAMPConnectionManager::handleTimeout()
     for (size_t i = 0; i < mPaths.size(); i++)
         timeout[i] = mPaths[i]->didTimeout(&current);
 
-    pthread_mutex_lock(&mPacketMutex);
+    std::vector<SCIONPacket *> retries;
     pthread_mutex_lock(&mSentMutex);
     PacketList::iterator i = mSentPackets.begin();
     while (i != mSentPackets.end()) {
@@ -714,15 +712,7 @@ void SDAMPConnectionManager::handleTimeout()
             i = mSentPackets.erase(i);
             sp->skipCount = 0;
             sp->retryAttempts++;
-            pthread_mutex_lock(&mRetryMutex);
-            for (size_t j = 0; j < sp->frameCount; j++) {
-                sp->frames[j]->retryAttempts++;
-                mRetryFrames->push(sp->frames[j]);
-                DEBUG("frame offset %lu pushed into retry list\n", sp->frames[j]->offset);
-            }
-            destroySDAMPPacket(sp);
-            destroySCIONPacket(p);
-            pthread_mutex_unlock(&mRetryMutex);
+            retries.push_back(p);
             pthread_cond_broadcast(&mPacketCond);
             lost[index] = true;
             ((SDAMPPath *)(mPaths[index]))->addLoss(be64toh(sp->header.packetNum));
@@ -731,7 +721,10 @@ void SDAMPConnectionManager::handleTimeout()
         }
     }
     pthread_mutex_unlock(&mSentMutex);
-    pthread_mutex_unlock(&mPacketMutex);
+    pthread_mutex_lock(&mRetryMutex);
+    for (size_t j = 0; j < retries.size(); j++)
+        mRetryPackets->push(retries[j]);
+    pthread_mutex_unlock(&mRetryMutex);
     for (size_t j = 0; j < mPaths.size(); j++) {
         if (timeout[j] > 0) {
             DEBUG("%ld.%06ld: path %lu timed out\n", current.tv_sec, current.tv_usec, j);
@@ -754,12 +747,6 @@ void SDAMPConnectionManager::handleTimeout()
     }
 }
 
-int SDAMPConnectionManager::maxFrameSize()
-{
-    // TODO: Calculate based on path MTUs
-    return SDAMP_FRAME_SIZE;
-}
-
 void SDAMPConnectionManager::getStats(SCIONStats *stats)
 {
     for (size_t i = 0; i < mPaths.size(); i++)
@@ -775,11 +762,8 @@ SCIONPacket * SDAMPConnectionManager::maximizeBandwidth(int index, int bps, int 
 {
     pthread_mutex_lock(&mPacketMutex);
     sleepIfUnused(index);
-    SDAMPFrame *frame = NULL;
-    std::vector<SDAMPFrame *> vec;
-    uint32_t deadline = 0;
-    size_t available = mPaths[index]->getPayloadLen(false);
-    while (vec.empty()) {
+    SCIONPacket *packet = NULL;
+    while (packet == NULL) {
         if (!mRunning[index]) {
             pthread_mutex_unlock(&mPacketMutex);
             return NULL;
@@ -787,53 +771,27 @@ SCIONPacket * SDAMPConnectionManager::maximizeBandwidth(int index, int bps, int 
 
         DEBUG("path %d: requesting packet\n", index);
         pthread_mutex_lock(&mRetryMutex);
-        while (!mRetryFrames->empty()) {
-            frame = mRetryFrames->top();
-            if (available < frame->size + 12) {
-                DEBUG("retry frame too big\n");
-                break;
-            }
-            if (deadline > 0 && frame->deadline != deadline) {
-                DEBUG("different deadlines\n");
-                break;
-            }
-            mRetryFrames->pop();
-            vec.push_back(frame);
-            if (deadline == 0)
-                deadline = frame->deadline;
-            available -= frame->size + 12;
-            DEBUG("retry frame %lu\n", frame->offset);
+        if (!mRetryPackets->empty()) {
+            packet = mRetryPackets->top();
+            mRetryPackets->pop();
         }
         pthread_mutex_unlock(&mRetryMutex);
+        if (packet != NULL)
+            break;
 
         pthread_mutex_lock(&mFreshMutex);
-        while (!mFreshFrames->empty()) {
-            frame = mFreshFrames->top();
-            if (available < frame->size + 12) {
-                DEBUG("fresh frame too big\n");
-                break;
-            }
-            if (deadline > 0 && frame->deadline != deadline) {
-                DEBUG("different deadlines\n");
-                break;
-            }
-            mFreshFrames->pop();
-            vec.push_back(frame);
-            if (deadline == 0)
-                deadline = frame->deadline;
-            available -= frame->size + 12;
-            DEBUG("fresh packet %lu\n", frame->offset);
+        if (!mFreshPackets->empty()) {
+            packet = mFreshPackets->top();
+            mFreshPackets->pop();
         }
         pthread_mutex_unlock(&mFreshMutex);
 
-        if (vec.empty())
+        if (packet == NULL)
             pthread_cond_wait(&mPacketCond, &mPacketMutex);
-        DEBUG("path %d woken up\n", index);
     }
     pthread_mutex_unlock(&mPacketMutex);
-    SCIONPacket *p = mProtocol->createPacket(vec);
     DEBUG("send packet\n");
-    return p;
+    return packet;
 }
 
 SCIONPacket * SDAMPConnectionManager::requestPacket(int index, int bps, int rtt, double loss)
@@ -858,22 +816,25 @@ SSPConnectionManager::SSPConnectionManager(std::vector<SCIONAddr> &addrs, int so
 SSPConnectionManager::SSPConnectionManager(std::vector<SCIONAddr> &addrs, int sock, SSPProtocol *protocol)
     : SDAMPConnectionManager(addrs, sock, protocol)
 {
-    delete mFreshFrames;
-    mFreshFrames = NULL;
-    delete mRetryFrames;
-    mRetryFrames = NULL;
+    delete mFreshPackets;
+    mFreshPackets = NULL;
+    delete mRetryPackets;
+    mRetryPackets = NULL;
     for (size_t i = 0; i < mPaths.size(); i++)
         delete mPaths[i];
     mPaths.clear();
 
+    pthread_cond_init(&mFreshCond, NULL);
     mFreshBuffer = new RingBuffer(SDAMP_DEFAULT_WINDOW_SIZE);
     mRetryPackets = new PriorityQueue<SCIONPacket *>(compareOffset);
     mProtocol = protocol;
-    getPaths();
 }
 
 SSPConnectionManager::~SSPConnectionManager()
 {
+    pthread_cond_destroy(&mFreshCond);
+    delete mFreshBuffer;
+    delete mRetryPackets;
 }
 
 Path * SSPConnectionManager::createPath(SCIONAddr &dstAddr, uint8_t *rawPath, int pathLen)
@@ -885,7 +846,7 @@ void SSPConnectionManager::waitForSendBuffer(int len, int windowSize)
 {
     while (totalQueuedSize() + len > windowSize) {
         pthread_mutex_lock(&mSentMutex);
-        DEBUG("%lu packets in sent list, %lu in retry list, %lu in fresh list\n",
+        DEBUG("%lu packets in sent list, %lu in retry list, %lu fresh bytes\n",
                 mSentPackets.size(), mRetryPackets->size(), mFreshBuffer->size());
         pthread_cond_wait(&mSentCond, &mSentMutex);
         pthread_mutex_unlock(&mSentMutex);
@@ -897,7 +858,6 @@ int SSPConnectionManager::totalQueuedSize()
     PacketList::iterator i;
     std::vector<SCIONPacket *>::iterator j;
     int total = 0;
-    pthread_mutex_lock(&mPacketMutex);
     pthread_mutex_lock(&mFreshMutex);
     total += mFreshBuffer->size();
     pthread_mutex_unlock(&mFreshMutex);
@@ -909,7 +869,6 @@ int SSPConnectionManager::totalQueuedSize()
     for (i = mSentPackets.begin(); i != mSentPackets.end(); i++)
         total += ntohs((*i)->header.commonHeader.totalLen);
     pthread_mutex_unlock(&mSentMutex);
-    pthread_mutex_unlock(&mPacketMutex);
     return total;
 }
 
@@ -931,11 +890,9 @@ int SSPConnectionManager::sendAllPaths(uint8_t *buf, size_t len)
 
 int SSPConnectionManager::queueData(uint8_t *buf, size_t len)
 {
-    pthread_mutex_lock(&mPacketMutex);
     pthread_mutex_lock(&mFreshMutex);
     mFreshBuffer->write(buf, len);
     pthread_mutex_unlock(&mFreshMutex);
-    pthread_mutex_unlock(&mPacketMutex);
     pthread_cond_broadcast(&mPacketCond);
     return len;
 }
@@ -1034,19 +991,15 @@ void SSPConnectionManager::handleAck(SCIONPacket *packet, size_t initCount, bool
             ack->L, ack->I, ack->O, ack->V);
     std::set<uint64_t> ackNums;
     ackNums.insert(offset);
-    uint64_t minAck = offset;
     for (int j = 0; j < 32; j++) {
         if ((ack->V >> j) & 1) {
             uint64_t pn = ack->L + ack->O + j;
             DEBUG("includes ack for %lu\n", pn);
             ackNums.insert(pn);
-            if (pn < minAck)
-                minAck = pn;
         }
     }
 
     DEBUG("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n");
-    pthread_mutex_lock(&mPacketMutex);
     pthread_mutex_lock(&mSentMutex);
     PacketList::iterator i = mSentPackets.begin();
     while (i != mSentPackets.end()) {
@@ -1083,27 +1036,15 @@ void SSPConnectionManager::handleAck(SCIONPacket *packet, size_t initCount, bool
                 continue;
             }
         } else {
-            if (p->pathIndex == packet->pathIndex && pn < minAck) {
+            if (p->pathIndex == packet->pathIndex && pn < offset) {
                 DEBUG("out of order ack: packet %lu possibly dropped\n", pn);
                 ((SSPPath *)(mPaths[p->pathIndex]))->handleDupAck();
                 sp->skipCount++;
-                if (sp->skipCount >= SDAMP_FR_THRESHOLD) {
-                    i = mSentPackets.erase(i);
-                    pthread_mutex_lock(&mRetryMutex);
-                    mRetryPackets->push(p);
-                    ((SSPPath *)(mPaths[p->pathIndex]))->addLoss(be64toh(sh.offset));
-                    ((SSPPath *)(mPaths[p->pathIndex]))->addRetransmit();
-                    destroySSPOutPacket(sp);
-                    pthread_mutex_unlock(&mRetryMutex);
-                    pthread_cond_broadcast(&mPacketCond);
-                    continue;
-                }
             }
         }
         i++;
     }
     pthread_mutex_unlock(&mSentMutex);
-    pthread_mutex_unlock(&mPacketMutex);
     pthread_cond_broadcast(&mSentCond);
 }
 
@@ -1139,7 +1080,7 @@ void SSPConnectionManager::handleTimeout()
     for (size_t i = 0; i < mPaths.size(); i++)
         timeout[i] = mPaths[i]->didTimeout(&current);
 
-    pthread_mutex_lock(&mPacketMutex);
+    std::vector<SCIONPacket *> retries;
     pthread_mutex_lock(&mSentMutex);
     PacketList::iterator i = mSentPackets.begin();
     while (i != mSentPackets.end()) {
@@ -1172,10 +1113,7 @@ void SSPConnectionManager::handleTimeout()
             SCIONPacket *p = *i;
             i = mSentPackets.erase(i);
             sp->skipCount = 0;
-            pthread_mutex_lock(&mRetryMutex);
-            mRetryPackets->push(p);
-            pthread_mutex_unlock(&mRetryMutex);
-            pthread_cond_broadcast(&mPacketCond);
+            retries.push_back(p);
             lost[index] = true;
             ((SSPPath *)(mPaths[index]))->addLoss(ntohl(sp->header.offset));
         } else {
@@ -1183,7 +1121,13 @@ void SSPConnectionManager::handleTimeout()
         }
     }
     pthread_mutex_unlock(&mSentMutex);
-    pthread_mutex_unlock(&mPacketMutex);
+
+    pthread_mutex_lock(&mRetryMutex);
+    for (size_t j = 0; j < retries.size(); j++) {
+        mRetryPackets->push(retries[j]);
+    }
+    pthread_mutex_unlock(&mRetryMutex);
+
     for (size_t j = 0; j < mPaths.size(); j++) {
         if (timeout[j] > 0) {
             DEBUG("%ld.%06ld: path %lu timed out\n", current.tv_sec, current.tv_usec, j);
@@ -1254,6 +1198,7 @@ SCIONPacket * SSPConnectionManager::maximizeBandwidth(int index, int bps, int rt
             packet = mProtocol->createPacket(data, len);
         }
         pthread_mutex_unlock(&mFreshMutex);
+        pthread_cond_broadcast(&mFreshCond);
 
         if (!packet)
             pthread_cond_wait(&mPacketCond, &mPacketMutex);

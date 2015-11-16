@@ -58,6 +58,7 @@ SCIONSocket::SCIONSocket(int protocol, SCIONAddr **dstAddrs, int numAddrs,
             if (!mDstAddrs.empty()) {
                 mProtocol = new SDAMPProtocol(mDstAddrs, mSrcPort, mDstPort);
                 if (srcPort != -1) {
+                    mProtocol->createManager(mDstAddrs);
                     mProtocol->start(NULL, NULL, mDispatcherSocket);
                     mRegistered = true;
                 }
@@ -75,6 +76,7 @@ SCIONSocket::SCIONSocket(int protocol, SCIONAddr **dstAddrs, int numAddrs,
             if (!mDstAddrs.empty()) {
                 mProtocol = new SSPProtocol(mDstAddrs, mSrcPort, mDstPort);
                 if (srcPort != -1) {
+                    mProtocol->createManager(mDstAddrs);
                     mProtocol->start(NULL, NULL, mDispatcherSocket);
                     mRegistered = true;
                 }
@@ -106,6 +108,7 @@ SCIONSocket::SCIONSocket(int protocol, SCIONAddr **dstAddrs, int numAddrs,
             mRegistered = true;
             DEBUG("Registered to receive SUDP packets on port %d\n", mSrcPort);
             mProtocol = new SUDPProtocol(mDstAddrs, mSrcPort, mDstPort);
+            mProtocol->createManager(mDstAddrs);
             break;
         }
         default:
@@ -243,6 +246,7 @@ void SCIONSocket::handlePacket(uint8_t *buf, size_t len, struct sockaddr_in *add
         addrs[0] = &srcAddr;
         DEBUG("create new socket to handle incoming flow\n");
         SCIONSocket *s = new SCIONSocket(mProtocolID, (SCIONAddr **)addrs, 1, -1, mDstPort);
+        s->mProtocol->createManager(mDstAddrs);
         s->mProtocol->start(packet, buf + sch.headerLen, s->mDispatcherSocket);
         s->mRegistered = true;
         pthread_cond_signal(&s->mRegisterCond);

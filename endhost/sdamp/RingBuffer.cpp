@@ -95,6 +95,11 @@ int RingBuffer::size()
         return mLen - (mHead - mTail);
 }
 
+int RingBuffer::available()
+{
+    return mLen - this->size();
+}
+
 int RingBuffer::head()
 {
     return mHead;
