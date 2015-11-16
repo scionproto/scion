@@ -15,6 +15,9 @@
 :mod:`lib_trust_store_test` --- lib.trust_store unit tests
 ==========================================================
 """
+# Stdlib
+from unittest.mock import patch
+
 # External packages
 import nose.tools as ntools
 
@@ -87,7 +90,8 @@ class TestTrustStoreAddTrc(object):
     """
     Unit tests for lib.trust_store.TrustStore.add_trc
     """
-    def test_add_unique_version(self):
+    @patch("lib.trust_store.write_file", autospec=True)
+    def test_add_unique_version(self, write_file):
         inst = TrustStore("conf_dir")
         inst._trcs[1] = [(0, 'trc0'), (1, 'trc1')]
         trcs_before = inst._trcs[1][:]
@@ -97,8 +101,11 @@ class TestTrustStoreAddTrc(object):
         inst.add_trc(trc)
         # Tests
         ntools.eq_(inst._trcs[1], trcs_before + [(2, trc)])
+        write_file.assert_called_once_with(
+            "conf_dir/certs/ISD1-V2.trc", str(trc))
 
-    def test_add_non_unique_version(self):
+    @patch("lib.trust_store.write_file", autospec=True)
+    def test_add_non_unique_version(self, write_file):
         inst = TrustStore("conf_dir")
         inst._trcs[1] = [(0, 'trc0'), (1, 'trc1')]
         trcs_before = inst._trcs[1][:]
@@ -108,13 +115,15 @@ class TestTrustStoreAddTrc(object):
         inst.add_trc(trc)
         # Tests
         ntools.eq_(inst._trcs[1], trcs_before)
+        ntools.assert_false(write_file.called)
 
 
 class TestTrustStoreAddCert(object):
     """
     Unit tests for lib.trust_store.TrustStore.add_cert
     """
-    def test_add_unique_version(self):
+    @patch("lib.trust_store.write_file", autospec=True)
+    def test_add_unique_version(self, write_file):
         inst = TrustStore("conf_dir")
         inst._certs[(1, 1)] = [(0, 'cert0'), (1, 'cert1')]
         certs_before = inst._certs[(1, 1)][:]
@@ -124,8 +133,11 @@ class TestTrustStoreAddCert(object):
         inst.add_cert(cert)
         # Tests
         ntools.eq_(inst._certs[(1, 1)], certs_before + [(2, cert)])
+        write_file.assert_called_once_with(
+            "conf_dir/certs/ISD1-AD1-V2.crt", str(cert))
 
-    def test_add_non_unique_version(self):
+    @patch("lib.trust_store.write_file", autospec=True)
+    def test_add_non_unique_version(self, write_file):
         inst = TrustStore("conf_dir")
         inst._certs[(1, 1)] = [(0, 'cert0'), (1, 'cert1')]
         certs_before = inst._certs[(1, 1)][:]
@@ -135,3 +147,4 @@ class TestTrustStoreAddCert(object):
         inst.add_cert(cert)
         # Tests
         ntools.eq_(inst._certs[(1, 1)], certs_before)
+        ntools.assert_false(write_file.called)

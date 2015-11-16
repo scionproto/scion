@@ -22,7 +22,7 @@ import logging
 
 # SCION
 from lib.crypto.certificate import CertificateChain, TRC
-from lib.util import CERT_DIR, read_file
+from lib.util import CERT_DIR, read_file, write_file
 
 
 class TrustStore(object):
@@ -40,13 +40,13 @@ class TrustStore(object):
     def _init_trcs(self):  # pragma: no cover
         for path in glob.glob("%s/*.trc" % self._dir):
             trc_raw = read_file(path)
-            self.add_trc(TRC(trc_raw))
+            self.add_trc(TRC(trc_raw), write=False)
             logging.info("Loaded: %s" % path)
 
     def _init_certs(self):  # pragma: no cover
         for path in glob.glob("%s/*.crt" % self._dir):
             cert_raw = read_file(path)
-            self.add_cert(CertificateChain(cert_raw))
+            self.add_cert(CertificateChain(cert_raw), write=False)
             logging.info("Loaded: %s" % path)
 
     def get_trc(self, isd, version=None):
@@ -73,16 +73,21 @@ class TrustStore(object):
                     return cert
         return None
 
-    def add_trc(self, trc):
+    def add_trc(self, trc, write=True):
         isd, version = trc.get_isd_ver()
         for ver, _ in self._trcs[isd]:
             if version == ver:
                 return
         self._trcs[isd].append((version, trc))
+        if write:
+            write_file("%s/ISD%s-V%s.trc" % (self._dir, isd, version), str(trc))
 
-    def add_cert(self, cert):
+    def add_cert(self, cert, write=True):
         isd, ad, version = cert.get_leaf_isd_ad_ver()
         for ver, _ in self._certs[(isd, ad)]:
             if version == ver:
                 return
         self._certs[(isd, ad)].append((version, cert))
+        if write:
+            write_file("%s/ISD%s-AD%s-V%s.crt" % (self._dir, isd, ad, version),
+                       str(cert))
