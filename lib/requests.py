@@ -37,11 +37,31 @@ class RequestHandler(object):
     queue. To signal that the RequestHandler should check for fulfilled queries
     for a given key, the client can simply send `None` instead of a request
     object.
+
+    RequestHandler expects 4 parameters:
+        - a queue to read from (discussed above)
+        - a 'check' callback to see if a request can be fulfilled
+        - a 'fetch' callback to send a query for the answer
+        - a 'reply' callback to send the answer back to the requester
     """
     TTL = 2.0
     MAX_LEN = 16
 
     def __init__(self, queue, check, fetch, reply, ttl=TTL):  # pragma: no cover
+        """
+        :param queue.Queue queue:
+            Used to receive request notifications, see class docstring for
+            details.
+        :param function check:
+            Called with the provided key, should return `True` if the request
+            can be answered, otherwise `False`.
+        :param function fetch:
+            Called with the provided key and request info, responsible for
+            fetching the answer for the request.
+        :param function reply:
+            Called with the provided key and request info, should return the
+            result to the requester.
+        """
         self._queue = queue
         self._check = check
         self._fetch = fetch
@@ -51,6 +71,12 @@ class RequestHandler(object):
 
     @classmethod
     def start(cls, name, *args, **kwargs):  # pragma: no cover
+        """
+        Create a queue and a RequestHandler object with the supplied
+        args/kwargs, then start RequestHandler.run in a thread, and return the
+        queue to the caller. This is the recommended way of running
+        RequestHandler.
+        """
         q = queue.Queue()
         inst = cls(q, *args, **kwargs)
         threading.Thread(
@@ -73,7 +99,7 @@ class RequestHandler(object):
         if not self._check(key) and len(self._req_map[key]) == 0:
             # Don't already have the answer, and there were no outstanding
             # requests, so send a new query
-            self._fetch(key)
+            self._fetch(key, request)
         self._req_map[key].append((SCIONTime.get_time(), request))
 
     def _answer_reqs(self, key):
@@ -87,7 +113,7 @@ class RequestHandler(object):
         reqs = self._req_map[key]
         while reqs:
             _, req = reqs.pop(0)
-            self._reply(req)
+            self._reply(key, req)
         del self._req_map[key]
 
     def _expire_reqs(self, key):
