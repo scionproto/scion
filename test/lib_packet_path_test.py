@@ -1116,10 +1116,11 @@ class TestPathCombinatorBuildCorePaths(object):
            new_callable=create_mock)
     def test_with_core(self, build_path):
         core_segments = ['core0', 'core1', 'core2', 'core3']
-        build_path.side_effect = ['path0', 'path1', None, 'path1']
+        build_path.side_effect = [None, 'path0', 'path1', None, 'path1']
         ntools.eq_(PathCombinator.build_core_paths('up', 'down', core_segments),
                    ['path0', 'path1'])
-        calls = [call('up', cs, 'down') for cs in core_segments]
+        calls = [call('up', [], 'down')]
+        calls += [call('up', cs, 'down') for cs in core_segments]
         assert_these_calls(build_path, calls)
 
 
