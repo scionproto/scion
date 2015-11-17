@@ -21,7 +21,6 @@ import argparse
 import base64
 import configparser
 import getpass
-import json
 import logging
 import math
 import os
@@ -32,6 +31,7 @@ from ipaddress import ip_interface, ip_network
 from string import Template
 
 # External packages
+import yaml
 from Crypto import Random
 from dnslib.label import DNSLabel
 
@@ -42,7 +42,13 @@ from lib.crypto.asymcrypto import (
     sign,
 )
 from lib.crypto.certificate import Certificate, CertificateChain, TRC
-from lib.defines import GEN_PATH, SCION_ROUTER_PORT
+from lib.defines import (
+    AD_CONF_FILE,
+    GEN_PATH,
+    NETWORKS_FILE,
+    PATH_POLICY_FILE,
+    SCION_ROUTER_PORT,
+)
 from lib.path_store import PathPolicy
 from lib.topology import Topology
 from lib.util import (
@@ -50,20 +56,19 @@ from lib.util import (
     get_cert_chain_file_path,
     get_sig_key_file_path,
     get_trc_file_path,
-    load_json_file,
+    load_yaml_file,
     read_file,
     write_file,
 )
 
-DEFAULT_ADCONFIGURATIONS_FILE = "topology/ADConfigurations.json"
-DEFAULT_PATH_POLICY_FILE = "topology/PathPolicy.json"
-DEFAULT_ZK_CONFIG = "topology/Zookeeper.json"
+DEFAULT_TOPOLOGY_FILE = "topology/Default.topo"
+DEFAULT_PATH_POLICY_FILE = "topology/PathPolicy.yml"
+DEFAULT_ZK_CONFIG = "topology/Zookeeper.yml"
 DEFAULT_ZK_LOG4J = "topology/Zookeeper.log4j"
 
 SIM_DIR = 'SIM'
 SIM_CONF_FILE = 'sim.conf'
 HOSTS_FILE = 'hosts'
-NETWORKS_CONF = 'networks.conf'
 SUPERVISOR_CONF = 'supervisord.conf'
 COMMON_DIR = 'endhost'
 
@@ -96,26 +101,25 @@ class ConfigGenerator(object):
     """
     Configuration and/or topology generator.
     """
-    def __init__(self, out_dir=GEN_PATH,
-                 adconfigurations_file=DEFAULT_ADCONFIGURATIONS_FILE,
+    def __init__(self, out_dir=GEN_PATH, topo_file=DEFAULT_TOPOLOGY_FILE,
                  path_policy_file=DEFAULT_PATH_POLICY_FILE,
-                 zk_config_file=DEFAULT_ZK_CONFIG, network=None,
-                 is_sim=False, use_mininet=False):
+                 zk_config_file=DEFAULT_ZK_CONFIG, network=None, is_sim=False,
+                 use_mininet=False):
         """
         Initialize an instance of the class ConfigGenerator.
 
         :param string out_dir: path to the topology folder.
-        :param string adconfigurations_file: path to ADConfigurations.json
-        :param string path_policy_file: path to PathPolicy.json
-        :param string zk_config_file: path to Zookeeper.json
+        :param string topo_file: path to topology config
+        :param string path_policy_file: path to PathPolicy.yml
+        :param string zk_config_file: path to Zookeeper.yml
         :param string network:
             Network to create subnets in, of the form x.x.x.x/y
         :param bool is_sim: Generate conf files for the Simulator
         :param bool use_mininet: Use Mininet
         """
         self.out_dir = out_dir
-        self.ad_configs = load_json_file(adconfigurations_file)
-        self.zk_config = load_json_file(zk_config_file)
+        self.topo_config = load_yaml_file(topo_file)
+        self.zk_config = load_yaml_file(zk_config_file)
         self.path_policy_file = path_policy_file
         self.is_sim = is_sim
         self.mininet = use_mininet
@@ -126,7 +130,7 @@ class ConfigGenerator(object):
         """
         Configure default network and ZooKeeper setup.
         """
-        defaults = self.ad_configs.get("defaults", {})
+        defaults = self.topo_config.get("defaults", {})
         def_network = network
         if not def_network:
             def_network = defaults.get("subnet")
@@ -157,12 +161,12 @@ class ConfigGenerator(object):
         self._write_networks_conf(networks)
 
     def _generate_certs(self):
-        certgen = CertGenerator(self.ad_configs)
+        certgen = CertGenerator(self.topo_config)
         return certgen.generate()
 
     def _generate_topology(self):
-        topo_gen = TopoGenerator(self.ad_configs, self.out_dir, self.subnet_gen,
-                                 self.zk_config, self.is_sim)
+        topo_gen = TopoGenerator(self.topo_config, self.out_dir,
+                                 self.subnet_gen, self.zk_config, self.is_sim)
         return topo_gen.generate()
 
     def _generate_supervisor(self, topo_dicts, zookeepers):
@@ -191,14 +195,14 @@ class ConfigGenerator(object):
         ad_confs = {}
         for topo_id, ad_topo, base in _srv_iter(
                 topo_dicts, self.out_dir, common=True):
-            ad_confs.setdefault(topo_id, "%s\n" % json.dumps(
-                self._gen_ad_conf(ad_topo), sort_keys=True, indent=4))
-            conf_file = os.path.join(base, "ad.conf")
+            ad_confs.setdefault(topo_id, "%s\n" % yaml.dump(
+                self._gen_ad_conf(ad_topo)))
+            conf_file = os.path.join(base, AD_CONF_FILE)
             write_file(conf_file, ad_confs[topo_id])
             # Confirm that config parses cleanly.
             Config.from_file(conf_file)
             copy_file(self.path_policy_file,
-                      os.path.join(base, "path_policy.conf"))
+                      os.path.join(base, PATH_POLICY_FILE))
         # Confirm that parser actually works on path policy file
         PathPolicy.from_file(self.path_policy_file)
 
@@ -223,12 +227,12 @@ class ConfigGenerator(object):
             config[net] = sub_conf
         text = StringIO()
         config.write(text)
-        write_file(os.path.join(self.out_dir, NETWORKS_CONF), text.getvalue())
+        write_file(os.path.join(self.out_dir, NETWORKS_FILE), text.getvalue())
 
 
 class CertGenerator(object):
-    def __init__(self, ad_configs):
-        self.ad_configs = ad_configs
+    def __init__(self, topo_config):
+        self.topo_config = topo_config
         self.sig_priv_keys = {}
         self.sig_pub_keys = {}
         self.enc_pub_keys = {}
@@ -253,7 +257,7 @@ class CertGenerator(object):
         self.enc_pub_keys[topo_id], _ = generate_sign_keypair()
 
     def _iterate(self, f):
-        for isd_ad_id, ad_conf in self.ad_configs["ADs"].items():
+        for isd_ad_id, ad_conf in self.topo_config["ADs"].items():
             f(TopoID(isd_ad_id), ad_conf)
 
     def _gen_ad_keys(self, topo_id, ad_conf):
@@ -323,8 +327,8 @@ class CertGenerator(object):
 
 
 class TopoGenerator(object):
-    def __init__(self, ad_configs, out_dir, subnet_gen, zk_config, is_sim):
-        self.ad_configs = ad_configs
+    def __init__(self, topo_config, out_dir, subnet_gen, zk_config, is_sim):
+        self.topo_config = topo_config
         self.out_dir = out_dir
         self.subnet_gen = subnet_gen
         self.zk_config = zk_config
@@ -346,7 +350,7 @@ class TopoGenerator(object):
         return subnet.register(ad1_name), subnet.register(ad2_name)
 
     def _iterate(self, f):
-        for isd_ad_id, ad_conf in self.ad_configs["ADs"].items():
+        for isd_ad_id, ad_conf in self.topo_config["ADs"].items():
             f(TopoID(isd_ad_id), ad_conf)
 
     def generate(self):
@@ -424,8 +428,8 @@ class TopoGenerator(object):
         zk_conf = {}
         if "zookeepers" in ad_conf:
             zk_conf = ad_conf["zookeepers"]
-        elif "zookeepers" in self.ad_configs.get("defaults", {}):
-            zk_conf = self.ad_configs["defaults"]["zookeepers"]
+        elif "zookeepers" in self.topo_config.get("defaults", {}):
+            zk_conf = self.topo_config["defaults"]["zookeepers"]
         for key, val in zk_conf.items():
             self._gen_zk_entry(topo_id, key, val)
 
@@ -445,9 +449,8 @@ class TopoGenerator(object):
     def _write_ad_topos(self):
         for topo_id, ad_topo, base in _srv_iter(
                 self.topo_dicts, self.out_dir, common=True):
-            path = os.path.join(base, "topology.conf")
-            contents = JSONAddrEncoder(sort_keys=True, indent=4).encode(
-                self.topo_dicts[topo_id])
+            path = os.path.join(base, "topology.yml")
+            contents = yaml.dump(self.topo_dicts[topo_id])
             write_file(path, contents)
             # Test if topo file parses cleanly
             Topology.from_file(path)
@@ -712,14 +715,6 @@ class ZKTopo(object):
         ]
 
 
-class JSONAddrEncoder(json.JSONEncoder):
-    def default(self, o):
-        if isinstance(o, AddressProxy):
-            return str(o)
-        else:
-            return super().default(o)
-
-
 class SubnetGenerator(object):
     def __init__(self, network):
         self._net = ip_network(network)
@@ -798,7 +793,9 @@ class AddressGenerator(object):
         return len(self._addrs)
 
 
-class AddressProxy(object):
+class AddressProxy(yaml.YAMLObject):
+    yaml_tag = ""
+
     def __init__(self):
         self._intf = None
         self.ip = None
@@ -809,6 +806,10 @@ class AddressProxy(object):
 
     def __str__(self):
         return str(self._intf)
+
+    @classmethod
+    def to_yaml(cls, dumper, inst):
+        return dumper.represent_scalar('tag:yaml.org,2002:str', str(inst))
 
 
 def _srv_iter(topo_dicts, out_dir, common=False):
@@ -826,9 +827,8 @@ def main():
     Main function.
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument('-c', '--ad-config',
-                        default=DEFAULT_ADCONFIGURATIONS_FILE,
-                        help='AD configurations file')
+    parser.add_argument('-c', '--topo-config', default=DEFAULT_TOPOLOGY_FILE,
+                        help='Default topology config')
     parser.add_argument('-s', '--sim', action='store_true', help='Simulator')
     parser.add_argument('-p', '--path-policy', default=DEFAULT_PATH_POLICY_FILE,
                         help='Path policy file')
@@ -842,7 +842,7 @@ def main():
                         help='Zookeeper configuration file')
     args = parser.parse_args()
     confgen = ConfigGenerator(
-        args.output_dir, args.ad_config, args.path_policy, args.zk_config,
+        args.output_dir, args.topo_config, args.path_policy, args.zk_config,
         args.network, args.sim, args.mininet)
     confgen.generate_all()
 

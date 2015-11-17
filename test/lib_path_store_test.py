@@ -176,7 +176,7 @@ class TestPathPolicyFromFile(object):
     """
     @patch("lib.path_store.PathPolicy.from_dict", spec_set=[],
            new_callable=MagicMock)
-    @patch("lib.path_store.load_json_file", autospec=True)
+    @patch("lib.path_store.load_yaml_file", autospec=True)
     def test_basic(self, load, from_dict):
         load.return_value = "policy_dict"
         from_dict.return_value = "from_dict"

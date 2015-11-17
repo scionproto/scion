@@ -139,7 +139,7 @@ class TestTopologyFromFile(object):
     """
     @patch("lib.topology.Topology.from_dict", spec_set=[],
            new_callable=MagicMock)
-    @patch("lib.topology.load_json_file", autospec=True)
+    @patch("lib.topology.load_yaml_file", autospec=True)
     def test(self, load, from_dict):
         load.return_value = 'topo_dict'
         from_dict.return_value = 'topology'

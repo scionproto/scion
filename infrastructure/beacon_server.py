@@ -40,6 +40,7 @@ from lib.defines import (
     BEACON_SERVICE,
     CERTIFICATE_SERVICE,
     IFID_PKT_TOUT,
+    PATH_POLICY_FILE,
     PATH_SERVICE,
     SCION_UDP_PORT,
 )
@@ -259,7 +260,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         super().__init__(server_id, conf_dir, is_sim=is_sim)
         # TODO: add 2 policies
         self.path_policy = PathPolicy.from_file(
-            os.path.join(conf_dir, "path_policy.conf"))
+            os.path.join(conf_dir, PATH_POLICY_FILE))
         self.unverified_beacons = deque()
         self.trc_requests = {}
         self.trcs = {}

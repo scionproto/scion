@@ -14,5 +14,6 @@ pydblite
 pygments
 pynacl
 python-pytun
+pyyaml
 scapy-python3
 sphinxcontrib-napoleon

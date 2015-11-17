@@ -1,0 +1,25 @@
+---
+BestSetSize: 5
+CandidatesSetSize: 20
+HistoryLimit: 20
+PropertyRanges:
+  AvailableBandwidth: 0-100
+  DelayTime: 0-60
+  GuaranteedBandwidth: 0-100
+  HopsLength: 1-10
+  PeerLinks: 0-100
+  TotalBandwidth: 0-100
+PropertyWeights:
+  AvailableBandwidth: 0
+  DelayTime: 3
+  Disjointness: 4
+  ExpirationTime: 3
+  GuaranteedBandwidth: 0
+  HopsLength: 5
+  LastSeenTime: 3
+  LastSentTime: 3
+  PeerLinks: 7
+  TotalBandwidth: 0
+UnwantedADs: 0-8880-999
+UpdateAfterNumber: 10
+UpdateAfterTime: 3600

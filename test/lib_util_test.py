@@ -23,12 +23,14 @@ from unittest.mock import patch, call, mock_open, MagicMock
 # External packages
 import nose
 import nose.tools as ntools
+import yaml
 
 # SCION
 from lib.errors import (
     SCIONIOError,
     SCIONIndexError,
     SCIONJSONError,
+    SCIONYAMLError,
     SCIONParseError,
     SCIONTypeError,
 )
@@ -42,6 +44,7 @@ from lib.util import (
     copy_file,
     handle_signals,
     load_json_file,
+    load_yaml_file,
     read_file,
     sleep_interval,
     timed,
@@ -139,32 +142,65 @@ class TestCopyFile(object):
         ntools.assert_raises(SCIONIOError, copy_file, "a", "b")
 
 
-class TestLoadJSONFile(object):
+class Loader(object):
+    """
+    Helper class for load_json_file and load_yaml_file tests.
+    """
+    def _basic(self, target, loader):
+        loader.return_value = "loader dict"
+        with patch.object(builtins, 'open', mock_open()) as open_:
+            ntools.eq_(target("File_Path"), "loader dict")
+            open_.assert_called_once_with("File_Path")
+            loader.assert_called_once_with(open_.return_value)
+
+    @patch.object(builtins, 'open', mock_open())
+    def _file_error(self, target):
+        builtins.open.side_effect = IsADirectoryError
+        ntools.assert_raises(SCIONIOError, target, "File_Path")
+
+    @patch.object(builtins, 'open', mock_open())
+    def _check_loader_error(self, target, loader_path, excp, expected):
+        with patch(loader_path, autospec=True) as loader:
+            loader.side_effect = excp
+            ntools.assert_raises(expected, target, "File_Path")
+
+
+class TestLoadJSONFile(Loader):
     """
     Unit tests for lib.util.load_json_file
     """
-    @patch.object(builtins, 'open', mock_open())
     @patch("lib.util.json.load", autospec=True)
-    def test_basic(self, json_load):
-        json_load.return_value = "JSON dict"
-        ntools.eq_(load_json_file("File_Path"), "JSON dict")
-        builtins.open.assert_called_once_with("File_Path")
-        json_load.assert_called_once_with(builtins.open.return_value)
+    def test_basic(self, loader):
+        self._basic(load_json_file, loader)
 
-    @patch.object(builtins, 'open', mock_open())
     def test_file_error(self):
-        builtins.open.side_effect = IsADirectoryError
-        ntools.assert_raises(SCIONIOError, load_json_file, "File_Path")
-
-    @patch.object(builtins, 'open', mock_open())
-    @patch("lib.util.json.load", autospec=True)
-    def _check_json_error(self, excp, json_load):
-        json_load.side_effect = excp
-        ntools.assert_raises(SCIONJSONError, load_json_file, "File_Path")
+        self._file_error(load_json_file)
 
     def test_json_error(self):
         for excp in ValueError, KeyError, TypeError:
-            yield self._check_json_error, excp
+            yield (
+                self._check_loader_error, load_json_file, "lib.util.json.load",
+                excp, SCIONJSONError,
+            )
+
+
+class TestLoadYAMLFile(Loader):
+    """
+    Unit tests for lib.util.load_yaml_file
+    """
+    @patch("lib.util.yaml.load", autospec=True)
+    def test_basic(self, loader):
+        self._basic(load_yaml_file, loader)
+
+    def test_file_error(self):
+        self._file_error(load_yaml_file)
+
+    def test_json_error(self):
+        for excp in (yaml.scanner.ScannerError, ):
+            yield (
+                self._check_loader_error, load_yaml_file, "lib.util.yaml.load",
+                excp, SCIONYAMLError,
+            )
 
 
 class TestUpdateDict(object):
