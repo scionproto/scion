@@ -36,6 +36,8 @@ AD_CONF_FILE = "ad.yml"
 PATH_POLICY_FILE = "path_policy.yml"
 #: Networks config
 NETWORKS_FILE = "networks.conf"
+#: AD list
+AD_LIST_FILE = "ad_list.yml"
 
 #: Buffer size for receiving packets
 SCION_BUFLEN = 65535

@@ -44,10 +44,12 @@ from lib.crypto.asymcrypto import (
 from lib.crypto.certificate import Certificate, CertificateChain, TRC
 from lib.defines import (
     AD_CONF_FILE,
+    AD_LIST_FILE,
     GEN_PATH,
     NETWORKS_FILE,
     PATH_POLICY_FILE,
     SCION_ROUTER_PORT,
+    TOPO_FILE,
 )
 from lib.path_store import PathPolicy
 from lib.topology import Topology
@@ -75,7 +77,7 @@ COMMON_DIR = 'endhost'
 ZOOKEEPER_HOST_TMPFS_DIR = "/run/shm/host-zk"
 ZOOKEEPER_TMPFS_DIR = "/run/shm/scion-zk"
 
-CORE_AD = 'CORE'
+CORE_LEVEL = 'CORE'
 
 DEFAULT_BEACON_SERVERS = 1
 DEFAULT_CERTIFICATE_SERVERS = 1
@@ -270,7 +272,7 @@ class CertGenerator(object):
         self.cert_files[topo_id][sig_path] = base64.b64encode(sig_priv).decode()
 
     def _gen_ad_certs(self, topo_id, ad_conf):
-        if ad_conf['level'] == CORE_AD:
+        if ad_conf['level'] == CORE_LEVEL:
             return
         if 'cert_issuer' not in ad_conf:
             logging.warning("No 'cert_issuer' attribute for "
@@ -296,7 +298,7 @@ class CertGenerator(object):
                 str(CertificateChain.from_values(chain))
 
     def _gen_trc_entry(self, topo_id, ad_conf):
-        if ad_conf['level'] != CORE_AD:
+        if ad_conf['level'] != CORE_LEVEL:
             return
         cert = Certificate.from_values(
             str(topo_id), self.sig_pub_keys[topo_id],
@@ -314,7 +316,7 @@ class CertGenerator(object):
             'reg_srv_cert', 'dns_srv_addr', 'dns_srv_cert', 'trc_srv_addr', {})
 
     def _sign_trc(self, topo_id, ad_conf):
-        if ad_conf['level'] != CORE_AD:
+        if ad_conf['level'] != CORE_LEVEL:
             return
         trc = self.trcs[topo_id.isd]
         trc_str = trc.to_json(with_signatures=False).encode('utf-8')
@@ -337,6 +339,7 @@ class TopoGenerator(object):
         self.hosts = []
         self.zookeepers = defaultdict(dict)
         self.virt_addrs = set()
+        self.ad_list = defaultdict(list)
 
     def _reg_addr(self, topo_id, elem_id):
         subnet = self.subnet_gen.register(topo_id)
@@ -355,8 +358,10 @@ class TopoGenerator(object):
 
     def generate(self):
         self._iterate(self._generate_ad_topo)
+        self._iterate(self._generate_ad_list)
         networks = self.subnet_gen.alloc_subnets()
         self._write_ad_topos()
+        self._write_ad_list()
         self._write_hosts()
         return self.topo_dicts, self.zookeepers, networks
 
@@ -365,7 +370,7 @@ class TopoGenerator(object):
         dns_domain = dns_domain.add(
             "isd%s" % topo_id.isd).add("ad%s" % topo_id.ad)
         self.topo_dicts[topo_id] = {
-            'Core': ad_conf['level'] == CORE_AD,
+            'Core': ad_conf['level'] == CORE_LEVEL,
             'ISDID': int(topo_id.isd), 'ADID': int(topo_id.ad),
             'DnsDomain': str(dns_domain), 'Zookeepers': {},
         }
@@ -446,14 +451,21 @@ class TopoGenerator(object):
             'Port': zk.clientPort,
         }
 
+    def _generate_ad_list(self, topo_id, ad_conf):
+        self.ad_list[ad_conf['level']].append(str(topo_id))
+
     def _write_ad_topos(self):
         for topo_id, ad_topo, base in _srv_iter(
                 self.topo_dicts, self.out_dir, common=True):
-            path = os.path.join(base, "topology.yml")
+            path = os.path.join(base, TOPO_FILE)
             contents = yaml.dump(self.topo_dicts[topo_id])
             write_file(path, contents)
             # Test if topo file parses cleanly
             Topology.from_file(path)
+
+    def _write_ad_list(self):
+        list_path = os.path.join(self.out_dir, AD_LIST_FILE)
+        write_file(list_path, yaml.dump(dict(self.ad_list)))
 
     def _write_hosts(self):
         text = StringIO()
