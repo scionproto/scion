@@ -6,13 +6,6 @@
 #include "DataStructures.h"
 #include "SCIONDefines.h"
 
-inline SCIONAddr ISD_AD(int isd, int ad)
-{
-    SCIONAddr addr;
-    addr.isd_ad = (isd << 20) | (ad & 0xfffff);
-    return addr;
-}
-
 inline int isd(SCIONAddr &addr)
 {
     return addr.isd_ad >> 20;

@@ -68,6 +68,7 @@ endhost/sdamp/*.so
 # Socket binaries
 ##########################
 endhost/*dispatcher
+endhost/sdamp/test/*.o
 endhost/sdamp/test/*client
 endhost/sdamp/test/*server
 endhost/sdamp/test/*file

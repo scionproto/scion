@@ -1,29 +1,39 @@
-CC = g++
+CC = gcc
+PP = g++
 CFLAGS += -Wall -g
-LIBDIR = ..
+LIB = -L..
 INC = -I..
 HDRS=$(wildcard ../*.h)
 BINARIES = client server hash_client hash_server web_client web_server
+WRAPPED = wrapper_client wrapper_server
 
 all: $(BINARIES)
 
 client: client.cpp $(HDRS)
-	$(CC) -o client $(INC) -L$(LIBDIR) $(CFLAGS) client.cpp -lclient
+	$(PP) -o client $(INC) $(LIB) $(CFLAGS) client.cpp -lclient
 
 server: server.cpp $(HDRS)
-	$(CC) -o server $(INC) -L$(LIBDIR) $(CFLAGS) server.cpp -lserver
+	$(PP) -o server $(INC) $(LIB) $(CFLAGS) server.cpp -lserver
 
 hash_client: hash_client.cpp $(HDRS)
-	$(CC) -o hash_client $(INC) -L$(LIBDIR) $(CFLAGS) hash_client.cpp SHA1.cpp -lclient
+	$(PP) -o hash_client $(INC) $(LIB) $(CFLAGS) hash_client.cpp SHA1.cpp -lclient
 
 hash_server: hash_server.cpp $(HDRS)
-	$(CC) -o hash_server $(INC) -L$(LIBDIR) $(CFLAGS) hash_server.cpp SHA1.cpp -lserver
+	$(PP) -o hash_server $(INC) $(LIB) $(CFLAGS) hash_server.cpp SHA1.cpp -lserver
 
 web_client: web_client.cpp $(HDRS)
-	$(CC) -o web_client $(INC) -L$(LIBDIR) $(CFLAGS) web_client.cpp -lclient -lcurl
+	$(PP) -o web_client $(INC) $(LIB) $(CFLAGS) web_client.cpp -lclient -lcurl
 
 web_server: web_server.cpp $(HDRS)
-	$(CC) -o web_server $(INC) -L$(LIBDIR) $(CFLAGS) web_server.cpp -lserver -lcurl
+	$(PP) -o web_server $(INC) $(LIB) $(CFLAGS) web_server.cpp -lserver -lcurl
+
+wrapper_client: wrapper_client.c $(HDRS)
+	$(CC) $(INC) $(CFLAGS) -c wrapper_client.c
+	$(PP) $(LIB) -o wrapper_client wrapper_client.o -lclient
+
+wrapper_server: wrapper_server.c $(HDRS)
+	$(CC) $(INC) $(CFLAGS) -c wrapper_server.c
+	$(PP) $(LIB) -o wrapper_server wrapper_server.o -lserver
 
 clean:
-	rm -rf $(BINARIES)
+	rm -rf $(BINARIES) $(WRAPPED) *.o
