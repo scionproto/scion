@@ -7,14 +7,10 @@ defaults:
 ADs:
   1-11:
     core: true
-    links:
-      1-12: CHILD
-      1-13: CHILD
   1-12:
     cert_issuer: 1-11
-    links:
-      1-11: PARENT
   1-13:
     cert_issuer: 1-11
-    links:
-      1-11: PARENT
+links:
+  - [1-11, PARENT, 1-12]
+  - [1-11, PARENT, 1-13]

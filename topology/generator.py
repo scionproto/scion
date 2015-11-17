@@ -77,6 +77,11 @@ COMMON_DIR = 'endhost'
 ZOOKEEPER_HOST_TMPFS_DIR = "/run/shm/host-zk"
 ZOOKEEPER_TMPFS_DIR = "/run/shm/scion-zk"
 
+LINK_CHILD = "CHILD"
+LINK_PARENT = "PARENT"
+LINK_PEER = "PEER"
+LINK_ROUTING = "ROUTING"
+
 DEFAULT_BEACON_SERVERS = 1
 DEFAULT_CERTIFICATE_SERVERS = 1
 DEFAULT_PATH_SERVERS = 1
@@ -338,6 +343,7 @@ class TopoGenerator(object):
         self.zookeepers = defaultdict(dict)
         self.virt_addrs = set()
         self.ad_list = defaultdict(list)
+        self.links = defaultdict(list)
 
     def _reg_addr(self, topo_id, elem_id):
         subnet = self.subnet_gen.register(topo_id)
@@ -355,6 +361,7 @@ class TopoGenerator(object):
             f(TopoID(isd_ad_id), ad_conf)
 
     def generate(self):
+        self._read_links()
         self._iterate(self._generate_ad_topo)
         self._iterate(self._generate_ad_list)
         networks = self.subnet_gen.alloc_subnets()
@@ -362,6 +369,20 @@ class TopoGenerator(object):
         self._write_ad_list()
         self._write_hosts()
         return self.topo_dicts, self.zookeepers, networks
+
+    def _read_links(self):
+        for a_str, ltype, b_str in self.topo_config["links"]:
+            a = TopoID(a_str)
+            b = TopoID(b_str)
+            if ltype == LINK_PARENT:
+                self.links[a].append((LINK_CHILD, b))
+                self.links[b].append((LINK_PARENT, a))
+            elif ltype in (LINK_PEER, LINK_ROUTING):
+                self.links[a].append((ltype, b))
+                self.links[b].append((ltype, a))
+            else:
+                logging.critical("Unsupported link type: %s", ltype)
+                sys.exit(1)
 
     def _generate_ad_topo(self, topo_id, ad_conf):
         dns_domain = DNSLabel(ad_conf.get("dns_domain", DEFAULT_DNS_DOMAIN))
@@ -375,7 +396,7 @@ class TopoGenerator(object):
         for i in SCION_SERVICE_NAMES:
             self.topo_dicts[topo_id][i] = {}
         self._gen_srv_entries(topo_id, ad_conf, dns_domain)
-        self._gen_er_entries(topo_id, ad_conf)
+        self._gen_er_entries(topo_id)
         self._gen_zk_entries(topo_id, ad_conf)
 
     def _gen_srv_entries(self, topo_id, ad_conf, dns_domain):
@@ -403,10 +424,10 @@ class TopoGenerator(object):
         for dns_srv in self.topo_dicts[topo_id]["DNSServers"].values():
             self.hosts.append((dns_srv["Addr"], dns_domain))
 
-    def _gen_er_entries(self, topo_id, ad_conf):
+    def _gen_er_entries(self, topo_id):
         er_id = 1
-        for remote, link_type in ad_conf["links"].items():
-            self._gen_er_entry(topo_id, er_id, TopoID(remote), link_type)
+        for ltype, remote in self.links[topo_id]:
+            self._gen_er_entry(topo_id, er_id, remote, ltype)
             er_id += 1
 
     def _gen_er_entry(self, local, er_id, remote, remote_type):
