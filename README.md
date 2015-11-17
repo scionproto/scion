@@ -32,21 +32,23 @@ Necessary steps in order to run SCION:
    reliability, so it should only be done in a testing environment).
 
 1. Create the topology and configuration files (according to
-   `topology/ADConfigurations.json`):
+   `topology/Default.topo`):
 
     `./scion.sh topology`
 
     The resulting directory structure will be created:
 
-        ./gen/ISDX/
-            certificates/ADY/ISDX-ADY-VZ.crt
-            configurations/ISDX-ADY.conf
-            encryption_keys/ISDX-ADY.key
-            path_policies/ISDX-ADY.json
-            signature_keys/ISDX-ADY.key
-            supervisor/ISDX-ADY.conf
-            topologies/ISDX-ADY.json
-            zookeeper/ISDX-ADY/
+        ./gen/ISD{X}/AD{Y}/
+            {elem}{X}-{Y}-{Z}/
+                ad.yml
+                path_policy.yml
+                supervisord.conf
+                topology.yml
+                certs/
+                    ISD{X}-AD{Y}-V0.crt
+                    ISD{X}-V0.trc
+                keys/
+                    ad-sig.key
 
 1. Run the infrastructure:
 
@@ -56,7 +58,7 @@ Necessary steps in order to run SCION:
 
     `./scion.sh stop`
 
-Notes about `topology/ADConfigurations.json`:
+Notes about `topology/Default.topo`:
 
 * `defaults.subnet` (optional): override the default subnet of `127.0.0.0/8`.
 
