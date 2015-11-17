@@ -18,7 +18,9 @@
 """
 # Stdlib
 import argparse
+import copy
 import logging
+import os
 import random
 import sys
 import threading
@@ -27,7 +29,7 @@ import unittest
 
 # SCION
 from endhost.sciond import SCIOND_API_HOST, SCIOND_API_PORT, SCIONDaemon
-from lib.defines import GEN_PATH
+from lib.defines import AD_LIST_FILE, GEN_PATH
 from lib.log import init_logging
 from lib.main import main_wrapper
 from lib.packet.host_addr import (
@@ -44,7 +46,7 @@ from lib.packet.scion_udp import SCIONUDPHeader
 from lib.socket import UDPSocket
 from lib.thread import kill_self, thread_safety_net
 from lib.types import AddrType, OpaqueFieldType as OFT
-from lib.util import Raw, handle_signals
+from lib.util import Raw, handle_signals, load_yaml_file
 
 TOUT = 10  # How long wait for response.
 
@@ -239,11 +241,23 @@ class TestSCIONDaemon(unittest.TestCase):
         sys.exit(failures)
 
 
-def _parse_tuple(ad_str):
-    def_ads = [(1, 17), (1, 19), (1, 10), (2, 25), (2, 26), (1, 14), (1, 18)]
+def _load_ad_list():
+    ad_dict = load_yaml_file(os.path.join(GEN_PATH, AD_LIST_FILE))
+    ad_list = []
+    for level in "INTERMEDIATE", "LEAF":
+        if level not in ad_dict:
+            continue
+        for ad_str in ad_dict[level]:
+            isd, ad = ad_str.split("-")
+            ad_list.append((int(isd), int(ad)))
+    return ad_list
+
+
+def _parse_tuple(ad_str, ad_list):
     if not ad_str:
-        random.shuffle(def_ads)
-        return def_ads
+        copied = copy.copy(ad_list)
+        random.shuffle(copied)
+        return copied
     isd, ad = ad_str.split(",")
     return [(int(isd), int(ad))]
 
@@ -265,8 +279,9 @@ def main():
     if not args.server:
         args.server = "169.254.0.3" if args.mininet else "127.0.0.3"
 
-    srcs = _parse_tuple(args.src_ad)
-    dsts = _parse_tuple(args.dst_ad)
+    ad_list = _load_ad_list()
+    srcs = _parse_tuple(args.src_ad, ad_list)
+    dsts = _parse_tuple(args.dst_ad, ad_list)
 
     TestSCIONDaemon().test(args.client, args.server, srcs, dsts)
 
