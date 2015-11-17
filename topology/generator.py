@@ -77,8 +77,6 @@ COMMON_DIR = 'endhost'
 ZOOKEEPER_HOST_TMPFS_DIR = "/run/shm/host-zk"
 ZOOKEEPER_TMPFS_DIR = "/run/shm/scion-zk"
 
-CORE_LEVEL = 'CORE'
-
 DEFAULT_BEACON_SERVERS = 1
 DEFAULT_CERTIFICATE_SERVERS = 1
 DEFAULT_PATH_SERVERS = 1
@@ -272,7 +270,7 @@ class CertGenerator(object):
         self.cert_files[topo_id][sig_path] = base64.b64encode(sig_priv).decode()
 
     def _gen_ad_certs(self, topo_id, ad_conf):
-        if ad_conf['level'] == CORE_LEVEL:
+        if ad_conf.get('core', False):
             return
         if 'cert_issuer' not in ad_conf:
             logging.warning("No 'cert_issuer' attribute for "
@@ -298,7 +296,7 @@ class CertGenerator(object):
                 str(CertificateChain.from_values(chain))
 
     def _gen_trc_entry(self, topo_id, ad_conf):
-        if ad_conf['level'] != CORE_LEVEL:
+        if not ad_conf.get('core', False):
             return
         cert = Certificate.from_values(
             str(topo_id), self.sig_pub_keys[topo_id],
@@ -316,7 +314,7 @@ class CertGenerator(object):
             'reg_srv_cert', 'dns_srv_addr', 'dns_srv_cert', 'trc_srv_addr', {})
 
     def _sign_trc(self, topo_id, ad_conf):
-        if ad_conf['level'] != CORE_LEVEL:
+        if not ad_conf.get('core', False):
             return
         trc = self.trcs[topo_id.isd]
         trc_str = trc.to_json(with_signatures=False).encode('utf-8')
@@ -370,7 +368,7 @@ class TopoGenerator(object):
         dns_domain = dns_domain.add(
             "isd%s" % topo_id.isd).add("ad%s" % topo_id.ad)
         self.topo_dicts[topo_id] = {
-            'Core': ad_conf['level'] == CORE_LEVEL,
+            'Core': ad_conf.get('core', False),
             'ISDID': int(topo_id.isd), 'ADID': int(topo_id.ad),
             'DnsDomain': str(dns_domain), 'Zookeepers': {},
         }
@@ -452,7 +450,11 @@ class TopoGenerator(object):
         }
 
     def _generate_ad_list(self, topo_id, ad_conf):
-        self.ad_list[ad_conf['level']].append(str(topo_id))
+        if ad_conf.get('core', False):
+            key = "Core"
+        else:
+            key = "Non-core"
+        self.ad_list[key].append(str(topo_id))
 
     def _write_ad_topos(self):
         for topo_id, ad_topo, base in _srv_iter(
