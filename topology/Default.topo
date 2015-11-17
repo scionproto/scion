@@ -6,7 +6,7 @@ defaults:
       addr: 127.0.0.1
 ADs:
   1-11:
-    level: CORE
+    core: true
     beacon_servers: 1
     certificate_servers: 3
     path_servers: 3
@@ -16,7 +16,7 @@ ADs:
       1-14: CHILD
       2-21: ROUTING
   1-12:
-    level: CORE
+    core: true
     links:
       1-11: ROUTING
       1-13: ROUTING
@@ -39,7 +39,7 @@ ADs:
         leaderPort: 4007
         electionPort: 4008
   1-13:
-    level: CORE
+    core: true
     beacon_servers: 2
     certificate_servers: 3
     dns_servers: 2
@@ -48,7 +48,6 @@ ADs:
       1-12: ROUTING
       1-16: CHILD
   1-14:
-    level: INTERMEDIATE
     path_servers: 1
     cert_issuer: 1-11
     certificate_servers: 3
@@ -58,7 +57,6 @@ ADs:
       2-23: PEER
       1-17: CHILD
   1-15:
-    level: INTERMEDIATE
     cert_issuer: 1-12
     links:
       1-12: PARENT
@@ -66,7 +64,6 @@ ADs:
       1-16: PEER
       1-18: CHILD
   1-16:
-    level: INTERMEDIATE
     beacon_servers: 3
     certificate_servers: 3
     cert_issuer: 1-13
@@ -75,17 +72,14 @@ ADs:
       1-15: PEER
       1-19: CHILD
   1-17:
-    level: LEAF
     cert_issuer: 1-14
     links:
       1-14: PARENT
   1-18:
-    level: LEAF
     cert_issuer: 1-15
     links:
       1-15: PARENT
   1-19:
-    level: INTERMEDIATE
     path_servers: 2
     certificate_servers: 3
     cert_issuer: 1-16
@@ -93,24 +87,22 @@ ADs:
       1-16: PARENT
       1-10: CHILD
   1-10:
-    level: LEAF
     cert_issuer: 1-19
     links:
       1-19: PARENT
   2-21:
-    level: CORE
+    core: true
     links:
       1-11: ROUTING
       2-22: ROUTING
       2-23: CHILD
   2-22:
-    level: CORE
+    core: true
     links:
       1-12: ROUTING
       2-21: ROUTING
       2-24: CHILD
   2-23:
-    level: INTERMEDIATE
     cert_issuer: 2-21
     links:
       2-21: PARENT
@@ -119,7 +111,6 @@ ADs:
       2-25: CHILD
       2-26: CHILD
   2-24:
-    level: INTERMEDIATE
     cert_issuer: 2-22
     certificate_servers: 3
     links:
@@ -127,12 +118,10 @@ ADs:
       2-23: PEER
       2-26: CHILD
   2-25:
-    level: LEAF
     cert_issuer: 2-23
     links:
       2-23: PARENT
   2-26:
-    level: LEAF
     cert_issuer: 2-24
     links:
       2-23: PARENT

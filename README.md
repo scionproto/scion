@@ -62,7 +62,7 @@ Notes about `topology/Default.topo`:
 
 * `defaults.subnet` (optional): override the default subnet of `127.0.0.0/8`.
 
-* `level`: can either be `CORE`, `INTERMEDIATE`, or `LEAF`.
+* `core` (optional): specify if this is a core AD or not (defaults to 'false').
 
 * `beacon_servers`, `certificate_servers`, `path_servers`, `dns_servers` (all
   optional): number of such servers in a specific AD (override the default

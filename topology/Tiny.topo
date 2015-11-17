@@ -6,17 +6,15 @@ defaults:
       addr: 127.0.0.1
 ADs:
   1-11:
-    level: CORE
+    core: true
     links:
       1-12: CHILD
       1-13: CHILD
   1-12:
-    level: LEAF
     cert_issuer: 1-11
     links:
       1-11: PARENT
   1-13:
-    level: LEAF
     cert_issuer: 1-11
     links:
       1-11: PARENT

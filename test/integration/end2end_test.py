@@ -244,12 +244,9 @@ class TestSCIONDaemon(unittest.TestCase):
 def _load_ad_list():
     ad_dict = load_yaml_file(os.path.join(GEN_PATH, AD_LIST_FILE))
     ad_list = []
-    for level in "INTERMEDIATE", "LEAF":
-        if level not in ad_dict:
-            continue
-        for ad_str in ad_dict[level]:
-            isd, ad = ad_str.split("-")
-            ad_list.append((int(isd), int(ad)))
+    for ad_str in ad_dict.get("Non-core", []):
+        isd, ad = ad_str.split("-")
+        ad_list.append((int(isd), int(ad)))
     return ad_list
 
 
