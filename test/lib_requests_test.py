@@ -68,7 +68,7 @@ class TestRequestHandlerAddReq(object):
         # Tests
         inst._expire_reqs.assert_called_once_with("key")
         inst._check.assert_called_once_with("key")
-        inst._fetch.assert_called_once_with("key")
+        inst._fetch.assert_called_once_with("key", "req")
         ntools.eq_(inst._req_map["key"], [(2, "req")])
 
     @patch("lib.requests.SCIONTime.get_time", newcallable=create_mock)
@@ -127,8 +127,9 @@ class TestRequestHandlerAnswerReqs(object):
         inst._answer_reqs("key")
         # Tests
         inst._expire_reqs.assert_called_once_with("key")
-        assert_these_calls(inst._reply,
-                           [call("req0"), call("req1"), call("req2")])
+        assert_these_calls(inst._reply, [
+            call("key", "req0"), call("key", "req1"), call("key", "req2")
+        ])
         ntools.assert_not_in("key", inst._req_map)
 
 

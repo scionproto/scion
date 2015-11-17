@@ -1205,6 +1205,7 @@ class LocalBeaconServer(BeaconServer):
         self.cert_chains = {}
         self.cert_chain = self.trust_store.get_cert(self.topology.isd_id,
                                                     self.topology.ad_id)
+        assert self.cert_chain
 
     def _check_certs_trc(self, isd_id, ad_id, cert_ver, trc_ver):
         """
