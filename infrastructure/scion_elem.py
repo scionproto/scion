@@ -263,7 +263,8 @@ class SCIONElement(object):
                         packet, addr = sock.recv(block=False)
                     except BlockingIOError:
                         break
-                self.packet_put(packet, addr, sock == self._local_sock)
+                    else:
+                        self.packet_put(packet, addr, sock == self._local_sock)
 
         self.stopped_flag.set()
 
