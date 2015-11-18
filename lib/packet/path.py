@@ -891,13 +891,16 @@ class PathCombinator(object):
         peers = []
         for up_i, up_ad in enumerate(up_segment.ads[1:], 1):
             for down_i, down_ad in enumerate(down_segment.ads[1:], 1):
-                if up_ad.pcbm.ad_id == down_ad.pcbm.ad_id:
+                if (up_ad.pcbm.ad_id == down_ad.pcbm.ad_id and
+                        up_ad.pcbm.isd_id == down_ad.pcbm.isd_id):
                     xovrs.append((up_i, down_i))
                     continue
                 for up_peer in up_ad.pms:
                     for down_peer in down_ad.pms:
                         if (up_peer.ad_id == down_ad.pcbm.ad_id and
-                                down_peer.ad_id == up_ad.pcbm.ad_id):
+                                up_peer.isd_id == down_ad.pcbm.isd_id and
+                                down_peer.ad_id == up_ad.pcbm.ad_id and
+                                down_peer.isd_id == up_ad.pcbm.isd_id):
                             peers.append((up_i, down_i))
         xovr = peer = None
         if xovrs:
@@ -988,13 +991,19 @@ class PathCombinator(object):
         :returns: ``True`` if the path is connected, otherwise ``False``.
         """
         if core_segment:
-            if ((core_segment.get_last_pcbm().ad_id !=
-                    up_segment.get_first_pcbm().ad_id) or
+            if ((core_segment.get_last_pcbm().isd_id !=
+                    up_segment.get_first_pcbm().isd_id) or
+                    (core_segment.get_first_pcbm().isd_id !=
+                     down_segment.get_first_pcbm().isd_id) or
+                    (core_segment.get_last_pcbm().ad_id !=
+                     up_segment.get_first_pcbm().ad_id) or
                     (core_segment.get_first_pcbm().ad_id !=
                      down_segment.get_first_pcbm().ad_id)):
                 return False
-        elif (up_segment.get_first_pcbm().ad_id !=
-              down_segment.get_first_pcbm().ad_id):
+        elif ((up_segment.get_first_pcbm().ad_id !=
+               down_segment.get_first_pcbm().ad_id) or
+              (up_segment.get_first_pcbm().isd_id !=
+               down_segment.get_first_pcbm().isd_id)):
             return False
         return True
 
