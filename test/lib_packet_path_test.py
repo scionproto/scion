@@ -1295,24 +1295,30 @@ class TestPathCombinatorGetXovrPeer(object):
         ads = []
         for i in range(n):
             ad = create_mock(['pcbm', 'pms'])
-            ad.pcbm = create_mock(['ad_id'])
+            ad.pcbm = create_mock(['ad_id', 'isd_id'])
             ad.pms = []
             for j in range(pms):
-                ad.pms.append(create_mock(['ad_id']))
+                ad.pms.append(create_mock(['ad_id', 'isd_id']))
             ads.append(ad)
         seg.ads = ads
         return seg
 
     def _setup_xovr_points(self, up, down):
         up.ads[1].pcbm.ad_id = down.ads[6].pcbm.ad_id
+        up.ads[1].pcbm.isd_id = down.ads[6].pcbm.isd_id
         up.ads[3].pcbm.ad_id = down.ads[2].pcbm.ad_id
+        up.ads[3].pcbm.isd_id = down.ads[2].pcbm.isd_id
         return (1, 6)
 
     def _setup_peer_points(self, up, down):
         up.ads[2].pms[1].ad_id = down.ads[5].pcbm.ad_id
+        up.ads[2].pms[1].isd_id = down.ads[5].pcbm.isd_id
         down.ads[5].pms[2].ad_id = up.ads[2].pcbm.ad_id
+        down.ads[5].pms[2].isd_id = up.ads[2].pcbm.isd_id
         up.ads[4].pms[0].ad_id = down.ads[1].pcbm.ad_id
+        up.ads[4].pms[0].isd_id = down.ads[1].pcbm.isd_id
         down.ads[1].pms[1].ad_id = up.ads[4].pcbm.ad_id
+        down.ads[1].pms[1].isd_id = up.ads[4].pcbm.isd_id
         return (2, 5)
 
     def test_xovr(self):
@@ -1439,16 +1445,18 @@ class TestPathCombinatorCheckConnected(object):
         segs = []
         for part in ["up", "core", "down"]:
             seg = create_mock(['get_first_pcbm', 'get_last_pcbm'])
-            pcbm = create_mock(['ad_id'])
+            pcbm = create_mock(['ad_id', 'isd_id'])
             seg.get_first_pcbm.return_value = pcbm
             first = "%s_first" % part
             if locals().get(first):
                 pcbm.ad_id = locals()[first]
-            pcbm = create_mock(['ad_id'])
+                pcbm.isd_id = locals()[first]
+            pcbm = create_mock(['ad_id', 'isd_id'])
             seg.get_last_pcbm.return_value = pcbm
             last = "%s_last" % part
             if locals().get(last):
                 pcbm.ad_id = locals()[last]
+                pcbm.isd_id = locals()[last]
             segs.append(seg)
         return segs
 
@@ -1572,11 +1580,13 @@ class TestPathCombinatorJoinShortcutsPeer(object):
     """
     def test(self):
         up_ad = create_mock(['pms', 'pcbm'])
-        up_ad.pcbm = create_mock(['ad_id'])
+        up_ad.pcbm = create_mock(['ad_id', 'isd_id'])
         up_ad.pcbm.ad_id = 1
+        up_ad.pcbm.isd_id = 1
         down_ad = create_mock(['pms', 'pcbm'])
-        down_ad.pcbm = create_mock(['ad_id'])
+        down_ad.pcbm = create_mock(['ad_id', 'isd_id'])
         down_ad.pcbm.ad_id = 2
+        down_ad.pcbm.isd_id = 1
         up_ad.pms = [create_mock(['ad_id', 'hof']) for i in range(2)]
         down_ad.pms = [create_mock(['ad_id', 'hof']) for i in range(3)]
         up_ad.pms[1].ad_id = 2
