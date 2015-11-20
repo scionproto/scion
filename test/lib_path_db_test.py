@@ -124,7 +124,7 @@ class TestPathSegmentDBInit(object):
         db.create_index.assert_has_calls([call('id'), call('last_isd'),
                                           call('last_ad')])
         ntools.eq_(pth_seg_db._db, db)
-        ntools.eq_(pth_seg_db.segment_ttl, 300)
+        ntools.eq_(pth_seg_db._segment_ttl, 300)
 
 
 class TestPathSegmentDBGetItem(object):

@@ -17,6 +17,7 @@
 """
 # Stdlib
 import logging
+import threading
 
 # External packages
 from pydblite.pydblite import Base
@@ -103,9 +104,6 @@ class PathSegmentDBRecord(object):
 class PathSegmentDB(object):
     """
     Simple database for paths using PyDBLite.
-
-    :ivar _db:
-    :type _db:
     """
 
     def __init__(self, segment_ttl=None):
@@ -115,14 +113,14 @@ class PathSegmentDB(object):
         :param int segment_ttl: The TTL for each record in the database (in s)
             or None to just use the segment's expiration time.
         """
-        db = Base("", save_to_file=False)
-        db.create('record', 'id', 'first_isd', 'first_ad', 'last_isd',
-                  'last_ad', mode='override')
-        db.create_index('id')
-        db.create_index('last_isd')
-        db.create_index('last_ad')
-        self._db = db
-        self.segment_ttl = segment_ttl
+        self._db = Base("", save_to_file=False)
+        self._db.create('record', 'id', 'first_isd', 'first_ad', 'last_isd',
+                        'last_ad', mode='override')
+        self._db.create_index('id')
+        self._db.create_index('last_isd')
+        self._db.create_index('last_ad')
+        self._lock = threading.Lock()
+        self._segment_ttl = segment_ttl
 
     def __getitem__(self, seg_id):
         """
@@ -134,7 +132,8 @@ class PathSegmentDB(object):
         :returns:
         :rtype:
         """
-        recs = self._db(id=seg_id)
+        with self._lock:
+            recs = self._db(id=seg_id)
         if recs:
             return recs[0]['record'].pcb
         else:
@@ -149,7 +148,8 @@ class PathSegmentDB(object):
         :returns:
         :rtype:
         """
-        recs = self._db(id=seg_id)
+        with self._lock:
+            recs = self._db(id=seg_id)
         return len(recs) > 0
 
     def update(self, pcb, first_isd, first_ad, last_isd, last_ad):
@@ -172,26 +172,25 @@ class PathSegmentDB(object):
         :rtype:
         """
         assert isinstance(pcb, PathSegment)
-        if self.segment_ttl:
+        if self._segment_ttl:
             now = int(SCIONTime.get_time())
-            record = PathSegmentDBRecord(pcb, now + self.segment_ttl)
+            record = PathSegmentDBRecord(pcb, now + self._segment_ttl)
         else:
             record = PathSegmentDBRecord(pcb)
-        recs = self._db(id=record.id)
-        assert len(recs) <= 1, "PathDB contains > 1 path with the same ID"
-        if not recs:
-            self._db.insert(record, record.id, first_isd,
-                            first_ad, last_isd, last_ad)
-            return DBResult.ENTRY_ADDED
-        else:
+        with self._lock:
+            recs = self._db(id=record.id)
+            assert len(recs) <= 1, "PathDB contains > 1 path with the same ID"
+            if not recs:
+                self._db.insert(record, record.id, first_isd,
+                                first_ad, last_isd, last_ad)
+                return DBResult.ENTRY_ADDED
             cur_rec = recs[0]['record']
             if pcb.get_expiration_time() < cur_rec.pcb.get_expiration_time():
                 return DBResult.NONE
-            else:
-                cur_rec.pcb = pcb
-                if self.segment_ttl:
-                    cur_rec.exp_time = now + self.segment_ttl
-                return DBResult.ENTRY_UPDATED
+            cur_rec.pcb = pcb
+            if self._segment_ttl:
+                cur_rec.exp_time = now + self._segment_ttl
+            return DBResult.ENTRY_UPDATED
 
     def update_all(self, pcbs, first_isd, first_ad, last_isd, last_ad):
         """
@@ -221,12 +220,12 @@ class PathSegmentDB(object):
         :returns:
         :rtype:
         """
-        recs = self._db(id=segment_id)
-        if recs:
+        with self._lock:
+            recs = self._db(id=segment_id)
+            if not recs:
+                return DBResult.NONE
             self._db.delete(recs)
-            return DBResult.ENTRY_DELETED
-        else:
-            return DBResult.NONE
+        return DBResult.ENTRY_DELETED
 
     def delete_all(self, segment_ids):
         """
@@ -259,20 +258,20 @@ class PathSegmentDB(object):
         :returns:
         :rtype:
         """
-        recs = self._db(*args, **kwargs)
         now = int(SCIONTime.get_time())
         expired_recs = []
         valid_recs = []
-        # Remove expired path from the cache.
-        for r in recs:
-            if r['record'].exp_time < now:
-                expired_recs.append(r)
-                logging.debug("Path-Segment (%d, %d) -> (%d, %d) expired.",
-                              r['first_isd'], r['first_ad'],
-                              r['last_isd'], r['last_ad'])
-            else:
-                valid_recs.append(r)
-        self._db.delete(expired_recs)
+        with self._lock:
+            recs = self._db(*args, **kwargs)
+            # Remove expired path from the cache.
+            for r in recs:
+                if r['record'].exp_time < now:
+                    expired_recs.append(r)
+                    logging.debug("Path-Segment (%(first_isd)d, %(first_ad)d) "
+                                  "-> (%(last_isd)d, %(last_ad)d) expired.", r)
+                else:
+                    valid_recs.append(r)
+            self._db.delete(expired_recs)
         pcbs = sorted([r['record'] for r in valid_recs],
                       key=lambda x: x.fidelity)
         return [p.pcb for p in pcbs]
@@ -284,4 +283,5 @@ class PathSegmentDB(object):
         :returns:
         :rtype: int
         """
-        return len(self._db)
+        with self._lock:
+            return len(self._db)
