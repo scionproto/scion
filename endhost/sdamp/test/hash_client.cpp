@@ -28,7 +28,7 @@ int main(int argc, char **argv)
         isd = 2;
         ad = 26;
     }
-    saddr = ISD_AD(isd, ad);
+    saddr.isd_ad = ISD_AD(isd, ad);
     saddr.host.addrLen = 4;
     sprintf(str, "127.%d.%d.254", isd, ad);
     printf("connect to (%d, %d):%s\n", isd, ad, str);

@@ -49,6 +49,8 @@ typedef struct{
     HostAddr host;
 } SCIONAddr;
 
+#define ISD_AD(isd, ad) ((isd) << 20) | ((ad) & 0xfffff)
+
 typedef struct {
     uint32_t isd;
     uint32_t ad;
