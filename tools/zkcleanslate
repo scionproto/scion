@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# This script deletes the various Zookeeper datastores. This is a nuclear
+# option, and should generally only be used when the topology has been
+# regenerated. Please do not run this routinely, as it will hide errors that we
+# should be handling properly.
+
+sudo service zookeeper stop
+find /run/shm/*-zk/ -type f | sudo xargs -r rm -v
+sudo rm -v /var/lib/zookeeper/version-2/*
+sudo service zookeeper start
