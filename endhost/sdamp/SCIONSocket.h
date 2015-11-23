@@ -11,7 +11,7 @@
 
 class SCIONSocket {
 public:
-    SCIONSocket(int protocol, SCIONAddr **dstAddrs, int numAddrs, short srcPort, short dstPort);
+    SCIONSocket(int protocol, SCIONAddr *dstAddrs, int numAddrs, short srcPort, short dstPort);
     SCIONSocket(const SCIONSocket &s);
     ~SCIONSocket();
 

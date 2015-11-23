@@ -8,7 +8,7 @@
 
 int main(int argc, char **argv)
 {
-    SCIONAddr *addrs[1];
+    SCIONAddr addrs[1];
     SCIONAddr saddr;
     int isd, ad;
     char str[20];
@@ -25,7 +25,7 @@ int main(int argc, char **argv)
     printf("connect to (%d, %d):%s\n", isd, ad, str);
     in_addr_t in = inet_addr(str);
     memcpy(saddr.host.addr, &in, 4);
-    addrs[0] = &saddr;
+    addrs[0] = saddr;
     SCIONSocket s(SCION_PROTO_SSP, addrs, 1, 0, 8080);
     int count = 0;
     char buf[BUFSIZE];

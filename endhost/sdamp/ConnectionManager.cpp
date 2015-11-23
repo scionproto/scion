@@ -105,8 +105,12 @@ void PathManager::getPaths()
                     mPaths.size() - invalid + candidates.size() < MAX_TOTAL_PATHS) {
                 bool found = false;
                 int pathLen = *(buf + offset) * 8;
+                if (pathLen + offset > buflen)
+                    break;
                 int interfaceOffset = offset + 1 + pathLen + SCION_HOST_ADDR_LEN + 2;
                 int interfaceCount = *(buf + interfaceOffset);
+                if (interfaceOffset + 1 + interfaceCount * 5 > buflen)
+                    break;
                 for (size_t j = 0; j < mPaths.size(); j++) {
                     if (mPaths[j]->isSamePath(buf + offset + 1, pathLen)) {
                         found = true;

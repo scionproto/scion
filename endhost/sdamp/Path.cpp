@@ -171,7 +171,7 @@ bool Path::usesSameInterfaces(uint8_t *interfaces, size_t count)
     for (size_t i = 0; i < count; i++) {
         SCIONInterface sif = mInterfaces[i];
         uint8_t *ptr = interfaces + i * 5;
-        uint32_t isd_ad = *(uint32_t *)ptr;
+        uint32_t isd_ad = ntohl(*(uint32_t *)ptr);
         uint8_t interface = *(ptr + 4);
         if ((isd_ad >> 20) != sif.isd || (isd_ad & 0xfffff) != sif.ad ||
                 interface != sif.interface)
