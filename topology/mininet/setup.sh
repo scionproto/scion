@@ -31,10 +31,14 @@ pip2 install --user -r "$MN_DIR/requirements.txt"
 
 if ! which pox > /dev/null; then
     if [ ! -d "$POX_DIR" ]; then
+        log "Ensuring $SITE_PKGS exists"
+        mkdir -p "$SITE_PKGS"
         log "Installing POX (https://github.com/noxrepo/pox) to $POX_DIR"
         wget -nv -O - https://github.com/noxrepo/pox/archive/carp.tar.gz | tar xzf - -C "$SITE_PKGS"
         ln -sf pox-carp/pox "$POX_LINK"
     fi
+    log "Ensuring ~/.local/bin exists"
+    mkdir -p ~/.local/bin
     log "Installing POX symlink into ~/.local/bin"
     ln -sf "$POX_DIR/pox.py" ~/.local/bin/pox
 fi
