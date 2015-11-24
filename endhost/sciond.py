@@ -19,17 +19,20 @@
 import logging
 import struct
 import threading
+from itertools import product
 
 # SCION
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.hash_chain import HashChain
 from lib.defines import PATH_SERVICE, SCION_UDP_PORT
-from lib.errors import SCIONBaseError, SCIONServiceLookupError
+from lib.errors import SCIONServiceLookupError
+from lib.log import log_exception
 from lib.packet.host_addr import haddr_parse
 from lib.packet.path import EmptyPath, PathCombinator
 from lib.packet.path_mgmt import PathSegmentInfo
 from lib.packet.scion_addr import ISD_AD
 from lib.path_db import PathSegmentDB
+from lib.requests import RequestHandler
 from lib.socket import UDPSocket
 from lib.thread import thread_safety_net
 from lib.types import (
@@ -38,46 +41,17 @@ from lib.types import (
     PathSegmentType as PST,
     PayloadClass,
 )
-from lib.util import update_dict
+from lib.util import SCIONTime
 
-WAIT_CYCLES = 3
 SCIOND_API_HOST = "127.255.255.254"
 SCIOND_API_PORT = 3333
-
-
-class SCIONDaemonBaseError(SCIONBaseError):
-    """
-    Base sciond error
-    """
-    pass
-
-
-class SCIONDaemonPathLookupError(SCIONDaemonBaseError):
-    """
-    Path lookup failure
-    """
-    pass
 
 
 class SCIONDaemon(SCIONElement):
     """
     The SCION Daemon used for retrieving and combining paths.
-
-    :cvar TIMEOUT:
-    :type TIMEOUT:
-    :ivar up_segments:
-    :type up_segments:
-    :ivar down_segments:
-    :type down_segments:
-    :ivar core_segments:
-    :type core_segments:
-    :ivar _waiting_targets:
-    :type _waiting_targets:
-    :ivar _api_socket:
-    :type _api_socket:
-    :ivar _socks:
-    :type _socks:
     """
+    # Max time for a path lookup to succeed/fail.
     TIMEOUT = 5
     # Number of tokens the PS checks when receiving a revocation.
     N_TOKENS_CHECK = 20
@@ -95,10 +69,10 @@ class SCIONDaemon(SCIONElement):
         self.up_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL)
         self.down_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL)
         self.core_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL)
-        self._waiting_targets = {PST.UP: {},
-                                 PST.DOWN: {},
-                                 PST.CORE: {},
-                                 PST.UP_DOWN: {}}
+        self.requests = RequestHandler.start(
+            "SCIONDaemon Requests", self._check_segments, self._fetch_segments,
+            self._reply_segments, ttl=self.TIMEOUT,
+        )
         self._api_socket = None
         self.daemon_thread = None
 
@@ -109,8 +83,7 @@ class SCIONDaemon(SCIONElement):
             }
         }
         if run_local_api:
-            if not api_addr:
-                api_addr = SCIOND_API_HOST
+            api_addr = api_addr or SCIOND_API_HOST
             self._api_sock = UDPSocket(
                 bind=(api_addr, SCIOND_API_PORT, "sciond local API"),
                 addr_type=AddrType.IPV4)
@@ -123,15 +96,8 @@ class SCIONDaemon(SCIONElement):
         Initializes, starts, and returns a SCIONDaemon object.
 
         Example of usage:
-        sd = SCIONDaemon.start(addr, topo_file)
+        sd = SCIONDaemon.start(conf_dir, addr)
         paths = sd.get_paths(isd_id, ad_id)
-
-        :param :
-        :type :
-        :param :
-        :type :
-        :param :
-        :type :
         """
         sd = cls(conf_dir, addr, api_addr, run_local_api, port, is_sim)
         sd.daemon_thread = threading.Thread(
@@ -144,164 +110,84 @@ class SCIONDaemon(SCIONElement):
         """
         Stop SCIONDaemon thread
         """
-        logging.debug("Stopping SCIONDaemon")
+        logging.info("Stopping SCIONDaemon")
         super().stop()
         self.daemon_thread.join()
 
-    def _request_paths(self, ptype, dst_isd, dst_ad, src_isd=None, src_ad=None,
-                       requester=None):
+    def handle_request(self, packet, sender, from_local_socket=True):
+        # PSz: local_socket may be misleading, especially that we have
+        # api_socket which is local (in the localhost sense). What do you think
+        # about changing local_socket to ad_socket
         """
-        Send a path request of a certain type for an (isd, ad).
-        The requester argument holds the address of requester. Used in simulator
-        to send path reply.
-
-        :param ptype:
-        :type ptype:
-        :param dst_isd: destination ISD identifier.
-        :type dst_isd: int
-        :param dst_ad: destination AD identifier.
-        :type dst_ad: int
-        :param src_isd: source ISD identifier.
-        :type src_isd: int
-        :param src_ad: source AD identifier.
-        :type src_ad: int
-        :param requester: Path requester address(used in simulator).
-        :type requester:
-        :raises:
-            SCIONDaemonPathLookupError: if paths request fails
+        Main routine to handle incoming SCION packets.
         """
-        if src_isd is None:
-            src_isd = self.topology.isd_id
-        if src_ad is None:
-            src_ad = self.topology.ad_id
-        # Lookup the path server at the start, so if this fails, we don't do any
-        # more setup.
-        try:
-            dst = self.dns_query_topo(PATH_SERVICE)[0]
-        except SCIONServiceLookupError as e:
-            raise SCIONDaemonPathLookupError(e) from None
-        # Create a semaphore that we can wait on for the path reply.
-        sema = threading.Semaphore(value=0)
-        update_dict(self._waiting_targets[ptype], (dst_isd, dst_ad), [sema])
-        # Create and send out path request.
-        info = PathSegmentInfo.from_values(ptype, src_isd, src_ad, dst_isd,
-                                           dst_ad)
-        path_request = self._build_packet(dst, payload=info)
-        self.send(path_request, dst)
-        # Wait for path reply and clear us from the waiting list when we got it.
-        cycle_cnt = 0
-        while cycle_cnt < WAIT_CYCLES:
-            sema.acquire(timeout=self.TIMEOUT)
-            # Check that we got all the requested paths.
-            if ((ptype == PST.UP and len(self.up_segments)) or
-                (ptype == PST.DOWN and
-                 self.down_segments(last_isd=dst_isd, last_ad=dst_ad)) or
-                (ptype == PST.CORE and
-                 self.core_segments(last_isd=src_isd, last_ad=src_ad,
-                                    first_isd=dst_isd, first_ad=dst_ad)) or
-                (ptype == PST.UP_DOWN and (len(self.up_segments) and
-                 self.down_segments(last_isd=dst_isd, last_ad=dst_ad)))):
-                self._waiting_targets[ptype][(dst_isd, dst_ad)].remove(sema)
-                del self._waiting_targets[ptype][(dst_isd, dst_ad)]
-                break
-            cycle_cnt += 1
-
-    def get_paths(self, dst_isd, dst_ad, requester=None):
-        """
-        Return a list of paths.
-        The requester argument holds the address of requester. Used in simulator
-        to send path reply.
-
-        :param dst_isd: ISD identifier.
-        :type dst_isd: int
-        :param dst_ad: AD identifier.
-        :type dst_ad: int
-        :param requester: Path requester address(used in simulator).
-        :type requester:
-        :raises:
-            SCIONDaemonPathLookupError: if paths lookup fail
-        """
-        # Handle request to local AS.
-        if self.addr.get_isd_ad() == (dst_isd, dst_ad):
-            return [EmptyPath()]
-        full_paths = []
-        self._request_paths(PST.UP_DOWN, dst_isd, dst_ad, requester=requester)
-        down_segments = self.down_segments(last_isd=dst_isd, last_ad=dst_ad)
-        if len(self.up_segments) and down_segments:
-            full_paths = PathCombinator.build_shortcut_paths(self.up_segments(),
-                                                             down_segments)
-            src_isd = self.topology.isd_id
-            core_segments = []
-            src_dst_sets = set()
-            for us in self.up_segments():
-                src_core_ad = us.get_first_pcbm().ad_id
-                for ds in down_segments:
-                    dst_core_ad = ds.get_first_pcbm().ad_id
-                    key = (src_isd, src_core_ad, dst_isd, dst_core_ad)
-                    if key in src_dst_sets:
-                        continue
-                    if (src_isd, src_core_ad) == (dst_isd, dst_core_ad):
-                        continue
-                    self._request_paths(PST.CORE, dst_isd, dst_core_ad,
-                                        src_ad=src_core_ad, requester=requester)
-                    cs = self.core_segments(last_isd=src_isd,
-                                            last_ad=src_core_ad,
-                                            first_isd=dst_isd,
-                                            first_ad=dst_core_ad)
-                    src_dst_sets.add(key)
-                    core_segments.extend(cs)
-
-            for us in self.up_segments():
-                for ds in down_segments:
-                    full_paths.extend(PathCombinator.build_core_paths(
-                        us, ds, core_segments))
-
-        return full_paths
+        if not from_local_socket:  # From localhost (SCIONDaemon API)
+            self.api_handle_request(packet, sender)
+            return
+        super().handle_request(packet, sender, from_local_socket)
 
     def handle_path_reply(self, pkt):
         """
         Handle path reply from local path server.
-
-        :param path_reply:
-        :type path_reply:
         """
         path_reply = pkt.get_payload()
         info = path_reply.info
         for pcb in path_reply.pcbs:
-            isd = pcb.get_isd()
-            ad = pcb.get_last_pcbm().ad_id
-            if ((self.topology.isd_id != isd or self.topology.ad_id != ad)
-                    and info.seg_type in [PST.DOWN, PST.UP_DOWN]
-                    and info.dst_isd == isd and info.dst_ad == ad):
-                self.down_segments.update(pcb, info.src_isd, info.src_ad,
-                                          info.dst_isd, info.dst_ad)
-                logging.debug("Down path added: %s", pcb.short_desc())
-            elif ((self.topology.isd_id == isd and self.topology.ad_id == ad)
-                    and info.seg_type in [PST.UP, PST.UP_DOWN]):
-                self.up_segments.update(pcb, pcb.get_isd(),
-                                        pcb.get_first_pcbm().ad_id, isd, ad)
-                logging.debug("Up path added: %s", pcb.short_desc())
+            if info.seg_type == PST.UP_DOWN:
+                self._handle_up_seg(pcb, info)
+                self._handle_down_seg(pcb, info)
+            elif info.seg_type == PST.UP:
+                self._handle_up_seg(pcb, info)
+            elif info.seg_type == PST.DOWN:
+                self._handle_down_seg(pcb, info)
             elif info.seg_type == PST.CORE:
-                self.core_segments.update(pcb, info.dst_isd, info.dst_ad,
-                                          info.src_isd, info.src_ad)
-                logging.debug("Core path added: %s", pcb.short_desc())
+                self._handle_core_seg(pcb, info)
             else:
-                logging.warning("Incorrect path in Path Record")
-        self.handle_waiting_targets(path_reply)
+                logging.warning(
+                    "Incorrect path in Path Record. Info: %s PCB: %s",
+                    info.short_desc(), pcb.short_desc())
+        key = (info.seg_type, info.src_isd, info.src_ad, info.dst_isd,
+               info.dst_ad)
+        self.requests.put((key, None))
 
-    def handle_waiting_targets(self, path_reply):
-        """
-        Handles waiting request from path reply
+    def _handle_up_seg(self, pcb, info):
+        isd = pcb.get_isd()
+        first_ad = pcb.get_first_pcbm().ad_id
+        last_ad = pcb.get_last_pcbm().ad_id
+        if self.addr.get_isd_ad() != (isd, last_ad):
+            return
+        self.up_segments.update(pcb, isd, first_ad, isd, last_ad)
+        logging.debug("Up path added: %s", pcb.short_desc())
 
-        :param path_reply:
-        :type path_reply:
+    def _handle_down_seg(self, pcb, info):
+        isd = pcb.get_isd()
+        last_ad = pcb.get_last_pcbm().ad_id
+        if (self.addr.get_isd_ad() == (isd, last_ad) or
+                (info.dst_isd, info.dst_ad) != (isd, last_ad)):
+            return
+        self.down_segments.update(pcb, info.src_isd, info.src_ad,
+                                  info.dst_isd, info.dst_ad)
+        logging.debug("Down path added: %s", pcb.short_desc())
+
+    def _handle_core_seg(self, pcb, info):
+        self.core_segments.update(pcb, info.dst_isd, info.dst_ad,
+                                  info.src_isd, info.src_ad)
+        logging.debug("Core path added: %s", pcb.short_desc())
+
+    def api_handle_request(self, packet, sender):
         """
-        info = path_reply.info
-        # Wake up sleeping get_paths().
-        if (info.dst_isd, info.dst_ad) in self._waiting_targets[info.seg_type]:
-            for sema in self._waiting_targets[info.seg_type][(info.dst_isd,
-                                                              info.dst_ad)]:
-                sema.release()
+        Handle local API's requests.
+        """
+        if packet[0] == 0:  # path request
+            logging.info('API: path request from %s.', sender)
+            threading.Thread(
+                target=thread_safety_net,
+                args=(self._api_handle_path_request, packet, sender),
+                name="SCIONDaemon", daemon=True).start()
+        elif packet[0] == 1:  # address request
+            self._api_sock.send(self.addr.pack(), sender)
+        else:
+            logging.warning("API: type %d not supported.", packet[0])
 
     def _api_handle_path_request(self, packet, sender):
         """
@@ -314,18 +200,9 @@ class SCIONDaemon(SCIONElement):
          or b"" when no path found. Only IPv4 supported currently.
 
         FIXME(kormat): make IP-version independant
-
-        :param packet:
-        :type packet:
-        :param sender:
-        :type sender:
         """
-        (isd, ad) = ISD_AD.from_raw(packet[1:ISD_AD.LEN + 1])
-        try:
-            paths = self.get_paths(isd, ad)
-        except SCIONDaemonPathLookupError as e:
-            logging.error("Path lookup failure: %s", e)
-            paths = []
+        isd, ad = ISD_AD.from_raw(packet[1:ISD_AD.LEN + 1])
+        paths = self.get_paths(isd, ad)
         reply = []
         for path in paths:
             raw_path = path.pack()
@@ -344,26 +221,6 @@ class SCIONDaemon(SCIONElement):
                 reply.append(struct.pack("I", isd_ad_bits))
                 reply.append(struct.pack("B", link))
         self._api_sock.send(b"".join(reply), sender)
-
-    def api_handle_request(self, packet, sender):
-        """
-        Handle local API's requests.
-
-        :param packet:
-        :type packet:
-        :param sender:
-        :type sender:
-        """
-        if packet[0] == 0:  # path request
-            logging.info('API: path request from %s.', sender)
-            threading.Thread(
-                target=thread_safety_net,
-                args=(self._api_handle_path_request, packet, sender),
-                name="SCIONDaemon", daemon=True).start()
-        elif packet[0] == 1:  # address request
-            self._api_sock.send(self.addr.pack(), sender)
-        else:
-            logging.warning("API: type %d not supported.", packet[0])
 
     def handle_revocation(self, pkt):
         """
@@ -408,21 +265,148 @@ class SCIONDaemon(SCIONElement):
 
         return db.delete_all(to_remove)
 
-    def handle_request(self, packet, sender, from_local_socket=True):
-        # PSz: local_socket may be misleading, especially that we have
-        # api_socket which is local (in the localhost sense). What do you think
-        # about changing local_socket to ad_socket
+    def get_paths(self, dst_isd, dst_ad, requester=None):
         """
-        Main routine to handle incoming SCION packets.
+        Return a list of paths.
+        The requester argument holds the address of requester. Used in simulator
+        to send path reply.
 
-        :param packet:
-        :type packet:
-        :param sender:
-        :type sender:
-        :param from_local_socket:
-        :type from_local_socket:
+        :param int dst_isd: ISD identifier.
+        :param int dst_ad: AD identifier.
+        :param requester: Path requester address(used in simulator).
         """
-        if not from_local_socket:  # From localhost (SCIONDaemon API)
-            self.api_handle_request(packet, sender)
+        key = PST.UP_DOWN, self.addr.isd_id, self.addr.ad_id, dst_isd, dst_ad
+        req_str = "%s-%s -> %s-%s" % key[1:]
+        logging.debug("Paths requested for %s", req_str)
+        if self.addr.get_isd_ad() == (dst_isd, dst_ad):
+            return [EmptyPath()]
+        deadline = SCIONTime.get_time() + self.TIMEOUT
+        e = threading.Event()
+        self.requests.put((key, e))
+        if not self._wait_for_events([e], deadline):
+            logging.error("Query timed out for %s", req_str)
+            return []
+        up_segs = self.up_segments()
+        down_segs = self.down_segments(last_isd=dst_isd, last_ad=dst_ad)
+        core_segs, missing = self._calc_core_segs(dst_isd, up_segs, down_segs)
+        if missing:
+            logging.debug("Missing %s core segments for %s",
+                          len(missing), req_str)
+            core_segs.extend(self._get_core_segs(dst_isd, missing, deadline))
+        full_paths = PathCombinator.build_shortcut_paths(up_segs, down_segs)
+        for up_seg in up_segs:
+            for down_seg in down_segs:
+                full_paths.extend(PathCombinator.build_core_paths(
+                    up_seg, down_seg, core_segs))
+        logging.debug("Found %s full paths for %s", len(full_paths), req_str)
+        return full_paths
+
+    def _get_core_segs(self, dst_isd, ad_pairs, deadline):
+        """
+        Given pairs of ADs between the current ISD and a remote ISD, request
+        core segments joining those pairs be found, before the specified
+        deadline.
+        """
+        src_isd = self.addr.isd_id
+        events = []
+        for src_core_ad, dst_core_ad in ad_pairs:
+            e = threading.Event()
+            key = PST.CORE, src_isd, src_core_ad, dst_isd, dst_core_ad
+            self.requests.put((key, e))
+            events.append(e)
+        self._wait_for_events(events, deadline)
+        core_segs, missing = self._find_core_segs(src_isd, dst_isd, ad_pairs)
+        missing_pairs = []
+        for key in missing:
+            missing_pairs.append("%s-%s -> %s-%s" % (
+                src_isd, key[0], dst_isd, key[1]))
+        if missing_pairs:
+            logging.error("Failed to get core segments for:\n%s",
+                          "\n  ".join(missing_pairs))
+        return core_segs
+
+    def _wait_for_events(self, events, deadline):
+        """
+        Wait on a set of events, but only until the specified deadline. Returns
+        the number of events that happened while waiting.
+        """
+        count = 0
+        for e in events:
+            if e.wait(max(0, deadline - SCIONTime.get_time())):
+                count += 1
+        return count
+
+    def _check_segments(self, key):
+        """
+        Called by RequestHandler to check if a given path request can be
+        fulfilled.
+        """
+        ptype, src_isd, src_ad, dst_isd, dst_ad = key
+        if ptype == PST.UP:
+            return len(self.up_segments)
+        elif ptype == PST.DOWN:
+            return self.down_segments(last_isd=dst_isd, last_ad=dst_ad)
+        elif ptype == PST.CORE:
+            return self.core_segments(last_isd=src_isd, last_ad=src_ad,
+                                      first_isd=dst_isd, first_ad=dst_ad)
+        elif ptype == PST.UP_DOWN:
+            return (len(self.up_segments) and
+                    self.down_segments(last_isd=dst_isd, last_ad=dst_ad))
+
+    def _fetch_segments(self, key, _):
+        """
+        Called by RequestHandler to fetch the requested path.
+        """
+        ptype, src_isd, src_ad, dst_isd, dst_ad = key
+        try:
+            ps = self.dns_query_topo(PATH_SERVICE)[0]
+        except SCIONServiceLookupError:
+            log_exception("Error querying path service:")
             return
-        super().handle_request(packet, sender, from_local_socket)
+        info = PathSegmentInfo.from_values(
+            ptype, src_isd, src_ad, dst_isd, dst_ad)
+        logging.debug("Sending path request: %s", info.short_desc())
+        path_request = self._build_packet(ps, payload=info)
+        self.send(path_request, ps)
+
+    def _reply_segments(self, key, e):
+        """
+        Called by RequestHandler to signal that the request has been fulfilled.
+        """
+        e.set()
+
+    def _calc_core_segs(self, dst_isd, up_segs, down_segs):
+        """
+        Calculate all possible core segments joining the provided up and down
+        segments. Returns a list of all known segments, and a seperate list of
+        the missing AD pairs.
+        """
+        src_core_ads = set()
+        dst_core_ads = set()
+        for seg in up_segs:
+            src_core_ads.add(seg.get_first_pcbm().ad_id)
+        for seg in down_segs:
+            dst_core_ads.add(seg.get_first_pcbm().ad_id)
+        # Generate all possible AD pairs
+        ad_pairs = list(product(src_core_ads, dst_core_ads))
+        return self._find_core_segs(self.addr.isd_id, dst_isd, ad_pairs)
+
+    def _find_core_segs(self, src_isd, dst_isd, ad_pairs):
+        """
+        Given a set of AD pairs across 2 ISDs, return the core segments
+        connecting those pairs, and a list of AD pairs for which a core segment
+        wasn't found.
+        """
+        core_segs = []
+        missing = []
+        for src_core_ad, dst_core_ad in ad_pairs:
+            if (src_isd, src_core_ad) == (dst_isd, dst_core_ad):
+                continue
+            seg = self.core_segments(
+                last_isd=src_isd, last_ad=src_core_ad,
+                first_isd=dst_isd, first_ad=dst_core_ad)
+            if seg:
+                core_segs.extend(seg)
+            else:
+                missing.append((src_core_ad, dst_core_ad))
+        return core_segs, missing
