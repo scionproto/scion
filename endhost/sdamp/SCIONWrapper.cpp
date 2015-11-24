@@ -33,7 +33,7 @@ SocketEntry * findSocket(int sock)
 }
 
 int newSCIONSocket(int protocol,
-                   SCIONAddr **dstAddrs, int numAddrs,
+                   SCIONAddr *dstAddrs, int numAddrs,
                    short srcPort, short dstPort)
 {
     SCIONSocket *s =

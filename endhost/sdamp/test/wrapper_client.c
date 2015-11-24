@@ -8,13 +8,13 @@
 
 int main()
 {
-    SCIONAddr *addrs[1];
+    SCIONAddr addrs[1];
     SCIONAddr saddr;
     saddr.isd_ad = ISD_AD(2, 26);
     saddr.host.addrLen = 4;
     in_addr_t in = inet_addr("127.2.26.254");
     memcpy(saddr.host.addr, &in, 4);
-    addrs[0] = &saddr;
+    addrs[0] = saddr;
     int sock = newSCIONSocket(SCION_PROTO_SSP, addrs, 1, 0, 8080);
     int count = 0;
     char buf[BUFSIZE];

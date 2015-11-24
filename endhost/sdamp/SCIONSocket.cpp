@@ -13,6 +13,17 @@
 
 #include "SCIONSocket.h"
 
+void signalHandler(int signum)
+{
+    switch (signum) {
+    case SIGINT:
+        fprintf(stderr, "Stop program\n");
+        exit(1);
+    default:
+        printf("Signal %d\n", signum);
+    }
+}
+
 void *dispatcherThread(void *arg)
 {
     SCIONSocket *ss = (SCIONSocket *)arg;
@@ -33,7 +44,7 @@ void *dispatcherThread(void *arg)
     return NULL;
 }
 
-SCIONSocket::SCIONSocket(int protocol, SCIONAddr **dstAddrs, int numAddrs,
+SCIONSocket::SCIONSocket(int protocol, SCIONAddr *dstAddrs, int numAddrs,
                          short srcPort, short dstPort)
     : mSrcPort(srcPort),
     mDstPort(dstPort),
@@ -42,6 +53,8 @@ SCIONSocket::SCIONSocket(int protocol, SCIONAddr **dstAddrs, int numAddrs,
     mRunning(true),
     mDataProfile(SCION_PROFILE_DEFAULT)
 {
+    signal(SIGINT, signalHandler);
+
     pthread_mutex_init(&mAcceptMutex, NULL);
     pthread_cond_init(&mAcceptCond, NULL);
     pthread_mutex_init(&mRegisterMutex, NULL);
@@ -49,7 +62,7 @@ SCIONSocket::SCIONSocket(int protocol, SCIONAddr **dstAddrs, int numAddrs,
 
     if (dstAddrs)
         for (int i = 0; i < numAddrs; i++)
-            mDstAddrs.push_back(*(dstAddrs[i]));
+            mDstAddrs.push_back(dstAddrs[i]);
 
     mDispatcherSocket = socket(AF_INET, SOCK_DGRAM, 0);
 
@@ -242,10 +255,10 @@ void SCIONSocket::handlePacket(uint8_t *buf, size_t len, struct sockaddr_in *add
             }
         }
         // accept: create new socket to handle connection
-        SCIONAddr *addrs[1];
-        addrs[0] = &srcAddr;
+        SCIONAddr addrs[1];
+        addrs[0] = srcAddr;
         DEBUG("create new socket to handle incoming flow\n");
-        SCIONSocket *s = new SCIONSocket(mProtocolID, (SCIONAddr **)addrs, 1, -1, mDstPort);
+        SCIONSocket *s = new SCIONSocket(mProtocolID, (SCIONAddr *)addrs, 1, -1, mDstPort);
         s->mProtocol->createManager(mDstAddrs);
         s->mProtocol->start(packet, buf + sch.headerLen, s->mDispatcherSocket);
         s->mRegistered = true;

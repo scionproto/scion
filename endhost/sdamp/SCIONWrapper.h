@@ -10,7 +10,7 @@ extern "C" {
 typedef struct SCIONSocket SCIONSocket;
 
 int newSCIONSocket(int protocol,
-                   SCIONAddr **dstAddrs, int numAddrs,
+                   SCIONAddr *dstAddrs, int numAddrs,
                    short srcPort, short dstPort);
 int SCIONAccept(int sock);
 int SCIONSend(int sock, uint8_t *buf, size_t len);
