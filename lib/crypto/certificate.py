@@ -24,6 +24,7 @@ import time
 
 # SCION
 from lib.crypto.asymcrypto import sign, verify
+from lib.packet.scion_addr import ISD_AD
 from lib.util import load_json_file
 
 
@@ -475,6 +476,13 @@ class TRC(object):
 
     def get_isd_ver(self):
         return self.isd_id, self.version
+
+    def get_core_ads(self):
+        res = []
+        for key in self.core_ads:
+            isd, ad = map(int, key.split('-'))
+            res.append(ISD_AD(isd, ad))
+        return res
 
     def get_trc_dict(self, with_signatures):
         """

@@ -155,17 +155,18 @@ class ConfigGenerator(object):
         """
         Generate all needed files.
         """
-        cert_files = self._generate_certs()
+        cert_files, trc_files = self._generate_certs_trcs()
         topo_dicts, zookeepers, networks = self._generate_topology()
         self._generate_supervisor(topo_dicts, zookeepers)
         if self.is_sim:
             self._generate_sim_conf(topo_dicts)
         self._generate_zk_conf(zookeepers)
-        self._write_cert_files(topo_dicts, cert_files)
+        self._write_trust_files(topo_dicts, cert_files)
+        self._write_trust_files(topo_dicts, trc_files)
         self._write_conf_policies(topo_dicts)
         self._write_networks_conf(networks)
 
-    def _generate_certs(self):
+    def _generate_certs_trcs(self):
         certgen = CertGenerator(self.topo_config)
         return certgen.generate()
 
@@ -187,7 +188,7 @@ class ConfigGenerator(object):
         zk_gen = ZKConfGenerator(self.out_dir, zookeepers)
         zk_gen.generate()
 
-    def _write_cert_files(self, topo_dicts, cert_files):
+    def _write_trust_files(self, topo_dicts, cert_files):
         for topo_id, ad_topo, base in _srv_iter(
                 topo_dicts, self.out_dir, common=True):
             for path, value in cert_files[topo_id].items():
@@ -244,6 +245,7 @@ class CertGenerator(object):
         self.certs = {}
         self.trcs = {}
         self.cert_files = defaultdict(dict)
+        self.trc_files = defaultdict(dict)
 
     def generate(self):
         self._self_sign_keys()
@@ -253,7 +255,7 @@ class CertGenerator(object):
         self._iterate(self._gen_trc_entry)
         self._iterate(self._sign_trc)
         self._iterate(self._gen_trc_files)
-        return self.cert_files
+        return self.cert_files, self.trc_files
 
     def _self_sign_keys(self):
         topo_id = TopoID.from_values(0, 0)
@@ -327,8 +329,9 @@ class CertGenerator(object):
             trc_str, self.sig_priv_keys[topo_id])
 
     def _gen_trc_files(self, topo_id, _):
-        trc_path = get_trc_file_path("", topo_id.isd, INITIAL_TRC_VERSION)
-        self.cert_files[topo_id][trc_path] = str(self.trcs[topo_id.isd])
+        for isd in self.trcs:
+            trc_path = get_trc_file_path("", isd, INITIAL_TRC_VERSION)
+            self.trc_files[topo_id][trc_path] = str(self.trcs[isd])
 
 
 class TopoGenerator(object):
