@@ -122,26 +122,24 @@ class TestPathSegmentInfoPack(object):
 
 class TestPathSegmentRecordsParse(object):
     """
-    Unit tests for lib.packet.path_mgmt.PathSegmentRecords.parse
+    Unit tests for lib.packet.path_mgmt.PathSegmentRecords._parse
     """
-    @patch("lib.packet.pcb.PathSegment.deserialize", new_callable=create_mock)
-    @patch("lib.packet.path_mgmt.PathSegmentInfo", autospec=True)
+    @patch("lib.packet.path_mgmt.PathSegment", new_callable=create_mock)
     @patch("lib.packet.path_mgmt.Raw", autospec=True)
-    def test(self, raw, pth_seg_info, deserialize):
+    def test(self, raw, path_seg):
         inst = PathSegmentRecords()
         inst.NAME = "PathSegmentRecords"
-        data = create_mock(["pop"])
-        data.pop.side_effect = ("raw info", "raw pcbs")
+        data = create_mock(["pop", "get", "__bool__"])
+        data.pop.side_effect = "raw type", "raw pcbs"
+        data.get.side_effect = ("raw pcb",)
+        data.__bool__.side_effect = True, False
         raw.return_value = data
         # Call
         inst._parse("data")
         # Tests
-        raw.assert_called_once_with("data", "PathSegmentRecords", inst.MIN_LEN,
-                                    min_=True)
-        pth_seg_info.assert_called_once_with("raw info")
-        deserialize.assert_called_once_with("raw pcbs")
-        ntools.eq_(inst.info, pth_seg_info.return_value)
-        ntools.eq_(inst.pcbs, deserialize.return_value)
+        raw.assert_called_once_with("data", inst.NAME, inst.MIN_LEN, min_=True)
+        ntools.eq_(inst.pcbs, {"raw type": [path_seg.return_value]})
+        path_seg.assert_called_once_with("raw pcb")
 
 
 class TestPathSegmentRecordsFromValues(object):
@@ -149,31 +147,27 @@ class TestPathSegmentRecordsFromValues(object):
     Unit tests for lib.packet.path_mgmt.PathSegmentRecords.from_values
     """
     def test(self):
-        info = create_mock(class_=PathSegmentInfo)
-        inst = PathSegmentRecords.from_values(info, "pcbs")
+        inst = PathSegmentRecords.from_values("pcb_dict")
         # Tests
         ntools.assert_is_instance(inst, PathSegmentRecords)
-        ntools.eq_(inst.info, info)
-        ntools.eq_(inst.pcbs, "pcbs")
+        ntools.eq_(inst.pcbs, "pcb_dict")
 
 
 class TestPathSegmentRecordsPack(object):
     """
     Unit tests for lib.packet.path_mgmt.PathSegmentRecords.pack
     """
-    @patch("lib.packet.path_mgmt.PathSegment.serialize",
-           new_callable=create_mock)
-    def test(self, serialize):
+    def test(self):
         inst = PathSegmentRecords()
-        inst.info = create_mock(["pack"])
-        inst.info.pack.return_value = b"packed info"
-        inst.pcbs = "pcbs"
-        serialize.return_value = b"packed pcbs"
-        expected = b"".join([b"packed info", b"packed pcbs"])
+        pcbs = []
+        for x in b"abc":
+            pcb = create_mock(['pack'])
+            pcb.pack.return_value = bytes([x])
+            pcbs.append(pcb)
+        inst.pcbs = {1: pcbs, 2: reversed(pcbs)}
+        expected = b"\x01a\x01b\x01c\x02c\x02b\x02a"
         # Call
         ntools.eq_(inst.pack(), expected)
-        # Tests
-        serialize.assert_called_once_with("pcbs")
 
 
 class TestPathSegmentRecordsLen(object):
@@ -182,10 +176,9 @@ class TestPathSegmentRecordsLen(object):
     """
     def test(self):
         inst = PathSegmentRecords()
-        inst.info = range(5)
-        inst.pcbs = [range(5) for x in range(5)]
+        inst.pcbs = {1: ['1', '22', '333', '4444'], 2: ['55555'], 3: ['666666']}
         # Call
-        ntools.eq_(len(inst), 30)
+        ntools.eq_(len(inst), 2 + 3 + 4 + 5 + 6 + 7)
 
 
 class TestIFStateInfoParse(object):

@@ -236,7 +236,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         """
         rep_pkt = pkt.reversed_copy()
         seg_info = rep_pkt.get_payload()
-        rep_pkt.set_payload(PathRecordsReply.from_values(seg_info, paths))
+        rep_pkt.set_payload(PathRecordsReply.from_values(
+            {seg_info.seg_type: paths}))
         (next_hop, port) = self.get_first_hop(rep_pkt)
         if next_hop is None:
             logging.error("Next hop is None for Interface %d",
@@ -256,14 +257,16 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         """
         Dispatches path record packet.
         """
-        type_map = {
-            PST.UP: self._handle_up_segment_record,
-            PST.DOWN: self._handle_down_segment_record,
-            PST.UP_DOWN: self._handle_down_segment_record,
-            PST.CORE: self._handle_core_segment_record,
-        }
+        # FIXME(kormat): this needs to change once we start putting multiple
+        # types of segments into a PathSegmentRecords object.
+        handler = None
         payload = pkt.get_payload()
-        handler = type_map.get(payload.info.seg_type)
+        if payload.pcbs[PST.UP]:
+            handler = self._handle_up_segment_record
+        elif payload.pcbs[PST.DOWN] or payload.pcbs[PST.UP_DOWN]:
+            handler = self._handle_down_segment_record
+        elif payload.pcbs[PST.CORE]:
+            handler = self._handle_core_segment_record
         if handler is None:
             logging.error("Unsupported path record type: %s", payload)
             return
@@ -290,8 +293,11 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                             "no connection to ZK")
             return
         payload = pkt.get_payload()
+        pcbs = []
+        for tmp in payload.pcbs.values():
+            pcbs.extend(tmp)
         logging.debug("Segment(s) stored in ZK: %s",
-                      "\n".join([pcb.short_desc() for pcb in payload.pcbs]))
+                      "\n".join([pcb.short_desc() for pcb in pcbs]))
 
     def run(self):
         """
@@ -364,18 +370,17 @@ class CorePathServer(PathServer):
         logging.debug("Syncing with %s" % master)
         for seg_type, paths in [(PST.CORE, core_paths), (PST.DOWN, down_paths)]:
             for pcb in paths:
-                tmp = (pcb.get_first_pcbm().isd_id, pcb.get_first_pcbm().ad_id,
+                key = (pcb.get_first_pcbm().isd_id, pcb.get_first_pcbm().ad_id,
                        pcb.get_last_pcbm().isd_id, pcb.get_last_pcbm().ad_id)
                 # Send only one path for given (src, dst) pair.
-                if tmp in seen_ads:
+                if key in seen_ads:
                     continue
-                seen_ads.add(tmp)
-                info = PathSegmentInfo.from_values(seg_type, *tmp)
-                records = PathRecordsSync.from_values(info, [pcb])
+                seen_ads.add(key)
+                records = PathRecordsSync.from_values({seg_type: [pcb]})
                 pkt = self._build_packet(payload=records)
                 self._send_to_master(pkt)
                 logging.debug('Master updated with path (%d) %s' %
-                              (seg_type, tmp))
+                              (seg_type, key))
 
     def _is_master(self):
         """
@@ -398,11 +403,11 @@ class CorePathServer(PathServer):
             pkt.addrs.src_isd == self.addr.isd_id and
             pkt.addrs.src_ad == self.addr.ad_id and
             records.PAYLOAD_TYPE == PMT.REPLY)
-        if not records.pcbs:
+        if not records.pcbs[PST.DOWN] and not records.pcbs[PST.UP_DOWN]:
             return
         paths_to_propagate = []
         paths_to_master = []
-        for pcb in records.pcbs:
+        for pcb in records.pcbs[PST.DOWN] + records.pcbs[PST.UP_DOWN]:
             src_isd = pcb.get_first_pcbm().isd_id
             src_ad = pcb.get_first_pcbm().ad_id
             dst_ad = pcb.get_last_pcbm().ad_id
@@ -426,18 +431,16 @@ class CorePathServer(PathServer):
         # Also send paths to local master.
         # FIXME: putting all paths into single packet may be not a good decision
         if paths_to_propagate:
-            records = PathRecordsReply.from_values(
-                records.info, paths_to_propagate)
-            pkt = self._build_packet(payload=records)
+            recs = PathRecordsReply.from_values({PST.DOWN: paths_to_propagate})
             # Now propagate paths to other core ADs (in the ISD).
             logging.debug("Propagate among core ADs")
-            self._propagate_to_core_ads(pkt)
+            self._propagate_to_core_ads(recs)
         # Send paths to local master.
         if (paths_to_master and not from_master and self._master_id and not
                 self._is_master()):
-            records = PathRecordsReply.from_values(records.info,
-                                                   paths_to_master)
-            pkt = self._build_packet(payload=records)
+            rep_recs = PathRecordsReply.from_values(
+                {PST.DOWN: paths_to_master})
+            pkt = self._build_packet(payload=rep_recs)
             self._send_to_master(pkt)
         # Serve pending requests.
         target = (dst_isd, dst_ad)
@@ -458,10 +461,10 @@ class CorePathServer(PathServer):
             pkt.addrs.src_isd == self.addr.isd_id and
             pkt.addrs.src_ad == self.addr.ad_id and
             records.PAYLOAD_TYPE == PMT.REPLY)
-        if not records.pcbs:
+        if not records.pcbs[PST.CORE]:
             return
         pcb_from_local_isd = True
-        for pcb in records.pcbs:
+        for pcb in records.pcbs[PST.CORE]:
             dst_ad = pcb.get_first_pcbm().ad_id
             dst_isd = pcb.get_first_pcbm().isd_id
             src_ad = pcb.get_last_pcbm().ad_id
@@ -488,7 +491,7 @@ class CorePathServer(PathServer):
         # Send pending requests that couldn't be processed due to the lack of
         # a core path to the destination PS.
         if self.waiting_targets:
-            pcb = records.pcbs[0]
+            pcb = records.pcbs[PST.CORE][0]
             path = pcb.get_path(reverse_direction=True)
             targets = copy.copy(self.waiting_targets)
             if_id = pcb.get_last_pcbm().hof.ingress_if
@@ -552,33 +555,27 @@ class CorePathServer(PathServer):
                       (seg_type, src_isd, src_ad, dst_isd, dst_ad))
         self._send_to_master(pkt)
 
-    def _propagate_to_core_ads(self, pkt, inter_isd=False):
+    def _propagate_to_core_ads(self, rep_recs):
         """
         Propagate 'pkt' to other core ADs.
 
         :param pkt: the packet to propagate (without path)
         :type pkt: lib.packet.packet_base.PacketBase
-        :param inter_isd: whether the packet should be propagated across ISDs
-        :type inter_isd: bool
         """
         for (isd, ad) in self.core_ads[self.topology.isd_id]:
             if (isd, ad) == self.addr.get_isd_ad():
                 continue
-            if inter_isd or isd == self.topology.isd_id:
-                cpaths = self.core_segments(first_isd=isd, first_ad=ad,
-                                            last_isd=self.topology.isd_id,
-                                            last_ad=self.topology.ad_id)
-                if cpaths:
-                    cpath = cpaths[0].get_path(reverse_direction=True)
-                    pkt.path = cpath
-                    pkt.addrs.dst_isd = isd
-                    pkt.addrs.dst_ad = ad
-                    pkt.addrs.dst_addr = PT.PATH_MGMT
-
-                    logging.info("Sending packet to CPS in (%d, %d).", isd, ad)
-                    self._send_to_next_hop(pkt, cpath.get_fwd_if())
-                else:
-                    logging.warning("Path to AD (%d, %d) not found.", isd, ad)
+            cpaths = self.core_segments(first_isd=isd, first_ad=ad,
+                                        last_isd=self.topology.isd_id,
+                                        last_ad=self.topology.ad_id)
+            if cpaths:
+                cpath = cpaths[0].get_path(reverse_direction=True)
+                pkt = self._build_packet(PT.PATH_MGMT, dst_isd=isd, dst_ad=ad,
+                                         path=cpath, payload=rep_recs)
+                logging.info("Path propagated to CPS in (%d, %d).\n", isd, ad)
+                self._send_to_next_hop(pkt, cpath.get_fwd_if())
+            else:
+                logging.warning("Path to AD (%d, %d) not found.", isd, ad)
 
     def handle_path_request(self, pkt):
         seg_info = pkt.get_payload()
@@ -688,9 +685,9 @@ class LocalPathServer(PathServer):
         :type pkt:
         """
         records = pkt.get_payload()
-        if not records.pcbs:
+        if not records.pcbs[PST.UP]:
             return
-        for pcb in records.pcbs:
+        for pcb in records.pcbs[PST.UP]:
             res = self.up_segments.update(pcb, pcb.get_first_pcbm().isd_id,
                                           pcb.get_first_pcbm().ad_id,
                                           self.topology.isd_id,
@@ -704,7 +701,7 @@ class LocalPathServer(PathServer):
             self._share_segments(pkt)
         # Sending pending targets to the core using first registered up-path.
         if self.waiting_targets:
-            pcb = records.pcbs[0]
+            pcb = records.pcbs[PST.UP][0]
             path = pcb.get_path(reverse_direction=True)
             dst_isd = pcb.get_isd()
             dst_ad = pcb.get_first_pcbm().ad_id
@@ -728,9 +725,9 @@ class LocalPathServer(PathServer):
         :type pkt:
         """
         records = pkt.get_payload()
-        if not records.pcbs:
+        if not records.pcbs[PST.DOWN] and not records.pcbs[PST.UP_DOWN]:
             return
-        for pcb in records.pcbs:
+        for pcb in records.pcbs[PST.DOWN] + records.pcbs[PST.UP_DOWN]:
             src_isd = pcb.get_first_pcbm().isd_id
             src_ad = pcb.get_first_pcbm().ad_id
             dst_ad = pcb.get_last_pcbm().ad_id
@@ -758,9 +755,9 @@ class LocalPathServer(PathServer):
         :type pkt:
         """
         records = pkt.get_payload()
-        if not records.pcbs:
+        if not records.pcbs[PST.CORE]:
             return
-        for pcb in records.pcbs:
+        for pcb in records.pcbs[PST.CORE]:
             # Core segments have down-path direction.
             src_ad = pcb.get_last_pcbm().ad_id
             src_isd = pcb.get_last_pcbm().isd_id
