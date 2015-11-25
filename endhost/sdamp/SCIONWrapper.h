@@ -19,6 +19,9 @@ int SCIONSendProfile(int sock, uint8_t *buf, size_t len,
 int SCIONRecv(int sock, uint8_t *buf, size_t len,
               SCIONAddr *srcAddr);
 
+void * SCIONGetStats(int sock);
+void SCIONDestroyStats(void *stats);
+
 #ifdef __cplusplus
 }
 #endif

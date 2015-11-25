@@ -35,7 +35,7 @@ public:
     void waitForRegistration();
     int getDispatcherSocket();
 
-    void getStats(SCIONStats *stats);
+    SCIONStats * getStats();
 
 private:
 

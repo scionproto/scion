@@ -3,7 +3,7 @@
 
 #include "DataStructures.h"
 #include "SCIONDefines.h"
-#include "PriorityQueue.h"
+#include "OrderedList.h"
 #include "RingBuffer.h"
 
 class SDAMPProtocol;
@@ -101,8 +101,8 @@ protected:
     SDAMPMetric                  mMetric;
 
     PacketList                   mSentPackets;
-    PriorityQueue<SCIONPacket *> *mRetryPackets;
-    PriorityQueue<SCIONPacket *> *mFreshPackets;
+    OrderedList<SCIONPacket *>   *mRetryPackets;
+    OrderedList<SCIONPacket *>   *mFreshPackets;
 
     pthread_mutex_t              mMutex;
     pthread_cond_t               mCond;

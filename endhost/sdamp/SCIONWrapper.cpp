@@ -1,6 +1,7 @@
 #include "SCIONSocket.h"
 #include "SCIONWrapper.h"
 #include "uthash.h"
+#include "Utils.h"
 
 typedef struct SocketEntry {
     int fd;
@@ -83,6 +84,20 @@ int SCIONRecv(int sock, uint8_t *buf, size_t len,
     if (!e)
         return -1;
     return e->sock->recv(buf, len, srcAddr);
+}
+
+void * SCIONGetStats(int sock)
+{
+    SocketEntry *e = findSocket(sock);
+    if (!e)
+        return NULL;
+    return e->sock->getStats();
+}
+
+void SCIONDestroyStats(void *stats)
+{
+    SCIONStats *s = (SCIONStats *)stats;
+    destroyStats(s);
 }
 
 }

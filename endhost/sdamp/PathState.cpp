@@ -275,6 +275,11 @@ bool PathState::isWindowBased()
     return false;
 }
 
+int PathState::window()
+{
+    return 0;
+}
+
 int PathState::profileLoss()
 {
     double p, q;
@@ -625,6 +630,11 @@ bool RenoPathState::isWindowBased()
     return true;
 }
 
+int RenoPathState::window()
+{
+    return mWindow;
+}
+
 // TCP CUBIC
 
 CUBICPathState::CUBICPathState(int rtt, int mtu)
@@ -652,6 +662,8 @@ int CUBICPathState::timeUntilReady()
 void CUBICPathState::addRTTSample(int rtt, uint64_t packetNum)
 {
     PathState::addRTTSample(rtt, packetNum);
+    if (rtt == 0)
+        return;
 
     mTimeout = false;
     if (mMinDelay == 0 || mMinDelay > rtt)
@@ -660,14 +672,14 @@ void CUBICPathState::addRTTSample(int rtt, uint64_t packetNum)
 
     int thresh = mThreshold > 0 ? mThreshold : CUBIC_SSTHRESH;
     if (mCongestionWindow < thresh) {
-        DEBUG("path %d: slow start\n", mPathIndex);
         mCongestionWindow++;
+        DEBUG("path %d: slow start, increase to %d\n", mPathIndex, mCongestionWindow);
     } else {
         update();
-        DEBUG("path %d: congestion avoidance\n", mPathIndex);
+        DEBUG("path %d: congestion avoidance (%d/%d)\n", mPathIndex, mWindowCount, mCount);
         if (mWindowCount > mCount) {
-            DEBUG("path %d: increase window\n", mPathIndex);
             mCongestionWindow++;
+            DEBUG("path %d: increase window to %d\n", mPathIndex, mCongestionWindow);
             mWindowCount = 0;
         } else {
             mWindowCount++;
@@ -705,6 +717,7 @@ void CUBICPathState::handleSend(uint64_t packetNum)
 
 void CUBICPathState::handleTimeout()
 {
+    PathState::handleTimeout();
     mTimeout = true;
     mThreshold = (1 - BETA) * mCongestionWindow;
     reset();
@@ -762,4 +775,9 @@ void CUBICPathState::update()
 bool CUBICPathState::isWindowBased()
 {
     return true;
+}
+
+int CUBICPathState::window()
+{
+    return mWindow;
 }

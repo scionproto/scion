@@ -9,33 +9,106 @@
 
 #include "Utils.h"
 
-bool compareDeadline(void *p1, void *p2)
+int compareDeadline(void *p1, void *p2)
 {
     SCIONPacket *s1 = (SCIONPacket *)p1;
     SCIONPacket *s2 = (SCIONPacket *)p2;
     SDAMPPacket *sp1 = (SDAMPPacket *)(s1->payload);
     SDAMPPacket *sp2 = (SDAMPPacket *)(s2->payload);
     if (sp1->deadline == sp2->deadline)
-        return be64toh(sp1->header.packetNum) > be64toh(sp2->header.packetNum);
-    return sp1->deadline > sp2->deadline;
+        return be64toh(sp1->header.packetNum) -
+                be64toh(sp2->header.packetNum);
+    return sp1->deadline - sp2->deadline;
 }
 
-bool comparePacketNum(void *p1, void *p2)
+int comparePacketNum(void *p1, void *p2)
 {
     SCIONPacket *s1 = (SCIONPacket *)p1;
     SCIONPacket *s2 = (SCIONPacket *)p2;
     SDAMPPacket *sp1 = (SDAMPPacket *)(s1->payload);
     SDAMPPacket *sp2 = (SDAMPPacket *)(s2->payload);
-    return be64toh(sp1->header.packetNum) > be64toh(sp2->header.packetNum);
+    return be64toh(sp1->header.packetNum) -
+            be64toh(sp2->header.packetNum);
 }
 
-bool compareOffset(void *p1, void *p2)
+int compareOffset(void *p1, void *p2)
+{
+    SSPInPacket *sp1 = (SSPInPacket *)p1;
+    SSPInPacket *sp2 = (SSPInPacket *)p2;
+    return sp1->offset - sp2->offset;
+}
+
+int compareOffsetNested(void *p1, void *p2)
 {
     SCIONPacket *s1 = (SCIONPacket *)p1;
     SCIONPacket *s2 = (SCIONPacket *)p2;
     SSPOutPacket *sp1 = (SSPOutPacket *)(s1->payload);
     SSPOutPacket *sp2 = (SSPOutPacket *)(s2->payload);
-    return ntohl(sp1->header.offset) > ntohl(sp2->header.offset);
+    return ntohl(sp1->header.offset) - ntohl(sp2->header.offset);
+}
+
+void destroySCIONPacket(void *p)
+{
+    SCIONPacket *packet = (SCIONPacket *)p;
+    if (packet->header.path)
+        free(packet->header.path);
+    free(packet);
+}
+
+void destroySDAMPPacket(void *p)
+{
+    SDAMPPacket *packet = (SDAMPPacket *)p;
+    if (packet->interfaces)
+        free(packet->interfaces);
+    if (packet->payload)
+        free(packet->payload);
+    free(packet);
+}
+
+void destroySDAMPPacketFull(void *p)
+{
+    SCIONPacket *packet = (SCIONPacket *)p;
+    SDAMPPacket *sp = (SDAMPPacket *)(packet->payload);
+    if (sp->interfaces)
+        free(sp->interfaces);
+    if (sp->payload)
+        free(sp->payload);
+    free(sp);
+    destroySCIONPacket(p);
+}
+
+void destroySSPInPacket(void *p)
+{
+    SSPInPacket *packet = (SSPInPacket *)p;
+    if (packet->data)
+        free(packet->data);
+    free(packet);
+}
+
+void destroySSPOutPacket(void *p)
+{
+    SSPOutPacket *packet = (SSPOutPacket *)p;
+    if (packet->data)
+        free(packet->data);
+    free(packet);
+}
+
+void destroySSPOutPacketFull(void *p)
+{
+    SCIONPacket *packet = (SCIONPacket *)p;
+    SSPOutPacket *sp = (SSPOutPacket *)(packet->payload);
+    if (sp->data)
+        free(sp->data);
+    free(sp);
+    destroySCIONPacket(p);
+}
+
+void destroySUDPPacket(void *p)
+{
+    SUDPPacket *packet = (SUDPPacket *)p;
+    if (packet->payload)
+        free(packet->payload);
+    free(packet);
 }
 
 int reversePath(uint8_t *original, uint8_t *reverse, int len)
@@ -221,3 +294,11 @@ int registerFlow(int proto, void *data, int sock)
     return res;
 }
 
+void destroyStats(SCIONStats *stats)
+{
+    for (int i = 0; i < MAX_TOTAL_PATHS; i++) {
+        if (stats->ifCounts[i] > 0)
+            free(stats->ifLists[i]);
+    }
+    free(stats);
+}

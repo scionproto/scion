@@ -46,6 +46,7 @@ public:
     virtual void handleDupAck();
 
     virtual bool isWindowBased();
+    virtual int window();
 
     int profileLoss();
 
@@ -153,6 +154,7 @@ public:
     void addRTTSample(int rtt, uint64_t packetNum);
     void addRetransmit();
     bool isWindowBased();
+    int window();
 
 private:
     TCPState mState;
@@ -178,6 +180,7 @@ public:
     void handleTimeout();
 
     bool isWindowBased();
+    int window();
 
 private:
     void reset();

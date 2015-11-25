@@ -397,7 +397,7 @@ int SDAMPPath::handleAck(SCIONPacket *packet, bool rttSample)
     mState->addRTTSample(rtt, sp->header.packetNum);
     pthread_mutex_unlock(&mWindowMutex);
     if (mState->isWindowBased())
-        pthread_cond_signal(&mWindowCond);
+        pthread_cond_broadcast(&mWindowCond);
     mTimeoutCount = 0;
     mTotalAcked++;
     return 0;
@@ -426,7 +426,7 @@ void SDAMPPath::addLoss(uint64_t packetNum)
     mState->addLoss(packetNum);
     pthread_mutex_unlock(&mWindowMutex);
     if (mState->isWindowBased())
-        pthread_cond_signal(&mWindowCond);
+        pthread_cond_broadcast(&mWindowCond);
 }
 
 void SDAMPPath::addRetransmit()
@@ -518,6 +518,8 @@ void SDAMPPath::terminate()
 
 void SDAMPPath::getStats(SCIONStats *stats)
 {
+    if (!(mTotalReceived > 0 || mTotalAcked > 0))
+        return;
     stats->exists[mIndex] = true;
     stats->receivedPackets[mIndex] = mTotalReceived;
     stats->sentPackets[mIndex] = mTotalSent;
@@ -526,6 +528,14 @@ void SDAMPPath::getStats(SCIONStats *stats)
     stats->lossRates[mIndex] = mState->getLossRate();
     if (!mUp)
         stats->lossRates[mIndex] = 1.0;
+    size_t interfaces = mInterfaces.size();
+    if (interfaces > 0) {
+        stats->ifCounts[mIndex] = interfaces;
+        stats->ifLists[mIndex] =
+            (SCIONInterface *)malloc(sizeof(SCIONInterface) * interfaces);
+        for (size_t i = 0; i < interfaces; i++)
+            stats->ifLists[mIndex][i] = mInterfaces[i];
+    }
 }
 
 // SSP
@@ -649,7 +659,9 @@ int SSPPath::send(SCIONPacket *packet, int sock)
         packet->sendTime = mLastSendTime;
         pthread_mutex_unlock(&mTimeMutex);
         mManager->didSend(packet);
-        DEBUG("%ld.%06ld: packet %ld sent on path %d: %d packets in flight\n", mLastSendTime.tv_sec, mLastSendTime.tv_usec, ntohl(sh.offset), mIndex, mState->packetsInFlight());
+        DEBUG("%ld.%06ld: packet %ld sent on path %d: %d/%d packets in flight\n",
+                mLastSendTime.tv_sec, mLastSendTime.tv_usec,
+                ntohl(sh.offset), mIndex, mState->packetsInFlight(), mState->window());
     } else if (sh.flags & SSP_PROBE) {
         mProbeAttempts++;
         if (mProbeAttempts >= SDAMP_PROBE_ATTEMPTS)
@@ -675,8 +687,9 @@ void SSPPath::start()
 
 int SSPPath::handleAck(SCIONPacket *packet, bool rttSample)
 {
-    DEBUG("incoming ack on path %d: %d packets in flight\n", mIndex, mState->packetsInFlight() - 1);
     SSPAck *ack = (SSPAck *)(packet->payload);
+    DEBUG("path %d: packet %u acked, %d packets in flight\n",
+            mIndex, ack->L + ack->I, mState->packetsInFlight() - 1);
     int rtt = elapsedTime(&(packet->sendTime), &(packet->arrivalTime));
     if (!rttSample)
         rtt = 0;
@@ -684,7 +697,7 @@ int SSPPath::handleAck(SCIONPacket *packet, bool rttSample)
     mState->addRTTSample(rtt, ack->L + ack->I);
     pthread_mutex_unlock(&mWindowMutex);
     if (mState->isWindowBased())
-        pthread_cond_signal(&mWindowCond);
+        pthread_cond_broadcast(&mWindowCond);
     mTimeoutCount = 0;
     mTotalAcked++;
     return 0;
@@ -696,12 +709,17 @@ void SSPPath::workerFunction()
         int bps = mState->bandwidth();
         int rtt = mState->estimatedRTT();
         double loss = mState->getLossRate();
+        int ready = 0;
+        while ((ready = mState->timeUntilReady()) > 0) {
+            pthread_mutex_lock(&mWindowMutex);
+            pthread_cond_wait(&mWindowCond, &mWindowMutex);
+            pthread_mutex_unlock(&mWindowMutex);
+        }
         SCIONPacket *p = mManager->requestPacket(mIndex, bps, rtt, loss);
         if (!p) {
             DEBUG("path %d: terminate worker thread\n", mIndex);
             return;
         }
-        DEBUG("path %d: will now send packet\n", mIndex);
         send(p, mSocket);
     }
 }
