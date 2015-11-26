@@ -60,25 +60,33 @@ class _Rfc3339Formatter(logging.Formatter):
         return dt.isoformat(' ')
 
 
-def init_logging(log_file=None, level=logging.DEBUG, console=False):
+def init_logging(log_base=None, file_level=logging.DEBUG,
+                 console_level=logging.NOTSET):
     """
     Configure logging for components (servers, routers, gateways).
-
-    :param level:
-    :type level:
     """
     formatter = _Rfc3339Formatter(
         "%(asctime)s [%(levelname)s] (%(threadName)s) %(message)s")
     handlers = []
-    if log_file:
-        handlers.append(_RotatingErrorHandler(log_file, maxBytes=LOG_MAX_SIZE,
-                                              backupCount=1, encoding="utf-8"))
-    if console:
-        handlers.append(_ConsoleErrorHandler())
-
+    if log_base:
+        for lvl in sorted(logging._levelToName):
+            if lvl < file_level:
+                continue
+            log_file = "%s.%s" % (log_base, logging._levelToName[lvl])
+            h = _RotatingErrorHandler(
+                log_file, maxBytes=LOG_MAX_SIZE, backupCount=LOG_BACKUP_COUNT,
+                encoding="utf-8")
+            h.setLevel(lvl)
+            handlers.append(h)
+    if console_level:
+        h = _ConsoleErrorHandler()
+        h.setLevel(console_level)
+        handlers.append(h)
     for h in handlers:
         h.setFormatter(formatter)
-    logging.basicConfig(level=level, handlers=handlers)
+    # Use logging.DEBUG here, so that the handlers themselves can decide what to
+    # filter.
+    logging.basicConfig(level=logging.DEBUG, handlers=handlers)
 
 
 def log_exception(msg, *args, level=logging.CRITICAL, **kwargs):

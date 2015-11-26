@@ -584,7 +584,7 @@ class SupervisorGenerator(object):
             'redirect_stderr': 'true',
             'environment': 'PYTHONPATH=.',
             'stdout_logfile_maxbytes': 0,
-            'stdout_logfile': "logs/%s.out" % name,
+            'stdout_logfile': "logs/%s.OUT" % name,
             'startretries': 0,
             'startsecs': 5,
             'command': " ".join(['"%s"' % arg for arg in cmd_args]),
