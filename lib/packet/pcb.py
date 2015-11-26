@@ -32,7 +32,8 @@ from lib.errors import SCIONParseError
 from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
 from lib.packet.packet_base import SCIONPayloadBase
 from lib.packet.path import CorePath
-from lib.packet.pcb_ext import MTUExtension, REVExtension
+from lib.packet.pcb_ext.mtu import MtuPcbExt
+from lib.packet.pcb_ext.rev import RevPcbExt
 from lib.packet.scion_addr import ISD_AD
 from lib.types import PayloadClass, PCBType
 from lib.util import Raw
@@ -42,8 +43,8 @@ REV_TOKEN_LEN = 32
 
 # Dictionary of supported extensions
 PCB_EXTENSION_MAP = {
-    (MTUExtension.EXT_TYPE): MTUExtension,
-    (REVExtension.EXT_TYPE): REVExtension,
+    (MtuPcbExt.EXT_TYPE): MtuPcbExt,
+    (RevPcbExt.EXT_TYPE): RevPcbExt,
 }
 
 
