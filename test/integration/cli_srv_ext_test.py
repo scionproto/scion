@@ -130,7 +130,7 @@ def main():
     parser.add_argument('srv_ad', nargs='?', help='Server isd,ad',
                         default="2,26")
     args = parser.parse_args()
-    init_logging("logs/c2s_extn.log", console=True)
+    init_logging("logs/c2s_extn", console_level=logging.DEBUG)
 
     if not args.client:
         args.client = "169.254.0.2" if args.mininet else "127.0.0.2"

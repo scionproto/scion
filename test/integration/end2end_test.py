@@ -269,7 +269,7 @@ def main():
     parser.add_argument('src_ad', nargs='?', help='Src isd,ad')
     parser.add_argument('dst_ad', nargs='?', help='Dst isd,ad')
     args = parser.parse_args()
-    init_logging("logs/end2end.log", console=True)
+    init_logging("logs/end2end", console_level=logging.DEBUG)
 
     if not args.client:
         args.client = "169.254.0.2" if args.mininet else "127.0.0.2"

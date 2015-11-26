@@ -64,7 +64,7 @@ def main_default(type_, local_type=None, trace_=False, **kwargs):
     parser.add_argument('log_dir', nargs='?', default="logs/",
                         help='Log dir (Default: logs/)')
     args = parser.parse_args()
-    init_logging("%s.log" % os.path.join(args.log_dir, args.server_id))
+    init_logging(os.path.join(args.log_dir, args.server_id))
 
     if local_type is None:
         inst = type_(args.server_id, args.conf_dir, **kwargs)

@@ -88,7 +88,7 @@ VERSION = '0.1.0'
 BUFLEN = 8192
 SERVER_ADDRESS = ('127.0.0.1', 8080)
 SELECT_TIMEOUT = 3  # seconds
-LOG_FILE = 'logs/scion_proxy.log'
+LOG_BASE = 'logs/scion_proxy'
 
 
 class ConnectionHandler(SimpleHTTPRequestHandler):
@@ -268,7 +268,7 @@ class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
     daemon_threads = True
 
 if __name__ == '__main__':
-    init_logging(log_file=LOG_FILE, level=logging.DEBUG, console=True)
+    init_logging(LOG_BASE, file_level=logging.DEBUG, console_level=logging.INFO)
     httpd = ThreadingHTTPServer(SERVER_ADDRESS, ConnectionHandler)
     logging.info("Starting server at (%s, %s), use <Ctrl-C> to stop" %
                  SERVER_ADDRESS)

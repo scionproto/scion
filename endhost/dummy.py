@@ -13,7 +13,7 @@ from lib.util import handle_signals
 
 def main():
     handle_signals()
-    init_logging("logs/sciond.%s.log" % sys.argv[2])
+    init_logging("logs/sciond.%s" % sys.argv[2])
     SCIONDaemon.start(sys.argv[1], haddr_parse("IPV4", sys.argv[2]),
                       sys.argv[3], len(sys.argv) == 5)
     cdir = os.path.dirname(os.path.realpath(__file__))

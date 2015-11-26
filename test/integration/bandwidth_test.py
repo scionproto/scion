@@ -118,7 +118,7 @@ class TestBandwidth(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    init_logging("logs/bw_test.log", console=True)
+    init_logging("logs/bw_test", console_level=logging.DEBUG)
     handle_signals()
     try:
         TestBandwidth().test()

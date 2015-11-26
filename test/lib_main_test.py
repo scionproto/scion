@@ -79,7 +79,7 @@ class TestMainDefault(object):
         argparse.assert_called_once_with()
         ntools.ok_(parser.add_argument.called)
         parser.parse_args.assert_called_once_with()
-        init_log.assert_called_once_with("logging/srvid.log")
+        init_log.assert_called_once_with("logging/srvid")
         type_.assert_called_once_with("srvid", "confdir", kwarg1="kwarg1")
         trace.assert_called_once_with(inst.id)
         inst.run.assert_called_once_with()
