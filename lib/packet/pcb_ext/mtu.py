@@ -12,36 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`pcb_ext` --- Beacon extensions
-====================================
+:mod:`mtu` --- Beacon MTU extension
+===================================
 """
 # Stdlib
 import struct
 
 # SCION
-from lib.packet.packet_base import HeaderBase
-from lib.packet.rev_info import RevocationInfo
-from lib.types import TypeBase
+from lib.packet.pcb_ext import BeaconExtType, BeaconExtension
 
 
-class BeaconExtType(TypeBase):
-    """
-    Constants for two types of beacon extensions.
-    """
-    MTU = 0
-    REV = 1
-
-
-class BeaconExtension(HeaderBase):
-    """
-    Base class for beacon extensions.
-    """
-    EXT_TYPE = None
-    EXT_TYPE_STR = None
-    LEN = None
-
-
-class MTUExtension(BeaconExtension):  # pragma: no cover
+class MtuPcbExt(BeaconExtension):  # pragma: no cover
     """
     0        8        16
     |       MTU        |
@@ -79,42 +60,3 @@ class MTUExtension(BeaconExtension):  # pragma: no cover
 
     def __str__(self):
         return "MTU Ext(%dB): MTU is %dB" % (len(self), self.mtu)
-
-
-class REVExtension(BeaconExtension):
-    """
-    Length of REVExtension
-    """
-    EXT_TYPE = BeaconExtType.REV
-    LEN = 32
-
-    def __init__(self, raw=None):
-        """
-        Initialize an instance of the class REVExtension
-
-        :param raw:
-        :type raw:
-        """
-        self.rev_info = None
-        super().__init__(raw)
-
-    @classmethod
-    def from_values(cls, rev):
-        """
-        Construct extension with `rev` value.
-        """
-        inst = cls()
-        inst.rev_info = rev
-        return inst
-
-    def _parse(self, raw):
-        self.rev_info = RevocationInfo(raw)
-
-    def pack(self):
-        return self.rev_info.pack()
-
-    def __len__(self):
-        return len(self.rev_info)
-
-    def __str__(self):
-        return str(self.rev_info)

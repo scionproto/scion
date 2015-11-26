@@ -72,7 +72,8 @@ from lib.packet.pcb import (
     PCBMarking,
     PathSegment,
 )
-from lib.packet.pcb_ext import MTUExtension, REVExtension
+from lib.packet.pcb_ext.mtu import MtuPcbExt
+from lib.packet.pcb_ext.rev import RevPcbExt
 from lib.packet.scion import PacketType as PT
 from lib.path_store import PathPolicy, PathStore
 from lib.thread import thread_safety_net
@@ -402,9 +403,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         for ad in pcb.ads:
             for ext in ad.ext:
-                if ext.EXT_TYPE == MTUExtension.EXT_TYPE:
+                if ext.EXT_TYPE == MtuPcbExt.EXT_TYPE:
                     self.mtu_ext_handler(ext, ad)
-                elif ext.EXT_TYPE == REVExtension.EXT_TYPE:
+                elif ext.EXT_TYPE == RevPcbExt.EXT_TYPE:
                     self.rev_ext_handler(ext, ad)
                 else:
                     logging.warning("PCB extension %d not supported" % ext.TYPE)
@@ -486,9 +487,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
         # Add extensions.
         extensions = []
-        extensions.append(MTUExtension.from_values(self.config.mtu))
+        extensions.append(MtuPcbExt.from_values(self.config.mtu))
         for _, rev_info in self.revs_to_downstream.items():
-            rev_ext = REVExtension.from_values(rev_info)
+            rev_ext = RevPcbExt.from_values(rev_info)
             extensions.append(rev_ext)
         return ADMarking.from_values(pcbm, peer_markings,
                                      self._get_if_rev_token(egress_if),
