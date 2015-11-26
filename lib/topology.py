@@ -100,6 +100,7 @@ class InterfaceElement(Element):
         self.neighbor_type = interface_dict['NeighborType']
         self.to_udp_port = interface_dict['ToUdpPort']
         self.udp_port = interface_dict['UdpPort']
+        self.bandwidth = interface_dict['Bandwidth']
         to_addr = interface_dict['ToAddr']
         self.to_addr = None
         if to_addr:

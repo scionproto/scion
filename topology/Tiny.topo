@@ -12,5 +12,5 @@ ADs:
   1-13:
     cert_issuer: 1-11
 links:
-  - [1-11, PARENT, 1-12]
-  - [1-11, PARENT, 1-13]
+  - {a: 1-11, b: 1-12, ltype: PARENT}
+  - {a: 1-11, b: 1-13, ltype: PARENT, bw: 50}
