@@ -26,6 +26,7 @@ class BeaconExtType(TypeBase):
     """
     MTU = 0
     REV = 1
+    SIBRA = 2
 
 
 class BeaconExtension(HeaderBase):

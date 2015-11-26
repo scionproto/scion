@@ -72,8 +72,10 @@ from lib.packet.pcb import (
     PCBMarking,
     PathSegment,
 )
+from lib.packet.pcb_ext import BeaconExtType
 from lib.packet.pcb_ext.mtu import MtuPcbExt
 from lib.packet.pcb_ext.rev import RevPcbExt
+from lib.packet.pcb_ext.sibra import SibraPcbExt
 from lib.packet.scion import PacketType as PT
 from lib.path_store import PathPolicy, PathStore
 from lib.thread import thread_safety_net
@@ -407,18 +409,21 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                     self.mtu_ext_handler(ext, ad)
                 elif ext.EXT_TYPE == RevPcbExt.EXT_TYPE:
                     self.rev_ext_handler(ext, ad)
+                elif ext.EXT_TYPE == SibraPcbExt.EXT_TYPE:
+                    self.sibra_ext_handler(ext, ad)
                 else:
-                    logging.warning("PCB extension %d not supported" % ext.TYPE)
+                    logging.warning("PCB extension %s(%s) not supported" % (
+                        BeaconExtType.to_str(ext.EXT_TYPE), ext.EXT_TYPE))
 
     def mtu_ext_handler(self, ext, ad):
         """
-        Dummy handler for MTUExtension.
+        Dummy handler for MtuPcbExt.
         """
         logging.info("MTU (%d, %d): %s" % (ad.pcbm.ad_id, ad.pcbm.isd_id, ext))
 
     def rev_ext_handler(self, ext, ad):
         """
-        Handler for REVExtension.
+        Handler for RevPcbExt.
         """
         logging.info("REV (%d, %d): %s" % (ad.pcbm.ad_id, ad.pcbm.isd_id, ext))
         rev_info = ext.rev_info
@@ -426,6 +431,13 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         self._remove_revoked_pcbs(rev_info=rev_info, if_id=None)
         # Inform the local PS
         self._send_rev_to_local_ps(rev_info=rev_info)
+
+    def sibra_ext_handler(self, ext, ad):
+        """
+        Dummy handler for SibraPcbExt.
+        """
+        logging.info("Sibra (%d, %d): %s" % (ad.pcbm.ad_id, ad.pcbm.isd_id,
+                                             ext))
 
     @abstractmethod
     def process_pcbs(self, pcbs, raw=True):
@@ -488,6 +500,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         # Add extensions.
         extensions = []
         extensions.append(MtuPcbExt.from_values(self.config.mtu))
+        # FIXME(kormat): add real values, based on the interface pair specified.
+        extensions.append(SibraPcbExt.from_values(1, 2))
         for _, rev_info in self.revs_to_downstream.items():
             rev_ext = RevPcbExt.from_values(rev_info)
             extensions.append(rev_ext)

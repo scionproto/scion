@@ -34,6 +34,7 @@ from lib.packet.packet_base import SCIONPayloadBase
 from lib.packet.path import CorePath
 from lib.packet.pcb_ext.mtu import MtuPcbExt
 from lib.packet.pcb_ext.rev import RevPcbExt
+from lib.packet.pcb_ext.sibra import SibraPcbExt
 from lib.packet.scion_addr import ISD_AD
 from lib.types import PayloadClass, PCBType
 from lib.util import Raw
@@ -45,6 +46,7 @@ REV_TOKEN_LEN = 32
 PCB_EXTENSION_MAP = {
     (MtuPcbExt.EXT_TYPE): MtuPcbExt,
     (RevPcbExt.EXT_TYPE): RevPcbExt,
+    (SibraPcbExt.EXT_TYPE): SibraPcbExt,
 }
 
 
