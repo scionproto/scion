@@ -61,6 +61,13 @@ class TrustStore(object):
                     return trc
         return None
 
+    def get_trcs(self):
+        # Return list of the most recent TRCs.
+        res = []
+        for isd in self._trcs:
+            res.append(self.get_trc(isd))
+        return res
+
     def get_cert(self, isd, ad, version=None):
         if not self._certs[(isd, ad)]:
             return None

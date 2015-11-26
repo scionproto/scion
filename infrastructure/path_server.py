@@ -318,9 +318,14 @@ class CorePathServer(PathServer):
         super().__init__(server_id, conf_dir, is_sim=is_sim)
         # Sanity check that we should indeed be a core path server.
         assert self.topology.is_core_ad, "This shouldn't be a core PS!"
-        self.core_ads = set()  # Set of core ADs only from local ISD.
+        self.core_ads = {}  # Mapping: ISD_ID -> list of core ASes.
+        self._init_core_ads()
         self._master_id = None  # Address of master core Path Server.
         self._cached_seg_handler = self._handle_core_segment_record
+
+    def _init_core_ads(self):
+        for trc in self.trust_store.get_trcs():
+            self.core_ads[trc.isd_id] = trc.get_core_ads()
 
     def _update_master(self):
         """
@@ -471,9 +476,7 @@ class CorePathServer(PathServer):
             else:
                 logging.info("Core-Path already known (from zk: %s): %s",
                              from_zk, pcb.short_desc())
-            if dst_isd == self.topology.isd_id:
-                self.core_ads.add((dst_isd, dst_ad))
-            else:
+            if dst_isd != self.topology.isd_id:
                 pcb_from_local_isd = False
         if not from_zk and not from_master and records.PAYLOAD_TYPE != PMT.SYNC:
             # Share segments via ZK.
@@ -558,7 +561,7 @@ class CorePathServer(PathServer):
         :param inter_isd: whether the packet should be propagated across ISDs
         :type inter_isd: bool
         """
-        for (isd, ad) in self.core_ads:
+        for (isd, ad) in self.core_ads[self.topology.isd_id]:
             if inter_isd or isd == self.topology.isd_id:
                 cpaths = self.core_segments(first_isd=isd, first_ad=ad,
                                             last_isd=self.topology.isd_id,
