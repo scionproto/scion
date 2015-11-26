@@ -562,6 +562,8 @@ class CorePathServer(PathServer):
         :type inter_isd: bool
         """
         for (isd, ad) in self.core_ads[self.topology.isd_id]:
+            if (isd, ad) == self.addr.get_isd_ad():
+                continue
             if inter_isd or isd == self.topology.isd_id:
                 cpaths = self.core_segments(first_isd=isd, first_ad=ad,
                                             last_isd=self.topology.isd_id,
