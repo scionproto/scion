@@ -190,6 +190,8 @@ class PathSegmentDB(object):
             cur_rec.pcb = pcb
             if self._segment_ttl:
                 cur_rec.exp_time = now + self._segment_ttl
+            else:
+                cur_rec.exp_time = pcb.get_expiration_time()
             return DBResult.ENTRY_UPDATED
 
     def update_all(self, pcbs, first_isd, first_ad, last_isd, last_ad):

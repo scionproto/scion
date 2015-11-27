@@ -340,14 +340,14 @@ class SCIONDaemon(SCIONElement):
         """
         ptype, src_isd, src_ad, dst_isd, dst_ad = key
         if ptype == PST.UP:
-            return len(self.up_segments)
+            return len(self.up_segments())
         elif ptype == PST.DOWN:
             return self.down_segments(last_isd=dst_isd, last_ad=dst_ad)
         elif ptype == PST.CORE:
             return self.core_segments(last_isd=src_isd, last_ad=src_ad,
                                       first_isd=dst_isd, first_ad=dst_ad)
         elif ptype == PST.UP_DOWN:
-            return (len(self.up_segments) and
+            return (len(self.up_segments()) and
                     self.down_segments(last_isd=dst_isd, last_ad=dst_ad))
 
     def _fetch_segments(self, key, _):

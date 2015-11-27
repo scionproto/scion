@@ -827,7 +827,7 @@ class LocalPathServer(PathServer):
             src_ad = self.topology.ad_id
         seg_info = PathSegmentInfo.from_values(ptype, src_isd, src_ad, dst_isd,
                                                dst_ad)
-        if not len(self.up_segments):
+        if not len(self.up_segments()):
             if ptype == PST.DOWN:
                 logging.info('Pending target added (%d, %d)', dst_isd, dst_ad)
                 self.waiting_targets.add((dst_isd, dst_ad, seg_info))
@@ -875,7 +875,7 @@ class LocalPathServer(PathServer):
         paths_to_send = []
         # Requester wants up-path.
         if seg_type in (PST.UP, PST.UP_DOWN):
-            if len(self.up_segments):
+            if len(self.up_segments()):
                 paths_to_send.extend(self.up_segments()[:self.MAX_SEG_NO])
             else:
                 if seg_type == PST.UP_DOWN:
