@@ -81,6 +81,7 @@ LINK_CHILD = "CHILD"
 LINK_PARENT = "PARENT"
 LINK_PEER = "PEER"
 LINK_ROUTING = "ROUTING"
+DEFAULT_LINK_BW = 1000
 
 DEFAULT_BEACON_SERVERS = 1
 DEFAULT_CERTIFICATE_SERVERS = 1
@@ -374,18 +375,17 @@ class TopoGenerator(object):
         return self.topo_dicts, self.zookeepers, networks
 
     def _read_links(self):
-        for a_str, ltype, b_str in self.topo_config["links"]:
-            a = TopoID(a_str)
-            b = TopoID(b_str)
+        for attrs in self.topo_config["links"]:
+            # Pop the basic attributes, then append the remainder to the link
+            # entry.
+            a = TopoID(attrs.pop("a"))
+            b = TopoID(attrs.pop("b"))
+            ltype = ltype_a = ltype_b = attrs.pop("ltype")
             if ltype == LINK_PARENT:
-                self.links[a].append((LINK_CHILD, b))
-                self.links[b].append((LINK_PARENT, a))
-            elif ltype in (LINK_PEER, LINK_ROUTING):
-                self.links[a].append((ltype, b))
-                self.links[b].append((ltype, a))
-            else:
-                logging.critical("Unsupported link type: %s", ltype)
-                sys.exit(1)
+                ltype_a = LINK_CHILD
+                ltype_b = LINK_PARENT
+            self.links[a].append((ltype_a, b, attrs))
+            self.links[b].append((ltype_b, a, attrs))
 
     def _generate_ad_topo(self, topo_id, ad_conf):
         dns_domain = DNSLabel(ad_conf.get("dns_domain", DEFAULT_DNS_DOMAIN))
@@ -429,11 +429,11 @@ class TopoGenerator(object):
 
     def _gen_er_entries(self, topo_id):
         er_id = 1
-        for ltype, remote in self.links[topo_id]:
-            self._gen_er_entry(topo_id, er_id, remote, ltype)
+        for ltype, remote, attrs in self.links[topo_id]:
+            self._gen_er_entry(topo_id, er_id, remote, ltype, attrs)
             er_id += 1
 
-    def _gen_er_entry(self, local, er_id, remote, remote_type):
+    def _gen_er_entry(self, local, er_id, remote, remote_type, attrs):
         elem_id = "er%ser%s" % (local, remote)
         public_addr, remote_addr = self._reg_link_addrs(
             local, remote)
@@ -448,6 +448,7 @@ class TopoGenerator(object):
                 'ToAddr': remote_addr,
                 'UdpPort': SCION_ROUTER_PORT,
                 'ToUdpPort': SCION_ROUTER_PORT,
+                'Bandwidth': attrs.get('bw', DEFAULT_LINK_BW),
             }
         }
 
