@@ -208,9 +208,9 @@ class TestPathSegmentDBUpdate(object):
     def test_entry_update(self, db_rec):
         pcb = create_mock(["get_expiration_time"], class_=PathSegment)
         pcb.get_expiration_time.return_value = 1
-        record = create_mock(['id'])
+        record = create_mock(['id', 'exp_time'])
         record.id = "str"
-        cur_rec = create_mock(['pcb', 'id'])
+        cur_rec = create_mock(['pcb', 'id', 'exp_time'])
         cur_rec.pcb = create_mock(["get_expiration_time"])
         cur_rec.pcb.get_expiration_time.return_value = 0
         db_rec.return_value = record
