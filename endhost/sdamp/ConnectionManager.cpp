@@ -1131,6 +1131,8 @@ void SSPConnectionManager::handleTimeout()
         mRetryPackets->push(retries[j]);
     }
     pthread_mutex_unlock(&mRetryMutex);
+    if (!retries.empty())
+        pthread_cond_broadcast(&mPacketCond);
 
     for (size_t j = 0; j < mPaths.size(); j++) {
         if (timeout[j] > 0) {
@@ -1143,6 +1145,7 @@ void SSPConnectionManager::handleTimeout()
                     if (!mPaths[k]->isUsed() && mPaths[k]->isUp()) {
                         DEBUG("use backup path %lu\n", k);
                         mPaths[k]->setUsed(true);
+                        pthread_cond_broadcast(&mPacketCond);
                         break;
                     }
                 }
@@ -1174,7 +1177,7 @@ SCIONPacket * SSPConnectionManager::maximizeBandwidth(int index, int bps, int rt
     pthread_mutex_lock(&mPacketMutex);
     sleepIfUnused(index);
     SCIONPacket *packet = NULL;
-    size_t available = mPaths[index]->getPayloadLen(false);
+    size_t available = maxPayloadSize();
     while (!packet) {
         if (!mRunning[index]) {
             pthread_mutex_unlock(&mPacketMutex);
@@ -1204,8 +1207,10 @@ SCIONPacket * SSPConnectionManager::maximizeBandwidth(int index, int bps, int rt
         pthread_mutex_unlock(&mFreshMutex);
         pthread_cond_broadcast(&mFreshCond);
 
-        if (!packet)
+        if (!packet) {
+            DEBUG("wait for data to send\n");
             pthread_cond_wait(&mPacketCond, &mPacketMutex);
+        }
     }
     pthread_mutex_unlock(&mPacketMutex);
     DEBUG("send packet\n");
@@ -1229,6 +1234,7 @@ void SSPConnectionManager::abortSend(SCIONPacket *packet)
     pthread_mutex_lock(&mRetryMutex);
     mRetryPackets->push(packet);
     pthread_mutex_unlock(&mRetryMutex);
+    pthread_cond_broadcast(&mPacketCond);
 }
 
     /*

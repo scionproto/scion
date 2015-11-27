@@ -35,7 +35,7 @@ bool compareOffset(void *p1, void *p2)
     SCIONPacket *s2 = (SCIONPacket *)p2;
     SSPOutPacket *sp1 = (SSPOutPacket *)(s1->payload);
     SSPOutPacket *sp2 = (SSPOutPacket *)(s2->payload);
-    return ntohl(sp1->offset) > ntohl(sp2->offset);
+    return ntohl(sp1->header.offset) > ntohl(sp2->header.offset);
 }
 
 int reversePath(uint8_t *original, uint8_t *reverse, int len)

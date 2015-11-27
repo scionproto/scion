@@ -752,7 +752,7 @@ void SSPProtocol::handleData(SSPInPacket *packet, int pathIndex)
         DEBUG("in-order packet\n");
         pthread_mutex_lock(&mReadMutex);
         if (len + mTotalReceived > mLocalReceiveWindow) {
-            DEBUG("Receive window too full: %lu/%lu\n",
+            DEBUG("in-order: Receive window too full: %lu/%lu\n",
                     mTotalReceived, mLocalReceiveWindow);
             packet->data = NULL;
             destroySSPInPacket(packet);
@@ -791,7 +791,7 @@ void SSPProtocol::handleData(SSPInPacket *packet, int pathIndex)
         int packetSize = len + sizeof(SSPInPacket);
         pthread_mutex_lock(&mReadMutex);
         if (packetSize + mTotalReceived > mLocalReceiveWindow - maxPayload) {
-            DEBUG("Receive window too full: %lu/%lu\n",
+            DEBUG("out-of-order: Receive window too full: %lu/%lu\n",
                     mTotalReceived, mLocalReceiveWindow);
             packet->data = NULL;
             destroySSPInPacket(packet);
@@ -885,7 +885,6 @@ SCIONPacket * SSPProtocol::createPacket(uint8_t *buf, size_t len)
     }
     sp->data = buf;
     sp->len = len;
-    sp->offset = mNextOffset;
     mNextOffset += len;
 
     return packet;
