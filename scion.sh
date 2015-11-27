@@ -5,10 +5,15 @@ export PYTHONPATH=.
 # BEGIN subcommand functions
 
 cmd_topology() {
-    echo "Create topology, configuration, and execution files."
+    echo "Shutting down supervisord: $(supervisor/supervisor.sh shutdown)"
     mkdir -p logs traces
     [ -e gen ] && rm -r gen
-    [ -e /run/shm/scion-zk ] && rm -r /run/shm/scion-zk
+    if [ "$1" = "zkclean" ]; then
+        shift
+        echo "Deleting all Zookeeper state"
+        tools/zkcleanslate
+    fi
+    echo "Create topology, configuration, and execution files."
     topology/generator.py "$@"
 }
 
@@ -110,8 +115,10 @@ cmd_help() {
 	echo
 	cat <<-_EOF
 	Usage:
-	    $PROGRAM topology
-	        Create topology, configuration, and execution files.
+	    $PROGRAM topology [zkclean]
+	        Create topology, configuration, and execution files. With the
+	        'zkclean' option, also reset all local Zookeeper state. Another
+	        other arguments or options are passed to topology/generator.py
 	    $PROGRAM run
 	        Run network.
 	    $PROGRAM stop
