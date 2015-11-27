@@ -6,6 +6,13 @@ Note: This file will be updated at a later time when I update the apps
 These applications are used to demonstrate the functionalities of the
 SCION multipath socket library.
 
+## Required libraries:
+On a 64-bit machine with Ubuntu 14.04, the following libraries need to be
+installed in order to build the socket library:
+1. g++
+2. lib64ncurses5-dev
+3. libcurl4-openssl-dev
+
 ## Building
 From the SCION root directory, run:
 ./scion.sh sock_bld
