@@ -52,10 +52,11 @@ typedef struct{
 #define ISD_AD(isd, ad) ((isd) << 20) | ((ad) & 0xfffff)
 
 typedef struct {
-    uint32_t isd;
+    uint16_t isd;
     uint32_t ad;
-    uint8_t interface;
+    uint16_t interface;
 } SCIONInterface;
+#define SCION_IF_SIZE 6
 
 #pragma pack(push)
 #pragma pack(1)

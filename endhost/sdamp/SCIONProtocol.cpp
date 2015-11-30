@@ -310,7 +310,7 @@ int SDAMPProtocol::handlePacket(SCIONPacket *packet, uint8_t *buf)
     }
     if (sp->header.flags & SDAMP_NEW_PATH) {
         sp->interfaceCount = *ptr++;
-        int interfaceLen = 5 * sp->interfaceCount;
+        int interfaceLen = SCION_IF_SIZE * sp->interfaceCount;
         sp->interfaces = (uint8_t *)malloc(interfaceLen);
         memcpy(sp->interfaces, ptr, interfaceLen);
         ptr += interfaceLen;
@@ -669,7 +669,7 @@ int SSPProtocol::handlePacket(SCIONPacket *packet, uint8_t *buf)
     if (flags & SSP_NEW_PATH) {
         sip->interfaceCount = *ptr++;
         DEBUG("%d interfaces in new path\n", sip->interfaceCount);
-        int interfaceLen = 5 * sip->interfaceCount;
+        int interfaceLen = SCION_IF_SIZE * sip->interfaceCount;
         sip->interfaces = (uint8_t *)malloc(interfaceLen);
         memcpy(sip->interfaces, ptr, interfaceLen);
         ptr += interfaceLen;

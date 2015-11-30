@@ -22,6 +22,7 @@ import copy
 import logging
 import os
 import random
+import struct
 import sys
 import threading
 import time
@@ -70,10 +71,11 @@ def get_paths_via_api(isd, ad):
         kill_self()
 
     paths_hops = []
+    iflists = []
     while len(data) > 0:
         path_len = data.pop(1) * 8
         if not path_len:
-            return [(EmptyPath(), haddr_parse("IPV4", "0.0.0.0"))]
+            return [(EmptyPath(), haddr_parse("IPV4", "0.0.0.0"))], [[]]
         info = InfoOpaqueField(data.get(InfoOpaqueField.LEN))
         if info.info == OFT.CORE:
             path = CorePath(data.pop(path_len))
@@ -88,11 +90,18 @@ def get_paths_via_api(isd, ad):
         hop = haddr_type(data.get(haddr_type.LEN))
         data.pop(len(hop))
         paths_hops.append((path, hop))
-        data.pop(2)
-        interface_count = data.pop(1)
-        data.pop(interface_count * 5)  # interface list unused here
+        data.pop(2)  # port number, unused here
+        data.pop(2)  # MTU, unused here
+        ifcount = data.pop(1)
+        ifs = []
+        if ifcount:
+            for i in range(ifcount):
+                isd_ad = struct.unpack("I", data.pop(4))[0]
+                ifid = struct.unpack("H", data.pop(2))[0]
+                ifs.append((isd_ad, ifid))
+        iflists.append(ifs)
     sock.close()
-    return paths_hops
+    return paths_hops, iflists
 
 
 class Ping(object):
@@ -117,10 +126,11 @@ class Ping(object):
         logging.info("Sending PATH request for (%d, %d)",
                      self.dst.isd_id, self.dst.ad_id)
         # Get paths through local API.
-        paths_hops = get_paths_via_api(self.dst.isd_id, self.dst.ad_id)
+        paths_hops, iflists = get_paths_via_api(self.dst.isd_id, self.dst.ad_id)
         (self.path, self.hop) = paths_hops[0]
         if isinstance(self.path, EmptyPath):
             self.hop = self.dst.host_addr
+        self.iflist = iflists[0]
 
     def run(self):
         self.send()
@@ -139,6 +149,11 @@ class Ping(object):
 
         logging.info("Sending packet: \n%s\nFirst hop: %s:%s",
                      spkt, next_hop, port)
+        if self.iflist:
+            logging.info("Interfaces:")
+            for (isd_ad, ifid) in self.iflist:
+                logging.info("(%d, %d):%d",
+                             isd_ad >> 20, isd_ad & 0xfffff, ifid)
         self.sd.send(spkt, next_hop, port)
 
     def recv(self):

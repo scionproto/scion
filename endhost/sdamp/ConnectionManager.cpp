@@ -107,9 +107,9 @@ void PathManager::getPaths()
                 int pathLen = *(buf + offset) * 8;
                 if (pathLen + offset > buflen)
                     break;
-                int interfaceOffset = offset + 1 + pathLen + SCION_HOST_ADDR_LEN + 2;
+                int interfaceOffset = offset + 1 + pathLen + SCION_HOST_ADDR_LEN + 2 + 2;
                 int interfaceCount = *(buf + interfaceOffset);
-                if (interfaceOffset + 1 + interfaceCount * 5 > buflen)
+                if (interfaceOffset + 1 + interfaceCount * SCION_IF_SIZE > buflen)
                     break;
                 for (size_t j = 0; j < mPaths.size(); j++) {
                     if (mPaths[j]->isSamePath(buf + offset + 1, pathLen)) {
@@ -127,7 +127,7 @@ void PathManager::getPaths()
                     Path *p = createPath(*i, buf + offset, 0);
                     candidates.push_back(p);
                 }
-                offset = interfaceOffset + 1 + interfaceCount * 5;
+                offset = interfaceOffset + 1 + interfaceCount * SCION_IF_SIZE;
             }
         }
         if (mPaths.size() - invalid + candidates.size() == MAX_TOTAL_PATHS)

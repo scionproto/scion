@@ -202,7 +202,7 @@ class SCIONDaemon(SCIONElement):
         Path request:
           | \x00 (1B) | ISD (12bits) |  AD (20bits)  |
         Reply:
-          |p1_len(1B)|p1((p1_len*8)B)|fh_IP(4B)|fh_port(2B)|
+          |p1_len(1B)|p1((p1_len*8)B)|fh_IP(4B)|fh_port(2B)|mtu(2B)|
            p1_if_count(1B)|p1_if_1(5B)|...|p1_if_n(5B)|
            p2_len(1B)|...
          or b"" when no path found. Only IPv4 supported currently.
@@ -222,12 +222,13 @@ class SCIONDaemon(SCIONElement):
             path_len = len(raw_path) // 8
             reply.append(struct.pack("B", path_len) + raw_path +
                          haddr.pack() + struct.pack("H", SCION_UDP_PORT) +
+                         struct.pack("H", path.mtu) +
                          struct.pack("B", len(path.interfaces)))
             for interface in path.interfaces:
                 (isd_ad, link) = interface
                 isd_ad_bits = (isd_ad.isd << 20) + (isd_ad.ad & 0xFFFFF)
                 reply.append(struct.pack("I", isd_ad_bits))
-                reply.append(struct.pack("B", link))
+                reply.append(struct.pack("H", link))
         self._api_sock.send(b"".join(reply), sender)
 
     def handle_revocation(self, pkt):

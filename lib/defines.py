@@ -80,3 +80,5 @@ SERVICE_TYPES = (
 
 #: How often IFID packet is sent to neighboring router.
 IFID_PKT_TOUT = 1
+
+SCION_MIN_MTU = 1280  # IPv6 min value
