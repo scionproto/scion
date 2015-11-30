@@ -77,7 +77,7 @@ public:
 
     bool didTimeout(struct timeval *current);
     
-    int getPayloadLen(bool ack);
+    virtual int getPayloadLen(bool ack);
     int getETA(SCIONPacket *packet);
     int getRTT();
     int getRTO();
@@ -113,6 +113,7 @@ public:
     ~SSPPath();
 
     int send(SCIONPacket *packet, int sock);
+    int getPayloadLen(bool ack);
     void start();
     int handleAck(SCIONPacket *packet, bool rttSample);
     static void * workerHelper(void *arg);

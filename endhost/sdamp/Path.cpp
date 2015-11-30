@@ -555,7 +555,7 @@ int SSPPath::send(SCIONPacket *packet, int sock)
             current.tv_sec = t.tv_sec;
             current.tv_usec = t.tv_nsec / 1000;
             if (elapsedTime(&mLastSendTime, &current) > mState->getRTO()) {
-                DEBUG("path %d: loss occurred, abort send\n", mIndex);
+                DEBUG("path %d: loss occurred, abort send packet %u\n", mIndex, ntohl(sh.offset));
                 pthread_mutex_unlock(&mWindowMutex);
                 mManager->abortSend(packet);
                 if (sendInterfaces) {
@@ -648,6 +648,12 @@ int SSPPath::send(SCIONPacket *packet, int sock)
     if (wasValid && !mValid)
         return 1;
     return 0;
+}
+
+int SSPPath::getPayloadLen(bool ack)
+{
+    int hlen = ack ? sizeof(SSPHeader) + sizeof(SSPAck) : sizeof(SSPHeader);
+    return mMTU - (28 + sizeof(SCIONCommonHeader) + 2 * SCION_ADDR_LEN + mPathLen + hlen);
 }
 
 void SSPPath::start()

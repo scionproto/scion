@@ -259,7 +259,7 @@ void SCIONSocket::handlePacket(uint8_t *buf, size_t len, struct sockaddr_in *add
         addrs[0] = srcAddr;
         DEBUG("create new socket to handle incoming flow\n");
         SCIONSocket *s = new SCIONSocket(mProtocolID, (SCIONAddr *)addrs, 1, -1, mDstPort);
-        s->mProtocol->createManager(mDstAddrs);
+        s->mProtocol->createManager(s->mDstAddrs);
         s->mProtocol->start(packet, buf + sch.headerLen, s->mDispatcherSocket);
         s->mRegistered = true;
         pthread_cond_signal(&s->mRegisterCond);

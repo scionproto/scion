@@ -125,7 +125,6 @@ typedef struct {
 } SSPData;
 
 typedef struct {
-    uint32_t offset;
     uint8_t *data;
     uint32_t len;
     int skipCount;
