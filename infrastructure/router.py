@@ -49,6 +49,7 @@ from lib.errors import (
 )
 from lib.log import log_exception
 from lib.main import main_default, main_wrapper
+from lib.packet.ext.sibra import SibraExt, sibra_ext_handler
 from lib.packet.ext.traceroute import TracerouteExt, traceroute_ext_handler
 from lib.packet.path_mgmt import (
     RevocationInfo,
@@ -237,6 +238,7 @@ class Router(SCIONElement):
             handlers = self.pre_ext_handlers
         else:
             handlers = self.post_ext_handlers
+        handled = False
         # Hop-by-hop extensions must be first (just after path), and process
         # only MAX_EXT number of them.
         for i, ext_hdr in enumerate(spkt.ext_hdrs):
@@ -250,9 +252,10 @@ class Router(SCIONElement):
                 logging.warning("No handler for extension type %u",
                                 ext_hdr.EXT_TYPE)
                 continue
-            handler(spkt=spkt, ext=ext_hdr, conf=self.config,
-                    topo=self.topology, iface=self.interface)
-        return False
+            if handler(spkt=spkt, ext=ext_hdr, conf=self.config,
+                       topo=self.topology, iface=self.interface):
+                handled = True
+        return handled
 
     def sync_interface(self):
         """
@@ -763,7 +766,10 @@ class Router(SCIONElement):
 
 
 def main():
-    pre_handlers = {TracerouteExt.EXT_TYPE: traceroute_ext_handler}
+    pre_handlers = {
+        SibraExt.EXT_TYPE: sibra_ext_handler,
+        TracerouteExt.EXT_TYPE: traceroute_ext_handler,
+    }
     main_default(Router, pre_ext_handlers=pre_handlers)
 
 if __name__ == "__main__":

@@ -26,6 +26,7 @@ from lib.util import Raw
 
 class HopByHopType(TypeBase):
     TRACEROUTE = 0
+    SIBRA = 1
 
 
 class ExtensionHeader(HeaderBase):
