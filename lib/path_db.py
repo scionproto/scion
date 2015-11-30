@@ -106,12 +106,13 @@ class PathSegmentDB(object):
     Simple database for paths using PyDBLite.
     """
 
-    def __init__(self, segment_ttl=None):
+    def __init__(self, segment_ttl=None, max_res_no=None):
         """
         Initialize an instance of the class PathSegmentDB.
 
         :param int segment_ttl: The TTL for each record in the database (in s)
             or None to just use the segment's expiration time.
+        :param int max_res_no: Number of results returned for a query.
         """
         self._db = Base("", save_to_file=False)
         self._db.create('record', 'id', 'first_isd', 'first_ad', 'last_isd',
@@ -121,6 +122,7 @@ class PathSegmentDB(object):
         self._db.create_index('last_ad')
         self._lock = threading.Lock()
         self._segment_ttl = segment_ttl
+        self._max_res_no = max_res_no
 
     def __getitem__(self, seg_id):
         """
@@ -245,13 +247,15 @@ class PathSegmentDB(object):
                 deletions += 1
         return deletions
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, full=False, *args, **kwargs):
         """
         Selection by field values.
 
         Returns a sorted (path fidelity) list of paths according to the
         criterias specified.
 
+        :param full: Return list of results not bounded by self._max_res_no.
+        :type segment_ids: bool
         :param args:
         :type args:
         :param kwargs:
@@ -276,6 +280,8 @@ class PathSegmentDB(object):
             self._db.delete(expired_recs)
         pcbs = sorted([r['record'] for r in valid_recs],
                       key=lambda x: x.fidelity)
+        if self._max_res_no and not full:
+            pcbs = pcbs[:self._max_res_no]
         return [p.pcb for p in pcbs]
 
     def __len__(self):

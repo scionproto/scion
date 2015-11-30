@@ -57,6 +57,7 @@ class SCIONDaemon(SCIONElement):
     N_TOKENS_CHECK = 20
     # Time a path segment is cached at a host (in seconds).
     SEGMENT_TTL = 300
+    MAX_SEG_NO = 5  # TODO: replace by config variable.
 
     def __init__(self, conf_dir, addr, api_addr, run_local_api=False,
                  port=SCION_UDP_PORT, is_sim=False):
@@ -66,9 +67,12 @@ class SCIONDaemon(SCIONElement):
         super().__init__("sciond", conf_dir, host_addr=addr, port=port,
                          is_sim=is_sim)
         # TODO replace by pathstore instance
-        self.up_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL)
-        self.down_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL)
-        self.core_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL)
+        self.up_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL,
+                                         max_res_no=self.MAX_SEG_NO)
+        self.down_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL,
+                                           max_res_no=self.MAX_SEG_NO)
+        self.core_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL,
+                                           max_res_no=self.MAX_SEG_NO)
         self.requests = RequestHandler.start(
             "SCIONDaemon Requests", self._check_segments, self._fetch_segments,
             self._reply_segments, ttl=self.TIMEOUT,

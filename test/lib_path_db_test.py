@@ -304,7 +304,7 @@ class TestPathSegmentDBCall(object):
         pth_seg_db._db = create_mock(['delete'])
         pth_seg_db._db.return_value = recs
         ntools.eq_(pth_seg_db("data"), [r['record'].pcb for r in recs])
-        pth_seg_db._db.assert_called_once_with("data")
+        pth_seg_db._db.assert_called_once_with()
         time.assert_called_once_with()
         pth_seg_db._db.delete.assert_called_once_with([])
 
