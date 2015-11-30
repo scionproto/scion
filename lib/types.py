@@ -99,7 +99,7 @@ class PathSegmentType(TypeBase):
     UP = 0  # Request/Reply for up-paths
     DOWN = 1  # Request/Reply for down-paths
     CORE = 2  # Request/Reply for core-paths
-    UP_DOWN = 3  # Request/Reply for up- and down-paths
+    GENERIC = 3  # FIXME(PSz): experimental for now.
 
 
 class PCBType(TypeBase):

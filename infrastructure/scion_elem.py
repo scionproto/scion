@@ -20,6 +20,7 @@ import logging
 import os
 import queue
 import threading
+from collections import defaultdict
 
 # SCION
 from lib.config import Config
@@ -97,6 +98,8 @@ class SCIONElement(object):
         self.construct_ifid2addr_map()
         self.trust_store = TrustStore(self.conf_dir)
         self.total_dropped = 0
+        self._core_ads = defaultdict(list)  # Mapping ISD_ID->list of core ASes.
+        self.init_core_ads()
         if not is_sim:
             self.run_flag = threading.Event()
             self.stopped_flag = threading.Event()
@@ -118,6 +121,13 @@ class SCIONElement(object):
         assert self.topology is not None
         for edge_router in self.topology.get_all_edge_routers():
             self.ifid2addr[edge_router.interface.if_id] = edge_router.addr
+
+    def init_core_ads(self):
+        """
+        Initializes dict of core ASes.
+        """
+        for trc in self.trust_store.get_trcs():
+            self._core_ads[trc.isd_id] = trc.get_core_ads()
 
     def handle_request(self, packet, sender, from_local_socket=True):
         """

@@ -433,42 +433,6 @@ class TestPathBaseGetFirstIofIdx(object):
         ntools.eq_(inst._get_first_iof_idx(), None)
 
 
-class TestPathBaseGetFirstHofIdx(object):
-    """
-    Unit tests for lib.packet.path.PathBase._get_first_hof_idx
-    """
-    @patch("lib.packet.path.PathBase.__init__", autospec=True,
-           return_value=None)
-    def test_with_up_hofs(self, init):
-        inst = PathBaseTesting()
-        inst._ofs = create_mock(["get_by_label"])
-        # Call
-        ntools.eq_(inst._get_first_hof_idx(), 1)
-        # Tests
-        inst._ofs.get_by_label.assert_called_once_with(UP_HOFS)
-
-    @patch("lib.packet.path.PathBase.__init__", autospec=True,
-           return_value=None)
-    def test_with_down_hofs(self, init):
-        inst = PathBaseTesting()
-        inst._ofs = create_mock(["get_by_label"])
-        inst._ofs.get_by_label.side_effect = [False, True]
-        # Call
-        ntools.eq_(inst._get_first_hof_idx(), 1)
-        # Tests
-        assert_these_calls(inst._ofs.get_by_label,
-                           [call(UP_HOFS), call(DOWN_HOFS)])
-
-    @patch("lib.packet.path.PathBase.__init__", autospec=True,
-           return_value=None)
-    def test_without_hofs(self, init):
-        inst = PathBaseTesting()
-        inst._ofs = create_mock(["get_by_label"])
-        inst._ofs.get_by_label.return_value = False
-        # Call
-        ntools.assert_is_none(inst._get_first_hof_idx())
-
-
 class TestPathBaseGetOfsByLabel(object):
     """
     Unit tests for lib.packet.path.PathBase.get_ofs_by_label
