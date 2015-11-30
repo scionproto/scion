@@ -131,26 +131,33 @@ class SCIONDaemon(SCIONElement):
         Handle path reply from local path server.
         """
         path_reply = pkt.get_payload()
-        info = path_reply.info
-        for pcb in path_reply.pcbs:
-            first = pcb.get_first_pcbm()
-            last = pcb.get_last_pcbm()
-            if info.seg_type == PST.UP_DOWN:
-                self._handle_up_seg(pcb, first, last)
-                self._handle_down_seg(pcb, first, last)
-            elif info.seg_type == PST.UP:
-                self._handle_up_seg(pcb, first, last)
-            elif info.seg_type == PST.DOWN:
-                self._handle_down_seg(pcb, first, last)
-            elif info.seg_type == PST.CORE:
-                self._handle_core_seg(pcb, first, last)
-            else:
-                logging.warning(
-                    "Incorrect path in Path Record. Info: %s PCB: %s",
-                    info.short_desc(), pcb.short_desc())
-        key = (info.seg_type, info.src_isd, info.src_ad, info.dst_isd,
-               info.dst_ad)
-        self.requests.put((key, None))
+        for seg_type, pcbs in path_reply.pcbs.items():
+            for pcb in pcbs:
+                first = pcb.get_first_pcbm()
+                last = pcb.get_last_pcbm()
+                if seg_type == PST.UP_DOWN:
+                    self._handle_up_seg(pcb, first, last)
+                    self._handle_down_seg(pcb, first, last)
+                    src_isd, src_ad = self.addr.get_isd_ad()
+                    dst_isd, dst_ad = last.get_isd_ad()
+                elif seg_type == PST.UP:
+                    self._handle_up_seg(pcb, first, last)
+                    src_isd, src_ad = first.get_isd_ad()
+                    dst_isd, dst_ad = last.get_isd_ad()
+                elif seg_type == PST.DOWN:
+                    self._handle_down_seg(pcb, first, last)
+                    src_isd, src_ad = self.addr.get_isd_ad()
+                    dst_isd, dst_ad = last.get_isd_ad()
+                elif seg_type == PST.CORE:
+                    self._handle_core_seg(pcb, first, last)
+                    src_isd, src_ad = last.get_isd_ad()
+                    dst_isd, dst_ad = first.get_isd_ad()
+                else:
+                    logging.warning(
+                        "Incorrect path in Path Record. Type: %s PCB: %s",
+                        seg_type, pcb.short_desc())
+                key = (seg_type, src_isd, src_ad, dst_isd, dst_ad)
+                self.requests.put((key, None))
 
     def _handle_up_seg(self, pcb, first, last):
         if self.addr.get_isd_ad() != (last.isd_id, last.ad_id):

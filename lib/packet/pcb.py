@@ -118,6 +118,9 @@ class PCBMarking(MarkingBase):
         inst.ig_rev_token = ig_rev_token or bytes(REV_TOKEN_LEN)
         return inst
 
+    def get_isd_ad(self):  # pragma: no cover
+        return ISD_AD(self.isd_id, self.ad_id)
+
     def pack(self):
         packed = []
         packed.append(ISD_AD(self.isd_id, self.ad_id).pack())

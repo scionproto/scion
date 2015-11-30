@@ -1108,7 +1108,7 @@ class CoreBeaconServer(BeaconServer):
         except SCIONServiceLookupError:
             # If there are no local path servers, stop here.
             return
-        records = PathRecordsReg.from_values(info, [pcb])
+        records = PathRecordsReg.from_values({info.seg_type: [pcb]})
         pkt = self._build_packet(ps_addr, payload=records)
         self.send(pkt, ps_addr)
 
@@ -1276,11 +1276,8 @@ class LocalBeaconServer(BeaconServer):
         :raises:
             SCIONServiceLookupError: path server lookup failure
         """
-        info = PathSegmentInfo.from_values(
-            PST.UP, self.topology.isd_id, pcb.get_first_pcbm().ad_id,
-            self.topology.isd_id, self.topology.ad_id)
         ps_host = self.dns_query_topo(PATH_SERVICE)[0]
-        records = PathRecordsReg.from_values(info, [pcb])
+        records = PathRecordsReg.from_values({PST.UP: [pcb]})
         pkt = self._build_packet(ps_host, payload=records)
         self.send(pkt, ps_host)
 
@@ -1288,11 +1285,8 @@ class LocalBeaconServer(BeaconServer):
         """
         Send down-segment to Core Path Server
         """
-        info = PathSegmentInfo.from_values(
-            PST.DOWN, self.topology.isd_id, pcb.get_first_pcbm().ad_id,
-            self.topology.isd_id, self.topology.ad_id)
         core_path = pcb.get_path(reverse_direction=True)
-        records = PathRecordsReg.from_values(info, [pcb])
+        records = PathRecordsReg.from_values({PST.DOWN: [pcb]})
         pkt = self._build_packet(
             PT.PATH_MGMT, dst_isd=pcb.get_isd(),
             dst_ad=pcb.get_first_pcbm().ad_id, path=core_path, payload=records)
