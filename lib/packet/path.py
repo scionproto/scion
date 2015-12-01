@@ -20,6 +20,7 @@ import copy
 from abc import ABCMeta, abstractmethod
 
 # SCION
+from lib.defines import SCION_MIN_MTU
 from lib.errors import SCIONParseError
 from lib.packet.opaque_field import (
     HopOpaqueField,
@@ -28,6 +29,7 @@ from lib.packet.opaque_field import (
     OpaqueFieldList,
 )
 from lib.packet.packet_base import HeaderBase
+from lib.packet.pcb_ext.mtu import MtuPcbExt
 from lib.packet.scion_addr import ISD_AD
 from lib.types import OpaqueFieldType as OFT
 from lib.util import Raw
@@ -63,6 +65,7 @@ class PathBase(HeaderBase, metaclass=ABCMeta):
         self._hof_idx = None
         self._ofs = OpaqueFieldList(self.OF_ORDER)
         self.interfaces = []
+        self.mtu = 0
         if raw is not None:
             self._parse(raw)
 
@@ -725,6 +728,21 @@ class EmptyPath(PathBase):  # pragma: no cover
         return "<Empty-Path></Empty-Path>"
 
 
+def valid_mtu(mtu):
+    """
+    Check validity of mtu value
+    We assume any SCION AD supports at least the IPv6 min MTU
+    """
+    return mtu and mtu >= SCION_MIN_MTU
+
+
+def min_mtu(*candidates):
+    """
+    Return minimum of n mtu values, checking for validity
+    """
+    return min(filter(valid_mtu, candidates), default=0)
+
+
 class PathCombinator(object):
     """
     Class that contains functions required to build end-to-end SCION paths.
@@ -824,11 +842,13 @@ class PathCombinator(object):
         if not cls._check_connected(up_segment, core_segment, down_segment):
             return None
 
-        up_iof, up_hofs = cls._copy_segment(up_segment, [-1])
-        core_iof, core_hofs = cls._copy_segment(core_segment, [-1, 0])
-        down_iof, down_hofs = cls._copy_segment(down_segment, [0], up=False)
+        up_iof, up_hofs, up_mtu = cls._copy_segment(up_segment, [-1])
+        core_iof, core_hofs, core_mtu = cls._copy_segment(core_segment, [-1, 0])
+        down_iof, down_hofs, down_mtu = cls._copy_segment(
+            down_segment, [0], up=False)
         path = CorePath.from_values(up_iof, up_hofs, core_iof, core_hofs,
                                     down_iof, down_hofs)
+        path.mtu = min_mtu(up_mtu, core_mtu, down_mtu)
         up_core = list(reversed(up_segment.ads))
         if core_segment:
             up_core = up_core + list(reversed(core_segment.ads))
@@ -865,13 +885,13 @@ class PathCombinator(object):
         :rtype: tuple
         """
         if not segment:
-            return None, None
+            return None, None, None
         iof = copy.deepcopy(segment.iof)
         iof.up_flag = up
-        hofs = cls._copy_hofs(segment.ads, reverse=up)
+        hofs, mtu = cls._copy_hofs(segment.ads, reverse=up)
         for xovr in xovrs:
             hofs[xovr].info = OFT.XOVR_POINT
-        return iof, hofs
+        return iof, hofs, mtu
 
     @classmethod
     def _get_xovr_peer(cls, up_segment, down_segment):
@@ -926,9 +946,9 @@ class PathCombinator(object):
         """
         (up_index, down_index) = point
 
-        up_iof, up_hofs, up_upstream_hof = \
+        up_iof, up_hofs, up_upstream_hof, up_mtu = \
             cls._copy_segment_shortcut(up_segment, up_index)
-        down_iof, down_hofs, down_upstream_hof = \
+        down_iof, down_hofs, down_upstream_hof, down_mtu = \
             cls._copy_segment_shortcut(down_segment, down_index, up=False)
 
         up_peering_hof = None
@@ -977,6 +997,7 @@ class PathCombinator(object):
                 path.interfaces.append((isd_ad, ingress))
             if egress:
                 path.interfaces.append((isd_ad, egress))
+        path.mtu = min_mtu(up_mtu, down_mtu)
         return path
 
     @classmethod
@@ -1018,11 +1039,15 @@ class PathCombinator(object):
             List of copied :any:`HopOpaqueField`\s.
         """
         hofs = []
+        mtu = None
         for block in ads:
+            for ext in block.ext:
+                if ext.EXT_TYPE == MtuPcbExt.EXT_TYPE:
+                    mtu = min_mtu(mtu, ext.mtu)
             hofs.append(copy.deepcopy(block.pcbm.hof))
         if reverse:
             hofs.reverse()
-        return hofs
+        return hofs, mtu
 
     @classmethod
     def _copy_segment_shortcut(cls, segment, index, up=True):
@@ -1046,13 +1071,13 @@ class PathCombinator(object):
         iof.up_flag = up
         # Copy segment HOFs
         ads = segment.ads[index:]
-        hofs = cls._copy_hofs(ads, reverse=up)
+        hofs, mtu = cls._copy_hofs(ads, reverse=up)
         xovr_idx = -1 if up else 0
         hofs[xovr_idx].info = OFT.XOVR_POINT
         # Extract upstream HOF
         upstream_hof = copy.deepcopy(segment.ads[index - 1].pcbm.hof)
         upstream_hof.info = OFT.NORMAL_OF
-        return iof, hofs, upstream_hof
+        return iof, hofs, upstream_hof, mtu
 
     @classmethod
     def _join_shortcuts_peer(cls, up_ad, down_ad):

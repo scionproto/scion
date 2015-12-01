@@ -51,7 +51,7 @@ protected:
     HostAddr        mFirstHop;
     std::vector<SCIONInterface> mInterfaces;
 
-    int             mMTU;
+    uint16_t        mMTU;
     bool            mUp;
 
     bool            mUsed;
