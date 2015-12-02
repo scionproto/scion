@@ -51,9 +51,21 @@ class TestISDADPack(object):
     Unit tests for lib.packet.scion_addr.ISD_AD.pack
     """
     def test(self):
+        inst = ISD_AD(0, 0)
+        inst.int = create_mock()
+        inst.int.return_value = 0x12345678
+        # Call
+        ntools.eq_(inst.pack(), bytes.fromhex("12345678"))
+
+
+class TestISDADInt(object):
+    """
+    Unit tests for lib.packet.scion_addr.ISD_AD.int
+    """
+    def test(self):
         inst = ISD_AD(0x111, 0x22222)
         # Call
-        ntools.eq_(inst.pack(), bytes.fromhex("11122222"))
+        ntools.eq_(inst.int(), 0x11122222)
 
 
 class TestSCIONAddrInit(object):
