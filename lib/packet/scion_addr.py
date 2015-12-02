@@ -63,9 +63,15 @@ class ISD_AD(namedtuple('ISD_AD', 'isd ad')):
             (remaining 20 bits).
         :rtype: bytes
         """
+        return struct.pack("!I", self.int())
+
+    def int(self):
+        """
+        Return an integer representation of the isd/ad tuple.
+        """
         isd = self.isd << 20
         ad = self.ad & 0x000fffff
-        return struct.pack("!I", isd + ad)
+        return isd + ad
 
     def __len__(self):  # pragma: no cover
         return self.LEN
