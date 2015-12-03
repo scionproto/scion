@@ -28,6 +28,8 @@ typedef struct {
     int ackedPackets[MAX_TOTAL_PATHS];
     int rtts[MAX_TOTAL_PATHS];
     double lossRates[MAX_TOTAL_PATHS];
+    int ifCounts[MAX_TOTAL_PATHS];
+    SCIONInterface *ifLists[MAX_TOTAL_PATHS];
     uint64_t highestReceived;
     uint64_t highestAcked;
 } SCIONStats;
@@ -104,6 +106,7 @@ typedef struct {
     uint8_t headerLen;
     uint32_t offset;
     uint8_t flags;
+    uint8_t mark;
 } SSPHeader;
 
 typedef struct {
@@ -112,6 +115,8 @@ typedef struct {
     int32_t H;
     int32_t O;
     uint32_t V;
+    uint8_t mark;
+    bool full;
 } SSPAck;
 
 #pragma pack(pop)
@@ -137,6 +142,7 @@ typedef struct {
     uint32_t offset;
     uint8_t *data;
     uint32_t len;
+    uint8_t mark;
     int windowSize;
     int interfaceCount;
     uint8_t *interfaces;

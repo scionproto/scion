@@ -53,7 +53,7 @@ int main(int argc, char **argv)
     headers = curl_slist_append(headers, "Content-Type: application/json");
     headers = curl_slist_append(headers, "charsets: utf-8");
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-    SCIONStats stats;
+    SCIONStats *stats;
     memset(&stats, 0, sizeof(stats));
     while (1) {
         sprintf(buf, "This is message %d\n", count);
@@ -63,7 +63,7 @@ int main(int argc, char **argv)
         if (us > 1000000) {
             count++;
             start = end;
-            s.getStats(&stats);
+            stats = s.getStats();
             sprintf(curldata, "{\
                     \"packets\":{\
                     \"red\":[{\"time\":%d,\"value\":%.1f}],\
@@ -81,18 +81,19 @@ int main(int argc, char **argv)
                     \"yellow\":[{\"time\":%d,\"value\":%.1f}]\
                     }\
                     }",
-                    count, stats.sentPackets[0] / 1000.0,
-                    count, stats.sentPackets[1] / 1000.0,
-                    count, stats.sentPackets[2] / 1000.0,
-                    count, (double)stats.rtts[0] / 1000,
-                    count, (double)stats.rtts[1] / 1000,
-                    count, (double)stats.rtts[2] / 1000,
-                    count, stats.lossRates[0] * 100,
-                    count, stats.lossRates[1] * 100,
-                    count, stats.lossRates[2] * 100);
+                    count, stats->sentPackets[0] / 1000.0,
+                    count, stats->sentPackets[1] / 1000.0,
+                    count, stats->sentPackets[2] / 1000.0,
+                    count, (double)stats->rtts[0] / 1000,
+                    count, (double)stats->rtts[1] / 1000,
+                    count, (double)stats->rtts[2] / 1000,
+                    count, stats->lossRates[0] * 100,
+                    count, stats->lossRates[1] * 100,
+                    count, stats->lossRates[2] * 100);
             curl_easy_setopt(curl, CURLOPT_URL, "http://192.33.93.167:8000/metrics");
             curl_easy_setopt(curl, CURLOPT_POSTFIELDS, curldata);
             curl_easy_perform(curl);
+            destroyStats(stats);
         }
     }
     exit(0);

@@ -7,6 +7,7 @@
 #include "DataStructures.h"
 #include "ConnectionManager.h"
 #include "RingBuffer.h"
+#include "OrderedList.h"
 
 class SCIONProtocol {
 public:
@@ -108,8 +109,8 @@ protected:
     uint32_t               mTotalReceived;
     uint64_t                mNextPacket;
 private:
-    std::list<SDAMPPacket *> mReadyPackets;
-    std::list<SDAMPPacket *> mOOPackets;
+    OrderedList<SDAMPPacket *> *mReadyPackets;
+    OrderedList<SDAMPPacket *> *mOOPackets;
 };
 
 class SSPProtocol : public SDAMPProtocol {
@@ -127,16 +128,14 @@ public:
 
     SCIONPacket * createPacket(uint8_t *buf, size_t len);
 
-    void getStats(SCIONStats *stats);
-
 protected:
     void handleProbe(SSPInPacket *packet, int pathIndex);
     void handleData(SSPInPacket *packet, int pathIndex);
-    void sendAck(SSPInPacket *sip, int pathIndex);
+    void sendAck(SSPInPacket *sip, int pathIndex, bool full=false);
 
     uint64_t mNextOffset;
     RingBuffer *mReceiveBuffer;
-    std::list<SSPInPacket *> mOOPackets;
+    OrderedList<SSPInPacket *> *mOOPackets;
 };
 
 class SUDPProtocol : public SCIONProtocol {

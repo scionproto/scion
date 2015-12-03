@@ -65,9 +65,8 @@ int main()
         long us = end.tv_usec - period.tv_usec + (end.tv_sec - period.tv_sec) * 1000000;
         if (us > 1000000) {
             count++;
-            SCIONStats stats;
-            memset(&stats, 0, sizeof(stats));
-            newSocket.getStats(&stats);
+            SCIONStats *stats;
+            stats = newSocket.getStats();
             printf("%d bytes: %f Mbps\n", size, (double)size / us * 1000000 / 1024 / 1024 * 8);
             sprintf(curldata, "{\
                     \"throughput\":{\"black\": [{\"time\":%d,\"value\":%.2f}]}\
@@ -78,6 +77,7 @@ int main()
             curl_easy_perform(curl);
             period = end;
             size = 0;
+            destroyStats(stats);
         }
     }
     exit(0);

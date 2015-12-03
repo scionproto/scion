@@ -303,8 +303,12 @@ int SCIONSocket::getDispatcherSocket()
     return mDispatcherSocket;
 }
 
-void SCIONSocket::getStats(SCIONStats *stats)
+SCIONStats * SCIONSocket::getStats()
 {
-    if (mProtocol)
+    if (mProtocol) {
+        SCIONStats *stats = (SCIONStats *)malloc(sizeof(SCIONStats));
         mProtocol->getStats(stats);
+        return stats;
+    }
+    return NULL;
 }

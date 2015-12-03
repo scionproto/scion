@@ -27,6 +27,7 @@
 #define SSP_NEW_PATH 0x2
 #define SSP_PROBE 0x4
 #define SSP_WINDOW 0x8
+#define SSP_FULL 0x10
 
 // SUDP protocol
 
