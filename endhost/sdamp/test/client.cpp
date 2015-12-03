@@ -29,6 +29,7 @@ int main(int argc, char **argv)
     SCIONSocket s(SCION_PROTO_SSP, addrs, 1, 0, 8080);
     int count = 0;
     char buf[BUFSIZE];
+    memset(buf, 0, BUFSIZE);
     while (1) {
         count++;
         sprintf(buf, "This is message %d\n", count);

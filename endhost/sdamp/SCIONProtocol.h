@@ -83,6 +83,9 @@ protected:
     void handleData(SCIONPacket *packet);
     void sendAck(SCIONPacket *packet);
 
+    virtual bool isFirstPacket();
+    virtual void didRead(L4Packet *packet);
+
     // path manager
     SDAMPConnectionManager *mConnectionManager;
 
@@ -100,7 +103,6 @@ protected:
     int                    mAckVectorOffset;
 
     // sending packets
-    uint64_t               mNextSendByte;
     uint64_t               mLastPacketNum;
     PacketList             mSentPackets;
     pthread_mutex_t        mPacketMutex;
@@ -108,9 +110,8 @@ protected:
     // recv'ing packets
     uint32_t               mTotalReceived;
     uint64_t                mNextPacket;
-private:
-    OrderedList<SDAMPPacket *> *mReadyPackets;
-    OrderedList<SDAMPPacket *> *mOOPackets;
+    OrderedList<L4Packet *> *mReadyPackets;
+    OrderedList<L4Packet *> *mOOPackets;
 };
 
 class SSPProtocol : public SDAMPProtocol {
@@ -120,22 +121,20 @@ public:
 
     void createManager(std::vector<SCIONAddr> &dstAddrs);
 
-    int send(uint8_t *buf, size_t len, DataProfile profile);
-    int recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr);
-
     int handlePacket(SCIONPacket *packet, uint8_t *buf);
     void handleTimerEvent();
 
     SCIONPacket * createPacket(uint8_t *buf, size_t len);
 
 protected:
-    void handleProbe(SSPInPacket *packet, int pathIndex);
-    void handleData(SSPInPacket *packet, int pathIndex);
-    void sendAck(SSPInPacket *sip, int pathIndex, bool full=false);
+    void handleProbe(SSPPacket *packet, int pathIndex);
+    void handleData(SSPPacket *packet, int pathIndex);
+    void sendAck(SSPPacket *sip, int pathIndex, bool full=false);
 
-    uint64_t mNextOffset;
-    RingBuffer *mReceiveBuffer;
-    OrderedList<SSPInPacket *> *mOOPackets;
+    virtual bool isFirstPacket();
+    virtual void didRead(L4Packet *packet);
+
+    uint64_t mNextSendByte;
 };
 
 class SUDPProtocol : public SCIONProtocol {

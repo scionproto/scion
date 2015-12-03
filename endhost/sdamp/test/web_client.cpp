@@ -38,6 +38,7 @@ int main(int argc, char **argv)
     int count = 0;
     char curldata[1024];
     char buf[BUFSIZE];
+    memset(buf, 0, BUFSIZE);
     struct timeval start, end;
     gettimeofday(&start, NULL);
     CURL *curl;

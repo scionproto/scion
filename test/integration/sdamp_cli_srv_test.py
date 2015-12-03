@@ -104,6 +104,14 @@ def client():
     # firstly, act as a sender
     _run_send_protocol(client_sock)
 
+    # sanity check on getStats function
+    stats = client_sock.getStats()
+    if stats:
+        logging.info("interfaces for path 0:")
+        for i in range(stats.ifCounts[0]):
+            ifinfo = stats.ifLists[0][i]
+            logging.info("(%d, %d)%d", ifinfo.isd, ifinfo.ad, ifinfo.interface)
+
     logging.info("Client starts the receive protocol.")
     # secondly, act as a receiver
     _run_receive_protocol(client_sock)

@@ -3,17 +3,18 @@
 #include "SCIONSocket.h"
 #include "SHA1.h"
 
-#define BUFSIZE 1024
+#define BUFSIZE (1024 * 200)
 
 int main()
 {
-    SCIONSocket s(SCION_PROTO_SDAMP, NULL, 0, 8080, 0);
+    SCIONSocket s(SCION_PROTO_SSP, NULL, 0, 8080, 0);
     SCIONSocket &newSocket = s.accept();
     printf("got new socket\n");
     char buf[BUFSIZE];
     uint8_t recvdhash[20];
     memset(recvdhash, 0, 20);
-    newSocket.recv((uint8_t *)recvdhash, 20, NULL);
+    int ret = newSocket.recv((uint8_t *)recvdhash, 20, NULL);
+    printf("recvd %d bytes\n", ret);
     FILE *fp = fopen("recvdfile", "wb");
     int size = 0;
     struct timeval start, end;
@@ -28,7 +29,7 @@ int main()
         printf("%d bytes: %f bps\n", size, (double)size / us * 1000000);
     }
     printf("received total %d bytes\n", size);
-    newSocket.send((uint8_t *)buf, BUFSIZE);
+    newSocket.send((uint8_t *)buf, 1);
     fclose(fp);
 
     CSHA1 sha;
@@ -36,6 +37,14 @@ int main()
     sha.Final();
     uint8_t hash[20];
     sha.GetHash(hash);
+    printf("received hash: ");
+    for (int i = 0; i < 20; i++)
+        printf("%x", recvdhash[i]);
+    printf("\n");
+    printf("computed hash: ");
+    for (int i = 0; i < 20; i++)
+        printf("%x", hash[i]);
+    printf("\n");
 
     bool success = true;
     for (int i = 0; i < 20; i++) {

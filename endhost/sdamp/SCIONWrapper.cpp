@@ -86,7 +86,7 @@ int SCIONRecv(int sock, uint8_t *buf, size_t len,
     return e->sock->recv(buf, len, srcAddr);
 }
 
-void * SCIONGetStats(int sock)
+SCIONStats * SCIONGetStats(int sock)
 {
     SocketEntry *e = findSocket(sock);
     if (!e)

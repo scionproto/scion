@@ -18,15 +18,18 @@
 """
 
 # Stdlib
+import copy
 import ipaddress
 import logging
 import os
-from ctypes import byref, CDLL, c_int, c_short, c_ubyte, c_uint, Structure
+from ctypes import (byref, CDLL, c_bool, c_double, c_int, c_short, c_ubyte,
+                    c_uint, c_ulong, c_ushort, POINTER, Structure)
 
 # SCION
 from lib.packet.scion_addr import ISD_AD
 
 ByteArray16 = c_ubyte * 16
+MAX_PATHS = 10
 
 
 class C_HostAddr(Structure):
@@ -38,6 +41,56 @@ class C_HostAddr(Structure):
 class C_SCIONAddr(Structure):
     _fields_ = [("isd_ad", c_uint),
                 ("host", C_HostAddr)]
+
+
+class C_SCIONInterface(Structure):
+    _fields_ = [("ad", c_uint),
+                ("isd", c_ushort),
+                ("interface", c_ushort)]
+
+
+class C_SCIONStats(Structure):
+    _fields_ = [("exists", c_bool * MAX_PATHS),
+                ("receivedPackets", c_int * MAX_PATHS),
+                ("sentPackets", c_int * MAX_PATHS),
+                ("ackedPackets", c_int * MAX_PATHS),
+                ("rtts", c_int * MAX_PATHS),
+                ("lossRates", c_double * MAX_PATHS),
+                ("ifCounts", c_int * MAX_PATHS),
+                ("ifLists", POINTER(C_SCIONInterface) * MAX_PATHS),
+                ("highestReceived", c_ulong),
+                ("highestAcked", c_ulong)]
+
+
+class ScionStats(object):
+    """
+    Python class containing SCION socket traffic data
+    """
+
+    def __init__(self, stats):
+        """
+        Python representation of SCION traffic info struct obtained from
+        getStats() call. Allows Python wrapper user to not worry about
+        dereferencing pointers or freeing memory.
+        :param stats: Struct returned by ScionBaseSocket.getStats()
+        :type: C_SCIONStats
+        """
+        self.exists = list(stats.exists)
+        self.receivedPackets = list(stats.receivedPackets)
+        self.sentPackets = list(stats.sentPackets)
+        self.ackedPackets = list(stats.ackedPackets)
+        self.rtts = list(stats.rtts)
+        self.lossRates = list(stats.lossRates)
+        self.ifCounts = list(stats.ifCounts)
+        self.ifLists = []
+        for i in range(MAX_PATHS):
+            iflist = []
+            if self.ifCounts[i]:
+                for j in range(self.ifCounts[i]):
+                    iflist.append(copy.deepcopy(stats.ifLists[i][j]))
+            self.ifLists.append(iflist)
+        self.highestReceived = copy.deepcopy(stats.highestReceived)
+        self.highestAcked = copy.deepcopy(stats.highestAcked)
 
 
 SHARED_LIB_LOCATION = os.path.join("endhost", "sdamp")
@@ -108,6 +161,21 @@ class ScionBaseSocket(object):
         :rtype: int
         """
         return self.fd
+
+    def getStats(self):
+        """
+        Allocates and returns structure containing information about socket
+        traffic.
+        :returns: Python class containing socket traffic data
+        :rtype: ScionStats
+        """
+        self.libsock.SCIONGetStats.restype = POINTER(C_SCIONStats)
+        raw_stats = self.libsock.SCIONGetStats(self.fd)
+        if not raw_stats:
+            return None
+        py_stats = ScionStats(raw_stats.contents)
+        self.libsock.SCIONDestroyStats(raw_stats)
+        return py_stats
 
 
 class ScionServerSocket(ScionBaseSocket):

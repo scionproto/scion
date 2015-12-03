@@ -23,6 +23,13 @@ int compareDeadline(void *p1, void *p2)
 
 int comparePacketNum(void *p1, void *p2)
 {
+    L4Packet *sp1 = (L4Packet *)p1;
+    L4Packet *sp2 = (L4Packet *)p2;
+    return sp1->number() - sp2->number();
+}
+
+int comparePacketNumNested(void *p1, void *p2)
+{
     SCIONPacket *s1 = (SCIONPacket *)p1;
     SCIONPacket *s2 = (SCIONPacket *)p2;
     SDAMPPacket *sp1 = (SDAMPPacket *)(s1->payload);
@@ -33,18 +40,21 @@ int comparePacketNum(void *p1, void *p2)
 
 int compareOffset(void *p1, void *p2)
 {
-    SSPInPacket *sp1 = (SSPInPacket *)p1;
-    SSPInPacket *sp2 = (SSPInPacket *)p2;
-    return sp1->offset - sp2->offset;
+    SSPPacket *sp1 = (SSPPacket *)p1;
+    SSPPacket *sp2 = (SSPPacket *)p2;
+    if (sp1->header.offset < sp2->header.offset &&
+            sp2->header.offset < sp1->header.offset + sp1->len)
+        return 0;
+    return sp1->header.offset - sp2->header.offset;
 }
 
 int compareOffsetNested(void *p1, void *p2)
 {
     SCIONPacket *s1 = (SCIONPacket *)p1;
     SCIONPacket *s2 = (SCIONPacket *)p2;
-    SSPOutPacket *sp1 = (SSPOutPacket *)(s1->payload);
-    SSPOutPacket *sp2 = (SSPOutPacket *)(s2->payload);
-    return ntohl(sp1->header.offset) - ntohl(sp2->header.offset);
+    SSPPacket *sp1 = (SSPPacket *)(s1->payload);
+    SSPPacket *sp2 = (SSPPacket *)(s2->payload);
+    return be64toh(sp1->header.offset) - be64toh(sp2->header.offset);
 }
 
 void destroySCIONPacket(void *p)
@@ -58,48 +68,28 @@ void destroySCIONPacket(void *p)
 void destroySDAMPPacket(void *p)
 {
     SDAMPPacket *packet = (SDAMPPacket *)p;
-    if (packet->interfaces)
-        free(packet->interfaces);
-    if (packet->payload)
-        free(packet->payload);
-    free(packet);
+    delete packet;
 }
 
 void destroySDAMPPacketFull(void *p)
 {
     SCIONPacket *packet = (SCIONPacket *)p;
     SDAMPPacket *sp = (SDAMPPacket *)(packet->payload);
-    if (sp->interfaces)
-        free(sp->interfaces);
-    if (sp->payload)
-        free(sp->payload);
-    free(sp);
+    delete sp;
     destroySCIONPacket(p);
 }
 
-void destroySSPInPacket(void *p)
+void destroySSPPacket(void *p)
 {
-    SSPInPacket *packet = (SSPInPacket *)p;
-    if (packet->data)
-        free(packet->data);
-    free(packet);
+    SSPPacket *packet = (SSPPacket *)p;
+    delete packet;
 }
 
-void destroySSPOutPacket(void *p)
-{
-    SSPOutPacket *packet = (SSPOutPacket *)p;
-    if (packet->data)
-        free(packet->data);
-    free(packet);
-}
-
-void destroySSPOutPacketFull(void *p)
+void destroySSPPacketFull(void *p)
 {
     SCIONPacket *packet = (SCIONPacket *)p;
-    SSPOutPacket *sp = (SSPOutPacket *)(packet->payload);
-    if (sp->data)
-        free(sp->data);
-    free(sp);
+    SSPPacket *sp = (SSPPacket *)(packet->payload);
+    delete sp;
     destroySCIONPacket(p);
 }
 

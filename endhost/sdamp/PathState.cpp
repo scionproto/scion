@@ -687,7 +687,7 @@ void CUBICPathState::addRTTSample(int rtt, uint64_t packetNum)
     }
 
     mWindow = mCongestionWindow < mSendWindow ? mCongestionWindow : mSendWindow;
-    DEBUG("path %d: ack received: window set to %d (%d/%d)\n", mPathIndex, mWindow, mCongestionWindow, mSendWindow);
+    DEBUG("path %d: ack received: window set to %d (%d|%d)\n", mPathIndex, mWindow, mCongestionWindow, mSendWindow);
 }
 
 void CUBICPathState::addRetransmit()
