@@ -44,7 +44,13 @@ class SCMPHeader(HeaderBase):
     """
 
     def __init__(self, raw=None):
-        pass
+        super().__init__()
+        self.type = None
+        self.code = None
+        self.checksum = None
+        self.rest = None
+        if raw is not None:
+            self._parse(raw)
 
     def _parse(self, raw):
         pass
