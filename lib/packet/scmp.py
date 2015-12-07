@@ -20,3 +20,18 @@
 # External
 
 # SCION
+
+
+class SCMPType(object):
+    """
+    SCMP types.
+
+    This class contains a list of constants representing the current SCMP
+    types. The set of types is loosely based on the ICMP types. At the moment
+    only the currently-supported types are included.
+    """
+
+    ECHO_REPLY = 0
+    # TODO: Add support for following constants in the near future
+    #DEST_UNREACHABLE = 1
+    #INVALID_PATH = 2
