@@ -20,6 +20,7 @@
 # External
 
 # SCION
+from lib.packet.packet_base import HeaderBase, PacketBase
 
 
 class SCMPType(object):
@@ -35,3 +36,51 @@ class SCMPType(object):
     # TODO: Add support for following constants in the near future
     #DEST_UNREACHABLE = 1
     #INVALID_PATH = 2
+
+
+class SCMPHeader(HeaderBase):
+    """
+    Packet header for SCMP messages.
+    """
+
+    def __init__(self, raw=None):
+        pass
+
+    def _parse(self, raw):
+        pass
+
+    def from_values(self, *args, **kwargs):
+        pass
+
+    def pack(self):
+        pass
+
+    def __len__(self):
+        pass
+
+    def __str__(self):
+        pass
+
+
+class SCMPPacket(PacketBase):
+    """
+    Packet format for SCMP messages.
+    """
+
+    def __init__(self, raw=None):
+        pass
+
+    def _parse(self, raw):
+        pass
+
+    def from_values(self, *args, **kwargs):
+        pass
+
+    def pack(self):
+        pass
+
+    def __len__(self):
+        pass
+
+    def __str__(self):
+        pass
