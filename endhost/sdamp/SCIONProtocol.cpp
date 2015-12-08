@@ -18,19 +18,9 @@
 #include "SCIONProtocol.h"
 #include "Utils.h"
 
-void * SUDPTimerThread(void *arg)
+void * timerThread(void *arg)
 {
-    SUDPProtocol *p = (SUDPProtocol *)arg;
-    while (p->isRunning()) {
-        usleep(SCION_TIMER_INTERVAL);
-        p->handleTimerEvent();
-    }
-    return NULL;
-}
-
-void * SDAMPTimerThread(void *arg)
-{
-    SDAMPProtocol *p = (SDAMPProtocol *)arg;
+    SCIONProtocol *p = (SCIONProtocol *)arg;
     while (p->isRunning()) {
         usleep(SCION_TIMER_INTERVAL);
         p->handleTimerEvent();
@@ -47,7 +37,6 @@ SCIONProtocol::SCIONProtocol(std::vector<SCIONAddr> &dstAddrs, short srcPort, sh
     mDstAddrs(dstAddrs),
     mProbeNum(0)
 {
-
     gettimeofday(&mLastProbeTime, NULL);
     mSocket = socket(AF_INET, SOCK_DGRAM, 0);
     pthread_mutex_init(&mReadMutex, NULL);
@@ -147,15 +136,14 @@ SDAMPProtocol::SDAMPProtocol(std::vector<SCIONAddr> &dstAddrs, short srcPort, sh
     mLowestPending(0),
     mHighestReceived(0),
     mAckVectorOffset(0),
-    mNextSendByte(0),
     mLastPacketNum(0),
     mTotalReceived(0),
     mNextPacket(0)
 {
     mProtocolID = SCION_PROTO_SDAMP;
     mProbeInterval = SDAMP_PROBE_INTERVAL;
-    mReadyPackets = new OrderedList<SDAMPPacket *>(NULL, destroySDAMPPacket);
-    mOOPackets = new OrderedList<SDAMPPacket *>(comparePacketNum, destroySDAMPPacket);
+    mReadyPackets = new OrderedList<L4Packet *>(NULL, destroySDAMPPacket);
+    mOOPackets = new OrderedList<L4Packet *>(comparePacketNum, destroySDAMPPacket);
 
     if (dstAddrs.size() > 0) {
         while (mFlowID == 0)
@@ -183,23 +171,35 @@ SDAMPProtocol::~SDAMPProtocol()
     pthread_mutex_destroy(&mPacketMutex);
 }
 
+bool SDAMPProtocol::isFirstPacket()
+{
+    return mLastPacketNum == 0;
+}
+
+void SDAMPProtocol::didRead(L4Packet *packet)
+{
+    mNextPacket++;
+    mTotalReceived -= sizeof(SDAMPPacket) + packet->len;
+    DEBUG("%u bytes in receive buffer\n", mTotalReceived);
+    destroySDAMPPacket((SDAMPPacket *)packet);
+}
+
 int SDAMPProtocol::send(uint8_t *buf, size_t len, DataProfile profile)
 {
     uint8_t *ptr = buf;
     size_t totalLen = len;
     size_t packetMax = mConnectionManager->maxPayloadSize();
+    bool sendAll = isFirstPacket();
     while (len > 0) {
         size_t packetLen = packetMax > len ? len : packetMax;
         len -= packetLen;
         mConnectionManager->waitForSendBuffer(packetLen, mLocalSendWindow);
         SCIONPacket *packet = createPacket(ptr, packetLen);
-        SDAMPPacket *sp = (SDAMPPacket *)(packet->payload);
-        if (sp->header.packetNum == 0)
+        if (sendAll)
             mConnectionManager->sendAllPaths(packet);
         else
             mConnectionManager->queuePacket(packet);
         ptr += packetLen;
-        DEBUG("added packet %lu to send queue\n", be64toh(sp->header.packetNum));
     }
     return totalLen;
 }
@@ -218,25 +218,22 @@ int SDAMPProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr)
 
     DEBUG("start recv\n");
     while (!mReadyPackets->empty()) {
-        SDAMPPacket *sp = mReadyPackets->front();
-        uint64_t packetNum = sp->header.packetNum;
-        if (packetNum != mNextPacket) {
+        L4Packet *sp = mReadyPackets->front();
+        if (sp->number() != mNextPacket) {
             DEBUG("missing packet %lu\n", mNextPacket);
             missing = true;
             break;
         }
-        if (sp->size + total > (int)len) {
+        if (sp->len + total > len) {
             DEBUG("not enough buffer space\n");
             break;
         }
-        DEBUG("reading %d bytes from packet %lu\n", sp->size, packetNum);
-        memcpy(ptr, sp->payload, sp->size);
-        ptr += sp->size;
-        total += sp->size;
-        mNextPacket++;
-        mTotalReceived -= sizeof(SDAMPPacket) + sp->size;
+        DEBUG("reading %lu bytes\n", sp->len);
         mReadyPackets->pop();
-        destroySDAMPPacket(sp);
+        memcpy(ptr, sp->data, sp->len);
+        ptr += sp->len;
+        total += sp->len;
+        didRead(sp);
     }
     if (mReadyPackets->empty() || missing) {
         DEBUG("no more data ready\n");
@@ -256,8 +253,8 @@ bool SDAMPProtocol::claimPacket(SCIONPacket *packet, uint8_t *buf)
 void SDAMPProtocol::createManager(std::vector<SCIONAddr> &dstAddrs)
 {
     mConnectionManager = new SDAMPConnectionManager(dstAddrs, mSocket, this);
-    mConnectionManager->startPaths();
-    pthread_create(&mTimerThread, NULL, SDAMPTimerThread, this);
+    mConnectionManager->startScheduler();
+    pthread_create(&mTimerThread, NULL, timerThread, this);
 }
 
 void SDAMPProtocol::start(SCIONPacket *packet, uint8_t *buf, int sock)
@@ -279,12 +276,11 @@ int SDAMPProtocol::handlePacket(SCIONPacket *packet, uint8_t *buf)
 {
     SCIONCommonHeader &sch = packet->header.commonHeader;
     // build SDAMP packet
-    // SDAMP header
     uint8_t *ptr = buf;
-    packet->payload = malloc(sizeof(SDAMPPacket));
-    memset(packet->payload, 0, sizeof(SDAMPPacket));
-    SDAMPPacket *sp = (SDAMPPacket *)packet->payload;
-    memcpy(sp, ptr, sizeof(SDAMPHeader));
+    SDAMPPacket *sp = new SDAMPPacket();
+    packet->payload = sp;
+    // SDAMP header
+    memcpy(&sp->header, ptr, sizeof(SDAMPHeader));
     SDAMPHeader &header = sp->header;
     // deal with endianness
     header.version = ntohl(header.version);
@@ -319,9 +315,9 @@ int SDAMPProtocol::handlePacket(SCIONPacket *packet, uint8_t *buf)
     DEBUG("SDAMP payload %d bytes\n", payloadLen);
 
     if (payloadLen > 0) {
-        sp->payload = (uint8_t *)malloc(payloadLen);
-        sp->size = payloadLen;
-        memcpy(sp->payload, ptr, payloadLen);
+        sp->data = (uint8_t *)malloc(payloadLen);
+        sp->len = payloadLen;
+        memcpy(sp->data, ptr, payloadLen);
     }
 
     // add new path, record congestion info, etc
@@ -338,7 +334,7 @@ int SDAMPProtocol::handlePacket(SCIONPacket *packet, uint8_t *buf)
     }
     if (sp->header.flags & SDAMP_ACK)
         handleAck(packet);
-    if (sp->size == 0) {
+    if (sp->len == 0) {
         destroySDAMPPacket(sp);
         destroySCIONPacket(packet);
     } else {
@@ -354,8 +350,7 @@ SCIONPacket * SDAMPProtocol::createPacket(uint8_t *buf, size_t len)
     memset(p, 0, sizeof(SCIONPacket));
     SCIONCommonHeader &ch = p->header.commonHeader;
     buildCommonHeader(ch, SCION_PROTO_SDAMP);
-    SDAMPPacket *sp = (SDAMPPacket *)malloc(sizeof(SDAMPPacket));
-    memset(sp, 0, sizeof(SDAMPPacket));
+    SDAMPPacket *sp = new SDAMPPacket();
     p->payload = sp;
     p->rto = SCION_DEFAULT_RTO;
     SDAMPHeader &sh = sp->header;
@@ -369,9 +364,9 @@ SCIONPacket * SDAMPProtocol::createPacket(uint8_t *buf, size_t len)
     sh.dstPort = htons(mDstPort);
     sh.flowID = htobe64(mFlowID);
     sh.packetNum = htobe64(mLastPacketNum++);
-    sp->payload = (uint8_t *)malloc(len);
-    memcpy(sp->payload, buf, len);
-    sp->size = len;
+    sp->data = (uint8_t *)malloc(len);
+    memcpy(sp->data, buf, len);
+    sp->len = len;
     pthread_mutex_unlock(&mPacketMutex);
     return p;
 }
@@ -430,7 +425,7 @@ void SDAMPProtocol::handleAck(SCIONPacket *packet)
 {
     SDAMPPacket *sdampPacket = (SDAMPPacket *)(packet->payload);
     if (sdampPacket->header.flags & SDAMP_INIT) {
-        DEBUG("remote host window size: %d\n", sdampPacket->windowSize);
+        DEBUG("remote host window size: %lu\n", sdampPacket->windowSize);
         mRemoteWindow = sdampPacket->windowSize;
         mDstPort = sdampPacket->header.srcPort;
         DEBUG("dst port = %d\n", mDstPort);
@@ -443,8 +438,8 @@ void SDAMPProtocol::handleAck(SCIONPacket *packet)
 void SDAMPProtocol::handleData(SCIONPacket *packet)
 {
     SDAMPPacket *sp = (SDAMPPacket *)(packet->payload);
-    DEBUG("incoming packet %lu with payload of %d bytes\n",
-            sp->header.packetNum, sp->size);
+    DEBUG("incoming packet %lu with payload of %lu bytes\n",
+            sp->header.packetNum, sp->len);
 
     uint64_t packetNum = sp->header.packetNum;
     if (packetNum > mLowestPending + mHighestReceived)
@@ -459,11 +454,11 @@ void SDAMPProtocol::handleData(SCIONPacket *packet)
     }
 
     pthread_mutex_lock(&mReadMutex);
-    int totalSize = sizeof(SDAMPPacket) + sp->size;
+    int totalSize = sizeof(SDAMPPacket) + sp->len;
     if (packetNum == mLowestPending) {
         DEBUG("in-order packet %lu\n", packetNum);
         if (mTotalReceived + totalSize > mLocalReceiveWindow) {
-            DEBUG("receive window too full (%lu/%lu)\n",
+            DEBUG("receive window too full (%u/%u)\n",
                     mTotalReceived, mLocalReceiveWindow);
             pthread_mutex_unlock(&mReadMutex);
             destroySDAMPPacket(sp);
@@ -475,7 +470,7 @@ void SDAMPProtocol::handleData(SCIONPacket *packet)
         mLowestPending++;
         while (!mOOPackets->empty()) {
             DEBUG("check out-of-order packets\n");
-            sp = mOOPackets->front();
+            sp = (SDAMPPacket *)mOOPackets->front();
             DEBUG("packet %lu at head of OOP\n", sp->header.packetNum);
             if (sp->header.packetNum != mLowestPending)
                 break;
@@ -488,7 +483,7 @@ void SDAMPProtocol::handleData(SCIONPacket *packet)
         DEBUG("out-of-order packet %lu (%lu)\n", packetNum, mLowestPending);
         int spare = mConnectionManager->maxPayloadSize() + sizeof(SDAMPPacket);
         if (mTotalReceived + totalSize > mLocalReceiveWindow - spare) {
-            DEBUG("receive window too full (%lu/%lu)\n",
+            DEBUG("receive window too full (%u/%u)\n",
                     mTotalReceived, mLocalReceiveWindow);
             pthread_mutex_unlock(&mReadMutex);
             destroySDAMPPacket(sp);
@@ -530,7 +525,7 @@ void SDAMPProtocol::sendAck(SCIONPacket *packet)
         sh.flags |= SDAMP_INIT;
         sh.headerLen += 4;
         sp.windowSize = htonl(mLocalReceiveWindow);
-        DEBUG("remote host window size: %d\n", sdampPacket->windowSize);
+        DEBUG("remote host window size: %lu\n", sdampPacket->windowSize);
         mRemoteWindow = sdampPacket->windowSize;
         mInitialized = true;
         mDstPort = sdampPacket->header.srcPort;
@@ -541,30 +536,27 @@ void SDAMPProtocol::sendAck(SCIONPacket *packet)
     // ack stuff
     SDAMPAck &sa = sp.ack;
     sa.L = htobe64(mLowestPending);
-    sa.I = htonl(packetNum > mLowestPending ?
-                    packetNum - mLowestPending :
-                    -(mLowestPending - packetNum));
-    if (mHighestReceived > mLowestPending)
-        sa.H = htonl((int)(mHighestReceived - mLowestPending));
-    else
-        sa.H = htonl(-(int)(mLowestPending - mHighestReceived));
+    sa.I = htonl((int)(packetNum - mLowestPending));
+    sa.H = htonl((int)(mHighestReceived - mLowestPending));
     uint32_t ackVector = 0;
     uint64_t start = mLowestPending + mAckVectorOffset;
     DEBUG("start ack vector at %lu\n", start);
-    std::list<SDAMPPacket *>::iterator i;
+    std::list<L4Packet *>::iterator i;
     for (i = mReadyPackets->begin(); i != mReadyPackets->end(); i++) {
-        if ((*i)->header.packetNum > start + 31)
+        SDAMPPacket *si = (SDAMPPacket *)(*i);
+        if (si->header.packetNum > start + 31)
             break;
-        if ((*i)->header.packetNum < start)
+        if (si->header.packetNum < start)
             continue;
-        ackVector |= 1 << ((*i)->header.packetNum - start);
+        ackVector |= 1 << (si->header.packetNum - start);
     }
     for (i = mOOPackets->begin(); i != mOOPackets->end(); i++) {
-        if ((*i)->header.packetNum > start + 31)
+        SDAMPPacket *si = (SDAMPPacket *)(*i);
+        if (si->header.packetNum > start + 31)
             break;
-        if ((*i)->header.packetNum < start)
+        if (si->header.packetNum < start)
             continue;
-        ackVector |= 1 << ((*i)->header.packetNum - start);
+        ackVector |= 1 << (si->header.packetNum - start);
     }
     sa.V = htonl(ackVector);
 
@@ -581,15 +573,16 @@ void SDAMPProtocol::getStats(SCIONStats *stats)
 
 SSPProtocol::SSPProtocol(std::vector<SCIONAddr> &dstAddrs, short srcPort, short dstPort)
     : SDAMPProtocol(dstAddrs, srcPort, dstPort),
-    mNextOffset(0)
+    mNextSendByte(0)
 {
-    mReceiveBuffer = new RingBuffer(mLocalReceiveWindow);
-    mOOPackets = new OrderedList<SSPInPacket *>(compareOffset, destroySSPInPacket);
+    delete mOOPackets;
+    mOOPackets = new OrderedList<L4Packet *>(compareOffset, destroySSPPacket);
 }
 
 SSPProtocol::~SSPProtocol()
 {
-    delete mReceiveBuffer;
+    mReadyPackets->clean();
+    delete mReadyPackets;
     mOOPackets->clean();
     delete mOOPackets;
 }
@@ -597,39 +590,21 @@ SSPProtocol::~SSPProtocol()
 void SSPProtocol::createManager(std::vector<SCIONAddr> &dstAddrs)
 {
     mConnectionManager = new SSPConnectionManager(dstAddrs, mSocket, this);
-    mConnectionManager->startPaths();
-    pthread_create(&mTimerThread, NULL, SDAMPTimerThread, this);
+    mConnectionManager->startScheduler();
+    pthread_create(&mTimerThread, NULL, timerThread, this);
 }
 
-int SSPProtocol::send(uint8_t *buf, size_t len, DataProfile profile)
+bool SSPProtocol::isFirstPacket()
 {
-    DEBUG("queue %lu bytes to send\n", len);
-    bool firstSend = (mNextSendByte == 0);
-    SSPConnectionManager *manager = (SSPConnectionManager *)mConnectionManager;
-    manager->waitForSendBuffer(len, mLocalSendWindow);
-    if (firstSend)
-        manager->sendAllPaths(buf, len);
-    else
-        manager->queueData(buf, len);
-    mNextSendByte += len;
-    return len;
+    return mNextSendByte == 0;
 }
 
-int SSPProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr)
+void SSPProtocol::didRead(L4Packet *packet)
 {
-    DEBUG("wait for recv buffer (%lu)\n", mNextPacket);
-    pthread_mutex_lock(&mReadMutex);
-    while (!mReadyToRead)
-        pthread_cond_wait(&mReadCond, &mReadMutex);
-    DEBUG("ready to recv\n");
-    int total = 0;
-    total = mReceiveBuffer->read(buf, len);
-    mTotalReceived -= total;
-    mNextPacket += total;
-    if (mReceiveBuffer->size() == 0)
-        mReadyToRead = false;
-    pthread_mutex_unlock(&mReadMutex);
-    return total;
+    mNextPacket += packet->len;
+    mTotalReceived -= sizeof(SSPPacket) + packet->len;
+    DEBUG("%u bytes in receive buffer\n", mTotalReceived);
+    destroySSPPacket((SSPPacket *)packet);
 }
 
 int SSPProtocol::handlePacket(SCIONPacket *packet, uint8_t *buf)
@@ -638,46 +613,40 @@ int SSPProtocol::handlePacket(SCIONPacket *packet, uint8_t *buf)
     uint8_t *ptr = buf;
     SCIONCommonHeader &sch = packet->header.commonHeader;
     // Build SSP incoming packet
-    SSPInPacket *sip = (SSPInPacket *)malloc(sizeof(SSPInPacket));
-    memset(sip, 0, sizeof(SSPInPacket));
-    ptr += 10; // skip flowID, port
-    uint8_t headerLen = *ptr;
-    ptr ++;
-    int payloadLen = sch.totalLen - sch.headerLen - headerLen;
+    SSPPacket *sp = new SSPPacket();
+    memcpy(&sp->header, ptr, sizeof(SSPHeader));
+    sp->header.flowID = be64toh(sp->header.flowID);
+    sp->header.port = ntohs(sp->header.port);
+    sp->header.offset = be64toh(sp->header.offset);
+    int payloadLen = sch.totalLen - sch.headerLen - sp->header.headerLen;
     DEBUG("payload len = %d\n", payloadLen);
-    sip->offset = ntohl(*(uint32_t *)ptr);
-    sip->len = payloadLen;
-    ptr += 4;
-    uint8_t flags = *ptr;
-    ptr++;
-    sip->mark = *ptr;
-    ptr++;
-    if (flags & SSP_WINDOW) {
+    sp->len = payloadLen;
+    ptr += sizeof(SSPHeader);
+    if (sp->header.flags & SSP_WINDOW) {
         mRemoteWindow = ntohl(*(uint32_t *)ptr);
         mConnectionManager->setRemoteWindow(mRemoteWindow);
         DEBUG("remote window = %d\n", mRemoteWindow);
         ptr += 4;
     }
-    if (flags & SSP_NEW_PATH) {
-        sip->interfaceCount = *ptr++;
-        DEBUG("%d interfaces in new path\n", sip->interfaceCount);
-        int interfaceLen = SCION_IF_SIZE * sip->interfaceCount;
-        sip->interfaces = (uint8_t *)malloc(interfaceLen);
-        memcpy(sip->interfaces, ptr, interfaceLen);
+    if (sp->header.flags & SSP_NEW_PATH) {
+        sp->interfaceCount = *ptr++;
+        DEBUG("%lu interfaces in new path\n", sp->interfaceCount);
+        int interfaceLen = SCION_IF_SIZE * sp->interfaceCount;
+        sp->interfaces = (uint8_t *)malloc(interfaceLen);
+        memcpy(sp->interfaces, ptr, interfaceLen);
         ptr += interfaceLen;
     }
 
-    packet->payload = sip;
+    packet->payload = sp;
     mConnectionManager->handlePacket(packet);
 
-    if (flags & SSP_ACK) {
+    if (sp->header.flags & SSP_ACK) {
         DEBUG("incoming packet is ACK\n");
-        if (flags & SSP_PROBE) {
-            if (sip->offset == mProbeNum)
+        if (sp->header.flags & SSP_PROBE) {
+            if (sp->header.offset == mProbeNum)
                 mConnectionManager->handleProbeAck(packet);
         } else {
-            SSPAck ack;
-            memset(&ack, 0, sizeof(ack));
+            SSPAck &ack = sp->ack;
             ack.L = be64toh(*(uint64_t *)ptr);
             ptr += 8;
             ack.I = ntohl(*(int32_t *)ptr);
@@ -688,56 +657,53 @@ int SSPProtocol::handlePacket(SCIONPacket *packet, uint8_t *buf)
             ptr += 4;
             ack.V = ntohl(*(uint32_t *)ptr);
             ptr += 4;
-            ack.full = (flags & SSP_FULL);
-            ack.mark = sip->mark;
-            packet->payload = &ack;
             DEBUG("incoming ACK: L = %lu, I = %d, H = %d, O = %d, V = %#x\n",
                     ack.L, ack.I, ack.H, ack.O, ack.V);
             mConnectionManager->handleAck(packet, mInitAckCount, mIsReceiver);
         }
     }
 
-    if (flags & SSP_PROBE && !(flags & SSP_ACK))
-        handleProbe(sip, packet->pathIndex);
+    if (sp->header.flags & SSP_PROBE && !(sp->header.flags & SSP_ACK))
+        handleProbe(sp, packet->pathIndex);
     if (payloadLen > 0) {
-        sip->data = ptr;
-        sip->len = payloadLen;
-        handleData(sip, packet->pathIndex);
+        sp->data = (uint8_t *)malloc(payloadLen);
+        memcpy(sp->data, ptr, payloadLen);
+        sp->len = payloadLen;
+        handleData(sp, packet->pathIndex);
     } else {
-        destroySSPInPacket(sip);
+        destroySSPPacket(sp);
     }
     destroySCIONPacket(packet);
     return 0;
 }
 
-void SSPProtocol::handleProbe(SSPInPacket *packet, int pathIndex)
+void SSPProtocol::handleProbe(SSPPacket *packet, int pathIndex)
 {
     DEBUG("incoming probe\n");
     SCIONPacket p;
     memset(&p, 0, sizeof(p));
     buildCommonHeader(p.header.commonHeader, SCION_PROTO_SSP);
     p.pathIndex = pathIndex;
-    SSPOutPacket sp;
+    SSPPacket sp;
     p.payload = &sp;
-    memset(&sp, 0, sizeof(sp));
-    sp.header.offset = htonl(packet->offset + 1);
+    sp.header.offset = htobe64(packet->header.offset + 1);
     sp.header.flags = SSP_PROBE | SSP_ACK;
     sp.header.flowID = htobe64(mFlowID);
     sp.header.headerLen = sizeof(sp.header);
     mConnectionManager->sendAck(&p);
 }
 
-void SSPProtocol::handleData(SSPInPacket *packet, int pathIndex)
+void SSPProtocol::handleData(SSPPacket *packet, int pathIndex)
 {
-    DEBUG("Incoming SSP packet %lu ~ %lu\n", packet->offset, packet->offset + packet->len);
-    uint32_t start = packet->offset;
+    uint32_t start = packet->header.offset;
     uint32_t end = start + packet->len;
     int len = end - start;
+    DEBUG("Incoming SSP packet %u ~ %u\n", start, end);
     if (end <= mLowestPending) {
         DEBUG("Obsolete packet\n");
         sendAck(packet, pathIndex);
         packet->data = NULL;
-        destroySSPInPacket(packet);
+        destroySSPPacket(packet);
         return;
     }
 
@@ -745,73 +711,87 @@ void SSPProtocol::handleData(SSPInPacket *packet, int pathIndex)
     gettimeofday(&now, NULL);
 
     int maxPayload = mConnectionManager->maxPayloadSize();
-    if (start <= mLowestPending && end > mLowestPending) {
+    int packetSize = len + sizeof(SSPPacket);
+    if (start == mLowestPending) {
         DEBUG("in-order packet\n");
         pthread_mutex_lock(&mReadMutex);
-        if (len + mTotalReceived > mLocalReceiveWindow) {
-            DEBUG("%lu.%06lu: in-order packet %u:\nReceive window too full: %lu/%lu\n",
-                    now.tv_sec, now.tv_usec, packet->offset, mTotalReceived, mLocalReceiveWindow);
-            packet->offset = mHighestReceived;
+        if (packetSize + mTotalReceived > mLocalReceiveWindow) {
+            DEBUG("%lu.%06lu: in-order packet %u: "
+                    "Receive window too full: %u/%u\n",
+                    now.tv_sec, now.tv_usec,
+                    packet->header.offset, mTotalReceived, mLocalReceiveWindow);
+            packet->header.offset = mHighestReceived;
             sendAck(packet, pathIndex, true);
             packet->data = NULL;
-            destroySSPInPacket(packet);
-            pthread_mutex_unlock(&mReadMutex);
-            return;
-        }
-        if (end - 1> mHighestReceived)
-            mHighestReceived = end - 1;
-        int readOffset = mLowestPending - start;
-        mReceiveBuffer->write(packet->data + readOffset, len - readOffset);
-        mTotalReceived += len - readOffset;
-        mLowestPending = end;
-        while (!mOOPackets->empty()) {
-            DEBUG("check out-of-order queue\n");
-            SSPInPacket *sip = mOOPackets->front();
-            start = sip->offset;
-            end = start + sip->len;
-            DEBUG("packet: %u ~ %u\n", start, end);
-            if (start <= mLowestPending && end > mLowestPending) {
-                mOOPackets->pop();
-                readOffset = mLowestPending - start;
-                mReceiveBuffer->write(sip->data + readOffset, end - start - readOffset);
-                mLowestPending = end;
-                destroySSPInPacket(sip);
-            } else {
-                break;
-            }
-        }
-        DEBUG("lowest pending now %lu\n", mLowestPending);
-        sendAck(packet, pathIndex);
-        packet->data = NULL;
-        destroySSPInPacket(packet);
-        mReadyToRead = true;
-        pthread_mutex_unlock(&mReadMutex);
-        pthread_cond_signal(&mReadCond);
-    } else {
-        DEBUG("out-of-order packet %u (%lu)\n", packet->offset, mLowestPending);
-        int packetSize = len + sizeof(SSPInPacket);
-        pthread_mutex_lock(&mReadMutex);
-        if (packetSize + mTotalReceived > mLocalReceiveWindow - maxPayload) {
-            DEBUG("%lu.%06lu: out-of-order packet %lu (%lu):\nReceive window too full: %d/%u\n",
-                    now.tv_sec, now.tv_usec, packet->offset, mLowestPending, mTotalReceived, mLocalReceiveWindow);
-            packet->offset = mHighestReceived;
-            sendAck(packet, pathIndex, true);
-            packet->data = NULL;
-            destroySSPInPacket(packet);
+            destroySSPPacket(packet);
             pthread_mutex_unlock(&mReadMutex);
             return;
         }
         if (end - 1 > mHighestReceived)
             mHighestReceived = end - 1;
-        uint8_t *data = (uint8_t *)malloc(len);
-        memcpy(data, packet->data, len);
-        packet->data = data;
+        DEBUG("%u bytes in receive buffer\n", mTotalReceived);
+        bool pushed = false;
+        if (mOOPackets->empty()) {
+            mReadyPackets->push(packet);
+            mLowestPending = end;
+            pushed = true;
+        } else {
+            while (!mOOPackets->empty()) {
+                DEBUG("check out-of-order queue\n");
+                SSPPacket *sp = (SSPPacket *)mOOPackets->front();
+                if (sp->header.offset < end)
+                    break;
+                if (!pushed) {
+                    mReadyPackets->push(packet);
+                    mLowestPending = end;
+                    pushed = true;
+                }
+                start = sp->header.offset;
+                end = start + sp->len;
+                DEBUG("packet: %u ~ %u\n", start, end);
+                if (start <= mLowestPending && end > mLowestPending) {
+                    mOOPackets->pop();
+                    mReadyPackets->push(sp);
+                    mLowestPending = end;
+                } else {
+                    break;
+                }
+            }
+        }
+        if (pushed) {
+            DEBUG("lowest pending now %lu\n", mLowestPending);
+            mTotalReceived += packetSize;
+            sendAck(packet, pathIndex);
+            mReadyToRead = true;
+        } else {
+            DEBUG("packet was resent on smaller path(s), discard original\n");
+        }
+        pthread_mutex_unlock(&mReadMutex);
+        pthread_cond_signal(&mReadCond);
+    } else {
+        DEBUG("out-of-order packet %u (%lu)\n", packet->header.offset, mLowestPending);
+        pthread_mutex_lock(&mReadMutex);
+        if (packetSize + mTotalReceived > mLocalReceiveWindow - maxPayload) {
+            DEBUG("%lu.%06lu: out-of-order packet %u (%lu): "
+                    "Receive window too full: %d/%u\n",
+                    now.tv_sec, now.tv_usec,
+                    packet->header.offset, mLowestPending,
+                    mTotalReceived, mLocalReceiveWindow);
+            packet->header.offset = mHighestReceived;
+            sendAck(packet, pathIndex, true);
+            packet->data = NULL;
+            destroySSPPacket(packet);
+            pthread_mutex_unlock(&mReadMutex);
+            return;
+        }
+        if (end - 1 > mHighestReceived)
+            mHighestReceived = end - 1;
         bool found = mOOPackets->push(packet);
         if (found) {
             DEBUG("duplicate packet: discard\n");
             pthread_mutex_unlock(&mReadMutex);
             sendAck(packet, pathIndex);
-            destroySSPInPacket(packet);
+            destroySSPPacket(packet);
         } else {
             DEBUG("added to out-of-order queue\n");
             mTotalReceived += packetSize;
@@ -821,9 +801,9 @@ void SSPProtocol::handleData(SSPInPacket *packet, int pathIndex)
     }
 }
 
-void SSPProtocol::sendAck(SSPInPacket *sip, int pathIndex, bool full)
+void SSPProtocol::sendAck(SSPPacket *inPacket, int pathIndex, bool full)
 {
-    uint64_t packetNum = sip->offset;
+    uint64_t packetNum = inPacket->header.offset;
     DEBUG("send ack for %ld (path %d)\n", packetNum, pathIndex);
 
     SCIONPacket packet;
@@ -831,8 +811,7 @@ void SSPProtocol::sendAck(SSPInPacket *sip, int pathIndex, bool full)
     buildCommonHeader(packet.header.commonHeader, SCION_PROTO_SSP);
     packet.pathIndex = pathIndex;
 
-    SSPOutPacket sp;
-    memset(&sp, 0, sizeof(SSPOutPacket));
+    SSPPacket sp;
     packet.payload = &sp;
     // basic header stuff
     SSPHeader &sh = sp.header;
@@ -844,17 +823,17 @@ void SSPProtocol::sendAck(SSPInPacket *sip, int pathIndex, bool full)
         sh.flags |= SSP_WINDOW;
         sh.headerLen += 4;
         sp.windowSize = htonl(mLocalReceiveWindow);
-        mRemoteWindow = sip->windowSize;
+        mRemoteWindow = inPacket->windowSize;
         mInitialized = true;
     }
     sh.flowID = htobe64(mFlowID);
-    sh.mark = sip->mark;
+    sh.mark = inPacket->header.mark;
 
     // ack stuff
     SSPAck &sa = sp.ack;
     sa.L = htobe64(mLowestPending);
-    sa.I = htonl(packetNum > mLowestPending ? packetNum - mLowestPending : -(mLowestPending - packetNum));
-    sa.H = htonl(mHighestReceived);
+    sa.I = htonl((int)(packetNum - mLowestPending));
+    sa.H = htonl((int)(mHighestReceived - mLowestPending));
     DEBUG("outgoing ACK: L = %lu, I = %d, H = %d, O = %d, V = %u\n",
             be64toh(sa.L), ntohl(sa.I), ntohl(sa.H), ntohl(sa.O), ntohl(sa.V));
 
@@ -867,13 +846,12 @@ SCIONPacket * SSPProtocol::createPacket(uint8_t *buf, size_t len)
     memset(packet, 0, sizeof(SCIONPacket));
     buildCommonHeader(packet->header.commonHeader, SCION_PROTO_SSP);
 
-    SSPOutPacket *sp = (SSPOutPacket *)malloc(sizeof(SSPOutPacket));
-    memset(sp, 0, sizeof(SSPOutPacket));
+    SSPPacket *sp = new SSPPacket();
     packet->payload = sp;
     sp->header.headerLen = sizeof(SSPHeader);
     sp->header.flowID = htobe64(mFlowID);
     sp->header.port = htons(mDstPort);
-    sp->header.offset = htonl(mNextOffset);
+    sp->header.offset = htobe64(mNextSendByte);
     if (!mInitialized) {
         DEBUG("include window size for initial packet\n");
         sp->header.flags |= SSP_WINDOW;
@@ -881,9 +859,10 @@ SCIONPacket * SSPProtocol::createPacket(uint8_t *buf, size_t len)
         sp->header.headerLen += 4;
         mInitialized = true;
     }
-    sp->data = buf;
+    sp->data = (uint8_t *)malloc(len);
+    memcpy(sp->data, buf, len);
     sp->len = len;
-    mNextOffset += len;
+    mNextSendByte += len;
 
     return packet;
 }
@@ -915,7 +894,7 @@ SUDPProtocol::~SUDPProtocol()
 void SUDPProtocol::createManager(std::vector<SCIONAddr> &dstAddrs)
 {
     mConnectionManager = new SUDPConnectionManager(dstAddrs, mSocket);
-    pthread_create(&mTimerThread, NULL, SUDPTimerThread, this);
+    pthread_create(&mTimerThread, NULL, timerThread, this);
 }
 
 int SUDPProtocol::send(uint8_t *buf, size_t len, DataProfile profile)

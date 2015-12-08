@@ -32,15 +32,15 @@ inline long elapsedTime(struct timeval *old, struct timeval *current)
 
 int compareDeadline(void *p1, void *p2);
 int comparePacketNum(void *p1, void *p2);
+int comparePacketNumNested(void *p1, void *p2);
 int compareOffset(void *p1, void *p2);
 int compareOffsetNested(void *p1, void *p2);
 
 void destroySCIONPacket(void *p);
 void destroySDAMPPacket(void *p);
 void destroySDAMPPacketFull(void *p);
-void destroySSPInPacket(void *p);
-void destroySSPOutPacket(void *p);
-void destroySSPOutPacketFull(void *p);
+void destroySSPPacket(void *p);
+void destroySSPPacketFull(void *p);
 void destroySUDPPacket(void *p);
 
 int reversePath(uint8_t *original, uint8_t *reverse, int len);

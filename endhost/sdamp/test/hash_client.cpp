@@ -5,11 +5,11 @@
 #include "SCIONSocket.h"
 #include "SHA1.h"
 
-#define BUFSIZE 1024
+#define BUFSIZE (1024 * 200)
 
 int main(int argc, char **argv)
 {
-    system("dd if=/dev/urandom of=randomfile bs=1024 count=10240");
+    system("dd if=/dev/urandom of=randomfile bs=1024 count=1024");
 
     uint8_t hash[20];
     CSHA1 sha;
@@ -35,11 +35,15 @@ int main(int argc, char **argv)
     in_addr_t in = inet_addr(str);
     memcpy(saddr.host.addr, &in, 4);
     addrs[0] = saddr;
-    SCIONSocket s(SCION_PROTO_SDAMP, addrs, 1, 0, 8080);
+    SCIONSocket s(SCION_PROTO_SSP, addrs, 1, 0, 8080);
     s.send((uint8_t *)hash, 20);
-    printf("hash sent\n");
+    printf("hash sent: ");
+    for (int i = 0; i < 20; i++)
+        printf("%x", hash[i]);
+    printf("\n");
     FILE *fp = fopen("randomfile", "rb");
     char fbuf[BUFSIZE];
+    memset(fbuf, 0, BUFSIZE);
     int len = 0;
     while ((len = fread(fbuf, 1, BUFSIZE, fp)) > 0)
         s.send((uint8_t *)fbuf, len);

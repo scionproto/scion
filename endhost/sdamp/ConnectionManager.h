@@ -65,12 +65,17 @@ public:
     void setRemoteWindow(uint32_t window);
     virtual void waitForSendBuffer(int len, int windowSize);
 
-    void startPaths();
     void queuePacket(SCIONPacket *packet);
     int sendAllPaths(SCIONPacket *packet);
     virtual void didSend(SCIONPacket *packet);
     virtual void abortSend(SCIONPacket *packet);
 
+    void startScheduler();
+    static void * workerHelper(void *arg);
+    bool readyToSend();
+    void schedule();
+    virtual SCIONPacket * nextPacket();
+    virtual Path * pathToSend();
     virtual SCIONPacket * maximizeBandwidth(int index, int bps, int rtt, double loss);
     virtual SCIONPacket * requestPacket(int index, int bps, int rtt, double loss);
 
@@ -97,7 +102,7 @@ protected:
     int                          mReceiveWindow;
 
     bool                         mInitPacketQueued;
-    bool                         mRunning[MAX_TOTAL_PATHS];
+    bool                         mRunning;
     SDAMPMetric                  mMetric;
 
     PacketList                   mSentPackets;
@@ -113,8 +118,10 @@ protected:
     pthread_mutex_t              mRetryMutex;
     pthread_mutex_t              mPacketMutex;
     pthread_cond_t               mPacketCond;
+    pthread_cond_t               mPathCond;
 
-private:
+    pthread_t                    mWorker;
+
     SDAMPProtocol               *mProtocol;
 };
 
@@ -126,8 +133,6 @@ public:
 
     Path * createPath(SCIONAddr &dstAddr, uint8_t *rawPath, int pathLen);
     void waitForSendBuffer(int len, int windowSize);
-    int sendAllPaths(uint8_t *buf, size_t len);
-    int queueData(uint8_t *buf, size_t len);
     void sendProbes(uint32_t probeNum, uint64_t flowID);
 
     int handlePacket(SCIONPacket *packet);
@@ -137,15 +142,9 @@ public:
     void didSend(SCIONPacket *packet);
     void abortSend(SCIONPacket *packet);
 
-    SCIONPacket * maximizeBandwidth(int index, int bps, int rtt, double loss);
-    SCIONPacket * requestPacket(int index, int bps, int rtt, double loss);
 protected:
     virtual int totalQueuedSize();
     int handleAckOnPath(SCIONPacket *packet, bool rttSample);
-
-    pthread_cond_t mFreshCond;
-    RingBuffer *mFreshBuffer;
-    SSPProtocol *mProtocol;
 };
 
 #endif // PATH_MANAGER_H

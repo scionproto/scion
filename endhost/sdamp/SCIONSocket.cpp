@@ -307,6 +307,9 @@ SCIONStats * SCIONSocket::getStats()
 {
     if (mProtocol) {
         SCIONStats *stats = (SCIONStats *)malloc(sizeof(SCIONStats));
+        memset(stats, 0, sizeof(SCIONStats));
+        if (!stats)
+            return NULL;
         mProtocol->getStats(stats);
         return stats;
     }

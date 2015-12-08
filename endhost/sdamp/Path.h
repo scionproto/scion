@@ -16,6 +16,7 @@ public:
 
     virtual void handleTimeout(struct timeval *current);
 
+    virtual int timeUntilReady();
     virtual int getPayloadLen(bool ack);
     int getMTU();
     long getIdleTime(struct timeval *current);
@@ -77,17 +78,13 @@ public:
 
     bool didTimeout(struct timeval *current);
     
+    virtual int timeUntilReady();
     virtual int getPayloadLen(bool ack);
     int getETA(SCIONPacket *packet);
     int getRTT();
     int getRTO();
     void setIndex(int index);
     void setRemoteWindow(uint32_t window);
-
-    virtual void start();
-    static void * workerHelper(void *arg);
-    virtual void workerFunction();
-    void terminate();
 
     void getStats(SCIONStats *stats);
 protected:
@@ -116,8 +113,6 @@ public:
     int getPayloadLen(bool ack);
     void start();
     int handleAck(SCIONPacket *packet, bool rttSample);
-    static void * workerHelper(void *arg);
-    void workerFunction();
 };
 
 class SUDPPath : public Path {
