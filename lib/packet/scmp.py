@@ -192,7 +192,10 @@ class SCMPPacket(PacketBase):
             self._parse(raw)
 
     def _parse(self, raw):
-        pass
+        data = Raw(raw)
+        self.hdr = SCMPHeader(data.pop(SCMPHeader.LEN))
+        self.payload = data.get()
+        self.parsed = True
 
     def from_values(self, *args, **kwargs):
         pass
