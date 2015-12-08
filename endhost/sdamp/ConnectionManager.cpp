@@ -310,8 +310,8 @@ SDAMPConnectionManager::~SDAMPConnectionManager()
 {
     mRunning = false;
     pthread_cond_broadcast(&mPacketCond);
-    pthread_cond_braodcast(&mPathCond);
-    pthread_join(&mWorker, NULL);
+    pthread_cond_broadcast(&mPathCond);
+    pthread_join(mWorker, NULL);
     PacketList::iterator i;
     for (i = mSentPackets.begin(); i != mSentPackets.end(); i++) {
         SCIONPacket *p = *i;
