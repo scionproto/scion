@@ -232,7 +232,7 @@ class SCMPPacket(PacketBase):
         return self.hdr.pack() + self.payload
 
     def __len__(self):
-        pass
+        return len(self.hdr) + len(self.payload)
 
     def __str__(self):
         pass
