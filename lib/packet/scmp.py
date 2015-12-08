@@ -197,8 +197,30 @@ class SCMPPacket(PacketBase):
         self.payload = data.get()
         self.parsed = True
 
-    def from_values(self, *args, **kwargs):
-        pass
+    @classmethod
+    def from_values(cls, hdr, payload):
+        """
+        Create a new SCMP packet by specifying the header and payload.
+
+        Create and return a `SCMPPacket` instance from a `SCMPHeader` instance
+        and a `bytes` object representing the payload.
+
+        Args:
+            type_: An int representing the type of the SCMP message.
+            code: An int representing the subtype of the SCMP message.
+            rest: An int representing the rest of the header, whose format
+                depends on the type.
+
+        Returns:
+            A `SCMPHeader` instance with the specified field values and
+                appropriately-set checksum.
+        """
+        inst = cls()
+        inst.parsed = True
+        inst.raw = hdr.pack() + payload
+        inst.hdr = hdr
+        inst.payload = payload
+        return inst
 
     def pack(self):
         pass
