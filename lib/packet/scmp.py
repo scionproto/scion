@@ -16,11 +16,15 @@
 ==========================
 """
 # Stdlib
+import struct
 
 # External
+import scapy.utils
 
 # SCION
+from lib.errors import SCIONParseError
 from lib.packet.packet_base import HeaderBase, PacketBase
+from lib.util import Raw
 
 
 class SCMPType(object):
@@ -70,7 +74,7 @@ class SCMPHeader(HeaderBase):
         pass
 
     def __len__(self):
-        pass
+        return self.LEN
 
     def __str__(self):
         pass
