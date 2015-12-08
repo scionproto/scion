@@ -41,11 +41,19 @@ class SCMPType(object):
 class SCMPHeader(HeaderBase):
     """
     Packet header for SCMP messages.
+
+    Attributes:
+        type_: An int representing the SCMP message type.
+        code: An int representing the SCMP message subtype.
+        checksum: An int representing the SCMP header checksum.
+        rest: An int representing type-dependent header information.
     """
+
+    LEN = 8
 
     def __init__(self, raw=None):
         super().__init__()
-        self.type = None
+        self.type_ = None
         self.code = None
         self.checksum = None
         self.rest = None
