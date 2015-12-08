@@ -235,4 +235,8 @@ class SCMPPacket(PacketBase):
         return len(self.hdr) + len(self.payload)
 
     def __str__(self):
-        pass
+        s = []
+        s.append("SCMP Packet (%dB):" % len(self))
+        s.append("  %s" % self.hdr)
+        s.append("  Payload (%dB): %s" % (len(self.payload), self.payload))
+        return "\n".join(s)
