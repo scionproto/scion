@@ -84,6 +84,32 @@ class SCMPHeader(HeaderBase):
                     "checksum of supplied data (%s)" % (
                         hex(self.checksum), hex(self.compute_checksum())))
 
+    @classmethod
+    def from_values(cls, type_, code, rest=0):
+        """
+        Create a new SCMP header instance by specifying the field values.
+
+        Create and return a SCMPHeader instance from a type, subtype, and
+        rest-of-header. The checksum is computed automatically from the
+        supplied values.
+
+        Args:
+            type_: An int representing the type of the SCMP message.
+            code: An int representing the subtype of the SCMP message.
+            rest: An int representing the rest of the header, whose format
+                depends on the type.
+
+        Returns:
+            A `SCMPHeader` instance with the specified field values and
+                appropriately-set checksum.
+        """
+        inst = cls()
+        inst.type_ = type_
+        inst.code = code
+        inst.rest = rest
+        inst.update_checksum()
+        return inst
+
     def pack(self):
         pass
 
