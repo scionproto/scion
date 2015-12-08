@@ -183,7 +183,13 @@ class SCMPPacket(PacketBase):
     """
 
     def __init__(self, raw=None):
-        pass
+        super().__init__()
+        self.parsed = False
+        self.raw = raw
+        self.hdr = None
+        self.payload = None
+        if raw is not None:
+            self._parse(raw)
 
     def _parse(self, raw):
         pass
