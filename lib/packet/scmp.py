@@ -223,7 +223,13 @@ class SCMPPacket(PacketBase):
         return inst
 
     def pack(self):
-        pass
+        """
+        Return the raw byte string representation of the SCMPPacket instance.
+
+        Pack the SCMPPacket instance's field values into a raw byte string.
+        Only the header and payload are packed.
+        """
+        return self.hdr.pack() + self.payload
 
     def __len__(self):
         pass
