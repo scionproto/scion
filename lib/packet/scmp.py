@@ -65,10 +65,24 @@ class SCMPHeader(HeaderBase):
             self._parse(raw)
 
     def _parse(self, raw):
-        pass
+        """
+        Parse a raw bytes string to populate the instance attributes.
 
-    def from_values(self, *args, **kwargs):
-        pass
+        Args:
+            raw: a `bytes` string representing the header data to be parsed.
+
+        Raises:
+            SCIONParseError: An error occurred in verifying the supplied
+                checksum with the other supplied fields.
+        """
+        data = Raw(raw, "SCMPHeader", self.LEN)
+        self.type_, self.code, self.checksum, self.rest = \
+            struct.unpack("!BBHI", data.pop(self.LEN))
+        if not self.verify_checksum():
+            raise SCIONParseError(
+                    "SCMPHeader: checksum in header (%s) does not match "
+                    "checksum of supplied data (%s)" % (
+                        hex(self.checksum), hex(self.compute_checksum())))
 
     def pack(self):
         pass
