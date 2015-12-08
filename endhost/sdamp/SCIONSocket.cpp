@@ -67,24 +67,6 @@ SCIONSocket::SCIONSocket(int protocol, SCIONAddr *dstAddrs, int numAddrs,
     mDispatcherSocket = socket(AF_INET, SOCK_DGRAM, 0);
 
     switch (protocol) {
-        case SCION_PROTO_SDAMP: {
-            if (!mDstAddrs.empty()) {
-                mProtocol = new SDAMPProtocol(mDstAddrs, mSrcPort, mDstPort);
-                if (srcPort != -1) {
-                    mProtocol->createManager(mDstAddrs);
-                    mProtocol->start(NULL, NULL, mDispatcherSocket);
-                    mRegistered = true;
-                }
-            } else {
-                mProtocol = NULL;
-                SDAMPEntry se;
-                se.flowID = 0;
-                se.port = mSrcPort;
-                registerFlow(SCION_PROTO_SDAMP, &se, mDispatcherSocket);
-                mRegistered = true;
-            }
-            break;
-        }
         case SCION_PROTO_SSP: {
             if (!mDstAddrs.empty()) {
                 mProtocol = new SSPProtocol(mDstAddrs, mSrcPort, mDstPort);
@@ -95,10 +77,10 @@ SCIONSocket::SCIONSocket(int protocol, SCIONAddr *dstAddrs, int numAddrs,
                 }
             } else {
                 mProtocol = NULL;
-                SDAMPEntry se;
+                SSPEntry se;
                 se.flowID = 0;
                 se.port = mSrcPort;
-                registerFlow(SCION_PROTO_SDAMP, &se, mDispatcherSocket);
+                registerFlow(SCION_PROTO_SSP, &se, mDispatcherSocket);
                 mRegistered = true;
             }
             break;

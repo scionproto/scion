@@ -7,8 +7,7 @@ LDFLAGS += -ldl -shared -lpthread -lrt
 HDRS=$(wildcard *.h)
 
 SOCKET=SCIONSocket.cpp SCIONProtocol.cpp ConnectionManager.cpp Path.cpp\
-	   PathState.cpp OrderedList.cpp Utils.cpp RingBuffer.cpp\
-	   SCIONWrapper.cpp
+	   PathState.cpp OrderedList.cpp Utils.cpp SCIONWrapper.cpp
 
 all: client server
 

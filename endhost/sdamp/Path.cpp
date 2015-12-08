@@ -236,9 +236,9 @@ void Path::copySCIONHeader(uint8_t *bufptr, SCIONCommonHeader *ch)
         ((SCIONCommonHeader *)(start))->currentOF += 8;
 }
 
-// SDAMP
+// SSP
 
-SDAMPPath::SDAMPPath(SDAMPConnectionManager *manager, SCIONAddr &localAddr, SCIONAddr &dstAddr, uint8_t *rawPath, size_t pathLen)
+SSPPath::SSPPath(SSPConnectionManager *manager, SCIONAddr &localAddr, SCIONAddr &dstAddr, uint8_t *rawPath, size_t pathLen)
     : Path(manager, localAddr, dstAddr, rawPath, pathLen),
     mManager(manager),
     mTotalReceived(0),
@@ -258,7 +258,7 @@ SDAMPPath::SDAMPPath(SDAMPConnectionManager *manager, SCIONAddr &localAddr, SCIO
     pthread_cond_init(&mWindowCond, &ca);
 }
 
-SDAMPPath::~SDAMPPath()
+SSPPath::~SSPPath()
 {
     if (mState) {
         delete mState;
@@ -267,268 +267,6 @@ SDAMPPath::~SDAMPPath()
     pthread_mutex_destroy(&mTimeMutex);
     pthread_mutex_destroy(&mWindowMutex);
     pthread_cond_destroy(&mWindowCond);
-}
-
-int SDAMPPath::send(SCIONPacket *packet, int sock)
-{
-    bool wasValid = mValid;
-    SDAMPPacket *sp = (SDAMPPacket *)(packet->payload);
-    SDAMPHeader &sh = sp->header;
-    if (mTotalAcked == 0 && !(sh.flags & SDAMP_ACK)) {
-        DEBUG("no packets sent on this path yet\n");
-        sh.flags |= SDAMP_NEW_PATH;
-        sh.headerLen += mInterfaces.size() * SCION_IF_SIZE + 1;
-    }
-
-    size_t readyTime;
-    if (!(sh.flags & SDAMP_ACK || sh.flags & SDAMP_PROBE)) {
-        pthread_mutex_lock(&mWindowMutex);
-        while ((readyTime = mState->timeUntilReady()) > 0) {
-            struct timespec t;
-            clock_gettime(CLOCK_REALTIME, &t);
-            DEBUG("current time = %ld.%09ld\n", t.tv_sec, t.tv_nsec);
-            DEBUG("path %d: %lu us until ready to send (%d in flight)\n", mIndex, readyTime, mState->packetsInFlight());
-            struct timeval current;
-            current.tv_sec = t.tv_sec;
-            current.tv_usec = t.tv_nsec / 1000;
-            if (elapsedTime(&mLastSendTime, &current) > mState->getRTO()) {
-                DEBUG("path %d: %lu since last send, abort packet %lu\n",
-                        mIndex, elapsedTime(&mLastSendTime, &current), be64toh(sh.packetNum));
-                pthread_mutex_unlock(&mWindowMutex);
-                mManager->abortSend(packet);
-                return -1;
-            }
-            size_t nsec = t.tv_nsec + readyTime * 1000;
-            while (nsec >= 1000000000) {
-                nsec -= 1000000000;
-                t.tv_sec++;
-            }
-            t.tv_nsec = nsec;
-            pthread_cond_timedwait(&mWindowCond, &mWindowMutex, &t);
-        }
-        pthread_mutex_unlock(&mWindowMutex);
-    }
-
-    SCIONCommonHeader &ch = packet->header.commonHeader;
-    ch.headerLen = sizeof(ch) + 2 * SCION_ADDR_LEN + mPathLen;
-    uint16_t totalLen = ch.headerLen + sh.headerLen + sp->len;
-    ch.totalLen = htons(totalLen);
-
-    uint8_t *buf = (uint8_t *)malloc(totalLen);
-    memset(buf, 0, totalLen);
-    uint8_t *bufptr = buf;
-    copySCIONHeader(bufptr, &ch);
-    bufptr += ch.headerLen;
-    // SDAMP header
-    memcpy(bufptr, &sh, sizeof(SDAMPHeader));
-    bufptr += sizeof(SDAMPHeader);
-    if (sh.flags & SDAMP_INIT) {
-        *(uint32_t *)bufptr = sp->windowSize;
-        bufptr += 4;
-    }
-    if ((sh.flags & SDAMP_ACK) && !(sh.flags & SDAMP_PROBE)) {
-        memcpy(bufptr, &(sp->ack), sizeof(SDAMPAck));
-        bufptr += sizeof(SDAMPAck);
-    }
-    if (sh.flags & SDAMP_NEW_PATH) {
-        size_t count = mInterfaces.size();
-        *bufptr++ = count;
-        for (size_t i = 0; i < count; i++) {
-            SCIONInterface sif = mInterfaces[count - 1 - i];
-            uint32_t isd_ad = (sif.isd << 20) | (sif.ad & 0xfffff);
-            *(uint32_t *)bufptr = htonl(isd_ad);
-            bufptr += 4;
-            *(uint16_t *)bufptr = htons(sif.interface);
-            bufptr += 2;
-        }
-    }
-    // payload
-    if (sp->len > 0)
-        memcpy(bufptr, sp->data, sp->len);
-
-    struct sockaddr_in sa;
-    memset(&sa, 0, sizeof(sa));
-    sa.sin_family = AF_INET;
-    sa.sin_port = htons(mFirstHop.port);
-    memcpy(&sa.sin_addr, mFirstHop.addr, mFirstHop.addrLen);
-    sendto(sock, buf, ntohs(ch.totalLen), 0, (struct sockaddr *)&sa, sizeof(sa));
-    free(buf);
-    DEBUG("sent to first hop %s:%d\n", inet_ntoa(sa.sin_addr), mFirstHop.port);
-
-    if (mTotalSent == 0) {
-        sh.flags &= ~SDAMP_NEW_PATH;
-        sh.headerLen -= mInterfaces.size() * SCION_IF_SIZE + 1;
-    }
-
-    packet->pathIndex = mIndex;
-    packet->rto = mState->getRTO();
-    DEBUG("using rto %d us for path %d\n", packet->rto, mIndex);
-    if (!(sh.flags & SDAMP_ACK || sh.flags & SDAMP_PROBE)) {
-        mState->handleSend(be64toh(sh.packetNum));
-        mTotalSent++;
-        pthread_mutex_lock(&mTimeMutex);
-        gettimeofday(&mLastSendTime, NULL);
-        packet->sendTime = mLastSendTime;
-        pthread_mutex_unlock(&mTimeMutex);
-        mManager->didSend(packet);
-        DEBUG("%ld.%06ld: packet %ld sent on path %d: %d packets in flight\n", mLastSendTime.tv_sec, mLastSendTime.tv_usec, be64toh(sh.packetNum), mIndex, mState->packetsInFlight());
-    } else if (sh.flags & SDAMP_PROBE) {
-        mProbeAttempts++;
-        if (mProbeAttempts >= SDAMP_PROBE_ATTEMPTS)
-            mValid = false;
-    }
-
-    if (wasValid && !mValid)
-        return 1;
-    return 0;
-
-}
-
-int SDAMPPath::handleData(SCIONPacket *packet)
-{
-    mTotalReceived++;
-    return 0;
-}
-
-int SDAMPPath::handleAck(SCIONPacket *packet, bool rttSample)
-{
-    DEBUG("incoming ack on path %d: %d packets in flight\n", mIndex, mState->packetsInFlight() - 1);
-    SDAMPPacket *sp = (SDAMPPacket *)(packet->payload);
-    if (sp->header.flags & SDAMP_INIT)
-        mState->setRemoteWindow(sp->windowSize / mMTU);
-    int rtt = elapsedTime(&(packet->sendTime), &(packet->arrivalTime));
-    if (!rttSample)
-        rtt = 0;
-    DEBUG("path %d: ack for packet %lu with rtt %d\n", mIndex, sp->header.packetNum, rtt);
-    pthread_mutex_lock(&mWindowMutex);
-    mState->addRTTSample(rtt, sp->header.packetNum);
-    pthread_mutex_unlock(&mWindowMutex);
-    if (mState->isWindowBased())
-        pthread_cond_broadcast(&mWindowCond);
-    mTimeoutCount = 0;
-    mTotalAcked++;
-    return 0;
-}
-
-void SDAMPPath::handleDupAck()
-{
-    mState->handleDupAck();
-}
-
-void SDAMPPath::handleTimeout(struct timeval *current)
-{
-    DEBUG("path %d: %d packets in flight, %ld us without activity\n",
-            mIndex, mState->packetsInFlight(), elapsedTime(&mLastSendTime, current));
-    DEBUG("timeout on path %d\n", mIndex);
-    mState->handleTimeout();
-    mTimeoutCount++;
-    if (mTimeoutCount > SDAMP_MAX_RETRIES)
-        mUp = false;
-}
-
-void SDAMPPath::addLoss(uint64_t packetNum)
-{
-    DEBUG("loss event on path %d\n", mIndex);
-    pthread_mutex_lock(&mWindowMutex);
-    mState->addLoss(packetNum);
-    pthread_mutex_unlock(&mWindowMutex);
-    if (mState->isWindowBased())
-        pthread_cond_broadcast(&mWindowCond);
-}
-
-void SDAMPPath::addRetransmit()
-{
-    struct timeval t;
-    gettimeofday(&t, NULL);
-    if (elapsedTime(&mLastLossTime, &t) < mState->estimatedRTT())
-        return;
-    mLastLossTime = t;
-    mState->addRetransmit();
-}
-
-bool SDAMPPath::didTimeout(struct timeval *current)
-{
-    pthread_mutex_lock(&mTimeMutex);
-    int elapsed = elapsedTime(&mLastSendTime, current);
-    bool res =  mState->packetsInFlight() > 0 &&
-                elapsed > mState->getRTO();
-    pthread_mutex_unlock(&mTimeMutex);
-    return res;
-}
-
-int SDAMPPath::timeUntilReady()
-{
-    return mState->timeUntilReady();
-}
-
-int SDAMPPath::getPayloadLen(bool ack)
-{
-    int hlen = ack ? sizeof(SDAMPHeader) + sizeof(SDAMPAck) : sizeof(SDAMPHeader);
-    return mMTU - (28 + sizeof(SCIONCommonHeader) + 2 * SCION_ADDR_LEN + mPathLen + hlen);
-}
-
-int SDAMPPath::getETA(SCIONPacket *packet)
-{
-    return mState->timeUntilReady() + mState->estimatedRTT() +
-        mState->getLossRate() * (mState->getRTO() + mState->estimatedRTT());
-}
-
-int SDAMPPath::getRTT()
-{
-    return mState->estimatedRTT();
-}
-
-int SDAMPPath::getRTO()
-{
-    return mState->getRTO();
-}
-
-void SDAMPPath::setIndex(int index)
-{
-    Path::setIndex(index);
-    mState->setIndex(index);
-}
-
-void SDAMPPath::setRemoteWindow(uint32_t window)
-{
-    mState->setRemoteWindow(window / mMTU);
-}
-
-void SDAMPPath::getStats(SCIONStats *stats)
-{
-    if (!(mTotalReceived > 0 || mTotalAcked > 0))
-        return;
-    stats->exists[mIndex] = true;
-    stats->receivedPackets[mIndex] = mTotalReceived;
-    stats->sentPackets[mIndex] = mTotalSent;
-    stats->ackedPackets[mIndex] = mTotalAcked;
-    stats->rtts[mIndex] = mState->estimatedRTT();
-    stats->lossRates[mIndex] = mState->getLossRate();
-    if (!mUp)
-        stats->lossRates[mIndex] = 1.0;
-    size_t interfaces = mInterfaces.size();
-    if (interfaces > 0) {
-        stats->ifCounts[mIndex] = interfaces;
-        stats->ifLists[mIndex] =
-            (SCIONInterface *)malloc(sizeof(SCIONInterface) * interfaces);
-        if (!stats->ifLists[mIndex]) {
-            stats->ifCounts[mIndex] = 0;
-        } else {
-            for (size_t i = 0; i < interfaces; i++)
-                stats->ifLists[mIndex][i] = mInterfaces[i];
-        }
-    }
-}
-
-// SSP
-
-SSPPath::SSPPath(SSPConnectionManager *manager, SCIONAddr &localAddr, SCIONAddr &dstAddr, uint8_t *rawPath, size_t pathLen)
-    : SDAMPPath(manager, localAddr, dstAddr, rawPath, pathLen)
-{
-}
-
-SSPPath::~SSPPath()
-{
 }
 
 int SSPPath::send(SCIONPacket *packet, int sock)
@@ -559,7 +297,6 @@ int SSPPath::send(SCIONPacket *packet, int sock)
             if (elapsedTime(&mLastSendTime, &current) > mState->getRTO()) {
                 DEBUG("path %d: loss occurred, abort send packet %u\n", mIndex, be64toh(sh.offset));
                 pthread_mutex_unlock(&mWindowMutex);
-                mManager->abortSend(packet);
                 if (sendInterfaces) {
                     sh.flags &= ~SSP_NEW_PATH;
                     sh.headerLen -= mInterfaces.size() * SCION_IF_SIZE + 1;
@@ -646,7 +383,7 @@ int SSPPath::send(SCIONPacket *packet, int sock)
                 be64toh(sh.offset), mIndex, mState->packetsInFlight(), mState->window());
     } else if (sh.flags & SSP_PROBE) {
         mProbeAttempts++;
-        if (mProbeAttempts >= SDAMP_PROBE_ATTEMPTS)
+        if (mProbeAttempts >= SSP_PROBE_ATTEMPTS)
             mValid = false;
     }
 
@@ -655,10 +392,10 @@ int SSPPath::send(SCIONPacket *packet, int sock)
     return 0;
 }
 
-int SSPPath::getPayloadLen(bool ack)
+int SSPPath::handleData(SCIONPacket *packet)
 {
-    int hlen = ack ? sizeof(SSPHeader) + sizeof(SSPAck) : sizeof(SSPHeader);
-    return mMTU - (28 + sizeof(SCIONCommonHeader) + 2 * SCION_ADDR_LEN + mPathLen + hlen);
+    mTotalReceived++;
+    return 0;
 }
 
 int SSPPath::handleAck(SCIONPacket *packet, bool rttSample)
@@ -678,6 +415,116 @@ int SSPPath::handleAck(SCIONPacket *packet, bool rttSample)
     mTimeoutCount = 0;
     mTotalAcked++;
     return 0;
+}
+
+void SSPPath::handleDupAck()
+{
+    mState->handleDupAck();
+}
+
+void SSPPath::handleTimeout(struct timeval *current)
+{
+    DEBUG("path %d: %d packets in flight, %ld us without activity\n",
+            mIndex, mState->packetsInFlight(), elapsedTime(&mLastSendTime, current));
+    DEBUG("timeout on path %d\n", mIndex);
+    mState->handleTimeout();
+    mTimeoutCount++;
+    if (mTimeoutCount > SSP_MAX_RETRIES)
+        mUp = false;
+}
+
+void SSPPath::addLoss(uint64_t packetNum)
+{
+    DEBUG("loss event on path %d\n", mIndex);
+    pthread_mutex_lock(&mWindowMutex);
+    mState->addLoss(packetNum);
+    pthread_mutex_unlock(&mWindowMutex);
+    if (mState->isWindowBased())
+        pthread_cond_broadcast(&mWindowCond);
+}
+
+void SSPPath::addRetransmit()
+{
+    struct timeval t;
+    gettimeofday(&t, NULL);
+    if (elapsedTime(&mLastLossTime, &t) < mState->estimatedRTT())
+        return;
+    mLastLossTime = t;
+    mState->addRetransmit();
+}
+
+bool SSPPath::didTimeout(struct timeval *current)
+{
+    pthread_mutex_lock(&mTimeMutex);
+    int elapsed = elapsedTime(&mLastSendTime, current);
+    bool res =  mState->packetsInFlight() > 0 &&
+                elapsed > mState->getRTO();
+    pthread_mutex_unlock(&mTimeMutex);
+    return res;
+}
+
+int SSPPath::timeUntilReady()
+{
+    return mState->timeUntilReady();
+}
+
+int SSPPath::getPayloadLen(bool ack)
+{
+    int hlen = ack ? sizeof(SSPHeader) + sizeof(SSPAck) : sizeof(SSPHeader);
+    return mMTU - (28 + sizeof(SCIONCommonHeader) + 2 * SCION_ADDR_LEN + mPathLen + hlen);
+}
+
+int SSPPath::getETA(SCIONPacket *packet)
+{
+    return mState->timeUntilReady() + mState->estimatedRTT() +
+        mState->getLossRate() * (mState->getRTO() + mState->estimatedRTT());
+}
+
+int SSPPath::getRTT()
+{
+    return mState->estimatedRTT();
+}
+
+int SSPPath::getRTO()
+{
+    return mState->getRTO();
+}
+
+void SSPPath::setIndex(int index)
+{
+    Path::setIndex(index);
+    mState->setIndex(index);
+}
+
+void SSPPath::setRemoteWindow(uint32_t window)
+{
+    mState->setRemoteWindow(window / mMTU);
+}
+
+void SSPPath::getStats(SCIONStats *stats)
+{
+    if (!(mTotalReceived > 0 || mTotalAcked > 0))
+        return;
+    stats->exists[mIndex] = 1;
+    stats->receivedPackets[mIndex] = mTotalReceived;
+    stats->sentPackets[mIndex] = mTotalSent;
+    stats->ackedPackets[mIndex] = mTotalAcked;
+    stats->rtts[mIndex] = mState->estimatedRTT();
+    stats->lossRates[mIndex] = mState->getLossRate();
+    if (!mUp)
+        stats->lossRates[mIndex] = 1.0;
+    size_t interfaces = mInterfaces.size();
+    if (interfaces > 0) {
+        stats->ifCounts[mIndex] = interfaces;
+        stats->ifLists[mIndex] =
+            (SCIONInterface *)malloc(sizeof(SCIONInterface) * interfaces);
+        if (!stats->ifLists[mIndex]) {
+            stats->ifCounts[mIndex] = 0;
+        } else {
+            for (size_t i = 0; i < interfaces; i++)
+                stats->ifLists[mIndex][i] = mInterfaces[i];
+        }
+    }
 }
 
 // SUDP

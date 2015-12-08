@@ -61,10 +61,10 @@ protected:
     struct timeval  mLastSendTime;
 };
 
-class SDAMPPath : public Path {
+class SSPPath : public Path {
 public:
-    SDAMPPath(SDAMPConnectionManager *manager, SCIONAddr &localAddr, SCIONAddr &dstAddr, uint8_t *rawPath, size_t pathLen);
-    ~SDAMPPath();
+    SSPPath(SSPConnectionManager *manager, SCIONAddr &localAddr, SCIONAddr &dstAddr, uint8_t *rawPath, size_t pathLen);
+    ~SSPPath();
 
     virtual int send(SCIONPacket *packet, int sock);
 
@@ -88,7 +88,7 @@ public:
 
     void getStats(SCIONStats *stats);
 protected:
-    SDAMPConnectionManager *mManager;
+    SSPConnectionManager *mManager;
     PathState       *mState;
 
     int             mTotalReceived;
@@ -102,17 +102,6 @@ protected:
     pthread_cond_t  mWindowCond;
 
     pthread_t       mThread;
-};
-
-class SSPPath : public SDAMPPath {
-public:
-    SSPPath(SSPConnectionManager *manager, SCIONAddr &localAddr, SCIONAddr &dstAddr, uint8_t *rawPath, size_t pathLen);
-    ~SSPPath();
-
-    int send(SCIONPacket *packet, int sock);
-    int getPayloadLen(bool ack);
-    void start();
-    int handleAck(SCIONPacket *packet, bool rttSample);
 };
 
 class SUDPPath : public Path {
