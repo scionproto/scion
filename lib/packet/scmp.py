@@ -81,6 +81,47 @@ class SCMPHeader(HeaderBase):
                     self.type_, self.code, self.checksum, self.rest)
 
 
+    def verify_checksum(self):
+        """
+        Attempt to verify the checksum in the header.
+
+        Returns:
+            A bool representing whether the checksum stored in the header was
+            successfully verified.
+        """
+        return self.checksum == self.compute_checksum()
+
+    def update_checksum(self):
+        """
+        Update the instance's checksum field based on the contents of the other
+        fields.
+
+        Set the `checksum` attribute of the instance to the checksum of the
+        other fields. Any existing value in the `checksum` attribute is
+        overwritten. A postcondition of this method is that the checksum is
+        guaranteed to verify successfully.
+        """
+        self.checksum = self.compute_checksum()
+
+    def compute_checksum(self):
+        """
+        Compute and return the checksum of the SCMP header.
+
+        Compute the SCMP header checksum. The checksum is the same as used for
+        the ICMP header, i.e., the Internet checksum described in RFC 1071. The
+        basic approach of the Internet checksum is that the header (with 0 in
+        place of the checksum field) is split into 2-byte words, these words
+        are summed together using ones-complement arithmetic, and the
+        ones-complement of this sum is used as the checksum.
+
+        Returns:
+            An int representing the checksum.
+        """
+        pseudo_header = struct.pack('!BBHI', self.type_, self.code, 0,
+                                    self.rest)
+        return scapy.utils.checksum(pseudo_header)
+
+
 class SCMPPacket(PacketBase):
     """
     Packet format for SCMP messages.
