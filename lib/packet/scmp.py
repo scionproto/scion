@@ -77,7 +77,8 @@ class SCMPHeader(HeaderBase):
         return self.LEN
 
     def __str__(self):
-        pass
+        return ("[SCMP type: %d, code: %d, checksum: %x, rest: %x]" %
+                    self.type_, self.code, self.checksum, self.rest)
 
 
 class SCMPPacket(PacketBase):
