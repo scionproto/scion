@@ -111,7 +111,8 @@ class SCMPHeader(HeaderBase):
         return inst
 
     def pack(self):
-        pass
+        return struct.pack("!BBHI", self.type_, self.code, self.checksum,
+                           self.rest)
 
     def __len__(self):
         return self.LEN
