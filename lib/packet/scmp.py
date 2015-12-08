@@ -171,6 +171,15 @@ class SCMPHeader(HeaderBase):
 class SCMPPacket(PacketBase):
     """
     Packet format for SCMP messages.
+
+    Attributes:
+        parsed: A bool indicating whether the packet's raw bytes have been
+            parsed to populate the `SCMPPacket` instance's attributes.
+        raw: A `bytes` object representing the raw bytes of the packet.
+        hdr: A `SCMPHeader` instance representing the `SCMPPacket` instance's
+            header.
+        payload: A `bytes` object representing the `SCMPPacket` instance's
+            payload.
     """
 
     def __init__(self, raw=None):
