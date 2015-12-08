@@ -111,6 +111,12 @@ class SCMPHeader(HeaderBase):
         return inst
 
     def pack(self):
+        """
+        Return the raw byte string representation of the SCMPHeader instance.
+
+        Pack the SCMPHeader instance's field values into a raw byte string. The
+        checksum is *not* verified when packing the field values.
+        """
         return struct.pack("!BBHI", self.type_, self.code, self.checksum,
                            self.rest)
 
@@ -120,7 +126,6 @@ class SCMPHeader(HeaderBase):
     def __str__(self):
         return ("[SCMP type: %d, code: %d, checksum: %x, rest: %x]" %
                     self.type_, self.code, self.checksum, self.rest)
-
 
     def verify_checksum(self):
         """
