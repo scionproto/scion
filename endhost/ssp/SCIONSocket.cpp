@@ -113,25 +113,6 @@ SCIONSocket::SCIONSocket(int protocol, SCIONAddr *dstAddrs, int numAddrs,
     pthread_create(&mReceiverThread, NULL, dispatcherThread, this);
 }
 
-SCIONSocket::SCIONSocket(const SCIONSocket &s)
-    : mSrcPort(s.mSrcPort),
-    mDstPort(s.mDstPort),
-    mProtocolID(s.mProtocolID),
-    mDispatcherSocket(s.mDispatcherSocket),
-    mRegistered(s.mRegistered),
-    mRunning(s.mRunning),
-    mProtocol(s.mProtocol),
-    mDstAddrs(s.mDstAddrs),
-    mAcceptedSockets(s.mAcceptedSockets),
-    mDataProfile(s.mDataProfile)
-{
-    pthread_mutex_init(&mAcceptMutex, NULL);
-    pthread_cond_init(&mAcceptCond, NULL);
-    pthread_mutex_init(&mRegisterMutex, NULL);
-    pthread_cond_init(&mRegisterCond, NULL);
-    pthread_create(&mReceiverThread, NULL, dispatcherThread, this);
-}
-
 SCIONSocket::~SCIONSocket()
 {
     if (mProtocol) {
@@ -145,26 +126,6 @@ SCIONSocket::~SCIONSocket()
     mRunning = false;
     close(mDispatcherSocket);
     pthread_kill(mReceiverThread, SIGTERM);
-}
-
-SCIONSocket & SCIONSocket::operator=(const SCIONSocket &s)
-{
-    mSrcPort = s.mSrcPort;
-    mDstPort = s.mDstPort;
-    mProtocolID = s.mProtocolID;
-    mDispatcherSocket = s.mDispatcherSocket;
-    mRegistered = s.mRegistered;
-    mRunning = s.mRunning;
-    mProtocol = s.mProtocol;
-    mDstAddrs = s.mDstAddrs;
-    mAcceptedSockets = s.mAcceptedSockets;
-    mDataProfile = s.mDataProfile;
-    pthread_mutex_init(&mAcceptMutex, NULL);
-    pthread_cond_init(&mAcceptCond, NULL);
-    pthread_mutex_init(&mRegisterMutex, NULL);
-    pthread_cond_init(&mRegisterCond, NULL);
-    pthread_create(&mReceiverThread, NULL, dispatcherThread, this);
-    return *this;
 }
 
 SCIONSocket & SCIONSocket::accept()

@@ -12,10 +12,7 @@
 class SCIONSocket {
 public:
     SCIONSocket(int protocol, SCIONAddr *dstAddrs, int numAddrs, short srcPort, short dstPort);
-    SCIONSocket(const SCIONSocket &s);
     ~SCIONSocket();
-
-    SCIONSocket & operator=(const SCIONSocket &s);
 
     // traditional socket functionality
     SCIONSocket & accept();
