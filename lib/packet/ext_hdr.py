@@ -28,6 +28,10 @@ class HopByHopType(TypeBase):
     TRACEROUTE = 0
 
 
+class EndToEndType(TypeBase):
+    PATH_TRANSPORT = 0
+
+
 class ExtensionHeader(HeaderBase):
     """
     Base class for extension headers.

@@ -125,9 +125,8 @@ class TestSCIONAddrParse(object):
     def test(self, init, get_type, raw, isdad_raw):
         # Setup
         inst = SCIONAddr()
-        haddr_type = create_mock(["LEN", "NAME"])
+        haddr_type = create_mock(["LEN"])
         haddr_type.LEN = 42
-        haddr_type.NAME = "NAME"
         get_type.return_value = haddr_type
         data = create_mock(["__len__", "pop"])
         data.pop.side_effect = ("pop isd_ad", "raw addr")
@@ -138,7 +137,8 @@ class TestSCIONAddrParse(object):
         # Tests
         get_type.assert_called_once_with("atype")
         ntools.eq_(inst.addr_len, 42 + ISD_AD.LEN)
-        raw.assert_called_once_with("data", "SCIONAddr (NAME)", 42 + ISD_AD.LEN)
+        raw.assert_called_once_with("data", "SCIONAddr", 42 + ISD_AD.LEN,
+                                    min_=True)
         data.pop.assert_has_calls((call(ISD_AD.LEN), call(42)))
         isdad_raw.assert_called_once_with("pop isd_ad")
         ntools.eq_(inst.isd_id, 1)

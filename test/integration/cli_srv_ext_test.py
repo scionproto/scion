@@ -28,6 +28,11 @@ from lib.defines import GEN_PATH, SCION_UDP_EH_DATA_PORT
 from lib.log import init_logging
 from lib.main import main_wrapper
 from lib.packet.ext.traceroute import TracerouteExt
+from lib.packet.ext.path_transport import (
+    PathTransportExt,
+    PathTransOFPath,
+    PathTransType,
+)
 from lib.packet.host_addr import haddr_parse_interface
 from lib.packet.packet_base import PayloadRaw
 from lib.packet.scion import SCIONL4Packet, build_base_hdrs
@@ -61,8 +66,20 @@ def client(c_addr, s_addr):
     routers_no = (path.get_ad_hops() - 1) * 2
     # Number of router for round-trip (return path is symmetric)
     routers_no *= 2
+
+    # Extensions
+    ext = []
     # Create empty Traceroute extensions with allocated space
-    ext = TracerouteExt.from_values(routers_no)
+    ext.append(TracerouteExt.from_values(routers_no))
+    # Create PathTransportExtension
+    # One with data-plane path.
+    of_path = PathTransOFPath.from_values(c_addr, s_addr, path)
+    ext.append(PathTransportExt.from_values(PathTransType.OF_PATH, of_path))
+    # And another PathTransportExtension with control-plane path.
+    if (sd.up_segments() + sd.core_segments() + sd.down_segments()):
+        seg = (sd.up_segments() + sd.core_segments() + sd.down_segments())[0]
+        ext.append(PathTransportExt.from_values(PathTransType.PCB_PATH, seg))
+
     # Set payload
     payload = PayloadRaw(b"request to server")
     # Create a SCION packet with the extensions
@@ -70,8 +87,8 @@ def client(c_addr, s_addr):
     udp_hdr = SCIONUDPHeader.from_values(
         c_addr, sock.port, s_addr, SCION_UDP_EH_DATA_PORT, payload,
     )
-    spkt = SCIONL4Packet.from_values(cmn_hdr, addr_hdr, path, [ext], udp_hdr,
-                                     payload)
+    spkt = SCIONL4Packet.from_values(cmn_hdr, addr_hdr, path,
+                                     ext, udp_hdr, payload)
     # Determine first hop (i.e., local address of border router)
     (next_hop, port) = sd.get_first_hop(spkt)
     assert next_hop is not None
