@@ -63,15 +63,16 @@ topology/mininet/*.pyc
 
 # Socket library files
 ##########################
-endhost/sdamp/*.so
+endhost/ssp/*.so
+endhost/ssp/*.o
 
 # Socket binaries
 ##########################
 endhost/*dispatcher
-endhost/sdamp/test/*.o
-endhost/sdamp/test/*client
-endhost/sdamp/test/*server
-endhost/sdamp/test/*file
+endhost/ssp/test/*.o
+endhost/ssp/test/*client
+endhost/ssp/test/*server
+endhost/ssp/test/*file
 
 # CTags
 ##########################

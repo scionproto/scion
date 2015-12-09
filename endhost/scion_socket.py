@@ -93,7 +93,7 @@ class ScionStats(object):
         self.highestAcked = copy.deepcopy(stats.highestAcked)
 
 
-SHARED_LIB_LOCATION = os.path.join("endhost", "sdamp")
+SHARED_LIB_LOCATION = os.path.join("endhost", "ssp")
 SHARED_LIB_SERVER = "libserver.so"
 SHARED_LIB_CLIENT = "libclient.so"
 

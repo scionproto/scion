@@ -14,7 +14,7 @@
 # limitations under the License.
 
 """
-:mod:`sdamp_cli_srv_test` --- A client-server test using SCION Sockets
+:mod:`ssp_cli_srv_test` --- A client-server test using SCION Sockets
 ======================================================================
 
 Running this test has the following requirements:

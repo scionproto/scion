@@ -66,11 +66,11 @@ cmd_version() {
 
 cmd_sock_bld() {
     make -C endhost
-    make -C endhost/sdamp
-    make -C endhost/sdamp/test
+    make -C endhost/ssp
+    make -C endhost/ssp/test
 }
 
-SOCKDIR=endhost/sdamp
+SOCKDIR=endhost/ssp
 
 cmd_sock_cli() {
     if [ $# -eq 2 ]
@@ -87,7 +87,7 @@ cmd_sock_cli() {
 }
 
 cmd_run_cli() {
-    export LD_LIBRARY_PATH=`pwd`/endhost/sdamp
+    export LD_LIBRARY_PATH=`pwd`/endhost/ssp
     $SOCKDIR/test/client
 }
 
@@ -106,7 +106,7 @@ cmd_sock_ser() {
 }
 
 cmd_run_ser() {
-    export LD_LIBRARY_PATH=`pwd`/endhost/sdamp
+    export LD_LIBRARY_PATH=`pwd`/endhost/ssp
     $SOCKDIR/test/server
 }
 
