@@ -255,7 +255,7 @@ class PathSegmentDB(object):
         criterias specified.
 
         :param full: Return list of results not bounded by self._max_res_no.
-        :type segment_ids: bool
+        :type full: bool
         :param args:
         :type args:
         :param kwargs:

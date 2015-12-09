@@ -210,12 +210,13 @@ class PathBase(HeaderBase, metaclass=ABCMeta):
             return 0
         return None
 
-    def _get_first_hof_idx(self):
+    def _get_first_hof_idx(self):  # pragma: no cover
         """
         Returns index of the first :any:`HopOpaqueField` in the path.
         """
-        if self._ofs.get_by_label(UP_HOFS) or self._ofs.get_by_label(DOWN_HOFS):
-            return 1
+        for l in UP_HOFS, CORE_HOFS, DOWN_HOFS:
+            if self._ofs.get_by_label(l):
+                return 1
         return None
 
     def get_ofs_by_label(self, label):
@@ -851,24 +852,31 @@ class PathCombinator(object):
         path.mtu = min_mtu(up_mtu, core_mtu, down_mtu)
         up_core = list(reversed(up_segment.ads))
         if core_segment:
-            up_core = up_core + list(reversed(core_segment.ads))
-        for block in up_core:
-            isd_ad = ISD_AD(block.pcbm.isd_id, block.pcbm.ad_id)
-            egress = block.pcbm.hof.egress_if
-            ingress = block.pcbm.hof.ingress_if
-            if egress:
-                path.interfaces.append((isd_ad, egress))
-            if ingress:
-                path.interfaces.append((isd_ad, ingress))
-        for block in down_segment.ads:
-            isd_ad = ISD_AD(block.pcbm.isd_id, block.pcbm.ad_id)
-            egress = block.pcbm.hof.egress_if
-            ingress = block.pcbm.hof.ingress_if
-            if ingress:
-                path.interfaces.append((isd_ad, ingress))
-            if egress:
-                path.interfaces.append((isd_ad, egress))
+            up_core += list(reversed(core_segment.ads))
+        cls._add_interfaces(path, up_core)
+        cls._add_interfaces(path, down_segment.ads, up=False)
         return path
+
+    @classmethod
+    def _add_interfaces(cls, path, segment_ads, up=True):
+        """
+        Add interface IDs of segment_ads to path. Order of IDs depends on up
+        flag.
+        """
+        for block in segment_ads:
+            isd_ad = ISD_AD(block.pcbm.isd_id, block.pcbm.ad_id)
+            egress = block.pcbm.hof.egress_if
+            ingress = block.pcbm.hof.ingress_if
+            if up:
+                if egress:
+                    path.interfaces.append((isd_ad, egress))
+                if ingress:
+                    path.interfaces.append((isd_ad, ingress))
+            else:
+                if ingress:
+                    path.interfaces.append((isd_ad, ingress))
+                if egress:
+                    path.interfaces.append((isd_ad, egress))
 
     @classmethod
     def _copy_segment(cls, segment, xovrs, up=True):
@@ -1091,6 +1099,42 @@ class PathCombinator(object):
                 if (up_peer.ad_id == down_ad.pcbm.ad_id and
                         down_peer.ad_id == up_ad.pcbm.ad_id):
                     return up_peer.hof, down_peer.hof
+
+    @classmethod
+    def tuples_to_full_paths(cls, tuples):
+        """
+        For a set of tuples of possible end-to-end path [format is:
+        (up_seg, core_seg, down_seg)], return a list of fullpaths.
+
+        """
+        # TODO(PSz): eventually this should replace _build_core_paths.
+        res = []
+        for up_segment, core_segment, down_segment in tuples:
+            if not up_segment and not core_segment and not down_segment:
+                continue
+
+            up_iof, up_hofs, up_mtu = cls._copy_segment(up_segment, [-1])
+            core_iof, core_hofs, core_mtu = cls._copy_segment(core_segment,
+                                                              [-1, 0])
+            down_iof, down_hofs, down_mtu = cls._copy_segment(down_segment,
+                                                              [0], up=False)
+            path = CorePath.from_values(up_iof, up_hofs, core_iof, core_hofs,
+                                        down_iof, down_hofs)
+            path.mtu = min_mtu(up_mtu, core_mtu, down_mtu)
+            if up_segment:
+                up_core = list(reversed(up_segment.ads))
+            else:
+                up_core = []
+            if core_segment:
+                up_core += list(reversed(core_segment.ads))
+            cls._add_interfaces(path, up_core)
+            if down_segment:
+                down_core = down_segment.ads
+            else:
+                down_core = []
+            cls._add_interfaces(path, down_core, up=False)
+            res.append(path)
+        return res
 
 
 def parse_path(raw):

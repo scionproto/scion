@@ -1168,7 +1168,7 @@ class CoreBeaconServer(BeaconServer):
         :param pcb: verified path segment.
         :type pcb: PathSegment
         """
-        isd_id, ad_id = pcb.get_first_pcbm().get_isd_ad()
+        isd_id, ad_id = pcb.get_first_isd_ad()
         self.core_beacons[(isd_id, ad_id)].add_segment(pcb)
 
     def register_core_segments(self):
