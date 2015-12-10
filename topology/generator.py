@@ -518,11 +518,11 @@ class SupervisorGenerator(object):
         entries = []
         base = self._get_base_path(topo_id)
         for key, cmd in (
-            ("BeaconServers", "beacon_server.py"),
-            ("CertificateServers", "cert_server.py"),
-            ("PathServers", "path_server.py"),
-            ("DNSServers", "dns_server.py"),
-            ("EdgeRouters", "router.py"),
+            ("BeaconServers", "bin/beacon_server"),
+            ("CertificateServers", "infrastructure/cert_server.py"),
+            ("PathServers", "infrastructure/path_server.py"),
+            ("DNSServers", "infrastructure/dns_server.py"),
+            ("EdgeRouters", "infrastructure/router.py"),
         ):
             entries.extend(self._std_entries(topo, key, cmd, base))
         entries.extend(self._zk_entries(topo_id))
@@ -532,7 +532,7 @@ class SupervisorGenerator(object):
         entries = []
         for elem in topo.get(topo_key, {}):
             conf_dir = os.path.join(base, elem)
-            entries.append((elem, ["infrastructure/%s" % cmd, elem, conf_dir]))
+            entries.append((elem, [cmd, elem, conf_dir]))
         return entries
 
     def _zk_entries(self, topo_id):
