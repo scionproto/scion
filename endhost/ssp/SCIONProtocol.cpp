@@ -232,7 +232,8 @@ int SSPProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr)
             break;
         }
         if (sp->len + total > len) {
-            DEBUG("not enough buffer space\n");
+            DEBUG("not enough buffer space: %d + %d > %d\n",
+                    sp->len, total, len);
             break;
         }
         DEBUG("reading %lu bytes\n", sp->len);

@@ -227,6 +227,10 @@ void Path::copySCIONHeader(uint8_t *bufptr, SCIONCommonHeader *ch)
     bufptr += SCION_ISD_AD_LEN;
     memcpy(bufptr, mDstAddr.host.addr, mDstAddr.host.addrLen);
     bufptr += mDstAddr.host.addrLen;
+
+    if (mPathLen == 0)
+        return;
+
     // path
     memcpy(bufptr, mPath, mPathLen);
     bufptr += mPathLen;

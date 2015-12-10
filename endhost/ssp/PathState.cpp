@@ -196,7 +196,8 @@ void PathState::addRetransmit()
     mLossIntervals.push_front(mTotalAcked - mLastTotalAcked);
     if (mLossIntervals.size() > MAX_LOSS_INTERVALS)
         mLossIntervals.pop_back();
-    DEBUG("loss on path %d: new loss interval = %ld\n", mPathIndex, mTotalAcked - mLastTotalAcked);
+    DEBUG("loss on path %d: new loss interval = %ld, %d/%d in flight\n",
+            mPathIndex, mTotalAcked - mLastTotalAcked, mInFlight, mWindow);
     mLastTotalAcked = mTotalAcked;
     calculateLoss(ALI_FROM_INTERVAL_1);
     pthread_mutex_unlock(&mMutex);

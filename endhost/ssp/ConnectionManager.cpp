@@ -499,6 +499,7 @@ void SSPConnectionManager::handleAck(SCIONPacket *packet, size_t initCount, bool
     }
 
     std::vector<SCIONPacket *> retries;
+    pthread_mutex_lock(&mPacketMutex);
     pthread_mutex_lock(&mSentMutex);
     PacketList::iterator i = mSentPackets.begin();
     while (i != mSentPackets.end()) {
@@ -526,6 +527,8 @@ void SSPConnectionManager::handleAck(SCIONPacket *packet, size_t initCount, bool
                 sp->ack.L = pn;
                 handleAckOnPath(p, false);
             }
+            DEBUG("notify scheduler: successful ack\n");
+            pthread_cond_broadcast(&mPathCond);
             if (pn > 0 || (receiver || initCount == mPaths.size())) {
                 ackNums.erase(pn);
                 i = mSentPackets.erase(i);
@@ -582,7 +585,10 @@ void SSPConnectionManager::handleAck(SCIONPacket *packet, size_t initCount, bool
         }
         pthread_mutex_unlock(&mRetryMutex);
         pthread_cond_broadcast(&mPacketCond);
+        DEBUG("notify scheduler: loss from dup acks and/or buffer full\n");
+        pthread_cond_broadcast(&mPathCond);
     }
+    pthread_mutex_unlock(&mPacketMutex);
 }
 
 int SSPConnectionManager::handleAckOnPath(SCIONPacket *packet, bool rttSample)
@@ -602,7 +608,6 @@ int SSPConnectionManager::handleAckOnPath(SCIONPacket *packet, bool rttSample)
         else
             mPaths[packet->pathIndex]->setUsed(true);
     }
-    pthread_cond_broadcast(&mPathCond);
     return ((SSPPath *)(mPaths[packet->pathIndex]))->handleAck(packet, rttSample);
 }
 
@@ -766,20 +771,28 @@ void SSPConnectionManager::schedule()
     while (mRunning) {
         pthread_mutex_lock(&mPacketMutex);
         while (!readyToSend()) {
+            DEBUG("wait until there is stuff to send\n");
             pthread_cond_wait(&mPacketCond, &mPacketMutex);
-            if (!mRunning)
+            if (!mRunning) {
+                pthread_mutex_unlock(&mPacketMutex);
                 return;
+            }
         }
 
         DEBUG("get path to send stuff\n");
         Path *p = NULL;
         while (!(p = pathToSend())) {
+            DEBUG("no path ready yet, wait\n");
             pthread_cond_wait(&mPathCond, &mPacketMutex);
-            if (!mRunning)
+            DEBUG("woke up from waiting\n");
+            if (!mRunning) {
+                pthread_mutex_unlock(&mPacketMutex);
                 return;
+            }
         }
-        pthread_mutex_unlock(&mPacketMutex);
+        DEBUG("path %d ready\n", p->getIndex());
         SCIONPacket *packet = nextPacket();
+        pthread_mutex_unlock(&mPacketMutex);
         if (!packet) {
             DEBUG("no packet to send\n");
             continue;
@@ -794,7 +807,6 @@ void SSPConnectionManager::schedule()
 SCIONPacket * SSPConnectionManager::nextPacket()
 {
     SCIONPacket *packet = NULL;
-    pthread_mutex_lock(&mPacketMutex);
     pthread_mutex_lock(&mRetryMutex);
     if (!mRetryPackets->empty())
         packet = mRetryPackets->pop();
@@ -805,7 +817,6 @@ SCIONPacket * SSPConnectionManager::nextPacket()
             packet = mFreshPackets->pop();
         pthread_mutex_unlock(&mFreshMutex);
     }
-    pthread_mutex_unlock(&mPacketMutex);
     return packet;
 }
 
@@ -817,6 +828,7 @@ Path * SSPConnectionManager::pathToSend()
             DEBUG("path %lu: up(%d), used(%d)\n", i, p->isUp(), p->isUsed());
             continue;
         }
+        DEBUG("is path %lu ready?\n", i);
         int ready = p->timeUntilReady();
         DEBUG("path %lu: ready = %d\n", i, ready);
         if (ready == 0)
