@@ -54,7 +54,7 @@ Currently supported HTTP(S) methods:
  - TRACE;
  - CONNECT.
 
-Usage:
+--Usage:
 
 Simple usage of the proxy would be as follows:
 1) Start the proxy server from the top level SCION directory:
@@ -71,31 +71,90 @@ Preferences -> Advanced -> Network -> Settings -> Manual Proxy Configuration
 and setting the following fields:
 
 HTTP Proxy: 127.0.0.1, Port: 8080
+
+
+--Forwarding (Bridge) Proxy mode usage:
+
+SCION HTTP(S) Proxy can also be used in the forwarding (bridge) mode.
+This mode can be used to connect to another SCION proxy. Bridge mode can
+be enabled using the -f (or --forward) flag from the command line
+as follows:
+
+endhost/scion_proxy.py -f
 """
 
 # Stdlib
+import argparse
 import logging
 import select
 import socket
-from http.server import SimpleHTTPRequestHandler, HTTPServer
-from socketserver import ThreadingMixIn
+import threading
 from urllib.parse import urlparse, urlunparse
 
 # SCION
 from lib.log import init_logging, log_exception
+from lib.thread import thread_safety_net
 
 VERSION = '0.1.0'
 BUFLEN = 8192
-SERVER_ADDRESS = ('127.0.0.1', 8080)
+DEFAULT_SERVER_IP = '127.0.0.1'
+DEFAULT_SERVER_PORT = 8080
 SELECT_TIMEOUT = 3  # seconds
 LOG_BASE = 'logs/scion_proxy'
 
 
-class ConnectionHandler(SimpleHTTPRequestHandler):
+class ConnectionHandler(object):
     """
     Handler class for the connection to be proxied.
     """
     server_version = "SCION HTTP Proxy/" + VERSION
+
+    def __init__(self, connection, address):
+        """
+        Create a ConnectionHandler class to handle the incoming HTTP(S) request.
+        :param connection: Socket belonging to the incoming connection.
+        :type connection: socket
+        :param address: Address of the connecting party.
+        :type address: host, port
+        """
+        self.connection = connection
+        self.client_buffer = b''
+        self.method, self.path, self.protocol = self.get_base_header()
+        if self.method == 'CONNECT':
+            self.do_CONNECT()
+        elif self.method in ('OPTIONS', 'GET', 'HEAD', 'POST', 'PUT',
+                             'DELETE', 'TRACE'):
+            self.handle_others()
+        else:
+            logging.warning("Unrecognized HTTP(S) header: %s" %
+                            self.client_buffer)
+        self.connection.close()
+
+    def get_base_header(self):
+        """
+        Extracts the request line of an incoming HTTP(S) request.
+        :returns: HTTP(S) Method, Path, HTTP(S) Protocol Version
+        :rtype: triple
+        """
+        while True:
+            received = self.connection.recv(BUFLEN)
+            if not received:
+                # connection is shut down
+                logging.info("Client closed the connection.")
+                return 'Unrecognized', 'Unrecognized', 'Unrecognized'
+            self.client_buffer += received
+            newline_loc = self.client_buffer.find(b'\n')
+            if newline_loc != -1:
+                end = newline_loc
+                break
+            carriage_return_loc = self.client_buffer.find(b'\r')
+            if carriage_return_loc != -1:
+                end = carriage_return_loc
+                break
+        logging.info("Requestline = %s" % self.client_buffer[:end])
+        base_header = self.client_buffer[:end+1].decode('ascii').split()
+        self.client_buffer = self.client_buffer[end+1:]
+        return base_header
 
     def do_CONNECT(self):
         """
@@ -103,15 +162,15 @@ class ConnectionHandler(SimpleHTTPRequestHandler):
         and responds to the client (i.e. browser) with a 200
         Connection established response and starts proxying.
         """
-        logging.info("%s %s" % (self.requestline, self.client_address))
         soc = self._connect_to(self.path)
         if not soc:
             return
         try:
-            reply = self.protocol_version + \
+            reply = self.protocol + \
                 " 200 Connection established\n" + \
-                "Proxy-agent: %s\n\n" % self.version_string()
-            self.wfile.write(bytes(reply, 'ascii'))
+                "Proxy-agent: %s\n\n" % self.server_version
+            self.connection.send(bytes(reply, 'ascii'))
+            self.client_buffer = b''
             self._read_write(soc)
         finally:
             soc.close()
@@ -122,7 +181,6 @@ class ConnectionHandler(SimpleHTTPRequestHandler):
         connects to the target address, sends the complete request
         to the target and starts proxying.
         """
-        logging.info("%s %s" % (self.requestline, self.client_address))
         (scm, netloc, path, params, query, _) = urlparse(
             self.path, 'http')
         if scm != 'http' or not netloc:
@@ -133,7 +191,7 @@ class ConnectionHandler(SimpleHTTPRequestHandler):
         if not soc:
             return
         try:
-            self._send_request(soc, path, params, query)
+            self._send_request(soc, scm, netloc, path, params, query)
             self._read_write(soc)
         finally:
             soc.close()
@@ -161,7 +219,7 @@ class ConnectionHandler(SimpleHTTPRequestHandler):
         logging.debug("Connected to %s:%s" % (host, port))
         return soc
 
-    def _send_request(self, soc, path, params, query):
+    def _send_request(self, soc, scm, netloc, path, params, query):
         """
         Helper function that prepares and sends the request on the
         given socket.
@@ -174,21 +232,16 @@ class ConnectionHandler(SimpleHTTPRequestHandler):
         :param query: Query section of the HTTP request (if any).
         :type query: String
         """
-        h = []
-        h.append("%s %s %s" % (
-            self.command,
-            urlunparse(('', '', path, params, query, '')),
-            self.request_version))
-        for key_val in self.headers.items():
-            h.append("%s: %s" % key_val)
-        header = "%s\n\n" % "\n".join(h)
-        content_len = int(self.headers.get('content-length', 0))
-        body = self.rfile.read(content_len)
+        base = "%s %s %s\n" % (
+            self.method,
+            urlunparse((scm, netloc, path, params, query, '')),
+            self.protocol)
         req_bytes = []
-        req_bytes.append(bytes(header, 'ascii'))
-        req_bytes.append(body)
+        req_bytes.append(bytes(base, 'ascii'))
+        req_bytes.append(self.client_buffer)
         logging.debug("Sending a request: %s", req_bytes)
         soc.send(b''.join(req_bytes))
+        self.client_buffer = b''
 
     def _read_write(self, target_sock, max_idling=60):
         """
@@ -243,7 +296,7 @@ class ConnectionHandler(SimpleHTTPRequestHandler):
                           input_, e)
             return False
         if not data:
-            logging.error("Read 0 bytes from %s socket.", input_)
+            logging.info("Peer closed the connection.")
             return False
         try:
             out.sendall(data)
@@ -253,26 +306,115 @@ class ConnectionHandler(SimpleHTTPRequestHandler):
             return False
         return True
 
-    # override the handler methods of the SimpleHTTPRequestHandler class
-    do_DELETE = handle_others
-    do_GET = handle_others
-    do_HEAD = handle_others
-    do_POST = handle_others
-    do_PUT = handle_others
-    do_TRACE = handle_others
-    do_OPTIONS = handle_others
+
+class ForwardingProxyConnectionHandler(ConnectionHandler):
+    """
+    Handler class for the SCION forwarding (bridge) proxy.
+    """
+    server_version = "SCION HTTP Bridge Proxy/" + VERSION
+    target_proxy = '127.0.0.1', 9090
+
+    def __init__(self, connection, address):
+        """
+        Create a ConnectionHandler class to handle the incoming
+        HTTP(S) request.
+        :param connection: Socket object that belong to the incoming connection
+        :type connection: socket
+        :param address: Address of the connecting party.
+        :type address: host, port
+        """
+        self.connection = connection
+        self.client_buffer = b''
+        self.method, self.path, self.protocol = self.get_base_header()
+        if self.method in ('CONNECT', 'OPTIONS', 'GET', 'HEAD', 'POST', 'PUT',
+                           'DELETE', 'TRACE'):
+            self.relay_all()
+        else:
+            logging.warning("Unrecognized HTTP(S) header: %s" %
+                            self.client_buffer)
+        self.connection.close()
+
+    def relay_all(self):
+        """
+        Relays all the supported HTTP(S) methods: Parses the path,
+        connects to the target address, sends the complete request
+        to the target SCION proxy and starts proxying.
+        """
+        (scm, netloc, path, params, query, _) = urlparse(self.path)
+        soc = self._connect_to_target_proxy()
+        if not soc:
+            return
+        try:
+            self._send_request(soc, scm, netloc, path, params, query)
+            self._read_write(soc)
+        finally:
+            soc.close()
+
+    def _connect_to_target_proxy(self):
+        """
+        Establishes a connection to the target SCION proxy.
+        :returns: The socket that is connected to the target proxy.
+        :rtype: socket
+        """
+        soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        logging.debug("Connecting to %s:%s" % self.target_proxy)
+        try:
+            soc.connect(self.target_proxy)
+        except OSError:
+            log_exception("Error while connecting to %s:%s" % self.target_proxy)
+            return False
+        logging.debug("Connected to target proxy %s:%s" % self.target_proxy)
+        return soc
 
 
-class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
-    """Handle requests in a separate thread."""
-    daemon_threads = True
+def serve_forever(soc, handler):
+    """
+    Serve incoming HTTP requests until a KeyboardInterrupt is received.
+    :param soc: Socket object that belongs to the server.
+    :type soc: socket
+    :param handler: The type of class to be instantiated as the
+    connection handler.
+    :type handler: ConnectionHandler or ForwardingProxyConnectionHandler
+    """
+    while True:
+        con, addr = soc.accept()
+        threading.Thread(target=thread_safety_net,
+                         args=(handler, con, addr),
+                         daemon=True).start()
 
-if __name__ == '__main__':
-    init_logging(LOG_BASE, file_level=logging.DEBUG, console_level=logging.INFO)
-    httpd = ThreadingHTTPServer(SERVER_ADDRESS, ConnectionHandler)
+
+def main():
+    """
+    Parse the command-line arguments and start the proxy server.
+    """
+    init_logging(LOG_BASE, file_level=logging.DEBUG,
+                 console_level=logging.INFO)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-p", "--port",
+                        help='Port number to run SCION Proxy on',
+                        type=int, default=DEFAULT_SERVER_PORT)
+    parser.add_argument("-f", "--forward", help='Forwarding proxy mode',
+                        action="store_true")
+    args = parser.parse_args()
+
+    server_address = DEFAULT_SERVER_IP, args.port
+    if args.forward:
+        logging.info("Forwarding (Bridge) mode is on.")
+        handler_class = ForwardingProxyConnectionHandler
+    else:
+        handler_class = ConnectionHandler
+
+    soc = socket.socket(socket.AF_INET)
+    soc.bind(server_address)
     logging.info("Starting server at (%s, %s), use <Ctrl-C> to stop" %
-                 SERVER_ADDRESS)
+                 server_address)
+    soc.listen(0)
     try:
-        httpd.serve_forever()
+        serve_forever(soc, handler_class)
     except KeyboardInterrupt:
         logging.info("Exiting")
+        soc.close()
+
+
+if __name__ == '__main__':
+    main()
