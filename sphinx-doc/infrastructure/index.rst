@@ -8,3 +8,4 @@ Contents:
    :glob:
 
    *
+   beacon_server/index
