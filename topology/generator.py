@@ -521,7 +521,7 @@ class SupervisorGenerator(object):
             ("BeaconServers", "bin/beacon_server"),
             ("CertificateServers", "infrastructure/cert_server.py"),
             ("PathServers", "infrastructure/path_server.py"),
-            ("DNSServers", "infrastructure/dns_server.py"),
+            ("DNSServers", "bin/dns_server"),
             ("EdgeRouters", "infrastructure/router.py"),
         ):
             entries.extend(self._std_entries(topo, key, cmd, base))
