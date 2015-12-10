@@ -13,7 +13,8 @@
 
 PathManager::PathManager(std::vector<SCIONAddr> &addrs, int sock)
     : mSendSocket(sock),
-    mDstAddrs(addrs)
+    mDstAddrs(addrs),
+    mInvalid(0)
 {
     struct sockaddr_in addr;
 
@@ -44,6 +45,8 @@ int PathManager::maxPayloadSize()
 {
     int min = INT_MAX;
     for (size_t i = 0; i < mPaths.size(); i++) {
+        if (!mPaths[i])
+            continue;
         int size = mPaths[i]->getPayloadLen(false);
         if (size < min)
             min = size;
@@ -84,11 +87,8 @@ void PathManager::getPaths()
         bind(mSendSocket, (struct sockaddr *)&sa, sizeof(sa));
     }
 
-    int invalid = 0;
-    for (size_t j = 0; j < mPaths.size(); j++) {
-        if (!mPaths[j]->isValid())
-            invalid++;
-    }
+    prunePaths();
+    int numPaths = mPaths.size() - mInvalid;
     // Now get paths for remote address(es)
     std::vector<Path *> candidates;
     for (i = mDstAddrs.begin(); i != mDstAddrs.end(); i++) {
@@ -102,7 +102,7 @@ void PathManager::getPaths()
             DEBUG("%d byte response from daemon\n", recvlen);
             int offset = 0;
             while (offset < recvlen &&
-                    mPaths.size() - invalid + candidates.size() < MAX_TOTAL_PATHS) {
+                    numPaths + candidates.size() < MAX_TOTAL_PATHS) {
                 bool found = false;
                 int pathLen = *(buf + offset) * 8;
                 if (pathLen + offset > buflen)
@@ -112,7 +112,8 @@ void PathManager::getPaths()
                 if (interfaceOffset + 1 + interfaceCount * SCION_IF_SIZE > buflen)
                     break;
                 for (size_t j = 0; j < mPaths.size(); j++) {
-                    if (mPaths[j]->isSamePath(buf + offset + 1, pathLen)) {
+                    if (mPaths[j] &&
+                            mPaths[j]->isSamePath(buf + offset + 1, pathLen)) {
                         found = true;
                         break;
                     }
@@ -130,27 +131,58 @@ void PathManager::getPaths()
                 offset = interfaceOffset + 1 + interfaceCount * SCION_IF_SIZE;
             }
         }
-        if (mPaths.size() - invalid + candidates.size() == MAX_TOTAL_PATHS)
+        if (numPaths + candidates.size() == MAX_TOTAL_PATHS)
             break;
     }
-    for (size_t j = 0; j < candidates.size(); j++) {
-        size_t slot;
-        for (slot = 0; slot < mPaths.size(); slot++) {
-            if (!mPaths[slot]->isValid()) {
-                DEBUG("path %lu no longer valid, replace\n", slot);
-                Path *p = mPaths[slot];
-                mPaths[slot] = candidates[j];
-                mPaths[slot]->setIndex(slot);
-                delete p;
-                break;
-            }
-        }
-        if (slot == mPaths.size()) {
-            mPaths.push_back(candidates[j]);
-            mPaths[slot]->setIndex(slot);
+    insertPaths(candidates);
+    DEBUG("total %lu paths\n", mPaths.size() - mInvalid);
+}
+
+void PathManager::prunePaths()
+{
+    for (size_t i = 0; i < mPaths.size(); i++) {
+        Path *p = mPaths[i];
+        if (p && !p->isValid()) {
+            mPaths[i] = NULL;
+            delete p;
+            mInvalid++;
         }
     }
-    DEBUG("total %lu paths\n", mPaths.size() - invalid);
+}
+
+void PathManager::insertPaths(std::vector<Path *> &candidates)
+{
+    for (size_t i = 0; i < mPaths.size(); i++) {
+        if (mPaths[i])
+            continue;
+        Path *p = candidates.front();
+        candidates.erase(candidates.begin());
+        mPaths[i] = p;
+        p->setIndex(i);
+        mInvalid--;
+    }
+    for (size_t i = 0; i < candidates.size(); i++) {
+        Path *p = candidates[i];
+        int index = mPaths.size();
+        mPaths.push_back(p);
+        p->setIndex(index);
+    }
+}
+
+int PathManager::insertOnePath(Path *p)
+{
+    for (size_t i = 0; i < mPaths.size(); i++) {
+        if (mPaths[i])
+            continue;
+        mPaths[i] = p;
+        p->setIndex(i);
+        mInvalid--;
+        return i;
+    }
+    int index = mPaths.size();
+    mPaths.push_back(p);
+    p->setIndex(index);
+    return index;
 }
 
 Path * PathManager::createPath(SCIONAddr &dstAddr, uint8_t *rawPath, int pathLen)
@@ -175,6 +207,8 @@ SUDPConnectionManager::SUDPConnectionManager(std::vector<SCIONAddr> &addrs, int 
     getPaths();
     mLastProbeAcked.resize(mPaths.size());
     for (size_t i = 0; i < mPaths.size(); i++) {
+        if (!mPaths[i])
+            continue;
         mLastProbeAcked[i] = 0;
         mPaths[i]->setUp();
     }
@@ -188,7 +222,7 @@ int SUDPConnectionManager::send(SCIONPacket *packet)
 {
     // TODO: Choose optimal path?
     for (size_t i = 0; i < mPaths.size(); i++)
-        if (mPaths[i]->isUp())
+        if (mPaths[i] && mPaths[i]->isUp())
             return mPaths[i]->send(packet, mSendSocket);
     return -1;
 }
@@ -198,7 +232,9 @@ void SUDPConnectionManager::sendProbes(uint32_t probeNum, uint16_t srcPort, uint
     DEBUG("send probes to dst port %d\n", dstPort);
     int ret = 0;
     for (size_t i = 0; i < mPaths.size(); i++) {
-        DEBUG("send probe on path %d\n", mPaths[i]->getIndex());
+        if (!mPaths[i])
+            continue;
+        DEBUG("send probe on path %lu\n", i);
         SCIONPacket p;
         memset(&p, 0, sizeof(p));
         buildCommonHeader(p.header.commonHeader, SCION_PROTO_SUDP);
@@ -218,6 +254,10 @@ void SUDPConnectionManager::sendProbes(uint32_t probeNum, uint16_t srcPort, uint
             mPaths[i]->handleTimeout(&t);
         }
     }
+    if (mPaths.size() - mInvalid == 0) {
+        DEBUG("no valid paths, periodically try fetching\n");
+        getPaths();
+    }
 }
 
 void SUDPConnectionManager::handlePacket(SCIONPacket *packet)
@@ -225,7 +265,8 @@ void SUDPConnectionManager::handlePacket(SCIONPacket *packet)
     bool found = false;
     int index;
     for (size_t i = 0; i < mPaths.size(); i++) {
-        if (mPaths[i]->isSamePath(packet->header.path, packet->header.pathLen)) {
+        if (mPaths[i] &&
+                mPaths[i]->isSamePath(packet->header.path, packet->header.pathLen)) {
             found = true;
             index = i;
             break;
@@ -239,9 +280,7 @@ void SUDPConnectionManager::handlePacket(SCIONPacket *packet)
 
         SUDPPath *p = new SUDPPath(this, mLocalAddr, saddr, packet->header.path, packet->header.pathLen);
         p->setFirstHop(SCION_HOST_ADDR_LEN, (uint8_t *)&(packet->firstHop));
-        mPaths.push_back(p);
-        p->setIndex(mPaths.size() - 1);
-        index = mPaths.size() - 1;
+        index = insertOnePath(p);
         mLastProbeAcked.resize(mPaths.size());
     }
     packet->pathIndex = index;
@@ -325,7 +364,8 @@ SSPConnectionManager::~SSPConnectionManager()
     while (!mPaths.empty()) {
         SSPPath *p = (SSPPath *)(mPaths.back());
         mPaths.pop_back();
-        delete p;
+        if (p)
+            delete p;
     }
     pthread_mutex_destroy(&mMutex);
     pthread_mutex_destroy(&mSentMutex);
@@ -339,8 +379,10 @@ SSPConnectionManager::~SSPConnectionManager()
 
 void SSPConnectionManager::setRemoteWindow(uint32_t window)
 {
-    for (size_t i = 0; i < mPaths.size(); i++)
-        ((SSPPath*)mPaths[i])->setRemoteWindow(window);
+    for (size_t i = 0; i < mPaths.size(); i++) {
+        if (mPaths[i])
+            ((SSPPath*)mPaths[i])->setRemoteWindow(window);
+    }
 }
 
 void SSPConnectionManager::waitForSendBuffer(int len, int windowSize)
@@ -402,7 +444,7 @@ void SSPConnectionManager::sendProbes(uint32_t probeNum, uint64_t flowID)
     bool refresh = false;
     for (size_t i = 0; i < mPaths.size(); i++) {
         SSPPath *p = (SSPPath *)mPaths[i];
-        if (p->isUp() || !p->isValid())
+        if (!p || p->isUp() || !p->isValid())
             continue;
         DEBUG("send probe on path %lu\n", i);
         SCIONPacket packet;
@@ -421,7 +463,7 @@ void SSPConnectionManager::sendProbes(uint32_t probeNum, uint64_t flowID)
             refresh = true;
         }
     }
-    if (refresh) {
+    if (refresh || mPaths.empty()) {
         // One or more paths down for long time
         DEBUG("get fresh paths\n");
         getPaths();
@@ -431,8 +473,10 @@ void SSPConnectionManager::sendProbes(uint32_t probeNum, uint64_t flowID)
 int SSPConnectionManager::sendAllPaths(SCIONPacket *packet)
 {
     int res = 0;
-    for (size_t i = 0; i < mPaths.size(); i++)
-        res |= mPaths[i]->send(packet, mSendSocket);
+    for (size_t i = 0; i < mPaths.size(); i++) {
+        if (mPaths[i])
+            res |= mPaths[i]->send(packet, mSendSocket);
+    }
     return res;
 }
 
@@ -442,6 +486,8 @@ int SSPConnectionManager::handlePacket(SCIONPacket *packet)
     int index;
     SSPPacket *sp = (SSPPacket *)(packet->payload);
     for (size_t i = 0; i < mPaths.size(); i++) {
+        if (!mPaths[i])
+            continue;
         if (sp->interfaceCount > 0) {
 #ifdef SIMULATOR
             if (mPaths[i]->isSamePath(packet->header.path, packet->header.pathLen)) {
@@ -468,9 +514,7 @@ int SSPConnectionManager::handlePacket(SCIONPacket *packet)
         SSPPath *p = new SSPPath(this, mLocalAddr, saddr, packet->header.path, packet->header.pathLen);
         p->setFirstHop(SCION_HOST_ADDR_LEN, (uint8_t *)&(packet->firstHop));
         p->setInterfaces(sp->interfaces, sp->interfaceCount);
-        mPaths.push_back(p);
-        p->setIndex(mPaths.size() - 1);
-        index = mPaths.size() - 1;
+        index = insertOnePath(p);
     }
     packet->pathIndex = index;
     if (sp->len > 0)
@@ -529,7 +573,8 @@ void SSPConnectionManager::handleAck(SCIONPacket *packet, size_t initCount, bool
             }
             DEBUG("notify scheduler: successful ack\n");
             pthread_cond_broadcast(&mPathCond);
-            if (pn > 0 || (receiver || initCount == mPaths.size())) {
+            if (pn > 0 ||
+                    (receiver || initCount == mPaths.size() - mInvalid)) {
                 ackNums.erase(pn);
                 i = mSentPackets.erase(i);
                 DEBUG("removed packet %u from sent list\n", pn);
@@ -600,7 +645,7 @@ int SSPConnectionManager::handleAckOnPath(SCIONPacket *packet, bool rttSample)
         mPaths[packet->pathIndex]->setUp();
         int used = 0;
         for (size_t i = 0; i < mPaths.size(); i++) {
-            if (mPaths[i]->isUsed())
+            if (mPaths[i] && mPaths[i]->isUsed())
                 used++;
         }
         if (used >= MAX_USED_PATHS)
@@ -620,7 +665,8 @@ void SSPConnectionManager::handleProbeAck(SCIONPacket *packet)
 {
     pthread_mutex_lock(&mMutex);
     for (size_t i = 0; i < mPaths.size(); i++) {
-        if (mPaths[i]->isSamePath(packet->header.path, packet->header.pathLen)) {
+        if (mPaths[i] &&
+                mPaths[i]->isSamePath(packet->header.path, packet->header.pathLen)) {
             if (!mPaths[i]->isUp()) {
                 DEBUG("path %lu back up from probe\n", i);
                 mPaths[i]->setUp();
@@ -664,6 +710,10 @@ void SSPConnectionManager::handleTimeout()
             size_t up = 0, down = 0;
             for (size_t j = 0; j < mPaths.size(); j++) {
                 SSPPath *p = (SSPPath *)(mPaths[j]);
+                if (!p) {
+                    down++;
+                    continue;
+                }
                 if (p->isUp()) {
                     up++;
                 } else if (p->didTimeout(&current)) {
@@ -730,8 +780,10 @@ void SSPConnectionManager::handleTimeout()
 
 void SSPConnectionManager::getStats(SCIONStats *stats)
 {
-    for (size_t i = 0; i < mPaths.size(); i++)
-        mPaths[i]->getStats(stats);
+    for (size_t i = 0; i < mPaths.size(); i++) {
+        if (mPaths[i])
+            mPaths[i]->getStats(stats);
+    }
 }
 
 Path * SSPConnectionManager::createPath(SCIONAddr &dstAddr, uint8_t *rawPath, int pathLen)
@@ -824,6 +876,8 @@ Path * SSPConnectionManager::pathToSend()
 {
     for (size_t i = 0; i < mPaths.size(); i++) {
         Path *p = mPaths[i];
+        if (!p)
+            continue;
         if (!p->isUp() || !p->isUsed()) {
             DEBUG("path %lu: up(%d), used(%d)\n", i, p->isUp(), p->isUsed());
             continue;

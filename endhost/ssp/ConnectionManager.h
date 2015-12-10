@@ -19,6 +19,9 @@ public:
     int maxPayloadSize();
 
     void getPaths();
+    void prunePaths();
+    void insertPaths(std::vector<Path *> &candidates);
+    int insertOnePath(Path *p);
 
     virtual Path * createPath(SCIONAddr &dstAddr, uint8_t *rawPath, int pathLen);
     virtual void handleTimeout();
@@ -32,6 +35,7 @@ protected:
     std::vector<SCIONAddr>      &mDstAddrs;
 
     std::vector<Path *>          mPaths;
+    int                          mInvalid;
 };
 
 // SUDP
