@@ -8,3 +8,5 @@ Contents:
    :glob:
 
    *
+   beacon_server/index
+   dns_server/index
