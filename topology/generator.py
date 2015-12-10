@@ -520,7 +520,7 @@ class SupervisorGenerator(object):
         for key, cmd in (
             ("BeaconServers", "bin/beacon_server"),
             ("CertificateServers", "infrastructure/cert_server.py"),
-            ("PathServers", "infrastructure/path_server.py"),
+            ("PathServers", "bin/path_server"),
             ("DNSServers", "bin/dns_server"),
             ("EdgeRouters", "infrastructure/router.py"),
         ):

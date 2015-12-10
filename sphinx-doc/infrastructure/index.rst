@@ -10,3 +10,4 @@ Contents:
    *
    beacon_server/index
    dns_server/index
+   path_server/index
