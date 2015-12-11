@@ -17,7 +17,7 @@ from mininet.link import Intf
 MAX_INTF_LEN = 15
 NETWORKS_CONF = "gen/networks.conf"
 
-HSR="er1_11er1_13"
+HSR = "er1_11er1_13"
 HSR_EGRESS_IP = "100.64.0.3"
 HSR_LOCAL_IP = "100.64.0.28"
 
@@ -94,7 +94,6 @@ def main():
     topo = ScionTopo(topology)
     net = Mininet(topo=topo, controller=RemoteController)
 
-
     for host in net.hosts:
         # static arp setting to send packets to HSR
         if host.name == "er1_11er1_13":
@@ -107,11 +106,10 @@ def main():
             host.setMAC("0:0:0:0:0:09")
         if host.name == "ds1_13_1":
             host.setMAC("0:0:0:0:0:0a")
-        #if host.name == "er1_11er1_12":
+        # if host.name == "er1_11er1_12":
         #    host.setMAC("0:0:0:0:10:1","er1_11er1_12-0")
         host.cmd("arp -s %s 1:2:3:4:5:6" % HSR_EGRESS_IP)
         host.cmd("arp -s %s 1:2:3:4:5:7" % HSR_LOCAL_IP)
-
 
     for host in net.hosts:
         host.cmd('ip route add 169.254.0.0/16 dev %s-0' % host.name)
@@ -125,8 +123,7 @@ def main():
             Intf('eth10', node=switch)
         if switch.name == "s3":
             Intf('eth11', node=switch)
-   
-    
+
     net.start()
     os.system('ip link add name mininet type dummy')
     os.system('ip addr add 169.254.0.1/16 dev mininet')
