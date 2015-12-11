@@ -20,16 +20,19 @@ import logging
 import os
 import queue
 import threading
+from collections import defaultdict
 
 # SCION
 from lib.config import Config
 from lib.defines import (
+    AD_CONF_FILE,
     BEACON_SERVICE,
     CERTIFICATE_SERVICE,
     DNS_SERVICE,
     PATH_SERVICE,
     SCION_UDP_PORT,
     SERVICE_TYPES,
+    TOPO_FILE,
 )
 from lib.dnsclient import DNSCachingClient
 from lib.errors import SCIONBaseError, SCIONServiceLookupError
@@ -78,8 +81,9 @@ class SCIONElement(object):
         self.ifid2addr = {}
         self._port = port
         self.topology = Topology.from_file(
-            os.path.join(self.conf_dir, "topology.conf"))
-        self.config = Config.from_file(os.path.join(self.conf_dir, "ad.conf"))
+            os.path.join(self.conf_dir, TOPO_FILE))
+        self.config = Config.from_file(
+            os.path.join(self.conf_dir, AD_CONF_FILE))
         # Must be over-ridden by child classes:
         self.PLD_CLASS_MAP = {}
         if host_addr is None:
@@ -93,11 +97,14 @@ class SCIONElement(object):
             self.topology.dns_domain)
         self.construct_ifid2addr_map()
         self.trust_store = TrustStore(self.conf_dir)
+        self.total_dropped = 0
+        self._core_ads = defaultdict(list)  # Mapping ISD_ID->list of core ASes.
+        self.init_core_ads()
         if not is_sim:
             self.run_flag = threading.Event()
             self.stopped_flag = threading.Event()
             self.stopped_flag.set()
-            self._in_buf = queue.Queue()
+            self._in_buf = queue.Queue(30)
             self._socks = UDPSocketMgr()
             self._local_sock = UDPSocket(
                 bind=(str(self.addr.host_addr), port, self.id),
@@ -114,6 +121,13 @@ class SCIONElement(object):
         assert self.topology is not None
         for edge_router in self.topology.get_all_edge_routers():
             self.ifid2addr[edge_router.interface.if_id] = edge_router.addr
+
+    def init_core_ads(self):
+        """
+        Initializes dict of core ASes.
+        """
+        for trc in self.trust_store.get_trcs():
+            self._core_ads[trc.isd_id] = trc.get_core_ads()
 
     def handle_request(self, packet, sender, from_local_socket=True):
         """
@@ -172,7 +186,11 @@ class SCIONElement(object):
                 return spkt.addrs.dst_addr, spkt.l4_hdr.dst_port
             else:
                 return spkt.addrs.dst_addr, SCION_UDP_PORT
-        return self.ifid2addr[spkt.path.get_fwd_if()], SCION_UDP_PORT
+        if_id = spkt.path.get_fwd_if()
+        if if_id in self.ifid2addr:
+            return self.ifid2addr[if_id], SCION_UDP_PORT
+        else:
+            return None, None
 
     def _build_packet(self, dst_host=None, path=None, ext_hdrs=(), dst_isd=None,
                       dst_ad=None, payload=None, dst_port=SCION_UDP_PORT):
@@ -224,6 +242,25 @@ class SCIONElement(object):
 
         self._packet_process()
 
+    def packet_put(self, packet, addr, from_local_ad):
+        """
+        Try to put incoming packet in queue
+        If queue is full, drop oldest packet in queue
+        """
+        dropped = 0
+        while True:
+            try:
+                self._in_buf.put((packet, addr, from_local_ad), block=False)
+            except queue.Full:
+                self._in_buf.get_nowait()
+                dropped += 1
+            else:
+                break
+        if dropped > 0:
+            self.total_dropped += dropped
+            logging.debug("%d packet(s) dropped (%d total dropped so far)",
+                          dropped, self.total_dropped)
+
     def packet_recv(self):
         """
         Read packets from sockets, and put them into a :class:`queue.Queue`.
@@ -234,10 +271,11 @@ class SCIONElement(object):
                     try:
                         # Read from socket until its buffer is empty.
                         packet, addr = sock.recv(block=False)
-                        self._in_buf.put((packet, addr,
-                                          sock == self._local_sock))
                     except BlockingIOError:
                         break
+                    else:
+                        self.packet_put(packet, addr, sock == self._local_sock)
+
         self.stopped_flag.set()
 
     def _packet_process(self):

@@ -33,13 +33,14 @@ from Crypto.Protocol.KDF import PBKDF2
 # SCION
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.asymcrypto import sign
-from lib.crypto.certificate import CertificateChain, TRC, verify_sig_chain_trc
+from lib.crypto.certificate import CertificateChain, verify_sig_chain_trc
 from lib.crypto.hash_chain import HashChain, HashChainExhausted
 from lib.crypto.symcrypto import gen_of_mac
 from lib.defines import (
     BEACON_SERVICE,
     CERTIFICATE_SERVICE,
     IFID_PKT_TOUT,
+    PATH_POLICY_FILE,
     PATH_SERVICE,
     SCION_UDP_PORT,
 )
@@ -71,7 +72,10 @@ from lib.packet.pcb import (
     PCBMarking,
     PathSegment,
 )
-from lib.packet.pcb_ext import MTUExtension, REVExtension
+from lib.packet.pcb_ext import BeaconExtType
+from lib.packet.pcb_ext.mtu import MtuPcbExt
+from lib.packet.pcb_ext.rev import RevPcbExt
+from lib.packet.pcb_ext.sibra import SibraPcbExt
 from lib.packet.scion import PacketType as PT
 from lib.path_store import PathPolicy, PathStore
 from lib.thread import thread_safety_net
@@ -259,7 +263,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         super().__init__(server_id, conf_dir, is_sim=is_sim)
         # TODO: add 2 policies
         self.path_policy = PathPolicy.from_file(
-            os.path.join(conf_dir, "path_policy.conf"))
+            os.path.join(conf_dir, PATH_POLICY_FILE))
         self.unverified_beacons = deque()
         self.trc_requests = {}
         self.trcs = {}
@@ -401,22 +405,25 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         for ad in pcb.ads:
             for ext in ad.ext:
-                if ext.EXT_TYPE == MTUExtension.EXT_TYPE:
+                if ext.EXT_TYPE == MtuPcbExt.EXT_TYPE:
                     self.mtu_ext_handler(ext, ad)
-                elif ext.EXT_TYPE == REVExtension.EXT_TYPE:
+                elif ext.EXT_TYPE == RevPcbExt.EXT_TYPE:
                     self.rev_ext_handler(ext, ad)
+                elif ext.EXT_TYPE == SibraPcbExt.EXT_TYPE:
+                    self.sibra_ext_handler(ext, ad)
                 else:
-                    logging.warning("PCB extension %d not supported" % ext.TYPE)
+                    logging.warning("PCB extension %s(%s) not supported" % (
+                        BeaconExtType.to_str(ext.EXT_TYPE), ext.EXT_TYPE))
 
     def mtu_ext_handler(self, ext, ad):
         """
-        Dummy handler for MTUExtension.
+        Dummy handler for MtuPcbExt.
         """
         logging.info("MTU (%d, %d): %s" % (ad.pcbm.ad_id, ad.pcbm.isd_id, ext))
 
     def rev_ext_handler(self, ext, ad):
         """
-        Handler for REVExtension.
+        Handler for RevPcbExt.
         """
         logging.info("REV (%d, %d): %s" % (ad.pcbm.ad_id, ad.pcbm.isd_id, ext))
         rev_info = ext.rev_info
@@ -424,6 +431,13 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         self._remove_revoked_pcbs(rev_info=rev_info, if_id=None)
         # Inform the local PS
         self._send_rev_to_local_ps(rev_info=rev_info)
+
+    def sibra_ext_handler(self, ext, ad):
+        """
+        Dummy handler for SibraPcbExt.
+        """
+        logging.info("Sibra (%d, %d): %s" % (ad.pcbm.ad_id, ad.pcbm.isd_id,
+                                             ext))
 
     @abstractmethod
     def process_pcbs(self, pcbs, raw=True):
@@ -485,9 +499,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
         # Add extensions.
         extensions = []
-        extensions.append(MTUExtension.from_values(self.config.mtu))
+        extensions.append(MtuPcbExt.from_values(self.config.mtu))
+        # FIXME(kormat): add real values, based on the interface pair specified.
+        extensions.append(SibraPcbExt.from_values(1, 2))
         for _, rev_info in self.revs_to_downstream.items():
-            rev_ext = REVExtension.from_values(rev_info)
+            rev_ext = RevPcbExt.from_values(rev_info)
             extensions.append(rev_ext)
         return ADMarking.from_values(pcbm, peer_markings,
                                      self._get_if_rev_token(egress_if),
@@ -621,8 +637,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         assert isinstance(pcb, PathSegment)
         last_pcbm = pcb.get_last_pcbm()
         if self._check_certs_trc(last_pcbm.isd_id, last_pcbm.ad_id,
-                                 pcb.get_last_adm().cert_ver,
-                                 pcb.trc_ver, pcb.if_id):
+                                 pcb.get_last_adm().cert_ver, pcb.trc_ver):
             if self._verify_beacon(pcb):
                 self._handle_verified_beacon(pcb)
             else:
@@ -634,7 +649,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             self.unverified_beacons.append(pcb)
 
     @abstractmethod
-    def _check_certs_trc(self, isd_id, ad_id, cert_ver, trc_ver, if_id):
+    def _check_certs_trc(self, isd_id, ad_id, cert_ver, trc_ver):
         """
         Return True or False whether the necessary Certificate and TRC files are
         found.
@@ -647,21 +662,19 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         :type cert_ver: int
         :param trc_ver: TRC file version.
         :type trc_ver: int
-        :param if_id: interface identifier.
-        :type if_id: int
         """
         raise NotImplementedError
 
-    def _get_trc(self, isd_id, trc_ver, if_id):
+    def _get_trc(self, isd_id, ad_id, trc_ver):
         """
         Get TRC from local storage or memory.
 
         :param isd_id: ISD identifier.
         :type isd_id: int
+        :param ad_id: AD identifier.
+        :type ad_id: int
         :param trc_ver: TRC file version.
         :type trc_ver: int
-        :param if_id: interface identifier.
-        :type if_id: int
         """
         trc = self.trust_store.get_trc(isd_id, trc_ver)
         if not trc:
@@ -671,9 +684,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             if (trc_tuple not in self.trc_requests or
                 (now - self.trc_requests[trc_tuple] >
                     self.REQUESTS_TIMEOUT)):
-                trc_req = TRCRequest.from_values(
-                    if_id, self.topology.isd_id, self.topology.ad_id, isd_id,
-                    trc_ver)
+                trc_req = TRCRequest.from_values(isd_id, ad_id, trc_ver)
+                logging.info("Requesting %sv%s TRC", isd_id, trc_ver)
                 try:
                     dst_addr = self.dns_query_topo(CERTIFICATE_SERVICE)[0]
                 except SCIONServiceLookupError as e:
@@ -752,11 +764,10 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         :type trc_rep: TRCReply
         """
         rep = pkt.get_payload()
-        logging.info("TRC reply received for %s", rep.isd_id)
-        trc = TRC(rep.trc.decode('utf-8'))
-        self.trust_store.add_trc(trc)
+        logging.info("TRC reply received for %s", rep.trc.get_isd_ver())
+        self.trust_store.add_trc(rep.trc)
 
-        rep_key = trc.isd_id, trc.version
+        rep_key = rep.trc.get_isd_ver()
         if rep_key in self.trc_requests:
             del self.trc_requests[rep_key]
 
@@ -1097,7 +1108,7 @@ class CoreBeaconServer(BeaconServer):
         except SCIONServiceLookupError:
             # If there are no local path servers, stop here.
             return
-        records = PathRecordsReg.from_values(info, [pcb])
+        records = PathRecordsReg.from_values({info.seg_type: [pcb]})
         pkt = self._build_packet(ps_addr, payload=records)
         self.send(pkt, ps_addr)
 
@@ -1126,7 +1137,7 @@ class CoreBeaconServer(BeaconServer):
         if count:
             logging.debug("Dropped %d previously seen Core Segment PCBs", count)
 
-    def _check_certs_trc(self, isd_id, ad_id, cert_ver, trc_ver, if_id):
+    def _check_certs_trc(self, isd_id, ad_id, cert_ver, trc_ver):
         """
         Return True or False whether the necessary TRC file is found.
 
@@ -1138,13 +1149,11 @@ class CoreBeaconServer(BeaconServer):
         :type cert_ver: int
         :param trc_ver: TRC file version.
         :type trc_ver: int
-        :param if_id: interface identifier.
-        :type if_id: int
 
         :returns: True if the files exist, False otherwise.
         :rtype: bool
         """
-        if self._get_trc(isd_id, trc_ver, if_id):
+        if self._get_trc(isd_id, ad_id, trc_ver):
             return True
         else:
             return False
@@ -1159,8 +1168,7 @@ class CoreBeaconServer(BeaconServer):
         :param pcb: verified path segment.
         :type pcb: PathSegment
         """
-        isd_id = pcb.get_first_pcbm().isd_id
-        ad_id = pcb.get_first_pcbm().ad_id
+        isd_id, ad_id = pcb.get_first_isd_ad()
         self.core_beacons[(isd_id, ad_id)].add_segment(pcb)
 
     def register_core_segments(self):
@@ -1212,8 +1220,9 @@ class LocalBeaconServer(BeaconServer):
         self.cert_chains = {}
         self.cert_chain = self.trust_store.get_cert(self.topology.isd_id,
                                                     self.topology.ad_id)
+        assert self.cert_chain
 
-    def _check_certs_trc(self, isd_id, ad_id, cert_ver, trc_ver, if_id):
+    def _check_certs_trc(self, isd_id, ad_id, cert_ver, trc_ver):
         """
         Return True or False whether the necessary Certificate and TRC files are
         found.
@@ -1226,13 +1235,11 @@ class LocalBeaconServer(BeaconServer):
         :type cert_ver: int
         :param trc_ver: TRC file version.
         :type trc_ver: int
-        :param if_id: interface identifier.
-        :type if_id: int
 
         :returns: True if the files exist, False otherwise.
         :rtype: bool
         """
-        trc = self._get_trc(isd_id, trc_ver, if_id)
+        trc = self._get_trc(isd_id, ad_id, trc_ver)
         if trc:
             cert_chain = self.trust_store.get_cert(isd_id, ad_id, cert_ver)
             if cert_chain or self.cert_chain.certs[0].issuer in trc.core_ads:
@@ -1245,8 +1252,9 @@ class LocalBeaconServer(BeaconServer):
                     (now - self.cert_chain_requests[cert_chain_tuple] >
                         BeaconServer.REQUESTS_TIMEOUT)):
                     new_cert_chain_req = CertChainRequest.from_values(
-                        if_id, self.topology.isd_id, self.topology.ad_id,
                         isd_id, ad_id, cert_ver)
+                    logging.info("Requesting %s certificate chain",
+                                 new_cert_chain_req.short_desc())
                     try:
                         dst_addr = self.dns_query_topo(CERTIFICATE_SERVICE)[0]
                     except SCIONServiceLookupError as e:
@@ -1267,11 +1275,8 @@ class LocalBeaconServer(BeaconServer):
         :raises:
             SCIONServiceLookupError: path server lookup failure
         """
-        info = PathSegmentInfo.from_values(
-            PST.UP, self.topology.isd_id, pcb.get_first_pcbm().ad_id,
-            self.topology.isd_id, self.topology.ad_id)
         ps_host = self.dns_query_topo(PATH_SERVICE)[0]
-        records = PathRecordsReg.from_values(info, [pcb])
+        records = PathRecordsReg.from_values({PST.UP: [pcb]})
         pkt = self._build_packet(ps_host, payload=records)
         self.send(pkt, ps_host)
 
@@ -1279,11 +1284,8 @@ class LocalBeaconServer(BeaconServer):
         """
         Send down-segment to Core Path Server
         """
-        info = PathSegmentInfo.from_values(
-            PST.DOWN, self.topology.isd_id, pcb.get_first_pcbm().ad_id,
-            self.topology.isd_id, self.topology.ad_id)
         core_path = pcb.get_path(reverse_direction=True)
-        records = PathRecordsReg.from_values(info, [pcb])
+        records = PathRecordsReg.from_values({PST.DOWN: [pcb]})
         pkt = self._build_packet(
             PT.PATH_MGMT, dst_isd=pcb.get_isd(),
             dst_ad=pcb.get_first_pcbm().ad_id, path=core_path, payload=records)
@@ -1327,10 +1329,8 @@ class LocalBeaconServer(BeaconServer):
         rep = pkt.get_payload()
         logging.info("Certificate chain reply received for %s",
                      rep.short_desc())
-        rep_key = rep.isd_id, rep.ad_id, rep.version
-        raw_cert_chain = rep.cert_chain.decode('utf-8')
-        self.trust_store.add_cert(rep.isd_id, rep.ad_id, rep.version,
-                                  CertificateChain(raw_cert_chain))
+        rep_key = rep.cert_chain.get_leaf_isd_ad_ver()
+        self.trust_store.add_cert(rep.cert_chain)
         if rep_key in self.cert_chain_requests:
             del self.cert_chain_requests[rep_key]
 

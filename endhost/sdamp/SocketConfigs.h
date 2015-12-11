@@ -12,9 +12,8 @@
 #define DEBUG(...)
 #endif
 
-#define MAX_PATH_LEN 256
-#define MAX_TOTAL_PATHS 10
-#define MAX_USED_PATHS 5
+#define MAX_PATH_LEN 512
+#define MAX_USED_PATHS 2
 #define MAX_DATA_PACKET 2048
 
 #define SCION_DEFAULT_MTU 1500

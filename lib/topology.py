@@ -28,7 +28,7 @@ from lib.defines import (
 )
 from lib.errors import SCIONKeyError
 from lib.packet.host_addr import haddr_parse_interface
-from lib.util import load_json_file
+from lib.util import load_yaml_file
 
 
 class Element(object):
@@ -100,6 +100,7 @@ class InterfaceElement(Element):
         self.neighbor_type = interface_dict['NeighborType']
         self.to_udp_port = interface_dict['ToUdpPort']
         self.udp_port = interface_dict['UdpPort']
+        self.bandwidth = interface_dict['Bandwidth']
         to_addr = interface_dict['ToAddr']
         self.to_addr = None
         if to_addr:
@@ -191,7 +192,7 @@ class Topology(object):
         :returns: the newly created Topology instance
         :rtype: :class: `Topology`
         """
-        return cls.from_dict(load_json_file(topology_file))
+        return cls.from_dict(load_yaml_file(topology_file))
 
     @classmethod
     def from_dict(cls, topology_dict):

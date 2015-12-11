@@ -1,5 +1,7 @@
 dnsutils
 gcc
+g++
+libcurl4-openssl-dev
 libffi-dev
 make
 net-tools

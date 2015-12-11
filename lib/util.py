@@ -28,6 +28,7 @@ import time
 from functools import wraps
 
 # External packages
+import yaml
 from external.stacktracer import trace_start
 
 # SCION
@@ -37,6 +38,7 @@ from lib.errors import (
     SCIONJSONError,
     SCIONParseError,
     SCIONTypeError,
+    SCIONYAMLError,
 )
 
 CERT_DIR = 'certs'
@@ -163,6 +165,30 @@ def load_json_file(file_path):
                            (file_path, e.strerror)) from None
     except (ValueError, KeyError, TypeError) as e:
         raise SCIONJSONError("Error parsing '%s': %s" %
+                             (file_path, e)) from None
+
+
+def load_yaml_file(file_path):
+    """
+    Read and parse a YAML config file.
+
+    :param file_path: the path to the file.
+    :type file_path: str
+
+    :returns: YAML data
+    :rtype: dict
+    :raises:
+        lib.errors.SCIONIOError: error opening/reading from file.
+        lib.errors.SCIONYAMLError: error parsing file.
+    """
+    try:
+        with open(file_path) as f:
+            return yaml.load(f)
+    except OSError as e:
+        raise SCIONIOError("Error opening '%s': %s" %
+                           (file_path, e.strerror)) from None
+    except (yaml.scanner.ScannerError) as e:
+        raise SCIONYAMLError("Error parsing '%s': %s" %
                              (file_path, e)) from None
 
 

@@ -1,29 +1,35 @@
 #include <stdlib.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <netinet/in.h>
 #include <arpa/inet.h>
 #include <string.h>
 #include <stdio.h>
-#include <signal.h>
-#include <Python.h>
 #include "SCIONSocket.h"
-#include "SHA1.h"
 
 #define BUFSIZE 1024
 
-int main()
+int main(int argc, char **argv)
 {
-    SCIONAddr *addrs[1];
+    SCIONAddr addrs[1];
     SCIONAddr saddr;
-    saddr = ISD_AD(2, 26);
+    int isd, ad;
+    char str[20];
+    if (argc == 3) {
+        isd = atoi(argv[1]);
+        ad = atoi(argv[2]);
+    } else {
+        isd = 2;
+        ad = 26;
+    }
+    saddr.isd_ad = ISD_AD(isd, ad);
     saddr.host.addrLen = 4;
-    in_addr_t in = inet_addr("127.2.26.254");
+    sprintf(str, "127.%d.%d.254", isd, ad);
+    printf("connect to (%d, %d):%s\n", isd, ad, str);
+    in_addr_t in = inet_addr(str);
     memcpy(saddr.host.addr, &in, 4);
-    addrs[0] = &saddr;
+    addrs[0] = saddr;
     SCIONSocket s(SCION_PROTO_SSP, addrs, 1, 0, 8080);
     int count = 0;
     char buf[BUFSIZE];
+    memset(buf, 0, BUFSIZE);
     while (1) {
         count++;
         sprintf(buf, "This is message %d\n", count);

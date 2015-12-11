@@ -19,7 +19,7 @@
 import base64
 
 # SCION
-from lib.util import load_json_file
+from lib.util import load_yaml_file
 
 
 class Config(object):
@@ -63,7 +63,7 @@ class Config(object):
         :returns: the newly created Config instance
         :rtype: :class:`Config`
         """
-        return cls.from_dict(load_json_file(config_file))
+        return cls.from_dict(load_yaml_file(config_file))
 
     @classmethod
     def from_dict(cls, config_dict):

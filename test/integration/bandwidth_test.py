@@ -102,6 +102,7 @@ class TestBandwidth(unittest.TestCase):
             haddr_parse("IPV4", "127.2.26.254"), dst_isd=2, dst_ad=26,
             dst_port=rcv_sock.port, payload=payload, path=paths[0])
         (next_hop, port) = sender.get_first_hop(spkt)
+        assert next_hop is not None
         logging.info("Sending %d payload bytes (%d packets x %d bytes )" %
                      (PACKETS_NO * PAYLOAD_SIZE, PACKETS_NO, PAYLOAD_SIZE))
         for _ in range(PACKETS_NO):
@@ -117,7 +118,7 @@ class TestBandwidth(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    init_logging("logs/bw_test.log", console=True)
+    init_logging("logs/bw_test", console_level=logging.DEBUG)
     handle_signals()
     try:
         TestBandwidth().test()

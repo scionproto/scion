@@ -18,8 +18,11 @@
 """
 # Stdlib
 import argparse
+import copy
 import logging
+import os
 import random
+import struct
 import sys
 import threading
 import time
@@ -27,7 +30,7 @@ import unittest
 
 # SCION
 from endhost.sciond import SCIOND_API_HOST, SCIOND_API_PORT, SCIONDaemon
-from lib.defines import GEN_PATH
+from lib.defines import AD_LIST_FILE, GEN_PATH
 from lib.log import init_logging
 from lib.main import main_wrapper
 from lib.packet.host_addr import (
@@ -44,7 +47,7 @@ from lib.packet.scion_udp import SCIONUDPHeader
 from lib.socket import UDPSocket
 from lib.thread import kill_self, thread_safety_net
 from lib.types import AddrType, OpaqueFieldType as OFT
-from lib.util import Raw, handle_signals
+from lib.util import Raw, handle_signals, load_yaml_file
 
 TOUT = 10  # How long wait for response.
 
@@ -68,10 +71,11 @@ def get_paths_via_api(isd, ad):
         kill_self()
 
     paths_hops = []
+    iflists = []
     while len(data) > 0:
         path_len = data.pop(1) * 8
         if not path_len:
-            return [(EmptyPath(), haddr_parse("IPV4", "0.0.0.0"))]
+            return [(EmptyPath(), haddr_parse("IPV4", "0.0.0.0"))], [[]]
         info = InfoOpaqueField(data.get(InfoOpaqueField.LEN))
         if info.info == OFT.CORE:
             path = CorePath(data.pop(path_len))
@@ -86,11 +90,18 @@ def get_paths_via_api(isd, ad):
         hop = haddr_type(data.get(haddr_type.LEN))
         data.pop(len(hop))
         paths_hops.append((path, hop))
-        data.pop(2)
-        interface_count = data.pop(1)
-        data.pop(interface_count * 5)  # interface list unused here
+        data.pop(2)  # port number, unused here
+        data.pop(2)  # MTU, unused here
+        ifcount = data.pop(1)
+        ifs = []
+        if ifcount:
+            for i in range(ifcount):
+                isd_ad = struct.unpack("I", data.pop(4))[0]
+                ifid = struct.unpack("H", data.pop(2))[0]
+                ifs.append((isd_ad, ifid))
+        iflists.append(ifs)
     sock.close()
-    return paths_hops
+    return paths_hops, iflists
 
 
 class Ping(object):
@@ -115,10 +126,11 @@ class Ping(object):
         logging.info("Sending PATH request for (%d, %d)",
                      self.dst.isd_id, self.dst.ad_id)
         # Get paths through local API.
-        paths_hops = get_paths_via_api(self.dst.isd_id, self.dst.ad_id)
+        paths_hops, iflists = get_paths_via_api(self.dst.isd_id, self.dst.ad_id)
         (self.path, self.hop) = paths_hops[0]
         if isinstance(self.path, EmptyPath):
             self.hop = self.dst.host_addr
+        self.iflist = iflists[0]
 
     def run(self):
         self.send()
@@ -132,10 +144,16 @@ class Ping(object):
         spkt = SCIONL4Packet.from_values(
             cmn_hdr, addr_hdr, self.path, [], udp_hdr, payload)
         (next_hop, port) = self.sd.get_first_hop(spkt)
+        assert next_hop is not None
         assert next_hop == self.hop
 
         logging.info("Sending packet: \n%s\nFirst hop: %s:%s",
                      spkt, next_hop, port)
+        if self.iflist:
+            logging.info("Interfaces:")
+            for (isd_ad, ifid) in self.iflist:
+                logging.info("(%d, %d):%d",
+                             isd_ad >> 20, isd_ad & 0xfffff, ifid)
         self.sd.send(spkt, next_hop, port)
 
     def recv(self):
@@ -186,6 +204,7 @@ class Pong(object):
             spkt.reverse()
             spkt.set_payload(PayloadRaw(b"pong " + self.token))
             (next_hop, port) = self.sd.get_first_hop(spkt)
+            assert next_hop is not None
             self.sd.send(spkt, next_hop, port)
         self.sock.close()
         self.sd.stop()
@@ -237,11 +256,20 @@ class TestSCIONDaemon(unittest.TestCase):
         sys.exit(failures)
 
 
-def _parse_tuple(ad_str):
-    def_ads = [(1, 17), (1, 19), (1, 10), (2, 25), (2, 26), (1, 14), (1, 18)]
+def _load_ad_list():
+    ad_dict = load_yaml_file(os.path.join(GEN_PATH, AD_LIST_FILE))
+    ad_list = []
+    for ad_str in ad_dict.get("Non-core", []) + ad_dict.get("Core", []):
+        isd, ad = ad_str.split("-")
+        ad_list.append((int(isd), int(ad)))
+    return ad_list
+
+
+def _parse_tuple(ad_str, ad_list):
     if not ad_str:
-        random.shuffle(def_ads)
-        return def_ads
+        copied = copy.copy(ad_list)
+        random.shuffle(copied)
+        return copied
     isd, ad = ad_str.split(",")
     return [(int(isd), int(ad))]
 
@@ -256,15 +284,16 @@ def main():
     parser.add_argument('src_ad', nargs='?', help='Src isd,ad')
     parser.add_argument('dst_ad', nargs='?', help='Dst isd,ad')
     args = parser.parse_args()
-    init_logging("logs/end2end.log", console=True)
+    init_logging("logs/end2end", console_level=logging.DEBUG)
 
     if not args.client:
         args.client = "169.254.0.2" if args.mininet else "127.0.0.2"
     if not args.server:
         args.server = "169.254.0.3" if args.mininet else "127.0.0.3"
 
-    srcs = _parse_tuple(args.src_ad)
-    dsts = _parse_tuple(args.dst_ad)
+    ad_list = _load_ad_list()
+    srcs = _parse_tuple(args.src_ad, ad_list)
+    dsts = _parse_tuple(args.dst_ad, ad_list)
 
     TestSCIONDaemon().test(args.client, args.server, srcs, dsts)
 

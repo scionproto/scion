@@ -7,6 +7,7 @@
 #include "DataStructures.h"
 #include "ConnectionManager.h"
 #include "RingBuffer.h"
+#include "OrderedList.h"
 
 class SCIONProtocol {
 public:
@@ -26,6 +27,7 @@ public:
     void setReceiver(bool receiver);
 
     virtual bool claimPacket(SCIONPacket *packet, uint8_t *buf);
+    virtual void createManager(std::vector<SCIONAddr> &dstAddrs);
     virtual void start(SCIONPacket *packet, uint8_t *buf, int sock);
 
     bool isRunning();
@@ -61,10 +63,11 @@ public:
     virtual int recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr);
 
     bool claimPacket(SCIONPacket *packet, uint8_t *buf);
+    virtual void createManager(std::vector<SCIONAddr> &dstAddrs);
     void start(SCIONPacket *packet, uint8_t *buf, int sock);
     virtual int handlePacket(SCIONPacket *packet, uint8_t *buf);
 
-    SCIONPacket * createPacket(std::vector<SDAMPFrame *> &frames);
+    virtual SCIONPacket * createPacket(uint8_t *buf, size_t len);
 
     virtual void handleTimerEvent();
 
@@ -78,8 +81,10 @@ protected:
     void handleProbeAck(SCIONPacket *packet);
     void handleAck(SCIONPacket *packet);
     void handleData(SCIONPacket *packet);
-    int shouldPushFrame(SDAMPFrame *frame);
     void sendAck(SCIONPacket *packet);
+
+    virtual bool isFirstPacket();
+    virtual void didRead(L4Packet *packet);
 
     // path manager
     SDAMPConnectionManager *mConnectionManager;
@@ -94,21 +99,19 @@ protected:
 
     // ack bookkeeping
     uint64_t               mLowestPending;
-    int                    mHighestReceived;
+    uint64_t               mHighestReceived;
     int                    mAckVectorOffset;
 
     // sending packets
-    uint64_t               mNextSendByte;
     uint64_t               mLastPacketNum;
     PacketList             mSentPackets;
     pthread_mutex_t        mPacketMutex;
 
     // recv'ing packets
     uint32_t               mTotalReceived;
-    int64_t                mLastReadByte;
-private:
-    std::list<uint64_t>    mReceivedPackets;
-    PriorityQueue<SDAMPFrame *> *mReadyFrames;
+    uint64_t                mNextPacket;
+    OrderedList<L4Packet *> *mReadyPackets;
+    OrderedList<L4Packet *> *mOOPackets;
 };
 
 class SSPProtocol : public SDAMPProtocol {
@@ -116,30 +119,30 @@ public:
     SSPProtocol(std::vector<SCIONAddr> &dstAddrs, short srcPort, short dstPort);
     ~SSPProtocol();
 
-    int send(uint8_t *buf, size_t len, DataProfile profile);
-    int recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr);
+    void createManager(std::vector<SCIONAddr> &dstAddrs);
 
     int handlePacket(SCIONPacket *packet, uint8_t *buf);
     void handleTimerEvent();
 
     SCIONPacket * createPacket(uint8_t *buf, size_t len);
 
-    void getStats(SCIONStats *stats);
-
 protected:
-    void handleProbe(SSPInPacket *packet, int pathIndex);
-    void handleData(SSPInPacket *packet, int pathIndex);
-    void sendAck(SSPInPacket *sip, int pathIndex);
+    void handleProbe(SSPPacket *packet, int pathIndex);
+    void handleData(SSPPacket *packet, int pathIndex);
+    void sendAck(SSPPacket *sip, int pathIndex, bool full=false);
 
-    uint64_t mNextOffset;
-    RingBuffer *mReceiveBuffer;
-    PriorityQueue<SSPInPacket *> *mOOPackets;
+    virtual bool isFirstPacket();
+    virtual void didRead(L4Packet *packet);
+
+    uint64_t mNextSendByte;
 };
 
 class SUDPProtocol : public SCIONProtocol {
 public:
     SUDPProtocol(std::vector<SCIONAddr> &dstAddrs, short srcPort, short dstPort);
     ~SUDPProtocol();
+
+    void createManager(std::vector<SCIONAddr> &dstAddrs);
 
     int send(uint8_t *buf, size_t len, DataProfile profile);
     int recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr);

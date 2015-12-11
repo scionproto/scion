@@ -21,23 +21,42 @@ Path::Path(PathManager *manager, SCIONAddr &localAddr, SCIONAddr &dstAddr, uint8
     mSocket = manager->getSocket();
     if (pathLen == 0) {
         // raw data is in daemon reply format
+        uint8_t *ptr = rawPath;
         mPathLen = *rawPath * 8;
-        mPath = (uint8_t *)malloc(mPathLen);
-        memcpy(mPath, rawPath + 1, mPathLen);
-        mFirstHop.addrLen = SCION_HOST_ADDR_LEN;
-        memcpy(mFirstHop.addr, rawPath + 1 + mPathLen, SCION_HOST_ADDR_LEN);
-        mFirstHop.port = *(short *)(rawPath + 1 + mPathLen + SCION_HOST_ADDR_LEN);
-        uint8_t *ptr = rawPath + 1 + mPathLen + SCION_HOST_ADDR_LEN + 2;
-        int interfaces = *ptr;
         ptr++;
-        for (int i = 0; i < interfaces; i++) {
-            SCIONInterface sif;
-            uint32_t isd_ad = *(uint32_t *)ptr;
-            ptr += 4;
-            sif.isd = isd_ad >> 20;
-            sif.ad = isd_ad & 0xfffff;
-            sif.interface = *ptr++;
-            mInterfaces.push_back(sif);
+        if (mPathLen == 0) {
+            // empty path
+            mPath = NULL;
+            mFirstHop.addrLen = dstAddr.host.addrLen;
+            memcpy(mFirstHop.addr, dstAddr.host.addr, mFirstHop.addrLen);
+            mFirstHop.port = SCION_UDP_EH_DATA_PORT;
+            mMTU = SCION_DEFAULT_MTU;
+        } else {
+            mPath = (uint8_t *)malloc(mPathLen);
+            memcpy(mPath, ptr, mPathLen);
+            ptr += mPathLen;
+            // TODO: Don't assume IPv4
+            mFirstHop.addrLen = SCION_HOST_ADDR_LEN;
+            memcpy(mFirstHop.addr, ptr, SCION_HOST_ADDR_LEN);
+            ptr += mFirstHop.addrLen;
+            mFirstHop.port = *(uint16_t *)ptr;
+            ptr += 2;
+            mMTU = *(uint16_t *)ptr;
+            if (mMTU == 0)
+                mMTU = SCION_DEFAULT_MTU;
+            ptr += 2;
+            int interfaces = *ptr;
+            ptr++;
+            for (int i = 0; i < interfaces; i++) {
+                SCIONInterface sif;
+                uint32_t isd_ad = *(uint32_t *)ptr;
+                ptr += 4;
+                sif.isd = isd_ad >> 20;
+                sif.ad = isd_ad & 0xfffff;
+                sif.interface = *(uint16_t *)ptr;
+                ptr += 2;
+                mInterfaces.push_back(sif);
+            }
         }
     } else {
         // raw data contains path only
@@ -46,7 +65,6 @@ Path::Path(PathManager *manager, SCIONAddr &localAddr, SCIONAddr &dstAddr, uint8
         memcpy(mPath, rawPath, mPathLen);
         mMTU = SCION_DEFAULT_MTU;
     }
-    mMTU = SCION_DEFAULT_MTU;
     gettimeofday(&mLastSendTime, NULL);
 }
 
@@ -65,6 +83,11 @@ int Path::send(SCIONPacket *packet, int sock)
 
 void Path::handleTimeout(struct timeval *current)
 {
+}
+
+int Path::timeUntilReady()
+{
+    return 0;
 }
 
 int Path::getPayloadLen(bool ack)
@@ -104,12 +127,12 @@ void Path::setInterfaces(uint8_t *interfaces, size_t count)
     uint8_t *ptr;
     mInterfaces.clear();
     for (size_t i = 0; i < count; i++) {
-        ptr = interfaces + 5 * i;
+        ptr = interfaces + SCION_IF_SIZE * i;
         SCIONInterface sif;
         uint32_t isd_ad = ntohl(*(uint32_t *)ptr);
         sif.isd = isd_ad >> 20;
         sif.ad = isd_ad & 0xfffff;
-        sif.interface = *(ptr + 4);
+        sif.interface = ntohs(*(uint16_t *)(ptr + 4));
         mInterfaces.push_back(sif);
     }
 }
@@ -162,9 +185,9 @@ bool Path::usesSameInterfaces(uint8_t *interfaces, size_t count)
         return false;
     for (size_t i = 0; i < count; i++) {
         SCIONInterface sif = mInterfaces[i];
-        uint8_t *ptr = interfaces + i * 5;
-        uint32_t isd_ad = *(uint32_t *)ptr;
-        uint8_t interface = *(ptr + 4);
+        uint8_t *ptr = interfaces + i * SCION_IF_SIZE;
+        uint32_t isd_ad = ntohl(*(uint32_t *)ptr);
+        uint16_t interface = ntohs(*(uint16_t *)(ptr + 4));
         if ((isd_ad >> 20) != sif.isd || (isd_ad & 0xfffff) != sif.ad ||
                 interface != sif.interface)
             return false;
@@ -191,6 +214,7 @@ void Path::getStats(SCIONStats *stats)
 
 void Path::copySCIONHeader(uint8_t *bufptr, SCIONCommonHeader *ch)
 {
+    uint8_t *start = bufptr;
     // SCION common header
     memcpy(bufptr, ch, sizeof(*ch));
     bufptr += sizeof(*ch);
@@ -206,6 +230,10 @@ void Path::copySCIONHeader(uint8_t *bufptr, SCIONCommonHeader *ch)
     // path
     memcpy(bufptr, mPath, mPathLen);
     bufptr += mPathLen;
+
+    uint8_t *hof = start + ch->currentOF;
+    if (*hof == XOVR_POINT)
+        ((SCIONCommonHeader *)(start))->currentOF += 8;
 }
 
 // SDAMP
@@ -241,19 +269,6 @@ SDAMPPath::~SDAMPPath()
     pthread_cond_destroy(&mWindowCond);
 }
 
-void SDAMPPath::copyFrames(uint8_t *bufptr, SDAMPPacket *sp)
-{
-    for (size_t i = 0; i < sp->frameCount; i++) {
-        SDAMPFrame *frame = sp->frames[i];
-        *(uint64_t *)bufptr = htobe64(frame->offset);
-        bufptr += 8;
-        *(uint32_t *)bufptr = htonl(frame->size);
-        bufptr += 4;
-        memcpy(bufptr, frame->data, frame->size);
-        bufptr += frame->size;
-    }
-}
-
 int SDAMPPath::send(SCIONPacket *packet, int sock)
 {
     bool wasValid = mValid;
@@ -262,28 +277,29 @@ int SDAMPPath::send(SCIONPacket *packet, int sock)
     if (mTotalAcked == 0 && !(sh.flags & SDAMP_ACK)) {
         DEBUG("no packets sent on this path yet\n");
         sh.flags |= SDAMP_NEW_PATH;
-        sh.headerLen += mInterfaces.size() * 5 + 1;
+        sh.headerLen += mInterfaces.size() * SCION_IF_SIZE + 1;
     }
 
-    int readyTime;
+    size_t readyTime;
     if (!(sh.flags & SDAMP_ACK || sh.flags & SDAMP_PROBE)) {
         pthread_mutex_lock(&mWindowMutex);
         while ((readyTime = mState->timeUntilReady()) > 0) {
             struct timespec t;
             clock_gettime(CLOCK_REALTIME, &t);
             DEBUG("current time = %ld.%09ld\n", t.tv_sec, t.tv_nsec);
-            DEBUG("path %d: %d us until ready to send (%d in flight)\n", mIndex, readyTime, mState->packetsInFlight());
+            DEBUG("path %d: %lu us until ready to send (%d in flight)\n", mIndex, readyTime, mState->packetsInFlight());
             struct timeval current;
             current.tv_sec = t.tv_sec;
             current.tv_usec = t.tv_nsec / 1000;
             if (elapsedTime(&mLastSendTime, &current) > mState->getRTO()) {
-                DEBUG("path %d: loss occurred, abort send\n", mIndex);
-                mManager->abortSend(packet);
+                DEBUG("path %d: %lu since last send, abort packet %lu\n",
+                        mIndex, elapsedTime(&mLastSendTime, &current), be64toh(sh.packetNum));
                 pthread_mutex_unlock(&mWindowMutex);
+                mManager->abortSend(packet);
                 return -1;
             }
-            long nsec = t.tv_nsec + readyTime * 1000;
-            if (nsec >= 1000000000) {
+            size_t nsec = t.tv_nsec + readyTime * 1000;
+            while (nsec >= 1000000000) {
                 nsec -= 1000000000;
                 t.tv_sec++;
             }
@@ -295,12 +311,11 @@ int SDAMPPath::send(SCIONPacket *packet, int sock)
 
     SCIONCommonHeader &ch = packet->header.commonHeader;
     ch.headerLen = sizeof(ch) + 2 * SCION_ADDR_LEN + mPathLen;
-    uint16_t totalLen = ch.headerLen + sh.headerLen;
-    for (size_t i = 0; i < sp->frameCount; i++)
-        totalLen += 12 + sp->frames[i]->size;
+    uint16_t totalLen = ch.headerLen + sh.headerLen + sp->len;
     ch.totalLen = htons(totalLen);
 
-    uint8_t *buf = (uint8_t *)malloc(ntohs(ch.totalLen));
+    uint8_t *buf = (uint8_t *)malloc(totalLen);
+    memset(buf, 0, totalLen);
     uint8_t *bufptr = buf;
     copySCIONHeader(bufptr, &ch);
     bufptr += ch.headerLen;
@@ -323,11 +338,13 @@ int SDAMPPath::send(SCIONPacket *packet, int sock)
             uint32_t isd_ad = (sif.isd << 20) | (sif.ad & 0xfffff);
             *(uint32_t *)bufptr = htonl(isd_ad);
             bufptr += 4;
-            *bufptr++ = sif.interface;
+            *(uint16_t *)bufptr = htons(sif.interface);
+            bufptr += 2;
         }
     }
     // payload
-    copyFrames(bufptr, sp);
+    if (sp->len > 0)
+        memcpy(bufptr, sp->data, sp->len);
 
     struct sockaddr_in sa;
     memset(&sa, 0, sizeof(sa));
@@ -340,7 +357,7 @@ int SDAMPPath::send(SCIONPacket *packet, int sock)
 
     if (mTotalSent == 0) {
         sh.flags &= ~SDAMP_NEW_PATH;
-        sh.headerLen -= mInterfaces.size() * 5 + 1;
+        sh.headerLen -= mInterfaces.size() * SCION_IF_SIZE + 1;
     }
 
     packet->pathIndex = mIndex;
@@ -378,7 +395,7 @@ int SDAMPPath::handleAck(SCIONPacket *packet, bool rttSample)
     DEBUG("incoming ack on path %d: %d packets in flight\n", mIndex, mState->packetsInFlight() - 1);
     SDAMPPacket *sp = (SDAMPPacket *)(packet->payload);
     if (sp->header.flags & SDAMP_INIT)
-        mState->setSendWindow(sp->windowSize / mMTU);
+        mState->setRemoteWindow(sp->windowSize / mMTU);
     int rtt = elapsedTime(&(packet->sendTime), &(packet->arrivalTime));
     if (!rttSample)
         rtt = 0;
@@ -387,7 +404,7 @@ int SDAMPPath::handleAck(SCIONPacket *packet, bool rttSample)
     mState->addRTTSample(rtt, sp->header.packetNum);
     pthread_mutex_unlock(&mWindowMutex);
     if (mState->isWindowBased())
-        pthread_cond_signal(&mWindowCond);
+        pthread_cond_broadcast(&mWindowCond);
     mTimeoutCount = 0;
     mTotalAcked++;
     return 0;
@@ -416,7 +433,7 @@ void SDAMPPath::addLoss(uint64_t packetNum)
     mState->addLoss(packetNum);
     pthread_mutex_unlock(&mWindowMutex);
     if (mState->isWindowBased())
-        pthread_cond_signal(&mWindowCond);
+        pthread_cond_broadcast(&mWindowCond);
 }
 
 void SDAMPPath::addRetransmit()
@@ -432,10 +449,16 @@ void SDAMPPath::addRetransmit()
 bool SDAMPPath::didTimeout(struct timeval *current)
 {
     pthread_mutex_lock(&mTimeMutex);
+    int elapsed = elapsedTime(&mLastSendTime, current);
     bool res =  mState->packetsInFlight() > 0 &&
-        elapsedTime(&mLastSendTime, current) > mState->getRTO();
+                elapsed > mState->getRTO();
     pthread_mutex_unlock(&mTimeMutex);
     return res;
+}
+
+int SDAMPPath::timeUntilReady()
+{
+    return mState->timeUntilReady();
 }
 
 int SDAMPPath::getPayloadLen(bool ack)
@@ -466,42 +489,15 @@ void SDAMPPath::setIndex(int index)
     mState->setIndex(index);
 }
 
-void SDAMPPath::start()
+void SDAMPPath::setRemoteWindow(uint32_t window)
 {
-    pthread_create(&mThread, NULL, &SDAMPPath::workerHelper, this);
-    DEBUG("path %d: created worker thread\n", mIndex);
-}
-
-void  * SDAMPPath::workerHelper(void *arg)
-{
-    SDAMPPath *p = (SDAMPPath *)arg;
-    p->workerFunction();
-    return NULL;
-}
-
-void SDAMPPath::workerFunction()
-{
-    while (1) {
-        int bps = mState->bandwidth();
-        int rtt = mState->estimatedRTT();
-        double loss = mState->getLossRate();
-        SCIONPacket *p = mManager->requestPacket(mIndex, bps, rtt, loss);
-        if (!p) {
-            DEBUG("path %d: terminate worker thread\n", mIndex);
-            return;
-        }
-        DEBUG("path %d: will now send packet\n", mIndex);
-        send(p, mSocket);
-    }
-}
-
-void SDAMPPath::terminate()
-{
-    pthread_join(mThread, NULL);
+    mState->setRemoteWindow(window / mMTU);
 }
 
 void SDAMPPath::getStats(SCIONStats *stats)
 {
+    if (!(mTotalReceived > 0 || mTotalAcked > 0))
+        return;
     stats->exists[mIndex] = true;
     stats->receivedPackets[mIndex] = mTotalReceived;
     stats->sentPackets[mIndex] = mTotalSent;
@@ -510,6 +506,18 @@ void SDAMPPath::getStats(SCIONStats *stats)
     stats->lossRates[mIndex] = mState->getLossRate();
     if (!mUp)
         stats->lossRates[mIndex] = 1.0;
+    size_t interfaces = mInterfaces.size();
+    if (interfaces > 0) {
+        stats->ifCounts[mIndex] = interfaces;
+        stats->ifLists[mIndex] =
+            (SCIONInterface *)malloc(sizeof(SCIONInterface) * interfaces);
+        if (!stats->ifLists[mIndex]) {
+            stats->ifCounts[mIndex] = 0;
+        } else {
+            for (size_t i = 0; i < interfaces; i++)
+                stats->ifLists[mIndex][i] = mInterfaces[i];
+        }
+    }
 }
 
 // SSP
@@ -526,13 +534,15 @@ SSPPath::~SSPPath()
 int SSPPath::send(SCIONPacket *packet, int sock)
 {
     bool wasValid = mValid;
-    SSPOutPacket *sp = (SSPOutPacket *)(packet->payload);
+    bool sendInterfaces = false;
+    SSPPacket *sp = (SSPPacket *)(packet->payload);
     SSPHeader &sh = sp->header;
     if (mTotalAcked == 0 && !(sh.flags & SSP_ACK)) {
         DEBUG("no packets sent on this path yet\n");
-        DEBUG("interface list: %d bytes\n", mInterfaces.size() * 5 + 1);
+        DEBUG("interface list: %lu bytes\n", mInterfaces.size() * SCION_IF_SIZE + 1);
         sh.flags |= SSP_NEW_PATH;
-        sh.headerLen += mInterfaces.size() * 5 + 1;
+        sh.headerLen += mInterfaces.size() * SCION_IF_SIZE + 1;
+        sendInterfaces = true;
     }
 
     int readyTime;
@@ -547,13 +557,17 @@ int SSPPath::send(SCIONPacket *packet, int sock)
             current.tv_sec = t.tv_sec;
             current.tv_usec = t.tv_nsec / 1000;
             if (elapsedTime(&mLastSendTime, &current) > mState->getRTO()) {
-                DEBUG("path %d: loss occurred, abort send\n", mIndex);
-                mManager->abortSend(packet);
+                DEBUG("path %d: loss occurred, abort send packet %u\n", mIndex, be64toh(sh.offset));
                 pthread_mutex_unlock(&mWindowMutex);
+                mManager->abortSend(packet);
+                if (sendInterfaces) {
+                    sh.flags &= ~SSP_NEW_PATH;
+                    sh.headerLen -= mInterfaces.size() * SCION_IF_SIZE + 1;
+                }
                 return -1;
             }
             long nsec = t.tv_nsec + readyTime * 1000;
-            if (nsec >= 1000000000) {
+            while (nsec >= 1000000000) {
                 nsec -= 1000000000;
                 t.tv_sec++;
             }
@@ -586,18 +600,20 @@ int SSPPath::send(SCIONPacket *packet, int sock)
     if (sh.flags & SSP_NEW_PATH) {
         size_t count = mInterfaces.size();
         *bufptr++ = count;
-        DEBUG("path %d: interfaces\n", mIndex);
+        DEBUG("path %d: %lu interfaces\n", mIndex, count);
         for (size_t i = 0; i < count; i++) {
             SCIONInterface sif = mInterfaces[count - 1 - i];
             uint32_t isd_ad = (sif.isd << 20) | (sif.ad & 0xfffff);
             *(uint32_t *)bufptr = htonl(isd_ad);
             bufptr += 4;
-            *bufptr++ = sif.interface;
+            *(uint16_t *)bufptr = htons(sif.interface);
+            bufptr += 2;
             DEBUG("(%d,%d):%d\n", sif.isd, sif.ad, sif.interface);
         }
     }
     // payload
-    DEBUG("%lu bytes of payload\n", sp->len);
+    DEBUG("path %d: %lu bytes of payload at offset %lu\n",
+            mIndex, sp->len, bufptr - buf);
     memcpy(bufptr, sp->data, sp->len);
 
     struct sockaddr_in sa;
@@ -609,9 +625,9 @@ int SSPPath::send(SCIONPacket *packet, int sock)
     free(buf);
     DEBUG("sent to first hop %s:%d\n", inet_ntoa(sa.sin_addr), mFirstHop.port);
 
-    if (mTotalAcked == 0) {
+    if (sendInterfaces) {
         sh.flags &= ~SSP_NEW_PATH;
-        sh.headerLen -= mInterfaces.size() * 5 + 1;
+        sh.headerLen -= mInterfaces.size() * SCION_IF_SIZE + 1;
     }
 
     packet->pathIndex = mIndex;
@@ -625,7 +641,9 @@ int SSPPath::send(SCIONPacket *packet, int sock)
         packet->sendTime = mLastSendTime;
         pthread_mutex_unlock(&mTimeMutex);
         mManager->didSend(packet);
-        DEBUG("%ld.%06ld: packet %ld sent on path %d: %d packets in flight\n", mLastSendTime.tv_sec, mLastSendTime.tv_usec, ntohl(sh.offset), mIndex, mState->packetsInFlight());
+        DEBUG("%ld.%06ld: packet %u sent on path %d: %d/%d packets in flight\n",
+                mLastSendTime.tv_sec, mLastSendTime.tv_usec,
+                be64toh(sh.offset), mIndex, mState->packetsInFlight(), mState->window());
     } else if (sh.flags & SSP_PROBE) {
         mProbeAttempts++;
         if (mProbeAttempts >= SDAMP_PROBE_ATTEMPTS)
@@ -637,26 +655,29 @@ int SSPPath::send(SCIONPacket *packet, int sock)
     return 0;
 }
 
-void SSPPath::start()
+int SSPPath::getPayloadLen(bool ack)
 {
-    pthread_create(&mThread, NULL, &SDAMPPath::workerHelper, this);
-    DEBUG("path %d: created worker thread\n", mIndex);
+    int hlen = ack ? sizeof(SSPHeader) + sizeof(SSPAck) : sizeof(SSPHeader);
+    return mMTU - (28 + sizeof(SCIONCommonHeader) + 2 * SCION_ADDR_LEN + mPathLen + hlen);
 }
 
-void SSPPath::workerFunction()
+int SSPPath::handleAck(SCIONPacket *packet, bool rttSample)
 {
-    while (1) {
-        int bps = mState->bandwidth();
-        int rtt = mState->estimatedRTT();
-        double loss = mState->getLossRate();
-        SCIONPacket *p = mManager->requestPacket(mIndex, bps, rtt, loss);
-        if (!p) {
-            DEBUG("path %d: terminate worker thread\n", mIndex);
-            return;
-        }
-        DEBUG("path %d: will now send packet\n", mIndex);
-        send(p, mSocket);
-    }
+    SSPPacket *sp = (SSPPacket *)(packet->payload);
+    SSPAck &ack = sp->ack;
+    DEBUG("path %d: packet %lu acked, %d packets in flight\n",
+            mIndex, ack.L + ack.I, mState->packetsInFlight() - 1);
+    int rtt = elapsedTime(&(packet->sendTime), &(packet->arrivalTime));
+    if (!rttSample)
+        rtt = 0;
+    pthread_mutex_lock(&mWindowMutex);
+    mState->addRTTSample(rtt, ack.L + ack.I);
+    pthread_mutex_unlock(&mWindowMutex);
+    if (mState->isWindowBased())
+        pthread_cond_broadcast(&mWindowCond);
+    mTimeoutCount = 0;
+    mTotalAcked++;
+    return 0;
 }
 
 // SUDP

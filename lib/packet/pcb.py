@@ -32,7 +32,9 @@ from lib.errors import SCIONParseError
 from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
 from lib.packet.packet_base import SCIONPayloadBase
 from lib.packet.path import CorePath
-from lib.packet.pcb_ext import MTUExtension, REVExtension
+from lib.packet.pcb_ext.mtu import MtuPcbExt
+from lib.packet.pcb_ext.rev import RevPcbExt
+from lib.packet.pcb_ext.sibra import SibraPcbExt
 from lib.packet.scion_addr import ISD_AD
 from lib.types import PayloadClass, PCBType
 from lib.util import Raw
@@ -42,8 +44,9 @@ REV_TOKEN_LEN = 32
 
 # Dictionary of supported extensions
 PCB_EXTENSION_MAP = {
-    (MTUExtension.EXT_TYPE): MTUExtension,
-    (REVExtension.EXT_TYPE): REVExtension,
+    (MtuPcbExt.EXT_TYPE): MtuPcbExt,
+    (RevPcbExt.EXT_TYPE): RevPcbExt,
+    (SibraPcbExt.EXT_TYPE): SibraPcbExt,
 }
 
 
@@ -114,6 +117,9 @@ class PCBMarking(MarkingBase):
         inst.hof = hof
         inst.ig_rev_token = ig_rev_token or bytes(REV_TOKEN_LEN)
         return inst
+
+    def get_isd_ad(self):  # pragma: no cover
+        return ISD_AD(self.isd_id, self.ad_id)
 
     def pack(self):
         packed = []
@@ -438,6 +444,12 @@ class PathSegment(SCIONPayloadBase):
         else:
             return None
 
+    def get_first_isd_ad(self):  # pragma: no cover
+        return self.get_first_pcbm().get_isd_ad()
+
+    def get_last_isd_ad(self):  # pragma: no cover
+        return self.get_last_pcbm().get_isd_ad()
+
     def compare_hops(self, other):
         """
         Compares the (AD-level) hops of two half-paths. Returns true if all hops
@@ -572,6 +584,9 @@ class PathSegment(SCIONPayloadBase):
         for ad_marking in self.ads:
             s.append("  %s" % ad_marking)
         return "\n".join(s)
+
+    def __hash__(self):
+        return hash(self.get_hops_hash())  # FIMXE(PSz): should add timestamp?
 
 
 def parse_pcb_payload(type_, data):

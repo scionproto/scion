@@ -28,6 +28,16 @@ EXP_TIME_UNIT = MAX_SEGMENT_TTL / 2 ** 8
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 #: Generated files directory
 GEN_PATH = 'gen'
+#: Topology configuration
+TOPO_FILE = "topology.yml"
+#: AD configuration
+AD_CONF_FILE = "ad.yml"
+#: Path policy config
+PATH_POLICY_FILE = "path_policy.yml"
+#: Networks config
+NETWORKS_FILE = "networks.conf"
+#: AD list
+AD_LIST_FILE = "ad_list.yml"
 
 #: Buffer size for receiving packets
 SCION_BUFLEN = 65535
@@ -70,3 +80,5 @@ SERVICE_TYPES = (
 
 #: How often IFID packet is sent to neighboring router.
 IFID_PKT_TOUT = 1
+
+SCION_MIN_MTU = 1280  # IPv6 min value

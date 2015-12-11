@@ -16,6 +16,7 @@ public:
 
     virtual void handleTimeout(struct timeval *current);
 
+    virtual int timeUntilReady();
     virtual int getPayloadLen(bool ack);
     int getMTU();
     long getIdleTime(struct timeval *current);
@@ -51,7 +52,7 @@ protected:
     HostAddr        mFirstHop;
     std::vector<SCIONInterface> mInterfaces;
 
-    int             mMTU;
+    uint16_t        mMTU;
     bool            mUp;
 
     bool            mUsed;
@@ -65,11 +66,10 @@ public:
     SDAMPPath(SDAMPConnectionManager *manager, SCIONAddr &localAddr, SCIONAddr &dstAddr, uint8_t *rawPath, size_t pathLen);
     ~SDAMPPath();
 
-    void copyFrames(uint8_t *bufptr, SDAMPPacket *sp);
     virtual int send(SCIONPacket *packet, int sock);
 
     int handleData(SCIONPacket *packet);
-    int handleAck(SCIONPacket *packet, bool rttSample);
+    virtual int handleAck(SCIONPacket *packet, bool rttSample);
     void handleDupAck();
     void handleTimeout(struct timeval *current);
 
@@ -78,16 +78,13 @@ public:
 
     bool didTimeout(struct timeval *current);
     
-    int getPayloadLen(bool ack);
+    virtual int timeUntilReady();
+    virtual int getPayloadLen(bool ack);
     int getETA(SCIONPacket *packet);
     int getRTT();
     int getRTO();
     void setIndex(int index);
-
-    virtual void start();
-    static void * workerHelper(void *arg);
-    virtual void workerFunction();
-    void terminate();
+    void setRemoteWindow(uint32_t window);
 
     void getStats(SCIONStats *stats);
 protected:
@@ -113,9 +110,9 @@ public:
     ~SSPPath();
 
     int send(SCIONPacket *packet, int sock);
+    int getPayloadLen(bool ack);
     void start();
-    static void * workerHelper(void *arg);
-    void workerFunction();
+    int handleAck(SCIONPacket *packet, bool rttSample);
 };
 
 class SUDPPath : public Path {

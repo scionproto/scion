@@ -5,10 +5,15 @@ export PYTHONPATH=.
 # BEGIN subcommand functions
 
 cmd_topology() {
-    echo "Create topology, configuration, and execution files."
+    echo "Shutting down supervisord: $(supervisor/supervisor.sh shutdown)"
     mkdir -p logs traces
     [ -e gen ] && rm -r gen
-    [ -e /run/shm/scion-zk ] && rm -r /run/shm/scion-zk
+    if [ "$1" = "zkclean" ]; then
+        shift
+        echo "Deleting all Zookeeper state"
+        tools/zkcleanslate
+    fi
+    echo "Create topology, configuration, and execution files."
     topology/generator.py "$@"
 }
 
@@ -68,12 +73,17 @@ cmd_sock_bld() {
 SOCKDIR=endhost/sdamp
 
 cmd_sock_cli() {
-    GENDIR=gen/ISD1/AD19/endhost
-    ADDR="127.1.19.254"
+    if [ $# -eq 2 ]
+    then
+        GENDIR=gen/ISD${1}/AD${2}/endhost
+        ADDR="127.${1}.${2}.254"
+    else
+        GENDIR=gen/ISD1/AD19/endhost
+        ADDR="127.1.19.254"
+    fi
     APIADDR="127.255.255.254"
     PYTHONPATH=.
-    endhost/client_dispatcher $ADDR &
-    python3 endhost/dummy.py $GENDIR $ADDR $APIADDR
+    python3 endhost/dummy.py $GENDIR $ADDR $APIADDR client
 }
 
 cmd_run_cli() {
@@ -82,12 +92,17 @@ cmd_run_cli() {
 }
 
 cmd_sock_ser() {
-    GENDIR=gen/ISD2/AD26/endhost
-    ADDR="127.2.26.254"
+    if [ $# -eq 2 ]
+    then
+        GENDIR=gen/ISD${1}/AD${2}/endhost
+        ADDR="127.${1}.${2}.254"
+    else
+        GENDIR=gen/ISD2/AD26/endhost
+        ADDR="127.2.26.254"
+    fi
     APIADDR="127.255.255.253"
     PYTHONPATH=.
-    endhost/server_dispatcher $ADDR &
-    python3 endhost/dummy.py $GENDIR $ADDR $APIADDR
+    python3 endhost/dummy.py $GENDIR $ADDR $APIADDR server
 }
 
 cmd_run_ser() {
@@ -100,8 +115,10 @@ cmd_help() {
 	echo
 	cat <<-_EOF
 	Usage:
-	    $PROGRAM topology
-	        Create topology, configuration, and execution files.
+	    $PROGRAM topology [zkclean]
+	        Create topology, configuration, and execution files. With the
+	        'zkclean' option, also reset all local Zookeeper state. Another
+	        other arguments or options are passed to topology/generator.py
 	    $PROGRAM run
 	        Run network.
 	    $PROGRAM stop

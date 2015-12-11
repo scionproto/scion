@@ -81,7 +81,7 @@ class TestInterfaceElementInit(object):
         intf_dict = {
             'Addr': 'addr', 'IFID': 1, 'NeighborAD': 2,
             'NeighborISD': 3, 'NeighborType': 4, 'ToUdpPort': 5, 'UdpPort': 6,
-            'ToAddr': 'toaddr',
+            'ToAddr': 'toaddr', "Bandwidth": 1001,
         }
         # Call
         inst = InterfaceElement(intf_dict, 'name')
@@ -93,6 +93,7 @@ class TestInterfaceElementInit(object):
         ntools.eq_(inst.neighbor_type, 4)
         ntools.eq_(inst.to_udp_port, 5)
         ntools.eq_(inst.udp_port, 6)
+        ntools.eq_(inst.bandwidth, 1001)
         parse.assert_called_once_with("toaddr")
         ntools.eq_(inst.to_addr, parse.return_value)
 
@@ -139,7 +140,7 @@ class TestTopologyFromFile(object):
     """
     @patch("lib.topology.Topology.from_dict", spec_set=[],
            new_callable=MagicMock)
-    @patch("lib.topology.load_json_file", autospec=True)
+    @patch("lib.topology.load_yaml_file", autospec=True)
     def test(self, load, from_dict):
         load.return_value = 'topo_dict'
         from_dict.return_value = 'topology'

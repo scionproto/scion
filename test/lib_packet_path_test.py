@@ -44,6 +44,7 @@ from lib.packet.path import (
     parse_path,
 )
 from lib.packet.opaque_field import OpaqueField
+from lib.packet.pcb_ext.mtu import MtuPcbExt
 from lib.types import OpaqueFieldType as OFT
 from test.testcommon import assert_these_calls, create_mock
 
@@ -430,42 +431,6 @@ class TestPathBaseGetFirstIofIdx(object):
         inst._ofs.__len__.return_value = 0
         # Call
         ntools.eq_(inst._get_first_iof_idx(), None)
-
-
-class TestPathBaseGetFirstHofIdx(object):
-    """
-    Unit tests for lib.packet.path.PathBase._get_first_hof_idx
-    """
-    @patch("lib.packet.path.PathBase.__init__", autospec=True,
-           return_value=None)
-    def test_with_up_hofs(self, init):
-        inst = PathBaseTesting()
-        inst._ofs = create_mock(["get_by_label"])
-        # Call
-        ntools.eq_(inst._get_first_hof_idx(), 1)
-        # Tests
-        inst._ofs.get_by_label.assert_called_once_with(UP_HOFS)
-
-    @patch("lib.packet.path.PathBase.__init__", autospec=True,
-           return_value=None)
-    def test_with_down_hofs(self, init):
-        inst = PathBaseTesting()
-        inst._ofs = create_mock(["get_by_label"])
-        inst._ofs.get_by_label.side_effect = [False, True]
-        # Call
-        ntools.eq_(inst._get_first_hof_idx(), 1)
-        # Tests
-        assert_these_calls(inst._ofs.get_by_label,
-                           [call(UP_HOFS), call(DOWN_HOFS)])
-
-    @patch("lib.packet.path.PathBase.__init__", autospec=True,
-           return_value=None)
-    def test_without_hofs(self, init):
-        inst = PathBaseTesting()
-        inst._ofs = create_mock(["get_by_label"])
-        inst._ofs.get_by_label.return_value = False
-        # Call
-        ntools.assert_is_none(inst._get_first_hof_idx())
 
 
 class TestPathBaseGetOfsByLabel(object):
@@ -1116,10 +1081,11 @@ class TestPathCombinatorBuildCorePaths(object):
            new_callable=create_mock)
     def test_with_core(self, build_path):
         core_segments = ['core0', 'core1', 'core2', 'core3']
-        build_path.side_effect = ['path0', 'path1', None, 'path1']
+        build_path.side_effect = [None, 'path0', 'path1', None, 'path1']
         ntools.eq_(PathCombinator.build_core_paths('up', 'down', core_segments),
                    ['path0', 'path1'])
-        calls = [call('up', cs, 'down') for cs in core_segments]
+        calls = [call('up', [], 'down')]
+        calls += [call('up', cs, 'down') for cs in core_segments]
         assert_these_calls(build_path, calls)
 
 
@@ -1209,24 +1175,40 @@ class TestPathCombinatorBuildCorePath(PathCombinatorBase):
         up = create_mock(['ads'])
         core = create_mock(['ads'])
         down = create_mock(['ads'])
-        up.ads = [create_mock(['pcbm']) for i in range(6)]
+        up.ads = [create_mock(['pcbm', 'ext']) for i in range(6)]
+        mtus = [i * 100 for i in range(11)]
+        idx = 3  # MTUs: 300, 400, 500, 600, 700, 800
         for m in up.ads:
             m.pcbm = create_mock(['isd_id', 'ad_id', 'hof'])
             m.pcbm.hof = create_mock(['egress_if', 'ingress_if'])
-        core.ads = [create_mock(['pcbm']) for i in range(6)]
+            m.ext = create_mock(['EXT_TYPE', 'mtu'])
+            m.ext.EXT_TYPE = MtuPcbExt.EXT_TYPE
+            m.ext.mtu = mtus[idx]
+            idx += 1
+        core.ads = [create_mock(['pcbm', 'ext']) for i in range(6)]
+        idx = 5  # MTUs: 500, 400, 300, 200, 100, 0 (invalid)
         for m in core.ads:
             m.pcbm = create_mock(['isd_id', 'ad_id', 'hof'])
             m.pcbm.hof = create_mock(['egress_if', 'ingress_if'])
-        down.ads = [create_mock(['pcbm']) for i in range(6)]
+            m.ext = create_mock(['EXT_TYPE', 'mtu'])
+            m.ext.EXT_TYPE = MtuPcbExt.EXT_TYPE
+            m.ext.mtu = mtus[idx]
+            idx -= 1
+        down.ads = [create_mock(['pcbm', 'ext']) for i in range(6)]
+        idx = 2  # MTUs: 200, 300, 400, 500, 600, 700
         for m in down.ads:
             m.pcbm = create_mock(['isd_id', 'ad_id', 'hof'])
             m.pcbm.hof = create_mock(['egress_if', 'ingress_if'])
+            m.ext = create_mock(['EXT_TYPE', 'mtu'])
+            m.ext.EXT_TYPE = MtuPcbExt.EXT_TYPE
+            m.ext.mtu = mtus[idx]
+            idx += 1
 
         check_connected.return_value = True
         copy_seg.side_effect = [
-            ("up_iof", "up_hofs"),
-            ("core_iof", "core_hofs"),
-            ("down_iof", "down_hofs"),
+            ("up_iof", "up_hofs", 300),
+            ("core_iof", "core_hofs", 100),  # smallest valid MTU is 100
+            ("down_iof", "down_hofs", 200),
         ]
         # Call
         ntools.eq_(PathCombinator._build_core_path(up, core, down),
@@ -1245,7 +1227,8 @@ class TestPathCombinatorCopySegment(object):
     Unit tests for lib.packet.path.PathCombinator._copy_segment
     """
     def test_no_segment(self):
-        ntools.eq_(PathCombinator._copy_segment(None, "xovrs"), (None, None))
+        ntools.eq_(PathCombinator._copy_segment(None, "xovrs"),
+                   (None, None, None))
 
     @patch("lib.packet.path.PathCombinator._copy_hofs",
            new_callable=create_mock)
@@ -1259,9 +1242,9 @@ class TestPathCombinatorCopySegment(object):
             hof = create_mock(["info"])
             hof.info = OFT.NORMAL_OF
             hofs.append(hof)
-        copy_hofs.return_value = hofs
+        copy_hofs.return_value = hofs, None
         # Call
-        ntools.eq_(PathCombinator._copy_segment(seg, [0, 2]), (iof, hofs))
+        ntools.eq_(PathCombinator._copy_segment(seg, [0, 2]), (iof, hofs, None))
         # Tests
         deepcopy.assert_called_once_with(seg.iof)
         ntools.eq_(iof.up_flag, True)
@@ -1277,10 +1260,10 @@ class TestPathCombinatorCopySegment(object):
         seg = create_mock(["ads", "iof"])
         iof = create_mock(["up_flag"])
         deepcopy.return_value = iof
-        copy_hofs.return_value = "hofs"
+        copy_hofs.return_value = "hofs", None
         # Call
         ntools.eq_(PathCombinator._copy_segment(seg, [], up=False),
-                   (iof, "hofs"))
+                   (iof, "hofs", None))
         # Tests
         copy_hofs.assert_called_once_with(seg.ads, reverse=False)
 
@@ -1294,24 +1277,30 @@ class TestPathCombinatorGetXovrPeer(object):
         ads = []
         for i in range(n):
             ad = create_mock(['pcbm', 'pms'])
-            ad.pcbm = create_mock(['ad_id'])
+            ad.pcbm = create_mock(['ad_id', 'isd_id'])
             ad.pms = []
             for j in range(pms):
-                ad.pms.append(create_mock(['ad_id']))
+                ad.pms.append(create_mock(['ad_id', 'isd_id']))
             ads.append(ad)
         seg.ads = ads
         return seg
 
     def _setup_xovr_points(self, up, down):
         up.ads[1].pcbm.ad_id = down.ads[6].pcbm.ad_id
+        up.ads[1].pcbm.isd_id = down.ads[6].pcbm.isd_id
         up.ads[3].pcbm.ad_id = down.ads[2].pcbm.ad_id
+        up.ads[3].pcbm.isd_id = down.ads[2].pcbm.isd_id
         return (1, 6)
 
     def _setup_peer_points(self, up, down):
         up.ads[2].pms[1].ad_id = down.ads[5].pcbm.ad_id
+        up.ads[2].pms[1].isd_id = down.ads[5].pcbm.isd_id
         down.ads[5].pms[2].ad_id = up.ads[2].pcbm.ad_id
+        down.ads[5].pms[2].isd_id = up.ads[2].pcbm.isd_id
         up.ads[4].pms[0].ad_id = down.ads[1].pcbm.ad_id
+        up.ads[4].pms[0].isd_id = down.ads[1].pcbm.isd_id
         down.ads[1].pms[1].ad_id = up.ads[4].pcbm.ad_id
+        down.ads[1].pms[1].isd_id = up.ads[4].pcbm.isd_id
         return (2, 5)
 
     def test_xovr(self):
@@ -1357,18 +1346,29 @@ class TestPathCombinatorJoinShortcuts(object):
         down_iof = create_mock(["info"])
         up_seg = create_mock(['ads'])
         down_seg = create_mock(['ads'])
-        up_seg.ads = [create_mock(['pcbm']) for i in range(6)]
+        up_seg.ads = [create_mock(['pcbm', 'ext']) for i in range(6)]
+        mtus = [i * 100 for i in range(11)]
+        idx = 1
         for m in up_seg.ads:
             m.pcbm = create_mock(['isd_id', 'ad_id', 'hof'])
             m.pcbm.hof = create_mock(['egress_if', 'ingress_if'])
-        down_seg.ads = [create_mock(['pcbm']) for i in range(6)]
+            m.ext = create_mock(['EXT_TYPE', 'mtu'])
+            m.ext.EXT_TYPE = MtuPcbExt.EXT_TYPE
+            m.ext.mtu = mtus[idx]
+            idx += 1
+        down_seg.ads = [create_mock(['pcbm', 'ext']) for i in range(6)]
+        idx = 10
         for m in down_seg.ads:
             m.pcbm = create_mock(['isd_id', 'ad_id', 'hof'])
             m.pcbm.hof = create_mock(['egress_if', 'ingress_if'])
+            m.ext = create_mock(['EXT_TYPE', 'mtu'])
+            m.ext.EXT_TYPE = MtuPcbExt.EXT_TYPE
+            m.ext.mtu = mtus[idx]
+            idx -= 1
 
         join_shortcuts.side_effect = [
-            (up_iof, "up_hofs", "up_upstream_hof"),
-            (down_iof, "down_hofs", "down_upstream_hof"),
+            (up_iof, "up_hofs", "up_upstream_hof", 100),
+            (down_iof, "down_hofs", "down_upstream_hof", 400),
         ]
         # Call
         ntools.eq_(
@@ -1405,8 +1405,8 @@ class TestPathCombinatorJoinShortcuts(object):
         up_iof = create_mock(["info"])
         down_iof = create_mock(["info"])
         join_shortcuts.side_effect = [
-            (up_iof, "up_hofs", "up_upstream_hof"),
-            (down_iof, "down_hofs", "down_upstream_hof"),
+            (up_iof, "up_hofs", "up_upstream_hof", None),
+            (down_iof, "down_hofs", "down_upstream_hof", None),
         ]
         up_peering_hof = create_mock(['ingress_if'])
         down_peering_hof = create_mock(['ingress_if'])
@@ -1438,16 +1438,18 @@ class TestPathCombinatorCheckConnected(object):
         segs = []
         for part in ["up", "core", "down"]:
             seg = create_mock(['get_first_pcbm', 'get_last_pcbm'])
-            pcbm = create_mock(['ad_id'])
+            pcbm = create_mock(['ad_id', 'isd_id'])
             seg.get_first_pcbm.return_value = pcbm
             first = "%s_first" % part
             if locals().get(first):
                 pcbm.ad_id = locals()[first]
-            pcbm = create_mock(['ad_id'])
+                pcbm.isd_id = locals()[first]
+            pcbm = create_mock(['ad_id', 'isd_id'])
             seg.get_last_pcbm.return_value = pcbm
             last = "%s_last" % part
             if locals().get(last):
                 pcbm.ad_id = locals()[last]
+                pcbm.isd_id = locals()[last]
             segs.append(seg)
         return segs
 
@@ -1484,23 +1486,25 @@ class TestPathCombinatorCopyHofs(object):
         deepcopy.side_effect = list(range(4))
         blocks = []
         for _ in range(4):
-            block = create_mock(["pcbm"])
+            block = create_mock(["pcbm", "ext"])
             block.pcbm = create_mock(["hof"])
+            block.ext = []
             blocks.append(block)
         # Call
-        ntools.eq_(PathCombinator._copy_hofs(blocks), [3, 2, 1, 0])
+        ntools.eq_(PathCombinator._copy_hofs(blocks), ([3, 2, 1, 0], None))
 
     @patch("lib.packet.path.copy.deepcopy", new_callable=create_mock)
     def test_no_reverse(self, deepcopy):
         deepcopy.side_effect = list(range(4))
         blocks = []
         for _ in range(4):
-            block = create_mock(["pcbm"])
+            block = create_mock(["pcbm", "ext"])
             block.pcbm = create_mock(["hof"])
+            block.ext = []
             blocks.append(block)
         # Call
         ntools.eq_(PathCombinator._copy_hofs(blocks, reverse=False),
-                   [0, 1, 2, 3])
+                   ([0, 1, 2, 3], None))
 
 
 class TestPathCombinatorCopySegmentShortcut(object):
@@ -1519,14 +1523,14 @@ class TestPathCombinatorCopySegmentShortcut(object):
         hofs = []
         for _ in range(6):
             hofs.append(create_mock(["info"]))
-        copy_hofs.return_value = hofs
+        copy_hofs.return_value = hofs, None
         upstream_hof = create_mock(["info"])
         deepcopy.side_effect = [iof, upstream_hof]
         return seg, iof, hofs, upstream_hof
 
         # Call
         ntools.eq_(PathCombinator._copy_segment_shortcut(seg, 4),
-                   (iof, hofs, upstream_hof))
+                   (iof, hofs, upstream_hof, None))
         # Tests
         assert_these_calls(deepcopy, [call(seg.iof), call(seg.ads[3].pcbm.hof)])
         ntools.eq_(iof.hops, 6)
@@ -1542,7 +1546,7 @@ class TestPathCombinatorCopySegmentShortcut(object):
         seg, iof, hofs, upstream_hof = self._setup(deepcopy, copy_hofs)
         # Call
         ntools.eq_(PathCombinator._copy_segment_shortcut(seg, 4),
-                   (iof, hofs, upstream_hof))
+                   (iof, hofs, upstream_hof, None))
         # Tests
         assert_these_calls(deepcopy, [call(seg.iof), call(seg.ads[3].pcbm.hof)])
         ntools.eq_(iof.hops, 6)
@@ -1558,7 +1562,7 @@ class TestPathCombinatorCopySegmentShortcut(object):
         seg, iof, hofs, upstream_hof = self._setup(deepcopy, copy_hofs)
         # Call
         ntools.eq_(PathCombinator._copy_segment_shortcut(seg, 7, up=False),
-                   (iof, hofs, upstream_hof))
+                   (iof, hofs, upstream_hof, None))
         # Tests
         ntools.assert_false(iof.up_flag)
         copy_hofs.assert_called_once_with(seg.ads[7:], reverse=False)
@@ -1571,11 +1575,13 @@ class TestPathCombinatorJoinShortcutsPeer(object):
     """
     def test(self):
         up_ad = create_mock(['pms', 'pcbm'])
-        up_ad.pcbm = create_mock(['ad_id'])
+        up_ad.pcbm = create_mock(['ad_id', 'isd_id'])
         up_ad.pcbm.ad_id = 1
+        up_ad.pcbm.isd_id = 1
         down_ad = create_mock(['pms', 'pcbm'])
-        down_ad.pcbm = create_mock(['ad_id'])
+        down_ad.pcbm = create_mock(['ad_id', 'isd_id'])
         down_ad.pcbm.ad_id = 2
+        down_ad.pcbm.isd_id = 1
         up_ad.pms = [create_mock(['ad_id', 'hof']) for i in range(2)]
         down_ad.pms = [create_mock(['ad_id', 'hof']) for i in range(3)]
         up_ad.pms[1].ad_id = 2

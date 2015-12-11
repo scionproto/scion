@@ -74,6 +74,7 @@ def client(c_addr, s_addr):
                                      payload)
     # Determine first hop (i.e., local address of border router)
     (next_hop, port) = sd.get_first_hop(spkt)
+    assert next_hop is not None
     logging.info("CLI: Sending packet:\n%s\nFirst hop: %s:%s",
                  spkt, next_hop, port)
     # Send packet to first hop (it is sent through SCIONDaemon)
@@ -110,6 +111,7 @@ def server(addr):
         spkt.set_payload(PayloadRaw(b"response"))
         # Determine first hop (i.e., local address of border router)
         (next_hop, port) = sd.get_first_hop(spkt)
+        assert next_hop is not None
         # Send packet to first hop (it is sent through SCIONDaemon)
         sd.send(spkt, next_hop, port)
     logging.info("SRV: Leaving server.")
@@ -128,7 +130,7 @@ def main():
     parser.add_argument('srv_ad', nargs='?', help='Server isd,ad',
                         default="2,26")
     args = parser.parse_args()
-    init_logging("logs/c2s_extn.log", console=True)
+    init_logging("logs/c2s_extn", console_level=logging.DEBUG)
 
     if not args.client:
         args.client = "169.254.0.2" if args.mininet else "127.0.0.2"

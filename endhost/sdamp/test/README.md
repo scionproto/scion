@@ -17,3 +17,8 @@ From the SCION root directory, after running the SCION infrastructure:
 3. Open new terminal window (or run step 2 in the background)
 4. ./scion.sh sock_cli
 5. ./scion.sh run_cli
+
+## C wrapper for library
+A C wrapper for the SCIONSocket library is defined in
+[scion root dir]/endhost/sdamp/SCIONWrapper.h
+Refer to wrapper_client.c and wrapper_server.c for usage.

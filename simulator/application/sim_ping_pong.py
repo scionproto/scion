@@ -121,6 +121,10 @@ class SimPingApp(SCIONSimApplication):
         spkt = SCIONL4Packet.from_values(cmn_hdr, addr_hdr, path, [], udp_hdr,
                                          payload)
         (next_hop, port) = self.host.get_first_hop(spkt)
+        if next_hop is None:
+            logging.error("Next hop is None for Interface %d",
+                          spkt.path.get_fwd_if())
+            return
         logging.info("Sending packet: %s\nFirst hop: %s:%s",
                      spkt, next_hop, port)
         self.host.send(spkt, next_hop, port)
@@ -182,4 +186,5 @@ class SimPongApp(SCIONSimApplication):
             spkt.reverse()
             spkt.set_payload(PayloadRaw(b"pong"))
             (next_hop, port) = self.host.get_first_hop(spkt)
+            assert next_hop is not None
             self.host.send(spkt, next_hop, port)

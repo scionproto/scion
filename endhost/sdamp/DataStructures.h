@@ -1,6 +1,8 @@
 #ifndef SCION_DATASTRUCTURES_H
 #define SCION_DATASTRUCTURES_H
 
+#include <stdlib.h>
+#include <string.h>
 #include <list>
 #include <vector>
 
@@ -21,23 +23,41 @@ typedef struct {
     int pathIndex;
 } SCIONPacket;
 
-typedef struct {
-    bool exists[MAX_TOTAL_PATHS];
-    int receivedPackets[MAX_TOTAL_PATHS];
-    int sentPackets[MAX_TOTAL_PATHS];
-    int ackedPackets[MAX_TOTAL_PATHS];
-    int rtts[MAX_TOTAL_PATHS];
-    double lossRates[MAX_TOTAL_PATHS];
-    uint64_t highestReceived;
-    uint64_t highestAcked;
-} SCIONStats;
-
 enum DataProfile {
     SCION_PROFILE_DEFAULT = 0,
     SCION_PROFILE_VOIP,
     SCION_PROFILE_AUDIO,
     SCION_PROFILE_VIDEO,
     SCION_PROFILE_MAX,
+};
+
+class L4Packet {
+public:
+    L4Packet()
+        : data(NULL),
+        len(0),
+        windowSize(0),
+        skipCount(0),
+        retryAttempts(0),
+        interfaceCount(0),
+        interfaces(NULL)
+    {}
+
+    virtual ~L4Packet()
+    {
+        if (data)
+            free(data);
+    }
+
+    virtual uint64_t number() { return 0; }
+
+    uint8_t *data;
+    size_t len;
+    size_t windowSize;
+    uint32_t skipCount;
+    uint8_t retryAttempts;
+    size_t interfaceCount;
+    uint8_t *interfaces;
 };
 
 #pragma pack(push)
@@ -63,26 +83,24 @@ typedef struct {
 
 #pragma pack(pop)
 
-typedef struct {
-    uint32_t size;
-    uint8_t *data;
-    uint32_t deadline;
-    int64_t offset;
-    uint32_t retryAttempts;
-} SDAMPFrame;
+class SDAMPPacket : public L4Packet {
+public:
+    SDAMPPacket()
+        : L4Packet(),
+        deadline(0)
+    {
+        memset(&header, 0, sizeof(header));
+        memset(&ack, 0, sizeof(ack));
+    }
 
-typedef struct {
+    ~SDAMPPacket() {}
+
+    uint64_t number() { return header.packetNum; }
+
     SDAMPHeader header;
     SDAMPAck ack;
-    SDAMPFrame **frames;
-    uint32_t frameCount;
     uint32_t deadline;
-    uint32_t windowSize;
-    uint32_t skipCount;
-    uint32_t retryAttempts;
-    uint32_t interfaceCount;
-    uint8_t *interfaces;
-} SDAMPPacket;
+};
 
 typedef struct {
     uint64_t flowID;
@@ -102,8 +120,9 @@ typedef struct {
     uint64_t flowID;
     uint16_t port;
     uint8_t headerLen;
-    uint32_t offset;
+    uint64_t offset;
     uint8_t flags;
+    uint8_t mark;
 } SSPHeader;
 
 typedef struct {
@@ -112,9 +131,28 @@ typedef struct {
     int32_t H;
     int32_t O;
     uint32_t V;
+    uint8_t mark;
+    bool full;
 } SSPAck;
 
 #pragma pack(pop)
+
+class SSPPacket : public L4Packet {
+public:
+    SSPPacket()
+        : L4Packet()
+    {
+        memset(&header, 0, sizeof(header));
+        memset(&ack, 0, sizeof(ack));
+    }
+
+    ~SSPPacket() {}
+
+    uint64_t number() { return header.offset; }
+
+    SSPHeader header;
+    SSPAck ack;
+};
 
 typedef struct {
     uint8_t *data;
@@ -123,25 +161,6 @@ typedef struct {
     int refs;
     pthread_mutex_t mutex;
 } SSPData;
-
-typedef struct {
-    uint32_t offset;
-    uint8_t *data;
-    uint32_t len;
-    int skipCount;
-    int windowSize;
-    SSPHeader header;
-    SSPAck ack;
-} SSPOutPacket;
-
-typedef struct {
-    uint32_t offset;
-    uint8_t *data;
-    uint32_t len;
-    int windowSize;
-    int interfaceCount;
-    uint8_t *interfaces;
-} SSPInPacket;
 
 #pragma pack(push)
 #pragma pack(1)
@@ -165,6 +184,5 @@ typedef struct {
 } SUDPEntry;
 
 typedef std::list<SCIONPacket *> PacketList;
-typedef std::list<SDAMPFrame *> FrameList;
 
 #endif

@@ -28,7 +28,7 @@ public:
     virtual ~PathState();
 
     virtual void setIndex(int index);
-    virtual void setSendWindow(int sendWindow);
+    virtual void setRemoteWindow(uint32_t sendWindow);
 
     virtual int timeUntilReady();
     virtual int bandwidth();
@@ -46,6 +46,7 @@ public:
     virtual void handleDupAck();
 
     virtual bool isWindowBased();
+    virtual int window();
 
     int profileLoss();
 
@@ -153,6 +154,7 @@ public:
     void addRTTSample(int rtt, uint64_t packetNum);
     void addRetransmit();
     bool isWindowBased();
+    int window();
 
 private:
     TCPState mState;
@@ -163,6 +165,7 @@ private:
 
 #define BETA 0.2
 #define C    0.4
+#define CUBIC_SSTHRESH 100
 
 class CUBICPathState: public PathState {
 public:
@@ -177,6 +180,7 @@ public:
     void handleTimeout();
 
     bool isWindowBased();
+    int window();
 
 private:
     void reset();

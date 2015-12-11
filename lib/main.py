@@ -22,6 +22,7 @@ import os
 import sys
 
 # SCION
+from lib.defines import TOPO_FILE
 from lib.log import init_logging, log_exception
 from lib.topology import Topology
 from lib.util import handle_signals, trace
@@ -63,13 +64,13 @@ def main_default(type_, local_type=None, trace_=False, **kwargs):
     parser.add_argument('log_dir', nargs='?', default="logs/",
                         help='Log dir (Default: logs/)')
     args = parser.parse_args()
-    init_logging("%s.log" % os.path.join(args.log_dir, args.server_id))
+    init_logging(os.path.join(args.log_dir, args.server_id))
 
     if local_type is None:
         inst = type_(args.server_id, args.conf_dir, **kwargs)
     else:
         # Load the topology to check if this is a core AD or not
-        topo = Topology.from_file(os.path.join(args.conf_dir, "topology.conf"))
+        topo = Topology.from_file(os.path.join(args.conf_dir, TOPO_FILE))
         if topo.is_core_ad:
             inst = type_(args.server_id, args.conf_dir, **kwargs)
         else:

@@ -33,6 +33,9 @@
 #define INTRATD_PEER 0x78
 #define INTERTD_PEER 0x7C
 
+#define NORMAL_OF 0x0
+#define XOVR_POINT 0x10
+
 #define IS_HOP_OF(x) !((x) & 0x80)
 
 typedef struct {
@@ -46,11 +49,29 @@ typedef struct{
     HostAddr host;
 } SCIONAddr;
 
+#define ISD_AD(isd, ad) ((isd) << 20) | ((ad) & 0xfffff)
+
 typedef struct {
-    uint32_t isd;
     uint32_t ad;
-    uint8_t interface;
+    uint16_t isd;
+    uint16_t interface;
 } SCIONInterface;
+#define SCION_IF_SIZE 6
+
+#define MAX_TOTAL_PATHS 10
+
+typedef struct {
+    bool exists[MAX_TOTAL_PATHS];
+    int receivedPackets[MAX_TOTAL_PATHS];
+    int sentPackets[MAX_TOTAL_PATHS];
+    int ackedPackets[MAX_TOTAL_PATHS];
+    int rtts[MAX_TOTAL_PATHS];
+    double lossRates[MAX_TOTAL_PATHS];
+    int ifCounts[MAX_TOTAL_PATHS];
+    SCIONInterface *ifLists[MAX_TOTAL_PATHS];
+    uint64_t highestReceived;
+    uint64_t highestAcked;
+} SCIONStats;
 
 #pragma pack(push)
 #pragma pack(1)
