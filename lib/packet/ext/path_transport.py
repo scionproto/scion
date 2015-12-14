@@ -21,6 +21,7 @@ import struct
 # SCION
 from lib.errors import SCIONParseError
 from lib.packet.ext_hdr import EndToEndExtension, EndToEndType
+from lib.packet.opaque_field import OpaqueField
 from lib.packet.packet_base import HeaderBase
 from lib.packet.path import parse_path
 from lib.packet.pcb import PathSegment
@@ -56,11 +57,8 @@ class PathTransOFPath(HeaderBase):
         data.pop(len(self.src_addr))
         self.dst_addr = SCIONAddr((dst_type, data.get()))
         data.pop(len(self.dst_addr))
-        padding_len = len(data) % 8
-        if padding_len:
-            self.path = parse_path(data.pop()[:-padding_len])
-        else:
-            self.path = parse_path(data.pop())
+        padding_len = len(data) % OpaqueField.LEN
+        self.path = parse_path(data.pop(len(data) - padding_len))
 
     @classmethod
     def from_values(cls, src_addr, dst_addr, path):
