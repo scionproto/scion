@@ -25,7 +25,7 @@ from lib.packet.packet_base import HeaderBase
 from lib.packet.path import parse_path
 from lib.packet.pcb import PathSegment
 from lib.packet.scion_addr import SCIONAddr
-from lib.util import Raw
+from lib.util import calc_padding, Raw
 
 
 class PathTransOFPath(HeaderBase):
@@ -64,11 +64,11 @@ class PathTransOFPath(HeaderBase):
 
     @classmethod
     def from_values(cls, src_addr, dst_addr, path):
-        of_path = cls()
-        of_path.src_addr = src_addr
-        of_path.dst_addr = dst_addr
-        of_path.path = path
-        return of_path
+        inst = cls()
+        inst.src_addr = src_addr
+        inst.dst_addr = dst_addr
+        inst.path = path
+        return inst
 
     def pack(self):
         packed = []
@@ -77,9 +77,6 @@ class PathTransOFPath(HeaderBase):
         packed.append(self.src_addr.pack())
         packed.append(self.dst_addr.pack())
         packed.append(self.path.pack())
-        len_ = sum(map(len, packed))
-        padding_len = (len_ - 4) % 8
-        packed.append(bytes(padding_len))
         return b"".join(packed)
 
     def __len__(self):
@@ -137,7 +134,7 @@ class PathTransportExt(EndToEndExtension):
         """
         Construct extension with a path of type path_type.
         """
-        inst = PathTransportExt()
+        inst = cls()
         inst.path_type = path_type
         inst.path = path
         # How many additional lines are needed for a path.
@@ -163,7 +160,7 @@ class PathTransportExt(EndToEndExtension):
         path_packed = self.path.pack()
         packed.append(path_packed)
         # Add possible padding.
-        packed.append(bytes((len(path_packed) - 4) % self.LINE_LEN))
+        packed.append(bytes(calc_padding(len(path_packed) - 4, self.LINE_LEN)))
         self._set_payload(b"".join(packed))
         return self._raw
 

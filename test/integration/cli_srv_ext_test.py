@@ -68,17 +68,17 @@ def client(c_addr, s_addr):
     routers_no *= 2
 
     # Extensions
-    ext = []
+    exts = []
     # Create empty Traceroute extensions with allocated space
-    ext.append(TracerouteExt.from_values(routers_no))
+    exts.append(TracerouteExt.from_values(routers_no))
     # Create PathTransportExtension
     # One with data-plane path.
     of_path = PathTransOFPath.from_values(c_addr, s_addr, path)
-    ext.append(PathTransportExt.from_values(PathTransType.OF_PATH, of_path))
+    exts.append(PathTransportExt.from_values(PathTransType.OF_PATH, of_path))
     # And another PathTransportExtension with control-plane path.
-    if (sd.up_segments() + sd.core_segments() + sd.down_segments()):
+    if sd.up_segments() or sd.core_segments() or sd.down_segments():
         seg = (sd.up_segments() + sd.core_segments() + sd.down_segments())[0]
-        ext.append(PathTransportExt.from_values(PathTransType.PCB_PATH, seg))
+        exts.append(PathTransportExt.from_values(PathTransType.PCB_PATH, seg))
 
     # Set payload
     payload = PayloadRaw(b"request to server")
@@ -88,7 +88,7 @@ def client(c_addr, s_addr):
         c_addr, sock.port, s_addr, SCION_UDP_EH_DATA_PORT, payload,
     )
     spkt = SCIONL4Packet.from_values(cmn_hdr, addr_hdr, path,
-                                     ext, udp_hdr, payload)
+                                     exts, udp_hdr, payload)
     # Determine first hop (i.e., local address of border router)
     (next_hop, port) = sd.get_first_hop(spkt)
     assert next_hop is not None

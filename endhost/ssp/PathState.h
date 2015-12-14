@@ -63,7 +63,7 @@ protected:
     int             mCongestionWindow;
     int             mWindow;
     int             mInFlight;
-    int             mLossBursts[SDAMP_MAX_LOSS_BURST];
+    int             mLossBursts[SSP_MAX_LOSS_BURST];
     int             mCurrentBurst;
     bool            mInLoss;
     uint64_t        mTotalSent;

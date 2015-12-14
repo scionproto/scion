@@ -1,6 +1,6 @@
 CC=gcc
 CFLAGS +=-Wall -g
-INC += -I./sdamp
+INC += -I./ssp
 LDFLAGS += -lpthread -lrt
 
 HDRS=$(wildcard *.h)

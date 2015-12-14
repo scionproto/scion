@@ -6,7 +6,6 @@
 #include "SCIONDefines.h"
 #include "DataStructures.h"
 #include "ConnectionManager.h"
-#include "RingBuffer.h"
 #include "OrderedList.h"
 
 class SCIONProtocol {
@@ -54,40 +53,38 @@ protected:
     pthread_t              mTimerThread;
 };
 
-class SDAMPProtocol: public SCIONProtocol {
+class SSPProtocol: public SCIONProtocol {
 public:
-    SDAMPProtocol(std::vector<SCIONAddr> &dstAddrs, short srcPort, short dstPort);
-    ~SDAMPProtocol();
+    SSPProtocol(std::vector<SCIONAddr> &dstAddrs, short srcPort, short dstPort);
+    ~SSPProtocol();
 
-    virtual int send(uint8_t *buf, size_t len, DataProfile profile);
-    virtual int recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr);
+    int send(uint8_t *buf, size_t len, DataProfile profile);
+    int recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr);
 
     bool claimPacket(SCIONPacket *packet, uint8_t *buf);
-    virtual void createManager(std::vector<SCIONAddr> &dstAddrs);
+    void createManager(std::vector<SCIONAddr> &dstAddrs);
     void start(SCIONPacket *packet, uint8_t *buf, int sock);
-    virtual int handlePacket(SCIONPacket *packet, uint8_t *buf);
+    int handlePacket(SCIONPacket *packet, uint8_t *buf);
 
-    virtual SCIONPacket * createPacket(uint8_t *buf, size_t len);
+    SCIONPacket * createPacket(uint8_t *buf, size_t len);
 
-    virtual void handleTimerEvent();
+    void handleTimerEvent();
 
-    virtual void getStats(SCIONStats *stats);
+    void getStats(SCIONStats *stats);
 
 protected:
     void getWindowSize();
     int getDeadlineFromProfile(DataProfile profile);
 
-    void handleProbe(SCIONPacket *packet);
-    void handleProbeAck(SCIONPacket *packet);
-    void handleAck(SCIONPacket *packet);
-    void handleData(SCIONPacket *packet);
-    void sendAck(SCIONPacket *packet);
+    void handleProbe(SSPPacket *packet, int pathIndex);
+    void handleData(SSPPacket *packet, int pathIndex);
+    void sendAck(SSPPacket *sip, int pathIndex, bool full=false);
 
-    virtual bool isFirstPacket();
-    virtual void didRead(L4Packet *packet);
+    bool isFirstPacket();
+    void didRead(L4Packet *packet);
 
     // path manager
-    SDAMPConnectionManager *mConnectionManager;
+    SSPConnectionManager *mConnectionManager;
 
     // initialization, connection establishment
     bool                   mInitialized;
@@ -103,38 +100,15 @@ protected:
     int                    mAckVectorOffset;
 
     // sending packets
-    uint64_t               mLastPacketNum;
+    uint64_t               mNextSendByte;
     PacketList             mSentPackets;
     pthread_mutex_t        mPacketMutex;
 
     // recv'ing packets
-    uint32_t               mTotalReceived;
+    uint32_t                mTotalReceived;
     uint64_t                mNextPacket;
     OrderedList<L4Packet *> *mReadyPackets;
     OrderedList<L4Packet *> *mOOPackets;
-};
-
-class SSPProtocol : public SDAMPProtocol {
-public:
-    SSPProtocol(std::vector<SCIONAddr> &dstAddrs, short srcPort, short dstPort);
-    ~SSPProtocol();
-
-    void createManager(std::vector<SCIONAddr> &dstAddrs);
-
-    int handlePacket(SCIONPacket *packet, uint8_t *buf);
-    void handleTimerEvent();
-
-    SCIONPacket * createPacket(uint8_t *buf, size_t len);
-
-protected:
-    void handleProbe(SSPPacket *packet, int pathIndex);
-    void handleData(SSPPacket *packet, int pathIndex);
-    void sendAck(SSPPacket *sip, int pathIndex, bool full=false);
-
-    virtual bool isFirstPacket();
-    virtual void didRead(L4Packet *packet);
-
-    uint64_t mNextSendByte;
 };
 
 class SUDPProtocol : public SCIONProtocol {

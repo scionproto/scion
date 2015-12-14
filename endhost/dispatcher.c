@@ -24,7 +24,7 @@
 #define DATA_BUFSIZE 2048
 #define NAME_MAX 32
 
-uint8_t L4PROTOCOLS[] = {1, 6, 17, SCION_PROTO_SDAMP, SCION_PROTO_SUDP, SCION_PROTO_SSP};
+uint8_t L4PROTOCOLS[] = {1, 6, 17, SCION_PROTO_SUDP, SCION_PROTO_SSP};
 
 typedef struct Entry {
     struct sockaddr_in addr;
@@ -33,8 +33,8 @@ typedef struct Entry {
     UT_hash_handle hh;
 } Entry;
 
-Entry *SDAMPFlows = NULL;
-Entry *SDAMPWildcards = NULL;
+Entry *SSPFlows = NULL;
+Entry *SSPWildcards = NULL;
 Entry *SUDPPorts = NULL;
 
 int dataSocket, appSocket;
@@ -44,14 +44,14 @@ void reply(char code, struct sockaddr_in *addr)
     sendto(appSocket, &code, 1, 0, (struct sockaddr *)addr, sizeof(*addr));
 }
 
-void registerSDAMP(char *buf, int len, struct sockaddr_in *addr)
+void registerSSP(char *buf, int len, struct sockaddr_in *addr)
 {
     if (len != 11) {
-        fprintf(stderr, "invalid SDAMP registration\n");
+        fprintf(stderr, "invalid SSP registration\n");
         reply(0, addr);
         return;
     }
-    printf("SDAMP registration request\n");
+    printf("SSP registration request\n");
     uint64_t flowID = *(uint64_t *)(buf + 1);
     uint16_t port = *(uint16_t *)(buf + 9);
     printf("flow = %lu, port = %d\n", flowID, port);
@@ -61,9 +61,9 @@ void registerSDAMP(char *buf, int len, struct sockaddr_in *addr)
     e->flowID = flowID;
     e->port = port;
     if (flowID != 0)
-        HASH_REPLACE(hh, SDAMPFlows, flowID, 8, e, old);
+        HASH_REPLACE(hh, SSPFlows, flowID, 8, e, old);
     else
-        HASH_REPLACE(hh, SDAMPWildcards, port, 2, e, old);
+        HASH_REPLACE(hh, SSPWildcards, port, 2, e, old);
     printf("registration success\n");
     reply(1, addr);
 }
@@ -97,8 +97,8 @@ void * appHandler(void *arg)
         if (len > 1) { /* 1 byte for protocol, rest for identifier */
             unsigned char protocol = buf[0];
             switch (protocol) {
-                case SCION_PROTO_SDAMP:
-                    registerSDAMP(buf, len, &addr);
+                case SCION_PROTO_SSP:
+                    registerSSP(buf, len, &addr);
                     break;
                 case SCION_PROTO_SUDP:
                     registerSUDP(buf, len, &addr);
@@ -135,14 +135,14 @@ uint8_t getL4Protocol(uint8_t **l4ptr)
     return currentHeader;
 }
 
-void deliverSDAMP(char *buf, uint8_t *l4ptr, int len, struct sockaddr_in *addr)
+void deliverSSP(char *buf, uint8_t *l4ptr, int len, struct sockaddr_in *addr)
 {
     Entry *e;
     uint64_t flowID = be64toh(*(uint64_t *)l4ptr);
     uint16_t port = ntohs(*(uint16_t *)(l4ptr + 8));
-    HASH_FIND(hh, SDAMPFlows, &flowID, 8, e);
+    HASH_FIND(hh, SSPFlows, &flowID, 8, e);
     if (!e) {
-        HASH_FIND(hh, SDAMPWildcards, &port, 2, e);
+        HASH_FIND(hh, SSPWildcards, &port, 2, e);
         if (!e)
             return;
     }
@@ -183,9 +183,8 @@ void * dataHandler(void *arg)
             uint8_t *l4ptr = (uint8_t *)buf;
             uint8_t l4 = getL4Protocol(&l4ptr);
             switch (l4) {
-                case SCION_PROTO_SDAMP:
                 case SCION_PROTO_SSP:
-                    deliverSDAMP(buf, l4ptr, len, &addr);
+                    deliverSSP(buf, l4ptr, len, &addr);
                     break;
                 case SCION_PROTO_SUDP:
                     deliverSUDP(buf, l4ptr, len, &addr);
