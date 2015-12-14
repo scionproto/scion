@@ -153,8 +153,8 @@ void PathState::addLoss(uint64_t packetNum)
     pthread_mutex_unlock(&mMutex);
     mCurrentBurst++;
     mInLoss = true;
-    if (mCurrentBurst == SDAMP_MAX_LOSS_BURST) {
-        mLossBursts[SDAMP_MAX_LOSS_BURST]++;
+    if (mCurrentBurst == SSP_MAX_LOSS_BURST) {
+        mLossBursts[SSP_MAX_LOSS_BURST]++;
         mCurrentBurst = 0;
         mInLoss = false;
     }
@@ -179,8 +179,8 @@ void PathState::addRTTSample(int rtt, uint64_t packetNum)
             mVAR += (err - mVAR) >> VAR_SHIFT;
         }
         mRTO = mSRTT + (mVAR << 2);
-        if (mRTO > SDAMP_MAX_RTO)
-            mRTO = SDAMP_MAX_RTO;
+        if (mRTO > SSP_MAX_RTO)
+            mRTO = SSP_MAX_RTO;
         DEBUG("path %d: RTT sample %d us, sRTT = %d us, RTO = %d us\n", mPathIndex, rtt, mSRTT, mRTO);
     }
     if (mInLoss) {
@@ -196,7 +196,8 @@ void PathState::addRetransmit()
     mLossIntervals.push_front(mTotalAcked - mLastTotalAcked);
     if (mLossIntervals.size() > MAX_LOSS_INTERVALS)
         mLossIntervals.pop_back();
-    DEBUG("loss on path %d: new loss interval = %ld\n", mPathIndex, mTotalAcked - mLastTotalAcked);
+    DEBUG("loss on path %d: new loss interval = %ld, %d/%d in flight\n",
+            mPathIndex, mTotalAcked - mLastTotalAcked, mInFlight, mWindow);
     mLastTotalAcked = mTotalAcked;
     calculateLoss(ALI_FROM_INTERVAL_1);
     pthread_mutex_unlock(&mMutex);
@@ -215,8 +216,8 @@ void PathState::handleSend(uint64_t packetNum)
 void PathState::handleTimeout()
 {
     mRTO = mRTO << 1;
-    if (mRTO > SDAMP_MAX_RTO)
-        mRTO = SDAMP_MAX_RTO;
+    if (mRTO > SSP_MAX_RTO)
+        mRTO = SSP_MAX_RTO;
     DEBUG("timeout: new rto = %d\n", mRTO);
 }
 
@@ -285,14 +286,14 @@ int PathState::profileLoss()
     double p, q;
 
     int m = 0;
-    for (int i = 1; i < SDAMP_MAX_LOSS_BURST; i++)
+    for (int i = 1; i < SSP_MAX_LOSS_BURST; i++)
         m += mLossBursts[i];
     p = (double)m / mTotalAcked;
 
     int mi1 = 0, mi2 = 0;
-    for (int i = 2; i < SDAMP_MAX_LOSS_BURST; i++)
+    for (int i = 2; i < SSP_MAX_LOSS_BURST; i++)
         mi2 += mLossBursts[i] * (i - 1);
-    for (int i = 1; i < SDAMP_MAX_LOSS_BURST; i++)
+    for (int i = 1; i < SSP_MAX_LOSS_BURST; i++)
         mi1 += mLossBursts[i] * i;
     q = 1 - (double)mi2 / mi1;
 
@@ -304,7 +305,7 @@ int PathState::profileLoss()
 
 CBRPathState::CBRPathState(int rtt, int mtu)
     : PathState(rtt, mtu),
-    mSendInterval(SDAMP_SEND_INTERVAL)
+    mSendInterval(SSP_SEND_INTERVAL)
 {
     memset(&mLastSendTime, 0, sizeof(mLastSendTime));
 }
@@ -338,7 +339,7 @@ void CBRPathState::handleSend(uint64_t packetNum)
 
 PCCPathState::PCCPathState(int rtt, int mtu)
     : CBRPathState(rtt, mtu),
-    mLastSendInterval(SDAMP_SEND_INTERVAL),
+    mLastSendInterval(SSP_SEND_INTERVAL),
     mMonitorRTT(0.0),
     mMonitorReceived(0),
     mMonitorLost(0),
@@ -435,7 +436,7 @@ void PCCPathState::handleMonitorEnd()
     DEBUG("%ld.%06ld: monitor end\n", mMonitorEndTime.tv_sec, mMonitorEndTime.tv_usec);
     long monitorTime = elapsedTime(&mMonitorStartTime, &mMonitorEndTime);
     if (mMonitorReceived == 0) {
-        mMonitorRTT = SDAMP_MAX_RTO;
+        mMonitorRTT = SSP_MAX_RTO;
     } else {
         mMonitorRTT /= mMonitorReceived;
     }
@@ -505,8 +506,8 @@ void PCCPathState::handleMonitorEnd()
         }
         mUtility = u;
     }
-    if (mSendInterval > SDAMP_MAX_SEND_INTERVAL)
-        mSendInterval = SDAMP_MAX_SEND_INTERVAL;
+    if (mSendInterval > SSP_MAX_SEND_INTERVAL)
+        mSendInterval = SSP_MAX_SEND_INTERVAL;
     mMonitoredPackets.clear();
     mMonitoring = false;
     if (mMonitorReceived == 0)
@@ -568,7 +569,7 @@ void RenoPathState::handleTimeout()
 void RenoPathState::handleDupAck()
 {
     mDupAckCount++;
-    if (mState > SDAMP_FR_THRESHOLD && mState == TCP_STATE_FAST_RETRANSMIT) {
+    if (mState > SSP_FR_THRESHOLD && mState == TCP_STATE_FAST_RETRANSMIT) {
         mCongestionWindow++;
         mWindow = mCongestionWindow > mSendWindow ? mSendWindow : mCongestionWindow;
         DEBUG("path %d: duplicate ack received: window set to %d (%d/%d)\n", mPathIndex, mWindow, mCongestionWindow, mSendWindow);

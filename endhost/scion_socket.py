@@ -22,7 +22,7 @@ import copy
 import ipaddress
 import logging
 import os
-from ctypes import (byref, CDLL, c_bool, c_double, c_int, c_short, c_ubyte,
+from ctypes import (byref, CDLL, c_double, c_int, c_short, c_ubyte,
                     c_uint, c_ulong, c_ushort, POINTER, Structure)
 
 # SCION
@@ -50,7 +50,7 @@ class C_SCIONInterface(Structure):
 
 
 class C_SCIONStats(Structure):
-    _fields_ = [("exists", c_bool * MAX_PATHS),
+    _fields_ = [("exists", c_int * MAX_PATHS),
                 ("receivedPackets", c_int * MAX_PATHS),
                 ("sentPackets", c_int * MAX_PATHS),
                 ("ackedPackets", c_int * MAX_PATHS),
@@ -93,7 +93,7 @@ class ScionStats(object):
         self.highestAcked = copy.deepcopy(stats.highestAcked)
 
 
-SHARED_LIB_LOCATION = os.path.join("endhost", "sdamp")
+SHARED_LIB_LOCATION = os.path.join("endhost", "ssp")
 SHARED_LIB_SERVER = "libserver.so"
 SHARED_LIB_CLIENT = "libclient.so"
 

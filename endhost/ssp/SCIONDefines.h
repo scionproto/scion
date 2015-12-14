@@ -15,7 +15,6 @@
 #define SCION_UDP_EH_DATA_PORT 30041
 
 #define SCION_ADDR_LEN 8 // ISD + AD = 4, ADDR = 4
-#define SCION_PROTO_SDAMP 150
 #define SCION_PROTO_SUDP 151
 #define SCION_PROTO_SSP 152
 
@@ -61,7 +60,7 @@ typedef struct {
 #define MAX_TOTAL_PATHS 10
 
 typedef struct {
-    bool exists[MAX_TOTAL_PATHS];
+    int exists[MAX_TOTAL_PATHS];
     int receivedPackets[MAX_TOTAL_PATHS];
     int sentPackets[MAX_TOTAL_PATHS];
     int ackedPackets[MAX_TOTAL_PATHS];

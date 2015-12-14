@@ -9,33 +9,11 @@
 
 #include "Utils.h"
 
-int compareDeadline(void *p1, void *p2)
-{
-    SCIONPacket *s1 = (SCIONPacket *)p1;
-    SCIONPacket *s2 = (SCIONPacket *)p2;
-    SDAMPPacket *sp1 = (SDAMPPacket *)(s1->payload);
-    SDAMPPacket *sp2 = (SDAMPPacket *)(s2->payload);
-    if (sp1->deadline == sp2->deadline)
-        return be64toh(sp1->header.packetNum) -
-                be64toh(sp2->header.packetNum);
-    return sp1->deadline - sp2->deadline;
-}
-
 int comparePacketNum(void *p1, void *p2)
 {
     L4Packet *sp1 = (L4Packet *)p1;
     L4Packet *sp2 = (L4Packet *)p2;
     return sp1->number() - sp2->number();
-}
-
-int comparePacketNumNested(void *p1, void *p2)
-{
-    SCIONPacket *s1 = (SCIONPacket *)p1;
-    SCIONPacket *s2 = (SCIONPacket *)p2;
-    SDAMPPacket *sp1 = (SDAMPPacket *)(s1->payload);
-    SDAMPPacket *sp2 = (SDAMPPacket *)(s2->payload);
-    return be64toh(sp1->header.packetNum) -
-            be64toh(sp2->header.packetNum);
 }
 
 int compareOffset(void *p1, void *p2)
@@ -63,20 +41,6 @@ void destroySCIONPacket(void *p)
     if (packet->header.path)
         free(packet->header.path);
     free(packet);
-}
-
-void destroySDAMPPacket(void *p)
-{
-    SDAMPPacket *packet = (SDAMPPacket *)p;
-    delete packet;
-}
-
-void destroySDAMPPacketFull(void *p)
-{
-    SCIONPacket *packet = (SCIONPacket *)p;
-    SDAMPPacket *sp = (SDAMPPacket *)(packet->payload);
-    delete sp;
-    destroySCIONPacket(p);
 }
 
 void destroySSPPacket(void *p)
@@ -257,8 +221,8 @@ int registerFlow(int proto, void *data, int sock)
     char buf[32];
     buf[0] = proto;
     switch (proto) {
-        case SCION_PROTO_SDAMP: {
-            SDAMPEntry *se = (SDAMPEntry *)data;
+        case SCION_PROTO_SSP: {
+            SSPEntry *se = (SSPEntry *)data;
             memcpy(buf + 1, &se->flowID, sizeof(se->flowID));
             memcpy(buf + 9, &se->port, sizeof(se->port));
             len = 11;

@@ -60,58 +60,16 @@ public:
     uint8_t *interfaces;
 };
 
-#pragma pack(push)
-#pragma pack(1)
-
-typedef struct {
-    uint64_t flowID;
-    uint16_t dstPort;
-    uint16_t srcPort;
-    uint16_t version;
-    uint8_t flags;
-    uint8_t headerLen;
-    uint64_t packetNum;
-} SDAMPHeader;
-
-typedef struct {
-    uint64_t L;
-    int32_t I;
-    int32_t H;
-    int32_t O;
-    uint32_t V;
-} SDAMPAck;
-
-#pragma pack(pop)
-
-class SDAMPPacket : public L4Packet {
-public:
-    SDAMPPacket()
-        : L4Packet(),
-        deadline(0)
-    {
-        memset(&header, 0, sizeof(header));
-        memset(&ack, 0, sizeof(ack));
-    }
-
-    ~SDAMPPacket() {}
-
-    uint64_t number() { return header.packetNum; }
-
-    SDAMPHeader header;
-    SDAMPAck ack;
-    uint32_t deadline;
-};
-
 typedef struct {
     uint64_t flowID;
     uint16_t port;
-} SDAMPEntry;
+} SSPEntry;
 
 typedef enum {
-    SDAMP_METRIC_BANDWIDTH,
-    SDAMP_METRIC_LATENCY,
-    SDAMP_METRIC_DEADLINE,
-} SDAMPMetric;
+    SSP_METRIC_BANDWIDTH,
+    SSP_METRIC_LATENCY,
+    SSP_METRIC_DEADLINE,
+} SSPMetric;
 
 #pragma pack(push)
 #pragma pack(1)

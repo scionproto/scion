@@ -30,15 +30,10 @@ inline long elapsedTime(struct timeval *old, struct timeval *current)
     return (current->tv_usec - old->tv_usec) + (current->tv_sec - old->tv_sec) * 1000000;
 }
 
-int compareDeadline(void *p1, void *p2);
-int comparePacketNum(void *p1, void *p2);
-int comparePacketNumNested(void *p1, void *p2);
 int compareOffset(void *p1, void *p2);
 int compareOffsetNested(void *p1, void *p2);
 
 void destroySCIONPacket(void *p);
-void destroySDAMPPacket(void *p);
-void destroySDAMPPacketFull(void *p);
 void destroySSPPacket(void *p);
 void destroySSPPacketFull(void *p);
 void destroySUDPPacket(void *p);
