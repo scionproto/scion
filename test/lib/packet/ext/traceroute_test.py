@@ -16,14 +16,14 @@
 ==============================================================================
 """
 # Stdlib
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch, call
 
 # External packages
 import nose
 import nose.tools as ntools
 
 # SCION
-from lib.packet.ext.traceroute import TracerouteExt, traceroute_ext_handler
+from lib.packet.ext.traceroute import TracerouteExt
 from test.testcommon import (
     assert_these_call_lists,
     assert_these_calls,
@@ -138,23 +138,6 @@ class TestTracerouteExtUpdate(object):
         assert_these_call_lists(isd_ad, [
             call(1, 2).pack(), call(5, 6).pack()])
         inst._set_payload.assert_called_once_with(expected)
-
-
-class TestTracerouteExtHandler(object):
-    """
-    Unit tests for lib.packet.ext.traceroute.traceroute_ext_handler
-    """
-    @patch("lib.util.SCIONTime.get_time", new_callable=create_mock)
-    def test(self, get_time):
-        get_time.return_value = 0x14fd52f1e85 / 1000
-        ext = MagicMock(spec_set=['append_hop'])
-        topo = MagicMock(spec_set=['isd_id', 'ad_id'])
-        iface = MagicMock(spec_set=['if_id'])
-        # Call
-        traceroute_ext_handler(ext=ext, topo=topo, iface=iface)
-        # Tests
-        ext.append_hop.assert_called_once_with(
-            topo.isd_id, topo.ad_id, iface.if_id, 0x1e85)
 
 
 if __name__ == "__main__":

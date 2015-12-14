@@ -53,9 +53,8 @@ from lib.errors import (
     SCIONServiceLookupError,
 )
 from lib.log import log_exception
-from lib.main import main_default, main_wrapper
-from lib.packet.ext.sibra import SibraExt, sibra_ext_handler
-from lib.packet.ext.traceroute import TracerouteExt, traceroute_ext_handler
+from lib.packet.ext.sibra import SibraExt
+from lib.packet.ext.traceroute import TracerouteExt
 from lib.packet.path_mgmt import (
     RevocationInfo,
     IFStateRequest,
@@ -102,8 +101,7 @@ class Router(SCIONElement):
     FWD_REVOCATION_TIMEOUT = 5
     IFSTATE_REQ_INTERVAL = 30
 
-    def __init__(self, server_id, conf_dir, pre_ext_handlers=None,
-                 post_ext_handlers=None, is_sim=False):
+    def __init__(self, server_id, conf_dir, is_sim=False):
         """
         :param str server_id: server identifier.
         :param str conf_dir: configuration directory.
@@ -126,8 +124,11 @@ class Router(SCIONElement):
         self.of_gen_key = PBKDF2(self.config.master_ad_key, b"Derive OF Key")
         self.if_states = defaultdict(InterfaceState)
         self.revocations = ExpiringDict(1000, self.FWD_REVOCATION_TIMEOUT)
-        self.pre_ext_handlers = pre_ext_handlers or {}
-        self.post_ext_handlers = post_ext_handlers or {}
+        self.pre_ext_handlers = {
+            SibraExt.EXT_TYPE: self.handle_sibra,
+            TracerouteExt.EXT_TYPE: self.handle_traceroute,
+        }
+        self.post_ext_handlers = {}
 
         self.PLD_CLASS_MAP = {
             PayloadClass.PCB: {PCBType.SEGMENT: self.process_pcb},
@@ -206,10 +207,16 @@ class Router(SCIONElement):
                 logging.warning("No handler for extension type %u",
                                 ext_hdr.EXT_TYPE)
                 continue
-            if handler(spkt=spkt, ext=ext_hdr, conf=self.config,
-                       topo=self.topology, iface=self.interface):
+            if handler(ext_hdr, spkt):
                 handled = True
         return handled
+
+    def handle_traceroute(self, hdr, spkt):
+        # Truncate milliseconds to 2B
+        hdr.append_hop(self.addr.isd_id, self.addr.ad_id, self.interface.if_id)
+
+    def handle_sibra(self, hdr, spkt):
+        return hdr.process(spkt)
 
     def sync_interface(self):
         """
@@ -717,14 +724,3 @@ class Router(SCIONElement):
             handler(pkt, from_local_ad)
         except SCIONBaseError:
             log_exception("Error handling packet: %s" % pkt)
-
-
-def main():
-    pre_handlers = {
-        SibraExt.EXT_TYPE: sibra_ext_handler,
-        TracerouteExt.EXT_TYPE: traceroute_ext_handler,
-    }
-    main_default(Router, pre_ext_handlers=pre_handlers)
-
-if __name__ == "__main__":
-    main_wrapper(main)
