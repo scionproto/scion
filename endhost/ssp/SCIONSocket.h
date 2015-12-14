@@ -29,8 +29,16 @@ public:
     // getters
     bool isListener();
     bool isRunning();
-    void waitForRegistration();
     int getDispatcherSocket();
+
+    // wait for dispatcher registration
+    void waitForRegistration();
+
+    // select
+    bool readyToRead();
+    bool readyToWrite();
+    int registerSelect(Notification *n, int mode);
+    void deregisterSelect(int index);
 
     SCIONStats * getStats();
 
@@ -42,6 +50,7 @@ private:
     int                        mDispatcherSocket;
     bool                       mRegistered;
     bool                       mRunning;
+    int                        mLastAccept;
 
     SCIONProtocol             *mProtocol;
     std::vector<SCIONAddr>     mDstAddrs;
@@ -52,6 +61,10 @@ private:
     pthread_mutex_t            mRegisterMutex;
     pthread_cond_t             mRegisterCond;
     pthread_t                  mReceiverThread;
+
+    int                         mSelectCount;
+    pthread_mutex_t             mSelectMutex;
+    std::map<int, Notification> mSelectRead;
 };
 
 #endif // SCION_SOCKET_H

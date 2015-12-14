@@ -65,6 +65,7 @@ public:
     virtual ~SSPConnectionManager();
 
     void setRemoteWindow(uint32_t window);
+    bool bufferFull(int window);
     void waitForSendBuffer(int len, int windowSize);
 
     void queuePacket(SCIONPacket *packet);

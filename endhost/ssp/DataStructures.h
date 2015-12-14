@@ -1,6 +1,7 @@
 #ifndef SCION_DATASTRUCTURES_H
 #define SCION_DATASTRUCTURES_H
 
+#include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 #include <list>
@@ -140,6 +141,11 @@ typedef struct {
 typedef struct {
     uint16_t port;
 } SUDPEntry;
+
+typedef struct {
+    pthread_cond_t *cond;
+    pthread_mutex_t *mutex;
+} Notification;
 
 typedef std::list<SCIONPacket *> PacketList;
 

@@ -1,6 +1,7 @@
 #ifndef SCION_PROTOCOL_H
 #define SCION_PROTOCOL_H
 
+#include <map>
 #include <pthread.h>
 
 #include "SCIONDefines.h"
@@ -32,6 +33,11 @@ public:
     bool isRunning();
 
     virtual void getStats(SCIONStats *stats);
+
+    virtual bool readyToRead();
+    virtual bool readyToWrite();
+    virtual int registerSelect(Notification *n, int mode);
+    virtual void deregisterSelect(int index);
 
 protected:
     int                    mSocket;
@@ -72,6 +78,13 @@ public:
 
     void getStats(SCIONStats *stats);
 
+    bool readyToRead();
+    bool readyToWrite();
+    int registerSelect(Notification *n, int mode);
+    void deregisterSelect(int index);
+
+    void notifySender();
+
 protected:
     void getWindowSize();
     int getDeadlineFromProfile(DataProfile profile);
@@ -102,13 +115,17 @@ protected:
     // sending packets
     uint64_t               mNextSendByte;
     PacketList             mSentPackets;
-    pthread_mutex_t        mPacketMutex;
 
     // recv'ing packets
     uint32_t                mTotalReceived;
     uint64_t                mNextPacket;
     OrderedList<L4Packet *> *mReadyPackets;
     OrderedList<L4Packet *> *mOOPackets;
+
+    pthread_mutex_t        mSelectMutex;
+    std::map<int, Notification> mSelectRead;
+    std::map<int, Notification> mSelectWrite;
+    int mSelectCount;
 };
 
 class SUDPProtocol : public SCIONProtocol {

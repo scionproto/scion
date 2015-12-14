@@ -385,6 +385,11 @@ void SSPConnectionManager::setRemoteWindow(uint32_t window)
     }
 }
 
+bool SSPConnectionManager::bufferFull(int window)
+{
+    return window - totalQueuedSize() < maxPayloadSize();
+}
+
 void SSPConnectionManager::waitForSendBuffer(int len, int windowSize)
 {
     while (totalQueuedSize() + len > windowSize) {
@@ -865,8 +870,11 @@ SCIONPacket * SSPConnectionManager::nextPacket()
     pthread_mutex_unlock(&mRetryMutex);
     if (!packet) {
         pthread_mutex_lock(&mFreshMutex);
-        if (!mFreshPackets->empty())
+        if (!mFreshPackets->empty()) {
             packet = mFreshPackets->pop();
+            DEBUG("popped packet from fresh queue, notify sender\n");
+            mProtocol->notifySender();
+        }
         pthread_mutex_unlock(&mFreshMutex);
     }
     return packet;
