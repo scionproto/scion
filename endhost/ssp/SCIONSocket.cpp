@@ -51,6 +51,7 @@ SCIONSocket::SCIONSocket(int protocol, SCIONAddr *dstAddrs, int numAddrs,
     mProtocolID(protocol),
     mRegistered(false),
     mRunning(true),
+    mLastAccept(-1),
     mDataProfile(SCION_PROFILE_DEFAULT)
 {
     signal(SIGINT, signalHandler);
@@ -59,6 +60,7 @@ SCIONSocket::SCIONSocket(int protocol, SCIONAddr *dstAddrs, int numAddrs,
     pthread_cond_init(&mAcceptCond, NULL);
     pthread_mutex_init(&mRegisterMutex, NULL);
     pthread_cond_init(&mRegisterCond, NULL);
+    pthread_mutex_init(&mSelectMutex, NULL);
 
     if (dstAddrs)
         for (int i = 0; i < numAddrs; i++)
@@ -130,9 +132,13 @@ SCIONSocket::~SCIONSocket()
 
 SCIONSocket & SCIONSocket::accept()
 {
+    SCIONSocket *s;
     pthread_mutex_lock(&mAcceptMutex);
-    pthread_cond_wait(&mAcceptCond, &mAcceptMutex);
-    return *(mAcceptedSockets.back());
+    while (mLastAccept >= (int)mAcceptedSockets.size() - 1)
+        pthread_cond_wait(&mAcceptCond, &mAcceptMutex);
+    s = mAcceptedSockets[++mLastAccept];
+    pthread_mutex_unlock(&mAcceptMutex);
+    return *s;
 }
 
 int SCIONSocket::send(uint8_t *buf, size_t len)
@@ -206,8 +212,19 @@ void SCIONSocket::handlePacket(uint8_t *buf, size_t len, struct sockaddr_in *add
         s->mProtocol->start(packet, buf + sch.headerLen, s->mDispatcherSocket);
         s->mRegistered = true;
         pthread_cond_signal(&s->mRegisterCond);
+        pthread_mutex_lock(&mAcceptMutex);
         mAcceptedSockets.push_back(s);
+        pthread_mutex_unlock(&mAcceptMutex);
         pthread_cond_signal(&mAcceptCond);
+        pthread_mutex_lock(&mSelectMutex);
+        std::map<int, Notification>::iterator i;
+        for (i = mSelectRead.begin(); i != mSelectRead.end(); i++) {
+            Notification &n = i->second;
+            pthread_mutex_lock(n.mutex);
+            pthread_cond_signal(n.cond);
+            pthread_mutex_unlock(n.mutex);
+        }
+        pthread_mutex_unlock(&mSelectMutex);
         return;
     }
 
@@ -257,4 +274,51 @@ SCIONStats * SCIONSocket::getStats()
         return stats;
     }
     return NULL;
+}
+
+bool SCIONSocket::readyToRead()
+{
+    if (!mProtocol) {
+        bool ready = false;
+        pthread_mutex_lock(&mAcceptMutex);
+        ready = mLastAccept < (int)mAcceptedSockets.size() - 1;
+        pthread_mutex_unlock(&mAcceptMutex);
+        DEBUG("accept socket: ready? %d\n", ready);
+        return ready;
+    }
+    return mProtocol->readyToRead();
+}
+
+bool SCIONSocket::readyToWrite()
+{
+    if (!mProtocol)
+        return false;
+    return mProtocol->readyToWrite();
+}
+
+int SCIONSocket::registerSelect(Notification *n, int mode)
+{
+    if (!mProtocol && mode == SCION_SELECT_WRITE)
+        return -1;
+    if (!mProtocol && mode == SCION_SELECT_READ) {
+        pthread_mutex_lock(&mSelectMutex);
+        mSelectRead[++mSelectCount] = *n;
+        pthread_mutex_unlock(&mSelectMutex);
+        return mSelectCount;
+    }
+    return mProtocol->registerSelect(n, mode);
+}
+
+void SCIONSocket::deregisterSelect(int index)
+{
+    if (index == 0)
+        return;
+    pthread_mutex_lock(&mSelectMutex);
+    if (!mProtocol) {
+        if (mSelectRead.find(index) != mSelectRead.end())
+            mSelectRead.erase(index);
+    } else {
+        mProtocol->deregisterSelect(index);
+    }
+    pthread_mutex_unlock(&mSelectMutex);
 }

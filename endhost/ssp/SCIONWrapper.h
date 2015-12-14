@@ -12,12 +12,15 @@ typedef struct SCIONSocket SCIONSocket;
 int newSCIONSocket(int protocol,
                    SCIONAddr *dstAddrs, int numAddrs,
                    short srcPort, short dstPort);
+void deleteSCIONSocket(int sock);
 int SCIONAccept(int sock);
 int SCIONSend(int sock, uint8_t *buf, size_t len);
 int SCIONSendProfile(int sock, uint8_t *buf, size_t len,
                      int profile);
 int SCIONRecv(int sock, uint8_t *buf, size_t len,
               SCIONAddr *srcAddr);
+int SCIONSelect(int numfds, fd_set *readfds, fd_set *writefds,
+                struct timeval *timeout);
 
 SCIONStats * SCIONGetStats(int sock);
 void SCIONDestroyStats(void *stats);

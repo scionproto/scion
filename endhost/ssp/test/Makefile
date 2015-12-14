@@ -1,3 +1,5 @@
+.PHONY: wrapper
+
 CC = gcc
 PP = g++
 CFLAGS += -Wall -g
@@ -26,6 +28,8 @@ web_client: web_client.cpp $(HDRS)
 
 web_server: web_server.cpp $(HDRS)
 	$(PP) -o web_server $(INC) $(LIB) $(CFLAGS) web_server.cpp -lserver -lcurl
+
+wrapper: wrapper_client wrapper_server
 
 wrapper_client: wrapper_client.c $(HDRS)
 	$(CC) $(INC) $(CFLAGS) -c wrapper_client.c

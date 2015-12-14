@@ -126,6 +126,25 @@ void SCIONProtocol::getStats(SCIONStats *stats)
 {
 }
 
+bool SCIONProtocol::readyToRead()
+{
+    return false;
+}
+
+bool SCIONProtocol::readyToWrite()
+{
+    return false;
+}
+
+int SCIONProtocol::registerSelect(Notification *n, int mode)
+{
+    return 0;
+}
+
+void SCIONProtocol::deregisterSelect(int index)
+{
+}
+
 // SSP
 
 SSPProtocol::SSPProtocol(std::vector<SCIONAddr> &dstAddrs, short srcPort, short dstPort)
@@ -138,7 +157,8 @@ SSPProtocol::SSPProtocol(std::vector<SCIONAddr> &dstAddrs, short srcPort, short 
     mAckVectorOffset(0),
     mNextSendByte(0),
     mTotalReceived(0),
-    mNextPacket(0)
+    mNextPacket(0),
+    mSelectCount(0)
 {
     mProtocolID = SCION_PROTO_SSP;
     mProbeInterval = SSP_PROBE_INTERVAL;
@@ -152,7 +172,7 @@ SSPProtocol::SSPProtocol(std::vector<SCIONAddr> &dstAddrs, short srcPort, short 
 
     getWindowSize();
 
-    pthread_mutex_init(&mPacketMutex, NULL);
+    pthread_mutex_init(&mSelectMutex, NULL);
 }
 
 SSPProtocol::~SSPProtocol()
@@ -168,7 +188,7 @@ SSPProtocol::~SSPProtocol()
         delete mConnectionManager;
         mConnectionManager = NULL;
     }
-    pthread_mutex_destroy(&mPacketMutex);
+    pthread_mutex_destroy(&mSelectMutex);
 }
 
 void SSPProtocol::createManager(std::vector<SCIONAddr> &dstAddrs)
@@ -441,6 +461,15 @@ void SSPProtocol::handleData(SSPPacket *packet, int pathIndex)
             mTotalReceived += packetSize;
             sendAck(packet, pathIndex);
             mReadyToRead = true;
+            pthread_mutex_lock(&mSelectMutex);
+            std::map<int, Notification>::iterator i;
+            for (i = mSelectRead.begin(); i != mSelectRead.end(); i++) {
+                Notification &n = i->second;
+                pthread_mutex_lock(n.mutex);
+                pthread_cond_signal(n.cond);
+                pthread_mutex_unlock(n.mutex);
+            }
+            pthread_mutex_unlock(&mSelectMutex);
         } else {
             DEBUG("packet was resent on smaller path(s), discard original\n");
         }
@@ -560,6 +589,58 @@ void SSPProtocol::getStats(SCIONStats *stats)
 {
     if (mConnectionManager)
         mConnectionManager->getStats(stats);
+}
+
+bool SSPProtocol::readyToRead()
+{
+    bool ready = false;
+    pthread_mutex_lock(&mReadMutex);
+    ready = mReadyToRead;
+    pthread_mutex_unlock(&mReadMutex);
+    return ready;
+}
+
+bool SSPProtocol::readyToWrite()
+{
+    return !mConnectionManager->bufferFull(mLocalSendWindow);
+}
+
+int SSPProtocol::registerSelect(Notification *n, int mode)
+{
+    pthread_mutex_lock(&mSelectMutex);
+    if (mode == SCION_SELECT_READ)
+        mSelectRead[++mSelectCount] = *n;
+    else
+        mSelectWrite[++mSelectCount] = *n;
+    pthread_mutex_unlock(&mSelectMutex);
+    DEBUG("registered index %d\n", mSelectCount);
+    return mSelectCount;
+}
+
+void SSPProtocol::deregisterSelect(int index)
+{
+    pthread_mutex_lock(&mSelectMutex);
+    if (mSelectRead.find(index) != mSelectRead.end()) {
+        DEBUG("erase index %d from read list\n", index);
+        mSelectRead.erase(index);
+    } else {
+        DEBUG("erase index %d from write list\n", index);
+        mSelectWrite.erase(index);
+    }
+    pthread_mutex_unlock(&mSelectMutex);
+}
+
+void SSPProtocol::notifySender()
+{
+    pthread_mutex_lock(&mSelectMutex);
+    std::map<int, Notification>::iterator i;
+    for (i = mSelectWrite.begin(); i != mSelectWrite.end(); i++) {
+        Notification &n = i->second;
+        pthread_mutex_lock(n.mutex);
+        pthread_cond_signal(n.cond);
+        pthread_mutex_unlock(n.mutex);
+    }
+    pthread_mutex_unlock(&mSelectMutex);
 }
 
 // SUDP

@@ -2,6 +2,7 @@
 #include <arpa/inet.h>
 #include <string.h>
 #include <stdio.h>
+#include <unistd.h>
 #include "SCIONWrapper.h"
 
 #define BUFSIZE 1024
@@ -21,8 +22,11 @@ int main()
     while (1) {
         count++;
         sprintf(buf, "This is message %d\n", count);
+        fd_set writefds;
+        FD_ZERO(&writefds);
+        FD_SET(sock, &writefds);
+        SCIONSelect(sock + 1, NULL, &writefds, NULL);
         SCIONSend(sock, (uint8_t *)buf, BUFSIZE);
-        //usleep(50000);
     }
     exit(0);
 }
