@@ -400,9 +400,3 @@ class SibraOpaqueField(object):
 
     def __len__(self):  # pragma: no cover
         return self.LEN
-
-
-def sibra_ext_handler(**kwargs):
-    ext = kwargs["ext"]
-    spkt = kwargs["spkt"]
-    ext.process(spkt)

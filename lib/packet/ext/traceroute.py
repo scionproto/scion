@@ -92,12 +92,15 @@ class TracerouteExt(HopByHopExtension):
         packed.append(bytes(pad_hops * self.HOP_LEN))
         self._set_payload(b"".join(packed))
 
-    def append_hop(self, isd, ad, if_id, timestamp):
+    def append_hop(self, isd, ad, if_id, timestamp=None):
         """
         Append hop's information as a new field in the extension.
         """
         # Check whether
         assert len(self.hops) < self._hdr_len
+        if timestamp is None:
+            # Truncate milliseconds to 2B
+            timestamp = int(SCIONTime.get_time() * 1000) % 2**16
         self.hops.append((isd, ad, if_id, timestamp))
         self.update()
 
@@ -112,16 +115,3 @@ class TracerouteExt(HopByHopExtension):
         for hop in self.hops:
             tmp.append("    ISD:%d AD:%d IFID:%d TS:%d" % hop)
         return "\n".join(tmp)
-
-
-def traceroute_ext_handler(**kwargs):
-    """
-    Handler for Traceroute extension.
-    """
-    # Operate on passed extension using router's interface and topology
-    ext = kwargs['ext']
-    topo = kwargs['topo']
-    iface = kwargs['iface']
-    ts = int(SCIONTime.get_time() * 1000) % 2**16  # Truncate milliseconds to 2B
-    # Append an information about hop
-    ext.append_hop(topo.isd_id, topo.ad_id, iface.if_id, ts)

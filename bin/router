@@ -16,11 +16,5 @@
 # SCION
 from infrastructure.router.main import Router
 from lib.main import main_default, main_wrapper
-from lib.packet.ext.traceroute import TracerouteExt, traceroute_ext_handler
 
-
-def main():
-    pre_handlers = {TracerouteExt.EXT_TYPE: traceroute_ext_handler}
-    main_default(Router, pre_ext_handlers=pre_handlers)
-
-main_wrapper(main)
+main_wrapper(main_default, Router)
