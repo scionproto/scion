@@ -15,7 +15,7 @@ public:
     ~SCIONSocket();
 
     // traditional socket functionality
-    SCIONSocket & accept();
+    SCIONSocket * accept();
     int send(uint8_t *buf, size_t len);
     int send(uint8_t *buf, size_t len, DataProfile profile);
     int recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr);
@@ -42,16 +42,19 @@ public:
 
     SCIONStats * getStats();
 
-private:
+    int shutdown();
+    void removeChild(SCIONSocket *child);
 
+private:
     uint16_t                   mSrcPort;
     uint16_t                   mDstPort;
     int                        mProtocolID;
     int                        mDispatcherSocket;
     bool                       mRegistered;
-    bool                       mRunning;
+    SCIONState                 mState;
     int                        mLastAccept;
 
+    SCIONSocket               *mParent;
     SCIONProtocol             *mProtocol;
     std::vector<SCIONAddr>     mDstAddrs;
     std::vector<SCIONSocket *> mAcceptedSockets;

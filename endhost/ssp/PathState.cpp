@@ -116,17 +116,29 @@ int PathState::bandwidth()
 
 int PathState::estimatedRTT()
 {
-    return mSRTT;
+    int ret;
+    pthread_mutex_lock(&mMutex);
+    ret = mSRTT;
+    pthread_mutex_unlock(&mMutex);
+    return ret;
 }
 
 int PathState::getRTO()
 {
-    return mRTO;
+    int ret;
+    pthread_mutex_lock(&mMutex);
+    ret = mRTO;
+    pthread_mutex_unlock(&mMutex);
+    return ret;
 }
 
 int PathState::packetsInFlight()
 {
-    return mInFlight;
+    int ret;
+    pthread_mutex_lock(&mMutex);
+    ret = mInFlight;
+    pthread_mutex_unlock(&mMutex);
+    return ret;
 }
 
 double PathState::getLossRate()
@@ -154,7 +166,7 @@ void PathState::addLoss(uint64_t packetNum)
     mCurrentBurst++;
     mInLoss = true;
     if (mCurrentBurst == SSP_MAX_LOSS_BURST) {
-        mLossBursts[SSP_MAX_LOSS_BURST]++;
+        mLossBursts[SSP_MAX_LOSS_BURST - 1]++;
         mCurrentBurst = 0;
         mInLoss = false;
     }
@@ -166,7 +178,6 @@ void PathState::addRTTSample(int rtt, uint64_t packetNum)
     pthread_mutex_lock(&mMutex);
     mInFlight--;
     DEBUG("path %d: receive ack: %d packets now in flight\n", mPathIndex, mInFlight);
-    pthread_mutex_unlock(&mMutex);
     if (rtt > 0) {
         mLastRTT = rtt;
         if (mSRTT == 0) {
@@ -188,6 +199,7 @@ void PathState::addRTTSample(int rtt, uint64_t packetNum)
         mCurrentBurst = 0;
         mInLoss = false;
     }
+    pthread_mutex_unlock(&mMutex);
 }
 
 void PathState::addRetransmit()
@@ -215,10 +227,12 @@ void PathState::handleSend(uint64_t packetNum)
 
 void PathState::handleTimeout()
 {
+    pthread_mutex_lock(&mMutex);
     mRTO = mRTO << 1;
     if (mRTO > SSP_MAX_RTO)
         mRTO = SSP_MAX_RTO;
     DEBUG("timeout: new rto = %d\n", mRTO);
+    pthread_mutex_unlock(&mMutex);
 }
 
 void PathState::handleDupAck()
@@ -707,7 +721,9 @@ void CUBICPathState::addRetransmit()
     if (mTimeout)
         mCongestionWindow = 1;
 
+    pthread_mutex_lock(&mMutex);
     mWindow = mCongestionWindow < mSendWindow ? mCongestionWindow : mSendWindow;
+    pthread_mutex_unlock(&mMutex);
     DEBUG("path %d: packet loss: window set to %d (last max window %d)\n", mPathIndex, mWindow, mMaxWindow);
 }
 

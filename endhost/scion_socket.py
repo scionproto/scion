@@ -127,8 +127,11 @@ class ScionBaseSocket(object):
         :returns: The number of bytes sent.
         :rtype: int
         """
+        if self.fd == -1:
+            logging.warning("Called send after close")
+            return 0
         if msg is None or len(msg) == 0:
-            return
+            return 0
         return self.libsock.SCIONSend(self.fd, msg, len(msg))
 
     def sendall(self, msg):
@@ -153,6 +156,9 @@ class ScionBaseSocket(object):
         :returns: A bytes object representing the data received.
         :rtype: bytes object
         """
+        if self.fd == -1:
+            logging.critical("Called recv after close")
+            return None
         buf = (c_ubyte * bufsize)()
         num_bytes_rcvd = self.libsock.SCIONRecv(self.fd, byref(buf),
                                                 bufsize, None)
@@ -189,9 +195,26 @@ class ScionBaseSocket(object):
         self.libsock.SCIONDestroyStats(raw_stats)
         return py_stats
 
+    def shutdown(self, how):
+        """
+        Closes connection.
+        The correct closing sequence is:
+            - shutdown()
+            - recv() until returns 0
+            - close()
+        This ensures all data that should have been sent before call
+        to shutdown was in fact sent and acknowledged.
+        :param how: Not implemented yet, placeholder for compatibility
+        :type how: int
+        """
+        self.libsock.SCIONShutdown(self.fd)
+
     def close(self):
-        # TODO(ercanucan) : call the deleteSCIONSocket() once it is tested.
-        pass
+        """
+        Destroys underlying socket object and free associated resources.
+        """
+        self.libsock.deleteSCIONSocket(self.fd)
+        self.fd = -1
 
 
 class ScionServerSocket(ScionBaseSocket):

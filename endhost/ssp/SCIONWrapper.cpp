@@ -58,8 +58,10 @@ int newSCIONSocket(int protocol,
 void deleteSCIONSocket(int sock)
 {
     SocketEntry *e = findSocket(sock);
-    if (e)
+    if (e) {
         delete e->sock;
+        HASH_DELETE(hh, sockets, e);
+    }
 }
 
 int SCIONAccept(int sock)
@@ -67,10 +69,10 @@ int SCIONAccept(int sock)
     SocketEntry *e = findSocket(sock);
     if (!e)
         return -1;
-    SCIONSocket &s = e->sock->accept();
+    SCIONSocket *s = e->sock->accept();
     e = (SocketEntry *)malloc(sizeof(SocketEntry));
-    e->fd = s.getDispatcherSocket();
-    e->sock = &s;
+    e->fd = s->getDispatcherSocket();
+    e->sock = s;
     updateTable(e);
     return e->fd;
 }
@@ -230,6 +232,14 @@ int SCIONSelect(int numfds, fd_set *readfds, fd_set *writefds,
         memcpy(writefds, &wfds, sizeof(wfds));
     DEBUG("%d fds ready\n", total);
     return total;
+}
+
+int SCIONShutdown(int sock)
+{
+    SocketEntry *e = findSocket(sock);
+    if (!e)
+        return -1;
+    return e->sock->shutdown();
 }
 
 }

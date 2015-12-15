@@ -278,50 +278,53 @@ class ConnectionHandler(object):
         :param target_sock: The socket belonging to the remote target.
         :type target_sock: socket
         """
-        shutdown = threading.Event()
-        threading.Thread(
+        t1 = threading.Thread(
             target=thread_safety_net,
-            args=(ProxyData, self.connection, target_sock, shutdown),
-            name="%s-c2s" % self.conn_id).start()
-        threading.Thread(
+            args=(ProxyData, self.connection, target_sock),
+            name="%s-c2s" % self.conn_id)
+        t1.start()
+        t2 = threading.Thread(
             target=thread_safety_net,
-            args=(ProxyData, target_sock, self.connection, shutdown),
-            name="%s-s2c" % self.conn_id).start()
-        # Wait until the at least one of the threads is finished, and then
-        # return, which will close the socks, and cause the other thread to also
-        # finish.
-        shutdown.wait()
+            args=(ProxyData, target_sock, self.connection),
+            name="%s-s2c" % self.conn_id)
+        t2.start()
+        # Wait until both threads finish.
+        t1.join()
+        t2.join()
 
 
 class ProxyData(object):
-    def __init__(self, rsock, wsock, shutdown):
+    def __init__(self, rsock, wsock):
         self.rsock = rsock
         self.wsock = wsock
-        self.shutdown = shutdown
         self._run()
 
     def _run(self):
-        while not self.shutdown.is_set():
+        while True:
             data = self._read()
-            if data:
-                self._write(data)
-            else:
-                self.shutdown.set()
+            if not data:
+                break
+            if not self._write(data):
+                break
+        try:
+            self.wsock.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass
         logging.debug("Done")
 
     def _read(self):
         try:
             return self.rsock.recv(BUFLEN)
         except OSError as e:
-            self.shutdown.set()
             logging.debug("Rsock closed: %s", e)
 
     def _write(self, data):
         try:
             self.wsock.sendall(data)
         except OSError as e:
-            self.shutdown.set()
             logging.debug("Wsock closed: %s", e)
+            return False
+        return True
 
 
 class ForwardingProxyConnectionHandler(ConnectionHandler):
@@ -398,10 +401,6 @@ class ForwardingProxyConnectionHandler(ConnectionHandler):
 
 
 def cleanup(sock):
-    try:
-        sock.shutdown(socket.SHUT_RDWR)
-    except OSError:
-        pass
     try:
         sock.close()
     except OSError:

@@ -32,6 +32,7 @@ void *dispatcherThread(void *arg)
     struct sockaddr_in addr;
     socklen_t addrLen = sizeof(addr);
     ss->waitForRegistration();
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
     while (ss->isRunning()) {
         int len = recvfrom(sock, buf, sizeof(buf), 0,
                             (struct sockaddr *)&addr, &addrLen);
@@ -50,8 +51,9 @@ SCIONSocket::SCIONSocket(int protocol, SCIONAddr *dstAddrs, int numAddrs,
     mDstPort(dstPort),
     mProtocolID(protocol),
     mRegistered(false),
-    mRunning(true),
+    mState(SCION_RUNNING),
     mLastAccept(-1),
+    mParent(NULL),
     mDataProfile(SCION_PROFILE_DEFAULT)
 {
     signal(SIGINT, signalHandler);
@@ -117,6 +119,10 @@ SCIONSocket::SCIONSocket(int protocol, SCIONAddr *dstAddrs, int numAddrs,
 
 SCIONSocket::~SCIONSocket()
 {
+    mState = SCION_CLOSED;
+    pthread_cancel(mReceiverThread);
+    pthread_join(mReceiverThread, NULL);
+    close(mDispatcherSocket);
     if (mProtocol) {
         delete mProtocol;
         mProtocol = NULL;
@@ -125,12 +131,11 @@ SCIONSocket::~SCIONSocket()
     pthread_cond_destroy(&mAcceptCond);
     pthread_mutex_destroy(&mRegisterMutex);
     pthread_cond_destroy(&mRegisterCond);
-    mRunning = false;
-    close(mDispatcherSocket);
-    pthread_kill(mReceiverThread, SIGTERM);
+    if (mParent)
+        mParent->removeChild(this);
 }
 
-SCIONSocket & SCIONSocket::accept()
+SCIONSocket * SCIONSocket::accept()
 {
     SCIONSocket *s;
     pthread_mutex_lock(&mAcceptMutex);
@@ -138,7 +143,7 @@ SCIONSocket & SCIONSocket::accept()
         pthread_cond_wait(&mAcceptCond, &mAcceptMutex);
     s = mAcceptedSockets[++mLastAccept];
     pthread_mutex_unlock(&mAcceptMutex);
-    return *s;
+    return s;
 }
 
 int SCIONSocket::send(uint8_t *buf, size_t len)
@@ -194,20 +199,28 @@ void SCIONSocket::handlePacket(uint8_t *buf, size_t len, struct sockaddr_in *add
     packet->firstHop = (uint32_t)(addr->sin_addr.s_addr);
 
     if (!mProtocol) {
+        pthread_mutex_lock(&mAcceptMutex);
         std::vector<SCIONSocket *>::iterator it = mAcceptedSockets.begin();
         for (; it != mAcceptedSockets.end(); it++) {
+            SCIONSocket *sock = *it;
+            if (!sock)
+                continue;
             SCIONProtocol *proto = (*it)->mProtocol;
-            if (proto->claimPacket(packet, buf + sch.headerLen)) {
+            if (proto && proto->claimPacket(packet, buf + sch.headerLen)) {
                 DEBUG("socket %p claims packet\n", (*it));
                 proto->handlePacket(packet, buf + sch.headerLen);
+                pthread_mutex_unlock(&mAcceptMutex);
                 return;
             }
         }
+        pthread_mutex_unlock(&mAcceptMutex);
         // accept: create new socket to handle connection
         SCIONAddr addrs[1];
         addrs[0] = srcAddr;
         DEBUG("create new socket to handle incoming flow\n");
         SCIONSocket *s = new SCIONSocket(mProtocolID, (SCIONAddr *)addrs, 1, -1, mDstPort);
+        s->mParent = this;
+        s->mProtocol->setReceiver(true);
         s->mProtocol->createManager(s->mDstAddrs);
         s->mProtocol->start(packet, buf + sch.headerLen, s->mDispatcherSocket);
         s->mRegistered = true;
@@ -245,7 +258,7 @@ bool SCIONSocket::isListener()
 
 bool SCIONSocket::isRunning()
 {
-    return mRunning;
+    return mState != SCION_CLOSED;
 }
 
 void SCIONSocket::waitForRegistration()
@@ -321,4 +334,28 @@ void SCIONSocket::deregisterSelect(int index)
         mProtocol->deregisterSelect(index);
     }
     pthread_mutex_unlock(&mSelectMutex);
+}
+
+int SCIONSocket::shutdown()
+{
+    int ret = 0;
+    if (!mProtocol) {
+        mState = SCION_CLOSED;
+    } else {
+        mState = SCION_SHUTDOWN;
+        ret = mProtocol->shutdown();
+    }
+    return ret;
+}
+
+void SCIONSocket::removeChild(SCIONSocket *child)
+{
+    pthread_mutex_lock(&mAcceptMutex);
+    for (size_t i = 0; i < mAcceptedSockets.size(); i++) {
+        if (mAcceptedSockets[i] == child) {
+            mAcceptedSockets[i] = NULL;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&mAcceptMutex);
 }

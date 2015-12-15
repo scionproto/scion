@@ -152,6 +152,9 @@ void PathManager::prunePaths()
 
 void PathManager::insertPaths(std::vector<Path *> &candidates)
 {
+    if (candidates.empty())
+        return;
+
     for (size_t i = 0; i < mPaths.size(); i++) {
         if (mPaths[i])
             continue;
@@ -325,10 +328,13 @@ SSPConnectionManager::SSPConnectionManager(std::vector<SCIONAddr> &addrs, int so
 
 SSPConnectionManager::SSPConnectionManager(std::vector<SCIONAddr> &addrs, int sock, SSPProtocol *protocol)
     : PathManager(addrs, sock),
-    mInitPacketQueued(false),
+    mInitSends(0),
+    mRunning(true),
+    mFinAcked(false),
+    mFinAttempts(0),
+    mResendInit(false),
     mProtocol(protocol)
 {
-    mRunning = true;
     mFreshPackets = new OrderedList<SCIONPacket *>(NULL, destroySSPPacketFull);
     mRetryPackets = new OrderedList<SCIONPacket *>(compareOffsetNested, destroySSPPacketFull);
     pthread_mutex_init(&mMutex, NULL);
@@ -435,13 +441,16 @@ void SSPConnectionManager::queuePacket(SCIONPacket *packet)
     pthread_mutex_lock(&mFreshMutex);
     mFreshPackets->push(packet);
     pthread_mutex_unlock(&mFreshMutex);
+    pthread_mutex_lock(&mPacketMutex);
     pthread_cond_broadcast(&mPacketCond);
+    pthread_mutex_unlock(&mPacketMutex);
 }
 
 void SSPConnectionManager::sendAck(SCIONPacket *packet)
 {
     DEBUG("send ack on path %d\n", packet->pathIndex);
-    mPaths[packet->pathIndex]->send(packet, mSendSocket);
+    if (mPaths[packet->pathIndex])
+        mPaths[packet->pathIndex]->send(packet, mSendSocket);
 }
 
 void SSPConnectionManager::sendProbes(uint32_t probeNum, uint64_t flowID)
@@ -478,10 +487,17 @@ void SSPConnectionManager::sendProbes(uint32_t probeNum, uint64_t flowID)
 int SSPConnectionManager::sendAllPaths(SCIONPacket *packet)
 {
     int res = 0;
+    SSPPacket *sp = (SSPPacket *)(packet->payload);
+    if ((sp->header.flags & SSP_FIN) && !(sp->header.flags & SSP_ACK)) {
+        DEBUG("%lu: send FIN packet on all paths\n", mProtocol->mFlowID);
+        mFinAttempts++;
+    }
+    pthread_mutex_lock(&mPacketMutex);
     for (size_t i = 0; i < mPaths.size(); i++) {
         if (mPaths[i])
             res |= mPaths[i]->send(packet, mSendSocket);
     }
+    pthread_mutex_unlock(&mPacketMutex);
     return res;
 }
 
@@ -558,7 +574,8 @@ void SSPConnectionManager::handleAck(SCIONPacket *packet, size_t initCount, bool
         uint64_t pn = be64toh(sh.offset);
         bool found = ackNums.find(pn) != ackNums.end();
         if (found || pn < ack.L) {
-            if (pn != 0 && found && p->pathIndex != packet->pathIndex) {
+            if (pn != 0 && !(sh.flags & SSP_FIN) &&
+                    found && p->pathIndex != packet->pathIndex) {
                 DEBUG("ack for previous send of packet %u came late, discard\n",
                         be64toh(sh.offset));
                 i++;
@@ -566,7 +583,7 @@ void SSPConnectionManager::handleAck(SCIONPacket *packet, size_t initCount, bool
             }
             if (found) {
                 packet->sendTime = p->sendTime;
-                DEBUG("got ack for packet %u (path %d), mark: %d|%d\n",
+                DEBUG("got ack for packet %lu (path %d), mark: %d|%d\n",
                         pn, packet->pathIndex, sh.mark, mark);
                 handleAckOnPath(packet, pn == offset && mark == sh.mark);
             } else if (pn != 0) {
@@ -582,7 +599,12 @@ void SSPConnectionManager::handleAck(SCIONPacket *packet, size_t initCount, bool
                     (receiver || initCount == mPaths.size() - mInvalid)) {
                 ackNums.erase(pn);
                 i = mSentPackets.erase(i);
-                DEBUG("removed packet %u from sent list\n", pn);
+                DEBUG("%lu: removed packet %lu (%p) from sent list\n", mProtocol->mFlowID, pn, p);
+                if (sh.flags & SSP_FIN) {
+                    DEBUG("%lu: FIN packet (%lu) acked, %lu more sent packets\n",
+                            mProtocol->mFlowID, be64toh(sp->header.offset), mSentPackets.size());
+                    mFinAcked = true;
+                }
                 destroySSPPacket(sp);
                 destroySCIONPacket(p);
                 if (ackNums.empty())
@@ -615,8 +637,8 @@ void SSPConnectionManager::handleAck(SCIONPacket *packet, size_t initCount, bool
         }
         i++;
     }
-    pthread_mutex_unlock(&mSentMutex);
     pthread_cond_broadcast(&mSentCond);
+    pthread_mutex_unlock(&mSentMutex);
 
     if (!retries.empty()) {
         pthread_mutex_lock(&mRetryMutex);
@@ -625,6 +647,9 @@ void SSPConnectionManager::handleAck(SCIONPacket *packet, size_t initCount, bool
         for (size_t j = 0; j < retries.size(); j++) {
             SCIONPacket *p = retries[j];
             SSPPacket *sp = (SSPPacket *)(p->payload);
+            if (sp->header.flags & SSP_FIN) {
+                DEBUG("%lu: resend FIN packet (%lu)\n", mProtocol->mFlowID, be64toh(sp->header.offset));
+            }
             int index= p->pathIndex;
             mRetryPackets->push(p);
             ((SSPPath *)(mPaths[index]))->addLoss(be64toh(sp->header.offset));
@@ -639,6 +664,15 @@ void SSPConnectionManager::handleAck(SCIONPacket *packet, size_t initCount, bool
         pthread_cond_broadcast(&mPathCond);
     }
     pthread_mutex_unlock(&mPacketMutex);
+    bool retriesLeft = false;
+    pthread_mutex_lock(&mRetryMutex);
+    retriesLeft = !mRetryPackets->empty();
+    pthread_mutex_unlock(&mRetryMutex);
+    if (mFinAcked && mSentPackets.empty() && !retriesLeft) {
+        DEBUG("%lu: everything acked\n", mProtocol->mFlowID);
+        mProtocol->notifyFinAck();
+        mRunning = false;
+    }
 }
 
 int SSPConnectionManager::handleAckOnPath(SCIONPacket *packet, bool rttSample)
@@ -646,7 +680,7 @@ int SSPConnectionManager::handleAckOnPath(SCIONPacket *packet, bool rttSample)
     SSPPacket *sp = (SSPPacket *)(packet->payload);
     SSPAck *ack = &sp->ack;
     if (ack->L + ack->I == 0) {
-        DEBUG("bringing path %d back up with ack\n", packet->pathIndex);
+        DEBUG("%p: setting path %d up with ack\n", this, packet->pathIndex);
         mPaths[packet->pathIndex]->setUp();
         int used = 0;
         for (size_t i = 0; i < mPaths.size(); i++) {
@@ -699,9 +733,13 @@ void SSPConnectionManager::handleTimeout()
     bool lost[mPaths.size()];
     memset(lost, 0, sizeof(lost));
     int timeout[mPaths.size()];
-    memset(timeout, 0, sizeof(timeout));
-    for (size_t i = 0; i < mPaths.size(); i++)
-        timeout[i] = mPaths[i]->didTimeout(&current);
+    memset(timeout, 0, sizeof(int) * mPaths.size());
+    for (size_t i = 0; i < mPaths.size(); i++) {
+        if (mPaths[i])
+            timeout[i] = mPaths[i]->didTimeout(&current);
+        else
+            timeout[i] = false;
+    }
 
     std::vector<SCIONPacket *> retries;
     pthread_mutex_lock(&mPacketMutex);
@@ -711,7 +749,7 @@ void SSPConnectionManager::handleTimeout()
         int index = (*i)->pathIndex;
         SSPPacket *sp = (SSPPacket *)((*i)->payload);
         // Special case for packet 0
-        if (sp->header.offset == 0) {
+        if (be64toh(sp->header.offset == 0)) {
             size_t up = 0, down = 0;
             for (size_t j = 0; j < mPaths.size(); j++) {
                 SSPPath *p = (SSPPath *)(mPaths[j]);
@@ -728,20 +766,32 @@ void SSPConnectionManager::handleTimeout()
                     down++;
                 }
             }
-            if (up + down == mPaths.size())
+            if (up + down == mPaths.size()) {
+                DEBUG("%lu: remove packet 0 from sent list, %lu paths up\n",
+                        mProtocol->mFlowID, up);
+                if (up == 0) {
+                    DEBUG("no paths up, resend packet 0\n");
+                    retries.push_back(*i);
+                    mResendInit = true;
+                    pthread_cond_broadcast(&mPathCond);
+                }
                 i = mSentPackets.erase(i);
-            else
+            } else {
                 i++;
+            }
             continue;
         }
         if (timeout[index] > 0 ||
                 sp->skipCount >= SSP_FR_THRESHOLD) {
-            DEBUG("put packet %u (path %d) in retransmit list (%d dups, timeout = %d)\n",
+            DEBUG("put packet %lu (path %d) in retransmit list (%d dups, timeout = %d)\n",
                     be64toh(sp->header.offset), index, sp->skipCount, timeout[index]);
             SCIONPacket *p = *i;
             i = mSentPackets.erase(i);
             sp->skipCount = 0;
             sp->header.mark++;
+            if (sp->header.flags & SSP_FIN) {
+                DEBUG("%lu: resend FIN packet (%lu)\n", mProtocol->mFlowID, be64toh(sp->header.offset));
+            }
             retries.push_back(p);
             lost[index] = true;
             ((SSPPath *)(mPaths[index]))->addLoss(be64toh(sp->header.offset));
@@ -758,6 +808,16 @@ void SSPConnectionManager::handleTimeout()
     pthread_mutex_unlock(&mPacketMutex);
     if (!retries.empty())
         pthread_cond_broadcast(&mPacketCond);
+
+    bool retriesLeft = false;
+    pthread_mutex_lock(&mRetryMutex);
+    retriesLeft = !mRetryPackets->empty();
+    pthread_mutex_unlock(&mRetryMutex);
+    if (mFinAcked && mSentPackets.empty() && !retriesLeft) {
+        DEBUG("%lu: everything acked\n", mProtocol->mFlowID);
+        mProtocol->notifyFinAck();
+        mRunning = false;
+    }
 
     for (size_t j = 0; j < mPaths.size(); j++) {
         if (timeout[j] > 0) {
@@ -836,7 +896,7 @@ void SSPConnectionManager::schedule()
             }
         }
 
-        DEBUG("get path to send stuff\n");
+        DEBUG("%p: get path to send stuff\n", this);
         Path *p = NULL;
         while (!(p = pathToSend())) {
             DEBUG("no path ready yet, wait\n");
@@ -846,18 +906,32 @@ void SSPConnectionManager::schedule()
                 pthread_mutex_unlock(&mPacketMutex);
                 return;
             }
+            if (mResendInit) {
+                mResendInit = false;
+                break;
+            }
         }
-        DEBUG("path %d ready\n", p->getIndex());
         SCIONPacket *packet = nextPacket();
         pthread_mutex_unlock(&mPacketMutex);
         if (!packet) {
             DEBUG("no packet to send\n");
             continue;
         }
-        DEBUG("send packet %lu on path %d\n",
-                be64toh(((L4Packet *)(packet->payload))->number()),
-                p->getIndex());
-        p->send(packet, mSendSocket);
+        SSPPacket *sp = (SSPPacket *)(packet->payload);
+        if (be64toh(sp->header.offset) == 0) {
+            DEBUG("%p: resend packet 0 on all paths\n", this);
+            mInitSends = 0;
+            sendAllPaths(packet);
+        } else {
+            DEBUG("%p: send packet %lu on path %d\n", this,
+                    be64toh(sp->header.offset), p->getIndex());
+            if (sp->header.flags & SSP_FIN) {
+                DEBUG("%lu: sending FIN packet (%lu)\n",
+                        mProtocol->mFlowID, be64toh(sp->header.offset));
+                mFinAttempts++;
+            }
+            p->send(packet, mSendSocket);
+        }
     }
 }
 
@@ -874,6 +948,8 @@ SCIONPacket * SSPConnectionManager::nextPacket()
             packet = mFreshPackets->pop();
             DEBUG("popped packet from fresh queue, notify sender\n");
             mProtocol->notifySender();
+            if (mFinAttempts > 0)
+                packet = NULL;
         }
         pthread_mutex_unlock(&mFreshMutex);
     }
@@ -902,14 +978,26 @@ Path * SSPConnectionManager::pathToSend()
 void SSPConnectionManager::didSend(SCIONPacket *packet)
 {
     SSPPacket *sp = (SSPPacket *)(packet->payload);
-    if (sp->header.offset == 0) {
-        if (mInitPacketQueued)
+    if (be64toh(sp->header.offset) == 0) {
+        ++mInitSends;
+        DEBUG("%lu: packet %p, mInitSends = %d\n", mProtocol->mFlowID, packet, mInitSends);
+        if (mInitSends < (int)mPaths.size() - mInvalid)
             return;
-        else
-            mInitPacketQueued = true;
     }
     pthread_mutex_lock(&mSentMutex);
-    DEBUG("add packet %lu to sent list\n", be64toh(sp->header.offset));
+    PacketList::iterator i;
+    for (i = mSentPackets.begin(); i != mSentPackets.end(); i++) {
+        if (*i == packet) {
+            SCIONPacket *p = *i;
+            SSPPacket *s = (SSPPacket *)(p->payload);
+            if (s->header.flags & SSP_FIN) {
+                pthread_mutex_unlock(&mSentMutex);
+                return;
+            }
+            printf("duplicate packet in sent list: %lu|%lu, path %d|%d (%p)\n", be64toh(s->header.offset), be64toh(sp->header.offset), packet->pathIndex, p->pathIndex, packet);
+            exit(0);
+        }
+    }
     mSentPackets.push_back(packet);
     pthread_mutex_unlock(&mSentMutex);
 }

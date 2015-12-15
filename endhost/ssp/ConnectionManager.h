@@ -99,9 +99,12 @@ protected:
     int totalQueuedSize();
 
     int                          mReceiveWindow;
+    int                          mInitSends;
 
-    bool                         mInitPacketQueued;
     bool                         mRunning;
+    bool                         mFinAcked;
+    int                          mFinAttempts;
+    bool                         mResendInit;
 
     PacketList                   mSentPackets;
     OrderedList<SCIONPacket *>   *mRetryPackets;

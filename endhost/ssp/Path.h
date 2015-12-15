@@ -59,6 +59,8 @@ protected:
     bool            mValid;
     int             mProbeAttempts;
     struct timeval  mLastSendTime;
+
+    pthread_mutex_t mMutex;
 };
 
 class SSPPath : public Path {

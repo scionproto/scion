@@ -37,6 +37,7 @@ public:
     L4Packet()
         : data(NULL),
         len(0),
+        dataOffset(0),
         windowSize(0),
         skipCount(0),
         retryAttempts(0),
@@ -46,6 +47,8 @@ public:
 
     virtual ~L4Packet()
     {
+        if (interfaces)
+            free(interfaces);
         if (data)
             free(data);
     }
@@ -54,6 +57,7 @@ public:
 
     uint8_t *data;
     size_t len;
+    size_t dataOffset;
     size_t windowSize;
     uint32_t skipCount;
     uint8_t retryAttempts;
@@ -90,8 +94,6 @@ typedef struct {
     int32_t H;
     int32_t O;
     uint32_t V;
-    uint8_t mark;
-    bool full;
 } SSPAck;
 
 #pragma pack(pop)

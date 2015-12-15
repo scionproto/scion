@@ -15,7 +15,7 @@ size_t dummy(void *buffer, size_t size, size_t nmemb, void *userp)
 int main()
 {
     SCIONSocket s(SCION_PROTO_SSP, NULL, 0, 8080, 0);
-    SCIONSocket &newSocket = s.accept();
+    SCIONSocket *newSocket = s.accept();
     char buf[BUFSIZE];
     char curldata[1024];
     int size = 0;
@@ -59,14 +59,14 @@ int main()
     curl_easy_perform(curl);
     while (1) {
         memset(buf, 0, BUFSIZE);
-        int recvlen = newSocket.recv((uint8_t *)buf, BUFSIZE, NULL);
+        int recvlen = newSocket->recv((uint8_t *)buf, BUFSIZE, NULL);
         gettimeofday(&end, NULL);
         size += recvlen;
         long us = end.tv_usec - period.tv_usec + (end.tv_sec - period.tv_sec) * 1000000;
         if (us > 1000000) {
             count++;
             SCIONStats *stats;
-            stats = newSocket.getStats();
+            stats = newSocket->getStats();
             printf("%d bytes: %f Mbps\n", size, (double)size / us * 1000000 / 1024 / 1024 * 8);
             sprintf(curldata, "{\
                     \"throughput\":{\"black\": [{\"time\":%d,\"value\":%.2f}]}\
