@@ -16,6 +16,7 @@
 =========================================================
 """
 # Stdlib
+import math
 import struct
 
 # SCION
@@ -135,8 +136,9 @@ class PathTransportExt(EndToEndExtension):
         inst = cls()
         inst.path_type = path_type
         inst.path = path
+        plen = len(inst.path.pack())
         # How many additional lines are needed for a path.
-        inst._init_size((len(inst.path.pack()) + 3) // inst.LINE_LEN)
+        inst._init_size(math.ceil((plen - 4) / inst.LINE_LEN))
         return inst
 
     def _parse(self, raw):
