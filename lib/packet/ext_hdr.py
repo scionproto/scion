@@ -29,6 +29,10 @@ class HopByHopType(TypeBase):
     SIBRA = 1
 
 
+class EndToEndType(TypeBase):
+    PATH_TRANSPORT = 0
+
+
 class ExtensionHeader(HeaderBase):
     """
     Base class for extension headers.

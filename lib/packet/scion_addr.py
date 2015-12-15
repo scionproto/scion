@@ -128,7 +128,7 @@ class SCIONAddr(object):
         """
         haddr_type = haddr_get_type(addr_type)
         self.addr_len = ISD_AD.LEN + haddr_type.LEN
-        data = Raw(raw, "SCIONAddr (%s)" % haddr_type.NAME, self.addr_len)
+        data = Raw(raw, "SCIONAddr", self.addr_len, min_=True)
         self.isd_id, self.ad_id = ISD_AD.from_raw(data.pop(ISD_AD.LEN))
         self.host_addr = haddr_type(data.pop(haddr_type.LEN))
 
