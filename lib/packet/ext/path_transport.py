@@ -38,7 +38,7 @@ class PathTransOFPath(HeaderBase):
     NAME = "PathTransOFPath"
     MIN_LEN = 2
 
-    def __init__(self, raw=None):
+    def __init__(self, raw=None):  # pragma: no cover
         """
         Initialize an instance of the class PathTransOFPath.
 
@@ -70,7 +70,7 @@ class PathTransOFPath(HeaderBase):
         inst.path = path
         return inst
 
-    def pack(self):
+    def pack(self):  # pragma: no cover
         packed = []
         packed.append(struct.pack("!B", self.src.host.TYPE))
         packed.append(struct.pack("!B", self.dst.host.TYPE))
@@ -79,7 +79,7 @@ class PathTransOFPath(HeaderBase):
         packed.append(self.path.pack())
         return b"".join(packed)
 
-    def __len__(self):
+    def __len__(self):  # pragma: no cover
         return len(self.pack())
 
     def __str__(self):
