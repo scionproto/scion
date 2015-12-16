@@ -131,6 +131,18 @@ class ScionBaseSocket(object):
             return
         return self.libsock.SCIONSend(self.fd, msg, len(msg))
 
+    def sendall(self, msg):
+        """
+        For the SCION multi-path socket this call means only a wrapper for
+        send() as it already implements a sendall() style logic internally.
+        :param msg: The data to be sent on the socket.
+        :type msg: bytes
+        :returns: None to indicate success.
+        :rtype: NoneType
+        """
+        self.send(msg)
+        return None
+
     def recv(self, bufsize):
         """
         Receive data from the socket. The return value is a bytes object
@@ -176,6 +188,10 @@ class ScionBaseSocket(object):
         py_stats = ScionStats(raw_stats.contents)
         self.libsock.SCIONDestroyStats(raw_stats)
         return py_stats
+
+    def close(self):
+        # TODO(ercanucan) : call the deleteSCIONSocket() once it is tested.
+        pass
 
 
 class ScionServerSocket(ScionBaseSocket):
