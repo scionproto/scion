@@ -43,12 +43,12 @@ import threading
 import time
 
 # SCION
+from endhost.scion_socket import ScionServerSocket, ScionClientSocket
 from lib.defines import L4_SSP
 from lib.log import init_logging
 from lib.main import main_wrapper
 from lib.thread import thread_safety_net
 from lib.util import handle_signals
-from endhost.scion_socket import ScionServerSocket, ScionClientSocket
 
 SERVER_PORT = 8080
 SERVER_LOG_BASE = 'logs/scion_test_app'

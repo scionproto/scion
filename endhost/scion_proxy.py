@@ -86,12 +86,13 @@ endhost/scion_proxy.py -f
 # Stdlib
 import argparse
 import logging
-import select
 import socket
 import threading
 from urllib.parse import urlparse, urlunparse
 
 # SCION
+from endhost.scion_socket import ScionServerSocket, ScionClientSocket
+from lib.defines import L4_SSP
 from lib.log import init_logging, log_exception
 from lib.thread import thread_safety_net
 
@@ -99,7 +100,6 @@ VERSION = '0.1.0'
 BUFLEN = 8192
 DEFAULT_SERVER_IP = '127.0.0.1'
 DEFAULT_SERVER_PORT = 8080
-SELECT_TIMEOUT = 3  # seconds
 LOG_BASE = 'logs/scion_proxy'
 
 
@@ -126,7 +126,7 @@ class ConnectionHandler(object):
                              'DELETE', 'TRACE'):
             self.handle_others()
         else:
-            logging.warning("Unrecognized HTTP(S) header: %s" %
+            logging.warning("Invalid HTTP(S) header: %s" %
                             self.client_buffer)
         self.connection.close()
 
@@ -154,7 +154,34 @@ class ConnectionHandler(object):
         logging.info("Requestline = %s" % self.client_buffer[:end])
         base_header = self.client_buffer[:end+1].decode('ascii').split()
         self.client_buffer = self.client_buffer[end+1:]
+        if not self._remaining_headers_and_strip_keepalive():
+            return 'Incomplete', 'Incomplete', 'Incomplete'
         return base_header
+
+    def _remaining_headers_and_strip_keepalive(self):
+        """
+        Reads the rest of the headers, ensures the request is terminated
+        properly and tells the server to close the connection once the request
+        is completed.
+        :returns: True or False
+        :rtype: boolean
+        """
+        while True:
+            end_of_req = self.client_buffer.find(b'\r\n\r\n')
+            if end_of_req != -1:
+                break
+            received = self.connection.recv(BUFLEN)
+            if not received:
+                # connection is shut down, incomplete (invalid) request
+                logging.info("Client closed the connection. Invalid request")
+                return False
+            self.client_buffer += received
+        # explicitly tell the server to close the connection once the request
+        # is completed
+        self.client_buffer = self.client_buffer.\
+            replace(b'Connection: keep-alive',
+                    b'Connection: close')
+        return True
 
     def do_CONNECT(self):
         """
@@ -184,7 +211,6 @@ class ConnectionHandler(object):
         (scm, netloc, path, params, query, _) = urlparse(
             self.path, 'http')
         if scm != 'http' or not netloc:
-            self.send_error(400, "Bad URL %s" % self.path)
             logging.error("Bad URL %s" % self.path)
             return
         soc = self._connect_to(netloc)
@@ -213,7 +239,6 @@ class ConnectionHandler(object):
         try:
             soc.connect((host, int(port)))
         except OSError:
-            self.send_error(404, "Error during connect.")
             log_exception("Error while connecting to %s:%s" % (host, port))
             return False
         logging.debug("Connected to %s:%s" % (host, port))
@@ -243,66 +268,69 @@ class ConnectionHandler(object):
         soc.send(b''.join(req_bytes))
         self.client_buffer = b''
 
-    def _read_write(self, target_sock, max_idling=60):
+    def _read_write(self, target_sock):
         """
-        The main loop for the proxying operation. Listens for incoming data
-        on both client (i.e. browser) and server sockets and relays them
-        accordingly between each other.
+        The main function responsible for the proxying operation. It creates
+        two threads to listen for incoming data on both client (i.e. browser)
+        and server sockets and relays them accordingly between each other.
         :param target_sock: The socket belonging to the remote target.
         :type target_sock: socket
-        :param max_idling: Inactivity timeout (in seconds) on the sockets.
-        :type max_idling: int
         """
-        max_tries = max_idling / SELECT_TIMEOUT
-        socks = [self.connection, target_sock]
-        target_sock.setblocking(False)
-        self.connection.setblocking(False)
-        inactivity_count = 0
-        while inactivity_count < max_tries:
-            inactivity_count += 1
-            (ins, _, err) = select.select(socks, [],
-                                          socks, SELECT_TIMEOUT)
-            if err:
-                logging.error("Error occurred during Select.")
+        t1 = threading.Thread(target=thread_safety_net,
+                              args=(self._read_write_loop, self.connection,
+                                    target_sock))
+        t2 = threading.Thread(target=thread_safety_net,
+                              args=(self._read_write_loop, target_sock,
+                                    self.connection))
+        t1.start()
+        t2.start()
+        t1.join()
+        t2.join()
+
+    def _read_write_loop(self, incoming, target_sock):
+        """
+        Loop until a maximum number of tries on the sockets and proxy
+        the data read between the two sockets. This should normally be
+        done with a select.select() call but our SCION multi-path socket
+        does not yet support select.
+        :param incoming: Socket to read the data from.
+        :type incoming: socket.
+        :param target_sock: Socket to write the data to.
+        :type target_sock: socket.
+        """
+        while True:
+            if not self._proxy(incoming, target_sock):
                 break
-            for incoming in ins:
-                inactivity_count = 0
-                if not self._proxy(incoming, target_sock):
-                    return
 
     def _proxy(self, incoming, target_sock):
         """
-        Helper function to go through the incoming data and proxy
-        them between client and target.
-        :param incoming: Socket that data arrived at.
+        Helper function to go read data from the incoming socket and write
+        it out to the target socket.
+        :param incoming: Socket to read the data from.
         :type incoming: socket.
-        :param target_sock: Socket to the remote host.
+        :param target_sock: Socket to write the data to.
         :type target_sock: socket.
         :returns: Whether successfully proxied between to sockets.
         :rtype: boolean
         """
-        if incoming is target_sock:
-            input_ = "remote"
-            output = "local"
-            out = self.connection
-        else:
-            input_ = "local"
-            output = "remote"
-            out = target_sock
         try:
             data = incoming.recv(BUFLEN)
         except OSError as e:
-            logging.error("Error occurred during recv from %s socket: %s",
-                          input_, e)
+            logging.error("Error during recv from incoming socket: %s", e)
             return False
         if not data:
             logging.info("Peer closed the connection.")
+            try:
+                target_sock.shutdown(socket.SHUT_RDWR)
+            except OSError as e:
+                # we are here most likely because socket was already shut-down.
+                # log the exception in any case.
+                logging.warning("Caught exception during shutdown: %s", e)
             return False
         try:
-            out.sendall(data)
+            target_sock.sendall(data)
         except OSError as e:
-            logging.error("Error occurred during sendall on %s socket: %s",
-                          output, e)
+            logging.error("Error during sendall on target socket: %s", e)
             return False
         return True
 
@@ -312,9 +340,11 @@ class ForwardingProxyConnectionHandler(ConnectionHandler):
     Handler class for the SCION forwarding (bridge) proxy.
     """
     server_version = "SCION HTTP Bridge Proxy/" + VERSION
-    target_proxy = '127.0.0.1', 9090
+    unix_target_proxy = '127.0.0.1', 9090
+    scion_target_proxy = '127.2.26.254', 9090
+    isd_ad = 2, 26
 
-    def __init__(self, connection, address):
+    def __init__(self, connection, address, scion_mode):
         """
         Create a ConnectionHandler class to handle the incoming
         HTTP(S) request.
@@ -323,6 +353,7 @@ class ForwardingProxyConnectionHandler(ConnectionHandler):
         :param address: Address of the connecting party.
         :type address: host, port
         """
+        self.scion_mode = scion_mode
         self.connection = connection
         self.client_buffer = b''
         self.method, self.path, self.protocol = self.get_base_header()
@@ -356,18 +387,29 @@ class ForwardingProxyConnectionHandler(ConnectionHandler):
         :returns: The socket that is connected to the target proxy.
         :rtype: socket
         """
+        if self.scion_mode:
+            logging.info("Opening a SCION-socket")
+            soc = ScionClientSocket(L4_SSP, self.isd_ad,
+                                    self.scion_target_proxy)
+        else:
+            soc = self._unix_client_socket()
+        return soc
+
+    def _unix_client_socket(self):
         soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        logging.debug("Connecting to %s:%s" % self.target_proxy)
+        logging.debug("Connecting to %s:%s" % self.unix_target_proxy)
         try:
-            soc.connect(self.target_proxy)
+            soc.connect(self.unix_target_proxy)
         except OSError:
-            log_exception("Error while connecting to %s:%s" % self.target_proxy)
-            return False
-        logging.debug("Connected to target proxy %s:%s" % self.target_proxy)
+            log_exception("Error while connecting to %s:%s" %
+                          self.unix_target_proxy)
+            return None
+        logging.debug("Connected to target proxy %s:%s" %
+                      self.unix_target_proxy)
         return soc
 
 
-def serve_forever(soc, handler):
+def serve_forever(soc, bridge_mode, scion_mode):
     """
     Serve incoming HTTP requests until a KeyboardInterrupt is received.
     :param soc: Socket object that belongs to the server.
@@ -375,12 +417,35 @@ def serve_forever(soc, handler):
     :param handler: The type of class to be instantiated as the
     connection handler.
     :type handler: ConnectionHandler or ForwardingProxyConnectionHandler
+    :param scion_soc: Use SCION multi-path sockets.
+    :type scion_soc: boolean
     """
     while True:
         con, addr = soc.accept()
+        if bridge_mode:
+            params = ForwardingProxyConnectionHandler, con, addr, scion_mode
+        else:
+            params = ConnectionHandler, con, addr
+
         threading.Thread(target=thread_safety_net,
-                         args=(handler, con, addr),
+                         args=params,
                          daemon=True).start()
+
+
+def scion_server_socket(server_address):
+    logging.info("Starting SCION test server application.")
+    soc = ScionServerSocket(L4_SSP, server_address[1])
+    return soc
+
+
+def unix_server_socket(server_address):
+    soc = socket.socket(socket.AF_INET)
+    soc.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    soc.bind(server_address)
+    logging.info("Starting server at (%s, %s), use <Ctrl-C> to stop" %
+                 server_address)
+    soc.listen(0)
+    return soc
 
 
 def main():
@@ -388,29 +453,34 @@ def main():
     Parse the command-line arguments and start the proxy server.
     """
     init_logging(LOG_BASE, file_level=logging.DEBUG,
-                 console_level=logging.INFO)
+                 console_level=logging.DEBUG)
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--port",
                         help='Port number to run SCION Proxy on',
                         type=int, default=DEFAULT_SERVER_PORT)
     parser.add_argument("-f", "--forward", help='Forwarding proxy mode',
                         action="store_true")
+    parser.add_argument("-s", "--scion", help='Use SCION multi-path socket',
+                        action="store_true")
     args = parser.parse_args()
 
     server_address = DEFAULT_SERVER_IP, args.port
-    if args.forward:
-        logging.info("Forwarding (Bridge) mode is on.")
-        handler_class = ForwardingProxyConnectionHandler
-    else:
-        handler_class = ConnectionHandler
 
-    soc = socket.socket(socket.AF_INET)
-    soc.bind(server_address)
-    logging.info("Starting server at (%s, %s), use <Ctrl-C> to stop" %
-                 server_address)
-    soc.listen(0)
+    if args.forward:
+        logging.info("Operating in Forwarding (Bridge) mode.")
+
+    if args.scion:
+        logging.info("SCION-socket mode is on.")
+
+    if args.scion and not args.forward:
+        logging.info("Starting the server with SCION multi-path socket.")
+        soc = scion_server_socket(server_address)
+    else:
+        logging.info("Starting the server with UNIX socket.")
+        soc = unix_server_socket(server_address)
+
     try:
-        serve_forever(soc, handler_class)
+        serve_forever(soc, args.forward, args.scion)
     except KeyboardInterrupt:
         logging.info("Exiting")
         soc.close()
