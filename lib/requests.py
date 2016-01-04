@@ -47,7 +47,8 @@ class RequestHandler(object):
     TTL = 2.0
     MAX_LEN = 16
 
-    def __init__(self, queue, check, fetch, reply, ttl=TTL):  # pragma: no cover
+    def __init__(self, queue, check, fetch, reply, ttl=TTL,
+                 key_map=None):  # pragma: no cover
         """
         :param queue.Queue queue:
             Used to receive request notifications, see class docstring for
@@ -68,6 +69,7 @@ class RequestHandler(object):
         self._reply = reply
         self._ttl = ttl
         self._req_map = defaultdict(list)
+        self._key_map = key_map or self._def_key_map
 
     @classmethod
     def start(cls, name, *args, **kwargs):  # pragma: no cover
@@ -91,7 +93,8 @@ class RequestHandler(object):
                 # Add a new request
                 self._add_req(key, req)
             # Answer existing requests, if possible.
-            self._answer_reqs(key)
+            for k in self._key_map(key, self._req_map.keys()):
+                self._answer_reqs(k)
 
     def _add_req(self, key, request):
         self._req_map.setdefault(key, [])
@@ -105,9 +108,6 @@ class RequestHandler(object):
     def _answer_reqs(self, key):
         if not self._check(key):
             # Don't have the answer yet.
-            return
-        if key not in self._req_map:
-            # No requests to fulfil.
             return
         self._expire_reqs(key)
         reqs = self._req_map[key]
@@ -127,3 +127,9 @@ class RequestHandler(object):
                 self._req_map[key].remove((ts, req))
         if count:
             logging.debug("Expired %d requests for %s", count, key)
+
+    @staticmethod
+    def _def_key_map(key, keys):  # pragma: no cover
+        if key in keys:
+            return [key]
+        return []

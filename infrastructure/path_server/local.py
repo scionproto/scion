@@ -156,7 +156,8 @@ class LocalPathServer(PathServer):
             logging.warning("Dropping request: requested DST is local AD")
             return False
 
-        dst_is_core = dst in self._core_ads[dst.isd]
+        # dst_ad=0 means any core AS in the specified ISD
+        dst_is_core = dst in self._core_ads[dst.isd] or not seg_info.dst_ad
         dst_in_local_isd = (dst.isd == self.addr.isd_id)
         down_seg = set()
         if dst_is_core:
@@ -187,11 +188,14 @@ class LocalPathServer(PathServer):
         """
         up_seg = set()
         core_seg = set()
+        params = {"first_isd": dst_isd}
+        if dst_ad:
+            params["first_ad"] = dst_ad
         if dst_in_local_isd:
             # Dst in local ISD. First check whether DST is a (super)-parent.
-            up_seg.update(self.up_segments(first_isd=dst_isd, first_ad=dst_ad))
+            up_seg.update(self.up_segments(**params))
         # Check whether dst is known core AS.
-        for cseg in self.core_segments(first_isd=dst_isd, first_ad=dst_ad):
+        for cseg in self.core_segments(**params):
             # Check do we have an up-seg that is connected to core_seg.
             isd, ad = cseg.get_last_isd_ad()
             tmp_up_segs = self.up_segments(first_isd=isd, first_ad=ad)

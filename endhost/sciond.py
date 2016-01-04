@@ -75,10 +75,12 @@ class SCIONDaemon(SCIONElement):
                                            max_res_no=self.MAX_SEG_NO)
         self.requests = RequestHandler.start(
             "SCIONDaemon Requests", self._check_segments, self._fetch_segments,
-            self._reply_segments, ttl=self.TIMEOUT,
+            self._reply_segments, ttl=self.TIMEOUT, key_map=self._req_key_map,
         )
         self._api_socket = None
         self.daemon_thread = None
+        self._in_core = self.addr.get_isd_ad() in self._core_ads[
+            self.addr.isd_id]
 
         self.PLD_CLASS_MAP = {
             PayloadClass.PATH: {
@@ -279,8 +281,9 @@ class SCIONDaemon(SCIONElement):
         """
         key = dst_isd, dst_ad
         logging.debug("Paths requested for %s", key)
-        if self.addr.get_isd_ad() == (dst_isd, dst_ad):
-            return [EmptyPath()]
+        if self.addr.isd_id == dst_isd:
+            if self.addr.ad_id == dst_ad or (self._in_core and not dst_ad):
+                return [EmptyPath()]
         deadline = SCIONTime.get_time() + self.TIMEOUT
         e = threading.Event()
         self.requests.put((key, e))
@@ -290,9 +293,10 @@ class SCIONDaemon(SCIONElement):
         return self.path_resolution(dst_isd, dst_ad)
 
     def path_resolution(self, dst_isd, dst_ad):
-        iam_core = self.addr.get_isd_ad() in self._core_ads[self.addr.isd_id]
-        dst_is_core = (dst_isd, dst_ad) in self._core_ads[dst_isd]
-        if iam_core:
+        # dst_ad = 0 means any core AS in the specified ISD.
+        dst_is_core = ((dst_isd, dst_ad) in self._core_ads[dst_isd]
+                       or not dst_ad)
+        if self._in_core:
             return self._resolve_core(dst_isd, dst_ad, dst_is_core)
         elif dst_is_core:  # I'm non core AS, but dst is core.
             return self._resolve_not_core_core(dst_isd, dst_ad)
@@ -307,8 +311,13 @@ class SCIONDaemon(SCIONElement):
         my_isd, my_ad = self.addr.get_isd_ad()
         if dst_is_core:
             my_isd, my_ad = self.addr.get_isd_ad()
-            for cseg in self.core_segments(last_isd=my_isd, last_ad=my_ad,
-                                           first_isd=dst_isd, first_ad=dst_ad):
+            params = {"last_isd": my_isd, "last_ad": my_ad,
+                      "first_isd": dst_isd}
+            if dst_ad:
+                # dst_ad=0 means any core AS in the specified ISD, so only
+                # filter on the remote AS if it isn't 0
+                params["first_ad"] = dst_ad
+            for cseg in self.core_segments(**params):
                 res.add((None, cseg, None))
             return PathCombinator.tuples_to_full_paths(res)
 
@@ -332,13 +341,17 @@ class SCIONDaemon(SCIONElement):
         I'm within non-core AS, but dst is within core AS.
         """
         res = set()
-        dst_in_local_isd = (dst_isd == self.addr.isd_id)
-        if dst_in_local_isd:
+        params = {"first_isd": dst_isd}
+        if dst_ad:
+            # dst_ad=0 means any core AS in the specified ISD, so only filter
+            # on AS when dst_ad is not 0.
+            params["first_ad"] = dst_ad
+        if dst_isd == self.addr.isd_id:
             # Dst in local ISD. First check whether DST is a (super)-parent.
-            for useg in self.up_segments(first_isd=dst_isd, first_ad=dst_ad):
+            for useg in self.up_segments(**params):
                 res.add((useg, None, None))
         # Check whether dst is known core AS.
-        for cseg in self.core_segments(first_isd=dst_isd, first_ad=dst_ad):
+        for cseg in self.core_segments(**params):
             # Check do we have an up-seg that is connected to core_seg.
             isd, ad = cseg.get_last_isd_ad()
             for useg in self.up_segments(first_isd=isd, first_ad=ad):
@@ -400,6 +413,20 @@ class SCIONDaemon(SCIONElement):
         Called by RequestHandler to signal that the request has been fulfilled.
         """
         e.set()
+
+    def _req_key_map(self, key, req_keys):
+        """
+        Called by RequestHandler to know which requests can be answered by
+        `key`.
+        """
+        dst_isd, dst_ad = key
+        ret = []
+        for rk in req_keys:
+            if (rk == key) or (rk == (key[0], 0)):
+                # Covers the case where a request was for ISD,0 (i.e. any path
+                # to a core AS in the specified ISD)
+                ret.append(rk)
+        return ret
 
     def _calc_core_segs(self, dst_isd, up_segs, down_segs):
         """
