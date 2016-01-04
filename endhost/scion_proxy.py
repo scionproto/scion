@@ -45,13 +45,11 @@ The implementation by Fabio Domingues was used as a starting point
 to implement the custom SCION HTTP(S) Proxy.
 
 Currently supported HTTP(S) methods:
- - OPTIONS;
  - GET;
  - HEAD;
  - POST;
  - PUT;
  - DELETE;
- - TRACE;
  - CONNECT.
 
 --Usage:
@@ -122,8 +120,7 @@ class ConnectionHandler(object):
         self.method, self.path, self.protocol = self.get_base_header()
         if self.method == 'CONNECT':
             self.do_CONNECT()
-        elif self.method in ('OPTIONS', 'GET', 'HEAD', 'POST', 'PUT',
-                             'DELETE', 'TRACE'):
+        elif self.method in ('GET', 'HEAD', 'POST', 'PUT', 'DELETE'):
             self.handle_others()
         else:
             logging.warning("Invalid HTTP(S) header: %s" %
@@ -208,6 +205,10 @@ class ConnectionHandler(object):
         connects to the target address, sends the complete request
         to the target and starts proxying.
         """
+        # Use HTTP 1.0 for all the methods other than CONNECT to make our
+        # lives easier (i.e do not allow persistent connections nor the re-use
+        # of the same socket for multiple requests).
+        self.protocol = 'HTTP/1.0'
         (scm, netloc, path, params, query, _) = urlparse(
             self.path, 'http')
         if scm != 'http' or not netloc:
@@ -357,8 +358,7 @@ class ForwardingProxyConnectionHandler(ConnectionHandler):
         self.connection = connection
         self.client_buffer = b''
         self.method, self.path, self.protocol = self.get_base_header()
-        if self.method in ('CONNECT', 'OPTIONS', 'GET', 'HEAD', 'POST', 'PUT',
-                           'DELETE', 'TRACE'):
+        if self.method in ('CONNECT', 'GET', 'HEAD', 'POST', 'PUT', 'DELETE'):
             self.relay_all()
         else:
             logging.warning("Unrecognized HTTP(S) header: %s" %
