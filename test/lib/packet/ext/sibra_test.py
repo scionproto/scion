@@ -60,8 +60,9 @@ class TestSibraExtParse(object):
         data.pop.side_effect = 12, 5, bytes([4, 5, 0])
         return inst, data
 
+    @patch("lib.packet.ext.sibra.HopByHopExtension._parse", autospec=True)
     @patch("lib.packet.ext.sibra.Raw", autospec=True)
-    def test_ephemeral_setup_accepted(self, raw):
+    def test_ephemeral_setup_accepted(self, raw, super_parse):
         inst, data = self._setup(steady=False)
         inst._parse_block = create_mock()
         raw.return_value = data
@@ -69,6 +70,7 @@ class TestSibraExtParse(object):
         inst._parse("data")
         # Tests
         raw.assert_called_once_with("data", "SibraExt", inst.MIN_LEN, min_=True)
+        super_parse.assert_called_once_with(inst, data)
         inst._parse_flags.assert_called_once_with(12)
         ntools.eq_(inst.curr_hop, 5)
         ntools.eq_(inst.total_hops, 2+3+4)
@@ -82,8 +84,9 @@ class TestSibraExtParse(object):
         ntools.eq_(inst.active_blocks, [inst._parse_block.return_value] * 2)
         ntools.eq_(inst.req_block, inst._parse_block.return_value)
 
+    @patch("lib.packet.ext.sibra.HopByHopExtension._parse", autospec=True)
     @patch("lib.packet.ext.sibra.Raw", autospec=True)
-    def test_steady_setup_denied(self, raw):
+    def test_steady_setup_denied(self, raw, super_parse):
         inst, data = self._setup(accepted=False)
         inst._parse_offers_block = create_mock()
         raw.return_value = data
@@ -194,6 +197,7 @@ class TestSibraExtPack(object):
         inst = SibraExt()
         inst._pack_flags = create_mock()
         inst._pack_flags.return_value = b"F"
+        inst._check_len = create_mock()
         inst.curr_hop = 7
         if path_lens:
             inst.total_hops = sum(path_lens)
@@ -218,6 +222,7 @@ class TestSibraExtPack(object):
         ])
         # Call
         ntools.eq_(inst.pack(), expected)
+        inst._check_len.assert_called_once_with(expected)
 
     def test_active_multi(self):
         inst = self._setup(path_lens=[2, 4, 6], req=False)

@@ -21,7 +21,6 @@ import binascii
 # SCION
 from lib.types import ExtensionClass, TypeBase
 from lib.packet.packet_base import HeaderBase
-from lib.util import Raw
 
 
 class HopByHopType(TypeBase):
@@ -55,7 +54,7 @@ class ExtensionHeader(HeaderBase):
     SUBHDR_LEN = 3
     MIN_PAYLOAD_LEN = MIN_LEN - SUBHDR_LEN
 
-    def __init__(self, raw=None):
+    def __init__(self, raw=None):  # pragma: no cover
         """
         Initialize an instance of the class ExtensionHeader.
 
@@ -73,37 +72,30 @@ class ExtensionHeader(HeaderBase):
         if raw is not None:
             self._parse(raw)
 
-    def _parse(self, raw):
+    def _parse(self, raw):  # pragma: no cover
         """
         Initialize an instance of the class ExtensionHeader.
 
         :param raw:
         :type raw:
         """
-        data = Raw(raw, self.NAME, self.MIN_LEN, min_=True)
-        self._hdr_len = self.bytes_to_hdr_len(len(data))
-        self._set_payload(data.pop())
+        self._hdr_len = self.bytes_to_hdr_len(len(raw))
 
-    def _init_size(self, additional_lines):
+    def _init_size(self, additional_lines):  # pragma: no cover
         """
         Initialize `additional_lines` of payload.
         All extensions have to have constant size.
         """
         self._hdr_len = additional_lines
-        # Allocate additional lines.
-        self._set_payload(bytes(self.MIN_PAYLOAD_LEN + self.LINE_LEN *
-                                additional_lines))
 
-    def _set_payload(self, payload):
+    def _check_len(self, payload):  # pragma: no cover
         """
-        Set payload. Payload length must be equal to allocated space for the
-        extensions.
+        Check whether payload length is equal to the allocated space for the
+        extension.
         """
-        # Check whether payload length is correct.
         assert self._hdr_len == self.bytes_to_hdr_len(len(payload))
-        self._raw = payload
 
-    def __len__(self):
+    def __len__(self):  # pragma: no cover
         """
         Return length of extenion header in bytes.
         """
@@ -123,7 +115,7 @@ class ExtensionHeader(HeaderBase):
         return (hdr_len + 1) * cls.LINE_LEN
 
     def __str__(self):
-        payload_hex = binascii.hexlify(self._raw)
+        payload_hex = binascii.hexlify(self.pack())
         return "[%s(%dB): class: %s payload: %s]" % (
             self.NAME, len(self), ExtensionClass.to_str(self.EXT_CLASS),
             payload_hex)

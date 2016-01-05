@@ -57,14 +57,12 @@ class TestTracerouteExtFromValues(object):
     """
     Unit tests for lib.packet.ext.traceroute.TracerouteExt.from_values
     """
-    @patch("lib.packet.ext.traceroute.TracerouteExt.update", autospec=True)
     @patch("lib.packet.ext.traceroute.TracerouteExt._init_size", autospec=True)
-    def test(self, init_size, update):
+    def test(self, init_size):
         inst = TracerouteExt.from_values(24)
         # Tests
         ntools.assert_is_instance(inst, TracerouteExt)
         init_size.assert_called_once_with(inst, 24)
-        update.assert_called_once_with(inst)
 
 
 class TestTracerouteExtParse(object):
@@ -73,12 +71,11 @@ class TestTracerouteExtParse(object):
     """
     @patch("lib.packet.ext.traceroute.ISD_AD.from_raw",
            new_callable=create_mock)
-    @patch("lib.packet.ext.traceroute.Raw", autospec=True)
     @patch("lib.packet.ext.traceroute.HopByHopExtension._parse", autospec=True)
-    def test(self, super_parse, raw, isd_ad):
+    @patch("lib.packet.ext.traceroute.Raw", autospec=True)
+    def test(self, raw, super_parse, isd_ad):
         inst = TracerouteExt()
         inst.append_hop = create_mock()
-        inst._raw = b"\x02_raw"
         data = create_mock(["pop"])
         data.pop.side_effect = (
             None,
@@ -87,11 +84,13 @@ class TestTracerouteExtParse(object):
         )
         raw.return_value = data
         isd_ad.side_effect = [(1, 11), (2, 22)]
+        dlen = inst.MIN_LEN + 2 * inst.HOP_LEN
+        arg = bytes([2]) + bytes(dlen - 1)
         # Call
-        inst._parse("data")
+        inst._parse(arg)
         # Tests
-        super_parse.assert_called_once_with(inst, "data")
-        raw.assert_called_once_with(b"\x02_raw", "TracerouteExt", 20, min_=True)
+        raw.assert_called_once_with(arg, "TracerouteExt", dlen, min_=True)
+        super_parse.assert_called_once_with(inst, data)
         assert_these_calls(isd_ad, (call("isd ad 1"), call("isd ad 2")))
         assert_these_calls(inst.append_hop, (
             call(1, 11, 0x1111, 0x2222),
@@ -99,30 +98,14 @@ class TestTracerouteExtParse(object):
         ))
 
 
-class TestTracerouteExtAppendHop(object):
+class TestTracerouteExtPack(object):
     """
-    Unit tests for lib.packet.ext.traceroute.TracerouteExt.append_hop
-    """
-    @patch("lib.packet.ext.traceroute.TracerouteExt.update", autospec=True)
-    def test(self, update):
-        inst = TracerouteExt()
-        inst.hops = [1]
-        inst._hdr_len = 2
-        # Call
-        inst.append_hop(3, 4, 5, 6)
-        # Tests
-        ntools.eq_(inst.hops, [1, (3, 4, 5, 6)])
-        update.assert_called_once_with(inst)
-
-
-class TestTracerouteExtUpdate(object):
-    """
-    Unit tests for lib.packet.ext.traceroute.TracerouteExt.update
+    Unit tests for lib.packet.ext.traceroute.TracerouteExt.pack
     """
     @patch("lib.packet.ext.traceroute.ISD_AD", autospec=True)
     def test(self, isd_ad):
         inst = TracerouteExt()
-        inst._set_payload = create_mock()
+        inst._check_len = create_mock()
         inst._hdr_len = 2
         inst.hops = [(1, 2, 3, 4), (5, 6, 7, 8)]
         isd_ad_obj = create_mock(["pack"])
@@ -133,11 +116,25 @@ class TestTracerouteExtUpdate(object):
             bytes.fromhex('0003 0004'), b'ad_2',
             bytes.fromhex('0007 0008')))
         # Call
-        inst.update()
+        ntools.eq_(inst.pack(), expected)
         # Tests
         assert_these_call_lists(isd_ad, [
             call(1, 2).pack(), call(5, 6).pack()])
-        inst._set_payload.assert_called_once_with(expected)
+        inst._check_len.assert_called_once_with(expected)
+
+
+class TestTracerouteExtAppendHop(object):
+    """
+    Unit tests for lib.packet.ext.traceroute.TracerouteExt.append_hop
+    """
+    def test(self):
+        inst = TracerouteExt()
+        inst.hops = [1]
+        inst._hdr_len = 2
+        # Call
+        inst.append_hop(3, 4, 5, 6)
+        # Tests
+        ntools.eq_(inst.hops, [1, (3, 4, 5, 6)])
 
 
 if __name__ == "__main__":
