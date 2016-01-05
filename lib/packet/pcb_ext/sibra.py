@@ -31,6 +31,7 @@ class SibraPcbExt(BeaconExtension):
     describe, and ephemeral b/w requires 17 bits. So, we can pack both into a
     32bit value. The top 5 bits are reserved.
     """
+    # FIXME(kormat): this needs updating to just show total available bandwidth.
     NAME = "SibraPcbExt"
     EXT_TYPE = BeaconExtType.SIBRA
     LEN = 4
