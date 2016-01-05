@@ -248,18 +248,17 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         )
         self.send(rep_pkt, next_hop, port)
 
-    def _handle_pending_requests(self, added):
-        for dst_isd, dst_ad in added:
-            to_remove = []
-            # Serve pending requests.
-            for pkt in self.pending_req[(dst_isd, dst_ad)]:
-                if self.path_resolution(pkt, new_request=False):
-                    to_remove.append(pkt)
-            # Clean state.
-            for pkt in to_remove:
-                self.pending_req[(dst_isd, dst_ad)].remove(pkt)
-            if not self.pending_req[(dst_isd, dst_ad)]:
-                del self.pending_req[(dst_isd, dst_ad)]
+    def _handle_pending_requests(self, dst_isd, dst_ad):
+        to_remove = []
+        # Serve pending requests.
+        for pkt in self.pending_req[(dst_isd, dst_ad)]:
+            if self.path_resolution(pkt, new_request=False):
+                to_remove.append(pkt)
+        # Clean state.
+        for pkt in to_remove:
+            self.pending_req[(dst_isd, dst_ad)].remove(pkt)
+        if not self.pending_req[(dst_isd, dst_ad)]:
+            del self.pending_req[(dst_isd, dst_ad)]
 
     def dispatch_path_segment_record(self, pkt):
         """
@@ -282,7 +281,9 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         for handler in handlers:
             added.update(handler(pkt))
         # Handling pending request, basing on added segments.
-        self._handle_pending_requests(added)
+        for dst_isd, dst_ad in added:
+            self._handle_pending_requests(dst_isd, dst_ad)
+            self._handle_pending_requests(dst_isd, 0)
 
     @abstractmethod
     def path_resolution(self, path_request):

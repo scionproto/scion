@@ -276,6 +276,7 @@ class CorePathServer(PathServer):
             logging.warning("Dropping request: requested DST is local AD")
             return False
 
+        # dst_ad=0 means any core AS in the specified ISD
         dst_is_core = dst in self._core_ads[dst.isd] or not dst.ad
         if dst_is_core:
             core_seg = self._resolve_core(pkt, dst.isd, dst.ad, new_request)
@@ -302,9 +303,12 @@ class CorePathServer(PathServer):
         Dst is core AS.
         """
         my_isd, my_ad = self.addr.get_isd_ad()
-        core_seg = set(self.core_segments(first_isd=dst_isd,
-                                          first_ad=dst_ad or None,
-                                          last_isd=my_isd, last_ad=my_ad))
+        params = {"first_isd": dst_isd, "last_isd": my_isd, "last_ad": my_ad}
+        if dst_ad:
+            # dst_ad=0 means any core AS in the specified ISD, so only
+            # filter on the remote AS if it isn't 0
+            params["first_ad"] = dst_ad
+        core_seg = set(self.core_segments(**params))
         if not core_seg and new_request:
             # Segments not found and it is a neq request.
             self.pending_req[(dst_isd, dst_ad)].append(pkt)

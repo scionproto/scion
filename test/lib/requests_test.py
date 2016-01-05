@@ -40,11 +40,14 @@ class TestRequestHandlerRun(object):
         inst = RequestHandler(q, "check", "fetch", "reply")
         inst._add_req = create_mock()
         inst._answer_reqs = create_mock()
+        inst._key_map = create_mock()
+        inst._key_map.side_effect = ("key0map0", "key0map1"), ("key1map0",)
         # Call
         ntools.assert_raises(StopIteration, inst.run)
         # Tests
         inst._add_req.assert_called_once_with("key0", "req0")
-        assert_these_calls(inst._answer_reqs, [call("key0"), call("key1")])
+        assert_these_calls(inst._answer_reqs, [
+            call("key0map0"), call("key0map1"), call("key1map0")])
 
 
 class TestRequestHandlerAddReq(object):
@@ -111,13 +114,6 @@ class TestRequestHandlerAnswerReqs(object):
         inst._answer_reqs("key")
         # Tests
         ntools.eq_(inst._req_map["key"], ["req0"])
-        ntools.assert_false(inst._expire_reqs.called)
-
-    def test_no_reqs(self):
-        inst = self._setup()
-        # Call
-        inst._answer_reqs("key")
-        # Tests
         ntools.assert_false(inst._expire_reqs.called)
 
     def test_reqs(self):
