@@ -85,6 +85,7 @@ class SibraExt(HopByHopExtension):
 
     def _parse(self, raw):
         data = Raw(raw, "SibraExt", self.MIN_LEN, min_=True)
+        super()._parse(data)
         self._parse_flags(data.pop(1))
         self.curr_hop = data.pop(1)
         path_lens = struct.unpack("!BBB", data.pop(3))
@@ -182,7 +183,7 @@ class SibraExt(HopByHopExtension):
         if self.req_block:
             raw.append(self.req_block.pack())
         result = b"".join(raw)
-        assert (len(result) + 3) % LINE_LEN == 0
+        self._check_len(result)
         return result
 
     def _pack_flags(self):

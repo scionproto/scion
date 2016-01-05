@@ -145,12 +145,13 @@ class PathTransportExt(EndToEndExtension):
         """
         Parse payload to extract path.
         """
-        super()._parse(raw)
-        self.path_type = self._raw[0]
+        data = Raw(raw, self.NAME, self.MIN_LEN, min_=True)
+        super()._parse(data)
+        self.path_type = data.pop(1)
         if self.path_type == PathTransType.OF_PATH:
-            self.path = PathTransOFPath(self._raw[1:])
+            self.path = PathTransOFPath(data.pop())
         elif self.path_type == PathTransType.PCB_PATH:
-            self.path = PathSegment(self._raw[1:])
+            self.path = PathSegment(data.pop())
         else:
             raise SCIONParseError("Unsupported path type: %s", self.path_type)
 
@@ -161,8 +162,9 @@ class PathTransportExt(EndToEndExtension):
         packed.append(path_packed)
         # Add possible padding.
         packed.append(bytes(calc_padding(len(path_packed) - 4, self.LINE_LEN)))
-        self._set_payload(b"".join(packed))
-        return self._raw
+        raw = b"".join(packed)
+        self._check_len(raw)
+        return raw
 
     def __str__(self):  # pragma: no cover
         tmp = ["%s(%dB):" % (self.NAME, len(self))]
