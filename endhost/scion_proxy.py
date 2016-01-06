@@ -453,8 +453,6 @@ def main():
     Parse the command-line arguments and start the proxy server.
     """
     handle_signals()
-    init_logging(LOG_BASE, file_level=logging.DEBUG,
-                 console_level=logging.DEBUG)
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--port",
                         help='Port number to run SCION Proxy on',
@@ -468,7 +466,13 @@ def main():
     server_address = DEFAULT_SERVER_IP, args.port
 
     if args.forward:
-        logging.info("Operating in Forwarding (Bridge) mode.")
+        init_logging(LOG_BASE + "_forward", file_level=logging.DEBUG,
+                     console_level=logging.DEBUG)
+        logging.info("Operating in forwarding (bridge) mode.")
+    else:
+        init_logging(LOG_BASE, file_level=logging.DEBUG,
+                     console_level=logging.DEBUG)
+        logging.info("Operating in normal proxy mode.")
 
     if args.scion:
         logging.info("SCION-socket mode is on.")
