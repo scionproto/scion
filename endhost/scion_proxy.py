@@ -86,8 +86,11 @@ endhost/scion_proxy.py -f
 # Stdlib
 import argparse
 import logging
+import os
 import socket
 import threading
+from binascii import hexlify
+from http.client import HTTPMessage
 from urllib.parse import urlparse, urlunparse
 
 # SCION
@@ -95,12 +98,14 @@ from endhost.scion_socket import ScionServerSocket, ScionClientSocket
 from lib.defines import L4_SSP
 from lib.log import init_logging, log_exception
 from lib.thread import thread_safety_net
+from lib.util import handle_signals
 
 VERSION = '0.1.0'
 BUFLEN = 8192
 DEFAULT_SERVER_IP = '127.0.0.1'
 DEFAULT_SERVER_PORT = 8080
 LOG_BASE = 'logs/scion_proxy'
+CONN_ID_BYTES = 4
 
 
 class ConnectionHandler(object):
@@ -109,7 +114,7 @@ class ConnectionHandler(object):
     """
     server_version = "SCION HTTP Proxy/" + VERSION
 
-    def __init__(self, connection, address):
+    def __init__(self, connection, address, conn_id):
         """
         Create a ConnectionHandler class to handle the incoming HTTP(S) request.
         :param connection: Socket belonging to the incoming connection.
@@ -117,71 +122,60 @@ class ConnectionHandler(object):
         :param address: Address of the connecting party.
         :type address: host, port
         """
+        self.conn_id = conn_id
         self.connection = connection
-        self.client_buffer = b''
-        self.method, self.path, self.protocol = self.get_base_header()
-        if self.method == 'CONNECT':
-            self.do_CONNECT()
-        elif self.method in ('OPTIONS', 'GET', 'HEAD', 'POST', 'PUT',
-                             'DELETE', 'TRACE'):
-            self.handle_others()
-        else:
-            logging.warning("Invalid HTTP(S) header: %s" %
-                            self.client_buffer)
-        self.connection.close()
+        self.method = self.path = self.protocol = None
+        self.headers = HTTPMessage()
 
-    def get_base_header(self):
+        cur_thread = threading.current_thread()
+        cur_thread.name = self.conn_id
+        try:
+            if not self.parse_request():
+                # FIXME(kormat): need error reporting
+                return
+            self.handle_request()
+        finally:
+            cleanup(self.connection)
+
+    def parse_request(self):
         """
         Extracts the request line of an incoming HTTP(S) request.
         :returns: HTTP(S) Method, Path, HTTP(S) Protocol Version
         :rtype: triple
         """
-        while True:
-            received = self.connection.recv(BUFLEN)
-            if not received:
-                # connection is shut down
+        data = []
+        lf_count = 0
+        while lf_count < 2:
+            b = self.connection.recv(1)
+            if not b:
                 logging.info("Client closed the connection.")
-                return 'Unrecognized', 'Unrecognized', 'Unrecognized'
-            self.client_buffer += received
-            newline_loc = self.client_buffer.find(b'\n')
-            if newline_loc != -1:
-                end = newline_loc
-                break
-            carriage_return_loc = self.client_buffer.find(b'\r')
-            if carriage_return_loc != -1:
-                end = carriage_return_loc
-                break
-        logging.info("Requestline = %s" % self.client_buffer[:end])
-        base_header = self.client_buffer[:end+1].decode('ascii').split()
-        self.client_buffer = self.client_buffer[end+1:]
-        if not self._remaining_headers_and_strip_keepalive():
-            return 'Incomplete', 'Incomplete', 'Incomplete'
-        return base_header
-
-    def _remaining_headers_and_strip_keepalive(self):
-        """
-        Reads the rest of the headers, ensures the request is terminated
-        properly and tells the server to close the connection once the request
-        is completed.
-        :returns: True or False
-        :rtype: boolean
-        """
-        while True:
-            end_of_req = self.client_buffer.find(b'\r\n\r\n')
-            if end_of_req != -1:
-                break
-            received = self.connection.recv(BUFLEN)
-            if not received:
-                # connection is shut down, incomplete (invalid) request
-                logging.info("Client closed the connection. Invalid request")
                 return False
-            self.client_buffer += received
-        # explicitly tell the server to close the connection once the request
-        # is completed
-        self.client_buffer = self.client_buffer.\
-            replace(b'Connection: keep-alive',
-                    b'Connection: close')
+            if b == b"\r":
+                # Drop \r's, as recommended by rfc2616 19.3
+                continue
+            data.append(b)
+            if b == b"\n":
+                lf_count += 1
+            else:
+                lf_count = 0
+        lines = b"".join(data).decode("ascii").split("\n")
+        self.method, self.path, self.protocol = lines.pop(0).split(" ")
+        for line in lines:
+            if not line:
+                break
+            self.headers.add_header(*line.split(": ", 1))
+        logging.info("Request: %s %s %s", self.method, self.path, self.protocol)
+        logging.debug("Request headers:\n%s", self.headers)
         return True
+
+    def handle_request(self):
+        if self.method == 'CONNECT':
+            self.do_CONNECT()
+        elif self.method in ('GET', 'HEAD', 'POST', 'PUT', 'DELETE'):
+            self.handle_others()
+        else:
+            # FIXME(kormat): need error reporting
+            logging.warning("Invalid HTTP(S) request")
 
     def do_CONNECT(self):
         """
@@ -191,16 +185,17 @@ class ConnectionHandler(object):
         """
         soc = self._connect_to(self.path)
         if not soc:
+            # FIXME(kormat): needs error handling
             return
+        reply = "\r\n".join([
+            "HTTP/1.1 200 Connection established",
+            "Proxy-agent: %s" % self.server_version
+        ]) + "\r\n\r\n"
         try:
-            reply = self.protocol + \
-                " 200 Connection established\n" + \
-                "Proxy-agent: %s\n\n" % self.server_version
-            self.connection.send(bytes(reply, 'ascii'))
-            self.client_buffer = b''
+            self.connection.send(reply.encode("ascii"))
             self._read_write(soc)
         finally:
-            soc.close()
+            cleanup(soc)
 
     def handle_others(self):
         """
@@ -213,14 +208,20 @@ class ConnectionHandler(object):
         if scm != 'http' or not netloc:
             logging.error("Bad URL %s" % self.path)
             return
+        conn_hdr = self.headers["Connection"]
+        if conn_hdr:
+            del self.headers[conn_hdr]
+            self.headers.replace_header("Connection", "close")
         soc = self._connect_to(netloc)
         if not soc:
+            # FIXME(kormat): needs error handling
             return
         try:
             self._send_request(soc, scm, netloc, path, params, query)
             self._read_write(soc)
         finally:
-            soc.close()
+            cleanup(soc)
+        logging.debug("Done")
 
     def _connect_to(self, netloc):
         """
@@ -257,16 +258,17 @@ class ConnectionHandler(object):
         :param query: Query section of the HTTP request (if any).
         :type query: String
         """
-        base = "%s %s %s\n" % (
+        base = "%s %s HTTP/1.0" % (
             self.method,
-            urlunparse((scm, netloc, path, params, query, '')),
-            self.protocol)
-        req_bytes = []
-        req_bytes.append(bytes(base, 'ascii'))
-        req_bytes.append(self.client_buffer)
+            urlunparse((scm, netloc, path, params, query, '')))
+        req = []
+        req.append(base)
+        for hdr, val in self.headers.items():
+            req.append("%s: %s" % (hdr, val))
+        req_bytes = ("\r\n".join(req) + "\r\n\r\n").encode("ascii")
         logging.debug("Sending a request: %s", req_bytes)
-        soc.send(b''.join(req_bytes))
-        self.client_buffer = b''
+        # FIXME(kormat): need error handling/reporting
+        soc.send(req_bytes)
 
     def _read_write(self, target_sock):
         """
@@ -276,63 +278,51 @@ class ConnectionHandler(object):
         :param target_sock: The socket belonging to the remote target.
         :type target_sock: socket
         """
-        t1 = threading.Thread(target=thread_safety_net,
-                              args=(self._read_write_loop, self.connection,
-                                    target_sock))
-        t2 = threading.Thread(target=thread_safety_net,
-                              args=(self._read_write_loop, target_sock,
-                                    self.connection))
-        t1.start()
-        t2.start()
-        t1.join()
-        t2.join()
+        shutdown = threading.Event()
+        threading.Thread(
+            target=thread_safety_net,
+            args=(ProxyData, self.connection, target_sock, shutdown),
+            name="%s-c2s" % self.conn_id).start()
+        threading.Thread(
+            target=thread_safety_net,
+            args=(ProxyData, target_sock, self.connection, shutdown),
+            name="%s-s2c" % self.conn_id).start()
+        # Wait until the at least one of the threads is finished, and then
+        # return, which will close the socks, and cause the other thread to also
+        # finish.
+        shutdown.wait()
 
-    def _read_write_loop(self, incoming, target_sock):
-        """
-        Loop until a maximum number of tries on the sockets and proxy
-        the data read between the two sockets. This should normally be
-        done with a select.select() call but our SCION multi-path socket
-        does not yet support select.
-        :param incoming: Socket to read the data from.
-        :type incoming: socket.
-        :param target_sock: Socket to write the data to.
-        :type target_sock: socket.
-        """
-        while True:
-            if not self._proxy(incoming, target_sock):
-                break
 
-    def _proxy(self, incoming, target_sock):
-        """
-        Helper function to go read data from the incoming socket and write
-        it out to the target socket.
-        :param incoming: Socket to read the data from.
-        :type incoming: socket.
-        :param target_sock: Socket to write the data to.
-        :type target_sock: socket.
-        :returns: Whether successfully proxied between to sockets.
-        :rtype: boolean
-        """
+class ProxyData(object):
+    def __init__(self, rsock, wsock, shutdown):
+        self.rsock = rsock
+        self.wsock = wsock
+        self.cleanup = cleanup
+        self.shutdown = shutdown
+        self._run()
+
+    def _run(self):
+        while not self.shutdown.is_set():
+            data = self._read()
+            if data:
+                self._write(data)
+            else:
+                self.shutdown.set()
+        logging.debug("Done")
+
+    def _read(self):
         try:
-            data = incoming.recv(BUFLEN)
+            return self.rsock.recv(BUFLEN)
         except OSError as e:
-            logging.error("Error during recv from incoming socket: %s", e)
-            return False
-        if not data:
-            logging.info("Peer closed the connection.")
-            try:
-                target_sock.shutdown(socket.SHUT_RDWR)
-            except OSError as e:
-                # we are here most likely because socket was already shut-down.
-                # log the exception in any case.
-                logging.warning("Caught exception during shutdown: %s", e)
-            return False
+            self.shutdown.set()
+            logging.debug("Rsock closed: %s", e)
+
+    def _write(self, data):
         try:
-            target_sock.sendall(data)
+            self.wsock.sendall(data)
         except OSError as e:
-            logging.error("Error during sendall on target socket: %s", e)
-            return False
-        return True
+            self.shutdown.set()
+            logging.debug("Wsock closed: %s", e)
 
 
 class ForwardingProxyConnectionHandler(ConnectionHandler):
@@ -344,7 +334,7 @@ class ForwardingProxyConnectionHandler(ConnectionHandler):
     scion_target_proxy = '127.2.26.254', 9090
     isd_ad = 2, 26
 
-    def __init__(self, connection, address, scion_mode):
+    def __init__(self, connection, address, conn_id, scion_mode):
         """
         Create a ConnectionHandler class to handle the incoming
         HTTP(S) request.
@@ -354,16 +344,12 @@ class ForwardingProxyConnectionHandler(ConnectionHandler):
         :type address: host, port
         """
         self.scion_mode = scion_mode
-        self.connection = connection
-        self.client_buffer = b''
-        self.method, self.path, self.protocol = self.get_base_header()
-        if self.method in ('CONNECT', 'OPTIONS', 'GET', 'HEAD', 'POST', 'PUT',
-                           'DELETE', 'TRACE'):
+        super().__init__(connection, address, conn_id)
+
+    def handle_request(self):
+        logging.debug("Handle request: %s", self.method)
+        if self.method in ('CONNECT', 'GET', 'HEAD', 'POST', 'PUT', 'DELETE'):
             self.relay_all()
-        else:
-            logging.warning("Unrecognized HTTP(S) header: %s" %
-                            self.client_buffer)
-        self.connection.close()
 
     def relay_all(self):
         """
@@ -374,12 +360,14 @@ class ForwardingProxyConnectionHandler(ConnectionHandler):
         (scm, netloc, path, params, query, _) = urlparse(self.path)
         soc = self._connect_to_target_proxy()
         if not soc:
+            # FIXME(kormat): needs error handling
             return
         try:
             self._send_request(soc, scm, netloc, path, params, query)
             self._read_write(soc)
         finally:
-            soc.close()
+            cleanup(soc)
+        logging.debug("Done")
 
     def _connect_to_target_proxy(self):
         """
@@ -403,10 +391,22 @@ class ForwardingProxyConnectionHandler(ConnectionHandler):
         except OSError:
             log_exception("Error while connecting to %s:%s" %
                           self.unix_target_proxy)
+            cleanup(soc)
             return None
         logging.debug("Connected to target proxy %s:%s" %
                       self.unix_target_proxy)
         return soc
+
+
+def cleanup(sock):
+    try:
+        sock.shutdown(socket.SHUT_RDWR)
+    except OSError:
+        pass
+    try:
+        sock.close()
+    except OSError:
+        pass
 
 
 def serve_forever(soc, bridge_mode, scion_mode):
@@ -422,13 +422,14 @@ def serve_forever(soc, bridge_mode, scion_mode):
     """
     while True:
         con, addr = soc.accept()
+        conn_id = hexlify(os.urandom(CONN_ID_BYTES)).decode("ascii")
         if bridge_mode:
-            params = ForwardingProxyConnectionHandler, con, addr, scion_mode
+            params = (ForwardingProxyConnectionHandler, con, addr, conn_id,
+                      scion_mode)
         else:
-            params = ConnectionHandler, con, addr
+            params = ConnectionHandler, con, addr, conn_id
 
-        threading.Thread(target=thread_safety_net,
-                         args=params,
+        threading.Thread(target=thread_safety_net, args=params,
                          daemon=True).start()
 
 
@@ -452,6 +453,7 @@ def main():
     """
     Parse the command-line arguments and start the proxy server.
     """
+    handle_signals()
     init_logging(LOG_BASE, file_level=logging.DEBUG,
                  console_level=logging.DEBUG)
     parser = argparse.ArgumentParser()
