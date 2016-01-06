@@ -297,7 +297,6 @@ class ProxyData(object):
     def __init__(self, rsock, wsock, shutdown):
         self.rsock = rsock
         self.wsock = wsock
-        self.cleanup = cleanup
         self.shutdown = shutdown
         self._run()
 
