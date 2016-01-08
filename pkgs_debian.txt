@@ -6,6 +6,7 @@ libffi-dev
 make
 net-tools
 netcat-openbsd
+ntp
 python-minimal
 python-pip
 python3-dev
