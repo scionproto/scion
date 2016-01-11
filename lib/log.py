@@ -56,8 +56,9 @@ class _ConsoleErrorHandler(logging.StreamHandler):
 
 class _Rfc3339Formatter(logging.Formatter):
     def formatTime(self, record, _):
-        dt = datetime.fromtimestamp(record.created, tz=timezone.utc)
-        return dt.isoformat(' ')
+        # Not using lib.util.iso_timestamp here, to avoid potential import
+        # loops.
+        return str(datetime.fromtimestamp(record.created, tz=timezone.utc))
 
 
 def init_logging(log_base=None, file_level=logging.DEBUG,
