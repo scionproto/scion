@@ -41,6 +41,11 @@ Path::Path(PathManager *manager, SCIONAddr &localAddr, SCIONAddr &dstAddr, uint8
             ptr += mFirstHop.addrLen;
             mFirstHop.port = *(uint16_t *)ptr;
             ptr += 2;
+#ifdef BYPASS_ROUTERS
+            mFirstHop.addrLen = dstAddr.host.addrLen;
+            memcpy(mFirstHop.addr, dstAddr.host.addr, mFirstHop.addrLen);
+            mFirstHop.port = SCION_UDP_EH_DATA_PORT;
+#endif
             mMTU = *(uint16_t *)ptr;
             if (mMTU == 0)
                 mMTU = SCION_DEFAULT_MTU;
@@ -66,6 +71,7 @@ Path::Path(PathManager *manager, SCIONAddr &localAddr, SCIONAddr &dstAddr, uint8
         mMTU = SCION_DEFAULT_MTU;
     }
     gettimeofday(&mLastSendTime, NULL);
+    pthread_mutex_init(&mMutex, NULL);
 }
 
 Path::~Path()
@@ -74,6 +80,7 @@ Path::~Path()
         free(mPath);
         mPath = NULL;
     }
+    pthread_mutex_destroy(&mMutex);
 }
 
 int Path::send(SCIONPacket *packet, int sock)
@@ -139,29 +146,45 @@ void Path::setInterfaces(uint8_t *interfaces, size_t count)
 
 bool Path::isUp()
 {
-    return mUp;
+    bool ret;
+    pthread_mutex_lock(&mMutex);
+    ret = mUp;
+    pthread_mutex_unlock(&mMutex);
+    return ret;
 }
 
 void Path::setUp()
 {
+    pthread_mutex_lock(&mMutex);
     mUp = true;
     mValid = true;
     mProbeAttempts = 0;
+    pthread_mutex_unlock(&mMutex);
 }
 
 bool Path::isUsed()
 {
-    return mUsed;
+    bool ret;
+    pthread_mutex_lock(&mMutex);
+    ret = mUsed;
+    pthread_mutex_unlock(&mMutex);
+    return ret;
 }
 
 void Path::setUsed(bool used)
 {
+    pthread_mutex_lock(&mMutex);
     mUsed = used;
+    pthread_mutex_unlock(&mMutex);
 }
 
 bool Path::isValid()
 {
-    return mValid;
+    bool ret;
+    pthread_mutex_lock(&mMutex);
+    ret = mValid;
+    pthread_mutex_unlock(&mMutex);
+    return ret;
 }
 
 void Path::setFirstHop(int len, uint8_t *addr)
@@ -275,11 +298,14 @@ SSPPath::~SSPPath()
 
 int SSPPath::send(SCIONPacket *packet, int sock)
 {
+    pthread_mutex_lock(&mMutex);
     bool wasValid = mValid;
+    int acked = mTotalAcked;
+    pthread_mutex_unlock(&mMutex);
     bool sendInterfaces = false;
     SSPPacket *sp = (SSPPacket *)(packet->payload);
     SSPHeader &sh = sp->header;
-    if (mTotalAcked == 0 && !(sh.flags & SSP_ACK)) {
+    if (acked == 0 && !(sh.flags & SSP_ACK)) {
         DEBUG("no packets sent on this path yet\n");
         DEBUG("interface list: %lu bytes\n", mInterfaces.size() * SCION_IF_SIZE + 1);
         sh.flags |= SSP_NEW_PATH;
@@ -353,9 +379,11 @@ int SSPPath::send(SCIONPacket *packet, int sock)
         }
     }
     // payload
-    DEBUG("path %d: %lu bytes of payload at offset %lu\n",
-            mIndex, sp->len, bufptr - buf);
-    memcpy(bufptr, sp->data, sp->len);
+    if (sp->len) {
+        DEBUG("path %d: %lu bytes of payload at offset %lu\n",
+                mIndex, sp->len, bufptr - buf);
+        memcpy(bufptr, sp->data, sp->len);
+    }
 
     struct sockaddr_in sa;
     memset(&sa, 0, sizeof(sa));
@@ -382,18 +410,25 @@ int SSPPath::send(SCIONPacket *packet, int sock)
         packet->sendTime = mLastSendTime;
         pthread_mutex_unlock(&mTimeMutex);
         mManager->didSend(packet);
-        DEBUG("%ld.%06ld: packet %u sent on path %d: %d/%d packets in flight\n",
+        DEBUG("%ld.%06ld: packet %lu(%p) sent on path %d: %d/%d packets in flight\n",
                 mLastSendTime.tv_sec, mLastSendTime.tv_usec,
-                be64toh(sh.offset), mIndex, mState->packetsInFlight(), mState->window());
+                be64toh(sh.offset), packet, mIndex, mState->packetsInFlight(), mState->window());
     } else if (sh.flags & SSP_PROBE) {
         mProbeAttempts++;
-        if (mProbeAttempts >= SSP_PROBE_ATTEMPTS)
+        if (mProbeAttempts >= SSP_PROBE_ATTEMPTS) {
+            pthread_mutex_lock(&mMutex);
             mValid = false;
+            pthread_mutex_unlock(&mMutex);
+        }
     }
 
+    int ret = 0;
+
+    pthread_mutex_lock(&mMutex);
     if (wasValid && !mValid)
-        return 1;
-    return 0;
+        ret = 1;
+    pthread_mutex_unlock(&mMutex);
+    return ret;
 }
 
 int SSPPath::handleData(SCIONPacket *packet)
@@ -416,8 +451,10 @@ int SSPPath::handleAck(SCIONPacket *packet, bool rttSample)
     pthread_mutex_unlock(&mWindowMutex);
     if (mState->isWindowBased())
         pthread_cond_broadcast(&mWindowCond);
+    pthread_mutex_lock(&mMutex);
     mTimeoutCount = 0;
     mTotalAcked++;
+    pthread_mutex_unlock(&mMutex);
     return 0;
 }
 

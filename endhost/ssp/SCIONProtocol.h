@@ -8,6 +8,7 @@
 #include "DataStructures.h"
 #include "ConnectionManager.h"
 #include "OrderedList.h"
+#include "ProtocolConfigs.h"
 
 class SCIONProtocol {
 public:
@@ -39,6 +40,8 @@ public:
     virtual int registerSelect(Notification *n, int mode);
     virtual void deregisterSelect(int index);
 
+    virtual int shutdown();
+
 protected:
     int                    mSocket;
     uint16_t               mSrcPort;
@@ -48,7 +51,7 @@ protected:
     bool                   mReadyToRead;
     pthread_mutex_t        mReadMutex;
     pthread_cond_t         mReadCond;
-    bool                   mRunning;
+    SCIONState             mState;
     std::vector<SCIONAddr> &mDstAddrs;
 
     // dead path probing
@@ -57,6 +60,7 @@ protected:
     struct timeval         mLastProbeTime;
 
     pthread_t              mTimerThread;
+    pthread_mutex_t        mStateMutex;
 };
 
 class SSPProtocol: public SCIONProtocol {
@@ -85,6 +89,10 @@ public:
 
     void notifySender();
 
+    int shutdown();
+    void notifyFinAck();
+
+    uint64_t               mFlowID;
 protected:
     void getWindowSize();
     int getDeadlineFromProfile(DataProfile profile);
@@ -101,7 +109,6 @@ protected:
 
     // initialization, connection establishment
     bool                   mInitialized;
-    uint64_t               mFlowID;
     uint32_t               mLocalReceiveWindow;
     uint32_t               mLocalSendWindow;
     uint32_t               mRemoteWindow;
@@ -119,8 +126,8 @@ protected:
     // recv'ing packets
     uint32_t                mTotalReceived;
     uint64_t                mNextPacket;
-    OrderedList<L4Packet *> *mReadyPackets;
-    OrderedList<L4Packet *> *mOOPackets;
+    OrderedList<SSPPacket *> *mReadyPackets;
+    OrderedList<SSPPacket *> *mOOPackets;
 
     pthread_mutex_t        mSelectMutex;
     std::map<int, Notification> mSelectRead;

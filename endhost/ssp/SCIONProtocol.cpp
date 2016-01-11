@@ -10,6 +10,8 @@
 #include <semaphore.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <signal.h>
+#include <syscall.h>
 
 #include <algorithm>
 #include <set>
@@ -22,8 +24,8 @@ void * timerThread(void *arg)
 {
     SCIONProtocol *p = (SCIONProtocol *)arg;
     while (p->isRunning()) {
-        usleep(SCION_TIMER_INTERVAL);
         p->handleTimerEvent();
+        usleep(SCION_TIMER_INTERVAL);
     }
     return NULL;
 }
@@ -33,7 +35,7 @@ SCIONProtocol::SCIONProtocol(std::vector<SCIONAddr> &dstAddrs, short srcPort, sh
     mDstPort(dstPort),
     mIsReceiver(false),
     mReadyToRead(false),
-    mRunning(true),
+    mState(SCION_RUNNING),
     mDstAddrs(dstAddrs),
     mProbeNum(0)
 {
@@ -41,38 +43,15 @@ SCIONProtocol::SCIONProtocol(std::vector<SCIONAddr> &dstAddrs, short srcPort, sh
     mSocket = socket(AF_INET, SOCK_DGRAM, 0);
     pthread_mutex_init(&mReadMutex, NULL);
     pthread_cond_init(&mReadCond, NULL);
-}
-
-SCIONProtocol::SCIONProtocol(const SCIONProtocol &p)
-    : mSocket(p.mSocket),
-    mSrcPort(p.mSrcPort),
-    mDstPort(p.mDstPort),
-    mIsReceiver(false),
-    mReadyToRead(false),
-    mRunning(true),
-    mDstAddrs(p.mDstAddrs)
-{
-    pthread_mutex_init(&mReadMutex, NULL);
-    pthread_cond_init(&mReadCond, NULL);
+    pthread_mutex_init(&mStateMutex, NULL);
 }
 
 SCIONProtocol::~SCIONProtocol()
 {
     close(mSocket);
-}
-
-SCIONProtocol & SCIONProtocol::operator=(const SCIONProtocol &p)
-{
-    mSocket = p.mSocket;
-    mSrcPort = p.mSrcPort;
-    mDstPort = p.mDstPort;
-    mIsReceiver = p.mIsReceiver;
-    mReadyToRead = false;
-    mRunning = p.mRunning;
-    mDstAddrs = p.mDstAddrs;
-    pthread_mutex_init(&mReadMutex, NULL);
-    pthread_cond_init(&mReadCond, NULL);
-    return *this;
+    pthread_mutex_destroy(&mReadMutex);
+    pthread_cond_destroy(&mReadCond);
+    pthread_mutex_destroy(&mStateMutex);
 }
 
 int SCIONProtocol::send(uint8_t *buf, size_t len, DataProfile profile)
@@ -101,7 +80,7 @@ bool SCIONProtocol::isReceiver()
 
 bool SCIONProtocol::isRunning()
 {
-    return mRunning;
+    return mState != SCION_CLOSED;
 }
 
 void SCIONProtocol::setReceiver(bool receiver)
@@ -145,12 +124,17 @@ void SCIONProtocol::deregisterSelect(int index)
 {
 }
 
+int SCIONProtocol::shutdown()
+{
+    return 0;
+}
+
 // SSP
 
 SSPProtocol::SSPProtocol(std::vector<SCIONAddr> &dstAddrs, short srcPort, short dstPort)
     : SCIONProtocol(dstAddrs, srcPort, dstPort),
-    mInitialized(false),
     mFlowID(0),
+    mInitialized(false),
     mInitAckCount(0),
     mLowestPending(0),
     mHighestReceived(0),
@@ -162,8 +146,8 @@ SSPProtocol::SSPProtocol(std::vector<SCIONAddr> &dstAddrs, short srcPort, short 
 {
     mProtocolID = SCION_PROTO_SSP;
     mProbeInterval = SSP_PROBE_INTERVAL;
-    mReadyPackets = new OrderedList<L4Packet *>(NULL, destroySSPPacket);
-    mOOPackets = new OrderedList<L4Packet *>(compareOffset, destroySSPPacket);
+    mReadyPackets = new OrderedList<SSPPacket *>(NULL, destroySSPPacket);
+    mOOPackets = new OrderedList<SSPPacket *>(compareOffset, destroySSPPacket);
 
     if (dstAddrs.size() > 0) {
         while (mFlowID == 0)
@@ -177,17 +161,16 @@ SSPProtocol::SSPProtocol(std::vector<SCIONAddr> &dstAddrs, short srcPort, short 
 
 SSPProtocol::~SSPProtocol()
 {
-    mRunning = false;
-    pthread_join(mTimerThread, NULL);
-    DEBUG("timer thread joined\n");
-    mReadyPackets->clean();
-    delete mReadyPackets;
-    mOOPackets->clean();
-    delete mOOPackets;
+    mState = SCION_CLOSED;
+    pthread_cancel(mTimerThread);
     if (mConnectionManager) {
         delete mConnectionManager;
         mConnectionManager = NULL;
     }
+    mReadyPackets->clean();
+    delete mReadyPackets;
+    mOOPackets->clean();
+    delete mOOPackets;
     pthread_mutex_destroy(&mSelectMutex);
 }
 
@@ -216,8 +199,8 @@ int SSPProtocol::send(uint8_t *buf, size_t len, DataProfile profile)
     uint8_t *ptr = buf;
     size_t totalLen = len;
     size_t packetMax = mConnectionManager->maxPayloadSize();
-    bool sendAll = isFirstPacket();
     while (len > 0) {
+        bool sendAll = isFirstPacket();
         size_t packetLen = packetMax > len ? len : packetMax;
         len -= packetLen;
         mConnectionManager->waitForSendBuffer(packetLen, mLocalSendWindow);
@@ -242,32 +225,57 @@ int SSPProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr)
         DEBUG("no data to read yet\n");
         pthread_cond_wait(&mReadCond, &mReadMutex);
     }
+    pthread_mutex_lock(&mStateMutex);
+    if (mState == SCION_CLOSED || mState == SCION_FIN_READ) {
+        pthread_mutex_unlock(&mStateMutex);
+        pthread_mutex_unlock(&mReadMutex);
+        DEBUG("%lu: connection has already terminated\n", mFlowID);
+        return 0;
+    }
+    pthread_mutex_unlock(&mStateMutex);
 
     DEBUG("start recv\n");
     while (!mReadyPackets->empty()) {
-        L4Packet *sp = mReadyPackets->front();
-        if (sp->number() != mNextPacket) {
+        if (total >= (int)len) {
+            DEBUG("filled user buffer\n");
+            break;
+        }
+        SSPPacket *sp = mReadyPackets->front();
+        if (sp->header.offset != mNextPacket) {
             DEBUG("missing packet %lu\n", mNextPacket);
             missing = true;
             break;
         }
-        if (sp->len + total > len) {
-            DEBUG("not enough buffer space: %d + %d > %d\n",
-                    sp->len, total, len);
-            break;
+        int toRead = len - total > sp->len - sp->dataOffset ? sp->len - sp->dataOffset : len - total;
+        DEBUG("reading %d bytes\n", toRead);
+        if (sp->header.flags & SSP_FIN) {
+            DEBUG("%lu: recv'd FIN packet\n", mFlowID);
+            pthread_mutex_lock(&mStateMutex);
+            mState = SCION_FIN_READ;
+            pthread_mutex_unlock(&mStateMutex);
+        } else {
+            memcpy(ptr, sp->data + sp->dataOffset, toRead);
+            ptr += toRead;
+            total += toRead;
+            sp->dataOffset += toRead;
         }
-        DEBUG("reading %lu bytes\n", sp->len);
-        mReadyPackets->pop();
-        memcpy(ptr, sp->data, sp->len);
-        ptr += sp->len;
-        total += sp->len;
-        didRead(sp);
+        if (sp->dataOffset == sp->len) {
+            DEBUG("%lu: done with packet %lu\n", mFlowID, sp->header.offset);
+            mReadyPackets->pop();
+            didRead(sp);
+        }
     }
     if (mReadyPackets->empty() || missing) {
         DEBUG("no more data ready\n");
-        mReadyToRead = false;
+        pthread_mutex_lock(&mStateMutex);
+        if (mState != SCION_CLOSED && mState != SCION_FIN_READ)
+            mReadyToRead = false;
+        pthread_mutex_unlock(&mStateMutex);
     }
     pthread_mutex_unlock(&mReadMutex);
+    if (!total)
+        DEBUG("%lu: connection has terminated\n", mFlowID);
+    DEBUG("%lu: recv'd total %d bytes\n", mFlowID, total);
     return total;
 }
 
@@ -284,6 +292,7 @@ void SSPProtocol::start(SCIONPacket *packet, uint8_t *buf, int sock)
     mIsReceiver = (buf != NULL);
     if (buf)
         mFlowID = be64toh(*(uint64_t *)buf);
+    DEBUG("%lu created\n", mFlowID);
     SSPEntry se;
     se.flowID = mFlowID;
     se.port = 0;
@@ -335,6 +344,10 @@ int SSPProtocol::handlePacket(SCIONPacket *packet, uint8_t *buf)
         ptr += interfaceLen;
     }
 
+    bool isFin = (sp->header.flags & SSP_FIN) && !(sp->header.flags & SSP_ACK);
+    if (isFin)
+        DEBUG("%lu: incoming FIN packet %lu\n", mFlowID, sp->header.offset);
+
     packet->payload = sp;
     mConnectionManager->handlePacket(packet);
 
@@ -357,16 +370,20 @@ int SSPProtocol::handlePacket(SCIONPacket *packet, uint8_t *buf)
             ptr += 4;
             DEBUG("incoming ACK: L = %lu, I = %d, H = %d, O = %d, V = %#x\n",
                     ack.L, ack.I, ack.H, ack.O, ack.V);
+            if (sp->header.flags & SSP_FIN)
+                DEBUG("%lu: got FIN ACK %ld (L = %lu)\n", mFlowID, ack.L + ack.I, ack.L);
             mConnectionManager->handleAck(packet, mInitAckCount, mIsReceiver);
         }
     }
 
     if (sp->header.flags & SSP_PROBE && !(sp->header.flags & SSP_ACK))
         handleProbe(sp, packet->pathIndex);
-    if (payloadLen > 0) {
-        sp->data = (uint8_t *)malloc(payloadLen);
-        memcpy(sp->data, ptr, payloadLen);
-        sp->len = payloadLen;
+    if (payloadLen > 0 || isFin) {
+        if (payloadLen > 0) {
+            sp->data = (uint8_t *)malloc(payloadLen);
+            memcpy(sp->data, ptr, payloadLen);
+            sp->len = payloadLen;
+        }
         handleData(sp, packet->pathIndex);
     } else {
         destroySSPPacket(sp);
@@ -393,17 +410,20 @@ void SSPProtocol::handleProbe(SSPPacket *packet, int pathIndex)
 
 void SSPProtocol::handleData(SSPPacket *packet, int pathIndex)
 {
-    uint32_t start = packet->header.offset;
-    uint32_t end = start + packet->len;
+    uint64_t start = packet->header.offset;
+    uint64_t end = start + packet->len;
     int len = end - start;
     DEBUG("Incoming SSP packet %u ~ %u\n", start, end);
-    if (end <= mLowestPending) {
+    if (end <= mLowestPending && !(packet->header.flags & SSP_FIN)) {
         DEBUG("Obsolete packet\n");
         sendAck(packet, pathIndex);
         packet->data = NULL;
         destroySSPPacket(packet);
         return;
     }
+
+    if (packet->header.flags & SSP_FIN)
+        DEBUG("%lu: handleData for FIN packet %lu (%lu)\n", mFlowID, start, mLowestPending);
 
     struct timeval now;
     gettimeofday(&now, NULL);
@@ -413,7 +433,8 @@ void SSPProtocol::handleData(SSPPacket *packet, int pathIndex)
     if (start == mLowestPending) {
         DEBUG("in-order packet\n");
         pthread_mutex_lock(&mReadMutex);
-        if (packetSize + mTotalReceived > mLocalReceiveWindow) {
+        if (!(packet->header.flags & SSP_FIN) &&
+                packetSize + mTotalReceived > mLocalReceiveWindow) {
             DEBUG("%lu.%06lu: in-order packet %u: "
                     "Receive window too full: %u/%u\n",
                     now.tv_sec, now.tv_usec,
@@ -429,6 +450,7 @@ void SSPProtocol::handleData(SSPPacket *packet, int pathIndex)
             mHighestReceived = end - 1;
         DEBUG("%u bytes in receive buffer\n", mTotalReceived);
         bool pushed = false;
+        SSPPacket *sp = packet;
         if (mOOPackets->empty()) {
             mReadyPackets->push(packet);
             mLowestPending = end;
@@ -436,7 +458,7 @@ void SSPProtocol::handleData(SSPPacket *packet, int pathIndex)
         } else {
             while (!mOOPackets->empty()) {
                 DEBUG("check out-of-order queue\n");
-                SSPPacket *sp = (SSPPacket *)mOOPackets->front();
+                sp = (SSPPacket *)mOOPackets->front();
                 if (sp->header.offset < end)
                     break;
                 if (!pushed) {
@@ -470,6 +492,12 @@ void SSPProtocol::handleData(SSPPacket *packet, int pathIndex)
                 pthread_mutex_unlock(n.mutex);
             }
             pthread_mutex_unlock(&mSelectMutex);
+            if (sp->header.flags & SSP_FIN) {
+                DEBUG("%lu: Read up to FIN flag, connection done\n", mFlowID);
+                pthread_mutex_lock(&mStateMutex);
+                mState = SCION_FIN_RCVD;
+                pthread_mutex_unlock(&mStateMutex);
+            }
         } else {
             DEBUG("packet was resent on smaller path(s), discard original\n");
         }
@@ -478,7 +506,8 @@ void SSPProtocol::handleData(SSPPacket *packet, int pathIndex)
     } else {
         DEBUG("out-of-order packet %u (%lu)\n", packet->header.offset, mLowestPending);
         pthread_mutex_lock(&mReadMutex);
-        if (packetSize + mTotalReceived > mLocalReceiveWindow - maxPayload) {
+        if (!(packet->header.flags & SSP_FIN) &&
+                packetSize + mTotalReceived > mLocalReceiveWindow - maxPayload) {
             DEBUG("%lu.%06lu: out-of-order packet %u (%lu): "
                     "Receive window too full: %d/%u\n",
                     now.tv_sec, now.tv_usec,
@@ -513,6 +542,9 @@ void SSPProtocol::sendAck(SSPPacket *inPacket, int pathIndex, bool full)
     uint64_t packetNum = inPacket->header.offset;
     DEBUG("send ack for %ld (path %d)\n", packetNum, pathIndex);
 
+    if (inPacket->header.flags & SSP_FIN)
+        DEBUG("%lu: send ack for FIN packet %lu\n", mFlowID, packetNum);
+
     SCIONPacket packet;
     memset(&packet, 0, sizeof(SCIONPacket));
     buildCommonHeader(packet.header.commonHeader, SCION_PROTO_SSP);
@@ -523,6 +555,8 @@ void SSPProtocol::sendAck(SSPPacket *inPacket, int pathIndex, bool full)
     // basic header stuff
     SSPHeader &sh = sp.header;
     sh.flags |= SSP_ACK;
+    if (inPacket->header.flags & SSP_FIN)
+        sh.flags |= SSP_FIN;
     if (full)
         sh.flags |= SSP_FULL;
     sh.headerLen = sizeof(SSPHeader) + sizeof(SSPAck);
@@ -559,6 +593,7 @@ SCIONPacket * SSPProtocol::createPacket(uint8_t *buf, size_t len)
     sp->header.flowID = htobe64(mFlowID);
     sp->header.port = htons(mDstPort);
     sp->header.offset = htobe64(mNextSendByte);
+    DEBUG("%s: created packet %lu at %p\n", __func__, be64toh(sp->header.offset), packet);
     if (!mInitialized) {
         DEBUG("include window size for initial packet\n");
         sp->header.flags |= SSP_WINDOW;
@@ -566,8 +601,10 @@ SCIONPacket * SSPProtocol::createPacket(uint8_t *buf, size_t len)
         sp->header.headerLen += 4;
         mInitialized = true;
     }
-    sp->data = (uint8_t *)malloc(len);
-    memcpy(sp->data, buf, len);
+    if (len > 0) {
+        sp->data = (uint8_t *)malloc(len);
+        memcpy(sp->data, buf, len);
+    }
     sp->len = len;
     mNextSendByte += len;
 
@@ -643,6 +680,48 @@ void SSPProtocol::notifySender()
     pthread_mutex_unlock(&mSelectMutex);
 }
 
+int SSPProtocol::shutdown()
+{
+    pthread_mutex_lock(&mStateMutex);
+    DEBUG("%lu: shutdown\n", mFlowID);
+    if (mState == SCION_CLOSED) {
+        pthread_mutex_unlock(&mStateMutex);
+        return 0;
+    }
+    if (mState == SCION_FIN_READ ||
+            mState == SCION_FIN_RCVD ||
+            (!mIsReceiver && mNextSendByte == 0)) {
+        if (mState == SCION_RUNNING)
+            mState = SCION_CLOSED;
+        pthread_mutex_unlock(&mStateMutex);
+        pthread_mutex_lock(&mReadMutex);
+        mReadyToRead = true;
+        pthread_cond_broadcast(&mReadCond);
+        pthread_mutex_unlock(&mReadMutex);
+        return 0;
+    }
+    mState = SCION_SHUTDOWN;
+    pthread_mutex_unlock(&mStateMutex);
+
+    SCIONPacket *packet = createPacket(NULL, 0);
+    SSPPacket *sp = (SSPPacket *)(packet->payload);
+    sp->header.flags |= SSP_FIN;
+    mConnectionManager->queuePacket(packet);
+    DEBUG("%lu: FIN packet (%lu) sent\n", mFlowID, be64toh(sp->header.offset));
+    return 0;
+}
+
+void SSPProtocol::notifyFinAck()
+{
+    pthread_mutex_lock(&mStateMutex);
+    mState = SCION_CLOSED;
+    pthread_mutex_unlock(&mStateMutex);
+    pthread_mutex_lock(&mReadMutex);
+    mReadyToRead = true;
+    pthread_cond_broadcast(&mReadCond);
+    pthread_mutex_unlock(&mReadMutex);
+}
+
 // SUDP
 
 SUDPProtocol::SUDPProtocol(std::vector<SCIONAddr> &dstAddrs, short srcPort, short dstPort)
@@ -653,6 +732,8 @@ SUDPProtocol::SUDPProtocol(std::vector<SCIONAddr> &dstAddrs, short srcPort, shor
 
 SUDPProtocol::~SUDPProtocol()
 {
+    mState = SCION_CLOSED;
+    pthread_join(mTimerThread, NULL);
     delete mConnectionManager;
 }
 

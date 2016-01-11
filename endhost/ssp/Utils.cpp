@@ -6,6 +6,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #include "Utils.h"
 
@@ -195,13 +197,9 @@ int reversePath(uint8_t *original, uint8_t *reverse, int len)
 uint64_t createRandom(int bits)
 {
     // Eventually use better randomness
+    int fd = open("/dev/urandom", O_RDONLY);
     uint64_t r;
-    srand(time(NULL));
-    r = random();
-    if (bits == 32)
-        return r;
-    r = r << 32;
-    r |= random();
+    read(fd, &r, 8);
     if (bits == 64)
         return r;
     return r & ((1 << bits) - 1);

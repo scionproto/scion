@@ -12,13 +12,20 @@
 #define SSP_FR_THRESHOLD 3
 #define SSP_MAX_LOSS_BURST 100
 
-// SSP Protocol
-
 #define SSP_ACK 0x1
 #define SSP_NEW_PATH 0x2
 #define SSP_PROBE 0x4
 #define SSP_WINDOW 0x8
 #define SSP_FULL 0x10
+#define SSP_FIN 0x80
+
+typedef enum {
+    SCION_CLOSED = 0,
+    SCION_SHUTDOWN,
+    SCION_FIN_RCVD,
+    SCION_FIN_READ,
+    SCION_RUNNING
+} SCIONState;
 
 // SUDP protocol
 

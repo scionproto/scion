@@ -21,6 +21,7 @@ int SCIONRecv(int sock, uint8_t *buf, size_t len,
               SCIONAddr *srcAddr);
 int SCIONSelect(int numfds, fd_set *readfds, fd_set *writefds,
                 struct timeval *timeout);
+int SCIONShutdown(int fd);
 
 SCIONStats * SCIONGetStats(int sock);
 void SCIONDestroyStats(void *stats);

@@ -12,10 +12,10 @@ WRAPPED = wrapper_client wrapper_server
 all: $(BINARIES)
 
 client: client.cpp $(HDRS)
-	$(PP) -o client $(INC) $(LIB) $(CFLAGS) client.cpp -lclient
+	$(PP) -o client $(INC) $(LIB) $(CFLAGS) client.cpp -lclient -lpthread
 
 server: server.cpp $(HDRS)
-	$(PP) -o server $(INC) $(LIB) $(CFLAGS) server.cpp -lserver
+	$(PP) -o server $(INC) $(LIB) $(CFLAGS) server.cpp -lserver -lpthread
 
 hash_client: hash_client.cpp $(HDRS)
 	$(PP) -o hash_client $(INC) $(LIB) $(CFLAGS) hash_client.cpp SHA1.cpp -lclient
