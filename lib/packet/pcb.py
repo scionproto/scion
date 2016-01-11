@@ -21,7 +21,6 @@ import logging
 import struct
 from abc import ABCMeta, abstractmethod
 from binascii import hexlify
-from datetime import datetime, timezone
 
 # External packages
 from Crypto.Hash import SHA256
@@ -37,7 +36,7 @@ from lib.packet.pcb_ext.rev import RevPcbExt
 from lib.packet.pcb_ext.sibra import SibraPcbExt
 from lib.packet.scion_addr import ISD_AD
 from lib.types import PayloadClass, PCBType
-from lib.util import Raw
+from lib.util import Raw, iso_timestamp
 
 #: Default value for length (in bytes) of a revocation token.
 REV_TOKEN_LEN = 32
@@ -557,10 +556,9 @@ class PathSegment(SCIONPayloadBase):
         truncated hash, the IOF timestamp, and the list of hops.
         """
         desc = []
-        dt = datetime.fromtimestamp(self.get_timestamp(), tz=timezone.utc)
         desc.append("%s, %s, " % (
             self.get_hops_hash(hex=True)[:12],
-            dt.isoformat(' '),
+            iso_timestamp(self.get_timestamp()),
         ))
         hops = []
         for adm in self.ads:

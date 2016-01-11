@@ -25,6 +25,7 @@ import shutil
 import signal
 import sys
 import time
+from datetime import datetime, timezone
 from functools import wraps
 
 # External packages
@@ -299,6 +300,16 @@ def _signal_handler(signum, _):
     else:
         logging.error(text)
         sys.exit(1)
+
+
+def iso_timestamp(ts):
+    """
+    Format a unix timestamp as a UTC ISO 8601 format string
+    (YYYY-MM-DD HH:MM:SS.mmmmmm+00:00)
+
+    :param float ts: Seconds since the UNIX epoch.
+    """
+    return str(datetime.fromtimestamp(ts, tz=timezone.utc))
 
 
 class SCIONTime(object):

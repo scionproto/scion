@@ -17,14 +17,13 @@
 """
 # Stdlib
 import struct
-from datetime import datetime, timezone
 from abc import ABCMeta, abstractmethod
 from binascii import hexlify
 
 # SCION
 from lib.types import OpaqueFieldType as OFT
 from lib.errors import SCIONIndexError, SCIONKeyError
-from lib.util import Raw
+from lib.util import Raw, iso_timestamp
 
 
 class OpaqueField(object, metaclass=ABCMeta):
@@ -251,10 +250,9 @@ class InfoOpaqueField(OpaqueField):
             return False
 
     def __str__(self):
-        dt = datetime.fromtimestamp(self.timestamp, tz=timezone.utc)
         return ("[Info OF info(%dB): %s, up: %r, TS: %s, ISD ID: %d, hops: %d]"
                 % (len(self), OFT.to_str(self.info), self.up_flag,
-                   dt.isoformat(' '), self.isd_id, self.hops))
+                   iso_timestamp(self.timestamp), self.isd_id, self.hops))
 
 
 class OpaqueFieldList(object):
