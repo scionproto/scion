@@ -57,7 +57,7 @@ protected:
 
     // dead path probing
     uint32_t               mProbeInterval;
-    uint64_t               mProbeNum;
+    uint32_t               mProbeNum;
     struct timeval         mLastProbeTime;
 
     pthread_t              mTimerThread;
@@ -99,7 +99,7 @@ protected:
     void getWindowSize();
     int getDeadlineFromProfile(DataProfile profile);
 
-    void handleProbe(SSPPacket *packet, int pathIndex);
+    void handleProbe(SCIONPacket *packet);
     void handleData(SSPPacket *packet, int pathIndex);
     void sendAck(SSPPacket *sip, int pathIndex, bool full=false);
 

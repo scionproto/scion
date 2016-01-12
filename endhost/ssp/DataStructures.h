@@ -129,7 +129,8 @@ typedef struct {
 typedef struct {
     uint16_t srcPort;
     uint16_t dstPort;
-    uint8_t flags;
+    uint16_t len;
+    uint16_t checksum;
 } SUDPHeader;
 
 #pragma pack(pop)

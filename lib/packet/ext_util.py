@@ -24,6 +24,7 @@ from lib.defines import L4_PROTOS
 from lib.errors import SCIONParseError
 from lib.packet.ext_hdr import ExtensionHeader
 from lib.packet.ext.path_transport import PathTransportExt
+from lib.packet.ext.path_probe import PathProbeExt
 from lib.packet.ext.sibra import SibraExt
 from lib.packet.ext.traceroute import TracerouteExt
 from lib.types import ExtensionClass, ExtEndToEndType, ExtHopByHopType
@@ -34,6 +35,7 @@ EXTENSION_MAP = {
     (ExtensionClass.HOP_BY_HOP, ExtHopByHopType.TRACEROUTE): TracerouteExt,
     (ExtensionClass.END_TO_END, ExtEndToEndType.PATH_TRANSPORT):
         PathTransportExt,
+    (ExtensionClass.END_TO_END, ExtEndToEndType.PATH_PROBE): PathProbeExt,
 }
 
 

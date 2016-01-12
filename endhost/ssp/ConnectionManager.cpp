@@ -7,6 +7,7 @@
 #include <limits.h>
 
 #include "ConnectionManager.h"
+#include "Extensions.h"
 #include "Path.h"
 #include "SCIONProtocol.h"
 #include "Utils.h"
@@ -242,17 +243,17 @@ void SUDPConnectionManager::sendProbes(uint32_t probeNum, uint16_t srcPort, uint
         DEBUG("send probe on path %lu\n", i);
         SCIONPacket p;
         memset(&p, 0, sizeof(p));
-        buildCommonHeader(p.header.commonHeader, SCION_PROTO_SUDP);
+        buildCommonHeader(p.header.commonHeader, SCION_PROTO_UDP);
+        addProbeExtension(&p.header, probeNum, 0);
         SUDPPacket sp;
         memset(&sp, 0, sizeof(sp));
         p.payload = &sp;
         SUDPHeader &sh = sp.header;
         sh.srcPort = htons(srcPort);
         sh.dstPort = htons(dstPort);
-        sh.flags |= SUDP_PROBE;
-        sp.payload = (void *)(size_t)htonl(probeNum);
-        sp.payloadLen = 4;
+        sh.len = htons(sizeof(SUDPHeader));
         ret |= mPaths[i]->send(&p, mSendSocket);
+        free(p.header.extensions);
         if (mLastProbeAcked[i] < probeNum - 3) {
             struct timeval t;
             gettimeofday(&t, NULL);
@@ -293,23 +294,25 @@ void SUDPConnectionManager::handlePacket(SCIONPacket *packet)
     DEBUG("packet came on path %d\n", index);
     mPaths[index]->setUp();
     SUDPPacket *sp = (SUDPPacket *)(packet->payload);
-    if (sp->header.flags & SUDP_PROBE) {
-        if (sp->header.flags & SUDP_PROBE_ACK) {
-            mLastProbeAcked[index] = ntohl((size_t)(sp->payload) & 0xffffffff);
+    SCIONExtension *ext = findProbeExtension(&packet->header);
+    if (ext != NULL) {
+        uint32_t probeNum = getProbeNum(ext);
+        DEBUG("contains probe extension with ID %u\n", probeNum);
+        if (*(uint8_t *)ext->data) {
+            mLastProbeAcked[index] = probeNum;
             DEBUG("probe %u acked on path %d\n", mLastProbeAcked[index], index);
         } else {
             SCIONPacket p;
             memset(&p, 0, sizeof(p));
-            buildCommonHeader(p.header.commonHeader, SCION_PROTO_SUDP);
+            buildCommonHeader(p.header.commonHeader, SCION_PROTO_UDP);
+            addProbeExtension(&p.header, probeNum, 1);
             SUDPPacket ack;
             p.payload = &ack;
             memset(&ack, 0, sizeof(ack));
             SUDPHeader &sh = ack.header;
             sh.srcPort = htons(sp->header.dstPort);
             sh.dstPort = htons(sp->header.srcPort);
-            sh.flags |= SUDP_PROBE | SUDP_PROBE_ACK;
-            ack.payload = sp->payload;
-            ack.payloadLen = 4;
+            sh.len = htons(sizeof(sh));
             mPaths[index]->send(&p, mSendSocket);
             DEBUG("sending probe ack back to dst port %d\n", sp->header.srcPort);
         }
@@ -462,18 +465,18 @@ void SSPConnectionManager::sendProbes(uint32_t probeNum, uint64_t flowID)
         SSPPath *p = (SSPPath *)mPaths[i];
         if (!p || p->isUp() || !p->isValid())
             continue;
-        DEBUG("send probe on path %lu\n", i);
+        DEBUG("send probe %u on path %lu\n", probeNum, i);
         SCIONPacket packet;
         memset(&packet, 0, sizeof(packet));
         buildCommonHeader(packet.header.commonHeader, SCION_PROTO_SSP);
+        addProbeExtension(&packet.header, probeNum, 0);
         SSPPacket sp;
         packet.payload = &sp;
         SSPHeader &sh = sp.header;
         sh.headerLen = sizeof(sh);
         sh.flowID = htobe64(flowID);
-        sh.offset = htobe64((uint64_t)probeNum);
-        sh.flags |= SSP_PROBE;
         int ret = p->send(&packet, mSendSocket);
+        free(packet.header.extensions);
         if (ret) {
             DEBUG("terminate path %lu\n", i);
             refresh = true;

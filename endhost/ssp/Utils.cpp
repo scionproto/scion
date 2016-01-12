@@ -42,6 +42,14 @@ void destroySCIONPacket(void *p)
     SCIONPacket *packet = (SCIONPacket *)p;
     if (packet->header.path)
         free(packet->header.path);
+    SCIONExtension *se = packet->header.extensions;
+    while (se) {
+        SCIONExtension *next = se->nextExt;
+        if (se->data)
+            free(se->data);
+        free(se);
+        se = next;
+    }
     free(packet);
 }
 
@@ -95,6 +103,14 @@ int reversePath(uint8_t *original, uint8_t *reverse, int len)
         coreHops = *(coreIOF + 7);
         downIOF = coreIOF + (coreHops + 1) * 8;
         downHops = *(downIOF + 7);
+        if (downIOF >= original + len) {
+            downIOF = coreIOF;
+            downHops = coreHops;
+            coreIOF = NULL;
+            coreHops = 0;
+        } else {
+            downHops = *(downIOF + 7);
+        }
         DEBUG("%d up hops, %d core hops, %d down hops\n", upHops, coreHops, downHops);
 
         // up segment = reversed down segment
@@ -227,7 +243,7 @@ int registerFlow(int proto, void *data, int sock, uint8_t reg)
             len = 12;
             break;
         }
-        case SCION_PROTO_SUDP: {
+        case SCION_PROTO_UDP: {
             SUDPEntry *se = (SUDPEntry *)data;
             memcpy(buf + 2, &se->port, sizeof(se->port));
             len = 4;
@@ -254,4 +270,66 @@ void destroyStats(SCIONStats *stats)
             free(stats->ifLists[i]);
     }
     free(stats);
+}
+
+int isL4(uint8_t headerType)
+{
+    switch (headerType) {
+    case SCION_PROTO_ICMP:
+    case SCION_PROTO_TCP:
+    case SCION_PROTO_UDP:
+    case SCION_PROTO_SSP:
+    case SCION_PROTO_NONE:
+    case SCION_PROTO_RES:
+        return headerType;
+    default:
+        return 0;
+    }
+}
+
+uint16_t checksum(SCIONPacket *packet)
+{
+    SCIONHeader *sh = &packet->header;
+    SUDPPacket *sp = (SUDPPacket *)(packet->payload);
+    SUDPHeader *uh = &sp->header;
+    uint32_t sum = 0;
+    int i;
+    uint8_t buf[uh->len + 2 * SCION_ADDR_LEN + 1];
+    uint8_t *ptr = buf;
+    int total;
+
+    memcpy(ptr, sh->srcAddr, SCION_ADDR_LEN);
+    ptr += SCION_ADDR_LEN;
+    memcpy(ptr, sh->dstAddr, SCION_ADDR_LEN);
+    ptr += SCION_ADDR_LEN;
+    *ptr++ = SCION_PROTO_UDP;
+    *(uint16_t *)ptr = uh->srcPort;
+    ptr += 2;
+    *(uint16_t *)ptr = uh->dstPort;
+    ptr += 2;
+    *(uint16_t *)ptr = uh->len;
+    ptr += 2;
+    memcpy(ptr, sp->payload, sp->payloadLen);
+    ptr += sp->payloadLen;
+
+    total = ptr - buf;
+    if (total % 2 != 0) {
+        *ptr = 0;
+        ptr++;
+        total++;
+    }
+
+    for (i = 0; i < total; i += 2)
+        sum += *(uint16_t *)(buf + i);
+    sum = (sum >> 16) + (sum & 0xffff);
+    sum += sum >> 16;
+    sum = ~sum;
+
+    if (htons(1) == 1) {
+        /* Big endian */
+        return sum & 0xffff;
+    } else {
+        /* Little endian */
+        return (((sum >> 8) & 0xff) | sum << 8) & 0xffff;
+    }
 }

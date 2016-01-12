@@ -1,41 +1,12 @@
-#include <pthread.h>
 #include <stdlib.h>
 #include <arpa/inet.h>
 #include <string.h>
 #include <stdio.h>
-#include "SCIONSocket.h"
 #include <unistd.h>
 
-#define BUFSIZE 10240
+#include "SCIONSocket.h"
 
-void *sender(void *arg)
-{
-    printf("start sender thread\n");
-    uint8_t buf[BUFSIZE];
-    memset(buf, 0, BUFSIZE);
-    SCIONSocket *sock = (SCIONSocket *)arg;
-    int count = 0;
-    while (1) {
-        count++;
-        sprintf((char *)buf, "This is message %d\n", count);
-        sock->send(buf, BUFSIZE);
-        printf("client sent message on sock %p\n", sock);
-        usleep(50000);
-    }
-    return NULL;
-}
-
-void *receiver(void *arg)
-{
-    printf("start receiver thread\n");
-    uint8_t buf[BUFSIZE];
-    SCIONSocket *sock = (SCIONSocket *)arg;
-    while (1) {
-        sock->recv(buf, BUFSIZE, NULL);
-        printf("client received message on sock %p\n", sock);
-    }
-    return NULL;
-}
+#define BUFSIZE 1024
 
 int main(int argc, char **argv)
 {
@@ -57,17 +28,16 @@ int main(int argc, char **argv)
     in_addr_t in = inet_addr(str);
     memcpy(saddr.host.addr, &in, 4);
     addrs[0] = saddr;
-    pthread_t sendthread;
-    pthread_t recvthread;
-    SCIONSocket *s;
-    for (int i = 0; i < 10; i++) {
-        printf("client will create new socket\n");
-        s = new SCIONSocket(SCION_PROTO_SSP, addrs, 1, 0, 8080);
-
-        pthread_create(&sendthread, NULL, sender, s);
-        pthread_create(&recvthread, NULL, receiver, s);
+    SCIONSocket s(SCION_PROTO_UDP, addrs, 1, 0, 8080);
+    int count = 0;
+    char buf[BUFSIZE];
+    memset(buf, 0, BUFSIZE);
+    while (1) {
+        count++;
+        sprintf(buf, "This is message %d\n", count);
+        printf("sending message: %s", buf);
+        s.send((uint8_t *)buf, strlen(buf));
+        usleep(500000);
     }
-    pthread_join(sendthread, NULL);
-    pthread_join(recvthread, NULL);
     exit(0);
 }

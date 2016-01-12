@@ -12,6 +12,7 @@
 #include <sys/mman.h>
 
 #include "SCIONSocket.h"
+#include "Extensions.h"
 
 void signalHandler(int signum)
 {
@@ -38,7 +39,8 @@ void *dispatcherThread(void *arg)
                             (struct sockaddr *)&addr, &addrLen);
         if (len > 0) {
             DEBUG("received %d bytes from dispatcher\n", len);
-            addr = *(struct sockaddr_in *)(buf + len - sizeof(addr));
+            if (!ss->bypassDispatcher())
+                addr = *(struct sockaddr_in *)(buf + len - sizeof(addr));
             ss->handlePacket((uint8_t *)buf, len - sizeof(addr), &addr);
         }
     }
@@ -89,7 +91,7 @@ SCIONSocket::SCIONSocket(int protocol, SCIONAddr *dstAddrs, int numAddrs,
             }
             break;
         }
-        case SCION_PROTO_SUDP: {
+        case SCION_PROTO_UDP: {
             struct sockaddr_in addr;
             socklen_t addrLen = sizeof(addr);
             memset(&addr, 0, addrLen);
@@ -103,7 +105,7 @@ SCIONSocket::SCIONSocket(int protocol, SCIONAddr *dstAddrs, int numAddrs,
             }
             SUDPEntry se;
             se.port = mSrcPort;
-            registerFlow(SCION_PROTO_SUDP, &se, mDispatcherSocket, 1);
+            registerFlow(SCION_PROTO_UDP, &se, mDispatcherSocket, 1);
             mRegistered = true;
             DEBUG("Registered to receive SUDP packets on port %d\n", mSrcPort);
             mProtocol = new SUDPProtocol(mDstAddrs, mSrcPort, mDstPort);
@@ -132,10 +134,10 @@ SCIONSocket::~SCIONSocket()
         se.port = mSrcPort;
         registerFlow(SCION_PROTO_SSP, &se, mDispatcherSocket, 0);
     }
-    if (mProtocolID == SCION_PROTO_SUDP) {
+    if (mProtocolID == SCION_PROTO_UDP) {
         SUDPEntry se;
         se.port = mSrcPort;
-        registerFlow(SCION_PROTO_SUDP, &se, mDispatcherSocket, 0);
+        registerFlow(SCION_PROTO_UDP, &se, mDispatcherSocket, 0);
     }
     close(mDispatcherSocket);
     pthread_mutex_destroy(&mAcceptMutex);
@@ -209,6 +211,8 @@ void SCIONSocket::handlePacket(uint8_t *buf, size_t len, struct sockaddr_in *add
 #endif
     packet->firstHop = (uint32_t)(addr->sin_addr.s_addr);
 
+    uint8_t *ptr = parseExtensions(&packet->header, buf + sch.headerLen);
+
     if (!mProtocol) {
         pthread_mutex_lock(&mAcceptMutex);
         std::vector<SCIONSocket *>::iterator it = mAcceptedSockets.begin();
@@ -219,7 +223,7 @@ void SCIONSocket::handlePacket(uint8_t *buf, size_t len, struct sockaddr_in *add
             SCIONProtocol *proto = (*it)->mProtocol;
             if (proto && proto->claimPacket(packet, buf + sch.headerLen)) {
                 DEBUG("socket %p claims packet\n", (*it));
-                proto->handlePacket(packet, buf + sch.headerLen);
+                proto->handlePacket(packet, ptr);
                 pthread_mutex_unlock(&mAcceptMutex);
                 return;
             }
@@ -252,7 +256,7 @@ void SCIONSocket::handlePacket(uint8_t *buf, size_t len, struct sockaddr_in *add
         return;
     }
 
-    mProtocol->handlePacket(packet, buf + sch.headerLen);
+    mProtocol->handlePacket(packet, ptr);
 }
 
 void SCIONSocket::setDataProfile(DataProfile profile)
@@ -285,6 +289,11 @@ void SCIONSocket::waitForRegistration()
 int SCIONSocket::getDispatcherSocket()
 {
     return mDispatcherSocket;
+}
+
+bool SCIONSocket::bypassDispatcher()
+{
+    return mProtocolID == SCION_PROTO_UDP;
 }
 
 SCIONStats * SCIONSocket::getStats()

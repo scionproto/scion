@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <set>
 
+#include "Extensions.h"
 #include "ProtocolConfigs.h"
 #include "SCIONProtocol.h"
 #include "Utils.h"
@@ -330,6 +331,11 @@ int SSPProtocol::handlePacket(SCIONPacket *packet, uint8_t *buf)
     sp->header.port = ntohs(sp->header.port);
     sp->header.offset = be64toh(sp->header.offset);
     int payloadLen = sch.totalLen - sch.headerLen - sp->header.headerLen;
+    SCIONExtension *ext = packet->header.extensions;
+    while (ext != NULL) {
+        payloadLen -= (ext->headerLen + 1) * 8;
+        ext = ext->nextExt;
+    }
     DEBUG("payload len = %d\n", payloadLen);
     sp->len = payloadLen;
     ptr += sizeof(SSPHeader);
@@ -357,31 +363,34 @@ int SSPProtocol::handlePacket(SCIONPacket *packet, uint8_t *buf)
 
     if (sp->header.flags & SSP_ACK) {
         DEBUG("incoming packet is ACK\n");
-        if (sp->header.flags & SSP_PROBE) {
-            if (sp->header.offset == mProbeNum)
-                mConnectionManager->handleProbeAck(packet);
-        } else {
-            SSPAck &ack = sp->ack;
-            ack.L = be64toh(*(uint64_t *)ptr);
-            ptr += 8;
-            ack.I = ntohl(*(int32_t *)ptr);
-            ptr += 4;
-            ack.H = ntohl(*(int32_t *)ptr);
-            ptr += 4;
-            ack.O = ntohl(*(int32_t *)ptr);
-            ptr += 4;
-            ack.V = ntohl(*(uint32_t *)ptr);
-            ptr += 4;
-            DEBUG("incoming ACK: L = %lu, I = %d, H = %d, O = %d, V = %#x\n",
-                    ack.L, ack.I, ack.H, ack.O, ack.V);
-            if (sp->header.flags & SSP_FIN)
-                DEBUG("%lu: got FIN ACK %ld (L = %lu)\n", mFlowID, ack.L + ack.I, ack.L);
-            mConnectionManager->handleAck(packet, mInitAckCount, mIsReceiver);
-        }
+        SSPAck &ack = sp->ack;
+        ack.L = be64toh(*(uint64_t *)ptr);
+        ptr += 8;
+        ack.I = ntohl(*(int32_t *)ptr);
+        ptr += 4;
+        ack.H = ntohl(*(int32_t *)ptr);
+        ptr += 4;
+        ack.O = ntohl(*(int32_t *)ptr);
+        ptr += 4;
+        ack.V = ntohl(*(uint32_t *)ptr);
+        ptr += 4;
+        DEBUG("incoming ACK: L = %lu, I = %d, H = %d, O = %d, V = %#x\n",
+                ack.L, ack.I, ack.H, ack.O, ack.V);
+        if (sp->header.flags & SSP_FIN)
+            DEBUG("%lu: got FIN ACK %ld (L = %lu)\n", mFlowID, ack.L + ack.I, ack.L);
+        mConnectionManager->handleAck(packet, mInitAckCount, mIsReceiver);
     }
 
-    if (sp->header.flags & SSP_PROBE && !(sp->header.flags & SSP_ACK))
-        handleProbe(sp, packet->pathIndex);
+    ext = findProbeExtension(&packet->header);
+    if (ext != NULL) {
+        uint32_t probeNum = getProbeNum(ext);
+        if (*(uint8_t *)(ext->data)) {
+            if (probeNum == mProbeNum)
+                mConnectionManager->handleProbeAck(packet);
+        } else {
+            handleProbe(packet);
+        }
+    }
     if (payloadLen > 0 || isFin) {
         if (payloadLen > 0) {
             sp->data = (uint8_t *)malloc(payloadLen);
@@ -396,17 +405,18 @@ int SSPProtocol::handlePacket(SCIONPacket *packet, uint8_t *buf)
     return 0;
 }
 
-void SSPProtocol::handleProbe(SSPPacket *packet, int pathIndex)
+void SSPProtocol::handleProbe(SCIONPacket *packet)
 {
     DEBUG("incoming probe\n");
+    SCIONExtension *ext = findProbeExtension(&packet->header);
+    uint32_t probeNum = getProbeNum(ext);
     SCIONPacket p;
     memset(&p, 0, sizeof(p));
     buildCommonHeader(p.header.commonHeader, SCION_PROTO_SSP);
-    p.pathIndex = pathIndex;
+    addProbeExtension(&p.header, probeNum, 1);
+    p.pathIndex = packet->pathIndex;
     SSPPacket sp;
     p.payload = &sp;
-    sp.header.offset = htobe64(packet->header.offset + 1);
-    sp.header.flags = SSP_PROBE | SSP_ACK;
     sp.header.flowID = htobe64(mFlowID);
     sp.header.headerLen = sizeof(sp.header);
     mConnectionManager->sendAck(&p);
@@ -620,8 +630,8 @@ void SSPProtocol::handleTimerEvent()
     struct timeval current;
     gettimeofday(&current, NULL);
     mConnectionManager->handleTimeout();
-    if (!mIsReceiver && elapsedTime(&mLastProbeTime, &current) >= mProbeInterval) {
-        mConnectionManager->sendProbes(mProbeNum++, mFlowID);
+    if (elapsedTime(&mLastProbeTime, &current) >= mProbeInterval) {
+        mConnectionManager->sendProbes(++mProbeNum, mFlowID);
         mLastProbeTime = current;
     }
 }
@@ -760,13 +770,14 @@ int SUDPProtocol::send(uint8_t *buf, size_t len, DataProfile profile)
     DEBUG("send %lu byte packet\n", len);
     SCIONPacket packet;
     memset(&packet, 0, sizeof(packet));
-    buildCommonHeader(packet.header.commonHeader, SCION_PROTO_SUDP);
+    buildCommonHeader(packet.header.commonHeader, SCION_PROTO_UDP);
     SUDPPacket sp;
     memset(&sp, 0, sizeof(sp));
     packet.payload = &sp;
     SUDPHeader &sh = sp.header;
     sh.srcPort = htons(mSrcPort);
     sh.dstPort = htons(mDstPort);
+    sh.len = htons(sizeof(SUDPHeader) + len);
     sp.payload = malloc(len);
     sp.payloadLen = len;
     memcpy(sp.payload, buf, len);
@@ -810,37 +821,40 @@ int SUDPProtocol::handlePacket(SCIONPacket *packet, uint8_t *buf)
     mDstPort = sp->header.srcPort;
     sp->header.dstPort = ntohs(*(uint16_t *)ptr);
     ptr += 2;
-    sp->header.flags = *ptr;
-    ptr++;
+    sp->header.len = ntohs(*(uint16_t *)ptr);
+    ptr += 2;
+    sp->header.checksum = ntohs(*(uint16_t *)ptr);
+    ptr += 2;
     sp->payloadLen = sch.totalLen - sch.headerLen - sizeof(SUDPHeader);
+    SCIONExtension *ext = packet->header.extensions;
+    while (ext != NULL) {
+        sp->payloadLen -= (ext->headerLen + 1) * SCION_EXT_LINE;
+        ext = ext->nextExt;
+    }
+    bool isProbe = findProbeExtension(&packet->header) != NULL;
     DEBUG("payload %lu bytes\n", sp->payloadLen);
     if (sp->payloadLen > 0) {
-        if (sp->header.flags & SUDP_PROBE) {
-            DEBUG("probe packet\n");
-            memcpy(&(sp->payload), ptr, 4);
-        } else {
-            sp->payload = malloc(sp->payloadLen);
-            memcpy(sp->payload, ptr, sp->payloadLen);
-        }
-        mConnectionManager->handlePacket(packet);
-        if (!(sp->header.flags & SUDP_PROBE)) {
-            DEBUG("data packet\n");
-            int size = sp->payloadLen + sizeof(SUDPPacket);
-            if (mTotalReceived + size > SUDP_RECV_BUFFER) {
-                destroySUDPPacket(sp);
-            } else {
-                pthread_mutex_lock(&mReadMutex);
-                mTotalReceived += size;
-                mReceivedPackets.push_back(sp);
-                pthread_mutex_unlock(&mReadMutex);
-                pthread_cond_signal(&mReadCond);
-            }
-        } else {
-            sp->payload = NULL;
-            destroySUDPPacket(sp);
-        }
-        destroySCIONPacket(packet);
+        sp->payload = malloc(sp->payloadLen);
+        memcpy(sp->payload, ptr, sp->payloadLen);
     }
+    mConnectionManager->handlePacket(packet);
+    if (!isProbe && sp->payloadLen > 0) {
+        DEBUG("data packet\n");
+        int size = sp->payloadLen + sizeof(SUDPPacket);
+        if (mTotalReceived + size > SUDP_RECV_BUFFER) {
+            destroySUDPPacket(sp);
+        } else {
+            pthread_mutex_lock(&mReadMutex);
+            mTotalReceived += size;
+            mReceivedPackets.push_back(sp);
+            pthread_mutex_unlock(&mReadMutex);
+            pthread_cond_signal(&mReadCond);
+        }
+    } else if (isProbe) {
+        sp->payload = NULL;
+        destroySUDPPacket(sp);
+    }
+    destroySCIONPacket(packet);
     return 0;
 }
 
@@ -849,7 +863,7 @@ void SUDPProtocol::handleTimerEvent()
     struct timeval t;
     gettimeofday(&t, NULL);
     if (elapsedTime(&mLastProbeTime, &t) >= SUDP_PROBE_INTERVAL) {
-        mConnectionManager->sendProbes(mProbeNum++, mSrcPort, mDstPort);
+        mConnectionManager->sendProbes(++mProbeNum, mSrcPort, mDstPort);
         mLastProbeTime = t;
     }
 }

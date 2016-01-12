@@ -54,6 +54,7 @@ class ExtHopByHopType(TypeBase):
 
 class ExtEndToEndType(TypeBase):
     PATH_TRANSPORT = 0
+    PATH_PROBE = 1
 
 
 class OpaqueFieldType(TypeBase):
