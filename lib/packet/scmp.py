@@ -23,7 +23,8 @@ import scapy.utils
 
 # SCION
 from lib.errors import SCIONParseError
-from lib.packet.packet_base import HeaderBase, PacketBase
+from lib.packet.ext_hdr import HopByHopExtension, HopByHopType
+from lib.packet.packet_base import HeaderBase, PacketBase, L4HeaderBase
 from lib.util import Raw
 
 
@@ -42,7 +43,42 @@ class SCMPType(object):
     #INVALID_PATH = 2
 
 
-class SCMPHeader(HeaderBase):
+class SCMPHopByHopExt(HopByHopExtension):
+    """
+    Extension to indicate the presence of a hop-by-hop SCMP message.
+
+    SCION extension used to signal a hop-by-hop SCMP message. In this case, the
+    router must ignore all other extensions and examine the payload, which will
+    contain an SCMP message.
+    """
+
+    EXT_TYPE = HopByHopType.SCMP
+    EXT_TYPE_STR = "SCMPHopByHopExt"
+    SIGNAL = '\x01'
+    PAD_BYTE = '\x00'
+
+    def __init__(self):  # pragma: no cover
+        super().__init__()
+        self._set_payload(self.construct_payload())
+
+    def construct_payload(self):
+        """
+        Construct the extension payload.
+
+        Using the class variables `SIGNAL` and `PAD_BYTE`, construct a payload
+        for the extension header that consists of `SIGNAL` and an appropriate
+        number of `PAD_BYTE`s. The number of padding bytes is selected such
+        that the total length of the payload plus the length of the subheader
+        is a multiple of `ExtensionHeader.LINE_LEN`.
+
+        Returns:
+            A str representing the extension payload.
+        """
+        pad_len = ((self.LINE_LEN - self.SUBHDR_LEN - len(self.SIGNAL))
+                    % self.LINE_LEN)
+        return self.SIGNAL + pad_len * self.PAD_BYTE
+
+class SCMPHeader(L4HeaderBase):
     """
     Packet header for SCMP messages.
 
