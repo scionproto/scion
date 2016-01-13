@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`scmp` --- SCION ICMP
-==========================
+:mod:`scmp` --- SCION Control Message Protocol
+==============================================
 """
 # Stdlib
 import struct
