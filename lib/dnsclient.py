@@ -122,8 +122,8 @@ class DNSClient(object):
         except dns.resolver.NXDOMAIN:
             raise DNSLibNxDomain("Name (%s) does not exist" % qname) from None
         except dns.resolver.NoNameservers:
-            raise DNSLibNoServersError("Unable to reach any working nameservers") \
-                from None
+            raise DNSLibNoServersError(
+                "Unable to reach any working nameservers") from None
         except Exception as e:
             raise DNSLibMajorError("Unhandled exception in resolver.") from e
         return self._parse_answer(answer)

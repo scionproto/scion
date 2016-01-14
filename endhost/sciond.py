@@ -294,8 +294,8 @@ class SCIONDaemon(SCIONElement):
 
     def path_resolution(self, dst_isd, dst_ad):
         # dst_ad = 0 means any core AS in the specified ISD.
-        dst_is_core = ((dst_isd, dst_ad) in self._core_ads[dst_isd]
-                       or not dst_ad)
+        dst_is_core = (
+            (dst_isd, dst_ad) in self._core_ads[dst_isd] or not dst_ad)
         if self._in_core:
             return self._resolve_core(dst_isd, dst_ad, dst_is_core)
         elif dst_is_core:  # I'm non core AS, but dst is core.

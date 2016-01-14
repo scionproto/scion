@@ -402,14 +402,13 @@ class ManagementDaemon(object):
 
         kc = KazooClient(hosts=','.join(zookeper_hosts))
         lock_path = '/ISD{}-AD{}/{}/lock'.format(isd_id, ad_id, server_type)
-        get_id = lambda name: name.split('__')[-1]
         try:
             kc.start()
             contenders = kc.get_children(lock_path)
             if not contenders:
                 return response_failure('No lock contenders found')
 
-            lock_holder_file = sorted(contenders, key=get_id)[0]
+            lock_holder_file = sorted(contenders, key=self._get_id)[0]
             lock_holder_path = os.path.join(lock_path, lock_holder_file)
             lock_contents = kc.get(lock_holder_path)
             server_id, _, _ = lock_contents[0].split(b"\x00")
@@ -419,6 +418,9 @@ class ManagementDaemon(object):
             return response_failure('No lock data found')
         finally:
             kc.stop()
+
+    def _get_id(self, name):
+        return name.split('__')[-1]
 
 
 if __name__ == "__main__":
