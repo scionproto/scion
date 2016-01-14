@@ -50,7 +50,7 @@ cmd_help() {
 	
 	Usage:
 	    $PROGRAM all
-	        Install all dependancies.
+	        Install all dependancies (recommended).
 	    $PROGRAM pkgs
 	        Install all system package dependancies (e.g. via apt-get).
 	        Uses sudo.
@@ -67,7 +67,7 @@ cmd_help() {
 
 PROGRAM="${0##*/}"
 COMMAND="$1"
-shift
+shift || { cmd_help; exit; }
 
 case "$COMMAND" in
     all|pkgs|pip|misc)
