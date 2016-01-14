@@ -1,11 +1,9 @@
 #!/bin/bash
 
-set -e
-
 cmd_all() {
     cmd_pkgs
     cmd_pip
-    cmd_misc
+    cmd_supervisor
 }
 
 cmd_pkgs() {
@@ -38,7 +36,7 @@ cmd_pip() {
 }
 
 
-cmd_misc() {
+cmd_supervisor() {
     echo "Installing supervisor packages from pip2"
     pip2 install --user supervisor==3.1.3
     pip2 install --user supervisor-quick
@@ -46,19 +44,19 @@ cmd_misc() {
 
 cmd_help() {
 	cat <<-_EOF
-	$PROGRAM [all|pkgs|pip|misc|help]
+	$PROGRAM [all|pkgs|pip|supervisor|help]
 	
 	Usage:
 	    $PROGRAM all
-	        Install all dependancies.
+	        Install all dependancies (recommended).
 	    $PROGRAM pkgs
-	        Install all system package dependancies (e.g. via apt-get).
-	        Uses sudo.
+	        Install only system package dependancies via apt-get (uses sudo).
 	    $PROGRAM pip
-	        Install all pip package dependancies (using --user, so no root
-	        access required)
-	    $PROGRAM misc
-	        Install any additional packages not from the first 2 sources.
+	        Install only pip package dependancies (using --user, root
+	        privileges not required).
+	    $PROGRAM supervisor
+	        Install only supervisor packages (using --user, root privileges
+	        not required).
 	    $PROGRAM help
 	        Show this text.
 	_EOF
@@ -70,7 +68,8 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    all|pkgs|pip|misc)
-            "cmd_$COMMAND" "$@" ;;
-    help|*)  cmd_help ;;
+    all|pkgs|pip|supervisor|help)
+        "cmd_$COMMAND" "$@" ;;
+    *)
+        cmd_help ;;
 esac
