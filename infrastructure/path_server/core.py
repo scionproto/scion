@@ -290,7 +290,7 @@ class CorePathServer(PathServer):
                 logging.debug("Segs to %d,%d not found." % dst)
             else:
                 # That could happend when a needed segment has expired.
-                logging.warning("Handling pending request and needed seg"
+                logging.warning("Handling pending request and needed segment "
                                 "is missing. Shouldn't be here (too often).")
             return False
 

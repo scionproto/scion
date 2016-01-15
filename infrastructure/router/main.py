@@ -21,6 +21,7 @@ import logging
 import threading
 import time
 import zlib
+from binascii import hexlify
 from collections import defaultdict
 
 # External packages
@@ -74,6 +75,7 @@ from lib.types import (
     PCBType,
     PathMgmtType as PMT,
     PayloadClass,
+    RouterFlag,
 )
 from lib.util import SCIONTime, sleep_interval
 
@@ -190,10 +192,12 @@ class Router(SCIONElement):
         :type pre_routing_phase:
         """
         if pre_routing_phase:
+            prefix = "pre"
             handlers = self.pre_ext_handlers
         else:
+            prefix = "post"
             handlers = self.post_ext_handlers
-        handled = False
+        flags = []
         # Hop-by-hop extensions must be first (just after path), and process
         # only MAX_EXT number of them.
         for i, ext_hdr in enumerate(spkt.ext_hdrs):
@@ -204,19 +208,20 @@ class Router(SCIONElement):
                 return False
             handler = handlers.get(ext_hdr.EXT_TYPE)
             if not handler:
-                logging.warning("No handler for extension type %u",
-                                ext_hdr.EXT_TYPE)
+                logging.debug("No %s-handler for extension type %s",
+                              prefix, ext_hdr.EXT_TYPE)
                 continue
-            if handler(ext_hdr, spkt):
-                handled = True
-        return handled
+            flags.extend(handler(ext_hdr, spkt))
+        return flags
 
     def handle_traceroute(self, hdr, spkt):
         # Truncate milliseconds to 2B
         hdr.append_hop(self.addr.isd_id, self.addr.ad_id, self.interface.if_id)
+        return []
 
     def handle_sibra(self, hdr, spkt):
-        return hdr.process(spkt)
+        hdr.process(spkt)
+        return []
 
     def sync_interface(self):
         """
@@ -581,7 +586,6 @@ class Router(SCIONElement):
         assert curr_iof.info == OFT.SHORTCUT
         if path.is_on_up_path():
             raise SCIONPacketHeaderCorruptedError
-
         self.egress_normal_forward(spkt)
 
     def egress_peer_xovr(self, spkt):
@@ -680,6 +684,35 @@ class Router(SCIONElement):
             )
         )
 
+    def _process_flags(self, flags, pkt, from_local_ad):
+        """
+        Go through the flags set by hop-by-hop extensions on this packet.
+        """
+        # First check if any error or no_process flags are set
+        for (flag, *args) in flags:
+            if flag == RouterFlag.ERROR:
+                logging.error("%s:\n%s", args[0], pkt)
+                return False
+            elif flag == RouterFlag.NO_PROCESS:
+                return False
+        # Now check for other flags
+        for (flag, *args) in flags:
+            if flag == RouterFlag.FORWARD:
+                if from_local_ad:
+                    logging.debug(
+                        "Packet forwarded over link by extension")
+                    self._egress_forward(pkt)
+                elif args[0] == 0:
+                    logging.debug("Packet delivered by extension")
+                    self.deliver(pkt, PT.DATA)
+                else:
+                    next_hop = self.ifid2addr[args[0]]
+                    logging.debug("Packet forwarded by extension via %s",
+                                  next_hop)
+                    self.send(pkt, next_hop)
+                return False
+        return True
+
     def handle_request(self, packet, sender, from_local_socket=True):
         """
         Main routine to handle incoming SCION packets.
@@ -702,15 +735,16 @@ class Router(SCIONElement):
             log_exception("Error parsing packet: %s" % packet,
                           level=logging.ERROR)
             return
-        if self.handle_extensions(pkt, True):
-            # An extention handler has taken care of the packet, so we stop
-            # processing it.
+        flags = self.handle_extensions(pkt, True)
+        if not self._process_flags(flags, pkt, from_local_ad):
+            logging.debug("Stopped processing")
             return
         if self._needs_local_processing(pkt):
             try:
                 pkt.parse_payload()
             except SCIONBaseError:
-                log_exception("Error parsing payload:\n%s" % pkt)
+                log_exception("Error parsing payload:\n%s" %
+                              hexlify(packet).decode("ascii"))
                 return
             handler = self._get_handler(pkt)
         else:
