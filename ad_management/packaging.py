@@ -24,7 +24,7 @@ import json
 import os
 import sys
 import tarfile
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # noqa
 
 # External packages
 from git import Repo

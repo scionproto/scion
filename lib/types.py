@@ -108,3 +108,12 @@ class PCBType(TypeBase):
 
 class IFIDType(object):
     PAYLOAD = 0
+
+
+############################
+# Router types
+############################
+class RouterFlag(TypeBase):
+    ERROR = 0
+    NO_PROCESS = 1
+    FORWARD = 2
