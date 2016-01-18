@@ -92,8 +92,9 @@ class SCMPHopByHopExt(HopByHopExtension):
             A str representing the extension payload.
         """
         pad_len = ((self.LINE_LEN - self.SUBHDR_LEN - len(self.SIGNAL))
-                    % self.LINE_LEN)
+                   % self.LINE_LEN)
         return self.SIGNAL + pad_len * self.PAD_BYTE
+
 
 class SCMPHeader(L4HeaderBase):
     """
@@ -135,9 +136,9 @@ class SCMPHeader(L4HeaderBase):
             struct.unpack("!BBHI", data.pop(self.LEN))
         if not self.verify_checksum():
             raise SCIONParseError(
-                    "SCMPHeader: checksum in header (%s) does not match "
-                    "checksum of supplied data (%s)" % (
-                        hex(self.checksum), hex(self.compute_checksum())))
+                "SCMPHeader: checksum in header (%s) does not match "
+                "checksum of supplied data (%s)" % (
+                    hex(self.checksum), hex(self.compute_checksum())))
 
     @classmethod
     def from_values(cls, type_, code, rest=0):
@@ -180,7 +181,7 @@ class SCMPHeader(L4HeaderBase):
 
     def __str__(self):
         return ("[SCMP type: %d, code: %d, checksum: %x, rest: %x]" %
-                    self.type_, self.code, self.checksum, self.rest)
+                self.type_, self.code, self.checksum, self.rest)
 
     def verify_checksum(self):
         """
