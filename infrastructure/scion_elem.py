@@ -180,17 +180,32 @@ class SCIONElement(object):
         :returns:
         :rtype:
         """
-        if len(spkt.path) == 0:  # EmptyPath
-            if isinstance(spkt, SCIONL4Packet):
-                # FIXME(PSz): this should be removed when we have a dispatcher
-                return spkt.addrs.dst_addr, spkt.l4_hdr.dst_port
-            else:
-                return spkt.addrs.dst_addr, SCION_UDP_PORT
-        if_id = spkt.path.get_fwd_if()
+        if_id = self._ext_first_hop(spkt)
+        if if_id is None:
+            if len(spkt.path) == 0:
+                return self._empty_first_hop(spkt)
+            if_id = spkt.path.get_fwd_if()
         if if_id in self.ifid2addr:
             return self.ifid2addr[if_id], SCION_UDP_PORT
-        else:
+        logging.error("Unable to find first hop")
+        return None, None
+
+    def _ext_first_hop(self, spkt):
+        for hdr in spkt.ext_hdrs:
+            if_id = hdr.get_first_ifid()
+            if if_id is not None:
+                return if_id
+
+    def _empty_first_hop(self, spkt):
+        if ((spkt.addrs.src_isd, spkt.addrs.src_ad) !=
+                (spkt.addrs.dst_isd, spkt.addrs.dst_ad)):
+            logging.error("Packet has no path but different src/dst ADs")
             return None, None
+        if isinstance(spkt, SCIONL4Packet):
+            # FIXME(PSz): this should be removed when we have a dispatcher
+            return spkt.addrs.dst_addr, spkt.l4_hdr.dst_port
+        else:
+            return spkt.addrs.dst_addr, SCION_UDP_PORT
 
     def _build_packet(self, dst_host=None, path=None, ext_hdrs=(), dst_isd=None,
                       dst_ad=None, payload=None, dst_port=SCION_UDP_PORT):

@@ -22,17 +22,18 @@ import struct
 # SCION
 from lib.defines import L4_PROTOS
 from lib.errors import SCIONParseError
-from lib.packet.ext_hdr import EndToEndType, ExtensionHeader, HopByHopType
+from lib.packet.ext_hdr import ExtensionHeader
 from lib.packet.ext.path_transport import PathTransportExt
 from lib.packet.ext.sibra import SibraExt
 from lib.packet.ext.traceroute import TracerouteExt
-from lib.types import ExtensionClass
+from lib.types import ExtensionClass, ExtEndToEndType, ExtHopByHopType
 
 # Dictionary of supported extensions
 EXTENSION_MAP = {
-    (ExtensionClass.HOP_BY_HOP, HopByHopType.SIBRA): SibraExt,
-    (ExtensionClass.HOP_BY_HOP, HopByHopType.TRACEROUTE): TracerouteExt,
-    (ExtensionClass.END_TO_END, EndToEndType.PATH_TRANSPORT): PathTransportExt,
+    (ExtensionClass.HOP_BY_HOP, ExtHopByHopType.SIBRA): SibraExt,
+    (ExtensionClass.HOP_BY_HOP, ExtHopByHopType.TRACEROUTE): TracerouteExt,
+    (ExtensionClass.END_TO_END, ExtEndToEndType.PATH_TRANSPORT):
+        PathTransportExt,
 }
 
 
@@ -59,3 +60,9 @@ def parse_extensions(data, next_hdr):
             ext_class(data.pop(hdr_len - ExtensionHeader.SUBHDR_LEN)))
         cur_hdr_type = next_hdr_type
     return ext_hdrs, cur_hdr_type
+
+
+def find_ext_hdr(spkt, class_, type_):
+    for hdr in spkt.ext_hdrs:
+        if (hdr.EXT_CLASS == class_ and hdr.EXT_TYPE == type_):
+            return hdr

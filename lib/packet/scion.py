@@ -435,12 +435,16 @@ class SCIONExtPacket(SCIONBasePacket):
         packed = [super()._inner_pack()]
         max_idx = len(self.ext_hdrs) - 1
         for i, hdr in enumerate(self.ext_hdrs):
+            ext_packed = []
             next_hdr = self._l4_proto
             if i < max_idx:
                 next_hdr = self.ext_hdrs[i+1].EXT_CLASS
-            packed.append(struct.pack("!BBB", next_hdr, hdr.hdr_len(),
-                                      hdr.EXT_TYPE))
-            packed.append(hdr.pack())
+            ext_packed.append(struct.pack("!BBB", next_hdr, hdr.hdr_len(),
+                                          hdr.EXT_TYPE))
+            ext_packed.append(hdr.pack())
+            ext = b"".join(ext_packed)
+            assert len(ext) % ExtensionHeader.LINE_LEN == 0
+            packed.append(ext)
         return b"".join(packed)
 
     def _get_offset_len(self):
@@ -461,6 +465,11 @@ class SCIONExtPacket(SCIONBasePacket):
             for line in str(hdr).splitlines():
                 s.append("  %s" % line)
         return s
+
+    def reverse(self):  # pragma: no cover
+        for hdr in self.ext_hdrs:
+            hdr.reverse()
+        super().reverse()
 
 
 class SCIONL4Packet(SCIONExtPacket):
@@ -488,6 +497,8 @@ class SCIONL4Packet(SCIONExtPacket):
                     payload=b""):
         inst = cls()
         inst._inner_from_values(cmn_hdr, addr_hdr, path_hdr, ext_hdrs, l4_hdr)
+        if not payload:
+            payload = PayloadRaw()
         inst.set_payload(payload)
         inst.update()
         return inst

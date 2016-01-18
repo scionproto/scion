@@ -23,7 +23,8 @@ from binascii import hexlify
 # SCION
 from lib.crypto.symcrypto import cbcmac
 from lib.errors import SCIONParseError
-from lib.packet.ext_hdr import HopByHopExtension, HopByHopType
+from lib.packet.ext_hdr import HopByHopExtension
+from lib.types import ExtHopByHopType
 from lib.util import Raw, calc_padding
 
 #: Number of seconds per sibra interval
@@ -49,7 +50,7 @@ class SibraExt(HopByHopExtension):
       - version (2b): SIBRA version, to be used as (SCION ver, SIBRA ver).
     """
     NAME = "SibraExt"
-    EXT_TYPE = HopByHopType.SIBRA
+    EXT_TYPE = ExtHopByHopType.SIBRA
     STEADY_ID_LEN = 8
     EPHEMERAL_ID_LEN = 8
     MIN_LEN = HopByHopExtension.SUBHDR_LEN

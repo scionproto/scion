@@ -169,6 +169,10 @@ class PayloadBase(object, metaclass=ABCMeta):  # pragma: no cover
 
 
 class PayloadRaw(PayloadBase):  # pragma: no cover
+    def __init__(self, raw=None):
+        self._raw = b""
+        super().__init__(raw)
+
     def _parse(self, raw):
         self._raw = raw or b""
 

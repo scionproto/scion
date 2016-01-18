@@ -707,6 +707,9 @@ class EmptyPath(PathBase):  # pragma: no cover
     def from_values(self, *args, **kwargs):
         raise NotImplementedError
 
+    def get_hof(self):
+        return None
+
     def _parse(self, raw):
         raise NotImplementedError
 
