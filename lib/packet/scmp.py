@@ -22,9 +22,10 @@ import struct
 import scapy.utils
 
 # SCION
+from lib.defines import L4_SCMP
 from lib.errors import SCIONParseError
 from lib.packet.ext_hdr import HopByHopExtension, HopByHopType
-from lib.packet.packet_base import HeaderBase, PacketBase, L4HeaderBase
+from lib.packet.packet_base import L4HeaderBase
 from lib.util import Raw
 
 
@@ -33,14 +34,30 @@ class SCMPType(object):
     SCMP types.
 
     This class contains a list of constants representing the current SCMP
-    types. The set of types is loosely based on the ICMP types. At the moment
-    only the currently-supported types are included.
+    types. The set of types is loosely based on the ICMP types.
+
+    .. warning::
+
+       Not all types defined are supported!
+
+    Attributes:
+        ECHO_REQUEST (int): the type for an echo request (ping) message.
+        ECHO_REPLY (int): the type for an echo reply (pong) message.
+        DEST_UNREACHABLE (int): the type for a destination unreachable message,
+            which indicates that the destination network, host, protocol, or
+            port is unreachable.
+        INVALID_PATH (int): the type for an invalid path message, which
+            indicates that the path being used is invalid (e.g., the segment or
+            opaque field on the segment has expired). This type is a
+            hop-by-hop message, which means that an :class:`SCMPHopByHopExt`
+            extension must be present in the packet to alert the router that it
+            must check the payload.
     """
 
-    ECHO_REPLY = 0
-    # TODO: Add support for following constants in the near future
-    #DEST_UNREACHABLE = 1
-    #INVALID_PATH = 2
+    ECHO_REQUEST = 0
+    ECHO_REPLY = 1
+    DEST_UNREACHABLE = 2
+    INVALID_PATH = 3
 
 
 class SCMPHopByHopExt(HopByHopExtension):
@@ -90,8 +107,10 @@ class SCMPHeader(L4HeaderBase):
     """
 
     LEN = 8
+    TYPE = L4_SCMP
+    NAME = "SCMP"
 
-    def __init__(self, raw=None):
+    def __init__(self, raw=None):  # pragma: no cover
         super().__init__()
         self.type_ = None
         self.code = None
@@ -202,77 +221,3 @@ class SCMPHeader(L4HeaderBase):
         pseudo_header = struct.pack('!BBHI', self.type_, self.code, 0,
                                     self.rest)
         return scapy.utils.checksum(pseudo_header)
-
-
-class SCMPPacket(PacketBase):
-    """
-    Packet format for SCMP messages.
-
-    Attributes:
-        parsed: A bool indicating whether the packet's raw bytes have been
-            parsed to populate the `SCMPPacket` instance's attributes.
-        raw: A `bytes` object representing the raw bytes of the packet.
-        hdr: A `SCMPHeader` instance representing the `SCMPPacket` instance's
-            header.
-        payload: A `bytes` object representing the `SCMPPacket` instance's
-            payload.
-    """
-
-    def __init__(self, raw=None):
-        super().__init__()
-        self.parsed = False
-        self.raw = raw
-        self.hdr = None
-        self.payload = None
-        if raw is not None:
-            self._parse(raw)
-
-    def _parse(self, raw):
-        data = Raw(raw)
-        self.hdr = SCMPHeader(data.pop(SCMPHeader.LEN))
-        self.payload = data.get()
-        self.parsed = True
-
-    @classmethod
-    def from_values(cls, hdr, payload):
-        """
-        Create a new SCMP packet by specifying the header and payload.
-
-        Create and return a `SCMPPacket` instance from a `SCMPHeader` instance
-        and a `bytes` object representing the payload.
-
-        Args:
-            type_: An int representing the type of the SCMP message.
-            code: An int representing the subtype of the SCMP message.
-            rest: An int representing the rest of the header, whose format
-                depends on the type.
-
-        Returns:
-            A `SCMPHeader` instance with the specified field values and
-                appropriately-set checksum.
-        """
-        inst = cls()
-        inst.parsed = True
-        inst.raw = hdr.pack() + payload
-        inst.hdr = hdr
-        inst.payload = payload
-        return inst
-
-    def pack(self):
-        """
-        Return the raw byte string representation of the SCMPPacket instance.
-
-        Pack the SCMPPacket instance's field values into a raw byte string.
-        Only the header and payload are packed.
-        """
-        return self.hdr.pack() + self.payload
-
-    def __len__(self):
-        return len(self.hdr) + len(self.payload)
-
-    def __str__(self):
-        s = []
-        s.append("SCMP Packet (%dB):" % len(self))
-        s.append("  %s" % self.hdr)
-        s.append("  Payload (%dB): %s" % (len(self.payload), self.payload))
-        return "\n".join(s)
