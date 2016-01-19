@@ -84,7 +84,7 @@ SCIONSocket::SCIONSocket(int protocol, SCIONAddr *dstAddrs, int numAddrs,
                 SSPEntry se;
                 se.flowID = 0;
                 se.port = mSrcPort;
-                registerFlow(SCION_PROTO_SSP, &se, mDispatcherSocket);
+                registerFlow(SCION_PROTO_SSP, &se, mDispatcherSocket, 1);
                 mRegistered = true;
             }
             break;
@@ -103,7 +103,7 @@ SCIONSocket::SCIONSocket(int protocol, SCIONAddr *dstAddrs, int numAddrs,
             }
             SUDPEntry se;
             se.port = mSrcPort;
-            registerFlow(SCION_PROTO_SUDP, &se, mDispatcherSocket);
+            registerFlow(SCION_PROTO_SUDP, &se, mDispatcherSocket, 1);
             mRegistered = true;
             DEBUG("Registered to receive SUDP packets on port %d\n", mSrcPort);
             mProtocol = new SUDPProtocol(mDstAddrs, mSrcPort, mDstPort);
@@ -122,11 +122,22 @@ SCIONSocket::~SCIONSocket()
     mState = SCION_CLOSED;
     pthread_cancel(mReceiverThread);
     pthread_join(mReceiverThread, NULL);
-    close(mDispatcherSocket);
     if (mProtocol) {
+        mProtocol->removeDispatcher(mDispatcherSocket);
         delete mProtocol;
         mProtocol = NULL;
+    } else if (mProtocolID == SCION_PROTO_SSP) {
+        SSPEntry se;
+        se.flowID = 0;
+        se.port = mSrcPort;
+        registerFlow(SCION_PROTO_SSP, &se, mDispatcherSocket, 0);
     }
+    if (mProtocolID == SCION_PROTO_SUDP) {
+        SUDPEntry se;
+        se.port = mSrcPort;
+        registerFlow(SCION_PROTO_SUDP, &se, mDispatcherSocket, 0);
+    }
+    close(mDispatcherSocket);
     pthread_mutex_destroy(&mAcceptMutex);
     pthread_cond_destroy(&mAcceptCond);
     pthread_mutex_destroy(&mRegisterMutex);

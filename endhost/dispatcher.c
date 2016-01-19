@@ -46,31 +46,45 @@ void reply(char code, struct sockaddr_in *addr)
 
 void registerSSP(char *buf, int len, struct sockaddr_in *addr)
 {
-    if (len != 11) {
+    if (len != 12) {
         fprintf(stderr, "invalid SSP registration\n");
         reply(0, addr);
         return;
     }
     printf("SSP registration request\n");
-    uint64_t flowID = *(uint64_t *)(buf + 1);
-    uint16_t port = *(uint16_t *)(buf + 9);
+    uint8_t reg = *buf;
+    uint64_t flowID = *(uint64_t *)(buf + 2);
+    uint16_t port = *(uint16_t *)(buf + 10);
     printf("flow = %lu, port = %d\n", flowID, port);
     Entry *e, *old;
     e = (Entry *)malloc(sizeof(Entry));
     e->addr = *addr;
     e->flowID = flowID;
     e->port = port;
-    if (flowID != 0)
-        HASH_REPLACE(hh, SSPFlows, flowID, 8, e, old);
-    else
-        HASH_REPLACE(hh, SSPWildcards, port, 2, e, old);
+    if (flowID != 0) {
+        HASH_FIND(hh, SSPFlows, &flowID, 8, old);
+        if (old) {
+            HASH_DELETE(hh, SSPFlows, old);
+            printf("entry for flow %lu deleted\n", flowID);
+        }
+        if (reg)
+            HASH_ADD(hh, SSPFlows, flowID, 8, e);
+    } else {
+        HASH_FIND(hh, SSPWildcards, &flowID, 8, old);
+        if (old) {
+            HASH_DELETE(hh, SSPWildcards, old);
+            printf("wildcard entry for port %d deleted\n", port);
+        }
+        if (reg)
+            HASH_ADD(hh, SSPWildcards, port, 2, e);
+    }
     printf("registration success\n");
     reply(1, addr);
 }
 
 void registerSUDP(char *buf, int len, struct sockaddr_in *addr)
 {
-    if (len < 3) {
+    if (len != 4) {
         fprintf(stderr, "invalid SUDP registration\n");
         reply(0, addr);
         return;
@@ -94,8 +108,9 @@ void * appHandler(void *arg)
         char buf[APP_BUFSIZE];
         int len = recvfrom(appSocket, buf, APP_BUFSIZE, 0,
                 (struct sockaddr *)&addr, &addrLen);
-        if (len > 1) { /* 1 byte for protocol, rest for identifier */
-            unsigned char protocol = buf[0];
+        if (len > 2) { /* command (1B) | proto (1B) | id */
+            unsigned char protocol = buf[1];
+            printf("received registration for proto: %d\n", protocol);
             switch (protocol) {
                 case SCION_PROTO_SSP:
                     registerSSP(buf, len, &addr);

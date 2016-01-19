@@ -40,5 +40,5 @@ int main()
     while (newSocket->recv((uint8_t *)fbuf, BUFSIZE, NULL) > 0);
     delete newSocket;
     fclose(fp);
-    exit(0);
+    return 0;
 }
