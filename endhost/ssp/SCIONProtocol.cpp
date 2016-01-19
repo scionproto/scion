@@ -129,6 +129,10 @@ int SCIONProtocol::shutdown()
     return 0;
 }
 
+void SCIONProtocol::removeDispatcher(int sock)
+{
+}
+
 // SSP
 
 SSPProtocol::SSPProtocol(std::vector<SCIONAddr> &dstAddrs, short srcPort, short dstPort)
@@ -296,7 +300,7 @@ void SSPProtocol::start(SCIONPacket *packet, uint8_t *buf, int sock)
     SSPEntry se;
     se.flowID = mFlowID;
     se.port = 0;
-    registerFlow(SCION_PROTO_SSP, &se, sock);
+    registerFlow(SCION_PROTO_SSP, &se, sock, 1);
     DEBUG("start protocol for flow %lu\n", mFlowID);
     if (packet && buf)
         handlePacket(packet, buf);
@@ -720,6 +724,14 @@ void SSPProtocol::notifyFinAck()
     mReadyToRead = true;
     pthread_cond_broadcast(&mReadCond);
     pthread_mutex_unlock(&mReadMutex);
+}
+
+void SSPProtocol::removeDispatcher(int sock)
+{
+    SSPEntry se;
+    se.flowID = mFlowID;
+    se.port = 0;
+    registerFlow(SCION_PROTO_SSP, &se, sock, 0);
 }
 
 // SUDP

@@ -994,7 +994,9 @@ void SSPConnectionManager::didSend(SCIONPacket *packet)
                 pthread_mutex_unlock(&mSentMutex);
                 return;
             }
-            printf("duplicate packet in sent list: %lu|%lu, path %d|%d (%p)\n", be64toh(s->header.offset), be64toh(sp->header.offset), packet->pathIndex, p->pathIndex, packet);
+            printf("duplicate packet in sent list: %lu|%lu, path %d|%d (%p)\n",
+                    be64toh(s->header.offset), be64toh(sp->header.offset),
+                    packet->pathIndex, p->pathIndex, packet);
             exit(0);
         }
     }

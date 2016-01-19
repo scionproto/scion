@@ -205,7 +205,7 @@ uint64_t createRandom(int bits)
     return r & ((1 << bits) - 1);
 }
 
-int registerFlow(int proto, void *data, int sock)
+int registerFlow(int proto, void *data, int sock, uint8_t reg)
 {
     DEBUG("register flow via socket %d\n", sock);
 
@@ -217,19 +217,20 @@ int registerFlow(int proto, void *data, int sock)
 
     int len;
     char buf[32];
-    buf[0] = proto;
+    buf[0] = reg;
+    buf[1] = proto;
     switch (proto) {
         case SCION_PROTO_SSP: {
             SSPEntry *se = (SSPEntry *)data;
-            memcpy(buf + 1, &se->flowID, sizeof(se->flowID));
-            memcpy(buf + 9, &se->port, sizeof(se->port));
-            len = 11;
+            memcpy(buf + 2, &se->flowID, sizeof(se->flowID));
+            memcpy(buf + 10, &se->port, sizeof(se->port));
+            len = 12;
             break;
         }
         case SCION_PROTO_SUDP: {
             SUDPEntry *se = (SUDPEntry *)data;
-            memcpy(buf + 1, &se->port, sizeof(se->port));
-            len = 3;
+            memcpy(buf + 2, &se->port, sizeof(se->port));
+            len = 4;
             break;
         }
         default:

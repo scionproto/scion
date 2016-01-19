@@ -41,6 +41,7 @@ public:
     virtual void deregisterSelect(int index);
 
     virtual int shutdown();
+    virtual void removeDispatcher(int sock);
 
 protected:
     int                    mSocket;
@@ -91,6 +92,7 @@ public:
 
     int shutdown();
     void notifyFinAck();
+    void removeDispatcher(int sock);
 
     uint64_t               mFlowID;
 protected:
