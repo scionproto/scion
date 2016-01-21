@@ -82,15 +82,29 @@ class ScionStats(object):
         self.rtts = list(stats.rtts)
         self.lossRates = list(stats.lossRates)
         self.ifCounts = list(stats.ifCounts)
-        self.ifLists = []
-        for i in range(MAX_PATHS):
-            iflist = []
-            if self.ifCounts[i]:
-                for j in range(self.ifCounts[i]):
-                    iflist.append(copy.deepcopy(stats.ifLists[i][j]))
-            self.ifLists.append(iflist)
+        # TODO(ercanucan): Enable this stats later on as currently this
+        # piece of code occasionaly throws nil pointer exceptions.
+        # self.ifLists = []
+        # for i in range(MAX_PATHS):
+        #     iflist = []
+        #     if self.ifCounts[i]:
+        #         for j in range(self.ifCounts[i]):
+        #             iflist.append(copy.deepcopy(stats.ifLists[i][j]))
+        #     self.ifLists.append(iflist)
         self.highestReceived = copy.deepcopy(stats.highestReceived)
         self.highestAcked = copy.deepcopy(stats.highestAcked)
+
+    def __str__(self):
+        """
+        String representation of a ScionStats object.
+        """
+        result = []
+        result.append("Sent Packets: " + str(self.sentPackets))
+        result.append("Received Packets: " + str(self.receivedPackets))
+        result.append("Acked Packets: " + str(self.ackedPackets))
+        result.append("RTTs: " + str(self.rtts))
+        result.append("Loss-Rates: " + str(self.lossRates))
+        return "\n".join(result)
 
 
 SHARED_LIB_LOCATION = os.path.join("endhost", "ssp")
@@ -216,6 +230,12 @@ class ScionBaseSocket(object):
         self.libsock.deleteSCIONSocket(self.fd)
         self.fd = -1
 
+    def is_alive(self):
+        """
+        Returns a boolean whether this socket is still active or not.
+        """
+        return self.fd != -1
+
 
 class ScionServerSocket(ScionBaseSocket):
     """
@@ -285,5 +305,4 @@ class ScionClientSocket(ScionBaseSocket):
         sa.host.addr = ByteArray16(*ip_bytes)
         self.fd = self.libsock.newSCIONSocket(proto, byref(sa), 1,
                                               0, self.target_port)
-
         logging.info("ScionClientSocket fd = %d" % self.fd)
