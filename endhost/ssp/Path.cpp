@@ -453,7 +453,8 @@ int SSPPath::handleAck(SCIONPacket *packet, bool rttSample)
         pthread_cond_broadcast(&mWindowCond);
     pthread_mutex_lock(&mMutex);
     mTimeoutCount = 0;
-    mTotalAcked++;
+    if (rtt > 0) // don't count acks on other paths
+        mTotalAcked++;
     pthread_mutex_unlock(&mMutex);
     return 0;
 }
