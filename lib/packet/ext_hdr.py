@@ -26,6 +26,7 @@ from lib.packet.packet_base import HeaderBase
 class HopByHopType(TypeBase):
     TRACEROUTE = 0
     SIBRA = 1
+    SCMP = 2
 
 
 class EndToEndType(TypeBase):
@@ -36,14 +37,25 @@ class ExtensionHeader(HeaderBase):
     """
     Base class for extension headers.
 
-    :cvar MIN_LEN:
-    :type MIN_LEN: int
-    :ivar next_hdr:
-    :type next_hdr:
-    :ivar _hdr_len:
-    :type _hdr_len:
-    :ivar parsed:
-    :type parsed:
+    An extension header consists of a three-byte subheader containing metadata
+    and a payload consisting of extension-specific data. The lengths of the
+    subheader and payload must sum to a multiple of `LINE_LEN` bytes.
+
+    Attributes:
+        NAME (str): the class name.
+        LINE_LEN (int): the length of a line in the extension header. The
+            length of an extension in bytes must be a multiple of this number.
+        MIN_LEN (int): the minimum length of an extension header in bytes.
+        EXT_CLASS (int): the class of the extension header (hop-by-hop or
+            end-to-end). The possible values are defined in
+            `lib.types.ExtensionClass`.
+        EXT_TYPE (int): the type of extension.
+        EXT_TYPE_STR (int): the name of the extension.
+        SUBHDR_LEN (int): length in bytes of the extension subheader, which
+            contains metadata (namely, the next header's type, current
+            extension header length, and the current extension type.
+        MIN_PAYLOAD_LEN (int): the minimum allowed length of the payload in
+            bytes.
     """
     NAME = "ExtensionHeader"
     LINE_LEN = 8  # Length of extension must be multiplication of LINE_LEN.

@@ -52,6 +52,7 @@ SCION_ROUTER_PORT = 50000
 
 #: (Pseudo)supported layer-4 protocols, see /etc/protocols for details
 L4_ICMP = 1
+L4_SCMP = 2
 L4_TCP = 6
 L4_UDP = 17
 L4_SUDP = 151  # FIXME(kormat): might not be necessary
@@ -59,7 +60,7 @@ L4_SSP = 152
 L4_NONE = 254
 L4_RESERVED = 255
 L4_PROTOS = [L4_ICMP, L4_TCP, L4_UDP, L4_NONE, L4_RESERVED,
-             L4_SUDP, L4_SSP]
+             L4_SUDP, L4_SSP, L4_SCMP]
 #: Default layer-4 protocol.
 L4_DEFAULT = L4_RESERVED
 
