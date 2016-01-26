@@ -163,6 +163,8 @@ void PathManager::insertPaths(std::vector<Path *> &candidates)
         mPaths[i] = p;
         p->setIndex(i);
         mInvalid--;
+        if (candidates.empty())
+            break;
     }
     for (size_t i = 0; i < candidates.size(); i++) {
         Path *p = candidates[i];
@@ -712,7 +714,7 @@ void SSPConnectionManager::handleProbeAck(SCIONPacket *packet)
                 pthread_cond_broadcast(&mPathCond);
                 int used = 0;
                 for (size_t j = 0; j < mPaths.size(); j++) {
-                    if (mPaths[j]->isUsed())
+                    if (mPaths[j] && mPaths[j]->isUsed())
                         used++;
                 }
                 if (used < MAX_USED_PATHS) {
@@ -828,7 +830,7 @@ void SSPConnectionManager::handleTimeout()
                 DEBUG("path %lu is down: disable\n", j);
                 mPaths[j]->setUsed(false);
                 for (size_t k = 0; k < mPaths.size(); k++) {
-                    if (!mPaths[k]->isUsed() && mPaths[k]->isUp()) {
+                    if (mPaths[k] && !mPaths[k]->isUsed() && mPaths[k]->isUp()) {
                         DEBUG("use backup path %lu\n", k);
                         mPaths[k]->setUsed(true);
                         break;
