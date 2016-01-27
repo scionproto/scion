@@ -1,9 +1,11 @@
 #ifndef PATH_MANAGER_H
 #define PATH_MANAGER_H
 
+#include <vector>
+
 #include "DataStructures.h"
-#include "SCIONDefines.h"
 #include "OrderedList.h"
+#include "SCIONDefines.h"
 
 class SSPProtocol;
 class Path;
@@ -19,15 +21,17 @@ public:
     int maxPayloadSize();
 
     void getPaths();
-    void prunePaths();
-    void insertPaths(std::vector<Path *> &candidates);
-    int insertOnePath(Path *p);
 
     virtual Path * createPath(SCIONAddr &dstAddr, uint8_t *rawPath, int pathLen);
     virtual void handleTimeout();
     virtual void getStats(SCIONStats *stats);
 
 protected:
+    void getLocalAddress();
+    int checkPath(uint8_t *ptr, int len, int addr, std::vector<Path *> &candidates);
+    void prunePaths();
+    void insertPaths(std::vector<Path *> &candidates);
+    int insertOnePath(Path *p);
 
     int                          mDaemonSocket;
     int                          mSendSocket;
@@ -52,6 +56,8 @@ public:
 
     Path * createPath(SCIONAddr &dstAddr, uint8_t *rawPath, int pathLen);
 protected:
+    void handleProbe(SUDPPacket *sp, SCIONExtension *ext, int index);
+
     struct timeval mLastProbeTime;
     std::vector<uint32_t> mLastProbeAcked;
 };
@@ -76,7 +82,7 @@ public:
     bool readyToSend();
     void schedule();
     SCIONPacket * nextPacket();
-    Path * pathToSend();
+    Path * pathToSend(bool *dup);
     void didSend(SCIONPacket *packet);
 
     void sendAck(SCIONPacket *packet);
@@ -84,7 +90,6 @@ public:
 
     int handlePacket(SCIONPacket *packet);
     void handleAck(SCIONPacket *packet, size_t initCount, bool receiver);
-    void handleDupAck(int index);
     void handleProbeAck(SCIONPacket *packet);
     void handleTimeout();
 
@@ -95,6 +100,10 @@ public:
     PathState *mState;
 
 protected:
+    int sendAlternatePath(SCIONPacket *packet, size_t exclude);
+    void handlePacketAcked(bool found, SCIONPacket *ack, SCIONPacket *sent);
+    bool handleDupAck(SCIONPacket *packet);
+    void addRetries(std::vector<SCIONPacket *> &retries);
     int handleAckOnPath(SCIONPacket *packet, bool rttSample);
     int totalQueuedSize();
 
@@ -104,8 +113,10 @@ protected:
     bool                         mRunning;
     bool                         mFinAcked;
     int                          mFinAttempts;
+    bool                         mInitAcked;
     bool                         mResendInit;
 
+    size_t                       mTotalSize;
     PacketList                   mSentPackets;
     OrderedList<SCIONPacket *>   *mRetryPackets;
     OrderedList<SCIONPacket *>   *mFreshPackets;

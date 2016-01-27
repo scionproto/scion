@@ -1,12 +1,9 @@
-#include <stdlib.h>
 #include <arpa/inet.h>
-#include <string.h>
-#include <stdio.h>
 #include <unistd.h>
 
 #include "SCIONSocket.h"
 
-#define BUFSIZE 1024
+#define BUFSIZE 102400
 
 int main(int argc, char **argv)
 {
@@ -28,16 +25,15 @@ int main(int argc, char **argv)
     in_addr_t in = inet_addr(str);
     memcpy(saddr.host.addr, &in, 4);
     addrs[0] = saddr;
-    SCIONSocket s(SCION_PROTO_UDP, addrs, 1, 0, 8080);
+    SCIONSocket s(SCION_PROTO_SSP, addrs, 1, 0, 8080);
     int count = 0;
     char buf[BUFSIZE];
     memset(buf, 0, BUFSIZE);
     while (1) {
         count++;
         sprintf(buf, "This is message %d\n", count);
-        printf("sending message: %s", buf);
-        s.send((uint8_t *)buf, strlen(buf));
-        usleep(500000);
+        s.send((uint8_t *)buf, BUFSIZE);
+        //usleep(500000);
     }
     exit(0);
 }

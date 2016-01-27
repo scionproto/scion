@@ -1,5 +1,5 @@
 CC=g++
-CFLAGS=-Wall -g -fPIC
+CFLAGS=-Wall -g -fPIC -std=c++11
 LDFLAGS=-ldl -shared -lpthread -lrt
 
 HDRS=$(wildcard *.h)

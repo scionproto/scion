@@ -1,18 +1,9 @@
-#include <stdio.h>
-#include <string.h>
 #include <unistd.h>
-#include <netinet/in.h>
 #include <arpa/inet.h>
-#include <sys/types.h>
-#include <pthread.h>
-#include <errno.h>
-#include <fcntl.h>
 #include <signal.h>
-#include <semaphore.h>
-#include <sys/mman.h>
 
-#include "SCIONSocket.h"
 #include "Extensions.h"
+#include "SCIONSocket.h"
 
 void signalHandler(int signum)
 {
@@ -174,6 +165,40 @@ int SCIONSocket::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr)
     return mProtocol->recv(buf, len, srcAddr);
 }
 
+bool SCIONSocket::checkChildren(SCIONPacket *packet, uint8_t *ptr)
+{
+    bool claimed = false;
+    pthread_mutex_lock(&mAcceptMutex);
+    std::vector<SCIONSocket *>::iterator it = mAcceptedSockets.begin();
+    for (; it != mAcceptedSockets.end(); it++) {
+        SCIONSocket *sock = *it;
+        if (!sock)
+            continue;
+        SCIONProtocol *proto = (*it)->mProtocol;
+        if (proto && proto->claimPacket(packet, ptr)) {
+            DEBUG("socket %p claims packet\n", (*it));
+            proto->handlePacket(packet, ptr);
+            claimed = true;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&mAcceptMutex);
+    return claimed;
+}
+
+void SCIONSocket::signalSelect()
+{
+    pthread_mutex_lock(&mSelectMutex);
+    std::map<int, Notification>::iterator i;
+    for (i = mSelectRead.begin(); i != mSelectRead.end(); i++) {
+        Notification &n = i->second;
+        pthread_mutex_lock(n.mutex);
+        pthread_cond_signal(n.cond);
+        pthread_mutex_unlock(n.mutex);
+    }
+    pthread_mutex_unlock(&mSelectMutex);
+}
+
 void SCIONSocket::handlePacket(uint8_t *buf, size_t len, struct sockaddr_in *addr)
 {
     DEBUG("received SCION packet: %lu bytes\n", len);
@@ -214,45 +239,24 @@ void SCIONSocket::handlePacket(uint8_t *buf, size_t len, struct sockaddr_in *add
     uint8_t *ptr = parseExtensions(&packet->header, buf + sch.headerLen);
 
     if (!mProtocol) {
-        pthread_mutex_lock(&mAcceptMutex);
-        std::vector<SCIONSocket *>::iterator it = mAcceptedSockets.begin();
-        for (; it != mAcceptedSockets.end(); it++) {
-            SCIONSocket *sock = *it;
-            if (!sock)
-                continue;
-            SCIONProtocol *proto = (*it)->mProtocol;
-            if (proto && proto->claimPacket(packet, buf + sch.headerLen)) {
-                DEBUG("socket %p claims packet\n", (*it));
-                proto->handlePacket(packet, ptr);
-                pthread_mutex_unlock(&mAcceptMutex);
-                return;
-            }
+        bool claimed = checkChildren(packet, ptr);
+        if (!claimed) {
+            // accept: create new socket to handle connection
+            SCIONAddr addrs[1];
+            addrs[0] = srcAddr;
+            DEBUG("create new socket to handle incoming flow\n");
+            SCIONSocket *s = new SCIONSocket(mProtocolID, (SCIONAddr *)addrs, 1, -1, mDstPort);
+            s->mParent = this;
+            s->mProtocol->setReceiver(true);
+            s->mProtocol->createManager(s->mDstAddrs);
+            s->mProtocol->start(packet, buf + sch.headerLen, s->mDispatcherSocket);
+            s->mRegistered = true;
+            pthread_cond_signal(&s->mRegisterCond);
+            pthread_mutex_lock(&mAcceptMutex);
+            mAcceptedSockets.push_back(s);
+            pthread_mutex_unlock(&mAcceptMutex);
+            pthread_cond_signal(&mAcceptCond);
         }
-        pthread_mutex_unlock(&mAcceptMutex);
-        // accept: create new socket to handle connection
-        SCIONAddr addrs[1];
-        addrs[0] = srcAddr;
-        DEBUG("create new socket to handle incoming flow\n");
-        SCIONSocket *s = new SCIONSocket(mProtocolID, (SCIONAddr *)addrs, 1, -1, mDstPort);
-        s->mParent = this;
-        s->mProtocol->setReceiver(true);
-        s->mProtocol->createManager(s->mDstAddrs);
-        s->mProtocol->start(packet, buf + sch.headerLen, s->mDispatcherSocket);
-        s->mRegistered = true;
-        pthread_cond_signal(&s->mRegisterCond);
-        pthread_mutex_lock(&mAcceptMutex);
-        mAcceptedSockets.push_back(s);
-        pthread_mutex_unlock(&mAcceptMutex);
-        pthread_cond_signal(&mAcceptCond);
-        pthread_mutex_lock(&mSelectMutex);
-        std::map<int, Notification>::iterator i;
-        for (i = mSelectRead.begin(); i != mSelectRead.end(); i++) {
-            Notification &n = i->second;
-            pthread_mutex_lock(n.mutex);
-            pthread_cond_signal(n.cond);
-            pthread_mutex_unlock(n.mutex);
-        }
-        pthread_mutex_unlock(&mSelectMutex);
         return;
     }
 

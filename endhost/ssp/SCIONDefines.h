@@ -2,7 +2,6 @@
 #define SCION_DEFINES_H
 
 #include <stdint.h>
-#include <stdlib.h>
 
 // Shared defines
 

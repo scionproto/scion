@@ -4,11 +4,11 @@
 #include <map>
 #include <pthread.h>
 
-#include "SCIONDefines.h"
-#include "DataStructures.h"
 #include "ConnectionManager.h"
+#include "DataStructures.h"
 #include "OrderedList.h"
 #include "ProtocolConfigs.h"
+#include "SCIONDefines.h"
 
 class SCIONProtocol {
 public:
@@ -100,6 +100,10 @@ protected:
     int getDeadlineFromProfile(DataProfile profile);
 
     void handleProbe(SCIONPacket *packet);
+    SSPPacket * checkOutOfOrderQueue(SSPPacket *sp);
+    void signalSelect();
+    void handleInOrder(SSPPacket *sp, int pathIndex);
+    void handleOutOfOrder(SSPPacket *sp, int pathIndex);
     void handleData(SSPPacket *packet, int pathIndex);
     void sendAck(SSPPacket *sip, int pathIndex, bool full=false);
 

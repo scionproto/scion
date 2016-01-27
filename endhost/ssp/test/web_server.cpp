@@ -1,8 +1,6 @@
-#include <string.h>
-#include <stdio.h>
-#include "SCIONSocket.h"
-#include "SHA1.h"
 #include <curl/curl.h>
+
+#include "SCIONSocket.h"
 
 #define BUFSIZE 1024
 #define PATHS 3

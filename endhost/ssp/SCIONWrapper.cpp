@@ -1,9 +1,3 @@
-#include <errno.h>
-#include <pthread.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/select.h>
-
 #include "SCIONSocket.h"
 #include "SCIONWrapper.h"
 #include "uthash.h"

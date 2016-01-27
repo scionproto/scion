@@ -33,6 +33,11 @@ inline long elapsedTime(struct timeval *old, struct timeval *current)
 int compareOffset(void *p1, void *p2);
 int compareOffsetNested(void *p1, void *p2);
 
+void buildSSPHeader(SSPHeader *header, uint8_t *ptr);
+void buildSSPAck(SSPAck *ack, uint8_t *ptr);
+
+SCIONPacket * cloneSSPPacket(SCIONPacket *packet);
+
 void destroySCIONPacket(void *p);
 void destroySSPPacket(void *p);
 void destroySSPPacketFull(void *p);

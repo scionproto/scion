@@ -3,8 +3,8 @@
 
 #include <list>
 
-#include "SCIONDefines.h"
 #include "DataStructures.h"
+#include "SCIONDefines.h"
 
 using namespace std;
 

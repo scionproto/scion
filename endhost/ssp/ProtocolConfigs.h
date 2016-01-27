@@ -11,6 +11,7 @@
 #define SSP_CONNECT_ATTEMPTS 3
 #define SSP_FR_THRESHOLD 3
 #define SSP_MAX_LOSS_BURST 100
+#define SSP_HIGH_LOSS 0.3
 
 #define SSP_ACK 0x1
 #define SSP_NEW_PATH 0x2

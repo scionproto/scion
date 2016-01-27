@@ -1,8 +1,7 @@
-#include <stdlib.h>
 #include <arpa/inet.h>
-#include <string.h>
 #include <stdio.h>
-#include <unistd.h>
+#include <string.h>
+
 #include "SCIONWrapper.h"
 
 #define BUFSIZE 1024
@@ -28,5 +27,6 @@ int main()
         SCIONSelect(sock + 1, NULL, &writefds, NULL);
         SCIONSend(sock, (uint8_t *)buf, BUFSIZE);
     }
-    exit(0);
+
+    return 0;
 }
