@@ -76,35 +76,49 @@ class ScionStats(object):
         :type: C_SCIONStats
         """
         self.exists = list(stats.exists)
-        self.receivedPackets = list(stats.receivedPackets)
-        self.sentPackets = list(stats.sentPackets)
-        self.ackedPackets = list(stats.ackedPackets)
+        self.received_packets = list(stats.receivedPackets)
+        self.sent_packets = list(stats.sentPackets)
+        self.acked_packets = list(stats.ackedPackets)
         self.rtts = list(stats.rtts)
-        self.lossRates = list(stats.lossRates)
-        self.ifCounts = list(stats.ifCounts)
-        # TODO(ercanucan): Enable this stats later on as currently this
-        # piece of code occasionaly throws nil pointer exceptions.
-        # self.ifLists = []
-        # for i in range(MAX_PATHS):
-        #     iflist = []
-        #     if self.ifCounts[i]:
-        #         for j in range(self.ifCounts[i]):
-        #             iflist.append(copy.deepcopy(stats.ifLists[i][j]))
-        #     self.ifLists.append(iflist)
-        self.highestReceived = copy.deepcopy(stats.highestReceived)
-        self.highestAcked = copy.deepcopy(stats.highestAcked)
+        self.loss_rates = list(stats.lossRates)
+        self.if_counts = list(stats.ifCounts)
+        self.if_lists = []
+        for i in range(MAX_PATHS):
+            if_list = []
+            if self.if_counts[i]:
+                for j in range(self.if_counts[i]):
+                    if_list.append(copy.deepcopy(stats.ifLists[i][j]))
+            self.if_lists.append(if_list)
+        self.highest_received = copy.deepcopy(stats.highestReceived)
+        self.highest_acked = copy.deepcopy(stats.highestAcked)
 
     def __str__(self):
         """
         String representation of a ScionStats object.
+        :returns: The stats as a string.
+        :rtype: str
         """
         result = []
-        result.append("Sent Packets: " + str(self.sentPackets))
-        result.append("Received Packets: " + str(self.receivedPackets))
-        result.append("Acked Packets: " + str(self.ackedPackets))
+        result.append("Sent Packets: " + str(self.sent_packets))
+        result.append("Received Packets: " + str(self.received_packets))
+        result.append("Acked Packets: " + str(self.acked_packets))
         result.append("RTTs: " + str(self.rtts))
-        result.append("Loss-Rates: " + str(self.lossRates))
+        result.append("Loss-Rates: " + str(self.loss_rates))
         return "\n".join(result)
+
+    def to_dict(self):
+        """
+        Represents and returns the stats in the form of a dictionary.
+        :returns: The stats as a dictionary object.
+        :rtype: dict
+        """
+        result = {}
+        result["sent_packets"] = self.sent_packets
+        result["received_packets"] = self.received_packets
+        result["acked_packets"] = self.acked_packets
+        result["rtts"] = self.rtts
+        result["loss_rates"] = self.loss_rates
+        return result
 
 
 SHARED_LIB_LOCATION = os.path.join("endhost", "ssp")
