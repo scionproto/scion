@@ -21,12 +21,13 @@ import struct
 
 # SCION
 from lib.errors import SCIONParseError
-from lib.packet.ext_hdr import EndToEndExtension, EndToEndType
+from lib.packet.ext_hdr import EndToEndExtension
 from lib.packet.opaque_field import OpaqueField
 from lib.packet.packet_base import HeaderBase
 from lib.packet.path import parse_path
 from lib.packet.pcb import PathSegment
 from lib.packet.scion_addr import SCIONAddr
+from lib.types import ExtEndToEndType
 from lib.util import calc_padding, Raw
 
 
@@ -113,7 +114,7 @@ class PathTransportExt(EndToEndExtension):
     +--------+--------+--------+--------+--------+--------+--------+--------+
     """
     NAME = "PathTransportExt"
-    EXT_TYPE = EndToEndType.PATH_TRANSPORT
+    EXT_TYPE = ExtEndToEndType.PATH_TRANSPORT
 
     def __init__(self, raw=None):
         """

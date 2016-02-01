@@ -47,6 +47,15 @@ class ExtensionClass(TypeBase):
     END_TO_END = 222  # (Expected:-) number for SCION end2end extensions.
 
 
+class ExtHopByHopType(TypeBase):
+    TRACEROUTE = 0
+    SIBRA = 1
+
+
+class ExtEndToEndType(TypeBase):
+    PATH_TRANSPORT = 0
+
+
 class OpaqueFieldType(TypeBase):
     """
     Constants for the types of the opaque field (first byte of every opaque

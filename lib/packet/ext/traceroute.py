@@ -19,9 +19,10 @@
 import struct
 
 # SCION
-from lib.packet.ext_hdr import HopByHopExtension, HopByHopType
+from lib.packet.ext_hdr import HopByHopExtension
 from lib.packet.scion_addr import ISD_AD
 from lib.util import Raw, SCIONTime
+from lib.types import ExtHopByHopType
 
 
 class TracerouteExt(HopByHopExtension):
@@ -34,7 +35,7 @@ class TracerouteExt(HopByHopExtension):
     |                     (padding)  or HOP info                           |
     """
     NAME = "TracerouteExt"
-    EXT_TYPE = HopByHopType.TRACEROUTE
+    EXT_TYPE = ExtHopByHopType.TRACEROUTE
     PADDING_LEN = 4
     MIN_LEN = 1 + PADDING_LEN
     HOP_LEN = HopByHopExtension.LINE_LEN  # Size of every hop information.

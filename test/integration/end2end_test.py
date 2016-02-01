@@ -203,6 +203,7 @@ class Pong(object):
             self.ping_received = True
             spkt.reverse()
             spkt.set_payload(PayloadRaw(b"pong " + self.token))
+            logging.info("Replying with:\n%s", spkt)
             (next_hop, port) = self.sd.get_first_hop(spkt)
             assert next_hop is not None
             self.sd.send(spkt, next_hop, port)

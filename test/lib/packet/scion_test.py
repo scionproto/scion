@@ -820,19 +820,20 @@ class TestSCIONExtPacketInnerPack(object):
         super_pack.return_value = b"super"
         inst.ext_hdrs = []
         for idx, class_, len_, type_ in (
-            (0, 0x1, 0x12, 0x0), (1, 0x2, 0x30, 0x11), (2, 0x3, 0x14, 0x1)
+            (0, 0x1, 0x0, 0x0), (1, 0x2, 0x1, 0x11), (2, 0x3, 0x2, 0x1)
         ):
             hdr = create_mock(["hdr_len", "EXT_CLASS", "EXT_TYPE", "pack"])
             hdr.EXT_CLASS = class_
             hdr.hdr_len.return_value = len_
             hdr.EXT_TYPE = type_
-            hdr.pack.return_value = ("packed %d" % idx).encode("utf-8")
+            hdr.pack.return_value = bytes(
+                range(5+len_*ExtensionHeader.LINE_LEN))
             inst.ext_hdrs.append(hdr)
         expected = b"".join([
             b"super",
-            bytes([0x2, 0x12, 0x0]), b"packed 0",
-            bytes([0x3, 0x30, 0x11]), b"packed 1",
-            bytes([0x42, 0x14, 0x1]), b"packed 2",
+            bytes([0x2, 0x0, 0x0]), bytes(range(5)),
+            bytes([0x3, 0x1, 0x11]), bytes(range(13)),
+            bytes([0x42, 0x2, 0x1]), bytes(range(21)),
         ])
         # Call
         ntools.eq_(inst._inner_pack(), expected)
@@ -921,15 +922,16 @@ class TestSCIONL4PacketFromValues(object):
     """
     @patch("lib.packet.scion.SCIONL4Packet.update", autospec=True)
     @patch("lib.packet.scion.SCIONL4Packet.set_payload", autospec=True)
+    @patch("lib.packet.scion.PayloadRaw", autospec=True)
     @patch("lib.packet.scion.SCIONL4Packet._inner_from_values", autospec=True)
-    def test_basic(self, inner_values, set_pld, upd_hdrs):
+    def test_basic(self, inner_values, pldraw, set_pld, upd_hdrs):
         inst = SCIONL4Packet.from_values("cmn hdr", "addr hdr", "path hdr",
                                          "ext hdrs", "l4 hdr")
         # Tests
         ntools.assert_is_instance(inst, SCIONL4Packet)
         inner_values.assert_called_once_with(
             inst, "cmn hdr", "addr hdr", "path hdr", "ext hdrs", "l4 hdr")
-        set_pld.assert_called_once_with(inst, b"")
+        set_pld.assert_called_once_with(inst, pldraw.return_value)
         upd_hdrs.assert_called_once_with(inst)
 
     @patch("lib.packet.scion.SCIONL4Packet.update", autospec=True)

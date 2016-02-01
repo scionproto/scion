@@ -124,6 +124,7 @@ class Router(SCIONElement):
         assert self.interface is not None
         logging.info("Interface: %s", self.interface.__dict__)
         self.of_gen_key = PBKDF2(self.config.master_ad_key, b"Derive OF Key")
+        self.sibra_key = PBKDF2(self.config.master_ad_key, b"Derive SIBRA Key")
         self.if_states = defaultdict(InterfaceState)
         self.revocations = ExpiringDict(1000, self.FWD_REVOCATION_TIMEOUT)
         self.pre_ext_handlers = {
@@ -175,13 +176,14 @@ class Router(SCIONElement):
         :param port: The port number of the next hop.
         :type port: int
         """
-        self.handle_extensions(spkt, False)
-        if addr == self.interface.to_addr:
+        from_local_ad = addr == self.interface.to_addr
+        self.handle_extensions(spkt, False, from_local_ad)
+        if from_local_ad:
             self._remote_sock.send(spkt.pack(), (str(addr), port))
         else:
             super().send(spkt, addr, port)
 
-    def handle_extensions(self, spkt, pre_routing_phase):
+    def handle_extensions(self, spkt, pre_routing_phase, from_local_ad):
         """
         Handle SCION Packet extensions. Handlers can be defined for pre- and
         post-routing.
@@ -211,15 +213,15 @@ class Router(SCIONElement):
                 logging.debug("No %s-handler for extension type %s",
                               prefix, ext_hdr.EXT_TYPE)
                 continue
-            flags.extend(handler(ext_hdr, spkt))
+            flags.extend(handler(ext_hdr, spkt, from_local_ad))
         return flags
 
-    def handle_traceroute(self, hdr, spkt):
+    def handle_traceroute(self, hdr, spkt, _):
         # Truncate milliseconds to 2B
         hdr.append_hop(self.addr.isd_id, self.addr.ad_id, self.interface.if_id)
         return []
 
-    def handle_sibra(self, hdr, spkt):
+    def handle_sibra(self, hdr, spkt, from_local_ad):
         hdr.process(spkt)
         return []
 
@@ -416,8 +418,10 @@ class Router(SCIONElement):
         """
         path = spkt.path
         curr_hof = path.get_hof()
-        if (not path.is_last_path_hof() or
-                (curr_hof.ingress_if and curr_hof.egress_if)):
+        # Not all valid packets have a path (e.g. most SIBRA packets don't) so
+        # only do this check if the packet contains a path.
+        if len(path) and (not path.is_last_path_hof() or
+                          (curr_hof.ingress_if and curr_hof.egress_if)):
             logging.error("Trying to deliver packet that is not at the " +
                           "end of a segment:\n%s", spkt)
             return
@@ -604,7 +608,7 @@ class Router(SCIONElement):
             path.next_segment()
         else:
             path.inc_hof_idx()
-        self.send(spkt, self.interface.to_addr, self.interface.to_udp_port)
+        self._egress_forward(spkt)
 
     def egress_core_xovr(self, spkt):
         """
@@ -619,7 +623,7 @@ class Router(SCIONElement):
 
         self.verify_hof(path, ingress=False)
         path.inc_hof_idx()
-        self.send(spkt, self.interface.to_addr, self.interface.to_udp_port)
+        self._egress_forward(spkt)
 
     def egress_normal_forward(self, spkt):
         """
@@ -628,6 +632,9 @@ class Router(SCIONElement):
         path = spkt.path
         self.verify_hof(path, ingress=False)
         path.inc_hof_idx()
+        self._egress_forward(spkt)
+
+    def _egress_forward(self, spkt):
         self.send(spkt, self.interface.to_addr, self.interface.to_udp_port)
 
     def forward_packet(self, spkt, from_local_ad):
@@ -735,7 +742,7 @@ class Router(SCIONElement):
             log_exception("Error parsing packet: %s" % packet,
                           level=logging.ERROR)
             return
-        flags = self.handle_extensions(pkt, True)
+        flags = self.handle_extensions(pkt, True, from_local_ad)
         if not self._process_flags(flags, pkt, from_local_ad):
             logging.debug("Stopped processing")
             return

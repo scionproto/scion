@@ -116,6 +116,9 @@ class UDPSocket(object):
         """
         self.sock.close()
 
+    def settimeout(self, timeout):
+        self.sock.settimeout(timeout)
+
 
 class UDPSocketMgr(object):
     """

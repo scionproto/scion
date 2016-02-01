@@ -19,17 +19,8 @@
 import binascii
 
 # SCION
-from lib.types import ExtensionClass, TypeBase
+from lib.types import ExtensionClass
 from lib.packet.packet_base import HeaderBase
-
-
-class HopByHopType(TypeBase):
-    TRACEROUTE = 0
-    SIBRA = 1
-
-
-class EndToEndType(TypeBase):
-    PATH_TRANSPORT = 0
 
 
 class ExtensionHeader(HeaderBase):
@@ -113,6 +104,12 @@ class ExtensionHeader(HeaderBase):
     @classmethod
     def hdr_len_to_bytes(cls, hdr_len):  # pragma: no cover
         return (hdr_len + 1) * cls.LINE_LEN
+
+    def reverse(self):  # pragma: no cover
+        pass
+
+    def get_first_ifid(self):  # pragma: no cover
+        pass
 
     def __str__(self):
         payload_hex = binascii.hexlify(self.pack())
