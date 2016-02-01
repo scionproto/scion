@@ -68,6 +68,7 @@ CERTIFICATE_SERVICE = "cs"
 DNS_SERVICE = "ds"
 PATH_SERVICE = "ps"
 ROUTER_SERVICE = "er"
+SIBRA_SERVICE = "sb"
 #: All the service types
 SERVICE_TYPES = (
     BEACON_SERVICE,
@@ -75,6 +76,7 @@ SERVICE_TYPES = (
     DNS_SERVICE,
     PATH_SERVICE,
     ROUTER_SERVICE,
+    SIBRA_SERVICE,
 )
 
 #: How often IFID packet is sent to neighboring router.

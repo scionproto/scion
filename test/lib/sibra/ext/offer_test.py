@@ -100,14 +100,12 @@ class TestResvInfoBaseGetMin(object):
         inst = OfferBlockBase()
         inst.info = create_mock(["fail_hop"])
         inst.info.fail_hop = 2
-        snap = create_mock(["min"])
-        offer = create_mock(["to_snap"])
-        offer.to_snap.return_value = snap
+        offer = create_mock(["min"])
         inst.offers = [offer] * 5
         # Call
         ret = inst.get_min(5)
         # Tests
-        assert_these_calls(ret.min, [call(snap)] * 3)
+        assert_these_calls(ret.min, [call(offer)] * 3)
 
 
 if __name__ == "__main__":

@@ -25,9 +25,11 @@ from lib.defines import (
     DNS_SERVICE,
     PATH_SERVICE,
     ROUTER_SERVICE,
+    SIBRA_SERVICE,
 )
 from lib.errors import SCIONKeyError
 from lib.packet.host_addr import haddr_parse_interface
+from lib.packet.scion_addr import ISD_AD
 from lib.util import load_yaml_file
 
 
@@ -106,6 +108,9 @@ class InterfaceElement(Element):
         if to_addr:
             self.to_addr = haddr_parse_interface(to_addr)
 
+    def isd_ad(self):  # pragma: no cover
+        return ISD_AD(self.neighbor_isd, self.neighbor_ad)
+
 
 class RouterElement(Element):
     """
@@ -175,6 +180,7 @@ class Topology(object):
         self.certificate_servers = []
         self.dns_servers = []
         self.path_servers = []
+        self.sibra_servers = []
         self.parent_edge_routers = []
         self.child_edge_routers = []
         self.peer_edge_routers = []
@@ -230,6 +236,7 @@ class Topology(object):
             ("CertificateServers", self.certificate_servers),
             ("DNSServers", self.dns_servers),
             ("PathServers", self.path_servers),
+            ("SibraServers", self.sibra_servers),
         ):
             for k, v in topology[type_].items():
                 list_.append(ServerElement(v, k))
@@ -280,6 +287,7 @@ class Topology(object):
             DNS_SERVICE: self.dns_servers,
             PATH_SERVICE: self.path_servers,
             ROUTER_SERVICE: self.get_all_edge_routers(),
+            SIBRA_SERVICE: self.sibra_servers,
         }
         try:
             target = type_map[server_type]

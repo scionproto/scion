@@ -52,15 +52,36 @@ class SibraExtSteady(SibraExtBase):
         self._parse_end(data, req)
 
     @classmethod
-    def from_values(cls, isd_ad, req_info, total_hops):
+    def from_values(cls):
+        raise NotImplementedError
+
+    @classmethod
+    def setup_from_values(cls, req_info, total_hops, path_id, setup=True):
+        """
+        Construct a setup request header.
+        """
         inst = cls()
-        inst.setup = True
+        inst.setup = setup
         inst.total_hops = total_hops
-        inst.path_ids.append(isd_ad.pack() +
-                             os.urandom(SIBRA_STEADY_ID_LEN - isd_ad.LEN))
+        inst.path_ids = [path_id]
         inst.req_block = ResvBlockSteady.from_values(req_info, inst.total_hops)
         inst._set_size()
         return inst
+
+    @classmethod
+    def use_from_values(cls, path_id, block):
+        """
+        Construct a header to use the supplied reservation block
+        """
+        inst = cls()
+        inst.path_ids = [path_id]
+        inst.total_hops = block.num_hops
+        inst.switch_resv([block])
+        return inst
+
+    @staticmethod
+    def mk_path_id(isd_ad):  # pragma: no cover
+        return isd_ad.pack() + os.urandom(SIBRA_STEADY_ID_LEN - isd_ad.LEN)
 
     def pack(self):
         raw = self._pack_start()
@@ -71,7 +92,6 @@ class SibraExtSteady(SibraExtBase):
         """
         Renew the current reservation with the specified reservation info.
         """
-        self.req = True
         self.accepted = True
         self.req_block = ResvBlockSteady.from_values(req_info, self.total_hops)
         self._set_size()

@@ -48,7 +48,7 @@ class SibraState(object):
         self.pending = {}
         logging.info("Initialized SibraState: %s", self.link)
 
-    def update_tick(self):
+    def _update_tick(self):
         """
         Perform the tick update steps until the state is updated to the current
         tick.
@@ -78,6 +78,7 @@ class SibraState(object):
         Add a new steady path, or renew an existing one, returning a bandwidth
         suggestion if the request is not allowed.
         """
+        self._update_tick()
         if setup:
             # FIXME(kormat): switch to exceptions
             assert path_id not in self.pend_steady
@@ -88,6 +89,7 @@ class SibraState(object):
             resv = self.steady.get(path_id)
         if not resv:
             return BWSnapshot()
+        assert exp_tick >= self.curr_tick
         assert (exp_tick - self.curr_tick) <= SIBRA_MAX_STEADY_TICKS
         bwhint = resv.add(resv_idx, bwsnap, exp_tick, self.curr_tick)
         if not accepted or bwhint != bwsnap:
@@ -105,6 +107,7 @@ class SibraState(object):
         """
         Update state when a packet uses a steady path.
         """
+        self._update_tick()
         resv = self.steady.get(path_id)
         # FIXME(kormat): switch to exception
         if not resv:
@@ -115,6 +118,7 @@ class SibraState(object):
         """
         Remove a reservation index.
         """
+        self._update_tick()
         resv = self.steady.get(path_id)
         # FIXME(kormat): switch to exception
         assert resv
@@ -124,6 +128,7 @@ class SibraState(object):
         """
         Confirm a pending steady path, meaning that it has been used.
         """
+        self._update_tick()
         self.pend_steady.pop(path_id, None)
 
     def steady_pend_remove(self, path_id):
@@ -131,6 +136,7 @@ class SibraState(object):
         Remove a pending steady path, as it has either been denied by a later
         hop, or timed out.
         """
+        self._update_tick()
         if self.pend_steady.pop(path_id, None):
             self.steady[path_id].remove_all()
 
@@ -138,6 +144,7 @@ class SibraState(object):
         """
         Remove an active steady path.
         """
+        self._update_tick()
         resv = self.steady.get(path_id)
         # FIXME(kormat): switch to exception
         if not resv:

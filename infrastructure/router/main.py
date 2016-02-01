@@ -48,6 +48,7 @@ from lib.defines import (
     ROUTER_SERVICE,
     SCION_UDP_EH_DATA_PORT,
     SCION_UDP_PORT,
+    SIBRA_SERVICE,
 )
 from lib.errors import (
     SCIONBaseError,
@@ -77,6 +78,7 @@ from lib.types import (
     PathMgmtType as PMT,
     PayloadClass,
     RouterFlag,
+    SIBRAPayloadType,
 )
 from lib.util import SCIONTime, sleep_interval
 
@@ -108,12 +110,6 @@ class Router(SCIONElement):
         """
         :param str server_id: server identifier.
         :param str conf_dir: configuration directory.
-        :param dict pre_ext_handlers:
-            a map of extension header types to handlers for those extensions
-            that execute before routing.
-        :param dict post_ext_handlers:
-            a map of extension header types to handlers for those extensions
-            that execute after routing.
         :param bool is_sim: running on simulator
         """
         super().__init__(server_id, conf_dir, is_sim=is_sim)
@@ -143,6 +139,8 @@ class Router(SCIONElement):
                 lambda: self.relay_cert_server_packet),
             PayloadClass.PATH: defaultdict(
                 lambda: self.process_path_mgmt_packet),
+            PayloadClass.SIBRA: {SIBRAPayloadType.EMPTY:
+                                 self.fwd_sibra_service_pkt},
         }
 
         if not is_sim:
@@ -225,7 +223,6 @@ class Router(SCIONElement):
         return []
 
     def handle_sibra(self, hdr, spkt, from_local_ad):
-        self.sibra_state.update_tick()
         ret = hdr.process(self.sibra_state, spkt, from_local_ad,
                           self.sibra_key)
         logging.debug("Sibra state:\n%s", self.sibra_state)
@@ -342,6 +339,21 @@ class Router(SCIONElement):
             port = SCION_UDP_PORT
         self.send(spkt, addr, port)
 
+    def fwd_sibra_service_pkt(self, spkt, _):
+        """
+        Forward SIBRA service packets to a SIBRA server.
+
+        :param spkt: the SCION packet to forward.
+        :type spkt: :class:`lib.packet.scion.SCIONPacket`
+        """
+        try:
+            addr = self.get_srv_addr(SIBRA_SERVICE, spkt)
+        except SCIONServiceLookupError as e:
+            logging.error("Unable to deliver sibra service packet: %s", e)
+            return
+        port = SCION_UDP_PORT
+        self.send(spkt, addr, port)
+
     def process_path_mgmt_packet(self, mgmt_pkt, from_local_ad):
         """
         Process path management packets.
@@ -436,7 +448,7 @@ class Router(SCIONElement):
         if ptype == PT.PATH_MGMT:
             # FIXME(PSz): that should be changed when replies are send as
             # standard data packets.
-            if spkt.addrs.dst_addr.TYPE == AddrType.SVC:
+            if addr.TYPE == AddrType.SVC:
                 # Send request to any path server.
                 try:
                     addr = self.get_srv_addr(PATH_SERVICE, spkt)
@@ -444,6 +456,9 @@ class Router(SCIONElement):
                     logging.error("Unable to deliver path mgmt packet: %s", e)
                     return
             port = SCION_UDP_PORT
+        elif addr == PT.SB_PKT:
+            self.fwd_sibra_service_pkt(spkt, None)
+            return
         elif spkt._l4_proto == L4_UDP:
             port = spkt.l4_hdr.dst_port
         else:
@@ -684,7 +699,7 @@ class Router(SCIONElement):
         if len(pkt.path) == 0 and pkt.addrs.dst_addr.TYPE == AddrType.SVC:
             # Always process packets SVC destinations and no path
             return True
-        if pkt.addrs.src_addr.TYPE == AddrType.SVC:
+        if pkt.addrs.src_addr == PT.PATH_MGMT:
             # FIXME(kormat): temporary hack until revocations are handled
             # in extension header
             return True

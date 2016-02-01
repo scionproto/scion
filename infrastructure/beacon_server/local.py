@@ -20,7 +20,7 @@ import logging
 
 # SCION
 from infrastructure.beacon_server.base import BeaconServer
-from lib.defines import CERTIFICATE_SERVICE, PATH_SERVICE
+from lib.defines import CERTIFICATE_SERVICE, PATH_SERVICE, SIBRA_SERVICE
 from lib.errors import SCIONKeyError, SCIONParseError, SCIONServiceLookupError
 from lib.packet.cert_mgmt import CertChainRequest
 from lib.packet.path_mgmt import PathRecordsReg
@@ -105,15 +105,18 @@ class LocalBeaconServer(BeaconServer):
 
     def register_up_segment(self, pcb):
         """
-        Send up-segment to Local Path Servers
+        Send up-segment to Local Path Servers and Sibra Servers
 
         :raises:
             SCIONServiceLookupError: path server lookup failure
         """
-        ps_host = self.dns_query_topo(PATH_SERVICE)[0]
         records = PathRecordsReg.from_values({PST.UP: [pcb]})
+        ps_host = self.dns_query_topo(PATH_SERVICE)[0]
         pkt = self._build_packet(ps_host, payload=records)
         self.send(pkt, ps_host)
+        sb_host = self.dns_query_topo(SIBRA_SERVICE)[0]
+        pkt = self._build_packet(sb_host, payload=records)
+        self.send(pkt, sb_host)
 
     def register_down_segment(self, pcb):
         """

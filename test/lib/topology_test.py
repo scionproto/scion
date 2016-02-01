@@ -193,6 +193,7 @@ class TestTopologyParseSrvDicts(object):
             'CertificateServers': {"cs1": "cs1 val"},
             'DNSServers': {"ds1": "ds1 val"},
             'PathServers': {"ps1": "ps1 val", "ps2": "ps2 val"},
+            'SibraServers': {"sb1": "sb1 val"},
         }
         inst = Topology()
         server.side_effect = lambda v, k: "%s-%s" % (k, v)
@@ -202,7 +203,7 @@ class TestTopologyParseSrvDicts(object):
         assert_these_calls(server, [
             call("bs1 val", "bs1"), call("cs1 val", "cs1"),
             call("ds1 val", "ds1"), call("ps1 val", "ps1"),
-            call("ps2 val", "ps2"),
+            call("ps2 val", "ps2"), call("sb1 val", "sb1"),
         ], any_order=True)
         ntools.eq_(inst.beacon_servers, ["bs1-bs1 val"])
         ntools.eq_(inst.certificate_servers, ["cs1-cs1 val"])
