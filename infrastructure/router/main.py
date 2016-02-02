@@ -675,21 +675,23 @@ class Router(SCIONElement):
             pass
 
     def _needs_local_processing(self, pkt):
-        return (
-            (
+        if len(pkt.path) == 0 and pkt.addrs.dst_addr.TYPE == AddrType.SVC:
+            # Always process packets SVC destinations and no path
+            return True
+        if pkt.addrs.src_addr.TYPE == AddrType.SVC:
+            # FIXME(kormat): temporary hack until revocations are handled
+            # in extension header
+            return True
+        if (pkt.addrs.dst_isd == self.addr.isd_id and
+                pkt.addrs.dst_ad == self.addr.ad_id):
+            # Destination is the local AD.
+            if pkt.addrs.dst_addr in (self.addr.host_addr, self.interface.addr):
                 # Destination is this router.
-                pkt.addrs.dst_isd == self.addr.isd_id and
-                pkt.addrs.dst_ad == self.addr.ad_id and
-                pkt.addrs.dst_addr in (self.addr.host_addr, self.interface.addr)
-            ) or (
-                # Destination is an SVC address.
-                pkt.addrs.dst_addr.TYPE == AddrType.SVC
-            ) or (
-                # FIXME(kormat): temporary hack until revocations are handled
-                # in extension header
-                pkt.addrs.src_addr.TYPE == AddrType.SVC
-            )
-        )
+                return True
+            if pkt.addrs.dst_addr.TYPE == AddrType.SVC:
+                # Destination is a local SVC address.
+                return True
+        return False
 
     def _process_flags(self, flags, pkt, from_local_ad):
         """
