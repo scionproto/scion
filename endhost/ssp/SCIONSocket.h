@@ -30,6 +30,7 @@ public:
     bool isListener();
     bool isRunning();
     int getDispatcherSocket();
+    bool bypassDispatcher();
 
     // wait for dispatcher registration
     void waitForRegistration();

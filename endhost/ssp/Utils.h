@@ -43,4 +43,7 @@ uint64_t createRandom(int bits);
 int registerFlow(int proto, void *data, int sock, uint8_t reg);
 void destroyStats(SCIONStats *stats);
 
+int isL4(uint8_t type);
+uint16_t checksum(SCIONPacket *packet);
+
 #endif

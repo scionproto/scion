@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <syscall.h>
 
+#include "Extensions.h"
 #include "Path.h"
 #include "ConnectionManager.h"
 #include "Utils.h"
@@ -235,21 +236,26 @@ void Path::getStats(SCIONStats *stats)
 {
 }
 
-void Path::copySCIONHeader(uint8_t *bufptr, SCIONCommonHeader *ch)
+void Path::copySCIONHeader(uint8_t *bufptr, SCIONHeader *sh)
 {
+    SCIONCommonHeader *sch = &sh->commonHeader;
     uint8_t *start = bufptr;
+    uint8_t srcLen = SCION_ISD_AD_LEN + mLocalAddr.host.addrLen;
+    uint8_t dstLen = SCION_ISD_AD_LEN + mDstAddr.host.addrLen;
     // SCION common header
-    memcpy(bufptr, ch, sizeof(*ch));
-    bufptr += sizeof(*ch);
+    memcpy(bufptr, sch, sizeof(*sch));
+    bufptr += sizeof(*sch);
     // src/dst SCION addresses
     *(uint32_t *)bufptr = htonl(mLocalAddr.isd_ad);
     bufptr += SCION_ISD_AD_LEN;
     memcpy(bufptr, mLocalAddr.host.addr, mLocalAddr.host.addrLen);
     bufptr += mLocalAddr.host.addrLen;
+    memcpy(sh->srcAddr, bufptr - srcLen, srcLen);
     *(uint32_t *)bufptr = htonl(mDstAddr.isd_ad);
     bufptr += SCION_ISD_AD_LEN;
     memcpy(bufptr, mDstAddr.host.addr, mDstAddr.host.addrLen);
     bufptr += mDstAddr.host.addrLen;
+    memcpy(sh->dstAddr, bufptr - dstLen, dstLen);
 
     if (mPathLen == 0)
         return;
@@ -258,7 +264,7 @@ void Path::copySCIONHeader(uint8_t *bufptr, SCIONCommonHeader *ch)
     memcpy(bufptr, mPath, mPathLen);
     bufptr += mPathLen;
 
-    uint8_t *hof = start + ch->currentOF;
+    uint8_t *hof = start + sch->currentOF;
     if (*hof == XOVR_POINT)
         ((SCIONCommonHeader *)(start))->currentOF += 8;
 }
@@ -314,7 +320,8 @@ int SSPPath::send(SCIONPacket *packet, int sock)
     }
 
     int readyTime;
-    if (!(sh.flags & SSP_ACK || sh.flags & SSP_PROBE)) {
+    bool probe = findProbeExtension(&packet->header) != NULL;
+    if (!(sh.flags & SSP_ACK) && !probe) {
         pthread_mutex_lock(&mWindowMutex);
         while ((readyTime = mState->timeUntilReady()) > 0) {
             struct timespec t;
@@ -347,12 +354,18 @@ int SSPPath::send(SCIONPacket *packet, int sock)
     SCIONCommonHeader &ch = packet->header.commonHeader;
     ch.headerLen = sizeof(ch) + 2 * SCION_ADDR_LEN + mPathLen;
     uint16_t totalLen = ch.headerLen + sh.headerLen + sp->len;
+    SCIONExtension *ext = packet->header.extensions;
+    while (ext != NULL) {
+        totalLen += getHeaderLen(ext);
+        ext = ext->nextExt;
+    }
     ch.totalLen = htons(totalLen);
 
     uint8_t *buf = (uint8_t *)malloc(totalLen);
     uint8_t *bufptr = buf;
-    copySCIONHeader(bufptr, &ch);
+    copySCIONHeader(bufptr, &packet->header);
     bufptr += ch.headerLen;
+    bufptr = packExtensions(&packet->header, bufptr);
     // SSP header
     memcpy(bufptr, &sh, sizeof(SSPHeader));
     bufptr += sizeof(SSPHeader);
@@ -360,7 +373,7 @@ int SSPPath::send(SCIONPacket *packet, int sock)
         *(uint32_t *)bufptr = sp->windowSize;
         bufptr += 4;
     }
-    if ((sh.flags & SSP_ACK) && !(sh.flags & SSP_PROBE)) {
+    if ((sh.flags & SSP_ACK) && !probe) {
         memcpy(bufptr, &(sp->ack), sizeof(SSPAck));
         bufptr += sizeof(SSPAck);
     }
@@ -402,7 +415,7 @@ int SSPPath::send(SCIONPacket *packet, int sock)
     packet->pathIndex = mIndex;
     packet->rto = mState->getRTO();
     DEBUG("using rto %d us for path %d\n", packet->rto, mIndex);
-    if (!(sh.flags & SSP_ACK || sh.flags & SSP_PROBE)) {
+    if (!(sh.flags & SSP_ACK) && !probe) {
         mState->handleSend(be64toh(sh.offset));
         mTotalSent++;
         pthread_mutex_lock(&mTimeMutex);
@@ -583,23 +596,30 @@ SUDPPath::~SUDPPath()
 int SUDPPath::send(SCIONPacket *packet, int sock)
 {
     int res;
+    SCIONHeader &sh = packet->header;
     SCIONCommonHeader &sch = packet->header.commonHeader;
     SUDPPacket *sp = (SUDPPacket *)(packet->payload);
     sch.headerLen = sizeof(sch) + 2 * SCION_ADDR_LEN + mPathLen;
-    int totalLen = sch.headerLen + sizeof(SUDPHeader) + sp->payloadLen;
+
+    uint16_t totalLen = sch.headerLen + sizeof(SUDPHeader) + sp->payloadLen;
+    SCIONExtension *ext = packet->header.extensions;
+    while (ext != NULL) {
+        totalLen += getHeaderLen(ext);
+        ext = ext->nextExt;
+    }
     sch.totalLen = htons(totalLen);
+
     uint8_t *buf = (uint8_t *)malloc(totalLen);
     uint8_t *bufptr = buf;
-    copySCIONHeader(bufptr, &sch);
+    copySCIONHeader(bufptr, &sh);
     bufptr += sch.headerLen;
+    bufptr = packExtensions(&packet->header, bufptr);
+    sp->header.checksum = htons(checksum(packet));
     // SUDP header
     memcpy(bufptr, &(sp->header), sizeof(SUDPHeader));
     bufptr += sizeof(SUDPHeader);
     // SUDP payload
-    if (!(sp->header.flags & SUDP_PROBE))
-        memcpy(bufptr, sp->payload, sp->payloadLen);
-    else
-        memcpy(bufptr, &(sp->payload), 4);
+    memcpy(bufptr, sp->payload, sp->payloadLen);
 
     struct sockaddr_in sa;
     memset(&sa, 0, sizeof(sa));

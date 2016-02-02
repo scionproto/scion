@@ -36,7 +36,7 @@ public:
     bool usesSameInterfaces(uint8_t *interfaces, size_t count);
     bool isSamePath(uint8_t *path, size_t len);
 
-    void copySCIONHeader(uint8_t *bufptr, SCIONCommonHeader *ch);
+    void copySCIONHeader(uint8_t *bufptr, SCIONHeader *sh);
 
     virtual void getStats(SCIONStats *stats);
 

@@ -24,7 +24,7 @@
 #define DATA_BUFSIZE 2048
 #define NAME_MAX 32
 
-uint8_t L4PROTOCOLS[] = {1, 6, 17, SCION_PROTO_SUDP, SCION_PROTO_SSP};
+uint8_t L4PROTOCOLS[] = {1, 6, SCION_PROTO_UDP, SCION_PROTO_SSP};
 
 typedef struct Entry {
     struct sockaddr_in addr;
@@ -115,7 +115,7 @@ void * appHandler(void *arg)
                 case SCION_PROTO_SSP:
                     registerSSP(buf, len, &addr);
                     break;
-                case SCION_PROTO_SUDP:
+                case SCION_PROTO_UDP:
                     registerSUDP(buf, len, &addr);
                     break;
             }
@@ -144,7 +144,7 @@ uint8_t getL4Protocol(uint8_t **l4ptr)
         currentHeader = *ptr;
         uint8_t nextLen = *(ptr + 1);
         nextLen = (nextLen + 1) * 8;
-        ptr += 3 + nextLen;
+        ptr += nextLen;
     }
     *l4ptr = ptr;
     return currentHeader;
@@ -201,7 +201,7 @@ void * dataHandler(void *arg)
                 case SCION_PROTO_SSP:
                     deliverSSP(buf, l4ptr, len, &addr);
                     break;
-                case SCION_PROTO_SUDP:
+                case SCION_PROTO_UDP:
                     deliverSUDP(buf, l4ptr, len, &addr);
                     break;
             }

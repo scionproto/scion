@@ -15,8 +15,13 @@
 #define SCION_UDP_EH_DATA_PORT 30041
 
 #define SCION_ADDR_LEN 8 // ISD + AD = 4, ADDR = 4
-#define SCION_PROTO_SUDP 151
+
+#define SCION_PROTO_ICMP 1
+#define SCION_PROTO_TCP 6
+#define SCION_PROTO_UDP 17
 #define SCION_PROTO_SSP 152
+#define SCION_PROTO_NONE 254
+#define SCION_PROTO_RES 255
 
 #define SCION_ISD_AD_LEN 4
 #define SCION_HOST_ADDR_LEN 4
@@ -87,12 +92,23 @@ typedef struct {
     uint8_t headerLen;
 } SCIONCommonHeader;
 
+typedef struct SCIONExtension {
+    uint8_t nextHeader;
+    uint8_t headerLen;
+    uint8_t type;
+    uint8_t extClass;
+    void *data;
+    struct SCIONExtension *nextExt;
+} SCIONExtension;
+
 typedef struct {
     SCIONCommonHeader commonHeader;
     uint8_t srcAddr[SCION_ADDR_LEN];
     uint8_t dstAddr[SCION_ADDR_LEN];
     uint8_t *path;
     size_t pathLen;
+    SCIONExtension *extensions;
+    size_t numExtensions;
 } SCIONHeader;
 
 #pragma pack(pop)
