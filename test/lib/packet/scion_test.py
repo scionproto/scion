@@ -630,8 +630,8 @@ class TestSCIONBasePacketPack(object):
         inst.path.pack.return_value = b"path"
         inst._inner_pack = create_mock()
         inst._inner_pack.return_value = b"inner pack"
-        inst._payload = create_mock(["pack"])
-        inst._payload.pack.return_value = b"payload"
+        inst._payload = create_mock(["pack_full"])
+        inst._payload.pack_full.return_value = b"payload"
         expected = b"cmn hdr" b"addrs" b"path" b"inner pack" b"payload"
         inst.cmn_hdr.total_len = len(expected)
         # Call
@@ -1065,11 +1065,9 @@ class TestSCIONL4PacketGetOffsetLen(object):
         inst = SCIONL4Packet()
         inst.l4_hdr = create_mock(["__len__"])
         inst.l4_hdr.__len__.return_value = 12
-        inst._payload = create_mock(["METADATA_LEN"])
-        inst._payload.METADATA_LEN = 2
         super_offset.return_value = 42
         # Call
-        ntools.eq_(inst._get_offset_len(), 56)
+        ntools.eq_(inst._get_offset_len(), 54)
 
 
 class TestIFIDPayloadInit(object):
