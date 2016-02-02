@@ -350,7 +350,7 @@ class SCIONBasePacket(PacketBase):
         return b""
 
     def _pack_payload(self):  # pragma: no cover
-        return self._payload.pack()
+        return self._payload.pack_full()
 
     def update(self):
         self.addrs.update()
@@ -367,7 +367,7 @@ class SCIONBasePacket(PacketBase):
         hdr.next_hdr = self._get_next_hdr()
 
     def _get_offset_len(self):  # pragma: no cover
-        return len(self._payload)
+        return self._payload.total_len()
 
     def _get_next_hdr(self):  # pragma: no cover
         return self._l4_proto
@@ -516,9 +516,6 @@ class SCIONL4Packet(SCIONExtPacket):
             packed.append(self.l4_hdr.pack())
         return b"".join(packed)
 
-    def _pack_payload(self):  # pragma: no cover
-        return self._payload.pack_full()
-
     def update(self):
         if self.l4_hdr:
             self.l4_hdr.update(
@@ -552,7 +549,6 @@ class SCIONL4Packet(SCIONExtPacket):
         l = super()._get_offset_len()
         if self.l4_hdr:
             l += len(self.l4_hdr)
-            l += self._payload.METADATA_LEN
         return l
 
     def _inner_str(self):  # pragma: no cover
