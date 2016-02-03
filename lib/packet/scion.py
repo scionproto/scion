@@ -390,7 +390,8 @@ class SCIONBasePacket(PacketBase):
         s.append("%s(%dB):" % (self.NAME, len(self)))
         s.append("  %s" % self.cmn_hdr)
         s.append("  %s" % self.addrs)
-        s.append("  %s" % self.path)
+        for line in str(self.path).splitlines():
+            s.append("  %s" % line)
         s.extend(self._inner_str())
         s.append("  Payload(%dB): %s" % (
             len(self._payload), self._payload))
