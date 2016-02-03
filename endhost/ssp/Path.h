@@ -3,9 +3,11 @@
 
 #include <pthread.h>
 
-#include "SCIONDefines.h"
-#include "PathState.h"
+#include <vector>
+
 #include "ConnectionManager.h"
+#include "PathState.h"
+#include "SCIONDefines.h"
 
 class Path {
 public:
@@ -18,7 +20,11 @@ public:
 
     virtual int timeUntilReady();
     virtual int getPayloadLen(bool ack);
+    int getETA(SCIONPacket *packet);
+    int getRTT();
+    int getRTO();
     int getMTU();
+    double getLossRate();
     long getIdleTime(struct timeval *current);
     int getIndex();
     virtual void setIndex(int index);
@@ -44,6 +50,7 @@ protected:
     int             mIndex;
     int             mSocket;
 
+    PathState       *mState;
     size_t          mPathLen;
     uint8_t         *mPath;
 
@@ -82,16 +89,15 @@ public:
     
     virtual int timeUntilReady();
     virtual int getPayloadLen(bool ack);
-    int getETA(SCIONPacket *packet);
-    int getRTT();
-    int getRTO();
     void setIndex(int index);
     void setRemoteWindow(uint32_t window);
 
     void getStats(SCIONStats *stats);
 protected:
+    uint8_t *copySSPPacket(SSPPacket *sp, uint8_t *bufptr, bool probe);
+    void postProcessing(SCIONPacket *packet, bool probe);
+
     SSPConnectionManager *mManager;
-    PathState       *mState;
 
     int             mTotalReceived;
     int             mTotalSent;

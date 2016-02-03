@@ -26,5 +26,6 @@ SCIONExtension * findProbeExtension(SCIONHeader *sh);
 #define getProbeNum(ext) (*(uint32_t *)((uint8_t *)ext->data + 1))
 #define setProbeNum(ext, num) (*(uint32_t *)((uint8_t *)ext->data + 1) = htonl(num))
 #define getHeaderLen(ext) ((ext->headerLen + 1) * SCION_EXT_LINE)
+#define isProbeAck(ext) (*(uint8_t *)((ext)->data))
 
 #endif

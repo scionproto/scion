@@ -1,13 +1,6 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
-#include <unistd.h>
-#include <netinet/in.h>
 #include <arpa/inet.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <fcntl.h>
+#include <unistd.h>
 
 #include "Utils.h"
 
@@ -35,6 +28,44 @@ int compareOffsetNested(void *p1, void *p2)
     SSPPacket *sp1 = (SSPPacket *)(s1->payload);
     SSPPacket *sp2 = (SSPPacket *)(s2->payload);
     return be64toh(sp1->header.offset) - be64toh(sp2->header.offset);
+}
+
+SCIONPacket * cloneSSPPacket(SCIONPacket *packet)
+{
+    SCIONPacket *dup = (SCIONPacket *)malloc(sizeof(SCIONPacket));
+    memcpy(dup, packet, sizeof(SCIONPacket));
+    SSPPacket *sp = (SSPPacket *)(packet->payload);
+    SSPPacket *dupsp = new SSPPacket(*sp);
+    dup->payload = dupsp;
+    return dup;
+}
+
+void buildSSPHeader(SSPHeader *header, uint8_t *ptr)
+{
+    header->flowID = be64toh(*(uint64_t *)ptr);
+    ptr += 8;
+    header->port = ntohs(*ptr);
+    ptr += 2;
+    header->headerLen = *ptr;
+    ptr++;
+    header->offset = be64toh(*(uint64_t *)ptr);
+    ptr += 8;
+    header->flags = *ptr;
+    ptr++;
+    header->mark = *ptr;
+}
+
+void buildSSPAck(SSPAck *ack, uint8_t *ptr)
+{
+    ack->L = be64toh(*(uint64_t *)ptr);
+    ptr += 8;
+    ack->I = ntohl(*(int32_t *)ptr);
+    ptr += 4;
+    ack->H = ntohl(*(int32_t *)ptr);
+    ptr += 4;
+    ack->O = ntohl(*(int32_t *)ptr);
+    ptr += 4;
+    ack->V = ntohl(*(uint32_t *)ptr);
 }
 
 void destroySCIONPacket(void *p)
@@ -75,6 +106,130 @@ void destroySUDPPacket(void *p)
     free(packet);
 }
 
+int reverseCorePath(uint8_t *original, uint8_t *reverse, int len)
+{
+    int offset = 0;
+    uint8_t *upIOF = original;
+    uint8_t upHops = *(upIOF + 7);
+    uint8_t *coreIOF = upIOF + (upHops + 1) * 8;
+    uint8_t coreHops = *(coreIOF + 7);
+    uint8_t *downIOF = coreIOF + (coreHops + 1) * 8;
+    uint8_t downHops = *(downIOF + 7);
+
+    if (downIOF >= original + len) {
+        downIOF = coreIOF;
+        downHops = coreHops;
+        coreIOF = NULL;
+        coreHops = 0;
+    } else {
+        downHops = *(downIOF + 7);
+    }
+    DEBUG("%d up hops, %d core hops, %d down hops\n", upHops, coreHops, downHops);
+
+    // up segment = reversed down segment
+    *(uint64_t *)reverse = *(uint64_t *)downIOF;
+    *reverse ^= 1;
+    offset = 8;
+    for (int i = downHops; i > 0; i--) {
+        *(uint64_t *)(reverse + offset) = *(uint64_t *)(downIOF + i * 8);
+        offset += 8;
+    }
+    DEBUG("offset after up segment = %d\n", offset);
+
+    // reverse core hops
+    *(uint64_t *)(reverse + offset) = *(uint64_t *)coreIOF;
+    *(reverse + offset) ^= 1;
+    offset += 8;
+    for (int i = coreHops; i > 0; i--) {
+        *(uint64_t *)(reverse + offset) = *(uint64_t *)(coreIOF + i * 8);
+        offset += 8;
+    }
+    DEBUG("offset after core segment = %d\n", offset);
+
+    // down segment = reversed up segment
+    *(uint64_t *)(reverse + offset) = *(uint64_t *)upIOF;
+    *(reverse + offset) ^= 1;
+    offset += 8;
+    for (int i = upHops; i > 0; i--) {
+        *(uint64_t *)(reverse + offset) = *(uint64_t *)(upIOF + i * 8);
+        offset += 8;
+    }
+    DEBUG("offset after down segment = %d\n", offset);
+    return offset;
+}
+
+int reverseCrossoverPath(uint8_t *original, uint8_t *reverse, int len)
+{
+    int offset = 0;
+    uint8_t *upIOF = original;
+    uint8_t upHops = *(upIOF + 7);
+    uint8_t *downIOF = upIOF + (upHops + 2) * 8;
+    uint8_t downHops = *(downIOF + 7);
+
+    // up segment = reversed down segment
+    *(uint64_t *)reverse = *(uint64_t *)downIOF;
+    *reverse ^= 1;
+    offset = 8;
+    for (int i = downHops + 1; i > 1; i--) {
+        *(uint64_t *)(reverse + offset) = *(uint64_t *)(downIOF + i * 8);
+        offset += 8;
+    }
+    *(uint64_t *)(reverse + offset) = *(uint64_t *)(downIOF + 8);
+    offset += 8;
+    DEBUG("offset after up segment = %d\n", offset);
+
+    // down segment = reversed up segment
+    *(uint64_t *)(reverse + offset) = *(uint64_t *)upIOF;
+    *(reverse + offset) ^= 1;
+    offset += 8;
+    *(uint64_t *)(reverse + offset) = *(uint64_t *)(upIOF + (upHops + 1) * 8);
+    offset += 8;
+    for (int i = upHops; i > 0; i--) {
+        *(uint64_t *)(reverse + offset) = *(uint64_t *)(upIOF + i * 8);
+        offset += 8;
+    }
+    DEBUG("offset after down segment = %d\n", offset);
+    return offset;
+}
+
+int reversePeerPath(uint8_t *original, uint8_t *reverse, int len)
+{
+    int offset = 0;
+    uint8_t *upIOF = original;
+    uint8_t upHops = *(upIOF + 7);
+    uint8_t *downIOF = upIOF + (upHops + 3) * 8;
+    uint8_t downHops = *(downIOF + 7);
+
+    // up segment = reversed down segment
+    *(uint64_t *)reverse = *(uint64_t *)downIOF;
+    *reverse ^= 1;
+    offset = 8;
+    for (int i = downHops + 2; i > 2; i--) {
+        *(uint64_t *)(reverse + offset) = *(uint64_t *)(downIOF + i * 8);
+        offset += 8;
+    }
+    *(uint64_t *)(reverse + offset) = *(uint64_t *)(downIOF + 16);
+    offset += 8;
+    *(uint64_t *)(reverse + offset) = *(uint64_t *)(downIOF + 8);
+    offset += 8;
+    DEBUG("offset after up segment = %d\n", offset);
+
+    // down segment = reversed up segment
+    *(uint64_t *)(reverse + offset) = *(uint64_t *)upIOF;
+    *(reverse + offset) ^= 1;
+    offset += 8;
+    *(uint64_t *)(reverse + offset) = *(uint64_t *)(upIOF + (upHops + 2) * 8);
+    offset += 8;
+    *(uint64_t *)(reverse + offset) = *(uint64_t *)(upIOF + (upHops + 1) * 8);
+    offset += 8;
+    for (int i = upHops; i > 0; i--) {
+        *(uint64_t *)(reverse + offset) = *(uint64_t *)(upIOF + i * 8);
+        offset += 8;
+    }
+    DEBUG("offset after down segment = %d\n", offset);
+    return offset;
+}
+
 int reversePath(uint8_t *original, uint8_t *reverse, int len)
 {
     if (len == 0)
@@ -88,119 +243,13 @@ int reversePath(uint8_t *original, uint8_t *reverse, int len)
     DEBUG("reverse a path of length %d\n", len);
 
     int offset = 0;
-    uint8_t *upIOF = NULL;
-    uint8_t upHops = 0;
-    uint8_t *coreIOF = NULL;
-    uint8_t coreHops = 0;
-    uint8_t *downIOF = NULL;
-    uint8_t downHops = 0;
-
-    upIOF = original;
-    upHops = *(upIOF + 7);
-    uint8_t type = *upIOF >> 1;
-    if (type == TDC_XOVR) {
-        coreIOF = upIOF + (upHops + 1) * 8;
-        coreHops = *(coreIOF + 7);
-        downIOF = coreIOF + (coreHops + 1) * 8;
-        downHops = *(downIOF + 7);
-        if (downIOF >= original + len) {
-            downIOF = coreIOF;
-            downHops = coreHops;
-            coreIOF = NULL;
-            coreHops = 0;
-        } else {
-            downHops = *(downIOF + 7);
-        }
-        DEBUG("%d up hops, %d core hops, %d down hops\n", upHops, coreHops, downHops);
-
-        // up segment = reversed down segment
-        *(uint64_t *)reverse = *(uint64_t *)downIOF;
-        *reverse ^= 1;
-        offset = 8;
-        for (int i = downHops; i > 0; i--) {
-            *(uint64_t *)(reverse + offset) = *(uint64_t *)(downIOF + i * 8);
-            offset += 8;
-        }
-        DEBUG("offset after up segment = %d\n", offset);
-
-        // reverse core hops
-        *(uint64_t *)(reverse + offset) = *(uint64_t *)coreIOF;
-        *(reverse + offset) ^= 1;
-        offset += 8;
-        for (int i = coreHops; i > 0; i--) {
-            *(uint64_t *)(reverse + offset) = *(uint64_t *)(coreIOF + i * 8);
-            offset += 8;
-        }
-        DEBUG("offset after core segment = %d\n", offset);
-
-        // down segment = reversed up segment
-        *(uint64_t *)(reverse + offset) = *(uint64_t *)upIOF;
-        *(reverse + offset) ^= 1;
-        offset += 8;
-        for (int i = upHops; i > 0; i--) {
-            *(uint64_t *)(reverse + offset) = *(uint64_t *)(upIOF + i * 8);
-            offset += 8;
-        }
-        DEBUG("offset after down segment = %d\n", offset);
-    } else if (type == NON_TDC_XOVR || type == INPATH_XOVR) {
-        downIOF = upIOF + (upHops + 2) * 8;
-        downHops = *(downIOF + 7);
-
-        // up segment = reversed down segment
-        *(uint64_t *)reverse = *(uint64_t *)downIOF;
-        *reverse ^= 1;
-        offset = 8;
-        for (int i = downHops + 1; i > 1; i--) {
-            *(uint64_t *)(reverse + offset) = *(uint64_t *)(downIOF + i * 8);
-            offset += 8;
-        }
-        *(uint64_t *)(reverse + offset) = *(uint64_t *)(downIOF + 8);
-        offset += 8;
-        DEBUG("offset after up segment = %d\n", offset);
-
-        // down segment = reversed up segment
-        *(uint64_t *)(reverse + offset) = *(uint64_t *)upIOF;
-        *(reverse + offset) ^= 1;
-        offset += 8;
-        *(uint64_t *)(reverse + offset) = *(uint64_t *)(upIOF + (upHops + 1) * 8);
-        offset += 8;
-        for (int i = upHops; i > 0; i--) {
-            *(uint64_t *)(reverse + offset) = *(uint64_t *)(upIOF + i * 8);
-            offset += 8;
-        }
-        DEBUG("offset after down segment = %d\n", offset);
-    } else {
-        downIOF = upIOF + (upHops + 3) * 8;
-        downHops = *(downIOF + 7);
-
-        // up segment = reversed down segment
-        *(uint64_t *)reverse = *(uint64_t *)downIOF;
-        *reverse ^= 1;
-        offset = 8;
-        for (int i = downHops + 2; i > 2; i--) {
-            *(uint64_t *)(reverse + offset) = *(uint64_t *)(downIOF + i * 8);
-            offset += 8;
-        }
-        *(uint64_t *)(reverse + offset) = *(uint64_t *)(downIOF + 16);
-        offset += 8;
-        *(uint64_t *)(reverse + offset) = *(uint64_t *)(downIOF + 8);
-        offset += 8;
-        DEBUG("offset after up segment = %d\n", offset);
-
-        // down segment = reversed up segment
-        *(uint64_t *)(reverse + offset) = *(uint64_t *)upIOF;
-        *(reverse + offset) ^= 1;
-        offset += 8;
-        *(uint64_t *)(reverse + offset) = *(uint64_t *)(upIOF + (upHops + 2) * 8);
-        offset += 8;
-        *(uint64_t *)(reverse + offset) = *(uint64_t *)(upIOF + (upHops + 1) * 8);
-        offset += 8;
-        for (int i = upHops; i > 0; i--) {
-            *(uint64_t *)(reverse + offset) = *(uint64_t *)(upIOF + i * 8);
-            offset += 8;
-        }
-        DEBUG("offset after down segment = %d\n", offset);
-    }
+    uint8_t type = *original >> 1;
+    if (type == TDC_XOVR)
+        offset = reverseCorePath(original, reverse, len);
+    else if (type == NON_TDC_XOVR || type == INPATH_XOVR)
+        offset = reverseCrossoverPath(original, reverse, len);
+    else
+        offset = reversePeerPath(original, reverse, len);
 
     if (offset != len) {
         DEBUG("Size mismatch reversing core path\n");

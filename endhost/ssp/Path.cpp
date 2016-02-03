@@ -1,13 +1,8 @@
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
 #include <arpa/inet.h>
-#include <sys/types.h>
-#include <syscall.h>
 
+#include "ConnectionManager.h"
 #include "Extensions.h"
 #include "Path.h"
-#include "ConnectionManager.h"
 #include "Utils.h"
 
 Path::Path(PathManager *manager, SCIONAddr &localAddr, SCIONAddr &dstAddr, uint8_t *rawPath, size_t pathLen)
@@ -103,9 +98,30 @@ int Path::getPayloadLen(bool ack)
     return 0;
 }
 
+int Path::getETA(SCIONPacket *packet)
+{
+    return mState->timeUntilReady() + mState->estimatedRTT() +
+        mState->getLossRate() * (mState->getRTO() + mState->estimatedRTT());
+}
+
+int Path::getRTT()
+{
+    return mState->estimatedRTT();
+}
+
+int Path::getRTO()
+{
+    return mState->getRTO();
+}
+
 int Path::getMTU()
 {
     return mMTU;
+}
+
+double Path::getLossRate()
+{
+    return mState->getLossRate();
 }
 
 long Path::getIdleTime(struct timeval *current)
@@ -190,9 +206,15 @@ bool Path::isValid()
 
 void Path::setFirstHop(int len, uint8_t *addr)
 {
+#ifdef BYPASS_ROUTERS
+    mFirstHop.addrLen = len;
+    memcpy(mFirstHop.addr, addr, len);
+    mFirstHop.port = SCION_UDP_EH_DATA_PORT;
+#else
     mFirstHop.addrLen = len;
     memcpy(mFirstHop.addr, addr, len);
     mFirstHop.port = SCION_UDP_PORT;
+#endif
 }
 
 bool Path::didTimeout(struct timeval *current)
@@ -302,71 +324,9 @@ SSPPath::~SSPPath()
     pthread_cond_destroy(&mWindowCond);
 }
 
-int SSPPath::send(SCIONPacket *packet, int sock)
+uint8_t * SSPPath::copySSPPacket(SSPPacket *sp, uint8_t *bufptr, bool probe)
 {
-    pthread_mutex_lock(&mMutex);
-    bool wasValid = mValid;
-    int acked = mTotalAcked;
-    pthread_mutex_unlock(&mMutex);
-    bool sendInterfaces = false;
-    SSPPacket *sp = (SSPPacket *)(packet->payload);
     SSPHeader &sh = sp->header;
-    if (acked == 0 && !(sh.flags & SSP_ACK)) {
-        DEBUG("no packets sent on this path yet\n");
-        DEBUG("interface list: %lu bytes\n", mInterfaces.size() * SCION_IF_SIZE + 1);
-        sh.flags |= SSP_NEW_PATH;
-        sh.headerLen += mInterfaces.size() * SCION_IF_SIZE + 1;
-        sendInterfaces = true;
-    }
-
-    int readyTime;
-    bool probe = findProbeExtension(&packet->header) != NULL;
-    if (!(sh.flags & SSP_ACK) && !probe) {
-        pthread_mutex_lock(&mWindowMutex);
-        while ((readyTime = mState->timeUntilReady()) > 0) {
-            struct timespec t;
-            clock_gettime(CLOCK_REALTIME, &t);
-            DEBUG("current time = %ld.%09ld\n", t.tv_sec, t.tv_nsec);
-            DEBUG("path %d: %d us until ready to send (%d in flight)\n", mIndex, readyTime, mState->packetsInFlight());
-            struct timeval current;
-            current.tv_sec = t.tv_sec;
-            current.tv_usec = t.tv_nsec / 1000;
-            if (elapsedTime(&mLastSendTime, &current) > mState->getRTO()) {
-                DEBUG("path %d: loss occurred, abort send packet %u\n", mIndex, be64toh(sh.offset));
-                pthread_mutex_unlock(&mWindowMutex);
-                if (sendInterfaces) {
-                    sh.flags &= ~SSP_NEW_PATH;
-                    sh.headerLen -= mInterfaces.size() * SCION_IF_SIZE + 1;
-                }
-                return -1;
-            }
-            long nsec = t.tv_nsec + readyTime * 1000;
-            while (nsec >= 1000000000) {
-                nsec -= 1000000000;
-                t.tv_sec++;
-            }
-            t.tv_nsec = nsec;
-            pthread_cond_timedwait(&mWindowCond, &mWindowMutex, &t);
-        }
-        pthread_mutex_unlock(&mWindowMutex);
-    }
-
-    SCIONCommonHeader &ch = packet->header.commonHeader;
-    ch.headerLen = sizeof(ch) + 2 * SCION_ADDR_LEN + mPathLen;
-    uint16_t totalLen = ch.headerLen + sh.headerLen + sp->len;
-    SCIONExtension *ext = packet->header.extensions;
-    while (ext != NULL) {
-        totalLen += getHeaderLen(ext);
-        ext = ext->nextExt;
-    }
-    ch.totalLen = htons(totalLen);
-
-    uint8_t *buf = (uint8_t *)malloc(totalLen);
-    uint8_t *bufptr = buf;
-    copySCIONHeader(bufptr, &packet->header);
-    bufptr += ch.headerLen;
-    bufptr = packExtensions(&packet->header, bufptr);
-    // SSP header
     memcpy(bufptr, &sh, sizeof(SSPHeader));
     bufptr += sizeof(SSPHeader);
     if (sh.flags & SSP_WINDOW) {
@@ -393,24 +353,16 @@ int SSPPath::send(SCIONPacket *packet, int sock)
     }
     // payload
     if (sp->len) {
-        DEBUG("path %d: %lu bytes of payload at offset %lu\n",
-                mIndex, sp->len, bufptr - buf);
-        memcpy(bufptr, sp->data, sp->len);
+        memcpy(bufptr, sp->data.get(), sp->len);
+        bufptr += sp->len;
     }
+    return bufptr;
+}
 
-    struct sockaddr_in sa;
-    memset(&sa, 0, sizeof(sa));
-    sa.sin_family = AF_INET;
-    sa.sin_port = htons(mFirstHop.port);
-    memcpy(&sa.sin_addr, mFirstHop.addr, mFirstHop.addrLen);
-    sendto(sock, buf, totalLen, 0, (struct sockaddr *)&sa, sizeof(sa));
-    free(buf);
-    DEBUG("sent to first hop %s:%d\n", inet_ntoa(sa.sin_addr), mFirstHop.port);
-
-    if (sendInterfaces) {
-        sh.flags &= ~SSP_NEW_PATH;
-        sh.headerLen -= mInterfaces.size() * SCION_IF_SIZE + 1;
-    }
+void SSPPath::postProcessing(SCIONPacket *packet, bool probe)
+{
+    SSPPacket *sp = (SSPPacket *)(packet->payload);
+    SSPHeader &sh = sp->header;
 
     packet->pathIndex = mIndex;
     packet->rto = mState->getRTO();
@@ -426,7 +378,7 @@ int SSPPath::send(SCIONPacket *packet, int sock)
         DEBUG("%ld.%06ld: packet %lu(%p) sent on path %d: %d/%d packets in flight\n",
                 mLastSendTime.tv_sec, mLastSendTime.tv_usec,
                 be64toh(sh.offset), packet, mIndex, mState->packetsInFlight(), mState->window());
-    } else if (sh.flags & SSP_PROBE) {
+    } else if (probe) {
         mProbeAttempts++;
         if (mProbeAttempts >= SSP_PROBE_ATTEMPTS) {
             pthread_mutex_lock(&mMutex);
@@ -434,6 +386,59 @@ int SSPPath::send(SCIONPacket *packet, int sock)
             pthread_mutex_unlock(&mMutex);
         }
     }
+}
+
+int SSPPath::send(SCIONPacket *packet, int sock)
+{
+    pthread_mutex_lock(&mMutex);
+    bool wasValid = mValid;
+    int acked = mTotalAcked;
+    pthread_mutex_unlock(&mMutex);
+    bool sendInterfaces = false;
+    SSPPacket *sp = (SSPPacket *)(packet->payload);
+    SSPHeader &sh = sp->header;
+    if (acked == 0 && !(sh.flags & SSP_ACK)) {
+        DEBUG("no packets sent on this path yet\n");
+        DEBUG("interface list: %lu bytes\n", mInterfaces.size() * SCION_IF_SIZE + 1);
+        sh.flags |= SSP_NEW_PATH;
+        sh.headerLen += mInterfaces.size() * SCION_IF_SIZE + 1;
+        sendInterfaces = true;
+    }
+
+    bool probe = findProbeExtension(&packet->header) != NULL;
+
+    SCIONCommonHeader &ch = packet->header.commonHeader;
+    ch.headerLen = sizeof(ch) + 2 * SCION_ADDR_LEN + mPathLen;
+    uint16_t totalLen = ch.headerLen + sh.headerLen + sp->len;
+    SCIONExtension *ext = packet->header.extensions;
+    while (ext != NULL) {
+        totalLen += getHeaderLen(ext);
+        ext = ext->nextExt;
+    }
+    ch.totalLen = htons(totalLen);
+
+    uint8_t *buf = (uint8_t *)malloc(totalLen);
+    uint8_t *bufptr = buf;
+    copySCIONHeader(bufptr, &packet->header);
+    bufptr += ch.headerLen;
+    bufptr = packExtensions(&packet->header, bufptr);
+    bufptr = copySSPPacket(sp, bufptr, probe);
+
+    struct sockaddr_in sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sin_family = AF_INET;
+    sa.sin_port = htons(mFirstHop.port);
+    memcpy(&sa.sin_addr, mFirstHop.addr, mFirstHop.addrLen);
+    sendto(sock, buf, totalLen, 0, (struct sockaddr *)&sa, sizeof(sa));
+    free(buf);
+    DEBUG("sent to first hop %s:%d\n", inet_ntoa(sa.sin_addr), mFirstHop.port);
+
+    if (sendInterfaces) {
+        sh.flags &= ~SSP_NEW_PATH;
+        sh.headerLen -= mInterfaces.size() * SCION_IF_SIZE + 1;
+    }
+
+    postProcessing(packet, probe);
 
     int ret = 0;
 
@@ -527,22 +532,6 @@ int SSPPath::getPayloadLen(bool ack)
 {
     int hlen = ack ? sizeof(SSPHeader) + sizeof(SSPAck) : sizeof(SSPHeader);
     return mMTU - (28 + sizeof(SCIONCommonHeader) + 2 * SCION_ADDR_LEN + mPathLen + hlen);
-}
-
-int SSPPath::getETA(SCIONPacket *packet)
-{
-    return mState->timeUntilReady() + mState->estimatedRTT() +
-        mState->getLossRate() * (mState->getRTO() + mState->estimatedRTT());
-}
-
-int SSPPath::getRTT()
-{
-    return mState->estimatedRTT();
-}
-
-int SSPPath::getRTO()
-{
-    return mState->getRTO();
 }
 
 void SSPPath::setIndex(int index)

@@ -1,21 +1,7 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/socket.h>
-#include <unistd.h>
-#include <semaphore.h>
-#include <netinet/in.h>
 #include <arpa/inet.h>
-#include <sys/types.h>
 #include <errno.h>
 #include <pthread.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <semaphore.h>
-#include <sys/mman.h>
-#include <sys/shm.h>
-#include <fcntl.h>
-#include <signal.h>
+#include <stdio.h>
 
 #include "SCIONDefines.h"
 #include "uthash.h"
@@ -35,7 +21,7 @@ typedef struct Entry {
 
 Entry *SSPFlows = NULL;
 Entry *SSPWildcards = NULL;
-Entry *SUDPPorts = NULL;
+Entry *UDPPorts = NULL;
 
 int dataSocket, appSocket;
 
@@ -82,20 +68,20 @@ void registerSSP(char *buf, int len, struct sockaddr_in *addr)
     reply(1, addr);
 }
 
-void registerSUDP(char *buf, int len, struct sockaddr_in *addr)
+void registerUDP(char *buf, int len, struct sockaddr_in *addr)
 {
     if (len != 4) {
-        fprintf(stderr, "invalid SUDP registration\n");
+        fprintf(stderr, "invalid UDP registration\n");
         reply(0, addr);
         return;
     }
-    printf("SUDP registration request\n");
+    printf("UDP registration request\n");
     uint16_t port = *(uint16_t *)(buf + 1);
     Entry *e, *old;
     e = (Entry *)malloc(sizeof(Entry));
     e->addr = *addr;
     e->port = port;
-    HASH_REPLACE(hh, SUDPPorts, port, 2, e, old);
+    HASH_REPLACE(hh, UDPPorts, port, 2, e, old);
     printf("registration success\n");
     reply(1, addr);
 }
@@ -116,7 +102,7 @@ void * appHandler(void *arg)
                     registerSSP(buf, len, &addr);
                     break;
                 case SCION_PROTO_UDP:
-                    registerSUDP(buf, len, &addr);
+                    registerUDP(buf, len, &addr);
                     break;
             }
         }
@@ -167,11 +153,11 @@ void deliverSSP(char *buf, uint8_t *l4ptr, int len, struct sockaddr_in *addr)
             (struct sockaddr *)&e->addr, addrLen);
 }
 
-void deliverSUDP(char *buf, uint8_t *l4ptr, int len, struct sockaddr_in *addr)
+void deliverUDP(char *buf, uint8_t *l4ptr, int len, struct sockaddr_in *addr)
 {
     Entry *e;
     uint16_t port = ntohs(*(uint16_t *)(l4ptr + 2));
-    HASH_FIND(hh, SUDPPorts, &port, 2, e);
+    HASH_FIND(hh, UDPPorts, &port, 2, e);
     if (!e)
         return;
     socklen_t addrLen = sizeof(struct sockaddr_in);
@@ -202,7 +188,7 @@ void * dataHandler(void *arg)
                     deliverSSP(buf, l4ptr, len, &addr);
                     break;
                 case SCION_PROTO_UDP:
-                    deliverSUDP(buf, l4ptr, len, &addr);
+                    deliverUDP(buf, l4ptr, len, &addr);
                     break;
             }
         }

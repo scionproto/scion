@@ -1,7 +1,5 @@
-#include <stdlib.h>
 #include <arpa/inet.h>
-#include <string.h>
-#include <stdio.h>
+
 #include "SCIONSocket.h"
 #include "SHA1.h"
 

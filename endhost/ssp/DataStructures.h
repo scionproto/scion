@@ -1,11 +1,10 @@
 #ifndef SCION_DATASTRUCTURES_H
 #define SCION_DATASTRUCTURES_H
 
-#include <pthread.h>
-#include <stdlib.h>
 #include <string.h>
+
 #include <list>
-#include <vector>
+#include <memory>
 
 #include "SocketConfigs.h"
 #include "SCIONDefines.h"
@@ -35,8 +34,7 @@ enum DataProfile {
 class L4Packet {
 public:
     L4Packet()
-        : data(NULL),
-        len(0),
+        : len(0),
         dataOffset(0),
         windowSize(0),
         skipCount(0),
@@ -45,17 +43,33 @@ public:
         interfaces(NULL)
     {}
 
+    L4Packet(L4Packet &other)
+        : len(other.len),
+        dataOffset(other.dataOffset),
+        windowSize(other.windowSize),
+        skipCount(other.skipCount),
+        retryAttempts(other.retryAttempts),
+        interfaceCount(other.interfaceCount)
+    {
+        data = other.data;
+        if (interfaceCount) {
+            size_t len = interfaceCount * SCION_IF_SIZE;
+            interfaces = (uint8_t *)malloc(len);
+            memcpy(interfaces, other.interfaces, len);
+        } else {
+            interfaces = NULL;
+        }
+    }
+
     virtual ~L4Packet()
     {
         if (interfaces)
             free(interfaces);
-        if (data)
-            free(data);
     }
 
     virtual uint64_t number() { return 0; }
 
-    uint8_t *data;
+    std::shared_ptr<uint8_t> data;
     size_t len;
     size_t dataOffset;
     size_t windowSize;
@@ -105,6 +119,13 @@ public:
     {
         memset(&header, 0, sizeof(header));
         memset(&ack, 0, sizeof(ack));
+    }
+
+    SSPPacket(SSPPacket &other)
+        : L4Packet(other)
+    {
+        header = other.header;
+        ack = other.ack;
     }
 
     ~SSPPacket() {}
