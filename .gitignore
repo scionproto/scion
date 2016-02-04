@@ -78,3 +78,13 @@ endhost/ssp/test/*file
 # CTags
 ##########################
 tags
+
+# HSR binaries
+##########################
+hsr/build
+hsr/cJSON/*.o
+hsr/cJSON/*.a
+hsr/lib/*.o
+hsr/lib/*.a
+hsr/*.json
+vagrant

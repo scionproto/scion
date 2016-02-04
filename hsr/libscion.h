@@ -1,7 +1,7 @@
 #include "scion.h"
 
-unsigned char *get_dstaddr(SCIONHeader *hdr);
-uint8_t get_type(SCIONHeader *hdr);
+unsigned char *get_dstaddr(SCIONCommonHeader *hdr);
+uint8_t get_type(SCIONCommonHeader *hdr);
 uint8_t is_on_up_path(InfoOpaqueField *currOF);
 uint8_t is_last_path_of(SCIONCommonHeader *sch);
 uint8_t is_regular(HopOpaqueField *currOF);
