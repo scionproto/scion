@@ -197,7 +197,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         :param pkt: The packet containing the revocation info.
         :type pkt: PathMgmtPacket
         """
-        logging.info("At %s", self.addr)
         rev_info = pkt.get_payload()
         assert isinstance(rev_info, RevocationInfo)
         if hash(rev_info) in self.revocations:
