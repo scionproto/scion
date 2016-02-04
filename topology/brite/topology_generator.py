@@ -360,12 +360,13 @@ def json_convert(graph):
     :param graph: A graph to be dumped into the json file
     :type graph: :class: `networkx.DiGraph`
     """
+    def func_labels(x):
+        return graph.edge[isd_ad_id][x]['label']
     topo_dict = dict()
     topo_dict["defaults"] = dict()
     topo_dict["ADs"] = dict()
     topo_dict["defaults"]["subnet"] = "127.0.0.0/8"
     for isd_ad_id in graph.nodes():
-        func_labels = lambda x: graph.edge[isd_ad_id][x]['label']
         list_labels = [func_labels(x) for x in list(graph.edge[isd_ad_id])]
         topo_dict["ADs"][isd_ad_id] = {
             "beacon_servers": 1,

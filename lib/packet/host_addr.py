@@ -23,8 +23,8 @@ from ipaddress import (
     AddressValueError,
     IPV4LENGTH,
     IPV6LENGTH,
-    IPv4Address,
-    IPv6Address,
+    IPv4Interface,
+    IPv6Interface,
 )
 
 # SCION
@@ -53,7 +53,6 @@ class HostAddrBase(object, metaclass=ABCMeta):
     """
     TYPE = None
     LEN = None
-    NAME = None
 
     def __init__(self, addr, raw=True):
         """
@@ -77,6 +76,10 @@ class HostAddrBase(object, metaclass=ABCMeta):
         :rtype: bytes
         """
         raise NotImplementedError
+
+    @classmethod
+    def name(cls):
+        return AddrType.to_str(cls.TYPE)
 
     def __str__(self):
         return str(self.addr)
@@ -122,10 +125,11 @@ class HostAddrIPv4(HostAddrBase):
         :param raw: Can be either `bytes` or `str`
         """
         try:
-            self.addr = IPv4Address(raw)
+            intf = IPv4Interface(raw)
         except AddressValueError as e:
-            raise SCIONParseError("Unable to parse %s address: %s" % (self.NAME, e)) \
-                from None
+            raise SCIONParseError("Unable to parse %s address: %s" %
+                                  (self.name(), e)) from None
+        self.addr = intf.ip
 
     def pack(self):
         return self.addr.packed
@@ -145,10 +149,11 @@ class HostAddrIPv6(HostAddrBase):
         :param raw: Can be either `bytes` or `str`
         """
         try:
-            self.addr = IPv6Address(raw)
+            intf = IPv6Interface(raw)
         except AddressValueError as e:
-            raise SCIONParseError("Unable to parse %s address: %s" % (self.NAME, e)) \
-                from None
+            raise SCIONParseError("Unable to parse %s address: %s" %
+                                  (self.name(), e)) from None
+        self.addr = intf.ip
 
     def pack(self):
         return self.addr.packed
@@ -199,8 +204,8 @@ def haddr_get_type(type_):
     try:
         return _map[type_]
     except KeyError:
-        raise HostAddrInvalidType("Unknown host addr type '%s'" % type_) \
-            from None
+        raise HostAddrInvalidType("Unknown host addr type '%s'" %
+                                  type_) from None
 
 
 def haddr_parse(type_, *args, **kwargs):
@@ -218,3 +223,18 @@ def haddr_parse(type_, *args, **kwargs):
     """
     typecls = haddr_get_type(type_)
     return typecls(*args, **kwargs)
+
+
+def haddr_parse_interface(intf):
+    """
+    Try to parse a string as either an ipv6 or ipv4 interface
+
+    :param str interface: E.g. ``127.0.0.1/8``.
+    """
+    for type_ in AddrType.IPV6, AddrType.IPV4:
+        try:
+            return haddr_parse(type_, intf)
+        except SCIONParseError:
+            pass
+    else:
+        raise SCIONParseError("Unable to parse interface '%s'" % intf)

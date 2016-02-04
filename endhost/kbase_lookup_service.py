@@ -1,0 +1,151 @@
+# Copyright 2016 ETH Zurich
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""
+:mod:`kbase_lookup_service` --- UDP Server to serve SCION socket stats
+======================================================================
+"""
+
+# Stdlib
+import json
+import logging
+import struct
+import threading
+
+
+# SCION
+from lib.socket import UDPSocket
+from lib.thread import thread_safety_net
+from lib.types import AddrType
+
+SERVER_ADDRESS = "127.0.0.1", 7777
+
+
+class KnowledgeBaseLookupService(object):
+    """
+    This class starts up a UDP server which binds to SERVICE_PORT and
+    responds to incoming UDP datagrams which contain lookup requests.
+    It pulls the stats from SocketKnowledgeBase object which is also
+    the creator of this object.
+    """
+
+    def __init__(self, kbase):
+        """
+        Creates and initializes an instance of the lookup service.
+        :param kbase: Socket knowledge-base object.
+        :type kbase: SocketKnowledgeBase
+        """
+        self.kbase = kbase
+        # Create a UDP socket
+        self.sock = UDPSocket(SERVER_ADDRESS, AddrType.IPV4)
+        # Bind the socket to the port
+        logging.debug("Socket stats service starting up on %s port %s",
+                      SERVER_ADDRESS[0], SERVER_ADDRESS[1])
+        self.service = threading.Thread(
+            target=thread_safety_net,
+            args=(self._run,),
+            name="stats_lookup",
+            daemon=True)
+        self.service.start()
+
+    def _run(self):
+        """
+        Serves the incoming requests serially, one by one.
+        This can be parallelized in the future, currently there is no
+        need to process parallel as only one browser extension
+        will talk to this service and send requests one by one.
+        """
+        while True:
+            try:
+                self._serve_query()
+            except OSError:
+                break
+
+    def _serve_query(self):
+        """
+        Reads and parses a query, looks it up and returns the result.
+        """
+        req_raw, addr = self._recv_data()
+        if req_raw is None or len(req_raw) < 4 or addr is None:
+            return
+        req_len = struct.unpack("!I", req_raw[:4])[0]
+        if req_len != len(req_raw[4:]):
+            logging.error('Request length does not match the data length')
+            return
+        try:
+            req_str = req_raw[4:].decode("utf-8")
+            request = json.loads(req_str)
+        except (UnicodeDecodeError, json.JSONDecodeError) as e:
+            logging.error('Error decoding request: %s' % e)
+            return
+
+        logging.debug('Length of the request = %d' % req_len)
+        logging.debug('Received request %s' % req_raw[4:4+req_len])
+        assert(isinstance(request, dict))
+
+        try:
+            command = request['command']
+            res_name = request['res_name']
+        except KeyError as e:
+            logging.error('Key error while parsing request: %s' % e)
+            return
+
+        resp = self.kbase.lookup(command, res_name)
+        self._send_response(resp, addr)
+
+    def _recv_data(self):
+        """
+        Reads the data in from the socket.
+        :returns:
+            Tuple of (`bytes`, (`address`)) containing the data and
+            remote address.
+        """
+        logging.debug('Waiting to receive the request length')
+        try:
+            req_raw, addr = self.sock.recv()
+        except OSError as e:
+            logging.error('Error while reading from socket: %s' % e)
+            raise OSError("Can't read from the socket: It is dead.")
+        logging.debug('Request = %s' % req_raw)
+        return req_raw, addr
+
+    def _send_response(self, resp, addr):
+        """
+        Encodes the response dictionary object into JSON and sends it to
+        the given address
+        :param resp: Stats response to be sent to the client.
+        :type resp: dict
+        :param addr: Address to send the response to.
+        :type addr: AddrType.IPV4
+        """
+        # prepare the response
+        result = []
+        try:
+            resp_str = json.dumps(resp)
+            resp_bytes = resp_str.encode('utf-8')
+        except ValueError as e:
+            logging.error('Error while encoding JSON: %s' % e)
+            return
+
+        # the number of bytes contained in JSON response
+        logging.debug("Response length is %d" % len(resp_bytes))
+        resp_len = struct.pack("!I", len(resp_bytes))
+        result.append(resp_len)
+        result.append(resp_bytes)
+        try:
+            # send the response
+            self.sock.send(b''.join(result), addr)
+        except OSError as e:
+            logging.error('Error while sending response: %s' % e)
+            raise OSError("Can't write to the socket: It is dead.")

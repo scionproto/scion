@@ -1,5 +1,5 @@
-SCION Endhost Gateway
-=====================
+SCION Endhost Code
+==================
 
 Contents:
 

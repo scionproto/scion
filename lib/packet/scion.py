@@ -150,8 +150,8 @@ class SCIONCommonHdr(HeaderBase):
 
     def __str__(self):
         values = {
-            "src_addr_type": haddr_get_type(self.src_addr_type).NAME,
-            "dst_addr_type": haddr_get_type(self.dst_addr_type).NAME,
+            "src_addr_type": haddr_get_type(self.src_addr_type).name(),
+            "dst_addr_type": haddr_get_type(self.dst_addr_type).name(),
         }
         for i in ("version", "total_len",
                   "_iof_idx", "_hof_idx", "next_hdr", "hdr_len"):
@@ -261,11 +261,11 @@ class SCIONAddrHdr(HeaderBase):
     def __str__(self):
         s = []
         s.append("SCIONAddrHdr(%dB):" % len(self))
-        s.append("  Src isd:%d ad:%d host(%s):%s" % (
-            self.src_isd, self.src_ad, self.src_addr.NAME, self.src_addr))
-        s.append("  Dst isd:%d ad:%d host(%s):%s" % (
-            self.dst_isd, self.dst_ad, self.dst_addr.NAME, self.dst_addr))
-        return "\n".join(s)
+        s.append("Src<isd:%d ad:%d host(%s):%s>" % (
+            self.src_isd, self.src_ad, self.src_addr.name(), self.src_addr))
+        s.append("Dst<isd:%d ad:%d host(%s):%s>" % (
+            self.dst_isd, self.dst_ad, self.dst_addr.name(), self.dst_addr))
+        return " ".join(s)
 
 
 class SCIONBasePacket(PacketBase):
@@ -350,7 +350,7 @@ class SCIONBasePacket(PacketBase):
         return b""
 
     def _pack_payload(self):  # pragma: no cover
-        return self._payload.pack()
+        return self._payload.pack_full()
 
     def update(self):
         self.addrs.update()
@@ -367,7 +367,7 @@ class SCIONBasePacket(PacketBase):
         hdr.next_hdr = self._get_next_hdr()
 
     def _get_offset_len(self):  # pragma: no cover
-        return len(self._payload)
+        return self._payload.total_len()
 
     def _get_next_hdr(self):  # pragma: no cover
         return self._l4_proto
@@ -390,7 +390,8 @@ class SCIONBasePacket(PacketBase):
         s.append("%s(%dB):" % (self.NAME, len(self)))
         s.append("  %s" % self.cmn_hdr)
         s.append("  %s" % self.addrs)
-        s.append("  %s" % self.path)
+        for line in str(self.path).splitlines():
+            s.append("  %s" % line)
         s.extend(self._inner_str())
         s.append("  Payload(%dB): %s" % (
             len(self._payload), self._payload))
@@ -435,12 +436,16 @@ class SCIONExtPacket(SCIONBasePacket):
         packed = [super()._inner_pack()]
         max_idx = len(self.ext_hdrs) - 1
         for i, hdr in enumerate(self.ext_hdrs):
+            ext_packed = []
             next_hdr = self._l4_proto
             if i < max_idx:
                 next_hdr = self.ext_hdrs[i+1].EXT_CLASS
-            packed.append(struct.pack("!BBB", next_hdr, hdr.hdr_len(),
-                                      hdr.EXT_TYPE))
-            packed.append(hdr.pack())
+            ext_packed.append(struct.pack("!BBB", next_hdr, hdr.hdr_len(),
+                                          hdr.EXT_TYPE))
+            ext_packed.append(hdr.pack())
+            ext = b"".join(ext_packed)
+            assert len(ext) % ExtensionHeader.LINE_LEN == 0
+            packed.append(ext)
         return b"".join(packed)
 
     def _get_offset_len(self):
@@ -461,6 +466,11 @@ class SCIONExtPacket(SCIONBasePacket):
             for line in str(hdr).splitlines():
                 s.append("  %s" % line)
         return s
+
+    def reverse(self):  # pragma: no cover
+        for hdr in self.ext_hdrs:
+            hdr.reverse()
+        super().reverse()
 
 
 class SCIONL4Packet(SCIONExtPacket):
@@ -488,6 +498,8 @@ class SCIONL4Packet(SCIONExtPacket):
                     payload=b""):
         inst = cls()
         inst._inner_from_values(cmn_hdr, addr_hdr, path_hdr, ext_hdrs, l4_hdr)
+        if not payload:
+            payload = PayloadRaw()
         inst.set_payload(payload)
         inst.update()
         return inst
@@ -501,11 +513,9 @@ class SCIONL4Packet(SCIONExtPacket):
     def _inner_pack(self):
         self.update()
         packed = [super()._inner_pack()]
-        packed.append(self.l4_hdr.pack())
+        if self.l4_hdr:
+            packed.append(self.l4_hdr.pack())
         return b"".join(packed)
-
-    def _pack_payload(self):  # pragma: no cover
-        return self._payload.pack_full()
 
     def update(self):
         if self.l4_hdr:
@@ -531,15 +541,15 @@ class SCIONL4Packet(SCIONExtPacket):
         }
         handler = class_map.get(pld_class)
         if not handler:
-            raise SCIONParseError("Unsupported payload class: %s", pld_class)
+            raise SCIONParseError("Unsupported payload class: %s" % pld_class)
         pld = handler(data.pop(1), data)
         self.set_payload(pld)
         return pld
 
     def _get_offset_len(self):
         l = super()._get_offset_len()
-        l += len(self.l4_hdr)
-        l += self._payload.METADATA_LEN
+        if self.l4_hdr:
+            l += len(self.l4_hdr)
         return l
 
     def _inner_str(self):  # pragma: no cover

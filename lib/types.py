@@ -47,6 +47,16 @@ class ExtensionClass(TypeBase):
     END_TO_END = 222  # (Expected:-) number for SCION end2end extensions.
 
 
+class ExtHopByHopType(TypeBase):
+    TRACEROUTE = 0
+    SIBRA = 1
+
+
+class ExtEndToEndType(TypeBase):
+    PATH_TRANSPORT = 0
+    PATH_PROBE = 1
+
+
 class OpaqueFieldType(TypeBase):
     """
     Constants for the types of the opaque field (first byte of every opaque
@@ -99,7 +109,7 @@ class PathSegmentType(TypeBase):
     UP = 0  # Request/Reply for up-paths
     DOWN = 1  # Request/Reply for down-paths
     CORE = 2  # Request/Reply for core-paths
-    UP_DOWN = 3  # Request/Reply for up- and down-paths
+    GENERIC = 3  # FIXME(PSz): experimental for now.
 
 
 class PCBType(TypeBase):
@@ -108,3 +118,20 @@ class PCBType(TypeBase):
 
 class IFIDType(object):
     PAYLOAD = 0
+
+
+############################
+# Router types
+############################
+class RouterFlag(TypeBase):
+    ERROR = 0
+    NO_PROCESS = 1
+    FORWARD = 2
+
+
+############################
+# SIBRA types
+############################
+class SIBRAPathType(TypeBase):
+    STEADY = 0
+    EPHEMERAL = 1

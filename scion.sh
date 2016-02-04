@@ -1,31 +1,29 @@
 #!/usr/bin/env bash
 
+export PYTHONPATH=.
+
 # BEGIN subcommand functions
 
-cmd_init() {
-    echo "Checking if tweetnacl has been built..."
-    if [ -f lib/crypto/python-tweetnacl-20140309/build/python3.4/tweetnacl.so ]
-    then
-        echo "tweetnacl exists."
-    else
-        echo "tweetnacl.so does not exist. Compiling..."
-        cd lib/crypto/python-tweetnacl-20140309/
-        sh do
-    fi
-}
-
 cmd_topology() {
-    echo "Create topology, configuration, and execution files."
+    echo "Shutting down supervisord: $(supervisor/supervisor.sh shutdown)"
     mkdir -p logs traces
-    PYTHONPATH=./ python3 topology/generator.py "$@"
+    [ -e gen ] && rm -r gen
+    if [ "$1" = "zkclean" ]; then
+        shift
+        echo "Deleting all Zookeeper state"
+        tools/zkcleanslate
+    fi
+    echo "Create topology, configuration, and execution files."
+    topology/generator.py "$@"
 }
 
 cmd_run() {
     echo "Running the network..."
     supervisor/supervisor.sh reload
-    for i in topology/ISD*/zookeeper/ISD*/datalog.*.sh; do
-        [ -e "$i" ] && bash "$i"
-    done
+    # Supervisor reload causes the domain socket to briefly disappear, which
+    # breaks the detection logic in supervisor.sh
+    sleep 1
+    bash gen/zk_datalog_dirs.sh || exit 1
     supervisor/supervisor.sh quickstart all
 }
 
@@ -42,12 +40,12 @@ cmd_status() {
 }
 
 cmd_test(){
-    PYTHONPATH=. nosetests "$@"
+    nosetests "$@"
 }
 
 cmd_coverage(){
     set -e
-    PYTHONPATH=. nosetests --with-cov --cov-report html "$@"
+    nosetests --with-cov --cov-report html "$@"
     coverage report
     echo "Coverage report here: file://$PWD/htmlcov/index.html"
 }
@@ -66,15 +64,61 @@ cmd_version() {
 	_EOF
 }
 
+cmd_sock_bld() {
+    make -C endhost
+    make -C endhost/ssp
+    make -C endhost/ssp/test
+}
+
+SOCKDIR=endhost/ssp
+
+cmd_sock_cli() {
+    if [ $# -eq 2 ]
+    then
+        GENDIR=gen/ISD${1}/AD${2}/endhost
+        ADDR="127.${1}.${2}.254"
+    else
+        GENDIR=gen/ISD1/AD19/endhost
+        ADDR="127.1.19.254"
+    fi
+    APIADDR="127.255.255.254"
+    PYTHONPATH=.
+    python3 endhost/dummy.py $GENDIR $ADDR $APIADDR client
+}
+
+cmd_run_cli() {
+    export LD_LIBRARY_PATH=`pwd`/endhost/ssp
+    $SOCKDIR/test/client
+}
+
+cmd_sock_ser() {
+    if [ $# -eq 2 ]
+    then
+        GENDIR=gen/ISD${1}/AD${2}/endhost
+        ADDR="127.${1}.${2}.254"
+    else
+        GENDIR=gen/ISD2/AD26/endhost
+        ADDR="127.2.26.254"
+    fi
+    APIADDR="127.255.255.253"
+    PYTHONPATH=.
+    python3 endhost/dummy.py $GENDIR $ADDR $APIADDR server
+}
+
+cmd_run_ser() {
+    export LD_LIBRARY_PATH=`pwd`/endhost/ssp
+    $SOCKDIR/test/server
+}
+
 cmd_help() {
 	cmd_version
 	echo
 	cat <<-_EOF
 	Usage:
-	    $PROGRAM init
-	        Compile the SCION crypto library.
-	    $PROGRAM topology
-	        Create topology, configuration, and execution files.
+	    $PROGRAM topology [zkclean]
+	        Create topology, configuration, and execution files. With the
+	        'zkclean' option, also reset all local Zookeeper state. Another
+	        other arguments or options are passed to topology/generator.py
 	    $PROGRAM run
 	        Run network.
 	    $PROGRAM stop
@@ -98,7 +142,8 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    coverage|help|init|lint|run|stop|status|test|topology|version)
+    coverage|help|lint|run|stop|status|test|topology|version|\
+    sock_cli|sock_ser|sock_bld|run_cli|run_ser)
         "cmd_$COMMAND" "$@" ;;
     *)  cmd_help; exit 1 ;;
 esac

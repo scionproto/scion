@@ -17,18 +17,22 @@
 """
 # Stdlib
 import logging
+import os
 import queue
 import threading
+from collections import defaultdict
 
 # SCION
 from lib.config import Config
 from lib.defines import (
+    AD_CONF_FILE,
     BEACON_SERVICE,
     CERTIFICATE_SERVICE,
     DNS_SERVICE,
     PATH_SERVICE,
     SCION_UDP_PORT,
     SERVICE_TYPES,
+    TOPO_FILE,
 )
 from lib.dnsclient import DNSCachingClient
 from lib.errors import SCIONBaseError, SCIONServiceLookupError
@@ -41,6 +45,7 @@ from lib.packet.scion_addr import SCIONAddr
 from lib.packet.scion_udp import SCIONUDPHeader
 from lib.socket import UDPSocket, UDPSocketMgr
 from lib.thread import thread_safety_net
+from lib.trust_store import TrustStore
 from lib.types import PayloadClass
 from lib.topology import Topology
 
@@ -58,74 +63,55 @@ class SCIONElement(object):
         router addresses in the server's AD.
     :ivar `SCIONAddr` addr: the server's address.
     """
+    SERVICE_TYPE = None
 
-    def __init__(self, server_type, topo_file, config_file=None, server_id=None,
-                 host_addr=None, is_sim=False):
+    def __init__(self, server_id, conf_dir, host_addr=None, port=SCION_UDP_PORT,
+                 is_sim=False):
         """
-        :param str server_type:
-            a service type from :const:`lib.defines.SERVICE_TYPES`. E.g.
-            ``"bs"``.
-        :param str topo_file: path name of the topology file.
-        :param str config_file: path name of the configuration file.
-        :param str server_id:
-            the local id of the server. E.g. for `bs1-10-3`, the id would be
-            ``"3"``. Used to look up config from topology file.
+        :param str server_id: server identifier.
+        :param str conf_dir: configuration directory.
         :param `HostAddrBase` host_addr:
-            the interface to bind to. Only used if `server_id` isn't specified.
-        :param bool is_sim: running in simulator
+            the interface to bind to. Overrides the address in the topology
+            config.
+        :param int port: the port to bind to.
+        :param bool is_sim: running on simulator
         """
-        self.topology = None
-        self.config = None
+        self.id = server_id
+        self.conf_dir = conf_dir
         self.ifid2addr = {}
-        self.parse_topology(topo_file)
+        self._port = port
+        self.topology = Topology.from_file(
+            os.path.join(self.conf_dir, TOPO_FILE))
+        self.config = Config.from_file(
+            os.path.join(self.conf_dir, AD_CONF_FILE))
         # Must be over-ridden by child classes:
         self.PLD_CLASS_MAP = {}
-        if server_id is not None:
-            own_config = self.topology.get_own_config(server_type, server_id)
-            self.id = "%s%s-%s-%s" % (server_type, self.topology.isd_id,
-                                      self.topology.ad_id, own_config.name)
+        if host_addr is None:
+            own_config = self.topology.get_own_config(
+                self.SERVICE_TYPE, server_id)
             host_addr = own_config.addr
-        else:
-            self.id = server_type
         self.addr = SCIONAddr.from_values(self.topology.isd_id,
                                           self.topology.ad_id, host_addr)
         self._dns = DNSCachingClient(
             [str(s.addr) for s in self.topology.dns_servers],
             self.topology.dns_domain)
-        if config_file:
-            self.parse_config(config_file)
         self.construct_ifid2addr_map()
+        self.trust_store = TrustStore(self.conf_dir)
+        self.total_dropped = 0
+        self._core_ads = defaultdict(list)  # Mapping ISD_ID->list of core ASes.
+        self.init_core_ads()
         if not is_sim:
             self.run_flag = threading.Event()
             self.stopped_flag = threading.Event()
             self.stopped_flag.set()
-            self._in_buf = queue.Queue()
+            self._in_buf = queue.Queue(30)
             self._socks = UDPSocketMgr()
             self._local_sock = UDPSocket(
-                bind=(str(self.addr.host_addr), SCION_UDP_PORT, self.id),
+                bind=(str(self.addr.host_addr), port, self.id),
                 addr_type=self.addr.host_addr.TYPE,
             )
+            self._port = self._local_sock.port
             self._socks.add(self._local_sock)
-
-    def parse_topology(self, topo_file):
-        """
-        Instantiate a Topology object given 'topo_file'.
-
-        :param topo_file: the topology file name.
-        :type topo_file: str
-        """
-        assert isinstance(topo_file, str)
-        self.topology = Topology.from_file(topo_file)
-
-    def parse_config(self, config_file):
-        """
-        Instantiate a Config object given 'config_file'.
-
-        :param config_file: the configuration file name.
-        :type config_file: str
-        """
-        assert isinstance(config_file, str)
-        self.config = Config.from_file(config_file)
 
     def construct_ifid2addr_map(self):
         """
@@ -135,6 +121,13 @@ class SCIONElement(object):
         assert self.topology is not None
         for edge_router in self.topology.get_all_edge_routers():
             self.ifid2addr[edge_router.interface.if_id] = edge_router.addr
+
+    def init_core_ads(self):
+        """
+        Initializes dict of core ASes.
+        """
+        for trc in self.trust_store.get_trcs():
+            self._core_ads[trc.isd_id] = trc.get_core_ads()
 
     def handle_request(self, packet, sender, from_local_socket=True):
         """
@@ -158,7 +151,7 @@ class SCIONElement(object):
         try:
             handler(pkt)
         except SCIONBaseError:
-            log_exception("Error handling packet:\n%s" % packet)
+            log_exception("Error handling packet:\n%s" % pkt)
 
     def _get_handler(self, pkt):
         pld = pkt.get_payload()
@@ -187,13 +180,32 @@ class SCIONElement(object):
         :returns:
         :rtype:
         """
-        if len(spkt.path) == 0:  # EmptyPath
-            if isinstance(spkt, SCIONL4Packet):
-                # FIXME(PSz): this should be removed when we have a dispatcher
-                return spkt.addrs.dst_addr, spkt.l4_hdr.dst_port
-            else:
-                return spkt.addrs.dst_addr, SCION_UDP_PORT
-        return self.ifid2addr[spkt.path.get_fwd_if()], SCION_UDP_PORT
+        if_id = self._ext_first_hop(spkt)
+        if if_id is None:
+            if len(spkt.path) == 0:
+                return self._empty_first_hop(spkt)
+            if_id = spkt.path.get_fwd_if()
+        if if_id in self.ifid2addr:
+            return self.ifid2addr[if_id], SCION_UDP_PORT
+        logging.error("Unable to find first hop")
+        return None, None
+
+    def _ext_first_hop(self, spkt):
+        for hdr in spkt.ext_hdrs:
+            if_id = hdr.get_first_ifid()
+            if if_id is not None:
+                return if_id
+
+    def _empty_first_hop(self, spkt):
+        if ((spkt.addrs.src_isd, spkt.addrs.src_ad) !=
+                (spkt.addrs.dst_isd, spkt.addrs.dst_ad)):
+            logging.error("Packet has no path but different src/dst ADs")
+            return None, None
+        if isinstance(spkt, SCIONL4Packet):
+            # FIXME(PSz): this should be removed when we have a dispatcher
+            return spkt.addrs.dst_addr, spkt.l4_hdr.dst_port
+        else:
+            return spkt.addrs.dst_addr, SCION_UDP_PORT
 
     def _build_packet(self, dst_host=None, path=None, ext_hdrs=(), dst_isd=None,
                       dst_ad=None, payload=None, dst_port=SCION_UDP_PORT):
@@ -210,7 +222,7 @@ class SCIONElement(object):
         dst_addr = SCIONAddr.from_values(dst_isd, dst_ad, dst_host)
         cmn_hdr, addr_hdr = build_base_hdrs(self.addr, dst_addr)
         udp_hdr = SCIONUDPHeader.from_values(
-            self.addr, SCION_UDP_PORT, dst_addr, dst_port, payload)
+            self.addr, self._port, dst_addr, dst_port, payload)
         return SCIONL4Packet.from_values(
             cmn_hdr, addr_hdr, path, ext_hdrs, udp_hdr, payload)
 
@@ -245,6 +257,25 @@ class SCIONElement(object):
 
         self._packet_process()
 
+    def packet_put(self, packet, addr, from_local_ad):
+        """
+        Try to put incoming packet in queue
+        If queue is full, drop oldest packet in queue
+        """
+        dropped = 0
+        while True:
+            try:
+                self._in_buf.put((packet, addr, from_local_ad), block=False)
+            except queue.Full:
+                self._in_buf.get_nowait()
+                dropped += 1
+            else:
+                break
+        if dropped > 0:
+            self.total_dropped += dropped
+            logging.debug("%d packet(s) dropped (%d total dropped so far)",
+                          dropped, self.total_dropped)
+
     def packet_recv(self):
         """
         Read packets from sockets, and put them into a :class:`queue.Queue`.
@@ -255,10 +286,11 @@ class SCIONElement(object):
                     try:
                         # Read from socket until its buffer is empty.
                         packet, addr = sock.recv(block=False)
-                        self._in_buf.put((packet, addr,
-                                          sock == self._local_sock))
                     except BlockingIOError:
                         break
+                    else:
+                        self.packet_put(packet, addr, sock == self._local_sock)
+
         self.stopped_flag.set()
 
     def _packet_process(self):

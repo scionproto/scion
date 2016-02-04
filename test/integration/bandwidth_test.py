@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 # Copyright 2014 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,6 +26,7 @@ import unittest
 
 # SCION
 from endhost.sciond import SCIONDaemon
+from lib.defines import GEN_PATH
 from lib.log import init_logging, log_exception
 from lib.packet.host_addr import haddr_parse
 from lib.packet.packet_base import PayloadRaw
@@ -80,8 +82,8 @@ class TestBandwidth(unittest.TestCase):
         packets (each with PAYLOAD_SIZE long payload) to a host in (2, 26).
         """
         addr = haddr_parse("IPV4", "127.1.19.254")
-        topo_file = "../../topology/ISD1/topologies/ISD:1-AD:19.json"
-        sender = SCIONDaemon.start(addr, topo_file)
+        conf_dir = "%s/ISD1/AD19/endhost" % GEN_PATH
+        sender = SCIONDaemon.start(conf_dir, addr)
 
         paths = sender.get_paths(2, 26)
         self.assertTrue(paths)
@@ -100,6 +102,7 @@ class TestBandwidth(unittest.TestCase):
             haddr_parse("IPV4", "127.2.26.254"), dst_isd=2, dst_ad=26,
             dst_port=rcv_sock.port, payload=payload, path=paths[0])
         (next_hop, port) = sender.get_first_hop(spkt)
+        assert next_hop is not None
         logging.info("Sending %d payload bytes (%d packets x %d bytes )" %
                      (PACKETS_NO * PAYLOAD_SIZE, PACKETS_NO, PAYLOAD_SIZE))
         for _ in range(PACKETS_NO):
@@ -115,7 +118,7 @@ class TestBandwidth(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    init_logging("../../logs/bw_test.log", console=True)
+    init_logging("logs/bw_test", console_level=logging.DEBUG)
     handle_signals()
     try:
         TestBandwidth().test()

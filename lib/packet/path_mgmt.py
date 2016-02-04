@@ -19,20 +19,16 @@ Contains all the packet formats used for path management.
 """
 # Stdlib
 import struct
+from collections import defaultdict
 
 # SCION
-from lib.types import PathMgmtType as PMT, PathSegmentType
+from lib.types import PathMgmtType as PMT, PathSegmentType as PST
 from lib.errors import SCIONParseError
-from lib.packet.packet_base import SCIONPayloadBase
+from lib.packet.packet_base import PathMgmtPayloadBase
 from lib.packet.pcb import PathSegment
 from lib.packet.scion_addr import ISD_AD
-from lib.types import PayloadClass
+from lib.packet.rev_info import RevocationInfo
 from lib.util import Raw
-
-
-class PathMgmtPayloadBase(SCIONPayloadBase):
-    PAYLOAD_CLASS = PayloadClass.PATH
-    PAYLOAD_TYPE = None
 
 
 class PathSegmentInfo(PathMgmtPayloadBase):
@@ -95,12 +91,18 @@ class PathSegmentInfo(PathMgmtPayloadBase):
         packed.append(ISD_AD(self.dst_isd, self.dst_ad).pack())
         return b"".join(packed)
 
+    def short_desc(self):
+        return "%s %s-%s -> %s-%s" % (
+            PST.to_str(self.seg_type), self.src_isd, self.src_ad,
+            self.dst_isd, self.dst_ad,
+        )
+
     def __len__(self):  # pragma: no cover
         return self.LEN
 
     def __str__(self):
         return "[%s(%dB): seg type:%s src isd/ad: %s/%s dst isd/ad: %s/%s]" % (
-            self.NAME, len(self), PathSegmentType.to_str(self.seg_type),
+            self.NAME, len(self), PST.to_str(self.seg_type),
             self.src_isd, self.src_ad, self.dst_isd, self.dst_ad,
         )
 
@@ -111,7 +113,7 @@ class PathSegmentRecords(PathMgmtPayloadBase):
     represented as objects of the PathSegment class. Type of a path is
     determined through info field (object of PathSegmentInfo).
     """
-    MIN_LEN = PathSegmentInfo.LEN + PathSegment.MIN_LEN
+    MIN_LEN = 1 + PathSegment.MIN_LEN
 
     def __init__(self, raw=None):  # pragma: no cover
         """
@@ -121,50 +123,52 @@ class PathSegmentRecords(PathMgmtPayloadBase):
         :type raw:
         """
         super().__init__()
-        self.info = None
-        self.pcbs = None
+        self.pcbs = defaultdict(list)
         if raw is not None:
             self._parse(raw)
 
     def _parse(self, raw):
         data = Raw(raw, self.NAME, self.MIN_LEN, min_=True)
-        self.info = PathSegmentInfo(data.pop(PathSegmentInfo.LEN))
-        self.pcbs = PathSegment.deserialize(data.pop())
+        while data:
+            seg_type = data.pop(1)
+            pcb = PathSegment(data.get())
+            data.pop(len(pcb))
+            self.pcbs[seg_type].append(pcb)
 
     @classmethod
-    def from_values(cls, info, pcbs):
+    def from_values(cls, pcb_dict):
         """
         Returns a Path Record with the values specified.
 
-        :param info: type of the path segment records
-        :type info: PathSegmentInfo
-        :param pcbs: list of path segments
-        :type pcbs: list
+        :param pcb_dict: dict of {seg_type: pcbs}
         """
-        assert isinstance(info, PathSegmentInfo)
         inst = cls()
-        inst.info = info
-        inst.pcbs = pcbs
+        inst.pcbs = pcb_dict
         return inst
 
     def pack(self):
         packed = []
-        packed.append(self.info.pack())
-        packed.append(PathSegment.serialize(self.pcbs))
+        for seg_type, pcbs in self.pcbs.items():
+            for pcb in pcbs:
+                packed.append(struct.pack("!B", seg_type))
+                packed.append(pcb.pack())
         return b"".join(packed)
 
     def __len__(self):
-        l = len(self.info)
-        for pcb in self.pcbs:
-            l += len(pcb)
+        l = 0
+        for pcbs in self.pcbs.values():
+            for pcb in pcbs:
+                l += len(pcb) + 1  # segment type byte
         return l
 
     def __str__(self):
         s = []
         s.append("%s(%dB):" % (self.NAME, len(self)))
-        s.append("  %s" % self.info)
-        for pcb in self.pcbs:
-            s.append("  %s" % pcb)
+        for type_ in [PST.UP, PST.DOWN, PST.CORE]:
+            if self.pcbs[type_]:
+                s.append("  %s:" % PST.to_str(type_))
+                for pcb in self.pcbs[type_]:
+                    s.append("    %s" % pcb.short_desc())
         return "\n".join(s)
 
 
@@ -181,53 +185,6 @@ class PathRecordsReg(PathSegmentRecords):
 class PathRecordsSync(PathSegmentRecords):
     NAME = "PathRecordsSync"
     PAYLOAD_TYPE = PMT.SYNC
-
-
-class RevocationInfo(PathMgmtPayloadBase):
-    """
-    Class containing revocation information, i.e., the revocation token.
-    """
-    NAME = "RevocationInfo"
-    PAYLOAD_TYPE = PMT.REVOCATION
-    LEN = 32
-
-    def __init__(self, raw=None):  # pragma: no cover
-        """
-        Initialize an instance of the class RevocationInfo.
-
-        :param raw:
-        :type raw:
-        """
-        super().__init__()
-        self.rev_token = b""
-
-        if raw is not None:
-            self._parse(raw)
-
-    def _parse(self, raw):
-        data = Raw(raw, self.NAME, self.LEN)
-        self.rev_token = struct.unpack("!32s", data.pop(self.LEN))[0]
-
-    @classmethod
-    def from_values(cls, rev_token):
-        """
-        Returns a RevocationInfo object with the specified values.
-
-        :param rev_token: revocation token of interface
-        :type rev_token: bytes
-        """
-        inst = cls()
-        inst.rev_token = rev_token
-        return inst
-
-    def pack(self):
-        return struct.pack("!32s", self.rev_token)
-
-    def __len__(self):  # pragma: no cover
-        return self.LEN
-
-    def __str__(self):
-        return "[%s(%dB): %s]" % (self.NAME, len(self), self.rev_token)
 
 
 class IFStateInfo(object):

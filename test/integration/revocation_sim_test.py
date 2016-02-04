@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 # Copyright 2015 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -103,7 +104,7 @@ class RevocationSimTest(unittest.TestCase):
             # Choose a source ISD_AD
             src_isd_ad = random.choice(local_isd_ads)
             src_topo_path = (
-                "../../topology/ISD{}/topologies/ISD{}-AD{}.json"
+                "topology/ISD{}/topologies/ISD:{}-AD:{}.json"
                 .format(src_isd_ad.isd, src_isd_ad.isd, src_isd_ad.ad)
                 )
             dst_topo_path = (

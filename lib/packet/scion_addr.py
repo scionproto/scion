@@ -63,9 +63,15 @@ class ISD_AD(namedtuple('ISD_AD', 'isd ad')):
             (remaining 20 bits).
         :rtype: bytes
         """
+        return struct.pack("!I", self.int())
+
+    def int(self):
+        """
+        Return an integer representation of the isd/ad tuple.
+        """
         isd = self.isd << 20
         ad = self.ad & 0x000fffff
-        return struct.pack("!I", isd + ad)
+        return isd + ad
 
     def __len__(self):  # pragma: no cover
         return self.LEN
@@ -122,7 +128,7 @@ class SCIONAddr(object):
         """
         haddr_type = haddr_get_type(addr_type)
         self.addr_len = ISD_AD.LEN + haddr_type.LEN
-        data = Raw(raw, "SCIONAddr (%s)" % haddr_type.NAME, self.addr_len)
+        data = Raw(raw, "SCIONAddr", self.addr_len, min_=True)
         self.isd_id, self.ad_id = ISD_AD.from_raw(data.pop(ISD_AD.LEN))
         self.host_addr = haddr_type(data.pop(haddr_type.LEN))
 

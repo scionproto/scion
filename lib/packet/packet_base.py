@@ -20,7 +20,8 @@ import struct
 from abc import ABCMeta, abstractmethod
 from binascii import hexlify
 
-# FIXME(kormat): needs unit tests
+# SCION
+from lib.types import PayloadClass
 
 
 class HeaderBase(object, metaclass=ABCMeta):  # pragma: no cover
@@ -168,6 +169,10 @@ class PayloadBase(object, metaclass=ABCMeta):  # pragma: no cover
 
 
 class PayloadRaw(PayloadBase):  # pragma: no cover
+    def __init__(self, raw=None):
+        self._raw = b""
+        super().__init__(raw)
+
     def _parse(self, raw):
         self._raw = raw or b""
 
@@ -202,3 +207,8 @@ class SCIONPayloadBase(PayloadBase):  # pragma: no cover
 
     def pack_meta(self):
         return struct.pack("!BB", self.PAYLOAD_CLASS, self.PAYLOAD_TYPE)
+
+
+class PathMgmtPayloadBase(SCIONPayloadBase):
+    PAYLOAD_CLASS = PayloadClass.PATH
+    PAYLOAD_TYPE = None

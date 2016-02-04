@@ -26,11 +26,21 @@ EXP_TIME_UNIT = MAX_SEGMENT_TTL / 2 ** 8
 
 #: Base path of project
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-#: Topology subdir path
-TOPOLOGY_PATH = os.path.join(PROJECT_ROOT, 'topology')
+#: Generated files directory
+GEN_PATH = 'gen'
+#: Topology configuration
+TOPO_FILE = "topology.yml"
+#: AD configuration
+AD_CONF_FILE = "ad.yml"
+#: Path policy config
+PATH_POLICY_FILE = "path_policy.yml"
+#: Networks config
+NETWORKS_FILE = "networks.conf"
+#: AD list
+AD_LIST_FILE = "ad_list.yml"
 
 #: Buffer size for receiving packets
-SCION_BUFLEN = 8092
+SCION_BUFLEN = 65535
 #: Default SCION server data port
 SCION_UDP_PORT = 30040
 #: Default SCION endhost data port
@@ -44,11 +54,12 @@ SCION_ROUTER_PORT = 50000
 L4_ICMP = 1
 L4_TCP = 6
 L4_UDP = 17
-L4_SDAMP = 150
 L4_SUDP = 151  # FIXME(kormat): might not be necessary
+L4_SSP = 152
 L4_NONE = 254
 L4_RESERVED = 255
-L4_PROTOS = [L4_ICMP, L4_TCP, L4_UDP, L4_NONE, L4_RESERVED, L4_SDAMP, L4_SUDP]
+L4_PROTOS = [L4_ICMP, L4_TCP, L4_UDP, L4_NONE, L4_RESERVED,
+             L4_SUDP, L4_SSP]
 #: Default layer-4 protocol.
 L4_DEFAULT = L4_RESERVED
 
@@ -68,3 +79,20 @@ SERVICE_TYPES = (
 
 #: How often IFID packet is sent to neighboring router.
 IFID_PKT_TOUT = 1
+
+SCION_MIN_MTU = 1280  # IPv6 min value
+
+#: Number of seconds per sibra tick
+SIBRA_TICK = 4
+#: How far in the future a steady path can reserve at a time.
+SIBRA_MAX_STEADY_TICKS = 45
+#: How far in the future an ephemeral path can reserve at a time.
+SIBRA_MAX_EPHEMERAL_TICKS = 4
+#: Length of steady path ID in bytes
+SIBRA_STEADY_ID_LEN = 8
+#: Length of ephemeral path ID in bytes
+SIBRA_EPHEMERAL_ID_LEN = 16
+#: SIBRA Bandwidth multiplier
+SIBRA_BW_FACTOR = 16 * 1024
+#: SIBRA max reservation index
+SIBRA_MAX_IDX = 16
