@@ -81,7 +81,7 @@ class SimPingApp(SCIONSimApplication):
         :param sender: The sender of the packet
         """
         pkt = SCIONL4Packet(packet)
-        payload = pkt.get_payload()
+        # payload = pkt.get_payload()
         pld_type = pkt.parse_payload().PAYLOAD_TYPE
         if pld_type != PMT.REVOCATION:
             logging.error("Unsupported packet Received")
@@ -105,7 +105,7 @@ class SimPingApp(SCIONSimApplication):
         :param paths_hops: Path information
         :type paths_hops: list
         """
-        
+
         if len(paths_hops) == 0:
             logging.info("No path found for ping request")
             self.next_event()

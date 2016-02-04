@@ -265,7 +265,6 @@ class Simulator(object):
         count_core = 0
         num_local = 0
         count_local = 0
-        num_avg = 0
         for name in self.name_addr_map:
             if name[0:2] == 'ps':
                 element = self.element_list[self.name_addr_map[name]]

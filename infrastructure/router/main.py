@@ -389,7 +389,7 @@ class Router(SCIONElement):
         # if get_type(spkt) != PT.DATA:
         #    return
         if not isinstance(spkt.get_payload(), PayloadRaw):
-             return
+            return
         logging.info("Interface %d is down. Issuing revocation.", if_id)
         # Check that the interface is really down.
         if_state = self.if_states[if_id]

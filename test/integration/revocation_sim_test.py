@@ -146,7 +146,6 @@ class RevocationSimTest(unittest.TestCase):
         for num in range(0, len(ping_apps)):
             ping_app = ping_apps[num]
             pong_app = pong_apps[num]
-            # print(ping_app._addr, ping_app.num_pings_sent, pong_app.num_pings_received)
             total_pings_sent += ping_app.num_pings_sent
             total_pings_received += pong_app.num_pings_received
             total_revocations_received += ping_app.revoked_packets
