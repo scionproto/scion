@@ -43,6 +43,21 @@ Number of pings sent  20696
 Number of pings received  18946
 Number of revocations received  1078
 
+Total messages received at path servers 2927
+At core PS: 215
+At local PS: 2712
+Number of pings sent  11056
+Number of pings received  3702
+Number of revocations received  2184
+
+Total messages received at path servers 2877
+At core PS: 205
+At local PS: 2672
+Number of pings sent  11510
+Number of pings received  3959
+Number of revocations received  2154
+
+
 Avg: 1299
 
 
@@ -70,3 +85,34 @@ Number of pings received  16794
 Number of revocations received  1313
 
 Avg: 2164
+
+FWD_REVOCATION_TIMEOUT = 1
+Total messages received at path servers 3774
+At core PS: 552
+At local PS: 3222
+Number of pings sent  10528
+Number of pings received  3378
+Number of revocations received  2144
+.
+----------------------------------------------------------------------
+Ran 1 test in 2380.797s
+
+OK
+Total messages received at path servers 3862
+At core PS: 562
+At local PS: 3300
+Number of pings sent  11272
+Number of pings received  3504
+Number of revocations received  2185
+.
+----------------------------------------------------------------------
+Ran 1 test in 2245.211s
+
+OK
+Total messages received at path servers 3890
+At core PS: 555
+At local PS: 3335
+Number of pings sent  11076
+Number of pings received  3602
+Number of revocations received  2196
+.

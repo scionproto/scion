@@ -93,6 +93,7 @@ class SimPingApp(SCIONSimApplication):
         """
         Finds path to destination from host and adds application callback
         """
+        self.num_pings_sent += 1
         logging.info("Sending ping")
         self.app_cb = self._do_send_ping
         self.get_paths_via_api(self.dst_isd, self.dst_ad)
@@ -104,9 +105,9 @@ class SimPingApp(SCIONSimApplication):
         :param paths_hops: Path information
         :type paths_hops: list
         """
-        self.num_pings_sent += 1
-
+        
         if len(paths_hops) == 0:
+            logging.info("No path found for ping request")
             self.next_event()
             return
         (path, _) = paths_hops[0]
@@ -166,6 +167,7 @@ class SimPongApp(SCIONSimApplication):
         :type host: SCIONSimHost
         """
         super().__init__(host, SimPongApp._APP_PORT)
+        self._addr = host.addr
         self.num_pings_received = 0
 
     def run(self):

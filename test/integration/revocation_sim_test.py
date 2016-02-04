@@ -81,25 +81,27 @@ class RevocationSimTest(unittest.TestCase):
     Unit tests for sim_host.py
     """
 
-    def test(self, events):
+    def test(self):
         """
         """
+        events = read_events_file()
         simulator = init_simulator()
         # Setup for ping-pong application
-        dst_isd_ad = ISD_AD(2, 26)
-        app_start_time = 31.
-        app_end_time = 200.
-        num_hosts = 100
+        crash_isd_ad = ISD_AD(1, 12)
+        dst_isd_ad = ISD_AD(1, 40)
+        app_start_time = 29.
+        app_end_time = 250.
+        num_hosts = 1000
         src_host_addr_next = "127.100.100.1"
         dst_host_addr_next = "127.101.100.1"
         ping_apps = list()
         pong_apps = list()
         local_isd_ads = simulator.local_isd_ads
         local_isd_ads.remove(dst_isd_ad)
+        local_isd_ads.remove(crash_isd_ad)
         for host in range(0, num_hosts):
             # Choose a source ISD_AD
-            src_isd_ad = ISD_AD(1, 10)
-            # src_isd_ad = random.choice(local_isd_ads)
+            src_isd_ad = random.choice(local_isd_ads)
             src_topo_path = (
                 "../../topology/ISD{}/topologies/ISD{}-AD{}.json"
                 .format(src_isd_ad.isd, src_isd_ad.isd, src_isd_ad.ad)
@@ -114,7 +116,7 @@ class RevocationSimTest(unittest.TestCase):
             dst_host_addr_next = increment_address(dst_host_addr_next, 8)
             host1 = SCIONSimHost(src_host_addr, src_topo_path, simulator)
             host2 = SCIONSimHost(dst_host_addr, dst_topo_path, simulator)
-            ping_interval = random.randint(1,100)
+            ping_interval = random.randint(1, 50)
             ping_application = SimPingApp(host1, dst_host_addr,
                                           dst_isd_ad.ad, dst_isd_ad.isd,
                                           ping_interval)
@@ -140,14 +142,17 @@ class RevocationSimTest(unittest.TestCase):
         total_pings_sent = 0
         total_pings_received = 0
         total_revocations_received = 0
-        for ping_app in ping_apps:
+        for num in range(0, len(ping_apps)):
+            ping_app = ping_apps[num]
+            pong_app = pong_apps[num]
+            # print(ping_app._addr, ping_app.num_pings_sent, pong_app.num_pings_received)
             total_pings_sent += ping_app.num_pings_sent
-            total_revocations_received += ping_app.revoked_packets
-        for pong_app in pong_apps:
             total_pings_received += pong_app.num_pings_received
+            total_revocations_received += ping_app.revoked_packets
         print("Number of pings sent ", total_pings_sent)
         print("Number of pings received ", total_pings_received)
         print("Number of revocations received ", total_revocations_received)
+        assert True
         # print("Time of ping pongs ", start_times, len(start_times))
 
 
@@ -159,8 +164,7 @@ if __name__ == "__main__":
         """
         Calls main function in unit test
         """
-        events = read_events_file()
-        RevocationSimTest().test(events)
+        unittest.main()
     if to_profile:
         profile.run('run_test()', sort='cumtime')
     else:

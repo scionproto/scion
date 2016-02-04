@@ -262,18 +262,24 @@ class Simulator(object):
         For now, only revocation messages at PS.
         """
         num_core = 0
+        count_core = 0
         num_local = 0
+        count_local = 0
+        num_avg = 0
         for name in self.name_addr_map:
             if name[0:2] == 'ps':
                 element = self.element_list[self.name_addr_map[name]]
-                print(name, element.topology.is_core_ad,
-                      element.num_revocation_msgs)
+                # print(name, element.topology.is_core_ad,
+                #       element.num_revocation_msgs)
                 if element.num_revocation_msgs == 0:
                     continue
                 if element.topology.is_core_ad:
                     num_core += element.num_revocation_msgs
+                    count_core += 1
                 else:
                     num_local += element.num_revocation_msgs
+                    count_local += 1
         print("Total messages received at path servers", num_core + num_local)
         print("At core PS:", num_core)
         print("At local PS:", num_local)
+        print("Avg:", (num_core + num_local)/(count_core + count_local))
