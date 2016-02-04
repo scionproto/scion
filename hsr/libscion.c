@@ -10,7 +10,8 @@
 
 const int ADDR_LENS[] = {0, 4, 16, 2};
 
-unsigned char *get_dstaddr(SCIONCommonHeader *sch) {
+unsigned char *get_dstaddr(SCIONCommonHeader *sch)
+{
     uint8_t src_len;
     uint8_t src_type = (ntohs(sch->versionSrcDst) & 0xfc0) >> 6;
 
@@ -22,8 +23,8 @@ unsigned char *get_dstaddr(SCIONCommonHeader *sch) {
         src_len + SCION_ISD_AD_LEN;
 }
 
-uint8_t get_type(SCIONCommonHeader *sch) {
-
+uint8_t get_type(SCIONCommonHeader *sch)
+{
     uint8_t src_type = SRC_TYPE(sch);
     uint8_t dst_type = DST_TYPE(sch);
 
@@ -49,31 +50,37 @@ uint8_t get_type(SCIONCommonHeader *sch) {
     }
 }
 
-uint8_t is_on_up_path(InfoOpaqueField *currOF) {
+uint8_t is_on_up_path(InfoOpaqueField *currOF)
+{
     // low bit of type field is used for uppath/downpath flag
     if ((currOF->info & 0x1) == 1)
         return 1;
     return 0;
 }
 
-uint8_t is_last_path_of(SCIONCommonHeader *sch) {
+uint8_t is_last_path_of(SCIONCommonHeader *sch)
+{
     uint8_t offset = sch->headerLen -  sizeof(HopOpaqueField);
     //printf("is_last_path_of %d %d\n",sch->currentOF, offset);
     return sch->currentOF == offset;
 }
 
-uint8_t is_regular(HopOpaqueField *currOF) {
+uint8_t is_regular(HopOpaqueField *currOF)
+{
     if ((currOF->info & (1 << 6)) == 0)
         return 0;
     return 1;
 }
 
-uint8_t is_continue(HopOpaqueField *currOF) {
+uint8_t is_continue(HopOpaqueField *currOF)
+{
     if ((currOF->info & (1 << 5)) == 0)
         return 0;
     return 1;
 }
-uint8_t is_xovr(HopOpaqueField *currOF) {
+
+uint8_t is_xovr(HopOpaqueField *currOF)
+{
     if ((currOF->info & (1 << 4)) == 0)
         return 0;
     return 1;
@@ -128,15 +135,15 @@ uint16_t scion_udp_checksum(SCIONCommonHeader *sch)
     }
 }
 
-void update_scion_udp_checksum(SCIONCommonHeader *sch){
+void update_scion_udp_checksum(SCIONCommonHeader *sch)
+{
     SCIONUDPHeader *scion_udp_hdr =
         (SCIONUDPHeader *)((uint8_t *)sch + sch->headerLen);
     scion_udp_hdr->checksum = htons(scion_udp_checksum(sch));
     //printf("SCION UDP checksum=%x\n",scion_udp_hdr->dgram_cksum);
 }
 
-    void
-build_cmn_hdr(SCIONCommonHeader *sch, int src_type, int dst_type, int next_hdr)
+void build_cmn_hdr(SCIONCommonHeader *sch, int src_type, int dst_type, int next_hdr)
 {
     uint16_t vsd = 0;
     vsd |= src_type << 6;
