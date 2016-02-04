@@ -108,8 +108,8 @@ def client():
     stats = client_sock.getStats()
     if stats:
         logging.info("interfaces for path 0:")
-        for i in range(stats.ifCounts[0]):
-            ifinfo = stats.ifLists[0][i]
+        for i in range(stats.if_counts[0]):
+            ifinfo = stats.if_lists[0][i]
             logging.info("(%d, %d)%d", ifinfo.isd, ifinfo.ad, ifinfo.interface)
 
     logging.info("Client starts the receive protocol.")

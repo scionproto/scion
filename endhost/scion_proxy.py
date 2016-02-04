@@ -485,8 +485,12 @@ def main():
     if args.scion:
         logging.info("SCION-socket mode is on.")
         if args.kbase:
-            logging.info("SCION-socket knowledge-base is enabled.")
-            kbase = SocketKnowledgeBase()
+            if args.forward:
+                logging.info("SCION-socket knowledge-base is enabled.")
+                kbase = SocketKnowledgeBase()
+            else:
+                logging.info("SCION-socket knowledge-base is supported "
+                             "only in forwarding mode.")
 
     if args.scion and not args.forward:
         logging.info("Starting the server with SCION multi-path socket.")

@@ -1,4 +1,4 @@
-# Copyright 2015 ETH Zurich
+# Copyright 2016 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,12 +23,12 @@ import time
 import threading
 
 # SCION
+from endhost.kbase_lookup_service import KnowledgeBaseLookupService
 from lib.thread import thread_safety_net
 
 
 STATS_PERIOD = 5  # seconds
 SOC2REQ = {}  # Map socket objects to HTTP requests (method, path)
-KBASE = {}  # Map HTTP Requests (method, path) to their stats
 
 
 class SocketKnowledgeBase(object):
@@ -43,6 +43,7 @@ class SocketKnowledgeBase(object):
         Creates an instance of the knowledge base class.
         """
         self.active_sockets = set()
+        self.kbase = {}  # HTTP Req (method, path) to stats (ScionStats)
         self.lock = threading.Lock()
         self.gatherer = threading.Thread(
             target=thread_safety_net,
@@ -50,6 +51,7 @@ class SocketKnowledgeBase(object):
             name="stats",
             daemon=True)
         self.gatherer.start()
+        self.lookup_service = KnowledgeBaseLookupService(self)
 
     def add_socket(self, soc, method, path):
         """
@@ -81,6 +83,20 @@ class SocketKnowledgeBase(object):
             del SOC2REQ[soc]
         self.lock.release()
 
+    def lookup(self, command, res_name):
+        """
+        Look up and return the stats of a given HTTP request specified
+        by the command and the resource name.
+        :param command: HTTP command
+        :type command: String
+        :param res_name: The resource name.
+        :type res_name: String
+        """
+        if (command, res_name) in self.kbase:
+            return self.kbase[(command, res_name)].to_dict()
+        else:
+            return {}
+
     def update_single_stat(self, soc):
         """
         Updates the stats of a single socket.
@@ -91,7 +107,7 @@ class SocketKnowledgeBase(object):
             new_stats = soc.getStats()
             if new_stats is not None:
                 method, path = SOC2REQ[soc]
-                KBASE[(method, path)] = new_stats
+                self.kbase[(method, path)] = new_stats
 
     def _collect_stats(self):
         """
@@ -105,7 +121,7 @@ class SocketKnowledgeBase(object):
                 self.update_single_stat(s)
             self.lock.release()
 
-            for (req, stats) in KBASE.items():
+            for (req, stats) in self.kbase.items():
                 logging.debug(str(req) + "\n" + str(stats)),
 
             time.sleep(STATS_PERIOD)
