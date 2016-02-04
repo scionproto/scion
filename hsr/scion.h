@@ -145,6 +145,13 @@ typedef struct {
 } SCIONHeader;
 
 typedef struct {
+    uint16_t src_port;
+    uint16_t dst_port;
+    uint16_t len;
+    uint16_t checksum;
+} SCIONUDPHeader;
+
+typedef struct {
 //	SCIONCommonHeader commonHeader;  //now IFID in on the SCION UDP
 //	SCIONAddr srcAddr;
 //	SCIONAddr dstAddr;
