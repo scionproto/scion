@@ -72,7 +72,7 @@ class RouterSim(Router):
         """
         Send *packet* to *dst* (to port *dst_port*).
         """
-        # logging.info("Sending packet to %s from %s", addr, self.addr.host_addr)
+        logging.info("Sending packet to %s from %s", addr, self.addr.host_addr)
         if use_local_socket:
             # SCIONElement.send(self, packet, next_hop.addr, next_hop.port)
             self.simulator.add_event(0., dst=str(addr),
@@ -132,8 +132,8 @@ class RouterSim(Router):
 
         self.send(pkt, self.interface.to_addr, self.interface.to_udp_port,
                   False)
-        # logging.info('Sending IFID_PKT to router: req_id:%d, rep_id:%d',
-        #              ifid_pld.request_id, ifid_pld.reply_id)
+        logging.info('Sending IFID_PKT to router: req_id:%d, rep_id:%d',
+                     ifid_pld.request_id, ifid_pld.reply_id)
 
         self.event_id_map["sync_interface"] = self.simulator.add_event(
             IFID_PKT_TOUT, cb=self.sync_interface)
