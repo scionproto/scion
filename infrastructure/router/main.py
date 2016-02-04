@@ -54,7 +54,7 @@ from lib.errors import (
     SCIONServiceLookupError,
 )
 from lib.log import log_exception
-from lib.packet.ext.sibra import SibraExt
+from lib.sibra.ext.ext import SibraExtBase
 from lib.packet.ext.traceroute import TracerouteExt
 from lib.packet.path_mgmt import (
     RevocationInfo,
@@ -65,6 +65,7 @@ from lib.packet.scion import (
     PacketType as PT,
     SCIONL4Packet,
 )
+from lib.sibra.state.state import SibraState
 from lib.socket import UDPSocket
 from lib.thread import thread_safety_net
 from lib.types import (
@@ -128,10 +129,12 @@ class Router(SCIONElement):
         self.if_states = defaultdict(InterfaceState)
         self.revocations = ExpiringDict(1000, self.FWD_REVOCATION_TIMEOUT)
         self.pre_ext_handlers = {
-            SibraExt.EXT_TYPE: self.handle_sibra,
+            SibraExtBase.EXT_TYPE: self.handle_sibra,
             TracerouteExt.EXT_TYPE: self.handle_traceroute,
         }
         self.post_ext_handlers = {}
+        self.sibra_state = SibraState(self.interface.bandwidth,
+                                      self.addr.get_isd_ad())
 
         self.PLD_CLASS_MAP = {
             PayloadClass.PCB: {PCBType.SEGMENT: self.process_pcb},
@@ -222,8 +225,11 @@ class Router(SCIONElement):
         return []
 
     def handle_sibra(self, hdr, spkt, from_local_ad):
-        hdr.process(spkt)
-        return []
+        self.sibra_state.update_tick()
+        ret = hdr.process(self.sibra_state, spkt, from_local_ad,
+                          self.sibra_key)
+        logging.debug("Sibra state:\n%s", self.sibra_state)
+        return ret
 
     def sync_interface(self):
         """
@@ -744,6 +750,9 @@ class Router(SCIONElement):
             log_exception("Error parsing packet: %s" % packet,
                           level=logging.ERROR)
             return
+        if pkt.ext_hdrs:
+            logging.debug("Got packet (from_local_ad? %s):\n%s",
+                          from_local_ad, pkt)
         flags = self.handle_extensions(pkt, True, from_local_ad)
         if not self._process_flags(flags, pkt, from_local_ad):
             logging.debug("Stopped processing")

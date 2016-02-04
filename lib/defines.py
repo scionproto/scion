@@ -81,3 +81,18 @@ SERVICE_TYPES = (
 IFID_PKT_TOUT = 1
 
 SCION_MIN_MTU = 1280  # IPv6 min value
+
+#: Number of seconds per sibra tick
+SIBRA_TICK = 4
+#: How far in the future a steady path can reserve at a time.
+SIBRA_MAX_STEADY_TICKS = 45
+#: How far in the future an ephemeral path can reserve at a time.
+SIBRA_MAX_EPHEMERAL_TICKS = 4
+#: Length of steady path ID in bytes
+SIBRA_STEADY_ID_LEN = 8
+#: Length of ephemeral path ID in bytes
+SIBRA_EPHEMERAL_ID_LEN = 16
+#: SIBRA Bandwidth multiplier
+SIBRA_BW_FACTOR = 16 * 1024
+#: SIBRA max reservation index
+SIBRA_MAX_IDX = 16
