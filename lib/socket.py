@@ -108,7 +108,11 @@ class UDPSocket(object):
         flags = 0
         if not block:
             flags = MSG_DONTWAIT
-        return self.sock.recvfrom(SCION_BUFLEN, flags)
+        while True:
+            try:
+                return self.sock.recvfrom(SCION_BUFLEN, flags)
+            except InterruptedError:
+                pass
 
     def close(self):
         """

@@ -133,7 +133,7 @@ class TestUDPSocketRecv(object):
         inst = UDPSocket()
         inst.sock = create_mock(["recvfrom"])
         # Call
-        inst.recv()
+        ntools.eq_(inst.recv(), inst.sock.recvfrom.return_value)
         # Tests
         inst.sock.recvfrom.assert_called_once_with(SCION_BUFLEN, 0)
 
@@ -146,6 +146,17 @@ class TestUDPSocketRecv(object):
         # Tests
         inst.sock.recvfrom.assert_called_once_with(SCION_BUFLEN,
                                                    socket.MSG_DONTWAIT)
+
+    @patch("lib.socket.UDPSocket.__init__", autopatch=True, return_value=None)
+    def test_intr(self, init):
+        inst = UDPSocket()
+        inst.sock = create_mock(["recvfrom"])
+        inst.sock.recvfrom.side_effect = (
+            InterruptedError, InterruptedError, "data")
+        # Call
+        ntools.eq_(inst.recv(), "data")
+        # Tests
+        ntools.eq_(inst.sock.recvfrom.call_count, 3)
 
 
 class TestUDPSocketClose(object):
