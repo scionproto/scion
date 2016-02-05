@@ -411,7 +411,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 if chain is None:
                     return
                 state_info = IFStateInfo.from_values(ifid, True,
-                                                     chain.next_element())
+                                                     chain.current_element())
                 payload = IFStatePayload.from_values([state_info])
                 payload.pack()
                 mgmt_packet = self._build_packet(payload=payload)
