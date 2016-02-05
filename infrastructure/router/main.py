@@ -54,7 +54,7 @@ from lib.errors import (
     SCIONServiceLookupError,
 )
 from lib.log import log_exception
-from lib.sibra.ext.ext import SibraExtBase
+from lib.opt.ext.opt import OPTExt
 from lib.packet.ext.traceroute import TracerouteExt
 from lib.packet.path_mgmt import RevocationInfo, IFStateRequest
 from lib.packet.scion import (
@@ -62,6 +62,7 @@ from lib.packet.scion import (
     PacketType as PT,
     SCIONL4Packet,
 )
+from lib.sibra.ext.ext import SibraExtBase
 from lib.sibra.state.state import SibraState
 from lib.socket import UDPSocket
 from lib.thread import thread_safety_net
@@ -117,11 +118,14 @@ class Router(SCIONElement):
         logging.info("Interface: %s", self.interface.__dict__)
         self.of_gen_key = PBKDF2(self.config.master_as_key, b"Derive OF Key")
         self.sibra_key = PBKDF2(self.config.master_as_key, b"Derive SIBRA Key")
+        self.opt_secret_value = PBKDF2(
+            self.config.master_as_key, b"Derive OPT secret value")
         self.if_states = defaultdict(InterfaceState)
         self.revocations = ExpiringDict(1000, self.FWD_REVOCATION_TIMEOUT)
         self.pre_ext_handlers = {
             SibraExtBase.EXT_TYPE: self.handle_sibra,
             TracerouteExt.EXT_TYPE: self.handle_traceroute,
+            OPTExt.EXT_TYPE: self.handle_opt,
         }
         self.post_ext_handlers = {}
         self.sibra_state = SibraState(self.interface.bandwidth,
@@ -136,6 +140,8 @@ class Router(SCIONElement):
                 lambda: self.process_path_mgmt_packet),
             PayloadClass.SIBRA: {SIBRAPayloadType.EMPTY:
                                  self.fwd_sibra_service_pkt},
+            PayloadClass.DRKEY: defaultdict(
+                lambda: self.process_drkey_packet),
         }
 
         self._remote_sock = UDPSocket(
@@ -216,6 +222,23 @@ class Router(SCIONElement):
                           self.sibra_key)
         logging.debug("Sibra state:\n%s", self.sibra_state)
         return ret
+
+    def handle_opt(self, hdr, spkt, from_local_as):
+        """
+        Handle OPT-extension header.
+
+        Only update header if this router is ingress
+        or if it is egress of the source AS.
+
+        :param hdr:
+        :param spkt:
+        :param from_local_as:
+        :return:
+        """
+        if self.addr.isd_as == spkt.addrs.src.isd_as or not from_local_as:
+            logging.debug("updating opt-header")
+            hdr.process(self.opt_secret_value)
+        return []
 
     def sync_interface(self):
         """
@@ -327,6 +350,19 @@ class Router(SCIONElement):
             spkt.addrs.dst.host = addr
             port = SCION_UDP_PORT
         self.send(spkt, addr, port)
+
+    def process_drkey_packet(self, drkey_pkt, from_local_ad):
+        """
+        Process drkey packet.
+
+        :param drkey_pkt: The drkey packet.
+        :type drkey_pkt: SCIONL4Packet
+        :param from_local_ad: if from local ad
+        :type from_local_ad: bool
+        """
+        # Packets which are not for this AS will not be processed.
+        # Thus simply relay all to cert server.
+        self.relay_cert_server_packet(drkey_pkt, False)
 
     def fwd_sibra_service_pkt(self, spkt, _):
         """
@@ -765,6 +801,7 @@ class Router(SCIONElement):
             log_exception("Error parsing packet: %s" % hex_str(packet),
                           level=logging.ERROR)
             return
+
         if pkt.ext_hdrs:
             logging.debug("Got packet (from_local_as? %s):\n%s",
                           from_local_as, pkt)

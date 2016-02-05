@@ -17,14 +17,21 @@
 ========================================
 """
 # Stdlib
+import base64
 import logging
 import threading
 
 # External packages
+
 from Crypto.Hash import SHA256
 
 # SCION
+from Crypto.Protocol.KDF import PBKDF2
+
 from infrastructure.scion_elem import SCIONElement
+from lib.crypto.asymcrypto import encrypt_session_key, sign
+from lib.crypto.certificate import CertificateChain, Certificate
+from lib.crypto.symcrypto import compute_session_key
 from lib.defines import CERTIFICATE_SERVICE, SCION_UDP_PORT
 from lib.errors import SCIONParseError
 from lib.log import log_exception
@@ -35,15 +42,21 @@ from lib.packet.cert_mgmt import (
     TRCReply,
     TRCRequest,
 )
+from lib.opt.drkey import (
+    DRKeyRequestKey,
+    DRKeyReplyKey
+)
+from lib.packet.scion_addr import SCIONAddr
 from lib.packet.scion import PacketType as PT, SCIONL4Packet
 from lib.packet.scion_addr import ISD_AS
 from lib.requests import RequestHandler
 from lib.thread import thread_safety_net
-from lib.types import CertMgmtType, PayloadClass
+from lib.types import CertMgmtType, DRKeyType as DRKT, PayloadClass
 from lib.util import (
     SCIONTime,
     sleep_interval,
-)
+
+    read_file, get_sig_key_file_path)
 from lib.zookeeper import ZkNoConnection, ZkSharedCache, Zookeeper
 
 
@@ -70,6 +83,11 @@ class CertServer(SCIONElement):
             "TRC Requests", self._check_trc, self._fetch_trc, self._reply_trc,
         )
 
+        self.drkey_requests = RequestHandler.start(
+            "DRKey Requests", self._check_drkey,
+            self._fetch_drkey, self._reply_drkey,
+        )
+
         self.PLD_CLASS_MAP = {
             PayloadClass.CERT: {
                 CertMgmtType.CERT_CHAIN_REQ: self.process_cert_chain_request,
@@ -77,6 +95,9 @@ class CertServer(SCIONElement):
                 CertMgmtType.TRC_REQ: self.process_trc_request,
                 CertMgmtType.TRC_REPLY: self.process_trc_reply,
             },
+            PayloadClass.DRKEY: {
+                DRKT.REQUEST_KEY: self.proccess_drkey_request,
+            }
         }
 
         # Add more IPs here if we support dual-stack
@@ -89,6 +110,10 @@ class CertServer(SCIONElement):
                                        self._cached_entries_handler)
         self.cc_cache = ZkSharedCache(self.zk, self.ZK_CC_CACHE_PATH,
                                       self._cached_entries_handler)
+        self.ad_sig_key = base64.b64decode(
+            read_file(get_sig_key_file_path(self.conf_dir)))
+        self.opt_secret_value = PBKDF2(
+            self.config.master_as_key, b"Derive OPT secret value")
 
     def worker(self):
         """
@@ -174,6 +199,75 @@ class CertServer(SCIONElement):
             self.send(rep_pkt, next_hop, port)
         else:
             logging.warning("Reply not sent: no destination found")
+
+    def proccess_drkey_request(self, pkt):
+        """
+        Process a DRKeyRequest.
+
+        :param pkt: DRKey request packet.
+        :type pkt: SCIONL4Packet
+        """
+        drkey_request = pkt.get_payload()
+        assert isinstance(drkey_request, DRKeyRequestKey)
+        assert isinstance(drkey_request.certificate_chain, CertificateChain)
+        logging.debug("Processing DRKEY request %s", str(drkey_request))
+        hop = drkey_request.hop
+
+        trc = self.trust_store.get_trc(pkt.addrs.src.isd_as[0])
+        if not drkey_request.certificate_chain.verify(str(pkt.addrs.src.host),
+                                                      trc, trc.version):
+            logging.debug("Invalid certificate received from %s", pkt.addrs.src)
+            return
+
+        cert = drkey_request.certificate_chain.certs[0]
+        assert isinstance(cert, Certificate)
+        public_key = cert.subject_enc_key
+
+        self.drkey_requests.put(
+            (drkey_request.session_id, (pkt.addrs.src, pkt.l4_hdr.src_port,
+                                        hop, public_key))
+        )
+
+    def _check_drkey(self, key):
+        return True
+
+    def _fetch_drkey(self, key, _):
+        return
+
+    def _reply_drkey(self, key, info):
+        """
+        Send the session key to the requester.
+
+        :param key: Session ID tuple
+        :type key: (bytes
+        :param info: (dst address, dst port, hop, Public Key) tuple
+        :type info: (SCIONAddr, int, int, bytes)
+        """
+        session_id = key
+        src, port, hop, public_key = info
+        assert isinstance(src, SCIONAddr)
+
+        private_key = self.ad_sig_key
+        session_key = compute_session_key(self.opt_secret_value, session_id)
+        enc_session_key = encrypt_session_key(private_key,
+                                              public_key, session_key)
+
+        msg = b"".join([enc_session_key, session_id])
+
+        signature = sign(msg, private_key)
+        cert_chain = None
+        if not self._is_core_as(self.addr.isd_as):
+            cert_chain = self.trust_store.get_cert(self.addr.isd_as)
+        logging.debug("get cert for %s: %s", self.addr.isd_as, cert_chain)
+
+        drkey_reply = DRKeyReplyKey.from_values(hop, session_id,
+                                                enc_session_key, signature,
+                                                cert_chain)
+
+        pkt = self._build_packet(src.host, dst_ia=src.isd_as,
+                                 payload=drkey_reply, dst_port=port)
+        self.send(pkt, src.host, port)
+        logging.debug("Replied DRKey request with %s", str(drkey_reply))
 
     def process_cert_chain_request(self, pkt):
         """
