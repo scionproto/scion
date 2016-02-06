@@ -26,7 +26,7 @@ import unittest
 from ipaddress import ip_address, ip_network
 
 # SCION
-from lib.defines import PROJECT_ROOT
+from lib.defines import PROJECT_ROOT, GEN_PATH
 from lib.packet.host_addr import haddr_parse
 from lib.packet.scion_addr import ISD_AD
 
@@ -89,10 +89,10 @@ class RevocationSimTest(unittest.TestCase):
         simulator = init_simulator()
         # Setup for ping-pong application
         crash_isd_ad = ISD_AD(1, 12)
-        dst_isd_ad = ISD_AD(1, 40)
+        dst_isd_ad = ISD_AD(2, 26)
         app_start_time = 29.
-        app_end_time = 250.
-        num_hosts = 1000
+        app_end_time = 100.
+        num_hosts = 10
         src_host_addr_next = "127.100.100.1"
         dst_host_addr_next = "127.101.100.1"
         ping_apps = list()
@@ -103,20 +103,18 @@ class RevocationSimTest(unittest.TestCase):
         for host in range(0, num_hosts):
             # Choose a source ISD_AD
             src_isd_ad = random.choice(local_isd_ads)
-            src_topo_path = (
-                "topology/ISD{}/topologies/ISD:{}-AD:{}.json"
-                .format(src_isd_ad.isd, src_isd_ad.isd, src_isd_ad.ad)
-                )
-            dst_topo_path = (
-                "../../topology/ISD{}/topologies/ISD{}-AD{}.json"
-                .format(dst_isd_ad.isd, dst_isd_ad.isd, dst_isd_ad.ad)
-                )
+            src_conf_dir = "%s/ISD%d/AD%d/endhost" % (
+                GEN_PATH, src_isd_ad.isd, src_isd_ad.ad)
+            dst_conf_dir = "%s/ISD%d/AD%d/endhost" % (
+                GEN_PATH, dst_isd_ad.isd, dst_isd_ad.ad)
             src_host_addr = haddr_parse("IPV4", src_host_addr_next)
             dst_host_addr = haddr_parse("IPV4", dst_host_addr_next)
             src_host_addr_next = increment_address(src_host_addr_next, 8)
             dst_host_addr_next = increment_address(dst_host_addr_next, 8)
-            host1 = SCIONSimHost(src_host_addr, src_topo_path, simulator)
-            host2 = SCIONSimHost(dst_host_addr, dst_topo_path, simulator)
+
+            # Initialize hosts 
+            host1 = SCIONSimHost(src_conf_dir, src_host_addr, simulator)
+            host2 = SCIONSimHost(dst_conf_dir, dst_host_addr, simulator)
             ping_interval = random.randint(1, 50)
             ping_application = SimPingApp(host1, dst_host_addr,
                                           dst_isd_ad.ad, dst_isd_ad.isd,

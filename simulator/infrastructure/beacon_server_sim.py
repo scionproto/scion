@@ -19,10 +19,8 @@
 import logging
 
 # SCION
-from infrastructure.beacon_server import (
-    CoreBeaconServer,
-    LocalBeaconServer,
-)
+from infrastructure.beacon_server.core import CoreBeaconServer
+from infrastructure.beacon_server.local import LocalBeaconServer
 from lib.crypto.hash_chain import HashChainExhausted
 from lib.defines import (
     BEACON_SERVICE,
@@ -51,28 +49,17 @@ class CoreBeaconServerSim(CoreBeaconServer):
     """
     Simulator version of PathConstructionBeacon Server in a core AD
     """
-    def __init__(self, server_id, topo_file, config_file, path_policy_file,
-                 server_name, simulator):
+    def __init__(self, server_id, conf_dir, simulator):
         """
         Initialises CoreBeaconServer with is_sim set to True.
 
-        :param server_id: server identifier.
-        :type server_id: int
-        :param topo_file: topology file.
-        :type topo_file: string
-        :param config_file: configuration file.
-        :type config_file: string
-        :param path_policy_file: path policy file.
-        :type path_policy_file: string
-        :param server_name:
-        :type server_name:
-        :param simulator: Instance of simulator class.
-        :type simulator: Simulator
+        :param str server_id: server identifier.
+        :param str conf_dir: configuration directory.
+        :param Simulator simulator: Instance of simulator class.
         """
-        CoreBeaconServer.__init__(self, server_id, topo_file, config_file,
-                                  path_policy_file, is_sim=True)
+        CoreBeaconServer.__init__(self, server_id, conf_dir, is_sim=True)
         simulator.add_element(str(self.addr.host_addr), self)
-        simulator.add_name(server_name, str(self.addr.host_addr))
+        simulator.add_name(server_id, str(self.addr.host_addr))
         # Creating bogus zookeeper objects
         self.zk = ZookeeperSim()
         self.revobjs_cache = ZkSharedCacheSim()
@@ -168,8 +155,7 @@ class CoreBeaconServerSim(CoreBeaconServer):
         pcbs = [pcb.pack()]
         self.process_pcbs(pcbs)
 
-    def _check_certs_trc(self, isd_id, ad_id, cert_chain_version, trc_version,
-                         if_id):
+    def _check_certs_trc(self, isd_id, ad_id, cert_ver, trc_ver):
         """
         Returns True because we don't care if necessary TRC file is present
         in case of simulator.
@@ -286,26 +272,17 @@ class LocalBeaconServerSim(LocalBeaconServer):
     """
     Simulator version of PathConstructionBeacon Server in a local AD
     """
-    def __init__(self, server_id, topo_file, config_file, path_policy_file,
-                 server_name, simulator):
+    def __init__(self, server_id, conf_dir, simulator):
         """
         Initialises LocalBeaconServer with is_sim set to True.
 
-        :param server_id: server identifier.
-        :type server_id: int
-        :param topo_file: topology file.
-        :type topo_file: string
-        :param config_file: configuration file.
-        :type config_file: string
-        :param path_policy_file: path policy file.
-        :type path_policy_file: string
-        :param simulator: Instance of simulator class
-        :type simulator: Simulator
+        :param str server_id: server identifier.
+        :param str conf_dir: configuration directory.
+        :param Simulator simulator: Instance of simulator class.
         """
-        LocalBeaconServer.__init__(self, server_id, topo_file, config_file,
-                                   path_policy_file, is_sim=True)
+        LocalBeaconServer.__init__(self, server_id, conf_dir, is_sim=True)
         simulator.add_element(str(self.addr.host_addr), self)
-        simulator.add_name(server_name, str(self.addr.host_addr))
+        simulator.add_name(server_id, str(self.addr.host_addr))
         # Creating bogus zookeeper objects
         self.zk = ZookeeperSim()
         self.revobjs_cache = ZkSharedCacheSim()
@@ -387,8 +364,7 @@ class LocalBeaconServerSim(LocalBeaconServer):
         pcbs = [pcb.pack()]
         self.process_pcbs(pcbs)
 
-    def _check_certs_trc(self, isd_id, ad_id, cert_chain_version, trc_version,
-                         if_id):
+    def _check_certs_trc(self, isd_id, ad_id, cert_ver, trc_ver):
         """
         Returns True because we don't care if necessary TRC file is present
         in case of simulator.

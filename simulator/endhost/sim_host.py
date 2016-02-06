@@ -38,21 +38,15 @@ class SCIONSimHost(SCIONDaemon):
     """
     The SCION Simulator endhost. Applications can be simulated on this host
     """
-    def __init__(self, addr, topo_file, simulator):
+    def __init__(self, conf_dir, addr, simulator):
         """
         Initializes SimHost by calling constructor of SCIONDaemon with
         is_sim variable set to True
 
-        :param addr:
-        :type addr:
-        :param topo_file:
-        :type topo_file:
-        :param run_local_api:
-        :type run_local_api:
         :param simulator: Instance of simulator class.
         :type simulator: Simulator
         """
-        SCIONDaemon.__init__(self, addr, topo_file, is_sim=True)
+        SCIONDaemon.__init__(self, conf_dir, addr, api_addr=None, is_sim=True)
         self.simulator = simulator
         simulator.add_element(str(self.addr.host_addr), self)
         self.apps = {}

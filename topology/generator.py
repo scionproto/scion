@@ -623,8 +623,12 @@ class SimulatorGenerator(SupervisorGenerator):
 
     def _write_ad_conf(self, topo_id, entries):
         for name, entry in sorted(entries, key=lambda x: x[0]):
-            if not name.endswith("-1"):
+            if not name.startswith("er") and not name.endswith("-1"):
+                print(name)
                 # Only one server per service
+                continue
+            if name.startswith("ds"):
+                # No dns servers in simulator
                 continue
             self.sim_conf.write("%s\n" % " ".join([str(i) for i in entry[1:]]))
 

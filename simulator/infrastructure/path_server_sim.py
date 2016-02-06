@@ -16,7 +16,8 @@
 =======================================================
 """
 # SCION
-from infrastructure.path_server import CorePathServer, LocalPathServer
+from infrastructure.path_server.core import CorePathServer
+from infrastructure.path_server.local import LocalPathServer
 from lib.defines import SCION_UDP_PORT
 
 
@@ -24,27 +25,18 @@ class CorePathServerSim(CorePathServer):
     """
     Simulator version of the SCION Path Server in a core AD
     """
-    def __init__(self, server_id, topo_file, config_file, server_name,
-                 simulator):
+    def __init__(self, server_id, conf_dir, simulator):
         """
         Initialises CorePathServer with is_sim set to True.
 
-        :param server_id:
-        :type server_id:
-        :param topo_file:
-        :type topo_file:
-        :param config_file:
-        :type config_file:
-        :param server_name:
-        :type server_name:
-        :param simulator: Instance of simulator class
-        :type simulator: Simulator
+        :param str server_id: server identifier.
+        :param str conf_dir: configuration directory.
+        :param Simulator simulator: Instance of simulator class.
         """
-        CorePathServer.__init__(self, server_id, topo_file, config_file,
-                                is_sim=True)
+        CorePathServer.__init__(self, server_id, conf_dir, is_sim=True)
         self.simulator = simulator
         simulator.add_element(str(self.addr.host_addr), self)
-        simulator.add_name(server_name, str(self.addr.host_addr))
+        simulator.add_name(server_id, str(self.addr.host_addr))
         self.num_revocation_msgs = 0
 
     def send(self, packet, dst, dst_port=SCION_UDP_PORT):
@@ -89,27 +81,18 @@ class LocalPathServerSim(LocalPathServer):
     """
     Simulator version of the SCION Path Server in a local AD
     """
-    def __init__(self, server_id, topo_file, config_file, server_name,
-                 simulator):
+    def __init__(self, server_id, conf_dir, simulator):
         """
         Initialises LocalPathServer with is_sim set to True.
 
-        :param server_id:
-        :type server_id:
-        :param topo_file:
-        :type topo_file:
-        :param config_file:
-        :type config_file:
-        :param server_name:
-        :type server_name:
-        :param simulator: Instance of simulator class
-        :type simulator: Simulator
+        :param str server_id: server identifier.
+        :param str conf_dir: configuration directory.
+        :param Simulator simulator: Instance of simulator class.
         """
-        LocalPathServer.__init__(self, server_id, topo_file, config_file,
-                                 is_sim=True)
+        LocalPathServer.__init__(self, server_id, conf_dir, is_sim=True)
         self.simulator = simulator
         simulator.add_element(str(self.addr.host_addr), self)
-        simulator.add_name(server_name, str(self.addr.host_addr))
+        simulator.add_name(server_id, str(self.addr.host_addr))
         self.num_revocation_msgs = 0
 
     def send(self, packet, dst, dst_port=SCION_UDP_PORT):

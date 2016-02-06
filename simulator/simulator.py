@@ -21,8 +21,9 @@ import os
 import sys
 
 # SCION
-from lib.defines import GEN_PATH
+from lib.defines import GEN_PATH, TOPO_FILE
 from lib.packet.scion_addr import ISD_AD
+from lib.topology import Topology
 
 # SCION Simulator
 from simulator.lib.sim_core import Simulator
@@ -81,34 +82,30 @@ def init_elements(data, simulator):
     """
     for line in data:
         items = line.split()
-        if items[0] == "router":
-            RouterSim(items[2], items[3], items[4], items[1], simulator)
-        elif items[0] == "cert_server":
+        element = items[0]
+        conf_dir = items[1]
+        if element.startswith("er"):
+            RouterSim(element, conf_dir, simulator)
+        elif element.startswith("cs"):
             pass
-        elif items[0] == "path_server":
-            if items[2] == "core":
-                CorePathServerSim(items[3], items[4], items[5], items[1],
-                                  simulator)
-                simulator.core_isd_ads.append(ISD_AD(int(items[6]),
-                                                     int(items[7])))
-            elif items[2] == "local":
-                LocalPathServerSim(items[3], items[4], items[5], items[1],
-                                   simulator)
-                simulator.local_isd_ads.append(ISD_AD(int(items[6]),
-                                                      int(items[7])))
+        elif element.startswith("ps"):
+            # Load the topology to see if it is a core/local
+            topo = Topology.from_file(os.path.join(conf_dir, TOPO_FILE))
+            if topo.is_core_ad:
+                CorePathServerSim(element, conf_dir, simulator)
+                simulator.core_isd_ads.append(ISD_AD(topo.isd_id,
+                                                     topo.ad_id))
             else:
-                logging.error("First parameter can only be 'local' or 'core'!")
-                sys.exit()
-        elif items[0] == 'beacon_server':
-            if items[2] == "core":
-                CoreBeaconServerSim(items[3], items[4], items[5], items[6],
-                                    items[1], simulator)
-            elif items[2] == "local":
-                LocalBeaconServerSim(items[3], items[4], items[5], items[6],
-                                     items[1], simulator)
+                LocalPathServerSim(element, conf_dir, simulator)
+                simulator.local_isd_ads.append(ISD_AD(topo.isd_id,
+                                                     topo.ad_id))
+        elif element.startswith('bs'):
+            # Load the topology to see if it is a core/local
+            topo = Topology.from_file(os.path.join(conf_dir, TOPO_FILE))
+            if topo.is_core_ad:
+                CoreBeaconServerSim(element, conf_dir, simulator)
             else:
-                logging.error("First parameter can only be 'local' or 'core'!")
-                sys.exit()
+                LocalBeaconServerSim(element, conf_dir, simulator)
         else:
             logging.error("Invalid SCIONElement %s", items[0])
             sys.exit()
