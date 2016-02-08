@@ -111,6 +111,22 @@ void SCIONDestroyStats(void *stats)
     destroyStats(s);
 }
 
+int SCIONSetOption(int fd, SCIONOption *option)
+{
+    SocketEntry *e = findSocket(fd);
+    if (!e)
+        return -1;
+    return e->sock->setSocketOption(option);
+}
+
+int SCIONGetOption(int fd, SCIONOption *option)
+{
+    SocketEntry *e = findSocket(fd);
+    if (!e)
+        return -1;
+    return e->sock->getSocketOption(option);
+}
+
 int checkReadWrite(fd_set *fdset, int mode, int fd, Notification *n)
 {
     SocketEntry *e = findSocket(fd);

@@ -9,7 +9,8 @@ int main(int argc, char **argv)
 {
     SCIONAddr addrs[1];
     SCIONAddr saddr;
-    int isd, ad;
+    uint16_t isd;
+    uint32_t ad;
     char str[20];
     if (argc == 3) {
         isd = atoi(argv[1]);
@@ -26,6 +27,13 @@ int main(int argc, char **argv)
     memcpy(saddr.host.addr, &in, 4);
     addrs[0] = saddr;
     SCIONSocket s(SCION_PROTO_SSP, addrs, 1, 0, 8080);
+    /*
+    SCIONOption option;
+    memset(&option, 0, sizeof(option));
+    option.type = SCION_OPTION_STAY_ISD;
+    option.val = 1;
+    s.setSocketOption(&option);
+    */
     int count = 0;
     char buf[BUFSIZE];
     memset(buf, 0, BUFSIZE);

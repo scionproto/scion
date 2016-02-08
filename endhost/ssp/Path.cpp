@@ -161,6 +161,11 @@ void Path::setInterfaces(uint8_t *interfaces, size_t count)
     }
 }
 
+std::vector<SCIONInterface> & Path::getInterfaces()
+{
+    return mInterfaces;
+}
+
 bool Path::isUp()
 {
     bool ret;

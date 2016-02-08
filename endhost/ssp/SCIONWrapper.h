@@ -26,6 +26,9 @@ int SCIONShutdown(int fd);
 void * SCIONGetStats(int sock, void *buf, int len);
 void SCIONDestroyStats(void *stats);
 
+int SCIONSetOption(int fd, SCIONOption *option);
+int SCIONGetOption(int fd, SCIONOption *option);
+
 #ifdef __cplusplus
 }
 #endif

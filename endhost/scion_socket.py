@@ -22,7 +22,8 @@ import ipaddress
 import logging
 import os
 import struct
-from ctypes import (byref, CDLL, c_int, c_short, c_ubyte, c_uint, Structure)
+from ctypes import (addressof, byref, CDLL, c_int, c_short, c_size_t,
+                    c_ubyte, c_uint, c_void_p, Structure)
 
 # SCION
 from lib.packet.scion_addr import ISD_AD
@@ -75,6 +76,13 @@ class SCIONInterface(object):
         isd_ad = ISD_AD.from_raw(data.pop(ISD_AD.LEN))
         self.isd, self.ad = isd_ad.isd, isd_ad.ad
         self.ifid = struct.unpack("H", data.pop())[0]
+
+
+class C_SCIONOption(Structure):
+    _fields_ = [("type", c_int),
+                ("val", c_int),
+                ("data", c_void_p),
+                ("len", c_size_t)]
 
 
 class ScionStats(object):
@@ -164,12 +172,17 @@ SHARED_LIB_CLIENT = "libclient.so"
 
 # Slightly more than enough for 20 paths with 20 IFs each
 MAX_STATS_BUFFER = 3072
+# Socket Option codes
+SCION_OPTION_BLOCKING = 0
+SCION_OPTION_STAY_ISD = 1
 
 
 class ScionBaseSocket(object):
     """
     Base class of the SCION Multi-Path Socket Python Wrapper.
     """
+
+    LONG_OPTIONS = {}  # socket options that require long data arg
 
     def __init__(self, fd, libsock):
         """
@@ -262,6 +275,54 @@ class ScionBaseSocket(object):
             return None
         py_stats = ScionStats(buf[:stats_len])
         return py_stats
+
+    def setopt(self, opttype, val, data=None):
+        """
+        Set socket options (currently only supports toggle blocking mode)
+        :param opttype: Option type
+        :type opttype: int
+        :param val: Option value
+        :type val: int
+        :param data: Long (> 4 bytes) data for complex options
+        :type data: bytes object
+        :returns: 0 on success, error code on failure (EPERM, EINVAL)
+        :rtype: int
+        """
+        self.libsock.SCIONSetOption.argtypes = (c_int, c_void_p,)
+        opt = C_SCIONOption()
+        opt.type = opttype
+        if data:
+            opt.data = data
+            opt.len = len(data)
+        else:
+            assert opttype not in self.LONG_OPTIONS
+            opt.data = 0
+            opt.len = 0
+            opt.val = val
+        return self.libsock.SCIONSetOption(self.fd, addressof(opt))
+
+    def getopt(self, opttype):
+        """
+        Get socket options (currently only supports blocking mode)
+        :param opttype: Option type
+        :type opttype: int
+        :returns: Current option value
+        :rtype: bytes object (length will depend on option type)
+        """
+        self.libsock.SCIONGetOption.argtypes = (c_int, c_void_p,)
+        opt = C_SCIONOption()
+        opt.type = opttype
+        buf = None
+        if opttype in self.LONG_OPTIONS:
+            buf = bytes(self.LONG_OPTIONS[opttype])
+            opt.data = buf
+            opt.len = len(buf)
+        logging.debug("opt addr = %x", addressof(opt))
+        self.libsock.SCIONGetOption(self.fd, addressof(opt))
+        if opttype in self.LONG_OPTIONS:
+            return buf
+        else:
+            return struct.pack("I", opt.val)
 
     def shutdown(self, how):
         """

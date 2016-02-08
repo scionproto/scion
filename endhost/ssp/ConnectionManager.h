@@ -5,6 +5,7 @@
 
 #include "DataStructures.h"
 #include "OrderedList.h"
+#include "PathPolicy.h"
 #include "SCIONDefines.h"
 
 class SSPProtocol;
@@ -26,6 +27,8 @@ public:
     virtual void handleTimeout();
     virtual void getStats(SCIONStats *stats);
 
+    int setStayISD(uint16_t isd);
+
 protected:
     void getLocalAddress();
     int checkPath(uint8_t *ptr, int len, int addr, std::vector<Path *> &candidates);
@@ -39,7 +42,9 @@ protected:
     std::vector<SCIONAddr>      &mDstAddrs;
 
     std::vector<Path *>          mPaths;
+    pthread_mutex_t              mPathMutex;
     int                          mInvalid;
+    PathPolicy                   mPolicy;
 };
 
 // SUDP
@@ -72,6 +77,7 @@ public:
 
     void setRemoteWindow(uint32_t window);
     bool bufferFull(int window);
+    int totalQueuedSize();
     void waitForSendBuffer(int len, int windowSize);
 
     void queuePacket(SCIONPacket *packet);
@@ -105,7 +111,6 @@ protected:
     bool handleDupAck(SCIONPacket *packet);
     void addRetries(std::vector<SCIONPacket *> &retries);
     int handleAckOnPath(SCIONPacket *packet, bool rttSample);
-    int totalQueuedSize();
 
     int                          mReceiveWindow;
     int                          mInitSends;

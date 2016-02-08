@@ -26,6 +26,8 @@ public:
 
     bool isReceiver();
     void setReceiver(bool receiver);
+    void setBlocking(bool blocking);
+    bool isBlocking();
 
     virtual bool claimPacket(SCIONPacket *packet, uint8_t *buf);
     virtual void createManager(std::vector<SCIONAddr> &dstAddrs);
@@ -40,16 +42,21 @@ public:
     virtual int registerSelect(Notification *n, int mode);
     virtual void deregisterSelect(int index);
 
+    int setStayISD(uint16_t isd);
+
     virtual int shutdown();
     virtual void removeDispatcher(int sock);
 
 protected:
+    PathManager            *mPathManager;
+
     int                    mSocket;
     uint16_t               mSrcPort;
     uint16_t               mDstPort;
     int                    mProtocolID;
     bool                   mIsReceiver;
     bool                   mReadyToRead;
+    bool                   mBlocking;
     pthread_mutex_t        mReadMutex;
     pthread_cond_t         mReadCond;
     SCIONState             mState;
