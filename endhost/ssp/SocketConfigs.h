@@ -4,7 +4,7 @@
 // Build config
 
 //#define SIMULATOR // uncomment for WANem testing
-//#define BYPASS_ROUTERS // send packets directly to remote end
+#define BYPASS_ROUTERS // send packets directly to remote end
 
 #define DEBUG_MODE 0
 #if DEBUG_MODE

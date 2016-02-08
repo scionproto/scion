@@ -22,6 +22,7 @@
 #define SCION_PROTO_NONE 254
 #define SCION_PROTO_RES 255
 
+#define SCION_IFID_LEN 2
 #define SCION_ISD_AD_LEN 4
 #define SCION_HOST_ADDR_LEN 4
 #define SCION_HOST_OFFSET 4
@@ -61,7 +62,7 @@ typedef struct {
 } SCIONInterface;
 #define SCION_IF_SIZE 6
 
-#define MAX_TOTAL_PATHS 10
+#define MAX_TOTAL_PATHS 20
 
 typedef struct {
     int exists[MAX_TOTAL_PATHS];
@@ -72,9 +73,9 @@ typedef struct {
     double lossRates[MAX_TOTAL_PATHS];
     int ifCounts[MAX_TOTAL_PATHS];
     SCIONInterface *ifLists[MAX_TOTAL_PATHS];
-    uint64_t highestReceived;
-    uint64_t highestAcked;
 } SCIONStats;
+
+#define SERIAL_INT_FIELDS 5
 
 #pragma pack(push)
 #pragma pack(1)

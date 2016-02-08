@@ -43,7 +43,7 @@ public:
     int registerSelect(Notification *n, int mode);
     void deregisterSelect(int index);
 
-    SCIONStats * getStats();
+    void * getStats(void *buf, int len);
 
     int shutdown();
     void removeChild(SCIONSocket *child);

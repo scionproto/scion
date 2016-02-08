@@ -61,7 +61,7 @@ int main(int argc, char **argv)
         if (us > 1000000) {
             count++;
             start = end;
-            stats = s.getStats();
+            stats = (SCIONStats *)s.getStats(NULL, 0);
             sprintf(curldata, "{\
                     \"packets\":{\
                     \"red\":[{\"time\":%d,\"value\":%.1f}],\
