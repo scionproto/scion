@@ -856,7 +856,7 @@ void SSPConnectionManager::handleTimeout()
 
 void SSPConnectionManager::getStats(SCIONStats *stats)
 {
-    for (size_t i = 0; i < mPaths.size(); i++) {
+    for (size_t i = 0; i < mPaths.size() && i < MAX_TOTAL_PATHS; i++) {
         if (mPaths[i])
             mPaths[i]->getStats(stats);
     }

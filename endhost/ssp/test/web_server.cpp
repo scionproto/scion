@@ -64,7 +64,7 @@ int main()
         if (us > 1000000) {
             count++;
             SCIONStats *stats;
-            stats = newSocket->getStats();
+            stats = (SCIONStats *)newSocket->getStats(NULL, 0);
             printf("%d bytes: %f Mbps\n", size, (double)size / us * 1000000 / 1024 / 1024 * 8);
             sprintf(curldata, "{\
                     \"throughput\":{\"black\": [{\"time\":%d,\"value\":%.2f}]}\

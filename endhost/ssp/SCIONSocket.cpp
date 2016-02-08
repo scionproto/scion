@@ -300,17 +300,53 @@ bool SCIONSocket::bypassDispatcher()
     return mProtocolID == SCION_PROTO_UDP;
 }
 
-SCIONStats * SCIONSocket::getStats()
+void * SCIONSocket::getStats(void *buf, int len)
 {
-    if (mProtocol) {
-        SCIONStats *stats = (SCIONStats *)malloc(sizeof(SCIONStats));
-        memset(stats, 0, sizeof(SCIONStats));
-        if (!stats)
-            return NULL;
-        mProtocol->getStats(stats);
+    if (!mProtocol)
+        return NULL;
+
+    SCIONStats *stats = (SCIONStats *)malloc(sizeof(SCIONStats));
+    memset(stats, 0, sizeof(SCIONStats));
+    if (!stats)
+        return NULL;
+    mProtocol->getStats(stats);
+    if (!buf || len <= 0)
         return stats;
+    int pathLen;
+    uint8_t *ptr = (uint8_t *)buf;
+    for (int i = 0; i < MAX_TOTAL_PATHS; i++) {
+        if (!stats->exists[i])
+            continue;
+        int offset = ptr - (uint8_t *)buf;
+        pathLen = sizeof(int) * SERIAL_INT_FIELDS + sizeof(double);
+        pathLen +=  (SCION_ISD_AD_LEN + SCION_IFID_LEN) * stats->ifCounts[i];
+        if (pathLen + offset > len) {
+            free(stats);
+            return NULL;
+        }
+        *(int *)ptr = stats->receivedPackets[i];
+        ptr += sizeof(int);
+        *(int *)ptr = stats->sentPackets[i];
+        ptr += sizeof(int);
+        *(int *)ptr = stats->ackedPackets[i];
+        ptr += sizeof(int);
+        *(int *)ptr = stats->rtts[i];
+        ptr += sizeof(int);
+        *(double *)ptr = stats->lossRates[i];
+        ptr += sizeof(double);
+        *(int *)ptr = stats->ifCounts[i];
+        ptr += sizeof(int);
+        for (int j = 0; j < stats->ifCounts[i]; j++) {
+            SCIONInterface sif = stats->ifLists[i][j];
+            /* Python ISD_AD class expects network byte order */
+            *(uint32_t *)ptr = htonl(ISD_AD(sif.isd, sif.ad));
+            ptr += 4;
+            *(uint16_t *)ptr = sif.interface;
+            ptr += 2;
+        }
     }
-    return NULL;
+    free(stats);
+    return (void *)(ptr - (uint8_t *)buf);
 }
 
 bool SCIONSocket::readyToRead()

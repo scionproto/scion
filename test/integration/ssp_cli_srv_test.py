@@ -110,7 +110,7 @@ def client():
         logging.info("interfaces for path 0:")
         for i in range(stats.if_counts[0]):
             ifinfo = stats.if_lists[0][i]
-            logging.info("(%d, %d)%d", ifinfo.isd, ifinfo.ad, ifinfo.interface)
+            logging.info("(%d, %d)%d", ifinfo.isd, ifinfo.ad, ifinfo.ifid)
 
     logging.info("Client starts the receive protocol.")
     # secondly, act as a receiver

@@ -23,7 +23,7 @@ int SCIONSelect(int numfds, fd_set *readfds, fd_set *writefds,
                 struct timeval *timeout);
 int SCIONShutdown(int fd);
 
-SCIONStats * SCIONGetStats(int sock);
+void * SCIONGetStats(int sock, void *buf, int len);
 void SCIONDestroyStats(void *stats);
 
 #ifdef __cplusplus
