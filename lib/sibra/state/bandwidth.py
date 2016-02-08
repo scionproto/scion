@@ -30,14 +30,14 @@ class BandwidthBase(object):
     """
     Base class for tracking bandwidth usage and predictions.
     """
-    def __init__(self, owner):
+    def __init__(self, owner):  # pragma: no cover
         self.owner = owner
         self.curr_used = BWSnapshot()
         # Using MAX_TICKS+1 allow for bandwidth reduction after a
         # max-length reservation
         self.ticks = [BWSnapshot() for i in range(self.MAX_TICKS+1)]
 
-    def next(self):
+    def next(self):  # pragma: no cover
         old_resv = self.ticks.pop(0)
         self.ticks[0] += old_resv
         self.ticks.append(BWSnapshot())
@@ -53,7 +53,7 @@ class LinkBandwidth(BandwidthBase):
     """
     MAX_TICKS = max(SIBRA_MAX_STEADY_TICKS, SIBRA_MAX_EPHEMERAL_TICKS)
 
-    def __init__(self, owner, max_bw):
+    def __init__(self, owner, max_bw):  # pragma: no cover
         super().__init__(owner)
         self.max_bw = max_bw
 
@@ -63,13 +63,11 @@ class LinkBandwidth(BandwidthBase):
         updates are in the form [(tick, val)] where the former specifies which
         tick the change happens in, and val is a relative bandwidth change.
         """
-        total_resv = BWSnapshot()
         for exp_tick_rel, val in updates:
             self.ticks[exp_tick_rel] += val
-            total_resv += self.ticks[exp_tick_rel]
-            assert total_resv.slte(self.max_bw)
+        assert self.ticks[0].slte(self.max_bw)
 
-    def bw_avail(self):
+    def bw_avail(self):  # pragma: no cover
         """
         Return the max available bandwidth. As all reservations cannot start in
         the future, the current snapshot is also the maximum bandwidth used.

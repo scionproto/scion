@@ -90,6 +90,9 @@ class BWSnapshot(object):
     def __str__(self):
         return "<BWSnapshot fwd:%s rev:%s>" % (self.fwd_str(), self.rev_str())
 
+    def __repr__(self):
+        return str(self)
+
 
 class BWClass(object):
     """

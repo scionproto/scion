@@ -38,9 +38,9 @@ class SibraState(object):
     """
     Track bandwidth usage and all reservations that traverse a link.
     """
-    def __init__(self, bw, isd_id):
+    def __init__(self, bw, isd_ad):
         self.curr_tick = current_tick()
-        self.link = LinkBandwidth(isd_id, BWSnapshot(bw * 1024, bw * 1024))
+        self.link = LinkBandwidth(isd_ad, BWSnapshot(bw * 1024, bw * 1024))
         self.steady = {}
         self.pend_steady = {}
         self.ephemeral = {}
@@ -86,9 +86,8 @@ class SibraState(object):
             owner = ISD_AD.from_raw(path_id[:ISD_AD.LEN])
             resv = SteadyReservation(path_id, owner, self.link)
         else:
-            resv = self.steady.get(path_id)
-        if not resv:
-            return BWSnapshot()
+            assert path_id in self.steady
+            resv = self.steady[path_id]
         assert exp_tick >= self.curr_tick
         assert (exp_tick - self.curr_tick) <= SIBRA_MAX_STEADY_TICKS
         bwhint = resv.add(resv_idx, bwsnap, exp_tick, self.curr_tick)
@@ -103,7 +102,7 @@ class SibraState(object):
             self.steady[path_id] = resv
             self.pend_steady[path_id] = True
 
-    def steady_use(self, path_id, resv_idx, bw_used):
+    def steady_use(self, path_id, resv_idx, bw_used):  # pragma: no cover
         """
         Update state when a packet uses a steady path.
         """
@@ -114,7 +113,7 @@ class SibraState(object):
             return False
         return resv.use(resv_idx, bw_used, self.curr_tick)
 
-    def steady_idx_remove(self, path_id, resv_idx):
+    def steady_idx_remove(self, path_id, resv_idx):  # pragma: no cover
         """
         Remove a reservation index.
         """
@@ -124,14 +123,14 @@ class SibraState(object):
         assert resv
         resv.remove(resv_idx, self.curr_tick)
 
-    def steady_pend_confirm(self, path_id):
+    def steady_pend_confirm(self, path_id):  # pragma: no cover
         """
         Confirm a pending steady path, meaning that it has been used.
         """
         self._update_tick()
         self.pend_steady.pop(path_id, None)
 
-    def steady_pend_remove(self, path_id):
+    def steady_pend_remove(self, path_id):  # pragma: no cover
         """
         Remove a pending steady path, as it has either been denied by a later
         hop, or timed out.
@@ -140,7 +139,7 @@ class SibraState(object):
         if self.pend_steady.pop(path_id, None):
             self.steady[path_id].remove_all()
 
-    def steady_remove(self, path_id):
+    def steady_remove(self, path_id):  # pragma: no cover
         """
         Remove an active steady path.
         """
@@ -160,7 +159,7 @@ class SibraState(object):
                                      self.pend_ephemeral))
         return "\n".join(tmp)
 
-    def _format_resv(self, name, resv_dict, pend_dict):
+    def _format_resv(self, name, resv_dict, pend_dict):  # pragma: no cover
         """
         Format the current and pending reservations for printing
         """
