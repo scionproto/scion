@@ -35,7 +35,8 @@ from lib.packet.path_mgmt import (
     RevocationInfo,
 )
 from lib.packet.scion import PacketType as PT, SCIONL4Packet
-from lib.path_db import PathSegmentDB
+from lib.path_db import DBResult, PathSegmentDB
+from lib.sibra.seg_db import SibraSegmentDB
 from lib.thread import thread_safety_net
 from lib.types import PathMgmtType as PMT, PathSegmentType as PST, PayloadClass
 from lib.util import (
@@ -67,6 +68,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         self.down_segments = PathSegmentDB(max_res_no=self.MAX_SEG_NO)
         # Core segments are in direction of the propagation.
         self.core_segments = PathSegmentDB(max_res_no=self.MAX_SEG_NO)
+        self.sibra_segments = SibraSegmentDB()
         self.pending_req = defaultdict(list)  # Dict of pending requests.
         self.waiting_targets = set()  # Used when l/cPS doesn't have up/dw-path.
         self.revocations = ExpiringDict(1000, 300)
@@ -116,6 +118,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                 logging.warning('worker(): ZkNoConnection')
                 pass
             self._update_master()
+            self._propagate_and_sync()
 
     def _cached_entries_handler(self, raw_entries):
         """
@@ -135,9 +138,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                 continue
             self._cached_seg_handler(pkt, from_zk=True)
 
-    @abstractmethod
     def _update_master(self):
-        raise NotImplementedError
+        pass
 
     def _add_if_mappings(self, pcb):
         """
@@ -170,6 +172,22 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         Handles a core_path record.
         """
         raise NotImplementedError
+
+    @abstractmethod
+    def _handle_sibra_segment_record(self, pkt, from_zk=False):
+        """
+        Handles a sibra segment record.
+        """
+        raise NotImplementedError
+
+    def _add_sibra_segment(self, seg):
+        ret = self.sibra_segments.update(seg)
+        if ret == DBResult.NONE:
+            logging.info("SIBRA segment already known:\n  %s", seg)
+        elif ret == DBResult.ENTRY_ADDED:
+            logging.info("SIBRA segment registered:\n  %s", seg)
+        elif ret == DBResult.ENTRY_UPDATED:
+            logging.info("SIBRA segment updated:\n  %s", seg)
 
     def _handle_revocation(self, pkt):
         """
@@ -222,18 +240,22 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         next_hop = self.ifid2addr[if_id]
         self.send(pkt, next_hop)
 
-    def _send_path_segments(self, pkt, up=None, core=None, down=None):
+    def _send_path_segments(self, pkt, up=None, core=None, down=None,
+                            sibra=None):
         """
         Sends path-segments to requester (depending on Path Server's location).
         """
         up = up or set()
         core = core or set()
         down = down or set()
-        if not (up | core | down):
+        sibra = sibra or set()
+        if not (up | core | down | sibra):
             logging.warning("No segments to send")
         rep_pkt = pkt.reversed_copy()
         rep_pkt.set_payload(PathRecordsReply.from_values(
-            {PST.UP: up, PST.CORE: core, PST.DOWN: down}))
+            {PST.UP: up, PST.CORE: core, PST.DOWN: down},
+            list(sibra),
+        ))
         rep_pkt.addrs.src_addr = self.addr.host_addr
         (next_hop, port) = self.get_first_hop(rep_pkt)
         if next_hop is None:
@@ -273,6 +295,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             handlers.append(self._handle_core_segment_record)
         if payload.pcbs[PST.DOWN]:
             handlers.append(self._handle_down_segment_record)
+        if payload.sibra_segs:
+            handlers.append(self._handle_sibra_segment_record)
         if not handlers:
             logging.error("Unsupported path record type: %s", payload)
             return
@@ -283,7 +307,9 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         # Handling pending request, basing on added segments.
         for dst_isd, dst_ad in added:
             self._handle_pending_requests(dst_isd, dst_ad)
-            self._handle_pending_requests(dst_isd, 0)
+
+    def _propagate_and_sync(self):
+        pass
 
     @abstractmethod
     def path_resolution(self, path_request):
@@ -319,11 +345,13 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                             "no connection to ZK")
             return
         payload = pkt.get_payload()
-        pcbs = []
-        for tmp in payload.pcbs.values():
-            pcbs.extend(tmp)
-        logging.debug("Segment(s) stored in ZK: %s",
-                      "\n".join([pcb.short_desc() for pcb in pcbs]))
+        descs = []
+        for pcbs in payload.pcbs.values():
+            for pcb in pcbs:
+                descs.append(pcb.short_desc())
+        for seg in payload.sibra_segs:
+            descs.append(seg.short_desc())
+        logging.debug("Segment(s) stored in ZK: %s", "  \n".join(descs))
 
     def run(self):
         """

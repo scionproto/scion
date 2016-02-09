@@ -28,6 +28,7 @@ from lib.defines import (
 )
 from lib.errors import SCIONBaseError
 from lib.packet.path import EmptyPath
+from lib.packet.path_mgmt import PathRecordsReg
 from lib.packet.scion import PacketType as PT
 from lib.packet.scion import SCIONL4Packet, build_base_hdrs
 from lib.packet.scion_addr import SCIONAddr
@@ -35,6 +36,7 @@ from lib.packet.scion_udp import SCIONUDPHeader
 from lib.sibra.ext.info import ResvInfoSteady
 from lib.sibra.ext.steady import SibraExtSteady
 from lib.sibra.payload import SIBRAPayload
+from lib.sibra.segment import SibraSegment
 from lib.sibra.util import current_tick, tick_to_time
 from lib.util import SCIONTime, hex_str
 
@@ -51,17 +53,19 @@ class SteadyPath(object):
     """
     Class to manage a single steady path
     """
-    def __init__(self, addr, sendq, seg, bwsnap):
+    def __init__(self, addr, sendq, signing_key, seg, bwsnap):
         """
         :param ScionAddr addr: the address of this sibra server
         :param queue.Queue sendq:
             packets written to this queue will be sent by the sibra server
             thread.
+        :param bytes signing_key: AS signing key.
         :param PathSegment seg: path segment to use.
         :param BWSnapshot bwsnap: initial bandwidth to request.
         """
         self.addr = addr
         self.sendq = sendq
+        self.signing_key = signing_key
         self.seg = seg
         self.bw = bwsnap.to_classes().ceil()
         self.id = SibraExtSteady.mk_path_id(self.addr.get_isd_ad())
@@ -118,6 +122,7 @@ class SteadyPath(object):
                 self.state = STATE_RUNNING
             else:
                 logging.debug("Renewal successful: %s", ext.req_block.info)
+            self._register_path()
             return
         req_bw = ext.req_block.info.bw
         self.bw = ext.get_min_offer()
@@ -209,6 +214,32 @@ class SteadyPath(object):
         cmn_hdr, addr_hdr, udp_hdr, payload = self._create_hdrs()
         return SCIONL4Packet.from_values(
             cmn_hdr, addr_hdr, EmptyPath(), [ext], udp_hdr, payload)
+
+    def _register_path(self):
+        pkt = self._create_reg_pkt()
+        logging.debug("Registering path with local path server")
+        self.sendq.put(pkt)
+        pkt = self._create_reg_pkt(self.remote, self.seg.get_path(True))
+        logging.debug("Registering path with core path server in %s",
+                      self.remote)
+        self.sendq.put(pkt)
+
+    def _create_reg_pkt(self, dest=None, path=None):
+        if not dest:
+            dest = self.addr.get_isd_ad()
+        if not path:
+            path = EmptyPath()
+        dest = SCIONAddr.from_values(dest.isd, dest.ad, PT.PATH_MGMT)
+        cmn_hdr, addr_hdr = build_base_hdrs(self.addr, dest)
+        latest = self.blocks[-1]
+        seg = SibraSegment.from_values(
+            self.id, latest.info, self.remote, latest.sofs)
+        seg.sign(self.signing_key)
+        payload = PathRecordsReg.from_values({}, [seg])
+        udp_hdr = SCIONUDPHeader.from_values(
+            self.addr, SCION_UDP_PORT, dest, SCION_UDP_PORT, payload)
+        return SCIONL4Packet.from_values(
+            cmn_hdr, addr_hdr, self.seg.get_path(True), [], udp_hdr, payload)
 
     def __str__(self):
         with self._lock:
