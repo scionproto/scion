@@ -100,16 +100,16 @@
 #pragma pack(1)
 
 /**
-	Struct for SCION Addresses:
-	12 bits ISD ID
-	20 bits AD ID
-	(4 bytes IPv4 Addr OR
+    Struct for SCION Addresses:
+    12 bits ISD ID
+    20 bits AD ID
+    (4 bytes IPv4 Addr OR
    16 bytes IPv6 Addr OR
    2 bytes SVC addr)
 */
 typedef struct {
-	uint32_t isd_ad;
-	uint8_t host_addr[16];
+    uint32_t isd_ad;
+    uint8_t host_addr[16];
 } SCIONAddr;
 
 #define ISD(isd_ad) (isd_ad >> 20)
@@ -119,18 +119,18 @@ typedef struct {
 #define SCION_ADDR_PAD 8
 
 typedef struct {
-  /** Packet Type of the packet (version, srcType, dstType) */
-  uint16_t versionSrcDst;
-  /** Total Length of the packet */
-  uint16_t totalLen;
-	/** Index of current Info opaque field*/
-	uint8_t currentIOF;
-	/** Index of current opaque field*/
-	uint8_t currentOF;
-	/** next header type, shared with IP protocol number*/
-	uint8_t nextHeader;
-	/** Header length that includes the path */
-	uint8_t headerLen;
+    /** Packet Type of the packet (version, srcType, dstType) */
+    uint16_t versionSrcDst;
+    /** Total Length of the packet */
+    uint16_t totalLen;
+    /** Index of current Info opaque field*/
+    uint8_t currentIOF;
+    /** Index of current opaque field*/
+    uint8_t currentOF;
+    /** next header type, shared with IP protocol number*/
+    uint8_t nextHeader;
+    /** Header length that includes the path */
+    uint8_t headerLen;
 } SCIONCommonHeader;
 
 #define SRC_TYPE(sch) ((ntohs(sch->versionSrcDst) & 0xfc0) >> 6)
@@ -152,12 +152,19 @@ typedef struct {
 } SCIONUDPHeader;
 
 typedef struct {
-//	SCIONCommonHeader commonHeader;  //now IFID in on the SCION UDP
-//	SCIONAddr srcAddr;
-//	SCIONAddr dstAddr;
-	uint16_t reply_id; // how many bits?
-	uint16_t request_id; // how many bits?
+//  SCIONCommonHeader commonHeader;  //now IFID in on the SCION UDP
+//  SCIONAddr srcAddr;
+//  SCIONAddr dstAddr;
+    uint16_t reply_id; // how many bits?
+    uint16_t request_id; // how many bits?
 } IFIDHeader;
+
+#define REVOCATION_LEN 32
+
+typedef struct {
+    int is_active;
+    uint8_t rev_info[REVOCATION_LEN];
+} InterfaceState;
 
 typedef struct {
 /**
@@ -167,12 +174,12 @@ typedef struct {
     the opaque field.
 **/
 
-	uint8_t info;
-	uint8_t exp_type;
-	//uint16_t ingress_if:12;
-	//uint16_t egress_if:12;
-	uint32_t ingress_egress_if:24;
-	uint32_t mac : 24;	
+    uint8_t info;
+    uint8_t exp_type;
+    //uint16_t ingress_if:12;
+    //uint16_t egress_if:12;
+    uint32_t ingress_egress_if:24;
+    uint32_t mac : 24;  
 } HopOpaqueField ;
 
 
@@ -184,46 +191,46 @@ typedef struct {
 
 */
 typedef struct {
-	/** Info field with timestamp information */
-	uint8_t info;
-	/** Timestamp value in 16 bit number */
-	uint32_t timestamp;
-	/** TD Id */
-	uint16_t isd_id;
-	/** Number of hops under this timestamp (either up or down)*/
-	uint8_t hops;
+    /** Info field with timestamp information */
+    uint8_t info;
+    /** Timestamp value in 16 bit number */
+    uint32_t timestamp;
+    /** TD Id */
+    uint16_t isd_id;
+    /** Number of hops under this timestamp (either up or down)*/
+    uint8_t hops;
 } InfoOpaqueField;
 
 typedef struct {
-	uint16_t isd_id:12;
-	uint32_t ad_id:20;
-	HopOpaqueField hof;
-	char ig_rev_token[REV_TOKEN_LEN];
+    uint16_t isd_id:12;
+    uint32_t ad_id:20;
+    HopOpaqueField hof;
+    char ig_rev_token[REV_TOKEN_LEN];
 } PCBMarking;
 
 typedef struct {
-	uint16_t cert_ver;
-	uint16_t sig_len;
-	uint16_t asd_len;
-	uint16_t block_len;
-	PCBMarking pcbm;
-	PCBMarking* pms;
-	char* asd;
-	char eg_rev_token[REV_TOKEN_LEN];
-	char* sig;
+    uint16_t cert_ver;
+    uint16_t sig_len;
+    uint16_t asd_len;
+    uint16_t block_len;
+    PCBMarking pcbm;
+    PCBMarking* pms;
+    char* asd;
+    char eg_rev_token[REV_TOKEN_LEN];
+    char* sig;
 } ADMarking;
 
 typedef struct {
-	InfoOpaqueField iof;
-	uint32_t trc_ver;
-	uint16_t if_id;
-	char segment_id[REV_TOKEN_LEN];
-	ADMarking* ads;
+    InfoOpaqueField iof;
+    uint32_t trc_ver;
+    uint16_t if_id;
+    char segment_id[REV_TOKEN_LEN];
+    ADMarking* ads;
 } PathSegment;
 
 typedef struct {
-//	SCIONHeader hdr;  //now PCB is on the SCION UDP
-	PathSegment payload;
+//  SCIONHeader hdr;  //now PCB is on the SCION UDP
+    PathSegment payload;
 } PathConstructionBeacon;
 
 #define DATA_PACKET 0
@@ -246,7 +253,7 @@ typedef struct {
 // IF ID packet to the peer router
 #define IFID_PKT_PACKET 9
 // error condition
-#define PACKET_TYPE_ERROR 99
+#define PACKET_CLASS_ERROR 99
 
 // SCION UDP packet classes
 #define PCB_CLASS 0

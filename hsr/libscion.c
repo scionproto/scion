@@ -6,48 +6,47 @@
 
 #include "libscion.h"
 
-#define UDP_HDRLEN 8
-
 const int ADDR_LENS[] = {0, 4, 16, 2};
 
-unsigned char *get_dstaddr(SCIONCommonHeader *sch)
+uint8_t * get_src_addr(SCIONCommonHeader *sch)
 {
-    uint8_t src_len;
-    uint8_t src_type = (ntohs(sch->versionSrcDst) & 0xfc0) >> 6;
-
-    if (src_type < ADDR_NONE_TYPE || src_type > ADDR_SVC_TYPE)
-        return NULL;
-
-    src_len = ADDR_LENS[src_type];
-    return (unsigned char *)sch + sizeof(*sch) + SCION_ISD_AD_LEN +
-        src_len + SCION_ISD_AD_LEN;
+    return (uint8_t *)sch + sizeof(*sch) + SCION_ISD_AD_LEN;
 }
 
-uint8_t get_type(SCIONCommonHeader *sch)
+uint8_t get_src_len(SCIONCommonHeader *sch)
 {
+    return ADDR_LENS[SRC_TYPE(sch)];
+}
+
+void * get_dst_addr(SCIONCommonHeader *sch)
+{
+    uint8_t src_len;
     uint8_t src_type = SRC_TYPE(sch);
-    uint8_t dst_type = DST_TYPE(sch);
 
-    if ((src_type == ADDR_IPV4_TYPE || src_type == ADDR_IPV6_TYPE) &&
-            (dst_type == ADDR_IPV4_TYPE || dst_type == ADDR_IPV6_TYPE))
-        return DATA_PACKET;
-
-    uint8_t payload_class =
-        *(uint8_t *)((void *)sch + sch->headerLen + UDP_HDRLEN);
-
-    switch (payload_class) {
-        case PCB_CLASS:
-            return BEACON_PACKET;
-        case IFID_CLASS:
-            return IFID_PKT_PACKET;
-        case CERT_CLASS:
-            return CERT_CHAIN_REQ_PACKET;
-        case PATH_CLASS:
-            return PATH_MGMT_PACKET;
-        default:
-            fprintf(stderr, "Unknown packet class\n");
-            return PACKET_TYPE_ERROR;
+    if (src_type < ADDR_NONE_TYPE || src_type > ADDR_SVC_TYPE) {
+        printf("invalid src addr type: %d\n", src_type);
+        return NULL;
     }
+
+    src_len = ADDR_LENS[src_type];
+    void *ret = (uint8_t *)sch + sizeof(*sch) + SCION_ISD_AD_LEN +
+        src_len + SCION_ISD_AD_LEN;
+    return ret;
+}
+
+uint8_t get_dst_len(SCIONCommonHeader *sch)
+{
+    return ADDR_LENS[DST_TYPE(sch)];
+}
+
+uint8_t get_payload_class(SCIONCommonHeader *sch)
+{
+    return *(uint8_t *)((void *)sch + sch->headerLen + sizeof(SCIONUDPHeader));
+}
+
+uint8_t get_payload_type(SCIONCommonHeader *sch)
+{
+    return *(uint8_t *)((uint8_t *)sch + sch->headerLen + sizeof(SCIONUDPHeader) + 1);
 }
 
 uint8_t is_on_up_path(InfoOpaqueField *currOF)
