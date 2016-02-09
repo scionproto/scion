@@ -2,6 +2,7 @@
 #define SCION_DEFINES_H
 
 #include <stdint.h>
+#include <stdlib.h>
 
 // Shared defines
 
@@ -54,6 +55,8 @@ typedef struct{
 } SCIONAddr;
 
 #define ISD_AD(isd, ad) ((isd) << 20) | ((ad) & 0xfffff)
+#define GET_ISD(isd_ad) ((isd_ad) >> 20)
+#define GET_AD(isd_ad) ((isd_ad) & 0xfffff)
 
 typedef struct {
     uint32_t ad;
@@ -112,5 +115,19 @@ typedef struct {
 } SCIONHeader;
 
 #pragma pack(pop)
+
+typedef enum {
+    SCION_OPTION_BLOCKING = 0,
+    SCION_OPTION_STAY_ISD,
+    SCION_OPTION_AVOID_ISD,
+    SCION_OPTION_AVOID_AD,
+} SCIONOptionType;
+
+typedef struct {
+    SCIONOptionType type;
+    int val;
+    void *data; // if int is not enough
+    size_t len; // len of data
+} SCIONOption;
 
 #endif // SCION_DEFINES_H

@@ -30,6 +30,7 @@ public:
     virtual void setIndex(int index);
     void setRawPath(uint8_t *path, int len);
     void setInterfaces(uint8_t *interfaces, size_t count);
+    std::vector<SCIONInterface> & getInterfaces();
     bool isUp();
     void setUp();
     bool isUsed();

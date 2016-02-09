@@ -165,6 +165,44 @@ int SCIONSocket::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr)
     return mProtocol->recv(buf, len, srcAddr);
 }
 
+int SCIONSocket::setSocketOption(SCIONOption *option)
+{
+    if (!option)
+        return -EINVAL;
+
+    switch (option->type) {
+    case SCION_OPTION_BLOCKING:
+        if (!mProtocol)
+            return -EPERM;
+        mProtocol->setBlocking(option->val);
+        return 0;
+    case SCION_OPTION_STAY_ISD:
+        if (!mProtocol)
+            return -EPERM;
+        return mProtocol->setStayISD(option->val);
+    default:
+        break;
+    }
+    return 0;
+}
+
+int SCIONSocket::getSocketOption(SCIONOption *option)
+{
+    if (!option)
+        return -1;
+
+    switch (option->type) {
+    case SCION_OPTION_BLOCKING:
+        if (!mProtocol)
+            return -1;
+        option->val = mProtocol->isBlocking();
+        return 0;
+    default:
+        break;
+    }
+    return 0;
+}
+
 bool SCIONSocket::checkChildren(SCIONPacket *packet, uint8_t *ptr)
 {
     bool claimed = false;

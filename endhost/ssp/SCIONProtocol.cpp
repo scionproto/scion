@@ -17,10 +17,12 @@ void * timerThread(void *arg)
 }
 
 SCIONProtocol::SCIONProtocol(std::vector<SCIONAddr> &dstAddrs, short srcPort, short dstPort)
-    : mSrcPort(srcPort),
+    : mPathManager(NULL),
+    mSrcPort(srcPort),
     mDstPort(dstPort),
     mIsReceiver(false),
     mReadyToRead(false),
+    mBlocking(true),
     mState(SCION_RUNNING),
     mDstAddrs(dstAddrs),
     mProbeNum(0)
@@ -74,6 +76,16 @@ void SCIONProtocol::setReceiver(bool receiver)
     mIsReceiver = receiver;
 }
 
+void SCIONProtocol::setBlocking(bool blocking)
+{
+    mBlocking = blocking;
+}
+
+bool SCIONProtocol::isBlocking()
+{
+    return mBlocking;
+}
+
 bool SCIONProtocol::claimPacket(SCIONPacket *packet, uint8_t *buf)
 {
     return false;
@@ -108,6 +120,13 @@ int SCIONProtocol::registerSelect(Notification *n, int mode)
 
 void SCIONProtocol::deregisterSelect(int index)
 {
+}
+
+int SCIONProtocol::setStayISD(uint16_t isd)
+{
+    if (!mPathManager)
+        return -EPERM;
+    return mPathManager->setStayISD(isd);
 }
 
 int SCIONProtocol::shutdown()
@@ -167,6 +186,7 @@ SSPProtocol::~SSPProtocol()
 void SSPProtocol::createManager(std::vector<SCIONAddr> &dstAddrs)
 {
     mConnectionManager = new SSPConnectionManager(dstAddrs, mSocket, this);
+    mPathManager = mConnectionManager;
     mConnectionManager->startScheduler();
     pthread_create(&mTimerThread, NULL, timerThread, this);
 }
@@ -189,11 +209,18 @@ int SSPProtocol::send(uint8_t *buf, size_t len, DataProfile profile)
     uint8_t *ptr = buf;
     size_t totalLen = len;
     size_t packetMax = mConnectionManager->maxPayloadSize();
+    size_t room = mLocalSendWindow - mConnectionManager->totalQueuedSize();
+
+    if (mBlocking) {
+        mConnectionManager->waitForSendBuffer(len, mLocalSendWindow);
+    } else if (room < len) {
+        return -EWOULDBLOCK;
+    }
+
     while (len > 0) {
         bool sendAll = isFirstPacket();
         size_t packetLen = packetMax > len ? len : packetMax;
         len -= packetLen;
-        mConnectionManager->waitForSendBuffer(packetLen, mLocalSendWindow);
         SCIONPacket *packet = createPacket(ptr, packetLen);
         if (sendAll)
             mConnectionManager->sendAllPaths(packet);
@@ -213,6 +240,10 @@ int SSPProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr)
     pthread_mutex_lock(&mReadMutex);
     while (!mReadyToRead) {
         DEBUG("no data to read yet\n");
+        if (!mBlocking) {
+            pthread_mutex_unlock(&mReadMutex);
+            return -EWOULDBLOCK;
+        }
         pthread_cond_wait(&mReadCond, &mReadMutex);
     }
     pthread_mutex_lock(&mStateMutex);
@@ -765,6 +796,7 @@ SUDPProtocol::~SUDPProtocol()
 void SUDPProtocol::createManager(std::vector<SCIONAddr> &dstAddrs)
 {
     mConnectionManager = new SUDPConnectionManager(dstAddrs, mSocket);
+    mPathManager = mConnectionManager;
     pthread_create(&mTimerThread, NULL, timerThread, this);
 }
 
@@ -792,8 +824,13 @@ int SUDPProtocol::recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr)
     DEBUG("recv max %lu bytes\n", len);
     int size = 0;
     pthread_mutex_lock(&mReadMutex);
-    while (mReceivedPackets.empty())
+    while (mReceivedPackets.empty()) {
+        if (!mBlocking) {
+            pthread_mutex_unlock(&mReadMutex);
+            return -1;
+        }
         pthread_cond_wait(&mReadCond, &mReadMutex);
+    }
     SUDPPacket *sp = mReceivedPackets.front();
     DEBUG("queued packet with len %lu bytes\n", sp->payloadLen);
     if (sp->payloadLen > len) {

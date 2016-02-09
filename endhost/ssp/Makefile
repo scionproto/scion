@@ -8,7 +8,7 @@ SCIOND_DEP=ConnectionManager.cpp Utils.cpp
 CLIENT_OBJS=$(SCIOND_DEP:.cpp=._client.o)
 SERVER_OBJS=$(SCIOND_DEP:.cpp=._server.o)
 COMMON=SCIONSocket.cpp SCIONProtocol.cpp Path.cpp PathState.cpp\
-	   OrderedList.cpp SCIONWrapper.cpp Extensions.cpp
+	   OrderedList.cpp SCIONWrapper.cpp Extensions.cpp PathPolicy.cpp
 COMMON_OBJS=$(COMMON:.cpp=.o)
 SOCKET_OBJS=$(COMMON_OBJS) $(CLIENT_OBJS) $(SERVER_OBJS)
 CLIENT_LIB=libclient.so
