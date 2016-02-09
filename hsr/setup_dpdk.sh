@@ -8,5 +8,5 @@ sudo mount -t hugetlbfs nodev /mnt/huge
 sudo ifconfig eth1 down
 sudo ifconfig eth2 down
 
-sudo ${RTE_SDK}/tools/dpdk_nic_bind.py --bind=igb_uio eth1
-sudo ${RTE_SDK}/tools/dpdk_nic_bind.py --bind=igb_uio eth2
+sudo $RTE_SDK/tools/dpdk_nic_bind.py --bind=igb_uio eth1
+sudo $RTE_SDK/tools/dpdk_nic_bind.py --bind=igb_uio eth2

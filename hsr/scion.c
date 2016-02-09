@@ -68,13 +68,13 @@
 #define MAX_NUM_PATH_SERVERS 10
 #define MAX_NUM_CERT_SERVERS 10
 #define MAX_NUM_DNS_SERVERS 10
-#define MAX_IFID 2 << 12
+#define MAX_IFID (2 << 12)
 
 /// definition of functions
 int l2fwd_send_packet(struct rte_mbuf *m, uint8_t port);
 static inline int send_packet(struct rte_mbuf *m, uint8_t port);
 
-static inline void deliver(struct rte_mbuf *m, uint32_t ptype,
+static inline void deliver(struct rte_mbuf *m, uint32_t pclass,
                            uint8_t dpdk_rx_port);
 static inline void forward_packet(struct rte_mbuf *m, uint32_t from_local_ad,
                                   uint8_t dpdk_rx_port);
@@ -135,6 +135,7 @@ int my_ad;  // AD ID of this router
 int neighbor_isd; // ISD ID of a neighbor AD
 int neighbor_ad; // AD ID of a neighbor AD
 uint32_t ifid2addr[MAX_IFID];
+InterfaceState if_states[MAX_IFID];
 
 struct keystruct rk; // AES-NI key structure
 
@@ -414,6 +415,8 @@ int scion_init(int argc, char **argv)
     port_map[0].local = 1;
     port_map[1].egress = 0;
     port_map[1].local = 1;
+
+    memset(if_states, 0, sizeof(if_states));
 
     ret = 0;
 
@@ -835,6 +838,24 @@ static inline void process_path_mgmt_packet(struct rte_mbuf *m,
     // from
     // common header
 
+    uint8_t payload_type = get_payload_type(sch);
+    if (payload_type == PMT_IFSTATE_INFO_TYPE) {
+        uint8_t *ptr = (uint8_t *)sch + sch->headerLen;
+        ptr += sizeof(SCIONUDPHeader) + 2;
+        while (ptr - (uint8_t *)sch < ntohs(sch->totalLen)) {
+            uint16_t ifid = ntohs(*(uint16_t *)ptr);
+            ptr += 2;
+            InterfaceState *state = if_states + ifid;
+            state->is_active = ntohs(*(uint16_t *)ptr);
+            ptr += 2;
+            memcpy(state->rev_info, ptr, REVOCATION_LEN);
+            ptr += REVOCATION_LEN;
+        }
+        return;
+    } else if (payload_type == PMT_REVOCATION_TYPE) {
+        return;
+    }
+
     if (from_local_ad == 0 && is_last_path_of(sch)) {
         deliver(m, PATH_MGMT_PACKET, dpdk_rx_port);
     } else {
@@ -842,7 +863,7 @@ static inline void process_path_mgmt_packet(struct rte_mbuf *m,
     }
 }
 
-static inline void deliver(struct rte_mbuf *m, uint32_t ptype,
+static inline void deliver(struct rte_mbuf *m, uint32_t pclass,
         uint8_t dpdk_rx_port)
 {
     struct ether_hdr *eth_hdr;
@@ -868,7 +889,7 @@ static inline void deliver(struct rte_mbuf *m, uint32_t ptype,
     udp_hdr->dst_port = htons(SCION_UDP_PORT);
 
     // TODO support IPv6
-    if (ptype == PATH_MGMT_PACKET) {
+    if (pclass == PATH_MGMT_PACKET) {
         printf("to path server\n");
         ipv4_hdr->dst_addr = path_servers[0];
 #ifdef SERVER_MAC_ADDRESS
@@ -882,8 +903,8 @@ static inline void deliver(struct rte_mbuf *m, uint32_t ptype,
         // rte_memcpy((void *)&ipv4_hdr->dst_addr,
         //           (void *)&scion_hdr->dst_Addr + SCION_ISD_AD_LEN,
         //           SCION_HOST_ADDR_LEN);
-        rte_memcpy((void *)&ipv4_hdr->dst_addr, get_dstaddr(sch),
-                SCION_HOST_ADDR_LEN);
+        void *dst_addr = get_dst_addr(sch);
+        rte_memcpy((void *)&ipv4_hdr->dst_addr, dst_addr, SCION_HOST_ADDR_LEN);
 
 #ifdef SERVER_MAC_ADDRESS
         // FIXME
@@ -1282,7 +1303,7 @@ static inline void forward_packet(struct rte_mbuf *m, uint32_t from_local_ad,
             sizeof(struct ipv4_hdr) + sizeof(struct udp_hdr));
     hof = (HopOpaqueField *)((unsigned char *)sch + sch->currentOF);
 
-    RTE_LOG(DEBUG, HSR, "forward_packet: hof->info=%d\n", hof->info);
+    RTE_LOG(DEBUG, HSR, "forward_packet: hof->info=%#x\n", hof->info);
 
     if (from_local_ad == 0) {
         // Ingress entry point
@@ -1299,6 +1320,31 @@ static inline void forward_packet(struct rte_mbuf *m, uint32_t from_local_ad,
             egress_normal_forward(m, dpdk_rx_port);
         }
     }
+}
+
+int needs_local_processing(SCIONCommonHeader *sch)
+{
+    uint8_t src_type = SRC_TYPE(sch);
+    uint8_t src_len = get_src_len(sch);
+    uint8_t dst_type = DST_TYPE(sch);
+    uint8_t dst_len = get_dst_len(sch);
+    uint8_t *dst_ptr = (uint8_t *)sch + sizeof(*sch) + src_len + SCION_ISD_AD_LEN;
+    uint32_t dst_isd_ad = ntohl(*(uint32_t *)dst_ptr);
+    // TODO: support dst_addr > 4 bytes
+    uint32_t dst_addr = *(uint32_t *)(dst_ptr + SCION_ISD_AD_LEN);
+
+    if ((sch->headerLen == sizeof(*sch) + src_len + dst_len) &&
+        (dst_type == ADDR_SVC_TYPE))
+        return 1;
+    if (src_type == ADDR_SVC_TYPE)
+        return 1;
+    if (dst_isd_ad == ISD_AD(my_isd, my_ad)) {
+        if (dst_addr == internal_ip[0] || dst_addr == interface_ip[0])
+            return 1;
+        if (dst_type == ADDR_SVC_TYPE)
+            return 1;
+    }
+    return 0;
 }
 
 void handle_request(struct rte_mbuf *m, uint8_t dpdk_rx_port)
@@ -1332,33 +1378,31 @@ void handle_request(struct rte_mbuf *m, uint8_t dpdk_rx_port)
                         struct ether_hdr) +
                     sizeof(struct ipv4_hdr) + sizeof(struct udp_hdr));
 
-        uint8_t ptype = get_type(sch);
-        switch (ptype) {
-            case DATA_PACKET:
-                forward_packet(m, from_local_socket, dpdk_rx_port);
-                break;
-            case IFID_PKT_PACKET:
+        if (needs_local_processing(sch)) {
+            uint8_t pclass = get_payload_class(sch);
+            switch (pclass) {
+            case IFID_CLASS:
                 if (!from_local_socket)
                     process_ifid_request(m, dpdk_rx_port);
                 else
                     RTE_LOG(WARNING, HSR, "IFID packet from local socket\n");
-
                 break;
-            case BEACON_PACKET:
+            case PCB_CLASS:
                 process_pcb(m, from_local_socket, dpdk_rx_port);
                 break;
-            case CERT_CHAIN_REQ_PACKET:
-            case CERT_CHAIN_REP_PACKET:
-            case TRC_REQ_PACKET:
-            case TRC_REP_PACKET:
+            case CERT_CLASS:
                 relay_cert_server_packet(m, from_local_socket, dpdk_rx_port);
                 break;
-            case PATH_MGMT_PACKET:
+            case PATH_CLASS:
                 process_path_mgmt_packet(m, from_local_socket, dpdk_rx_port);
                 break;
             default:
-                RTE_LOG(DEBUG, HSR, "unknown packet type %d ?\n", ptype);
+                RTE_LOG(DEBUG, HSR, "unknown packet class %d ?\n", pclass);
                 break;
+            }
+        }
+        else {
+            forward_packet(m, from_local_socket, dpdk_rx_port);
         }
     } else {
         RTE_LOG(DEBUG, HSR, "Non SCION packet: ether_type=%x\n",
