@@ -95,13 +95,28 @@ class KnowledgeBaseLookupService(object):
         assert(isinstance(request, dict))
 
         try:
-            command = request['command']
-            res_name = request['res_name']
+            cmd = request['command']
         except KeyError as e:
             logging.error('Key error while parsing request: %s' % e)
             return
+        assert(isinstance(cmd, str))
 
-        resp = self.kbase.lookup(command, res_name)
+        if cmd == 'LIST':
+            resp = self.kbase.list()
+        elif cmd == 'LOOKUP':
+            try:
+                req_type = request['req_type']
+                res_name = request['res_name']
+            except KeyError as e:
+                logging.error('Key error while parsing request: %s' % e)
+                return
+            assert(isinstance(req_type, str))
+            resp = self.kbase.lookup(req_type, res_name)
+        else:
+            logging.error('Unsupported command: %s')
+            return
+
+        assert((isinstance(resp, dict) or isinstance(resp, list)))
         self._send_response(resp, addr)
 
     def _recv_data(self):
@@ -122,10 +137,10 @@ class KnowledgeBaseLookupService(object):
 
     def _send_response(self, resp, addr):
         """
-        Encodes the response dictionary object into JSON and sends it to
+        Encodes the response object (dict or list) into JSON and sends it to
         the given address
-        :param resp: Stats response to be sent to the client.
-        :type resp: dict
+        :param resp: Response to be sent to the client.
+        :type resp: dict or list
         :param addr: Address to send the response to.
         :type addr: AddrType.IPV4
         """
