@@ -83,19 +83,29 @@ class SocketKnowledgeBase(object):
             del SOC2REQ[soc]
         self.lock.release()
 
-    def lookup(self, command, res_name):
+    def lookup(self, req_type, res_name):
         """
         Look up and return the stats of a given HTTP request specified
-        by the command and the resource name.
-        :param command: HTTP command
-        :type command: String
+        by the req_type and the resource name.
+        :param req_type: HTTP req_type
+        :type req_type: String
         :param res_name: The resource name.
         :type res_name: String
+        :returns: Dictionary of (req_type, res_name) -> ScionStats
+        :rtype: dict
         """
-        if (command, res_name) in self.kbase:
-            return self.kbase[(command, res_name)].to_dict()
+        if (req_type, res_name) in self.kbase:
+            return self.kbase[(req_type, res_name)].to_dict()
         else:
             return {}
+
+    def list(self):
+        """
+        List the current contents of the knowledge-base.
+        :returns: List of tuples
+        :rtype: list
+        """
+        return list(self.kbase.keys())
 
     def update_single_stat(self, soc):
         """
