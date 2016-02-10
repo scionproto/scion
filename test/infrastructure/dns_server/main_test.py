@@ -31,6 +31,7 @@ from lib.defines import (
     DNS_SERVICE,
     PATH_SERVICE,
     SCION_DNS_PORT,
+    SIBRA_SERVICE,
 )
 from lib.zookeeper import ZkNoConnection
 from test.testcommon import create_mock
@@ -127,6 +128,7 @@ class TestSCIONDnsSyncZkState(BaseDNSServer):
             CERTIFICATE_SERVICE: ["cs1"],
             DNS_SERVICE: ["ds1", "ds2"],
             PATH_SERVICE: [],
+            SIBRA_SERVICE: ["sb1"],
         }
         server = SCIONDnsServer("srvid", "conf_dir")
         server.zk = create_mock(['wait_connected'])

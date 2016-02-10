@@ -43,6 +43,7 @@ from lib.defines import (
     DNS_SERVICE,
     PATH_SERVICE,
     SCION_DNS_PORT,
+    SIBRA_SERVICE,
 )
 from lib.zookeeper import ZkNoConnection, Zookeeper
 
@@ -58,7 +59,8 @@ class SCIONDnsServer(SCIONElement):
     """
     SERVICE_TYPE = DNS_SERVICE
     SYNC_TIME = 1.0
-    SRV_TYPES = (BEACON_SERVICE, CERTIFICATE_SERVICE, DNS_SERVICE, PATH_SERVICE)
+    SRV_TYPES = (BEACON_SERVICE, CERTIFICATE_SERVICE,
+                 DNS_SERVICE, PATH_SERVICE, SIBRA_SERVICE)
 
     def __init__(self, server_id, conf_dir, setup=False):
         """

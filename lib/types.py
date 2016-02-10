@@ -80,6 +80,7 @@ class PayloadClass(TypeBase):
     IFID = 1
     CERT = 2
     PATH = 3
+    SIBRA = 4
 
 
 class CertMgmtType(TypeBase):
@@ -118,6 +119,10 @@ class PCBType(TypeBase):
 
 class IFIDType(object):
     PAYLOAD = 0
+
+
+class SIBRAPayloadType(TypeBase):
+    EMPTY = 0
 
 
 ############################

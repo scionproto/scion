@@ -104,10 +104,10 @@ class OfferBlockBase(object):
         actual_offers = total_hops - self.info.fail_hop
         # FIXME(kormat): Needs to be exception
         assert len(self.offers) >= actual_offers
-        bwsnap = self.offers[0].to_snap()
+        bw_cls = self.offers[0]
         for offer in self.offers[:actual_offers]:
-            bwsnap.min(offer.to_snap())
-        return bwsnap
+            bw_cls.min(offer)
+        return bw_cls
 
     def __len__(self):  # pragma: no cover
         return ResvInfoBase.LEN + self.offer_hops * self.OFFER_LEN

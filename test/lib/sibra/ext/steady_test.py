@@ -23,7 +23,6 @@ import nose
 import nose.tools as ntools
 
 # SCION
-from lib.defines import SIBRA_STEADY_ID_LEN
 from lib.sibra.ext.steady import (
     SibraExtSteady,
 )
@@ -54,29 +53,40 @@ class TestSibraExtSteadyParse(object):
         inst._parse_end.assert_called_once_with("data", "req")
 
 
-class TestSibraExtSteadyFromValues(object):
+class TestSibraExtSteadySetupFromValues(object):
     """
-    Unit tests for lib.sibra.ext.steady.SibraExtSteady.from_values
+    Unit tests for lib.sibra.ext.steady.SibraExtSteady.setup_from_values
     """
     @patch("lib.sibra.ext.steady.SibraExtSteady._set_size", autospec=True)
     @patch("lib.sibra.ext.steady.ResvBlockSteady.from_values", autospec=True)
-    @patch("lib.sibra.ext.steady.os.urandom", autospec=True)
-    def test(self, urandom, resv_fv, set_size):
-        isd_ad = create_mock(["LEN", "pack"])
-        isd_ad.LEN = 4
-        isd_ad.pack.return_value = "isd_ad"
-        urandom.return_value = "random"
+    def test(self, resv_fv, set_size):
         # Call
-        inst = SibraExtSteady.from_values(isd_ad, "req info", "total hops")
+        inst = SibraExtSteady.setup_from_values(
+            "req info", "total hops", "path id", "setup")
         # Tests
         ntools.assert_is_instance(inst, SibraExtSteady)
-        ntools.eq_(inst.setup, True)
+        ntools.eq_(inst.setup, "setup")
         ntools.eq_(inst.total_hops, "total hops")
-        urandom.assert_called_once_with(SIBRA_STEADY_ID_LEN - 4)
-        ntools.eq_(inst.path_ids, ["isd_adrandom"])
+        ntools.eq_(inst.path_ids, ["path id"])
         resv_fv.assert_called_once_with("req info", "total hops")
         ntools.eq_(inst.req_block, resv_fv.return_value)
         set_size.assert_called_once_with(inst)
+
+
+class TestSibraExtSteadyUseFromValues(object):
+    """
+    Unit tests for lib.sibra.ext.steady.SibraExtSteady.use_from_values
+    """
+    @patch("lib.sibra.ext.steady.SibraExtSteady.switch_resv", autospec=True)
+    def test(self, switch_resv):
+        block = create_mock(["num_hops"])
+        # Call
+        inst = SibraExtSteady.use_from_values("path id", block)
+        # Tests
+        ntools.assert_is_instance(inst, SibraExtSteady)
+        ntools.eq_(inst.path_ids, ["path id"])
+        ntools.eq_(inst.total_hops, block.num_hops)
+        switch_resv.assert_called_once_with(inst, [block])
 
 
 class TestSibraExtSteadyPack(object):

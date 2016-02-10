@@ -68,15 +68,22 @@ class ResvInfoBase(object):
         self.fail_hop = data.pop(1)
 
     @classmethod
-    def from_values(cls, exp, bwsnap, index=0):  # pragma: no cover
+    def from_values(cls, exp, bwsnap=None,
+                    bw_cls=None, index=0):  # pragma: no cover
         """
         :param float exp: Expiry time, in seconds since unix epoch.
         :param BWSnapshot bwsnap:
             Bandwidth to reserve in forward/reverse directions.
+        :param BWClass bw_cls:
+            SIBRA bandwidth class to reserve in forward/reverse directions.
         """
+        assert bwsnap or bw_cls
         inst = cls()
         inst.exp_tick = time_to_tick(exp)
-        inst.bw = bwsnap.to_classes().ceil()
+        if bwsnap is not None:
+            inst.bw = bwsnap.to_classes().ceil()
+        else:
+            inst.bw = bw_cls
         inst.index = index
         inst.fail_hop = 0
         assert inst.index < SIBRA_MAX_IDX

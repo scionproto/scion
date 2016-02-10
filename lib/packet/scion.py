@@ -39,6 +39,7 @@ from lib.packet.path_mgmt import parse_pathmgmt_payload
 from lib.packet.pcb import parse_pcb_payload
 from lib.packet.scion_addr import ISD_AD, SCIONAddr
 from lib.packet.scion_l4 import parse_l4_hdr
+from lib.sibra.payload import parse_sibra_payload
 from lib.types import PayloadClass, IFIDType
 from lib.util import Raw, calc_padding
 
@@ -57,6 +58,8 @@ class PacketType(object):
     CERT_MGMT = HostAddrSVC(3, raw=False)
     # IF ID packet to the peer router
     IFID_PKT = HostAddrSVC(4, raw=False)
+    # SIBRA service
+    SB_PKT = HostAddrSVC(5, raw=False)
 
 
 class SCIONCommonHdr(HeaderBase):
@@ -495,10 +498,10 @@ class SCIONL4Packet(SCIONExtPacket):
 
     @classmethod
     def from_values(cls, cmn_hdr, addr_hdr, path_hdr, ext_hdrs, l4_hdr,
-                    payload=b""):
+                    payload=None):
         inst = cls()
         inst._inner_from_values(cmn_hdr, addr_hdr, path_hdr, ext_hdrs, l4_hdr)
-        if not payload:
+        if payload is None:
             payload = PayloadRaw()
         inst.set_payload(payload)
         inst.update()
@@ -538,6 +541,7 @@ class SCIONL4Packet(SCIONExtPacket):
             PayloadClass.IFID: parse_ifid_payload,
             PayloadClass.CERT: parse_certmgmt_payload,
             PayloadClass.PATH: parse_pathmgmt_payload,
+            PayloadClass.SIBRA: parse_sibra_payload,
         }
         handler = class_map.get(pld_class)
         if not handler:

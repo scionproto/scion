@@ -32,6 +32,7 @@ from lib.defines import (
     PATH_SERVICE,
     SCION_UDP_PORT,
     SERVICE_TYPES,
+    SIBRA_SERVICE,
     TOPO_FILE,
 )
 from lib.dnsclient import DNSCachingClient
@@ -326,6 +327,7 @@ class SCIONElement(object):
             CERTIFICATE_SERVICE: self.topology.certificate_servers,
             DNS_SERVICE: self.topology.dns_servers,
             PATH_SERVICE: self.topology.path_servers,
+            SIBRA_SERVICE: self.topology.sibra_servers,
         }
         # Generate fallback from local topology
         fallback = [srv.addr for srv in service_map[qname]]

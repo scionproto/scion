@@ -87,6 +87,7 @@ DEFAULT_BEACON_SERVERS = 1
 DEFAULT_CERTIFICATE_SERVERS = 1
 DEFAULT_PATH_SERVERS = 1
 DEFAULT_DNS_SERVERS = 1
+DEFAULT_SIBRA_SERVERS = 1
 INITIAL_CERT_VERSION = 0
 INITIAL_TRC_VERSION = 0
 DEFAULT_DNS_DOMAIN = DNSLabel("scion")
@@ -100,6 +101,7 @@ SCION_SERVICE_NAMES = (
     "DNSServers",
     "EdgeRouters",
     "PathServers",
+    "SibraServers",
 )
 
 
@@ -409,6 +411,7 @@ class TopoGenerator(object):
              "CertificateServers"),
             ("path_servers", DEFAULT_PATH_SERVERS, "ps", "PathServers"),
             ("dns_servers", DEFAULT_DNS_SERVERS, "ds", "DNSServers"),
+            ("sibra_servers", DEFAULT_SIBRA_SERVERS, "sb", "SibraServers"),
         ):
             self._gen_srv_entry(
                 topo_id, ad_conf, conf_key, def_num, nick, topo_key)
@@ -520,9 +523,10 @@ class SupervisorGenerator(object):
         for key, cmd in (
             ("BeaconServers", "bin/beacon_server"),
             ("CertificateServers", "bin/cert_server"),
-            ("PathServers", "bin/path_server"),
             ("DNSServers", "bin/dns_server"),
             ("EdgeRouters", "bin/router"),
+            ("PathServers", "bin/path_server"),
+            ("SibraServers", "bin/sibra_server"),
         ):
             entries.extend(self._std_entries(topo, key, cmd, base))
         entries.extend(self._zk_entries(topo_id))
