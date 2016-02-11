@@ -18,6 +18,14 @@ cmd_topology() {
 }
 
 cmd_run() {
+    echo "Building dispatcher..."
+    make -C endhost
+    result=$?
+    if [ $result -ne 0 ]; then
+        echo "Dispatcher build failed"
+        exit $result
+    fi
+    make install -C endhost
     echo "Running the network..."
     supervisor/supervisor.sh reload
     # Supervisor reload causes the domain socket to briefly disappear, which
@@ -65,6 +73,7 @@ cmd_version() {
 }
 
 cmd_sock_bld() {
+    make -C lib/libscion
     make -C endhost
     make -C endhost/ssp
     make -C endhost/ssp/test

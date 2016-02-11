@@ -5,6 +5,8 @@
 #include "Extensions.h"
 #include "SCIONSocket.h"
 
+#include "libscion_api.h"
+
 void signalHandler(int signum)
 {
     switch (signum) {
@@ -77,6 +79,8 @@ SCIONSocket::SCIONSocket(int protocol, SCIONAddr *dstAddrs, int numAddrs,
                 SSPEntry se;
                 se.flowID = 0;
                 se.port = mSrcPort;
+                // FIXME: stopgap measure until big refactoring
+                se.addr = getLocalHostAddr();
                 registerFlow(SCION_PROTO_SSP, &se, mDispatcherSocket, 1);
                 mRegistered = true;
             }
@@ -94,13 +98,11 @@ SCIONSocket::SCIONSocket(int protocol, SCIONAddr *dstAddrs, int numAddrs,
                 getsockname(mDispatcherSocket, (struct sockaddr *)&addr, &addrLen);
                 mSrcPort = ntohs(addr.sin_port);
             }
-            SUDPEntry se;
-            se.port = mSrcPort;
-            registerFlow(SCION_PROTO_UDP, &se, mDispatcherSocket, 1);
-            mRegistered = true;
-            DEBUG("Registered to receive SUDP packets on port %d\n", mSrcPort);
             mProtocol = new SUDPProtocol(mDstAddrs, mSrcPort, mDstPort);
             mProtocol->createManager(mDstAddrs, true);
+            ((SUDPProtocol *)mProtocol)->registerDispatcher(mSrcPort, mDispatcherSocket);
+            mRegistered = true;
+            DEBUG("Registered to receive SUDP packets on port %d\n", mSrcPort);
             break;
         }
         default:
@@ -265,9 +267,9 @@ void SCIONSocket::handlePacket(uint8_t *buf, size_t len, struct sockaddr_in *add
 #ifdef SIMULATOR
     memcpy(sh.path, buf + sch.headerLen - sh.pathLen, sh.pathLen);
 #else
-    int res = reversePath(buf + sch.headerLen - sh.pathLen, sh.path, sh.pathLen);
+    int res = reverse_path(buf + sch.headerLen - sh.pathLen, sh.path, sh.pathLen);
     if (res < 0) {
-        DEBUG("reversePath failed\n");
+        DEBUG("reverse_path failed\n");
         free(packet);
         return;
     }

@@ -1,8 +1,10 @@
 CC=g++
-CFLAGS=-Wall -g -fPIC -std=c++11
-LDFLAGS=-ldl -shared -lpthread -lrt
+CFLAGS=-Wall -g -std=c++11 -fPIC
+LDFLAGS=-shared -lpthread -lscion
+INC=-I../../lib/libscion
+LIB=-L../../lib/libscion
 
-HDRS=$(wildcard *.h)
+HDRS=$(wildcard *.h) ../../lib/libscion/libscion_api.h
 
 SCIOND_DEP=ConnectionManager.cpp Utils.cpp
 CLIENT_OBJS=$(SCIOND_DEP:.cpp=._client.o)
@@ -17,19 +19,19 @@ SERVER_LIB=libserver.so
 all: $(CLIENT_LIB) $(SERVER_LIB)
 
 %._client.o: %.cpp $(HDRS)
-	$(CC) $(CFLAGS) -c -o $@ $< -DSCIOND_API_HOST='"127.255.255.254"'
+	$(CC) $(CFLAGS) $(INC) -c -o $@ $< -DSCIOND_API_HOST='"127.255.255.254"'
 
 %._server.o: %.cpp $(HDRS)
-	$(CC) $(CFLAGS) -c -o $@ $< -DSCIOND_API_HOST='"127.255.255.253"'
+	$(CC) $(CFLAGS) $(INC) -c -o $@ $< -DSCIOND_API_HOST='"127.255.255.253"'
 
 %.o: %.cpp $(HDRS)
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) $(INC) -c -o $@ $<
 
 $(CLIENT_LIB): $(COMMON_OBJS) $(CLIENT_OBJS) $(HDRS)
-	$(CC) $(CFLAGS) $(COMMON_OBJS) $(CLIENT_OBJS) -o $@ $(LDFLAGS)
+	$(CC) -o $@ $(COMMON_OBJS) $(CLIENT_OBJS) $(LDFLAGS) $(LIB)
 
 $(SERVER_LIB): $(COMMON_OBJS) $(SERVER_OBJS) $(HDRS)
-	$(CC) $(CFLAGS) $(COMMON_OBJS) $(SERVER_OBJS) -o $@ $(LDFLAGS)
+	$(CC) -o $@ $(COMMON_OBJS) $(SERVER_OBJS) $(LDFLAGS) $(LIB)
 
 clean:
 	-rm -f $(SOCKET_OBJS) $(CLIENT_LIB) $(SERVER_LIB)

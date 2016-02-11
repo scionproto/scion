@@ -99,6 +99,7 @@ public:
 
     int shutdown();
     void notifyFinAck();
+    void registerDispatcher(uint64_t flowID, uint16_t port, int sock);
     void removeDispatcher(int sock);
 
     uint64_t               mFlowID;
@@ -163,6 +164,7 @@ public:
 
     bool claimPacket(SCIONPacket *packet, uint8_t *buf);
     void start(SCIONPacket *packet, uint8_t *buf, int sock);
+    void registerDispatcher(uint16_t port, int sock);
 
     void getStats(SCIONStats *stats);
 

@@ -24,7 +24,7 @@ import time
 
 # SCION
 from endhost.sciond import SCIONDaemon
-from lib.defines import GEN_PATH, SCION_UDP_EH_DATA_PORT
+from lib.defines import GEN_PATH
 from lib.log import init_logging
 from lib.main import main_wrapper
 from lib.packet.ext.traceroute import TracerouteExt
@@ -40,9 +40,10 @@ from lib.packet.scion_addr import ISD_AS, SCIONAddr
 from lib.packet.scion_udp import SCIONUDPHeader
 from lib.socket import UDPSocket
 from lib.thread import thread_safety_net
-from lib.util import handle_signals
+from lib.util import handle_signals, reg_dispatcher, trim_dispatcher_packet
 
 TOUT = 10  # How long wait for response.
+SERVER_PORT = 30042  # default port number for server
 
 
 def client(c_addr, s_addr):
@@ -57,6 +58,7 @@ def client(c_addr, s_addr):
     # Open a socket for incomming DATA traffic
     sock = UDPSocket(bind=(str(c_addr.host), 0, "Client"),
                      addr_type=c_addr.host.TYPE)
+    reg_dispatcher(sock, c_addr.host, sock.port)
     # Get paths to server through function call
     paths = sd.get_paths(s_addr.isd_as)
     assert paths
@@ -85,7 +87,7 @@ def client(c_addr, s_addr):
     # Create a SCION packet with the extensions
     cmn_hdr, addr_hdr = build_base_hdrs(c_addr, s_addr)
     udp_hdr = SCIONUDPHeader.from_values(
-        c_addr, sock.port, s_addr, SCION_UDP_EH_DATA_PORT, payload,
+        c_addr, sock.port, s_addr, SERVER_PORT, payload,
     )
     spkt = SCIONL4Packet.from_values(cmn_hdr, addr_hdr, path,
                                      exts, udp_hdr, payload)
@@ -98,6 +100,7 @@ def client(c_addr, s_addr):
     sd.send(spkt, next_hop, port)
     # Waiting for a response
     raw, _ = sock.recv()
+    raw = trim_dispatcher_packet(raw)
     logging.info('CLI: Received response:\n%s', SCIONL4Packet(raw))
     logging.info("CLI: leaving.")
     sock.close()
@@ -113,11 +116,13 @@ def server(addr):
     sd = SCIONDaemon.start(conf_dir, addr.host)
     # Open a socket for incomming DATA traffic
     sock = UDPSocket(
-        bind=(str(addr.host), SCION_UDP_EH_DATA_PORT, "Server"),
+        bind=(str(addr.host), SERVER_PORT, "Server"),
         addr_type=addr.host.TYPE
     )
+    reg_dispatcher(sock, addr.host, sock.port)
     # Waiting for a request
     raw, _ = sock.recv()
+    raw = trim_dispatcher_packet(raw)
     # Request received, instantiating SCION packet
     spkt = SCIONL4Packet(raw)
     logging.info('SRV: received: %s', spkt)

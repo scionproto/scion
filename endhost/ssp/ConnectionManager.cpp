@@ -55,6 +55,11 @@ int PathManager::maxPayloadSize()
     return min;
 }
 
+SCIONAddr * PathManager::localAddress()
+{
+    return &mLocalAddr;
+}
+
 void PathManager::getLocalAddress()
 {
     struct sockaddr_in addr;

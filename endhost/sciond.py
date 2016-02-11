@@ -24,7 +24,11 @@ from itertools import product
 # SCION
 from infrastructure.scion_elem import SCIONElement
 from lib.crypto.hash_chain import HashChain
-from lib.defines import PATH_SERVICE, SCION_UDP_PORT
+from lib.defines import (
+    PATH_SERVICE,
+    SCION_UDP_PORT,
+    SCION_UDP_EH_DATA_PORT,
+)
 from lib.errors import SCIONServiceLookupError
 from lib.flagtypes import PathSegFlags as PSF
 from lib.log import log_exception
@@ -218,7 +222,8 @@ class SCIONDaemon(SCIONElement):
             haddr = self.ifid2addr.get(fwd_if, haddr_parse("IPV4", "0.0.0.0"))
             path_len = len(raw_path) // 8
             reply.append(struct.pack("!B", path_len) + raw_path +
-                         haddr.pack() + struct.pack("!H", SCION_UDP_PORT) +
+                         haddr.pack() +
+                         struct.pack("!H", SCION_UDP_EH_DATA_PORT) +
                          struct.pack("!H", path.mtu) +
                          struct.pack("!B", len(path.interfaces)))
             for interface in path.interfaces:
