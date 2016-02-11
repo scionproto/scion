@@ -77,13 +77,15 @@ class PathPolicy(object):
         :rtype: bool
         """
         assert isinstance(pcb, PathSegment)
-        if not self._check_unwanted_ads(pcb):
-            logging.warning("PathStore: pcb discarded (unwanted AD).")
+        isd_ad = self._check_unwanted_ads(pcb)
+        if isd_ad:
+            logging.warning("PathStore: pcb discarded, unwanted AD(%s): %s",
+                            isd_ad, pcb.short_desc())
             return False
         reasons = self._check_property_ranges(pcb)
         if reasons:
-            logging.warning("PathStore: pcb discarded: %s. %s",
-                            ", ".join(reasons), pcb.short_desc())
+            logging.info("PathStore: pcb discarded(%s): %s",
+                         ", ".join(reasons), pcb.short_desc())
             return False
         return True
 
@@ -95,9 +97,9 @@ class PathPolicy(object):
         :type pcb: :class:`PathSegment`
         """
         for ad in pcb.ads:
-            if (ad.pcbm.isd_id, ad.pcbm.ad_id) in self.unwanted_ads:
-                return False
-        return True
+            isd_ad = ad.pcbm.get_isd_ad()
+            if isd_ad in self.unwanted_ads:
+                return isd_ad
 
     def _check_property_ranges(self, pcb):
         """

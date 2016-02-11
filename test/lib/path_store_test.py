@@ -66,64 +66,59 @@ class TestPathPolicyGetPathPolicyDict(object):
         ntools.eq_(dict_, target)
 
 
-@patch("lib.path_store.logging.warning", autospec=True)
 class TestPathPolicyCheckFilters(object):
     """
     Unit tests for lib.path_store.PathPolicy.check_filters
     """
-    def test_basic(self, wrng):
-        pcb = MagicMock(spec_set=PathSegment)
-        pth_pol = PathPolicy()
-        pth_pol._check_unwanted_ads = MagicMock(spec_set=[])
-        pth_pol._check_unwanted_ads.return_value = True
-        pth_pol._check_property_ranges = MagicMock(spec_set=[])
-        pth_pol._check_property_ranges.return_value = []
-        ntools.assert_true(pth_pol.check_filters(pcb))
-        ntools.eq_(wrng.call_count, 0)
+    def _setup(self, unwanted=None, reasons=None):
+        inst = PathPolicy()
+        inst._check_unwanted_ads = create_mock()
+        inst._check_unwanted_ads.return_value = unwanted
+        inst._check_property_ranges = create_mock()
+        inst._check_property_ranges.return_value = reasons
+        pcb = create_mock(["short_desc"], class_=PathSegment)
+        return inst, pcb
 
-    def test_unwanted_ads(self, wrng):
-        pcb = MagicMock(spec_set=PathSegment)
-        pth_pol = PathPolicy()
-        pth_pol._check_unwanted_ads = MagicMock(spec_set=[])
-        pth_pol._check_unwanted_ads.return_value = False
-        ntools.assert_false(pth_pol.check_filters(pcb))
-        ntools.eq_(wrng.call_count, 1)
+    def test_basic(self):
+        inst, pcb = self._setup()
+        # Call
+        ntools.assert_true(inst.check_filters(pcb))
 
-    def test_property_ranges(self, wrng):
-        pcb = MagicMock(spec_set=PathSegment)
-        pth_pol = PathPolicy()
-        pth_pol._check_unwanted_ads = MagicMock(spec_set=[])
-        pth_pol._check_unwanted_ads.return_value = True
-        pth_pol._check_property_ranges = MagicMock(spec_set=[])
-        pth_pol._check_property_ranges.return_value = ["reason1"]
-        ntools.assert_false(pth_pol.check_filters(pcb))
-        ntools.eq_(wrng.call_count, 1)
+    def test_unwanted_ads(self):
+        inst, pcb = self._setup("unwanted AD")
+        # Call
+        ntools.assert_false(inst.check_filters(pcb))
+
+    def test_property_ranges(self):
+        inst, pcb = self._setup(reasons="reasons")
+        ntools.assert_false(inst.check_filters(pcb))
 
 
 class TestPathPolicyCheckUnwantedAds(object):
     """
     Unit tests for lib.path_store.PathPolicy._check_unwanted_ads
     """
-    def setUp(self):
-        self.pcb = MagicMock(spec_set=['ads'])
-        self.pcb.ads = [MagicMock(spec_set=['pcbm']) for i in range(5)]
+    def _setup(self):
+        inst = PathPolicy()
+        pcb = create_mock(['ads'])
+        pcb.ads = []
         for i in range(5):
-            self.pcb.ads[i].pcbm = MagicMock(spec_set=['isd_id', 'ad_id'])
-            self.pcb.ads[i].pcbm.isd_id = "isd_id" + str(i)
-            self.pcb.ads[i].pcbm.ad_id = "ad_id" + str(i)
-        self.pth_pol = PathPolicy()
-
-    def tearDown(self):
-        del self.pcb
-        del self.pth_pol
+            ad = create_mock(['pcbm'])
+            ad.pcbm = create_mock(['get_isd_ad'])
+            ad.pcbm.get_isd_ad.return_value = "%d-%d" % (i, i)
+            pcb.ads.append(ad)
+        return inst, pcb
 
     def test_basic(self):
-        self.pth_pol.unwanted_ads = [("isd_id1", "ad_id1")]
-        ntools.assert_false(self.pth_pol._check_unwanted_ads(self.pcb))
+        inst, pcb = self._setup()
+        unwanted = "2-2"
+        inst.unwanted_ads = [unwanted]
+        # Call
+        ntools.eq_(inst._check_unwanted_ads(pcb), unwanted)
 
     def test_not_present(self):
-        self.pth_pol.unwanted_ads = []
-        ntools.assert_true(self.pth_pol._check_unwanted_ads(self.pcb))
+        inst, pcb = self._setup()
+        ntools.assert_is_none(inst._check_unwanted_ads(pcb))
 
 
 class TestPathPolicyCheckPropertyRanges(object):
