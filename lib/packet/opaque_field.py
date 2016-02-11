@@ -18,12 +18,11 @@
 # Stdlib
 import struct
 from abc import ABCMeta, abstractmethod
-from binascii import hexlify
 
 # SCION
 from lib.types import OpaqueFieldType as OFT
 from lib.errors import SCIONIndexError, SCIONKeyError
-from lib.util import Raw, iso_timestamp
+from lib.util import Raw, hex_str, iso_timestamp
 
 
 class OpaqueField(object, metaclass=ABCMeta):
@@ -171,7 +170,7 @@ class HopOpaqueField(OpaqueField):
         return ("[Hop OF info(%dB): %s, exp_time: %d, ingress if: %d, "
                 "egress if: %d, mac: %s]" %
                 (len(self), OFT.to_str(self.info), self.exp_time,
-                 self.ingress_if, self.egress_if, hexlify(self.mac)))
+                 self.ingress_if, self.egress_if, hex_str(self.mac)))
 
 
 class InfoOpaqueField(OpaqueField):

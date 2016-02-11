@@ -15,9 +15,6 @@
 :mod:`reservation` --- SIBRA reservation classes
 ================================================
 """
-# Stdlib
-from binascii import hexlify
-
 # SCION
 from lib.defines import (
     SIBRA_MAX_EPHEMERAL_TICKS,
@@ -25,7 +22,7 @@ from lib.defines import (
 )
 from lib.sibra.state.bandwidth import BandwidthBase
 from lib.sibra.util import BWSnapshot, tick_to_time
-from lib.util import iso_timestamp
+from lib.util import hex_str, iso_timestamp
 
 
 class ReservationBase(BandwidthBase):
@@ -147,7 +144,7 @@ class ReservationBase(BandwidthBase):
     def __str__(self):
         tmp = []
         tmp.append("%s path ID: %s Owner: %s" % (
-            self.RESV_TYPE, hexlify(self.pathid).decode("ascii"), self.owner))
+            self.RESV_TYPE, hex_str(self.pathid), self.owner))
         for i in self.order:
             for line in str(self.idxes[i]).splitlines():
                 tmp.append("  %s" % line)

@@ -21,7 +21,6 @@ import logging
 import threading
 import time
 import zlib
-from binascii import hexlify
 from collections import defaultdict
 
 # External packages
@@ -80,7 +79,7 @@ from lib.types import (
     RouterFlag,
     SIBRAPayloadType,
 )
-from lib.util import SCIONTime, sleep_interval
+from lib.util import SCIONTime, hex_str, sleep_interval
 
 
 MAX_EXT = 4  # Maximum number of hop-by-hop extensions processed by router.
@@ -776,8 +775,7 @@ class Router(SCIONElement):
             try:
                 pkt.parse_payload()
             except SCIONBaseError:
-                log_exception("Error parsing payload:\n%s" %
-                              hexlify(packet).decode("ascii"))
+                log_exception("Error parsing payload:\n%s" % hex_str(packet))
                 return
             handler = self._get_handler(pkt)
         else:

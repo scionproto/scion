@@ -17,7 +17,6 @@
 """
 # Stdlib
 import struct
-from binascii import hexlify
 
 # SCION
 from lib.crypto.certificate import CertificateChain, TRC
@@ -25,7 +24,7 @@ from lib.errors import SCIONParseError
 from lib.packet.packet_base import SCIONPayloadBase
 from lib.packet.scion_addr import ISD_AD
 from lib.types import CertMgmtType, PayloadClass
-from lib.util import Raw
+from lib.util import Raw, hex_str
 
 
 class CertMgmtBase(SCIONPayloadBase):
@@ -244,8 +243,7 @@ class TRCReply(CertMgmtBase):
     def __str__(self):
         isd, ver = self.trc.get_isd_ver()
         return "[%s(%dB): isd_id:%s version:%s trc:%s]" % (
-            self.NAME, len(self), isd, ver,
-            hexlify(self.trc.to_json()).decode())
+            self.NAME, len(self), isd, ver, hex_str(self.trc.to_json()))
 
 
 _TYPE_MAP = {

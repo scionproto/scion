@@ -15,12 +15,10 @@
 :mod:`ext_hdr` --- Extension header classes
 ===========================================
 """
-# Stdlib
-import binascii
-
 # SCION
 from lib.types import ExtensionClass
 from lib.packet.packet_base import HeaderBase
+from lib.util import hex_str
 
 
 class ExtensionHeader(HeaderBase):
@@ -112,10 +110,9 @@ class ExtensionHeader(HeaderBase):
         pass
 
     def __str__(self):
-        payload_hex = binascii.hexlify(self.pack())
         return "[%s(%dB): class: %s payload: %s]" % (
             self.NAME, len(self), ExtensionClass.to_str(self.EXT_CLASS),
-            payload_hex)
+            hex_str(self.pack()))
 
 
 class HopByHopExtension(ExtensionHeader):

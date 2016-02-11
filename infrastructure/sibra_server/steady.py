@@ -18,7 +18,6 @@
 # Stdlib
 import logging
 import threading
-from binascii import hexlify
 
 # SCION
 from lib.defines import (
@@ -37,7 +36,7 @@ from lib.sibra.ext.info import ResvInfoSteady
 from lib.sibra.ext.steady import SibraExtSteady
 from lib.sibra.payload import SIBRAPayload
 from lib.sibra.util import current_tick, tick_to_time
-from lib.util import SCIONTime
+from lib.util import SCIONTime, hex_str
 
 RESV_LEN = SIBRA_MAX_STEADY_TICKS - 1
 STATE_SETUP = 0
@@ -218,4 +217,4 @@ class SteadyPath(object):
             else:
                 act_info = "(No active blocks)"
             return "SteadyPath %s to %s: %s" % (
-                hexlify(self.id).decode("ascii"), self.remote, act_info)
+                hex_str(self.id), self.remote, act_info)
