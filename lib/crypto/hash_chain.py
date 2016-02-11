@@ -15,11 +15,12 @@
 :mod:`hash_chain` --- Generic hash-chain implementation
 =======================================================
 """
-from binascii import hexlify
+# External
 from Crypto.Hash import SHA256
 
 # SCION
 from lib.errors import SCIONIndexError
+from lib.util import hex_str
 
 
 class HashChainExhausted(Exception):
@@ -85,7 +86,7 @@ class HashChain(object):
         Returns the start element of the chain.
         """
         if hex_:
-            return hexlify(self._start_ele).decode()
+            return hex_str(self._start_ele)
         return self._start_ele
 
     def current_element(self, hex_=False):
@@ -96,7 +97,7 @@ class HashChain(object):
             return None
         ele = self.entries[self._next_ele_ptr + 1]
         if hex_:
-            return hexlify(ele).decode()
+            return hex_str(ele)
         return ele
 
     def next_element(self, hex_=False):
@@ -108,7 +109,7 @@ class HashChain(object):
             return None
         ele = self.entries[self._next_ele_ptr]
         if hex_:
-            return hexlify(ele).decode()
+            return hex_str(ele)
         return ele
 
     def move_to_next_element(self):

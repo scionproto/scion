@@ -25,6 +25,7 @@ import shutil
 import signal
 import sys
 import time
+from binascii import hexlify
 from datetime import datetime, timezone
 from functools import wraps
 
@@ -310,6 +311,13 @@ def iso_timestamp(ts):
     :param float ts: Seconds since the UNIX epoch.
     """
     return str(datetime.fromtimestamp(ts, tz=timezone.utc))
+
+
+def hex_str(raw):
+    """
+    Format a byte string as hex characters.
+    """
+    return hexlify(raw).decode("ascii")
 
 
 class SCIONTime(object):

@@ -18,10 +18,10 @@
 # Stdlib
 import struct
 from abc import ABCMeta, abstractmethod
-from binascii import hexlify
 
 # SCION
 from lib.types import PayloadClass
+from lib.util import hex_str
 
 
 class HeaderBase(object, metaclass=ABCMeta):  # pragma: no cover
@@ -192,7 +192,7 @@ class PayloadRaw(PayloadBase):  # pragma: no cover
         return len(self._raw)
 
     def __str__(self):
-        return hexlify(self._raw).decode()
+        return hex_str(self._raw)
 
 
 class SCIONPayloadBase(PayloadBase):  # pragma: no cover

@@ -89,7 +89,6 @@ import logging
 import os
 import socket
 import threading
-from binascii import hexlify
 from http.client import HTTPMessage
 from urllib.parse import urlparse, urlunparse
 
@@ -99,7 +98,7 @@ from endhost.socket_kbase import SocketKnowledgeBase
 from lib.defines import L4_SSP
 from lib.log import init_logging, log_exception
 from lib.thread import thread_safety_net
-from lib.util import handle_signals
+from lib.util import handle_signals, hex_str
 
 VERSION = '0.1.0'
 BUFLEN = 8192
@@ -426,7 +425,7 @@ def serve_forever(soc, bridge_mode, scion_mode, kbase):
     """
     while True:
         con, addr = soc.accept()
-        conn_id = hexlify(os.urandom(CONN_ID_BYTES)).decode("ascii")
+        conn_id = hex_str(os.urandom(CONN_ID_BYTES))
         if bridge_mode:
             params = (ForwardingProxyConnectionHandler, con, addr, conn_id,
                       scion_mode, kbase)

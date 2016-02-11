@@ -17,7 +17,6 @@
 """
 # Stdlib
 import struct
-from binascii import hexlify
 
 # SCION
 from lib.defines import (
@@ -29,7 +28,7 @@ from lib.packet.ext_hdr import HopByHopExtension
 from lib.sibra.ext.resv import ResvBlockSteady, ResvBlockEphemeral
 from lib.sibra.ext.offer import OfferBlockSteady, OfferBlockEphemeral
 from lib.types import ExtHopByHopType
-from lib.util import Raw
+from lib.util import Raw, hex_str
 
 SIBRA_VERSION = 0
 FLAG_PATH_SETUP = 0b10000000
@@ -134,7 +133,7 @@ class SibraExtBase(HopByHopExtension):
                 self.req_block = self._parse_offers_block(data)
         if len(data):
             raise SCIONParseError("%s bytes left when parsing %s: %s" % (
-                len(data), self.NAME, hexlify(data.get())))
+                len(data), self.NAME, hex_str(data.get())))
 
     def _parse_flags(self, flags):
         """
@@ -318,11 +317,9 @@ class SibraExtBase(HopByHopExtension):
             (self.curr_hop, self.total_hops, self.setup, bool(self.req_block),
              self.accepted, self.error, self.steady, self.fwd, self.version))
         type_ = "Steady" if self.steady else "Ephemeral"
-        tmp.append("  %s path ID: %s" %
-                   (type_, hexlify(self.path_ids[0]).decode("ascii")))
+        tmp.append("  %s path ID: %s" % (type_, hex_str(self.path_ids[0])))
         for i, path_id in enumerate(self.path_ids[1:]):
-            tmp.append("  Steady path %d ID: %s" %
-                       (i, hexlify(path_id).decode("ascii")))
+            tmp.append("  Steady path %d ID: %s" % (i, hex_str(path_id)))
         for i, block in enumerate(self.active_blocks):
             tmp.append("  Active block %d:" % i)
             for line in str(block).splitlines():

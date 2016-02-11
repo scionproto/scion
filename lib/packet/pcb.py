@@ -20,7 +20,6 @@ import copy
 import logging
 import struct
 from abc import ABCMeta, abstractmethod
-from binascii import hexlify
 
 # External packages
 from Crypto.Hash import SHA256
@@ -36,7 +35,7 @@ from lib.packet.pcb_ext.rev import RevPcbExt
 from lib.packet.pcb_ext.sibra import SibraPcbExt
 from lib.packet.scion_addr import ISD_AD
 from lib.types import PayloadClass, PCBType
-from lib.util import Raw, iso_timestamp
+from lib.util import Raw, hex_str, iso_timestamp
 
 #: Default value for length (in bytes) of a revocation token.
 REV_TOKEN_LEN = 32
@@ -298,7 +297,7 @@ class ADMarking(MarkingBase):
         for ext in self.ext:
             s.append("  %s" % str(ext))
         s.append("  eg_rev_token: %s" % self.eg_rev_token)
-        s.append("  Signature: %s" % hexlify(self.sig).decode())
+        s.append("  Signature: %s" % hex_str(self.sig))
         return "\n".join(s)
 
 

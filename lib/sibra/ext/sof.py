@@ -17,7 +17,6 @@
 """
 # Stdlib
 import struct
-from binascii import hexlify
 
 # SCION
 from lib.crypto.symcrypto import cbcmac
@@ -26,7 +25,7 @@ from lib.defines import (
     SIBRA_EPHEMERAL_ID_LEN,
 )
 from lib.sibra.ext.info import ResvInfoBase
-from lib.util import Raw
+from lib.util import Raw, hex_str
 
 
 class SibraOpaqueField(object):
@@ -108,5 +107,5 @@ class SibraOpaqueField(object):
         tmp = ["%s(%dB):" % (self.NAME, len(self))]
         tmp.append("Ingress: %s" % self.ingress)
         tmp.append("Egress: %s" % self.egress)
-        tmp.append("Mac: %s" % hexlify(self.mac).decode("ascii"))
+        tmp.append("Mac: %s" % hex_str(self.mac))
         return " ".join(tmp)

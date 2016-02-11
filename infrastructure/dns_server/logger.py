@@ -16,12 +16,12 @@
 ==========================================
 """
 # Stdlib
-import binascii
 import logging
 
 # External packages
 from dnslib import QTYPE, RCODE
 from dnslib.server import DNSLogger
+from lib.util import hex_str
 
 
 class SCIONDnsLogger(DNSLogger):  # pragma: no cover
@@ -55,14 +55,14 @@ class SCIONDnsLogger(DNSLogger):  # pragma: no cover
         return "RRs: %s" % ",".join([QTYPE[a.rtype] for a in reply.rr])
 
     def log_recv(self, handler, data):
-        logging.log(self.level, "Received: %s <%d> : %s",
-                    self._common_prefix(handler, data), len(data),
-                    binascii.hexlify(data))
+        logging.log(
+            self.level, "Received: %s <%d> : %s",
+            self._common_prefix(handler, data), len(data), hex_str(data))
 
     def log_send(self, handler, data):
-        logging.log(self.level, "Sent: %s <%d> : %s",
-                    self._common_prefix(handler, data), len(data),
-                    binascii.hexlify(data))
+        logging.log(
+            self.level, "Sent: %s <%d> : %s",
+            self._common_prefix(handler, data), len(data), hex_str(data))
 
     def log_request(self, handler, request):
         logging.log(self.level, "Request: %s / '%s' (%s)",
