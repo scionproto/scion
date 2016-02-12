@@ -85,6 +85,18 @@ class SCIONInterface(object):
         """
         return "(ISD-AD: %s-%s IFID: %s)" % (self.isd, self.ad, self.ifid)
 
+    def to_dict(self):
+        """
+        Represents and returns the interface as a dictionary.
+        :returns: SCION interface as a dictionary object.
+        :rtype: dict
+        """
+        result = {}
+        result["ISD"] = self.isd
+        result["AD"] = self.ad
+        result["IFID"] = self.ifid
+        return result
+
 
 class C_SCIONOption(Structure):
     _fields_ = [("type", c_int),
@@ -174,7 +186,11 @@ class ScionStats(object):
         result["rtts"] = self.rtts
         result["loss_rates"] = self.loss_rates
         result["if_counts"] = self.if_counts
-        result["if_lists"] = self._if_lists_to_str()
+        iflists = []
+        for if_list in self.if_lists:
+            ifs = [iface.to_dict() for iface in if_list]
+            iflists.append(ifs)
+        result["if_lists"] = iflists
         return result
 
     def _if_lists_to_str(self):
