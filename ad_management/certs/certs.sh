@@ -31,9 +31,9 @@ cmd_gen() {
   CA_CERT=ca.pem
   CA_CERT_KEY=ca.key
 
-  AD_CERT=ad.pem
-  AD_CSR=ad.csr
-  AD_KEY=ad.key
+  AD_CERT=as.pem
+  AD_CSR=as.csr
+  AD_KEY=as.key
 
   WEBAPP_CERT=webapp.pem
   WEBAPP_CSR=webapp.csr
@@ -72,7 +72,7 @@ COMMAND="$1"
 SCRIPT_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 cd $SCRIPT_DIR
 
-CERT_FILES=(ad.key ad.pem ca.key ca.pem webapp.key webapp.pem)
+CERT_FILES=(as.key as.pem ca.key ca.pem webapp.key webapp.pem)
 
 case "$COMMAND" in
   gen)   cmd_gen   ;;

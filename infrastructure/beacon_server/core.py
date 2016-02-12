@@ -71,9 +71,9 @@ class CoreBeaconServer(BeaconServer):
         count = 0
         for core_router in self.topology.routing_edge_routers:
             skip = False
-            for ad in pcb.ads:
-                if (ad.pcbm.isd_id == core_router.interface.neighbor_isd and
-                        ad.pcbm.ad_id == core_router.interface.neighbor_ad):
+            for as in pcb.ads:
+                if (as.pcbm.isd_id == core_router.interface.neighbor_isd and
+                        as.pcbm.ad_id == core_router.interface.neighbor_ad):
                     # Don't propagate a Core PCB back to an AS we know has
                     # already seen it.
                     skip = True
@@ -165,9 +165,9 @@ class CoreBeaconServer(BeaconServer):
                     continue
             # Before we append the PCB for further processing we need to check
             # that it hasn't been received before.
-            for ad in pcb.ads:
-                if (ad.pcbm.isd_id == self.topology.isd_id and
-                        ad.pcbm.ad_id == self.topology.ad_id):
+            for as in pcb.ads:
+                if (as.pcbm.isd_id == self.topology.isd_id and
+                        as.pcbm.ad_id == self.topology.ad_id):
                     count += 1
                     break
             else:

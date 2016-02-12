@@ -31,7 +31,7 @@ GEN_PATH = 'gen'
 #: Topology configuration
 TOPO_FILE = "topology.yml"
 #: AS configuration
-AD_CONF_FILE = "ad.yml"
+AD_CONF_FILE = "as.yml"
 #: Path policy config
 PATH_POLICY_FILE = "path_policy.yml"
 #: Networks config

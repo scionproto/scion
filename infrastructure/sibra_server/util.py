@@ -24,8 +24,8 @@ def seg_to_hops(seg):
     """
     hops = []
     # Ignore the last hop, as that's the local AS.
-    for ad in seg.ads[:-1]:
-        hops.append((ad.pcbm.isd_id, ad.pcbm.ad_id))
+    for as in seg.ads[:-1]:
+        hops.append((as.pcbm.isd_id, as.pcbm.ad_id))
     return tuple(hops)
 
 

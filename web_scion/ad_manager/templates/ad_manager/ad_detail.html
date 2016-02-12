@@ -10,12 +10,12 @@
 {% block content %}
   {% include 'ad_manager/partials/object_path.html' %}
 
-  <h4 id="core-label" class="ad-label">
+  <h4 id="core-label" class="as-label">
     Core AS:
     {{ object.is_core_ad|yesno:"Yes,No,???" }}
     <span class="glyphicon glyphicon-{{ object.is_core_ad|yesno:"ok,remove," }}"></span>
   </h4>
-  <h4 id="open-label" class="ad-label">
+  <h4 id="open-label" class="as-label">
     Open AS:
     {{ object.is_open|yesno:"Yes,No,???" }}
     <span class="glyphicon glyphicon-{{ object.is_open|yesno:"ok,remove," }}"></span>
@@ -40,7 +40,7 @@
         <div>
           <div class="col-md-10"></div>
           <div class="col-md-2">
-            <button type="button" class="btn btn-info pull-right" id="update-ad-btn">Update status</button>
+            <button type="button" class="btn btn-info pull-right" id="update-as-btn">Update status</button>
           </div>
         </div>
 
@@ -153,7 +153,7 @@
 
       <!-- Requests tab -->
       <div role="tabpanel" class="tab-pane" id="requests">
-        {% with ad=object %}
+        {% with as=object %}
           {% include 'ad_manager/partials/connection_requests.html' %}
         {% endwith %}
       </div>

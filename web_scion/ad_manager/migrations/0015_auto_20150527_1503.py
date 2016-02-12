@@ -23,17 +23,17 @@ class Migration(migrations.Migration):
             },
         ),
         migrations.AddField(
-            model_name='ad',
+            model_name='as',
             name='dns_domain',
             field=models.CharField(null=True, blank=True, max_length=100),
         ),
         migrations.AddField(
             model_name='dnsserverweb',
-            name='ad',
+            name='as',
             field=models.ForeignKey(to='ad_manager.AS'),
         ),
         migrations.AlterUniqueTogether(
             name='dnsserverweb',
-            unique_together=set([('ad', 'addr')]),
+            unique_together=set([('as', 'addr')]),
         ),
     ]

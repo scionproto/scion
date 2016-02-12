@@ -27,12 +27,12 @@ from lib.packet.host_addr import (
 from lib.util import Raw
 
 
-class ISD_AD(namedtuple('ISD_AD', 'isd ad')):
+class ISD_AD(namedtuple('ISD_AD', 'isd as')):
     """
-    Class for representing isd,ad pair.
+    Class for representing isd,as pair.
 
     :ivar int isd: ISD identifier.
-    :ivar int ad: AS identifier.
+    :ivar int as: AS identifier.
     """
     NAME = "ISD_AD"
     LEN = 4
@@ -51,8 +51,8 @@ class ISD_AD(namedtuple('ISD_AD', 'isd ad')):
         data = Raw(raw, cls.NAME, cls.LEN)
         isd_ad = struct.unpack("!I", data.pop(cls.LEN))[0]
         isd = isd_ad >> 20
-        ad = isd_ad & 0x000fffff
-        return cls(isd, ad)
+        as = isd_ad & 0x000fffff
+        return cls(isd, as)
 
     def pack(self):
         """
@@ -67,11 +67,11 @@ class ISD_AD(namedtuple('ISD_AD', 'isd ad')):
 
     def int(self):
         """
-        Return an integer representation of the isd/ad tuple.
+        Return an integer representation of the isd/as tuple.
         """
         isd = self.isd << 20
-        ad = self.ad & 0x000fffff
-        return isd + ad
+        as = self.as & 0x000fffff
+        return isd + as
 
     def __len__(self):  # pragma: no cover
         return self.LEN

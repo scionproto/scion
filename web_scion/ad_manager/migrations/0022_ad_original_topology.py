@@ -14,7 +14,7 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.AddField(
-            model_name='ad',
+            model_name='as',
             name='original_topology',
             field=jsonfield.fields.JSONField(default=ad_manager.util.common.empty_dict),
             preserve_default=True,

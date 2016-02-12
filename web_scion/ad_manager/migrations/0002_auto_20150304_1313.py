@@ -16,7 +16,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('addr', models.IPAddressField()),
-                ('ad', models.ForeignKey(to='ad_manager.AS')),
+                ('as', models.ForeignKey(to='ad_manager.AS')),
             ],
             options={
                 'verbose_name': 'Beacon server',
@@ -28,7 +28,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('addr', models.IPAddressField()),
-                ('ad', models.ForeignKey(to='ad_manager.AS')),
+                ('as', models.ForeignKey(to='ad_manager.AS')),
             ],
             options={
                 'verbose_name': 'Certificate server',
@@ -40,7 +40,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('addr', models.IPAddressField()),
-                ('ad', models.ForeignKey(to='ad_manager.AS')),
+                ('as', models.ForeignKey(to='ad_manager.AS')),
             ],
             options={
                 'verbose_name': 'Path server',
@@ -52,7 +52,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('addr', models.IPAddressField()),
-                ('ad', models.ForeignKey(to='ad_manager.AS')),
+                ('as', models.ForeignKey(to='ad_manager.AS')),
             ],
             options={
                 'verbose_name': 'Router',
@@ -60,7 +60,7 @@ class Migration(migrations.Migration):
             bases=(models.Model,),
         ),
         migrations.AlterModelOptions(
-            name='ad',
+            name='as',
             options={'verbose_name': 'AS'},
         ),
         migrations.AlterModelOptions(

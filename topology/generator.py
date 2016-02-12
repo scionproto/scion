@@ -301,7 +301,7 @@ class CertGenerator(object):
                 chain.append(cert)
                 issuer = TopoID(cert.issuer)
             cert_path = get_cert_chain_file_path(
-                "", topo_id.isd, topo_id.ad, INITIAL_CERT_VERSION)
+                "", topo_id.isd, topo_id.as, INITIAL_CERT_VERSION)
             self.cert_files[topo_id][cert_path] = \
                 str(CertificateChain.from_values(chain))
 
@@ -392,10 +392,10 @@ class TopoGenerator(object):
     def _generate_ad_topo(self, topo_id, ad_conf):
         dns_domain = DNSLabel(ad_conf.get("dns_domain", DEFAULT_DNS_DOMAIN))
         dns_domain = dns_domain.add(
-            "isd%s" % topo_id.isd).add("ad%s" % topo_id.ad)
+            "isd%s" % topo_id.isd).add("as%s" % topo_id.as)
         self.topo_dicts[topo_id] = {
             'Core': ad_conf.get('core', False),
-            'ISDID': int(topo_id.isd), 'ADID': int(topo_id.ad),
+            'ISDID': int(topo_id.isd), 'ADID': int(topo_id.as),
             'DnsDomain': str(dns_domain), 'Zookeepers': {},
         }
         for i in SCION_SERVICE_NAMES:
@@ -445,7 +445,7 @@ class TopoGenerator(object):
             'Interface': {
                 'IFID': er_id,
                 'NeighborISD': int(remote.isd),
-                'NeighborAD': int(remote.ad),
+                'NeighborAD': int(remote.as),
                 'NeighborType': remote_type,
                 'Addr': public_addr,
                 'ToAddr': remote_addr,
@@ -559,7 +559,7 @@ class SupervisorGenerator(object):
             self._write_elem_conf(elem, entry, conf_path)
             if self.mininet:
                 self._write_elem_mininet_conf(elem, conf_path)
-        config["group:ad%s" % topo_id] = {"programs": ",".join(names)}
+        config["group:as%s" % topo_id] = {"programs": ",".join(names)}
         text = StringIO()
         config.write(text)
         conf_path = os.path.join(self.out_dir, topo_id.ISD(), topo_id.AS(),
@@ -689,7 +689,7 @@ class ZKConfGenerator(object):
 
 class TopoID(object):
     def __init__(self, id_str):
-        self.isd, self.ad = id_str.split("-")
+        self.isd, self.as = id_str.split("-")
 
     @classmethod
     def from_values(cls, isd_id, ad_id):
@@ -699,16 +699,16 @@ class TopoID(object):
         return "ISD%s" % self.isd
 
     def AS(self):
-        return "AS%s" % self.ad
+        return "AS%s" % self.as
 
     def __lt__(self, other):
         return str(self) < str(other)
 
     def __str__(self):
-        return "%s-%s" % (self.isd, self.ad)
+        return "%s-%s" % (self.isd, self.as)
 
     def __eq__(self, other):
-        return self.isd == other.isd and self.ad == other.ad
+        return self.isd == other.isd and self.as == other.as
 
     def __hash__(self):
         return hash(str(self))

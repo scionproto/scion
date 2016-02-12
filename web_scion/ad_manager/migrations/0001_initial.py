@@ -30,7 +30,7 @@ class Migration(migrations.Migration):
             bases=(models.Model,),
         ),
         migrations.AddField(
-            model_name='ad',
+            model_name='as',
             name='isd',
             field=models.ForeignKey(to='ad_manager.ISD'),
             preserve_default=True,

@@ -72,17 +72,17 @@ class TracerouteExt(HopByHopExtension):
         # Drop hops no and padding from the first row.
         data.pop(self.MIN_LEN)
         for _ in range(hops_no):
-            isd, ad = ISD_AD.from_raw(data.pop(ISD_AD.LEN))  # 4 bytes
+            isd, as = ISD_AD.from_raw(data.pop(ISD_AD.LEN))  # 4 bytes
             if_id, timestamp = struct.unpack(
                 "!HH", data.pop(self.HOP_LEN - ISD_AD.LEN))
-            self.append_hop(isd, ad, if_id, timestamp)
+            self.append_hop(isd, as, if_id, timestamp)
 
     def pack(self):
         packed = []
         packed.append(struct.pack("!B", len(self.hops)))
         packed.append(bytes(self.PADDING_LEN))
-        for isd, ad, if_id, timestamp in self.hops:
-            packed.append(ISD_AD(isd, ad).pack())
+        for isd, as, if_id, timestamp in self.hops:
+            packed.append(ISD_AD(isd, as).pack())
             packed.append(struct.pack("!HH", if_id, timestamp))
         # Compute and set padding for the rest of the payload.
         pad_hops = self._hdr_len - len(self.hops)
@@ -91,7 +91,7 @@ class TracerouteExt(HopByHopExtension):
         self._check_len(raw)
         return raw
 
-    def append_hop(self, isd, ad, if_id, timestamp=None):
+    def append_hop(self, isd, as, if_id, timestamp=None):
         """
         Append hop's information as a new field in the extension.
         """
@@ -100,7 +100,7 @@ class TracerouteExt(HopByHopExtension):
         if timestamp is None:
             # Truncate milliseconds to 2B
             timestamp = int(SCIONTime.get_time() * 1000) % 2**16
-        self.hops.append((isd, ad, if_id, timestamp))
+        self.hops.append((isd, as, if_id, timestamp))
 
     def __str__(self):
         """

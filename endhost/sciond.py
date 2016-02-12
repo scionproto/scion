@@ -204,8 +204,8 @@ class SCIONDaemon(SCIONElement):
 
         FIXME(kormat): make IP-version independant
         """
-        isd, ad = ISD_AD.from_raw(packet[1:ISD_AD.LEN + 1])
-        paths = self.get_paths(isd, ad)
+        isd, as = ISD_AD.from_raw(packet[1:ISD_AD.LEN + 1])
+        paths = self.get_paths(isd, as)
         reply = []
         for path in paths:
             raw_path = path.pack()
@@ -221,7 +221,7 @@ class SCIONDaemon(SCIONElement):
                          struct.pack("B", len(path.interfaces)))
             for interface in path.interfaces:
                 (isd_ad, link) = interface
-                isd_ad_bits = (isd_ad.isd << 20) + (isd_ad.ad & 0xFFFFF)
+                isd_ad_bits = (isd_ad.isd << 20) + (isd_ad.as & 0xFFFFF)
                 reply.append(struct.pack("I", isd_ad_bits))
                 reply.append(struct.pack("H", link))
         self._api_sock.send(b"".join(reply), sender)
@@ -328,10 +328,10 @@ class SCIONDaemon(SCIONElement):
             res.add((None, None, dseg))
         # Check core-down combination.
         for dseg in self.down_segments(last_isd=dst_isd, last_ad=dst_ad):
-            isd, ad = dseg.get_first_isd_ad()
-            if (my_isd, my_ad) == (isd, ad):
+            isd, as = dseg.get_first_isd_ad()
+            if (my_isd, my_ad) == (isd, as):
                 pass
-            for cseg in self.core_segments(first_isd=isd, first_ad=ad,
+            for cseg in self.core_segments(first_isd=isd, first_ad=as,
                                            last_isd=my_isd, last_ad=my_ad):
                 res.add((None, cseg, dseg))
         return PathCombinator.tuples_to_full_paths(res)
@@ -353,8 +353,8 @@ class SCIONDaemon(SCIONElement):
         # Check whether dst is known core AS.
         for cseg in self.core_segments(**params):
             # Check do we have an up-seg that is connected to core_seg.
-            isd, ad = cseg.get_last_isd_ad()
-            for useg in self.up_segments(first_isd=isd, first_ad=ad):
+            isd, as = cseg.get_last_isd_ad()
+            for useg in self.up_segments(first_isd=isd, first_ad=as):
                 res.add((useg, cseg, None))
         return PathCombinator.tuples_to_full_paths(res)
 

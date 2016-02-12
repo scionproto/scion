@@ -100,7 +100,7 @@ class SCIONSimHost(SCIONDaemon):
     def _request_paths(self, ptype, dst_isd, dst_ad, src_isd=None,
                        src_ad=None, requester=None):
         """
-        Sends path request with certain type for (isds, ad).
+        Sends path request with certain type for (isds, as).
 
         :param ptype:
         :type ptype:
@@ -278,14 +278,14 @@ class SCIONSimHost(SCIONDaemon):
         :type sender:
         """
         # TODO sanity checks
-        (isd, ad) = ISD_AD.from_raw(packet[1:ISD_AD.LEN + 1])
-        logging.info("Request for %d, %d", isd, ad)
+        (isd, as) = ISD_AD.from_raw(packet[1:ISD_AD.LEN + 1])
+        logging.info("Request for %d, %d", isd, as)
         # Generate a request id
         req_id = next(self.request_id)
         self._waiting_requests.append(req_id)
         requester = list(sender)
         requester.append(req_id)
-        full_paths = self.get_paths(isd, ad, requester=requester)
+        full_paths = self.get_paths(isd, as, requester=requester)
         if full_paths:
             self._api_send_path_reply(full_paths, requester)
             return

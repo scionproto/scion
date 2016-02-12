@@ -24,7 +24,7 @@
         "md_host": "127.0.0.1"
     },
     "pk": 1,
-    "model": "ad_manager.ad"
+    "model": "ad_manager.as"
 },
 {
     "fields": {
@@ -36,7 +36,7 @@
         "md_host": "127.0.0.1"
     },
     "pk": 2,
-    "model": "ad_manager.ad"
+    "model": "ad_manager.as"
 },
 {
     "fields": {
@@ -48,7 +48,7 @@
         "md_host": "127.0.0.1"
     },
     "pk": 3,
-    "model": "ad_manager.ad"
+    "model": "ad_manager.as"
 },
 {
     "fields": {
@@ -60,7 +60,7 @@
         "md_host": "127.0.0.1"
     },
     "pk": 4,
-    "model": "ad_manager.ad"
+    "model": "ad_manager.as"
 },
 {
     "fields": {
@@ -72,7 +72,7 @@
         "md_host": "127.0.0.1"
     },
     "pk": 5,
-    "model": "ad_manager.ad"
+    "model": "ad_manager.as"
 },
 {
     "fields": {
@@ -84,7 +84,7 @@
         "md_host": "127.0.0.1"
     },
     "pk": 6,
-    "model": "ad_manager.ad"
+    "model": "ad_manager.as"
 },
 {
     "fields": {
@@ -96,12 +96,12 @@
         "md_host": "127.0.0.1"
     },
     "pk": 7,
-    "model": "ad_manager.ad"
+    "model": "ad_manager.as"
 },
 {
     "fields": {
         "name": "1",
-        "ad": 1,
+        "as": 1,
         "addr": "127.0.0.51"
     },
     "pk": 136,
@@ -110,7 +110,7 @@
 {
     "fields": {
         "name": "1",
-        "ad": 2,
+        "as": 2,
         "addr": "127.0.0.67"
     },
     "pk": 137,
@@ -119,7 +119,7 @@
 {
     "fields": {
         "name": "1",
-        "ad": 3,
+        "as": 3,
         "addr": "127.0.0.43"
     },
     "pk": 138,
@@ -128,7 +128,7 @@
 {
     "fields": {
         "name": "1",
-        "ad": 4,
+        "as": 4,
         "addr": "127.0.0.59"
     },
     "pk": 139,
@@ -137,7 +137,7 @@
 {
     "fields": {
         "name": "1",
-        "ad": 5,
+        "as": 5,
         "addr": "127.0.0.63"
     },
     "pk": 140,
@@ -146,7 +146,7 @@
 {
     "fields": {
         "name": "1",
-        "ad": 6,
+        "as": 6,
         "addr": "127.0.0.47"
     },
     "pk": 141,
@@ -155,7 +155,7 @@
 {
     "fields": {
         "name": "1",
-        "ad": 7,
+        "as": 7,
         "addr": "127.0.0.55"
     },
     "pk": 142,
@@ -164,7 +164,7 @@
 {
     "fields": {
         "name": "1",
-        "ad": 1,
+        "as": 1,
         "addr": "127.0.0.52"
     },
     "pk": 118,
@@ -173,7 +173,7 @@
 {
     "fields": {
         "name": "1",
-        "ad": 2,
+        "as": 2,
         "addr": "127.0.0.68"
     },
     "pk": 119,
@@ -182,7 +182,7 @@
 {
     "fields": {
         "name": "1",
-        "ad": 3,
+        "as": 3,
         "addr": "127.0.0.44"
     },
     "pk": 120,
@@ -191,7 +191,7 @@
 {
     "fields": {
         "name": "1",
-        "ad": 4,
+        "as": 4,
         "addr": "127.0.0.60"
     },
     "pk": 121,
@@ -200,7 +200,7 @@
 {
     "fields": {
         "name": "1",
-        "ad": 5,
+        "as": 5,
         "addr": "127.0.0.64"
     },
     "pk": 122,
@@ -209,7 +209,7 @@
 {
     "fields": {
         "name": "1",
-        "ad": 6,
+        "as": 6,
         "addr": "127.0.0.48"
     },
     "pk": 123,
@@ -218,7 +218,7 @@
 {
     "fields": {
         "name": "1",
-        "ad": 7,
+        "as": 7,
         "addr": "127.0.0.56"
     },
     "pk": 124,
@@ -227,7 +227,7 @@
 {
     "fields": {
         "name": "1",
-        "ad": 1,
+        "as": 1,
         "addr": "127.0.0.53"
     },
     "pk": 94,
@@ -236,7 +236,7 @@
 {
     "fields": {
         "name": "1",
-        "ad": 2,
+        "as": 2,
         "addr": "127.0.0.69"
     },
     "pk": 95,
@@ -245,7 +245,7 @@
 {
     "fields": {
         "name": "1",
-        "ad": 3,
+        "as": 3,
         "addr": "127.0.0.45"
     },
     "pk": 96,
@@ -254,7 +254,7 @@
 {
     "fields": {
         "name": "1",
-        "ad": 4,
+        "as": 4,
         "addr": "127.0.0.61"
     },
     "pk": 97,
@@ -263,7 +263,7 @@
 {
     "fields": {
         "name": "1",
-        "ad": 5,
+        "as": 5,
         "addr": "127.0.0.65"
     },
     "pk": 98,
@@ -272,7 +272,7 @@
 {
     "fields": {
         "name": "1",
-        "ad": 6,
+        "as": 6,
         "addr": "127.0.0.49"
     },
     "pk": 99,
@@ -281,7 +281,7 @@
 {
     "fields": {
         "name": "1",
-        "ad": 7,
+        "as": 7,
         "addr": "127.0.0.57"
     },
     "pk": 100,
@@ -290,7 +290,7 @@
 {
     "fields": {
         "name": "1",
-        "ad": 1,
+        "as": 1,
         "addr": "127.0.0.54"
     },
     "pk": 124,
@@ -299,7 +299,7 @@
 {
     "fields": {
         "name": "1",
-        "ad": 2,
+        "as": 2,
         "addr": "127.0.0.70"
     },
     "pk": 125,
@@ -308,7 +308,7 @@
 {
     "fields": {
         "name": "1",
-        "ad": 3,
+        "as": 3,
         "addr": "127.0.0.46"
     },
     "pk": 126,
@@ -317,7 +317,7 @@
 {
     "fields": {
         "name": "1",
-        "ad": 4,
+        "as": 4,
         "addr": "127.0.0.62"
     },
     "pk": 127,
@@ -326,7 +326,7 @@
 {
     "fields": {
         "name": "1",
-        "ad": 5,
+        "as": 5,
         "addr": "127.0.0.66"
     },
     "pk": 128,
@@ -335,7 +335,7 @@
 {
     "fields": {
         "name": "1",
-        "ad": 6,
+        "as": 6,
         "addr": "127.0.0.50"
     },
     "pk": 129,
@@ -344,7 +344,7 @@
 {
     "fields": {
         "name": "1",
-        "ad": 7,
+        "as": 7,
         "addr": "127.0.0.58"
     },
     "pk": 130,
@@ -353,7 +353,7 @@
 {
     "fields": {
         "name": "1",
-        "ad": 1,
+        "as": 1,
         "addr": "127.0.0.17",
         "interface_port": 50000,
         "interface_addr": "127.0.0.18",
@@ -369,7 +369,7 @@
 {
     "fields": {
         "name": "2",
-        "ad": 1,
+        "as": 1,
         "addr": "127.0.0.19",
         "interface_port": 50000,
         "interface_addr": "127.0.0.20",
@@ -385,7 +385,7 @@
 {
     "fields": {
         "name": "1",
-        "ad": 2,
+        "as": 2,
         "addr": "127.0.0.39",
         "interface_port": 50000,
         "interface_addr": "127.0.0.40",
@@ -401,7 +401,7 @@
 {
     "fields": {
         "name": "1",
-        "ad": 3,
+        "as": 3,
         "addr": "127.0.0.1",
         "interface_port": 50000,
         "interface_addr": "127.0.0.2",
@@ -417,7 +417,7 @@
 {
     "fields": {
         "name": "4",
-        "ad": 3,
+        "as": 3,
         "addr": "127.0.0.7",
         "interface_port": 50000,
         "interface_addr": "127.0.0.8",
@@ -433,7 +433,7 @@
 {
     "fields": {
         "name": "2",
-        "ad": 3,
+        "as": 3,
         "addr": "127.0.0.3",
         "interface_port": 50000,
         "interface_addr": "127.0.0.4",
@@ -449,7 +449,7 @@
 {
     "fields": {
         "name": "3",
-        "ad": 3,
+        "as": 3,
         "addr": "127.0.0.5",
         "interface_port": 50000,
         "interface_addr": "127.0.0.6",
@@ -465,7 +465,7 @@
 {
     "fields": {
         "name": "1",
-        "ad": 4,
+        "as": 4,
         "addr": "127.0.0.27",
         "interface_port": 50000,
         "interface_addr": "127.0.0.28",
@@ -481,7 +481,7 @@
 {
     "fields": {
         "name": "2",
-        "ad": 4,
+        "as": 4,
         "addr": "127.0.0.29",
         "interface_port": 50000,
         "interface_addr": "127.0.0.30",
@@ -497,7 +497,7 @@
 {
     "fields": {
         "name": "1",
-        "ad": 5,
+        "as": 5,
         "addr": "127.0.0.33",
         "interface_port": 50000,
         "interface_addr": "127.0.0.34",
@@ -513,7 +513,7 @@
 {
     "fields": {
         "name": "2",
-        "ad": 5,
+        "as": 5,
         "addr": "127.0.0.35",
         "interface_port": 50000,
         "interface_addr": "127.0.0.36",
@@ -529,7 +529,7 @@
 {
     "fields": {
         "name": "1",
-        "ad": 6,
+        "as": 6,
         "addr": "127.0.0.11",
         "interface_port": 50000,
         "interface_addr": "127.0.0.12",
@@ -545,7 +545,7 @@
 {
     "fields": {
         "name": "2",
-        "ad": 6,
+        "as": 6,
         "addr": "127.0.0.13",
         "interface_port": 50000,
         "interface_addr": "127.0.0.14",
@@ -561,7 +561,7 @@
 {
     "fields": {
         "name": "1",
-        "ad": 7,
+        "as": 7,
         "addr": "127.0.0.23",
         "interface_port": 50000,
         "interface_addr": "127.0.0.24",

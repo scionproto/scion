@@ -53,7 +53,7 @@ Path::Path(PathManager *manager, SCIONAddr &localAddr, SCIONAddr &dstAddr, uint8
                 uint32_t isd_ad = *(uint32_t *)ptr;
                 ptr += 4;
                 sif.isd = isd_ad >> 20;
-                sif.ad = isd_ad & 0xfffff;
+                sif.as = isd_ad & 0xfffff;
                 sif.interface = *(uint16_t *)ptr;
                 ptr += 2;
                 mInterfaces.push_back(sif);
@@ -155,7 +155,7 @@ void Path::setInterfaces(uint8_t *interfaces, size_t count)
         SCIONInterface sif;
         uint32_t isd_ad = ntohl(*(uint32_t *)ptr);
         sif.isd = isd_ad >> 20;
-        sif.ad = isd_ad & 0xfffff;
+        sif.as = isd_ad & 0xfffff;
         sif.interface = ntohs(*(uint16_t *)(ptr + 4));
         mInterfaces.push_back(sif);
     }
@@ -239,7 +239,7 @@ bool Path::usesSameInterfaces(uint8_t *interfaces, size_t count)
         uint8_t *ptr = interfaces + i * SCION_IF_SIZE;
         uint32_t isd_ad = ntohl(*(uint32_t *)ptr);
         uint16_t interface = ntohs(*(uint16_t *)(ptr + 4));
-        if ((isd_ad >> 20) != sif.isd || (isd_ad & 0xfffff) != sif.ad ||
+        if ((isd_ad >> 20) != sif.isd || (isd_ad & 0xfffff) != sif.as ||
                 interface != sif.interface)
             return false;
     }
@@ -348,12 +348,12 @@ uint8_t * SSPPath::copySSPPacket(SSPPacket *sp, uint8_t *bufptr, bool probe)
         DEBUG("path %d: %lu interfaces\n", mIndex, count);
         for (size_t i = 0; i < count; i++) {
             SCIONInterface sif = mInterfaces[count - 1 - i];
-            uint32_t isd_ad = (sif.isd << 20) | (sif.ad & 0xfffff);
+            uint32_t isd_ad = (sif.isd << 20) | (sif.as & 0xfffff);
             *(uint32_t *)bufptr = htonl(isd_ad);
             bufptr += 4;
             *(uint16_t *)bufptr = htons(sif.interface);
             bufptr += 2;
-            DEBUG("(%d,%d):%d\n", sif.isd, sif.ad, sif.interface);
+            DEBUG("(%d,%d):%d\n", sif.isd, sif.as, sif.interface);
         }
     }
     // payload

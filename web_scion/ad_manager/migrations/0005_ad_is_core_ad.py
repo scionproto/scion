@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.AddField(
-            model_name='ad',
+            model_name='as',
             name='is_core_ad',
             field=models.BooleanField(default=False),
             preserve_default=True,

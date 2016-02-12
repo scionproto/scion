@@ -40,7 +40,7 @@ Necessary steps in order to run SCION:
 
         ./gen/ISD{X}/AS{Y}/
             {elem}{X}-{Y}-{Z}/
-                ad.yml
+                as.yml
                 path_policy.yml
                 supervisord.conf
                 topology.yml
@@ -48,7 +48,7 @@ Necessary steps in order to run SCION:
                     ISD{X}-AS{Y}-V0.crt
                     ISD{X}-V0.trc
                 keys/
-                    ad-sig.key
+                    as-sig.key
 
 1. Run the infrastructure:
 

@@ -50,11 +50,11 @@ class PrivilegedChangeAdmin(GuardedModelAdmin):
         opts = self.opts
         codename = get_permission_codename('change', opts)
 
-        # If there is an 'ad' attribute then it's a foreign key, so extend
+        # If there is an 'as' attribute then it's a foreign key, so extend
         # user permissions for this AS to the current object
-        ad = getattr(obj, 'ad', None)
-        if ad and isinstance(ad, AS):
-            obj = ad
+        as = getattr(obj, 'as', None)
+        if as and isinstance(as, AS):
+            obj = as
             codename = 'change_ad'
         return request.user.has_perm("%s.%s" % (opts.app_label, codename), obj)
 
@@ -83,14 +83,14 @@ class SortRelatedAdmin(PrivilegedChangeAdmin):
                 DnsServerWeb,
                 site=admin_site)
 class ServerAdmin(PrivilegedChangeAdmin):
-    fields = ('name', 'addr', ('ad', 'ad_link'),)
-    privileged_fields = ('ad',)
+    fields = ('name', 'addr', ('as', 'ad_link'),)
+    privileged_fields = ('as',)
     readonly_fields = ('ad_link',)
-    raw_id_fields = ('ad',)
+    raw_id_fields = ('as',)
 
     def ad_link(self, obj):
         link = reverse('admin:{}_ad_change'.format(self.opts.app_label),
-                       args=[obj.ad.id])
+                       args=[obj.as.id])
         return '<a href="{}">Edit AS</a>'.format(link)
     ad_link.allow_tags = True
     # FIXME hack. How to remove this completely?
@@ -99,7 +99,7 @@ class ServerAdmin(PrivilegedChangeAdmin):
 
 @admin.register(RouterWeb, site=admin_site)
 class RouterAdmin(ServerAdmin):
-    list_display = ('ad', 'addr', 'neighbor_ad', 'neighbor_type',
+    list_display = ('as', 'addr', 'neighbor_ad', 'neighbor_type',
                     'interface_addr', 'interface_toaddr')
 
     def get_fields(self, request, obj=None):

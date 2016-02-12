@@ -12,10 +12,10 @@
     Total number of ADs: {{ paginator.count }}
   </p>
   <ul>
-    {% for ad in object_list %}
+    {% for as in object_list %}
       <li>
-        <a href="{% url 'ad_detail' ad.id %}">AS {{ ad }}</a>
-        {% if ad.is_core_ad %} <span class="badge alert-warning">core</span> {% endif %}
+        <a href="{% url 'ad_detail' as.id %}">AS {{ as }}</a>
+        {% if as.is_core_ad %} <span class="badge alert-warning">core</span> {% endif %}
       </li>
     {% empty %}
       <li>No ADs.</li>

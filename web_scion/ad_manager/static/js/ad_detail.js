@@ -203,7 +203,7 @@ $(document).ready(function() {
     // Status tab callbacks
     initServerStatus();
     updateServerStatus();
-    $("#update-ad-btn").click(function() {
+    $("#update-as-btn").click(function() {
         updateServerStatus();
         showMasterServers();
     });

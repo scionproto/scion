@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.AddField(
-            model_name='ad',
+            model_name='as',
             name='md_host',
             field=models.IPAddressField(default='127.0.0.1'),
             preserve_default=True,

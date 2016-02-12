@@ -68,14 +68,14 @@ class TrustStore(object):
             res.append(self.get_trc(isd))
         return res
 
-    def get_cert(self, isd, ad, version=None):
-        if not self._certs[(isd, ad)]:
+    def get_cert(self, isd, as, version=None):
+        if not self._certs[(isd, as)]:
             return None
         if version is None:  # Return the most recent cert.
-            _, cert = sorted(self._certs[(isd, ad)])[-1]
+            _, cert = sorted(self._certs[(isd, as)])[-1]
             return cert
         else:  # Try to find a cert with given version.
-            for ver, cert in self._certs[(isd, ad)]:
+            for ver, cert in self._certs[(isd, as)]:
                 if version == ver:
                     return cert
         return None
@@ -90,11 +90,11 @@ class TrustStore(object):
             write_file("%s/ISD%s-V%s.trc" % (self._dir, isd, version), str(trc))
 
     def add_cert(self, cert, write=True):
-        isd, ad, version = cert.get_leaf_isd_ad_ver()
-        for ver, _ in self._certs[(isd, ad)]:
+        isd, as, version = cert.get_leaf_isd_ad_ver()
+        for ver, _ in self._certs[(isd, as)]:
             if version == ver:
                 return
-        self._certs[(isd, ad)].append((version, cert))
+        self._certs[(isd, as)].append((version, cert))
         if write:
-            write_file("%s/ISD%s-AS%s-V%s.crt" % (self._dir, isd, ad, version),
+            write_file("%s/ISD%s-AS%s-V%s.crt" % (self._dir, isd, as, version),
                        str(cert))

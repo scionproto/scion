@@ -379,8 +379,8 @@ class CertificateChain(object):
         if not self.certs:
             return None
         leaf_cert = self.certs[0]
-        isd, ad = map(int, leaf_cert.subject.split('-'))
-        return isd, ad, leaf_cert.version
+        isd, as = map(int, leaf_cert.subject.split('-'))
+        return isd, as, leaf_cert.version
 
     def to_json(self):
         """
@@ -480,8 +480,8 @@ class TRC(object):
     def get_core_ads(self):
         res = []
         for key in self.core_ads:
-            isd, ad = map(int, key.split('-'))
-            res.append(ISD_AD(isd, ad))
+            isd, as = map(int, key.split('-'))
+            res.append(ISD_AD(isd, as))
         return res
 
     def get_trc_dict(self, with_signatures):

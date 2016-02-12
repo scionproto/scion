@@ -253,7 +253,7 @@ class TestSCIONAddrHdrParse(object):
         inst = SCIONAddrHdr()
         data = create_mock(["pop"])
         data.pop.side_effect = [
-            "src isd ad", "src addr", "dst isd ad", "dst addr",
+            "src isd as", "src addr", "dst isd as", "dst addr",
         ]
         raw.return_value = data
         src_class = create_mock(["LEN"])
@@ -262,7 +262,7 @@ class TestSCIONAddrHdrParse(object):
         # (https://bugs.python.org/issue17826)
         get_type.side_effect = iter([src_class, dst_class])
         isd_ad.side_effect = (
-            ("src isd", "src ad"), ("dst isd", "dst ad"),
+            ("src isd", "src as"), ("dst isd", "dst as"),
         )
         src_type = 1
         dst_type = 2
@@ -272,11 +272,11 @@ class TestSCIONAddrHdrParse(object):
         raw.assert_called_once_with("data", "SCIONAddrHdr",
                                     calc_len.return_value)
         ntools.eq_(inst.src_isd, "src isd")
-        ntools.eq_(inst.src_ad, "src ad")
+        ntools.eq_(inst.src_ad, "src as")
         src_class.assert_called_once_with("src addr")
         ntools.eq_(inst.src_addr, src_class.return_value)
         ntools.eq_(inst.dst_isd, "dst isd")
-        ntools.eq_(inst.dst_ad, "dst ad")
+        ntools.eq_(inst.dst_ad, "dst as")
         dst_class.assert_called_once_with("dst addr")
         ntools.eq_(inst.dst_addr, dst_class.return_value)
         update.assert_called_once_with(inst)
@@ -329,9 +329,9 @@ class TestSCIONAddrHdrPack(object):
         inst._total_len = 48
         inst._pad_len = 2
         isd_ad_obj = create_mock(["pack"])
-        isd_ad_obj.pack.side_effect = [b"src isd ad", b"dst isd ad"]
+        isd_ad_obj.pack.side_effect = [b"src isd as", b"dst isd as"]
         isd_ad.return_value = isd_ad_obj
-        expected = b"src isd ad" b"src host addr" b"dst isd ad" b"dst host addr"
+        expected = b"src isd as" b"src host addr" b"dst isd as" b"dst host addr"
         expected += bytes(2)
         len_.return_value = len(expected)
         # Call
@@ -402,19 +402,19 @@ class TestSCIONAddrHdrReverse(object):
     def test(self, update):
         inst = SCIONAddrHdr()
         inst.src_isd = "src isd"
-        inst.src_ad = "src ad"
+        inst.src_ad = "src as"
         inst.src_addr = "src addr"
         inst.dst_isd = "dst isd"
-        inst.dst_ad = "dst ad"
+        inst.dst_ad = "dst as"
         inst.dst_addr = "dst addr"
         # Call
         inst.reverse()
         # Tests
         ntools.eq_(inst.src_isd, "dst isd")
-        ntools.eq_(inst.src_ad, "dst ad")
+        ntools.eq_(inst.src_ad, "dst as")
         ntools.eq_(inst.src_addr, "dst addr")
         ntools.eq_(inst.dst_isd, "src isd")
-        ntools.eq_(inst.dst_ad, "src ad")
+        ntools.eq_(inst.dst_ad, "src as")
         ntools.eq_(inst.dst_addr, "src addr")
         update.assert_called_once_with(inst)
 

@@ -104,7 +104,7 @@ If something doesn't work (no element status displayed, topology cannot be retri
 
 1. Check that the management daemon is running at the AS host (`./supervisor/supervisor.sh status`).
 2. If the AS is deployed on a virtual or remote machine (not on localhost/127.0.0.1), ensure that the management daemon of that AS is listening on the 0.0.0.0 address, and not 127.0.0.1 (check the `[program:management_daemon]` section in `supervisor/supervisord.conf`).
-3. Check that the md_host attribute of the AS points to the correct host where the management daemon is deployed. You can check it on the AS administration page (/admin/ad_manager/ad/<AD_ID>/).
+3. Check that the md_host attribute of the AS points to the correct host where the management daemon is deployed. You can check it on the AS administration page (/admin/ad_manager/as/<AD_ID>/).
 4. Check that the web panel can open the TLS connection to the port 9010 of the AS host.
 5. Software updates don't work? Check that the corresponding RPC function (`self.send_update`) is registered in the `ManagementDaemon.__init__()` function. Thing to keep in mind: this is a highly experimental feature and should be used with care before additional security reviews are done, otherwise this can result in remote code execution vulnerabilities.
 
@@ -121,4 +121,4 @@ There are two directories (relative to the SCION root directory) that contain al
 #### Current limitations
 
 1. ISD is a foreign key for the AS model, so currently an AS can only belong to a single ISD.
-2. All ADs are using the same certificate for authentication (`ad_management/certs/ad.pem`).
+2. All ADs are using the same certificate for authentication (`ad_management/certs/as.pem`).

@@ -96,8 +96,8 @@ class PathPolicy(object):
         :param pcb: beacon to analyze.
         :type pcb: :class:`PathSegment`
         """
-        for ad in pcb.ads:
-            isd_ad = ad.pcbm.get_isd_ad()
+        for as in pcb.ads:
+            isd_ad = as.pcbm.get_isd_ad()
             if isd_ad in self.unwanted_ads:
                 return isd_ad
 

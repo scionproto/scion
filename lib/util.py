@@ -77,7 +77,7 @@ def get_sig_key_file_path(conf_dir):  # pragma: no cover
     """
     Return the signing key file path.
     """
-    return os.path.join(conf_dir, KEYS_DIR, "ad-sig.key")
+    return os.path.join(conf_dir, KEYS_DIR, "as-sig.key")
 
 
 def read_file(file_path):

@@ -1276,12 +1276,12 @@ class TestPathCombinatorGetXovrPeer(object):
         seg = create_mock(['ads'])
         ads = []
         for i in range(n):
-            ad = create_mock(['pcbm', 'pms'])
-            ad.pcbm = create_mock(['ad_id', 'isd_id'])
-            ad.pms = []
+            as = create_mock(['pcbm', 'pms'])
+            as.pcbm = create_mock(['ad_id', 'isd_id'])
+            as.pms = []
             for j in range(pms):
-                ad.pms.append(create_mock(['ad_id', 'isd_id']))
-            ads.append(ad)
+                as.pms.append(create_mock(['ad_id', 'isd_id']))
+            ads.append(as)
         seg.ads = ads
         return seg
 
@@ -1515,9 +1515,9 @@ class TestPathCombinatorCopySegmentShortcut(object):
         seg = create_mock(["iof", "ads"])
         seg.ads = []
         for _ in range(10):
-            ad = create_mock(["pcbm"])
-            ad.pcbm = create_mock(["hof"])
-            seg.ads.append(ad)
+            as = create_mock(["pcbm"])
+            as.pcbm = create_mock(["hof"])
+            seg.ads.append(as)
         iof = create_mock(["hops", "up_flag"])
         iof.hops = 10
         hofs = []

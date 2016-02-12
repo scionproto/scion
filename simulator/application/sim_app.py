@@ -69,16 +69,16 @@ class SCIONSimApplication(object):
         """
         self.start_time = start_time
 
-    def get_paths_via_api(self, isd, ad):
+    def get_paths_via_api(self, isd, as):
         """
         Send path request to API port of the host
 
         :param isd: The isd number corresponding to path request
         :type isd: int
-        :param ad: The ad number corresponding to path request
-        :type ad: int
+        :param as: The as number corresponding to path request
+        :type as: int
         """
-        msg = b'\x00' + ISD_AD(isd, ad).pack()
+        msg = b'\x00' + ISD_AD(isd, as).pack()
         logging.info("Sending path request to local API.")
         eid = self.simulator.add_event(0., dst=self.addr,
                                        args=(msg,

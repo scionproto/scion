@@ -13,14 +13,14 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AlterUniqueTogether(
             name='beaconserverweb',
-            unique_together=set([('ad', 'addr')]),
+            unique_together=set([('as', 'addr')]),
         ),
         migrations.AlterUniqueTogether(
             name='certificateserverweb',
-            unique_together=set([('ad', 'addr')]),
+            unique_together=set([('as', 'addr')]),
         ),
         migrations.AlterUniqueTogether(
             name='pathserverweb',
-            unique_together=set([('ad', 'addr')]),
+            unique_together=set([('as', 'addr')]),
         ),
     ]

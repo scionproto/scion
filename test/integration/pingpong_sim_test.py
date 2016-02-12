@@ -51,16 +51,16 @@ class PingPongSimTest(unittest.TestCase):
         dst_host_addr = haddr_parse("IPV4", "127.2.26.254")
         src_topo_path = (
             "topology/ISD{}/topologies/ISD:{}-AS:{}.json"
-            .format(src_isd_ad.isd, src_isd_ad.isd, src_isd_ad.ad)
+            .format(src_isd_ad.isd, src_isd_ad.isd, src_isd_ad.as)
             )
         dst_topo_path = (
             "topology/ISD{}/topologies/ISD:{}-AS:{}.json"
-            .format(dst_isd_ad.isd, dst_isd_ad.isd, dst_isd_ad.ad)
+            .format(dst_isd_ad.isd, dst_isd_ad.isd, dst_isd_ad.as)
             )
         host1 = SCIONSimHost(src_host_addr, src_topo_path, simulator)
         host2 = SCIONSimHost(dst_host_addr, dst_topo_path, simulator)
         ping_application = SimPingApp(host1, dst_host_addr,
-                                      dst_isd_ad.ad, dst_isd_ad.isd)
+                                      dst_isd_ad.as, dst_isd_ad.isd)
         pong_application = SimPongApp(host2)
         app_start_time = 40.
         ping_application.start(app_start_time)

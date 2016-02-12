@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.AlterModelOptions(
-            name='ad',
+            name='as',
             options={'ordering': ['id'], 'verbose_name': 'AS'},
         ),
         migrations.AlterModelOptions(

@@ -260,40 +260,40 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         Handle beacon extensions.
         """
-        for ad in pcb.ads:
-            for ext in ad.ext:
+        for as in pcb.ads:
+            for ext in as.ext:
                 if ext.EXT_TYPE == MtuPcbExt.EXT_TYPE:
-                    self.mtu_ext_handler(ext, ad)
+                    self.mtu_ext_handler(ext, as)
                 elif ext.EXT_TYPE == RevPcbExt.EXT_TYPE:
-                    self.rev_ext_handler(ext, ad)
+                    self.rev_ext_handler(ext, as)
                 elif ext.EXT_TYPE == SibraPcbExt.EXT_TYPE:
-                    self.sibra_ext_handler(ext, ad)
+                    self.sibra_ext_handler(ext, as)
                 else:
                     logging.warning("PCB extension %s(%s) not supported" % (
                         BeaconExtType.to_str(ext.EXT_TYPE), ext.EXT_TYPE))
 
-    def mtu_ext_handler(self, ext, ad):
+    def mtu_ext_handler(self, ext, as):
         """
         Dummy handler for MtuPcbExt.
         """
-        logging.info("MTU (%d, %d): %s" % (ad.pcbm.ad_id, ad.pcbm.isd_id, ext))
+        logging.info("MTU (%d, %d): %s" % (as.pcbm.ad_id, as.pcbm.isd_id, ext))
 
-    def rev_ext_handler(self, ext, ad):
+    def rev_ext_handler(self, ext, as):
         """
         Handler for RevPcbExt.
         """
-        logging.info("REV (%d, %d): %s" % (ad.pcbm.ad_id, ad.pcbm.isd_id, ext))
+        logging.info("REV (%d, %d): %s" % (as.pcbm.ad_id, as.pcbm.isd_id, ext))
         rev_info = ext.rev_info
         # Trigger the removal of PCBs which contain the revoked interface
         self._remove_revoked_pcbs(rev_info=rev_info, if_id=None)
         # Inform the local PS
         self._send_rev_to_local_ps(rev_info=rev_info)
 
-    def sibra_ext_handler(self, ext, ad):
+    def sibra_ext_handler(self, ext, as):
         """
         Dummy handler for SibraPcbExt.
         """
-        logging.info("Sibra (%d, %d): %s" % (ad.pcbm.ad_id, ad.pcbm.isd_id,
+        logging.info("Sibra (%d, %d): %s" % (as.pcbm.ad_id, as.pcbm.isd_id,
                                              ext))
 
     @abstractmethod

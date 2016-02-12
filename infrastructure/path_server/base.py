@@ -144,10 +144,10 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         Add if revocation token to segment ID mappings.
         """
         segment_id = pcb.get_hops_hash()
-        for ad in pcb.ads:
-            self.iftoken2seg[ad.pcbm.ig_rev_token].add(segment_id)
-            self.iftoken2seg[ad.eg_rev_token].add(segment_id)
-            for pm in ad.pms:
+        for as in pcb.ads:
+            self.iftoken2seg[as.pcbm.ig_rev_token].add(segment_id)
+            self.iftoken2seg[as.eg_rev_token].add(segment_id)
+            for pm in as.pms:
                 self.iftoken2seg[pm.ig_rev_token].add(segment_id)
 
     @abstractmethod
@@ -298,7 +298,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         dst_isd, dst_ad = path.get_first_isd_ad()
         path = path.get_path(reverse_direction=True)
         while self.waiting_targets:
-            isd, ad, seg_info = self.waiting_targets.pop()
+            isd, as, seg_info = self.waiting_targets.pop()
             req_pkt = self._build_packet(
                 PT.PATH_MGMT, dst_isd=dst_isd, dst_ad=dst_ad,
                 path=path, payload=seg_info)

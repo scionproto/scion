@@ -49,14 +49,14 @@ class TestCertChainRequestParse(object):
         data = create_mock(["pop"])
         data.pop.side_effect = ("target ISD-AS", bytes.fromhex("01020304"))
         raw.return_value = data
-        isd_ad.return_value = ("target isd", "target ad")
+        isd_ad.return_value = ("target isd", "target as")
         # Call
         inst._parse("data")
         # Tests
         raw.assert_called_once_with("data", inst.NAME, inst.LEN)
         isd_ad.assert_called_once_with("target ISD-AS")
         ntools.eq_(inst.isd_id, "target isd")
-        ntools.eq_(inst.ad_id, "target ad")
+        ntools.eq_(inst.ad_id, "target as")
         ntools.eq_(inst.version, 0x01020304)
 
 
@@ -65,11 +65,11 @@ class TestCertChainRequestFromValues(object):
     Unit tests for lib.packet.cert_mgmt.CertChainRequest.from_values
     """
     def test_full(self):
-        inst = CertChainRequest.from_values("isd", "ad", "ver")
+        inst = CertChainRequest.from_values("isd", "as", "ver")
         # Tests
         ntools.assert_is_instance(inst, CertChainRequest)
         ntools.eq_(inst.isd_id, "isd")
-        ntools.eq_(inst.ad_id, "ad")
+        ntools.eq_(inst.ad_id, "as")
         ntools.eq_(inst.version, "ver")
 
 
@@ -81,7 +81,7 @@ class TestCertChainRequestPack(object):
     def test(self, isd_ad):
         inst = CertChainRequest()
         inst.isd_id = "target isd"
-        inst.ad_id = "target ad"
+        inst.ad_id = "target as"
         inst.version = 0x01020304
         isd_ad_obj = create_mock(["pack"])
         isd_ad_obj.pack.return_value = b"target ISD-AS"
@@ -111,15 +111,15 @@ class TestTRCRequestParse(object):
     def test(self, raw, isd_ad):
         inst = TRCRequest()
         data = create_mock(["pop"])
-        data.pop.side_effect = ("isd ad raw", bytes.fromhex("22222222"))
+        data.pop.side_effect = ("isd as raw", bytes.fromhex("22222222"))
         raw.return_value = data
-        isd_ad.return_value = "isd", "ad"
+        isd_ad.return_value = "isd", "as"
         # Call
         inst._parse("data")
         # Tests
         raw.assert_called_once_with("data", inst.NAME, inst.LEN)
         ntools.eq_(inst.isd_id, "isd")
-        ntools.eq_(inst.ad_id, "ad")
+        ntools.eq_(inst.ad_id, "as")
         ntools.eq_(inst.version, 0x22222222)
 
 
@@ -128,11 +128,11 @@ class TestTRCRequestFromValues(object):
     Unit tests for lib.packet.cert_mgmt.TRCRequest.from_values
     """
     def test_full(self):
-        inst = TRCRequest.from_values("isd id", "ad id", "version")
+        inst = TRCRequest.from_values("isd id", "as id", "version")
         # Tests
         ntools.assert_is_instance(inst, TRCRequest)
         ntools.eq_(inst.isd_id, "isd id")
-        ntools.eq_(inst.ad_id, "ad id")
+        ntools.eq_(inst.ad_id, "as id")
         ntools.eq_(inst.version, "version")
 
 
@@ -144,14 +144,14 @@ class TestTRCRequestPack(object):
     def test(self, isd_ad):
         inst = TRCRequest()
         inst.isd_id = "isd id"
-        inst.ad_id = "ad id"
+        inst.ad_id = "as id"
         inst.version = 0x33333333
         isd_ad.return_value.pack.return_value = bytes.fromhex("11111111")
         expected = bytes.fromhex("11111111 33333333")
         # Call
         ntools.eq_(inst.pack(), expected)
         # Tests
-        assert_these_call_lists(isd_ad, [call("isd id", "ad id").pack()])
+        assert_these_call_lists(isd_ad, [call("isd id", "as id").pack()])
 
 
 class TestTRCReplyFromValues(object):

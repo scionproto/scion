@@ -13,6 +13,6 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AlterUniqueTogether(
             name='routerweb',
-            unique_together=set([('ad', 'addr')]),
+            unique_together=set([('as', 'addr')]),
         ),
     ]

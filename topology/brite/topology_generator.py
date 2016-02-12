@@ -195,7 +195,7 @@ def parse(brite_files, dot_output_file, min_degree, max_degree):
             # Number of new edges is atmost the
             # number of all possible inter-ISD connections
             new_edges = min(new_edges, len(all_core_ad_conn))
-            # Randomly choosing core-ad connections
+            # Randomly choosing core-as connections
             sampled_core_ad_conn = random.sample(all_core_ad_conn, new_edges)
             for (src_core_ad, dest_core_ad) in sampled_core_ad_conn:
                 final_graph.add_edge(src_core_ad, dest_core_ad,
@@ -260,7 +260,7 @@ def _parse(topo_file, isd_num):
     :param isd_num: ISD Number of the graph to be generated
     :type isd_num: int
 
-    :returns: the created Graph along with a list of core ad nodes
+    :returns: the created Graph along with a list of core as nodes
     :rtype: (`networkx.DiGraph`, list)
     """
     (original_graph, num_outedges) = read_topo_file(topo_file, isd_num)
@@ -270,9 +270,9 @@ def _parse(topo_file, isd_num):
     core_ads = [(i[0]) for i in num_outedges[:num_core_ads]]
     core_ad_graph = original_graph.subgraph(core_ads)
 
-    # Ensuring that core ad graph is connected
+    # Ensuring that core as graph is connected
     if not nx.is_connected(core_ad_graph):
-        # If not connected, the new core ad graph is formed from the largest
+        # If not connected, the new core as graph is formed from the largest
         # connected component. Nodes are added to it from its neighbors to make
         # size of core_ad_graph = num_core_ads
         graphs = list(nx.connected_component_subgraphs(core_ad_graph))

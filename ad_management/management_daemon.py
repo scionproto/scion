@@ -135,7 +135,7 @@ class ManagementDaemon(object):
         :returns: the full AS name.
         :rtype: string
         """
-        return 'ad{}-{}'.format(isd_id, ad_id)
+        return 'as{}-{}'.format(isd_id, ad_id)
 
     def get_topo_path(self, isd_id, ad_id):
         gen = ConfigGenerator()

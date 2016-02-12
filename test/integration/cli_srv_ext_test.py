@@ -142,9 +142,9 @@ def main():
     parser.add_argument('-s', '--server', help='Server address')
     parser.add_argument('-m', '--mininet', action='store_true',
                         help="Running under mininet")
-    parser.add_argument('cli_ad', nargs='?', help='Client isd,ad',
+    parser.add_argument('cli_ad', nargs='?', help='Client isd,as',
                         default="1,19")
-    parser.add_argument('srv_ad', nargs='?', help='Server isd,ad',
+    parser.add_argument('srv_ad', nargs='?', help='Server isd,as',
                         default="2,26")
     args = parser.parse_args()
     init_logging("logs/c2s_extn", console_level=logging.DEBUG)

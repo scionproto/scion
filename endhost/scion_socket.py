@@ -49,7 +49,7 @@ class SCIONInterface(object):
     Class representing interface info, i.e. ISD_AD + IFID
 
     :ivar int isd: ISD identifier
-    :ivar int ad: AS identifier
+    :ivar int as: AS identifier
     :ivar int ifid: Interface identifier
     """
     def __init__(self, raw=None):
@@ -60,7 +60,7 @@ class SCIONInterface(object):
         :type raw: bytes object
         """
         self.isd = None
-        self.ad = None
+        self.as = None
         self.ifid = None
         if raw:
             self._parse(raw)
@@ -74,7 +74,7 @@ class SCIONInterface(object):
         """
         data = Raw(raw, "Serialized SCION Interface", ISD_AD.LEN + 2)
         isd_ad = ISD_AD.from_raw(data.pop(ISD_AD.LEN))
-        self.isd, self.ad = isd_ad.isd, isd_ad.ad
+        self.isd, self.as = isd_ad.isd, isd_ad.as
         self.ifid = struct.unpack("H", data.pop())[0]
 
 
@@ -409,12 +409,12 @@ class ScionClientSocket(ScionBaseSocket):
         :type target_address: (string, int) tuple
         """
         self.proto = proto
-        self.isd, self.ad = isd_ad
+        self.isd, self.as = isd_ad
         self.target_IP, self.target_port = target_address
         self.libsock = CDLL(os.path.join(SHARED_LIB_LOCATION,
                                          SHARED_LIB_CLIENT))
         sa = C_SCIONAddr()
-        sa.isd_ad = c_uint(ISD_AD(self.isd, self.ad).int())
+        sa.isd_ad = c_uint(ISD_AD(self.isd, self.as).int())
         ip_bytes = ipaddress.ip_interface(self.target_IP).ip.packed
         sa.host.addrLen = len(ip_bytes)
         sa.host.addr = ByteArray16(*ip_bytes)

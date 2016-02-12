@@ -159,7 +159,7 @@ class AS(models.Model):
                 neighbor_ad = AS.objects.get(id=interface["NeighborAD"],
                                              isd=interface["NeighborISD"])
                 RouterWeb.objects.create(
-                    addr=router["Addr"], ad=self,
+                    addr=router["Addr"], as=self,
                     name=name, neighbor_ad=neighbor_ad,
                     neighbor_type=interface["NeighborType"],
                     interface_addr=interface["Addr"],
@@ -172,22 +172,22 @@ class AS(models.Model):
             for name, bs in beacon_servers.items():
                 BeaconServerWeb.objects.create(addr=bs["Addr"],
                                                name=name,
-                                               ad=self)
+                                               as=self)
 
             for name, cs in certificate_servers.items():
                 CertificateServerWeb.objects.create(addr=cs["Addr"],
                                                     name=name,
-                                                    ad=self)
+                                                    as=self)
 
             for name, ps in path_servers.items():
                 PathServerWeb.objects.create(addr=ps["Addr"],
                                              name=name,
-                                             ad=self)
+                                             as=self)
 
             for name, ds in dns_servers.items():
                 DnsServerWeb.objects.create(addr=str(ds["Addr"]),
                                             name=name,
-                                            ad=self)
+                                            as=self)
         except IntegrityError:
             logging.warning("Integrity error in AS.fill_from_topology(): "
                             "ignoring")
@@ -200,7 +200,7 @@ class AS(models.Model):
         if ':' in id_str:
             return id_str
         else:
-            return "ad{}-{}:{}".format(self.isd.id, self.id, id_str)
+            return "as{}-{}:{}".format(self.isd.id, self.id, id_str)
 
     def __str__(self):
         return '{}-{}'.format(self.isd.id, self.id)
@@ -212,19 +212,19 @@ class AS(models.Model):
 
 class SCIONWebElement(models.Model):
     addr = models.GenericIPAddressField()
-    ad = models.ForeignKey(AS)
+    as = models.ForeignKey(AS)
     name = models.CharField(max_length=20, null=True)
 
     def id_str(self):
         # FIXME How to identify multiple servers of the same type?
-        return "{}{}-{}-{}".format(self.prefix, self.ad.isd_id,
+        return "{}{}-{}-{}".format(self.prefix, self.as.isd_id,
                                    self.ad_id, self.name)
 
     def get_dict(self):
         return {'AddrType': 'IPV4', 'Addr': self.addr}
 
     def __str__(self):
-        return '{} -- {}'.format(self.ad, self.addr)
+        return '{} -- {}'.format(self.as, self.addr)
 
     class Meta:
         abstract = True
@@ -235,7 +235,7 @@ class BeaconServerWeb(SCIONWebElement):
 
     class Meta:
         verbose_name = 'Beacon server'
-        unique_together = (("ad", "addr"),)
+        unique_together = (("as", "addr"),)
 
 
 class CertificateServerWeb(SCIONWebElement):
@@ -243,7 +243,7 @@ class CertificateServerWeb(SCIONWebElement):
 
     class Meta:
         verbose_name = 'Certificate server'
-        unique_together = (("ad", "addr"),)
+        unique_together = (("as", "addr"),)
 
 
 class PathServerWeb(SCIONWebElement):
@@ -251,7 +251,7 @@ class PathServerWeb(SCIONWebElement):
 
     class Meta:
         verbose_name = 'Path server'
-        unique_together = (("ad", "addr"),)
+        unique_together = (("as", "addr"),)
 
 
 class DnsServerWeb(SCIONWebElement):
@@ -259,7 +259,7 @@ class DnsServerWeb(SCIONWebElement):
 
     class Meta:
         verbose_name = 'DNS server'
-        unique_together = (("ad", "addr"),)
+        unique_together = (("as", "addr"),)
 
 
 class RouterWeb(SCIONWebElement):
@@ -280,7 +280,7 @@ class RouterWeb(SCIONWebElement):
     interface_toport = models.IntegerField(default=int(PORT))
 
     def id_str(self):
-        return "er{}-{}er{}-{}".format(self.ad.isd_id, self.ad_id,
+        return "er{}-{}er{}-{}".format(self.as.isd_id, self.ad_id,
                                        self.neighbor_ad.isd_id,
                                        self.neighbor_ad.id)
 
@@ -300,7 +300,7 @@ class RouterWeb(SCIONWebElement):
 
     class Meta:
         verbose_name = 'Router'
-        unique_together = (("ad", "addr"),)
+        unique_together = (("as", "addr"),)
 
 
 class PackageVersion(models.Model):

@@ -25,14 +25,14 @@ class BasicWebTest(WebTest):
             self.isds[isd.id] = isd
 
         self.ads = {}
-        for ad in AS.objects.all():
-            self.ads[ad.id] = ad
+        for as in AS.objects.all():
+            self.ads[as.id] = as
 
-    def _get_ad_detail(self, ad, *args, **kwargs):
-        if isinstance(ad, AS):
-            ad = ad.id
-        assert isinstance(ad, int)
-        return self.app.get(reverse('ad_detail', args=[ad]), *args, **kwargs)
+    def _get_ad_detail(self, as, *args, **kwargs):
+        if isinstance(as, AS):
+            as = as.id
+        assert isinstance(as, int)
+        return self.app.get(reverse('ad_detail', args=[as]), *args, **kwargs)
 
     def _find_form_by_action(self, response, view_name, *args, **kwargs):
         if args is None:
@@ -81,18 +81,18 @@ class TestListAds(BasicWebTest):
         self.assertNotContains(ad_list, str(self.ads[1]))
 
         for ad_id in [3, 4, 5]:
-            ad = self.ads[ad_id]
-            self.assertContains(ad_list, str(ad))
+            as = self.ads[ad_id]
+            self.assertContains(ad_list, str(as))
 
     def test_list_core(self):
         isd = self.isds[2]
-        ad = self.ads[3]
-        ad.is_core_ad = True
-        ad.save()
-        assert ad.isd == isd
+        as = self.ads[3]
+        as.is_core_ad = True
+        as.save()
+        assert as.isd == isd
 
         ad_list = self.app.get(reverse('isd_detail', args=[isd.id]))
-        self.assertContains(ad_list, ad.id)
+        self.assertContains(ad_list, as.id)
         li_tag = ad_list.html.find('a', text='AS 2-3').parent
         self.assertIn('core', li_tag.text)
 
@@ -100,9 +100,9 @@ class TestListAds(BasicWebTest):
 class TestAdDetail(BasicWebTest):
 
     def test_servers_page(self):
-        ad = self.ads[1]
-        ad_detail = self._get_ad_detail(ad)
-        self.assertContains(ad_detail, str(ad))
+        as = self.ads[1]
+        ad_detail = self._get_ad_detail(as)
+        self.assertContains(ad_detail, str(as))
         html = ad_detail.html
         beacon_servers = html.find(id="beacon-servers-table")
         certificate_servers = html.find(id="certificate-servers-table")
@@ -118,12 +118,12 @@ class TestAdDetail(BasicWebTest):
             self.assertFalse('No servers' in str(table), "Table is empty")
 
         # Test that all beacon servers are listed
-        for bs in ad.beaconserverweb_set.all():
+        for bs in as.beaconserverweb_set.all():
             assert bs.addr in beacon_servers.text
 
         # Test that routers are listed correctly
         router_rows = routers.find_all('tr')[1:]
-        for r in ad.routerweb_set.all():
+        for r in as.routerweb_set.all():
             row = next(filter(lambda x: r.addr in x.text, router_rows))
             assert str(r.neighbor_ad) in row.text
             assert r.neighbor_type in row.text
@@ -134,23 +134,23 @@ class TestAdDetail(BasicWebTest):
         self.assertContains(ad_2_detail, str(self.ads[2]))
 
     def test_labels(self):
-        ad = self.ads[1]
+        as = self.ads[1]
         value_map = {True: 'Yes', False: 'No'}
 
         # Test core label
         for is_core_value, page_value in value_map.items():
-            ad.is_core_ad = is_core_value
-            ad.save()
-            ad_detail = self._get_ad_detail(ad)
+            as.is_core_ad = is_core_value
+            as.save()
+            ad_detail = self._get_ad_detail(as)
             core_container = ad_detail.html.find(id='core-label')
             self.assertIn(page_value, core_container.text,
                           'Invalid label: core')
 
         # Test open label
         for is_open_value, page_value in value_map.items():
-            ad.is_open = is_open_value
-            ad.save()
-            ad_detail = self._get_ad_detail(ad)
+            as.is_open = is_open_value
+            as.save()
+            ad_detail = self._get_ad_detail(as)
             open_container = ad_detail.html.find(id='open-label')
             self.assertIn(page_value, open_container.text,
                           'Invalid label: open')
@@ -194,30 +194,30 @@ class TestUsersAndPermissions(BasicWebTestUsers):
         self.assertContains(res, 'Login')
 
     def test_nonpriv_user_control(self):
-        ad = self.ads[1]
-        bs = ad.beaconserverweb_set.first()
-        ad_detail = self._get_ad_detail(ad)
+        as = self.ads[1]
+        bs = as.beaconserverweb_set.first()
+        ad_detail = self._get_ad_detail(as)
 
         # No control buttons
         self.assertFalse(ad_detail.html.findAll('form', self.CONTROL_CLASS))
 
         # Action is forbidden
-        control_url = reverse('control_process', args=[ad.id, bs.id_str()])
+        control_url = reverse('control_process', args=[as.id, bs.id_str()])
         res = self.app.post(control_url, expect_errors=True)
         self.assertEqual(res.status_code, 403)
 
     @patch("ad_manager.util.management_client.control_process")
     def test_priv_user_control(self, control_process):
-        ad = self.ads[1]
-        bs = ad.beaconserverweb_set.first()
-        ad_detail = self._get_ad_detail(ad, user=self.admin_user)
+        as = self.ads[1]
+        bs = as.beaconserverweb_set.first()
+        ad_detail = self._get_ad_detail(as, user=self.admin_user)
 
         self.assertTrue(ad_detail.html.findAll('form', self.CONTROL_CLASS))
 
         # Find the bs control form
         bs_control_form = self._find_form_by_action(ad_detail,
                                                     'control_process',
-                                                    args=[ad.id, bs.id_str()])
+                                                    args=[as.id, bs.id_str()])
 
         # Press the "start" button
         control_process.return_value = response_success('ok')
@@ -231,11 +231,11 @@ class TestPackageDownload(BasicWebTestUsers):
         if get_args is None:
             get_args = {}
 
-        ad = self.ads[1]
-        ad_detail = self._get_ad_detail(ad, **get_args)
+        as = self.ads[1]
+        ad_detail = self._get_ad_detail(as, **get_args)
 
         download_form = self._find_form_by_action(ad_detail, 'update_action',
-                                                  args=[ad.id])
+                                                  args=[as.id])
         return download_form
 
     def test_nonpriv_user(self):
@@ -269,8 +269,8 @@ class TestConnectionRequests(BasicWebTestUsers):
         return requests_page
 
     def test_view_nopriv(self):
-        ad = self.ads[2]
-        requests_page = self._get_request_page(ad.id)
+        as = self.ads[2]
+        requests_page = self._get_request_page(as.id)
 
         # Anon user
         ad_requests = self.app.get(requests_page)
@@ -283,23 +283,23 @@ class TestConnectionRequests(BasicWebTestUsers):
         self.assertNotContains(ad_requests, 'Created by')
 
     def test_priv_user(self):
-        ad = self.ads[2]
-        requests_page = self._get_request_page(ad.id)
+        as = self.ads[2]
+        requests_page = self._get_request_page(as.id)
 
         # Admin user
         ad_requests = self.app.get(requests_page, user=self.admin_user)
         self.assertContains(ad_requests, 'Received requests')
 
         # User which has access to the AS
-        assign_perm('change_ad', self.user, ad)
+        assign_perm('change_ad', self.user, as)
         ad_requests = self.app.get(requests_page, user=self.user)
         self.assertContains(ad_requests, 'Received requests')
 
     def test_send_request(self):
-        ad = self.ads[2]
-        ad.is_open = False
-        ad.save()
-        requests_page = self._get_request_page(ad.id)
+        as = self.ads[2]
+        as.is_open = False
+        as.save()
+        requests_page = self._get_request_page(as.id)
         sent_requests_page = reverse('sent_requests')
         self.assertEqual(len(ConnectionRequest.objects.all()), 0)
 
@@ -318,12 +318,12 @@ class TestConnectionRequests(BasicWebTestUsers):
         sent_requests = self.app.get(sent_requests_page, user=self.admin_user)
         self.assertIn('submitted by admin', sent_requests.html.text)
         sent_table = sent_requests.html.find(id="sent-requests-tbl")
-        for s in [ad, '123.234.123.234', 12345, 'test info', 'SENT']:
+        for s in [as, '123.234.123.234', 12345, 'test info', 'SENT']:
             self.assertIn(str(s), str(sent_table))
 
         # Check that the request is listed in the 'received' table
         # for admins and authorized users
-        assign_perm('change_ad', self.user, ad)
+        assign_perm('change_ad', self.user, as)
         ad_requests_admin = self.app.get(requests_page, user=self.admin_user)
         ad_requests_user = self.app.get(requests_page, user=self.user)
         for response in [ad_requests_admin, ad_requests_user]:
@@ -332,11 +332,11 @@ class TestConnectionRequests(BasicWebTestUsers):
                 self.assertIn(str(s), str(received_table))
 
     def test_decline_request(self):
-        ad = self.ads[2]
-        ad_requests_page = self._get_request_page(ad.id)
+        as = self.ads[2]
+        ad_requests_page = self._get_request_page(as.id)
         sent_requests_page = reverse('sent_requests')
 
-        request = ConnectionRequest(created_by=self.user, connect_to=ad,
+        request = ConnectionRequest(created_by=self.user, connect_to=as,
                                     info='test info', status='SENT',
                                     router_bound_ip='123.123.123.123')
         request.save()
@@ -365,8 +365,8 @@ class TestConnectionRequests(BasicWebTestUsers):
 class TestNewLink(BasicWebTestUsers):
 
     def test_permissions(self):
-        ad = self.ads[2]
-        new_link_page = reverse('new_link', args=[ad.id])
+        as = self.ads[2]
+        new_link_page = reverse('new_link', args=[as.id])
         resp = self.app.get(new_link_page, user=self.admin_user)
         self.assertContains(resp, 'Link type')
 

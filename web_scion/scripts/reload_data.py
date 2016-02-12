@@ -122,10 +122,10 @@ def reload_data():
 
     # Second, add routers, servers, etc.
     for ad_topo in ad_topos:
-        ad = AS.objects.get(id=ad_topo.ad_id, isd=isds[ad_topo.isd_id])
-        topo_dict = ad_topo_dicts[ad.id]
-        ad.fill_from_topology(topo_dict)
-        print('> AS {} is loaded'.format(ad))
+        as = AS.objects.get(id=ad_topo.ad_id, isd=isds[ad_topo.isd_id])
+        topo_dict = ad_topo_dicts[as.id]
+        as.fill_from_topology(topo_dict)
+        print('> AS {} is loaded'.format(as))
     transaction.commit()
     transaction.set_autocommit(True)
 

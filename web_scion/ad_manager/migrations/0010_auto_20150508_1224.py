@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.AlterField(
-            model_name='ad',
+            model_name='as',
             name='id',
             field=models.AutoField(serialize=False, primary_key=True),
             preserve_default=True,

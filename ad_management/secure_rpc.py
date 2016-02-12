@@ -94,8 +94,8 @@ class XMLRPCServerTLS(socketserver.ThreadingMixIn, SimpleXMLRPCServer):
             server_side=True,
             cert_reqs=cert_reqs,
             ca_certs=os.path.join(CERT_DIR_PATH, 'ca.pem'),
-            certfile=os.path.join(CERT_DIR_PATH, 'ad.pem'),
-            keyfile=os.path.join(CERT_DIR_PATH, 'ad.key'),
+            certfile=os.path.join(CERT_DIR_PATH, 'as.pem'),
+            keyfile=os.path.join(CERT_DIR_PATH, 'as.key'),
             ssl_version=ssl.PROTOCOL_TLSv1_2,
         )
         if cert_reqs != ssl.CERT_REQUIRED:
