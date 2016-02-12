@@ -473,11 +473,11 @@ def main():
 
     if args.forward:
         init_logging(LOG_BASE + "_forward", file_level=logging.DEBUG,
-                     console_level=logging.DEBUG)
+                     console_level=logging.INFO)
         logging.info("Operating in forwarding (bridge) mode.")
     else:
         init_logging(LOG_BASE, file_level=logging.DEBUG,
-                     console_level=logging.DEBUG)
+                     console_level=logging.INFO)
         logging.info("Operating in normal proxy mode.")
 
     kbase = None

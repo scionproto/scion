@@ -77,6 +77,14 @@ class SCIONInterface(object):
         self.isd, self.ad = isd_ad.isd, isd_ad.ad
         self.ifid = struct.unpack("H", data.pop())[0]
 
+    def __str__(self):
+        """
+        String representation of a SCIONInterface object.
+        :returns: The interface information as a string.
+        :rtype: str
+        """
+        return "(ISD-AD: %s-%s IFID: %s)" % (self.isd, self.ad, self.ifid)
+
 
 class C_SCIONOption(Structure):
     _fields_ = [("type", c_int),
@@ -144,11 +152,13 @@ class ScionStats(object):
         :rtype: str
         """
         result = []
-        result.append("Sent Packets: " + str(self.sent_packets))
-        result.append("Received Packets: " + str(self.received_packets))
-        result.append("Acked Packets: " + str(self.acked_packets))
-        result.append("RTTs: " + str(self.rtts))
-        result.append("Loss-Rates: " + str(self.loss_rates))
+        result.append("Sent Packets: %s" % self.sent_packets)
+        result.append("Received Packets: %s" % self.received_packets)
+        result.append("Acked Packets: %s" % self.acked_packets)
+        result.append("RTTs: %s" % self.rtts)
+        result.append("Loss-Rates: %s" % self.loss_rates)
+        result.append("IF Counts: %s" % self.if_counts)
+        result.append("IF Lists: %s" % self._if_lists_to_str())
         return "\n".join(result)
 
     def to_dict(self):
@@ -163,7 +173,21 @@ class ScionStats(object):
         result["acked_packets"] = self.acked_packets
         result["rtts"] = self.rtts
         result["loss_rates"] = self.loss_rates
+        result["if_counts"] = self.if_counts
+        result["if_lists"] = self._if_lists_to_str()
         return result
+
+    def _if_lists_to_str(self):
+        """
+        Converts self.if_lists into string.
+        :returns: self.if_lists as a string
+        :rtype: str
+        """
+        result = []
+        for if_list in self.if_lists:
+            ifs = [str(iface) for iface in if_list]
+            result.append("[ %s ]" % " ".join(ifs))
+        return "\n".join(result)
 
 
 SHARED_LIB_LOCATION = os.path.join("endhost", "ssp")
