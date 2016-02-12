@@ -26,7 +26,7 @@ from lib.types import PathMgmtType as PMT, PathSegmentType as PST
 from lib.errors import SCIONParseError
 from lib.packet.packet_base import PathMgmtPayloadBase
 from lib.packet.pcb import PathSegment
-from lib.packet.scion_addr import ISD_AD
+from lib.packet.scion_addr import ISD_AS
 from lib.packet.rev_info import RevocationInfo
 from lib.sibra.segment import SibraSegment
 from lib.util import Raw, hex_str
@@ -39,22 +39,14 @@ class PathSegmentInfo(PathMgmtPayloadBase):
     """
     NAME = "PathSegmentInfo"
     PAYLOAD_TYPE = PMT.REQUEST
-    LEN = 1 + 2 * ISD_AD.LEN
+    LEN = 1 + 2 * ISD_AS.LEN
 
     def __init__(self, raw=None):  # pragma: no cover
-        """
-        Initialize an instance of the class PathSegmentInfo.
-
-        :param raw:
-        :type raw:
-        """
         super().__init__()
-        self.seg_type = 0
-        self.src_isd = 0
-        self.src_ad = 0
-        self.dst_isd = 0
-        self.dst_ad = 0
-        if raw is not None:
+        self.seg_type = None
+        self.src_ia = None
+        self.dst_ia = None
+        if raw:
             self._parse(raw)
 
     def _parse(self, raw):
@@ -63,49 +55,39 @@ class PathSegmentInfo(PathMgmtPayloadBase):
         """
         data = Raw(raw, self.NAME, self.LEN)
         self.seg_type = data.pop(1)
-        self.src_isd, self.src_ad = ISD_AD.from_raw(data.pop(ISD_AD.LEN))
-        self.dst_isd, self.dst_ad = ISD_AD.from_raw(data.pop(ISD_AD.LEN))
+        self.src_ia = ISD_AS(data.pop(ISD_AS.LEN))
+        self.dst_ia = ISD_AS(data.pop(ISD_AS.LEN))
 
     @classmethod
-    def from_values(cls, seg_type, src_isd, src_ad, dst_isd, dst_ad):
+    def from_values(cls, seg_type, src_ia, dst_ia):  # pragma: no cover
         """
         Returns PathSegmentInfo with fields populated from values.
-        :param pckt_type: type of request/reply
-        :type: int (PathSegmentType)
-        :param src_isd, src_ad: address of the source AD
-        :type src_isd, src_ad: int
-        :param dst_isd, dst_ad: address of the destination AD
-        :type dst_isd, dst_ad: int
+        :param PathSegmentType seg_type: segment type
+        :param ISD_AS src_ia: source ISD-AS
+        :param ISD_AS dst_ia: destination ISD-AS
         """
         inst = cls()
         inst.seg_type = seg_type
-        inst.src_isd = src_isd
-        inst.src_ad = src_ad
-        inst.dst_isd = dst_isd
-        inst.dst_ad = dst_ad
+        inst.src_ia = src_ia
+        inst.dst_ia = dst_ia
         return inst
 
     def pack(self):
         packed = []
         packed.append(struct.pack("!B", self.seg_type))
-        packed.append(ISD_AD(self.src_isd, self.src_ad).pack())
-        packed.append(ISD_AD(self.dst_isd, self.dst_ad).pack())
+        packed.append(self.src_ia.pack())
+        packed.append(self.dst_ia.pack())
         return b"".join(packed)
 
-    def short_desc(self):
-        return "%s %s-%s -> %s-%s" % (
-            PST.to_str(self.seg_type), self.src_isd, self.src_ad,
-            self.dst_isd, self.dst_ad,
-        )
+    def short_desc(self):  # pragma: no cover
+        return "%s %s -> %s" % (PST.to_str(self.seg_type), self.src_ia,
+                                self.dst_ia)
 
     def __len__(self):  # pragma: no cover
         return self.LEN
 
     def __str__(self):
-        return "[%s(%dB): seg type:%s src isd/ad: %s/%s dst isd/ad: %s/%s]" % (
-            self.NAME, len(self), PST.to_str(self.seg_type),
-            self.src_isd, self.src_ad, self.dst_isd, self.dst_ad,
-        )
+        return "%s(%dB): %s" % (self.NAME, len(self), self.short_desc())
 
 
 class PathSegmentRecords(PathMgmtPayloadBase):
@@ -117,16 +99,10 @@ class PathSegmentRecords(PathMgmtPayloadBase):
     MIN_LEN = 1 + PathSegment.MIN_LEN
 
     def __init__(self, raw=None):  # pragma: no cover
-        """
-        Initialize an instance of the class PathSegmentRecords.
-
-        :param raw:
-        :type raw:
-        """
         super().__init__()
         self.pcbs = defaultdict(list)
         self.sibra_segs = []
-        if raw is not None:
+        if raw:
             self._parse(raw)
 
     def _parse(self, raw):
@@ -148,7 +124,7 @@ class PathSegmentRecords(PathMgmtPayloadBase):
                     self.NAME, len(data), hex_str(data.pop())))
 
     @classmethod
-    def from_values(cls, pcb_dict=None, sibra_segs=None):
+    def from_values(cls, pcb_dict=None, sibra_segs=None):  # pragma: no cover
         """
         Returns a Path Record with the values specified.
 
@@ -156,7 +132,7 @@ class PathSegmentRecords(PathMgmtPayloadBase):
         :param sibra_segs: list of SibraSegments
         """
         inst = cls()
-        inst.pcbs = pcb_dict or defaultdict(list)
+        inst.pcbs.update(pcb_dict)
         inst.sibra_segs = sibra_segs or []
         return inst
 
@@ -225,8 +201,7 @@ class IFStateInfo(object):
         self.if_id = 0
         self.state = 0
         self.rev_info = None
-
-        if raw is not None:
+        if raw:
             self._parse(raw)
 
     def _parse(self, raw):
@@ -235,16 +210,13 @@ class IFStateInfo(object):
         self.rev_info = RevocationInfo(data.pop())
 
     @classmethod
-    def from_values(cls, if_id, state, rev_token):
+    def from_values(cls, if_id, state, rev_token):  # pragma: no cover
         """
         Returns a IFStateInfo object with the values specified.
 
-        :param if_id: The IF ID of the corresponding router.
-        :type if_id: int
-        :param state: The state of the interface.
-        :type state: bool
-        :param rev_token: The current revocation token for the interface.
-        :type rev_token: bytes
+        :param int if_id: The IF ID of the corresponding router.
+        :param bool state: The state of the interface.
+        :param bytes rev_token: The current revocation token for the interface.
         """
         assert isinstance(rev_token, bytes)
         inst = cls()
@@ -281,8 +253,7 @@ class IFStatePayload(PathMgmtPayloadBase):
     def __init__(self, raw=None):  # pragma: no cover
         super().__init__()
         self.ifstate_infos = []
-
-        if raw is not None:
+        if raw:
             self._parse(raw)
 
     def _parse(self, raw):
@@ -339,8 +310,7 @@ class IFStateRequest(PathMgmtPayloadBase):
     def __init__(self, raw=None):  # pragma: no cover
         super().__init__()
         self.if_id = self.ALL_INTERFACES
-
-        if raw is not None:
+        if raw:
             self._parse(raw)
 
     def _parse(self, raw):
@@ -365,7 +335,7 @@ class IFStateRequest(PathMgmtPayloadBase):
         return self.LEN
 
     def __str__(self):
-        return "[%s(%dB): if_id: %d]" % (self.NAME, len(self), self.if_id)
+        return "%s(%sB): if_id: %s" % (self.NAME, len(self), self.if_id)
 
 
 _TYPE_MAP = {

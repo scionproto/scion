@@ -32,7 +32,7 @@ class BaseLibConfig(object):
     Base class for lib.config unit tests
     """
     ATTRS_TO_KEYS = {
-        'master_ad_key': 'MasterADKey',
+        'master_as_key': 'MasterASKey',
         'propagation_time': 'PropagateTime',
         'registration_time': 'RegisterTime',
         'registers_paths': 'RegisterPath',
@@ -79,7 +79,7 @@ class TestConfigParseDict(BaseLibConfig):
     """
     config_dict = {
         "CertChainVersion": 0,
-        "MasterADKey": "Xf93o3Wz/4Gb0m6CXEaxag==",
+        "MasterASKey": "Xf93o3Wz/4Gb0m6CXEaxag==",
         "PropagateTime": 5,
         "RegisterPath": 1,
         "RegisterTime": 5,
@@ -97,7 +97,7 @@ class TestConfigParseDict(BaseLibConfig):
                    "Unequal number of keys/attributes: is something missing?")
         for attr, key in self.ATTRS_TO_KEYS.items():
             value = getattr(config, attr)
-            if attr in ['master_of_gen_key', 'master_ad_key']:
+            if attr in ['master_of_gen_key', 'master_as_key']:
                 ntools.eq_(value, base64.b64decode(config_dict[key]))
             else:
                 ntools.eq_(value, config_dict[key])

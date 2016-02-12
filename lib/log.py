@@ -93,15 +93,6 @@ def init_logging(log_base=None, file_level=logging.DEBUG,
 def log_exception(msg, *args, level=logging.CRITICAL, **kwargs):
     """
     Properly format an exception before logging.
-
-    :param msg:
-    :type msg:
-    :param args:
-    :type args:
-    :param level:
-    :type level:
-    :param kwargs:
-    :type kwargs:
     """
     logging.log(level, msg, *args, **kwargs)
     for line in traceback.format_exc().split("\n"):

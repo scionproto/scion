@@ -20,6 +20,6 @@ PropertyWeights:
   LastSentTime: 3
   PeerLinks: 7
   TotalBandwidth: 0
-UnwantedADs: 0-8880-999
+UnwantedASes: 0-888,0-999
 UpdateAfterNumber: 10
 UpdateAfterTime: 3600

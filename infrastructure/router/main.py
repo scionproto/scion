@@ -91,14 +91,14 @@ class Router(SCIONElement):
 
     :ivar addr: the router address.
     :type addr: :class:`SCIONAddr`
-    :ivar topology: the AD topology as seen by the router.
+    :ivar topology: the AS topology as seen by the router.
     :type topology: :class:`Topology`
     :ivar config: the configuration of the router.
     :type config: :class:`Config`
-    :ivar ifid2addr: a map from interface identifiers to the corresponding
-                     border router addresses in the server's AD.
-    :type ifid2addr: dict
-    :ivar interface: the router's inter-AD interface, if any.
+    :ivar dict ifid2addr:
+        a map from interface identifiers to the corresponding border router
+        addresses in the server's AS.
+    :ivar interface: the router's inter-AS interface, if any.
     :type interface: :class:`lib.topology.InterfaceElement`
     """
     SERVICE_TYPE = ROUTER_SERVICE
@@ -114,13 +114,13 @@ class Router(SCIONElement):
         super().__init__(server_id, conf_dir, is_sim=is_sim)
         self.interface = None
         for edge_router in self.topology.get_all_edge_routers():
-            if edge_router.addr == self.addr.host_addr:
+            if edge_router.addr == self.addr.host:
                 self.interface = edge_router.interface
                 break
         assert self.interface is not None
         logging.info("Interface: %s", self.interface.__dict__)
-        self.of_gen_key = PBKDF2(self.config.master_ad_key, b"Derive OF Key")
-        self.sibra_key = PBKDF2(self.config.master_ad_key, b"Derive SIBRA Key")
+        self.of_gen_key = PBKDF2(self.config.master_as_key, b"Derive OF Key")
+        self.sibra_key = PBKDF2(self.config.master_as_key, b"Derive SIBRA Key")
         self.if_states = defaultdict(InterfaceState)
         self.revocations = ExpiringDict(1000, self.FWD_REVOCATION_TIMEOUT)
         self.pre_ext_handlers = {
@@ -129,7 +129,7 @@ class Router(SCIONElement):
         }
         self.post_ext_handlers = {}
         self.sibra_state = SibraState(self.interface.bandwidth,
-                                      self.addr.get_isd_ad())
+                                      self.addr.isd_as)
 
         self.PLD_CLASS_MAP = {
             PayloadClass.PCB: {PCBType.SEGMENT: self.process_pcb},
@@ -173,25 +173,19 @@ class Router(SCIONElement):
         :type spkt: :class:`lib.spkt.SCIONspkt`
         :param addr: The address of the next hop.
         :type addr: :class:`IPv4Adress`
-        :param port: The port number of the next hop.
-        :type port: int
+        :param int port: The port number of the next hop.
         """
-        from_local_ad = addr == self.interface.to_addr
-        self.handle_extensions(spkt, False, from_local_ad)
-        if from_local_ad:
+        from_local_as = addr == self.interface.to_addr
+        self.handle_extensions(spkt, False, from_local_as)
+        if from_local_as:
             self._remote_sock.send(spkt.pack(), (str(addr), port))
         else:
             super().send(spkt, addr, port)
 
-    def handle_extensions(self, spkt, pre_routing_phase, from_local_ad):
+    def handle_extensions(self, spkt, pre_routing_phase, from_local_as):
         """
         Handle SCION Packet extensions. Handlers can be defined for pre- and
         post-routing.
-
-        :param spkt:
-        :type spkt:
-        :param pre_routing_phase:
-        :type pre_routing_phase:
         """
         if pre_routing_phase:
             prefix = "pre"
@@ -213,16 +207,16 @@ class Router(SCIONElement):
                 logging.debug("No %s-handler for extension type %s",
                               prefix, ext_hdr.EXT_TYPE)
                 continue
-            flags.extend(handler(ext_hdr, spkt, from_local_ad))
+            flags.extend(handler(ext_hdr, spkt, from_local_as))
         return flags
 
     def handle_traceroute(self, hdr, spkt, _):
         # Truncate milliseconds to 2B
-        hdr.append_hop(self.addr.isd_id, self.addr.ad_id, self.interface.if_id)
+        hdr.append_hop(self.addr.isd_as, self.interface.if_id)
         return []
 
-    def handle_sibra(self, hdr, spkt, from_local_ad):
-        ret = hdr.process(self.sibra_state, spkt, from_local_ad,
+    def handle_sibra(self, hdr, spkt, from_local_as):
+        ret = hdr.process(self.sibra_state, spkt, from_local_as,
                           self.sibra_key)
         logging.debug("Sibra state:\n%s", self.sibra_state)
         return ret
@@ -233,9 +227,8 @@ class Router(SCIONElement):
         neighboring router.
         """
         ifid_pld = IFIDPayload.from_values(self.interface.if_id)
-        pkt = self._build_packet(
-            PT.BEACON, dst_isd=self.interface.neighbor_isd,
-            dst_ad=self.interface.neighbor_ad, payload=ifid_pld)
+        pkt = self._build_packet(PT.BEACON, dst_ia=self.interface.isd_as,
+                                 payload=ifid_pld)
         while True:
             self.send(pkt, self.interface.to_addr,
                       self.interface.to_udp_port)
@@ -251,7 +244,7 @@ class Router(SCIONElement):
             start_time = SCIONTime.get_time()
             logging.info("Sending IFStateRequest for all interfaces.")
             for bs in self.topology.beacon_servers:
-                req_pkt.addrs.dst_addr = bs.addr
+                req_pkt.addrs.dst.host = bs.addr
                 self.send(req_pkt, bs.addr)
             sleep_interval(start_time, self.IFSTATE_REQ_INTERVAL,
                            "request_ifstates")
@@ -299,8 +292,7 @@ class Router(SCIONElement):
 
         :param beacon: The PCB.
         :type beacon: :class:`lib.packet.pcb.PathConstructionBeacon`
-        :param from_bs: True, if the beacon was received from local BS.
-        :type from_bs: bool
+        :param bool from_bs: True, if the beacon was received from local BS.
         """
         pcb = pkt.get_payload()
         if from_bs:
@@ -317,16 +309,16 @@ class Router(SCIONElement):
                 return
             self.send(pkt, bs_addr)
 
-    def relay_cert_server_packet(self, spkt, from_local_ad):
+    def relay_cert_server_packet(self, spkt, from_local_as):
         """
         Relay packets for certificate servers.
 
         :param spkt: the SCION packet to forward.
         :type spkt: :class:`lib.packet.scion.SCIONPacket`
-        :param from_local_ad: whether or not the packet is from the local AD.
-        :type from_local_ad: bool
+        :param bool from_local_ad:
+            whether or not the packet is from the local AS.
         """
-        if from_local_ad:
+        if from_local_as:
             addr = self.interface.to_addr
             port = self.interface.to_udp_port
         else:
@@ -353,14 +345,14 @@ class Router(SCIONElement):
         port = SCION_UDP_PORT
         self.send(spkt, addr, port)
 
-    def process_path_mgmt_packet(self, mgmt_pkt, from_local_ad):
+    def process_path_mgmt_packet(self, mgmt_pkt, from_local_as):
         """
         Process path management packets.
 
         :param mgmt_pkt: The path mgmt packet.
         :type mgmt_pkt: :class:`lib.packet.path_mgmt.PathMgmtPacket`
-        :param from_local_ad: whether or not the packet is from the local AD.
-        :type from_local_ad: bool
+        :param bool from_local_as:
+            whether or not the packet is from the local AS.
         """
         payload = mgmt_pkt.get_payload()
         if payload.PAYLOAD_TYPE == PMT.IFSTATE_INFO:
@@ -371,7 +363,7 @@ class Router(SCIONElement):
                 self.if_states[ifstate.if_id].update(ifstate)
             return
         elif payload.PAYLOAD_TYPE == PMT.REVOCATION:
-            if not from_local_ad:
+            if not from_local_as:
                 # Forward to local path server if we haven't recently.
                 rev_token = payload.rev_token
                 if (self.topology.path_servers and
@@ -384,10 +376,10 @@ class Router(SCIONElement):
                         logging.error("No local PS to forward revocation to.")
                         return
                     self.send(mgmt_pkt, ps)
-        if not from_local_ad and mgmt_pkt.path.is_last_path_hof():
+        if not from_local_as and mgmt_pkt.path.is_last_path_hof():
             self.deliver(mgmt_pkt, PT.PATH_MGMT)
         else:
-            self.forward_packet(mgmt_pkt, from_local_ad)
+            self.forward_packet(mgmt_pkt, from_local_as)
 
     def send_revocation(self, spkt, if_id):
         """
@@ -412,7 +404,7 @@ class Router(SCIONElement):
         rev_pkt = copy.deepcopy(spkt)
         rev_pkt.reverse()
         rev_pkt.set_payload(rev_info)
-        rev_pkt.addrs.src_addr = PT.PATH_MGMT
+        rev_pkt.addrs.src.host = PT.PATH_MGMT
         logging.debug("Revocation Packet:\n%s", rev_pkt)
         self.forward_packet(rev_pkt, True)
 
@@ -426,12 +418,11 @@ class Router(SCIONElement):
 
     def deliver(self, spkt, ptype):
         """
-        Forwards the packet to the end destination within the current AD.
+        Forwards the packet to the end destination within the current AS.
 
         :param spkt: The SCION Packet to forward.
         :type spkt: :class:`lib.packet.scion.SCIONPacket`
-        :param ptype: The packet type.
-        :type ptype: int
+        :param int ptype: The packet type.
         """
         path = spkt.path
         curr_hof = path.get_hof()
@@ -443,7 +434,7 @@ class Router(SCIONElement):
                           "end of a segment:\n%s", spkt)
             return
         # Forward packet to destination.
-        addr = spkt.addrs.dst_addr
+        addr = spkt.addrs.dst.host
         if ptype == PT.PATH_MGMT:
             # FIXME(PSz): that should be changed when replies are send as
             # standard data packets.
@@ -657,19 +648,19 @@ class Router(SCIONElement):
     def _egress_forward(self, spkt):
         self.send(spkt, self.interface.to_addr, self.interface.to_udp_port)
 
-    def forward_packet(self, spkt, from_local_ad):
+    def forward_packet(self, spkt, from_local_as):
         """
         Main entry point for data packet forwarding.
 
         :param spkt: The SCION Packet to forward.
         :type spkt: :class:`lib.packet.scion.SCIONPacket`
-        :param from_local_ad: Whether or not the packet is from the local AD.
-        :type from_local_ad: bool
+        :param from_local_as:
+            Whether or not the packet is from the local AS.
         """
         curr_hof = spkt.path.get_hof()
         try:
             # Ingress entry point.
-            if not from_local_ad:
+            if not from_local_as:
                 if curr_hof.info == OFT.XOVR_POINT:
                     self.handle_ingress_xovr(spkt)
                 else:
@@ -695,25 +686,24 @@ class Router(SCIONElement):
             pass
 
     def _needs_local_processing(self, pkt):
-        if len(pkt.path) == 0 and pkt.addrs.dst_addr.TYPE == AddrType.SVC:
-            # Always process packets SVC destinations and no path
+        if len(pkt.path) == 0 and pkt.addrs.dst.host.TYPE == AddrType.SVC:
+            # Always process packets with SVC destinations and no path
             return True
-        if pkt.addrs.src_addr == PT.PATH_MGMT:
+        if pkt.addrs.src.host == PT.PATH_MGMT:
             # FIXME(kormat): temporary hack until revocations are handled
-            # in extension header
+            # by SCMP
             return True
-        if (pkt.addrs.dst_isd == self.addr.isd_id and
-                pkt.addrs.dst_ad == self.addr.ad_id):
-            # Destination is the local AD.
-            if pkt.addrs.dst_addr in (self.addr.host_addr, self.interface.addr):
+        if pkt.addrs.dst.isd_as == self.addr.isd_as:
+            # Destination is the local AS.
+            if pkt.addrs.dst.host in (self.addr.host, self.interface.addr):
                 # Destination is this router.
                 return True
-            if pkt.addrs.dst_addr.TYPE == AddrType.SVC:
+            if pkt.addrs.dst.host.TYPE == AddrType.SVC:
                 # Destination is a local SVC address.
                 return True
         return False
 
-    def _process_flags(self, flags, pkt, from_local_ad):
+    def _process_flags(self, flags, pkt, from_local_as):
         """
         Go through the flags set by hop-by-hop extensions on this packet.
         """
@@ -727,7 +717,7 @@ class Router(SCIONElement):
         # Now check for other flags
         for (flag, *args) in flags:
             if flag == RouterFlag.FORWARD:
-                if from_local_ad:
+                if from_local_as:
                     logging.debug(
                         "Packet forwarded over link by extension")
                     self._egress_forward(pkt)
@@ -742,22 +732,16 @@ class Router(SCIONElement):
                 return False
         return True
 
-    def handle_request(self, packet, sender, from_local_socket=True):
+    def handle_request(self, packet, _, from_local_socket=True):
         """
         Main routine to handle incoming SCION packets.
 
-        :param packet: The incoming packet to handle.
-        :type packet: bytes
-        :param sender: Tuple of sender IP, port.
-        :type sender: Tuple
-        :param from_local_socket: True, if the packet was received on the local
-                                  socket.
-        :type from_local_socket: bool
-
-        .. note::
-           `sender` is not used in this function at the moment.
+        :param bytes packet: The incoming packet to handle.
+        :param tuple sender: Tuple of sender IP, port.
+        :param bool from_local_socket:
+            True, if the packet was received on the local socket.
         """
-        from_local_ad = from_local_socket
+        from_local_as = from_local_socket
         try:
             pkt = SCIONL4Packet(packet)
         except SCIONBaseError:
@@ -765,10 +749,10 @@ class Router(SCIONElement):
                           level=logging.ERROR)
             return
         if pkt.ext_hdrs:
-            logging.debug("Got packet (from_local_ad? %s):\n%s",
-                          from_local_ad, pkt)
-        flags = self.handle_extensions(pkt, True, from_local_ad)
-        if not self._process_flags(flags, pkt, from_local_ad):
+            logging.debug("Got packet (from_local_as? %s):\n%s",
+                          from_local_as, pkt)
+        flags = self.handle_extensions(pkt, True, from_local_as)
+        if not self._process_flags(flags, pkt, from_local_as):
             logging.debug("Stopped processing")
             return
         if self._needs_local_processing(pkt):
@@ -786,6 +770,6 @@ class Router(SCIONElement):
         if not handler:
             return
         try:
-            handler(pkt, from_local_ad)
+            handler(pkt, from_local_as)
         except SCIONBaseError:
             log_exception("Error handling packet: %s" % pkt)

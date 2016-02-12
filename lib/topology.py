@@ -29,7 +29,7 @@ from lib.defines import (
 )
 from lib.errors import SCIONKeyError
 from lib.packet.host_addr import haddr_parse_interface
-from lib.packet.scion_addr import ISD_AD
+from lib.packet.scion_addr import ISD_AS
 from lib.util import load_yaml_file
 
 
@@ -41,7 +41,6 @@ class Element(object):
     :ivar HostAddrBase addr: Host address of a server or edge router.
     :ivar str name: element name or id
     """
-
     def __init__(self, addr=None, name=None):
         """
         :param str addr: (addr_type, address) of the element's Host address.
@@ -56,18 +55,11 @@ class Element(object):
 
 
 class ServerElement(Element):
-    """
-    The ServerElement class represents one of the servers in the AD.
-    """
-
+    """The ServerElement class represents one of the servers in the AS."""
     def __init__(self, server_dict, name=None):
         """
-        Initialize an instance of the class ServerElement.
-
-        :param server_dict: contains information about a particular server.
-        :type server_dict: dict
-        :param name: server element name or id
-        :type name: str
+        :param dict server_dict: contains information about a particular server.
+        :param str name: server element name or id
         """
         super().__init__(server_dict['Addr'], name)
 
@@ -78,28 +70,20 @@ class InterfaceElement(Element):
     router.
 
     :ivar int if_id: the interface ID.
-    :ivar int neighbor_ad: the AD identifier of the neighbor AD.
-    :ivar int neighbor_isd: the ISD identifier of the neighbor AD.
-    :ivar str neighbor_type:
-        the type of the neighbor relative to the AD to which the interface
-        belongs.
+    :ivar int isd_as: the ISD-AS identifier of the neighbor AS.
+    :ivar str link_type: the type of relationship to the neighbor AS.
     :ivar int to_udp_port:
-        the port number receiving UDP traffic on the other end of the interface.
+        the port number receiving UDP traffic on the other end of the link.
     :ivar int udp_port: the port number used to send UDP traffic.
     """
-
     def __init__(self, interface_dict, name=None):
         """
-        Initialize an instance of the class InterfaceElement.
-
-        :param interface_dict: contains information about the interface.
-        :type interface_dict: dict
+        :param dict interface_dict: contains information about the interface.
         """
         super().__init__(interface_dict['Addr'], name)
         self.if_id = interface_dict['IFID']
-        self.neighbor_ad = interface_dict['NeighborAD']
-        self.neighbor_isd = interface_dict['NeighborISD']
-        self.neighbor_type = interface_dict['NeighborType']
+        self.isd_as = ISD_AS(interface_dict['ISD_AS'])
+        self.link_type = interface_dict['LinkType']
         self.to_udp_port = interface_dict['ToUdpPort']
         self.udp_port = interface_dict['UdpPort']
         self.bandwidth = interface_dict['Bandwidth']
@@ -108,26 +92,15 @@ class InterfaceElement(Element):
         if to_addr:
             self.to_addr = haddr_parse_interface(to_addr)
 
-    def isd_ad(self):  # pragma: no cover
-        return ISD_AD(self.neighbor_isd, self.neighbor_ad)
-
 
 class RouterElement(Element):
     """
     The RouterElement class represents one of the edge routers.
-
-    :ivar interface: one of the interfaces of the edge router.
-    :type interface: :class:`InterfaceElement`
     """
-
     def __init__(self, router_dict, name=None):
         """
-        Initialize an instance of the class RouterElement.
-
-        :param router_dict: contains information about an edge router.
-        :type router_dict: dict
-        :param name: router element name or id
-        :type name: str
+        :param dict router_dict: contains information about an edge router.
+        :param str name: router element name or id
         """
         super().__init__(router_dict['Addr'], name)
         self.interface = InterfaceElement(router_dict['Interface'])
@@ -138,43 +111,25 @@ class RouterElement(Element):
 
 class Topology(object):
     """
-    The Topology class parses the topology file of an AD and stores such
+    The Topology class parses the topology file of an AS and stores such
     information for further use.
 
-    :ivar is_core_ad: tells whether an AD is a core AD or not.
-    :vartype is_core_ad: bool
-    :ivar isd_id: the ISD identifier.
-    :vartype isd_id: int
-    :ivar ad_id: the AD identifier.
-    :vartype ad_id: int
-    :ivar dns_domain: the dns domain the dns servers should use.
-    :vartype dns_domain: str
-    :ivar beacon_servers: beacons servers in the AD.
-    :vartype beacon_servers: list
-    :ivar certificate_servers: certificate servers in the AD.
-    :vartype certificate_servers: list
-    :ivar dns_servers: dns servers in the AD.
-    :vartype dns_servers: list
-    :ivar path_servers: path servers in the AD.
-    :vartype path_servers: list
-    :ivar parent_edge_routers: edge routers linking the AD to its parents.
-    :vartype parent_edge_routers: list
-    :ivar child_edge_routers: edge routers linking the AD to its children.
-    :vartype child_edge_routers: list
-    :ivar peer_edge_routers: edge router linking the AD to its peers.
-    :vartype peer_edge_routers: list
-    :ivar routing_edge_routers: edge router linking the core AD to another core
-                                AD.
-    :vartype routing_edge_routers: list
+    :ivar bool is_core_as: tells whether an AS is a core AS or not.
+    :ivar ISD_AS isd_is: the ISD-AS identifier.
+    :ivar str dns_domain: the dns domain the dns servers should use.
+    :ivar list beacon_servers: beacons servers in the AS.
+    :ivar list certificate_servers: certificate servers in the AS.
+    :ivar list dns_servers: dns servers in the AS.
+    :ivar list path_servers: path servers in the AS.
+    :ivar list parent_edge_routers: edge routers linking the AS to its parents.
+    :ivar list child_edge_routers: edge routers linking the AS to its children.
+    :ivar list peer_edge_routers: edge router linking the AS to its peers.
+    :ivar list routing_edge_routers:
+        edge router linking the core AS to another core AS.
     """
-
-    def __init__(self):
-        """
-        Initialize an instance of the class Topology.
-        """
-        self.is_core_ad = False
-        self.isd_id = 0
-        self.ad_id = 0
+    def __init__(self):  # pragma: no cover
+        self.is_core_as = False
+        self.isd_as = None
         self.dns_domain = ""
         self.beacon_servers = []
         self.certificate_servers = []
@@ -192,11 +147,7 @@ class Topology(object):
         """
         Create a Topology instance from the file.
 
-        :param topology_file: path to the topology file
-        :type topology_file: str
-
-        :returns: the newly created Topology instance
-        :rtype: :class: `Topology`
+        :param str topology_file: path to the topology file
         """
         return cls.from_dict(load_yaml_file(topology_file))
 
@@ -205,9 +156,7 @@ class Topology(object):
         """
         Create a Topology instance from the dictionary.
 
-        :param topology_dict: dictionary representation of a topology
-        :type topology_dict: dict
-
+        :param dict topology_dict: dictionary representation of a topology
         :returns: the newly created Topology instance
         :rtype: :class:`Topology`
         """
@@ -219,12 +168,10 @@ class Topology(object):
         """
         Parse a topology dictionary and populate the instance's attributes.
 
-        :param topology: dictionary representation of a topology
-        :type topology: dict
+        :param dict topology: dictionary representation of a topology
         """
-        self.is_core_ad = topology['Core']
-        self.isd_id = topology['ISDID']
-        self.ad_id = topology['ADID']
+        self.is_core_as = topology['Core']
+        self.isd_as = ISD_AS(topology['ISD_AS'])
         self.dns_domain = topology['DnsDomain']
         self._parse_srv_dicts(topology)
         self._parse_router_dicts(topology)
@@ -250,7 +197,7 @@ class Topology(object):
                 'PEER': self.peer_edge_routers,
                 'ROUTING': self.routing_edge_routers,
             }
-            ntype_map[router.interface.neighbor_type].append(router)
+            ntype_map[router.interface.link_type].append(router)
 
     def _parse_zk_dicts(self, topology):
         for zk in topology['Zookeepers'].values():
@@ -260,9 +207,9 @@ class Topology(object):
 
     def get_all_edge_routers(self):
         """
-        Return all edge routers associated to the AD.
+        Return all edge routers associated to the AS.
 
-        :returns: all edge routers associated to the AD.
+        :returns: all edge routers associated to the AS.
         :rtype: list
         """
         all_edge_routers = []
@@ -273,14 +220,6 @@ class Topology(object):
         return all_edge_routers
 
     def get_own_config(self, server_type, server_id):
-        """
-
-
-        :param server_type:
-        :type server_type:
-        :param server_id:
-        :type server_id:
-        """
         type_map = {
             BEACON_SERVICE: self.beacon_servers,
             CERTIFICATE_SERVICE: self.certificate_servers,
@@ -299,5 +238,5 @@ class Topology(object):
             if i.name == server_id:
                 return i
         else:
-            logging.critical("Could not find server %s", server_id)
+            logging.critical("Could not find server: %s", server_id)
             raise SCIONKeyError from None

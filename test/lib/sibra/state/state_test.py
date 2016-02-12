@@ -36,11 +36,11 @@ class TestSibraStateInit(object):
     @patch("lib.sibra.state.state.current_tick", autospec=True)
     def test(self, curr_tick, bwsnap, linkbw):
         # Call
-        inst = SibraState(2, "isd ad")
+        inst = SibraState(2, "isd as")
         # Tests
         ntools.eq_(inst.curr_tick, curr_tick.return_value)
         bwsnap.assert_called_once_with(2048, 2048)
-        linkbw.assert_called_once_with("isd ad", bwsnap.return_value)
+        linkbw.assert_called_once_with("isd as", bwsnap.return_value)
         ntools.eq_(inst.link, linkbw.return_value)
 
 
@@ -52,7 +52,7 @@ class TestSibraStateUpdateTick(object):
     @patch("lib.sibra.state.state.SibraState.__init__",
            autospec=True, return_value=None)
     def test(self, init, curr_tick):
-        inst = SibraState("bw", "isd ad")
+        inst = SibraState("bw", "isd as")
         inst.curr_tick = 0
         inst.link = create_mock(["next"])
         inst.steady = "steady"
@@ -75,7 +75,7 @@ class TestSibraStateResvTick(object):
     @patch("lib.sibra.state.state.SibraState.__init__",
            autospec=True, return_value=None)
     def test(self, init):
-        inst = SibraState("bw", "isd ad")
+        inst = SibraState("bw", "isd as")
         inst.curr_tick = "curr tick"
         resvs = []
         for i in range(4):
@@ -96,11 +96,11 @@ class TestSibraStateSteadyAdd(object):
     Unit tests for lib.sibra.state.state.SibraState.steady_add
     """
     @patch("lib.sibra.state.state.SteadyReservation", autospec=True)
-    @patch("lib.sibra.state.state.ISD_AD", autospec=True)
+    @patch("lib.sibra.state.state.ISD_AS", autospec=True)
     @patch("lib.sibra.state.state.SibraState.__init__",
            autospec=True, return_value=None)
-    def test_setup_accepted_success(self, init, isd_ad, st_resv):
-        inst = SibraState("bw", "isd ad")
+    def test_setup_accepted_success(self, init, isd_as, st_resv):
+        inst = SibraState("bw", "isd as")
         inst._update_tick = create_mock()
         inst.steady = {}
         inst.pend_steady = {}
@@ -109,14 +109,14 @@ class TestSibraStateSteadyAdd(object):
         resv = create_mock(["add"])
         resv.add.return_value = "bwsnap"
         st_resv.return_value = resv
-        isd_ad.LEN = 100
+        isd_as.LEN = 100
         # Call
         ntools.assert_is_none(inst.steady_add(
             "path id", "resv idx", "bwsnap", 50, True, setup=True))
         # Tests
-        isd_ad.from_raw.assert_called_once_with("path id")
+        isd_as.assert_called_once_with("path id")
         st_resv.assert_called_once_with(
-            "path id", isd_ad.from_raw.return_value, "link")
+            "path id", isd_as.return_value, "link")
         resv.add.assert_called_once_with("resv idx", "bwsnap", 50, 42)
         ntools.eq_(inst.steady, {"path id": resv})
         ntools.eq_(inst.pend_steady, {"path id": True})
@@ -124,7 +124,7 @@ class TestSibraStateSteadyAdd(object):
     @patch("lib.sibra.state.state.SibraState.__init__",
            autospec=True, return_value=None)
     def _check_denied(self, accepted, init):
-        inst = SibraState("bw", "isd ad")
+        inst = SibraState("bw", "isd as")
         inst._update_tick = create_mock()
         inst.curr_tick = 42
         resv = create_mock(["add"])

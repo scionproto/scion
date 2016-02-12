@@ -52,7 +52,7 @@ class SibraExtSteady(SibraExtBase):
         self._parse_end(data, req)
 
     @classmethod
-    def from_values(cls):
+    def from_values(cls, *args, **kwargs):
         raise NotImplementedError
 
     @classmethod
@@ -80,8 +80,8 @@ class SibraExtSteady(SibraExtBase):
         return inst
 
     @staticmethod
-    def mk_path_id(isd_ad):  # pragma: no cover
-        return isd_ad.pack() + os.urandom(SIBRA_STEADY_ID_LEN - isd_ad.LEN)
+    def mk_path_id(isd_as):  # pragma: no cover
+        return isd_as.pack() + os.urandom(SIBRA_STEADY_ID_LEN - isd_as.LEN)
 
     def pack(self):
         raw = self._pack_start()

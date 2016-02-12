@@ -51,8 +51,8 @@ def main_default(type_, local_type=None, trace_=False, **kwargs):
 
     :param type type_: Primary type to instantiate.
     :param type local_type:
-        If not `None`, load the topology to check if this is a core or local AD.
-        If it's a core AD, instantiate the primary type, otherwise the local
+        If not `None`, load the topology to check if this is a core or local AS.
+        If it's a core AS, instantiate the primary type, otherwise the local
         type.
     :param bool trace_: Should a periodic thread stacktrace report be created?
     """
@@ -71,7 +71,7 @@ def main_default(type_, local_type=None, trace_=False, **kwargs):
     else:
         # Load the topology to check if this is a core AD or not
         topo = Topology.from_file(os.path.join(args.conf_dir, TOPO_FILE))
-        if topo.is_core_ad:
+        if topo.is_core_as:
             inst = type_(args.server_id, args.conf_dir, **kwargs)
         else:
             inst = local_type(args.server_id, args.conf_dir, **kwargs)

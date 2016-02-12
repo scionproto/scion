@@ -38,17 +38,17 @@ Necessary steps in order to run SCION:
 
     The resulting directory structure will be created:
 
-        ./gen/ISD{X}/AD{Y}/
+        ./gen/ISD{X}/AS{Y}/
             {elem}{X}-{Y}-{Z}/
-                ad.yml
+                as.yml
                 path_policy.yml
                 supervisord.conf
                 topology.yml
                 certs/
-                    ISD{X}-AD{Y}-V0.crt
+                    ISD{X}-AS{Y}-V0.crt
                     ISD{X}-V0.trc
                 keys/
-                    ad-sig.key
+                    as-sig.key
 
 1. Run the infrastructure:
 
@@ -62,13 +62,13 @@ Notes about `topology/Default.topo`:
 
 * `defaults.subnet` (optional): override the default subnet of `127.0.0.0/8`.
 
-* `core` (optional): specify if this is a core AD or not (defaults to 'false').
+* `core` (optional): specify if this is a core AS or not (defaults to 'false').
 
 * `beacon_servers`, `certificate_servers`, `path_servers`, `dns_servers` (all
-  optional): number of such servers in a specific AD (override the default
+  optional): number of such servers in a specific AS (override the default
   value 1).
 
-* `links`: keys are `ISD_ID-AD_ID` (format also used for the keys of the JSON
+* `links`: keys are `ISD_ID-AS_ID` (format also used for the keys of the JSON
   file itself) and values can either be `PARENT`, `CHILD`, `PEER`, or
   `ROUTING`.
 

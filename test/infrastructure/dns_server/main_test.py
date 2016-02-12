@@ -61,12 +61,11 @@ class TestSCIONDnsServerSetup(BaseDNSServer):
         server = SCIONDnsServer("srvid", "conf_dir")
         server.lock = "lock"
         server.domain = "domain"
-        server.addr = create_mock(["host_addr"])
-        server.addr.host_addr = "127.0.0.1"
+        server.addr = create_mock(["host"])
+        server.addr.host = "127.0.0.1"
         server.id = "srvid"
-        server.topology = create_mock(["isd_id", "ad_id", "zookeepers"])
-        server.topology.isd_id = 30
-        server.topology.ad_id = 10
+        server.topology = create_mock(["isd_as", "zookeepers"])
+        server.topology.isd_as = "isd as"
         server.topology.zookeepers = ["zk0", "zk1"]
         server._setup_parties = create_mock()
         # Call
@@ -83,7 +82,7 @@ class TestSCIONDnsServerSetup(BaseDNSServer):
             logger=dns_logger.return_value)
         ntools.eq_(dns_server.call_count, 2)
         zookeeper.assert_called_once_with(
-            30, 10, DNS_SERVICE, "srvid\0%d\000127.0.0.1" % SCION_DNS_PORT,
+            "isd as", DNS_SERVICE, "srvid\0%d\000127.0.0.1" % SCION_DNS_PORT,
             ["zk0", "zk1"])
         ntools.eq_(server._parties, {})
         server._setup_parties.assert_called_once_with()
@@ -98,9 +97,8 @@ class TestSCIONDnsSetupParties(BaseDNSServer):
     def test(self, _):
         server = SCIONDnsServer("srvid", "conf_dir")
         server.zk = create_mock(["retry", "party_setup"])
-        server.topology = create_mock(["isd_id", "ad_id"])
-        server.topology.isd_id = 30
-        server.topology.ad_id = 10
+        server.addr = create_mock(["isd_as"])
+        server.addr.isd_as = "30-10"
         server._parties = {}
         # Call
         server._setup_parties()
@@ -111,7 +109,7 @@ class TestSCIONDnsSetupParties(BaseDNSServer):
                 autojoin = True
             server.zk.retry.assert_any_call(
                 "Joining %s party" % srv, server.zk.party_setup,
-                prefix="/ISD30-AD10/%s" % srv, autojoin=autojoin)
+                prefix="/30-10/%s" % srv, autojoin=autojoin)
         ntools.eq_(server.zk.retry.call_count, len(server.SRV_TYPES))
 
 

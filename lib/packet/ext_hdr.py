@@ -24,15 +24,6 @@ from lib.util import hex_str
 class ExtensionHeader(HeaderBase):
     """
     Base class for extension headers.
-
-    :cvar MIN_LEN:
-    :type MIN_LEN: int
-    :ivar next_hdr:
-    :type next_hdr:
-    :ivar _hdr_len:
-    :type _hdr_len:
-    :ivar parsed:
-    :type parsed:
     """
     NAME = "ExtensionHeader"
     LINE_LEN = 8  # Length of extension must be multiplication of LINE_LEN.
@@ -44,30 +35,12 @@ class ExtensionHeader(HeaderBase):
     MIN_PAYLOAD_LEN = MIN_LEN - SUBHDR_LEN
 
     def __init__(self, raw=None):  # pragma: no cover
-        """
-        Initialize an instance of the class ExtensionHeader.
-
-        :param raw:
-        :type raw:
-        :param _hdr_len: encoded length of extension header. The length in
-                         bytes is calculated as (next_hdr + 1) * 8.
-        :type _hdr_len: int
-        :param next_hdr: indication of a next extension header. Must be set
-                         by SCIONHeader's pack().
-        :type next_hdr: int
-        """
         super().__init__()
         self._hdr_len = 0
         if raw is not None:
             self._parse(raw)
 
     def _parse(self, raw):  # pragma: no cover
-        """
-        Initialize an instance of the class ExtensionHeader.
-
-        :param raw:
-        :type raw:
-        """
         self._hdr_len = self.bytes_to_hdr_len(len(raw))
 
     def _init_size(self, additional_lines):  # pragma: no cover
@@ -110,7 +83,7 @@ class ExtensionHeader(HeaderBase):
         pass
 
     def __str__(self):
-        return "[%s(%dB): class: %s payload: %s]" % (
+        return "%s(%dB): class: %s payload: %s" % (
             self.NAME, len(self), ExtensionClass.to_str(self.EXT_CLASS),
             hex_str(self.pack()))
 

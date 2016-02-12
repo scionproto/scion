@@ -27,7 +27,7 @@ from lib.packet.packet_base import HeaderBase
 from lib.packet.path import parse_path
 from lib.packet.pcb import PathSegment
 from lib.packet.scion_addr import SCIONAddr
-from lib.types import ExtEndToEndType
+from lib.types import ExtEndToEndType, TypeBase
 from lib.util import calc_padding, Raw
 
 
@@ -45,8 +45,8 @@ class PathTransOFPath(HeaderBase):
         :param raw:
         :type raw:
         """
-        self.src_addr = None
-        self.dst_addr = None
+        self.src = None
+        self.dst = None
         self.path = None
         if raw is not None:
             self._parse(raw)
@@ -55,27 +55,27 @@ class PathTransOFPath(HeaderBase):
         data = Raw(raw, self.NAME, self.MIN_LEN, min_=True)
         src_type = data.pop(1)
         dst_type = data.pop(1)
-        self.src_addr = SCIONAddr((src_type, data.get()))
-        data.pop(len(self.src_addr))
-        self.dst_addr = SCIONAddr((dst_type, data.get()))
-        data.pop(len(self.dst_addr))
+        self.src = SCIONAddr((src_type, data.get()))
+        data.pop(len(self.src))
+        self.dst = SCIONAddr((dst_type, data.get()))
+        data.pop(len(self.dst))
         padding_len = len(data) % OpaqueField.LEN
         self.path = parse_path(data.pop(len(data) - padding_len))
 
     @classmethod
-    def from_values(cls, src_addr, dst_addr, path):
+    def from_values(cls, src, dst, path):
         inst = cls()
-        inst.src_addr = src_addr
-        inst.dst_addr = dst_addr
+        inst.src = src
+        inst.dst = dst
         inst.path = path
         return inst
 
     def pack(self):
         packed = []
-        packed.append(struct.pack("!B", self.src_addr.host_addr.TYPE))
-        packed.append(struct.pack("!B", self.dst_addr.host_addr.TYPE))
-        packed.append(self.src_addr.pack())
-        packed.append(self.dst_addr.pack())
+        packed.append(struct.pack("!B", self.src.host.TYPE))
+        packed.append(struct.pack("!B", self.dst.host.TYPE))
+        packed.append(self.src.pack())
+        packed.append(self.dst.pack())
         packed.append(self.path.pack())
         return b"".join(packed)
 
@@ -83,10 +83,10 @@ class PathTransOFPath(HeaderBase):
         return len(self.pack())
 
     def __str__(self):
-        return "%s->%s\n%s" % (self.src_addr, self.dst_addr, self.path)
+        return "%s -> %s\n%s" % (self.src, self.dst, self.path)
 
 
-class PathTransType(object):
+class PathTransType(TypeBase):
     OF_PATH = 0
     PCB_PATH = 1
 
@@ -117,16 +117,10 @@ class PathTransportExt(EndToEndExtension):
     EXT_TYPE = ExtEndToEndType.PATH_TRANSPORT
 
     def __init__(self, raw=None):
-        """
-        Initialize an instance of the class PathTransportExt
-
-        :param raw:
-        :type raw:
-        """
         super().__init__()
         self.path_type = None
         self.path = None
-        if raw is not None:
+        if raw:
             self._parse(raw)
 
     @classmethod
@@ -168,6 +162,6 @@ class PathTransportExt(EndToEndExtension):
         return raw
 
     def __str__(self):  # pragma: no cover
-        tmp = ["%s(%dB):" % (self.NAME, len(self))]
-        tmp.append("  Path type: %d\n  %s" % (self.path_type, self.path))
-        return "\n".join(tmp)
+        return "%s(%dB): type: %s\n  %s" % (
+            self.NAME, len(self), PathTransType.to_str(self.path_type),
+            self.path)

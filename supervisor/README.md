@@ -21,8 +21,8 @@
   \# stop all processes
   ./supervisor/supervisor.sh stop all
 
-  \# restart all processes in AD1-11
-  ./supervisor/supervisor.sh restart ad1-11:*
+  \# restart all processes in AS1-11
+  ./supervisor/supervisor.sh restart as1-11:*
 
 ### Caveat 1
 

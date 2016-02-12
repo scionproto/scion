@@ -27,60 +27,50 @@ import yaml
 
 # SCION
 from lib.packet.pcb import PathSegment
+from lib.packet.scion_addr import ISD_AS
 from lib.util import SCIONTime, load_yaml_file
 
 
 class PathPolicy(object):
-    """
-    Stores a path policy.
-    """
-
+    """Stores a path policy."""
     def __init__(self):
-        """
-        Initialize an instance of the class PathPolicy.
-        """
         self.best_set_size = 5
         self.candidates_set_size = 20
         self.history_limit = 0
         self.update_after_number = 0
         self.update_after_time = 0
-        self.unwanted_ads = []
+        self.unwanted_ases = []
         self.property_ranges = {}
         self.property_weights = {}
 
     def get_path_policy_dict(self):
-        """
-        Return path policy info in a dictionary.
-
-        :returns: Path policy info in a dictionary.
-        :rtype: dict
-        """
-        path_policy_dict = {'best_set_size': self.best_set_size,
-                            'candidates_set_size': self.candidates_set_size,
-                            'history_limit': self.history_limit,
-                            'update_after_number': self.update_after_number,
-                            'update_after_time': self.update_after_time,
-                            'unwanted_ads': self.unwanted_ads,
-                            'property_ranges': self.property_ranges,
-                            'property_weights': self.property_weights}
-        return path_policy_dict
+        """Return path policy info in a dictionary."""
+        return {
+            'best_set_size': self.best_set_size,
+            'candidates_set_size': self.candidates_set_size,
+            'history_limit': self.history_limit,
+            'update_after_number': self.update_after_number,
+            'update_after_time': self.update_after_time,
+            'unwanted_ases': self.unwanted_ases,
+            'property_ranges': self.property_ranges,
+            'property_weights': self.property_weights
+        }
 
     def check_filters(self, pcb):
         """
-        Runs some checks, including: unwanted ADs and min/max property values.
+        Runs some checks, including: unwanted ASes and min/max property values.
 
         :param pcb: beacon to analyze.
         :type pcb: :class:`PathSegment`
-
-        :returns: True if any unwanted AD is present or a range is not
-                  respected.
+        :returns:
+            True if any unwanted AS is present or a range is not respected.
         :rtype: bool
         """
         assert isinstance(pcb, PathSegment)
-        isd_ad = self._check_unwanted_ads(pcb)
-        if isd_ad:
-            logging.warning("PathStore: pcb discarded, unwanted AD(%s): %s",
-                            isd_ad, pcb.short_desc())
+        isd_as = self._check_unwanted_ases(pcb)
+        if isd_as:
+            logging.warning("PathStore: pcb discarded, unwanted AS(%s): %s",
+                            isd_as, pcb.short_desc())
             return False
         reasons = self._check_property_ranges(pcb)
         if reasons:
@@ -89,17 +79,17 @@ class PathPolicy(object):
             return False
         return True
 
-    def _check_unwanted_ads(self, pcb):
+    def _check_unwanted_ases(self, pcb):
         """
-        Checks whether any of the ADs in the path belong to the black list.
+        Checks whether any of the ASes in the path belong to the black list.
 
         :param pcb: beacon to analyze.
         :type pcb: :class:`PathSegment`
         """
-        for ad in pcb.ads:
-            isd_ad = ad.pcbm.get_isd_ad()
-            if isd_ad in self.unwanted_ads:
-                return isd_ad
+        for asm in pcb.ases:
+            isd_as = asm.pcbm.isd_as
+            if isd_as in self.unwanted_ases:
+                return isd_as
 
     def _check_property_ranges(self, pcb):
         """
@@ -131,11 +121,7 @@ class PathPolicy(object):
         """
         Create a PathPolicy instance from the file.
 
-        :param policy_file: path to the path policy file
-        :type policy_file: str
-
-        :returns: the newly created PathPolicy instance
-        :rtype: :class: `PathPolicy`
+        :param str policy_file: path to the path policy file
         """
         return cls.from_dict(load_yaml_file(policy_file))
 
@@ -144,11 +130,7 @@ class PathPolicy(object):
         """
         Create a PathPolicy instance from the dictionary.
 
-        :param policy_dict: dictionary representation of path policy
-        :type policy_dict: dict
-
-        :returns: the newly created PathPolicy instance.
-        :rtype: :class:`PathPolicy`
+        :param dict policy_dict: dictionary representation of path policy
         """
         path_policy = cls()
         path_policy.parse_dict(policy_dict)
@@ -158,23 +140,20 @@ class PathPolicy(object):
         """
         Parses the policies from the dictionary.
 
-        :param path_policy: path policy.
-        :type path_policy: dict
+        :param dict path_policy: path policy.
         """
         self.best_set_size = path_policy['BestSetSize']
         self.candidates_set_size = path_policy['CandidatesSetSize']
         self.history_limit = path_policy['HistoryLimit']
         self.update_after_number = path_policy['UpdateAfterNumber']
         self.update_after_time = path_policy['UpdateAfterTime']
-        unwanted_ads = path_policy['UnwantedADs'].split(',')
-        for unwanted_ad in unwanted_ads:
-            unwanted_ad = unwanted_ad.split('-')
-            unwanted_ad = (int(unwanted_ad[0]), int(unwanted_ad[1]))
-            self.unwanted_ads.append(unwanted_ad)
+        unwanted_ases = path_policy['UnwantedASes'].split(',')
+        for unwanted in unwanted_ases:
+            self.unwanted_ases.append(ISD_AS(unwanted))
         property_ranges = path_policy['PropertyRanges']
         for key in property_ranges:
             property_range = property_ranges[key].split('-')
-            property_range = (int(property_range[0]), int(property_range[1]))
+            property_range = int(property_range[0]), int(property_range[1])
             self.property_ranges[key] = property_range
         self.property_weights = path_policy['PropertyWeights']
 
@@ -188,45 +167,35 @@ class PathStoreRecord(object):
     """
     Path record that gets stored in the the PathStore.
 
-    :cvar DEFAULT_OFFSET: the amount of time subtracted from the current time
-      when the path's initial last sent time is set.
-    :type DEFAULT_OFFSET: int
+    :cvar int DEFAULT_OFFSET:
+        the amount of time subtracted from the current time when the path's
+        initial last sent time is set.
     :ivar pcb: the PCB representing the record.
     :vartype pcb: :class:`lib.packet.pcb.PathSegment`
-    :ivar id: the path segment identifier stored in the record's PCB.
-    :vartype id: bytes
-    :ivar fidelity: the fidelity of the path record.
-    :vartype fidelity: float
-    :ivar peer_links: the normalized number of peer links in the path segment.
-    :vartype peer_links: float
-    :ivar hops_length: the normalized length of the path segment.
-    :vartype hops_length: float
-    :ivar disjointness: the normalized disjointness of the path segment compared
-                        to the other paths in the PathStore.
-    :vartype disjointness: float
-    :ivar last_sent_time: the Unix time at which the path segment was last sent.
-    :vartype last_sent_time: int
-    :ivar last_seen_time: the Unix time at which the path segment was last seen.
-    :vartype last_seen_time: int
-    :ivar delay_time: the normalized time in seconds between the PCB's creation
-                      and the time it was last seen by the path server.
-    :vartype delay_time: float
-    :ivar expiration_time: the Unix time at which the path segment expires.
-    :vartype expiration_time: int
-    :ivar guaranteed_bandwidth: the path segment's guaranteed bandwidth.
-    :vartype guaranteed_bandwidth: int
-    :ivar available_bandwidth: the path segment's available bandwidth.
-    :vartype available_bandwidth: int
-    :ivar total_bandwidth: the path segment's total bandwidth.
-    :vartype total_bandwidth: int
+    :ivar bytes id: the path segment identifier stored in the record's PCB.
+    :ivar float fidelity: the fidelity of the path record.
+    :ivar float peer_links:
+        the normalized number of peer links in the path segment.
+    :ivar float hops_length: the normalized length of the path segment.
+    :ivar float disjointness:
+        the normalized disjointness of the path segment compared to the other
+        paths in the PathStore.
+    :ivar int last_sent_time:
+        the Unix time at which the path segment was last sent.
+    :ivar int last_seen_time:
+        the Unix time at which the path segment was last seen.
+    :ivar float delay_time:
+        the normalized time in seconds between the PCB's creation and the time
+        it was last seen by the path server.
+    :ivar int expiration_time: the Unix time at which the path segment expires.
+    :ivar int guaranteed_bandwidth: the path segment's guaranteed bandwidth.
+    :ivar int available_bandwidth: the path segment's available bandwidth.
+    :ivar int total_bandwidth: the path segment's total bandwidth.
     """
-
     DEFAULT_OFFSET = 3600 * 24 * 7  # 1 week
 
     def __init__(self, pcb):
         """
-        Initialize an instance of the class PathStoreRecord.
-
         :param pcb: beacon to analyze.
         :type pcb: :class:`PathSegment`
         """
@@ -264,8 +233,7 @@ class PathStoreRecord(object):
         Computes a path fidelity based on all path properties and considering
         the corresponding weights, which are stored in the path policy.
 
-        :param path_policy: path policy.
-        :type path_policy: dict
+        :param dict path_policy: path policy.
         """
         self.fidelity = 0
         now = SCIONTime.get_time()
@@ -291,39 +259,21 @@ class PathStoreRecord(object):
         self.fidelity += (path_policy.property_weights['TotalBandwidth'] *
                           self.total_bandwidth)
 
-    def __eq__(self, other):
-        """
-        Compare two path store records.
-
-        :param other: second path store record.
-        :type other: :class:`PathStoreRecord`
-        """
-        if type(other) is type(self):
-            return self.id == other.id
-        else:
+    def __eq__(self, other):  # pragma: no cover
+        if type(other) is not type(self):
             return False
+        return self.id == other.id
 
     def __str__(self):
-        """
-        Return a string with the path store record data.
-        """
-        path_info_str = "[PathStoreRecord]\n"
-        path_info_str += "ID: " + str(self.id) + "\n"
-        path_info_str += "Fidelity: " + str(self.fidelity)
-        return path_info_str
+        return "PathStoreRecord: ID: %s Fidelity: %s" % (
+            self.id, self.fidelity)
 
 
 class PathStore(object):
-    """
-    Path Store class.
-    """
-
+    """Path Store class."""
     def __init__(self, path_policy):
         """
-        Initialize an instance of the class PathStore.
-
-        :param path_policy: path policy.
-        :type path_policy: dict
+        :param dict path_policy: path policy.
         """
         self.path_policy = path_policy
         self.candidates = []
@@ -416,8 +366,8 @@ class PathStore(object):
             path_disjointness = self.disjointness[candidate.id]
             as_disjointness = 0.0
             if_disjointness = 0.0
-            for asMarking in candidate.pcb.ads:
-                as_disjointness += self.disjointness[asMarking.pcbm.ad_id]
+            for asMarking in candidate.pcb.ases:
+                as_disjointness += self.disjointness[asMarking.pcbm.isd_as[1]]
                 if_disjointness += self.disjointness[
                     asMarking.pcbm.hof.egress_if]
             candidate.disjointness = (path_disjointness + as_disjointness +
@@ -429,9 +379,7 @@ class PathStore(object):
                 candidate.disjointness /= max_disjointness
 
     def _update_all_delay_time(self):
-        """
-        Update the delay time property of all path candidates.
-        """
+        """Update the delay time property of all path candidates."""
         max_delay_time = 0
         for candidate in self.candidates:
             candidate.delay_time = (candidate.last_seen_time -
@@ -442,9 +390,7 @@ class PathStore(object):
             candidate.delay_time /= max_delay_time
 
     def _update_all_fidelity(self):
-        """
-        Update the fidelity of all path candidates.
-        """
+        """Update the fidelity of all path candidates."""
         self._update_disjointness_db()
         self._update_all_disjointness()
         self._update_all_delay_time()
@@ -463,8 +409,7 @@ class PathStore(object):
         need to be recomputed: the freshness, delay, and disjointness. The
         length and number of peering links is constant.
 
-        :param k: default best set size.
-        :type k: int
+        :param int k: default best set size.
         """
         if k is None:
             k = self.path_policy.best_set_size
@@ -481,8 +426,7 @@ class PathStore(object):
         """
         Return the latest k best paths from the history.
 
-        :param k: default best set size.
-        :type k: int
+        :param int k: default best set size.
         """
         if k is None:
             k = self.path_policy.best_set_size
@@ -493,9 +437,7 @@ class PathStore(object):
         return best_paths
 
     def _remove_expired_segments(self):
-        """
-        Remove candidates if their expiration_time is up.
-        """
+        """Remove candidates if their expiration_time is up."""
         rec_ids = []
         now = SCIONTime.get_time()
         for candidate in self.candidates:
@@ -507,8 +449,7 @@ class PathStore(object):
         """
         Remove segments in 'rec_ids' from the candidates.
 
-        :param rec_ids: list of record IDs to remove.
-        :type rec_ids: list
+        :param list rec_ids: list of record IDs to remove.
         """
         self.candidates[:] = [c for c in self.candidates if c.id not in rec_ids]
         if self.candidates:
@@ -520,8 +461,7 @@ class PathStore(object):
         """
         Return the segment for the corresponding record ID or None.
 
-        :param rec_id: ID of the segment to return.
-        :type rec_id: string
+        :param str rec_id: ID of the segment to return.
         """
         for record in self.candidates:
             if record.id == rec_id:
@@ -532,7 +472,7 @@ class PathStore(object):
         """
         Return a string with the path store data.
         """
-        path_store_str = "[PathStore]"
+        ret = ["PathStore:"]
         for candidate in self.candidates:
-            path_store_str += "\n" + str(candidate)
-        return path_store_str
+            ret.append("  %s" % candidate)
+        return "\n".join(ret)

@@ -17,7 +17,7 @@
 This is a custom DNS server, built on Paul Chakravarti's `dnslib
 <https://bitbucket.org/paulc/dnslib>`_.
 
-It dynamically provides DNS records for the AD based on service instances
+It dynamically provides DNS records for the AS based on service instances
 registering in Zookeeper.
 """
 # Stdlib
@@ -81,18 +81,17 @@ class SCIONDnsServer(SCIONElement):
         """
         self.resolver = ZoneResolver(self.lock, self.domain)
         self.udp_server = DNSServer(self.resolver, port=SCION_DNS_PORT,
-                                    address=str(self.addr.host_addr),
+                                    address=str(self.addr.host),
                                     server=SCIONDnsUdpServer,
                                     logger=SCIONDnsLogger())
         self.tcp_server = DNSServer(self.resolver, port=SCION_DNS_PORT,
-                                    address=str(self.addr.host_addr),
+                                    address=str(self.addr.host),
                                     server=SCIONDnsTcpServer,
                                     logger=SCIONDnsLogger())
         self.name_addrs = "\0".join([self.id, str(SCION_DNS_PORT),
-                                     str(self.addr.host_addr)])
-        self.zk = Zookeeper(
-            self.topology.isd_id, self.topology.ad_id,
-            DNS_SERVICE, self.name_addrs, self.topology.zookeepers)
+                                     str(self.addr.host)])
+        self.zk = Zookeeper(self.topology.isd_as, DNS_SERVICE, self.name_addrs,
+                            self.topology.zookeepers)
         self._parties = {}
         self._setup_parties()
 
@@ -102,8 +101,7 @@ class SCIONDnsServer(SCIONElement):
         """
         logging.debug("Joining parties")
         for type_ in self.SRV_TYPES:
-            prefix = "/ISD%d-AD%d/%s" % (self.topology.isd_id,
-                                         self.topology.ad_id, type_)
+            prefix = "/%s/%s" % (self.addr.isd_as, type_)
             autojoin = False
             # Join only the DNS service party, for the rest we just want to
             # setup the party so we can monitor the members.

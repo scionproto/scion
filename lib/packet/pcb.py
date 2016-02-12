@@ -33,7 +33,7 @@ from lib.packet.path import CorePath
 from lib.packet.pcb_ext.mtu import MtuPcbExt
 from lib.packet.pcb_ext.rev import RevPcbExt
 from lib.packet.pcb_ext.sibra import SibraPcbExt
-from lib.packet.scion_addr import ISD_AD
+from lib.packet.scion_addr import ISD_AS
 from lib.types import PayloadClass, PCBType
 from lib.util import Raw, hex_str, iso_timestamp
 
@@ -67,24 +67,17 @@ class MarkingBase(object, metaclass=ABCMeta):
 
 class PCBMarking(MarkingBase):
     """
-    Pack all fields for a specific PCB marking, which include: ISD and AD
+    Pack all fields for a specific PCB marking, which include: ISD and AS
     numbers, the HopOpaqueField, and the revocation token for the ingress
     interfaces included in the HOF. (Revocation token for egress interface is
-    included within ADMarking.)
+    included within ASMarking.)
     """
     NAME = "PCBMarking"
     LEN = 12 + REV_TOKEN_LEN
 
-    def __init__(self, raw=None):
-        """
-        Initialize an instance of the class PCBMarking.
-
-        :param raw:
-        :type raw:
-        """
+    def __init__(self, raw=None):  # pragma: no cover
         super().__init__()
-        self.isd_id = 0
-        self.ad_id = 0
+        self.isd_as = None
         self.hof = None
         self.ig_rev_token = bytes(REV_TOKEN_LEN)
         if raw is not None:
@@ -95,33 +88,29 @@ class PCBMarking(MarkingBase):
         Populates fields from a raw bytes block.
         """
         data = Raw(raw, self.NAME, self.LEN)
-        self.isd_id, self.ad_id = ISD_AD.from_raw(data.pop(ISD_AD.LEN))
+        self.isd_as = ISD_AS(data.pop(ISD_AS.LEN))
         self.hof = HopOpaqueField(data.pop(HopOpaqueField.LEN))
         self.ig_rev_token = data.pop(REV_TOKEN_LEN)
 
     @classmethod
-    def from_values(cls, isd_id, ad_id, hof, ig_rev_token=None):
+    def from_values(cls, isd_as, hof, ig_rev_token=None):  # pragma: no cover
         """
         Returns PCBMarking with fields populated from values.
 
-        :param ad_id: Autonomous Domain's ID.
+        :param isd_as: ISD_AS object.
         :param hof: HopOpaqueField object.
         :param ig_rev_token: Revocation token for the ingress if
                              in the HopOpaqueField.
         """
         inst = PCBMarking()
-        inst.isd_id = isd_id
-        inst.ad_id = ad_id
+        inst.isd_as = isd_as
         inst.hof = hof
         inst.ig_rev_token = ig_rev_token or bytes(REV_TOKEN_LEN)
         return inst
 
-    def get_isd_ad(self):  # pragma: no cover
-        return ISD_AD(self.isd_id, self.ad_id)
-
     def pack(self):
         packed = []
-        packed.append(ISD_AD(self.isd_id, self.ad_id).pack())
+        packed.append(self.isd_as.pack())
         packed.append(self.hof.pack())
         packed.append(self.ig_rev_token)
         raw = b"".join(packed)
@@ -131,41 +120,32 @@ class PCBMarking(MarkingBase):
     def __len__(self):  # pragma: no cover
         return self.LEN
 
-    def __eq__(self, other):
-        if type(other) is type(self):
-            return (self.isd_id == other.isd_id and
-                    self.ad_id == other.ad_id and
-                    self.hof == other.hof and
-                    self.ig_rev_token == other.ig_rev_token)
-        else:
+    def __eq__(self, other):  # pragma: no cover
+        if type(other) is not type(self):
             return False
+        return (self.isd_as == other.isd_as and
+                self.hof == other.hof and
+                self.ig_rev_token == other.ig_rev_token)
 
     def __str__(self):
         s = []
-        s.append("%s(%dB): isd,ad (%d, %d):" %
-                 (self.NAME, len(self), self.isd_id, self.ad_id))
+        s.append("%s(%dB): ISD-AS %s:" % (self.NAME, len(self), self.isd_as))
         s.append("  ig_rev_token: %s" % self.ig_rev_token)
         s.append("  %s" % self.hof)
         return "\n".join(s)
 
 
-class ADMarking(MarkingBase):
+class ASMarking(MarkingBase):
     """
-    Packs all fields for a specific Autonomous Domain.
+    Packs all fields for a specific Autonomous System.
     """
     # Length of a first row (containg cert version, and lengths of signature,
-    # extensions, and block) of ADMarking
-    NAME = "ADMarking"
+    # extensions, and block) of ASMarking
+    NAME = "ASMarking"
     METADATA_LEN = 8
     MIN_LEN = METADATA_LEN + PCBMarking.LEN + REV_TOKEN_LEN
 
-    def __init__(self, raw=None):
-        """
-        Initialize an instance of the class ADMarking.
-
-        :param raw:
-        :type raw:
-        """
+    def __init__(self, raw=None):  # pragma: no cover
         super().__init__()
         self.pcbm = None
         self.pms = []
@@ -181,7 +161,7 @@ class ADMarking(MarkingBase):
         """
         Populates fields from a raw bytes block.
         """
-        data = Raw(raw, "ADMarking", self.MIN_LEN, min_=True)
+        data = Raw(raw, self.NAME, self.MIN_LEN, min_=True)
         self.cert_ver, sig_len, exts_len, self.block_len = \
             struct.unpack("!HHHH", data.pop(self.METADATA_LEN))
         self.pcbm = PCBMarking(data.pop(PCBMarking.LEN))
@@ -193,16 +173,11 @@ class ADMarking(MarkingBase):
     def _parse_peers(self, data, sig_len, exts_len):
         """
         Populated Peer Marking fields from raw bytes
-
-        :param data:
-        :type data: :class:`lib.util.Raw`
         """
         while len(data) > sig_len + exts_len + REV_TOKEN_LEN:
             self.pms.append(PCBMarking(data.pop(PCBMarking.LEN)))
 
     def _parse_ext(self, data, sig_len):
-        """
-        """
         while len(data) > sig_len + REV_TOKEN_LEN:
             ext_type = data.pop(1)
             ext_len = data.pop(1)
@@ -217,7 +192,7 @@ class ADMarking(MarkingBase):
     def from_values(cls, pcbm=None, pms=None,
                     eg_rev_token=None, sig=b'', ext=None):
         """
-        Returns ADMarking with fields populated from values.
+        Returns ASMarking with fields populated from values.
 
         :param pcbm: PCBMarking object.
         :param pms: List of PCBMarking objects.
@@ -225,7 +200,7 @@ class ADMarking(MarkingBase):
                              in the HopOpaqueField.
         :param sig: Beacon's signature.
         """
-        inst = ADMarking()
+        inst = ASMarking()
         inst.pcbm = pcbm
         inst.pms = pms or []
         inst.block_len = (1 + len(inst.pms)) * PCBMarking.LEN
@@ -257,9 +232,9 @@ class ADMarking(MarkingBase):
             packed.append(ext.pack())
         return b"".join(packed)
 
-    def remove_signature(self):
+    def remove_signature(self):  # pragma: no cover
         """
-        Removes the signature from the AD block.
+        Removes the signature from the AS block.
         """
         self.sig = b''
 
@@ -275,20 +250,19 @@ class ADMarking(MarkingBase):
             len(self._pack_ext())
         )
 
-    def __eq__(self, other):
-        if type(other) is type(self):
-            return (self.pcbm == other.pcbm and
-                    self.pms == other.pms and
-                    self.ext == other.ext and
-                    self.eg_rev_token == other.eg_rev_token and
-                    self.sig == other.sig)
-        else:
+    def __eq__(self, other):  # pragma: no cover
+        if type(other) is not type(self):
             return False
+        return (self.pcbm == other.pcbm and
+                self.pms == other.pms and
+                self.ext == other.ext and
+                self.eg_rev_token == other.eg_rev_token and
+                self.sig == other.sig)
 
     def __str__(self):
         s = []
-        s.append("%s(%dB):" % (self.NAME, len(self)))
-        s.append("  cert_ver: %d, ext_len %d, sig_len: %d, block_len: %d" %
+        s.append("%s(%sB):" % (self.NAME, len(self)))
+        s.append("  cert_ver: %s, ext_len %s, sig_len: %s, block_len: %s" %
                  (self.cert_ver, len(self._pack_ext()),
                   len(self.sig), self.block_len))
         s.append("  %s" % self.pcbm)
@@ -305,37 +279,27 @@ class PathSegment(SCIONPayloadBase):
     """
     Packs all PathSegment fields for a specific beacon.
 
-    :cvar MIN_LEN: the minimum length of a PathSegment in bytes.
-    :type MIN_LEN: int
+    :cvar int MIN_LEN: the minimum length of a PathSegment in bytes.
 
     :ivar iof: the info opaque field of the segment.
     :type iof: :class:`InfoOpaqueField`
-    :ivar trc_ver: the TRC version number at the creating AS.
-    :type trc_ver: int
-    :ivar if_id: the interface identifier.
-    :type if_id: int
-    :ivar ads: the ADs on the path.
-    :type ads: list
+    :ivar int trc_ver: the TRC version number at the creating AS.
+    :ivar int if_id: the interface identifier.
+    :ivar list ases: the ASes on the path.
     """
     NAME = "PathSegment"
     PAYLOAD_CLASS = PayloadClass.PCB
     PAYLOAD_TYPE = PCBType.SEGMENT
     MIN_LEN = InfoOpaqueField.LEN + 4 + 2
 
-    def __init__(self, raw=None):
-        """
-        Initialize an instance of the class PathSegment.
-
-        :param raw:
-        :type raw:
-        """
+    def __init__(self, raw=None):  # pragma: no cover
         super().__init__()
         self.iof = None
         self.trc_ver = 0
         self.if_id = 0
-        self.ads = []
+        self.ases = []
         self.min_exp_time = 2 ** 8 - 1  # TODO: eliminate 8 as magic number
-        if raw is not None:
+        if raw:
             self._parse(raw)
 
     def _parse(self, raw):
@@ -350,18 +314,12 @@ class PathSegment(SCIONPayloadBase):
         return data.offset()
 
     def _parse_hops(self, data):
-        """
-        Populates AD Hops from raw bytes.
-
-        :param data:
-        :type data: :class:`lib.util.Raw`
-        """
         for _ in range(self.iof.hops):
             (_, exts_len, sig_len, block_len) = \
-                struct.unpack("!HHHH", data.get(ADMarking.METADATA_LEN))
-            ad_len = (exts_len + sig_len + block_len +
-                      ADMarking.METADATA_LEN + REV_TOKEN_LEN)
-            self.add_ad(ADMarking(data.pop(ad_len)))
+                struct.unpack("!HHHH", data.get(ASMarking.METADATA_LEN))
+            as_len = (exts_len + sig_len + block_len +
+                      ASMarking.METADATA_LEN + REV_TOKEN_LEN)
+            self.add_as(ASMarking(data.pop(as_len)))
 
     @classmethod
     def from_values(cls, iof):  # pragma: no cover
@@ -373,25 +331,25 @@ class PathSegment(SCIONPayloadBase):
         packed = []
         packed.append(self.iof.pack())
         packed.append(struct.pack("!IH", self.trc_ver, self.if_id))
-        for ad_marking in self.ads:
-            packed.append(ad_marking.pack())
+        for asm in self.ases:
+            packed.append(asm.pack())
         return b"".join(packed)
 
-    def add_ad(self, ad_marking):
+    def add_as(self, asm):
         """
-        Appends a new AD block.
+        Appends a new ASMarking block.
         """
-        if ad_marking.pcbm.hof.exp_time < self.min_exp_time:
-            self.min_exp_time = ad_marking.pcbm.hof.exp_time
-        self.ads.append(ad_marking)
-        self.iof.hops = len(self.ads)
+        if asm.pcbm.hof.exp_time < self.min_exp_time:
+            self.min_exp_time = asm.pcbm.hof.exp_time
+        self.ases.append(asm)
+        self.iof.hops = len(self.ases)
 
-    def remove_signatures(self):
+    def remove_signatures(self):  # pragma: no cover
         """
-        Removes the signature from each AD block.
+        Removes the signature from each AS block.
         """
-        for ad_marking in self.ads:
-            ad_marking.remove_signature()
+        for asm in self.ases:
+            asm.remove_signature()
 
     def get_path(self, reverse_direction=False):
         """
@@ -399,64 +357,54 @@ class PathSegment(SCIONPayloadBase):
         """
         hofs = []
         iof = copy.copy(self.iof)
+        ases = self.ases
         if reverse_direction:
-            ads = list(reversed(self.ads))
+            ases = reversed(ases)
             iof.up_flag = self.iof.up_flag ^ True
-        else:
-            ads = self.ads
-        for ad_marking in ads:
-            hofs.append(ad_marking.pcbm.hof)
+        for asm in ases:
+            hofs.append(asm.pcbm.hof)
         core_path = CorePath.from_values(iof, hofs)
         return core_path
 
-    def get_isd(self):
+    def get_isd(self):  # pragma: no cover
         """
         Returns the ISD ID.
         """
-        return self.iof.isd_id
+        return self.iof.isd
 
-    def get_last_adm(self):
+    def get_last_asm(self):  # pragma: no cover
         """
-        Returns the last ADMarking on the path.
+        Returns the last ASMarking on the path.
         """
-        if self.ads:
-            return self.ads[-1]
-        else:
-            return None
+        if self.ases:
+            return self.ases[-1]
+        return None
 
-    def get_last_pcbm(self):
+    def get_last_pcbm(self):  # pragma: no cover
         """
-        Returns the PCBMarking belonging to the last AD on the path.
+        Returns the PCBMarking belonging to the last AS on the path.
         """
-        if self.ads:
-            return self.ads[-1].pcbm
-        else:
-            return None
+        if self.ases:
+            return self.ases[-1].pcbm
+        return None
 
-    def get_first_pcbm(self):
+    def get_first_pcbm(self):  # pragma: no cover
         """
-        Returns the PCBMarking belonging to the first AD on the path.
+        Returns the PCBMarking belonging to the first AS on the path.
         """
-        if self.ads:
-            return self.ads[0].pcbm
-        else:
-            return None
+        if self.ases:
+            return self.ases[0].pcbm
+        return None
 
-    def get_first_isd_ad(self):  # pragma: no cover
-        return self.get_first_pcbm().get_isd_ad()
-
-    def get_last_isd_ad(self):  # pragma: no cover
-        return self.get_last_pcbm().get_isd_ad()
-
-    def compare_hops(self, other):
+    def compare_hops(self, other):  # pragma: no cover
         """
-        Compares the (AD-level) hops of two half-paths. Returns true if all hops
+        Compares the (AS-level) hops of two half-paths. Returns true if all hops
         are identical and false otherwise.
         """
         if not isinstance(other, PathSegment):
             return False
-        self_hops = [ad.pcbm.ad_id for ad in self.ads]
-        other_hops = [ad.pcbm.ad_id for ad in other.ads]
+        self_hops = [asm.pcbm.isd_as for asm in self.ases]
+        other_hops = [asm.pcbm.isd_as for asm in other.ases]
         return self_hops == other_hops
 
     def get_hops_hash(self, hex=False):
@@ -465,37 +413,37 @@ class PathSegment(SCIONPayloadBase):
         the path segment.
         """
         h = SHA256.new()
-        for ad in self.ads:
-            h.update(ad.pcbm.ig_rev_token)
-            h.update(ad.eg_rev_token)
-            for pm in ad.pms:
+        for asm in self.ases:
+            h.update(asm.pcbm.ig_rev_token)
+            h.update(asm.eg_rev_token)
+            for pm in asm.pms:
                 h.update(pm.ig_rev_token)
         if hex:
             return h.hexdigest()
         return h.digest()
 
-    def get_n_peer_links(self):
+    def get_n_peer_links(self):  # pragma: no cover
         """
         Return the total number of peer links in the PathSegment.
         """
         n_peer_links = 0
-        for ad in self.ads:
-            n_peer_links += len(ad.pms)
+        for asm in self.ases:
+            n_peer_links += len(asm.pms)
         return n_peer_links
 
-    def get_n_hops(self):
+    def get_n_hops(self):  # pragma: no cover
         """
         Return the number of hops in the PathSegment.
         """
-        return len(self.ads)
+        return len(self.ases)
 
-    def get_timestamp(self):
+    def get_timestamp(self):  # pragma: no cover
         """
         Returns the creation timestamp of this PathSegment.
         """
         return self.iof.timestamp
 
-    def set_timestamp(self, timestamp):
+    def set_timestamp(self, timestamp):  # pragma: no cover
         """
         Updates the timestamp in the IOF.
         """
@@ -513,10 +461,10 @@ class PathSegment(SCIONPayloadBase):
         Returns all interface revocation tokens included in the path segment.
         """
         tokens = []
-        for ad in self.ads:
-            tokens.append(ad.pcbm.ig_rev_token)
-            tokens.append(ad.eg_rev_token)
-            for pm in ad.pms:
+        for asm in self.ases:
+            tokens.append(asm.pcbm.ig_rev_token)
+            tokens.append(asm.eg_rev_token)
+            for pm in asm.pms:
                 tokens.append(pm.ig_rev_token)
         return tokens
 
@@ -545,8 +493,8 @@ class PathSegment(SCIONPayloadBase):
 
     def __len__(self):  # pragma: no cover
         l = self.MIN_LEN
-        for ad in self.ads:
-            l += len(ad)
+        for asm in self.ases:
+            l += len(asm)
         return l
 
     def short_desc(self):  # pragma: no cover
@@ -560,26 +508,25 @@ class PathSegment(SCIONPayloadBase):
             iso_timestamp(self.get_timestamp()),
         ))
         hops = []
-        for adm in self.ads:
-            hops.append("(%d, %d)" % (adm.pcbm.isd_id, adm.pcbm.ad_id))
-        desc.append("->".join(hops))
+        for asm in self.ases:
+            hops.append(str(asm.pcbm.isd_as))
+        desc.append(">".join(hops))
         return "".join(desc)
 
-    def __eq__(self, other):
-        if type(other) is type(self):
-            return (self.iof == other.iof and
-                    self.trc_ver == other.trc_ver and
-                    self.ads == other.ads)
-        else:
+    def __eq__(self, other):  # pragma: no cover
+        if type(other) is not type(self):
             return False
+        return (self.iof == other.iof and
+                self.trc_ver == other.trc_ver and
+                self.ases == other.ases)
 
     def __str__(self):
         s = []
         s.append("%s(%dB):" % (self.NAME, len(self)))
         s.append("  %s" % self.iof)
         s.append("  trc_ver: %d, if_id: %d" % (self.trc_ver, self.if_id))
-        for ad_marking in self.ads:
-            s.append("  %s" % ad_marking)
+        for asm in self.ases:
+            s.append("  %s" % asm)
         return "\n".join(s)
 
     def __hash__(self):

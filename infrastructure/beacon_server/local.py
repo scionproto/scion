@@ -33,7 +33,7 @@ from lib.util import SCIONTime
 
 class LocalBeaconServer(BeaconServer):
     """
-    PathConstructionBeacon Server in a non-core AD.
+    PathConstructionBeacon Server in a non-core AS.
 
     Receives, processes, and propagates beacons received by other beacon
     servers.
@@ -47,47 +47,40 @@ class LocalBeaconServer(BeaconServer):
         """
         super().__init__(server_id, conf_dir, is_sim=is_sim)
         # Sanity check that we should indeed be a local beacon server.
-        assert not self.topology.is_core_ad, "This shouldn't be a local BS!"
+        assert not self.topology.is_core_as, "This shouldn't be a core BS!"
         self.beacons = PathStore(self.path_policy)
         self.up_segments = PathStore(self.path_policy)
         self.down_segments = PathStore(self.path_policy)
         self.cert_chain_requests = {}
         self.cert_chains = {}
-        self.cert_chain = self.trust_store.get_cert(self.topology.isd_id,
-                                                    self.topology.ad_id)
+        self.cert_chain = self.trust_store.get_cert(self.addr.isd_as)
         assert self.cert_chain
 
-    def _check_certs_trc(self, isd_id, ad_id, cert_ver, trc_ver):
+    def _check_certs_trc(self, isd_as, cert_ver, trc_ver):
         """
         Return True or False whether the necessary Certificate and TRC files are
         found.
 
-        :param isd_id: ISD identifier.
-        :type isd_id: int
-        :param ad_id: AD identifier.
-        :type ad_id: int
-        :param cert_ver: certificate chain file version.
-        :type cert_ver: int
-        :param trc_ver: TRC file version.
-        :type trc_ver: int
-
+        :param ISD_AS isd_as: ISD-AS identifier.
+        :param int cert_ver: certificate chain file version.
+        :param int trc_ver: TRC file version.
         :returns: True if the files exist, False otherwise.
         :rtype: bool
         """
-        trc = self._get_trc(isd_id, ad_id, trc_ver)
+        trc = self._get_trc(isd_as, trc_ver)
         if trc:
-            cert_chain = self.trust_store.get_cert(isd_id, ad_id, cert_ver)
-            if cert_chain or self.cert_chain.certs[0].issuer in trc.core_ads:
+            cert_chain = self.trust_store.get_cert(isd_as, cert_ver)
+            if cert_chain or self.cert_chain.certs[0].issuer in trc.core_ases:
                 return True
             else:
                 # Requesting certificate chain file from cert server
-                cert_chain_tuple = (isd_id, ad_id, cert_ver)
+                cert_chain_tuple = isd_as, cert_ver
                 now = int(SCIONTime.get_time())
                 if (cert_chain_tuple not in self.cert_chain_requests or
                     (now - self.cert_chain_requests[cert_chain_tuple] >
                         BeaconServer.REQUESTS_TIMEOUT)):
                     new_cert_chain_req = CertChainRequest.from_values(
-                        isd_id, ad_id, cert_ver)
+                        isd_as, cert_ver)
                     logging.info("Requesting %s certificate chain",
                                  new_cert_chain_req.short_desc())
                     try:
@@ -95,8 +88,8 @@ class LocalBeaconServer(BeaconServer):
                     except SCIONServiceLookupError as e:
                         logging.warning("Unable to send cert query: %s", e)
                         return False
-                    req_pkt = self._build_packet(dst_addr,
-                                                 payload=new_cert_chain_req)
+                    req_pkt = self._build_packet(
+                        dst_addr, payload=new_cert_chain_req)
                     self.send(req_pkt, dst_addr)
                     self.cert_chain_requests[cert_chain_tuple] = now
                     return False
@@ -124,9 +117,9 @@ class LocalBeaconServer(BeaconServer):
         """
         core_path = pcb.get_path(reverse_direction=True)
         records = PathRecordsReg.from_values({PST.DOWN: [pcb]})
-        pkt = self._build_packet(
-            PT.PATH_MGMT, dst_isd=pcb.get_isd(),
-            dst_ad=pcb.get_first_pcbm().ad_id, path=core_path, payload=records)
+        dst_ia = pcb.get_first_pcbm().isd_as
+        pkt = self._build_packet(PT.PATH_MGMT, dst_ia=dst_ia, path=core_path,
+                                 payload=records)
         fwd_if = core_path.get_fwd_if()
         if fwd_if not in self.ifid2addr:
             raise SCIONKeyError(
@@ -167,7 +160,7 @@ class LocalBeaconServer(BeaconServer):
         rep = pkt.get_payload()
         logging.info("Certificate chain reply received for %s",
                      rep.short_desc())
-        rep_key = rep.cert_chain.get_leaf_isd_ad_ver()
+        rep_key = rep.cert_chain.get_leaf_isd_as_ver()
         self.trust_store.add_cert(rep.cert_chain)
         if rep_key in self.cert_chain_requests:
             del self.cert_chain_requests[rep_key]

@@ -40,6 +40,9 @@ class MtuPcbExt(BeaconExtension):  # pragma: no cover
         self.mtu = None
         super().__init__(raw)
 
+    def _parse(self, raw):
+        self.mtu = struct.unpack("!H", raw)[0]
+
     @classmethod
     def from_values(cls, mtu):
         """
@@ -49,9 +52,6 @@ class MtuPcbExt(BeaconExtension):  # pragma: no cover
         inst.mtu = mtu
         return inst
 
-    def _parse(self, raw):
-        self.mtu = struct.unpack("!H", raw)[0]
-
     def pack(self):
         return struct.pack("!H", self.mtu)
 
@@ -59,4 +59,4 @@ class MtuPcbExt(BeaconExtension):  # pragma: no cover
         return self.LEN
 
     def __str__(self):
-        return "MTU Ext(%dB): MTU is %dB" % (len(self), self.mtu)
+        return "MTU Ext(%sB): MTU is %sB" % (len(self), self.mtu)

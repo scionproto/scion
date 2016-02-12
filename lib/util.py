@@ -57,37 +57,34 @@ _SIG_MAP = {
 }
 
 
-def get_cert_chain_file_path(conf_dir, isd_id, ad_id,
-                             version):  # pragma: no cover
+def get_cert_chain_file_path(conf_dir, isd_as, version):  # pragma: no cover
     """
     Return the certificate chain file path for a given ISD.
     """
     return os.path.join(conf_dir, CERT_DIR,
-                        'ISD%s-AD%s-V%s.crt' % (isd_id, ad_id, version))
+                        'ISD%s-AS%s-V%s.crt' % (isd_as[0], isd_as[1], version))
 
 
-def get_trc_file_path(conf_dir, isd_id, version):  # pragma: no cover
+def get_trc_file_path(conf_dir, isd, version):  # pragma: no cover
     """
     Return the TRC file path for a given ISD.
     """
-    return os.path.join(conf_dir, CERT_DIR, 'ISD%s-V%s.trc' % (isd_id, version))
+    return os.path.join(conf_dir, CERT_DIR, 'ISD%s-V%s.trc' % (isd, version))
 
 
 def get_sig_key_file_path(conf_dir):  # pragma: no cover
     """
     Return the signing key file path.
     """
-    return os.path.join(conf_dir, KEYS_DIR, "ad-sig.key")
+    return os.path.join(conf_dir, KEYS_DIR, "as-sig.key")
 
 
 def read_file(file_path):
     """
     Read and return contents of a file.
 
-    :param file_path: the path to the file.
-    :type file_path: str
-
-    :returns: the file content.
+    :param str file_path: the path to the file.
+    :returns: the file's contents.
     :rtype: str
     :raises:
         lib.errors.SCIONIOError: error opening/reading from file.
@@ -105,10 +102,8 @@ def write_file(file_path, text):
     Write some text into a temporary file, creating its directory as needed, and
     then atomically move to target location.
 
-    :param file_path: the path to the file.
-    :type file_path: str
-    :param text: the file content.
-    :type text: str
+    :param str file_path: the path to the file.
+    :param str text: the file content.
     :raises:
         lib.errors.SCIONIOError: IO error occurred
     """
@@ -150,9 +145,7 @@ def load_json_file(file_path):
     """
     Read and parse a JSON config file.
 
-    :param file_path: the path to the file.
-    :type file_path: str
-
+    :param str file_path: the path to the file.
     :returns: JSON data
     :rtype: dict
     :raises:
@@ -174,9 +167,7 @@ def load_yaml_file(file_path):
     """
     Read and parse a YAML config file.
 
-    :param file_path: the path to the file.
-    :type file_path: str
-
+    :param str file_path: the path to the file.
     :returns: YAML data
     :rtype: dict
     :raises:
@@ -220,12 +211,6 @@ def calc_padding(length, block_size):
 
 
 def trace(id_):
-    """
-
-
-    :param id_:
-    :type id_:
-    """
     path = os.path.join(TRACE_DIR, "%s.trace.html" % id_)
     trace_start(path)
 
@@ -237,9 +222,8 @@ def timed(limit):
     string parameter which is printed as part of the warning. If `timed_desc`
     isn't passed in, then the wrapped function's path is printed instead.
 
-    :param limit: If the wrapped function takes more than `limit`
-                        seconds, log a warning.
-    :type limit: float
+    :param float limit:
+        If the wrapped function takes more than `limit` seconds, log a warning.
     """
     def wrap(f):
         @wraps(f)
@@ -262,13 +246,10 @@ def sleep_interval(start, interval, desc):
 
     If the interval is already over, log a warning with `desc` at the start.
 
-    :param start: Time (in seconds since the Epoch) the current interval
-                        started.
-    :type start: float
-    :param interval: Length (in seconds) of an interval.
-    :type interval: float
-    :param desc: Description of the operation.
-    :type desc: string
+    :param float start:
+        Time (in seconds since the Epoch) the current interval started.
+    :param float interval: Length (in seconds) of an interval.
+    :param str desc: Description of the operation.
     """
     now = SCIONTime.get_time()
     delay = start + interval - now
@@ -280,20 +261,13 @@ def sleep_interval(start, interval, desc):
 
 
 def handle_signals():
-    """
-    Setup basic signal handler for the most common signals
-    """
+    """Setup basic signal handler for the most common signals."""
     for sig in _SIG_MAP.keys():
         signal.signal(sig, _signal_handler)
 
 
 def _signal_handler(signum, _):
-    """
-    Basic signal handler function
-
-    :param signum:
-    :type signum:
-    """
+    """Basic signal handler function."""
     text = "Received %s" % _SIG_MAP[signum]
     if signum == signal.SIGTERM:
         logging.info(text)
@@ -314,25 +288,19 @@ def iso_timestamp(ts):
 
 
 def hex_str(raw):
-    """
-    Format a byte string as hex characters.
-    """
+    """Format a byte string as hex characters."""
     return hexlify(raw).decode("ascii")
 
 
 class SCIONTime(object):
-    """
-    A class to return current time
-    """
+    """A class to return current time."""
     # Function which would return time upon calling it
     #  Can be set using set_time_method
     _custom_time = None
 
     @classmethod
     def get_time(cls):
-        """
-        Get current time
-        """
+        """Get current time."""
         if cls._custom_time:
             return cls._custom_time()
         else:
@@ -340,16 +308,12 @@ class SCIONTime(object):
 
     @classmethod
     def set_time_method(cls, method=None):
-        """
-        Set the method used to get time
-        """
+        """Set the method used to get time."""
         cls._custom_time = method
 
 
 class Raw(object):
-    """
-    A class to wrap raw bytes objects
-    """
+    """A class to wrap raw bytes objects."""
     def __init__(self, data, desc="", len_=None, min_=False):
         self._data = data
         self._desc = desc

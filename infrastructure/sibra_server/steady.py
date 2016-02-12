@@ -68,11 +68,11 @@ class SteadyPath(object):
         self.signing_key = signing_key
         self.seg = seg
         self.bw = bwsnap.to_classes().ceil()
-        self.id = SibraExtSteady.mk_path_id(self.addr.get_isd_ad())
+        self.id = SibraExtSteady.mk_path_id(self.addr.isd_as)
         self.idx = 0
         self.blocks = []
         first = self.seg.get_first_pcbm()
-        self.remote = first.get_isd_ad()
+        self.remote = first.isd_as
         self._lock = threading.RLock()
         self.state = STATE_SETUP
 
@@ -190,7 +190,7 @@ class SteadyPath(object):
         """
         Create headers for a SCION packet
         """
-        dest = SCIONAddr.from_values(self.remote[0], self.remote[1], PT.SB_PKT)
+        dest = SCIONAddr.from_values(self.remote, PT.SB_PKT)
         cmn_hdr, addr_hdr = build_base_hdrs(self.addr, dest)
         payload = SIBRAPayload()
         udp_hdr = SCIONUDPHeader.from_values(
@@ -224,12 +224,12 @@ class SteadyPath(object):
                       self.remote)
         self.sendq.put(pkt)
 
-    def _create_reg_pkt(self, dest=None, path=None):
-        if not dest:
-            dest = self.addr.get_isd_ad()
+    def _create_reg_pkt(self, dest_ia=None, path=None):
+        if not dest_ia:
+            dest_ia = self.addr.isd_as
         if not path:
             path = EmptyPath()
-        dest = SCIONAddr.from_values(dest.isd, dest.ad, PT.PATH_MGMT)
+        dest = SCIONAddr.from_values(dest_ia, PT.PATH_MGMT)
         cmn_hdr, addr_hdr = build_base_hdrs(self.addr, dest)
         latest = self.blocks[-1]
         seg = SibraSegment.from_values(

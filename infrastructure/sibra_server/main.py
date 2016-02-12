@@ -46,7 +46,7 @@ from lib.zookeeper import Zookeeper
 class SibraServerBase(SCIONElement):
     """
     Base class for the SIBRA service, which is responsible for managing steady
-    paths on all interfaces in the local AD.
+    paths on all interfaces in the local AS.
     """
     SERVICE_TYPE = SIBRA_SERVICE
 
@@ -58,7 +58,7 @@ class SibraServerBase(SCIONElement):
         super().__init__(server_id, conf_dir)
         # Map of interface IDs to Link objects
         self.links = {}
-        # List of links for all parent ADs
+        # List of links for all parent ASes
         self.parents = []
         self.sendq = Queue()
         sig_key_file = get_sig_key_file_path(self.conf_dir)
@@ -72,10 +72,9 @@ class SibraServerBase(SCIONElement):
         }
         self._find_links()
         name_addrs = "\0".join([self.id, str(SCION_UDP_PORT),
-                                str(self.addr.host_addr)])
-        self.zk = Zookeeper(
-            self.topology.isd_id, self.topology.ad_id, SIBRA_SERVICE,
-            name_addrs, self.topology.zookeepers)
+                                str(self.addr.host)])
+        self.zk = Zookeeper(self.addr.isd_as, SIBRA_SERVICE, name_addrs,
+                            self.topology.zookeepers)
         self.zk.retry("Joining party", self.zk.party_setup)
 
     def _find_links(self):
@@ -122,23 +121,23 @@ class SibraServerBase(SCIONElement):
                 logging.error("Unable to determine first hop for packet:\n%s",
                               spkt)
                 continue
-            spkt.addrs.src_addr = self.addr.host_addr
+            spkt.addrs.src.host = self.addr.host
             logging.debug("Sending packet via %s:%s\n%s", dst, port, spkt)
             self.send(spkt, dst, port)
 
     def _find_dest(self, spkt):
-        dst = spkt.addrs.get_dst_addr()
-        if (dst.get_isd_ad() == self.addr.get_isd_ad() and
-                dst.host_addr.TYPE == AddrType.SVC):
+        dst = spkt.addrs.dst
+        if (dst.isd_as == self.addr.isd_as and
+                dst.host.TYPE == AddrType.SVC):
             # Destined for a local service
             try:
-                spkt.addrs.dst_addr = self._svc_lookup(dst)
+                spkt.addrs.dst.host = self._svc_lookup(dst)
             except SCIONServiceLookupError:
                 return None, None
         return self.get_first_hop(spkt)
 
     def _svc_lookup(self, addr):
-        if addr.host_addr == PT.PATH_MGMT:
+        if addr.host == PT.PATH_MGMT:
             return self.dns_query_topo(PATH_SERVICE)[0]
 
     def handle_path_reg(self, pkt):

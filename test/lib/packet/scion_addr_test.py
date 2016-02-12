@@ -23,175 +23,93 @@ import nose
 import nose.tools as ntools
 
 # SCION
-from lib.packet.host_addr import HostAddrBase
-from lib.packet.scion_addr import SCIONAddr, ISD_AD
-from test.testcommon import assert_these_call_lists, create_mock
+from lib.errors import SCIONParseError
+from lib.packet.scion_addr import SCIONAddr, ISD_AS
+from test.testcommon import assert_these_calls, create_mock
 
 
-class TestISDADFromRaw(object):
+class TestISDASParseBytes(object):
     """
-    Unit tests for lib.packet.scion_addr.ISD_AD.from_raw
+    Unit tests for lib.packet.scion_addr.ISD_AS._parse_bytes
     """
     @patch("lib.packet.scion_addr.Raw", autospec=True)
     def test(self, raw):
+        inst = ISD_AS()
         data = create_mock(["pop"])
         data.pop.return_value = bytes.fromhex("11122222")
         raw.return_value = data
         # Call
-        inst = ISD_AD.from_raw("data")
+        inst._parse_bytes("data")
         # Tests
-        raw.assert_called_once_with("data", ISD_AD.NAME, ISD_AD.LEN)
-        ntools.assert_is_instance(inst, ISD_AD)
-        ntools.eq_(inst.isd, 0x111)
-        ntools.eq_(inst.ad, 0x22222)
+        raw.assert_called_once_with("data", ISD_AS.NAME, ISD_AS.LEN)
+        ntools.eq_(inst._isd, 0x111)
+        ntools.eq_(inst._as, 0x22222)
 
 
-class TestISDADPack(object):
+class TestISDASParseStr(object):
     """
-    Unit tests for lib.packet.scion_addr.ISD_AD.pack
+    Unit tests for lib.packet.scion_addr.ISD_AS._parse_str
+    """
+    def test_success(self):
+        inst = ISD_AS()
+        # Call
+        inst._parse_str("1-99")
+        # Tests
+        ntools.eq_(inst._isd, 1)
+        ntools.eq_(inst._as, 99)
+
+    def _check_excp(self, isd_as):
+        inst = ISD_AS()
+        # Call
+        ntools.assert_raises(SCIONParseError, inst._parse_str, isd_as)
+
+    def test_excp(self):
+        for isd_as in ("0-nope", "argh-99"):
+            yield self._check_excp, isd_as
+
+
+class TestISDASPack(object):
+    """
+    Unit tests for lib.packet.scion_addr.ISD_AS.pack
     """
     def test(self):
-        inst = ISD_AD(0, 0)
-        inst.int = create_mock()
-        inst.int.return_value = 0x12345678
+        inst = ISD_AS()
+        inst._isd = 0x111
+        inst._as = 0x22222
         # Call
-        ntools.eq_(inst.pack(), bytes.fromhex("12345678"))
-
-
-class TestISDADInt(object):
-    """
-    Unit tests for lib.packet.scion_addr.ISD_AD.int
-    """
-    def test(self):
-        inst = ISD_AD(0x111, 0x22222)
-        # Call
-        ntools.eq_(inst.int(), 0x11122222)
-
-
-class TestSCIONAddrInit(object):
-    """
-    Unit tests for lib.packet.scion_addr.SCIONAddr.__init__
-    """
-    @patch("lib.packet.scion_addr.SCIONAddr.parse")
-    def test_basic(self, parse):
-        # Call
-        addr = SCIONAddr()
-        # Tests
-        ntools.eq_(addr.isd_id, None)
-        ntools.eq_(addr.ad_id, None)
-        ntools.eq_(addr.host_addr, None)
-        ntools.eq_(addr.addr_len, 0)
-        ntools.assert_false(parse.called)
-
-    @patch("lib.packet.scion_addr.SCIONAddr.parse")
-    def test_raw(self, parse):
-        SCIONAddr(("atype", "addr"))
-        parse.assert_called_once_with("atype", "addr")
-
-
-class TestSCIONAddrFromValues(object):
-    """
-    Unit tests for lib.packet.scion_addr.SCIONAddr.from_values
-    """
-    @patch("lib.packet.scion_addr.SCIONAddr.__init__", autospec=True,
-           return_value=None)
-    def test(self, init):
-        # Setup
-        isd_id = 1
-        ad_id = 10
-        host_addr = create_mock(["__len__"], class_=HostAddrBase)
-        host_addr.__len__.return_value = 12
-        # Call
-        addr = SCIONAddr.from_values(isd_id, ad_id, host_addr)
-        # Tests
-        ntools.assert_is_instance(addr, SCIONAddr)
-        ntools.eq_(addr.isd_id, isd_id)
-        ntools.eq_(addr.ad_id, ad_id)
-        ntools.eq_(addr.host_addr, host_addr)
-        ntools.eq_(addr.addr_len, ISD_AD.LEN + 12)
+        ntools.eq_(inst.pack(), bytes.fromhex("11122222"))
 
 
 class TestSCIONAddrParse(object):
     """
-    Unit tests for lib.packet.scion_addr.SCIONAddr.parse
+    Unit tests for lib.packet.scion_addr.SCIONAddr._parse
     """
 
-    @patch("lib.packet.scion_addr.ISD_AD.from_raw",
-           new_callable=create_mock)
+    @patch("lib.packet.scion_addr.ISD_AS", autospec=True)
     @patch("lib.packet.scion_addr.Raw", autospec=True)
     @patch("lib.packet.scion_addr.haddr_get_type", autospec=True)
-    @patch("lib.packet.scion_addr.SCIONAddr.__init__", autospec=True,
-           return_value=None)
-    def test(self, init, get_type, raw, isdad_raw):
+    def test(self, get_type, raw, isd_as):
         # Setup
         inst = SCIONAddr()
         haddr_type = create_mock(["LEN"])
         haddr_type.LEN = 42
         get_type.return_value = haddr_type
-        data = create_mock(["__len__", "pop"])
-        data.pop.side_effect = ("pop isd_ad", "raw addr")
+        data = create_mock(["pop"])
+        data.pop.side_effect = ("isd-as", "raw addr")
         raw.return_value = data
-        isdad_raw.return_value = (1, 10)
+        isd_as.LEN = 4
         # Call
-        inst.parse("atype", "data")
+        inst._parse("atype", "data")
         # Tests
         get_type.assert_called_once_with("atype")
-        ntools.eq_(inst.addr_len, 42 + ISD_AD.LEN)
-        raw.assert_called_once_with("data", "SCIONAddr", 42 + ISD_AD.LEN,
-                                    min_=True)
-        data.pop.assert_has_calls((call(ISD_AD.LEN), call(42)))
-        isdad_raw.assert_called_once_with("pop isd_ad")
-        ntools.eq_(inst.isd_id, 1)
-        ntools.eq_(inst.ad_id, 10)
+        raw.assert_called_once_with(
+            "data", "SCIONAddr", 42 + 4, min_=True)
+        assert_these_calls(data.pop, [call(4), call(42)])
+        isd_as.assert_called_once_with("isd-as")
+        ntools.eq_(inst.isd_as, isd_as.return_value)
         haddr_type.assert_called_once_with("raw addr")
-        ntools.eq_(inst.host_addr, haddr_type.return_value)
+        ntools.eq_(inst.host, haddr_type.return_value)
 
-
-class TestSCIONAddrPack(object):
-    """
-    Unit tests for lib.packet.scion_addr.SCIONAddr.pack
-    """
-    @patch("lib.packet.scion_addr.ISD_AD", autospec=True)
-    @patch("lib.packet.scion_addr.SCIONAddr.__init__", autospec=True,
-           return_value=None)
-    def test(self, init, isd_ad):
-        inst = SCIONAddr()
-        inst.isd_id = 1
-        inst.ad_id = 10
-        inst.host_addr = create_mock(["pack"])
-        inst.host_addr.pack.return_value = "host_addr.packed"
-        isd_ad.return_value.pack.return_value = "isd_ad.packed"
-        # Call
-        ntools.eq_(inst.pack(), "isd_ad.packedhost_addr.packed")
-        # Tests
-        assert_these_call_lists(isd_ad, [call(1, 10).pack()])
-
-
-class TestSCIONAddrLen(object):
-    """
-    Unit tests for lib.packet.scion_addr.SCIONAddr.__len__
-    """
-    @patch("lib.packet.scion_addr.SCIONAddr.__init__", autospec=True,
-           return_value=None)
-    def test(self, init):
-        inst = SCIONAddr()
-        inst.addr_len = 43
-        # Call
-        ntools.eq_(len(inst), 43)
-
-
-class TestSCIONAddrGetISDAD(object):
-    """
-    Unit tests for lib.packet.scion_addr.SCIONAddr.get_isd_ad
-    """
-    @patch("lib.packet.scion_addr.ISD_AD", autospec=True)
-    def test_basic(self, isd_ad_):
-        isd_ad_.return_value = "data"
-        addr = SCIONAddr()
-        addr.isd_id = "isd_id"
-        addr.ad_id = "ad_id"
-        ntools.eq_(addr.get_isd_ad(), "data")
-        isd_ad_.assert_called_once_with("isd_id", "ad_id")
 
 if __name__ == "__main__":
     nose.run(defaultTest=__name__)

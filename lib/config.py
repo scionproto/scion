@@ -24,28 +24,19 @@ from lib.util import load_yaml_file
 
 class Config(object):
     """
-    The Config class parses the configuration file of an AD and stores such
+    The Config class parses the configuration file of an AS and stores such
     information for further use.
 
-    :ivar master_ad_key: AD certificate servers priv key.
-    :type master_ad_key: bytes
-    :ivar propagation_time: the interval at which PCBs are propagated.
-    :type propagation_time: int
-    :ivar registration_time: the interval at which paths are registered.
-    :type registration_time: int
-    :ivar registers_paths: whether or not the AD registers paths.
-    :type registers_paths: int
-    :ivar cert_ver: initial version of the certificate chain.
-    :ivar cert_ver: int
-    :ivar mtu: value for MTU within AS.
-    :ivar cert_ver: int
+    :ivar bytes master_as_key: AS certificate servers priv key.
+    :ivar int propagation_time: the interval at which PCBs are propagated.
+    :ivar int registration_time: the interval at which paths are registered.
+    :ivar int registers_paths: whether or not the AS registers paths.
+    :ivar int cert_ver: initial version of the certificate chain.
+    :ivar int mtu: value for MTU within AS.
     """
 
     def __init__(self):
-        """
-        Initialize an instance of the class Config.
-        """
-        self.master_ad_key = 0
+        self.master_as_key = 0
         self.propagation_time = 0
         self.registration_time = 0
         self.registers_paths = 0
@@ -57,9 +48,7 @@ class Config(object):
         """
         Create a Config instance from the configuration file.
 
-        :param config_file: path to the configuration file
-        :type config_file: str
-
+        :param str config_file: path to the configuration file
         :returns: the newly created Config instance
         :rtype: :class:`Config`
         """
@@ -70,9 +59,7 @@ class Config(object):
         """
         Create a Config instance from the dictionary.
 
-        :param config_dict: dictionary representation of configuration
-        :type config_dict: dict
-
+        :param dict config_dict: dictionary representation of configuration
         :returns: the newly created Config instance
         :rtype: :class:`Config`
         """
@@ -84,10 +71,9 @@ class Config(object):
         """
         Parse a configuration file and populate the instance's attributes.
 
-        :param config: the name of the configuration file.
-        :type config: dict
+        :param dict config: the name of the configuration file.
         """
-        self.master_ad_key = base64.b64decode(config['MasterADKey'])
+        self.master_as_key = base64.b64decode(config['MasterASKey'])
         self.propagation_time = config['PropagateTime']
         self.registration_time = config['RegisterTime']
         self.registers_paths = config['RegisterPath']

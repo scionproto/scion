@@ -36,9 +36,6 @@ class InterfaceState(object):
     REVOKED = 3
 
     def __init__(self):
-        """
-        Initialize an instance of the class InterfaceState.
-        """
         self.active_since = 0
         self.last_updated = 0
         self._state = self.INACTIVE
@@ -58,7 +55,6 @@ class InterfaceState(object):
                 self.active_since = curr_time
                 self._state = self.ACTIVE
             self.last_updated = curr_time
-
             return prev_state
 
     def reset(self):

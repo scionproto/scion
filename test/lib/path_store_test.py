@@ -44,7 +44,7 @@ class TestPathPolicyInit(object):
         ntools.eq_(pth_pol.history_limit, 0)
         ntools.eq_(pth_pol.update_after_number, 0)
         ntools.eq_(pth_pol.update_after_time, 0)
-        ntools.eq_(pth_pol.unwanted_ads, [])
+        ntools.eq_(pth_pol.unwanted_ases, [])
         ntools.eq_(pth_pol.property_ranges, {})
         ntools.eq_(pth_pol.property_weights, {})
 
@@ -55,7 +55,7 @@ class TestPathPolicyGetPathPolicyDict(object):
     """
     def test_basic(self):
         keys = ["best_set_size", "candidates_set_size", "history_limit",
-                "update_after_number", "update_after_time", "unwanted_ads",
+                "update_after_number", "update_after_time", "unwanted_ases",
                 "property_ranges", "property_weights"]
         pth_pol = PathPolicy()
         target = {}
@@ -72,8 +72,8 @@ class TestPathPolicyCheckFilters(object):
     """
     def _setup(self, unwanted=None, reasons=None):
         inst = PathPolicy()
-        inst._check_unwanted_ads = create_mock()
-        inst._check_unwanted_ads.return_value = unwanted
+        inst._check_unwanted_ases = create_mock()
+        inst._check_unwanted_ases.return_value = unwanted
         inst._check_property_ranges = create_mock()
         inst._check_property_ranges.return_value = reasons
         pcb = create_mock(["short_desc"], class_=PathSegment)
@@ -84,8 +84,8 @@ class TestPathPolicyCheckFilters(object):
         # Call
         ntools.assert_true(inst.check_filters(pcb))
 
-    def test_unwanted_ads(self):
-        inst, pcb = self._setup("unwanted AD")
+    def test_unwanted_ases(self):
+        inst, pcb = self._setup("unwanted AS")
         # Call
         ntools.assert_false(inst.check_filters(pcb))
 
@@ -94,31 +94,31 @@ class TestPathPolicyCheckFilters(object):
         ntools.assert_false(inst.check_filters(pcb))
 
 
-class TestPathPolicyCheckUnwantedAds(object):
+class TestPathPolicyCheckUnwantedASes(object):
     """
-    Unit tests for lib.path_store.PathPolicy._check_unwanted_ads
+    Unit tests for lib.path_store.PathPolicy._check_unwanted_ases
     """
     def _setup(self):
         inst = PathPolicy()
-        pcb = create_mock(['ads'])
-        pcb.ads = []
+        pcb = create_mock(['ases'])
+        pcb.ases = []
         for i in range(5):
-            ad = create_mock(['pcbm'])
-            ad.pcbm = create_mock(['get_isd_ad'])
-            ad.pcbm.get_isd_ad.return_value = "%d-%d" % (i, i)
-            pcb.ads.append(ad)
+            asm = create_mock(['pcbm'])
+            asm.pcbm = create_mock(['isd_as'])
+            asm.pcbm.isd_as = "%d-%d" % (i, i)
+            pcb.ases.append(asm)
         return inst, pcb
 
     def test_basic(self):
         inst, pcb = self._setup()
         unwanted = "2-2"
-        inst.unwanted_ads = [unwanted]
+        inst.unwanted_ases = [unwanted]
         # Call
-        ntools.eq_(inst._check_unwanted_ads(pcb), unwanted)
+        ntools.eq_(inst._check_unwanted_ases(pcb), unwanted)
 
     def test_not_present(self):
         inst, pcb = self._setup()
-        ntools.assert_is_none(inst._check_unwanted_ads(pcb))
+        ntools.assert_is_none(inst._check_unwanted_ases(pcb))
 
 
 class TestPathPolicyCheckPropertyRanges(object):
@@ -202,7 +202,7 @@ class TestPathPolicyParseDict(object):
         dict_['HistoryLimit'] = "history_limit"
         dict_['UpdateAfterNumber'] = "update_after_number"
         dict_['UpdateAfterTime'] = "update_after_time"
-        dict_['UnwantedADs'] = "1-11,2-12"
+        dict_['UnwantedASes'] = "1-11,2-12"
         dict_['PropertyRanges'] = {'key1': "1-11", 'key2': "2-12"}
         dict_['PropertyWeights'] = "property_weights"
         pth_pol2 = PathPolicy()
@@ -299,40 +299,6 @@ class TestPathStoreRecordUpdateFidelity(object):
         time_.return_value = 1
         pth_str_rec.update_fidelity(path_policy)
         ntools.assert_almost_equal(pth_str_rec.fidelity, 1012345.6789)
-
-
-class TestPathStoreRecordEQ(object):
-    """
-    Unit tests for lib.path_store.PathStoreRecord.__eq__
-    """
-    def setUp(self):
-        self.pcb = MagicMock(spec_set=['__class__', 'get_expiration_time',
-                                       'get_hops_hash', 'get_n_hops',
-                                       'get_n_peer_links', 'get_timestamp'])
-        self.pcb.__class__ = PathSegment
-
-    def tearDown(self):
-        del self.pcb
-
-    def test_eq(self):
-        pth_str_rec1 = PathStoreRecord(self.pcb)
-        pth_str_rec2 = PathStoreRecord(self.pcb)
-        id_ = "id"
-        pth_str_rec1.id = id_
-        pth_str_rec2.id = id_
-        ntools.eq_(pth_str_rec1, pth_str_rec2)
-
-    def test_neq(self):
-        pth_str_rec1 = PathStoreRecord(self.pcb)
-        pth_str_rec2 = PathStoreRecord(self.pcb)
-        pth_str_rec1.id = "id1"
-        pth_str_rec2.id = "id2"
-        ntools.assert_not_equals(pth_str_rec1, pth_str_rec2)
-
-    def test_type_neq(self):
-        pth_str_rec1 = PathStoreRecord(self.pcb)
-        pth_str_rec2 = b'test'
-        ntools.assert_not_equals(pth_str_rec1, pth_str_rec2)
 
 
 class TestPathStoreInit(object):
@@ -477,7 +443,7 @@ class TestPathStoreUpdateAllDisjointness(object):
     """
     Unit tests for lib.path_store._update_all_disjointness
     """
-    def test_basic(self):
+    def test(self):
         path_policy = MagicMock(spec_set=['history_limit'])
         path_policy.history_limit = 3
         pth_str = PathStore(path_policy)
@@ -489,18 +455,18 @@ class TestPathStoreUpdateAllDisjointness(object):
             record = create_mock(['pcb', 'disjointness', 'id'])
             record.id = i * (2 * pathLength + 1)
             pth_str.disjointness[record.id] = 1.0
-            record.pcb = create_mock(['ads'])
-            record.pcb.ads = []
+            record.pcb = create_mock(['ases'])
+            record.pcb.ases = []
             for j in range(pathLength):
-                pcbm = create_mock(['ad_id', 'hof'])
-                pcbm.ad_id = record.id + j + 1
-                pth_str.disjointness[pcbm.ad_id] = 1.0
+                pcbm = create_mock(['isd_as', 'hof'])
+                pcbm.isd_as = (9, record.id + j + 1)
+                pth_str.disjointness[pcbm.isd_as[1]] = 1.0
                 pcbm.hof = MagicMock(spec_set=['egress_if'])
-                pcbm.hof.egress_if = pcbm.ad_id + pathLength
+                pcbm.hof.egress_if = pcbm.isd_as[1] + pathLength
                 pth_str.disjointness[pcbm.hof.egress_if] = 1.0
                 as_marking = create_mock(['pcbm'])
                 as_marking.pcbm = pcbm
-                record.pcb.ads.append(as_marking)
+                record.pcb.ases.append(as_marking)
             pth_str.candidates.append(record)
         pth_str._update_disjointness_db = create_mock()
         pth_str._update_all_disjointness()

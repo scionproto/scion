@@ -21,7 +21,7 @@ import struct
 # SCION
 from lib.crypto.asymcrypto import sign
 from lib.defines import SIBRA_STEADY_ID_LEN
-from lib.packet.scion_addr import ISD_AD
+from lib.packet.scion_addr import ISD_AS
 from lib.sibra.ext.info import ResvInfoSteady
 from lib.sibra.ext.sof import SibraOpaqueField
 from lib.util import Raw, SCIONTime, hex_str, iso_timestamp
@@ -34,15 +34,15 @@ class SibraSegment(object):
     NAME = "SibraSegment"
     TS_LEN = 4
     SIG_LEN = 64
-    MIN_LEN = (SIBRA_STEADY_ID_LEN + TS_LEN + ResvInfoSteady.LEN + ISD_AD.LEN +
+    MIN_LEN = (SIBRA_STEADY_ID_LEN + TS_LEN + ResvInfoSteady.LEN + ISD_AS.LEN +
                1 + SIG_LEN)
 
     def __init__(self, raw=None):
         self.id = None
         self.timestamp = None
         self.info = None
-        self.src = None
-        self.dst = None
+        self.src_ia = None
+        self.dst_ia = None
         self._sofs = []
         self.sig = bytes(self.SIG_LEN)
         if raw is not None:
@@ -54,7 +54,7 @@ class SibraSegment(object):
         self.timestamp = struct.unpack("!I", data.pop(self.TS_LEN))[0]
         self.info = ResvInfoSteady(data.pop(ResvInfoSteady.LEN))
         self._set_src()
-        self.dst = ISD_AD.from_raw(data.pop(ISD_AD.LEN))
+        self.dst_ia = ISD_AS(data.pop(ISD_AS.LEN))
         num_hops = data.pop(1)
         for _ in range(num_hops):
             sof = SibraOpaqueField(data.pop(SibraOpaqueField.LEN))
@@ -62,16 +62,16 @@ class SibraSegment(object):
         self.sig = data.pop(self.SIG_LEN)
 
     @classmethod
-    def from_values(cls, id_, info, dst, sofs, ts=None):
+    def from_values(cls, id_, info, dst_ia, sofs, ts=None):
         inst = cls()
         assert len(id_) == SIBRA_STEADY_ID_LEN
-        assert isinstance(dst, ISD_AD)
+        assert isinstance(dst_ia, ISD_AS)
         assert len(sofs) > 0
         inst.id = id_
         inst.timestamp = ts or int(SCIONTime.get_time())
         inst.info = info
         inst._set_src()
-        inst.dst = dst
+        inst.dst_ia = dst_ia
         inst._sofs = sofs
         return inst
 
@@ -80,7 +80,7 @@ class SibraSegment(object):
         packed.append(self.id)
         packed.append(struct.pack("!I", self.timestamp))
         packed.append(self.info.pack())
-        packed.append(self.dst.pack())
+        packed.append(self.dst_ia.pack())
         packed.append(struct.pack("!B", len(self._sofs)))
         for sof in self._sofs:
             packed.append(sof.pack())
@@ -106,7 +106,7 @@ class SibraSegment(object):
         return self.info.exp_ts()
 
     def _set_src(self):
-        self.src = ISD_AD.from_raw(self.id[:ISD_AD.LEN])
+        self.src_ia = ISD_AS(self.id[:ISD_AS.LEN])
 
     def __len__(self):
         return self.MIN_LEN + len(self._sofs) * SibraOpaqueField.LEN
@@ -118,7 +118,7 @@ class SibraSegment(object):
 
     def short_desc(self):
         return ("%s(%dB): %s->%s hops:%s id:%s ts:%s sig:%s..." % (
-            self.NAME, len(self), self.src, self.dst, len(self._sofs),
+            self.NAME, len(self), self.src_ia, self.dst_ia, len(self._sofs),
             hex_str(self.id), iso_timestamp(self.timestamp),
             hex_str(self.sig)[:8],
         ))

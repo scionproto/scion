@@ -22,9 +22,9 @@ import struct
 from lib.crypto.certificate import CertificateChain, TRC
 from lib.errors import SCIONParseError
 from lib.packet.packet_base import SCIONPayloadBase
-from lib.packet.scion_addr import ISD_AD
+from lib.packet.scion_addr import ISD_AS
 from lib.types import CertMgmtType, PayloadClass
-from lib.util import Raw, hex_str
+from lib.util import Raw
 
 
 class CertMgmtBase(SCIONPayloadBase):
@@ -32,52 +32,51 @@ class CertMgmtBase(SCIONPayloadBase):
     PAYLOAD_TYPE = None
 
 
-class CertChainRequest(CertMgmtBase):
-    NAME = "CertChainRequest"
-    PAYLOAD_TYPE = CertMgmtType.CERT_CHAIN_REQ
-    LEN = ISD_AD.LEN + 4
+class CertMgmtRequest(CertMgmtBase):
+    LEN = ISD_AS.LEN + 4
 
     def __init__(self, raw=None):  # pragma: no cover
         """
-        :param raw: packed packet.
-        :type raw: bytes
+        :param bytes raw: packed packet.
         """
         super().__init__()
-        self.isd_id = None
-        self.ad_id = None
+        self.isd_as = None
         self.version = None
         if raw:
             self._parse(raw)
 
     def _parse(self, raw):
         data = Raw(raw, self.NAME, self.LEN)
-        self.isd_id, self.ad_id = ISD_AD.from_raw(data.pop(ISD_AD.LEN))
+        self.isd_as = ISD_AS(data.pop(ISD_AS.LEN))
         self.version = struct.unpack("!I", data.pop(4))[0]
 
     @classmethod
-    def from_values(cls, isd_id, ad_id, version):
+    def from_values(cls, isd_as, version):  # pragma: no cover
         inst = cls()
-        inst.isd_id = isd_id
-        inst.ad_id = ad_id
+        inst.isd_as = isd_as
         inst.version = version
         return inst
 
     def pack(self):
         packed = []
-        packed.append(ISD_AD(self.isd_id, self.ad_id).pack())
+        packed.append(self.isd_as.pack())
         packed.append(struct.pack("!I", self.version))
         return b"".join(packed)
 
     def short_desc(self):  # pragma: no cover
-        return "%s-%sv%s" % (self.isd_id, self.ad_id, self.version)
+        return "%sv%s" % (self.isd_as, self.version)
 
     def __len__(self):  # pragma: no cover
         return self.LEN
 
+
+class CertChainRequest(CertMgmtRequest):
+    NAME = "CertChainRequest"
+    PAYLOAD_TYPE = CertMgmtType.CERT_CHAIN_REQ
+
     def __str__(self):
-        return (
-            "[%s(%dB): Dest ISD/AD: %d-%d Version:%d]" % (
-                self.NAME, len(self), self.isd_id, self.ad_id, self.version))
+        return ("%s(%dB): Dest ISD-AS: %s Version: %d]" % (
+            self.NAME, len(self), self.isd_as, self.version))
 
 
 class CertChainReply(CertMgmtBase):
@@ -92,10 +91,7 @@ class CertChainReply(CertMgmtBase):
 
     def __init__(self, raw=None):  # pragma: no cover
         """
-        Initialize an instance of the class CertChainReply.
-
-        :param raw: packed packet.
-        :type raw: bytes
+        :param bytes raw: packed packet.
         """
         super().__init__()
         self.cert_chain = CertificateChain()
@@ -103,24 +99,16 @@ class CertChainReply(CertMgmtBase):
             self._parse(raw)
 
     def _parse(self, raw):  # pragma: no cover
-        """
-        Parse a string of bytes and populate the instance variables.
-
-        :param raw: packed packet.
-        :type raw: bytes
-        """
         data = Raw(raw, self.NAME)
         self.cert_chain = CertificateChain(data.pop().decode('utf-8'))
 
     @classmethod
-    def from_values(cls, cert_chain):
+    def from_values(cls, cert_chain):  # pragma: no cover
         """
         Return a Certificate Chain Reply with the values specified.
 
         :param cert_chain: requested certificate chain.
         :type cert_chain: :class:`CertificateChain`
-        :returns: the newly created CertChainReply instance.
-        :rtype: :class:`CertChainReply`
         """
         inst = cls()
         inst.cert_chain = cert_chain
@@ -130,62 +118,24 @@ class CertChainReply(CertMgmtBase):
         return self.cert_chain.pack()
 
     def short_desc(self):  # pragma: no cover
-        return "%s-%sv%s" % self.cert_chain.get_leaf_isd_ad_ver()
+        return "%sv%s" % self.cert_chain.get_leaf_isd_as_ver()
 
     def __len__(self):  # pragma: no cover
         return len(self.cert_chain.pack())
 
     def __str__(self):
-        isd, ad, ver = self.cert_chain.get_leaf_isd_ad_ver()
-        return ("[%s(%dB): Isd:%d Ad:%d Version:%d, "
-                "Cert_chain len:%d]" %
-                (self.NAME, len(self), isd, ad, ver,
-                 len(self.cert_chain.pack())))
+        isd_as, ver = self.cert_chain.get_leaf_isd_as_ver()
+        return "%s(%dB): ISD-AS: %s Version: %s" % (
+            self.NAME, len(self), isd_as, ver)
 
 
-class TRCRequest(CertMgmtBase):
+class TRCRequest(CertMgmtRequest):
     NAME = "TRCRequest"
     PAYLOAD_TYPE = CertMgmtType.TRC_REQ
-    LEN = ISD_AD.LEN + 4
-
-    def __init__(self, raw=None):  # pragma: no cover
-        """
-        :param raw: packed packet.
-        :type raw: bytes
-        """
-        super().__init__()
-        self.isd_id = None
-        self.ad_id = None
-        self.version = None
-        if raw:
-            self._parse(raw)
-
-    def _parse(self, raw):
-        data = Raw(raw, self.NAME, self.LEN)
-        self.isd_id, self.ad_id = ISD_AD.from_raw(data.pop(ISD_AD.LEN))
-        self.version = struct.unpack("!I", data.pop(4))[0]
-
-    @classmethod
-    def from_values(cls, isd_id, ad_id, version):
-        inst = cls()
-        inst.isd_id = isd_id
-        inst.ad_id = ad_id
-        inst.version = version
-        return inst
-
-    def pack(self):
-        packed = []
-        packed.append(ISD_AD(self.isd_id, self.ad_id).pack())
-        packed.append(struct.pack("!I", self.version))
-        return b"".join(packed)
-
-    def __len__(self):  # pragma: no cover
-        return self.LEN
 
     def __str__(self):
-        return (
-            "[%s(%dB):Dest ISD: %d Version:%d]" % (self.NAME, len(self),
-                                                   self.isd_id, self.version))
+        return ("%s(%dB): Dest ISD: %s Version: %d]" % (
+            self.NAME, len(self), self.isd_as[0], self.version))
 
 
 class TRCReply(CertMgmtBase):
@@ -200,10 +150,7 @@ class TRCReply(CertMgmtBase):
 
     def __init__(self, raw=None):  # pragma: no cover
         """
-        Initialize an instance of the class TRCReply.
-
-        :param raw: packed packet.
-        :type raw: bytes
+        :param bytes raw: packed packet.
         """
         super().__init__()
         self.trc = TRC()
@@ -211,24 +158,16 @@ class TRCReply(CertMgmtBase):
             self._parse(raw)
 
     def _parse(self, raw):  # pragma: no cover
-        """
-        Parse a string of bytes and populate the instance variables.
-
-        :param raw: packed packet.
-        :type raw: bytes
-        """
         data = Raw(raw, self.NAME)
         self.trc = TRC(data.pop().decode('utf-8'))
 
     @classmethod
-    def from_values(cls, trc):
+    def from_values(cls, trc):  # pragma: no cover
         """
         Return a TRC Reply with the values specified.
 
         :param trc: requested TRC.
         :type trc: :class:`TRC`
-        :returns: the newly created TRCReply instance.
-        :rtype: :class:`TRCReply`
         """
         inst = cls()
         inst.trc = trc
@@ -242,8 +181,8 @@ class TRCReply(CertMgmtBase):
 
     def __str__(self):
         isd, ver = self.trc.get_isd_ver()
-        return "[%s(%dB): isd_id:%s version:%s trc:%s]" % (
-            self.NAME, len(self), isd, ver, hex_str(self.trc.to_json()))
+        return "%s(%dB): ISD: %s version: %s TRC: %s" % (
+            self.NAME, len(self), isd, ver, self.trc)
 
 
 _TYPE_MAP = {

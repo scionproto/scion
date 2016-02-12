@@ -30,7 +30,7 @@ from lib.log import log_exception
 from lib.packet.host_addr import haddr_parse
 from lib.packet.path import EmptyPath, PathCombinator
 from lib.packet.path_mgmt import PathSegmentInfo
-from lib.packet.scion_addr import ISD_AD
+from lib.packet.scion_addr import ISD_AS
 from lib.path_db import PathSegmentDB
 from lib.requests import RequestHandler
 from lib.socket import UDPSocket
@@ -74,13 +74,11 @@ class SCIONDaemon(SCIONElement):
         self.core_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL,
                                            max_res_no=self.MAX_SEG_NO)
         self.requests = RequestHandler.start(
-            "SCIONDaemon Requests", self._check_segments, self._fetch_segments,
+            "SCIONDaemon Requests", self.path_resolution, self._fetch_segments,
             self._reply_segments, ttl=self.TIMEOUT, key_map=self._req_key_map,
         )
         self._api_socket = None
         self.daemon_thread = None
-        self._in_core = self.addr.get_isd_ad() in self._core_ads[
-            self.addr.isd_id]
 
         self.PLD_CLASS_MAP = {
             PayloadClass.PATH: {
@@ -103,7 +101,7 @@ class SCIONDaemon(SCIONElement):
 
         Example of usage:
         sd = SCIONDaemon.start(conf_dir, addr)
-        paths = sd.get_paths(isd_id, ad_id)
+        paths = sd.get_paths(isd_as)
         """
         sd = cls(conf_dir, addr, api_addr, run_local_api, port, is_sim)
         sd.daemon_thread = threading.Thread(
@@ -123,7 +121,7 @@ class SCIONDaemon(SCIONElement):
     def handle_request(self, packet, sender, from_local_socket=True):
         # PSz: local_socket may be misleading, especially that we have
         # api_socket which is local (in the localhost sense). What do you think
-        # about changing local_socket to ad_socket
+        # about changing local_socket to as_socket
         """
         Main routine to handle incoming SCION packets.
         """
@@ -140,17 +138,17 @@ class SCIONDaemon(SCIONElement):
         path_reply = pkt.get_payload()
         for seg_type, pcbs in path_reply.pcbs.items():
             for pcb in pcbs:
-                first = pcb.get_first_pcbm()
-                last = pcb.get_last_pcbm()
+                first_ia = pcb.get_first_pcbm().isd_as
+                last_ia = pcb.get_last_pcbm().isd_as
                 if seg_type == PST.UP:
-                    self._handle_up_seg(pcb, first, last)
-                    added.add(first.get_isd_ad())
+                    self._handle_up_seg(pcb, first_ia, last_ia)
+                    added.add(first_ia)
                 elif seg_type == PST.DOWN:
-                    self._handle_down_seg(pcb, first, last)
-                    added.add(last.get_isd_ad())
+                    self._handle_down_seg(pcb, first_ia, last_ia)
+                    added.add(last_ia)
                 elif seg_type == PST.CORE:
-                    self._handle_core_seg(pcb, first, last)
-                    added.add(first.get_isd_ad())
+                    self._handle_core_seg(pcb, first_ia, last_ia)
+                    added.add(first_ia)
                 else:
                     logging.warning(
                         "Incorrect path in Path Record. Type: %s PCB: %s",
@@ -158,23 +156,20 @@ class SCIONDaemon(SCIONElement):
         for key in added:
             self.requests.put((key, None))
 
-    def _handle_up_seg(self, pcb, first, last):
-        if self.addr.get_isd_ad() != (last.isd_id, last.ad_id):
+    def _handle_up_seg(self, pcb, first_ia, last_ia):
+        if self.addr.isd_as != last_ia:
             return
-        self.up_segments.update(pcb, first.isd_id, first.ad_id,
-                                last.isd_id, last.ad_id)
+        self.up_segments.update(pcb, first_ia, last_ia)
         logging.debug("Up path added: %s", pcb.short_desc())
 
-    def _handle_down_seg(self, pcb, first, last):
-        if self.addr.get_isd_ad() == (last.isd_id, last.ad_id):
+    def _handle_down_seg(self, pcb, first_ia, last_ia):
+        if self.addr.isd_as == last_ia:
             return
-        self.down_segments.update(pcb, first.isd_id, first.ad_id,
-                                  last.isd_id, last.ad_id)
+        self.down_segments.update(pcb, first_ia, last_ia)
         logging.debug("Down path added: %s", pcb.short_desc())
 
-    def _handle_core_seg(self, pcb, first, last):
-        self.core_segments.update(pcb, first.isd_id, first.ad_id,
-                                  last.isd_id, last.ad_id)
+    def _handle_core_seg(self, pcb, first_ia, last_ia):
+        self.core_segments.update(pcb, first_ia, last_ia)
         logging.debug("Core path added: %s", pcb.short_desc())
 
     def api_handle_request(self, packet, sender):
@@ -195,7 +190,7 @@ class SCIONDaemon(SCIONElement):
     def _api_handle_path_request(self, packet, sender):
         """
         Path request:
-          | \x00 (1B) | ISD (12bits) |  AD (20bits)  |
+          | \x00 (1B) | ISD (12bits) |  AS (20bits)  |
         Reply:
           |p1_len(1B)|p1((p1_len*8)B)|fh_IP(4B)|fh_port(2B)|mtu(2B)|
            p1_if_count(1B)|p1_if_1(5B)|...|p1_if_n(5B)|
@@ -204,8 +199,8 @@ class SCIONDaemon(SCIONElement):
 
         FIXME(kormat): make IP-version independant
         """
-        isd, ad = ISD_AD.from_raw(packet[1:ISD_AD.LEN + 1])
-        paths = self.get_paths(isd, ad)
+        dst_ia = ISD_AS(packet[1:ISD_AS.LEN + 1])
+        paths = self.get_paths(dst_ia)
         reply = []
         for path in paths:
             raw_path = path.pack()
@@ -220,9 +215,8 @@ class SCIONDaemon(SCIONElement):
                          struct.pack("H", path.mtu) +
                          struct.pack("B", len(path.interfaces)))
             for interface in path.interfaces:
-                (isd_ad, link) = interface
-                isd_ad_bits = (isd_ad.isd << 20) + (isd_ad.ad & 0xFFFFF)
-                reply.append(struct.pack("I", isd_ad_bits))
+                isd_as, link = interface
+                reply.append(isd_as.pack())
                 reply.append(struct.pack("H", link))
         self._api_sock.send(b"".join(reply), sender)
 
@@ -269,102 +263,92 @@ class SCIONDaemon(SCIONElement):
 
         return db.delete_all(to_remove)
 
-    def get_paths(self, dst_isd, dst_ad, requester=None):
+    def get_paths(self, dst_ia, requester=None):
         """
         Return a list of paths.
         The requester argument holds the address of requester. Used in simulator
         to send path reply.
 
-        :param int dst_isd: ISD identifier.
-        :param int dst_ad: AD identifier.
+        :param ISD_AS dst_ia: ISD-AS of the destination.
         :param requester: Path requester address(used in simulator).
         """
-        key = dst_isd, dst_ad
-        logging.debug("Paths requested for %s", key)
-        if self.addr.isd_id == dst_isd:
-            if self.addr.ad_id == dst_ad or (self._in_core and not dst_ad):
-                return [EmptyPath()]
+        logging.debug("Paths requested for %s", dst_ia)
+        if self.addr.isd_as == dst_ia or (
+                self.addr.isd_as.any_as() == dst_ia and
+                self.topology.is_core_as):
+            # Either the destination is the local AS, or the destination is any
+            # core AS in this ISD, and the local AS is in the core
+            return [EmptyPath()]
         deadline = SCIONTime.get_time() + self.TIMEOUT
         e = threading.Event()
-        self.requests.put((key, e))
+        self.requests.put((dst_ia, e))
         if not self._wait_for_events([e], deadline):
-            logging.error("Query timed out for %s", key)
+            logging.error("Query timed out for %s", dst_ia)
             return []
-        return self.path_resolution(dst_isd, dst_ad)
+        return self.path_resolution(dst_ia)
 
-    def path_resolution(self, dst_isd, dst_ad):
-        # dst_ad = 0 means any core AS in the specified ISD.
-        dst_is_core = (
-            (dst_isd, dst_ad) in self._core_ads[dst_isd] or not dst_ad)
-        if self._in_core:
-            return self._resolve_core(dst_isd, dst_ad, dst_is_core)
+    def path_resolution(self, dst_ia):
+        # dst as == 0 means any core AS in the specified ISD.
+        dst_is_core = self._is_core_as(dst_ia) or dst_ia[1] == 0
+        if self.topology.is_core_as:
+            return self._resolve_core(dst_ia, dst_is_core)
         elif dst_is_core:  # I'm non core AS, but dst is core.
-            return self._resolve_not_core_core(dst_isd, dst_ad)
+            return self._resolve_not_core_core(dst_ia)
         else:  # Me and dst are non-core.
-            return self._resolve_not_core_not_core(dst_isd, dst_ad)
+            return self._resolve_not_core_not_core(dst_ia)
 
-    def _resolve_core(self, dst_isd, dst_ad, dst_is_core):
+    def _resolve_core(self, dst_ia, dst_is_core):
         """
         I'm within core AS.
         """
         res = set()
-        my_isd, my_ad = self.addr.get_isd_ad()
         if dst_is_core:
-            my_isd, my_ad = self.addr.get_isd_ad()
-            params = {"last_isd": my_isd, "last_ad": my_ad,
-                      "first_isd": dst_isd}
-            if dst_ad:
-                # dst_ad=0 means any core AS in the specified ISD, so only
-                # filter on the remote AS if it isn't 0
-                params["first_ad"] = dst_ad
+            params = {"last_ia": self.addr.isd_as}
+            params.update(dst_ia.params())
             for cseg in self.core_segments(**params):
                 res.add((None, cseg, None))
             return PathCombinator.tuples_to_full_paths(res)
 
         # Dst is non core AS.
         # First check whether there is a direct path.
-        for dseg in self.down_segments(first_isd=my_isd, first_ad=my_ad,
-                                       last_isd=dst_isd, last_ad=dst_ad):
+        for dseg in self.down_segments(
+                first_ia=self.addr.isd_as, last_ia=dst_ia):
             res.add((None, None, dseg))
         # Check core-down combination.
-        for dseg in self.down_segments(last_isd=dst_isd, last_ad=dst_ad):
-            isd, ad = dseg.get_first_isd_ad()
-            if (my_isd, my_ad) == (isd, ad):
+        for dseg in self.down_segments(last_ia=dst_ia):
+            dseg_ia = dseg.get_first_pcbm().isd_as
+            if self.addr.isd_as == dseg_ia:
                 pass
-            for cseg in self.core_segments(first_isd=isd, first_ad=ad,
-                                           last_isd=my_isd, last_ad=my_ad):
+            for cseg in self.core_segments(
+                    first_ia=dseg_ia, last_ia=self.addr.isd_as):
                 res.add((None, cseg, dseg))
         return PathCombinator.tuples_to_full_paths(res)
 
-    def _resolve_not_core_core(self, dst_isd, dst_ad):
+    def _resolve_not_core_core(self, dst_ia):
         """
         I'm within non-core AS, but dst is within core AS.
         """
         res = set()
-        params = {"first_isd": dst_isd}
-        if dst_ad:
-            # dst_ad=0 means any core AS in the specified ISD, so only filter
-            # on AS when dst_ad is not 0.
-            params["first_ad"] = dst_ad
-        if dst_isd == self.addr.isd_id:
+        params = dst_ia.params()
+        if dst_ia[0] == self.addr.isd_as[0]:
             # Dst in local ISD. First check whether DST is a (super)-parent.
             for useg in self.up_segments(**params):
                 res.add((useg, None, None))
         # Check whether dst is known core AS.
         for cseg in self.core_segments(**params):
             # Check do we have an up-seg that is connected to core_seg.
-            isd, ad = cseg.get_last_isd_ad()
-            for useg in self.up_segments(first_isd=isd, first_ad=ad):
+            cseg_ia = cseg.get_last_pcbm().isd_as
+            for useg in self.up_segments(first_ia=cseg_ia):
                 res.add((useg, cseg, None))
         return PathCombinator.tuples_to_full_paths(res)
 
-    def _resolve_not_core_not_core(self, dst_isd, dst_ad):
+    def _resolve_not_core_not_core(self, dst_ia):
         """
         I'm within non-core AS and dst is within non-core AS.
         """
         up_segs = self.up_segments()
-        down_segs = self.down_segments(last_isd=dst_isd, last_ad=dst_ad)
-        core_segs, _ = self._calc_core_segs(dst_isd, up_segs, down_segs)
+        down_segs = self.down_segments(last_ia=dst_ia)
+        core_segs, _ = self._calc_core_segs(dst_ia[0], up_segs, down_segs)
         full_paths = PathCombinator.build_shortcut_paths(up_segs, down_segs)
         for up_seg in up_segs:
             for down_seg in down_segs:
@@ -383,27 +367,18 @@ class SCIONDaemon(SCIONElement):
                 count += 1
         return count
 
-    def _check_segments(self, key):
-        """
-        Called by RequestHandler to check if a given path request can be
-        fulfilled.
-        """
-        dst_isd, dst_ad = key
-        return self.path_resolution(dst_isd, dst_ad)
-
     def _fetch_segments(self, key, _):
         """
         Called by RequestHandler to fetch the requested path.
         """
-        dst_isd, dst_ad = key
-        my_isd, my_ad = self.addr.get_isd_ad()
+        dst_ia = key
         try:
             ps = self.dns_query_topo(PATH_SERVICE)[0]
         except SCIONServiceLookupError:
             log_exception("Error querying path service:")
             return
-        info = PathSegmentInfo.from_values(PST.GENERIC, my_isd,
-                                           my_ad, dst_isd, dst_ad)
+        info = PathSegmentInfo.from_values(
+            PST.GENERIC, self.addr.isd_as, dst_ia)
         logging.debug("Sending path request: %s", info.short_desc())
         path_request = self._build_packet(ps, payload=info)
         self.send(path_request, ps)
@@ -419,47 +394,47 @@ class SCIONDaemon(SCIONElement):
         Called by RequestHandler to know which requests can be answered by
         `key`.
         """
-        dst_isd, dst_ad = key
+        dst_ia = key
         ret = []
-        for rk in req_keys:
-            if (rk == key) or (rk == (key[0], 0)):
-                # Covers the case where a request was for ISD,0 (i.e. any path
+        for req_ia in req_keys:
+            if (req_ia == dst_ia) or (req_ia == dst_ia.any_as()):
+                # Covers the case where a request was for ISD-0 (i.e. any path
                 # to a core AS in the specified ISD)
-                ret.append(rk)
+                ret.append(req_ia)
         return ret
 
     def _calc_core_segs(self, dst_isd, up_segs, down_segs):
         """
         Calculate all possible core segments joining the provided up and down
         segments. Returns a list of all known segments, and a seperate list of
-        the missing AD pairs.
+        the missing AS pairs.
         """
-        src_core_ads = set()
-        dst_core_ads = set()
+        src_core_ases = set()
+        dst_core_ases = set()
         for seg in up_segs:
-            src_core_ads.add(seg.get_first_pcbm().ad_id)
+            src_core_ases.add(seg.get_first_pcbm().isd_as[1])
         for seg in down_segs:
-            dst_core_ads.add(seg.get_first_pcbm().ad_id)
-        # Generate all possible AD pairs
-        ad_pairs = list(product(src_core_ads, dst_core_ads))
-        return self._find_core_segs(self.addr.isd_id, dst_isd, ad_pairs)
+            dst_core_ases.add(seg.get_first_pcbm().isd_as[1])
+        # Generate all possible AS pairs
+        as_pairs = list(product(src_core_ases, dst_core_ases))
+        return self._find_core_segs(self.addr.isd_as[0], dst_isd, as_pairs)
 
-    def _find_core_segs(self, src_isd, dst_isd, ad_pairs):
+    def _find_core_segs(self, src_isd, dst_isd, as_pairs):
         """
-        Given a set of AD pairs across 2 ISDs, return the core segments
-        connecting those pairs, and a list of AD pairs for which a core segment
+        Given a set of AS pairs across 2 ISDs, return the core segments
+        connecting those pairs, and a list of AS pairs for which a core segment
         wasn't found.
         """
         core_segs = []
         missing = []
-        for src_core_ad, dst_core_ad in ad_pairs:
-            if (src_isd, src_core_ad) == (dst_isd, dst_core_ad):
+        for src_core_as, dst_core_as in as_pairs:
+            src_ia = ISD_AS.from_values(src_isd, src_core_as)
+            dst_ia = ISD_AS.from_values(dst_isd, dst_core_as)
+            if src_ia == dst_ia:
                 continue
-            seg = self.core_segments(
-                last_isd=src_isd, last_ad=src_core_ad,
-                first_isd=dst_isd, first_ad=dst_core_ad)
+            seg = self.core_segments(first_ia=dst_ia, last_ia=src_ia)
             if seg:
                 core_segs.extend(seg)
             else:
-                missing.append((src_core_ad, dst_core_ad))
+                missing.append((src_core_as, dst_core_as))
         return core_segs, missing

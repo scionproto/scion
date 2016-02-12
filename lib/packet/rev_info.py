@@ -35,16 +35,9 @@ class RevocationInfo(PathMgmtPayloadBase):
     LEN = 32
 
     def __init__(self, raw=None):  # pragma: no cover
-        """
-        Initialize an instance of the class RevocationInfo.
-
-        :param raw:
-        :type raw:
-        """
         super().__init__()
         self.rev_token = b""
-
-        if raw is not None:
+        if raw:
             self._parse(raw)
 
     def _parse(self, raw):
@@ -56,8 +49,7 @@ class RevocationInfo(PathMgmtPayloadBase):
         """
         Returns a RevocationInfo object with the specified values.
 
-        :param rev_token: revocation token of interface
-        :type rev_token: bytes
+        :param bytes rev_token: revocation token of interface
         """
         inst = cls()
         inst.rev_token = rev_token
@@ -70,4 +62,4 @@ class RevocationInfo(PathMgmtPayloadBase):
         return self.LEN
 
     def __str__(self):
-        return "[%s(%dB): %s]" % (self.NAME, len(self), self.rev_token)
+        return "%s(%sB): %s" % (self.NAME, len(self), self.rev_token)

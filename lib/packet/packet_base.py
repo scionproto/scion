@@ -27,17 +27,8 @@ from lib.util import hex_str
 class HeaderBase(object, metaclass=ABCMeta):  # pragma: no cover
     """
     Base class for headers.
-
-    Each header class must implement parse, pack and __str__.
-
-    :ivar parsed: whether or not the header has been parsed.
-    :vartype parsed: bool
     """
-
     def __init__(self, raw=None):
-        """
-        Initialize an instance of the class HeaderBase.
-        """
         if raw is not None:
             self._parse(raw)
 
@@ -72,17 +63,7 @@ class L4HeaderBase(HeaderBase):
 class PacketBase(object, metaclass=ABCMeta):  # pragma: no cover
     """
     Base class for packets.
-
-    :ivar parsed: whether or not the packet has been parsed.
-    :vartype parsed: bool
-    :ivar raw: the raw bytes of the packet contents.
-    :vartype raw: bytes
-    :ivar hdr: the packet header.
-    :vartype hdr: :class:`HeaderBase`
-    :ivar payload: the packet payload
-    :vartype payload: :class:`PacketBase` or bytes
     """
-
     def __init__(self, raw=None):
         """
         Initialize an instance of the class PacketBase.
@@ -104,15 +85,9 @@ class PacketBase(object, metaclass=ABCMeta):  # pragma: no cover
         raise NotImplementedError
 
     def get_payload(self):
-        """
-        Returns the packet payload.
-        """
         return self._payload
 
     def set_payload(self, new_payload):
-        """
-        Set the packet payload.  Expects bytes or a Packet subclass.
-        """
         assert isinstance(new_payload, PayloadBase)
         self._payload = new_payload
 
@@ -132,9 +107,6 @@ class PayloadBase(object, metaclass=ABCMeta):  # pragma: no cover
     METADATA_LEN = 0
 
     def __init__(self, raw=None):
-        """
-        Initialize an instance of the class PayloadBase.
-        """
         if raw is not None:
             self._parse(raw)
 

@@ -119,10 +119,10 @@ class TestPathSegmentDBInit(object):
         pth_seg_db = PathSegmentDB(300)
         base.assert_called_once_with("", save_to_file=False)
         db.create.assert_called_once_with('record', 'id', 'first_isd',
-                                          'first_ad', 'last_isd', 'last_ad',
+                                          'first_as', 'last_isd', 'last_as',
                                           mode='override')
         db.create_index.assert_has_calls([call('id'), call('last_isd'),
-                                          call('last_ad')])
+                                          call('last_as')])
         ntools.eq_(pth_seg_db._db, db)
         ntools.eq_(pth_seg_db._segment_ttl, 300)
 
@@ -182,7 +182,9 @@ class TestPathSegmentDBUpdate(object):
         pth_seg_db = PathSegmentDB()
         pth_seg_db._db = create_mock(['insert'])
         pth_seg_db._db.return_value = []
-        ntools.eq_(pth_seg_db.update(pcb, 1, 2, 3, 4), DBResult.ENTRY_ADDED)
+        # Call
+        ntools.eq_(pth_seg_db.update(pcb, (1, 2), (3, 4)), DBResult.ENTRY_ADDED)
+        # Tests
         db_rec.assert_called_once_with(pcb)
         pth_seg_db._db.assert_called_once_with(id="str")
         pth_seg_db._db.insert.assert_called_once_with(record, "str", 1, 2, 3, 4)
@@ -200,7 +202,10 @@ class TestPathSegmentDBUpdate(object):
         pth_seg_db = PathSegmentDB()
         pth_seg_db._db = create_mock()
         pth_seg_db._db.return_value = {0: {'record': cur_rec}}
-        ntools.eq_(pth_seg_db.update(pcb, 1, 2, 3, 4), DBResult.NONE)
+        # Call
+        ntools.eq_(pth_seg_db.update(pcb, (1, 2), (3, 4)),
+                   DBResult.NONE)
+        # Tests
         pcb.get_expiration_time.assert_called_once_with()
         cur_rec.pcb.get_expiration_time.assert_called_once_with()
 
@@ -217,7 +222,10 @@ class TestPathSegmentDBUpdate(object):
         pth_seg_db = PathSegmentDB()
         pth_seg_db._db = create_mock()
         pth_seg_db._db.return_value = {0: {'record': cur_rec}}
-        ntools.eq_(pth_seg_db.update(pcb, 1, 2, 3, 4), DBResult.ENTRY_UPDATED)
+        # Call
+        ntools.eq_(pth_seg_db.update(pcb, (1, 2), (3, 4)),
+                   DBResult.ENTRY_UPDATED)
+        # Tests
         ntools.eq_(cur_rec.pcb, pcb)
 
     @patch("lib.path_store.SCIONTime.get_time", new_callable=create_mock)
@@ -233,23 +241,9 @@ class TestPathSegmentDBUpdate(object):
         segment_ttl = 300
         pth_seg_db = PathSegmentDB(segment_ttl)
         # Call
-        pth_seg_db.update(pcb, 1, 2, 3, 4)
-        # Test
+        pth_seg_db.update(pcb, (1, 2), (3, 4))
+        # Tests
         db_rec.assert_called_once_with(pcb, segment_ttl + time.return_value)
-
-
-class TestPathSegmentDBUpdateAll(object):
-    """
-    Unit tests for lib.path_db.PathSegmentDB.update_all
-    """
-    def test_basic(self):
-        pcbs = []
-        for i in range(5):
-            pcbs.append("data" + str(i))
-        pth_seg_db = PathSegmentDB()
-        pth_seg_db.update = create_mock()
-        pth_seg_db.update_all(pcbs, 1, 2, 3, 4)
-        pth_seg_db.update.assert_has_calls([call(i, 1, 2, 3, 4) for i in pcbs])
 
 
 class TestPathSegmentDBDelete(object):
@@ -315,7 +309,7 @@ class TestPathSegmentDBCall(object):
             cur_rec = create_mock(['pcb', 'exp_time'])
             cur_rec.exp_time = -1
             recs.append({'record': cur_rec, 'first_isd': 0,
-                         'first_ad': 1, 'last_isd': 2, 'last_ad': 3})
+                         'first_as': 1, 'last_isd': 2, 'last_as': 3})
         time.return_value = 0
         pth_seg_db = PathSegmentDB()
         pth_seg_db._db = create_mock(['delete'])
