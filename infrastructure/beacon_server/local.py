@@ -33,7 +33,7 @@ from lib.util import SCIONTime
 
 class LocalBeaconServer(BeaconServer):
     """
-    PathConstructionBeacon Server in a non-core AD.
+    PathConstructionBeacon Server in a non-core AS.
 
     Receives, processes, and propagates beacons received by other beacon
     servers.
@@ -64,7 +64,7 @@ class LocalBeaconServer(BeaconServer):
 
         :param isd_id: ISD identifier.
         :type isd_id: int
-        :param ad_id: AD identifier.
+        :param ad_id: AS identifier.
         :type ad_id: int
         :param cert_ver: certificate chain file version.
         :type cert_ver: int

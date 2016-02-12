@@ -71,9 +71,9 @@ class PathSegmentInfo(PathMgmtPayloadBase):
         Returns PathSegmentInfo with fields populated from values.
         :param pckt_type: type of request/reply
         :type: int (PathSegmentType)
-        :param src_isd, src_ad: address of the source AD
+        :param src_isd, src_ad: address of the source AS
         :type src_isd, src_ad: int
-        :param dst_isd, dst_ad: address of the destination AD
+        :param dst_isd, dst_ad: address of the destination AS
         :type dst_isd, dst_ad: int
         """
         inst = cls()
@@ -101,7 +101,7 @@ class PathSegmentInfo(PathMgmtPayloadBase):
         return self.LEN
 
     def __str__(self):
-        return "[%s(%dB): seg type:%s src isd/ad: %s/%s dst isd/ad: %s/%s]" % (
+        return "[%s(%dB): seg type:%s src isd/as: %s/%s dst isd/as: %s/%s]" % (
             self.NAME, len(self), PST.to_str(self.seg_type),
             self.src_isd, self.src_ad, self.dst_isd, self.dst_ad,
         )

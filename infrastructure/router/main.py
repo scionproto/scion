@@ -91,14 +91,14 @@ class Router(SCIONElement):
 
     :ivar addr: the router address.
     :type addr: :class:`SCIONAddr`
-    :ivar topology: the AD topology as seen by the router.
+    :ivar topology: the AS topology as seen by the router.
     :type topology: :class:`Topology`
     :ivar config: the configuration of the router.
     :type config: :class:`Config`
     :ivar ifid2addr: a map from interface identifiers to the corresponding
-                     border router addresses in the server's AD.
+                     border router addresses in the server's AS.
     :type ifid2addr: dict
-    :ivar interface: the router's inter-AD interface, if any.
+    :ivar interface: the router's inter-AS interface, if any.
     :type interface: :class:`lib.topology.InterfaceElement`
     """
     SERVICE_TYPE = ROUTER_SERVICE
@@ -323,7 +323,7 @@ class Router(SCIONElement):
 
         :param spkt: the SCION packet to forward.
         :type spkt: :class:`lib.packet.scion.SCIONPacket`
-        :param from_local_ad: whether or not the packet is from the local AD.
+        :param from_local_ad: whether or not the packet is from the local AS.
         :type from_local_ad: bool
         """
         if from_local_ad:
@@ -359,7 +359,7 @@ class Router(SCIONElement):
 
         :param mgmt_pkt: The path mgmt packet.
         :type mgmt_pkt: :class:`lib.packet.path_mgmt.PathMgmtPacket`
-        :param from_local_ad: whether or not the packet is from the local AD.
+        :param from_local_ad: whether or not the packet is from the local AS.
         :type from_local_ad: bool
         """
         payload = mgmt_pkt.get_payload()
@@ -426,7 +426,7 @@ class Router(SCIONElement):
 
     def deliver(self, spkt, ptype):
         """
-        Forwards the packet to the end destination within the current AD.
+        Forwards the packet to the end destination within the current AS.
 
         :param spkt: The SCION Packet to forward.
         :type spkt: :class:`lib.packet.scion.SCIONPacket`
@@ -663,7 +663,7 @@ class Router(SCIONElement):
 
         :param spkt: The SCION Packet to forward.
         :type spkt: :class:`lib.packet.scion.SCIONPacket`
-        :param from_local_ad: Whether or not the packet is from the local AD.
+        :param from_local_ad: Whether or not the packet is from the local AS.
         :type from_local_ad: bool
         """
         curr_hof = spkt.path.get_hof()
@@ -704,7 +704,7 @@ class Router(SCIONElement):
             return True
         if (pkt.addrs.dst_isd == self.addr.isd_id and
                 pkt.addrs.dst_ad == self.addr.ad_id):
-            # Destination is the local AD.
+            # Destination is the local AS.
             if pkt.addrs.dst_addr in (self.addr.host_addr, self.interface.addr):
                 # Destination is this router.
                 return True

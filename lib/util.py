@@ -63,7 +63,7 @@ def get_cert_chain_file_path(conf_dir, isd_id, ad_id,
     Return the certificate chain file path for a given ISD.
     """
     return os.path.join(conf_dir, CERT_DIR,
-                        'ISD%s-AD%s-V%s.crt' % (isd_id, ad_id, version))
+                        'ISD%s-AS%s-V%s.crt' % (isd_id, ad_id, version))
 
 
 def get_trc_file_path(conf_dir, isd_id, version):  # pragma: no cover
@@ -77,7 +77,7 @@ def get_sig_key_file_path(conf_dir):  # pragma: no cover
     """
     Return the signing key file path.
     """
-    return os.path.join(conf_dir, KEYS_DIR, "ad-sig.key")
+    return os.path.join(conf_dir, KEYS_DIR, "as-sig.key")
 
 
 def read_file(file_path):

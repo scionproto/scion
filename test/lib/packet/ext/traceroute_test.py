@@ -79,8 +79,8 @@ class TestTracerouteExtParse(object):
         data = create_mock(["pop"])
         data.pop.side_effect = (
             None,
-            "isd ad 1", bytes.fromhex('1111 2222'),
-            "isd ad 2", bytes.fromhex('3333 4444'),
+            "isd as 1", bytes.fromhex('1111 2222'),
+            "isd as 2", bytes.fromhex('3333 4444'),
         )
         raw.return_value = data
         isd_ad.side_effect = [(1, 11), (2, 22)]
@@ -91,7 +91,7 @@ class TestTracerouteExtParse(object):
         # Tests
         raw.assert_called_once_with(arg, "TracerouteExt", dlen, min_=True)
         super_parse.assert_called_once_with(inst, data)
-        assert_these_calls(isd_ad, (call("isd ad 1"), call("isd ad 2")))
+        assert_these_calls(isd_ad, (call("isd as 1"), call("isd as 2")))
         assert_these_calls(inst.append_hop, (
             call(1, 11, 0x1111, 0x2222),
             call(2, 22, 0x3333, 0x4444),

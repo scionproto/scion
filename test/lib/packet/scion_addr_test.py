@@ -43,7 +43,7 @@ class TestISDADFromRaw(object):
         raw.assert_called_once_with("data", ISD_AD.NAME, ISD_AD.LEN)
         ntools.assert_is_instance(inst, ISD_AD)
         ntools.eq_(inst.isd, 0x111)
-        ntools.eq_(inst.ad, 0x22222)
+        ntools.eq_(inst.as, 0x22222)
 
 
 class TestISDADPack(object):

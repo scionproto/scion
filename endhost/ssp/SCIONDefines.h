@@ -14,7 +14,7 @@
 #define SCION_UDP_PORT 30040
 #define SCION_UDP_EH_DATA_PORT 30041
 
-#define SCION_ADDR_LEN 8 // ISD + AD = 4, ADDR = 4
+#define SCION_ADDR_LEN 8 // ISD + AS = 4, ADDR = 4
 
 #define SCION_PROTO_ICMP 1
 #define SCION_PROTO_TCP 6
@@ -54,12 +54,12 @@ typedef struct{
     HostAddr host;
 } SCIONAddr;
 
-#define ISD_AD(isd, ad) ((isd) << 20) | ((ad) & 0xfffff)
+#define ISD_AD(isd, as) ((isd) << 20) | ((as) & 0xfffff)
 #define GET_ISD(isd_ad) ((isd_ad) >> 20)
 #define GET_AD(isd_ad) ((isd_ad) & 0xfffff)
 
 typedef struct {
-    uint32_t ad;
+    uint32_t as;
     uint16_t isd;
     uint16_t interface;
 } SCIONInterface;

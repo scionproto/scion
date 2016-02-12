@@ -35,7 +35,7 @@ from lib.util import SCIONTime
 
 class CoreBeaconServer(BeaconServer):
     """
-    PathConstructionBeacon Server in a core AD.
+    PathConstructionBeacon Server in a core AS.
 
     Starts broadcasting beacons down-stream within an ISD and across ISDs
     towards other core beacon servers.
@@ -71,10 +71,10 @@ class CoreBeaconServer(BeaconServer):
         count = 0
         for core_router in self.topology.routing_edge_routers:
             skip = False
-            for ad in pcb.ads:
-                if (ad.pcbm.isd_id == core_router.interface.neighbor_isd and
-                        ad.pcbm.ad_id == core_router.interface.neighbor_ad):
-                    # Don't propagate a Core PCB back to an AD we know has
+            for as in pcb.ads:
+                if (as.pcbm.isd_id == core_router.interface.neighbor_isd and
+                        as.pcbm.ad_id == core_router.interface.neighbor_ad):
+                    # Don't propagate a Core PCB back to an AS we know has
                     # already seen it.
                     skip = True
                     break
@@ -165,9 +165,9 @@ class CoreBeaconServer(BeaconServer):
                     continue
             # Before we append the PCB for further processing we need to check
             # that it hasn't been received before.
-            for ad in pcb.ads:
-                if (ad.pcbm.isd_id == self.topology.isd_id and
-                        ad.pcbm.ad_id == self.topology.ad_id):
+            for as in pcb.ads:
+                if (as.pcbm.isd_id == self.topology.isd_id and
+                        as.pcbm.ad_id == self.topology.ad_id):
                     count += 1
                     break
             else:
@@ -182,7 +182,7 @@ class CoreBeaconServer(BeaconServer):
 
         :param isd_id: ISD identifier.
         :type isd_id: int
-        :param ad_id: AD identifier.
+        :param ad_id: AS identifier.
         :type ad_id: int
         :param cert_ver: certificate chain file version.
         :type cert_ver: int

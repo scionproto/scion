@@ -57,7 +57,7 @@ class Element(object):
 
 class ServerElement(Element):
     """
-    The ServerElement class represents one of the servers in the AD.
+    The ServerElement class represents one of the servers in the AS.
     """
 
     def __init__(self, server_dict, name=None):
@@ -78,10 +78,10 @@ class InterfaceElement(Element):
     router.
 
     :ivar int if_id: the interface ID.
-    :ivar int neighbor_ad: the AD identifier of the neighbor AD.
-    :ivar int neighbor_isd: the ISD identifier of the neighbor AD.
+    :ivar int neighbor_ad: the AS identifier of the neighbor AS.
+    :ivar int neighbor_isd: the ISD identifier of the neighbor AS.
     :ivar str neighbor_type:
-        the type of the neighbor relative to the AD to which the interface
+        the type of the neighbor relative to the AS to which the interface
         belongs.
     :ivar int to_udp_port:
         the port number receiving UDP traffic on the other end of the interface.
@@ -138,33 +138,33 @@ class RouterElement(Element):
 
 class Topology(object):
     """
-    The Topology class parses the topology file of an AD and stores such
+    The Topology class parses the topology file of an AS and stores such
     information for further use.
 
-    :ivar is_core_ad: tells whether an AD is a core AD or not.
+    :ivar is_core_ad: tells whether an AS is a core AS or not.
     :vartype is_core_ad: bool
     :ivar isd_id: the ISD identifier.
     :vartype isd_id: int
-    :ivar ad_id: the AD identifier.
+    :ivar ad_id: the AS identifier.
     :vartype ad_id: int
     :ivar dns_domain: the dns domain the dns servers should use.
     :vartype dns_domain: str
-    :ivar beacon_servers: beacons servers in the AD.
+    :ivar beacon_servers: beacons servers in the AS.
     :vartype beacon_servers: list
-    :ivar certificate_servers: certificate servers in the AD.
+    :ivar certificate_servers: certificate servers in the AS.
     :vartype certificate_servers: list
-    :ivar dns_servers: dns servers in the AD.
+    :ivar dns_servers: dns servers in the AS.
     :vartype dns_servers: list
-    :ivar path_servers: path servers in the AD.
+    :ivar path_servers: path servers in the AS.
     :vartype path_servers: list
-    :ivar parent_edge_routers: edge routers linking the AD to its parents.
+    :ivar parent_edge_routers: edge routers linking the AS to its parents.
     :vartype parent_edge_routers: list
-    :ivar child_edge_routers: edge routers linking the AD to its children.
+    :ivar child_edge_routers: edge routers linking the AS to its children.
     :vartype child_edge_routers: list
-    :ivar peer_edge_routers: edge router linking the AD to its peers.
+    :ivar peer_edge_routers: edge router linking the AS to its peers.
     :vartype peer_edge_routers: list
-    :ivar routing_edge_routers: edge router linking the core AD to another core
-                                AD.
+    :ivar routing_edge_routers: edge router linking the core AS to another core
+                                AS.
     :vartype routing_edge_routers: list
     """
 
@@ -260,9 +260,9 @@ class Topology(object):
 
     def get_all_edge_routers(self):
         """
-        Return all edge routers associated to the AD.
+        Return all edge routers associated to the AS.
 
-        :returns: all edge routers associated to the AD.
+        :returns: all edge routers associated to the AS.
         :rtype: list
         """
         all_edge_routers = []

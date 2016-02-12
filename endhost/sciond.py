@@ -195,7 +195,7 @@ class SCIONDaemon(SCIONElement):
     def _api_handle_path_request(self, packet, sender):
         """
         Path request:
-          | \x00 (1B) | ISD (12bits) |  AD (20bits)  |
+          | \x00 (1B) | ISD (12bits) |  AS (20bits)  |
         Reply:
           |p1_len(1B)|p1((p1_len*8)B)|fh_IP(4B)|fh_port(2B)|mtu(2B)|
            p1_if_count(1B)|p1_if_1(5B)|...|p1_if_n(5B)|
@@ -204,8 +204,8 @@ class SCIONDaemon(SCIONElement):
 
         FIXME(kormat): make IP-version independant
         """
-        isd, ad = ISD_AD.from_raw(packet[1:ISD_AD.LEN + 1])
-        paths = self.get_paths(isd, ad)
+        isd, as = ISD_AD.from_raw(packet[1:ISD_AD.LEN + 1])
+        paths = self.get_paths(isd, as)
         reply = []
         for path in paths:
             raw_path = path.pack()
@@ -221,7 +221,7 @@ class SCIONDaemon(SCIONElement):
                          struct.pack("B", len(path.interfaces)))
             for interface in path.interfaces:
                 (isd_ad, link) = interface
-                isd_ad_bits = (isd_ad.isd << 20) + (isd_ad.ad & 0xFFFFF)
+                isd_ad_bits = (isd_ad.isd << 20) + (isd_ad.as & 0xFFFFF)
                 reply.append(struct.pack("I", isd_ad_bits))
                 reply.append(struct.pack("H", link))
         self._api_sock.send(b"".join(reply), sender)
@@ -276,7 +276,7 @@ class SCIONDaemon(SCIONElement):
         to send path reply.
 
         :param int dst_isd: ISD identifier.
-        :param int dst_ad: AD identifier.
+        :param int dst_ad: AS identifier.
         :param requester: Path requester address(used in simulator).
         """
         key = dst_isd, dst_ad
@@ -328,10 +328,10 @@ class SCIONDaemon(SCIONElement):
             res.add((None, None, dseg))
         # Check core-down combination.
         for dseg in self.down_segments(last_isd=dst_isd, last_ad=dst_ad):
-            isd, ad = dseg.get_first_isd_ad()
-            if (my_isd, my_ad) == (isd, ad):
+            isd, as = dseg.get_first_isd_ad()
+            if (my_isd, my_ad) == (isd, as):
                 pass
-            for cseg in self.core_segments(first_isd=isd, first_ad=ad,
+            for cseg in self.core_segments(first_isd=isd, first_ad=as,
                                            last_isd=my_isd, last_ad=my_ad):
                 res.add((None, cseg, dseg))
         return PathCombinator.tuples_to_full_paths(res)
@@ -353,8 +353,8 @@ class SCIONDaemon(SCIONElement):
         # Check whether dst is known core AS.
         for cseg in self.core_segments(**params):
             # Check do we have an up-seg that is connected to core_seg.
-            isd, ad = cseg.get_last_isd_ad()
-            for useg in self.up_segments(first_isd=isd, first_ad=ad):
+            isd, as = cseg.get_last_isd_ad()
+            for useg in self.up_segments(first_isd=isd, first_ad=as):
                 res.add((useg, cseg, None))
         return PathCombinator.tuples_to_full_paths(res)
 
@@ -432,7 +432,7 @@ class SCIONDaemon(SCIONElement):
         """
         Calculate all possible core segments joining the provided up and down
         segments. Returns a list of all known segments, and a seperate list of
-        the missing AD pairs.
+        the missing AS pairs.
         """
         src_core_ads = set()
         dst_core_ads = set()
@@ -440,14 +440,14 @@ class SCIONDaemon(SCIONElement):
             src_core_ads.add(seg.get_first_pcbm().ad_id)
         for seg in down_segs:
             dst_core_ads.add(seg.get_first_pcbm().ad_id)
-        # Generate all possible AD pairs
+        # Generate all possible AS pairs
         ad_pairs = list(product(src_core_ads, dst_core_ads))
         return self._find_core_segs(self.addr.isd_id, dst_isd, ad_pairs)
 
     def _find_core_segs(self, src_isd, dst_isd, ad_pairs):
         """
-        Given a set of AD pairs across 2 ISDs, return the core segments
-        connecting those pairs, and a list of AD pairs for which a core segment
+        Given a set of AS pairs across 2 ISDs, return the core segments
+        connecting those pairs, and a list of AS pairs for which a core segment
         wasn't found.
         """
         core_segs = []

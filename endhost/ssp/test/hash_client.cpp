@@ -9,19 +9,19 @@ int main(int argc, char **argv)
 {
     SCIONAddr addrs[1];
     SCIONAddr saddr;
-    int isd, ad;
+    int isd, as;
     char str[20];
     if (argc == 3) {
         isd = atoi(argv[1]);
-        ad = atoi(argv[2]);
+        as = atoi(argv[2]);
     } else {
         isd = 2;
-        ad = 26;
+        as = 26;
     }
-    saddr.isd_ad = ISD_AD(isd, ad);
+    saddr.isd_ad = ISD_AD(isd, as);
     saddr.host.addrLen = 4;
-    sprintf(str, "127.%d.%d.254", isd, ad);
-    printf("connect to (%d, %d):%s\n", isd, ad, str);
+    sprintf(str, "127.%d.%d.254", isd, as);
+    printf("connect to (%d, %d):%s\n", isd, as, str);
     in_addr_t in = inet_addr(str);
     memcpy(saddr.host.addr, &in, 4);
     addrs[0] = saddr;

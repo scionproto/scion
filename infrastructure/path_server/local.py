@@ -32,7 +32,7 @@ from lib.types import PathSegmentType as PST
 
 class LocalPathServer(PathServer):
     """
-    SCION Path Server in a non-core AD. Stores up-paths to the core and
+    SCION Path Server in a non-core AS. Stores up-paths to the core and
     registers down-paths with the CPS. Can cache paths learned from a CPS.
     """
     def __init__(self, server_id, conf_dir, is_sim=False):
@@ -153,7 +153,7 @@ class LocalPathServer(PathServer):
         assert seg_type == PST.GENERIC
         logging.info("PATH_REQ received, addr: %d,%d" % dst)
         if dst == self.addr.get_isd_ad():
-            logging.warning("Dropping request: requested DST is local AD")
+            logging.warning("Dropping request: requested DST is local AS")
             return False
 
         # dst_ad=0 means any core AS in the specified ISD
@@ -161,16 +161,16 @@ class LocalPathServer(PathServer):
         dst_in_local_isd = (dst.isd == self.addr.isd_id)
         down_seg = set()
         if dst_is_core:
-            up_seg, core_seg = self._resolve_core(dst.isd, dst.ad,
+            up_seg, core_seg = self._resolve_core(dst.isd, dst.as,
                                                   dst_in_local_isd)
         else:
             up_seg, core_seg, down_seg = self._resolve_not_core(
-                dst.isd, dst.ad, dst_in_local_isd)
+                dst.isd, dst.as, dst_in_local_isd)
 
         if not (up_seg | core_seg | down_seg):
             if new_request:
                 logging.debug("Segs to %d,%d not found, querying core." % dst)
-                self._request_paths_from_core(dst.isd, dst.ad)
+                self._request_paths_from_core(dst.isd, dst.as)
                 self.pending_req[dst].append(pkt)
             else:
                 # That could happend when needed segment expired.
@@ -197,8 +197,8 @@ class LocalPathServer(PathServer):
         # Check whether dst is known core AS.
         for cseg in self.core_segments(**params):
             # Check do we have an up-seg that is connected to core_seg.
-            isd, ad = cseg.get_last_isd_ad()
-            tmp_up_segs = self.up_segments(first_isd=isd, first_ad=ad)
+            isd, as = cseg.get_last_isd_ad()
+            tmp_up_segs = self.up_segments(first_isd=isd, first_ad=as)
             if tmp_up_segs:
                 up_seg.update(tmp_up_segs)
                 core_seg.add(cseg)
@@ -213,16 +213,16 @@ class LocalPathServer(PathServer):
         down_seg = set()
         # Check if there exists down-seg to DST.
         for dseg in self.down_segments(last_isd=dst_isd, last_ad=dst_ad):
-            isd, ad = dseg.get_first_isd_ad()
+            isd, as = dseg.get_first_isd_ad()
             if dst_in_local_isd:
                 # Dst in local ISD. First try to find direct up-seg.
-                tmp_up_seg = self.up_segments(first_isd=isd, first_ad=ad)
+                tmp_up_seg = self.up_segments(first_isd=isd, first_ad=as)
                 if tmp_up_seg:
                     up_seg.update(tmp_up_seg)
                     down_seg.add(dseg)
             # Now try core segments that connect to down segment.
             # PSz: it might make sense to start with up_segments instead.
-            for cseg in self.core_segments(first_isd=isd, first_ad=ad):
+            for cseg in self.core_segments(first_isd=isd, first_ad=as):
                 isd_, ad_ = cseg.get_last_isd_ad()
                 # And up segments that connect to core segment.
                 tmp_up_seg = self.up_segments(first_isd=isd_, first_ad=ad_)
@@ -234,7 +234,7 @@ class LocalPathServer(PathServer):
 
     def _request_paths_from_core(self, dst_isd, dst_ad):
         """
-        Try to request core PS for given target (isd, ad).
+        Try to request core PS for given target (isd, as).
 
         :param ptype:
         :type ptype:

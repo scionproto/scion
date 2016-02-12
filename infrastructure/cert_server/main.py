@@ -225,10 +225,10 @@ class CertServer(SCIONElement):
         return False
 
     def _fetch_cc(self, key, _):
-        isd, ad, ver = key
-        cc_req = CertChainRequest.from_values(isd, ad, ver)
+        isd, as, ver = key
+        cc_req = CertChainRequest.from_values(isd, as, ver)
         req_pkt = self._build_packet(PT.CERT_MGMT, payload=cc_req)
-        dst_addr = self._get_next_hop(isd, ad, True)
+        dst_addr = self._get_next_hop(isd, as, True)
         if dst_addr:
             self.send(req_pkt, dst_addr)
             logging.info("Cert chain request sent for %s", cc_req.short_desc())
@@ -237,11 +237,11 @@ class CertServer(SCIONElement):
                             "no destination found", cc_req.short_desc())
 
     def _reply_cc(self, key, info):
-        isd, ad, ver = key
+        isd, as, ver = key
         src, port = info
-        cert_chain = self.trust_store.get_cert(isd, ad, ver)
+        cert_chain = self.trust_store.get_cert(isd, as, ver)
         self._send_reply(src, port, CertChainReply.from_values(cert_chain))
-        logging.info("Cert chain for %s-%sv%s sent to %s:%s", isd, ad, ver, src,
+        logging.info("Cert chain for %s-%sv%s sent to %s:%s", isd, as, ver, src,
                      port)
 
     def process_trc_request(self, pkt):
@@ -294,10 +294,10 @@ class CertServer(SCIONElement):
 
     def _fetch_trc(self, key, info):
         isd, ver = key
-        ad = info[2]
-        trc_req = TRCRequest.from_values(isd, ad, ver)
+        as = info[2]
+        trc_req = TRCRequest.from_values(isd, as, ver)
         req_pkt = self._build_packet(PT.CERT_MGMT, payload=trc_req)
-        next_hop = self._get_next_hop(isd, ad, True, False, True)
+        next_hop = self._get_next_hop(isd, as, True, False, True)
         if next_hop:
             self.send(req_pkt, next_hop)
             logging.info("TRC request sent for %sv%s.", *key)
@@ -312,7 +312,7 @@ class CertServer(SCIONElement):
         self._send_reply(src, port, TRCReply.from_values(trc))
         logging.info("TRC for %sv%s sent to %s:%s", isd, ver, src, port)
 
-    def _get_next_hop(self, isd, ad, parent=False, child=False, routing=False):
+    def _get_next_hop(self, isd, as, parent=False, child=False, routing=False):
         routers = []
         if parent:
             routers += self.topology.parent_edge_routers
@@ -323,7 +323,7 @@ class CertServer(SCIONElement):
         for r in routers:
             if isd != r.interface.neighbor_isd:
                 continue
-            if ad in (r.interface.neighbor_ad, 0):
+            if as in (r.interface.neighbor_ad, 0):
                 return r.addr
         return None
 

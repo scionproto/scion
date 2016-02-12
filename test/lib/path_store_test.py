@@ -85,7 +85,7 @@ class TestPathPolicyCheckFilters(object):
         ntools.assert_true(inst.check_filters(pcb))
 
     def test_unwanted_ads(self):
-        inst, pcb = self._setup("unwanted AD")
+        inst, pcb = self._setup("unwanted AS")
         # Call
         ntools.assert_false(inst.check_filters(pcb))
 
@@ -103,10 +103,10 @@ class TestPathPolicyCheckUnwantedAds(object):
         pcb = create_mock(['ads'])
         pcb.ads = []
         for i in range(5):
-            ad = create_mock(['pcbm'])
-            ad.pcbm = create_mock(['get_isd_ad'])
-            ad.pcbm.get_isd_ad.return_value = "%d-%d" % (i, i)
-            pcb.ads.append(ad)
+            as = create_mock(['pcbm'])
+            as.pcbm = create_mock(['get_isd_ad'])
+            as.pcbm.get_isd_ad.return_value = "%d-%d" % (i, i)
+            pcb.ads.append(as)
         return inst, pcb
 
     def test_basic(self):

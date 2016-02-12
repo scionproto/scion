@@ -377,7 +377,7 @@ void * SCIONSocket::getStats(void *buf, int len)
         for (int j = 0; j < stats->ifCounts[i]; j++) {
             SCIONInterface sif = stats->ifLists[i][j];
             /* Python ISD_AD class expects network byte order */
-            *(uint32_t *)ptr = htonl(ISD_AD(sif.isd, sif.ad));
+            *(uint32_t *)ptr = htonl(ISD_AD(sif.isd, sif.as));
             ptr += 4;
             *(uint16_t *)ptr = sif.interface;
             ptr += 2;

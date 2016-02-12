@@ -75,7 +75,7 @@ SOCKDIR=endhost/ssp
 cmd_sock_cli() {
     if [ $# -eq 2 ]
     then
-        GENDIR=gen/ISD${1}/AD${2}/endhost
+        GENDIR=gen/ISD${1}/AS${2}/endhost
         ADDR="127.${1}.${2}.254"
     else
         GENDIR=gen/ISD1/AD19/endhost
@@ -94,7 +94,7 @@ cmd_run_cli() {
 cmd_sock_ser() {
     if [ $# -eq 2 ]
     then
-        GENDIR=gen/ISD${1}/AD${2}/endhost
+        GENDIR=gen/ISD${1}/AS${2}/endhost
         ADDR="127.${1}.${2}.254"
     else
         GENDIR=gen/ISD2/AD26/endhost

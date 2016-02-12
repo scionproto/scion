@@ -67,7 +67,7 @@ class MarkingBase(object, metaclass=ABCMeta):
 
 class PCBMarking(MarkingBase):
     """
-    Pack all fields for a specific PCB marking, which include: ISD and AD
+    Pack all fields for a specific PCB marking, which include: ISD and AS
     numbers, the HopOpaqueField, and the revocation token for the ingress
     interfaces included in the HOF. (Revocation token for egress interface is
     included within ADMarking.)
@@ -142,7 +142,7 @@ class PCBMarking(MarkingBase):
 
     def __str__(self):
         s = []
-        s.append("%s(%dB): isd,ad (%d, %d):" %
+        s.append("%s(%dB): isd,as (%d, %d):" %
                  (self.NAME, len(self), self.isd_id, self.ad_id))
         s.append("  ig_rev_token: %s" % self.ig_rev_token)
         s.append("  %s" % self.hof)
@@ -259,7 +259,7 @@ class ADMarking(MarkingBase):
 
     def remove_signature(self):
         """
-        Removes the signature from the AD block.
+        Removes the signature from the AS block.
         """
         self.sig = b''
 
@@ -351,7 +351,7 @@ class PathSegment(SCIONPayloadBase):
 
     def _parse_hops(self, data):
         """
-        Populates AD Hops from raw bytes.
+        Populates AS Hops from raw bytes.
 
         :param data:
         :type data: :class:`lib.util.Raw`
@@ -379,7 +379,7 @@ class PathSegment(SCIONPayloadBase):
 
     def add_ad(self, ad_marking):
         """
-        Appends a new AD block.
+        Appends a new AS block.
         """
         if ad_marking.pcbm.hof.exp_time < self.min_exp_time:
             self.min_exp_time = ad_marking.pcbm.hof.exp_time
@@ -388,7 +388,7 @@ class PathSegment(SCIONPayloadBase):
 
     def remove_signatures(self):
         """
-        Removes the signature from each AD block.
+        Removes the signature from each AS block.
         """
         for ad_marking in self.ads:
             ad_marking.remove_signature()
@@ -426,7 +426,7 @@ class PathSegment(SCIONPayloadBase):
 
     def get_last_pcbm(self):
         """
-        Returns the PCBMarking belonging to the last AD on the path.
+        Returns the PCBMarking belonging to the last AS on the path.
         """
         if self.ads:
             return self.ads[-1].pcbm
@@ -435,7 +435,7 @@ class PathSegment(SCIONPayloadBase):
 
     def get_first_pcbm(self):
         """
-        Returns the PCBMarking belonging to the first AD on the path.
+        Returns the PCBMarking belonging to the first AS on the path.
         """
         if self.ads:
             return self.ads[0].pcbm
@@ -450,13 +450,13 @@ class PathSegment(SCIONPayloadBase):
 
     def compare_hops(self, other):
         """
-        Compares the (AD-level) hops of two half-paths. Returns true if all hops
+        Compares the (AS-level) hops of two half-paths. Returns true if all hops
         are identical and false otherwise.
         """
         if not isinstance(other, PathSegment):
             return False
-        self_hops = [ad.pcbm.ad_id for ad in self.ads]
-        other_hops = [ad.pcbm.ad_id for ad in other.ads]
+        self_hops = [as.pcbm.ad_id for as in self.ads]
+        other_hops = [as.pcbm.ad_id for as in other.ads]
         return self_hops == other_hops
 
     def get_hops_hash(self, hex=False):
@@ -465,10 +465,10 @@ class PathSegment(SCIONPayloadBase):
         the path segment.
         """
         h = SHA256.new()
-        for ad in self.ads:
-            h.update(ad.pcbm.ig_rev_token)
-            h.update(ad.eg_rev_token)
-            for pm in ad.pms:
+        for as in self.ads:
+            h.update(as.pcbm.ig_rev_token)
+            h.update(as.eg_rev_token)
+            for pm in as.pms:
                 h.update(pm.ig_rev_token)
         if hex:
             return h.hexdigest()
@@ -479,8 +479,8 @@ class PathSegment(SCIONPayloadBase):
         Return the total number of peer links in the PathSegment.
         """
         n_peer_links = 0
-        for ad in self.ads:
-            n_peer_links += len(ad.pms)
+        for as in self.ads:
+            n_peer_links += len(as.pms)
         return n_peer_links
 
     def get_n_hops(self):
@@ -513,10 +513,10 @@ class PathSegment(SCIONPayloadBase):
         Returns all interface revocation tokens included in the path segment.
         """
         tokens = []
-        for ad in self.ads:
-            tokens.append(ad.pcbm.ig_rev_token)
-            tokens.append(ad.eg_rev_token)
-            for pm in ad.pms:
+        for as in self.ads:
+            tokens.append(as.pcbm.ig_rev_token)
+            tokens.append(as.eg_rev_token)
+            for pm in as.pms:
                 tokens.append(pm.ig_rev_token)
         return tokens
 
@@ -545,8 +545,8 @@ class PathSegment(SCIONPayloadBase):
 
     def __len__(self):  # pragma: no cover
         l = self.MIN_LEN
-        for ad in self.ads:
-            l += len(ad)
+        for as in self.ads:
+            l += len(as)
         return l
 
     def short_desc(self):  # pragma: no cover

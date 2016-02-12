@@ -108,16 +108,16 @@ def add_random_edges(isd_graph, core_ad_dict, max_degree):
 
     :param isd_graph: The ISD graph upon which edges will be added
     :type isd_graph: :class: `networkx.MultiDiGraph`
-    :param core_ad_dict: Dict with key:isd number, value:Core AD list
+    :param core_ad_dict: Dict with key:isd number, value:Core AS list
     :type core_ad_dict: dict
     :param max_degree: The maximum degree an ISD can have
     :type max_degree: int
     """
-    # Sorting based on number of core AD's in an ISD
+    # Sorting based on number of core AS's in an ISD
     isd_sorted_list = sorted(core_ad_dict.keys(),
                              key=lambda node: len(core_ad_dict[node]))
     count_isds = len(isd_sorted_list)
-    # Choosing half of the ISD's with higher core AD's to interconnect them
+    # Choosing half of the ISD's with higher core AS's to interconnect them
     denser_isds = isd_sorted_list[int(count_isds / 2):]
     print("ISD's with denser connections: {}".format(denser_isds))
     while len(denser_isds) >= 2:
@@ -151,7 +151,7 @@ def graph_to_dot(graph, dot_output_file):
 def parse(brite_files, dot_output_file, min_degree, max_degree):
     """
     1. Parse a list of topology files each into a seperate ISD
-    2. All the core AD's in ISD's are interconnected using some model topology
+    2. All the core AS's in ISD's are interconnected using some model topology
 
     :param brite_files: list of brite output files to be converted
     :type brite_files: list
@@ -195,7 +195,7 @@ def parse(brite_files, dot_output_file, min_degree, max_degree):
             # Number of new edges is atmost the
             # number of all possible inter-ISD connections
             new_edges = min(new_edges, len(all_core_ad_conn))
-            # Randomly choosing core-ad connections
+            # Randomly choosing core-as connections
             sampled_core_ad_conn = random.sample(all_core_ad_conn, new_edges)
             for (src_core_ad, dest_core_ad) in sampled_core_ad_conn:
                 final_graph.add_edge(src_core_ad, dest_core_ad,
@@ -219,7 +219,7 @@ def read_topo_file(topo_file, isd_num):
     :param isd_num: ISD Number of the graph to be generated
     :type isd_num: int
 
-    :returns: Networkx Graph and a list containing degree of each AD
+    :returns: Networkx Graph and a list containing degree of each AS
     :rvar: (`networkx.Graph`, list)
     """
     fd = open(topo_file, 'r')
@@ -260,7 +260,7 @@ def _parse(topo_file, isd_num):
     :param isd_num: ISD Number of the graph to be generated
     :type isd_num: int
 
-    :returns: the created Graph along with a list of core ad nodes
+    :returns: the created Graph along with a list of core as nodes
     :rtype: (`networkx.DiGraph`, list)
     """
     (original_graph, num_outedges) = read_topo_file(topo_file, isd_num)
@@ -270,9 +270,9 @@ def _parse(topo_file, isd_num):
     core_ads = [(i[0]) for i in num_outedges[:num_core_ads]]
     core_ad_graph = original_graph.subgraph(core_ads)
 
-    # Ensuring that core ad graph is connected
+    # Ensuring that core as graph is connected
     if not nx.is_connected(core_ad_graph):
-        # If not connected, the new core ad graph is formed from the largest
+        # If not connected, the new core as graph is formed from the largest
         # connected component. Nodes are added to it from its neighbors to make
         # size of core_ad_graph = num_core_ads
         graphs = list(nx.connected_component_subgraphs(core_ad_graph))
@@ -344,7 +344,7 @@ def _parse(topo_file, isd_num):
     assert 2 * len(original_graph.edges()) == len(final_graph.edges())
 
     print("ISD {} has {} AS's".format(isd_num, len(original_graph.nodes())))
-    print("Core AD's are:")
+    print("Core AS's are:")
     print(core_ad_graph.nodes())
     return final_graph, core_ad_graph.nodes()
 
@@ -353,7 +353,7 @@ def json_convert(graph):
     """
     Converts graph into json format and dumps it in
     DEFAULT_ADCONFIGURATIONS_FILE. The name of nodes in graph should be in
-    the format {ISD}-{AD}
+    the format {ISD}-{AS}
 
     :param graph: A graph to be dumped into the json file
     :type graph: :class: `networkx.DiGraph`
@@ -414,7 +414,7 @@ def main():
                         dest='degree',
                         nargs=2,
                         help="Set the min and max degree of connections \
-                              between core AD's of different ISD's")
+                              between core AS's of different ISD's")
     parser.add_argument('-o', '--out',
                         action='store',
                         default=None,

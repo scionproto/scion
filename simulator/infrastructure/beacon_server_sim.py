@@ -49,7 +49,7 @@ from simulator.lib.zookeeper_sim import ZookeeperSim, ZkSharedCacheSim
 
 class CoreBeaconServerSim(CoreBeaconServer):
     """
-    Simulator version of PathConstructionBeacon Server in a core AD
+    Simulator version of PathConstructionBeacon Server in a core AS
     """
     def __init__(self, server_id, topo_file, config_file, path_policy_file,
                  server_name, simulator):
@@ -185,7 +185,7 @@ class CoreBeaconServerSim(CoreBeaconServer):
 
     def _create_ad_marking(self, ingress_if, egress_if, ts, prev_hof=None):
         """
-        Creates an AD Marking for given ingress and egress interfaces,
+        Creates an AS Marking for given ingress and egress interfaces,
         timestamp, and previous HOF. Remove MAC usage since it is simulation.
 
         :param ingress_if: ingress interface.
@@ -284,7 +284,7 @@ class CoreBeaconServerSim(CoreBeaconServer):
 
 class LocalBeaconServerSim(LocalBeaconServer):
     """
-    Simulator version of PathConstructionBeacon Server in a local AD
+    Simulator version of PathConstructionBeacon Server in a local AS
     """
     def __init__(self, server_id, topo_file, config_file, path_policy_file,
                  server_name, simulator):
@@ -404,7 +404,7 @@ class LocalBeaconServerSim(LocalBeaconServer):
 
     def _create_ad_marking(self, ingress_if, egress_if, ts, prev_hof=None):
         """
-        Creates an AD Marking for given ingress and egress interfaces,
+        Creates an AS Marking for given ingress and egress interfaces,
         timestamp, and previous HOF. Remove MAC usage since it is simulation.
 
         :param ingress_if: ingress interface.

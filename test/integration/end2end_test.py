@@ -52,12 +52,12 @@ from lib.util import Raw, handle_signals, load_yaml_file
 TOUT = 10  # How long wait for response.
 
 
-def get_paths_via_api(isd, ad):
+def get_paths_via_api(isd, as):
     """
     Test local API.
     """
     sock = UDPSocket(bind=("127.0.0.1", 0), addr_type=AddrType.IPV4)
-    msg = b'\x00' + ISD_AD(isd, ad).pack()
+    msg = b'\x00' + ISD_AD(isd, as).pack()
 
     for _ in range(5):
         logging.info("Sending path request to local API.")
@@ -114,7 +114,7 @@ class Ping(object):
         self.dport = dport
         self.token = token
         self.pong_received = False
-        conf_dir = "%s/ISD%d/AD%d/endhost" % (GEN_PATH, src.isd_id, src.ad_id)
+        conf_dir = "%s/ISD%d/AS%d/endhost" % (GEN_PATH, src.isd_id, src.ad_id)
         # Local api on, random port:
         self.sd = SCIONDaemon.start(
             conf_dir, self.src.host_addr, run_local_api=True, port=0)
@@ -181,7 +181,7 @@ class Pong(object):
         self.dst = dst
         self.token = token
         self.ping_received = False
-        conf_dir = "%s/ISD%d/AD%d/endhost" % (
+        conf_dir = "%s/ISD%d/AS%d/endhost" % (
             GEN_PATH, self.dst.isd_id, self.dst.ad_id)
         # API off, standard port.
         self.sd = SCIONDaemon.start(conf_dir, self.dst.host_addr)
@@ -220,7 +220,7 @@ class TestSCIONDaemon(unittest.TestCase):
         """
         Testing function. Creates an instance of SCIONDaemon, then verifies path
         requesting, and finally sends packet through SCION. Sender is placed in
-        every AD from `sources`, and receiver is from every AD from
+        every AS from `sources`, and receiver is from every AS from
         `destinations`.
         """
         thread = threading.current_thread()
@@ -261,8 +261,8 @@ def _load_ad_list():
     ad_dict = load_yaml_file(os.path.join(GEN_PATH, AD_LIST_FILE))
     ad_list = []
     for ad_str in ad_dict.get("Non-core", []) + ad_dict.get("Core", []):
-        isd, ad = ad_str.split("-")
-        ad_list.append((int(isd), int(ad)))
+        isd, as = ad_str.split("-")
+        ad_list.append((int(isd), int(as)))
     return ad_list
 
 
@@ -271,8 +271,8 @@ def _parse_tuple(ad_str, ad_list):
         copied = copy.copy(ad_list)
         random.shuffle(copied)
         return copied
-    isd, ad = ad_str.split(",")
-    return [(int(isd), int(ad))]
+    isd, as = ad_str.split(",")
+    return [(int(isd), int(as))]
 
 
 def main():
@@ -282,8 +282,8 @@ def main():
     parser.add_argument('-s', '--server', help='Server address')
     parser.add_argument('-m', '--mininet', action='store_true',
                         help="Running under mininet")
-    parser.add_argument('src_ad', nargs='?', help='Src isd,ad')
-    parser.add_argument('dst_ad', nargs='?', help='Dst isd,ad')
+    parser.add_argument('src_ad', nargs='?', help='Src isd,as')
+    parser.add_argument('dst_ad', nargs='?', help='Dst isd,as')
     args = parser.parse_args()
     init_logging("logs/end2end", console_level=logging.DEBUG)
 

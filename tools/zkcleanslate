@@ -7,6 +7,6 @@
 
 sudo service zookeeper stop
 find /run/shm/*-zk/ -type f | sudo xargs -r rm -v
-rm -v gen/ISD*/AD*/zk*/data/version-2/*
+rm -v gen/ISD*/AS*/zk*/data/version-2/*
 sudo rm -v /var/lib/zookeeper/version-2/*
 sudo service zookeeper start

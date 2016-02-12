@@ -1,4 +1,4 @@
-Within AD addressing:
+Within AS addressing:
 224.224.0.0/16 - reserved for SCION-related multicast (TODO test if src in ip
 layer can be multicast)
 10.224.0.0/16 - reserved for SCION-related uni/anycast 

@@ -66,19 +66,19 @@ class TestPathSegmentInfoParse(object):
     def test(self, raw, isd_ad):
         inst = PathSegmentInfo()
         data = create_mock(["pop"])
-        data.pop.side_effect = ("seg type", "src isd-ad", "dst isd-ad")
+        data.pop.side_effect = ("seg type", "src isd-as", "dst isd-as")
         raw.return_value = data
-        isd_ad.side_effect = [("src isd", "src ad"), ("dst isd", "dst ad")]
+        isd_ad.side_effect = [("src isd", "src as"), ("dst isd", "dst as")]
         # Call
         inst._parse("data")
         # Tests
         raw.assert_called_once_with("data", inst.NAME, inst.LEN)
         ntools.eq_(inst.seg_type, "seg type")
-        assert_these_calls(isd_ad, (call("src isd-ad"), call("dst isd-ad")))
+        assert_these_calls(isd_ad, (call("src isd-as"), call("dst isd-as")))
         ntools.eq_(inst.src_isd, "src isd")
-        ntools.eq_(inst.src_ad, "src ad")
+        ntools.eq_(inst.src_ad, "src as")
         ntools.eq_(inst.dst_isd, "dst isd")
-        ntools.eq_(inst.dst_ad, "dst ad")
+        ntools.eq_(inst.dst_ad, "dst as")
 
 
 class TestPathSegmentInfoFromValues(object):
@@ -87,14 +87,14 @@ class TestPathSegmentInfoFromValues(object):
     """
     def test(self):
         inst = PathSegmentInfo.from_values(
-            "seg type", "src isd", "src ad", "dst isd", "dst ad")
+            "seg type", "src isd", "src as", "dst isd", "dst as")
         # Tests
         ntools.assert_is_instance(inst, PathSegmentInfo)
         ntools.eq_(inst.seg_type, "seg type")
         ntools.eq_(inst.src_isd, "src isd")
-        ntools.eq_(inst.src_ad, "src ad")
+        ntools.eq_(inst.src_ad, "src as")
         ntools.eq_(inst.dst_isd, "dst isd")
-        ntools.eq_(inst.dst_ad, "dst ad")
+        ntools.eq_(inst.dst_ad, "dst as")
 
 
 class TestPathSegmentInfoPack(object):
@@ -106,9 +106,9 @@ class TestPathSegmentInfoPack(object):
         inst = PathSegmentInfo()
         inst.seg_type = 0x0e
         inst.src_isd = "src isd"
-        inst.src_ad = "src ad"
+        inst.src_ad = "src as"
         inst.dst_isd = "dst isd"
-        inst.dst_ad = "dst ad"
+        inst.dst_ad = "dst as"
         isd_ad_obj = create_mock(['pack'])
         isd_ad_obj.pack.side_effect = b"src packed", b"dst packed"
         isd_ad.return_value = isd_ad_obj
@@ -117,7 +117,7 @@ class TestPathSegmentInfoPack(object):
         ntools.eq_(inst.pack(), expected)
         # Tests
         assert_these_call_lists(isd_ad, [
-            call("src isd", "src ad").pack(), call("dst isd", "dst ad").pack()])
+            call("src isd", "src as").pack(), call("dst isd", "dst as").pack()])
 
 
 class TestPathSegmentRecordsParse(object):

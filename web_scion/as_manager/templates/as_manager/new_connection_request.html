@@ -1,0 +1,25 @@
+{% extends "ad_manager/base.html" %}
+{% load bootstrap3 %}
+
+{% block content %}
+  <br />
+  <h2>Create a new connection request</h2>
+  <hr />
+
+  <b>Connecting to:</b> <a href="{{ as.get_absolute_url }}">AS {{ as }}</a>
+  <br />
+  {% if as.is_open %}
+    This AS is OPEN. Your connection request will be processed automatically.
+  {% else %}
+    This AS is CLOSED. Your connection request will be reviewed by AS admins.
+  {% endif %}
+  <br />
+  <br />
+
+  <form action="" method="POST">
+    {% csrf_token %}
+    {% bootstrap_form form %}
+    <input class="btn btn-info" type="submit" value="Send message" />
+  </form>
+
+{% endblock %}

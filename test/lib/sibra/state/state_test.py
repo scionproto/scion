@@ -36,11 +36,11 @@ class TestSibraStateInit(object):
     @patch("lib.sibra.state.state.current_tick", autospec=True)
     def test(self, curr_tick, bwsnap, linkbw):
         # Call
-        inst = SibraState(2, "isd ad")
+        inst = SibraState(2, "isd as")
         # Tests
         ntools.eq_(inst.curr_tick, curr_tick.return_value)
         bwsnap.assert_called_once_with(2048, 2048)
-        linkbw.assert_called_once_with("isd ad", bwsnap.return_value)
+        linkbw.assert_called_once_with("isd as", bwsnap.return_value)
         ntools.eq_(inst.link, linkbw.return_value)
 
 
@@ -52,7 +52,7 @@ class TestSibraStateUpdateTick(object):
     @patch("lib.sibra.state.state.SibraState.__init__",
            autospec=True, return_value=None)
     def test(self, init, curr_tick):
-        inst = SibraState("bw", "isd ad")
+        inst = SibraState("bw", "isd as")
         inst.curr_tick = 0
         inst.link = create_mock(["next"])
         inst.steady = "steady"
@@ -75,7 +75,7 @@ class TestSibraStateResvTick(object):
     @patch("lib.sibra.state.state.SibraState.__init__",
            autospec=True, return_value=None)
     def test(self, init):
-        inst = SibraState("bw", "isd ad")
+        inst = SibraState("bw", "isd as")
         inst.curr_tick = "curr tick"
         resvs = []
         for i in range(4):
@@ -100,7 +100,7 @@ class TestSibraStateSteadyAdd(object):
     @patch("lib.sibra.state.state.SibraState.__init__",
            autospec=True, return_value=None)
     def test_setup_accepted_success(self, init, isd_ad, st_resv):
-        inst = SibraState("bw", "isd ad")
+        inst = SibraState("bw", "isd as")
         inst._update_tick = create_mock()
         inst.steady = {}
         inst.pend_steady = {}
@@ -124,7 +124,7 @@ class TestSibraStateSteadyAdd(object):
     @patch("lib.sibra.state.state.SibraState.__init__",
            autospec=True, return_value=None)
     def _check_denied(self, accepted, init):
-        inst = SibraState("bw", "isd ad")
+        inst = SibraState("bw", "isd as")
         inst._update_tick = create_mock()
         inst.curr_tick = 42
         resv = create_mock(["add"])

@@ -56,12 +56,12 @@ class SCIONElement(object):
     Base class for the different kind of servers the SCION infrastructure
     provides.
 
-    :ivar `Topology` topology: the topology of the AD as seen by the server.
+    :ivar `Topology` topology: the topology of the AS as seen by the server.
     :ivar `Config` config:
-        the configuration of the AD in which the server is located.
+        the configuration of the AS in which the server is located.
     :ivar dict ifid2addr:
         a dictionary mapping interface identifiers to the corresponding border
-        router addresses in the server's AD.
+        router addresses in the server's AS.
     :ivar `SCIONAddr` addr: the server's address.
     """
     SERVICE_TYPE = None

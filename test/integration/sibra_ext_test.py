@@ -47,8 +47,8 @@ TOUT = 10  # How long wait for response.
 RESV_LEN = SIBRA_TICK
 
 
-def start_sciond(isd, ad, addr):
-    conf_dir = "%s/ISD%d/AD%d/endhost" % (GEN_PATH, isd, ad)
+def start_sciond(isd, as, addr):
+    conf_dir = "%s/ISD%d/AS%d/endhost" % (GEN_PATH, isd, as)
     return SCIONDaemon.start(conf_dir, haddr_parse_interface(addr))
 
 
@@ -227,7 +227,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-m', '--mininet', action='store_true',
                         help="Running under mininet")
-    parser.add_argument('cli_ad', nargs='?', help='Client isd,ad',
+    parser.add_argument('cli_ad', nargs='?', help='Client isd,as',
                         default="1,13")
     args = parser.parse_args()
     init_logging("logs/sibra_ext", console_level=logging.DEBUG)
@@ -238,10 +238,10 @@ def main():
     cli_sd = start_sciond(cli_isd, cli_ad, c_addr)
     up_path = get_up_path(cli_sd, cli_isd)
     core = up_path.interfaces[-1][0]
-    srv_sd = start_sciond(core.isd, core.ad, s_addr)
+    srv_sd = start_sciond(core.isd, core.as, s_addr)
 
     srv_addr = SCIONAddr.from_values(
-        core.isd, core.ad, haddr_parse_interface(s_addr))
+        core.isd, core.as, haddr_parse_interface(s_addr))
     cli_addr = SCIONAddr.from_values(
         cli_isd, cli_ad, haddr_parse_interface(c_addr))
     finished = threading.Event()

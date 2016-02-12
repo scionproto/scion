@@ -76,7 +76,7 @@ class CertChainRequest(CertMgmtBase):
 
     def __str__(self):
         return (
-            "[%s(%dB): Dest ISD/AD: %d-%d Version:%d]" % (
+            "[%s(%dB): Dest ISD/AS: %d-%d Version:%d]" % (
                 self.NAME, len(self), self.isd_id, self.ad_id, self.version))
 
 
@@ -136,10 +136,10 @@ class CertChainReply(CertMgmtBase):
         return len(self.cert_chain.pack())
 
     def __str__(self):
-        isd, ad, ver = self.cert_chain.get_leaf_isd_ad_ver()
-        return ("[%s(%dB): Isd:%d Ad:%d Version:%d, "
+        isd, as, ver = self.cert_chain.get_leaf_isd_ad_ver()
+        return ("[%s(%dB): Isd:%d As:%d Version:%d, "
                 "Cert_chain len:%d]" %
-                (self.NAME, len(self), isd, ad, ver,
+                (self.NAME, len(self), isd, as, ver,
                  len(self.cert_chain.pack())))
 
 

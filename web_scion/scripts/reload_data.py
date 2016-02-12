@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-Import ISD/AD data from topology files
+Import ISD/AS data from topology files
 """
 
 # Stdlib
@@ -28,7 +28,7 @@ sys.path.insert(0, WEB_SCION_DIR)  # noqa
 django.setup()  # noqa
 
 # Django app imports
-from ad_manager.models import AD, ISD
+from ad_manager.models import AS, ISD
 from django.contrib.auth.models import User
 
 
@@ -114,7 +114,7 @@ def reload_data():
     for i, ad_topo in enumerate(ad_topos, start=1):
         if i in report_ranges:
             print("{}%".format(report_ranges[i]))
-        AD.objects.create(id=ad_topo.ad_id, isd=isds[ad_topo.isd_id],
+        AS.objects.create(id=ad_topo.ad_id, isd=isds[ad_topo.isd_id],
                           is_core_ad=ad_topo.is_core_ad,
                           dns_domain=ad_topo.dns_domain)
     transaction.commit()
@@ -122,10 +122,10 @@ def reload_data():
 
     # Second, add routers, servers, etc.
     for ad_topo in ad_topos:
-        ad = AD.objects.get(id=ad_topo.ad_id, isd=isds[ad_topo.isd_id])
-        topo_dict = ad_topo_dicts[ad.id]
-        ad.fill_from_topology(topo_dict)
-        print('> AD {} is loaded'.format(ad))
+        as = AS.objects.get(id=ad_topo.ad_id, isd=isds[ad_topo.isd_id])
+        topo_dict = ad_topo_dicts[as.id]
+        as.fill_from_topology(topo_dict)
+        print('> AS {} is loaded'.format(as))
     transaction.commit()
     transaction.set_autocommit(True)
 

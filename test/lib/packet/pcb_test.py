@@ -90,7 +90,7 @@ class TestPCBMarkingParse(object):
         data = create_mock(["pop"])
         data.pop.side_effect = "pop isd_ad", "pop hof", "pop rev tkn"
         raw.return_value = data
-        isd_ad.return_value = "isd", "ad"
+        isd_ad.return_value = "isd", "as"
         hof.return_value = 'hof'
         # Call
         inst._parse("data")
@@ -98,7 +98,7 @@ class TestPCBMarkingParse(object):
         raw.assert_called_once_with("data", "PCBMarking", inst.LEN)
         isd_ad.assert_called_once_with("pop isd_ad")
         ntools.eq_(inst.isd_id, "isd")
-        ntools.eq_(inst.ad_id, "ad")
+        ntools.eq_(inst.ad_id, "as")
         hof.assert_called_once_with("pop hof")
         ntools.eq_(inst.hof, 'hof')
         ntools.eq_(inst.ig_rev_token, "pop rev tkn")
@@ -113,19 +113,19 @@ class TestPCBMarkingPack(object):
     def test(self, isd_ad, len_):
         inst = PCBMarking()
         inst.isd_id = "isd"
-        inst.ad_id = "ad"
+        inst.ad_id = "as"
         inst.ig_rev_token = b'ig_rev_token'
         isd_ad_obj = create_mock(["pack"])
-        isd_ad_obj.pack.return_value = b"isd ad"
+        isd_ad_obj.pack.return_value = b"isd as"
         isd_ad.return_value = isd_ad_obj
         inst.hof = create_mock(['pack'])
         inst.hof.pack.return_value = b'hof'
-        expected = b'isd ad' b'hof' b'ig_rev_token'
+        expected = b'isd as' b'hof' b'ig_rev_token'
         len_.return_value = len(expected)
         # Call
         ntools.eq_(inst.pack(), expected)
         # Tests
-        assert_these_call_lists(isd_ad, [call("isd", "ad").pack()])
+        assert_these_call_lists(isd_ad, [call("isd", "as").pack()])
 
 
 class TestPCBMarkingEq(object):
@@ -502,8 +502,8 @@ class TestPathSegmentRemoveSignatures(object):
         # Call
         inst.remove_signatures()
         # Tests
-        for ad in inst.ads:
-            ad.remove_signature.assert_called_once_with()
+        for as in inst.ads:
+            as.remove_signature.assert_called_once_with()
 
 
 class TestPathSegmentGetPath(object):
@@ -515,9 +515,9 @@ class TestPathSegmentGetPath(object):
         path_segment = PathSegment()
         path_segment.iof = 1
         ads = [create_mock(['pcbm']) for i in range(3)]
-        for i, ad in enumerate(ads):
-            ad.pcbm = create_mock(['hof'])
-            ad.pcbm.hof = i
+        for i, as in enumerate(ads):
+            as.pcbm = create_mock(['hof'])
+            as.pcbm.hof = i
         path_segment.ads = ads
         core_path.return_value = 'core_path'
         ntools.eq_(path_segment.get_path(), 'core_path')
@@ -598,17 +598,17 @@ class TestPathSegmentCompareHops(object):
     def _setup(self, self_ad_nums, other_ad_nums):
         inst = PathSegment()
         for i in self_ad_nums:
-            ad = create_mock(['pcbm'])
-            ad.pcbm = create_mock(['ad_id'])
-            ad.pcbm.ad_id = i
-            inst.ads.append(ad)
+            as = create_mock(['pcbm'])
+            as.pcbm = create_mock(['ad_id'])
+            as.pcbm.ad_id = i
+            inst.ads.append(as)
         other = MagicMock(spec=PathSegment)
         other.ads = []
         for i in other_ad_nums:
-            ad = create_mock(['pcbm'])
-            ad.pcbm = create_mock(['ad_id'])
-            ad.pcbm.ad_id = i
-            other.ads.append(ad)
+            as = create_mock(['pcbm'])
+            as.pcbm = create_mock(['ad_id'])
+            as.pcbm.ad_id = i
+            other.ads.append(as)
         return inst, other
 
     def test_equal(self):
@@ -631,12 +631,12 @@ class TestPathSegmentGetHopsHash(object):
     def setUp(self):
         self.ads = [create_mock(['pcbm', 'eg_rev_token', 'pms']) for i in
                     range(2)]
-        for i, ad in enumerate(self.ads):
-            ad.pcbm = create_mock(['ig_rev_token'])
-            ad.pcbm.ig_rev_token = 'pcbm_ig_rev' + str(i)
-            ad.eg_rev_token = 'eg_rev' + str(i)
-            ad.pms = [create_mock(['ig_rev_token']) for j in range(2)]
-            for j, pm in enumerate(ad.pms):
+        for i, as in enumerate(self.ads):
+            as.pcbm = create_mock(['ig_rev_token'])
+            as.pcbm.ig_rev_token = 'pcbm_ig_rev' + str(i)
+            as.eg_rev_token = 'eg_rev' + str(i)
+            as.pms = [create_mock(['ig_rev_token']) for j in range(2)]
+            for j, pm in enumerate(as.pms):
                 pm.ig_rev_token = 'pm_ig_rev' + str(i) + str(j)
         self.calls = [call('pcbm_ig_rev0'), call('eg_rev0'),
                       call('pm_ig_rev00'), call('pm_ig_rev01'),
@@ -676,10 +676,10 @@ class TestPathSegmentGetNPeerLinks(object):
     def test(self):
         inst = PathSegment()
         for i in 10, 20, 30:
-            ad = create_mock(['pms'])
-            ad.pms = create_mock(['__len__'])
-            ad.pms.__len__.return_value = i
-            inst.ads.append(ad)
+            as = create_mock(['pms'])
+            as.pms = create_mock(['__len__'])
+            as.pms.__len__.return_value = i
+            inst.ads.append(as)
         # Call
         ntools.eq_(inst.get_n_peer_links(), 60)
 
@@ -744,16 +744,16 @@ class TestPathSegmentGetAllIftokens(object):
     def test(self):
         inst = PathSegment()
         for i in range(2):
-            ad = create_mock(['pcbm', 'eg_rev_token', 'pms'])
-            ad.pcbm = create_mock(['ig_rev_token'])
-            ad.pcbm.ig_rev_token = "ig_rev_token%d" % i
-            ad.eg_rev_token = "eg_rev_token%d" % i
-            ad.pms = []
+            as = create_mock(['pcbm', 'eg_rev_token', 'pms'])
+            as.pcbm = create_mock(['ig_rev_token'])
+            as.pcbm.ig_rev_token = "ig_rev_token%d" % i
+            as.eg_rev_token = "eg_rev_token%d" % i
+            as.pms = []
             for j in range(2):
                 pm = create_mock(['ig_rev_token'])
                 pm.ig_rev_token = "pm_ig_rev_token%d.%d" % (i, j)
-                ad.pms.append(pm)
-            inst.ads.append(ad)
+                as.pms.append(pm)
+            inst.ads.append(as)
         expected = [
             'ig_rev_token0', 'eg_rev_token0',
             'pm_ig_rev_token0.0', 'pm_ig_rev_token0.1',

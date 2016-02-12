@@ -260,40 +260,40 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         Handle beacon extensions.
         """
-        for ad in pcb.ads:
-            for ext in ad.ext:
+        for as in pcb.ads:
+            for ext in as.ext:
                 if ext.EXT_TYPE == MtuPcbExt.EXT_TYPE:
-                    self.mtu_ext_handler(ext, ad)
+                    self.mtu_ext_handler(ext, as)
                 elif ext.EXT_TYPE == RevPcbExt.EXT_TYPE:
-                    self.rev_ext_handler(ext, ad)
+                    self.rev_ext_handler(ext, as)
                 elif ext.EXT_TYPE == SibraPcbExt.EXT_TYPE:
-                    self.sibra_ext_handler(ext, ad)
+                    self.sibra_ext_handler(ext, as)
                 else:
                     logging.warning("PCB extension %s(%s) not supported" % (
                         BeaconExtType.to_str(ext.EXT_TYPE), ext.EXT_TYPE))
 
-    def mtu_ext_handler(self, ext, ad):
+    def mtu_ext_handler(self, ext, as):
         """
         Dummy handler for MtuPcbExt.
         """
-        logging.info("MTU (%d, %d): %s" % (ad.pcbm.ad_id, ad.pcbm.isd_id, ext))
+        logging.info("MTU (%d, %d): %s" % (as.pcbm.ad_id, as.pcbm.isd_id, ext))
 
-    def rev_ext_handler(self, ext, ad):
+    def rev_ext_handler(self, ext, as):
         """
         Handler for RevPcbExt.
         """
-        logging.info("REV (%d, %d): %s" % (ad.pcbm.ad_id, ad.pcbm.isd_id, ext))
+        logging.info("REV (%d, %d): %s" % (as.pcbm.ad_id, as.pcbm.isd_id, ext))
         rev_info = ext.rev_info
         # Trigger the removal of PCBs which contain the revoked interface
         self._remove_revoked_pcbs(rev_info=rev_info, if_id=None)
         # Inform the local PS
         self._send_rev_to_local_ps(rev_info=rev_info)
 
-    def sibra_ext_handler(self, ext, ad):
+    def sibra_ext_handler(self, ext, as):
         """
         Dummy handler for SibraPcbExt.
         """
-        logging.info("Sibra (%d, %d): %s" % (ad.pcbm.ad_id, ad.pcbm.isd_id,
+        logging.info("Sibra (%d, %d): %s" % (as.pcbm.ad_id, as.pcbm.isd_id,
                                              ext))
 
     @abstractmethod
@@ -319,7 +319,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
     def _create_ad_marking(self, ingress_if, egress_if, ts, prev_hof=None):
         """
-        Creates an AD Marking for given ingress and egress interfaces,
+        Creates an AS Marking for given ingress and egress interfaces,
         timestamp, and previous HOF.
 
         :param ingress_if: ingress interface.
@@ -371,7 +371,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         Copies a PCB, terminates it and adds the segment ID.
 
         Terminating a PCB means adding a opaque field with the egress IF set
-        to 0, i.e., there is no AD to forward a packet containing this path
+        to 0, i.e., there is no AS to forward a packet containing this path
         segment to.
 
         :param pcb: The PCB to terminate.
@@ -513,7 +513,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
         :param isd_id: ISD identifier.
         :type isd_id: int
-        :param ad_id: AD identifier.
+        :param ad_id: AS identifier.
         :type ad_id: int
         :param cert_ver: certificate chain file version.
         :type cert_ver: int
@@ -528,7 +528,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
         :param isd_id: ISD identifier.
         :type isd_id: int
-        :param ad_id: AD identifier.
+        :param ad_id: AS identifier.
         :type ad_id: int
         :param trc_ver: TRC file version.
         :type trc_ver: int
@@ -775,7 +775,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 if (self.ifid_state[if_id].is_expired() and
                         cand.pcb.if_id == if_id):
                     to_remove.append(cand.id)
-            else:  # if_id = None means that this is an AD in downstream
+            else:  # if_id = None means that this is an AS in downstream
                 rtoken = rev_info.rev_token
                 for iftoken in cand.pcb.get_all_iftokens():
                     if HashChain.verify(rtoken, iftoken, self.N_TOKENS_CHECK):

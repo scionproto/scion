@@ -54,7 +54,7 @@ class PacketType(object):
     BEACON = HostAddrSVC(1, raw=False)
     # Path management packet from/to PS
     PATH_MGMT = HostAddrSVC(2, raw=False)
-    # TRC file request to parent AD
+    # TRC file request to parent AS
     CERT_MGMT = HostAddrSVC(3, raw=False)
     # IF ID packet to the peer router
     IFID_PKT = HostAddrSVC(4, raw=False)
@@ -264,9 +264,9 @@ class SCIONAddrHdr(HeaderBase):
     def __str__(self):
         s = []
         s.append("SCIONAddrHdr(%dB):" % len(self))
-        s.append("Src<isd:%d ad:%d host(%s):%s>" % (
+        s.append("Src<isd:%d as:%d host(%s):%s>" % (
             self.src_isd, self.src_ad, self.src_addr.name(), self.src_addr))
-        s.append("Dst<isd:%d ad:%d host(%s):%s>" % (
+        s.append("Dst<isd:%d as:%d host(%s):%s>" % (
             self.dst_isd, self.dst_ad, self.dst_addr.name(), self.dst_addr))
         return " ".join(s)
 

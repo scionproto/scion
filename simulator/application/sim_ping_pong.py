@@ -48,7 +48,7 @@ class SimPingApp(SCIONSimApplication):
         :type host: SCIONSimHost
         :param dst_addr: The destination address to which ping is sent
         :type dst_addr: IPv4Address
-        :param dst_ad: The destination ad to which ping is sent
+        :param dst_ad: The destination as to which ping is sent
         :type dst_ad: int
         :param dst_isd: The destination isd to which ping is sent
         :type dst_isd: int

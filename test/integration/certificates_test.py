@@ -62,13 +62,13 @@ class TestCertificates(object):
         cert10 = CertificateChain(get_cert_chain_file_path(1, 10, 1, 10, 0))
         trc = TRC(get_trc_file_path(1, 10, 1, 0))
         print('TRC verification', trc.verify())
-        print('Cert Chain verification:', cert10.verify('ISD:1-AD:10', trc, 0))
+        print('Cert Chain verification:', cert10.verify('ISD:1-AS:10', trc, 0))
 
         sig_priv10 = read_file(get_sig_key_file_path(1, 10))
         sig_priv10 = base64.b64decode(sig_priv10)
         msg = b'abcd'
         sig = sign(msg, sig_priv10)
-        print('Sig test:', verify_sig_chain_trc(msg, sig, 'ISD:1-AD:10', cert10,
+        print('Sig test:', verify_sig_chain_trc(msg, sig, 'ISD:1-AS:10', cert10,
                                                 trc, 0))
 
         sig_priv13 = read_file(get_sig_key_file_path(1, 13))
@@ -76,11 +76,11 @@ class TestCertificates(object):
         msg = b'abd'
         sig = sign(msg, sig_priv13)
         CertificateChain.from_values([])
-        print('Sig test 2:', verify_sig_chain_trc(msg, sig, 'ISD:1-AD:13',
+        print('Sig test 2:', verify_sig_chain_trc(msg, sig, 'ISD:1-AS:13',
                                                   cert10, trc, 0), '\n')
 
         topology = Topology.from_file(
-            "topology/ISD1/topologies/ISD:1-AD:10.json")
+            "topology/ISD1/topologies/ISD:1-AS:10.json")
         src_addr = SCIONAddr.from_values(topology.isd_id, topology.ad_id,
                                          IPv4Address("127.0.0.1"))
         dst_addr = topology.certificate_servers[0].addr
@@ -110,7 +110,7 @@ class TestCertificates(object):
         trc = TRC(temp_file)
         assert trc.verify()
 
-        print("Sending cert chain request (ISD:1-AD:16-V:0) to local CS.")
+        print("Sending cert chain request (ISD:1-AS:16-V:0) to local CS.")
         msg = CertChainRequest.from_values(
             PT.CERT_CHAIN_REQ_LOCAL, src_addr,
             topology.parent_edge_routers[0].interface.if_id,
@@ -128,7 +128,7 @@ class TestCertificates(object):
         cert_chain_reply = CertChainReply(data)
         write_file(temp_file, cert_chain_reply.cert_chain.decode('utf-8'))
         cert_chain = CertificateChain(temp_file)
-        assert cert_chain.verify('ISD:1-AD:16', trc, 0)
+        assert cert_chain.verify('ISD:1-AS:16', trc, 0)
 
         os.remove(temp_file)
         sock.close()

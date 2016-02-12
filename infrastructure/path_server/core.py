@@ -35,7 +35,7 @@ from lib.zookeeper import ZkNoConnection
 
 class CorePathServer(PathServer):
     """
-    SCION Path Server in a core AD. Stores intra ISD down-paths as well as core
+    SCION Path Server in a core AS. Stores intra ISD down-paths as well as core
     paths and forwards inter-ISD path requests to the corresponding path server.
     """
     def __init__(self, server_id, conf_dir, is_sim=False):
@@ -132,7 +132,7 @@ class CorePathServer(PathServer):
                                             dst_isd, dst_ad)
             if (dst_isd == pkt.addrs.src_isd and dst_ad == pkt.addrs.src_ad):
                 # Only propagate this path if it was registered with us by the
-                # down-stream AD.
+                # down-stream AS.
                 paths_to_propagate.append(pcb)
             if (src_isd == dst_isd == self.addr.isd_id):
                 # Master replicates all seen down-paths from ISD.
@@ -245,20 +245,20 @@ class CorePathServer(PathServer):
         :param pkt: the packet to propagate (without path)
         :type pkt: lib.packet.packet_base.PacketBase
         """
-        for (isd, ad) in self._core_ads[self.topology.isd_id]:
-            if (isd, ad) == self.addr.get_isd_ad():
+        for (isd, as) in self._core_ads[self.topology.isd_id]:
+            if (isd, as) == self.addr.get_isd_ad():
                 continue
-            cpaths = self.core_segments(first_isd=isd, first_ad=ad,
+            cpaths = self.core_segments(first_isd=isd, first_ad=as,
                                         last_isd=self.topology.isd_id,
                                         last_ad=self.topology.ad_id)
             if cpaths:
                 cpath = cpaths[0].get_path(reverse_direction=True)
-                pkt = self._build_packet(PT.PATH_MGMT, dst_isd=isd, dst_ad=ad,
+                pkt = self._build_packet(PT.PATH_MGMT, dst_isd=isd, dst_ad=as,
                                          path=cpath, payload=rep_recs)
-                logging.info("Path propagated to CPS in (%d, %d).\n", isd, ad)
+                logging.info("Path propagated to CPS in (%d, %d).\n", isd, as)
                 self._send_to_next_hop(pkt, cpath.get_fwd_if())
             else:
-                logging.warning("Path to AD (%d, %d) not found.", isd, ad)
+                logging.warning("Path to AS (%d, %d) not found.", isd, as)
 
     def path_resolution(self, pkt, new_request=True):
         """
@@ -273,16 +273,16 @@ class CorePathServer(PathServer):
         assert seg_type == PST.GENERIC
         logging.info("PATH_REQ received, addr: %d,%d" % dst)
         if dst == self.addr.get_isd_ad():
-            logging.warning("Dropping request: requested DST is local AD")
+            logging.warning("Dropping request: requested DST is local AS")
             return False
 
         # dst_ad=0 means any core AS in the specified ISD
-        dst_is_core = dst in self._core_ads[dst.isd] or not dst.ad
+        dst_is_core = dst in self._core_ads[dst.isd] or not dst.as
         if dst_is_core:
-            core_seg = self._resolve_core(pkt, dst.isd, dst.ad, new_request)
+            core_seg = self._resolve_core(pkt, dst.isd, dst.as, new_request)
             down_seg = set()
         else:
-            core_seg, down_seg = self._resolve_not_core(pkt, dst.isd, dst.ad,
+            core_seg, down_seg = self._resolve_not_core(pkt, dst.isd, dst.as,
                                                         new_request)
 
         if not (core_seg | down_seg):
@@ -330,20 +330,20 @@ class CorePathServer(PathServer):
             self._resolve_not_core_failed(pkt, dst_isd, dst_ad)
 
         for dseg in tmp_down_seg:
-            isd, ad = dseg.get_first_isd_ad()
+            isd, as = dseg.get_first_isd_ad()
             # Check whether it is a direct down segment.
-            if (isd, ad) == self.addr.get_isd_ad():
+            if (isd, as) == self.addr.get_isd_ad():
                 down_seg.add(dseg)
                 continue
 
             # Now try core segments that connect to down segment.
-            tmp_core_seg = self.core_segments(first_isd=isd, first_ad=ad,
+            tmp_core_seg = self.core_segments(first_isd=isd, first_ad=as,
                                               last_isd=my_isd, last_ad=my_ad)
             if not tmp_core_seg and new_request:
                 # Core segment not found and it is a new request.
-                self.pending_req[(isd, ad)].append(pkt)
+                self.pending_req[(isd, as)].append(pkt)
                 if dst_isd != self.addr.isd_id:  # Master may know a segment.
-                    self._query_master(PST.GENERIC, isd, ad)
+                    self._query_master(PST.GENERIC, isd, as)
             elif tmp_core_seg:
                 down_seg.add(dseg)
                 core_seg.update(tmp_core_seg)

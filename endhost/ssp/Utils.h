@@ -11,7 +11,7 @@ inline int isd(SCIONAddr &addr)
     return addr.isd_ad >> 20;
 }
 
-inline int ad(SCIONAddr &addr)
+inline int as(SCIONAddr &addr)
 {
     return addr.isd_ad & 0xfffff;
 }

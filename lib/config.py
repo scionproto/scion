@@ -24,16 +24,16 @@ from lib.util import load_yaml_file
 
 class Config(object):
     """
-    The Config class parses the configuration file of an AD and stores such
+    The Config class parses the configuration file of an AS and stores such
     information for further use.
 
-    :ivar master_ad_key: AD certificate servers priv key.
+    :ivar master_ad_key: AS certificate servers priv key.
     :type master_ad_key: bytes
     :ivar propagation_time: the interval at which PCBs are propagated.
     :type propagation_time: int
     :ivar registration_time: the interval at which paths are registered.
     :type registration_time: int
-    :ivar registers_paths: whether or not the AD registers paths.
+    :ivar registers_paths: whether or not the AS registers paths.
     :type registers_paths: int
     :ivar cert_ver: initial version of the certificate chain.
     :ivar cert_ver: int
