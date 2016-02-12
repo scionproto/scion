@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 # Copyright 2015 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,45 +17,48 @@
 ======================================================================
 """
 # Stdlib
+import argparse
 import logging
-import socket
 import threading
 import time
-import sys
 
 # SCION
 from endhost.sciond import SCIONDaemon
-from lib.defines import SCION_BUFLEN, SCION_UDP_EH_DATA_PORT
-from lib.log import init_logging, log_exception
+from lib.defines import GEN_PATH, SCION_UDP_EH_DATA_PORT
+from lib.log import init_logging
+from lib.main import main_wrapper
 from lib.packet.ext.traceroute import TracerouteExt
-from lib.packet.host_addr import haddr_parse
+from lib.packet.ext.path_transport import (
+    PathTransportExt,
+    PathTransOFPath,
+    PathTransType,
+)
+from lib.packet.host_addr import haddr_parse_interface
 from lib.packet.packet_base import PayloadRaw
 from lib.packet.scion import SCIONL4Packet, build_base_hdrs
 from lib.packet.scion_addr import SCIONAddr
 from lib.packet.scion_udp import SCIONUDPHeader
+from lib.socket import UDPSocket
 from lib.thread import thread_safety_net
 from lib.util import handle_signals
 
 TOUT = 10  # How long wait for response.
-CLI_ISD = 1
-CLI_AD = 19
-CLI_IP = "127.1.19.254"
-SRV_ISD = 2
-SRV_AD = 26
-SRV_IP = "127.1.26.254"
 
 
-def client():
+def client(c_addr, s_addr):
     """
     Simple client
     """
-    topo_file = ("../../topology/ISD%d/topologies/ISD:%d-AD:%d.json" %
-                 (CLI_ISD, CLI_ISD, CLI_AD))
+    conf_dir = "%s/ISD%d/AD%d/endhost" % (GEN_PATH, c_addr.isd_id, c_addr.ad_id)
     # Start SCIONDaemon
-    sd = SCIONDaemon.start(haddr_parse("IPv4", CLI_IP), topo_file)
-    logging.info("CLI: Sending PATH request for (%d, %d)", SRV_ISD, SRV_AD)
+    sd = SCIONDaemon.start(conf_dir, c_addr.host_addr)
+    logging.info("CLI: Sending PATH request for (%d, %d)",
+                 s_addr.isd_id, s_addr.ad_id)
+    # Open a socket for incomming DATA traffic
+    sock = UDPSocket(bind=(str(c_addr.host_addr), 0, "Client"),
+                     addr_type=c_addr.host_addr.TYPE)
     # Get paths to server through function call
-    paths = sd.get_paths(SRV_ISD, SRV_AD)
+    paths = sd.get_paths(s_addr.isd_id, s_addr.ad_id)
     assert paths
     # Get a first path
     path = paths[0]
@@ -62,49 +66,57 @@ def client():
     routers_no = (path.get_ad_hops() - 1) * 2
     # Number of router for round-trip (return path is symmetric)
     routers_no *= 2
+
+    # Extensions
+    exts = []
     # Create empty Traceroute extensions with allocated space
-    ext = TracerouteExt.from_values(routers_no)
-    # Create a SCION address to the destination
-    dst = SCIONAddr.from_values(SRV_ISD, SRV_AD, haddr_parse("IPv4", SRV_IP))
+    exts.append(TracerouteExt.from_values(routers_no))
+    # Create PathTransportExtension
+    # One with data-plane path.
+    of_path = PathTransOFPath.from_values(c_addr, s_addr, path)
+    exts.append(PathTransportExt.from_values(PathTransType.OF_PATH, of_path))
+    # And another PathTransportExtension with control-plane path.
+    if sd.up_segments() or sd.core_segments() or sd.down_segments():
+        seg = (sd.up_segments() + sd.core_segments() + sd.down_segments())[0]
+        exts.append(PathTransportExt.from_values(PathTransType.PCB_PATH, seg))
+
     # Set payload
     payload = PayloadRaw(b"request to server")
     # Create a SCION packet with the extensions
-    cmn_hdr, addr_hdr = build_base_hdrs(sd.addr, dst)
+    cmn_hdr, addr_hdr = build_base_hdrs(c_addr, s_addr)
     udp_hdr = SCIONUDPHeader.from_values(
-        sd.addr, SCION_UDP_EH_DATA_PORT, dst, SCION_UDP_EH_DATA_PORT, payload)
-    spkt = SCIONL4Packet.from_values(cmn_hdr, addr_hdr, path, [ext], udp_hdr,
-                                     payload)
+        c_addr, sock.port, s_addr, SCION_UDP_EH_DATA_PORT, payload,
+    )
+    spkt = SCIONL4Packet.from_values(cmn_hdr, addr_hdr, path,
+                                     exts, udp_hdr, payload)
     # Determine first hop (i.e., local address of border router)
     (next_hop, port) = sd.get_first_hop(spkt)
+    assert next_hop is not None
     logging.info("CLI: Sending packet:\n%s\nFirst hop: %s:%s",
                  spkt, next_hop, port)
     # Send packet to first hop (it is sent through SCIONDaemon)
     sd.send(spkt, next_hop, port)
-    # Open a socket for incomming DATA traffic
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    sock.bind((CLI_IP, SCION_UDP_EH_DATA_PORT))
     # Waiting for a response
-    raw, _ = sock.recvfrom(SCION_BUFLEN)
+    raw, _ = sock.recv()
     logging.info('CLI: Received response:\n%s', SCIONL4Packet(raw))
     logging.info("CLI: leaving.")
     sock.close()
 
 
-def server():
+def server(addr):
     """
     Simple server.
     """
-    topo_file = ("../../topology/ISD%d/topologies/ISD:%d-AD:%d.json" %
-                 (SRV_ISD, SRV_ISD, SRV_AD))
+    conf_dir = "%s/ISD%d/AD%d/endhost" % (GEN_PATH, addr.isd_id, addr.ad_id)
     # Start SCIONDaemon
-    sd = SCIONDaemon.start(haddr_parse("IPv4", SRV_IP), topo_file)
+    sd = SCIONDaemon.start(conf_dir, addr.host_addr)
     # Open a socket for incomming DATA traffic
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    sock.bind((SRV_IP, SCION_UDP_EH_DATA_PORT))
+    sock = UDPSocket(
+        bind=(str(addr.host_addr), SCION_UDP_EH_DATA_PORT, "Server"),
+        addr_type=addr.host_addr.TYPE
+    )
     # Waiting for a request
-    raw, _ = sock.recvfrom(SCION_BUFLEN)
+    raw, _ = sock.recv()
     # Request received, instantiating SCION packet
     spkt = SCIONL4Packet(raw)
     logging.info('SRV: received: %s', spkt)
@@ -116,35 +128,49 @@ def server():
         spkt.set_payload(PayloadRaw(b"response"))
         # Determine first hop (i.e., local address of border router)
         (next_hop, port) = sd.get_first_hop(spkt)
+        assert next_hop is not None
         # Send packet to first hop (it is sent through SCIONDaemon)
         sd.send(spkt, next_hop, port)
     logging.info("SRV: Leaving server.")
     sock.close()
 
 
-if __name__ == "__main__":
-    init_logging("../../logs/c2s_extn.log", console=True)
+def main():
     handle_signals()
-    # if len(sys.argv) == 3:
-    #     isd, ad = sys.argv[1].split(',')
-    #     sources = [(int(isd), int(ad))]
-    #     isd, ad = sys.argv[2].split(',')
-    #     destinations = [(int(isd), int(ad))]
-    # TestSCIONDaemon().test(sources, destinations)
-    try:
-        threading.Thread(
-            target=thread_safety_net, args=(server,),
-            name="C2S_extn.server", daemon=True).start()
-        time.sleep(0.5)
-        t_client = threading.Thread(
-            target=thread_safety_net, args=(client,),
-            name="C2S_extn.client", daemon=True)
-        t_client.start()
-        t_client.join()
-    except SystemExit:
-        logging.info("Exiting")
-        raise
-    except:
-        log_exception("Exception in main process:")
-        logging.critical("Exiting")
-        sys.exit(1)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-c', '--client', help='Client address')
+    parser.add_argument('-s', '--server', help='Server address')
+    parser.add_argument('-m', '--mininet', action='store_true',
+                        help="Running under mininet")
+    parser.add_argument('cli_ad', nargs='?', help='Client isd,ad',
+                        default="1,19")
+    parser.add_argument('srv_ad', nargs='?', help='Server isd,ad',
+                        default="2,26")
+    args = parser.parse_args()
+    init_logging("logs/c2s_extn", console_level=logging.DEBUG)
+
+    if not args.client:
+        args.client = "169.254.0.2" if args.mininet else "127.0.0.2"
+    if not args.server:
+        args.server = "169.254.0.3" if args.mininet else "127.0.0.3"
+
+    srv_isd, srv_ad = map(int, args.srv_ad.split(","))
+    srv_addr = SCIONAddr.from_values(srv_isd, srv_ad,
+                                     haddr_parse_interface(args.server))
+    threading.Thread(
+        target=thread_safety_net, args=(server, srv_addr),
+        name="C2S_extn.server", daemon=True).start()
+    time.sleep(0.5)
+
+    cli_isd, cli_ad = map(int, args.cli_ad.split(","))
+    cli_addr = SCIONAddr.from_values(cli_isd, cli_ad,
+                                     haddr_parse_interface(args.client))
+    t_client = threading.Thread(
+        target=thread_safety_net, args=(
+            client, cli_addr, srv_addr,
+        ), name="C2S_extn.client", daemon=True)
+    t_client.start()
+    t_client.join()
+
+if __name__ == "__main__":
+    main_wrapper(main)

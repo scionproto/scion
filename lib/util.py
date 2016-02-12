@@ -21,28 +21,31 @@ Various utilities for SCION functionality.
 import json
 import logging
 import os
+import shutil
 import signal
 import sys
 import time
+from binascii import hexlify
+from datetime import datetime, timezone
 from functools import wraps
 
 # External packages
+import yaml
 from external.stacktracer import trace_start
 
 # SCION
-from lib.defines import TOPOLOGY_PATH
 from lib.errors import (
     SCIONIOError,
     SCIONIndexError,
     SCIONJSONError,
     SCIONParseError,
     SCIONTypeError,
+    SCIONYAMLError,
 )
 
-CERT_DIR = 'certificates'
-SIG_KEYS_DIR = 'signature_keys'
-ENC_KEYS_DIR = 'encryption_keys'
-TRACE_DIR = '../traces'
+CERT_DIR = 'certs'
+KEYS_DIR = 'keys'
+TRACE_DIR = 'traces'
 
 _SIG_MAP = {
     signal.SIGHUP: "SIGHUP",
@@ -54,99 +57,27 @@ _SIG_MAP = {
 }
 
 
-def _get_isd_prefix(isd_dir):
+def get_cert_chain_file_path(conf_dir, isd_id, ad_id,
+                             version):  # pragma: no cover
     """
-
-
-    :param isd_dir:
-    :type isd_dir:
-
-    :returns:
-    :rtype:
+    Return the certificate chain file path for a given ISD.
     """
-    return os.path.join(isd_dir, 'ISD')
+    return os.path.join(conf_dir, CERT_DIR,
+                        'ISD%s-AD%s-V%s.crt' % (isd_id, ad_id, version))
 
 
-def get_cert_chain_file_path(loc_isd, loc_ad, isd_id, ad_id, version,
-                             isd_dir=TOPOLOGY_PATH):
+def get_trc_file_path(conf_dir, isd_id, version):  # pragma: no cover
     """
-    Return the certificate chain file path.
-
-    :param loc_isd: the caller's ISD identifier.
-    :type loc_isd: int
-    :param loc_ad: the caller's AD identifier.
-    :type loc_ad: int
-    :param isd_id: the certificate chain's ISD identifier.
-    :type isd_id: int
-    :param ad_id: the certificate chain's AD identifier.
-    :type ad_id: int
-    :param version: the certificate chain's version.
-    :type version: int
-
-    :returns: the certificate chain file path.
-    :rtype: str
+    Return the TRC file path for a given ISD.
     """
-    isd_dir_prefix = _get_isd_prefix(isd_dir)
-    return os.path.join(isd_dir_prefix + str(loc_isd), CERT_DIR,
-                        'AD{}'.format(loc_ad),
-                        'ISD:{}-AD:{}-V:{}.crt'.format(isd_id, ad_id, version))
+    return os.path.join(conf_dir, CERT_DIR, 'ISD%s-V%s.trc' % (isd_id, version))
 
 
-def get_trc_file_path(loc_isd, loc_ad, isd_id, version,
-                      isd_dir=TOPOLOGY_PATH):
-    """
-    Return the TRC file path.
-
-    :param loc_isd: the caller's ISD identifier.
-    :type loc_isd: int
-    :param loc_ad: the caller's AD identifier.
-    :type loc_ad: int
-    :param isd_id: the TRC's ISD identifier.
-    :type isd_id: int
-    :param version: the TRC's version.
-    :type version: int
-
-    :returns: the TRC file path.
-    :rtype: str
-    """
-    isd_dir_prefix = _get_isd_prefix(isd_dir)
-    return os.path.join(isd_dir_prefix + str(loc_isd), CERT_DIR,
-                        'AD{}'.format(loc_ad),
-                        'ISD:{}-V:{}.crt'.format(isd_id, version))
-
-
-def get_sig_key_file_path(isd_id, ad_id, isd_dir=TOPOLOGY_PATH):
+def get_sig_key_file_path(conf_dir):  # pragma: no cover
     """
     Return the signing key file path.
-
-    :param isd_id: the signing key ISD identifier.
-    :type isd_id: int
-    :param ad_id: the signing key AD identifier.
-    :type ad_id: int
-
-    :returns: the signing key file path.
-    :rtype: str
     """
-    isd_dir_prefix = _get_isd_prefix(isd_dir)
-    return os.path.join(isd_dir_prefix + str(isd_id), SIG_KEYS_DIR,
-                        'ISD:{}-AD:{}.key'.format(isd_id, ad_id))
-
-
-def get_enc_key_file_path(isd_id, ad_id, isd_dir=TOPOLOGY_PATH):
-    """
-    Return the encryption key file path.
-
-    :param isd_id: the encryption key ISD identifier.
-    :type isd_id: int
-    :param ad_id: the encryption key AD identifier.
-    :type ad_id: int
-
-    :returns: the encryption key file path.
-    :rtype: str
-    """
-    isd_dir_prefix = _get_isd_prefix(isd_dir)
-    return os.path.join(isd_dir_prefix + str(isd_id), ENC_KEYS_DIR,
-                        'ISD:{}-AD:{}.key'.format(isd_id, ad_id))
+    return os.path.join(conf_dir, KEYS_DIR, "ad-sig.key")
 
 
 def read_file(file_path):
@@ -201,6 +132,20 @@ def write_file(file_path, text):
                            (tmp_file, file_path, e.strerror)) from None
 
 
+def copy_file(src, dst):
+    dst_dir = os.path.dirname(dst)
+    try:
+        os.makedirs(dst_dir, exist_ok=True)
+    except OSError as e:
+        raise SCIONIOError("Error creating dir '%s': %s" %
+                           (dst_dir, e.strerror)) from None
+    try:
+        shutil.copyfile(src, dst)
+    except OSError as e:
+        raise SCIONIOError("Error copying '%s' to '%s': %s" %
+                           (src, dst, e.strerror)) from None
+
+
 def load_json_file(file_path):
     """
     Read and parse a JSON config file.
@@ -222,6 +167,30 @@ def load_json_file(file_path):
                            (file_path, e.strerror)) from None
     except (ValueError, KeyError, TypeError) as e:
         raise SCIONJSONError("Error parsing '%s': %s" %
+                             (file_path, e)) from None
+
+
+def load_yaml_file(file_path):
+    """
+    Read and parse a YAML config file.
+
+    :param file_path: the path to the file.
+    :type file_path: str
+
+    :returns: YAML data
+    :rtype: dict
+    :raises:
+        lib.errors.SCIONIOError: error opening/reading from file.
+        lib.errors.SCIONYAMLError: error parsing file.
+    """
+    try:
+        with open(file_path) as f:
+            return yaml.load(f)
+    except OSError as e:
+        raise SCIONIOError("Error opening '%s': %s" %
+                           (file_path, e.strerror)) from None
+    except (yaml.scanner.ScannerError) as e:
+        raise SCIONYAMLError("Error parsing '%s': %s" %
                              (file_path, e)) from None
 
 
@@ -332,6 +301,23 @@ def _signal_handler(signum, _):
     else:
         logging.error(text)
         sys.exit(1)
+
+
+def iso_timestamp(ts):
+    """
+    Format a unix timestamp as a UTC ISO 8601 format string
+    (YYYY-MM-DD HH:MM:SS.mmmmmm+00:00)
+
+    :param float ts: Seconds since the UNIX epoch.
+    """
+    return str(datetime.fromtimestamp(ts, tz=timezone.utc))
+
+
+def hex_str(raw):
+    """
+    Format a byte string as hex characters.
+    """
+    return hexlify(raw).decode("ascii")
 
 
 class SCIONTime(object):

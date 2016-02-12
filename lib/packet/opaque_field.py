@@ -17,42 +17,12 @@
 """
 # Stdlib
 import struct
-import time
 from abc import ABCMeta, abstractmethod
-from binascii import hexlify
 
 # SCION
+from lib.types import OpaqueFieldType as OFT
 from lib.errors import SCIONIndexError, SCIONKeyError
-from lib.util import Raw
-
-
-class OpaqueFieldType(object):
-    """
-    Defines constants for the types of the opaque field (first byte of every
-    opaque field, i.e. field).
-    TODO describe here layout of Opaque Fields
-    """
-    # Types for HopOpaqueFields (7 MSB bits).
-    NORMAL_OF = 0b0000000
-    XOVR_POINT = 0b0010000  # Indicates a crossover point.
-    # Types for Info Opaque Fields (7 MSB bits).
-    CORE = 0b1000000
-    SHORTCUT = 0b1100000
-    INTRA_ISD_PEER = 0b1111000
-    INTER_ISD_PEER = 0b1111100
-
-    _to_str_map = {
-        NORMAL_OF: "NORMAL",
-        XOVR_POINT: "XOVR_POINT",
-        CORE: "CORE",
-        SHORTCUT: "SHORTCUT",
-        INTRA_ISD_PEER: "INTRA_ISD_PEER",
-        INTER_ISD_PEER: "INTER_ISD_PEER",
-    }
-
-    @classmethod
-    def to_str(cls, type_):  # pragma: no cover
-        return cls._to_str_map.get(type_, "UNKNOWN")
+from lib.util import Raw, hex_str, iso_timestamp
 
 
 class OpaqueField(object, metaclass=ABCMeta):
@@ -126,6 +96,7 @@ class HopOpaqueField(OpaqueField):
     ingress/egress interfaces (2 * 12 bits) and a MAC (24 bits) authenticating
     the opaque field.
     """
+    NAME = "HopOpaqueField"
     MAC_LEN = 3  # MAC length in bytes.
 
     def __init__(self, raw=None):
@@ -147,7 +118,7 @@ class HopOpaqueField(OpaqueField):
         """
         Populates fields from a raw byte block.
         """
-        data = Raw(raw, "HopOpaqueField", self.LEN)
+        data = Raw(raw, self.NAME, self.LEN)
         self.raw = raw
         self.info, self.exp_time = struct.unpack("!BB", data.pop(2))
         # A byte added as length of three bytes can't be unpacked
@@ -166,7 +137,7 @@ class HopOpaqueField(OpaqueField):
         @param egress_if: Egress interface.
         @param mac: MAC of ingress/egress interfaces' ID and timestamp.
         """
-        hof = HopOpaqueField()
+        hof = cls()
         hof.exp_time = exp_time
         hof.ingress_if = ingress_if
         hof.egress_if = egress_if
@@ -196,10 +167,10 @@ class HopOpaqueField(OpaqueField):
             return False
 
     def __str__(self):
-        return ("[Hop OF info: %s, exp_time: %d, ingress if: %d, "
+        return ("[Hop OF info(%dB): %s, exp_time: %d, ingress if: %d, "
                 "egress if: %d, mac: %s]" %
-                (OpaqueFieldType.to_str(self.info), self.exp_time,
-                 self.ingress_if, self.egress_if, hexlify(self.mac)))
+                (len(self), OFT.to_str(self.info), self.exp_time,
+                 self.ingress_if, self.egress_if, hex_str(self.mac)))
 
 
 class InfoOpaqueField(OpaqueField):
@@ -210,6 +181,7 @@ class InfoOpaqueField(OpaqueField):
     a creation timestamp (4 bytes), the ISD ID (2 byte) and # hops for this
     segment (1 byte).
     """
+    NAME = "InfoOpaqueField"
 
     def __init__(self, raw=None):
         """
@@ -232,7 +204,7 @@ class InfoOpaqueField(OpaqueField):
         Populates fields from a raw byte block.
         """
         self.raw = raw
-        data = Raw(raw, "InfoOpaqueField", self.LEN)
+        data = Raw(raw, self.NAME, self.LEN)
         self.info, self.timestamp, self.isd_id, self.hops = \
             struct.unpack("!BIHB", data.pop(self.LEN))
         self.up_flag = bool(self.info & 0b00000001)
@@ -266,11 +238,6 @@ class InfoOpaqueField(OpaqueField):
                            self.hops)
         return data
 
-    def __str__(self):
-        return "[Info OF info: %s, up: %r, TS: %s, ISD ID: %d, hops: %d]" % (
-            OpaqueFieldType.to_str(self.info), self.up_flag,
-            time.ctime(self.timestamp), self.isd_id, self.hops)
-
     def __eq__(self, other):
         if type(other) is type(self):
             return (self.info == other.info and
@@ -280,6 +247,11 @@ class InfoOpaqueField(OpaqueField):
                     self.hops == other.hops)
         else:
             return False
+
+    def __str__(self):
+        return ("[Info OF info(%dB): %s, up: %r, TS: %s, ISD ID: %d, hops: %d]"
+                % (len(self), OFT.to_str(self.info), self.up_flag,
+                   iso_timestamp(self.timestamp), self.isd_id, self.hops))
 
 
 class OpaqueFieldList(object):

@@ -27,14 +27,14 @@ Thumbs.db
 # SCION generated files #
 #########################
 /logs/
-/topology/ISD*/
-/topology/SIM/
+/gen/
 /traces/
 
 
 # Python generated files #
 #########################
 __pycache__
+topology/mininet/*.pyc
 
 
 # vim generated files #
@@ -60,3 +60,20 @@ __pycache__
 ##########################
 /.coverage
 /htmlcov/
+
+# Socket library files
+##########################
+endhost/ssp/*.so
+endhost/ssp/*.o
+
+# Socket binaries
+##########################
+endhost/*dispatcher
+endhost/ssp/test/*.o
+endhost/ssp/test/*client
+endhost/ssp/test/*server
+endhost/ssp/test/*file
+
+# CTags
+##########################
+tags

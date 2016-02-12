@@ -25,9 +25,12 @@ from lib.defines import (
     DNS_SERVICE,
     PATH_SERVICE,
     ROUTER_SERVICE,
+    SIBRA_SERVICE,
 )
-from lib.packet.host_addr import haddr_parse
-from lib.util import load_json_file
+from lib.errors import SCIONKeyError
+from lib.packet.host_addr import haddr_parse_interface
+from lib.packet.scion_addr import ISD_AD
+from lib.util import load_yaml_file
 
 
 class Element(object):
@@ -39,14 +42,14 @@ class Element(object):
     :ivar str name: element name or id
     """
 
-    def __init__(self, addr_info=(), name=None):
+    def __init__(self, addr=None, name=None):
         """
-        :param tuple addr: (addr_type, address) of the element's Host address.
+        :param str addr: (addr_type, address) of the element's Host address.
         :param str name: element name or id
         """
         self.addr = None
-        if addr_info:
-            self.addr = haddr_parse(*addr_info)
+        if addr:
+            self.addr = haddr_parse_interface(addr)
         self.name = None
         if name is not None:
             self.name = str(name)
@@ -66,7 +69,7 @@ class ServerElement(Element):
         :param name: server element name or id
         :type name: str
         """
-        super().__init__((server_dict['AddrType'], server_dict['Addr']), name)
+        super().__init__(server_dict['Addr'], name)
 
 
 class InterfaceElement(Element):
@@ -92,19 +95,21 @@ class InterfaceElement(Element):
         :param interface_dict: contains information about the interface.
         :type interface_dict: dict
         """
-        super().__init__((interface_dict['AddrType'], interface_dict['Addr']),
-                         name)
+        super().__init__(interface_dict['Addr'], name)
         self.if_id = interface_dict['IFID']
         self.neighbor_ad = interface_dict['NeighborAD']
         self.neighbor_isd = interface_dict['NeighborISD']
         self.neighbor_type = interface_dict['NeighborType']
         self.to_udp_port = interface_dict['ToUdpPort']
         self.udp_port = interface_dict['UdpPort']
+        self.bandwidth = interface_dict['Bandwidth']
         to_addr = interface_dict['ToAddr']
-        if to_addr is None:
-            self.to_addr = None
-        else:
-            self.to_addr = haddr_parse(interface_dict['AddrType'], to_addr)
+        self.to_addr = None
+        if to_addr:
+            self.to_addr = haddr_parse_interface(to_addr)
+
+    def isd_ad(self):  # pragma: no cover
+        return ISD_AD(self.neighbor_isd, self.neighbor_ad)
 
 
 class RouterElement(Element):
@@ -124,8 +129,11 @@ class RouterElement(Element):
         :param name: router element name or id
         :type name: str
         """
-        super().__init__((router_dict['AddrType'], router_dict['Addr']), name)
+        super().__init__(router_dict['Addr'], name)
         self.interface = InterfaceElement(router_dict['Interface'])
+
+    def __lt__(self, other):  # pragma: no cover
+        return self.interface.if_id < other.interface.if_id
 
 
 class Topology(object):
@@ -172,6 +180,7 @@ class Topology(object):
         self.certificate_servers = []
         self.dns_servers = []
         self.path_servers = []
+        self.sibra_servers = []
         self.parent_edge_routers = []
         self.child_edge_routers = []
         self.peer_edge_routers = []
@@ -189,7 +198,7 @@ class Topology(object):
         :returns: the newly created Topology instance
         :rtype: :class: `Topology`
         """
-        return cls.from_dict(load_json_file(topology_file))
+        return cls.from_dict(load_yaml_file(topology_file))
 
     @classmethod
     def from_dict(cls, topology_dict):
@@ -213,44 +222,40 @@ class Topology(object):
         :param topology: dictionary representation of a topology
         :type topology: dict
         """
-        self.is_core_ad = (topology['Core'] == 1)
+        self.is_core_ad = topology['Core']
         self.isd_id = topology['ISDID']
         self.ad_id = topology['ADID']
         self.dns_domain = topology['DnsDomain']
-        for bs_key in topology['BeaconServers']:
-            b_server = ServerElement(topology['BeaconServers'][bs_key],
-                                     bs_key)
-            self.beacon_servers.append(b_server)
-        for cs_key in topology['CertificateServers']:
-            c_server = ServerElement(topology['CertificateServers'][cs_key],
-                                     cs_key)
-            self.certificate_servers.append(c_server)
-        for ds_key in topology['DNSServers']:
-            d_server = ServerElement(topology['DNSServers'][ds_key],
-                                     ds_key)
-            self.dns_servers.append(d_server)
-        for ps_key in topology['PathServers']:
-            p_server = ServerElement(topology['PathServers'][ps_key],
-                                     ps_key)
-            self.path_servers.append(p_server)
-        for er_key in topology['EdgeRouters']:
-            edge_router = RouterElement(topology['EdgeRouters'][er_key],
-                                        er_key)
-            if edge_router.interface.neighbor_type == 'PARENT':
-                self.parent_edge_routers.append(edge_router)
-            elif edge_router.interface.neighbor_type == 'CHILD':
-                self.child_edge_routers.append(edge_router)
-            elif edge_router.interface.neighbor_type == 'PEER':
-                self.peer_edge_routers.append(edge_router)
-            elif edge_router.interface.neighbor_type == 'ROUTING':
-                self.routing_edge_routers.append(edge_router)
-            else:
-                logging.warning("Encountered unknown neighbor type")
+        self._parse_srv_dicts(topology)
+        self._parse_router_dicts(topology)
+        self._parse_zk_dicts(topology)
+
+    def _parse_srv_dicts(self, topology):
+        for type_, list_ in (
+            ("BeaconServers", self.beacon_servers),
+            ("CertificateServers", self.certificate_servers),
+            ("DNSServers", self.dns_servers),
+            ("PathServers", self.path_servers),
+            ("SibraServers", self.sibra_servers),
+        ):
+            for k, v in topology[type_].items():
+                list_.append(ServerElement(v, k))
+
+    def _parse_router_dicts(self, topology):
+        for k, v in topology['EdgeRouters'].items():
+            router = RouterElement(v, k)
+            ntype_map = {
+                'PARENT': self.parent_edge_routers,
+                'CHILD': self.child_edge_routers,
+                'PEER': self.peer_edge_routers,
+                'ROUTING': self.routing_edge_routers,
+            }
+            ntype_map[router.interface.neighbor_type].append(router)
+
+    def _parse_zk_dicts(self, topology):
         for zk in topology['Zookeepers'].values():
-            if zk['AddrType'] == "IPv4":
-                zk_host = "%s:%s" % (zk['Addr'], zk['ClientPort'])
-            elif zk['AddrType'] == "IPv6":
-                zk_host = "[%s]:%s" % (zk['Addr'], zk['ClientPort'])
+            haddr = haddr_parse_interface(zk['Addr'])
+            zk_host = "[%s]:%s" % (haddr, zk['Port'])
             self.zookeepers.append(zk_host)
 
     def get_all_edge_routers(self):
@@ -276,24 +281,23 @@ class Topology(object):
         :param server_id:
         :type server_id:
         """
-        target = None
-        if server_type == BEACON_SERVICE:
-            target = self.beacon_servers
-        elif server_type == CERTIFICATE_SERVICE:
-            target = self.certificate_servers
-        elif server_type == DNS_SERVICE:
-            target = self.dns_servers
-        elif server_type == PATH_SERVICE:
-            target = self.path_servers
-        elif server_type == ROUTER_SERVICE:
-            target = self.get_all_edge_routers()
-        else:
-            logging.error("Unknown server type: \"%s\"", server_type)
-            return
+        type_map = {
+            BEACON_SERVICE: self.beacon_servers,
+            CERTIFICATE_SERVICE: self.certificate_servers,
+            DNS_SERVICE: self.dns_servers,
+            PATH_SERVICE: self.path_servers,
+            ROUTER_SERVICE: self.get_all_edge_routers(),
+            SIBRA_SERVICE: self.sibra_servers,
+        }
+        try:
+            target = type_map[server_type]
+        except KeyError:
+            logging.critical("Unknown server type: \"%s\"", server_type)
+            raise SCIONKeyError from None
 
         for i in target:
             if i.name == server_id:
                 return i
         else:
-            logging.error("Could not find server %s%s-%s-%s", server_type,
-                          self.isd_id, self.ad_id, server_id)
+            logging.critical("Could not find server %s", server_id)
+            raise SCIONKeyError from None

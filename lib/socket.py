@@ -29,18 +29,16 @@ from socket import (
 )
 
 # SCION
-from lib.defines import (
-    ADDR_IPV4_TYPE,
-    ADDR_IPV6_TYPE,
-    SCION_BUFLEN,
-)
+from lib.defines import SCION_BUFLEN
+from lib.thread import kill_self
+from lib.types import AddrType
 
 
 class UDPSocket(object):
     """
     Thin wrapper around BSD/POSIX UDP sockets.
     """
-    def __init__(self, bind=None, addr_type=ADDR_IPV6_TYPE):
+    def __init__(self, bind=None, addr_type=AddrType.IPV6):
         """
         Initialise a socket of the specified type, and optionally bind it to an
         address/port.
@@ -49,13 +47,13 @@ class UDPSocket(object):
             Optional tuple of (`str`, `int`, `str`) describing respectively the
             address and port to bind to, and an optional description.
         :param addr_type:
-            Socket domain. Must be one of :const:`~lib.defines.ADDR_IPV4_TYPE`,
-            :const:`~lib.defines.ADDR_IPV6_TYPE` (default).
+            Socket domain. Must be one of :const:`~lib.types.AddrType.IPV4`,
+            :const:`~lib.types.AddrType.IPV6` (default).
         """
-        assert addr_type in (ADDR_IPV4_TYPE, ADDR_IPV6_TYPE)
+        assert addr_type in (AddrType.IPV4, AddrType.IPV6)
         self._addr_type = addr_type
         af_domain = AF_INET6
-        if self._addr_type == ADDR_IPV4_TYPE:
+        if self._addr_type == AddrType.IPV4:
             af_domain = AF_INET
         self.sock = socket(af_domain, SOCK_DGRAM)
         self.sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
@@ -74,9 +72,13 @@ class UDPSocket(object):
         """
         if addr is None:
             addr = "::"
-            if self._domain == ADDR_IPV4_TYPE:
+            if self._addr_type == AddrType.IPV4:
                 addr = ""
-        self.sock.bind((addr, port))
+        try:
+            self.sock.bind((addr, port))
+        except OSError as e:
+            logging.critical("Error binding to [%s]:%s: %s", addr, port, e)
+            kill_self()
         self.port = self.sock.getsockname()[1]
         if desc:
             logging.info("%s bound to %s:%d", desc, addr, self.port)
@@ -90,7 +92,10 @@ class UDPSocket(object):
             Tuple of (`str`, `int`) describing the destination address and port,
             respectively.
         """
-        self.sock.sendto(data, dst)
+        try:
+            self.sock.sendto(data, dst)
+        except OSError as e:
+            logging.error("Error sending %dB to %s: %s", len(data), dst, e)
 
     def recv(self, block=True):
         """
@@ -103,13 +108,20 @@ class UDPSocket(object):
         flags = 0
         if not block:
             flags = MSG_DONTWAIT
-        return self.sock.recvfrom(SCION_BUFLEN, flags)
+        while True:
+            try:
+                return self.sock.recvfrom(SCION_BUFLEN, flags)
+            except InterruptedError:
+                pass
 
     def close(self):
         """
         Close the socket.
         """
         self.sock.close()
+
+    def settimeout(self, timeout):
+        self.sock.settimeout(timeout)
 
 
 class UDPSocketMgr(object):

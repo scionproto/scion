@@ -112,4 +112,11 @@ def create_mock(attrs=None, class_=None):
 
 def assert_these_calls(mock, calls, any_order=False):
     mock.assert_has_calls(calls, any_order=any_order)
-    ntools.eq_(mock.call_count, len(calls))
+    ntools.eq_(len(mock.mock_calls), len(calls))
+
+
+def assert_these_call_lists(mock, call_lists, any_order=False):
+    calls = []
+    for x in call_lists:
+        calls.extend(x.call_list())
+    assert_these_calls(mock, calls, any_order=any_order)

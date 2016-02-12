@@ -122,8 +122,8 @@ class DNSClient(object):
         except dns.resolver.NXDOMAIN:
             raise DNSLibNxDomain("Name (%s) does not exist" % qname) from None
         except dns.resolver.NoNameservers:
-            raise DNSLibNoServersError("Unable to reach any working nameservers") \
-                from None
+            raise DNSLibNoServersError(
+                "Unable to reach any working nameservers") from None
         except Exception as e:
             raise DNSLibMajorError("Unhandled exception in resolver.") from e
         return self._parse_answer(answer)
@@ -138,9 +138,9 @@ class DNSClient(object):
         addrs = []
         for record in answer:
             if record.rdtype == dns.rdatatype.A:
-                addrs.append(haddr_parse("IPv4", str(record)))
+                addrs.append(haddr_parse("IPV4", str(record)))
             elif record.rdtype == dns.rdatatype.AAAA:
-                addrs.append(haddr_parse("IPv6", str(record)))
+                addrs.append(haddr_parse("IPV6", str(record)))
             else:
                 logging.debug("Ignoring unsupported dns record type (%s): %r",
                               dns.rdatatype._by_value[record.rdtype], record)

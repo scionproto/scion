@@ -18,14 +18,16 @@
 # Stdlib
 import copy
 import heapq
-import json
 import logging
 import math
 from collections import defaultdict, deque
 
+# External
+import yaml
+
 # SCION
 from lib.packet.pcb import PathSegment
-from lib.util import SCIONTime, load_json_file
+from lib.util import SCIONTime, load_yaml_file
 
 
 class PathPolicy(object):
@@ -75,13 +77,15 @@ class PathPolicy(object):
         :rtype: bool
         """
         assert isinstance(pcb, PathSegment)
-        if not self._check_unwanted_ads(pcb):
-            logging.warning("PathStore: pcb discarded (unwanted AD).")
+        isd_ad = self._check_unwanted_ads(pcb)
+        if isd_ad:
+            logging.warning("PathStore: pcb discarded, unwanted AD(%s): %s",
+                            isd_ad, pcb.short_desc())
             return False
         reasons = self._check_property_ranges(pcb)
         if reasons:
-            logging.warning("PathStore: pcb discarded: %s. %s",
-                            ", ".join(reasons), pcb.short_desc())
+            logging.info("PathStore: pcb discarded(%s): %s",
+                         ", ".join(reasons), pcb.short_desc())
             return False
         return True
 
@@ -93,9 +97,9 @@ class PathPolicy(object):
         :type pcb: :class:`PathSegment`
         """
         for ad in pcb.ads:
-            if (ad.pcbm.isd_id, ad.pcbm.ad_id) in self.unwanted_ads:
-                return False
-        return True
+            isd_ad = ad.pcbm.get_isd_ad()
+            if isd_ad in self.unwanted_ads:
+                return isd_ad
 
     def _check_property_ranges(self, pcb):
         """
@@ -133,7 +137,7 @@ class PathPolicy(object):
         :returns: the newly created PathPolicy instance
         :rtype: :class: `PathPolicy`
         """
-        return cls.from_dict(load_json_file(policy_file))
+        return cls.from_dict(load_yaml_file(policy_file))
 
     @classmethod
     def from_dict(cls, policy_dict):
@@ -176,7 +180,7 @@ class PathPolicy(object):
 
     def __str__(self):
         path_policy_dict = self.get_path_policy_dict()
-        path_policy_str = json.dumps(path_policy_dict, sort_keys=True, indent=4)
+        path_policy_str = yaml.dump(path_policy_dict)
         return path_policy_str
 
 

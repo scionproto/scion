@@ -19,9 +19,24 @@
 import logging
 
 # SCION
-from infrastructure.router import Router, IFID_PKT_TOUT
-from lib.defines import SCION_UDP_PORT, EXP_TIME_UNIT
-from lib.packet.scion import IFIDPayload, PacketType as PT
+from infrastructure.router import (
+    Router,
+    IFID_PKT_TOUT,
+    SCIONOFExpiredError,
+)
+from lib.defines import (
+    BEACON_SERVICE,
+    CERTIFICATE_SERVICE,
+    EXP_TIME_UNIT,
+    PATH_SERVICE,
+    SCION_UDP_PORT,
+    SERVICE_TYPES,
+)
+from lib.packet.path_mgmt import IFStateRequest
+from lib.packet.scion import (
+    IFIDPayload,
+    PacketType as PT,
+)
 from lib.util import SCIONTime
 
 
@@ -29,7 +44,8 @@ class RouterSim(Router):
     """
     Simulator version of the SCION Router
     """
-    def __init__(self, router_id, topo_file, config_file, simulator):
+    def __init__(self, router_id, topo_file, config_file, server_name,
+                 simulator):
         """
         Initialises Router with is_sim set to True.
 
@@ -39,6 +55,8 @@ class RouterSim(Router):
         :type topo_file: str
         :param config_file: the configuration file name.
         :type config_file: str
+        :param server_name:
+        :type server_name:
         :param simulator: Instance of simulator class.
         :type simulator: Simulator
         """
@@ -46,6 +64,9 @@ class RouterSim(Router):
         self.simulator = simulator
         simulator.add_element(str(self.addr.host_addr), self)
         simulator.add_element(str(self.interface.addr), self)
+        simulator.add_name(server_name, str(self.addr.host_addr))
+        self.event_id_map = {}
+        self.stopped = True
 
     def send(self, packet, addr, port=SCION_UDP_PORT, use_local_socket=True):
         """
@@ -69,13 +90,35 @@ class RouterSim(Router):
         """
         The receive function called when simulator receives a packet
         """
+        if self.stopped:
+            logging.warning("packet received at stopped router: %s",
+                            str(self.addr.host_addr))
+            return
         to_local = False
         if dst[0] == str(self.addr.host_addr) and dst[1] == SCION_UDP_PORT:
             to_local = True
         self.handle_request(packet, src, to_local)
 
     def run(self):
-        self.simulator.add_event(0., cb=self.sync_interface)
+        """
+        Run the router.
+        """
+        if self.stopped:
+            self.event_id_map["sync_interface"] = self.simulator.add_event(
+                0., cb=self.sync_interface)
+            self.event_id_map["request_ifstates"] = self.simulator.add_event(
+                0., cb=self.request_ifstates)
+            logging.info("Router %s started", str(self.addr.host_addr))
+        self.stopped = False
+
+    def stop(self):
+        """
+        Remove all events of this router from simulator queue.
+        """
+        self.simulator.remove_event(self.event_id_map["sync_interface"])
+        self.simulator.remove_event(self.event_id_map["request_ifstates"])
+        self.stopped = True
+        logging.info("Router %s stopped", str(self.addr.host_addr))
 
     def sync_interface(self):
         """
@@ -92,12 +135,30 @@ class RouterSim(Router):
         logging.info('Sending IFID_PKT to router: req_id:%d, rep_id:%d',
                      ifid_pld.request_id, ifid_pld.reply_id)
 
-        self.simulator.add_event(IFID_PKT_TOUT, cb=self.sync_interface)
+        self.event_id_map["sync_interface"] = self.simulator.add_event(
+            IFID_PKT_TOUT, cb=self.sync_interface)
+
+    def request_ifstates(self):
+        """
+        Periodically request interface states from the BS.
+        """
+        start_time = SCIONTime.get_time()
+        ifstates_req = IFStateRequest.from_values()
+        req_pkt = self._build_packet(payload=ifstates_req)
+        logging.info("Sending IFStateRequest for all interfaces.")
+        for bs in self.topology.beacon_servers:
+            req_pkt.addrs.dst_addr = bs.addr
+            self.send(req_pkt, bs.addr)
+        now = SCIONTime.get_time()
+        self.event_id_map["request_ifstates"] = self.simulator.add_event(
+            start_time + self.IFSTATE_REQ_INTERVAL - now,
+            cb=self.request_ifstates
+        )
 
     def clean(self):
         pass
 
-    def verify_of(self, hof, prev_hof, ts):
+    def verify_hof(self, path, ingress=True):
         """
         Verify freshness of an opaque field.
         We do not check authentication of the MAC(simulator)
@@ -110,8 +171,22 @@ class RouterSim(Router):
         :param ts: timestamp against which the opaque field is verified.
         :type ts: int
         """
-        if int(SCIONTime.get_time()) <= ts + hof.exp_time * EXP_TIME_UNIT:
-            return True
-        else:
-            logging.warning("Dropping packet due to expired OF.")
-        return False
+        ts = path.get_iof().timestamp
+        hof = path.get_hof()
+        if int(SCIONTime.get_time()) > ts + hof.exp_time * EXP_TIME_UNIT:
+            raise SCIONOFExpiredError(hof)
+
+    def dns_query_topo(self, qname):
+        """
+        Get the server address. No DNS used.
+
+        :param str qname: Service to query for.
+        """
+        assert qname in SERVICE_TYPES
+        service_map = {
+            BEACON_SERVICE: self.topology.beacon_servers,
+            CERTIFICATE_SERVICE: self.topology.certificate_servers,
+            PATH_SERVICE: self.topology.path_servers,
+        }
+        results = [srv.addr for srv in service_map[qname]]
+        return results

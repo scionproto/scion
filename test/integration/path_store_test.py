@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 # Copyright 2014 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,10 +31,10 @@ from lib.crypto.hash_chain import HashChain
 from lib.packet.opaque_field import (
     HopOpaqueField,
     InfoOpaqueField,
-    OpaqueFieldType as OFT,
 )
 from lib.packet.pcb import ADMarking, PCBMarking, PathSegment
 from lib.path_store import PathPolicy, PathStore
+from lib.types import OpaqueFieldType as OFT
 from lib.util import get_sig_key_file_path, read_file
 
 
@@ -60,7 +61,7 @@ class TestPathStore(unittest.TestCase):
         """
         Test the main functionalities of the path store.
         """
-        path_policy_file = "../../topology/ISD1/path_policies/ISD:1-AD:10.json"
+        path_policy_file = "topology/ISD1/path_policies/ISD1-AD10.json"
         path_policy = PathPolicy.from_file(path_policy_file)
         test_segments = PathStore(path_policy)
         print("Best paths: " + str(len(test_segments.get_best_segments())))

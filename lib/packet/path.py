@@ -20,16 +20,18 @@ import copy
 from abc import ABCMeta, abstractmethod
 
 # SCION
+from lib.defines import SCION_MIN_MTU
 from lib.errors import SCIONParseError
 from lib.packet.opaque_field import (
     HopOpaqueField,
     InfoOpaqueField,
     OpaqueField,
     OpaqueFieldList,
-    OpaqueFieldType as OFT,
 )
 from lib.packet.packet_base import HeaderBase
+from lib.packet.pcb_ext.mtu import MtuPcbExt
 from lib.packet.scion_addr import ISD_AD
+from lib.types import OpaqueFieldType as OFT
 from lib.util import Raw
 
 UP_IOF = "up_segment_iof"
@@ -63,6 +65,7 @@ class PathBase(HeaderBase, metaclass=ABCMeta):
         self._hof_idx = None
         self._ofs = OpaqueFieldList(self.OF_ORDER)
         self.interfaces = []
+        self.mtu = 0
         if raw is not None:
             self._parse(raw)
 
@@ -207,12 +210,13 @@ class PathBase(HeaderBase, metaclass=ABCMeta):
             return 0
         return None
 
-    def _get_first_hof_idx(self):
+    def _get_first_hof_idx(self):  # pragma: no cover
         """
         Returns index of the first :any:`HopOpaqueField` in the path.
         """
-        if self._ofs.get_by_label(UP_HOFS) or self._ofs.get_by_label(DOWN_HOFS):
-            return 1
+        for l in UP_HOFS, CORE_HOFS, DOWN_HOFS:
+            if self._ofs.get_by_label(l):
+                return 1
         return None
 
     def get_ofs_by_label(self, label):
@@ -280,7 +284,7 @@ class PathBase(HeaderBase, metaclass=ABCMeta):
 
     def __len__(self):
         """
-        Return the total number of :any:`OpaqueField`\s in the path.
+        Return the path length in bytes.
         """
         return len(self._ofs) * OpaqueField.LEN
 
@@ -299,6 +303,7 @@ class CorePath(PathBase):
     | info OF core-segment | hop OF 1 | ... | hop OF N
     | info OF down-segment | hop OF 1 | ... | hop OF N
     """
+    NAME = "CorePath"
     OF_ORDER = UP_IOF, UP_HOFS, CORE_IOF, CORE_HOFS, DOWN_IOF, DOWN_HOFS
     REVERSE_IOF_MAP = {UP_IOF: DOWN_IOF, DOWN_IOF: UP_IOF, CORE_IOF: CORE_IOF}
     SEGMENT_OFFSETS = 1, 2
@@ -330,7 +335,7 @@ class CorePath(PathBase):
         """
         Parse a raw :any:`CorePath`.
         """
-        data = Raw(raw, "CorePath")
+        data = Raw(raw, self.NAME)
         # Parse up-segment
         count = self._parse_iof(data, UP_IOF)
         self._parse_hofs(data, UP_HOFS, count)
@@ -352,8 +357,10 @@ class CorePath(PathBase):
         self._ofs.reverse_up_flag(CORE_IOF)
         self._ofs.reverse_label(CORE_HOFS)
         # Handle the case when reverse happens at cross-over point.
-        if (self._ofs.count(UP_HOFS) and
-                self.get_hof() == self._ofs.get_by_label(UP_HOFS, -1)):
+        if ((self._ofs.count(UP_HOFS) and
+                self.get_hof() == self._ofs.get_by_label(UP_HOFS, -1)) or
+            (self._ofs.count(CORE_HOFS) and
+                self.get_hof() == self._ofs.get_by_label(CORE_HOFS, -1))):
             self.next_segment()
 
     def get_hof_ver(self, ingress=True):
@@ -428,6 +435,7 @@ class CrossOverPath(PathBase):
     verification and for determination whether path can terminate at destination
     AD (i.e., its last egress interface has to equal 0).
     """
+    NAME = "CrossOverPath"
     OF_ORDER = (UP_IOF, UP_HOFS, UP_UPSTREAM_HOF,
                 DOWN_IOF, DOWN_UPSTREAM_HOF, DOWN_HOFS)
     SEGMENT_OFFSETS = 2, 4
@@ -459,7 +467,7 @@ class CrossOverPath(PathBase):
         """
         Parses a raw :any:`CrossOverPath`.
         """
-        data = Raw(raw, "CrossOverPath")
+        data = Raw(raw, self.NAME)
         # Parse up-segment
         count = self._parse_iof(data, UP_IOF)
         self._parse_hofs(data, UP_HOFS, count)
@@ -564,6 +572,7 @@ class PeerPath(PathBase):
     The upstream AD OF is needed to verify the last hop of the up-segment /
     first hop of the down-segment respectively.
     """
+    NAME = "PeerPath"
     OF_ORDER = (UP_IOF, UP_HOFS, UP_PEERING_HOF, UP_UPSTREAM_HOF,
                 DOWN_IOF, DOWN_UPSTREAM_HOF, DOWN_PEERING_HOF, DOWN_HOFS)
     SEGMENT_OFFSETS = 2, 4
@@ -600,7 +609,7 @@ class PeerPath(PathBase):
         """
         Parse a raw :any:`PeerPath`.
         """
-        data = Raw(raw, "PeerPath")
+        data = Raw(raw, self.NAME)
         # Parse up-segment
         count = self._parse_iof(data, UP_IOF)
         self._parse_hofs(data, UP_HOFS, count)
@@ -698,6 +707,9 @@ class EmptyPath(PathBase):  # pragma: no cover
     def from_values(self, *args, **kwargs):
         raise NotImplementedError
 
+    def get_hof(self):
+        return None
+
     def _parse(self, raw):
         raise NotImplementedError
 
@@ -711,10 +723,28 @@ class EmptyPath(PathBase):  # pragma: no cover
         return 0
 
     def get_ad_hops(self):
-        return 0  # PSz: or 1?
+        return 0
+
+    def get_fwd_if(self):
+        return 0
 
     def __str__(self):
         return "<Empty-Path></Empty-Path>"
+
+
+def valid_mtu(mtu):
+    """
+    Check validity of mtu value
+    We assume any SCION AD supports at least the IPv6 min MTU
+    """
+    return mtu and mtu >= SCION_MIN_MTU
+
+
+def min_mtu(*candidates):
+    """
+    Return minimum of n mtu values, checking for validity
+    """
+    return min(filter(valid_mtu, candidates), default=0)
 
 
 class PathCombinator(object):
@@ -751,11 +781,10 @@ class PathCombinator(object):
         :returns: List of :any:`PathBase`\s.
         """
         paths = []
-        if not core_segments:
-            path = cls._build_core_path(up_segment, [], down_segment)
-            if path:
-                paths.append(path)
-        else:
+        path = cls._build_core_path(up_segment, [], down_segment)
+        if path:
+            paths.append(path)
+        if core_segments:
             for core_segment in core_segments:
                 path = cls._build_core_path(up_segment, core_segment,
                                             down_segment)
@@ -817,31 +846,40 @@ class PathCombinator(object):
         if not cls._check_connected(up_segment, core_segment, down_segment):
             return None
 
-        up_iof, up_hofs = cls._copy_segment(up_segment, [-1])
-        core_iof, core_hofs = cls._copy_segment(core_segment, [-1, 0])
-        down_iof, down_hofs = cls._copy_segment(down_segment, [0], up=False)
+        up_iof, up_hofs, up_mtu = cls._copy_segment(up_segment, [-1])
+        core_iof, core_hofs, core_mtu = cls._copy_segment(core_segment, [-1, 0])
+        down_iof, down_hofs, down_mtu = cls._copy_segment(
+            down_segment, [0], up=False)
         path = CorePath.from_values(up_iof, up_hofs, core_iof, core_hofs,
                                     down_iof, down_hofs)
-        up_core = up_segment.ads
+        path.mtu = min_mtu(up_mtu, core_mtu, down_mtu)
+        up_core = list(reversed(up_segment.ads))
         if core_segment:
-            up_core = up_core + core_segment.ads
-        for block in up_core:
-            isd_ad = ISD_AD(block.pcbm.isd_id, block.pcbm.ad_id)
-            egress = block.pcbm.hof.egress_if
-            ingress = block.pcbm.hof.ingress_if
-            if egress:
-                path.interfaces.append((isd_ad, egress))
-            if ingress:
-                path.interfaces.append((isd_ad, ingress))
-        for block in down_segment.ads:
-            isd_ad = ISD_AD(block.pcbm.isd_id, block.pcbm.ad_id)
-            egress = block.pcbm.hof.egress_if
-            ingress = block.pcbm.hof.ingress_if
-            if ingress:
-                path.interfaces.append((isd_ad, egress))
-            if egress:
-                path.interfaces.append((isd_ad, ingress))
+            up_core += list(reversed(core_segment.ads))
+        cls._add_interfaces(path, up_core)
+        cls._add_interfaces(path, down_segment.ads, up=False)
         return path
+
+    @classmethod
+    def _add_interfaces(cls, path, segment_ads, up=True):
+        """
+        Add interface IDs of segment_ads to path. Order of IDs depends on up
+        flag.
+        """
+        for block in segment_ads:
+            isd_ad = ISD_AD(block.pcbm.isd_id, block.pcbm.ad_id)
+            egress = block.pcbm.hof.egress_if
+            ingress = block.pcbm.hof.ingress_if
+            if up:
+                if egress:
+                    path.interfaces.append((isd_ad, egress))
+                if ingress:
+                    path.interfaces.append((isd_ad, ingress))
+            else:
+                if ingress:
+                    path.interfaces.append((isd_ad, ingress))
+                if egress:
+                    path.interfaces.append((isd_ad, egress))
 
     @classmethod
     def _copy_segment(cls, segment, xovrs, up=True):
@@ -858,13 +896,13 @@ class PathCombinator(object):
         :rtype: tuple
         """
         if not segment:
-            return None, None
+            return None, None, None
         iof = copy.deepcopy(segment.iof)
         iof.up_flag = up
-        hofs = cls._copy_hofs(segment.ads, reverse=up)
+        hofs, mtu = cls._copy_hofs(segment.ads, reverse=up)
         for xovr in xovrs:
             hofs[xovr].info = OFT.XOVR_POINT
-        return iof, hofs
+        return iof, hofs, mtu
 
     @classmethod
     def _get_xovr_peer(cls, up_segment, down_segment):
@@ -884,13 +922,16 @@ class PathCombinator(object):
         peers = []
         for up_i, up_ad in enumerate(up_segment.ads[1:], 1):
             for down_i, down_ad in enumerate(down_segment.ads[1:], 1):
-                if up_ad.pcbm.ad_id == down_ad.pcbm.ad_id:
+                if (up_ad.pcbm.ad_id == down_ad.pcbm.ad_id and
+                        up_ad.pcbm.isd_id == down_ad.pcbm.isd_id):
                     xovrs.append((up_i, down_i))
                     continue
                 for up_peer in up_ad.pms:
                     for down_peer in down_ad.pms:
                         if (up_peer.ad_id == down_ad.pcbm.ad_id and
-                                down_peer.ad_id == up_ad.pcbm.ad_id):
+                                up_peer.isd_id == down_ad.pcbm.isd_id and
+                                down_peer.ad_id == up_ad.pcbm.ad_id and
+                                down_peer.isd_id == up_ad.pcbm.isd_id):
                             peers.append((up_i, down_i))
         xovr = peer = None
         if xovrs:
@@ -916,9 +957,9 @@ class PathCombinator(object):
         """
         (up_index, down_index) = point
 
-        up_iof, up_hofs, up_upstream_hof = \
+        up_iof, up_hofs, up_upstream_hof, up_mtu = \
             cls._copy_segment_shortcut(up_segment, up_index)
-        down_iof, down_hofs, down_upstream_hof = \
+        down_iof, down_hofs, down_upstream_hof, down_mtu = \
             cls._copy_segment_shortcut(down_segment, down_index, up=False)
 
         up_peering_hof = None
@@ -967,6 +1008,7 @@ class PathCombinator(object):
                 path.interfaces.append((isd_ad, ingress))
             if egress:
                 path.interfaces.append((isd_ad, egress))
+        path.mtu = min_mtu(up_mtu, down_mtu)
         return path
 
     @classmethod
@@ -981,13 +1023,19 @@ class PathCombinator(object):
         :returns: ``True`` if the path is connected, otherwise ``False``.
         """
         if core_segment:
-            if ((core_segment.get_last_pcbm().ad_id !=
-                    up_segment.get_first_pcbm().ad_id) or
+            if ((core_segment.get_last_pcbm().isd_id !=
+                    up_segment.get_first_pcbm().isd_id) or
+                    (core_segment.get_first_pcbm().isd_id !=
+                     down_segment.get_first_pcbm().isd_id) or
+                    (core_segment.get_last_pcbm().ad_id !=
+                     up_segment.get_first_pcbm().ad_id) or
                     (core_segment.get_first_pcbm().ad_id !=
                      down_segment.get_first_pcbm().ad_id)):
                 return False
-        elif (up_segment.get_first_pcbm().ad_id !=
-              down_segment.get_first_pcbm().ad_id):
+        elif ((up_segment.get_first_pcbm().ad_id !=
+               down_segment.get_first_pcbm().ad_id) or
+              (up_segment.get_first_pcbm().isd_id !=
+               down_segment.get_first_pcbm().isd_id)):
             return False
         return True
 
@@ -1002,11 +1050,15 @@ class PathCombinator(object):
             List of copied :any:`HopOpaqueField`\s.
         """
         hofs = []
+        mtu = None
         for block in ads:
+            for ext in block.ext:
+                if ext.EXT_TYPE == MtuPcbExt.EXT_TYPE:
+                    mtu = min_mtu(mtu, ext.mtu)
             hofs.append(copy.deepcopy(block.pcbm.hof))
         if reverse:
             hofs.reverse()
-        return hofs
+        return hofs, mtu
 
     @classmethod
     def _copy_segment_shortcut(cls, segment, index, up=True):
@@ -1030,13 +1082,13 @@ class PathCombinator(object):
         iof.up_flag = up
         # Copy segment HOFs
         ads = segment.ads[index:]
-        hofs = cls._copy_hofs(ads, reverse=up)
+        hofs, mtu = cls._copy_hofs(ads, reverse=up)
         xovr_idx = -1 if up else 0
         hofs[xovr_idx].info = OFT.XOVR_POINT
         # Extract upstream HOF
         upstream_hof = copy.deepcopy(segment.ads[index - 1].pcbm.hof)
         upstream_hof.info = OFT.NORMAL_OF
-        return iof, hofs, upstream_hof
+        return iof, hofs, upstream_hof, mtu
 
     @classmethod
     def _join_shortcuts_peer(cls, up_ad, down_ad):
@@ -1051,18 +1103,53 @@ class PathCombinator(object):
                         down_peer.ad_id == up_ad.pcbm.ad_id):
                     return up_peer.hof, down_peer.hof
 
+    @classmethod
+    def tuples_to_full_paths(cls, tuples):
+        """
+        For a set of tuples of possible end-to-end path [format is:
+        (up_seg, core_seg, down_seg)], return a list of fullpaths.
+
+        """
+        # TODO(PSz): eventually this should replace _build_core_paths.
+        res = []
+        for up_segment, core_segment, down_segment in tuples:
+            if not up_segment and not core_segment and not down_segment:
+                continue
+
+            up_iof, up_hofs, up_mtu = cls._copy_segment(up_segment, [-1])
+            core_iof, core_hofs, core_mtu = cls._copy_segment(core_segment,
+                                                              [-1, 0])
+            down_iof, down_hofs, down_mtu = cls._copy_segment(down_segment,
+                                                              [0], up=False)
+            path = CorePath.from_values(up_iof, up_hofs, core_iof, core_hofs,
+                                        down_iof, down_hofs)
+            path.mtu = min_mtu(up_mtu, core_mtu, down_mtu)
+            if up_segment:
+                up_core = list(reversed(up_segment.ads))
+            else:
+                up_core = []
+            if core_segment:
+                up_core += list(reversed(core_segment.ads))
+            cls._add_interfaces(path, up_core)
+            if down_segment:
+                down_core = down_segment.ads
+            else:
+                down_core = []
+            cls._add_interfaces(path, down_core, up=False)
+            res.append(path)
+        return res
+
 
 def parse_path(raw):
     if len(raw) == 0:
         return EmptyPath()
     info = InfoOpaqueField(raw[:InfoOpaqueField.LEN])
     if info.info == OFT.CORE:
-        path = CorePath(raw)
+        return CorePath(raw)
     elif info.info == OFT.SHORTCUT:
-        path = CrossOverPath(raw)
+        return CrossOverPath(raw)
     elif info.info in (OFT.INTRA_ISD_PEER, OFT.INTER_ISD_PEER):
-        path = PeerPath(raw)
+        return PeerPath(raw)
     else:
         raise SCIONParseError("Can not parse path in "
                               "packet: Unknown type %x", info.info)
-    return path

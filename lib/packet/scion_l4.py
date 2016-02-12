@@ -16,13 +16,13 @@
 ====================================
 """
 # SCION
-from lib.defines import L4_UDP
+from lib.defines import L4_UDP, L4_PROTOS
 from lib.errors import SCIONParseError
 from lib.packet.packet_base import L4HeaderBase, PayloadRaw
 from lib.packet.scion_udp import SCIONUDPHeader
 
 
-class SCIONL4Unknown(L4HeaderBase):
+class SCIONL4Unknown(L4HeaderBase):  # pragma: no cover
     NAME = "Unknown"
 
     def __init__(self, proto):
@@ -52,4 +52,6 @@ def parse_l4_hdr(proto, data, src_addr=None, dst_addr=None):
         assert src_addr
         assert dst_addr
         return SCIONUDPHeader((src_addr, dst_addr, raw_hdr, payload))
+    if proto in L4_PROTOS:
+        return None
     raise SCIONParseError("Unsupported L4 protocol type: %s" % proto)

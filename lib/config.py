@@ -19,7 +19,7 @@
 import base64
 
 # SCION
-from lib.util import load_json_file
+from lib.util import load_yaml_file
 
 
 class Config(object):
@@ -27,29 +27,17 @@ class Config(object):
     The Config class parses the configuration file of an AD and stores such
     information for further use.
 
-    :ivar master_of_gen_key: the master opaque field generation key file.
-    :type master_of_gen_key: bytes
     :ivar master_ad_key: AD certificate servers priv key.
     :type master_ad_key: bytes
-    :ivar n_registered_paths: the number of registered paths.
-    :type n_registered_paths: int
-    :ivar n_shortest_up_paths: the number of shortest up-paths.
-    :type n_shortest_up_paths: int
     :ivar propagation_time: the interval at which PCBs are propagated.
     :type propagation_time: int
     :ivar registration_time: the interval at which paths are registered.
     :type registration_time: int
-    :ivar expired_time: the interval at which expired paths are cleared.
-    :type expired_time: int
-    :ivar reset_time: the reset time.
-    :type reset_time: int
     :ivar registers_paths: whether or not the AD registers paths.
     :type registers_paths: int
-    :ivar pcb_queue_size: PCB queue size for the beacon servers.
-    :type pcb_queue_size: int
-    :ivar path_server_queue_size: path queue size for the path servers.
-    :type path_server_queue_size: int
     :ivar cert_ver: initial version of the certificate chain.
+    :ivar cert_ver: int
+    :ivar mtu: value for MTU within AS.
     :ivar cert_ver: int
     """
 
@@ -57,18 +45,12 @@ class Config(object):
         """
         Initialize an instance of the class Config.
         """
-        self.master_of_gen_key = 0
         self.master_ad_key = 0
-        self.n_registered_paths = 0
-        self.n_shortest_up_paths = 0
         self.propagation_time = 0
         self.registration_time = 0
-        self.expired_time = 0
-        self.reset_time = 0
         self.registers_paths = 0
-        self.pcb_queue_size = 0
-        self.path_server_queue_size = 0
         self.cert_ver = 0
+        self.mtu = 0
 
     @classmethod
     def from_file(cls, config_file):
@@ -81,7 +63,7 @@ class Config(object):
         :returns: the newly created Config instance
         :rtype: :class:`Config`
         """
-        return cls.from_dict(load_json_file(config_file))
+        return cls.from_dict(load_yaml_file(config_file))
 
     @classmethod
     def from_dict(cls, config_dict):
@@ -105,15 +87,9 @@ class Config(object):
         :param config: the name of the configuration file.
         :type config: dict
         """
-        self.master_of_gen_key = base64.b64decode(config['MasterOFGKey'])
         self.master_ad_key = base64.b64decode(config['MasterADKey'])
-        self.n_registered_paths = config['NumRegisteredPaths']
-        self.n_shortest_up_paths = config['NumShortestUPs']
         self.propagation_time = config['PropagateTime']
         self.registration_time = config['RegisterTime']
-        self.expired_time = config['ExpiredTime']
-        self.reset_time = config['ResetTime']
         self.registers_paths = config['RegisterPath']
-        self.pcb_queue_size = config['PCBQueueSize']
-        self.path_server_queue_size = config['PSQueueSize']
         self.cert_ver = config['CertChainVersion']
+        self.mtu = config['MTU']

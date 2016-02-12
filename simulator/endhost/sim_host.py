@@ -20,25 +20,24 @@ import logging
 import struct
 
 # SCION
-from endhost.sciond import SCIONDaemon
-from lib.defines import SCION_UDP_PORT, SCION_UDP_EH_DATA_PORT
+from endhost.sciond import SCIONDaemon, SCIOND_API_PORT
+from lib.defines import SCION_UDP_PORT
+from lib.errors import SCIONParseError
 from lib.packet.path import PathCombinator
-from lib.packet.path_mgmt import (
-    PathSegmentInfo,
-    PathSegmentType as PST,
-)
+from lib.packet.path_mgmt import PathSegmentInfo
+from lib.packet.scion import SCIONL4Packet
+from lib.packet.scion_addr import ISD_AD
+from lib.types import PathMgmtType as PMT, PathSegmentType as PST
 from lib.util import update_dict
 
-SCIOND_API_PORT = 3333
+# External
+from itertools import count
 
 
 class SCIONSimHost(SCIONDaemon):
     """
     The SCION Simulator endhost. Applications can be simulated on this host
     """
-
-    TIMEOUT = 5
-
     def __init__(self, addr, topo_file, simulator):
         """
         Initializes SimHost by calling constructor of SCIONDaemon with
@@ -57,6 +56,8 @@ class SCIONSimHost(SCIONDaemon):
         self.simulator = simulator
         simulator.add_element(str(self.addr.host_addr), self)
         self.apps = {}
+        self._waiting_requests = []
+        self.request_id = count()
 
     def add_application(self, app, port, run_cb, recv_cb, path_cb):
         """
@@ -73,8 +74,16 @@ class SCIONSimHost(SCIONDaemon):
             run_cb()
 
     def _expire_request_timeout(self, ptype, requester):
-        # TODO Failure Notification
-        pass
+        """
+        Path request timed out. Send back an empty reply.
+        """
+        logging.warning("Request timed out %s, %s", ptype, requester)
+        req_id = requester[2]
+        # Path reply is already sent
+        if self._waiting_requests.count(req_id) == 0:
+            return
+        _, _, _, path_cb = self.apps[requester[1]]
+        path_cb(b"")
 
     def send(self, packet, dst, dst_port=SCION_UDP_PORT):
         """
@@ -103,14 +112,14 @@ class SCIONSimHost(SCIONDaemon):
         :type src_isd: int
         :param src_ad: source AD identifier.
         :type src_ad: int
-        :param requester: (Host address, Application port)
-        :type requester: (IPv4Address, int)
+        :param requester: [Host address, Application port, request id]
+        :type requester: [IPv4Address, int, int]
         """
         if src_isd is None:
             src_isd = self.topology.isd_id
         if src_ad is None:
             src_ad = self.topology.ad_id
-        eid = self.simulator.add_event(SCIONSimHost.TIMEOUT,
+        eid = self.simulator.add_event(3 * self.TIMEOUT,
                                        cb=self._expire_request_timeout,
                                        args=(ptype, requester))
         update_dict(self._waiting_targets[ptype], (dst_isd, dst_ad),
@@ -129,7 +138,7 @@ class SCIONSimHost(SCIONDaemon):
         """
         full_paths = []
         if src_core_ad is None and dst_core_ad is None:
-            down_segments = self.down_segments(dst_isd=dst_isd, dst_ad=dst_ad)
+            down_segments = self.down_segments(last_isd=dst_isd, last_ad=dst_ad)
             if len(self.up_segments) and down_segments:
                 full_paths = PathCombinator.build_shortcut_paths(
                     self.up_segments(), down_segments)
@@ -137,10 +146,10 @@ class SCIONSimHost(SCIONDaemon):
                 return full_paths
         if src_core_ad is None or dst_core_ad is None:
             return None
-        core_segments = self.core_segments(src_isd=src_isd,
-                                           src_ad=src_core_ad,
-                                           dst_isd=dst_isd,
-                                           dst_ad=dst_core_ad)
+        core_segments = self.core_segments(last_isd=src_isd,
+                                           last_ad=src_core_ad,
+                                           first_isd=dst_isd,
+                                           first_ad=dst_core_ad)
         logging.debug("(%d, %d)->(%d, %d)", src_isd, src_ad, dst_isd, dst_ad)
         if core_segments:
             up_segment = []
@@ -167,10 +176,10 @@ class SCIONSimHost(SCIONDaemon):
         :type path_reply:
         """
         info = path_reply.info
-        if (info.dst_isd, info.dst_ad) in self._waiting_targets[info.type]:
+        if (info.dst_isd, info.dst_ad) in self._waiting_targets[info.seg_type]:
             for (eid, requester) in \
-                    self._waiting_targets[info.type][(info.dst_isd,
-                                                      info.dst_ad)]:
+                    self._waiting_targets[info.seg_type][(info.dst_isd,
+                                                          info.dst_ad)]:
                 src_isd = self.topology.isd_id
                 src_ad = self.topology.ad_id
                 dst_isd = info.dst_isd
@@ -178,14 +187,14 @@ class SCIONSimHost(SCIONDaemon):
                 dst_isd_ad = (dst_isd, dst_ad)
                 event = (eid, requester)
 
-                if info.type == PST.UP_DOWN:
+                if info.seg_type == PST.UP_DOWN:
                     full_paths = self._get_full_paths(src_isd, src_ad,
                                                       dst_isd, dst_ad)
-                    down_segments = self.down_segments(dst_isd=dst_isd,
-                                                       dst_ad=dst_ad)
+                    down_segments = self.down_segments(last_isd=dst_isd,
+                                                       last_ad=dst_ad)
                     if self.up_segments and down_segments:
                         self.simulator.remove_event(eid)
-                        self._waiting_targets[info.type][dst_isd_ad]\
+                        self._waiting_targets[info.seg_type][dst_isd_ad]\
                             .remove(event)
                     else:
                         continue
@@ -198,19 +207,19 @@ class SCIONSimHost(SCIONDaemon):
                         self._request_paths(PST.CORE, dst_isd, dst_core_ad,
                                             src_ad=src_core_ad,
                                             requester=requester)
-                    continue
-                elif info.type == PST.CORE:
+                        continue
+                elif info.seg_type == PST.CORE:
                     src_core_ad = info.src_ad
                     dst_core_ad = info.dst_ad
                     full_paths = self._get_full_paths(src_isd, src_ad,
                                                       dst_isd, dst_ad,
                                                       src_core_ad, dst_core_ad)
-                    if self.core_segments(src_isd=src_isd,
-                                          src_ad=src_core_ad,
-                                          dst_isd=dst_isd,
-                                          dst_ad=dst_core_ad):
+                    if self.core_segments(last_isd=src_isd,
+                                          last_ad=src_core_ad,
+                                          first_isd=dst_isd,
+                                          first_ad=dst_core_ad):
                         self.simulator.remove_event(eid)
-                        self._waiting_targets[info.type][dst_isd_ad]\
+                        self._waiting_targets[info.seg_type][dst_isd_ad]\
                             .remove(event)
                     else:
                         continue
@@ -218,33 +227,40 @@ class SCIONSimHost(SCIONDaemon):
                     if not full_paths:
                         # TODO What action to be taken?
                         continue
-                elif ((info.type == PST.UP and self.up_segments) or
-                      (info.type == PST.DOWN and
-                       self.down_segments(dst_isd=dst_isd, dst_ad=dst_ad))):
+                elif ((info.seg_type == PST.UP and self.up_segments) or
+                      (info.seg_type == PST.DOWN and
+                       self.down_segments(last_isd=dst_isd, last_ad=dst_ad))):
                     full_paths = self._get_full_paths(src_isd, src_ad,
                                                       dst_isd, dst_ad)
                     self.simulator.remove_event(eid)
-                    self._waiting_targets[info.type][dst_isd_ad].remove(event)
+                    self._waiting_targets[info.seg_type][dst_isd_ad]\
+                        .remove(event)
                     if not full_paths:
                         # TODO What action to be taken?
                         continue
                 self._api_send_path_reply(full_paths, requester)
-            if len(self._waiting_targets[info.type]
+            if len(self._waiting_targets[info.seg_type]
                    [(info.dst_isd, info.dst_ad)]) == 0:
-                del self._waiting_targets[info.type][dst_isd_ad]
+                del self._waiting_targets[info.seg_type][dst_isd_ad]
 
     def _api_send_path_reply(self, paths, requester):
         """
         Send path reply to the requester
         """
+        req_id = requester[2]
+        # Case where reply is already sent
+        if self._waiting_requests.count(req_id) == 0:
+            logging.info("Request already handled")
+            return
+        # Remove from waiting requests
+        self._waiting_requests.remove(req_id)
         reply = []
         for path in paths:
             raw_path = path.pack()
-            # assumed: up-path nad IPv4 addr
-            hop = self.ifid2addr[path.get_first_hop_of().ingress_if]
+            # assumed IPv4 addr
+            haddr = self.ifid2addr[path.get_fwd_if()]
             path_len = len(raw_path) // 8  # Check whether 8 divides path_len?
-            reply.append(struct.pack("B", path_len) + raw_path + hop.packed)
-
+            reply.append(struct.pack("B", path_len) + raw_path + haddr.pack())
         _, _, _, path_cb = self.apps[requester[1]]
         path_cb(b"".join(reply))
 
@@ -262,14 +278,16 @@ class SCIONSimHost(SCIONDaemon):
         :type sender:
         """
         # TODO sanity checks
-        isd = struct.unpack("H", packet[1:3])[0]
-        ad = struct.unpack("Q", packet[3:])[0]
-
+        (isd, ad) = ISD_AD.from_raw(packet[1:ISD_AD.LEN + 1])
         logging.info("Request for %d, %d", isd, ad)
-
-        full_paths = self.get_paths(isd, ad, requester=sender)
+        # Generate a request id
+        req_id = next(self.request_id)
+        self._waiting_requests.append(req_id)
+        requester = list(sender)
+        requester.append(req_id)
+        full_paths = self.get_paths(isd, ad, requester=requester)
         if full_paths:
-            self._api_send_path_reply(self, full_paths, sender)
+            self._api_send_path_reply(full_paths, requester)
             return
 
     def api_handle_request(self, packet, sender):
@@ -287,18 +305,54 @@ class SCIONSimHost(SCIONDaemon):
         else:
             logging.warning("API: type %d not supported.", packet[0])
 
+    def handle_revocation(self, pkt):
+        """
+        Handle revocation.
+
+        :param rev_info: The RevocationInfo object.
+        :type rev_info: :class:`lib.packet.path_mgmt.RevocationInfo`
+        """
+        rev_info = pkt.get_payload()
+        logging.info("Received revocation:\n%s", str(rev_info))
+        deletions = self._remove_revoked_pcbs(self.up_segments,
+                                              rev_info.rev_token)
+        deletions += self._remove_revoked_pcbs(self.core_segments,
+                                               rev_info.rev_token)
+        deletions += self._remove_revoked_pcbs(self.down_segments,
+                                               rev_info.rev_token)
+        logging.info("Removed %d segments due to revocation.", deletions)
+        logging.warning("Unable to send packet due to revocation")
+        app_port = pkt.l4_hdr.dst_port
+        _, _, recv_cb, _ = self.apps[app_port]
+        # TODO: src and dst not properly set
+        # For now using recv_cb to send the revocation message
+        recv_cb(pkt.pack(), None, None)
+
     def sim_recv(self, packet, src, dst):
         """
         The receive function called when simulator receives a packet
         """
-        if dst[1] == SCION_UDP_EH_DATA_PORT:
-            assert dst[0] == str(self.addr.host_addr)
-            # TODO For now, a hack!! Hack is that we are
-            # assuming that only one application runs on a host
-            _, _, recv_cb, _ = list(self.apps.values())[0]
-            recv_cb(packet, src, dst)
-        else:
-            to_local = False
-            if dst[0] == str(self.addr.host_addr) and dst[1] == SCION_UDP_PORT:
-                to_local = True
-            self.handle_request(packet, src, to_local)
+        if dst[1] == SCIOND_API_PORT:  # From localhost (SCIONDaemon API)
+            self.api_handle_request(packet, src)
+            return
+        type_map = {
+            PMT.REPLY: self.handle_path_reply,
+            PMT.REVOCATION: self.handle_revocation,
+        }
+        pkt = SCIONL4Packet(packet)
+        try:
+            payload = pkt.parse_payload()
+        except SCIONParseError:
+            if dst[1] not in self.apps:
+                logging.error("Application %d not supported.", dst[1])
+            else:
+                assert dst[0] == str(self.addr.host_addr)
+                _, _, recv_cb, _ = self.apps[dst[1]]
+                recv_cb(packet, src, dst)
+            return
+        handler = type_map.get(payload.PAYLOAD_TYPE)
+        if handler is None:
+            logging.warning("Path management packet type %d not supported.",
+                            payload.PAYLOAD_TYPE)
+            return
+        handler(pkt)

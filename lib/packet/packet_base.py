@@ -18,17 +18,10 @@
 # Stdlib
 import struct
 from abc import ABCMeta, abstractmethod
-from binascii import hexlify
 
-# FIXME(kormat): needs unit tests
-
-
-class PayloadClass(object):
-    DATA = 0
-    PCB = 1
-    IFID = 2
-    CERT = 3
-    PATH = 4
+# SCION
+from lib.types import PayloadClass
+from lib.util import hex_str
 
 
 class HeaderBase(object, metaclass=ABCMeta):  # pragma: no cover
@@ -175,7 +168,11 @@ class PayloadBase(object, metaclass=ABCMeta):  # pragma: no cover
         raise NotImplementedError
 
 
-class PayloadRaw(PayloadBase):
+class PayloadRaw(PayloadBase):  # pragma: no cover
+    def __init__(self, raw=None):
+        self._raw = b""
+        super().__init__(raw)
+
     def _parse(self, raw):
         self._raw = raw or b""
 
@@ -195,10 +192,10 @@ class PayloadRaw(PayloadBase):
         return len(self._raw)
 
     def __str__(self):
-        return hexlify(self._raw).decode()
+        return hex_str(self._raw)
 
 
-class SCIONPayloadBase(PayloadBase):
+class SCIONPayloadBase(PayloadBase):  # pragma: no cover
     """
     All child classes must define two attributes:
         PAYLOAD_CLASS: Global payload class, defined by PayloadClass.
@@ -210,3 +207,8 @@ class SCIONPayloadBase(PayloadBase):
 
     def pack_meta(self):
         return struct.pack("!BB", self.PAYLOAD_CLASS, self.PAYLOAD_TYPE)
+
+
+class PathMgmtPayloadBase(SCIONPayloadBase):
+    PAYLOAD_CLASS = PayloadClass.PATH
+    PAYLOAD_TYPE = None

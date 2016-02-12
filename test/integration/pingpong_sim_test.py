@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 # Copyright 2015 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,9 +20,9 @@
 import logging
 import profile
 import unittest
-from ipaddress import IPv4Address
 
 # SCION
+from lib.packet.host_addr import haddr_parse
 from lib.packet.scion_addr import ISD_AD
 
 # SCION Simulator
@@ -46,14 +47,14 @@ class PingPongSimTest(unittest.TestCase):
         simulator = init_simulator()
         src_isd_ad = ISD_AD(1, 10)
         dst_isd_ad = ISD_AD(2, 26)
-        src_host_addr = IPv4Address("127.1.10.254")
-        dst_host_addr = IPv4Address("127.2.26.254")
+        src_host_addr = haddr_parse("IPV4", "127.1.10.254")
+        dst_host_addr = haddr_parse("IPV4", "127.2.26.254")
         src_topo_path = (
-            "../../topology/ISD{}/topologies/ISD:{}-AD:{}.json"
+            "topology/ISD{}/topologies/ISD:{}-AD:{}.json"
             .format(src_isd_ad.isd, src_isd_ad.isd, src_isd_ad.ad)
             )
         dst_topo_path = (
-            "../../topology/ISD{}/topologies/ISD:{}-AD:{}.json"
+            "topology/ISD{}/topologies/ISD:{}-AD:{}.json"
             .format(dst_isd_ad.isd, dst_isd_ad.isd, dst_isd_ad.ad)
             )
         host1 = SCIONSimHost(src_host_addr, src_topo_path, simulator)

@@ -10,7 +10,7 @@ import os
 import sys
 from os.path import dirname as d
 
-sys.path.insert(0, d(d(d(os.path.abspath(__file__)))))
+sys.path.insert(0, d(d(d(os.path.abspath(__file__)))))  # noqa
 
 # External packages
 import django
@@ -18,14 +18,14 @@ from django.db import transaction
 
 # SCION
 from ad_management.common import WEB_SCION_DIR
-from lib.defines import TOPOLOGY_PATH
+from lib.defines import GEN_PATH
 from lib.topology import Topology
 from lib.util import load_json_file
 
 # Set up the Django environment
-os.environ['DJANGO_SETTINGS_MODULE'] = 'web_scion.settings.private'
-sys.path.insert(0, WEB_SCION_DIR)
-django.setup()
+os.environ['DJANGO_SETTINGS_MODULE'] = 'web_scion.settings.private'  # noqa
+sys.path.insert(0, WEB_SCION_DIR)  # noqa
+django.setup()  # noqa
 
 # Django app imports
 from ad_manager.models import AD, ISD
@@ -62,8 +62,8 @@ def reload_data():
     add_users()
 
     # Add model instances
-    topology_files = glob.glob(os.path.join(TOPOLOGY_PATH,
-                                            'ISD*', 'topologies', 'ISD:*.json'))
+    topology_files = glob.glob(os.path.join(
+        GEN_PATH, 'ISD*', 'topologies', 'ISD:*.json'))
     ad_num = len(topology_files)
     print("> {} topology files found".format(ad_num))
     isds = {}
