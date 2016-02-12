@@ -31,8 +31,8 @@ All command options for running topology_generator.py
 
 	a) -f (or) --file: Give all brite files seperately one after another
 
-	b) -d (or) --dir: Convert all files in the specified directory. Each of the file is converted into an ISD, then core AD's in these ISD's are connected
+	b) -d (or) --dir: Convert all files in the specified directory. Each of the file is converted into an ISD, then core AS's in these ISD's are connected
 
-	c) -c (or) --degree: Two arguments to be given - min and max degrees for connections between core AD's. It is used for generating inter-ISD connections
+	c) -c (or) --degree: Two arguments to be given - min and max degrees for connections between core AS's. It is used for generating inter-ISD connections
 
 	d) -o (or) --output: Generate a dot output file

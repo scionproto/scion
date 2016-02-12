@@ -78,7 +78,7 @@ def prepare_package(out_dir=PACKAGE_DIR_PATH, package_name=None,
     # TODO makes sense to add an additional parameters that represents the files
     # which are not included into the package.
     # For example, topology/ADConfiguration.json should be excluded from
-    # AD packages to make the deployment process more fool-proof.
+    # AS packages to make the deployment process more fool-proof.
     repo = Repo(PROJECT_ROOT)
     assert not repo.bare
 

@@ -67,7 +67,7 @@ class MarkingBase(object, metaclass=ABCMeta):
 
 class PCBMarking(MarkingBase):
     """
-    Pack all fields for a specific PCB marking, which include: ISD and AD
+    Pack all fields for a specific PCB marking, which include: ISD and AS
     numbers, the HopOpaqueField, and the revocation token for the ingress
     interfaces included in the HOF. (Revocation token for egress interface is
     included within ADMarking.)
@@ -259,7 +259,7 @@ class ADMarking(MarkingBase):
 
     def remove_signature(self):
         """
-        Removes the signature from the AD block.
+        Removes the signature from the AS block.
         """
         self.sig = b''
 
@@ -351,7 +351,7 @@ class PathSegment(SCIONPayloadBase):
 
     def _parse_hops(self, data):
         """
-        Populates AD Hops from raw bytes.
+        Populates AS Hops from raw bytes.
 
         :param data:
         :type data: :class:`lib.util.Raw`
@@ -379,7 +379,7 @@ class PathSegment(SCIONPayloadBase):
 
     def add_ad(self, ad_marking):
         """
-        Appends a new AD block.
+        Appends a new AS block.
         """
         if ad_marking.pcbm.hof.exp_time < self.min_exp_time:
             self.min_exp_time = ad_marking.pcbm.hof.exp_time
@@ -388,7 +388,7 @@ class PathSegment(SCIONPayloadBase):
 
     def remove_signatures(self):
         """
-        Removes the signature from each AD block.
+        Removes the signature from each AS block.
         """
         for ad_marking in self.ads:
             ad_marking.remove_signature()
@@ -426,7 +426,7 @@ class PathSegment(SCIONPayloadBase):
 
     def get_last_pcbm(self):
         """
-        Returns the PCBMarking belonging to the last AD on the path.
+        Returns the PCBMarking belonging to the last AS on the path.
         """
         if self.ads:
             return self.ads[-1].pcbm
@@ -435,7 +435,7 @@ class PathSegment(SCIONPayloadBase):
 
     def get_first_pcbm(self):
         """
-        Returns the PCBMarking belonging to the first AD on the path.
+        Returns the PCBMarking belonging to the first AS on the path.
         """
         if self.ads:
             return self.ads[0].pcbm
@@ -450,7 +450,7 @@ class PathSegment(SCIONPayloadBase):
 
     def compare_hops(self, other):
         """
-        Compares the (AD-level) hops of two half-paths. Returns true if all hops
+        Compares the (AS-level) hops of two half-paths. Returns true if all hops
         are identical and false otherwise.
         """
         if not isinstance(other, PathSegment):

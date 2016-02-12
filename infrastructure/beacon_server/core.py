@@ -35,7 +35,7 @@ from lib.util import SCIONTime
 
 class CoreBeaconServer(BeaconServer):
     """
-    PathConstructionBeacon Server in a core AD.
+    PathConstructionBeacon Server in a core AS.
 
     Starts broadcasting beacons down-stream within an ISD and across ISDs
     towards other core beacon servers.
@@ -74,7 +74,7 @@ class CoreBeaconServer(BeaconServer):
             for ad in pcb.ads:
                 if (ad.pcbm.isd_id == core_router.interface.neighbor_isd and
                         ad.pcbm.ad_id == core_router.interface.neighbor_ad):
-                    # Don't propagate a Core PCB back to an AD we know has
+                    # Don't propagate a Core PCB back to an AS we know has
                     # already seen it.
                     skip = True
                     break
@@ -182,7 +182,7 @@ class CoreBeaconServer(BeaconServer):
 
         :param isd_id: ISD identifier.
         :type isd_id: int
-        :param ad_id: AD identifier.
+        :param ad_id: AS identifier.
         :type ad_id: int
         :param cert_ver: certificate chain file version.
         :type cert_ver: int

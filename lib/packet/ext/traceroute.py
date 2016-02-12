@@ -111,5 +111,5 @@ class TracerouteExt(HopByHopExtension):
         tmp = ["%s(%dB):" % (self.NAME, len(self))]
         tmp.append("  hops:%d" % len(self.hops))
         for hop in self.hops:
-            tmp.append("    ISD:%d AD:%d IFID:%d TS:%d" % hop)
+            tmp.append("    ISD:%d AS:%d IFID:%d TS:%d" % hop)
         return "\n".join(tmp)

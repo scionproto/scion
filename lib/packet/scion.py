@@ -54,7 +54,7 @@ class PacketType(object):
     BEACON = HostAddrSVC(1, raw=False)
     # Path management packet from/to PS
     PATH_MGMT = HostAddrSVC(2, raw=False)
-    # TRC file request to parent AD
+    # TRC file request to parent AS
     CERT_MGMT = HostAddrSVC(3, raw=False)
     # IF ID packet to the peer router
     IFID_PKT = HostAddrSVC(4, raw=False)

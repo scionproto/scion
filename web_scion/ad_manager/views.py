@@ -40,7 +40,7 @@ from ad_manager.forms import (
     NewLinkForm,
     PackageVersionSelectForm,
 )
-from ad_manager.models import AD, ISD, PackageVersion, ConnectionRequest
+from ad_manager.models import AS, ISD, PackageVersion, ConnectionRequest
 from ad_manager.util import management_client
 from ad_manager.util.ad_connect import (
     create_new_ad_files,
@@ -59,7 +59,7 @@ class ISDListView(ListView):
 
 
 class ISDDetailView(ListView):
-    model = AD
+    model = AS
     template_name = 'ad_manager/isd_detail.html'
     paginate_by = 20
 
@@ -80,7 +80,7 @@ class ISDDetailView(ListView):
 
 
 class ADDetailView(DetailView):
-    model = AD
+    model = AS
 
     def get_context_data(self, **kwargs):
         """
@@ -120,9 +120,9 @@ class ADDetailView(DetailView):
 def get_ad_status(request, pk):
     """
     Send a query to the corresponding management daemon, asking for the status
-    of AD servers.
+    of AS servers.
     """
-    ad = get_object_or_404(AD, id=pk)
+    ad = get_object_or_404(AS, id=pk)
     ad_info_list_response = ad.query_ad_status()
     if is_success(ad_info_list_response):
         return JsonResponse({'data': get_success_data(ad_info_list_response)})
@@ -135,7 +135,7 @@ def get_group_master(request, pk):
     """
     Get the server group master (the one, who holds the lock in ZK).
     """
-    ad = get_object_or_404(AD, id=pk)
+    ad = get_object_or_404(AS, id=pk)
     server_type = request.GET.get('server_type', '')
     fetch_server_types = [BEACON_SERVICE, DNS_SERVICE]
     if server_type not in fetch_server_types:
@@ -176,7 +176,7 @@ def compare_remote_topology(request, pk):
     Retrieve the remote topology and compare it with the one stored in the
     database.
     """
-    ad = get_object_or_404(AD, id=pk)
+    ad = get_object_or_404(AS, id=pk)
     remote_topology = ad.get_remote_topology()
     if not remote_topology:
         return HttpResponseUnavailable('Cannot get the topology')
@@ -197,7 +197,7 @@ def update_topology(request, pk):
     """
     Update topology action: either push or pull the topology.
     """
-    ad = get_object_or_404(AD, id=pk)
+    ad = get_object_or_404(AS, id=pk)
     _check_user_permissions(request, ad)
 
     ad_page = reverse('ad_detail', args=[ad.id])
@@ -227,7 +227,7 @@ def _push_local_topology(request, ad):
 def _update_from_remote_topology(request, ad):
     """
     Atomically retrieve the remote topology and update the stored topology
-    for the given AD.
+    for the given AS.
     """
     remote_topology_dict = ad.get_remote_topology()
     ad.fill_from_topology(remote_topology_dict, clear=True)
@@ -265,7 +265,7 @@ def _download_update(request, package):
 
 @require_POST
 def software_update_action(request, pk):
-    ad = get_object_or_404(AD, id=pk)
+    ad = get_object_or_404(AS, id=pk)
     _check_user_permissions(request, ad)
 
     ad_page = reverse('ad_detail', args=[ad.id])
@@ -284,7 +284,7 @@ def refresh_versions(request, pk):
     """
     Refresh version choice form element.
     """
-    ad = get_object_or_404(AD, id=pk)
+    ad = get_object_or_404(AS, id=pk)
     PackageVersion.discover_packages()
     updates_page = reverse('ad_detail_updates', args=[ad.id])
     return redirect(updates_page)
@@ -333,9 +333,9 @@ def _check_user_permissions(request, ad):
 @require_POST
 def control_process(request, pk, proc_id):
     """
-    Send a control command to an AD element instance.
+    Send a control command to an AS element instance.
     """
-    ad = get_object_or_404(AD, id=pk)
+    ad = get_object_or_404(AS, id=pk)
     _check_user_permissions(request, ad)
 
     ad_elements = ad.get_all_element_ids()
@@ -359,7 +359,7 @@ def control_process(request, pk, proc_id):
 
 def read_log(request, pk, proc_id):
     # FIXME(rev112): minor duplication, see control_process()
-    ad = get_object_or_404(AD, id=pk)
+    ad = get_object_or_404(AS, id=pk)
     _check_user_permissions(request, ad)
 
     ad_elements = ad.get_all_element_ids()
@@ -387,7 +387,7 @@ class ConnectionRequestView(FormView):
         return super().dispatch(request, *args, **kwargs)
 
     def _get_ad(self):
-        return get_object_or_404(AD, id=self.kwargs['pk'])
+        return get_object_or_404(AS, id=self.kwargs['pk'])
 
     def form_valid(self, form):
         if not self.request.user.is_authenticated():
@@ -409,7 +409,7 @@ class ConnectionRequestView(FormView):
 
         self.success_url = reverse('sent_requests')
         if connect_to.is_open:
-            # Create new AD
+            # Create new AS
             approve_request(connect_to, con_request)
 
         return super().form_valid(form)
@@ -427,7 +427,7 @@ class NewLinkView(FormView):
 
     def _get_ad(self):
         if not hasattr(self, 'ad'):
-            self.ad = get_object_or_404(AD, id=self.kwargs['pk'])
+            self.ad = get_object_or_404(AS, id=self.kwargs['pk'])
         return self.ad
 
     def dispatch(self, request, *args, **kwargs):
@@ -474,9 +474,9 @@ def download_approved_package(request, req_id):
 
 def approve_request(ad, ad_request):
 
-    # Create the new AD
-    new_id = AD.objects.latest('id').id + 1
-    new_ad = AD.objects.create(id=new_id, isd=ad.isd,
+    # Create the new AS
+    new_id = AS.objects.latest('id').id + 1
+    new_ad = AS.objects.create(id=new_id, isd=ad.isd,
                                md_host=ad_request.router_public_ip)
     parent_topo_dict = ad.generate_topology_dict()
 
@@ -515,7 +515,7 @@ def approve_request(ad, ad_request):
         gen.write_derivatives(new_topo_dict)
 
         # Resulting package will be stored here
-        package_dir = os.path.join(PACKAGE_DIR_PATH, 'AD' + str(new_ad))
+        package_dir = os.path.join(PACKAGE_DIR_PATH, 'AS' + str(new_ad))
         if os.path.exists(package_dir):
             rmtree(package_dir)
         os.makedirs(package_dir)
@@ -591,7 +591,7 @@ def _get_partial_graph(pov_ad, rank=1):
 
 def _get_node_object(ad):
     node_object = {
-        'name': 'AD {}-{}'.format(ad.isd_id, ad.id),
+        'name': 'AS {}-{}'.format(ad.isd_id, ad.id),
         'group': ad.isd_id,
         'url': ad.get_absolute_url(),
         'networkUrl': reverse('network_view_ad', args=[ad.id]),
@@ -601,7 +601,7 @@ def _get_node_object(ad):
 
 
 def network_view_neighbors(request, pk):
-    pov_ad = get_object_or_404(AD, id=pk)
+    pov_ad = get_object_or_404(AS, id=pk)
     rank = 2
 
     partial_graph = _get_partial_graph(pov_ad, rank)
@@ -639,9 +639,9 @@ def network_view(request):
     """
     Prepare network graph visualization.
     """
-    all_ads = AD.objects.all().prefetch_related('routerweb_set__neighbor_ad')
+    all_ads = AS.objects.all().prefetch_related('routerweb_set__neighbor_ad')
     ad_graph_tmp = []
-    # Direct and reverse index <-> AD mappings
+    # Direct and reverse index <-> AS mappings
     ad_index = {}
     ad_index_rev = {}
     for i, ad in enumerate(all_ads):
@@ -650,7 +650,7 @@ def network_view(request):
         ad_routers = ad.routerweb_set.all()
         ad_graph_tmp.append([r.neighbor_ad for r in ad_routers])
 
-    # Build a list of [list of neighbors for every AD]
+    # Build a list of [list of neighbors for every AS]
     ad_graph = []
     for neighbors in ad_graph_tmp:
         ad_graph.append([ad_index_rev[n] for n in neighbors])

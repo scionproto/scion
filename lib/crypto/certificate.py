@@ -72,7 +72,7 @@ def verify_sig_chain_trc(msg, sig, subject, chain, trc, trc_version):
 
 class Certificate(object):
     """
-    The Certificate class parses a certificate of an AD and stores such
+    The Certificate class parses a certificate of an AS and stores such
     information for further use.
 
     :cvar VALIDITY_PERIOD: default validity period (in real seconds) of a new
@@ -82,14 +82,14 @@ class Certificate(object):
     :type SIGN_ALGORITHM: str
     :cvar ENCRYPT_ALGORITHM: default algorithm used to encrypt messages.
     :type ENCRYPT_ALGORITHM: str
-    :ivar subject: the certificate subject. It can either be an AD, an email
+    :ivar subject: the certificate subject. It can either be an AS, an email
                    address or a domain address.
     :type subject: str
     :ivar subject_sig_key: the public key of the subject.
     :type subject_sig_key: bytes
     :ivar subject_enc_key: the public part of the encryption key.
     :type subject_enc_key: bytes
-    :ivar issuer: the certificate issuer. It can only be an AD.
+    :ivar issuer: the certificate issuer. It can only be an AS.
     :type issuer: str
     :ivar version: the certificate version.
     :type version: int
@@ -178,14 +178,14 @@ class Certificate(object):
         """
         Generate a Certificate instance.
 
-        :param subject: the certificate subject. It can either be an AD, an
+        :param subject: the certificate subject. It can either be an AS, an
                         email address or a domain address.
         :type subject: str
         :param subject_sig_key: the public key of the subject.
         :type subject_sig_key: bytes
         :param subject_enc_key: the public part of the encryption key.
         :type subject_enc_key: bytes
-        :param issuer: the certificate issuer. It can only be an AD.
+        :param issuer: the certificate issuer. It can only be an AS.
         :type issuer: str
         :param iss_priv_key: the issuer's private key. It is used to sign the
                              certificate.
@@ -239,10 +239,10 @@ class Certificate(object):
         """
         Perform one step verification.
 
-        :param subject: the certificate subject. It can either be an AD, an
+        :param subject: the certificate subject. It can either be an AS, an
                         email address or a domain address.
         :type subject: str
-        :param issuer_cert: the certificate issuer. It can only be an AD.
+        :param issuer_cert: the certificate issuer. It can only be an AS.
         :type issuer_cert: str
 
         :returns: True or False whether the verification succeeds or fails.

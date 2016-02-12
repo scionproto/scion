@@ -17,7 +17,7 @@
 This is a custom DNS server, built on Paul Chakravarti's `dnslib
 <https://bitbucket.org/paulc/dnslib>`_.
 
-It dynamically provides DNS records for the AD based on service instances
+It dynamically provides DNS records for the AS based on service instances
 registering in Zookeeper.
 """
 # Stdlib
@@ -102,7 +102,7 @@ class SCIONDnsServer(SCIONElement):
         """
         logging.debug("Joining parties")
         for type_ in self.SRV_TYPES:
-            prefix = "/ISD%d-AD%d/%s" % (self.topology.isd_id,
+            prefix = "/ISD%d-AS%d/%s" % (self.topology.isd_id,
                                          self.topology.ad_id, type_)
             autojoin = False
             # Join only the DNS service party, for the rest we just want to

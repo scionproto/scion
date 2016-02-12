@@ -72,14 +72,14 @@ class PathPolicy(object):
         :param pcb: beacon to analyze.
         :type pcb: :class:`PathSegment`
 
-        :returns: True if any unwanted AD is present or a range is not
+        :returns: True if any unwanted AS is present or a range is not
                   respected.
         :rtype: bool
         """
         assert isinstance(pcb, PathSegment)
         isd_ad = self._check_unwanted_ads(pcb)
         if isd_ad:
-            logging.warning("PathStore: pcb discarded, unwanted AD(%s): %s",
+            logging.warning("PathStore: pcb discarded, unwanted AS(%s): %s",
                             isd_ad, pcb.short_desc())
             return False
         reasons = self._check_property_ranges(pcb)

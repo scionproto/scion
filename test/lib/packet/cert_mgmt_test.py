@@ -47,14 +47,14 @@ class TestCertChainRequestParse(object):
     def test(self, raw, isd_ad):
         inst = CertChainRequest()
         data = create_mock(["pop"])
-        data.pop.side_effect = ("target ISD-AD", bytes.fromhex("01020304"))
+        data.pop.side_effect = ("target ISD-AS", bytes.fromhex("01020304"))
         raw.return_value = data
         isd_ad.return_value = ("target isd", "target ad")
         # Call
         inst._parse("data")
         # Tests
         raw.assert_called_once_with("data", inst.NAME, inst.LEN)
-        isd_ad.assert_called_once_with("target ISD-AD")
+        isd_ad.assert_called_once_with("target ISD-AS")
         ntools.eq_(inst.isd_id, "target isd")
         ntools.eq_(inst.ad_id, "target ad")
         ntools.eq_(inst.version, 0x01020304)
@@ -84,9 +84,9 @@ class TestCertChainRequestPack(object):
         inst.ad_id = "target ad"
         inst.version = 0x01020304
         isd_ad_obj = create_mock(["pack"])
-        isd_ad_obj.pack.return_value = b"target ISD-AD"
+        isd_ad_obj.pack.return_value = b"target ISD-AS"
         isd_ad.return_value = isd_ad_obj
-        expected = b"".join([b"target ISD-AD", bytes.fromhex("01020304")])
+        expected = b"".join([b"target ISD-AS", bytes.fromhex("01020304")])
         # Call
         ntools.eq_(inst.pack(), expected)
 

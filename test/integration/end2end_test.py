@@ -114,7 +114,7 @@ class Ping(object):
         self.dport = dport
         self.token = token
         self.pong_received = False
-        conf_dir = "%s/ISD%d/AD%d/endhost" % (GEN_PATH, src.isd_id, src.ad_id)
+        conf_dir = "%s/ISD%d/AS%d/endhost" % (GEN_PATH, src.isd_id, src.ad_id)
         # Local api on, random port:
         self.sd = SCIONDaemon.start(
             conf_dir, self.src.host_addr, run_local_api=True, port=0)
@@ -181,7 +181,7 @@ class Pong(object):
         self.dst = dst
         self.token = token
         self.ping_received = False
-        conf_dir = "%s/ISD%d/AD%d/endhost" % (
+        conf_dir = "%s/ISD%d/AS%d/endhost" % (
             GEN_PATH, self.dst.isd_id, self.dst.ad_id)
         # API off, standard port.
         self.sd = SCIONDaemon.start(conf_dir, self.dst.host_addr)
@@ -220,7 +220,7 @@ class TestSCIONDaemon(unittest.TestCase):
         """
         Testing function. Creates an instance of SCIONDaemon, then verifies path
         requesting, and finally sends packet through SCION. Sender is placed in
-        every AD from `sources`, and receiver is from every AD from
+        every AS from `sources`, and receiver is from every AS from
         `destinations`.
         """
         thread = threading.current_thread()

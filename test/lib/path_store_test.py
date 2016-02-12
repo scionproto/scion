@@ -85,7 +85,7 @@ class TestPathPolicyCheckFilters(object):
         ntools.assert_true(inst.check_filters(pcb))
 
     def test_unwanted_ads(self):
-        inst, pcb = self._setup("unwanted AD")
+        inst, pcb = self._setup("unwanted AS")
         # Call
         ntools.assert_false(inst.check_filters(pcb))
 

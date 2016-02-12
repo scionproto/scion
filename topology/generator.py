@@ -199,7 +199,7 @@ class ConfigGenerator(object):
 
     def _write_conf_policies(self, topo_dicts):
         """
-        Write AD configurations and path policies.
+        Write AS configurations and path policies.
         """
         ad_confs = {}
         for topo_id, ad_topo, base in _srv_iter(
@@ -284,7 +284,7 @@ class CertGenerator(object):
             return
         if 'cert_issuer' not in ad_conf:
             logging.warning("No 'cert_issuer' attribute for "
-                            "a non-core AD: %s", topo_id)
+                            "a non-core AS: %s", topo_id)
         issuer = TopoID(ad_conf.get('cert_issuer', '0-0'))
         self.certs[topo_id] = Certificate.from_values(
             str(topo_id), self.sig_pub_keys[topo_id],
@@ -551,7 +551,7 @@ class SupervisorGenerator(object):
         config = configparser.ConfigParser(interpolation=None)
         names = []
         includes = []
-        base = os.path.join(self.out_dir, topo_id.ISD(), topo_id.AD())
+        base = os.path.join(self.out_dir, topo_id.ISD(), topo_id.AS())
         for elem, entry in sorted(entries, key=lambda x: x[0]):
             names.append(elem)
             conf_path = os.path.join(base, elem, SUPERVISOR_CONF)
@@ -562,7 +562,7 @@ class SupervisorGenerator(object):
         config["group:ad%s" % topo_id] = {"programs": ",".join(names)}
         text = StringIO()
         config.write(text)
-        conf_path = os.path.join(self.out_dir, topo_id.ISD(), topo_id.AD(),
+        conf_path = os.path.join(self.out_dir, topo_id.ISD(), topo_id.AS(),
                                  SUPERVISOR_CONF)
         write_file(conf_path, text.getvalue())
 
@@ -583,7 +583,7 @@ class SupervisorGenerator(object):
                                    user=getpass.getuser()))
 
     def _get_base_path(self, topo_id):
-        return os.path.join(self.out_dir, topo_id.ISD(), topo_id.AD())
+        return os.path.join(self.out_dir, topo_id.ISD(), topo_id.AS())
 
     def _common_entry(self, name, cmd_args):
         entry = {
@@ -655,7 +655,7 @@ class ZKConfGenerator(object):
             servers.append("server.%s=%s:%d:%d" %
                            (id_, zk.addr.ip, zk.leaderPort, zk.electionPort))
         server_block = "\n".join(sorted(servers))
-        base_dir = os.path.join(self.out_dir, topo_id.ISD(), topo_id.AD())
+        base_dir = os.path.join(self.out_dir, topo_id.ISD(), topo_id.AS())
         for name, (id_, zk) in zks.items():
             copy_file(DEFAULT_ZK_LOG4J,
                       os.path.join(base_dir, name, "log4j.properties"))
@@ -698,8 +698,8 @@ class TopoID(object):
     def ISD(self):
         return "ISD%s" % self.isd
 
-    def AD(self):
-        return "AD%s" % self.ad
+    def AS(self):
+        return "AS%s" % self.ad
 
     def __lt__(self, other):
         return str(self) < str(other)
@@ -746,7 +746,7 @@ class ZKTopo(object):
         return "\n".join(c)
 
     def super_conf(self, topo_id, name, out_dir):
-        base_dir = os.path.join(out_dir, topo_id.ISD(), topo_id.AD(), name)
+        base_dir = os.path.join(out_dir, topo_id.ISD(), topo_id.AS(), name)
         cfg_path = os.path.join(base_dir, "zoo.cfg")
         class_path = ":".join([
             base_dir, self.zk_config["Environment"]["CLASSPATH"],
@@ -857,7 +857,7 @@ class AddressProxy(yaml.YAMLObject):
 
 def _srv_iter(topo_dicts, out_dir, common=False):
     for topo_id, ad_topo in topo_dicts.items():
-        base = os.path.join(out_dir, topo_id.ISD(), topo_id.AD())
+        base = os.path.join(out_dir, topo_id.ISD(), topo_id.AS())
         for service in SCION_SERVICE_NAMES:
             for elem in ad_topo[service]:
                 yield topo_id, ad_topo, os.path.join(base, elem)

@@ -195,7 +195,7 @@ class SCIONDaemon(SCIONElement):
     def _api_handle_path_request(self, packet, sender):
         """
         Path request:
-          | \x00 (1B) | ISD (12bits) |  AD (20bits)  |
+          | \x00 (1B) | ISD (12bits) |  AS (20bits)  |
         Reply:
           |p1_len(1B)|p1((p1_len*8)B)|fh_IP(4B)|fh_port(2B)|mtu(2B)|
            p1_if_count(1B)|p1_if_1(5B)|...|p1_if_n(5B)|
@@ -276,7 +276,7 @@ class SCIONDaemon(SCIONElement):
         to send path reply.
 
         :param int dst_isd: ISD identifier.
-        :param int dst_ad: AD identifier.
+        :param int dst_ad: AS identifier.
         :param requester: Path requester address(used in simulator).
         """
         key = dst_isd, dst_ad
@@ -432,7 +432,7 @@ class SCIONDaemon(SCIONElement):
         """
         Calculate all possible core segments joining the provided up and down
         segments. Returns a list of all known segments, and a seperate list of
-        the missing AD pairs.
+        the missing AS pairs.
         """
         src_core_ads = set()
         dst_core_ads = set()
@@ -440,14 +440,14 @@ class SCIONDaemon(SCIONElement):
             src_core_ads.add(seg.get_first_pcbm().ad_id)
         for seg in down_segs:
             dst_core_ads.add(seg.get_first_pcbm().ad_id)
-        # Generate all possible AD pairs
+        # Generate all possible AS pairs
         ad_pairs = list(product(src_core_ads, dst_core_ads))
         return self._find_core_segs(self.addr.isd_id, dst_isd, ad_pairs)
 
     def _find_core_segs(self, src_isd, dst_isd, ad_pairs):
         """
-        Given a set of AD pairs across 2 ISDs, return the core segments
-        connecting those pairs, and a list of AD pairs for which a core segment
+        Given a set of AS pairs across 2 ISDs, return the core segments
+        connecting those pairs, and a list of AS pairs for which a core segment
         wasn't found.
         """
         core_segs = []

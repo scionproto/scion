@@ -50,7 +50,7 @@ function scion_proto.dissector(buffer,pinfo,tree)
 
 
 	-- Source address and destination adress
-	ISD_AD_LEN=4  -- ISD ID 12 bits, AD ID 20 bits
+	ISD_AD_LEN=4  -- ISD ID 12 bits, AS ID 20 bits
 	CMN_HDR_LEN=8 -- common header length
 	OPAQUEFIELD_LEN=8
 	IPV4_ADDR_LEN=4
@@ -131,7 +131,7 @@ function process_data(buffer,pinfo,tree)
 
 	local srcaddr=buffer(CMN_HDR_LEN,srclen)
 	local src_isd_id=bit.rshift(buffer(CMN_HDR_LEN,4):uint(),20)  --first 12 bits are ISD ID
-	local src_ad_id=bit.band(buffer(CMN_HDR_LEN,4):uint(),0x000fffff) -- 20 bits are AD ID
+	local src_ad_id=bit.band(buffer(CMN_HDR_LEN,4):uint(),0x000fffff) -- 20 bits are AS ID
 
 	local srcaddr_host=buffer(CMN_HDR_LEN+ISD_AD_LEN,srclen-ISD_AD_LEN):uint()
 	local srcaddr_host_text=""
@@ -221,7 +221,7 @@ function process_beacon(buffer,pinfo,tree)
 	for i=0, num_pcb-1, 1 do
 		local pcbsub_tree = pcb_tree:add(buffer(of_offset,pcb_size),"PCB Marking ".. i)
 
-		pcbsub_tree:add(buffer(of_offset,8),"AD ID: " .. buffer(of_offset,8))
+		pcbsub_tree:add(buffer(of_offset,8),"AS ID: " .. buffer(of_offset,8))
 
 		local ssf_tree=pcbsub_tree:add(buffer(of_offset+8,8),"Support signature field: " .. buffer(of_offset+8,8))
 		ssf_tree:add(buffer(of_offset+8,4),"Certificate ID: " .. buffer(of_offset+8,4))
@@ -263,7 +263,7 @@ Each hop opaque field has a info (8 bits), expiration time (8 bits)
 		while of_offset + pear_marking_size < buffer:len() do
 			local pcbsub_tree = pcb_tree:add(buffer(of_offset,pear_marking_size),"Peer Marking ".. j)
 			
-			pcbsub_tree:add(buffer(of_offset,8),"AD ID: " .. buffer(of_offset,8))
+			pcbsub_tree:add(buffer(of_offset,8),"AS ID: " .. buffer(of_offset,8))
 
 			offset_hof=8
 			local hof_tree=pcbsub_tree:add(buffer(of_offset+offset_hof,8),"Hop opaque field: " .. buffer(of_offset+offset_hof,8))

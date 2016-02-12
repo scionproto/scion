@@ -30,13 +30,13 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GEN_PATH = 'gen'
 #: Topology configuration
 TOPO_FILE = "topology.yml"
-#: AD configuration
+#: AS configuration
 AD_CONF_FILE = "ad.yml"
 #: Path policy config
 PATH_POLICY_FILE = "path_policy.yml"
 #: Networks config
 NETWORKS_FILE = "networks.conf"
-#: AD list
+#: AS list
 AD_LIST_FILE = "ad_list.yml"
 
 #: Buffer size for receiving packets

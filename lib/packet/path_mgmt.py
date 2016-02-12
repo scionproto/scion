@@ -71,9 +71,9 @@ class PathSegmentInfo(PathMgmtPayloadBase):
         Returns PathSegmentInfo with fields populated from values.
         :param pckt_type: type of request/reply
         :type: int (PathSegmentType)
-        :param src_isd, src_ad: address of the source AD
+        :param src_isd, src_ad: address of the source AS
         :type src_isd, src_ad: int
-        :param dst_isd, dst_ad: address of the destination AD
+        :param dst_isd, dst_ad: address of the destination AS
         :type dst_isd, dst_ad: int
         """
         inst = cls()

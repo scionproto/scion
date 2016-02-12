@@ -49,7 +49,7 @@ def client(c_addr, s_addr):
     """
     Simple client
     """
-    conf_dir = "%s/ISD%d/AD%d/endhost" % (GEN_PATH, c_addr.isd_id, c_addr.ad_id)
+    conf_dir = "%s/ISD%d/AS%d/endhost" % (GEN_PATH, c_addr.isd_id, c_addr.ad_id)
     # Start SCIONDaemon
     sd = SCIONDaemon.start(conf_dir, c_addr.host_addr)
     logging.info("CLI: Sending PATH request for (%d, %d)",
@@ -107,7 +107,7 @@ def server(addr):
     """
     Simple server.
     """
-    conf_dir = "%s/ISD%d/AD%d/endhost" % (GEN_PATH, addr.isd_id, addr.ad_id)
+    conf_dir = "%s/ISD%d/AS%d/endhost" % (GEN_PATH, addr.isd_id, addr.ad_id)
     # Start SCIONDaemon
     sd = SCIONDaemon.start(conf_dir, addr.host_addr)
     # Open a socket for incomming DATA traffic

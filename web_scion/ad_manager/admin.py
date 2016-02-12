@@ -11,7 +11,7 @@ from guardian.admin import GuardedModelAdmin
 from two_factor.admin import AdminSiteOTPRequiredMixin
 from two_factor.models import PhoneDevice
 from ad_manager.models import (
-    AD,
+    AS,
     BeaconServerWeb,
     CertificateServerWeb,
     ConnectionRequest,
@@ -51,9 +51,9 @@ class PrivilegedChangeAdmin(GuardedModelAdmin):
         codename = get_permission_codename('change', opts)
 
         # If there is an 'ad' attribute then it's a foreign key, so extend
-        # user permissions for this AD to the current object
+        # user permissions for this AS to the current object
         ad = getattr(obj, 'ad', None)
-        if ad and isinstance(ad, AD):
+        if ad and isinstance(ad, AS):
             obj = ad
             codename = 'change_ad'
         return request.user.has_perm("%s.%s" % (opts.app_label, codename), obj)
@@ -72,7 +72,7 @@ class PrivilegedChangeAdmin(GuardedModelAdmin):
         return super().get_queryset(request).order_by('id')
 
 
-@admin.register(AD, ISD, site=admin_site)
+@admin.register(AS, ISD, site=admin_site)
 class SortRelatedAdmin(PrivilegedChangeAdmin):
     privileged_fields = ('isd', 'is_core_ad',)
 
@@ -91,7 +91,7 @@ class ServerAdmin(PrivilegedChangeAdmin):
     def ad_link(self, obj):
         link = reverse('admin:{}_ad_change'.format(self.opts.app_label),
                        args=[obj.ad.id])
-        return '<a href="{}">Edit AD</a>'.format(link)
+        return '<a href="{}">Edit AS</a>'.format(link)
     ad_link.allow_tags = True
     # FIXME hack. How to remove this completely?
     ad_link.short_description = ':'

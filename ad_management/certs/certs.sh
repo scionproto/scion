@@ -42,7 +42,7 @@ cmd_gen() {
   echo 'Generating CA certificate...'
   openssl req -nodes -new -x509 -keyout $CA_CERT_KEY -out $CA_CERT -days 1000 -subj '/CN=webapp_CA'
 
-  echo 'Generating AD CSR...'
+  echo 'Generating AS CSR...'
   openssl req -nodes -new -keyout $AD_KEY -out $AD_CSR -subj '/CN=AD_md'
   openssl x509 -req -in $AD_CSR -out $AD_CERT -set_serial 01 -days 1000 -CA $CA_CERT -CAkey $CA_CERT_KEY
   rm $AD_CSR

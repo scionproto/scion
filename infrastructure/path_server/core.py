@@ -35,7 +35,7 @@ from lib.zookeeper import ZkNoConnection
 
 class CorePathServer(PathServer):
     """
-    SCION Path Server in a core AD. Stores intra ISD down-paths as well as core
+    SCION Path Server in a core AS. Stores intra ISD down-paths as well as core
     paths and forwards inter-ISD path requests to the corresponding path server.
     """
     def __init__(self, server_id, conf_dir, is_sim=False):
@@ -132,7 +132,7 @@ class CorePathServer(PathServer):
                                             dst_isd, dst_ad)
             if (dst_isd == pkt.addrs.src_isd and dst_ad == pkt.addrs.src_ad):
                 # Only propagate this path if it was registered with us by the
-                # down-stream AD.
+                # down-stream AS.
                 paths_to_propagate.append(pcb)
             if (src_isd == dst_isd == self.addr.isd_id):
                 # Master replicates all seen down-paths from ISD.
@@ -258,7 +258,7 @@ class CorePathServer(PathServer):
                 logging.info("Path propagated to CPS in (%d, %d).\n", isd, ad)
                 self._send_to_next_hop(pkt, cpath.get_fwd_if())
             else:
-                logging.warning("Path to AD (%d, %d) not found.", isd, ad)
+                logging.warning("Path to AS (%d, %d) not found.", isd, ad)
 
     def path_resolution(self, pkt, new_request=True):
         """
@@ -273,7 +273,7 @@ class CorePathServer(PathServer):
         assert seg_type == PST.GENERIC
         logging.info("PATH_REQ received, addr: %d,%d" % dst)
         if dst == self.addr.get_isd_ad():
-            logging.warning("Dropping request: requested DST is local AD")
+            logging.warning("Dropping request: requested DST is local AS")
             return False
 
         # dst_ad=0 means any core AS in the specified ISD

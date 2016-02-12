@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`management_daemon` --- AD management daemon
+:mod:`management_daemon` --- AS management daemon
 ======================================================
 """
 # Stdlib
@@ -90,7 +90,7 @@ def start_md():
 
 class ManagementDaemon(object):
     """
-    Daemon which is launched on every AD node.
+    Daemon which is launched on every AS node.
 
     It serves as a RPC server for the web panel and as a client to
     Supervisor and Zookeeper, proxying corresponding commands to them.
@@ -126,13 +126,13 @@ class ManagementDaemon(object):
 
     def get_full_ad_name(self, isd_id, ad_id):
         """
-        Return the full AD name.
+        Return the full AS name.
 
         :param isd_id: ISD identifier.
         :type isd_id: int
-        :param ad_id: AD identifier.
+        :param ad_id: AS identifier.
         :type ad_id: int
-        :returns: the full AD name.
+        :returns: the full AS name.
         :rtype: string
         """
         return 'ad{}-{}'.format(isd_id, ad_id)
@@ -144,7 +144,7 @@ class ManagementDaemon(object):
 
     def restart_supervisor_async(self):
         """
-        Stop all the processes for the specified AD after some delay, so the
+        Stop all the processes for the specified AS after some delay, so the
         initial RPC call has time to finish.
         """
         wait_before_restart = 0.1
@@ -161,7 +161,7 @@ class ManagementDaemon(object):
         # TODO(rev112) check security!
         topo_path = self.get_topo_path(isd_id, ad_id)
         if not os.path.isfile(topo_path):
-            return response_failure('No AD topology found')
+            return response_failure('No AS topology found')
         with open(topo_path, 'w') as topo_fh:
             json.dump(topology, topo_fh, sort_keys=True, indent=4)
             logging.info('Topology file written')
@@ -181,12 +181,12 @@ class ManagementDaemon(object):
 
     def get_topology(self, isd_id, ad_id):
         """
-        Read topology file of the given AD.
+        Read topology file of the given AS.
         Registered function.
 
         :param isd_id: ISD identifier.
         :type isd_id: int
-        :param ad_id: AD identifier.
+        :param ad_id: AS identifier.
         :type ad_id: int
         :returns:
         :rtype:
@@ -201,12 +201,12 @@ class ManagementDaemon(object):
 
     def get_ad_info(self, isd_id, ad_id):
         """
-        Get status of all processes for the given AD.
+        Get status of all processes for the given AS.
         Registered function.
 
         :param isd_id: ISD identifier.
         :type isd_id: int
-        :param ad_id: AD identifier.
+        :param ad_id: AS identifier.
         :type ad_id: int
         :returns:
         :rtype:
@@ -220,7 +220,7 @@ class ManagementDaemon(object):
         if ad_process_info:
             return response_success(list(ad_process_info))
         else:
-            return response_failure('AD not found')
+            return response_failure('AS not found')
 
     def get_process_info(self, full_process_name):
         """
@@ -282,12 +282,12 @@ class ManagementDaemon(object):
 
     def control_process(self, isd_id, ad_id, process_name, command):
         """
-        Send the command to the given process of the specified AD.
+        Send the command to the given process of the specified AS.
         Registered function.
 
         :param isd_id: ISD identifier.
         :type isd_id: int
-        :param ad_id: AD identifier.
+        :param ad_id: AS identifier.
         :type ad_id: int
         :param process_name:
         :type process_name:
@@ -346,7 +346,7 @@ class ManagementDaemon(object):
 
         :param isd_id: ISD identifier.
         :type isd_id: int
-        :param ad_id: AD identifier.
+        :param ad_id: AS identifier.
         :type ad_id: int
         :param data_dict:
         :type data_dict:
@@ -378,7 +378,7 @@ class ManagementDaemon(object):
 
         :param isd_id: ISD identifier.
         :type isd_id: int
-        :param ad_id: AD identifier.
+        :param ad_id: AS identifier.
         :type ad_id: int
         :param server_type: one of 'bs', 'cs', 'ps' or 'ds'
         :type server_type: str
@@ -401,7 +401,7 @@ class ManagementDaemon(object):
                           for zk_host in zookeeper_dict.values()]
 
         kc = KazooClient(hosts=','.join(zookeper_hosts))
-        lock_path = '/ISD{}-AD{}/{}/lock'.format(isd_id, ad_id, server_type)
+        lock_path = '/ISD{}-AS{}/{}/lock'.format(isd_id, ad_id, server_type)
         try:
             kc.start()
             contenders = kc.get_children(lock_path)

@@ -22,7 +22,7 @@ from lib.defines import SCION_UDP_PORT
 
 class CorePathServerSim(CorePathServer):
     """
-    Simulator version of the SCION Path Server in a core AD
+    Simulator version of the SCION Path Server in a core AS
     """
     def __init__(self, server_id, topo_file, config_file, server_name,
                  simulator):
@@ -86,7 +86,7 @@ class CorePathServerSim(CorePathServer):
 
 class LocalPathServerSim(LocalPathServer):
     """
-    Simulator version of the SCION Path Server in a local AD
+    Simulator version of the SCION Path Server in a local AS
     """
     def __init__(self, server_id, topo_file, config_file, server_name,
                  simulator):

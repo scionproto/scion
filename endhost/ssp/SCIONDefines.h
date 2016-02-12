@@ -14,7 +14,7 @@
 #define SCION_UDP_PORT 30040
 #define SCION_UDP_EH_DATA_PORT 30041
 
-#define SCION_ADDR_LEN 8 // ISD + AD = 4, ADDR = 4
+#define SCION_ADDR_LEN 8 // ISD + AS = 4, ADDR = 4
 
 #define SCION_PROTO_ICMP 1
 #define SCION_PROTO_TCP 6

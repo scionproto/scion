@@ -13,7 +13,7 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AlterModelOptions(
             name='ad',
-            options={'ordering': ['id'], 'verbose_name': 'AD'},
+            options={'ordering': ['id'], 'verbose_name': 'AS'},
         ),
         migrations.AlterModelOptions(
             name='isd',

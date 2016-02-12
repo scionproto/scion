@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='AD',
+            name='AS',
             fields=[
                 ('id', models.IntegerField(serialize=False, primary_key=True)),
             ],

@@ -85,8 +85,8 @@ class XMLRPCServerTLS(socketserver.ThreadingMixIn, SimpleXMLRPCServer):
         socketserver.BaseServer.__init__(self, addr, requestHandler)
         # TODO: remove fixed certificates
         # Certificates for the management daemon and the web app are fixed, so
-        # every AD uses the same certificate. We should generate SSL
-        # certificates along with SCION certificates instead, so every AD will
+        # every AS uses the same certificate. We should generate SSL
+        # certificates along with SCION certificates instead, so every AS will
         # have its own certificate.
         cert_reqs = ssl.CERT_REQUIRED
         self.socket = ssl.wrap_socket(

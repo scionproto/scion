@@ -55,7 +55,7 @@ class ISD(models.Model):
         ordering = ['id']
 
 
-class AD(models.Model):
+class AS(models.Model):
     id = models.AutoField(primary_key=True)
     isd = models.ForeignKey('ISD')
     is_core_ad = models.BooleanField(default=False)
@@ -69,7 +69,7 @@ class AD(models.Model):
 
     def query_ad_status(self):
         """
-        Return AD status information, which includes servers/routers statuses
+        Return AS status information, which includes servers/routers statuses
         """
         return management_client.get_ad_info(self.md_host, self.isd_id, self.id)
 
@@ -91,7 +91,7 @@ class AD(models.Model):
 
     def generate_topology_dict(self):
         """
-        Create a Python dictionary with the stored AD topology.
+        Create a Python dictionary with the stored AS topology.
         """
         assert isinstance(self.original_topology, dict)
         out_dict = copy.deepcopy(self.original_topology)
@@ -130,7 +130,7 @@ class AD(models.Model):
 
     def fill_from_topology(self, topology_dict, clear=False):
         """
-        Add infrastructure elements (servers, routers) to the AD, extracted
+        Add infrastructure elements (servers, routers) to the AS, extracted
         from the topology dictionary.
         """
         assert isinstance(topology_dict, dict), 'Dictionary expected'
@@ -156,7 +156,7 @@ class AD(models.Model):
         try:
             for name, router in routers.items():
                 interface = router["Interface"]
-                neighbor_ad = AD.objects.get(id=interface["NeighborAD"],
+                neighbor_ad = AS.objects.get(id=interface["NeighborAD"],
                                              isd=interface["NeighborISD"])
                 RouterWeb.objects.create(
                     addr=router["Addr"], ad=self,
@@ -189,7 +189,7 @@ class AD(models.Model):
                                             name=name,
                                             ad=self)
         except IntegrityError:
-            logging.warning("Integrity error in AD.fill_from_topology(): "
+            logging.warning("Integrity error in AS.fill_from_topology(): "
                             "ignoring")
             raise
 
@@ -206,13 +206,13 @@ class AD(models.Model):
         return '{}-{}'.format(self.isd.id, self.id)
 
     class Meta:
-        verbose_name = 'AD'
+        verbose_name = 'AS'
         ordering = ['id']
 
 
 class SCIONWebElement(models.Model):
     addr = models.GenericIPAddressField()
-    ad = models.ForeignKey(AD)
+    ad = models.ForeignKey(AS)
     name = models.CharField(max_length=20, null=True)
 
     def id_str(self):
@@ -270,7 +270,7 @@ class RouterWeb(SCIONWebElement):
         ('ROUTING',) * 2,
     )
 
-    neighbor_ad = models.ForeignKey(AD, related_name='neighbors')
+    neighbor_ad = models.ForeignKey(AS, related_name='neighbors')
     neighbor_type = models.CharField(max_length=10, choices=NEIGHBOR_TYPES)
 
     interface_id = models.IntegerField()
@@ -353,8 +353,8 @@ class ConnectionRequest(models.Model):
     STATUS_OPTIONS = ['NONE', 'SENT', 'APPROVED', 'DECLINED']
 
     created_by = models.ForeignKey(User)
-    connect_to = models.ForeignKey(AD, related_name='received_requests')
-    new_ad = models.ForeignKey(AD, blank=True, null=True)
+    connect_to = models.ForeignKey(AS, related_name='received_requests')
+    new_ad = models.ForeignKey(AS, blank=True, null=True)
     info = models.TextField()
     router_bound_ip = models.GenericIPAddressField()
     router_bound_port = models.IntegerField(default=int(PORT))

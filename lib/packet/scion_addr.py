@@ -32,7 +32,7 @@ class ISD_AD(namedtuple('ISD_AD', 'isd ad')):
     Class for representing isd,ad pair.
 
     :ivar int isd: ISD identifier.
-    :ivar int ad: AD identifier.
+    :ivar int ad: AS identifier.
     """
     NAME = "ISD_AD"
     LEN = 4
@@ -43,9 +43,9 @@ class ISD_AD(namedtuple('ISD_AD', 'isd ad')):
         Create an instance of the class ISD_AD.
 
         :param bytes raw:
-            a byte string containing ISD ID, AD ID. ISD and AD are respectively
+            a byte string containing ISD ID, AS ID. ISD and AS are respectively
             represented as 12 and 20 most significant bits.
-        :returns: ISD, AD tuple.
+        :returns: ISD, AS tuple.
         :rtype: ISD_AD
         """
         data = Raw(raw, cls.NAME, cls.LEN)
@@ -59,7 +59,7 @@ class ISD_AD(namedtuple('ISD_AD', 'isd ad')):
         Pack the class variables into a byte string.
 
         :returns:
-            a 4B byte string containing ISD ID (first 12 bits), AD ID
+            a 4B byte string containing ISD ID (first 12 bits), AS ID
             (remaining 20 bits).
         :rtype: bytes
         """
@@ -82,7 +82,7 @@ class SCIONAddr(object):
     Class for complete SCION addresses.
 
     :ivar int isd_id: ISD identifier.
-    :ivar int ad_id: AD identifier.
+    :ivar int ad_id: AS identifier.
     :ivar HostAddrBase host_addr: host address.
     :ivar int addr_len: address length.
     """
@@ -105,7 +105,7 @@ class SCIONAddr(object):
         Create an instance of the class SCIONAddr.
 
         :param int isd_id: ISD identifier.
-        :param int ad_id: AD identifier.
+        :param int ad_id: AS identifier.
         :param HostAddrBase host_addr: host address
 
         :returns: SCION address.
@@ -136,7 +136,7 @@ class SCIONAddr(object):
         """
         Pack the class variables into a byte string.
 
-        :returns: a byte string containing ISD ID, AD ID, and host address.
+        :returns: a byte string containing ISD ID, AS ID, and host address.
         :rtype: bytes
         """
         return ISD_AD(self.isd_id, self.ad_id).pack() + self.host_addr.pack()
@@ -153,15 +153,15 @@ class SCIONAddr(object):
 
     def __str__(self):
         """
-        Return a string containing ISD ID, AD ID, and host address.
+        Return a string containing ISD ID, AS ID, and host address.
         """
         return "(%u, %u, %s)" % (self.isd_id, self.ad_id, self.host_addr)
 
     def get_isd_ad(self):
         """
-        Return a tuple containing ISD ID and AD ID.
+        Return a tuple containing ISD ID and AS ID.
 
-        :returns: a tuple containing ISD ID and AD ID.
+        :returns: a tuple containing ISD ID and AS ID.
         :rtype: tuple
         """
         return ISD_AD(self.isd_id, self.ad_id)

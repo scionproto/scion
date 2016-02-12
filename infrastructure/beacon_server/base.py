@@ -319,7 +319,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
     def _create_ad_marking(self, ingress_if, egress_if, ts, prev_hof=None):
         """
-        Creates an AD Marking for given ingress and egress interfaces,
+        Creates an AS Marking for given ingress and egress interfaces,
         timestamp, and previous HOF.
 
         :param ingress_if: ingress interface.
@@ -371,7 +371,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         Copies a PCB, terminates it and adds the segment ID.
 
         Terminating a PCB means adding a opaque field with the egress IF set
-        to 0, i.e., there is no AD to forward a packet containing this path
+        to 0, i.e., there is no AS to forward a packet containing this path
         segment to.
 
         :param pcb: The PCB to terminate.
@@ -513,7 +513,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
         :param isd_id: ISD identifier.
         :type isd_id: int
-        :param ad_id: AD identifier.
+        :param ad_id: AS identifier.
         :type ad_id: int
         :param cert_ver: certificate chain file version.
         :type cert_ver: int
@@ -528,7 +528,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
         :param isd_id: ISD identifier.
         :type isd_id: int
-        :param ad_id: AD identifier.
+        :param ad_id: AS identifier.
         :type ad_id: int
         :param trc_ver: TRC file version.
         :type trc_ver: int
@@ -775,7 +775,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 if (self.ifid_state[if_id].is_expired() and
                         cand.pcb.if_id == if_id):
                     to_remove.append(cand.id)
-            else:  # if_id = None means that this is an AD in downstream
+            else:  # if_id = None means that this is an AS in downstream
                 rtoken = rev_info.rev_token
                 for iftoken in cand.pcb.get_all_iftokens():
                     if HashChain.verify(rtoken, iftoken, self.N_TOKENS_CHECK):

@@ -49,7 +49,7 @@ class SCIONInterface(object):
     Class representing interface info, i.e. ISD_AD + IFID
 
     :ivar int isd: ISD identifier
-    :ivar int ad: AD identifier
+    :ivar int ad: AS identifier
     :ivar int ifid: Interface identifier
     """
     def __init__(self, raw=None):
@@ -403,7 +403,7 @@ class ScionClientSocket(ScionBaseSocket):
         :param proto: The type of SCION socket protocol to be used
         (see lib/defines).
         :type proto: int
-        :param isd_ad: ISD and AD tuple
+        :param isd_ad: ISD and AS tuple
         :type isd_ad: int tuple
         :param target_address: The address of the server to connect to.
         :type target_address: (string, int) tuple

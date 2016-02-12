@@ -2,7 +2,7 @@
 from django.test import TestCase
 
 # SCION
-from ad_manager.models import AD, ISD
+from ad_manager.models import AS, ISD
 from ad_manager.util.ad_connect import link_ads
 
 
@@ -21,8 +21,8 @@ class TestLinkAds(TestCase):
 
         ip_addresses = []
         for link_type in link_types.keys():
-            ad1 = AD.objects.create(isd=isd)
-            ad2 = AD.objects.create(isd=isd)
+            ad1 = AS.objects.create(isd=isd)
+            ad2 = AS.objects.create(isd=isd)
             link_ads(ad1, ad2, link_type)
 
             ad1_routers = list(ad1.routerweb_set.all())

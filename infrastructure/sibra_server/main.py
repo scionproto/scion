@@ -42,7 +42,7 @@ from lib.zookeeper import Zookeeper
 class SibraServerBase(SCIONElement):
     """
     Base class for the SIBRA service, which is responsible for managing steady
-    paths on all interfaces in the local AD.
+    paths on all interfaces in the local AS.
     """
     SERVICE_TYPE = SIBRA_SERVICE
 

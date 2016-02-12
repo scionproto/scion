@@ -48,7 +48,7 @@ RESV_LEN = SIBRA_TICK
 
 
 def start_sciond(isd, ad, addr):
-    conf_dir = "%s/ISD%d/AD%d/endhost" % (GEN_PATH, isd, ad)
+    conf_dir = "%s/ISD%d/AS%d/endhost" % (GEN_PATH, isd, ad)
     return SCIONDaemon.start(conf_dir, haddr_parse_interface(addr))
 
 

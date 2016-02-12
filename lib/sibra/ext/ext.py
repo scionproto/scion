@@ -261,7 +261,7 @@ class SibraExtBase(HopByHopExtension):
             dir_fwd = False
         flags = self._process(state, spkt, dir_fwd, key)
         if from_local_ad:
-            # Only increment curr_hop on egress from an AD.
+            # Only increment curr_hop on egress from an AS.
             self.curr_hop += 1 if self.fwd else -1
         return flags
 

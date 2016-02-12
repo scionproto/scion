@@ -94,7 +94,7 @@ class Zookeeper(object):
         Setup the Zookeeper connection.
 
         :param int isd_id: The ID of the current ISD.
-        :param int ad_id: The ID of the current AD.
+        :param int ad_id: The ID of the current AS.
         :param str srv_type:
             a service type from :const:`lib.defines.SERVICE_TYPES`
         :param str srv_id: Service instance identifier.
@@ -113,7 +113,7 @@ class Zookeeper(object):
         self._timeout = timeout
         self._on_connect = on_connect
         self._on_disconnect = on_disconnect
-        self.prefix = "/ISD%d-AD%d/%s" % (
+        self.prefix = "/ISD%d-AS%d/%s" % (
             self._isd_id, self._ad_id, srv_type)
         # Keep track of our connection state
         self._connected = threading.Event()

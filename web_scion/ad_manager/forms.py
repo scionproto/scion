@@ -3,7 +3,7 @@ from django import forms
 from django.forms import ModelChoiceField
 
 # SCION
-from ad_manager.models import PackageVersion, ConnectionRequest, AD
+from ad_manager.models import PackageVersion, ConnectionRequest, AS
 
 
 class VersionChoiceField(ModelChoiceField):
@@ -42,14 +42,14 @@ class NewLinkForm(forms.Form):
     link_types = ['PARENT', 'CHILD', 'PEER', 'ROUTING']
 
     end_point = forms.ModelChoiceField(
-        queryset=AD.objects.none(),
-        widget=forms.TextInput(attrs={'placeholder': 'AD id, for example, 20'})
+        queryset=AS.objects.none(),
+        widget=forms.TextInput(attrs={'placeholder': 'AS id, for example, 20'})
     )
     link_type = forms.ChoiceField(choices=zip(link_types, link_types))
 
     def __init__(self, *args, **kwargs):
         self.from_ad = kwargs.pop('from_ad')
-        assert isinstance(self.from_ad, AD)
+        assert isinstance(self.from_ad, AS)
         end_point_field = self.base_fields['end_point']
-        end_point_field.queryset = AD.objects.exclude(id=self.from_ad.id)
+        end_point_field.queryset = AS.objects.exclude(id=self.from_ad.id)
         super().__init__(*args, **kwargs)

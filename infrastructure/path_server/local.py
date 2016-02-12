@@ -32,7 +32,7 @@ from lib.types import PathSegmentType as PST
 
 class LocalPathServer(PathServer):
     """
-    SCION Path Server in a non-core AD. Stores up-paths to the core and
+    SCION Path Server in a non-core AS. Stores up-paths to the core and
     registers down-paths with the CPS. Can cache paths learned from a CPS.
     """
     def __init__(self, server_id, conf_dir, is_sim=False):
@@ -153,7 +153,7 @@ class LocalPathServer(PathServer):
         assert seg_type == PST.GENERIC
         logging.info("PATH_REQ received, addr: %d,%d" % dst)
         if dst == self.addr.get_isd_ad():
-            logging.warning("Dropping request: requested DST is local AD")
+            logging.warning("Dropping request: requested DST is local AS")
             return False
 
         # dst_ad=0 means any core AS in the specified ISD

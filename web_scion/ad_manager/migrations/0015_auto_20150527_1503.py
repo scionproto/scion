@@ -30,7 +30,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='dnsserverweb',
             name='ad',
-            field=models.ForeignKey(to='ad_manager.AD'),
+            field=models.ForeignKey(to='ad_manager.AS'),
         ),
         migrations.AlterUniqueTogether(
             name='dnsserverweb',

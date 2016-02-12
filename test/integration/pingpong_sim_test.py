@@ -41,8 +41,8 @@ class PingPongSimTest(unittest.TestCase):
         Testing function. This verifies the simulation implementation for
         end-2-end data communication using PingPong Application.
 
-        Creates two end-hosts---Sender is 127.1.10.254 in ISD:1 AD:10,
-        and Receiver is 127.2.26.254 in ISD:2 AD:26
+        Creates two end-hosts---Sender is 127.1.10.254 in ISD:1 AS:10,
+        and Receiver is 127.2.26.254 in ISD:2 AS:26
         """
         simulator = init_simulator()
         src_isd_ad = ISD_AD(1, 10)
@@ -50,11 +50,11 @@ class PingPongSimTest(unittest.TestCase):
         src_host_addr = haddr_parse("IPV4", "127.1.10.254")
         dst_host_addr = haddr_parse("IPV4", "127.2.26.254")
         src_topo_path = (
-            "topology/ISD{}/topologies/ISD:{}-AD:{}.json"
+            "topology/ISD{}/topologies/ISD:{}-AS:{}.json"
             .format(src_isd_ad.isd, src_isd_ad.isd, src_isd_ad.ad)
             )
         dst_topo_path = (
-            "topology/ISD{}/topologies/ISD:{}-AD:{}.json"
+            "topology/ISD{}/topologies/ISD:{}-AS:{}.json"
             .format(dst_isd_ad.isd, dst_isd_ad.isd, dst_isd_ad.ad)
             )
         host1 = SCIONSimHost(src_host_addr, src_topo_path, simulator)

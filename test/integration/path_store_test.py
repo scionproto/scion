@@ -45,7 +45,7 @@ class TestPathStore(unittest.TestCase):
 
     def _create_ad_marking(self):
         """
-        Create an AD Marking with the given ingress and egress interfaces.
+        Create an AS Marking with the given ingress and egress interfaces.
         """
         hof = HopOpaqueField.from_values(1, 111, 222)
         rev_token = HashChain(Random.new().read(32)).next_element()

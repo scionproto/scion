@@ -69,17 +69,17 @@ By default an SQLite database is used, and it works fine if the number of ADs is
 
 * Topology push/pull
 
-Go to the 'Topology' tab of the AD overview page. You can now click the 'Check topology' button to compare the remote (stored at the AD host) and the local (stored in the web app database) topology. If two topologies are not consistent, you will be given a list of changes between them.  Now you can either push the local topology to the AD host, or pull the remote topology from the AD host and overwrite the local topology.
+Go to the 'Topology' tab of the AS overview page. You can now click the 'Check topology' button to compare the remote (stored at the AS host) and the local (stored in the web app database) topology. If two topologies are not consistent, you will be given a list of changes between them.  Now you can either push the local topology to the AS host, or pull the remote topology from the AS host and overwrite the local topology.
 
-After the topology is pushed to the AD, the corresponding monitoring daemon is restarted, which might take a few seconds.
+After the topology is pushed to the AS, the corresponding monitoring daemon is restarted, which might take a few seconds.
 
 * Connecting new ADs and connection requests
 
-Adding new ADs to the network is implemented via the concept of connection requests. Assume you want to create a new AD and to connect it to AD 1. To do that, you open the 'Connection requests' tab of AD 1 and click the 'New request' button. Then you fill the form, providing some information about the prospective AD (purpose, location), including the router (or AD host) details: IP, port. There is an option to specify "external" IP and port if they differ from local values, for example, if the AD host is behind the NAT.
+Adding new ADs to the network is implemented via the concept of connection requests. Assume you want to create a new AS and to connect it to AS 1. To do that, you open the 'Connection requests' tab of AS 1 and click the 'New request' button. Then you fill the form, providing some information about the prospective AS (purpose, location), including the router (or AS host) details: IP, port. There is an option to specify "external" IP and port if they differ from local values, for example, if the AS host is behind the NAT.
 
-After the connection request is sent, it is listed in two places: on the 'Submitted request' page for the request sender, and on the 'Connection request' tab of AD 1 (the 'Received requests' section). The administrator of AD 1 can now review the submitted request on the latter web page. Then, he can approve or decline the request by clicking the corresponding button. If the request is approved, then the request sender can download the generated package from the 'Submitted request' page. After it, he just needs to upload the package to the AD host, extract it, and run the 'web_scion/scripts/deploy.sh' script, which will execute all essential deployment steps.
+After the connection request is sent, it is listed in two places: on the 'Submitted request' page for the request sender, and on the 'Connection request' tab of AS 1 (the 'Received requests' section). The administrator of AS 1 can now review the submitted request on the latter web page. Then, he can approve or decline the request by clicking the corresponding button. If the request is approved, then the request sender can download the generated package from the 'Submitted request' page. After it, he just needs to upload the package to the AS host, extract it, and run the 'web_scion/scripts/deploy.sh' script, which will execute all essential deployment steps.
 
-AD can also be marked as 'open' (see the `is_open` AD attribute), which means that every sent request is approved automatically.
+AS can also be marked as 'open' (see the `is_open` AS attribute), which means that every sent request is approved automatically.
 
 * Software updates
 
@@ -102,10 +102,10 @@ Also update `TWILIO_*` and `TWO_FACTOR_SMS_GATEWAY` variables with proper values
 
 If something doesn't work (no element status displayed, topology cannot be retrieved, etc.), do the following:
 
-1. Check that the management daemon is running at the AD host (`./supervisor/supervisor.sh status`).
-2. If the AD is deployed on a virtual or remote machine (not on localhost/127.0.0.1), ensure that the management daemon of that AD is listening on the 0.0.0.0 address, and not 127.0.0.1 (check the `[program:management_daemon]` section in `supervisor/supervisord.conf`).
-3. Check that the md_host attribute of the AD points to the correct host where the management daemon is deployed. You can check it on the AD administration page (/admin/ad_manager/ad/<AD_ID>/).
-4. Check that the web panel can open the TLS connection to the port 9010 of the AD host.
+1. Check that the management daemon is running at the AS host (`./supervisor/supervisor.sh status`).
+2. If the AS is deployed on a virtual or remote machine (not on localhost/127.0.0.1), ensure that the management daemon of that AS is listening on the 0.0.0.0 address, and not 127.0.0.1 (check the `[program:management_daemon]` section in `supervisor/supervisord.conf`).
+3. Check that the md_host attribute of the AS points to the correct host where the management daemon is deployed. You can check it on the AS administration page (/admin/ad_manager/ad/<AD_ID>/).
+4. Check that the web panel can open the TLS connection to the port 9010 of the AS host.
 5. Software updates don't work? Check that the corresponding RPC function (`self.send_update`) is registered in the `ManagementDaemon.__init__()` function. Thing to keep in mind: this is a highly experimental feature and should be used with care before additional security reviews are done, otherwise this can result in remote code execution vulnerabilities.
 
 Don't forget to restart the management daemon(s) after any modifications are done to the source code.
@@ -120,5 +120,5 @@ There are two directories (relative to the SCION root directory) that contain al
 
 #### Current limitations
 
-1. ISD is a foreign key for the AD model, so currently an AD can only belong to a single ISD.
+1. ISD is a foreign key for the AS model, so currently an AS can only belong to a single ISD.
 2. All ADs are using the same certificate for authentication (`ad_management/certs/ad.pem`).

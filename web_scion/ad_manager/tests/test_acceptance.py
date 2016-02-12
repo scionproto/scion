@@ -11,7 +11,7 @@ from unittest.mock import patch
 # SCION
 from guardian.shortcuts import assign_perm
 from ad_management.util import response_success
-from ad_manager.models import ISD, AD, PackageVersion, ConnectionRequest
+from ad_manager.models import ISD, AS, PackageVersion, ConnectionRequest
 
 
 class BasicWebTest(WebTest):
@@ -25,11 +25,11 @@ class BasicWebTest(WebTest):
             self.isds[isd.id] = isd
 
         self.ads = {}
-        for ad in AD.objects.all():
+        for ad in AS.objects.all():
             self.ads[ad.id] = ad
 
     def _get_ad_detail(self, ad, *args, **kwargs):
-        if isinstance(ad, AD):
+        if isinstance(ad, AS):
             ad = ad.id
         assert isinstance(ad, int)
         return self.app.get(reverse('ad_detail', args=[ad]), *args, **kwargs)
@@ -93,7 +93,7 @@ class TestListAds(BasicWebTest):
 
         ad_list = self.app.get(reverse('isd_detail', args=[isd.id]))
         self.assertContains(ad_list, ad.id)
-        li_tag = ad_list.html.find('a', text='AD 2-3').parent
+        li_tag = ad_list.html.find('a', text='AS 2-3').parent
         self.assertIn('core', li_tag.text)
 
 
@@ -168,7 +168,7 @@ class TestUsersAndPermissions(BasicWebTestUsers):
         login_form['username'] = 'admin'
         login_form['password'] = 'admin'
         res = login_form.submit().follow()
-        self.assertContains(res, 'AD 1')
+        self.assertContains(res, 'AS 1')
         self.assertContains(res, 'Logged in as:')
         self.assertContains(res, 'admin')
 
@@ -290,7 +290,7 @@ class TestConnectionRequests(BasicWebTestUsers):
         ad_requests = self.app.get(requests_page, user=self.admin_user)
         self.assertContains(ad_requests, 'Received requests')
 
-        # User which has access to the AD
+        # User which has access to the AS
         assign_perm('change_ad', self.user, ad)
         ad_requests = self.app.get(requests_page, user=self.user)
         self.assertContains(ad_requests, 'Received requests')

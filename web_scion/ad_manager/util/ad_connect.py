@@ -15,7 +15,7 @@ from ad_manager.models import (
     PathServerWeb,
     RouterWeb,
     DnsServerWeb,
-    AD)
+    AS)
 from ad_manager.util.common import is_private_address
 from lib.defines import GEN_PATH
 from lib.util import read_file, write_file, get_trc_file_path
@@ -175,8 +175,8 @@ def link_topologies(first_topo, second_topo, link_type):
 
 def link_ads(first_ad, second_ad, link_type):
     """Needs transaction!"""
-    assert isinstance(first_ad, AD)
-    assert isinstance(second_ad, AD)
+    assert isinstance(first_ad, AS)
+    assert isinstance(second_ad, AS)
     first_topo = first_ad.generate_topology_dict()
     second_topo = second_ad.generate_topology_dict()
     first_topo, second_topo = link_topologies(first_topo, second_topo,
@@ -191,7 +191,7 @@ def get_some_trc_path(isd_id):
                                  isd_dir=GEN_PATH)
     components = os.path.normpath(dst_path).split(os.sep)
 
-    components[-2] = 'AD*'
+    components[-2] = 'AS*'
     files_glob = os.path.join(os.sep, *components)
     files = glob.glob(files_glob)
     if not files:
@@ -211,7 +211,7 @@ def create_new_ad_files(parent_ad_topo, isd_id, ad_id, out_dir):
     path_policy_file = DEFAULT_PATH_POLICY_FILE
     zk_config = DEFAULT_ZK_CONFIG
 
-    # Write basic config files for the new AD
+    # Write basic config files for the new AS
     with tempfile.NamedTemporaryFile('w') as temp_fh:
         json.dump(ad_dict, temp_fh)
         temp_fh.flush()
@@ -229,7 +229,7 @@ def create_new_ad_files(parent_ad_topo, isd_id, ad_id, out_dir):
     new_topo = json.loads(new_topo_file)
     existing_topo, new_topo = link_topologies(parent_ad_topo, new_topo,
                                               'PARENT_CHILD')
-    # Update the config files for the new AD
+    # Update the config files for the new AS
     write_file(new_topo_path, json.dumps(new_topo, sort_keys=4, indent=4))
     gen.write_derivatives(new_topo)
     return new_topo, existing_topo

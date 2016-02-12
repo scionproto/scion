@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`common` --- AD management tool common definitions
+:mod:`common` --- AS management tool common definitions
 =======================================================
 """
 # Stdlib

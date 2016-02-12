@@ -106,11 +106,11 @@ class SCIONSimHost(SCIONDaemon):
         :type ptype:
         :param dst_isd: destination ISD identifier.
         :type dst_isd: int
-        :param dst_ad: destination AD identifier.
+        :param dst_ad: destination AS identifier.
         :type dst_ad: int
         :param src_isd: source ISD identifier.
         :type src_isd: int
-        :param src_ad: source AD identifier.
+        :param src_ad: source AS identifier.
         :type src_ad: int
         :param requester: [Host address, Application port, request id]
         :type requester: [IPv4Address, int, int]
@@ -267,7 +267,7 @@ class SCIONSimHost(SCIONDaemon):
     def _api_handle_path_request(self, packet, sender):
         """
         Path request:
-          | \x00 (1B) | ISD (2B) |  AD (8B)  |
+          | \x00 (1B) | ISD (2B) |  AS (8B)  |
         Reply:
           |path1_len(1B)|path1(path1_len*8B)|first_hop_IP(4B)|path2_len(1B)...
          or b"" when no path found. Only IPv4 supported currently.

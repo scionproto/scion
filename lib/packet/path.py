@@ -52,7 +52,7 @@ class PathBase(HeaderBase, metaclass=ABCMeta):
 
     A path is a sequence of path segments dependent on the type of path. Path
     segments themselves are a sequence of :any:`OpaqueField`\s
-    containing routing information for each AD-level hop.
+    containing routing information for each AS-level hop.
     """
     OF_ORDER = None
     REVERSE_IOF_MAP = {UP_IOF: DOWN_IOF, DOWN_IOF: UP_IOF}
@@ -278,7 +278,7 @@ class PathBase(HeaderBase, metaclass=ABCMeta):
     @abstractmethod
     def get_ad_hops(self):
         """
-        Return path length in AD hops.
+        Return path length in AS hops.
         """
         raise NotImplementedError
 
@@ -383,7 +383,7 @@ class CorePath(PathBase):
 
     def get_ad_hops(self):
         """
-        Get the path length in AD hops.
+        Get the path length in AS hops.
         """
         total = 0
         active_segments = 0
@@ -423,17 +423,17 @@ class CrossOverPath(PathBase):
 
     The sequence of opaque fields for such a path is:
 
-    | info OF up-segment |  hop OF 1 | ... | hop OF N | upstream AD OF
-    | info OF down-segment | upstream AD OF | hop OF 1 | ... | hop OF N
+    | info OF up-segment |  hop OF 1 | ... | hop OF N | upstream AS OF
+    | info OF down-segment | upstream AS OF | hop OF 1 | ... | hop OF N
 
-    The upstream AD OF is needed to verify the last hop of the up-segment /
+    The upstream AS OF is needed to verify the last hop of the up-segment /
     first hop of the down-segment respectively.
 
     On-path case (e.g., destination is on up/down-segment) is a special case
     handled by this class. Then one segment (down- or up-segment depending
-    whether destination is upstream or downstream AD) is used only for MAC
+    whether destination is upstream or downstream AS) is used only for MAC
     verification and for determination whether path can terminate at destination
-    AD (i.e., its last egress interface has to equal 0).
+    AS (i.e., its last egress interface has to equal 0).
     """
     NAME = "CrossOverPath"
     OF_ORDER = (UP_IOF, UP_HOFS, UP_UPSTREAM_HOF,
@@ -484,7 +484,7 @@ class CrossOverPath(PathBase):
         """
         # Reverse hops and info fields.
         super().reverse()
-        # Reverse upstream AD fields.
+        # Reverse upstream AS fields.
         self._ofs.swap(UP_UPSTREAM_HOF, DOWN_UPSTREAM_HOF)
         # Handle on-path case.
         if (self._ofs.count(UP_HOFS) == 1 and
@@ -538,7 +538,7 @@ class CrossOverPath(PathBase):
 
     def get_ad_hops(self):
         """
-        Return path length in AD hops.
+        Return path length in AS hops.
         """
         return self._ofs.count(UP_HOFS) + self._ofs.count(DOWN_HOFS) - 1
 
@@ -547,11 +547,11 @@ class CrossOverPath(PathBase):
         s.append("    %s" % self._ofs.get_by_label(UP_IOF, 0))
         for hof in self._ofs.get_by_label(UP_HOFS):
             s.append("    %s" % str(hof))
-        s.append("    Upstream AD: %s" %
+        s.append("    Upstream AS: %s" %
                  self._ofs.get_by_label(UP_UPSTREAM_HOF, 0))
         s.extend(["  </Up-Segment>", "  <Down-Segment>"])
         s.append("    %s" % (self._ofs.get_by_label(DOWN_IOF, 0)))
-        s.append("    Upstream AD: %s" %
+        s.append("    Upstream AS: %s" %
                  self._ofs.get_by_label(DOWN_UPSTREAM_HOF, 0))
         for hof in self._ofs.get_by_label(DOWN_HOFS):
             s.append("    %s" % str(hof))
@@ -566,10 +566,10 @@ class PeerPath(PathBase):
     The sequence of :any:`OpaqueField`\s for such a path is:
 
     | info OF up-segment |  hop OF 1 | ... | hop OF N | peering link OF
-    | upstream AD OF | info OF down-segment | upstream AD OF
+    | upstream AS OF | info OF down-segment | upstream AS OF
     | peering link OF | hop OF 1 | ... | hop OF N
 
-    The upstream AD OF is needed to verify the last hop of the up-segment /
+    The upstream AS OF is needed to verify the last hop of the up-segment /
     first hop of the down-segment respectively.
     """
     NAME = "PeerPath"
@@ -628,7 +628,7 @@ class PeerPath(PathBase):
         """
         # Reverse hop and info fields.
         super().reverse()
-        # Reverse upstream AD and peering link fields.
+        # Reverse upstream AS and peering link fields.
         self._ofs.swap(UP_UPSTREAM_HOF, DOWN_UPSTREAM_HOF)
         self._ofs.swap(UP_PEERING_HOF, DOWN_PEERING_HOF)
         # Handle case when reverse happens at peering point.
@@ -664,7 +664,7 @@ class PeerPath(PathBase):
 
     def get_ad_hops(self):
         """
-        Return path length in AD hops.
+        Return path length in AS hops.
         """
         return self._ofs.count(UP_HOFS) + self._ofs.count(DOWN_HOFS) - 1
 
@@ -675,11 +675,11 @@ class PeerPath(PathBase):
             s.append("    %s" % str(hof))
         s.append("    Peering link: %s" %
                  self._ofs.get_by_label(UP_PEERING_HOF, 0))
-        s.append("    Upstream AD: %s" %
+        s.append("    Upstream AS: %s" %
                  self._ofs.get_by_label(UP_UPSTREAM_HOF, 0))
         s.extend(["  </Up-Segment>", "  <Down-Segment>"])
         s.append("    %s" % self._ofs.get_by_label(DOWN_IOF, 0))
-        s.append("    Upstream AD: %s" %
+        s.append("    Upstream AS: %s" %
                  self._ofs.get_by_label(DOWN_UPSTREAM_HOF, 0))
         s.append("    Peering link: %s" %
                  self._ofs.get_by_label(DOWN_PEERING_HOF, 0))
@@ -693,7 +693,7 @@ class EmptyPath(PathBase):  # pragma: no cover
     """
     Represents an empty path.
 
-    This is currently needed for intra AD communication, which doesn't need a
+    This is currently needed for intra AS communication, which doesn't need a
     SCION path but still uses SCION packets for communication.
     """
     OF_ORDER = []
@@ -735,7 +735,7 @@ class EmptyPath(PathBase):  # pragma: no cover
 def valid_mtu(mtu):
     """
     Check validity of mtu value
-    We assume any SCION AD supports at least the IPv6 min MTU
+    We assume any SCION AS supports at least the IPv6 min MTU
     """
     return mtu and mtu >= SCION_MIN_MTU
 

@@ -96,5 +96,5 @@ class TrustStore(object):
                 return
         self._certs[(isd, ad)].append((version, cert))
         if write:
-            write_file("%s/ISD%s-AD%s-V%s.crt" % (self._dir, isd, ad, version),
+            write_file("%s/ISD%s-AS%s-V%s.crt" % (self._dir, isd, ad, version),
                        str(cert))
