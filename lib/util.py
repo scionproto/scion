@@ -348,9 +348,27 @@ class SCIONTime(object):
 
 class Raw(object):
     """
-    A class to wrap raw bytes objects
+    Wrapper class to handle raw bytes.
+
+    Wraps raw bytes for easier use in processing of raw bytes. Intuitively,
+    this class is a raw byte string like the `bytes` type, but with several
+    additional features. The `Raw` class adds a description attribute that also
+    serves as a label for the data bytes. The class also can simulate bytes
+    being "consumed" during process using an internal offset pointer that can
+    be advanced as the raw data is read.
     """
+
     def __init__(self, data, desc="", len_=None, min_=False):
+        """
+        Create a `Raw` instance that wraps a `bytes` instance.
+
+        Args:
+            data (`bytes`): the raw data to be wrapped.
+            desc (str): a description of what the raw data represents.
+            len_ (int): the minimum or exact data length requirement for
+                `data`.
+            min_ (bool): whether `len_` represents a minimum data length.
+        """
         self._data = data
         self._desc = desc
         self._len = len_

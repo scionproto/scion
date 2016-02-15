@@ -106,12 +106,29 @@ class PacketBase(object, metaclass=ABCMeta):  # pragma: no cover
     def get_payload(self):
         """
         Returns the packet payload.
+
+        .. warning::
+
+            This is a public accessor method for a non-public attribute. Both
+            the method and attribute should be public, or neither should be.
+
         """
         return self._payload
 
     def set_payload(self, new_payload):
         """
-        Set the packet payload.  Expects bytes or a Packet subclass.
+        Set the packet payload.
+
+        Expects bytes or a Packet subclass.
+
+        Args:
+            new_payload (:class:`PayloadBase`): the new payload to set.
+
+        .. warning::
+
+            This is a public accessor method for a non-public attribute. Both
+            the method and attribute should be public, or neither should be.
+
         """
         assert isinstance(new_payload, PayloadBase)
         self._payload = new_payload

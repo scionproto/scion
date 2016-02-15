@@ -65,26 +65,60 @@ class PacketType(object):
 class SCIONCommonHdr(HeaderBase):
     """
     Encapsulates the common header for SCION packets.
+
+    The SCION common header is structured as follows::
+
+                            1 1 1 1 1 1 1 1 1 1 2 2 2 2 2 2 2 2 2 2 3 3
+        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |  Ver  |  Src Type |  Dst Type |          Total Len            |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |    Curr IOF   |    Curr HOF   |    Next Hdr   |    Hdr Len    |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+    .. warning::
+
+       It is possible that the above format is outdated due to changing code.
+
+    Attributes:
+        LEN (int): length of the common header in bytes.
+        version (int): the SCION packet version.
+        src_addr_type (int): the source address type. The possible values for
+            address types are defined in the :class:`lib.types.AddrType` class.
+        dst_addr_type (int): the destination address type. The possible values
+            for address types are defined in the :class:`lib.types.AddrType`
+            class.
+        addrs_len (int): the length of the address block in bytes.
+        total_len (int): the total packet length in bytes.
+        next_hdr (int): the type of the next header field.
+        hdr_len (int): the length of the header in bytes.
+
     """
     LEN = 8
 
     def __init__(self, raw=None):
         """
-        Initialize an instance of the class SCIONCommonHdr.
+        Initialize a :class:`SCIONCommonHdr` instance.
 
-        :param raw:
-        :type raw:
+        Args:
+            raw (bytes): a raw bytestring representing the common header.
+
+        Returns:
+            An :class:`SCIONCommonHdr` instance with the fields populated
+            appropriately if a nonempty value of `raw` is supplied, otherwise a
+            :class:`SCIONCommonHdr` instance with all values initialized to 0
+            or `None`.
         """
         super().__init__()
-        self.version = 0  # Version of SCION packet.
-        self.src_addr_type = None  # Type of the src address.
-        self.dst_addr_type = None  # Length of the dst address.
-        self.addrs_len = None  # Length of the address block
-        self.total_len = None  # Total length of the packet.
+        self.version = 0
+        self.src_addr_type = None
+        self.dst_addr_type = None
+        self.addrs_len = None
+        self.total_len = None
         self._iof_idx = None  # Index of the current Info Opaque Field
         self._hof_idx = None  # Index of the current Hop Opaque Field
-        self.next_hdr = None  # Type of the next hdr field (IP protocol numbers)
-        self.hdr_len = None  # Header length including the path.
+        self.next_hdr = None
+        self.hdr_len = None
 
         if raw is not None:
             self._parse(raw)
@@ -110,11 +144,21 @@ class SCIONCommonHdr(HeaderBase):
     @classmethod
     def from_values(cls, src_type, dst_type, next_hdr=L4_NONE):
         """
-        Returns a SCIONCommonHdr object with the values specified.
+        Create a :class:`SCIONCommonHdr` object from specified attribute
+        values.
 
-        :param int src: Source address type.
-        :param int dst: Destination address type.
-        :param int next_hdr: Next header type.
+        Args:
+            src_addr_type (int): the source address type. The possible values
+                for address types are defined in the `lib.types.AddrType`
+                class.
+            dst_addr_type (int): the destination address type. The possible
+                values for address types are defined in the
+                `lib.types.AddrType` class.
+            next_hdr (int): the protocol number of the `next_hdr` field.
+
+        Returns:
+            A :class:`SCIONCommonHdr` instance whose attributes' values match
+            those of the passed arguments.
         """
         inst = cls()
         inst.src_addr_type = src_type
@@ -126,6 +170,13 @@ class SCIONCommonHdr(HeaderBase):
         return inst
 
     def pack(self):
+        """
+        Return the bytestring form of the :class:`SCIONCommonHdr` instance.
+
+        Returns:
+            A `bytes` instance representing the raw form of the
+            `SCIONCommonHdr` instance.
+        """
         packed = []
         types = ((self.version << 12) | (self.src_addr_type << 6) |
                  self.dst_addr_type)
@@ -142,9 +193,29 @@ class SCIONCommonHdr(HeaderBase):
         return raw
 
     def get_of_idxs(self):
+        """
+        Return the indices of the info and hop opaque fields.
+
+        .. warning::
+
+           This is an accessor method for non-public attributes. Either the
+           function should be made non-public, or the attributes should be made
+           public.
+
+        """
         return self._iof_idx, self._hof_idx
 
     def set_of_idxs(self, iof_idx, hof_idx):
+        """
+        Set the indices of the info and hop opaque fields.
+
+        .. warning::
+
+           This is a setter method for non-public attributes. Either the
+           function should be made non-public, or the attributes should be made
+           public.
+
+        """
         self._iof_idx = iof_idx
         self._hof_idx = hof_idx
 
@@ -169,13 +240,31 @@ class SCIONCommonHdr(HeaderBase):
 class SCIONAddrHdr(HeaderBase):
     """
     SCION Address header.
+
+    Attributes:
+        BLK_SIZE (int): the block size in bytes. All :class:`SCIONAddrHdr`
+            instances are padded to a multiple of the block size.
+        src_isd (int): the ISD identifier of the source address.
+        src_ad (int): the AS identifier of the source address.
+        src_addr (:any:`HostAddrBase`): the host address of the source.
+        dst_isd (int): the ISD identifier of the destination address.
+        dst_ad (int): the AS identifier of the destination address.
+        dst_addr (:any:`HostAddrBase`): the host address of the destination.
     """
+
     BLK_SIZE = 8
 
     def __init__(self, raw_values=()):
         """
-        :param tuple raw:
-            Tuple of src addr type, dst addr type, and raw addr bytes.
+        Create a new :class:`SCIONAddrHdr` instance.
+
+        Given the source and destination address types (subtypes of
+        :any:`HostAddrBase`) and a raw bytestring representing the source and
+        destination addresses, create a new :class:`SCIONAddrHdr` instance.
+
+        Args:
+            raw_values (tuple): a 3-tuple of the source address type,
+                destination address type, and the raw address header bytes.
         """
         super().__init__()
         self.src_isd = None
@@ -203,7 +292,17 @@ class SCIONAddrHdr(HeaderBase):
     @classmethod
     def from_values(cls, src, dst):
         """
-        src_addr/dst_addr must be a :any:`SCIONAddr`
+        Create and return a :class:`SCIONAddrHdr` instance from a source and
+        destination address.
+
+        Args:
+            src_addr (:any:`SCIONAddr`): the full source address.
+            dst_addr (:any:`SCIONAddr`): the full destination address.
+
+        Returns:
+            A :class:`SCIONAddrHdr` instance representing the specified source
+            and destination addresses.
+
         """
         inst = cls()
         inst.src_isd = src.isd_id
@@ -216,6 +315,13 @@ class SCIONAddrHdr(HeaderBase):
         return inst
 
     def pack(self):
+        """
+        Pack the address header into a raw bytestring.
+
+        Returns:
+            A `bytes` instance with length a multiple of `BLK_SIZE`
+            representing the address header.
+        """
         self.update()
         packed = []
         packed.append(ISD_AD(self.src_isd, self.src_ad).pack())
@@ -229,11 +335,29 @@ class SCIONAddrHdr(HeaderBase):
         return raw
 
     def update(self):
+        """
+        Update the length and number of padding bytes based on the source and
+        destination address types.
+        """
         self._total_len, self._pad_len = self.calc_len(
             self.src_addr.TYPE, self.dst_addr.TYPE, both=True)
 
     @classmethod
     def calc_len(cls, src_type, dst_type, both=False):
+        """
+        Return the length (and possibly the padding length) of the address
+        header.
+
+        Args:
+            src_type (:any:`AddrType`): the type of the source address.
+            dst_type (:any:`AddrType`): the type of the destination address.
+            both (bool): whether to return both the total and padding lengths
+                or just the total length.
+
+        Returns:
+            The total length of the address header, along with the number of
+            padding bytes if `both` is `True`.
+        """
         src_class = haddr_get_type(src_type)
         dst_class = haddr_get_type(dst_type)
         data_len = ISD_AD.LEN * 2 + src_class.LEN + dst_class.LEN
@@ -246,6 +370,14 @@ class SCIONAddrHdr(HeaderBase):
             return total_len
 
     def reverse(self):
+        """
+        Reverse the source and destination addresses in the header.
+
+        Reverse the address header by swapping the source ID identifiers, AS
+        identifiers, and host addresses. The function also updates the relevant
+        information in the address header (e.g., the source and destination
+        address types) for consistency.
+        """
         self.src_isd, self.dst_isd = self.dst_isd, self.src_isd
         self.src_ad, self.dst_ad = self.dst_ad, self.src_ad
         self.src_addr, self.dst_addr = self.dst_addr, self.src_addr
@@ -273,9 +405,23 @@ class SCIONAddrHdr(HeaderBase):
 
 class SCIONBasePacket(PacketBase):
     """
-    Encasulates the basic headers (common header, address header, and path
+    Encapsulates the basic headers (common header, address header, and path
     header). Everything else is stored as payload.
+
+    Attributes:
+        MIN_LEN (int): the minimum length of a :class:`SCIONBasePacket`
+        NAME (str): the class name for use in printing descriptive labels.
+        cmn_hdr (:class:`SCIONCommonHdr`): the SCION common header of the
+            packet.
+        addrs (:class:`SCIONAddrHdr`): the source/destination address header of
+            the packet.
+        path (:class:`PathBase`): the path header of the packet.
+        _l4_proto (int): the layer 4 protocol number indicated in the common
+            header.
+        _payload (bytes): the packet payload, which consists of the packet
+            without the common header, address header, and path header.
     """
+
     MIN_LEN = SCIONCommonHdr.LEN
     NAME = "SCIONBasePacket"
 
@@ -323,6 +469,19 @@ class SCIONBasePacket(PacketBase):
 
     @classmethod
     def from_values(cls, cmn_hdr, addr_hdr, path_hdr, payload=b""):
+        """
+        Create a :class:`SCIONBasePacket` instance from existing header class
+        instances and a payload string.
+
+        Args:
+            cmn_hdr (:class:`SCIONCommonHdr`): the common header of the new
+                packet.
+            addr_hdr (:class:`SCIONAddrHdr`): the address header of the new
+                packet.
+            path_hdr (:class:`PathBase`): the path header of the new packet.
+                The header may be an instance of any of the path types (i.e.,
+                :class:`CrossOverPath`, :class:`PeerPath`, etc.)
+        """
         inst = cls()
         inst._inner_from_values(cmn_hdr, addr_hdr, path_hdr)
         inst.set_payload(PayloadRaw(payload))
@@ -338,6 +497,18 @@ class SCIONBasePacket(PacketBase):
         self.path = path_hdr
 
     def pack(self):
+        """
+        Create a raw bytestring representation of the packet.
+
+        .. note::
+
+            For some reason this function is calling `update` before packing.
+            Shouldn't the update happen at the end of functions that modify the
+            address and common headers instead?
+
+        Returns:
+            A `bytes` instance representing the "wire format" of the packet.
+        """
         self.update()
         packed = []
         packed.append(self.cmn_hdr.pack())
@@ -356,6 +527,19 @@ class SCIONBasePacket(PacketBase):
         return self._payload.pack_full()
 
     def update(self):
+        """
+        Update the address and common headers.
+
+        Update the address and common headers after updating a field in one or
+        both of these headers. This function ensures that the information
+        relevant to the updated fields is also modified accordingly.
+        For example, the common header contains the types of the source and
+        destination addresses. If the source and destination addresses have
+        different types and are updated due to an operation such as reversing
+        the address header, the common header should also be updated to ensure
+        that the address types match the those of the new source and
+        destination addresses.
+        """
         self.addrs.update()
         self._update_cmn_hdr()
 
@@ -376,10 +560,28 @@ class SCIONBasePacket(PacketBase):
         return self._l4_proto
 
     def reverse(self):
+        """
+        Reverse the packet's address and path headers.
+
+        In preparation for sending the packet back along the path it traversed,
+        reverse the address header (containing the source and destination
+        addresses) and the path header (which contains the sequence of ASes,
+        interface identifiers, opaque fields, etc.).
+        """
         self.addrs.reverse()
         self.path.reverse()
 
     def reversed_copy(self):  # pragma: no cover
+        """
+        Create and return a reversed copy of the packet.
+
+        Create a deep copy of the packet, then reverse the copy for
+        transmission back along the path on which it arrived.
+
+        Returns:
+            A :class:`SCIONBasePacket` instance that is a reversed copy of the
+            calling :class:`SCIONBasePacket` instance.
+        """
         inst = copy.deepcopy(self)
         inst.reverse()
         return inst
@@ -407,7 +609,13 @@ class SCIONBasePacket(PacketBase):
 class SCIONExtPacket(SCIONBasePacket):
     """
     Extends :any:`SCIONBasePacket` to handle extension headers.
+
+    Attributes:
+        NAME (str): the class name for use in printing and descriptive labels.
+        ext_hdrs (list): a list of extension headers.
+
     """
+
     NAME = "SCIONExtPacket"
 
     def __init__(self, raw=None):
@@ -424,6 +632,26 @@ class SCIONExtPacket(SCIONBasePacket):
 
     @classmethod
     def from_values(cls, cmn_hdr, addr_hdr, path_hdr, ext_hdrs, payload=b""):
+        """
+        Create and return :any:`SCIONExtPacket` instance from headers and a
+        payload.
+
+        Args:
+            cmn_hdr (:any:`SCIONCommonHdr`): the common header of the new
+                packet.
+            addr_hdr (:any:`SCIONAddrHdr`): the address header of the new
+                packet.
+            path_hdr (:any:`PathBase`): the path header of the new packet.  The
+                header may be an instance of any of the path types (i.e.,
+                :any:`CrossOverPath`, :any:`PeerPath`, etc.)
+            ext_hdrs (list): a list of :any:`ExtensionHeader` instances
+                representing the extension headers of the new packet.
+            payload (bytes): the payload of the packet.
+
+        Returns:
+            A :any:`SCIONExtPacket` instance representing an extension packet
+            with the given header values and payload.
+        """
         inst = cls()
         inst._inner_from_values(cmn_hdr, addr_hdr, path_hdr, ext_hdrs)
         inst.set_payload(payload)
@@ -479,6 +707,11 @@ class SCIONExtPacket(SCIONBasePacket):
 class SCIONL4Packet(SCIONExtPacket):
     """
     Extends :any:`SCIONExtPacket` to handle L4 headers.
+
+    Attributes:
+        NAME (str): class name used for printing and descriptive labels.
+        l4_hdr (:class:`L4HeaderBase`): the layer 4 header of the packet.
+
     """
     NAME = "SCIONL4Packet"
 
