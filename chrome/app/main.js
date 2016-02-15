@@ -4,6 +4,7 @@ var C_HEAD = '9080FF'; // supplied by jQuery
 var C_STAT = '99CCFF';
 var MS_LIST_INTERVAL = 5000;
 var MS_LOOKUP_INTERVAL = 1000;
+var UDP_ADDR = "127.0.0.1:7777";
 
 window.onload = function() {
 
@@ -128,18 +129,20 @@ var echoClient = null;
 
 window.addEventListener("load", function() {
 	var connect = document.getElementById("connect");
-	var address = document.getElementById("address");
+	var list = document.getElementById("list");
+	var lookup = document.getElementById("lookup");
 
-	echoClient = newEchoClient(address.value);
+	echoClient = newEchoClient(UDP_ADDR);
 	connect.onclick = function(ev) {
 		echoClient.disconnect();
-		echoClient = newEchoClient(address.value);
+		echoClient = newEchoClient(UDP_ADDR);
 	};
-	address.onkeydown = function(ev) {
-		if (ev.which == 13) {
-			echoClient.disconnect();
-			echoClient = newEchoClient(address.value);
-		}
+	list.onclick = function(ev) {
+		requestListUpdate();
+	};
+	lookup.onclick = function(ev) {
+		// send lookup cmd for current url
+		echoClient.sender();
 	};
 });
 
@@ -183,8 +186,6 @@ var attachSend = function(client) {
 		});
 	};
 };
-
-// TODO: Add button to pull data from server, rather than timeout
 
 function requestListUpdate() {
 	var u = {};
@@ -364,13 +365,13 @@ $(function() {
 			kBaseIndexSel = ui.newPanel.attr('id');
 			console.log("activate init event: " + kBaseIndexSel);
 			if (echoClient != null) {
-				self.lookupIntervalId = setInterval(function() {
-					echoClient.sender();
-				}, MS_LOOKUP_INTERVAL);
+				// self.lookupIntervalId = setInterval(function() {
+				echoClient.sender();
+				// }, MS_LOOKUP_INTERVAL);
 			}
 		} else {
 			// accordion collapsing, stop udp lookups
-			clearInterval(self.lookupIntervalId);
+			// clearInterval(self.lookupIntervalId);
 
 			// TODO: this can get out of sync, need to add push/pop array of
 			// interval ids
