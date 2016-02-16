@@ -35,8 +35,7 @@ from lib.packet.path_mgmt import (
     RevocationInfo,
 )
 from lib.packet.scion import PacketType as PT, SCIONL4Packet
-from lib.path_db import DBResult, PathSegmentDB
-from lib.sibra.seg_db import SibraSegmentDB
+from lib.path_db import PathSegmentDB
 from lib.thread import thread_safety_net
 from lib.types import PathMgmtType as PMT, PathSegmentType as PST, PayloadClass
 from lib.util import (
@@ -68,14 +67,11 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         self.down_segments = PathSegmentDB(max_res_no=self.MAX_SEG_NO)
         # Core segments are in direction of the propagation.
         self.core_segments = PathSegmentDB(max_res_no=self.MAX_SEG_NO)
-        self.sibra_segments = SibraSegmentDB()
+        self.sibra_segments = PathSegmentDB(max_res_no=self.MAX_SEG_NO)
         self.pending_req = defaultdict(list)  # Dict of pending requests.
         self.waiting_targets = set()  # Used when l/cPS doesn't have up/dw-path.
         self.revocations = ExpiringDict(1000, 300)
         self.iftoken2seg = defaultdict(set)
-        # Must be set in child classes:
-        self._cached_seg_handler = None
-
         self.PLD_CLASS_MAP = {
             PayloadClass.PATH: {
                 PMT.REQUEST: self.path_resolution,
@@ -85,16 +81,16 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                 PMT.SYNC: self.dispatch_path_segment_record,
             },
         }
-
-        if not is_sim:
-            # Add more IPs here if we support dual-stack
-            name_addrs = "\0".join([self.id, str(SCION_UDP_PORT),
-                                    str(self.addr.host)])
-            self.zk = Zookeeper(self.topology.isd_as, PATH_SERVICE, name_addrs,
-                                self.topology.zookeepers)
-            self.zk.retry("Joining party", self.zk.party_setup)
-            self.path_cache = ZkSharedCache(self.zk, self.ZK_PATH_CACHE_PATH,
-                                            self._cached_entries_handler)
+        if is_sim:
+            return
+        # Add more IPs here if we support dual-stack
+        name_addrs = "\0".join([self.id, str(SCION_UDP_PORT),
+                                str(self.addr.host)])
+        self.zk = Zookeeper(self.topology.isd_as, PATH_SERVICE, name_addrs,
+                            self.topology.zookeepers)
+        self.zk.retry("Joining party", self.zk.party_setup)
+        self.path_cache = ZkSharedCache(self.zk, self.ZK_PATH_CACHE_PATH,
+                                        self._cached_entries_handler)
 
     def worker(self):
         """
@@ -152,41 +148,20 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                 self.iftoken2seg[pm.ig_rev_token].add(segment_id)
 
     @abstractmethod
-    def _handle_up_segment_record(self, records):
-        """
-        Handles Up Path registration from local BS.
-        """
+    def _handle_up_segment_records(self, pkt):
         raise NotImplementedError
 
     @abstractmethod
-    def _handle_down_segment_record(self, records):
-        """
-        Handles registration of a down path.
-        """
+    def _handle_down_segment_records(self, pkt):
         raise NotImplementedError
 
     @abstractmethod
-    def _handle_core_segment_record(self, records):
-        """
-        Handles a core_path record.
-        """
+    def _handle_core_segment_records(self, pkt):
         raise NotImplementedError
 
     @abstractmethod
-    def _handle_sibra_segment_record(self, pkt, from_zk=False):
-        """
-        Handles a sibra segment record.
-        """
+    def _handle_sibra_segment_records(self, pkt):
         raise NotImplementedError
-
-    def _add_sibra_segment(self, seg):
-        ret = self.sibra_segments.update(seg)
-        if ret == DBResult.NONE:
-            logging.info("SIBRA segment already known:\n  %s", seg)
-        elif ret == DBResult.ENTRY_ADDED:
-            logging.info("SIBRA segment registered:\n  %s", seg)
-        elif ret == DBResult.ENTRY_UPDATED:
-            logging.info("SIBRA segment updated:\n  %s", seg)
 
     def _handle_revocation(self, pkt):
         """
@@ -252,8 +227,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             logging.warning("No segments to send")
         rep_pkt = pkt.reversed_copy()
         rep_pkt.set_payload(PathRecordsReply.from_values(
-            {PST.UP: up, PST.CORE: core, PST.DOWN: down},
-            list(sibra),
+            {PST.UP: up, PST.CORE: core, PST.DOWN: down, PST.SIBRA: sibra},
         ))
         rep_pkt.addrs.src.host = self.addr.host
         next_hop, port = self.get_first_hop(rep_pkt)
@@ -288,13 +262,13 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         handlers = []
         payload = pkt.get_payload()
         if payload.pcbs[PST.UP]:
-            handlers.append(self._handle_up_segment_record)
+            handlers.append(self._handle_up_segment_records)
         if payload.pcbs[PST.CORE]:
-            handlers.append(self._handle_core_segment_record)
+            handlers.append(self._handle_core_segment_records)
         if payload.pcbs[PST.DOWN]:
-            handlers.append(self._handle_down_segment_record)
-        if payload.sibra_segs:
-            handlers.append(self._handle_sibra_segment_record)
+            handlers.append(self._handle_down_segment_records)
+        if payload.pcbs[PST.SIBRA]:
+            handlers.append(self._handle_sibra_segment_records)
         if not handlers:
             logging.error("Unsupported path record type: %s", payload)
             return
@@ -346,8 +320,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         for pcbs in payload.pcbs.values():
             for pcb in pcbs:
                 descs.append(pcb.short_desc())
-        for seg in payload.sibra_segs:
-            descs.append(seg.short_desc())
         logging.debug("Segment(s) stored in ZK: %s", "  \n".join(descs))
 
     def run(self):

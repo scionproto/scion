@@ -35,8 +35,9 @@ from lib.zookeeper import ZkNoConnection
 
 class CorePathServer(PathServer):
     """
-    SCION Path Server in a core AS. Stores intra ISD down-paths as well as core
-    paths and forwards inter-ISD path requests to the corresponding path server.
+    SCION Path Server in a core AS. Stores intra ISD down-segments as well as
+    core segments and forwards inter-ISD path requests to the corresponding path
+    server.
     """
     PROP_LIMIT = 5  # Max number of segments per propagation packet
 
@@ -50,14 +51,14 @@ class CorePathServer(PathServer):
         # Sanity check that we should indeed be a core path server.
         assert self.topology.is_core_as, "This shouldn't be a local PS!"
         self._master_id = None  # Address of master core Path Server.
-        self._cached_seg_handler = self._handle_core_segment_record
+        self._cached_seg_handler = self._handle_core_segment_records
         self._segs_to_master = deque()
         self._segs_to_prop = deque()
 
     def _update_master(self):
         """
         Read master's address from shared lock, and if new master is elected
-        sync it with paths.
+        sync it with segments.
         """
         try:
             curr_master = self.zk.get_lock_holder()
@@ -74,7 +75,7 @@ class CorePathServer(PathServer):
 
     def _sync_master(self):
         """
-        Feed newly-elected master with paths.
+        Feed newly-elected master with segments.
         """
         # TODO(PSz): consider mechanism for avoiding a registration storm.
         master = self._master_id
@@ -84,15 +85,15 @@ class CorePathServer(PathServer):
         seen_ases = set()
         # Get core-segments from remote ISDs.
         # FIXME(PSz): quite ugly for now.
-        core_paths = [r['record'].pcb for r in self.core_segments._db
-                      if r['first_isd'] != self.addr.isd_as[0]]
+        core_segs = [r['record'].pcb for r in self.core_segments._db
+                     if r['first_isd'] != self.addr.isd_as[0]]
         # Get down-segments from local ISD.
-        down_paths = self.down_segments(full=True, last_isd=self.addr.isd_as[0])
+        down_segs = self.down_segments(full=True, last_isd=self.addr.isd_as[0])
         logging.debug("Syncing with %s" % master)
-        for seg_type, paths in [(PST.CORE, core_paths), (PST.DOWN, down_paths)]:
-            for pcb in paths:
+        for seg_type, segs in [(PST.CORE, core_segs), (PST.DOWN, down_segs)]:
+            for pcb in segs:
                 key = pcb.get_first_pcbm().isd_as, pcb.get_last_pcbm().isd_as
-                # Send only one path for given (src, dst) pair.
+                # Send only one segment for given (src, dst) pair.
                 if key in seen_ases:
                     continue
                 seen_ases.add(key)
@@ -106,46 +107,59 @@ class CorePathServer(PathServer):
         """
         return self._master_id == str(self.addr.host)
 
-    def _handle_up_segment_record(self, pkt):
-        logging.error("Core Path Server received up-path record!")
+    def _handle_up_segment_records(self, pkt):
+        logging.error("Core Path Server received up-segment record!")
 
-    def _handle_down_segment_record(self, pkt):
+    def _handle_down_segment_records(self, pkt):
+        return self._handle_local_segment_records(pkt, PST.DOWN)
+
+    def _handle_sibra_segment_records(self, pkt):
+        return self._handle_local_segment_records(pkt, PST.SIBRA)
+
+    def _handle_local_segment_records(self, pkt, type_):
         """
-        Handle registration of a down path. Return a set of added destinations.
+        Handle registration of a down/sibra segment. Return a set of added
+        destinations.
         """
         added = set()
         records = pkt.get_payload()
-        if not records.pcbs[PST.DOWN]:
+        if not records.pcbs[type_]:
             return added
         from_master = self._from_master(pkt)
-        for pcb in records.pcbs[PST.DOWN]:
-            added.update(
-                self._add_down_segment(pkt.addrs.src.isd_as, pcb, from_master))
+        for pcb in records.pcbs[type_]:
+            added.update(self._add_local_segment(
+                pkt.addrs.src.isd_as, pcb, from_master, type_))
         return added
 
-    def _add_down_segment(self, pkt_src, pcb, from_master):
+    def _add_local_segment(self, pkt_src, pcb, from_master, type_):
         src_ia = pcb.get_first_pcbm().isd_as
         dst_ia = pcb.get_last_pcbm().isd_as
         added = set()
-        res = self.down_segments.update(pcb, src_ia, dst_ia)
+        name = "Down"
+        segdb = self.down_segments
+        if type_ == PST.SIBRA:
+            name = "Sibra"
+            segdb = self.sibra_segments
+        res = segdb.update(pcb, src_ia, dst_ia)
         if res == DBResult.NONE:
-            logging.info("Down-Segment already known: %s", pcb.short_desc())
+            logging.info("%s-Segment already known: %s", name, pcb.short_desc())
         elif res == DBResult.ENTRY_ADDED:
             self._add_if_mappings(pcb)
             added.add(dst_ia)
-            logging.info("Down-Seg registered: %s", pcb.short_desc())
+            logging.info("%s-Segment registered: %s", name, pcb.short_desc())
         if dst_ia == pkt_src:
-            # If this path was registered with us by the down-stream AS,
+            # If this segment was registered with us by the destination AS,
             # propagate to all other core ASes within this ISD.
-            self._segs_to_prop.append((PST.DOWN, pcb))
+            self._segs_to_prop.append((type_, pcb))
         if (src_ia[0] == dst_ia[0] == self.addr.isd_as[0] and not from_master):
-            # Master replicates all seen down-paths from ISD.
-            self._segs_to_master.append((PST.DOWN, pcb))
+            # Master replicates all seen segments from ISD.
+            self._segs_to_master.append((type_, pcb))
         return added
 
-    def _handle_core_segment_record(self, pkt, from_zk=False):
+    def _handle_core_segment_records(self, pkt, from_zk=False):
         """
-        Handle registration of a core path. Return a set of added destinations.
+        Handle registration of a core segment. Return a set of added
+        destinations.
         """
         added = set()
         records = pkt.get_payload()
@@ -169,7 +183,7 @@ class CorePathServer(PathServer):
             elif self._master_id and not self._is_master():
                 self._send_to_master(records)
         # Send pending requests that couldn't be processed due to the lack of
-        # a core path to the destination PS.
+        # a core segment to the destination PS.
         self._handle_waiting_targets(records.pcbs[PST.CORE][0])
         return added
 
@@ -184,28 +198,12 @@ class CorePathServer(PathServer):
             if dst_ia[0] != self.addr.isd_as[0]:
                 # Mark that a segment to remote ISD was added.
                 added.add(dst_ia.any_as())
-            logging.info("Core-Path registered (from zk: %s): %s",
+            logging.info("Core-Segment registered (from zk: %s): %s",
                          from_zk, pcb.short_desc())
         else:
-            logging.info("Core-Path already known (from zk: %s): %s",
+            logging.info("Core-Segment already known (from zk: %s): %s",
                          from_zk, pcb.short_desc())
         return added, dst_ia[0] == self.addr.isd_as[0]
-
-    def _handle_sibra_segment_record(self, pkt):
-        records = pkt.get_payload()
-        from_master = self._from_master(pkt)
-        for seg in records.sibra_segs:
-            self._add_sibra_segment(seg)
-            if from_master:
-                continue
-            if seg.src_ia == pkt.addrs.src.isd_as:
-                # If this path was registered with us by the down-stream AS,
-                # propagate to all other core ASes within this ISD.
-                self._segs_to_prop.append((PST.SIBRA, seg))
-            if seg.src_ia[0] == seg.dst_ia[0] == self.addr.isd_as[0]:
-                # Master gets a copy of all seen local SIBRA paths.
-                self._segs_to_master.append((PST.SIBRA, seg))
-        return set()
 
     def _from_master(self, pkt):
         pld = pkt.get_payload()
@@ -245,10 +243,7 @@ class CorePathServer(PathServer):
         cls_ = PathRecordsReply
         if sync:
             cls_ = PathRecordsSync
-        return cls_.from_values({
-            PST.UP: pcbs[PST.UP], PST.DOWN: pcbs[PST.DOWN],
-            PST.CORE: pcbs[PST.CORE]}, pcbs[PST.SIBRA],
-        )
+        return cls_.from_values(pcbs)
 
     def _send_to_master(self, pld):
         """
@@ -264,7 +259,7 @@ class CorePathServer(PathServer):
 
     def _query_master(self, seg_type, dst_ia, src_ia=None):
         """
-        Query master for a path.
+        Query master for a segment.
         """
         if self._is_master():
             logging.debug("I'm master, query abandoned.")
@@ -272,7 +267,7 @@ class CorePathServer(PathServer):
         if src_ia is None:
             src_ia = self.addr.isd_as
         info = PathSegmentInfo.from_values(seg_type, src_ia, dst_ia)
-        logging.debug("Asking master for path (%s): %s > %s" %
+        logging.debug("Asking master for segment (%s): %s > %s" %
                       (PST.to_str(seg_type), src_ia, dst_ia))
         self._send_to_master(info)
 
@@ -283,15 +278,15 @@ class CorePathServer(PathServer):
         for isd_as in self._core_ases[self.addr.isd_as[0]]:
             if isd_as == self.addr.isd_as:
                 continue
-            cpaths = self.core_segments(first_ia=isd_as,
-                                        last_ia=self.addr.isd_as)
-            if cpaths:
-                cpath = cpaths[0].get_path(reverse_direction=True)
+            csegs = self.core_segments(first_ia=isd_as,
+                                       last_ia=self.addr.isd_as)
+            if csegs:
+                cseg = csegs[0].get_path(reverse_direction=True)
                 pkt = self._build_packet(PT.PATH_MGMT, dst_ia=isd_as,
-                                         path=cpath, payload=rep_recs)
-                self._send_to_next_hop(pkt, cpath.get_fwd_if())
+                                         path=cseg, payload=rep_recs)
+                self._send_to_next_hop(pkt, cseg.get_fwd_if())
             else:
-                logging.warning("Path to AS %s not found.", isd_as)
+                logging.warning("Segment to AS %s not found.", isd_as)
 
     def path_resolution(self, pkt, new_request=True):
         """
@@ -403,9 +398,9 @@ class CorePathServer(PathServer):
                          "forwarding request to CPS in %s via %s",
                          dst_ia, csegs[0].short_desc())
             self._send_to_next_hop(req_pkt, path.get_fwd_if())
-        # If no core_path was available, add request to waiting targets.
+        # If no core segment was available, add request to waiting targets.
         else:
-            logging.info("Waiting for core path to AS %s", dst_ia)
+            logging.info("Waiting for core segment to AS %s", dst_ia)
             self.waiting_targets.add((dst_ia, seg_info))
-            # Ask for any path to dst_isd
+            # Ask for any segment to dst_isd
             self._query_master(PST.GENERIC, dst_ia.any_as())

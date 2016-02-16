@@ -34,6 +34,8 @@ from lib.packet.pcb_ext.mtu import MtuPcbExt
 from lib.packet.pcb_ext.rev import RevPcbExt
 from lib.packet.pcb_ext.sibra import SibraPcbExt
 from lib.packet.scion_addr import ISD_AS
+from lib.sibra.pcb_ext.info import SibraSegInfo
+from lib.sibra.pcb_ext.sof import SibraSegSOF
 from lib.types import PayloadClass, PCBType
 from lib.util import Raw, hex_str, iso_timestamp
 
@@ -45,6 +47,8 @@ PCB_EXTENSION_MAP = {
     (MtuPcbExt.EXT_TYPE): MtuPcbExt,
     (RevPcbExt.EXT_TYPE): RevPcbExt,
     (SibraPcbExt.EXT_TYPE): SibraPcbExt,
+    (SibraSegInfo.EXT_TYPE): SibraSegInfo,
+    (SibraSegSOF.EXT_TYPE): SibraSegSOF,
 }
 
 
@@ -243,6 +247,11 @@ class ASMarking(MarkingBase):
         Add beacon extension.
         """
         self.ext.append(ext)
+
+    def find_ext(self, type_):
+        for ext in self.ext:
+            if ext.TYPE == type_:
+                return ext
 
     def __len__(self):  # pragma: no cover
         return (
@@ -452,8 +461,15 @@ class PathSegment(SCIONPayloadBase):
 
     def get_expiration_time(self):
         """
-        Returns the expiration time of the path segment in real time.
+        Returns the expiration time of the path segment in real time. If a PCB
+        extension in the last ASMarking supplies an expiration time, use that.
+        Otherwise fall-back to the standard expiration time calculation.
         """
+        if self.ases:
+            for ext in self.ases[-1].ext:
+                exp_ts = ext.exp_ts()
+                if exp_ts is not None:
+                    return exp_ts
         return self.iof.timestamp + int(self.min_exp_time * EXP_TIME_UNIT)
 
     def get_all_iftokens(self):
@@ -508,9 +524,16 @@ class PathSegment(SCIONPayloadBase):
             iso_timestamp(self.get_timestamp()),
         ))
         hops = []
+        exts = []
         for asm in self.ases:
             hops.append(str(asm.pcbm.isd_as))
-        desc.append(">".join(hops))
+            for ext in asm.ext:
+                ext_desc = ext.short_desc()
+                if ext_desc:
+                    exts.append(ext_desc)
+        desc.append(" > ".join(hops))
+        if exts:
+            return "%s\n  %s" % ("".join(desc), "\n  ".join(exts))
         return "".join(desc)
 
     def __eq__(self, other):  # pragma: no cover

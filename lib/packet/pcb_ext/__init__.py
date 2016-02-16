@@ -27,6 +27,8 @@ class BeaconExtType(TypeBase):
     MTU = 0
     REV = 1
     SIBRA = 2
+    SIBRA_SEG_INFO = 3
+    SIBRA_SEG_SOF = 4
 
 
 class BeaconExtension(HeaderBase):
@@ -36,3 +38,9 @@ class BeaconExtension(HeaderBase):
     EXT_TYPE = None
     EXT_TYPE_STR = None
     LEN = None
+
+    def short_desc(self):
+        return ""
+
+    def exp_ts(self):
+        return None

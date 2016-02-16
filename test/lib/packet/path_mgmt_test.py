@@ -79,32 +79,24 @@ class TestPathSegmentRecordsParse(object):
     """
     Unit tests for lib.packet.path_mgmt.PathSegmentRecords._parse
     """
-    @patch("lib.packet.path_mgmt.SibraSegment", autospec=True)
     @patch("lib.packet.path_mgmt.PathSegment", autospec=True)
     @patch("lib.packet.path_mgmt.Raw", autospec=True)
-    def test(self, raw, path_seg, sib_seg):
+    def test(self, raw, path_seg):
         inst = PathSegmentRecords()
         inst.NAME = "PathSegmentRecords"
-        data = create_mock(["__len__", "pop", "get"])
-        data.__len__.return_value = 0
-        data.pop.side_effect = (
-            3, 2, 1, None, 1, None, 2, None, None, None,
-        )
-        data.get.side_effect = (
-            "pcb1_0", "pcb1_1", "pcb2_0", "sib0", "sib1"
-        )
+        data = create_mock(["__bool__", "pop", "get"])
+        data.__bool__.side_effect = True, True, True, False
+        data.pop.side_effect = 1, None, 1, None, 2, None
+        data.get.side_effect = "pcb1_0", "pcb1_1", "pcb2_0"
         raw.return_value = data
         path_seg.side_effect = lambda x: x
-        sib_seg.side_effect = lambda x: x
         # Call
         inst._parse("data")
         # Tests
         raw.assert_called_once_with("data", inst.NAME, inst.MIN_LEN, min_=True)
         assert_these_calls(path_seg, [
             call("pcb1_0"), call("pcb1_1"), call("pcb2_0")])
-        assert_these_calls(sib_seg, [call("sib0"), call("sib1")])
         ntools.eq_(dict(inst.pcbs), {1: ["pcb1_0", "pcb1_1"], 2: ["pcb2_0"]})
-        ntools.eq_(inst.sibra_segs, ["sib0", "sib1"])
 
 
 class TestPathSegmentRecordsPack(object):
@@ -123,15 +115,13 @@ class TestPathSegmentRecordsPack(object):
             1: [self._mk_seg(b"pcb1_0"), self._mk_seg(b"pcb1_1")],
             2: [self._mk_seg(b"pcb2_0")],
         }
-        inst.sibra_segs = [self._mk_seg(b"sib0"), self._mk_seg(b"sib1")]
         expected = [
-            b"\x01pcb1_0", b"\x01pcb1_1", b"\x02pcb2_0", b"sib0", b"sib1"
+            b"\x01pcb1_0", b"\x01pcb1_1", b"\x02pcb2_0"
         ]
         # Call
         ret = inst.pack()
         # Tests
-        ntools.eq_(ret[:2], bytes([3, 2]))
-        ntools.eq_(len(ret), len(b"".join(expected)) + 2)
+        ntools.eq_(len(ret), len(b"".join(expected)))
         for b in expected:
             ntools.assert_in(b, ret)
 
@@ -143,9 +133,8 @@ class TestPathSegmentRecordsLen(object):
     def test(self):
         inst = PathSegmentRecords()
         inst.pcbs = {1: ['1', '22', '333', '4444'], 2: ['55555'], 3: ['666666']}
-        inst.sibra_segs = ['7777777']
         # Call
-        ntools.eq_(len(inst), 2 + 2 + 3 + 4 + 5 + 6 + 7 + 7)
+        ntools.eq_(len(inst), 2 + 3 + 4 + 5 + 6 + 7)
 
 
 class TestIFStateInfoParse(object):

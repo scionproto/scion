@@ -31,8 +31,8 @@ from lib.types import PathSegmentType as PST
 
 class LocalPathServer(PathServer):
     """
-    SCION Path Server in a non-core AS. Stores up-paths to the core and
-    registers down-paths with the CPS. Can cache paths learned from a CPS.
+    SCION Path Server in a non-core AS. Stores up-segments to the core and
+    registers down-segments with the CPS. Can cache segments learned from a CPS.
     """
     def __init__(self, server_id, conf_dir, is_sim=False):
         """
@@ -45,36 +45,60 @@ class LocalPathServer(PathServer):
         assert not self.topology.is_core_as, "This shouldn't be a core PS!"
         # Database of up-segments to the core.
         self.up_segments = PathSegmentDB(max_res_no=self.MAX_SEG_NO)
-        self._cached_seg_handler = self._handle_up_segment_record
 
     def _update_master(self):
         pass
 
-    def _handle_up_segment_record(self, pkt, from_zk=False):
+    def _cached_seg_handler(self, pkt, from_zk=True):
+        self._handle_up_segment_records(pkt, from_zk)
+        self._handle_sibra_segment_records(pkt, from_zk)
+
+    def _handle_up_segment_records(self, pkt, from_zk=False):
+        added = self._handle_local_segment_records(pkt, from_zk, type_=PST.UP)
+        # Sending pending targets to the core using first registered up-segment.
+        if added:
+            records = pkt.get_payload()
+            self._handle_waiting_targets(records.pcbs[PST.UP][0])
+        return added
+
+    def _handle_sibra_segment_records(self, pkt, from_zk=False):
+        return self._handle_local_segment_records(pkt, from_zk, type_=PST.SIBRA)
+
+    def _handle_local_segment_records(self, pkt, from_zk, type_):
         """
-        Handle Up Path registration from local BS or ZK's cache. Return a set of
-        added destinations.
+        Handle Up-/Sibra-segment registration from local BS or ZK's cache.
+        Return a set of added destinations.
         """
         added = set()
         records = pkt.get_payload()
-        if not records.pcbs[PST.UP]:
+        if not records.pcbs[type_]:
             return added
-        for pcb in records.pcbs[PST.UP]:
-            first_ia = pcb.get_first_pcbm().isd_as
-            res = self.up_segments.update(pcb, first_ia, self.addr.isd_as)
-            if res == DBResult.ENTRY_ADDED:
-                self._add_if_mappings(pcb)
-                added.add(first_ia)
-                logging.info("Up-Segment registered (from zk: %s): %s",
-                             from_zk, pcb.short_desc())
-        # Share Up Segment via ZK.
+        for pcb in records.pcbs[type_]:
+            added.update(self._add_local_segment(pcb, from_zk, type_))
+        # Share Segment via ZK.
         if not from_zk:
             self._share_segments(pkt)
-        # Sending pending targets to the core using first registered up-path.
-        self._handle_waiting_targets(records.pcbs[PST.UP][0])
         return added
 
-    def _handle_down_segment_record(self, pkt):
+    def _add_local_segment(self, pcb, from_zk, type_):
+        added = set()
+        name = "Up"
+        segdb = self.up_segments
+        if type_ == PST.SIBRA:
+            name = "Sibra"
+            segdb = self.sibra_segments
+        src_ia = pcb.get_first_pcbm().isd_as
+        dst_ia = pcb.get_last_pcbm().isd_as
+        res = segdb.update(pcb, src_ia, dst_ia)
+        if res != DBResult.ENTRY_ADDED:
+            return added
+        self._add_if_mappings(pcb)
+        added.add(src_ia)
+        logging.info("%s-Segment registered (from zk: %s): %s",
+                     name, from_zk, pcb.short_desc())
+        return added
+
+    def _handle_down_segment_records(self, pkt):
         """
         Handle down segment record. Return a set of added destinations.
         """
@@ -92,9 +116,10 @@ class LocalPathServer(PathServer):
                 logging.info("Down-Seg registered: %s", pcb.short_desc())
         return added
 
-    def _handle_core_segment_record(self, pkt):
+    def _handle_core_segment_records(self, pkt):
         """
-        Handle registration of a core path. Return a set of added destinations.
+        Handle registration of a core segment. Return a set of added
+        destinations.
         """
         added = set()
         records = pkt.get_payload()
@@ -110,14 +135,6 @@ class LocalPathServer(PathServer):
                 added.add(dst_ia)
                 logging.info("Core-Segment registered: %s", pcb.short_desc())
         return added
-
-    def _handle_sibra_segment_record(self, pkt, from_zk=False):
-        records = pkt.get_payload()
-        for seg in records.sibra_segs:
-            self._add_sibra_segment(seg)
-        if not from_zk:
-            self._share_segments(pkt)
-        return set()
 
     def _remove_revoked_segments(self, rev_info):
         """
@@ -136,6 +153,7 @@ class LocalPathServer(PathServer):
                 self.up_segments.delete(sid)
                 self.down_segments.delete(sid)
                 self.core_segments.delete(sid)
+                self.sibra_segments.delete(sid)
             if rev_token in self.iftoken2seg:
                 del self.iftoken2seg[rev_token]
             rev_token = SHA256.new(rev_token).digest()
