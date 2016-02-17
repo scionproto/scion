@@ -16,6 +16,7 @@
 =====================================
 """
 # Stdlib
+import base64
 import logging
 import threading
 from queue import Queue
@@ -24,18 +25,21 @@ from queue import Queue
 from infrastructure.scion_elem import SCIONElement
 from infrastructure.sibra_server.link import Link
 from infrastructure.sibra_server.util import find_last_ifid
-from lib.defines import SCION_UDP_PORT, SIBRA_SERVICE
+from lib.defines import PATH_SERVICE, SCION_UDP_PORT, SIBRA_SERVICE
+from lib.errors import SCIONServiceLookupError
 from lib.packet.ext_util import find_ext_hdr
+from lib.packet.scion import PacketType as PT
 from lib.sibra.ext.steady import SibraExtSteady
 from lib.thread import thread_safety_net
 from lib.types import (
+    AddrType,
     ExtensionClass,
     PathMgmtType as PMT,
     PathSegmentType as PST,
     PayloadClass,
     SIBRAPayloadType,
 )
-from lib.util import SCIONTime, sleep_interval
+from lib.util import SCIONTime, get_sig_key_file_path, read_file, sleep_interval
 from lib.zookeeper import Zookeeper
 
 
@@ -57,7 +61,8 @@ class SibraServerBase(SCIONElement):
         # List of links for all parent ADs
         self.parents = []
         self.sendq = Queue()
-
+        sig_key_file = get_sig_key_file_path(self.conf_dir)
+        self.signing_key = base64.b64decode(read_file(sig_key_file))
         self.PLD_CLASS_MAP = {
             PayloadClass.PATH: {
                 PMT.REG: self.handle_path_reg,
@@ -66,7 +71,6 @@ class SibraServerBase(SCIONElement):
                                  self.handle_sibra_pkt},
         }
         self._find_links()
-
         name_addrs = "\0".join([self.id, str(SCION_UDP_PORT),
                                 str(self.addr.host_addr)])
         self.zk = Zookeeper(
@@ -81,7 +85,7 @@ class SibraServerBase(SCIONElement):
         """
         for er in self.topology.get_all_edge_routers():
             iface = er.interface
-            l = Link(self.addr, self.sendq, iface)
+            l = Link(self.addr, self.sendq, self.signing_key, iface)
             self.links[iface.if_id] = l
             if l.parent:
                 self.parents.append(l)
@@ -113,13 +117,29 @@ class SibraServerBase(SCIONElement):
         """
         while True:
             spkt = self.sendq.get()
-            dst, port = self.get_first_hop(spkt)
+            dst, port = self._find_dest(spkt)
             if not dst:
                 logging.error("Unable to determine first hop for packet:\n%s",
                               spkt)
                 continue
             spkt.addrs.src_addr = self.addr.host_addr
+            logging.debug("Sending packet via %s:%s\n%s", dst, port, spkt)
             self.send(spkt, dst, port)
+
+    def _find_dest(self, spkt):
+        dst = spkt.addrs.get_dst_addr()
+        if (dst.get_isd_ad() == self.addr.get_isd_ad() and
+                dst.host_addr.TYPE == AddrType.SVC):
+            # Destined for a local service
+            try:
+                spkt.addrs.dst_addr = self._svc_lookup(dst)
+            except SCIONServiceLookupError:
+                return None, None
+        return self.get_first_hop(spkt)
+
+    def _svc_lookup(self, addr):
+        if addr.host_addr == PT.PATH_MGMT:
+            return self.dns_query_topo(PATH_SERVICE)[0]
 
     def handle_path_reg(self, pkt):
         """

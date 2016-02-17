@@ -55,9 +55,6 @@ class LocalPathServer(PathServer):
         """
         Handle Up Path registration from local BS or ZK's cache. Return a set of
         added destinations.
-
-        :param pkt:
-        :type pkt:
         """
         added = set()
         records = pkt.get_payload()
@@ -101,9 +98,6 @@ class LocalPathServer(PathServer):
     def _handle_core_segment_record(self, pkt):
         """
         Handle registration of a core path. Return a set of added destinations.
-
-        :param pkt:
-        :type pkt:
         """
         added = set()
         records = pkt.get_payload()
@@ -121,6 +115,14 @@ class LocalPathServer(PathServer):
                 added.add((dst_isd, dst_ad))
                 logging.info("Core-Segment registered: %s", pcb.short_desc())
         return added
+
+    def _handle_sibra_segment_record(self, pkt, from_zk=False):
+        records = pkt.get_payload()
+        for seg in records.sibra_segs:
+            self._add_sibra_segment(seg)
+        if not from_zk:
+            self._share_segments(pkt)
+        return set()
 
     def _remove_revoked_segments(self, rev_info):
         """
@@ -235,17 +237,6 @@ class LocalPathServer(PathServer):
     def _request_paths_from_core(self, dst_isd, dst_ad):
         """
         Try to request core PS for given target (isd, ad).
-
-        :param ptype:
-        :type ptype:
-        :param dst_isd:
-        :type dst_isd:
-        :param dst_ad:
-        :type dst_ad:
-        :param src_isd:
-        :type src_isd:
-        :param src_ad:
-        :type src_ad:
         """
         src_isd, src_ad = self.addr.get_isd_ad()
         seg_info = PathSegmentInfo.from_values(PST.GENERIC, src_isd, src_ad,
@@ -255,9 +246,10 @@ class LocalPathServer(PathServer):
             self.waiting_targets.add((dst_isd, dst_ad, seg_info))
             return
 
-        logging.info('Requesting core for: %d,%d', dst_isd, dst_ad)
         # PSz: for multipath it makes sense to query with multiple core ASes
         pcb = self.up_segments()[0]
+        logging.info('Requesting core for %d,%d via %s',
+                     dst_isd, dst_ad, pcb.short_desc())
         path = pcb.get_path(reverse_direction=True)
         req_pkt = self._build_packet(PT.PATH_MGMT, payload=seg_info, path=path,
                                      dst_isd=pcb.get_isd(),
