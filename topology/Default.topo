@@ -4,7 +4,7 @@ defaults:
     1:
       manage: false
       addr: 127.0.0.1
-ADs:
+ASes:
   1-11:
     core: true
     beacon_servers: 1

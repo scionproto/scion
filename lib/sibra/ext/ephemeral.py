@@ -57,13 +57,13 @@ class SibraExtEphemeral(SibraExtBase):
         self._parse_end(data)
 
     @classmethod
-    def from_values(cls, isd_ad, req_info, steady_ids, steady_blocks):
+    def from_values(cls, isd_as, req_info, steady_ids, steady_blocks):
         assert len(steady_ids) == len(steady_blocks)
         inst = cls()
         inst.setup = True
         inst.steady = False
-        inst.path_ids.append(isd_ad.pack() +
-                             os.urandom(SIBRA_EPHEMERAL_ID_LEN - isd_ad.LEN))
+        inst.path_ids.append(isd_as.pack() +
+                             os.urandom(SIBRA_EPHEMERAL_ID_LEN - isd_as.LEN))
         inst.path_ids.extend(steady_ids)
         inst.active_blocks = steady_blocks
         inst.total_hops = sum([b.num_hops for b in steady_blocks])

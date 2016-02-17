@@ -31,32 +31,6 @@ from lib.packet.scion_udp import (
 from test.testcommon import create_mock
 
 
-class TestSCIONUDPHeaderInit(object):
-    """
-    Unit tests for lib.packet.scion_udp.SCIONUDPHeader.__init__
-    """
-    @patch("lib.packet.scion_udp.SCIONUDPHeader._parse", autospec=True)
-    @patch("lib.packet.scion_udp.L4HeaderBase.__init__", autospec=True,
-           return_value=None)
-    def test_basic(self, super_init, parse):
-        inst = SCIONUDPHeader()
-        # Tests
-        super_init.assert_called_once_with(inst)
-        ntools.assert_is_none(inst._src_addr)
-        ntools.assert_is_none(inst.src_port)
-        ntools.assert_is_none(inst._dst_addr)
-        ntools.assert_is_none(inst.dst_port)
-        ntools.assert_false(parse.called)
-
-    @patch("lib.packet.scion_udp.SCIONUDPHeader._parse", autospec=True)
-    @patch("lib.packet.scion_udp.L4HeaderBase.__init__", autospec=True,
-           return_value=None)
-    def test_raw(self, super_init, parse):
-        inst = SCIONUDPHeader(raw=("src", "dst", "raw", "payload"))
-        # Tests
-        parse.assert_called_once_with(inst, "src", "dst", "raw", "payload")
-
-
 class TestSCIONUDPHeaderFromValues(object):
     """
     Unit tests for lib.packet.scion_udp.SCIONUDPHeader.from_values
@@ -80,26 +54,28 @@ class TestSCIONUDPHeaderParse(object):
     def test_basic(self, raw):
         inst = SCIONUDPHeader()
         inst._calc_checksum = create_mock()
-        inst._calc_checksum.return_value = 0x9999
+        inst._calc_checksum.return_value = bytes.fromhex("9999")
         data = create_mock(["__len__", "pop"])
-        data.pop.return_value = bytes.fromhex("11112222000f9999")
+        data.pop.side_effect = (bytes.fromhex("11112222000f"),
+                                bytes.fromhex("9999"))
         raw.return_value = data
         # Call
         inst._parse("src", "dst", "raw", "payload")
         # Tests
         raw.assert_called_once_with("raw", "SCIONUDPHeader", inst.LEN)
-        ntools.eq_(inst._src_addr, "src")
-        ntools.eq_(inst._dst_addr, "dst")
+        ntools.eq_(inst._src, "src")
+        ntools.eq_(inst._dst, "dst")
         ntools.eq_(inst.src_port, 0x1111)
         ntools.eq_(inst.dst_port, 0x2222)
         ntools.eq_(inst._length, 0x000F)
-        ntools.eq_(inst._checksum, 0x9999)
+        ntools.eq_(inst._checksum, bytes.fromhex("9999"))
 
     @patch("lib.packet.scion_udp.Raw", autospec=True)
     def test_bad_length(self, raw):
         inst = SCIONUDPHeader()
         data = create_mock(["__len__", "pop"])
-        data.pop.return_value = bytes.fromhex("11112222000e9999")
+        data.pop.side_effect = (bytes.fromhex("11112222000e"),
+                                bytes.fromhex("9999"))
         raw.return_value = data
         # Call
         ntools.assert_raises(SCIONParseError, inst._parse, "src", "dst", "raw",
@@ -109,9 +85,10 @@ class TestSCIONUDPHeaderParse(object):
     def test_bad_checksum(self, raw):
         inst = SCIONUDPHeader()
         inst._calc_checksum = create_mock()
-        inst._calc_checksum.return_value = 0x8888
+        inst._calc_checksum.return_value = bytes.fromhex("8888")
         data = create_mock(["__len__", "pop"])
-        data.pop.return_value = bytes.fromhex("11112222000f9999")
+        data.pop.side_effect = (bytes.fromhex("11112222000f"),
+                                bytes.fromhex("9999"))
         raw.return_value = data
         # Call
         ntools.assert_raises(SCIONParseError, inst._parse, "src", "dst", "raw",
@@ -129,12 +106,12 @@ class TestSCIONUDPHeaderUpdate(object):
         payload = create_mock(["total_len"])
         payload.total_len.return_value = 9
         # Call
-        inst.update(src_addr="src addr", src_port=0x1111, dst_addr="dst addr",
+        inst.update(src="src addr", src_port=0x1111, dst="dst addr",
                     dst_port=0x2222, payload=payload)
         # Tests
-        ntools.eq_(inst._src_addr, "src addr")
+        ntools.eq_(inst._src, "src addr")
         ntools.eq_(inst.src_port, 0x1111)
-        ntools.eq_(inst._dst_addr, "dst addr")
+        ntools.eq_(inst._dst, "dst addr")
         ntools.eq_(inst.dst_port, 0x2222)
         ntools.eq_(inst._length, inst.LEN + 9)
         ntools.eq_(inst._checksum, 0x9999)
@@ -149,7 +126,7 @@ class TestSCIONUDPHeaderPack(object):
         inst.src_port = 0x0000
         inst.dst_port = 0x1111
         inst._length = 0x2222
-        inst._checksum = 0x3333
+        inst._checksum = bytes.fromhex("3333")
         # Call
         ntools.eq_(inst.pack(), bytes.fromhex("0000111122223333"))
 
@@ -161,10 +138,10 @@ class TestSCIONUDPHeaderCalcChecksum(object):
     @patch("lib.packet.scion_udp.scapy.utils.checksum", autospec=True)
     def test(self, scapy_checksum):
         inst = SCIONUDPHeader()
-        inst._src_addr = create_mock(["pack"], class_=SCIONAddr)
-        inst._src_addr.pack.return_value = b"source address"
-        inst._dst_addr = create_mock(["pack"], class_=SCIONAddr)
-        inst._dst_addr.pack.return_value = b"destination address"
+        inst._src = create_mock(["pack"], class_=SCIONAddr)
+        inst._src.pack.return_value = b"source address"
+        inst._dst = create_mock(["pack"], class_=SCIONAddr)
+        inst._dst.pack.return_value = b"destination address"
         inst.src_port = 0x1111
         inst.dst_port = 0x2222
         inst._length = 2 + 7
@@ -176,8 +153,9 @@ class TestSCIONUDPHeaderCalcChecksum(object):
             bytes.fromhex("11 1111 2222 0009"),
             b"payload",
         ])
+        scapy_checksum.return_value = 0x1234
         # Call
-        ntools.eq_(inst._calc_checksum(payload), scapy_checksum.return_value)
+        ntools.eq_(inst._calc_checksum(payload), bytes.fromhex("1234"))
         # Tests
         scapy_checksum.assert_called_once_with(expected_call)
 
@@ -188,15 +166,15 @@ class TestSCIONUDPHeaderReverse(object):
     """
     def test(self):
         inst = SCIONUDPHeader()
-        inst._src_addr = "src addr"
-        inst._dst_addr = "dst addr"
+        inst._src = "src addr"
+        inst._dst = "dst addr"
         inst.src_port = "src port"
         inst.dst_port = "dst port"
         # Call
         inst.reverse()
         # Tests
-        ntools.eq_(inst._src_addr, "dst addr")
-        ntools.eq_(inst._dst_addr, "src addr")
+        ntools.eq_(inst._src, "dst addr")
+        ntools.eq_(inst._dst, "src addr")
         ntools.eq_(inst.src_port, "dst port")
         ntools.eq_(inst.dst_port, "src port")
 

@@ -35,7 +35,7 @@ from lib.util import SCIONTime
 
 class CoreBeaconServer(BeaconServer):
     """
-    PathConstructionBeacon Server in a core AD.
+    PathConstructionBeacon Server in a core AS.
 
     Starts broadcasting beacons down-stream within an ISD and across ISDs
     towards other core beacon servers.
@@ -48,7 +48,7 @@ class CoreBeaconServer(BeaconServer):
         """
         super().__init__(server_id, conf_dir, is_sim=is_sim)
         # Sanity check that we should indeed be a core beacon server.
-        assert self.topology.is_core_ad, "This shouldn't be a core BS!"
+        assert self.topology.is_core_as, "This shouldn't be a local BS!"
         self.core_beacons = defaultdict(self._ps_factory)
 
     def _ps_factory(self):
@@ -61,20 +61,16 @@ class CoreBeaconServer(BeaconServer):
 
     def propagate_core_pcb(self, pcb):
         """
-        Propagates the core beacons to other core ADs.
-
-        :returns:
-        :rtype:
+        Propagates the core beacons to other core ASes.
         """
         assert isinstance(pcb, PathSegment)
         ingress_if = pcb.if_id
         count = 0
         for core_router in self.topology.routing_edge_routers:
             skip = False
-            for ad in pcb.ads:
-                if (ad.pcbm.isd_id == core_router.interface.neighbor_isd and
-                        ad.pcbm.ad_id == core_router.interface.neighbor_ad):
-                    # Don't propagate a Core PCB back to an AD we know has
+            for asm in pcb.ases:
+                if asm.pcbm.isd_as == core_router.interface.isd_as:
+                    # Don't propagate a Core PCB back to an AS we know has
                     # already seen it.
                     skip = True
                     break
@@ -84,14 +80,14 @@ class CoreBeaconServer(BeaconServer):
             egress_if = core_router.interface.if_id
             last_pcbm = new_pcb.get_last_pcbm()
             if last_pcbm:
-                ad_marking = self._create_ad_marking(ingress_if, egress_if,
+                as_marking = self._create_as_marking(ingress_if, egress_if,
                                                      new_pcb.get_timestamp(),
                                                      last_pcbm.hof)
             else:
-                ad_marking = self._create_ad_marking(ingress_if, egress_if,
+                as_marking = self._create_as_marking(ingress_if, egress_if,
                                                      new_pcb.get_timestamp())
 
-            new_pcb.add_ad(ad_marking)
+            new_pcb.add_as(as_marking)
             self._sign_beacon(new_pcb)
             beacon = self._build_packet(PT.BEACON, payload=new_pcb)
             self.send(beacon, core_router.addr)
@@ -103,14 +99,14 @@ class CoreBeaconServer(BeaconServer):
         Generate a new beacon or gets ready to forward the one received.
         """
         timestamp = int(SCIONTime.get_time())
-        # Create beacon for downstream ADs.
+        # Create beacon for downstream ASes.
         down_iof = InfoOpaqueField.from_values(
-            OFT.CORE, False, timestamp, self.topology.isd_id)
+            OFT.CORE, False, timestamp, self.topology.isd_as[0])
         downstream_pcb = PathSegment.from_values(down_iof)
         self.propagate_downstream_pcb(downstream_pcb)
-        # Create beacon for core ADs.
+        # Create beacon for core ASes.
         core_iof = InfoOpaqueField.from_values(
-            OFT.CORE, False, timestamp, self.topology.isd_id)
+            OFT.CORE, False, timestamp, self.topology.isd_as[0])
         core_pcb = PathSegment.from_values(core_iof)
         core_count = self.propagate_core_pcb(core_pcb)
         # Propagate received beacons. A core beacon server can only receive
@@ -134,11 +130,8 @@ class CoreBeaconServer(BeaconServer):
         Register the core segment contained in 'pcb' with the local core path
         server.
         """
-        info = PathSegmentInfo.from_values(PST.CORE,
-                                           pcb.get_first_pcbm().isd_id,
-                                           pcb.get_first_pcbm().ad_id,
-                                           self.topology.isd_id,
-                                           self.topology.ad_id)
+        info = PathSegmentInfo.from_values(
+            PST.CORE, pcb.get_first_pcbm().isd_as, self.topology.isd_as)
         pcb.remove_signatures()
         self._sign_beacon(pcb)
         # Register core path with local core path server.
@@ -165,9 +158,8 @@ class CoreBeaconServer(BeaconServer):
                     continue
             # Before we append the PCB for further processing we need to check
             # that it hasn't been received before.
-            for ad in pcb.ads:
-                if (ad.pcbm.isd_id == self.topology.isd_id and
-                        ad.pcbm.ad_id == self.topology.ad_id):
+            for asm in pcb.ases:
+                if asm.pcbm.isd_as == self.topology.isd_as:
                     count += 1
                     break
             else:
@@ -176,26 +168,17 @@ class CoreBeaconServer(BeaconServer):
         if count:
             logging.debug("Dropped %d previously seen Core Segment PCBs", count)
 
-    def _check_certs_trc(self, isd_id, ad_id, cert_ver, trc_ver):
+    def _check_certs_trc(self, isd_as, cert_ver, trc_ver):
         """
         Return True or False whether the necessary TRC file is found.
 
-        :param isd_id: ISD identifier.
-        :type isd_id: int
-        :param ad_id: AD identifier.
-        :type ad_id: int
-        :param cert_ver: certificate chain file version.
-        :type cert_ver: int
-        :param trc_ver: TRC file version.
-        :type trc_ver: int
-
+        :param ISD_AS isd_as: ISD-AS identifier.
+        :param int cert_ver: certificate chain file version.
+        :param int trc_ver: TRC file version.
         :returns: True if the files exist, False otherwise.
         :rtype: bool
         """
-        if self._get_trc(isd_id, ad_id, trc_ver):
-            return True
-        else:
-            return False
+        return bool(self._get_trc(isd_as, trc_ver))
 
     def process_cert_chain_rep(self, cert_chain_rep):
         raise NotImplementedError
@@ -207,12 +190,12 @@ class CoreBeaconServer(BeaconServer):
         :param pcb: verified path segment.
         :type pcb: PathSegment
         """
-        isd_id, ad_id = pcb.get_first_isd_ad()
-        self.core_beacons[(isd_id, ad_id)].add_segment(pcb)
+        isd_as = pcb.get_first_pcbm().isd_as
+        self.core_beacons[isd_as].add_segment(pcb)
 
     def register_core_segments(self):
         """
-        Register the core segment between core ADs.
+        Register the core segment between core ASes.
         """
         core_segments = []
         for ps in self.core_beacons.values():

@@ -22,7 +22,7 @@ import logging
 from lib.defines import (
     SIBRA_MAX_STEADY_TICKS,
 )
-from lib.packet.scion_addr import ISD_AD
+from lib.packet.scion_addr import ISD_AS
 from lib.sibra.util import (
     BWSnapshot,
     current_tick,
@@ -38,9 +38,9 @@ class SibraState(object):
     """
     Track bandwidth usage and all reservations that traverse a link.
     """
-    def __init__(self, bw, isd_ad):
+    def __init__(self, bw, isd_as):
         self.curr_tick = current_tick()
-        self.link = LinkBandwidth(isd_ad, BWSnapshot(bw * 1024, bw * 1024))
+        self.link = LinkBandwidth(isd_as, BWSnapshot(bw * 1024, bw * 1024))
         self.steady = {}
         self.pend_steady = {}
         self.ephemeral = {}
@@ -83,7 +83,7 @@ class SibraState(object):
             # FIXME(kormat): switch to exceptions
             assert path_id not in self.pend_steady
             assert path_id not in self.steady
-            owner = ISD_AD.from_raw(path_id[:ISD_AD.LEN])
+            owner = ISD_AS(path_id[:ISD_AS.LEN])
             resv = SteadyReservation(path_id, owner, self.link)
         else:
             assert path_id in self.steady

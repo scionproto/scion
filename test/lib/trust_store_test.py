@@ -62,28 +62,28 @@ class TestTrustStoreGetCert(object):
     """
     def _init(self):
         inst = TrustStore("conf_dir")
-        inst._certs[(1, 1)] = [(1, 'cert1'), (3, 'cert3'), (0, 'cert0')]
+        inst._certs["1-1"] = [(1, 'cert1'), (3, 'cert3'), (0, 'cert0')]
         return inst
 
-    def test_non_existing_isd(self):
+    def test_non_existing_as(self):
         inst = self._init()
         # Call
-        ntools.eq_(inst.get_cert(2, 2), None)
+        ntools.eq_(inst.get_cert("2-2"), None)
 
     def test_non_existing_version(self):
         inst = self._init()
         # Call
-        ntools.eq_(inst.get_cert(1, 1, 2), None)
+        ntools.eq_(inst.get_cert("1-1", 2), None)
 
     def test_default_version(self):
         inst = self._init()
         # Call
-        ntools.eq_(inst.get_cert(1, 1), 'cert3')
+        ntools.eq_(inst.get_cert("1-1"), 'cert3')
 
     def test_existing_version(self):
         inst = self._init()
         # Call
-        ntools.eq_(inst.get_cert(1, 1, 1), 'cert1')
+        ntools.eq_(inst.get_cert("1-1", 1), 'cert1')
 
 
 class TestTrustStoreAddTrc(object):
@@ -127,22 +127,22 @@ class TestTrustStoreAddCert(object):
         inst = TrustStore("conf_dir")
         inst._certs[(1, 1)] = [(0, 'cert0'), (1, 'cert1')]
         certs_before = inst._certs[(1, 1)][:]
-        cert = create_mock(['get_leaf_isd_ad_ver'])
-        cert.get_leaf_isd_ad_ver.return_value = (1, 1, 2)
+        cert = create_mock(['get_leaf_isd_as_ver'])
+        cert.get_leaf_isd_as_ver.return_value = ((1, 1), 2)
         # Call
         inst.add_cert(cert)
         # Tests
         ntools.eq_(inst._certs[(1, 1)], certs_before + [(2, cert)])
         write_file.assert_called_once_with(
-            "conf_dir/certs/ISD1-AD1-V2.crt", str(cert))
+            "conf_dir/certs/ISD1-AS1-V2.crt", str(cert))
 
     @patch("lib.trust_store.write_file", autospec=True)
     def test_add_non_unique_version(self, write_file):
         inst = TrustStore("conf_dir")
         inst._certs[(1, 1)] = [(0, 'cert0'), (1, 'cert1')]
         certs_before = inst._certs[(1, 1)][:]
-        cert = create_mock(['get_leaf_isd_ad_ver'])
-        cert.get_leaf_isd_ad_ver.return_value = (1, 1, 1)
+        cert = create_mock(['get_leaf_isd_as_ver'])
+        cert.get_leaf_isd_as_ver.return_value = ((1, 1), 1)
         # Call
         inst.add_cert(cert)
         # Tests

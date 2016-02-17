@@ -17,9 +17,9 @@
 """
 # Stdlib
 import struct
-from collections import namedtuple
 
 # SCION
+from lib.errors import SCIONIndexError, SCIONParseError
 from lib.packet.host_addr import (
     HostAddrBase,
     haddr_get_type,
@@ -27,63 +27,110 @@ from lib.packet.host_addr import (
 from lib.util import Raw
 
 
-class ISD_AD(namedtuple('ISD_AD', 'isd ad')):
+class ISD_AS(object):
     """
-    Class for representing isd,ad pair.
-
-    :ivar int isd: ISD identifier.
-    :ivar int ad: AD identifier.
+    Class for representing isd-as pair.
     """
-    NAME = "ISD_AD"
+    NAME = "ISD_AS"
     LEN = 4
 
-    @classmethod
-    def from_raw(cls, raw):
-        """
-        Create an instance of the class ISD_AD.
+    def __init__(self, raw=None):
+        self._isd = None
+        self._as = None
+        if raw:
+            self._parse(raw)
 
-        :param bytes raw:
-            a byte string containing ISD ID, AD ID. ISD and AD are respectively
-            represented as 12 and 20 most significant bits.
-        :returns: ISD, AD tuple.
-        :rtype: ISD_AD
+    def _parse(self, raw):  # pragma: no cover
+        if isinstance(raw, bytes):
+            self._parse_bytes(raw)
+        else:
+            self._parse_str(raw)
+
+    def _parse_bytes(self, raw):
         """
-        data = Raw(raw, cls.NAME, cls.LEN)
-        isd_ad = struct.unpack("!I", data.pop(cls.LEN))[0]
-        isd = isd_ad >> 20
-        ad = isd_ad & 0x000fffff
-        return cls(isd, ad)
+        :param bytes raw:
+            a byte string containing ISD ID, AS ID. ISD and AS are respectively
+            represented as 12 and 20 most significant bits.
+        """
+        data = Raw(raw, self.NAME, self.LEN)
+        isd_as = struct.unpack("!I", data.pop())[0]
+        self._isd = isd_as >> 20
+        self._as = isd_as & 0x000fffff
+
+    def _parse_str(self, raw):
+        """
+        :param str raw: a string of the format "isd-as".
+        """
+        isd, as_ = raw.split("-", 1)
+        try:
+            self._isd = int(isd)
+        except ValueError:
+            raise SCIONParseError("Unable to parse ISD from string: %s", raw)
+        try:
+            self._as = int(as_)
+        except ValueError:
+            raise SCIONParseError("Unable to parse AS from string: %s", raw)
+
+    @classmethod
+    def from_values(cls, isd, as_):  # pragma: no cover
+        inst = cls()
+        inst._isd = isd
+        inst._as = as_
+        return inst
 
     def pack(self):
-        """
-        Pack the class variables into a byte string.
-
-        :returns:
-            a 4B byte string containing ISD ID (first 12 bits), AD ID
-            (remaining 20 bits).
-        :rtype: bytes
-        """
         return struct.pack("!I", self.int())
 
     def int(self):
-        """
-        Return an integer representation of the isd/ad tuple.
-        """
-        isd = self.isd << 20
-        ad = self.ad & 0x000fffff
-        return isd + ad
+        isd_as = self._isd << 20
+        isd_as |= self._as & 0x000fffff
+        return isd_as
+
+    def any_as(self):
+        return self.from_values(self._isd, 0)
+
+    def params(self, name="first"):
+        """Provides parameters for querying PathSegmentDB"""
+        if self._as == 0:
+            return {"%s_isd" % name: self._isd}
+        else:
+            return {"%s_ia" % name: self}
+
+    def __eq__(self, other):
+        return self._isd == other._isd and self._as == other._as
+
+    def __getitem__(self, idx):  # pragma: no cover
+        if idx == 0:
+            return self._isd
+        elif idx == 1:
+            return self._as
+        else:
+            raise SCIONIndexError("Invalid index used on %s object: %s" % (
+                                  (self.NAME, idx)))
+
+    def __iter__(self):
+        yield self._isd
+        yield self._as
+
+    def __str__(self):
+        return "%s-%s" % (self._isd, self._as)
+
+    def __repr__(self):
+        return "ISD_AS(isd=%s, as=%s)" % (self._isd, self._as)
 
     def __len__(self):  # pragma: no cover
         return self.LEN
+
+    def __hash__(self):
+        return hash(str(self))
 
 
 class SCIONAddr(object):
     """
     Class for complete SCION addresses.
 
-    :ivar int isd_id: ISD identifier.
-    :ivar int ad_id: AD identifier.
-    :ivar HostAddrBase host_addr: host address.
+    :ivar int isd_as: ISD-AS identifier.
+    :ivar HostAddrBase host: host address.
     :ivar int addr_len: address length.
     """
     def __init__(self, addr_info=()):
@@ -92,34 +139,12 @@ class SCIONAddr(object):
 
         :param addr_info: Tuple of (addr_type, addr) for the host address
         """
-        self.isd_id = None
-        self.ad_id = None
-        self.host_addr = None
-        self.addr_len = 0
+        self.isd_as = None
+        self.host = None
         if addr_info:
-            self.parse(*addr_info)
+            self._parse(*addr_info)
 
-    @classmethod
-    def from_values(cls, isd_id, ad_id, host_addr):
-        """
-        Create an instance of the class SCIONAddr.
-
-        :param int isd_id: ISD identifier.
-        :param int ad_id: AD identifier.
-        :param HostAddrBase host_addr: host address
-
-        :returns: SCION address.
-        :rtype: SCIONAddr
-        """
-        assert isinstance(host_addr, HostAddrBase)
-        addr = cls()
-        addr.isd_id = isd_id
-        addr.ad_id = ad_id
-        addr.host_addr = host_addr
-        addr.addr_len = ISD_AD.LEN + len(addr.host_addr)
-        return addr
-
-    def parse(self, addr_type, raw):
+    def _parse(self, addr_type, raw):
         """
         Parse a raw byte string.
 
@@ -127,41 +152,48 @@ class SCIONAddr(object):
         :param bytes raw: raw bytes.
         """
         haddr_type = haddr_get_type(addr_type)
-        self.addr_len = ISD_AD.LEN + haddr_type.LEN
-        data = Raw(raw, "SCIONAddr", self.addr_len, min_=True)
-        self.isd_id, self.ad_id = ISD_AD.from_raw(data.pop(ISD_AD.LEN))
-        self.host_addr = haddr_type(data.pop(haddr_type.LEN))
+        addr_len = ISD_AS.LEN + haddr_type.LEN
+        data = Raw(raw, "SCIONAddr", addr_len, min_=True)
+        self.isd_as = ISD_AS(data.pop(ISD_AS.LEN))
+        self.host = haddr_type(data.pop(haddr_type.LEN))
 
-    def pack(self):
+    @classmethod
+    def from_values(cls, isd_as, host):  # pragma: no cover
+        """
+        Create an instance of the class SCIONAddr.
+
+        :param ISD_AS isd_as: ISD-AS identifier.
+        :param HostAddrBase host: host address
+        """
+        assert isinstance(host, HostAddrBase)
+        addr = cls()
+        addr.isd_as = isd_as
+        addr.host = host
+        return addr
+
+    def pack(self):  # pragma: no cover
         """
         Pack the class variables into a byte string.
 
-        :returns: a byte string containing ISD ID, AD ID, and host address.
+        :returns: a byte string containing ISD ID, AS ID, and host address.
         :rtype: bytes
         """
-        return ISD_AD(self.isd_id, self.ad_id).pack() + self.host_addr.pack()
+        return self.isd_as.pack() + self.host.pack()
 
-    def __len__(self):
-        return self.addr_len
+    @classmethod
+    def calc_len(cls, type_):
+        class_ = haddr_get_type(type_)
+        return ISD_AS.LEN + class_.LEN
+
+    def __len__(self):  # pragma: no cover
+        return len(self.isd_as) + len(self.host)
 
     def __eq__(self, other):  # pragma: no cover
-        return (
-            self.isd_id == other.isd_id and
-            self.ad_id == other.ad_id and
-            self.host_addr == other.host_addr
-        )
+        return (self.isd_as == other.isd_as and
+                self.host == other.host)
 
     def __str__(self):
         """
-        Return a string containing ISD ID, AD ID, and host address.
+        Return a string containing ISD-AS, and host address.
         """
-        return "(%u, %u, %s)" % (self.isd_id, self.ad_id, self.host_addr)
-
-    def get_isd_ad(self):
-        """
-        Return a tuple containing ISD ID and AD ID.
-
-        :returns: a tuple containing ISD ID and AD ID.
-        :rtype: tuple
-        """
-        return ISD_AD(self.isd_id, self.ad_id)
+        return "(%s (%s) %s)" % (self.isd_as, self.host.name(), self.host)

@@ -35,16 +35,31 @@ class RevocationObject(object):
         self.hash_chain_idx = -1
         self.rev_info = None
 
-        if raw is not None:
-            self.parse(raw)
+        if raw:
+            self._parse(raw)
 
-    def parse(self, raw):
+    def _parse(self, raw):
         """
         Parses raw bytes and populates the fields.
         """
         data = Raw(raw, "RevocationObject", self.LEN)
-        (self.if_id, self.hash_chain_idx) = struct.unpack("!II", data.pop(8))
+        self.if_id, self.hash_chain_idx = struct.unpack("!II", data.pop(8))
         self.rev_info = RevocationInfo(data.pop(RevocationInfo.LEN))
+
+    @classmethod
+    def from_values(cls, if_id, index, rev_token):
+        """
+        Returns a RevocationInfo object with the specified values.
+
+        :param int if_id: The interface id of the corresponding interface.
+        :param int index: The index of the rev_token in the hash chain.
+        :param bytes rev_token: revocation token of interface
+        """
+        inst = cls()
+        inst.if_id = if_id
+        inst.hash_chain_idx = index
+        inst.rev_info = RevocationInfo.from_values(rev_token)
+        return inst
 
     def pack(self):
         """
@@ -52,22 +67,3 @@ class RevocationObject(object):
         """
         return (struct.pack("!II", self.if_id, self.hash_chain_idx) +
                 self.rev_info.pack())
-
-    @classmethod
-    def from_values(cls, if_id, index, rev_token):
-        """
-        Returns a RevocationInfo object with the specified values.
-
-        :param if_id: The interface id of the corresponding interface.
-        :type if_id: int
-        :param index: The index of the rev_token in the hash chain.
-        :type index: int
-        :param rev_token: revocation token of interface
-        :type: bytes
-        """
-        rev_obj = cls()
-        rev_obj.if_id = if_id
-        rev_obj.hash_chain_idx = index
-        rev_obj.rev_info = RevocationInfo.from_values(rev_token)
-
-        return rev_obj

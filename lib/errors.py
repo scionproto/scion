@@ -35,56 +35,40 @@ class SCIONBaseError(SCIONBaseException):
 
 
 class SCIONIOError(SCIONBaseError):
-    """
-    IO error.
-    """
+    """IO error"""
     pass
 
 
 class SCIONIndexError(SCIONBaseError):
-    """
-    Index error (accessing out of bound index on array)
-    """
+    """Index error (accessing out of bound index on array)"""
     pass
 
 
 class SCIONKeyError(SCIONBaseError):
-    """
-    Key error (trying to access invalid entry in dictionary)
-    """
+    """Key error (trying to access invalid entry in dictionary)"""
     pass
 
 
 class SCIONJSONError(SCIONBaseError):
-    """
-    JSON parsing error.
-    """
+    """JSON parsing error"""
     pass
 
 
 class SCIONYAMLError(SCIONBaseError):
-    """
-    YAML parsing error.
-    """
+    """YAML parsing error"""
     pass
 
 
 class SCIONParseError(SCIONBaseError):
-    """
-    Parsing error.
-    """
+    """Parsing error"""
     pass
 
 
 class SCIONTypeError(SCIONBaseError):
-    """
-    Wrong type.
-    """
+    """Wrong type"""
     pass
 
 
 class SCIONServiceLookupError(SCIONBaseError):
-    """
-    Service lookup failed.
-    """
+    """Service lookup failed"""
     pass

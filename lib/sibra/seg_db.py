@@ -66,11 +66,11 @@ class SibraSegmentDB(object):
     """
     def __init__(self, segment_ttl=None, max_res_no=None):
         self._db = Base("", save_to_file=False)
-        self._db.create('record', 'id', 'first_isd', 'first_ad', 'last_isd',
-                        'last_ad', mode='override')
+        self._db.create('record', 'id', 'first_isd', 'first_as', 'last_isd',
+                        'last_as', mode='override')
         self._db.create_index('id')
         self._db.create_index('last_isd')
-        self._db.create_index('last_ad')
+        self._db.create_index('last_as')
         self._lock = threading.Lock()
 
     def __getitem__(self, seg_id):
@@ -91,8 +91,8 @@ class SibraSegmentDB(object):
             assert len(recs) <= 1
             if not recs:
                 rec = SibraDBRecord(seg)
-                self._db.insert(rec, seg.id, seg.src.isd, seg.src.ad,
-                                seg.dst.isd, seg.dst.ad)
+                self._db.insert(rec, seg.id, seg.src_ia[0], seg.src_ia[1],
+                                seg.dst_ia[0], seg.dst_ia[1])
                 return DBResult.ENTRY_ADDED
             cur_rec = recs[0]['record']
             return cur_rec.update(seg)
@@ -115,6 +115,14 @@ class SibraSegmentDB(object):
         now = int(SCIONTime.get_time())
         expired_recs = []
         valid_recs = []
+        first_ia = kwargs.pop("first_ia", None)
+        if first_ia:
+            kwargs["first_isd"] = first_ia[0]
+            kwargs["first_as"] = first_ia[1]
+        last_ia = kwargs.pop("last_ia", None)
+        if last_ia:
+            kwargs["last_isd"] = last_ia[0]
+            kwargs["last_as"] = last_ia[1]
         with self._lock:
             recs = self._db(*args, **kwargs)
             # Remove expired path from the cache.

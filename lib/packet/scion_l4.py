@@ -26,7 +26,6 @@ class SCIONL4Unknown(L4HeaderBase):  # pragma: no cover
     NAME = "Unknown"
 
     def __init__(self, proto):
-        self.raw = b""
         raise NotImplementedError
 
     def from_values(self):
@@ -45,13 +44,13 @@ class SCIONL4Unknown(L4HeaderBase):  # pragma: no cover
         return "[Unknown L4 protocol header]"
 
 
-def parse_l4_hdr(proto, data, src_addr=None, dst_addr=None):
+def parse_l4_hdr(proto, data, src=None, dst=None):
     if proto == L4_UDP:
         raw_hdr = data.pop(SCIONUDPHeader.LEN)
         payload = PayloadRaw(data.get())
-        assert src_addr
-        assert dst_addr
-        return SCIONUDPHeader((src_addr, dst_addr, raw_hdr, payload))
+        assert src
+        assert dst
+        return SCIONUDPHeader((src, dst, raw_hdr, payload))
     if proto in L4_PROTOS:
         return None
     raise SCIONParseError("Unsupported L4 protocol type: %s" % proto)

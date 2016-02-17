@@ -76,11 +76,12 @@ class TestInterfaceElementInit(object):
     """
 
     @patch("lib.topology.haddr_parse_interface", autospec=True)
+    @patch("lib.topology.ISD_AS", autospec=True)
     @patch("lib.topology.Element.__init__", autospec=True)
-    def test_full(self, super_init, parse):
+    def test_full(self, super_init, isd_as, parse):
         intf_dict = {
-            'Addr': 'addr', 'IFID': 1, 'NeighborAD': 2,
-            'NeighborISD': 3, 'NeighborType': 4, 'ToUdpPort': 5, 'UdpPort': 6,
+            'Addr': 'addr', 'IFID': 1, 'ISD_AS': '3-2',
+            'LinkType': 'PARENT', 'ToUdpPort': 5, 'UdpPort': 6,
             'ToAddr': 'toaddr', "Bandwidth": 1001,
         }
         # Call
@@ -88,9 +89,8 @@ class TestInterfaceElementInit(object):
         # Tests
         super_init.assert_called_once_with(inst, 'addr', 'name')
         ntools.eq_(inst.if_id, 1)
-        ntools.eq_(inst.neighbor_ad, 2)
-        ntools.eq_(inst.neighbor_isd, 3)
-        ntools.eq_(inst.neighbor_type, 4)
+        ntools.eq_(inst.isd_as, isd_as.return_value)
+        ntools.eq_(inst.link_type, "PARENT")
         ntools.eq_(inst.to_udp_port, 5)
         ntools.eq_(inst.udp_port, 6)
         ntools.eq_(inst.bandwidth, 1001)
@@ -112,26 +112,6 @@ class TestRouterElementInit(object):
         super_init.assert_called_once_with(inst, 'addr', 'name')
         interface.assert_called_once_with(2)
         ntools.eq_(inst.interface, interface.return_value)
-
-
-class TestTopologyInit(object):
-    """
-    Unit tests for lib.topology.Topology.__init__
-    """
-    def test(self):
-        topology = Topology()
-        ntools.assert_false(topology.is_core_ad)
-        ntools.eq_(topology.isd_id, 0)
-        ntools.eq_(topology.ad_id, 0)
-        ntools.eq_(topology.dns_domain, "")
-        ntools.eq_(topology.beacon_servers, [])
-        ntools.eq_(topology.certificate_servers, [])
-        ntools.eq_(topology.dns_servers, [])
-        ntools.eq_(topology.path_servers, [])
-        ntools.eq_(topology.parent_edge_routers, [])
-        ntools.eq_(topology.child_edge_routers, [])
-        ntools.eq_(topology.peer_edge_routers, [])
-        ntools.eq_(topology.routing_edge_routers, [])
 
 
 class TestTopologyFromFile(object):
@@ -164,8 +144,9 @@ class TestTopologyParseDict(object):
     """
     Unit tests for lib.topology.Topology.parse_dict
     """
-    def test(self):
-        topo_dict = {'Core': True, 'ISDID': 1, 'ADID': 2, 'DnsDomain': 3}
+    @patch("lib.topology.ISD_AS", autospec=True)
+    def test(self, isd_as):
+        topo_dict = {'Core': True, 'ISD_AS': '1-2', 'DnsDomain': 3}
         inst = Topology()
         inst._parse_srv_dicts = create_mock()
         inst._parse_router_dicts = create_mock()
@@ -173,9 +154,8 @@ class TestTopologyParseDict(object):
         # Call
         inst.parse_dict(topo_dict)
         # Tests
-        ntools.eq_(inst.is_core_ad, True)
-        ntools.eq_(inst.isd_id, 1)
-        ntools.eq_(inst.ad_id, 2)
+        ntools.eq_(inst.is_core_as, True)
+        ntools.eq_(inst.isd_as, isd_as.return_value)
         ntools.eq_(inst.dns_domain, 3)
         inst._parse_srv_dicts.assert_called_once_with(topo_dict)
         inst._parse_router_dicts.assert_called_once_with(topo_dict)
@@ -220,8 +200,8 @@ class TestTopologyParseRouterDicts(object):
     def test(self, router):
         def _mk_router(type_):
             m = create_mock(["interface"])
-            m.interface = create_mock(["neighbor_type"])
-            m.interface.neighbor_type = type_
+            m.interface = create_mock(["link_type"])
+            m.interface.link_type = type_
             routers[type_].append(m)
             return m
         routers = defaultdict(list)

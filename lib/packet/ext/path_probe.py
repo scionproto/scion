@@ -41,23 +41,19 @@ class PathProbeExt(EndToEndExtension):
 
     def __init__(self, raw=None):
         """
-        Initialize an instance of the class PathProbe
-
-        :param raw: Raw data containing IS_ACK and PROBE_ID
-        :type raw: bytes
+        :param bytes raw: Raw data containing IS_ACK and PROBE_ID
         """
         super().__init__()
         self.is_ack = False
         self.probe_id = 0
-        if raw is not None:
+        if raw:
             self._parse(raw)
 
     def _parse(self, raw):
         """
         Parse payload to extract values
 
-        :param raw: Raw payload
-        :type raw: bytes
+        :param bytes raw: Raw payload
         """
         super()._parse(raw)
         data = Raw(raw, self.NAME, self.LEN)
@@ -65,14 +61,12 @@ class PathProbeExt(EndToEndExtension):
         self.probe_id = struct.unpack("!I", data.pop(4))[0]
 
     @classmethod
-    def from_values(cls, is_ack, probe_id):
+    def from_values(cls, is_ack, probe_id):  # pragma: no cover
         """
         Create an instance of the class PathProbe from the provided values
 
-        :param is_ack: True if this packet is an ACK of a previous probe
-        :type is_ack: bool
-        :param probe_id: ID value to use for this probe packet
-        :type probe_id: int
+        :param bool is_ack: True if this packet is an ACK of a previous probe
+        :param int probe_id: ID value to use for this probe packet
         """
         inst = cls()
         inst.is_ack = is_ack
@@ -91,5 +85,5 @@ class PathProbeExt(EndToEndExtension):
         """
         Return string representation
         """
-        return "%s(%dB):  ACK: %s Probe ID: %d" % (self.NAME, len(self),
-                                                   self.is_ack, self.probe_id)
+        return "%s(%sB): ACK: %s Probe ID: %s" % (
+            self.NAME, len(self), self.is_ack, self.probe_id)

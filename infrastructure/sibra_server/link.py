@@ -46,11 +46,11 @@ class Link(object):
         self.sendq = sendq
         self.iface = iface
         self.signing_key = signing_key
-        self.neigh = iface.isd_ad()
+        self.neigh = iface.isd_as
         self.id = iface.if_id
-        self.state = SibraState(iface.bandwidth, self.addr.get_isd_ad())
+        self.state = SibraState(iface.bandwidth, self.addr.isd_as)
         self.segments = {}
-        self.parent = iface.neighbor_type == "PARENT"
+        self.parent = iface.link_type == "PARENT"
         self.steadies = {}
         self.lock = threading.Lock()
 

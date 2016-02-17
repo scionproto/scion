@@ -33,7 +33,7 @@ from lib.packet.host_addr import haddr_parse_interface
 from lib.packet.packet_base import PayloadRaw
 from lib.packet.path import EmptyPath
 from lib.packet.scion import SCIONL4Packet, build_base_hdrs
-from lib.packet.scion_addr import SCIONAddr
+from lib.packet.scion_addr import ISD_AS, SCIONAddr
 from lib.packet.scion_udp import SCIONUDPHeader
 from lib.sibra.ext.steady import SibraExtSteady
 from lib.sibra.ext.info import ResvInfoSteady
@@ -47,15 +47,15 @@ TOUT = 10  # How long wait for response.
 RESV_LEN = SIBRA_TICK
 
 
-def start_sciond(isd, ad, addr):
-    conf_dir = "%s/ISD%d/AD%d/endhost" % (GEN_PATH, isd, ad)
+def start_sciond(isd_as, addr):
+    conf_dir = "%s/ISD%s/AS%s/endhost" % (GEN_PATH, isd_as[0], isd_as[1])
     return SCIONDaemon.start(conf_dir, haddr_parse_interface(addr))
 
 
 def get_up_path(sd, isd):
-    logging.info("Sending up PATH request")
+    dst = ISD_AS.from_values(isd, 0)
     for _ in range(3):
-        paths = sd.get_paths(isd, 0)
+        paths = sd.get_paths(dst)
         if paths:
             break
         logging.info("Failed to get up path, trying again")
@@ -71,8 +71,8 @@ class _Base(object):
         self.sd = sd
         self.finished = finished
         self.sock = UDPSocket(
-            bind=(str(self.addr.host_addr), 0, self.NAME),
-            addr_type=self.addr.host_addr.TYPE)
+            bind=(str(self.addr.host), 0, self.NAME),
+            addr_type=self.addr.host.TYPE)
         self.sock.settimeout(5)
 
     def listen(self):
@@ -149,7 +149,7 @@ class Client(_Base):
     def setup_conn(self, s_addr, s_port, path):
         bwsnap = BWSnapshot(25 * 1024, 15 * 1024)
         for i in range(3):
-            sibra_ext = self.create_ext(path.get_ad_hops(), bwsnap)
+            sibra_ext = self.create_ext(path.get_as_hops(), bwsnap)
             spkt = self.create_pkt(s_addr, s_port, path, sibra_ext)
             self.send(spkt)
             spkt = self.listen()
@@ -167,8 +167,8 @@ class Client(_Base):
     def create_ext(self, hops, bwsnap):
         resv_req = ResvInfoSteady.from_values(
             SCIONTime.get_time() + RESV_LEN, bwsnap)
-        return SibraExtSteady.from_values(
-            self.addr.get_isd_ad(), resv_req, hops)
+        id_ = SibraExtSteady.mk_path_id(self.addr.isd_as)
+        return SibraExtSteady.setup_from_values(resv_req, hops, id_)
 
     def create_pkt(self, s_addr, port, path, ext):
         cmn_hdr, addr_hdr = build_base_hdrs(self.addr, s_addr)
@@ -190,21 +190,17 @@ class Client(_Base):
             self.blocks.append(sibra_ext.req_block)
             new_idx = (req_info.index + 1) % SIBRA_MAX_IDX
             next_cls = req_info.bw.copy()
-            # next_cls.reverse()
-            bwsnap = next_cls.to_snap()
-            bwsnap.fwd += 2
-            bwsnap.rev += 2
+            next_cls.fwd += 1
+            next_cls.rev += 1
         elif sibra_ext.req_block:
             sibra_ext.req_block.info
             logging.debug("Renewal denied")
             new_idx = (sibra_ext.req_block.info.index + 1) % SIBRA_MAX_IDX
-            bwsnap = sibra_ext.get_min_offer()
+            next_cls = sibra_ext.get_min_offer()
         else:
             # Fresh start
             new_idx = (act_info.index + 1) % SIBRA_MAX_IDX
             next_cls = act_info.bw.copy()
-            # next_cls.reverse()
-            bwsnap = next_cls.to_snap()
 
         now = SCIONTime.get_time()
         if now > act_info.exp_ts() and not self.blocks:
@@ -217,7 +213,8 @@ class Client(_Base):
             logging.debug("Switching resv: %s", block.info)
             sibra_ext.switch_resv([block])
 
-        resv_req = ResvInfoSteady.from_values(now + RESV_LEN, bwsnap, new_idx)
+        resv_req = ResvInfoSteady.from_values(now + RESV_LEN, bw_cls=next_cls,
+                                              index=new_idx)
         sibra_ext.renew(resv_req)
         return True
 
@@ -227,23 +224,23 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-m', '--mininet', action='store_true',
                         help="Running under mininet")
-    parser.add_argument('cli_ad', nargs='?', help='Client isd,ad',
-                        default="1,13")
+    parser.add_argument('cli_ia', nargs='?', help='Client isd-as',
+                        default="1-13")
     args = parser.parse_args()
     init_logging("logs/sibra_ext", console_level=logging.DEBUG)
 
     c_addr = "169.254.0.2" if args.mininet else "127.0.0.2"
     s_addr = "169.254.0.3" if args.mininet else "127.0.0.3"
-    cli_isd, cli_ad = map(int, args.cli_ad.split(","))
-    cli_sd = start_sciond(cli_isd, cli_ad, c_addr)
-    up_path = get_up_path(cli_sd, cli_isd)
-    core = up_path.interfaces[-1][0]
-    srv_sd = start_sciond(core.isd, core.ad, s_addr)
+    cli_ia = ISD_AS(args.cli_ia)
+    cli_sd = start_sciond(cli_ia, c_addr)
+    up_path = get_up_path(cli_sd, cli_ia[0])
+    core_ia = up_path.interfaces[-1][0]
+    srv_sd = start_sciond(core_ia, s_addr)
 
     srv_addr = SCIONAddr.from_values(
-        core.isd, core.ad, haddr_parse_interface(s_addr))
+        core_ia, haddr_parse_interface(s_addr))
     cli_addr = SCIONAddr.from_values(
-        cli_isd, cli_ad, haddr_parse_interface(c_addr))
+        cli_ia, haddr_parse_interface(c_addr))
     finished = threading.Event()
     server = Server(srv_addr, srv_sd, finished)
     client = Client(cli_addr, cli_sd, finished)

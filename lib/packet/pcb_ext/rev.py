@@ -37,6 +37,9 @@ class RevPcbExt(BeaconExtension):
         self.rev_info = None
         super().__init__(raw)
 
+    def _parse(self, raw):
+        self.rev_info = RevocationInfo(raw)
+
     @classmethod
     def from_values(cls, rev):
         """
@@ -45,9 +48,6 @@ class RevPcbExt(BeaconExtension):
         inst = cls()
         inst.rev_info = rev
         return inst
-
-    def _parse(self, raw):
-        self.rev_info = RevocationInfo(raw)
 
     def pack(self):
         return self.rev_info.pack()

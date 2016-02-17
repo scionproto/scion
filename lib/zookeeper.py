@@ -40,30 +40,22 @@ from lib.util import SCIONTime
 
 
 class ZkBaseError(SCIONBaseError):
-    """
-    Base exception class for all lib.zookeeper exceptions.
-    """
+    """Base exception class for all lib.zookeeper exceptions."""
     pass
 
 
 class ZkNoConnection(ZkBaseError):
-    """
-    No connection to Zookeeper.
-    """
+    """No connection to Zookeeper."""
     pass
 
 
 class ZkNoNodeError(ZkBaseError):
-    """
-    A node doesn't exist.
-    """
+    """A node doesn't exist."""
     pass
 
 
 class ZkRetryLimit(ZkBaseError):
-    """
-    Operation hit retry limit.
-    """
+    """Operation hit retry limit."""
     pass
 
 
@@ -87,14 +79,13 @@ class Zookeeper(object):
     E.g. if a watch callback blocks, disconnection callbacks will not run.
     """
 
-    def __init__(self, isd_id, ad_id, srv_type, srv_id,
+    def __init__(self, isd_as, srv_type, srv_id,
                  zk_hosts, timeout=1.0, on_connect=None,
                  on_disconnect=None):
         """
         Setup the Zookeeper connection.
 
-        :param int isd_id: The ID of the current ISD.
-        :param int ad_id: The ID of the current AD.
+        :param ISD_AS isd_as: The local ISD-AS.
         :param str srv_type:
             a service type from :const:`lib.defines.SERVICE_TYPES`
         :param str srv_id: Service instance identifier.
@@ -107,14 +98,12 @@ class Zookeeper(object):
         :param on_disconnect:
             A function called everytime a connection is lost to Zookeeper.
         """
-        self._isd_id = isd_id
-        self._ad_id = ad_id
+        self._isd_as = isd_as
         self._srv_id = srv_id
         self._timeout = timeout
         self._on_connect = on_connect
         self._on_disconnect = on_disconnect
-        self.prefix = "/ISD%d-AD%d/%s" % (
-            self._isd_id, self._ad_id, srv_type)
+        self.prefix = "/%s/%s" % (self._isd_as, srv_type)
         # Keep track of our connection state
         self._connected = threading.Event()
         # Keep track of the kazoo lock
@@ -136,8 +125,9 @@ class Zookeeper(object):
         """
         Create and configure Kazoo client
 
-        :param list zk_hosts: List of Zookeeper instances to connect to, in the
-                              form of ``["host:port"..]``.
+        :param list zk_hosts:
+            List of Zookeeper instances to connect to, in the form of
+            ``["host:port"..]``.
         """
         # Disable exponential back-off
         kretry = KazooRetry(max_tries=-1, max_delay=1)
@@ -147,15 +137,12 @@ class Zookeeper(object):
         # (For low-level kazoo debugging):
         # import kazoo.loggingsupport
         # logger.setLevel(kazoo.loggingsupport.BLATHER)
-
         self.kazoo = KazooClient(
             hosts=",".join(zk_hosts), timeout=self._timeout,
             connection_retry=kretry, logger=logger)
 
     def _kazoo_start(self):
-        """
-        Connect the Kazoo client to Zookeeper
-        """
+        """Connect the Kazoo client to Zookeeper."""
         logging.info("Connecting to Zookeeper")
         try:
             self.kazoo.start()
@@ -176,9 +163,7 @@ class Zookeeper(object):
         self.kazoo.add_listener(self._state_listener)
 
     def _state_listener(self, new_state):
-        """
-        Called everytime the Kazoo connection state changes.
-        """
+        """Called everytime the Kazoo connection state changes."""
         self.conn_epoch += 1
         # Signal a connection state change
         logging.debug("Kazoo state changed to %s (epoch %d)",
@@ -221,9 +206,7 @@ class Zookeeper(object):
                 self._state_lost()
 
     def _state_connected(self):
-        """
-        Handles the Kazoo 'connected' event.
-        """
+        """Handles the Kazoo 'connected' event."""
         # Might be first connection, or reconnecting after a problem.
         logging.debug("Connection to Zookeeper succeeded (Session: %s)",
                       hex(self.kazoo.client_id[0]))
@@ -263,9 +246,7 @@ class Zookeeper(object):
             self._on_disconnect()
 
     def is_connected(self):
-        """
-        Check if there is currently a connection to Zookeeper.
-        """
+        """Check if there is currently a connection to Zookeeper."""
         return self._connected.is_set()
 
     def wait_connected(self, timeout=None):
@@ -327,8 +308,9 @@ class Zookeeper(object):
 
         Used to signal that a group of processes are in a similar state.
 
-        :param str prefix: Path to create the party under. If not specified,
-                           uses the default prefix for this server instance.
+        :param str prefix:
+            Path to create the party under. If not specified, uses the default
+            prefix for this server instance.
         :param bool autojoin: Join the party if True, also on reconnect
         :return: a ZkParty object
         :rtype: ZkParty
@@ -388,9 +370,7 @@ class Zookeeper(object):
         return False
 
     def release_lock(self):
-        """
-        Release the lock
-        """
+        """Release the lock."""
         self._lock.clear()
         if self._zk_lock is None:
             return
@@ -403,9 +383,7 @@ class Zookeeper(object):
         self._zk_lock.is_acquired = False
 
     def have_lock(self):
-        """
-        Check if we currently hold the lock
-        """
+        """Check if we currently hold the lock."""
         if (self.is_connected() and
                 self._lock_epoch == self.conn_epoch and
                 self._lock.is_set()):
@@ -415,9 +393,7 @@ class Zookeeper(object):
             return False
 
     def wait_lock(self):
-        """
-        Wait until we hold the lock
-        """
+        """Wait until we hold the lock."""
         self._lock.wait()
 
     def get_lock_holder(self):
@@ -447,10 +423,12 @@ class Zookeeper(object):
 
         :param str desc: Description of the operation
         :param function f: Function to call, passing in \*args and \*\*kwargs
-        :param int _retries: Number of times to retry the operation, or `None`
-                             to retry indefinitely.
-        :param float _timeout: Number of seconds to wait for a connection, or
-                               `None` to wait indefinitely.
+        :param int _retries:
+            Number of times to retry the operation, or `None` to retry
+            indefinitely.
+        :param float _timeout:
+            Number of seconds to wait for a connection, or `None` to wait
+            indefinitely.
         """
         count = -1
         while True:
@@ -505,9 +483,7 @@ class ZkParty(object):
             raise ZkNoConnection from None
 
     def autojoin(self):
-        """
-        If the autojoin parameter was set to True, join the party.
-        """
+        """If the autojoin parameter was set to True, join the party."""
         if self._autojoin:
             self.join()
         entries = self.list()
@@ -529,10 +505,7 @@ class ZkParty(object):
 
 
 class ZkSharedCache(object):
-    """
-    Class for handling ZK shared caches.
-    """
-
+    """Class for handling ZK shared caches."""
     def __init__(self, zk, path, handler):
         """
         :param Zookeeper zk: A Zookeeper instance.

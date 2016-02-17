@@ -58,7 +58,7 @@ from lib.packet.path_mgmt import (
     RevocationInfo,
 )
 from lib.packet.pcb import (
-    ADMarking,
+    ASMarking,
     PCBMarking,
     PathSegment,
 )
@@ -126,7 +126,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         self.trcs = {}
         sig_key_file = get_sig_key_file_path(self.conf_dir)
         self.signing_key = base64.b64decode(read_file(sig_key_file))
-        self.of_gen_key = PBKDF2(self.config.master_ad_key, b"Derive OF Key")
+        self.of_gen_key = PBKDF2(self.config.master_as_key, b"Derive OF Key")
         logging.info(self.config.__dict__)
         self.if2rev_tokens = {}
         self._if_rev_token_lock = threading.Lock()
@@ -149,10 +149,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         if not is_sim:
             # Add more IPs here if we support dual-stack
             name_addrs = "\0".join([self.id, str(SCION_UDP_PORT),
-                                    str(self.addr.host_addr)])
-            self.zk = Zookeeper(
-                self.topology.isd_id, self.topology.ad_id, BEACON_SERVICE,
-                name_addrs, self.topology.zookeepers)
+                                    str(self.addr.host)])
+            self.zk = Zookeeper(self.addr.isd_as, BEACON_SERVICE, name_addrs,
+                                self.topology.zookeepers)
             self.zk.retry("Joining party", self.zk.party_setup)
             self.incoming_pcbs = deque()
             self.pcb_cache = ZkSharedCache(
@@ -166,7 +165,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         if if_id in self.if2rev_tokens:
             return
-        seed = self.config.master_ad_key + bytes("%d" % if_id, 'utf-8')
+        seed = self.config.master_as_key + bytes([if_id])
         start_ele = SHA256.new(seed).digest()
         chain = HashChain(start_ele)
         self.if2rev_tokens[if_id] = chain
@@ -215,18 +214,18 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
             last_pcbm = new_pcb.get_last_pcbm()
             if last_pcbm:
-                ad_marking = self._create_ad_marking(ingress_if, egress_if,
+                as_marking = self._create_as_marking(ingress_if, egress_if,
                                                      new_pcb.get_timestamp(),
                                                      last_pcbm.hof)
             else:
-                ad_marking = self._create_ad_marking(ingress_if, egress_if,
+                as_marking = self._create_as_marking(ingress_if, egress_if,
                                                      new_pcb.get_timestamp())
 
-            new_pcb.add_ad(ad_marking)
+            new_pcb.add_as(as_marking)
             self._sign_beacon(new_pcb)
             beacon = self._build_packet(
-                PT.BEACON, dst_isd=router_child.interface.neighbor_isd,
-                dst_ad=router_child.interface.neighbor_ad, payload=new_pcb)
+                PT.BEACON, dst_ia=router_child.interface.isd_as,
+                payload=new_pcb)
             self.send(beacon, router_child.addr)
             logging.info("Downstream PCB propagated!")
 
@@ -260,41 +259,40 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         Handle beacon extensions.
         """
-        for ad in pcb.ads:
-            for ext in ad.ext:
+        for asm in pcb.ases:
+            for ext in asm.ext:
                 if ext.EXT_TYPE == MtuPcbExt.EXT_TYPE:
-                    self.mtu_ext_handler(ext, ad)
+                    self.mtu_ext_handler(ext, asm)
                 elif ext.EXT_TYPE == RevPcbExt.EXT_TYPE:
-                    self.rev_ext_handler(ext, ad)
+                    self.rev_ext_handler(ext, asm)
                 elif ext.EXT_TYPE == SibraPcbExt.EXT_TYPE:
-                    self.sibra_ext_handler(ext, ad)
+                    self.sibra_ext_handler(ext, asm)
                 else:
                     logging.warning("PCB extension %s(%s) not supported" % (
                         BeaconExtType.to_str(ext.EXT_TYPE), ext.EXT_TYPE))
 
-    def mtu_ext_handler(self, ext, ad):
+    def mtu_ext_handler(self, ext, asm):
         """
         Dummy handler for MtuPcbExt.
         """
-        logging.info("MTU (%d, %d): %s" % (ad.pcbm.ad_id, ad.pcbm.isd_id, ext))
+        logging.info("MTU %s: %s" % (asm.pcbm.isd_as, ext))
 
-    def rev_ext_handler(self, ext, ad):
+    def rev_ext_handler(self, ext, asm):
         """
         Handler for RevPcbExt.
         """
-        logging.info("REV (%d, %d): %s" % (ad.pcbm.ad_id, ad.pcbm.isd_id, ext))
+        logging.info("REV %s: %s" % (asm.pcbm.isd_as, ext))
         rev_info = ext.rev_info
         # Trigger the removal of PCBs which contain the revoked interface
         self._remove_revoked_pcbs(rev_info=rev_info, if_id=None)
         # Inform the local PS
         self._send_rev_to_local_ps(rev_info=rev_info)
 
-    def sibra_ext_handler(self, ext, ad):
+    def sibra_ext_handler(self, ext, asm):
         """
         Dummy handler for SibraPcbExt.
         """
-        logging.info("Sibra (%d, %d): %s" % (ad.pcbm.ad_id, ad.pcbm.isd_id,
-                                             ext))
+        logging.info("Sibra %s: %s" % (asm.pcbm.isd_as, ext))
 
     @abstractmethod
     def process_pcbs(self, pcbs, raw=True):
@@ -317,27 +315,21 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         raise NotImplementedError
 
-    def _create_ad_marking(self, ingress_if, egress_if, ts, prev_hof=None):
+    def _create_as_marking(self, ingress_if, egress_if, ts, prev_hof=None):
         """
-        Creates an AD Marking for given ingress and egress interfaces,
+        Creates an AS Marking for given ingress and egress interfaces,
         timestamp, and previous HOF.
 
-        :param ingress_if: ingress interface.
-        :type ingress_if: int
-        :param egress_if: egress interface.
-        :type egress_if: int
-        :param ts:
-        :type ts:
-        :param prev_hof:
-        :type prev_hof:
+        :param int ingress_if: ingress interface.
+        :param int egress_if: egress interface.
         """
         hof = HopOpaqueField.from_values(self.HOF_EXP_TIME,
                                          ingress_if, egress_if)
         if prev_hof is None:
             hof.info = OFT.XOVR_POINT
         hof.mac = gen_of_mac(self.of_gen_key, hof, prev_hof, ts)
-        pcbm = PCBMarking.from_values(self.topology.isd_id, self.topology.ad_id,
-                                      hof, self._get_if_rev_token(ingress_if))
+        pcbm = PCBMarking.from_values(
+            self.addr.isd_as, hof, self._get_if_rev_token(ingress_if))
         peer_markings = []
         for router_peer in sorted(self.topology.peer_edge_routers):
             if_id = router_peer.interface.if_id
@@ -349,8 +341,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             peer_hof.info = OFT.XOVR_POINT
             peer_hof.mac = gen_of_mac(self.of_gen_key, peer_hof, hof, ts)
             peer_marking = \
-                PCBMarking.from_values(router_peer.interface.neighbor_isd,
-                                       router_peer.interface.neighbor_ad,
+                PCBMarking.from_values(router_peer.interface.isd_as,
                                        peer_hof, self._get_if_rev_token(if_id))
             peer_markings.append(peer_marking)
 
@@ -362,7 +353,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         for _, rev_info in self.revs_to_downstream.items():
             rev_ext = RevPcbExt.from_values(rev_info)
             extensions.append(rev_ext)
-        return ADMarking.from_values(pcbm, peer_markings,
+        return ASMarking.from_values(pcbm, peer_markings,
                                      self._get_if_rev_token(egress_if),
                                      ext=extensions)
 
@@ -371,7 +362,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         Copies a PCB, terminates it and adds the segment ID.
 
         Terminating a PCB means adding a opaque field with the egress IF set
-        to 0, i.e., there is no AD to forward a packet containing this path
+        to 0, i.e., there is no AS to forward a packet containing this path
         segment to.
 
         :param pcb: The PCB to terminate.
@@ -381,11 +372,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         :rtype: PathSegment
         """
         pcb = copy.deepcopy(pcb)
-        last_hop = self._create_ad_marking(pcb.if_id, 0,
-                                           pcb.get_timestamp(),
-                                           pcb.get_last_pcbm().hof)
-        pcb.add_ad(last_hop)
-
+        last_hop = self._create_as_marking(
+            pcb.if_id, 0, pcb.get_timestamp(), pcb.get_last_pcbm().hof)
+        pcb.add_as(last_hop)
         return pcb
 
     def handle_ifid_packet(self, pkt):
@@ -417,7 +406,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 mgmt_packet = self._build_packet(payload=payload)
                 for er in self.topology.get_all_edge_routers():
                     if er.interface.if_id != ifid:
-                        mgmt_packet.addrs.dst_addr = er.addr
+                        mgmt_packet.addrs.dst.host = er.addr
                         self.send(mgmt_packet, er.addr)
 
     def run(self):
@@ -493,8 +482,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         assert isinstance(pcb, PathSegment)
         last_pcbm = pcb.get_last_pcbm()
-        if self._check_certs_trc(last_pcbm.isd_id, last_pcbm.ad_id,
-                                 pcb.get_last_adm().cert_ver, pcb.trc_ver):
+        if self._check_certs_trc(
+                last_pcbm.isd_as, pcb.get_last_asm().cert_ver, pcb.trc_ver):
             if self._verify_beacon(pcb):
                 self._handle_verified_beacon(pcb)
             else:
@@ -506,43 +495,34 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             self.unverified_beacons.append(pcb)
 
     @abstractmethod
-    def _check_certs_trc(self, isd_id, ad_id, cert_ver, trc_ver):
+    def _check_certs_trc(self, isd_as, cert_ver, trc_ver):
         """
         Return True or False whether the necessary Certificate and TRC files are
         found.
 
-        :param isd_id: ISD identifier.
-        :type isd_id: int
-        :param ad_id: AD identifier.
-        :type ad_id: int
-        :param cert_ver: certificate chain file version.
-        :type cert_ver: int
-        :param trc_ver: TRC file version.
-        :type trc_ver: int
+        :param ISD_AS isd_is: ISD-AS identifier.
+        :param int cert_ver: certificate chain file version.
+        :param int trc_ver: TRC file version.
         """
         raise NotImplementedError
 
-    def _get_trc(self, isd_id, ad_id, trc_ver):
+    def _get_trc(self, isd_as, trc_ver):
         """
         Get TRC from local storage or memory.
 
-        :param isd_id: ISD identifier.
-        :type isd_id: int
-        :param ad_id: AD identifier.
-        :type ad_id: int
-        :param trc_ver: TRC file version.
-        :type trc_ver: int
+        :param ISD_AS isd_as: ISD-AS identifier.
+        :param int trc_ver: TRC file version.
         """
-        trc = self.trust_store.get_trc(isd_id, trc_ver)
+        trc = self.trust_store.get_trc(isd_as[0], trc_ver)
         if not trc:
             # Requesting TRC file from cert server
-            trc_tuple = (isd_id, trc_ver)
+            trc_tuple = isd_as[0], trc_ver
             now = int(SCIONTime.get_time())
             if (trc_tuple not in self.trc_requests or
                 (now - self.trc_requests[trc_tuple] >
                     self.REQUESTS_TIMEOUT)):
-                trc_req = TRCRequest.from_values(isd_id, ad_id, trc_ver)
-                logging.info("Requesting %sv%s TRC", isd_id, trc_ver)
+                trc_req = TRCRequest.from_values(isd_as, trc_ver)
+                logging.info("Requesting %sv%s TRC", isd_as[0], trc_ver)
                 try:
                     dst_addr = self.dns_query_topo(CERTIFICATE_SERVICE)[0]
                 except SCIONServiceLookupError as e:
@@ -563,37 +543,33 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         :type pcb: PathSegment
         """
         assert isinstance(pcb, PathSegment)
-        last_pcbm = pcb.get_last_pcbm()
-        cert_isd = last_pcbm.isd_id
-        cert_ad = last_pcbm.ad_id
-        cert_ver = pcb.get_last_adm().cert_ver
-        trc_ver = pcb.trc_ver
-        subject = "%s-%s" % (cert_isd, cert_ad)
-        chain = self.trust_store.get_cert(cert_isd, cert_ad, cert_ver)
+        cert_ia = pcb.get_last_pcbm().isd_as
+        cert_ver = pcb.get_last_asm().cert_ver
+        chain = self.trust_store.get_cert(cert_ia, cert_ver)
         if not chain:  # Signed by root. TODO(PSz): has to be revised
             chain = CertificateChain.from_values([])
-        trc = self.trust_store.get_trc(cert_isd, trc_ver)
+        trc = self.trust_store.get_trc(cert_ia[0], pcb.trc_ver)
 
         new_pcb = copy.deepcopy(pcb)
         new_pcb.if_id = 0
-        new_pcb.ads[-1].sig = b''
-        return verify_sig_chain_trc(new_pcb.pack(), pcb.ads[-1].sig, subject,
-                                    chain, trc, trc_ver)
+        new_pcb.ases[-1].sig = b''
+        return verify_sig_chain_trc(new_pcb.pack(), pcb.ases[-1].sig,
+                                    str(cert_ia), chain, trc, pcb.trc_ver)
 
     def _sign_beacon(self, pcb):
         """
-        Sign a beacon. Signature is appended to the last ADMarking.
+        Sign a beacon. Signature is appended to the last ASMarking.
 
         :param pcb: beacon to sign.
         :type pcb: PathSegment
         """
         # if_id field is excluded from signature as it is changed by ingress ERs
-        if pcb.ads[-1].sig:
+        if pcb.ases[-1].sig:
             logging.warning("PCB already signed.")
             return
         (pcb.if_id, tmp_if_id) = (0, pcb.if_id)
         signature = sign(pcb.pack(), self.signing_key)
-        pcb.ads[-1].sig = signature
+        pcb.ases[-1].sig = signature
         pcb.if_id = tmp_if_id
 
     @abstractmethod
@@ -689,7 +665,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         payload = IFStatePayload.from_values([info])
         state_pkt = self._build_packet(payload=payload)
         for er in self.topology.get_all_edge_routers():
-            state_pkt.addrs.dst_addr = er.addr
+            state_pkt.addrs.dst.host = er.addr
             self.send(state_pkt, er.addr)
         self._process_revocation(rev_info, if_id)
 
@@ -775,7 +751,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 if (self.ifid_state[if_id].is_expired() and
                         cand.pcb.if_id == if_id):
                     to_remove.append(cand.id)
-            else:  # if_id = None means that this is an AD in downstream
+            else:  # if_id = None means that this is an AS in downstream
                 rtoken = rev_info.rev_token
                 for iftoken in cand.pcb.get_all_iftokens():
                     if HashChain.verify(rtoken, iftoken, self.N_TOKENS_CHECK):
@@ -830,8 +806,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             ifid_states = [(request.if_id, self.ifid_state[request.if_id])]
         else:
             logging.error("Received ifstate request from %s for unknown "
-                          "interface %s.", mgmt_pkt.addrs.get_src_addr(),
-                          request.if_id)
+                          "interface %s.", mgmt_pkt.addrs.src, request.if_id)
             return
 
         for (ifid, state) in ifid_states:
@@ -847,5 +822,5 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             return
 
         payload = IFStatePayload.from_values(infos)
-        state_pkt = self._build_packet(mgmt_pkt.addrs.src_addr, payload=payload)
-        self.send(state_pkt, mgmt_pkt.addrs.src_addr)
+        state_pkt = self._build_packet(mgmt_pkt.addrs.src.host, payload=payload)
+        self.send(state_pkt, mgmt_pkt.addrs.src.host)

@@ -36,7 +36,7 @@ from lib.packet.ext.path_transport import (
 from lib.packet.host_addr import haddr_parse_interface
 from lib.packet.packet_base import PayloadRaw
 from lib.packet.scion import SCIONL4Packet, build_base_hdrs
-from lib.packet.scion_addr import SCIONAddr
+from lib.packet.scion_addr import ISD_AS, SCIONAddr
 from lib.packet.scion_udp import SCIONUDPHeader
 from lib.socket import UDPSocket
 from lib.thread import thread_safety_net
@@ -49,21 +49,21 @@ def client(c_addr, s_addr):
     """
     Simple client
     """
-    conf_dir = "%s/ISD%d/AD%d/endhost" % (GEN_PATH, c_addr.isd_id, c_addr.ad_id)
+    conf_dir = "%s/ISD%d/AS%d/endhost" % (
+        GEN_PATH, c_addr.isd_as[0], c_addr.isd_as[1])
     # Start SCIONDaemon
-    sd = SCIONDaemon.start(conf_dir, c_addr.host_addr)
-    logging.info("CLI: Sending PATH request for (%d, %d)",
-                 s_addr.isd_id, s_addr.ad_id)
+    sd = SCIONDaemon.start(conf_dir, c_addr.host)
+    logging.info("CLI: Sending PATH request for %s", s_addr.isd_as)
     # Open a socket for incomming DATA traffic
-    sock = UDPSocket(bind=(str(c_addr.host_addr), 0, "Client"),
-                     addr_type=c_addr.host_addr.TYPE)
+    sock = UDPSocket(bind=(str(c_addr.host), 0, "Client"),
+                     addr_type=c_addr.host.TYPE)
     # Get paths to server through function call
-    paths = sd.get_paths(s_addr.isd_id, s_addr.ad_id)
+    paths = sd.get_paths(s_addr.isd_as)
     assert paths
     # Get a first path
     path = paths[0]
     # Determine number of border routers on path in single direction
-    routers_no = (path.get_ad_hops() - 1) * 2
+    routers_no = (path.get_as_hops() - 1) * 2
     # Number of router for round-trip (return path is symmetric)
     routers_no *= 2
 
@@ -90,7 +90,7 @@ def client(c_addr, s_addr):
     spkt = SCIONL4Packet.from_values(cmn_hdr, addr_hdr, path,
                                      exts, udp_hdr, payload)
     # Determine first hop (i.e., local address of border router)
-    (next_hop, port) = sd.get_first_hop(spkt)
+    next_hop, port = sd.get_first_hop(spkt)
     assert next_hop is not None
     logging.info("CLI: Sending packet:\n%s\nFirst hop: %s:%s",
                  spkt, next_hop, port)
@@ -107,13 +107,14 @@ def server(addr):
     """
     Simple server.
     """
-    conf_dir = "%s/ISD%d/AD%d/endhost" % (GEN_PATH, addr.isd_id, addr.ad_id)
+    conf_dir = "%s/ISD%d/AS%d/endhost" % (
+        GEN_PATH, addr.isd_as[0], addr.isd_as[1])
     # Start SCIONDaemon
-    sd = SCIONDaemon.start(conf_dir, addr.host_addr)
+    sd = SCIONDaemon.start(conf_dir, addr.host)
     # Open a socket for incomming DATA traffic
     sock = UDPSocket(
-        bind=(str(addr.host_addr), SCION_UDP_EH_DATA_PORT, "Server"),
-        addr_type=addr.host_addr.TYPE
+        bind=(str(addr.host), SCION_UDP_EH_DATA_PORT, "Server"),
+        addr_type=addr.host.TYPE
     )
     # Waiting for a request
     raw, _ = sock.recv()
@@ -142,10 +143,10 @@ def main():
     parser.add_argument('-s', '--server', help='Server address')
     parser.add_argument('-m', '--mininet', action='store_true',
                         help="Running under mininet")
-    parser.add_argument('cli_ad', nargs='?', help='Client isd,ad',
-                        default="1,19")
-    parser.add_argument('srv_ad', nargs='?', help='Server isd,ad',
-                        default="2,26")
+    parser.add_argument('cli_ia', nargs='?', help='Client isd-as',
+                        default="1-19")
+    parser.add_argument('srv_ia', nargs='?', help='Server isd-as',
+                        default="2-26")
     args = parser.parse_args()
     init_logging("logs/c2s_extn", console_level=logging.DEBUG)
 
@@ -154,17 +155,15 @@ def main():
     if not args.server:
         args.server = "169.254.0.3" if args.mininet else "127.0.0.3"
 
-    srv_isd, srv_ad = map(int, args.srv_ad.split(","))
-    srv_addr = SCIONAddr.from_values(srv_isd, srv_ad,
-                                     haddr_parse_interface(args.server))
+    srv_ia = ISD_AS(args.srv_ia)
+    srv_addr = SCIONAddr.from_values(srv_ia, haddr_parse_interface(args.server))
     threading.Thread(
         target=thread_safety_net, args=(server, srv_addr),
         name="C2S_extn.server", daemon=True).start()
     time.sleep(0.5)
 
-    cli_isd, cli_ad = map(int, args.cli_ad.split(","))
-    cli_addr = SCIONAddr.from_values(cli_isd, cli_ad,
-                                     haddr_parse_interface(args.client))
+    cli_ia = ISD_AS(args.cli_ia)
+    cli_addr = SCIONAddr.from_values(cli_ia, haddr_parse_interface(args.client))
     t_client = threading.Thread(
         target=thread_safety_net, args=(
             client, cli_addr, srv_addr,

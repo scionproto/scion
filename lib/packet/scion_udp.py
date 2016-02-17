@@ -26,7 +26,7 @@ from lib.defines import L4_UDP
 from lib.errors import SCIONParseError
 from lib.packet.packet_base import L4HeaderBase
 from lib.packet.scion_addr import SCIONAddr
-from lib.util import Raw
+from lib.util import Raw, hex_str
 
 
 class SCIONUDPHeader(L4HeaderBase):
@@ -36,33 +36,34 @@ class SCIONUDPHeader(L4HeaderBase):
     LEN = 8
     TYPE = L4_UDP
     NAME = "UDP"
+    CHKSUM_LEN = 2
 
-    def __init__(self, raw=None):
+    def __init__(self, raw=None):  # pragma: no cover
         """
-
         :param tuple raw:
             Tuple of (`SCIONAddr`, `SCIONAddr`, bytes, bytes) for the source
             address, destination address, raw UDP header and raw payload,
             respectively.
         """
         super().__init__()
-        self._src_addr = None
+        self._src = None
         self.src_port = None
-        self._dst_addr = None
+        self._dst = None
         self.dst_port = None
         self._length = self.LEN
         self._checksum = b""
 
         if raw:
-            src_addr, dst_addr, raw_hdr, payload = raw
-            self._parse(src_addr, dst_addr, raw_hdr, payload)
+            src, dst, raw_hdr, payload = raw
+            self._parse(src, dst, raw_hdr, payload)
 
-    def _parse(self, src_addr, dst_addr, raw, payload):
+    def _parse(self, src, dst, raw, payload):
         data = Raw(raw, "SCIONUDPHeader", self.LEN)
-        self._src_addr = src_addr
-        self._dst_addr = dst_addr
-        self.src_port, self.dst_port, self._length, self._checksum = \
-            struct.unpack("!HHHH", data.pop(self.LEN))
+        self._src = src
+        self._dst = dst
+        self.src_port, self.dst_port, self._length = struct.unpack(
+            "!HHH", data.pop(self.LEN - self.CHKSUM_LEN))
+        self._checksum = data.pop(self.CHKSUM_LEN)
         # Strip off udp header size.
         payload_len = self._length - self.LEN
         if payload_len != len(payload):
@@ -75,25 +76,25 @@ class SCIONUDPHeader(L4HeaderBase):
             raise SCIONParseError(
                 "SCIONUDPHeader: checksum in header (%s) does not match "
                 "checksum of supplied data (%s)" % (
-                    hex(self._checksum), hex(checksum)))
+                    hex_str(self._checksum), hex_str(checksum)))
 
     @classmethod
-    def from_values(cls, src_addr, src_port, dst_addr, dst_port, payload=None):
+    def from_values(cls, src, src_port, dst, dst_port, payload=None):
         """
         Returns a SCIONUDPHeader with the values specified.
         """
         inst = cls()
-        inst.update(src_addr, src_port, dst_addr, dst_port, payload)
+        inst.update(src, src_port, dst, dst_port, payload)
         return inst
 
-    def update(self, src_addr=None, src_port=None, dst_addr=None, dst_port=None,
+    def update(self, src=None, src_port=None, dst=None, dst_port=None,
                payload=None):
-        if src_addr is not None:
-            self._src_addr = src_addr
+        if src is not None:
+            self._src = src
         if src_port is not None:
             self.src_port = src_port
-        if dst_addr is not None:
-            self._dst_addr = dst_addr
+        if dst is not None:
+            self._dst = dst
         if dst_port is not None:
             self.dst_port = dst_port
         if payload is not None:
@@ -101,8 +102,11 @@ class SCIONUDPHeader(L4HeaderBase):
             self._checksum = self._calc_checksum(payload)
 
     def pack(self):
-        return struct.pack("!HHHH", self.src_port, self.dst_port, self._length,
-                           self._checksum)
+        raw = []
+        raw.append(struct.pack("!HHH", self.src_port, self.dst_port,
+                               self._length))
+        raw.append(self._checksum)
+        return b"".join(raw)
 
     def _calc_checksum(self, payload):
         """
@@ -114,25 +118,25 @@ class SCIONUDPHeader(L4HeaderBase):
             - Destination port
             - Payload length
         """
-        assert isinstance(self._src_addr, SCIONAddr)
-        assert isinstance(self._dst_addr, SCIONAddr)
+        assert isinstance(self._src, SCIONAddr)
+        assert isinstance(self._dst, SCIONAddr)
         pseudo_header = b"".join([
-            self._src_addr.pack(),
-            self._dst_addr.pack(),
+            self._src.pack(), self._dst.pack(),
             struct.pack("!BHHH", L4_UDP, self.src_port, self.dst_port,
                         self._length),
             payload.pack_full(),
         ])
-        return scapy.utils.checksum(pseudo_header)
+        chk_int = scapy.utils.checksum(pseudo_header)
+        return struct.pack("!H", chk_int)
 
     def reverse(self):
-        self._src_addr, self._dst_addr = self._dst_addr, self._src_addr
+        self._src, self._dst = self._dst, self._src
         self.src_port, self.dst_port = self.dst_port, self.src_port
 
     def __len__(self):  # pragma: no cover
         return self.LEN
 
     def __str__(self):
-        return "[UDP hdr (%dB): sport: %d dport: %d length: %dB checksum: %s]" \
+        return "UDP hdr (%sB): sport: %s dport: %s length: %sB checksum: %s" \
             % (self.LEN, self.src_port, self.dst_port,
-               self._length, hex(self._checksum))
+               self._length, hex_str(self._checksum))

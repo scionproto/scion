@@ -92,8 +92,8 @@ class TestMainDefault(object):
                           argparse, init_log, topo):
         core_type = create_mock()
         local_type = create_mock()
-        topo.return_value = create_mock(["is_core_ad"])
-        topo.return_value.is_core_ad = is_core
+        topo.return_value = create_mock(["is_core_as"])
+        topo.return_value.is_core_as = is_core
         # Call
         main_default(core_type, local_type)
         # Tests

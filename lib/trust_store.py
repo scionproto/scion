@@ -26,10 +26,7 @@ from lib.util import CERT_DIR, read_file, write_file
 
 
 class TrustStore(object):
-    """
-    Trust Store class.
-    """
-
+    """Trust Store class."""
     def __init__(self, conf_dir):  # pragma: no cover
         self._dir = "%s/%s" % (conf_dir, CERT_DIR)
         self._certs = defaultdict(list)
@@ -68,14 +65,14 @@ class TrustStore(object):
             res.append(self.get_trc(isd))
         return res
 
-    def get_cert(self, isd, ad, version=None):
-        if not self._certs[(isd, ad)]:
+    def get_cert(self, isd_as, version=None):
+        if not self._certs[isd_as]:
             return None
         if version is None:  # Return the most recent cert.
-            _, cert = sorted(self._certs[(isd, ad)])[-1]
+            _, cert = sorted(self._certs[isd_as])[-1]
             return cert
         else:  # Try to find a cert with given version.
-            for ver, cert in self._certs[(isd, ad)]:
+            for ver, cert in self._certs[isd_as]:
                 if version == ver:
                     return cert
         return None
@@ -90,11 +87,12 @@ class TrustStore(object):
             write_file("%s/ISD%s-V%s.trc" % (self._dir, isd, version), str(trc))
 
     def add_cert(self, cert, write=True):
-        isd, ad, version = cert.get_leaf_isd_ad_ver()
-        for ver, _ in self._certs[(isd, ad)]:
+        isd_as, version = cert.get_leaf_isd_as_ver()
+        for ver, _ in self._certs[isd_as]:
             if version == ver:
                 return
-        self._certs[(isd, ad)].append((version, cert))
+        self._certs[isd_as].append((version, cert))
         if write:
-            write_file("%s/ISD%s-AD%s-V%s.crt" % (self._dir, isd, ad, version),
+            write_file("%s/ISD%s-AS%s-V%s.crt" %
+                       (self._dir, isd_as[0], isd_as[1], version),
                        str(cert))

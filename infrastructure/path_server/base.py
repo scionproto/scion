@@ -89,10 +89,9 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         if not is_sim:
             # Add more IPs here if we support dual-stack
             name_addrs = "\0".join([self.id, str(SCION_UDP_PORT),
-                                    str(self.addr.host_addr)])
-            self.zk = Zookeeper(
-                self.topology.isd_id, self.topology.ad_id, PATH_SERVICE,
-                name_addrs, self.topology.zookeepers)
+                                    str(self.addr.host)])
+            self.zk = Zookeeper(self.topology.isd_as, PATH_SERVICE, name_addrs,
+                                self.topology.zookeepers)
             self.zk.retry("Joining party", self.zk.party_setup)
             self.path_cache = ZkSharedCache(self.zk, self.ZK_PATH_CACHE_PATH,
                                             self._cached_entries_handler)
@@ -146,10 +145,10 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         Add if revocation token to segment ID mappings.
         """
         segment_id = pcb.get_hops_hash()
-        for ad in pcb.ads:
-            self.iftoken2seg[ad.pcbm.ig_rev_token].add(segment_id)
-            self.iftoken2seg[ad.eg_rev_token].add(segment_id)
-            for pm in ad.pms:
+        for asm in pcb.ases:
+            self.iftoken2seg[asm.pcbm.ig_rev_token].add(segment_id)
+            self.iftoken2seg[asm.eg_rev_token].add(segment_id)
+            for pm in asm.pms:
                 self.iftoken2seg[pm.ig_rev_token].add(segment_id)
 
     @abstractmethod
@@ -204,7 +203,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         else:
             self.revocations[hash(rev_info)] = rev_info
             logging.debug("Received revocation from %s:\n%s",
-                          pkt.addrs.get_src_addr(), rev_info)
+                          pkt.addrs.src, rev_info)
         # Remove segments that contain the revoked interface.
         self._remove_revoked_segments(rev_info)
 
@@ -256,31 +255,30 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             {PST.UP: up, PST.CORE: core, PST.DOWN: down},
             list(sibra),
         ))
-        rep_pkt.addrs.src_addr = self.addr.host_addr
-        (next_hop, port) = self.get_first_hop(rep_pkt)
+        rep_pkt.addrs.src.host = self.addr.host
+        next_hop, port = self.get_first_hop(rep_pkt)
         if next_hop is None:
             logging.error("Next hop is None for Interface %d",
                           rep_pkt.path.get_fwd_if())
             return
         logging.info(
-            "Sending PATH_REPLY with %d segment(s) to:(%s-%s, %s:%s):\n  %s",
-            len(up | core | down), rep_pkt.addrs.dst_isd, rep_pkt.addrs.dst_ad,
-            rep_pkt.addrs.dst_addr, rep_pkt.l4_hdr.dst_port,
+            "Sending PATH_REPLY with %d segment(s) to:%s port:%s:\n  %s",
+            len(up | core | down), rep_pkt.addrs.dst, rep_pkt.l4_hdr.dst_port,
             "\n  ".join([pcb.short_desc() for pcb in (up | core | down)]),
         )
         self.send(rep_pkt, next_hop, port)
 
-    def _handle_pending_requests(self, dst_isd, dst_ad):
+    def _handle_pending_requests(self, dst_ia):
         to_remove = []
         # Serve pending requests.
-        for pkt in self.pending_req[(dst_isd, dst_ad)]:
+        for pkt in self.pending_req[dst_ia]:
             if self.path_resolution(pkt, new_request=False):
                 to_remove.append(pkt)
         # Clean state.
         for pkt in to_remove:
-            self.pending_req[(dst_isd, dst_ad)].remove(pkt)
-        if not self.pending_req[(dst_isd, dst_ad)]:
-            del self.pending_req[(dst_isd, dst_ad)]
+            self.pending_req[dst_ia].remove(pkt)
+        if not self.pending_req[dst_ia]:
+            del self.pending_req[dst_ia]
 
     def dispatch_path_segment_record(self, pkt):
         """
@@ -305,8 +303,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         for handler in handlers:
             added.update(handler(pkt))
         # Handling pending request, basing on added segments.
-        for dst_isd, dst_ad in added:
-            self._handle_pending_requests(dst_isd, dst_ad)
+        for dst_ia in added:
+            self._handle_pending_requests(dst_ia)
 
     def _propagate_and_sync(self):
         pass
@@ -321,13 +319,12 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
     def _handle_waiting_targets(self, path):
         if not self.waiting_targets:
             return
-        dst_isd, dst_ad = path.get_first_isd_ad()
+        dst_ia = path.get_first_pcbm().isd_as
         path = path.get_path(reverse_direction=True)
         while self.waiting_targets:
-            isd, ad, seg_info = self.waiting_targets.pop()
+            _, seg_info = self.waiting_targets.pop()
             req_pkt = self._build_packet(
-                PT.PATH_MGMT, dst_isd=dst_isd, dst_ad=dst_ad,
-                path=path, payload=seg_info)
+                PT.PATH_MGMT, dst_ia=dst_ia, path=path, payload=seg_info)
             self._send_to_next_hop(req_pkt, path.get_fwd_if())
             logging.info("PATH_REQ sent using (first) registered up-path")
 
@@ -360,5 +357,4 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         threading.Thread(
             target=thread_safety_net, args=(self.worker,),
             name="PS.worker", daemon=True).start()
-
         super().run()
