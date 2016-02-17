@@ -47,6 +47,7 @@ from endhost.scion_socket import ScionServerSocket, ScionClientSocket
 from lib.defines import L4_SSP
 from lib.log import init_logging
 from lib.main import main_wrapper
+from lib.packet.scion_addr import ISD_AS
 from lib.thread import thread_safety_net
 from lib.util import handle_signals
 
@@ -96,9 +97,10 @@ def server():
 def client():
     logging.info("Starting SCION test client application.")
 
-    isd_ad = 2, 26
+    isd_as = ISD_AS.from_values(2, 26)
+
     target_addr = SERVER_IP, SERVER_PORT
-    client_sock = ScionClientSocket(L4_SSP, isd_ad, target_addr)
+    client_sock = ScionClientSocket(L4_SSP, isd_as, target_addr)
 
     logging.info("Client starts the send protocol.")
     # firstly, act as a sender
@@ -110,7 +112,7 @@ def client():
         logging.info("interfaces for path 0:")
         for i in range(stats.if_counts[0]):
             ifinfo = stats.if_lists[0][i]
-            logging.info("(%d, %d)%d", ifinfo.isd, ifinfo.ad, ifinfo.ifid)
+            logging.info("%s %d", ifinfo.isd_as, ifinfo.ifid)
 
     logging.info("Client starts the receive protocol.")
     # secondly, act as a receiver
