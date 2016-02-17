@@ -28,7 +28,7 @@ from lib.packet.path_mgmt import (
     IFStateInfo,
     IFStatePayload,
     IFStateRequest,
-    PathSegmentInfo,
+    PathSegmentReq,
     PathSegmentRecords,
     parse_pathmgmt_payload,
 )
@@ -38,34 +38,34 @@ from test.testcommon import (
 )
 
 
-class TestPathSegmentInfoParse(object):
+class TestPathSegmentReqParse(object):
     """
-    Unit tests for lib.packet.path_mgmt.PathSegmentInfo._parse
+    Unit tests for lib.packet.path_mgmt.PathSegmentReq._parse
     """
     @patch("lib.packet.path_mgmt.ISD_AS", autospec=True)
     @patch("lib.packet.path_mgmt.Raw", autospec=True)
     def test(self, raw, isd_as):
-        inst = PathSegmentInfo()
+        inst = PathSegmentReq()
         data = create_mock(["pop"])
-        data.pop.side_effect = ("seg type", "src isd-as", "dst isd-as")
+        data.pop.side_effect = ("flags", "src isd-as", "dst isd-as")
         raw.return_value = data
         isd_as.side_effect = lambda x: x
         # Call
         inst._parse("data")
         # Tests
         raw.assert_called_once_with("data", inst.NAME, inst.LEN)
-        ntools.eq_(inst.seg_type, "seg type")
+        ntools.eq_(inst.flags, "flags")
         ntools.eq_(inst.src_ia, "src isd-as")
         ntools.eq_(inst.dst_ia, "dst isd-as")
 
 
-class TestPathSegmentInfoPack(object):
+class TestPathSegmentReqPack(object):
     """
-    Unit tests for lib.packet.path_mgmt.PathSegmentInfo.pack
+    Unit tests for lib.packet.path_mgmt.PathSegmentReq.pack
     """
     def test_basic(self):
-        inst = PathSegmentInfo()
-        inst.seg_type = 0x0e
+        inst = PathSegmentReq()
+        inst.flags = 0x0e
         inst.src_ia = create_mock(["pack"])
         inst.src_ia.pack.return_value = b"src isd-as"
         inst.dst_ia = create_mock(["pack"])

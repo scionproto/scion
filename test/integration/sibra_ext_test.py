@@ -26,6 +26,7 @@ import time
 # SCION
 from endhost.sciond import SCIONDaemon
 from lib.defines import GEN_PATH, SIBRA_TICK, SIBRA_MAX_IDX
+from lib.flagtypes import PathSegFlags as PSF
 from lib.log import init_logging
 from lib.main import main_wrapper
 from lib.packet.ext_util import find_ext_hdr
@@ -35,8 +36,8 @@ from lib.packet.path import EmptyPath
 from lib.packet.scion import SCIONL4Packet, build_base_hdrs
 from lib.packet.scion_addr import ISD_AS, SCIONAddr
 from lib.packet.scion_udp import SCIONUDPHeader
-from lib.sibra.ext.steady import SibraExtSteady
 from lib.sibra.ext.info import ResvInfoSteady
+from lib.sibra.ext.steady import SibraExtSteady
 from lib.sibra.util import BWSnapshot
 from lib.socket import UDPSocket
 from lib.thread import thread_safety_net
@@ -52,17 +53,21 @@ def start_sciond(isd_as, addr):
     return SCIONDaemon.start(conf_dir, haddr_parse_interface(addr))
 
 
-def get_up_path(sd, isd):
-    dst = ISD_AS.from_values(isd, 0)
+def get_up_path(sd, dst_ia):
     for _ in range(3):
-        paths = sd.get_paths(dst)
+        paths = sd.get_paths(dst_ia, flags=PSF.SIBRA)
         if paths:
             break
         logging.info("Failed to get up path, trying again")
     else:
         logging.error("Unable to get an up path, giving up")
         sys.exit(1)
-    return paths[0]
+    logging.debug("Got path(s):")
+    for i, resvs in enumerate(paths):
+        logging.debug("  Path %d:", i)
+        for resv in resvs:
+            logging.debug("    %s", resv)
+    sys.exit(0)
 
 
 class _Base(object):
@@ -225,6 +230,8 @@ def main():
     parser.add_argument('-m', '--mininet', action='store_true',
                         help="Running under mininet")
     parser.add_argument('cli_ia', nargs='?', help='Client isd-as',
+                        default="1-10")
+    parser.add_argument('srv_ia', nargs='?', help='Server isd-as',
                         default="1-13")
     args = parser.parse_args()
     init_logging("logs/sibra_ext", console_level=logging.DEBUG)
@@ -233,12 +240,12 @@ def main():
     s_addr = "169.254.0.3" if args.mininet else "127.0.0.3"
     cli_ia = ISD_AS(args.cli_ia)
     cli_sd = start_sciond(cli_ia, c_addr)
-    up_path = get_up_path(cli_sd, cli_ia[0])
-    core_ia = up_path.interfaces[-1][0]
-    srv_sd = start_sciond(core_ia, s_addr)
+    srv_ia = ISD_AS(args.srv_ia)
+    up_path = get_up_path(cli_sd, srv_ia)
+    srv_sd = start_sciond(srv_ia, s_addr)
 
     srv_addr = SCIONAddr.from_values(
-        core_ia, haddr_parse_interface(s_addr))
+        srv_ia, haddr_parse_interface(s_addr))
     cli_addr = SCIONAddr.from_values(
         cli_ia, haddr_parse_interface(c_addr))
     finished = threading.Event()

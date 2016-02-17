@@ -25,7 +25,7 @@ from infrastructure.beacon_server.base import BeaconServer
 from lib.defines import PATH_SERVICE
 from lib.errors import SCIONParseError, SCIONServiceLookupError
 from lib.packet.opaque_field import InfoOpaqueField
-from lib.packet.path_mgmt import PathSegmentInfo, PathRecordsReg
+from lib.packet.path_mgmt import PathRecordsReg
 from lib.packet.pcb import PathSegment
 from lib.packet.scion import PacketType as PT
 from lib.path_store import PathStore
@@ -130,8 +130,6 @@ class CoreBeaconServer(BeaconServer):
         Register the core segment contained in 'pcb' with the local core path
         server.
         """
-        info = PathSegmentInfo.from_values(
-            PST.CORE, pcb.get_first_pcbm().isd_as, self.topology.isd_as)
         pcb.remove_signatures()
         self._sign_beacon(pcb)
         # Register core path with local core path server.
@@ -140,7 +138,7 @@ class CoreBeaconServer(BeaconServer):
         except SCIONServiceLookupError:
             # If there are no local path servers, stop here.
             return
-        records = PathRecordsReg.from_values({info.seg_type: [pcb]})
+        records = PathRecordsReg.from_values({PST.CORE: [pcb]})
         pkt = self._build_packet(ps_addr, payload=records)
         self.send(pkt, ps_addr)
 
