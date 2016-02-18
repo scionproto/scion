@@ -35,14 +35,14 @@ Path::Path(PathManager *manager, SCIONAddr &localAddr, SCIONAddr &dstAddr, uint8
             mFirstHop.addrLen = SCION_HOST_ADDR_LEN;
             memcpy(mFirstHop.addr, ptr, SCION_HOST_ADDR_LEN);
             ptr += mFirstHop.addrLen;
-            mFirstHop.port = *(uint16_t *)ptr;
+            mFirstHop.port = ntohs(*(uint16_t *)ptr);
             ptr += 2;
 #ifdef BYPASS_ROUTERS
             mFirstHop.addrLen = dstAddr.host.addrLen;
             memcpy(mFirstHop.addr, dstAddr.host.addr, mFirstHop.addrLen);
             mFirstHop.port = SCION_UDP_EH_DATA_PORT;
 #endif
-            mMTU = *(uint16_t *)ptr;
+            mMTU = ntohs(*(uint16_t *)ptr);
             if (mMTU == 0)
                 mMTU = SCION_DEFAULT_MTU;
             ptr += 2;
@@ -50,11 +50,11 @@ Path::Path(PathManager *manager, SCIONAddr &localAddr, SCIONAddr &dstAddr, uint8
             ptr++;
             for (int i = 0; i < interfaces; i++) {
                 SCIONInterface sif;
-                uint32_t isd_ad = *(uint32_t *)ptr;
+                uint32_t isd_ad = ntohl(*(uint32_t *)ptr);
                 ptr += 4;
                 sif.isd = isd_ad >> 20;
                 sif.ad = isd_ad & 0xfffff;
-                sif.interface = *(uint16_t *)ptr;
+                sif.interface = ntohs(*(uint16_t *)ptr);
                 ptr += 2;
                 mInterfaces.push_back(sif);
             }

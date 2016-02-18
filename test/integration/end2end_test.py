@@ -96,7 +96,7 @@ def get_paths_via_api(addr):
         if ifcount:
             for i in range(ifcount):
                 isd_as = ISD_AS(data.pop(ISD_AS.LEN))
-                ifid = struct.unpack("H", data.pop(2))[0]
+                ifid = struct.unpack("!H", data.pop(2))[0]
                 ifs.append((isd_as, ifid))
         iflists.append(ifs)
     sock.close()

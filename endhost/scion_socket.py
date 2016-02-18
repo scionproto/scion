@@ -75,7 +75,7 @@ class SCIONInterface(object):
         """
         data = Raw(raw, self.NAME, self.LEN)
         self.isd_as = ISD_AS(data.pop(ISD_AS.LEN))
-        self.ifid = struct.unpack("H", data.pop())[0]
+        self.ifid = struct.unpack("!H", data.pop())[0]
 
     def __str__(self):
         """
@@ -143,6 +143,7 @@ class ScionStats(object):
         data = Raw(raw, "Serialized SCION stats", self.FIXED_DATA_LEN, True)
         while len(data):
             values = data.pop(self.FIXED_DATA_LEN)
+            # The stats are native byte order
             rp, sp, ap, rtt, lr, ifc = struct.unpack("IIIIdI", values)
             self.received_packets.append(rp)
             self.sent_packets.append(sp)
@@ -362,7 +363,7 @@ class ScionBaseSocket(object):
         if opttype in self.LONG_OPTIONS:
             return buf
         else:
-            return struct.pack("I", opt.val)
+            return struct.pack("!I", opt.val)
 
     def shutdown(self, how):
         """

@@ -210,14 +210,14 @@ class SCIONDaemon(SCIONElement):
             # TODO(PSz): remove dummy "0.0.0.0" address when API is saner
             haddr = self.ifid2addr.get(fwd_if, haddr_parse("IPV4", "0.0.0.0"))
             path_len = len(raw_path) // 8
-            reply.append(struct.pack("B", path_len) + raw_path +
-                         haddr.pack() + struct.pack("H", SCION_UDP_PORT) +
-                         struct.pack("H", path.mtu) +
-                         struct.pack("B", len(path.interfaces)))
+            reply.append(struct.pack("!B", path_len) + raw_path +
+                         haddr.pack() + struct.pack("!H", SCION_UDP_PORT) +
+                         struct.pack("!H", path.mtu) +
+                         struct.pack("!B", len(path.interfaces)))
             for interface in path.interfaces:
                 isd_as, link = interface
                 reply.append(isd_as.pack())
-                reply.append(struct.pack("H", link))
+                reply.append(struct.pack("!H", link))
         self._api_sock.send(b"".join(reply), sender)
 
     def handle_revocation(self, pkt):

@@ -65,7 +65,7 @@ def gen_of_mac(key, hof, prev_hof, ts):
     else:
         # Constant length for CBC-MAC's security.
         prev_hof_raw = b"\x00" * (HopOpaqueField.LEN - 1)
-    ts_raw = struct.pack("I", ts)
+    ts_raw = struct.pack("!I", ts)
     to_mac = hof_raw + prev_hof_raw + ts_raw + b"\x00"  # With \x00 as padding.
     return cbcmac(key, to_mac)[:HopOpaqueField.MAC_LEN]
 

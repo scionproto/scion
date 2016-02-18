@@ -379,7 +379,7 @@ void * SCIONSocket::getStats(void *buf, int len)
             /* Python ISD_AD class expects network byte order */
             *(uint32_t *)ptr = htonl(ISD_AD(sif.isd, sif.ad));
             ptr += 4;
-            *(uint16_t *)ptr = sif.interface;
+            *(uint16_t *)ptr = htons(sif.interface);
             ptr += 2;
         }
     }
