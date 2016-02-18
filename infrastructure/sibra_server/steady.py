@@ -16,10 +16,12 @@
 ========================================
 """
 # Stdlib
+import copy
 import logging
 import threading
 
 # SCION
+from lib.crypto.asymcrypto import sign
 from lib.defines import (
     SCION_UDP_PORT,
     SIBRA_MAX_IDX,
@@ -36,9 +38,11 @@ from lib.packet.scion_udp import SCIONUDPHeader
 from lib.sibra.ext.info import ResvInfoSteady
 from lib.sibra.ext.steady import SibraExtSteady
 from lib.sibra.payload import SIBRAPayload
-from lib.sibra.segment import SibraSegment
+from lib.sibra.pcb_ext.info import SibraSegInfo
+from lib.sibra.pcb_ext.sof import SibraSegSOF
 from lib.sibra.util import current_tick, tick_to_time
 from lib.util import SCIONTime, hex_str
+from lib.types import PathSegmentType as PST
 
 RESV_LEN = SIBRA_MAX_STEADY_TICKS - 1
 STATE_SETUP = 0
@@ -216,30 +220,40 @@ class SteadyPath(object):
             cmn_hdr, addr_hdr, EmptyPath(), [ext], udp_hdr, payload)
 
     def _register_path(self):
-        pkt = self._create_reg_pkt()
+        pld = self._create_reg_pld()
+        pkt = self._create_reg_pkt(pld)
         logging.debug("Registering path with local path server")
         self.sendq.put(pkt)
-        pkt = self._create_reg_pkt(self.remote, self.seg.get_path(True))
+        pkt = self._create_reg_pkt(pld, self.remote, self.seg.get_path(True))
         logging.debug("Registering path with core path server in %s",
                       self.remote)
         self.sendq.put(pkt)
 
-    def _create_reg_pkt(self, dest_ia=None, path=None):
+    def _create_reg_pld(self):
+        pcb = copy.deepcopy(self.seg)
+        # TODO(kormat): It might make sense to remove peer markings also, but
+        # they might also be needed for sibra steady paths that traverse peer
+        # links in the future.
+        pcb.remove_signatures()
+        latest = self.blocks[-1]
+        for asm, sof in zip(reversed(pcb.ases), latest.sofs):
+            asm.add_ext(SibraSegSOF.from_values(sof))
+        last_asm = pcb.ases[-1]
+        last_asm.add_ext(SibraSegInfo.from_values(self.id, latest.info))
+        last_asm.sig = sign(pcb.pack(), self.signing_key)
+        return PathRecordsReg.from_values({PST.SIBRA: [pcb]})
+
+    def _create_reg_pkt(self, pld, dest_ia=None, path=None):
         if not dest_ia:
             dest_ia = self.addr.isd_as
         if not path:
             path = EmptyPath()
         dest = SCIONAddr.from_values(dest_ia, PT.PATH_MGMT)
         cmn_hdr, addr_hdr = build_base_hdrs(self.addr, dest)
-        latest = self.blocks[-1]
-        seg = SibraSegment.from_values(
-            self.id, latest.info, self.remote, latest.sofs)
-        seg.sign(self.signing_key)
-        payload = PathRecordsReg.from_values({}, [seg])
         udp_hdr = SCIONUDPHeader.from_values(
-            self.addr, SCION_UDP_PORT, dest, SCION_UDP_PORT, payload)
+            self.addr, SCION_UDP_PORT, dest, SCION_UDP_PORT, pld)
         return SCIONL4Packet.from_values(
-            cmn_hdr, addr_hdr, self.seg.get_path(True), [], udp_hdr, payload)
+            cmn_hdr, addr_hdr, self.seg.get_path(True), [], udp_hdr, pld)
 
     def __str__(self):
         with self._lock:

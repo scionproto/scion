@@ -28,8 +28,7 @@ from lib.packet.packet_base import PathMgmtPayloadBase
 from lib.packet.pcb import PathSegment
 from lib.packet.scion_addr import ISD_AS
 from lib.packet.rev_info import RevocationInfo
-from lib.sibra.segment import SibraSegment
-from lib.util import Raw, hex_str
+from lib.util import Raw
 
 
 class PathSegmentInfo(PathMgmtPayloadBase):
@@ -101,75 +100,51 @@ class PathSegmentRecords(PathMgmtPayloadBase):
     def __init__(self, raw=None):  # pragma: no cover
         super().__init__()
         self.pcbs = defaultdict(list)
-        self.sibra_segs = []
         if raw:
             self._parse(raw)
 
     def _parse(self, raw):
         data = Raw(raw, self.NAME, self.MIN_LEN, min_=True)
-        pcb_count = data.pop(1)
-        sibra_count = data.pop(1)
-        for _ in range(pcb_count):
+        while data:
             seg_type = data.pop(1)
             pcb = PathSegment(data.get())
             data.pop(len(pcb))
             self.pcbs[seg_type].append(pcb)
-        for _ in range(sibra_count):
-            seg = SibraSegment(data.get())
-            data.pop(len(seg))
-            self.sibra_segs.append(seg)
-        if data:
-            raise SCIONParseError(
-                "Trailing bytes found when parsing %s (%d): %s" % (
-                    self.NAME, len(data), hex_str(data.pop())))
 
     @classmethod
-    def from_values(cls, pcb_dict=None, sibra_segs=None):  # pragma: no cover
+    def from_values(cls, pcb_dict):  # pragma: no cover
         """
         Returns a Path Record with the values specified.
 
         :param pcb_dict: dict of {seg_type: pcbs}
-        :param sibra_segs: list of SibraSegments
         """
         inst = cls()
         inst.pcbs.update(pcb_dict)
-        inst.sibra_segs = sibra_segs or []
         return inst
 
     def pack(self):
         packed = []
-        pcb_count = sum([len(pcbs) for pcbs in self.pcbs.values()])
-        packed.append(struct.pack("!B", pcb_count))
-        packed.append(struct.pack("!B", len(self.sibra_segs)))
         for seg_type, pcbs in self.pcbs.items():
             for pcb in pcbs:
                 packed.append(struct.pack("!B", seg_type))
                 packed.append(pcb.pack())
-        for seg in self.sibra_segs:
-            packed.append(seg.pack())
         return b"".join(packed)
 
     def __len__(self):
-        l = 2
+        l = 0
         for pcbs in self.pcbs.values():
             for pcb in pcbs:
                 l += len(pcb) + 1  # segment type byte
-        for seg in self.sibra_segs:
-            l += len(seg)
         return l
 
     def __str__(self):
         s = []
         s.append("%s(%dB):" % (self.NAME, len(self)))
-        for type_ in [PST.UP, PST.DOWN, PST.CORE]:
+        for type_ in [PST.UP, PST.DOWN, PST.CORE, PST.SIBRA]:
             if self.pcbs[type_]:
                 s.append("  %s:" % PST.to_str(type_))
                 for pcb in self.pcbs[type_]:
                     s.append("    %s" % pcb.short_desc())
-        if self.sibra_segs:
-            s.append("  SIBRA:")
-            for seg in self.sibra_segs:
-                s.append("    %s" % seg.short_desc())
         return "\n".join(s)
 
 
