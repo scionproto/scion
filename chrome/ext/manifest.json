@@ -1,0 +1,37 @@
+// Copyright 2016 SCION
+
+{
+  // Extension ID: akhbnlfhbdpigconahnoogmdopjcfemk
+  "name": "SCION Link Feeder Test",
+  "version": "0.1",
+  "description": "Request link data and manage proxy to the SCION network.",
+  "manifest_version": 2,
+  "default_locale": "en",
+  "icons": {
+    "16": "img/icon16.png",
+    "32": "img/icon32.png",
+    "48": "img/icon48.png",
+    "128": "img/icon128.png"
+  },
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwSDXMD/SW31krZv4rzXpq2h+TSxzqUfvjNpqmXsat2PWDK4v91gr5answmOmx/e6u5KnbXDKdk06BmFZd0QCymBvSPzm8qPeaTJysn62hWOEvQVlG7VAxppFeH3R2Y7FXo+Z/oaBpjsXUl5tJOE0c+tMMunWLdp+t0PiruXvLXGA+3biqnnHADRY+QNRyi3FmKj35ADC1WAMSVGn7qIUs1aFQZS+eBntJA7XKTI9PB56SjRxUky+HpKOTit0HmD6KoHFNmWBmxATdg0bT1ixzsnnGTfSt/vU1pX+CxTQJGpK2duVX5t4G2O6HpmSh0XAAXqQA7s2SJdHsCaLKehvIwIDAQAB",
+  "browser_action": {
+    "default_icon": "img/icon16.png",
+    "default_popup": "popup.html",
+    "default_title": "SCION Proxy Settings"
+  },
+  "background": {
+    "scripts": [
+      "proxy_form_controller.js",
+      "proxy_error_handler.js",
+      "background.js"
+      //"contextmenu.js"
+    ]
+  },
+  "permissions": [
+    "tabs",
+    "<all_urls>",
+    "webRequest",
+    "proxy"
+    //"contextMenus"
+  ]
+}

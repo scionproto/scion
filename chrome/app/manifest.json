@@ -1,0 +1,32 @@
+// Copyright 2016 SCION
+
+{
+  // Extension ID: bogdaeienjhpdgpnmhenbgkjkglcbdok
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuv4fB8RqvSCWAwusEtC3X9NBjVxXIz3FPhHya0/9g4iZGg7yFPpwpm+iUxgDlRUAIhhz3nvg2E6AJc4uG9SSI+/04hAAMQISk/IMxrjS03CMePoFksgw0+TiRbazioZeaz6CBwR6e/z5efZwTBF3LIoIjg6MCGHbsio/z0KrYfBNqJBWZWB9z0FagkfYj3ExSMqaek0Te8btIHokuPPPaLEdGdSYmxLsx/F3efKjsl1rHhqaN4/L+FpTPiH5PVVb6iRKabrdx3tHptszGgDZy+Z24HYZ/g1G27h3OML4hfyQTbUs57vGgFELc3c5xRWsz9oKgWqyaYb4G6VyAjz5zQIDAQAB",
+  "name": "SCION Visualization",
+  "version": "0.1",
+  "manifest_version": 2,
+  "description": "Query and display link data over the SCION network.",
+  "app": {
+    "background": {
+      "scripts": [
+        "background.js"      
+      ]
+    }
+  },
+  "icons": {
+    "16": "img/icon16.png",
+    "32": "img/icon32.png",
+    "48": "img/icon48.png",
+    "128": "img/icon128.png"
+  },
+  "externally_connectable": { 
+	"ids": [ "akhbnlfhbdpigconahnoogmdopjcfemk" ] 
+  },
+  "sockets": {
+	"udp": {
+	    "send": ["*"],
+	    "bind": ["*"]
+	  }
+  }  
+}

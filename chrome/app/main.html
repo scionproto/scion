@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<style>
+html {
+  overflow-y: scroll;
+}
+</style>
+<link rel="stylesheet" href="css/jquery-ui.min.css">
+<script src="js/d3.min.js"></script>
+<script src="js/jquery-2.2.0.min.js"></script>
+<script src="js/jquery-ui.min.js"></script>
+<script src='./networking.js'></script>
+<script src='./main.js'></script>
+</head>
+<body>
+  <div>
+    <input type="button" id="connect" value="Connect" /> <input
+      type="button" id="list" value="List" /> <input type="button"
+      id="lookup" value="Lookup" /> <br> For testing, run
+    <code>node/nodejs udp-server-test.js</code>
+    in the
+    <code>test</code>
+    directory
+  </div>
+  <p>
+    <text id='url'></text>
+  </p>
+  <div class="urlStatsWidget"></div>
+</body>
+</html>

@@ -1,0 +1,25 @@
+{
+ "name": "SCION Proxy",
+ "children": [
+  {
+   "name": "www.scion-architecture.net/img/collaborators/eth.png",
+   "children": [
+     {"name": "Sent Packets: [1, 1, 1, 1, 0, 0, 0, 0, 0, 0]"},
+     {"name": "Received Packets: [27, 1, 1, 1, 0, 0, 0, 0, 0, 0]"},
+     {"name": "Acked Packets: [28, 2, 2, 2, 0, 0, 0, 0, 0, 0]"},
+     {"name": "RTTs: [1, 1, 1, 1, 0, 0, 0, 0, 0, 0]"},
+     {"name": "Loss-Rates: [1.2, 2.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]"}
+   ]
+  },
+  {
+   "name": "www.scion-architecture.net/img/collaborators/kddi.png",
+   "children": [
+     {"name": "Sent Packets: [1, 1, 1, 1, 0, 0, 0, 0, 0, 0]"},
+     {"name": "Received Packets: [27, 1, 1, 1, 0, 0, 0, 0, 0, 0]"},
+     {"name": "Acked Packets: [28, 2, 2, 2, 0, 0, 0, 0, 0, 0]"},
+     {"name": "RTTs: [1, 1, 1, 1, 0, 0, 0, 0, 0, 0]"},
+     {"name": "Loss-Rates: [1.2, 2.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]"}
+   ]
+  }
+ ]
+}
