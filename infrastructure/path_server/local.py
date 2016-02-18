@@ -25,7 +25,7 @@ from Crypto.Hash import SHA256
 from infrastructure.path_server.base import PathServer
 from lib.packet.path_mgmt import PathSegmentInfo
 from lib.packet.scion import PacketType as PT
-from lib.path_db import DBResult, PathSegmentDB
+from lib.path_db import PathSegmentDB
 from lib.types import PathSegmentType as PST
 
 
@@ -46,95 +46,32 @@ class LocalPathServer(PathServer):
         # Database of up-segments to the core.
         self.up_segments = PathSegmentDB(max_res_no=self.MAX_SEG_NO)
 
-    def _update_master(self):
-        pass
-
-    def _cached_seg_handler(self, pkt, from_zk=True):
-        self._handle_up_segment_records(pkt, from_zk)
-        self._handle_sibra_segment_records(pkt, from_zk)
-
-    def _handle_up_segment_records(self, pkt, from_zk=False):
-        added = self._handle_local_segment_records(pkt, from_zk, type_=PST.UP)
-        # Sending pending targets to the core using first registered up-segment.
-        if added:
-            records = pkt.get_payload()
-            self._handle_waiting_targets(records.pcbs[PST.UP][0])
-        return added
-
-    def _handle_sibra_segment_records(self, pkt, from_zk=False):
-        return self._handle_local_segment_records(pkt, from_zk, type_=PST.SIBRA)
-
-    def _handle_local_segment_records(self, pkt, from_zk, type_):
-        """
-        Handle Up-/Sibra-segment registration from local BS or ZK's cache.
-        Return a set of added destinations.
-        """
-        added = set()
-        records = pkt.get_payload()
-        if not records.pcbs[type_]:
-            return added
-        for pcb in records.pcbs[type_]:
-            added.update(self._add_local_segment(pcb, from_zk, type_))
-        # Share Segment via ZK.
+    def _handle_up_segment_record(self, pcb, from_zk=False):
         if not from_zk:
-            self._share_segments(pkt)
-        return added
+            self._segs_to_zk.append((PST.UP, pcb))
+        if self._add_segment(pcb, self.up_segments, "Up"):
+            # Sending pending targets to the core using first registered
+            # up-segment.
+            self._handle_waiting_targets(pcb)
+            return set([pcb.get_first_pcbm().isd_as])
+        return set()
 
-    def _add_local_segment(self, pcb, from_zk, type_):
-        added = set()
-        name = "Up"
-        segdb = self.up_segments
-        if type_ == PST.SIBRA:
-            name = "Sibra"
-            segdb = self.sibra_segments
-        src_ia = pcb.get_first_pcbm().isd_as
-        dst_ia = pcb.get_last_pcbm().isd_as
-        res = segdb.update(pcb, src_ia, dst_ia)
-        if res != DBResult.ENTRY_ADDED:
-            return added
-        self._add_if_mappings(pcb)
-        added.add(src_ia)
-        logging.info("%s-Segment registered (from zk: %s): %s",
-                     name, from_zk, pcb.short_desc())
-        return added
+    def _handle_sibra_segment_record(self, pcb, from_zk=False):
+        if not from_zk:
+            self._segs_to_zk.append((PST.SIBRA, pcb))
+        if self._add_segment(pcb, self.sibra_segments, "SIBRA"):
+            return set([pcb.get_first_pcbm().isd_as])
+        return set()
 
-    def _handle_down_segment_records(self, pkt):
-        """
-        Handle down segment record. Return a set of added destinations.
-        """
-        added = set()
-        records = pkt.get_payload()
-        if not records.pcbs[PST.DOWN]:
-            return added
-        for pcb in records.pcbs[PST.DOWN]:
-            src_ia = pcb.get_first_pcbm().isd_as
-            dst_ia = pcb.get_last_pcbm().isd_as
-            res = self.down_segments.update(pcb, src_ia, dst_ia)
-            if res == DBResult.ENTRY_ADDED:
-                self._add_if_mappings(pcb)
-                added.add(dst_ia)
-                logging.info("Down-Seg registered: %s", pcb.short_desc())
-        return added
+    def _handle_down_segment_record(self, pcb):
+        if self._add_segment(pcb, self.down_segments, "Down"):
+            return set([pcb.get_last_pcbm().isd_as])
+        return set()
 
-    def _handle_core_segment_records(self, pkt):
-        """
-        Handle registration of a core segment. Return a set of added
-        destinations.
-        """
-        added = set()
-        records = pkt.get_payload()
-        if not records.pcbs[PST.CORE]:
-            return added
-        for pcb in records.pcbs[PST.CORE]:
-            # Core segments have down-path direction.
-            src_ia = pcb.get_last_pcbm().isd_as
-            dst_ia = pcb.get_first_pcbm().isd_as
-            res = self.core_segments.update(pcb, dst_ia, src_ia)
-            if res == DBResult.ENTRY_ADDED:
-                self._add_if_mappings(pcb)
-                added.add(dst_ia)
-                logging.info("Core-Segment registered: %s", pcb.short_desc())
-        return added
+    def _handle_core_segment_record(self, pcb):
+        if self._add_segment(pcb, self.core_segments, "Core"):
+            return set([pcb.get_first_pcbm().isd_as])
+        return set()
 
     def _remove_revoked_segments(self, rev_info):
         """

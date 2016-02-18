@@ -31,7 +31,7 @@ from lib.packet.host_addr import haddr_parse
 from lib.packet.path import EmptyPath, PathCombinator
 from lib.packet.path_mgmt import PathSegmentInfo
 from lib.packet.scion_addr import ISD_AS
-from lib.path_db import PathSegmentDB
+from lib.path_db import DBResult, PathSegmentDB
 from lib.requests import RequestHandler
 from lib.socket import UDPSocket
 from lib.thread import thread_safety_net
@@ -136,41 +136,37 @@ class SCIONDaemon(SCIONElement):
         """
         added = set()  # Set of added destinations.
         path_reply = pkt.get_payload()
-        for seg_type, pcbs in path_reply.pcbs.items():
-            for pcb in pcbs:
-                first_ia = pcb.get_first_pcbm().isd_as
-                last_ia = pcb.get_last_pcbm().isd_as
-                if seg_type == PST.UP:
-                    self._handle_up_seg(pcb, first_ia, last_ia)
-                    added.add(first_ia)
-                elif seg_type == PST.DOWN:
-                    self._handle_down_seg(pcb, first_ia, last_ia)
-                    added.add(last_ia)
-                elif seg_type == PST.CORE:
-                    self._handle_core_seg(pcb, first_ia, last_ia)
-                    added.add(first_ia)
-                else:
-                    logging.warning(
-                        "Incorrect path in Path Record. Type: %s PCB: %s",
-                        seg_type, pcb.short_desc())
+        for pcb in path_reply.pcbs[PST.UP]:
+            added.update(self._handle_up_seg(pcb))
+        for pcb in path_reply.pcbs[PST.DOWN]:
+            added.update(self._handle_down_seg(pcb))
+        for pcb in path_reply.pcbs[PST.CORE]:
+            added.update(self._handle_core_seg(pcb))
         for key in added:
             self.requests.put((key, None))
 
-    def _handle_up_seg(self, pcb, first_ia, last_ia):
+    def _handle_up_seg(self, pcb):
+        first_ia = pcb.get_first_pcbm().isd_as
+        last_ia = pcb.get_last_pcbm().isd_as
         if self.addr.isd_as != last_ia:
-            return
-        self.up_segments.update(pcb, first_ia, last_ia)
-        logging.debug("Up path added: %s", pcb.short_desc())
+            return set()
+        if self.up_segments.update(pcb) == DBResult.ENTRY_ADDED:
+            logging.debug("Up path added: %s", pcb.short_desc())
+        return set([first_ia])
 
-    def _handle_down_seg(self, pcb, first_ia, last_ia):
+    def _handle_down_seg(self, pcb):
+        last_ia = pcb.get_last_pcbm().isd_as
         if self.addr.isd_as == last_ia:
-            return
-        self.down_segments.update(pcb, first_ia, last_ia)
-        logging.debug("Down path added: %s", pcb.short_desc())
+            return set()
+        if self.down_segments.update(pcb) == DBResult.ENTRY_ADDED:
+            logging.debug("Down path added: %s", pcb.short_desc())
+        return set([last_ia])
 
-    def _handle_core_seg(self, pcb, first_ia, last_ia):
-        self.core_segments.update(pcb, first_ia, last_ia)
-        logging.debug("Core path added: %s", pcb.short_desc())
+    def _handle_core_seg(self, pcb):
+        first_ia = pcb.get_first_pcbm().isd_as
+        if self.core_segments.update(pcb) == DBResult.ENTRY_ADDED:
+            logging.debug("Core path added: %s", pcb.short_desc())
+        return set([first_ia])
 
     def api_handle_request(self, packet, sender):
         """

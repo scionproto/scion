@@ -99,12 +99,13 @@ class PathSegmentDB(object):
             recs = self._db(id=seg_id)
         return len(recs) > 0
 
-    def update(self, pcb, first_ia, last_ia):
+    def update(self, pcb):
         """
         Insert path into database.
         Return the result of the operation.
         """
-        assert isinstance(pcb, PathSegment)
+        first_ia = pcb.get_first_pcbm().isd_as
+        last_ia = pcb.get_last_pcbm().isd_as
         if self._segment_ttl:
             now = int(SCIONTime.get_time())
             record = PathSegmentDBRecord(pcb, now + self._segment_ttl)

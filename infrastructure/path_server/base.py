@@ -18,7 +18,7 @@
 # Stdlib
 import logging
 import threading
-from _collections import defaultdict
+from _collections import defaultdict, deque
 from abc import ABCMeta, abstractmethod
 
 # External packages
@@ -34,14 +34,12 @@ from lib.packet.path_mgmt import (
     PathRecordsReply,
     RevocationInfo,
 )
-from lib.packet.scion import PacketType as PT, SCIONL4Packet
-from lib.path_db import PathSegmentDB
+from lib.packet.pcb import PathSegment
+from lib.packet.scion import PacketType as PT
+from lib.path_db import DBResult, PathSegmentDB
 from lib.thread import thread_safety_net
 from lib.types import PathMgmtType as PMT, PathSegmentType as PST, PayloadClass
-from lib.util import (
-    SCIONTime,
-    sleep_interval,
-)
+from lib.util import Raw, SCIONTime, sleep_interval
 from lib.zookeeper import ZkNoConnection, ZkSharedCache, Zookeeper
 
 
@@ -55,6 +53,10 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
     ZK_PATH_CACHE_PATH = "path_cache"
     # Number of tokens the PS checks when receiving a revocation.
     N_TOKENS_CHECK = 20
+    # Max number of segments per propagation packet
+    PROP_LIMIT = 5
+    # Max number of segments per ZK cache entry
+    ZK_SHARE_LIMIT = 10
 
     def __init__(self, server_id, conf_dir, is_sim=False):
         """
@@ -75,12 +77,13 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         self.PLD_CLASS_MAP = {
             PayloadClass.PATH: {
                 PMT.REQUEST: self.path_resolution,
-                PMT.REPLY: self.dispatch_path_segment_record,
-                PMT.REG: self.dispatch_path_segment_record,
+                PMT.REPLY: self.handle_path_segment_record,
+                PMT.REG: self.handle_path_segment_record,
                 PMT.REVOCATION: self._handle_revocation,
-                PMT.SYNC: self.dispatch_path_segment_record,
+                PMT.SYNC: self.handle_path_segment_record,
             },
         }
+        self._segs_to_zk = deque()
         if is_sim:
             return
         # Add more IPs here if we support dual-stack
@@ -119,19 +122,22 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         """
         Handles cached through ZK entries, passed as a list.
         """
-        for entry in raw_entries:
-            try:
-                pkt = SCIONL4Packet(raw=entry)
-            except SCIONParseError:
-                log_exception("Error parsing cached packet: %s" % entry,
-                              level=logging.ERROR)
-                continue
-            try:
-                pkt.parse_payload()
-            except SCIONParseError:
-                log_exception("Error parsing cached payload:\n%s" % pkt)
-                continue
-            self._cached_seg_handler(pkt, from_zk=True)
+        count = 0
+        for raw in raw_entries:
+            data = Raw(raw)
+            while data:
+                type_ = data.pop(1)
+                try:
+                    pcb = PathSegment(data.get())
+                except SCIONParseError:
+                    log_exception("Error parsing cached pcb",
+                                  level=logging.ERROR)
+                    continue
+                data.pop(len(pcb))
+                count += 1
+                self._dispatch_segment_record(type_, pcb, from_zk=True)
+        if count:
+            logging.debug("Processed %s PCBs from ZK", count)
 
     def _update_master(self):
         pass
@@ -148,20 +154,28 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                 self.iftoken2seg[pm.ig_rev_token].add(segment_id)
 
     @abstractmethod
-    def _handle_up_segment_records(self, pkt):
+    def _handle_up_segment_record(self, pcb, **kwargs):
         raise NotImplementedError
 
     @abstractmethod
-    def _handle_down_segment_records(self, pkt):
+    def _handle_down_segment_record(self, pcb, **kwargs):
         raise NotImplementedError
 
     @abstractmethod
-    def _handle_core_segment_records(self, pkt):
+    def _handle_core_segment_record(self, pcb, **kwargs):
         raise NotImplementedError
 
     @abstractmethod
-    def _handle_sibra_segment_records(self, pkt):
+    def _handle_sibra_segment_record(self, pcb, **kwargs):
         raise NotImplementedError
+
+    def _add_segment(self, pcb, seg_db, name):
+        res = seg_db.update(pcb)
+        if res == DBResult.ENTRY_ADDED:
+            self._add_if_mappings(pcb)
+            logging.info("%s-Segment registered: %s", name, pcb.short_desc())
+            return True
+        return False
 
     def _handle_revocation(self, pkt):
         """
@@ -254,34 +268,47 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         if not self.pending_req[dst_ia]:
             del self.pending_req[dst_ia]
 
-    def dispatch_path_segment_record(self, pkt):
-        """
-        Dispatches path record packet.
-        """
-        # FIXME(PSz): ugly for now
-        handlers = []
-        payload = pkt.get_payload()
-        if payload.pcbs[PST.UP]:
-            handlers.append(self._handle_up_segment_records)
-        if payload.pcbs[PST.CORE]:
-            handlers.append(self._handle_core_segment_records)
-        if payload.pcbs[PST.DOWN]:
-            handlers.append(self._handle_down_segment_records)
-        if payload.pcbs[PST.SIBRA]:
-            handlers.append(self._handle_sibra_segment_records)
-        if not handlers:
-            logging.error("Unsupported path record type: %s", payload)
-            return
-
+    def handle_path_segment_record(self, pkt):
+        seg_rec = pkt.get_payload()
+        params = self._dispatch_params(pkt)
         added = set()
-        for handler in handlers:
-            added.update(handler(pkt))
-        # Handling pending request, basing on added segments.
+        for type_, pcbs in seg_rec.pcbs.items():
+            for pcb in pcbs:
+                added.update(
+                    self._dispatch_segment_record(type_, pcb, **params))
+        # Handling pending requests, basing on added segments.
+        logging.debug("handle_path_segment_record: Added: %s", added)
         for dst_ia in added:
             self._handle_pending_requests(dst_ia)
 
+    def _dispatch_segment_record(self, type_, seg, **kwargs):
+        handle_map = {
+            PST.UP: self._handle_up_segment_record,
+            PST.CORE: self._handle_core_segment_record,
+            PST.DOWN: self._handle_down_segment_record,
+            PST.SIBRA: self._handle_sibra_segment_record,
+        }
+        return handle_map[type_](seg, **kwargs)
+
+    def _dispatch_params(self, pkt):
+        return {}
+
     def _propagate_and_sync(self):
-        pass
+        self._share_via_zk()
+
+    def _gen_prop_recs(self, queue, limit=PROP_LIMIT):
+        count = 0
+        pcbs = defaultdict(list)
+        while queue:
+            count += 1
+            type_, pcb = queue.popleft()
+            pcbs[type_].append(pcb)
+            if count >= limit:
+                yield(pcbs)
+                count = 0
+                pcbs = defaultdict(list)
+        if pcbs:
+            yield(pcbs)
 
     @abstractmethod
     def path_resolution(self, path_request):
@@ -302,25 +329,26 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             self._send_to_next_hop(req_pkt, path.get_fwd_if())
             logging.info("PATH_REQ sent using (first) registered up-path")
 
-    def _share_segments(self, pkt):
-        """
-        Share path segments (via ZK) with other path servers.
-        """
-        pkt_packed = pkt.pack()
-        pkt_hash = SHA256.new(pkt_packed).hexdigest()
-        try:
-            self.path_cache.store("%s-%s" % (pkt_hash, SCIONTime.get_time()),
-                                  pkt_packed)
-        except ZkNoConnection:
-            logging.warning("Unable to store segment in shared path: "
-                            "no connection to ZK")
+    def _share_via_zk(self):
+        if not self._segs_to_zk:
             return
-        payload = pkt.get_payload()
-        descs = []
-        for pcbs in payload.pcbs.values():
-            for pcb in pcbs:
-                descs.append(pcb.short_desc())
-        logging.debug("Segment(s) stored in ZK: %s", "  \n".join(descs))
+        logging.info("Sharing %d segment(s) via ZK", len(self._segs_to_zk))
+        for pcb_dict in self._gen_prop_recs(self._segs_to_zk,
+                                            limit=self.ZK_SHARE_LIMIT):
+            data = []
+            for type_, pcbs in pcb_dict.items():
+                for pcb in pcbs:
+                    data.append(bytes([type_]))
+                    data.append(pcb.pack())
+            self._zk_write(b"".join(data))
+
+    def _zk_write(self, data):
+        hash_ = SHA256.new(data).hexdigest()
+        try:
+            self.path_cache.store("%s-%s" % (hash_, SCIONTime.get_time()), data)
+        except ZkNoConnection:
+            logging.warning("Unable to store segment(s) in shared path: "
+                            "no connection to ZK")
 
     def run(self):
         """
