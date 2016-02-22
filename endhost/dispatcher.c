@@ -64,6 +64,7 @@ void registerSSP(char *buf, int len, struct sockaddr_in *addr)
         if (reg)
             HASH_ADD(hh, SSPWildcards, port, 2, e);
     }
+    free(e);
     printf("registration success\n");
     reply(1, addr);
 }
@@ -82,6 +83,7 @@ void registerUDP(char *buf, int len, struct sockaddr_in *addr)
     e->addr = *addr;
     e->port = port;
     HASH_REPLACE(hh, UDPPorts, port, 2, e, old);
+    free(e);
     printf("registration success\n");
     reply(1, addr);
 }
@@ -200,7 +202,7 @@ void * dataHandler(void *arg)
 int main(int argc, char **argv)
 {
     if (argc != 2) {
-        fprintf(stderr, "usage: %s host_addresss\n", argv[0]);
+        fprintf(stderr, "usage: %s host_address\n", argv[0]);
         return 1;
     }
 
