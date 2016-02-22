@@ -73,6 +73,11 @@ class Link(object):
                 logging.info("Adding segment for interface %s: %s",
                              self.id, pcb.short_desc())
             self.segments[hops] = pcb
+            self._update_seg_steadies(pcb)
+
+    def _update_seg_steadies(self, pcb):
+        for steady in self.steadies.values():
+            steady.update_seg(pcb)
 
     def steady_add(self):
         """
