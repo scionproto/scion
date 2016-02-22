@@ -17,18 +17,16 @@
 """
 # Stdlib
 import logging
-from collections import defaultdict, deque
+from collections import deque
 
 # SCION
 from infrastructure.path_server.base import PathServer
 from lib.packet.host_addr import haddr_parse
 from lib.packet.path_mgmt import (
     PathRecordsReply,
-    PathRecordsSync,
     PathSegmentInfo,
 )
 from lib.packet.scion import PacketType as PT
-from lib.path_db import DBResult
 from lib.types import PathMgmtType as PMT, PathSegmentType as PST
 from lib.zookeeper import ZkNoConnection
 
@@ -39,8 +37,6 @@ class CorePathServer(PathServer):
     core segments and forwards inter-ISD path requests to the corresponding path
     server.
     """
-    PROP_LIMIT = 5  # Max number of segments per propagation packet
-
     def __init__(self, server_id, conf_dir, is_sim=False):
         """
         :param str server_id: server identifier.
@@ -51,7 +47,6 @@ class CorePathServer(PathServer):
         # Sanity check that we should indeed be a core path server.
         assert self.topology.is_core_as, "This shouldn't be a local PS!"
         self._master_id = None  # Address of master core Path Server.
-        self._cached_seg_handler = self._handle_core_segment_records
         self._segs_to_master = deque()
         self._segs_to_prop = deque()
 
@@ -82,14 +77,15 @@ class CorePathServer(PathServer):
         if not master or self._is_master():
             logging.warning('Sync abandoned: master not set or I am a master')
             return
-        seen_ases = set()
-        # Get core-segments from remote ISDs.
-        # FIXME(PSz): quite ugly for now.
-        core_segs = [r['record'].pcb for r in self.core_segments._db
-                     if r['first_isd'] != self.addr.isd_as[0]]
-        # Get down-segments from local ISD.
+        core_segs = []
+        # Find all core segments from remote ISDs
+        for pcb in self.core_segments(full=True):
+            if pcb.get_first_pcbm().isd_as[0] != self.addr.isd_as[0]:
+                core_segs.append(pcb)
+        # Find down-segments from local ISD.
         down_segs = self.down_segments(full=True, last_isd=self.addr.isd_as[0])
         logging.debug("Syncing with %s" % master)
+        seen_ases = set()
         for seg_type, segs in [(PST.CORE, core_segs), (PST.DOWN, down_segs)]:
             for pcb in segs:
                 key = pcb.get_first_pcbm().isd_as, pcb.get_last_pcbm().isd_as
@@ -98,158 +94,105 @@ class CorePathServer(PathServer):
                     continue
                 seen_ases.add(key)
                 self._segs_to_prop.append((seg_type, pcb))
-        for seg in self.sibra_segments():
+        for seg in self.sibra_segments(full=True):
             self._segs_to_prop.append((PST.SIBRA, seg))
 
     def _is_master(self):
-        """
-        Return True when instance is master Core Path Server, False otherwise.
-        """
         return self._master_id == str(self.addr.host)
 
-    def _handle_up_segment_records(self, pkt):
+    def _handle_up_segment_record(self, pcb, **kwargs):
         logging.error("Core Path Server received up-segment record!")
+        return set()
 
-    def _handle_down_segment_records(self, pkt):
-        return self._handle_local_segment_records(pkt, PST.DOWN)
+    def _handle_down_segment_record(self, pcb, from_master=False):
+        added = self._add_segment(pcb, self.down_segments, "Down")
+        self._local_seg_prop(pcb, PST.DOWN, from_master)
+        if added:
+            return set([pcb.get_last_pcbm().isd_as])
+        return set()
 
-    def _handle_sibra_segment_records(self, pkt):
-        return self._handle_local_segment_records(pkt, PST.SIBRA)
+    def _handle_sibra_segment_record(self, pcb, from_master=False):
+        added = self._add_segment(pcb, self.sibra_segments, "Down")
+        self._local_seg_prop(pcb, PST.SIBRA, from_master)
+        if added:
+            return set([pcb.get_last_pcbm().isd_as])
+        return set()
 
-    def _handle_local_segment_records(self, pkt, type_):
-        """
-        Handle registration of a down/sibra segment. Return a set of added
-        destinations.
-        """
-        added = set()
-        records = pkt.get_payload()
-        if not records.pcbs[type_]:
-            return added
-        from_master = self._from_master(pkt)
-        for pcb in records.pcbs[type_]:
-            added.update(self._add_local_segment(
-                pkt.addrs.src.isd_as, pcb, from_master, type_))
-        return added
-
-    def _add_local_segment(self, pkt_src, pcb, from_master, type_):
-        src_ia = pcb.get_first_pcbm().isd_as
-        dst_ia = pcb.get_last_pcbm().isd_as
-        added = set()
-        name = "Down"
-        segdb = self.down_segments
-        if type_ == PST.SIBRA:
-            name = "Sibra"
-            segdb = self.sibra_segments
-        res = segdb.update(pcb, src_ia, dst_ia)
-        if res == DBResult.NONE:
-            logging.info("%s-Segment already known: %s", name, pcb.short_desc())
-        elif res == DBResult.ENTRY_ADDED:
-            self._add_if_mappings(pcb)
-            added.add(dst_ia)
-            logging.info("%s-Segment registered: %s", name, pcb.short_desc())
-        if dst_ia == pkt_src:
-            # If this segment was registered with us by the destination AS,
-            # propagate to all other core ASes within this ISD.
+    def _local_seg_prop(self, pcb, type_, from_master):
+        first_ia = pcb.get_first_pcbm().isd_as
+        last_ia = pcb.get_last_pcbm().isd_as
+        if first_ia == self.addr.isd_as:
+            # Segment is to us, so propagate to all other core ASes within the
+            # local ISD.
             self._segs_to_prop.append((type_, pcb))
-        if (src_ia[0] == dst_ia[0] == self.addr.isd_as[0] and not from_master):
-            # Master replicates all seen segments from ISD.
+        if (first_ia[0] == last_ia[0] == self.addr.isd_as[0] and not
+                from_master):
+            # Master gets a copy of all local segments.
             self._segs_to_master.append((type_, pcb))
-        return added
 
-    def _handle_core_segment_records(self, pkt, from_zk=False):
-        """
-        Handle registration of a core segment. Return a set of added
-        destinations.
-        """
-        added = set()
-        records = pkt.get_payload()
-        if not records.pcbs[PST.CORE]:
-            return added
-        from_master = self._from_master(pkt)
-        # Does this packet contain only PCBs from the local ISD?
-        # FIXME(kormat): this logic isn't good. We should switch to sharing
-        # segments instead of packets.
-        pcb_from_local_isd = True
-        for pcb in records.pcbs[PST.CORE]:
-            pcb_added, pcb_local = self._add_core_segment(
-                pcb, from_master, from_zk)
-            added.update(pcb_added)
-            pcb_from_local_isd &= pcb_local
-        if not from_zk and not from_master and records.PAYLOAD_TYPE != PMT.SYNC:
-            if pcb_from_local_isd:
-                # Packet contains only local PCBs, share via ZK.
-                self._share_segments(pkt)
-            # Send segments to master.
-            elif self._master_id and not self._is_master():
-                self._send_to_master(records)
+    def _handle_core_segment_record(self, pcb, from_master=False,
+                                    from_zk=False):
+        """Handle registration of a core segment."""
+        first_ia = pcb.get_first_pcbm().isd_as
+        added = self._add_segment(pcb, self.core_segments, "Core")
+        if not from_zk and not from_master:
+            if first_ia[0] == self.addr.isd_as[0]:
+                # Local core segment, share via ZK
+                self._segs_to_zk.append((PST.CORE, pcb))
+            elif self._master_id:
+                # Remote core segment, send to master
+                self._segs_to_master.append((PST.CORE, pcb))
+        if not added:
+            return set()
         # Send pending requests that couldn't be processed due to the lack of
         # a core segment to the destination PS.
-        self._handle_waiting_targets(records.pcbs[PST.CORE][0])
-        return added
-
-    def _add_core_segment(self, pcb, from_master, from_zk):
-        src_ia = pcb.get_last_pcbm().isd_as
-        dst_ia = pcb.get_first_pcbm().isd_as
-        added = set()
-        res = self.core_segments.update(pcb, dst_ia, src_ia)
-        if res == DBResult.ENTRY_ADDED:
-            self._add_if_mappings(pcb)
-            added.add(dst_ia)
-            if dst_ia[0] != self.addr.isd_as[0]:
-                # Mark that a segment to remote ISD was added.
-                added.add(dst_ia.any_as())
-            logging.info("Core-Segment registered (from zk: %s): %s",
-                         from_zk, pcb.short_desc())
+        self._handle_waiting_targets(pcb)
+        if first_ia[0] == self.addr.isd_as[0]:
+            # Local core segment, just signal the specific AS
+            return set([first_ia])
         else:
-            logging.info("Core-Segment already known (from zk: %s): %s",
-                         from_zk, pcb.short_desc())
-        return added, dst_ia[0] == self.addr.isd_as[0]
+            # Remote core segment, signal the entire ISD
+            return set([first_ia.any_as()])
 
-    def _from_master(self, pkt):
+    def _dispatch_params(self, pkt):
         pld = pkt.get_payload()
-        return (pkt.addrs.src.isd_as == self.addr.isd_as and
-                pld.PAYLOAD_TYPE == PMT.REPLY)
+        params = {}
+        if (pkt.addrs.src.isd_as == self.addr.isd_as and
+                pld.PAYLOAD_TYPE == PMT.REPLY):
+            params["from_master"] = True
+        return params
 
     def _propagate_and_sync(self):
-        if self._segs_to_prop:
-            logging.info("Propagating %d segment(s) to other core ASes",
-                         len(self._segs_to_prop))
+        super()._propagate_and_sync()
+        self._prop_to_core()
+        self._prop_to_master()
+
+    def _prop_to_core(self):
+        if not self._segs_to_prop:
+            return
+        logging.info("Propagating %d segment(s) to other core ASes",
+                     len(self._segs_to_prop))
         for pcbs in self._gen_prop_recs(self._segs_to_prop):
-            self._propagate_to_core_ases(self._build_prop_recs(pcbs))
+            self._propagate_to_core_ases(PathRecordsReply.from_values(pcbs))
+
+    def _prop_to_master(self):
         if self._is_master():
             self._segs_to_master.clear()
             return
-        if self._segs_to_master:
-            logging.info("Propagating %d segment(s) to master PS",
-                         len(self._segs_to_master))
+        if not self._segs_to_master:
+            return
+        logging.info("Propagating %d segment(s) to master PS",
+                     len(self._segs_to_master))
         for pcbs in self._gen_prop_recs(self._segs_to_master):
-            self._send_to_master(self._build_prop_recs(pcbs, sync=True))
-
-    def _gen_prop_recs(self, queue):
-        count = 0
-        pcbs = defaultdict(list)
-        while queue:
-            count += 1
-            type_, pcb = queue.popleft()
-            pcbs[type_].append(pcb)
-            if count >= self.PROP_LIMIT:
-                yield(pcbs)
-                count = 0
-                pcbs = defaultdict(list)
-        if pcbs:
-            yield(pcbs)
-
-    def _build_prop_recs(self, pcbs, sync=False):
-        cls_ = PathRecordsReply
-        if sync:
-            cls_ = PathRecordsSync
-        return cls_.from_values(pcbs)
+            self._send_to_master(PathRecordsReply.from_values(pcbs))
 
     def _send_to_master(self, pld):
         """
         Send the payload to the master PS.
         """
         master = self._master_id
+        if self._is_master():
+            return
         if not master:
             logging.warning("_send_to_master(): _master_id not set.")
             return
@@ -267,8 +210,7 @@ class CorePathServer(PathServer):
         if src_ia is None:
             src_ia = self.addr.isd_as
         info = PathSegmentInfo.from_values(seg_type, src_ia, dst_ia)
-        logging.debug("Asking master for segment (%s): %s > %s" %
-                      (PST.to_str(seg_type), src_ia, dst_ia))
+        logging.debug("Asking master for segment: %s" % info)
         self._send_to_master(info)
 
     def _propagate_to_core_ases(self, rep_recs):
@@ -280,13 +222,13 @@ class CorePathServer(PathServer):
                 continue
             csegs = self.core_segments(first_ia=isd_as,
                                        last_ia=self.addr.isd_as)
-            if csegs:
-                cseg = csegs[0].get_path(reverse_direction=True)
-                pkt = self._build_packet(PT.PATH_MGMT, dst_ia=isd_as,
-                                         path=cseg, payload=rep_recs)
-                self._send_to_next_hop(pkt, cseg.get_fwd_if())
-            else:
+            if not csegs:
                 logging.warning("Segment to AS %s not found.", isd_as)
+                continue
+            cseg = csegs[0].get_path(reverse_direction=True)
+            pkt = self._build_packet(PT.PATH_MGMT, dst_ia=isd_as, path=cseg,
+                                     payload=rep_recs)
+            self._send_to_next_hop(pkt, cseg.get_fwd_if())
 
     def path_resolution(self, pkt, new_request=True):
         """
@@ -317,12 +259,11 @@ class CorePathServer(PathServer):
             if new_request:
                 logging.debug("Segs to %s not found." % dst_ia)
             else:
-                # That could happend when a needed segment has expired.
+                # That could happen when a needed segment has expired.
                 logging.warning("Handling pending request and needed segment "
                                 "is missing. Shouldn't be here (too often).")
             return False
 
-        logging.debug("Sending segments to %s" % dst_ia)
         self._send_path_segments(pkt, None, core_seg, down_seg)
         return True
 
