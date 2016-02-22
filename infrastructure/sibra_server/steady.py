@@ -28,6 +28,7 @@ from lib.defines import (
     SIBRA_MAX_STEADY_TICKS,
     SIBRA_TICK,
 )
+from infrastructure.sibra_server.util import seg_to_hops
 from lib.errors import SCIONBaseError
 from lib.packet.path import EmptyPath
 from lib.packet.path_mgmt import PathRecordsReg
@@ -41,8 +42,8 @@ from lib.sibra.payload import SIBRAPayload
 from lib.sibra.pcb_ext.info import SibraSegInfo
 from lib.sibra.pcb_ext.sof import SibraSegSOF
 from lib.sibra.util import current_tick, tick_to_time
-from lib.util import SCIONTime, hex_str
 from lib.types import PathSegmentType as PST
+from lib.util import SCIONTime, hex_str
 
 RESV_LEN = SIBRA_MAX_STEADY_TICKS - 1
 STATE_SETUP = 0
@@ -108,6 +109,14 @@ class SteadyPath(object):
         logging.debug("Sending renewal request:\n%s", ext)
         pkt = self._create_sibra_pkt(ext)
         self.sendq.put(pkt)
+
+    def update_seg(self, new_seg):
+        with self._lock:
+            old_hops = seg_to_hops(self.seg)
+            new_hops = seg_to_hops(new_seg)
+            if old_hops != new_hops:
+                return
+            self.seg = new_seg
 
     def process_reply(self, pkt, ext):
         with self._lock:
@@ -253,7 +262,7 @@ class SteadyPath(object):
         udp_hdr = SCIONUDPHeader.from_values(
             self.addr, SCION_UDP_PORT, dest, SCION_UDP_PORT, pld)
         return SCIONL4Packet.from_values(
-            cmn_hdr, addr_hdr, self.seg.get_path(True), [], udp_hdr, pld)
+            cmn_hdr, addr_hdr, path, [], udp_hdr, pld)
 
     def __str__(self):
         with self._lock:
