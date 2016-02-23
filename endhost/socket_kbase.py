@@ -114,7 +114,7 @@ class SocketKnowledgeBase(object):
         :type soc: SCION-socket
         """
         if soc.is_alive():
-            new_stats = soc.getStats()
+            new_stats = soc.get_stats()
             if new_stats is not None:
                 method, path = SOC2REQ[soc]
                 self.kbase[(method, path)] = new_stats
@@ -122,7 +122,7 @@ class SocketKnowledgeBase(object):
     def _collect_stats(self):
         """
         Iterate through the list of all currently active sockets and call
-        getStats() on them.
+        get_stats() on them.
         """
         while True:
             logging.debug("Socket stats:")

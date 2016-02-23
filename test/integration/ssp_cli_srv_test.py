@@ -106,8 +106,8 @@ def client():
     # firstly, act as a sender
     _run_send_protocol(client_sock)
 
-    # sanity check on getStats function
-    stats = client_sock.getStats()
+    # sanity check on get_stats function
+    stats = client_sock.get_stats()
     if stats:
         logging.info("interfaces for path 0:")
         for i in range(stats.if_counts[0]):

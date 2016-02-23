@@ -108,7 +108,7 @@ class C_SCIONOption(Structure):
 class ScionStats(object):
     """
     Python class containing SCION socket traffic data.
-    This class should ONLY be instantiated by the getStats call in
+    This class should ONLY be instantiated by the get_stats call in
     ScionBaseSocket.
     """
 
@@ -120,7 +120,7 @@ class ScionStats(object):
         getStats() call. Allows Python wrapper user to not worry about
         dereferencing pointers or freeing memory.
 
-        :param stats: Struct returned by ScionBaseSocket.getStats()
+        :param stats: Struct returned by ScionBaseSocket.get_stats()
         :type: C_SCIONStats
         """
         self.received_packets = []
@@ -302,7 +302,7 @@ class ScionBaseSocket(object):
         """
         return self.fd
 
-    def getStats(self):
+    def get_stats(self):
         """
         Allocates and returns structure containing information about socket
         traffic.
