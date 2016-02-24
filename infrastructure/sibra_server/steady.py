@@ -30,6 +30,7 @@ from lib.defines import (
 )
 from infrastructure.sibra_server.util import seg_to_hops
 from lib.errors import SCIONBaseError
+from lib.flagtypes import PathSegFlags as PSF
 from lib.packet.path import EmptyPath
 from lib.packet.path_mgmt import PathRecordsReg
 from lib.packet.scion import PacketType as PT
@@ -229,16 +230,16 @@ class SteadyPath(object):
             cmn_hdr, addr_hdr, EmptyPath(), [ext], udp_hdr, payload)
 
     def _register_path(self):
-        pld = self._create_reg_pld()
-        pkt = self._create_reg_pkt(pld)
+        pcb = self._create_reg_pcb()
+        pkt = self._create_reg_pkt(pcb)
         logging.debug("Registering path with local path server")
         self.sendq.put(pkt)
-        pkt = self._create_reg_pkt(pld, self.remote, self.seg.get_path(True))
+        pkt = self._create_reg_pkt(pcb, core=True)
         logging.debug("Registering path with core path server in %s",
                       self.remote)
         self.sendq.put(pkt)
 
-    def _create_reg_pld(self):
+    def _create_reg_pcb(self):
         pcb = copy.deepcopy(self.seg)
         # TODO(kormat): It might make sense to remove peer markings also, but
         # they might also be needed for sibra steady paths that traverse peer
@@ -250,14 +251,20 @@ class SteadyPath(object):
         last_asm = pcb.ases[-1]
         last_asm.add_ext(SibraSegInfo.from_values(self.id, latest.info))
         last_asm.sig = sign(pcb.pack(), self.signing_key)
-        return PathRecordsReg.from_values({PST.SIBRA: [pcb]})
+        pcb.flags |= PSF.SIBRA
+        return pcb
 
-    def _create_reg_pkt(self, pld, dest_ia=None, path=None):
-        if not dest_ia:
-            dest_ia = self.addr.isd_as
-        if not path:
+    def _create_reg_pkt(self, pcb, core=False):
+        if core:
+            dst_ia = self.remote
+            path = self.seg.get_path(True)
+            type_ = PST.DOWN
+        else:
+            dst_ia = self.addr.isd_as
             path = EmptyPath()
-        dest = SCIONAddr.from_values(dest_ia, PT.PATH_MGMT)
+            type_ = PST.UP
+        pld = PathRecordsReg.from_values({type_: [pcb]})
+        dest = SCIONAddr.from_values(dst_ia, PT.PATH_MGMT)
         cmn_hdr, addr_hdr = build_base_hdrs(self.addr, dest)
         udp_hdr = SCIONUDPHeader.from_values(
             self.addr, SCION_UDP_PORT, dest, SCION_UDP_PORT, pld)

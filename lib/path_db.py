@@ -69,7 +69,7 @@ class PathSegmentDBRecord(object):
 
 class PathSegmentDB(object):
     """Simple database for paths using PyDBLite"""
-    def __init__(self, segment_ttl=None, max_res_no=None):
+    def __init__(self, segment_ttl=None, max_res_no=None):  # pragma: no cover
         """
         :param int segment_ttl:
             The TTL for each record in the database (in s) or None to just use
@@ -78,7 +78,7 @@ class PathSegmentDB(object):
         """
         self._db = Base("", save_to_file=False)
         self._db.create('record', 'id', 'first_isd', 'first_as', 'last_isd',
-                        'last_as', mode='override')
+                        'last_as', 'sibra', mode='override')
         self._db.create_index('id')
         self._db.create_index('last_isd')
         self._db.create_index('last_as')
@@ -112,12 +112,12 @@ class PathSegmentDB(object):
         else:
             record = PathSegmentDBRecord(pcb)
         with self._lock:
-            recs = self._db(id=record.id)
+            recs = self._db(id=record.id, sibra=pcb.is_sibra())
             assert len(recs) <= 1, "PathDB contains > 1 path with the same ID"
             if not recs:
                 self._db.insert(
                     record, record.id, first_ia[0], first_ia[1],
-                    last_ia[0], last_ia[1])
+                    last_ia[0], last_ia[1], pcb.is_sibra())
                 return DBResult.ENTRY_ADDED
             cur_rec = recs[0]['record']
             if pcb.get_expiration_time() < cur_rec.pcb.get_expiration_time():
@@ -173,6 +173,8 @@ class PathSegmentDB(object):
         if last_ia:
             kwargs["last_isd"] = last_ia[0]
             kwargs["last_as"] = last_ia[1]
+        if "sibra" not in kwargs:
+            kwargs["sibra"] = False
         with self._lock:
             recs = self._db(*args, **kwargs)
             # Remove expired path from the cache.

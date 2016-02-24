@@ -241,7 +241,7 @@ class TestPathSegmentParse(object):
         inst = PathSegment()
         inst._parse_hops = create_mock()
         data = create_mock(["pop", "offset"])
-        data.pop.side_effect = "pop iof", bytes(range(6)), "pop seg id"
+        data.pop.side_effect = "pop iof", bytes(range(7)), "pop seg id"
         raw.return_value = data
         # Call
         ntools.eq_(inst._parse("data"), data.offset.return_value)
@@ -252,6 +252,7 @@ class TestPathSegmentParse(object):
         ntools.eq_(inst.iof, iof.return_value)
         ntools.eq_(inst.trc_ver, 0x00010203)
         ntools.eq_(inst.if_id, 0x0405)
+        ntools.eq_(inst.flags, 0x06)
         inst._parse_hops.assert_called_once_with(data)
 
 
@@ -285,13 +286,14 @@ class TestPathSegmentPack(object):
         inst = PathSegment()
         inst.iof = create_mock(['pack'])
         inst.iof.pack.return_value = b'packed_iof'
-        (inst.trc_ver, inst.if_id) = (1, 2)
+        inst.trc_ver, inst.if_id, inst.flags = 1, 2, 3
         for i in range(2):
             marking = create_mock(["pack"])
             marking.pack.return_value = bytes("asm%d" % i, "ascii")
             inst.ases.append(marking)
         expected = b"".join([
-            b'packed_iof', bytes.fromhex("00 00 00 01 00 02"), b'asm0', b'asm1',
+            b'packed_iof', bytes.fromhex("00 00 00 01 00 02 03"),
+            b'asm0', b'asm1',
         ])
         # Call
         ntools.eq_(inst.pack(), expected)

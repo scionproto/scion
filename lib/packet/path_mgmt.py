@@ -24,6 +24,7 @@ from collections import defaultdict
 # SCION
 from lib.types import PathMgmtType as PMT, PathSegmentType as PST
 from lib.errors import SCIONParseError
+from lib.flagtypes import PathSegFlags as PSF
 from lib.packet.packet_base import PathMgmtPayloadBase
 from lib.packet.pcb import PathSegment
 from lib.packet.scion_addr import ISD_AS
@@ -31,18 +32,15 @@ from lib.packet.rev_info import RevocationInfo
 from lib.util import Raw
 
 
-class PathSegmentInfo(PathMgmtPayloadBase):
-    """
-    PathSegmentInfo class used in sending path requests/replies. May be nested
-    under other path management payloads.
-    """
-    NAME = "PathSegmentInfo"
+class PathSegmentReq(PathMgmtPayloadBase):
+    """Describes a request for path segment(s)"""
+    NAME = "PathSegmentReq"
     PAYLOAD_TYPE = PMT.REQUEST
     LEN = 1 + 2 * ISD_AS.LEN
 
     def __init__(self, raw=None):  # pragma: no cover
         super().__init__()
-        self.seg_type = None
+        self.flags = 0
         self.src_ia = None
         self.dst_ia = None
         if raw:
@@ -53,34 +51,39 @@ class PathSegmentInfo(PathMgmtPayloadBase):
         Populates fields from a raw bytes block.
         """
         data = Raw(raw, self.NAME, self.LEN)
-        self.seg_type = data.pop(1)
+        self.flags = data.pop(1)
         self.src_ia = ISD_AS(data.pop(ISD_AS.LEN))
         self.dst_ia = ISD_AS(data.pop(ISD_AS.LEN))
 
     @classmethod
-    def from_values(cls, seg_type, src_ia, dst_ia):  # pragma: no cover
+    def from_values(cls, src_ia, dst_ia, flags=0):  # pragma: no cover
         """
-        Returns PathSegmentInfo with fields populated from values.
-        :param PathSegmentType seg_type: segment type
-        :param ISD_AS src_ia: source ISD-AS
-        :param ISD_AS dst_ia: destination ISD-AS
+        Returns PathSegmentReq with fields populated from values.
+
+        :params int flags: PathSegmentFlags values
         """
+        assert isinstance(src_ia, ISD_AS)
+        assert isinstance(dst_ia, ISD_AS)
+        assert isinstance(flags, int)
         inst = cls()
-        inst.seg_type = seg_type
+        inst.flags = flags
         inst.src_ia = src_ia
         inst.dst_ia = dst_ia
         return inst
 
     def pack(self):
         packed = []
-        packed.append(struct.pack("!B", self.seg_type))
+        packed.append(struct.pack("!B", self.flags))
         packed.append(self.src_ia.pack())
         packed.append(self.dst_ia.pack())
         return b"".join(packed)
 
     def short_desc(self):  # pragma: no cover
-        return "%s %s -> %s" % (PST.to_str(self.seg_type), self.src_ia,
-                                self.dst_ia)
+        return "%s -> %s. Flags: %s" % (
+            self.src_ia, self.dst_ia, PSF.to_str(self.flags))
+
+    def sibra(self):  # pragma: no cover
+        return bool(self.flags & PSF.SIBRA)
 
     def __len__(self):  # pragma: no cover
         return self.LEN
@@ -92,8 +95,7 @@ class PathSegmentInfo(PathMgmtPayloadBase):
 class PathSegmentRecords(PathMgmtPayloadBase):
     """
     Path Record class used for sending list of down/up-paths. Paths are
-    represented as objects of the PathSegment class. Type of a path is
-    determined through info field (object of PathSegmentInfo).
+    represented as objects of the PathSegment class.
     """
     MIN_LEN = 1 + PathSegment.MIN_LEN
 
@@ -140,7 +142,7 @@ class PathSegmentRecords(PathMgmtPayloadBase):
     def __str__(self):
         s = []
         s.append("%s(%dB):" % (self.NAME, len(self)))
-        for type_ in [PST.UP, PST.DOWN, PST.CORE, PST.SIBRA]:
+        for type_ in [PST.UP, PST.DOWN, PST.CORE]:
             if self.pcbs[type_]:
                 s.append("  %s:" % PST.to_str(type_))
                 for pcb in self.pcbs[type_]:
@@ -314,7 +316,7 @@ class IFStateRequest(PathMgmtPayloadBase):
 
 
 _TYPE_MAP = {
-    PMT.REQUEST: (PathSegmentInfo, PathSegmentInfo.LEN),
+    PMT.REQUEST: (PathSegmentReq, PathSegmentReq.LEN),
     PMT.REPLY: (PathRecordsReply, None),
     PMT.REG: (PathRecordsReg, None),
     PMT.SYNC: (PathRecordsSync, None),

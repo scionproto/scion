@@ -27,6 +27,7 @@ from Crypto.Hash import SHA256
 # SCION
 from lib.defines import EXP_TIME_UNIT
 from lib.errors import SCIONParseError
+from lib.flagtypes import PathSegFlags as PSF
 from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
 from lib.packet.packet_base import SCIONPayloadBase
 from lib.packet.path import CorePath
@@ -250,7 +251,7 @@ class ASMarking(MarkingBase):
 
     def find_ext(self, type_):
         for ext in self.ext:
-            if ext.TYPE == type_:
+            if ext.EXT_TYPE == type_:
                 return ext
 
     def __len__(self):  # pragma: no cover
@@ -299,13 +300,14 @@ class PathSegment(SCIONPayloadBase):
     NAME = "PathSegment"
     PAYLOAD_CLASS = PayloadClass.PCB
     PAYLOAD_TYPE = PCBType.SEGMENT
-    MIN_LEN = InfoOpaqueField.LEN + 4 + 2
+    MIN_LEN = InfoOpaqueField.LEN + 4 + 2 + 1
 
     def __init__(self, raw=None):  # pragma: no cover
         super().__init__()
         self.iof = None
         self.trc_ver = 0
         self.if_id = 0
+        self.flags = 0
         self.ases = []
         self.min_exp_time = 2 ** 8 - 1  # TODO: eliminate 8 as magic number
         if raw:
@@ -317,10 +319,14 @@ class PathSegment(SCIONPayloadBase):
         """
         data = Raw(raw, self.NAME, self.MIN_LEN, min_=True)
         self.iof = InfoOpaqueField(data.pop(InfoOpaqueField.LEN))
-        # 4B for trc_ver and 2B for if_id.
-        self.trc_ver, self.if_id = struct.unpack("!IH", data.pop(6))
+        # 4B for trc_ver, 2B for if_id, 1B for flags.
+        self.trc_ver, self.if_id, self.flags = struct.unpack("!IHB",
+                                                             data.pop(7))
         self._parse_hops(data)
         return data.offset()
+
+    def is_sibra(self):
+        return bool(self.flags & PSF.SIBRA)
 
     def _parse_hops(self, data):
         for _ in range(self.iof.hops):
@@ -331,15 +337,16 @@ class PathSegment(SCIONPayloadBase):
             self.add_as(ASMarking(data.pop(as_len)))
 
     @classmethod
-    def from_values(cls, iof):  # pragma: no cover
+    def from_values(cls, iof, flags=0):  # pragma: no cover
         inst = cls()
         inst.iof = iof
+        inst.flags = flags
         return inst
 
     def pack(self):
         packed = []
         packed.append(self.iof.pack())
-        packed.append(struct.pack("!IH", self.trc_ver, self.if_id))
+        packed.append(struct.pack("!IHB", self.trc_ver, self.if_id, self.flags))
         for asm in self.ases:
             packed.append(asm.pack())
         return b"".join(packed)
@@ -532,6 +539,7 @@ class PathSegment(SCIONPayloadBase):
                 if ext_desc:
                     exts.append(ext_desc)
         desc.append(" > ".join(hops))
+        desc.append(" Flags: %s" % PSF.to_str(self.flags))
         if exts:
             return "%s\n  %s" % ("".join(desc), "\n  ".join(exts))
         return "".join(desc)
@@ -548,6 +556,7 @@ class PathSegment(SCIONPayloadBase):
         s.append("%s(%dB):" % (self.NAME, len(self)))
         s.append("  %s" % self.iof)
         s.append("  trc_ver: %d, if_id: %d" % (self.trc_ver, self.if_id))
+        s.append(" Flags: %s" % PSF.to_str(self.flags))
         for asm in self.ases:
             s.append("  %s" % asm)
         return "\n".join(s)

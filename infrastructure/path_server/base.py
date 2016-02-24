@@ -65,13 +65,11 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         :param bool is_sim: running on simulator
         """
         super().__init__(server_id, conf_dir, is_sim=is_sim)
-        # TODO replace by pathstore instance
         self.down_segments = PathSegmentDB(max_res_no=self.MAX_SEG_NO)
-        # Core segments are in direction of the propagation.
         self.core_segments = PathSegmentDB(max_res_no=self.MAX_SEG_NO)
-        self.sibra_segments = PathSegmentDB(max_res_no=self.MAX_SEG_NO)
         self.pending_req = defaultdict(list)  # Dict of pending requests.
-        self.waiting_targets = set()  # Used when l/cPS doesn't have up/dw-path.
+        # Used when l/cPS doesn't have up/dw-path.
+        self.waiting_targets = defaultdict(list)
         self.revocations = ExpiringDict(1000, 300)
         self.iftoken2seg = defaultdict(set)
         self.PLD_CLASS_MAP = {
@@ -165,10 +163,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
     def _handle_core_segment_record(self, pcb, **kwargs):
         raise NotImplementedError
 
-    @abstractmethod
-    def _handle_sibra_segment_record(self, pcb, **kwargs):
-        raise NotImplementedError
-
     def _add_segment(self, pcb, seg_db, name):
         res = seg_db.update(pcb)
         if res == DBResult.ENTRY_ADDED:
@@ -228,45 +222,46 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         next_hop = self.ifid2addr[if_id]
         self.send(pkt, next_hop)
 
-    def _send_path_segments(self, pkt, up=None, core=None, down=None,
-                            sibra=None):
+    def _send_path_segments(self, pkt, up=None, core=None, down=None):
         """
         Sends path-segments to requester (depending on Path Server's location).
         """
         up = up or set()
         core = core or set()
         down = down or set()
-        sibra = sibra or set()
-        if not (up | core | down | sibra):
+        if not (up | core | down):
             logging.warning("No segments to send")
+            return
+        seg_req = pkt.get_payload()
         rep_pkt = pkt.reversed_copy()
         rep_pkt.set_payload(PathRecordsReply.from_values(
-            {PST.UP: up, PST.CORE: core, PST.DOWN: down, PST.SIBRA: sibra},
+            {PST.UP: up, PST.CORE: core, PST.DOWN: down},
         ))
         rep_pkt.addrs.src.host = self.addr.host
         next_hop, port = self.get_first_hop(rep_pkt)
         if next_hop is None:
-            logging.error("Next hop is None for Interface %d",
+            logging.error("Next hop is None for Interface %s",
                           rep_pkt.path.get_fwd_if())
             return
         logging.info(
-            "Sending PATH_REPLY with %d segment(s) to:%s port:%s:\n  %s",
-            len(up | core | down), rep_pkt.addrs.dst, rep_pkt.l4_hdr.dst_port,
-            "\n  ".join([pcb.short_desc() for pcb in (up | core | down)]),
+            "Sending PATH_REPLY with %d segment(s) to:%s "
+            "port:%s in response to: %s", len(up | core | down),
+            rep_pkt.addrs.dst, rep_pkt.l4_hdr.dst_port, seg_req.short_desc()
         )
         self.send(rep_pkt, next_hop, port)
 
-    def _handle_pending_requests(self, dst_ia):
+    def _handle_pending_requests(self, dst_ia, sibra):
         to_remove = []
+        key = dst_ia, sibra
         # Serve pending requests.
-        for pkt in self.pending_req[dst_ia]:
+        for pkt in self.pending_req[key]:
             if self.path_resolution(pkt, new_request=False):
                 to_remove.append(pkt)
         # Clean state.
         for pkt in to_remove:
-            self.pending_req[dst_ia].remove(pkt)
-        if not self.pending_req[dst_ia]:
-            del self.pending_req[dst_ia]
+            self.pending_req[key].remove(pkt)
+        if not self.pending_req[key]:
+            del self.pending_req[key]
 
     def handle_path_segment_record(self, pkt):
         seg_rec = pkt.get_payload()
@@ -277,16 +272,14 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                 added.update(
                     self._dispatch_segment_record(type_, pcb, **params))
         # Handling pending requests, basing on added segments.
-        logging.debug("handle_path_segment_record: Added: %s", added)
-        for dst_ia in added:
-            self._handle_pending_requests(dst_ia)
+        for dst_ia, sibra in added:
+            self._handle_pending_requests(dst_ia, sibra)
 
     def _dispatch_segment_record(self, type_, seg, **kwargs):
         handle_map = {
             PST.UP: self._handle_up_segment_record,
             PST.CORE: self._handle_core_segment_record,
             PST.DOWN: self._handle_down_segment_record,
-            PST.SIBRA: self._handle_sibra_segment_record,
         }
         return handle_map[type_](seg, **kwargs)
 
@@ -317,17 +310,29 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         """
         raise NotImplementedError
 
-    def _handle_waiting_targets(self, path):
-        if not self.waiting_targets:
+    def _handle_waiting_targets(self, pcb):
+        """
+        Handle any queries that are waiting for a path to any core AS in an ISD.
+        """
+        dst_ia = pcb.get_first_pcbm().isd_as
+        if not self._is_core_as(dst_ia):
+            logging.warning("Invalid waiting target, not a core AS: %s", dst_ia)
             return
-        dst_ia = path.get_first_pcbm().isd_as
-        path = path.get_path(reverse_direction=True)
-        while self.waiting_targets:
-            _, seg_info = self.waiting_targets.pop()
+        self._send_waiting_queries(dst_ia[0], pcb)
+
+    def _send_waiting_queries(self, dst_isd, pcb):
+        targets = self.waiting_targets[dst_isd]
+        if not targets:
+            return
+        path = pcb.get_path(reverse_direction=True)
+        src_ia = pcb.get_first_pcbm().isd_as
+        while targets:
+            seg_req = targets.pop(0)
             req_pkt = self._build_packet(
-                PT.PATH_MGMT, dst_ia=dst_ia, path=path, payload=seg_info)
+                PT.PATH_MGMT, dst_ia=src_ia, path=path, payload=seg_req)
             self._send_to_next_hop(req_pkt, path.get_fwd_if())
-            logging.info("PATH_REQ sent using (first) registered up-path")
+            logging.info("Waiting request (%s) sent via %s",
+                         seg_req.short_desc(), pcb.short_desc())
 
     def _share_via_zk(self):
         if not self._segs_to_zk:
