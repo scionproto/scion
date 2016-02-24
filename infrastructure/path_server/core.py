@@ -186,7 +186,6 @@ class CorePathServer(PathServer):
             return
         pkt = self._build_packet(haddr_parse("IPV4", master), payload=pld)
         self.send(pkt, master)
-        logging.debug("Packet sent to master %s", master)
 
     def _query_master(self, dst_ia, src_ia=None, flags=0):
         """
@@ -275,6 +274,7 @@ class CorePathServer(PathServer):
         """
         Dst is regular AS.
         """
+        seg_req = pkt.get_payload()
         sibra = bool(flags & PSF.SIBRA)
         core_segs = set()
         down_segs = set()
@@ -285,11 +285,12 @@ class CorePathServer(PathServer):
 
         for dseg in tmp_down_segs:
             dseg_ia = dseg.get_first_pcbm().isd_as
-            # Check whether it is a direct down segment.
-            if dseg_ia == self.addr.isd_as:
+            if (dseg_ia == self.addr.isd_as or
+                    seg_req.src_ia[0] != self.addr.isd_as[0]):
+                # If it's a direct down-seg, or if it's a remote query, there's
+                # no need to include core-segs
                 down_segs.add(dseg)
                 continue
-
             # Now try core segments that connect to down segment.
             tmp_core_segs = self.core_segments(
                 first_ia=dseg_ia, last_ia=self.addr.isd_as, sibra=sibra)

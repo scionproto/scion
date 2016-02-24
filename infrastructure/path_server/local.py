@@ -106,10 +106,7 @@ class LocalPathServer(PathServer):
             self._resolve_core(seg_req, up_segs, core_segs)
         else:
             self._resolve_not_core(seg_req, up_segs, core_segs, down_segs)
-        all_segs = up_segs | core_segs | down_segs
-        if all_segs:
-            logging.debug("Replying with %s segments to %s",
-                          len(all_segs), seg_req.short_desc())
+        if (up_segs | core_segs | down_segs):
             self._send_path_segments(pkt, up_segs, core_segs, down_segs)
             return True
         if new_request:
