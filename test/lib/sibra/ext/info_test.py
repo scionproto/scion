@@ -61,8 +61,9 @@ class TestResvInfoBasePack(object):
         inst.bw.ceil.return_value = bw
         inst.exp_tick = 0x00010203
         inst.index = 8
+        inst.fwd_dir = True
         inst.fail_hop = 7
-        expected = b"".join([bytes(range(4)), bytes.fromhex("05088007")])
+        expected = b"".join([bytes(range(4)), bytes.fromhex("05088807")])
         # Call
         ntools.eq_(inst.pack(), expected)
 

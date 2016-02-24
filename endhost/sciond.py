@@ -411,11 +411,14 @@ class SCIONDaemon(SCIONElement):
 
     def _sibra_strip_pcb(self, pcb):
         last_asm = pcb.ases[-1]
-        info = last_asm.find_ext(BeaconExtType.SIBRA_SEG_INFO)
-        resv = ResvBlockSteady.from_values(info, pcb.get_n_hops())
-        for asm in reversed(pcb.ases):
-            resv.sofs.append(asm.find_ext(BeaconExtType.SIBRA_SEG_SOF))
-        return resv
+        info_ext = last_asm.find_ext(BeaconExtType.SIBRA_SEG_INFO)
+        resv_info = info_ext.info
+        resv = ResvBlockSteady.from_values(resv_info, pcb.get_n_hops())
+        asms = reversed(pcb.ases) if resv_info.fwd_dir else pcb.ases
+        for asm in asms:
+            sof_ext = asm.find_ext(BeaconExtType.SIBRA_SEG_SOF)
+            resv.sofs.append(sof_ext.sof)
+        return info_ext.id, resv
 
     def _wait_for_events(self, events, deadline):
         """

@@ -79,7 +79,7 @@ class ExtensionHeader(HeaderBase):
     def reverse(self):  # pragma: no cover
         pass
 
-    def get_first_ifid(self):  # pragma: no cover
+    def get_next_ifid(self):  # pragma: no cover
         pass
 
     def __str__(self):

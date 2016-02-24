@@ -37,12 +37,20 @@ class ResvInfoBase(object):
 
      0B       1        2        3        4        5        6        7
      +--------+--------+--------+--------+--------+--------+--------+--------+
-     | Expiration time (4B)              | BW fwd | BW rev |Idx|pad |Fail hop|
+     | Expiration time (4B)              | BW fwd | BW rev |Idx|F|xx|Fail hop|
      +--------+--------+--------+--------+--------+--------+--------+--------+
 
     The reservation index (Idx) is used to allow for multiple overlapping
     reservations within a single path, which enables renewal and changing the
     bandwidth requested.
+
+    The F(orward) flag is used when registering a steady path, to indicate which
+    direction it will traverse the path. E.g. a steady path registered with a
+    local path server will have the forward flag set, as anything using that
+    path will traverse it in the direction it was created. A steady path
+    registered with a core path server will have the forward flag unset, as
+    anything using the path from that direction will traverse the path in the
+    opposite direction to creation.
 
     The fail hop field is normally set to 0, and ignored unless this reservation
     info is part of a denied request, in which case it is set to the number of
@@ -55,6 +63,7 @@ class ResvInfoBase(object):
         self.bw = None  # Bandwidth reserved (in both directions)
         self.index = None  # Reservation index
         self.fail_hop = None  # Which hop rejected a request, if any.
+        self.fwd_dir = None  # Which direction is the reservation traversed in
         if raw:
             self._parse(raw)
 
@@ -62,14 +71,16 @@ class ResvInfoBase(object):
         data = Raw(raw, self.NAME, self.LEN)
         self.exp_tick = struct.unpack("!I", data.pop(4))[0]
         self.bw = BWClass(data.pop(1), data.pop(1))
-        self.index = data.pop(1) >> 4
+        index_flags = data.pop(1)
+        self.fwd_dir = bool((index_flags >> 3) & 1)
+        self.index = index_flags >> 4
         # FIXME(kormat): needs error handling
         assert self.index < SIBRA_MAX_IDX
         self.fail_hop = data.pop(1)
 
     @classmethod
     def from_values(cls, exp, bwsnap=None,
-                    bw_cls=None, index=0):  # pragma: no cover
+                    bw_cls=None, index=0, fwd_dir=True):  # pragma: no cover
         """
         :param float exp: Expiry time, in seconds since unix epoch.
         :param BWSnapshot bwsnap:
@@ -85,16 +96,21 @@ class ResvInfoBase(object):
         else:
             inst.bw = bw_cls
         inst.index = index
+        inst.fwd_dir = fwd_dir
         inst.fail_hop = 0
         assert inst.index < SIBRA_MAX_IDX
         return inst
 
-    def pack(self):
+    def pack(self, mac=False):
         raw = []
         bw_ceil = self.bw.ceil()
         raw.append(struct.pack("!I", self.exp_tick))
         raw.append(struct.pack("!BB", bw_ceil.fwd, bw_ceil.rev))
-        raw.append(struct.pack("!BB", self.index << 4, self.fail_hop))
+        index_flags = self.index << 4
+        if not mac:
+            index_flags |= self.fwd_dir << 3
+        raw.append(struct.pack("!B", index_flags))
+        raw.append(struct.pack("!B", 0 if mac else self.fail_hop))
         return b"".join(raw)
 
     def exp_ts(self):  # pragma: no cover
@@ -112,6 +128,7 @@ class ResvInfoBase(object):
         tmp.append("Fwd: %s" % self.bw.fwd_str())
         tmp.append("Rev: %s" % self.bw.rev_str())
         tmp.append("Failhop: %s" % self.fail_hop)
+        tmp.append("Dir fwd: %s" % self.fwd_dir)
         tmp.append("Expiry: %s" % iso_timestamp(tick_to_time(self.exp_tick)))
         return " ".join(tmp)
 

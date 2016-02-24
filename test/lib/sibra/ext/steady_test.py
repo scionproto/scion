@@ -241,9 +241,7 @@ class TestSibraExtSteadyProcessUse(object):
     @patch("lib.sibra.ext.steady.BWSnapshot", autospec=True)
     def test_dir_fwd_accepted(self, bwsnap):
         inst = SibraExtSteady()
-        sof = create_mock(["egress", "ingress"])
-        inst.active_sof = create_mock()
-        inst.active_sof.return_value = sof
+        inst.get_next_ifid = create_mock()
         inst.path_ids = [9]
         block = create_mock(["info"])
         block.info = create_mock(["index"])
@@ -251,7 +249,7 @@ class TestSibraExtSteadyProcessUse(object):
         state = create_mock(["steady_use"])
         # Call
         ntools.eq_(inst._process_use(state, "spkt", True),
-                   [(RouterFlag.FORWARD, sof.egress)])
+                   [(RouterFlag.FORWARD, inst.get_next_ifid.return_value)])
         # Tests
         ntools.assert_false(bwsnap.reverse.called)
         bwsnap.assert_called_once_with(4 * 8)
@@ -482,72 +480,92 @@ class TestSibraExtSteadyVerifySof(object):
     """
     Unit tests for lib.sibra.ext.steady.SibraExtSteady._verify_sof
     """
-    def _setup(self, first=True, mac="abcd"):
+    def _setup(self, verified=True):
         inst = SibraExtSteady()
         curr_sof = create_mock(["calc_mac", "mac"])
-        curr_sof.mac = mac
+        curr_sof.mac = "abcd" if verified else "efgh"
         curr_sof.calc_mac.return_value = "abcd"
-        prev_sof = create_mock(["pack"])
         block = create_mock(["info", "sofs"])
+        block.sofs = [curr_sof]
         inst.active_blocks = [block]
         inst.path_ids = "path ids"
-        if first:
-            inst.curr_hop = 0
-            block.sofs = [curr_sof, "sof1", "sof2"]
-        else:
-            inst.curr_hop = 3
-            block.sofs = ["sof0", "sof1", prev_sof, curr_sof, "sof4"]
-        return inst, block, curr_sof, prev_sof
+        inst._get_prev_raw = create_mock()
+        return inst, block, curr_sof
 
-    def test_first_ok(self):
-        inst, block, curr_sof, _ = self._setup()
+    def test_success(self):
+        inst, block, curr_sof = self._setup()
         # Call
         ntools.eq_(inst._verify_sof("key"), True)
         # Tests
         curr_sof.calc_mac.assert_called_once_with(
-            block.info, "key", "path ids", None)
+            block.info, "key", "path ids", inst._get_prev_raw.return_value)
 
-    def test_with_prev_ok(self):
-        inst, block, curr_sof, prev_sof = self._setup(False)
-        # Call
-        ntools.eq_(inst._verify_sof("key"), True)
-        # Tests
-        curr_sof.calc_mac.assert_called_once_with(
-            block.info, "key", "path ids", prev_sof.pack.return_value)
-
-    def test_fail(self):
-        inst, block, curr_sof, _ = self._setup(mac="efgh")
+    def test_failure(self):
+        inst, block, curr_sof = self._setup(False)
         # Call
         ntools.eq_(inst._verify_sof("key"), False)
 
 
-class TestSibraExtSteadyGetFirstIfid(object):
+class TestSibraExtSteadyGetPrevRaw(object):
     """
-    Unit tests for lib.sibra.ext.steady.SibraExtSteady.get_first_ifid
+    Unit tests for lib.sibra.ext.steady.SibraExtSteady._get_prev_raw
+    """
+    def _check(self, fwd_dir, curr_hop, expected):
+        inst = SibraExtSteady()
+        inst.curr_hop = curr_hop
+        info = create_mock(["fwd_dir"])
+        info.fwd_dir = fwd_dir
+        block = create_mock(["info", "num_hops", "sofs"])
+        block.info = info
+        block.num_hops = 5
+        block.sofs = []
+        for i in range(block.num_hops):
+            sof = create_mock(["pack"])
+            sof.pack.return_value = "sof %d" % i
+            block.sofs.append(sof)
+        inst.active_blocks = [block]
+        # Call
+        ntools.eq_(inst._get_prev_raw(), expected)
+
+    def test(self):
+        for fwd_dir, curr_hop, expected in (
+            (True, 0, None), (True, 1, "sof 0"), (True, 4, "sof 3"),
+            (False, 0, "sof 1"), (False, 3, "sof 4"), (False, 4, None),
+        ):
+            yield self._check, fwd_dir, curr_hop, expected
+
+
+class TestSibraExtSteadyGetNextIfid(object):
+    """
+    Unit tests for lib.sibra.ext.steady.SibraExtSteady.get_next_ifid
     """
     def test_setup(self):
         inst = SibraExtSteady()
         inst.setup = True
         # Call
-        ntools.assert_is_none(inst.get_first_ifid())
+        ntools.assert_is_none(inst.get_next_ifid())
 
-    def _check(self, fwd):
+    def _check_use(self, fwd, fwd_dir, exp_egress):
         inst = SibraExtSteady()
         inst.fwd = fwd
         sof = create_mock(["egress", "ingress"])
         inst.active_sof = create_mock()
         inst.active_sof.return_value = sof
+        info = create_mock(["fwd_dir"])
+        info.fwd_dir = fwd_dir
+        block = create_mock(["info"])
+        block.info = info
+        inst.active_blocks = [block]
+        expected = sof.egress if exp_egress else sof.ingress
         # Call
-        ret = inst.get_first_ifid()
-        # Tests
-        if fwd:
-            ntools.eq_(ret, sof.egress)
-        else:
-            ntools.eq_(ret, sof.ingress)
+        ntools.eq_(inst.get_next_ifid(), expected)
 
-    def test(self):
-        yield self._check, True
-        yield self._check, False
+    def test_use(self):
+        for fwd, fwd_dir, exp_ingress in (
+            (True, True, True), (True, False, False),
+            (False, False, True), (False, True, False),
+        ):
+            yield self._check_use, fwd, fwd_dir, exp_ingress
 
 if __name__ == "__main__":
     nose.run(defaultTest=__name__)

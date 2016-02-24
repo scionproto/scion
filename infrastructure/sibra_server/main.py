@@ -122,7 +122,6 @@ class SibraServerBase(SCIONElement):
                               spkt)
                 continue
             spkt.addrs.src.host = self.addr.host
-            logging.debug("Sending packet via %s:%s\n%s", dst, port, spkt)
             self.send(spkt, dst, port)
 
     def _find_dest(self, spkt):

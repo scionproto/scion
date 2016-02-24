@@ -169,6 +169,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             self._add_if_mappings(pcb)
             logging.info("%s-Segment registered: %s", name, pcb.short_desc())
             return True
+        elif res == DBResult.ENTRY_UPDATED:
+            logging.debug("%s-Segment updated: %s", name, pcb.short_desc())
         return False
 
     def _handle_revocation(self, pkt):

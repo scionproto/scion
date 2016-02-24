@@ -76,7 +76,7 @@ class TestSibraOpaqueFieldCalcMac(object):
         ntools.eq_(inst.calc_mac(info, "key", [b"path id0"]), "cbcm")
         # Tests
         cbcmac.assert_called_once_with("key", b"".join([
-            bytes.fromhex("1111 FFFF"), b"packinf", bytes(1), b"path id0",
+            bytes.fromhex("1111 FFFF"), b"packinfo", b"path id0",
             bytes(inst.MAX_PATH_IDS_LEN - 8), bytes(8),
             bytes(inst.MAC_BLOCK_PADDING),
         ]))
@@ -96,7 +96,7 @@ class TestSibraOpaqueFieldCalcMac(object):
         ntools.eq_(inst.calc_mac(info, "key", path_ids, prev_raw), "cbcm")
         # Tests
         cbcmac.assert_called_once_with("key", b"".join([
-            bytes.fromhex("1111 FFFF"), b"packinf", bytes(1),
+            bytes.fromhex("1111 FFFF"), b"packinfo",
             b"steadyid", b"ephemeralpath id",
             prev_raw, bytes(inst.MAC_BLOCK_PADDING),
         ]))
