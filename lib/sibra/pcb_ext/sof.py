@@ -30,7 +30,7 @@ class SibraSegSOF(BeaconExtension):  # pragma: no cover
     LEN = SibraOpaqueField.LEN
 
     def __init__(self, raw=None):
-        self.info = None
+        self.sof = None
         super().__init__(raw)
 
     def _parse(self, raw):

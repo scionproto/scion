@@ -189,7 +189,7 @@ class SCIONElement(object):
 
     def _ext_first_hop(self, spkt):
         for hdr in spkt.ext_hdrs:
-            if_id = hdr.get_first_ifid()
+            if_id = hdr.get_next_ifid()
             if if_id is not None:
                 return if_id
 

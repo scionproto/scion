@@ -167,9 +167,7 @@ class SibraExtSteady(SibraExtBase):
         if not state.steady_use(
                 self.path_ids[0], self.active_blocks[0].info.index, bw_used):
             return [(RouterFlag.ERROR, "Steady path packet rejected")]
-        sof = self.active_sof()
-        if_id = sof.egress if self.fwd else sof.ingress
-        return [(RouterFlag.FORWARD, if_id)]
+        return [(RouterFlag.FORWARD, self.get_next_ifid())]
 
     def _process_req(self, state, spkt, dir_fwd, key, setup=True):
         """
@@ -260,17 +258,27 @@ class SibraExtSteady(SibraExtBase):
         """
         block = self.active_blocks[0]
         curr_sof = block.sofs[self.curr_hop]
-        prev_raw = None
-        if self.curr_hop > 0:
-            prev_raw = block.sofs[self.curr_hop - 1].pack()
         if curr_sof.mac == curr_sof.calc_mac(
-                block.info, key, self.path_ids, prev_raw):
+                block.info, key, self.path_ids, self._get_prev_raw()):
             return True
         logging.error("MAC verification failed")
         return False
 
-    def get_first_ifid(self):
+    def _get_prev_raw(self):
+        block = self.active_blocks[0]
+        if block.info.fwd_dir:
+            if self.curr_hop > 0:
+                return block.sofs[self.curr_hop - 1].pack()
+        elif self.curr_hop < (block.num_hops - 1):
+            return block.sofs[self.curr_hop + 1].pack()
+        return None
+
+    def get_next_ifid(self):
         if self.setup:
             return None
         sof = self.active_sof()
-        return sof.egress if self.fwd else sof.ingress
+        info = self.active_blocks[0].info
+        if self.fwd == info.fwd_dir:
+            return sof.egress
+        else:
+            return sof.ingress

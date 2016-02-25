@@ -84,8 +84,7 @@ class SibraOpaqueField(object):
         """
         raw = []
         raw.append(struct.pack("!HH", self.ingress, self.egress))
-        # Don't include the last byte of the ResvInfo object
-        raw.append(info.pack()[:info.LEN-1] + bytes(1))
+        raw.append(info.pack(mac=True))
         ids_len = 0
         for id_ in path_ids:
             ids_len += len(id_)
