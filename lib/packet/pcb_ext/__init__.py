@@ -39,8 +39,8 @@ class BeaconExtension(HeaderBase):
     EXT_TYPE_STR = None
     LEN = None
 
-    def short_desc(self):
+    def short_desc(self):  # pragma: no cover
         return ""
 
-    def exp_ts(self):
+    def exp_ts(self):  # pragma: no cover
         return None

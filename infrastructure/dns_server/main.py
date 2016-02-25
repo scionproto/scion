@@ -62,7 +62,7 @@ class SCIONDnsServer(SCIONElement):
     SRV_TYPES = (BEACON_SERVICE, CERTIFICATE_SERVICE,
                  DNS_SERVICE, PATH_SERVICE, SIBRA_SERVICE)
 
-    def __init__(self, server_id, conf_dir, setup=False):
+    def __init__(self, server_id, conf_dir, setup=False):  # pragma: no cover
         """
         :param str server_id: server identifier.
         :param str conf_dir: configuration directory.

@@ -91,7 +91,7 @@ class TracerouteExt(HopByHopExtension):
         self._check_len(raw)
         return raw
 
-    def append_hop(self, isd_as, if_id, timestamp=None):
+    def append_hop(self, isd_as, if_id, timestamp=None):  # pragma: no cover
         """
         Append hop's information as a new field in the extension.
         """

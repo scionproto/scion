@@ -48,7 +48,7 @@ class SIBRAPayload(SCIONPayloadBase):  # pragma: no cover
         return "<Empty SIBRA payload>"
 
 
-def parse_sibra_payload(type_, data):
+def parse_sibra_payload(type_, data):  # pragma: no cover
     type_map = {
         SIBRAPayloadType.EMPTY: SIBRAPayload,
     }

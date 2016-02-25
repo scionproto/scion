@@ -303,7 +303,7 @@ class SibraExtBase(HopByHopExtension):
         self.active_blocks = blocks
         self._set_size()
 
-    def get_min_offer(self):
+    def get_min_offer(self):  # pragma: no cover
         """
         Find the minimum bandwidth offered in both directions
         """

@@ -249,7 +249,7 @@ class ASMarking(MarkingBase):
         """
         self.ext.append(ext)
 
-    def find_ext(self, type_):
+    def find_ext(self, type_):  # pragma: no cover
         for ext in self.ext:
             if ext.EXT_TYPE == type_:
                 return ext
@@ -325,7 +325,7 @@ class PathSegment(SCIONPayloadBase):
         self._parse_hops(data)
         return data.offset()
 
-    def is_sibra(self):
+    def is_sibra(self):  # pragma: no cover
         return bool(self.flags & PSF.SIBRA)
 
     def _parse_hops(self, data):
@@ -561,7 +561,7 @@ class PathSegment(SCIONPayloadBase):
             s.append("  %s" % asm)
         return "\n".join(s)
 
-    def __hash__(self):
+    def __hash__(self):  # pragma: no cover
         return hash(self.get_hops_hash())  # FIMXE(PSz): should add timestamp?
 
 

@@ -21,7 +21,7 @@ from lib.sibra.ext.steady import SibraExtSteady
 from lib.sibra.ext.ephemeral import SibraExtEphemeral
 
 
-def parse_sibra_ext(raw):
+def parse_sibra_ext(raw):  # pragma: no cover
     flag = raw[0]
     if flag & FLAG_STEADY:
         return SibraExtSteady(raw)

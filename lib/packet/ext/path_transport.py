@@ -63,7 +63,7 @@ class PathTransOFPath(HeaderBase):
         self.path = parse_path(data.pop(len(data) - padding_len))
 
     @classmethod
-    def from_values(cls, src, dst, path):
+    def from_values(cls, src, dst, path):  # pragma: no cover
         inst = cls()
         inst.src = src
         inst.dst = dst
@@ -116,7 +116,7 @@ class PathTransportExt(EndToEndExtension):
     NAME = "PathTransportExt"
     EXT_TYPE = ExtEndToEndType.PATH_TRANSPORT
 
-    def __init__(self, raw=None):
+    def __init__(self, raw=None):  # pragma: no cover
         super().__init__()
         self.path_type = None
         self.path = None

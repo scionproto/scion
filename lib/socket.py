@@ -114,13 +114,13 @@ class UDPSocket(object):
             except InterruptedError:
                 pass
 
-    def close(self):
+    def close(self):  # pragma: no cover
         """
         Close the socket.
         """
         self.sock.close()
 
-    def settimeout(self, timeout):
+    def settimeout(self, timeout):  # pragma: no cover
         self.sock.settimeout(timeout)
 
 
@@ -128,10 +128,10 @@ class UDPSocketMgr(object):
     """
     :class:`UDPSocket` manager.
     """
-    def __init__(self):
+    def __init__(self):  # pragma: no cover
         self._sel = selectors.DefaultSelector()
 
-    def add(self, udpsock):
+    def add(self, udpsock):  # pragma: no cover
         """
         Add new socket.
 
@@ -139,7 +139,7 @@ class UDPSocketMgr(object):
         """
         self._sel.register(udpsock.sock, selectors.EVENT_READ, udpsock)
 
-    def remove(self, udpsock):
+    def remove(self, udpsock):  # pragma: no cover
         """
         Remove socket.
 

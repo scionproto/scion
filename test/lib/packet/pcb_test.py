@@ -406,12 +406,26 @@ class TestPathSegmentGetExpirationTime(object):
     """
     Unit test for lib.packet.pcb.PathSegment.get_expiration_time
     """
-    def test(self):
+    def test_no_ext(self):
         inst = PathSegment()
         inst.iof = create_mock(['timestamp'])
         inst.iof.timestamp = 123
         inst.min_exp_time = 456
+        # Call
         ntools.eq_(inst.get_expiration_time(), 123 + int(456 * EXP_TIME_UNIT))
+
+    def test_ext(self):
+        inst = PathSegment()
+        asm = create_mock(["ext"])
+        asm.ext = []
+        for i in range(3):
+            ext = create_mock(["exp_ts"])
+            ext.exp_ts.return_value = None
+            if i == 2:
+                ext.exp_ts.return_value = 42
+            asm.ext.append(ext)
+        inst.ases = [asm]
+        ntools.eq_(inst.get_expiration_time(), 42)
 
 
 class TestPathSegmentGetAllIftokens(object):

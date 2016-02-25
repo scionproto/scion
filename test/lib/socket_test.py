@@ -16,7 +16,6 @@
 ================================================
 """
 # Stdlib
-import selectors
 import socket
 from unittest.mock import patch
 
@@ -31,15 +30,15 @@ from lib.socket import (
     UDPSocketMgr,
 )
 from lib.types import AddrType
-from test.testcommon import create_mock
+from test.testcommon import SCIONTestError, create_mock
 
 
 class TestUDPSocketInit(object):
     """
     Unit tests for lib.socket.UDPSocket.__init__
     """
-    @patch("lib.socket.UDPSocket.bind", autopatch=True)
-    @patch("lib.socket.socket", autopatch=True)
+    @patch("lib.socket.UDPSocket.bind", autospec=True)
+    @patch("lib.socket.socket", autospec=True)
     def test_full(self, socket_, bind):
         socket_.return_value = create_mock(["setsockopt"])
         # Call
@@ -48,10 +47,10 @@ class TestUDPSocketInit(object):
         ntools.eq_(inst._addr_type, AddrType.IPV4)
         socket_.assert_called_once_with(socket.AF_INET, socket.SOCK_DGRAM)
         ntools.assert_is_none(inst.port)
-        inst.bind.assert_called_once_with("addr", "port")
+        bind.assert_called_once_with(inst, "addr", "port")
 
-    @patch("lib.socket.UDPSocket.bind", autopatch=True)
-    @patch("lib.socket.socket", autopatch=True)
+    @patch("lib.socket.UDPSocket.bind", autospec=True)
+    @patch("lib.socket.socket", autospec=True)
     def test_minimal(self, socket_, bind):
         socket.return_value = create_mock(["setsockopt"])
         # Call
@@ -71,7 +70,7 @@ class TestUDPSocketBind(object):
         inst.sock.getsockname.return_value = ["addr", 5353]
         return inst
 
-    @patch("lib.socket.UDPSocket.__init__", autopatch=True, return_value=None)
+    @patch("lib.socket.UDPSocket.__init__", autospec=True, return_value=None)
     def test_addr(self, init):
         inst = self._setup()
         # Call
@@ -80,7 +79,7 @@ class TestUDPSocketBind(object):
         inst.sock.bind.assert_called_once_with(("addr", 4242))
         ntools.eq_(inst.port, 5353)
 
-    @patch("lib.socket.UDPSocket.__init__", autopatch=True, return_value=None)
+    @patch("lib.socket.UDPSocket.__init__", autospec=True, return_value=None)
     def test_any_v4(self, init):
         inst = self._setup()
         inst._addr_type = AddrType.IPV4
@@ -89,7 +88,7 @@ class TestUDPSocketBind(object):
         # Tests
         inst.sock.bind.assert_called_once_with(("", 4242))
 
-    @patch("lib.socket.UDPSocket.__init__", autopatch=True, return_value=None)
+    @patch("lib.socket.UDPSocket.__init__", autospec=True, return_value=None)
     def test_any_v6(self, init):
         inst = self._setup()
         inst._addr_type = AddrType.IPV6
@@ -98,12 +97,23 @@ class TestUDPSocketBind(object):
         # Tests
         inst.sock.bind.assert_called_once_with(("::", 4242))
 
+    @patch("lib.socket.kill_self", autospec=True)
+    @patch("lib.socket.UDPSocket.__init__", autospec=True, return_value=None)
+    def test_error(self, init, kill_self):
+        inst = self._setup()
+        inst.sock.bind.side_effect = OSError
+        kill_self.side_effect = SCIONTestError
+        # Call
+        ntools.assert_raises(SCIONTestError, inst.bind, "a", "b")
+        # Tests
+        kill_self.assert_called_once_with()
+
 
 class TestUDPSocketSend(object):
     """
     Unit tests for lib.socket.UDPSocket.send
     """
-    @patch("lib.socket.UDPSocket.__init__", autopatch=True, return_value=None)
+    @patch("lib.socket.UDPSocket.__init__", autospec=True, return_value=None)
     def test_basic(self, init):
         inst = UDPSocket()
         inst.sock = create_mock(["sendto"])
@@ -112,8 +122,8 @@ class TestUDPSocketSend(object):
         # Tests
         inst.sock.sendto.assert_called_once_with("data", "dst")
 
-    @patch("lib.socket.logging.error", autopatch=True)
-    @patch("lib.socket.UDPSocket.__init__", autopatch=True, return_value=None)
+    @patch("lib.socket.logging.error", autospec=True)
+    @patch("lib.socket.UDPSocket.__init__", autospec=True, return_value=None)
     def test_error(self, init, logging):
         inst = UDPSocket()
         inst.sock = create_mock(["sendto"])
@@ -128,7 +138,7 @@ class TestUDPSocketRecv(object):
     """
     Unit tests for lib.socket.UDPSocket.recv
     """
-    @patch("lib.socket.UDPSocket.__init__", autopatch=True, return_value=None)
+    @patch("lib.socket.UDPSocket.__init__", autospec=True, return_value=None)
     def test_block(self, init):
         inst = UDPSocket()
         inst.sock = create_mock(["recvfrom"])
@@ -137,7 +147,7 @@ class TestUDPSocketRecv(object):
         # Tests
         inst.sock.recvfrom.assert_called_once_with(SCION_BUFLEN, 0)
 
-    @patch("lib.socket.UDPSocket.__init__", autopatch=True, return_value=None)
+    @patch("lib.socket.UDPSocket.__init__", autospec=True, return_value=None)
     def test_nonblock(self, init):
         inst = UDPSocket()
         inst.sock = create_mock(["recvfrom"])
@@ -147,7 +157,7 @@ class TestUDPSocketRecv(object):
         inst.sock.recvfrom.assert_called_once_with(SCION_BUFLEN,
                                                    socket.MSG_DONTWAIT)
 
-    @patch("lib.socket.UDPSocket.__init__", autopatch=True, return_value=None)
+    @patch("lib.socket.UDPSocket.__init__", autospec=True, return_value=None)
     def test_intr(self, init):
         inst = UDPSocket()
         inst.sock = create_mock(["recvfrom"])
@@ -157,63 +167,6 @@ class TestUDPSocketRecv(object):
         ntools.eq_(inst.recv(), "data")
         # Tests
         ntools.eq_(inst.sock.recvfrom.call_count, 3)
-
-
-class TestUDPSocketClose(object):
-    """
-    Unit tests for lib.socket.UDPSocket.close
-    """
-    @patch("lib.socket.UDPSocket.__init__", autopatch=True, return_value=None)
-    def test(self, init):
-        inst = UDPSocket()
-        inst.sock = create_mock(["close"])
-        # Call
-        inst.close()
-        # Tests
-        inst.sock.close.assert_called_once_with()
-
-
-class TestUDPSocketMgrInit(object):
-    """
-    Unit tests for lib.socket.UDPSocketMgr.__init__
-    """
-    @patch("lib.socket.selectors.DefaultSelector", autospec=True)
-    def test(self, selector):
-        inst = UDPSocketMgr()
-        # Tests
-        selector.assert_called_once_with()
-        ntools.eq_(inst._sel, selector.return_value)
-
-
-class TestUDPSocketMgrAdd(object):
-    """
-    Unit tests for lib.socket.UDPSocketMgr.add
-    """
-    @patch("lib.socket.UDPSocketMgr.__init__", autospec=True, return_value=None)
-    def test(self, init):
-        inst = UDPSocketMgr()
-        inst._sel = create_mock(["register"])
-        udpsock = create_mock(["sock"])
-        # Call
-        inst.add(udpsock)
-        # Tests
-        inst._sel.register.assert_called_once_with(
-            udpsock.sock, selectors.EVENT_READ, udpsock)
-
-
-class TestUDPSocketMgrRemove(object):
-    """
-    Unit tests for lib.socket.UDPSocketMgr.remove
-    """
-    @patch("lib.socket.UDPSocketMgr.__init__", autospec=True, return_value=None)
-    def test(self, init):
-        inst = UDPSocketMgr()
-        inst._sel = create_mock(["unregister"])
-        udpsock = create_mock(["sock"])
-        # Call
-        inst.remove(udpsock)
-        # Tests
-        inst._sel.unregister.assert_called_once_with(udpsock.sock)
 
 
 class TestUDPSocketMgrSelect(object):

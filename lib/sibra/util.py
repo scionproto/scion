@@ -23,7 +23,7 @@ from lib.defines import SIBRA_BW_FACTOR, SIBRA_TICK
 from lib.util import SCIONTime
 
 
-class BWSnapshot(object):
+class BWSnapshot(object):  # pragma: no cover
     """
     A class to represent bi-directional bandwidth, in bits/s
     """
@@ -94,7 +94,7 @@ class BWSnapshot(object):
         return str(self)
 
 
-class BWClass(object):
+class BWClass(object):  # pragma: no cover
     """
     A class to represent bi-direction SIBRA bandwidth classes. A class of 0 is a
     special case, and represents 0 bandwidth. Any other class x maps to Kibit/s
