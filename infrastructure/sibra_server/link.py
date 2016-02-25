@@ -146,7 +146,7 @@ class Link(object):
             return
         req_info = ext.req_block.info
         bwsnap = req_info.bw.to_snap()
-        bwhint = self.state.steady_add(ext.path_ids[0], req_info.index, bwsnap,
+        bwhint = self.state.add_steady(ext.path_ids[0], req_info.index, bwsnap,
                                        req_info.exp_tick, True, ext.setup)
         if bwhint is not None:
             # This shouldn't happen - if the local ER accepted the reservation,

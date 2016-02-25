@@ -34,7 +34,7 @@ class TestLinkBandwidthUpdate(object):
     def test(self):
         inst = LinkBandwidth("owner", BWSnapshot(100, 100))
         for i, bw in enumerate([50, 0, -10, -20, 0, 0, -20]):
-            inst.ticks[i] = BWSnapshot(bw, bw)
+            inst.resvs[i] = BWSnapshot(bw, bw)
         updates = []
         for idx, bw in [(0, -10), (1, -10), (2, +10), (6, 10)]:
             updates.append((idx, BWSnapshot(bw, bw)))
@@ -43,7 +43,7 @@ class TestLinkBandwidthUpdate(object):
         # Tests
         for i, bw in enumerate([40, -10, 0, -20, 0, 0, -10]):
             tick = BWSnapshot(bw, bw)
-            ntools.eq_(inst.ticks[i], tick)
+            ntools.eq_(inst.resvs[i], tick)
 
 if __name__ == "__main__":
     nose.run(defaultTest=__name__)

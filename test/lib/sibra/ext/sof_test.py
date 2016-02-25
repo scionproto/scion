@@ -97,7 +97,7 @@ class TestSibraOpaqueFieldCalcMac(object):
         # Tests
         cbcmac.assert_called_once_with("key", b"".join([
             bytes.fromhex("1111 FFFF"), b"packinfo",
-            b"steadyid", b"ephemeralpath id",
+            b"steadyid", b"ephemeralpath id", bytes(inst.MAX_PATH_IDS_LEN - 24),
             prev_raw, bytes(inst.MAC_BLOCK_PADDING),
         ]))
 

@@ -312,7 +312,7 @@ class Router(SCIONElement):
 
         :param spkt: the SCION packet to forward.
         :type spkt: :class:`lib.packet.scion.SCIONPacket`
-        :param bool from_local_ad:
+        :param bool from_local_as:
             whether or not the packet is from the local AS.
         """
         if from_local_as:
@@ -710,7 +710,7 @@ class Router(SCIONElement):
         # First check if any error or no_process flags are set
         for (flag, *args) in flags:
             if flag == RouterFlag.ERROR:
-                logging.error("%s:\n%s", args[0], pkt)
+                logging.error("%s", args[0])
                 return False
             elif flag == RouterFlag.NO_PROCESS:
                 return False
@@ -718,19 +718,36 @@ class Router(SCIONElement):
         for (flag, *args) in flags:
             if flag == RouterFlag.FORWARD:
                 if from_local_as:
-                    logging.debug(
-                        "Packet forwarded over link by extension")
-                    self._egress_forward(pkt)
-                elif args[0] == 0:
-                    logging.debug("Packet delivered by extension")
-                    self.deliver(pkt, PT.DATA)
+                    self._process_fwd_flag(pkt)
                 else:
-                    next_hop = self.ifid2addr[args[0]]
-                    logging.debug("Packet forwarded by extension via %s",
-                                  next_hop)
-                    self.send(pkt, next_hop)
+                    self._process_fwd_flag(pkt, args[0])
+                return False
+            elif flag in (RouterFlag.DELIVER, RouterFlag.FORCE_DELIVER):
+                self._process_deliver_flag(pkt, flag)
                 return False
         return True
+
+    def _process_fwd_flag(self, pkt, ifid=None):
+        if ifid is None:
+            logging.debug("Packet forwarded over link by extension")
+            self._egress_forward(pkt)
+            return
+        if ifid == 0:
+            logging.error("Extension asked to forward this to interface 0:\n%s",
+                          pkt)
+            return
+        next_hop = self.ifid2addr[ifid]
+        logging.debug("Packet forwarded by extension via %s", next_hop)
+        self.send(pkt, next_hop)
+
+    def _process_deliver_flag(self, pkt, flag):
+        if (flag == RouterFlag.DELIVER and
+                pkt.addrs.dst.isd_as != self.addr.isd_as):
+            logging.error("Extension tried to deliver this locally, but this "
+                          "is not the destination ISD-AS:\n%s", pkt)
+            return
+        logging.debug("Packet delivered by extension")
+        self.deliver(pkt, PT.DATA)
 
     def handle_request(self, packet, _, from_local_socket=True):
         """
@@ -745,7 +762,7 @@ class Router(SCIONElement):
         try:
             pkt = SCIONL4Packet(packet)
         except SCIONBaseError:
-            log_exception("Error parsing packet: %s" % packet,
+            log_exception("Error parsing packet: %s" % hex_str(packet),
                           level=logging.ERROR)
             return
         if pkt.ext_hdrs:

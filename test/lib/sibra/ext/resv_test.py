@@ -83,30 +83,17 @@ class TestResvBlockBaseAddHop(object):
     Unit tests for lib.sibra.ext.resv.ResvBlockBase.add_hop
     """
     @patch("lib.sibra.ext.resv.SibraOpaqueField", autospec=True)
-    def test_no_prev(self, sof):
+    def test(self, sof):
         inst = ResvBlockBase()
         inst.info = "info"
         inst.num_hops = 4
         # Call
-        inst.add_hop("ingress", "egress", "key", "path ids")
+        inst.add_hop("ingress", "egress", "prev_raw", "key", "path ids")
         # Tests
         sof.from_values.assert_called_once_with("ingress", "egress")
         inst.sofs[0].calc_mac.assert_called_once_with(
-            "info", "key", "path ids", None)
+            "info", "key", "path ids", "prev_raw")
         ntools.eq_(inst.sofs[0].mac, inst.sofs[0].calc_mac.return_value)
-
-    @patch("lib.sibra.ext.resv.SibraOpaqueField", autospec=True)
-    def test_prev(self, sof):
-        inst = ResvBlockBase()
-        inst.info = "info"
-        inst.num_hops = 4
-        prev = create_mock(["pack"])
-        inst.sofs = [prev]
-        # Call
-        inst.add_hop("ingress", "egress", "key", "path ids")
-        # Tests
-        inst.sofs[1].calc_mac.assert_called_once_with(
-            "info", "key", "path ids", prev.pack.return_value)
 
 
 if __name__ == "__main__":

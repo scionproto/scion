@@ -21,23 +21,28 @@ import logging
 import socket
 import sys
 import threading
+import time
 
 # SCION
 from endhost.sciond import SCIONDaemon
-from lib.defines import GEN_PATH, SIBRA_TICK
+from lib.defines import GEN_PATH, SIBRA_TICK, SIBRA_MAX_IDX
 from lib.flagtypes import PathSegFlags as PSF
 from lib.log import init_logging
 from lib.main import main_wrapper
+from lib.packet.ext_util import find_ext_hdr
 from lib.packet.host_addr import haddr_parse_interface
 from lib.packet.packet_base import PayloadRaw
 from lib.packet.path import EmptyPath
 from lib.packet.scion import SCIONL4Packet, build_base_hdrs
 from lib.packet.scion_addr import ISD_AS, SCIONAddr
 from lib.packet.scion_udp import SCIONUDPHeader
-from lib.sibra.ext.steady import SibraExtSteady
+from lib.sibra.ext.info import ResvInfoEphemeral
+from lib.sibra.ext.ephemeral import SibraExtEphemeral
+from lib.sibra.util import BWSnapshot
 from lib.socket import UDPSocket
 from lib.thread import thread_safety_net
-from lib.util import handle_signals, hex_str
+from lib.types import ExtensionClass
+from lib.util import SCIONTime, handle_signals
 
 TOUT = 10  # How long wait for response.
 RESV_LEN = SIBRA_TICK
@@ -57,12 +62,7 @@ def get_path(sd, dst_ia):
     else:
         logging.error("Unable to get an up path, giving up")
         sys.exit(1)
-    logging.debug("Got path(s):")
-    for i, resvs in enumerate(paths):
-        logging.debug("  Path %d:", i)
-        for id_, resv in resvs:
-            logging.debug("    %s: %s", hex_str(id_), resv)
-    return paths[0][0]
+    return paths[0]
 
 
 class _Base(object):
@@ -122,25 +122,106 @@ class Client(_Base):
         self.blocks = []
 
     def run(self, s_addr, s_port, path):
-        spkt = self.create_pkt(s_addr, s_port, path)
+        spkt = self.setup_conn(s_addr, s_port, path)
         if not spkt:
             self.finished.set()
             return
-        pld = PayloadRaw(b"ping")
-        spkt.set_payload(pld)
-        self.send(spkt)
-        self.listen()
+        start = SCIONTime.get_time()
+        i = 0
+        while SCIONTime.get_time() < start + 30:
+            if self.finished.is_set():
+                break
+            spkt.reverse()
+            if not self.handle_renewal(spkt):
+                break
+            pld = PayloadRaw(("ping %d" % i).encode("ascii"))
+            spkt.set_payload(pld)
+            self.send(spkt)
+            spkt = self.listen()
+            if not spkt:
+                break
+            i += 1
+            time.sleep(1.0)
         logging.info("Finished")
         self.finished.set()
 
-    def create_pkt(self, s_addr, s_port, path):
-        path_id, resv_block = path
-        ext = SibraExtSteady.use_from_values(path_id, resv_block)
+    def setup_conn(self, s_addr, s_port, path):
+        bw_cls = BWSnapshot(1 * 1024, 2 * 1024).to_classes().ceil()
+        for i in range(3):
+            sibra_ext = self.create_ext(bw_cls, path)
+            spkt = self.create_pkt(s_addr, s_port, sibra_ext)
+            self.send(spkt)
+            spkt = self.listen()
+            if not spkt:
+                break
+            sibra_ext = self.get_ext(spkt)
+            if sibra_ext.accepted:
+                sibra_ext.switch_resv(sibra_ext.req_block)
+                sibra_ext.req_block = None
+                return spkt
+            bw_cls = sibra_ext.get_min_offer()
+        logging.error("Unable to setup connection after 3 tries")
+        self.finished.set()
+
+    def create_ext(self, bw_cls, path):
+        eph_id = SibraExtEphemeral.mk_path_id(self.addr.isd_as)
+        steady_ids = []
+        blocks = []
+        for id_, block in path:
+            steady_ids.append(id_)
+            blocks.append(block)
+        resv_req = ResvInfoEphemeral.from_values(
+            SCIONTime.get_time() + RESV_LEN, bw_cls=bw_cls)
+        return SibraExtEphemeral.setup_from_values(
+            resv_req, eph_id, steady_ids, blocks)
+
+    def create_pkt(self, s_addr, port, ext):
         cmn_hdr, addr_hdr = build_base_hdrs(self.addr, s_addr)
         udp_hdr = SCIONUDPHeader.from_values(
-            self.addr, self.sock.port, s_addr, s_port)
+            self.addr, self.sock.port, s_addr, port)
         return SCIONL4Packet.from_values(cmn_hdr, addr_hdr, EmptyPath(),
                                          [ext], udp_hdr)
+
+    def get_ext(self, spkt):
+        return find_ext_hdr(spkt, ExtensionClass.HOP_BY_HOP,
+                            SibraExtEphemeral.EXT_TYPE)
+
+    def handle_renewal(self, spkt):
+        sibra_ext = self.get_ext(spkt)
+        act_info = sibra_ext.active_blocks[0].info
+        if sibra_ext.req_block and sibra_ext.accepted:
+            req_info = sibra_ext.req_block.info
+            logging.debug("Renewal succeded")
+            self.blocks.append(sibra_ext.req_block)
+            new_idx = (req_info.index + 1) % SIBRA_MAX_IDX
+            next_cls = req_info.bw.copy()
+            next_cls.fwd += 1
+            next_cls.rev += 1
+        elif sibra_ext.req_block:
+            sibra_ext.req_block.info
+            logging.debug("Renewal denied")
+            new_idx = (sibra_ext.req_block.info.index + 1) % SIBRA_MAX_IDX
+            next_cls = sibra_ext.get_min_offer()
+        else:
+            # Fresh start
+            new_idx = (act_info.index + 1) % SIBRA_MAX_IDX
+            next_cls = act_info.bw.copy()
+
+        now = SCIONTime.get_time()
+        if now > act_info.exp_ts() and not self.blocks:
+            logging.error("Current block expired, and no "
+                          "renewal blocks available to switch to")
+            return False
+        if now + SIBRA_TICK > act_info.exp_ts() and self.blocks:
+            block = self.blocks.pop()
+            self.blocks = []
+            logging.debug("Switching resv: %s", block.info)
+            sibra_ext.switch_resv(block)
+
+        resv_req = ResvInfoEphemeral.from_values(
+            now + RESV_LEN, bw_cls=next_cls, index=new_idx)
+        sibra_ext.renew(resv_req)
+        return True
 
 
 def main():

@@ -19,16 +19,10 @@
 import logging
 
 # SCION
-from lib.defines import (
-    SIBRA_MAX_STEADY_TICKS,
-)
 from lib.packet.scion_addr import ISD_AS
-from lib.sibra.util import (
-    BWSnapshot,
-    current_tick,
-)
+from lib.sibra.util import BWSnapshot, current_tick
 from lib.sibra.state.bandwidth import LinkBandwidth
-from lib.sibra.state.reservation import SteadyReservation
+from lib.sibra.state.reservation import EphemeralReservation, SteadyReservation
 
 
 RESV_INDEXES = 16
@@ -38,7 +32,7 @@ class SibraState(object):
     """
     Track bandwidth usage and all reservations that traverse a link.
     """
-    def __init__(self, bw, isd_as):
+    def __init__(self, bw, isd_as):  # pragma: no cover
         self.curr_tick = current_tick()
         self.link = LinkBandwidth(isd_as, BWSnapshot(bw * 1024, bw * 1024))
         self.steady = {}
@@ -72,7 +66,7 @@ class SibraState(object):
         for path_id in remove:
             del resv_dict[path_id]
 
-    def steady_add(self, path_id, resv_idx, bwsnap, exp_tick, accepted,
+    def add_steady(self, path_id, resv_idx, bwsnap, exp_tick, accepted,
                    setup=True):
         """
         Add a new steady path, or renew an existing one, returning a bandwidth
@@ -80,72 +74,118 @@ class SibraState(object):
         """
         self._update_tick()
         if setup:
-            # FIXME(kormat): switch to exceptions
-            assert path_id not in self.pend_steady
-            assert path_id not in self.steady
-            owner = ISD_AS(path_id[:ISD_AS.LEN])
-            resv = SteadyReservation(path_id, owner, self.link)
+            resv = self._create_steady(path_id)
         else:
-            assert path_id in self.steady
             resv = self.steady[path_id]
-        assert exp_tick >= self.curr_tick
-        assert (exp_tick - self.curr_tick) <= SIBRA_MAX_STEADY_TICKS
-        bwhint = resv.add(resv_idx, bwsnap, exp_tick, self.curr_tick)
-        if not accepted or bwhint != bwsnap:
-            if bwhint != bwsnap:
-                logging.debug("Requested: %s Available bandwidth: %s", bwsnap,
-                              bwhint)
-            return bwhint.to_classes(floor=True).floor()
+        bwcls = self._add(resv, resv_idx, bwsnap, exp_tick, accepted)
+        if bwcls:  # Request was not allowed, so return the hint
+            return bwcls
         if setup:
             # The setup request has been accepted, so add the reservation to the
             # list of steady paths, and flag it as pending.
             self.steady[path_id] = resv
             self.pend_steady[path_id] = True
 
-    def steady_use(self, path_id, resv_idx, bw_used):  # pragma: no cover
+    def add_ephemeral(self, path_id, steady_id, resv_idx, bwsnap, exp_tick,
+                      accepted, setup=True):
         """
-        Update state when a packet uses a steady path.
+        Add a new ephemeral path, or renew an existing one, returning a
+        bandwidth suggestion if the request is not allowed.
         """
         self._update_tick()
-        resv = self.steady.get(path_id)
-        # FIXME(kormat): switch to exception
+        if setup:
+            resv = self._create_ephemeral(path_id, steady_id)
+        else:
+            resv = self.ephemeral[path_id]
+        bwcls = self._add(resv, resv_idx, bwsnap, exp_tick, accepted)
+        if bwcls:  # Request was not allowed, so return the hint
+            return bwcls
+        if setup:
+            # The setup request has been accepted, so add the reservation to the
+            # list of ephemeral paths, and flag it as pending.
+            self.ephemeral[path_id] = resv
+            self.pend_ephemeral[path_id] = True
+
+    def _add(self, resv, resv_idx, bwsnap, exp_tick, accepted):
+        bwhint = resv.add(resv_idx, bwsnap, exp_tick, self.curr_tick)
+        if not accepted or bwhint != bwsnap:
+            # Accepted will be false when an earlier hop has already rejected
+            # the request.
+            if bwhint != bwsnap:
+                logging.debug("Requested: %s Available bandwidth: %s", bwsnap,
+                              bwhint)
+            return bwhint.to_classes(floor=True).floor()
+
+    def _create_steady(self, path_id):  # pragma: no cover
+        # FIXME(kormat): switch to exceptions
+        assert path_id not in self.pend_steady
+        assert path_id not in self.steady
+        owner = ISD_AS(path_id[:ISD_AS.LEN])
+        return SteadyReservation(path_id, owner, self.link)
+
+    def _create_ephemeral(self, path_id, steady_id):  # pragma: no cover
+        # FIXME(kormat): switch to exceptions
+        assert path_id not in self.pend_ephemeral
+        assert path_id not in self.ephemeral
+        assert steady_id in self.steady
+        steady = self.steady[steady_id]
+        steady.add_child(path_id)
+        owner = ISD_AS(path_id[:ISD_AS.LEN])
+        return EphemeralReservation(path_id, owner, steady)
+
+    def _get_resv(self, path_id, steady):  # pragma: no cover
+        if steady:
+            return self.steady.get(path_id)
+        return self.ephemeral.get(path_id)
+
+    def use(self, path_id, resv_idx, bw_used, steady):  # pragma: no cover
+        """
+        Update state when a packet uses a reservation
+        """
+        self._update_tick()
+        resv = self._get_resv(path_id, steady)
         if not resv:
             return False
         return resv.use(resv_idx, bw_used, self.curr_tick)
 
-    def steady_idx_remove(self, path_id, resv_idx):  # pragma: no cover
+    def idx_remove(self, path_id, resv_idx, steady):  # pragma: no cover
         """
         Remove a reservation index.
         """
         self._update_tick()
-        resv = self.steady.get(path_id)
+        resv = self._get_resv(path_id, steady)
         # FIXME(kormat): switch to exception
         assert resv
         resv.remove(resv_idx, self.curr_tick)
 
-    def steady_pend_confirm(self, path_id):  # pragma: no cover
+    def pend_confirm(self, path_id, steady):  # pragma: no cover
         """
-        Confirm a pending steady path, meaning that it has been used.
+        Confirm a pending path, meaning that it has been used.
         """
         self._update_tick()
-        self.pend_steady.pop(path_id, None)
+        if steady:
+            self.pend_steady.pop(path_id, None)
+        else:
+            self.pend_ephemeral.pop(path_id, None)
 
-    def steady_pend_remove(self, path_id):  # pragma: no cover
+    def pend_remove(self, path_id, steady):  # pragma: no cover
         """
-        Remove a pending steady path, as it has either been denied by a later
+        Remove a pending path, as it has either been denied by a later
         hop, or timed out.
         """
         self._update_tick()
-        if self.pend_steady.pop(path_id, None):
-            self.steady[path_id].remove_all()
+        pend = self.pend_steady
+        paths = self.steady
+        if not steady:
+            pend = self.pend_ephemeral
+            paths = self.ephemeral
+        if pend.pop(path_id, None):
+            paths[path_id].remove_all()
 
-    def steady_remove(self, path_id):  # pragma: no cover
-        """
-        Remove an active steady path.
-        """
+    def remove(self, path_id, steady):  # pragma: no cover
+        """Remove an active path."""
         self._update_tick()
-        resv = self.steady.get(path_id)
-        # FIXME(kormat): switch to exception
+        resv = self._get_resv(path_id, steady)
         if not resv:
             return False
         return resv.remove_all()

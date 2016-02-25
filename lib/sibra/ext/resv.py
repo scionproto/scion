@@ -84,16 +84,13 @@ class ResvBlockBase(object):
             raw.append(bytes(SibraOpaqueField.LEN))
         return b"".join(raw)
 
-    def add_hop(self, ingress, egress, key, path_ids):
+    def add_hop(self, ingress, egress, prev_raw, key, path_ids):
         """
         Add a SIBRA Opaque Field to the reservation block. This happens when a
         request has been accepted by a hop on the path.
         """
         assert len(self.sofs) + 1 <= self.num_hops
         sof = SibraOpaqueField.from_values(ingress, egress)
-        prev_raw = None
-        if self.sofs:
-            prev_raw = self.sofs[-1].pack()
         sof.mac = sof.calc_mac(self.info, key, path_ids, prev_raw)
         self.sofs.append(sof)
 
