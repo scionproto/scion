@@ -42,6 +42,7 @@ def main():
     handle_signals()
     test_list()
     test_lookup()
+    test_topology_lookup()
 
 
 def test_list():
@@ -88,6 +89,37 @@ def test_lookup():
            "command": "LOOKUP",
            "req_type": "CONNECT",
            "res_name": "api.github.com:443"}
+
+    try:
+        send_request(sock, req)
+
+        # Receive the response (length + response body)
+        logging.debug('Waiting to receive the response length')
+        data_raw, server = sock.recv()
+        data_len = struct.unpack("!I", data_raw[0:4])[0]
+        logging.debug('Length of the response = %d' % data_len)
+
+        # Unpack the response itself
+        logging.debug('Response json')
+        logging.debug('Received "%s"' % data_raw[4:4+data_len])
+
+    finally:
+        logging.debug('Closing socket')
+        sock.close()
+
+
+def test_topology_lookup():
+    """
+    Creates a sample topology request, sends it to the UDP server
+    and reads the response.
+    """
+
+    logging.info('Starting the topology request test')
+    # Create a UDP socket
+    sock = UDPSocket(None, AddrType.IPV4)
+
+    req = {"version": "0.1",
+           "command": "TOPO"}
 
     try:
         send_request(sock, req)

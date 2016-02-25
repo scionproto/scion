@@ -22,12 +22,14 @@ import json
 import logging
 import struct
 import threading
+import yaml
 
 
 # SCION
 from lib.socket import UDPSocket
 from lib.thread import thread_safety_net
 from lib.types import AddrType
+from topology.generator import DEFAULT_TOPOLOGY_FILE
 
 SERVER_ADDRESS = "127.0.0.1", 7777
 
@@ -112,6 +114,8 @@ class KnowledgeBaseLookupService(object):
                 return
             assert(isinstance(req_type, str))
             resp = self.kbase.lookup(req_type, res_name)
+        elif cmd == 'TOPO':
+            resp = self._get_topology()
         else:
             logging.error('Unsupported command: %s')
             return
@@ -164,3 +168,19 @@ class KnowledgeBaseLookupService(object):
         except OSError as e:
             logging.error('Error while sending response: %s' % e)
             raise OSError("Can't write to the socket: It is dead.")
+
+    def _get_topology(self):
+        """
+        Reads-in the topology file and serves the relevant part of that
+        to the visualization extension.
+        :returns: A list of links extracted from the topology file.
+        :rtype: list
+        """
+        with open(DEFAULT_TOPOLOGY_FILE, 'r') as stream:
+            try:
+                topo_dict = yaml.load(stream)
+                logging.debug('Topology: %s' % topo_dict)
+                return topo_dict['links']
+            except (yaml.YAMLError, KeyError) as e:
+                logging.error('Error while reading the topology YAML: %s' % e)
+                return []
