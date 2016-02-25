@@ -19,7 +19,7 @@ For all flags types that are used in multiple parts of the infrastructure.
 """
 
 
-class FlagBase(object):
+class FlagBase(object):  # pragma: no cover
     def __init__(self, name_vals):
         self._rev = {}
         for name, val in name_vals:

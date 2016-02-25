@@ -277,50 +277,43 @@ class TestPathSegmentDBCall(object):
     """
     Unit tests for lib.path_db.PathSegmentDB.__call__
     """
+    def test(self):
+        inst = PathSegmentDB()
+        inst._parse_call_kwargs = create_mock()
+        inst._parse_call_kwargs.return_value = {"arg1": "val1"}
+        inst._exp_call_records = create_mock()
+        inst._sort_call_pcbs = create_mock()
+        inst._db = create_mock()
+        # Call
+        ntools.eq_(inst("data", a="b"), inst._sort_call_pcbs.return_value)
+        # Tests
+        inst._parse_call_kwargs.assert_called_once_with({"a": "b"})
+        inst._db.assert_called_once_with("data", arg1="val1")
+        inst._exp_call_records.assert_called_once_with(inst._db.return_value)
+        inst._sort_call_pcbs.assert_called_once_with(
+            False, inst._exp_call_records.return_value)
+
+
+class TestPathSegmentDBExpCallRecords(object):
+    """
+    Unit tests for lib.path_db.PathSegmentDB._exp_call_records
+    """
     @patch("lib.path_store.SCIONTime.get_time", new_callable=create_mock)
-    def test_basic(self, time):
-        recs = []
-        for i in range(5):
-            cur_rec = create_mock(['pcb', 'fidelity', 'exp_time'])
-            cur_rec.exp_time = 1
-            cur_rec.fidelity = i
-            recs.append({'record': cur_rec})
-        time.return_value = 0
+    def test(self, time):
         inst = PathSegmentDB()
         inst._db = create_mock(['delete'])
-        inst._db.return_value = recs
-        # Call
-        ntools.eq_(inst("data"), [r['record'].pcb for r in recs])
-        # Tests
-        inst._db.assert_called_once_with(sibra=False)
-        time.assert_called_once_with()
-        inst._db.delete.assert_called_once_with([])
-
-    @patch("lib.path_store.SCIONTime.get_time", new_callable=create_mock)
-    def test_expiration(self, time):
         recs = []
         for i in range(5):
-            cur_rec = create_mock(['pcb', 'exp_time'])
-            cur_rec.exp_time = -1
-            recs.append({'record': cur_rec, 'first_isd': 0,
-                         'first_as': 1, 'last_isd': 2, 'last_as': 3})
-        time.return_value = 0
-        pth_seg_db = PathSegmentDB()
-        pth_seg_db._db = create_mock(['delete'])
-        pth_seg_db._db.return_value = recs
-        ntools.eq_(pth_seg_db("data"), [])
-        pth_seg_db._db.delete.assert_called_once_with(recs)
+            rec = create_mock(['exp_time', 'pcb'])
+            rec.exp_time = i
+            rec.pcb = create_mock(["short_desc"])
+            recs.append({'record': rec})
+        time.return_value = 2
+        # Call
+        ntools.eq_(inst._exp_call_records(recs), recs[2:])
+        # Tests
+        inst._db.delete.assert_called_once_with(recs[:2])
 
-
-class TestPathSegmentDBLen(object):
-    """
-    Unit tests for lib.path_db.PathSegmentDB.__len__
-    """
-    def test_basic(self):
-        pth_seg_db = PathSegmentDB()
-        pth_seg_db._db = create_mock(['__len__'])
-        pth_seg_db._db.__len__.return_value = 5
-        ntools.eq_(len(pth_seg_db), 5)
 
 if __name__ == "__main__":
     nose.run(defaultTest=__name__)

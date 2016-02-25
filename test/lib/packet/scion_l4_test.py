@@ -23,7 +23,7 @@ import nose
 import nose.tools as ntools
 
 # SCION
-from lib.defines import L4_UDP
+from lib.defines import L4_TCP, L4_UDP
 from lib.errors import SCIONParseError
 from lib.packet.scion_l4 import parse_l4_hdr
 from test.testcommon import create_mock
@@ -46,6 +46,10 @@ class TestParseL4Hdr(object):
             "src addr", "dst addr", data.pop.return_value,
             pld_raw.return_value
         ))
+
+    def test_other_l4(self):
+        # Call
+        ntools.eq_(parse_l4_hdr(L4_TCP, "data"), None)
 
     def test_unknown(self):
         ntools.assert_raises(SCIONParseError, parse_l4_hdr, 99, "data")

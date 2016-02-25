@@ -58,7 +58,7 @@ class TrustStore(object):
                     return trc
         return None
 
-    def get_trcs(self):
+    def get_trcs(self):  # pragma: no cover
         # Return list of the most recent TRCs.
         res = []
         for isd in self._trcs:

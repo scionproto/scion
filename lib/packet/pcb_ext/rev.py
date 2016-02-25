@@ -20,7 +20,7 @@ from lib.packet.pcb_ext import BeaconExtType, BeaconExtension
 from lib.packet.rev_info import RevocationInfo
 
 
-class RevPcbExt(BeaconExtension):
+class RevPcbExt(BeaconExtension):  # pragma: no cover
     """
     Length of REVExtension
     """

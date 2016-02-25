@@ -277,7 +277,7 @@ def _signal_handler(signum, _):
         sys.exit(1)
 
 
-def iso_timestamp(ts):
+def iso_timestamp(ts):  # pragma: no cover
     """
     Format a unix timestamp as a UTC ISO 8601 format string
     (YYYY-MM-DD HH:MM:SS.mmmmmm+00:00)

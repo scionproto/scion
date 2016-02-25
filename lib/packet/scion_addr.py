@@ -86,17 +86,17 @@ class ISD_AS(object):
         isd_as |= self._as & 0x000fffff
         return isd_as
 
-    def any_as(self):
+    def any_as(self):  # pragma: no cover
         return self.from_values(self._isd, 0)
 
-    def params(self, name="first"):
+    def params(self, name="first"):  # pragma: no cover
         """Provides parameters for querying PathSegmentDB"""
         if self._as == 0:
             return {"%s_isd" % name: self._isd}
         else:
             return {"%s_ia" % name: self}
 
-    def __eq__(self, other):
+    def __eq__(self, other):  # pragma: no cover
         return self._isd == other._isd and self._as == other._as
 
     def __getitem__(self, idx):  # pragma: no cover
@@ -108,7 +108,7 @@ class ISD_AS(object):
             raise SCIONIndexError("Invalid index used on %s object: %s" % (
                                   (self.NAME, idx)))
 
-    def __iter__(self):
+    def __iter__(self):  # pragma: no cover
         yield self._isd
         yield self._as
 
@@ -121,7 +121,7 @@ class ISD_AS(object):
     def __len__(self):  # pragma: no cover
         return self.LEN
 
-    def __hash__(self):
+    def __hash__(self):  # pragma: no cover
         return hash(str(self))
 
 
@@ -133,7 +133,7 @@ class SCIONAddr(object):
     :ivar HostAddrBase host: host address.
     :ivar int addr_len: address length.
     """
-    def __init__(self, addr_info=()):
+    def __init__(self, addr_info=()):  # pragma: no cover
         """
         Initialize an instance of the class SCIONAddr.
 
@@ -181,7 +181,7 @@ class SCIONAddr(object):
         return self.isd_as.pack() + self.host.pack()
 
     @classmethod
-    def calc_len(cls, type_):
+    def calc_len(cls, type_):  # pragma: no cover
         class_ = haddr_get_type(type_)
         return ISD_AS.LEN + class_.LEN
 
