@@ -50,6 +50,10 @@ Necessary steps in order to run SCION:
                 keys/
                     as-sig.key
 
+   The default topology looks like this:
+
+   ![Default SCION topology](fig/default-topo.pdf)
+
 1. Run the infrastructure:
 
     `./scion.sh run`
