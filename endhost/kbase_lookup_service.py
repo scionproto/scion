@@ -32,6 +32,7 @@ from lib.types import AddrType
 from topology.generator import DEFAULT_TOPOLOGY_FILE
 
 SERVER_ADDRESS = "127.0.0.1", 7777
+DEFAULT_LOCATIONS_FILE = "topology/Default.locations"
 
 
 class KnowledgeBaseLookupService(object):
@@ -116,6 +117,8 @@ class KnowledgeBaseLookupService(object):
             resp = self.kbase.lookup(req_type, res_name)
         elif cmd == 'TOPO':
             resp = self._get_topology()
+        elif cmd == 'LOCATIONS':
+            resp = self._get_locations()
         else:
             logging.error('Unsupported command: %s')
             return
@@ -171,7 +174,7 @@ class KnowledgeBaseLookupService(object):
 
     def _get_topology(self):
         """
-        Reads-in the topology file and serves the relevant part of that
+        Reads in the topology file and serves the relevant part of that
         to the visualization extension.
         :returns: A list of links extracted from the topology file.
         :rtype: list
@@ -184,3 +187,19 @@ class KnowledgeBaseLookupService(object):
             except (yaml.YAMLError, KeyError) as e:
                 logging.error('Error while reading the topology YAML: %s' % e)
                 return []
+
+    def _get_locations(self):
+        """
+        Reads in the default locations file and serves the relevant part of that
+        to the visualization extension.
+        :returns: A dictionary of AS Name to Country Code matching.
+        :rtype: dict
+        """
+        with open(DEFAULT_LOCATIONS_FILE, 'r') as stream:
+            try:
+                locations_dict = yaml.load(stream)
+                logging.debug('Locations: %s' % locations_dict)
+                return locations_dict['locations']
+            except (yaml.YAMLError, KeyError) as e:
+                logging.error('Error while reading the locations YAML: %s' % e)
+                return {}
