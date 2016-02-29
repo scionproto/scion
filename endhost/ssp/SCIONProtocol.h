@@ -30,7 +30,7 @@ public:
     bool isBlocking();
 
     virtual bool claimPacket(SCIONPacket *packet, uint8_t *buf);
-    virtual void createManager(std::vector<SCIONAddr> &dstAddrs);
+    virtual void createManager(std::vector<SCIONAddr> &dstAddrs, bool paths);
     virtual void start(SCIONPacket *packet, uint8_t *buf, int sock);
 
     bool isRunning();
@@ -80,7 +80,7 @@ public:
     int recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr);
 
     bool claimPacket(SCIONPacket *packet, uint8_t *buf);
-    void createManager(std::vector<SCIONAddr> &dstAddrs);
+    void createManager(std::vector<SCIONAddr> &dstAddrs, bool paths);
     void start(SCIONPacket *packet, uint8_t *buf, int sock);
     int handlePacket(SCIONPacket *packet, uint8_t *buf);
 
@@ -153,7 +153,7 @@ public:
     SUDPProtocol(std::vector<SCIONAddr> &dstAddrs, short srcPort, short dstPort);
     ~SUDPProtocol();
 
-    void createManager(std::vector<SCIONAddr> &dstAddrs);
+    void createManager(std::vector<SCIONAddr> &dstAddrs, bool paths);
 
     int send(uint8_t *buf, size_t len, DataProfile profile);
     int recv(uint8_t *buf, size_t len, SCIONAddr *srcAddr);

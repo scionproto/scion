@@ -21,6 +21,7 @@ public:
     int getPathCount();
     int maxPayloadSize();
 
+    void getLocalAddress();
     void getPaths();
 
     virtual Path * createPath(SCIONAddr &dstAddr, uint8_t *rawPath, int pathLen);
@@ -30,7 +31,6 @@ public:
     int setStayISD(uint16_t isd);
 
 protected:
-    void getLocalAddress();
     int checkPath(uint8_t *ptr, int len, int addr, std::vector<Path *> &candidates);
     void prunePaths();
     void insertPaths(std::vector<Path *> &candidates);
