@@ -942,7 +942,6 @@ Path * SSPConnectionManager::createPath(SCIONAddr &dstAddr, uint8_t *rawPath, in
 
 void SSPConnectionManager::startScheduler()
 {
-    getPaths();
     pthread_create(&mWorker, NULL, &SSPConnectionManager::workerHelper, this);
 }
 

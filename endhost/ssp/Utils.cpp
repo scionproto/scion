@@ -121,40 +121,55 @@ int reverseCorePath(uint8_t *original, uint8_t *reverse, int len)
         downHops = coreHops;
         coreIOF = NULL;
         coreHops = 0;
+        if (downIOF >= original + len) {
+            // still out of bounds, only one segment in path
+            downIOF = NULL;
+            downHops = 0;
+        }
     } else {
         downHops = *(downIOF + 7);
     }
     DEBUG("%d up hops, %d core hops, %d down hops\n", upHops, coreHops, downHops);
 
     // up segment = reversed down segment
-    *(uint64_t *)reverse = *(uint64_t *)downIOF;
+    uint8_t *iof = downIOF;
+    if (!iof)
+        iof = upIOF;
+    int hops = downHops;
+    if (!hops)
+        hops = upHops;
+    *(uint64_t *)reverse = *(uint64_t *)iof;
     *reverse ^= 1;
     offset = 8;
-    for (int i = downHops; i > 0; i--) {
-        *(uint64_t *)(reverse + offset) = *(uint64_t *)(downIOF + i * 8);
+    for (int i = hops; i > 0; i--) {
+        *(uint64_t *)(reverse + offset) = *(uint64_t *)(iof + i * 8);
         offset += 8;
     }
     DEBUG("offset after up segment = %d\n", offset);
 
     // reverse core hops
-    *(uint64_t *)(reverse + offset) = *(uint64_t *)coreIOF;
-    *(reverse + offset) ^= 1;
-    offset += 8;
-    for (int i = coreHops; i > 0; i--) {
-        *(uint64_t *)(reverse + offset) = *(uint64_t *)(coreIOF + i * 8);
+    if (coreHops > 0) {
+        *(uint64_t *)(reverse + offset) = *(uint64_t *)coreIOF;
+        *(reverse + offset) ^= 1;
         offset += 8;
+        for (int i = coreHops; i > 0; i--) {
+            *(uint64_t *)(reverse + offset) = *(uint64_t *)(coreIOF + i * 8);
+            offset += 8;
+        }
+        DEBUG("offset after core segment = %d\n", offset);
     }
-    DEBUG("offset after core segment = %d\n", offset);
 
     // down segment = reversed up segment
-    *(uint64_t *)(reverse + offset) = *(uint64_t *)upIOF;
-    *(reverse + offset) ^= 1;
-    offset += 8;
-    for (int i = upHops; i > 0; i--) {
-        *(uint64_t *)(reverse + offset) = *(uint64_t *)(upIOF + i * 8);
+    if (downHops > 0) {
+        *(uint64_t *)(reverse + offset) = *(uint64_t *)upIOF;
+        *(reverse + offset) ^= 1;
         offset += 8;
+        for (int i = upHops; i > 0; i--) {
+            *(uint64_t *)(reverse + offset) = *(uint64_t *)(upIOF + i * 8);
+            offset += 8;
+        }
+        DEBUG("offset after down segment = %d\n", offset);
     }
-    DEBUG("offset after down segment = %d\n", offset);
     return offset;
 }
 
@@ -199,6 +214,7 @@ int reversePeerPath(uint8_t *original, uint8_t *reverse, int len)
     uint8_t upHops = *(upIOF + 7);
     uint8_t *downIOF = upIOF + (upHops + 3) * 8;
     uint8_t downHops = *(downIOF + 7);
+    DEBUG("%d up hops, %d down hops\n", upHops, downHops);
 
     // up segment = reversed down segment
     *(uint64_t *)reverse = *(uint64_t *)downIOF;
@@ -236,7 +252,7 @@ int reversePath(uint8_t *original, uint8_t *reverse, int len)
         return 0;
 
     if (IS_HOP_OF(*original)) {
-        DEBUG("No leading Info OF in path\n");
+        DEBUG("No leading Info OF in path (%#x)\n", *original);
         return -1;
     }
 
