@@ -19,15 +19,13 @@
 import logging
 
 # SCION
-from infrastructure.router import (
-    Router,
-    IFID_PKT_TOUT,
-    SCIONOFExpiredError,
-)
+from infrastructure.router.main import Router
+from infrastructure.router.errors import SCIONOFExpiredError
 from lib.defines import (
     BEACON_SERVICE,
     CERTIFICATE_SERVICE,
     EXP_TIME_UNIT,
+    IFID_PKT_TOUT,
     PATH_SERVICE,
     SCION_UDP_PORT,
     SERVICE_TYPES,
@@ -44,27 +42,19 @@ class RouterSim(Router):
     """
     Simulator version of the SCION Router
     """
-    def __init__(self, router_id, topo_file, config_file, server_name,
-                 simulator):
+    def __init__(self, server_id, conf_dir, simulator):
         """
         Initialises Router with is_sim set to True.
 
-        :param router_id:
-        :type router_id:
-        :param topo_file: the topology file name.
-        :type topo_file: str
-        :param config_file: the configuration file name.
-        :type config_file: str
-        :param server_name:
-        :type server_name:
-        :param simulator: Instance of simulator class.
-        :type simulator: Simulator
+        :param str server_id: server identifier.
+        :param str conf_dir: configuration directory.
+        :param Simulator simulator: Instance of simulator class.
         """
-        Router.__init__(self, router_id, topo_file, config_file, is_sim=True)
+        Router.__init__(self, server_id, conf_dir, is_sim=True)
         self.simulator = simulator
         simulator.add_element(str(self.addr.host_addr), self)
         simulator.add_element(str(self.interface.addr), self)
-        simulator.add_name(server_name, str(self.addr.host_addr))
+        simulator.add_name(server_id, str(self.addr.host_addr))
         self.event_id_map = {}
         self.stopped = True
 

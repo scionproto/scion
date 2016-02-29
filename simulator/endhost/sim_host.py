@@ -22,7 +22,7 @@ import struct
 # SCION
 from endhost.sciond import SCIONDaemon, SCIOND_API_PORT
 from lib.defines import SCION_UDP_PORT
-from lib.errors import SCIONParseError
+from lib.errors import SCIONParseError, SCIONKeyError
 from lib.packet.path import PathCombinator
 from lib.packet.path_mgmt import PathSegmentInfo
 from lib.packet.scion import SCIONL4Packet
@@ -38,21 +38,15 @@ class SCIONSimHost(SCIONDaemon):
     """
     The SCION Simulator endhost. Applications can be simulated on this host
     """
-    def __init__(self, addr, topo_file, simulator):
+    def __init__(self, conf_dir, addr, simulator):
         """
         Initializes SimHost by calling constructor of SCIONDaemon with
         is_sim variable set to True
 
-        :param addr:
-        :type addr:
-        :param topo_file:
-        :type topo_file:
-        :param run_local_api:
-        :type run_local_api:
         :param simulator: Instance of simulator class.
         :type simulator: Simulator
         """
-        SCIONDaemon.__init__(self, addr, topo_file, is_sim=True)
+        SCIONDaemon.__init__(self, conf_dir, addr, api_addr=None, is_sim=True)
         self.simulator = simulator
         simulator.add_element(str(self.addr.host_addr), self)
         self.apps = {}
@@ -256,6 +250,16 @@ class SCIONSimHost(SCIONDaemon):
         self._waiting_requests.remove(req_id)
         reply = []
         for path in paths:
+            try:
+                tmp = path._ofs.get_by_label("up_segment_peering_link", 0)
+                if tmp is not None:
+                    tmp.info = 1 << 4
+                tmp = path._ofs.get_by_label("down_segment_peering_link", 0)
+                if tmp is not None:
+                    tmp.info = 1 << 4
+            except SCIONKeyError:
+                pass
+            # sys.ex()
             raw_path = path.pack()
             # assumed IPv4 addr
             haddr = self.ifid2addr[path.get_fwd_if()]

@@ -140,7 +140,7 @@ def graph_to_dot(graph, dot_output_file):
     :type dot_output_file: str
     """
     try:
-        from networkx import pygraphviz   # noqa
+        import pygraphviz   # noqa
     except ImportError:
         raise ImportError('Pygraphviz is not available for python3.' +
                           'Install it for python2 instead')
@@ -232,17 +232,19 @@ def read_topo_file(topo_file, isd_num):
         if nodes_count > 0:
             nodes_count -= 1
             values = line.split("\t")
-            ad_id = values[0]
-            isd_ad_id = ISD_AD_ID_DIVISOR.join([str(isd_num), ad_id])
+            ad_id = int(values[0]) + 1
+            isd_ad_id = ISD_AD_ID_DIVISOR.join([str(isd_num), str(ad_id)])
             original_graph.add_node(isd_ad_id, is_core=False)
             num_outedges.append((isd_ad_id, int(values[3])))
         if edges_count > 0:
             edges_count -= 1
             values = line.split("\t")
+            source_ad_id = int(values[1]) + 1
+            dest_ad_id = int(values[2]) + 1
             source_isd_ad_id = ISD_AD_ID_DIVISOR.join([str(isd_num),
-                                                      values[1]])
+                                                      str(source_ad_id)])
             dest_isd_ad_id = ISD_AD_ID_DIVISOR.join([str(isd_num),
-                                                     values[2]])
+                                                     str(dest_ad_id)])
             original_graph.add_edge(source_isd_ad_id, dest_isd_ad_id)
         if values[0] == "Nodes:":
             nodes_count = int(values[2])
@@ -361,19 +363,22 @@ def json_convert(graph):
     def func_labels(x):
         return graph.edge[isd_ad_id][x]['label']
     topo_dict = dict()
-    topo_dict["default_subnet"] = "127.0.0.0/8"
+    topo_dict["defaults"] = dict()
+    topo_dict["ADs"] = dict()
+    topo_dict["defaults"]["subnet"] = "127.0.0.0/8"
     for isd_ad_id in graph.nodes():
         list_labels = [func_labels(x) for x in list(graph.edge[isd_ad_id])]
-        topo_dict[isd_ad_id] = {"beacon_servers": 1,
-                                "certificate_servers": 1,
-                                "path_servers": 1
-                                }
+        topo_dict["ADs"][isd_ad_id] = {
+            "beacon_servers": 1,
+            "certificate_servers": 1,
+            "path_servers": 1
+        }
         if graph.node[isd_ad_id]['is_core']:
-            topo_dict[isd_ad_id]["level"] = "CORE"
+            topo_dict["ADs"][isd_ad_id]["level"] = "CORE"
         elif "CHILD" not in list_labels:
-            topo_dict[isd_ad_id]["level"] = "LEAF"
+            topo_dict["ADs"][isd_ad_id]["level"] = "LEAF"
         else:
-            topo_dict[isd_ad_id]["level"] = "INTERMEDIATE"
+            topo_dict["ADs"][isd_ad_id]["level"] = "INTERMEDIATE"
         links = dict()
         cert_issuer = None
         for isd_ad_id_neighbor in graph.neighbors(isd_ad_id):
@@ -381,9 +386,9 @@ def json_convert(graph):
                 graph.edge[isd_ad_id][isd_ad_id_neighbor]['label']
             if links[isd_ad_id_neighbor] == "PARENT":
                 cert_issuer = isd_ad_id_neighbor
-        topo_dict[isd_ad_id]["links"] = links
+        topo_dict["ADs"][isd_ad_id]["links"] = links
         if cert_issuer is not None:
-            topo_dict[isd_ad_id]["cert_issuer"] = cert_issuer
+            topo_dict["ADs"][isd_ad_id]["cert_issuer"] = cert_issuer
 
     with open(DEFAULT_ADCONFIGURATIONS_FILE, 'w') as topo_fh:
         json.dump(topo_dict, topo_fh, sort_keys=True, indent=4)

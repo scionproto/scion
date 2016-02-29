@@ -35,12 +35,11 @@ class SimPingApp(SCIONSimApplication):
     Simulator Ping application
     """
     _APP_PORT = 5600
-    PING_INTERVAL = 40
     SUCCESS = 0
     REVOCATION = 1
     TIMEOUT = 2
 
-    def __init__(self, host, dst_addr, dst_ad, dst_isd, max_ping_pongs):
+    def __init__(self, host, dst_addr, dst_ad, dst_isd, ping_interval):
         """
         Initialize the ping application
 
@@ -60,8 +59,10 @@ class SimPingApp(SCIONSimApplication):
         self.dst_addr = dst_addr
         self.dst_ad = dst_ad
         self.dst_isd = dst_isd
-        self.max_ping_pongs = max_ping_pongs
+        self.ping_interval = ping_interval
         self.num_ping_pongs = 0
+        self.num_pings_sent = 0
+        self.revoked_packets = 0
         self.pong_recv_status = []
         self.ping_send_time = []
 
@@ -69,7 +70,7 @@ class SimPingApp(SCIONSimApplication):
         """
         Run ping application at start_time
         """
-        self.simulator.add_event(self.start_time, cb=self.send_ping)
+        self.simulator.add_event(self.start_time, cb=self.next_event)
 
     def handle_packet(self, packet, sender):
         """
@@ -80,20 +81,19 @@ class SimPingApp(SCIONSimApplication):
         :param sender: The sender of the packet
         """
         pkt = SCIONL4Packet(packet)
-        payload = pkt.get_payload()
-        if payload == PayloadRaw(b"pong"):
-            self.receive_pong(self.SUCCESS)
-        else:
-            pld_type = pkt.parse_payload().PAYLOAD_TYPE
-            if pld_type != PMT.REVOCATION:
-                logging.error("Unsupported packet Received")
-                return
-            self.receive_pong(self.REVOCATION)
+        # payload = pkt.get_payload()
+        pld_type = pkt.parse_payload().PAYLOAD_TYPE
+        if pld_type != PMT.REVOCATION:
+            logging.error("Unsupported packet Received")
+            return
+        logging.info("Revocation received at host: %s", self.addr)
+        self.revoked_packets += 1
 
     def send_ping(self):
         """
         Finds path to destination from host and adds application callback
         """
+        self.num_pings_sent += 1
         logging.info("Sending ping")
         self.app_cb = self._do_send_ping
         self.get_paths_via_api(self.dst_isd, self.dst_ad)
@@ -105,10 +105,10 @@ class SimPingApp(SCIONSimApplication):
         :param paths_hops: Path information
         :type paths_hops: list
         """
-        curr_time = SCIONTime.get_time()
-        self.ping_send_time.append(curr_time)
+
         if len(paths_hops) == 0:
-            self.receive_pong(self.TIMEOUT)
+            logging.info("No path found for ping request")
+            self.next_event()
             return
         (path, _) = paths_hops[0]
 
@@ -128,6 +128,7 @@ class SimPingApp(SCIONSimApplication):
         logging.info("Sending packet: %s\nFirst hop: %s:%s",
                      spkt, next_hop, port)
         self.host.send(spkt, next_hop, port)
+        self.next_event()
 
     def receive_pong(self, status):
         """
@@ -146,7 +147,14 @@ class SimPingApp(SCIONSimApplication):
         if self.num_ping_pongs >= self.max_ping_pongs:
             self.simulator.terminate()
         else:
-            self.simulator.add_event(self.PING_INTERVAL, cb=self.send_ping)
+            self.simulator.add_event(self.ping_interval, cb=self.send_ping)
+
+    def next_event(self):
+        """
+        """
+        curr_time = SCIONTime.get_time()
+        self.ping_send_time.append(curr_time)
+        self.simulator.add_event(self.ping_interval, cb=self.send_ping)
 
 
 class SimPongApp(SCIONSimApplication):
@@ -163,6 +171,8 @@ class SimPongApp(SCIONSimApplication):
         :type host: SCIONSimHost
         """
         super().__init__(host, SimPongApp._APP_PORT)
+        self._addr = host.addr
+        self.num_pings_received = 0
 
     def run(self):
         """
@@ -181,10 +191,10 @@ class SimPongApp(SCIONSimApplication):
         spkt = SCIONL4Packet(packet)
         payload = spkt.get_payload()
         if payload == PayloadRaw(b"ping"):
-            # Reverse the packet and send "pong"
-            logging.info('%s: ping received, sending pong.', self.addr)
-            spkt.reverse()
-            spkt.set_payload(PayloadRaw(b"pong"))
-            (next_hop, port) = self.host.get_first_hop(spkt)
-            assert next_hop is not None
-            self.host.send(spkt, next_hop, port)
+            self.num_pings_received += 1
+            logging.info('%s: ping received', self.addr)
+            # # Reverse the packet and send "pong"
+            # spkt.reverse()
+            # spkt.set_payload(PayloadRaw(b"pong"))
+            # (next_hop, port) = self.host.get_first_hop(spkt)
+            # self.host.send(spkt, next_hop, port)

@@ -91,6 +91,8 @@ class Simulator(object):
         # list of removed (not expired or executed) events
         self.removed = []
         SCIONTime.set_time_method(lambda: self.get_curr_time())
+        self.core_isd_ads = list()
+        self.local_isd_ads = list()
 
     def add_element(self, addr, element):
         """
@@ -241,6 +243,7 @@ class Simulator(object):
         """
         while not self.event_pq.empty():
             self.event_pq.get()
+        self.print_event_output()
 
     def clean(self):
         """
@@ -252,3 +255,30 @@ class Simulator(object):
             except AttributeError:
                 continue
             do_clean()
+
+    def print_event_output(self):
+        """
+        Print output regarding any events at the end of simulation.
+        For now, only revocation messages at PS.
+        """
+        num_core = 0
+        count_core = 0
+        num_local = 0
+        count_local = 0
+        for name in self.name_addr_map:
+            if name[0:2] == 'ps':
+                element = self.element_list[self.name_addr_map[name]]
+                # print(name, element.topology.is_core_ad,
+                #       element.num_revocation_msgs)
+                if element.num_revocation_msgs == 0:
+                    continue
+                if element.topology.is_core_ad:
+                    num_core += element.num_revocation_msgs
+                    count_core += 1
+                else:
+                    num_local += element.num_revocation_msgs
+                    count_local += 1
+        print("Total messages received at path servers", num_core + num_local)
+        print("At core PS:", num_core)
+        print("At local PS:", num_local)
+        print("Avg:", (num_core + num_local)/(count_core + count_local))

@@ -17,14 +17,16 @@
 ===========================================================
 """
 # Stdlib
+import logging
 import os
 import profile
+import random
 import sys
-import logging
 import unittest
+from ipaddress import ip_address, ip_network
 
 # SCION
-from lib.defines import PROJECT_ROOT
+from lib.defines import PROJECT_ROOT, GEN_PATH
 from lib.packet.host_addr import haddr_parse
 from lib.packet.scion_addr import ISD_AD
 
@@ -52,35 +54,78 @@ def read_events_file():
     return content
 
 
+def increment_address(ip_addr, mask, increment=1):
+    """
+    Increment an IP address value.
+
+    :param ip_addr: the IP address to increment.
+    :type ip_addr: str
+    :param mask: subnet mask for the given IP address.
+    :type mask: str
+    :param increment: step the IP address must be incremented of.
+    :type increment: int
+
+    :returns: the incremented IP address. It fails if a broadcast address is
+              reached.
+    :rtype: str
+    """
+    subnet = ip_network('{}/{}'.format(ip_addr, mask), strict=False)
+    ip_addr_obj = ip_address(ip_addr) + increment
+    if ip_addr_obj >= subnet.broadcast_address:
+        logging.error("Reached a broadcast IP address: " + str(ip_addr_obj))
+        sys.exit()
+    return str(ip_addr_obj)
+
+
 class RevocationSimTest(unittest.TestCase):
     """
     Unit tests for sim_host.py
     """
 
-    def test(self, events):
+    def test(self):
         """
         """
+        events = read_events_file()
         simulator = init_simulator()
         # Setup for ping-pong application
-        src_isd_ad = ISD_AD(1, 10)
+        crash_isd_ad = ISD_AD(1, 12)
         dst_isd_ad = ISD_AD(2, 26)
-        src_host_addr = haddr_parse("IPV4", "127.1.10.254")
-        dst_host_addr = haddr_parse("IPV4", "127.2.26.254")
-        src_topo_path = (
-            "topology/ISD{}/topologies/ISD:{}-AD:{}.json"
-            .format(src_isd_ad.isd, src_isd_ad.isd, src_isd_ad.ad)
-            )
-        dst_topo_path = (
-            "topology/ISD{}/topologies/ISD:{}-AD:{}.json"
-            .format(dst_isd_ad.isd, dst_isd_ad.isd, dst_isd_ad.ad)
-            )
-        host1 = SCIONSimHost(src_host_addr, src_topo_path, simulator)
-        host2 = SCIONSimHost(dst_host_addr, dst_topo_path, simulator)
-        ping_application = SimPingApp(host1, dst_host_addr,
-                                      dst_isd_ad.ad, dst_isd_ad.isd, 4)
-        SimPongApp(host2)
-        app_start_time = 30.
-        ping_application.start(app_start_time)
+        app_start_time = 29.
+        app_end_time = 100.
+        num_hosts = 10
+        src_host_addr_next = "127.100.100.1"
+        dst_host_addr_next = "127.101.100.1"
+        ping_apps = list()
+        pong_apps = list()
+        local_isd_ads = simulator.local_isd_ads
+        local_isd_ads.remove(dst_isd_ad)
+        local_isd_ads.remove(crash_isd_ad)
+        for host in range(0, num_hosts):
+            # Choose a source ISD_AD
+            src_isd_ad = random.choice(local_isd_ads)
+            src_conf_dir = "%s/ISD%d/AD%d/endhost" % (
+                GEN_PATH, src_isd_ad.isd, src_isd_ad.ad)
+            dst_conf_dir = "%s/ISD%d/AD%d/endhost" % (
+                GEN_PATH, dst_isd_ad.isd, dst_isd_ad.ad)
+            src_host_addr = haddr_parse("IPV4", src_host_addr_next)
+            dst_host_addr = haddr_parse("IPV4", dst_host_addr_next)
+            src_host_addr_next = increment_address(src_host_addr_next, 8)
+            dst_host_addr_next = increment_address(dst_host_addr_next, 8)
+
+            # Initialize hosts 
+            host1 = SCIONSimHost(src_conf_dir, src_host_addr, simulator)
+            host2 = SCIONSimHost(dst_conf_dir, dst_host_addr, simulator)
+            ping_interval = random.randint(1, 50)
+            ping_application = SimPingApp(host1, dst_host_addr,
+                                          dst_isd_ad.ad, dst_isd_ad.isd,
+                                          ping_interval)
+            pong_application = SimPongApp(host2)
+            ping_apps.append(ping_application)
+            pong_apps.append(pong_application)
+            ping_application.start(app_start_time)
+            logging.info("Source host: %s", src_isd_ad)
+            logging.info("Ping frequency: %d", ping_interval)
+        simulator.add_event(app_end_time + 0.0001, cb=simulator.terminate)
 
         event_parser = EventParser(simulator)
         # Add the events into simulator queue
@@ -89,30 +134,35 @@ class RevocationSimTest(unittest.TestCase):
         simulator.run()
 
         logging.info("Simulation terminated")
-        status_map = {
-            0: 'Success',
-            1: 'Revocation',
-            2: 'Time out',
-        }
-        output = []
-        start_times = []
-        for status in ping_application.pong_recv_status:
-            output.append(status_map.get(status))
-        for time in ping_application.ping_send_time:
-            start_times.append(time)
-        logging.info("Ping pong status:%s", output)
-        logging.info("Time of ping pongs:%s", start_times)
+        # start_times = []
+        # for time in ping_application.ping_send_time:
+        #     start_times.append(time)
+        # logging.info("Ping pong status:%s", output)
+        total_pings_sent = 0
+        total_pings_received = 0
+        total_revocations_received = 0
+        for num in range(0, len(ping_apps)):
+            ping_app = ping_apps[num]
+            pong_app = pong_apps[num]
+            total_pings_sent += ping_app.num_pings_sent
+            total_pings_received += pong_app.num_pings_received
+            total_revocations_received += ping_app.revoked_packets
+        print("Number of pings sent ", total_pings_sent)
+        print("Number of pings received ", total_pings_received)
+        print("Number of revocations received ", total_revocations_received)
+        assert True
+        # print("Time of ping pongs ", start_times, len(start_times))
+
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.ERROR)
     to_profile = False
 
     def run_test():
         """
         Calls main function in unit test
         """
-        events = read_events_file()
-        RevocationSimTest().test(events)
+        unittest.main()
     if to_profile:
         profile.run('run_test()', sort='cumtime')
     else:

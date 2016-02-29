@@ -56,6 +56,7 @@ from lib.errors import (
 from lib.log import log_exception
 from lib.sibra.ext.ext import SibraExtBase
 from lib.packet.ext.traceroute import TracerouteExt
+from lib.packet.packet_base import PayloadRaw
 from lib.packet.path_mgmt import (
     RevocationInfo,
     IFStateRequest,
@@ -390,6 +391,8 @@ class Router(SCIONElement):
         # (i.e., path_req).
         # if get_type(spkt) != PT.DATA:
         #    return
+        if not isinstance(spkt.get_payload(), PayloadRaw):
+            return
         logging.info("Interface %d is down. Issuing revocation.", if_id)
         # Check that the interface is really down.
         if_state = self.if_states[if_id]

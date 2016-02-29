@@ -22,6 +22,7 @@ import profile
 import unittest
 
 # SCION
+from lib.defines import GEN_PATH
 from lib.packet.host_addr import haddr_parse
 from lib.packet.scion_addr import ISD_AD
 
@@ -49,18 +50,15 @@ class PingPongSimTest(unittest.TestCase):
         dst_isd_ad = ISD_AD(2, 26)
         src_host_addr = haddr_parse("IPV4", "127.1.10.254")
         dst_host_addr = haddr_parse("IPV4", "127.2.26.254")
-        src_topo_path = (
-            "topology/ISD{}/topologies/ISD:{}-AD:{}.json"
-            .format(src_isd_ad.isd, src_isd_ad.isd, src_isd_ad.ad)
-            )
-        dst_topo_path = (
-            "topology/ISD{}/topologies/ISD:{}-AD:{}.json"
-            .format(dst_isd_ad.isd, dst_isd_ad.isd, dst_isd_ad.ad)
-            )
-        host1 = SCIONSimHost(src_host_addr, src_topo_path, simulator)
-        host2 = SCIONSimHost(dst_host_addr, dst_topo_path, simulator)
+        src_conf_dir = "%s/ISD%d/AD%d/endhost" % (
+            GEN_PATH, src_isd_ad.isd, src_isd_ad.ad)
+        dst_conf_dir = "%s/ISD%d/AD%d/endhost" % (
+            GEN_PATH, dst_isd_ad.isd, dst_isd_ad.ad)
+
+        host1 = SCIONSimHost(src_conf_dir, src_host_addr, simulator)
+        host2 = SCIONSimHost(dst_conf_dir, dst_host_addr, simulator)
         ping_application = SimPingApp(host1, dst_host_addr,
-                                      dst_isd_ad.ad, dst_isd_ad.isd)
+                                      dst_isd_ad.ad, dst_isd_ad.isd, 20)
         pong_application = SimPongApp(host2)
         app_start_time = 40.
         ping_application.start(app_start_time)
