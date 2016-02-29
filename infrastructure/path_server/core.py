@@ -38,13 +38,12 @@ class CorePathServer(PathServer):
     core segments and forwards inter-ISD path requests to the corresponding path
     server.
     """
-    def __init__(self, server_id, conf_dir, is_sim=False):
+    def __init__(self, server_id, conf_dir):
         """
         :param str server_id: server identifier.
         :param str conf_dir: configuration directory.
-        :param bool is_sim: running on simulator
         """
-        super().__init__(server_id, conf_dir, is_sim=is_sim)
+        super().__init__(server_id, conf_dir)
         # Sanity check that we should indeed be a core path server.
         assert self.topology.is_core_as, "This shouldn't be a local PS!"
         self._master_id = None  # Address of master core Path Server.

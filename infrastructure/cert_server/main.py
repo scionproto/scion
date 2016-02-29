@@ -57,13 +57,12 @@ class CertServer(SCIONElement):
     # ZK path for incoming TRCs
     ZK_TRC_CACHE_PATH = "trc_cache"
 
-    def __init__(self, server_id, conf_dir, is_sim=False):
+    def __init__(self, server_id, conf_dir):
         """
         :param str server_id: server identifier.
         :param str conf_dir: configuration directory.
-        :param bool is_sim: running on simulator
         """
-        super().__init__(server_id, conf_dir, is_sim=is_sim)
+        super().__init__(server_id, conf_dir)
         self.cc_requests = RequestHandler.start(
             "CC Requests", self._check_cc, self._fetch_cc, self._reply_cc,
         )
@@ -80,18 +79,16 @@ class CertServer(SCIONElement):
             },
         }
 
-        if not is_sim:
-            # Add more IPs here if we support dual-stack
-            name_addrs = "\0".join([self.id, str(SCION_UDP_PORT),
-                                    str(self.addr.host)])
-            self.zk = Zookeeper(
-                self.topology.isd_as, CERTIFICATE_SERVICE, name_addrs,
-                self.topology.zookeepers)
-            self.zk.retry("Joining party", self.zk.party_setup)
-            self.trc_cache = ZkSharedCache(self.zk, self.ZK_TRC_CACHE_PATH,
-                                           self._cached_entries_handler)
-            self.cc_cache = ZkSharedCache(self.zk, self.ZK_CC_CACHE_PATH,
-                                          self._cached_entries_handler)
+        # Add more IPs here if we support dual-stack
+        name_addrs = "\0".join([self.id, str(SCION_UDP_PORT),
+                                str(self.addr.host)])
+        self.zk = Zookeeper(self.topology.isd_as, CERTIFICATE_SERVICE,
+                            name_addrs, self.topology.zookeepers)
+        self.zk.retry("Joining party", self.zk.party_setup)
+        self.trc_cache = ZkSharedCache(self.zk, self.ZK_TRC_CACHE_PATH,
+                                       self._cached_entries_handler)
+        self.cc_cache = ZkSharedCache(self.zk, self.ZK_CC_CACHE_PATH,
+                                      self._cached_entries_handler)
 
     def worker(self):
         """
