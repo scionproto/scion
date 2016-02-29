@@ -44,6 +44,7 @@ def main():
     test_lookup()
     test_topology_lookup()
     test_locations_lookup()
+    test_stay_ISD()
 
 
 def test_list():
@@ -107,6 +108,22 @@ def test_locations_lookup():
 
     req = {"version": "0.1",
            "command": "LOCATIONS"}
+
+    send_req_and_read_resp(sock, req)
+
+
+def test_stay_ISD():
+    """
+    Creates a stay ISD request, sends it to the UDP server.
+    """
+
+    logging.info('Starting the stay ISD request test')
+    # Create a UDP socket
+    sock = UDPSocket(None, AddrType.IPV4)
+
+    req = {"version": "0.1",
+           "command": "STAY_ISD",
+           "isd": 1}
 
     send_req_and_read_resp(sock, req)
 

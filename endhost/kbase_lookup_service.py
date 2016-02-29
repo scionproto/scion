@@ -111,7 +111,7 @@ class KnowledgeBaseLookupService(object):
                 req_type = request['req_type']
                 res_name = request['res_name']
             except KeyError as e:
-                logging.error('Key error while parsing request: %s' % e)
+                logging.error('Key error while parsing LOOKUP req: %s' % e)
                 return
             assert(isinstance(req_type, str))
             resp = self.kbase.lookup(req_type, res_name)
@@ -119,6 +119,14 @@ class KnowledgeBaseLookupService(object):
             resp = self._get_topology()
         elif cmd == 'LOCATIONS':
             resp = self._get_locations()
+        elif cmd == 'STAY_ISD':
+            try:
+                isd = request['isd']
+            except KeyError as e:
+                logging.error('Key error while parsing STAY_ISD req: %s' % e)
+                return
+            assert(isinstance(isd, int))
+            resp = self._handle_stay_ISD(isd)
         else:
             logging.error('Unsupported command: %s')
             return
@@ -203,3 +211,13 @@ class KnowledgeBaseLookupService(object):
             except (yaml.YAMLError, KeyError) as e:
                 logging.error('Error while reading the locations YAML: %s' % e)
                 return {}
+
+    def _handle_stay_ISD(self, isd):
+        """
+        Lets the kbase know of which ISD should be enforced.
+        :param isd: ISD number
+        :type isd: int
+        :returns: A dictionary indicating the result.
+        :rtype: dict
+        """
+        return self.kbase.set_stay_ISD(isd)

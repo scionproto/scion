@@ -85,6 +85,7 @@ endhost/scion_proxy.py -f
 
 # Stdlib
 import argparse
+import errno
 import logging
 import os
 import socket
@@ -94,6 +95,7 @@ from urllib.parse import urlparse, urlunparse
 
 # SCION
 from endhost.scion_socket import ScionServerSocket, ScionClientSocket
+from endhost.scion_socket import SCION_OPTION_STAY_ISD
 from endhost.socket_kbase import SocketKnowledgeBase
 from lib.defines import L4_SSP
 from lib.log import init_logging, log_exception
@@ -334,8 +336,8 @@ class ForwardingProxyConnectionHandler(ConnectionHandler):
     """
     server_version = "SCION HTTP Bridge Proxy/" + VERSION
     unix_target_proxy = '127.0.0.1', 9090
-    scion_target_proxy = '127.2.26.254', 9090
-    isd_as = ISD_AS.from_values(2, 26)
+    scion_target_proxy = '127.1.18.254', 9090
+    isd_as = ISD_AS.from_values(1, 18)
 
     def __init__(self, connection, address, conn_id, scion_mode, kbase):
         """
@@ -386,6 +388,13 @@ class ForwardingProxyConnectionHandler(ConnectionHandler):
             soc = ScionClientSocket(L4_SSP, self.isd_as,
                                     self.scion_target_proxy)
             if self.socket_kbase is not None:
+                # set socket options if there is any provided
+                stay_ISD = self.socket_kbase.get_stay_ISD()
+                if stay_ISD > 0:
+                    r = soc.setopt(SCION_OPTION_STAY_ISD, stay_ISD)
+                    if r != 0:
+                        logging.error("Set Stay ISD on SCION socket failed: %s",
+                                      errno.errorcode[r])
                 self.socket_kbase.add_socket(soc, self.method, self.path)
         else:
             soc = self._unix_client_socket()
