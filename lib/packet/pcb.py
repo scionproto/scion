@@ -135,7 +135,7 @@ class PCBMarking(MarkingBase):
     def __str__(self):
         s = []
         s.append("%s(%dB): ISD-AS %s:" % (self.NAME, len(self), self.isd_as))
-        s.append("  ig_rev_token: %s" % self.ig_rev_token)
+        s.append("  ig_rev_token: %s" % hex_str(self.ig_rev_token))
         s.append("  %s" % self.hof)
         return "\n".join(s)
 
@@ -275,12 +275,18 @@ class ASMarking(MarkingBase):
         s.append("  cert_ver: %s, ext_len %s, sig_len: %s, block_len: %s" %
                  (self.cert_ver, len(self._pack_ext()),
                   len(self.sig), self.block_len))
-        s.append("  %s" % self.pcbm)
-        for peer_marking in self.pms:
-            s.append("  %s" % peer_marking)
+        for line in str(self.pcbm).splitlines():
+            s.append("  %s" % line)
+        if self.pms:
+            s.append("  Peer markings:")
+        for pm in self.pms:
+            for line in str(pm).splitlines():
+                s.append("    %s" % line)
+        if self.ext:
+            s.append("  PCB Extensions:")
         for ext in self.ext:
-            s.append("  %s" % str(ext))
-        s.append("  eg_rev_token: %s" % self.eg_rev_token)
+            s.append("    %s" % str(ext))
+        s.append("  eg_rev_token: %s" % hex_str(self.eg_rev_token))
         s.append("  Signature: %s" % hex_str(self.sig))
         return "\n".join(s)
 
@@ -555,10 +561,11 @@ class PathSegment(SCIONPayloadBase):
         s = []
         s.append("%s(%dB):" % (self.NAME, len(self)))
         s.append("  %s" % self.iof)
-        s.append("  trc_ver: %d, if_id: %d" % (self.trc_ver, self.if_id))
-        s.append(" Flags: %s" % PSF.to_str(self.flags))
+        s.append("  trc_ver: %d, if_id: %d, Flags: %s" % (
+            self.trc_ver, self.if_id, PSF.to_str(self.flags)))
         for asm in self.ases:
-            s.append("  %s" % asm)
+            for line in str(asm).splitlines():
+                s.append("  %s" % line)
         return "\n".join(s)
 
     def __hash__(self):  # pragma: no cover
