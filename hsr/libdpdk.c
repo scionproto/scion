@@ -4,16 +4,8 @@
 #include <rte_log.h>
 #include <rte_udp.h>
 
+#include "libdpdk.h"
 #include "scion.h"
-
-#define RTE_LOGTYPE_HSR RTE_LOGTYPE_USER2
-//#define RTE_LOG_LEVEL RTE_LOG_INFO
-#define RTE_LOG_LEVEL RTE_LOG_DEBUG
-
-#define IP_DEFTTL  64   /* from RFC 1340. */
-#define IP_VERSION 0x40
-#define IP_HDRLEN  0x05 /* default IP header length == five 32-bits words. */
-#define IP_VHL_DEF (IP_VERSION | IP_HDRLEN)
 
 void initialize_eth_header(struct ether_hdr *eth_hdr, struct ether_addr *src_mac,
         struct ether_addr *dst_mac, uint16_t ether_type,
