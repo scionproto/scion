@@ -54,12 +54,6 @@
 #define RTE_LOG_LEVEL RTE_LOG_DEBUG
 #define VERIFY_OF
 
-#define INGRESS_IF(HOF)                                                        \
-  (ntohl((HOF)->ingress_egress_if) >>                                          \
-   (12 +                                                                       \
-    8)) // 12bit is  egress if and 8 bit gap between uint32 and 24bit field
-#define EGRESS_IF(HOF) ((ntohl((HOF)->ingress_egress_if) >> 8) & 0x000fff)
-
 #define LOCAL_NETWORK_ADDRESS IPv4(10, 56, 0, 0)
 #define GET_EDGE_ROUTER_IPADDR(IFID)                                           \
   rte_cpu_to_be_32((LOCAL_NETWORK_ADDRESS | IFID))
