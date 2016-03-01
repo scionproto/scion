@@ -69,8 +69,6 @@ DEFAULT_PATH_POLICY_FILE = "topology/PathPolicy.yml"
 DEFAULT_ZK_CONFIG = "topology/Zookeeper.yml"
 DEFAULT_ZK_LOG4J = "topology/Zookeeper.log4j"
 
-SIM_DIR = 'SIM'
-SIM_CONF_FILE = 'sim.conf'
 HOSTS_FILE = 'hosts'
 SUPERVISOR_CONF = 'supervisord.conf'
 COMMON_DIR = 'endhost'
@@ -112,7 +110,7 @@ class ConfigGenerator(object):
     """
     def __init__(self, out_dir=GEN_PATH, topo_file=DEFAULT_TOPOLOGY_FILE,
                  path_policy_file=DEFAULT_PATH_POLICY_FILE,
-                 zk_config_file=DEFAULT_ZK_CONFIG, network=None, is_sim=False,
+                 zk_config_file=DEFAULT_ZK_CONFIG, network=None,
                  use_mininet=False):
         """
         Initialize an instance of the class ConfigGenerator.
@@ -123,14 +121,12 @@ class ConfigGenerator(object):
         :param string zk_config_file: path to Zookeeper.yml
         :param string network:
             Network to create subnets in, of the form x.x.x.x/y
-        :param bool is_sim: Generate conf files for the Simulator
         :param bool use_mininet: Use Mininet
         """
         self.out_dir = out_dir
         self.topo_config = load_yaml_file(topo_file)
         self.zk_config = load_yaml_file(zk_config_file)
         self.path_policy_file = path_policy_file
-        self.is_sim = is_sim
         self.mininet = use_mininet
         self.default_zookeepers = {}
         self._read_defaults(network)
@@ -162,8 +158,6 @@ class ConfigGenerator(object):
         cert_files, trc_files = self._generate_certs_trcs()
         topo_dicts, zookeepers, networks = self._generate_topology()
         self._generate_supervisor(topo_dicts, zookeepers)
-        if self.is_sim:
-            self._generate_sim_conf(topo_dicts)
         self._generate_zk_conf(zookeepers)
         self._write_trust_files(topo_dicts, cert_files)
         self._write_trust_files(topo_dicts, trc_files)
@@ -176,17 +170,13 @@ class ConfigGenerator(object):
 
     def _generate_topology(self):
         topo_gen = TopoGenerator(self.topo_config, self.out_dir,
-                                 self.subnet_gen, self.zk_config, self.is_sim)
+                                 self.subnet_gen, self.zk_config)
         return topo_gen.generate()
 
     def _generate_supervisor(self, topo_dicts, zookeepers):
         super_gen = SupervisorGenerator(self.out_dir, topo_dicts, zookeepers,
                                         self.zk_config, self.mininet)
         super_gen.generate()
-
-    def _generate_sim_conf(self, topo_dicts):
-        sim_gen = SimulatorGenerator(self.out_dir, topo_dicts)
-        sim_gen.generate()
 
     def _generate_zk_conf(self, zookeepers):
         zk_gen = ZKConfGenerator(self.out_dir, zookeepers)
@@ -220,8 +210,8 @@ class ConfigGenerator(object):
         master_as_key = base64.b64encode(Random.new().read(16))
         return {
             'MasterASKey': master_as_key.decode("utf-8"),
-            'RegisterTime': 10 if self.is_sim else 5,
-            'PropagateTime': 10 if self.is_sim else 5,
+            'RegisterTime': 5,
+            'PropagateTime': 5,
             'MTU': 1500,
             'CertChainVersion': 0,
             # FIXME(kormat): This seems to always be true..:
@@ -339,12 +329,11 @@ class CertGenerator(object):
 
 
 class TopoGenerator(object):
-    def __init__(self, topo_config, out_dir, subnet_gen, zk_config, is_sim):
+    def __init__(self, topo_config, out_dir, subnet_gen, zk_config):
         self.topo_config = topo_config
         self.out_dir = out_dir
         self.subnet_gen = subnet_gen
         self.zk_config = zk_config
-        self.is_sim = is_sim
         self.topo_dicts = {}
         self.hosts = []
         self.zookeepers = defaultdict(dict)
@@ -601,41 +590,6 @@ class SupervisorGenerator(object):
         return entry
 
 
-class SimulatorGenerator(SupervisorGenerator):
-    def __init__(self, out_dir, topo_dicts):
-        self.out_dir = out_dir
-        self.topo_dicts = topo_dicts
-        self.sim_conf = StringIO()
-
-    def generate(self):
-        super().generate()
-        self._write_run_script()
-        self._write_sim_conf()
-
-    def _zk_entries(self, topo_id):
-        # No zookeeper service
-        return []
-
-    def _write_run_script(self):
-        file_path = os.path.join(self.out_dir, SIM_DIR, 'run.sh')
-        text = StringIO()
-        text.write(
-            '#!/bin/bash\n\n'
-            'exec sim_test.py gen/SIM/sim.conf 100.\n')
-        write_file(file_path, text.getvalue())
-
-    def _write_as_conf(self, topo_id, entries):
-        for name, entry in sorted(entries, key=lambda x: x[0]):
-            if not name.endswith("-1"):
-                # Only one server per service
-                continue
-            self.sim_conf.write("%s\n" % " ".join([str(i) for i in entry[1:]]))
-
-    def _write_sim_conf(self):
-        conf = os.path.join(self.out_dir, SIM_DIR, SIM_CONF_FILE)
-        write_file(conf, self.sim_conf.getvalue())
-
-
 class ZKConfGenerator(object):
     def __init__(self, out_dir, zookeepers):
         self.out_dir = out_dir
@@ -855,7 +809,6 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--topo-config', default=DEFAULT_TOPOLOGY_FILE,
                         help='Default topology config')
-    parser.add_argument('-s', '--sim', action='store_true', help='Simulator')
     parser.add_argument('-p', '--path-policy', default=DEFAULT_PATH_POLICY_FILE,
                         help='Path policy file')
     parser.add_argument('-m', '--mininet', action='store_true',
@@ -869,7 +822,7 @@ def main():
     args = parser.parse_args()
     confgen = ConfigGenerator(
         args.output_dir, args.topo_config, args.path_policy, args.zk_config,
-        args.network, args.sim, args.mininet)
+        args.network, args.mininet)
     confgen.generate_all()
 
 

@@ -63,12 +63,11 @@ class SCIONDaemon(SCIONElement):
     MAX_SEG_NO = 5  # TODO: replace by config variable.
 
     def __init__(self, conf_dir, addr, api_addr, run_local_api=False,
-                 port=SCION_UDP_PORT, is_sim=False):
+                 port=SCION_UDP_PORT):
         """
         Initialize an instance of the class SCIONDaemon.
         """
-        super().__init__("sciond", conf_dir, host_addr=addr, port=port,
-                         is_sim=is_sim)
+        super().__init__("sciond", conf_dir, host_addr=addr, port=port)
         # TODO replace by pathstore instance
         self.up_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL,
                                          max_res_no=self.MAX_SEG_NO)
@@ -98,7 +97,7 @@ class SCIONDaemon(SCIONElement):
 
     @classmethod
     def start(cls, conf_dir, addr, api_addr=None, run_local_api=False,
-              port=SCION_UDP_PORT, is_sim=False):
+              port=SCION_UDP_PORT):
         """
         Initializes, starts, and returns a SCIONDaemon object.
 
@@ -106,7 +105,7 @@ class SCIONDaemon(SCIONElement):
         sd = SCIONDaemon.start(conf_dir, addr)
         paths = sd.get_paths(isd_as)
         """
-        sd = cls(conf_dir, addr, api_addr, run_local_api, port, is_sim)
+        sd = cls(conf_dir, addr, api_addr, run_local_api, port)
         sd.daemon_thread = threading.Thread(
             target=thread_safety_net, args=(sd.run,), name="SCIONDaemon.run",
             daemon=True)
@@ -271,15 +270,8 @@ class SCIONDaemon(SCIONElement):
 
         return db.delete_all(to_remove)
 
-    def get_paths(self, dst_ia, requester=None, flags=0):
-        """
-        Return a list of paths.
-        The requester argument holds the address of requester. Used in simulator
-        to send path reply.
-
-        :param ISD_AS dst_ia: ISD-AS of the destination.
-        :param requester: Path requester address(used in simulator).
-        """
+    def get_paths(self, dst_ia, flags=0):
+        """Return a list of paths."""
         logging.debug("Paths requested for %s", dst_ia)
         if self.addr.isd_as == dst_ia or (
                 self.addr.isd_as.any_as() == dst_ia and

@@ -105,13 +105,12 @@ class Router(SCIONElement):
     FWD_REVOCATION_TIMEOUT = 5
     IFSTATE_REQ_INTERVAL = 30
 
-    def __init__(self, server_id, conf_dir, is_sim=False):
+    def __init__(self, server_id, conf_dir, ):
         """
         :param str server_id: server identifier.
         :param str conf_dir: configuration directory.
-        :param bool is_sim: running on simulator
         """
-        super().__init__(server_id, conf_dir, is_sim=is_sim)
+        super().__init__(server_id, conf_dir, )
         self.interface = None
         for edge_router in self.topology.get_all_edge_routers():
             if edge_router.addr == self.addr.host:
@@ -142,14 +141,12 @@ class Router(SCIONElement):
                                  self.fwd_sibra_service_pkt},
         }
 
-        if not is_sim:
-            self._remote_sock = UDPSocket(
-                bind=(str(self.interface.addr), self.interface.udp_port),
-                addr_type=AddrType.IPV4,
-            )
-            self._socks.add(self._remote_sock)
-            logging.info("IP %s:%d", self.interface.addr,
-                         self.interface.udp_port)
+        self._remote_sock = UDPSocket(
+            bind=(str(self.interface.addr), self.interface.udp_port),
+            addr_type=AddrType.IPV4,
+        )
+        self._socks.add(self._remote_sock)
+        logging.info("IP %s:%d", self.interface.addr, self.interface.udp_port)
 
     def run(self):
         """

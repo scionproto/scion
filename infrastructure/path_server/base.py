@@ -58,13 +58,12 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
     # Max number of segments per ZK cache entry
     ZK_SHARE_LIMIT = 10
 
-    def __init__(self, server_id, conf_dir, is_sim=False):
+    def __init__(self, server_id, conf_dir):
         """
         :param str server_id: server identifier.
         :param str conf_dir: configuration directory.
-        :param bool is_sim: running on simulator
         """
-        super().__init__(server_id, conf_dir, is_sim=is_sim)
+        super().__init__(server_id, conf_dir)
         self.down_segments = PathSegmentDB(max_res_no=self.MAX_SEG_NO)
         self.core_segments = PathSegmentDB(max_res_no=self.MAX_SEG_NO)
         self.pending_req = defaultdict(list)  # Dict of pending requests.
@@ -82,8 +81,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             },
         }
         self._segs_to_zk = deque()
-        if is_sim:
-            return
         # Add more IPs here if we support dual-stack
         name_addrs = "\0".join([self.id, str(SCION_UDP_PORT),
                                 str(self.addr.host)])

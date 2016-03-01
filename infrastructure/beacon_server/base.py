@@ -111,13 +111,12 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
     # Number of tokens the BS checks when receiving a revocation.
     N_TOKENS_CHECK = 20
 
-    def __init__(self, server_id, conf_dir, is_sim=False):
+    def __init__(self, server_id, conf_dir):
         """
         :param str server_id: server identifier.
         :param str conf_dir: configuration directory.
-        :param bool is_sim: running on simulator
         """
-        super().__init__(server_id, conf_dir, is_sim=is_sim)
+        super().__init__(server_id, conf_dir)
         # TODO: add 2 policies
         self.path_policy = PathPolicy.from_file(
             os.path.join(conf_dir, PATH_POLICY_FILE))
@@ -146,18 +145,17 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             PayloadClass.PATH: {PMT.IFSTATE_REQ: self._handle_ifstate_request},
         }
 
-        if not is_sim:
-            # Add more IPs here if we support dual-stack
-            name_addrs = "\0".join([self.id, str(SCION_UDP_PORT),
-                                    str(self.addr.host)])
-            self.zk = Zookeeper(self.addr.isd_as, BEACON_SERVICE, name_addrs,
-                                self.topology.zookeepers)
-            self.zk.retry("Joining party", self.zk.party_setup)
-            self.incoming_pcbs = deque()
-            self.pcb_cache = ZkSharedCache(
-                self.zk, self.ZK_PCB_CACHE_PATH, self.process_pcbs)
-            self.revobjs_cache = ZkSharedCache(
-                self.zk, self.ZK_REVOCATIONS_PATH, self.process_rev_objects)
+        # Add more IPs here if we support dual-stack
+        name_addrs = "\0".join([self.id, str(SCION_UDP_PORT),
+                                str(self.addr.host)])
+        self.zk = Zookeeper(self.addr.isd_as, BEACON_SERVICE, name_addrs,
+                            self.topology.zookeepers)
+        self.zk.retry("Joining party", self.zk.party_setup)
+        self.incoming_pcbs = deque()
+        self.pcb_cache = ZkSharedCache(
+            self.zk, self.ZK_PCB_CACHE_PATH, self.process_pcbs)
+        self.revobjs_cache = ZkSharedCache(
+            self.zk, self.ZK_REVOCATIONS_PATH, self.process_rev_objects)
 
     def _init_hash_chain(self, if_id):
         """

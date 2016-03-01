@@ -34,13 +34,12 @@ class LocalPathServer(PathServer):
     SCION Path Server in a non-core AS. Stores up-segments to the core and
     registers down-segments with the CPS. Can cache segments learned from a CPS.
     """
-    def __init__(self, server_id, conf_dir, is_sim=False):
+    def __init__(self, server_id, conf_dir):
         """
         :param str server_id: server identifier.
         :param str conf_dir: configuration directory.
-        :param bool is_sim: running on simulator
         """
-        super().__init__(server_id, conf_dir, is_sim=is_sim)
+        super().__init__(server_id, conf_dir)
         # Sanity check that we should indeed be a local path server.
         assert not self.topology.is_core_as, "This shouldn't be a core PS!"
         # Database of up-segments to the core.

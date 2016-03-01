@@ -66,8 +66,8 @@ class SCIONElement(object):
     """
     SERVICE_TYPE = None
 
-    def __init__(self, server_id, conf_dir, host_addr=None, port=SCION_UDP_PORT,
-                 is_sim=False):
+    def __init__(self, server_id, conf_dir, host_addr=None,
+                 port=SCION_UDP_PORT):
         """
         :param str server_id: server identifier.
         :param str conf_dir: configuration directory.
@@ -75,7 +75,6 @@ class SCIONElement(object):
             the interface to bind to. Overrides the address in the topology
             config.
         :param int port: the port to bind to.
-        :param bool is_sim: running on simulator
         """
         self.id = server_id
         self.conf_dir = conf_dir
@@ -100,18 +99,17 @@ class SCIONElement(object):
         self.total_dropped = 0
         self._core_ases = defaultdict(list)  # Mapping ISD_ID->list of core ASes
         self.init_core_ases()
-        if not is_sim:
-            self.run_flag = threading.Event()
-            self.stopped_flag = threading.Event()
-            self.stopped_flag.set()
-            self._in_buf = queue.Queue(30)
-            self._socks = UDPSocketMgr()
-            self._local_sock = UDPSocket(
-                bind=(str(self.addr.host), port, self.id),
-                addr_type=self.addr.host.TYPE,
-            )
-            self._port = self._local_sock.port
-            self._socks.add(self._local_sock)
+        self.run_flag = threading.Event()
+        self.stopped_flag = threading.Event()
+        self.stopped_flag.set()
+        self._in_buf = queue.Queue(30)
+        self._socks = UDPSocketMgr()
+        self._local_sock = UDPSocket(
+            bind=(str(self.addr.host), port, self.id),
+            addr_type=self.addr.host.TYPE,
+        )
+        self._port = self._local_sock.port
+        self._socks.add(self._local_sock)
 
     def construct_ifid2addr_map(self):
         """
