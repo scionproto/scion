@@ -21,7 +21,7 @@ from lib.sibra.ext.info import (
     ResvInfoEphemeral,
     ResvInfoSteady,
 )
-from lib.sibra.ext.sof import SibraOpaqueField
+from lib.sibra.ext.sof import SibraHopOpaqueField
 from lib.packet.ext_hdr import HopByHopExtension
 from lib.util import Raw
 
@@ -60,12 +60,12 @@ class ResvBlockBase(object):
     def _parse(self, raw):
         data = Raw(raw, self.NAME, self.MIN_LEN, min_=True)
         self.info = self.RESVINFO(data.pop(self.RESVINFO.LEN))
-        self.num_hops = len(data) // SibraOpaqueField.LEN
+        self.num_hops = len(data) // SibraHopOpaqueField.LEN
         while data:
-            raw_sof = data.pop(SibraOpaqueField.LEN)
-            if raw_sof == bytes(SibraOpaqueField.LEN):
+            raw_sof = data.pop(SibraHopOpaqueField.LEN)
+            if raw_sof == bytes(SibraHopOpaqueField.LEN):
                 break
-            self.sofs.append(SibraOpaqueField(raw_sof))
+            self.sofs.append(SibraHopOpaqueField(raw_sof))
 
     @classmethod
     def from_values(cls, info, num_hops):  # pragma: no cover
@@ -81,7 +81,7 @@ class ResvBlockBase(object):
         for sof in self.sofs:
             raw.append(sof.pack())
         for i in range(len(self.sofs), self.num_hops):
-            raw.append(bytes(SibraOpaqueField.LEN))
+            raw.append(bytes(SibraHopOpaqueField.LEN))
         return b"".join(raw)
 
     def add_hop(self, ingress, egress, prev_raw, key, path_ids):
@@ -90,7 +90,7 @@ class ResvBlockBase(object):
         request has been accepted by a hop on the path.
         """
         assert len(self.sofs) + 1 <= self.num_hops
-        sof = SibraOpaqueField.from_values(ingress, egress)
+        sof = SibraHopOpaqueField.from_values(ingress, egress)
         sof.mac = sof.calc_mac(self.info, key, path_ids, prev_raw)
         self.sofs.append(sof)
 

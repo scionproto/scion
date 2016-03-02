@@ -124,7 +124,6 @@ class TestHopOpaqueFieldParse(object):
         # Tests
         raw.assert_called_once_with(data, "HopOpaqueField", hop_op_fld.LEN)
         raw.return_value.pop.assert_has_calls([call(2), call(3), call(3)])
-        ntools.eq_(hop_op_fld.raw, data)
         ntools.eq_(hop_op_fld.info, 0x0e)
         ntools.eq_(hop_op_fld.exp_time, 0x2a)
         ntools.eq_(hop_op_fld.mac, b'\x01' * 3)
@@ -181,7 +180,6 @@ class TestInfoOpaqueFieldParse(object):
         inf_op_fld.parse(data)
         # Tests
         raw.assert_called_once_with(data, "InfoOpaqueField", inf_op_fld.LEN)
-        ntools.eq_(inf_op_fld.raw, data)
         ntools.eq_(inf_op_fld.info, 0x0f >> 1)
         ntools.eq_(inf_op_fld.timestamp, 0x2a0a0b0c)
         ntools.eq_(inf_op_fld.isd, 0x0d0e)

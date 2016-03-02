@@ -24,7 +24,7 @@ import nose.tools as ntools
 
 # SCION
 from lib.sibra.ext.resv import ResvBlockBase
-from lib.sibra.ext.sof import SibraOpaqueField
+from lib.sibra.ext.sof import SibraHopOpaqueField
 from test.testcommon import assert_these_calls, create_mock
 
 
@@ -32,7 +32,7 @@ class TestResvBlockBaseParse(object):
     """
     Unit tests for lib.sibra.ext.resv.ResvBlockBase._parse
     """
-    @patch("lib.sibra.ext.resv.SibraOpaqueField", autospec=True)
+    @patch("lib.sibra.ext.resv.SibraHopOpaqueField", autospec=True)
     @patch("lib.sibra.ext.resv.Raw", autospec=True)
     def test(self, raw, sof):
         inst = ResvBlockBase()
@@ -73,7 +73,7 @@ class TestResvBlockBasePack(object):
             sof.pack.return_value = ("sof %d" % i).encode("ascii")
             inst.sofs.append(sof)
         expected = b"".join([b"resv info", b"sof 0", b"sof 1",
-                             bytes(SibraOpaqueField.LEN * 3)])
+                             bytes(SibraHopOpaqueField.LEN * 3)])
         # Call
         ntools.eq_(inst.pack(), expected)
 
@@ -82,7 +82,7 @@ class TestResvBlockBaseAddHop(object):
     """
     Unit tests for lib.sibra.ext.resv.ResvBlockBase.add_hop
     """
-    @patch("lib.sibra.ext.resv.SibraOpaqueField", autospec=True)
+    @patch("lib.sibra.ext.resv.SibraHopOpaqueField", autospec=True)
     def test(self, sof):
         inst = ResvBlockBase()
         inst.info = "info"

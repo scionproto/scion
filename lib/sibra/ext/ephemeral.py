@@ -206,8 +206,8 @@ class SibraExtEphemeral(SibraExtBase):
 
     def _get_ifids(self, sof, fwd_dir):  # pragma: no cover
         if fwd_dir:
-            return sof.ingress, sof.egress
-        return sof.egress, sof.ingress
+            return sof.ingress_if, sof.egress_if
+        return sof.egress_if, sof.ingress_if
 
     def _verify_sof(self, key):
         """Verify the current SOF field."""

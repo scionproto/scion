@@ -292,9 +292,9 @@ class TestSibraExtBaseGetNextIfid(object):
         inst.fwd = fwd
         info = create_mock(["fwd_dir"])
         info.fwd_dir = fwd_dir
-        sof = create_mock(["ingress", "egress"])
-        sof.ingress = "ingress"
-        sof.egress = "egress"
+        sof = create_mock(["ingress_if", "egress_if"])
+        sof.ingress_if = "ingress"
+        sof.egress_if = "egress"
         block = create_mock(["info", "sofs"])
         block.info = info
         block.sofs = [sof]
