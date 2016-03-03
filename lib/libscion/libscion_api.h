@@ -20,6 +20,8 @@ void inc_hof_idx(uint8_t *buf);
 int is_known_proto(uint8_t type);
 uint8_t get_l4_proto(uint8_t **l4ptr);
 
+uint8_t * find_extension(uint8_t *buf, uint8_t ext_class, uint8_t ext_type);
+
 #ifdef __cplusplus
 }
 #endif

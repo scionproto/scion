@@ -1,16 +1,14 @@
 #ifndef _OPAQUE_FIELD_H_
 #define _OPAQUE_FIELD_H_
 
-#define SCION_OF_LEN 8
-
-#define IOF_FLAG_UPDOWN   0x01
-#define IOF_FLAG_SHORTCUT 0x02
-#define IOF_FLAG_PEER     0x04
-
-#define HOF_FLAG_XOVER        0x01
-#define HOF_FLAG_VERIFY_ONLY  0x02
-#define HOF_FLAG_FORWARD_ONLY 0x04
-#define HOF_FLAG_RECURSE      0x08
+// Types for HopOpaqueFields (7 MSB bits).
+#define    OFT_NORMAL_OF       0b0000000
+#define    OFT_XOVR_POINT      0b0010000  
+// Types for Info Opaque Fields (7 MSB bits).
+#define    OFT_CORE            0b1000000
+#define    OFT_SHORTCUT        0b1100000
+#define    OFT_INTRA_ISD_PEER  0b1111000
+#define    OFT_INTER_ISD_PEER  0b1111100
 
 #define PATH_TYPE_TDC 0
 #define PATH_TYPE_XOVR 1
