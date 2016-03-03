@@ -13,8 +13,10 @@ vagrant box add bento/ubuntu-14.04
 ```
 
 Create two taps.  The VM uses eth10 and eth11 to communicate with mininet.  
-```sudo  ip tuntap add dev eth10 mode tap```  
-```sudo  ip tuntap add dev eth11 mode tap```
+```
+sudo ip tuntap add dev eth10 mode tap
+sudo ip tuntap add dev eth11 mode tap
+```
 
 Build and start VM.
 ```
@@ -43,33 +45,28 @@ Here we assume a tiny topology.
 [AD 13 servers]-[Mininet switch for AD13]-[tap]-[HSR in virtual box(AD 13 edge router)]-[tap]-[switch]-[AD 11 edge router]-[AD 11]-[AD 12]
 ```
 
-<!-- 
-## Change topology to tiny one.
-Change the configuration file specified in topology/generator.py  
-```DEFAULT_ADCONFIGURATIONS_FILE = "topology/tiny.json"```
--->
-
-
-
-
 ## Run mininet
 In the host,  
 ```
-sudo ./scion.sh topology -m -c topology/tiny.json
+./scion.sh topology -m -c topology/tiny.json
+topology/mininet/run_hsr.sh
 ```
-
-```sudo env "PATH=$PATH" topology/mininet/run_hsr.sh ```
 
 ## Run HSR
 In Virtual box,  
-```cd scion/hsr```
+```
+cd scion/hsr
+```
 
 Setup DPDK environment.  
 ```
 ./setup_dpdk.sh
 ```
+
 Start HSR.  
-```sudo exec.sh``` 
+```
+sudo exec.sh
+``` 
 
 
 

@@ -44,9 +44,9 @@ typedef struct {
 #define SVC_CERT_MGMT 3
 #define SVC_IFID 4
 
-uint8_t * get_src_addr(SCIONCommonHeader *sch);
-uint8_t get_src_len(SCIONCommonHeader *sch);
-void * get_dst_addr(SCIONCommonHeader *sch);
-uint8_t get_dst_len(SCIONCommonHeader *sch);
+uint8_t * get_src_addr(uint8_t *buf);
+uint8_t get_src_len(uint8_t *buf);
+void * get_dst_addr(uint8_t *buf);
+uint8_t get_dst_len(uint8_t *buf);
 
 #endif

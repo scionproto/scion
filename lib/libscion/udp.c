@@ -7,8 +7,9 @@
 
 #include "scion.h"
 
-void build_scion_udp(SCIONCommonHeader *sch, uint16_t payload_len)
+void build_scion_udp(uint8_t *buf, uint16_t payload_len)
 {
+    SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
     uint8_t *ptr = (uint8_t *)sch + sch->headerLen;
     *(uint16_t *)ptr = htons(SCION_UDP_PORT);
     ptr += 2;
@@ -20,24 +21,27 @@ void build_scion_udp(SCIONCommonHeader *sch, uint16_t payload_len)
     ptr += 2;
 }
 
-uint8_t get_payload_class(SCIONCommonHeader *sch)
+uint8_t get_payload_class(uint8_t *buf)
 {
+    SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
     return *(uint8_t *)((void *)sch + sch->headerLen + sizeof(SCIONUDPHeader));
 }
 
-uint8_t get_payload_type(SCIONCommonHeader *sch)
+uint8_t get_payload_type(uint8_t *buf)
 {
+    SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
     return *(uint8_t *)((uint8_t *)sch + sch->headerLen + sizeof(SCIONUDPHeader) + 1);
 }
 
-uint16_t scion_udp_checksum(SCIONCommonHeader *sch)
+uint16_t scion_udp_checksum(uint8_t *buf)
 {
+    SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
     uint32_t sum = 0;
     int i;
-    int src_len = get_src_len(sch);
-    int dst_len = get_dst_len(sch);
-    uint8_t buf[ntohs(sch->totalLen)]; // UDP packet + pseudoheader < totalLen
-    uint8_t *ptr = buf;
+    int src_len = get_src_len(buf);
+    int dst_len = get_dst_len(buf);
+    uint8_t phdr[ntohs(sch->totalLen)]; // UDP packet + pseudoheader < totalLen
+    uint8_t *ptr = phdr;
     uint16_t payload_len;
     int total;
     SCIONUDPHeader *udp_hdr;
@@ -57,7 +61,7 @@ uint16_t scion_udp_checksum(SCIONCommonHeader *sch)
     memcpy(ptr, (uint8_t *)sch + sch->headerLen + 8, payload_len);
     ptr += payload_len;
 
-    total = ptr - buf;
+    total = ptr - phdr;
     if (total % 2 != 0) {
         *ptr = 0;
         ptr++;
@@ -65,7 +69,7 @@ uint16_t scion_udp_checksum(SCIONCommonHeader *sch)
     }
 
     for (i = 0; i < total; i += 2)
-        sum += *(uint16_t *)(buf + i);
+        sum += *(uint16_t *)(phdr + i);
     sum = (sum >> 16) + (sum & 0xffff);
     sum += sum >> 16;
     sum = ~sum;
@@ -79,10 +83,11 @@ uint16_t scion_udp_checksum(SCIONCommonHeader *sch)
     }
 }
 
-void update_scion_udp_checksum(SCIONCommonHeader *sch)
+void update_scion_udp_checksum(uint8_t *buf)
 {
+    SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
     SCIONUDPHeader *scion_udp_hdr =
         (SCIONUDPHeader *)((uint8_t *)sch + sch->headerLen);
-    scion_udp_hdr->checksum = htons(scion_udp_checksum(sch));
+    scion_udp_hdr->checksum = htons(scion_udp_checksum(buf));
     //printf("SCION UDP checksum=%x\n",scion_udp_hdr->dgram_cksum);
 }

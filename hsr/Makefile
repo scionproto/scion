@@ -45,11 +45,11 @@ APP = hsr
 SRCS-y := main.c scion.c address.c opaque_field.c packet.c udp.c libdpdk.c
 
 #CFLAGS += -O3 -w
-CFLAGS += -O9 -w
+CFLAGS += -O9 -w -I$(S)/../lib/libscion
 #CFLAGS += $(WERROR_FLAGS)
 
-LDLIBS += -L$(S)/lib -L$(S)/cJSON
-EXTRA_LDFLAGS += -laesni -lcJSON
+LDLIBS += -L$(S)/lib -L$(S)/cJSON -L$(S)/../lib/libscion
+EXTRA_LDFLAGS += -laesni -lcJSON -lscion
 
 
 include $(RTE_SDK)/mk/rte.extapp.mk

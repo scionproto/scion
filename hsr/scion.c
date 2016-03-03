@@ -46,7 +46,6 @@
 #include "cJSON/cJSON.h"
 #include "scion.h"
 #include "libdpdk.h"
-#include "libscion.h"
 #include "lib/aesni.h"
 
 #define RTE_LOGTYPE_HSR RTE_LOGTYPE_USER2
@@ -442,7 +441,7 @@ static inline int send_packet(struct rte_mbuf *m, uint8_t port)
     udp_hdr->dgram_cksum = 0;
     udp_hdr->dgram_cksum = rte_ipv4_udptcp_cksum(ipv4_hdr, udp_hdr);
 
-    RTE_LOG(DEBUG, HSR, "send_packet() port=%d\n", port);
+    RTE_LOG(DEBUG, HSR, "send_packet() dpdk_port=%d, %#x:%d\n", port, ipv4_hdr->dst_addr, ntohs(udp_hdr->dst_port));
     l2fwd_send_packet(m, port);
 }
 
@@ -1373,6 +1372,11 @@ void handle_request(struct rte_mbuf *m, uint8_t dpdk_rx_port)
             (SCIONCommonHeader *)(rte_pktmbuf_mtod(m, unsigned char *)+sizeof(
                         struct ether_hdr) +
                     sizeof(struct ipv4_hdr) + sizeof(struct udp_hdr));
+
+        // FIXME: sample code to show extension finding works, should be deleted
+        uint8_t *ptr = find_extension(sch, END_TO_END, PATH_TRANSPORT);
+        if (ptr)
+            printf(">>>> path transport extension found <<<<\n");
 
         if (needs_local_processing(sch)) {
             uint8_t pclass = get_payload_class(sch);

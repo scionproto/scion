@@ -7,8 +7,9 @@
 
 #include "scion.h"
 
-void build_cmn_hdr(SCIONCommonHeader *sch, int src_type, int dst_type, int next_hdr)
+void build_cmn_hdr(uint8_t *buf, int src_type, int dst_type, int next_hdr)
 {
+    SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
     uint16_t vsd = 0;
     vsd |= src_type << 6;
     vsd |= dst_type;
@@ -20,10 +21,11 @@ void build_cmn_hdr(SCIONCommonHeader *sch, int src_type, int dst_type, int next_
     sch->totalLen = htons(sch->headerLen);
 }
 
-void build_addr_hdr(SCIONCommonHeader *sch, SCIONAddr *src, SCIONAddr *dst)
+void build_addr_hdr(uint8_t *buf, SCIONAddr *src, SCIONAddr *dst)
 {
-    int src_len = get_src_len(sch);
-    int dst_len = get_dst_len(sch);
+    SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
+    int src_len = get_src_len(buf);
+    int dst_len = get_dst_len(buf);
     int pad = (SCION_ADDR_PAD - ((src_len + dst_len) % 8)) % 8;
     uint8_t *ptr = (uint8_t *)sch + sizeof(*sch);
     *(uint32_t *)ptr = htonl(src->isd_ad);

@@ -19,6 +19,8 @@
 #define DOWN_PATH_FLAG ~(0x80)  // should be &=;i.e., turn off the first bit
 #define MASK_EXP_TIME 0x03  // bit mask for taking expiration time from OF
 
+#define IS_HOP_OF(x) !((x) & 0x80)
+
 #define TDC_AD 0
 #define NON_TDC_AD 1
 
