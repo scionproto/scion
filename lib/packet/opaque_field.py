@@ -17,156 +17,131 @@
 """
 # Stdlib
 import struct
-from abc import ABCMeta, abstractmethod
 
 # SCION
-from lib.types import OpaqueFieldType as OFT
+from lib.crypto.symcrypto import cbcmac
+from lib.defines import OPAQUE_FIELD_LEN
+from lib.flagtypes import HopOFFlags, InfoOFFlags
 from lib.errors import SCIONIndexError, SCIONKeyError
 from lib.util import Raw, hex_str, iso_timestamp
 
 
-class OpaqueField(object, metaclass=ABCMeta):
-    """
-    Base class for the different kinds of opaque fields in SCION.
-    """
-    LEN = 8
-
-    def __init__(self):  # pragma: no cover
-        """
-        Initialize an instance of the class OpaqueField.
-        """
-        self.info = 0  # TODO verify path.PathType in that context
-        self.raw = None
-
-    @abstractmethod
-    def parse(self, raw):
-        """
-        Populates fields from a raw byte block.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def pack(self):
-        """
-        Returns opaque field as 8 byte binary string.
-        """
-        raise NotImplementedError
-
-    def is_regular(self):
-        """
-        Returns true if opaque field is regular, false otherwise.
-        """
-        return (self.info & (1 << 6) == 0)
-
-    def is_continue(self):
-        """
-        Returns true if continue bit is set, false otherwise.
-        """
-        return not (self.info & (1 << 5) == 0)
-
-    def is_xovr(self):
-        """
-        Returns true if crossover point bit is set, false otherwise.
-        """
-        return not (self.info & (1 << 4) == 0)
+class OpaqueField(object):
+    LEN = OPAQUE_FIELD_LEN
 
     def __len__(self):  # pragma: no cover
         return self.LEN
-
-    @abstractmethod
-    def __str__(self):
-        raise NotImplementedError
-
-    def __eq__(self, other):  # pragma: no cover
-        if type(other) is not type(self):
-            return False
-        return self.raw == other.raw
-
-    def __ne__(self, other):  # pragma: no cover
-        return not self.__eq__(other)
 
 
 class HopOpaqueField(OpaqueField):
     """
     Opaque field for a hop in a path of the SCION packet header.
 
-    Each hop opaque field has a info (8 bits), expiration time (8 bits)
+    Each hop opaque field has a flag field (8 bits), expiration time (8 bits)
     ingress/egress interfaces (2 * 12 bits) and a MAC (24 bits) authenticating
     the opaque field.
     """
     NAME = "HopOpaqueField"
     MAC_LEN = 3  # MAC length in bytes.
+    MAC_BLOCK_LEN = 32
+    MAC_BLOCK_PADDING = MAC_LEN + 4 + 8
+    VERIFY_FLAGS = HopOFFlags.FORWARD_ONLY
 
-    def __init__(self, raw=None):
-        """
-        Initialize an instance of the class HopOpaqueField.
-
-        :param raw:
-        :type raw:
-        """
-        super().__init__()
+    def __init__(self, raw=None):  # pragma: no cover
+        self.xover = False
+        self.forward_only = False
+        self.recurse = False
         self.exp_time = 0
         self.ingress_if = 0
         self.egress_if = 0
         self.mac = bytes(self.MAC_LEN)
-        if raw is not None:
-            self.parse(raw)
+        if raw:
+            self._parse(raw)
 
-    def parse(self, raw):
-        """
-        Populates fields from a raw byte block.
-        """
+    def _parse(self, raw):
         data = Raw(raw, self.NAME, self.LEN)
-        self.raw = raw
-        self.info, self.exp_time = struct.unpack("!BB", data.pop(2))
-        # A byte added as length of three bytes can't be unpacked
-        ifs = struct.unpack("!I", b'\0' + data.pop(3))[0]
-        self.mac = data.pop(3)
+        flags, self.exp_time = struct.unpack("!BB", data.pop(2))
+        self._parse_flags(flags)
+        ifs = int.from_bytes(data.pop(3), byteorder="big")
         self.ingress_if = (ifs & 0xFFF000) >> 12
         self.egress_if = ifs & 0x000FFF
+        self.mac = data.pop(3)
+
+    def _parse_flags(self, flags):  # pragma: no cover
+        self.xover = bool(flags & HopOFFlags.XOVER)
+        self.forward_only = bool(flags & HopOFFlags.FORWARD_ONLY)
+        self.rescurse = bool(flags & HopOFFlags.RECURSE)
 
     @classmethod
-    def from_values(cls, exp_time, ingress_if=0, egress_if=0, mac=None):
-        """
-        Returns HopOpaqueField with fields populated from values.
+    def from_values(cls, exp_time, ingress_if=0, egress_if=0,
+                    mac=None, xover=False, forward_only=False,
+                    recurse=False):  # pragma: no cover
+        inst = cls()
+        inst.xover = xover
+        inst.forward_only = forward_only
+        inst.recurse = recurse
+        inst.exp_time = exp_time
+        inst.ingress_if = ingress_if
+        inst.egress_if = egress_if
+        inst.mac = mac or bytes(inst.MAC_LEN)
+        return inst
 
-        @param exp_time: Expiry time. An integer in the range [0,255]
-        @param ingress_if: Ingress interface.
-        @param egress_if: Egress interface.
-        @param mac: MAC of ingress/egress interfaces' ID and timestamp.
-        """
-        hof = cls()
-        hof.exp_time = exp_time
-        hof.ingress_if = ingress_if
-        hof.egress_if = egress_if
-        if mac is None:
-            mac = b"\x00" * cls.MAC_LEN
-        hof.mac = mac
-        return hof
-
-    def pack(self):
-        """
-        Returns HopOpaqueField as 8 byte binary string.
-        """
+    def pack(self, mac=False):
+        packed = []
+        flags = self._pack_flags()
+        if mac:
+            flags &= self.VERIFY_FLAGS
+        packed.append(struct.pack("!B", flags))
+        packed.append(struct.pack("!B", self.exp_time))
         ifs = (self.ingress_if << 12) | self.egress_if
-        data = struct.pack("!BB", self.info, self.exp_time)
-        # Ingress and egress interface info is packed into three bytes
-        data += struct.pack("!I", ifs)[1:]
-        data += self.mac
-        return data
+        # Ingress and egress interfaces are packed into three bytes
+        packed.append(ifs.to_bytes(3, "big"))
+        if not mac:
+            packed.append(self.mac)
+        return b"".join(packed)
+
+    def _pack_flags(self):  # pragma: no cover
+        flags = 0
+        if self.xover:
+            flags |= HopOFFlags.XOVER
+        if self.forward_only:
+            flags |= HopOFFlags.FORWARD_ONLY
+        if self.recurse:
+            flags |= HopOFFlags.RECURSE
+        return flags
+
+    def calc_mac(self, key, ts, prev_hof=None):
+        """Generates MAC for newly created OF."""
+        raw = []
+        raw.append(self.pack(mac=True))
+        if prev_hof:
+            raw.append(prev_hof.pack(mac=True))
+            raw.append(prev_hof.mac)
+        else:
+            raw.append(bytes(self.LEN))
+        raw.append(struct.pack("!I", ts))
+        raw.append(bytes(self.MAC_BLOCK_PADDING))
+        to_mac = b"".join(raw)
+        assert len(to_mac) == self.MAC_BLOCK_LEN
+        return cbcmac(key, to_mac)[:self.MAC_LEN]
+
+    def verify_mac(self, *args, **kwargs):  # pragma: no cover
+        return self.mac == self.calc_mac(*args, **kwargs)
+
+    def set_mac(self, *args, **kwargs):  # pragma: no cover
+        self.mac = self.calc_mac(*args, **kwargs)
 
     def __eq__(self, other):  # pragma: no cover
-        if type(other) is not type(self):
-            return False
         return (self.exp_time == other.exp_time and
                 self.ingress_if == other.ingress_if and
                 self.egress_if == other.egress_if and
                 self.mac == other.mac)
 
     def __str__(self):
-        return ("Hop OF info(%dB): %s, exp_time: %d, ingress if: %d, "
-                "egress if: %d, mac: %s" %
-                (len(self), OFT.to_str(self.info), self.exp_time,
+        flags = self._pack_flags()
+        return ("%s(%dB): flags: %s, exp_time: %s, "
+                "ingress: %s, egress: %s, mac: %s" %
+                (self.NAME, len(self), HopOFFlags.to_str(flags), self.exp_time,
                  self.ingress_if, self.egress_if, hex_str(self.mac)))
 
 
@@ -174,74 +149,74 @@ class InfoOpaqueField(OpaqueField):
     """
     Class for the info opaque field.
 
-    The info opaque field contains type info of the path-segment (1 byte),
+    The info opaque field contains flags of the path-segment (1 byte),
     a creation timestamp (4 bytes), the ISD ID (2 byte) and # hops for this
     segment (1 byte).
     """
     NAME = "InfoOpaqueField"
 
     def __init__(self, raw=None):  # pragma: no cover
-        super().__init__()
+        self.up_flag = False
+        self.shortcut = False
+        self.peer = False
         self.timestamp = 0
         self.isd = 0
         self.hops = 0
-        self.up_flag = False
-        self.raw = raw
-        if raw is not None:
-            self.parse(raw)
+        if raw:
+            self._parse(raw)
 
-    def parse(self, raw):
-        """
-        Populates fields from a raw byte block.
-        """
-        self.raw = raw
+    def _parse(self, raw):  # pragma: no cover
         data = Raw(raw, self.NAME, self.LEN)
-        self.info, self.timestamp, self.isd, self.hops = \
+        flags, self.timestamp, self.isd, self.hops = \
             struct.unpack("!BIHB", data.pop(self.LEN))
-        self.up_flag = bool(self.info & 0b00000001)
-        self.info >>= 1
+        self._parse_flags(flags)
+
+    def _parse_flags(self, flags):  # pragma: no cover
+        if flags & InfoOFFlags.UP:
+            self.up_flag = True
+        if flags & InfoOFFlags.SHORTCUT:
+            self.shortcut = True
+        if flags & InfoOFFlags.PEER_SHORTCUT:
+            self.peer = True
+        self._check_flags()
+
+    def _check_flags(self):  # pragma: no cover
+        # It's illegal to have the peer flag set without the shortcut flag.
+        assert not(not self.shortcut and self.peer)
 
     @classmethod
-    def from_values(cls, info=0, up_flag=False, timestamp=0, isd=0, hops=0):
-        """
-        Returns InfoOpaqueField with fields populated from values.
+    def from_values(cls, timestamp, isd, up_flag=False, shortcut=False,
+                    peer=False, hops=0):  # pragma: no cover
+        inst = cls()
+        inst.up_flag = up_flag
+        inst.shortcut = shortcut
+        inst.peer = peer
+        inst.timestamp = timestamp
+        inst.isd = isd
+        inst.hops = hops
+        inst._check_flags()
+        return inst
 
-        @param info: Opaque field type.
-        @param up_flag: up/down-flag.
-        @param timestamp: Beacon's timestamp.
-        @param isd: Isolation Domanin's ID.
-        @param hops: Number of hops in the segment.
-        """
-        iof = InfoOpaqueField()
-        iof.info = info
-        iof.up_flag = up_flag
-        iof.timestamp = timestamp
-        iof.isd = isd
-        iof.hops = hops
-        return iof
+    def pack(self):  # pragma: no cover
+        return struct.pack("!BIHB", self._pack_flags(), self.timestamp,
+                           self.isd, self.hops)
 
-    def pack(self):
-        """
-        Returns InfoOpaqueFIeld as 8 byte binary string.
-        """
-        info = (self.info << 1) + self.up_flag
-        data = struct.pack("!BIHB", info, self.timestamp, self.isd, self.hops)
-        return data
-
-    def __eq__(self, other):  # pragma: no cover
-        if type(other) is type(self):
-            return (self.info == other.info and
-                    self.up_flag == other.up_flag and
-                    self.timestamp == other.timestamp and
-                    self.isd == other.isd and
-                    self.hops == other.hops)
-        else:
-            return False
+    def _pack_flags(self):  # pragma: no cover
+        self._check_flags()
+        flags = 0
+        if self.up_flag:
+            flags |= InfoOFFlags.UP
+        if self.shortcut:
+            flags |= InfoOFFlags.SHORTCUT
+        if self.peer:
+            flags |= InfoOFFlags.PEER_SHORTCUT
+        return flags
 
     def __str__(self):
-        return ("[Info OF info(%sB): %s, up: %s, TS: %s, ISD: %s, hops: %s]"
-                % (len(self), OFT.to_str(self.info), self.up_flag,
-                   iso_timestamp(self.timestamp), self.isd, self.hops))
+        flags = self._pack_flags()
+        return ("%s(%sB): flags: %s, TS: %s, ISD: %s, hops: %s" %
+                (self.NAME, self.LEN, InfoOFFlags.to_str(flags),
+                 iso_timestamp(self.timestamp), self.isd, self.hops))
 
 
 class OpaqueFieldList(object):

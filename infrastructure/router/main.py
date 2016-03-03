@@ -36,7 +36,6 @@ from infrastructure.router.errors import (
     SCIONPacketHeaderCorruptedError,
 )
 from infrastructure.scion_elem import SCIONElement
-from lib.crypto.symcrypto import verify_of_mac
 from lib.defines import (
     BEACON_SERVICE,
     CERTIFICATE_SERVICE,
@@ -67,7 +66,6 @@ from lib.types import (
     AddrType,
     ExtensionClass,
     IFIDType,
-    OpaqueFieldType as OFT,
     PCBType,
     PathMgmtType as PMT,
     PayloadClass,
@@ -475,7 +473,7 @@ class Router(SCIONElement):
         hof = path.get_hof()
         prev_hof = path.get_hof_ver(ingress=ingress)
         if int(SCIONTime.get_time()) <= ts + hof.exp_time * EXP_TIME_UNIT:
-            if not verify_of_mac(self.of_gen_key, hof, prev_hof, ts):
+            if not hof.verify_mac(self.of_gen_key, ts, prev_hof):
                 raise SCIONOFVerificationError(hof, prev_hof)
         else:
             raise SCIONOFExpiredError(hof)
@@ -488,16 +486,15 @@ class Router(SCIONElement):
         curr_hof = path.get_hof()
         curr_iof = path.get_iof()
         # Preconditions
-        assert curr_hof.is_xovr()
+        assert curr_hof.xover
 
-        if curr_iof.info == OFT.SHORTCUT:
-            self.ingress_shortcut_xovr(spkt)
-        elif curr_iof.info in [OFT.INTRA_ISD_PEER, OFT.INTER_ISD_PEER]:
-            self.ingress_peer_xovr(spkt)
-        elif curr_iof.info == OFT.CORE:
+        if not curr_iof.shortcut:
             self.ingress_core_xovr(spkt)
+            return
+        if not curr_iof.peer:
+            self.ingress_shortcut_xovr(spkt)
         else:
-            logging.error("Current Info OF invalid.")
+            self.ingress_peer_xovr(spkt)
 
     def ingress_shortcut_xovr(self, spkt):
         """
@@ -506,7 +503,7 @@ class Router(SCIONElement):
         path = spkt.path
         curr_iof = path.get_iof()
         # Preconditions
-        assert curr_iof.info == OFT.SHORTCUT
+        assert curr_iof.shortcut and not curr_iof.peer
         if not path.is_on_up_path():
             raise SCIONPacketHeaderCorruptedError
 
@@ -529,7 +526,7 @@ class Router(SCIONElement):
         path = spkt.path
         curr_iof = path.get_iof()
         # Preconditions
-        assert curr_iof.info in [OFT.INTRA_ISD_PEER, OFT.INTER_ISD_PEER]
+        assert curr_iof.peer
 
         self.verify_hof(path)
         path.inc_hof_idx()
@@ -548,7 +545,7 @@ class Router(SCIONElement):
         path = spkt.path
         curr_iof = path.get_iof()
         # Preconditions
-        assert curr_iof.info == OFT.CORE
+        assert not curr_iof.shortcut
 
         self.verify_hof(path)
         if path.is_last_path_hof():
@@ -582,16 +579,15 @@ class Router(SCIONElement):
         curr_hof = path.get_hof()
         curr_iof = path.get_iof()
         # Preconditions
-        assert curr_hof.is_xovr()
+        assert curr_hof.xover
 
-        if curr_iof.info == OFT.SHORTCUT:
-            self.egress_shortcut_xovr(spkt)
-        elif curr_iof.info in [OFT.INTRA_ISD_PEER, OFT.INTER_ISD_PEER]:
-            self.egress_peer_xovr(spkt)
-        elif curr_iof.info == OFT.CORE:
+        if not curr_iof.shortcut:
             self.egress_core_xovr(spkt)
+            return
+        if not curr_iof.peer:
+            self.egress_shortcut_xovr(spkt)
         else:
-            logging.error("Current Info OF invalid.")
+            self.egress_peer_xovr(spkt)
 
     def egress_shortcut_xovr(self, spkt):
         """
@@ -601,8 +597,8 @@ class Router(SCIONElement):
         curr_hof = path.get_hof()
         curr_iof = path.get_iof()
         # Preconditions
-        assert curr_hof.is_xovr()
-        assert curr_iof.info == OFT.SHORTCUT
+        assert curr_hof.xover
+        assert curr_iof.shortcut and not curr_iof.peer
         if path.is_on_up_path():
             raise SCIONPacketHeaderCorruptedError
         self.egress_normal_forward(spkt)
@@ -615,8 +611,8 @@ class Router(SCIONElement):
         curr_hof = path.get_hof()
         curr_iof = path.get_iof()
         # Preconditions
-        assert curr_hof.is_xovr()
-        assert curr_iof.info in [OFT.INTRA_ISD_PEER, OFT.INTER_ISD_PEER]
+        assert curr_hof.xover
+        assert curr_iof.peer
 
         self.verify_hof(path, ingress=False)
         if path.is_on_up_path():
@@ -633,8 +629,8 @@ class Router(SCIONElement):
         curr_hof = path.get_hof()
         curr_iof = path.get_iof()
         # Preconditions
-        assert curr_hof.is_xovr()
-        assert curr_iof.info == OFT.CORE
+        assert curr_hof.xover
+        assert not curr_iof.shortcut
 
         self.verify_hof(path, ingress=False)
         path.inc_hof_idx()
@@ -665,13 +661,13 @@ class Router(SCIONElement):
         try:
             # Ingress entry point.
             if not from_local_as:
-                if curr_hof.info == OFT.XOVR_POINT:
+                if curr_hof.xover:
                     self.handle_ingress_xovr(spkt)
                 else:
                     self.ingress_normal_forward(spkt)
             # Egress entry point.
             else:
-                if curr_hof.info == OFT.XOVR_POINT:
+                if curr_hof.xover:
                     self.handle_egress_xovr(spkt)
                 else:
                     self.egress_normal_forward(spkt)

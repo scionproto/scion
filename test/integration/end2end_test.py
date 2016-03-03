@@ -45,7 +45,7 @@ from lib.packet.scion_addr import ISD_AS, SCIONAddr
 from lib.packet.scion_udp import SCIONUDPHeader
 from lib.socket import UDPSocket
 from lib.thread import kill_self, thread_safety_net
-from lib.types import AddrType, OpaqueFieldType as OFT
+from lib.types import AddrType
 from lib.util import (
     Raw,
     handle_signals,
@@ -81,16 +81,14 @@ def get_paths_via_api(addr):
         path_len = data.pop(1) * 8
         if not path_len:
             return [(EmptyPath(), haddr_parse("IPV4", "0.0.0.0"))], [[]]
-        info = InfoOpaqueField(data.get(InfoOpaqueField.LEN))
-        if info.info == OFT.CORE:
+        iof = InfoOpaqueField(data.get(InfoOpaqueField.LEN))
+        if not iof.shortcut:
             path = CorePath(data.pop(path_len))
-        elif info.info == OFT.SHORTCUT:
-            path = CrossOverPath(data.pop(path_len))
-        elif info.info in [OFT.INTRA_ISD_PEER, OFT.INTER_ISD_PEER]:
-            path = PeerPath(data.pop(path_len))
         else:
-            logging.critical("Can not parse path: Unknown type %x", info.info)
-            kill_self()
+            if not iof.peer:
+                path = CrossOverPath(data.pop(path_len))
+            else:
+                path = PeerPath(data.pop(path_len))
         haddr_type = haddr_get_type("IPV4")
         hop = haddr_type(data.get(haddr_type.LEN))
         data.pop(len(hop))

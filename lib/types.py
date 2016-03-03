@@ -57,21 +57,6 @@ class ExtEndToEndType(TypeBase):
     PATH_PROBE = 1
 
 
-class OpaqueFieldType(TypeBase):
-    """
-    Constants for the types of the opaque field (first byte of every opaque
-    field).
-    """
-    # Types for HopOpaqueFields (7 MSB bits).
-    NORMAL_OF = 0b0000000
-    XOVR_POINT = 0b0010000  # Indicates a crossover point.
-    # Types for Info Opaque Fields (7 MSB bits).
-    CORE = 0b1000000
-    SHORTCUT = 0b1100000
-    INTRA_ISD_PEER = 0b1111000
-    INTER_ISD_PEER = 0b1111100
-
-
 ############################
 # Payload class/types
 ############################

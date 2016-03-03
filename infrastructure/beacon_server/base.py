@@ -35,7 +35,6 @@ from infrastructure.beacon_server.rev_obj import RevocationObject
 from lib.crypto.asymcrypto import sign
 from lib.crypto.certificate import CertificateChain, verify_sig_chain_trc
 from lib.crypto.hash_chain import HashChain, HashChainExhausted
-from lib.crypto.symcrypto import gen_of_mac
 from lib.defines import (
     BEACON_SERVICE,
     CERTIFICATE_SERVICE,
@@ -72,7 +71,6 @@ from lib.thread import thread_safety_net
 from lib.types import (
     CertMgmtType,
     IFIDType,
-    OpaqueFieldType as OFT,
     PCBType,
     PathMgmtType as PMT,
     PayloadClass,
@@ -324,8 +322,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         hof = HopOpaqueField.from_values(self.HOF_EXP_TIME,
                                          ingress_if, egress_if)
         if prev_hof is None:
-            hof.info = OFT.XOVR_POINT
-        hof.mac = gen_of_mac(self.of_gen_key, hof, prev_hof, ts)
+            hof.xover = True
+        hof.set_mac(self.of_gen_key, ts, prev_hof)
         pcbm = PCBMarking.from_values(
             self.addr.isd_as, hof, self._get_if_rev_token(ingress_if))
         peer_markings = []
@@ -336,8 +334,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 continue
             peer_hof = HopOpaqueField.from_values(self.HOF_EXP_TIME,
                                                   if_id, egress_if)
-            peer_hof.info = OFT.XOVR_POINT
-            peer_hof.mac = gen_of_mac(self.of_gen_key, peer_hof, hof, ts)
+            peer_hof.xover = True
+            peer_hof.set_mac(self.of_gen_key, ts, hof)
             peer_marking = \
                 PCBMarking.from_values(router_peer.interface.isd_as,
                                        peer_hof, self._get_if_rev_token(if_id))

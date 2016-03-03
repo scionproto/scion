@@ -16,7 +16,7 @@
 ==========================================================================
 """
 # Stdlib
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import patch
 
 # External packages
 import nose
@@ -24,131 +24,30 @@ import nose.tools as ntools
 
 # SCION
 from lib.errors import SCIONIndexError, SCIONKeyError
-from lib.packet.opaque_field import (
-    HopOpaqueField,
-    InfoOpaqueField,
-    OpaqueField,
-    OpaqueFieldList,
-)
+from lib.packet.opaque_field import HopOpaqueField, OpaqueFieldList
 from test.testcommon import create_mock
-
-
-# To allow testing of OpaqueField, despite it having abstract methods.
-class OpaqueFieldTesting(OpaqueField):
-    def parse(self, raw):
-        pass
-
-    def pack(self):
-        pass
-
-    def __str__(self):
-        pass
-
-
-class TestOpaqueFieldIsRegular(object):
-    """
-    Unit tests for lib.packet.opaque_field.OpaqueField.is_regular
-    """
-    def test_basic(self):
-        op_fld = OpaqueFieldTesting()
-        op_fld.info = 0b10111111
-        ntools.assert_true(op_fld.is_regular())
-
-    def test_set(self):
-        op_fld = OpaqueFieldTesting()
-        op_fld.info = 0b01000000
-        ntools.assert_false(op_fld.is_regular())
-
-
-class TestOpaqueFieldIsContinue(object):
-    """
-    Unit tests for lib.packet.opaque_field.OpaqueField.is_continue
-    """
-    def test_basic(self):
-        op_fld = OpaqueFieldTesting()
-        op_fld.info = 0b11011111
-        ntools.assert_false(op_fld.is_continue())
-
-    def test_set(self):
-        op_fld = OpaqueFieldTesting()
-        op_fld.info = 0b00100000
-        ntools.assert_true(op_fld.is_continue())
-
-
-class TestOpaqueFieldIsXovr(object):
-    """
-    Unit tests for lib.packet.opaque_field.OpaqueField.is_xovr
-    """
-    def test_basic(self):
-        op_fld = OpaqueFieldTesting()
-        op_fld.info = 0b11101111
-        ntools.assert_false(op_fld.is_xovr())
-
-    def test_set(self):
-        op_fld = OpaqueFieldTesting()
-        op_fld.info = 0b00010000
-        ntools.assert_true(op_fld.is_xovr())
-
-
-class TestHopOpaqueFieldInit(object):
-    """
-    Unit tests for lib.packet.opaque_field.HopOpaqueField.__init__
-    """
-    def test_basic(self):
-        hop_op_fld = HopOpaqueField()
-        ntools.eq_(hop_op_fld.exp_time, 0)
-        ntools.eq_(hop_op_fld.ingress_if, 0)
-        ntools.eq_(hop_op_fld.egress_if, 0)
-        ntools.eq_(hop_op_fld.mac, b'\x00' * 3)
-
-    @patch("lib.packet.opaque_field.HopOpaqueField.parse", autospec=True)
-    def test_raw(self, parse):
-        hop_op_fld = HopOpaqueField("data")
-        parse.assert_called_once_with(hop_op_fld, "data")
 
 
 class TestHopOpaqueFieldParse(object):
     """
-    Unit tests for lib.packet.opaque_field.HopOpaqueField.parse
+    Unit tests for lib.packet.opaque_field.HopOpaqueField._parse
     """
     @patch("lib.packet.opaque_field.Raw", autospec=True)
-    def test_basic(self, raw):
-        # Setup
-        hop_op_fld = HopOpaqueField()
-        data = bytes.fromhex('0e 2a 0a 0b 0c') + b'\x01' * 3
-        raw.return_value = MagicMock(spec_set=["pop"])
-        raw.return_value.pop.side_effect = (
-            data[:2], data[2:5], data[5:8])
+    def test(self, raw):
+        inst = HopOpaqueField()
+        inst._parse_flags = create_mock()
+        data = create_mock(["pop"])
+        data.pop.side_effect = map(bytes.fromhex, ('0e 2a', '0a0b0c', '012345'))
+        raw.return_value = data
         # Call
-        hop_op_fld.parse(data)
+        inst._parse("data")
         # Tests
-        raw.assert_called_once_with(data, "HopOpaqueField", hop_op_fld.LEN)
-        raw.return_value.pop.assert_has_calls([call(2), call(3), call(3)])
-        ntools.eq_(hop_op_fld.raw, data)
-        ntools.eq_(hop_op_fld.info, 0x0e)
-        ntools.eq_(hop_op_fld.exp_time, 0x2a)
-        ntools.eq_(hop_op_fld.mac, b'\x01' * 3)
-        ntools.eq_(hop_op_fld.ingress_if, 0x0a0)
-        ntools.eq_(hop_op_fld.egress_if, 0xb0c)
-
-
-class TestHopOpaqueFieldFromValues(object):
-    """
-    Unit tests for lib.packet.opaque_field.HopOpaqueField.from_values
-    """
-    def test_basic(self):
-        hop_op_fld = HopOpaqueField.from_values(42, 160, 2828, b'\x01' * 3)
-        ntools.eq_(hop_op_fld.exp_time, 42)
-        ntools.eq_(hop_op_fld.ingress_if, 160)
-        ntools.eq_(hop_op_fld.egress_if, 2828)
-        ntools.eq_(hop_op_fld.mac, b'\x01' * 3)
-
-    def test_less_arg(self):
-        hop_op_fld = HopOpaqueField.from_values(42)
-        ntools.eq_(hop_op_fld.exp_time, 42)
-        ntools.eq_(hop_op_fld.ingress_if, 0)
-        ntools.eq_(hop_op_fld.egress_if, 0)
-        ntools.eq_(hop_op_fld.mac, b'\x00' * 3)
+        raw.assert_called_once_with("data", inst.NAME, inst.LEN)
+        ntools.eq_(inst.exp_time, 0x2a)
+        inst._parse_flags.assert_called_once_with(0x0e)
+        ntools.eq_(inst.ingress_if, 0x0a0)
+        ntools.eq_(inst.egress_if, 0xb0c)
+        ntools.eq_(inst.mac, bytes.fromhex('012345'))
 
 
 class TestHopOpaqueFieldPack(object):
@@ -156,72 +55,73 @@ class TestHopOpaqueFieldPack(object):
     Unit tests for lib.packet.opaque_field.HopOpaqueField.pack
     """
     def test_basic(self):
-        hop_op_fld = HopOpaqueField()
-        hop_op_fld.info = 0x0e
-        hop_op_fld.exp_time = 0x2a
-        hop_op_fld.ingress_if = 0x0a0
-        hop_op_fld.egress_if = 0xb0c
-        hop_op_fld.mac = b'\x01' * 3
-        data = bytes.fromhex('0e 2a 0a 0b 0c') + b'\x01' * 3
-        ntools.eq_(hop_op_fld.pack(), data)
-
-
-class TestInfoOpaqueFieldParse(object):
-    """
-    Unit tests for lib.packet.opaque_field.InfoOpaqueField.parse
-    """
-    @patch("lib.packet.opaque_field.Raw", autospec=True)
-    def test_basic(self, raw):
-        # Setup
-        inf_op_fld = InfoOpaqueField()
-        data = bytes.fromhex('0f 2a 0a 0b 0c 0d 0e 0f')
-        raw.return_value = MagicMock(spec_set=["pop"])
-        raw.return_value.pop.return_value = data
+        inst = HopOpaqueField()
+        inst._pack_flags = create_mock()
+        inst._pack_flags.return_value = 0x0e
+        inst.exp_time = 0x2a
+        inst.ingress_if = 0x0a0
+        inst.egress_if = 0xb0c
+        inst.mac = bytes.fromhex('012345')
+        expected = bytes.fromhex('0e 2a 0a0b0c 012345')
         # Call
-        inf_op_fld.parse(data)
+        ntools.eq_(inst.pack(), expected)
+
+    def test_mac(self):
+        inst = HopOpaqueField()
+        inst._pack_flags = create_mock()
+        inst._pack_flags.return_value = 0x0e
+        inst.exp_time = 0x2a
+        inst.ingress_if = 0x0a0
+        inst.egress_if = 0xb0c
+        inst.mac = bytes.fromhex('012345')
+        expected = bytes.fromhex('02 2a 0a0b0c')
+        # Call
+        ntools.eq_(inst.pack(mac=True), expected)
+
+
+class TestHopOpaqueFieldCalcMac(object):
+    """
+    Unit tests for lib.packet.opaque_field.HopOpaqueField.calc_mac
+    """
+    @patch("lib.packet.opaque_field.cbcmac", autospec=True)
+    def test_no_prev(self, cbcmac):
+        inst = HopOpaqueField()
+        inst.pack = create_mock()
+        pack_mac = bytes.fromhex('02 2a 0a0b0c')
+        inst.pack.return_value = pack_mac
+        ts = 0x01020304
+        expected = b"".join([
+            pack_mac, bytes(inst.LEN), ts.to_bytes(4, "big"),
+            bytes(inst.MAC_BLOCK_PADDING),
+        ])
+        cbcmac.return_value = "mac_data"
+        # Call
+        ntools.eq_(inst.calc_mac("key", ts), "mac")
         # Tests
-        raw.assert_called_once_with(data, "InfoOpaqueField", inf_op_fld.LEN)
-        ntools.eq_(inf_op_fld.raw, data)
-        ntools.eq_(inf_op_fld.info, 0x0f >> 1)
-        ntools.eq_(inf_op_fld.timestamp, 0x2a0a0b0c)
-        ntools.eq_(inf_op_fld.isd, 0x0d0e)
-        ntools.eq_(inf_op_fld.hops, 0x0f)
-        ntools.eq_(inf_op_fld.up_flag, 0x0f & 0x01)
+        inst.pack.assert_called_once_with(mac=True)
+        cbcmac.assert_called_once_with("key", expected)
 
-
-class TestInfoOpaqueFieldFromValues(object):
-    """
-    Unit tests for lib.packet.opaque_field.InfoOpaqueField.from_values
-    """
-    def test_basic(self):
-        inf_op_fld = InfoOpaqueField.from_values(7, True, 705301260, 3342, 15)
-        ntools.eq_(inf_op_fld.info, 7)
-        ntools.eq_(inf_op_fld.timestamp, 705301260)
-        ntools.eq_(inf_op_fld.isd, 3342)
-        ntools.eq_(inf_op_fld.hops, 15)
-        ntools.assert_true(inf_op_fld.up_flag)
-
-    def test_less_arg(self):
-        inf_op_fld = InfoOpaqueField.from_values()
-        ntools.eq_(inf_op_fld.info, 0)
-        ntools.eq_(inf_op_fld.timestamp, 0)
-        ntools.eq_(inf_op_fld.isd, 0)
-        ntools.eq_(inf_op_fld.hops, 0)
-        ntools.assert_false(inf_op_fld.up_flag)
-
-
-class TestInfoOpaqueFieldPack(object):
-    """
-    Unit tests for lib.packet.opaque_field.InfoOpaqueField.pack
-    """
-    def test_basic(self):
-        inf_op_fld = InfoOpaqueField()
-        inf_op_fld.info = 0x0f >> 1
-        inf_op_fld.timestamp = 0x2a0a0b0c
-        inf_op_fld.isd = 0x0d0e
-        inf_op_fld.hops = 0x0f
-        inf_op_fld.up_flag = 0x0f & 0x01
-        ntools.eq_(inf_op_fld.pack(), bytes.fromhex('0f 2a 0a 0b 0c 0d 0e 0f'))
+    @patch("lib.packet.opaque_field.cbcmac", autospec=True)
+    def test_prev(self, cbcmac):
+        inst = HopOpaqueField()
+        inst.pack = create_mock()
+        pack_mac = bytes.fromhex('02 2a 0a0b0c')
+        inst.pack.return_value = pack_mac
+        prev = create_mock(["mac", "pack"])
+        prev.mac = bytes.fromhex('050607')
+        prev.pack = create_mock()
+        prev_pack_mac = bytes.fromhex('10 11 121314')
+        prev.pack.return_value = prev_pack_mac
+        ts = 0x01020304
+        expected = b"".join([
+            pack_mac, prev_pack_mac, prev.mac, ts.to_bytes(4, "big"),
+            bytes(inst.MAC_BLOCK_PADDING),
+        ])
+        # Call
+        inst.calc_mac("key", ts, prev)
+        # Tests
+        prev.pack.assert_called_once_with(mac=True)
+        cbcmac.assert_called_once_with("key", expected)
 
 
 class TestOpaqueFieldListInit(object):

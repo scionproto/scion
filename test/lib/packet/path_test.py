@@ -24,7 +24,6 @@ import nose
 import nose.tools as ntools
 
 # SCION
-from lib.errors import SCIONParseError
 from lib.packet.path import (
     CORE_HOFS,
     CORE_IOF,
@@ -41,11 +40,9 @@ from lib.packet.path import (
     UP_IOF,
     UP_PEERING_HOF,
     UP_UPSTREAM_HOF,
-    parse_path,
 )
 from lib.packet.opaque_field import OpaqueField
 from lib.packet.pcb_ext.mtu import MtuPcbExt
-from lib.types import OpaqueFieldType as OFT
 from test.testcommon import assert_these_calls, create_mock
 
 
@@ -102,8 +99,8 @@ class _GetHofVerTest(object):
            return_value=None)
     def test_normal(self, init, super_method):
         inst = self.TYPE()
-        hof = create_mock(["info"])
-        hof.info = OFT.NORMAL_OF
+        hof = create_mock(["xover"])
+        hof.xover = False
         inst.get_hof = create_mock()
         inst.get_hof.return_value = hof
         # Call
@@ -116,7 +113,7 @@ class _GetHofVerTest(object):
     def _check_special(self, ingress, up, exp_hof, exp_idx, init):
         inst = self.TYPE()
         inst.get_hof = create_mock()
-        inst.get_hof.return_value = create_mock(["info"])
+        inst.get_hof.return_value = create_mock(["xover"])
         iof = create_mock(["up_flag"])
         iof.up_flag = up
         inst.get_iof = create_mock()
@@ -994,21 +991,23 @@ class TestPeerPathGetFirstHofIdx(object):
         self._check([None, None], 99)
 
     def test_up_hofs_normal(self):
-        hof = create_mock(["info"])
+        hof = create_mock(["xover"])
+        hof.xover = False
         self._check([[hof], None], 1)
 
     def test_up_hofs_xovr(self):
-        hof = create_mock(["info"])
-        hof.info = OFT.XOVR_POINT
+        hof = create_mock(["xover"])
+        hof.xover = True
         self._check([[hof], None], 2)
 
     def test_down_hofs_normal(self):
-        hof = create_mock(["info"])
+        hof = create_mock(["xover"])
+        hof.xover = False
         self._check([None, [hof]], 1)
 
     def test_down_hofs_xovr(self):
-        hof = create_mock(["info"])
-        hof.info = OFT.XOVR_POINT
+        hof = create_mock(["xover"])
+        hof.xover = True
         self._check([None, [hof]], 2)
 
 
@@ -1239,8 +1238,8 @@ class TestPathCombinatorCopySegment(object):
         deepcopy.return_value = iof
         hofs = []
         for _ in range(3):
-            hof = create_mock(["info"])
-            hof.info = OFT.NORMAL_OF
+            hof = create_mock(["xover"])
+            hof.xover = False
             hofs.append(hof)
         copy_hofs.return_value = hofs, None
         # Call
@@ -1249,9 +1248,9 @@ class TestPathCombinatorCopySegment(object):
         deepcopy.assert_called_once_with(seg.iof)
         ntools.eq_(iof.up_flag, True)
         copy_hofs.assert_called_once_with(seg.ases, reverse=True)
-        ntools.eq_(hofs[0].info, OFT.XOVR_POINT)
-        ntools.eq_(hofs[1].info, OFT.NORMAL_OF)
-        ntools.eq_(hofs[2].info, OFT.XOVR_POINT)
+        ntools.eq_(hofs[0].xover, True)
+        ntools.eq_(hofs[1].xover, False)
+        ntools.eq_(hofs[2].xover, True)
 
     @patch("lib.packet.path.PathCombinator._copy_hofs",
            new_callable=create_mock)
@@ -1336,8 +1335,8 @@ class TestPathCombinatorJoinShortcuts(object):
     @patch("lib.packet.path.PathCombinator._copy_segment_shortcut",
            new_callable=create_mock)
     def test_xovr(self, join_shortcuts, xovr_from_values):
-        up_iof = create_mock(["info"])
-        down_iof = create_mock(["info"])
+        up_iof = create_mock(["peer", "shortcut"])
+        down_iof = create_mock(["peer", "shortcut"])
         up_seg = create_mock(['ases'])
         down_seg = create_mock(['ases'])
         up_seg.ases = [create_mock(['pcbm', 'ext']) for i in range(6)]
@@ -1369,8 +1368,8 @@ class TestPathCombinatorJoinShortcuts(object):
             PathCombinator._join_shortcuts(up_seg, down_seg, (2, 5), False),
             xovr_from_values.return_value)
         # Tests
-        ntools.eq_(up_iof.info, OFT.SHORTCUT)
-        ntools.eq_(down_iof.info, OFT.SHORTCUT)
+        ntools.eq_(up_iof.shortcut, True)
+        ntools.eq_(down_iof.shortcut, True)
         assert_these_calls(join_shortcuts, [
             call(up_seg, 2), call(down_seg, 5, up=False)])
         xovr_from_values.assert_called_once_with(
@@ -1382,12 +1381,9 @@ class TestPathCombinatorJoinShortcuts(object):
            new_callable=create_mock)
     @patch("lib.packet.path.PathCombinator._copy_segment_shortcut",
            new_callable=create_mock)
-    def _check_peer(self, of_type, join_shortcuts, join_peer,
-                    peer_path):
+    def test_peer(self, join_shortcuts, join_peer, peer_path):
         up_seg = create_mock(['get_isd', 'ases'])
         down_seg = create_mock(['get_isd', 'ases'])
-        if of_type == OFT.INTRA_ISD_PEER:
-            up_seg.get_isd.return_value = down_seg.get_isd.return_value
         up_seg.ases = [create_mock(['pcbm']) for i in range(6)]
         for m in up_seg.ases:
             m.pcbm = create_mock(['isd_as', 'hof'])
@@ -1396,8 +1392,8 @@ class TestPathCombinatorJoinShortcuts(object):
         for m in down_seg.ases:
             m.pcbm = create_mock(['isd_as', 'hof'])
             m.pcbm.hof = create_mock(['egress_if', 'ingress_if'])
-        up_iof = create_mock(["info"])
-        down_iof = create_mock(["info"])
+        up_iof = create_mock(["peer", "shortcut"])
+        down_iof = create_mock(["peer", "shortcut"])
         join_shortcuts.side_effect = [
             (up_iof, "up_hofs", "up_upstream_hof", None),
             (down_iof, "down_hofs", "down_upstream_hof", None),
@@ -1410,17 +1406,14 @@ class TestPathCombinatorJoinShortcuts(object):
             PathCombinator._join_shortcuts(up_seg, down_seg, (2, 5), True),
             peer_path.return_value)
         # Tests
-        ntools.eq_(up_iof.info, of_type)
-        ntools.eq_(down_iof.info, of_type)
+        ntools.eq_(up_iof.shortcut, True)
+        ntools.eq_(down_iof.shortcut, True)
+        ntools.eq_(up_iof.peer, True)
+        ntools.eq_(down_iof.peer, True)
         join_peer.assert_called_once_with(up_seg.ases[2], down_seg.ases[5])
         peer_path.assert_called_once_with(
             up_iof, "up_hofs", up_peering_hof, "up_upstream_hof",
             down_iof, "down_upstream_hof", down_peering_hof, "down_hofs")
-
-    def test_peer(self):
-        for of_type in (OFT.INTRA_ISD_PEER,
-                        OFT.INTER_ISD_PEER):
-            yield self._check_peer, of_type
 
 
 class TestPathCombinatorCheckConnected(object):
@@ -1514,23 +1507,11 @@ class TestPathCombinatorCopySegmentShortcut(object):
         iof.hops = 10
         hofs = []
         for _ in range(6):
-            hofs.append(create_mock(["info"]))
+            hofs.append(create_mock(["xover"]))
         copy_hofs.return_value = hofs, None
-        upstream_hof = create_mock(["info"])
+        upstream_hof = create_mock(["xover"])
         deepcopy.side_effect = [iof, upstream_hof]
         return seg, iof, hofs, upstream_hof
-
-        # Call
-        ntools.eq_(PathCombinator._copy_segment_shortcut(seg, 4),
-                   (iof, hofs, upstream_hof, None))
-        # Tests
-        assert_these_calls(
-            deepcopy, [call(seg.iof), call(seg.ases[3].pcbm.hof)])
-        ntools.eq_(iof.hops, 6)
-        ntools.ok_(iof.up_flag)
-        copy_hofs.assert_called_once_with(seg.ases[4:], reverse=True)
-        ntools.eq_(hofs[-1].info, OFT.XOVR_POINT)
-        ntools.eq_(upstream_hof.info, OFT.NORMAL_OF)
 
     @patch("lib.packet.path.PathCombinator._copy_hofs",
            new_callable=create_mock)
@@ -1546,8 +1527,8 @@ class TestPathCombinatorCopySegmentShortcut(object):
         ntools.eq_(iof.hops, 6)
         ntools.ok_(iof.up_flag)
         copy_hofs.assert_called_once_with(seg.ases[4:], reverse=True)
-        ntools.eq_(hofs[-1].info, OFT.XOVR_POINT)
-        ntools.eq_(upstream_hof.info, OFT.NORMAL_OF)
+        ntools.eq_(hofs[-1].xover, True)
+        ntools.eq_(upstream_hof.xover, False)
 
     @patch("lib.packet.path.PathCombinator._copy_hofs",
            new_callable=create_mock)
@@ -1560,7 +1541,7 @@ class TestPathCombinatorCopySegmentShortcut(object):
         # Tests
         ntools.assert_false(iof.up_flag)
         copy_hofs.assert_called_once_with(seg.ases[7:], reverse=False)
-        ntools.eq_(hofs[0].info, OFT.XOVR_POINT)
+        ntools.eq_(hofs[0].xover, True)
 
 
 class TestPathCombinatorJoinShortcutsPeer(object):
@@ -1582,46 +1563,6 @@ class TestPathCombinatorJoinShortcutsPeer(object):
         down_as.pms[0].hof = 'down_hof0'
         ntools.eq_(PathCombinator._join_shortcuts_peer(up_as, down_as),
                    ("up_hof1", "down_hof0"))
-
-
-class TestParsePath(object):
-    """
-    Unit tests for lib.packet.path.parse_path
-    """
-    @patch("lib.packet.path.EmptyPath", autospec=True)
-    def test_empty(self, empty):
-        ntools.eq_(parse_path(""), empty.return_value)
-
-    @patch("lib.packet.path.PeerPath", autospec=True)
-    @patch("lib.packet.path.CrossOverPath", autospec=True)
-    @patch("lib.packet.path.CorePath", autospec=True)
-    @patch("lib.packet.path.InfoOpaqueField", autospec=True)
-    def _check_paths(self, info_type, class_name, iof, core, xover, peer):
-        class_map = {"core": core, "xover": xover, "peer": peer}
-        class_ = class_map[class_name]
-        info = create_mock(["info"])
-        info.info = info_type
-        iof.return_value = info
-        iof.LEN = 10
-        # Call
-        ntools.eq_(parse_path(range(20)), class_.return_value)
-        # Tests
-        iof.assert_called_once_with(range(10))
-        class_.assert_called_once_with(range(20))
-
-    def test_paths(self):
-        for info_type, class_name in (
-            (OFT.CORE, "core"),
-            (OFT.SHORTCUT, "xover"),
-            (OFT.INTRA_ISD_PEER, "peer"),
-            (OFT.INTER_ISD_PEER, "peer"),
-        ):
-            yield self._check_paths, info_type, class_name
-
-    @patch("lib.packet.path.InfoOpaqueField", autospec=True)
-    def test_unknown(self, iof):
-        iof.return_value = create_mock(["info"])
-        ntools.assert_raises(SCIONParseError, parse_path, range(1))
 
 
 if __name__ == "__main__":

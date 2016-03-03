@@ -29,7 +29,7 @@ from lib.packet.path_mgmt import PathRecordsReg
 from lib.packet.pcb import PathSegment
 from lib.packet.scion import PacketType as PT
 from lib.path_store import PathStore
-from lib.types import OpaqueFieldType as OFT, PathSegmentType as PST
+from lib.types import PathSegmentType as PST
 from lib.util import SCIONTime
 
 
@@ -99,13 +99,11 @@ class CoreBeaconServer(BeaconServer):
         """
         timestamp = int(SCIONTime.get_time())
         # Create beacon for downstream ASes.
-        down_iof = InfoOpaqueField.from_values(
-            OFT.CORE, False, timestamp, self.topology.isd_as[0])
+        down_iof = InfoOpaqueField.from_values(timestamp, self.addr.isd_as[0])
         downstream_pcb = PathSegment.from_values(down_iof)
         self.propagate_downstream_pcb(downstream_pcb)
         # Create beacon for core ASes.
-        core_iof = InfoOpaqueField.from_values(
-            OFT.CORE, False, timestamp, self.topology.isd_as[0])
+        core_iof = InfoOpaqueField.from_values(timestamp, self.addr.isd_as[0])
         core_pcb = PathSegment.from_values(core_iof)
         core_count = self.propagate_core_pcb(core_pcb)
         # Propagate received beacons. A core beacon server can only receive
