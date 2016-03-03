@@ -30,18 +30,25 @@ class BandwidthBase(object):
     """
     Base class for tracking bandwidth usage and predictions.
     """
-    def __init__(self, owner):  # pragma: no cover
+    def __init__(self, owner, max_bw=None):  # pragma: no cover
         self.owner = owner
         self.curr_used = BWSnapshot()
-        # Using MAX_TICKS+1 allow for bandwidth reduction after a
-        # max-length reservation
-        self.ticks = [BWSnapshot() for i in range(self.MAX_TICKS+1)]
+        self.max_bw = max_bw or BWSnapshot()
+        # The first entry is the current absolute bandwidth reserved. All
+        # subsequent entries are relative updates. This means that a value of 0
+        # indicates the bandwidth doesn't change for that tick.
+        # Using MAX_TICKS+1 allows for bandwidth reduction after a max-length
+        # reservation
+        self.resvs = [BWSnapshot() for i in range(self.MAX_TICKS+1)]
 
     def next(self):  # pragma: no cover
-        old_resv = self.ticks.pop(0)
-        self.ticks[0] += old_resv
-        self.ticks.append(BWSnapshot())
+        self._rollover(self.resvs)
         self.curr_used = BWSnapshot()
+
+    def _rollover(self, items):  # pragma: no cover
+        old = items.pop(0)
+        items[0] += old
+        items.append(BWSnapshot())
 
 
 class LinkBandwidth(BandwidthBase):
@@ -53,10 +60,6 @@ class LinkBandwidth(BandwidthBase):
     """
     MAX_TICKS = max(SIBRA_MAX_STEADY_TICKS, SIBRA_MAX_EPHEMERAL_TICKS)
 
-    def __init__(self, owner, max_bw):  # pragma: no cover
-        super().__init__(owner)
-        self.max_bw = max_bw
-
     def update(self, updates):
         """
         Apply a list of bandwidth updates to the reservation predictions. The
@@ -64,18 +67,21 @@ class LinkBandwidth(BandwidthBase):
         tick the change happens in, and val is a relative bandwidth change.
         """
         for exp_tick_rel, val in updates:
-            self.ticks[exp_tick_rel] += val
-        assert self.ticks[0].slte(self.max_bw)
+            self.resvs[exp_tick_rel] += val
+        assert self.resvs[0].slte(self.max_bw)
 
     def bw_avail(self):  # pragma: no cover
         """
         Return the max available bandwidth. As all reservations cannot start in
         the future, the current snapshot is also the maximum bandwidth used.
         """
-        return self.max_bw - self.ticks[0]
+        return self.max_bw - self.resvs[0]
+
+    def short_desc(self):  # pragma: no cover
+        return "Link: Owner: %s" % self.owner
 
     def __str__(self):
         return ("Link: Owner: %s Used/Max bandwidth (Kibit/s): "
                 "Fwd: %.1f/%.1f Rev: %.1f/%.1f" % (
-                    self.owner, self.ticks[0].fwd/1024, self.max_bw.fwd/1024,
-                    self.ticks[0].rev/1024, self.max_bw.rev/1024))
+                    self.owner, self.resvs[0].fwd/1024, self.max_bw.fwd/1024,
+                    self.resvs[0].rev/1024, self.max_bw.rev/1024))

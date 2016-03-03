@@ -84,10 +84,13 @@ class SteadyPath(object):
 
     def setup(self):
         with self._lock:
-            ext = self._create_ext_setup()
-            logging.info("Sending setup request:\n%s", ext)
-            pkt = self._create_scion_pkt(ext)
-            self.sendq.put(pkt)
+            self._setup()
+
+    def _setup(self):
+        ext = self._create_ext_setup()
+        logging.info("Sending setup request:\n%s", ext)
+        pkt = self._create_scion_pkt(ext)
+        self.sendq.put(pkt)
 
     def renew(self):
         with self._lock:
@@ -266,6 +269,7 @@ class SteadyPath(object):
         pcb.remove_signatures()
         pcb.flags |= PSF.SIBRA
         latest = self.blocks[-1]
+        assert latest.num_hops == len(latest.sofs)
         info = copy.deepcopy(latest.info)
         info.fwd_dir = fwd_dir
         for asm, sof in zip(reversed(pcb.ases), latest.sofs):

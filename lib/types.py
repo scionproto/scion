@@ -131,7 +131,12 @@ class SIBRAPayloadType(TypeBase):
 class RouterFlag(TypeBase):
     ERROR = 0
     NO_PROCESS = 1
+    # Forward packet to supplied IFID
     FORWARD = 2
+    # Packet has reached its destination ISD-AS
+    DELIVER = 3
+    # Deliver packet even if it hasn't reached its destination ISD-AS
+    FORCE_DELIVER = 4
 
 
 ############################

@@ -16,6 +16,7 @@
 ========================================
 """
 # Stdlib
+import logging
 import struct
 
 # SCION
@@ -25,9 +26,11 @@ from lib.defines import (
 )
 from lib.errors import SCIONParseError
 from lib.packet.ext_hdr import HopByHopExtension
-from lib.sibra.ext.resv import ResvBlockSteady, ResvBlockEphemeral
 from lib.sibra.ext.offer import OfferBlockSteady, OfferBlockEphemeral
-from lib.types import ExtHopByHopType
+from lib.sibra.ext.process import ProcessMeta
+from lib.sibra.ext.resv import ResvBlockSteady, ResvBlockEphemeral
+from lib.sibra.util import BWSnapshot
+from lib.types import ExtHopByHopType, RouterFlag
 from lib.util import Raw, hex_str
 
 SIBRA_VERSION = 0
@@ -47,7 +50,7 @@ class SibraExtBase(HopByHopExtension):
 
     0B       1        2        3        4        5        6        7
     +--------+--------+--------+--------+--------+--------+--------+--------+
-    | xxxxxxxxxxxxxxxxxxxxxxxx | Flags  |Curr hop|P0 hops |P1 hops |P2 hops |
+    | xxxxxxxxxxxxxxxxxxxxxxxx | Flags  |SOF idx |P0 hops |P1 hops |P2 hops |
     +--------+--------+--------+--------+--------+--------+--------+--------+
     | <Path IDs>                                                            |
     +--------+--------+--------+--------+--------+--------+--------+--------+
@@ -73,7 +76,8 @@ class SibraExtBase(HopByHopExtension):
           Set if packet is travelling src->dest.
       - version (2b): SIBRA version, to be used as (SCION ver, SIBRA ver).
 
-    - Curr hop indicates where on the SIBRA path the packet currently is.
+    - SOF idx indicates which is the current Sibra Opaque Field. The current hop
+      location can be derived from this.
     - P* hops indicate how long each active reservation block is. Summed, they
       indicate the total number of hops in the path.
     - 1-4 Path IDs are used to identify the current path at the current point on
@@ -84,6 +88,7 @@ class SibraExtBase(HopByHopExtension):
     EXT_TYPE = ExtHopByHopType.SIBRA
     MIN_LEN = HopByHopExtension.SUBHDR_LEN
     LINE_LEN = HopByHopExtension.LINE_LEN
+    RESV_BLOCK = None
 
     def __init__(self, raw=None):  # pragma: no cover
         super().__init__()
@@ -95,14 +100,17 @@ class SibraExtBase(HopByHopExtension):
         self.fwd = True
         self.version = SIBRA_VERSION
         # Rest of extension:
-        self.curr_hop = 0
+        self.sof_idx = 0
         self.path_ids = []
         self.active_blocks = []
         # Acts as request flag
         self.req_block = None
         # Metadata
-        self.path_lens = []
+        self.path_lens = [0, 0, 0]
+        self.curr_hop = 0
         self.total_hops = 0
+        self.block_idx = 0
+        self.rel_sof_idx = 0
 
         if raw:
             self._parse(raw)
@@ -115,9 +123,9 @@ class SibraExtBase(HopByHopExtension):
         super()._parse(raw)
         data = Raw(raw, self.NAME, self.MIN_LEN, min_=True)
         req = self._parse_flags(data.pop(1))
-        self.curr_hop = data.pop(1)
-        self.path_lens = struct.unpack("!BBB", data.pop(3))
-        self.total_hops = sum(self.path_lens)
+        self.sof_idx = data.pop(1)
+        self.path_lens = list(struct.unpack("!BBB", data.pop(3)))
+        self._calc_total_hops()
         return data, req
 
     def _parse_end(self, data, req):
@@ -136,9 +144,7 @@ class SibraExtBase(HopByHopExtension):
                 len(data), self.NAME, hex_str(data.get())))
 
     def _parse_flags(self, flags):
-        """
-        Parse the header flags field
-        """
+        """Parse the header flags field."""
         self.setup = bool(flags & FLAG_PATH_SETUP)
         req = bool(flags & FLAG_REQ)
         self.accepted = bool(flags & FLAG_ACCEPT)
@@ -153,28 +159,21 @@ class SibraExtBase(HopByHopExtension):
         return req
 
     def _parse_path_id(self, data, steady=True):  # pragma: no cover
-        """
-        Read a path ID
-        """
+        """Read a path ID."""
         if steady:
             return data.pop(SIBRA_STEADY_ID_LEN)
         return data.pop(SIBRA_EPHEMERAL_ID_LEN)
 
-    def _parse_block(self, data, num_hops, steady):
-        """
-        Parse a reservation block
-        """
+    def _parse_block(self, data, num_hops, steady=True):
+        """Parse a reservation block."""
         block_len = (1 + num_hops) * self.LINE_LEN
         block = data.pop(block_len)
         if steady:
             return ResvBlockSteady(block)
-        else:
-            return ResvBlockEphemeral(block)
+        return ResvBlockEphemeral(block)
 
     def _parse_offers_block(self, data):  # pragma: no cover
-        """
-        Parse the offers block
-        """
+        """Parse the offers block."""
         if self.steady:
             block = OfferBlockSteady(data.get())
         else:
@@ -182,19 +181,19 @@ class SibraExtBase(HopByHopExtension):
         data.pop(len(block))
         return block
 
+    @classmethod
+    def from_values(cls, *args, **kwargs):
+        raise NotImplementedError
+
     def _pack_start(self):  # pragma: no cover
-        """
-        Pack the extension flags and the current hop
-        """
+        """Pack the extension flags and the current SOF index."""
         raw = []
         raw.append(self._pack_flags())
-        raw.append(struct.pack("!B", self.curr_hop))
+        raw.append(struct.pack("!B", self.sof_idx))
         return raw
 
     def _pack_end(self, raw):
-        """
-        Pack the active and request/offer blocks
-        """
+        """Pack the active and request/offer blocks."""
         raw.extend(self.path_ids)
         for block in self.active_blocks:
             raw.append(block.pack())
@@ -205,9 +204,7 @@ class SibraExtBase(HopByHopExtension):
         return result
 
     def _pack_flags(self):
-        """
-        Pack the extension flags
-        """
+        """Pack the extension flags."""
         flags = 0
         if self.setup:
             flags |= FLAG_PATH_SETUP
@@ -226,15 +223,21 @@ class SibraExtBase(HopByHopExtension):
         assert self.steady == self.STEADY
         return bytes([flags])
 
-    def reverse(self):
+    def _calc_total_hops(self):  # pragma: no cover
         """
-        Reverse the extension header
+        Calculate the total number of hops from the path lengths. Ephemeral
+        setup packets have more complex calculations, and so override this
+        method.
         """
-        if self.setup and self.accepted and not self.fwd:
-            # This is an accepted sibra setup reply packet, so configure for
-            # use.
-            self.setup = False
-        self.fwd = not self.fwd
+        self.total_hops = self.path_lens[0]
+
+    def _update_idxes(self):  # pragma: no cover
+        """
+        Update the current hop and relative SOF index from the current SOF
+        index. Ephemeral setup packets have more complex calculations, and so
+        override this method.
+        """
+        self.curr_hop = self.rel_sof_idx = self.sof_idx
 
     def _set_size(self):
         """
@@ -250,72 +253,235 @@ class SibraExtBase(HopByHopExtension):
             extlen += len(self.req_block)
         self._init_size(extlen // self.LINE_LEN)
 
-    def process(self, state, spkt, from_local_ad, key):
-        """
-        Process an extension header on a packet. `dir_fwd` is used to indicate
-        the direction of travel relative to the local node. Forward means the
-        packet is at an egress router, reverse means it's at an ingress router.
-        """
-        dir_fwd = True
-        if self.fwd != from_local_ad:
-            dir_fwd = False
-        flags = self._process(state, spkt, dir_fwd, key)
-        if from_local_ad:
-            # Only increment curr_hop on egress from an AS.
-            self.curr_hop += 1 if self.fwd else -1
-        return flags
+    def reverse(self):
+        """Reverse the extension header."""
+        if self.setup and self.accepted and not self.fwd:
+            # This is an accepted sibra setup reply packet, so configure for
+            # use.
+            self.setup = False
+        self.fwd = not self.fwd
 
-    def _add_hop(self, key, path_ids):  # pragma: no cover
-        """
-        Add a SIBRA opaque field to the current request block, reading the
-        ingress/egress interface IDs from the current active SOF.
+    def renew(self, req_info):  # pragma: no cover
+        """Renew the current reservation with the specified reservation info."""
+        self.accepted = True
+        self.req_block = self.RESV_BLOCK.from_values(req_info, self.total_hops)
+        self._set_size()
 
-        This is called from child classes.
-        """
-        sof = self.active_sof()
-        self.req_block.add_hop(sof.ingress, sof.egress, key, path_ids)
-
-    def active_sof(self):
-        """
-        Find the current active SibraOpaqueField, by using the current hop and
-        the path lengths to index into the appropriate active reservation block.
-        """
-        hops = self.curr_hop
-        for i, plen in enumerate(self.path_lens):
-            # FIXME(kormat): needs exception
-            assert plen == len(self.active_blocks[i].sofs)
-            if hops < plen:
-                return self.active_blocks[i].sofs[hops]
-            hops -= plen
-
-    def switch_resv(self, blocks):
-        """
-        Switch to the reservation in the specified blocks
-        """
+    def switch_resv(self, block):
+        """Switch to the reservation in the specified block."""
+        # FIXME(kormat): needs exception
+        assert block.num_hops == len(block.sofs)
+        assert block.num_hops == self.total_hops
         self.setup = False
-        self.path_lens = [0, 0, 0]
-        for i, b in enumerate(blocks):
-            # FIXME(kormat): needs exception
-            assert b.num_hops == len(b.sofs)
-            self.path_lens[i] = b.num_hops
-        # Total hops cannot change
-        assert sum(self.path_lens) == self.total_hops
-        self.active_blocks = blocks
+        self.path_lens[0] = block.num_hops
+        self.active_blocks = [block]
         self._set_size()
 
     def get_min_offer(self):  # pragma: no cover
-        """
-        Find the minimum bandwidth offered in both directions
-        """
+        """Find the minimum bandwidth offered in both directions."""
         return self.req_block.get_min(self.total_hops)
+
+    def get_next_ifid(self):
+        """
+        Find the next interface ID for the current SOF. This depends both on the
+        current packet direction (self.fwd), and the direction of the current
+        active reservation (block.info.fwd_dir).
+        """
+        block = self.active_blocks[self.block_idx]
+        sof = block.sofs[self.rel_sof_idx]
+        if self.fwd == block.info.fwd_dir:
+            return sof.egress
+        return sof.ingress
+
+    def process(self, state, spkt, from_local_as, key):
+        """Process an extension header on a packet."""
+        if not (self.steady and self.setup) and not self._verify_sof(key):
+            # The packet is invalid, so tell the router the packet has been
+            # handled, and let it be dropped.
+            # (Steady setup packets don't have any active SOFs to verify)
+            return [(RouterFlag.ERROR, "Invalid packet")]
+        # The meta object encapsulates metadata # are needed by various
+        # processing levels.
+        meta = ProcessMeta(state, spkt, from_local_as, key, self.fwd)
+        flags = self._process_blocks(meta)
+        if from_local_as:
+            # Only increment sof_idx on egress from an AS.
+            self.sof_idx += 1 if self.fwd else -1
+            self._update_idxes()
+        return flags
+
+    def _process_blocks(self, meta):
+        """Process request/active blocks."""
+        flags = []
+        if self.setup:
+            logging.debug("SIBRA setup. Steady? %s", self.steady)
+            flags.extend(self._process_setup(meta))
+            return flags
+        if self.req_block:
+            logging.debug("SIBRA renewal. Steady? %s", self.steady)
+            flags.extend(self._process_renewal(meta))
+        flags.extend(self._process_use(meta))
+        return flags
+
+    def _process_setup(self, meta):
+        """
+        Process a packet containing a setup request. If it's on the return trip,
+        update the local SIBRA state appropriately.
+        """
+        if not self.fwd:
+            # Request on return trip
+            if self.accepted:
+                meta.state.pend_confirm(self.path_ids[0], self.steady)
+            else:
+                # Reservation has been rejected by further along the path.
+                meta.state.pend_remove(self.path_ids[0], self.steady)
+            # Route packet as normal
+        else:
+            self._process_req(meta)
+        return []
+
+    def _process_renewal(self, meta):
+        """
+        Process a packet containing a reservation renewal. If it's on the return
+        trip, update the local SIBRA state appropriately.
+        """
+        if not self.fwd:
+            # Renewal return trip
+            req_info = self.req_block.info
+            if not self.accepted and req_info.fail_hop > self.curr_hop:
+                meta.state.idx_remove(self.path_ids[0], req_info.index,
+                                      self.steady)
+        else:
+            self._process_req(meta)
+        return []
+
+    def _process_req(self, meta):
+        """
+        Process a packet containing a request (setup or renewal) and handle
+        success/denial appropriately.
+        """
+        req_info = self.req_block.info
+        bwsnap = req_info.bw.to_snap()
+        if not meta.dir_fwd:
+            bwsnap.reverse()
+        bw_hint = self._req_add(meta.state, req_info.index, bwsnap,
+                                req_info.exp_tick)
+        if self.accepted and not bw_hint:
+            # Hasn't been previously rejected, and no suggested bandwidth from
+            # _req_add, so the request is accepted.
+            self._req_accepted(meta.dir_fwd, meta.key, meta.spkt)
+        else:
+            self._req_denied(meta.dir_fwd, bw_hint)
+
+    def _process_use(self, meta):
+        """
+        Process a packet using a SIBRA reservation.
+        Update the appropriate usage counters, and determine the next hop.
+        """
+        bw_used = BWSnapshot(len(meta.spkt) * 8)
+        if not meta.dir_fwd:
+            bw_used.reverse()
+        logging.debug("SIBRA use (Steady? %s)", self.steady)
+        if not meta.state.use(
+                self.path_ids[0], self.active_blocks[self.block_idx].info.index,
+                bw_used, self.steady):
+            return [(RouterFlag.ERROR, "SIBRA packet rejected")]
+        next_ifid = self.get_next_ifid()
+        if next_ifid:
+            return [(RouterFlag.FORWARD, next_ifid)]
+        return [(RouterFlag.DELIVER,)]
+
+    def _req_accepted(self, dir_fwd, key, spkt):  # pragma: no cover
+        """
+        Add a SOF to the request block, but only if one of these is true:
+        - this is an egress hop
+        - this is the ingress hop at the destination
+        """
+        if dir_fwd or (self.curr_hop == self.total_hops - 1):
+            self._add_hop(key, spkt)
+
+    def _req_denied(self, dir_fwd, bw_hint):
+        """
+        Handle denying a request. If this is the first rejection, then switch
+        the request block to an offer block, otherwise add/update an offer as
+        appropriate.
+        """
+        if not dir_fwd:
+            bw_hint.reverse()
+        if self.accepted:
+            # First hop to reject the request
+            self._reject_req(bw_hint)
+            return
+        if dir_fwd:
+            # Req was already rejected, and this is on egress, so update the
+            # offer that the ingress ER made.
+            assert self.curr_hop >= self.req_block.info.fail_hop
+            offer_hop = self.curr_hop - self.req_block.info.fail_hop
+            curr_offer = self.req_block.offers[offer_hop]
+            curr_offer.min(bw_hint)
+        else:
+            # Req was already rejected, and this is on ingress, so add a new
+            # offer.
+            self.req_block.add(self.curr_hop, bw_hint)
+
+    def _reject_req(self, bw_hint):
+        """Switch from a request block to an offer block."""
+        logging.warning("SIBRA request failed, changing to offer block")
+        req_info = self.req_block.info
+        req_info.fail_hop = self.curr_hop
+        self.accepted = False
+        self.req_block = self.OFFER_BLOCK.from_values(
+            req_info, self.total_hops - self.curr_hop)
+        self.req_block.add(self.curr_hop, bw_hint)
+        self._set_size()
+
+    def _add_hop(self, key, _=None):  # pragma: no cover
+        """
+        Add a SIBRA opaque field to the current request block, reading the
+        ingress/egress interface IDs from the current active SOF.
+        """
+        sof = self.active_blocks[self.block_idx].sofs[self.rel_sof_idx]
+        prev_raw = self._get_prev_raw(req=True)
+        self.req_block.add_hop(sof.ingress, sof.egress, prev_raw, key,
+                               self.path_ids)
+
+    def _get_prev_raw(self, req=False):
+        """Get the packed value of the previous SOF."""
+        if req:
+            block = self.req_block
+            s_idx = self.curr_hop
+            assert s_idx < block.num_hops
+        else:
+            block = self.active_blocks[self.block_idx]
+            s_idx = self.rel_sof_idx
+            assert s_idx < block.num_hops
+        if block.info.fwd_dir:
+            if s_idx > 0:
+                return block.sofs[s_idx - 1].pack()
+        elif s_idx < (block.num_hops - 1):
+            return block.sofs[s_idx + 1].pack()
+        return None
+
+    def _verify_sof(self, key, path_ids=None):
+        """Verify the current SOF field."""
+        if not path_ids:
+            path_ids = self.path_ids
+        block = self.active_blocks[self.block_idx]
+        sof = block.sofs[self.rel_sof_idx]
+        if sof.mac == sof.calc_mac(
+                block.info, key, path_ids, self._get_prev_raw()):
+            return True
+        logging.error("MAC verification failed:\n%s", self)
+        return False
 
     def __str__(self):
         tmp = ["%s(%dB):" % (self.NAME, len(self))]
         tmp.append(
-            "  Current hop: %s (Total: %s) Flags: setup:%s request:%s "
-            "accepted:%s error:%s steady:%s forward:%s version:%s" %
-            (self.curr_hop, self.total_hops, self.setup, bool(self.req_block),
-             self.accepted, self.error, self.steady, self.fwd, self.version))
+            "  SOF idx: %s Hop: %s (Total hops: %s) Flags: setup:%s "
+            "request:%s accepted:%s error:%s steady:%s forward:%s version:%s" %
+            (self.sof_idx, self.curr_hop, self.total_hops, self.setup,
+             bool(self.req_block), self.accepted, self.error, self.steady,
+             self.fwd, self.version))
         type_ = "Steady" if self.steady else "Ephemeral"
         tmp.append("  %s path ID: %s" % (type_, hex_str(self.path_ids[0])))
         for i, path_id in enumerate(self.path_ids[1:]):
